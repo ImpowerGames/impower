@@ -174,3 +174,49 @@ describe("morph poses at a keyframe offset", () => {
     expect(held).toBe(morphFrameState(artifact, poses).clips.get(clip));
   });
 });
+
+describe("a speech morph's plays (#2111)", () => {
+  const speech = (overrides: Partial<MorphTiming> = {}) =>
+    new MorphTimeline(timing({ trigger: "speech", duration: 0.1, ...overrides }), () => 0.5);
+
+  test("plays start only inside spans, wait out the drawn gap, and hold the last pose between plays", () => {
+    const timeline = speech({ iteration_delay_min: 0.04, iteration_delay_max: 0.06, direction: "alternate" });
+    timeline.speak([[0.2, 0.55]], 0);
+    expect(timeline.at(0.1)).toEqual({ phase: "off" });
+    expect(offsetAt(timeline, 0.25)).toBeCloseTo(0.5, 9);
+    expect(timeline.at(0.32)).toEqual({ phase: "between", play: 0, offset: 1 });
+    expect(offsetAt(timeline, 0.375)).toBeCloseTo(0.75, 9);
+    expect(timeline.at(0.48)).toEqual({ phase: "between", play: 1, offset: 0 });
+    expect(offsetAt(timeline, 0.52)).toBeCloseTo(0.2, 9);
+    expect(offsetAt(timeline, 0.58)).toBeCloseTo(0.8, 9);
+    expect(timeline.at(0.65)).toEqual({ phase: "off" });
+    expect(timeline.at(5)).toEqual({ phase: "off" });
+  });
+
+  test("a break shorter than a play neither interrupts nor restarts the rhythm", () => {
+    const timeline = speech({ duration: 0.16 });
+    timeline.speak([[0, 0.1], [0.125, 0.4]], 0);
+    expect(offsetAt(timeline, 0.11)).toBeCloseTo(0.11 / 0.16, 9);
+    expect(offsetAt(timeline, 0.17)).toBeCloseTo(0.01 / 0.16, 9);
+    expect(offsetAt(timeline, 0.33)).toBeCloseTo(0.01 / 0.16, 9);
+    expect(offsetAt(timeline, 0.47)).toBeCloseTo(0.15 / 0.16, 9);
+    expect(timeline.at(0.49)).toEqual({ phase: "off" });
+  });
+
+  test("new speech keeps the play in progress and replaces the plays still to come", () => {
+    const timeline = speech();
+    timeline.speak([[0, 1]], 0);
+    expect(offsetAt(timeline, 0.05)).toBeCloseTo(0.5, 9);
+    timeline.speak([[0.5, 0.6]], 0.05);
+    expect(offsetAt(timeline, 0.08)).toBeCloseTo(0.8, 9);
+    expect(timeline.at(0.2)).toEqual({ phase: "off" });
+    expect(offsetAt(timeline, 0.55)).toBeCloseTo(0.5, 9);
+    expect(timeline.at(0.7)).toEqual({ phase: "off" });
+  });
+
+  test("a morph that does not play on speech ignores speech", () => {
+    const timeline = new MorphTimeline(timing({ iterations: 1 }), () => 0);
+    timeline.speak([[1, 2]], 0);
+    expect(offsetAt(timeline, 1.5)).toBe(1);
+  });
+});

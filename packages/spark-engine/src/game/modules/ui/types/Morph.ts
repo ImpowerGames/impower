@@ -46,4 +46,5 @@ export interface Morph extends Reference<"morph">, MorphPolicy {
   keyframes: MorphKeyframe[];
   timing: MorphTiming;
   clips: MorphClip[];
+  default?: boolean;
 }

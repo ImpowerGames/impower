@@ -145,10 +145,6 @@
   --cm-bottom-offset: 0px;
 }
 
-* {
-  touch-action: pan-y;
-}
-
 html,
 body {
   position: fixed;

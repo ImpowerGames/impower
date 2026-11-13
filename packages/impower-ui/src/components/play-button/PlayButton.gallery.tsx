@@ -12,7 +12,7 @@ function PlayButtonDemo() {
   return (
     <div class="space-y-4">
       {(Object.keys(SIZES) as PlayButtonSize[]).map((size) => (
-        <GalleryRow key={size} label={`${SIZES[size]}: stopped, playing, disabled`}>
+        <GalleryRow key={size} label={`${SIZES[size]}: Play, Pause while playing, disabled`}>
           <div class="flex items-center gap-3">
             <PlayButton size={size} name="door" data-gallery-control />
             <PlayButton size={size} name="door" playing data-gallery-control />
@@ -20,7 +20,7 @@ function PlayButtonDemo() {
           </div>
         </GalleryRow>
       ))}
-      <GalleryRow label={playing ? "Pressed: playing" : "Press to play"}>
+      <GalleryRow label={playing ? "Pressed: playing, press to pause" : "Press to play"}>
         <PlayButton name="rain" playing={playing} onClick={() => setPlaying(!playing)} />
       </GalleryRow>
     </div>

@@ -188,8 +188,13 @@ function PlayedRow({
       location={location || undefined}
       locationLabel={location ? `Open ${location}` : undefined}
       onJump={
-        entry.path
-          ? () => void problems.jump({ path: entry.path, line: entry.line ?? 1 })
+        entry.uri
+          ? () =>
+              void problems.jump({
+                uri: entry.uri!,
+                line: entry.line ?? 1,
+                character: entry.character,
+              })
           : undefined
       }
       time={playedTime(entry.time)}

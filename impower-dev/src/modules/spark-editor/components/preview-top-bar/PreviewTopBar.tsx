@@ -44,6 +44,7 @@ import workspace from "../../workspace/WorkspaceStore";
 import { useCaretScript } from "../../workspace/useActiveEditor";
 import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
 import { AspectRatioSettings } from "../preview-bar";
+import { SavesMenuButton } from "../preview-saves";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { useRef } from "preact/hooks";
 import {
@@ -546,7 +547,8 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           />
         ) : null}
       </div>
-      <div class="justify-self-end">
+      <div class="flex items-center gap-1 justify-self-end group-data-[running]/bar:@max-[480px]:gap-0">
+        {playsGame(mode) ? <SavesMenuButton /> : null}
         <SettingsMenu mode={mode} />
       </div>
     </div>

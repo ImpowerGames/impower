@@ -10,6 +10,7 @@ const STATES: Record<AudioPlayerState, string> = {
   loading: "Loading",
   ready: "Ready",
   playing: "Playing",
+  paused: "Paused part way",
   failed: "Failed",
 };
 
@@ -18,6 +19,7 @@ const ignore = () => undefined;
 function AudioPlayerDemo() {
   const [time, setTime] = useState(24);
   const [playing, setPlaying] = useState(false);
+  const [loop, setLoop] = useState(true);
   return (
     <div class="space-y-4">
       {(Object.keys(STATES) as AudioPlayerState[]).map((state) => (
@@ -30,30 +32,62 @@ function AudioPlayerDemo() {
               time={state === "ready" ? 0 : 24}
               duration={state === "loading" ? null : 96}
               failure="Can't play this file here."
+              loop={false}
               onToggle={ignore}
               onSeek={ignore}
+              onRestart={ignore}
+              onLoopChange={ignore}
             />
           </div>
         </GalleryRow>
       ))}
-      <GalleryRow label="Ready, cued part way, without a waveform">
-        <div class="max-w-md">
-          <AudioPlayer name="door" state="ready" peaks={null} time={3} duration={8} onToggle={ignore} onSeek={ignore} />
-        </div>
-      </GalleryRow>
-      <GalleryRow label={`Interactive: ${playing ? "playing" : "stopped"} at ${Math.floor(time)}s`}>
+      <GalleryRow label="Playing with Loop on">
         <div class="max-w-md">
           <AudioPlayer
             name="theme"
-            state={playing ? "playing" : "ready"}
+            state="playing"
+            peaks={PEAKS}
+            time={60}
+            duration={96}
+            loop
+            onToggle={ignore}
+            onSeek={ignore}
+            onRestart={ignore}
+            onLoopChange={ignore}
+          />
+        </div>
+      </GalleryRow>
+      <GalleryRow label="Ready, cued part way, without a waveform">
+        <div class="max-w-md">
+          <AudioPlayer
+            name="door"
+            state="ready"
+            peaks={null}
+            time={3}
+            duration={8}
+            loop={false}
+            onToggle={ignore}
+            onSeek={ignore}
+            onRestart={ignore}
+            onLoopChange={ignore}
+          />
+        </div>
+      </GalleryRow>
+      <GalleryRow
+        label={`Interactive: ${playing ? "playing" : "paused"} at ${Math.floor(time)}s, Loop ${loop ? "on" : "off"}`}
+      >
+        <div class="max-w-md">
+          <AudioPlayer
+            name="theme"
+            state={playing ? "playing" : "paused"}
             peaks={PEAKS}
             time={time}
             duration={96}
-            onToggle={() => {
-              setPlaying(!playing);
-              if (playing) setTime(0);
-            }}
+            loop={loop}
+            onToggle={() => setPlaying(!playing)}
             onSeek={setTime}
+            onRestart={() => setTime(0)}
+            onLoopChange={setLoop}
           />
         </div>
       </GalleryRow>

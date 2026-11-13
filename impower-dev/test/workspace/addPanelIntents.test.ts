@@ -1,4 +1,8 @@
-import { onProtocolRequest } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  onProtocolRequest,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import {
   InsertEditorConstructMessage,
   type InsertEditorConstructParams,
@@ -66,6 +70,8 @@ const mount = () => {
       getLoadedProjectId: () => "project",
       getFileUri: (projectId: string, filename: string) =>
         `file:///${projectId}/${filename}`,
+      getRelativePath: (projectId: string, uri: string) =>
+        uri.slice(`file:///${projectId}/`.length),
     },
     ls: {
       initialization: async () => {},
@@ -216,5 +222,33 @@ describe("the Add panel intents", () => {
     expect(snackbar.value?.message).toBe(
       "Couldn't add that here. Move to another line and try again.",
     );
+  });
+});
+
+describe("inserting a reference from the Assets page", () => {
+  it("opens the script, waits for its editor, and inserts the reference as it is through the construct path", async () => {
+    const w = mount();
+    workspace.current = { ...workspace.current, pane: "assets" };
+    const requests: InsertEditorConstructParams[] = [];
+    stops.push(
+      onProtocolRequest(InsertEditorConstructMessage.type, (message) => {
+        requests.push(message.params);
+        return InsertEditorConstructMessage.type.response(message.id, {
+          inserted: true,
+        });
+      }),
+    );
+    const uri = `file:///${workspace.state.value.project.id}/main.sd`;
+    const inserting = w.insertReference("main.sd", "portrait", "[[imani:happy]]");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(requests).toEqual([]);
+    expect(workspace.state.value.pane).toBe("logic");
+    sendProtocolMessage(
+      DidLoadEditorMessage.type.notification({ textDocument: { uri, version: 1 } }),
+    );
+    expect(await inserting).toBe(true);
+    expect(requests).toEqual([
+      { textDocument: { uri }, construct: "portrait", reference: "[[imani:happy]]" },
+    ]);
   });
 });

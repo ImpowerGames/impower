@@ -24,7 +24,7 @@ import {
   findRunPath,
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { decodeSVGSource } from "@impower/sparkdown/src/attributes";
-import { morphRefsForStruct, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
+import { channelRefs, morphRefsForStruct, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
 import { createMorphHost, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphBakeDiagnostic, MorphRef } from "@impower/sparkdown/src/morph/types";
@@ -455,11 +455,9 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
 
   protected morphRefs(program: SparkProgram): { variant: string; ref: MorphRef; uri?: string }[] {
     const refs: { variant: string; ref: MorphRef; uri?: string }[] = [];
-    for (const [variant, list] of Object.entries(program.morphs?.variants ?? {})) {
-      for (const ref of list) {
-        const uri = getContextEntry(program.context, "image", ref.image)?.uri;
-        refs.push({ variant, ref, ...(typeof uri === "string" ? { uri } : {}) });
-      }
+    for (const { variant, ref } of channelRefs(program.morphs)) {
+      const uri = getContextEntry(program.context, "image", ref.image)?.uri;
+      refs.push({ variant, ref, ...(typeof uri === "string" ? { uri } : {}) });
     }
     return refs;
   }

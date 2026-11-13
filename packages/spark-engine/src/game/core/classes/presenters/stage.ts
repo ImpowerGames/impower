@@ -42,6 +42,8 @@ export function writeStage(
     );
   }
 
+  game.module.ui.speak(instructions.speech, instant, time);
+
   if (!layoutsApplied) {
     applyLayoutDirectives(game, instructions, instant);
   }

@@ -4,6 +4,7 @@ import { describe, expect, test, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import * as provider from "../../utils/providers/getFileReferences";
+import { getFileRenameEdits } from "../../utils/providers/getFileRenameEdits";
 import { getFileSymbol } from "../../utils/providers/getFileSymbol";
 import { collectReferencesForTarget } from "../../utils/providers/getReferences";
 
@@ -173,6 +174,19 @@ describe("asset usage for the whole project in one request (#1033)", () => {
     expect(summary(usage.uses[FACE])).toEqual([["main.sd", 2, "portrait", "[[show portrait mira]]"]]);
   });
 
+  test("counts a use of a picture for each of its name~group.option layer files, and not for its alternate (#2186)", () => {
+    const HAPPY = `${ROOT}Assets/Images/imani~face.happy.png`;
+    const NIGHT = `${ROOT}Assets/Images/imani@night.png`;
+    const { workspace, program } = setup(
+      { [MAIN]: lines("scene start", "  [[imani:face.happy]]", "end") },
+      [IMANI, HAPPY, NIGHT],
+    );
+    const usage = provider.getAssetUsage(workspace, program, MAIN)!;
+    expect(summary(usage.uses[IMANI])).toEqual([["main.sd", 1, "portrait", "[[imani:face.happy]]"]]);
+    expect(summary(usage.uses[HAPPY])).toEqual([["main.sd", 1, "portrait", "[[imani:face.happy]]"]]);
+    expect(usage.uses[NIGHT]).toEqual([]);
+  });
+
   test("counts a definition made of a file where it is shown and where it names the file, not where it is named", () => {
     const { workspace, program } = setup(
       {
@@ -203,6 +217,62 @@ describe("asset usage for the whole project in one request (#1033)", () => {
     );
     const usage = provider.getAssetUsage(workspace, program, MAIN)!;
     expect(summary(usage.uses[FONT])).toEqual([["main.sd", 1, "font", "font_family = font.review_font"]]);
+  });
+
+  describe("an asset used only inside a brace-form block", () => {
+    const UI_BOX = `${ROOT}Assets/Images/ui_box.png`;
+    const FONT = `${ROOT}Assets/Fonts/review_font.ttf`;
+    const BRACE = {
+      [MAIN]: lines(
+        "screen hud {",
+        "  image = image.ui_box",
+        "}",
+        "style dialogue_text {",
+        "  font_family = font.review_font",
+        "}",
+        "scene start",
+        "  Hello.",
+        "end",
+      ),
+    };
+    const braceSetup = () => setup(BRACE, [UI_BOX, FONT, UNUSED]);
+
+    test("counts the use with its line and role, so the page reads it as used and Delete asks", () => {
+      const { workspace, program } = braceSetup();
+      const usage = provider.getAssetUsage(workspace, program, MAIN)!;
+      expect(summary(usage.uses[UI_BOX])).toEqual([["main.sd", 1, "other", "image = image.ui_box"]]);
+      expect(summary(usage.uses[FONT])).toEqual([["main.sd", 4, "font", "font_family = font.review_font"]]);
+      expect(usage.uses[UNUSED]).toEqual([]);
+    });
+
+    test("find references on the file lists the brace-body line", () => {
+      const { workspace, program } = braceSetup();
+      for (const [uri, line, character] of [
+        [UI_BOX, 1, 16],
+        [FONT, 4, 21],
+      ] as const) {
+        const symbol = getFileSymbol(workspace, uri)!;
+        const { references } = collectReferencesForTarget(
+          program,
+          workspace,
+          { symbolName: symbol.name, symbolIds: symbol.symbolIds },
+          { searchOtherFiles: true, includeDeclaration: true, includeInterdependent: false, includeLinks: true, addAssetFiles: false },
+        );
+        expect(references.map(({ uri: at, range }) => [leaf(at), range.start.line, range.start.character])).toEqual([
+          ["main.sd", line, character],
+        ]);
+      }
+    });
+
+    test("renaming the file rewrites the name in the brace body", () => {
+      const { workspace, program } = braceSetup();
+      expect(getFileRenameEdits(workspace, program, UI_BOX, "panel_box").changes?.[MAIN]).toEqual([
+        { range: { start: { line: 1, character: 16 }, end: { line: 1, character: 22 } }, newText: "panel_box" },
+      ]);
+      expect(getFileRenameEdits(workspace, program, FONT, "body_font").changes?.[MAIN]).toEqual([
+        { range: { start: { line: 4, character: 21 }, end: { line: 4, character: 32 } }, newText: "body_font" },
+      ]);
+    });
   });
 
   test("follows a script edit: a use added or removed changes the next answer", () => {

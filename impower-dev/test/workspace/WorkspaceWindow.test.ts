@@ -82,12 +82,14 @@ vi.mock("../../src/modules/spark-editor/components/problems", () => ({
 vi.mock("@impower/impower-ui/components", async () => {
   const { h, createContext } = await import("preact");
   const { useContext } = await import("preact/hooks");
+  const { cn } = await import("../../../packages/impower-ui/src/utils/cn");
   const element =
     (tag: string) =>
     ({ asChild: _asChild, variant: _v, size: _s, align: _a, ...props }: Record<string, unknown>) =>
       h(tag, props);
   const Radio = createContext<{ value?: string; onValueChange?: (value: string) => void }>({});
   const icons = [
+    "BookmarkIcon",
     "BreakpointIcon",
     "CheckIcon",
     "ChevronDownIcon",
@@ -107,9 +109,13 @@ vi.mock("@impower/impower-ui/components", async () => {
     "VisualIcon",
   ];
   return {
+    cn,
     Button: element("button"),
     SplitPane: ({ start, end }: { start: unknown; end: unknown }) =>
       h("div", {}, start as never, end as never),
+    Popover: ({ children }: { children?: unknown }) => h("div", {}, children as never),
+    PopoverTrigger: element("div"),
+    PopoverContent: element("div"),
     DropdownRoot: element("div"),
     DropdownTrigger: element("div"),
     DropdownContent: element("div"),
@@ -366,6 +372,29 @@ describe("WorkspaceWindow store transitions", () => {
     await expect(
       win.showDocument(`file://${projectId}/assets/hero.png`),
     ).resolves.toEqual({ success: false });
+  });
+
+  it("showDocument refuses a uri outside the project and leaves the caret the editor reported", async () => {
+    const projectId = workspace.current.project.id;
+    const caret = { start: { line: 7, character: 13 }, end: { line: 7, character: 13 } };
+    await win.showDocument(`file://${projectId}/main.sd`, caret);
+    const selects: unknown[] = [];
+    const hear = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (message?.method === "editor/select") selects.push(message.params);
+    };
+    window.addEventListener(MessageProtocol.event, hear);
+    await expect(
+      win.showDocument("file://main.sd", {
+        start: { line: 1, character: 0 },
+        end: { line: 1, character: 0 },
+      }),
+    ).resolves.toEqual({ success: false });
+    window.removeEventListener(MessageProtocol.event, hear);
+    expect(selects).toEqual([]);
+    expect(
+      workspace.current.panes.logic.panels.main!.activeEditor?.selectedRange,
+    ).toEqual(caret);
   });
 
   it("answers a window/showDocument request with its response", async () => {
@@ -2289,6 +2318,7 @@ describe("The preview's top bar", () => {
       "Skip back",
       "Play From Here",
       "Skip forward",
+      "Saves",
       "Preview settings",
     ]);
   });
@@ -2338,6 +2368,7 @@ describe("The preview's top bar", () => {
         "Skip forward",
         "Step Out",
         "Toggle breakpoint",
+        "Saves",
         "Preview settings",
       ]);
       for (const step of ["Step Over", "Step Into", "Step Out"]) {
@@ -2401,6 +2432,7 @@ describe("The preview's top bar", () => {
         "Skip back",
         "Stop",
         "Skip forward",
+        "Saves",
         "Preview settings",
       ]);
       expect(
@@ -2434,6 +2466,7 @@ describe("The preview's top bar", () => {
       "Skip forward",
       "Step Out",
       "Toggle breakpoint",
+      "Saves",
       "Preview settings",
     ]);
     for (const step of ["Step Over", "Step Into", "Step Out"]) {

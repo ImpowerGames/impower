@@ -7,8 +7,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { hitArea } from "../../../test/hitArea";
 import Button, { buttonVariants, type ButtonSize, type ButtonVariant } from "./Button";
 
-const VARIANTS = ["default", "primary", "quiet", "destructive", "disclosure", "toggle"] as const satisfies readonly ButtonVariant[];
-const SIZES = ["default", "icon", "compact", "glyph", "pill"] as const satisfies readonly ButtonSize[];
+const VARIANTS = ["default", "primary", "quiet", "destructive", "disclosure", "toggle", "field"] as const satisfies readonly ButtonVariant[];
+const SIZES = ["default", "icon", "compact", "glyph", "field", "pill"] as const satisfies readonly ButtonSize[];
 
 const mount = async (node: ComponentChild): Promise<HTMLDivElement> => {
   const host = document.body.appendChild(document.createElement("div"));
@@ -73,6 +73,28 @@ describe("Button kinds", () => {
     }
     const css = await packageCss(classes.split(" "));
     expect(css).toMatch(/\[aria-pressed="true"\][^{]*\{[^}]*background-color: var\(--tint\)/);
+  });
+
+  it("draws a menu field 38px tall inside its own 44px target, its edge in the accent when changed, open or focused", async () => {
+    const host = await mount(
+      <Button variant="field" size="field">
+        As is
+      </Button>,
+    );
+    const area = await hitArea(host.querySelector("button")!);
+    expect(area.height).toBeGreaterThanOrEqual(44);
+    const classes = buttonVariants({ variant: "field", size: "field" });
+    for (const name of ["min-h-11", "border-y-[3px]", "border-transparent", "bg-clip-padding", "bg-bg", "justify-between"]) {
+      expect(classes).toContain(name);
+    }
+    expect(classes).not.toContain("before:");
+    const css = await packageCss(classes.split(" "));
+    expect(css).toContain("border-block-width: 3px;");
+    expect(css).toContain("background-clip: padding-box;");
+    expect(css).toContain("--tw-shadow: inset 0 0 0 1px var(--tw-shadow-color, var(--edge));");
+    expect(css).toMatch(/\[data-changed\]:not\([^)]*aria-expanded="true"[^)]*\)[^{]*\{[^}]*--tw-shadow: inset 0 0 0 1px var\(--tw-shadow-color, var\(--accent\)\)/);
+    expect(css).toMatch(/\[aria-expanded="true"\][^{]*\{[^}]*--tw-shadow: inset 0 0 0 2px var\(--tw-shadow-color, var\(--accent\)\)/);
+    expect(css).toMatch(/:focus-visible[^{]*\{[^}]*--tw-shadow: inset 0 0 0 1px var\(--tw-shadow-color, var\(--accent\)\)/);
   });
 
   it("draws every kind with the one control radius except the phone pill", () => {

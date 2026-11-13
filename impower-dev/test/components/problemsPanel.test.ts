@@ -5,7 +5,7 @@ import type { Diagnostic } from "vscode-languageserver-protocol";
 
 const intents = vi.hoisted(() => ({
   revealDocument: vi.fn(),
-  getUriFromPath: vi.fn((path: string) => `file://local/${path}`),
+  getUriFromPath: vi.fn((path: string) => `file://${path}`),
   setStripHeight: vi.fn(),
   goBackToChoice: vi.fn(async () => true),
 }));
@@ -421,12 +421,45 @@ describe("the Problems panel", () => {
     expect(link.textContent).toBe("main.sd:8");
     await act(async () => link.click());
     await settle();
-    expect(intents.getUriFromPath).toHaveBeenCalledWith("main.sd");
     expect(intents.revealDocument).toHaveBeenCalledWith(MAIN, {
-      start: { line: 7, character: 0 },
-      end: { line: 7, character: 0 },
+      start: { line: 7, character: 2 },
+      end: { line: 7, character: 2 },
     });
   });
+
+  it.each([
+    ["the main script", MAIN, "main.sd:3"],
+    ["an included script", CHAPTER, "scripts/chapter_1.sd:3"],
+  ])(
+    "opens a played runtime error in %s at its full location",
+    async (_name, uri, label) => {
+      await mount();
+      await act(async () => {
+        problems.receive(
+          GameEncounteredRuntimeErrorMessage.type.notification({
+            message: "the lantern went out",
+            type: 1,
+            location: {
+              uri,
+              range: { start: { line: 2, character: 2 }, end: { line: 2, character: 7 } },
+            },
+            state: "running",
+          } as never),
+        );
+      });
+      await settle();
+      const link = panel()!.querySelector<HTMLButtonElement>(
+        `[aria-label="Open ${label}"]`,
+      )!;
+      await act(async () => link.click());
+      await settle();
+      expect(intents.getUriFromPath).not.toHaveBeenCalled();
+      expect(intents.revealDocument).toHaveBeenCalledWith(uri, {
+        start: { line: 2, character: 2 },
+        end: { line: 2, character: 2 },
+      });
+    },
+  );
 
   it("goes back to a choice the run still holds from its row or its button, and offers nothing on a dropped choice or a runtime error", async () => {
     problems.run.value = 7;

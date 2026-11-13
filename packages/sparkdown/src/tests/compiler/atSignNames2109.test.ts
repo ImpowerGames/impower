@@ -14,7 +14,7 @@ const MAIN = "file:///proj/main.sd";
 const IMAGE_URI = "file:///proj/images/mia@night.svg";
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.happy:default" id="happy"/><g data-name="face.sad" id="sad"/><g data-name="hat.on" id="hat"/></svg>`;
 
-const fileName = (uri: string) => SparkdownWorkspace.prototype.getFileName.call(undefined, uri);
+const fileName = (uri: string) => SparkdownWorkspace.prototype.getFileName.call(SparkdownWorkspace.prototype, uri);
 
 const compile = (text: string): SparkProgram => {
   const compiler = new SparkdownCompiler();

@@ -316,20 +316,20 @@ describe("Download and the text frame", () => {
 describe("the Variants tester's picture", () => {
   const KAI = { image: "kai", attributes: ["happy"] };
 
-  it("asks the language server for the combination's picture and asks again when the program changes", async () => {
+  it("asks the language server for the combination's picture at the frame's size and asks again when the program changes", async () => {
     const { assets, ls } = fakeWorkspace({});
     const answers = ["/one.png", "/two.png", "/three.png"];
     ls.getVariantPicture.mockImplementation(async () => answers.shift()!);
     const seen: (string | null)[] = [];
-    const stop = assets.watchPicture("Assets/Images/kai.png", KAI, (src) => seen.push(src));
+    const stop = assets.watchPicture("Assets/Images/kai.png", KAI, 1280, (src) => seen.push(src));
     await settle();
     await compiled();
     stop();
     await compiled();
     expect(seen).toEqual(["/one.png", "/two.png"]);
     expect(ls.getVariantPicture.mock.calls).toEqual([
-      [uri("Assets/Images/kai.png"), KAI],
-      [uri("Assets/Images/kai.png"), KAI],
+      [uri("Assets/Images/kai.png"), KAI, 1280],
+      [uri("Assets/Images/kai.png"), KAI, 1280],
     ]);
   });
 
@@ -338,7 +338,7 @@ describe("the Variants tester's picture", () => {
     const pending: ((src: string) => void)[] = [];
     ls.getVariantPicture.mockImplementation(() => new Promise<string>((resolve) => pending.push(resolve)));
     const seen: (string | null)[] = [];
-    const stop = assets.watchPicture("Assets/Images/kai.png", KAI, (src) => seen.push(src));
+    const stop = assets.watchPicture("Assets/Images/kai.png", KAI, 1280, (src) => seen.push(src));
     await settle();
     await compiled();
     pending[1]!("/newer.png");
@@ -353,7 +353,7 @@ describe("the Variants tester's picture", () => {
     const { assets, ls } = fakeWorkspace({});
     ls.getVariantPicture.mockRejectedValue(new Error("Language server not initialized."));
     const seen: (string | null)[] = [];
-    const stop = assets.watchPicture("Assets/Images/kai.png", KAI, (src) => seen.push(src));
+    const stop = assets.watchPicture("Assets/Images/kai.png", KAI, 1280, (src) => seen.push(src));
     await settle();
     stop();
     expect(seen).toEqual([null]);

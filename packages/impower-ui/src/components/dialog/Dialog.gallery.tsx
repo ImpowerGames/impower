@@ -1,12 +1,14 @@
 import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import { layoutMinWidths } from "../../layout/breakpoints";
+import { SAMPLE_PICTURE } from "../thumbnail/Thumbnail.gallery";
 import Button from "../button/Button";
 import {
   Dialog,
   DialogActions,
   DialogDescription,
   DialogTitle,
+  Lightbox,
   Sheet,
   type DialogSize,
 } from "./Dialog";
@@ -24,7 +26,8 @@ type Demo =
   | { kind: "responsive" }
   | { kind: "sheet" }
   | { kind: "full" }
-  | { kind: "full-long" };
+  | { kind: "full-long" }
+  | { kind: "lightbox" };
 
 function LongBody({ close }: { close: () => void }) {
   return (
@@ -142,6 +145,9 @@ function DialogDemo() {
       <GalleryRow label='Sheet size="full" with a body longer than the screen: the sheet scrolls and its edges stay put'>
         <Trigger label="Full sheet, long body" onOpen={() => setDemo({ kind: "full-long" })} />
       </GalleryRow>
+      <GalleryRow label="Lightbox: a picture across the whole screen on the stage colour; Close, Escape or a click beside the picture close it">
+        <Trigger label="Lightbox" onOpen={() => setDemo({ kind: "lightbox" })} />
+      </GalleryRow>
 
       {(Object.keys(SIZE_LABELS) as DialogSize[]).map((size) => (
         <Dialog
@@ -181,6 +187,9 @@ function DialogDemo() {
       <Sheet size="full" open={is("full-long")} onOpenChange={onOpenChange}>
         <LongBody close={close} />
       </Sheet>
+      <Lightbox label="Harbor full size" open={is("lightbox")} onOpenChange={onOpenChange}>
+        <img src={SAMPLE_PICTURE} alt="" class="max-h-full max-w-full object-contain" />
+      </Lightbox>
     </div>
   );
 }
@@ -190,6 +199,7 @@ export const dialogGallery: GalleryEntry = {
   exports: [
     "Dialog",
     "Sheet",
+    "Lightbox",
     "DialogTitle",
     "DialogDescription",
     "DialogActions",

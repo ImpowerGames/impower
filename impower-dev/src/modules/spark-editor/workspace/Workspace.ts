@@ -7,7 +7,9 @@ import {
 } from "./problems/gameSources";
 import problems from "./problems/ProblemsStore";
 import route from "./route/RouteStore";
+import saves from "./saves/SavesStore";
 import workspaceSettings from "./settings/WorkspaceSettings";
+import statuses from "./statuses/StatusesStore";
 import WorkspaceConfiguration from "./WorkspaceConfiguration";
 import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import WorkspaceLanguageServer from "./WorkspaceLanguageServer";
@@ -74,6 +76,8 @@ if (typeof window !== "undefined") {
     if (event instanceof CustomEvent) {
       problems.receive(event.detail);
       route.receive(event.detail);
+      saves.receive(event.detail);
+      statuses.receive(event.detail);
     }
   });
 }

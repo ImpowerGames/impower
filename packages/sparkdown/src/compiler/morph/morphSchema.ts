@@ -39,7 +39,23 @@ export const MORPH_ROOT_FIELDS = [
   "when",
   "unless",
   "rest",
+  "default",
 ] as const;
+
+export const MORPH_OWN_FIELDS: ReadonlySet<string> = new Set(["default"]);
+
+export function withoutMorphOwnFields<T>(struct: T): T {
+  if (!struct || typeof struct !== "object" || Array.isArray(struct)) return struct;
+  if (![...MORPH_OWN_FIELDS].some((field) => Object.hasOwn(struct, field))) return struct;
+  const result = { ...struct } as Record<string, unknown>;
+  for (const field of MORPH_OWN_FIELDS) delete result[field];
+  return result as T;
+}
+
+export const MORPH_DEFAULT_VALUES = ["true", "false"] as const;
+
+export const MORPH_CLAUSE_DOC =
+  "Picks the speech morph this directive plays, such as `morph talk_gritted`, among the speech morphs that play on its images and drive the same group; `morph none` plays no speech morph, so the directive's and the art's choices show in those groups. Without the clause, the one marked `default = true` plays, or the only one that plays there. The pick applies to every image in the directive the morph plays on, and lasts until the next directive shows an image on that layer.";
 
 export const MORPH_CONDITION_FIELDS = ["when", "unless"] as const;
 
@@ -201,6 +217,8 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   "paints.when": "Applies the entry only in variants that draw a layer needing this state, written with its group, such as `mask.on`: a state of a group the morph does not drive. Without it the entry applies wherever the morph plays.",
   when: "Plays the morph only on a look where every listed state is active, each written with its group: one state, such as `when = mouth.teeth`, or a block of several, such as `when { mouth.teeth; eyes.open }`. A state is active when the directive or a named look chooses it, or failing that the art's `:default` does, in any visible folder that draws the group. A look it keeps out is not reported. A child morph's own `when` replaces its parent's.",
   unless: "Keeps the morph off a look where any listed state is active, each written with its group: one state, such as `unless = eyes.closed`, or a block of several, such as `unless { eyes.closed; mask.on }`. A state is active when the directive or a named look chooses it, or failing that the art's `:default` does, in any visible folder that draws the group. A look it keeps out is not reported. A child morph's own `unless` replaces its parent's.",
+  default:
+    "`true` marks the speech morph that plays where several speech morphs play on a look and drive the same group and the directive picks none with a `morph` clause; `false` (default) leaves it unmarked. A speech morph that is the only one playing there needs no mark. Only a `trigger = speech` morph takes it, and a child morph does not inherit it through `as`.",
   rest: "The pose the morph holds its groups in wherever it plays and is not moving them: a block of group containers with a `state` each, written like a keyframe's, such as `rest { mouth { state = teeth } }`. A group `rest` leaves out rests in the state of the last keyframe that names it. Layer movement fields do not belong here: a moved layer rests where it is drawn.",
   fill: "The fill colour the drawings take at the pose: hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a named colour.",
   stroke: "The stroke colour the drawings take at the pose: hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a named colour.",

@@ -7,7 +7,7 @@ export const PLAYBACK_FAILURES: Record<PlaybackFailure, string> = {
   too_large: "This file is too large to play here.",
 };
 
-export type PlaybackStatus = "loading" | "playing" | "ready" | "failed";
+export type PlaybackStatus = "loading" | "playing" | "paused" | "ready" | "failed";
 
 export type Playback = {
   owner: string;
@@ -21,11 +21,13 @@ export type Sound = {
   owner: string;
   src: string;
   size?: number;
+  loop?: boolean;
 };
 
 export interface SessionAudio extends EventTarget {
   src: string;
   currentTime: number;
+  loop: boolean;
   readonly duration: number;
   readonly paused: boolean;
   play(): Promise<void>;
@@ -43,10 +45,16 @@ export const MAX_SOUND_BYTES = 32 * 1024 * 1024;
 
 const lengthOf = (seconds: number) => (Number.isFinite(seconds) && seconds > 0 ? seconds : null);
 
+const sounding = (status: PlaybackStatus | undefined) => status === "playing" || status === "loading";
+
+const loopIn = (loops: ReadonlyMap<string, boolean>, sound: Sound) => loops.get(sound.owner) ?? sound.loop ?? false;
+
 export default class AudioSession {
   protected readonly _playback = signal<Playback | null>(null);
 
   protected readonly _time = signal(0);
+
+  protected readonly _loops = signal<ReadonlyMap<string, boolean>>(new Map());
 
   protected _audio: SessionAudio | undefined;
 
@@ -70,6 +78,17 @@ export default class AudioSession {
     return sound.size !== undefined && sound.size > this._ports.maxBytes ? "too_large" : null;
   }
 
+  loops(sound: Sound): boolean {
+    return loopIn(this._loops.value, sound);
+  }
+
+  setLoop(sound: Sound, on: boolean) {
+    this._loops.value = new Map(this._loops.peek()).set(sound.owner, on);
+    if (this.isCurrent(sound) && this._audio) {
+      this._audio.loop = on;
+    }
+  }
+
   protected get audio(): SessionAudio {
     if (!this._audio) {
       const audio = this._ports.audio();
@@ -79,8 +98,8 @@ export default class AudioSession {
         }
       });
       audio.addEventListener("pause", () => {
-        if (audio.paused && this._playback.peek()?.status === "playing") {
-          this.stop();
+        if (audio.paused && sounding(this._playback.peek()?.status)) {
+          this.update({ status: "paused" });
         }
       });
       audio.addEventListener("timeupdate", () => {
@@ -135,6 +154,7 @@ export default class AudioSession {
     }
     this._playback.value = { owner: sound.owner, src: sound.src, status: "ready", duration: null };
     const audio = this.audio;
+    audio.loop = loopIn(this._loops.peek(), sound);
     audio.src = sound.src;
     audio.currentTime = 0;
     return true;
@@ -149,14 +169,14 @@ export default class AudioSession {
   }
 
   play(sound: Sound) {
-    const current = this._playback.peek();
-    if (this.isCurrent(sound) && current!.status !== "ready") {
+    if (this.isCurrent(sound) && sounding(this._playback.peek()!.status)) {
       return;
     }
     if (!this.load(sound)) {
       return;
     }
     const src = sound.src;
+    const held = this._playback.peek()!.status;
     this.update({ status: "loading" });
     this.audio.play().catch((error: unknown) => {
       const now = this._playback.peek();
@@ -166,18 +186,28 @@ export default class AudioSession {
       if (error instanceof DOMException && error.name === "NotSupportedError") {
         this.update({ status: "failed", failure: "unreadable" });
       } else if (now.status === "loading") {
-        this.update({ status: "ready" });
+        this.update({ status: held });
       }
     });
   }
 
+  pause(sound: Sound) {
+    if (this.isCurrent(sound) && sounding(this._playback.peek()!.status)) {
+      this.update({ status: "paused" });
+      this.audio.pause();
+    }
+  }
+
   toggle(sound: Sound) {
-    const current = this._playback.peek();
-    if (this.isCurrent(sound) && current!.status !== "ready") {
-      this.stop();
+    if (this.isCurrent(sound) && sounding(this._playback.peek()!.status)) {
+      this.pause(sound);
       return;
     }
     this.play(sound);
+  }
+
+  restart(sound: Sound) {
+    this.seek(sound, 0);
   }
 
   seek(sound: Sound, seconds: number) {

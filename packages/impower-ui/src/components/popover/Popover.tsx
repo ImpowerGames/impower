@@ -5,8 +5,7 @@ import { cn } from "../../utils/cn";
 
 export const popoverVariants = cva(
   [
-    "z-50 flex flex-col overflow-hidden rounded-card border border-edge",
-    "bg-panel text-ink shadow-float outline-none",
+    "z-50 flex flex-col text-ink outline-none",
     "max-h-[var(--radix-popover-content-available-height)]",
     "origin-[--radix-popover-content-transform-origin]",
     "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
@@ -17,8 +16,12 @@ export const popoverVariants = cva(
         auto: "",
         panel: "w-[360px] max-w-[calc(100vw-24px)]",
       },
+      frame: {
+        card: "overflow-hidden rounded-card border border-edge bg-panel shadow-float",
+        none: "",
+      },
     },
-    defaultVariants: { size: "auto" },
+    defaultVariants: { size: "auto", frame: "card" },
   },
 );
 
@@ -79,6 +82,7 @@ export type PopoverContentProps = PopoverVariantProps & {
 export function PopoverContent({
   class: className,
   size,
+  frame,
   sideOffset = 8,
   collisionPadding = 12,
   children,
@@ -89,7 +93,7 @@ export function PopoverContent({
       <PopoverPrimitive.Content
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
-        class={cn(popoverVariants({ size }), className)}
+        class={cn(popoverVariants({ size, frame }), className)}
         {...rest}
       >
         {children}

@@ -1,5 +1,6 @@
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
+import { escapeCssIdentifier, getThemeVariableName } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { type SparkleNode } from "../parser/parser";
 import { builtins } from "./builtins";
 import { sparkleSelectorToCssSelector } from "./css";
@@ -355,34 +356,23 @@ export function renderVNode(
       ]
         .filter(Boolean)
         .join(" ");
-      const animationDeclaration = `--theme-animation-${name}: ${shorthand};`;
+      const animationDeclaration = `${escapeCssIdentifier(getThemeVariableName("animation", name))}: ${shorthand};`;
       return `:is(:root,:host) { ${animationDeclaration} }`;
     }
 
     return "";
   }
 
-  if (el.root === "theme") {
-    if (type === "theme") {
-      const styleContent = (children ?? [])
-        .map((c, i) => "--theme-" + renderVNode(c, ctx, el, i))
-        .join("");
-      const name = el.args?.["name"];
-      return {
-        tag: "style",
-        props: {},
-        children: [
-          `:is([theme="${name}"],.theme-${name}) > * { ${styleContent} }`,
-        ],
-      };
-    }
-    if (type === "property" && args?.["key"]) {
-      return sparklePropertyToCssProperty(args?.["key"], args?.["value"], ctx.options.theme, cssAliases);
-    }
-    const content = (children ?? [])
-      .map((c, i) => renderVNode(c, ctx, el, i) as string)
-      .join("");
-    return `${type}-${content}`;
+  if (el.root === "theme" && type === "theme") {
+    const styleContent = themeDeclarations(children ?? [], [], ctx.options.theme, cssAliases).join(" ");
+    const name = el.args?.["name"];
+    return {
+      tag: "style",
+      props: {},
+      children: [
+        `:is([theme="${name}"],.theme-${name}) > * { ${styleContent} }`,
+      ],
+    };
   }
 
   console.warn("Unhandled node type:", type, el);
@@ -646,6 +636,28 @@ function sparklePropertyToCssProperty(
   let aliasedKey = cssAliases?.[key] ?? key;
   const cssEntries = getCssEquivalent(aliasedKey, value, theme);
   return cssEntries.map(([k, v]) => `${k}:${v};`).join(" ");
+}
+
+function themeDeclarations(
+  nodes: SparkleNode[],
+  path: string[],
+  theme: ThemeVariables,
+  cssAliases?: Record<string, string>,
+): string[] {
+  return nodes.flatMap((node) => {
+    if (node.type !== "property") {
+      return themeDeclarations(node.children ?? [], [...path, node.type], theme, cssAliases);
+    }
+    const key = node.args?.["key"];
+    if (!key) {
+      return [];
+    }
+    return getCssEquivalent(cssAliases?.[key] ?? key, node.args?.["value"], theme).map(([property, value]) => {
+      const [type, ...names] = [...path, property];
+      const variable = names.length > 0 ? getThemeVariableName(type!, names.join("-")) : `--theme-${type}`;
+      return `${escapeCssIdentifier(variable)}:${value};`;
+    });
+  });
 }
 
 function getInheritanceChain(

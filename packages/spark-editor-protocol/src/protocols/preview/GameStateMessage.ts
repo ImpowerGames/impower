@@ -16,6 +16,19 @@ export interface GameState {
     status: CompletionPreviewStatus;
   } | null;
   ending: GameStateEnding | null;
+  statuses?: GameStatuses;
+}
+
+export interface GameStatuses {
+  completion: {
+    text: string;
+    status: CompletionPreviewStatus;
+  } | null;
+  ending: {
+    text: string;
+    hover: string;
+    kind: GameStateEnding["kind"];
+  } | null;
 }
 
 export interface GameStateEnding {

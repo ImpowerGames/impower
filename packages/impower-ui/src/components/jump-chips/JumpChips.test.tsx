@@ -43,4 +43,13 @@ describe("JumpChips", () => {
     await act(async () => host!.querySelector<HTMLButtonElement>('[data-index-jump="editor"]')!.click());
     expect(onJump).toHaveBeenCalledWith("editor");
   });
+
+  it("scrolls its strip sideways as a scroller-x, so a swipe starting on a chip pans it", async () => {
+    await mount(<JumpChips label="Settings sections" groups={GROUPS} onJump={() => {}} />);
+    const strip = host!.querySelector("nav")!.firstElementChild!;
+    expect(strip.classList.contains("scroller-x")).toBe(true);
+    for (const el of [strip, ...Array.from(strip.querySelectorAll("*"))]) {
+      expect(Array.from(el.classList).filter((name) => /(^|:)touch-|overflow-x-/.test(name))).toEqual([]);
+    }
+  });
 });

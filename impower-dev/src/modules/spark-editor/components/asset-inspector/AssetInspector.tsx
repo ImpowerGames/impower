@@ -17,7 +17,7 @@ import {
   useEscapeWithin,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
-import type { Ref } from "preact";
+import type { ComponentChildren, Ref } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
 import {
@@ -37,6 +37,7 @@ import { usageGroups } from "../../workspace/WorkspaceSearch";
 import type { Workspace as WorkspaceIntents } from "../../workspace/Workspace";
 import type { InspectorFacts } from "../../workspace/WorkspaceAssets";
 import { useSettings } from "../../workspace/settings/useSettings";
+import { useInsertScript } from "../../workspace/useActiveEditor";
 import { audioSession } from "../../workspace/editorAudio";
 import { AUDITION_OWNER } from "../../workspace/WorkspaceAudition";
 import workspace from "../../workspace/WorkspaceStore";
@@ -60,6 +61,7 @@ export type AssetInspectorProps = {
   onStep: (path: string) => void;
   onClose: () => void;
   closeRef?: Ref<HTMLButtonElement>;
+  menu?: ComponentChildren;
 };
 
 const EMPTY_LISTING = { files: {}, folders: [] };
@@ -151,6 +153,13 @@ function LinkAddress({
 const messageOf =(problem: NonNullable<InspectorFacts["problems"]>[number]) =>
   typeof problem.message === "string" ? problem.message : problem.message.value;
 
+const PICTURE_EDGE_STEP = 128;
+
+const edgeOf = (width: number, height: number) =>
+  Math.ceil((Math.max(width, height) * (globalThis.devicePixelRatio || 1)) / PICTURE_EDGE_STEP) * PICTURE_EDGE_STEP;
+
+const pictureEdge = (frame: HTMLElement) => edgeOf(frame.offsetWidth, frame.offsetHeight);
+
 const severityOf = (severity: number | undefined) =>
   severity === 1 ? "error" : severity === 2 ? "warning" : "info";
 
@@ -164,6 +173,7 @@ export default function AssetInspector({
   onStep,
   onClose,
   closeRef,
+  menu,
 }: AssetInspectorProps) {
   const desktop = useLayout() === "desktop";
   const sheet = host === "sheet";
@@ -191,6 +201,10 @@ export default function AssetInspector({
   const [previewing, setPreviewing] = useState<VariantSelection | null>(null);
   const [chosenForm, setChosenForm] = useState<VariantForm | null>(null);
   const [picture, setPicture] = useState<string | null | undefined>(undefined);
+  const [frameEdge, setFrameEdge] = useState(0);
+  const [fullEdge, setFullEdge] = useState(0);
+  const pictureSize = Math.max(frameEdge, fullEdge);
+  const insertScript = useInsertScript();
   const variant = stack ? variantOf(stack, previewing ?? selection) : null;
   const variantKey = variant ? JSON.stringify(variant) : "";
 
@@ -230,24 +244,40 @@ export default function AssetInspector({
     setPreviewing(null);
     setChosenForm(null);
     setPicture(undefined);
+    setFullEdge(0);
   }, [asset.path]);
 
   useEffect(() => {
-    if (!variant) {
+    const frame = stack ? body.current?.querySelector<HTMLElement>("[data-zoom-frame]") : null;
+    if (!frame) {
+      return;
+    }
+    const measure = () => setFrameEdge(pictureEdge(frame));
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [asset.path, asset.src, stack !== null]);
+
+  useEffect(() => {
+    if (!variant || !pictureSize) {
       return;
     }
     let dispose: (() => void) | undefined;
     let alive = true;
     void intents().then((Workspace) => {
       if (alive) {
-        dispose = Workspace.assets.watchPicture(stack!.cover, variant, setPicture);
+        dispose = Workspace.assets.watchPicture(stack!.cover, variant, pictureSize, setPicture);
       }
     });
     return () => {
       alive = false;
       dispose?.();
     };
-  }, [variantKey, filesKey]);
+  }, [variantKey, filesKey, pictureSize]);
 
   useEffect(() => {
     if (asset.type === "image" && asset.src && pixels === undefined) {
@@ -452,9 +482,12 @@ export default function AssetInspector({
           </Button>
         }
         end={
-          <div role="group" aria-label="Previous and next" class="flex flex-none">
-            {stepButton("previous")}
-            {stepButton("next")}
+          <div class="flex flex-none items-center">
+            <div role="group" aria-label="Previous and next" class="flex flex-none">
+              {stepButton("previous")}
+              {stepButton("next")}
+            </div>
+            {menu}
           </div>
         }
       />
@@ -470,6 +503,7 @@ export default function AssetInspector({
           pixels={pixels}
           read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
           onSeconds={setVideoSeconds}
+          onFull={(open) => open && setFullEdge(edgeOf(innerWidth, innerHeight))}
         />
         {stack && (
           <VariantsSection
@@ -479,6 +513,12 @@ export default function AssetInspector({
             onSelect={setSelection}
             onPreview={setPreviewing}
             onForm={setChosenForm}
+            onInsert={
+              insertScript
+                ? (reference) =>
+                    void intents().then((Workspace) => Workspace.window.insertReference(insertScript, form, reference))
+                : undefined
+            }
             sheetContainer={region}
           />
         )}

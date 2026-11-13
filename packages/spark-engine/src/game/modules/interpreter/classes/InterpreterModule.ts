@@ -13,10 +13,7 @@ import {
   writtenText,
   trimStyled,
 } from "@impower/sparkdown/src/runtime/displayStyle";
-import {
-  LayoutVerb,
-  isLayoutVerb,
-} from "@impower/sparkdown/language/sparkdown.layout-verbs";
+import { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { Module } from "../../../core/classes/Module";
 import type {
 AudioInstruction,
@@ -39,6 +36,13 @@ import type { InstructionOptions } from "../types/InstructionOptions";
 import type { Phrase } from "../types/Phrase";
 import { stressPhrases } from "../utils/stressPhrases";
 import { Matcher } from "./helpers/Matcher";
+import {
+  directiveKind,
+  parseDirectiveClauses,
+  readDirective,
+  type DirectiveClause,
+  type DirectiveKind,
+} from "@impower/sparkdown/src/compiler/utils/readDirective";
 
 export interface InterpreterConfig {}
 
@@ -96,32 +100,6 @@ export class InterpreterModule extends Module<
     "sup",
     "br",
     "noparse",
-  ];
-
-  ASSET_CONTROL_KEYWORDS = [
-    "show",
-    "hide",
-    "animate",
-    "play",
-    "stop",
-    "fade",
-    "queue",
-    "await",
-    "write",
-    "load",
-  ];
-
-  LOAD_CONTROL_KEYWORDS = ["load"];
-
-  MOVIE_CONTROL_KEYWORDS = ["play"];
-
-  ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
-
-  ASSET_FLAG_ARG_KEYWORDS = ["wait", "loop", "once", "mute", "unmute", "now"];
-
-  ASSET_ARG_KEYWORDS = [
-    ...this.ASSET_VALUE_ARG_KEYWORDS,
-    ...this.ASSET_FLAG_ARG_KEYWORDS,
   ];
 
   CHAR_REGEX =
@@ -257,6 +235,9 @@ export class InterpreterModule extends Module<
       } else {
         a.cutscene.push(...b.cutscene);
       }
+    }
+    if (b.speech) {
+      a.speech = b.speech;
     }
     if (b.end > a.end) {
       a.end = b.end;
@@ -416,6 +397,7 @@ export class InterpreterModule extends Module<
         ? this.parse(boxContent, boxTarget, {
             character: typedBy?.character,
             position: typedBy?.position,
+            spoken: true,
           })
         : undefined;
     const carries = Boolean(
@@ -451,7 +433,8 @@ export class InterpreterModule extends Module<
     }
     if (content || pause) {
       const contentInstructions =
-        boxInstructions ?? this.parse(content, textTarget, options);
+        boxInstructions ??
+        this.parse(content, textTarget, { ...options, spoken: true });
       if (pause && !contentInstructions.text) {
         contentInstructions.text = { [textTarget]: [] };
       }
@@ -689,6 +672,10 @@ export class InterpreterModule extends Module<
     return (this._state.buffer?.length ?? 0) > 0;
   }
 
+  get nextBeat(): Instructions | undefined {
+    return this._state.buffer?.[0];
+  }
+
   requeue(instructions: Instructions): void {
     this._state.buffer ??= [];
     this._state.buffer.unshift(instructions);
@@ -854,38 +841,19 @@ export class InterpreterModule extends Module<
             "layout",
             LayoutVerb.open,
             "",
-            isLayoutVerb,
           );
     this.applyScreenWaitDuration(layoutChunk);
     return layoutChunk;
   }
 
   protected createNavigateChunk(navigateTagContent: string): Chunk {
-    const tokens = navigateTagContent
-      .replaceAll("\t", " ")
-      .split(" ")
-      .filter((t) => t !== "");
-    let screen = "";
-    let destination = "";
-    let i = 1;
-    if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
-      screen = tokens[i]!;
-      i += 1;
-    }
-    if (tokens[i] === "to") {
-      i += 1;
-      if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
-        destination = tokens[i]!;
-        i += 1;
-      }
-    }
-    const clauses = this.parseAssetClauses(tokens.slice(i));
+    const reading = readDirective("image", navigateTagContent, "layout");
     return {
       tag: "layout",
       control: LayoutVerb.navigate,
-      target: screen,
-      assets: destination ? [destination] : [],
-      clauses,
+      target: reading.target?.text ?? "",
+      assets: reading.destination ? [reading.destination.text] : [],
+      clauses: this.assetClauseValues(reading.clauses),
       duration: 0,
       speed: 1,
     };
@@ -976,78 +944,35 @@ export class InterpreterModule extends Module<
     tag: string,
     defaultControl: string,
     defaultTarget: string | undefined,
-    isControl: (word: string) => boolean = (word) =>
-      this.ASSET_CONTROL_KEYWORDS.includes(word),
   ): Chunk {
-    let parts = assetTagContent
-      .replaceAll("\t", " ")
-      .split(" ")
-      .filter((part) => part !== "");
-    let control = defaultControl;
-    let target = defaultTarget;
-    const assets: string[] = [];
-    const args: string[] = [];
-    if (parts[0] && isControl(parts[0])) {
-      control = parts[0];
-      if (parts[1]) {
-        target = parts[1];
-      }
-      parts = parts.slice(2);
-    }
-    let foundClauseKeyword = false;
-    for (const part of parts) {
-      if (this.ASSET_ARG_KEYWORDS.includes(part)) {
-        foundClauseKeyword = true;
-      }
-      if (foundClauseKeyword) {
-        args.push(part);
-      } else {
-        for (const a of part.split("+")) {
-          if (a) {
-            assets.push(a);
-          }
-        }
-      }
-    }
-    const clauses = this.parseAssetClauses(args);
+    const kind = tag as DirectiveKind;
+    const reading = readDirective(kind === "audio" ? "audio" : "image", assetTagContent, kind);
     return {
       tag,
-      control,
-      target,
-      assets,
-      clauses,
+      control: reading.control?.text ?? defaultControl,
+      target: reading.target?.text ?? defaultTarget,
+      assets: reading.names.map((name) => name.text),
+      clauses: this.assetClauseValues(reading.clauses),
       duration: 0,
       speed: 1,
     };
   }
 
   protected parseAssetClauses(args: string[]): Record<string, unknown> {
+    return this.assetClauseValues(parseDirectiveClauses(args.map((text) => ({ text }))));
+  }
+
+  protected assetClauseValues(parsed: readonly DirectiveClause<{ text: string }>[]): Record<string, unknown> {
     const clauses: Record<string, unknown> = {};
-    for (let i = 0; i < args.length; i += 1) {
-      const arg = args[i];
-      if (arg) {
-        if (this.ASSET_VALUE_ARG_KEYWORDS.includes(arg)) {
-          i += 1;
-          const value = args[i];
-          if (arg === "after") {
-            clauses[arg] = getTimeValue(value);
-          }
-          if (arg === "over") {
-            clauses[arg] = getTimeValue(value);
-          }
-          if (arg === "to") {
-            clauses[arg] = getNumberValue(value);
-          }
-          if (arg === "with") {
-            clauses[arg] = value;
-          }
-          if (arg === "ease") {
-            clauses[arg] = value;
-          }
-        } else {
-          clauses[arg] = true;
-        }
-      }
+    for (const { word, takesValue, value } of parsed) {
+      const key = word.text;
+      clauses[key] = !takesValue
+        ? true
+        : key === "after" || key === "over"
+          ? getTimeValue(value?.text)
+          : key === "to"
+            ? getNumberValue(value?.text)
+            : value?.text;
     }
     return clauses;
   }
@@ -1177,23 +1102,15 @@ export class InterpreterModule extends Module<
                 while (i < chars.length) {
                   if (chars[i] === "]" && chars[i + 1] === "]") {
                     closed = true;
-                    const verb = imageTagContent
-                      .replaceAll("\t", " ")
-                      .trimStart()
-                      .split(" ")[0];
-                    const isScreenDirective =
-                      !!verb && isLayoutVerb(verb);
-                    const isLoadDirective =
-                      !!verb && this.LOAD_CONTROL_KEYWORDS.includes(verb);
-                    const isCutsceneDirective =
-                      !!verb && this.MOVIE_CONTROL_KEYWORDS.includes(verb);
-                    const directiveChunk = isLoadDirective
-                      ? this.createLoadChunk(imageTagContent)
-                      : isScreenDirective
-                        ? this.createLayoutChunk(imageTagContent)
-                        : isCutsceneDirective
-                          ? this.createCutsceneChunk(imageTagContent)
-                          : this.createImageChunk(imageTagContent);
+                    const kind = directiveKind("image", imageTagContent);
+                    const directiveChunk =
+                      kind === "load"
+                        ? this.createLoadChunk(imageTagContent)
+                        : kind === "layout"
+                          ? this.createLayoutChunk(imageTagContent)
+                          : kind === "cutscene"
+                            ? this.createCutsceneChunk(imageTagContent)
+                            : this.createImageChunk(imageTagContent);
                     const phrase = {
                       target: directiveChunk.target,
                       chunks: [directiveChunk],
@@ -1666,6 +1583,8 @@ export class InterpreterModule extends Module<
       string,
       { time?: number; speed?: number; bend?: number }[]
     > = {};
+    const spans: [number, number][] = [];
+    const speaker = options?.spoken ? character : undefined;
     for (const phrase of allPhrases) {
       const target = phrase.target || "";
       const typewriter = this.lookupContextValue("typewriter", target);
@@ -1751,6 +1670,15 @@ export class InterpreterModule extends Module<
             result.text ??= {};
             result.text[target] ??= [];
             result.text[target]!.push(event);
+            const spoken = c.voiced && c.speed > 0 ? letterPause / c.speed : 0;
+            if (speaker && spoken > 0) {
+              const last = spans.at(-1);
+              if (last && Math.abs(last[1] - time) < 1e-9) {
+                last[1] = time + spoken;
+              } else {
+                spans.push([time, time + spoken]);
+              }
+            }
           }
           if (c.tag === "image") {
             const event: ImageInstruction = {
@@ -1779,6 +1707,10 @@ export class InterpreterModule extends Module<
               const easeValue = c.clauses?.ease;
               if (easeValue != null) {
                 event.ease = easeValue;
+              }
+              const morphValue = c.clauses?.morph;
+              if (typeof morphValue === "string" && morphValue) {
+                event.morph = morphValue;
               }
               if (c.clauses?.loop) {
                 event.loop = true;
@@ -1961,6 +1893,10 @@ export class InterpreterModule extends Module<
               .join("~"),
         ],
       });
+    }
+
+    if (speaker && spans.length > 0) {
+      result.speech = { character: speaker, spans };
     }
 
     result.end = time;

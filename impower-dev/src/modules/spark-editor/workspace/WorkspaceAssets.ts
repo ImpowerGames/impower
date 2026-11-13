@@ -14,7 +14,8 @@ import { downloadFile } from "../utils/downloadFile";
 import { reasonOf, type FileMove } from "../utils/fileMoves";
 import { recordCreate, recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
 import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
-import { imageStacks, isStacked, stackBaseOf, type ImageStack } from "../utils/imageStacks";
+import { imageFileNameOf, stackBaseOf } from "@impower/sparkdown/src/attributes/imageFileName";
+import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import type { ImageVariant } from "../utils/imageVariants";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
@@ -475,8 +476,16 @@ export default class WorkspaceAssets {
       return path;
     }
     const member = stack.members.find((candidate) => candidate.path === path);
+    const named = imageFileNameOf(path).picture;
+    const renamed = imageFileNameOf(to).picture;
+    const layers =
+      stack.kind === "files" && member?.layer === undefined && renamed !== named
+        ? stack.members
+            .filter((candidate) => candidate.layer !== undefined && imageFileNameOf(candidate.path).picture === named)
+            .map((candidate) => ({ from: candidate.path, to: joinPath(folder, renamed + nameOf(candidate.path).slice(named.length)) }))
+        : [];
     try {
-      await this.applyRenames(projectId, [{ from: path, to }], nameOf(path), nameOf(path), stack, member?.layer === undefined);
+      await this.applyRenames(projectId, [{ from: path, to }, ...layers], nameOf(path), nameOf(path), stack, member?.layer === undefined);
     } catch (error) {
       const rollback = (error as { rollback?: WorkspaceEditRollback }).rollback;
       throw rollback ? Object.assign(new NameError(renameFailureMessage(path, to, error)), { rollback }) : error;
@@ -707,7 +716,12 @@ export default class WorkspaceAssets {
     };
   }
 
-  watchPicture(path: string, variant: ImageVariant, listener: (src: string | null) => void): () => void {
+  watchPicture(
+    path: string,
+    variant: ImageVariant,
+    size: number,
+    listener: (src: string | null) => void,
+  ): () => void {
     const projectId = this.projectId;
     let alive = true;
     let request = 0;
@@ -715,7 +729,7 @@ export default class WorkspaceAssets {
       const mine = ++request;
       const src = projectId
         ? await this._workspace.ls
-            .getVariantPicture(this._workspace.fs.getFileUri(projectId, path), variant)
+            .getVariantPicture(this._workspace.fs.getFileUri(projectId, path), variant, size)
             .catch(() => null)
         : null;
       if (alive && mine === request) {

@@ -43,12 +43,7 @@ export function useScriptMode(): ScriptMode | undefined {
   return workspace.effectiveScriptMode.value;
 }
 
-export const storyScriptOf = (
-  state: WorkspaceCache = workspace.state.value,
-): string | undefined => {
-  if (state.pane !== "logic" || state.screen?.settingsOpen) {
-    return undefined;
-  }
+const writtenScriptOf = (state: WorkspaceCache): string | undefined => {
   const logic = state.panes?.logic;
   const scripts = logic?.panels?.scripts?.activeEditor;
   if (logic?.view === "logic-editor") {
@@ -60,6 +55,13 @@ export const storyScriptOf = (
   return "main.sd";
 };
 
+export const storyScriptOf = (
+  state: WorkspaceCache = workspace.state.value,
+): string | undefined =>
+  state.pane !== "logic" || state.screen?.settingsOpen
+    ? undefined
+    : writtenScriptOf(state);
+
 const caretScriptOf = (): string | undefined => {
   const filename = storyScriptOf();
   return filename && activeEditorOf(filename)?.selectedRange
@@ -69,6 +71,17 @@ const caretScriptOf = (): string | undefined => {
 
 export function useCaretScript() {
   return useComputed(caretScriptOf).value;
+}
+
+const insertScriptOf = (): string | undefined => {
+  const filename = writtenScriptOf(workspace.state.value);
+  return filename && activeEditorOf(filename)?.selectedRange
+    ? filename
+    : undefined;
+};
+
+export function useInsertScript() {
+  return useComputed(insertScriptOf).value;
 }
 
 const editorHistoryOf = (filename: string | undefined) => {

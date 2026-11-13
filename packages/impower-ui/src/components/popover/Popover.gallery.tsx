@@ -20,6 +20,7 @@ function Body({ title, close }: { title: string; close: () => void }) {
 function PopoverDemo() {
   const [auto, setAuto] = useState(false);
   const [panel, setPanel] = useState(false);
+  const [bare, setBare] = useState(false);
   return (
     <div class="space-y-6">
       <GalleryRow label="Size auto: as wide as what it holds; press to open">
@@ -43,6 +44,18 @@ function PopoverDemo() {
           </PopoverAnchor>
           <PopoverContent size="panel" side="bottom" align="start">
             <Body title="Panel" close={() => setPanel(false)} />
+          </PopoverContent>
+        </Popover>
+      </GalleryRow>
+      <GalleryRow label="Frame none: what it holds draws its own frame">
+        <Popover open={bare} onOpenChange={setBare}>
+          <PopoverTrigger asChild>
+            <Button>Open framed content</Button>
+          </PopoverTrigger>
+          <PopoverContent frame="none" side="bottom" align="start">
+            <div class="w-[300px] rounded-control border border-edge bg-panel">
+              <Body title="Frame none" close={() => setBare(false)} />
+            </div>
           </PopoverContent>
         </Popover>
       </GalleryRow>

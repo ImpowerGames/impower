@@ -8,9 +8,7 @@ import ProjectNameField from "./ProjectNameField";
 export default function TopBar() {
   const compact = useLayout() === "compact";
   return (
-    <header
-      class="relative grid h-[76px] grid-cols-[var(--sidebar-width)_minmax(0,1fr)_auto] items-center border-b border-edge bg-bg pr-[26px] in-data-[layout=compact]:h-[54px] in-data-[layout=compact]:pr-[18px]"
-    >
+    <header class="hit-bound relative grid h-[76px] grid-cols-[var(--sidebar-width)_minmax(0,1fr)_auto] items-center border-b border-edge bg-bg pr-[26px] in-data-[layout=compact]:h-[54px] in-data-[layout=compact]:pr-[18px]">
       <div class="flex min-w-0 items-center">
         <SparkLogo
           size={compact ? "sm" : "md"}

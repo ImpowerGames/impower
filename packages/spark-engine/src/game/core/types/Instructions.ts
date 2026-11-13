@@ -22,9 +22,15 @@ export interface BeatSpeaker {
   character?: string;
 }
 
+export interface BeatSpeech {
+  character: string;
+  spans: [number, number][];
+}
+
 export interface Instructions {
   kind?: BeatKind;
   speaker?: BeatSpeaker;
+  speech?: BeatSpeech;
   options?: string[];
   source?: ScriptLocation;
   load?: LoadInstruction[];

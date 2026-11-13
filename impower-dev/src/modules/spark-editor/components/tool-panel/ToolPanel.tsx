@@ -20,7 +20,7 @@ import {
   type VNode,
 } from "preact";
 import { useContext, useEffect, useLayoutEffect, useRef } from "preact/hooks";
-import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";
+import { cn } from "@impower/impower-ui/components";
 import workspace from "../../workspace/WorkspaceStore";
 
 export type ToolPanelCloseReason = "close" | "escape" | "dismiss";

@@ -1,9 +1,11 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { JSX } from "preact";
 import { cn } from "../../utils/cn";
+import Button from "../button/Button";
+import { LoopIcon, RestartIcon } from "../icon/icons.generated";
 import PlayButton from "../play-button/PlayButton";
 
-export type AudioPlayerState = "loading" | "ready" | "failed" | "playing";
+export type AudioPlayerState = "loading" | "ready" | "failed" | "playing" | "paused";
 
 export const audioPlayerVariants = cva("rounded-[12px] border border-solid border-edge text-ink", {
   variants: {
@@ -26,6 +28,8 @@ export const audioWaveVariants = cva("relative flex h-10 items-center", {
   defaultVariants: { loading: false },
 });
 
+const TRANSPORT = "rounded-full text-muted [&_svg]:size-[18px] aria-pressed:bg-tint aria-pressed:text-accent";
+
 export type AudioPlayerProps = VariantProps<typeof audioPlayerVariants> & {
   name: string;
   state: AudioPlayerState;
@@ -33,8 +37,11 @@ export type AudioPlayerProps = VariantProps<typeof audioPlayerVariants> & {
   time: number;
   duration: number | null;
   failure?: string;
+  loop: boolean;
   onToggle: () => void;
   onSeek: (seconds: number) => void;
+  onRestart: () => void;
+  onLoopChange: (loop: boolean) => void;
   class?: string;
 };
 
@@ -72,9 +79,12 @@ export default function AudioPlayer({
   time,
   duration,
   failure,
+  loop,
   size,
   onToggle,
   onSeek,
+  onRestart,
+  onLoopChange,
   class: className,
 }: AudioPlayerProps) {
   const length = duration ?? 0;
@@ -132,6 +142,17 @@ export default function AudioPlayer({
             data-audio-toggle
             onClick={onToggle}
           />
+          <Button
+            variant="quiet"
+            size="icon"
+            class={TRANSPORT}
+            aria-label="Restart"
+            title="Restart"
+            data-audio-restart
+            onClick={onRestart}
+          >
+            <RestartIcon />
+          </Button>
           <div class="relative min-w-0 flex-1 px-1.5">
             <div
               class={audioWaveVariants({ loading: state === "loading" })}
@@ -179,6 +200,18 @@ export default function AudioPlayer({
               <span data-audio-total>{clock(Math.round(length))}</span>
             </div>
           </div>
+          <Button
+            variant="quiet"
+            size="icon"
+            class={TRANSPORT}
+            aria-label="Loop"
+            title="Loop"
+            aria-pressed={loop}
+            data-audio-loop
+            onClick={() => onLoopChange(!loop)}
+          >
+            <LoopIcon />
+          </Button>
         </div>
       )}
     </div>

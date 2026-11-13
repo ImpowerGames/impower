@@ -92,6 +92,17 @@ const play = () => {
 
 const settledOn = (text: string) => ({ text, settled: true, typed: false });
 
+const stepIntoTunnelBeat = (h: ReturnType<typeof play>) => {
+  h.game.setBreakpoints([{ file: MAIN, line: lineOf("-> aside ->") }]);
+  h.game.start();
+  h.game.clickedToContinue();
+  h.game.step("in");
+  h.game.step("in");
+  h.game.step("in");
+  expect(h.stoppedAt()).toBe(TUNNEL_LINE);
+  expect(h.game.paused).toBe(true);
+};
+
 describe("a debugger stop presents the beat it reaches", () => {
   beforeAll(() => {
     program = compileProgram(SCRIPT);
@@ -106,15 +117,14 @@ describe("a debugger stop presents the beat it reaches", () => {
     h.game.start();
     h.game.pause();
     const stops: { line?: number; text: string; settled: boolean }[] = [];
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0; i < 4; i += 1) {
       h.game.step("over");
       const { text, settled } = h.onScreen();
       stops.push({ line: h.stoppedAt(), text, settled });
     }
     expect(stops).toEqual([
       { line: lineOf("mood = mood + 1"), text: FIRST, settled: false },
-      { line: TUNNEL_LINE, text: TUNNEL, settled: true },
-      { line: lineOf("->->"), text: TUNNEL, settled: true },
+      { line: lineOf("-> aside ->"), text: FIRST, settled: false },
       { line: lineOf(BACK), text: TUNNEL, settled: true },
       { line: lineOf(BACK), text: BACK, settled: true },
     ]);
@@ -135,23 +145,26 @@ describe("a debugger stop presents the beat it reaches", () => {
     expect(h.game.paused).toBe(true);
   });
 
-  it("presents the beat a Step Out reaches", () => {
+  it("leaves the tunnel's beat a Step Out passes on screen, settled, at the caller's next line", () => {
     const h = play();
     h.game.setBreakpoints([{ file: MAIN, line: lineOf("local here = 5") }]);
     h.game.start();
     h.game.clickedToContinue();
+    const before = h.beats();
     h.game.step("out");
-    expect(h.stoppedAt()).toBe(TUNNEL_LINE);
+    expect(h.stoppedAt()).toBe(lineOf(BACK));
     expect(h.onScreen()).toEqual(settledOn(TUNNEL));
+    expect(h.beats()).toBe(before + 1);
+    expect(h.game.paused).toBe(true);
+    h.game.step("over");
+    expect(h.stoppedAt()).toBe(lineOf(BACK));
+    expect(h.onScreen()).toEqual(settledOn(BACK));
     expect(h.game.paused).toBe(true);
   });
 
   it("resumes on a beat a Step presented without showing it again or skipping it", () => {
     const h = play();
-    h.game.start();
-    h.game.pause();
-    h.game.step("over");
-    h.game.step("over");
+    stepIntoTunnelBeat(h);
     expect(h.onScreen()).toEqual(settledOn(TUNNEL));
     const presented = h.beats();
     h.methods.length = 0;
@@ -167,10 +180,7 @@ describe("a debugger stop presents the beat it reaches", () => {
 
   it("moves on with a Step from a beat a Step presented", () => {
     const h = play();
-    h.game.start();
-    h.game.pause();
-    h.game.step("over");
-    h.game.step("over");
+    stepIntoTunnelBeat(h);
     const presented = h.beats();
     h.game.step("over");
     expect(h.stoppedAt()).toBe(lineOf("->->"));
@@ -489,14 +499,13 @@ describe("a stop notification says whether the stopped line's beat is on screen"
     h.game.start();
     h.game.pause();
     const stops: { line?: number; beat?: string }[] = [];
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0; i < 4; i += 1) {
       h.game.step("over");
       stops.push({ line: h.stoppedAt(), beat: h.stopBeat() });
     }
     expect(stops).toEqual([
       { line: lineOf("mood = mood + 1"), beat: "none" },
-      { line: TUNNEL_LINE, beat: "shown" },
-      { line: lineOf("->->"), beat: "none" },
+      { line: lineOf("-> aside ->"), beat: "none" },
       { line: lineOf(BACK), beat: "none" },
       { line: lineOf(BACK), beat: "shown" },
     ]);

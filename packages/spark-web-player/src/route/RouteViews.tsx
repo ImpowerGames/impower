@@ -1,6 +1,5 @@
 import { useLayoutEffect, useState } from "preact/hooks";
-import { useStylesheet } from "../utils/useStylesheet";
-import routeListCss from "./route-list.css?inline";
+import { useRouteListStylesheet } from "./routeListStylesheet";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type {
   PreviewRouteDecision,
@@ -44,10 +43,8 @@ export interface RouteButtonProps {
   onClose: () => void;
 }
 
-export const ROUTE_LIST_STYLESHEET_ID = "swp-route-list-css";
-
 export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps) {
-  useStylesheet(ROUTE_LIST_STYLESHEET_ID, routeListCss);
+  useRouteListStylesheet();
   const label = routeLabel(state, nameOf);
   const parts = routeLabelParts(state, nameOf);
   if (label === null || parts === null) {
@@ -160,7 +157,7 @@ export function RouteList({
   onPinLastRun,
 }: RouteListProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  useStylesheet(ROUTE_LIST_STYLESHEET_ID, routeListCss);
+  useRouteListStylesheet();
   const drafts = state.values?.drafts;
   useLayoutEffect(() => {
     if (!state.open) {

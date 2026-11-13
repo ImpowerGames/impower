@@ -1,6 +1,7 @@
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import {
   CheckIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   CloseIcon,
   DownloadIcon,
@@ -16,6 +17,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   destructive: "Destructive",
   disclosure: "Disclosure",
   toggle: "Toggle",
+  field: "Field",
 };
 
 const SIZES: Record<ButtonSize, string> = {
@@ -24,6 +26,7 @@ const SIZES: Record<ButtonSize, string> = {
   compact: "Compact text button",
   glyph: "Small glyph button",
   inset: "Inside a field",
+  field: "Menu field",
   pill: "Phone pill",
 };
 
@@ -64,7 +67,7 @@ function ButtonDemo() {
   return (
     <div class="space-y-6">
       <GalleryRow label="Every variant (columns) in every kind (rows), then disabled">
-        <div class="overflow-x-auto">
+        <div class="scroller-x">
           <table class="border-separate border-spacing-3">
             <thead>
               <tr>
@@ -128,6 +131,16 @@ function ButtonDemo() {
           <Button variant="toggle" size="glyph" aria-label="Regular expression" aria-pressed={false}>
             .*
           </Button>
+        </div>
+      </GalleryRow>
+      <GalleryRow label="A menu field, at rest, changed from its default and open">
+        <div class="grid w-[460px] grid-cols-3 gap-3">
+          {[{}, { "data-changed": "" }, { "aria-expanded": true }].map((state, index) => (
+            <Button key={index} variant="field" size="field" {...state}>
+              <span class="truncate">{["As is", "Happy", "Night"][index]}</span>
+              <ChevronDownIcon />
+            </Button>
+          ))}
         </div>
       </GalleryRow>
       <GalleryRow label="asChild: the classes land on an anchor">

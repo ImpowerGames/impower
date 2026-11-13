@@ -134,7 +134,11 @@ function RouteReadout({ layout }: { layout: Layout }) {
           class={`max-w-full min-w-0 justify-end gap-1.5 px-2.5 text-muted data-failed:text-error data-stopped:text-warning ${BAR_TEXT}`}
           onClick={onClick}
         >
-          {readout.icon ? READOUT_ICONS[readout.icon] : null}
+          {readout.icon ? (
+            READOUT_ICONS[readout.icon]
+          ) : readout.opensRoute ? (
+            <span data-icon-slot aria-hidden="true" class="size-[18px] shrink-0" />
+          ) : null}
           <span class="min-w-0 overflow-hidden whitespace-nowrap @max-[360px]:fade-edge">
             {readout.name}
           </span>

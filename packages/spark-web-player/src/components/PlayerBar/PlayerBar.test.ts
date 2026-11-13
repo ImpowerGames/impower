@@ -45,6 +45,7 @@ const gameState = (
     position: null,
     completion: null,
     ending: null,
+    statuses: { completion: null, ending: null },
     ...overrides,
   });
 
@@ -134,14 +135,17 @@ describe("PlayerBar state", () => {
     expect($("#location-items")!.hidden).toBe(true);
   });
 
-  it("shows the ending and completion statuses the game state carries", () => {
-    vi.useFakeTimers();
+  it("shows the ending and completion statuses the game state carries, as the player words them", () => {
     const ended = reducePlayerBar(
       initialPlayerBarState,
       gameState({
         launchState: "ended",
         run: 3,
         ending: { kind: "error", location: null, error: { message: "boom", location: location(3) } },
+        statuses: {
+          completion: null,
+          ending: { text: "Stopped by an error", hover: "boom (line 4)", kind: "error" },
+        },
       }),
     );
     const $ = mount({ state: ended });
@@ -149,31 +153,32 @@ describe("PlayerBar state", () => {
     expect($("#ending-status")!.textContent).toBe("Stopped by an error");
     expect($("#ending-status")!.title).toBe("boom (line 4)");
     expect($("#ending-status")!.getAttribute("data-kind")).toBe("error");
+    expect($("#completion-status")!.hidden).toBe(true);
 
-    const preparing = reducePlayerBar(
-      initialPlayerBarState,
-      gameState({ completion: { request: 1, status: "preparing" } }),
-    );
-    mount({ state: initialPlayerBarState });
-    mount({ state: preparing });
-    expect($("#completion-status")!.hidden).toBe(true);
-    act(() => {
-      vi.advanceTimersByTime(149);
-    });
-    expect($("#completion-status")!.hidden).toBe(true);
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect($("#completion-status")!.hidden).toBe(false);
-    expect($("#completion-status")!.textContent).toBe("Preparing suggestion preview…");
     mount({
       state: reducePlayerBar(
         initialPlayerBarState,
-        gameState({ completion: { request: 1, status: "unavailable" } }),
+        gameState({
+          completion: { request: 1, status: "unavailable" },
+          statuses: {
+            completion: { text: "Cannot preview this suggestion yet", status: "unavailable" },
+            ending: null,
+          },
+        }),
       ),
     });
+    expect($("#completion-status")!.hidden).toBe(false);
     expect($("#completion-status")!.getAttribute("data-state")).toBe("unavailable");
     expect($("#completion-status")!.textContent).toBe("Cannot preview this suggestion yet");
+    expect($("#ending-status")!.hidden).toBe(true);
+
+    mount({
+      state: reducePlayerBar(
+        initialPlayerBarState,
+        gameState({ completion: { request: 2, status: "preparing" } }),
+      ),
+    });
+    expect($("#completion-status")!.hidden).toBe(true);
   });
 });
 

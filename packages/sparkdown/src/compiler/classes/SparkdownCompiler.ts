@@ -9,7 +9,16 @@ import {
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
-import { buildMorphChannel, shownLook, shownLookStruct } from "../../morph/channel";
+import { buildMorphChannel, shownLook, shownLookStruct, speechMorphsForStruct } from "../../morph/channel";
+import { MORPH_PICK_NONE } from "../../morph/types";
+import {
+  DIRECTIVE_CLAUSE_WORDS,
+  directiveValueKind,
+  readSourceDirectives,
+  type DirectiveWord,
+  type SourceDirective,
+} from "../utils/readDirective";
+import { resolveImageLayers } from "../utils/resolveImageLayers";
 import type { MorphProgramChannel } from "../../morph/types";
 import {
   collectLuauLints,
@@ -32,6 +41,7 @@ import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
 import { STDLIB } from "../../runtime/StdLib";
 import { executionWatch } from "../../runtime/ExecutionWatch";
+import { imageFileNameOf, imageMemberOf } from "../../attributes/imageFileName";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import type { File } from "../types/File";
 import { diagnoseRareAttributeOptions, resolveAttributes, type AttributeVocabulary } from "../../attributes";
@@ -80,6 +90,46 @@ import type {
   ScriptLoop,
   ScriptStructure,
 } from "../utils/routeDecisions";
+
+interface MorphClause {
+  keyword: DirectiveWord;
+  value?: DirectiveWord;
+}
+
+function morphClauseOf(directive: SourceDirective): MorphClause | undefined {
+  if (directive.kind !== "image") return undefined;
+  const clause = [...directive.clauses].reverse().find((clause) => clause.word.text === "morph");
+  return clause ? { keyword: clause.word, ...(clause.value ? { value: clause.value } : {}) } : undefined;
+}
+
+function strayClauseIssues(
+  directive: SourceDirective,
+): { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string }[] {
+  if (directive.kind === "cutscene") return [];
+  const issues: { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string }[] = [];
+  let last: { text: string; takesValue: boolean } | undefined;
+  for (const clause of directive.clauses) {
+    const word = clause.word;
+    if (DIRECTIVE_CLAUSE_WORDS.includes(word.text)) {
+      last = { text: word.text, takesValue: clause.takesValue };
+      continue;
+    }
+    const kind = directiveValueKind(word.text);
+    if (last && !last.takesValue && (kind === "time" || kind === "number")) continue;
+    const message =
+      kind === "other"
+        ? `\`${word.text}\` is not part of a clause.`
+        : last?.text === "morph"
+          ? `\`${word.text}\` is not a clause: \`morph\` takes one morph name, such as \`morph talk_gritted\`.`
+          : last?.takesValue
+            ? `\`${word.text}\` is not a clause: \`${last.text}\` takes one value.`
+            : last !== undefined
+              ? `\`${word.text}\` is not a clause, and \`${last.text}\` takes no value.`
+              : `\`${word.text}\` is not a clause.`;
+    issues.push({ at: word, severity: DiagnosticSeverity.Error, message });
+  }
+  return issues;
+}
 
 const REPEAT_LOOP_NODES = nodeNameSet([
   "LuauRepeatLoop",
@@ -4209,6 +4259,19 @@ export class SparkdownCompiler {
     if (files) {
       const claimedBy = new Map<string, string>();
       const flaggedCollision = new Set<string>();
+      const claim = (uri: string, type: string, name: string) => {
+        const key = `${type}/${name}`;
+        const firstUri = claimedBy.get(key);
+        if (firstUri === undefined) {
+          claimedBy.set(key, uri);
+        } else if (firstUri !== uri) {
+          this.pushAssetCollisionDiagnostic(program, uri, firstUri, type, name);
+          if (!flaggedCollision.has(key)) {
+            this.pushAssetCollisionDiagnostic(program, firstUri, uri, type, name);
+            flaggedCollision.add(key);
+          }
+        }
+      };
       for (const file of files) {
         const rasterFile = isRasterLayerFile(file);
         const rasterPath = rasterFile ? decodeURIComponent(new URL(file.uri).pathname) : "";
@@ -4216,31 +4279,14 @@ export class SparkdownCompiler {
         const explicitRaster = rasterFile && getContextEntry(state.structDefinitions, "layered_image", rasterFolder) !== undefined;
         if (rasterFile && !explicitRaster && rasterAliases.get(file.name)! > 1) continue;
         const type = file.type;
+        const member = type === "image" && !rasterFile ? imageFileNameOf(file.uri) : undefined;
+        if (member?.layer !== undefined) {
+          claim(file.uri, type, imageMemberOf(member).replaceAll("%40", "@"));
+          continue;
+        }
         const name = file.name;
         if (name && type !== "script") {
-          const key = `${type}/${name}`;
-          const firstUri = claimedBy.get(key);
-          if (firstUri === undefined) {
-            claimedBy.set(key, file.uri);
-          } else if (firstUri !== file.uri) {
-            this.pushAssetCollisionDiagnostic(
-              program,
-              file.uri,
-              firstUri,
-              type,
-              name,
-            );
-            if (!flaggedCollision.has(key)) {
-              this.pushAssetCollisionDiagnostic(
-                program,
-                firstUri,
-                file.uri,
-                type,
-                name,
-              );
-              flaggedCollision.add(key);
-            }
-          }
+          claim(file.uri, type, name);
         }
         program.context[type] ??= {};
         if (!Object.hasOwn(program.context[type], name)) {
@@ -4315,17 +4361,7 @@ export class SparkdownCompiler {
           const filename = rasterPath.split("/").at(-1)!;
           const stem = filename.slice(0, -(file.ext.length + 1));
           if (stem !== name) {
-            const key = `${type}/${stem}`;
-            const firstUri = claimedBy.get(key);
-            if (firstUri && firstUri !== file.uri) {
-              this.pushAssetCollisionDiagnostic(program, file.uri, firstUri, type, stem);
-              if (!flaggedCollision.has(key)) {
-                this.pushAssetCollisionDiagnostic(program, firstUri, file.uri, type, stem);
-                flaggedCollision.add(key);
-              }
-            } else {
-              claimedBy.set(key, file.uri);
-            }
+            claim(file.uri, type, stem);
             program.context[type][stem] = { ...program.context[type][name], $name: stem, name: stem };
           }
         }
@@ -4729,8 +4765,10 @@ export class SparkdownCompiler {
       if (!doc) continue;
       const annotations = this.documents.annotations(uri);
       const emitted = new Set<string>();
-      const emit = (struct: any, from: number, to: number, written: readonly string[]) => {
-        const look = shownLook(program.context, program.morphs, struct);
+      const scriptTree = this.documents.tree(uri);
+      const directives = scriptTree ? readSourceDirectives(scriptTree, (from, to) => doc.read(from, to)) : [];
+      const emit = (struct: any, from: number, to: number, written: readonly string[], pick?: string) => {
+        const look = shownLook(program.context, program.morphs, struct, undefined, pick);
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
         if (look && written.length > 0) {
           const chosen = resolveAttributes(look.vocabulary, written).selection;
@@ -4787,11 +4825,42 @@ export class SparkdownCompiler {
         }
         references.next();
       }
+      const pickAt = (at: number) => {
+        const directive = directives.find((directive) => directive.contentFrom <= at && at < directive.contentTo);
+        const pick = directive?.kind === "image" ? directive.values["morph"] : undefined;
+        return typeof pick === "string" ? pick : undefined;
+      };
       let coveredTo = -1;
+      const shownImages: typeof images = [];
       for (const image of images.sort((a, b) => a.from - b.from || b.to - a.to)) {
         if (image.from >= coveredTo) {
-          emit(image.struct, image.from, image.to, doc.read(image.from, image.to).split(/[:~]/).slice(1).map((part) => part.trim()).filter(Boolean));
+          shownImages.push(image);
+          emit(
+            image.struct,
+            image.from,
+            image.to,
+            doc.read(image.from, image.to).split(/[:~]/).slice(1).map((part) => part.trim()).filter(Boolean),
+            pickAt(image.from),
+          );
           coveredTo = image.to;
+        }
+      }
+      for (const directive of directives) {
+        const directiveImages = shownImages.filter((image) => directive.contentFrom <= image.from && image.to <= directive.contentTo);
+        const morph = morphClauseOf(directive);
+        const issues = [
+          morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
+          ...strayClauseIssues(directive).map((issue) => ({ ...issue, keyword: issue.at })),
+        ];
+        for (const issue of issues) {
+          if (!issue?.message || issue.severity === undefined) continue;
+          const at = issue.at ?? issue.keyword;
+          ((program.diagnostics ??= {})[uri] ??= []).push({
+            range: doc.range(at.from, at.to),
+            severity: issue.severity,
+            message: { kind: "markdown", value: issue.message },
+            source: LANGUAGE_NAME,
+          });
         }
       }
       const tree = this.documents.tree(uri);
@@ -4843,6 +4912,56 @@ export class SparkdownCompiler {
         source: LANGUAGE_NAME,
       });
     }
+  }
+
+  protected morphClauseIssue(
+    program: SparkProgram,
+    clause: MorphClause,
+    images: readonly any[],
+  ): { at?: { from: number; to: number }; severity: DiagnosticSeverity; message: string } | undefined {
+    const value = clause.value;
+    if (!value) {
+      return {
+        severity: DiagnosticSeverity.Error,
+        message: `\`morph\` needs the name of a speech morph, or \`${MORPH_PICK_NONE}\` to play none: \`morph talk\`.`,
+      };
+    }
+    const name = value.text;
+    if (name === MORPH_PICK_NONE) return undefined;
+    if (name === "=") {
+      return {
+        at: value,
+        severity: DiagnosticSeverity.Error,
+        message: "Write the morph's name right after `morph`, with no `=`: `morph talk_gritted`.",
+      };
+    }
+    const morph = name.startsWith("$") ? undefined : getContextEntry(program.context, "morph", name);
+    if (!morph) {
+      return {
+        at: value,
+        severity: DiagnosticSeverity.Error,
+        message: `No morph named \`${name}\`. A \`morph\` clause names a speech morph, or \`${MORPH_PICK_NONE}\` to play none.`,
+      };
+    }
+    const speech = program.morphs?.speech;
+    if (!speech || !Object.hasOwn(speech, name)) {
+      return {
+        at: value,
+        severity: DiagnosticSeverity.Error,
+        message: `\`${name}\` is not a speech morph: a \`morph\` clause picks only among morphs with \`trigger = speech\`.`,
+      };
+    }
+    const plays = images.some((image) =>
+      resolveImageLayers(program.context, image).some(
+        (layer) => layer.struct && speechMorphsForStruct(program.context, program.morphs, layer.struct).includes(name),
+      ),
+    );
+    if (plays) return undefined;
+    return {
+      at: value,
+      severity: DiagnosticSeverity.Warning,
+      message: `\`${name}\` plays on no image in this directive: it does not fit them, or its \`when\` or \`unless\` keeps it off their looks.`,
+    };
   }
 
   protected morphScripts(program: SparkProgram): (MorphScript & { uri: string })[] {
@@ -4913,6 +5032,7 @@ export class SparkdownCompiler {
       program.context,
       (base, override) => this.inheritDefaults(base, override),
       declared,
+      program.morphs,
     );
     for (const [scriptUri, issues] of issuesByUri) {
       const doc = this.documents.get(scriptUri)!;

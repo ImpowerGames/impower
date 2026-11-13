@@ -3,6 +3,7 @@ import {
   type CompletionPreviewStatus,
   type GameState,
   type GameStateEnding,
+  type GameStatuses,
 } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import {
   GameExecutedMessage,
@@ -23,8 +24,7 @@ export interface PlayerBarState {
   paused: boolean;
   stepping: boolean;
   playing: boolean;
-  completion: CompletionPreviewStatus | null;
-  ending: GameStateEnding | null;
+  statuses: GameStatuses;
   executed: GameExecutedParams | null;
   size: GameResizedParams | null;
   runHistory: RunHistoryState;
@@ -67,13 +67,14 @@ export const foldRunHistory = (
     : { ...state, pending: { run: input.run, history } };
 };
 
+export const NO_STATUSES: GameStatuses = { completion: null, ending: null };
+
 export const initialPlayerBarState: PlayerBarState = {
   launchState: null,
   paused: false,
   stepping: false,
   playing: false,
-  completion: null,
-  ending: null,
+  statuses: NO_STATUSES,
   executed: null,
   size: null,
   runHistory: initialRunHistory,
@@ -107,8 +108,7 @@ export const reducePlayerBar = (
       paused: game.paused,
       stepping: game.stepping,
       playing: game.run != null,
-      completion: game.completion?.status ?? null,
-      ending: game.ending,
+      statuses: game.statuses ?? NO_STATUSES,
     };
   }
   if (
@@ -274,3 +274,27 @@ export const endingStatusHover = (ending: GameStateEnding): string => {
   }
   return "";
 };
+
+export const playerStatuses = (
+  completion: CompletionPreviewStatus | null,
+  hasFrame: boolean,
+  ending: GameStateEnding | null,
+): GameStatuses => ({
+  completion: completion
+    ? { text: completionStatusText(completion, hasFrame), status: completion }
+    : null,
+  ending: ending
+    ? {
+        text: endingStatusText(ending),
+        hover: endingStatusHover(ending),
+        kind: ending.kind,
+      }
+    : null,
+});
+
+export const sameStatuses = (a: GameStatuses, b: GameStatuses): boolean =>
+  a.completion?.text === b.completion?.text &&
+  a.completion?.status === b.completion?.status &&
+  a.ending?.text === b.ending?.text &&
+  a.ending?.hover === b.ending?.hover &&
+  a.ending?.kind === b.ending?.kind;

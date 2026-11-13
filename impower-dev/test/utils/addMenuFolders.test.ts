@@ -4,6 +4,7 @@ import {
   addMenuFolderProblem,
   addMenuKindsOf,
   addMenuSubfolder,
+  loopsByDefault,
   type AddMenuFolders,
 } from "../../src/modules/spark-editor/utils/addMenuFolders";
 
@@ -36,6 +37,15 @@ describe("the Add menu's folders", () => {
     expect(paths("backdrop")).toEqual(["assets/Backdrops/beach.png", "Assets/Images/backdrops/city/night.jpg"]);
     expect(paths("music")).toEqual(["assets/Music/theme.ogg"]);
     expect(paths("sound")).toEqual(["assets/Sounds/door.wav"]);
+  });
+
+  it("loop a sound by default in the Music folder at any depth, and play it once in Sounds or anywhere else", () => {
+    expect(loopsByDefault("assets/Music/theme.ogg", FOLDERS)).toBe(true);
+    expect(loopsByDefault("Assets/Audio/music/night/harbor.wav", FOLDERS)).toBe(true);
+    expect(loopsByDefault("assets/Sounds/door.wav", FOLDERS)).toBe(false);
+    expect(loopsByDefault("assets/Music/Sounds/sting.wav", FOLDERS)).toBe(false);
+    expect(loopsByDefault("assets/Audio/rain.ogg", FOLDERS)).toBe(false);
+    expect(loopsByDefault("assets/Score/theme.ogg", { ...FOLDERS, music: "Score" })).toBe(true);
   });
 
   it("let the nearest folder with one of the names decide", () => {

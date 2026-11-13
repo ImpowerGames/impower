@@ -113,6 +113,17 @@ describe("Carousel", () => {
     expect(parts(carousel).next.disabled).toBe(true);
   });
 
+  it("pans its track by touch on either axis, from a card or the gap, with no card narrowing the gesture", async () => {
+    const carousel = await mount(<Carousel {...LABELS}>{cards(3)}</Carousel>);
+    const track = carousel.querySelector<HTMLElement>("[data-carousel-track]")!;
+    const touchClasses = (el: Element) => Array.from(el.classList).filter((name) => /(^|:)touch-|scroller-x|overflow-x-/.test(name));
+    expect(touchClasses(track)).toEqual(["scroller-x"]);
+    for (const item of parts(carousel).items) {
+      expect(touchClasses(item)).toEqual([]);
+      for (const child of Array.from(item.querySelectorAll("*"))) expect(touchClasses(child)).toEqual([]);
+    }
+  });
+
   it("scrolls the chosen card into place, without motion when motion is reduced", async () => {
     const reduce = vi.fn((query: string) => ({ matches: query.includes("reduce") }) as MediaQueryList);
     vi.stubGlobal("matchMedia", reduce);

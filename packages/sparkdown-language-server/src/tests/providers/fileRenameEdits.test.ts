@@ -48,11 +48,12 @@ const renames = (edit: ReturnType<typeof getFileRenameEdits>) =>
     .map((change) => [leaf((change as { oldUri: string }).oldUri), leaf((change as { newUri: string }).newUri)]);
 
 describe("renaming a picture's file name", () => {
-  test("keeps everything after the name, so a layer file keeps its option and extension", () => {
+  test("renames a layer file with its picture, each keeping its group, option and extension", () => {
     const happy = `${ROOT}imani~face.happy.png`;
     const sad = `${ROOT}imani~face.sad.png`;
-    const { workspace, program } = setup([`${ROOT}imani.png`, happy, sad]);
-    expect(renames(getFileRenameEdits(workspace, program, happy, "zadie~face"))).toEqual([
+    const { workspace, program } = setup([`${ROOT}imani.png`, happy, sad, `${ROOT}imani@night.png`]);
+    expect(renames(getFileRenameEdits(workspace, program, happy, "zadie")).sort()).toEqual([
+      ["imani.png", "zadie.png"],
       ["imani~face.happy.png", "zadie~face.happy.png"],
       ["imani~face.sad.png", "zadie~face.sad.png"],
     ]);

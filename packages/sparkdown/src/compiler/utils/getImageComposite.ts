@@ -1,7 +1,9 @@
 import {
   bytesToBase64,
-  composeThumbnailBlob,
+  clampCompositeEdge,
+  composeCompositeBlob,
   thumbnailCacheKey,
+  THUMB_MIN_WIDTH,
   type ThumbnailSource,
 } from "../../thumbnails/composeThumbnail";
 import {
@@ -14,6 +16,7 @@ export type ReadFileBytes = (uri: string) => Promise<string | undefined>;
 
 export interface ImageCompositeOptions {
   readFileBytes?: ReadFileBytes;
+  size?: number;
   morphRest?: (
     context: { [type: string]: { [name: string]: any } } | undefined,
     struct: any,
@@ -26,7 +29,7 @@ export interface ImageCompositeOptions {
 
 // workaround(vscode): the markdown hover sanitizer drops style and class, so a layered image is flattened to one <img src> instead of a CSS stack (https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/markdownRenderer.ts)
 
-const PREVIEW_WIDTH = 360;
+const HOVER_PREVIEW_EDGE = 360;
 
 // workaround(vscode): the markdown sanitizer strips vscode-vfs:, vscode-userdata: and vscode-resource: img srcs, so those are inlined as data: uris (https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/markdownRenderer.ts)
 const DIRECTLY_LOADABLE_SCHEMES = new Set(["http", "https", "data", "file"]);
@@ -144,6 +147,7 @@ export const getImageCompositeSrc = async (
   if (layers.length === 1 && isDirectlyLoadable(layers[0]!.src)) {
     return layers[0]!.rest || layers[0]!.shown ? layers[0]!.src : undefined;
   }
+  const edge = clampCompositeEdge(options?.size ?? HOVER_PREVIEW_EDGE);
   const bridge = options?.readFileBytes;
   let cache = sharedCache;
   if (bridge) {
@@ -151,7 +155,7 @@ export const getImageCompositeSrc = async (
     bridgeCaches.set(bridge, cache);
   }
   const provisionalKey = layers.every(layer => layer.version !== undefined || layer.src.startsWith("data:"))
-    ? JSON.stringify(layers.map(layer => [layer.src, layer.uri, layer.version]))
+    ? JSON.stringify([edge, ...layers.map(layer => [layer.src, layer.uri, layer.version])])
     : undefined;
   const provisional = provisionalKey === undefined ? undefined : cacheGet(cache, provisionalKey);
   if (provisional !== undefined) {
@@ -167,23 +171,33 @@ export const getImageCompositeSrc = async (
   }
   const loaded = sources as ThumbnailSource[];
 
-  const key = thumbnailCacheKey(loaded, PREVIEW_WIDTH);
+  const key = thumbnailCacheKey(loaded, edge);
   const cached = cacheGet(cache, key);
   if (cached !== undefined) {
     if (provisionalKey !== undefined) cacheSet(cache, provisionalKey, cached);
     return cached || undefined;
   }
 
-  const blob = await composeThumbnailBlob(loaded, PREVIEW_WIDTH);
-  if (!blob) {
-    if (!bridge) {
-      cacheSet(cache, key, "");
-      if (provisionalKey !== undefined) cacheSet(cache, provisionalKey, "");
+  let value = "";
+  for (let fit = edge; ; ) {
+    const drawn = await composeCompositeBlob(loaded, fit);
+    if (!drawn) {
+      if (!bridge) {
+        cacheSet(cache, key, "");
+        if (provisionalKey !== undefined) cacheSet(cache, provisionalKey, "");
+      }
+      return undefined;
     }
-    return undefined;
+    const uri = toDataUri(new Uint8Array(await drawn.blob.arrayBuffer()), drawn.blob.type);
+    if (uri.length <= MAX_BYTES) {
+      value = uri;
+      break;
+    }
+    fit = Math.floor(drawn.edge * Math.min(0.9, Math.sqrt(MAX_BYTES / uri.length)));
+    if (fit < THUMB_MIN_WIDTH) {
+      break;
+    }
   }
-  const uri = toDataUri(new Uint8Array(await blob.arrayBuffer()), blob.type);
-  const value = uri.length > MAX_BYTES ? "" : uri;
   cacheSet(cache, key, value);
   if (provisionalKey !== undefined) cacheSet(cache, provisionalKey, value);
   return value || undefined;

@@ -13,6 +13,7 @@
   --swp-route-popup-background-color: #252526;
   --swp-route-popup-border-color: rgba(255, 255, 255, 0.2);
   --swp-route-row-height: 24px;
+  --swp-route-control-size: 22px;
 }
 
 :is(spark-web-player, swp-route-view) #route-button {
@@ -124,6 +125,7 @@
 :is(spark-web-player, swp-route-view) .route-list-head {
   position: sticky;
   top: 0;
+  z-index: 1;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
@@ -344,7 +346,7 @@
 :is(spark-web-player, swp-route-view) .sv-row {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) 22px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) var(--swp-route-control-size);
   align-items: center;
   gap: 8px;
   height: var(--swp-route-row-height);

@@ -42,6 +42,7 @@ import type {
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
 import { isSameProgram } from "../../compiler/utils/programSummary";
 import { playRefusalOf } from "../../compiler/utils/startScene";
+import { imageFileNameOf } from "../../attributes/imageFileName";
 import { profile } from "../utils/logging/profile";
 import { ProgramTransportDecoder } from "../utils/programTransport";
 import { debounce } from "../utils/timing/debounce";
@@ -534,8 +535,14 @@ export abstract class SparkdownWorkspace {
     return uri.split("/").slice(-1).join("");
   }
 
+  protected getEncodedFileName(uri: string): string {
+    return this.getFileType(uri) === "image"
+      ? imageFileNameOf(uri).name
+      : this.getFilenameWithExtension(uri).split(".")[0]!;
+  }
+
   getFileName(uri: string): string {
-    return uri.split("/").slice(-1).join("").split(".")[0]!.replaceAll("%40", "@");
+    return this.getEncodedFileName(uri).replaceAll("%40", "@");
   }
 
   getFileType(uri: string): string {
@@ -625,7 +632,7 @@ export abstract class SparkdownWorkspace {
 
   getRenamedUri(uri: string, newName: string): string {
     const filename = this.getFilenameWithExtension(uri);
-    const tail = filename.slice(filename.split(".")[0]!.length);
+    const tail = filename.slice(this.getEncodedFileName(uri).length);
     return this.getDirectoryUri(uri) + "/" + newName + tail;
   }
 

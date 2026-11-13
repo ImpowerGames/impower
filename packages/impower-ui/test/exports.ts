@@ -3,6 +3,7 @@ import * as kit from "../src/components";
 
 export const NOT_COMPONENTS: readonly string[] = [
   "announce",
+  "cn",
   "buttonVariants",
   "choiceGroupVariants",
   "choiceOptionVariants",
@@ -21,6 +22,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "railIndexRowVariants",
   "selectVariants",
   "settingsRowVariants",
+  "statusBadgeVariants",
   "switchVariants",
   "sliderVariants",
   "playButtonVariants",
@@ -63,6 +65,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "popoverVariants",
   "railState",
   "sheetVariants",
+  "lightboxVariants",
   "sidebarLayoutVariants",
   "toastVariants",
   "treeToggleVariants",

@@ -1,19 +1,9 @@
 import { RouteList } from "@impower/spark-web-player/src/route/RouteViews";
 import type { HostedValuesEvent } from "@impower/spark-web-player/src/route/routeViewMessages";
 import type { StartingValuesEvents } from "@impower/spark-web-player/src/route/StartingValuesViews";
-import { h } from "preact";
 import { useComputed } from "@preact/signals";
 import route, { routeScriptName } from "../../workspace/route/RouteStore";
-import routeViewCss from "./route-view.css?inline";
-
-const STYLE_ID = "swp-route-view-css";
-
-if (typeof document !== "undefined" && !document.getElementById(STYLE_ID)) {
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = routeViewCss;
-  document.head.appendChild(style);
-}
+import PlayerViewScope from "./PlayerViewScope";
 
 const valuesAction = (event: HostedValuesEvent) =>
   route.act({ kind: "values", event });
@@ -42,21 +32,21 @@ export default function RouteListView({ class: className }: { class?: string }) 
           : undefined,
       }
     : undefined;
-  return h(
-    "swp-route-view",
-    { class: className },
-    <RouteList
-      state={{ ...view, open: true }}
-      nameOf={routeScriptName}
-      onClose={() => route.close()}
-      onToggle={(kind, shown) =>
-        route.act({ kind: "toggle", routeKind: kind, shown })
-      }
-      onShowLine={(location) => route.showLine(location)}
-      onTab={(tab) => route.act({ kind: "tab", tab })}
-      values={values}
-      onChangePins={(change) => route.act({ kind: "changePins", change })}
-      onPinLastRun={() => route.act({ kind: "pinLastRun" })}
-    />,
+  return (
+    <PlayerViewScope class={className}>
+      <RouteList
+        state={{ ...view, open: true }}
+        nameOf={routeScriptName}
+        onClose={() => route.close()}
+        onToggle={(kind, shown) =>
+          route.act({ kind: "toggle", routeKind: kind, shown })
+        }
+        onShowLine={(location) => route.showLine(location)}
+        onTab={(tab) => route.act({ kind: "tab", tab })}
+        values={values}
+        onChangePins={(change) => route.act({ kind: "changePins", change })}
+        onPinLastRun={() => route.act({ kind: "pinLastRun" })}
+      />
+    </PlayerViewScope>
   );
 }

@@ -189,6 +189,7 @@ import {
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { renameOrReport } from "../utils/renameOrReport";
+import { FIX_OPEN_WAIT_MS, loadedVersion } from "./problems/openForFix";
 import {
   keepImportOutcome,
   ProjectImportError,
@@ -524,10 +525,30 @@ export default class WorkspaceWindow {
     return !!result?.shown;
   }
 
+  async insertReference(
+    filename: string,
+    construct: InsertConstruct,
+    reference: string,
+  ): Promise<boolean> {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return false;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const loaded = loadedVersion(uri, FIX_OPEN_WAIT_MS);
+    if (workspace.effectiveScriptMode.peek() === "reading") {
+      workspace.scriptMode.value = "editing";
+    }
+    await this.revealDocument(uri);
+    await loaded;
+    return this.insertConstruct(filename, construct, undefined, reference);
+  }
+
   async insertConstruct(
     filename: string,
     construct: InsertConstruct,
     name?: string,
+    reference?: string,
   ): Promise<boolean> {
     this.closeAddPanel();
     const projectId = this.store.project.id;
@@ -539,6 +560,7 @@ export default class WorkspaceWindow {
       textDocument: { uri },
       construct,
       ...(name === undefined ? {} : { name }),
+      ...(reference === undefined ? {} : { reference }),
     });
     if (!result?.inserted) {
       showSnackbar({
@@ -1505,10 +1527,11 @@ export default class WorkspaceWindow {
     takeFocus?: boolean,
     userEvent?: boolean,
   ): Promise<ShowDocumentResult> {
-    const filename = this._workspace.fs.getRelativePath(
-      this.store.project.id ?? "",
-      uri,
-    );
+    const projectId = this.store.project.id ?? "";
+    if (!uri.startsWith(this._workspace.fs.getFileUri(projectId, ""))) {
+      return { success: false };
+    }
+    const filename = this._workspace.fs.getRelativePath(projectId, uri);
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (!pane || !panel) {

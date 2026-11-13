@@ -28,6 +28,8 @@ export class MorphTimeline {
   protected plays: number;
   protected gap?: { min: number; max: number };
   protected starts: number[] = [];
+  protected spans: [number, number][] = [];
+  protected ready = -Infinity;
 
   constructor(
     protected timing: MorphTiming,
@@ -76,7 +78,38 @@ export class MorphTimeline {
     return clamp01(this.easing(this.directed(play, p)));
   }
 
+  speak(spans: readonly (readonly [number, number])[], now: number) {
+    if (this.timing.trigger !== "speech") return;
+    this.at(now);
+    this.spans = spans
+      .filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start)
+      .map(([start, end]): [number, number] => [start, end])
+      .sort((a, b) => a[0] - b[0]);
+  }
+
+  protected spoken(t: number): MorphPlayhead {
+    if (!(this.duration > 0)) return { phase: "off" };
+    for (;;) {
+      const last = this.starts[this.starts.length - 1];
+      if (last !== undefined && last + this.duration > t) break;
+      const from = last === undefined ? -Infinity : this.ready;
+      const span = this.spans.find(([, end]) => end > from);
+      if (!span) break;
+      const next = Math.max(from, span[0]);
+      if (next > t) break;
+      this.starts.push(next);
+      this.ready = next + this.duration + this.gapAfter();
+    }
+    const play = this.starts.length - 1;
+    if (play < 0) return { phase: "off" };
+    const elapsed = t - this.starts[play]!;
+    if (elapsed < this.duration) return { phase: "playing", play, offset: this.offset(play, elapsed / this.duration) };
+    if (this.spans.some(([start, end]) => start <= t && t < end)) return { phase: "between", play, offset: this.offset(play, 1) };
+    return { phase: "off" };
+  }
+
   at(t: number): MorphPlayhead {
+    if (this.timing.trigger === "speech") return this.spoken(t);
     if (!this.starts.length) return { phase: "off" };
     if (t < this.delay) return { phase: "waiting", play: 0, offset: this.start };
     const starts = this.starts;

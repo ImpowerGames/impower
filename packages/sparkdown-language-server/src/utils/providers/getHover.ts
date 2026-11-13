@@ -1,3 +1,4 @@
+import { readSourceDirective } from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
@@ -9,7 +10,7 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { resolveSelector } from "@impower/sparkdown/src/compiler/utils/resolveSelector";
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
-import { MORPH_FIELD_DOCS } from "@impower/sparkdown/src/compiler/morph/morphSchema";
+import { MORPH_CLAUSE_DOC, MORPH_FIELD_DOCS } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { braceBlockPathAt } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { own } from "@impower/sparkdown/src/morph/own";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
@@ -150,6 +151,30 @@ const getMorphFieldHover = (
   };
 };
 
+const getMorphClauseHover = (
+  document: SparkdownDocument,
+  tree: Tree,
+  position: Position,
+): Hover | null => {
+  const offset = document.offsetAt(position);
+  for (const side of [1, -1] as const) {
+    const node = tree.resolveInner(offset, side);
+    if (node.name !== "AssetCommandClauseKeyword" || document.read(node.from, node.to) !== "morph") continue;
+    let command = node.parent;
+    while (command && command.name !== "ImageCommand") command = command.parent;
+    const directive = command ? readSourceDirective(command, (from, to) => document.read(from, to)) : undefined;
+    const read = directive?.kind === "image" && directive.clauses.some(
+      (clause) => clause.word.text === "morph" && clause.word.from === node.from && clause.word.to === node.to,
+    );
+    if (!read) continue;
+    return {
+      contents: { kind: MarkupKind.Markdown, value: MORPH_CLAUSE_DOC },
+      range: document.range(node.from, node.to),
+    };
+  }
+  return null;
+};
+
 export const getHover = async (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
@@ -171,6 +196,10 @@ export const getHover = async (
     const morphFieldHover = getMorphFieldHover(document, tree, position);
     if (morphFieldHover) {
       return morphFieldHover;
+    }
+    const morphClauseHover = getMorphClauseHover(document, tree, position);
+    if (morphClauseHover) {
+      return morphClauseHover;
     }
   }
   if (!document || !annotations || !program) {

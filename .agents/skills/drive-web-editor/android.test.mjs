@@ -30,6 +30,10 @@ import {
 import { NAMED_STEPS, TICKETS, notBuiltYet, parseNamedStep } from "./steps.mjs";
 import { parseScreenshotArgs, parseUiSteps, ui, verify } from "./driver.mjs";
 
+const { LAUNCH_SECONDS, SHELL_SECONDS, launchTab, pageVerdict, planReverse } = await import("./android.mjs");
+const { shotGate, shotWaitsFor } = await import("./steps.mjs");
+const { surfacePainted } = await import("./driver.mjs");
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DRIVER = path.join(HERE, "driver.mjs");
 const ANDROID = pathToFileURL(path.join(HERE, "android.mjs")).href;
@@ -64,12 +68,23 @@ await check("the missing-adb message carries the whole setup procedure and point
   const plain = adbMissingMessage({ env, platform: "win32", exists: () => false });
   assert.ok(plain.includes(ANDROID_SETUP));
   assert.match(plain, /none on PATH or under ANDROID_HOME or ANDROID_SDK_ROOT/);
-  assert.doesNotMatch(plain, /Android Studio's copy/);
+  assert.doesNotMatch(plain, /Android Studio's copy is at/);
+  assert.ok(plain.includes(`It looked for adb.exe in each PATH folder (C:\\Windows) and for Android Studio's default copy at ${sdkAdb}, which is not there.`), plain);
   const hinted = adbMissingMessage({ env, platform: "win32", exists: (file) => file === sdkAdb });
   assert.ok(hinted.includes(`Android Studio's copy is at ${sdkAdb}: put its folder on PATH.`), hinted);
-  for (const part of ["API 34", "Google APIs", "Pixel-class", "Chrome (87 or later)", "Enable command line on non-rooted devices", "adb devices"]) {
+  const named = adbMissingMessage({ env: { ...env, ANDROID_HOME: "D:\\sdk" }, platform: "win32", exists: () => false });
+  assert.ok(named.includes("under ANDROID_HOME (D:\\sdk\\platform-tools\\adb.exe)"), named);
+  for (const part of ["API 34", "Google APIs", "Pixel-class", "Chrome (87 or later)", "Enable command line on non-rooted devices", "adb devices", "settings get global debug_app"]) {
     assert.ok(ANDROID_SETUP.includes(part), `setup procedure lacks ${part}`);
   }
+  assert.doesNotMatch(ANDROID_SETUP, /AppData|LOCALAPPDATA/);
+});
+
+await check("the setup text says the Chrome flag is needed only when Chrome is not the debug app, and warns about tabs, the clipboard strip and Git Bash paths", () => {
+  assert.match(ANDROID_SETUP, /only when Chrome is not the device's debug app/);
+  assert.match(ANDROID_SETUP, /opens its own tab/);
+  assert.match(ANDROID_SETUP, /clipboard/);
+  assert.match(ANDROID_SETUP, /MSYS_NO_PATHCONV=1/);
 });
 
 await check("without adb on the path, the driver fails within ten seconds with the setup procedure, for screenshot, ui and verify", () => {
@@ -195,7 +210,7 @@ function stubPage() {
     screenshot: async ({ path: file }) => {
       page.shots.push(file);
     },
-    evaluate: async (fn, arg) => (typeof arg === "string" && arg.includes("aria-selected") ? "assets" : { width: 360, height: 780, devicePixelRatio: 3 }),
+    evaluate: async (fn, arg) => (typeof arg === "string" && arg.includes("aria-selected") ? "assets" : { width: 360, height: 780, devicePixelRatio: 3, visibility: "visible" }),
   };
   return page;
 }
@@ -292,7 +307,20 @@ await check("on a device, ui reports the device, sends gestures through it and t
   assert.equal(process.exitCode, 0);
 });
 
-function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physical density: 420", reverse = "", serials = ["emulator-5554"] } = {}) {
+const LAID_OUT = { width: 980, height: 1839 };
+const UNRENDERED = { width: 0, height: 0 };
+
+function fakeTab(log, name, url, size = LAID_OUT) {
+  return {
+    name,
+    url: () => url,
+    evaluate: async () => size,
+    bringToFront: async () => log.push([`${name}.bringToFront`]),
+    close: async () => log.push([`${name}.close`]),
+  };
+}
+
+function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physical density: 420", reverse = "", serials = ["emulator-5554"], tabs = [["launch", "about:blank"]] } = {}) {
   const log = [];
   const shell = async (command) => {
     log.push(["shell", command]);
@@ -303,7 +331,17 @@ function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physica
     if (command.startsWith("settings get system user_rotation")) return Buffer.from("null\n");
     return Buffer.from("");
   };
-  const ctx = { close: async () => log.push(["context.close"]) };
+  const listed = tabs.map(([name, url, size]) => fakeTab(log, name, url, size));
+  const ctx = {
+    close: async () => log.push(["context.close"]),
+    pages: () => [...listed],
+    newPage: async () => {
+      log.push(["newPage"]);
+      const tab = fakeTab(log, "new", "about:blank");
+      listed.push(tab);
+      return tab;
+    },
+  };
   const makeDevice = (serial, first) => ({
     serial: () => serial,
     model: () => "sdk_gphone64_x86_64",
@@ -347,7 +385,7 @@ const withAdb = (fn) => {
   });
 };
 
-await check("opening the device maps only the unmapped editor ports, sets the density for --viewport, never installs Playwright's driver app, and undoes everything in reverse", () =>
+await check("opening the device maps the unmapped editor ports, takes over the ones a dead run left, sets the density for --viewport, never installs Playwright's driver app, and undoes everything in reverse", () =>
   withAdb(async () => {
     const fake = fakeAndroid({ reverse: "emulator-5554 tcp:38001 tcp:38001\n" });
     const record = { url: "http://localhost:38000", ports: { editor: 38000, player: 38001, hmr: 38002 } };
@@ -365,15 +403,18 @@ await check("opening the device maps only the unmapped editor ports, sets the de
     await session.device.rotate("landscape");
     await session.device.screenshot("/tmp/screen.png");
     assert.deepEqual(session.device.report().reversedPorts, [38000, 38002]);
+    assert.deepEqual(session.device.report().leftoverPorts, [38001]);
     assert.equal(session.device.report().density, 480);
     const mark = fake.log.length;
     assert.deepEqual(await session.close(), []);
     assert.deepEqual(fake.log.slice(mark), [
       ["shell", "settings delete system user_rotation"],
       ["shell", "settings put system accelerometer_rotation 1"],
+      ["launch.close"],
       ["context.close"],
       ["shell", "wm density reset"],
       ["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38002"],
+      ["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38001"],
       ["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38000"],
       ["device.close"],
       ["release"],
@@ -393,7 +434,7 @@ await check("with several devices enumerated, the connections to the ones not ch
     assert.ok(otherClosedAt > devicesAt, JSON.stringify(fake.log));
     assert.ok(otherClosedAt < fake.log.findIndex((entry) => entry[0] === "launchBrowser"));
     await session.close();
-    assert.deepEqual(fake.log.filter((entry) => /close$/.test(entry[0])).map((entry) => entry[0]), ["emulator-5556.close", "context.close", "device.close"]);
+    assert.deepEqual(fake.log.filter((entry) => /close$/.test(entry[0])).map((entry) => entry[0]), ["emulator-5556.close", "launch.close", "context.close", "device.close"]);
 
     const failing = fakeAndroid({ serials: ["emulator-5554", "emulator-5556"], chrome: "versionName=80.0.3987.99" });
     await assert.rejects(openAndroidDevice({ record: { url: "http://localhost:38000" }, ...failing, env, platform: "linux" }), /Chrome on emulator-5554 is 80/);
@@ -437,7 +478,7 @@ await check("a device whose Chrome is too old releases the queue and undoes its 
     assert.ok(!fake.log.some((entry) => entry[0] === "launchBrowser"));
   }));
 
-await check("a Chrome that never opens its debugging connection names the chrome://flags setting and undoes the session", () =>
+await check("a Chrome that never opens its debugging connection says how to check whether the command line is read, and undoes the session", () =>
   withAdb(async () => {
     const fake = fakeAndroid();
     fake.devices[0].launchBrowser = async () => {
@@ -445,10 +486,383 @@ await check("a Chrome that never opens its debugging connection names the chrome
     };
     await assert.rejects(
       openAndroidDevice({ record: { url: "http://localhost:38000" }, viewport: { name: "phone", width: 360, height: 780 }, ...fake, ...adbHere }),
-      (e) => /Chrome on emulator-5554 did not open its debugging connection \(Timeout 30000ms exceeded/.test(e.message) && e.message.includes("Enable command line on non-rooted devices"),
+      (e) =>
+        /Chrome on emulator-5554 did not open its debugging connection \(Timeout 30000ms exceeded/.test(e.message) &&
+        e.message.includes("only when Chrome is the device's debug app") &&
+        e.message.includes("adb -s emulator-5554 shell settings get global debug_app") &&
+        e.message.includes("Enable command line on non-rooted devices"),
     );
     assert.deepEqual(fake.log.slice(-4), [["shell", "wm density reset"], ["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38000"], ["device.close"], ["release"]]);
   }));
+
+await check("a Chrome that dies or never offers its debugging socket fails the run within the launch limit instead of hanging, and the session is undone", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid();
+    fake.devices[0].launchBrowser = () => new Promise(() => {});
+    let timer;
+    const hung = new Promise((resolve) => {
+      timer = setTimeout(() => resolve("still waiting after 5 s"), 5_000);
+    });
+    const outcome = await Promise.race([openAndroidDevice({ record: { url: "http://localhost:38000" }, launchMs: 50, ...fake, ...adbHere }).then(() => "opened", (error) => error), hung]);
+    clearTimeout(timer);
+    assert.match(String(outcome?.message ?? outcome), /Chrome on emulator-5554 offered no debugging connection within 0\.05 s/);
+
+    const unhandled = [];
+    const onUnhandled = (reason) => unhandled.push(String(reason?.message ?? reason));
+    process.on("unhandledRejection", onUnhandled);
+    const lateFake = fakeAndroid();
+    lateFake.devices[0].launchBrowser = () => new Promise((_, reject) => setTimeout(() => reject(new Error("Device closed")), 100));
+    await assert.rejects(openAndroidDevice({ record: { url: "http://localhost:38000" }, launchMs: 20, ...lateFake, ...adbHere }), /offered no debugging connection/);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    process.off("unhandledRejection", onUnhandled);
+    assert.deepEqual(unhandled, []);
+    assert.deepEqual(fake.log.slice(-3), [["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38000"], ["device.close"], ["release"]]);
+    assert.equal(LAUNCH_SECONDS, 60);
+  }));
+
+await check("the route drives the one tab Chrome's launch opened, fronts it and closes it when the run ends", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid({ tabs: [["launch", "about:blank"]] });
+    const session = await openAndroidDevice({ record: { url: "http://localhost:38000" }, ...fake, ...adbHere });
+    assert.equal(session.page.name, "launch");
+    assert.ok(fake.log.some((entry) => entry[0] === "launch.bringToFront"));
+    assert.ok(!fake.log.some((entry) => entry[0] === "newPage"));
+    assert.equal(session.device.report().tab, "the tab Chrome opened for this run");
+    await session.close();
+    assert.deepEqual(fake.log.filter((entry) => /\.close$/.test(entry[0])).map((entry) => entry[0]), ["launch.close", "context.close", "device.close"]);
+  }));
+
+await check("with restored tabs listed beside it, the route still drives and closes the launch tab, the only blank one laid out, and touches no other", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid({ tabs: [["stray1", "about:blank", UNRENDERED], ["stray2", "https://example.com/", UNRENDERED], ["launch", "about:blank", LAID_OUT]] });
+    const session = await openAndroidDevice({ record: { url: "http://localhost:38000" }, ...fake, ...adbHere });
+    assert.equal(session.page.name, "launch");
+    assert.ok(!fake.log.some((entry) => entry[0] === "newPage"));
+    assert.equal(session.device.report().tab, "the tab Chrome opened for this run");
+    await session.close();
+    const closed = fake.log.filter((entry) => /\.close$/.test(entry[0])).map((entry) => entry[0]);
+    assert.deepEqual(closed, ["launch.close", "context.close", "device.close"]);
+  }));
+
+await check("when the launch tab cannot be told apart, the route opens a tab of its own, drives and closes only that one, and says the launch tab stays", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid({ tabs: [["stray", "about:blank", LAID_OUT], ["launch", "about:blank", LAID_OUT]] });
+    const session = await openAndroidDevice({ record: { url: "http://localhost:38000" }, ...fake, ...adbHere });
+    assert.equal(session.page.name, "new");
+    assert.ok(fake.log.some((entry) => entry[0] === "new.bringToFront"));
+    assert.match(session.device.report().tab, /^a new tab: of the 2 tabs Chrome listed at launch, not exactly one was a blank page laid out on screen/);
+    await session.close();
+    const closed = fake.log.filter((entry) => /\.close$/.test(entry[0])).map((entry) => entry[0]);
+    assert.deepEqual(closed, ["new.close", "context.close", "device.close"]);
+  }));
+
+await check("the tab choice takes the one blank tab laid out on screen, since after Chrome's restart only the tab its launch fronts is laid out", async () => {
+  const tab = (url, size) => ({ url: () => url, size });
+  const measure = async (page) => page.size;
+  const launch = tab("about:blank", LAID_OUT);
+  assert.equal(await launchTab([launch], measure), launch);
+  assert.equal(await launchTab([tab("about:blank", UNRENDERED), tab("https://example.com/", LAID_OUT), launch], measure), launch);
+  assert.equal(await launchTab([], measure), null);
+  assert.equal(await launchTab([tab("https://example.com/", LAID_OUT)], measure), null);
+  assert.equal(await launchTab([tab("about:blank", UNRENDERED)], measure), null);
+  assert.equal(await launchTab([tab("about:blank", LAID_OUT), tab("about:blank", LAID_OUT)], measure), null);
+  const failing = { url: () => "about:blank", evaluate: async () => { throw new Error("Target closed"); } };
+  assert.equal(await launchTab([failing]), null);
+});
+
+await check("a device that stops answering fails the run within the answer limit, naming the command, and the session is undone", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid();
+    const answering = fake.devices[0].shell;
+    fake.devices[0].shell = (command) => (command === "wm size" ? new Promise(() => {}) : answering(command));
+    await assert.rejects(
+      openAndroidDevice({ record: { url: "http://localhost:38000" }, answerMs: 50, ...fake, ...adbHere }),
+      /`adb shell wm size` on emulator-5554 did not answer within 0\.05 s; the device has stopped responding/,
+    );
+    assert.deepEqual(fake.log.slice(-3), [["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38000"], ["device.close"], ["release"]]);
+
+    const listing = fakeAndroid();
+    listing.playwright = async () => ({ _android: { devices: () => new Promise(() => {}) } });
+    await assert.rejects(openAndroidDevice({ record: { url: "http://localhost:38000" }, answerMs: 50, ...listing, ...adbHere }), /Playwright's list of Android devices did not answer within 0\.05 s/);
+    assert.deepEqual(listing.log.at(-1), ["release"]);
+    assert.equal(SHELL_SECONDS, 30);
+  }));
+
+await check("a page that measures 0x0 or is not the visible tab fails the run, naming the cause", () => {
+  assert.equal(pageVerdict({ width: 430, height: 807, visibility: "visible" }), null);
+  assert.match(pageVerdict({ width: 0, height: 0, visibility: "visible" }), /the page the run drove measures 0x0/);
+  assert.match(pageVerdict({ width: 430, height: 0, visibility: "visible" }), /measures 430x0/);
+  assert.match(pageVerdict({ width: 430, height: 807, visibility: "hidden" }), /is not the visible tab \(document\.visibilityState is hidden\)/);
+});
+
+await check("the mapping rule: unmapped ports are added, a same-port mapping is a dead run's and is taken over, and one sent elsewhere is refused", () => {
+  const mapped = new Map([[38001, 38001], [38000, 39999], [9000, 9001]]);
+  assert.deepEqual(planReverse([38000, 38001, 38002], mapped), { add: [38002], leftover: [38001], conflicts: [38000] });
+  assert.deepEqual(planReverse([38002], new Map()), { add: [38002], leftover: [], conflicts: [] });
+});
+
+await check("a device shot waits for the surface the step before it opened, and each named step says what that is", () => {
+  for (const [name, def] of Object.entries(NAMED_STEPS)) {
+    if (def.builtBy) continue;
+    assert.equal(typeof def.waitsFor?.what, "string", name);
+    assert.equal(typeof def.waitsFor?.selector, "string", name);
+  }
+  const steps = parseUiSteps(["--step", "add-menu", "--shot", "a.png", "--tap", "1,2", "--shot", "b.png", "--step", "app-menu", "--shot-of", "page", "c.png", "--shot", "d.png"], { device });
+  assert.deepEqual(shotWaitsFor(steps, 1), NAMED_STEPS["add-menu"].waitsFor);
+  assert.equal(shotWaitsFor(steps, 3), null);
+  assert.deepEqual(shotWaitsFor(steps, 7), NAMED_STEPS["app-menu"].waitsFor);
+  assert.equal(shotWaitsFor(parseUiSteps(["--shot", "a.png"], { device }), 0), null);
+});
+
+await check("one rule picks a shot's gate: after a named step it is that step's surface, and only a shot of nothing named waits on the script editor", () => {
+  const steps = parseUiSteps(["--shot", "a.png", "--step", "play", "--shot", "b.png", "--shot-of", "page", "c.png", "--tap", "1,2", "--shot", "d.png"], { device });
+  assert.deepEqual(shotGate(steps, 0), { gate: "editor" });
+  assert.deepEqual(shotGate(steps, 2), { gate: "surface", waitsFor: NAMED_STEPS.play.waitsFor });
+  assert.deepEqual(shotGate(steps, 3), { gate: "surface", waitsFor: NAMED_STEPS.play.waitsFor });
+  assert.deepEqual(shotGate(steps, 5), { gate: "editor" });
+  for (const name of Object.keys(NAMED_STEPS)) {
+    if (NAMED_STEPS[name].builtBy || NAMED_STEPS[name].argument) continue;
+    assert.equal(shotGate(parseUiSteps(["--step", name, "--shot", "x.png"], { device }), 1).gate, "surface", name);
+  }
+});
+
+await check("a shot of a named step's surface is not refused because the script editor is covered, while a shot of nothing named still is", async () => {
+  const { page } = addSheetPage({ animationPolls: 0 });
+  const dev = stubDevice();
+  const asked = [];
+  const refusing = () => {
+    const gate = async (_page, what) => {
+      asked.push(what);
+      return { required: true, ok: false, reason: "the script editor is not on screen (the preview covers it)" };
+    };
+    gate.noteSettled = () => {};
+    gate.reset = () => {};
+    return gate;
+  };
+  const before = path.join(scratch, "covered-before.png");
+  const after = path.join(scratch, "covered-after.png");
+  const result = await ui(["--shot", before, "--step", "add-menu", "--shot", after], { device, ...uiDeps(page, dev).deps, editorGate: refusing });
+  assert.equal(result.steps[0].gated, true);
+  assert.equal(result.steps[0].screenshot, null);
+  assert.equal(result.steps[2].gated, undefined);
+  assert.equal(result.steps[2].waitedFor, "the Add to script panel");
+  assert.equal(result.steps[2].screenshot, path.resolve(after));
+  assert.deepEqual(asked, ["screenshot"]);
+  assert.deepEqual(dev.calls.filter(([kind]) => kind === "screenshot"), [["screenshot", path.resolve(after)]]);
+  process.exitCode = 0;
+});
+
+function addSheetPage({ animationPolls, hidden = false }) {
+  const panelSelector = NAMED_STEPS["add-menu"].waitsFor.selector;
+  const dom = { open: false, polls: 0 };
+  const panel = { getBoundingClientRect: () => ({ width: 430, height: 420 }), contains: (other) => other === panel };
+  const running = () => dom.open && dom.polls < animationPolls;
+  const fakeDocument = {
+    querySelectorAll: (selector) => (selector === panelSelector && dom.open ? [panel] : []),
+    getAnimations: () => (running() ? [{ effect: { target: panel, getComputedTiming: () => ({ endTime: 250 }) }, playState: "running" }] : []),
+  };
+  const page = stubPage();
+  const evaluateDefault = page.evaluate;
+  page.locator = (selector) => ({
+    first: () => ({
+      isVisible: async () => selector === "[data-add-trigger]",
+      click: async () => {
+        dom.open = true;
+      },
+      waitFor: async () => {
+        if (selector === panelSelector && !dom.open) throw new Error("not visible");
+      },
+    }),
+  });
+  page.evaluate = (fn, arg) => (arg === panelSelector ? Promise.resolve([{ construct: "character", disabled: false }]) : evaluateDefault(fn, arg));
+  page.frames = () => [fakeFrame(fakeDocument, { hidden, onCheck: () => dom.polls++ })];
+  page.waitForTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  return { page, dom, animating: running };
+}
+
+function fakeFrame(fakeDocument, { hidden = false, onCheck = () => {} } = {}) {
+  return {
+    evaluate: async (fn, arg) => {
+      if (typeof arg !== "string") return undefined;
+      const saved = { document: globalThis.document, getComputedStyle: globalThis.getComputedStyle };
+      globalThis.document = fakeDocument;
+      globalThis.getComputedStyle = () => ({ visibility: hidden ? "hidden" : "visible" });
+      try {
+        return fn(arg);
+      } finally {
+        Object.assign(globalThis, saved);
+        onCheck();
+      }
+    },
+  };
+}
+
+await check("the paint wait looks in every frame, so Play's game inside the player frame counts as painted", async () => {
+  const shown = { getBoundingClientRect: () => ({ width: 430, height: 242 }), contains: (other) => other === shown };
+  const editorDocument = { querySelectorAll: () => [], getAnimations: () => [] };
+  const playerDocument = { querySelectorAll: (selector) => (selector === "#game" ? [shown] : []), getAnimations: () => [] };
+  const page = { frames: () => [fakeFrame(editorDocument), fakeFrame(playerDocument)], waitForTimeout: async () => {} };
+  assert.equal(await surfacePainted(page, NAMED_STEPS.play.waitsFor), true);
+});
+
+await check("on a device, --shot after a named step waits until that step's surface has finished animating, and fails when it never settles", async () => {
+  for (const [label, options, settles] of [["settles", { animationPolls: 3 }, true], ["never settles", { animationPolls: Infinity }, false], ["stays hidden", { animationPolls: 0, hidden: true }, false]]) {
+    const { page, animating } = addSheetPage(options);
+    const dev = stubDevice();
+    const captured = [];
+    dev.screenshot = async () => captured.push({ animating: animating() });
+    const result = await ui(["--step", "add-menu", "--shot", path.join(scratch, `add-${label}.png`)], { device, ...uiDeps(page, dev).deps });
+    assert.deepEqual(result.steps[0], { step: "add-menu", ran: true, opened: "popover", rows: [{ construct: "character", disabled: false }] }, label);
+    const shotStep = result.steps[1];
+    assert.equal(shotStep.waitedFor, "the Add to script panel", label);
+    assert.equal(captured.length, 1, label);
+    if (settles) {
+      assert.deepEqual(captured, [{ animating: false }], label);
+      assert.equal(shotStep.reason, undefined, label);
+      assert.deepEqual(result.failed, [], label);
+      assert.equal(process.exitCode, 0, label);
+    } else {
+      assert.match(shotStep.reason, /the Add to script panel had not painted within 5s of the screenshot/, label);
+      assert.deepEqual(result.failed, [shotStep.reason], label);
+      assert.equal(process.exitCode, 1, label);
+    }
+    process.exitCode = 0;
+  }
+});
+
+const OWNED_PREVIEW = "impower-driver/revealed-preview";
+
+function phonePreviewPage({ paneShown = false, owned = false, saveStuck = false, backMissing = false } = {}) {
+  const pane = '[role="group"][aria-label="Playback controls"]';
+  const show = 'button[aria-label="Show the preview"]';
+  const settings = 'button[aria-label="Preview settings"]';
+  const open = '[role="menu"], [role="dialog"]';
+  const state = { paneShown, savedRevealed: paneShown, menuOpen: false, storage: owned ? { [OWNED_PREVIEW]: "1" } : {}, pressed: [] };
+  const visible = (selector, options) => {
+    if (selector === pane || selector === settings) return state.paneShown;
+    if (selector === show) return !state.paneShown;
+    if (selector === open) return state.menuOpen;
+    if (options?.hasText === "Back to story") return state.paneShown && !backMissing;
+    return false;
+  };
+  const page = stubPage();
+  page.keyboard = { press: async (key) => { if (key === "Escape") state.menuOpen = false; } };
+  page.locator = (selector, options) => ({
+    first: () => ({
+      isVisible: async () => visible(selector, options),
+      click: async () => {
+        state.pressed.push(options?.hasText ?? selector);
+        if (selector === show) state.paneShown = state.savedRevealed = true;
+        if (selector === settings) state.menuOpen = true;
+        if (options?.hasText === "Back to story") state.paneShown = false;
+      },
+      waitFor: async ({ state: want } = {}) => {
+        if ((want === "hidden") === visible(selector, options)) throw new Error("timeout");
+      },
+    }),
+  });
+  page.evaluate = async (fn, arg) => {
+    if (Array.isArray(arg) && arg[0] === OWNED_PREVIEW) {
+      if (arg[1] === "claim") state.storage[OWNED_PREVIEW] = "1";
+      if (arg[1] === "release") delete state.storage[OWNED_PREVIEW];
+      return state.storage[OWNED_PREVIEW] === "1";
+    }
+    if (arg === undefined && String(fn).includes("menuitemcheckbox")) return [{ name: "Game preview follows cursor", checked: true }];
+    return { width: 430, height: 807, devicePixelRatio: 3, visibility: "visible" };
+  };
+  page.waitForFunction = async (fn) => {
+    if (String(fn).includes("workspace/")) {
+      if (saveStuck) throw new Error("timeout");
+      state.savedRevealed = state.paneShown;
+      if (state.savedRevealed) throw new Error("timeout");
+    }
+    return true;
+  };
+  return { page, state };
+}
+
+await check("in the phone layout a preview step reveals the pane through ui before its body runs, and the run hides it again and waits for the hidden pane to be saved", async () => {
+  const { page, state } = phonePreviewPage();
+  const result = await ui(["--step", "preview-settings"], uiDeps(page, null).deps);
+  assert.equal(result.steps[0].ran, true, JSON.stringify(result.steps[0]));
+  assert.equal(result.steps[0].revealed, "preview");
+  assert.deepEqual(state.pressed, ['button[aria-label="Show the preview"]', 'button[aria-label="Preview settings"]', "Back to story"]);
+  assert.deepEqual(result.hidAgain, [{ reveal: "preview", hidden: true }]);
+  assert.equal(state.paneShown, false);
+  assert.equal(state.savedRevealed, false);
+  assert.deepEqual(state.storage, {});
+  assert.deepEqual(result.failed, []);
+  assert.equal(process.exitCode, 0);
+});
+
+await check("a run whose revealed pane cannot be hidden and saved again fails, naming why", async () => {
+  for (const [label, options, cause] of [["save never lands", { saveStuck: true }, /the workspace had not saved the preview as hidden within 5 s/], ["no Back to story", { backMissing: true }, /the preview pane is on screen and its Back to story link is not/]]) {
+    const { page, state } = phonePreviewPage(options);
+    const result = await ui(["--step", "preview-settings"], uiDeps(page, null).deps);
+    assert.equal(result.hidAgain[0].hidden, false, label);
+    assert.match(result.failed.at(-1), /the preview pane this run revealed was not hidden again/, label);
+    assert.match(result.failed.at(-1), cause, label);
+    assert.equal(state.storage[OWNED_PREVIEW], "1", `${label}: the run keeps its claim so the next run hides the pane`);
+    assert.equal(process.exitCode, 1, label);
+    process.exitCode = 0;
+  }
+});
+
+await check("a pane an earlier run revealed and never hid is hidden when the next run starts, and an author's own pane is left alone", async () => {
+  const left = phonePreviewPage({ paneShown: true, owned: true });
+  const shot = path.join(scratch, "reclaimed.png");
+  const result = await ui(["--shot", shot], uiDeps(left.page, null).deps);
+  assert.deepEqual(result.previewReclaimed, { restored: true });
+  assert.equal(left.state.paneShown, false);
+  assert.deepEqual(left.state.storage, {});
+  assert.deepEqual(result.failed, []);
+  const authors = phonePreviewPage({ paneShown: true });
+  const kept = await ui(["--shot", shot], uiDeps(authors.page, null).deps);
+  assert.equal(kept.previewReclaimed, undefined);
+  assert.equal(authors.state.paneShown, true);
+  assert.deepEqual(authors.state.pressed, []);
+  process.exitCode = 0;
+});
+
+await check("verify fails when it cannot hide a pane an earlier run left, as ui does, and hides one it can", async () => {
+  const failing = phonePreviewPage({ paneShown: true, owned: true, saveStuck: true });
+  const verifyDeps = (page) => ({ ...uiDeps(page, null).deps, ensureScriptEditor: async () => ({ present: false, reason: "stub stops here" }), previewSummary: async () => null });
+  const failed = await verify([], verifyDeps(failing.page));
+  assert.equal(failed.previewReclaimed.restored, false);
+  assert.match(failed.error, /an earlier run revealed the preview pane and ended before hiding it, and it could not be hidden now: the workspace had not saved the preview as hidden/);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = 0;
+  const viaUi = await ui(["--shot", path.join(scratch, "reclaim-fail.png")], uiDeps(phonePreviewPage({ paneShown: true, owned: true, saveStuck: true }).page, null).deps);
+  assert.match(viaUi.failed.join(" "), /could not be hidden now/);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = 0;
+  const left = phonePreviewPage({ paneShown: true, owned: true });
+  let reached = false;
+  await verify([], { ...verifyDeps(left.page), ensureScriptEditor: async () => { reached = true; return { present: false, reason: "stub stops here" }; } });
+  assert.equal(reached, true);
+  assert.equal(left.state.paneShown, false);
+  assert.deepEqual(left.state.storage, {});
+  process.exitCode = 0;
+});
+
+await check("a device run whose page measures 0x0 stops at the start with a failure and exit code 1, in ui and in verify", async () => {
+  const blank = () => {
+    const page = stubPage();
+    page.evaluate = async () => ({ width: 0, height: 0, devicePixelRatio: 1, visibility: "hidden" });
+    return page;
+  };
+  const dev = stubDevice();
+  const uiRun = await ui(["--shot", path.join(scratch, "blank.png")], { device, ...uiDeps(blank(), dev).deps });
+  assert.match(uiRun.failed.join(" "), /measures 0x0/);
+  assert.deepEqual(dev.calls, []);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = 0;
+  const verifyDeps = { ...uiDeps(blank(), dev).deps, ensureScriptEditor: async () => ({ present: true, settled: true }) };
+  const verifyRun = await verify([], verifyDeps);
+  assert.match(verifyRun.error, /measures 0x0/);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = 0;
+});
 
 await check("verify on a device takes its --shot through the device and reports the device", async () => {
   const page = stubPage();

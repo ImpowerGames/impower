@@ -10,6 +10,7 @@ export interface Chunk {
     to?: number;
     with?: string;
     ease?: string;
+    morph?: string;
     wait?: boolean;
     loop?: boolean;
     once?: boolean;

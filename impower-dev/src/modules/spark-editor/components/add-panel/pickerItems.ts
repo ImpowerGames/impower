@@ -6,7 +6,8 @@ import {
   type AddMenuKind,
   ADD_MENU_FILE_TYPES,
 } from "../../utils/addMenuFolders";
-import { imageStacks, stemOf } from "../../utils/imageStacks";
+import { stemOf } from "@impower/sparkdown/src/attributes/imageFileName";
+import { imageStacks } from "../../utils/imageStacks";
 
 export interface PickerFile {
   readonly path: string;
@@ -40,7 +41,7 @@ const ASSET_NAME = grammarPattern("AssetCommandFileName", (m) => `^(?:${m})$`);
 
 const NONE_KEYWORD = grammarPattern(
   "AssetCommandKeywordNone",
-  (m) => `^(?:${m})`,
+  (m) => `^(?:${m})$`,
 );
 
 const CLAUSE_KEYWORD = grammarPattern(

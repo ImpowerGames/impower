@@ -427,12 +427,13 @@ export default class WorkspaceLanguageServer {
   async getVariantPicture(
     uri: string,
     variant: { image: string; attributes: readonly string[] },
+    size: number,
   ): Promise<string | null> {
     await this.initialization();
     return (
       (await this._connection.sendRequest<string | null>(
         "sparkdown/variantPicture",
-        { uri, variant },
+        { uri, variant, size },
       )) ?? null
     );
   }

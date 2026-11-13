@@ -101,7 +101,7 @@ import {
 import { addAssetFiles, landedView } from "../../workspace/addAssetFiles";
 import { folderTitle } from "../../workspace/uploadSession";
 import AddUrlDialog from "./AddUrlDialog";
-import AssetRowMenu, { type AssetRowAction } from "./AssetRowMenu";
+import AssetRowMenu, { INSPECTOR_ACTIONS, type AssetRowAction } from "./AssetRowMenu";
 import { SoundLine, SoundPlay } from "./SoundRow";
 import UploadsPanel from "./UploadsPanel";
 import { useFileDrop } from "./useFileDrop";
@@ -249,6 +249,7 @@ function AssetsBrowser() {
   const [query, setQuery] = useTabQuery("assetsQueries", PAGE_TAB);
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const renameAfterClose = useRef<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const [deleting, setDeleting] = useState<{ paths: readonly string[]; groups: SearchGroup[] | null } | null>(null);
@@ -321,8 +322,11 @@ function AssetsBrowser() {
     [listing],
   );
 
+  const inspected = useRef<string | null>(null);
   useEffect(() => {
-    if (openPath) {
+    const closed = !openPath && !!inspected.current;
+    inspected.current = openPath;
+    if (openPath || closed) {
       audioSession.stopUnless((owner) => owner === AUDITION_OWNER || owner === openPath);
     }
   }, [openPath]);
@@ -526,7 +530,20 @@ function AssetsBrowser() {
     if (action === "select") selection.start(row.path);
     else if (action === "rename") setRenaming(row.path);
     else if (action === "move") setMoving([row.path]);
+    else if (action === "download") void run(async () => (await intents()).assets.downloadAll([row.path]));
     else requestDelete([row.path]);
+  };
+
+  const onInspectorAction = (row: AssetRow, action: AssetRowAction) => {
+    if (action !== "rename") {
+      onAction(row, action);
+    } else if (host === "sheet") {
+      renameAfterClose.current = row.path;
+      closeInspector();
+    } else {
+      revealRow(row.path);
+      setRenaming(row.path);
+    }
   };
 
   const onSelectionAction = (action: SelectionAction) => {
@@ -673,6 +690,14 @@ function AssetsBrowser() {
       onStep={stepTo}
       onClose={closeInspector}
       closeRef={closeButton}
+      menu={
+        <AssetRowMenu
+          name={row.name}
+          kept={row.folderStack ? folderStackReason(row.name) : undefined}
+          actions={INSPECTOR_ACTIONS}
+          onAction={(action) => onInspectorAction(row, action)}
+        />
+      }
     />
   );
   const inspector = openRowOf ? inspectorOf(openRowOf) : null;
@@ -917,7 +942,15 @@ function AssetsBrowser() {
             if (!open) closeInspector();
           }}
           initialFocus={closeButton}
-          returnFocus={() => (lastPath.current ? returnTarget(lastPath.current) : null)}
+          returnFocus={() => {
+            const renamed = renameAfterClose.current;
+            renameAfterClose.current = null;
+            if (renamed) {
+              revealRow(renamed);
+              setRenaming(renamed);
+            }
+            return lastPath.current ? returnTarget(lastPath.current) : null;
+          }}
         >
           {lastInspector}
         </Sheet>

@@ -8,8 +8,9 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
+import { NAMED_STEPS } from "./steps.mjs";
 
 let failures = 0;
 const check = (name, fn) => {
@@ -612,6 +613,8 @@ check("play, insert and scrub steps parse with their bounds (#969)", () => {
   assert.throws(() => parseUiSteps(["--insert", "1:1"]), /line:col=text/);
 });
 
+const silent = async () => async () => [];
+
 function playPage(visible) {
   const clicks = [];
   return { clicks, page: {
@@ -627,7 +630,7 @@ await asyncCheck("play reports the launch state it reached, and a click whose st
   const { page, clicks } = playPage((sel) => sel.includes(launchState === "play" ? "Stop" : "Play From Here"));
   let clock = 0, calls = 0;
   const request = async () => { if (clicks.length && ++calls > 2) launchState = "play"; return { launchState }; };
-  const opts = { request, now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 };
+  const opts = { request, notifications: silent, now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 };
   const started = await playPreview(page, "start", opts);
   assert.equal(started.clicked, true);
   assert.equal(started.reached, true);
@@ -716,7 +719,7 @@ await asyncCheck("an ended PLAY counts as running: advance clicks it, and play s
   let launchState = "ended";
   const { page, clicks } = playPage((sel) => sel.includes(launchState === "preview" ? "Play From Here" : "Stop"));
   let clock = 0;
-  const opts = { now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 };
+  const opts = { notifications: silent, now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 };
   const stopped = await playPreview(page, "stop", { ...opts, request: async () => { if (clicks.length) launchState = "preview"; return { launchState }; } });
   assert.equal(stopped.launchStateBefore, "ended");
   assert.equal(stopped.reached, true);
@@ -725,6 +728,139 @@ await asyncCheck("an ended PLAY counts as running: advance clicks it, and play s
   const started = await playPreview(quick.page, "start", { ...opts, request: async () => ({ launchState: quick.clicks.length ? "ended" : "preview" }) });
   assert.equal(started.launchState, "ended");
   assert.equal(started.running, true);
+});
+
+check("Play's reached rule reads the transition the player reports, so a run that starts and ends at once counts", () => {
+  const idle = { launchState: "preview", run: null };
+  assert.equal(playReached("start", idle, [{ launchState: "preview", run: 1 }, { launchState: "preview", run: null }]), true);
+  assert.equal(playReached("start", idle, [{ launchState: "ended", run: 1 }]), true);
+  assert.equal(playReached("start", idle, [{ launchState: "play", run: null }]), true);
+  assert.equal(playReached("start", idle, [idle, idle]), false);
+  assert.equal(playReached("start", { launchState: "preview", run: 4 }, [{ launchState: "preview", run: 4 }]), false);
+  assert.equal(playReached("start", idle, []), false);
+  assert.equal(playReached("stop", { launchState: "play", run: 2 }, [{ launchState: "play", run: 2 }, { launchState: "preview", run: null }]), true);
+  assert.equal(playReached("stop", { launchState: "play", run: 2 }, [{ launchState: "ended", run: 2 }]), false);
+});
+
+check("the player is ready for Play once it reports a launch state and a loaded program", () => {
+  assert.equal(playerReady(null), false);
+  assert.equal(playerReady({ launchState: null, programLoaded: false }), false);
+  assert.equal(playerReady({ launchState: "preview", programLoaded: false }), false);
+  assert.equal(playerReady({ launchState: "preview", programLoaded: true }), true);
+  assert.equal(playerReady({ launchState: "preview" }), true);
+});
+
+await asyncCheck("play reaches a story that starts and resets between polls from the run its notifications report, with the control back on Play", async () => {
+  const { page, clicks } = playPage((sel) => sel.includes("Play From Here"));
+  let clock = 0, pending = [];
+  const notifications = async () => async () => pending.splice(0);
+  page.locator = ((inner) => (selector) => {
+    const loc = inner(selector);
+    return { first: () => ({ ...loc.first(), click: async () => { clicks.push(selector); pending.push({ launchState: "preview", run: 1 }, { launchState: "ended", run: 1 }, { launchState: "preview", run: null }); } }) };
+  })(page.locator);
+  const started = await playPreview(page, "start", { request: async () => ({ launchState: "preview", programLoaded: true, run: null }), notifications, now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 });
+  assert.equal(started.clicked, true);
+  assert.equal(started.reached, true);
+  assert.equal(started.reason, undefined);
+  assert.equal(started.launchState, "preview");
+  assert.equal(started.control, "Play From Here");
+  assert.deepEqual(started.passedThrough, ["preview", "ended"]);
+  assert.ok(clock < 1000, `it stops polling once the run is seen, not at the budget (${clock} ms)`);
+});
+
+await asyncCheck("play waits for the player to load the story before pressing, and does not press one that never loads", async () => {
+  const { page, clicks } = playPage((sel) => sel.includes("Play From Here"));
+  let clock = 0, asked = 0, clickedAtAsk = null;
+  page.locator = ((inner) => (selector) => {
+    const loc = inner(selector);
+    return { first: () => ({ ...loc.first(), click: async () => { clickedAtAsk = asked; clicks.push(selector); } }) };
+  })(page.locator);
+  const request = async () => {
+    asked++;
+    if (clicks.length) return { launchState: "play", programLoaded: true, run: 1 };
+    return asked < 4 ? { launchState: null, programLoaded: false, run: null } : { launchState: "preview", programLoaded: true, run: null };
+  };
+  const opts = { notifications: silent, now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 };
+  const started = await playPreview(page, "start", { ...opts, request });
+  assert.equal(clickedAtAsk, 4);
+  assert.equal(started.launchStateBefore, "preview");
+  assert.equal(started.reached, true);
+  clock = 0;
+  const never = playPage((sel) => sel.includes("Play From Here"));
+  const refused = await playPreview(never.page, "start", { ...opts, request: async () => ({ launchState: null, programLoaded: false }) });
+  assert.equal(refused.clicked, false);
+  assert.deepEqual(never.clicks, []);
+  assert.match(refused.reason, /the player had not loaded the story within 1s \(launch state null\), so Play was not pressed/);
+});
+
+function previewPage({ paneShown = false, showButton = true, paneShowsOnPress = true } = {}) {
+  const state = { paneShown, pressed: [], claimedBeforePress: null, storage: {} };
+  const page = {
+    evaluate: async (_fn, [key, op]) => {
+      if (op === "claim") state.storage[key] = "1";
+      return state.storage[key] === "1";
+    },
+    locator: (selector) => ({
+      first: () => ({
+        isVisible: async () => (selector === PREVIEW_PANE_SELECTOR ? state.paneShown : selector === SHOW_PREVIEW_SELECTOR ? showButton : false),
+        click: async () => {
+          state.pressed.push(selector);
+          if (selector === SHOW_PREVIEW_SELECTOR) state.claimedBeforePress = state.storage[DRIVER_PREVIEW_KEY] === "1";
+          if (selector === SHOW_PREVIEW_SELECTOR && paneShowsOnPress) state.paneShown = true;
+        },
+        waitFor: async () => {
+          if (selector === PREVIEW_PANE_SELECTOR && !state.paneShown) throw new Error("timeout");
+        },
+      }),
+    }),
+  };
+  return { page, state };
+}
+
+await asyncCheck("the preview is revealed the way an author does, by the title bar's Show the preview button, and each missing piece is named", async () => {
+  const hidden = previewPage();
+  assert.deepEqual(await revealPreview(hidden.page), { revealed: true });
+  assert.deepEqual(hidden.state.pressed, [SHOW_PREVIEW_SELECTOR]);
+  assert.equal(hidden.state.claimedBeforePress, true, "the run claims the pane before pressing, so a run killed after the press still owns it");
+  const shown = previewPage({ paneShown: true });
+  assert.deepEqual(await revealPreview(shown.page), { revealed: false });
+  assert.deepEqual(shown.state.pressed, []);
+  assert.deepEqual(shown.state.storage, {});
+  const noButton = previewPage({ showButton: false });
+  const missing = await revealPreview(noButton.page);
+  assert.equal(missing.revealed, false);
+  assert.match(missing.reason, /the preview pane is not on screen and the title bar's Show the preview button is not either/);
+  const stuck = previewPage({ paneShowsOnPress: false });
+  const noPane = await revealPreview(stuck.page, { timeout: 10 });
+  assert.equal(noPane.revealed, true, "a press that showed nothing still leaves the claim for the run to hide and release");
+  assert.match(noPane.reason, /the preview pane did not show within 0\.01 s of pressing Show the preview/);
+});
+
+check("the saved-hidden check reads only the loaded project's workspace, so another project's saved preview cannot hold a run", () => {
+  const read = (entries) => {
+    const saved = globalThis.localStorage;
+    globalThis.localStorage = { getItem: (key) => entries[key] ?? null };
+    try {
+      return previewSavedHidden();
+    } finally {
+      globalThis.localStorage = saved;
+    }
+  };
+  const revealed = JSON.stringify({ preview: { revealed: true } });
+  const hidden = JSON.stringify({ preview: { revealed: false } });
+  assert.equal(read({ "workspace/local": hidden, "workspace/other": revealed }), true);
+  assert.equal(read({ "workspace/local": revealed }), false);
+  assert.equal(read({ project: "p1", "workspace/p1": revealed, "workspace/local": hidden }), false);
+  assert.equal(read({ project: "p1", "workspace/p1": hidden }), true);
+  assert.equal(read({}), true);
+});
+
+check("the steps whose surface sits in the preview pane reveal it first, every reveal a step names exists, and every built step has a body", () => {
+  for (const [name, def] of Object.entries(NAMED_STEPS)) {
+    if (def.reveals) assert.ok(Object.hasOwn(REVEALS, def.reveals), `${name} reveals ${def.reveals}`);
+    assert.equal(Object.hasOwn(NAMED_STEP_BODIES, name), !def.builtBy, name);
+  }
+  assert.deepEqual(Object.keys(NAMED_STEPS).filter((name) => NAMED_STEPS[name].reveals === "preview"), ["preview-settings", "play", "problems"]);
 });
 
 function gamePage({ frameUrl = "http://localhost:1/__player/index.html", box = { x: 800, y: 100, width: 400, height: 600 } } = {}) {
@@ -1213,9 +1349,28 @@ await asyncCheck("--step problems presses the problems toggle unless the panel i
   await openProblems(page("true"));
   assert.deepEqual(clicks, ["toggle"]);
   const stuck = { ...page("false"), waitForFunction: async () => { throw new Error("timeout"); } };
-  assert.match((await openProblems(stuck, { timeout: 1000 })).reason, /neither the Problems panel nor the Problems to fix dialog opened within 1 s/);
+  assert.match((await openProblems(stuck, { timeout: 1000 })).reason, /neither the Problems panel nor its dialog \(Problems to fix or Problems and playback messages\) opened within 1 s/);
   const hidden = { locator: () => ({ first: () => ({ isVisible: async () => false }) }) };
   assert.match((await openProblems(hidden)).reason, /problems toggle under the game is not on screen/);
+});
+
+await asyncCheck("--step problems accepts the phone layout's sheet, whose title for the whole story is Problems and playback messages", async () => {
+  const sheet = { textContent: "Problems and playback messages Whole story", getBoundingClientRect: () => ({ height: 600 }) };
+  const fakeDocument = { getElementById: () => null, querySelectorAll: (selector) => (selector === '[role="dialog"]' ? [sheet] : []) };
+  const page = {
+    locator: () => ({ first: () => ({ isVisible: async () => true, getAttribute: async () => "false", click: async () => {}, textContent: async () => "No problems" }) }),
+    waitForFunction: async (fn, arg) => {
+      const saved = globalThis.document;
+      globalThis.document = fakeDocument;
+      try {
+        if (!fn(arg)) throw new Error("timeout");
+      } finally {
+        globalThis.document = saved;
+      }
+    },
+    evaluate: async () => ({ surface: "dialog", cards: [], entries: 0 }),
+  };
+  assert.deepEqual(await openProblems(page), { step: "problems", ran: true, toggle: "No problems", surface: "dialog", cards: [], entries: 0 });
 });
 
 await asyncCheck("--step wheel-list wheels each overflowing list with the mouse over its clipped text and fails a list that does not move or stops before its end, a leak, or a list that fits", async () => {

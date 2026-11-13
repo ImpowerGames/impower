@@ -1,4 +1,4 @@
-import { SplitPane } from "@impower/impower-ui/components";
+import { cn, SplitPane } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect, useRef, useState } from "preact/hooks";
 import problems from "../../workspace/problems/ProblemsStore";
@@ -15,6 +15,7 @@ import PreviewGame from "../preview-game/PreviewGame";
 import { RoutePanel } from "../preview-route";
 import PreviewScreenplay from "../preview-screenplay/PreviewScreenplay";
 import PreviewTopBar from "../preview-top-bar/PreviewTopBar";
+import PreviewStatuses from "./PreviewStatuses";
 
 export const propDefaults = {};
 export type PreviewProps = Partial<typeof propDefaults>;
@@ -76,7 +77,27 @@ export default function Preview(_props: PreviewProps) {
         <PreviewGame />
       </div>
       {mode === "screenplay" ? <PreviewScreenplay /> : null}
+      <PreviewStatuses mode={mode} />
     </>
+  );
+
+  const card = (
+    <div
+      class={cn(
+        "flex min-h-0 flex-1 flex-col",
+        !fullscreen && "px-preview-inline pt-preview-stage-gap",
+      )}
+    >
+      <div
+        data-preview-card
+        class={cn(
+          "relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-stage",
+          !fullscreen && "rounded-preview-frame shadow-preview-frame",
+        )}
+      >
+        {stage}
+      </div>
+    </div>
   );
 
   const bar = (
@@ -96,18 +117,19 @@ export default function Preview(_props: PreviewProps) {
   return (
     <div
       ref={ref}
-      class="@container flex h-full w-full min-h-0 flex-1 flex-col bg-panel"
+      class="@container flex h-full w-full min-h-0 flex-1 flex-col bg-preview-mat"
     >
       <PreviewTopBar />
       {phone ? (
         <>
-          <div class="relative flex min-h-0 flex-1 flex-col bg-stage">{stage}</div>
+          {card}
           {bar}
         </>
       ) : (
         <SplitPane
           orientation="vertical"
           label="Resize game and panel"
+          overflowPanel="start"
           pinned={{
             panel: "end",
             size: panelHeight,
@@ -117,7 +139,7 @@ export default function Preview(_props: PreviewProps) {
             reserve: STAGE_MIN_HEIGHT,
             onSizeChange: onPanelHeightChange,
           }}
-          start={<div class="relative flex h-full flex-col bg-stage">{stage}</div>}
+          start={<div class="flex h-full flex-col">{card}</div>}
           end={
             <div class="flex h-full flex-col">
               {bar}

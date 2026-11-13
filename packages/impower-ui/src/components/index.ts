@@ -15,13 +15,16 @@ export {
 export {
   default as Dialog,
   Sheet,
+  Lightbox,
   DialogTitle,
   DialogDescription,
   DialogActions,
   dialogVariants,
   sheetVariants,
+  lightboxVariants,
   type DialogProps,
   type SheetProps,
+  type LightboxProps,
   type SheetSize,
   type DialogSize,
 } from "./dialog/Dialog";
@@ -213,6 +216,12 @@ export {
   type KeysChipState,
 } from "./keys-chip/KeysChip";
 export {
+  default as StatusBadge,
+  statusBadgeVariants,
+  type StatusBadgeProps,
+  type StatusBadgeTone,
+} from "./status-badge/StatusBadge";
+export {
   default as ThemeSwatch,
   themeSwatchVariants,
   type ThemeSwatchProps,
@@ -399,6 +408,7 @@ export {
   zoomFrameVariants,
   zoomFrameContentVariants,
   type ZoomFrameProps,
+  type ZoomFrameFit,
   type ZoomFrameSurface,
   type ZoomFrameBackdrop,
 } from "./zoom-frame/ZoomFrame";
@@ -447,3 +457,4 @@ export {
   type DropZoneProps,
   type DropZoneScope,
 } from "./drop-zone/DropZone";
+export { cn } from "../utils/cn";

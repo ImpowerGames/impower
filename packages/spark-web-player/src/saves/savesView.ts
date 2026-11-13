@@ -77,6 +77,26 @@ export const saveDetail = (row: SaveRow): string => {
     : `${place} · ${saveTime(row.time)}`;
 };
 
+export const savesEscape = (
+  state: SavesViewState,
+  draftKey: string | null,
+): "back" | "close" | null => {
+  if (!state.open || state.renaming) {
+    return null;
+  }
+  if (state.values) {
+    return draftKey !== null && state.values.drafts[draftKey] !== undefined
+      ? null
+      : "back";
+  }
+  return "close";
+};
+
+export const draftKeyOf = (target: EventTarget | null): string | null =>
+  (target as Element | null)
+    ?.closest?.(".saves-value-row")
+    ?.getAttribute("data-key") ?? null;
+
 export const saveGroups = (
   saves: readonly SaveRow[],
 ): { kind: SaveRow["kind"]; label: string; rows: SaveRow[] }[] =>

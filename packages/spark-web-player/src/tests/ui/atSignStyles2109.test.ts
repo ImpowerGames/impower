@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getCssTokenValue } from "@impower/spark-dom/src/utils/getCssTokenValue";
 import { getCSSSelector, getStyleContent } from "@impower/spark-dom/src/utils/getStyleContent";
 import { getVarName } from "@impower/spark-engine/src/game/modules/ui/utils/getVarName";
+import { escapeCssIdentifier } from "../../../../sparkle-style-transformer/src/utils/themeVariableName";
 
 const classed = (className: string) => {
   const element = document.createElement("div");
@@ -39,6 +40,7 @@ describe("@ names in styles (#2109)", () => {
     expect(getVarName("image", "mia@night")).not.toBe(getVarName("image", "mia-night"));
     expect(getVarName("image", "mia@night")).not.toBe(getVarName("image", "mia_night"));
     expect(getVarName("image", "mia-night")).toBe("--theme-image-mia-night");
-    expect(getCssTokenValue({ $type: "image", $name: "mia@night" })).toBe(`var(${getVarName("image", "mia@night")})`);
+    expect(getVarName("image", "mia@night")).toBe("--theme-image-mia@night");
+    expect(getCssTokenValue({ $type: "image", $name: "mia@night" })).toBe(`var(${escapeCssIdentifier(getVarName("image", "mia@night"))})`);
   });
 });

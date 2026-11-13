@@ -73,8 +73,10 @@ import {
   COMMON_ASPECT_RATIOS,
   initialPlayerBarState,
   matchAspectRatio,
+  playerStatuses,
   reducePlayerBar,
   relativeScriptPath,
+  sameStatuses,
   type PlayerBarState,
 } from "./components/PlayerBar/playerBarState";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
@@ -180,6 +182,12 @@ import {
 import type { StartingValuesEvents } from "./route/StartingValuesViews";
 import { SavesController } from "./saves/SavesController";
 import { renderSavesViews } from "./saves/renderSavesViews";
+import { draftKeyOf, savesEscape } from "./saves/savesView";
+import {
+  DidChangeSavesViewMessage,
+  runSavesAction,
+  SavesViewActionMessage,
+} from "./saves/savesViewMessages";
 
 const MIN_HEIGHT = 100;
 
@@ -207,6 +215,8 @@ export interface ShownCompletion {
   evaluation: CompletionEvaluation;
   program: SparkProgram;
 }
+
+const COMPLETION_PREPARING_STATUS_DELAY = 150;
 
 export const completionKey = (
   params: Pick<
@@ -426,6 +436,8 @@ export class GamePlayerController {
   _completionPending: CompletionEvaluation | null = null;
   _completionShown: ShownCompletion | null = null;
   _completionStatus: CompletionPreviewStatus | null = null;
+  _completionStatusShown: CompletionPreviewStatus | null = null;
+  _completionStatusTimer?: number;
   _completionPrograms = 0;
   _completionAccepted: { uri: string; version: number } | null = null;
   _completionProgramSet = new WeakSet<SparkProgram>();
@@ -482,17 +494,17 @@ export class GamePlayerController {
 
   protected readonly _resizable: boolean;
 
-  protected readonly _hostsRoute: boolean;
+  protected readonly _hosted: boolean;
 
   constructor(
     host: HTMLElement,
     refs: GamePlayerRefs,
-    options: { resizable?: boolean; hostsRoute?: boolean } = {},
+    options: { resizable?: boolean; hosted?: boolean } = {},
   ) {
     this.host = host;
     this.refs = refs;
     this._resizable = options.resizable ?? true;
-    this._hostsRoute = options.hostsRoute ?? false;
+    this._hosted = options.hosted ?? false;
   }
 
   setup(): void {
@@ -540,6 +552,8 @@ export class GamePlayerController {
   dispose(): void {
     this._mounted = false;
     this._disposed = true;
+    window.clearTimeout(this._completionStatusTimer);
+    this._completionStatusTimer = undefined;
     this._stops += 1;
     window.removeEventListener("pointerdown", this.handleSavesPointerDown, true);
     window.removeEventListener("keydown", this.handleSavesKeyDown, true);
@@ -599,6 +613,17 @@ export class GamePlayerController {
     for (const listener of this._barListeners) {
       listener(state, view);
     }
+    if (!sameStatuses(this.statuses(), state.statuses)) {
+      this.publishGameState();
+    }
+  }
+
+  protected statuses() {
+    return playerStatuses(
+      this._completionStatusShown,
+      this._bar.executed != null,
+      this._ending,
+    );
   }
 
   protected updateBarView(patch: Partial<PlayerBarView>) {
@@ -690,6 +715,7 @@ export class GamePlayerController {
         ? { request: this._completionRequest, status: this._completionStatus }
         : null,
       ending: this._ending,
+      statuses: this.statuses(),
     };
   }
 
@@ -719,7 +745,7 @@ export class GamePlayerController {
     }
     const failed = params?.simulation === "fail";
     const shows =
-      (button != null || this._hostsRoute) &&
+      (button != null || this._hosted) &&
       params != null &&
       !this.playing &&
       this._workerGame != null &&
@@ -772,7 +798,7 @@ export class GamePlayerController {
   }
 
   protected routeViewTargets() {
-    return this._hostsRoute
+    return this._hosted
       ? { button: null, list: null }
       : {
           button: this.refs.routeButton ?? null,
@@ -781,11 +807,11 @@ export class GamePlayerController {
   }
 
   protected renderRoute() {
-    if (this._disposed || (!this.refs.routeButton && !this._hostsRoute)) {
+    if (this._disposed || (!this.refs.routeButton && !this._hosted)) {
       return;
     }
     const open = this._routeState.open;
-    if (!this._hostsRoute) {
+    if (!this._hosted) {
       this.refs.viewport.classList.toggle("route-open", open);
       if (this.refs.routeList) {
         this.refs.routeList.hidden = !open;
@@ -850,7 +876,7 @@ export class GamePlayerController {
       onChangePins: this.handleRouteChangePins,
       onPinLastRun: this.handleRoutePinLastRun,
     });
-    if (this._hostsRoute) {
+    if (this._hosted) {
       sendProtocolMessage(
         DidChangeRouteViewMessage.type.notification({
           view: this._barView.routeShown
@@ -1075,8 +1101,8 @@ export class GamePlayerController {
 
   protected savesTargets() {
     return {
-      button: this.refs.savesButton ?? null,
-      menu: this.refs.savesMenu ?? null,
+      button: this._hosted ? null : (this.refs.savesButton ?? null),
+      menu: this._hosted ? null : (this.refs.savesMenu ?? null),
       note: this.refs.saveNote ?? null,
     };
   }
@@ -1093,11 +1119,18 @@ export class GamePlayerController {
     try {
       do {
         this._savesRenderDue = false;
+        const state = this._saves.viewState();
         renderSavesViews(this.savesTargets(), {
-          state: this._saves.viewState(),
+          state,
           note: this._saves.note(),
           events: this._saves.events,
         });
+        if (this._hosted) {
+          sendProtocolMessage(
+            DidChangeSavesViewMessage.type.notification({ view: state }),
+            this.host,
+          );
+        }
       } while (this._savesRenderDue && !this._disposed);
     } finally {
       this._renderingSaves = false;
@@ -1121,21 +1154,22 @@ export class GamePlayerController {
     if (e.key !== "Escape") {
       return;
     }
-    if (this._saves.open) {
-      const view = this._saves.viewState();
-      const key = (e.target as Element | null)
-        ?.closest?.(".saves-value-row")
-        ?.getAttribute("data-key");
-      if (view.renaming || (key && view.values?.drafts[key] !== undefined)) {
-        return;
-      }
-      e.stopImmediatePropagation();
-      if (view.values) {
-        this._saves.events.onBack();
-      } else {
-        this._saves.events.onOpen(false);
-      }
+    const escape = savesEscape(this._saves.viewState(), draftKeyOf(e.target));
+    if (!escape) {
+      return;
     }
+    e.stopImmediatePropagation();
+    if (escape === "back") {
+      this._saves.events.onBack();
+    } else {
+      this._saves.events.onOpen(false);
+    }
+  };
+
+  protected handleSavesViewAction = (
+    message: SavesViewActionMessage.Notification,
+  ) => {
+    runSavesAction(this._saves.events, message.params.action);
   };
 
   protected async playFromSave(data: string) {
@@ -1435,6 +1469,7 @@ export class GamePlayerController {
     );
     p.onNotification(CompiledProgramMessage.type, this.handleCompiledProgram);
     p.onNotification(RouteViewActionMessage.type, this.handleRouteViewAction);
+    p.onNotification(SavesViewActionMessage.type, this.handleSavesViewAction);
     p.onNotification(
       PreviewCompletionMessage.type,
       this.handlePreviewCompletion,
@@ -1907,8 +1942,26 @@ export class GamePlayerController {
   setCompletionStatus(status: CompletionPreviewStatus | null) {
     if (status !== this._completionStatus) {
       this._completionStatus = status;
+      this.showCompletionStatus(status);
       this.publishGameState();
     }
+  }
+
+  protected showCompletionStatus(status: CompletionPreviewStatus | null) {
+    window.clearTimeout(this._completionStatusTimer);
+    this._completionStatusTimer = undefined;
+    if (status === "preparing" && this._completionStatusShown == null) {
+      this._completionStatusTimer = window.setTimeout(() => {
+        this._completionStatusTimer = undefined;
+        if (this._disposed) {
+          return;
+        }
+        this._completionStatusShown = status;
+        this.publishGameState();
+      }, COMPLETION_PREPARING_STATUS_DELAY);
+      return;
+    }
+    this._completionStatusShown = status;
   }
 
 
