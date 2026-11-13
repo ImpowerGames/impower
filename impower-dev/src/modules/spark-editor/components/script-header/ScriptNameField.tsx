@@ -1,3 +1,4 @@
+import { textFieldPurposeAttributes } from "@impower/impower-ui/components";
 import { useNameField } from "../desktop-shell";
 
 export type ScriptNameFieldProps = {
@@ -25,12 +26,10 @@ export default function ScriptNameField({
     <span data-script-name-box class={className}>
       <input
         {...props}
-        type="text"
+        {...textFieldPurposeAttributes("literal")}
         data-script-name
         aria-label="Script name"
         title="Rename this script"
-        spellcheck={false}
-        autocomplete="off"
         maxLength={120}
         size={Math.max(4, Math.min(40, draft.length + 1))}
         class="truncate border-0 bg-transparent px-1.5 text-inherit outline-none"

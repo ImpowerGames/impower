@@ -743,7 +743,7 @@ export class SparkdownPreviewGamePanelManager {
     if (!workspaceFolder) {
       return undefined;
     }
-    return workspaceFolder.uri.path;
+    return workspaceFolder.uri.toString();
   }
 
   protected sendNotification<M extends string, P>(
@@ -833,7 +833,7 @@ export class SparkdownPreviewGamePanelManager {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; media-src ${webview.cspSource}; img-src ${webview.cspSource} https: data: blob: ; script-src 'nonce-${scriptNonce}'; worker-src blob:;">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; media-src ${webview.cspSource}; img-src ${webview.cspSource} https: data: blob: ; script-src 'nonce-${scriptNonce}' 'wasm-unsafe-eval'; worker-src blob:;">
           <title>Spark Game</title>
           <style nonce="${styleNonce}">
             @font-face {

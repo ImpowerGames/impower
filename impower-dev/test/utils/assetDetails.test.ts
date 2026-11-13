@@ -113,9 +113,9 @@ describe("the inspector's details rows", () => {
     );
   });
 
-  it("reads lengths as minutes and seconds, and hours past an hour", () => {
+  it("reads lengths as minutes and seconds, flooring part seconds, and hours past an hour", () => {
     const length = (seconds: number) => rows(asset("Assets/Audio/a.wav", "audio"), { seconds }).find((row) => row.startsWith("Length"));
-    expect([0.4, 9.6, 84, 600, 3725].map(length)).toEqual(["Length: 0:00", "Length: 0:10", "Length: 1:24", "Length: 10:00", "Length: 1:02:05"]);
+    expect([0.4, 1.5, 6.9, 9.6, 84, 600, 3725].map(length)).toEqual(["Length: 0:00", "Length: 0:01", "Length: 0:06", "Length: 0:09", "Length: 1:24", "Length: 10:00", "Length: 1:02:05"]);
   });
 
   it("says Assets root for a file directly under the assets folder", () => {

@@ -440,6 +440,7 @@ describe("image folders as tiles", () => {
     await mount();
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
     expect(rowLabels()).toEqual(["Open image imani, 4 variants, modified 2d · 330 b"]);
+    expect(host!.querySelector('[aria-label="Assets and folders"]')!.parentElement!.className.split(" ")).toContain("pt-4");
     const badge = tiles()[0]!.querySelector('[data-variants-badge]')!;
     expect(badge.getAttribute("aria-label")).toBe("4 variants");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");
@@ -857,13 +858,13 @@ describe("playing sounds from their rows", () => {
     expect(speaker.audio.log).toEqual(["play /p/512", "stop /p/512", "play /p/768", "stop /p/768"]);
   });
 
-  it("leads a row's line with the sound's length, read once for the rows shown, and keeps it beside the elapsed time while playing", async () => {
+  it("leads a row's line with the sound's length floored to whole seconds, read once for the rows shown, and keeps it beside the elapsed time while playing", async () => {
     setListing({
       "Assets/Audio/Sounds/bell.wav": facts(5121),
       "Assets/Audio/Sounds/creak.wav": facts(5122),
       ...Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`Assets/Audio/Sounds/zz_${String(i).padStart(3, "0")}.wav`, facts(6000 + i)])),
     });
-    speaker.lengths = { "/p/5121": 5.4 };
+    speaker.lengths = { "/p/5121": 5.6 };
     await openSounds();
     const line = (name: string) => rowOf(name).querySelector("[data-asset-sound-line]")!.textContent;
     await vi.waitFor(() => expect(line("bell")).toMatch(/^0:05 · Modified 2d · 5 kB$/));
@@ -877,7 +878,7 @@ describe("playing sounds from their rows", () => {
     expect(speaker.probes.length).toBeLessThan(60);
     expect(new Set(speaker.probes).size).toBe(speaker.probes.length);
     await click(playButton("bell"));
-    await tell("loadedmetadata", () => (speaker.audio.duration = 5.4));
+    await tell("loadedmetadata", () => (speaker.audio.duration = 5.6));
     await tell("timeupdate", () => (speaker.audio.currentTime = 2.4));
     expect(line("bell")).toMatch(/^0:02 \/ 0:05 · Modified 2d · 5 kB$/);
     expect(rowOf("bell").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:02 / 0:05");

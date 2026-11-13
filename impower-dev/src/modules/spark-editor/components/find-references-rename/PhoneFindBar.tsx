@@ -62,6 +62,7 @@ export default function PhoneFindBar() {
           ref={field}
           width="full"
           class={INPUT}
+          purpose="search"
           placeholder="Find"
           name="search"
           aria-label="Words to find"
@@ -109,6 +110,8 @@ export default function PhoneFindBar() {
           placeholder={reading ? "Tap Edit to replace." : "Replace"}
           disabled={reading}
           name="replace"
+          purpose="literal"
+          enterkeyhint="search"
           aria-label="Replace with"
           value={replacement}
           onValueChange={(value) =>

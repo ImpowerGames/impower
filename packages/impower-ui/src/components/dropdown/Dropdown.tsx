@@ -446,7 +446,7 @@ export function DropdownRadioGroup({
 
 export const dropdownRadioItemVariants = cva(
   [
-    "group data-[state=checked]:font-semibold",
+    "group",
     "[&>[data-radio-indicator]]:size-4 [&>[data-radio-indicator]]:shrink-0",
     "[&>[data-radio-indicator]]:text-accent [&>[data-radio-indicator]]:invisible",
     "data-[state=checked]:[&>[data-radio-indicator]]:visible",
@@ -457,8 +457,12 @@ export const dropdownRadioItemVariants = cva(
         start: "",
         end: "[&>[data-radio-indicator]]:order-last [&>[data-radio-indicator]]:ml-auto",
       },
+      size: {
+        default: "data-[state=checked]:font-semibold",
+        small: "text-[13px] font-normal",
+      },
     },
-    defaultVariants: { indicator: "start" },
+    defaultVariants: { indicator: "start", size: "default" },
   },
 );
 
@@ -484,6 +488,10 @@ export type DropdownRadioItemIndicator = NonNullable<
   VariantProps<typeof dropdownRadioItemVariants>["indicator"]
 >;
 
+export type DropdownRadioItemSize = NonNullable<
+  VariantProps<typeof dropdownRadioItemVariants>["size"]
+>;
+
 function RadioIndicator() {
   return <CheckIcon data-radio-indicator="" />;
 }
@@ -491,6 +499,7 @@ function RadioIndicator() {
 export function DropdownRadioItem({
   value,
   indicator,
+  size,
   disabled,
   class: className,
   children,
@@ -498,6 +507,7 @@ export function DropdownRadioItem({
 }: {
   value: string;
   indicator?: DropdownRadioItemIndicator;
+  size?: DropdownRadioItemSize;
   disabled?: boolean;
   class?: string;
   children?: ComponentChildren;
@@ -509,7 +519,7 @@ export function DropdownRadioItem({
   const radio = useContext(RadioContext);
   const classes = cn(
     dropdownItem(),
-    dropdownRadioItemVariants({ indicator }),
+    dropdownRadioItemVariants({ indicator, size }),
     className,
   );
   if (ctx.mode === "sheet") {

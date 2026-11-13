@@ -5,6 +5,7 @@ import {
   DialogActions,
   DialogTitle,
   LinkIcon,
+  textFieldPurposeAttributes,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 
@@ -71,10 +72,12 @@ export default function AddUrlDialog({
         </Button>
       </div>
 
-      <label class="mb-1 block text-xs font-medium text-foreground/60">
+      <label for="add-url-address" class="mb-1 block text-xs font-medium text-foreground/60">
         URL
       </label>
       <input
+        {...textFieldPurposeAttributes("url")}
+        id="add-url-address"
         ref={urlRef}
         value={url}
         onInput={(e) => setUrl((e.target as HTMLInputElement).value)}
@@ -88,10 +91,12 @@ export default function AddUrlDialog({
         class={`mb-3 ${inputClass}`}
       />
 
-      <label class="mb-1 block text-xs font-medium text-foreground/60">
+      <label for="add-url-name" class="mb-1 block text-xs font-medium text-foreground/60">
         Name
       </label>
       <input
+        {...textFieldPurposeAttributes("literal")}
+        id="add-url-name"
         value={displayName}
         onInput={(e) => {
           setNameEdited(true);

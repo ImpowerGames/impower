@@ -59,7 +59,7 @@ export default function RenameView() {
           width="full"
           class="flex-1"
           value={renameName}
-          autocapitalize="off"
+          purpose="literal"
           aria-invalid={error ? "true" : undefined}
           aria-describedby="rename-status"
           onValueChange={(value) =>

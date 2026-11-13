@@ -195,7 +195,9 @@ export {
 export {
   default as TextField,
   textFieldVariants,
+  textFieldPurposeAttributes,
   type TextFieldProps,
+  type TextFieldPurpose,
   type TextFieldFrame,
   type TextFieldSize,
   type TextFieldWidth,

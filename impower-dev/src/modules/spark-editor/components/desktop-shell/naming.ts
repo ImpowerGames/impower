@@ -44,10 +44,22 @@ export function useFocusRule() {
       return;
     }
     const keepFocus = (event: Event) => {
-      if (!deepActiveElement()?.matches(TEXT_FIELD)) {
+      const focused = deepActiveElement();
+      if (!focused?.matches(TEXT_FIELD)) {
         return;
       }
-      const target = event.composedPath()[0];
+      const path = event.composedPath();
+      const target = path[0];
+      if (focused.matches("[data-name-field]")) {
+        if (
+          !path.includes(focused) &&
+          focused instanceof HTMLElement &&
+          !(target instanceof Element && target.closest(TAKES_FOCUS))
+        ) {
+          focused.blur();
+        }
+        return;
+      }
       if (target instanceof Element && target.closest(TAKES_FOCUS)) {
         return;
       }
@@ -60,7 +72,7 @@ export function useFocusRule() {
 
 type CloseWatcherLike = { onclose: (() => void) | null; destroy: () => void };
 
-const closeWatcher = (onClose: () => void): (() => void) | undefined => {
+export const closeWatcher = (onClose: () => void): (() => void) | undefined => {
   const Watcher = (globalThis as { CloseWatcher?: new () => CloseWatcherLike })
     .CloseWatcher;
   if (!Watcher) {

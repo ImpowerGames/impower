@@ -262,6 +262,13 @@ describe("ListRow", () => {
     expect(mark).toContain("left-2.5");
   });
 
+  it("draws a dense row 52px tall with an 18px glyph and 14px text", async () => {
+    const root = await mount(<ListRow size="dense" icon={<svg />} label="main · line 47" description="((door_chime))" onClick={() => {}} />);
+    const classes = root.querySelector("button")!.className.split(" ");
+    expect(classes).toEqual(expect.arrayContaining(["min-h-[52px]", "px-2.5", "py-1.5", "text-[14px]/[1.5]", "[&>svg:first-child]:size-[18px]"]));
+    expect(root.querySelector("small")!.className).toContain("text-[11px]/[1.4]");
+  });
+
   it("rejects a leading slot together with a selection mark at compile time", () => {
     const both = () => (
       // @ts-expect-error
