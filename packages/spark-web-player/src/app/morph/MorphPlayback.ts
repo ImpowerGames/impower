@@ -211,6 +211,11 @@ export class MorphPlayback {
     return this.enabled;
   }
 
+  get speechRemaining(): number {
+    const ends = (this.speech?.spans ?? []).map(([, end]) => end - this.time);
+    return Math.max(0, ...ends.filter(Number.isFinite));
+  }
+
   attachClock(owner: object) {
     this.clockOwner = owner;
     this.stopFrames();

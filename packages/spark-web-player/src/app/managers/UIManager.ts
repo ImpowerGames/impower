@@ -41,6 +41,7 @@ import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/
 import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphNeedMessage";
 import {
   SpeechMessage,
+  type SpeechClip,
   type SpeechParams,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SpeechMessage";
 import type { ThemeVariables } from "../../../../sparkle-style-transformer/src/types/themeVariables";
@@ -115,6 +116,7 @@ const UNENDED_SPEECH = 1e9;
 
 interface Speech {
   clips?: { retime: () => void; stopHearing?: () => void };
+  unheard?: true;
 }
 
 let playSessions = 0;
@@ -1634,12 +1636,19 @@ export default class UIManager extends Manager {
     this._speech = undefined;
   }
 
-  protected speak({ character, spans, voiced, revealed, time }: SpeechParams) {
+  protected speak({
+    character,
+    spans,
+    voiced,
+    revealed,
+    time,
+    clips: unheard,
+  }: SpeechParams) {
     const morphs = this.morphs;
     if (!morphs) {
       return;
     }
-    if (revealed && this._speech?.clips) {
+    if (revealed && (this._speech?.clips || this._speech?.unheard)) {
       return;
     }
     this.endSpeech();
@@ -1650,17 +1659,50 @@ export default class UIManager extends Manager {
       this.speakClips(morphs, character, clips, speech);
       return;
     }
-    const shown = this.getDisplayTime(time);
-    const doc = this.app.overlay?.ownerDocument;
-    const now = Number(
-      doc?.timeline?.currentTime ?? doc?.defaultView?.performance.now(),
-    );
-    const lead =
-      shown != null && Number.isFinite(now) ? (shown - now) / 1000 : 0;
+    if (voiced && character && unheard?.length) {
+      this.speakUnheard(morphs, character, unheard, time, speech);
+      return;
+    }
+    const lead = this.leadOf(time);
     morphs.speak(
       character,
       spans.map(([start, end]): [number, number] => [start + lead, end + lead]),
     );
+  }
+
+  protected leadOf(time: number | undefined): number {
+    const shown = this.getDisplayTime(time);
+    const now = this.documentNow();
+    return shown != null && Number.isFinite(now) ? (shown - now) / 1000 : 0;
+  }
+
+  protected speakUnheard(
+    morphs: MorphPlayback,
+    character: string,
+    unheard: SpeechClip[],
+    time: number | undefined,
+    speech: Speech,
+  ) {
+    speech.unheard = true;
+    morphs.speak(character, []);
+    const audio = this.app.audio;
+    void Promise.all(
+      unheard.map((clip) => audio?.clipDuration(clip.load)),
+    ).then((durations) => {
+      if (this._speech !== speech || this._disposed) {
+        return;
+      }
+      const lead = this.leadOf(time);
+      morphs.speak(
+        character,
+        unheard.flatMap((clip, index): [number, number][] => {
+          const duration = durations[index];
+          return duration != null && duration > 0
+            ? [[clip.after + lead, clip.after + duration + lead]]
+            : [];
+        }),
+      );
+    });
   }
 
   protected speakClips(

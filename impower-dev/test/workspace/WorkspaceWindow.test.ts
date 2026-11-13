@@ -97,6 +97,7 @@ vi.mock("@impower/impower-ui/components", async () => {
     "NextIcon",
     "PauseIcon",
     "PlayIcon",
+    "PlayOutlineIcon",
     "PreviousIcon",
     "RestartIcon",
     "ResumeIcon",
@@ -2729,16 +2730,81 @@ describe("The preview's top bar", () => {
     };
   });
 
-  it("shows only the skips and Play while stopped", () => {
+  it("shows Replay beat, the skips and Play while stopped", () => {
     show();
     expect(labels()).toEqual([
       "Viewing mode",
+      "Replay beat",
       "Skip back",
       "Play From Here",
       "Skip forward",
       "Saves",
       "Preview settings",
     ]);
+  });
+
+  it("holds Replay beat in the slot Pause and Play Again take, at the same size", () => {
+    const sizeOf = (button: HTMLButtonElement | null) =>
+      button?.className
+        .split(/\s+/)
+        .filter((token) => token !== "text-accent" && token !== "text-muted")
+        .join(" ");
+    const slotOf = (label: string) => {
+      const group = control(label)?.closest(".justify-self-start");
+      return group?.contains(control("Viewing mode")) ? "left" : null;
+    };
+    show();
+    const stopped = sizeOf(control("Replay beat"));
+    expect(slotOf("Replay beat")).toBe("left");
+    show({ running: true });
+    expect(control("Replay beat")).toBeNull();
+    expect(sizeOf(control("Pause"))).toBe(stopped);
+    expect(slotOf("Pause")).toBe("left");
+    show({ running: true, paused: true });
+    expect(sizeOf(control("Resume"))).toBe(stopped);
+    show({ running: true, ended: true });
+    expect(control("Replay beat")).toBeNull();
+    expect(sizeOf(control("Play Again"))).toBe(stopped);
+    expect(slotOf("Play Again")).toBe("left");
+  });
+
+  it("plays the shown beat from Replay beat, pressed while it plays, with its shortcut in the title", async () => {
+    show();
+    const replay = control("Replay beat")!;
+    expect(replay.hasAttribute("aria-disabled")).toBe(false);
+    expect(replay.getAttribute("aria-pressed")).not.toBe("true");
+    expect(replay.title).toMatch(/^Replay beat \(.+\)$/);
+    replay.click();
+    await vi.waitFor(() => expect(requests).toContain("preview/playBeat"));
+    show({ beatPlaying: true });
+    expect(control("Replay beat")?.getAttribute("aria-pressed")).toBe("true");
+    requests.length = 0;
+    control("Replay beat")!.click();
+    await vi.waitFor(() => expect(requests).toContain("preview/playBeat"));
+  });
+
+  it("disables Replay beat with the reason in its title when no beat can play, and sends nothing", async () => {
+    show({ beatRefusal: "This line shows no beat to play." });
+    expect(control("Replay beat")?.getAttribute("aria-disabled")).toBe("true");
+    expect(control("Replay beat")?.title).toBe("This line shows no beat to play.");
+    show({ playRefusal: "Fix the errors to play the story." });
+    expect(control("Replay beat")?.getAttribute("aria-disabled")).toBe("true");
+    expect(control("Replay beat")?.title).toBe("Fix the errors to play the story.");
+    control("Replay beat")!.click();
+    win.playBeat();
+    await Promise.resolve();
+    expect(requests).not.toContain("preview/playBeat");
+  });
+
+  it("follows the player's beat state, playing and refused", () => {
+    win.syncPreviewBeat({ playing: true, refusal: null });
+    expect(workspace.current.preview.modes.game.beatPlaying).toBe(true);
+    expect(workspace.current.preview.modes.game.beatRefusal).toBeUndefined();
+    win.syncPreviewBeat({ playing: false, refusal: "This line shows no beat to play." });
+    expect(workspace.current.preview.modes.game.beatPlaying).toBe(false);
+    expect(workspace.current.preview.modes.game.beatRefusal).toBe(
+      "This line shows no beat to play.",
+    );
   });
 
   it("pauses, steps and resumes through the debug client while playing, each step's refusal on its button", async () => {

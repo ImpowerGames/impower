@@ -168,7 +168,7 @@ import {
   WriteTextMessage,
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
-import { SpeechMessage, type SpeechMessageMap } from "./messages/SpeechMessage";
+import { SpeechMessage, type SpeechClip, type SpeechMessageMap } from "./messages/SpeechMessage";
 
 function sameValue(a: unknown, b: unknown): boolean {
   if (a === b) {
@@ -1828,7 +1828,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _voicedSpeech?: BeatSpeech;
 
-  speak(speech: BeatSpeech | undefined, instant = false, time?: number) {
+  speak(
+    speech: BeatSpeech | undefined,
+    instant = false,
+    time?: number,
+    clips?: SpeechClip[],
+  ) {
     if (this.context?.system?.simulating) {
       return;
     }
@@ -1847,6 +1852,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ...(voiced ? { voiced: true as const } : {}),
         ...(voiced && instant ? { revealed: true as const } : {}),
         ...(time != null ? { time } : {}),
+        ...(voiced && clips?.length ? { clips } : {}),
       }),
     );
   }

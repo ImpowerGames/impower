@@ -30,6 +30,7 @@ import type {
 import type { ScriptLocation } from "../../../core/types/ScriptLocation";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
+import { VOICING_CONTROLS } from "../../../core/utils/voicingControls";
 import type { InterpreterBuiltins } from "../types/InterpreterBuiltins";
 import type { Chunk } from "../types/Chunk";
 import type { InstructionOptions } from "../types/InstructionOptions";
@@ -66,8 +67,6 @@ export interface ShownBox {
 }
 
 export interface InterpreterMessageMap extends Record<string, any> {}
-
-const VOICING_CONTROLS: ReadonlySet<string> = new Set(["play", "start", "queue"]);
 
 export class InterpreterModule extends Module<
   InterpreterState,

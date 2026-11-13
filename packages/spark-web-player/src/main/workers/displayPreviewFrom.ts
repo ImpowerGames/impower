@@ -34,6 +34,7 @@ export interface DisplayingGame {
     line: number,
     runFrom?: ProgramAddress,
     address?: ProgramAddress,
+    options?: { playId?: number },
   ): Promise<ProgramAddress | null>;
   module: { ui: { forgetDisplayedImages(): void; sweepReconcile(): void } };
 }
@@ -56,6 +57,7 @@ export interface DisplayRequest {
   ending?: GameEnding;
   runFrom?: ProgramAddress;
   beatOnly?: true | string;
+  playId?: number;
   onPath?: (path: DisplayPath) => void;
   send: (message: Message, transfer?: ArrayBuffer[]) => void;
   superseded: () => boolean;
@@ -77,7 +79,7 @@ export async function displayPreviewFrom(
   const resolvedPreviewAddress = point.address;
   const validPreviewAddress = point.validAddress;
 
-  if (point.repeat) {
+  if (point.repeat && request.playId == null) {
     await game.preview(
       validPreviewFrom.file,
       validPreviewFrom.line,
@@ -124,6 +126,7 @@ export async function displayPreviewFrom(
     validPreviewFrom.line,
     request.runFrom,
     validPreviewFrom.address,
+    request.playId != null ? { playId: request.playId } : undefined,
   );
   if (superseded()) {
     return false;

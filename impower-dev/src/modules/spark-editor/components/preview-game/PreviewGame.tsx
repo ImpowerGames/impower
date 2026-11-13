@@ -396,8 +396,11 @@ export default function PreviewGame(_props: PreviewGameProps) {
             Workspace.window.syncGameEnded(true);
           }
           if (DidChangeGameStateMessage.type.is(message)) {
-            const { launchState, paused } = message.params;
+            const { launchState, paused, beat } = message.params;
             Workspace.window.syncGamePaused(paused);
+            if (beat) {
+              Workspace.window.syncPreviewBeat(beat);
+            }
             if (launchState === "ended") {
               Workspace.window.syncGameEnded(true);
             } else if (launchState === "play" || launchState === "pause") {
@@ -436,6 +439,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
             void skipBeat(-1, "choice");
           } else if (workspaceShortcuts.matches(e, "nextChoice")) {
             void skipBeat(1, "choice");
+          } else if (workspaceShortcuts.matches(e, "replayBeat")) {
+            e.preventDefault();
+            Workspace.window.playBeat();
           }
         };
 

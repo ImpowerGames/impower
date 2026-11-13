@@ -118,6 +118,14 @@ export default class AudioManager extends Manager {
     return this.loadAudioBuffer(params);
   }
 
+  async clipDuration(params: LoadAudioPlayerParams): Promise<number | undefined> {
+    try {
+      return (await this.getAudioBuffer(params)).duration;
+    } catch {
+      return undefined;
+    }
+  }
+
   playingKeys(): string[] {
     const keys: string[] = [];
     for (const channel of this._audioChannels.values()) {

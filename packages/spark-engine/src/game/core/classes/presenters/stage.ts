@@ -1,5 +1,24 @@
+import type { SpeechClip } from "../../../modules/ui/classes/messages/SpeechMessage";
 import type { Instructions } from "../../types/Instructions";
+import { VOICING_CONTROLS } from "../../utils/voicingControls";
 import type { Game } from "../Game";
+
+function unheardVoice(
+  game: Game,
+  instructions: Instructions,
+  instant?: boolean,
+): SpeechClip[] | undefined {
+  if (instant || game.context.system.previewing === undefined) {
+    return undefined;
+  }
+  return (instructions.audio?.["voice"] ?? []).flatMap((event) =>
+    VOICING_CONTROLS.has(event.control) && event.assets?.length
+      ? game.module.audio
+          .resolveLoadParams("voice", event.assets)
+          .map((load) => ({ load, after: event.after ?? 0 }))
+      : [],
+  );
+}
 
 export function clearStage(
   game: Game,
@@ -42,7 +61,12 @@ export function writeStage(
     );
   }
 
-  game.module.ui.speak(instructions.speech, instant, time);
+  game.module.ui.speak(
+    instructions.speech,
+    instant,
+    time,
+    unheardVoice(game, instructions, instant),
+  );
 
   if (!layoutsApplied) {
     applyLayoutDirectives(game, instructions, instant);
