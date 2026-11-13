@@ -361,7 +361,7 @@ describe("the Assets page", () => {
     await mount();
     await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
     await vi.waitFor(() =>
-      expect(menuItems()).toEqual(["Upload files", "Link a file by address", "New folder"]),
+      expect(menuItems()).toEqual(["Upload files", "Add a linkA file hosted on the web", "New folder"]),
     );
   });
 
@@ -405,14 +405,14 @@ describe("the Assets page", () => {
     });
     await mount();
     await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
-    await vi.waitFor(() => expect(menuItems()).toContain("Link a file by address"));
-    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Link a file by address")));
+    await vi.waitFor(() => expect(menuItems()).toContain("Add a linkA file hosted on the web"));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Add a link")));
     const [url, name] = all<HTMLInputElement>('[role="dialog"] input');
     await act(async () => {
       url!.value = "https://cdn.example.com/horn.mp3";
       url!.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await click(all<HTMLButtonElement>('[role="dialog"] button').find((b) => b.textContent?.trim() === "Add"));
+    await click(all<HTMLButtonElement>('[role="dialog"] button').find((b) => b.textContent?.trim() === "Add link"));
     expect(assets.addLink).toHaveBeenCalledWith("https://cdn.example.com/horn.mp3", "horn", "Assets/Images");
     expect(name).toBeTruthy();
     expect(selectedTab()).toBe("audio");

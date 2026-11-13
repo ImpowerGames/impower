@@ -4,6 +4,7 @@ import {
   ChevronIcon,
   DropdownContent,
   DropdownItem,
+  DropdownItemText,
   DropdownRadioGroup,
   DropdownRadioItem,
   DropdownRoot,
@@ -865,7 +866,7 @@ function AssetsBrowser() {
           </DropdownItem>
           <DropdownItem disabled={busy} onSelect={() => setLinking(true)}>
             <LinkIcon class="text-muted" />
-            Link a file by address
+            <DropdownItemText hint="A file hosted on the web">Add a link</DropdownItemText>
           </DropdownItem>
           <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating(true); }}>
             <FolderPlusIcon class="text-muted" />

@@ -49,16 +49,21 @@ export const dialogVariants = cva(
         sm: "max-w-sm",
         md: "max-w-md",
         lg: "max-w-lg",
+        form: "max-w-[440px]",
       },
       flush: {
         true: "flex flex-col overflow-hidden",
-        false: "overflow-y-auto overscroll-contain p-5",
+        false: "overflow-y-auto overscroll-contain",
       },
       visible: {
         true: "scale-none opacity-100 ease-[ease-out]",
         false: "scale-97 opacity-0 ease-[ease-in]",
       },
     },
+    compoundVariants: [
+      { size: ["sm", "md", "lg"], flush: false, class: "p-5" },
+      { size: "form", flush: false, class: "p-[26px] phone:p-[19px]" },
+    ],
     defaultVariants: { size: "sm", flush: false, visible: true },
   },
 );

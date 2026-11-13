@@ -3,9 +3,9 @@ import {
   CloseIcon,
   Dialog,
   DialogActions,
+  DialogDescription,
   DialogTitle,
-  LinkIcon,
-  textFieldPurposeAttributes,
+  TextField,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 
@@ -15,12 +15,19 @@ export type AddUrlDialogProps = {
   onSubmit: (url: string, name: string) => void;
 };
 
+export const ADDRESS_REQUIRED_MESSAGE =
+  "Enter a full address starting with http:// or https://.";
+
 const deriveName = (url: string): string => {
   const path = url.split(/[?#]/)[0] ?? "";
   const base = path.split("/").filter(Boolean).pop() ?? "";
   const dot = base.lastIndexOf(".");
   return (dot > 0 ? base.slice(0, dot) : base).trim();
 };
+
+const isWebAddress = (url: string) => /^https?:\/\/\S+$/.test(url);
+
+const labelClass = "mt-[14px] mb-[5px] block text-[13px]/[1.5] text-muted";
 
 export default function AddUrlDialog({
   open,
@@ -30,6 +37,7 @@ export default function AddUrlDialog({
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
   const [nameEdited, setNameEdited] = useState(false);
+  const [error, setError] = useState("");
   const urlRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -37,30 +45,37 @@ export default function AddUrlDialog({
     setUrl("");
     setName("");
     setNameEdited(false);
+    setError("");
   }, [open]);
 
   const trimmedUrl = url.trim();
   const displayName = nameEdited ? name : deriveName(url);
-  const canSubmit = !!trimmedUrl;
 
   const submit = () => {
-    if (!canSubmit) return;
-    onSubmit(trimmedUrl, displayName.trim() || "asset");
+    if (!isWebAddress(trimmedUrl)) {
+      setError(ADDRESS_REQUIRED_MESSAGE);
+      return;
+    }
+    onSubmit(trimmedUrl, displayName.trim() || deriveName(trimmedUrl) || "link");
     onClose();
   };
 
-  const inputClass =
-    "h-11 w-full select-text rounded-control border border-edge bg-transparent px-3 text-sm text-ink placeholder:text-muted";
+  const submitOnEnter = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submit();
+    }
+  };
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => !next && onClose()}
       initialFocus={urlRef}
+      size="form"
     >
-      <div class="mb-4 flex flex-row items-center gap-2">
-        <LinkIcon class="size-5 text-foreground/70" />
-        <DialogTitle class="flex-1">Add URL</DialogTitle>
+      <div class="mb-[18px] flex flex-row items-center gap-3">
+        <DialogTitle class="flex-1 text-[20px] font-semibold">Add a link</DialogTitle>
         <Button
           variant="quiet"
           aria-label="Close"
@@ -72,59 +87,56 @@ export default function AddUrlDialog({
         </Button>
       </div>
 
-      <label for="add-url-address" class="mb-1 block text-xs font-medium text-foreground/60">
-        URL
+      <DialogDescription class="text-[12px]/[1.6] text-muted">
+        A link keeps a file that lives on the web, such as a picture you host
+        elsewhere. It is listed with files of its kind.
+      </DialogDescription>
+
+      <label for="add-url-address" class={labelClass}>
+        Address
       </label>
-      <input
-        {...textFieldPurposeAttributes("url")}
+      <TextField
         id="add-url-address"
         ref={urlRef}
+        purpose="url"
+        size="dialog"
+        width="full"
         value={url}
-        onInput={(e) => setUrl((e.target as HTMLInputElement).value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            submit();
-          }
-        }}
-        placeholder="https://cdn.example.com/image.png"
-        class={`mb-3 ${inputClass}`}
+        onValueChange={setUrl}
+        onKeyDown={submitOnEnter}
+        placeholder="https://"
       />
 
-      <label for="add-url-name" class="mb-1 block text-xs font-medium text-foreground/60">
+      <label for="add-url-name" class={labelClass}>
         Name
       </label>
-      <input
-        {...textFieldPurposeAttributes("literal")}
+      <TextField
         id="add-url-name"
+        purpose="literal"
+        size="dialog"
+        width="full"
+        suffix=".url"
         value={displayName}
-        onInput={(e) => {
+        placeholder={deriveName(url)}
+        onValueChange={(next) => {
           setNameEdited(true);
-          setName((e.target as HTMLInputElement).value);
+          setName(next);
         }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            submit();
-          }
-        }}
-        placeholder="asset"
-        class={`mb-5 ${inputClass}`}
+        onKeyDown={submitOnEnter}
       />
 
-      <DialogActions>
-        <Button
-          variant="quiet"
-          onClick={onClose}
-        >
+      {error && (
+        <p role="alert" class="mt-3 text-[13px] text-error">
+          {error}
+        </p>
+      )}
+
+      <DialogActions class="mt-6 gap-2.5">
+        <Button variant="quiet" onClick={onClose}>
           Cancel
         </Button>
-        <Button
-          variant="primary"
-          disabled={!canSubmit}
-          onClick={submit}
-        >
-          Add
+        <Button variant="primary" onClick={submit}>
+          Add link
         </Button>
       </DialogActions>
     </Dialog>

@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { JSX } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 import { forwardRef } from "preact/compat";
 import { useEffect, useRef } from "preact/hooks";
 import { useForwardedRef } from "../../hooks/useForwardedRef";
@@ -23,6 +23,7 @@ export const textFieldVariants = cva(
       size: {
         default: "min-h-9 px-2.5 py-1.5 text-[13px]/[1.4]",
         tall: "h-14 px-3 py-2 text-[16px]/[1.5] compact:h-11 phone:h-11",
+        dialog: "h-[50px] p-3 text-[16px]/[1.5]",
       },
       width: {
         default: "w-[180px]",
@@ -82,6 +83,7 @@ export type TextFieldProps = Omit<
     disabled?: boolean;
     onValueChange?: (value: string) => void;
     onCommit?: (value: string) => void;
+    suffix?: ComponentChildren;
   };
 
 const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
@@ -97,6 +99,7 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
     onValueChange,
     onCommit,
     onInput,
+    suffix,
     ...rest
   },
   ref,
@@ -120,10 +123,14 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
     return () => input.removeEventListener("change", onChange);
   }, []);
 
-  return (
+  const input = (
     <input
       ref={setRef}
-      class={cn(textFieldVariants({ frame, size, width, font }), className)}
+      class={
+        suffix === undefined
+          ? cn(textFieldVariants({ frame, size, width, font }), className)
+          : cn(textFieldVariants({ frame: "inset", size, font }), "self-stretch px-3", className)
+      }
       {...textFieldPurposeAttributes(purpose)}
       {...rest}
       {...(value !== undefined ? { value, defaultValue: value } : { defaultValue })}
@@ -141,6 +148,22 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
         }
       }}
     />
+  );
+
+  if (suffix === undefined) {
+    return input;
+  }
+  return (
+    <span
+      class={cn(
+        textFieldVariants({ frame, size, width, font }),
+        "flex items-center p-0 has-[input:focus-visible]:border-accent",
+      )}
+      data-text-field-frame
+    >
+      {input}
+      <span class="shrink-0 pr-3 text-[14px] text-muted">{suffix}</span>
+    </span>
   );
 });
 

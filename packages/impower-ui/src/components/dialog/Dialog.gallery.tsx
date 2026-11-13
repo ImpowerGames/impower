@@ -17,6 +17,7 @@ const SIZE_LABELS: Record<DialogSize, string> = {
   sm: "Small (sm)",
   md: "Medium (md)",
   lg: "Large (lg)",
+  form: "Form (440px, the prototype's tool dialog)",
 };
 
 type Demo =
