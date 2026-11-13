@@ -963,7 +963,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             if (this._building) {
               this.watchBuild();
             }
-            this.constructLayoutFromAst(layout);
+            this.hideUnwrittenTargets(this.constructLayoutFromAst(layout));
             if (this._building) {
               this.noteBuildWrites(vs.takeReactiveChanges());
               vs.trackWrites = false;
@@ -3904,7 +3904,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       element = this.constructLayoutFromAst(layout);
       vs.takeReactiveChanges();
       vs.restoreReactiveChanges(pending);
-      this.clearUnwrittenTargets(element);
+      this.hideUnwrittenTargets(element);
       this.notifyMounted(name);
       this.reveal();
     } finally {
@@ -4503,7 +4503,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return Array.from(this._clearOnContinue.values());
   }
 
-  protected clearUnwrittenTargets(layout: Element): void {
+  protected hideUnwrittenTargets(layout: Element): void {
     const inLayout = (el: Element) => {
       for (let node: Element | null = el; node; node = node.parent) {
         if (node === layout) {
@@ -4513,14 +4513,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return false;
     };
     for (const target of this.getTransientTargets()) {
-      if (!this.findElements(target, true).some(inLayout)) {
+      if (this._state.text?.[target] || this._state.image?.[target]) {
         continue;
       }
-      if (!this._state.text?.[target]) {
-        void this.text.clear(target);
-      }
-      if (!this._state.image?.[target]) {
-        void this.image.clear(target);
+      for (const el of this.findElements(target, true)) {
+        if (inLayout(el)) {
+          this.updateElement(el, { style: { display: "none" } });
+        }
       }
     }
   }

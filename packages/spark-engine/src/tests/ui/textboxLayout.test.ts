@@ -45,11 +45,17 @@ function shown(h: UIHarness, target: string): string {
     .join("");
 }
 
+function wire(messages: any[]): any[] {
+  return messages.flatMap((m: any) =>
+    (m?.method === "ui/batch" || m?.method === "ui/beat") && Array.isArray(m.params?.messages)
+      ? wire(m.params.messages)
+      : [m],
+  );
+}
+
 function displayOf(h: UIHarness, id: string): string | null | undefined {
   let display: string | null | undefined;
-  for (const m of flattenMessages(
-    h.messages.flatMap((m: any) => (m.method === "ui/beat" ? m.params.messages : [m])),
-  )) {
+  for (const m of wire(h.messages)) {
     const params = m?.params;
     const style =
       m?.method === "ui/create" && params?.element === id
@@ -265,6 +271,98 @@ end
     const slots = h.game.module.ui.findIds("choice");
     expect(slots).toHaveLength(6);
     expect(slots.map((id) => displayOf(h, id))).toEqual(slots.map(() => "none"));
+  });
+
+  test.each([
+    ["with a font to load", FONTS],
+    ["with no font to load", []],
+  ])("restoring a save with the textbox open leaves its empty choice slots hidden, %s", async (_name, assets) => {
+    const source = `${FANCY_TEXTBOX}\nscene start\n  First line.\nend\n`;
+    const h = createHarness(source, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      assets,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    h.jumpToFlow("start");
+    await displayLive(h, h.nextBeat()!);
+    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(h.game.module.ui.findIds("choice").map((id) => displayOf(h, id))).toEqual(
+      Array(6).fill("none"),
+    );
+    const restored = createHarness(source, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      assets,
+      beforeConnect: playing,
+      loadCheckpoint: h.game.save(),
+    });
+    await restored.ready;
+    await flushMicrotasks(150);
+    const slots = restored.game.module.ui.findIds("choice");
+    expect(slots).toHaveLength(6);
+    expect(slots.map((id) => displayOf(restored, id))).toEqual(Array(6).fill("none"));
+  });
+
+  const SHARED_TARGETS = `define red as image with
+  src = "https://example.com/red.png"
+end
+
+layout main {
+  action {
+    text
+  }
+  portrait {
+    image
+  }
+}
+
+layout panel {
+  action {
+    text
+  }
+  portrait {
+    image
+  }
+}
+
+scene start
+  Hello.
+end
+`;
+
+  test.each([
+    [
+      "a written line",
+      "action",
+      { text: { action: [{ text: "Still visible." }] } },
+    ],
+    [
+      "a shown picture",
+      "portrait",
+      {
+        text: { action: [{ text: "Portrait is visible." }] },
+        image: { portrait: [{ control: "show", assets: ["red"] }] },
+      },
+    ],
+  ])("opening a second layout that shares a target leaves %s showing", async (_name, target, content) => {
+    const h = createHarness(SHARED_TARGETS, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    const [id] = h.game.module.ui.findIds(target);
+    expect(id).toBeTruthy();
+    h.reset();
+    await displayLive(h, {
+      end: 0,
+      ...content,
+      layout: { panel: [{ control: "open", name: "panel" }] },
+    });
+    expect(h.game.module.ui.findIds(target)).toHaveLength(2);
+    expect(displayOf(h, id!)).toBe(null);
   });
 
   test("a choice shown while the textbox layout's font loads can be picked once it mounts", async () => {
