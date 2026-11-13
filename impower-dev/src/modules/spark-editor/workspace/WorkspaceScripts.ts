@@ -2,11 +2,13 @@ import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { downloadFile } from "../utils/downloadFile";
-import { recordMove, renameFile } from "../utils/fileUndo";
+import { recordCreate, recordMove, renameFile } from "../utils/fileUndo";
 import {
   availableName,
   copyName,
+  defaultName,
   NameError,
+  UNTITLED_SCRIPT,
   plural,
   referencedBy,
   type Reference,
@@ -193,23 +195,33 @@ export default class WorkspaceScripts {
     await this.load();
   }
 
-  async create(kind: "script" | "folder", folder: string, name: string): Promise<string> {
+  protected openProject(): string {
     const projectId = this.projectId;
     if (!projectId) {
       throw new NameError("No project is open.");
     }
+    return projectId;
+  }
+
+  async createScript(folder: string): Promise<string> {
+    const projectId = this.openProject();
     const target = realFolder(folder, scriptsHome(this.listing));
-    const leaf = availableName(name, this.siblings(target), kind === "script" ? ".sd" : "");
+    const leaf = defaultName(UNTITLED_SCRIPT, this.siblings(target), ".sd");
     const path = joinPath(target, leaf);
     const { fs } = this._workspace;
-    if (kind === "script") {
-      await fs.createFiles({
-        files: [{ uri: fs.getFileUri(projectId, path), data: new ArrayBuffer(0) }],
-      });
-    } else {
-      await fs.createFolder(projectId, path);
-    }
-    await this.changed(kind === "script" ? "file" : "folder");
+    const uri = fs.getFileUri(projectId, path);
+    await fs.createFiles({ files: [{ uri, data: new ArrayBuffer(0) }] });
+    recordCreate(projectId, [uri], leaf);
+    await this.changed("file");
+    return path;
+  }
+
+  async createFolder(folder: string, name: string): Promise<string> {
+    const projectId = this.openProject();
+    const target = realFolder(folder, scriptsHome(this.listing));
+    const path = joinPath(target, availableName(name, this.siblings(target)));
+    await this._workspace.fs.createFolder(projectId, path);
+    await this.changed("folder");
     return path;
   }
 

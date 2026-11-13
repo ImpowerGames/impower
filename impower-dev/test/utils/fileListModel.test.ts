@@ -4,6 +4,7 @@ import {
   availableName,
   bytesLabel,
   copyName,
+  defaultName,
   holdingsLabel,
   NAME_MESSAGES,
   parseSort,
@@ -15,6 +16,7 @@ import {
   storyOrder,
   storyPositions,
   UNREACHED,
+  UNTITLED_SCRIPT,
   validName,
   type ListEntry,
   type Reference,
@@ -129,6 +131,31 @@ describe("name rules", () => {
   it("names a duplicate '<name> copy', then numbers it", () => {
     expect(copyName("intro", ["intro.sd"], ".sd")).toBe("intro copy.sd");
     expect(copyName("intro", ["intro.sd", "intro copy.sd"], ".sd")).toBe("intro copy 2.sd");
+  });
+
+  describe("a new script's default name", () => {
+    const named = (siblings: string[]) => defaultName(UNTITLED_SCRIPT, siblings, ".sd");
+
+    it("is 'Untitled script' in an empty folder", () => {
+      expect(named([])).toBe("Untitled script.sd");
+    });
+
+    it("numbers past every taken name, starting at 2", () => {
+      expect(named(["Untitled script.sd"])).toBe("Untitled script 2.sd");
+      expect(named(["Untitled script.sd", "Untitled script 2.sd"])).toBe("Untitled script 3.sd");
+    });
+
+    it("treats a name taken in another case as taken", () => {
+      expect(named(["untitled SCRIPT.sd"])).toBe("Untitled script 2.sd");
+    });
+
+    it("takes 'Untitled script' when only 'Untitled script 2' is taken", () => {
+      expect(named(["Untitled script 2.sd"])).toBe("Untitled script.sd");
+    });
+
+    it("compares whole names with the ending, as a rename does", () => {
+      expect(named(["Untitled script"])).toBe("Untitled script.sd");
+    });
   });
 });
 

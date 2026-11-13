@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const downloadFile = vi.hoisted(() => vi.fn());
+const recordCreate = vi.hoisted(() => vi.fn());
 vi.mock("../../src/modules/spark-editor/utils/downloadFile", () => ({ downloadFile }));
 vi.mock("../../src/modules/spark-editor/utils/fileUndo", async (original) => ({
   renameFile: (await original<typeof import("../../src/modules/spark-editor/utils/fileUndo")>()).renameFile,
   recordMove: vi.fn(),
+  recordCreate,
   recordTrashDeletion: vi.fn(async () => undefined),
 }));
 
@@ -126,18 +128,29 @@ describe("Scripts through the workspace", () => {
     ]);
   });
 
-  it("refuses a new script named con with the reserved-name message", async () => {
+  it("refuses a new folder named con with the reserved-name message", async () => {
     const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
-    await expect(scripts.create("script", "", "con")).rejects.toThrow(NAME_MESSAGES.reserved);
-    expect(fs.createFiles).not.toHaveBeenCalled();
+    await expect(scripts.createFolder("", "con")).rejects.toThrow(NAME_MESSAGES.reserved);
+    expect(fs.createFolder).not.toHaveBeenCalled();
   });
 
-  it("creates a script in the Scripts folder when the browser is at its root", async () => {
-    const { scripts, files } = fakeWorkspace(PATHS, FOLDERS);
+  it("creates an empty Untitled script in the Scripts folder when the browser is at its root, and records it for Undo", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
-    expect(await scripts.create("script", "", "chapter two")).toBe("Scripts/chapter two.sd");
-    expect(files.has("Scripts/chapter two.sd")).toBe(true);
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
+    const [created] = fs.createFiles.mock.calls[0]![0].files;
+    expect(created!.uri).toBe(uri("Scripts/Untitled script.sd"));
+    expect((created!.data as ArrayBuffer).byteLength).toBe(0);
+    expect(recordCreate).toHaveBeenCalledWith(PROJECT, [uri("Scripts/Untitled script.sd")], "Untitled script.sd");
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script 2.sd");
+  });
+
+  it("numbers a new script past a folder holding its name, and keeps it beside a folder named without the ending", async () => {
+    const { scripts } = fakeWorkspace(PATHS, [...FOLDERS, "Scripts/Untitled script.sd", "Scripts/Drafts/Untitled script"]);
+    await scripts.load();
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script 2.sd");
+    expect(await scripts.createScript("Scripts/Drafts")).toBe("Scripts/Drafts/Untitled script.sd");
   });
 
   it("refuses a rename to a name in use and renames otherwise, following an open editor", async () => {
