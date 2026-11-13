@@ -390,6 +390,34 @@ end
     });
   });
 
+  it("loads a family's @ style files with the family a style names (#2202)", async () => {
+    const source = `style hud {
+  font_family = "Plain"
+}
+
+layout hud {
+  text "Score"
+}
+
+scene A
+  Hello.
+end
+`;
+    const h = createHarness(source, 0, {
+      assets: [...ASSETS, asset("font", "Plain", "ttf"), asset("font", "Plain@bold", "ttf"), asset("font", "Plain@italic", "ttf")],
+      beforeConnect: playing,
+      autoOpenAll: false,
+    });
+    await h.ready;
+    expect(h.game.module.ui.getFontNamesForLayout("hud").sort()).toEqual(["Plain", "Plain@bold", "Plain@italic"]);
+    const items = h.game.module.assets.resolveFontItems(["hud"]) as { family?: string; weight?: string; style?: string }[];
+    expect(items.map((item) => [item.family, item.weight, item.style]).sort()).toEqual([
+      ["Plain", "700", "normal"],
+      ["Plain", "normal", "italic"],
+      ["Plain", "normal", "normal"],
+    ]);
+  });
+
   it("holds a restore until the checkpoint's images are resident", async () => {
     const recorder = createHarness(STORY, 0, { assets: ASSETS });
     await recorder.ready;

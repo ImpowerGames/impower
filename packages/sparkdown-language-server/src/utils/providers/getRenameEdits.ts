@@ -104,15 +104,12 @@ export const getRenameEdits = (
   };
 
   const renameFileByType = (type: string) => {
-    const possibleNameSuffixes =
+    const files =
       type === "font"
-        ? ["", "__bolditalic", "__bold_italic", "__bold", "__italic"]
-        : [""];
-    for (const suffix of possibleNameSuffixes) {
-      for (const oldUri of workspace.findFiles(currentName + suffix, type)) {
-        const newUri = workspace.getRenamedUri(oldUri, newName + suffix);
-        renameFile(oldUri, newUri);
-      }
+        ? workspace.findFontFamilyFiles(currentName)
+        : workspace.findFiles(currentName, type).map((uri) => ({ uri, suffix: "" }));
+    for (const { uri, suffix } of files) {
+      renameFile(uri, workspace.getRenamedUri(uri, newName + suffix));
     }
   };
 

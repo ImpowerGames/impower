@@ -1,4 +1,5 @@
 import { ImageVocabularyCache, imageFileForCompiler } from "../utils/prepareImageFile";
+import { fontStyleSuffixOf } from "../../attributes/fontFileName";
 import { Port1MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port1MessageConnection";
 import { WorkerMessageConnection } from "@impower/jsonrpc/src/browser/classes/WorkerMessageConnection";
 import { globToRegex } from "@impower/jsonrpc/src/common/utils/globToRegex";
@@ -646,6 +647,20 @@ export abstract class SparkdownWorkspace {
       }
     }
     return matchingUris;
+  }
+
+  findFontFamilyFiles(family: string): { uri: string; suffix: string }[] {
+    const matches: { uri: string; suffix: string }[] = [];
+    for (const uri of this._watchedFiles.keys()) {
+      if (this.getFileType(uri) !== "font") {
+        continue;
+      }
+      const suffix = fontStyleSuffixOf(this.getFileName(uri), family);
+      if (suffix !== undefined) {
+        matches.push({ uri, suffix });
+      }
+    }
+    return matches;
   }
 
   getMainScriptUri(uri: string): string | undefined {

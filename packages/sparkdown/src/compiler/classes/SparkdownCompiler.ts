@@ -41,6 +41,7 @@ import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
 import { STDLIB } from "../../runtime/StdLib";
 import { executionWatch } from "../../runtime/ExecutionWatch";
+import { fontFileNameOf } from "../../attributes/fontFileName";
 import { imageFileNameOf, imageMemberOf } from "../../attributes/imageFileName";
 import { createBesideImageDefinitions } from "../../attributes/besideSource";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
@@ -4314,33 +4315,15 @@ export class SparkdownCompiler {
           contextFile["src"] = file["src"];
         }
         if (type === "font") {
-          const [family, attrs] = name.split("__");
+          const fontFile = fontFileNameOf(name);
           if (definedFile?.["font_family"] === undefined) {
-            contextFile["font_family"] = family || name;
+            contextFile["font_family"] = fontFile.family;
           }
           if (definedFile?.["font_weight"] === undefined) {
-            if (
-              attrs &&
-              attrs
-                .toLowerCase()
-                .match(/(^|_|\b)(?:bold|bolditalic|italicbold)($|_|\b)/)
-            ) {
-              contextFile["font_weight"] = "700";
-            } else {
-              contextFile["font_weight"] = "normal";
-            }
+            contextFile["font_weight"] = fontFile.weight;
           }
           if (definedFile?.["font_style"] === undefined) {
-            if (
-              attrs &&
-              attrs
-                .toLowerCase()
-                .match(/(^|_|\b)(?:italic|bolditalic|italicbold)($|_|\b)/)
-            ) {
-              contextFile["font_style"] = "italic";
-            } else {
-              contextFile["font_style"] = "normal";
-            }
+            contextFile["font_style"] = fontFile.style;
           }
           if (definedFile?.["font_stretch"] === undefined) {
             contextFile["font_stretch"] = "normal";
