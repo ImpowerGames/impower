@@ -4321,15 +4321,20 @@ export class SparkdownCompiler {
       }
     }
     const beside = createBesideImageDefinitions(files, (name) =>
-      getContextEntry(state.structDefinitions, "layered_image", name) !== undefined
-        ? "layered_image"
-        : getContextEntry(state.structDefinitions, "image", name) !== undefined
-          ? "image"
-          : undefined,
+      getContextEntry(state.structDefinitions, "layered_image", name) !== undefined ||
+      getContextEntry(state.structDefinitions, "image", name) !== undefined,
     );
+    const addGeneratedImages = (images: Record<string, any>) => {
+      for (const [name, image] of Object.entries(images)) {
+        const entry = { ...image };
+        delete entry.text;
+        if (this._config.stripImageData) delete entry.data;
+        program.context!["image"]![name] = entry;
+      }
+    };
     program.context["image"] ??= {};
     for (const name of beside.layered) delete program.context["image"][name];
-    Object.assign(program.context["image"], beside.images);
+    addGeneratedImages(beside.images);
     for (const [name, image] of Object.entries(beside.layeredImages)) {
       if (!getContextEntry(program.context, "layered_image", name)) {
         setContextEntry(program.context, "layered_image", name, image);
@@ -4343,7 +4348,7 @@ export class SparkdownCompiler {
       });
     }
     const raster = createRasterImageDefinitions(files);
-    Object.assign(program.context["image"], raster.images);
+    addGeneratedImages(raster.images);
     for (const diagnostic of raster.diagnostics) {
       if (getContextEntry(state.structDefinitions, "layered_image", diagnostic.folder)) continue;
       const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };

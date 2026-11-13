@@ -39,11 +39,11 @@ const TEXT = `scene start
 end
 `;
 
-const engine = () => {
+const engine = (text = TEXT) => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
-      { uri: MAIN, type: "script", name: "main", ext: "sd", text: TEXT, version: 1, languageId: "sparkdown" },
+      { uri: MAIN, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
       ...FILES.map((uri) => ({
         uri,
         type: workspace.getFileType(uri),
@@ -84,5 +84,11 @@ describe("the engine draws a picture's layer files with it (#2201)", () => {
     expect(variables[getVarName("image", "ava")]).toBe('url("/src/ava~30_mouth.closed~default.png"), url("/src/ava.png")');
     expect(variables[getVarName("image", "ava@night")]).toBe('url("/src/ava@night.png")');
     expect(variables[getVarName("image", "mia")]).toBe('url("/src/mia/30_face.neutral~default.png"), url("/src/mia/90_body.png")');
+  });
+
+  it("keeps image.ava's variable the picture itself when a look of the same name chooses its options", () => {
+    const look = `define ava as filtered_image with\n  image = layered_image.ava\n  attributes = { "face.happy" }\nend\n\n${TEXT}`;
+    const variables = (engine(look) as any).getThemeVariables() as Record<string, string>;
+    expect(variables[getVarName("image", "ava")]).toBe('url("/src/ava~30_mouth.closed~default.png"), url("/src/ava.png")');
   });
 });

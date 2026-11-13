@@ -24,7 +24,7 @@ const conflictingDefaults = (
 
 export const createBesideImageDefinitions = (
   files: readonly File[],
-  definedAs: (name: string) => "image" | "layered_image" | undefined,
+  defined: (name: string) => boolean,
 ) => {
   const byUri = new Map<string, File>();
   for (const file of files) if (file.type === "image") byUri.set(file.uri, file);
@@ -35,10 +35,8 @@ export const createBesideImageDefinitions = (
   for (const thing of imageThingsOf(byUri.keys())) {
     for (const picture of thing.pictures) {
       if (!picture.layers.length) continue;
-      const defined = definedAs(picture.name);
-      if (defined === "image") continue;
+      if (defined(picture.name)) continue;
       layered.push(picture.name);
-      if (defined === "layered_image") continue;
       const members = [
         ...(picture.path === undefined ? [] : [{ path: picture.path, layer: "", base: true }]),
         ...picture.layers.map((layer) => ({ ...layer, base: false })),

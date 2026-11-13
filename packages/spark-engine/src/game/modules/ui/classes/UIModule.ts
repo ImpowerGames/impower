@@ -2021,7 +2021,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (name.startsWith("$") || Object.hasOwn(variablesStyle, varName)) {
         continue;
       }
-      const srcs = this.getImageAssets("", name).map((asset) => asset.src);
+      const srcs = this.getImageAssets("image", name).map((asset) => asset.src);
       if (srcs.length) {
         variablesStyle[varName] = srcs.map((src) => this.getUrl(src)).reverse().join(", ");
       }

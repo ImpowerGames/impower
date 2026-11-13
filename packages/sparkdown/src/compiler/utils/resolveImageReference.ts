@@ -30,7 +30,7 @@ export const resolveImageReference = (
   }
   return (
     getContextEntry(context, "filtered_image", name) ??
-    getContextEntry(context, "image", name) ??
-    getContextEntry(context, "layered_image", name)
+    getContextEntry(context, "layered_image", name) ??
+    getContextEntry(context, "image", name)
   );
 };

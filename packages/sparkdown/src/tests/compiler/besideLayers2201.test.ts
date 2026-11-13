@@ -197,6 +197,36 @@ ${scene("[[ava]]")}`;
     expect(collisions(program)).toEqual([]);
   });
 
+  it("lets an explicit layered_image of that name still compose the picture's own file as image.ava", () => {
+    const text = `define ava as layered_image with
+  assets = { image.ava, image.office }
+end
+
+${scene("[[ava]]")}`;
+    const program = compile([`${P}/ava.png`, `${P}/ava~face.happy.png`, `${ROOT}/assets/Images/office.png`], text);
+    expect(drawn(program, "ava")).toEqual(["ava.png", "office.png"]);
+  });
+
+  it("strips image data from a composed picture's files as from any other image when asked", () => {
+    const svg = (uri: string) => ({ uri, type: "image", name: workspace.getFileName(uri), ext: "svg", src: uri, data: "<svg xmlns=\"http://www.w3.org/2000/svg\"/>", version: 1 });
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      stripImageData: true,
+      files: [
+        { uri: MAIN, type: "script", name: "main", ext: "sd", text: scene("[[ava]]", "[[mia]]", "[[bo]]"), version: 1, languageId: "sparkdown" },
+        svg(`${P}/ava.svg`),
+        svg(`${P}/ava~face.happy.svg`),
+        svg(`${P}/bo.svg`),
+        { ...svg(`${P}/mia/90_body.png`), ext: "png" },
+      ],
+    } as never);
+    const images = compiler.compile({ textDocument: { uri: MAIN } }).program.context?.["image"] ?? {};
+    const generated = Object.keys(images).filter((name) => name.startsWith("$raster:"));
+    expect(generated.length).toBe(3);
+    expect(generated.filter((name) => images[name].data)).toEqual([]);
+    expect(images["bo"].data).toBeFalsy();
+  });
+
   it("keeps an explicit image define of that name as the author wrote it", () => {
     const text = `define ava as image with
   src = "override.png"
