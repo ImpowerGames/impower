@@ -365,12 +365,20 @@ export const decorate = (
     return result?.tags.some((t) => INLINE_HIDDEN_TAGS.includes(t));
   };
 
-  const hideBlockRange = (nodeRef: SyntaxNodeRef) => {
-    const from = nodeRef.from;
+  const blankLineStart = (nodeRef: SyntaxNodeRef) => {
+    const line = doc.lineAt(nodeRef.from);
+    const before = nodeRef.node.prevSibling;
+    return before &&
+      before.to > line.from &&
+      printsAsBlankLine(before.name, before.parent?.name)
+      ? line.from
+      : nodeRef.from;
+  };
+
+  const hideBlockRange = (nodeRef: SyntaxNodeRef, hideFrom = nodeRef.from) => {
     const to = nodeRef.to;
-    const text = doc.sliceString(from, to);
+    const text = doc.sliceString(nodeRef.from, to);
     const hiddenNodeEndsWithNewline = text.endsWith("\n");
-    const hideFrom = from;
     const hideTo = hiddenNodeEndsWithNewline ? to - 1 : to;
     decorations.push(
       ...createDecorations(doc, {
@@ -590,7 +598,7 @@ export const decorate = (
         hideOpeningLine(nodeRef);
         return true;
       } else if (isBlankLine(nodeRef)) {
-        hideBlockRange(nodeRef);
+        hideBlockRange(nodeRef, blankLineStart(nodeRef));
         return false;
       } else if (isHiddenFlowLogic(name)) {
         hideInlineRange(nodeRef);

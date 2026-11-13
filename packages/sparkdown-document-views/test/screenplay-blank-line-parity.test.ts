@@ -18,6 +18,7 @@ const ELEMENTS: Record<string, string[]> = {
   condition: ["  if true then", "    It rains.", "  end"],
   "do block": ["  do", "    It snows.", "  end"],
   loop: ["  while false do", "    It hails.", "  end"],
+  repeat: ["  repeat", "    It drizzles.", "  until true"],
   alternator: ["  queue", "    | First time.", "    | Second time.", "  end"],
   "one-line alternator": ["  queue | A # t | B end"],
   branch: ["  branch b", "    Inside.", "  end"],
