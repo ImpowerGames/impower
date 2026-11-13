@@ -15,6 +15,7 @@ const KINDS: Record<string, string[]> = {
   BlockActionInnerBlank: ["  :", "    First.", "", "    Second."],
   BlockActionLeadingBlank: ["  :", "", "    First."],
   BlockDialogue: ["  GUIDE:", "    (softly)", "    Hello there."],
+  BlockDialogueInnerBlank: ["  GUIDE:", "    First line.", "", "    Second line."],
   BlockHeading: ["  $:", "    INT. ROOM - DAY"],
   BlockHeadingInnerBlank: ["  $:", "    INT. A", "", "    INT. B"],
   BlockTitle: ["  ^:", "    THE END"],
@@ -55,6 +56,9 @@ const KINDS: Record<string, string[]> = {
   LuauFunctionDefinitionThenCommentSharedLine: ["  function f4() end /* c */ : Shared."],
   SparkdownBlockCommentThenFunctionSharedLine: ["  /* c */ function f3() end : Shared."],
   LuauFunctionDefinitionPairSharedLine: ["  function f5() end function f6() end : Shared."],
+  LuauFunctionDefinitionPairOnly: ["  function f7() end function f8() end"],
+  LuauFunctionDefinitionThenCommentOnly: ["  function f9() end /* c */"],
+  SparkdownBlockCommentThenFunctionOnly: ["  /* c */ function f10() end"],
   LuauSparkdownExplicitFunction: ["  & function h()", "  end"],
   LuauFunctionTypeDeclaration: ["  type function tf()", "  end"],
   LuauGotoStatement: ["  goto here"],
@@ -329,6 +333,13 @@ describe("a line shared by a hidden node and printed text", () => {
     ["function identifiers", "SparkdownBlockCommentThenFunctionSharedLine", ["", "f3", "Shared."]],
     ["default", "LuauFunctionDefinitionPairSharedLine", ["", "Shared."]],
     ["function identifiers", "LuauFunctionDefinitionPairSharedLine", ["", "f5", "", "f6", "Shared."]],
+    ["default", "LuauFunctionDefinitionPairOnly", [""]],
+    ["function identifiers", "LuauFunctionDefinitionPairOnly", ["", "f7", "", "f8"]],
+    ["default", "LuauFunctionDefinitionThenCommentOnly", [""]],
+    ["function identifiers", "LuauFunctionDefinitionThenCommentOnly", ["", "f9", ""]],
+    ["default", "SparkdownBlockCommentThenFunctionOnly", [""]],
+    ["function identifiers", "SparkdownBlockCommentThenFunctionOnly", ["", "f10"]],
+    ["default", "BlockDialogueInnerBlank", ["GUIDE", "First line.", "", "Second line."]],
   ] as const)("keeps every hidden part in order with %s settings: %s", (configName, kind, rows) => {
     const source = sourceOf([kind]);
     const expected = ["Before.", ...rows, "After."];

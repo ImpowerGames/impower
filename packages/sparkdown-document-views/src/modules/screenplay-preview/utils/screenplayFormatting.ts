@@ -421,19 +421,27 @@ export const decorate = (
   const splitSharedLine = (line: Line, node: SyntaxNode) => {
     const parts = lineParts(line, node);
     const firstText = parts.findIndex(printsText);
-    if (firstText < 0) return false;
+    const hiddenParts = parts.filter((part) => printsAsBlankLine(part.name, part.parent?.name));
+    if (firstText < 0 && hiddenParts.length < 2) return false;
     handledLines.add(line.number);
+    if (firstText < 0) {
+      decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
+      if (line.length > 0) {
+        decorations.push(Decoration.replace({}).range(line.from, line.to));
+      }
+    }
+    const textIndex = firstText < 0 ? parts.length : firstText;
     const above: (CollapseWidget | NameWidget)[] = [];
     const below: (CollapseWidget | NameWidget)[] = [];
     parts.forEach((part, index) => {
       if (!printsAsBlankLine(part.name, part.parent?.name)) return;
       const from = Math.max(part.from, line.from);
       const to = Math.min(blockEnd(part), line.to);
-      if (to > from) {
+      if (firstText >= 0 && to > from) {
         decorations.push(Decoration.replace({}).range(from, to));
       }
       if (part.from < line.from) return;
-      const rows = index < firstText ? above : below;
+      const rows = index < textIndex ? above : below;
       if (blankPositions.has(part.from)) {
         rows.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from }));
       }

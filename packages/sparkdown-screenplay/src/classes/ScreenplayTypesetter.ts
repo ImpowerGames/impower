@@ -262,6 +262,11 @@ export default class ScreenplayTypesetter {
               const prevSpan = spans.at(-1);
               if (prevSpan?.tag === "dialogue") {
                 prevSpan.lines.push(...lines);
+              } else if (
+                prevSpan?.tag === "separator" &&
+                spans.at(-2)?.tag === "dialogue"
+              ) {
+                spans.push({ tag: "dialogue", lines });
               }
             }
           }
