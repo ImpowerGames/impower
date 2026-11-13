@@ -69,6 +69,22 @@ const hoverTheme = EditorView.baseTheme({
     color: "var(--ink)",
     overflowWrap: "anywhere",
   },
+  ".cm-lsp-hover-detail": {
+    minWidth: "0",
+    overflowWrap: "anywhere",
+  },
+  ".cm-lsp-hover-detail > :first-child": {
+    marginTop: "0",
+  },
+  ".cm-lsp-hover-detail > :last-child": {
+    marginBottom: "0",
+  },
+  ".cm-lsp-hover-detail ul": {
+    paddingInlineStart: "18px",
+  },
+  ".cm-lsp-hover-detail code": {
+    font: "12px / 1.4 var(--font-script, monospace)",
+  },
   ".cm-lsp-hover-value": {
     display: "block",
     font: "13px / 1.4 var(--font-script, monospace)",
@@ -377,6 +393,7 @@ function renderHoverCard(
     return card;
   }
   card.className = "cm-lsp-hover-card cm-lsp-hover-picture";
+  images.forEach((image) => image.remove());
   if (previews) {
     const thumb = document.createElement("div");
     thumb.className = "cm-lsp-hover-thumb";
@@ -393,6 +410,12 @@ function renderHoverCard(
   code.textContent = reference || images[0]?.getAttribute("alt") || "";
   caption.appendChild(code);
   card.appendChild(caption);
+  const detail = document.createElement("div");
+  detail.className = "cm-lsp-hover-detail";
+  for (const node of Array.from(content.content.childNodes)) {
+    if (node.textContent?.trim()) detail.appendChild(node);
+  }
+  if (detail.childNodes.length) card.appendChild(detail);
   return card;
 }
 

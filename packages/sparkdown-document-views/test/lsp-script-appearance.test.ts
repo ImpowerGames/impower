@@ -223,6 +223,23 @@ describe("the hover card", () => {
     );
   });
 
+  it.each([true, false])("keeps the text after a picture under its caption, previews %s", async (enabled) => {
+    const files = "Made from, bottom to top:\n\n- `ava.png`\n- `ava~face.happy.png`";
+    const { tooltip } = await hover(enabled, `${PICTURE}\n\n${files}`, { range: range(0, 0, 5) });
+    const card = tooltip?.querySelector(".cm-lsp-hover-card.cm-lsp-hover-picture");
+    expect(card?.lastElementChild?.className).toBe("cm-lsp-hover-detail");
+    const detail = card!.querySelector(".cm-lsp-hover-detail")!;
+    expect(detail.querySelector("p")?.textContent).toBe("Made from, bottom to top:");
+    expect(Array.from(detail.querySelectorAll("li code"), (code) => code.textContent)).toEqual(["ava.png", "ava~face.happy.png"]);
+    expect(detail.querySelector("img")).toBeNull();
+    expect(card!.querySelectorAll("img")).toHaveLength(enabled ? 1 : 0);
+  });
+
+  it("adds nothing under a picture's caption when the server sends only the picture", async () => {
+    const { tooltip } = await hover(true, PICTURE, { range: range(0, 0, 5) });
+    expect(tooltip?.querySelector(".cm-lsp-hover-detail")).toBeNull();
+  });
+
   it("closes an open picture card when turned off, and leaves a text card open", async () => {
     const picture = await hover(true, PICTURE);
     expect(picture.tooltip).toBeTruthy();

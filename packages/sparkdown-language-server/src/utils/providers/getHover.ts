@@ -9,6 +9,9 @@ import {
   type ImageCompositeOptions,
 } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { resolveSelector } from "@impower/sparkdown/src/compiler/utils/resolveSelector";
+import { resolveImageRoot } from "@impower/sparkdown/src/compiler/utils/filterImage";
+import { getTypedImageEntry } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
+import { imageThingsOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { MORPH_CLAUSE_DOC, MORPH_FIELD_DOCS } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { braceBlockPathAt } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
@@ -177,6 +180,40 @@ const getMorphClauseHover = (
   return null;
 };
 
+const leafOf = (uri: string) => {
+  const leaf = uri.slice(uri.lastIndexOf("/") + 1);
+  try {
+    return decodeURIComponent(leaf);
+  } catch {
+    return leaf;
+  }
+};
+
+const getPictureFiles = (
+  context: SparkProgram["context"],
+  struct: any,
+): string[] => {
+  const root = resolveImageRoot(context, struct);
+  if (root?.$type !== "layered_image" || typeof root.uri !== "string") {
+    return [];
+  }
+  const uris = new Set<string>();
+  for (const image of Object.values<any>(context?.["image"] ?? {})) {
+    if (typeof image?.uri === "string") uris.add(image.uri);
+  }
+  const picture = imageThingsOf(uris)
+    .flatMap((thing) => thing.pictures)
+    .find((candidate) => candidate.name === root.$name);
+  if (!picture?.layers.length) {
+    return [];
+  }
+  const paths = [
+    ...(picture.path === undefined ? [] : [picture.path]),
+    ...picture.layers.map((layer) => layer.path),
+  ];
+  return paths[0] === root.uri ? paths.map(leafOf) : [];
+};
+
 export const getHover = async (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
@@ -244,6 +281,16 @@ export const getHover = async (
           }
         }
       }
+      if (reference.asset) {
+        const { types, name } = reference.asset;
+        for (const type of types) {
+          const entry = getTypedImageEntry(program.context, type, name);
+          if (entry && typeof entry === "object" && typeof entry.$type === "string") {
+            match = { struct: entry, range };
+            return false;
+          }
+        }
+      }
     }
     return undefined;
   });
@@ -256,11 +303,16 @@ export const getHover = async (
     struct,
     options,
   );
-  if (!preview) {
+  const files = getPictureFiles(program.context, struct);
+  const sections = [
+    ...(preview ? [preview] : []),
+    ...(files.length ? [`Made from, bottom to top:\n\n${files.map((file) => `- \`${file}\``).join("\n")}`] : []),
+  ];
+  if (!sections.length) {
     return null;
   }
   return {
-    contents: { kind: MarkupKind.Markdown, value: preview },
+    contents: { kind: MarkupKind.Markdown, value: sections.join("\n\n") },
     range,
   };
 };
