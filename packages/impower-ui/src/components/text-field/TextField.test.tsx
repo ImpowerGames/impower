@@ -2,7 +2,7 @@ import { render, type ComponentChild } from "preact";
 import { useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import TextField, { textFieldVariants } from "./TextField";
+import TextField, { textFieldPurposeAttributes, textFieldVariants } from "./TextField";
 
 let host: HTMLDivElement | undefined;
 
@@ -33,6 +33,29 @@ describe("TextField", () => {
     expect(input.type).toBe("text");
     expect(input.value).toBe("Music");
     expect(input.getAttribute("autocomplete")).toBe("off");
+  });
+
+  it.each([
+    ["text", "text", null, null, null, "done"],
+    ["literal", "text", null, "off", "off", "done"],
+    ["search", "search", null, null, null, "search"],
+    ["url", "text", "url", "off", "off", "go"],
+  ] as const)("gives a %s field its input type, keyboard, capitalisation, correction and Enter key", async (purpose, type, mode, capitalize, correct, enter) => {
+    const input = await mount(<TextField aria-label="Field" purpose={purpose} />);
+    expect(input.type).toBe(type);
+    expect(input.getAttribute("inputmode")).toBe(mode);
+    expect(input.getAttribute("autocapitalize")).toBe(capitalize);
+    expect(input.getAttribute("autocorrect")).toBe(correct);
+    expect(input.getAttribute("enterkeyhint")).toBe(enter);
+    expect(input.getAttribute("autocomplete")).toBe("off");
+  });
+
+  it("is a text field with a Done key when no purpose is given, and lets the page name its own Enter key", async () => {
+    const input = await mount(<TextField aria-label="Replace with" enterkeyhint="search" />);
+    expect(input.type).toBe("text");
+    expect(input.getAttribute("enterkeyhint")).toBe("search");
+    expect(textFieldPurposeAttributes()).toEqual(textFieldPurposeAttributes("text"));
+    expect(textFieldVariants()).toContain("[&::-webkit-search-cancel-button]:hidden");
   });
 
   it("reports every edit when uncontrolled, and still calls the page's own input handler", async () => {

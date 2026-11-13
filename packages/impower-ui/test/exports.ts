@@ -37,6 +37,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "tabbedPageTitleVariants",
   "tabbedPageVariants",
   "textFieldVariants",
+  "textFieldPurposeAttributes",
   "themeSwatchVariants",
   "useAnnouncer",
   "componentRegistry",

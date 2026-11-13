@@ -106,12 +106,10 @@ function LinkAddress({
     <Section title="Address" label="Address">
       <div class="flex flex-col gap-2">
         <TextField
-          type="url"
+          purpose="url"
           width="full"
           aria-label="Address"
           placeholder="https://"
-          autocomplete="off"
-          spellcheck={false}
           value={draft}
           onValueChange={setDraft}
           onKeyDown={(event: KeyboardEvent) => {

@@ -17,11 +17,11 @@ export default function SearchBox({ label, value, onChange }: SearchBoxProps) {
       <SearchIcon class="size-[18px] flex-none text-muted" />
       <TextField
         frame="inset"
-        type="search"
+        purpose="search"
         aria-label={label}
         placeholder={label}
         value={value}
-        class="text-[16px] [:root[data-layout=desktop]_&]:text-[13px] [&::-webkit-search-cancel-button]:hidden"
+        class="text-[16px] [:root[data-layout=desktop]_&]:text-[13px]"
         onValueChange={onChange}
         onKeyDown={(e) => {
           if (e.key === "Escape" && value) {

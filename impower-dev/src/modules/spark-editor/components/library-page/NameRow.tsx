@@ -107,6 +107,7 @@ export default function NameRow({
           <TextField
             ref={input}
             frame="inset"
+            purpose="literal"
             aria-label={label}
             aria-invalid={error ? "true" : undefined}
             aria-describedby={error ? "scripts-name-error" : undefined}
