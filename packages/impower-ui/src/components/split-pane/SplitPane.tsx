@@ -28,6 +28,7 @@ export type SplitPaneProps = {
   reverse?: boolean;
   pinned?: SplitPanePinned;
   label?: string;
+  overflowPanel?: "start" | "end";
   class?: string;
 };
 
@@ -86,6 +87,7 @@ export default function SplitPane({
   reverse = false,
   pinned,
   label,
+  overflowPanel,
   class: className,
 }: SplitPaneProps) {
   const collapsed = useLayout() === "phone";
@@ -263,16 +265,17 @@ export default function SplitPane({
   };
 
   const panelProps = (panel: "start" | "end", hidden: boolean) => {
+    const clip = cn(
+      overflowPanel === panel ? "overflow-visible" : "overflow-hidden",
+      "min-h-0 min-w-0",
+    );
     if (pinned && !collapsed) {
       return {
-        class: cn(
-          "overflow-hidden min-h-0 min-w-0",
-          pinned.panel === panel ? PINNED_PANEL : FILL_PANEL,
-        ),
+        class: cn(clip, pinned.panel === panel ? PINNED_PANEL : FILL_PANEL),
       };
     }
     return {
-      class: "overflow-hidden min-h-0 min-w-0",
+      class: clip,
       style: panelStyle(
         hidden,
         collapsed,
