@@ -384,20 +384,20 @@ export const decorate = (
       ? rootFunctionName(node, (from, to) => doc.sliceString(from, to))
       : "";
 
-  const lineParts = (line: Line) => {
+  const lineParts = (line: Line, node: SyntaxNode) => {
+    let first = node;
+    while (first.prevSibling && first.prevSibling.to > line.from) {
+      first = first.prevSibling;
+    }
     const parts: SyntaxNode[] = [];
-    for (
-      let part = tree.topNode.childAfter(line.from);
-      part && part.from < line.to;
-      part = part.nextSibling
-    ) {
+    for (let part: SyntaxNode | null = first; part && part.from < line.to; part = part.nextSibling) {
       parts.push(part);
     }
     return parts;
   };
 
-  const splitSharedLine = (line: Line) => {
-    const parts = lineParts(line);
+  const splitSharedLine = (line: Line, node: SyntaxNode) => {
+    const parts = lineParts(line, node);
     const firstText = parts.findIndex(printsText);
     if (firstText < 0) return false;
     handledLines.add(line.number);
@@ -442,7 +442,7 @@ export const decorate = (
     for (let number = first; number <= last; number++) {
       if (handledLines.has(number)) continue;
       const line = doc.line(number);
-      if (node && (number === first || number === last) && splitSharedLine(line)) {
+      if (node && (number === first || number === last) && splitSharedLine(line, node)) {
         continue;
       }
       handledLines.add(number);
