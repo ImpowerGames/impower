@@ -123,6 +123,13 @@ describe("AudioPlayer", () => {
     expect(root.querySelectorAll("[data-audio-wave] rect").length).toBe(8);
   });
 
+  it("floors the slider's bounds and position as it floors the time it shows", async () => {
+    const root = await mount(<AudioPlayer {...props({ time: 1.5, duration: 1.5 })} />);
+    const slider = scrubber(root);
+    expect([slider.getAttribute("aria-valuemax"), slider.getAttribute("aria-valuenow")]).toEqual(["1", "1"]);
+    expect(slider.getAttribute("aria-valuetext")).toBe("0:01 of 0:01");
+  });
+
   it("seeks by the arrow keys a twentieth of the sound at a time, at least half a second, and to either end by Home and End", async () => {
     const onSeek = vi.fn();
     const root = await mount(<AudioPlayer {...props({ time: 20, onSeek })} />);

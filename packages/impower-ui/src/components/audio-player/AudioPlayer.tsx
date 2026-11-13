@@ -176,8 +176,8 @@ export default function AudioPlayer({
                 tabIndex={0}
                 aria-label="Position"
                 aria-valuemin={0}
-                aria-valuemax={Math.round(length)}
-                aria-valuenow={Math.round(Math.min(time, length))}
+                aria-valuemax={Math.floor(length)}
+                aria-valuenow={Math.floor(Math.min(time, length))}
                 aria-valuetext={`${clock(time)} of ${clock(length)}`}
                 class="absolute inset-0 cursor-pointer touch-pan-y rounded-[4px] outline-none focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-accent"
                 onKeyDown={onKeyDown}

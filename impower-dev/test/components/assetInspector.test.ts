@@ -1188,7 +1188,7 @@ describe("the Variants tester and the Files section", () => {
     expect(aside()).toBe("8 variants");
   });
 
-  it("puts an option's Default hint beneath its name in a group's menu", async () => {
+  it("puts an option's Default hint beneath its name in a group's menu, every item at the small 13px regular size", async () => {
     await mount();
     await open("imani");
     await act(async () => {
@@ -1207,6 +1207,11 @@ describe("the Variants tester and the Files section", () => {
       ["SMALL", "Default"],
     ]);
     expect(items.find((item) => item.textContent?.startsWith("Open"))!.querySelector("small")).toBeNull();
+    for (const item of items) {
+      const classes = item.className.split(" ");
+      expect(classes).toEqual(expect.arrayContaining(["text-[13px]", "font-normal"]));
+      expect(classes).not.toContain("data-[state=checked]:font-semibold");
+    }
     await key(closed, "Escape");
   });
 
