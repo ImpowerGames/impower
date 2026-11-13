@@ -230,8 +230,12 @@ export {
   cursorWordRight,
   deleteWordLeft,
   deleteWordRight,
+  selectNextOccurrence,
   selectWordLeft,
   selectWordRight,
+  vscodeWordSelection,
+  wordAtPosition,
+  wordForDoubleClick,
 } from "./wordOperations";
 export { Workspace, type WorkspaceFile } from "./workspace";
 

@@ -75,7 +75,6 @@ import { nextDiagnostic } from "@codemirror/lint";
 import {
   closeSearchPanel,
   gotoLine,
-  selectNextOccurrence,
   selectSelectionMatches,
 } from "@codemirror/search";
 import {
@@ -130,6 +129,7 @@ import {
   cursorWordRight,
   deleteWordLeft,
   deleteWordRight,
+  selectNextOccurrence,
   selectWordLeft,
   selectWordRight,
 } from "./wordOperations";

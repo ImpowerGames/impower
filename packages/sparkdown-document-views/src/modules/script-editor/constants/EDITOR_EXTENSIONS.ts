@@ -1,6 +1,7 @@
 import { history } from "@codemirror/commands";
 import { ensureSyntaxTree, indentUnit, syntaxTree } from "@codemirror/language";
 import { EditorState, Line } from "@codemirror/state";
+import { vscodeWordSelection } from "@impower/codemirror-vscode-lsp-client/src";
 import { isCommentOnlyLine } from "@impower/sparkdown/src/compiler/utils/isCommentOnlyLine";
 import {
   EditorView,
@@ -61,6 +62,7 @@ const EDITOR_EXTENSIONS = [
   dropCursor(),
   crosshairCursor(),
   rectangularSelection(),
+  vscodeWordSelection,
   highlightActiveLineGutter(),
   highlightExtraWhitespace(),
   highlightLines({ isGap: isExecutionGap }),
