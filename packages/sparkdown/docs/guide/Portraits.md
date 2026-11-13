@@ -337,6 +337,63 @@ Portrait names are shared by the whole project: two folders named `mia` anywhere
 
 Export naming differs between programs and export commands. The numbered names above are the input convention. Check the exported files and rename them to this pattern when necessary. Measured export compatibility for Photoshop, Krita, and Clip Studio Paint is tracked in [the export compatibility follow-up](https://github.com/ImpowerGames/impower/issues/486).
 
+## Layer files beside a picture
+
+A picture's layers can also sit beside it as files in the same folder, with no portrait folder. A `~` in a file name adds a layer to the picture named before it:
+
+```
+ava.png                    the plain picture of ava
+ava@night.png              another whole picture of ava, called night
+ava~face.happy.png         a layer on ava.png, shown when face is happy
+ava~face.sad.png           a layer on ava.png, shown when face is sad
+ava@night~face.happy.png   a layer on ava@night.png only
+```
+
+The part after the `~` is a layer name, written the way the rest of this chapter writes one: `group.option`, several options as `group.a.b`, several conditions joined by `~`, a trailing `~default`, or a plain word for a layer that always shows. Dots belong to the layer name; only the last dot starts the extension. A file with no `~` keeps its usual name, the text before its first dot, so `ava.v2.png` is still the image `ava`.
+
+A layer belongs to one picture. `ava~face.sad.png` never shows on `ava@night`; give the night picture its own layers.
+
+The picture's own file is always the bottom layer. The others stack in file-name order, the first at the bottom, unless they carry a stacking number right after the `~`. The number means what it means in a portrait folder: the lowest number is on top. The number is never part of a reference.
+
+```
+assets/Images/Portraits/
+  ava.png
+  ava@night.png
+  ava~20_face.happy.png
+  ava~20_face.sad.png
+  ava~30_mouth.closed~default.png
+  ava~30_mouth.open.png
+  ava~10_hat.on.png
+  ava@night~face.happy.png
+```
+
+```
+scene start
+  [[ava]]                    ava.png, closed mouth
+  [[ava:happy:hat]]          ava.png, closed mouth, happy face, hat on top
+  [[ava@night:face.happy]]   ava@night.png with its own happy face
+end
+```
+
+Number every layer of a picture or none of them. A picture that mixes the two gets a warning naming the unnumbered files, and those stack below the numbered ones.
+
+What shows when the script chooses nothing:
+
+| File | Shows for `[[ava]]` |
+| --- | --- |
+| `ava.png` | yes, always (the base) |
+| `ava~face.happy.png`, `ava~face.sad.png` | no |
+| `ava~mouth.closed~default.png` | yes, the `mouth` group's default |
+| `ava~mouth.open.png` | no |
+| `ava~hat.on.png` | no, a switch starts off |
+| `ava~blush.png` | yes, it names no group |
+
+A group with no `~default` layer shows none of its layers until the script picks one. Beside a picture that is not a mistake and raises no warning: the picture is already a complete look. A picture may also be all layers with no file of its own, such as `cy~body.png` and `cy~face.happy.png` with no `cy.png`.
+
+A picture with layer files is still named `image.ava` in a define, so a named look can start from it: `image = image.ava@night` with `attributes = { "face.happy" }`. The same holds for a portrait folder: `image.mia` names the folder's portrait. An explicit `layered_image` definition with the picture's name replaces the picture built from its files.
+
+`ava.png` beside a portrait folder `ava/` is one picture stacked two ways and gives a name-collision warning naming both. So do two files that are the same layer of one picture, such as `ava~face.happy.png` and `ava~face.happy.webp`. Two options of one group, `ava~face.happy.png` and `ava~face.sad.png`, are not a collision.
+
 ## When something looks wrong
 
 Malformed layer names produce a warning and their own conditions are ignored; their parent conditions still apply. Fix the name before relying on that layer's visibility. A typo does not automatically hide artwork.
@@ -348,6 +405,7 @@ The editor checks the portrait files and the script and reports these in the pro
 - A one-off option or group spelling close to a repeatedly used name, such as `eybrows.angry` beside `eyebrows.angry`. A unique expression alone is not treated as a typo.
 - A visible folder with named options but no selected or inherited default. Those layers stay hidden until you mark a resting option or select one in the script.
 - An image file missing its stacking-number prefix inside an otherwise numbered raster portrait folder.
+- A picture whose layer files beside it mix numbered and unnumbered names.
 - A script line that asks for an option the portrait does not have anywhere, such as `[[mia:gloves]]` when no layer in Mia's file mentions `gloves`. The option is ignored and the rest of the line still works.
 - A script line that asks for an option one part of the portrait lacks, such as `[[mia:happy:look.left]]` when the happy face has no left-looking pupils. That part shows nothing for the group, the same as if the layer were missing, and the warning names the folder so the artist can add it.
 - A direction selected while the face's eyes rest closed. Add `eyes.open` when you intend to open them, for example `[[mia:eyes.open:look.left]]`.

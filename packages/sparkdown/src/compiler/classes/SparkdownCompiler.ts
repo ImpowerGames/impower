@@ -33,6 +33,7 @@ import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage
 import { STDLIB } from "../../runtime/StdLib";
 import { executionWatch } from "../../runtime/ExecutionWatch";
 import { imageFileNameOf, imageMemberOf } from "../../attributes/imageFileName";
+import { createBesideImageDefinitions } from "../../attributes/besideSource";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import type { File } from "../types/File";
 import { diagnoseRareAttributeOptions, resolveAttributes, type AttributeVocabulary } from "../../attributes";
@@ -140,6 +141,7 @@ import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpli
 import { closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { resolveSelector } from "../utils/resolveSelector";
 import { getContextEntry } from "../utils/getContextEntry";
+import { getTypedImageEntry } from "../utils/resolveImageReference";
 import { setContextEntry } from "../utils/setContextEntry";
 import type { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
 import {
@@ -4318,8 +4320,26 @@ export class SparkdownCompiler {
         }
       }
     }
+    const beside = createBesideImageDefinitions(files, (name) =>
+      getContextEntry(state.structDefinitions, "layered_image", name) !== undefined,
+    );
+    program.context["image"] ??= {};
+    for (const name of beside.layered) delete program.context["image"][name];
+    Object.assign(program.context["image"], beside.images);
+    for (const [name, image] of Object.entries(beside.layeredImages)) {
+      if (!getContextEntry(program.context, "layered_image", name)) {
+        setContextEntry(program.context, "layered_image", name, image);
+      }
+    }
+    for (const { uri, message } of beside.diagnostics) {
+      const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+      ((program.diagnostics ??= {})[uri] ??= []).push({
+        range, severity: DiagnosticSeverity.Warning,
+        message: { kind: "markdown", value: message }, source: LANGUAGE_NAME,
+      });
+    }
     const raster = createRasterImageDefinitions(files);
-    Object.assign(program.context["image"] ??= {}, raster.images);
+    Object.assign(program.context["image"], raster.images);
     for (const diagnostic of raster.diagnostics) {
       if (getContextEntry(state.structDefinitions, "layered_image", diagnostic.folder)) continue;
       const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
@@ -4334,7 +4354,7 @@ export class SparkdownCompiler {
       this.pushAssetCollisionDiagnostic(program, otherUri, firstUri, "layered_image", name);
     }
     for (const [name, image] of Object.entries(raster.layeredImages)) {
-      const ordinary = getContextEntry(program.context, "image", name);
+      const ordinary = getContextEntry(program.context, "image", name) ?? beside.layeredImages[name];
       if (ordinary && !getContextEntry(state.structDefinitions, "layered_image", name)) {
         const firstUri = raster.origins[name]!;
         const otherUri = ordinary.uri ?? program.uri;
@@ -4706,7 +4726,7 @@ export class SparkdownCompiler {
         ((program.diagnostics ??= {})[targetUri] ??= []).push({
           range: assetRange,
           severity: diagnostic.severity === "error" ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
-          message: { kind: "markdown", value: diagnostic.message + (diagnostic.path ? ' (Layer hierarchy: ' + diagnostic.path + '.)' : '') },
+          message: { kind: "markdown", value: diagnostic.message + (diagnostic.path && resolved.image?.$type !== "layered_image" ? ' (Layer hierarchy: ' + diagnostic.path + '.)' : '') },
           source: LANGUAGE_NAME,
         });
       }
@@ -5373,7 +5393,8 @@ export class SparkdownCompiler {
         const { types, name, typed } = reference.asset;
         const declared = types.some((type) => {
           readKey(reads, type, name);
-          return getContextEntry(program.context, type, name) !== undefined;
+          if (type === "image") readKey(reads, "layered_image", name);
+          return getTypedImageEntry(program.context, type, name) !== undefined;
         });
         if (declared && !typed) {
           outcomes.push({ from: from - offset, to: to - offset, declared: name });

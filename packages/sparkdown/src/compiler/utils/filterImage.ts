@@ -11,12 +11,13 @@ import { buildFilteredSrc } from "../../filters/filteredSvg";
 import { filterSVG } from "./filterSVG";
 import { buildSVGSource } from "./buildSVGSource";
 import { getContextEntry } from "./getContextEntry";
+import { getTypedImageEntry } from "./resolveImageReference";
 
 type ImageContext = { [type: string]: { [name: string]: any } };
 
 const lookup = (context: ImageContext, ref: any): any => {
   if (!ref?.$name) return undefined;
-  if (ref.$type) return getContextEntry(context, ref.$type, ref.$name);
+  if (ref.$type) return getTypedImageEntry(context, ref.$type, ref.$name);
   return getContextEntry(context, "filtered_image", ref.$name) ??
     getContextEntry(context, "layered_image", ref.$name) ??
     getContextEntry(context, "image", ref.$name);

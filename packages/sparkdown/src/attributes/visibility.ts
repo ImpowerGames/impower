@@ -58,7 +58,7 @@ export const evaluateAttributeVisibility = (
   for (const [key, scope] of Object.entries(vocabulary.folders)) {
     if (key !== ATTRIBUTE_ROOT && !visible[key]) continue;
     for (const [group, options] of Object.entries(scope.options)) {
-      if (options.length && !vocabulary.groups[group]?.switch && !choices(group, key).length) {
+      if (options.length && !vocabulary.defaultsOptional && !vocabulary.groups[group]?.switch && !choices(group, key).length) {
         diagnostics.push({
           code: "missing-folder-default", severity: "warning", group,
           folder: scope.name,

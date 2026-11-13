@@ -83,11 +83,18 @@ describe("the tester's picture", () => {
     expect(await picture(paths, { image: "mia", attributes: ["happy"] }, redefined)).toBe(`/src/${P}/still.png`);
   });
 
-  it("shows a sibling-file stack's base until the engine stacks sibling files (#1039)", async () => {
+  it("draws a picture with layer files beside it as the engine composes it, its own file at the bottom (#2201)", async () => {
     stubComposition();
-    const paths = [`${P}/imani.png`, `${P}/imani~face.happy.png`];
-    expect(await picture(paths, { image: "imani", attributes: ["happy"] })).toBe(`/src/${P}/imani.png`);
-    expect(drawn).toEqual([]);
+    const paths = [`${P}/imani.png`, `${P}/imani~20_face.happy.png`, `${P}/imani~20_face.sad.png`, `${P}/imani~10_hat.on.png`, `${P}/imani~30_scarf.png`];
+    expect(await picture(paths, { image: "imani", attributes: ["happy"] })).toMatch(/^data:image\/webp;base64,/);
+    expect(drawn).toEqual([`/src/${P}/imani.png`, `/src/${P}/imani~30_scarf.png`, `/src/${P}/imani~20_face.happy.png`]);
+  });
+
+  it("draws an alternate with its own layer files, not its base's (#2201)", async () => {
+    stubComposition();
+    const paths = [`${P}/imani.png`, `${P}/imani~face.happy.png`, `${P}/imani@night.png`, `${P}/imani@night~face.happy.png`];
+    await picture(paths, { image: "imani@night", attributes: ["happy"] });
+    expect(drawn).toEqual([`/src/${P}/imani@night.png`, `/src/${P}/imani@night~face.happy.png`]);
   });
 
   it("draws an alternate's own file", async () => {
