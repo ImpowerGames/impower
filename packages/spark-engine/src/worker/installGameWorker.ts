@@ -37,7 +37,6 @@ import { SetGameFunctionBreakpointsMessage } from "../game/core/classes/messages
 import { SetGameStartFromMessage } from "../game/core/classes/messages/SetGameStartFromMessage";
 import { SimulateGameRouteMessage } from "../game/core/classes/messages/SimulateGameRouteMessage";
 import { StartGameMessage } from "../game/core/classes/messages/StartGameMessage";
-import { StepGameClockMessage } from "../game/core/classes/messages/StepGameClockMessage";
 import { StepGameMessage } from "../game/core/classes/messages/StepGameMessage";
 import { UnpauseGameMessage } from "../game/core/classes/messages/UnpauseGameMessage";
 import { UpdateGameMessage } from "../game/core/classes/messages/UpdateGameMessage";
@@ -318,18 +317,6 @@ export function installGameWorker(connection: MessageConnection) {
           throw new NoGameError();
         }
         game.unpause();
-        return {};
-      });
-      return;
-    }
-    if (StepGameClockMessage.type.isRequest(message)) {
-      connection.sendResponse(message, () => {
-        const game = target();
-        if (!game) {
-          throw new NoGameError();
-        }
-        const { seconds } = message.params;
-        game.skip(seconds);
         return {};
       });
       return;

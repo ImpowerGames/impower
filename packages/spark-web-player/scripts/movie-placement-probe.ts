@@ -5,8 +5,7 @@ import { build } from "esbuild";
 import { chromium } from "playwright";
 
 type Fixture = "known" | "learned" | "infinite";
-type First =
-  "before" | "inside" | "past" | "twice" | "none" | "unframed" | "long";
+type First = "none" | "unframed" | "long";
 interface Case {
   fixture: Fixture;
   loop: boolean;
@@ -29,15 +28,9 @@ const out = outIndex >= 0 ? process.argv[outIndex + 1] : undefined;
 const cases: Case[] = [];
 for (const fixture of ["known", "learned", "infinite"] as const) {
   for (const loop of [true, false]) {
-    for (const first of ["before", "inside", "past"] as const) {
-      cases.push({ fixture, loop, first });
-    }
+    cases.push({ fixture, loop, first: "none" });
   }
 }
-cases.push({ fixture: "infinite", loop: true, first: "none" });
-cases.push({ fixture: "infinite", loop: false, first: "none" });
-cases.push({ fixture: "learned", loop: true, first: "twice" });
-cases.push({ fixture: "learned", loop: false, first: "twice" });
 cases.push({ fixture: "known", loop: true, first: "unframed" });
 cases.push({ fixture: "infinite", loop: true, first: "unframed" });
 cases.push({ fixture: "known", loop: true, first: "long" });
@@ -251,7 +244,7 @@ try {
           paused: video.paused,
           ended: video.ended,
           readyState: video.readyState,
-          position: ui.moviePosition(video),
+          position: ui.moviePlace(video, ui.clockTime(video)).anchor,
           writes: writes.length,
         };
         rows.push(row);
@@ -309,32 +302,20 @@ try {
           detail: `element ${video.currentTime.toFixed(3)} (drift ${drift.toFixed(3)}) anchor ${row.position.toFixed(3)} clock ${want.toFixed(3)} (duration ${row.duration})`,
         });
       };
-      const skip = async (seconds: number) => {
-        const known = span() !== undefined;
-        app.skip(seconds);
-        const moved = tally + seconds;
-        tally = c.loop && known ? moved : Math.max(0, moved);
-        const d = span();
-        if (!c.loop && d !== undefined) {
-          tally = Math.min(tally, d);
-        }
-      };
-      const pauseAndSkip = async () => {
+      const pauseAndHold = async () => {
         app.pause();
         await settle();
         tally = video.currentTime;
         const held = video.currentTime;
-        await skip(0);
+        await delay(500);
         await settle();
         checks.push({
           case: name,
-          step: "paused after play, zero skip leaves the frame",
+          step: "paused after play, the frame stays",
           ok: Math.abs(video.currentTime - held) <= 0.02 && !video.seeking,
           detail: `${held.toFixed(3)} -> ${video.currentTime.toFixed(3)}`,
         });
-        await skip(0.5);
-        await settle();
-        check("paused after play, skip 0.5", 0.02);
+        check("paused after play", 0.02);
       };
 
       if (c.first === "unframed" || c.first === "long") {
@@ -362,7 +343,7 @@ try {
           for (let i = 1; i <= 24; i += 1) {
             await delay(500);
             tally = clock.elapsedTime - game;
-            measure(`playing ${(i / 2).toFixed(1)} s with no skip`);
+            measure(`playing ${(i / 2).toFixed(1)} s`);
           }
         }
         checks.push({
@@ -372,7 +353,7 @@ try {
           detail: `page seeks (value, gap to the clock): ${JSON.stringify(writes)}`,
         });
         playing = undefined;
-        await pauseAndSkip();
+        await pauseAndHold();
         snap("done");
         clock.stop();
         return { checks, rows };
@@ -388,39 +369,12 @@ try {
         app.pause();
         tally = video.currentTime;
       }
-      const first = {
-        before: -(tally + 1),
-        inside: 1,
-        past: 5,
-        twice: 2 * knownSpan,
-        none: 0,
-        unframed: 0,
-        long: 0,
-      }[c.first];
-      if (c.first !== "none") {
-        await skip(first);
-        await settle();
-        check(`skip ${first.toFixed(2)}`, 0.02);
-        const before = video.currentTime;
-        await skip(0);
-        await settle();
-        check("zero skip", 0.02);
-        checks.push({
-          case: name,
-          step: "zero skip leaves the frame",
-          ok: Math.abs(video.currentTime - before) <= 0.02,
-          detail: `${before.toFixed(3)} -> ${video.currentTime.toFixed(3)}`,
-        });
-        await skip(-0.5);
-        await settle();
-        check("rewind -0.5", 0.02);
-      }
 
       const writesBefore = writes.length;
-      let game = clock.elapsedTime;
+      const game = clock.elapsedTime;
       playing = { tally, game };
       app.unpause();
-      await delay(c.first === "none" ? 3800 : 1600);
+      await delay(3800);
       tally += clock.elapsedTime - game;
       playing = undefined;
       measure("playing");
@@ -431,19 +385,7 @@ try {
         detail: `page seeks while playing (value, gap to the clock): ${JSON.stringify(writes.slice(writesBefore))}`,
       });
 
-      game = clock.elapsedTime;
-      for (let i = 0; i < 10; i += 1) {
-        await skip(0.1);
-        await delay(100);
-      }
-      await delay(300);
-      while (video.seeking) {
-        await delay(25);
-      }
-      tally += clock.elapsedTime - game;
-      measure("Fast Forward held while playing");
-
-      await pauseAndSkip();
+      await pauseAndHold();
       snap("done");
       clock.stop();
       return { checks, rows };

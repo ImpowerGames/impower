@@ -247,8 +247,6 @@ export default class UIManager extends Manager {
 
   protected _heldAt?: number;
 
-  protected _heldLag = 0;
-
   protected _lag = 0;
 
   protected _themeKey = getThemeKey([]);
@@ -426,18 +424,9 @@ export default class UIManager extends Manager {
     this.settleMovies();
   }
 
-  override onSkip(seconds: number) {
-    this._lag -= seconds * 1000;
-    this._hold.step(seconds * 1000);
-    this.morphs?.step(seconds);
-    this.skipMovies(seconds);
-    this.scheduleCommit();
-  }
-
   override onPause() {
     if (this._heldAt == null) {
       this._heldAt = this.documentNow();
-      this._heldLag = this._lag;
     }
     this._hold.pause();
     this.scheduleCommit();
@@ -583,7 +572,7 @@ export default class UIManager extends Manager {
     const ops = beatOps(params);
     const plan = this.planBeat(ops);
     const now = this.documentNow();
-    const lag = this._heldAt != null ? this._heldLag : this.lag(now);
+    const lag = this._heldAt != null ? this._lag : this.lag(now);
     const storyNow = now - (this.lag(now) - lag);
     const wait = this.waitToCommit(params, ops, plan, storyNow);
     if (!overlay || wait <= 0) {
@@ -2460,10 +2449,6 @@ export default class UIManager extends Manager {
       clock != null ? { time, clock } : undefined;
   }
 
-  protected moviePosition(video: HTMLVideoElement): number {
-    return this.moviePlace(video, this.clockTime(video)).anchor;
-  }
-
   protected clockTime(video: HTMLVideoElement): number {
     const anchor = (video as any).__sdAnchor as
       | { time: number; clock: number }
@@ -2549,14 +2534,6 @@ export default class UIManager extends Manager {
   protected seekMovie(video: HTMLVideoElement, time: number) {
     (video as any).__sdSeek = { time, span: this.movieSpan(video) };
     video.currentTime = time;
-  }
-
-  protected skipMovies(seconds: number) {
-    for (const video of this.movies()) {
-      const place = this.moviePlace(video, this.moviePosition(video) + seconds);
-      this.anchorMovie(video, place.anchor);
-      this.seekMovie(video, place.element);
-    }
   }
 
   private addAnimationEffects(

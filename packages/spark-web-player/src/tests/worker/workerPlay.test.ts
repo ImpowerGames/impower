@@ -2,7 +2,6 @@ import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
-import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
@@ -272,38 +271,6 @@ describe("the controls that move time", () => {
       expect("error" in unpaused).toBe(false);
       expect(clocks(h).game).toMatchObject({ paused: false, speed: 1 });
       expect(clocks(h).page).toMatchObject({ paused: false, speed: 1 });
-    } finally {
-      await h.controller.destroyGameAndApp();
-      h.dispose();
-    }
-  }, 120_000);
-
-  for (const seconds of [2.5, -0.5]) {
-    it(`a clock step of ${seconds} s moves both by the same time`, async () => {
-      const h = await playing();
-      try {
-        const before = clocks(h);
-        const stepped = await h.controller.handleStepGameClock(
-          StepGameClockMessage.type.request({ seconds }),
-        );
-        expect("error" in stepped).toBe(false);
-        const after = clocks(h);
-        expect(after.game.start - before.game.start).toBeCloseTo(seconds, 9);
-        expect(after.page.start - before.page.start).toBeCloseTo(seconds, 9);
-      } finally {
-        await h.controller.destroyGameAndApp();
-        h.dispose();
-      }
-    }, 120_000);
-  }
-
-  it("a clock step while paused leaves both paused", async () => {
-    const h = await playing();
-    try {
-      await h.controller.handlePauseGame(PauseGameMessage.type.request({}));
-      await h.controller.handleStepGameClock(StepGameClockMessage.type.request({ seconds: 1 }));
-      expect(clocks(h).game).toMatchObject({ paused: true, speed: 0 });
-      expect(clocks(h).page).toMatchObject({ paused: true, speed: 0 });
     } finally {
       await h.controller.destroyGameAndApp();
       h.dispose();

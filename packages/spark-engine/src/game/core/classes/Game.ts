@@ -2643,13 +2643,6 @@ export class Game<T extends M = {}> {
     }
   }
 
-  skip(seconds: number): void {
-    if (this._clock) {
-      this._clock.adjustTime(seconds);
-      this.update(this._clock);
-    }
-  }
-
   update(time: Clock) {
     if (!this._destroyed && !this.paused) {
       for (const k of this._moduleNames) {

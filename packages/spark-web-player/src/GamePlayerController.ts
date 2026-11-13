@@ -94,7 +94,6 @@ import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/gam
 import { RollBackGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollBackGameMessage";
 import { RollForwardGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollForwardGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
-import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
@@ -272,7 +271,6 @@ interface WorkerPlay {
   state: "starting" | "running";
   run?: number;
   sink?: (message: Message) => void;
-  stepped: number;
   startSent?: boolean;
   startFrom?: { file: string; line: number };
   ended?: GameEnding;
@@ -1532,7 +1530,6 @@ export class GamePlayerController {
     p.onRequest(SetRoutePinsMessage.type, this.handleSetRoutePins, this.host);
     p.onRequest(PauseGameMessage.type, this.handlePauseGame, this.host);
     p.onRequest(UnpauseGameMessage.type, this.handleUnpauseGame, this.host);
-    p.onRequest(StepGameClockMessage.type, this.handleStepGameClock, this.host);
     p.onRequest(StepGameMessage.type, this.handleStepGame, this.host);
     p.onRequest(RollBackGameMessage.type, this.handleRollBackGame, this.host);
     p.onRequest(
@@ -2136,9 +2133,6 @@ export class GamePlayerController {
       return true;
     }
     if (this.startPending(play)) {
-      if (type.method === StepGameClockMessage.method) {
-        play.stepped += (params as { seconds: number }).seconds;
-      }
       return true;
     }
     try {
@@ -2433,28 +2427,6 @@ export class GamePlayerController {
     return told
       ? UnpauseGameMessage.type.response(message.id, {})
       : UnpauseGameMessage.type.error(message.id, {
-          code: 1,
-          message: "no game loaded",
-        });
-  };
-
-  protected handleStepGameClock = async (
-    message: StepGameClockMessage.Request,
-  ) => {
-    const { seconds } = message.params;
-    const app = this.controlledApp;
-    const told =
-      app &&
-      (await this.tellWorkerPlay(StepGameClockMessage.type, {
-        seconds,
-      }));
-    if (told) {
-      app.skip(seconds);
-    }
-    this.updateLaunchStateIcon();
-    return told
-      ? StepGameClockMessage.type.response(message.id, {})
-      : StepGameClockMessage.type.error(message.id, {
           code: 1,
           message: "no game loaded",
         });
@@ -2876,7 +2848,6 @@ export class GamePlayerController {
     const play: WorkerPlay = {
       program,
       state: "starting",
-      stepped: 0,
       ...(startFrom ? { startFrom } : {}),
       ...(save !== undefined ? { save } : {}),
     };
@@ -2988,14 +2959,11 @@ export class GamePlayerController {
         return abandon();
       }
       let workerPaused = app.paused;
-      const seconds = play.stepped;
-      play.stepped = 0;
       play.startSent = true;
       this._lastStartedRun = play;
       await link.request(StartPlayMessage.type, {
         run: play.run!,
         paused: workerPaused,
-        seconds,
       });
       for (;;) {
         if (!current()) {
@@ -3007,12 +2975,6 @@ export class GamePlayerController {
             workerPaused ? PauseGameMessage.type : UnpauseGameMessage.type,
             {},
           );
-          continue;
-        }
-        if (play.stepped !== 0) {
-          const seconds = play.stepped;
-          play.stepped = 0;
-          await this.askWorkerGame(StepGameClockMessage.type, { seconds });
           continue;
         }
         break;
