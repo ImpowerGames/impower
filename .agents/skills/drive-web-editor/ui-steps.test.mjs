@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, DRIVER_PREVIEW_KEY, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 import { NAMED_STEPS } from "./steps.mjs";
 
@@ -794,13 +794,18 @@ await asyncCheck("play waits for the player to load the story before pressing, a
 });
 
 function previewPage({ paneShown = false, showButton = true, paneShowsOnPress = true } = {}) {
-  const state = { paneShown, pressed: [] };
+  const state = { paneShown, pressed: [], claimedBeforePress: null, storage: {} };
   const page = {
+    evaluate: async (_fn, [key, op]) => {
+      if (op === "claim") state.storage[key] = "1";
+      return state.storage[key] === "1";
+    },
     locator: (selector) => ({
       first: () => ({
         isVisible: async () => (selector === PREVIEW_PANE_SELECTOR ? state.paneShown : selector === SHOW_PREVIEW_SELECTOR ? showButton : false),
         click: async () => {
           state.pressed.push(selector);
+          if (selector === SHOW_PREVIEW_SELECTOR) state.claimedBeforePress = state.storage[DRIVER_PREVIEW_KEY] === "1";
           if (selector === SHOW_PREVIEW_SELECTOR && paneShowsOnPress) state.paneShown = true;
         },
         waitFor: async () => {
@@ -816,16 +821,18 @@ await asyncCheck("the preview is revealed the way an author does, by the title b
   const hidden = previewPage();
   assert.deepEqual(await revealPreview(hidden.page), { revealed: true });
   assert.deepEqual(hidden.state.pressed, [SHOW_PREVIEW_SELECTOR]);
+  assert.equal(hidden.state.claimedBeforePress, true, "the run claims the pane before pressing, so a run killed after the press still owns it");
   const shown = previewPage({ paneShown: true });
   assert.deepEqual(await revealPreview(shown.page), { revealed: false });
   assert.deepEqual(shown.state.pressed, []);
+  assert.deepEqual(shown.state.storage, {});
   const noButton = previewPage({ showButton: false });
   const missing = await revealPreview(noButton.page);
   assert.equal(missing.revealed, false);
   assert.match(missing.reason, /the preview pane is not on screen and the title bar's Show the preview button is not either/);
   const stuck = previewPage({ paneShowsOnPress: false });
   const noPane = await revealPreview(stuck.page, { timeout: 10 });
-  assert.equal(noPane.revealed, false);
+  assert.equal(noPane.revealed, true, "a press that showed nothing still leaves the claim for the run to hide and release");
   assert.match(noPane.reason, /the preview pane did not show within 0\.01 s of pressing Show the preview/);
 });
 

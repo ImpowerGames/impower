@@ -2572,6 +2572,28 @@ async function gameStateNotifications(page) {
 
 export const PREVIEW_PANE_SELECTOR = '[role="group"][aria-label="Playback controls"]';
 export const SHOW_PREVIEW_SELECTOR = 'button[aria-label="Show the preview"]';
+export const BACK_TO_STORY_SELECTOR = "a:visible";
+export const DRIVER_PREVIEW_KEY = "impower-driver/revealed-preview";
+
+export function previewOwnership(page, op) {
+  return page.evaluate(([key, op]) => {
+    if (op === "claim") localStorage.setItem(key, "1");
+    if (op === "release") localStorage.removeItem(key);
+    return localStorage.getItem(key) === "1";
+  }, [DRIVER_PREVIEW_KEY, op]);
+}
+
+export function previewSavedHidden() {
+  return Object.keys(localStorage)
+    .filter((key) => key.startsWith("workspace/"))
+    .every((key) => {
+      try {
+        return !JSON.parse(localStorage.getItem(key))?.preview?.revealed;
+      } catch {
+        return true;
+      }
+    });
+}
 
 export async function revealPreview(page, { timeout = 10_000 } = {}) {
   const pane = page.locator(PREVIEW_PANE_SELECTOR).first();
@@ -2580,11 +2602,12 @@ export async function revealPreview(page, { timeout = 10_000 } = {}) {
   if (!(await show.isVisible().catch(() => false))) {
     return { revealed: false, reason: "the preview pane is not on screen and the title bar's Show the preview button is not either; it shows on the Story screen outside Edit mode" };
   }
+  await previewOwnership(page, "claim");
   await show.click();
   try {
     await pane.waitFor({ state: "visible", timeout });
   } catch {
-    return { revealed: false, reason: `the preview pane did not show within ${timeout / 1000} s of pressing Show the preview` };
+    return { revealed: true, reason: `the preview pane did not show within ${timeout / 1000} s of pressing Show the preview` };
   }
   return { revealed: true };
 }
@@ -2595,9 +2618,30 @@ export async function hidePreview(page, { timeout = 5000 } = {}) {
     await page.keyboard.press("Escape");
     await open.waitFor({ state: "hidden", timeout: 1000 }).catch(() => {});
   }
-  const back = page.locator("a:visible", { hasText: "Back to story" }).first();
-  if (await back.isVisible().catch(() => false)) await back.click({ timeout });
-  await page.locator(PREVIEW_PANE_SELECTOR).first().waitFor({ state: "hidden", timeout }).catch(() => {});
+  const pane = page.locator(PREVIEW_PANE_SELECTOR).first();
+  if (await pane.isVisible().catch(() => false)) {
+    const back = page.locator(BACK_TO_STORY_SELECTOR, { hasText: "Back to story" }).first();
+    if (!(await back.isVisible().catch(() => false))) return { hidden: false, reason: "the preview pane is on screen and its Back to story link is not" };
+    await back.click({ timeout });
+    try {
+      await pane.waitFor({ state: "hidden", timeout });
+    } catch {
+      return { hidden: false, reason: `the preview pane was still on screen ${timeout / 1000} s after pressing Back to story` };
+    }
+  }
+  try {
+    await page.waitForFunction(previewSavedHidden, null, { timeout });
+  } catch {
+    return { hidden: false, reason: `the workspace had not saved the preview as hidden within ${timeout / 1000} s, so the next run would open with it showing` };
+  }
+  await previewOwnership(page, "release");
+  return { hidden: true };
+}
+
+export async function reclaimDriverPreview(page) {
+  if ((await previewOwnership(page, "read").catch(() => false)) !== true) return null;
+  const hidden = await hidePreview(page);
+  return hidden.hidden ? { restored: true } : { restored: false, reason: `an earlier run revealed the preview pane and ended before hiding it, and it could not be hidden now: ${hidden.reason}` };
 }
 
 export const REVEALS = { preview: { show: revealPreview, hide: hidePreview } };
@@ -3724,6 +3768,9 @@ async function ui(args, deps = liveDeps) {
           return result;
         }
       }
+      const revealed = new Set();
+      const reclaimed = await (deps.reclaimPreview ?? reclaimDriverPreview)(page);
+      if (reclaimed) result.previewReclaimed = reclaimed;
       result.startedOn = await deps.activeScreen(page);
       let gate = (await deps.interruptedSeed(page)) ? interruptedSeedError() : null;
       const expectedAtStart = await deps.editorExpectedHere(page);
@@ -3898,7 +3945,7 @@ async function ui(args, deps = liveDeps) {
             const reveals = NAMED_STEPS[step.step].reveals;
             const reveal = REVEALS[reveals];
             const shown = reveal ? await reveal.show(page) : { revealed: false };
-            if (shown.revealed) cleanups.push(() => reveal.hide(page));
+            if (shown.revealed) revealed.add(reveals);
             if (shown.reason) {
               result.steps.push({ step: step.step, ran: false, reason: shown.reason });
               continue;
@@ -3967,8 +4014,14 @@ async function ui(args, deps = liveDeps) {
         result.readError = String(err.message || err).split("\n")[0];
       }
       await finishWorker();
+      for (const name of revealed) {
+        const hidden = await REVEALS[name].hide(page);
+        (result.hidAgain ??= []).push({ reveal: name, hidden: hidden.hidden, ...(hidden.reason ? { reason: hidden.reason } : {}) });
+      }
       result.failed = result.steps.filter((s) => s.reason).map((s) => s.reason);
       if (result.readError) result.failed.push(`read-back failed: ${result.readError}`);
+      if (result.previewReclaimed?.reason) result.failed.push(result.previewReclaimed.reason);
+      for (const hid of result.hidAgain ?? []) if (hid.reason) result.failed.push(`the ${hid.reveal} pane this run revealed was not hidden again: ${hid.reason}`);
       const captured = partitionConsole(consoleLines);
       result.consoleErrors = captured.errors;
       result.consoleNoise = captured.noise;
