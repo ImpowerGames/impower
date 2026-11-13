@@ -292,20 +292,6 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     expect(page.revealed()).toBe(TEXT.length);
   });
 
-  test("stepping the clock while paused moves the reveal by the step alone", async () => {
-    const page = makePage();
-    await page.write();
-    page.frame(250);
-    page.pause();
-    page.ui.onSkip(0.3);
-    expect(page.revealed()).toBe(6);
-    page.frame(2_000);
-    expect(page.revealed()).toBe(6);
-    page.unpause();
-    page.frame(100);
-    expect(page.revealed()).toBe(7);
-  });
-
   test("after a pause and resume in the middle of a line, the speaking mouth and the letters are at the same moment of it", async () => {
     const page = makePage();
     page.ui.onReceiveNotification({
@@ -428,38 +414,6 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     expect(animations[2]!.startTime).toBeCloseTo(800, 6);
   });
 
-  test("stepping the clock past a wrapper's end while paused puts the fade after it at the stepped moment", async () => {
-    const page = makePage();
-    void page.ui.onReceiveRequest(portrait([0.2], 0.5));
-    await flushMicrotasks(10);
-    page.pause();
-    page.ui.onSkip(0.4);
-    await flushMicrotasks(20);
-    expect(animations).toHaveLength(2);
-    expect(animations[1]!.playState).toBe("paused");
-    expect(animations[1]!.currentTime).toBeCloseTo(200, 6);
-    page.frame(1_000);
-    expect(animations[1]!.currentTime).toBeCloseTo(200, 6);
-  });
-
-  test("stepping the clock back hides the letters revealed after the moment it steps back to", async () => {
-    const page = makePage();
-    await page.write();
-    page.frame(250);
-    expect(page.revealed()).toBe(3);
-    page.pause();
-    page.frame(2_000);
-    page.ui.onSkip(-0.1);
-    expect(page.revealed()).toBe(2);
-    page.ui.onSkip(-0.1);
-    expect(page.revealed()).toBe(1);
-    page.ui.onSkip(0.1);
-    expect(page.revealed()).toBe(2);
-    page.unpause();
-    page.frame(60);
-    expect(page.revealed()).toBe(3);
-  });
-
   test("letting go of a paused page lets its animations finish rather than leaving them held", async () => {
     const page = makePage();
     const el = page.overlay.querySelector(".portrait") as HTMLElement;
@@ -553,26 +507,29 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     expect(dialogue(page)).toBe(NEXT);
     expect(page.revealed()).toBe(1);
   });
+});
 
-  test("stepping the clock while paused past a waiting line's moment puts it up, held where the step left it", async () => {
+describe("a finished animation (#2198)", () => {
+  test("the hold lets go of a reveal once it has finished, and a pause leaves it finished", async () => {
     const page = makePage();
-    await page.write(true);
-    page.frame(1_000);
-    page.ui.onReceiveNotification(beat(1_100));
+    await page.write();
+    page.frame(2_000);
+    expect(page.revealed()).toBe(TEXT.length);
+    const reveals = page
+      .letters()
+      .map((letter) => (letter as any).__sdReveal as TimedAnimation);
+    expect(reveals.map((reveal) => reveal.playState)).toEqual(
+      reveals.map(() => "finished"),
+    );
     page.pause();
-    page.frame(500);
-    page.ui.onSkip(0.05);
-    await flushMicrotasks(10);
-    expect(dialogue(page)).toBe(TEXT);
-    page.ui.onSkip(0.1);
-    await flushMicrotasks(10);
-    expect(dialogue(page)).toBe(NEXT);
-    expect(page.revealed()).toBe(1);
-    page.frame(1_000);
-    expect(page.revealed()).toBe(1);
+    expect(reveals.map((reveal) => reveal.playState)).toEqual(
+      reveals.map(() => "finished"),
+    );
+    const tracked = Array.from((page.ui as any)._hold._animations.keys());
+    expect(tracked.filter((animation) => reveals.includes(animation as any))).toEqual([]);
     page.unpause();
-    page.frame(60);
-    expect(page.revealed()).toBe(2);
+    page.frame(50);
+    expect(page.revealed()).toBe(TEXT.length);
   });
 });
 

@@ -992,15 +992,12 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (StartPlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        const { run, paused, seconds } = message.params;
+        const { run, paused } = message.params;
         const { game } = runningAs(run);
         if (paused) {
           game.pause();
         }
         game.start();
-        if (seconds) {
-          game.skip(seconds);
-        }
         return {};
       });
       return;
