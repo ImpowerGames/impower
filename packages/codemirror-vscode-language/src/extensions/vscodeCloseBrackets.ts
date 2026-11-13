@@ -244,7 +244,7 @@ export function vscodeCloseBrackets(
       closeAt(state, range.from, insert),
     );
 
-    if (closes.some((close) => close === null)) {
+    if (closes.every((close) => close === null)) {
       return false;
     }
 
