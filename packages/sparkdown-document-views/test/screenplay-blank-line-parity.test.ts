@@ -5,6 +5,7 @@ import { isHiddenIdentifier } from "../../sparkdown-screenplay/src/utils/isHidde
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import { generateScreenplayPrintData } from "../../sparkdown-screenplay/src/utils/generateScreenplayPrintData";
 import createEditorView from "../src/modules/screenplay-preview/utils/createEditorView";
+import { setScreenplayConfig } from "../src/modules/screenplay-preview/utils/screenplaySettings";
 import { settleParse } from "./helpers/parseSettle";
 import { extractPdfText } from "./helpers/pdfText";
 
@@ -303,6 +304,22 @@ describe("a line shared by a hidden node and printed text", () => {
     const expected = ["Before.", "", ...name, "Same line.", "After."];
     expect(exportRows(configName, source)).toEqual(expected);
     expect(layout(screenRows(configName, source))).toBe(layout(expected));
+  });
+
+  it("follows a name setting changed on a page already on screen", () => {
+    const source = sourceOf(["LuauFunctionDefinitionPairSharedLine"]);
+    expect(layout(screenRows("default", source))).toBe(layout(["Before.", "", "Shared.", "After."]));
+    const view = views.get("default")!;
+    view.dispatch({ effects: setScreenplayConfig.of(CONFIGS["function identifiers"]) });
+    const rows: string[] = [];
+    for (const row of Array.from(view.contentDOM.children)) {
+      if (isHidden(row, false)) continue;
+      const text = visibleText(row);
+      if (text.trim()) rows.push(text.trim());
+      else if (text.length > 0 || row.querySelector("br")) rows.push("");
+    }
+    view.dispatch({ effects: setScreenplayConfig.of(CONFIGS["default"]) });
+    expect(layout(trimBlankRows(rows))).toBe(layout(["Before.", "", "f5", "", "f6", "Shared.", "After."]));
   });
 
   it.each([

@@ -4,7 +4,8 @@ import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
-import { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
+import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
+import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
@@ -246,6 +247,27 @@ const createDecorations = (
 
 export const SCREENPLAY_LANGUAGE_SUPPORT = LANGUAGE_SUPPORT;
 
+const PRINTED_NAME_SETTINGS = [
+  "screenplay_print_scene_identifiers",
+  "screenplay_print_branch_identifiers",
+  "screenplay_print_function_identifiers",
+  "screenplay_print_knot_identifiers",
+  "screenplay_print_stitch_identifiers",
+] as const;
+
+const blankPositionCache = new WeakMap<Tree, { settings: string; positions: Set<number> }>();
+
+const cachedBlankPositions = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
+  const settings = PRINTED_NAME_SETTINGS.map((key) => (config?.[key] ? "1" : "0")).join("");
+  const cached = blankPositionCache.get(tree);
+  if (cached && cached.settings === settings) {
+    return cached.positions;
+  }
+  const positions = new Set(screenplayBlankLines(tree, doc.toString(), config));
+  blankPositionCache.set(tree, { settings, positions });
+  return positions;
+};
+
 export const decorate = (
   state: EditorState,
   from: number = 0,
@@ -356,7 +378,7 @@ export const decorate = (
 
   const tree = treeOverride ?? syntaxTree(state);
 
-  const blankPositions = new Set(screenplayBlankLines(tree, doc.toString(), config));
+  const blankPositions = cachedBlankPositions(tree, doc, config);
 
   const blankLines = new Set(
     [...blankPositions].map((position) => doc.lineAt(Math.min(position, doc.length)).number),
