@@ -66,6 +66,37 @@ describe("sort model", () => {
     expect(order(sort)).toEqual(expected);
   });
 
+  it("orders files by name without their ending and numbers naturally, folders keeping their whole name", () => {
+    const entry = (kind: "file" | "folder", name: string): ListEntry => ({
+      kind, path: `Scripts/${name}`, name, modified: 1, size: 1, uses: 0, position: 0,
+    });
+    const names = [
+      entry("file", "Untitled script 10.sd"),
+      entry("file", "Untitled script 2.sd"),
+      entry("file", "intro copy 2.sd"),
+      entry("file", "Untitled script.sd"),
+      entry("file", "intro copy.sd"),
+      entry("file", "intro.sd"),
+      entry("folder", "v1.10"),
+      entry("folder", "v1.2"),
+    ];
+    expect(sortEntries(names, "name-asc").map((e) => e.name)).toEqual([
+      "v1.2",
+      "v1.10",
+      "intro.sd",
+      "intro copy.sd",
+      "intro copy 2.sd",
+      "Untitled script.sd",
+      "Untitled script 2.sd",
+      "Untitled script 10.sd",
+    ]);
+    expect(sortEntries(names, "name-desc").map((e) => e.name).slice(2, 5)).toEqual([
+      "Untitled script 10.sd",
+      "Untitled script 2.sd",
+      "Untitled script.sd",
+    ]);
+  });
+
   it("reads the legacy keys asc, desc and story", () => {
     expect(parseSort("asc")).toEqual({ field: "name", direction: "asc" });
     expect(parseSort("desc")).toEqual({ field: "name", direction: "desc" });

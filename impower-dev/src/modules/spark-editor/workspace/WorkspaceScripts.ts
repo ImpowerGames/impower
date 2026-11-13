@@ -1,4 +1,5 @@
 import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { withLock } from "../../../../../packages/opfs-workspace/src/utils/locks";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { downloadFile } from "../utils/downloadFile";
@@ -65,6 +66,8 @@ type Deps = {
   >;
   autoRenameFiles: () => boolean;
 };
+
+export const PROJECT_CHANGED = "Another project opened first. Nothing was added.";
 
 const extensionOf = (path: string) => {
   const name = nameOf(path);
@@ -203,17 +206,18 @@ export default class WorkspaceScripts {
     return projectId;
   }
 
-  protected allocating: Promise<unknown> = Promise.resolve();
-
-  protected oneAtATime<T>(task: () => Promise<T>): Promise<T> {
-    const run = this.allocating.then(task);
-    this.allocating = run.catch(() => undefined);
-    return run;
+  protected naming<T>(task: (projectId: string) => Promise<T>): Promise<T> {
+    const projectId = this.openProject();
+    return withLock(`impower-dev:script-names:${projectId}`, async () => {
+      if (this.projectId !== projectId) {
+        throw new NameError(PROJECT_CHANGED);
+      }
+      return task(projectId);
+    });
   }
 
   createScript(folder: string): Promise<string> {
-    return this.oneAtATime(async () => {
-      const projectId = this.openProject();
+    return this.naming(async (projectId) => {
       const target = realFolder(folder, scriptsHome(this.listing));
       const leaf = defaultName(UNTITLED_SCRIPT, this.siblings(target), ".sd");
       const path = joinPath(target, leaf);
@@ -227,8 +231,7 @@ export default class WorkspaceScripts {
   }
 
   createFolder(folder: string, name: string): Promise<string> {
-    return this.oneAtATime(async () => {
-      const projectId = this.openProject();
+    return this.naming(async (projectId) => {
       const target = realFolder(folder, scriptsHome(this.listing));
       const path = joinPath(target, availableName(name, this.siblings(target)));
       await this._workspace.fs.createFolder(projectId, path);
@@ -292,11 +295,10 @@ export default class WorkspaceScripts {
   }
 
   duplicate(path: string): Promise<string> {
-    return this.oneAtATime(() => this.duplicateNow(path));
+    return this.naming((projectId) => this.duplicateIn(projectId, path));
   }
 
-  protected async duplicateNow(path: string): Promise<string> {
-    const projectId = this.projectId!;
+  protected async duplicateIn(projectId: string, path: string): Promise<string> {
     const { fs } = this._workspace;
     const kind = this.kindOf(path);
     const extension = kind === "file" ? extensionOf(path) : "";

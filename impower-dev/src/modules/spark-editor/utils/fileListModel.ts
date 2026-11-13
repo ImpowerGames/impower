@@ -98,11 +98,18 @@ export interface ListEntry {
   pinned?: boolean;
 }
 
+const stemOf = ({ kind, name }: ListEntry) => {
+  const dot = name.lastIndexOf(".");
+  return kind === "file" && dot > 0 ? name.slice(0, dot) : name;
+};
+
 export const compareEntries = (value: unknown) => {
   const { field, direction } = parseSort(value);
   const sign = direction === "desc" ? -1 : 1;
   const byName = (a: ListEntry, b: ListEntry) =>
-    compareNames(a.name, b.name) || compareNames(a.path, b.path);
+    compareNames(stemOf(a), stemOf(b)) ||
+    compareNames(a.name, b.name) ||
+    compareNames(a.path, b.path);
   return (a: ListEntry, b: ListEntry): number => {
     if (!!a.pinned !== !!b.pinned) {
       return a.pinned ? -1 : 1;

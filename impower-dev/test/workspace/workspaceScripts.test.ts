@@ -13,7 +13,7 @@ vi.mock("../../src/modules/spark-editor/utils/fileUndo", async (original) => ({
 const { default: workspace } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceStore"
 );
-const { default: WorkspaceScripts } = await import(
+const { default: WorkspaceScripts, PROJECT_CHANGED } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceScripts"
 );
 const { scriptRows } = await import(
@@ -156,6 +156,30 @@ describe("Scripts through the workspace", () => {
       [uri("Scripts/Untitled script.sd")],
       [uri("Scripts/Untitled script 2.sd")],
     ]);
+  });
+
+  it("runs the next waiting create after one ahead of it fails, which keeps no name", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    fs.createFiles.mockRejectedValueOnce(new Error("disk full"));
+    const [failed, next] = await Promise.allSettled([scripts.createScript(""), scripts.createScript("")]);
+    expect(failed).toMatchObject({ status: "rejected", reason: new Error("disk full") });
+    expect(next).toEqual({ status: "fulfilled", value: "Scripts/Untitled script.sd" });
+  });
+
+  it("refuses a waiting create once another project has opened, adding nothing", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    let release!: () => void;
+    fs.createFiles.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve([]); }));
+    const first = scripts.createScript("");
+    const waiting = scripts.createScript("");
+    await vi.waitFor(() => expect(fs.createFiles).toHaveBeenCalledTimes(1));
+    workspace.current = { ...workspace.current, project: { ...workspace.current.project, id: "other" } };
+    release();
+    await expect(first).resolves.toBe("Scripts/Untitled script.sd");
+    await expect(waiting).rejects.toThrow(PROJECT_CHANGED);
+    expect(fs.createFiles).toHaveBeenCalledTimes(1);
   });
 
   it("gives copies duplicated at the same time a name each", async () => {
