@@ -1,4 +1,5 @@
 const OPUS_RATE = 48000;
+const CONTINUED_PACKET = 1;
 const BEGINNING_OF_STREAM = 2;
 const END_OF_STREAM = 4;
 
@@ -41,6 +42,7 @@ interface OggPage {
 interface OggLogicalStream {
   serial: number;
   group: number;
+  sequence?: number;
   partial: Uint8Array[];
   packets: Uint8Array[];
   pages: OggPage[];
@@ -139,11 +141,26 @@ const readOggStreams = (bytes: Uint8Array): OggLogicalStream[] => {
       groupHasData = true;
     }
     const stream = current.get(serial);
+    const sequence = view.getUint32(offset + 18, true);
+    if (
+      stream &&
+      (!(flags & CONTINUED_PACKET) ||
+        (stream.sequence !== undefined && sequence !== stream.sequence + 1))
+    ) {
+      stream.partial = [];
+    }
+    let orphaned =
+      !!stream && !!(flags & CONTINUED_PACKET) && stream.partial.length === 0;
+    if (stream) {
+      stream.sequence = sequence;
+    }
     const page: OggPage = { flags, granule, completed: [] };
     let body = offset + 27 + segments;
     for (let i = 0; i < segments; i++) {
       const length = bytes[offset + 27 + i]!;
-      if (stream && body + length <= bytes.length) {
+      if (orphaned) {
+        orphaned = length === 255;
+      } else if (stream && body + length <= bytes.length) {
         stream.partial.push(bytes.subarray(body, body + length));
         if (length < 255) {
           page.completed.push(stream.packets.length);

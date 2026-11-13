@@ -238,6 +238,32 @@ describe("an Ogg Opus clip in a webview whose decoder has no Opus (#2265)", () =
     expect(buffer.length).toBe(TONE_FRAMES);
   });
 
+  test("ignores the tail of a packet cut off at the start of a joined stream", async () => {
+    const [first, ...rest] = TONE_PACKETS as [Uint8Array, ...Uint8Array[]];
+    expect(first.length).toBeGreaterThan(255);
+    const finalGranule = TONE_FRAMES + TONE_PRE_SKIP;
+    const joined = (withTail: boolean) =>
+      concat([
+        oggPage([TONE_HEAD], 0, 2, 0x2265, 0),
+        oggPage([TONE_TAGS], 0, 0, 0x2265, 1),
+        ...rest.map((packet, i) => {
+          const last = i === rest.length - 1;
+          const tail = withTail && i === 0;
+          return oggPage(
+            tail ? [first.subarray(255), packet] : [packet],
+            last ? finalGranule : (i + 2) * 960,
+            last ? 4 : tail ? 1 : 0,
+            0x2265,
+            i + 2,
+          );
+        }),
+      ]);
+    const cropped = (await load(makeContext(opusUnsupported), joined(false))) as StandInBuffer;
+    const withTail = (await load(makeContext(opusUnsupported), joined(true))) as StandInBuffer;
+    expect(cropped.length).toBe(finalGranule - 960 - TONE_PRE_SKIP);
+    expect(withTail.length).toBe(cropped.length);
+  });
+
   test("rejects a clip whose end granule leaves no samples to play", async () => {
     const empty = mux(TONE_PACKETS.slice(0, 1), { finalGranule: TONE_PRE_SKIP });
     await expect(load(makeContext(opusUnsupported), empty)).rejects.toThrow(
