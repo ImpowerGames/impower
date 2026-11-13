@@ -225,6 +225,14 @@ export { serverDocumentSymbols } from "./symbols";
 export { serverAutoSync } from "./sync";
 export { BrowserTransport, WorkerTransport, type Transport } from "./transport";
 export { getDocumentVersion, versionConfig, versioning } from "./version";
+export {
+  cursorWordLeft,
+  cursorWordRight,
+  deleteWordLeft,
+  deleteWordRight,
+  selectWordLeft,
+  selectWordRight,
+} from "./wordOperations";
 export { Workspace, type WorkspaceFile } from "./workspace";
 
 import { Extension } from "@codemirror/state";
