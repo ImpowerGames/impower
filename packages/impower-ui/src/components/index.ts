@@ -210,6 +210,12 @@ export {
   type ChoiceGroupVariant,
 } from "./choice-group/ChoiceGroup";
 export {
+  default as CaretColorChip,
+  caretColorChipVariants,
+  type CaretColorChipProps,
+  type CaretColorChipSize,
+} from "./caret-color-chip/CaretColorChip";
+export {
   default as KeysChip,
   keysChipVariants,
   type KeysChipProps,

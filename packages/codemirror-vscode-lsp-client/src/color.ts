@@ -53,6 +53,10 @@ export function presentColorPicker(presenter: ColorPickerPresenter): Extension {
   return colorPickerPresenter.of(presenter);
 }
 
+export const swatchPressChangesColor = Facet.define<boolean, boolean>({
+  combine: (values) => values.every(Boolean),
+});
+
 function numberToHex(c: number) {
   return Math.round(c).toString(16).padStart(2, "0");
 }
@@ -286,7 +290,7 @@ const swatchMark = (info: DocumentColor) =>
       info.color.alpha < 1
         ? `${COLOR_SWATCH_CLASS_NAME} ${COLOR_SWATCH_ALPHA_CLASS_NAME}`
         : COLOR_SWATCH_CLASS_NAME,
-    attributes: { style: `--swatch: ${rgbaToCSS(colorToRGBA(info.color))}` },
+    attributes: { style: `--swatch: ${colorCSS(info)}` },
   });
 
 interface DocumentColorSet {
@@ -342,6 +346,17 @@ export function documentColorAt(
   );
 }
 
+export function changeableColorAt(
+  state: EditorState,
+  pos: number,
+): DocumentColor | null {
+  return state.readOnly ? null : documentColorAt(state, pos);
+}
+
+export function colorCSS(info: DocumentColor): string {
+  return rgbaToCSS(colorToRGBA(info.color));
+}
+
 function pickColor(
   view: EditorView,
   info: DocumentColor,
@@ -356,7 +371,7 @@ function pickColor(
 }
 
 export function changeColorAt(view: EditorView, pos: number): boolean {
-  const info = documentColorAt(view.state, pos);
+  const info = changeableColorAt(view.state, pos);
   if (!info) return false;
   pickColor(view, info, () => {
     const coords = view.coordsAtPos(info.from);
@@ -371,6 +386,9 @@ export const changeColor = (view: EditorView) =>
 const colorSwatchPress = EditorView.domEventHandlers({
   click(event, view) {
     if (!(event.target instanceof Element)) return false;
+    if (view.state.readOnly || !view.state.facet(swatchPressChangesColor)) {
+      return false;
+    }
     const swatch = event.target.closest<HTMLElement>(
       `.${COLOR_SWATCH_CLASS_NAME}`,
     );

@@ -5,6 +5,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "announce",
   "cn",
   "buttonVariants",
+  "caretColorChipVariants",
   "choiceGroupVariants",
   "choiceOptionVariants",
   "colorChipVariants",

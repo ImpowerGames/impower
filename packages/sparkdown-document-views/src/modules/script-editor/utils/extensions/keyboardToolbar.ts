@@ -15,8 +15,15 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import { formatDocument } from "@impower/codemirror-vscode-lsp-client/src";
+import {
+  changeableColorAt,
+  changeColor,
+  colorCSS,
+  formatDocument,
+} from "@impower/codemirror-vscode-lsp-client/src";
+import CaretColorChip from "@impower/impower-ui/caret-color-chip";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
+import { h, render } from "preact";
 import { openCustomGotoLinePanel } from "./gotoLinePanel";
 import { scriptModeField, setScriptMode } from "./scriptMode";
 
@@ -41,7 +48,13 @@ type ToolbarToolItem = {
 
 type ToolbarPositionItem = { id: "position"; position: true };
 
-type ToolbarItem = ToolbarCommandItem | ToolbarToolItem | ToolbarPositionItem;
+type ToolbarColorItem = { id: "color"; color: true };
+
+type ToolbarItem =
+  | ToolbarCommandItem
+  | ToolbarToolItem
+  | ToolbarPositionItem
+  | ToolbarColorItem;
 
 export type ToolbarEntry = {
   placement: "start" | "center" | "end";
@@ -77,7 +90,10 @@ export const KEYBOARD_TOOLBAR_TABLE: readonly ToolbarEntry[] = [
   },
   {
     placement: "center",
-    items: [{ id: "position", position: true }],
+    items: [
+      { id: "color", color: true },
+      { id: "position", position: true },
+    ],
   },
   {
     placement: "end",
@@ -141,6 +157,13 @@ const keyboardToolbarTheme = EditorView.baseTheme({
     whiteSpace: "nowrap",
     borderRadius: "var(--control-radius)",
     touchAction: "manipulation",
+  },
+  ".cm-keyboard-toolbar [hidden]": {
+    display: "none",
+  },
+  ".cm-keyboard-toolbar .cm-toolbar-color": {
+    display: "flex",
+    minWidth: "0",
   },
   ".cm-keyboard-toolbar .cm-button:disabled": {
     color: "var(--muted)",
@@ -246,7 +269,40 @@ const positionLabel = (state: EditorState) => {
 const headedClass = (state: EditorState) =>
   state.field(keyboardToolbarHold, false)?.headed ?? false;
 
-function createToolbarButton(view: EditorView, item: ToolbarItem) {
+const colorUnderCaret = (state: EditorState) => {
+  const { empty, head } = state.selection.main;
+  const info = empty ? changeableColorAt(state, head) : null;
+  return info
+    ? { color: colorCSS(info), value: state.doc.sliceString(info.from, info.to) }
+    : null;
+};
+
+function createColorChipHost(view: EditorView) {
+  const host = document.createElement("div");
+  host.className = "cm-toolbar-color";
+  host.dataset["toolbarColor"] = "";
+  let shown: string | null = null;
+  const sync = (state: EditorState) => {
+    const chip = colorUnderCaret(state);
+    const key = chip ? `${chip.color} ${chip.value}` : null;
+    if (key === shown) return chip != null;
+    shown = key;
+    host.hidden = !chip;
+    render(
+      chip
+        ? h(CaretColorChip, { ...chip, onClick: () => changeColor(view) })
+        : null,
+      host,
+    );
+    return chip != null;
+  };
+  return { host, sync, destroy: () => render(null, host) };
+}
+
+function createToolbarButton(
+  view: EditorView,
+  item: Exclude<ToolbarItem, ToolbarColorItem>,
+) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "cm-button";
@@ -288,6 +344,7 @@ function createKeyboardToolbarPanel(view: EditorView): Panel {
   dom.setAttribute("role", "toolbar");
   dom.setAttribute("aria-label", "Writing");
   dom.classList.toggle("cm-keyboard-toolbar-headed", headedClass(view.state));
+  const colorChip = createColorChipHost(view);
 
   const placements = new Map<string, HTMLElement>();
   const placementFor = (placement: string) => {
@@ -313,11 +370,18 @@ function createKeyboardToolbarPanel(view: EditorView): Panel {
       target.setAttribute("aria-label", entry.group);
     }
     for (const item of entry.items) {
-      target.appendChild(createToolbarButton(view, item));
+      target.appendChild(
+        "color" in item ? colorChip.host : createToolbarButton(view, item),
+      );
     }
   }
 
   const position = dom.querySelector<HTMLElement>("[data-toolbar-position]");
+  const syncColor = (state: EditorState) => {
+    const chipShown = colorChip.sync(state);
+    if (position) position.hidden = chipShown;
+  };
+  syncColor(view.state);
 
   return {
     top: false,
@@ -326,11 +390,13 @@ function createKeyboardToolbarPanel(view: EditorView): Panel {
       if (position && (update.selectionSet || update.docChanged)) {
         position.textContent = positionLabel(update.state);
       }
+      syncColor(update.state);
       dom.classList.toggle(
         "cm-keyboard-toolbar-headed",
         headedClass(update.state),
       );
     },
+    destroy: colorChip.destroy,
   };
 }
 

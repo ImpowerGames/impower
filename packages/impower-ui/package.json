@@ -31,6 +31,11 @@
       "types": "./src/components/action-sheet/ActionSheet.tsx",
       "import": "./dist/impower-ui.js"
     },
+    "./caret-color-chip": {
+      "development": "./src/components/caret-color-chip/CaretColorChip.tsx",
+      "types": "./src/components/caret-color-chip/CaretColorChip.tsx",
+      "import": "./dist/impower-ui.js"
+    },
     "./fix-menu": {
       "development": "./src/components/fix-menu/FixMenu.tsx",
       "types": "./src/components/fix-menu/FixMenu.tsx",
