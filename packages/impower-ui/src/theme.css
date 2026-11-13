@@ -596,6 +596,8 @@
   --radius: 12px;
   --dialog-radius: 18px;
   --toast-radius: 10px;
+  --preview-frame-radius: 10px;
+  --preview-inline-padding: 10px;
   --float-shadow: 0 12px 40px rgb(0 0 0 / 0.4);
   --fade: 20px;
   --scrollbar-track: transparent;

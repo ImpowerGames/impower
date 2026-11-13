@@ -85,6 +85,8 @@
   --radius-card: var(--radius);
   --radius-dialog: var(--dialog-radius);
   --radius-toast: var(--toast-radius);
+  --radius-preview-frame: var(--preview-frame-radius);
+  --spacing-preview-inline: var(--preview-inline-padding);
   --shadow-float: var(--float-shadow);
 }
 
