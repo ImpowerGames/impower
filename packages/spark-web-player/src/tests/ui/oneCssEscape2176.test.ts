@@ -2,11 +2,13 @@ import { isTokenIdent, tokenize } from "@csstools/css-tokenizer";
 import { beforeAll, describe, expect, it } from "vitest";
 import { getAnimationContent } from "@impower/spark-dom/src/utils/getAnimationContent";
 import { getFontContent } from "@impower/spark-dom/src/utils/getFontContent";
+import { getCSSSelector } from "@impower/spark-dom/src/utils/getStyleContent";
 import { getVarName } from "@impower/spark-engine/src/game/modules/ui/utils/getVarName";
 import { renderVNode } from "../../../../sparkle-screen-renderer/src";
 import type { SparkleNode } from "../../../../sparkle-screen-renderer/src/parser/parser";
 import { createScreenRenderContext } from "../../../../sparkle-screen-preview/src/utils/createScreenRenderContext";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
+import { escapeCssIdentifier } from "../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
 const NAMES = ["my.font", "a~b", "Fira Code", "1st", "a@b"];
@@ -137,6 +139,19 @@ describe("a name inside an authored value is read with the grammar of its proper
     const value = css.slice(css.indexOf(":", css.indexOf("--theme-animation")) + 1, css.lastIndexOf(";"));
     expect(identValues(value)).toEqual([name]);
     expect(identValues(preludeOf(screenKeyframes(name)).replace("@keyframes", ""))).toEqual([name]);
+  });
+});
+
+describe("the selector translator writes a declarable name as the one escape does (#2176)", () => {
+  const DECLARABLE = ["card", "card_2", "my-card", "_x", "x1", "card@night", "mia@night_2", "a@b@c", "card-2@dim"];
+
+  it.each(DECLARABLE)("writes the class %s as escapeCssIdentifier does", (name) => {
+    expect(getCSSSelector(name, {})).toBe(`.${escapeCssIdentifier(name)}`);
+  });
+
+  it.each(DECLARABLE)("writes the attribute value %s as escapeCssIdentifier does", (name) => {
+    const css = getCSSSelector(`#image=${name}`, {});
+    expect(css.endsWith(`=${escapeCssIdentifier(name)}]`), css).toBe(true);
   });
 });
 
