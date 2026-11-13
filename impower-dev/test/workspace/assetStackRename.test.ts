@@ -957,6 +957,7 @@ interface MemberRename {
   files: string[];
   shows: string[];
   rename: string;
+  role: string;
   to: string;
   after?: string[];
   showsAfter?: string[];
@@ -969,6 +970,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["imani.png", "imani~face.happy.png", "imani@night.png"],
     shows: ["imani"],
     rename: "imani.png",
+    role: "Alternate · plain",
     to: "imani@day",
     after: ["imani@day.png", "imani@day~face.happy.png", "imani@night.png"],
     showsAfter: ["imani@day"],
@@ -978,6 +980,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["ava.v1.png", "ava.v1~face.happy.png", "ava@night.png"],
     shows: ["ava"],
     rename: "ava.v1.png",
+    role: "Alternate · plain",
     to: "ava.v2",
     after: ["ava.v2.png", "ava.v1~face.happy.png", "ava@night.png"],
     showsAfter: ["ava"],
@@ -987,6 +990,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["ava.v1.png", "ava.v1~face.happy.png", "ava@night.png"],
     shows: ["ava"],
     rename: "ava.v1.png",
+    role: "Alternate · plain",
     to: "ava.v1@day",
     refused: DOTTED,
   },
@@ -995,6 +999,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["imani.png", "imani@night.png", "imani@night~face.sad.png"],
     shows: ["imani", "imani@night"],
     rename: "imani@night.png",
+    role: "Alternate · night",
     to: "imani@dark",
     after: ["imani.png", "imani@dark.png", "imani@dark~face.sad.png"],
     showsAfter: ["imani", "imani@dark"],
@@ -1004,6 +1009,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["imani.png", "imani@dark.v2.png", "imani@dark~face.happy.png"],
     shows: ["imani", "imani@dark"],
     rename: "imani@dark.v2.png",
+    role: "Alternate · dark",
     to: "imani@night",
     after: ["imani.png", "imani@night.png", "imani@night~face.happy.png"],
     showsAfter: ["imani", "imani@night"],
@@ -1013,6 +1019,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["imani.png", "imani@night.png", "imani@night~face.sad.png"],
     shows: ["imani", "imani@night"],
     rename: "imani@night.png",
+    role: "Alternate · night",
     to: "imani@dark.v2",
     after: ["imani.png", "imani@dark.v2.png", "imani@dark.v2~face.sad.png"],
     showsAfter: ["imani", "imani@dark"],
@@ -1022,6 +1029,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["imani.png", "imani@night.png"],
     shows: ["imani", "imani@night"],
     rename: "imani@night.png",
+    role: "Alternate · night",
     to: "imani.v2@night",
     refused: DOTTED,
   },
@@ -1030,6 +1038,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["imani.png", "imani~face.happy.png", "imani@night.png"],
     shows: ["imani"],
     rename: "imani~face.happy.png",
+    role: "Layer · face.happy",
     to: "imani~face.sad",
     after: ["imani.png", "imani@night.png", "imani~face.sad.png"],
     showsAfter: ["imani"],
@@ -1039,6 +1048,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["ava.v1.png", "ava.v1~face.happy.png"],
     shows: ["ava"],
     rename: "ava.v1~face.happy.png",
+    role: "Layer · face.happy",
     to: "ava.v1~face.sad",
     after: ["ava.v1.png", "ava.v1~face.sad.png"],
     showsAfter: ["ava"],
@@ -1048,6 +1058,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["ava.v1.png", "ava.v1~face.happy.png", "ava@night.png"],
     shows: ["ava"],
     rename: "ava.v1~face.happy.png",
+    role: "Layer · face.happy",
     to: "ava.v1@night~face.happy",
     refused: DOTTED,
   },
@@ -1056,6 +1067,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["imani.png", "imani~face.happy.png", "imani@night.png"],
     shows: ["imani"],
     rename: "imani~face.happy.png",
+    role: "Layer · face.happy",
     to: "imani@night~face.happy",
     after: ["imani.png", "imani@night.png", "imani@night~face.happy.png"],
     showsAfter: ["imani"],
@@ -1065,25 +1077,28 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["imani.png", "imani~face.happy.png"],
     shows: ["imani"],
     rename: "imani~face.happy.png",
+    role: "Layer · face.happy",
     to: "zadie~face.happy",
     refused: KEEP("imani"),
   },
   {
-    row: "a duplicate, plain (ava.webp beside ava.png): renamed out alone and no line changes",
-    files: ["ava.png", "ava.webp", "ava@night.png"],
+    row: "a duplicate, plain (ava.png beside ava.jpg): renamed out alone and no line changes",
+    files: ["ava.jpg", "ava.png", "ava@night.png"],
     shows: ["ava"],
-    rename: "ava.webp",
+    rename: "ava.png",
+    role: "Asset name collision · also provides ava",
     to: "kai",
-    after: ["ava.png", "ava@night.png", "kai.webp"],
+    after: ["ava.jpg", "ava@night.png", "kai.png"],
     showsAfter: ["ava"],
   },
   {
     row: "a duplicate, plain, renamed to another alternate: no layer of its picture goes with it",
-    files: ["ava.png", "ava.webp", "ava~face.happy.png"],
+    files: ["ava.jpg", "ava.png", "ava~face.happy.png"],
     shows: ["ava"],
-    rename: "ava.webp",
+    rename: "ava.png",
+    role: "Asset name collision · also provides ava",
     to: "ava@night",
-    after: ["ava.png", "ava@night.webp", "ava~face.happy.png"],
+    after: ["ava.jpg", "ava@night.png", "ava~face.happy.png"],
     showsAfter: ["ava"],
   },
   {
@@ -1091,6 +1106,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["ava.v1.png", "ava.v2.png"],
     shows: ["ava"],
     rename: "ava.v2.png",
+    role: "Asset name collision · also provides ava",
     to: "ava@night",
     after: ["ava.v1.png", "ava@night.png"],
     showsAfter: ["ava"],
@@ -1100,8 +1116,29 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["imani.png", "imani%40dusk.png"],
     shows: ["imani", "imani@dusk"],
     rename: "imani%40dusk.png",
+    role: "Alternate · dusk",
     to: "imani@dawn",
     after: ["imani.png", "imani@dawn.png"],
+    showsAfter: ["imani", "imani@dawn"],
+  },
+  {
+    row: "a layer of an alternate spelt %40, renamed in the same spelling: only the layer moves",
+    files: ["imani.png", "imani%40dusk.png", "imani%40dusk~face.happy.png"],
+    shows: ["imani"],
+    rename: "imani%40dusk~face.happy.png",
+    role: "Layer · face.happy · on dusk",
+    to: "imani%40dusk~face.sad",
+    after: ["imani.png", "imani%40dusk.png", "imani%40dusk~face.sad.png"],
+    showsAfter: ["imani"],
+  },
+  {
+    row: "an alternate renamed to a %40 spelling: its layers move and the lines follow the alternate the compiler reads",
+    files: ["imani.png", "imani@night.png", "imani@night~face.sad.png"],
+    shows: ["imani", "imani@night"],
+    rename: "imani@night.png",
+    role: "Alternate · night",
+    to: "imani%40dawn",
+    after: ["imani.png", "imani%40dawn.png", "imani%40dawn~face.sad.png"],
     showsAfter: ["imani", "imani@dawn"],
   },
   {
@@ -1109,6 +1146,7 @@ const MEMBER_RENAMES: MemberRename[] = [
     files: ["@foo.png", "bar.png"],
     shows: [],
     rename: "@foo.png",
+    role: "Alternate · foo",
     to: "@baz",
     after: ["@baz.png", "bar.png"],
     showsAfter: [],
@@ -1116,13 +1154,20 @@ const MEMBER_RENAMES: MemberRename[] = [
 ];
 
 describe("the member-rename plan, by the compiler's file-name rule (#2204)", { timeout: 120000 }, () => {
-  it.each(MEMBER_RENAMES)("$row", async ({ files, shows, rename, to, after, showsAfter, refused }) => {
+  it.each(MEMBER_RENAMES)("$row", async ({ files, shows, rename, role, to, after, showsAfter, refused }) => {
     const script = lines("scene start", ...shows.map((name) => `  [[show portrait ${name}]]`), "end");
     const h = await harness({
       "main.sd": script,
       ...Object.fromEntries(files.map((file) => [`${P}/${file}`, file])),
     });
     const at = (file: string) => `${P}/${file}`;
+    const { imageStacks } = await import("../../src/modules/spark-editor/utils/imageStacks");
+    const { fileRows } = await import("../../src/modules/spark-editor/utils/imageVariants");
+    const { assetEndings, assetTypeOf } = await import("../../src/modules/spark-editor/utils/assetTypes");
+    const images = files.map(at).filter((path) => assetTypeOf(path, assetEndings.peek()) === "image");
+    expect(images).toEqual(files.map(at));
+    const stack = imageStacks(images).find((candidate) => candidate.paths.includes(at(rename)))!;
+    expect(fileRows(stack, {}).find((row) => row.path === at(rename))?.role).toBe(role);
     if (refused) {
       await expect(h.assets.renameMember(at(rename), to)).rejects.toThrow(refused);
       expect(await inPortraits(h)).toEqual(files.map(at).sort());

@@ -55,11 +55,12 @@ export const imageFileNameOf = (path: string): ImageFileName => {
   const stem = stemOf(path);
   const cut = rasterLayerOfPath(path) ? -1 : stem.indexOf("~");
   const picture = cut < 0 ? stem : stem.slice(0, cut);
-  const at = picture.indexOf("@");
+  const decoded = picture.replaceAll("%40", "@");
+  const at = decoded.indexOf("@");
   return {
     name: stackNameOf(picture),
     picture,
-    alternate: at < 0 ? null : picture.slice(at + 1),
+    alternate: at < 0 ? null : decoded.slice(at + 1),
     ...(cut < 0 ? {} : layerOf(stem.slice(cut + 1))),
   };
 };
