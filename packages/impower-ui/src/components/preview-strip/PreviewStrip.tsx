@@ -2,6 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
+import { useToastLayer } from "../../utils/toastLayer";
 import { FileIcon, PencilIcon } from "../icon/icons.generated";
 import PlayButton from "../play-button/PlayButton";
 
@@ -99,6 +100,7 @@ export default function PreviewStrip({
   const expandedRef = useRef(expanded);
   expandedRef.current = expanded;
   const [live, setLive] = useState(false);
+  const toastLayer = useToastLayer(expanded);
 
   useEffect(() => setLive(true), []);
 
@@ -174,6 +176,7 @@ export default function PreviewStrip({
             )}
           >
             {picture}
+            <div ref={toastLayer} data-toast-layer class="contents" />
           </dialog>
           {symbol ? (
             <span

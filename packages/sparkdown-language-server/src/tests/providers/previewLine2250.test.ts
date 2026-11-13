@@ -172,6 +172,62 @@ describe("the caret line's preview record", () => {
     expect(blocks(9)).toEqual({ kind: "dialogue", line: 9, words: "Bye now.", speaker: "BOB" });
   });
 
+  test("keeps a branch's beats inside the branch and resumes the enclosing scene after its end", () => {
+    const nested = previewOf(
+      [
+        "scene start",
+        "  Outer.",
+        "  branch nested",
+        "    Inner.",
+        "  end",
+        "  x = 1",
+        "",
+        "  After.",
+        "end",
+        "",
+        "scene opens_on_a_branch",
+        "  branch first",
+        "  end",
+        "  Outer again.",
+        "end",
+      ].join("\n"),
+    );
+    const outer = { kind: "action", line: 1, words: "Outer." };
+    expect(nested(5)).toEqual(outer);
+    expect(nested(6)).toEqual(outer);
+    expect(nested(2)).toEqual({ kind: "action", line: 3, words: "Inner." });
+    expect(nested(9)).toEqual({ kind: "empty" });
+    expect(nested(10)).toEqual({ kind: "action", line: 13, words: "Outer again." });
+    expect(nested(11)).toEqual({ kind: "empty" });
+  });
+
+  test("captions a choose block with its last beat before the options, as the outline does, and keeps earlier beats apart", () => {
+    const menu = previewOf(
+      [
+        "scene start",
+        "  choose",
+        "    First question. >",
+        "    Second question.",
+        "    * [Yes.]",
+        "      You agree.",
+        "    * [No.]",
+        "  then",
+        "    After the menu.",
+        "  end",
+        "end",
+      ].join("\n"),
+    );
+    const choice = { kind: "choice", line: 1, words: "Second question." };
+    for (const line of [1, 3, 4, 6, 9]) {
+      expect(menu(line)).toEqual(choice);
+    }
+    expect(menu(0)).toEqual({ kind: "action", line: 2, words: "First question." });
+    expect(menu(2)).toEqual({ kind: "action", line: 2, words: "First question." });
+    expect(menu(5)).toEqual({ kind: "action", line: 5, words: "You agree." });
+    expect(menu(8)).toEqual({ kind: "action", line: 8, words: "After the menu." });
+    expect(menu(10)).toEqual({ kind: "action", line: 8, words: "After the menu." });
+  });
+
   test("shows the beat a line of logic follows", () => {
     expect(at(23)).toEqual({ kind: "choice", line: 20, words: "Where now?" });
     expect(previewOf("scene a\n  Hello.\n  x = 1\nend\n")(2)).toEqual({

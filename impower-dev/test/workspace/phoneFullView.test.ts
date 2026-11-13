@@ -18,6 +18,8 @@ const { default: WorkspaceWindow } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceWindow");
 const { default: workspace, cacheableWorkspaceState } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+const { default: workspaceSettings } =
+  await import("../../src/modules/spark-editor/workspace/settings/WorkspaceSettings");
 
 let win: InstanceType<typeof WorkspaceWindow> | undefined;
 const sent = { started: 0, stopped: 0 };
@@ -52,6 +54,7 @@ beforeEach(() => {
   sent.started = 0;
   sent.stopped = 0;
   localStorage.clear();
+  workspaceSettings.setPreference("previewMode", "game");
   window.addEventListener(MessageProtocol.event, listener);
   workspace.current = {
     ...workspace.current,
@@ -81,6 +84,21 @@ describe("the phone's full view", () => {
     w.playInFullView();
     expect(sent.started).toBe(1);
     expect(sent.stopped).toBe(0);
+  });
+
+  it("plays the game, not the screenplay, when the saved preview mode is Screenplay", () => {
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    const w = mount();
+    w.connectPlayer();
+    w.playInFullView();
+    expect(workspaceSettings.preferences.peek().previewMode).toBe("game");
+    expect(sent.started).toBe(1);
+    expect(workspace.current.preview.revealed).toBe(true);
+    workspaceSettings.setPreference("previewMode", "textstream");
+    w.syncGameStarted();
+    w.collapsePreviewPane();
+    w.playInFullView();
+    expect(workspaceSettings.preferences.peek().previewMode).toBe("textstream");
   });
 
   it("stops playback when the full view closes on a phone, as the prototype does", () => {

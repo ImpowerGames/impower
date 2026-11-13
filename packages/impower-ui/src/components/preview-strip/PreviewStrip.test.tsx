@@ -3,6 +3,7 @@ import { renderToString } from "preact-render-to-string";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { portalContainer } from "../../utils/portalContainer";
+import { topToastLayer } from "../../utils/toastLayer";
 import PreviewStrip, { type PreviewStripStatus } from "./PreviewStrip";
 
 let host: HTMLDivElement | undefined;
@@ -132,6 +133,9 @@ describe("PreviewStrip", () => {
     expect(dialog().className).toContain("fixed");
     expect(host!.querySelector("[data-player]")).toBe(player);
     expect(portalContainer()).toBe(dialog());
+    expect(topToastLayer()?.closest("dialog")).toBe(dialog());
+    await mount(<PreviewStrip label="ACTION" words="Rain." picture={picture} expanded={false} />);
+    expect(topToastLayer()).toBeNull();
     showModal.mockRestore();
   });
 

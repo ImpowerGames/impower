@@ -1933,6 +1933,9 @@ export default class WorkspaceWindow {
   }
 
   playInFullView() {
+    if (!playsGame(workspaceSettings.preferences.peek().previewMode)) {
+      this.setPreviewMode("game");
+    }
     const game = this.store.preview.modes.game;
     if (launchPhaseOf(game, this._startGameRequestId !== undefined) === "idle") {
       this.launch("press");

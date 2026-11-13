@@ -4,6 +4,7 @@ import type {
   PreviewLine,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewLineMessage";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { displayCaptionText } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
 import { readSkipping } from "@impower/sparkdown/src/compiler/utils/readSkipping";
 import type { SyntaxNode, Tree } from "@lezer/common";
 
@@ -39,9 +40,9 @@ const DISPLAY: Record<string, PreviewBeatKind> = {
   InlineDialogue: "dialogue",
 };
 
-const DECLARATIONS = new Set(["Scene", "Branch"]);
-
 const CHOOSE = "LuauSparkdownChooseBlock";
+
+const THEN_CLAUSE = "LuauSparkdownChooseThenClause";
 
 const MARKUP = new Set([
   "Glue",
@@ -57,13 +58,25 @@ const MARKUP = new Set([
   "TextCommand",
 ]);
 
+interface Flow {
+  start: number;
+  end: number;
+}
+
 interface Beat {
   kind: PreviewBeatKind;
   node: SyntaxNode;
   start: number;
+  position: number;
   lines: Set<number>;
-  question?: SyntaxNode[];
+  flow: Flow | null;
+  caption?: SyntaxNode;
   options?: SyntaxNode[];
+}
+
+interface Segment {
+  line: number;
+  words: string[];
 }
 
 const descendants = (node: SyntaxNode, name: string): SyntaxNode[] => {
@@ -95,17 +108,16 @@ export const getPreviewLine = (
   line: number,
 ): PreviewLine => {
   const read = (from: number, to: number) => document.read(from, to);
+  const source = {
+    read,
+    characterNumber: (pos: number) => document.positionAt(pos).character,
+  };
   const firstLine = (node: SyntaxNode) => document.positionAt(node.from).line;
   const lastLine = (node: SyntaxNode) =>
     document.positionAt(Math.max(node.from, node.to - 1)).line;
   const linesOf = (node: SyntaxNode) => span(firstLine(node), lastLine(node));
+  const lineStart = (l: number) => document.offsetAt({ line: l, character: 0 });
   const clean = (text: string) => text.replace(/\s+/g, " ").trim();
-  const wordsOf = (node: SyntaxNode) =>
-    clean(
-      descendants(node, "TextChunk")
-        .map((chunk) => readSkipping(chunk, read, (d) => MARKUP.has(d.name)))
-        .join(" "),
-    );
   const optionWords = (option: SyntaxNode) => {
     const content = option.getChild("Choice_content");
     return content
@@ -117,10 +129,31 @@ export const getPreviewLine = (
         )
       : "";
   };
+  const segmentsOf = (node: SyntaxNode) => {
+    const breaks = descendants(node, "Break").map((mark) => mark.to);
+    const segmentAt = (offset: number) =>
+      breaks.filter((end) => end <= offset).length;
+    const segments: Segment[] = [];
+    for (const chunk of descendants(node, "TextChunk")) {
+      const words = clean(readSkipping(chunk, read, (d) => MARKUP.has(d.name)));
+      if (words) {
+        const segment = (segments[segmentAt(chunk.from)] ??= {
+          line: firstLine(chunk),
+          words: [],
+        });
+        segment.words.push(words);
+      }
+    }
+    return { segments, segmentAt };
+  };
+  const spoken = (segment: Segment | undefined): segment is Segment =>
+    !!segment?.words.length;
 
   const beats: Beat[] = [];
-  const declarations: number[] = [];
+  const flows: Flow[] = [];
+  const open: Flow[] = [];
   const setup: Set<number>[] = [];
+  const flowOf = () => open.at(-1) ?? null;
 
   const visitNode = (node: SyntaxNode) => {
     const name = node.name;
@@ -128,13 +161,35 @@ export const getPreviewLine = (
       setup.push(linesOf(node));
       return;
     }
-    if (DECLARATIONS.has(name)) {
-      declarations.push(firstLine(node));
+    if (name === "Scene" || name === "Branch") {
+      const start = firstLine(node);
+      if (name === "Scene") {
+        while (open.length) {
+          open.pop()!.end = start - 1;
+        }
+      }
+      const flow = { start, end: Infinity };
+      flows.push(flow);
+      open.push(flow);
+      return;
+    }
+    if (name === "LuauEndKeyword" && node.parent?.name === "sparkdown") {
+      const flow = open.pop();
+      if (flow) {
+        flow.end = firstLine(node);
+      }
       return;
     }
     const kind = DISPLAY[name];
     if (kind) {
-      beats.push({ kind, node, start: firstLine(node), lines: linesOf(node) });
+      beats.push({
+        kind,
+        node,
+        start: firstLine(node),
+        position: firstLine(node),
+        lines: linesOf(node),
+        flow: flowOf(),
+      });
       return;
     }
     if (name === CHOOSE) {
@@ -155,33 +210,54 @@ export const getPreviewLine = (
       kind: "choice",
       node: block,
       start: firstLine(block),
+      position: firstLine(block),
       lines: new Set([firstLine(block), lastLine(block)]),
-      question: [],
+      flow: flowOf(),
       options: [],
     };
     beats.push(beat);
     const content = block.getChild(`${CHOOSE}_content`);
+    let optionsEnded = false;
     for (let child = content?.firstChild; child; child = child.nextSibling) {
       if (child.name === "Choice") {
         beat.options!.push(child);
         linesOf(child).forEach((l) => beat.lines.add(l));
-      } else if (!beat.options!.length && DISPLAY[child.name] === "action") {
-        beat.question!.push(child);
-        linesOf(child).forEach((l) => beat.lines.add(l));
+      } else if (child.name === THEN_CLAUSE) {
+        optionsEnded = true;
+        visitNode(child);
+      } else if (
+        !optionsEnded &&
+        !beat.options!.length &&
+        displayCaptionText(child, source) !== undefined
+      ) {
+        if (beat.caption) {
+          beats.push({
+            kind: DISPLAY[beat.caption.name] ?? "action",
+            node: beat.caption,
+            start: firstLine(beat.caption),
+            position: firstLine(beat.caption),
+            lines: linesOf(beat.caption),
+            flow: beat.flow,
+          });
+        }
+        beat.caption = child;
       } else {
         visitNode(child);
       }
     }
+    if (beat.caption) {
+      linesOf(beat.caption).forEach((l) => beat.lines.add(l));
+    }
+    const shownFrom = beat.caption ?? beat.options![0];
+    beat.position = shownFrom ? firstLine(shownFrom) : beat.start;
   };
 
   visit(tree.topNode);
 
   const onlyComments = () => {
-    const from = document.offsetAt({ line, character: 0 });
+    const from = lineStart(line);
     const to =
-      line + 1 < document.lineCount
-        ? document.offsetAt({ line: line + 1, character: 0 })
-        : document.length;
+      line + 1 < document.lineCount ? lineStart(line + 1) : document.length;
     const comments: [number, number][] = [];
     tree.iterate({
       from,
@@ -213,32 +289,18 @@ export const getPreviewLine = (
 
   const describe = (beat: Beat): PreviewBeat => {
     if (beat.kind === "choice") {
-      const question = clean(beat.question!.map(wordsOf).join(" "));
+      const caption = beat.caption ? segmentsOf(beat.caption).segments : [];
+      const question = caption.filter(spoken).at(-1);
       return {
         kind: "choice",
         line: beat.start,
-        words: question || beat.options!.map(optionWords).join(" · "),
+        words: question
+          ? clean(question.words.join(" "))
+          : beat.options!.map(optionWords).join(" · "),
       };
     }
-    const breaks = descendants(beat.node, "Break").map((mark) => mark.to);
-    const segmentOf = (offset: number) =>
-      breaks.filter((end) => end <= offset).length;
-    const segments: { line: number; words: string[] }[] = [];
-    for (const chunk of descendants(beat.node, "TextChunk")) {
-      const words = clean(
-        readSkipping(chunk, read, (d) => MARKUP.has(d.name)),
-      );
-      if (words) {
-        const segment = (segments[segmentOf(chunk.from)] ??= {
-          line: firstLine(chunk),
-          words: [],
-        });
-        segment.words.push(words);
-      }
-    }
-    const caret = segmentOf(document.offsetAt({ line, character: 0 }));
-    const spoken = (segment: (typeof segments)[number] | undefined) =>
-      !!segment?.words.length;
+    const { segments, segmentAt } = segmentsOf(beat.node);
+    const caret = segmentAt(lineStart(line));
     const shown =
       segments.slice(caret).find(spoken) ??
       segments.slice(0, caret).reverse().find(spoken);
@@ -258,16 +320,22 @@ export const getPreviewLine = (
   if (at) {
     return describe(at);
   }
-  const flowStart = Math.max(-1, ...declarations.filter((d) => d <= line));
-  const flowEnd = Math.min(Infinity, ...declarations.filter((d) => d > line));
-  const before = beats.filter(
-    (beat) => beat.start > flowStart && beat.start < line,
-  );
-  const after = beats.find(
-    (beat) => beat.start > line && beat.start < flowEnd,
-  );
-  const shown = declarations.includes(line)
-    ? after
-    : (before.at(-1) ?? after);
+  const declared = flows.find((flow) => flow.start === line);
+  const flow =
+    declared ??
+    flows
+      .filter((f) => f.start <= line && line <= f.end)
+      .reduce<Flow | null>(
+        (inner, f) => (!inner || f.start > inner.start ? f : inner),
+        null,
+      );
+  const inFlow = beats
+    .filter((beat) => beat.flow === flow)
+    .sort((a, b) => a.position - b.position);
+  const before = declared
+    ? undefined
+    : inFlow.filter((beat) => beat.position < line).at(-1);
+  const after = inFlow.find((beat) => beat.position > line);
+  const shown = before ?? after;
   return shown ? describe(shown) : { kind: "empty" };
 };
