@@ -40,7 +40,7 @@ const ASSET_NAME = grammarPattern("AssetCommandFileName", (m) => `^(?:${m})$`);
 
 const NONE_KEYWORD = grammarPattern(
   "AssetCommandKeywordNone",
-  (m) => `^(?:${m})`,
+  (m) => `^(?:${m})$`,
 );
 
 const CLAUSE_KEYWORD = grammarPattern(
