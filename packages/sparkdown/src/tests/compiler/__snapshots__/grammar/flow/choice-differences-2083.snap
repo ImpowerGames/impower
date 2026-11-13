@@ -463,9 +463,7 @@ sparkdown [0..417]
  │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [208..211]
  │   │   │   │       │   │       ├─ Word [208..210]: "Go"
  │   │   │   │       │   │       └─ Space [210..211]: " "
- │   │   │   │       │   ├─ ChoiceSpanMarkText [211..212]
- │   │   │   │       │   │   └─ ChoiceSpanMarkText_c1 [211..212]
- │   │   │   │       │   │       └─ Punctuation [211..212]: "*"
+ │   │   │   │       │   ├─ ChoiceSpanMarkText [211..212]: "*"
  │   │   │   │       │   ├─ ChoiceStartTextContent [212..216]
  │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [212..216]
  │   │   │   │       │   │       ├─ Word [212..215]: "far"

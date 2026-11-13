@@ -999,9 +999,7 @@ sparkdown [0..731]
  │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [673..676]
  │   │   │   │       │   │       ├─ Word [673..675]: "Go"
  │   │   │   │       │   │       └─ Space [675..676]: " "
- │   │   │   │       │   ├─ ChoiceSpanMarkText [676..677]
- │   │   │   │       │   │   └─ ChoiceSpanMarkText_c1 [676..677]
- │   │   │   │       │   │       └─ Punctuation [676..677]: "*"
+ │   │   │   │       │   ├─ ChoiceSpanMarkText [676..677]: "*"
  │   │   │   │       │   ├─ ChoiceStartTextContent [677..678]
  │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [677..678]
  │   │   │   │       │   │       └─ Word [677..678]: "x"
@@ -1020,9 +1018,7 @@ sparkdown [0..731]
  │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [701..703]
  │   │   │   │       │   │       ├─ Space [701..702]: " "
  │   │   │   │       │   │       └─ Word [702..703]: "y"
- │   │   │   │       │   ├─ ChoiceSpanMarkText [703..704]
- │   │   │   │       │   │   └─ ChoiceSpanMarkText_c1 [703..704]
- │   │   │   │       │   │       └─ Punctuation [703..704]: "*"
+ │   │   │   │       │   ├─ ChoiceSpanMarkText [703..704]: "*"
  │   │   │   │       │   └─ ChoiceStartTextContent [704..709]
  │   │   │   │       │       └─ ChoiceStartTextContent_c1 [704..709]
  │   │   │   │       │           ├─ Space [704..705]: " "

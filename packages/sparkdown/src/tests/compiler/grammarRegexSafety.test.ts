@@ -2,6 +2,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
+import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { parseSource } from "./grammarSnapshot";
+import { tokenize } from "./vscodeGrammarSnapshot";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GRAMMAR_PATH = join(
@@ -152,6 +155,12 @@ const SPAN_CLOSE_SEARCHES: [string, string][] = [
   ["an italic span open over unclosed braces", "*a" + " {".repeat(800)],
   ["a tilde span open over other tilde runs", "~~a" + " ~b~".repeat(400)],
   ["a backtick run open over other backtick runs", "`a" + " ``b".repeat(400)],
+  ["a long star run before a word", "*".repeat(8000) + "x"],
+  ["a long underscore run before a word", "_".repeat(8000) + "x"],
+  ["a long caret run before a word", "^".repeat(8000) + "x"],
+  ["a long tilde run before a word", "~".repeat(8000) + "x"],
+  ["a long colon run before a word", ":".repeat(8000) + "x"],
+  ["a long backtick run before a word", "`".repeat(8000) + "x"],
 ];
 
 describe("a span whose closer never comes is refused at once wherever it could open (#2196)", () => {
@@ -173,6 +182,69 @@ describe("a span whose closer never comes is refused at once wherever it could o
       expect(ms, `${rule}.match took ${ms.toFixed(1)}ms`).toBeLessThan(150);
     },
   );
+});
+
+const LONG_RUN_LINES = ["*", "_", "^", "~", ":"].flatMap((mark) => {
+  const run = `A ${mark.repeat(8000)}x`;
+  return [
+    [mark, "a display line", `scene start\n  ${run}\nend\n`],
+    [mark, "choice start text", `scene start\n  choose\n    + ${run}\n      done\n  end\nend\n`],
+    [mark, "a suppression's text", `scene start\n  choose\n    + [${run}]\n      done\n  end\nend\n`],
+    [mark, "choice inner text", `scene start\n  choose\n    + [a] ${run}\n      done\n  end\nend\n`],
+  ] as const;
+});
+
+describe("a run of 8,000 of one mark is read in time linear in its length (#2196)", () => {
+  test.each(LONG_RUN_LINES)("%s in %s, in the tree parser", (_mark, _where, source) => {
+    parseSource("scene start\n  A *a* b\nend\n");
+    const t0 = performance.now();
+    parseSource(source);
+    const ms = performance.now() - t0;
+    expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(150);
+  });
+
+  test.each(LONG_RUN_LINES.filter(([mark]) => mark !== "_"))(
+    "%s in %s, in vscode-textmate",
+    async (_mark, _where, source) => {
+      await tokenize("scene start\n  A *a* b\nend\n");
+      const t0 = performance.now();
+      await tokenize(source);
+      const ms = performance.now() - t0;
+      expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(150);
+    },
+  );
+
+  test.each(LONG_RUN_LINES.filter(([mark]) => mark === "_"))(
+    "%s in %s, in vscode-textmate, which reads an underscore run in time quadratic in its length on main too (0.3 s there), within a second",
+    async (_mark, _where, source) => {
+      await tokenize("scene start\n  A *a* b\nend\n");
+      const t0 = performance.now();
+      await tokenize(source);
+      const ms = performance.now() - t0;
+      expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(1000);
+    },
+  );
+});
+
+describe("building a parser compiles no pattern before it is used (#2196)", () => {
+  test("the sparkdown grammar's parser is built in well under the time its patterns take to compile", () => {
+    const unseen = (node: unknown): unknown => {
+      if (Array.isArray(node)) return node.map(unseen);
+      if (!node || typeof node !== "object") return node;
+      return Object.fromEntries(
+        Object.entries(node).map(([k, v]) => [
+          k,
+          typeof v === "string" && ["match", "begin", "end", "while"].includes(k) ? `(?:)${v}` : unseen(v),
+        ]),
+      );
+    };
+    const fresh = unseen(grammar) as typeof grammar;
+    new TextmateGrammarParser({ scopeName: "source.warm", patterns: [], repository: {} });
+    const t0 = performance.now();
+    new TextmateGrammarParser(fresh);
+    const ms = performance.now() - t0;
+    expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(100);
+  });
 });
 
 describe("a choice line that never meets a close is read at once (#2083)", () => {

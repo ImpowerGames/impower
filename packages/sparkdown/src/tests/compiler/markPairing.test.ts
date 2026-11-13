@@ -159,6 +159,13 @@ describe("styling marks pair by CommonMark's rules in both grammar engines", () 
     expect(await readings("snake_case_name")).toEqual({ tree: "snake_case_name", vscode: "snake_case_name" });
   });
 
+  test("a run of more than 64 of one mark closes no span, and opens one only with its last 64", async () => {
+    const run = "*".repeat(70);
+    expect(await readings(`A *x${run} y`)).toEqual(both(`A *x${run} y`));
+    expect(await readings(`A ${run}x* y`)).toEqual(both(`A ${"*".repeat(69)}[italic: x] y`));
+    expect(await readings(`A _x${"_".repeat(70)} y`)).toEqual(both(`A _x${"_".repeat(70)} y`));
+  });
+
   test("every line read differently from CommonMark says how CommonMark reads it and why", () => {
     for (const entry of LINES) {
       expect(entry.commonmark === undefined, entry.line).toBe(entry.reason === undefined);

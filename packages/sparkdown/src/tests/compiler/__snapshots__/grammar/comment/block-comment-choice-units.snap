@@ -311,9 +311,7 @@ sparkdown [0..402]
  │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [280..283]
  │   │   │   │       │   │       ├─ Word [280..282]: "Go"
  │   │   │   │       │   │       └─ Space [282..283]: " "
- │   │   │   │       │   ├─ ChoiceSpanMarkText [283..284]
- │   │   │   │       │   │   └─ ChoiceSpanMarkText_c1 [283..284]
- │   │   │   │       │   │       └─ Punctuation [283..284]: "*"
+ │   │   │   │       │   ├─ ChoiceSpanMarkText [283..284]: "*"
  │   │   │   │       │   ├─ ChoiceStartTextContent [284..287]
  │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [284..287]
  │   │   │   │       │   │       └─ Word [284..287]: "far"
@@ -332,9 +330,7 @@ sparkdown [0..402]
  │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [303..308]
  │   │   │   │       │   │       ├─ Space [303..304]: " "
  │   │   │   │       │   │       └─ Word [304..308]: "away"
- │   │   │   │       │   ├─ ChoiceSpanMarkText [308..309]
- │   │   │   │       │   │   └─ ChoiceSpanMarkText_c1 [308..309]
- │   │   │   │       │   │       └─ Punctuation [308..309]: "*"
+ │   │   │   │       │   ├─ ChoiceSpanMarkText [308..309]: "*"
  │   │   │   │       │   └─ ChoiceStartTextContent [309..314]
  │   │   │   │       │       └─ ChoiceStartTextContent_c1 [309..314]
  │   │   │   │       │           ├─ Space [309..310]: " "
