@@ -356,7 +356,7 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
       }),
     );
     await flushMicrotasks(10);
-    expect(animations).toHaveLength(1);
+    expect(animations).toHaveLength(2);
     page.frame(100);
     page.pause();
     page.frame(1_000);
@@ -415,7 +415,7 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     const page = makePage();
     void page.ui.onReceiveRequest(portrait([0.1, 0.5], 0.1));
     await flushMicrotasks(10);
-    expect(animations).toHaveLength(2);
+    expect(animations).toHaveLength(3);
     page.frame(180);
     page.pause();
     page.frame(300);
@@ -573,5 +573,123 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     page.unpause();
     page.frame(60);
     expect(page.revealed()).toBe(2);
+  });
+});
+
+describe("a mid-line image change with a transition (#2184)", () => {
+  const AFTER = 1.26;
+  const timed = (keyframes: Keyframe[], duration: number) => ({
+    keyframes,
+    timing: { delay: AFTER, duration, fill: "both" },
+  });
+  const look = (name: string) => ({
+    background: `url("${name}.png")`,
+    imageNames: name,
+    src: `${name}.png`,
+    srcs: [`${name}.png`],
+  });
+  const changeLook = () =>
+    WriteImageMessage.type.request({
+      target: "portrait",
+      instructions: [
+        {
+          control: "show",
+          targetAnimations: [timed([{}], 0) as any],
+          content: {
+            ...look("mia@day"),
+            enterAnimation: timed([{ opacity: 0 }, { opacity: 1 }], 0.5) as any,
+            previousHideAnimation: timed([{ opacity: 1 }, { opacity: 0 }], 0.5) as any,
+          },
+        },
+      ],
+      instant: false,
+      time: 0,
+    });
+
+  const showOldLook = async (page: ReturnType<typeof makePage>) => {
+    void page.ui.onReceiveRequest(
+      WriteImageMessage.type.request({
+        target: "portrait",
+        instructions: [{ control: "show", content: look("mia@night") }],
+        instant: true,
+        time: 0,
+      }),
+    );
+    await flushMicrotasks(10);
+    animations.length = 0;
+  };
+
+  const instances = (page: ReturnType<typeof makePage>) =>
+    Array.from(page.overlay.querySelectorAll(".portrait .image > *")) as HTMLElement[];
+  const on = (el: Element) => animations.filter((a) => a.effect.target === el);
+  const fadeStart = (a: TimedAnimation) =>
+    Number(a.startTime) + Number(a.effect.timing.delay ?? 0);
+
+  test("both looks get their fade when the change arrives, and the fade starts at the directive's moment", async () => {
+    const page = makePage();
+    await showOldLook(page);
+    const [oldLook] = instances(page);
+    void page.ui.onReceiveRequest(changeLook());
+    await flushMicrotasks(10);
+    const [, newLook] = instances(page);
+    expect(instances(page)).toHaveLength(2);
+    expect(on(newLook!)).toHaveLength(1);
+    expect(on(oldLook!)).toHaveLength(1);
+    expect(fadeStart(on(newLook!)[0]!)).toBeCloseTo(AFTER * 1000, 6);
+    expect(fadeStart(on(oldLook!)[0]!)).toBeCloseTo(AFTER * 1000, 6);
+  });
+
+  test("a later directive's target fade in the same write leaves the earlier change at its own moment", async () => {
+    const page = makePage();
+    await showOldLook(page);
+    const [oldLook] = instances(page);
+    const [change] = changeLook().params.instructions;
+    void page.ui.onReceiveRequest(
+      WriteImageMessage.type.request({
+        target: "portrait",
+        instructions: [
+          change!,
+          {
+            control: "hide",
+            targetAnimations: [
+              {
+                keyframes: [{ opacity: 1 }, { opacity: 0 }],
+                timing: { delay: 2.5, duration: 0.5, fill: "both" },
+              } as any,
+            ],
+          },
+        ],
+        instant: false,
+        time: 0,
+      }),
+    );
+    await flushMicrotasks(10);
+    const [, newLook] = instances(page);
+    expect(on(newLook!)).toHaveLength(1);
+    expect(on(oldLook!)).toHaveLength(1);
+    expect(fadeStart(on(newLook!)[0]!)).toBeCloseTo(AFTER * 1000, 6);
+    expect(fadeStart(on(oldLook!)[0]!)).toBeCloseTo(AFTER * 1000, 6);
+  });
+
+  test("a pause before the directive's moment moves the fade by the pause's length", async () => {
+    const page = makePage();
+    await showOldLook(page);
+    const [oldLook] = instances(page);
+    void page.ui.onReceiveRequest(changeLook());
+    await flushMicrotasks(10);
+    const [, newLook] = instances(page);
+    page.frame(500);
+    page.pause();
+    page.frame(1_000);
+    page.unpause();
+    page.frame(0);
+    await flushMicrotasks(10);
+    expect(on(newLook!)).toHaveLength(1);
+    expect(on(oldLook!)).toHaveLength(1);
+    expect(fadeStart(on(newLook!)[0]!)).toBeCloseTo(AFTER * 1000 + 1_000, 6);
+    expect(fadeStart(on(oldLook!)[0]!)).toBeCloseTo(AFTER * 1000 + 1_000, 6);
+    page.frame(700);
+    await flushMicrotasks(10);
+    expect(oldLook!.isConnected).toBe(true);
   });
 });
