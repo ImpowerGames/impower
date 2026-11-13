@@ -1,5 +1,5 @@
-import { filterImage } from "./filterImage";
-import { resolveImageMember, resolveImageReference, resolveImageRoot } from "./resolveImageReference";
+import { filterImage, resolveImageMember, resolveImageRoot } from "./filterImage";
+import { resolveImageReference } from "./resolveImageReference";
 
 export interface ImageLayer {
   src: string;

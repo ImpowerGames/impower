@@ -17,7 +17,7 @@ export const getTypedImageEntry = (
   return undefined;
 };
 
-const UNTYPED_IMAGE_TYPES = ["filtered_image", "image", "layered_image"];
+export const UNTYPED_IMAGE_TYPES = ["filtered_image", "image", "layered_image"];
 
 export const resolveImageReference = (
   context: ImageContext | undefined,
@@ -33,43 +33,6 @@ export const resolveImageReference = (
   for (const type of UNTYPED_IMAGE_TYPES) {
     const entry = getContextEntry(context, type, name);
     if (entry !== undefined) return entry;
-  }
-  return undefined;
-};
-
-export const resolveImageRoot = (
-  context: ImageContext | undefined,
-  struct: any,
-): any => {
-  const seen = new Set<any>();
-  let current = struct;
-  while (current?.["$type"] === "filtered_image" && !seen.has(current)) {
-    seen.add(current);
-    const ref = current["image"];
-    current = !ref?.["$name"]
-      ? undefined
-      : ref["$type"]
-        ? getTypedImageEntry(context, ref["$type"], ref["$name"])
-        : getContextEntry(context, "filtered_image", ref["$name"]) ??
-          getContextEntry(context, "layered_image", ref["$name"]) ??
-          getContextEntry(context, "image", ref["$name"]);
-  }
-  return current;
-};
-
-export const resolveImageMember = (
-  context: ImageContext | undefined,
-  ref: any,
-  containing: ReadonlySet<any>,
-): any => {
-  if (!ref || typeof ref !== "object" || !ref["$name"] || ref["$type"]) {
-    return resolveImageReference(context, ref);
-  }
-  for (const type of UNTYPED_IMAGE_TYPES) {
-    const entry = getContextEntry(context, type, ref["$name"]);
-    if (entry === undefined || containing.has(entry)) continue;
-    if (type === "filtered_image" && containing.has(resolveImageRoot(context, entry))) continue;
-    return entry;
   }
   return undefined;
 };

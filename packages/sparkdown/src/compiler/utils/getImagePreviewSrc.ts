@@ -1,5 +1,5 @@
-import { filterImage } from "./filterImage";
-import { resolveImageMember, resolveImageReference, resolveImageRoot } from "./resolveImageReference";
+import { filterImage, resolveImageMember, resolveImageRoot } from "./filterImage";
+import { resolveImageReference } from "./resolveImageReference";
 
 export const getImagePreviewSrc = (
   context: { [type: string]: { [name: string]: any } } | undefined,
