@@ -938,7 +938,9 @@ export default class WorkspaceWindow {
   }
 
   protected awaitPlayer() {
-    this.clearPlayerWait();
+    if (this._playerWait !== undefined) {
+      return;
+    }
     this._playerWait = setTimeout(() => {
       this._playerWait = undefined;
       if (this.store.preview.modes.game.starting && !this._playerConnected) {
@@ -959,7 +961,10 @@ export default class WorkspaceWindow {
 
   disconnectPlayer() {
     this._playerConnected = false;
-    if (this.store.preview.modes.game.starting) {
+    const game = this.store.preview.modes.game;
+    if (game.running) {
+      this.endGame();
+    } else if (game.starting) {
       this._startGameRequestId = undefined;
       this.debug.end();
       this.awaitPlayer();

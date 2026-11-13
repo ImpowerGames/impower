@@ -1980,6 +1980,30 @@ describe("PLAY pressed before the game player has connected", () => {
     expect(started).toEqual([]);
   });
 
+  it("keeps the limit counted from the press when the preview loads its player meanwhile", () => {
+    vi.useFakeTimers();
+    win.toggleGameRunning();
+    vi.advanceTimersByTime(PLAYER_CONNECT_TIMEOUT_MS - 1000);
+    win.disconnectPlayer();
+    vi.advanceTimersByTime(1000);
+    expect(game().starting).toBeFalsy();
+    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+    expect(snackbar.value?.message).toBe(PLAYER_DID_NOT_CONNECT_MESSAGE);
+  });
+
+  it("returns the bar to Play when the player of a running game goes away", () => {
+    win.connectPlayer();
+    win.toggleGameRunning();
+    answer(true);
+    expect(game().running).toBe(true);
+    win.disconnectPlayer();
+    expect(game().running).toBeFalsy();
+    expect(game().starting).toBeFalsy();
+    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+    win.connectPlayer();
+    expect(started).toHaveLength(1);
+  });
+
   it("carries a held press over to the player that connects after the last one went away", () => {
     win.connectPlayer();
     win.disconnectPlayer();
