@@ -4845,6 +4845,7 @@ export class SparkdownCompiler {
           coveredTo = image.to;
         }
       }
+      const reportedClauseIssues = new Set<string>();
       for (const directive of directives) {
         const directiveImages = shownImages.filter((image) => directive.contentFrom <= image.from && image.to <= directive.contentTo);
         const morph = morphClauseOf(directive);
@@ -4855,6 +4856,9 @@ export class SparkdownCompiler {
         for (const issue of issues) {
           if (!issue?.message || issue.severity === undefined) continue;
           const at = issue.at ?? issue.keyword;
+          const key = `${at.from}:${at.to}:${issue.severity}:${issue.message}`;
+          if (reportedClauseIssues.has(key)) continue;
+          reportedClauseIssues.add(key);
           ((program.diagnostics ??= {})[uri] ??= []).push({
             range: doc.range(at.from, at.to),
             severity: issue.severity,

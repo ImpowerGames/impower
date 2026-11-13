@@ -40,6 +40,15 @@ describe("a directive in a choice line is read over the text the story hands the
     expect(missingAudio(script(line))).toEqual(names);
   });
 
+  test.each([
+    "    + Go ((a loop garbage [x)) y] z)) now",
+    "    + Go ((a over soon [x)) y] z)) now",
+  ])("`%s` reports each problem once though the menu and the chosen text both read it", (line) => {
+    const found = diagnostics(script(line)).map(({ message, line: at, from, to }) => `${at}:${from}-${to} ${message}`);
+    expect(found.length).toBeGreaterThan(1);
+    expect(found.filter((entry, index) => found.indexOf(entry) !== index)).toEqual([]);
+  });
+
   test("a directive whose text the game reads after filling in a value says the editor cannot check it", () => {
     const line = `    + Go ((a [x] {true and "x" or "y"} b)) now`;
     const found = diagnostics(script(line));
