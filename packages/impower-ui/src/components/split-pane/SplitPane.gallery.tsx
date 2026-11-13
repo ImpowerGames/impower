@@ -88,6 +88,28 @@ function PinnedSplitPaneExample({ reverse = false }: { reverse?: boolean }) {
   );
 }
 
+function OverflowSplitPaneExample() {
+  return (
+    <div class="h-72 w-full overflow-hidden rounded border border-surface-border bg-surface">
+      <SplitPane
+        orientation="vertical"
+        overflowPanel="start"
+        defaultSizes={[60, 40]}
+        start={
+          <div class="flex h-full flex-col px-3 pt-3">
+            <div class="flex flex-1 items-center justify-center rounded-card bg-popup shadow-float">
+              Start panel content with a shadow
+            </div>
+          </div>
+        }
+        end={
+          <div class="flex h-full items-center justify-center">End panel</div>
+        }
+      />
+    </div>
+  );
+}
+
 function SplitPaneDemo() {
   return (
     <div class="space-y-6">
@@ -111,6 +133,9 @@ function SplitPaneDemo() {
       </GalleryRow>
       <GalleryRow label="Vertical, reversed, with the pinned end panel shown first: drag and the arrow keys follow what is on screen">
         <PinnedSplitPaneExample reverse />
+      </GalleryRow>
+      <GalleryRow label="Vertical with the start panel allowed to overflow: its content's shadow falls past the divider onto the end panel, while the end panel still clips">
+        <OverflowSplitPaneExample />
       </GalleryRow>
     </div>
   );

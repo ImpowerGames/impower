@@ -1,0 +1,17 @@
+scene start
+  [[mia morph wait]]
+  [[mia with wait over 1s]]
+  [[mia ease ease]]
+  [[mia morph]]
+  [[mia morph talk wait garbage]]
+  [[mia morph talk # note]]
+  [[mia morph = talk]]
+  ((play music theme to 0.5 with echo))
+  ((play music theme loop with over))
+  [[mia-morph]]
+  [[mia-morph with fade]]
+  [[mia # note morph none]]
+  ((theme wait garbage))
+  [[mia:mouth.morph with fade]]
+  [[mia~mouth.morph]]
+end

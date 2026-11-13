@@ -49,7 +49,8 @@ variables:
   DISPLAY_CHAIN_COMMENTS: (?:{{BLOCK_COMMENT_ON_LINE}}*{{LINE_COMMENT_TO_END}}?)
   DISPLAY_CHAIN_END: (?:{{WS}}*{{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
-  IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
+  IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease", "morph"]
+  ASSET_VALUE_CLAUSE_KEYWORDS: ["after", "over", "to", "with", "ease", "morph"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
@@ -87,6 +88,29 @@ variables:
   IDENTIFIER: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}{{IDENTIFIER_AT_PART}}*(?<![-]))
 
   TAG_START: (?:[#]+(?=$|{{WS}}))
+  # lookaround: a directive's names read whole (`mia-morph`,
+  # `bunny:mouth.morph`, `bunny~mouth.morph` in `AssetCommandFileName` and
+  # `AssetCommandFilter`), but the keyword lists' `STORY_NAME_START` lets
+  # `-`, `.`, `:` and `~` end the word before them, so
+  # `AssetCommandContent`'s lazy name text would stop inside a name and start
+  # the clauses at `morph`. A name has no end the split could stop at
+  # instead, and the lists' boundary must keep those characters as word ends
+  # elsewhere, so the split starts a clause word only after whitespace or the
+  # directive's opening `[[` or `((`, as the interpreter splits words.
+  ASSET_CLAUSE_START: (?<={{WS}}|\[\[|[(][(])
+  # lookaround: the interpreter takes the word after a control as its target
+  # whatever it is spelled like (`[[show with fade]]` shows `with`), except
+  # after `navigate`, whose screen is optional and never a clause word
+  # (`[[navigate to menu]]`). The control lists are shared with
+  # `AssetCommandInstruction`, so `navigate` is refused here rather than
+  # copied into a second list without it.
+  ASSET_TARGET_CONTROL: (?:{{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}}|(?!navigate){{LAYOUT_CONTROL_KEYWORDS}})
+  ASSET_WORD: (?:[#]*[^\s#]\S*)
+  ASSET_CONTROL_AND_TARGET: (?:{{ASSET_TARGET_CONTROL}}{{WS}}+{{ASSET_WORD}})
+  # lookaround: a clause word is a whole word, so it is followed by whitespace
+  # or the directive's end; followed by anything else it is part of a name
+  # (`with-x`), which `AssetCommandFileName` reads whole.
+  ASSET_CLAUSES_START: (?:{{TAG_START}}|{{ASSET_CLAUSE_START}}(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}))
   NOT_TAG_HASH: (?:[#]+[^#\s])
   # lookaround: ActionLineEnd and LineEnd own a `#x` the line begins with,
   # as display text. The line rules that end here (ImplicitAction,
@@ -3459,7 +3483,7 @@ repository:
           - { include: "#AssetCommandContent" }
 
   AssetCommandContent:
-    match: (.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)
+    match: ({{ASSET_CONTROL_AND_TARGET}}?.*?)($|{{ASSET_CLAUSES_START}}.*)
     captures:
       1:
         patterns:
@@ -3469,10 +3493,34 @@ repository:
         patterns:
           - { include: "#Annotation" }
           - { include: "#RequiredWhitespace" }
+          - { include: "#AssetCommandValueClause" }
           - { include: "#AssetCommandClauseKeyword" }
           - { include: "#TimeValue" }
           - { include: "#NumberValue" }
           - { include: "#NameValue" }
+
+  AssetCommandValueClause:
+    match: ({{ASSET_VALUE_CLAUSE_KEYWORDS}})({{WS}}+)({{ASSET_WORD}})
+    captures:
+      1:
+        patterns:
+          - { include: "#AssetCommandClauseKeyword" }
+      2:
+        patterns:
+          - { include: "#RequiredWhitespace" }
+      3:
+        patterns:
+          - { include: "#AssetCommandClauseValue" }
+
+  AssetCommandClauseValue:
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#TimeValue" }
+          - { include: "#NumberValue" }
+          - { include: "#NameValue" }
+          - { include: "#IllegalChar" }
 
   AssetCommandInstruction:
     match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LAYOUT_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
