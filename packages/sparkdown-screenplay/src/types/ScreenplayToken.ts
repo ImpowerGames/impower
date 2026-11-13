@@ -8,4 +8,5 @@ export interface ScreenplayToken {
   position?: "l" | "r";
   prefix?: string;
   suffix?: string;
+  from?: number;
 }

@@ -67,7 +67,7 @@ export default class ScreenplayTypesetter {
       } else if (t.tag === "separator") {
         const prevSpan = spans.at(-1);
         if (prevSpan && prevSpan.tag !== "separator") {
-          spans.push({ tag: t.tag });
+          spans.push({ tag: t.tag, from: t.from });
         }
       } else if (t.tag === "function") {
         if (isHiddenIdentifier(t.tag, config)) {

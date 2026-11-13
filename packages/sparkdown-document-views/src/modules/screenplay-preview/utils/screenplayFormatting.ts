@@ -1,5 +1,5 @@
 import { HighlightStyle, syntaxTree } from "@codemirror/language";
-import type { EditorState, Text } from "@codemirror/state";
+import type { EditorState, Line, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
@@ -8,6 +8,8 @@ import { SyntaxNodeRef } from "@lezer/common";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
+import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
+import { screenplayBlankLines } from "../../../../../sparkdown-screenplay/src/utils/screenplayBlankLines";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
@@ -344,50 +346,69 @@ export const decorate = (
   const isBlankLine = (nodeRef: SyntaxNodeRef) =>
     printsAsBlankLine(nodeRef.name, nodeRef.node.parent?.name);
 
-  const opensOwnLine = (nodeRef: SyntaxNodeRef) => {
-    const opening = doc.lineAt(nodeRef.from);
-    return opening.from === nodeRef.from && opening.to < nodeRef.to;
-  };
-
-  const hideOpeningLine = (nodeRef: SyntaxNodeRef) => {
-    const opening = doc.lineAt(nodeRef.from);
-    decorations.push(
-      ...createDecorations(doc, {
-        type: "collapse",
-        from: opening.from,
-        to: opening.to,
-      }),
-    );
-  };
+  const opensOwnLine = (nodeRef: SyntaxNodeRef) =>
+    doc.lineAt(nodeRef.from).to < blockEnd(nodeRef);
 
   const isInlineHidden = (nodeRef: SyntaxNodeRef) => {
     const result = getStyleTags(nodeRef);
     return result?.tags.some((t) => INLINE_HIDDEN_TAGS.includes(t));
   };
 
-  const blankLineStart = (nodeRef: SyntaxNodeRef) => {
-    const line = doc.lineAt(nodeRef.from);
-    const before = nodeRef.node.prevSibling;
-    return before &&
-      before.to > line.from &&
-      printsAsBlankLine(before.name, before.parent?.name)
-      ? line.from
-      : nodeRef.from;
-  };
+  const tree = treeOverride ?? syntaxTree(state);
 
-  const hideBlockRange = (nodeRef: SyntaxNodeRef, hideFrom = nodeRef.from) => {
-    const to = nodeRef.to;
-    const text = doc.sliceString(nodeRef.from, to);
-    const hiddenNodeEndsWithNewline = text.endsWith("\n");
-    const hideTo = hiddenNodeEndsWithNewline ? to - 1 : to;
-    decorations.push(
-      ...createDecorations(doc, {
-        type: "collapse",
-        from: hideFrom,
-        to: hideTo,
-      }),
-    );
-    lineStart = nodeRef.to;
+  const blankLines = new Set(
+    screenplayBlankLines(tree, doc.toString(), config).map(
+      (position) => doc.lineAt(Math.min(position, doc.length)).number,
+    ),
+  );
+
+  const handledLines = new Set<number>();
+
+  const blankRow = (line: Line) =>
+    line.text.trim()
+      ? createDecorations(doc, { type: "collapse", from: line.from, to: line.to })
+      : createDecorations(doc, {
+          type: "collapse",
+          from: line.from,
+          to: line.to,
+          separator: true,
+        });
+
+  const hideLines = (fromPosition: number, toPosition: number, name = "") => {
+    const first = doc.lineAt(fromPosition).number;
+    const last = doc.lineAt(toPosition).number;
+    for (let number = first; number <= last; number++) {
+      if (handledLines.has(number)) continue;
+      handledLines.add(number);
+      const line = doc.line(number);
+      if (number === first && name) {
+        if (blankLines.has(number)) {
+          decorations.push(
+            Decoration.widget({
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              block: true,
+              side: -1,
+            }).range(line.from),
+          );
+        }
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "name",
+            from: line.from,
+            to: line.to,
+            name,
+            pageBreak: false,
+          }),
+        );
+      } else if (blankLines.has(number)) {
+        decorations.push(...blankRow(line));
+      } else {
+        decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
+        if (line.length > 0) {
+          decorations.push(Decoration.replace({}).range(line.from, line.to));
+        }
+      }
+    }
   };
 
   const hideInlineRange = (nodeRef: SyntaxNodeRef) => {
@@ -427,14 +448,7 @@ export const decorate = (
   let lineStart = from;
   const processNewline = (newlineFrom: number, newlineTo: number) => {
     if (isWhitespaceOnly(lineStart, newlineFrom)) {
-      decorations.push(
-        ...createDecorations(doc, {
-          type: "collapse",
-          from: lineStart,
-          to: newlineFrom,
-          separator: true,
-        }),
-      );
+      hideLines(lineStart, lineStart);
     }
     lineStart = newlineTo;
   };
@@ -445,8 +459,6 @@ export const decorate = (
   let frontMatterPositionContent: Record<string, MarkupContent[]> = {};
   let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
   let frontMatterKeyword = "";
-
-  const tree = treeOverride ?? syntaxTree(state);
 
   tree.iterate({
     from,
@@ -569,6 +581,7 @@ export const decorate = (
             pageBreak: false,
           }),
         );
+        handledLines.add(doc.lineAt(from).number);
         lineStart = nodeRef.to;
         return false;
       } else if (isLeadingIndent(name, from, to)) {
@@ -595,10 +608,18 @@ export const decorate = (
         isLuauFlowBlockContainer(name) &&
         opensOwnLine(nodeRef)
       ) {
-        hideOpeningLine(nodeRef);
+        hideLines(from, from);
         return true;
       } else if (isBlankLine(nodeRef)) {
-        hideBlockRange(nodeRef, blankLineStart(nodeRef));
+        const functionName = config?.screenplay_print_function_identifiers
+          ? rootFunctionName(nodeRef.node, (from, to) => doc.sliceString(from, to))
+          : "";
+        hideLines(from, blockEnd(nodeRef), functionName);
+        lineStart = nodeRef.to;
+        return false;
+      } else if (name === "BlockWrite" || name === "InlineWrite") {
+        hideLines(from, blockEnd(nodeRef));
+        lineStart = nodeRef.to;
         return false;
       } else if (isHiddenFlowLogic(name)) {
         hideInlineRange(nodeRef);
@@ -617,7 +638,8 @@ export const decorate = (
       const to = nodeRef.to;
       if (name === "FrontMatter") {
         if (config?.screenplay_print_title_page === false) {
-          hideBlockRange(nodeRef);
+          hideLines(from, blockEnd(nodeRef));
+          lineStart = nodeRef.to;
           return;
         }
         decorations.push(
