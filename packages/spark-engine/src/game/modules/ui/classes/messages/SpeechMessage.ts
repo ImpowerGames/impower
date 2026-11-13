@@ -1,13 +1,6 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
-import type { LoadAudioPlayerParams } from "../../../audio/types/LoadAudioPlayerParams";
 
 export type SpeechMethod = typeof SpeechMessage.method;
-
-export interface SpeechClip {
-  load: LoadAudioPlayerParams;
-  after: number;
-  queued?: true;
-}
 
 export interface SpeechParams {
   character?: string;
@@ -15,7 +8,6 @@ export interface SpeechParams {
   voiced?: true;
   revealed?: true;
   time?: number;
-  clips?: SpeechClip[];
 }
 
 export class SpeechMessage {

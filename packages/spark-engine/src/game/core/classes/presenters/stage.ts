@@ -1,27 +1,19 @@
-import type { SpeechClip } from "../../../modules/ui/classes/messages/SpeechMessage";
-import type { Instructions } from "../../types/Instructions";
-import { VOICING_CONTROLS } from "../../utils/voicingControls";
+import type { BeatSpeech, Instructions } from "../../types/Instructions";
 import type { Game } from "../Game";
+import { silentVoice, voiceSpans } from "./voice";
 
-function unheardVoice(
+function speechOf(
   game: Game,
   instructions: Instructions,
   instant?: boolean,
-): SpeechClip[] | undefined {
-  if (instant || game.context.system.previewing === undefined) {
-    return undefined;
+): BeatSpeech | undefined {
+  const speech = instructions.speech;
+  const voice = silentVoice(game, instructions, instant);
+  if (!speech || !voice) {
+    return speech;
   }
-  return (instructions.audio?.["voice"] ?? []).flatMap((event) =>
-    VOICING_CONTROLS.has(event.control) && event.assets?.length
-      ? game.module.audio
-          .resolveLoadParams("voice", event.assets)
-          .map((load) => ({
-            load,
-            after: event.after ?? 0,
-            ...(event.control === "queue" ? { queued: true as const } : {}),
-          }))
-      : [],
-  );
+  const spans = voiceSpans(voice, (key) => game.module.audio.clipLength(key));
+  return spans.length > 0 ? { character: speech.character, spans } : speech;
 }
 
 export function clearStage(
@@ -65,12 +57,7 @@ export function writeStage(
     );
   }
 
-  game.module.ui.speak(
-    instructions.speech,
-    instant,
-    time,
-    unheardVoice(game, instructions, instant),
-  );
+  game.module.ui.speak(speechOf(game, instructions, instant), instant, time);
 
   if (!layoutsApplied) {
     applyLayoutDirectives(game, instructions, instant);

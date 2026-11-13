@@ -39,10 +39,8 @@ import {
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphArtifactMessage";
 import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphNeedMessage";
-import { SpeechMeasuredMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SpeechMeasuredMessage";
 import {
   SpeechMessage,
-  type SpeechClip,
   type SpeechParams,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SpeechMessage";
 import type { ThemeVariables } from "../../../../sparkle-style-transformer/src/types/themeVariables";
@@ -1636,14 +1634,7 @@ export default class UIManager extends Manager {
     this._speech = undefined;
   }
 
-  protected speak({
-    character,
-    spans,
-    voiced,
-    revealed,
-    time,
-    clips: unheard,
-  }: SpeechParams) {
+  protected speak({ character, spans, voiced, revealed, time }: SpeechParams) {
     const morphs = this.morphs;
     if (!morphs) {
       return;
@@ -1659,56 +1650,17 @@ export default class UIManager extends Manager {
       this.speakClips(morphs, character, clips, speech);
       return;
     }
-    if (voiced && character && unheard?.length) {
-      this.speakUnheard(morphs, character, unheard, time, speech);
-      return;
-    }
-    const lead = this.leadOf(time);
+    const shown = this.getDisplayTime(time);
+    const doc = this.app.overlay?.ownerDocument;
+    const now = Number(
+      doc?.timeline?.currentTime ?? doc?.defaultView?.performance.now(),
+    );
+    const lead =
+      shown != null && Number.isFinite(now) ? (shown - now) / 1000 : 0;
     morphs.speak(
       character,
       spans.map(([start, end]): [number, number] => [start + lead, end + lead]),
     );
-  }
-
-  protected leadOf(time: number | undefined): number {
-    const shown = this.getDisplayTime(time);
-    const now = this.documentNow();
-    return shown != null && Number.isFinite(now) ? (shown - now) / 1000 : 0;
-  }
-
-  protected speakUnheard(
-    morphs: MorphPlayback,
-    character: string,
-    unheard: SpeechClip[],
-    time: number | undefined,
-    speech: Speech,
-  ) {
-    morphs.speak(character, []);
-    const audio = this.app.audio;
-    void Promise.all(
-      unheard.map((clip) => audio?.clipDuration(clip.load)),
-    ).then((durations) => {
-      if (this._speech !== speech || this._disposed) {
-        return;
-      }
-      const spans: [number, number][] = [];
-      let end = 0;
-      unheard.forEach((clip, index) => {
-        const duration = durations[index];
-        if (duration == null || duration <= 0) {
-          return;
-        }
-        const start = clip.queued ? Math.max(clip.after, end) : clip.after;
-        spans.push([start, start + duration]);
-        end = Math.max(end, start + duration);
-      });
-      const lead = this.leadOf(time);
-      morphs.speak(
-        character,
-        spans.map(([start, stop]): [number, number] => [start + lead, stop + lead]),
-      );
-      this.app.emit(SpeechMeasuredMessage.type.notification({ end }));
-    });
   }
 
   protected speakClips(

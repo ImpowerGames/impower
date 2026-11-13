@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Clock } from "../../game/core/classes/Clock";
+import { voiceSpans } from "../../game/core/classes/presenters/voice";
 import { BEAT_LEAD_MS } from "../../game/core/utils/sharedClock";
 import {
   createHarness,
@@ -212,21 +213,30 @@ describe("playing the previewed beat once (#2256)", () => {
     expect(uiState(h)).toEqual(still);
   });
 
-  test("a voiced line plays until the clip the page measured has ended, then rests on the still", async () => {
-    const ended = await harness();
-    await play(ended, VOICED_LINE);
-    await advance(ended, 5000);
-    expect(ended.game.playingBeat).toBe(true);
-    ended.game.connection.receive({
-      jsonrpc: "2.0",
-      method: "morph/speechMeasured",
-      params: { end: 6 },
-    } as any);
-    await advance(ended, 6000 - 5000 - 200);
-    expect(ended.game.playingBeat).toBe(true);
-    await advance(ended, BEAT_LEAD_MS + 1000);
-    expect(ended.game.playingBeat).toBe(false);
-    const still = speech(ended).at(-1).params;
+  test("a voiced line measures its clip, plays silently for the clip's length, then rests on the still", async () => {
+    const h = await harness();
+    await play(h, VOICED_LINE);
+    await advance(h, 100);
+    const measured = flattenMessages(h.messages).filter(
+      (m) => m?.method === "audio/measure",
+    );
+    expect(measured).toHaveLength(1);
+    expect(measured[0].params.clips).toEqual([
+      expect.objectContaining({ src: "https://example.com/mia_hello.wav" }),
+    ]);
+    const sounded = flattenMessages(h.messages)
+      .filter((m) => m?.method === "audio/update")
+      .flatMap((m) => m.params?.updates ?? [])
+      .filter((update: any) => update.control === "start");
+    expect(sounded).toEqual([]);
+    const spoken = speech(h).find((m) => m.params.spans.length > 0);
+    expect(spoken.params.voiced).toBeUndefined();
+    expect(spoken.params.spans).toEqual([[0, 2.5]]);
+    await advance(h, BEAT_LEAD_MS + 2300);
+    expect(h.game.playingBeat).toBe(true);
+    await advance(h, 400);
+    expect(h.game.playingBeat).toBe(false);
+    const still = speech(h).at(-1).params;
     expect(still.spans).toEqual([]);
     expect(still.voiced).toBeUndefined();
   });
@@ -244,22 +254,90 @@ describe("playing the previewed beat once (#2256)", () => {
     expect(rest.revealed).toBeUndefined();
   });
 
-  test("a voiced line plays silently and tells the page the clip it would have heard", async () => {
+  test("a page that never answers the measurement delays the beat only until the bound, then the typed speech plays", async () => {
     const h = await harness();
+    const audio = h.game.module.audio as any;
+    const emitSettled = audio.emitSettled.bind(audio);
+    audio.emitSettled = (msg: any) =>
+      msg.method === "audio/measure" ? new Promise(() => {}) : emitSettled(msg);
     await play(h, VOICED_LINE);
-    const audio = flattenMessages(h.messages).filter(
-      (m) => m?.method === "audio/update",
-    );
-    expect(audio).toEqual([]);
-    const voiced = speech(h).find((m) => m.params.voiced);
-    expect(voiced).toBeTruthy();
-    expect(voiced.params.clips).toEqual([
-      expect.objectContaining({
-        after: 0,
-        load: expect.objectContaining({
-          src: "https://example.com/mia_hello.wav",
-        }),
-      }),
+    await advance(h, 1000);
+    expect(h.game.playingBeat).toBe(true);
+    expect(speech(h).some((m) => m.params.spans.length > 0)).toBe(false);
+    expect(h.timerDelays()).toContain(5000);
+    h.flushTimers();
+    await advance(h, 100);
+    const typed = speech(h).find((m) => m.params.spans.length > 0);
+    expect(typed.params.voiced).toBe(true);
+    await advance(h, 4000);
+    expect(h.game.playingBeat).toBe(false);
+  });
+
+  test("a measurement answered after its play was cancelled only fills the cache the next play uses", async () => {
+    const h = await harness();
+    const audio = h.game.module.audio as any;
+    const emitSettled = audio.emitSettled.bind(audio);
+    let answer!: (result: unknown) => void;
+    audio.emitSettled = (msg: any) =>
+      msg.method === "audio/measure"
+        ? new Promise((resolve) => {
+            answer = resolve;
+          })
+        : emitSettled(msg);
+    await play(h, VOICED_LINE);
+    await advance(h, 100);
+    h.game.updateProgram(h.game.program);
+    expect(h.game.playingBeat).toBe(false);
+    h.reset();
+    answer({ durations: [4] });
+    await advance(h, 1000);
+    expect(speech(h)).toEqual([]);
+    expect(audio.clipLength(audio.resolveLoadParams("voice", ["mia_hello"])[0].key)).toBe(4);
+
+    const again = await harness();
+    const againAudio = again.game.module.audio as any;
+    againAudio._clipLengths = audio._clipLengths;
+    await play(again, VOICED_LINE);
+    await advance(again, 100);
+    expect(
+      flattenMessages(again.messages).filter((m) => m?.method === "audio/measure"),
+    ).toEqual([]);
+    expect(speech(again).find((m) => m.params.spans.length > 0).params.spans).toEqual([[0, 4]]);
+  });
+});
+
+describe("the voice timeline of a silently played beat (#2256)", () => {
+  const clip = (key: string) => ({ channel: "voice", key });
+  const lengths: Record<string, number> = { first: 2, second: 3, third: 1 };
+
+  test("a queued event starts its after when the clips before it end, and its clips start together", () => {
+    expect(
+      voiceSpans(
+        [
+          { after: 0, queued: false, clips: [clip("first")] },
+          { after: 1, queued: true, clips: [clip("second"), clip("third")] },
+        ],
+        (key) => lengths[key],
+      ),
+    ).toEqual([
+      [0, 2],
+      [3, 6],
+      [3, 4],
+    ]);
+  });
+
+  test("a played event starts at its own after, and a clip with no length is left out", () => {
+    expect(
+      voiceSpans(
+        [
+          { after: 0.5, queued: false, clips: [clip("first"), clip("missing")] },
+          { after: 0.25, queued: false, clips: [clip("third")] },
+        ],
+        (key) => lengths[key],
+      ),
+    ).toEqual([
+      [0.5, 2.5],
+      [0.25, 1.25],
     ]);
   });
 });

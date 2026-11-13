@@ -21,6 +21,7 @@ import {
   UNSHOWN_TEXT_MESSAGE,
 } from "./presenters/textLayouts";
 import { VisualNovelPresenter } from "./presenters/VisualNovelPresenter";
+import { silentVoice, voiceSpans } from "./presenters/voice";
 
 export { writeBeatText } from "./presenters/VisualNovelPresenter";
 
@@ -131,7 +132,6 @@ export class Coordinator<G extends Game> {
     this._played = undefined;
     this._onTick = undefined;
     this._game.module.ui.setBeatPlaying(false);
-    this._game.module.ui.restSpeech();
     this.display({ instant: true, preview: true });
     played();
   }
@@ -432,7 +432,11 @@ export class Coordinator<G extends Game> {
     let elapsedMS = 0;
     let ready = false;
     let finished = false;
-    const totalDurationMS = (instructions.end ?? 0) * 1000;
+    let totalDurationMS = (instructions.end ?? 0) * 1000;
+    const voice = silentVoice(game, instructions, instant);
+    const measureTriggerId = voice
+      ? game.module.audio.measureClips(voice.flatMap((event) => event.clips))
+      : null;
     const handleTick = (deltaMS: number): void => {
       if (!ready) {
         const audioReady = audioTriggerIds.every((n) =>
@@ -441,8 +445,20 @@ export class Coordinator<G extends Game> {
         const assetsReady =
           assetTriggerId == null || assets.isReady(assetTriggerId);
         const loadReady = loadTriggerId == null || assets.isReady(loadTriggerId);
-        if (audioReady && assetsReady && loadReady) {
+        const voiceReady =
+          measureTriggerId == null || game.module.audio.isReady(measureTriggerId);
+        if (audioReady && assetsReady && loadReady && voiceReady) {
           ready = true;
+          if (voice && measureTriggerId != null) {
+            game.module.audio.trigger(measureTriggerId);
+            const spans = voiceSpans(voice, (key) =>
+              game.module.audio.clipLength(key),
+            );
+            totalDurationMS = Math.max(
+              totalDurationMS,
+              ...spans.map(([, end]) => end * 1000),
+            );
+          }
           this._startedExecution = true;
           const time = game.context.system.now() + BEAT_LEAD_MS;
           game.module.audio.triggerAll(audioTriggerIds, time);
@@ -472,13 +488,7 @@ export class Coordinator<G extends Game> {
           cutsceneTriggerId = null;
           this._cutscenePlaying = false;
         }
-        const voiceEnd = game.module.ui.voiceEnd;
-        if (
-          elapsedMS >= totalDurationMS &&
-          cutsceneTriggerId == null &&
-          voiceEnd !== null &&
-          elapsedMS >= (voiceEnd ?? 0) * 1000
-        ) {
+        if (elapsedMS >= totalDurationMS && cutsceneTriggerId == null) {
           finished = true;
           handleFinished();
         }

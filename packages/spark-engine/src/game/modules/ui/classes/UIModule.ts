@@ -168,8 +168,7 @@ import {
   WriteTextMessage,
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
-import { SpeechMeasuredMessage } from "./messages/SpeechMeasuredMessage";
-import { SpeechMessage, type SpeechClip, type SpeechMessageMap } from "./messages/SpeechMessage";
+import { SpeechMessage, type SpeechMessageMap } from "./messages/SpeechMessage";
 
 function sameValue(a: unknown, b: unknown): boolean {
   if (a === b) {
@@ -1829,24 +1828,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _voicedSpeech?: BeatSpeech;
 
-  restSpeech() {
-    this._voicedSpeech = undefined;
-    this._voiceEnd = undefined;
-  }
-
-  protected _voiceEnd: number | null | undefined;
-
-  get voiceEnd(): number | null | undefined {
-    return this._voiceEnd;
-  }
-
   protected _beatPlaying = false;
 
   setBeatPlaying(playing: boolean) {
     this._beatPlaying = playing;
-    if (!playing) {
-      this._voiceEnd = undefined;
-    }
   }
 
   protected showsMovieStill(): boolean {
@@ -1854,12 +1839,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return previewing != null && previewing !== false && !this._beatPlaying;
   }
 
-  speak(
-    speech: BeatSpeech | undefined,
-    instant = false,
-    time?: number,
-    clips?: SpeechClip[],
-  ) {
+  speak(speech: BeatSpeech | undefined, instant = false, time?: number) {
     if (this.context?.system?.simulating) {
       return;
     }
@@ -1871,9 +1851,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     this._speaking = speaking;
-    if (voiced && clips?.length) {
-      this._voiceEnd = null;
-    }
     void this.emit(
       SpeechMessage.type.notification({
         ...(speech?.character ? { character: speech.character } : {}),
@@ -1881,7 +1858,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ...(voiced ? { voiced: true as const } : {}),
         ...(voiced && instant ? { revealed: true as const } : {}),
         ...(time != null ? { time } : {}),
-        ...(voiced && clips?.length ? { clips } : {}),
       }),
     );
   }
@@ -5643,12 +5619,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   attributes = new this.Attributes();
 
   override onReceiveNotification(msg: NotificationMessage): void {
-    if (SpeechMeasuredMessage.type.isNotification(msg)) {
-      if (this._voiceEnd === null) {
-        this._voiceEnd = msg.params.end;
-      }
-      return;
-    }
     if (MorphNeedMessage.type.isNotification(msg)) {
       const ref = this._morphWritten.get(msg.params.key);
       if (ref) {

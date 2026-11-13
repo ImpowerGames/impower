@@ -19,6 +19,10 @@ import {
   type LoadAudioPlayerMessageMap,
 } from "./messages/LoadAudioPlayerMessage";
 import {
+  MeasureAudioMessage,
+  type MeasureAudioMessageMap,
+} from "./messages/MeasureAudioMessage";
+import {
   UpdateAudioPlayersMessage,
   type UpdateAudioPlayersMessageMap,
 } from "./messages/UpdateAudioPlayersMessage";
@@ -32,6 +36,8 @@ export interface AudioConfig {}
 
 const BEAT_SCOPED_CHANNELS = new Set(["sound", "voice"]);
 
+const CLIP_MEASURE_TIMEOUT_MS = 5000;
+
 export interface AudibleLoop {
   to: number | undefined;
   looping: boolean;
@@ -42,7 +48,8 @@ export interface AudioState {
 }
 
 export type AudioMessageMap = LoadAudioPlayerMessageMap &
-  UpdateAudioPlayersMessageMap;
+  UpdateAudioPlayersMessageMap &
+  MeasureAudioMessageMap;
 
 export class AudioModule extends Module<
   AudioState,
@@ -747,6 +754,41 @@ export class AudioModule extends Module<
       if (autoTrigger && !this.superseded(epoch)) {
         trigger();
       }
+    });
+    return id;
+  }
+
+  protected _clipLengths = new Map<string, number | null>();
+
+  clipLength(key: string): number | undefined {
+    return this._clipLengths.get(key) ?? undefined;
+  }
+
+  measureClips(clips: LoadAudioPlayerParams[]): number {
+    const id = this.nextTriggerId();
+    const unmeasured = clips.filter((clip) => !this._clipLengths.has(clip.key));
+    if (unmeasured.length === 0 || this.context.system.simulating) {
+      this.enableTrigger(id);
+      return id;
+    }
+    let measured = false;
+    const finish = () => {
+      if (!measured) {
+        measured = true;
+        this.enableTrigger(id);
+      }
+    };
+    this.context.system.setTimeout?.(finish, CLIP_MEASURE_TIMEOUT_MS);
+    void this.emitSettled(
+      MeasureAudioMessage.type.request({ clips: unmeasured }),
+    ).then((result) => {
+      result?.durations?.forEach((duration, index) => {
+        const clip = unmeasured[index];
+        if (clip) {
+          this._clipLengths.set(clip.key, duration);
+        }
+      });
+      finish();
     });
     return id;
   }
