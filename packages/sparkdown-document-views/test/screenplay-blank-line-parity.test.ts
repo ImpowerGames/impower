@@ -18,6 +18,8 @@ const ELEMENTS: Record<string, string[]> = {
   condition: ["  if true then", "    It rains.", "  end"],
   "do block": ["  do", "    It snows.", "  end"],
   loop: ["  while false do", "    It hails.", "  end"],
+  alternator: ["  queue", "    | First time.", "    | Second time.", "  end"],
+  "one-line alternator": ["  queue | A # t | B end"],
   branch: ["  branch b", "    Inside.", "  end"],
   function: ["  function f()", "    Inner.", "  end"],
   divert: ["  -> s"],
@@ -109,7 +111,9 @@ const shape = (rows: string[]) =>
     .map((row) => (row ? "text" : "blank"))
     .filter((kind, index, kinds) => kind === "blank" || kinds[index - 1] !== "text");
 
-const PAIRS = Object.keys(ELEMENTS).flatMap((first) =>
+const compact = (rows: string[]) => rows.join("").replace(/\s+/g, "");
+
+const PAIRS =Object.keys(ELEMENTS).flatMap((first) =>
   Object.keys(ELEMENTS).map((second) => [first, second] as const),
 );
 
@@ -122,6 +126,7 @@ describe("screenplay page and export agree on blank lines", () => {
       shape(screen),
       `screen ${JSON.stringify(screen)} export ${JSON.stringify(printed)}`,
     ).toEqual(shape(printed));
+    expect(compact(screen)).toBe(compact(printed));
   });
 
   it("puts the export's blank line between dialogue and a following choice", () => {

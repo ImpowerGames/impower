@@ -344,11 +344,13 @@ export const decorate = (
   const isBlankLine = (nodeRef: SyntaxNodeRef) =>
     printsAsBlankLine(nodeRef.name, nodeRef.node.parent?.name);
 
+  const opensOwnLine = (nodeRef: SyntaxNodeRef) => {
+    const opening = doc.lineAt(nodeRef.from);
+    return opening.from === nodeRef.from && opening.to < nodeRef.to;
+  };
+
   const hideOpeningLine = (nodeRef: SyntaxNodeRef) => {
     const opening = doc.lineAt(nodeRef.from);
-    if (opening.from !== nodeRef.from || opening.to >= nodeRef.to) {
-      return;
-    }
     decorations.push(
       ...createDecorations(doc, {
         type: "collapse",
@@ -574,7 +576,17 @@ export const decorate = (
       } else if (name === "ColonSeparator") {
         hideInlineRange(nodeRef);
         return false;
-      } else if (isBlankLine(nodeRef) && isLuauFlowBlockContainer(name)) {
+      } else if (
+        name === "LuauAlternatorSeparator" &&
+        doc.lineAt(from).from === from
+      ) {
+        hideInlineRange(nodeRef);
+        return false;
+      } else if (
+        isBlankLine(nodeRef) &&
+        isLuauFlowBlockContainer(name) &&
+        opensOwnLine(nodeRef)
+      ) {
         hideOpeningLine(nodeRef);
         return true;
       } else if (isBlankLine(nodeRef)) {
