@@ -73,10 +73,23 @@ const concat = (parts: Uint8Array[]): Uint8Array => {
 };
 
 export const isOggOpus = (bytes: Uint8Array): boolean => {
-  if (bytes.length < 27 || !ascii(bytes, 0, "OggS")) {
-    return false;
+  let offset = 0;
+  while (
+    offset + 27 <= bytes.length &&
+    ascii(bytes, offset, "OggS") &&
+    bytes[offset + 5]! & BEGINNING_OF_STREAM
+  ) {
+    const segments = bytes[offset + 26]!;
+    let body = offset + 27 + segments;
+    if (ascii(bytes, body, "OpusHead")) {
+      return true;
+    }
+    for (let i = 0; i < segments; i++) {
+      body += bytes[offset + 27 + i]!;
+    }
+    offset = body;
   }
-  return ascii(bytes, 27 + bytes[26]!, "OpusHead");
+  return false;
 };
 
 const opusPacketSamples = (packet: Uint8Array): number => {
@@ -166,9 +179,9 @@ const readLink = (stream: OggLogicalStream): OggOpusLink | null => {
       .reduce((sum, index) => sum + opusPacketSamples(stream.packets[index]!), 0);
     origin = Math.max(0, firstAudioPage.granule - samples);
   }
-  let finalGranule = 0;
+  let finalGranule = -1;
   for (const page of stream.pages) {
-    if (page.granule >= 0 && page.completed.length > 0) {
+    if (page.granule >= 0 && page.completed.some((index) => index >= 2)) {
       finalGranule = page.granule;
     }
   }
@@ -223,8 +236,8 @@ const decodeLink = async (link: OggOpusLink): Promise<Float32Array[]> => {
     const decoded = decoder.decodeFrames(link.packets);
     const expected = link.finalGranule - link.origin - link.preSkip;
     const length =
-      expected > 0
-        ? Math.min(decoded.samplesDecoded, expected)
+      link.finalGranule >= 0
+        ? Math.min(decoded.samplesDecoded, Math.max(0, expected))
         : decoded.samplesDecoded;
     const order =
       link.family === 1

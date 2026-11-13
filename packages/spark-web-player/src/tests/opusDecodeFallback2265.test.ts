@@ -77,12 +77,17 @@ const oggPage = (packets: Uint8Array[], granule: number, flags: number, serial: 
 
 const mux = (
   packets: Uint8Array[],
-  { granuleOffset = 0, serial = 0x2265, head = TONE_HEAD } = {},
+  {
+    granuleOffset = 0,
+    serial = 0x2265,
+    head = TONE_HEAD,
+    finalGranule = TONE_FRAMES + TONE_PRE_SKIP,
+  } = {},
 ) => {
   const pages = [oggPage([head], 0, 2, serial, 0), oggPage([TONE_TAGS], 0, 0, serial, 1)];
   packets.forEach((packet, i) => {
     const last = i === packets.length - 1;
-    const granule = granuleOffset + (last ? TONE_FRAMES + TONE_PRE_SKIP : (i + 1) * 960);
+    const granule = granuleOffset + (last ? finalGranule : (i + 1) * 960);
     pages.push(oggPage([packet], granule, last ? 4 : 0, serial, pages.length));
   });
   return concat(pages);
@@ -224,6 +229,20 @@ describe("an Ogg Opus clip in a webview whose decoder has no Opus (#2265)", () =
     expect(rate(1)).toBeCloseTo(1320, -1);
     expect(rate(2)).toBeCloseTo(880, -1);
     expect(rate(3)).toBeCloseTo(1320, -1);
+  });
+
+  test("decodes an Opus stream that follows a Skeleton metadata stream", async () => {
+    const fishead = concat([new TextEncoder().encode("fishead\0"), new Uint8Array([3, 0, 0, 0])]);
+    const withSkeleton = concat([oggPage([fishead], 0, 2, 7, 0), mux(TONE_PACKETS)]);
+    const buffer = (await load(makeContext(opusUnsupported), withSkeleton)) as StandInBuffer;
+    expect(buffer.length).toBe(TONE_FRAMES);
+  });
+
+  test("rejects a clip whose end granule leaves no samples to play", async () => {
+    const empty = mux(TONE_PACKETS.slice(0, 1), { finalGranule: TONE_PRE_SKIP });
+    await expect(load(makeContext(opusUnsupported), empty)).rejects.toThrow(
+      "Unable to decode audio data",
+    );
   });
 
   test("plays a mono link of a surround chain from the centre speaker only", async () => {
