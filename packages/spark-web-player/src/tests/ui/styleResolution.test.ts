@@ -95,6 +95,16 @@ describe("one resolver owns each name and its value", () => {
       [["animation-timing-function", "ease-in-out, var(--theme-ease-bounce)"]],
     ],
     [
+      "animation_timing_function",
+      "steps(4, end),ease-50-50",
+      [["animation-timing-function", "steps(4, end), cubic-bezier(0.5, 0, 0.5, 1)"]],
+    ],
+    [
+      "easing",
+      "cubic-bezier(0.1, 0.2, 0.3, 0.4),bounce",
+      [["animation-timing-function", "cubic-bezier(0.1, 0.2, 0.3, 0.4), var(--theme-ease-bounce)"]],
+    ],
+    [
       "animation_iteration_count",
       "infinite,infinite",
       [["animation-iteration-count", "infinite,infinite"]],

@@ -655,14 +655,18 @@ export const getCssEase = (
   if (!value) {
     return defaultValue;
   }
+  if (value.includes(",")) {
+    const entries = splitAt(parseComponentValues(value), TokenType.Comma);
+    if (entries.length > 1) {
+      return entries
+        .map((entry) =>
+          getCssEase(entry.map((node) => node.toString()).join("").trim(), theme, defaultValue),
+        )
+        .join(", ");
+    }
+  }
   if (value.includes("(")) {
     return value;
-  }
-  if (value.includes(",")) {
-    return value
-      .split(",")
-      .map((part) => getCssEase(part.trim(), theme, defaultValue))
-      .join(", ");
   }
   const [ease, outgoing, incoming] = value.split("-");
   const outgoingPercent = Number(outgoing);

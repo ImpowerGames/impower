@@ -343,7 +343,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._code.push(encodeWord0(op, flags, aux), arg);
     if (op === Op.Text || op === Op.Str) {
       const text = this.table.strings[arg] ?? "";
-      const written = writtenText(text, this._openMarks);
+      const written = writtenText(text, this._openMarks, this._source.length);
       if (op === Op.Text && writesNothing(text)) {
         this._unwritten.push(at);
       } else {

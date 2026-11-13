@@ -341,6 +341,13 @@ describe("producers outside display statements", () => {
     expect(run[1]!.tags).toEqual(["2", "3"]);
   });
 
+  test("a string constant spelling a long span code compiles, and its value shows without the code", () => {
+    const [step] = steps(
+      `store v = "\\u{E010}${"\\u{E03F}".repeat(7)}"\nscene start\n  A {v} Z\n  done\nend\n`,
+    );
+    expect(step!.text.replace(/\s+/g, " ").trim()).toBe("A Z");
+  });
+
   test("a value in a line's tag or a choice's tag reaches the host's tags as written, without style codes", () => {
     const values = `store v = "*a\\u{E002}b\\u{E010}\\u{E021}c"\n`;
     const [line] = displayCallSteps(`${values}scene start\n  Said. # {v}\n  done\nend\n`, [

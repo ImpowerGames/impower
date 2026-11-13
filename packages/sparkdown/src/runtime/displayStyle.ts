@@ -48,6 +48,7 @@ const lengthDigit = (character: string | undefined): number => {
 export function readSpanOpen(
   characters: ArrayLike<string>,
   index: number,
+  longest = Infinity,
 ): { mark: string; next: number } | undefined {
   const kind =
     (characters[index]?.charCodeAt(0) ?? -1) - SPAN_KIND_BASE;
@@ -60,6 +61,7 @@ export function readSpanOpen(
     next++;
     digit = lengthDigit(characters[next]);
   }
+  if (length > longest) return undefined;
   return { mark: character.repeat(length), next };
 }
 
@@ -79,12 +81,16 @@ export function writesNothing(text: string): boolean {
   return text.length > 0 && [...text].every((c) => c === SCAN_OPEN || c === SCAN_CLOSE || c === SPAN_END);
 }
 
-export function writtenText(text: string, open: string[] = []): string {
+export function writtenText(
+  text: string,
+  open: string[] = [],
+  longest = Infinity,
+): string {
   if (!STYLE_CODE.test(text)) return text;
   let out = "";
   for (let i = 0; i < text.length; ) {
     const c = text[i]!;
-    const opened = readSpanOpen(text, i);
+    const opened = readSpanOpen(text, i, longest);
     if (opened) {
       open.push(opened.mark);
       out += opened.mark;
