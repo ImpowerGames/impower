@@ -31,7 +31,7 @@ import { NAMED_STEPS, TICKETS, notBuiltYet, parseNamedStep } from "./steps.mjs";
 import { parseScreenshotArgs, parseUiSteps, ui, verify } from "./driver.mjs";
 
 const { LAUNCH_SECONDS, SHELL_SECONDS, launchTab, pageVerdict, planReverse } = await import("./android.mjs");
-const { shotWaitsFor } = await import("./steps.mjs");
+const { shotGate, shotWaitsFor } = await import("./steps.mjs");
 const { surfacePainted } = await import("./driver.mjs");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -614,6 +614,44 @@ await check("a device shot waits for the surface the step before it opened, and 
   assert.equal(shotWaitsFor(parseUiSteps(["--shot", "a.png"], { device }), 0), null);
 });
 
+await check("one rule picks a shot's gate: after a named step it is that step's surface, and only a shot of nothing named waits on the script editor", () => {
+  const steps = parseUiSteps(["--shot", "a.png", "--step", "play", "--shot", "b.png", "--shot-of", "page", "c.png", "--tap", "1,2", "--shot", "d.png"], { device });
+  assert.deepEqual(shotGate(steps, 0), { gate: "editor" });
+  assert.deepEqual(shotGate(steps, 2), { gate: "surface", waitsFor: NAMED_STEPS.play.waitsFor });
+  assert.deepEqual(shotGate(steps, 3), { gate: "surface", waitsFor: NAMED_STEPS.play.waitsFor });
+  assert.deepEqual(shotGate(steps, 5), { gate: "editor" });
+  for (const name of Object.keys(NAMED_STEPS)) {
+    if (NAMED_STEPS[name].builtBy || NAMED_STEPS[name].argument) continue;
+    assert.equal(shotGate(parseUiSteps(["--step", name, "--shot", "x.png"], { device }), 1).gate, "surface", name);
+  }
+});
+
+await check("a shot of a named step's surface is not refused because the script editor is covered, while a shot of nothing named still is", async () => {
+  const { page } = addSheetPage({ animationPolls: 0 });
+  const dev = stubDevice();
+  const asked = [];
+  const refusing = () => {
+    const gate = async (_page, what) => {
+      asked.push(what);
+      return { required: true, ok: false, reason: "the script editor is not on screen (the preview covers it)" };
+    };
+    gate.noteSettled = () => {};
+    gate.reset = () => {};
+    return gate;
+  };
+  const before = path.join(scratch, "covered-before.png");
+  const after = path.join(scratch, "covered-after.png");
+  const result = await ui(["--shot", before, "--step", "add-menu", "--shot", after], { device, ...uiDeps(page, dev).deps, editorGate: refusing });
+  assert.equal(result.steps[0].gated, true);
+  assert.equal(result.steps[0].screenshot, null);
+  assert.equal(result.steps[2].gated, undefined);
+  assert.equal(result.steps[2].waitedFor, "the Add to script panel");
+  assert.equal(result.steps[2].screenshot, path.resolve(after));
+  assert.deepEqual(asked, ["screenshot"]);
+  assert.deepEqual(dev.calls.filter(([kind]) => kind === "screenshot"), [["screenshot", path.resolve(after)]]);
+  process.exitCode = 0;
+});
+
 function addSheetPage({ animationPolls, hidden = false }) {
   const panelSelector = NAMED_STEPS["add-menu"].waitsFor.selector;
   const dom = { open: false, polls: 0 };
@@ -690,6 +728,121 @@ await check("on a device, --shot after a named step waits until that step's surf
     }
     process.exitCode = 0;
   }
+});
+
+const OWNED_PREVIEW = "impower-driver/revealed-preview";
+
+function phonePreviewPage({ paneShown = false, owned = false, saveStuck = false, backMissing = false } = {}) {
+  const pane = '[role="group"][aria-label="Playback controls"]';
+  const show = 'button[aria-label="Show the preview"]';
+  const settings = 'button[aria-label="Preview settings"]';
+  const open = '[role="menu"], [role="dialog"]';
+  const state = { paneShown, savedRevealed: paneShown, menuOpen: false, storage: owned ? { [OWNED_PREVIEW]: "1" } : {}, pressed: [] };
+  const visible = (selector, options) => {
+    if (selector === pane || selector === settings) return state.paneShown;
+    if (selector === show) return !state.paneShown;
+    if (selector === open) return state.menuOpen;
+    if (options?.hasText === "Back to story") return state.paneShown && !backMissing;
+    return false;
+  };
+  const page = stubPage();
+  page.keyboard = { press: async (key) => { if (key === "Escape") state.menuOpen = false; } };
+  page.locator = (selector, options) => ({
+    first: () => ({
+      isVisible: async () => visible(selector, options),
+      click: async () => {
+        state.pressed.push(options?.hasText ?? selector);
+        if (selector === show) state.paneShown = state.savedRevealed = true;
+        if (selector === settings) state.menuOpen = true;
+        if (options?.hasText === "Back to story") state.paneShown = false;
+      },
+      waitFor: async ({ state: want } = {}) => {
+        if ((want === "hidden") === visible(selector, options)) throw new Error("timeout");
+      },
+    }),
+  });
+  page.evaluate = async (fn, arg) => {
+    if (Array.isArray(arg) && arg[0] === OWNED_PREVIEW) {
+      if (arg[1] === "claim") state.storage[OWNED_PREVIEW] = "1";
+      if (arg[1] === "release") delete state.storage[OWNED_PREVIEW];
+      return state.storage[OWNED_PREVIEW] === "1";
+    }
+    if (arg === undefined && String(fn).includes("menuitemcheckbox")) return [{ name: "Game preview follows cursor", checked: true }];
+    return { width: 430, height: 807, devicePixelRatio: 3, visibility: "visible" };
+  };
+  page.waitForFunction = async (fn) => {
+    if (String(fn).includes("workspace/")) {
+      if (saveStuck) throw new Error("timeout");
+      state.savedRevealed = state.paneShown;
+      if (state.savedRevealed) throw new Error("timeout");
+    }
+    return true;
+  };
+  return { page, state };
+}
+
+await check("in the phone layout a preview step reveals the pane through ui before its body runs, and the run hides it again and waits for the hidden pane to be saved", async () => {
+  const { page, state } = phonePreviewPage();
+  const result = await ui(["--step", "preview-settings"], uiDeps(page, null).deps);
+  assert.equal(result.steps[0].ran, true, JSON.stringify(result.steps[0]));
+  assert.equal(result.steps[0].revealed, "preview");
+  assert.deepEqual(state.pressed, ['button[aria-label="Show the preview"]', 'button[aria-label="Preview settings"]', "Back to story"]);
+  assert.deepEqual(result.hidAgain, [{ reveal: "preview", hidden: true }]);
+  assert.equal(state.paneShown, false);
+  assert.equal(state.savedRevealed, false);
+  assert.deepEqual(state.storage, {});
+  assert.deepEqual(result.failed, []);
+  assert.equal(process.exitCode, 0);
+});
+
+await check("a run whose revealed pane cannot be hidden and saved again fails, naming why", async () => {
+  for (const [label, options, cause] of [["save never lands", { saveStuck: true }, /the workspace had not saved the preview as hidden within 5 s/], ["no Back to story", { backMissing: true }, /the preview pane is on screen and its Back to story link is not/]]) {
+    const { page, state } = phonePreviewPage(options);
+    const result = await ui(["--step", "preview-settings"], uiDeps(page, null).deps);
+    assert.equal(result.hidAgain[0].hidden, false, label);
+    assert.match(result.failed.at(-1), /the preview pane this run revealed was not hidden again/, label);
+    assert.match(result.failed.at(-1), cause, label);
+    assert.equal(state.storage[OWNED_PREVIEW], "1", `${label}: the run keeps its claim so the next run hides the pane`);
+    assert.equal(process.exitCode, 1, label);
+    process.exitCode = 0;
+  }
+});
+
+await check("a pane an earlier run revealed and never hid is hidden when the next run starts, and an author's own pane is left alone", async () => {
+  const left = phonePreviewPage({ paneShown: true, owned: true });
+  const shot = path.join(scratch, "reclaimed.png");
+  const result = await ui(["--shot", shot], uiDeps(left.page, null).deps);
+  assert.deepEqual(result.previewReclaimed, { restored: true });
+  assert.equal(left.state.paneShown, false);
+  assert.deepEqual(left.state.storage, {});
+  assert.deepEqual(result.failed, []);
+  const authors = phonePreviewPage({ paneShown: true });
+  const kept = await ui(["--shot", shot], uiDeps(authors.page, null).deps);
+  assert.equal(kept.previewReclaimed, undefined);
+  assert.equal(authors.state.paneShown, true);
+  assert.deepEqual(authors.state.pressed, []);
+  process.exitCode = 0;
+});
+
+await check("verify fails when it cannot hide a pane an earlier run left, as ui does, and hides one it can", async () => {
+  const failing = phonePreviewPage({ paneShown: true, owned: true, saveStuck: true });
+  const verifyDeps = (page) => ({ ...uiDeps(page, null).deps, ensureScriptEditor: async () => ({ present: false, reason: "stub stops here" }), previewSummary: async () => null });
+  const failed = await verify([], verifyDeps(failing.page));
+  assert.equal(failed.previewReclaimed.restored, false);
+  assert.match(failed.error, /an earlier run revealed the preview pane and ended before hiding it, and it could not be hidden now: the workspace had not saved the preview as hidden/);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = 0;
+  const viaUi = await ui(["--shot", path.join(scratch, "reclaim-fail.png")], uiDeps(phonePreviewPage({ paneShown: true, owned: true, saveStuck: true }).page, null).deps);
+  assert.match(viaUi.failed.join(" "), /could not be hidden now/);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = 0;
+  const left = phonePreviewPage({ paneShown: true, owned: true });
+  let reached = false;
+  await verify([], { ...verifyDeps(left.page), ensureScriptEditor: async () => { reached = true; return { present: false, reason: "stub stops here" }; } });
+  assert.equal(reached, true);
+  assert.equal(left.state.paneShown, false);
+  assert.deepEqual(left.state.storage, {});
+  process.exitCode = 0;
 });
 
 await check("a device run whose page measures 0x0 stops at the start with a failure and exit code 1, in ui and in verify", async () => {

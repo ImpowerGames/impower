@@ -12,7 +12,7 @@ export { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scr
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
 import { contextOptions, displayReport, hasDisplayFlags, screenshotPath, seedThemePreference, takeDisplayFlags, themeMismatch, themeSeed } from "./viewport.mjs";
 import { LONG_PRESS_MS, ORIENTATIONS, SWIPE_MS, adbMissingMessage, findAdb, openAndroidDevice, pageVerdict, parseGesture, parsePoint, takeDeviceFlags } from "./android.mjs";
-import { SURFACE_SELECTORS, notBuiltYet, parseNamedStep, shotWaitsFor } from "./steps.mjs";
+import { NAMED_STEPS, SURFACE_SELECTORS, notBuiltYet, parseNamedStep, shotGate } from "./steps.mjs";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, recordCheckoutOwner, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -1770,6 +1770,14 @@ async function verify(args, deps = liveDeps) {
           return result;
         }
       }
+      const reclaimed = await (deps.reclaimPreview ?? reclaimDriverPreview)(page);
+      if (reclaimed) result.previewReclaimed = reclaimed;
+      if (reclaimed?.reason) {
+        result.error = reclaimed.reason;
+        deps.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
       const shell = await deps.ensureScriptEditor(page);
       if (shell.switched) result.switchedToLogic = true;
       if (!shell.present) {
@@ -2316,21 +2324,23 @@ export async function openPreviewSettings(page, { timeout = 5000 } = {}) {
 
 const PROBLEMS_TOGGLE_SELECTOR = '[role="group"][aria-label="Problems and display"] > button:first-of-type';
 
+const PROBLEMS_DIALOG_TITLES = ["Problems to fix", "Problems and playback messages"];
+
 export async function openProblems(page, { timeout = 5000 } = {}) {
   const toggle = page.locator(PROBLEMS_TOGGLE_SELECTOR).first();
   if (!(await toggle.isVisible().catch(() => false))) return { step: "problems", ran: false, reason: "the problems toggle under the game is not on screen; the preview pane may be hidden" };
   if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
   try {
-    await page.waitForFunction(() => {
+    await page.waitForFunction((titles) => {
       const shown = (el) => !!el && el.getBoundingClientRect().height > 0;
-      return shown(document.getElementById("problems-panel")) || [...document.querySelectorAll('[role="dialog"]')].some((dialog) => shown(dialog) && dialog.textContent.includes("Problems to fix"));
-    }, null, { timeout });
+      return shown(document.getElementById("problems-panel")) || [...document.querySelectorAll('[role="dialog"]')].some((dialog) => shown(dialog) && titles.some((title) => dialog.textContent.includes(title)));
+    }, PROBLEMS_DIALOG_TITLES, { timeout });
   } catch {
-    return { step: "problems", ran: false, reason: `neither the Problems panel nor the Problems to fix dialog opened within ${timeout / 1000} s of pressing the problems toggle` };
+    return { step: "problems", ran: false, reason: `neither the Problems panel nor its dialog (${PROBLEMS_DIALOG_TITLES.join(" or ")}) opened within ${timeout / 1000} s of pressing the problems toggle` };
   }
-  const opened = await page.evaluate(async () => {
+  const opened = await page.evaluate(async (titles) => {
     const panel = document.getElementById("problems-panel");
-    const root = panel ?? [...document.querySelectorAll('[role="dialog"]')].find((dialog) => dialog.textContent.includes("Problems to fix"));
+    const root = panel ?? [...document.querySelectorAll('[role="dialog"]')].find((dialog) => titles.some((title) => dialog.textContent.includes(title)));
     const settling = [root, root.closest('[role="presentation"], [data-state]')].filter(Boolean).flatMap((el) => el.getAnimations({ subtree: true }));
     await Promise.all(settling.filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime)).map((animation) => animation.finished.catch(() => null)));
     return {
@@ -2338,7 +2348,7 @@ export async function openProblems(page, { timeout = 5000 } = {}) {
       cards: [...root.querySelectorAll("[aria-expanded]")].filter((button) => button.closest("#problems-panel")).map((button) => ({ name: button.getAttribute("aria-label"), open: button.getAttribute("aria-expanded") === "true" })),
       entries: root.querySelectorAll("[data-message-entry]").length,
     };
-  });
+  }, PROBLEMS_DIALOG_TITLES);
   return { step: "problems", ran: true, toggle: (await toggle.textContent())?.trim() ?? "", ...opened };
 }
 
@@ -2512,27 +2522,135 @@ export async function openSettings(page, section, { timeout = 10000 } = {}) {
   return { step: "settings", section, ran: true, ...state };
 }
 
-export async function playPreview(page, action, { request = (method, params) => protocolRequest(page, method, params), timeout = PLAY_BUDGET_MS, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
+export const playerReady = (state) => state?.launchState != null && state.programLoaded !== false;
+
+export function playReached(action, before, seen) {
+  if (action !== "start") return seen.some((s) => s?.launchState === "preview");
+  const was = before?.run ?? null;
+  return seen.some((s) => running(s) || (s?.run != null && s.run !== was));
+}
+
+export async function playPreview(page, action, { request = (method, params) => protocolRequest(page, method, params), notifications = () => gameStateNotifications(page), timeout = PLAY_BUDGET_MS, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
   const start = action === "start";
   const label = start ? "Play From Here" : "Stop";
   const other = start ? "Stop" : "Play From Here";
-  const reached = (s) => (start ? running(s) : s?.launchState === "preview");
-  const before = await request("preview/gameState");
+  let before = await request("preview/gameState");
+  if (start && !playerReady(before)) before = await waitGameState(request, playerReady, { timeout, now, pause });
   const out = { play: action, clicked: false, reached: false, launchStateBefore: before?.launchState ?? null };
+  if (start && !playerReady(before)) {
+    return { ...out, launchState: out.launchStateBefore, reason: `the player had not loaded the story within ${seconds(timeout)} (launch state ${out.launchStateBefore}), so Play was not pressed` };
+  }
   const button = page.locator(`[aria-label="${label}"]`).first();
   if (!(await button.isVisible().catch(() => false))) {
     return { ...out, launchState: out.launchStateBefore, reason: `the ${label} control is not on screen (launch state ${out.launchStateBefore}); ${start ? "the game may already be running, or the preview pane is not showing" : "the game is not running"}` };
   }
+  const drain = await notifications();
+  await drain();
   await button.click();
   out.clicked = true;
-  const state = await waitGameState(request, reached, { timeout, now, pause });
+  const seen = [];
+  const end = now() + timeout;
+  let state;
+  for (;;) {
+    state = await request("preview/gameState");
+    seen.push(...(await drain()), state);
+    if (playReached(action, before, seen) || now() >= end) break;
+    await pause(100);
+  }
   out.launchState = state?.launchState ?? null;
+  out.passedThrough = [...new Set(seen.map((s) => s?.launchState ?? null))];
   out.running = running(state);
   out.control = (await page.locator(`[aria-label="${other}"]`).first().isVisible().catch(() => false)) ? other : label;
-  out.reached = reached(state) && out.control === other;
-  if (!out.reached) out.reason = `PLAY was clicked but the game did not ${start ? "start" : "stop"} within ${seconds(timeout)} (launch state ${out.launchState}, control showing ${out.control})`;
+  out.reached = playReached(action, before, seen);
+  if (!out.reached) out.reason = `PLAY was clicked but the game did not ${start ? "start" : "stop"}: the player reported no ${start ? "new run" : "return to the preview"} within ${seconds(timeout)} (launch state ${out.launchState}, control showing ${out.control})`;
   return out;
 }
+
+async function gameStateNotifications(page) {
+  await waitForProtocol(page);
+  await page.evaluate(() => {
+    if (window.__driverStateLog) return;
+    window.__driverStateLog = [];
+    window.__editorProtocol.subscribe((message) => {
+      if (message?.method === "preview/didChangeGameState") window.__driverStateLog.push(message.params ?? null);
+    });
+  });
+  return () => page.evaluate(() => window.__driverStateLog.splice(0));
+}
+
+export const PREVIEW_PANE_SELECTOR = '[role="group"][aria-label="Playback controls"]';
+export const SHOW_PREVIEW_SELECTOR = 'button[aria-label="Show the preview"]';
+export const BACK_TO_STORY_SELECTOR = "a:visible";
+export const DRIVER_PREVIEW_KEY = "impower-driver/revealed-preview";
+
+export function previewOwnership(page, op) {
+  return page.evaluate(([key, op]) => {
+    if (op === "claim") localStorage.setItem(key, "1");
+    if (op === "release") localStorage.removeItem(key);
+    return localStorage.getItem(key) === "1";
+  }, [DRIVER_PREVIEW_KEY, op]);
+}
+
+export function previewSavedHidden() {
+  const saved = localStorage.getItem(`workspace/${localStorage.getItem("project") || "local"}`);
+  try {
+    return !JSON.parse(saved)?.preview?.revealed;
+  } catch {
+    return true;
+  }
+}
+
+export async function revealPreview(page, { timeout = 10_000 } = {}) {
+  const pane = page.locator(PREVIEW_PANE_SELECTOR).first();
+  if (await pane.isVisible().catch(() => false)) return { revealed: false };
+  const show = page.locator(SHOW_PREVIEW_SELECTOR).first();
+  if (!(await show.isVisible().catch(() => false))) {
+    return { revealed: false, reason: "the preview pane is not on screen and the title bar's Show the preview button is not either; it shows on the Story screen outside Edit mode" };
+  }
+  await previewOwnership(page, "claim");
+  await show.click();
+  try {
+    await pane.waitFor({ state: "visible", timeout });
+  } catch {
+    return { revealed: true, reason: `the preview pane did not show within ${timeout / 1000} s of pressing Show the preview` };
+  }
+  return { revealed: true };
+}
+
+export async function hidePreview(page, { timeout = 5000 } = {}) {
+  const open = page.locator('[role="menu"], [role="dialog"]').first();
+  for (let presses = 0; presses < 3 && (await open.isVisible().catch(() => false)); presses++) {
+    await page.keyboard.press("Escape");
+    await open.waitFor({ state: "hidden", timeout: 1000 }).catch(() => {});
+  }
+  const pane = page.locator(PREVIEW_PANE_SELECTOR).first();
+  if (await pane.isVisible().catch(() => false)) {
+    const back = page.locator(BACK_TO_STORY_SELECTOR, { hasText: "Back to story" }).first();
+    if (!(await back.isVisible().catch(() => false))) return { hidden: false, reason: "the preview pane is on screen and its Back to story link is not" };
+    await back.click({ timeout });
+    try {
+      await pane.waitFor({ state: "hidden", timeout });
+    } catch {
+      return { hidden: false, reason: `the preview pane was still on screen ${timeout / 1000} s after pressing Back to story` };
+    }
+  }
+  try {
+    await page.waitForFunction(previewSavedHidden, null, { timeout });
+  } catch {
+    return { hidden: false, reason: `the workspace had not saved the preview as hidden within ${timeout / 1000} s, so the next run would open with it showing` };
+  }
+  await previewOwnership(page, "release");
+  return { hidden: true };
+}
+
+export async function reclaimDriverPreview(page) {
+  if ((await previewOwnership(page, "read").catch(() => false)) !== true) return null;
+  await page.locator(`${PREVIEW_PANE_SELECTOR}, ${SHOW_PREVIEW_SELECTOR}`).first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+  const hidden = await hidePreview(page);
+  return hidden.hidden ? { restored: true } : { restored: false, reason: `an earlier run revealed the preview pane and ended before hiding it, and it could not be hidden now: ${hidden.reason}` };
+}
+
+export const REVEALS = { preview: { show: revealPreview, hide: hidePreview } };
 
 async function gameNotifications(page) {
   await waitForProtocol(page);
@@ -3501,6 +3619,21 @@ export function parseUiSteps(args, { device = DEVICE } = {}) {
   return steps;
 }
 
+export const NAMED_STEP_BODIES = {
+  drawer: (page) => openDrawerOrRail(page),
+  "app-menu": (page) => openAppMenu(page),
+  "focus-project-name": (page) => focusProjectName(page),
+  "file-menu": (page) => openFileMenu(page),
+  "asset-inspector": (page) => openAssetInspector(page),
+  settings: (page, step) => openSettings(page, step.section),
+  "focus-script-name": (page) => focusScriptName(page),
+  "add-menu": (page) => openAddMenu(page),
+  "preview-settings": (page) => openPreviewSettings(page),
+  problems: (page) => openProblems(page),
+  "wheel-list": (page) => wheelList(page),
+  play: async (page, step) => ({ step: step.step, ...(await playPreview(page, "start")) }),
+};
+
 function gatedStep(step, reason) {
   const gated = { gated: true, reason };
   if (step.sd) return { sd: step.sd, wroteChars: null, ...gated };
@@ -3615,7 +3748,7 @@ async function ui(args, deps = liveDeps) {
         monitoredWorker = null;
         return step.reason;
       };
-      const requireEditor = editorGate();
+      const requireEditor = (deps.editorGate ?? editorGate)();
       try {
         await openEditorPage(page, url);
         await deps.waitForApp(page);
@@ -3641,6 +3774,9 @@ async function ui(args, deps = liveDeps) {
           return result;
         }
       }
+      const revealed = new Set();
+      const reclaimed = await (deps.reclaimPreview ?? reclaimDriverPreview)(page);
+      if (reclaimed) result.previewReclaimed = reclaimed;
       result.startedOn = await deps.activeScreen(page);
       let gate = (await deps.interruptedSeed(page)) ? interruptedSeedError() : null;
       const expectedAtStart = await deps.editorExpectedHere(page);
@@ -3805,56 +3941,23 @@ async function ui(args, deps = liveDeps) {
               result.steps.push(stub);
               continue;
             }
-            if (step.step === "drawer") {
-              result.steps.push(await openDrawerOrRail(page));
+            if (step.step === "play") {
+              const ready = await requireEditor(page, "PLAY", stepNo);
+              if (ready.ok === false) {
+                result.steps.push(gatedStep(step, ready.reason));
+                continue;
+              }
+            }
+            const reveals = NAMED_STEPS[step.step].reveals;
+            const reveal = REVEALS[reveals];
+            const shown = reveal ? await reveal.show(page) : { revealed: false };
+            if (shown.revealed) revealed.add(reveals);
+            if (shown.reason) {
+              result.steps.push({ step: step.step, ran: false, reason: shown.reason });
               continue;
             }
-            if (step.step === "app-menu") {
-              result.steps.push(await openAppMenu(page));
-              continue;
-            }
-            if (step.step === "focus-project-name") {
-              result.steps.push(await focusProjectName(page));
-              continue;
-            }
-            if (step.step === "file-menu") {
-              result.steps.push(await openFileMenu(page));
-              continue;
-            }
-            if (step.step === "asset-inspector") {
-              result.steps.push(await openAssetInspector(page));
-              continue;
-            }
-            if (step.step === "settings") {
-              result.steps.push(await openSettings(page, step.section));
-              continue;
-            }
-            if (step.step === "focus-script-name") {
-              result.steps.push(await focusScriptName(page));
-              continue;
-            }
-            if (step.step === "add-menu") {
-              result.steps.push(await openAddMenu(page));
-              continue;
-            }
-            if (step.step === "preview-settings") {
-              result.steps.push(await openPreviewSettings(page));
-              continue;
-            }
-            if (step.step === "problems") {
-              result.steps.push(await openProblems(page));
-              continue;
-            }
-            if (step.step === "wheel-list") {
-              result.steps.push(await wheelList(page));
-              continue;
-            }
-            const ready = await requireEditor(page, "PLAY", stepNo);
-            if (ready.ok === false) {
-              result.steps.push(gatedStep(step, ready.reason));
-              continue;
-            }
-            result.steps.push({ step: step.step, ...(await playPreview(page, "start")) });
+            const report = await NAMED_STEP_BODIES[step.step](page, step);
+            result.steps.push(shown.revealed ? { ...report, revealed: reveals } : report);
           } else if (step.tap || step.longPress || step.swipe || step.rotate) {
             result.steps.push(await deviceGesture(page, device, step, deps.waitForDomQuiet));
           } else if (step.click) {
@@ -3862,12 +3965,14 @@ async function ui(args, deps = liveDeps) {
           } else if (step.toggle) {
             result.steps.push(await toggleSurfaceOption(page, step.toggle));
           } else if (step.shotOf) {
-            const ready = await requireEditor(page, "screenshot", stepNo);
-            if (ready.ok === false) {
-              result.steps.push(gatedStep(step, ready.reason));
-              continue;
+            const { gate: shotNeeds, waitsFor } = shotGate(steps, index);
+            if (shotNeeds === "editor") {
+              const ready = await requireEditor(page, "screenshot", stepNo);
+              if (ready.ok === false) {
+                result.steps.push(gatedStep(step, ready.reason));
+                continue;
+              }
             }
-            const waitsFor = shotWaitsFor(steps, index);
             const painted = waitsFor ? await (deps.surfacePainted ?? surfacePainted)(page, waitsFor) : true;
             let taken;
             if (step.shotOf === "screen") {
@@ -3915,8 +4020,14 @@ async function ui(args, deps = liveDeps) {
         result.readError = String(err.message || err).split("\n")[0];
       }
       await finishWorker();
+      for (const name of revealed) {
+        const hidden = await REVEALS[name].hide(page);
+        (result.hidAgain ??= []).push({ reveal: name, hidden: hidden.hidden, ...(hidden.reason ? { reason: hidden.reason } : {}) });
+      }
       result.failed = result.steps.filter((s) => s.reason).map((s) => s.reason);
       if (result.readError) result.failed.push(`read-back failed: ${result.readError}`);
+      if (result.previewReclaimed?.reason) result.failed.push(result.previewReclaimed.reason);
+      for (const hid of result.hidAgain ?? []) if (hid.reason) result.failed.push(`the ${hid.reveal} pane this run revealed was not hidden again: ${hid.reason}`);
       const captured = partitionConsole(consoleLines);
       result.consoleErrors = captured.errors;
       result.consoleNoise = captured.noise;
