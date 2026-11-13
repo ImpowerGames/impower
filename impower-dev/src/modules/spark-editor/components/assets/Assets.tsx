@@ -1027,7 +1027,9 @@ function AssetsBrowser() {
         onSubmit={(url, name) =>
           void run(async () => {
             const path = await (await intents()).assets.addLink(url, name, level.folder);
-            show([path]);
+            if (path) {
+              show([path]);
+            }
           })
         }
       />
