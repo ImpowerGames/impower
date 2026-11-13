@@ -228,6 +228,29 @@ describe("the caret line's preview record", () => {
     expect(menu(10)).toEqual({ kind: "action", line: 8, words: "After the menu." });
   });
 
+  test("keeps the earlier beats of a caption block apart from the choice it captions", () => {
+    const menu = previewOf(
+      [
+        "scene start",
+        "  choose",
+        "    ALICE:",
+        "      Listen carefully. >",
+        "      Will you help?",
+        "    * [Yes.]",
+        "  end",
+        "end",
+      ].join("\n"),
+    );
+    const listen = { kind: "dialogue", line: 3, words: "Listen carefully.", speaker: "ALICE" };
+    expect(menu(2)).toEqual(listen);
+    expect(menu(3)).toEqual(listen);
+    expect(menu(0)).toEqual(listen);
+    const choice = { kind: "choice", line: 1, words: "Will you help?" };
+    for (const line of [1, 4, 5, 6]) {
+      expect(menu(line)).toEqual(choice);
+    }
+  });
+
   test("shows the beat a line of logic follows", () => {
     expect(at(23)).toEqual({ kind: "choice", line: 20, words: "Where now?" });
     expect(previewOf("scene a\n  Hello.\n  x = 1\nend\n")(2)).toEqual({

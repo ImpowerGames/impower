@@ -412,7 +412,7 @@ describe("the bar under the game", () => {
     expect(labels()).toEqual(["No problems", "main : 1", "Close the preview"]);
   });
 
-  it("shows no bar on a phone while the preview sits in the strip, and keeps the fullscreen toggle off phones", async () => {
+  it("shows no bar on a phone while the preview sits in the strip, shows the game there whatever the saved mode, and keeps the fullscreen toggle off phones", async () => {
     phone = true;
     await act(async () => mediaListeners.forEach((listener) => listener()));
     await mount({ fullView: false });
@@ -424,6 +424,17 @@ describe("the bar under the game", () => {
     ).toBeNull();
     expect(host!.querySelector("[data-preview-card]")).not.toBeNull();
     await unmount();
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    await mount({ fullView: false });
+    const game = host!.querySelector('[data-stage="game"]')!;
+    expect(game.parentElement!.className).not.toContain("hidden");
+    expect(host!.querySelector('[data-stage="screenplay"]')).toBeNull();
+    await unmount();
+    await mount({ fullView: true });
+    expect(host!.querySelector('[data-stage="screenplay"]')).not.toBeNull();
+    expect(host!.querySelector('[data-stage="game"]')!.parentElement!.className).toContain("hidden");
+    await unmount();
+    workspaceSettings.setPreference("previewMode", "game");
     phone = false;
     await act(async () => mediaListeners.forEach((listener) => listener()));
     await mount();

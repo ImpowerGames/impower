@@ -69,16 +69,17 @@ export default function Preview(_props: PreviewProps) {
   const choosing = !!game?.running && !!game?.choosing;
   const inStrip = phone && !workspace.state.value.preview?.revealed;
   const framed = !fullscreen && !inStrip;
+  const stageMode = inStrip && !playsGame(mode) ? "game" : mode;
 
   const stage = (
     <>
       <div
-        class={playerClass(mode, choosing)}
-        data-choosing={!playsGame(mode) && choosing ? "" : undefined}
+        class={playerClass(stageMode, choosing)}
+        data-choosing={!playsGame(stageMode) && choosing ? "" : undefined}
       >
         <PreviewGame />
       </div>
-      {mode === "screenplay" ? <PreviewScreenplay /> : null}
+      {stageMode === "screenplay" ? <PreviewScreenplay /> : null}
       {inStrip ? null : <PreviewStatuses mode={mode} />}
     </>
   );

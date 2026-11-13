@@ -245,11 +245,26 @@ export const getPreviewLine = (
         visitNode(child);
       }
     }
+    let captionFrom: number | undefined;
     if (beat.caption) {
-      linesOf(beat.caption).forEach((l) => beat.lines.add(l));
+      const spokenSegments = segmentsOf(beat.caption).segments.filter(spoken);
+      const first = firstLine(beat.caption);
+      captionFrom = spokenSegments.at(-1)?.line ?? first;
+      if (spokenSegments.length > 1 && captionFrom > first) {
+        beats.push({
+          kind: DISPLAY[beat.caption.name] ?? "action",
+          node: beat.caption,
+          start: first,
+          position: first,
+          lines: span(first, captionFrom - 1),
+          flow: beat.flow,
+        });
+      }
+      span(captionFrom, lastLine(beat.caption)).forEach((l) => beat.lines.add(l));
     }
-    const shownFrom = beat.caption ?? beat.options![0];
-    beat.position = shownFrom ? firstLine(shownFrom) : beat.start;
+    beat.position =
+      captionFrom ??
+      (beat.options![0] ? firstLine(beat.options![0]) : beat.start);
   };
 
   visit(tree.topNode);
