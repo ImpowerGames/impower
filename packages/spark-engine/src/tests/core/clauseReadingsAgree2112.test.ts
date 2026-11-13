@@ -4,7 +4,7 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/class
 import {
   DIRECTIVE_CLAUSE_WORDS,
   DIRECTIVE_CONTROL_WORDS,
-  DIRECTIVE_VALUE_WORDS,
+  DIRECTIVE_FLAG_WORDS,
   directiveValueKind,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { beforeAll, describe, expect, test } from "vitest";
@@ -136,6 +136,17 @@ const CLAUSE_ROWS: Row[] = [
   ["navigate without a destination", "image", "navigate main"],
   ["navigate with `to` and no destination", "image", "navigate main to"],
   ["navigate with a stray word", "image", "navigate main to menu extra"],
+  ["clear the textstream", "image", "clear textstream"],
+  ["play without a video", "image", "play"],
+  ["play two videos", "image", "play intro+outro"],
+  ["play with a second name", "image", "play intro outro"],
+  ["play with a name after a flag", "image", "play intro loop extra"],
+  ["a time that is not a time", "image", "mia after soon"],
+  ["a negative volume", "image", "mia to -1"],
+  ["a transition that is not a name", "image", "mia with 3"],
+  ["a flag with a number", "image", "mia now 2"],
+  ["filtered names in a composition", "image", "mia + bunny:mouth.open~eyes.closed"],
+  ["audio volume that is not a number", "audio", "fade music theme to loud"],
   ["audio to and over", "audio", "fade music theme to 0.5 over 2s"],
   ["audio flags", "audio", "play music theme loop mute now"],
   ["audio with named like a clause word", "audio", "play music theme loop with over"],
@@ -158,23 +169,34 @@ const BRACKET_CONTROLS = [
   ...variables["MOVIE_CONTROL_KEYWORDS"]!,
 ];
 const AUDIO_CONTROLS = variables["AUDIO_CONTROL_KEYWORDS"]!;
-const RAW_VALUE_WORDS: readonly string[] = DIRECTIVE_VALUE_WORDS.filter((word) => word === "with" || word === "ease");
-
 interface Reading {
   links: string[];
   pick?: string;
   strays: string[];
-  missing: string[];
+  valueErrors: string[];
+  flagArguments: string[];
   incompleteNavigate: boolean;
+  clearWarning: boolean;
+  playArity: boolean;
   unrecognizedControl?: string;
+  implicitNames: string[];
 }
 
-const empty = (): Reading => ({ links: [], strays: [], missing: [], incompleteNavigate: false });
+const empty = (): Reading => ({
+  links: [],
+  strays: [],
+  valueErrors: [],
+  flagArguments: [],
+  incompleteNavigate: false,
+  clearWarning: false,
+  playArity: false,
+  implicitNames: [],
+});
 
 const isName = (text: string) => directiveValueKind(text) === "name";
-const countable = (text: string) => {
+const isAmount = (text: string) => {
   const kind = directiveValueKind(text);
-  return kind !== "time" && kind !== "number";
+  return kind === "time" || kind === "number";
 };
 
 interface Chunk {
@@ -185,7 +207,13 @@ interface Chunk {
   clauses: Record<string, unknown>;
 }
 
-function expected(bracket: Bracket, content: string, chunk: Chunk): Reading {
+interface Parsed {
+  word: { text: string };
+  takesValue: boolean;
+  value?: { text: string };
+}
+
+function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: readonly Parsed[]): Reading {
   const reading = empty();
   const words = content.split(/[ \t]+/);
   const written = (word: string | undefined) => !!word && words.includes(word);
@@ -233,31 +261,71 @@ function expected(bracket: Bracket, content: string, chunk: Chunk): Reading {
     if (transition && isName(transition)) link("transition", transition);
     const ease = value("ease");
     if (ease && isName(ease)) link("ease", ease);
+    if (!navigate) reading.implicitNames = chunk.assets.filter((asset) => /[:~]/.test(asset));
   }
   if (chunk.tag === "image" && Object.hasOwn(clauses, "morph")) {
     const pick = clauses["morph"];
     if (pick === undefined) reading.pick = "(missing)";
     else if (pick !== "none") reading.pick = String(pick);
   }
-  if (chunk.tag !== "cutscene") {
-    reading.strays = Object.keys(clauses).filter((key) => !DIRECTIVE_CLAUSE_WORDS.includes(key) && countable(key));
+  let last: Parsed | undefined;
+  parsed.forEach((clause, index) => {
+    const keyword = clause.word.text;
+    if (DIRECTIVE_CLAUSE_WORDS.includes(keyword)) {
+      last = clause;
+      if (DIRECTIVE_FLAG_WORDS.includes(keyword)) {
+        const next = parsed[index + 1];
+        if (next && !next.takesValue && !DIRECTIVE_CLAUSE_WORDS.includes(next.word.text) && isAmount(next.word.text)) {
+          reading.flagArguments.push(`${keyword} ${next.word.text}`);
+        }
+      }
+      if (!clause.takesValue || keyword === "morph" || (navigate && keyword === "to") || (bracket === "audio" && keyword === "ease")) return;
+      const given = clause.value?.text;
+      if (given === undefined) {
+        reading.valueErrors.push(`${keyword}:missing`);
+        return;
+      }
+      const kind = directiveValueKind(given);
+      const invalid =
+        keyword === "after" || keyword === "over"
+          ? kind !== "time" && kind !== "number"
+          : keyword === "to"
+            ? kind !== "number" || Number(given) < 0
+            : kind !== "name";
+      if (invalid) reading.valueErrors.push(`${keyword}:invalid`);
+      return;
+    }
+    if (chunk.tag === "cutscene") return;
+    if (last && !last.takesValue && isAmount(keyword)) return;
+    reading.strays.push(keyword);
+  });
+  if (chunk.tag === "layout" && controlWritten && chunk.control === "clear") {
+    reading.clearWarning = chunk.target !== "textstream";
   }
-  reading.missing = Object.keys(clauses).filter(
-    (key) =>
-      RAW_VALUE_WORDS.includes(key) && clauses[key] === undefined && !(bracket === "audio" && key === "ease"),
-  );
+  if (chunk.tag === "cutscene") {
+    const strayName = parsed.some((clause) =>
+      clause.takesValue
+        ? !["with", "ease"].includes(clause.word.text) && !!clause.value && isName(clause.value.text)
+        : !DIRECTIVE_CLAUSE_WORDS.includes(clause.word.text) && isName(clause.word.text),
+    );
+    reading.playArity = !target || target.includes("+") || chunk.assets.length > 0 || strayName;
+  }
   if (controlWritten && !(bracket === "image" ? BRACKET_CONTROLS : AUDIO_CONTROLS).includes(chunk.control)) {
     reading.unrecognizedControl = chunk.control;
   }
   return normalize(reading);
 }
 
+const sorted = (list: string[]) => [...new Set(list)].sort();
+
 function normalize(reading: Reading): Reading {
   return {
     ...reading,
-    links: [...new Set(reading.links)].sort(),
-    strays: [...new Set(reading.strays)].sort(),
-    missing: [...new Set(reading.missing)].sort(),
+    links: sorted(reading.links),
+    strays: sorted(reading.strays),
+    valueErrors: sorted(reading.valueErrors),
+    flagArguments: sorted(reading.flagArguments),
+    implicitNames: sorted(reading.implicitNames),
   };
 }
 
@@ -265,7 +333,7 @@ const compilerReadings = new Map<number, Reading>();
 const interpreterReadings = new Map<number, Reading>();
 
 beforeAll(async () => {
-  const documents = new SparkdownDocumentRegistry(["references"]);
+  const documents = new SparkdownDocumentRegistry(["references", "implicits"]);
   documents.set({ textDocument: { uri: MAIN_URI, text: source, version: 1, languageId: "sparkdown" } });
   const doc = documents.get(MAIN_URI)!;
   const reading = (line: number) => {
@@ -273,7 +341,8 @@ beforeAll(async () => {
     if (!found) compilerReadings.set(line, (found = empty()));
     return found;
   };
-  const references = documents.annotations(MAIN_URI).references.iter();
+  const annotations = documents.annotations(MAIN_URI);
+  const references = annotations.references.iter();
   while (references.value) {
     const ref = references.value.type as any;
     const types: string[] = ref.selectors?.[0]?.types ?? [];
@@ -281,6 +350,12 @@ beforeAll(async () => {
     const line = doc.positionAt(references.from).line;
     if (role && line % 2 === 1) reading(line).links.push(`${role}:${doc.read(references.from, references.to)}`);
     references.next();
+  }
+  const implicits = annotations.implicits.iter();
+  while (implicits.value) {
+    const line = doc.positionAt(implicits.from).line;
+    if (implicits.value.type === "filtered_image" && line % 2 === 1) reading(line).implicitNames.push(doc.read(implicits.from, implicits.to));
+    implicits.next();
   }
   const { program } = compileUI(source);
   for (const diagnostic of (program.diagnostics?.[MAIN_URI] ?? []) as any[]) {
@@ -293,11 +368,12 @@ beforeAll(async () => {
     else if (message.startsWith("`morph` needs the name")) reading(line).pick = "(missing)";
     else if (message.startsWith("Write the morph's name")) reading(line).pick = at;
     else if (/ is not (?:a clause|part of a clause)/.test(message)) reading(line).strays.push(at);
-    else if (/should be followed by/.test(message) && zeroWidth) {
-      const keyword = message.match(/^`([^`]+)`/)?.[1] ?? "?";
-      if (RAW_VALUE_WORDS.includes(keyword)) reading(line).missing.push(keyword);
-    }
+    else if (/should be followed by/.test(message)) {
+      reading(line).valueErrors.push(`${message.match(/^`([^`]+)`/)?.[1] ?? "?"}:${zeroWidth ? "missing" : "invalid"}`);
+    } else if (/is a flag and cannot take an argument/.test(message)) reading(line).flagArguments.push(at.split(/[ \t]+/).join(" "));
     else if (message.startsWith("Incomplete `navigate`")) reading(line).incompleteNavigate = true;
+    else if (message.startsWith("Only textstream has a page to clear")) reading(line).clearWarning = true;
+    else if (message.startsWith("`play` takes one video name")) reading(line).playArity = true;
     else if (message.startsWith("Unrecognized")) reading(line).unrecognizedControl = at;
   }
   for (const [line, found] of compilerReadings) compilerReadings.set(line, normalize(found));
@@ -305,12 +381,19 @@ beforeAll(async () => {
   const harness = createHarness(source);
   await harness.ready;
   const interpreter = (harness.game.module as any).interpreter;
-  const seen: { bracket: Bracket; content: string; chunk: Chunk }[] = [];
+  let parsed: Parsed[] = [];
+  const clauseValues = interpreter.assetClauseValues.bind(interpreter);
+  interpreter.assetClauseValues = (clauses: Parsed[]) => {
+    parsed = [...clauses];
+    return clauseValues(clauses);
+  };
+  const seen: { bracket: Bracket; content: string; chunk: Chunk; parsed: Parsed[] }[] = [];
   for (const name of ["createImageChunk", "createAudioChunk", "createLoadChunk", "createLayoutChunk", "createCutsceneChunk"]) {
     const original = interpreter[name].bind(interpreter);
     interpreter[name] = (content: string) => {
+      parsed = [];
       const chunk = original(content);
-      seen.push({ bracket: name === "createAudioChunk" ? "audio" : "image", content, chunk });
+      seen.push({ bracket: name === "createAudioChunk" ? "audio" : "image", content, chunk, parsed });
       return chunk;
     };
   }
@@ -318,7 +401,7 @@ beforeAll(async () => {
     const before = seen.length;
     await harness.preview(lineOf(i));
     const found = seen[before];
-    if (found) interpreterReadings.set(lineOf(i), expected(found.bracket, found.content, found.chunk));
+    if (found) interpreterReadings.set(lineOf(i), expected(found.bracket, found.content, found.chunk, found.parsed));
   }
 });
 
