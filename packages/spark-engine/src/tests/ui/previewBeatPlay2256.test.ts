@@ -242,3 +242,92 @@ describe("playing the previewed beat once (#2256)", () => {
     ]);
   });
 });
+
+describe("a played beat whose pictures or movies need loading (#2256)", () => {
+  const PICTURED = `scene start
+  [[show portrait bunny]]
+  Hello <wait:1> there.
+  Next line.
+end
+`;
+  const BUNNY = {
+    uri: "inmemory:///bunny.png",
+    type: "image",
+    name: "bunny",
+    ext: "png",
+    src: "bunny.png",
+  } as any;
+
+  test("a still asked for while the beat waits for its pictures cancels the play", async () => {
+    const h = createHarness(PICTURED, 1, { assets: [BUNNY], holdAssets: true });
+    await h.ready;
+    const played = h.game.preview(MAIN_URI, 1, undefined, undefined, {
+      playId: 41,
+    });
+    await flushMicrotasks(20);
+    expect(h.heldAssetLoadCount()).toBeGreaterThan(0);
+    const still = h.preview(1);
+    h.releaseAssets();
+    await Promise.all([played, still]);
+    await flushMicrotasks(20);
+    expect(h.game.playingBeat).toBe(false);
+    expect(
+      speech(h).every((m) => m.params.spans.length === 0),
+    ).toBe(true);
+  });
+
+  const MOVIES = `define intro as video with
+  src = "intro.webm"
+end
+
+define wave as video with
+  src = "wave.webm"
+end
+
+scene start
+  [[play intro]]
+  After.
+  [[show portrait wave]]
+  Waving.
+end
+`;
+
+  const cutscenes = (h: UIHarness) =>
+    flattenMessages(h.messages).filter((m) => m?.method === "ui/play-cutscene");
+
+  const portraitVideos = (h: UIHarness) =>
+    flattenMessages(h.messages)
+      .filter((m) => m?.method === "ui/write-image")
+      .flatMap((m) => m.params.instructions ?? [])
+      .map((instruction: any) => instruction?.content?.video)
+      .filter(Boolean);
+
+  test("a played cutscene plays muted, and the still after it shows its first frame", async () => {
+    const h = createHarness(MOVIES);
+    await h.ready;
+    h.reset();
+    await h.game.preview(MAIN_URI, 9, undefined, undefined, { playId: 42 });
+    await advance(h, BEAT_LEAD_MS + 100);
+    const played = cutscenes(h).filter((m) => !m.params.preview);
+    expect(played.length).toBeGreaterThan(0);
+    expect(played.every((m) => m.params.muted === true)).toBe(true);
+    await h.game.onReceive(pointerDown);
+    await flushMicrotasks(10);
+    expect(h.game.playingBeat).toBe(false);
+    expect(cutscenes(h).at(-1)?.params.preview).toBe(true);
+  });
+
+  test("a played movie on a layer plays muted, and the still after it shows its first frame", async () => {
+    const h = createHarness(MOVIES);
+    await h.ready;
+    h.reset();
+    await h.game.preview(MAIN_URI, 11, undefined, undefined, { playId: 43 });
+    await advance(h, BEAT_LEAD_MS + 100);
+    const played = portraitVideos(h);
+    expect(played.length).toBeGreaterThan(0);
+    expect(played.every((video: any) => !video.preview && video.muted)).toBe(true);
+    await h.game.onReceive(pointerDown);
+    await flushMicrotasks(10);
+    expect(portraitVideos(h).at(-1)?.preview).toBe(true);
+  });
+});

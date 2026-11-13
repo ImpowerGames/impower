@@ -1684,7 +1684,7 @@ export default class UIManager extends Manager {
     speech: Speech,
   ) {
     speech.unheard = true;
-    morphs.speak(character, []);
+    morphs.awaitSpeech(character);
     const audio = this.app.audio;
     void Promise.all(
       unheard.map((clip) => audio?.clipDuration(clip.load)),

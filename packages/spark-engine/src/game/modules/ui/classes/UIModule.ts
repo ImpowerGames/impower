@@ -1832,6 +1832,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._voicedSpeech = undefined;
   }
 
+  protected _beatPlaying = false;
+
+  setBeatPlaying(playing: boolean) {
+    this._beatPlaying = playing;
+  }
+
+  protected showsMovieStill(): boolean {
+    const previewing = this.context?.system?.previewing;
+    return previewing != null && previewing !== false && !this._beatPlaying;
+  }
+
   speak(
     speech: BeatSpeech | undefined,
     instant = false,
@@ -4178,15 +4189,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.enableTrigger(id);
       return id;
     }
+    const still = this.showsMovieStill();
     const params: PlayCutsceneParams = {
       src,
       loop: Boolean(cutscene.loop),
-      muted: Boolean(cutscene.mute),
+      muted: Boolean(cutscene.mute) || this._beatPlaying,
       ...this.getMovieMixer(),
     };
     if (cutscene.with) {
       params.with = cutscene.with;
-      if (!previewing) {
+      if (!still) {
         const clauses = { with: cutscene.with };
         const enter = this.resolveLayoutAnimation("enter", clauses, false);
         const exit = this.resolveLayoutAnimation("exit", clauses, false);
@@ -4198,7 +4210,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
-    if (previewing) {
+    if (still) {
       params.preview = true;
     }
     void this.emitSettled(PlayCutsceneMessage.type.request(params)).then(() =>
@@ -4978,15 +4990,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
             const videoSrc = videoSrcs[0];
             if (videoSrc) {
-              const previewing = $.context?.system?.previewing;
               content.video = {
                 src: videoSrc,
                 loop: !e.once,
-                muted: Boolean(e.mute),
+                muted: Boolean(e.mute) || $._beatPlaying,
                 ...$.getMovieMixer(),
-                ...(previewing != null && previewing !== false
-                  ? { preview: true }
-                  : {}),
+                ...($.showsMovieStill() ? { preview: true } : {}),
               };
             }
             const morph = $.getMorphContent(imageAssets, e.morph);

@@ -112,6 +112,42 @@ describe("a voiced line played in the stopped preview (#2256)", () => {
     expect(preview.morphs.animating).toBe(false);
   });
 
+  test("a clip length decoded after the beat has ended still moves the mouth to the clip's end", async () => {
+    const overlay = document.createElement("div");
+    document.body.appendChild(overlay);
+    let decoded!: (seconds: number) => void;
+    const duration = new Promise<number>((resolve) => {
+      decoded = resolve;
+    });
+    const app: any = {
+      overlay,
+      audioClock: new AudioClock(0, () => 0),
+      audio: { liveClips: () => [], clipDuration: () => duration },
+    };
+    const ui = new UIManager(app);
+    const morphs = MorphPlayback.for(overlay);
+    morphs.configure({ requestFrame: () => 0, cancelFrame: () => {} });
+    morphs.setEnabled(false);
+    morphs.setPlaying(true);
+    const say = (params: Record<string, unknown>) =>
+      ui.onReceiveNotification({
+        jsonrpc: "2.0",
+        method: "morph/speech",
+        params,
+      } as any);
+    say({ character: "mia", spans: [[0, 0.2]], voiced: true, clips: [HELLO] });
+    say({ character: "mia", spans: [], voiced: true, revealed: true });
+    morphs.setPlaying(false);
+    expect(morphs.animating).toBe(true);
+    decoded(4);
+    await flushMicrotasks(10);
+    expect(morphs.animating).toBe(true);
+    morphs.advance(HELLO.after + 3.9);
+    expect(morphs.animating).toBe(true);
+    morphs.advance(0.2);
+    expect(morphs.animating).toBe(false);
+  });
+
   test("a click or a later preview rests the mouth at once, even before the clip's length is known", async () => {
     const preview = makePreview();
     preview.morphs.setEnabled(false);

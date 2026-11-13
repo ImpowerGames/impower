@@ -118,6 +118,7 @@ export class Coordinator<G extends Game> {
   onPlay(played: () => void) {
     this._plays = true;
     this._played = played;
+    this._game.module.ui.setBeatPlaying(true);
     this._onTick = this.display({ preview: true });
     this._onTick?.(0);
   }
@@ -129,6 +130,7 @@ export class Coordinator<G extends Game> {
     }
     this._played = undefined;
     this._onTick = undefined;
+    this._game.module.ui.setBeatPlaying(false);
     if (voiceRests) {
       this._game.module.ui.restSpeech();
     }

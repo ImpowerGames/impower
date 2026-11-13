@@ -376,6 +376,7 @@ export class Game<T extends M = {}> {
     promise: Promise<ProgramAddress | null>;
     abandon: () => void;
     cancel: () => void;
+    playId?: number;
   } | null = null;
 
   protected _shownChoices: string[] = [];
@@ -5196,6 +5197,9 @@ export class Game<T extends M = {}> {
     }
     if (this._previewedAddress === previewAddress && !play) {
       this.settleBeatPlay();
+      if (this._pendingPreview) {
+        this._pendingPreview.playId = undefined;
+      }
       return this._pendingPreview?.promise ?? previewAddress;
     }
     this.cancelPreview();
@@ -5246,7 +5250,6 @@ export class Game<T extends M = {}> {
       executed,
       gate,
       cancelled,
-      playId,
     );
     this._pendingPreview = {
       address: previewAddress,
@@ -5254,6 +5257,7 @@ export class Game<T extends M = {}> {
       promise: waiting,
       abandon: gate.abandon,
       cancel,
+      playId,
     };
     return waiting;
   }
@@ -5295,14 +5299,17 @@ export class Game<T extends M = {}> {
     executed: GameExecutedParams,
     gate: { settled: Promise<unknown>; release: () => void },
     cancelled: Promise<void>,
-    playId: number | undefined,
   ): Promise<ProgramAddress | null> {
     try {
       await Promise.race([gate.settled, cancelled]);
       if (generation !== this._previewGeneration || this._destroyed) {
         return null;
       }
-      this.displayHeld(instructions, playId);
+      const pending = this._pendingPreview;
+      this.displayHeld(
+        instructions,
+        pending?.generation === generation ? pending.playId : undefined,
+      );
     } finally {
       this.forgetPendingPreview(generation);
       this.module.ui.afterCompose(() => gate.release());
@@ -5382,6 +5389,7 @@ export class Game<T extends M = {}> {
       return;
     }
     this._beatPlay = null;
+    this.module.ui.setBeatPlaying(false);
     if (this._coordinator === play.coordinator) {
       this._coordinator = null;
     }
