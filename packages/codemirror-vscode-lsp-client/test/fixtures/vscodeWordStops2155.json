@@ -384,5 +384,23 @@
     [[50,1],[50,2],[50,3],[50,4],[50,5],[50,6],[50,7],[50,8],[50,9],[50,10],[50,12],[50,12],[50,13],[51,0]],
     [[51,1],[51,2],[51,3],[51,4],[51,5],[51,6],[51,7],[51,8],[51,9],[51,10],[51,12],[51,12],[51,13],[52,0]],
     [[52,3],[52,3],[52,3],[52,3]]
-  ]
+  ],
+  "selections": {
+    "source": "Measured in the same VS Code build and session setup on 2026-11-13: a selection made with Shift+Right or Shift+Left, or a second caret added with Ctrl+Alt+Down, then the key. Selections are [anchor, head] offsets into the lines joined with newlines; the caret positions after a move were read from the status bar, or for several carets from where a typed X landed, and the text after a deletion was read from the editor's lines, with each caret where its text was removed.",
+    "lines": ["foo.bar baz", "a.b", "a.b", "x (y"],
+    "cases": [
+      { "name": "Ctrl+Right moves on from the head of a forward selection", "from": [[0, 3]], "keys": ["right"], "selections": [[7, 7]] },
+      { "name": "Ctrl+Right moves on from the head of a backward selection", "from": [[3, 0]], "keys": ["right"], "selections": [[3, 3]] },
+      { "name": "Ctrl+Left moves back from the head of a forward selection", "from": [[0, 3]], "keys": ["left"], "selections": [[0, 0]] },
+      { "name": "Ctrl+Left moves back from the head of a selection ending in a word", "from": [[3, 7]], "keys": ["left"], "selections": [[4, 4]] },
+      { "name": "Shift+Ctrl+Right extends a selection from its head", "from": [[0, 3]], "keys": ["selectRight"], "selections": [[0, 7]] },
+      { "name": "Ctrl+Backspace deletes the selection alone", "from": [[0, 3]], "keys": ["deleteLeft"], "selections": [[0, 0]], "text": ".bar baz\na.b\na.b\nx (y" },
+      { "name": "Ctrl+Delete deletes the selection alone", "from": [[0, 3]], "keys": ["deleteRight"], "selections": [[0, 0]], "text": ".bar baz\na.b\na.b\nx (y" },
+      { "name": "Ctrl+Left with one caret skips a lone separator", "from": [[14, 14]], "keys": ["left"], "selections": [[12, 12]] },
+      { "name": "Ctrl+Left with two carets stops at a lone separator", "from": [[14, 14], [18, 18]], "keys": ["left"], "selections": [[13, 13], [17, 17]] },
+      { "name": "Ctrl+Right with two carets still skips a lone separator", "from": [[13, 13], [17, 17]], "keys": ["right"], "selections": [[15, 15], [19, 19]] },
+      { "name": "Shift+Ctrl+Left with two carets selects just the separator", "from": [[14, 14], [18, 18]], "keys": ["selectLeft", "backspace"], "selections": [[13, 13], [16, 16]], "text": "foo.bar baz\nab\nab\nx (y" },
+      { "name": "Ctrl+Backspace with two carets deletes the separator before each", "from": [[14, 14], [18, 18]], "keys": ["deleteLeft"], "selections": [[13, 13], [16, 16]], "text": "foo.bar baz\nab\nab\nx (y" }
+    ]
+  }
 }
