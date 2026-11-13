@@ -12,6 +12,10 @@ if (typeof window !== "undefined" && !window.matchMedia) {
     }) as unknown as MediaQueryList;
 }
 
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 if (!(globalThis as { Worker?: unknown }).Worker) {
   (globalThis as { Worker?: unknown }).Worker = class {
     postMessage() {}

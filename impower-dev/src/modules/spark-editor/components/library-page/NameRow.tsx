@@ -1,6 +1,7 @@
 import { ListRow, TextField } from "@impower/impower-ui/components";
+import { fitToKeyboard, useCoarsePointer } from "@impower/impower-ui/layout";
 import type { ComponentChildren } from "preact";
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 
 export type NameRowProps = {
   icon: ComponentChildren;
@@ -28,11 +29,26 @@ export default function NameRow({
   const [error, setError] = useState("");
   const busy = useRef(false);
   const cancelled = useRef(false);
+  const box = useRef<HTMLSpanElement>(null);
+  const message = useRef<HTMLSpanElement>(null);
+  const coarse = useCoarsePointer();
+
+  const reveal = () => {
+    if (!input.current || input.current !== document.activeElement) {
+      return;
+    }
+    box.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    message.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  };
 
   useLayoutEffect(() => {
     input.current?.focus();
     input.current?.select();
   }, []);
+
+  useEffect(() => (coarse ? fitToKeyboard(reveal) : undefined), [coarse]);
+
+  useLayoutEffect(reveal, [error]);
 
   const commit = async (submitted: boolean) => {
     if (busy.current || cancelled.current) {
@@ -61,7 +77,10 @@ export default function NameRow({
       descriptionFit={wrapError ? "wrap" : undefined}
       overflow="self"
       label={
-        <span class="flex h-[26px] min-w-0 items-center rounded-control border border-edge bg-bg focus-within:border-accent">
+        <span
+          ref={box}
+          class="flex h-[26px] min-w-0 scroll-my-2 items-center rounded-control border border-edge bg-bg focus-within:border-accent"
+        >
           <TextField
             ref={input}
             frame="inset"
@@ -104,7 +123,7 @@ export default function NameRow({
       }
       description={
         error ? (
-          <span id="scripts-name-error" role="alert" class="text-error">
+          <span ref={message} id="scripts-name-error" role="alert" class="scroll-my-2 text-error">
             {error}
           </span>
         ) : undefined
