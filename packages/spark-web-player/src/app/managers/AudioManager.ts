@@ -15,6 +15,7 @@ import type { UpdateAudioPlayersParams } from "../../../../spark-engine/src/game
 import { convertMidiToToneSequences } from "../../../../spark-engine/src/game/modules/audio/utils/convertMidiToToneSequences";
 import { parseMidi } from "../../../../spark-engine/src/game/modules/audio/utils/parseMidi";
 import { Manager } from "../Manager";
+import { decodeAudioBytes } from "../utils/decodeAudioBytes";
 
 export interface LiveClip {
   startedAt: number;
@@ -90,9 +91,7 @@ export default class AudioManager extends Manager {
     const audioContext = this.app.audioContext || this.unsafeAudioContext;
     if (params.src) {
       const response = await fetch(params.src);
-      const buffer = await response.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(buffer);
-      return audioBuffer;
+      return decodeAudioBytes(audioContext, await response.arrayBuffer());
     }
     if (params.synth && params.tones) {
       const synthBuffer = new SynthBuffer(

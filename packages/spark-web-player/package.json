@@ -20,6 +20,7 @@
     "@impower/sparkdown": "file:../sparkdown",
     "@impower/jsonrpc": "file:../jsonrpc",
     "gl-matrix": "^3.4.3",
+    "opus-decoder": "^0.7.12",
     "pixi.js": "^8.9.1"
   },
   "devDependencies": {
