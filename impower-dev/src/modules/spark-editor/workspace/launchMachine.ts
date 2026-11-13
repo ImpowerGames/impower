@@ -52,10 +52,10 @@ type LaunchCell = LaunchStep | ((context: LaunchContext) => LaunchStep | null);
 
 const step = (to: LaunchPhase, ...effects: LaunchEffect[]): LaunchStep => ({
   to,
-  effects,
+  effects: to === "starting" ? effects : [...effects, "forgetStart"],
 });
 
-const cancelStart = step("idle", "clearLimit", "forgetStart", "sendStop", "endDebug");
+const cancelStart = step("idle", "clearLimit", "sendStop", "endDebug");
 
 const stopRun = step("idle", "sendStop", "endDebug");
 
@@ -94,13 +94,13 @@ export const LAUNCH_TABLE: Record<
   starting: {
     press: cancelStart,
     stop: cancelStart,
-    lost: step("awaiting", "forgetStart", "clearStatuses", "endDebug"),
+    lost: step("awaiting", "clearStatuses", "endDebug"),
     answered: step("running", "clearLimit"),
     reported: step("running", "clearLimit"),
     refused: step("idle", "clearLimit", "endDebug"),
-    limit: step("idle", "forgetStart", "sendStop", "endDebug", "sayLimit"),
+    limit: step("idle", "sendStop", "endDebug", "sayLimit"),
     ended: step("starting", "markEnded"),
-    exited: step("idle", "clearLimit", "forgetStart", "endDebug"),
+    exited: step("idle", "clearLimit", "endDebug"),
   },
   running: { ...live, ended: step("ended", "markEnded") },
   paused: { ...live, ended: step("ended", "markEnded") },

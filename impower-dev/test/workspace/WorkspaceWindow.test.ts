@@ -1930,6 +1930,9 @@ describe("PLAY pressed before the game player has connected", () => {
       | "idle"
       | "idle with a player"
       | "awaiting"
+      | "awaiting after an answered run"
+      | "awaiting after a refused start"
+      | "awaiting after a player-reported run"
       | "starting"
       | "running"
       | "paused"
@@ -1976,25 +1979,30 @@ describe("PLAY pressed before the game player has connected", () => {
 
     const LIMIT_LEFT = 1000;
 
+    const awaiting: Record<LaunchEvent, Row> = {
+      press: { phase: "idle" },
+      stop: { phase: "idle" },
+      connected: { phase: "starting", sent: ["start"] },
+      lost: {
+        phase: "awaiting",
+        clears: true,
+        then: { advance: LIMIT_LEFT, phase: "idle", says: true },
+      },
+      answered: { phase: "awaiting" },
+      refused: { phase: "awaiting" },
+      reported: { phase: "awaiting" },
+      limit: { phase: "idle", says: true },
+      ended: { phase: "awaiting" },
+      exited: { phase: "awaiting" },
+    };
+
     const EXPECTED: Record<Setup, Record<LaunchEvent, Row>> = {
       idle: idle({ phase: "awaiting" }),
       "idle with a player": idle({ phase: "starting", sent: ["start"] }),
-      awaiting: {
-        press: { phase: "idle" },
-        stop: { phase: "idle" },
-        connected: { phase: "starting", sent: ["start"] },
-        lost: {
-          phase: "awaiting",
-          clears: true,
-          then: { advance: LIMIT_LEFT, phase: "idle", says: true },
-        },
-        answered: { phase: "awaiting" },
-        refused: { phase: "awaiting" },
-        reported: { phase: "awaiting" },
-        limit: { phase: "idle", says: true },
-        ended: { phase: "awaiting" },
-        exited: { phase: "awaiting" },
-      },
+      awaiting,
+      "awaiting after an answered run": awaiting,
+      "awaiting after a refused start": awaiting,
+      "awaiting after a player-reported run": awaiting,
       starting: {
         press: { phase: "idle", sent: ["stop"] },
         stop: { phase: "idle", sent: ["stop"] },
@@ -2050,6 +2058,24 @@ describe("PLAY pressed before the game player has connected", () => {
       awaiting: () => {
         win.toggleGameRunning();
         vi.advanceTimersByTime(LAUNCH_LIMIT_MS - LIMIT_LEFT);
+      },
+      "awaiting after an answered run": () => {
+        SETUPS.running();
+        win.disconnectPlayer();
+        SETUPS.awaiting();
+      },
+      "awaiting after a refused start": () => {
+        win.connectPlayer();
+        win.toggleGameRunning();
+        reply(false);
+        win.disconnectPlayer();
+        SETUPS.awaiting();
+      },
+      "awaiting after a player-reported run": () => {
+        win.connectPlayer();
+        win.syncGameStarted();
+        win.disconnectPlayer();
+        SETUPS.awaiting();
       },
       starting: () => {
         win.connectPlayer();
