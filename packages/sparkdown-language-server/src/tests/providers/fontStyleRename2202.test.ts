@@ -15,8 +15,10 @@ const FONTS = [
   `${ROOT}fonts/title.ttf`,
   `${ROOT}fonts/title@bold.ttf`,
   `${ROOT}fonts/title@italic.ttf`,
-  `${ROOT}fonts/title@bolditalic.ttf`,
+  `${ROOT}fonts/title@BoldItalic.ttf`,
   `${ROOT}fonts/title__bold.ttf`,
+  `${ROOT}fonts/title@light.ttf`,
+  `${ROOT}fonts/titles.ttf`,
 ];
 
 const leaf = (uri: string) => uri.split("/").at(-1)!;
@@ -60,24 +62,24 @@ const renames = (changes: unknown[] | undefined) =>
 const STYLE_RENAMES = [
   ["title.ttf", "heading.ttf"],
   ["title@bold.ttf", "heading@bold.ttf"],
-  ["title@bolditalic.ttf", "heading@bolditalic.ttf"],
+  ["title@BoldItalic.ttf", "heading@BoldItalic.ttf"],
   ["title@italic.ttf", "heading@italic.ttf"],
 ];
 
 describe("font styles named with @ in the language server (#2202)", () => {
-  test("renaming the font file title.ttf renames its @ style files with it, and not title__bold.ttf", () => {
+  test("renaming the font file title.ttf renames its @ style files with it, and not title__bold.ttf, title@light.ttf or titles.ttf", () => {
     const { workspace, program } = setup();
-    expect(renames(getFileRenameEdits(workspace, program, FONTS[0]!, "heading").documentChanges)).toEqual(STYLE_RENAMES);
+    expect(renames(getFileRenameEdits(workspace, program, FONTS[0]!, "heading").documentChanges)).toEqual([...STYLE_RENAMES].sort());
   });
 
-  test("renaming the family title in a script renames its @ style files with it, and not title__bold.ttf", () => {
+  test("renaming the family title in a script renames its @ style files with it, and not title__bold.ttf, title@light.ttf or titles.ttf", () => {
     const { workspace, program } = setup();
     const documents = (workspace as unknown as { _documents: SparkdownDocumentRegistry })._documents;
     const edit = getRenameEdits({ editor: { autoRenameFiles: true } } as never, documents.get(MAIN), documents.tree(MAIN), program, workspace, "heading", { line: 1, character: 22 });
-    expect(renames(edit?.documentChanges)).toEqual(STYLE_RENAMES);
+    expect(renames(edit?.documentChanges)).toEqual([...STYLE_RENAMES].sort());
   });
 
-  test("references to the family title find its @ style files, and not title__bold.ttf", () => {
+  test("references to the family title find its @ style files, and not title__bold.ttf, title@light.ttf or titles.ttf", () => {
     const { workspace, program } = setup();
     const { references } = collectReferencesForTarget(
       program,
@@ -86,6 +88,6 @@ describe("font styles named with @ in the language server (#2202)", () => {
       { searchOtherFiles: true, includeDeclaration: true, includeInterdependent: false, includeLinks: true, addAssetFiles: true },
     );
     const files = [...new Set(references.map((r) => r.uri).filter((uri) => uri !== MAIN).map(leaf))].sort();
-    expect(files).toEqual(["title.ttf", "title@bold.ttf", "title@bolditalic.ttf", "title@italic.ttf"]);
+    expect(files).toEqual(["title.ttf", "title@bold.ttf", "title@BoldItalic.ttf", "title@italic.ttf"].sort());
   });
 });

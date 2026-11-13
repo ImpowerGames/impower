@@ -30,6 +30,7 @@ describe("font styles named with @ (#2202)", () => {
     "file:///proj/fonts/title%40italic.ttf",
     "file:///proj/fonts/title@bolditalic.ttf",
     "file:///proj/fonts/title@italicbold.ttf",
+    "file:///proj/fonts/title@BoldItalic.ttf",
     "file:///proj/fonts/caption__bold.ttf",
   ]);
 
@@ -45,7 +46,7 @@ describe("font styles named with @ (#2202)", () => {
     expect(face(program, "title@italic")).toEqual({ family: "title", weight: "normal", style: "italic" });
   });
 
-  it.each(["title@bolditalic", "title@italicbold"])("reads %s.ttf as bold italic title", (name) => {
+  it.each(["title@bolditalic", "title@italicbold", "title@BoldItalic"])("reads %s.ttf as bold italic title", (name) => {
     expect(face(program, name)).toEqual({ family: "title", weight: "700", style: "italic" });
   });
 

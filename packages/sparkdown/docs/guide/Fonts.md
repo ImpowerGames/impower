@@ -13,14 +13,14 @@ title@italic.ttf      title, italic
 title@bolditalic.ttf  title, bold italic
 ```
 
-The family is the text before the `@`. The style after it is `bold`, `italic`, `bolditalic` or `italicbold`, in any letter case. Scripts and styles name the family only, and the engine picks the file that matches the text's weight and style:
+The family is the text before the `@`. The style after it is `bold`, `italic`, `bolditalic` or `italicbold`, in any letter case. Scripts and styles name the family only, and the engine loads every file of the family and picks the one that matches the text's weight and style. In a Visual Novel, dialogue is drawn by the `textbox` layout (see [Screens & Navigation](./Screens.md)), so this sets its font, with `**bold**` words drawn from `title@bold.ttf`:
 
 ```sparkdown
-style main {
+style textbox {
   text-font = "title"
 }
 ```
 
-Renaming the family's font, or the file `title.ttf`, renames its `@` style files with it.
+Renaming the family's font, or the file `title.ttf`, renames its `@` style files with it, and Find References on the family lists them.
 
 A name such as `title__bold.ttf` is not a style. It is a separate font named `title__bold`; rename it to `title@bold.ttf` to make it the bold file of `title`.

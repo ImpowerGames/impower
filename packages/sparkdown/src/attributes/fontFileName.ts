@@ -1,4 +1,5 @@
-export const FONT_STYLE_SUFFIXES = ["", "@bold", "@italic", "@bolditalic", "@italicbold"] as const;
+const BOLD_WORDS = new Set(["bold", "bolditalic", "italicbold"]);
+const ITALIC_WORDS = new Set(["italic", "bolditalic", "italicbold"]);
 
 export interface FontFileName {
   family: string;
@@ -10,7 +11,20 @@ export const fontFileNameOf = (name: string): FontFileName => {
   const at = name.indexOf("@");
   const family = at > 0 ? name.slice(0, at) : name;
   const word = at > 0 ? name.slice(at + 1).toLowerCase() : "";
-  const bold = word === "bold" || word === "bolditalic" || word === "italicbold";
-  const italic = word === "italic" || word === "bolditalic" || word === "italicbold";
-  return { family, weight: bold ? "700" : "normal", style: italic ? "italic" : "normal" };
+  return {
+    family,
+    weight: BOLD_WORDS.has(word) ? "700" : "normal",
+    style: ITALIC_WORDS.has(word) ? "italic" : "normal",
+  };
+};
+
+export const fontStyleSuffixOf = (name: string, family: string): string | undefined => {
+  if (name === family) {
+    return "";
+  }
+  if (!name.startsWith(family + "@")) {
+    return undefined;
+  }
+  const word = name.slice(family.length + 1).toLowerCase();
+  return BOLD_WORDS.has(word) || ITALIC_WORDS.has(word) ? name.slice(family.length) : undefined;
 };
