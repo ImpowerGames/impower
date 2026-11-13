@@ -105,6 +105,35 @@ describe.each(KINDS)("adding a $kind whose name is taken", (k) => {
     });
   });
 
+  describe.each(Object.entries(ROUTES))("by %s, when the name is taken in another folder", (_route, itemOf) => {
+    const elsewhere = `${k.folder}/Existing/${k.name}.${k.ext}`;
+    beforeEach(() => {
+      files.set(elsewhere, `/src/${elsewhere}`);
+    });
+
+    it("asks about that file, and Skip adds nothing", async () => {
+      const { request, written } = await add(itemOf(k), "skip");
+      expect(request?.name).toBe(`${k.name}.${k.ext}`);
+      expect(request?.location).toBe(`${k.folder}/Existing/`);
+      expect(written).toEqual([]);
+    });
+
+    it("Keep both adds it under a name no other asset of the type has", async () => {
+      const item = itemOf(k);
+      const { written } = await add(item, "keepboth");
+      const ext = item.rel.slice(item.rel.lastIndexOf("."));
+      expect(written).toEqual([`${k.folder}/${k.name}01${ext}`]);
+      expect(deleted).toEqual([]);
+    });
+
+    it("Replace moves that file to the recycle bin and adds it where it was added", async () => {
+      const item = itemOf(k);
+      const { written } = await add(item, "replace");
+      expect(written).toEqual([item.rel]);
+      expect(deleted).toEqual([elsewhere]);
+    });
+  });
+
   it("asks when a file is added with the name of an existing link", async () => {
     const link = `${k.folder}/${k.name}.url`;
     files.set(link, `https://cdn.example.com/${k.name}.${k.other}`);
