@@ -578,19 +578,19 @@ export class AudioModule extends Module<
     channel: string,
     update: AudioPlayerUpdate,
     data?: LoadAudioPlayerParams,
+    channels = this._channelsCurrentlyPlaying,
   ) {
     if (update.control === "stop") {
       if (data?.key) {
-        const playing = this._channelsCurrentlyPlaying.get(channel);
+        const playing = channels.get(channel);
         playing?.delete(data.key);
       } else {
-        this._channelsCurrentlyPlaying.delete(channel);
+        channels.delete(channel);
       }
     } else {
       if (data?.key) {
-        const playing =
-          this._channelsCurrentlyPlaying.get(channel) ?? new Map();
-        this._channelsCurrentlyPlaying.set(channel, playing);
+        const playing = channels.get(channel) ?? new Map();
+        channels.set(channel, playing);
         playing.set(data.key, data);
       }
     }
@@ -677,69 +677,13 @@ export class AudioModule extends Module<
             ...(update.key != null ? { key: update.key } : {}),
           }
         : null;
-    const audioToLoad = new Set<LoadAudioPlayerParams>();
-    const updates: AudioPlayerUpdate[] = [];
-    for (const e of sequence) {
-      const event = { ...e };
-      if (event.control === "queue") {
-        const awaitUpdate: AudioPlayerUpdate = {
-          control: "await",
-          after: event.after,
-          over: event.over,
-          loop: false,
-          now: event.now,
-        };
-        this.setCurrentlyPlaying(channel, awaitUpdate);
-        this.saveChannelState(channel, awaitUpdate);
-        updates.push(awaitUpdate);
-        event.control = "start";
-      }
-      if (event.control === "play") {
-        const playBehavior =
-          this.context?.channel?.[channel]?.play_behavior ||
-          this.context?.channel?.["$default"]?.play_behavior;
-        if (playBehavior === "replace") {
-          const stopUpdate: AudioPlayerUpdate = {
-            control: "stop",
-            after: event.after,
-            over: event.over,
-            now: event.now,
-          };
-          const playing = this._channelsCurrentlyPlaying.get(channel);
-          if (playing) {
-            for (const d of playing.values()) {
-              this.setCurrentlyPlaying(channel, stopUpdate, d);
-              this.saveChannelState(channel, stopUpdate, d);
-              updates.push(stopUpdate);
-            }
-          }
-        }
-        event.control = "start";
-      }
-      if (event.assets && event.assets.length > 0) {
-        for (const d of this.getAllAudioData(channel, event.assets)) {
-          const processed = this.process(channel, event, d);
-          const update = retired(processed) ?? processed;
-          if (update === processed) {
-            audioToLoad.add(d);
-          }
-          this.setCurrentlyPlaying(channel, update, d);
-          this.saveChannelState(channel, update, d);
-          updates.push(update);
-        }
-      } else {
-        const processed = this.process(channel, event);
-        const update = retired(processed) ?? processed;
-        const playing = this._channelsCurrentlyPlaying.get(channel);
-        if (playing) {
-          for (const d of playing.values()) {
-            this.setCurrentlyPlaying(channel, update, d);
-            this.saveChannelState(channel, update, d);
-            updates.push(update);
-          }
-        }
-      }
-    }
+    const { updates, audioToLoad } = this.planUpdates(
+      channel,
+      sequence,
+      this._channelsCurrentlyPlaying,
+      (update, data) => this.saveChannelState(channel, update, data),
+      retired,
+    );
     const id = this.nextTriggerId();
     if (this.context.system.simulating) {
       this.enableTrigger(id);
@@ -756,6 +700,93 @@ export class AudioModule extends Module<
       }
     });
     return id;
+  }
+
+  planVoice(sequence: AudioInstruction[]): {
+    updates: AudioPlayerUpdate[];
+    clips: LoadAudioPlayerParams[];
+  } {
+    const { updates, audioToLoad } = this.planUpdates(
+      "voice",
+      sequence,
+      new Map(),
+      () => {},
+      () => null,
+    );
+    return { updates, clips: [...audioToLoad] };
+  }
+
+  protected planUpdates(
+    channel: string,
+    sequence: AudioInstruction[],
+    channels: Map<string, Map<string, LoadAudioPlayerParams>>,
+    save: (update: AudioPlayerUpdate, data?: LoadAudioPlayerParams) => void,
+    retired: (update: AudioPlayerUpdate) => AudioPlayerUpdate | null,
+  ): { updates: AudioPlayerUpdate[]; audioToLoad: Set<LoadAudioPlayerParams> } {
+    const track = (update: AudioPlayerUpdate, data?: LoadAudioPlayerParams) => {
+      this.setCurrentlyPlaying(channel, update, data, channels);
+      save(update, data);
+    };
+    const audioToLoad = new Set<LoadAudioPlayerParams>();
+    const updates: AudioPlayerUpdate[] = [];
+    for (const e of sequence) {
+      const event = { ...e };
+      if (event.control === "queue") {
+        const awaitUpdate: AudioPlayerUpdate = {
+          control: "await",
+          after: event.after,
+          over: event.over,
+          loop: false,
+          now: event.now,
+        };
+        track(awaitUpdate);
+        updates.push(awaitUpdate);
+        event.control = "start";
+      }
+      if (event.control === "play") {
+        const playBehavior =
+          this.context?.channel?.[channel]?.play_behavior ||
+          this.context?.channel?.["$default"]?.play_behavior;
+        if (playBehavior === "replace") {
+          const stopUpdate: AudioPlayerUpdate = {
+            control: "stop",
+            after: event.after,
+            over: event.over,
+            now: event.now,
+          };
+          const playing = channels.get(channel);
+          if (playing) {
+            for (const d of playing.values()) {
+              track(stopUpdate, d);
+              updates.push(stopUpdate);
+            }
+          }
+        }
+        event.control = "start";
+      }
+      if (event.assets && event.assets.length > 0) {
+        for (const d of this.getAllAudioData(channel, event.assets)) {
+          const processed = this.process(channel, event, d);
+          const update = retired(processed) ?? processed;
+          if (update === processed) {
+            audioToLoad.add(d);
+          }
+          track(update, d);
+          updates.push(update);
+        }
+      } else {
+        const processed = this.process(channel, event);
+        const update = retired(processed) ?? processed;
+        const playing = channels.get(channel);
+        if (playing) {
+          for (const d of playing.values()) {
+            track(update, d);
+            updates.push(update);
+          }
+        }
+      }
+    }
+    return { updates, audioToLoad };
   }
 
   protected _clipLengths = new Map<string, number>();

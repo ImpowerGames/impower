@@ -1,11 +1,10 @@
+import type { AudioPlayerUpdate } from "../../../modules/audio/types/AudioPlayerUpdate";
 import type { LoadAudioPlayerParams } from "../../../modules/audio/types/LoadAudioPlayerParams";
 import type { Instructions } from "../../types/Instructions";
-import { VOICING_CONTROLS } from "../../utils/voicingControls";
 import type { Game } from "../Game";
 
-export interface VoiceEvent {
-  after: number;
-  queued: boolean;
+export interface SilentVoice {
+  updates: AudioPlayerUpdate[];
   clips: LoadAudioPlayerParams[];
 }
 
@@ -13,49 +12,56 @@ export function silentVoice(
   game: Game,
   instructions: Instructions,
   instant?: boolean,
-): VoiceEvent[] | undefined {
+): SilentVoice | undefined {
+  const sequence = instructions.audio?.["voice"];
   if (
     instant ||
     game.context.system.previewing === undefined ||
-    !instructions.speech
+    !instructions.speech ||
+    !sequence?.length
   ) {
     return undefined;
   }
-  const events = (instructions.audio?.["voice"] ?? []).flatMap(
-    (event): VoiceEvent[] =>
-      VOICING_CONTROLS.has(event.control) && event.assets?.length
-        ? [
-            {
-              after: event.after ?? 0,
-              queued: event.control === "queue",
-              clips: game.module.audio.resolveLoadParams("voice", event.assets),
-            },
-          ]
-        : [],
-  );
-  return events.length > 0 ? events : undefined;
+  const voice = game.module.audio.planVoice(sequence);
+  return voice.clips.length > 0 ? voice : undefined;
 }
 
 export function voiceSpans(
-  events: VoiceEvent[],
+  voice: SilentVoice,
   lengthOf: (clip: LoadAudioPlayerParams) => number | undefined,
 ): [number, number][] {
-  const spans: [number, number][] = [];
+  const clips = new Map(voice.clips.map((clip) => [clip.key, clip]));
+  const heard: { key: string; from: number; to: number }[] = [];
   let origin = 0;
-  let end = 0;
-  for (const event of events) {
-    if (event.queued && spans.length > 0) {
-      origin = end;
-    }
-    const start = origin + event.after;
-    for (const clip of event.clips) {
-      const length = lengthOf(clip);
-      if (length == null || length <= 0) {
-        continue;
+  const apply = (update: AudioPlayerUpdate, key: string) => {
+    const when = origin + (update.after ?? 0);
+    if (update.control === "start") {
+      const clip = clips.get(key);
+      const length = clip ? lengthOf(clip) : undefined;
+      if (length != null && length > 0) {
+        heard.push({ key, from: when, to: when + length });
       }
-      spans.push([start, start + length]);
-      end = Math.max(end, start + length);
+    } else if (update.control === "stop") {
+      for (const instance of heard) {
+        if (instance.key === key && instance.to > when) {
+          instance.to = Math.max(instance.from, when);
+        }
+      }
+    }
+  };
+  for (const update of voice.updates) {
+    if (update.key) {
+      apply(update, update.key);
+      continue;
+    }
+    for (const key of new Set(heard.map((instance) => instance.key))) {
+      apply(update, key);
+    }
+    if (update.control === "await" && heard.length > 0) {
+      origin = Math.max(origin, ...heard.map((instance) => instance.to));
     }
   }
-  return spans;
+  return heard
+    .filter((instance) => instance.to > instance.from)
+    .map(({ from, to }): [number, number] => [from, to]);
 }

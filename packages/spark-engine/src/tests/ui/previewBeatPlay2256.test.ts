@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Clock } from "../../game/core/classes/Clock";
-import { voiceSpans } from "../../game/core/classes/presenters/voice";
+import { silentVoice, voiceSpans } from "../../game/core/classes/presenters/voice";
 import { BEAT_LEAD_MS } from "../../game/core/utils/sharedClock";
 import {
   createHarness,
@@ -369,19 +369,74 @@ describe("measuring the voice of a played beat again (#2256)", () => {
 });
 
 describe("the voice timeline of a silently played beat (#2256)", () => {
-  const clip = (key: string) => ({ channel: "voice", key });
-  const lengths: Record<string, number> = { first: 2, second: 3, third: 1, fourth: 4 };
-  const lengthOf = (load: { key: string }) => lengths[load.key];
+  const VOICES = `define mia as character with
+  name = "MIA"
+end
 
-  test("a queued event starts its after when the clips before it end, and its clips start together", () => {
+define long as audio with
+  src = "long.wav"
+end
+
+define first as audio with
+  src = "first.wav"
+end
+
+define second as audio with
+  src = "second.wav"
+end
+
+define third as audio with
+  src = "third.wav"
+end
+
+define fourth as audio with
+  src = "fourth.wav"
+end
+
+scene start
+  MIA: Hi.
+end
+`;
+  const lengths: Record<string, number> = {
+    long: 10,
+    first: 2,
+    second: 3,
+    third: 1,
+    fourth: 4,
+  };
+  const timelineOf = async (sequence: any[], known: Record<string, number> = lengths) => {
+    const h = createHarness(VOICES);
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    h.game.markPreviewing(1);
+    const voice = silentVoice(h.game, {
+      speech: { character: "mia", spans: [] },
+      audio: { voice: sequence },
+    } as any);
+    expect(voice).toBeDefined();
+    return voiceSpans(voice!, (clip) => known[clip.key.split(".").pop()!]);
+  };
+
+  test("a played clip replaces the clips before it, and a queue waits for what is left", async () => {
     expect(
-      voiceSpans(
-        [
-          { after: 0, queued: false, clips: [clip("first")] },
-          { after: 1, queued: true, clips: [clip("second"), clip("third")] },
-        ],
-        lengthOf,
-      ),
+      await timelineOf([
+        { control: "play", assets: ["long"], after: 0 },
+        { control: "play", assets: ["third"], after: 1 },
+        { control: "queue", assets: ["third"], after: 0 },
+      ]),
+    ).toEqual([
+      [0, 1],
+      [1, 2],
+      [2, 3],
+    ]);
+  });
+
+  test("a queued event starts its after when the clips before it end, and its clips start together", async () => {
+    expect(
+      await timelineOf([
+        { control: "play", assets: ["first"], after: 0 },
+        { control: "queue", assets: ["second", "third"], after: 1 },
+      ]),
     ).toEqual([
       [0, 2],
       [3, 6],
@@ -389,16 +444,13 @@ describe("the voice timeline of a silently played beat (#2256)", () => {
     ]);
   });
 
-  test("an event after a queue keeps the time the queue waited until as its origin", () => {
+  test("an event after a queue keeps the time the queue waited until as its origin", async () => {
     expect(
-      voiceSpans(
-        [
-          { after: 0, queued: false, clips: [clip("first")] },
-          { after: 1, queued: true, clips: [clip("third")] },
-          { after: 0.5, queued: false, clips: [clip("fourth")] },
-        ],
-        lengthOf,
-      ),
+      await timelineOf([
+        { control: "start", assets: ["first"], after: 0 },
+        { control: "queue", assets: ["third"], after: 1 },
+        { control: "start", assets: ["fourth"], after: 0.5 },
+      ]),
     ).toEqual([
       [0, 2],
       [3, 4],
@@ -406,19 +458,13 @@ describe("the voice timeline of a silently played beat (#2256)", () => {
     ]);
   });
 
-  test("a played event starts at its own after, and a clip with no length is left out", () => {
+  test("a clip with no measured length is left out", async () => {
     expect(
-      voiceSpans(
-        [
-          { after: 0.5, queued: false, clips: [clip("first"), clip("missing")] },
-          { after: 0.25, queued: false, clips: [clip("third")] },
-        ],
-        lengthOf,
+      await timelineOf(
+        [{ control: "start", assets: ["first", "second"], after: 0.5 }],
+        { first: 2 },
       ),
-    ).toEqual([
-      [0.5, 2.5],
-      [0.25, 1.25],
-    ]);
+    ).toEqual([[0.5, 2.5]]);
   });
 });
 

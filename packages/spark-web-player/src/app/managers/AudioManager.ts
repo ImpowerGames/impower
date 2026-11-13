@@ -195,14 +195,16 @@ export default class AudioManager extends Manager {
     if (!cache || !params.src) {
       return this.loadAudioBuffer(params);
     }
-    const resident = cache.getAudio(params.key);
+    const resident = cache.getAudio(params.key, params.src);
     if (resident) {
       return resident;
     }
     const pin = `play:${params.key}`;
     await cache.request([{ kind: "audio", params }], 0, pin);
     cache.release([pin], false);
-    return cache.getAudio(params.key) ?? this.loadAudioBuffer(params);
+    return (
+      cache.getAudio(params.key, params.src) ?? this.loadAudioBuffer(params)
+    );
   }
 
   protected _mixerGains = new Map<string, number>();

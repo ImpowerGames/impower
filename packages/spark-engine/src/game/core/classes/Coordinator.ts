@@ -435,7 +435,7 @@ export class Coordinator<G extends Game> {
     let totalDurationMS = (instructions.end ?? 0) * 1000;
     const voice = silentVoice(game, instructions, instant);
     const measureTriggerId = voice
-      ? game.module.audio.measureClips(voice.flatMap((event) => event.clips))
+      ? game.module.audio.measureClips(voice.clips)
       : null;
     const handleTick = (deltaMS: number): void => {
       if (!ready) {
