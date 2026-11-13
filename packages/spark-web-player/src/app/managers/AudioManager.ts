@@ -74,6 +74,7 @@ export default class AudioManager extends Manager {
     this._audioMixers.clear();
     this._mixerGains.clear();
     this._waitingMovies.clear();
+    this._pendingPlayers.clear();
     this._synthKeys.clear();
     for (const c of this._audioChannels.values()) {
       for (const p of c.values()) {
@@ -261,24 +262,49 @@ export default class AudioManager extends Manager {
     if (audioChannel.get(params.key)) {
       return audioChannel.get(params.key)!;
     }
+    if (!audioBuffer) {
+      return undefined;
+    }
+    if (!this.app.audioContext) {
+      this._pendingPlayers.set(`${params.channel}/${params.key}`, {
+        params,
+        audioBuffer,
+      });
+      return undefined;
+    }
+    return this.createAudioPlayer(params, audioBuffer, this.app.audioContext);
+  }
+
+  protected _pendingPlayers = new Map<
+    string,
+    { params: LoadAudioPlayerParams; audioBuffer: AudioBuffer }
+  >();
+
+  protected createAudioPlayer(
+    params: LoadAudioPlayerParams,
+    audioBuffer: AudioBuffer,
+    audioContext: AudioContext,
+  ): AudioPlayer {
+    const audioChannel = this.getAudioChannel(params.channel);
+    const existing = audioChannel.get(params.key);
+    if (existing) {
+      return existing;
+    }
     const mixerName = params.mixer || params.channel;
     const audioMixer = this.getAudioMixer(mixerName, params.mixerGain ?? 1);
-    if (audioBuffer && this.app.audioContext) {
-      const audioPlayer = new AudioPlayer(audioBuffer, this.app.audioContext, {
-        volume: params.volume,
-        cues: params.cues,
-        loop: params.loop,
-        loopStart: params.loopStart,
-        loopEnd: params.loopEnd,
-        destination: audioMixer?.volumeNode,
-      });
-      audioChannel.set(params.key, audioPlayer);
-      if (params.synth && params.tones) {
-        this._synthKeys.add(params.key);
-      }
-      return audioPlayer;
+    const audioPlayer = new AudioPlayer(audioBuffer, audioContext, {
+      volume: params.volume,
+      cues: params.cues,
+      loop: params.loop,
+      loopStart: params.loopStart,
+      loopEnd: params.loopEnd,
+      destination: audioMixer?.volumeNode,
+    });
+    audioChannel.set(params.key, audioPlayer);
+    if (params.synth && params.tones) {
+      this._synthKeys.add(params.key);
     }
-    return undefined;
+    return audioPlayer;
   }
 
   protected async updateAudioPlayer(
@@ -357,6 +383,17 @@ export default class AudioManager extends Manager {
   }
 
   onAudioContextRunning() {
+    const audioContext = this.app.audioContext;
+    if (audioContext) {
+      const pending = [...this._pendingPlayers.values()];
+      this._pendingPlayers.clear();
+      for (const { params, audioBuffer } of pending) {
+        this.createAudioPlayer(params, audioBuffer, audioContext);
+      }
+      for (const [mixer, gain] of this._mixerGains) {
+        this.getAudioMixer(mixer, gain);
+      }
+    }
     for (const [video, { mixer, mixerGain }] of this._waitingMovies) {
       if (video.isConnected) {
         this.connectMovie(video, mixer, mixerGain);
