@@ -95,6 +95,51 @@ describe("every name writer uses the full CSS identifier escape (#2176)", () => 
   });
 });
 
+describe("a name inside an authored value is read with the grammar of its property (#2176)", () => {
+  it.each([
+    ["animation", "my\\.font@night 1s"],
+    ["animation_name", "my\\.font@night"],
+    ["text-font", "my\\.font@night, serif"],
+  ])("keeps an authored escape in %s %s as part of one name", (property, value) => {
+    expect(identValues(valueOf(property, value))[0]).toBe("my.font@night");
+  });
+
+  it.each(["1", "2s", ".5", "50%"])("writes the animation-name %s as one identifier", (name) => {
+    expect(identValues(valueOf("animation_name", name))).toEqual([name]);
+  });
+
+  it.each(["1", "2s", ".5"])("writes the text-font family %s as one identifier", (name) => {
+    expect(identValues(valueOf("text-font", `${name}, serif`))).toEqual([name, "serif"]);
+  });
+
+  it.each([
+    ['"spin, fast"', '"spin, fast"'],
+    [`"spin, fast", ${PLAIN}`, `"spin, fast", ${PLAIN}`],
+    [`${PLAIN} , "a,b"`, `${PLAIN}, "a,b"`],
+  ])("splits the animation-name %s only at its top-level commas", (value, expected) => {
+    expect(valueOf("animation_name", value)).toBe(expected);
+  });
+
+  it("leaves a var() animation whole when a word of its fallback names a theme animation", () => {
+    const themed = new Set([getVarName("animation", "bounce")]);
+    const [[, value]] = getCssEquivalent("animation", "var(--override, bounce 0.5s)", themed) as [[string, string]];
+    expect(value).toBe("var(--override, bounce 0.5s)");
+  });
+
+  it.each(NAMES)("names the screen animation %s in its timing variable as its @keyframes rule does", (name) => {
+    const css = String(
+      renderVNode(
+        { root: "animation", type: "timing", children: [{ root: "animation", type: "property", args: { key: "duration", value: "1s" } }] },
+        ctx(),
+        { root: "animation", type: "animation", args: { name } },
+      ),
+    );
+    const value = css.slice(css.indexOf(":", css.indexOf("--theme-animation")) + 1, css.lastIndexOf(";"));
+    expect(identValues(value)).toEqual([name]);
+    expect(identValues(preludeOf(screenKeyframes(name)).replace("@keyframes", ""))).toEqual([name]);
+  });
+});
+
 describe("the font theme variable names the family its font is loaded under (#2176)", () => {
   const SOURCE = `${NAMES.map(
     (name, i) => `define face${i} as font with

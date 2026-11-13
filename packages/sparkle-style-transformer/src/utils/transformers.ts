@@ -2,6 +2,7 @@ import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 import type { ThemeVariables } from "../types/themeVariables.js";
 import {
   applyEdits,
+  escapeCssAnimationNames,
   escapeCssNames,
   identName,
   isFunctionNode,
@@ -302,14 +303,19 @@ export const getCssAnimation = (
   if (!value) {
     return "none";
   }
+  if (value.startsWith("var(")) {
+    return escapeCssAnimationNames(value);
+  }
   const names = value.split(" ");
   const variables = names.map((v) =>
     getThemeVar(theme, "animation", `${v}${suffix}`),
   );
   if (variables.every((v) => v === undefined)) {
-    return escapeCssNames(value);
+    return escapeCssAnimationNames(value);
   }
-  return names.map((v, i) => variables[i] ?? escapeCssNames(v)).join(", ");
+  return names
+    .map((v, i) => variables[i] ?? escapeCssAnimationNames(v))
+    .join(", ");
 };
 
 export const getCssBgAlign = (value: string): string => {

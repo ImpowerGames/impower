@@ -311,7 +311,7 @@ export function renderVNode(
         })
         .join(" ");
       const name = parent?.args?.["name"];
-      return `@keyframes ${escapeCssIdentifier(name)} { ${styleContent} }`;
+      return `@keyframes ${escapeCssIdentifier(name ?? "")} { ${styleContent} }`;
     }
     if (type === "timing" && children?.length) {
       const name = parent?.args?.["name"];
@@ -352,7 +352,7 @@ export function renderVNode(
         timing.iterations,
         timing.direction,
         timing.fill,
-        name,
+        name && escapeCssIdentifier(name),
       ]
         .filter(Boolean)
         .join(" ");
@@ -365,7 +365,7 @@ export function renderVNode(
 
   if (el.root === "theme" && type === "theme") {
     const styleContent = themeDeclarations(children ?? [], [], ctx.options.theme, cssAliases).join(" ");
-    const name = escapeCssIdentifier(el.args?.["name"]);
+    const name = escapeCssIdentifier(el.args?.["name"] ?? "");
     return {
       tag: "style",
       props: {},

@@ -79,34 +79,42 @@ const SEPARATORS = new Set<TokenType>([
   TokenType.EOF,
 ]);
 
-const WHOLE_TOKENS = new Set<TokenType>([
-  TokenType.Ident,
-  TokenType.String,
-  TokenType.Hash,
-  TokenType.URL,
-  TokenType.Number,
-  TokenType.Percentage,
-]);
+const CSS_ESCAPE = /\\(?:([0-9a-fA-F]{1,6})(?:\r\n|[ \t\n\r\f])?|([\s\S]))/g;
+
+const unescapeCss = (text: string): string =>
+  text.replace(CSS_ESCAPE, (_, hex: string | undefined, char: string) => {
+    if (hex === undefined) {
+      return char;
+    }
+    const code = parseInt(hex, 16);
+    return code === 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)
+      ? "�"
+      : String.fromCodePoint(code);
+  });
 
 const TIME_UNITS = new Set(["s", "ms"]);
 
-const isWholeToken = (token: CSSToken): boolean =>
-  WHOLE_TOKENS.has(token[0]) ||
+const isNameToken = (token: CSSToken): boolean =>
+  token[0] === TokenType.Ident || token[0] === TokenType.String;
+
+const isAnimationToken = (token: CSSToken): boolean =>
+  isNameToken(token) ||
+  token[0] === TokenType.Number ||
   (token[0] === TokenType.Dimension &&
     TIME_UNITS.has((token[4] as { unit: string }).unit.toLowerCase()));
 
-export const escapeCssNames = (css: string): string => {
+const escapeWords = (css: string, keeps: (token: CSSToken) => boolean): string => {
   const edits: SourceEdit[] = [];
   const walked: boolean[] = [true];
   let word: CSSToken[] = [];
   const flush = () => {
     const first = word[0];
     const last = word[word.length - 1];
-    if (first && last && !(word.length === 1 && isWholeToken(first))) {
+    if (first && last && !(word.length === 1 && keeps(first))) {
       edits.push({
         start: first[2],
         end: last[3] + 1,
-        text: escapeCssIdentifier(css.slice(first[2], last[3] + 1)),
+        text: escapeCssIdentifier(unescapeCss(css.slice(first[2], last[3] + 1))),
       });
     }
     word = [];
@@ -132,6 +140,12 @@ export const escapeCssNames = (css: string): string => {
   }
   return applyEdits(css, edits);
 };
+
+export const escapeCssNames = (css: string): string =>
+  escapeWords(css, isNameToken);
+
+export const escapeCssAnimationNames = (css: string): string =>
+  escapeWords(css, isAnimationToken);
 
 export const applyEdits = (css: string, edits: SourceEdit[]): string => {
   let result = css;
