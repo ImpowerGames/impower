@@ -24,6 +24,7 @@ function Harness() {
     "div",
     {},
     h("input", { "data-field": "", "aria-label": "Field" }),
+    h("input", { "data-name": "", "data-name-field": "row", "aria-label": "Name" }),
     h("div", { contentEditable: "true", "data-script": "" }, "text"),
     h("button", { "data-bar-button": "" }, "Undo"),
     h("div", { "data-panel-background": "" }),
@@ -74,6 +75,26 @@ describe("the focus rule", () => {
     expect(press(the("[data-link]"))).toBe(false);
     expect(press(the("[data-nav-button]"))).toBe(false);
     expect(press(the("[data-menu-trigger]"))).toBe(false);
+  });
+
+  it("commits a name field when blank space, a button or a header outside it is pressed", () => {
+    const name = the<HTMLInputElement>("[data-name]");
+    const blurred = vi.fn();
+    name.addEventListener("blur", blurred);
+    name.focus();
+    expect(press(the("[data-panel-background]"))).toBe(false);
+    expect(blurred).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).not.toBe(name);
+    name.focus();
+    expect(press(the("[data-bar-button]"))).toBe(false);
+    expect(blurred).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves a name field alone when the press is inside it", () => {
+    const name = the<HTMLInputElement>("[data-name]");
+    name.focus();
+    expect(press(name)).toBe(false);
+    expect(document.activeElement).toBe(name);
   });
 
   it("does nothing while no text field has focus", () => {

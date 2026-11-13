@@ -1,6 +1,7 @@
 import { ListRow, TextField } from "@impower/impower-ui/components";
 import type { ComponentChildren } from "preact";
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { closeWatcher } from "../desktop-shell";
 
 export type NameRowProps = {
   icon: ComponentChildren;
@@ -34,6 +35,19 @@ export default function NameRow({
     input.current?.select();
   }, []);
 
+  const cancel = () => {
+    cancelled.current = true;
+    const back = returnFocus?.();
+    onCancel();
+    if (back?.isConnected) {
+      back.focus();
+    }
+  };
+  const cancelRef = useRef(cancel);
+  cancelRef.current = cancel;
+
+  useEffect(() => closeWatcher(() => cancelRef.current()), []);
+
   const commit = async (submitted: boolean) => {
     if (busy.current || cancelled.current) {
       return;
@@ -64,6 +78,7 @@ export default function NameRow({
         <span class="flex h-[26px] min-w-0 items-center rounded-control border border-edge bg-bg focus-within:border-accent">
           <TextField
             ref={input}
+            data-name-field="row"
             frame="inset"
             aria-label={label}
             aria-invalid={error ? "true" : undefined}
@@ -78,16 +93,14 @@ export default function NameRow({
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
+                if (e.isComposing || e.keyCode === 229) {
+                  return;
+                }
                 void commit(true);
               } else if (e.key === "Escape") {
                 e.preventDefault();
                 e.stopPropagation();
-                cancelled.current = true;
-                const back = returnFocus?.();
-                onCancel();
-                if (back?.isConnected) {
-                  back.focus();
-                }
+                cancel();
               }
             }}
             onBlur={() => {
