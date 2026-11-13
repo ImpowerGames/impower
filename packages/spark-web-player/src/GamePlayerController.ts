@@ -1186,6 +1186,9 @@ export class GamePlayerController {
     }
     this.hidePlayButton();
     sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
+    if (this._workerPlay?.ended) {
+      this.publishGameState();
+    }
   }
 
   protected handleRouteTab = (tab: RouteTab) => {

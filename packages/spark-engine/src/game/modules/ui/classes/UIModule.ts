@@ -73,6 +73,8 @@ ImageInstruction,
 LayoutInstruction,
 TextInstruction,
 } from "../../../core/types/Instruction";
+import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
+import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { Animation } from "../types/Animation";
@@ -5271,7 +5273,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       get entries(): readonly PageEntry[] {
-        return $._state.page?.entries ?? [];
+        const page = $._state.page;
+        return this.withEnding(page?.entries ?? []);
+      }
+
+      protected withEnding(entries: readonly PageEntry[]): PageEntry[] {
+        const ending = $._state.page?.ending;
+        return ending ? [...entries, { kind: "ending", ending }] : [...entries];
       }
 
       loaded(): void {
@@ -5319,6 +5327,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         page.entries = [...before.slice(0, keep), ...entries];
         page.current = keep;
         page.key = key;
+        delete page.ending;
         if (absorbed.length > 0) {
           page.absorbed = absorbed;
         } else {
@@ -5345,6 +5354,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         };
         delete page.entries[at]!.options;
         this.show(true);
+      }
+
+      end(ending: StoryEnding | null): void {
+        if (ending) {
+          this.state.ending = ending;
+        } else if ($._state.page?.ending) {
+          delete $._state.page.ending;
+        } else {
+          return;
+        }
+        this.sync(this._presented);
       }
 
       onChoose(choose: (index: number) => void): void {
@@ -5418,9 +5438,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         const page = $._state.page;
         const current = page?.current ?? 0;
-        const entries = (page?.entries ?? []).slice(
-          0,
-          presented ? undefined : current,
+        const entries = this.withEnding(
+          (page?.entries ?? []).slice(0, presented ? undefined : current),
         );
         const signatures = entries.map((entry) => JSON.stringify(entry));
         let kept = 0;
@@ -5458,6 +5477,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ): Element {
         if (entry.kind === "rule") {
           return $.createElement(column, { type: "hr", name: "textstream_rule" });
+        }
+        if (entry.kind === "ending") {
+          const ending = entry.ending ?? "out";
+          return $.createElement(column, {
+            name:
+              ending === "error"
+                ? "textstream_end alert"
+                : "textstream_end muted",
+            attributes: { role: "status" },
+            content: { text: endingStatusText(ending) },
+          });
         }
         if (entry.kind === "caption") {
           return $.createElement(column, {

@@ -172,7 +172,7 @@ describe.each(SCHEMES)("builtin styles that set a background, in the %s scheme",
   });
 });
 
-const ROLE_BARS = { ink: 7, accent: 7, muted: 4.5 } as const;
+const ROLE_BARS = { ink: 7, accent: 7, muted: 4.5, alert: 4.5 } as const;
 
 describe.each(SCHEMES)("the page's colour roles on its ground, in the %s scheme (#2062)", (scheme) => {
   const styles = stylesIn(scheme);

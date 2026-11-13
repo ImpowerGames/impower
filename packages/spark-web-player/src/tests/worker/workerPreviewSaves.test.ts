@@ -76,6 +76,81 @@ const advanceTo = async (h: any, text: string) => {
   expect(shownText(h.playing())).toContain(text);
 };
 
+const ENDING = "scene start\n  First.\n  Last.\n  fin\nend\n";
+const OPEN_TEXTSTREAM = 'define ui as config with\n  layouts_initial = { "textstream" }\nend\n\n';
+
+describe("a save taken at the ending (#2189)", () => {
+  for (const [mode, prelude] of [
+    ["Interactive Fiction", OPEN_TEXTSTREAM],
+    ["Visual Novel", ""],
+  ] as const) {
+    it(`${mode}: plays from the save ended, with the ending status${mode === "Interactive Fiction" ? " and the page's line" : ""}`, async () => {
+      const source = `${prelude}${ENDING}`;
+      const first = source.split("\n").findIndex((l) => l.includes("First."));
+      const h = await createPlayerHarness({
+        files: [{ uri: MAIN_URI, text: source }],
+        startFrom: { file: MAIN_URI, line: first },
+        manualClock: true,
+      });
+      const win = h.overlay.ownerDocument.defaultView as any;
+      win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+      const host = fakeHost(h);
+      const states = () =>
+        h.toEditor
+          .filter((m: any) => m.method === "preview/didChangeGameState")
+          .map((m: any) => m.params);
+      const lines = () =>
+        [...h.overlay.querySelectorAll(".textstream_end")].map((el) => el.textContent);
+      try {
+        await h.compile();
+        await h.select(first);
+        await settle(40);
+        expect(await h.controller.startGameAndApp()).toBe(true);
+        await settle(40);
+        for (let i = 0; i < 8 && !h.playing()?.ending; i++) {
+          h.playing()!.clickedToContinue();
+          await h.tick(1000 / 60, 2);
+        }
+        await settle(20);
+        expect(h.playing()?.ending?.kind).toBe("fin");
+        await h.controller._saves.saveHere();
+        const saved = host.saves.find((save) => save.kind === "saved")!;
+        expect(saved).toBeDefined();
+
+        await h.controller.stopGame("quit");
+        await settle(40);
+        expect(states().at(-1).launchState).toBe("preview");
+
+        const before = h.toEditor.length;
+        await h.controller.playFromSave(saved.data);
+        await settle(40);
+        await h.tick(1000 / 60, 10);
+        expect(h.playing()?.ending?.kind).toBe("fin");
+        const after = h.toEditor.slice(before);
+        const started = after.findIndex((m: any) => m.method === "game/started");
+        expect(started).toBeGreaterThanOrEqual(0);
+        expect(
+          after
+            .slice(started + 1)
+            .some(
+              (m: any) =>
+                m.method === "preview/didChangeGameState" &&
+                m.params.launchState === "ended",
+            ),
+        ).toBe(true);
+        const state = states().at(-1);
+        expect(state.launchState).toBe("ended");
+        expect(state.statuses.ending.text).toBe("End of story");
+        expect(lines()).toEqual(mode === "Interactive Fiction" ? ["End of story"] : []);
+      } finally {
+        await h.controller.stopGame("quit");
+        await settle(20);
+        h.dispose();
+      }
+    }, 120_000);
+  }
+});
+
 describe("saves made while playing in the player", () => {
   it("writes Last run saves, saves here and plays on from a save at its line", async () => {
     const h = await createPlayerHarness({

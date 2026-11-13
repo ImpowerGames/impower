@@ -1,5 +1,6 @@
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
+import { SetStartingDisplayModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetStartingDisplayModeMessage";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlayMessage } from "../../main/workers/messages/PlayMessage";
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
@@ -8,6 +9,7 @@ const RAN_OUT = "scene start\n  First.\n  Hello.\n  done\nend\n";
 const FIN = "scene start\n  First.\n  Hello.\n  fin\nend\n";
 const ERROR = 'scene start\n  First.\n  Hello.\n  & error("boom")\n  Goodbye.\nend\n';
 const HELLO = 2;
+const OPEN_TEXTSTREAM = 'define ui as config with\n  layouts_initial = { "textstream" }\nend\n\n';
 
 type Host = "editor" | "standalone";
 
@@ -102,6 +104,78 @@ describe("PLAY in the worker reaching the end of the story", () => {
       }
     }, 120_000);
   }
+
+  for (const [name, source, kind, badge] of [
+    ["running out", RAN_OUT, "out", "Story ran out"],
+    ["fin", FIN, "fin", "End of story"],
+    ["a runtime error", ERROR, "error", "Stopped by an error"],
+  ] as const) {
+    it(`ends the Interactive Fiction page with the status line at ${name} (#2189)`, async () => {
+      const { h } = await start(`${OPEN_TEXTSTREAM}${source}`, HELLO + 4);
+      try {
+        const lines = () => [...h.overlay.querySelectorAll(".textstream_end")];
+        expect(lines()).toEqual([]);
+        await click(h);
+        expect(sent(h, "game/ended")).toEqual([
+          expect.objectContaining({ kind }),
+        ]);
+        const statuses = sent(h, "preview/didChangeGameState").at(-1).statuses;
+        expect(statuses.ending.text).toBe(badge);
+        expect(lines()).toHaveLength(1);
+        const line = lines()[0]!;
+        expect(line.textContent).toBe(statuses.ending.text);
+        expect(line.getAttribute("role")).toBe("status");
+        expect(line.classList.contains("alert")).toBe(kind === "error");
+        expect(line.classList.contains("muted")).toBe(kind !== "error");
+        expect(line.parentElement!.lastElementChild).toBe(line);
+        expect(line.parentElement!.classList.contains("textstream_column")).toBe(true);
+        await click(h);
+        expect(lines()).toHaveLength(1);
+      } finally {
+        await h.controller.destroyGameAndApp();
+        h.dispose();
+      }
+    }, 120_000);
+  }
+
+  it("ends a page that opens on fin with the status line alone (#2189)", async () => {
+    const { h } = await start(`${OPEN_TEXTSTREAM}scene start\n  fin\nend\n`, 5);
+    try {
+      await settle(20);
+      expect(sent(h, "game/ended")).toEqual([
+        expect.objectContaining({ kind: "fin" }),
+      ]);
+      const column = h.overlay.querySelector(".textstream_column")!;
+      expect(column).not.toBeNull();
+      expect([...column.children].map((el) => el.className)).toEqual([
+        "textstream_end muted",
+      ]);
+      expect(column.textContent).toBe("End of story");
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("puts the status line on the page when the host switches to Interactive Fiction after the story ended (#2189)", async () => {
+    const { h } = await start(FIN, HELLO);
+    try {
+      await click(h);
+      expect(launchStates(h).at(-1)).toBe("ended");
+      expect(h.overlay.querySelectorAll(".textstream_end")).toHaveLength(0);
+      await (h.controller as any).handleSetStartingDisplayMode(
+        SetStartingDisplayModeMessage.type.request({ mode: "textstream" }),
+      );
+      await settle(40);
+      await h.tick(1000 / 60, 60);
+      const lines = [...h.overlay.querySelectorAll(".textstream_end")];
+      expect(lines.map((el) => el.textContent)).toEqual(["End of story"]);
+      expect(lines[0]!.parentElement!.lastElementChild).toBe(lines[0]);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.dispose();
+    }
+  }, 120_000);
 
   for (const line of [0, 1]) {
     it(`ends by fin when PLAY starts on line ${line} of a story whose first statement is fin`, async () => {
