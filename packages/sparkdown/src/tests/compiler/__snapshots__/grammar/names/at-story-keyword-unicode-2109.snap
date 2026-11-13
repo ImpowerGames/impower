@@ -105,9 +105,15 @@ sparkdown [0..132]
  │   │       │               │                   ├─ AssetCommandFileName [42..51]: "animate@é"
  │   │       │               │                   └─ RequiredWhitespace [51..52]: " "
  │   │       │               └─ AssetCommandContent_c2 [52..58]
- │   │       │                   ├─ AssetCommandClauseKeyword [52..56]: "over"
- │   │       │                   ├─ RequiredWhitespace [56..57]: " "
- │   │       │                   └─ NumberValue [57..58]: "1"
+ │   │       │                   └─ AssetCommandValueClause [52..58]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [52..56]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [52..56]: "over"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [56..57]
+ │   │       │                       │   └─ RequiredWhitespace [56..57]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [57..58]
+ │   │       │                           └─ AssetCommandClauseValue [57..58]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [57..58]
+ │   │       │                                   └─ NumberValue [57..58]: "1"
  │   │       └─ ImageCommand_end [58..60]
  │   │           ├─ ImageCommand_end_c1 58
  │   │           ├─ ImageCommand_end_c2 [58..60]

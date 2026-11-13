@@ -63,10 +63,14 @@ export interface MorphConditions {
   unless?: string[];
 }
 
+export const MORPH_PICK_NONE = "none";
+
 export interface MorphProgramChannel {
   recipes: Record<string, string>;
   variants: Record<string, MorphRef[]>;
   conditions?: Record<string, MorphConditions>;
+  speech?: Record<string, { default?: true }>;
+  picks?: Record<string, Record<string, MorphRef[]>>;
 }
 
 export type MorphDiagnosticCode =

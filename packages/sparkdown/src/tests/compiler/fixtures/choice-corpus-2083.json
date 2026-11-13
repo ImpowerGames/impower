@@ -1991,9 +1991,7 @@
     }
    ],
    "rt": [],
-   "diags": [
-    "2@4:17-4:18 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}"
-   ],
+   "diags": [],
    "scopes": "a58e141b"
   },
   {
@@ -2751,8 +2749,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}"
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
    ],
    "scopes": "a7387f57"
   },
@@ -14441,8 +14438,7 @@
    "runs": [],
    "rt": [],
    "diags": [
-    "1@3:9-3:10 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@3:10-3:11 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}"
+    "1@3:9-3:10 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "b70e5407"
   },
@@ -14454,8 +14450,7 @@
    "runs": [],
    "rt": [],
    "diags": [
-    "1@3:9-3:10 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@3:10-3:11 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}"
+    "1@3:9-3:10 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "f0cdcb22"
   },
@@ -23093,9 +23088,7 @@
     "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
-    "2@4:27-4:28 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "63355343"
   },
@@ -23210,8 +23203,7 @@
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "499ae4c9"
   },
@@ -23241,8 +23233,7 @@
     "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:27-4:28 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:28-4:29 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:28-4:29 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "c397060b"
   },
@@ -23272,8 +23263,7 @@
     "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "0a7cea31"
   },
@@ -23304,9 +23294,7 @@
     "1@4:27-4:28 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:28-4:29 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:29-4:30 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:35-4:36 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:31-4:35 {\"value\":\"Cannot find audio named `away`\",\"kind\":\"markdown\"}"
+    "1@4:35-4:36 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "7f9d1cce"
   },
@@ -23393,8 +23381,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "ac5c0b97"
   },
@@ -23436,8 +23423,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "7333447d"
   },
@@ -23456,8 +23442,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "723b336d"
   },
@@ -23516,8 +23501,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "206c560f"
   },
@@ -23625,8 +23609,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "e3ea3070"
   },
@@ -23646,8 +23629,7 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "c8779bea"
   },
@@ -23667,8 +23649,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "4799b212"
   },
@@ -23687,8 +23668,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "6f6d73ce"
   },
@@ -23778,8 +23758,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "d6047ed0"
   },
@@ -23821,8 +23800,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "73290b0e"
   },
@@ -23841,8 +23819,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "50c53dae"
   },
@@ -23880,6 +23857,7 @@
    "rt": [],
    "diags": [
     "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
     "2@4:27-4:28 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "755c6c65"
@@ -23900,8 +23878,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "87d5d533"
   },
@@ -24009,8 +23986,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "a2a4ba65"
   },
@@ -24030,8 +24006,7 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "6c7ddfee"
   },
@@ -24051,8 +24026,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "fc72ccf3"
   },
@@ -24071,8 +24045,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "fdbbe007"
   },
@@ -24165,8 +24138,7 @@
     "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "1d006968"
   },
@@ -24215,8 +24187,7 @@
     "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "30aacb62"
   },
@@ -24238,8 +24209,7 @@
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "9c29cd32"
   },
@@ -24304,8 +24274,7 @@
     "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "70e7817a"
   },
@@ -24416,8 +24385,7 @@
     "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "c606217d"
   },
@@ -24441,8 +24409,7 @@
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:30-4:31 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "a92263b0"
   },
@@ -24465,8 +24432,7 @@
     "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "b5bbecff"
   },
@@ -24488,8 +24454,7 @@
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "2b7664b3"
   },
@@ -24580,8 +24545,7 @@
    "rt": [],
    "diags": [
     "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "16798e47"
   },
@@ -24601,8 +24565,7 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "d251524b"
   },
@@ -24623,8 +24586,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "c3dde853"
   },
@@ -24644,8 +24606,7 @@
    "rt": [],
    "diags": [
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "0ba4050a"
   },
@@ -24682,8 +24643,7 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "e891177f"
   },
@@ -24704,8 +24664,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "5fd47f33"
   },
@@ -24813,8 +24772,7 @@
    "rt": [],
    "diags": [
     "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "d7ff86ff"
   },
@@ -24834,8 +24792,7 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "411da603"
   },
@@ -24856,8 +24813,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "6fc011cb"
   },
@@ -24877,8 +24833,7 @@
    "rt": [],
    "diags": [
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
    "scopes": "caddccb2"
   },
@@ -24968,9 +24923,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:14-4:15 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "fa1e3950"
   },
@@ -24995,7 +24948,6 @@
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}",
     "2@4:24-4:25 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "13646150"
@@ -25017,9 +24969,7 @@
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "6e148f64"
   },
@@ -25038,9 +24988,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:19-4:20 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "6ef558b9"
   },
@@ -25078,6 +25026,7 @@
    "rt": [],
    "diags": [
     "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
     "2@4:24-4:25 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "479ac38a"
@@ -25099,9 +25048,7 @@
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find image named `t`\",\"kind\":\"markdown\"}"
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "32429b70"
   },
@@ -25209,9 +25156,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:14-4:15 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "1da2c1e5"
   },
@@ -25234,9 +25179,7 @@
     "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "0c90227b"
   },
@@ -25257,9 +25200,7 @@
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "f06b141d"
   },
@@ -25278,9 +25219,7 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:19-4:20 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "459bc142"
   },
@@ -25373,7 +25312,6 @@
     "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:14-4:15 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
     "2@4:17-4:18 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "a2fe8350"
@@ -25396,7 +25334,6 @@
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
     "2@4:21-4:22 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "f1c1540f"
@@ -25419,7 +25356,6 @@
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
     "2@4:18-4:19 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "497f0065"
@@ -25442,7 +25378,6 @@
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:19-4:20 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
     "2@4:22-4:23 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "74c8e2b9"
@@ -25482,7 +25417,6 @@
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}",
     "2@4:21-4:22 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "f0aee5a3"
@@ -25503,10 +25437,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "dc79f6e4"
   },
@@ -25611,9 +25542,7 @@
    "rt": [],
    "diags": [
     "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:14-4:15 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "53ca380f"
   },
@@ -25633,9 +25562,7 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}"
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "6439ea60"
   },
@@ -25655,9 +25582,7 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}"
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "4bbd600b"
   },
@@ -25678,10 +25603,7 @@
    "diags": [
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:19-4:20 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
-    "2@4:22-4:26 {\"value\":\"Cannot find audio named `away`\",\"kind\":\"markdown\"}"
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "ca910e2b"
   },
@@ -25773,8 +25695,6 @@
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:14-4:15 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
-    "2@4:19-4:20 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
     "2@4:22-4:23 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "f094b656"
@@ -25799,8 +25719,6 @@
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
-    "2@4:23-4:24 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
     "2@4:26-4:27 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "53d35426"
@@ -25825,8 +25743,6 @@
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
-    "2@4:20-4:21 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
     "2@4:23-4:24 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "2fa1e093"
@@ -25851,8 +25767,6 @@
     "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:19-4:20 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
-    "2@4:24-4:25 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
     "2@4:27-4:28 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "0d78f9b6"
@@ -25900,8 +25814,6 @@
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}",
-    "2@4:23-4:24 {\"value\":\"Cannot find image named `c`\",\"kind\":\"markdown\"}",
     "2@4:26-4:27 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "640cca29"
@@ -25924,11 +25836,7 @@
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}",
-    "2@4:20-4:21 {\"value\":\"Cannot find image named `c`\",\"kind\":\"markdown\"}",
-    "2@4:23-4:24 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "76ac0495"
   },
@@ -26041,10 +25949,7 @@
     "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:14-4:15 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
-    "2@4:19-4:20 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}"
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "9c48bf3d"
   },
@@ -26066,10 +25971,7 @@
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
-    "2@4:23-4:24 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}"
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "86bd0c59"
   },
@@ -26091,10 +25993,7 @@
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:15-4:16 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
-    "2@4:20-4:21 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}"
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "2e7ff73d"
   },
@@ -26117,11 +26016,7 @@
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:19-4:20 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
-    "2@4:24-4:25 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
-    "2@4:27-4:31 {\"value\":\"Cannot find audio named `away`\",\"kind\":\"markdown\"}"
+    "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "d51a99d0"
   },
@@ -28117,8 +28012,7 @@
    "diags": [
     "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
    "scopes": "9677fce5"
   },

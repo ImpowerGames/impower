@@ -107,9 +107,15 @@ sparkdown [0..155]
  │   │       │               │       │   └─ RequiredWhitespace [65..66]: " "
  │   │       │               │       └─ AssetCommandInstruction_c5 66
  │   │       │               └─ AssetCommandContent_c2 [66..75]
- │   │       │                   ├─ AssetCommandClauseKeyword [66..70]: "with"
- │   │       │                   ├─ RequiredWhitespace [70..71]: " "
- │   │       │                   └─ NameValue [71..75]: "fade"
+ │   │       │                   └─ AssetCommandValueClause [66..75]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [66..70]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [66..70]: "with"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [70..71]
+ │   │       │                       │   └─ RequiredWhitespace [70..71]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [71..75]
+ │   │       │                           └─ AssetCommandClauseValue [71..75]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [71..75]
+ │   │       │                                   └─ NameValue [71..75]: "fade"
  │   │       └─ ImageCommand_end [75..77]
  │   │           ├─ ImageCommand_end_c1 75
  │   │           ├─ ImageCommand_end_c2 [75..77]
@@ -148,15 +154,27 @@ sparkdown [0..155]
  │   │       │                   ├─ RequiredWhitespace [97..98]: " "
  │   │       │                   ├─ AssetCommandClauseKeyword [98..102]: "mute"
  │   │       │                   ├─ RequiredWhitespace [102..103]: " "
- │   │       │                   ├─ AssetCommandClauseKeyword [103..107]: "with"
- │   │       │                   ├─ RequiredWhitespace [107..108]: " "
- │   │       │                   ├─ NameValue [108..112]: "fade"
+ │   │       │                   ├─ AssetCommandValueClause [103..112]
+ │   │       │                   │   ├─ AssetCommandValueClause_c1 [103..107]
+ │   │       │                   │   │   └─ AssetCommandClauseKeyword [103..107]: "with"
+ │   │       │                   │   ├─ AssetCommandValueClause_c2 [107..108]
+ │   │       │                   │   │   └─ RequiredWhitespace [107..108]: " "
+ │   │       │                   │   └─ AssetCommandValueClause_c3 [108..112]
+ │   │       │                   │       └─ AssetCommandClauseValue [108..112]
+ │   │       │                   │           └─ AssetCommandClauseValue_c1 [108..112]
+ │   │       │                   │               └─ NameValue [108..112]: "fade"
  │   │       │                   ├─ RequiredWhitespace [112..113]: " "
- │   │       │                   ├─ AssetCommandClauseKeyword [113..117]: "over"
- │   │       │                   ├─ RequiredWhitespace [117..118]: " "
- │   │       │                   └─ TimeValue [118..120]
- │   │       │                       ├─ TimeValue_c1 [118..119]: "1"
- │   │       │                       └─ TimeValue_c2 [119..120]: "s"
+ │   │       │                   └─ AssetCommandValueClause [113..120]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [113..117]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [113..117]: "over"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [117..118]
+ │   │       │                       │   └─ RequiredWhitespace [117..118]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [118..120]
+ │   │       │                           └─ AssetCommandClauseValue [118..120]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [118..120]
+ │   │       │                                   └─ TimeValue [118..120]
+ │   │       │                                       ├─ TimeValue_c1 [118..119]: "1"
+ │   │       │                                       └─ TimeValue_c2 [119..120]: "s"
  │   │       └─ ImageCommand_end [120..122]
  │   │           ├─ ImageCommand_end_c1 120
  │   │           ├─ ImageCommand_end_c2 [120..122]
