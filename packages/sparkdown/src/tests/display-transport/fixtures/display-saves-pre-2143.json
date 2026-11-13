@@ -45,5 +45,34 @@
       ""
     ],
     "save": "{\"engine\":\"program\",\"format\":2,\"engineVersion\":\"2\",\"gameVersion\":\"\",\"beats\":[{\"flags\":0,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\",\"params\":[]}]},\"a\":\"start\"},\"evalStack\":[],\"output\":[],\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":10,\"previousRandom\":0,\"didSafeExit\":false,\"variablesState\":{\"v\":\"^*word*\"},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[]},{\"flags\":1,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\",\"params\":[]}]},\"a\":[28,\"cdf34cac4734379c\"]},\"evalStack\":[],\"output\":[{\"objid\":1,\"obj\":{\"text\":\"^v\"}},\"\\n\"],\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":10,\"previousRandom\":0,\"previousFlow\":\"start\",\"didSafeExit\":false,\"globals\":{},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[[{\"n\":\"start\"},1,-1],[{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\"}]},\"k\":\"alternators\",\"i\":0,\"pl\":0},1,-1]],\"tables\":[],\"cells\":[]}],\"listings\":[{\"n\":4,\"windows\":[[0,\"6a9303302d4985cb\",\"3844fb2c178041b9\",\"9b536fe39fc29a0a\",\"616b642c5365a04f\"]]}],\"parts\":[{\"k\":\"alternators\",\"l\":[\"a65031f0550c1957\"]}]}"
+  },
+  "styledInlineArm": {
+    "source": "scene start\n  queue | A *first* | B **second** end\n  Next.\n  done\nend\n",
+    "text": "A *first*\n",
+    "remaining": [
+      "Next.\n",
+      ""
+    ],
+    "save": "{\"engine\":\"program\",\"format\":2,\"engineVersion\":\"2\",\"gameVersion\":\"\",\"beats\":[{\"flags\":0,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\",\"params\":[]}]},\"a\":[28,\"8657af4069b4418e\"]},\"evalStack\":[],\"output\":[{\"objid\":1,\"obj\":{\"text\":\"^A *first*\"}},\"\\n\"],\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":19,\"previousRandom\":0,\"previousFlow\":\"start\",\"didSafeExit\":false,\"variablesState\":{},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[[{\"n\":\"start\"},1,-1],[{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\"}]},\"k\":\"alternators\",\"i\":0,\"pl\":0},1,-1]]}],\"listings\":[{\"n\":4,\"windows\":[[0,\"a8725593ff8b27fa\",\"3844fb2c178041b9\",\"9b536fe39fc29a0a\",\"616b642c5365a04f\"]]}],\"parts\":[{\"k\":\"alternators\",\"l\":[\"e1bb234603fd4c2d\"]}]}"
+  },
+  "styledBlockArm": {
+    "source": "scene start\n  queue\n  | A *first*\n    B **second**\n  | Other.\n  end\n  Next.\n  done\nend\n",
+    "text": "A *first*\n",
+    "remaining": [
+      "B **second**\n",
+      "Next.\n",
+      ""
+    ],
+    "save": "{\"engine\":\"program\",\"format\":2,\"engineVersion\":\"2\",\"gameVersion\":\"\",\"beats\":[{\"flags\":0,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\",\"params\":[]}]},\"a\":[32,\"0f2f45fba3f010bf\"]},\"evalStack\":[],\"output\":[{\"objid\":1,\"obj\":{\"target\":\"^action\",\"text\":\"^A *first*\"}},\"\\n\"],\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":37,\"previousRandom\":0,\"previousFlow\":\"start\",\"didSafeExit\":false,\"variablesState\":{},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[[{\"n\":\"start\"},1,-1],[{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\"}]},\"k\":\"alternators\",\"i\":0,\"pl\":0},1,-1]]}],\"listings\":[{\"n\":4,\"windows\":[[0,\"01a18cfd4a207b31\",\"3844fb2c178041b9\",\"9b536fe39fc29a0a\",\"616b642c5365a04f\"]]}],\"parts\":[{\"k\":\"alternators\",\"l\":[\"f2a0c4d96858eec8\"]}]}"
+  },
+  "valueBlockArm": {
+    "source": "store x = \"first\"\nscene start\n  queue\n  | A *{x}*\n    B **second**\n  | Other.\n  end\n  Next.\n  done\nend\n",
+    "text": "A *first*\n",
+    "remaining": [
+      "B **second**\n",
+      "Next.\n",
+      ""
+    ],
+    "save": "{\"engine\":\"program\",\"format\":2,\"engineVersion\":\"2\",\"gameVersion\":\"\",\"beats\":[{\"flags\":0,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\",\"params\":[]}]},\"a\":[42,\"9e2954c6a056f36f\"]},\"evalStack\":[],\"output\":[{\"objid\":1,\"obj\":{\"target\":\"^action\",\"text\":\"^A *first*\"}},\"\\n\"],\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":52,\"previousRandom\":0,\"previousFlow\":\"start\",\"didSafeExit\":false,\"variablesState\":{\"x\":\"^first\"},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[[{\"n\":\"start\"},1,-1],[{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\"}]},\"k\":\"alternators\",\"i\":0,\"pl\":0},1,-1]]}],\"listings\":[{\"n\":4,\"windows\":[[0,\"aab785e03d2bd7d0\",\"3844fb2c178041b9\",\"9b536fe39fc29a0a\",\"616b642c5365a04f\"]]}],\"parts\":[{\"k\":\"alternators\",\"l\":[\"10a954dfa4f9657b\"]}]}"
   }
 }

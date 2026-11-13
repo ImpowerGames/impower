@@ -147,6 +147,33 @@ describe("a save made before style codes, by the runtime of that time", () => {
     },
   );
 
+  test.each([
+    ["a styled value", `store x = "first"\nscene start\n  queue\n  | A *{x}*\n    B **{x}**\n  | Other.\n  end\n  Next.\n  done\nend\n`],
+    ["a plain value", `store x = "first"\nscene start\n  queue\n  | A {x}\n    {x} B\n  | Other.\n  end\n  Next.\n  done\nend\n`],
+  ])("a save made now inside an alternator's arm with %s resumes inside the arm", (_name, source) => {
+    const compiled = compile(source);
+    const story = testStory(compiled);
+    story.keepBeatImages = true;
+    story.Continue();
+    const text = story.currentText;
+    const save = story.toSave();
+    const remaining: string[] = [];
+    while (story.canContinue) {
+      story.Continue();
+      remaining.push(story.currentText ?? "");
+    }
+    const loaded = testStory(compiled);
+    loaded.loadSave(save);
+    expect(loaded.currentText).toBe(text);
+    const after: string[] = [];
+    while (loaded.canContinue) {
+      loaded.Continue();
+      after.push(loaded.currentText ?? "");
+    }
+    expect(after).toEqual(remaining);
+    expect(remaining).toHaveLength(3);
+  });
+
   test("migrating its output leaves the script's own table as the script wrote it", () => {
     const { source, save } = PRE_CHANGE_SAVES["tableAlias"]!;
     const story = testStory(compile(source));

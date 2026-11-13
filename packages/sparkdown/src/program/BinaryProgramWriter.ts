@@ -25,6 +25,7 @@ import type { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarch
 import { Wrap } from "../inkjs/compiler/Parser/ParsedHierarchy/Wrap";
 import { displayTableFlag } from "./displayCallFlags";
 import { hash64 } from "./hash64";
+import { writesNothing, writtenText } from "../runtime/displayStyle";
 import { heldObjectsOf } from "./programFlows";
 import type {
   EmittedObject,
@@ -178,6 +179,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected _resolutions: string[] = [];
   protected _references = new Map<number, Map<string, string>>();
   protected _layout: string[] = [];
+  protected _openMarks: string[] = [];
+  protected _unwritten: number[] = [];
   protected _firstLine = 0;
 
   protected _source = "";
@@ -278,6 +281,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._resolutions = [];
     this._references = new Map();
     this._layout = [];
+    this._openMarks = [];
+    this._unwritten = [];
     this._firstLine = input.firstLine;
     this._sourceLines = undefined;
     this._source = input.source;
@@ -334,8 +339,17 @@ export class BinaryProgramWriter implements ProgramEmitter {
     if (aux < 0 || aux > AUX_MAX || arg !== (arg | 0)) {
       this.unsupported(`an operand of ${OP_NAMES[op] ?? op}`);
     }
+    const at = this._code.length;
     this._code.push(encodeWord0(op, flags, aux), arg);
-    if (op === Op.CallValue) {
+    if (op === Op.Text || op === Op.Str) {
+      const text = this.table.strings[arg] ?? "";
+      const written = writtenText(text, this._openMarks);
+      if (op === Op.Text && writesNothing(text)) {
+        this._unwritten.push(at);
+      } else {
+        this._layout.push(`${op}:${flags}:${aux}:${JSON.stringify(written)}`);
+      }
+    } else if (op === Op.CallValue) {
       this._layout.push(`${op}:${flags & ~CALL_METHOD}:${aux}:0`);
     } else if (op === Op.CallStd) {
       this._layout.push(
@@ -1261,6 +1275,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
     rows.push(offset, anchor, firstLine, startColumn, lastLine, endColumn);
   }
 
+  protected writtenOffset(offset: number): number {
+    return offset - 2 * this._unwritten.filter((at) => at < offset).length;
+  }
+
   protected describeArg(op: number, arg: number): string {
     switch (op) {
       case Op.Text:
@@ -1354,7 +1372,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
         ...this._layout,
         ...exports.flatMap((word, i) =>
           i % EXPORT_ROW_WORDS === 0
-            ? [`export:${this.describeSymbol(word)}:${exports[i + 1]}`]
+            ? [`export:${this.describeSymbol(word)}:${this.writtenOffset(exports[i + 1]!)}`]
             : [],
         ),
       ].join("\n"),

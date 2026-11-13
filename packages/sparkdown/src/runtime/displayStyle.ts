@@ -75,10 +75,13 @@ export function stripStyleCodes(text: string): string {
   return STYLE_CODE.test(text) ? text.replace(STYLE_CODES, "") : text;
 }
 
-export function writtenText(text: string): string {
+export function writesNothing(text: string): boolean {
+  return text.length > 0 && [...text].every((c) => c === SCAN_OPEN || c === SCAN_CLOSE || c === SPAN_END);
+}
+
+export function writtenText(text: string, open: string[] = []): string {
   if (!STYLE_CODE.test(text)) return text;
   let out = "";
-  const open: string[] = [];
   for (let i = 0; i < text.length; ) {
     const c = text[i]!;
     const opened = readSpanOpen(text, i);

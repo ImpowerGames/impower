@@ -58,6 +58,7 @@ import {
   offsetOfAddress,
   type ProgramChunk,
 } from "./ProgramChunk";
+import { codeOffset, writtenOffset } from "./writtenOffsets";
 
 export const SAVE_FORMAT = 2;
 
@@ -559,7 +560,7 @@ class FormWriter {
     if (choice >= 0) {
       return { ch: [this.partList(chunk, "choices"), "choices", choice] };
     }
-    return [offset, layoutOf(chunk)];
+    return [writtenOffset(chunk, this.root.table.strings, offset), layoutOf(chunk)];
   }
 
   positionForm(position: ProgramPosition): SavedPosition {
@@ -1133,8 +1134,9 @@ class FormPlacer {
     } else if (a === "done") {
       position = { sequence, entry, offset: codeWords(chunk) };
     } else if (Array.isArray(a)) {
-      const [offset, layout] = a;
-      if (layoutOf(chunk) === layout && offset <= codeWords(chunk)) {
+      const [written, layout] = a;
+      const offset = codeOffset(chunk, this.root.table.strings, written);
+      if (layoutOf(chunk) === layout && written <= codeWords(chunk)) {
         position = { sequence, entry, offset };
       } else {
         position = { sequence, entry: entry + 1, offset: 0 };
