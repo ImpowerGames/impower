@@ -92,11 +92,12 @@ const focus = async (input: HTMLInputElement) => {
 };
 
 describe("the desktop project name field", () => {
-  it("draws the name's box around a hit area the shared inline-hit rule centres", async () => {
+  it("draws the name's box around a hit area the shared inline-hit rule grows up, away from the status line below", async () => {
     const input = await mount(ProjectNameField);
-    const box = input.parentElement!;
-    expect(box.classList.contains("inline-hit")).toBe(true);
-    expect(box.classList.contains("h-6")).toBe(true);
+    const target = input.parentElement!;
+    expect(target.tagName).toBe("LABEL");
+    expect(target.classList.contains("inline-hit-up")).toBe(true);
+    expect(target.parentElement!.classList.contains("h-6")).toBe(true);
     expect(input.className).not.toMatch(
       /\babsolute\b|\btop-1\/2\b|-translate-y-1\/2/,
     );

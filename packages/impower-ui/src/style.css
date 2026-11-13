@@ -85,6 +85,10 @@
   --radius-card: var(--radius);
   --radius-dialog: var(--dialog-radius);
   --radius-toast: var(--toast-radius);
+  --radius-preview-frame: var(--preview-frame-radius);
+  --spacing-preview-inline: var(--preview-inline-padding);
+  --spacing-preview-stage-gap: var(--preview-stage-gap);
+  --shadow-preview-frame: var(--preview-frame-shadow);
   --shadow-float: var(--float-shadow);
 }
 
@@ -217,13 +221,65 @@
   position: relative;
   display: flex;
   align-items: center;
-  & > input {
+  & > :is(input, button) {
     position: relative;
     z-index: 1;
     flex: none;
     height: 100%;
     min-width: 0;
     max-width: 100%;
+  }
+}
+
+@utility inline-hit-up {
+  @apply inline-hit;
+  & > :is(input, button) {
+    min-height: 0;
+  }
+  @media (pointer: coarse) {
+    &::before {
+      content: "";
+      position: absolute;
+      inset-inline: 0;
+      bottom: 0;
+      height: 44px;
+    }
+  }
+}
+
+@utility inline-hit-down {
+  @apply inline-hit;
+  & > :is(input, button) {
+    min-height: 0;
+  }
+  @media (pointer: coarse) {
+    &::before {
+      content: "";
+      position: absolute;
+      inset-inline: 0;
+      top: 0;
+      height: 44px;
+    }
+  }
+}
+
+@utility hit-bound {
+  overflow: clip;
+}
+
+@utility fade-edge-over {
+  position: relative;
+  overflow-x: clip;
+  white-space: nowrap;
+  &::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    z-index: 2;
+    width: var(--fade);
+    background: linear-gradient(to right, transparent, var(--bg));
+    pointer-events: none;
   }
 }
 
