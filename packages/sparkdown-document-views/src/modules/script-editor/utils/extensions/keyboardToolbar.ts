@@ -21,7 +21,7 @@ import {
   colorCSS,
   formatDocument,
 } from "@impower/codemirror-vscode-lsp-client/src";
-import CaretColorChip from "@impower/impower-ui/caret-color-chip";
+import { CaretColorChip } from "@impower/impower-ui/caret-color-chip";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
 import { h, render } from "preact";
 import { openCustomGotoLinePanel } from "./gotoLinePanel";

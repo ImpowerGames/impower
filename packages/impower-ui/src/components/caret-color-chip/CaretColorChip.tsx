@@ -37,7 +37,7 @@ export type CaretColorChipProps = VariantProps<typeof caretColorChipVariants> &
     class?: string;
   };
 
-const CaretColorChip = forwardRef<HTMLButtonElement, CaretColorChipProps>(
+export const CaretColorChip = forwardRef<HTMLButtonElement, CaretColorChipProps>(
   function CaretColorChip(
     { color, value, size, class: className, ...rest },
     ref,
