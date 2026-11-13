@@ -188,6 +188,22 @@ describe("the preview at a line where the run ends", () => {
     120_000,
   );
 
+  it("in Interactive Fiction mode, the preview at the fin a story opens on shows the page with the status line alone (#2189)", async () => {
+    const h = await open(`${OPEN_TEXTSTREAM}scene start\n  fin\nend\n`);
+    try {
+      const frame = await previewAt(h, 5);
+      expect(frame.badge).toBe("End of story");
+      const column = h.overlay.querySelector(".textstream_column");
+      expect(column, h.overlay.innerHTML).not.toBeNull();
+      expect([...column!.children].map((el) => el.className)).toEqual([
+        "textstream_end muted",
+      ]);
+      expect(column!.textContent).toBe("End of story");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
   it("going back from an ending line to the last beat's line restores the continue indicator and clears the ending", async () => {
     const h = await open(FIN);
     try {

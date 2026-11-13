@@ -4069,6 +4069,17 @@ export class Game<T extends M = {}> {
     }
   }
 
+  protected showEndingOnPage(kind: StoryEnding | null) {
+    if (
+      kind &&
+      !this.module.ui.initialLayoutsOpened &&
+      initialLayouts(this).includes(TEXTSTREAM_LAYOUT)
+    ) {
+      openInitialLayouts(this, true);
+    }
+    this.module.ui.page.end(kind);
+  }
+
   protected endResumedEnding() {
     const saved = this._story.ending;
     if (
@@ -4096,13 +4107,7 @@ export class Game<T extends M = {}> {
     };
     this._announcedStop = true;
     this.module.ui.style.update("continue_indicator", { display: "none" });
-    if (
-      !this.module.ui.initialLayoutsOpened &&
-      initialLayouts(this).includes(TEXTSTREAM_LAYOUT)
-    ) {
-      openInitialLayouts(this, true);
-    }
-    this.module.ui.page.end(kind);
+    this.showEndingOnPage(kind);
     if (kind === "fin") {
       this.module.ui.openEnding();
     }
@@ -5296,7 +5301,7 @@ export class Game<T extends M = {}> {
 
   protected showPreviewEnding(): void {
     const ending = this._previewEnding;
-    this.module.ui.page.end(ending?.kind ?? null);
+    this.showEndingOnPage(ending?.kind ?? null);
     if (!ending) {
       return;
     }
