@@ -743,7 +743,7 @@ export class SparkdownPreviewGamePanelManager {
     if (!workspaceFolder) {
       return undefined;
     }
-    return workspaceFolder.uri.path;
+    return workspaceFolder.uri.toString();
   }
 
   protected sendNotification<M extends string, P>(
