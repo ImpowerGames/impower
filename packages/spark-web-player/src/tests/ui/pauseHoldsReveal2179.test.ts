@@ -639,6 +639,38 @@ describe("a mid-line image change with a transition (#2184)", () => {
     expect(fadeStart(on(oldLook!)[0]!)).toBeCloseTo(AFTER * 1000, 6);
   });
 
+  test("a later directive's target fade in the same write leaves the earlier change at its own moment", async () => {
+    const page = makePage();
+    await showOldLook(page);
+    const [oldLook] = instances(page);
+    const [change] = changeLook().params.instructions;
+    void page.ui.onReceiveRequest(
+      WriteImageMessage.type.request({
+        target: "portrait",
+        instructions: [
+          change!,
+          {
+            control: "hide",
+            targetAnimations: [
+              {
+                keyframes: [{ opacity: 1 }, { opacity: 0 }],
+                timing: { delay: 2.5, duration: 0.5, fill: "both" },
+              } as any,
+            ],
+          },
+        ],
+        instant: false,
+        time: 0,
+      }),
+    );
+    await flushMicrotasks(10);
+    const [, newLook] = instances(page);
+    expect(on(newLook!)).toHaveLength(1);
+    expect(on(oldLook!)).toHaveLength(1);
+    expect(fadeStart(on(newLook!)[0]!)).toBeCloseTo(AFTER * 1000, 6);
+    expect(fadeStart(on(oldLook!)[0]!)).toBeCloseTo(AFTER * 1000, 6);
+  });
+
   test("a pause before the directive's moment moves the fade by the pause's length", async () => {
     const page = makePage();
     await showOldLook(page);

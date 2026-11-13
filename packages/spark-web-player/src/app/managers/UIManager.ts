@@ -103,6 +103,12 @@ interface Cutscene {
 
 type OverlayWithCutscene = HTMLElement & { __sdCutscene?: Cutscene };
 
+interface ImageEffect {
+  element: HTMLElement;
+  animations: Animation[];
+  after?: AnimationPlayer;
+}
+
 const COMMIT_WAIT_LIMIT_MS = 1_000;
 
 const UNENDED_SPEECH = 1e9;
@@ -1919,13 +1925,12 @@ export default class UIManager extends Manager {
       (el as any).__sdImg = sig;
       (el as any).__sdImgRev = (el as any).__sdRev ?? 0;
     }
-    const targetEffects: { element: HTMLElement; animations: Animation[] }[] =
-      [];
-    const enterEffects: { element: HTMLElement; animations: Animation[] }[] = [];
-    const exitEffects: { element: HTMLElement; animations: Animation[] }[] = [];
+    const targetPlayers: AnimationPlayer[] = [];
+    const enterEffects: ImageEffect[] = [];
+    const exitEffects: ImageEffect[] = [];
     const toDestroy: HTMLElement[] = [];
     const outgoing: HTMLElement[] = [];
-    const newMovies: HTMLVideoElement[] = [];
+    const newMovies: { video: HTMLVideoElement; after: AnimationPlayer }[] = [];
     const hiddenMovies: HTMLVideoElement[] = [];
 
     const applyStyle = this.applyStyle.bind(this);
@@ -1946,15 +1951,21 @@ export default class UIManager extends Manager {
         { els: maskEls, property: "mask_image" },
       ];
       for (const instruction of instructions) {
+        const after = new AnimationPlayer(this._theme, this._hold);
+        targetPlayers.push(after);
+        const targetEffects: ImageEffect[] = [];
         this.addAnimationEffects(
           targetEffects,
           targetEl,
           instruction.targetAnimations,
         );
+        for (const e of targetEffects) {
+          after.add(e);
+        }
         if (instruction.affected) {
           for (const a of instruction.affected) {
             for (const el of this.findTargetElements(a.target)) {
-              this.addAnimationEffects(enterEffects, el, a.animations);
+              this.addAnimationEffects(enterEffects, el, a.animations, after);
             }
           }
         }
@@ -2010,7 +2021,7 @@ export default class UIManager extends Manager {
               };
             }
             if (videoEl && !video?.preview && instruction.control !== "hide") {
-              newMovies.push(videoEl);
+              newMovies.push({ video: videoEl, after });
             }
             (newSpanEl as any).__sdSrcs =
               content.video && !video
@@ -2032,33 +2043,45 @@ export default class UIManager extends Manager {
                   if (!outgoing.includes(prevSpanEl)) {
                     outgoing.push(prevSpanEl);
                   }
-                  this.addAnimationEffects(exitEffects, prevSpanEl, [
-                    content.previousHideAnimation,
-                  ]);
+                  this.addAnimationEffects(
+                    exitEffects,
+                    prevSpanEl,
+                    [content.previousHideAnimation],
+                    after,
+                  );
                   if (!toDestroy.includes(prevSpanEl)) {
                     toDestroy.push(prevSpanEl);
                   }
                 }
               }
               if (content.enterAnimation) {
-                this.addAnimationEffects(enterEffects, newSpanEl, [
-                  content.enterAnimation,
-                ]);
+                this.addAnimationEffects(
+                  enterEffects,
+                  newSpanEl,
+                  [content.enterAnimation],
+                  after,
+                );
               }
             } else if (instruction.control === "hide") {
               if (content.exitAnimation) {
-                this.addAnimationEffects(exitEffects, newSpanEl, [
-                  content.exitAnimation,
-                ]);
+                this.addAnimationEffects(
+                  exitEffects,
+                  newSpanEl,
+                  [content.exitAnimation],
+                  after,
+                );
               }
               if (!toDestroy.includes(newSpanEl)) {
                 toDestroy.push(newSpanEl);
               }
             } else if (instruction.control === "animate") {
               if (content.enterAnimation) {
-                this.addAnimationEffects(enterEffects, newSpanEl, [
-                  content.enterAnimation,
-                ]);
+                this.addAnimationEffects(
+                  enterEffects,
+                  newSpanEl,
+                  [content.enterAnimation],
+                  after,
+                );
               }
             }
           }
@@ -2066,50 +2089,42 @@ export default class UIManager extends Manager {
       }
     }
 
-    let targetPlayed: Promise<void> | undefined;
-    if (targetEffects.length > 0) {
-      const player = new AnimationPlayer(this._theme, this._hold);
-      for (const e of targetEffects) {
-        player.add(e);
-      }
-      const shift = player.endTimeUndelayed;
-      if (shift > 0) {
-        startTime ??= Number(document.timeline.currentTime);
-      }
-      targetPlayed = player.play(startTime);
-      if (startTime != null) {
-        startTime += shift;
-      }
+    if (targetPlayers.some((player) => player.endTimeUndelayed > 0)) {
+      startTime ??= Number(document.timeline.currentTime);
     }
-    const startMovies = () => {
-      for (const video of newMovies) {
-        this.startMovie(video);
-      }
-    };
-    if (targetPlayed) {
-      void targetPlayed.then(startMovies);
-    } else {
-      startMovies();
+    const targetsPlayed = new Map(
+      targetPlayers.map((player) => [player, player.play(startTime)]),
+    );
+    for (const { video, after } of newMovies) {
+      void targetsPlayed.get(after)?.then(() => this.startMovie(video));
     }
     const exiting = new Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>();
     const playEffects = (
-      effects: { element: HTMLElement; animations: Animation[] }[],
+      effects: ImageEffect[],
       created?: Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>,
     ) => {
-      if (effects.length === 0) {
-        return Promise.resolve();
-      }
-      const player = new AnimationPlayer(this._theme, this._hold);
+      const players = new Map<AnimationPlayer | undefined, AnimationPlayer>();
       for (const e of effects) {
+        let player = players.get(e.after);
+        if (!player) {
+          player = new AnimationPlayer(this._theme, this._hold);
+          players.set(e.after, player);
+        }
         const animations = player.add(e);
         created?.set(e.element, [...(created.get(e.element) ?? []), ...animations]);
       }
-      return player.play(startTime);
+      return Array.from(players, ([after, player]) =>
+        player.play(
+          startTime == null
+            ? undefined
+            : startTime + (after?.endTimeUndelayed ?? 0),
+        ),
+      );
     };
     const played = Promise.all([
-      targetPlayed,
-      playEffects(enterEffects),
-      playEffects(exitEffects, exiting),
+      ...targetsPlayed.values(),
+      ...playEffects(enterEffects),
+      ...playEffects(exitEffects, exiting),
     ]);
     for (const el of outgoing) {
       this.freezeWhenExitStarts(el, exiting.get(el) ?? []);
@@ -2545,9 +2560,10 @@ export default class UIManager extends Manager {
   }
 
   private addAnimationEffects(
-    effects: { element: HTMLElement; animations: Animation[] }[],
+    effects: ImageEffect[],
     element: HTMLElement,
     animations: Animation[] | undefined,
+    after?: AnimationPlayer,
   ) {
     if (!animations?.length) {
       return;
@@ -2557,7 +2573,7 @@ export default class UIManager extends Manager {
         element,
         animation.target?.$name,
       )) {
-        effects.push({ element: el, animations: [animation] });
+        effects.push({ element: el, animations: [animation], after });
       }
     }
   }
