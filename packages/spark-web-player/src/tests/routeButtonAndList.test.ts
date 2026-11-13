@@ -173,6 +173,27 @@ describe("the route list", () => {
     ]);
   });
 
+  test("draws Auto as the hollow pin and Pinned as the filled pin, in the entries and the toggles", () => {
+    const p = player();
+    const route = exampleRoute();
+    route.decisions.push({ kind: "pinned", location: at(10), text: "Lie.", meeting: 1 });
+    p.report({ route });
+    p.button()!.click();
+    const glyph = (selector: string) => {
+      const svg = p.routeList.querySelector(`${selector} .route-icon`)!;
+      return [svg.getAttribute("viewBox"), svg.innerHTML];
+    };
+    const hollow = ["0 0 24 24", '<path d="M8 3h8M9 3v6l-3 3v2h12v-2l-3-3V3M12 14v7"></path>'];
+    const filled = [
+      "0 0 24 24",
+      '<path d="M9 3v6l-3 3v2h12v-2l-3-3V3z" fill="currentColor"></path><path d="M8 3h8M9 3v6l-3 3v2h12v-2l-3-3V3M12 14v7"></path>',
+    ];
+    expect(glyph(".route-entry[data-kind='auto']")).toEqual(hollow);
+    expect(glyph(".route-toggle[data-kind='auto']")).toEqual(hollow);
+    expect(glyph(".route-entry[data-kind='pinned']")).toEqual(filled);
+    expect(glyph(".route-toggle[data-kind='pinned']")).toEqual(filled);
+  });
+
   test("each toggle shows its kind's count, and a toggle hides its kind and the foot counts it", () => {
     const p = player();
     p.report({ route: exampleRoute() });

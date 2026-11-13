@@ -116,7 +116,7 @@ describe("the code editor's icons under forced colours", () => {
     ".cm-toolbar-icon",
     ".cm-menu-back-icon",
     ".cm-menu-more-icon",
-    ".cm-fold-arrow",
+    ".cm-gutter-button-glyph::before",
   ])("keeps the masked icon %s painted in CanvasText", (selector) => {
     expect(block).toContain(`.sparkdown-script-editor-root ${selector}`);
     expect(block).toMatch(/forced-color-adjust: none;\s*background-color: CanvasText !important;/);
@@ -134,8 +134,8 @@ describe("the code editor under prefers-reduced-motion", () => {
     expect(block).toMatch(/animation: none !important;/);
   });
 
-  it("keeps the fold arrow's fade inside the editor root the rule covers", () => {
-    const fold = EDITOR_THEME["& .cm-foldGutter .cm-fold-arrow"] as Spec;
+  it("keeps the fold marker's fade inside the editor root the rule covers", () => {
+    const fold = EDITOR_THEME["& .cm-foldGutter .cm-fold-marker"] as Spec;
     expect(fold["transition"]).toBe("opacity .12s ease, transform .15s ease");
     expect(css).toMatch(/\.sparkdown-script-editor-root \.editor \{[^}]*transition: opacity 0\.25s;/);
   });
