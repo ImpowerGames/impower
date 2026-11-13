@@ -1455,11 +1455,14 @@ export class InterpreterModule extends Module<
                 !currChunk.duration &&
                 !this.isWhitespace(char) &&
                 !this.isWhitespace(currChunk.text) &&
+                (raw || spanRaw) === currChunk.raw &&
+                centered === currChunk.centered &&
                 bolded === currChunk.bolded &&
                 italicized === currChunk.italicized &&
                 underlined === currChunk.underlined &&
                 wavy === currChunk.wavy &&
                 shaky === currChunk.shaky &&
+                tilde === currChunk.tilde &&
                 speed === currChunk.speed
               ) {
                 currChunk.text += char;

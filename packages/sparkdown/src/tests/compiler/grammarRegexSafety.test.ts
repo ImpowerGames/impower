@@ -247,6 +247,8 @@ const CHOICE_TEXT_SEARCHES: [what: string, rules: string[], open: string, unit: 
   ["a suppression over code spans holding its closer", ["ChoiceSuppression"], "[a", " `]`"],
   ["a suppression over unclosed backticks before closers", ["ChoiceSuppression"], "[a", " `]"],
   ["a suppression over runs of three backticks", ["ChoiceSuppression"], "[a ]", " ```b"],
+  ["a suppression over code spans of three backticks holding its closer", ["ChoiceSuppression"], "[a", " ```]```"],
+  ["a suppression after a run of three backticks with no closer, over code spans holding its closer", ["ChoiceSuppression"], "[a ```b", " `]`"],
 ];
 
 const CHOICE_TEXT_CASES = CHOICE_TEXT_SEARCHES.flatMap(([what, rules, open, unit]) =>

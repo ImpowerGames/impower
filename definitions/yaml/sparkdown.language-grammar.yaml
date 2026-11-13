@@ -243,24 +243,60 @@ variables:
   # (SparkdownInlineComment) or the line's end, where the `[` stays text. A tag
   # runs to ChoiceOnlyText's end and a character never starts a tag, so the scan
   # splits a line in one way. It stops at an unclosed brace too, which
-  # CHOICE_SUPPRESSION_PAST_BRACE reads once. It takes a code span whole as
-  # CHOICE_SUPPRESSION_CODE does, so a `]` inside one closes nothing.
-  CHOICE_SUPPRESSION_SCAN: (?:{{CHOICE_SUPPRESSION_TAG}}|{{CHOICE_PLAIN_INTERPOLATION}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|{{CHOICE_SUPPRESSION_CODE}}|(?![{]|\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\`])[^\r\n])
-  # lookaround: ChoiceOnlyText reads a code span as Raw does, to the next run of its
-  # opener's length, so a `]` inside one closes nothing. The scan takes a code span
-  # of one or two backticks whole (SPAN_CODE) and any longer run as text: a
-  # backtick run's length is known only from its opener, which a variable inside
-  # another rule's regex cannot refer back to.
-  CHOICE_SUPPRESSION_CODE: (?:{{SPAN_CODE}}|[`]{3,}(?![`]))
+  # _CHOICE_SUPPRESSION_PAST_BRACE_3_ reads once. It takes a code span whole as
+  # _CHOICE_SUPPRESSION_CODE_2_ does, so nothing inside one ends the scan.
+  CHOICE_SUPPRESSION_SCAN_CHARACTER: (?:(?![{]|\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\`])[^\r\n])
+  _CHOICE_SUPPRESSION_SCAN_2_: (?:{{CHOICE_SUPPRESSION_TAG}}|{{CHOICE_PLAIN_INTERPOLATION}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|{{_CHOICE_SUPPRESSION_CODE_2_}}|{{CHOICE_SUPPRESSION_SCAN_CHARACTER}})
+  _CHOICE_SUPPRESSION_SCAN_4_: (?:{{CHOICE_SUPPRESSION_TAG}}|{{CHOICE_PLAIN_INTERPOLATION}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|{{_CHOICE_SUPPRESSION_CODE_4_}}|{{CHOICE_SUPPRESSION_SCAN_CHARACTER}})
+  # lookaround: ChoiceOnlyText reads a code span as Raw does: from a backtick run that
+  # no backtick precedes to the next run of exactly its length (RAW_OTHER_RUN), so a
+  # `]`, an arrow or a comment opener inside it ends nothing, and a run with no such
+  # closer is text (ChoiceSpanMarkText). Only the run gives the closer's length, so
+  # each place the scan reads a code span captures the run in a group of its own,
+  # numbered by its place in ChoiceSuppression's begin (2 to 5), and refers back to
+  # it. The closed reading is refused before the run is read as text, so the two
+  # stay disjoint and a later step cannot take a closed span's text apart.
+  CHOICE_SUPPRESSION_RUN_TEXT: (?:(?<=[`])[`]+(?![`]))
+  # lookaround: as CHOICE_SUPPRESSION_RUN_TEXT.
+  CHOICE_SUPPRESSION_OTHER_RUN_2: (?:(?!\2{{BACKTICK_RUN_END}})[`]+(?![`]))
+  CHOICE_SUPPRESSION_CODE_BODY_2: (?:(?:{{RAW_CHARACTER}}|{{CHOICE_SUPPRESSION_OTHER_RUN_2}})+)
+  # lookaround: as CHOICE_SUPPRESSION_RUN_TEXT.
+  CHOICE_SUPPRESSION_CODE_TEXT_2: (?:{{CHOICE_SUPPRESSION_CODE_BODY_2}}\2(?![`]))
+  # lookaround: as CHOICE_SUPPRESSION_RUN_TEXT.
+  _CHOICE_SUPPRESSION_CODE_2_: (?:(?<![`])([`]+)(?![`])(?:{{CHOICE_SUPPRESSION_CODE_TEXT_2}}|(?!{{CHOICE_SUPPRESSION_CODE_TEXT_2}}))|{{CHOICE_SUPPRESSION_RUN_TEXT}})
+  # lookaround: as _CHOICE_SUPPRESSION_CODE_2_, in group 3.
+  CHOICE_SUPPRESSION_OTHER_RUN_3: (?:(?!\3{{BACKTICK_RUN_END}})[`]+(?![`]))
+  CHOICE_SUPPRESSION_CODE_BODY_3: (?:(?:{{RAW_CHARACTER}}|{{CHOICE_SUPPRESSION_OTHER_RUN_3}})+)
+  # lookaround: as _CHOICE_SUPPRESSION_CODE_2_, in group 3.
+  CHOICE_SUPPRESSION_CODE_TEXT_3: (?:{{CHOICE_SUPPRESSION_CODE_BODY_3}}\3(?![`]))
+  # lookaround: as _CHOICE_SUPPRESSION_CODE_2_, in group 3.
+  _CHOICE_SUPPRESSION_CODE_3_: (?:(?<![`])([`]+)(?![`])(?:{{CHOICE_SUPPRESSION_CODE_TEXT_3}}|(?!{{CHOICE_SUPPRESSION_CODE_TEXT_3}}))|{{CHOICE_SUPPRESSION_RUN_TEXT}})
+  # lookaround: as _CHOICE_SUPPRESSION_CODE_2_, in group 4.
+  CHOICE_SUPPRESSION_OTHER_RUN_4: (?:(?!\4{{BACKTICK_RUN_END}})[`]+(?![`]))
+  CHOICE_SUPPRESSION_CODE_BODY_4: (?:(?:{{RAW_CHARACTER}}|{{CHOICE_SUPPRESSION_OTHER_RUN_4}})+)
+  # lookaround: as _CHOICE_SUPPRESSION_CODE_2_, in group 4.
+  CHOICE_SUPPRESSION_CODE_TEXT_4: (?:{{CHOICE_SUPPRESSION_CODE_BODY_4}}\4(?![`]))
+  # lookaround: as _CHOICE_SUPPRESSION_CODE_2_, in group 4.
+  _CHOICE_SUPPRESSION_CODE_4_: (?:(?<![`])([`]+)(?![`])(?:{{CHOICE_SUPPRESSION_CODE_TEXT_4}}|(?!{{CHOICE_SUPPRESSION_CODE_TEXT_4}}))|{{CHOICE_SUPPRESSION_RUN_TEXT}})
+  # lookaround: as _CHOICE_SUPPRESSION_CODE_2_, in group 5.
+  CHOICE_SUPPRESSION_OTHER_RUN_5: (?:(?!\5{{BACKTICK_RUN_END}})[`]+(?![`]))
+  CHOICE_SUPPRESSION_CODE_BODY_5: (?:(?:{{RAW_CHARACTER}}|{{CHOICE_SUPPRESSION_OTHER_RUN_5}})+)
+  # lookaround: as _CHOICE_SUPPRESSION_CODE_2_, in group 5.
+  CHOICE_SUPPRESSION_CODE_TEXT_5: (?:{{CHOICE_SUPPRESSION_CODE_BODY_5}}\5(?![`]))
+  # lookaround: as _CHOICE_SUPPRESSION_CODE_2_, in group 5.
+  _CHOICE_SUPPRESSION_CODE_5_: (?:(?<![`])([`]+)(?![`])(?:{{CHOICE_SUPPRESSION_CODE_TEXT_5}}|(?!{{CHOICE_SUPPRESSION_CODE_TEXT_5}}))|{{CHOICE_SUPPRESSION_RUN_TEXT}})
   # lookaround: ChoiceOnlyText's end, which a backslash does not escape. The
   # suppression's text reads a backslash with the character after it
   # (CHOICE_ONLY_TEXT_ESCAPE), so an escaped comment opener, brace or tag
   # marker is text there and the scan reads it the same way.
   CHOICE_SUPPRESSION_ESCAPE: (?:[\\](?:{{CHOICE_ONLY_REGION_CHARACTER}}|\]|(?={{CHOICE_ONLY_TEXT_END}})))
-  # lookaround: the same ends as CHOICE_SUPPRESSION_SCAN, past an unclosed brace
+  # lookaround: the same ends as CHOICE_SUPPRESSION_SCAN_CHARACTER, past an unclosed brace
   # (CHOICE_OPEN_BRACE), where no brace is a unit and none needs asking about.
-  CHOICE_SUPPRESSION_SCAN_PAST_BRACE: (?:{{CHOICE_SUPPRESSION_TAG}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|{{CHOICE_SUPPRESSION_CODE}}|(?!\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\`])[^\r\n])
-  CHOICE_SUPPRESSION_PAST_BRACE: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_SUPPRESSION_SCAN_PAST_BRACE}}*)
+  CHOICE_SUPPRESSION_PAST_BRACE_CHARACTER: (?:(?!\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\`])[^\r\n])
+  _CHOICE_SUPPRESSION_SCAN_PAST_BRACE_3_: (?:{{CHOICE_SUPPRESSION_TAG}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|{{_CHOICE_SUPPRESSION_CODE_3_}}|{{CHOICE_SUPPRESSION_PAST_BRACE_CHARACTER}})
+  _CHOICE_SUPPRESSION_SCAN_PAST_BRACE_5_: (?:{{CHOICE_SUPPRESSION_TAG}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|{{_CHOICE_SUPPRESSION_CODE_5_}}|{{CHOICE_SUPPRESSION_PAST_BRACE_CHARACTER}})
+  _CHOICE_SUPPRESSION_PAST_BRACE_3_: (?:{{CHOICE_OPEN_BRACE}}{{_CHOICE_SUPPRESSION_SCAN_PAST_BRACE_3_}}*)
+  _CHOICE_SUPPRESSION_PAST_BRACE_5_: (?:{{CHOICE_OPEN_BRACE}}{{_CHOICE_SUPPRESSION_SCAN_PAST_BRACE_5_}}*)
   # lookaround: SparkdownBlockComment reads a comment opener with no `*/` after
   # it on its line to a later line, and one with a `*/` as BLOCK_COMMENT_ON_LINE.
   # Only the rest of the line tells them apart, and no later opener on the
@@ -273,23 +309,23 @@ variables:
   # the suppression opens there when a `]` follows on the line.
   CHOICE_SUPPRESSION_BRACKET_AHEAD: (?=[^\r\n]*?\])
   CHOICE_SUPPRESSION_CLOSE: (?:\]|{{CHOICE_SUPPRESSION_RUNS_ON}}|{{CHOICE_READ_INTERPOLATION}}{{CHOICE_SUPPRESSION_BRACKET_AHEAD}})
-  CHOICE_SUPPRESSION_CLOSE_PAST_BRACE: (?:{{CHOICE_SUPPRESSION_PAST_BRACE}}(?:\]|{{CHOICE_SUPPRESSION_RUNS_ON}}))
-  CHOICE_SUPPRESSION_CLOSES_AT_BRACKET: (?:{{CHOICE_SUPPRESSION_BRACKET_AHEAD}}{{CHOICE_SUPPRESSION_SCAN}}*(?:{{CHOICE_SUPPRESSION_CLOSE}}|{{CHOICE_SUPPRESSION_CLOSE_PAST_BRACE}}))
+  _CHOICE_SUPPRESSION_CLOSE_PAST_BRACE_: (?:{{_CHOICE_SUPPRESSION_PAST_BRACE_3_}}(?:\]|{{CHOICE_SUPPRESSION_RUNS_ON}}))
+  _CHOICE_SUPPRESSION_CLOSES_AT_BRACKET_: (?:{{CHOICE_SUPPRESSION_BRACKET_AHEAD}}{{_CHOICE_SUPPRESSION_SCAN_2_}}*(?:{{CHOICE_SUPPRESSION_CLOSE}}|{{_CHOICE_SUPPRESSION_CLOSE_PAST_BRACE_}}))
   # lookaround: CHOICE_SUPPRESSION_BRACKET_AHEAD. With no `]` on the rest of the
   # line only a comment that runs on can close the suppression, so the scan asks
   # for nothing else.
-  CHOICE_SUPPRESSION_CLOSES_RUNNING_ON: (?:(?![^\r\n]*?\]){{CHOICE_SUPPRESSION_SCAN}}*{{CHOICE_SUPPRESSION_PAST_BRACE}}?{{CHOICE_SUPPRESSION_RUNS_ON}})
+  _CHOICE_SUPPRESSION_CLOSES_RUNNING_ON_: (?:(?![^\r\n]*?\]){{_CHOICE_SUPPRESSION_SCAN_4_}}*{{_CHOICE_SUPPRESSION_PAST_BRACE_5_}}?{{CHOICE_SUPPRESSION_RUNS_ON}})
   # lookaround: ChoiceSuppression's begin colours a `[` that ChoiceOnlyText will
-  # close (CHOICE_SUPPRESSION_SCAN, CHOICE_SUPPRESSION_CLOSE) as a suppression
+  # close (_CHOICE_SUPPRESSION_SCAN_2_, CHOICE_SUPPRESSION_CLOSE) as a suppression
   # bracket and any other as the literal text readChoiceText reads it as. Only
   # the text after the `[` tells them apart, and the suppression must still open
   # at either, as CHOICE_SUPPRESSION_OPEN decides, to keep its reading.
-  CHOICE_SUPPRESSION_CLOSES: (?={{CHOICE_SUPPRESSION_CLOSES_AT_BRACKET}}|{{CHOICE_SUPPRESSION_CLOSES_RUNNING_ON}})
+  _CHOICE_SUPPRESSION_CLOSES_: (?={{_CHOICE_SUPPRESSION_CLOSES_AT_BRACKET_}}|{{_CHOICE_SUPPRESSION_CLOSES_RUNNING_ON_}})
   # lookaround: ChoiceSuppression opens at the first `[` that a `]` or a `/*`
   # follows on its line. One it does not open is literal text and keeps the
   # choice text's scope, as on main. A suppression that never meets its `]` is
   # read as literal text too (`readChoiceText` in lowerChoice.ts), and
-  # CHOICE_SUPPRESSION_CLOSES colours its `[` as text. The `]` may stand on a
+  # _CHOICE_SUPPRESSION_CLOSES_ colours its `[` as text. The `]` may stand on a
   # later line past a comment, which no rule sees from the `[`.
   CHOICE_SUPPRESSION_OPEN: (?:\[(?=[^\r\n]*?(?:\]|{{SPARKDOWN_BLOCK_COMMENT_START}})))
   # lookaround: SparkdownInlineComment opens only at a `//` that whitespace or
@@ -539,9 +575,10 @@ variables:
   # lookaround: as UNDERSCORE_NESTED, for EmphasisColon.
   COLON_NESTED: (?:{{COLON_SAME}}{{COLON_LEFT}}(?!{{COLON_RIGHT}})\1{{COLON_INNER}}{{COLON_RIGHT}}\1)
   COLON_CONTENT: (?:(?:{{SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}}|{{COLON_NESTED}})+)
+  BACKTICK_RUN_END: (?:[^`\r\n]|$)
   # lookaround: as UNDERSCORE_SHORTER, for Raw, whose content is literal: a
   # backtick run of another length than the opener's is text.
-  RAW_OTHER_RUN: (?:(?!\1(?:[^`\r\n]|$))[`]+(?![`]))
+  RAW_OTHER_RUN: (?:(?!\1{{BACKTICK_RUN_END}})[`]+(?![`]))
   # lookaround: as SPAN_LONG_BRACKET and SPAN_STAR_FREE, for Raw's literal text, which takes a
   # backtick only as a run of another length (RAW_OTHER_RUN).
   RAW_CHARACTER: (?:(?![`]|{{SPAN_END}})[^\r\n])
@@ -1839,12 +1876,12 @@ repository:
     end: (?={{CHOICE_START_TEXT_END}})
 
   ChoiceSuppression:
-    begin: (?:({{CHOICE_SUPPRESSION_OPEN}}){{CHOICE_SUPPRESSION_CLOSES}}|({{CHOICE_SUPPRESSION_OPEN}}))
+    begin: (?:({{CHOICE_SUPPRESSION_OPEN}}){{_CHOICE_SUPPRESSION_CLOSES_}}|({{CHOICE_SUPPRESSION_OPEN}}))
     beginCaptures:
       1:
         tag: keyword
         name: punctuation.definition.template-expression.begin.choice.suppression.sd
-      2:
+      6:
         tag: string
         name: string.choice.sd markup.raw.punctuation.sd
     patterns:

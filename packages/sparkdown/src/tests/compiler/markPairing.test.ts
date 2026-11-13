@@ -207,6 +207,18 @@ describe("a backtick run is raw only where a run of its own length closes it", (
     expect(chosenOutputOf("Go [far `away] now` then")).toBe("Go [far `away] now` then\nBody.\n");
   });
 
+  test.each([1, 2, 3, 4, 8])("a suppression's bracket is coloured as a raw span of %i backticks inside it is read", async (n) => {
+    const ticks = "`".repeat(n);
+    const closes = `Go [${ticks}a -> next ] b${ticks}] now`;
+    expect(await opensSuppressionAt(closes, 3)).toEqual({ tree: true, vscode: true });
+    expect(choiceTextOf(closes)).toBe(`Go ${ticks}a -> next ] b${ticks}`);
+    expect(chosenOutputOf(closes)).toBe("Go now\nBody.\n");
+    const holds = `Go [${ticks}a ] b${ticks} now`;
+    expect(await opensSuppressionAt(holds, 3)).toEqual({ tree: false, vscode: false });
+    expect(choiceTextOf(holds)).toBe(holds);
+    expect(chosenOutputOf(holds)).toBe(`${holds}\nBody.\n`);
+  });
+
   test("an arrow inside a raw span diverts nowhere, and one after it diverts", () => {
     expect(chosenOutputOf("Go `far -> next` now")).toBe("Go `far -> next` now\nBody.\n");
     expect(chosenOutputOf("Go `far` now -> next")).toBe("Go `far` now Next.\n");
