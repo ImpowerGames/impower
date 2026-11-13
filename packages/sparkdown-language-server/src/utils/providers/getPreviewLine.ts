@@ -144,7 +144,30 @@ export const getPreviewLine = (
         segment.words.push(words);
       }
     }
-    return { segments, segmentAt };
+    return { segments, segmentAt, breaks };
+  };
+  const lineEnd = (l: number) =>
+    l + 1 < document.lineCount ? lineStart(l + 1) : document.length;
+  const uncommented = (from: number, to: number) => {
+    const comments: [number, number][] = [];
+    tree.iterate({
+      from,
+      to,
+      enter: (node) => {
+        if (COMMENTS.has(node.name)) {
+          comments.push([Math.max(from, node.from), Math.min(to, node.to)]);
+          return false;
+        }
+        return undefined;
+      },
+    });
+    let rest = "";
+    let pos = from;
+    for (const [start, end] of comments.sort((a, b) => a[0] - b[0])) {
+      rest += read(pos, Math.max(pos, start));
+      pos = Math.max(pos, end);
+    }
+    return rest + read(pos, to);
   };
   const spoken = (segment: Segment | undefined): segment is Segment =>
     !!segment?.words.length;
@@ -247,10 +270,21 @@ export const getPreviewLine = (
     }
     let captionFrom: number | undefined;
     if (beat.caption) {
-      const spokenSegments = segmentsOf(beat.caption).segments.filter(spoken);
+      const { segments, breaks } = segmentsOf(beat.caption);
       const first = firstLine(beat.caption);
-      captionFrom = spokenSegments.at(-1)?.line ?? first;
-      if (spokenSegments.length > 1 && captionFrom > first) {
+      let last = segments.length - 1;
+      while (last > 0 && !spoken(segments[last])) {
+        last -= 1;
+      }
+      captionFrom = first;
+      if (last > 0 && segments.slice(0, last).some(spoken)) {
+        const boundary = breaks[last - 1]!;
+        const breakLine = document.positionAt(boundary).line;
+        captionFrom = uncommented(boundary, lineEnd(breakLine)).trim()
+          ? breakLine
+          : breakLine + 1;
+      }
+      if (captionFrom > first) {
         beats.push({
           kind: DISPLAY[beat.caption.name] ?? "action",
           node: beat.caption,
@@ -271,31 +305,10 @@ export const getPreviewLine = (
 
   const onlyComments = () => {
     const from = lineStart(line);
-    const to =
-      line + 1 < document.lineCount ? lineStart(line + 1) : document.length;
-    const comments: [number, number][] = [];
-    tree.iterate({
-      from,
-      to,
-      enter: (node) => {
-        if (COMMENTS.has(node.name)) {
-          comments.push([Math.max(from, node.from), Math.min(to, node.to)]);
-          return false;
-        }
-        return undefined;
-      },
-    });
-    if (!comments.length) {
-      return false;
-    }
-    let rest = "";
-    let pos = from;
-    for (const [start, end] of comments.sort((a, b) => a[0] - b[0])) {
-      rest += read(pos, Math.max(pos, start));
-      pos = Math.max(pos, end);
-    }
-    rest += read(pos, to);
-    return rest.trim() === "";
+    const to = lineEnd(line);
+    return (
+      read(from, to).trim() !== "" && uncommented(from, to).trim() === ""
+    );
   };
 
   if (setup.some((lines) => lines.has(line)) || onlyComments()) {

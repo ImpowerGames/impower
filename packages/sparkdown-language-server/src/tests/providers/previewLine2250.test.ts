@@ -251,6 +251,32 @@ describe("the caret line's preview record", () => {
     }
   });
 
+  test("starts a caption's last beat at its break mark, so a command before the question's words belongs to the choice", () => {
+    for (const breakLine of ["      Listen carefully. >", "      Listen carefully. > // aside"]) {
+      const menu = previewOf(
+        [
+          "scene start",
+          "  choose",
+          "    ALICE:",
+          breakLine,
+          "      [[mia]]",
+          "      Will you help?",
+          "    * [Yes.]",
+          "      Thank you.",
+          "  end",
+          "end",
+        ].join("\n"),
+      );
+      const listen = { kind: "dialogue", line: 3, words: "Listen carefully.", speaker: "ALICE" };
+      expect(menu(2)).toEqual(listen);
+      expect(menu(3)).toEqual(listen);
+      const choice = { kind: "choice", line: 1, words: "Will you help?" };
+      for (const line of [1, 4, 5, 6, 8]) {
+        expect(menu(line)).toEqual(choice);
+      }
+    }
+  });
+
   test("shows the beat a line of logic follows", () => {
     expect(at(23)).toEqual({ kind: "choice", line: 20, words: "Where now?" });
     expect(previewOf("scene a\n  Hello.\n  x = 1\nend\n")(2)).toEqual({

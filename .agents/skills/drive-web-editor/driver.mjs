@@ -2179,6 +2179,7 @@ export async function pressInEditor(page, combo, { wait = waitForDomQuiet, comma
 
 const INSERT_TEXT_LIMIT = 4096;
 const PLAY_BUDGET_MS = 30_000;
+const RUN_SETTLE_MS = 3_000;
 const running = (s) => s?.launchState === "play" || s?.launchState === "pause" || s?.launchState === "ended";
 
 async function waitGameState(request, reached, { timeout, now = Date.now, pause }) {
@@ -2564,10 +2565,13 @@ export async function playPreview(page, action, { request = (method, params) => 
   const seen = [];
   const end = now() + timeout;
   let state;
+  let reachedAt = null;
   for (;;) {
     state = await request("preview/gameState");
     seen.push(...(await drain()), state);
-    if (playReached(action, before, seen) || now() >= end) break;
+    if (reachedAt == null && playReached(action, before, seen)) reachedAt = now();
+    if (reachedAt != null && (!start || seen.some(running) || now() - reachedAt >= RUN_SETTLE_MS)) break;
+    if (now() >= end) break;
     await pause(100);
   }
   out.launchState = state?.launchState ?? null;

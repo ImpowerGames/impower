@@ -643,6 +643,24 @@ await asyncCheck("play reports the launch state it reached, and a click whose st
   assert.equal(failed.clicked, true);
   assert.equal(failed.reached, false);
   assert.match(failed.reason, /did not start/);
+  clock = 0;
+  let polls = 0;
+  const early = playPage((sel) => sel.includes(polls > 3 ? "Stop" : "Play From Here"));
+  const newRunFirst = async () => {
+    if (!early.clicks.length) return { launchState: "preview", run: 1 };
+    return ++polls > 3 ? { launchState: "play", run: 2 } : { launchState: "preview", run: 2 };
+  };
+  const settled = await playPreview(early.page, "start", { ...opts, request: newRunFirst });
+  assert.equal(settled.reached, true);
+  assert.equal(settled.launchState, "play");
+  assert.equal(settled.running, true);
+  assert.deepEqual(settled.passedThrough, ["preview", "play"]);
+  clock = 0;
+  const never = playPage((sel) => sel.includes("Play From Here"));
+  const unstarted = await playPreview(never.page, "start", { ...opts, timeout: 30_000, request: async () => ({ launchState: "preview", run: never.clicks.length ? 2 : 1 }) });
+  assert.equal(unstarted.reached, true);
+  assert.equal(unstarted.running, false);
+  assert.ok(clock < 30_000, `a new run that never plays is reported after the settle wait, not the whole budget (${clock} ms)`);
   const none = await playPreview(playPage(() => false).page, "stop", opts);
   assert.equal(none.clicked, false);
   assert.match(none.reason, /Stop control is not on screen/);
