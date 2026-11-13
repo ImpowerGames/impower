@@ -577,6 +577,7 @@ Timing is set in `timing { … }`. Every value is optional:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
+| `trigger` | `appear` | What starts the plays: `appear` when the portrait appears, `speech` while its character speaks ([Talking](#talking)). |
 | `duration` | `0.25` | Seconds one play lasts. |
 | `delay` | `0` | Seconds before the first play only. Meanwhile the portrait shows the pose that play starts from. |
 | `iterations` | `1` | How many plays in all: a whole number, or `infinite`. `0` turns playback off, and the portrait shows the morph's rest. |
@@ -591,11 +592,184 @@ Timing is set in `timing { … }`. Every value is optional:
 
 There is no control for a double blink. A morph with more poses (open, closed, open, closed, open) plays one.
 
+## Talking
+
+A morph marked `trigger = speech` plays while its portrait's character speaks, so a mouth flaps through a line and rests between lines. This script gives Raffles three ways of talking and blinks his eyes throughout:
+
+```sparkdown
+define raffles as character with
+  name = "RAFFLES"
+end
+
+morph blink {
+  method = bend
+  unless = eyes.closed
+
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open } }
+  }
+
+  timing {
+    iterations = infinite
+    iteration_delay_min = 2
+    iteration_delay_max = 6
+  }
+}
+
+morph talk {
+  blend = cut
+  default = true
+  unless = mouth.teeth
+
+  keyframes {
+    from { mouth { state = closed } }
+    50% { mouth { state = open } }
+    to { mouth { state = closed } }
+  }
+
+  timing {
+    trigger = speech
+    duration = 0.16
+    iteration_delay_min = 0
+    iteration_delay_max = 0.08
+  }
+}
+
+morph talk_gritted as talk {
+  keyframes {
+    from { mouth { state = closed } }
+    50% { mouth { state = teeth } }
+    to { mouth { state = closed } }
+  }
+}
+
+morph talk_smile {
+  blend = cut
+  when = mouth.teeth
+
+  rest {
+    mouth { state = teeth }
+  }
+
+  keyframes {
+    from { mouth { state = closed } }
+    50% { mouth { state = open } }
+    to { mouth { state = closed } }
+  }
+
+  timing {
+    trigger = speech
+    duration = 0.16
+  }
+}
+
+scene start
+  RAFFLES:
+    [[raffles@confident]]
+    Yes yes, I'm fine...
+
+  RAFFLES:
+    [[raffles@confident morph talk_gritted]]
+    I said I'm fine.
+
+  RAFFLES:
+    [[raffles@happy:mouth.teeth]]
+    ((play voice raffles_laugh))
+    Anyway!
+
+  RAFFLES (V.O.):
+    [[raffles@confident:mouth.closed morph none]]
+    He was not fine.
+end
+```
+
+The first line flaps between `open` and `closed` and rests closed. The second flaps between `teeth` and `closed` and rests closed. On the third the mouth shows its teeth, so `talk` keeps off the look and `talk_smile` flaps between `open` and `closed` for as long as the laugh plays, then rests on the teeth. The fourth plays no speech morph, so the line's own closed mouth shows. The blink plays on every line, since it drives `eyes` and the talking drives `mouth`.
+
+### Marking a speech morph
+
+`trigger = speech`, in `timing`, marks the morph. On a speech morph:
+
+- `duration`, `easing` and `direction` shape each play as on any morph, and `iteration_delay_min` and `iteration_delay_max` set the gap between plays, with no gap when they are absent.
+- `delay` and `iterations` are errors, on the field, since speech decides when the plays start and how many there are. A child morph that inherits either from its parent is reported where it names the parent.
+- `when`, `unless` and `rest` work as on every morph ([Which portraits a morph plays on](#which-portraits-a-morph-plays-on), [Where a morph rests](#where-a-morph-rests)).
+
+Changing `trigger` changes only when the morph plays, so the portrait's movement is not prepared again.
+
+### Who is speaking
+
+A line's cue names its character the way the rest of the story does: by the define's own name or its `name` field, so `RAFFLES:` names `raffles` above. A cue with no `define … as character` behind it names nobody, and narration names nobody, so no mouth moves for them.
+
+An image is a character's portrait when its name, up to its first `@`, is the character's define name: `raffles`, `raffles@confident` and `raffles@happy` are all Raffles. A project that keeps one file per expression names its files that way ([Character Portraits](./Portraits.md)). A named look whose own name names no character belongs to the character of the image it is built on.
+
+When a character speaks, every portrait of theirs on screen flaps, wherever it was shown. A portrait of someone else stays at rest, so a listener's mouth stays shut while another character talks.
+
+### When the mouth flaps
+
+When the line's block plays a clip on the `voice` channel, as the third line plays `raffles_laugh`, the mouth flaps for as long as the clip is heard: from its start until it ends, or until the next line stops it. The text does not matter then, so skipping the typing leaves the clip and the mouth going, and the mouth keeps flapping through silences inside the clip. A voice clip that cannot play counts as no clip.
+
+Otherwise the mouth flaps while the line's voiced characters type: the characters the typewriter's `voiced` pattern matches, letters and digits unless the typewriter sets another, the same characters that make the character's voice beep. Each counts for its own letter pause, the typewriter's `letter_pause` divided by the text speed in force.
+
+- Punctuation, spaces and the extra time a typewriter pause adds, such as a run of spaces, a dash or a spaced ellipsis, are not speech, so a pause in the typing is a pause in the flap.
+- The character name and parenthetical at the top of a line are not speech.
+- A line with no voiced character, such as `. . .`, does not move the mouth. In `...AND THEN YOU DIE!` the mouth starts at the `A`.
+- Skipping the typing, so that the whole line shows at once, ends the speech.
+
+While speech lasts the morph plays again and again: each play takes `duration`, and the gap before the next is drawn between `iteration_delay_min` and `iteration_delay_max`. The first play starts as the speech starts. Between plays the mouth holds the pose the last play ended on. A play in progress always finishes, but none starts once the speech has stopped, so after the last letter, during a pause in the typing or after a skip the mouth finishes its flap and shows its rest.
+
+### Where the mouth rests
+
+A speech morph rests like any morph: each group it drives rests on the state its `rest` gives, or else the state of its last keyframe. `talk` rests on `closed`, its last keyframe, and `talk_smile` rests on the `teeth` its `rest` names.
+
+While a speech morph plays on a look, it owns the mouth even when nobody is speaking, so a line that chooses a mouth state the morph does not rest on shows the morph's rest instead, with a warning on the choice ([The look a portrait shows](#the-look-a-portrait-shows)). To keep a choice, route it to a morph that honours it, as `talk_smile`'s `when = mouth.teeth` and `talk`'s `unless = mouth.teeth` route the smile, or pick `morph none` on the line.
+
+`when` and `unless` route other looks the same way. A portrait whose mask covers the mouth can keep the flap off itself with a condition on its mask group:
+
+```sparkdown
+morph talk {
+  blend = cut
+  unless {
+    mouth.teeth
+    mask.on
+  }
+
+  keyframes {
+    from { mouth { state = closed } }
+    50% { mouth { state = open } }
+    to { mouth { state = closed } }
+  }
+
+  timing {
+    trigger = speech
+    duration = 0.16
+  }
+}
+```
+
+### Picking the morph
+
+Several speech morphs can fit one face, as `talk` and `talk_gritted` both fit Raffles's confident face. A line chooses among them with a `morph` clause after the image's name:
+
+- `[[raffles@confident morph talk_gritted]]` plays `talk_gritted`.
+- `[[raffles@confident:mouth.closed morph none]]` plays no speech morph on the line's images, so the line's and the art's own choices show in the mouth.
+- Without a clause, the morph marked `default = true` plays. A speech morph that is the only one fitting the look needs no mark.
+- In a `+` composition, the clause applies to every image in the line that the morph plays on.
+
+`default` is written at the morph's root and is not passed on through `as`, so `talk_gritted` above is not a default although its parent is. A named look cannot carry a `morph` clause; the line that shows it can.
+
+When several speech morphs drive the same group on one face, none is picked and none or more than one is marked `default = true`, none of them plays there. The morphs carry one warning, naming a face where it happens. Mark exactly one of them `default = true`.
+
+### Talking and blinking together
+
+A speech morph plays beside the face's other morphs, each on its own clock, under the rule every morph shares ([The look a portrait shows](#the-look-a-portrait-shows)): they play together when they drive different groups, move different labels and name different labels in their clips. A blink on `eyes` and a talk on `mouth` share none of them. A talk that also moves the eyebrows a blink moves still overlaps it, and the face stays still with a warning naming both.
+
 ## Seeing it play
 
 In the editor, the Game Preview plays morphs as soon as it shows a portrait.
 
-- While the preview is stopped, morphs play on their own clock; nothing in the story advances.
+- While the preview is stopped, morphs play on their own clock; nothing in the story advances. Nothing types there, so a speech morph shows its rest.
+- During PLAY a speech morph flaps while its character speaks and rests between lines. After a load, a rewind or a restart the mouth rests until the next line speaks.
 - During PLAY they follow the story's clock: pausing the story freezes each morph on its frame, and stepping moves it.
 - Changing the expression of a character who is already on screen keeps the morph's place in its cycle. A different character, an edited morph, a restart or previewing another line starts it again from rest.
 - Moved layers follow the same clock as the shapes: they freeze when the story pauses, return to where they are drawn when playback is off, and are let go with the portrait.
@@ -626,6 +800,15 @@ When only part of a portrait moves, read the artwork's warnings first. The usual
 - A `partner-missing` warning: a pose the label moves to or from draws neither it nor any label its `partner` lists. Add a drawing there, or list a label that pose draws.
 - A `paint-target-missing` warning: a `paints` entry names a label its pose does not draw, so nothing takes that paint. Check the label's spelling, or the entry's `state`.
 - A moved layer that stays put: it draws part of a clip's edges or targets, something outside it draws it again by reference (a `<use>` of it), or this look does not draw a layer with its label (check the label's spelling in the artwork).
+
+For a speech morph:
+
+- `delay` or `iterations` on a speech morph is an error on the field: speech decides when the plays start and how many there are.
+- `default` on a morph that is not `trigger = speech` is an error, and so is a `default` that is not `true` or `false`.
+- A `morph` clause naming no morph, or a morph that is not a speech morph, is an error on the clause. One naming a speech morph that plays on none of the line's images, because it does not fit them or its `when` or `unless` keeps it off their looks, is a warning.
+- A warning on the morphs that they play on one image and drive the same group: none of them plays there until a line picks one or exactly one is marked `default = true`.
+- A mouth that never moves: check that the cue names a `define … as character`, that the portrait's name up to its first `@` is that define's name, and that the line has voiced characters or a `voice` clip.
+- A mouth that shows the morph's rest instead of the line's choice: the choice gets a warning naming the morph. Route the look with `when` or `unless`, or add `morph none` to the line.
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
 

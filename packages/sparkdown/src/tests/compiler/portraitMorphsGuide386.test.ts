@@ -75,12 +75,65 @@ function diagnosticsOf(text: string, portraits = [PORTRAIT, SPLIT_LASHES], shown
   }));
 }
 
+const TALKING_DEFINE = "define raffles as character";
+
+function talkingDiagnostics(text: string) {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      { uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
+      { uri: "file:///raffles@confident.svg", type: "image", name: "raffles@confident", ext: "svg", data: PORTRAIT },
+      { uri: "file:///raffles@happy.svg", type: "image", name: "raffles@happy", ext: "svg", data: PORTRAIT },
+      { uri: "file:///raffles_laugh.mp3", type: "audio", name: "raffles_laugh", ext: "mp3" },
+    ],
+  } as any);
+  const program = compiler.compile({ textDocument: { uri: URI } }).program;
+  return (program.diagnostics?.[URI] ?? []).map((d) => ({
+    message: typeof d.message === "string" ? d.message : d.message.value,
+    severity: d.severity,
+  }));
+}
+
+describe("the talking section of the portrait morphs guide chapter", () => {
+  const talking = () => chapter().slice(chapter().indexOf("## Talking"), chapter().indexOf("## Seeing it play"));
+  const script = () => examples().find((text) => text.includes(TALKING_DEFINE))!;
+
+  test("the section's examples compile with no diagnostics", () => {
+    const own = [...talking().matchAll(/^```sparkdown\n([\s\S]*?)^```$/gm)].map((m) => m[1]!);
+    expect(own.length).toBeGreaterThanOrEqual(2);
+    expect(own[0]).toContain(TALKING_DEFINE);
+    expect(talkingDiagnostics(own[0]!)).toEqual([]);
+    for (const text of own.slice(1)) expect(diagnosticsOf(text)).toEqual([]);
+  });
+
+  test("the timing table lists `trigger` and Portraits links to the section", () => {
+    expect(chapter()).toMatch(/\| `trigger` \| `appear` \|/);
+    expect(readFileSync(resolve(GUIDE, "Portraits.md"), "utf8")).toContain("(./PortraitMorphs.md#talking)");
+  });
+
+  test("the rules the section states are the rules the compiler reports", () => {
+    const text = script();
+    const messages = (source: string) => talkingDiagnostics(source).map((d) => d.message);
+    expect(messages(text.replace("    duration = 0.16\n    iteration_delay_min = 0", "    delay = 1\n    duration = 0.16\n    iteration_delay_min = 0"))).toEqual([
+      expect.stringContaining("`delay` does not apply to a speech morph"),
+      expect.stringContaining("`delay`, inherited, does not apply to a speech morph"),
+    ]);
+    expect(messages(text.replace("  blend = cut\n  default = true", "  blend = cut").replace("morph blink {\n", "morph blink {\n  default = true\n"))).toContainEqual(
+      expect.stringContaining("this morph is not a speech morph"),
+    );
+    expect(messages(text.replace("morph talk_gritted]]", "morph blink]]"))).toEqual([expect.stringContaining("`blink` is not a speech morph")]);
+    expect(messages(text.replace("morph talk_gritted]]", "morph talk_grin]]"))).toEqual([expect.stringContaining("No morph named `talk_grin`")]);
+    expect(messages(text.replace("morph talk_gritted]]", "morph talk_smile]]"))).toEqual([expect.stringContaining("`talk_smile` plays on no image in this directive")]);
+    expect(messages(text.replace("  default = true\n", ""))).toContainEqual(expect.stringContaining("none is marked `default = true`"));
+  });
+});
+
 describe("the portrait morphs guide chapter", () => {
   test("has compiled examples", () => {
     expect(examples().length).toBeGreaterThanOrEqual(8);
   });
 
-  test.each(examples().map((text, index) => [index + 1, text] as const))(
+  test.each(examples().filter((text) => !text.includes(TALKING_DEFINE)).map((text, index) => [index + 1, text] as const))(
     "example %i compiles against the shipped compiler with no diagnostics",
     (_index, text) => {
       expect(diagnosticsOf(text)).toEqual([]);
