@@ -141,7 +141,7 @@ import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpli
 import { closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { resolveSelector } from "../utils/resolveSelector";
 import { getContextEntry } from "../utils/getContextEntry";
-import { getTypedImageEntry } from "../utils/resolveImageReference";
+import { getTypedImageEntry, typedImageTypes } from "../utils/resolveImageReference";
 import { setContextEntry } from "../utils/setContextEntry";
 import type { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
 import {
@@ -5392,8 +5392,7 @@ export class SparkdownCompiler {
       if (reference.asset) {
         const { types, name, typed } = reference.asset;
         const declared = types.some((type) => {
-          readKey(reads, type, name);
-          if (type === "image") readKey(reads, "layered_image", name);
+          for (const table of typedImageTypes(type)) readKey(reads, table, name);
           return getTypedImageEntry(program.context, type, name) !== undefined;
         });
         if (declared && !typed) {

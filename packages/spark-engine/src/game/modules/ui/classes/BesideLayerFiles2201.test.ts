@@ -1,6 +1,7 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { describe, expect, it } from "vitest";
+import { getVarName } from "../utils/getVarName";
 import { UIModule } from "./UIModule";
 
 class ProbeUIModule extends UIModule {
@@ -76,5 +77,12 @@ describe("the engine draws a picture's layer files with it (#2201)", () => {
 
   it("draws a folder stack in the same project as it did", () => {
     expect(engine().getImageSrcsByName("mia:happy")).toEqual(["/src/mia/90_body.png", "/src/mia/30_face.happy.png"]);
+  });
+
+  it("gives a style's image.ava the composed picture, top layer first, as a folder portrait's image.mia", () => {
+    const variables = (engine() as any).getThemeVariables() as Record<string, string>;
+    expect(variables[getVarName("image", "ava")]).toBe('url("/src/ava~30_mouth.closed~default.png"), url("/src/ava.png")');
+    expect(variables[getVarName("image", "ava@night")]).toBe('url("/src/ava@night.png")');
+    expect(variables[getVarName("image", "mia")]).toBe('url("/src/mia/30_face.neutral~default.png"), url("/src/mia/90_body.png")');
   });
 });

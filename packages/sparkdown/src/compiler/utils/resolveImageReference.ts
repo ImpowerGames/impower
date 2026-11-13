@@ -2,13 +2,20 @@ import { getContextEntry } from "./getContextEntry";
 
 type ImageContext = { [type: string]: { [name: string]: any } };
 
+export const typedImageTypes = (type: string): string[] =>
+  type === "image" ? ["image", "layered_image"] : [type];
+
 export const getTypedImageEntry = (
   context: ImageContext | undefined,
   type: string,
   name: string,
-): any =>
-  getContextEntry(context, type, name) ??
-  (type === "image" ? getContextEntry(context, "layered_image", name) : undefined);
+): any => {
+  for (const table of typedImageTypes(type)) {
+    const entry = getContextEntry(context, table, name);
+    if (entry !== undefined) return entry;
+  }
+  return undefined;
+};
 
 export const resolveImageReference = (
   context: ImageContext | undefined,

@@ -2016,6 +2016,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    for (const name of Object.keys(this.context?.layered_image ?? {})) {
+      const varName = getVarName("image", name);
+      if (name.startsWith("$") || Object.hasOwn(variablesStyle, varName)) {
+        continue;
+      }
+      const srcs = this.getImageAssets("", name).map((asset) => asset.src);
+      if (srcs.length) {
+        variablesStyle[varName] = srcs.map((src) => this.getUrl(src)).reverse().join(", ");
+      }
+    }
     const colors = this.context?.color;
     if (colors) {
       for (const [name, color] of Object.entries(colors)) {

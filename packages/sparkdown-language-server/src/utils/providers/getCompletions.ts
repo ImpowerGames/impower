@@ -26,6 +26,7 @@ import {
   relativeRunPath,
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
+import { typedImageTypes } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
@@ -1003,7 +1004,7 @@ const addStructPropertyValueContextCompletions = (
         "$type" in value &&
         typeof value.$type === "string"
       ) {
-        addStructReferenceCompletions(completions, program, [value.$type]);
+        addStructReferenceCompletions(completions, program, typedImageTypes(value.$type));
       }
     }
   }
@@ -1181,7 +1182,7 @@ const addStructAccessPathCompletions = (
     const type = parts[0];
     if (program?.context) {
       if (parts.length === 2 && type) {
-        addStructReferenceCompletions(completions, program, [type]);
+        addStructReferenceCompletions(completions, program, typedImageTypes(type));
       } else {
         const parentPath =
           parts.length === 1
