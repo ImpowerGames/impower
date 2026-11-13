@@ -1372,6 +1372,10 @@ export class Game<T extends M = {}> {
     ) {
       this._coordinator = new Coordinator(this, shown, { settled: "restored" });
     }
+    const ending = this.shownEnding;
+    if (ending) {
+      this.showEndingOnPage(ending.kind);
+    }
     return true;
   }
 

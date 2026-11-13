@@ -801,6 +801,19 @@ end
     expect(endings(h)).toHaveLength(1);
   });
 
+  test.each(["fin", "out", "error"] as const)(
+    "switching to Interactive Fiction after a Visual Novel story ended with %s on its first line opens the page with only the line",
+    (kind) => {
+      const h = play(`scene start\n${ENDINGS[kind]}end\n`);
+      h.game.start();
+      expect(h.game.ending?.kind).toBe(kind);
+      expect(h.game.module.ui.openedLayoutsAfter([])).not.toContain("textstream");
+      h.game.setStartingDisplayMode("textstream");
+      expect(h.game.module.ui.openedLayoutsAfter([])).toContain("textstream");
+      expect(h.page()).toEqual([{ kind: "ending", ending: kind }]);
+    },
+  );
+
   test("the Visual Novel output opens no page when its story ends, and records no entry but the ending", () => {
     const h = play(ending("fin", ""));
     playToEnd(h);
