@@ -1,4 +1,4 @@
-import { h, render } from "preact";
+import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,6 +23,8 @@ const assets = vi.hoisted(() => ({
   measureImages: vi.fn(async (_paths: string[]) => undefined),
   watchFacts: vi.fn((_paths: string[]) => () => {}),
   watchPicture: vi.fn((_path: string, _variant: unknown, _size: number, _listener: (src: string | null) => void) => () => {}),
+  requestDuration: vi.fn((_path: string) => () => {}),
+  measureDurations: vi.fn(async (_paths: readonly string[]) => undefined),
 }));
 const measured = vi.hoisted(() => ({ sizes: {} as Record<string, { width: number; height: number }> }));
 const window = vi.hoisted(() => ({
@@ -38,6 +40,8 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 const speaker = vi.hoisted(() => ({
   audio: undefined as unknown as EventTarget & { src: string; currentTime: number; duration: number; paused: boolean; loop: boolean; log: string[] },
   reads: [] as string[],
+  probes: [] as string[],
+  lengths: {} as Record<string, number>,
 }));
 vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
   const { default: AudioSession } = await import("../../src/modules/spark-editor/workspace/AudioSession");
@@ -94,6 +98,7 @@ vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: selection } = await import("../../src/modules/spark-editor/workspace/assetsSelection");
 const { default: Assets } = await import("../../src/modules/spark-editor/components/assets");
+const { InspectorDockProvider, InspectorDock } = await import("../../src/modules/spark-editor/components/asset-inspector/dock");
 const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
 await import("../../src/modules/spark-editor/workspace/editorAudio");
 const { PROJECT_SETTINGS_SCHEMA } = await import(
@@ -142,6 +147,12 @@ const openMenu = async (trigger: HTMLElement | undefined) => {
 
 const menuItems = () => all<HTMLElement>('[role="menuitem"], [role="menuitemradio"]').map((el) => el.textContent?.trim());
 
+const showAs = async (layout: "Tiles" | "List") => {
+  await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+  await vi.waitFor(() => expect(menuItems()).toContain(layout));
+  await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === layout));
+};
+
 const search = async (value: string) => {
   const input = host!.querySelector<HTMLInputElement>('input[aria-label="Search assets"]')!;
   await act(async () => {
@@ -173,6 +184,17 @@ beforeEach(() => {
   for (const fn of [...Object.values(assets), ...Object.values(window)]) fn.mockClear();
   speaker.audio.log = [];
   speaker.reads = [];
+  speaker.probes = [];
+  speaker.lengths = {};
+  workspace.assetDurations.value = {};
+  assets.requestDuration.mockImplementation((path: string) => {
+    const src = workspace.assetListing.value!.files[path]?.src;
+    if (src && !Object.hasOwn(workspace.assetDurations.value, src)) {
+      speaker.probes.push(src);
+      workspace.assetDurations.value = { ...workspace.assetDurations.value, [src]: speaker.lengths[src] ?? null };
+    }
+    return () => {};
+  });
   window.setListState.mockImplementation((lists) => {
     workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, ...lists } };
   });
@@ -214,13 +236,13 @@ describe("the Assets page", () => {
   });
 
   for (const width of ["desktop", "phone"] as const) {
-    it(`shows the six type tabs and a New button at ${width} width`, async () => {
+    it(`shows the six type tabs and an Add button at ${width} width`, async () => {
       layout.value = width;
       await mount();
       expect(tabs().map((tab) => tab.id.replace(/^.*-trigger-/, ""))).toEqual(["image", "audio", "video", "text", "font", "other"]);
       expect(tabs().every((tab, i) => tab.textContent!.startsWith(["Images", "Audio", "Video", "Text", "Fonts", "Other"][i]!))).toBe(true);
       expect(tabs()[0]!.getAttribute("aria-selected")).toBe("true");
-      expect(host!.querySelector('[data-assets-action="add"]')?.textContent).toContain("New");
+      expect(host!.querySelector('[data-assets-action="add"]')?.textContent).toBe("Add");
       expect(host!.querySelector('input[aria-label="Search assets"]')).not.toBeNull();
     });
   }
@@ -286,12 +308,14 @@ describe("the Assets page", () => {
     await mount();
     await showTab("Audio");
     expect(text()).toContain("No audio yet");
-    expect(text()).toContain("Upload sounds and music with the New button.");
+    expect(text()).toContain("Upload sounds and music with the Add button.");
+    expect(text()).not.toContain("New button");
     await showTab("Other");
     expect(text()).toContain("Files of any other type land here when you upload them.");
     await showTab("Images");
     await click(all<HTMLElement>('button[aria-label^="Open folder Empty"]')[0]);
     expect(text()).toContain("This folder is empty");
+    expect(text()).toContain("Upload into it with the Add button.");
     await act(async () => {
       setListing({});
     });
@@ -333,7 +357,7 @@ describe("the Assets page", () => {
     expect(window.setListState).toHaveBeenCalledWith({ assetsSort: "size-desc" });
   });
 
-  it("offers uploads, a link by address and a new folder from New", async () => {
+  it("offers uploads, a link by address and a new folder from Add", async () => {
     await mount();
     await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
     await vi.waitFor(() =>
@@ -442,15 +466,33 @@ describe("image folders as tiles", () => {
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["landscape"]);
   });
 
-  it("keeps a folder's switch to rows for that folder only, with the chip beside the name", async () => {
+  it("offers the folder's layouts from a menu showing the current one's icon, and keeps a choice for that folder only, with the chip beside the name", async () => {
     workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
     await mount();
-    expect(layoutButton()!.getAttribute("aria-label")).toBe("Show this folder as rows");
-    await click(layoutButton()!);
+    expect(layoutButton()!.getAttribute("aria-label")).toBe("Change how this folder is shown");
+    expect(layoutButton()!.getAttribute("aria-haspopup")).toBe("menu");
+    expect(layoutButton()!.getAttribute("data-layout")).toBe("tiles");
+    await openMenu(layoutButton()!);
+    await vi.waitFor(() => expect(menuItems()).toEqual(["Tiles", "List"]));
+    expect(all<HTMLElement>('[role="menuitemradio"]').map((el) => el.getAttribute("aria-checked"))).toEqual(["true", "false"]);
+    const itemIcon = (label: string) =>
+      all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === label)!.querySelector("svg:not([data-radio-indicator])")!.innerHTML;
+    const tilesIcon = itemIcon("Tiles");
+    const listIcon = itemIcon("List");
+    expect(tilesIcon).not.toBe(listIcon);
+    const triggerIcon = () => layoutButton()!.querySelector("svg")!.innerHTML;
+    expect(triggerIcon()).toBe(tilesIcon);
+    await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === "List"));
     expect(window.setListState).toHaveBeenCalledWith({ assetsLayouts: { "Assets/Images/Portraits": "rows" } });
     expect(tiles()).toEqual([]);
     expect(host!.querySelector("[data-variants-chip]")!.textContent).toBe("4 variants");
-    expect(layoutButton()!.getAttribute("aria-label")).toBe("Show this folder as tiles");
+    expect(layoutButton()!.getAttribute("data-layout")).toBe("rows");
+    expect(triggerIcon()).toBe(listIcon);
+    await openMenu(layoutButton()!);
+    await vi.waitFor(() =>
+      expect(all<HTMLElement>('[role="menuitemradio"]').map((el) => el.getAttribute("aria-checked"))).toEqual(["false", "true"]),
+    );
+    await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === "List"));
     await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
     expect(tiles().length).toBe(2);
   });
@@ -815,6 +857,33 @@ describe("playing sounds from their rows", () => {
     expect(speaker.audio.log).toEqual(["play /p/512", "stop /p/512", "play /p/768", "stop /p/768"]);
   });
 
+  it("leads a row's line with the sound's length, read once for the rows shown, and keeps it beside the elapsed time while playing", async () => {
+    setListing({
+      "Assets/Audio/Sounds/bell.wav": facts(5121),
+      "Assets/Audio/Sounds/creak.wav": facts(5122),
+      ...Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`Assets/Audio/Sounds/zz_${String(i).padStart(3, "0")}.wav`, facts(6000 + i)])),
+    });
+    speaker.lengths = { "/p/5121": 5.4 };
+    await openSounds();
+    const line = (name: string) => rowOf(name).querySelector("[data-asset-sound-line]")!.textContent;
+    await vi.waitFor(() => expect(line("bell")).toMatch(/^0:05 · Modified 2d · 5 kB$/));
+    expect(line("creak")).toMatch(/^Modified 2d · 5 kB$/);
+    expect(speaker.probes).toContain("/p/5121");
+    expect(speaker.reads).toEqual([]);
+    await act(async () => {
+      workspace.assetListing.value = { ...workspace.assetListing.value!, files: { ...workspace.assetListing.value!.files } };
+    });
+    await settle();
+    expect(speaker.probes.length).toBeLessThan(60);
+    expect(new Set(speaker.probes).size).toBe(speaker.probes.length);
+    await click(playButton("bell"));
+    await tell("loadedmetadata", () => (speaker.audio.duration = 5.4));
+    await tell("timeupdate", () => (speaker.audio.currentTime = 2.4));
+    expect(line("bell")).toMatch(/^0:02 \/ 0:05 · Modified 2d · 5 kB$/);
+    expect(rowOf("bell").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:02 / 0:05");
+    await click(playButton("bell"));
+  });
+
   it("pauses a row's sound in place, holding its time in the row and in the inspector, and resumes it there", async () => {
     await openSounds();
     await click(playButton("door_chime"));
@@ -1026,14 +1095,17 @@ describe("playing sounds from their rows", () => {
       setListing({ ...workspace.assetListing.value!.files, "Assets/Audio/Sounds/door_chime.wav": facts(2_000_000) });
       await openSounds();
       await click(rowOf("footsteps").querySelector<HTMLElement>('button[aria-label^="Open audio footsteps"]')!);
-      expect(loaded).toEqual(["/p/768"]);
+      expect(assets.measureDurations).toHaveBeenCalledWith(["Assets/Audio/Sounds/footsteps.wav"]);
       await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
       expect(inspector()!.querySelector('[data-audio-player] [role="status"]')!.textContent).toBe("This file is too large to play here.");
       expect(rowOf("door_chime").querySelector("[data-asset-sound-failed]")!.textContent).toBe("This file is too large to play here.");
       await click(playButton("door_chime"));
       expect(speaker.audio.log).toEqual([]);
-      expect(loaded).toEqual(["/p/768"]);
+      expect(assets.measureDurations).not.toHaveBeenCalledWith(["Assets/Audio/Sounds/door_chime.wav"]);
+      expect(loaded).toEqual([]);
       expect(speaker.reads).not.toContain("/p/2000000");
+      expect(speaker.probes).not.toContain("/p/2000000");
+      expect(assets.requestDuration).not.toHaveBeenCalledWith("Assets/Audio/Sounds/door_chime.wav");
     } finally {
       vi.unstubAllGlobals();
     }
@@ -1550,7 +1622,7 @@ describe("sorting by Uses and Story order", () => {
   it("sorts as Name with the modified line and a note in the menu until uses are counted", async () => {
     workspace.assetUsage.value = null;
     await mount();
-    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    await showAs("List");
     expect(rowLabels()).toEqual([
       "Open image harbor, 2 variants, modified 2d · 2 kb",
       "Open image market, modified 2d · 2 kb",
@@ -1564,7 +1636,7 @@ describe("sorting by Uses and Story order", () => {
     workspace.assetUsage.value = null;
     workspace.assetUsageFailed.value = PROJECT;
     await mount();
-    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    await showAs("List");
     expect(rowLabels()[0]).toBe("Open image harbor, 2 variants, modified 2d · 2 kb");
     await openMenu(all<HTMLElement>('button[aria-label^="Sort by"]')[0]);
     await vi.waitFor(() => expect(sortMenuNote()).toBe("Uses could not be counted. Edit a script to try again."));
@@ -1574,7 +1646,7 @@ describe("sorting by Uses and Story order", () => {
   it("lists every unused thing first under Uses ascending, and moves one out without a reload", async () => {
     counted();
     await mount();
-    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    await showAs("List");
     expect(rowLabels()).toEqual([
       "Open image unused, unused",
       "Open image market, 1 use",
@@ -1602,7 +1674,7 @@ describe("sorting by Uses and Story order", () => {
     workspace.current = { ...workspace.current, lists: { assetsSort: "story-asc" } };
     counted();
     await mount();
-    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    await showAs("List");
     expect(rowLabels().map((label) => label!.split(",")[0])).toEqual([
       "Open image harbor",
       "Open image market",
@@ -1613,9 +1685,300 @@ describe("sorting by Uses and Story order", () => {
   it("asks the delete check with the row's paths, so it agrees with the row", async () => {
     counted();
     await mount();
-    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    await showAs("List");
     await openMenu(all<HTMLElement>('button[aria-label="Options for harbor"]')[0]);
     await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Delete")));
     expect(assets.usedBy).toHaveBeenCalledWith([`${P}/harbor.png`]);
+  });
+});
+
+describe("the inspector of an asset that moves", () => {
+  const P = "Assets/Images/Portraits";
+  const S = "Assets/Audio";
+  const inspector = () => document.querySelector<HTMLElement>('section[aria-label="Asset details"]');
+  const title = () => inspector()?.querySelector("header h2")?.textContent;
+  const dialog = () => document.querySelector<HTMLElement>('[role="listbox"][aria-label="Folders"]')?.closest<HTMLElement>('[role="dialog"]');
+  const leaf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+  const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/"));
+  const stem = (path: string) => leaf(path).replace(/\.[^.]*$/, "");
+  const at = (path: string, size: number) => ({ ...facts(size), src: `/src/${path}` });
+  const belongs = (path: string, cover: string) =>
+    folderOf(path) === folderOf(cover) &&
+    (path === cover || (leaf(path).startsWith(stem(cover)) && /^[@~]/.test(leaf(path).slice(stem(cover).length))));
+  const moveFiles = (moves: readonly { from: string; to: string }[]) => {
+    const { files, folders } = workspace.assetListing.value!;
+    const next = { ...files };
+    for (const { from, to } of moves) {
+      next[to] = { ...next[from]!, src: `/src/${to}` };
+      delete next[from];
+    }
+    workspace.assetListing.value = { projectId: PROJECT, files: next, folders };
+  };
+  const press = async (label: string) => click(all<HTMLElement>(`button[aria-label^="${label}"]`)[0]);
+  const chooseMove = async (trigger: HTMLElement | undefined) => {
+    await openMenu(trigger);
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Move")));
+  };
+  const moveHere = async (folder: string) => {
+    await click([...dialog()!.querySelectorAll<HTMLElement>('[role="option"]')].find((el) => el.textContent?.includes(folder)));
+    await click([...dialog()!.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.trim() === "Move here"));
+  };
+  const listMenu = (name: string) =>
+    all<HTMLElement>(`button[aria-label="Options for ${name}"]`).find((button) => !inspector()?.contains(button));
+  const headMenu = (name: string) => inspector()?.querySelector<HTMLElement>(`button[aria-label="Options for ${name}"]`) ?? undefined;
+  const frameSrc = () => inspector()?.querySelector("[data-zoom-frame] img")?.getAttribute("src");
+  const watchedFiles = () => assets.watchFacts.mock.calls.at(-1)![0];
+
+  beforeEach(() => {
+    selection.end();
+    workspace.assetListing.value = {
+      projectId: PROJECT,
+      files: {
+        [`${P}/ava.png`]: at(`${P}/ava.png`, 8001),
+        [`${P}/ava@night.png`]: at(`${P}/ava@night.png`, 8002),
+        [`${P}/ava~face.happy.png`]: at(`${P}/ava~face.happy.png`, 8003),
+        [`${P}/bo.png`]: at(`${P}/bo.png`, 8004),
+        [`${P}/Cast/dex.png`]: at(`${P}/Cast/dex.png`, 8005),
+        [`${S}/Sounds/chime.wav`]: at(`${S}/Sounds/chime.wav`, 8006),
+        [`${S}/Music/theme.wav`]: at(`${S}/Music/theme.wav`, 8007),
+      },
+      folders: [`${P}/Cast`],
+    };
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P, audio: `${S}/Sounds` } } };
+    assets.move.mockImplementation(async (paths: readonly string[], folder: string) => {
+      const files = Object.keys(workspace.assetListing.value!.files);
+      const moves = files
+        .filter((path) => paths.some((cover) => belongs(path, cover)))
+        .map((from) => ({ from, to: `${folder}/${leaf(from)}` }));
+      moveFiles(moves);
+      return moves;
+    });
+  });
+
+  afterEach(() => {
+    assets.move.mockImplementation(async () => []);
+    workspace.movesReplayed.value = null;
+  });
+
+  const expectStackAtCast = () => {
+    expect(title()).toBe("ava");
+    expect(inspector()!.querySelector("header small")!.textContent).toBe("Image · PNG · 3 variants");
+    expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
+    expect(watchedFiles()).toEqual([`${P}/Cast/ava.png`, `${P}/Cast/ava@night.png`, `${P}/Cast/ava~face.happy.png`]);
+    expect(workspace.current.lists?.assetsFolders?.image).toBe(`${P}/Cast`);
+    expect(host!.querySelector(`[data-asset-path="${P}/Cast/ava.png"]`)).not.toBeNull();
+  };
+
+  it("shows a stacked picture moved from its row menu at its new folder, with every member file, and opens that folder in the list", async () => {
+    await mount();
+    await press("Open image ava");
+    expect(frameSrc()).toBe(`/src/${P}/ava.png`);
+    await chooseMove(listMenu("ava"));
+    await moveHere("Cast");
+    expect(assets.move).toHaveBeenCalledWith([`${P}/ava.png`], `${P}/Cast`);
+    expectStackAtCast();
+  });
+
+  it("shows a stacked picture moved from the inspector's own menu at its new folder", async () => {
+    await mount();
+    await press("Open image ava");
+    await chooseMove(headMenu("ava"));
+    await moveHere("Cast");
+    expectStackAtCast();
+  });
+
+  it("shows a stacked picture moved from the selection bar at its new folder", async () => {
+    await mount();
+    await press("Open image ava");
+    await act(async () => host!.querySelector<HTMLInputElement>('input[aria-label="Select ava"]')!.click());
+    await settle();
+    await click(all<HTMLButtonElement>("button").find((button) => button.textContent?.trim() === "Move…"));
+    await moveHere("Cast");
+    expectStackAtCast();
+  });
+
+  it("shows a plain picture moved from its row menu at its new folder", async () => {
+    await mount();
+    await press("Open image bo");
+    await chooseMove(listMenu("bo"));
+    await moveHere("Cast");
+    expect(title()).toBe("bo");
+    expect(frameSrc()).toBe(`/src/${P}/Cast/bo.png`);
+    expect(watchedFiles()).toEqual([`${P}/Cast/bo.png`]);
+    expect(workspace.current.lists?.assetsFolders?.image).toBe(`${P}/Cast`);
+  });
+
+  it("shows a sound moved from the inspector's own menu at its new folder", async () => {
+    await mount();
+    await showTab("Audio");
+    await press("Open audio chime");
+    expect(title()).toBe("chime");
+    await chooseMove(headMenu("chime"));
+    await moveHere("Music");
+    expect(title()).toBe("chime");
+    expect(watchedFiles()).toEqual([`${S}/Music/chime.wav`]);
+    expect(workspace.current.lists?.assetsFolders?.audio).toBe(`${S}/Music`);
+  });
+
+  it("follows the stacked picture back to its first folder when Undo puts its files back", async () => {
+    await mount();
+    await press("Open image ava");
+    await chooseMove(listMenu("ava"));
+    await moveHere("Cast");
+    expectStackAtCast();
+    const back = [`ava.png`, `ava@night.png`, `ava~face.happy.png`].map((name) => ({
+      from: `${P}/Cast/${name}`,
+      to: `${P}/${name}`,
+    }));
+    const shown = inspector();
+    await act(async () => {
+      workspace.movesReplayed.value = { moves: back, settled: false };
+      moveFiles(back);
+    });
+    const sheetState = () => inspector()?.closest('[role="dialog"]')?.getAttribute("data-state");
+    expect(inspector()).toBe(shown);
+    expect(sheetState()).toBe("open");
+    expect(title()).toBe("ava");
+    await settle();
+    expect(inspector()).toBe(shown);
+    expect(sheetState()).toBe("open");
+    await act(async () => {
+      workspace.movesReplayed.value = { moves: back, settled: true };
+    });
+    await settle();
+    expect(inspector()).toBe(shown);
+    expect(sheetState()).toBe("open");
+    expect(title()).toBe("ava");
+    expect(frameSrc()).toBe(`/src/${P}/ava.png`);
+    expect(watchedFiles()).toEqual([`${P}/ava.png`, `${P}/ava@night.png`, `${P}/ava~face.happy.png`]);
+    expect(workspace.current.lists?.assetsFolders?.image).toBe(P);
+  });
+
+  const replay = async (moves: readonly { from: string; to: string }[]) => {
+    await act(async () => {
+      workspace.movesReplayed.value = { moves, settled: false };
+    });
+    await act(async () => moveFiles(moves));
+    await act(async () => {
+      workspace.movesReplayed.value = { moves, settled: true };
+    });
+    await settle();
+  };
+  const toCast = [`ava.png`, `ava@night.png`, `ava~face.happy.png`].map((name) => ({
+    from: `${P}/${name}`,
+    to: `${P}/Cast/${name}`,
+  }));
+  const searchField = () => host!.querySelector<HTMLInputElement>('input[aria-label="Search assets"]')!;
+
+  it("follows the picture but leaves the list in its folder while the author scrolls it", async () => {
+    await mount();
+    await press("Open image ava");
+    await act(async () => {
+      host!.querySelector(`[data-asset-path="${P}/bo.png"]`)!.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 40 }));
+    });
+    await replay(toCast);
+    expect(title()).toBe("ava");
+    expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
+    expect(workspace.current.lists?.assetsFolders?.image).toBe(P);
+  });
+
+  it("follows the picture but leaves the search and its results alone while the author types in it", async () => {
+    await mount();
+    await press("Open image ava");
+    await search("ava");
+    await act(async () => searchField().focus());
+    await replay(toCast);
+    expect(title()).toBe("ava");
+    expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
+    expect(searchField().value).toBe("ava");
+    expect(document.activeElement).toBe(searchField());
+    expect(workspace.current.lists?.assetsFolders?.image).toBe(P);
+  });
+
+  it("keeps showing the picture at its new folder when the search in the list leaves it out", async () => {
+    await mount();
+    await press("Open image ava");
+    await search("dex");
+    await act(async () => searchField().blur());
+    await replay(toCast);
+    expect(title()).toBe("ava");
+    expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
+    expect(searchField().value).toBe("dex");
+    expect(rowLabels().map((label) => label!.split(",")[0])).toEqual(["Open image dex"]);
+  });
+
+  const renameFromInspector = async (name: string, typed: string, key: "Enter" | "Escape") => {
+    await openMenu(headMenu(name));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.trim() === "Rename"));
+    await vi.waitFor(() => expect(host!.querySelector(`input[aria-label="Rename ${name}"]`)).not.toBeNull());
+    const input = host!.querySelector<HTMLInputElement>(`input[aria-label="Rename ${name}"]`)!;
+    await act(async () => {
+      input.value = typed;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    });
+    await settle();
+  };
+
+  const renameToBea = () =>
+    assets.rename.mockImplementationOnce(async (path: string, name: string) => {
+      const to = `${folderOf(path)}/${name}.png`;
+      moveFiles([{ from: path, to }]);
+      return to;
+    });
+
+  it("shows a picture renamed from the inspector's own menu under its new name in the phone's sheet", async () => {
+    layout.value = "phone";
+    renameToBea();
+    await mount();
+    await press("Open image bo");
+    await renameFromInspector("bo", "bea", "Enter");
+    expect(assets.rename).toHaveBeenCalledWith(`${P}/bo.png`, "bea");
+    expect(title()).toBe("bea");
+    expect(frameSrc()).toBe(`/src/${P}/bea.png`);
+    expect(inspector()!.closest('[role="dialog"]')?.getAttribute("data-state")).toBe("open");
+  });
+
+  it("keeps the docked inspector on a picture renamed from its own menu at desktop width", async () => {
+    renameToBea();
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(h(InspectorDockProvider, { children: h(Fragment, {}, h(InspectorDock, {}), h(Assets, {})) }), host!),
+    );
+    await settle();
+    await press("Open image bo");
+    const shown = inspector();
+    expect(shown!.closest('[role="dialog"]')).toBeNull();
+    await renameFromInspector("bo", "bea", "Enter");
+    expect(inspector()).toBe(shown);
+    expect(title()).toBe("bea");
+    expect(frameSrc()).toBe(`/src/${P}/bea.png`);
+  });
+
+  it("returns to the inspector on the same picture when a rename from its menu is cancelled on a phone", async () => {
+    layout.value = "phone";
+    await mount();
+    await press("Open image bo");
+    await renameFromInspector("bo", "bea", "Escape");
+    expect(assets.rename).not.toHaveBeenCalled();
+    expect(title()).toBe("bo");
+    expect(inspector()!.closest('[role="dialog"]')?.getAttribute("data-state")).toBe("open");
+  });
+
+  it("closes when the moved picture is deleted", async () => {
+    await mount();
+    await press("Open image ava");
+    await chooseMove(listMenu("ava"));
+    await moveHere("Cast");
+    const { files, folders } = workspace.assetListing.value!;
+    await act(async () => {
+      workspace.assetListing.value = {
+        projectId: PROJECT,
+        files: Object.fromEntries(Object.entries(files).filter(([path]) => !path.includes("/ava"))),
+        folders,
+      };
+    });
+    await settle();
+    expect(inspector()).toBeNull();
   });
 });

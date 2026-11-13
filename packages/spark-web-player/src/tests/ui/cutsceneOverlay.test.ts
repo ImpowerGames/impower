@@ -318,7 +318,7 @@ describe("a cutscene on the page, in play", () => {
     expect(cutsceneOf(h.overlay)).toBeNull();
   });
 
-  test("pauses with the game, resumes with it, and skips with its clock", async () => {
+  test("pauses with the game and resumes with it", async () => {
     const { h, media } = await playing("start");
     await runBeat(h);
     const video = videoOf(h.overlay)!;
@@ -329,8 +329,6 @@ describe("a cutscene on the page, in play", () => {
     expect(video.paused).toBe(true);
     h.ui.onUnpause();
     expect(media.of(video, "play")).toBe(2);
-    h.ui.onSkip(0.5);
-    expect(video.currentTime).toBe(1.5);
   });
 
   test("keeps its file resident while it is on the page", async () => {

@@ -9,7 +9,7 @@ import { getFileSymbol } from "./getFileSymbol";
 import { linkedTypes, walkReferences } from "./getReferences";
 import { getScriptReferences, type ScriptReference } from "./getScriptReferences";
 
-export type AssetUseRole = "backdrop" | "portrait" | "sound" | "music" | "font" | "other";
+export type AssetUseRole = "backdrop" | "portrait" | "sound" | "music" | "font" | "define" | "other";
 
 export type AssetUse = Location & DocumentHighlight & { role: AssetUseRole; text: string };
 
@@ -33,6 +33,15 @@ const commandOf = (node: SyntaxNode | null): SyntaxNode | null => {
   return null;
 };
 
+const insideDefine = (node: SyntaxNode | null): boolean => {
+  for (let at = node; at; at = at.parent) {
+    if (at.name === "LuauDefine") {
+      return true;
+    }
+  }
+  return false;
+};
+
 const targetOf = (command: SyntaxNode): SyntaxNode | null => {
   const cursor = command.cursor();
   while (cursor.next() && cursor.from < command.to) {
@@ -53,10 +62,14 @@ const roleOf = (
   if (type === "font") {
     return "font";
   }
+  const node = workspace.tree(uri)?.resolveInner(from, 1) ?? null;
+  if (insideDefine(node)) {
+    return "define";
+  }
   if (type !== "image" && type !== "audio") {
     return "other";
   }
-  const command = commandOf(workspace.tree(uri)?.resolveInner(from, 1) ?? null);
+  const command = commandOf(node);
   const expected = type === "image" ? "ImageCommand" : "AudioCommand";
   if (command?.name !== expected) {
     return "other";

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { ObjectValue } from "../../runtime/Value";
+import { styleRuns } from "./styleRuns";
 
 function run(source: string) {
   const compiler = testCompiler();
@@ -53,7 +54,11 @@ describe("lowerer synthesis: display() from authored prose", () => {
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
     expect(field(instructions[0]!, "target")).toBe("action");
-    expect(field(instructions[0]!, "text")).toBe("You have 5 gold.");
+    expect(styleRuns(field(instructions[0]!, "text") as string)).toEqual([
+      { text: "You have " },
+      { text: "5", value: true },
+      { text: " gold." },
+    ]);
     expect((story.currentText ?? "").trim()).toBe("You have 5 gold.");
   });
 
@@ -91,7 +96,11 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
-    expect(field(instructions[0]!, "text")).toBe("You feel great today.");
+    expect(styleRuns(field(instructions[0]!, "text") as string)).toEqual([
+      { text: "You feel " },
+      { text: "great", value: true },
+      { text: " today." },
+    ]);
   });
 
   test("an inline [[asset]] directive rides as text in the table", () => {
@@ -115,12 +124,93 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect(story.currentTags).toEqual(["ominous"]);
   });
 
-  test("emphasis markers ride as literal text in the table", () => {
-    const { story, errors } = run(`scene start\n  This is **bold** here.\n  done\nend\n`);
+  const runsOf = (line: string, prefix = "") => {
+    const { story, errors } = run(`${prefix}scene start\n  ${line}\n  done\nend\n`);
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
-    expect(field(instructions[0]!, "text")).toBe("This is **bold** here.");
+    return {
+      runs: styleRuns(field(instructions[0]!, "text") as string),
+      text: (story.currentText ?? "").trim(),
+    };
+  };
+
+  test("a styled span rides the table as a run with its marks, and the text reads as written", () => {
+    expect(runsOf("This is **bold** here.")).toEqual({
+      runs: [
+        { text: "This is " },
+        { text: "bold", marks: ["**"] },
+        { text: " here." },
+      ],
+      text: "This is **bold** here.",
+    });
+  });
+
+  test("nested spans and mark lengths ride as the grammar reads them", () => {
+    expect(runsOf("A **a *b* c** ~~~d~~~ __e__").runs).toEqual([
+      { text: "A " },
+      { text: "a ", marks: ["**"] },
+      { text: "b", marks: ["**", "*"] },
+      { text: " c", marks: ["**"] },
+      { text: " " },
+      { text: "d", marks: ["~~~"] },
+      { text: " " },
+      { text: "e", marks: ["__"] },
+    ]);
+  });
+
+  test("a bold-italic span reads an interpolation after its italic", () => {
+    expect(runsOf("A ***a* {x}** end", `store x = "v"\n`).runs).toEqual([
+      { text: "A " },
+      { text: "a", marks: ["**", "*"] },
+      { text: " ", marks: ["**"] },
+      { text: "v", marks: ["**"], value: true },
+      { text: " end" },
+    ]);
+  });
+
+  test("a mark of any length rides whole and is written back whole", () => {
+    const mark = "_".repeat(40);
+    expect(runsOf(`A ${mark}long${mark} B`)).toEqual({
+      runs: [{ text: "A " }, { text: "long", marks: [mark] }, { text: " B" }],
+      text: `A ${mark}long${mark} B`,
+    });
+  });
+
+  test("an unclosed mark is literal text", () => {
+    expect(runsOf("A *rest of line").runs).toEqual([{ text: "A *rest of line" }]);
+  });
+
+  test("an interpolation inside a span is a value run that keeps the span's marks", () => {
+    expect(runsOf("*far {x} away* now", `store x = "a* b"\n`)).toEqual({
+      runs: [
+        { text: "far ", marks: ["*"] },
+        { text: "a* b", marks: ["*"], value: true },
+        { text: " away", marks: ["*"] },
+        { text: " now" },
+      ],
+      text: "*far a* b away* now",
+    });
+  });
+
+  test("an escaped mark and a raw span ride as text, without the escape's or the span's marks", () => {
+    expect(runsOf("Esc \\*a\\* `raw *b*` c").runs).toEqual([
+      { text: "Esc \\*a\\* " },
+      { text: "raw *b*", marks: ["`"] },
+      { text: " c" },
+    ]);
+  });
+
+  test("a styled character cue rides the table's character", () => {
+    const { story, errors } = run(`scene start\n  *NOVA* (_sad_): Hey\n  done\nend\n`);
+    expect(errors).toEqual([]);
+    const [instruction] = story.currentDisplayInstructions;
+    expect(styleRuns(field(instruction!, "character") as string)).toEqual([
+      { text: "NOVA", marks: ["*"] },
+      { text: " (" },
+      { text: "sad", marks: ["_"] },
+      { text: ")" },
+    ]);
   });
 
   for (const [label, marker, target] of [
@@ -155,6 +245,10 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
-    expect(field(instructions[0]!, "text")).toBe("The light flickers now.");
+    expect(styleRuns(field(instructions[0]!, "text") as string)).toEqual([
+      { text: "The light " },
+      { text: "flickers", value: true },
+      { text: " now." },
+    ]);
   });
 });

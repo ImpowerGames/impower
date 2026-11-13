@@ -8,7 +8,7 @@ import { cn } from "../../utils/cn";
 export const textFieldVariants = cva(
   [
     "m-0 min-w-0 shrink-0 text-ink",
-    "placeholder:text-placeholder",
+    "placeholder:text-placeholder [&::-webkit-search-cancel-button]:hidden",
     "disabled:cursor-default disabled:opacity-40",
   ],
   {
@@ -50,6 +50,21 @@ export const textFieldVariants = cva(
   },
 );
 
+export type TextFieldPurpose = "text" | "literal" | "search" | "url";
+
+const PURPOSE_ATTRIBUTES = {
+  text: { type: "text", enterkeyhint: "done" },
+  literal: { type: "text", autocapitalize: "off", autocorrect: "off", enterkeyhint: "done" },
+  search: { type: "search", enterkeyhint: "search" },
+  url: { type: "text", inputmode: "url", autocapitalize: "off", autocorrect: "off", enterkeyhint: "go" },
+} satisfies Record<TextFieldPurpose, JSX.InputHTMLAttributes<HTMLInputElement>>;
+
+export const textFieldPurposeAttributes = (purpose: TextFieldPurpose = "text") => ({
+  autocomplete: "off",
+  spellcheck: false,
+  ...PURPOSE_ATTRIBUTES[purpose],
+});
+
 export type TextFieldFrame = NonNullable<VariantProps<typeof textFieldVariants>["frame"]>;
 export type TextFieldSize = NonNullable<VariantProps<typeof textFieldVariants>["size"]>;
 export type TextFieldWidth = NonNullable<VariantProps<typeof textFieldVariants>["width"]>;
@@ -61,7 +76,7 @@ export type TextFieldProps = Omit<
 > &
   VariantProps<typeof textFieldVariants> & {
     class?: string;
-    type?: "text" | "search" | "url" | "email" | "tel" | "password";
+    purpose?: TextFieldPurpose;
     value?: string;
     defaultValue?: string;
     disabled?: boolean;
@@ -76,7 +91,7 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
     width,
     font,
     class: className,
-    type = "text",
+    purpose,
     value,
     defaultValue,
     onValueChange,
@@ -108,10 +123,8 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
   return (
     <input
       ref={setRef}
-      type={type}
       class={cn(textFieldVariants({ frame, size, width, font }), className)}
-      autocomplete="off"
-      spellcheck={false}
+      {...textFieldPurposeAttributes(purpose)}
       {...rest}
       {...(value !== undefined ? { value, defaultValue: value } : { defaultValue })}
       onInput={(event) => {

@@ -272,7 +272,7 @@ describe("the writer", () => {
         'Str "text"',
         'Str "Small."',
         "MakeTable 2",
-        "CallStd display/1 flags 1",
+        "CallStd display/1 flags 5",
       ],
     ]);
   });

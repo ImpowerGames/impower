@@ -29,6 +29,7 @@ import type { ImageSize } from "../utils/imageSize";
 import type { ScriptListing } from "./scriptsListing";
 import type { UploadRow } from "./uploadSession";
 import type { Reference } from "../utils/fileListModel";
+import type { FileMove } from "../utils/fileMoves";
 import {
   INITIAL_SEARCH,
   INITIAL_SEARCH_POSITION,
@@ -206,6 +207,8 @@ class WorkspaceStore {
   readonly uploads = signal<readonly UploadRow[]>([]);
 
   readonly assetsReveal = signal<readonly string[] | null>(null);
+
+  readonly movesReplayed = signal<{ moves: readonly FileMove[]; settled: boolean } | null>(null);
 
   readonly uploadBatches = signal(0);
 

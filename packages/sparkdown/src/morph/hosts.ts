@@ -109,10 +109,11 @@ export function createMorphHost(options: MorphHostOptions): MorphHost {
 }
 
 const variantName = (channel: MorphProgramChannel | undefined, ref: MorphRef): string => {
-  for (const [name, refs] of Object.entries(channel?.variants ?? {})) {
-    if (refs.some((r) => r.key === ref.key)) return name;
-  }
-  return ref.image;
+  const lists = [
+    ...Object.entries(channel?.variants ?? {}),
+    ...Object.entries(channel?.picks ?? {}).flatMap(([name, picks]) => Object.values(picks).map((refs) => [name, refs] as const)),
+  ];
+  return lists.find(([, refs]) => refs.some((r) => r.key === ref.key))?.[0] ?? ref.image;
 };
 
 export type MorphSlotState = "idle" | "pending" | "ready" | "failed";

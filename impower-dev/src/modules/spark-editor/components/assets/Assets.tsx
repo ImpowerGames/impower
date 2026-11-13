@@ -2,7 +2,12 @@ import {
   ArtIcon,
   Button,
   ChevronIcon,
+  DropdownContent,
   DropdownItem,
+  DropdownRadioGroup,
+  DropdownRadioItem,
+  DropdownRoot,
+  DropdownTrigger,
   DropZone,
   FolderIcon,
   FolderPlusIcon,
@@ -37,6 +42,7 @@ import {
 import { useLayout } from "@impower/impower-ui/layout";
 import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
+import type { VNode } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
@@ -84,6 +90,7 @@ import {
   DeleteDialog,
   DROP_FOLDER,
   EmptyState,
+  type FolderLayout,
   LibraryPage,
   MoveDialog,
   NameRow,
@@ -124,6 +131,13 @@ const COUNTING_NOTE = "Counting uses…";
 const UNCOUNTED_NOTE = "Uses could not be counted. Edit a script to try again.";
 const ROW_HEIGHT = 63;
 
+const FOLDER_LAYOUTS: readonly { layout: FolderLayout; label: string; Icon: IconComponent }[] = [
+  { layout: "tiles", label: "Tiles", Icon: GridIcon },
+  { layout: "rows", label: "List", Icon: ListIcon },
+];
+
+const SCROLL_SETTLE_MS = 800;
+
 const TYPE_ICONS: Record<AssetType, IconComponent> = {
   image: ImageIcon,
   audio: MusicIcon,
@@ -143,11 +157,11 @@ const TYPE_NOUNS: Record<AssetType, string> = {
 };
 
 const EMPTY_TYPES: Record<AssetType, readonly [string, string]> = {
-  image: ["No images yet", "Upload portraits and backgrounds with the New button."],
-  audio: ["No audio yet", "Upload sounds and music with the New button."],
-  video: ["No video yet", "Upload a video with the New button."],
-  text: ["No text yet", "Upload notes with the New button."],
-  font: ["No fonts yet", "Upload a font with the New button."],
+  image: ["No images yet", "Upload portraits and backgrounds with the Add button."],
+  audio: ["No audio yet", "Upload sounds and music with the Add button."],
+  video: ["No video yet", "Upload a video with the Add button."],
+  text: ["No text yet", "Upload notes with the Add button."],
+  font: ["No fonts yet", "Upload a font with the Add button."],
   other: ["Nothing yet", "Files of any other type land here when you upload them."],
 };
 
@@ -201,6 +215,20 @@ const soundOf = (listing: AssetListing, path: string): Sound | null => {
   return src ? { owner: path, src, size: facts?.address ? undefined : facts?.size } : null;
 };
 
+const requestLength = (path: string) => {
+  let alive = true;
+  let drop: (() => void) | undefined;
+  void intents().then((Workspace) => {
+    if (alive) {
+      drop = Workspace.assets.requestDuration(path);
+    }
+  });
+  return () => {
+    alive = false;
+    drop?.();
+  };
+};
+
 const usesCount = (groups: readonly SearchGroup[]) => groups.reduce((sum, group) => sum + group.uses.length, 0);
 
 const firstUses = (groups: readonly SearchGroup[], count: number): SearchGroup[] => {
@@ -250,6 +278,7 @@ function AssetsBrowser() {
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const renameAfterClose = useRef<string | null>(null);
+  const reopenAfterRename = useRef<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const [deleting, setDeleting] = useState<{ paths: readonly string[]; groups: SearchGroup[] | null } | null>(null);
@@ -383,7 +412,73 @@ function AssetsBrowser() {
 
   const settling = useRef<readonly string[]>([]);
   const relocated = useRef<readonly FileMove[]>([]);
+  const heldInspector = useRef<VNode | null>(null);
   const [settled, setSettled] = useState(0);
+
+  const replayed = workspace.movesReplayed.value;
+  const seenReplay = useRef(workspace.movesReplayed.peek());
+  const replay = replayed !== seenReplay.current ? replayed : null;
+  const pendingPaths = (): readonly string[] =>
+    replay && !replay.settled ? [...settling.current, ...replay.moves.map((move) => move.from)] : settling.current;
+  const relocations = (): readonly FileMove[] =>
+    replay?.settled ? [...relocated.current, ...replay.moves] : relocated.current;
+  const pending = (path: string) => pendingPaths().some((from) => path === from || isInside(path, from));
+
+  const gesture = useRef({ held: false, at: -Infinity });
+  useEffect(() => {
+    const element = page.current;
+    if (!element) {
+      return;
+    }
+    const inList = (event: Event) => !!list.current && list.current.contains(event.target as Node);
+    const moved = (event: Event) => {
+      if (inList(event)) {
+        gesture.current.at = performance.now();
+      }
+    };
+    const held = (event: PointerEvent) => {
+      gesture.current.held = !!list.current && event.target === list.current;
+    };
+    const released = () => {
+      if (gesture.current.held) {
+        gesture.current.held = false;
+        gesture.current.at = performance.now();
+      }
+    };
+    element.addEventListener("wheel", moved, { passive: true });
+    element.addEventListener("touchmove", moved, { passive: true });
+    element.addEventListener("pointerdown", held);
+    window.addEventListener("pointerup", released);
+    window.addEventListener("pointercancel", released);
+    return () => {
+      element.removeEventListener("wheel", moved);
+      element.removeEventListener("touchmove", moved);
+      element.removeEventListener("pointerdown", held);
+      window.removeEventListener("pointerup", released);
+      window.removeEventListener("pointercancel", released);
+    };
+  }, []);
+
+  const browsing = () => {
+    const search = page.current?.querySelector('input[type="search"]');
+    return (
+      gesture.current.held ||
+      performance.now() - gesture.current.at < SCROLL_SETTLE_MS ||
+      (!!search && document.activeElement === search)
+    );
+  };
+
+  const revealMoved = (path: string) => {
+    if (browsing()) {
+      return;
+    }
+    const moved = assetTypeOf(path, endings, listing.files[path]?.address);
+    const folder = parentOf(path);
+    if (!searching && (moved !== type || folder !== level.folder)) {
+      setLists({ assetsType: moved, assetsFolders: { ...folders, [moved]: folder } });
+    }
+    revealRow(path);
+  };
 
   useEffect(() => {
     if (openPath && openRowOf && openRowOf.path !== openPath) {
@@ -391,13 +486,15 @@ function AssetsBrowser() {
       return;
     }
     if (openPath && !openRowOf) {
-      if (settling.current.some((path) => openPath === path || isInside(openPath, path))) {
+      if (pending(openPath)) {
         return;
       }
-      const next = followed(openPath, relocated.current);
+      const next = followed(openPath, relocations());
       relocated.current = [];
+      seenReplay.current = replayed;
       if (next !== openPath && rowOf(next)) {
         setOpenPath(next);
+        revealMoved(next);
         return;
       }
       setOpenPath(null);
@@ -407,7 +504,7 @@ function AssetsBrowser() {
         focusRow(openPath);
       }
     }
-  }, [openPath, openRowOf, settled]);
+  }, [openPath, openRowOf, settled, replayed]);
 
   const relocating = async (paths: readonly string[], action: () => Promise<readonly FileMove[]>) => {
     settling.current = paths;
@@ -423,8 +520,18 @@ function AssetsBrowser() {
 
   const openAsset = (path: string) => {
     relocated.current = [];
+    seenReplay.current = workspace.movesReplayed.peek();
     setOpenedIn(host);
     setOpenPath(path);
+  };
+
+  const reopenInspector = (from: string, to: string) => {
+    if (reopenAfterRename.current !== from) {
+      return false;
+    }
+    reopenAfterRename.current = null;
+    openAsset(to);
+    return true;
   };
 
   const stepTo = (path: string) => {
@@ -528,8 +635,10 @@ function AssetsBrowser() {
 
   const onAction = (row: AssetRow, action: AssetRowAction) => {
     if (action === "select") selection.start(row.path);
-    else if (action === "rename") setRenaming(row.path);
-    else if (action === "move") setMoving([row.path]);
+    else if (action === "rename") {
+      reopenAfterRename.current = null;
+      setRenaming(row.path);
+    } else if (action === "move") setMoving([row.path]);
     else if (action === "download") void run(async () => (await intents()).assets.downloadAll([row.path]));
     else requestDelete([row.path]);
   };
@@ -539,6 +648,7 @@ function AssetsBrowser() {
       onAction(row, action);
     } else if (host === "sheet") {
       renameAfterClose.current = row.path;
+      reopenAfterRename.current = row.path;
       closeInspector();
     } else {
       revealRow(row.path);
@@ -629,13 +739,18 @@ function AssetsBrowser() {
           suffix={extension}
           onCancel={() => {
             setRenaming(null);
-            focusRenamed(row.path);
+            if (!reopenInspector(row.path, row.path)) {
+              focusRenamed(row.path);
+            }
           }}
           onCommit={async (name) => {
-            await relocating(row.paths ?? [row.path], async () => [
-              { from: row.path, to: await (await intents()).assets.rename(row.path, name) },
-            ]);
+            let renamed = row.path;
+            await relocating(row.paths ?? [row.path], async () => {
+              renamed = await (await intents()).assets.rename(row.path, name);
+              return [{ from: row.path, to: renamed }];
+            });
             setRenaming(null);
+            reopenInspector(row.path, renamed);
           }}
         />
       );
@@ -661,7 +776,7 @@ function AssetsBrowser() {
             row.name
           )
         }
-        description={sound ? <SoundLine sound={sound} line={line} /> : line}
+        description={sound ? <SoundLine sound={sound} line={line} requestLength={requestLength} /> : line}
         aria-label={openLabel(row, line)}
         trailing={folder ? <ChevronIcon /> : undefined}
         current={!folder && row.path === openPath}
@@ -700,7 +815,11 @@ function AssetsBrowser() {
       }
     />
   );
-  const inspector = openRowOf ? inspectorOf(openRowOf) : null;
+  const followedPath = openPath && openedIn === host && !openRowOf ? followed(openPath, relocations()) : null;
+  const shownRow = openRowOf ?? (followedPath && followedPath !== openPath ? rowOf(followedPath) : null);
+  const inFlight = !shownRow && !!openPath && pending(openPath);
+  const inspector = shownRow ? inspectorOf(shownRow) : inFlight ? heldInspector.current : null;
+  heldInspector.current = inspector;
   const closing = !inspector && lastPath.current ? rowOf(lastPath.current) : null;
   const lastInspector = inspector ?? (closing ? inspectorOf(closing) : null);
 
@@ -737,6 +856,7 @@ function AssetsBrowser() {
       onQueryChange={setQuery}
       newAttributes={{ "data-assets-action": "add" }}
       newRef={newButton}
+      newLabel="Add"
       newMenu={
         <>
           <DropdownItem disabled={busy} onSelect={() => upload.current?.click()}>
@@ -799,17 +919,40 @@ function AssetsBrowser() {
             />
           )}
           {!searching && loaded && type === "image" && !level.empty && (
-            <Button
-              variant="quiet"
-              size="icon"
-              class="ml-auto flex-none text-muted"
-              aria-label={tiles ? "Show this folder as rows" : "Show this folder as tiles"}
-              title={tiles ? "Show as rows" : "Show as tiles"}
-              data-assets-action="layout"
-              onClick={() => setLayout(tiles ? "rows" : "tiles")}
-            >
-              {tiles ? <ListIcon /> : <GridIcon />}
-            </Button>
+            <DropdownRoot>
+              <DropdownTrigger asChild>
+                <Button
+                  variant="quiet"
+                  size="icon"
+                  class="ml-auto flex-none text-muted"
+                  aria-label="Change how this folder is shown"
+                  title="Change how this folder is shown"
+                  data-assets-action="layout"
+                  data-layout={layout}
+                >
+                  {layout === "rows" ? <ListIcon /> : <GridIcon />}
+                </Button>
+              </DropdownTrigger>
+              <DropdownContent align="end" class="min-w-[180px]">
+                <DropdownRadioGroup
+                  label="Show this folder as"
+                  value={layout}
+                  onValueChange={(next) => {
+                    const picked = FOLDER_LAYOUTS.find((option) => option.layout === next);
+                    if (picked) {
+                      setLayout(picked.layout);
+                    }
+                  }}
+                >
+                  {FOLDER_LAYOUTS.map(({ layout: value, label, Icon }) => (
+                    <DropdownRadioItem key={value} value={value} indicator="end">
+                      <Icon class="text-muted" />
+                      {label}
+                    </DropdownRadioItem>
+                  ))}
+                </DropdownRadioGroup>
+              </DropdownContent>
+            </DropdownRoot>
           )}
           <SortMenu
             value={sort}
@@ -872,7 +1015,7 @@ function AssetsBrowser() {
           <EmptyState
             icon={<FolderIcon />}
             title="This folder is empty"
-            body="Upload into it with the New button."
+            body="Upload into it with the Add button."
           />
         )
       }
@@ -937,7 +1080,7 @@ function AssetsBrowser() {
         <Sheet
           size="full"
           flush
-          open={!!openRowOf}
+          open={!!inspector}
           onOpenChange={(open) => {
             if (!open) closeInspector();
           }}

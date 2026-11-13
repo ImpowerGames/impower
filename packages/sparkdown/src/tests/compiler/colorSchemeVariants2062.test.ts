@@ -25,6 +25,7 @@ const ROLES = {
   ink: { property: "text-color", light: "slate_20", dark: "slate_90" },
   accent: { property: "text-color", light: "orange_30", dark: "orange_80" },
   muted: { property: "text-color", light: "slate_60", dark: "slate_70" },
+  alert: { property: "text-color", light: "red_40", dark: "red_80" },
 } as const;
 
 describe("the game's colour scheme setting (#2062)", () => {
@@ -37,7 +38,7 @@ describe("the game's colour scheme setting (#2062)", () => {
   });
 });
 
-describe("the page's four colour roles have dark variants (#2062)", () => {
+describe("the page's five colour roles have dark variants (#2062)", () => {
   const { styles } = compile();
 
   for (const [role, { property, light, dark }] of Object.entries(ROLES)) {

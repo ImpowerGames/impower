@@ -1,0 +1,703 @@
+sparkdown [0..413]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImageLine [12..32]
+ │   ├─ ImageLine_c1 [12..14]
+ │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImageLine_c2 [14..32]
+ │   │   └─ ImageCommand [14..32]
+ │   │       ├─ ImageCommand_begin [14..16]
+ │   │       │   ├─ ImageCommand_begin_c1 [14..16]
+ │   │       │   │   └─ ImageBeginMark [14..16]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 16
+ │   │       ├─ ImageCommand_content [16..30]
+ │   │       │   └─ ImageCommandContent [16..30]
+ │   │       │       └─ ImageCommandContent_c1 [16..30]
+ │   │       │           └─ AssetCommandContent [16..30]
+ │   │       │               ├─ AssetCommandContent_c1 [16..20]
+ │   │       │               │   └─ AssetCommandInstruction [16..20]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 16
+ │   │       │               │       ├─ AssetCommandInstruction_c2 16
+ │   │       │               │       ├─ AssetCommandInstruction_c3 16
+ │   │       │               │       ├─ AssetCommandInstruction_c4 16
+ │   │       │               │       └─ AssetCommandInstruction_c5 [16..20]
+ │   │       │               │           └─ AssetCommandName [16..20]
+ │   │       │               │               └─ AssetCommandName_c1 [16..20]
+ │   │       │               │                   ├─ AssetCommandFileName [16..19]: "mia"
+ │   │       │               │                   └─ RequiredWhitespace [19..20]: " "
+ │   │       │               └─ AssetCommandContent_c2 [20..30]
+ │   │       │                   └─ AssetCommandValueClause [20..30]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [20..25]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [20..25]: "morph"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [25..26]
+ │   │       │                       │   └─ RequiredWhitespace [25..26]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [26..30]
+ │   │       │                           └─ AssetCommandClauseValue [26..30]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [26..30]
+ │   │       │                                   └─ NameValue [26..30]: "wait"
+ │   │       └─ ImageCommand_end [30..32]
+ │   │           ├─ ImageCommand_end_c1 30
+ │   │           ├─ ImageCommand_end_c2 [30..32]
+ │   │           │   └─ ImageEndMark [30..32]: "]]"
+ │   │           └─ ImageCommand_end_c3 32
+ │   │               └─ ImageCommand_end_c3 32
+ │   │                   └─ OptionalWhitespace 32
+ │   └─ ImageLine_c3 32
+ ├─ Newline [32..33]: "\n"
+ ├─ ImageLine [33..60]
+ │   ├─ ImageLine_c1 [33..35]
+ │   │   └─ OptionalWhitespace [33..35]: "  "
+ │   ├─ ImageLine_c2 [35..60]
+ │   │   └─ ImageCommand [35..60]
+ │   │       ├─ ImageCommand_begin [35..37]
+ │   │       │   ├─ ImageCommand_begin_c1 [35..37]
+ │   │       │   │   └─ ImageBeginMark [35..37]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 37
+ │   │       ├─ ImageCommand_content [37..58]
+ │   │       │   └─ ImageCommandContent [37..58]
+ │   │       │       └─ ImageCommandContent_c1 [37..58]
+ │   │       │           └─ AssetCommandContent [37..58]
+ │   │       │               ├─ AssetCommandContent_c1 [37..41]
+ │   │       │               │   └─ AssetCommandInstruction [37..41]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 37
+ │   │       │               │       ├─ AssetCommandInstruction_c2 37
+ │   │       │               │       ├─ AssetCommandInstruction_c3 37
+ │   │       │               │       ├─ AssetCommandInstruction_c4 37
+ │   │       │               │       └─ AssetCommandInstruction_c5 [37..41]
+ │   │       │               │           └─ AssetCommandName [37..41]
+ │   │       │               │               └─ AssetCommandName_c1 [37..41]
+ │   │       │               │                   ├─ AssetCommandFileName [37..40]: "mia"
+ │   │       │               │                   └─ RequiredWhitespace [40..41]: " "
+ │   │       │               └─ AssetCommandContent_c2 [41..58]
+ │   │       │                   ├─ AssetCommandValueClause [41..50]
+ │   │       │                   │   ├─ AssetCommandValueClause_c1 [41..45]
+ │   │       │                   │   │   └─ AssetCommandClauseKeyword [41..45]: "with"
+ │   │       │                   │   ├─ AssetCommandValueClause_c2 [45..46]
+ │   │       │                   │   │   └─ RequiredWhitespace [45..46]: " "
+ │   │       │                   │   └─ AssetCommandValueClause_c3 [46..50]
+ │   │       │                   │       └─ AssetCommandClauseValue [46..50]
+ │   │       │                   │           └─ AssetCommandClauseValue_c1 [46..50]
+ │   │       │                   │               └─ NameValue [46..50]: "wait"
+ │   │       │                   ├─ RequiredWhitespace [50..51]: " "
+ │   │       │                   └─ AssetCommandValueClause [51..58]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [51..55]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [51..55]: "over"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [55..56]
+ │   │       │                       │   └─ RequiredWhitespace [55..56]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [56..58]
+ │   │       │                           └─ AssetCommandClauseValue [56..58]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [56..58]
+ │   │       │                                   └─ TimeValue [56..58]
+ │   │       │                                       ├─ TimeValue_c1 [56..57]: "1"
+ │   │       │                                       └─ TimeValue_c2 [57..58]: "s"
+ │   │       └─ ImageCommand_end [58..60]
+ │   │           ├─ ImageCommand_end_c1 58
+ │   │           ├─ ImageCommand_end_c2 [58..60]
+ │   │           │   └─ ImageEndMark [58..60]: "]]"
+ │   │           └─ ImageCommand_end_c3 60
+ │   │               └─ ImageCommand_end_c3 60
+ │   │                   └─ OptionalWhitespace 60
+ │   └─ ImageLine_c3 60
+ ├─ Newline [60..61]: "\n"
+ ├─ ImageLine [61..80]
+ │   ├─ ImageLine_c1 [61..63]
+ │   │   └─ OptionalWhitespace [61..63]: "  "
+ │   ├─ ImageLine_c2 [63..80]
+ │   │   └─ ImageCommand [63..80]
+ │   │       ├─ ImageCommand_begin [63..65]
+ │   │       │   ├─ ImageCommand_begin_c1 [63..65]
+ │   │       │   │   └─ ImageBeginMark [63..65]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 65
+ │   │       ├─ ImageCommand_content [65..78]
+ │   │       │   └─ ImageCommandContent [65..78]
+ │   │       │       └─ ImageCommandContent_c1 [65..78]
+ │   │       │           └─ AssetCommandContent [65..78]
+ │   │       │               ├─ AssetCommandContent_c1 [65..69]
+ │   │       │               │   └─ AssetCommandInstruction [65..69]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 65
+ │   │       │               │       ├─ AssetCommandInstruction_c2 65
+ │   │       │               │       ├─ AssetCommandInstruction_c3 65
+ │   │       │               │       ├─ AssetCommandInstruction_c4 65
+ │   │       │               │       └─ AssetCommandInstruction_c5 [65..69]
+ │   │       │               │           └─ AssetCommandName [65..69]
+ │   │       │               │               └─ AssetCommandName_c1 [65..69]
+ │   │       │               │                   ├─ AssetCommandFileName [65..68]: "mia"
+ │   │       │               │                   └─ RequiredWhitespace [68..69]: " "
+ │   │       │               └─ AssetCommandContent_c2 [69..78]
+ │   │       │                   └─ AssetCommandValueClause [69..78]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [69..73]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [69..73]: "ease"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [73..74]
+ │   │       │                       │   └─ RequiredWhitespace [73..74]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [74..78]
+ │   │       │                           └─ AssetCommandClauseValue [74..78]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [74..78]
+ │   │       │                                   └─ NameValue [74..78]: "ease"
+ │   │       └─ ImageCommand_end [78..80]
+ │   │           ├─ ImageCommand_end_c1 78
+ │   │           ├─ ImageCommand_end_c2 [78..80]
+ │   │           │   └─ ImageEndMark [78..80]: "]]"
+ │   │           └─ ImageCommand_end_c3 80
+ │   │               └─ ImageCommand_end_c3 80
+ │   │                   └─ OptionalWhitespace 80
+ │   └─ ImageLine_c3 80
+ ├─ Newline [80..81]: "\n"
+ ├─ ImageLine [81..96]
+ │   ├─ ImageLine_c1 [81..83]
+ │   │   └─ OptionalWhitespace [81..83]: "  "
+ │   ├─ ImageLine_c2 [83..96]
+ │   │   └─ ImageCommand [83..96]
+ │   │       ├─ ImageCommand_begin [83..85]
+ │   │       │   ├─ ImageCommand_begin_c1 [83..85]
+ │   │       │   │   └─ ImageBeginMark [83..85]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 85
+ │   │       ├─ ImageCommand_content [85..94]
+ │   │       │   └─ ImageCommandContent [85..94]
+ │   │       │       └─ ImageCommandContent_c1 [85..94]
+ │   │       │           └─ AssetCommandContent [85..94]
+ │   │       │               ├─ AssetCommandContent_c1 [85..89]
+ │   │       │               │   └─ AssetCommandInstruction [85..89]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 85
+ │   │       │               │       ├─ AssetCommandInstruction_c2 85
+ │   │       │               │       ├─ AssetCommandInstruction_c3 85
+ │   │       │               │       ├─ AssetCommandInstruction_c4 85
+ │   │       │               │       └─ AssetCommandInstruction_c5 [85..89]
+ │   │       │               │           └─ AssetCommandName [85..89]
+ │   │       │               │               └─ AssetCommandName_c1 [85..89]
+ │   │       │               │                   ├─ AssetCommandFileName [85..88]: "mia"
+ │   │       │               │                   └─ RequiredWhitespace [88..89]: " "
+ │   │       │               └─ AssetCommandContent_c2 [89..94]
+ │   │       │                   └─ AssetCommandClauseKeyword [89..94]: "morph"
+ │   │       └─ ImageCommand_end [94..96]
+ │   │           ├─ ImageCommand_end_c1 94
+ │   │           ├─ ImageCommand_end_c2 [94..96]
+ │   │           │   └─ ImageEndMark [94..96]: "]]"
+ │   │           └─ ImageCommand_end_c3 96
+ │   │               └─ ImageCommand_end_c3 96
+ │   │                   └─ OptionalWhitespace 96
+ │   └─ ImageLine_c3 96
+ ├─ Newline [96..97]: "\n"
+ ├─ ImageLine [97..130]
+ │   ├─ ImageLine_c1 [97..99]
+ │   │   └─ OptionalWhitespace [97..99]: "  "
+ │   ├─ ImageLine_c2 [99..130]
+ │   │   └─ ImageCommand [99..130]
+ │   │       ├─ ImageCommand_begin [99..101]
+ │   │       │   ├─ ImageCommand_begin_c1 [99..101]
+ │   │       │   │   └─ ImageBeginMark [99..101]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 101
+ │   │       ├─ ImageCommand_content [101..128]
+ │   │       │   └─ ImageCommandContent [101..128]
+ │   │       │       └─ ImageCommandContent_c1 [101..128]
+ │   │       │           └─ AssetCommandContent [101..128]
+ │   │       │               ├─ AssetCommandContent_c1 [101..105]
+ │   │       │               │   └─ AssetCommandInstruction [101..105]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 101
+ │   │       │               │       ├─ AssetCommandInstruction_c2 101
+ │   │       │               │       ├─ AssetCommandInstruction_c3 101
+ │   │       │               │       ├─ AssetCommandInstruction_c4 101
+ │   │       │               │       └─ AssetCommandInstruction_c5 [101..105]
+ │   │       │               │           └─ AssetCommandName [101..105]
+ │   │       │               │               └─ AssetCommandName_c1 [101..105]
+ │   │       │               │                   ├─ AssetCommandFileName [101..104]: "mia"
+ │   │       │               │                   └─ RequiredWhitespace [104..105]: " "
+ │   │       │               └─ AssetCommandContent_c2 [105..128]
+ │   │       │                   ├─ AssetCommandValueClause [105..115]
+ │   │       │                   │   ├─ AssetCommandValueClause_c1 [105..110]
+ │   │       │                   │   │   └─ AssetCommandClauseKeyword [105..110]: "morph"
+ │   │       │                   │   ├─ AssetCommandValueClause_c2 [110..111]
+ │   │       │                   │   │   └─ RequiredWhitespace [110..111]: " "
+ │   │       │                   │   └─ AssetCommandValueClause_c3 [111..115]
+ │   │       │                   │       └─ AssetCommandClauseValue [111..115]
+ │   │       │                   │           └─ AssetCommandClauseValue_c1 [111..115]
+ │   │       │                   │               └─ NameValue [111..115]: "talk"
+ │   │       │                   ├─ RequiredWhitespace [115..116]: " "
+ │   │       │                   ├─ AssetCommandClauseKeyword [116..120]: "wait"
+ │   │       │                   ├─ RequiredWhitespace [120..121]: " "
+ │   │       │                   └─ NameValue [121..128]: "garbage"
+ │   │       └─ ImageCommand_end [128..130]
+ │   │           ├─ ImageCommand_end_c1 128
+ │   │           ├─ ImageCommand_end_c2 [128..130]
+ │   │           │   └─ ImageEndMark [128..130]: "]]"
+ │   │           └─ ImageCommand_end_c3 130
+ │   │               └─ ImageCommand_end_c3 130
+ │   │                   └─ OptionalWhitespace 130
+ │   └─ ImageLine_c3 130
+ ├─ Newline [130..131]: "\n"
+ ├─ ImageLine [131..158]
+ │   ├─ ImageLine_c1 [131..133]
+ │   │   └─ OptionalWhitespace [131..133]: "  "
+ │   ├─ ImageLine_c2 [133..158]
+ │   │   └─ ImageCommand [133..158]
+ │   │       ├─ ImageCommand_begin [133..135]
+ │   │       │   ├─ ImageCommand_begin_c1 [133..135]
+ │   │       │   │   └─ ImageBeginMark [133..135]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 135
+ │   │       ├─ ImageCommand_content [135..156]
+ │   │       │   └─ ImageCommandContent [135..156]
+ │   │       │       └─ ImageCommandContent_c1 [135..156]
+ │   │       │           └─ AssetCommandContent [135..156]
+ │   │       │               ├─ AssetCommandContent_c1 [135..139]
+ │   │       │               │   └─ AssetCommandInstruction [135..139]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 135
+ │   │       │               │       ├─ AssetCommandInstruction_c2 135
+ │   │       │               │       ├─ AssetCommandInstruction_c3 135
+ │   │       │               │       ├─ AssetCommandInstruction_c4 135
+ │   │       │               │       └─ AssetCommandInstruction_c5 [135..139]
+ │   │       │               │           └─ AssetCommandName [135..139]
+ │   │       │               │               └─ AssetCommandName_c1 [135..139]
+ │   │       │               │                   ├─ AssetCommandFileName [135..138]: "mia"
+ │   │       │               │                   └─ RequiredWhitespace [138..139]: " "
+ │   │       │               └─ AssetCommandContent_c2 [139..156]
+ │   │       │                   ├─ AssetCommandValueClause [139..149]
+ │   │       │                   │   ├─ AssetCommandValueClause_c1 [139..144]
+ │   │       │                   │   │   └─ AssetCommandClauseKeyword [139..144]: "morph"
+ │   │       │                   │   ├─ AssetCommandValueClause_c2 [144..145]
+ │   │       │                   │   │   └─ RequiredWhitespace [144..145]: " "
+ │   │       │                   │   └─ AssetCommandValueClause_c3 [145..149]
+ │   │       │                   │       └─ AssetCommandClauseValue [145..149]
+ │   │       │                   │           └─ AssetCommandClauseValue_c1 [145..149]
+ │   │       │                   │               └─ NameValue [145..149]: "talk"
+ │   │       │                   └─ Tags [149..156]
+ │   │       │                       ├─ Tags_begin [149..150]
+ │   │       │                       │   └─ Tags_begin_c1 [149..150]
+ │   │       │                       │       └─ RequiredWhitespace [149..150]: " "
+ │   │       │                       ├─ Tags_content [150..156]
+ │   │       │                       │   └─ Tag [150..156]
+ │   │       │                       │       ├─ Tag_c1 150
+ │   │       │                       │       ├─ Tag_c2 [150..151]: "#"
+ │   │       │                       │       └─ Tag_c3 [151..156]
+ │   │       │                       │           └─ TagContent [151..156]
+ │   │       │                       │               ├─ TagContent_begin 151
+ │   │       │                       │               ├─ TagContent_content [151..156]
+ │   │       │                       │               │   └─ TagText [151..156]: " note"
+ │   │       │                       │               └─ TagContent_end 156
+ │   │       │                       └─ Tags_end 156
+ │   │       └─ ImageCommand_end [156..158]
+ │   │           ├─ ImageCommand_end_c1 156
+ │   │           ├─ ImageCommand_end_c2 [156..158]
+ │   │           │   └─ ImageEndMark [156..158]: "]]"
+ │   │           └─ ImageCommand_end_c3 158
+ │   │               └─ ImageCommand_end_c3 158
+ │   │                   └─ OptionalWhitespace 158
+ │   └─ ImageLine_c3 158
+ ├─ Newline [158..159]: "\n"
+ ├─ ImageLine [159..181]
+ │   ├─ ImageLine_c1 [159..161]
+ │   │   └─ OptionalWhitespace [159..161]: "  "
+ │   ├─ ImageLine_c2 [161..181]
+ │   │   └─ ImageCommand [161..181]
+ │   │       ├─ ImageCommand_begin [161..163]
+ │   │       │   ├─ ImageCommand_begin_c1 [161..163]
+ │   │       │   │   └─ ImageBeginMark [161..163]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 163
+ │   │       ├─ ImageCommand_content [163..179]
+ │   │       │   └─ ImageCommandContent [163..179]
+ │   │       │       └─ ImageCommandContent_c1 [163..179]
+ │   │       │           └─ AssetCommandContent [163..179]
+ │   │       │               ├─ AssetCommandContent_c1 [163..167]
+ │   │       │               │   └─ AssetCommandInstruction [163..167]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 163
+ │   │       │               │       ├─ AssetCommandInstruction_c2 163
+ │   │       │               │       ├─ AssetCommandInstruction_c3 163
+ │   │       │               │       ├─ AssetCommandInstruction_c4 163
+ │   │       │               │       └─ AssetCommandInstruction_c5 [163..167]
+ │   │       │               │           └─ AssetCommandName [163..167]
+ │   │       │               │               └─ AssetCommandName_c1 [163..167]
+ │   │       │               │                   ├─ AssetCommandFileName [163..166]: "mia"
+ │   │       │               │                   └─ RequiredWhitespace [166..167]: " "
+ │   │       │               └─ AssetCommandContent_c2 [167..179]
+ │   │       │                   ├─ AssetCommandValueClause [167..174]
+ │   │       │                   │   ├─ AssetCommandValueClause_c1 [167..172]
+ │   │       │                   │   │   └─ AssetCommandClauseKeyword [167..172]: "morph"
+ │   │       │                   │   ├─ AssetCommandValueClause_c2 [172..173]
+ │   │       │                   │   │   └─ RequiredWhitespace [172..173]: " "
+ │   │       │                   │   └─ AssetCommandValueClause_c3 [173..174]
+ │   │       │                   │       └─ AssetCommandClauseValue [173..174]
+ │   │       │                   │           └─ AssetCommandClauseValue_c1 [173..174]
+ │   │       │                   │               └─ IllegalChar [173..174]: "="
+ │   │       │                   ├─ RequiredWhitespace [174..175]: " "
+ │   │       │                   └─ NameValue [175..179]: "talk"
+ │   │       └─ ImageCommand_end [179..181]
+ │   │           ├─ ImageCommand_end_c1 179
+ │   │           ├─ ImageCommand_end_c2 [179..181]
+ │   │           │   └─ ImageEndMark [179..181]: "]]"
+ │   │           └─ ImageCommand_end_c3 181
+ │   │               └─ ImageCommand_end_c3 181
+ │   │                   └─ OptionalWhitespace 181
+ │   └─ ImageLine_c3 181
+ ├─ Newline [181..182]: "\n"
+ ├─ AudioLine [182..221]
+ │   ├─ AudioLine_c1 [182..184]
+ │   │   └─ OptionalWhitespace [182..184]: "  "
+ │   ├─ AudioLine_c2 [184..221]
+ │   │   └─ AudioCommand [184..221]
+ │   │       ├─ AudioCommand_begin [184..186]
+ │   │       │   ├─ AudioCommand_begin_c1 [184..186]
+ │   │       │   │   └─ AudioBeginMark [184..186]: "(("
+ │   │       │   └─ AudioCommand_begin_c2 186
+ │   │       ├─ AudioCommand_content [186..219]
+ │   │       │   └─ AudioCommandContent [186..219]
+ │   │       │       └─ AudioCommandContent_c1 [186..219]
+ │   │       │           └─ AssetCommandContent [186..219]
+ │   │       │               ├─ AssetCommandContent_c1 [186..203]
+ │   │       │               │   └─ AssetCommandInstruction [186..203]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 [186..190]
+ │   │       │               │       │   └─ AssetCommandControl [186..190]: "play"
+ │   │       │               │       ├─ AssetCommandInstruction_c2 [190..191]
+ │   │       │               │       │   └─ RequiredWhitespace [190..191]: " "
+ │   │       │               │       ├─ AssetCommandInstruction_c3 [191..196]
+ │   │       │               │       │   └─ AssetCommandTarget [191..196]: "music"
+ │   │       │               │       ├─ AssetCommandInstruction_c4 [196..197]
+ │   │       │               │       │   └─ RequiredWhitespace [196..197]: " "
+ │   │       │               │       └─ AssetCommandInstruction_c5 [197..203]
+ │   │       │               │           └─ AssetCommandName [197..203]
+ │   │       │               │               └─ AssetCommandName_c1 [197..203]
+ │   │       │               │                   ├─ AssetCommandFileName [197..202]: "theme"
+ │   │       │               │                   └─ RequiredWhitespace [202..203]: " "
+ │   │       │               └─ AssetCommandContent_c2 [203..219]
+ │   │       │                   ├─ AssetCommandValueClause [203..209]
+ │   │       │                   │   ├─ AssetCommandValueClause_c1 [203..205]
+ │   │       │                   │   │   └─ AssetCommandClauseKeyword [203..205]: "to"
+ │   │       │                   │   ├─ AssetCommandValueClause_c2 [205..206]
+ │   │       │                   │   │   └─ RequiredWhitespace [205..206]: " "
+ │   │       │                   │   └─ AssetCommandValueClause_c3 [206..209]
+ │   │       │                   │       └─ AssetCommandClauseValue [206..209]
+ │   │       │                   │           └─ AssetCommandClauseValue_c1 [206..209]
+ │   │       │                   │               └─ NumberValue [206..209]: "0.5"
+ │   │       │                   ├─ RequiredWhitespace [209..210]: " "
+ │   │       │                   └─ AssetCommandValueClause [210..219]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [210..214]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [210..214]: "with"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [214..215]
+ │   │       │                       │   └─ RequiredWhitespace [214..215]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [215..219]
+ │   │       │                           └─ AssetCommandClauseValue [215..219]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [215..219]
+ │   │       │                                   └─ NameValue [215..219]: "echo"
+ │   │       └─ AudioCommand_end [219..221]
+ │   │           ├─ AudioCommand_end_c1 219
+ │   │           ├─ AudioCommand_end_c2 [219..221]
+ │   │           │   └─ AudioEndMark [219..221]: "))"
+ │   │           └─ AudioCommand_end_c3 221
+ │   │               └─ AudioCommand_end_c3 221
+ │   │                   └─ OptionalWhitespace 221
+ │   └─ AudioLine_c3 221
+ ├─ Newline [221..222]: "\n"
+ ├─ AudioLine [222..259]
+ │   ├─ AudioLine_c1 [222..224]
+ │   │   └─ OptionalWhitespace [222..224]: "  "
+ │   ├─ AudioLine_c2 [224..259]
+ │   │   └─ AudioCommand [224..259]
+ │   │       ├─ AudioCommand_begin [224..226]
+ │   │       │   ├─ AudioCommand_begin_c1 [224..226]
+ │   │       │   │   └─ AudioBeginMark [224..226]: "(("
+ │   │       │   └─ AudioCommand_begin_c2 226
+ │   │       ├─ AudioCommand_content [226..257]
+ │   │       │   └─ AudioCommandContent [226..257]
+ │   │       │       └─ AudioCommandContent_c1 [226..257]
+ │   │       │           └─ AssetCommandContent [226..257]
+ │   │       │               ├─ AssetCommandContent_c1 [226..243]
+ │   │       │               │   └─ AssetCommandInstruction [226..243]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 [226..230]
+ │   │       │               │       │   └─ AssetCommandControl [226..230]: "play"
+ │   │       │               │       ├─ AssetCommandInstruction_c2 [230..231]
+ │   │       │               │       │   └─ RequiredWhitespace [230..231]: " "
+ │   │       │               │       ├─ AssetCommandInstruction_c3 [231..236]
+ │   │       │               │       │   └─ AssetCommandTarget [231..236]: "music"
+ │   │       │               │       ├─ AssetCommandInstruction_c4 [236..237]
+ │   │       │               │       │   └─ RequiredWhitespace [236..237]: " "
+ │   │       │               │       └─ AssetCommandInstruction_c5 [237..243]
+ │   │       │               │           └─ AssetCommandName [237..243]
+ │   │       │               │               └─ AssetCommandName_c1 [237..243]
+ │   │       │               │                   ├─ AssetCommandFileName [237..242]: "theme"
+ │   │       │               │                   └─ RequiredWhitespace [242..243]: " "
+ │   │       │               └─ AssetCommandContent_c2 [243..257]
+ │   │       │                   ├─ AssetCommandClauseKeyword [243..247]: "loop"
+ │   │       │                   ├─ RequiredWhitespace [247..248]: " "
+ │   │       │                   └─ AssetCommandValueClause [248..257]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [248..252]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [248..252]: "with"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [252..253]
+ │   │       │                       │   └─ RequiredWhitespace [252..253]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [253..257]
+ │   │       │                           └─ AssetCommandClauseValue [253..257]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [253..257]
+ │   │       │                                   └─ NameValue [253..257]: "over"
+ │   │       └─ AudioCommand_end [257..259]
+ │   │           ├─ AudioCommand_end_c1 257
+ │   │           ├─ AudioCommand_end_c2 [257..259]
+ │   │           │   └─ AudioEndMark [257..259]: "))"
+ │   │           └─ AudioCommand_end_c3 259
+ │   │               └─ AudioCommand_end_c3 259
+ │   │                   └─ OptionalWhitespace 259
+ │   └─ AudioLine_c3 259
+ ├─ Newline [259..260]: "\n"
+ ├─ ImageLine [260..275]
+ │   ├─ ImageLine_c1 [260..262]
+ │   │   └─ OptionalWhitespace [260..262]: "  "
+ │   ├─ ImageLine_c2 [262..275]
+ │   │   └─ ImageCommand [262..275]
+ │   │       ├─ ImageCommand_begin [262..264]
+ │   │       │   ├─ ImageCommand_begin_c1 [262..264]
+ │   │       │   │   └─ ImageBeginMark [262..264]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 264
+ │   │       ├─ ImageCommand_content [264..273]
+ │   │       │   └─ ImageCommandContent [264..273]
+ │   │       │       └─ ImageCommandContent_c1 [264..273]
+ │   │       │           └─ AssetCommandContent [264..273]
+ │   │       │               ├─ AssetCommandContent_c1 [264..273]
+ │   │       │               │   └─ AssetCommandInstruction [264..273]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 264
+ │   │       │               │       ├─ AssetCommandInstruction_c2 264
+ │   │       │               │       ├─ AssetCommandInstruction_c3 264
+ │   │       │               │       ├─ AssetCommandInstruction_c4 264
+ │   │       │               │       └─ AssetCommandInstruction_c5 [264..273]
+ │   │       │               │           └─ AssetCommandName [264..273]
+ │   │       │               │               └─ AssetCommandName_c1 [264..273]
+ │   │       │               │                   └─ AssetCommandFileName [264..273]: "mia-morph"
+ │   │       │               └─ AssetCommandContent_c2 273
+ │   │       └─ ImageCommand_end [273..275]
+ │   │           ├─ ImageCommand_end_c1 273
+ │   │           ├─ ImageCommand_end_c2 [273..275]
+ │   │           │   └─ ImageEndMark [273..275]: "]]"
+ │   │           └─ ImageCommand_end_c3 275
+ │   │               └─ ImageCommand_end_c3 275
+ │   │                   └─ OptionalWhitespace 275
+ │   └─ ImageLine_c3 275
+ ├─ Newline [275..276]: "\n"
+ ├─ ImageLine [276..301]
+ │   ├─ ImageLine_c1 [276..278]
+ │   │   └─ OptionalWhitespace [276..278]: "  "
+ │   ├─ ImageLine_c2 [278..301]
+ │   │   └─ ImageCommand [278..301]
+ │   │       ├─ ImageCommand_begin [278..280]
+ │   │       │   ├─ ImageCommand_begin_c1 [278..280]
+ │   │       │   │   └─ ImageBeginMark [278..280]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 280
+ │   │       ├─ ImageCommand_content [280..299]
+ │   │       │   └─ ImageCommandContent [280..299]
+ │   │       │       └─ ImageCommandContent_c1 [280..299]
+ │   │       │           └─ AssetCommandContent [280..299]
+ │   │       │               ├─ AssetCommandContent_c1 [280..290]
+ │   │       │               │   └─ AssetCommandInstruction [280..290]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 280
+ │   │       │               │       ├─ AssetCommandInstruction_c2 280
+ │   │       │               │       ├─ AssetCommandInstruction_c3 280
+ │   │       │               │       ├─ AssetCommandInstruction_c4 280
+ │   │       │               │       └─ AssetCommandInstruction_c5 [280..290]
+ │   │       │               │           └─ AssetCommandName [280..290]
+ │   │       │               │               └─ AssetCommandName_c1 [280..290]
+ │   │       │               │                   ├─ AssetCommandFileName [280..289]: "mia-morph"
+ │   │       │               │                   └─ RequiredWhitespace [289..290]: " "
+ │   │       │               └─ AssetCommandContent_c2 [290..299]
+ │   │       │                   └─ AssetCommandValueClause [290..299]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [290..294]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [290..294]: "with"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [294..295]
+ │   │       │                       │   └─ RequiredWhitespace [294..295]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [295..299]
+ │   │       │                           └─ AssetCommandClauseValue [295..299]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [295..299]
+ │   │       │                                   └─ NameValue [295..299]: "fade"
+ │   │       └─ ImageCommand_end [299..301]
+ │   │           ├─ ImageCommand_end_c1 299
+ │   │           ├─ ImageCommand_end_c2 [299..301]
+ │   │           │   └─ ImageEndMark [299..301]: "]]"
+ │   │           └─ ImageCommand_end_c3 301
+ │   │               └─ ImageCommand_end_c3 301
+ │   │                   └─ OptionalWhitespace 301
+ │   └─ ImageLine_c3 301
+ ├─ Newline [301..302]: "\n"
+ ├─ ImageLine [302..329]
+ │   ├─ ImageLine_c1 [302..304]
+ │   │   └─ OptionalWhitespace [302..304]: "  "
+ │   ├─ ImageLine_c2 [304..329]
+ │   │   └─ ImageCommand [304..329]
+ │   │       ├─ ImageCommand_begin [304..306]
+ │   │       │   ├─ ImageCommand_begin_c1 [304..306]
+ │   │       │   │   └─ ImageBeginMark [304..306]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 306
+ │   │       ├─ ImageCommand_content [306..327]
+ │   │       │   └─ ImageCommandContent [306..327]
+ │   │       │       └─ ImageCommandContent_c1 [306..327]
+ │   │       │           └─ AssetCommandContent [306..327]
+ │   │       │               ├─ AssetCommandContent_c1 [306..310]
+ │   │       │               │   └─ AssetCommandInstruction [306..310]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 306
+ │   │       │               │       ├─ AssetCommandInstruction_c2 306
+ │   │       │               │       ├─ AssetCommandInstruction_c3 306
+ │   │       │               │       ├─ AssetCommandInstruction_c4 306
+ │   │       │               │       └─ AssetCommandInstruction_c5 [306..310]
+ │   │       │               │           └─ AssetCommandName [306..310]
+ │   │       │               │               └─ AssetCommandName_c1 [306..310]
+ │   │       │               │                   ├─ AssetCommandFileName [306..309]: "mia"
+ │   │       │               │                   └─ RequiredWhitespace [309..310]: " "
+ │   │       │               └─ AssetCommandContent_c2 [310..327]
+ │   │       │                   └─ Tags [310..327]
+ │   │       │                       ├─ Tags_begin 310
+ │   │       │                       │   └─ Tags_begin_c1 310
+ │   │       │                       ├─ Tags_content [310..327]
+ │   │       │                       │   └─ Tag [310..327]
+ │   │       │                       │       ├─ Tag_c1 310
+ │   │       │                       │       ├─ Tag_c2 [310..311]: "#"
+ │   │       │                       │       └─ Tag_c3 [311..327]
+ │   │       │                       │           └─ TagContent [311..327]
+ │   │       │                       │               ├─ TagContent_begin 311
+ │   │       │                       │               ├─ TagContent_content [311..327]
+ │   │       │                       │               │   └─ TagText [311..327]: " note morph none"
+ │   │       │                       │               └─ TagContent_end 327
+ │   │       │                       └─ Tags_end 327
+ │   │       └─ ImageCommand_end [327..329]
+ │   │           ├─ ImageCommand_end_c1 327
+ │   │           ├─ ImageCommand_end_c2 [327..329]
+ │   │           │   └─ ImageEndMark [327..329]: "]]"
+ │   │           └─ ImageCommand_end_c3 329
+ │   │               └─ ImageCommand_end_c3 329
+ │   │                   └─ OptionalWhitespace 329
+ │   └─ ImageLine_c3 329
+ ├─ Newline [329..330]: "\n"
+ ├─ AudioLine [330..354]
+ │   ├─ AudioLine_c1 [330..332]
+ │   │   └─ OptionalWhitespace [330..332]: "  "
+ │   ├─ AudioLine_c2 [332..354]
+ │   │   └─ AudioCommand [332..354]
+ │   │       ├─ AudioCommand_begin [332..334]
+ │   │       │   ├─ AudioCommand_begin_c1 [332..334]
+ │   │       │   │   └─ AudioBeginMark [332..334]: "(("
+ │   │       │   └─ AudioCommand_begin_c2 334
+ │   │       ├─ AudioCommand_content [334..352]
+ │   │       │   └─ AudioCommandContent [334..352]
+ │   │       │       └─ AudioCommandContent_c1 [334..352]
+ │   │       │           └─ AssetCommandContent [334..352]
+ │   │       │               ├─ AssetCommandContent_c1 [334..340]
+ │   │       │               │   └─ AssetCommandInstruction [334..340]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 334
+ │   │       │               │       ├─ AssetCommandInstruction_c2 334
+ │   │       │               │       ├─ AssetCommandInstruction_c3 334
+ │   │       │               │       ├─ AssetCommandInstruction_c4 334
+ │   │       │               │       └─ AssetCommandInstruction_c5 [334..340]
+ │   │       │               │           └─ AssetCommandName [334..340]
+ │   │       │               │               └─ AssetCommandName_c1 [334..340]
+ │   │       │               │                   ├─ AssetCommandFileName [334..339]: "theme"
+ │   │       │               │                   └─ RequiredWhitespace [339..340]: " "
+ │   │       │               └─ AssetCommandContent_c2 [340..352]
+ │   │       │                   ├─ AssetCommandClauseKeyword [340..344]: "wait"
+ │   │       │                   ├─ RequiredWhitespace [344..345]: " "
+ │   │       │                   └─ NameValue [345..352]: "garbage"
+ │   │       └─ AudioCommand_end [352..354]
+ │   │           ├─ AudioCommand_end_c1 352
+ │   │           ├─ AudioCommand_end_c2 [352..354]
+ │   │           │   └─ AudioEndMark [352..354]: "))"
+ │   │           └─ AudioCommand_end_c3 354
+ │   │               └─ AudioCommand_end_c3 354
+ │   │                   └─ OptionalWhitespace 354
+ │   └─ AudioLine_c3 354
+ ├─ Newline [354..355]: "\n"
+ ├─ ImageLine [355..386]
+ │   ├─ ImageLine_c1 [355..357]
+ │   │   └─ OptionalWhitespace [355..357]: "  "
+ │   ├─ ImageLine_c2 [357..386]
+ │   │   └─ ImageCommand [357..386]
+ │   │       ├─ ImageCommand_begin [357..359]
+ │   │       │   ├─ ImageCommand_begin_c1 [357..359]
+ │   │       │   │   └─ ImageBeginMark [357..359]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 359
+ │   │       ├─ ImageCommand_content [359..384]
+ │   │       │   └─ ImageCommandContent [359..384]
+ │   │       │       └─ ImageCommandContent_c1 [359..384]
+ │   │       │           └─ AssetCommandContent [359..384]
+ │   │       │               ├─ AssetCommandContent_c1 [359..375]
+ │   │       │               │   └─ AssetCommandInstruction [359..375]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 359
+ │   │       │               │       ├─ AssetCommandInstruction_c2 359
+ │   │       │               │       ├─ AssetCommandInstruction_c3 359
+ │   │       │               │       ├─ AssetCommandInstruction_c4 359
+ │   │       │               │       └─ AssetCommandInstruction_c5 [359..375]
+ │   │       │               │           └─ AssetCommandName [359..375]
+ │   │       │               │               └─ AssetCommandName_c1 [359..375]
+ │   │       │               │                   ├─ AssetCommandFilteredFileName [359..374]
+ │   │       │               │                   │   ├─ AssetCommandFilteredFileName_c1 [359..362]
+ │   │       │               │                   │   │   └─ AssetCommandFileName [359..362]: "mia"
+ │   │       │               │                   │   └─ AssetCommandFilteredFileName_c2 [362..374]
+ │   │       │               │                   │       └─ AssetCommandFilter [362..374]
+ │   │       │               │                   │           ├─ AssetCommandFilter_c1 [362..363]
+ │   │       │               │                   │           │   └─ AssetCommandFilterOperator [362..363]: ":"
+ │   │       │               │                   │           └─ AssetCommandFilter_c2 [363..374]
+ │   │       │               │                   │               └─ AssetCommandFilterName [363..374]: "mouth.morph"
+ │   │       │               │                   └─ RequiredWhitespace [374..375]: " "
+ │   │       │               └─ AssetCommandContent_c2 [375..384]
+ │   │       │                   └─ AssetCommandValueClause [375..384]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [375..379]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [375..379]: "with"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [379..380]
+ │   │       │                       │   └─ RequiredWhitespace [379..380]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [380..384]
+ │   │       │                           └─ AssetCommandClauseValue [380..384]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [380..384]
+ │   │       │                                   └─ NameValue [380..384]: "fade"
+ │   │       └─ ImageCommand_end [384..386]
+ │   │           ├─ ImageCommand_end_c1 384
+ │   │           ├─ ImageCommand_end_c2 [384..386]
+ │   │           │   └─ ImageEndMark [384..386]: "]]"
+ │   │           └─ ImageCommand_end_c3 386
+ │   │               └─ ImageCommand_end_c3 386
+ │   │                   └─ OptionalWhitespace 386
+ │   └─ ImageLine_c3 386
+ ├─ Newline [386..387]: "\n"
+ ├─ ImageLine [387..408]
+ │   ├─ ImageLine_c1 [387..389]
+ │   │   └─ OptionalWhitespace [387..389]: "  "
+ │   ├─ ImageLine_c2 [389..408]
+ │   │   └─ ImageCommand [389..408]
+ │   │       ├─ ImageCommand_begin [389..391]
+ │   │       │   ├─ ImageCommand_begin_c1 [389..391]
+ │   │       │   │   └─ ImageBeginMark [389..391]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 391
+ │   │       ├─ ImageCommand_content [391..406]
+ │   │       │   └─ ImageCommandContent [391..406]
+ │   │       │       └─ ImageCommandContent_c1 [391..406]
+ │   │       │           └─ AssetCommandContent [391..406]
+ │   │       │               ├─ AssetCommandContent_c1 [391..406]
+ │   │       │               │   └─ AssetCommandInstruction [391..406]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 391
+ │   │       │               │       ├─ AssetCommandInstruction_c2 391
+ │   │       │               │       ├─ AssetCommandInstruction_c3 391
+ │   │       │               │       ├─ AssetCommandInstruction_c4 391
+ │   │       │               │       └─ AssetCommandInstruction_c5 [391..406]
+ │   │       │               │           └─ AssetCommandName [391..406]
+ │   │       │               │               └─ AssetCommandName_c1 [391..406]
+ │   │       │               │                   └─ AssetCommandFilteredFileName [391..406]
+ │   │       │               │                       ├─ AssetCommandFilteredFileName_c1 [391..394]
+ │   │       │               │                       │   └─ AssetCommandFileName [391..394]: "mia"
+ │   │       │               │                       └─ AssetCommandFilteredFileName_c2 [394..406]
+ │   │       │               │                           └─ AssetCommandFilter [394..406]
+ │   │       │               │                               ├─ AssetCommandFilter_c1 [394..395]
+ │   │       │               │                               │   └─ AssetCommandFilterOperator [394..395]: "~"
+ │   │       │               │                               └─ AssetCommandFilter_c2 [395..406]
+ │   │       │               │                                   └─ AssetCommandFilterName [395..406]: "mouth.morph"
+ │   │       │               └─ AssetCommandContent_c2 406
+ │   │       └─ ImageCommand_end [406..408]
+ │   │           ├─ ImageCommand_end_c1 406
+ │   │           ├─ ImageCommand_end_c2 [406..408]
+ │   │           │   └─ ImageEndMark [406..408]: "]]"
+ │   │           └─ ImageCommand_end_c3 408
+ │   │               └─ ImageCommand_end_c3 408
+ │   │                   └─ OptionalWhitespace 408
+ │   └─ ImageLine_c3 408
+ ├─ Newline [408..409]: "\n"
+ ├─ LuauEndKeyword [409..412]: "end"
+ └─ Newline [412..413]: "\n"

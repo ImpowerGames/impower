@@ -433,6 +433,7 @@ export function TextRow({
       control={
         <TextField
           id={`${id}-control`}
+          purpose="literal"
           width={width}
           font={font}
           class={cn(

@@ -49,7 +49,8 @@ variables:
   DISPLAY_CHAIN_COMMENTS: (?:{{BLOCK_COMMENT_ON_LINE}}*{{LINE_COMMENT_TO_END}}?)
   DISPLAY_CHAIN_END: (?:{{WS}}*{{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
-  IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
+  IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease", "morph"]
+  ASSET_VALUE_CLAUSE_KEYWORDS: ["after", "over", "to", "with", "ease", "morph"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
@@ -87,6 +88,29 @@ variables:
   IDENTIFIER: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}{{IDENTIFIER_AT_PART}}*(?<![-]))
 
   TAG_START: (?:[#]+(?=$|{{WS}}))
+  # lookaround: a directive's names read whole (`mia-morph`,
+  # `bunny:mouth.morph`, `bunny~mouth.morph` in `AssetCommandFileName` and
+  # `AssetCommandFilter`), but the keyword lists' `STORY_NAME_START` lets
+  # `-`, `.`, `:` and `~` end the word before them, so
+  # `AssetCommandContent`'s lazy name text would stop inside a name and start
+  # the clauses at `morph`. A name has no end the split could stop at
+  # instead, and the lists' boundary must keep those characters as word ends
+  # elsewhere, so the split starts a clause word only after whitespace or the
+  # directive's opening `[[` or `((`, as the interpreter splits words.
+  ASSET_CLAUSE_START: (?<={{WS}}|\[\[|[(][(])
+  # lookaround: the interpreter takes the word after a control as its target
+  # whatever it is spelled like (`[[show with fade]]` shows `with`), except
+  # after `navigate`, whose screen is optional and never a clause word
+  # (`[[navigate to menu]]`). The control lists are shared with
+  # `AssetCommandInstruction`, so `navigate` is refused here rather than
+  # copied into a second list without it.
+  ASSET_TARGET_CONTROL: (?:{{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}}|(?!navigate){{LAYOUT_CONTROL_KEYWORDS}})
+  ASSET_WORD: (?:[#]*[^\s#]\S*)
+  ASSET_CONTROL_AND_TARGET: (?:{{ASSET_TARGET_CONTROL}}{{WS}}+{{ASSET_WORD}})
+  # lookaround: a clause word is a whole word, so it is followed by whitespace
+  # or the directive's end; followed by anything else it is part of a name
+  # (`with-x`), which `AssetCommandFileName` reads whole.
+  ASSET_CLAUSES_START: (?:{{TAG_START}}|{{ASSET_CLAUSE_START}}(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}))
   NOT_TAG_HASH: (?:[#]+[^#\s])
   # lookaround: ActionLineEnd and LineEnd own a `#x` the line begins with,
   # as display text. The line rules that end here (ImplicitAction,
@@ -296,6 +320,571 @@ variables:
   CHOICE_TEXT_ESCAPED_BRACE: (?:[\\][{])
   SPAN_END: (?:{{EOL}}|{{DISPLAY_CHAIN_END}})
   CHOICE_SPAN_MARK: (?:[*_`^]|[~][~]|[:][:])
+  STAR_OTHER_PUNCTUATION: (?:[^\P{P}*]|\p{S})
+  # lookaround: the flanking of a mark run, for every span mark. Rivals:
+  # Punctuation, which takes a mark no span takes, and Word, which takes an
+  # underscore inside a word. CommonMark decides whether a run opens or closes
+  # by the characters on both sides of the whole run, so the span rule has to
+  # see them. Reordering cannot: Italic, Bold and the other spans already come
+  # before PlainText in InlineText, and order only picks the rule that tries
+  # first at a position, not what lies around it. Splitting a Switch cannot:
+  # every rule that could take the mark starts at the same character. A
+  # parent's end cannot: each span is one match whose closer is found before
+  # anything is taken, and a scoped span would commit to an opener that never
+  # closes. Tightening a variable is what these variables do, and a run's
+  # neighbours are visible only around it. The marks before the span's own,
+  # up to 64, are read as the run's, and STAR_RUN_IN_REACH bounds both
+  # reads; STAR_OTHER_PUNCTUATION is punctuation other than a star, so the read
+  # before a span stops at the run's first star.
+  STAR_BEFORE_OPEN: (?<=(?:^|{{WS}}|{{STAR_OTHER_PUNCTUATION}})[*]{0,64})
+  # lookaround: as STAR_BEFORE_OPEN.
+  STAR_BEFORE_TEXT: (?<=[^\s\p{P}\p{S}][*]{0,64})
+  # lookaround: as STAR_BEFORE_OPEN.
+  STAR_BEFORE_SOLID: (?<=[^\s*][*]{0,64})
+  # lookaround: as STAR_BEFORE_OPEN. Reading the rest of a run at every
+  # position of a long one costs time quadratic in its length, in both
+  # engines; a position more than 64 stars from either end of its run neither
+  # opens nor closes, so each position reads at most 65 stars on each side.
+  STAR_RUN_IN_REACH: (?<![*]{65})(?![*]{65})
+  # lookaround: as STAR_BEFORE_OPEN. A run never ends on a star, so the class
+  # after it needs no lookahead of its own.
+  STAR_LEFT_TEST: (?:{{STAR_RUN_IN_REACH}}(?:{{STAR_BEFORE_OPEN}}(?=[*]+[^*\s])|(?=[*]+[^*\s\p{P}\p{S}])))
+  # lookaround: STAR_LEFT_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  STAR_LEFT: (?={{STAR_LEFT_TEST}})
+  # lookaround: as STAR_BEFORE_OPEN, for the run that closes Italic and Bold.
+  STAR_RIGHT_TEST: (?:{{STAR_RUN_IN_REACH}}(?:{{STAR_BEFORE_TEXT}}|{{STAR_BEFORE_SOLID}}(?![*]+[^*\s\p{P}\p{S}])))
+  # lookaround: STAR_RIGHT_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  STAR_RIGHT: (?={{STAR_RIGHT_TEST}})
+  # lookaround: as STAR_CLOSE_ITALIC. STAR_RUN_THREE_OFF_ONE and
+  # STAR_RUN_THREE_OFF_TWO count a whole run; Punctuation would take a star a
+  # shorter run leaves.
+  STAR_RUN: (?:[*]+(?![*]))
+  # lookaround: as STAR_CLOSE_ITALIC. CommonMark's rule of three keeps a run
+  # that opens and closes from closing Italic when the two runs add up to a
+  # multiple of three; STAR_RUN reads the run whole.
+  STAR_RUN_THREE_OFF_ONE: (?:(?:[*]{2}|[*]{5})(?![*]))
+  # lookaround: as STAR_RUN_THREE_OFF_ONE, for Bold.
+  STAR_RUN_THREE_OFF_TWO: (?:(?:[*]{4}|[*]{7})(?![*]))
+  # lookaround: the boundary of a span's content, for every span mark. Rival:
+  # the span's own closer, which the content must leave to it. The content and
+  # the closer are parts of one regex, so there is no patterns list to reorder
+  # or split, and no parent end applies (STAR_BEFORE_OPEN says why). Whether a
+  # run closes Italic depends on its flanking and on CommonMark's rule of
+  # three, which only a lookaround at the run can read.
+  STAR_CLOSE_ITALIC: (?:{{STAR_RIGHT}}(?!{{STAR_LEFT}}{{STAR_RUN_THREE_OFF_ONE}}))
+  # lookaround: as STAR_CLOSE_ITALIC, for Bold's closer.
+  STAR_CLOSE_BOLD: (?:{{STAR_RIGHT}}(?=[*][*])(?!{{STAR_LEFT}}{{STAR_RUN_THREE_OFF_TWO}}))
+  # lookaround: as STAR_CLOSE_ITALIC. A run that neither opens nor closes is
+  # Punctuation inside a span, as outside one; STAR_LEFT and STAR_RIGHT tell it
+  # apart.
+  STAR_INERT: (?:(?!{{STAR_LEFT}})(?!{{STAR_RIGHT}}){{STAR_RUN}})
+  STAR_BOTH: (?:{{STAR_LEFT}}{{STAR_RIGHT}}{{STAR_RUN}})
+  STAR_TEXT: (?:{{STAR_INERT}}|{{STAR_BOTH}})
+  # lookaround: as STAR_CLOSE_ITALIC. A run that opens without a span of its
+  # own would pair with the closer first, so it ends nothing here and the span
+  # is not read.
+  STAR_ITALIC_TEXT_RUN: (?:(?!{{STAR_CLOSE_ITALIC}}){{STAR_TEXT}})
+  # lookaround: as STAR_ITALIC_TEXT_RUN, for STAR_CLOSE_BOLD.
+  STAR_BOLD_TEXT_RUN: (?:(?!{{STAR_CLOSE_BOLD}}){{STAR_TEXT}})
+  STAR_ITALIC_INNER: (?:(?:{{SPAN_STAR_FREE}}|{{STAR_ITALIC_TEXT_RUN}})+)
+  STAR_BOLD_INNER: (?:(?:{{SPAN_STAR_FREE}}|{{STAR_BOLD_TEXT_RUN}})+)
+  STAR_NESTED_BOLD: (?:[*][*]{{STAR_BOLD_INNER}}{{STAR_CLOSE_BOLD}}[*][*])
+  STAR_NESTED_ITALIC: (?:[*]{{STAR_ITALIC_INNER}}{{STAR_CLOSE_ITALIC}}[*])
+  # lookaround: as STAR_CLOSE_ITALIC. A span nested in Italic or Bold is read
+  # by the same rules inside the content's capture, and opens at a run that
+  # cannot close; a run that can is text in STAR_BOTH, so the content splits
+  # one way.
+  STAR_NESTED: (?:{{STAR_LEFT}}(?!{{STAR_RIGHT}})(?:{{STAR_NESTED_BOLD}}|{{STAR_NESTED_ITALIC}}))
+  STAR_NESTED_OR_TEXT: (?:{{STAR_NESTED}}|{{STAR_TEXT}})
+  # lookaround: as STAR_ITALIC_TEXT_RUN, with a nested span.
+  STAR_ITALIC_RUN: (?:(?!{{STAR_CLOSE_ITALIC}}){{STAR_NESTED_OR_TEXT}})
+  # lookaround: as STAR_BOLD_TEXT_RUN, with a nested span.
+  STAR_BOLD_RUN: (?:(?!{{STAR_CLOSE_BOLD}}){{STAR_NESTED_OR_TEXT}})
+  STAR_ITALIC_CONTENT: (?:(?:{{SPAN_STAR_FREE}}|{{STAR_ITALIC_RUN}})+)
+  STAR_BOLD_CONTENT: (?:(?:{{SPAN_STAR_FREE}}|{{STAR_BOLD_RUN}})+)
+  UNDERSCORE_OTHER_PUNCTUATION: (?:[^\P{P}_]|\p{S})
+  # lookaround: as STAR_BEFORE_OPEN, for Underline, whose span opens inside a run as Italic's does and leaves the run's first marks to Punctuation.
+  UNDERSCORE_BEFORE_OPEN: (?<=(?:^|{{WS}}|{{UNDERSCORE_OTHER_PUNCTUATION}})[_]{0,64})
+  # lookaround: as STAR_BEFORE_OPEN, for Underline.
+  UNDERSCORE_BEFORE_TEXT: (?<=[^\s\p{P}\p{S}][_]{0,64})
+  # lookaround: as STAR_BEFORE_OPEN, for Underline.
+  UNDERSCORE_BEFORE_SOLID: (?<=[^\s_][_]{0,64})
+  # lookaround: as UNDERSCORE_BEFORE_OPEN; CommonMark lets an underscore run inside a word open or close only beside punctuation.
+  UNDERSCORE_BEFORE_PUNCTUATION: (?<={{UNDERSCORE_OTHER_PUNCTUATION}}[_]{0,64})
+  # lookaround: as STAR_RUN_IN_REACH, for UNDERSCORE_LEFT_TEST and UNDERSCORE_RIGHT_TEST.
+  UNDERSCORE_RUN_IN_REACH: (?<![_]{65})(?![_]{65})
+  # lookaround: as STAR_LEFT_TEST, for Underline.
+  UNDERSCORE_LEFT_TEST: (?:{{UNDERSCORE_RUN_IN_REACH}}(?:{{UNDERSCORE_BEFORE_OPEN}}(?=[_]+[^_\s])|(?=[_]+[^_\s\p{P}\p{S}])))
+  # lookaround: UNDERSCORE_LEFT_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  UNDERSCORE_LEFT: (?={{UNDERSCORE_LEFT_TEST}})
+  # lookaround: as STAR_RIGHT_TEST, for Underline.
+  UNDERSCORE_RIGHT_TEST: (?:{{UNDERSCORE_RUN_IN_REACH}}(?:{{UNDERSCORE_BEFORE_TEXT}}|{{UNDERSCORE_BEFORE_SOLID}}(?![_]+[^_\s\p{P}\p{S}])))
+  # lookaround: UNDERSCORE_RIGHT_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  UNDERSCORE_RIGHT: (?={{UNDERSCORE_RIGHT_TEST}})
+  # lookaround: as UNDERSCORE_BEFORE_PUNCTUATION; Word takes a run inside a word.
+  UNDERSCORE_OPEN_TEST: (?:{{UNDERSCORE_LEFT}}(?!{{UNDERSCORE_RIGHT}})|{{UNDERSCORE_LEFT}}{{UNDERSCORE_RIGHT}}{{UNDERSCORE_BEFORE_PUNCTUATION}})
+  # lookaround: UNDERSCORE_OPEN_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  UNDERSCORE_OPEN: (?={{UNDERSCORE_OPEN_TEST}})
+  # lookaround: as UNDERSCORE_OPEN_TEST.
+  UNDERSCORE_CLOSE_TEST: (?:{{UNDERSCORE_RIGHT}}(?!{{UNDERSCORE_LEFT}})|{{UNDERSCORE_RIGHT}}{{UNDERSCORE_LEFT}}(?![_]+[^_\p{P}\p{S}\r\n])(?![_]+$))
+  # lookaround: UNDERSCORE_CLOSE_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  UNDERSCORE_CLOSE: (?={{UNDERSCORE_CLOSE_TEST}})
+  # lookaround: as STAR_CLOSE_ITALIC. Underline closes at the next run of its mark at least as long that can close it, taking the opener's length from it as its \1 does; Punctuation takes a shorter run.
+  UNDERSCORE_SHORTER: (?:(?!\1)[_]+(?![_]))
+  # lookaround: as UNDERSCORE_SHORTER.
+  UNDERSCORE_SAME: (?=\1(?:[^_\r\n]|$))
+  # lookaround: as UNDERSCORE_SHORTER; a run at least as long as the opener that can open would pair with the closer first, so it is a nested span or ends the content, and one that can neither open nor close is text.
+  UNDERSCORE_LONG_TEXT: (?:(?=\1)(?!{{UNDERSCORE_CLOSE}})(?!{{UNDERSCORE_OPEN}})[_]+(?![_]))
+  UNDERSCORE_INNER: (?:(?:{{SPAN_UNDERSCORE_FREE}}|{{UNDERSCORE_SHORTER}}|{{UNDERSCORE_LONG_TEXT}})+)
+  # lookaround: as STAR_CLOSE_ITALIC and STAR_NESTED, for Underline.
+  UNDERSCORE_NESTED: (?:{{UNDERSCORE_SAME}}{{UNDERSCORE_OPEN}}(?!{{UNDERSCORE_CLOSE}})\1{{UNDERSCORE_INNER}}{{UNDERSCORE_CLOSE}}\1)
+  UNDERSCORE_CONTENT: (?:(?:{{SPAN_UNDERSCORE_FREE}}|{{UNDERSCORE_SHORTER}}|{{UNDERSCORE_LONG_TEXT}}|{{UNDERSCORE_NESTED}})+)
+  CARET_OTHER_PUNCTUATION: (?:\p{P}|[^\P{S}\^])
+  # lookaround: as UNDERSCORE_BEFORE_OPEN, for Centered.
+  CARET_BEFORE_OPEN: (?<=(?:^|{{WS}}|{{CARET_OTHER_PUNCTUATION}})[\^]{0,64})
+  # lookaround: as UNDERSCORE_BEFORE_OPEN, for Centered.
+  CARET_BEFORE_TEXT: (?<=[^\s\p{P}\p{S}][\^]{0,64})
+  # lookaround: as UNDERSCORE_BEFORE_OPEN, for Centered.
+  CARET_BEFORE_SOLID: (?<=[^\s\^][\^]{0,64})
+  # lookaround: as STAR_RUN_IN_REACH, for CARET_LEFT_TEST and CARET_RIGHT_TEST.
+  CARET_RUN_IN_REACH: (?<![\^]{65})(?![\^]{65})
+  # lookaround: as UNDERSCORE_LEFT_TEST, for Centered.
+  CARET_LEFT_TEST: (?:{{CARET_RUN_IN_REACH}}(?:{{CARET_BEFORE_OPEN}}(?=[\^]+[^\^\s])|(?=[\^]+[^\^\s\p{P}\p{S}])))
+  # lookaround: CARET_LEFT_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  CARET_LEFT: (?={{CARET_LEFT_TEST}})
+  # lookaround: as UNDERSCORE_RIGHT_TEST, for Centered.
+  CARET_RIGHT_TEST: (?:{{CARET_RUN_IN_REACH}}(?:{{CARET_BEFORE_TEXT}}|{{CARET_BEFORE_SOLID}}(?![\^]+[^\^\s\p{P}\p{S}])))
+  # lookaround: CARET_RIGHT_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  CARET_RIGHT: (?={{CARET_RIGHT_TEST}})
+  # lookaround: as UNDERSCORE_SHORTER, for Centered.
+  CARET_SHORTER: (?:(?!\1)[\^]+(?![\^]))
+  # lookaround: as UNDERSCORE_SHORTER, for Centered.
+  CARET_SAME: (?=\1(?:[^\^\r\n]|$))
+  # lookaround: as UNDERSCORE_SHORTER, for Centered.
+  CARET_LONG_TEXT: (?:(?=\1)(?!{{CARET_RIGHT}})(?!{{CARET_LEFT}})[\^]+(?![\^]))
+  CARET_INNER: (?:(?:{{SPAN_CARET_FREE}}|{{CARET_SHORTER}}|{{CARET_LONG_TEXT}})+)
+  # lookaround: as UNDERSCORE_NESTED, for Centered.
+  CARET_NESTED: (?:{{CARET_SAME}}{{CARET_LEFT}}(?!{{CARET_RIGHT}})\1{{CARET_INNER}}{{CARET_RIGHT}}\1)
+  CARET_CONTENT: (?:(?:{{SPAN_CARET_FREE}}|{{CARET_SHORTER}}|{{CARET_LONG_TEXT}}|{{CARET_NESTED}})+)
+  TILDE_OTHER_PUNCTUATION: (?:\p{P}|[^\P{S}~])
+  # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisTilde.
+  TILDE_BEFORE_OPEN: (?<=(?:^|{{WS}}|{{TILDE_OTHER_PUNCTUATION}})[~]{0,64})
+  # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisTilde.
+  TILDE_BEFORE_TEXT: (?<=[^\s\p{P}\p{S}][~]{0,64})
+  # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisTilde.
+  TILDE_BEFORE_SOLID: (?<=[^\s~][~]{0,64})
+  # lookaround: as STAR_RUN_IN_REACH, for TILDE_LEFT_TEST and TILDE_RIGHT_TEST.
+  TILDE_RUN_IN_REACH: (?<![~]{65})(?![~]{65})
+  # lookaround: as UNDERSCORE_LEFT_TEST, for EmphasisTilde.
+  TILDE_LEFT_TEST: (?:{{TILDE_RUN_IN_REACH}}(?:{{TILDE_BEFORE_OPEN}}(?=[~]+[^~\s])|(?=[~]+[^~\s\p{P}\p{S}])))
+  # lookaround: TILDE_LEFT_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  TILDE_LEFT: (?={{TILDE_LEFT_TEST}})
+  # lookaround: as UNDERSCORE_RIGHT_TEST, for EmphasisTilde.
+  TILDE_RIGHT_TEST: (?:{{TILDE_RUN_IN_REACH}}(?:{{TILDE_BEFORE_TEXT}}|{{TILDE_BEFORE_SOLID}}(?![~]+[^~\s\p{P}\p{S}])))
+  # lookaround: TILDE_RIGHT_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  TILDE_RIGHT: (?={{TILDE_RIGHT_TEST}})
+  # lookaround: as UNDERSCORE_SHORTER, for EmphasisTilde.
+  TILDE_SHORTER: (?:(?!\1)[~]+(?![~]))
+  # lookaround: as UNDERSCORE_SHORTER, for EmphasisTilde.
+  TILDE_SAME: (?=\1(?:[^~\r\n]|$))
+  # lookaround: as UNDERSCORE_SHORTER, for EmphasisTilde.
+  TILDE_LONG_TEXT: (?:(?=\1)(?!{{TILDE_RIGHT}})(?!{{TILDE_LEFT}})[~]+(?![~]))
+  TILDE_INNER: (?:(?:{{SPAN_TILDE_FREE}}|{{TILDE_SHORTER}}|{{TILDE_LONG_TEXT}})+)
+  # lookaround: as UNDERSCORE_NESTED, for EmphasisTilde.
+  TILDE_NESTED: (?:{{TILDE_SAME}}{{TILDE_LEFT}}(?!{{TILDE_RIGHT}})\1{{TILDE_INNER}}{{TILDE_RIGHT}}\1)
+  TILDE_CONTENT: (?:(?:{{SPAN_TILDE_FREE}}|{{TILDE_SHORTER}}|{{TILDE_LONG_TEXT}}|{{TILDE_NESTED}})+)
+  COLON_OTHER_PUNCTUATION: (?:[^\P{P}:]|\p{S})
+  # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisColon.
+  COLON_BEFORE_OPEN: (?<=(?:^|{{WS}}|{{COLON_OTHER_PUNCTUATION}})[:]{0,64})
+  # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisColon.
+  COLON_BEFORE_TEXT: (?<=[^\s\p{P}\p{S}][:]{0,64})
+  # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisColon.
+  COLON_BEFORE_SOLID: (?<=[^\s:][:]{0,64})
+  # lookaround: as STAR_RUN_IN_REACH, for COLON_LEFT_TEST and COLON_RIGHT_TEST.
+  COLON_RUN_IN_REACH: (?<![:]{65})(?![:]{65})
+  # lookaround: as UNDERSCORE_LEFT_TEST, for EmphasisColon.
+  COLON_LEFT_TEST: (?:{{COLON_RUN_IN_REACH}}(?:{{COLON_BEFORE_OPEN}}(?=[:]+[^:\s])|(?=[:]+[^:\s\p{P}\p{S}])))
+  # lookaround: COLON_LEFT_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  COLON_LEFT: (?={{COLON_LEFT_TEST}})
+  # lookaround: as UNDERSCORE_RIGHT_TEST, for EmphasisColon.
+  COLON_RIGHT_TEST: (?:{{COLON_RUN_IN_REACH}}(?:{{COLON_BEFORE_TEXT}}|{{COLON_BEFORE_SOLID}}(?![:]+[^:\s\p{P}\p{S}])))
+  # lookaround: COLON_RIGHT_TEST read once, so a span that backtracks past it
+  # finds one way through its branches.
+  COLON_RIGHT: (?={{COLON_RIGHT_TEST}})
+  # lookaround: as UNDERSCORE_SHORTER, for EmphasisColon.
+  COLON_SHORTER: (?:(?!\1)[:]+(?![:]))
+  # lookaround: as UNDERSCORE_SHORTER, for EmphasisColon.
+  COLON_SAME: (?=\1(?:[^:\r\n]|$))
+  # lookaround: as UNDERSCORE_SHORTER, for EmphasisColon.
+  COLON_LONG_TEXT: (?:(?=\1)(?!{{COLON_RIGHT}})(?!{{COLON_LEFT}})[:]+(?![:]))
+  COLON_INNER: (?:(?:{{SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}})+)
+  # lookaround: as UNDERSCORE_NESTED, for EmphasisColon.
+  COLON_NESTED: (?:{{COLON_SAME}}{{COLON_LEFT}}(?!{{COLON_RIGHT}})\1{{COLON_INNER}}{{COLON_RIGHT}}\1)
+  COLON_CONTENT: (?:(?:{{SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}}|{{COLON_NESTED}})+)
+  # lookaround: as UNDERSCORE_SHORTER, for Raw, whose content is literal: a
+  # backtick run of another length than the opener's is text.
+  RAW_OTHER_RUN: (?:(?!\1(?:[^`\r\n]|$))[`]+(?![`]))
+  # lookaround: as SPAN_LONG_BRACKET and SPAN_STAR_FREE, for Raw's literal text, which takes a
+  # backtick only as a run of another length (RAW_OTHER_RUN).
+  RAW_CHARACTER: (?:(?![`]|{{SPAN_END}})[^\r\n])
+  RAW_CONTENT: (?:(?:{{RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  SPAN_ESCAPE: (?:[\\][^\r\n])
+  # lookaround: the units of a span's content, for every span. Rivals: the
+  # rules InlineTextAndLogic and SpanContent try before plain text, which take
+  # their whole text so that a mark inside it ends nothing: TextCommand,
+  # ImageCommand, AudioCommand, Divert, the glued alternator blocks, Annotation,
+  # SparkdownBlockCommentOnLine, Raw and LuauInterpolatedStringExpression. In
+  # display text those rules win by their order, but a span's content is part
+  # of one regex that must find the span's closer before anything is taken, so
+  # no order or Switch split reaches inside it, and no parent end applies
+  # (STAR_BEFORE_OPEN says why). Each unit therefore takes its rival's whole
+  # text, or stops where the rival starts, which only a lookaround at that
+  # character can tell. Here: LuauInterpolatedStringExpression reads a Luau long
+  # string or long comment to the first closer of its level, which the content
+  # takes whole; one left open on the line keeps the interpolation open, and the
+  # span is not read.
+  SPAN_LONG_BRACKET: (?:{{SPAN_DOUBLE_BRACKET}}|{{SPAN_LONG_BRACKET_1}}|{{SPAN_LONG_BRACKET_2}})
+  # lookaround: as SPAN_LONG_BRACKET. ImageCommand ends at the first `]]`, and a Luau long string or
+  # comment of level 0 at its first `]]` too.
+  SPAN_DOUBLE_BRACKET_TEXT: (?:[^\]\r\n]|\](?!\]))
+  SPAN_DOUBLE_BRACKET: (?:\[\[{{SPAN_DOUBLE_BRACKET_TEXT}}*\]\])
+  # lookaround: as SPAN_LONG_BRACKET, for level 1.
+  SPAN_LONG_BRACKET_1: (?:\[=\[(?:[^\]\r\n]|\](?!=\]))*\]=\])
+  # lookaround: as SPAN_LONG_BRACKET, for level 2.
+  SPAN_LONG_BRACKET_2: (?:\[==\[(?:[^\]\r\n]|\](?!==\]))*\]==\])
+  SPAN_CODE_CHARACTER: (?:{{CHOICE_PLAIN_CODE_CHARACTER}}|{{SPAN_LONG_BRACKET}}|[-][-]{{SPAN_LONG_BRACKET}}|{{BLOCK_COMMENT_CLOSED}})
+  SPAN_INTERPOLATION_CHARACTER: (?:{{SPAN_CODE_CHARACTER}}|{{CHOICE_PLAIN_BACKTICK_STRING}})
+  SPAN_TABLE_1: (?:[{]{{SPAN_INTERPOLATION_CHARACTER}}*[}])
+  SPAN_TABLE_2: (?:[{](?:{{SPAN_INTERPOLATION_CHARACTER}}|{{SPAN_TABLE_1}})*[}])
+  SPAN_TABLE_3: (?:[{](?:{{SPAN_INTERPOLATION_CHARACTER}}|{{SPAN_TABLE_2}})*[}])
+  SPAN_TABLE_4: (?:[{](?:{{SPAN_INTERPOLATION_CHARACTER}}|{{SPAN_TABLE_3}})*[}])
+  SPAN_TABLE_5: (?:[{](?:{{SPAN_INTERPOLATION_CHARACTER}}|{{SPAN_TABLE_4}})*[}])
+  SPAN_INTERPOLATION: (?:[{](?:{{SPAN_INTERPOLATION_CHARACTER}}|{{SPAN_TABLE_5}})+[}]|[{][}])
+  # lookaround: as SPAN_LONG_BRACKET. Raw reads a backtick run with the next run of its length, which
+  # a span's content takes whole so a mark inside it ends nothing; Punctuation
+  # takes a run that closes nothing.
+  SPAN_CODE_ONE: (?:[`](?![`])(?:{{RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  # lookaround: as SPAN_CODE_ONE.
+  SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  # lookaround: as SPAN_CODE_ONE.
+  SPAN_CODE_TEXT: (?:(?!{{SPAN_CODE_ONE}}|{{SPAN_CODE_TWO}})[`]{1,2}(?![`]))
+  SPAN_CODE: (?:{{SPAN_CODE_ONE}}|{{SPAN_CODE_TWO}}|{{SPAN_CODE_TEXT}})
+  # lookaround: as SPAN_LONG_BRACKET and SPAN_STAR_FREE; a command inside a span's content stops at
+  # its region's end, as CHOICE_START_COMMAND_CHARACTER reads a command in choice
+  # text.
+  SPAN_COMMAND_CHARACTER: (?:(?!{{SPAN_END}})[^\r\n])
+  # lookaround: as SPAN_COMMAND_CHARACTER; a backslash takes the character after it.
+  SPAN_COMMAND_UNIT: (?:[\\]{{SPAN_COMMAND_CHARACTER}}|(?![\\>]){{SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_LONG_BRACKET. TextCommand's end, whose `(?<![-])` keeps an arrow's `>` from
+  # closing the command.
+  SPAN_COMMAND_WALK: (?:{{SPAN_COMMAND_UNIT}}*(?<![-])[>])
+  # lookaround: as SPAN_LONG_BRACKET. TextCommand's end when no `>` but escaped ones follows, where
+  # it gives the last of them back as its end; CHOICE_START_TEXT_COMMAND_ESCAPED_END
+  # reads the same end for a choice.
+  SPAN_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{SPAN_COMMAND_CHARACTER}}|[\\][>]|(?![\\>]){{SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_ESCAPED_UNIT.
+  SPAN_COMMAND_ESCAPED_LATER: (?:(?:[\\](?![>]){{SPAN_COMMAND_CHARACTER}}|(?![\\>]){{SPAN_COMMAND_CHARACTER}})*[\\][>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_UNIT.
+  SPAN_COMMAND_ESCAPED_END: (?:{{SPAN_COMMAND_ESCAPED_UNIT}}*[\\][>](?!{{SPAN_COMMAND_ESCAPED_LATER}}))
+  # lookaround: as SPAN_LONG_BRACKET. TextCommand's begin, which never opens before
+  # whitespace, so the unit reads a command only where TextCommand would.
+  SPAN_COMMAND_TAIL: (?:(?!{{WS}})(?:{{SPAN_COMMAND_WALK}}|{{SPAN_COMMAND_ESCAPED_END}}))
+  # lookaround: as SPAN_LONG_BRACKET. TextCommand takes a command whole; Punctuation takes a `<` that
+  # starts none.
+  SPAN_ANGLE: (?:[<]{{SPAN_COMMAND_TAIL}}|[<](?!{{SPAN_COMMAND_TAIL}}))
+  # lookaround: as SPAN_LONG_BRACKET. ImageCommand ends at the first `]]`; Punctuation takes a `[`
+  # that starts none.
+  SPAN_BRACKET: (?:\[\[{{SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  # lookaround: as SPAN_COMMAND_CHARACTER, for an image command.
+  SPAN_IMAGE_TEXT: (?:(?!{{SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
+  # lookaround: as SPAN_LONG_BRACKET. AudioCommand ends at the first `))`; Punctuation takes a `(`
+  # that starts none.
+  SPAN_PAREN: (?:[(][(]{{SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  # lookaround: as SPAN_COMMAND_CHARACTER, for an audio command, which ends at
+  # its first `))`.
+  SPAN_AUDIO_TEXT: (?:(?!{{SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
+  # lookaround: as SPAN_LONG_BRACKET. AudioCommand ends at the first `))`.
+  SPAN_DOUBLE_PAREN_TEXT: (?:[^)\r\n]|[)](?![)]))
+  # lookaround: as SPAN_LONG_BRACKET. SparkdownBlockCommentOnLine takes a closed comment whole;
+  # Punctuation takes any other `/`, a `//` inside a span included.
+  SPAN_SLASH: (?:{{BLOCK_COMMENT_CLOSED}}|[/](?![*]))
+  # lookaround: as SPAN_LONG_BRACKET. Divert reads an arrow to the line's end, so
+  # an arrow ends the content and a span around it is not read.
+  SPAN_DASH: (?:[-](?![>]))
+  # lookaround: as SPAN_LONG_BRACKET. LuauSparkdownInlineGluedSequentialAlternatorBlock and
+  # LuauSparkdownInlineGluedConditionalAlternatorBlock read their arms past a
+  # span's closer.
+  SPAN_DOT: (?:(?!{{INLINE_GLUED_ALTERNATOR_START}})[.])
+  # lookaround: as SPAN_LONG_BRACKET. Annotation reads a tag to the line's end.
+  SPAN_HASH: (?:(?!{{TAG_START}})[#])
+  SPAN_OTHER_CHARACTER: (?:[^*_\^~:\\{<\[(/\-.#`\r\n])
+  SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{SPAN_CODE}}|{{SPAN_ANGLE}}|{{SPAN_BRACKET}}|{{SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
+  # lookaround: as SPAN_LONG_BRACKET. A span's content stops where SPAN_END ends a line's text, so
+  # each choice region's copy (ChoiceStartItalic and the rest) stops at its
+  # region's end, which its own SPAN_END adds, and never reads past the text
+  # ChoiceStartText, ChoiceOnlyText or ChoiceInnerText holds.
+  SPAN_STAR_FREE: (?:(?!{{SPAN_END}}){{SPAN_STAR_TEXT}})
+  # lookaround: as SPAN_STAR_FREE.
+  SPAN_UNDERSCORE_FREE: (?:(?!{{SPAN_END}}){{SPAN_UNDERSCORE_TEXT}})
+  # lookaround: as SPAN_STAR_FREE.
+  SPAN_CARET_FREE: (?:(?!{{SPAN_END}}){{SPAN_CARET_TEXT}})
+  # lookaround: as SPAN_STAR_FREE.
+  SPAN_TILDE_FREE: (?:(?!{{SPAN_END}}){{SPAN_TILDE_TEXT}})
+  # lookaround: as SPAN_STAR_FREE.
+  SPAN_COLON_FREE: (?:(?!{{SPAN_END}}){{SPAN_COLON_TEXT}})
+  SPAN_STAR_TEXT: (?:{{SPAN_UNIT}}|[_\^~:])
+  SPAN_UNDERSCORE_TEXT: (?:{{SPAN_UNIT}}|[*\^~:])
+  SPAN_CARET_TEXT: (?:{{SPAN_UNIT}}|[*_~:])
+  SPAN_TILDE_TEXT: (?:{{SPAN_UNIT}}|[*_\^:])
+  SPAN_COLON_TEXT: (?:{{SPAN_UNIT}}|[*_\^~])
+  CHOICE_START_STAR_ITALIC_INNER: (?:(?:{{CHOICE_START_SPAN_STAR_FREE}}|{{STAR_ITALIC_TEXT_RUN}})+)
+  CHOICE_START_STAR_BOLD_INNER: (?:(?:{{CHOICE_START_SPAN_STAR_FREE}}|{{STAR_BOLD_TEXT_RUN}})+)
+  CHOICE_START_STAR_NESTED_BOLD: (?:[*][*]{{CHOICE_START_STAR_BOLD_INNER}}{{STAR_CLOSE_BOLD}}[*][*])
+  CHOICE_START_STAR_NESTED_ITALIC: (?:[*]{{CHOICE_START_STAR_ITALIC_INNER}}{{STAR_CLOSE_ITALIC}}[*])
+  # lookaround: as STAR_NESTED, in ChoiceStartText.
+  CHOICE_START_STAR_NESTED: (?:{{STAR_LEFT}}(?!{{STAR_RIGHT}})(?:{{CHOICE_START_STAR_NESTED_BOLD}}|{{CHOICE_START_STAR_NESTED_ITALIC}}))
+  CHOICE_START_STAR_NESTED_OR_TEXT: (?:{{CHOICE_START_STAR_NESTED}}|{{STAR_TEXT}})
+  # lookaround: as STAR_ITALIC_RUN, in ChoiceStartText.
+  CHOICE_START_STAR_ITALIC_RUN: (?:(?!{{STAR_CLOSE_ITALIC}}){{CHOICE_START_STAR_NESTED_OR_TEXT}})
+  # lookaround: as STAR_BOLD_RUN, in ChoiceStartText.
+  CHOICE_START_STAR_BOLD_RUN: (?:(?!{{STAR_CLOSE_BOLD}}){{CHOICE_START_STAR_NESTED_OR_TEXT}})
+  CHOICE_START_STAR_ITALIC_CONTENT: (?:(?:{{CHOICE_START_SPAN_STAR_FREE}}|{{CHOICE_START_STAR_ITALIC_RUN}})+)
+  CHOICE_START_STAR_BOLD_CONTENT: (?:(?:{{CHOICE_START_SPAN_STAR_FREE}}|{{CHOICE_START_STAR_BOLD_RUN}})+)
+  CHOICE_START_UNDERSCORE_INNER: (?:(?:{{CHOICE_START_SPAN_UNDERSCORE_FREE}}|{{UNDERSCORE_SHORTER}}|{{UNDERSCORE_LONG_TEXT}})+)
+  # lookaround: as UNDERSCORE_NESTED, in ChoiceStartText.
+  CHOICE_START_UNDERSCORE_NESTED: (?:{{UNDERSCORE_SAME}}{{UNDERSCORE_OPEN}}(?!{{UNDERSCORE_CLOSE}})\1{{CHOICE_START_UNDERSCORE_INNER}}{{UNDERSCORE_CLOSE}}\1)
+  CHOICE_START_UNDERSCORE_CONTENT: (?:(?:{{CHOICE_START_SPAN_UNDERSCORE_FREE}}|{{UNDERSCORE_SHORTER}}|{{UNDERSCORE_LONG_TEXT}}|{{CHOICE_START_UNDERSCORE_NESTED}})+)
+  CHOICE_START_CARET_INNER: (?:(?:{{CHOICE_START_SPAN_CARET_FREE}}|{{CARET_SHORTER}}|{{CARET_LONG_TEXT}})+)
+  # lookaround: as CARET_NESTED, in ChoiceStartText.
+  CHOICE_START_CARET_NESTED: (?:{{CARET_SAME}}{{CARET_LEFT}}(?!{{CARET_RIGHT}})\1{{CHOICE_START_CARET_INNER}}{{CARET_RIGHT}}\1)
+  CHOICE_START_CARET_CONTENT: (?:(?:{{CHOICE_START_SPAN_CARET_FREE}}|{{CARET_SHORTER}}|{{CARET_LONG_TEXT}}|{{CHOICE_START_CARET_NESTED}})+)
+  CHOICE_START_TILDE_INNER: (?:(?:{{CHOICE_START_SPAN_TILDE_FREE}}|{{TILDE_SHORTER}}|{{TILDE_LONG_TEXT}})+)
+  # lookaround: as TILDE_NESTED, in ChoiceStartText.
+  CHOICE_START_TILDE_NESTED: (?:{{TILDE_SAME}}{{TILDE_LEFT}}(?!{{TILDE_RIGHT}})\1{{CHOICE_START_TILDE_INNER}}{{TILDE_RIGHT}}\1)
+  CHOICE_START_TILDE_CONTENT: (?:(?:{{CHOICE_START_SPAN_TILDE_FREE}}|{{TILDE_SHORTER}}|{{TILDE_LONG_TEXT}}|{{CHOICE_START_TILDE_NESTED}})+)
+  CHOICE_START_COLON_INNER: (?:(?:{{CHOICE_START_SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}})+)
+  # lookaround: as COLON_NESTED, in ChoiceStartText.
+  CHOICE_START_COLON_NESTED: (?:{{COLON_SAME}}{{COLON_LEFT}}(?!{{COLON_RIGHT}})\1{{CHOICE_START_COLON_INNER}}{{COLON_RIGHT}}\1)
+  CHOICE_START_COLON_CONTENT: (?:(?:{{CHOICE_START_SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}}|{{CHOICE_START_COLON_NESTED}})+)
+  # lookaround: as RAW_CHARACTER, in ChoiceStartText.
+  CHOICE_START_RAW_CHARACTER: (?:(?![`]|{{CHOICE_START_SPAN_END}})[^\r\n])
+  CHOICE_START_RAW_CONTENT: (?:(?:{{CHOICE_START_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  # lookaround: as SPAN_CODE_ONE, in ChoiceStartText.
+  CHOICE_START_SPAN_CODE_ONE: (?:[`](?![`])(?:{{CHOICE_START_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  # lookaround: as SPAN_CODE_TWO, in ChoiceStartText.
+  CHOICE_START_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{CHOICE_START_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  # lookaround: as SPAN_CODE_TEXT, in ChoiceStartText.
+  CHOICE_START_SPAN_CODE_TEXT: (?:(?!{{CHOICE_START_SPAN_CODE_ONE}}|{{CHOICE_START_SPAN_CODE_TWO}})[`]{1,2}(?![`]))
+  CHOICE_START_SPAN_CODE: (?:{{CHOICE_START_SPAN_CODE_ONE}}|{{CHOICE_START_SPAN_CODE_TWO}}|{{CHOICE_START_SPAN_CODE_TEXT}})
+  # lookaround: as SPAN_COMMAND_CHARACTER, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_CHARACTER: (?:(?!{{CHOICE_START_SPAN_END}})[^\r\n])
+  # lookaround: as SPAN_COMMAND_UNIT, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_UNIT: (?:[\\]{{CHOICE_START_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_START_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_WALK, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_WALK: (?:{{CHOICE_START_SPAN_COMMAND_UNIT}}*(?<![-])[>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_UNIT, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_START_SPAN_COMMAND_CHARACTER}}|[\\][>]|(?![\\>]){{CHOICE_START_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_ESCAPED_LATER, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_ESCAPED_LATER: (?:(?:[\\](?![>]){{CHOICE_START_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_START_SPAN_COMMAND_CHARACTER}})*[\\][>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_END, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_ESCAPED_END: (?:{{CHOICE_START_SPAN_COMMAND_ESCAPED_UNIT}}*[\\][>](?!{{CHOICE_START_SPAN_COMMAND_ESCAPED_LATER}}))
+  # lookaround: as SPAN_COMMAND_TAIL, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_TAIL: (?:(?!{{WS}})(?:{{CHOICE_START_SPAN_COMMAND_WALK}}|{{CHOICE_START_SPAN_COMMAND_ESCAPED_END}}))
+  # lookaround: as SPAN_ANGLE, in ChoiceStartText.
+  CHOICE_START_SPAN_ANGLE: (?:[<]{{CHOICE_START_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_START_SPAN_COMMAND_TAIL}}))
+  # lookaround: as SPAN_BRACKET, in ChoiceStartText.
+  CHOICE_START_SPAN_BRACKET: (?:\[\[{{CHOICE_START_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  # lookaround: as SPAN_IMAGE_TEXT, in ChoiceStartText.
+  CHOICE_START_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
+  # lookaround: as SPAN_PAREN, in ChoiceStartText.
+  CHOICE_START_SPAN_PAREN: (?:[(][(]{{CHOICE_START_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  # lookaround: as SPAN_AUDIO_TEXT, in ChoiceStartText.
+  CHOICE_START_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
+  CHOICE_START_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{CHOICE_START_SPAN_CODE}}|{{CHOICE_START_SPAN_ANGLE}}|{{CHOICE_START_SPAN_BRACKET}}|{{CHOICE_START_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
+  # lookaround: as SPAN_STAR_FREE, in ChoiceStartText.
+  CHOICE_START_SPAN_STAR_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{CHOICE_START_SPAN_STAR_TEXT}})
+  # lookaround: as SPAN_UNDERSCORE_FREE, in ChoiceStartText.
+  CHOICE_START_SPAN_UNDERSCORE_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{CHOICE_START_SPAN_UNDERSCORE_TEXT}})
+  # lookaround: as SPAN_CARET_FREE, in ChoiceStartText.
+  CHOICE_START_SPAN_CARET_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{CHOICE_START_SPAN_CARET_TEXT}})
+  # lookaround: as SPAN_TILDE_FREE, in ChoiceStartText.
+  CHOICE_START_SPAN_TILDE_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{CHOICE_START_SPAN_TILDE_TEXT}})
+  # lookaround: as SPAN_COLON_FREE, in ChoiceStartText.
+  CHOICE_START_SPAN_COLON_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{CHOICE_START_SPAN_COLON_TEXT}})
+  CHOICE_START_SPAN_STAR_TEXT: (?:{{CHOICE_START_SPAN_UNIT}}|[_\^~:])
+  CHOICE_START_SPAN_UNDERSCORE_TEXT: (?:{{CHOICE_START_SPAN_UNIT}}|[*\^~:])
+  CHOICE_START_SPAN_CARET_TEXT: (?:{{CHOICE_START_SPAN_UNIT}}|[*_~:])
+  CHOICE_START_SPAN_TILDE_TEXT: (?:{{CHOICE_START_SPAN_UNIT}}|[*_\^:])
+  CHOICE_START_SPAN_COLON_TEXT: (?:{{CHOICE_START_SPAN_UNIT}}|[*_\^~])
+  CHOICE_ONLY_STAR_ITALIC_INNER: (?:(?:{{CHOICE_ONLY_SPAN_STAR_FREE}}|{{STAR_ITALIC_TEXT_RUN}})+)
+  CHOICE_ONLY_STAR_BOLD_INNER: (?:(?:{{CHOICE_ONLY_SPAN_STAR_FREE}}|{{STAR_BOLD_TEXT_RUN}})+)
+  CHOICE_ONLY_STAR_NESTED_BOLD: (?:[*][*]{{CHOICE_ONLY_STAR_BOLD_INNER}}{{STAR_CLOSE_BOLD}}[*][*])
+  CHOICE_ONLY_STAR_NESTED_ITALIC: (?:[*]{{CHOICE_ONLY_STAR_ITALIC_INNER}}{{STAR_CLOSE_ITALIC}}[*])
+  # lookaround: as STAR_NESTED, in ChoiceOnlyText.
+  CHOICE_ONLY_STAR_NESTED: (?:{{STAR_LEFT}}(?!{{STAR_RIGHT}})(?:{{CHOICE_ONLY_STAR_NESTED_BOLD}}|{{CHOICE_ONLY_STAR_NESTED_ITALIC}}))
+  CHOICE_ONLY_STAR_NESTED_OR_TEXT: (?:{{CHOICE_ONLY_STAR_NESTED}}|{{STAR_TEXT}})
+  # lookaround: as STAR_ITALIC_RUN, in ChoiceOnlyText.
+  CHOICE_ONLY_STAR_ITALIC_RUN: (?:(?!{{STAR_CLOSE_ITALIC}}){{CHOICE_ONLY_STAR_NESTED_OR_TEXT}})
+  # lookaround: as STAR_BOLD_RUN, in ChoiceOnlyText.
+  CHOICE_ONLY_STAR_BOLD_RUN: (?:(?!{{STAR_CLOSE_BOLD}}){{CHOICE_ONLY_STAR_NESTED_OR_TEXT}})
+  CHOICE_ONLY_STAR_ITALIC_CONTENT: (?:(?:{{CHOICE_ONLY_SPAN_STAR_FREE}}|{{CHOICE_ONLY_STAR_ITALIC_RUN}})+)
+  CHOICE_ONLY_STAR_BOLD_CONTENT: (?:(?:{{CHOICE_ONLY_SPAN_STAR_FREE}}|{{CHOICE_ONLY_STAR_BOLD_RUN}})+)
+  CHOICE_ONLY_UNDERSCORE_INNER: (?:(?:{{CHOICE_ONLY_SPAN_UNDERSCORE_FREE}}|{{UNDERSCORE_SHORTER}}|{{UNDERSCORE_LONG_TEXT}})+)
+  # lookaround: as UNDERSCORE_NESTED, in ChoiceOnlyText.
+  CHOICE_ONLY_UNDERSCORE_NESTED: (?:{{UNDERSCORE_SAME}}{{UNDERSCORE_OPEN}}(?!{{UNDERSCORE_CLOSE}})\1{{CHOICE_ONLY_UNDERSCORE_INNER}}{{UNDERSCORE_CLOSE}}\1)
+  CHOICE_ONLY_UNDERSCORE_CONTENT: (?:(?:{{CHOICE_ONLY_SPAN_UNDERSCORE_FREE}}|{{UNDERSCORE_SHORTER}}|{{UNDERSCORE_LONG_TEXT}}|{{CHOICE_ONLY_UNDERSCORE_NESTED}})+)
+  CHOICE_ONLY_CARET_INNER: (?:(?:{{CHOICE_ONLY_SPAN_CARET_FREE}}|{{CARET_SHORTER}}|{{CARET_LONG_TEXT}})+)
+  # lookaround: as CARET_NESTED, in ChoiceOnlyText.
+  CHOICE_ONLY_CARET_NESTED: (?:{{CARET_SAME}}{{CARET_LEFT}}(?!{{CARET_RIGHT}})\1{{CHOICE_ONLY_CARET_INNER}}{{CARET_RIGHT}}\1)
+  CHOICE_ONLY_CARET_CONTENT: (?:(?:{{CHOICE_ONLY_SPAN_CARET_FREE}}|{{CARET_SHORTER}}|{{CARET_LONG_TEXT}}|{{CHOICE_ONLY_CARET_NESTED}})+)
+  CHOICE_ONLY_TILDE_INNER: (?:(?:{{CHOICE_ONLY_SPAN_TILDE_FREE}}|{{TILDE_SHORTER}}|{{TILDE_LONG_TEXT}})+)
+  # lookaround: as TILDE_NESTED, in ChoiceOnlyText.
+  CHOICE_ONLY_TILDE_NESTED: (?:{{TILDE_SAME}}{{TILDE_LEFT}}(?!{{TILDE_RIGHT}})\1{{CHOICE_ONLY_TILDE_INNER}}{{TILDE_RIGHT}}\1)
+  CHOICE_ONLY_TILDE_CONTENT: (?:(?:{{CHOICE_ONLY_SPAN_TILDE_FREE}}|{{TILDE_SHORTER}}|{{TILDE_LONG_TEXT}}|{{CHOICE_ONLY_TILDE_NESTED}})+)
+  CHOICE_ONLY_COLON_INNER: (?:(?:{{CHOICE_ONLY_SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}})+)
+  # lookaround: as COLON_NESTED, in ChoiceOnlyText.
+  CHOICE_ONLY_COLON_NESTED: (?:{{COLON_SAME}}{{COLON_LEFT}}(?!{{COLON_RIGHT}})\1{{CHOICE_ONLY_COLON_INNER}}{{COLON_RIGHT}}\1)
+  CHOICE_ONLY_COLON_CONTENT: (?:(?:{{CHOICE_ONLY_SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}}|{{CHOICE_ONLY_COLON_NESTED}})+)
+  # lookaround: as RAW_CHARACTER, in ChoiceOnlyText.
+  CHOICE_ONLY_RAW_CHARACTER: (?:(?![`]|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
+  CHOICE_ONLY_RAW_CONTENT: (?:(?:{{CHOICE_ONLY_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  # lookaround: as SPAN_CODE_ONE, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_CODE_ONE: (?:[`](?![`])(?:{{CHOICE_ONLY_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  # lookaround: as SPAN_CODE_TWO, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{CHOICE_ONLY_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  # lookaround: as SPAN_CODE_TEXT, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_CODE_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_CODE_ONE}}|{{CHOICE_ONLY_SPAN_CODE_TWO}})[`]{1,2}(?![`]))
+  CHOICE_ONLY_SPAN_CODE: (?:{{CHOICE_ONLY_SPAN_CODE_ONE}}|{{CHOICE_ONLY_SPAN_CODE_TWO}}|{{CHOICE_ONLY_SPAN_CODE_TEXT}})
+  # lookaround: as SPAN_COMMAND_CHARACTER, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_CHARACTER: (?:(?!{{CHOICE_ONLY_SPAN_END}})[^\r\n])
+  # lookaround: as SPAN_COMMAND_UNIT, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_UNIT: (?:[\\]{{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_WALK, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_WALK: (?:{{CHOICE_ONLY_SPAN_COMMAND_UNIT}}*(?<![-])[>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_UNIT, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}}|[\\][>]|(?![\\>]){{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_ESCAPED_LATER, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_ESCAPED_LATER: (?:(?:[\\](?![>]){{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}})*[\\][>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_END, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_ESCAPED_END: (?:{{CHOICE_ONLY_SPAN_COMMAND_ESCAPED_UNIT}}*[\\][>](?!{{CHOICE_ONLY_SPAN_COMMAND_ESCAPED_LATER}}))
+  # lookaround: as SPAN_COMMAND_TAIL, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_TAIL: (?:(?!{{WS}})(?:{{CHOICE_ONLY_SPAN_COMMAND_WALK}}|{{CHOICE_ONLY_SPAN_COMMAND_ESCAPED_END}}))
+  # lookaround: as SPAN_ANGLE, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_ANGLE: (?:[<]{{CHOICE_ONLY_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_ONLY_SPAN_COMMAND_TAIL}}))
+  # lookaround: as SPAN_BRACKET, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_BRACKET: (?:\[\[{{CHOICE_ONLY_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  # lookaround: as SPAN_IMAGE_TEXT, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
+  # lookaround: as SPAN_PAREN, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_PAREN: (?:[(][(]{{CHOICE_ONLY_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  # lookaround: as SPAN_AUDIO_TEXT, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
+  CHOICE_ONLY_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{CHOICE_ONLY_SPAN_CODE}}|{{CHOICE_ONLY_SPAN_ANGLE}}|{{CHOICE_ONLY_SPAN_BRACKET}}|{{CHOICE_ONLY_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
+  # lookaround: as SPAN_STAR_FREE, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_STAR_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_SPAN_STAR_TEXT}})
+  # lookaround: as SPAN_UNDERSCORE_FREE, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_UNDERSCORE_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_SPAN_UNDERSCORE_TEXT}})
+  # lookaround: as SPAN_CARET_FREE, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_CARET_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_SPAN_CARET_TEXT}})
+  # lookaround: as SPAN_TILDE_FREE, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_TILDE_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_SPAN_TILDE_TEXT}})
+  # lookaround: as SPAN_COLON_FREE, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COLON_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_SPAN_COLON_TEXT}})
+  CHOICE_ONLY_SPAN_STAR_TEXT: (?:{{CHOICE_ONLY_SPAN_UNIT}}|[_\^~:])
+  CHOICE_ONLY_SPAN_UNDERSCORE_TEXT: (?:{{CHOICE_ONLY_SPAN_UNIT}}|[*\^~:])
+  CHOICE_ONLY_SPAN_CARET_TEXT: (?:{{CHOICE_ONLY_SPAN_UNIT}}|[*_~:])
+  CHOICE_ONLY_SPAN_TILDE_TEXT: (?:{{CHOICE_ONLY_SPAN_UNIT}}|[*_\^:])
+  CHOICE_ONLY_SPAN_COLON_TEXT: (?:{{CHOICE_ONLY_SPAN_UNIT}}|[*_\^~])
+  CHOICE_INNER_STAR_ITALIC_INNER: (?:(?:{{CHOICE_INNER_SPAN_STAR_FREE}}|{{STAR_ITALIC_TEXT_RUN}})+)
+  CHOICE_INNER_STAR_BOLD_INNER: (?:(?:{{CHOICE_INNER_SPAN_STAR_FREE}}|{{STAR_BOLD_TEXT_RUN}})+)
+  CHOICE_INNER_STAR_NESTED_BOLD: (?:[*][*]{{CHOICE_INNER_STAR_BOLD_INNER}}{{STAR_CLOSE_BOLD}}[*][*])
+  CHOICE_INNER_STAR_NESTED_ITALIC: (?:[*]{{CHOICE_INNER_STAR_ITALIC_INNER}}{{STAR_CLOSE_ITALIC}}[*])
+  # lookaround: as STAR_NESTED, in ChoiceInnerText.
+  CHOICE_INNER_STAR_NESTED: (?:{{STAR_LEFT}}(?!{{STAR_RIGHT}})(?:{{CHOICE_INNER_STAR_NESTED_BOLD}}|{{CHOICE_INNER_STAR_NESTED_ITALIC}}))
+  CHOICE_INNER_STAR_NESTED_OR_TEXT: (?:{{CHOICE_INNER_STAR_NESTED}}|{{STAR_TEXT}})
+  # lookaround: as STAR_ITALIC_RUN, in ChoiceInnerText.
+  CHOICE_INNER_STAR_ITALIC_RUN: (?:(?!{{STAR_CLOSE_ITALIC}}){{CHOICE_INNER_STAR_NESTED_OR_TEXT}})
+  # lookaround: as STAR_BOLD_RUN, in ChoiceInnerText.
+  CHOICE_INNER_STAR_BOLD_RUN: (?:(?!{{STAR_CLOSE_BOLD}}){{CHOICE_INNER_STAR_NESTED_OR_TEXT}})
+  CHOICE_INNER_STAR_ITALIC_CONTENT: (?:(?:{{CHOICE_INNER_SPAN_STAR_FREE}}|{{CHOICE_INNER_STAR_ITALIC_RUN}})+)
+  CHOICE_INNER_STAR_BOLD_CONTENT: (?:(?:{{CHOICE_INNER_SPAN_STAR_FREE}}|{{CHOICE_INNER_STAR_BOLD_RUN}})+)
+  CHOICE_INNER_UNDERSCORE_INNER: (?:(?:{{CHOICE_INNER_SPAN_UNDERSCORE_FREE}}|{{UNDERSCORE_SHORTER}}|{{UNDERSCORE_LONG_TEXT}})+)
+  # lookaround: as UNDERSCORE_NESTED, in ChoiceInnerText.
+  CHOICE_INNER_UNDERSCORE_NESTED: (?:{{UNDERSCORE_SAME}}{{UNDERSCORE_OPEN}}(?!{{UNDERSCORE_CLOSE}})\1{{CHOICE_INNER_UNDERSCORE_INNER}}{{UNDERSCORE_CLOSE}}\1)
+  CHOICE_INNER_UNDERSCORE_CONTENT: (?:(?:{{CHOICE_INNER_SPAN_UNDERSCORE_FREE}}|{{UNDERSCORE_SHORTER}}|{{UNDERSCORE_LONG_TEXT}}|{{CHOICE_INNER_UNDERSCORE_NESTED}})+)
+  CHOICE_INNER_CARET_INNER: (?:(?:{{CHOICE_INNER_SPAN_CARET_FREE}}|{{CARET_SHORTER}}|{{CARET_LONG_TEXT}})+)
+  # lookaround: as CARET_NESTED, in ChoiceInnerText.
+  CHOICE_INNER_CARET_NESTED: (?:{{CARET_SAME}}{{CARET_LEFT}}(?!{{CARET_RIGHT}})\1{{CHOICE_INNER_CARET_INNER}}{{CARET_RIGHT}}\1)
+  CHOICE_INNER_CARET_CONTENT: (?:(?:{{CHOICE_INNER_SPAN_CARET_FREE}}|{{CARET_SHORTER}}|{{CARET_LONG_TEXT}}|{{CHOICE_INNER_CARET_NESTED}})+)
+  CHOICE_INNER_TILDE_INNER: (?:(?:{{CHOICE_INNER_SPAN_TILDE_FREE}}|{{TILDE_SHORTER}}|{{TILDE_LONG_TEXT}})+)
+  # lookaround: as TILDE_NESTED, in ChoiceInnerText.
+  CHOICE_INNER_TILDE_NESTED: (?:{{TILDE_SAME}}{{TILDE_LEFT}}(?!{{TILDE_RIGHT}})\1{{CHOICE_INNER_TILDE_INNER}}{{TILDE_RIGHT}}\1)
+  CHOICE_INNER_TILDE_CONTENT: (?:(?:{{CHOICE_INNER_SPAN_TILDE_FREE}}|{{TILDE_SHORTER}}|{{TILDE_LONG_TEXT}}|{{CHOICE_INNER_TILDE_NESTED}})+)
+  CHOICE_INNER_COLON_INNER: (?:(?:{{CHOICE_INNER_SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}})+)
+  # lookaround: as COLON_NESTED, in ChoiceInnerText.
+  CHOICE_INNER_COLON_NESTED: (?:{{COLON_SAME}}{{COLON_LEFT}}(?!{{COLON_RIGHT}})\1{{CHOICE_INNER_COLON_INNER}}{{COLON_RIGHT}}\1)
+  CHOICE_INNER_COLON_CONTENT: (?:(?:{{CHOICE_INNER_SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}}|{{CHOICE_INNER_COLON_NESTED}})+)
+  # lookaround: as RAW_CHARACTER, in ChoiceInnerText.
+  CHOICE_INNER_RAW_CHARACTER: (?:(?![`]|{{CHOICE_INNER_SPAN_END}})[^\r\n])
+  CHOICE_INNER_RAW_CONTENT: (?:(?:{{CHOICE_INNER_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  # lookaround: as SPAN_CODE_ONE, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_CODE_ONE: (?:[`](?![`])(?:{{CHOICE_INNER_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  # lookaround: as SPAN_CODE_TWO, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{CHOICE_INNER_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  # lookaround: as SPAN_CODE_TEXT, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_CODE_TEXT: (?:(?!{{CHOICE_INNER_SPAN_CODE_ONE}}|{{CHOICE_INNER_SPAN_CODE_TWO}})[`]{1,2}(?![`]))
+  CHOICE_INNER_SPAN_CODE: (?:{{CHOICE_INNER_SPAN_CODE_ONE}}|{{CHOICE_INNER_SPAN_CODE_TWO}}|{{CHOICE_INNER_SPAN_CODE_TEXT}})
+  # lookaround: as SPAN_COMMAND_CHARACTER, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_CHARACTER: (?:(?!{{CHOICE_INNER_SPAN_END}})[^\r\n])
+  # lookaround: as SPAN_COMMAND_UNIT, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_UNIT: (?:[\\]{{CHOICE_INNER_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_INNER_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_WALK, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_WALK: (?:{{CHOICE_INNER_SPAN_COMMAND_UNIT}}*(?<![-])[>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_UNIT, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_INNER_SPAN_COMMAND_CHARACTER}}|[\\][>]|(?![\\>]){{CHOICE_INNER_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_ESCAPED_LATER, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_ESCAPED_LATER: (?:(?:[\\](?![>]){{CHOICE_INNER_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_INNER_SPAN_COMMAND_CHARACTER}})*[\\][>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_END, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_ESCAPED_END: (?:{{CHOICE_INNER_SPAN_COMMAND_ESCAPED_UNIT}}*[\\][>](?!{{CHOICE_INNER_SPAN_COMMAND_ESCAPED_LATER}}))
+  # lookaround: as SPAN_COMMAND_TAIL, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_TAIL: (?:(?!{{WS}})(?:{{CHOICE_INNER_SPAN_COMMAND_WALK}}|{{CHOICE_INNER_SPAN_COMMAND_ESCAPED_END}}))
+  # lookaround: as SPAN_ANGLE, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_ANGLE: (?:[<]{{CHOICE_INNER_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_INNER_SPAN_COMMAND_TAIL}}))
+  # lookaround: as SPAN_BRACKET, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_BRACKET: (?:\[\[{{CHOICE_INNER_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  # lookaround: as SPAN_IMAGE_TEXT, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
+  # lookaround: as SPAN_PAREN, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_PAREN: (?:[(][(]{{CHOICE_INNER_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  # lookaround: as SPAN_AUDIO_TEXT, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
+  CHOICE_INNER_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{CHOICE_INNER_SPAN_CODE}}|{{CHOICE_INNER_SPAN_ANGLE}}|{{CHOICE_INNER_SPAN_BRACKET}}|{{CHOICE_INNER_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
+  # lookaround: as SPAN_STAR_FREE, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_STAR_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_SPAN_STAR_TEXT}})
+  # lookaround: as SPAN_UNDERSCORE_FREE, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_UNDERSCORE_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_SPAN_UNDERSCORE_TEXT}})
+  # lookaround: as SPAN_CARET_FREE, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_CARET_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_SPAN_CARET_TEXT}})
+  # lookaround: as SPAN_TILDE_FREE, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_TILDE_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_SPAN_TILDE_TEXT}})
+  # lookaround: as SPAN_COLON_FREE, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COLON_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_SPAN_COLON_TEXT}})
+  CHOICE_INNER_SPAN_STAR_TEXT: (?:{{CHOICE_INNER_SPAN_UNIT}}|[_\^~:])
+  CHOICE_INNER_SPAN_UNDERSCORE_TEXT: (?:{{CHOICE_INNER_SPAN_UNIT}}|[*\^~:])
+  CHOICE_INNER_SPAN_CARET_TEXT: (?:{{CHOICE_INNER_SPAN_UNIT}}|[*_~:])
+  CHOICE_INNER_SPAN_TILDE_TEXT: (?:{{CHOICE_INNER_SPAN_UNIT}}|[*_\^:])
+  CHOICE_INNER_SPAN_COLON_TEXT: (?:{{CHOICE_INNER_SPAN_UNIT}}|[*_\^~])
   # lookaround: LuauInterpolatedStringExpression reads a `{` as a unit
   # (ChoiceTextUnit) only where CHOICE_PLAIN_INTERPOLATION cannot keep it in the
   # text segment.
@@ -407,16 +996,6 @@ variables:
   # (CHOICE_START_SPAN_END), which ChoiceStartSpanText must leave to them, as Italic's
   # end and Glue see them in DisplayText.
   CHOICE_START_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_START_SPAN_END}}){{CHOICE_START_TEXT_PIECE}})
-  # lookaround: ChoiceStartRaw's end, which a run of raw text must leave to it as
-  # Raw's PlainText does one character at a time; a run started earlier cannot
-  # be interrupted by order. Everything else, braces and comment openers
-  # included, is the raw span's literal text, as in display text.
-  CHOICE_START_RAW_CHARACTER: (?:(?![`]|{{CHOICE_START_SPAN_END}})[^\r\n])
-  # lookaround: ChoiceStartItalic and ChoiceStartBoldItalic's end, both opened or
-  # closed by a star, which a run of text must leave to them; a run started
-  # earlier cannot be interrupted by order. BoldItalic reads nothing else, so
-  # a brace or a comment opener outside its italic is text, as in display text.
-  CHOICE_START_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_START_SPAN_END}})[^\r\n])
   CHOICE_START_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_START_TEXT_END}})
   # lookaround: Tag reads a tag to ChoiceStartText's end, as in main's choice
   # capture, so an interpolation and a comment opener inside a tag are the tag's
@@ -526,16 +1105,6 @@ variables:
   # (CHOICE_ONLY_SPAN_END), which ChoiceOnlySpanText must leave to them, as Italic's
   # end and Glue see them in DisplayText.
   CHOICE_ONLY_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_TEXT_PIECE}})
-  # lookaround: ChoiceOnlyRaw's end, which a run of raw text must leave to it as
-  # Raw's PlainText does one character at a time; a run started earlier cannot
-  # be interrupted by order. Everything else, braces and comment openers
-  # included, is the raw span's literal text, as in display text.
-  CHOICE_ONLY_RAW_CHARACTER: (?:(?![`]|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
-  # lookaround: ChoiceOnlyItalic and ChoiceOnlyBoldItalic's end, both opened or
-  # closed by a star, which a run of text must leave to them; a run started
-  # earlier cannot be interrupted by order. BoldItalic reads nothing else, so
-  # a brace or a comment opener outside its italic is text, as in display text.
-  CHOICE_ONLY_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
   CHOICE_ONLY_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_ONLY_TEXT_END}})
   # lookaround: Tag reads a tag to ChoiceOnlyText's end, as in main's choice
   # capture, so an interpolation and a comment opener inside a tag are the tag's
@@ -645,16 +1214,6 @@ variables:
   # (CHOICE_INNER_SPAN_END), which ChoiceInnerSpanText must leave to them, as Italic's
   # end and Glue see them in DisplayText.
   CHOICE_INNER_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_TEXT_PIECE}})
-  # lookaround: ChoiceInnerRaw's end, which a run of raw text must leave to it as
-  # Raw's PlainText does one character at a time; a run started earlier cannot
-  # be interrupted by order. Everything else, braces and comment openers
-  # included, is the raw span's literal text, as in display text.
-  CHOICE_INNER_RAW_CHARACTER: (?:(?![`]|{{CHOICE_INNER_SPAN_END}})[^\r\n])
-  # lookaround: ChoiceInnerItalic and ChoiceInnerBoldItalic's end, both opened or
-  # closed by a star, which a run of text must leave to them; a run started
-  # earlier cannot be interrupted by order. BoldItalic reads nothing else, so
-  # a brace or a comment opener outside its italic is text, as in display text.
-  CHOICE_INNER_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_INNER_SPAN_END}})[^\r\n])
   CHOICE_INNER_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_INNER_TEXT_END}})
   # lookaround: Tag reads a tag to ChoiceInnerText's end, as in main's choice
   # capture, so an interpolation and a comment opener inside a tag are the tag's
@@ -1299,6 +1858,7 @@ repository:
       - { include: "#ChoiceTextUnit" }
       - { include: "#ChoiceTextDots" }
       - { include: "#ChoiceStartSpans" }
+      - { include: "#ChoiceSpanMarkText" }
     end: (?={{CHOICE_START_TEXT_END}})
 
   ChoiceSuppression:
@@ -1329,6 +1889,7 @@ repository:
       - { include: "#ChoiceTextUnit" }
       - { include: "#ChoiceTextDots" }
       - { include: "#ChoiceOnlySpans" }
+      - { include: "#ChoiceSpanMarkText" }
     end: (?={{CHOICE_ONLY_TEXT_END}})
 
   ChoiceInnerText:
@@ -1342,6 +1903,7 @@ repository:
       - { include: "#ChoiceTextUnit" }
       - { include: "#ChoiceTextDots" }
       - { include: "#ChoiceInnerSpans" }
+      - { include: "#ChoiceSpanMarkText" }
     end: (?={{CHOICE_INNER_TEXT_END}})
 
   ChoiceTextUnit:
@@ -1381,11 +1943,15 @@ repository:
         patterns:
           - { include: "#PlainText" }
 
+  ChoiceSpanMarkText:
+    tag: content
+    name: markup.raw.punctuation.sd
+    match: ({{CHOICE_SPAN_MARK}})
+
   ChoiceStartSpans:
     patterns:
       - { include: "#ChoiceStartRaw" }
       - { include: "#ChoiceStartUnderline" }
-      - { include: "#ChoiceStartBoldItalic" }
       - { include: "#ChoiceStartBold" }
       - { include: "#ChoiceStartItalic" }
       - { include: "#ChoiceStartCentered" }
@@ -1394,10 +1960,12 @@ repository:
 
   ChoiceStartSpanContent:
     patterns:
+      - { include: "#SpanEndDots" }
       - { include: "#ChoiceStartSpanText" }
       - { include: "#ChoiceTextUnit" }
       - { include: "#ChoiceTextDots" }
       - { include: "#ChoiceStartSpans" }
+      - { include: "#ChoiceSpanMarkText" }
 
   ChoiceStartSpanText:
     match: ({{CHOICE_START_SPAN_CHARACTER}}+)
@@ -1408,163 +1976,122 @@ repository:
 
   ChoiceStartRawContent:
     patterns:
-      - { include: "#ChoiceStartRawText" }
+      - { include: "#PlainText" }
 
-  ChoiceStartRawText:
-    match: ({{CHOICE_START_RAW_CHARACTER}}+)
-    captures:
-      1:
-        patterns:
-          - { include: "#PlainText" }
-
-  ChoiceStartBoldItalicContent:
-    patterns:
-      - { include: "#ChoiceStartBoldItalicText" }
-      - { include: "#ChoiceStartItalic" }
-
-  ChoiceStartBoldItalicText:
-    match: ({{CHOICE_START_BOLD_ITALIC_CHARACTER}}+)
-
+  # lookaround: as Raw's, in ChoiceStartText.
   ChoiceStartRaw:
     tag: content
     name: markup.raw.text.sd
-    begin: ([`]+)
-    beginCaptures:
+    match: (?<![`])([`]+)(?![`])({{CHOICE_START_RAW_CONTENT}})(\1)(?![`])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceStartRawContent" }
-    end: (\1)|(?={{CHOICE_START_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceStartRawContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
-  # lookaround: BoldItalic's begin, which this copies for ChoiceStartText. It takes two
-  # stars and leaves the third to the nested ChoiceStartItalic, so it cannot consume
-  # the third; only the lookahead tells `***` from `**`, which ChoiceStartBold, tried
-  # after it in ChoiceStartSpans, takes.
-  ChoiceStartBoldItalic:
-    tag: strong
-    name: markup.other.bold.sd
-    begin: ([*][*])(?=[*])
-    beginCaptures:
+  # lookaround: as Underline's, in ChoiceStartText.
+  ChoiceStartUnderline:
+    tag: link
+    name: markup.other.underline.sd
+    match: ({{UNDERSCORE_OPEN}}[_]+)(?![_])({{CHOICE_START_UNDERSCORE_CONTENT}})({{UNDERSCORE_CLOSE}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceStartBoldItalicContent" }
-    end: (\1)|(?={{CHOICE_START_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceStartSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
   ChoiceStartBold:
     tag: strong
     name: markup.other.bold.sd
-    begin: ([*][*])
-    beginCaptures:
+    match: ({{STAR_LEFT}}[*][*])({{CHOICE_START_STAR_BOLD_CONTENT}})({{STAR_CLOSE_BOLD}}[*][*])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceStartSpanContent" }
-    end: (\1)|(?={{CHOICE_START_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceStartSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
-  # lookaround: Italic's begin, which this copies for ChoiceStartText. ChoiceStartBoldItalicContent
-  # lists ChoiceStartItalic without ChoiceStartBold, so no order there leaves a `**` to a
-  # bold span; the lookahead keeps an italic from opening on its first star.
   ChoiceStartItalic:
     tag: emphasis
     name: markup.other.italic.sd
-    begin: ([*])(?![*])
-    beginCaptures:
+    match: ({{STAR_LEFT}}[*])({{CHOICE_START_STAR_ITALIC_CONTENT}})({{STAR_CLOSE_ITALIC}}[*])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceStartSpanContent" }
-    end: (\1)|(?={{CHOICE_START_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceStartSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
-  ChoiceStartUnderline:
-    tag: link
-    name: markup.other.underline.sd
-    begin: ([_]+)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceStartSpanContent" }
-    end: (\1)|(?={{CHOICE_START_SPAN_END}})
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#StylingMark" }
-
+  # lookaround: as Centered's, in ChoiceStartText.
   ChoiceStartCentered:
     tag: monospace
     name: constant.character.escape.centered.sd
-    begin: ([\^]+)
-    beginCaptures:
+    match: ({{CARET_LEFT}}[\^]+)(?![\^])({{CHOICE_START_CARET_CONTENT}})({{CARET_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceStartSpanContent" }
-    end: (\1)|(?={{CHOICE_START_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceStartSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
+  # lookaround: as EmphasisTilde's, in ChoiceStartText.
   ChoiceStartEmphasisTilde:
     tag: quote
     name: markup.emphasis.tilde.sd
-    begin: ([~][~]+)
-    beginCaptures:
+    match: ({{TILDE_LEFT}}[~][~]+)(?![~])({{CHOICE_START_TILDE_CONTENT}})({{TILDE_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceStartSpanContent" }
-    end: (\1)|(?={{CHOICE_START_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceStartSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
+  # lookaround: as EmphasisColon's, in ChoiceStartText.
   ChoiceStartEmphasisColon:
     tag: quote
     name: markup.emphasis.colon.sd
-    begin: ([:][:]+)
-    beginCaptures:
+    match: ({{COLON_LEFT}}[:][:]+)(?![:])({{CHOICE_START_COLON_CONTENT}})({{COLON_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceStartSpanContent" }
-    end: (\1)|(?={{CHOICE_START_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceStartSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
   ChoiceOnlySpans:
     patterns:
       - { include: "#ChoiceOnlyRaw" }
       - { include: "#ChoiceOnlyUnderline" }
-      - { include: "#ChoiceOnlyBoldItalic" }
       - { include: "#ChoiceOnlyBold" }
       - { include: "#ChoiceOnlyItalic" }
       - { include: "#ChoiceOnlyCentered" }
@@ -1573,10 +2100,12 @@ repository:
 
   ChoiceOnlySpanContent:
     patterns:
+      - { include: "#SpanEndDots" }
       - { include: "#ChoiceOnlySpanText" }
       - { include: "#ChoiceTextUnit" }
       - { include: "#ChoiceTextDots" }
       - { include: "#ChoiceOnlySpans" }
+      - { include: "#ChoiceSpanMarkText" }
 
   ChoiceOnlySpanText:
     match: ({{CHOICE_ONLY_SPAN_CHARACTER}}+)
@@ -1587,163 +2116,122 @@ repository:
 
   ChoiceOnlyRawContent:
     patterns:
-      - { include: "#ChoiceOnlyRawText" }
+      - { include: "#PlainText" }
 
-  ChoiceOnlyRawText:
-    match: ({{CHOICE_ONLY_RAW_CHARACTER}}+)
-    captures:
-      1:
-        patterns:
-          - { include: "#PlainText" }
-
-  ChoiceOnlyBoldItalicContent:
-    patterns:
-      - { include: "#ChoiceOnlyBoldItalicText" }
-      - { include: "#ChoiceOnlyItalic" }
-
-  ChoiceOnlyBoldItalicText:
-    match: ({{CHOICE_ONLY_BOLD_ITALIC_CHARACTER}}+)
-
+  # lookaround: as Raw's, in ChoiceOnlyText.
   ChoiceOnlyRaw:
     tag: content
     name: markup.raw.text.sd
-    begin: ([`]+)
-    beginCaptures:
+    match: (?<![`])([`]+)(?![`])({{CHOICE_ONLY_RAW_CONTENT}})(\1)(?![`])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceOnlyRawContent" }
-    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceOnlyRawContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
-  # lookaround: BoldItalic's begin, which this copies for ChoiceOnlyText. It takes two
-  # stars and leaves the third to the nested ChoiceOnlyItalic, so it cannot consume
-  # the third; only the lookahead tells `***` from `**`, which ChoiceOnlyBold, tried
-  # after it in ChoiceOnlySpans, takes.
-  ChoiceOnlyBoldItalic:
-    tag: strong
-    name: markup.other.bold.sd
-    begin: ([*][*])(?=[*])
-    beginCaptures:
+  # lookaround: as Underline's, in ChoiceOnlyText.
+  ChoiceOnlyUnderline:
+    tag: link
+    name: markup.other.underline.sd
+    match: ({{UNDERSCORE_OPEN}}[_]+)(?![_])({{CHOICE_ONLY_UNDERSCORE_CONTENT}})({{UNDERSCORE_CLOSE}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceOnlyBoldItalicContent" }
-    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceOnlySpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
   ChoiceOnlyBold:
     tag: strong
     name: markup.other.bold.sd
-    begin: ([*][*])
-    beginCaptures:
+    match: ({{STAR_LEFT}}[*][*])({{CHOICE_ONLY_STAR_BOLD_CONTENT}})({{STAR_CLOSE_BOLD}}[*][*])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceOnlySpanContent" }
-    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceOnlySpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
-  # lookaround: Italic's begin, which this copies for ChoiceOnlyText. ChoiceOnlyBoldItalicContent
-  # lists ChoiceOnlyItalic without ChoiceOnlyBold, so no order there leaves a `**` to a
-  # bold span; the lookahead keeps an italic from opening on its first star.
   ChoiceOnlyItalic:
     tag: emphasis
     name: markup.other.italic.sd
-    begin: ([*])(?![*])
-    beginCaptures:
+    match: ({{STAR_LEFT}}[*])({{CHOICE_ONLY_STAR_ITALIC_CONTENT}})({{STAR_CLOSE_ITALIC}}[*])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceOnlySpanContent" }
-    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceOnlySpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
-  ChoiceOnlyUnderline:
-    tag: link
-    name: markup.other.underline.sd
-    begin: ([_]+)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceOnlySpanContent" }
-    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#StylingMark" }
-
+  # lookaround: as Centered's, in ChoiceOnlyText.
   ChoiceOnlyCentered:
     tag: monospace
     name: constant.character.escape.centered.sd
-    begin: ([\^]+)
-    beginCaptures:
+    match: ({{CARET_LEFT}}[\^]+)(?![\^])({{CHOICE_ONLY_CARET_CONTENT}})({{CARET_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceOnlySpanContent" }
-    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceOnlySpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
+  # lookaround: as EmphasisTilde's, in ChoiceOnlyText.
   ChoiceOnlyEmphasisTilde:
     tag: quote
     name: markup.emphasis.tilde.sd
-    begin: ([~][~]+)
-    beginCaptures:
+    match: ({{TILDE_LEFT}}[~][~]+)(?![~])({{CHOICE_ONLY_TILDE_CONTENT}})({{TILDE_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceOnlySpanContent" }
-    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceOnlySpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
+  # lookaround: as EmphasisColon's, in ChoiceOnlyText.
   ChoiceOnlyEmphasisColon:
     tag: quote
     name: markup.emphasis.colon.sd
-    begin: ([:][:]+)
-    beginCaptures:
+    match: ({{COLON_LEFT}}[:][:]+)(?![:])({{CHOICE_ONLY_COLON_CONTENT}})({{COLON_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceOnlySpanContent" }
-    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceOnlySpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
   ChoiceInnerSpans:
     patterns:
       - { include: "#ChoiceInnerRaw" }
       - { include: "#ChoiceInnerUnderline" }
-      - { include: "#ChoiceInnerBoldItalic" }
       - { include: "#ChoiceInnerBold" }
       - { include: "#ChoiceInnerItalic" }
       - { include: "#ChoiceInnerCentered" }
@@ -1752,10 +2240,12 @@ repository:
 
   ChoiceInnerSpanContent:
     patterns:
+      - { include: "#SpanEndDots" }
       - { include: "#ChoiceInnerSpanText" }
       - { include: "#ChoiceTextUnit" }
       - { include: "#ChoiceTextDots" }
       - { include: "#ChoiceInnerSpans" }
+      - { include: "#ChoiceSpanMarkText" }
 
   ChoiceInnerSpanText:
     match: ({{CHOICE_INNER_SPAN_CHARACTER}}+)
@@ -1766,157 +2256,117 @@ repository:
 
   ChoiceInnerRawContent:
     patterns:
-      - { include: "#ChoiceInnerRawText" }
+      - { include: "#PlainText" }
 
-  ChoiceInnerRawText:
-    match: ({{CHOICE_INNER_RAW_CHARACTER}}+)
-    captures:
-      1:
-        patterns:
-          - { include: "#PlainText" }
-
-  ChoiceInnerBoldItalicContent:
-    patterns:
-      - { include: "#ChoiceInnerBoldItalicText" }
-      - { include: "#ChoiceInnerItalic" }
-
-  ChoiceInnerBoldItalicText:
-    match: ({{CHOICE_INNER_BOLD_ITALIC_CHARACTER}}+)
-
+  # lookaround: as Raw's, in ChoiceInnerText.
   ChoiceInnerRaw:
     tag: content
     name: markup.raw.text.sd
-    begin: ([`]+)
-    beginCaptures:
+    match: (?<![`])([`]+)(?![`])({{CHOICE_INNER_RAW_CONTENT}})(\1)(?![`])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceInnerRawContent" }
-    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceInnerRawContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
-  # lookaround: BoldItalic's begin, which this copies for ChoiceInnerText. It takes two
-  # stars and leaves the third to the nested ChoiceInnerItalic, so it cannot consume
-  # the third; only the lookahead tells `***` from `**`, which ChoiceInnerBold, tried
-  # after it in ChoiceInnerSpans, takes.
-  ChoiceInnerBoldItalic:
-    tag: strong
-    name: markup.other.bold.sd
-    begin: ([*][*])(?=[*])
-    beginCaptures:
+  # lookaround: as Underline's, in ChoiceInnerText.
+  ChoiceInnerUnderline:
+    tag: link
+    name: markup.other.underline.sd
+    match: ({{UNDERSCORE_OPEN}}[_]+)(?![_])({{CHOICE_INNER_UNDERSCORE_CONTENT}})({{UNDERSCORE_CLOSE}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceInnerBoldItalicContent" }
-    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceInnerSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
   ChoiceInnerBold:
     tag: strong
     name: markup.other.bold.sd
-    begin: ([*][*])
-    beginCaptures:
+    match: ({{STAR_LEFT}}[*][*])({{CHOICE_INNER_STAR_BOLD_CONTENT}})({{STAR_CLOSE_BOLD}}[*][*])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceInnerSpanContent" }
-    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceInnerSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
-  # lookaround: Italic's begin, which this copies for ChoiceInnerText. ChoiceInnerBoldItalicContent
-  # lists ChoiceInnerItalic without ChoiceInnerBold, so no order there leaves a `**` to a
-  # bold span; the lookahead keeps an italic from opening on its first star.
   ChoiceInnerItalic:
     tag: emphasis
     name: markup.other.italic.sd
-    begin: ([*])(?![*])
-    beginCaptures:
+    match: ({{STAR_LEFT}}[*])({{CHOICE_INNER_STAR_ITALIC_CONTENT}})({{STAR_CLOSE_ITALIC}}[*])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceInnerSpanContent" }
-    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceInnerSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
-  ChoiceInnerUnderline:
-    tag: link
-    name: markup.other.underline.sd
-    begin: ([_]+)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceInnerSpanContent" }
-    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#StylingMark" }
-
+  # lookaround: as Centered's, in ChoiceInnerText.
   ChoiceInnerCentered:
     tag: monospace
     name: constant.character.escape.centered.sd
-    begin: ([\^]+)
-    beginCaptures:
+    match: ({{CARET_LEFT}}[\^]+)(?![\^])({{CHOICE_INNER_CARET_CONTENT}})({{CARET_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceInnerSpanContent" }
-    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceInnerSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
+  # lookaround: as EmphasisTilde's, in ChoiceInnerText.
   ChoiceInnerEmphasisTilde:
     tag: quote
     name: markup.emphasis.tilde.sd
-    begin: ([~][~]+)
-    beginCaptures:
+    match: ({{TILDE_LEFT}}[~][~]+)(?![~])({{CHOICE_INNER_TILDE_CONTENT}})({{TILDE_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceInnerSpanContent" }
-    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceInnerSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
+  # lookaround: as EmphasisColon's, in ChoiceInnerText.
   ChoiceInnerEmphasisColon:
     tag: quote
     name: markup.emphasis.colon.sd
-    begin: ([:][:]+)
-    beginCaptures:
+    match: ({{COLON_LEFT}}[:][:]+)(?![:])({{CHOICE_INNER_COLON_CONTENT}})({{COLON_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#ChoiceInnerSpanContent" }
-    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#ChoiceInnerSpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
   # lookaround: Divert's begin would take the whitespace before a choice's arrow
   # as OptionalWhitespace; RequiredWhitespace keeps main's scope for it, and the
@@ -3459,7 +3909,7 @@ repository:
           - { include: "#AssetCommandContent" }
 
   AssetCommandContent:
-    match: (.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)
+    match: ({{ASSET_CONTROL_AND_TARGET}}?.*?)($|{{ASSET_CLAUSES_START}}.*)
     captures:
       1:
         patterns:
@@ -3469,10 +3919,34 @@ repository:
         patterns:
           - { include: "#Annotation" }
           - { include: "#RequiredWhitespace" }
+          - { include: "#AssetCommandValueClause" }
           - { include: "#AssetCommandClauseKeyword" }
           - { include: "#TimeValue" }
           - { include: "#NumberValue" }
           - { include: "#NameValue" }
+
+  AssetCommandValueClause:
+    match: ({{ASSET_VALUE_CLAUSE_KEYWORDS}})({{WS}}+)({{ASSET_WORD}})
+    captures:
+      1:
+        patterns:
+          - { include: "#AssetCommandClauseKeyword" }
+      2:
+        patterns:
+          - { include: "#RequiredWhitespace" }
+      3:
+        patterns:
+          - { include: "#AssetCommandClauseValue" }
+
+  AssetCommandClauseValue:
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#TimeValue" }
+          - { include: "#NumberValue" }
+          - { include: "#NameValue" }
+          - { include: "#IllegalChar" }
 
   AssetCommandInstruction:
     match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LAYOUT_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
@@ -3722,162 +4196,156 @@ repository:
       - { include: "#Glue" }
       - { include: "#TextCommand" }
       - { include: "#Underline" }
-      - { include: "#BoldItalic" }
       - { include: "#Bold" }
       - { include: "#Italic" }
       - { include: "#Centered" }
 
-  StylingMark:
+  SpanOpenMark:
     captures:
       1:
         tag: definition(content)
         name: markup.raw.text.sd
 
+  SpanCloseMark:
+    captures:
+      1:
+        tag: definition(content)
+        name: markup.raw.text.sd
+
+  # lookaround: a backtick run opens Raw only where the next run of its length
+  # closes it; Punctuation takes it otherwise.
   Raw:
     tag: content
     name: markup.raw.text.sd
-    begin: ([`]+)
-    beginCaptures:
+    match: (?<![`])([`]+)(?![`])({{RAW_CONTENT}})(\1)(?![`])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#RawContent" }
-    end: (\1)|(?={{SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
-
-  BoldItalic:
-    tag: strong
-    name: markup.other.bold.sd
-    begin: ([*][*])(?=[*])
-    beginCaptures:
-      1:
+          - { include: "#RawContent" }
+      3:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#BoldItalicContent" }
-    end: (\1)|(?={{SPAN_END}})
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#StylingMark" }
+          - { include: "#SpanCloseMark" }
 
   Bold:
     tag: strong
     name: markup.other.bold.sd
-    begin: ([*][*])
-    beginCaptures:
+    match: ({{STAR_LEFT}}[*][*])({{STAR_BOLD_CONTENT}})({{STAR_CLOSE_BOLD}}[*][*])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#SpanContent" }
-    end: (\1)|(?={{SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#SpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
   Italic:
     tag: emphasis
     name: markup.other.italic.sd
-    begin: ([*])(?![*])
-    beginCaptures:
+    match: ({{STAR_LEFT}}[*])({{STAR_ITALIC_CONTENT}})({{STAR_CLOSE_ITALIC}}[*])
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#SpanContent" }
-    end: (\1)|(?={{SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#SpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
+  # lookaround: as UNDERSCORE_SHORTER; the opener takes the rest of its run.
   Underline:
     tag: link
     name: markup.other.underline.sd
-    begin: ([_]+)
-    beginCaptures:
+    match: ({{UNDERSCORE_OPEN}}[_]+)(?![_])({{UNDERSCORE_CONTENT}})({{UNDERSCORE_CLOSE}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#SpanContent" }
-    end: (\1)|(?={{SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#SpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
+  # lookaround: as CARET_SHORTER; the opener takes the rest of its run.
   Centered:
     tag: monospace
     name: constant.character.escape.centered.sd
-    begin: ([\^]+)
-    beginCaptures:
+    match: ({{CARET_LEFT}}[\^]+)(?![\^])({{CARET_CONTENT}})({{CARET_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#SpanContent" }
-    end: (\1)|(?={{SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#SpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
   Emphasis:
     patterns:
       - { include: "#EmphasisTilde" }
       - { include: "#EmphasisColon" }
 
+  # lookaround: as TILDE_SHORTER; the opener takes the rest of its run.
   EmphasisTilde:
     tag: quote
     name: markup.emphasis.tilde.sd
-    begin: ([~][~]+)
-    beginCaptures:
+    match: ({{TILDE_LEFT}}[~][~]+)(?![~])({{TILDE_CONTENT}})({{TILDE_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#SpanContent" }
-    end: (\1)|(?={{SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#SpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
+  # lookaround: as COLON_SHORTER; the opener takes the rest of its run.
   EmphasisColon:
     tag: quote
     name: markup.emphasis.colon.sd
-    begin: ([:][:]+)
-    beginCaptures:
+    match: ({{COLON_LEFT}}[:][:]+)(?![:])({{COLON_CONTENT}})({{COLON_RIGHT}}\1)
+    captures:
       1:
         patterns:
-          - { include: "#StylingMark" }
-    patterns:
-      - { include: "#SpanContent" }
-    end: (\1)|(?={{SPAN_END}})
-    endCaptures:
-      1:
+          - { include: "#SpanOpenMark" }
+      2:
         patterns:
-          - { include: "#StylingMark" }
+          - { include: "#SpanContent" }
+      3:
+        patterns:
+          - { include: "#SpanCloseMark" }
 
   SpanContent:
     patterns:
+      - { include: "#SpanEndDots" }
       - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
+
+  # lookaround: Glue reads `..` at a line's end, which a span's content
+  # capture ends like a line; the dots before the span's closer are its text.
+  SpanEndDots:
+    match: ((?<![.])[.][.]$)
+    captures:
+      1:
+        patterns:
+          - { include: "#PlainText" }
 
   RawContent:
     patterns:
       - { include: "#PlainText" }
-
-  BoldItalicContent:
-    patterns:
-      - { include: "#Italic" }
 
   PlainText:
     patterns:

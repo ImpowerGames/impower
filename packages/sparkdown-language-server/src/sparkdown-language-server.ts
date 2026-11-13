@@ -393,9 +393,9 @@ try {
 
   connection.onRequest(
     "sparkdown/fileReferences",
-    (params: { uri: string }) => {
+    async (params: { uri: string }) => {
       const mainUri = workspace.getMainScriptUri(params.uri);
-      const program = workspace.program(mainUri ?? params.uri);
+      const program = await workspace.currentProgram(mainUri ?? params.uri);
       return getFileReferences(workspace, program, params.uri)?.references ?? [];
     },
   );
@@ -406,7 +406,7 @@ try {
       if (!mainUri) {
         return null;
       }
-      const program = workspace.program(mainUri) || (await workspace.compile(mainUri, false));
+      const program = await workspace.currentProgram(mainUri);
       return getAssetUsage(workspace, program, mainUri);
     },
   );
@@ -417,7 +417,7 @@ try {
       if (!mainUri) {
         return null;
       }
-      const program = workspace.program(mainUri) || (await workspace.compile(mainUri, false));
+      const program = await workspace.currentProgram(mainUri);
       return getVariantPicture(program?.context, params.variant, { ...imageCompositeOptions, size: params.size });
     },
   );
@@ -428,11 +428,11 @@ try {
   );
   connection.onRequest(
     "sparkdown/scriptReferences",
-    (params: { uri: string }) => {
+    async (params: { uri: string }) => {
       const mainUri = workspace.getMainScriptUri(params.uri);
       return getScriptReferences(
         workspace,
-        workspace.program(mainUri ?? params.uri),
+        await workspace.currentProgram(mainUri ?? params.uri),
       );
     },
   );
@@ -484,7 +484,7 @@ try {
       const settings = await connection.workspace.getConfiguration("sparkdown");
       workspace.loadConfiguration(settings);
       const mainUri = workspace.getMainScriptUri(params.oldUri);
-      const program = workspace.program(mainUri ?? params.oldUri);
+      const program = await workspace.currentProgram(mainUri ?? params.oldUri);
       return getFileRenameEdits(
         workspace,
         program,

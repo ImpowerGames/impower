@@ -1,9 +1,19 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
 import { ObjectValue } from "@impower/sparkdown/src/runtime/Value";
 import {
-  LayoutVerb,
-  isLayoutVerb,
-} from "@impower/sparkdown/language/sparkdown.layout-verbs";
+  SCAN_CLOSE,
+  SCAN_OPEN,
+  SCANNED_MARKS,
+  SPAN_CLOSE,
+  SPAN_END,
+  isStyleCode,
+  readSpanOpen,
+  scanned,
+  stripStyleCodes,
+  writtenText,
+  trimStyled,
+} from "@impower/sparkdown/src/runtime/displayStyle";
+import { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { Module } from "../../../core/classes/Module";
 import type {
 AudioInstruction,
@@ -26,6 +36,13 @@ import type { InstructionOptions } from "../types/InstructionOptions";
 import type { Phrase } from "../types/Phrase";
 import { stressPhrases } from "../utils/stressPhrases";
 import { Matcher } from "./helpers/Matcher";
+import {
+  directiveKind,
+  parseDirectiveClauses,
+  readDirective,
+  type DirectiveClause,
+  type DirectiveKind,
+} from "@impower/sparkdown/src/compiler/utils/readDirective";
 
 export interface InterpreterConfig {}
 
@@ -50,12 +67,14 @@ export interface ShownBox {
 
 export interface InterpreterMessageMap extends Record<string, any> {}
 
+const VOICING_CONTROLS: ReadonlySet<string> = new Set(["play", "start", "queue"]);
+
 export class InterpreterModule extends Module<
   InterpreterState,
   InterpreterMessageMap,
   InterpreterBuiltins
 > {
-  MARKERS = ["^", "*", "_", "~~", "::"];
+  MARKERS = SCANNED_MARKS;
 
   CONTROL_TAGS = ["speed", "pitch", "p", "wait", "w", "!", "/!"];
 
@@ -83,32 +102,6 @@ export class InterpreterModule extends Module<
     "sup",
     "br",
     "noparse",
-  ];
-
-  ASSET_CONTROL_KEYWORDS = [
-    "show",
-    "hide",
-    "animate",
-    "play",
-    "stop",
-    "fade",
-    "queue",
-    "await",
-    "write",
-    "load",
-  ];
-
-  LOAD_CONTROL_KEYWORDS = ["load"];
-
-  MOVIE_CONTROL_KEYWORDS = ["play"];
-
-  ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
-
-  ASSET_FLAG_ARG_KEYWORDS = ["wait", "loop", "once", "mute", "unmute", "now"];
-
-  ASSET_ARG_KEYWORDS = [
-    ...this.ASSET_VALUE_ARG_KEYWORDS,
-    ...this.ASSET_FLAG_ARG_KEYWORDS,
   ];
 
   CHAR_REGEX =
@@ -287,12 +280,13 @@ export class InterpreterModule extends Module<
     const characterParentheticalMatch = match?.[3] || "";
     const characterPositionMatch = match?.[7] || "";
     const characterMap = this.context?.["character"] as any;
-    const characterId = this._characterNameMap[characterNameMatch] || "";
+    const writtenName = writtenText(characterNameMatch);
+    const characterId = this._characterNameMap[writtenName] || "";
     const characterObj =
-      characterMap?.[characterNameMatch] || characterMap?.[characterId];
+      characterMap?.[writtenName] || characterMap?.[characterId];
     const characterName =
       typeof characterObj?.name === "string" && characterObj.name
-        ? characterObj.name
+        ? scanned(characterObj.name)
         : characterNameMatch;
     const position =
       characterPositionMatch === "<"
@@ -314,7 +308,7 @@ export class InterpreterModule extends Module<
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i]!;
-      if (!line.trim() || this.ASSET_LINE_REGEX.test(line)) {
+      if (!stripStyleCodes(line).trim() || this.ASSET_LINE_REGEX.test(line)) {
         continue;
       }
       const match = line.match(this.PARENTHETICAL_REGEX);
@@ -353,7 +347,10 @@ export class InterpreterModule extends Module<
       delete beat.kind;
     }
     if (cue?.name) {
-      beat.speaker = { name: cue.name, parenthetical: cue.parenthetical };
+      beat.speaker = {
+        name: stripStyleCodes(cue.name),
+        parenthetical: stripStyleCodes(cue.parenthetical),
+      };
       if (cue.character) beat.speaker.character = cue.character;
     } else {
       delete beat.speaker;
@@ -586,7 +583,7 @@ export class InterpreterModule extends Module<
         if (load === null) {
           if (before.length > 0) this.queue(before, [], text, source);
         } else {
-          const loadInstructions: LoadInstruction[] = `${load}${text}`
+          const loadInstructions: LoadInstruction[] = stripStyleCodes(`${load}${text}`)
             .split(this.WHITESPACE_REGEX)
             .filter(Boolean)
             .map((name) => ({ name }));
@@ -846,38 +843,19 @@ export class InterpreterModule extends Module<
             "layout",
             LayoutVerb.open,
             "",
-            isLayoutVerb,
           );
     this.applyScreenWaitDuration(layoutChunk);
     return layoutChunk;
   }
 
   protected createNavigateChunk(navigateTagContent: string): Chunk {
-    const tokens = navigateTagContent
-      .replaceAll("\t", " ")
-      .split(" ")
-      .filter((t) => t !== "");
-    let screen = "";
-    let destination = "";
-    let i = 1;
-    if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
-      screen = tokens[i]!;
-      i += 1;
-    }
-    if (tokens[i] === "to") {
-      i += 1;
-      if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
-        destination = tokens[i]!;
-        i += 1;
-      }
-    }
-    const clauses = this.parseAssetClauses(tokens.slice(i));
+    const reading = readDirective("image", navigateTagContent, "layout");
     return {
       tag: "layout",
       control: LayoutVerb.navigate,
-      target: screen,
-      assets: destination ? [destination] : [],
-      clauses,
+      target: reading.target?.text ?? "",
+      assets: reading.destination ? [reading.destination.text] : [],
+      clauses: this.assetClauseValues(reading.clauses),
       duration: 0,
       speed: 1,
     };
@@ -968,78 +946,35 @@ export class InterpreterModule extends Module<
     tag: string,
     defaultControl: string,
     defaultTarget: string | undefined,
-    isControl: (word: string) => boolean = (word) =>
-      this.ASSET_CONTROL_KEYWORDS.includes(word),
   ): Chunk {
-    let parts = assetTagContent
-      .replaceAll("\t", " ")
-      .split(" ")
-      .filter((part) => part !== "");
-    let control = defaultControl;
-    let target = defaultTarget;
-    const assets: string[] = [];
-    const args: string[] = [];
-    if (parts[0] && isControl(parts[0])) {
-      control = parts[0];
-      if (parts[1]) {
-        target = parts[1];
-      }
-      parts = parts.slice(2);
-    }
-    let foundClauseKeyword = false;
-    for (const part of parts) {
-      if (this.ASSET_ARG_KEYWORDS.includes(part)) {
-        foundClauseKeyword = true;
-      }
-      if (foundClauseKeyword) {
-        args.push(part);
-      } else {
-        for (const a of part.split("+")) {
-          if (a) {
-            assets.push(a);
-          }
-        }
-      }
-    }
-    const clauses = this.parseAssetClauses(args);
+    const kind = tag as DirectiveKind;
+    const reading = readDirective(kind === "audio" ? "audio" : "image", assetTagContent, kind);
     return {
       tag,
-      control,
-      target,
-      assets,
-      clauses,
+      control: reading.control?.text ?? defaultControl,
+      target: reading.target?.text ?? defaultTarget,
+      assets: reading.names.map((name) => name.text),
+      clauses: this.assetClauseValues(reading.clauses),
       duration: 0,
       speed: 1,
     };
   }
 
   protected parseAssetClauses(args: string[]): Record<string, unknown> {
+    return this.assetClauseValues(parseDirectiveClauses(args.map((text) => ({ text }))));
+  }
+
+  protected assetClauseValues(parsed: readonly DirectiveClause<{ text: string }>[]): Record<string, unknown> {
     const clauses: Record<string, unknown> = {};
-    for (let i = 0; i < args.length; i += 1) {
-      const arg = args[i];
-      if (arg) {
-        if (this.ASSET_VALUE_ARG_KEYWORDS.includes(arg)) {
-          i += 1;
-          const value = args[i];
-          if (arg === "after") {
-            clauses[arg] = getTimeValue(value);
-          }
-          if (arg === "over") {
-            clauses[arg] = getTimeValue(value);
-          }
-          if (arg === "to") {
-            clauses[arg] = getNumberValue(value);
-          }
-          if (arg === "with") {
-            clauses[arg] = value;
-          }
-          if (arg === "ease") {
-            clauses[arg] = value;
-          }
-        } else {
-          clauses[arg] = true;
-        }
-      }
+    for (const { word, takesValue, value } of parsed) {
+      const key = word.text;
+      clauses[key] = !takesValue
+        ? true
+        : key === "after" || key === "over"
+          ? getTimeValue(value?.text)
+          : key === "to"
+            ? getNumberValue(value?.text)
+            : value?.text;
     }
     return clauses;
   }
@@ -1067,6 +1002,13 @@ export class InterpreterModule extends Module<
     let currChunk: Chunk | undefined = undefined;
 
     const activeMarks: [string][] = [];
+    const spanMarks: [string][] = [];
+    const scansAll = Boolean(options?.choice);
+    let scanDepth = 0;
+    let spanRaw = false;
+    const lastMark = (test: (mark: string) => boolean) =>
+      activeMarks.findLast(([m]) => test(m)) ??
+      spanMarks.findLast(([m]) => test(m));
     let alignModifier = "";
     let speedModifier = 1;
     let pitchModifier: number | undefined = undefined;
@@ -1125,13 +1067,30 @@ export class InterpreterModule extends Module<
         for (let i = 0; i < chars.length; ) {
           const char = chars[i] ?? "";
           const nextChar = chars[i + 1] ?? "";
+          if (isStyleCode(char)) {
+            const opened = readSpanOpen(chars, i);
+            i = opened ? opened.next : i + 1;
+            if (char === SCAN_OPEN || char === SCAN_CLOSE) {
+              scanDepth = Math.max(0, scanDepth + (char === SCAN_OPEN ? 1 : -1));
+              activeMarks.length = 0;
+              raw = false;
+              escaped = false;
+            } else if (opened) {
+              spanMarks.push([opened.mark]);
+            } else if (char === SPAN_CLOSE || char === SPAN_END) {
+              spanMarks.pop();
+            }
+            spanRaw = spanMarks.some(([m]) => m.startsWith("`"));
+            continue;
+          }
+          const scanning = scansAll || scanDepth > 0;
           if (!escaped) {
-            if (char === "`") {
+            if (scanning && char === "`") {
               i += 1;
               raw = !raw;
               continue;
             }
-            if (!raw) {
+            if (!raw && !spanRaw) {
               if (char === "\\") {
                 i += 1;
                 escaped = true;
@@ -1145,23 +1104,15 @@ export class InterpreterModule extends Module<
                 while (i < chars.length) {
                   if (chars[i] === "]" && chars[i + 1] === "]") {
                     closed = true;
-                    const verb = imageTagContent
-                      .replaceAll("\t", " ")
-                      .trimStart()
-                      .split(" ")[0];
-                    const isScreenDirective =
-                      !!verb && isLayoutVerb(verb);
-                    const isLoadDirective =
-                      !!verb && this.LOAD_CONTROL_KEYWORDS.includes(verb);
-                    const isCutsceneDirective =
-                      !!verb && this.MOVIE_CONTROL_KEYWORDS.includes(verb);
-                    const directiveChunk = isLoadDirective
-                      ? this.createLoadChunk(imageTagContent)
-                      : isScreenDirective
-                        ? this.createLayoutChunk(imageTagContent)
-                        : isCutsceneDirective
-                          ? this.createCutsceneChunk(imageTagContent)
-                          : this.createImageChunk(imageTagContent);
+                    const kind = directiveKind("image", imageTagContent);
+                    const directiveChunk =
+                      kind === "load"
+                        ? this.createLoadChunk(imageTagContent)
+                        : kind === "layout"
+                          ? this.createLayoutChunk(imageTagContent)
+                          : kind === "cutscene"
+                            ? this.createCutsceneChunk(imageTagContent)
+                            : this.createImageChunk(imageTagContent);
                     const phrase = {
                       target: directiveChunk.target,
                       chunks: [directiveChunk],
@@ -1284,10 +1235,12 @@ export class InterpreterModule extends Module<
                 }
                 continue;
               }
-              const styleMarker = this.MARKERS.find(
-                (marker) =>
-                  marker === chars.slice(i, i + marker.length).join(""),
-              );
+              const styleMarker = scanning
+                ? this.MARKERS.find(
+                    (marker) =>
+                      marker === chars.slice(i, i + marker.length).join(""),
+                  )
+                : undefined;
               if (styleMarker) {
                 let currentMarker = "";
                 const startIndex = i;
@@ -1328,23 +1281,13 @@ export class InterpreterModule extends Module<
             continue;
           }
 
-          const activeCenteredMark = activeMarks.findLast(([m]) =>
-            m.startsWith("^"),
-          );
-          const activeUnderlineMark = activeMarks.findLast(([m]) =>
-            m.startsWith("_"),
-          );
-          const activeBoldItalicMark = activeMarks.findLast(([m]) =>
-            m.startsWith("***"),
-          );
-          const activeBoldMark = activeMarks.findLast(([m]) => m === "**");
-          const activeItalicMark = activeMarks.findLast(([m]) => m === "*");
-          const activeWavyMark = activeMarks.findLast(([m]) =>
-            m.startsWith("~~"),
-          );
-          const activeShakyMark = activeMarks.findLast(([m]) =>
-            m.startsWith("::"),
-          );
+          const activeCenteredMark = lastMark((m) => m.startsWith("^"));
+          const activeUnderlineMark = lastMark((m) => m.startsWith("_"));
+          const activeBoldItalicMark = lastMark((m) => m.startsWith("***"));
+          const activeBoldMark = lastMark((m) => m === "**");
+          const activeItalicMark = lastMark((m) => m === "*");
+          const activeWavyMark = lastMark((m) => m.startsWith("~~"));
+          const activeShakyMark = lastMark((m) => m.startsWith("::"));
           const isCentered = Boolean(activeCenteredMark);
           const isUnderlined = Boolean(activeUnderlineMark);
           const isItalicized =
@@ -1475,7 +1418,7 @@ export class InterpreterModule extends Module<
               voicedSyllable,
               voiced,
               yelled,
-              raw,
+              raw: raw || spanRaw,
               centered,
               bolded,
               italicized,
@@ -1518,7 +1461,7 @@ export class InterpreterModule extends Module<
                   voicedSyllable,
                   voiced,
                   yelled,
-                  raw,
+                  raw: raw || spanRaw,
                   centered,
                   bolded,
                   italicized,
@@ -1539,9 +1482,9 @@ export class InterpreterModule extends Module<
       return linePhrases;
     };
 
-    const lines = content?.trim().split("\n");
+    const lines = trimStyled(content ?? "").split("\n");
     for (let l = 0; l < lines.length; l += 1) {
-      const line = lines[l]!?.trimStart();
+      const line = trimStyled(lines[l]!, { end: false });
       if (line.match(this.PARENTHETICAL_REGEX)) {
         alignModifier = "center";
         speedModifier = 0;
@@ -1644,6 +1587,7 @@ export class InterpreterModule extends Module<
     > = {};
     const spans: [number, number][] = [];
     const speaker = options?.spoken ? character : undefined;
+    let voiced = false;
     for (const phrase of allPhrases) {
       const target = phrase.target || "";
       const typewriter = this.lookupContextValue("typewriter", target);
@@ -1681,32 +1625,37 @@ export class InterpreterModule extends Module<
               event.style["white_space"] = "pre";
             }
 
-            if (c.wavy) {
+            const animations = (
+              [
+                ["wavy", c.wavy ?? 0],
+                ["shaky", c.shaky ?? 0],
+              ] as const
+            ).flatMap(([name, offset]) => {
+              const animation = offset
+                ? (this.context as any)?.animation?.[name]
+                : undefined;
+              return animation
+                ? [
+                    {
+                      animation_name: animation.$name,
+                      animation_timing_function: animation.timing.easing,
+                      animation_iteration_count: animation.timing.iterations,
+                      animation_duration: animation.timing.duration,
+                      animation_delay: offset * animationOffset * -1,
+                    },
+                  ]
+                : [];
+            });
+            if (c.wavy || c.shaky) {
               event.style ??= {};
-              const animation = (this.context as any)?.animation?.["wavy"];
-              if (animation) {
-                event.style["display"] = "inline-block";
-                event.style["animation_name"] = animation.$name;
-                event.style["animation_timing_function"] =
-                  animation.timing.easing;
-                event.style["animation_iteration_count"] =
-                  animation.timing.iterations;
-                event.style["animation_duration"] = animation.timing.duration;
-                event.style["animation_delay"] = c.wavy * animationOffset * -1;
-              }
             }
-            if (c.shaky) {
-              event.style ??= {};
-              const animation = (this.context as any)?.animation?.["shaky"];
-              if (animation) {
-                event.style["display"] = "inline-block";
-                event.style["animation_name"] = animation.$name;
-                event.style["animation_timing_function"] =
-                  animation.timing.easing;
-                event.style["animation_iteration_count"] =
-                  animation.timing.iterations;
-                event.style["animation_duration"] = animation.timing.duration;
-                event.style["animation_delay"] = c.shaky * animationOffset * -1;
+            if (animations.length > 0) {
+              event.style!["display"] = "inline-block";
+              for (const key of Object.keys(animations[0]!) as (keyof (typeof animations)[0])[]) {
+                event.style![key] =
+                  animations.length === 1
+                    ? animations[0]![key]
+                    : animations.map((a) => a[key]).join(",");
               }
             }
             if (debug) {
@@ -1761,6 +1710,10 @@ export class InterpreterModule extends Module<
               const easeValue = c.clauses?.ease;
               if (easeValue != null) {
                 event.ease = easeValue;
+              }
+              const morphValue = c.clauses?.morph;
+              if (typeof morphValue === "string" && morphValue) {
+                event.morph = morphValue;
               }
               if (c.clauses?.loop) {
                 event.loop = true;
@@ -1855,6 +1808,9 @@ export class InterpreterModule extends Module<
               control: (c.control || "play") as AudioInstruction["control"],
               assets: c.assets,
             };
+            if (target === "voice" && VOICING_CONTROLS.has(event.control) && c.assets?.length) {
+              voiced = true;
+            }
             if (time) {
               event.after = time;
             }
@@ -1945,8 +1901,8 @@ export class InterpreterModule extends Module<
       });
     }
 
-    if (speaker && spans.length > 0) {
-      result.speech = { character: speaker, spans };
+    if (speaker && (spans.length > 0 || voiced)) {
+      result.speech = { character: speaker, spans, ...(voiced ? { voiced } : {}) };
     }
 
     result.end = time;

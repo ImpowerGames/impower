@@ -7,6 +7,7 @@ const CONTENT = "scene start\n  Hello.\n  Goodbye.\nend\n";
 const ERROR = 'scene start\n  Hello.\n  & error("boom")\n  Goodbye.\nend\n';
 const NESTED =
   "scene start\n  Main.\n  done\n  branch aside\n    Aside.\n  end\nend\n";
+const OPEN_TEXTSTREAM = 'define ui as config with\n  layouts_initial = { "textstream" }\nend\n\n';
 const DEEP =
   "scene start\n  Hello.\n  & local n = recurse(6000)\n  fin\nend\n\nfunction recurse(n)\n  if n == 0 then\n    return 0\n  end\n  return 1 + recurse(n - 1)\nend\n";
 
@@ -160,6 +161,48 @@ describe("the preview at a line where the run ends", () => {
     },
     120_000,
   );
+
+  it.each([
+    ["a done", DONE, "Story ran out"],
+    ["a fin", FIN, "End of story"],
+    ["a runtime error", ERROR, "Stopped by an error"],
+  ])(
+    "in Interactive Fiction mode, the preview at %s ends the page with the status line once, and the last beat's line clears it (#2189)",
+    async (_name, source, badge) => {
+      const h = await open(`${OPEN_TEXTSTREAM}${source}`);
+      const lines = () =>
+        [...h.overlay.querySelectorAll(".textstream_end")].map(
+          (el: Element) => el.textContent,
+        );
+      try {
+        expect((await previewAt(h, 6)).badge).toBe(badge);
+        expect(lines()).toEqual([badge]);
+        expect((await previewAt(h, 5)).badge).toBeNull();
+        expect(lines()).toEqual([]);
+        expect((await previewAt(h, 6)).badge).toBe(badge);
+        expect(lines()).toEqual([badge]);
+      } finally {
+        h.dispose();
+      }
+    },
+    120_000,
+  );
+
+  it("in Interactive Fiction mode, the preview at the fin a story opens on shows the page with the status line alone (#2189)", async () => {
+    const h = await open(`${OPEN_TEXTSTREAM}scene start\n  fin\nend\n`);
+    try {
+      const frame = await previewAt(h, 5);
+      expect(frame.badge).toBe("End of story");
+      const column = h.overlay.querySelector(".textstream_column");
+      expect(column, h.overlay.innerHTML).not.toBeNull();
+      expect([...column!.children].map((el) => el.className)).toEqual([
+        "textstream_end muted",
+      ]);
+      expect(column!.textContent).toBe("End of story");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
 
   it("going back from an ending line to the last beat's line restores the continue indicator and clears the ending", async () => {
     const h = await open(FIN);

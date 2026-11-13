@@ -175,7 +175,8 @@ import { Clock } from "./Clock";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
 import type { StartingDisplayMode } from "./messages/SetStartingDisplayModeMessage";
-import { initialLayouts } from "./presenters/textLayouts";
+import { TEXTSTREAM_LAYOUT } from "./presenters/InteractiveFictionPresenter";
+import { initialLayouts, openInitialLayouts } from "./presenters/textLayouts";
 import { GameAutoAdvancedToContinueMessage } from "./messages/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "./messages/GameChosePathToContinueMessage";
@@ -1370,6 +1371,10 @@ export class Game<T extends M = {}> {
       !this._context.system.previewing
     ) {
       this._coordinator = new Coordinator(this, shown, { settled: "restored" });
+    }
+    const ending = this.shownEnding;
+    if (ending) {
+      this.showEndingOnPage(ending.kind);
     }
     return true;
   }
@@ -2581,6 +2586,7 @@ export class Game<T extends M = {}> {
         this.module.interpreter.requeue(resumed);
       }
       this.continue(true);
+      this.endResumedEnding();
     } else if (this._simulation === "success") {
       this.observeStanding();
       this.saveFirstScene();
@@ -2640,13 +2646,6 @@ export class Game<T extends M = {}> {
         this.pause();
       }
       throw e;
-    }
-  }
-
-  skip(seconds: number): void {
-    if (this._clock) {
-      this._clock.adjustTime(seconds);
-      this.update(this._clock);
     }
   }
 
@@ -3738,7 +3737,7 @@ export class Game<T extends M = {}> {
           this.module.interpreter.queue(
             this._story.currentDisplayInstructions,
             this._story.currentChoices.map((c) => c.text),
-            this._story.currentText || "",
+            this._story.currentStyledText || "",
             location,
           );
         }
@@ -4067,6 +4066,30 @@ export class Game<T extends M = {}> {
     }
   }
 
+  protected showEndingOnPage(kind: StoryEnding | null) {
+    if (
+      kind &&
+      !this.module.ui.initialLayoutsOpened &&
+      initialLayouts(this).includes(TEXTSTREAM_LAYOUT)
+    ) {
+      openInitialLayouts(this, true);
+    }
+    this.module.ui.page.end(kind);
+  }
+
+  protected endResumedEnding() {
+    const saved = this._story.ending;
+    if (
+      saved &&
+      !this._ending &&
+      this._state === "running" &&
+      !this._story.canContinue &&
+      this._story.currentChoices.length === 0
+    ) {
+      this.endStory(saved);
+    }
+  }
+
   protected endStory(kind: StoryEnding) {
     this.module.ui.releaseHeldConnect();
     const error = kind === "error" ? this._errorEnding : null;
@@ -4081,6 +4104,7 @@ export class Game<T extends M = {}> {
     };
     this._announcedStop = true;
     this.module.ui.style.update("continue_indicator", { display: "none" });
+    this.showEndingOnPage(kind);
     if (kind === "fin") {
       this.module.ui.openEnding();
     }
@@ -5274,6 +5298,7 @@ export class Game<T extends M = {}> {
 
   protected showPreviewEnding(): void {
     const ending = this._previewEnding;
+    this.showEndingOnPage(ending?.kind ?? null);
     if (!ending) {
       return;
     }

@@ -163,9 +163,12 @@ export function previewRead(step) {
   if (step?.selector) element = d.querySelector(step.selector);
   if (step?.textButton) element = [...d.querySelectorAll(".choice, button, [role=button]")].find(el => visible(el) && el.textContent.trim() === step.textButton);
   const box = element?.getBoundingClientRect();
+  const game = d.querySelector("#game")?.getBoundingClientRect();
+  const hit = game ? d.elementFromPoint(game.x + game.width / 2, game.y + game.height / 2) : null;
   return {
+    center: hit ? { id: hit.id, tag: hit.tagName.toLowerCase(), inPlayer: !!hit.closest("#game-view, #game-ui") } : null,
     visible: visible(d.querySelector("spark-web-player")), text: leafText,
-    playing: d.querySelector("#play-button")?.style?.display === "none",
+    playing: d.querySelector("#run-button")?.textContent === "Stop",
     ending: visible(d.querySelector("#ending-status")) && d.querySelector("#ending-status").getBoundingClientRect().right <= w.innerWidth ? d.querySelector("#ending-status").textContent : null,
     bodyText: d.body.innerText, bodyClass: d.body.className,
     target: box && visible(element) ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null,
@@ -299,15 +302,16 @@ export async function desktop(args) {
     };
     await wait(() => textVisible(spec.preview.text), `Game Preview never displayed expected text: ${spec.preview.text}`);
     await page.screenshot({ path: path.join(evidence, "preview.png") });
+    report.preview.center = (await readPreview())?.center ?? null;
     for (const step of spec.preview.steps) {
       const bounds = await page.locator("iframe.webview").boundingBox();
       if (bounds) await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
       const state = await wait(async () => { const s = await readPreview(step); return s?.target ? s : null; }, `Preview control unavailable: ${step.selector ?? step.textButton}`);
       const outer = await page.locator("iframe.webview").boundingBox();
       if (!outer) throw new Error("Preview iframe has no visible bounds");
-      if (step.selector === "#play-button") await page.screenshot({ path: path.join(evidence, "run-control.png") });
+      if (step.selector === "#run-button") await page.screenshot({ path: path.join(evidence, "run-control.png") });
       await page.mouse.click(outer.x + state.target.x, outer.y + state.target.y);
-      if (step.selector === "#play-button") await wait(async () => (await readPreview())?.playing, "RUN never entered playback");
+      if (step.selector === "#run-button") await wait(async () => (await readPreview())?.playing, "RUN never entered playback");
       if (step.textButton) await wait(async () => !(await readPreview(step))?.target, "Choice did not advance");
       const after = await wait(() => textVisible(step.text), `Preview interaction never displayed: ${step.text}`);
       report.preview.steps.push({ action: step.selector ?? step.textButton, after });

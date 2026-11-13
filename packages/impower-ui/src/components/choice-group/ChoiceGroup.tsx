@@ -11,9 +11,13 @@ export const choiceGroupVariants = cva("", {
     },
     size: {
       default: "",
+      small: "",
     },
   },
-  compoundVariants: [{ variant: "segmented", size: "default", class: "gap-0.5 p-0.5" }],
+  compoundVariants: [
+    { variant: "segmented", size: "default", class: "gap-0.5 p-0.5" },
+    { variant: "segmented", size: "small", class: "gap-0.5 rounded-[10px] p-0.5" },
+  ],
   defaultVariants: {
     variant: "segmented",
     size: "default",
@@ -32,8 +36,8 @@ export const choiceOptionVariants = cva(
     variants: {
       variant: {
         segmented: [
-          "flex items-center justify-center whitespace-nowrap rounded-md text-muted",
-          "peer-checked:bg-elevated peer-checked:text-ink",
+          "flex items-center justify-center whitespace-nowrap text-muted",
+          "peer-checked:text-ink",
         ],
         tiles: [
           "flex h-full min-w-0 flex-col gap-1.5 rounded-[10px] border border-solid border-edge bg-panel p-2 text-ink",
@@ -43,20 +47,34 @@ export const choiceOptionVariants = cva(
       },
       size: {
         default: "",
+        small: "",
+      },
+      fill: {
+        elevated: "",
+        tint: "",
       },
     },
     compoundVariants: [
-      { variant: "segmented", size: "default", class: "min-h-[30px] px-3 text-[13px]/[1.2] font-semibold" },
+      { variant: "segmented", size: "default", class: "min-h-[30px] rounded-md px-3 text-[13px]/[1.2] font-semibold" },
+      {
+        variant: "segmented",
+        size: "small",
+        class: "min-h-[32px] rounded-lg px-3 text-[12px]/[1.2] font-normal peer-checked:font-semibold",
+      },
+      { variant: "segmented", fill: "elevated", class: "peer-checked:bg-elevated" },
+      { variant: "segmented", fill: "tint", class: "peer-checked:bg-tint" },
     ],
     defaultVariants: {
       variant: "segmented",
       size: "default",
+      fill: "elevated",
     },
   },
 );
 
 export type ChoiceGroupVariant = NonNullable<VariantProps<typeof choiceGroupVariants>["variant"]>;
 export type ChoiceGroupSize = NonNullable<VariantProps<typeof choiceGroupVariants>["size"]>;
+export type ChoiceGroupFill = NonNullable<VariantProps<typeof choiceOptionVariants>["fill"]>;
 
 export type ChoiceOption<V extends string = string> = {
   readonly value: V;
@@ -70,7 +88,8 @@ export type ChoiceGroupProps<V extends string = string> = Omit<
   JSX.HTMLAttributes<HTMLSpanElement>,
   "role" | "size" | "value" | "defaultValue" | "onChange"
 > &
-  VariantProps<typeof choiceGroupVariants> & {
+  VariantProps<typeof choiceGroupVariants> &
+  Pick<VariantProps<typeof choiceOptionVariants>, "fill"> & {
     class?: string;
     name: string;
     options: readonly ChoiceOption<V>[];
@@ -103,6 +122,7 @@ function TileContent({ option }: { option: ChoiceOption }) {
 export default function ChoiceGroup<V extends string = string>({
   variant,
   size,
+  fill,
   class: className,
   name,
   options,
@@ -148,7 +168,7 @@ export default function ChoiceGroup<V extends string = string>({
               onValueChange?.(option.value);
             }}
           />
-          <span class={choiceOptionVariants({ variant, size })}>
+          <span class={choiceOptionVariants({ variant, size, fill })}>
             {tiles ? <TileContent option={option} /> : option.label}
           </span>
         </label>

@@ -30,16 +30,14 @@ sparkdown [0..218]
  │   │       │       │   ├─ Word [14..16]: "Go"
  │   │       │       │   ├─ Space [16..17]: " "
  │   │       │       │   ├─ Bold [17..25]
- │   │       │       │   │   ├─ Bold_begin [17..19]
- │   │       │       │   │   │   └─ Bold_begin_c1 [17..19]
- │   │       │       │   │   │       └─ StylingMark [17..19]
- │   │       │       │   │   │           └─ StylingMark_c1 [17..19]: "**"
- │   │       │       │   │   ├─ Bold_content [19..23]
+ │   │       │       │   │   ├─ Bold_c1 [17..19]
+ │   │       │       │   │   │   └─ SpanOpenMark [17..19]
+ │   │       │       │   │   │       └─ SpanOpenMark_c1 [17..19]: "**"
+ │   │       │       │   │   ├─ Bold_c2 [19..23]
  │   │       │       │   │   │   └─ Word [19..23]: "bold"
- │   │       │       │   │   └─ Bold_end [23..25]
- │   │       │       │   │       └─ Bold_end_c1 [23..25]
- │   │       │       │   │           └─ StylingMark [23..25]
- │   │       │       │   │               └─ StylingMark_c1 [23..25]: "**"
+ │   │       │       │   │   └─ Bold_c3 [23..25]
+ │   │       │       │   │       └─ SpanCloseMark [23..25]
+ │   │       │       │   │           └─ SpanCloseMark_c1 [23..25]: "**"
  │   │       │       │   ├─ Space [25..26]: " "
  │   │       │       │   ├─ Word [26..29]: "now"
  │   │       │       │   └─ Punctuation [29..30]: "."
@@ -63,16 +61,14 @@ sparkdown [0..218]
  │   │       │       │   ├─ Word [33..35]: "Go"
  │   │       │       │   ├─ Space [35..36]: " "
  │   │       │       │   ├─ Italic [36..44]
- │   │       │       │   │   ├─ Italic_begin [36..37]
- │   │       │       │   │   │   └─ Italic_begin_c1 [36..37]
- │   │       │       │   │   │       └─ StylingMark [36..37]
- │   │       │       │   │   │           └─ StylingMark_c1 [36..37]: "*"
- │   │       │       │   │   ├─ Italic_content [37..43]
+ │   │       │       │   │   ├─ Italic_c1 [36..37]
+ │   │       │       │   │   │   └─ SpanOpenMark [36..37]
+ │   │       │       │   │   │       └─ SpanOpenMark_c1 [36..37]: "*"
+ │   │       │       │   │   ├─ Italic_c2 [37..43]
  │   │       │       │   │   │   └─ Word [37..43]: "italic"
- │   │       │       │   │   └─ Italic_end [43..44]
- │   │       │       │   │       └─ Italic_end_c1 [43..44]
- │   │       │       │   │           └─ StylingMark [43..44]
- │   │       │       │   │               └─ StylingMark_c1 [43..44]: "*"
+ │   │       │       │   │   └─ Italic_c3 [43..44]
+ │   │       │       │   │       └─ SpanCloseMark [43..44]
+ │   │       │       │   │           └─ SpanCloseMark_c1 [43..44]: "*"
  │   │       │       │   ├─ Space [44..45]: " "
  │   │       │       │   ├─ Word [45..48]: "now"
  │   │       │       │   └─ Punctuation [48..49]: "."
@@ -95,27 +91,23 @@ sparkdown [0..218]
  │   │       │       ├─ TextChunk_content [52..70]
  │   │       │       │   ├─ Word [52..54]: "Go"
  │   │       │       │   ├─ Space [54..55]: " "
- │   │       │       │   ├─ BoldItalic [55..65]
- │   │       │       │   │   ├─ BoldItalic_begin [55..57]
- │   │       │       │   │   │   └─ BoldItalic_begin_c1 [55..57]
- │   │       │       │   │   │       └─ StylingMark [55..57]
- │   │       │       │   │   │           └─ StylingMark_c1 [55..57]: "**"
- │   │       │       │   │   ├─ BoldItalic_content [57..63]
+ │   │       │       │   ├─ Bold [55..65]
+ │   │       │       │   │   ├─ Bold_c1 [55..57]
+ │   │       │       │   │   │   └─ SpanOpenMark [55..57]
+ │   │       │       │   │   │       └─ SpanOpenMark_c1 [55..57]: "**"
+ │   │       │       │   │   ├─ Bold_c2 [57..63]
  │   │       │       │   │   │   └─ Italic [57..63]
- │   │       │       │   │   │       ├─ Italic_begin [57..58]
- │   │       │       │   │   │       │   └─ Italic_begin_c1 [57..58]
- │   │       │       │   │   │       │       └─ StylingMark [57..58]
- │   │       │       │   │   │       │           └─ StylingMark_c1 [57..58]: "*"
- │   │       │       │   │   │       ├─ Italic_content [58..62]
+ │   │       │       │   │   │       ├─ Italic_c1 [57..58]
+ │   │       │       │   │   │       │   └─ SpanOpenMark [57..58]
+ │   │       │       │   │   │       │       └─ SpanOpenMark_c1 [57..58]: "*"
+ │   │       │       │   │   │       ├─ Italic_c2 [58..62]
  │   │       │       │   │   │       │   └─ Word [58..62]: "both"
- │   │       │       │   │   │       └─ Italic_end [62..63]
- │   │       │       │   │   │           └─ Italic_end_c1 [62..63]
- │   │       │       │   │   │               └─ StylingMark [62..63]
- │   │       │       │   │   │                   └─ StylingMark_c1 [62..63]: "*"
- │   │       │       │   │   └─ BoldItalic_end [63..65]
- │   │       │       │   │       └─ BoldItalic_end_c1 [63..65]
- │   │       │       │   │           └─ StylingMark [63..65]
- │   │       │       │   │               └─ StylingMark_c1 [63..65]: "**"
+ │   │       │       │   │   │       └─ Italic_c3 [62..63]
+ │   │       │       │   │   │           └─ SpanCloseMark [62..63]
+ │   │       │       │   │   │               └─ SpanCloseMark_c1 [62..63]: "*"
+ │   │       │       │   │   └─ Bold_c3 [63..65]
+ │   │       │       │   │       └─ SpanCloseMark [63..65]
+ │   │       │       │   │           └─ SpanCloseMark_c1 [63..65]: "**"
  │   │       │       │   ├─ Space [65..66]: " "
  │   │       │       │   ├─ Word [66..69]: "now"
  │   │       │       │   └─ Punctuation [69..70]: "."
@@ -139,16 +131,14 @@ sparkdown [0..218]
  │   │       │       │   ├─ Word [73..75]: "Go"
  │   │       │       │   ├─ Space [75..76]: " "
  │   │       │       │   ├─ Underline [76..89]
- │   │       │       │   │   ├─ Underline_begin [76..78]
- │   │       │       │   │   │   └─ Underline_begin_c1 [76..78]
- │   │       │       │   │   │       └─ StylingMark [76..78]
- │   │       │       │   │   │           └─ StylingMark_c1 [76..78]: "__"
- │   │       │       │   │   ├─ Underline_content [78..87]
+ │   │       │       │   │   ├─ Underline_c1 [76..78]
+ │   │       │       │   │   │   └─ SpanOpenMark [76..78]
+ │   │       │       │   │   │       └─ SpanOpenMark_c1 [76..78]: "__"
+ │   │       │       │   │   ├─ Underline_c2 [78..87]
  │   │       │       │   │   │   └─ Word [78..87]: "underline"
- │   │       │       │   │   └─ Underline_end [87..89]
- │   │       │       │   │       └─ Underline_end_c1 [87..89]
- │   │       │       │   │           └─ StylingMark [87..89]
- │   │       │       │   │               └─ StylingMark_c1 [87..89]: "__"
+ │   │       │       │   │   └─ Underline_c3 [87..89]
+ │   │       │       │   │       └─ SpanCloseMark [87..89]
+ │   │       │       │   │           └─ SpanCloseMark_c1 [87..89]: "__"
  │   │       │       │   ├─ Space [89..90]: " "
  │   │       │       │   ├─ Word [90..93]: "now"
  │   │       │       │   └─ Punctuation [93..94]: "."
@@ -172,16 +162,14 @@ sparkdown [0..218]
  │   │       │       │   ├─ Word [97..99]: "Go"
  │   │       │       │   ├─ Space [99..100]: " "
  │   │       │       │   ├─ Raw [100..105]
- │   │       │       │   │   ├─ Raw_begin [100..101]
- │   │       │       │   │   │   └─ Raw_begin_c1 [100..101]
- │   │       │       │   │   │       └─ StylingMark [100..101]
- │   │       │       │   │   │           └─ StylingMark_c1 [100..101]: "`"
- │   │       │       │   │   ├─ Raw_content [101..104]
+ │   │       │       │   │   ├─ Raw_c1 [100..101]
+ │   │       │       │   │   │   └─ SpanOpenMark [100..101]
+ │   │       │       │   │   │       └─ SpanOpenMark_c1 [100..101]: "`"
+ │   │       │       │   │   ├─ Raw_c2 [101..104]
  │   │       │       │   │   │   └─ Word [101..104]: "raw"
- │   │       │       │   │   └─ Raw_end [104..105]
- │   │       │       │   │       └─ Raw_end_c1 [104..105]
- │   │       │       │   │           └─ StylingMark [104..105]
- │   │       │       │   │               └─ StylingMark_c1 [104..105]: "`"
+ │   │       │       │   │   └─ Raw_c3 [104..105]
+ │   │       │       │   │       └─ SpanCloseMark [104..105]
+ │   │       │       │   │           └─ SpanCloseMark_c1 [104..105]: "`"
  │   │       │       │   ├─ Space [105..106]: " "
  │   │       │       │   ├─ Word [106..109]: "now"
  │   │       │       │   └─ Punctuation [109..110]: "."
@@ -222,30 +210,26 @@ sparkdown [0..218]
  │   │       │       │   ├─ Word [119..121]: "Go"
  │   │       │       │   ├─ Space [121..122]: " "
  │   │       │       │   ├─ Bold [122..130]
- │   │       │       │   │   ├─ Bold_begin [122..124]
- │   │       │       │   │   │   └─ Bold_begin_c1 [122..124]
- │   │       │       │   │   │       └─ StylingMark [122..124]
- │   │       │       │   │   │           └─ StylingMark_c1 [122..124]: "**"
- │   │       │       │   │   ├─ Bold_content [124..128]
+ │   │       │       │   │   ├─ Bold_c1 [122..124]
+ │   │       │       │   │   │   └─ SpanOpenMark [122..124]
+ │   │       │       │   │   │       └─ SpanOpenMark_c1 [122..124]: "**"
+ │   │       │       │   │   ├─ Bold_c2 [124..128]
  │   │       │       │   │   │   └─ Word [124..128]: "bold"
- │   │       │       │   │   └─ Bold_end [128..130]
- │   │       │       │   │       └─ Bold_end_c1 [128..130]
- │   │       │       │   │           └─ StylingMark [128..130]
- │   │       │       │   │               └─ StylingMark_c1 [128..130]: "**"
+ │   │       │       │   │   └─ Bold_c3 [128..130]
+ │   │       │       │   │       └─ SpanCloseMark [128..130]
+ │   │       │       │   │           └─ SpanCloseMark_c1 [128..130]: "**"
  │   │       │       │   ├─ Space [130..131]: " "
  │   │       │       │   ├─ Word [131..134]: "and"
  │   │       │       │   ├─ Space [134..135]: " "
  │   │       │       │   ├─ Raw [135..140]
- │   │       │       │   │   ├─ Raw_begin [135..136]
- │   │       │       │   │   │   └─ Raw_begin_c1 [135..136]
- │   │       │       │   │   │       └─ StylingMark [135..136]
- │   │       │       │   │   │           └─ StylingMark_c1 [135..136]: "`"
- │   │       │       │   │   ├─ Raw_content [136..139]
+ │   │       │       │   │   ├─ Raw_c1 [135..136]
+ │   │       │       │   │   │   └─ SpanOpenMark [135..136]
+ │   │       │       │   │   │       └─ SpanOpenMark_c1 [135..136]: "`"
+ │   │       │       │   │   ├─ Raw_c2 [136..139]
  │   │       │       │   │   │   └─ Word [136..139]: "raw"
- │   │       │       │   │   └─ Raw_end [139..140]
- │   │       │       │   │       └─ Raw_end_c1 [139..140]
- │   │       │       │   │           └─ StylingMark [139..140]
- │   │       │       │   │               └─ StylingMark_c1 [139..140]: "`"
+ │   │       │       │   │   └─ Raw_c3 [139..140]
+ │   │       │       │   │       └─ SpanCloseMark [139..140]
+ │   │       │       │   │           └─ SpanCloseMark_c1 [139..140]: "`"
  │   │       │       │   ├─ Space [140..141]: " "
  │   │       │       │   ├─ Word [141..144]: "now"
  │   │       │       │   └─ Punctuation [144..145]: "."
@@ -286,30 +270,26 @@ sparkdown [0..218]
  │   │   │   │       │   ├─ Word [158..160]: "Go"
  │   │   │   │       │   ├─ Space [160..161]: " "
  │   │   │   │       │   ├─ Italic [161..169]
- │   │   │   │       │   │   ├─ Italic_begin [161..162]
- │   │   │   │       │   │   │   └─ Italic_begin_c1 [161..162]
- │   │   │   │       │   │   │       └─ StylingMark [161..162]
- │   │   │   │       │   │   │           └─ StylingMark_c1 [161..162]: "*"
- │   │   │   │       │   │   ├─ Italic_content [162..168]
+ │   │   │   │       │   │   ├─ Italic_c1 [161..162]
+ │   │   │   │       │   │   │   └─ SpanOpenMark [161..162]
+ │   │   │   │       │   │   │       └─ SpanOpenMark_c1 [161..162]: "*"
+ │   │   │   │       │   │   ├─ Italic_c2 [162..168]
  │   │   │   │       │   │   │   └─ Word [162..168]: "italic"
- │   │   │   │       │   │   └─ Italic_end [168..169]
- │   │   │   │       │   │       └─ Italic_end_c1 [168..169]
- │   │   │   │       │   │           └─ StylingMark [168..169]
- │   │   │   │       │   │               └─ StylingMark_c1 [168..169]: "*"
+ │   │   │   │       │   │   └─ Italic_c3 [168..169]
+ │   │   │   │       │   │       └─ SpanCloseMark [168..169]
+ │   │   │   │       │   │           └─ SpanCloseMark_c1 [168..169]: "*"
  │   │   │   │       │   ├─ Space [169..170]: " "
  │   │   │   │       │   ├─ Word [170..173]: "and"
  │   │   │   │       │   ├─ Space [173..174]: " "
  │   │   │   │       │   ├─ Underline [174..187]
- │   │   │   │       │   │   ├─ Underline_begin [174..176]
- │   │   │   │       │   │   │   └─ Underline_begin_c1 [174..176]
- │   │   │   │       │   │   │       └─ StylingMark [174..176]
- │   │   │   │       │   │   │           └─ StylingMark_c1 [174..176]: "__"
- │   │   │   │       │   │   ├─ Underline_content [176..185]
+ │   │   │   │       │   │   ├─ Underline_c1 [174..176]
+ │   │   │   │       │   │   │   └─ SpanOpenMark [174..176]
+ │   │   │   │       │   │   │       └─ SpanOpenMark_c1 [174..176]: "__"
+ │   │   │   │       │   │   ├─ Underline_c2 [176..185]
  │   │   │   │       │   │   │   └─ Word [176..185]: "underline"
- │   │   │   │       │   │   └─ Underline_end [185..187]
- │   │   │   │       │   │       └─ Underline_end_c1 [185..187]
- │   │   │   │       │   │           └─ StylingMark [185..187]
- │   │   │   │       │   │               └─ StylingMark_c1 [185..187]: "__"
+ │   │   │   │       │   │   └─ Underline_c3 [185..187]
+ │   │   │   │       │   │       └─ SpanCloseMark [185..187]
+ │   │   │   │       │   │           └─ SpanCloseMark_c1 [185..187]: "__"
  │   │   │   │       │   ├─ Space [187..188]: " "
  │   │   │   │       │   ├─ Word [188..191]: "now"
  │   │   │   │       │   └─ Punctuation [191..192]: "."
@@ -334,16 +314,14 @@ sparkdown [0..218]
  │   │       │       │   ├─ Word [195..197]: "Go"
  │   │       │       │   ├─ Space [197..198]: " "
  │   │       │       │   ├─ Centered [198..208]
- │   │       │       │   │   ├─ Centered_begin [198..199]
- │   │       │       │   │   │   └─ Centered_begin_c1 [198..199]
- │   │       │       │   │   │       └─ StylingMark [198..199]
- │   │       │       │   │   │           └─ StylingMark_c1 [198..199]: "^"
- │   │       │       │   │   ├─ Centered_content [199..207]
+ │   │       │       │   │   ├─ Centered_c1 [198..199]
+ │   │       │       │   │   │   └─ SpanOpenMark [198..199]
+ │   │       │       │   │   │       └─ SpanOpenMark_c1 [198..199]: "^"
+ │   │       │       │   │   ├─ Centered_c2 [199..207]
  │   │       │       │   │   │   └─ Word [199..207]: "centered"
- │   │       │       │   │   └─ Centered_end [207..208]
- │   │       │       │   │       └─ Centered_end_c1 [207..208]
- │   │       │       │   │           └─ StylingMark [207..208]
- │   │       │       │   │               └─ StylingMark_c1 [207..208]: "^"
+ │   │       │       │   │   └─ Centered_c3 [207..208]
+ │   │       │       │   │       └─ SpanCloseMark [207..208]
+ │   │       │       │   │           └─ SpanCloseMark_c1 [207..208]: "^"
  │   │       │       │   ├─ Space [208..209]: " "
  │   │       │       │   ├─ Word [209..212]: "now"
  │   │       │       │   └─ Punctuation [212..213]: "."

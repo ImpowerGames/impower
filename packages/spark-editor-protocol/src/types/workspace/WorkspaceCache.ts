@@ -51,6 +51,7 @@ export interface GameState {
   position?: GamePosition;
   loading?: boolean;
   running?: boolean;
+  starting?: boolean;
   ended?: boolean;
   paused?: boolean;
   choosing?: boolean;

@@ -45,6 +45,19 @@ import {
 import { RUN_WRAPPER_SUFFIX, runWrapperName } from "../../utils/runWrapper";
 import { propClosureHoldsExpression } from "../../utils/propClosureHoldsExpression";
 import { luauNameAtStart, LUAU_NAME_SOURCE } from "../../utils/luauName";
+import {
+  DIRECTIVE_CLAUSE_WORDS,
+  DIRECTIVE_FLAG_WORDS,
+  DIRECTIVE_NODE_BRACKETS,
+  directiveClauseWords,
+  directiveValueKind,
+  readSourceDirectiveTexts,
+  type SourceDirective,
+} from "../../utils/readDirective";
+import { distinctRanges } from "../../utils/distinctRanges";
+
+const FILLED_DIRECTIVE_VALUE_MESSAGE =
+  "The game fills in this value before it reads the directive it sits in, because the directive runs past the choice's brackets, so the editor cannot check that directive's names and clauses. Close the directive before the brackets, or move the value out of it.";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -64,14 +77,7 @@ const PLAY_ONE_VIDEO =
   "`play` takes one video name\n> e.g. `[[play intro]]`, `[[play intro loop with fade]]`";
 
 const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
-const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
-const ASSET_COMMAND_INSTRUCTION = nodeNameSet(["AssetCommandInstruction"]);
-const ASSET_COMMAND_TARGET = nodeNameSet(["AssetCommandTarget"]);
 const NAME_VALUE_CLAUSE_KEYWORDS: ReadonlySet<string> = new Set(["with", "ease"]);
-const ASSET_COMMAND_EXTRA_NAME = nodeNameSet([
-  "AssetCommandName",
-  "AssetCommandAddOperator",
-]);
 
 const VALID_SPARKLE_EVENTS = new Set([
   "click", "mousedown", "mouseenter", "mouseleave", "mousemove", "mouseout",
@@ -578,27 +584,111 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return this.diagnosticDocument.source;
   };
 
-  protected hasNavigateDestination(commandNode: any): boolean {
-    const search = (node: any): boolean => {
-      if (node.name === "NameValue") {
-        const clauseKeywordNode = node.prevSibling?.prevSibling;
-        const clauseKeyword = clauseKeywordNode
-          ? this.read(clauseKeywordNode.from, clauseKeywordNode.to)
-          : "";
-        if (clauseKeyword === "to") {
-          return true;
+  protected directiveIssues(
+    annotations: Range<SparkdownAnnotation<Diagnostic>>[],
+    directive: SourceDirective,
+  ): void {
+    const { bracket, kind, control, target, names } = directive;
+    const issue = (message: string, from: number, to: number, severity?: "error" | "warning") =>
+      annotations.push(
+        SparkdownAnnotation.mark<Diagnostic>({ message, ...(severity ? { severity } : {}) }).range(from, to),
+      );
+    const navigate = kind === "layout" && control?.text === LayoutVerb.navigate;
+    if (control && bracket === "image" && !BRACKET_CONTROL_KEYWORDS.includes(control.text)) {
+      issue(
+        `Unrecognized command: \`[[ ]]\` commands only support ${formatList(BRACKET_CONTROL_KEYWORDS)}`,
+        control.from,
+        control.to,
+      );
+    } else if (control && bracket === "audio" && !AUDIO_CONTROL_KEYWORDS.includes(control.text)) {
+      issue(
+        `Unrecognized audio control: Audio commands only support ${formatList(AUDIO_CONTROL_KEYWORDS)}`,
+        control.from,
+        control.to,
+      );
+    } else if (control && navigate) {
+      if (!directive.destination) {
+        issue(
+          "Incomplete \`navigate\`: name the destination screen\n> e.g. \`[[navigate menu to settings]]\`",
+          control.from,
+          control.to,
+          "warning",
+        );
+      }
+    } else if (control && kind === "layout" && control.text === LayoutVerb.clear) {
+      if (target?.text !== "textstream") {
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message: "Only textstream has a page to clear.",
+            severity: "warning",
+          }).range(target ? target.from : control.from, target ? target.to : control.to),
+        );
+      }
+    } else if (control && kind === "cutscene") {
+      if (!target) {
+        this.error(annotations, PLAY_ONE_VIDEO, control.from, control.to);
+      } else if (target.text.includes("+")) {
+        this.error(annotations, PLAY_ONE_VIDEO, target.from, names.at(-1)?.to ?? target.to);
+      } else {
+        if (names.length > 0) this.error(annotations, PLAY_ONE_VIDEO, names[0]!.from, names.at(-1)!.to);
+        for (const clause of directive.clauses) {
+          const stray = clause.takesValue
+            ? NAME_VALUE_CLAUSE_KEYWORDS.has(clause.word.text)
+              ? undefined
+              : clause.value
+            : DIRECTIVE_CLAUSE_WORDS.includes(clause.word.text)
+              ? undefined
+              : clause.word;
+          if (stray && directiveValueKind(stray.text) === "name") {
+            this.error(annotations, PLAY_ONE_VIDEO, stray.from, stray.to);
+          }
         }
       }
-      let c = node.firstChild;
-      while (c) {
-        if (search(c)) {
-          return true;
+    }
+    directive.clauses.forEach((clause, index) => {
+      const keyword = clause.word.text;
+      const value = clause.value;
+      const valueKind = value ? directiveValueKind(value.text) : undefined;
+      const missingAt = this.getNextNonWhitespacePos(clause.word.to);
+      const expect = (message: string) => {
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({ message, severity: "error" }).range(
+            value ? value.from : missingAt,
+            value ? value.to : missingAt,
+          ),
+        );
+      };
+      if (!clause.takesValue) {
+        const next = directive.clauses[index + 1];
+        const nextKind = next ? directiveValueKind(next.word.text) : undefined;
+        if (
+          DIRECTIVE_FLAG_WORDS.includes(keyword) &&
+          next &&
+          !next.takesValue &&
+          !DIRECTIVE_CLAUSE_WORDS.includes(next.word.text) &&
+          (nextKind === "time" || nextKind === "number")
+        ) {
+          annotations.push(
+            SparkdownAnnotation.mark<Diagnostic>({
+              message: `\`${keyword}\` is a flag and cannot take an argument`,
+              severity: "error",
+            }).range(clause.word.from, next.word.to),
+          );
         }
-        c = c.nextSibling;
+        return;
       }
-      return false;
-    };
-    return search(commandNode);
+      if ((keyword === "after" || keyword === "over") && valueKind !== "time" && valueKind !== "number") {
+        expect(`\`${keyword}\` should be followed by a time value\n> e.g. \`${keyword} 2\`, \`${keyword} 2s\`, \`${keyword} 200ms\``);
+      } else if (keyword === "with" && bracket === "image" && valueKind !== "name") {
+        expect("\`with\` should be followed by the name of a transition or animation\n> e.g. \`with shake\`");
+      } else if (keyword === "with" && bracket === "audio" && valueKind !== "name") {
+        expect("\`with\` should be followed by the name of a modulation\n> e.g. \`with echo\`");
+      } else if (keyword === "ease" && bracket === "image" && valueKind !== "name") {
+        expect("\`ease\` should be followed by the name of an ease\n> e.g. \`ease linear\`");
+      } else if (keyword === "to" && !navigate && (valueKind !== "number" || Number(value!.text) < 0)) {
+        expect("\`to\` should be followed by a number greater than 0\n> e.g. \`to 0\`, \`to 0.5\`, \`to 1\`");
+      }
+    });
   }
 
   protected conditionExpressionEnd(condition: any): number {
@@ -1375,138 +1465,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
       }
     }
-    if (nodeRef.name === "AssetCommandControl") {
-      const context = getContextNames(nodeRef.node);
-      if (
-        context.includes("ImageCommand") &&
-        !BRACKET_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
-      ) {
-        const message = `Unrecognized command: \`[[ ]]\` commands only support ${formatList(
-          BRACKET_CONTROL_KEYWORDS,
-        )}`;
+    if (Object.hasOwn(DIRECTIVE_NODE_BRACKETS, nodeRef.name)) {
+      const { directives, filledValues } = readSourceDirectiveTexts(nodeRef, (from, to) => this.read(from, to));
+      const issues: Range<SparkdownAnnotation<Diagnostic>>[] = [];
+      for (const directive of directives) this.directiveIssues(issues, directive);
+      annotations.push(...distinctRanges(issues));
+      for (const value of filledValues) {
         annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
+          SparkdownAnnotation.mark<Diagnostic>({
+            message: FILLED_DIRECTIVE_VALUE_MESSAGE,
+            severity: "warning",
+          }).range(value.from, value.to),
         );
-        return annotations;
-      }
-      if (
-        context.includes("AudioCommand") &&
-        !AUDIO_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
-      ) {
-        const message = `Unrecognized audio control: Audio commands only support ${formatList(
-          AUDIO_CONTROL_KEYWORDS,
-        )}`;
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-      if (
-        context.includes("ImageCommand") &&
-        this.read(nodeRef.from, nodeRef.to) === LayoutVerb.navigate
-      ) {
-        const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
-        if (command && !this.hasNavigateDestination(command)) {
-          const message = `Incomplete \`navigate\`: name the destination screen\n> e.g. \`[[navigate menu to settings]]\``;
-          annotations.push(
-            SparkdownAnnotation.mark<Diagnostic>({
-              message,
-              severity: "warning",
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        }
-      }
-      if (
-        context.includes("ImageCommand") &&
-        this.read(nodeRef.from, nodeRef.to) === LayoutVerb.clear
-      ) {
-        const instruction = ancestorMatching(
-          nodeRef.node,
-          ASSET_COMMAND_INSTRUCTION,
-        );
-        const target = instruction
-          ? firstDescendant(instruction, ASSET_COMMAND_TARGET)
-          : null;
-        const targetText = target
-          ? this.read(target.from, target.to).trim()
-          : "";
-        if (targetText !== "textstream") {
-          annotations.push(
-            SparkdownAnnotation.mark<Diagnostic>({
-              message: "Only textstream has a page to clear.",
-              severity: "warning",
-            }).range(
-              targetText ? target!.from : nodeRef.from,
-              targetText ? target!.to : nodeRef.to,
-            ),
-          );
-        }
-        return annotations;
-      }
-      if (
-        context.includes("ImageCommand") &&
-        MOVIE_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
-      ) {
-        const instruction = ancestorMatching(
-          nodeRef.node,
-          ASSET_COMMAND_INSTRUCTION,
-        );
-        const target = instruction
-          ? firstDescendant(instruction, ASSET_COMMAND_TARGET)
-          : null;
-        const targetText = target ? this.read(target.from, target.to) : "";
-        let extraFrom: number | undefined;
-        let extraTo: number | undefined;
-        const findExtra = (node: SyntaxNode) => {
-          for (let c = node.firstChild; c; c = c.nextSibling) {
-            if (ASSET_COMMAND_EXTRA_NAME.has(c.name)) {
-              extraFrom ??= c.from;
-              extraTo = c.to;
-            } else {
-              findExtra(c);
-            }
-          }
-        };
-        if (instruction) findExtra(instruction);
-        if (!target || !targetText.trim()) {
-          this.error(annotations, PLAY_ONE_VIDEO, nodeRef.from, nodeRef.to);
-          return annotations;
-        }
-        if (targetText.includes("+")) {
-          this.error(annotations, PLAY_ONE_VIDEO, target.from, extraTo ?? target.to);
-          return annotations;
-        }
-        if (extraFrom !== undefined && extraTo !== undefined) {
-          this.error(annotations, PLAY_ONE_VIDEO, extraFrom, extraTo);
-        }
-        const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
-        const findStrayValue = (node: SyntaxNode) => {
-          for (let c = node.firstChild; c; c = c.nextSibling) {
-            if (c.name === "NameValue") {
-              const keyword = c.prevSibling?.prevSibling;
-              const keywordText = keyword
-                ? this.read(keyword.from, keyword.to)
-                : "";
-              if (
-                keyword?.name !== "AssetCommandClauseKeyword" ||
-                !NAME_VALUE_CLAUSE_KEYWORDS.has(keywordText)
-              ) {
-                this.error(annotations, PLAY_ONE_VIDEO, c.from, c.to);
-              }
-            } else {
-              findStrayValue(c);
-            }
-          }
-        };
-        if (command) findStrayValue(command);
-        return annotations;
       }
     }
     if (nodeRef.name === "EventAttributeName") {
@@ -1676,6 +1646,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "IllegalChar") {
       const context = getContextNames(nodeRef.node);
+      const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
+      const directives = command ? readSourceDirectiveTexts(command, (from, to) => this.read(from, to)).directives : [];
+      if (directives.some((directive) => directiveClauseWords(directive).some((word) => word.from <= nodeRef.from && nodeRef.to <= word.to))) {
+        return annotations;
+      }
       if (context.includes("ImageCommand")) {
         const message = `Invalid syntax`;
         annotations.push(
@@ -1695,177 +1670,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
-      }
-    }
-    if (nodeRef.name === "AssetCommandClauseKeyword") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      const nextNonWhitespacePos = this.getNextNonWhitespacePos(nodeRef.to);
-      const nextValueNode = nodeRef.node.nextSibling?.node.nextSibling;
-      const nextValueNodeType = (
-        nextValueNode ? nextValueNode.type.name : ""
-      ) as SparkdownNodeName;
-      const nextValueNodeText = nextValueNode
-        ? this.read(nextValueNode.from, nextValueNode.to)
-        : "";
-      if (text === "after") {
-        if (
-          nextValueNodeType !== "TimeValue" &&
-          nextValueNodeType !== "NumberValue"
-        ) {
-          const message = `\`${text}\` should be followed by a time value\n> e.g. \`after 2\`, \`after 2s\`, \`after 200ms\``;
-          const errorFrom = nextValueNode
-            ? nextValueNode.from
-            : nextNonWhitespacePos;
-          const errorTo = nextValueNode
-            ? nextValueNode.to
-            : nextNonWhitespacePos;
-          annotations.push(
-            SparkdownAnnotation.mark<Diagnostic>({
-              message,
-              severity: "error",
-            }).range(errorFrom, errorTo),
-          );
-          return annotations;
-        }
-      }
-      if (text === "over") {
-        if (
-          nextValueNodeType !== "TimeValue" &&
-          nextValueNodeType !== "NumberValue"
-        ) {
-          const message = `\`${text}\` should be followed by a time value\n> e.g. \`over 2\`, \`over 2s\`, \`over 200ms\``;
-          const errorFrom = nextValueNode
-            ? nextValueNode.from
-            : nextNonWhitespacePos;
-          const errorTo = nextValueNode
-            ? nextValueNode.to
-            : nextNonWhitespacePos;
-          annotations.push(
-            SparkdownAnnotation.mark<Diagnostic>({
-              message,
-              severity: "error",
-            }).range(errorFrom, errorTo),
-          );
-          return annotations;
-        }
-      }
-      if (text === "with") {
-        const context = getContextNames(nodeRef.node);
-        if (
-          context.includes("ImageCommand") &&
-          nextValueNodeType !== "NameValue"
-        ) {
-          const message = `\`${text}\` should be followed by the name of a transition or animation\n> e.g. \`with shake\``;
-          const errorFrom = nextValueNode
-            ? nextValueNode.from
-            : nextNonWhitespacePos;
-          const errorTo = nextValueNode
-            ? nextValueNode.to
-            : nextNonWhitespacePos;
-          annotations.push(
-            SparkdownAnnotation.mark<Diagnostic>({
-              message,
-              severity: "error",
-            }).range(errorFrom, errorTo),
-          );
-          return annotations;
-        }
-        if (
-          context.includes("AudioCommand") &&
-          nextValueNodeType !== "NameValue"
-        ) {
-          const message =
-            "\`with\` should be followed by the name of a modulation\n> e.g. \`with echo\`";
-          const errorFrom = nextValueNode
-            ? nextValueNode.from
-            : nextNonWhitespacePos;
-          const errorTo = nextValueNode
-            ? nextValueNode.to
-            : nextNonWhitespacePos;
-          annotations.push(
-            SparkdownAnnotation.mark<Diagnostic>({
-              message,
-              severity: "error",
-            }).range(errorFrom, errorTo),
-          );
-          return annotations;
-        }
-      }
-      if (text === "ease") {
-        const context = getContextNames(nodeRef.node);
-        if (
-          context.includes("ImageCommand") &&
-          nextValueNodeType !== "NameValue"
-        ) {
-          const message = `\`${text}\` should be followed by the name of an ease\n> e.g. \`ease linear\``;
-          const errorFrom = nextValueNode
-            ? nextValueNode.from
-            : nextNonWhitespacePos;
-          const errorTo = nextValueNode
-            ? nextValueNode.to
-            : nextNonWhitespacePos;
-          annotations.push(
-            SparkdownAnnotation.mark<Diagnostic>({
-              message,
-              severity: "error",
-            }).range(errorFrom, errorTo),
-          );
-          return annotations;
-        }
-      }
-      if (text === "to") {
-        const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
-        const controlNode = command
-          ? firstDescendant(command, ASSET_COMMAND_CONTROL)
-          : null;
-        const control = controlNode
-          ? this.read(controlNode.from, controlNode.to).trim()
-          : "";
-        if (
-          control !== LayoutVerb.navigate &&
-          (nextValueNodeType !== "NumberValue" ||
-            (nextValueNodeType === "NumberValue" &&
-              Number(nextValueNodeText) < 0))
-        ) {
-          const message = `\`${text}\` should be followed by a number greater than 0\n> e.g. \`to 0\`, \`to 0.5\`, \`to 1\``;
-          const errorFrom = nextValueNode
-            ? nextValueNode.from
-            : nextNonWhitespacePos;
-          const errorTo = nextValueNode
-            ? nextValueNode.to
-            : nextNonWhitespacePos;
-          annotations.push(
-            SparkdownAnnotation.mark<Diagnostic>({
-              message,
-              severity: "error",
-            }).range(errorFrom, errorTo),
-          );
-          return annotations;
-        }
-      }
-      if (
-        text === "wait" ||
-        text === "loop" ||
-        text === "once" ||
-        text === "mute" ||
-        text === "unmute" ||
-        text === "now"
-      ) {
-        if (
-          nextValueNode &&
-          (nextValueNodeType === "TimeValue" ||
-            nextValueNodeType === "NumberValue")
-        ) {
-          const message = `\`${text}\` is a flag and cannot take an argument`;
-          const nodeCharacterOffset = nextValueNode.to - nodeRef.to;
-          annotations.push(
-            SparkdownAnnotation.mark<Diagnostic>({
-              message,
-              severity: "error",
-            }).range(nodeRef.from, nodeRef.to + nodeCharacterOffset),
-          );
-          return annotations;
-        }
       }
     }
     return annotations;

@@ -1,4 +1,5 @@
 import type WorkspaceFileSystem from "../workspace/WorkspaceFileSystem";
+import store from "../workspace/WorkspaceStore";
 import { moveAll, reasonOf, reversed, type FileMove, type MovingFileSystem, type RenameOutcome } from "./fileMoves";
 import { renameOrReport } from "./renameOrReport";
 import { showSnackbar } from "./snackbar";
@@ -151,22 +152,29 @@ export function recordMoves(
     const { Workspace: workspace } = await import("../workspace/Workspace");
     const Workspace = references ? workspace : { fs: workspace.fs, autoRenameFiles: () => false };
     const [only] = set;
-    if (set.length === 1 && only) {
-      const move = await renameOrReport<unknown>(only.from, only.to, () =>
-        renameFiles(Workspace, projectId, set),
-      );
-      if (!move.renamed) {
-        throw new Error(`Rename of ${only.from} to ${only.to} was refused`);
+    store.movesReplayed.value = { moves: set, settled: false };
+    let landed = false;
+    try {
+      if (set.length === 1 && only) {
+        const move = await renameOrReport<unknown>(only.from, only.to, () =>
+          renameFiles(Workspace, projectId, set),
+        );
+        if (!move.renamed) {
+          throw new Error(`Rename of ${only.from} to ${only.to} was refused`);
+        }
+      } else {
+        try {
+          await renameFiles(Workspace, projectId, set);
+        } catch (error) {
+          showSnackbar({ message: reasonOf(error) });
+          throw error;
+        }
       }
-    } else {
-      try {
-        await renameFiles(Workspace, projectId, set);
-      } catch (error) {
-        showSnackbar({ message: reasonOf(error) });
-        throw error;
-      }
+      landed = true;
+      await markProjectDirty();
+    } finally {
+      store.movesReplayed.value = { moves: landed ? set : [], settled: true };
     }
-    await markProjectDirty();
   };
   const all = [...moves];
   pushUndo({

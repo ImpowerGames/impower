@@ -1,7 +1,13 @@
 import { indentLess, indentMore } from "@codemirror/commands";
-import { EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { formatDocument } from "@impower/codemirror-vscode-lsp-client/src";
+import {
+  formatDocument,
+  presentColorPicker,
+  serverColorDecorations,
+  setDocumentColors,
+  type ColorPick,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   KEYBOARD_TOOLBAR_TABLE,
@@ -65,7 +71,7 @@ afterEach(() => {
 });
 
 describe("the keyboard toolbar's table", () => {
-  it("groups the prototype's commands: Indent and Dedent together, then Format, Writing tools, the readout, Add", () => {
+  it("groups the prototype's commands: Indent and Dedent together, then Format, Writing tools, the colour chip in the readout's place, Add", () => {
     const placements = KEYBOARD_TOOLBAR_TABLE.map((entry) => ({
       placement: entry.placement,
       group: entry.group,
@@ -78,7 +84,7 @@ describe("the keyboard toolbar's table", () => {
         ids: ["indent", "dedent"],
       },
       { placement: "start", group: undefined, ids: ["format", "writingTools"] },
-      { placement: "center", group: undefined, ids: ["position"] },
+      { placement: "center", group: undefined, ids: ["color", "position"] },
       { placement: "end", group: undefined, ids: ["add"] },
     ]);
   });
@@ -222,5 +228,105 @@ describe("the keyboard toolbar on a phone", () => {
     v.dispatch({ effects: setScriptMode.of("reading") });
     await flush();
     expect(toolbar()).toBeNull();
+  });
+});
+
+describe("the keyboard toolbar's colour chip on a phone", () => {
+  const DOC = "one\nlayout tint0 { text #ff880080 }\nthree";
+  const FROM = DOC.indexOf("#");
+  const TO = FROM + "#ff880080".length;
+  const COLOR = { red: 1, green: 136 / 255, blue: 0, alpha: 128 / 255 };
+  const shown: ColorPick[] = [];
+
+  const mountColors = (pos: number, readOnly = false) => {
+    shown.length = 0;
+    parent = document.body.appendChild(document.createElement("div"));
+    view = new EditorView({
+      state: EditorState.create({
+        doc: DOC,
+        selection: EditorSelection.single(pos),
+        extensions: [
+          serverColorDecorations().editorExtension ?? [],
+          presentColorPicker((pick) => shown.push(pick)),
+          EditorState.readOnly.of(readOnly),
+          scriptMode("editing"),
+          keyboardToolbar({ onTool: (tool) => tools.push(tool) }),
+        ],
+      }),
+      parent,
+    });
+    view.dispatch(
+      setDocumentColors(view.state, [{ from: FROM, to: TO, color: COLOR }]),
+    );
+    return view;
+  };
+
+  const chip = () =>
+    toolbar()?.querySelector<HTMLButtonElement>("[data-caret-color-chip]") ??
+    null;
+  const position = () =>
+    toolbar()!.querySelector<HTMLElement>("[data-toolbar-position]")!;
+  const sides = () =>
+    Array.from(toolbar()!.querySelectorAll<HTMLElement>("[data-toolbar-placement]"))
+      .filter((el) => el.dataset["toolbarPlacement"] !== "center")
+      .map((el) => Array.from(el.querySelectorAll("button")));
+
+  it("shows the colour under the caret in the readout's place", async () => {
+    const v = mountColors(FROM + 3);
+    await focus(v);
+    expect(chip()).not.toBeNull();
+    expect(chip()!.getAttribute("aria-label")).toBe("Change color #ff880080");
+    expect(chip()!.textContent).toBe("#ff880080");
+    const scriptSwatch = v.contentDOM
+      .querySelector<HTMLElement>(".cm-color-swatch")!
+      .style.getPropertyValue("--swatch");
+    expect(scriptSwatch).not.toBe("");
+    expect(
+      chip()!
+        .querySelector<HTMLElement>("[data-caret-color-swatch]")!
+        .style.getPropertyValue("--swatch"),
+    ).toBe(scriptSwatch);
+    expect(position().hidden).toBe(true);
+  });
+
+  it("goes when the caret moves off the colour and comes back on it, the other tools untouched", async () => {
+    const v = mountColors(FROM + 3);
+    await focus(v);
+    const before = sides();
+    v.dispatch({ selection: { anchor: DOC.indexOf("three") } });
+    await flush();
+    expect(chip()).toBeNull();
+    expect(position().hidden).toBe(false);
+    expect(position().textContent).toBe("Line 3, Col 1");
+    expect(sides()).toEqual(before);
+
+    v.dispatch({ selection: { anchor: FROM } });
+    await flush();
+    expect(chip()?.textContent).toBe("#ff880080");
+    expect(sides()).toEqual(before);
+  });
+
+  it("does not show for a selection that spans the colour", async () => {
+    const v = mountColors(FROM);
+    await focus(v);
+    v.dispatch({ selection: EditorSelection.range(FROM, TO) });
+    await flush();
+    expect(chip()).toBeNull();
+  });
+
+  it("opens Change color through the command the swatch and the context menu use", async () => {
+    const v = mountColors(FROM + 3);
+    await focus(v);
+    chip()!.click();
+    expect(shown).toEqual([
+      { from: FROM, to: TO, color: COLOR, text: "#ff880080" },
+    ]);
+  });
+
+  it("does not show while the script cannot be edited", async () => {
+    const v = mountColors(FROM + 3, true);
+    await focus(v);
+    expect(toolbar()).not.toBeNull();
+    expect(chip()).toBeNull();
   });
 });

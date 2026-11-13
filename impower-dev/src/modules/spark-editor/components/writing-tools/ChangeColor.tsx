@@ -102,7 +102,7 @@ export function ChangeColorView({ value, color, colors, canEdit, onUse }: Change
           width="full"
           font="mono"
           class="flex-1"
-          autocapitalize="off"
+          purpose="literal"
           value={text}
           onValueChange={onType}
         />

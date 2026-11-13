@@ -793,18 +793,6 @@ describe("morph layers", () => {
     resume();
     expect(leafStates(shadowOf(el)!)).toEqual(moving);
   });
-
-  test("time stepped backwards starts every occurrence again at rest", async () => {
-    const { playback, span } = setup();
-    const el = span();
-    playback.mount(el, content(), BG, "background", "portrait:0");
-    await until(() => playback.stats.live === 1, "the artifact");
-    const rest = leafStates(shadowOf(el)!);
-    playback.advance(0.1);
-    expect(leafStates(shadowOf(el)!)).not.toEqual(rest);
-    playback.advance(-0.05);
-    expect(leafStates(shadowOf(el)!)).toEqual(rest);
-  });
 });
 
 describe("morph lifecycle at the page's boundaries", () => {
@@ -845,23 +833,6 @@ describe("morph lifecycle at the page's boundaries", () => {
     expect(playback.now).toBe(before);
     frames.run(10_100);
     expect(playback.now).toBeCloseTo(before + 0.1, 9);
-  });
-
-  test("a clock step moves the morphs by the step alone", () => {
-    const env = installJSDOM();
-    restore = env.restore;
-    const playback = new MorphPlayback(env.overlay, { host: bakingHost(), requestFrame: () => 0, cancelFrame: () => {} });
-    (env.overlay as any).__sdMorphs = playback;
-    const ui = new UIManager(createStubApp(env.overlay, () => {}));
-    const clock = { elapsedTime: 0, deltaTime: 0 } as any;
-    ui.onStart();
-    ui.onUpdate(clock);
-    Object.assign(clock, { elapsedTime: 0.1, deltaTime: 0.1 });
-    ui.onUpdate(clock);
-    expect(playback.now).toBeCloseTo(0.1, 9);
-    ui.onSkip(0.2);
-    ui.onUpdate(clock);
-    expect(playback.now).toBeCloseTo(0.3, 9);
   });
 
   test("content written over an element lets go of the morphs drawn inside it", async () => {
@@ -1386,17 +1357,6 @@ end
     expect(head("mia")).toEqual({ phase: "off" });
     playback.advance(0.1);
     expect(head("mia")).toEqual(playing(0.5));
-  });
-
-  test("stepping the clock back puts a speaking portrait at rest until the next line speaks", async () => {
-    const { playback, head } = await speaking();
-    playback.speak("mia", [[0, 2]]);
-    playback.advance(0.05);
-    expect(head("mia")).toEqual(playing(0.5));
-    playback.advance(-0.01);
-    expect(head("mia")).toEqual({ phase: "off" });
-    playback.advance(0.3);
-    expect(head("mia")).toEqual({ phase: "off" });
   });
 
   test("a continued line that changes the speaker's expression flaps exactly as it would without the change", async () => {

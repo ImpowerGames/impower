@@ -234,18 +234,15 @@ spark-web-player {
   --swp-game-background-color: #000;
   --swp-accent-color: #66baff;
   --swp-pause-color: #ffcc00;
+  --swp-run-color: #89d185;
   --swp-resize-handle-color: #888;
   --swp-toolbar-border-color: rgba(255, 255, 255, 0.15);
   --swp-toolbar-button-hover-color: rgba(255, 255, 255, 0.12);
   --swp-toolbar-button-active-color: rgba(255, 255, 255, 0.18);
-  --swp-play-button-color: #0e639c;
-  --swp-play-button-hover-color: #1177bb;
-  --swp-play-overlay-color: rgba(0, 0, 0, 0.75);
 
   --swp-toolbar-height: 28px;
   --swp-toolbar-font-size: 11px;
   --swp-toolbar-icon-size: 16px;
-  --swp-play-icon-size: 6rem;
 
   --swp-toolbar-button-gap: 6px;
   --swp-toolbar-items-gap: 10px;
@@ -321,45 +318,6 @@ spark-web-player #game-ui.pause-game::after {
   content: "";
   position: absolute;
   inset: 0;
-}
-
-spark-web-player #play-button {
-  position: absolute;
-  inset: 0;
-  cursor: pointer;
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--swp-play-overlay-color);
-  font-weight: 700;
-  font-size: 2.25rem;
-  color: var(--swp-play-button-color);
-  opacity: 0;
-  transition:
-    opacity var(--swp-transition-fast),
-    color var(--swp-transition-fast);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  spark-web-player #play-button:hover {
-    opacity: 1;
-    color: var(--swp-play-button-hover-color);
-  }
-
-  spark-web-player #play-button[aria-disabled="true"]:hover {
-    opacity: 0.5;
-    color: var(--swp-play-button-color);
-  }
-}
-
-spark-web-player #play-button[aria-disabled="true"] {
-  cursor: not-allowed;
-}
-
-spark-web-player #play-icon {
-  width: var(--swp-play-icon-size);
-  height: var(--swp-play-icon-size);
 }
 
 spark-web-player #toolbar {
@@ -553,6 +511,32 @@ spark-web-player .transport-button:disabled {
   cursor: default;
   opacity: 0.4;
   background-color: transparent;
+}
+
+spark-web-player #run-button {
+  flex: none;
+  border-right: 1px solid var(--swp-toolbar-border-color);
+}
+
+spark-web-player #run-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.4;
+  background-color: transparent;
+}
+
+spark-web-player .transport-icon[data-icon="run"] {
+  color: var(--swp-run-color);
+  mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.25 3l1.166-.624 8 5.333v1.248l-8 5.334-1.166-.624V3zm1.5 1.401v7.864l5.898-3.932L5.75 4.401z"/></svg>');
+}
+
+spark-web-player .transport-icon[data-icon="stop"] {
+  color: var(--swp-error-color);
+  mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M4 4h8v8H4z"/></svg>');
+}
+
+spark-web-player .transport-icon[data-icon="run-again"] {
+  color: var(--swp-run-color);
+  mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M12.75 8a4.5 4.5 0 0 1-8.61 1.834l-1.391.565A6.001 6.001 0 0 0 14.25 8 6 6 0 0 0 3.5 4.334V2.5H2v4l.75.75h3.5v-1.5H4.352A4.5 4.5 0 0 1 12.75 8z"/></svg>');
 }
 
 spark-web-player .transport-icon {

@@ -1,5 +1,4 @@
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
-import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
@@ -391,32 +390,6 @@ describe("the controls that move time while PLAY in the worker is starting", () 
       h.dispose();
     }
   }, 120_000);
-
-  it("steps the game by a clock step made during its start, as its application", async () => {
-    const h = await createPlayerHarness({
-      files: [{ uri: MAIN_URI, text: SOURCE }],
-      startFrom: { file: MAIN_URI, line: AFTER },
-      manualClock: true,
-    });
-    try {
-      await h.compile();
-      await h.select(AFTER);
-      const connecting = holdAnswer(h, ConnectPlayMessage.method);
-      const started = h.controller.startGameAndApp();
-      for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
-      await h.controller.handleStepGameClock(StepGameClockMessage.type.request({ seconds: 2.5 }));
-      connecting.open();
-      expect(await started).toBe(true);
-      await settle(10);
-      const offset = (clock: any) => clock._timeOffset;
-      expect(offset(h.controller._app.clock)).toBeCloseTo(2.5, 9);
-      expect(offset(h.workerState.gameState.running!.clock)).toBeCloseTo(2.5, 9);
-    } finally {
-      await h.controller.destroyGameAndApp();
-      h.workerState.gameState.running?.destroy();
-      h.dispose();
-    }
-  }, 120_000);
 });
 
 describe("a runtime error as PLAY's game in the worker starts", () => {
@@ -650,7 +623,7 @@ describe("the PLAY button pressed before the first program, then STOP", () => {
     });
     framesForStop(h);
     try {
-      const clicked = h.controller.handleClickPlayButton();
+      const clicked = h.controller.run();
       await settle(10);
       await h.controller.stopGame("quit");
       h.toEditor.length = 0;
@@ -811,7 +784,7 @@ describe("the PLAY button pressed while the audio context resumes", () => {
         await h.select(AFTER);
         const resumed = gate();
         h.controller.ensureAudioContext = () => resumed.opened;
-        const clicked = h.controller.handleClickPlayButton();
+        const clicked = h.controller.run();
         await settle(10);
         if (ending === "STOP") {
           await h.controller.stopGame("quit");
@@ -928,8 +901,6 @@ const outgoing = {
 const controls = {
   pause: (h: any) => h.controller.handlePauseGame(PauseGameMessage.type.request({})),
   unpause: (h: any) => h.controller.handleUnpauseGame(UnpauseGameMessage.type.request({})),
-  "clock step": (h: any) =>
-    h.controller.handleStepGameClock(StepGameClockMessage.type.request({ seconds: 2.5 })),
 } as const;
 
 describe("the editor's controls while the old run's application is on its way out", () => {
@@ -963,12 +934,9 @@ describe("the editor's controls while the old run's application is on its way ou
 
           expect(answer.error?.message).toBe("no game loaded");
           if (follows) {
-            const offset = (clock: any) => clock._timeOffset;
             expect(h.controller.playing).toBe(true);
             expect(h.controller._app.paused).toBe(false);
             expect(h.workerState.gameState.running!.paused).toBe(false);
-            expect(offset(h.controller._app.clock)).toBe(0);
-            expect(offset(h.workerState.gameState.running!.clock)).toBe(0);
           } else {
             expect(h.playing()).toBeFalsy();
           }

@@ -67,9 +67,11 @@
                     "type": "StringExpression",
                     "content": [
                       "Got ",
+                      "",
                       {
                         "type": "Weave"
-                      }
+                      },
+                      ""
                     ]
                   }
                 }

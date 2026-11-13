@@ -14,6 +14,7 @@ import {
   DropdownItem,
   DropdownLabel,
   DropdownRadioGroup,
+  DropdownItemText,
   DropdownRadioItem,
   type DropdownRadioItemIndicator,
   DropdownRoot,
@@ -46,6 +47,8 @@ function MenuItems() {
       <DropdownSeparator />
       <DropdownLabel variant="heading">Heading variant</DropdownLabel>
       <RadioItems indicator="start" />
+      <DropdownSeparator />
+      <HintedItems />
     </>
   );
 }
@@ -80,6 +83,25 @@ function RadioItems({
         >
           <span>{name}</span>
           <small class="text-xs font-normal text-muted">{hint}</small>
+        </DropdownRadioItem>
+      ))}
+    </DropdownRadioGroup>
+  );
+}
+
+const FACES = [
+  ["happy", "Happy", "Default"],
+  ["angry", "Angry", undefined],
+  ["sad", "Sad", undefined],
+] as const;
+
+function HintedItems() {
+  const [value, setValue] = useState<string>("happy");
+  return (
+    <DropdownRadioGroup label="Face" value={value} onValueChange={setValue}>
+      {FACES.map(([id, name, hint]) => (
+        <DropdownRadioItem key={id} value={id} indicator="end">
+          <DropdownItemText hint={hint}>{name}</DropdownItemText>
         </DropdownRadioItem>
       ))}
     </DropdownRadioGroup>
@@ -134,6 +156,16 @@ function DropdownDemo() {
           </GalleryRow>
         ),
       )}
+      <GalleryRow label="Two-line items: a hint beneath the label (the variant menus' Default)">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Choose a face</Button>
+          </DropdownTrigger>
+          <DropdownContent align="start" class="min-w-[180px]">
+            <HintedItems />
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
       <GalleryRow label="Disabled radio items (the aspect-ratio group in Interactive Fiction)">
         <DropdownRoot>
           <DropdownTrigger asChild>
@@ -144,7 +176,7 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
-      <GalleryRow label="Open on load in the menu layout: label, item, disabled item, separator, checked and unchecked checkbox items">
+      <GalleryRow label="Open on load in the menu layout: label, item, disabled item, separator, checked and unchecked checkbox items, radio items, two-line radio items">
         <div class="h-64">
           <DropdownRoot open={pinned} onOpenChange={setPinned} modal={false}>
             <DropdownTrigger asChild>
@@ -168,6 +200,7 @@ export const dropdownGallery: GalleryEntry = {
     "DropdownSeparator",
     "DropdownContent",
     "DropdownItem",
+    "DropdownItemText",
     "DropdownCheckboxItem",
     "DropdownLabel",
     "DropdownRadioGroup",

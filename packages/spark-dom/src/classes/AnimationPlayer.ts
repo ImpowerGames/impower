@@ -124,33 +124,13 @@ export default class AnimationPlayer {
     return created;
   }
 
-  get finishTime(): number | undefined {
-    let finish: number | undefined;
-    for (const { animation } of this._instances) {
-      const rate = animation.playbackRate;
-      const time = animation.currentTime;
-      const now = animation.timeline?.currentTime;
-      const start =
-        animation.startTime ??
-        (time == null || now == null || !rate
-          ? null
-          : Number(now) - Number(time) / rate);
-      if (start == null || !rate) {
-        continue;
-      }
-      const end =
-        Number(start) +
-        Number(animation.effect?.getComputedTiming?.().endTime ?? 0) / rate;
-      finish = finish == null ? end : Math.max(finish, end);
-    }
-    return finish;
-  }
-
-  get endTime(): number {
+  get endTimeUndelayed(): number {
     let end = 0;
     for (const instance of this._instances) {
       const effect = instance.animation.effect;
-      end = Math.max(end, Number(effect?.getComputedTiming?.().endTime ?? 0));
+      const computed = Number(effect?.getComputedTiming?.().endTime ?? 0);
+      const delay = Number(effect?.getTiming?.().delay ?? 0);
+      end = Math.max(end, computed - delay);
     }
     return end;
   }

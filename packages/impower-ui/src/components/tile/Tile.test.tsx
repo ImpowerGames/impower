@@ -102,4 +102,27 @@ describe("Tile", () => {
     expect(folder.closest("[data-drop-target]")).not.toBeNull();
     expect(folder.className).toContain("ring-accent");
   });
+
+  it("edges the current tile in the accent alone, even under the pointer, and shows its menu without hover", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <>
+          <Tile media={null} label="a" aria-label="Open a" current actions={<button aria-label="Options for a" />} onClick={() => {}} />
+          <Tile media={null} label="b" aria-label="Open b" actions={<button aria-label="Options for b" />} onClick={() => {}} />
+        </>,
+        host,
+      ),
+    );
+    const classes = (label: string) => host!.querySelector<HTMLElement>(`button[aria-label="${label}"]`)!.className.split(" ");
+    const borders = (label: string) => classes(label).filter((name) => /^(hover:)?border-(?!solid|\[)[a-z]/.test(name));
+    expect(borders("Open a")).toEqual(["border-accent", "hover:border-accent"]);
+    expect(classes("Open a")).toContain("bg-tint");
+    expect(classes("Open a")).not.toContain("bg-panel/55");
+    expect(borders("Open b")).toEqual(["border-edge", "hover:border-muted/45"]);
+    const menu = (label: string) => host!.querySelector(`[aria-label="${label}"]`)!.parentElement!.className.split(" ");
+    expect(menu("Options for a")).toContain("opacity-100");
+    expect(menu("Options for a")).not.toContain("opacity-0");
+    expect(menu("Options for b")).toContain("opacity-0");
+  });
 });

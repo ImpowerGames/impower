@@ -1,5 +1,4 @@
 import { describe, expect, test } from "vitest";
-import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { Application } from "../app/Application";
 
 function application(steps: {
@@ -65,28 +64,5 @@ describe("Application.destroy", () => {
 
     expect(await settled(app.destroy(true))).toBe(true);
     expect(disposed.count).toBe(1);
-  });
-});
-
-describe("Application.skip", () => {
-  test("a clock step before the renderer has initialized moves the clock without drawing", () => {
-    const clock = new Clock({ currentTime: 0 }, () => 0);
-    const skipped: number[] = [];
-    const app = Object.create(Application.prototype) as Application;
-    Object.assign(app, {
-      _clock: clock,
-      _managers: [{ onSkip: (seconds: number) => skipped.push(seconds), onUpdate: () => {} }],
-      _renderer: {
-        render: () => {
-          throw new Error("the renderer has no view yet");
-        },
-      },
-      _initialized: false,
-    });
-
-    app.skip(2.5);
-
-    expect(skipped).toEqual([2.5]);
-    expect((clock as any)._timeOffset).toBeCloseTo(2.5, 9);
   });
 });

@@ -17,6 +17,7 @@ import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/m
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import { HISTORY_REASONS } from "@impower/spark-engine/src/game/core/constants/HISTORY_REASONS";
 import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
+import { endingStatusText } from "@impower/spark-engine/src/game/core/utils/endingStatusText";
 import { describeSimulationFailure } from "../../utils/describeSimulationFailure";
 
 export interface PlayerBarState {
@@ -79,6 +80,15 @@ export const initialPlayerBarState: PlayerBarState = {
   size: null,
   runHistory: initialRunHistory,
 };
+
+export type RunButtonState = "run" | "stop" | "run-again";
+
+export const runButtonState = (state: PlayerBarState): RunButtonState =>
+  state.launchState === "ended"
+    ? "run-again"
+    : state.playing
+      ? "stop"
+      : "run";
 
 export const skipRefusal = (
   history: GameHistory | null | undefined,
@@ -163,10 +173,23 @@ export const relativeScriptPath = (
   uri: string,
   workspace: string | undefined,
 ) => {
-  const path =
-    workspace && uri.startsWith(workspace) ? uri.slice(workspace.length + 1) : uri;
+  const path = workspace ? pathWithin(uriPath(uri), uriPath(workspace)) : uri;
   const extIndex = path.lastIndexOf(".");
-  return extIndex < 0 ? path : path.slice(0, extIndex);
+  return extIndex <= path.lastIndexOf("/") ? path : path.slice(0, extIndex);
+};
+
+const uriPath = (uriOrPath: string) => {
+  const path = /^[a-z][a-z0-9+.-]*:\/\/[^/]*(.*)$/i.exec(uriOrPath)?.[1] ?? uriOrPath;
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+};
+
+const pathWithin = (path: string, folder: string) => {
+  const prefix = folder.endsWith("/") ? folder : `${folder}/`;
+  return path.startsWith(prefix) ? path.slice(prefix.length) : path;
 };
 
 const at = (
@@ -251,13 +274,6 @@ export const completionStatusText = (
   }
 };
 
-export const endingStatusText = (ending: GameStateEnding): string =>
-  ending.kind === "fin"
-    ? "End of story"
-    : ending.kind === "error"
-      ? "Stopped by an error"
-      : "Story ran out";
-
 export const endingStatusHover = (ending: GameStateEnding): string => {
   if (ending.kind === "error") {
     const location = ending.error?.location ?? ending.location;
@@ -285,7 +301,7 @@ export const playerStatuses = (
     : null,
   ending: ending
     ? {
-        text: endingStatusText(ending),
+        text: endingStatusText(ending.kind),
         hover: endingStatusHover(ending),
         kind: ending.kind,
       }

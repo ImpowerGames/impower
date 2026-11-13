@@ -51,6 +51,7 @@ import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock
 import type { StreamMessage } from "../../../../spark-engine/src/game/core/classes/Connection";
 import { isAdvanceKey } from "../../../../spark-engine/src/game/core/utils/isAdvanceKey";
 import { Manager } from "../Manager";
+import type { LiveClip } from "./AudioManager";
 import { MorphGroup, MorphPlayback } from "../morph/MorphPlayback";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
@@ -102,7 +103,19 @@ interface Cutscene {
 
 type OverlayWithCutscene = HTMLElement & { __sdCutscene?: Cutscene };
 
+interface ImageEffect {
+  element: HTMLElement;
+  animations: Animation[];
+  after?: AnimationPlayer;
+}
+
 const COMMIT_WAIT_LIMIT_MS = 1_000;
+
+const UNENDED_SPEECH = 1e9;
+
+interface Speech {
+  clips?: { retime: () => void; stopHearing?: () => void };
+}
 
 let playSessions = 0;
 
@@ -233,8 +246,6 @@ export default class UIManager extends Manager {
   protected _hold = new AnimationHold();
 
   protected _heldAt?: number;
-
-  protected _heldLag = 0;
 
   protected _lag = 0;
 
@@ -397,6 +408,7 @@ export default class UIManager extends Manager {
     const morphs = this.morphs;
     morphs?.attachClock(this);
     morphs?.setSession(`play:${++playSessions}`);
+    this.endSpeech();
     this._morphClockSeen = undefined;
   }
 
@@ -412,18 +424,9 @@ export default class UIManager extends Manager {
     this.settleMovies();
   }
 
-  override onSkip(seconds: number) {
-    this._lag -= seconds * 1000;
-    this._hold.step(seconds * 1000);
-    this.morphs?.step(seconds);
-    this.skipMovies(seconds);
-    this.scheduleCommit();
-  }
-
   override onPause() {
     if (this._heldAt == null) {
       this._heldAt = this.documentNow();
-      this._heldLag = this._lag;
     }
     this._hold.pause();
     this.scheduleCommit();
@@ -438,6 +441,7 @@ export default class UIManager extends Manager {
     }
     this._hold.resume();
     this.morphs?.setPaused(false);
+    this._speech?.clips?.retime();
     this.resumeMovies();
     this.scheduleCommit();
   }
@@ -454,6 +458,7 @@ export default class UIManager extends Manager {
   }
 
   override onDispose() {
+    this.endSpeech();
     this._hold.release();
     for (const id of Object.keys(this._listeners)) {
       this.removeListeners(id);
@@ -567,7 +572,7 @@ export default class UIManager extends Manager {
     const ops = beatOps(params);
     const plan = this.planBeat(ops);
     const now = this.documentNow();
-    const lag = this._heldAt != null ? this._heldLag : this.lag(now);
+    const lag = this._heldAt != null ? this._lag : this.lag(now);
     const storyNow = now - (this.lag(now) - lag);
     const wait = this.waitToCommit(params, ops, plan, storyNow);
     if (!overlay || wait <= 0) {
@@ -1622,9 +1627,27 @@ export default class UIManager extends Manager {
     }
   }
 
-  protected speak({ character, spans, time }: SpeechParams) {
+  protected _speech?: Speech;
+
+  protected endSpeech() {
+    this._speech?.clips?.stopHearing?.();
+    this._speech = undefined;
+  }
+
+  protected speak({ character, spans, voiced, revealed, time }: SpeechParams) {
     const morphs = this.morphs;
     if (!morphs) {
+      return;
+    }
+    if (revealed && this._speech?.clips) {
+      return;
+    }
+    this.endSpeech();
+    const speech: Speech = {};
+    this._speech = speech;
+    const clips = voiced && character ? (this.app.audio?.liveClips("voice") ?? []) : [];
+    if (character && clips.length > 0) {
+      this.speakClips(morphs, character, clips, speech);
       return;
     }
     const shown = this.getDisplayTime(time);
@@ -1638,6 +1661,61 @@ export default class UIManager extends Manager {
       character,
       spans.map(([start, end]): [number, number] => [start + lead, end + lead]),
     );
+  }
+
+  protected speakClips(
+    morphs: MorphPlayback,
+    character: string,
+    clips: LiveClip[],
+    speech: Speech,
+  ) {
+    const latency = this.app.audioClock.reading.outputLatency;
+    const audioNow = () => this.app.audioContext?.currentTime ?? 0;
+    const heard: { clip: LiveClip; start: number; end: number }[] = [];
+    const seen = new Set<Promise<unknown>>();
+    const update = () => {
+      if (this._speech !== speech || this._disposed) {
+        return;
+      }
+      const now = morphs.now;
+      morphs.speak(
+        character,
+        heard.map(({ start, end }): [number, number] => [
+          start - now,
+          Number.isFinite(end) ? end - now : UNENDED_SPEECH,
+        ]),
+      );
+    };
+    const hear = (clip: LiveClip) => {
+      if (seen.has(clip.ended)) {
+        return;
+      }
+      seen.add(clip.ended);
+      const span = { clip, start: morphs.now + (clip.startedAt - audioNow()) + latency, end: Infinity };
+      heard.push(span);
+      void clip.ended.then(() => {
+        span.end = morphs.now + latency;
+        update();
+      });
+    };
+    clips.forEach(hear);
+    speech.clips = {
+      retime: () => {
+        const now = morphs.now;
+        const pending = heard.filter((span) => span.start > now);
+        for (const span of pending) {
+          span.start = now + Math.max(0, span.clip.startedAt - audioNow()) + latency;
+        }
+        if (pending.length > 0) {
+          update();
+        }
+      },
+      stopHearing: this.app.audio?.onClipStart("voice", (clip) => {
+        hear(clip);
+        update();
+      }),
+    };
+    update();
   }
 
   protected getDisplayTime(time: number | undefined): number | undefined {
@@ -1836,13 +1914,12 @@ export default class UIManager extends Manager {
       (el as any).__sdImg = sig;
       (el as any).__sdImgRev = (el as any).__sdRev ?? 0;
     }
-    const targetEffects: { element: HTMLElement; animations: Animation[] }[] =
-      [];
-    const enterEffects: { element: HTMLElement; animations: Animation[] }[] = [];
-    const exitEffects: { element: HTMLElement; animations: Animation[] }[] = [];
+    const targetPlayers: AnimationPlayer[] = [];
+    const enterEffects: ImageEffect[] = [];
+    const exitEffects: ImageEffect[] = [];
     const toDestroy: HTMLElement[] = [];
     const outgoing: HTMLElement[] = [];
-    const newMovies: HTMLVideoElement[] = [];
+    const newMovies: { video: HTMLVideoElement; after: AnimationPlayer }[] = [];
     const hiddenMovies: HTMLVideoElement[] = [];
 
     const applyStyle = this.applyStyle.bind(this);
@@ -1863,15 +1940,21 @@ export default class UIManager extends Manager {
         { els: maskEls, property: "mask_image" },
       ];
       for (const instruction of instructions) {
+        const after = new AnimationPlayer(this._theme, this._hold);
+        targetPlayers.push(after);
+        const targetEffects: ImageEffect[] = [];
         this.addAnimationEffects(
           targetEffects,
           targetEl,
           instruction.targetAnimations,
         );
+        for (const e of targetEffects) {
+          after.add(e);
+        }
         if (instruction.affected) {
           for (const a of instruction.affected) {
             for (const el of this.findTargetElements(a.target)) {
-              this.addAnimationEffects(enterEffects, el, a.animations);
+              this.addAnimationEffects(enterEffects, el, a.animations, after);
             }
           }
         }
@@ -1927,7 +2010,7 @@ export default class UIManager extends Manager {
               };
             }
             if (videoEl && !video?.preview && instruction.control !== "hide") {
-              newMovies.push(videoEl);
+              newMovies.push({ video: videoEl, after });
             }
             (newSpanEl as any).__sdSrcs =
               content.video && !video
@@ -1949,33 +2032,45 @@ export default class UIManager extends Manager {
                   if (!outgoing.includes(prevSpanEl)) {
                     outgoing.push(prevSpanEl);
                   }
-                  this.addAnimationEffects(exitEffects, prevSpanEl, [
-                    content.previousHideAnimation,
-                  ]);
+                  this.addAnimationEffects(
+                    exitEffects,
+                    prevSpanEl,
+                    [content.previousHideAnimation],
+                    after,
+                  );
                   if (!toDestroy.includes(prevSpanEl)) {
                     toDestroy.push(prevSpanEl);
                   }
                 }
               }
               if (content.enterAnimation) {
-                this.addAnimationEffects(enterEffects, newSpanEl, [
-                  content.enterAnimation,
-                ]);
+                this.addAnimationEffects(
+                  enterEffects,
+                  newSpanEl,
+                  [content.enterAnimation],
+                  after,
+                );
               }
             } else if (instruction.control === "hide") {
               if (content.exitAnimation) {
-                this.addAnimationEffects(exitEffects, newSpanEl, [
-                  content.exitAnimation,
-                ]);
+                this.addAnimationEffects(
+                  exitEffects,
+                  newSpanEl,
+                  [content.exitAnimation],
+                  after,
+                );
               }
               if (!toDestroy.includes(newSpanEl)) {
                 toDestroy.push(newSpanEl);
               }
             } else if (instruction.control === "animate") {
               if (content.enterAnimation) {
-                this.addAnimationEffects(enterEffects, newSpanEl, [
-                  content.enterAnimation,
-                ]);
+                this.addAnimationEffects(
+                  enterEffects,
+                  newSpanEl,
+                  [content.enterAnimation],
+                  after,
+                );
               }
             }
           }
@@ -1983,37 +2078,42 @@ export default class UIManager extends Manager {
       }
     }
 
-    if (targetEffects.length > 0) {
-      const player = new AnimationPlayer(this._theme, this._hold);
-      for (const e of targetEffects) {
-        player.add(e);
-      }
-      await player.play(startTime);
-      if (startTime != null) {
-        startTime = player.finishTime ?? startTime + player.endTime;
-      }
+    if (targetPlayers.some((player) => player.endTimeUndelayed > 0)) {
+      startTime ??= Number(document.timeline.currentTime);
     }
-    for (const video of newMovies) {
-      this.startMovie(video);
+    const targetsPlayed = new Map(
+      targetPlayers.map((player) => [player, player.play(startTime)]),
+    );
+    for (const { video, after } of newMovies) {
+      void targetsPlayed.get(after)?.then(() => this.startMovie(video));
     }
     const exiting = new Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>();
     const playEffects = (
-      effects: { element: HTMLElement; animations: Animation[] }[],
+      effects: ImageEffect[],
       created?: Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>,
     ) => {
-      if (effects.length === 0) {
-        return Promise.resolve();
-      }
-      const player = new AnimationPlayer(this._theme, this._hold);
+      const players = new Map<AnimationPlayer | undefined, AnimationPlayer>();
       for (const e of effects) {
+        let player = players.get(e.after);
+        if (!player) {
+          player = new AnimationPlayer(this._theme, this._hold);
+          players.set(e.after, player);
+        }
         const animations = player.add(e);
         created?.set(e.element, [...(created.get(e.element) ?? []), ...animations]);
       }
-      return player.play(startTime);
+      return Array.from(players, ([after, player]) =>
+        player.play(
+          startTime == null
+            ? undefined
+            : startTime + (after?.endTimeUndelayed ?? 0),
+        ),
+      );
     };
     const played = Promise.all([
-      playEffects(enterEffects),
-      playEffects(exitEffects, exiting),
+      ...targetsPlayed.values(),
+      ...playEffects(enterEffects),
+      ...playEffects(exitEffects, exiting),
     ]);
     for (const el of outgoing) {
       this.freezeWhenExitStarts(el, exiting.get(el) ?? []);
@@ -2349,10 +2449,6 @@ export default class UIManager extends Manager {
       clock != null ? { time, clock } : undefined;
   }
 
-  protected moviePosition(video: HTMLVideoElement): number {
-    return this.moviePlace(video, this.clockTime(video)).anchor;
-  }
-
   protected clockTime(video: HTMLVideoElement): number {
     const anchor = (video as any).__sdAnchor as
       | { time: number; clock: number }
@@ -2440,18 +2536,11 @@ export default class UIManager extends Manager {
     video.currentTime = time;
   }
 
-  protected skipMovies(seconds: number) {
-    for (const video of this.movies()) {
-      const place = this.moviePlace(video, this.moviePosition(video) + seconds);
-      this.anchorMovie(video, place.anchor);
-      this.seekMovie(video, place.element);
-    }
-  }
-
   private addAnimationEffects(
-    effects: { element: HTMLElement; animations: Animation[] }[],
+    effects: ImageEffect[],
     element: HTMLElement,
     animations: Animation[] | undefined,
+    after?: AnimationPlayer,
   ) {
     if (!animations?.length) {
       return;
@@ -2461,7 +2550,7 @@ export default class UIManager extends Manager {
         element,
         animation.target?.$name,
       )) {
-        effects.push({ element: el, animations: [animation] });
+        effects.push({ element: el, animations: [animation], after });
       }
     }
   }

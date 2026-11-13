@@ -14,7 +14,7 @@ import { downloadFile } from "../utils/downloadFile";
 import { reasonOf, type FileMove } from "../utils/fileMoves";
 import { recordCreate, recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
 import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
-import { imageFileNameOf, stackBaseOf } from "@impower/sparkdown/src/attributes/imageFileName";
+import { imageFileNameOf, imageThingsOf, stackNameOf, thingNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import type { ImageVariant } from "../utils/imageVariants";
 import getUniqueFileName from "../utils/getUniqueFileName";
@@ -173,6 +173,10 @@ export default class WorkspaceAssets {
   protected _generation = 0;
 
   protected readonly _measuring = new Set<string>();
+
+  protected readonly _durationRequests = new Map<string, number>();
+
+  protected _durationsReading = 0;
 
   protected _usageRequest = 0;
 
@@ -435,7 +439,7 @@ export default class WorkspaceAssets {
       ? availableName(name, this.siblings(parentOf(path)), extensionOf(path), nameOf(path))
       : undefined;
     const typed = own ? own.split(".")[0]! : validName(name, extension).slice(0, -extension.length || undefined);
-    if (/[@~]/.test(own ?? typed)) {
+    if (thingNameOf(own ?? typed) !== (own ?? typed)) {
       throw new NameError(TAGGED_NAME);
     }
     if (!plain && typed.includes(".")) {
@@ -469,23 +473,32 @@ export default class WorkspaceAssets {
     if (stack.kind === "folder" && !rasterLayerOfPath(to)) {
       throw new NameError(keepOrder(stack.name));
     }
-    if (stack.kind === "files" && stackBaseOf(to) !== stack.base) {
-      throw new NameError(stackBaseOf(to).includes(".") ? DOTTED_NAME : keepBase(stack.base));
+    const member = stack.members.find((candidate) => candidate.path === path);
+    const duplicate = member?.duplicate === true;
+    const [thing] = imageThingsOf([to]);
+    const alternate = thing?.pictures[0]?.alternate ?? null;
+    if (stack.kind === "files" && !duplicate) {
+      const spelt = imageFileNameOf(to).alternate;
+      const dotted = (spelt === null ? null : stackNameOf(spelt)) !== alternate;
+      if (dotted || thing?.name !== stack.name) {
+        throw new NameError(dotted ? DOTTED_NAME : keepBase(stack.name));
+      }
     }
     if (to === path) {
       return path;
     }
-    const member = stack.members.find((candidate) => candidate.path === path);
-    const named = imageFileNameOf(path).picture;
     const renamed = imageFileNameOf(to).picture;
     const layers =
-      stack.kind === "files" && member?.layer === undefined && renamed !== named
+      stack.kind === "files" && !duplicate && member?.layer === undefined && alternate !== member?.alternate
         ? stack.members
-            .filter((candidate) => candidate.layer !== undefined && imageFileNameOf(candidate.path).picture === named)
-            .map((candidate) => ({ from: candidate.path, to: joinPath(folder, renamed + nameOf(candidate.path).slice(named.length)) }))
+            .filter((candidate) => candidate.layer !== undefined && candidate.alternate === member?.alternate)
+            .map((candidate) => {
+              const leaf = nameOf(candidate.path);
+              return { from: candidate.path, to: joinPath(folder, renamed + leaf.slice(leaf.indexOf("~"))) };
+            })
         : [];
     try {
-      await this.applyRenames(projectId, [{ from: path, to }, ...layers], nameOf(path), nameOf(path), stack, member?.layer === undefined);
+      await this.applyRenames(projectId, [{ from: path, to }, ...layers], nameOf(path), nameOf(path), stack, !duplicate && member?.layer === undefined);
     } catch (error) {
       const rollback = (error as { rollback?: WorkspaceEditRollback }).rollback;
       throw rollback ? Object.assign(new NameError(renameFailureMessage(path, to, error)), { rollback }) : error;
@@ -577,6 +590,53 @@ export default class WorkspaceAssets {
     }
     for (const src of wanted) this._measuring.delete(src);
     workspace.assetSizes.value = { ...workspace.assetSizes.peek(), ...measured };
+  }
+
+  requestDuration(path: string): () => void {
+    const src = isLinkPath(path) ? undefined : this.listing.files[path]?.src;
+    if (!src || Object.hasOwn(workspace.assetDurations.peek(), src) || this._measuring.has(src)) {
+      return () => {};
+    }
+    this._durationRequests.set(src, (this._durationRequests.get(src) ?? 0) + 1);
+    this.readRequestedDurations();
+    let dropped = false;
+    return () => {
+      if (dropped) {
+        return;
+      }
+      dropped = true;
+      const wanted = this._durationRequests.get(src);
+      if (wanted === undefined) {
+        return;
+      }
+      if (wanted > 1) {
+        this._durationRequests.set(src, wanted - 1);
+      } else {
+        this._durationRequests.delete(src);
+      }
+    };
+  }
+
+  protected readRequestedDurations(): void {
+    while (this._durationsReading < MEASURE_BATCH) {
+      const next = this._durationRequests.keys().next();
+      if (next.done) {
+        return;
+      }
+      const src = next.value;
+      this._durationRequests.delete(src);
+      if (Object.hasOwn(workspace.assetDurations.peek(), src) || this._measuring.has(src)) {
+        continue;
+      }
+      this._measuring.add(src);
+      this._durationsReading += 1;
+      void readAudioDuration(src).then((seconds) => {
+        this._measuring.delete(src);
+        this._durationsReading -= 1;
+        workspace.assetDurations.value = { ...workspace.assetDurations.peek(), [src]: seconds };
+        this.readRequestedDurations();
+      });
+    }
   }
 
   async measureDurations(paths: readonly string[]): Promise<void> {

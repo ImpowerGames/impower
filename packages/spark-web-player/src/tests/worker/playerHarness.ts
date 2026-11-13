@@ -17,6 +17,7 @@ import AssetManager from "../../app/managers/AssetManager";
 import UIManager from "../../app/managers/UIManager";
 import { GamePlayerController, setWorkspace } from "../../GamePlayerController";
 import { mountPlayerBar } from "../playerBarHarness";
+import { runButtonState } from "../../components/PlayerBar/playerBarState";
 import { installPlayerWorker } from "../../main/workers/installPlayerWorker";
 import { ProgramHeldMessage } from "../../main/workers/messages/ProgramHeldMessage";
 import type { WorkerBusyParams } from "../../main/workers/messages/WorkerBusyMessage";
@@ -108,6 +109,18 @@ function loopbackBroadcastChannel(onPost: (message: any) => void) {
   }
   return LoopbackBroadcastChannel;
 }
+
+export const runButton = (h: { controller: GamePlayerController }) => {
+  let read!: { mode: string; refusal: string | null; starting: boolean };
+  h.controller.subscribeBar((state, view) => {
+    read = {
+      mode: runButtonState(state),
+      refusal: view.runRefusal ?? null,
+      starting: view.starting,
+    };
+  })();
+  return read;
+};
 
 export const settle = async (tasks = 20) => {
   for (let i = 0; i < tasks; i++) {
@@ -336,10 +349,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         app.paused = false;
         for (const m of managers) m.onUnpause();
         app.clock.speed = 1;
-      },
-      skip(seconds: number) {
-        app.clock.adjustTime(seconds);
-        for (const m of managers) m.onSkip(seconds);
       },
       setAudioContext() {},
       started: false,

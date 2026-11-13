@@ -6,6 +6,7 @@ import {
   StateField,
 } from "@codemirror/state";
 import { EditorView, layer, RectangleMarker } from "@codemirror/view";
+import { swatchPressChangesColor } from "@impower/codemirror-vscode-lsp-client/src";
 
 export type ScriptModeValue = "reading" | "editing";
 
@@ -108,5 +109,9 @@ export function scriptMode(initial: ScriptModeValue | null = null): Extension {
     scriptModeAttributes,
     readingCaretLayer,
     readingHandlers,
+    swatchPressChangesColor.compute(
+      [scriptModeField],
+      (state) => state.field(scriptModeField) == null,
+    ),
   ];
 }
