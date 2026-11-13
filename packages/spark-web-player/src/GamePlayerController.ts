@@ -558,8 +558,6 @@ export class GamePlayerController {
     this._disposed = true;
     window.clearTimeout(this._completionStatusTimer);
     this._completionStatusTimer = undefined;
-    clearTimeout(this._morphRest);
-    this._morphRest = undefined;
     this._stops += 1;
     window.removeEventListener("pointerdown", this.handleSavesPointerDown, true);
     window.removeEventListener("keydown", this.handleSavesKeyDown, true);
@@ -2143,42 +2141,15 @@ export class GamePlayerController {
   protected handleSetAnimatePortraits = async (
     message: SetAnimatePortraitsMessage.Request,
   ) => {
-    this._idleAnimations = message.params.enabled;
-    this.applyMorphsEnabled();
+    this.morphs?.setEnabled(message.params.enabled);
     return SetAnimatePortraitsMessage.type.response(message.id, {});
   };
-
-  protected _idleAnimations = true;
 
   protected _beatPlays = 0;
 
   protected _beatPlay: { id: number } | null = null;
 
   protected _beatRefusal: string | null = NO_BEAT_REFUSAL;
-
-  protected _morphRest?: ReturnType<typeof setTimeout>;
-
-  protected applyMorphsEnabled() {
-    clearTimeout(this._morphRest);
-    this._morphRest = undefined;
-    const morphs = this.morphs;
-    if (!morphs) {
-      return;
-    }
-    if (this._beatPlay || this._idleAnimations) {
-      morphs.setEnabled(true);
-      return;
-    }
-    const speaking = morphs.speechRemaining;
-    if (speaking > 0) {
-      this._morphRest = setTimeout(
-        () => this.applyMorphsEnabled(),
-        Math.min(speaking, 0.25) * 1000,
-      );
-      return;
-    }
-    morphs.setEnabled(false);
-  }
 
   protected handlePlayBeat = async (message: PlayBeatMessage.Request) => {
     const playing = await this.playBeat();
@@ -2197,7 +2168,7 @@ export class GamePlayerController {
     }
     const id = ++this._beatPlays;
     this._beatPlay = { id };
-    this.applyMorphsEnabled();
+    this.morphs?.setPlaying(true);
     this.publishGameState();
     const shown = await this.updatePreview(
       this._program,
@@ -2216,7 +2187,7 @@ export class GamePlayerController {
       return;
     }
     this._beatPlay = null;
-    this.applyMorphsEnabled();
+    this.morphs?.setPlaying(false);
     this.publishGameState();
   }
 

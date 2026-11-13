@@ -1828,6 +1828,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _voicedSpeech?: BeatSpeech;
 
+  restSpeech() {
+    this._voicedSpeech = undefined;
+  }
+
   speak(
     speech: BeatSpeech | undefined,
     instant = false,

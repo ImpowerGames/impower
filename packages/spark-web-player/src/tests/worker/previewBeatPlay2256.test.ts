@@ -131,17 +131,17 @@ describe("Replay beat in the stopped preview (#2256)", () => {
       method: SetAnimatePortraitsMessage.method,
       params: { enabled: false },
     });
-    expect(morphs(h).enabled).toBe(false);
+    expect(morphs(h).animating).toBe(false);
     await playBeat(h);
     await settle(20);
-    expect(morphs(h).enabled).toBe(true);
+    expect(morphs(h).animating).toBe(true);
     expect(morphs(h).speech?.spans.length).toBeGreaterThan(0);
     await untilPlayed(h);
     expect(morphs(h).speech?.spans ?? []).toEqual([]);
-    for (let waited = 0; waited < 2000 && morphs(h).enabled; waited += 50) {
+    for (let waited = 0; waited < 2000 && morphs(h).animating; waited += 50) {
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    expect(morphs(h).enabled).toBe(false);
+    expect(morphs(h).animating).toBe(false);
   }, 120_000);
 
   it("a caret move while the beat plays cancels it and shows the new line's still", async () => {

@@ -201,6 +201,28 @@ describe("playing the previewed beat once (#2256)", () => {
     expect(uiState(h)).toEqual(still);
   });
 
+  test("a voiced line's still keeps the speech on the clip when the beat ends, and rests it when a click finishes the beat", async () => {
+    const ended = await harness();
+    await play(ended, VOICED_LINE);
+    await advance(ended, 5000);
+    expect(ended.game.playingBeat).toBe(false);
+    expect(speech(ended).at(-1).params).toMatchObject({
+      voiced: true,
+      revealed: true,
+    });
+
+    const clicked = await harness();
+    await play(clicked, VOICED_LINE);
+    await advance(clicked, BEAT_LEAD_MS + 100);
+    await clicked.game.onReceive(pointerDown);
+    await flushMicrotasks(10);
+    expect(clicked.game.playingBeat).toBe(false);
+    const rest = speech(clicked).at(-1).params;
+    expect(rest.spans).toEqual([]);
+    expect(rest.voiced).toBeUndefined();
+    expect(rest.revealed).toBeUndefined();
+  });
+
   test("a voiced line plays silently and tells the page the clip it would have heard", async () => {
     const h = await harness();
     await play(h, VOICED_LINE);

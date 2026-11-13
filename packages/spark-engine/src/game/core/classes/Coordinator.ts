@@ -122,13 +122,16 @@ export class Coordinator<G extends Game> {
     this._onTick?.(0);
   }
 
-  settle(): void {
+  settle(voiceRests = true): void {
     const played = this._played;
     if (!played) {
       return;
     }
     this._played = undefined;
     this._onTick = undefined;
+    if (voiceRests) {
+      this._game.module.ui.restSpeech();
+    }
     this.display({ instant: true, preview: true });
     played();
   }
@@ -152,7 +155,7 @@ export class Coordinator<G extends Game> {
     }
     if (this._plays) {
       if (this._finishedExecution) {
-        this.settle();
+        this.settle(false);
       }
       return;
     }

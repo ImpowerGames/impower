@@ -88,14 +88,12 @@ describe("a voiced line played in the stopped preview (#2256)", () => {
     expect(preview.speakingAt(preview.morphs.now + 2)).toBe(true);
     expect(preview.speakingAt(preview.morphs.now + 3.1)).toBe(false);
     expect(preview.scheduled).toEqual([]);
-    expect(preview.morphs.speechRemaining).toBeCloseTo(
-      HELLO.after + CLIP_SECONDS,
-      6,
-    );
   });
 
-  test("showing the still keeps the mouth on the clip, as a tap does in the game", async () => {
+  test("when the beat ends on its own, the still keeps the mouth on the clip until the clip's length", async () => {
     const preview = makePreview();
+    preview.morphs.setEnabled(false);
+    preview.morphs.setPlaying(true);
     preview.say({
       character: "mia",
       spans: [[0, 0.3]],
@@ -105,7 +103,30 @@ describe("a voiced line played in the stopped preview (#2256)", () => {
     await flushMicrotasks(10);
     const before = preview.spans();
     preview.say({ character: "mia", spans: [], voiced: true, revealed: true });
+    preview.morphs.setPlaying(false);
     expect(preview.spans()).toEqual(before);
+    expect(preview.morphs.animating).toBe(true);
+    preview.morphs.advance(HELLO.after + CLIP_SECONDS - 0.1);
+    expect(preview.morphs.animating).toBe(true);
+    preview.morphs.advance(0.2);
+    expect(preview.morphs.animating).toBe(false);
+  });
+
+  test("a click or a later preview rests the mouth at once, even before the clip's length is known", async () => {
+    const preview = makePreview();
+    preview.morphs.setEnabled(false);
+    preview.morphs.setPlaying(true);
+    preview.say({
+      character: "mia",
+      spans: [[0, 0.3]],
+      voiced: true,
+      clips: [HELLO],
+    });
+    preview.say({ character: "mia", spans: [] });
+    preview.morphs.setPlaying(false);
+    await flushMicrotasks(10);
+    expect(preview.spans()).toEqual([]);
+    expect(preview.morphs.animating).toBe(false);
   });
 
   test("an unvoiced still after the play rests the mouth", async () => {
@@ -114,6 +135,5 @@ describe("a voiced line played in the stopped preview (#2256)", () => {
     expect(preview.spans().length).toBeGreaterThan(0);
     preview.say({ character: "mia", spans: [] });
     expect(preview.spans()).toEqual([]);
-    expect(preview.morphs.speechRemaining).toBe(0);
   });
 });

@@ -208,12 +208,38 @@ export class MorphPlayback {
   }
 
   get animating(): boolean {
-    return this.enabled;
+    return this.enabled || this.playing || this.lingering;
   }
 
-  get speechRemaining(): number {
+  protected get speechRemaining(): number {
     const ends = (this.speech?.spans ?? []).map(([, end]) => end - this.time);
     return Math.max(0, ...ends.filter(Number.isFinite));
+  }
+
+  protected playing = false;
+  protected lingering = false;
+
+  setPlaying(playing: boolean) {
+    if (this.playing === playing) return;
+    const was = this.animating;
+    this.playing = playing;
+    this.lingering = !playing && this.speechRemaining > 0;
+    this.animatingChanged(was);
+  }
+
+  protected endLinger() {
+    if (!this.lingering || this.speechRemaining > 0) return;
+    const was = this.animating;
+    this.lingering = false;
+    this.animatingChanged(was);
+  }
+
+  protected animatingChanged(was: boolean) {
+    if (this.animating === was) return;
+    this.restartAll();
+    for (const layer of this.layers) layer.showStill();
+    this.render();
+    this.schedule();
   }
 
   attachClock(owner: object) {
@@ -235,6 +261,7 @@ export class MorphPlayback {
     };
     for (const occurrence of this.occurrences.values()) this.hear(occurrence);
     this.render();
+    this.endLinger();
   }
 
   protected hear(occurrence: Occurrence) {
@@ -251,6 +278,7 @@ export class MorphPlayback {
     if (!Number.isFinite(seconds) || seconds <= 0 || this.paused) return;
     this.time += seconds;
     this.render();
+    this.endLinger();
   }
 
   setPaused(paused: boolean) {
@@ -263,11 +291,9 @@ export class MorphPlayback {
 
   setEnabled(enabled: boolean) {
     if (this.enabled === enabled) return;
+    const was = this.animating;
     this.enabled = enabled;
-    this.restartAll();
-    for (const layer of this.layers) layer.showStill();
-    this.render();
-    this.schedule();
+    this.animatingChanged(was);
   }
 
   setSession(session: string) {
@@ -276,6 +302,7 @@ export class MorphPlayback {
     this.speech = undefined;
     this.restartAll();
     this.render();
+    this.endLinger();
   }
 
   protected restartAll() {
@@ -292,7 +319,7 @@ export class MorphPlayback {
 
   protected schedule() {
     if (this.frame !== undefined) return;
-    if (this.clockOwner || this.paused || !this.enabled || ![...this.layers].some((layer) => layer.live)) {
+    if (this.clockOwner || this.paused || !this.animating || ![...this.layers].some((layer) => layer.live)) {
       this.frameTime = undefined;
       return;
     }
@@ -375,7 +402,7 @@ export class MorphPlayback {
   }
 
   playhead(occurrence: Occurrence) {
-    if (!this.enabled || occurrence.preempted) return { phase: "off" as const };
+    if (!this.animating || occurrence.preempted) return { phase: "off" as const };
     return occurrence.timeline.at(this.time - occurrence.start);
   }
 
