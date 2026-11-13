@@ -260,7 +260,13 @@ describe("reading sound lengths for the rows on screen", () => {
     vi.stubGlobal("Audio", FakeAudio);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    while (pending.size) {
+      const reads = [...pending.values()];
+      pending.clear();
+      for (const read of reads) read.fail();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
     vi.unstubAllGlobals();
   });
 
