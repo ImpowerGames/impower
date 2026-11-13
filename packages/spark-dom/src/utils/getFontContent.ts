@@ -1,5 +1,5 @@
-import { cssIdent } from "../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { getCssPropertyName } from "../../../sparkle-style-transformer/src/utils/getCssPropertyName";
+import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getCssTokenValue } from "./getCssTokenValue";
 
 const getFontDescriptorValue = (name: string, value: unknown): string => {
@@ -11,7 +11,7 @@ const getFontDescriptorValue = (name: string, value: unknown): string => {
     return src.includes("(") ? src : `url('${encodeURI(src)}')`;
   }
   if (name === "font-family") {
-    return cssIdent(String(value));
+    return escapeCssIdentifier(String(value));
   }
   return String(value);
 };

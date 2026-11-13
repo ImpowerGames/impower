@@ -2,7 +2,8 @@ import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 import type { ThemeVariables } from "../types/themeVariables.js";
 import {
   applyEdits,
-  cssIdent,
+  escapeCssAnimationNames,
+  escapeCssNames,
   identName,
   isFunctionNode,
   isTokenType,
@@ -131,9 +132,6 @@ const atNameLength = (nodes: ComponentValue[], at: number): number => {
   }
   return length;
 };
-
-const escapeNameAts = (value: string): string =>
-  value.replace(/(?<=[\p{L}\p{N}_-])@(?=[\p{L}\p{N}_])/gu, "\\@");
 
 const resolveColorWords = (
   css: string,
@@ -306,16 +304,18 @@ export const getCssAnimation = (
     return "none";
   }
   if (value.startsWith("var(")) {
-    return escapeNameAts(value);
+    return escapeCssAnimationNames(value);
   }
   const names = value.split(" ");
   const variables = names.map((v) =>
     getThemeVar(theme, "animation", `${v}${suffix}`),
   );
   if (variables.every((v) => v === undefined)) {
-    return names.map(cssIdent).join(" ");
+    return escapeCssAnimationNames(value);
   }
-  return names.map((v, i) => variables[i] ?? cssIdent(v)).join(", ");
+  return names
+    .map((v, i) => variables[i] ?? escapeCssAnimationNames(v))
+    .join(", ");
 };
 
 export const getCssBgAlign = (value: string): string => {
@@ -581,7 +581,7 @@ export const getCssTextFont = (
   if (variable !== undefined) {
     return variable;
   }
-  return value.startsWith("var(") ? escapeNameAts(value) : cssIdent(value);
+  return escapeCssNames(value);
 };
 
 export const getCssTextAlign = (value: string): string => {
