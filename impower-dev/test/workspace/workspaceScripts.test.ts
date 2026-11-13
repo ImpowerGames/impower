@@ -146,6 +146,26 @@ describe("Scripts through the workspace", () => {
     expect(await scripts.createScript("")).toBe("Scripts/Untitled script 2.sd");
   });
 
+  it("gives scripts created at the same time a name each, each recorded once for Undo", async () => {
+    const { scripts } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    recordCreate.mockClear();
+    const created = await Promise.all([scripts.createScript(""), scripts.createScript("")]);
+    expect(created).toEqual(["Scripts/Untitled script.sd", "Scripts/Untitled script 2.sd"]);
+    expect(recordCreate.mock.calls.map(([, uris]) => uris)).toEqual([
+      [uri("Scripts/Untitled script.sd")],
+      [uri("Scripts/Untitled script 2.sd")],
+    ]);
+  });
+
+  it("gives copies duplicated at the same time a name each", async () => {
+    const { scripts, files } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    const copies = await Promise.all([scripts.duplicate("Scripts/intro.sd"), scripts.duplicate("Scripts/intro.sd")]);
+    expect(copies).toEqual(["Scripts/intro copy.sd", "Scripts/intro copy 2.sd"]);
+    expect(files.has("Scripts/intro copy 2.sd")).toBe(true);
+  });
+
   it("numbers a new script past a folder holding its name, and keeps it beside a folder named without the ending", async () => {
     const { scripts } = fakeWorkspace(PATHS, [...FOLDERS, "Scripts/Untitled script.sd", "Scripts/Drafts/Untitled script"]);
     await scripts.load();

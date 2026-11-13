@@ -203,26 +203,38 @@ export default class WorkspaceScripts {
     return projectId;
   }
 
-  async createScript(folder: string): Promise<string> {
-    const projectId = this.openProject();
-    const target = realFolder(folder, scriptsHome(this.listing));
-    const leaf = defaultName(UNTITLED_SCRIPT, this.siblings(target), ".sd");
-    const path = joinPath(target, leaf);
-    const { fs } = this._workspace;
-    const uri = fs.getFileUri(projectId, path);
-    await fs.createFiles({ files: [{ uri, data: new ArrayBuffer(0) }] });
-    recordCreate(projectId, [uri], leaf);
-    await this.changed("file");
-    return path;
+  protected allocating: Promise<unknown> = Promise.resolve();
+
+  protected oneAtATime<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.allocating.then(task);
+    this.allocating = run.catch(() => undefined);
+    return run;
   }
 
-  async createFolder(folder: string, name: string): Promise<string> {
-    const projectId = this.openProject();
-    const target = realFolder(folder, scriptsHome(this.listing));
-    const path = joinPath(target, availableName(name, this.siblings(target)));
-    await this._workspace.fs.createFolder(projectId, path);
-    await this.changed("folder");
-    return path;
+  createScript(folder: string): Promise<string> {
+    return this.oneAtATime(async () => {
+      const projectId = this.openProject();
+      const target = realFolder(folder, scriptsHome(this.listing));
+      const leaf = defaultName(UNTITLED_SCRIPT, this.siblings(target), ".sd");
+      const path = joinPath(target, leaf);
+      const { fs } = this._workspace;
+      const uri = fs.getFileUri(projectId, path);
+      await fs.createFiles({ files: [{ uri, data: new ArrayBuffer(0) }] });
+      recordCreate(projectId, [uri], leaf);
+      await this.changed("file");
+      return path;
+    });
+  }
+
+  createFolder(folder: string, name: string): Promise<string> {
+    return this.oneAtATime(async () => {
+      const projectId = this.openProject();
+      const target = realFolder(folder, scriptsHome(this.listing));
+      const path = joinPath(target, availableName(name, this.siblings(target)));
+      await this._workspace.fs.createFolder(projectId, path);
+      await this.changed("folder");
+      return path;
+    });
   }
 
   protected async relocate(from: string, to: string) {
@@ -279,7 +291,11 @@ export default class WorkspaceScripts {
     return moved;
   }
 
-  async duplicate(path: string): Promise<string> {
+  duplicate(path: string): Promise<string> {
+    return this.oneAtATime(() => this.duplicateNow(path));
+  }
+
+  protected async duplicateNow(path: string): Promise<string> {
     const projectId = this.projectId!;
     const { fs } = this._workspace;
     const kind = this.kindOf(path);
