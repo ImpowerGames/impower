@@ -451,8 +451,8 @@ export class Coordinator<G extends Game> {
           ready = true;
           if (voice && measureTriggerId != null) {
             game.module.audio.trigger(measureTriggerId);
-            const spans = voiceSpans(voice, (key) =>
-              game.module.audio.clipLength(key),
+            const spans = voiceSpans(voice, (clip) =>
+              game.module.audio.clipLength(clip),
             );
             totalDurationMS = Math.max(
               totalDurationMS,

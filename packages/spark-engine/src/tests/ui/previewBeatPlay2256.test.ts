@@ -286,13 +286,14 @@ describe("playing the previewed beat once (#2256)", () => {
         : emitSettled(msg);
     await play(h, VOICED_LINE);
     await advance(h, 100);
-    h.game.updateProgram(h.game.program);
+    await h.preview(WAITING_LINE);
+    await flushMicrotasks(10);
     expect(h.game.playingBeat).toBe(false);
     h.reset();
     answer({ durations: [4] });
     await advance(h, 1000);
     expect(speech(h)).toEqual([]);
-    expect(audio.clipLength(audio.resolveLoadParams("voice", ["mia_hello"])[0].key)).toBe(4);
+    expect(audio.clipLength(audio.resolveLoadParams("voice", ["mia_hello"])[0])).toBe(4);
 
     const again = await harness();
     const againAudio = again.game.module.audio as any;
@@ -306,9 +307,71 @@ describe("playing the previewed beat once (#2256)", () => {
   });
 });
 
+describe("measuring the voice of a played beat again (#2256)", () => {
+  const measures = (h: UIHarness) =>
+    flattenMessages(h.messages).filter((m) => m?.method === "audio/measure");
+
+  test("a program update forgets measured lengths, and an answer asked before it is not kept", async () => {
+    const h = await harness();
+    const audio = h.game.module.audio as any;
+    const emitSettled = audio.emitSettled.bind(audio);
+    let answer!: (result: unknown) => void;
+    audio.emitSettled = (msg: any) =>
+      msg.method === "audio/measure"
+        ? new Promise((resolve) => {
+            answer = resolve;
+          })
+        : emitSettled(msg);
+    await play(h, VOICED_LINE);
+    await advance(h, 100);
+    h.game.updateProgram(h.game.program);
+    answer({ durations: [4] });
+    await flushMicrotasks(10);
+    const load = audio.resolveLoadParams("voice", ["mia_hello"])[0];
+    expect(audio.clipLength(load)).toBeUndefined();
+    audio.emitSettled = emitSettled;
+    await h.reconnect();
+    h.reset();
+    await play(h, VOICED_LINE);
+    await advance(h, 100);
+    expect(measures(h)).toHaveLength(1);
+    expect(audio.clipLength(load)).toBe(2.5);
+    h.game.updateProgram(h.game.program);
+    expect(audio.clipLength(load)).toBeUndefined();
+  });
+
+  test("a clip that could not be measured is asked for again on the next play", async () => {
+    const h = await harness();
+    const audio = h.game.module.audio as any;
+    const emitSettled = audio.emitSettled.bind(audio);
+    let failing = true;
+    let asked = 0;
+    audio.emitSettled = (msg: any) => {
+      if (msg.method === "audio/measure") {
+        asked += 1;
+        if (failing) {
+          return Promise.resolve({ durations: [null] });
+        }
+      }
+      return emitSettled(msg);
+    };
+    await play(h, VOICED_LINE);
+    await advance(h, 100);
+    expect(asked).toBe(1);
+    await h.game.onReceive(pointerDown);
+    failing = false;
+    h.reset();
+    await play(h, VOICED_LINE);
+    await advance(h, 100);
+    expect(asked).toBe(2);
+    expect(speech(h).find((m) => m.params.spans.length > 0).params.spans).toEqual([[0, 2.5]]);
+  });
+});
+
 describe("the voice timeline of a silently played beat (#2256)", () => {
   const clip = (key: string) => ({ channel: "voice", key });
-  const lengths: Record<string, number> = { first: 2, second: 3, third: 1 };
+  const lengths: Record<string, number> = { first: 2, second: 3, third: 1, fourth: 4 };
+  const lengthOf = (load: { key: string }) => lengths[load.key];
 
   test("a queued event starts its after when the clips before it end, and its clips start together", () => {
     expect(
@@ -317,12 +380,29 @@ describe("the voice timeline of a silently played beat (#2256)", () => {
           { after: 0, queued: false, clips: [clip("first")] },
           { after: 1, queued: true, clips: [clip("second"), clip("third")] },
         ],
-        (key) => lengths[key],
+        lengthOf,
       ),
     ).toEqual([
       [0, 2],
       [3, 6],
       [3, 4],
+    ]);
+  });
+
+  test("an event after a queue keeps the time the queue waited until as its origin", () => {
+    expect(
+      voiceSpans(
+        [
+          { after: 0, queued: false, clips: [clip("first")] },
+          { after: 1, queued: true, clips: [clip("third")] },
+          { after: 0.5, queued: false, clips: [clip("fourth")] },
+        ],
+        lengthOf,
+      ),
+    ).toEqual([
+      [0, 2],
+      [3, 4],
+      [2.5, 6.5],
     ]);
   });
 
@@ -333,7 +413,7 @@ describe("the voice timeline of a silently played beat (#2256)", () => {
           { after: 0.5, queued: false, clips: [clip("first"), clip("missing")] },
           { after: 0.25, queued: false, clips: [clip("third")] },
         ],
-        (key) => lengths[key],
+        lengthOf,
       ),
     ).toEqual([
       [0.5, 2.5],

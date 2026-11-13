@@ -38,14 +38,18 @@ export function silentVoice(
 
 export function voiceSpans(
   events: VoiceEvent[],
-  lengthOf: (key: string) => number | undefined,
+  lengthOf: (clip: LoadAudioPlayerParams) => number | undefined,
 ): [number, number][] {
   const spans: [number, number][] = [];
+  let origin = 0;
   let end = 0;
   for (const event of events) {
-    const start = event.queued ? end + event.after : event.after;
+    if (event.queued && spans.length > 0) {
+      origin = end;
+    }
+    const start = origin + event.after;
     for (const clip of event.clips) {
-      const length = lengthOf(clip.key);
+      const length = lengthOf(clip);
       if (length == null || length <= 0) {
         continue;
       }

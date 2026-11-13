@@ -208,29 +208,22 @@ export class MorphPlayback {
   }
 
   get animating(): boolean {
-    return this.enabled || this.playing || this.lingering;
-  }
-
-  protected get speechRemaining(): number {
-    const ends = (this.speech?.spans ?? []).map(([, end]) => end - this.time);
-    return Math.max(0, ...ends.filter(Number.isFinite));
+    return this.enabled || this.playing;
   }
 
   protected playing = false;
-  protected lingering = false;
 
   setPlaying(playing: boolean) {
     if (this.playing === playing) return;
     const was = this.animating;
     this.playing = playing;
-    this.lingering = !playing && this.speechRemaining > 0;
-    this.animatingChanged(was);
-  }
-
-  protected endLinger() {
-    if (!this.lingering || this.speechRemaining > 0) return;
-    const was = this.animating;
-    this.lingering = false;
+    if (!playing) {
+      this.speech = undefined;
+      for (const occurrence of this.occurrences.values()) {
+        if (occurrence.timing.trigger === "speech") this.restart(occurrence);
+      }
+      this.render();
+    }
     this.animatingChanged(was);
   }
 
@@ -261,7 +254,6 @@ export class MorphPlayback {
     };
     for (const occurrence of this.occurrences.values()) this.hear(occurrence);
     this.render();
-    this.endLinger();
   }
 
   protected hear(occurrence: Occurrence) {
@@ -278,7 +270,6 @@ export class MorphPlayback {
     if (!Number.isFinite(seconds) || seconds <= 0 || this.paused) return;
     this.time += seconds;
     this.render();
-    this.endLinger();
   }
 
   setPaused(paused: boolean) {
@@ -302,7 +293,6 @@ export class MorphPlayback {
     this.speech = undefined;
     this.restartAll();
     this.render();
-    this.endLinger();
   }
 
   protected restartAll() {

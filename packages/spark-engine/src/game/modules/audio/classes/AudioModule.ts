@@ -758,15 +758,28 @@ export class AudioModule extends Module<
     return id;
   }
 
-  protected _clipLengths = new Map<string, number | null>();
+  protected _clipLengths = new Map<string, number>();
 
-  clipLength(key: string): number | undefined {
-    return this._clipLengths.get(key) ?? undefined;
+  protected _clipLengthsVersion = 0;
+
+  protected clipIdentity(clip: LoadAudioPlayerParams): string {
+    return JSON.stringify([clip.key, clip.src ?? null]);
+  }
+
+  clipLength(clip: LoadAudioPlayerParams): number | undefined {
+    return this._clipLengths.get(this.clipIdentity(clip));
+  }
+
+  override onProgramUpdate() {
+    this._clipLengths.clear();
+    this._clipLengthsVersion += 1;
   }
 
   measureClips(clips: LoadAudioPlayerParams[]): number {
     const id = this.nextTriggerId();
-    const unmeasured = clips.filter((clip) => !this._clipLengths.has(clip.key));
+    const unmeasured = clips.filter(
+      (clip) => !this._clipLengths.has(this.clipIdentity(clip)),
+    );
     if (unmeasured.length === 0 || this.context.system.simulating) {
       this.enableTrigger(id);
       return id;
@@ -779,15 +792,18 @@ export class AudioModule extends Module<
       }
     };
     this.context.system.setTimeout?.(finish, CLIP_MEASURE_TIMEOUT_MS);
+    const version = this._clipLengthsVersion;
     void this.emitSettled(
       MeasureAudioMessage.type.request({ clips: unmeasured }),
     ).then((result) => {
-      result?.durations?.forEach((duration, index) => {
-        const clip = unmeasured[index];
-        if (clip) {
-          this._clipLengths.set(clip.key, duration);
-        }
-      });
+      if (version === this._clipLengthsVersion) {
+        result?.durations?.forEach((duration, index) => {
+          const clip = unmeasured[index];
+          if (clip && duration != null && duration > 0) {
+            this._clipLengths.set(this.clipIdentity(clip), duration);
+          }
+        });
+      }
       finish();
     });
     return id;

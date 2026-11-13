@@ -12,7 +12,7 @@ function speechOf(
   if (!speech || !voice) {
     return speech;
   }
-  const spans = voiceSpans(voice, (key) => game.module.audio.clipLength(key));
+  const spans = voiceSpans(voice, (clip) => game.module.audio.clipLength(clip));
   return spans.length > 0 ? { character: speech.character, spans } : speech;
 }
 
