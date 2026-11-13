@@ -26,6 +26,7 @@ const assets = vi.hoisted(() => ({
   usedBy: vi.fn(async (_paths: readonly string[]): Promise<unknown[] | null> => []),
   measureImages: vi.fn(async () => undefined),
   requestDuration: vi.fn((_path: string) => () => {}),
+  measureDurations: vi.fn(async (_paths: readonly string[]) => undefined),
   watchFacts: vi.fn((_paths: string[], listener: Listener) => {
     facts.listeners.push(listener);
     listener({ problems: facts.problems });
@@ -157,6 +158,8 @@ beforeEach(() => {
   facts.problems = [];
   facts.listeners = [];
   for (const fn of [...Object.values(assets), ...Object.values(window)]) fn.mockClear();
+  assets.measureDurations.mockImplementation(async () => undefined);
+  workspace.assetDurations.value = {};
   window.setListState.mockImplementation((next) => lists(next));
   workspace.current = {
     ...workspace.current,
@@ -548,6 +551,30 @@ describe("the asset inspector", () => {
     const use = region()!.querySelector<HTMLElement>('button[aria-label="Open Main at line 5"]');
     await click(use);
     expect(window.revealDocument).toHaveBeenCalledWith("file:///p/main.sd", range);
+  });
+
+  it("reads a sound's length through the shared duration reader, and again when Replace changes its file", async () => {
+    const lengths: Record<string, number> = { "/p/512": 3.4, "/p/512?v=2": 7.6 };
+    assets.measureDurations.mockImplementation(async (paths: readonly string[]) => {
+      const files = workspace.assetListing.value!.files;
+      workspace.assetDurations.value = {
+        ...workspace.assetDurations.value,
+        ...Object.fromEntries(paths.map((path) => [files[path]!.src!, lengths[files[path]!.src!] ?? null])),
+      };
+    });
+    await mount();
+    await open("door_chime");
+    expect(assets.measureDurations).toHaveBeenCalledWith(["Assets/Audio/Sounds/door_chime.wav"]);
+    expect(details()).toContain("Length: 0:03");
+    await act(async () => {
+      const files = workspace.assetListing.value!.files;
+      workspace.assetListing.value = {
+        ...workspace.assetListing.value!,
+        files: { ...files, "Assets/Audio/Sounds/door_chime.wav": { ...files["Assets/Audio/Sounds/door_chime.wav"]!, src: "/p/512?v=2" } },
+      };
+    });
+    await settle();
+    expect(details()).toContain("Length: 0:08");
   });
 
   it("says a file is not used yet, with its type's note", async () => {

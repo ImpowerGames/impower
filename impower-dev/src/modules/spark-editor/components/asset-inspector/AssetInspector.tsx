@@ -68,25 +68,15 @@ const EMPTY_LISTING = { files: {}, folders: [] };
 
 const SKIPS_ARROWS = "input, textarea, select, video, audio, [contenteditable], [role=slider]";
 
-function useAudioSeconds(asset: InspectedAsset) {
-  const [seconds, setSeconds] = useState<number | null>(null);
+function useAudioSeconds(asset: InspectedAsset, intents: () => Promise<typeof WorkspaceIntents>) {
   const sound = asset.type === "audio" ? soundOfAsset(asset) : null;
   const refused = !!sound && audioSession.failureOf(sound) === "too_large";
   useEffect(() => {
-    setSeconds(null);
-    if (!sound || refused || typeof Audio === "undefined") {
-      return;
+    if (sound && !refused) {
+      void intents().then((Workspace) => Workspace.assets.measureDurations([asset.path]));
     }
-    const probe = new Audio();
-    probe.preload = "metadata";
-    probe.onloadedmetadata = () => setSeconds(probe.duration);
-    probe.src = sound.src;
-    return () => {
-      probe.onloadedmetadata = null;
-      probe.removeAttribute("src");
-    };
   }, [asset.path, asset.src, asset.type, refused]);
-  return seconds;
+  return sound && !refused ? (workspace.assetDurations.value[sound.src] ?? null) : null;
 }
 
 const OPENABLE = /^https?:\/\//i;
@@ -189,7 +179,7 @@ export default function AssetInspector({
   const picker = useRef<HTMLInputElement | null>(null);
   const [facts, setFacts] = useState<InspectorFacts | null>(null);
   const [videoSeconds, setVideoSeconds] = useState<number | null>(null);
-  const audioSeconds = useAudioSeconds(asset);
+  const audioSeconds = useAudioSeconds(asset, intents);
   const { projectSettings } = useSettings();
   const pixels = asset.src ? workspace.assetSizes.value[asset.src] : undefined;
   const filesKey = asset.files.map((file) => `${file.path} ${file.src ?? ""}`).join("\n");

@@ -24,6 +24,7 @@ const assets = vi.hoisted(() => ({
   watchFacts: vi.fn((_paths: string[]) => () => {}),
   watchPicture: vi.fn((_path: string, _variant: unknown, _size: number, _listener: (src: string | null) => void) => () => {}),
   requestDuration: vi.fn((_path: string) => () => {}),
+  measureDurations: vi.fn(async (_paths: readonly string[]) => undefined),
 }));
 const measured = vi.hoisted(() => ({ sizes: {} as Record<string, { width: number; height: number }> }));
 const window = vi.hoisted(() => ({
@@ -1093,14 +1094,17 @@ describe("playing sounds from their rows", () => {
       setListing({ ...workspace.assetListing.value!.files, "Assets/Audio/Sounds/door_chime.wav": facts(2_000_000) });
       await openSounds();
       await click(rowOf("footsteps").querySelector<HTMLElement>('button[aria-label^="Open audio footsteps"]')!);
-      expect(loaded).toEqual(["/p/768"]);
+      expect(assets.measureDurations).toHaveBeenCalledWith(["Assets/Audio/Sounds/footsteps.wav"]);
       await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
       expect(inspector()!.querySelector('[data-audio-player] [role="status"]')!.textContent).toBe("This file is too large to play here.");
       expect(rowOf("door_chime").querySelector("[data-asset-sound-failed]")!.textContent).toBe("This file is too large to play here.");
       await click(playButton("door_chime"));
       expect(speaker.audio.log).toEqual([]);
-      expect(loaded).toEqual(["/p/768"]);
+      expect(assets.measureDurations).not.toHaveBeenCalledWith(["Assets/Audio/Sounds/door_chime.wav"]);
+      expect(loaded).toEqual([]);
       expect(speaker.reads).not.toContain("/p/2000000");
+      expect(speaker.probes).not.toContain("/p/2000000");
+      expect(assets.requestDuration).not.toHaveBeenCalledWith("Assets/Audio/Sounds/door_chime.wav");
     } finally {
       vi.unstubAllGlobals();
     }

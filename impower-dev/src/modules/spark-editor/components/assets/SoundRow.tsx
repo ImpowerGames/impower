@@ -47,11 +47,11 @@ export function SoundLine({
   line: string;
   requestLength: (path: string) => () => void;
 }) {
-  useEffect(
-    () => (sound.size === undefined ? undefined : requestLength(sound.owner)),
-    [sound.owner, sound.src, sound.size],
-  );
   const failed = audioSession.failureOf(sound);
+  useEffect(
+    () => (sound.size === undefined || failed ? undefined : requestLength(sound.owner)),
+    [sound.owner, sound.src, sound.size, failed],
+  );
   if (failed) {
     return <span data-asset-sound-failed>{PLAYBACK_FAILURES[failed]}</span>;
   }
