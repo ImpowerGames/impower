@@ -1,7 +1,7 @@
-import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { CHOICE_OUTSIDE_CHOOSE_MESSAGE } from "../../utils/unsupportedConstructMessage";
 import { identifierAt } from "../utils/debugMetadata";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { choiceTextMarkers, readChoiceText } from "../../utils/readChoiceText";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
@@ -284,27 +284,6 @@ function collectChoiceCondition(
 }
 
 
-interface ChoiceText {
-  start: { node: SyntaxNode; to: number }[];
-  only: SyntaxNode | null;
-  inner: SyntaxNode | null;
-}
-
-function readChoiceText(choiceNode: SyntaxNode): ChoiceText {
-  const start: ChoiceText["start"] = [];
-  const startText = getDescendent("ChoiceStartText", choiceNode);
-  if (startText) start.push({ node: startText, to: startText.to });
-  const suppression = getDescendent("ChoiceSuppression", choiceNode);
-  if (!suppression) return { start, only: null, inner: null };
-  const only = getDescendent("ChoiceOnlyText", suppression) ?? null;
-  const inner = getDescendent("ChoiceInnerText", suppression) ?? null;
-  if (!inner) {
-    start.push({ node: suppression, to: only?.to ?? suppression.from + 1 });
-    return { start, only: null, inner: null };
-  }
-  return { start, only, inner };
-}
-
 function appendNodeContent(
   captureNode: SyntaxNode,
   ctx: LowerContext,
@@ -313,39 +292,7 @@ function appendNodeContent(
   from = captureNode.from,
   to = captureNode.to,
 ): boolean {
-  type Marker =
-    | { kind: "tag"; node: SyntaxNode }
-    | { kind: "expr"; node: SyntaxNode }
-    | { kind: "comment"; node: SyntaxNode };
-  const markers: Marker[] = [];
-  const walk = (node: SyntaxNode): void => {
-    if (
-      isExplicitRuleName(node.name, "SparkdownInlineComment") ||
-      isExplicitRuleName(node.name, "SparkdownBlockComment")
-    ) {
-      markers.push({ kind: "comment", node });
-      return;
-    }
-    if (isExplicitRuleName(node.name, "Tag")) {
-      markers.push({ kind: "tag", node });
-      return;
-    }
-    if (
-      isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
-      isExplicitRuleName(node.name, "LuauFunctionCallShorthand")
-    ) {
-      markers.push({ kind: "expr", node });
-      return;
-    }
-    let child = node.firstChild;
-    while (child) {
-      walk(child);
-      child = child.nextSibling;
-    }
-  };
-  walk(captureNode);
-  const inRange = markers.filter((m) => m.node.from < to);
-  inRange.sort((a, b) => a.node.from - b.node.from);
+  const inRange = choiceTextMarkers(captureNode, to);
 
   let appended = false;
   let cursor = from;
