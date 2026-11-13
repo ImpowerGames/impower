@@ -98,6 +98,7 @@ import {
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error";
+import { stripStyleCodes } from "@impower/sparkdown/src/runtime/displayStyle";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { storyDraws } from "@impower/sparkdown/src/runtime/StoryRandom";
 import type { CallStack } from "@impower/sparkdown/src/runtime/CallStack";
@@ -2812,7 +2813,7 @@ export class Game<T extends M = {}> {
       location: this._executingLocation
         ? this.getDocumentLocation(this._executingLocation)
         : null,
-      choices: this._story.currentChoices.map((c) => c.text),
+      choices: this._story.currentChoices.map((c) => stripStyleCodes(c.styledText)),
       chosen: beat.chosen ?? null,
       textRevealed: true,
       transitionsEnded: true,
@@ -3730,7 +3731,7 @@ export class Game<T extends M = {}> {
         ) {
           this.module.interpreter.queue(
             this._story.currentDisplayInstructions,
-            this._story.currentChoices.map((c) => c.text),
+            this._story.currentChoices.map((c) => c.styledText),
             this._story.currentStyledText || "",
             location,
           );
@@ -3909,7 +3910,7 @@ export class Game<T extends M = {}> {
     if (beat?.shown.choices?.length) {
       made = {
         checkpoint: beat.checkpoint,
-        text: (this._story.currentChoices[index]?.text ?? "").trim(),
+        text: stripStyleCodes(this._story.currentChoices[index]?.styledText ?? "").trim(),
       };
       if (this._run.behindLatest) {
         if (beat.chosen === index) {

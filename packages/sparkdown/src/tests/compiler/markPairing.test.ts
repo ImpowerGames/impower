@@ -130,15 +130,29 @@ describe("a backtick run is raw only where a run of its own length closes it", (
     expect(await readings('A `far {"->"} away` now')).toEqual(both('A [raw: far {"->"} away] now'));
   });
 
-  test("in choice text a raw span cannot hold the arrow that ends the text, so its backticks are literal", async () => {
-    expect(await choiceReadings('Go `far {"->"} away` now')).toEqual(both('Go `far {"->"} away` now'));
-    expect(choiceTextOf('Go `far {"->"} away` now')).toBe("Go `far -> away` now");
+  test("in choice text a raw span holding an arrow inside braces is raw, as on a display line", async () => {
+    expect(await choiceReadings('Go `far {"->"} away` now')).toEqual(both('Go [raw: far {"->"} away] now'));
+    expect(choiceTextOf('Go `far {"->"} away` now')).toBe('Go `far {"->"} away` now');
   });
 
-  test("in choice text a raw span cannot hold a bracket that would open a suppression, so its backticks are literal", async () => {
+  test("in choice text a raw span holding a bracket inside braces is raw, as on a display line", async () => {
     expect(await readings("A `far {[[a]]} away` now")).toEqual(both("A [raw: far {[[a]]} away] now"));
-    expect(await choiceReadings("Go `far {[[a]]} away` now")).toEqual(both("Go `far {[[a]]} away` now"));
-    expect(choiceTextOf("Go `far {[[a]]} away` now")).toBe("Go `far a away` now");
+    expect(await choiceReadings("Go `far {[[a]]} away` now")).toEqual(both("Go [raw: far {[[a]]} away] now"));
+    expect(choiceTextOf("Go `far {[[a]]} away` now")).toBe("Go `far {[[a]]} away` now");
+  });
+
+  test("a code span holding braces inside a styled span leaves the styled span read", async () => {
+    expect(await readings("A *a `far {x -- c} away` b* c")).toEqual(
+      both("A [italic: a ][italic raw: far {x -- c} away][italic:  b] c"),
+    );
+    expect(await choiceReadings("Go *a `far {x -- c} away` b* now")).toEqual(
+      both("Go [italic: a ][italic raw: far {x -- c} away][italic:  b] now"),
+    );
+  });
+
+  test("in choice text a raw span holding a bracketed interpolation inside a suppression is raw", async () => {
+    expect(await choiceReadings("Go [`far {t[1]} away`] now")).toEqual(both("Go [[raw: far {t[1]} away]] now"));
+    expect(choiceTextOf("Go [`far {t[1]} away`] now")).toBe("Go `far {t[1]} away`");
   });
 });
 

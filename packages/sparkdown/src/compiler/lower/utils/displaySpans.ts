@@ -6,11 +6,12 @@ import {
 } from "../../../runtime/displayStyle";
 import { findChildByName } from "../../utils/findChildByName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { LowerContext } from "../context";
 
 type SourceReader = Pick<LowerContext, "read">;
 
-const SPAN_NODES: ReadonlySet<string> = nodeNameSet([
+const SPAN_NAMES = [
   "Bold",
   "Italic",
   "Underline",
@@ -18,7 +19,16 @@ const SPAN_NODES: ReadonlySet<string> = nodeNameSet([
   "EmphasisTilde",
   "EmphasisColon",
   "Raw",
-]);
+] as const;
+
+const SPAN_NODES: ReadonlySet<string> = nodeNameSet(
+  SPAN_NAMES.flatMap((span) => [
+    span,
+    `ChoiceStart${span}`,
+    `ChoiceOnly${span}`,
+    `ChoiceInner${span}`,
+  ]) as SparkdownNodeName[],
+);
 
 export interface SpanCode {
   at: number;
@@ -160,11 +170,4 @@ export function trimEndBeforeSpanEnds(raw: string): string {
     end--;
   }
   return raw.slice(0, end) + ends;
-}
-
-export function insideChoice(node: SyntaxNode): boolean {
-  for (let n: SyntaxNode | null = node.parent; n; n = n.parent) {
-    if (n.name === "Choice") return true;
-  }
-  return false;
 }

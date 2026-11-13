@@ -3,6 +3,7 @@ import { InkObject } from "./Object";
 
 export class Choice extends InkObject {
   public text: string = "";
+  public styledText: string = "";
   public index: number = 0;
   public threadAtGeneration: CallStack.Thread | null = null;
   public sourcePath: string = "";

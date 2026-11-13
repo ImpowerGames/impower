@@ -549,7 +549,10 @@ export class InterpreterModule extends Module<
       if (!lastTextbox.text) {
         this.describeBeat(lastTextbox, "choice", undefined, source);
       }
-      lastTextbox.options = [...(lastTextbox.options ?? []), ...choices];
+      lastTextbox.options = [
+        ...(lastTextbox.options ?? []),
+        ...choices.map((choice) => stripStyleCodes(choice)),
+      ];
       for (let i = 0; i < choices.length; i += 1) {
         const choice = choices[i]!;
         const choiceInstructions = this.parse(choice, `choice ${i}`, {
@@ -1003,7 +1006,6 @@ export class InterpreterModule extends Module<
 
     const activeMarks: [string][] = [];
     const spanMarks: [string][] = [];
-    const scansAll = Boolean(options?.choice);
     let scanDepth = 0;
     let spanRaw = false;
     const lastMark = (test: (mark: string) => boolean) =>
@@ -1083,7 +1085,7 @@ export class InterpreterModule extends Module<
             spanRaw = spanMarks.some(([m]) => m.startsWith("`"));
             continue;
           }
-          const scanning = scansAll || scanDepth > 0;
+          const scanning = scanDepth > 0;
           if (!escaped) {
             if (scanning && char === "`") {
               i += 1;

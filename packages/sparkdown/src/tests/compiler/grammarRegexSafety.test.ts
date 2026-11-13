@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import onig from "vscode-oniguruma";
 import { describe, expect, test } from "vitest";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { parseSource } from "./grammarSnapshot";
@@ -155,6 +156,11 @@ const SPAN_CLOSE_SEARCHES: [string, string][] = [
   ["an italic span open over unclosed braces", "*a" + " {".repeat(800)],
   ["a tilde span open over other tilde runs", "~~a" + " ~b~".repeat(400)],
   ["a backtick run open over other backtick runs", "`a" + " ``b".repeat(400)],
+  ["a backtick run open over unclosed braces", "`a" + " {b".repeat(500)],
+  ["a backtick run open over nested unclosed braces", "`a" + " {{{b".repeat(300)],
+  ["a backtick run open over closed brace groups", "`a" + " {b}".repeat(500)],
+  ["a backtick run open over brace groups nested too deep", "`a" + " {{{{b}}}}".repeat(200)],
+  ["an italic span open over code spans holding braces", "*a" + " `{b}`".repeat(300)],
   ["a long star run before a word", "*".repeat(8000) + "x"],
   ["a long underscore run before a word", "_".repeat(8000) + "x"],
   ["a long caret run before a word", "^".repeat(8000) + "x"],
@@ -234,6 +240,47 @@ describe("a run of one mark is read in time linear in its length (#2196)", () =>
       expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(4000);
     },
   );
+});
+
+const BRACE_SPANS: [what: string, rules: string[], open: string, unit: string][] = [
+  ["a raw span over unclosed braces", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {b"],
+  ["a raw span over nested unclosed braces", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {{{b"],
+  ["a raw span over closed brace groups", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {b}"],
+  ["an italic span over code spans holding braces", ["Italic", "ChoiceStartItalic", "ChoiceOnlyItalic", "ChoiceInnerItalic"], "*a", " `{b}`"],
+];
+
+const BRACE_SPAN_CASES = BRACE_SPANS.flatMap(([what, rules, open, unit]) =>
+  rules.map((rule) => [what, rule, (n: number) => open + unit.repeat(Math.floor(n / unit.length))] as const),
+);
+
+const onigScanner = async (source: string) => {
+  await tokenize("scene start\n  A *a* b\nend\n");
+  const scanner = new onig.OnigScanner([source]);
+  return (line: string) => scanner.findNextMatchSync(new onig.OnigString(line), 0);
+};
+
+const ruleGrowth = async (search: (line: string) => unknown, line: (n: number) => string) => {
+  search(line(40));
+  const short = await fastest(() => search(line(4000)));
+  const long = await fastest(() => search(line(16000)));
+  return { short, long };
+};
+
+describe("a span rule that reads brace groups whole searches a long line in time linear in its length (#2144)", () => {
+  test.each(BRACE_SPAN_CASES)("%s, %s, as the tree parser runs it, grows less than eightfold from 4,000 characters to 16,000", async (_what, rule, line) => {
+    const re = new RegExp(grammar.repository[rule].match, "muyd");
+    const { short, long } = await ruleGrowth((text) => {
+      re.lastIndex = 0;
+      return re.exec(text);
+    }, line);
+    expect(long, `4,000 characters took ${short.toFixed(1)}ms, 16,000 took ${long.toFixed(1)}ms`).toBeLessThan(8 * short + 40);
+  });
+
+  test.each(BRACE_SPAN_CASES)("%s, %s, as vscode-textmate runs it, grows less than eightfold from 4,000 characters to 16,000", async (_what, rule, line) => {
+    const search = await onigScanner(grammar.repository[rule].match);
+    const { short, long } = await ruleGrowth(search, line);
+    expect(long, `4,000 characters took ${short.toFixed(1)}ms, 16,000 took ${long.toFixed(1)}ms`).toBeLessThan(8 * short + 40);
+  });
 });
 
 describe("building a parser compiles no pattern before it is used (#2196)", () => {

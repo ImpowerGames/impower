@@ -1,7 +1,12 @@
 import { CHOICE_OUTSIDE_CHOOSE_MESSAGE } from "../../utils/unsupportedConstructMessage";
 import { identifierAt } from "../utils/debugMetadata";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { choiceTextMarkers, readChoiceText } from "../../utils/readChoiceText";
+import {
+  choiceTextMarkerKind,
+  choiceTextMarkers,
+  readChoiceText,
+} from "../../utils/readChoiceText";
+import { trimStyled, writesNothing } from "../../../runtime/displayStyle";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
@@ -32,7 +37,14 @@ import {
 import {
   buildDisplayCall,
   buildOrderedDisplayCall,
+  displayText,
 } from "../utils/displayCall";
+import { collectDisplaySpans } from "../utils/displaySpans";
+import {
+  inlineGluedAlternatorFrom,
+  isInlineGluedAlternator,
+  lowerInlineGluedAlternator,
+} from "./lowerDisplay";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { recordAlternatorSource } from "../utils/statementShape";
 import { statementSource } from "../utils/statementSource";
@@ -137,7 +149,11 @@ export function lowerChoice(
     for (const obj of chosenTail) innerContent.AddContent(obj);
   }
 
-  const choice = new Choice(startContent, choiceOnlyContent, innerContent);
+  const choice = new Choice(
+    confinedContent(startContent),
+    confinedContent(choiceOnlyContent),
+    innerContent,
+  );
   choice.startEcho = echo?.startEcho ?? null;
   if (choice.startEcho) {
     choice.startEcho.choice = choice;
@@ -266,7 +282,6 @@ function chosenTextAsDisplayCall(
     const body = startEcho ? [startEcho, ...words] : words;
     call = buildDisplayCall(undefined, undefined, body, null, ctx, [], {
       open,
-      readsMarks: true,
     });
   }
   const out: ParsedObject[] = [call];
@@ -284,6 +299,10 @@ function collectChoiceCondition(
 }
 
 
+function isChoiceTextOpaque(node: SyntaxNode): boolean {
+  return choiceTextMarkerKind(node) !== null || isInlineGluedAlternator(node);
+}
+
 function appendNodeContent(
   captureNode: SyntaxNode,
   ctx: LowerContext,
@@ -292,26 +311,80 @@ function appendNodeContent(
   from = captureNode.from,
   to = captureNode.to,
 ): boolean {
-  const inRange = choiceTextMarkers(captureNode, to);
+  const { codes, marks: hidden } = collectDisplaySpans(
+    captureNode,
+    from,
+    to,
+    ctx,
+    isChoiceTextOpaque,
+  );
+  const alternators: SyntaxNode[] = [];
+  const findAlternators = (node: SyntaxNode): void => {
+    if (choiceTextMarkerKind(node)) return;
+    if (isInlineGluedAlternator(node)) {
+      alternators.push(node);
+      return;
+    }
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      findAlternators(child);
+    }
+  };
+  findAlternators(captureNode);
+  const inRange = [
+    ...choiceTextMarkers(captureNode, to).map((m) => ({ ...m, from: m.node.from })),
+    ...alternators
+      .filter((node) => node.from < to)
+      .map((node) => ({ kind: "alt" as const, node, from: inlineGluedAlternatorFrom(node) })),
+  ].sort((a, b) => a.from - b.from);
 
   let appended = false;
   let cursor = from;
-  const flushText = (until: number): void => {
-    if (until > cursor) {
-      const read = ctx.read(cursor, until);
-      const leading = trimStart && list.content.length === 0;
-      // value-level: trims the isolated choice-text value's leading inline whitespace.
-      const text = leading ? read.replace(/^[ \t]+/, "") : read;
-      if (text.length > 0) {
-        list.AddContent(new Text(text));
-        appended = true;
-      }
+  let codeIndex = 0;
+  let buffer = "";
+  const takeCodes = (at: number): void => {
+    while (codeIndex < codes.length && codes[codeIndex]!.at <= at) {
+      buffer += codes[codeIndex++]!.code;
     }
-    cursor = until;
+  };
+  const flushBuffer = (): void => {
+    const leading = trimStart && list.content.length === 0;
+    const text = leading ? trimStyled(buffer, { end: false }) : buffer;
+    buffer = "";
+    if (text.length > 0) {
+      list.AddContent(new Text(text));
+      if (!writesNothing(text)) appended = true;
+    }
+  };
+  const flushText = (until: number): void => {
+    let pos = cursor;
+    while (pos < until) {
+      takeCodes(pos);
+      const mark = hidden.find((h) => h.from <= pos && pos < h.to);
+      if (mark) {
+        pos = Math.min(mark.to, until);
+        continue;
+      }
+      const next = Math.min(
+        until,
+        codes[codeIndex]?.at ?? until,
+        hidden.find((h) => h.from > pos)?.from ?? until,
+      );
+      buffer += ctx.read(pos, Math.max(next, pos + 1));
+      pos = Math.max(next, pos + 1);
+    }
+    cursor = Math.max(cursor, until);
   };
   for (const m of inRange) {
-    flushText(m.node.from);
-    if (m.kind === "expr") {
+    if (m.from < cursor) continue;
+    flushText(m.from);
+    takeCodes(m.from);
+    flushBuffer();
+    if (m.kind === "alt") {
+      for (const obj of lowerInlineGluedAlternator(m.node, ctx)) {
+        list.AddContent(obj);
+        appended = true;
+      }
+    } else if (m.kind === "expr") {
       const expr = lowerExpressionFromContainer(m.node, ctx, "expression");
       if (expr) {
         expr.outputWhenComplete = true;
@@ -331,7 +404,19 @@ function appendNodeContent(
     cursor = m.node.to;
   }
   flushText(to);
+  takeCodes(to);
+  flushBuffer();
   return appended;
+}
+
+function confinedContent(list: ContentList): ContentList {
+  const out: ParsedObject[] = [];
+  let inTag = false;
+  for (const obj of list.content) {
+    if (obj instanceof Tag) inTag = obj.isStart;
+    out.push(...(inTag || obj instanceof Tag ? [obj] : displayText([obj])));
+  }
+  return new ContentList(out);
 }
 
 function appendTagContent(

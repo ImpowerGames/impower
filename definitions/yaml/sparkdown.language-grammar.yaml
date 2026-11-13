@@ -249,7 +249,7 @@ variables:
   # suppression's text reads a backslash with the character after it
   # (CHOICE_ONLY_TEXT_ESCAPE), so an escaped comment opener, brace or tag
   # marker is text there and the scan reads it the same way.
-  CHOICE_SUPPRESSION_ESCAPE: (?:[\\](?:{{CHOICE_ONLY_REGION_CHARACTER}}|(?={{CHOICE_ONLY_TEXT_END}})))
+  CHOICE_SUPPRESSION_ESCAPE: (?:[\\](?:{{CHOICE_ONLY_REGION_CHARACTER}}|\]|(?={{CHOICE_ONLY_TEXT_END}})))
   # lookaround: the same ends as CHOICE_SUPPRESSION_SCAN, past an unclosed brace
   # (CHOICE_OPEN_BRACE), where no brace is a unit and none needs asking about.
   CHOICE_SUPPRESSION_SCAN_PAST_BRACE: (?:{{CHOICE_SUPPRESSION_TAG}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|(?!\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\])[^\r\n])
@@ -537,8 +537,12 @@ variables:
   RAW_OTHER_RUN: (?:(?!\1(?:[^`\r\n]|$))[`]+(?![`]))
   # lookaround: as SPAN_LONG_BRACKET and SPAN_STAR_FREE, for Raw's literal text, which takes a
   # backtick only as a run of another length (RAW_OTHER_RUN).
-  RAW_CHARACTER: (?:(?![`]|{{SPAN_END}})[^\r\n])
-  RAW_CONTENT: (?:(?:{{RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  RAW_BRACE_TEXT: (?:[^`{}\r\n])
+  RAW_BRACE_GROUP_1: (?:[{]{{RAW_BRACE_TEXT}}*[}])
+  RAW_BRACE_GROUP_2: (?:[{](?:{{RAW_BRACE_TEXT}}|{{RAW_BRACE_GROUP_1}})*[}])
+  RAW_BRACE_GROUP: (?:[{](?:{{RAW_BRACE_TEXT}}|{{RAW_BRACE_GROUP_2}})*[}])
+  RAW_CHARACTER: (?:(?![`]|{{SPAN_END}}|{{RAW_BRACE_GROUP}})[^\r\n])
+  RAW_CONTENT: (?:(?:{{RAW_BRACE_GROUP}}|{{RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
   SPAN_ESCAPE: (?:[\\][^\r\n])
   # lookaround: the units of a span's content, for every span. Rivals: the
   # rules InlineTextAndLogic and SpanContent try before plain text, which take
@@ -574,9 +578,9 @@ variables:
   # lookaround: as SPAN_LONG_BRACKET. Raw reads a backtick run with the next run of its length, which
   # a span's content takes whole so a mark inside it ends nothing; Punctuation
   # takes a run that closes nothing.
-  SPAN_CODE_ONE: (?:[`](?![`])(?:{{RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  SPAN_CODE_ONE: (?:[`](?![`])(?:{{RAW_BRACE_GROUP}}|{{RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
   # lookaround: as SPAN_CODE_ONE.
-  SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{RAW_BRACE_GROUP}}|{{RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
   # lookaround: as SPAN_CODE_ONE.
   SPAN_CODE_TEXT: (?:(?!{{SPAN_CODE_ONE}}|{{SPAN_CODE_TWO}})[`]{1,2}(?![`]))
   SPAN_CODE: (?:{{SPAN_CODE_ONE}}|{{SPAN_CODE_TWO}}|{{SPAN_CODE_TEXT}})
@@ -678,12 +682,12 @@ variables:
   CHOICE_START_COLON_NESTED: (?:{{COLON_SAME}}{{COLON_LEFT}}(?!{{COLON_RIGHT}})\1{{CHOICE_START_COLON_INNER}}{{COLON_RIGHT}}\1)
   CHOICE_START_COLON_CONTENT: (?:(?:{{CHOICE_START_SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}}|{{CHOICE_START_COLON_NESTED}})+)
   # lookaround: as RAW_CHARACTER, in ChoiceStartText.
-  CHOICE_START_RAW_CHARACTER: (?:(?![`]|{{CHOICE_START_SPAN_END}})[^\r\n])
-  CHOICE_START_RAW_CONTENT: (?:(?:{{CHOICE_START_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  CHOICE_START_RAW_CHARACTER: (?:(?![`]|{{CHOICE_START_SPAN_END}}|{{RAW_BRACE_GROUP}})[^\r\n])
+  CHOICE_START_RAW_CONTENT: (?:(?:{{RAW_BRACE_GROUP}}|{{CHOICE_START_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
   # lookaround: as SPAN_CODE_ONE, in ChoiceStartText.
-  CHOICE_START_SPAN_CODE_ONE: (?:[`](?![`])(?:{{CHOICE_START_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  CHOICE_START_SPAN_CODE_ONE: (?:[`](?![`])(?:{{RAW_BRACE_GROUP}}|{{CHOICE_START_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
   # lookaround: as SPAN_CODE_TWO, in ChoiceStartText.
-  CHOICE_START_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{CHOICE_START_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  CHOICE_START_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{RAW_BRACE_GROUP}}|{{CHOICE_START_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
   # lookaround: as SPAN_CODE_TEXT, in ChoiceStartText.
   CHOICE_START_SPAN_CODE_TEXT: (?:(?!{{CHOICE_START_SPAN_CODE_ONE}}|{{CHOICE_START_SPAN_CODE_TWO}})[`]{1,2}(?![`]))
   CHOICE_START_SPAN_CODE: (?:{{CHOICE_START_SPAN_CODE_ONE}}|{{CHOICE_START_SPAN_CODE_TWO}}|{{CHOICE_START_SPAN_CODE_TEXT}})
@@ -757,12 +761,12 @@ variables:
   CHOICE_ONLY_COLON_NESTED: (?:{{COLON_SAME}}{{COLON_LEFT}}(?!{{COLON_RIGHT}})\1{{CHOICE_ONLY_COLON_INNER}}{{COLON_RIGHT}}\1)
   CHOICE_ONLY_COLON_CONTENT: (?:(?:{{CHOICE_ONLY_SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}}|{{CHOICE_ONLY_COLON_NESTED}})+)
   # lookaround: as RAW_CHARACTER, in ChoiceOnlyText.
-  CHOICE_ONLY_RAW_CHARACTER: (?:(?![`]|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
-  CHOICE_ONLY_RAW_CONTENT: (?:(?:{{CHOICE_ONLY_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  CHOICE_ONLY_RAW_CHARACTER: (?:(?![`]|{{CHOICE_ONLY_SPAN_END}}|{{RAW_BRACE_GROUP}})[^\r\n])
+  CHOICE_ONLY_RAW_CONTENT: (?:(?:{{RAW_BRACE_GROUP}}|{{CHOICE_ONLY_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
   # lookaround: as SPAN_CODE_ONE, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_CODE_ONE: (?:[`](?![`])(?:{{CHOICE_ONLY_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  CHOICE_ONLY_SPAN_CODE_ONE: (?:[`](?![`])(?:{{RAW_BRACE_GROUP}}|{{CHOICE_ONLY_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
   # lookaround: as SPAN_CODE_TWO, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{CHOICE_ONLY_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  CHOICE_ONLY_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{RAW_BRACE_GROUP}}|{{CHOICE_ONLY_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
   # lookaround: as SPAN_CODE_TEXT, in ChoiceOnlyText.
   CHOICE_ONLY_SPAN_CODE_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_CODE_ONE}}|{{CHOICE_ONLY_SPAN_CODE_TWO}})[`]{1,2}(?![`]))
   CHOICE_ONLY_SPAN_CODE: (?:{{CHOICE_ONLY_SPAN_CODE_ONE}}|{{CHOICE_ONLY_SPAN_CODE_TWO}}|{{CHOICE_ONLY_SPAN_CODE_TEXT}})
@@ -836,12 +840,12 @@ variables:
   CHOICE_INNER_COLON_NESTED: (?:{{COLON_SAME}}{{COLON_LEFT}}(?!{{COLON_RIGHT}})\1{{CHOICE_INNER_COLON_INNER}}{{COLON_RIGHT}}\1)
   CHOICE_INNER_COLON_CONTENT: (?:(?:{{CHOICE_INNER_SPAN_COLON_FREE}}|{{COLON_SHORTER}}|{{COLON_LONG_TEXT}}|{{CHOICE_INNER_COLON_NESTED}})+)
   # lookaround: as RAW_CHARACTER, in ChoiceInnerText.
-  CHOICE_INNER_RAW_CHARACTER: (?:(?![`]|{{CHOICE_INNER_SPAN_END}})[^\r\n])
-  CHOICE_INNER_RAW_CONTENT: (?:(?:{{CHOICE_INNER_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  CHOICE_INNER_RAW_CHARACTER: (?:(?![`]|{{CHOICE_INNER_SPAN_END}}|{{RAW_BRACE_GROUP}})[^\r\n])
+  CHOICE_INNER_RAW_CONTENT: (?:(?:{{RAW_BRACE_GROUP}}|{{CHOICE_INNER_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
   # lookaround: as SPAN_CODE_ONE, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_CODE_ONE: (?:[`](?![`])(?:{{CHOICE_INNER_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  CHOICE_INNER_SPAN_CODE_ONE: (?:[`](?![`])(?:{{RAW_BRACE_GROUP}}|{{CHOICE_INNER_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
   # lookaround: as SPAN_CODE_TWO, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{CHOICE_INNER_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  CHOICE_INNER_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{RAW_BRACE_GROUP}}|{{CHOICE_INNER_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
   # lookaround: as SPAN_CODE_TEXT, in ChoiceInnerText.
   CHOICE_INNER_SPAN_CODE_TEXT: (?:(?!{{CHOICE_INNER_SPAN_CODE_ONE}}|{{CHOICE_INNER_SPAN_CODE_TWO}})[`]{1,2}(?![`]))
   CHOICE_INNER_SPAN_CODE: (?:{{CHOICE_INNER_SPAN_CODE_ONE}}|{{CHOICE_INNER_SPAN_CODE_TWO}}|{{CHOICE_INNER_SPAN_CODE_TEXT}})
@@ -911,7 +915,7 @@ variables:
   # lookaround: CHOICE_START_RUN_ESCAPE reads every backslash, so the run's own
   # character never starts at one and the run splits in one way.
   CHOICE_START_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_START_RUN_ESCAPE}}|(?![\\]){{CHOICE_START_TEXT_FREE}})
-  CHOICE_START_TEXT_ESCAPE: (?:[\\]{{CHOICE_START_REGION_CHARACTER}})
+  CHOICE_START_TEXT_ESCAPE: (?:[\\](?:{{CHOICE_START_REGION_CHARACTER}}|\[))
   # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END. TextCommand, AudioCommand
   # and ImageCommand read a brace and a comment opener inside them as their own
   # text, as on main and on a display line, so neither an interpolation nor a
@@ -1020,7 +1024,7 @@ variables:
   # lookaround: CHOICE_ONLY_RUN_ESCAPE reads every backslash, so the run's own
   # character never starts at one and the run splits in one way.
   CHOICE_ONLY_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_ONLY_RUN_ESCAPE}}|(?![\\]){{CHOICE_ONLY_TEXT_FREE}})
-  CHOICE_ONLY_TEXT_ESCAPE: (?:[\\]{{CHOICE_ONLY_REGION_CHARACTER}})
+  CHOICE_ONLY_TEXT_ESCAPE: (?:[\\](?:{{CHOICE_ONLY_REGION_CHARACTER}}|\]))
   # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END. TextCommand, AudioCommand
   # and ImageCommand read a brace and a comment opener inside them as their own
   # text, as on main and on a display line, so neither an interpolation nor a
