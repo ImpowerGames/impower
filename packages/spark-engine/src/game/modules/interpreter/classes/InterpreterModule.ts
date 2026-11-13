@@ -1,9 +1,6 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
 import { ObjectValue } from "@impower/sparkdown/src/runtime/Value";
-import {
-  LayoutVerb,
-  isLayoutVerb,
-} from "@impower/sparkdown/language/sparkdown.layout-verbs";
+import { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { Module } from "../../../core/classes/Module";
 import type {
 AudioInstruction,
@@ -27,8 +24,7 @@ import type { Phrase } from "../types/Phrase";
 import { stressPhrases } from "../utils/stressPhrases";
 import { Matcher } from "./helpers/Matcher";
 import {
-  DIRECTIVE_LOAD_WORDS,
-  DIRECTIVE_MOVIE_WORDS,
+  directiveKind,
   parseDirectiveClauses,
   readDirective,
   type DirectiveClause,
@@ -1061,23 +1057,15 @@ export class InterpreterModule extends Module<
                 while (i < chars.length) {
                   if (chars[i] === "]" && chars[i + 1] === "]") {
                     closed = true;
-                    const verb = imageTagContent
-                      .replaceAll("\t", " ")
-                      .trimStart()
-                      .split(" ")[0];
-                    const isScreenDirective =
-                      !!verb && isLayoutVerb(verb);
-                    const isLoadDirective =
-                      !!verb && DIRECTIVE_LOAD_WORDS.includes(verb);
-                    const isCutsceneDirective =
-                      !!verb && DIRECTIVE_MOVIE_WORDS.includes(verb);
-                    const directiveChunk = isLoadDirective
-                      ? this.createLoadChunk(imageTagContent)
-                      : isScreenDirective
-                        ? this.createLayoutChunk(imageTagContent)
-                        : isCutsceneDirective
-                          ? this.createCutsceneChunk(imageTagContent)
-                          : this.createImageChunk(imageTagContent);
+                    const kind = directiveKind("image", imageTagContent);
+                    const directiveChunk =
+                      kind === "load"
+                        ? this.createLoadChunk(imageTagContent)
+                        : kind === "layout"
+                          ? this.createLayoutChunk(imageTagContent)
+                          : kind === "cutscene"
+                            ? this.createCutsceneChunk(imageTagContent)
+                            : this.createImageChunk(imageTagContent);
                     const phrase = {
                       target: directiveChunk.target,
                       chunks: [directiveChunk],
