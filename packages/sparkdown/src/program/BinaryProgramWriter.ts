@@ -36,6 +36,7 @@ import { FACT_KIND } from "./ProgramFacts";
 import {
   AUX_MAX,
   CALL_METHOD,
+  CALL_STYLED,
   CHOICE_CONDITION,
   CHOICE_DECISION,
   CHOICE_INVISIBLE_DEFAULT,
@@ -336,6 +337,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._code.push(encodeWord0(op, flags, aux), arg);
     if (op === Op.CallValue) {
       this._layout.push(`${op}:${flags & ~CALL_METHOD}:${aux}:0`);
+    } else if (op === Op.CallStd) {
+      this._layout.push(
+        `${op}:${flags & ~CALL_STYLED}:${aux}:${this.describeArg(op, arg)}`,
+      );
     } else {
       this._layout.push(`${op}:${flags}:${aux}:${this.describeArg(op, arg)}`);
     }

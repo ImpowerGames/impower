@@ -27,10 +27,14 @@ export interface Cell {
 }
 
 export const script = (body: string, values = VALUES) =>
-  `${SCREEN}\n${values}\n-> start\n\nscene start\n  ${body}\nend\n`;
+  `${SCREEN}\n${values}\nscene start\n  ${body}\nend\n`;
 
 export async function renderedBeat(source: string) {
   const harness = createHarness(source);
+  if (harness.errors.length > 0) {
+    harness.game.destroy();
+    throw new Error(`fixture failed to compile: ${harness.errors.join("; ")}`);
+  }
   await harness.ready;
   harness.jumpToFlow("start");
   harness.reset();

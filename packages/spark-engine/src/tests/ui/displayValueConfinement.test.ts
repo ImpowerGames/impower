@@ -74,7 +74,11 @@ const KNOWN_PRODUCER_SITES: Record<string, { sites: number; carries: string[] }>
   },
   "runtime/StdLib.ts": {
     sites: 8,
-    carries: ["print()", "a script's own display() table"],
+    carries: [
+      "print()",
+      "print() inside a function called in a line",
+      "a script's own display() table",
+    ],
   },
   "runtime/evaluation.ts": {
     sites: 1,
@@ -128,6 +132,12 @@ const PRODUCERS: Producer[] = [
   { name: "a line glued to the next", target: "action", body: "*s {v} t* ..\n  .. u" },
   { name: "a line carried on after a break", target: "action", body: "*s {v} t* .. >\n  .. u" },
   { name: "print()", target: "action", body: "& print(v)" },
+  {
+    name: "print() inside a function called in a line",
+    target: "action",
+    body: "*s {f()} t* u",
+    declarations: `function f()\n  print(v)\n  return ""\nend\n`,
+  },
   { name: "a script's own display() table", target: "action", body: `& display({ target = "action", text = v })` },
   {
     name: "a defined character's name",

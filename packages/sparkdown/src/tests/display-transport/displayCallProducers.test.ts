@@ -341,6 +341,23 @@ describe("producers outside display statements", () => {
     expect(run[1]!.tags).toEqual(["2", "3"]);
   });
 
+  test("a value in a line's tag or a choice's tag reaches the host's tags as written, without style codes", () => {
+    const values = `store v = "*a\\u{E002}b\\u{E010}\\u{E021}c"\n`;
+    const [line] = displayCallSteps(`${values}scene start\n  Said. # {v}\n  done\nend\n`, [
+      ["Said.\n", ["*abc"]],
+    ]);
+    expect(line!.tables[0]!["tags"]).toEqual(["*abc"]);
+    const run = displayCallSteps(
+      `${values}scene start\n  choose\n    * Take # {v}\n      Taken.\n  end\n  done\nend\n`,
+      [
+        ["", []],
+        ["Take\n", ["*abc"]],
+        ["Taken.\n", []],
+      ],
+    );
+    expect(run[1]!.tables[0]!["tags"]).toEqual(["*abc"]);
+  });
+
   test("a picked choice ending in an inline divert joins the target's line", () => {
     const run = displayCallSteps(
       `scene start\n  choose\n    * Take it -> b\n  end\nend\n\nscene b\n  now.\n  done\nend\n`,

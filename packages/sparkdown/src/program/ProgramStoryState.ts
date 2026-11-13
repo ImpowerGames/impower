@@ -6,7 +6,7 @@ import { PRNG } from "../runtime/PRNG";
 import { PushPopType } from "../runtime/PushPop";
 import { SimpleJson } from "../runtime/SimpleJson";
 import { StringBuilder } from "../runtime/StringBuilder";
-import { scanned, writtenText } from "../runtime/displayStyle";
+import { scannedTable, writtenText } from "../runtime/displayStyle";
 import { Tag } from "../runtime/Tag";
 import {
   MultiValue,
@@ -326,17 +326,7 @@ export interface SuspendedLineEnd {
 
 function readOutput(json: any[], styleCodes: boolean): InkObject[] {
   const output = JsonSerialisation.JArrayToRuntimeObjList(json);
-  if (styleCodes) return output;
-  for (const obj of output) {
-    const text = obj instanceof ObjectValue ? obj.value?.get("text") : null;
-    if (text instanceof StringValue && text.value) {
-      (obj as ObjectValue).value!.set(
-        "text",
-        new StringValue(scanned(text.value)),
-      );
-    }
-  }
-  return output;
+  return styleCodes ? output : output.map((obj) => scannedTable(obj));
 }
 
 export class ProgramStoryState {

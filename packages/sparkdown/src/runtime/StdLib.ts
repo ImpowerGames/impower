@@ -5,7 +5,7 @@ import { StepLimitExceeded, StoryException } from "./StoryException";
 import { drawStoryRandom } from "./StoryRandom";
 import { ambientReads } from "./AmbientReads";
 import { Void } from "./Void";
-import { scanned } from "./displayStyle";
+import { scanned, scannedTable, stripStyleCodes } from "./displayStyle";
 import { isStdLibMarker, stdLibMarkerMapName } from "./StdLibMarker";
 import {
   ObjectValue,
@@ -2075,18 +2075,6 @@ function joinDisplayParts(table: Map<string, AbstractValue>): boolean {
   return true;
 }
 
-function authoredDisplayTable<T>(payload: T): T | ObjectValue {
-  const text =
-    payload instanceof ObjectValue ? payload.value?.get("text") : undefined;
-  if (!(text instanceof StringValue) || !text.value) return payload;
-  return new ObjectValue(
-    new Map((payload as ObjectValue).value).set(
-      "text",
-      new StringValue(scanned(text.value)),
-    ),
-  );
-}
-
 const NOT_JOINED =
   "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
@@ -2510,7 +2498,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         .map((a) => luauAnyToDisplayString(story, a))
         .join(" ");
       if (story.state.inStringEvaluation) {
-        story.state.PushToOutputStream(new StringValue(text));
+        story.state.PushToOutputStream(new StringValue(stripStyleCodes(text)));
         return;
       }
       const table = new ObjectValue(
@@ -2568,7 +2556,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       if (payload) {
         story.state.PushToOutputStream(
-          story.stdCallStyled ? payload : authoredDisplayTable(payload),
+          story.stdCallStyled ? payload : scannedTable(payload),
         );
       }
       if (flag("open")) return;

@@ -1,3 +1,5 @@
+import { ObjectValue, StringValue } from "./Value";
+
 export const SCANNED_MARKS: readonly string[] = ["^", "*", "_", "~~", "::"];
 
 const SCAN_OPEN_POINT = 0xe000;
@@ -126,4 +128,16 @@ export function trimStyled(
 
 export function scanned(text: string): string {
   return SCAN_OPEN + stripStyleCodes(text) + SCAN_CLOSE;
+}
+
+export function scannedTable<T>(payload: T): T | ObjectValue {
+  const text =
+    payload instanceof ObjectValue ? payload.value?.get("text") : undefined;
+  if (!(text instanceof StringValue) || !text.value) return payload;
+  return new ObjectValue(
+    new Map((payload as ObjectValue).value).set(
+      "text",
+      new StringValue(scanned(text.value)),
+    ),
+  );
 }

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { ObjectValue } from "../../runtime/Value";
@@ -109,5 +111,48 @@ end
       { text: "two", marks: ["*"] },
       { text: " there." },
     ]);
+  });
+});
+
+interface PreChangeSave {
+  source: string;
+  text: string;
+  remaining: string[];
+  save: string;
+}
+
+const PRE_CHANGE_SAVES: Record<string, PreChangeSave> = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL("./fixtures/display-saves-pre-2143.json", import.meta.url)),
+    "utf8",
+  ),
+);
+
+describe("a save made before style codes, by the runtime of that time", () => {
+  test.each(Object.entries(PRE_CHANGE_SAVES))(
+    "%s loads on its beat and continues as it did",
+    (_name, { source, text, remaining, save }) => {
+      const story = testStory(compile(source));
+      const errors: string[] = [];
+      story.onError = (m) => errors.push(m);
+      story.loadSave(save);
+      expect(story.currentText).toBe(text);
+      const after: string[] = [];
+      while (story.canContinue) {
+        story.Continue();
+        after.push(story.currentText ?? "");
+      }
+      expect(after).toEqual(remaining);
+      expect(errors).toEqual([]);
+    },
+  );
+
+  test("migrating its output leaves the script's own table as the script wrote it", () => {
+    const { source, save } = PRE_CHANGE_SAVES["tableAlias"]!;
+    const story = testStory(compile(source));
+    story.loadSave(save);
+    expect(story.currentStyledText?.trim()).toBe(`${SCAN_OPEN}*word*${SCAN_CLOSE}`);
+    const payload = story.state.variablesState.GetVariableWithName("payload") as ObjectValue;
+    expect(field(payload, "text")).toBe("*word*");
   });
 });
