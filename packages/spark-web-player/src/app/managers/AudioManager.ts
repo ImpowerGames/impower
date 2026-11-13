@@ -135,14 +135,48 @@ export default class AudioManager extends Manager {
     if (!context || context.state !== "running" || !players) {
       return [];
     }
+    const now = context.currentTime;
     return [...players.values()].flatMap((player) =>
       player.instances
-        .filter((instance) => instance.stoppedAt == null)
-        .map((instance) => ({
-          startsIn: instance.startedAt - context.currentTime,
-          ended: instance.ended,
-        })),
+        .filter((instance) => instance.stoppedAt == null || instance.stoppedAt > now)
+        .map((instance) => this.liveClip(instance, now)),
     );
+  }
+
+  protected _clipStartListeners = new Map<string, Set<(clip: LiveClip) => void>>();
+
+  onClipStart(channel: string, listener: (clip: LiveClip) => void): () => void {
+    let listeners = this._clipStartListeners.get(channel);
+    if (!listeners) {
+      listeners = new Set();
+      this._clipStartListeners.set(channel, listeners);
+    }
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+
+  protected liveClip(
+    instance: AudioPlayer["instances"][number],
+    now: number,
+  ): LiveClip {
+    return { startsIn: instance.startedAt - now, ended: instance.ended };
+  }
+
+  protected clipStarted(
+    channel: string | undefined,
+    instance: AudioPlayer["instances"][number],
+  ) {
+    const context = this.app.audioContext;
+    const listeners = channel ? this._clipStartListeners.get(channel) : undefined;
+    if (!context || context.state !== "running" || !listeners?.size) {
+      return;
+    }
+    const clip = this.liveClip(instance, context.currentTime);
+    for (const listener of [...listeners]) {
+      listener(clip);
+    }
   }
 
   protected async getAudioBuffer(
@@ -275,7 +309,8 @@ export default class AudioManager extends Manager {
       audioPlayer.loop = update.loop;
     }
     if (update.control === "start") {
-      audioPlayer.start(when, over, gain, at);
+      const instance = audioPlayer.start(when, over, gain, at);
+      this.clipStarted(channel, instance);
       if (channel && key) {
         this.pruneWhenDone(channel, key, audioPlayer);
       }

@@ -400,7 +400,7 @@ export default class UIManager extends Manager {
     const morphs = this.morphs;
     morphs?.attachClock(this);
     morphs?.setSession(`play:${++playSessions}`);
-    this._speech = undefined;
+    this.endSpeech();
     this._morphClockSeen = undefined;
   }
 
@@ -458,6 +458,7 @@ export default class UIManager extends Manager {
   }
 
   override onDispose() {
+    this.endSpeech();
     this._hold.release();
     for (const id of Object.keys(this._listeners)) {
       this.removeListeners(id);
@@ -1628,11 +1629,20 @@ export default class UIManager extends Manager {
 
   protected _speech?: object;
 
+  protected _stopHearingClips?: () => void;
+
+  protected endSpeech() {
+    this._stopHearingClips?.();
+    this._stopHearingClips = undefined;
+    this._speech = undefined;
+  }
+
   protected speak({ character, spans, voiced, time }: SpeechParams) {
     const morphs = this.morphs;
     if (!morphs) {
       return;
     }
+    this.endSpeech();
     const speech = {};
     this._speech = speech;
     const clips = voiced && character ? (this.app.audio?.liveClips("voice") ?? []) : [];
@@ -1660,10 +1670,8 @@ export default class UIManager extends Manager {
     speech: object,
   ) {
     const latency = this.app.audioClock.reading.outputLatency;
-    const heard = clips.map((clip) => ({
-      start: morphs.now + clip.startsIn + latency,
-      end: Infinity,
-    }));
+    const heard: { start: number; end: number }[] = [];
+    const seen = new Set<Promise<unknown>>();
     const update = () => {
       if (this._speech !== speech || this._disposed) {
         return;
@@ -1677,11 +1685,22 @@ export default class UIManager extends Manager {
         ]),
       );
     };
-    clips.forEach((clip, index) => {
+    const hear = (clip: LiveClip) => {
+      if (seen.has(clip.ended)) {
+        return;
+      }
+      seen.add(clip.ended);
+      const span = { start: morphs.now + clip.startsIn + latency, end: Infinity };
+      heard.push(span);
       void clip.ended.then(() => {
-        heard[index]!.end = morphs.now + latency;
+        span.end = morphs.now + latency;
         update();
       });
+    };
+    clips.forEach(hear);
+    this._stopHearingClips = this.app.audio?.onClipStart("voice", (clip) => {
+      hear(clip);
+      update();
     });
     update();
   }

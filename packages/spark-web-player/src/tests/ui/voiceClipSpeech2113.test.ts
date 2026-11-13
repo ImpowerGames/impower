@@ -219,6 +219,67 @@ describe("a line's voice clip drives the speaker's speech (#2113)", () => {
     expect(page.speaking()).toBe(true);
   });
 
+  test("a clip whose stop the line schedules for later drives speech until that stop", async () => {
+    const page = makePage();
+    page.clip("mia_hello");
+    await page.play([
+      { control: "start", key: "mia_hello" },
+      { control: "stop", key: "mia_hello", after: 0.2 },
+    ]);
+    page.say({ character: "mia", spans: [[0, 0.05]], voiced: true });
+    page.frame(0.1);
+    expect(page.speaking()).toBe(true);
+    await sleep(300);
+    await flushMicrotasks(5);
+    page.frame(0.15);
+    expect(page.speaking()).toBe(false);
+  });
+
+  test("a clip queued behind the first drives speech from its own start to its end", async () => {
+    const page = makePage();
+    page.clip("a");
+    page.clip("b");
+    void page.audio.updateAudioPlayers({
+      channel: "voice",
+      updates: [{ control: "start", key: "a" }, { control: "await" }, { control: "start", key: "b" }] as any,
+    });
+    await flushMicrotasks(5);
+    page.say({ character: "mia", spans: TYPED, voiced: true });
+    page.frame(0.5);
+    expect(page.speaking()).toBe(true);
+    expect(page.sources).toHaveLength(1);
+    page.sources[0]!.end();
+    await flushMicrotasks(10);
+    expect(page.sources).toHaveLength(2);
+    page.frame(0.2);
+    expect(page.speaking()).toBe(true);
+    page.frame(1);
+    expect(page.speaking()).toBe(true);
+    page.sources[1]!.end();
+    await flushMicrotasks(5);
+    page.frame(0.05);
+    expect(page.speaking()).toBe(false);
+  });
+
+  test("a clip that starts after the line's speech was replaced does not speak for the new line", async () => {
+    const page = makePage();
+    page.clip("a");
+    page.clip("b");
+    void page.audio.updateAudioPlayers({
+      channel: "voice",
+      updates: [{ control: "start", key: "a" }, { control: "await" }, { control: "start", key: "b" }] as any,
+    });
+    await flushMicrotasks(5);
+    page.say({ character: "mia", spans: TYPED, voiced: true });
+    page.frame(0.5);
+    page.say({ character: "mia", spans: [[0, 0.1]] });
+    page.sources[0]!.end();
+    await flushMicrotasks(10);
+    expect(page.sources).toHaveLength(2);
+    page.frame(0.5);
+    expect(page.speaking()).toBe(false);
+  });
+
   test("with several clips on voice, speech lasts while any of them is audible", async () => {
     const page = makePage();
     page.clip("a");
