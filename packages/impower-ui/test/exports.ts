@@ -96,6 +96,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "WHEEL_SHOWN",
   "tileVariants",
   "tileOpenVariants",
+  "tileActionsVariants",
   "tileMarkVariants",
   "tileMediaVariants",
   "tileLabelVariants",

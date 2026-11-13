@@ -269,6 +269,7 @@ function AllScripts() {
       query={query}
       onQueryChange={setQuery}
       newRef={newButton}
+      newLabel="New"
       newMenu={
         <>
           <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating("script"); }}>

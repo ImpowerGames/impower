@@ -25,6 +25,8 @@ const assets = vi.hoisted(() => ({
   move: vi.fn(async (_paths: readonly string[], _folder: string): Promise<{ from: string; to: string }[]> => []),
   usedBy: vi.fn(async (_paths: readonly string[]): Promise<unknown[] | null> => []),
   measureImages: vi.fn(async () => undefined),
+  requestDuration: vi.fn((_path: string) => () => {}),
+  measureDurations: vi.fn(async (_paths: readonly string[]) => undefined),
   watchFacts: vi.fn((_paths: string[], listener: Listener) => {
     facts.listeners.push(listener);
     listener({ problems: facts.problems });
@@ -156,6 +158,8 @@ beforeEach(() => {
   facts.problems = [];
   facts.listeners = [];
   for (const fn of [...Object.values(assets), ...Object.values(window)]) fn.mockClear();
+  assets.measureDurations.mockImplementation(async () => undefined);
+  workspace.assetDurations.value = {};
   window.setListState.mockImplementation((next) => lists(next));
   workspace.current = {
     ...workspace.current,
@@ -473,6 +477,52 @@ describe("the asset inspector", () => {
     expect(document.activeElement).toBe(tile);
   });
 
+  it("lists each use as one row naming its script and line, with the line beneath", async () => {
+    const use = (path: string, line: number, text: string, role: "sound" | "define" = "sound") => ({
+      uri: `file:///p/${path}`,
+      path,
+      range: { start: { line, character: 2 }, end: { line, character: 12 } },
+      role,
+      text,
+    });
+    workspace.assetUsage.value = {
+      projectId: PROJECT,
+      version: 1,
+      uses: {
+        "Assets/Audio/Sounds/door_chime.wav": [
+          use("Scripts/market.sd", 2, "  ((door_chime))"),
+          use("main.sd", 11, "  ((play sound door_chime))"),
+          use("main.sd", 3, "  ((door_chime))"),
+          use("Scripts/Definitions/audio.sd", 0, "define door_chime as sound with", "define"),
+        ],
+      },
+      order: ["main.sd", "Scripts/market.sd", "Scripts/Definitions/audio.sd"],
+    };
+    await mount();
+    await open("door_chime");
+    expect(sectionTitles()).toContain("Used in 4 lines");
+    expect(details()).toContain("Used as: Sound, Define");
+    const rows = [...region()!.querySelectorAll<HTMLElement>('section[aria-label="Uses"] li button')];
+    expect(rows.map((row) => row.getAttribute("aria-label"))).toEqual([
+      "Open Main at line 4",
+      "Open Main at line 12",
+      "Open audio at line 1",
+      "Open market at line 3",
+    ]);
+    expect(rows.map((row) => [...row.querySelectorAll("span, small")].filter((el) => !el.children.length).map((el) => el.textContent))).toEqual([
+      ["Main · line 4", "((door_chime))"],
+      ["Main · line 12", "((play sound door_chime))"],
+      ["audio · line 1", "define door_chime as sound with"],
+      ["market · line 3", "((door_chime))"],
+    ]);
+    expect(region()!.querySelector('section[aria-label="Uses"] h3 + * h3, section[aria-label="Uses"] section')).toBeNull();
+    await click(rows[1]);
+    expect(window.revealDocument).toHaveBeenCalledWith("file:///p/main.sd", {
+      start: { line: 11, character: 2 },
+      end: { line: 11, character: 12 },
+    });
+  });
+
   it("lists each use as a row that opens the script at that line", async () => {
     const range = { start: { line: 4, character: 15 }, end: { line: 4, character: 25 } };
     const played = (at: typeof range) => ({
@@ -498,9 +548,33 @@ describe("the asset inspector", () => {
     expect(assets.watchFacts.mock.calls[0]![0]).toEqual(["Assets/Audio/Sounds/door_chime.wav"]);
     expect(sectionTitles()).toContain("Used in 2 lines");
     expect(details()).toContain("Used as: Sound");
-    const use = region()!.querySelector<HTMLElement>('button[aria-label="Line 5: ((play sound door_chime))"]');
+    const use = region()!.querySelector<HTMLElement>('button[aria-label="Open Main at line 5"]');
     await click(use);
     expect(window.revealDocument).toHaveBeenCalledWith("file:///p/main.sd", range);
+  });
+
+  it("reads a sound's length through the shared duration reader, and again when Replace changes its file", async () => {
+    const lengths: Record<string, number> = { "/p/512": 3.4, "/p/512?v=2": 7.6 };
+    assets.measureDurations.mockImplementation(async (paths: readonly string[]) => {
+      const files = workspace.assetListing.value!.files;
+      workspace.assetDurations.value = {
+        ...workspace.assetDurations.value,
+        ...Object.fromEntries(paths.map((path) => [files[path]!.src!, lengths[files[path]!.src!] ?? null])),
+      };
+    });
+    await mount();
+    await open("door_chime");
+    expect(assets.measureDurations).toHaveBeenCalledWith(["Assets/Audio/Sounds/door_chime.wav"]);
+    expect(details()).toContain("Length: 0:03");
+    await act(async () => {
+      const files = workspace.assetListing.value!.files;
+      workspace.assetListing.value = {
+        ...workspace.assetListing.value!,
+        files: { ...files, "Assets/Audio/Sounds/door_chime.wav": { ...files["Assets/Audio/Sounds/door_chime.wav"]!, src: "/p/512?v=2" } },
+      };
+    });
+    await settle();
+    expect(details()).toContain("Length: 0:08");
   });
 
   it("says a file is not used yet, with its type's note", async () => {
@@ -540,14 +614,16 @@ describe("the asset inspector", () => {
     expect(sectionTitles()).not.toContain("Problems");
   });
 
-  it("zooms a backdrop over a checkerboard and lists its details", async () => {
+  it("zooms a picture straight on the stage, there and full size, and lists its details", async () => {
     lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
     workspace.assetSizes.value = { "/p/600": { width: 1920, height: 1080 } };
     await mount();
     await open("harbor");
     const frame = region()!.querySelector<HTMLElement>("[data-zoom-frame]")!;
     expect(frame.getAttribute("aria-roledescription")).toBe("zoomable picture");
-    expect(frame.querySelector(".checkerboard img")!.getAttribute("src")).toBe("/p/600");
+    expect(frame.querySelector("img")!.getAttribute("src")).toBe("/p/600");
+    expect(frame.className.split(" ")).toContain("bg-stage");
+    expect(frame.querySelector("[class*=checker]")).toBeNull();
     expect(frame.querySelector("[data-zoom-level]")!.textContent).toBe("100%");
     expect(details()).toEqual([
       "Type: Image · PNG",
@@ -1062,8 +1138,8 @@ describe("the Variants tester and the Files section", () => {
     expect(sectionTitles()).toContain("Used in 3 lines");
     expect(details()).toContain("Used as: Portrait");
     expect(
-      [...region()!.querySelectorAll<HTMLElement>('button[aria-label^="Line "]')].map((b) => b.getAttribute("aria-label")),
-    ).toEqual(["Line 4: [[imani]]", "Line 2: [[imani]]", "Line 7: [[imani@night]]"]);
+      [...region()!.querySelectorAll<HTMLElement>('section[aria-label="Uses"] li button')].map((b) => b.getAttribute("aria-label")),
+    ).toEqual(["Open Main at line 4", "Open market at line 2", "Open market at line 7"]);
   });
 
   it("offers a row per group, writes the reference live, shows the engine's picture, and resets", async () => {
@@ -1108,6 +1184,98 @@ describe("the Variants tester and the Files section", () => {
     expect(aside()).toBe("Reset");
     await click(region()!.querySelector<HTMLElement>("[data-variant-reset]"));
     expect(aside()).toBe("8 variants");
+  });
+
+  it("puts an option's Default hint beneath its name in a group's menu", async () => {
+    await mount();
+    await open("imani");
+    await act(async () => {
+      group("mouth").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse" }));
+    });
+    await settle();
+    const items = await vi.waitFor(() => {
+      const found = all<HTMLElement>('[role="menuitemradio"]');
+      expect(found.length).toBe(2);
+      return found;
+    });
+    const closed = items.find((item) => item.textContent?.startsWith("Closed"))!;
+    const text = closed.querySelector<HTMLElement>("[data-dropdown-item-text]")!;
+    expect([...text.children].map((child) => [child.tagName, child.textContent])).toEqual([
+      ["SPAN", "Closed"],
+      ["SMALL", "Default"],
+    ]);
+    expect(items.find((item) => item.textContent?.startsWith("Open"))!.querySelector("small")).toBeNull();
+    await key(closed, "Escape");
+  });
+
+  it("draws an on/off group as a switch, off at rest, after the menus, with both files or only the on file", async () => {
+    workspace.assetListing.value = {
+      projectId: PROJECT,
+      folders: [],
+      files: Object.fromEntries(
+        [
+          `${P}/tower.png`,
+          `${P}/tower~flag.on.png`,
+          `${P}/tower~flag.off.png`,
+          `${P}/tower~banner.on.png`,
+          `${P}/tower~face.happy.png`,
+          `${P}/rooftop.png`,
+          `${P}/rooftop~lamp.on.png`,
+        ].map((path, i) => [path, fact(512 * (i + 1))]),
+      ),
+    };
+    await mount();
+    const switches = () => [...region()!.querySelectorAll<HTMLInputElement>('[role="switch"]')];
+    const cells = () =>
+      [...region()!.querySelectorAll<HTMLElement>("[data-variant-cell]")].map((cell) => [
+        cell.firstElementChild!.textContent,
+        cell.lastElementChild!.getAttribute("role") ?? cell.lastElementChild!.getAttribute("data-variant-group"),
+      ]);
+    await open("tower");
+    expect(subtitle()).toBe("Image · PNG · 8 variants");
+    expect(cells()).toEqual([
+      ["Face", "face"],
+      ["Banner", "switch"],
+      ["Flag", "switch"],
+    ]);
+    expect(switches().map((input) => [input.getAttribute("aria-label"), input.getAttribute("aria-checked"), input.checked])).toEqual([
+      ["Banner", "false", false],
+      ["Flag", "false", false],
+    ]);
+    expect(region()!.querySelector('[data-variant-group="flag"]')).toBeNull();
+    await click(switches()[1]);
+    expect(reference()).toBe("[[tower:flag]]");
+    expect(switches()[1]!.getAttribute("aria-checked")).toBe("true");
+    expect(region()!.querySelector("[data-variant-reset]")).not.toBeNull();
+    await click(switches()[1]);
+    expect(reference()).toBe("[[tower]]");
+
+    await click(closeButton());
+    await open("rooftop");
+    expect(subtitle()).toBe("Image · PNG · 2 variants");
+    expect(cells()).toEqual([["Lamp", "switch"]]);
+    expect(switches()[0]!.getAttribute("aria-checked")).toBe("false");
+    await click(switches()[0]);
+    expect(reference()).toBe("[[rooftop:lamp]]");
+    expect(rowFor(`${P}/rooftop.png`).getAttribute("aria-label")).toContain("2 variants");
+  });
+
+  it("keeps the picture pinned above the Variants while they scroll, and pins nothing for a single picture", async () => {
+    await mount();
+    await open("imani");
+    const bench = region()!.querySelector<HTMLElement>("[data-variant-bench]")!;
+    expect(bench.parentElement!.matches("[data-inspector-body]")).toBe(true);
+    const stage = bench.firstElementChild as HTMLElement;
+    expect(stage.querySelector("[data-zoom-frame]")).not.toBeNull();
+    expect(stage.className.split(" ")).toEqual(expect.arrayContaining(["sticky", "top-0"]));
+    expect(bench.lastElementChild!.matches('section[aria-label="Variants"]')).toBe(true);
+    await click(closeButton());
+    lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
+    workspace.assetListing.value = { projectId: PROJECT, folders: [], files: { "Assets/Images/Backdrops/harbor.png": fact(600) } };
+    await settle();
+    await open("harbor");
+    expect(region()!.querySelector("[data-variant-bench]")).toBeNull();
+    expect(region()!.querySelector(".sticky")).toBeNull();
   });
 
   it("inserts the reference shown at the script's caret, and says why it cannot while no script has a caret", async () => {
@@ -1166,6 +1334,8 @@ describe("the Variants tester and the Files section", () => {
       return found!;
     });
     expect(full.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/picture/imani~happy");
+    expect(full.querySelector<HTMLElement>("[data-zoom-frame]")!.className.split(" ")).toContain("bg-stage");
+    expect(full.querySelector("[class*=checker]")).toBeNull();
     const edge = Math.ceil((Math.max(innerWidth, innerHeight) * 3) / 128) * 128;
     expect(edge).toBeGreaterThan(1280);
     expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, edge, expect.any(Function));

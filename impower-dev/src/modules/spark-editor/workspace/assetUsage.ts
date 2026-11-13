@@ -1,6 +1,6 @@
 import { storyOrder, UNREACHED, type Reference } from "../utils/fileListModel";
 
-export type AssetUseRole = "backdrop" | "portrait" | "sound" | "music" | "font" | "other";
+export type AssetUseRole = "backdrop" | "portrait" | "sound" | "music" | "font" | "define" | "other";
 
 export interface AssetUse {
   uri: string;
@@ -27,6 +27,7 @@ export const USE_ROLE_LABELS: Record<AssetUseRole, string> = {
   music: "Music",
   sound: "Sound",
   font: "Style font",
+  define: "Define",
   other: "Other",
 };
 

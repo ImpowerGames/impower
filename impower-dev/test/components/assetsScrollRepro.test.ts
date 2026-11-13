@@ -15,6 +15,7 @@ const assets = vi.hoisted(() => ({
   rename: vi.fn(async () => ""),
   remove: vi.fn(async () => undefined),
   measureImages: vi.fn(async (_paths: string[]) => undefined),
+  requestDuration: vi.fn((_path: string) => () => {}),
   watchFacts: vi.fn((_paths: string[]) => () => {}),
   watchPicture: vi.fn((_path: string, _variant: unknown, _size: number, _listener: (src: string | null) => void) => () => {}),
 }));

@@ -52,10 +52,10 @@ describe("the tester's groups", () => {
     expect(summary([`${P}/kai.png`, `${P}/kai~face.happy~default.png`])).toEqual([]);
   });
 
-  it("rests a switch off unless its on layer is the default", () => {
+  it("offers a switch off then on, and rests it off unless its on layer is the default", () => {
     expect(summary(MIA_FOLDER)).toEqual([
       ["face", ["happy", "neutral"], "neutral"],
-      ["hat", ["on", "off"], "off"],
+      ["hat", ["off", "on"], "off"],
     ]);
   });
 
