@@ -252,7 +252,11 @@ describe("the caret line's preview record", () => {
   });
 
   test("starts a caption's last beat at its break mark, so a command before the question's words belongs to the choice", () => {
-    for (const breakLine of ["      Listen carefully. >", "      Listen carefully. > // aside"]) {
+    for (const breakLine of [
+      "      Listen carefully. >",
+      "      Listen carefully. > // aside",
+      "      Listen carefully. > ..",
+    ]) {
       const menu = previewOf(
         [
           "scene start",

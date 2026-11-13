@@ -276,9 +276,7 @@ function splitBodyRangeAtBreaks(
   for (const brk of breaks) {
     const newline = ctx.read(brk.to, bodyEnd).indexOf("\n");
     const lineEnd = newline < 0 ? bodyEnd : brk.to + newline;
-    const endsLine =
-      !hasBodyContent(parent, brk.to, lineEnd, ctx) &&
-      !breaks.some((other) => other.from >= brk.to && other.from < lineEnd);
+    const endsLine = breakEndsItsLine(parent, brk, lineEnd, breaks, ctx);
     const to = endsLine
       ? ctx.read(lineEnd - 1, lineEnd) === "\r"
         ? lineEnd - 1
@@ -304,6 +302,19 @@ function splitBodyRangeAtBreaks(
   return kept.length > 0
     ? kept
     : [{ from: bodyStart, to: bodyEnd, pause: false, leads: false }];
+}
+
+export function breakEndsItsLine(
+  parent: SyntaxNode,
+  brk: SyntaxNode,
+  lineEnd: number,
+  breaks: readonly SyntaxNode[],
+  ctx: SourceReader,
+): boolean {
+  return (
+    !hasBodyContent(parent, brk.to, lineEnd, ctx) &&
+    !breaks.some((other) => other.from >= brk.to && other.from < lineEnd)
+  );
 }
 
 interface BeatRange {

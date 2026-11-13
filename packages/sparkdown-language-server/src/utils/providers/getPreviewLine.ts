@@ -4,7 +4,10 @@ import type {
   PreviewLine,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewLineMessage";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
-import { displayCaptionText } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
+import {
+  breakEndsItsLine,
+  displayCaptionText,
+} from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
 import { readSkipping } from "@impower/sparkdown/src/compiler/utils/readSkipping";
 import type { SyntaxNode, Tree } from "@lezer/common";
 
@@ -130,7 +133,8 @@ export const getPreviewLine = (
       : "";
   };
   const segmentsOf = (node: SyntaxNode) => {
-    const breaks = descendants(node, "Break").map((mark) => mark.to);
+    const marks = descendants(node, "Break");
+    const breaks = marks.map((mark) => mark.to);
     const segmentAt = (offset: number) =>
       breaks.filter((end) => end <= offset).length;
     const segments: Segment[] = [];
@@ -144,7 +148,7 @@ export const getPreviewLine = (
         segment.words.push(words);
       }
     }
-    return { segments, segmentAt, breaks };
+    return { segments, segmentAt, marks };
   };
   const lineEnd = (l: number) =>
     l + 1 < document.lineCount ? lineStart(l + 1) : document.length;
@@ -270,7 +274,8 @@ export const getPreviewLine = (
     }
     let captionFrom: number | undefined;
     if (beat.caption) {
-      const { segments, breaks } = segmentsOf(beat.caption);
+      const caption = beat.caption;
+      const { segments, marks } = segmentsOf(caption);
       const first = firstLine(beat.caption);
       let last = segments.length - 1;
       while (last > 0 && !spoken(segments[last])) {
@@ -278,11 +283,13 @@ export const getPreviewLine = (
       }
       captionFrom = first;
       if (last > 0 && segments.slice(0, last).some(spoken)) {
-        const boundary = breaks[last - 1]!;
-        const breakLine = document.positionAt(boundary).line;
-        captionFrom = uncommented(boundary, lineEnd(breakLine)).trim()
-          ? breakLine
-          : breakLine + 1;
+        const mark = marks[last - 1]!;
+        const newline = read(mark.to, caption.to).indexOf("\n");
+        const end = newline < 0 ? caption.to : mark.to + newline;
+        const breakLine = document.positionAt(mark.to).line;
+        captionFrom = breakEndsItsLine(caption, mark, end, marks, source)
+          ? breakLine + 1
+          : breakLine;
       }
       if (captionFrom > first) {
         beats.push({
