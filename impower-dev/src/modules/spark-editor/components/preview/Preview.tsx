@@ -67,6 +67,8 @@ export default function Preview(_props: PreviewProps) {
 
   const game = workspace.state.value.preview?.modes?.game;
   const choosing = !!game?.running && !!game?.choosing;
+  const inStrip = phone && !workspace.state.value.preview?.revealed;
+  const framed = !fullscreen && !inStrip;
 
   const stage = (
     <>
@@ -77,7 +79,7 @@ export default function Preview(_props: PreviewProps) {
         <PreviewGame />
       </div>
       {mode === "screenplay" ? <PreviewScreenplay /> : null}
-      <PreviewStatuses mode={mode} />
+      {inStrip ? null : <PreviewStatuses mode={mode} />}
     </>
   );
 
@@ -85,14 +87,14 @@ export default function Preview(_props: PreviewProps) {
     <div
       class={cn(
         "flex min-h-0 flex-1 flex-col",
-        !fullscreen && "px-preview-inline pt-preview-stage-gap",
+        framed && "px-preview-inline pt-preview-stage-gap",
       )}
     >
       <div
         data-preview-card
         class={cn(
           "relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-stage",
-          !fullscreen && "rounded-preview-frame shadow-preview-frame",
+          framed && "rounded-preview-frame shadow-preview-frame",
         )}
       >
         {stage}
@@ -100,8 +102,17 @@ export default function Preview(_props: PreviewProps) {
     </div>
   );
 
+  const closeFullView = async () => {
+    const { Workspace } = await import("../../workspace/Workspace");
+    Workspace.window.collapsePreviewPane();
+  };
+
   const bar = (
-    <PreviewBar fullscreen={fullscreen} onToggleFullscreen={toggle} />
+    <PreviewBar
+      fullscreen={fullscreen}
+      onToggleFullscreen={toggle}
+      onClose={phone ? () => void closeFullView() : undefined}
+    />
   );
 
   const onPanelHeightChange = (height: number | undefined) => {
@@ -117,13 +128,16 @@ export default function Preview(_props: PreviewProps) {
   return (
     <div
       ref={ref}
-      class="@container flex h-full w-full min-h-0 flex-1 flex-col bg-preview-mat"
+      class={cn(
+        "@container flex h-full w-full min-h-0 flex-1 flex-col bg-preview-mat",
+        phone && !inStrip && "pb-[env(safe-area-inset-bottom)]",
+      )}
     >
-      <PreviewTopBar />
+      {inStrip ? null : <PreviewTopBar />}
       {phone ? (
         <>
           {card}
-          {bar}
+          {inStrip ? null : bar}
         </>
       ) : (
         <SplitPane

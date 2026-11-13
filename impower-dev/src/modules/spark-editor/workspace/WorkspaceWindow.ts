@@ -1932,7 +1932,18 @@ export default class WorkspaceWindow {
     sendProtocolMessage(DidExpandPreviewPaneMessage.type.notification({}));
   }
 
+  playInFullView() {
+    const game = this.store.preview.modes.game;
+    if (launchPhaseOf(game, this._startGameRequestId !== undefined) === "idle") {
+      this.launch("press");
+    }
+    this.expandPreviewPane();
+  }
+
   collapsePreviewPane() {
+    if (this.store.preview.revealed && layoutState.current() === "phone") {
+      this.stopGame();
+    }
     this.update({
       ...this.store,
       preview: {

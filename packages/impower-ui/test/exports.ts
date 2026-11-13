@@ -26,6 +26,8 @@ export const NOT_COMPONENTS: readonly string[] = [
   "switchVariants",
   "sliderVariants",
   "playButtonVariants",
+  "previewStripVariants",
+  "previewStripStatusVariants",
   "audioPlayerVariants",
   "audioWaveVariants",
   "clock",

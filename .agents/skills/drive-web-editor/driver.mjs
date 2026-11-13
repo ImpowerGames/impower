@@ -2540,14 +2540,24 @@ export async function playPreview(page, action, { request = (method, params) => 
   if (start && !playerReady(before)) {
     return { ...out, launchState: out.launchStateBefore, reason: `the player had not loaded the story within ${seconds(timeout)} (launch state ${out.launchStateBefore}), so Play was not pressed` };
   }
-  const button = page.locator(`[aria-label="${label}"]`).first();
+  let button = page.locator(`[aria-label="${label}"]`).first();
+  let viaStrip = false;
+  if (start && !(await button.isVisible().catch(() => false))) {
+    const strip = page.locator(SHOW_PREVIEW_SELECTOR).first();
+    if (await strip.isVisible().catch(() => false)) {
+      button = strip;
+      viaStrip = true;
+    }
+  }
   if (!(await button.isVisible().catch(() => false))) {
-    return { ...out, launchState: out.launchStateBefore, reason: `the ${label} control is not on screen (launch state ${out.launchStateBefore}); ${start ? "the game may already be running, or the preview pane is not showing" : "the game is not running"}` };
+    return { ...out, launchState: out.launchStateBefore, reason: `the ${label} control is not on screen (launch state ${out.launchStateBefore}); ${start ? "the game may already be running, or neither the preview pane nor the preview strip is showing" : "the game is not running"}` };
   }
   const drain = await notifications();
   await drain();
+  if (viaStrip) await previewOwnership(page, "claim");
   await button.click();
   out.clicked = true;
+  if (viaStrip) out.revealed = "preview";
   const seen = [];
   const end = now() + timeout;
   let state;
@@ -2579,8 +2589,8 @@ async function gameStateNotifications(page) {
 }
 
 export const PREVIEW_PANE_SELECTOR = '[role="group"][aria-label="Playback controls"]';
-export const SHOW_PREVIEW_SELECTOR = 'button[aria-label="Show the preview"]';
-export const BACK_TO_STORY_SELECTOR = "a:visible";
+export const SHOW_PREVIEW_SELECTOR = 'button[aria-label="Play from this line"]';
+export const CLOSE_PREVIEW_SELECTOR = 'button[aria-label="Close the preview"]';
 export const DRIVER_PREVIEW_KEY = "impower-driver/revealed-preview";
 
 export function previewOwnership(page, op) {
@@ -2605,14 +2615,14 @@ export async function revealPreview(page, { timeout = 10_000 } = {}) {
   if (await pane.isVisible().catch(() => false)) return { revealed: false };
   const show = page.locator(SHOW_PREVIEW_SELECTOR).first();
   if (!(await show.isVisible().catch(() => false))) {
-    return { revealed: false, reason: "the preview pane is not on screen and the title bar's Show the preview button is not either; it shows on the Story screen outside Edit mode" };
+    return { revealed: false, reason: "the preview pane is not on screen and the preview strip's Play from this line is not either; the strip shows on the Story screen with a script open" };
   }
   await previewOwnership(page, "claim");
   await show.click();
   try {
     await pane.waitFor({ state: "visible", timeout });
   } catch {
-    return { revealed: true, reason: `the preview pane did not show within ${timeout / 1000} s of pressing Show the preview` };
+    return { revealed: true, reason: `the preview pane did not show within ${timeout / 1000} s of pressing the strip's Play from this line` };
   }
   return { revealed: true };
 }
@@ -2625,13 +2635,13 @@ export async function hidePreview(page, { timeout = 5000 } = {}) {
   }
   const pane = page.locator(PREVIEW_PANE_SELECTOR).first();
   if (await pane.isVisible().catch(() => false)) {
-    const back = page.locator(BACK_TO_STORY_SELECTOR, { hasText: "Back to story" }).first();
-    if (!(await back.isVisible().catch(() => false))) return { hidden: false, reason: "the preview pane is on screen and its Back to story link is not" };
-    await back.click({ timeout });
+    const close = page.locator(CLOSE_PREVIEW_SELECTOR).first();
+    if (!(await close.isVisible().catch(() => false))) return { hidden: false, reason: "the preview pane is on screen and its Close the preview button is not" };
+    await close.click({ timeout });
     try {
       await pane.waitFor({ state: "hidden", timeout });
     } catch {
-      return { hidden: false, reason: `the preview pane was still on screen ${timeout / 1000} s after pressing Back to story` };
+      return { hidden: false, reason: `the preview pane was still on screen ${timeout / 1000} s after pressing Close the preview` };
     }
   }
   try {
@@ -3931,8 +3941,11 @@ async function ui(args, deps = liveDeps) {
               result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
-            if (step.play) result.steps.push(await playPreview(page, step.play));
-            else if (step.advance) result.steps.push(await advanceGame(page, step.advance));
+            if (step.play) {
+              const played = await playPreview(page, step.play);
+              if (played.revealed) revealed.add(played.revealed);
+              result.steps.push(played);
+            } else if (step.advance) result.steps.push(await advanceGame(page, step.advance));
             else if (step.insert) result.steps.push(await insertText(page, step.insert, step.text, { settle: deps.waitForPreviewSettle, route: deps.routeLabel }));
             else result.steps.push(scrubReport(step.scrub, await scrubPreview(page, step.scrub, deps)));
           } else if (step.step) {
@@ -3948,8 +3961,8 @@ async function ui(args, deps = liveDeps) {
                 continue;
               }
             }
-            const reveals = NAMED_STEPS[step.step].reveals;
-            const reveal = REVEALS[reveals];
+            const { reveals, revealsItself } = NAMED_STEPS[step.step];
+            const reveal = revealsItself ? undefined : REVEALS[reveals];
             const shown = reveal ? await reveal.show(page) : { revealed: false };
             if (shown.revealed) revealed.add(reveals);
             if (shown.reason) {
@@ -3957,6 +3970,7 @@ async function ui(args, deps = liveDeps) {
               continue;
             }
             const report = await NAMED_STEP_BODIES[step.step](page, step);
+            if (report.revealed) revealed.add(report.revealed);
             result.steps.push(shown.revealed ? { ...report, revealed: reveals } : report);
           } else if (step.tap || step.longPress || step.swipe || step.rotate) {
             result.steps.push(await deviceGesture(page, device, step, deps.waitForDomQuiet));

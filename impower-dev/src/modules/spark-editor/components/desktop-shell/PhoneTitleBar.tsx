@@ -1,7 +1,6 @@
 import {
   Button,
   CheckIcon,
-  FollowIcon,
   RedoIcon,
   SearchIcon,
   SparkLogo,
@@ -112,18 +111,6 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
                 <RedoIcon />
               </Button>
             </div>
-          )}
-          {story && !editing && (
-            <Button
-              variant="quiet"
-              size="icon"
-              aria-label="Show the preview"
-              title="Show the preview"
-              class="text-muted"
-              onClick={() => void withWindow((win) => win.expandPreviewPane())}
-            >
-              <FollowIcon />
-            </Button>
           )}
           {editing ? (
             <Button

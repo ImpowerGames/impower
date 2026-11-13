@@ -1,3 +1,5 @@
+import { shortViewportMaxHeight } from "./breakpoints";
+
 export type Keyboard = { open: boolean; height: number };
 
 const OPEN_CLASS = "keyboard-open";
@@ -79,6 +81,8 @@ const fit = () => {
     return;
   }
   measureFullHeight();
+  document.documentElement.dataset["viewportHeight"] =
+    fullHeight <= shortViewportMaxHeight ? "short" : "tall";
   const next = keyboard();
   if (next.open) {
     document.body.style.height = `${viewport.height}px`;
@@ -126,6 +130,7 @@ export function fitToKeyboard(
       window.visualViewport?.removeEventListener("scroll", fit);
       last = CLOSED;
       release();
+      delete document.documentElement.dataset["viewportHeight"];
     }
   };
 }

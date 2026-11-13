@@ -6,6 +6,16 @@
 
 @custom-variant phone (&:where([data-layout="phone"], [data-layout="phone"] *));
 @custom-variant compact (&:where([data-layout="compact"], [data-layout="compact"] *));
+@custom-variant short-viewport {
+  @media (max-height: 710px) {
+    &:where(:root:not([data-viewport-height]) *) {
+      @slot;
+    }
+  }
+  &:where([data-viewport-height="short"] *) {
+    @slot;
+  }
+}
 
 @theme {
   --radius-sm: 4px;
@@ -43,6 +53,7 @@
   --color-workspace: var(--workspace);
   --color-workspace-deep: var(--workspace-deep);
   --color-preview-mat: var(--preview-mat);
+  --color-preview-strip: var(--preview-strip);
   --color-elevated: var(--elevated);
   --color-ink: var(--ink);
   --color-muted: var(--muted);

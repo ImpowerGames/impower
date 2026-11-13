@@ -10,16 +10,12 @@ import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
 import { InspectorDock, InspectorDockProvider } from "../asset-inspector";
 import Assets from "../assets";
-import {
-  DesktopShell,
-  PhonePreviewBack,
-  PhoneShell,
-  useFocusRule,
-} from "../desktop-shell";
+import { DesktopShell, PhoneShell, useFocusRule } from "../desktop-shell";
 import FileDropzone from "../file-dropzone/FileDropzone";
 import { useFindShortcut } from "../find-references-rename";
 import Logic from "../logic/Logic";
 import Preview from "../preview/Preview";
+import { PhonePreviewStrip } from "../preview-strip";
 import { SettingsPage } from "../settings";
 import { SharePage } from "../share";
 import { useWorkspaceSession } from "./useWorkspaceSession";
@@ -50,9 +46,6 @@ export default function MainWindow(_props: MainWindowProps) {
   const settings = useComputed(
     () => !!workspace.state.value.screen?.settingsOpen,
   ).value;
-  const previewActive = useComputed(() =>
-    workspace.state.value.preview?.revealed ? "end" : "start",
-  ).value;
   const stripHeight = useComputed(
     () => workspace.state.value.shell?.stripHeight,
   ).value;
@@ -62,58 +55,65 @@ export default function MainWindow(_props: MainWindowProps) {
     Workspace.window.setStripHeight(height);
   };
 
-  const panes = (
-    <div class="relative flex h-full min-h-0 flex-1">
-      {!isSSR && (
-        <InspectorDockProvider>
-          <SplitPane
-            orientation={strip ? "vertical" : "horizontal"}
-            reverse={strip}
-            label={strip ? "Resize preview" : undefined}
-            pinned={
-              strip
-                ? {
-                    panel: "end",
-                    size: stripHeight,
-                    defaultSize: STRIP_HEIGHT.default,
-                    minSize: STRIP_HEIGHT.min,
-                    collapsedSize: STRIP_HEIGHT.collapsed,
-                    reserve: STRIP_HEIGHT.reserve,
-                    onSizeChange: onStripHeightChange,
-                  }
-                : undefined
-            }
-            activePanel={previewActive}
-            defaultSizes={[53, 47]}
-            minSize={desktop ? ["280px", "336px"] : "320px"}
-            start={
-              <div class="relative flex h-full w-full flex-col">
-                <PaneContent pane={pane} settings={settings} />
-              </div>
-            }
-            end={
-              <div class="relative flex h-full w-full flex-col bg-stage">
-                {phone && <PhonePreviewBack />}
-                <Preview />
-                <InspectorDock />
-              </div>
-            }
-          />
-
-          <FileDropzone />
-          <LiveRegion />
-        </InspectorDockProvider>
-      )}
+  const content = (
+    <div class="relative flex h-full w-full flex-col">
+      <PaneContent pane={pane} settings={settings} />
     </div>
   );
 
   if (phone) {
-    return <PhoneShell>{panes}</PhoneShell>;
+    return (
+      <PhoneShell strip={<PhonePreviewStrip />}>
+        <div class="relative flex h-full min-h-0 flex-1">
+          {!isSSR && (
+            <InspectorDockProvider>
+              {content}
+              <FileDropzone />
+              <LiveRegion />
+            </InspectorDockProvider>
+          )}
+        </div>
+      </PhoneShell>
+    );
   }
 
   return (
     <div class="flex h-full w-full min-h-0 flex-col">
-      <DesktopShell>{panes}</DesktopShell>
+      <DesktopShell>
+        <div class="relative flex h-full min-h-0 flex-1">
+          <InspectorDockProvider>
+            <SplitPane
+              orientation={strip ? "vertical" : "horizontal"}
+              reverse={strip}
+              label={strip ? "Resize preview" : undefined}
+              pinned={
+                strip
+                  ? {
+                      panel: "end",
+                      size: stripHeight,
+                      defaultSize: STRIP_HEIGHT.default,
+                      minSize: STRIP_HEIGHT.min,
+                      collapsedSize: STRIP_HEIGHT.collapsed,
+                      reserve: STRIP_HEIGHT.reserve,
+                      onSizeChange: onStripHeightChange,
+                    }
+                  : undefined
+              }
+              defaultSizes={[53, 47]}
+              minSize={desktop ? ["280px", "336px"] : "320px"}
+              start={content}
+              end={
+                <div class="relative flex h-full w-full flex-col bg-stage">
+                  <Preview />
+                  <InspectorDock />
+                </div>
+              }
+            />
+            <FileDropzone />
+            <LiveRegion />
+          </InspectorDockProvider>
+        </div>
+      </DesktopShell>
     </div>
   );
 }

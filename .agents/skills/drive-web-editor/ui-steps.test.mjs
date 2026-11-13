@@ -648,6 +648,24 @@ await asyncCheck("play reports the launch state it reached, and a click whose st
   assert.match(none.reason, /Stop control is not on screen/);
 });
 
+await asyncCheck("on a phone, play presses the preview strip's Play from this line once, claims the pane it reveals and reports it for hiding", async () => {
+  let launchState = "preview";
+  const storage = {};
+  const { page, clicks } = playPage((sel) => (launchState === "play" ? sel.includes("Stop") : sel === SHOW_PREVIEW_SELECTOR));
+  page.evaluate = async (_fn, [key, op]) => {
+    if (op === "claim") storage[key] = "1";
+    return storage[key] === "1";
+  };
+  let clock = 0;
+  const request = async () => { if (clicks.length) launchState = "play"; return { launchState }; };
+  const started = await playPreview(page, "start", { request, notifications: silent, now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 });
+  assert.deepEqual(clicks, [SHOW_PREVIEW_SELECTOR]);
+  assert.equal(started.reached, true);
+  assert.equal(started.revealed, "preview");
+  assert.equal(storage[DRIVER_PREVIEW_KEY], "1");
+  assert.equal(NAMED_STEPS.play.revealsItself, true);
+});
+
 check("advance takes an optional positive click count", () => {
   assert.deepEqual(parseUiSteps(["--play", "start", "--advance", "--shot", "a.png", "--advance", "3", "--advance"]), [
     { play: "start" },
@@ -817,7 +835,8 @@ function previewPage({ paneShown = false, showButton = true, paneShowsOnPress = 
   return { page, state };
 }
 
-await asyncCheck("the preview is revealed the way an author does, by the title bar's Show the preview button, and each missing piece is named", async () => {
+await asyncCheck("the preview is revealed the way an author does, by the preview strip's Play from this line, and each missing piece is named", async () => {
+  assert.equal(SHOW_PREVIEW_SELECTOR, 'button[aria-label="Play from this line"]');
   const hidden = previewPage();
   assert.deepEqual(await revealPreview(hidden.page), { revealed: true });
   assert.deepEqual(hidden.state.pressed, [SHOW_PREVIEW_SELECTOR]);
@@ -829,11 +848,11 @@ await asyncCheck("the preview is revealed the way an author does, by the title b
   const noButton = previewPage({ showButton: false });
   const missing = await revealPreview(noButton.page);
   assert.equal(missing.revealed, false);
-  assert.match(missing.reason, /the preview pane is not on screen and the title bar's Show the preview button is not either/);
+  assert.match(missing.reason, /the preview pane is not on screen and the preview strip's Play from this line is not either/);
   const stuck = previewPage({ paneShowsOnPress: false });
   const noPane = await revealPreview(stuck.page, { timeout: 10 });
   assert.equal(noPane.revealed, true, "a press that showed nothing still leaves the claim for the run to hide and release");
-  assert.match(noPane.reason, /the preview pane did not show within 0\.01 s of pressing Show the preview/);
+  assert.match(noPane.reason, /the preview pane did not show within 0\.01 s of pressing the strip's Play from this line/);
 });
 
 check("the saved-hidden check reads only the loaded project's workspace, so another project's saved preview cannot hold a run", () => {

@@ -29,6 +29,7 @@ import { selectGallery } from "./components/select/Select.gallery";
 import { settingsGallery } from "./components/settings/Settings.gallery";
 import { sliderGallery } from "./components/slider/Slider.gallery";
 import { playButtonGallery } from "./components/play-button/PlayButton.gallery";
+import { previewStripGallery } from "./components/preview-strip/PreviewStrip.gallery";
 import { audioPlayerGallery } from "./components/audio-player/AudioPlayer.gallery";
 import { sidebarLayoutGallery } from "./components/sidebar-layout/SidebarLayout.gallery";
 import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
@@ -88,6 +89,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   sidebarLayoutGallery,
   sliderGallery,
   playButtonGallery,
+  previewStripGallery,
   audioPlayerGallery,
   splitPaneGallery,
   statusBadgeGallery,
