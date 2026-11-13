@@ -139,7 +139,13 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
     "`a \\u{41} {x} b`",
   ];
   const callEnd = /^\d+:\d+-1:0 Expected '\)' \(to close '\(' at /;
-  for (const value of forms) {
+  const endsBeforeItsCall = "1 g(`a {x} b {y";
+  test(`store s = ${JSON.stringify(endsBeforeItsCall)} ends its value at 1 and reads the rest as display text, whose unclosed backtick is text`, () => {
+    expect(sparkdownErrors(`store s = ${endsBeforeItsCall}\n`)).toContain(
+      "0:23-1:0 Malformed interpolated string; did you forget to add a `}`?",
+    );
+  });
+  for (const value of forms.filter((form) => form !== endsBeforeItsCall)) {
     test(`store s = ${JSON.stringify(value)}`, () => {
       const expected = official(`local s = ${value}\n`).filter((error) => !callEnd.test(error));
       expect(sparkdownErrors(`store s = ${value}\n`).filter((error) => !callEnd.test(error))).toEqual(expected);

@@ -194,8 +194,8 @@ const RAW_LINES = [
 ] as const;
 
 const BOLD_ITALIC_LINES = [
-  ["an interpolation read as a unit elsewhere", "+ Go ***a* {#{{{{1}}}}} b** now", "Go ***a* {#{{{{1}}}}} b** now"],
-  ["a block comment", "+ Go ***a* /* c */ b** now", "Go ***a* /* c */ b** now"],
+  ["an interpolation read as a unit elsewhere", "+ Go ***a* {#{{{{1}}}}} b** now", "Go ***a* 1 b** now", "meta.template.expression.luau"],
+  ["a block comment", "+ Go ***a* /* c */ b** now", "Go ***a* b** now", "comment.block.sd"],
 ] as const;
 
 const HIGHLIGHTED_LINES = [
@@ -263,7 +263,7 @@ describe("choice text is highlighted as the choice reads it (#2083)", () => {
       const [unclosed, closedAfter, closedBefore] = spanLines(interpolation);
       const italic = async (line: string, word: string) =>
         (await scopesOf(line, word)).includes("markup.other.italic.sd");
-      expect(await italic(unclosed!, "away")).toBe(true);
+      expect(await italic(unclosed!, "away")).toBe(false);
       expect(await italic(closedAfter!, "away")).toBe(true);
       expect(await italic(closedAfter!, "now")).toBe(false);
       expect(await italic(closedBefore!, "away")).toBe(false);
@@ -363,13 +363,12 @@ describe("choice text is highlighted as the choice reads it (#2083)", () => {
   );
 
   test.each(BOLD_ITALIC_LINES)(
-    "%s inside a bold-italic span but outside its italic is text, as on main and in display text",
-    async (_what, line, label) => {
+    "%s inside a bold-italic span but outside its italic is read as in any span, as on a display line",
+    async (_what, line, label, scope) => {
       expect(outcome(line).choices).toEqual([label]);
       for (const token of (await tokensOf(line)).filter((token) => /[{}/]/.test(token.text))) {
         expect(token.scopes).toContain("markup.other.bold.sd");
-        expect(token.scopes).not.toContain("meta.embedded.line.luau");
-        expect(token.scopes).not.toContain("comment.block.sd");
+        expect(token.scopes).toContain(scope);
       }
     },
   );

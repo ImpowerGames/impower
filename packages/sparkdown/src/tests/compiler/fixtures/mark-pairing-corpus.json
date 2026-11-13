@@ -1,0 +1,2070 @@
+{
+ "lines": [
+  {
+   "line": "A *foo bar*",
+   "from": "CommonMark 0.31.2 example 350",
+   "styled": "A [italic: foo bar]"
+  },
+  {
+   "line": "A a * foo bar*",
+   "from": "CommonMark 0.31.2 example 351",
+   "styled": "A a * foo bar*"
+  },
+  {
+   "line": "A a*\"foo\"*",
+   "from": "CommonMark 0.31.2 example 352",
+   "styled": "A a*\"foo\"*"
+  },
+  {
+   "line": "A * a *",
+   "from": "CommonMark 0.31.2 example 353",
+   "styled": "A * a *"
+  },
+  {
+   "line": "A foo*bar*",
+   "from": "CommonMark 0.31.2 example 355",
+   "styled": "A foo[italic: bar]"
+  },
+  {
+   "line": "A 5*6*78",
+   "from": "CommonMark 0.31.2 example 356",
+   "styled": "A 5[italic: 6]78"
+  },
+  {
+   "line": "A _foo bar_",
+   "from": "CommonMark 0.31.2 example 357",
+   "styled": "A [underline: foo bar]"
+  },
+  {
+   "line": "A _ foo bar_",
+   "from": "CommonMark 0.31.2 example 358",
+   "styled": "A _ foo bar_"
+  },
+  {
+   "line": "A a_\"foo\"_",
+   "from": "CommonMark 0.31.2 example 359",
+   "styled": "A a_\"foo\"_"
+  },
+  {
+   "line": "A foo_bar_",
+   "from": "CommonMark 0.31.2 example 360",
+   "styled": "A foo_bar_"
+  },
+  {
+   "line": "A 5_6_78",
+   "from": "CommonMark 0.31.2 example 361",
+   "styled": "A 5_6_78"
+  },
+  {
+   "line": "A пристаням_стремятся_",
+   "from": "CommonMark 0.31.2 example 362",
+   "styled": "A пристаням_стремятся_"
+  },
+  {
+   "line": "A aa_\"bb\"_cc",
+   "from": "CommonMark 0.31.2 example 363",
+   "styled": "A aa_\"bb\"_cc"
+  },
+  {
+   "line": "A foo-_(bar)_",
+   "from": "CommonMark 0.31.2 example 364",
+   "styled": "A foo-[underline: (bar)]"
+  },
+  {
+   "line": "A _foo*",
+   "from": "CommonMark 0.31.2 example 365",
+   "styled": "A _foo*"
+  },
+  {
+   "line": "A *foo bar *",
+   "from": "CommonMark 0.31.2 example 366",
+   "styled": "A *foo bar *"
+  },
+  {
+   "line": "A *(*foo)",
+   "from": "CommonMark 0.31.2 example 368",
+   "styled": "A *(*foo)"
+  },
+  {
+   "line": "A *(*foo*)*",
+   "from": "CommonMark 0.31.2 example 369",
+   "styled": "A [italic: (foo)]"
+  },
+  {
+   "line": "A *foo*bar",
+   "from": "CommonMark 0.31.2 example 370",
+   "styled": "A [italic: foo]bar"
+  },
+  {
+   "line": "A _foo bar _",
+   "from": "CommonMark 0.31.2 example 371",
+   "styled": "A _foo bar _"
+  },
+  {
+   "line": "A _(_foo)",
+   "from": "CommonMark 0.31.2 example 372",
+   "styled": "A _(_foo)"
+  },
+  {
+   "line": "A _(_foo_)_",
+   "from": "CommonMark 0.31.2 example 373",
+   "styled": "A [underline: (foo)]"
+  },
+  {
+   "line": "A _foo_bar",
+   "from": "CommonMark 0.31.2 example 374",
+   "styled": "A _foo_bar"
+  },
+  {
+   "line": "A _пристаням_стремятся",
+   "from": "CommonMark 0.31.2 example 375",
+   "styled": "A _пристаням_стремятся"
+  },
+  {
+   "line": "A _foo_bar_baz_",
+   "from": "CommonMark 0.31.2 example 376",
+   "styled": "A [underline: foo_bar_baz]"
+  },
+  {
+   "line": "A _(bar)_.",
+   "from": "CommonMark 0.31.2 example 377",
+   "styled": "A [underline: (bar)]."
+  },
+  {
+   "line": "A **foo bar**",
+   "from": "CommonMark 0.31.2 example 378",
+   "styled": "A [bold: foo bar]"
+  },
+  {
+   "line": "A ** foo bar**",
+   "from": "CommonMark 0.31.2 example 379",
+   "styled": "A ** foo bar**"
+  },
+  {
+   "line": "A a**\"foo\"**",
+   "from": "CommonMark 0.31.2 example 380",
+   "styled": "A a**\"foo\"**"
+  },
+  {
+   "line": "A foo**bar**",
+   "from": "CommonMark 0.31.2 example 381",
+   "styled": "A foo[bold: bar]"
+  },
+  {
+   "line": "A __foo bar__",
+   "from": "CommonMark 0.31.2 example 382",
+   "styled": "A [underline: foo bar]"
+  },
+  {
+   "line": "A __ foo bar__",
+   "from": "CommonMark 0.31.2 example 383",
+   "styled": "A __ foo bar__"
+  },
+  {
+   "line": "A a__\"foo\"__",
+   "from": "CommonMark 0.31.2 example 385",
+   "styled": "A a__\"foo\"__"
+  },
+  {
+   "line": "A foo__bar__",
+   "from": "CommonMark 0.31.2 example 386",
+   "styled": "A foo__bar__"
+  },
+  {
+   "line": "A 5__6__78",
+   "from": "CommonMark 0.31.2 example 387",
+   "styled": "A 5__6__78"
+  },
+  {
+   "line": "A пристаням__стремятся__",
+   "from": "CommonMark 0.31.2 example 388",
+   "styled": "A пристаням__стремятся__"
+  },
+  {
+   "line": "A __foo, __bar__, baz__",
+   "from": "CommonMark 0.31.2 example 389",
+   "styled": "A [underline: foo, bar, baz]"
+  },
+  {
+   "line": "A foo-__(bar)__",
+   "from": "CommonMark 0.31.2 example 390",
+   "styled": "A foo-[underline: (bar)]"
+  },
+  {
+   "line": "A **foo bar **",
+   "from": "CommonMark 0.31.2 example 391",
+   "styled": "A **foo bar **"
+  },
+  {
+   "line": "A **(**foo)",
+   "from": "CommonMark 0.31.2 example 392",
+   "styled": "A **(**foo)"
+  },
+  {
+   "line": "A *(**foo**)*",
+   "from": "CommonMark 0.31.2 example 393",
+   "styled": "A [italic: (][bold italic: foo][italic: )]"
+  },
+  {
+   "line": "A **foo \"*bar*\" foo**",
+   "from": "CommonMark 0.31.2 example 395",
+   "styled": "A [bold: foo \"][bold italic: bar][bold: \" foo]"
+  },
+  {
+   "line": "A **foo**bar",
+   "from": "CommonMark 0.31.2 example 396",
+   "styled": "A [bold: foo]bar"
+  },
+  {
+   "line": "A __foo bar __",
+   "from": "CommonMark 0.31.2 example 397",
+   "styled": "A __foo bar __"
+  },
+  {
+   "line": "A __(__foo)",
+   "from": "CommonMark 0.31.2 example 398",
+   "styled": "A __(__foo)"
+  },
+  {
+   "line": "A _(__foo__)_",
+   "from": "CommonMark 0.31.2 example 399",
+   "styled": "A _([underline: foo])_",
+   "commonmark": "A [underline: (foo)]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A __foo__bar",
+   "from": "CommonMark 0.31.2 example 400",
+   "styled": "A __foo__bar"
+  },
+  {
+   "line": "A __пристаням__стремятся",
+   "from": "CommonMark 0.31.2 example 401",
+   "styled": "A __пристаням__стремятся"
+  },
+  {
+   "line": "A __foo__bar__baz__",
+   "from": "CommonMark 0.31.2 example 402",
+   "styled": "A [underline: foo__bar__baz]"
+  },
+  {
+   "line": "A __(bar)__.",
+   "from": "CommonMark 0.31.2 example 403",
+   "styled": "A [underline: (bar)]."
+  },
+  {
+   "line": "A _foo __bar__ baz_",
+   "from": "CommonMark 0.31.2 example 406",
+   "styled": "A _foo [underline: bar] baz_",
+   "commonmark": "A [underline: foo bar baz]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A _foo _bar_ baz_",
+   "from": "CommonMark 0.31.2 example 407",
+   "styled": "A [underline: foo bar baz]"
+  },
+  {
+   "line": "A __foo_ bar_",
+   "from": "CommonMark 0.31.2 example 408",
+   "styled": "A _[underline: foo] bar_",
+   "commonmark": "A [underline: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A *foo *bar**",
+   "from": "CommonMark 0.31.2 example 409",
+   "styled": "A [italic: foo bar]"
+  },
+  {
+   "line": "A *foo **bar** baz*",
+   "from": "CommonMark 0.31.2 example 410",
+   "styled": "A [italic: foo ][bold italic: bar][italic:  baz]"
+  },
+  {
+   "line": "A *foo**bar**baz*",
+   "from": "CommonMark 0.31.2 example 411",
+   "styled": "A [italic: foo][bold italic: bar][italic: baz]"
+  },
+  {
+   "line": "A *foo**bar*",
+   "from": "CommonMark 0.31.2 example 412",
+   "styled": "A [italic: foo**bar]"
+  },
+  {
+   "line": "A ***foo** bar*",
+   "from": "CommonMark 0.31.2 example 413",
+   "styled": "A [bold italic: foo][italic:  bar]"
+  },
+  {
+   "line": "A *foo **bar***",
+   "from": "CommonMark 0.31.2 example 414",
+   "styled": "A [italic: foo ][bold italic: bar]"
+  },
+  {
+   "line": "A *foo**bar***",
+   "from": "CommonMark 0.31.2 example 415",
+   "styled": "A [italic: foo**bar]**",
+   "commonmark": "A [italic: foo][bold italic: bar]",
+   "reason": "a star run inside a word opens no span nested in another span; the grammar reads it as text"
+  },
+  {
+   "line": "A foo***bar***baz",
+   "from": "CommonMark 0.31.2 example 416",
+   "styled": "A foo[bold: *bar]*baz",
+   "commonmark": "A foo[bold italic: bar]baz",
+   "reason": "a run of three stars inside a word opens no span nested in another span; the grammar reads it as text"
+  },
+  {
+   "line": "A foo******bar*********baz",
+   "from": "CommonMark 0.31.2 example 417",
+   "styled": "A foo[bold: ****bar]*******baz",
+   "commonmark": "A foo[bold: bar]***baz",
+   "reason": "the grammar reads at most two stars before a span's own as part of its run and nests star spans one level deep"
+  },
+  {
+   "line": "A *foo **bar *baz* bim** bop*",
+   "from": "CommonMark 0.31.2 example 418",
+   "styled": "A *foo [bold: bar ][bold italic: baz][bold:  bim] bop*",
+   "commonmark": "A [italic: foo ][bold italic: bar baz bim][italic:  bop]",
+   "reason": "the grammar nests star spans one level deep"
+  },
+  {
+   "line": "A ** is not an empty emphasis",
+   "from": "CommonMark 0.31.2 example 420",
+   "styled": "A ** is not an empty emphasis"
+  },
+  {
+   "line": "A **** is not an empty strong emphasis",
+   "from": "CommonMark 0.31.2 example 421",
+   "styled": "A **** is not an empty strong emphasis"
+  },
+  {
+   "line": "A __foo _bar_ baz__",
+   "from": "CommonMark 0.31.2 example 424",
+   "styled": "A [underline: foo bar baz]"
+  },
+  {
+   "line": "A __foo __bar__ baz__",
+   "from": "CommonMark 0.31.2 example 425",
+   "styled": "A [underline: foo bar baz]"
+  },
+  {
+   "line": "A ____foo__ bar__",
+   "from": "CommonMark 0.31.2 example 426",
+   "styled": "A __[underline: foo] bar__",
+   "commonmark": "A [underline: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A **foo **bar****",
+   "from": "CommonMark 0.31.2 example 427",
+   "styled": "A [bold: foo bar]"
+  },
+  {
+   "line": "A **foo *bar* baz**",
+   "from": "CommonMark 0.31.2 example 428",
+   "styled": "A [bold: foo ][bold italic: bar][bold:  baz]"
+  },
+  {
+   "line": "A **foo*bar*baz**",
+   "from": "CommonMark 0.31.2 example 429",
+   "styled": "A [bold: foo][bold italic: bar][bold: baz]"
+  },
+  {
+   "line": "A ***foo* bar**",
+   "from": "CommonMark 0.31.2 example 430",
+   "styled": "A [bold italic: foo][bold:  bar]"
+  },
+  {
+   "line": "A **foo *bar***",
+   "from": "CommonMark 0.31.2 example 431",
+   "styled": "A [bold: foo ][bold italic: bar]"
+  },
+  {
+   "line": "A __ is not an empty emphasis",
+   "from": "CommonMark 0.31.2 example 434",
+   "styled": "A __ is not an empty emphasis"
+  },
+  {
+   "line": "A ____ is not an empty strong emphasis",
+   "from": "CommonMark 0.31.2 example 435",
+   "styled": "A ____ is not an empty strong emphasis"
+  },
+  {
+   "line": "A foo ***",
+   "from": "CommonMark 0.31.2 example 436",
+   "styled": "A foo ***"
+  },
+  {
+   "line": "A foo *\\**",
+   "from": "CommonMark 0.31.2 example 437",
+   "styled": "A foo [italic: *]"
+  },
+  {
+   "line": "A foo *_*",
+   "from": "CommonMark 0.31.2 example 438",
+   "styled": "A foo [italic: _]"
+  },
+  {
+   "line": "A foo *****",
+   "from": "CommonMark 0.31.2 example 439",
+   "styled": "A foo *****"
+  },
+  {
+   "line": "A foo **\\***",
+   "from": "CommonMark 0.31.2 example 440",
+   "styled": "A foo [bold: *]"
+  },
+  {
+   "line": "A foo **_**",
+   "from": "CommonMark 0.31.2 example 441",
+   "styled": "A foo [bold: _]"
+  },
+  {
+   "line": "A **foo*",
+   "from": "CommonMark 0.31.2 example 442",
+   "styled": "A *[italic: foo]"
+  },
+  {
+   "line": "A *foo**",
+   "from": "CommonMark 0.31.2 example 443",
+   "styled": "A [italic: foo]*"
+  },
+  {
+   "line": "A ***foo**",
+   "from": "CommonMark 0.31.2 example 444",
+   "styled": "A *[bold: foo]"
+  },
+  {
+   "line": "A ****foo*",
+   "from": "CommonMark 0.31.2 example 445",
+   "styled": "A ***[italic: foo]"
+  },
+  {
+   "line": "A **foo***",
+   "from": "CommonMark 0.31.2 example 446",
+   "styled": "A [bold: foo]*"
+  },
+  {
+   "line": "A *foo****",
+   "from": "CommonMark 0.31.2 example 447",
+   "styled": "A [italic: foo]***"
+  },
+  {
+   "line": "A foo ___",
+   "from": "CommonMark 0.31.2 example 448",
+   "styled": "A foo ___"
+  },
+  {
+   "line": "A foo _\\__",
+   "from": "CommonMark 0.31.2 example 449",
+   "styled": "A foo [underline: _]"
+  },
+  {
+   "line": "A foo _*_",
+   "from": "CommonMark 0.31.2 example 450",
+   "styled": "A foo [underline: *]"
+  },
+  {
+   "line": "A foo _____",
+   "from": "CommonMark 0.31.2 example 451",
+   "styled": "A foo _____"
+  },
+  {
+   "line": "A foo __\\___",
+   "from": "CommonMark 0.31.2 example 452",
+   "styled": "A foo [underline: _]"
+  },
+  {
+   "line": "A foo __*__",
+   "from": "CommonMark 0.31.2 example 453",
+   "styled": "A foo [underline: *]"
+  },
+  {
+   "line": "A __foo_",
+   "from": "CommonMark 0.31.2 example 454",
+   "styled": "A _[underline: foo]"
+  },
+  {
+   "line": "A _foo__",
+   "from": "CommonMark 0.31.2 example 455",
+   "styled": "A [underline: foo]_"
+  },
+  {
+   "line": "A ___foo__",
+   "from": "CommonMark 0.31.2 example 456",
+   "styled": "A _[underline: foo]"
+  },
+  {
+   "line": "A ____foo_",
+   "from": "CommonMark 0.31.2 example 457",
+   "styled": "A ___[underline: foo]"
+  },
+  {
+   "line": "A __foo___",
+   "from": "CommonMark 0.31.2 example 458",
+   "styled": "A [underline: foo]_"
+  },
+  {
+   "line": "A _foo____",
+   "from": "CommonMark 0.31.2 example 459",
+   "styled": "A [underline: foo]___"
+  },
+  {
+   "line": "A **foo**",
+   "from": "CommonMark 0.31.2 example 460",
+   "styled": "A [bold: foo]"
+  },
+  {
+   "line": "A *_foo_*",
+   "from": "CommonMark 0.31.2 example 461",
+   "styled": "A [italic underline: foo]"
+  },
+  {
+   "line": "A __foo__",
+   "from": "CommonMark 0.31.2 example 462",
+   "styled": "A [underline: foo]"
+  },
+  {
+   "line": "A _*foo*_",
+   "from": "CommonMark 0.31.2 example 463",
+   "styled": "A [italic underline: foo]"
+  },
+  {
+   "line": "A ****foo****",
+   "from": "CommonMark 0.31.2 example 464",
+   "styled": "A [bold: foo]"
+  },
+  {
+   "line": "A ____foo____",
+   "from": "CommonMark 0.31.2 example 465",
+   "styled": "A [underline: foo]"
+  },
+  {
+   "line": "A ******foo******",
+   "from": "CommonMark 0.31.2 example 466",
+   "styled": "A **[bold: foo]**",
+   "commonmark": "A [bold: foo]",
+   "reason": "the grammar reads at most two stars before a span's own as part of its run and nests star spans one level deep"
+  },
+  {
+   "line": "A ***foo***",
+   "from": "CommonMark 0.31.2 example 467",
+   "styled": "A [bold italic: foo]"
+  },
+  {
+   "line": "A _____foo_____",
+   "from": "CommonMark 0.31.2 example 468",
+   "styled": "A [underline: foo]"
+  },
+  {
+   "line": "A *foo _bar* baz_",
+   "from": "CommonMark 0.31.2 example 469",
+   "styled": "A [italic: foo _bar] baz_"
+  },
+  {
+   "line": "A *foo __bar *baz bim__ bam*",
+   "from": "CommonMark 0.31.2 example 470",
+   "styled": "A *foo [underline: bar *baz bim] bam*",
+   "commonmark": "A [italic: foo ][italic underline: bar *baz bim][italic:  bam]",
+   "reason": "a span's content sees only runs of its own mark, so a star opener inside an underline inside an italic still pairs with the italic's closer"
+  },
+  {
+   "line": "A **foo **bar baz**",
+   "from": "CommonMark 0.31.2 example 471",
+   "styled": "A **foo [bold: bar baz]"
+  },
+  {
+   "line": "A *foo *bar baz*",
+   "from": "CommonMark 0.31.2 example 472",
+   "styled": "A *foo [italic: bar baz]"
+  },
+  {
+   "line": "A *a `*`*",
+   "from": "CommonMark 0.31.2 example 478",
+   "styled": "A [italic: a ][italic raw: *]"
+  },
+  {
+   "line": "A _a `_`_",
+   "from": "CommonMark 0.31.2 example 479",
+   "styled": "A [underline: a ][raw underline: _]"
+  },
+  {
+   "line": "A a _ foo bar_",
+   "from": "CommonMark 0.31.2 example 351, `_` for `*`",
+   "styled": "A a _ foo bar_"
+  },
+  {
+   "line": "A _ a _",
+   "from": "CommonMark 0.31.2 example 353, `_` for `*`",
+   "styled": "A _ a _"
+  },
+  {
+   "line": "A __foo \"_bar_\" foo__",
+   "from": "CommonMark 0.31.2 example 395, `_` for `*`",
+   "styled": "A [underline: foo \"bar\" foo]"
+  },
+  {
+   "line": "A _foo _bar__",
+   "from": "CommonMark 0.31.2 example 409, `_` for `*`",
+   "styled": "A [underline: foo bar]"
+  },
+  {
+   "line": "A _foo__bar__baz_",
+   "from": "CommonMark 0.31.2 example 411, `_` for `*`",
+   "styled": "A [underline: foo__bar__baz]"
+  },
+  {
+   "line": "A _foo__bar_",
+   "from": "CommonMark 0.31.2 example 412, `_` for `*`",
+   "styled": "A [underline: foo__bar]"
+  },
+  {
+   "line": "A ___foo__ bar_",
+   "from": "CommonMark 0.31.2 example 413, `_` for `*`",
+   "styled": "A _[underline: foo] bar_",
+   "commonmark": "A [underline: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A _foo __bar___",
+   "from": "CommonMark 0.31.2 example 414, `_` for `*`",
+   "styled": "A _foo [underline: bar]_",
+   "commonmark": "A [underline: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A _foo__bar___",
+   "from": "CommonMark 0.31.2 example 415, `_` for `*`",
+   "styled": "A [underline: foo__bar]__"
+  },
+  {
+   "line": "A foo___bar___baz",
+   "from": "CommonMark 0.31.2 example 416, `_` for `*`",
+   "styled": "A foo___bar___baz"
+  },
+  {
+   "line": "A foo______bar_________baz",
+   "from": "CommonMark 0.31.2 example 417, `_` for `*`",
+   "styled": "A foo______bar_________baz"
+  },
+  {
+   "line": "A _foo __bar _baz_ bim__ bop_",
+   "from": "CommonMark 0.31.2 example 418, `_` for `*`",
+   "styled": "A _foo [underline: bar baz bim] bop_",
+   "commonmark": "A [underline: foo bar baz bim bop]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A __foo __bar____",
+   "from": "CommonMark 0.31.2 example 427, `_` for `*`",
+   "styled": "A [underline: foo bar]"
+  },
+  {
+   "line": "A __foo_bar_baz__",
+   "from": "CommonMark 0.31.2 example 429, `_` for `*`",
+   "styled": "A [underline: foo_bar_baz]"
+  },
+  {
+   "line": "A ___foo_ bar__",
+   "from": "CommonMark 0.31.2 example 430, `_` for `*`",
+   "styled": "A _[underline: foo_ bar]",
+   "commonmark": "A [underline: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A __foo _bar___",
+   "from": "CommonMark 0.31.2 example 431, `_` for `*`",
+   "styled": "A [underline: foo _bar]_",
+   "commonmark": "A [underline: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ______foo______",
+   "from": "CommonMark 0.31.2 example 466, `_` for `*`",
+   "styled": "A [underline: foo]"
+  },
+  {
+   "line": "A ___foo___",
+   "from": "CommonMark 0.31.2 example 467, `_` for `*`",
+   "styled": "A [underline: foo]"
+  },
+  {
+   "line": "A __foo __bar baz__",
+   "from": "CommonMark 0.31.2 example 471, `_` for `*`",
+   "styled": "A __foo [underline: bar baz]"
+  },
+  {
+   "line": "A _foo _bar baz_",
+   "from": "CommonMark 0.31.2 example 472, `_` for `*`",
+   "styled": "A _foo [underline: bar baz]"
+  },
+  {
+   "line": "A ^foo bar^",
+   "from": "CommonMark 0.31.2 example 350, `^` for `*`",
+   "styled": "A [centered: foo bar]"
+  },
+  {
+   "line": "A a ^ foo bar^",
+   "from": "CommonMark 0.31.2 example 351, `^` for `*`",
+   "styled": "A a ^ foo bar^"
+  },
+  {
+   "line": "A a^\"foo\"^",
+   "from": "CommonMark 0.31.2 example 352, `^` for `*`",
+   "styled": "A a^\"foo\"^"
+  },
+  {
+   "line": "A ^ a ^",
+   "from": "CommonMark 0.31.2 example 353, `^` for `*`",
+   "styled": "A ^ a ^"
+  },
+  {
+   "line": "A foo^bar^",
+   "from": "CommonMark 0.31.2 example 355, `^` for `*`",
+   "styled": "A foo[centered: bar]"
+  },
+  {
+   "line": "A 5^6^78",
+   "from": "CommonMark 0.31.2 example 356, `^` for `*`",
+   "styled": "A 5[centered: 6]78"
+  },
+  {
+   "line": "A ^foo bar ^",
+   "from": "CommonMark 0.31.2 example 366, `^` for `*`",
+   "styled": "A ^foo bar ^"
+  },
+  {
+   "line": "A ^(^foo)",
+   "from": "CommonMark 0.31.2 example 368, `^` for `*`",
+   "styled": "A ^(^foo)"
+  },
+  {
+   "line": "A ^(^foo^)^",
+   "from": "CommonMark 0.31.2 example 369, `^` for `*`",
+   "styled": "A [centered: (foo)]"
+  },
+  {
+   "line": "A ^foo^bar",
+   "from": "CommonMark 0.31.2 example 370, `^` for `*`",
+   "styled": "A [centered: foo]bar"
+  },
+  {
+   "line": "A ^^foo bar^^",
+   "from": "CommonMark 0.31.2 example 378, `^` for `*`",
+   "styled": "A [centered: foo bar]"
+  },
+  {
+   "line": "A ^^ foo bar^^",
+   "from": "CommonMark 0.31.2 example 379, `^` for `*`",
+   "styled": "A ^^ foo bar^^"
+  },
+  {
+   "line": "A a^^\"foo\"^^",
+   "from": "CommonMark 0.31.2 example 380, `^` for `*`",
+   "styled": "A a^^\"foo\"^^"
+  },
+  {
+   "line": "A foo^^bar^^",
+   "from": "CommonMark 0.31.2 example 381, `^` for `*`",
+   "styled": "A foo[centered: bar]"
+  },
+  {
+   "line": "A ^^foo bar ^^",
+   "from": "CommonMark 0.31.2 example 391, `^` for `*`",
+   "styled": "A ^^foo bar ^^"
+  },
+  {
+   "line": "A ^^(^^foo)",
+   "from": "CommonMark 0.31.2 example 392, `^` for `*`",
+   "styled": "A ^^(^^foo)"
+  },
+  {
+   "line": "A ^(^^foo^^)^",
+   "from": "CommonMark 0.31.2 example 393, `^` for `*`",
+   "styled": "A ^([centered: foo])^",
+   "commonmark": "A [centered: (foo)]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ^^foo \"^bar^\" foo^^",
+   "from": "CommonMark 0.31.2 example 395, `^` for `*`",
+   "styled": "A [centered: foo \"bar\" foo]"
+  },
+  {
+   "line": "A ^^foo^^bar",
+   "from": "CommonMark 0.31.2 example 396, `^` for `*`",
+   "styled": "A [centered: foo]bar"
+  },
+  {
+   "line": "A ^foo ^bar^^",
+   "from": "CommonMark 0.31.2 example 409, `^` for `*`",
+   "styled": "A [centered: foo bar]"
+  },
+  {
+   "line": "A ^foo ^^bar^^ baz^",
+   "from": "CommonMark 0.31.2 example 410, `^` for `*`",
+   "styled": "A ^foo [centered: bar] baz^",
+   "commonmark": "A [centered: foo bar baz]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ^foo^^bar^^baz^",
+   "from": "CommonMark 0.31.2 example 411, `^` for `*`",
+   "styled": "A [centered: foobarbaz]",
+   "commonmark": "A [centered: foo^bar^baz]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ^foo^^bar^",
+   "from": "CommonMark 0.31.2 example 412, `^` for `*`",
+   "styled": "A [centered: foobar]",
+   "commonmark": "A [centered: foo^bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ^^^foo^^ bar^",
+   "from": "CommonMark 0.31.2 example 413, `^` for `*`",
+   "styled": "A ^[centered: foo] bar^",
+   "commonmark": "A [centered: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ^foo ^^bar^^^",
+   "from": "CommonMark 0.31.2 example 414, `^` for `*`",
+   "styled": "A ^foo [centered: bar]^",
+   "commonmark": "A [centered: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ^foo^^bar^^^",
+   "from": "CommonMark 0.31.2 example 415, `^` for `*`",
+   "styled": "A [centered: foobar]^^",
+   "commonmark": "A [centered: foo^bar]^^",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A foo^^^bar^^^baz",
+   "from": "CommonMark 0.31.2 example 416, `^` for `*`",
+   "styled": "A foo[centered: bar]baz"
+  },
+  {
+   "line": "A foo^^^^^^bar^^^^^^^^^baz",
+   "from": "CommonMark 0.31.2 example 417, `^` for `*`",
+   "styled": "A foo[centered: bar]^^^baz"
+  },
+  {
+   "line": "A ^foo ^^bar ^baz^ bim^^ bop^",
+   "from": "CommonMark 0.31.2 example 418, `^` for `*`",
+   "styled": "A ^foo [centered: bar baz bim] bop^",
+   "commonmark": "A [centered: foo bar baz bim bop]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ^^ is not an empty emphasis",
+   "from": "CommonMark 0.31.2 example 420, `^` for `*`",
+   "styled": "A ^^ is not an empty emphasis"
+  },
+  {
+   "line": "A ^^^^ is not an empty strong emphasis",
+   "from": "CommonMark 0.31.2 example 421, `^` for `*`",
+   "styled": "A ^^^^ is not an empty strong emphasis"
+  },
+  {
+   "line": "A ^^foo ^^bar^^^^",
+   "from": "CommonMark 0.31.2 example 427, `^` for `*`",
+   "styled": "A [centered: foo bar]"
+  },
+  {
+   "line": "A ^^foo ^bar^ baz^^",
+   "from": "CommonMark 0.31.2 example 428, `^` for `*`",
+   "styled": "A [centered: foo bar baz]"
+  },
+  {
+   "line": "A ^^foo^bar^baz^^",
+   "from": "CommonMark 0.31.2 example 429, `^` for `*`",
+   "styled": "A [centered: foobarbaz]",
+   "commonmark": "A [centered: foobar]baz^^",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ^^^foo^ bar^^",
+   "from": "CommonMark 0.31.2 example 430, `^` for `*`",
+   "styled": "A ^[centered: foo^ bar]",
+   "commonmark": "A [centered: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ^^foo ^bar^^^",
+   "from": "CommonMark 0.31.2 example 431, `^` for `*`",
+   "styled": "A [centered: foo ^bar]^",
+   "commonmark": "A [centered: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A foo ^^^",
+   "from": "CommonMark 0.31.2 example 436, `^` for `*`",
+   "styled": "A foo ^^^"
+  },
+  {
+   "line": "A foo ^\\^^",
+   "from": "CommonMark 0.31.2 example 437, `^` for `*`",
+   "styled": "A foo [centered: ^]"
+  },
+  {
+   "line": "A foo ^^^^^",
+   "from": "CommonMark 0.31.2 example 439, `^` for `*`",
+   "styled": "A foo ^^^^^"
+  },
+  {
+   "line": "A foo ^^\\^^^",
+   "from": "CommonMark 0.31.2 example 440, `^` for `*`",
+   "styled": "A foo [centered: ^]"
+  },
+  {
+   "line": "A ^^foo^",
+   "from": "CommonMark 0.31.2 example 442, `^` for `*`",
+   "styled": "A ^[centered: foo]"
+  },
+  {
+   "line": "A ^foo^^",
+   "from": "CommonMark 0.31.2 example 443, `^` for `*`",
+   "styled": "A [centered: foo]^"
+  },
+  {
+   "line": "A ^^^foo^^",
+   "from": "CommonMark 0.31.2 example 444, `^` for `*`",
+   "styled": "A ^[centered: foo]"
+  },
+  {
+   "line": "A ^^^^foo^",
+   "from": "CommonMark 0.31.2 example 445, `^` for `*`",
+   "styled": "A ^^^[centered: foo]"
+  },
+  {
+   "line": "A ^^foo^^^",
+   "from": "CommonMark 0.31.2 example 446, `^` for `*`",
+   "styled": "A [centered: foo]^"
+  },
+  {
+   "line": "A ^foo^^^^",
+   "from": "CommonMark 0.31.2 example 447, `^` for `*`",
+   "styled": "A [centered: foo]^^^"
+  },
+  {
+   "line": "A ^^foo^^",
+   "from": "CommonMark 0.31.2 example 460, `^` for `*`",
+   "styled": "A [centered: foo]"
+  },
+  {
+   "line": "A ^^^^foo^^^^",
+   "from": "CommonMark 0.31.2 example 464, `^` for `*`",
+   "styled": "A [centered: foo]"
+  },
+  {
+   "line": "A ^^^^^^foo^^^^^^",
+   "from": "CommonMark 0.31.2 example 466, `^` for `*`",
+   "styled": "A [centered: foo]"
+  },
+  {
+   "line": "A ^^^foo^^^",
+   "from": "CommonMark 0.31.2 example 467, `^` for `*`",
+   "styled": "A [centered: foo]"
+  },
+  {
+   "line": "A ^^foo ^^bar baz^^",
+   "from": "CommonMark 0.31.2 example 471, `^` for `*`",
+   "styled": "A ^^foo [centered: bar baz]"
+  },
+  {
+   "line": "A ^foo ^bar baz^",
+   "from": "CommonMark 0.31.2 example 472, `^` for `*`",
+   "styled": "A ^foo [centered: bar baz]"
+  },
+  {
+   "line": "A ^a `^`^",
+   "from": "CommonMark 0.31.2 example 478, `^` for `*`",
+   "styled": "A [centered: a ][centered raw: ^]"
+  },
+  {
+   "line": "A ~~foo bar~~",
+   "from": "CommonMark 0.31.2 example 350, `~~` for `*`",
+   "styled": "A [wavy: foo bar]"
+  },
+  {
+   "line": "A a ~~ foo bar~~",
+   "from": "CommonMark 0.31.2 example 351, `~~` for `*`",
+   "styled": "A a ~~ foo bar~~"
+  },
+  {
+   "line": "A a~~\"foo\"~~",
+   "from": "CommonMark 0.31.2 example 352, `~~` for `*`",
+   "styled": "A a~~\"foo\"~~"
+  },
+  {
+   "line": "A ~~ a ~~",
+   "from": "CommonMark 0.31.2 example 353, `~~` for `*`",
+   "styled": "A ~~ a ~~"
+  },
+  {
+   "line": "A foo~~bar~~",
+   "from": "CommonMark 0.31.2 example 355, `~~` for `*`",
+   "styled": "A foo[wavy: bar]"
+  },
+  {
+   "line": "A 5~~6~~78",
+   "from": "CommonMark 0.31.2 example 356, `~~` for `*`",
+   "styled": "A 5[wavy: 6]78"
+  },
+  {
+   "line": "A ~~foo bar ~~",
+   "from": "CommonMark 0.31.2 example 366, `~~` for `*`",
+   "styled": "A ~~foo bar ~~"
+  },
+  {
+   "line": "A ~~(~~foo)",
+   "from": "CommonMark 0.31.2 example 368, `~~` for `*`",
+   "styled": "A ~~(~~foo)"
+  },
+  {
+   "line": "A ~~(~~foo~~)~~",
+   "from": "CommonMark 0.31.2 example 369, `~~` for `*`",
+   "styled": "A [wavy: (foo)]"
+  },
+  {
+   "line": "A ~~foo~~bar",
+   "from": "CommonMark 0.31.2 example 370, `~~` for `*`",
+   "styled": "A [wavy: foo]bar"
+  },
+  {
+   "line": "A ~~~~foo bar~~~~",
+   "from": "CommonMark 0.31.2 example 378, `~~` for `*`",
+   "styled": "A [wavy: foo bar]"
+  },
+  {
+   "line": "A ~~~~ foo bar~~~~",
+   "from": "CommonMark 0.31.2 example 379, `~~` for `*`",
+   "styled": "A ~~~~ foo bar~~~~"
+  },
+  {
+   "line": "A a~~~~\"foo\"~~~~",
+   "from": "CommonMark 0.31.2 example 380, `~~` for `*`",
+   "styled": "A a~~~~\"foo\"~~~~"
+  },
+  {
+   "line": "A foo~~~~bar~~~~",
+   "from": "CommonMark 0.31.2 example 381, `~~` for `*`",
+   "styled": "A foo[wavy: bar]"
+  },
+  {
+   "line": "A ~~~~foo bar ~~~~",
+   "from": "CommonMark 0.31.2 example 391, `~~` for `*`",
+   "styled": "A ~~~~foo bar ~~~~"
+  },
+  {
+   "line": "A ~~~~(~~~~foo)",
+   "from": "CommonMark 0.31.2 example 392, `~~` for `*`",
+   "styled": "A ~~~~(~~~~foo)"
+  },
+  {
+   "line": "A ~~(~~~~foo~~~~)~~",
+   "from": "CommonMark 0.31.2 example 393, `~~` for `*`",
+   "styled": "A ~~([wavy: foo])~~",
+   "commonmark": "A [wavy: (foo)]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ~~~~foo \"~~bar~~\" foo~~~~",
+   "from": "CommonMark 0.31.2 example 395, `~~` for `*`",
+   "styled": "A [wavy: foo \"bar\" foo]"
+  },
+  {
+   "line": "A ~~~~foo~~~~bar",
+   "from": "CommonMark 0.31.2 example 396, `~~` for `*`",
+   "styled": "A [wavy: foo]bar"
+  },
+  {
+   "line": "A ~~foo ~~bar~~~~",
+   "from": "CommonMark 0.31.2 example 409, `~~` for `*`",
+   "styled": "A [wavy: foo bar]"
+  },
+  {
+   "line": "A ~~foo ~~~~bar~~~~ baz~~",
+   "from": "CommonMark 0.31.2 example 410, `~~` for `*`",
+   "styled": "A ~~foo [wavy: bar] baz~~",
+   "commonmark": "A [wavy: foo bar baz]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ~~foo~~~~bar~~~~baz~~",
+   "from": "CommonMark 0.31.2 example 411, `~~` for `*`",
+   "styled": "A [wavy: foobarbaz]",
+   "commonmark": "A [wavy: foo~~bar~~baz]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ~~foo~~~~bar~~",
+   "from": "CommonMark 0.31.2 example 412, `~~` for `*`",
+   "styled": "A [wavy: foobar]",
+   "commonmark": "A [wavy: foo~~bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ~~~~~~foo~~~~ bar~~",
+   "from": "CommonMark 0.31.2 example 413, `~~` for `*`",
+   "styled": "A ~~[wavy: foo] bar~~",
+   "commonmark": "A [wavy: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ~~foo ~~~~bar~~~~~~",
+   "from": "CommonMark 0.31.2 example 414, `~~` for `*`",
+   "styled": "A ~~foo [wavy: bar]~~",
+   "commonmark": "A [wavy: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ~~foo~~~~bar~~~~~~",
+   "from": "CommonMark 0.31.2 example 415, `~~` for `*`",
+   "styled": "A [wavy: foobar]~~~~",
+   "commonmark": "A [wavy: foo~~bar]~~~~",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A foo~~~~~~bar~~~~~~baz",
+   "from": "CommonMark 0.31.2 example 416, `~~` for `*`",
+   "styled": "A foo[wavy: bar]baz"
+  },
+  {
+   "line": "A foo~~~~~~~~~~~~bar~~~~~~~~~~~~~~~~~~baz",
+   "from": "CommonMark 0.31.2 example 417, `~~` for `*`",
+   "styled": "A foo[wavy: bar]~~~~~~baz"
+  },
+  {
+   "line": "A ~~foo ~~~~bar ~~baz~~ bim~~~~ bop~~",
+   "from": "CommonMark 0.31.2 example 418, `~~` for `*`",
+   "styled": "A ~~foo [wavy: bar baz bim] bop~~",
+   "commonmark": "A [wavy: foo bar baz bim bop]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ~~~~ is not an empty emphasis",
+   "from": "CommonMark 0.31.2 example 420, `~~` for `*`",
+   "styled": "A ~~~~ is not an empty emphasis"
+  },
+  {
+   "line": "A ~~~~~~~~ is not an empty strong emphasis",
+   "from": "CommonMark 0.31.2 example 421, `~~` for `*`",
+   "styled": "A ~~~~~~~~ is not an empty strong emphasis"
+  },
+  {
+   "line": "A ~~~~foo ~~~~bar~~~~~~~~",
+   "from": "CommonMark 0.31.2 example 427, `~~` for `*`",
+   "styled": "A [wavy: foo bar]"
+  },
+  {
+   "line": "A ~~~~foo ~~bar~~ baz~~~~",
+   "from": "CommonMark 0.31.2 example 428, `~~` for `*`",
+   "styled": "A [wavy: foo bar baz]"
+  },
+  {
+   "line": "A ~~~~foo~~bar~~baz~~~~",
+   "from": "CommonMark 0.31.2 example 429, `~~` for `*`",
+   "styled": "A [wavy: foobarbaz]",
+   "commonmark": "A [wavy: foobar]baz~~~~",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ~~~~~~foo~~ bar~~~~",
+   "from": "CommonMark 0.31.2 example 430, `~~` for `*`",
+   "styled": "A ~~[wavy: foo~~ bar]",
+   "commonmark": "A [wavy: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ~~~~foo ~~bar~~~~~~",
+   "from": "CommonMark 0.31.2 example 431, `~~` for `*`",
+   "styled": "A [wavy: foo ~~bar]~~",
+   "commonmark": "A [wavy: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A foo ~~~~~~",
+   "from": "CommonMark 0.31.2 example 436, `~~` for `*`",
+   "styled": "A foo ~~~~~~"
+  },
+  {
+   "line": "A foo ~~\\~~~~",
+   "from": "CommonMark 0.31.2 example 437, `~~` for `*`",
+   "styled": "A foo [wavy: ~]~"
+  },
+  {
+   "line": "A foo ~~~~~~~~~~",
+   "from": "CommonMark 0.31.2 example 439, `~~` for `*`",
+   "styled": "A foo ~~~~~~~~~~"
+  },
+  {
+   "line": "A foo ~~~~\\~~~~~~",
+   "from": "CommonMark 0.31.2 example 440, `~~` for `*`",
+   "styled": "A foo [wavy: ~]~"
+  },
+  {
+   "line": "A ~~~~foo~~",
+   "from": "CommonMark 0.31.2 example 442, `~~` for `*`",
+   "styled": "A ~~[wavy: foo]"
+  },
+  {
+   "line": "A ~~foo~~~~",
+   "from": "CommonMark 0.31.2 example 443, `~~` for `*`",
+   "styled": "A [wavy: foo]~~"
+  },
+  {
+   "line": "A ~~~~~~foo~~~~",
+   "from": "CommonMark 0.31.2 example 444, `~~` for `*`",
+   "styled": "A ~~[wavy: foo]"
+  },
+  {
+   "line": "A ~~~~~~~~foo~~",
+   "from": "CommonMark 0.31.2 example 445, `~~` for `*`",
+   "styled": "A ~~~~~~[wavy: foo]"
+  },
+  {
+   "line": "A ~~~~foo~~~~~~",
+   "from": "CommonMark 0.31.2 example 446, `~~` for `*`",
+   "styled": "A [wavy: foo]~~"
+  },
+  {
+   "line": "A ~~foo~~~~~~~~",
+   "from": "CommonMark 0.31.2 example 447, `~~` for `*`",
+   "styled": "A [wavy: foo]~~~~~~"
+  },
+  {
+   "line": "A ~~~~foo~~~~",
+   "from": "CommonMark 0.31.2 example 460, `~~` for `*`",
+   "styled": "A [wavy: foo]"
+  },
+  {
+   "line": "A ~~~~~~~~foo~~~~~~~~",
+   "from": "CommonMark 0.31.2 example 464, `~~` for `*`",
+   "styled": "A [wavy: foo]"
+  },
+  {
+   "line": "A ~~~~~~~~~~~~foo~~~~~~~~~~~~",
+   "from": "CommonMark 0.31.2 example 466, `~~` for `*`",
+   "styled": "A [wavy: foo]"
+  },
+  {
+   "line": "A ~~~~~~foo~~~~~~",
+   "from": "CommonMark 0.31.2 example 467, `~~` for `*`",
+   "styled": "A [wavy: foo]"
+  },
+  {
+   "line": "A ~~~~foo ~~~~bar baz~~~~",
+   "from": "CommonMark 0.31.2 example 471, `~~` for `*`",
+   "styled": "A ~~~~foo [wavy: bar baz]"
+  },
+  {
+   "line": "A ~~foo ~~bar baz~~",
+   "from": "CommonMark 0.31.2 example 472, `~~` for `*`",
+   "styled": "A ~~foo [wavy: bar baz]"
+  },
+  {
+   "line": "A ~~a `~~`~~",
+   "from": "CommonMark 0.31.2 example 478, `~~` for `*`",
+   "styled": "A [wavy: a ][raw wavy: ~~]"
+  },
+  {
+   "line": "A ::foo bar::",
+   "from": "CommonMark 0.31.2 example 350, `::` for `*`",
+   "styled": "A [shaky: foo bar]"
+  },
+  {
+   "line": "A a :: foo bar::",
+   "from": "CommonMark 0.31.2 example 351, `::` for `*`",
+   "styled": "A a :: foo bar::"
+  },
+  {
+   "line": "A a::\"foo\"::",
+   "from": "CommonMark 0.31.2 example 352, `::` for `*`",
+   "styled": "A a::\"foo\"::"
+  },
+  {
+   "line": "A :: a ::",
+   "from": "CommonMark 0.31.2 example 353, `::` for `*`",
+   "styled": "A :: a ::"
+  },
+  {
+   "line": "A foo::bar::",
+   "from": "CommonMark 0.31.2 example 355, `::` for `*`",
+   "styled": "A foo[shaky: bar]"
+  },
+  {
+   "line": "A 5::6::78",
+   "from": "CommonMark 0.31.2 example 356, `::` for `*`",
+   "styled": "A 5[shaky: 6]78"
+  },
+  {
+   "line": "A ::foo bar ::",
+   "from": "CommonMark 0.31.2 example 366, `::` for `*`",
+   "styled": "A ::foo bar ::"
+  },
+  {
+   "line": "A ::(::foo)",
+   "from": "CommonMark 0.31.2 example 368, `::` for `*`",
+   "styled": "A ::(::foo)"
+  },
+  {
+   "line": "A ::(::foo::)::",
+   "from": "CommonMark 0.31.2 example 369, `::` for `*`",
+   "styled": "A [shaky: (foo)]"
+  },
+  {
+   "line": "A ::foo::bar",
+   "from": "CommonMark 0.31.2 example 370, `::` for `*`",
+   "styled": "A [shaky: foo]bar"
+  },
+  {
+   "line": "A ::::foo bar::::",
+   "from": "CommonMark 0.31.2 example 378, `::` for `*`",
+   "styled": "A [shaky: foo bar]"
+  },
+  {
+   "line": "A :::: foo bar::::",
+   "from": "CommonMark 0.31.2 example 379, `::` for `*`",
+   "styled": "A :::: foo bar::::"
+  },
+  {
+   "line": "A a::::\"foo\"::::",
+   "from": "CommonMark 0.31.2 example 380, `::` for `*`",
+   "styled": "A a::::\"foo\"::::"
+  },
+  {
+   "line": "A foo::::bar::::",
+   "from": "CommonMark 0.31.2 example 381, `::` for `*`",
+   "styled": "A foo[shaky: bar]"
+  },
+  {
+   "line": "A ::::foo bar ::::",
+   "from": "CommonMark 0.31.2 example 391, `::` for `*`",
+   "styled": "A ::::foo bar ::::"
+  },
+  {
+   "line": "A ::::(::::foo)",
+   "from": "CommonMark 0.31.2 example 392, `::` for `*`",
+   "styled": "A ::::(::::foo)"
+  },
+  {
+   "line": "A ::(::::foo::::)::",
+   "from": "CommonMark 0.31.2 example 393, `::` for `*`",
+   "styled": "A ::([shaky: foo])::",
+   "commonmark": "A [shaky: (foo)]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ::::foo \"::bar::\" foo::::",
+   "from": "CommonMark 0.31.2 example 395, `::` for `*`",
+   "styled": "A [shaky: foo \"bar\" foo]"
+  },
+  {
+   "line": "A ::::foo::::bar",
+   "from": "CommonMark 0.31.2 example 396, `::` for `*`",
+   "styled": "A [shaky: foo]bar"
+  },
+  {
+   "line": "A ::foo ::bar::::",
+   "from": "CommonMark 0.31.2 example 409, `::` for `*`",
+   "styled": "A [shaky: foo bar]"
+  },
+  {
+   "line": "A ::foo ::::bar:::: baz::",
+   "from": "CommonMark 0.31.2 example 410, `::` for `*`",
+   "styled": "A ::foo [shaky: bar] baz::",
+   "commonmark": "A [shaky: foo bar baz]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ::foo::::bar::::baz::",
+   "from": "CommonMark 0.31.2 example 411, `::` for `*`",
+   "styled": "A [shaky: foobarbaz]",
+   "commonmark": "A [shaky: foo::bar::baz]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ::foo::::bar::",
+   "from": "CommonMark 0.31.2 example 412, `::` for `*`",
+   "styled": "A [shaky: foobar]",
+   "commonmark": "A [shaky: foo::bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ::::::foo:::: bar::",
+   "from": "CommonMark 0.31.2 example 413, `::` for `*`",
+   "styled": "A ::[shaky: foo] bar::",
+   "commonmark": "A [shaky: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ::foo ::::bar::::::",
+   "from": "CommonMark 0.31.2 example 414, `::` for `*`",
+   "styled": "A ::foo [shaky: bar]::",
+   "commonmark": "A [shaky: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ::foo::::bar::::::",
+   "from": "CommonMark 0.31.2 example 415, `::` for `*`",
+   "styled": "A [shaky: foobar]::::",
+   "commonmark": "A [shaky: foo::bar]::::",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A foo::::::bar::::::baz",
+   "from": "CommonMark 0.31.2 example 416, `::` for `*`",
+   "styled": "A foo[shaky: bar]baz"
+  },
+  {
+   "line": "A foo::::::::::::bar::::::::::::::::::baz",
+   "from": "CommonMark 0.31.2 example 417, `::` for `*`",
+   "styled": "A foo[shaky: bar]::::::baz"
+  },
+  {
+   "line": "A ::foo ::::bar ::baz:: bim:::: bop::",
+   "from": "CommonMark 0.31.2 example 418, `::` for `*`",
+   "styled": "A ::foo [shaky: bar baz bim] bop::",
+   "commonmark": "A [shaky: foo bar baz bim bop]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A :::: is not an empty emphasis",
+   "from": "CommonMark 0.31.2 example 420, `::` for `*`",
+   "styled": "A :::: is not an empty emphasis"
+  },
+  {
+   "line": "A :::::::: is not an empty strong emphasis",
+   "from": "CommonMark 0.31.2 example 421, `::` for `*`",
+   "styled": "A :::::::: is not an empty strong emphasis"
+  },
+  {
+   "line": "A ::::foo ::::bar::::::::",
+   "from": "CommonMark 0.31.2 example 427, `::` for `*`",
+   "styled": "A [shaky: foo bar]"
+  },
+  {
+   "line": "A ::::foo ::bar:: baz::::",
+   "from": "CommonMark 0.31.2 example 428, `::` for `*`",
+   "styled": "A [shaky: foo bar baz]"
+  },
+  {
+   "line": "A ::::foo::bar::baz::::",
+   "from": "CommonMark 0.31.2 example 429, `::` for `*`",
+   "styled": "A [shaky: foobarbaz]",
+   "commonmark": "A [shaky: foobar]baz::::",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ::::::foo:: bar::::",
+   "from": "CommonMark 0.31.2 example 430, `::` for `*`",
+   "styled": "A ::[shaky: foo:: bar]",
+   "commonmark": "A [shaky: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ::::foo ::bar::::::",
+   "from": "CommonMark 0.31.2 example 431, `::` for `*`",
+   "styled": "A [shaky: foo ::bar]::",
+   "commonmark": "A [shaky: foo bar]",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A foo ::::::",
+   "from": "CommonMark 0.31.2 example 436, `::` for `*`",
+   "styled": "A foo ::::::"
+  },
+  {
+   "line": "A foo ::\\::::",
+   "from": "CommonMark 0.31.2 example 437, `::` for `*`",
+   "styled": "A foo [shaky: :]:"
+  },
+  {
+   "line": "A foo ::::::::::",
+   "from": "CommonMark 0.31.2 example 439, `::` for `*`",
+   "styled": "A foo ::::::::::"
+  },
+  {
+   "line": "A foo ::::\\::::::",
+   "from": "CommonMark 0.31.2 example 440, `::` for `*`",
+   "styled": "A foo [shaky: :]:"
+  },
+  {
+   "line": "A ::::foo::",
+   "from": "CommonMark 0.31.2 example 442, `::` for `*`",
+   "styled": "A ::[shaky: foo]"
+  },
+  {
+   "line": "A ::foo::::",
+   "from": "CommonMark 0.31.2 example 443, `::` for `*`",
+   "styled": "A [shaky: foo]::"
+  },
+  {
+   "line": "A ::::::foo::::",
+   "from": "CommonMark 0.31.2 example 444, `::` for `*`",
+   "styled": "A ::[shaky: foo]"
+  },
+  {
+   "line": "A ::::::::foo::",
+   "from": "CommonMark 0.31.2 example 445, `::` for `*`",
+   "styled": "A ::::::[shaky: foo]"
+  },
+  {
+   "line": "A ::::foo::::::",
+   "from": "CommonMark 0.31.2 example 446, `::` for `*`",
+   "styled": "A [shaky: foo]::"
+  },
+  {
+   "line": "A ::foo::::::::",
+   "from": "CommonMark 0.31.2 example 447, `::` for `*`",
+   "styled": "A [shaky: foo]::::::"
+  },
+  {
+   "line": "A ::::foo::::",
+   "from": "CommonMark 0.31.2 example 460, `::` for `*`",
+   "styled": "A [shaky: foo]"
+  },
+  {
+   "line": "A ::::::::foo::::::::",
+   "from": "CommonMark 0.31.2 example 464, `::` for `*`",
+   "styled": "A [shaky: foo]"
+  },
+  {
+   "line": "A ::::::::::::foo::::::::::::",
+   "from": "CommonMark 0.31.2 example 466, `::` for `*`",
+   "styled": "A [shaky: foo]"
+  },
+  {
+   "line": "A ::::::foo::::::",
+   "from": "CommonMark 0.31.2 example 467, `::` for `*`",
+   "styled": "A [shaky: foo]"
+  },
+  {
+   "line": "A ::::foo ::::bar baz::::",
+   "from": "CommonMark 0.31.2 example 471, `::` for `*`",
+   "styled": "A ::::foo [shaky: bar baz]"
+  },
+  {
+   "line": "A ::foo ::bar baz::",
+   "from": "CommonMark 0.31.2 example 472, `::` for `*`",
+   "styled": "A ::foo [shaky: bar baz]"
+  },
+  {
+   "line": "A ::a `::`::",
+   "from": "CommonMark 0.31.2 example 478, `::` for `*`",
+   "styled": "A [shaky: a ][raw shaky: ::]"
+  },
+  {
+   "line": "Go *far away",
+   "from": "Sparkdown",
+   "styled": "Go *far away"
+  },
+  {
+   "line": "A ****x**** y",
+   "from": "Sparkdown",
+   "styled": "A [bold: x] y"
+  },
+  {
+   "line": "A *a _b* c_ d",
+   "from": "Sparkdown",
+   "styled": "A [italic: a _b] c_ d"
+  },
+  {
+   "line": "snake_case_name",
+   "from": "Sparkdown",
+   "styled": "snake_case_name"
+  },
+  {
+   "line": "A *word* here.",
+   "from": "Sparkdown",
+   "styled": "A [italic: word] here."
+  },
+  {
+   "line": "A **word** here.",
+   "from": "Sparkdown",
+   "styled": "A [bold: word] here."
+  },
+  {
+   "line": "A ***word*** here.",
+   "from": "Sparkdown",
+   "styled": "A [bold italic: word] here."
+  },
+  {
+   "line": "A _word_ here.",
+   "from": "Sparkdown",
+   "styled": "A [underline: word] here."
+  },
+  {
+   "line": "A __word__ here.",
+   "from": "Sparkdown",
+   "styled": "A [underline: word] here."
+  },
+  {
+   "line": "A ^word^ here.",
+   "from": "Sparkdown",
+   "styled": "A [centered: word] here."
+  },
+  {
+   "line": "A ~~wavy~~ word.",
+   "from": "Sparkdown",
+   "styled": "A [wavy: wavy] word."
+  },
+  {
+   "line": "A ~~~slow~~~ word.",
+   "from": "Sparkdown",
+   "styled": "A [wavy: slow] word."
+  },
+  {
+   "line": "A ::shaky:: word.",
+   "from": "Sparkdown",
+   "styled": "A [shaky: shaky] word."
+  },
+  {
+   "line": "Nested *_both_* end.",
+   "from": "Sparkdown",
+   "styled": "Nested [italic underline: both] end."
+  },
+  {
+   "line": "A **a *b* c** d",
+   "from": "Sparkdown",
+   "styled": "A [bold: a ][bold italic: b][bold:  c] d"
+  },
+  {
+   "line": "A *a **b** c* d",
+   "from": "Sparkdown",
+   "styled": "A [italic: a ][bold italic: b][italic:  c] d"
+  },
+  {
+   "line": "A ~~a **b** c~~ d",
+   "from": "Sparkdown",
+   "styled": "A [wavy: a ][bold wavy: b][wavy:  c] d"
+  },
+  {
+   "line": "A __a_ b__ c",
+   "from": "Sparkdown",
+   "styled": "A [underline: a_ b] c",
+   "commonmark": "A [underline: a b]_ c",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ^^a^ b^^ c",
+   "from": "Sparkdown",
+   "styled": "A [centered: a^ b] c",
+   "commonmark": "A [centered: a b]^ c",
+   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+  },
+  {
+   "line": "A ***a* b** c",
+   "from": "Sparkdown",
+   "styled": "A [bold italic: a][bold:  b] c"
+  },
+  {
+   "line": "A ***a** b* c",
+   "from": "Sparkdown",
+   "styled": "A [bold italic: a][italic:  b] c"
+  },
+  {
+   "line": "A **a*b** c",
+   "from": "Sparkdown",
+   "styled": "A [bold: a*b] c"
+  },
+  {
+   "line": "A x*y*z here",
+   "from": "Sparkdown",
+   "styled": "A x[italic: y]z here"
+  },
+  {
+   "line": "A 2^3^4 here",
+   "from": "Sparkdown",
+   "styled": "A 2[centered: 3]4 here"
+  },
+  {
+   "line": "A *rest of line",
+   "from": "Sparkdown",
+   "styled": "A *rest of line"
+  },
+  {
+   "line": "A **rest of line",
+   "from": "Sparkdown",
+   "styled": "A **rest of line"
+  },
+  {
+   "line": "A _rest of line",
+   "from": "Sparkdown",
+   "styled": "A _rest of line"
+  },
+  {
+   "line": "A ~~rest of line",
+   "from": "Sparkdown",
+   "styled": "A ~~rest of line"
+  },
+  {
+   "line": "Esc \\*literal\\* end.",
+   "from": "Sparkdown",
+   "styled": "Esc *literal* end."
+  },
+  {
+   "line": "A *b\\* c* d",
+   "from": "Sparkdown",
+   "styled": "A [italic: b* c] d"
+  },
+  {
+   "line": "A \\\\*b* c",
+   "from": "Sparkdown",
+   "styled": "A \\[italic: b] c"
+  },
+  {
+   "line": "A `raw *x*` b",
+   "from": "Sparkdown",
+   "styled": "A [raw: raw *x*] b"
+  },
+  {
+   "line": "A *`b`* c",
+   "from": "Sparkdown",
+   "styled": "A [italic raw: b] c"
+  },
+  {
+   "line": "A `b",
+   "from": "Sparkdown",
+   "styled": "A `b"
+  },
+  {
+   "line": "A *b `c* d` e",
+   "from": "Sparkdown",
+   "styled": "A *b [raw: c* d] e"
+  },
+  {
+   "line": "**bold /* c */ more** end",
+   "from": "Sparkdown",
+   "styled": "[bold: bold more] end"
+  },
+  {
+   "line": "*a /* c */ b* c",
+   "from": "Sparkdown",
+   "styled": "[italic: a b] c"
+  },
+  {
+   "line": "A *a ~~b ::c:: d~~ e* F",
+   "from": "Sparkdown",
+   "styled": "A [italic: a ][italic wavy: b ][italic shaky wavy: c][italic wavy:  d][italic:  e] F"
+  },
+  {
+   "line": "A _a ~~b ::c:: d~~ e_ F",
+   "from": "Sparkdown",
+   "styled": "A [underline: a ][underline wavy: b ][shaky underline wavy: c][underline wavy:  d][underline:  e] F"
+  },
+  {
+   "line": "A *a <wait:1> b* c",
+   "from": "Sparkdown",
+   "styled": "A [italic: a <wait:1> b] c"
+  },
+  {
+   "line": "A *a <b> c",
+   "from": "Sparkdown",
+   "styled": "A *a <b> c"
+  },
+  {
+   "line": "A *x [[show bg]] y* z",
+   "from": "Sparkdown",
+   "styled": "A [italic: x [[show bg]] y] z"
+  },
+  {
+   "line": "A *x ((play song)) y* z",
+   "from": "Sparkdown",
+   "styled": "A [italic: x ((play song)) y] z"
+  },
+  {
+   "line": "\"*Hello*,\" she said.",
+   "from": "Sparkdown",
+   "styled": "\"[italic: Hello],\" she said."
+  },
+  {
+   "line": "A (*aside*) b",
+   "from": "Sparkdown",
+   "styled": "A ([italic: aside]) b"
+  },
+  {
+   "line": "A *Hi!* b",
+   "from": "Sparkdown",
+   "styled": "A [italic: Hi!] b"
+  },
+  {
+   "line": "A **Wait**—what?",
+   "from": "Sparkdown",
+   "styled": "A [bold: Wait]—what?"
+  },
+  {
+   "line": "It's *not* fine.",
+   "from": "Sparkdown",
+   "styled": "It's [italic: not] fine."
+  },
+  {
+   "line": "A snake_case and _real_ b",
+   "from": "Sparkdown",
+   "styled": "A snake_case and [underline: real] b"
+  },
+  {
+   "line": "A file_name_here.txt b",
+   "from": "Sparkdown",
+   "styled": "A file_name_here.txt b"
+  },
+  {
+   "line": "A a * b * c",
+   "from": "Sparkdown",
+   "styled": "A a * b * c"
+  },
+  {
+   "line": "A 2 * 3 = 6",
+   "from": "Sparkdown",
+   "styled": "A 2 * 3 = 6"
+  },
+  {
+   "line": "A *a*b*c* d",
+   "from": "Sparkdown",
+   "styled": "A [italic: a]b[italic: c] d"
+  },
+  {
+   "line": "A _a_b_ c",
+   "from": "Sparkdown",
+   "styled": "A [underline: a_b] c"
+  },
+  {
+   "line": "A __init__ b",
+   "from": "Sparkdown",
+   "styled": "A [underline: init] b"
+  },
+  {
+   "line": "A *** b",
+   "from": "Sparkdown",
+   "styled": "A *** b"
+  },
+  {
+   "line": "A * * * b",
+   "from": "Sparkdown",
+   "styled": "A * * * b"
+  },
+  {
+   "line": "A ** b",
+   "from": "Sparkdown",
+   "styled": "A ** b"
+  },
+  {
+   "line": "A x^2^ y",
+   "from": "Sparkdown",
+   "styled": "A x[centered: 2] y"
+  },
+  {
+   "line": "A E = mc^2 b",
+   "from": "Sparkdown",
+   "styled": "A E = mc^2 b"
+  },
+  {
+   "line": "A ~~ a ~~ b",
+   "from": "Sparkdown",
+   "styled": "A ~~ a ~~ b"
+  },
+  {
+   "line": "A ~~a~~b",
+   "from": "Sparkdown",
+   "styled": "A [wavy: a]b"
+  },
+  {
+   "line": "A ::a:: b",
+   "from": "Sparkdown",
+   "styled": "A [shaky: a] b"
+  },
+  {
+   "line": "A time 10::30 b",
+   "from": "Sparkdown",
+   "styled": "A time 10::30 b"
+  },
+  {
+   "line": "A `code` b",
+   "from": "Sparkdown",
+   "styled": "A [raw: code] b"
+  },
+  {
+   "line": "A ``a`b`` c",
+   "from": "Sparkdown",
+   "styled": "A [raw: a`b] c"
+  },
+  {
+   "line": "A *¡Hola!* b",
+   "from": "Sparkdown",
+   "styled": "A [italic: ¡Hola!] b"
+  },
+  {
+   "line": "A *“quote”* b",
+   "from": "Sparkdown",
+   "styled": "A [italic: “quote”] b"
+  },
+  {
+   "line": "A _—_ b",
+   "from": "Sparkdown",
+   "styled": "A [underline: —] b"
+  },
+  {
+   "line": "A *a* *b* *c* d",
+   "from": "Sparkdown",
+   "styled": "A [italic: a] [italic: b] [italic: c] d"
+  },
+  {
+   "line": "A **a** **b** c",
+   "from": "Sparkdown",
+   "styled": "A [bold: a] [bold: b] c"
+  },
+  {
+   "line": "A *a **b c* d** e",
+   "from": "Sparkdown",
+   "styled": "A *a [italic: b c d]* e",
+   "commonmark": "A [italic: a b c d] e",
+   "reason": "CommonMark splits the `**` run between two spans that cross; a grammar span takes a run's stars from the left and nests one level deep"
+  },
+  {
+   "line": "A **a *b c** d* e",
+   "from": "Sparkdown",
+   "styled": "A *[italic: a b c] d* e",
+   "commonmark": "A [italic: a b c d] e",
+   "reason": "CommonMark splits the `**` run between two spans that cross; a grammar span takes a run's stars from the left and nests one level deep"
+  },
+  {
+   "line": "A _a *b_ c* d",
+   "from": "Sparkdown",
+   "styled": "A [underline: a *b] c* d"
+  },
+  {
+   "line": "A *a ^b* c^ d",
+   "from": "Sparkdown",
+   "styled": "A [italic: a ^b] c^ d"
+  },
+  {
+   "line": "A ~~a *b~~ c* d",
+   "from": "Sparkdown",
+   "styled": "A [wavy: a *b] c* d"
+  },
+  {
+   "line": "A ::a ~~b:: c~~ d",
+   "from": "Sparkdown",
+   "styled": "A [shaky: a ~~b] c~~ d"
+  },
+  {
+   "line": "A *one* two *three",
+   "from": "Sparkdown",
+   "styled": "A [italic: one] two *three"
+  },
+  {
+   "line": "A *one **two* three** four",
+   "from": "Sparkdown",
+   "styled": "A *one [italic: two three]* four",
+   "commonmark": "A [italic: one two three] four",
+   "reason": "CommonMark splits the `**` run between two spans that cross; a grammar span takes a run's stars from the left and nests one level deep"
+  },
+  {
+   "line": "A ***",
+   "from": "Sparkdown",
+   "styled": "A ***"
+  },
+  {
+   "line": "A ****",
+   "from": "Sparkdown",
+   "styled": "A ****"
+  },
+  {
+   "line": "A *a\\*",
+   "from": "Sparkdown",
+   "styled": "A *a*"
+  },
+  {
+   "line": "A *a*\\*",
+   "from": "Sparkdown",
+   "styled": "A [italic: a]*"
+  },
+  {
+   "line": "A `*` b *c* d",
+   "from": "Sparkdown",
+   "styled": "A [raw: *] b [italic: c] d"
+  },
+  {
+   "line": "A *a `*` b* c",
+   "from": "Sparkdown",
+   "styled": "A [italic: a ][italic raw: *][italic:  b] c"
+  },
+  {
+   "line": "A *a > b* c",
+   "from": "Sparkdown",
+   "styled": "A [italic: a > b] c"
+  },
+  {
+   "line": "A *a > b c",
+   "from": "Sparkdown",
+   "styled": "A *a > b c"
+  },
+  {
+   "line": "A ^^a b^^ c",
+   "from": "Sparkdown",
+   "styled": "A [centered: a b] c"
+  },
+  {
+   "line": "A ^a b^c d^ e",
+   "from": "Sparkdown",
+   "styled": "A [centered: a b]c d^ e"
+  },
+  {
+   "line": "A _a b_c d_ e",
+   "from": "Sparkdown",
+   "styled": "A [underline: a b_c d] e"
+  },
+  {
+   "line": "A __a b__c d__ e",
+   "from": "Sparkdown",
+   "styled": "A [underline: a b__c d] e"
+  },
+  {
+   "line": "A *a*",
+   "from": "Sparkdown",
+   "styled": "A [italic: a]"
+  },
+  {
+   "line": "A **a**",
+   "from": "Sparkdown",
+   "styled": "A [bold: a]"
+  },
+  {
+   "line": "A *a**",
+   "from": "Sparkdown",
+   "styled": "A [italic: a]*"
+  },
+  {
+   "line": "A **a*",
+   "from": "Sparkdown",
+   "styled": "A *[italic: a]"
+  },
+  {
+   "line": "A *a***",
+   "from": "Sparkdown",
+   "styled": "A [italic: a]**"
+  },
+  {
+   "line": "A ***a*",
+   "from": "Sparkdown",
+   "styled": "A **[italic: a]"
+  },
+  {
+   "line": "A ***a**",
+   "from": "Sparkdown",
+   "styled": "A *[bold: a]"
+  },
+  {
+   "line": "A **a***",
+   "from": "Sparkdown",
+   "styled": "A [bold: a]*"
+  }
+ ]
+}

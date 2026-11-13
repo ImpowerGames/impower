@@ -8,7 +8,6 @@
 import type { Matcher } from "../types/Matcher";
 import { analyzeCaptureGroups } from "../utils/analyzeCaptureGroups";
 import { escapeRegExpPattern } from "../utils/escapeRegExpPattern";
-import { hasCapturingGroups } from "../utils/hasCapturingGroups";
 import {
   ONIGURUMA_CLASS_WORD_RANGES,
   ONIGURUMA_DIGIT_RANGES,
@@ -363,7 +362,16 @@ const compile = (
 };
 
 export class RegExpMatcher implements Matcher {
-  declare regexp: RegExp;
+  declare private compiled: RegExp;
+
+  private compiledSource: string | undefined;
+
+  get regexp(): RegExp {
+    if (this.compiledSource !== this._source) {
+      this.compileSource(this._source);
+    }
+    return this.compiled;
+  }
 
   declare private leadingAnchoredRegexp: RegExp | undefined;
 
@@ -375,13 +383,40 @@ export class RegExpMatcher implements Matcher {
 
   private lineEndSource: string | undefined;
 
-  declare private hasCapturingGroups: boolean;
+  private groups:
+    | { capturing: boolean; parents: number[]; flat: boolean }
+    | undefined;
 
-  declare readonly groupParents: number[];
+  private get hasCapturingGroups(): boolean {
+    return this.analyzeGroups().capturing;
+  }
 
-  declare private flatGroups: boolean;
+  get groupParents(): number[] {
+    return this.analyzeGroups().parents;
+  }
 
-  declare readonly hasAnchor: boolean;
+  private get flatGroups(): boolean {
+    return this.analyzeGroups().flat;
+  }
+
+  private analyzeGroups() {
+    if (!this.groups) {
+      const parents = analyzeCaptureGroups(this._pattern);
+      this.groups = {
+        capturing: parents.length > 1,
+        parents,
+        flat: parents.every((parent) => parent === 0),
+      };
+    }
+    return this.groups;
+  }
+
+  private anchored: boolean | undefined;
+
+  get hasAnchor(): boolean {
+    return (this.anchored ??=
+      resolveAnchor(this._pattern, ANCHOR_REFUSED) != null);
+  }
 
   declare protected _pattern: string;
 
@@ -398,17 +433,25 @@ export class RegExpMatcher implements Matcher {
     const escapedPattern = this._pattern.replace(BACK_REFERENCE, (_, n) =>
       escapeRegExpPattern(value[parseInt(n, 10)] ?? ""),
     );
-    if (escapedPattern !== this._source) {
-      this._source = escapedPattern;
-      this.compileSource(escapedPattern);
-    }
+    this._source = escapedPattern;
   }
 
   declare protected _source: string;
 
   declare private readonly escapes: UnicodeEscapes | undefined;
 
-  declare private readonly readsUnicodeText: boolean;
+  private unicodeText: boolean | undefined;
+
+  private get readsUnicodeText(): boolean {
+    return (this.unicodeText ??=
+      !this.escapes &&
+      /[uv]/.test(this._flags) &&
+      resolveUnicodeEscapes(
+        this._pattern,
+        REWRITE_MARKERS,
+        this._flags.includes("v"),
+      ) !== this._pattern);
+  }
 
   declare private bmpMatcher: RegExpMatcher | undefined;
 
@@ -419,35 +462,17 @@ export class RegExpMatcher implements Matcher {
     this._source = pattern;
     this._flags = flags;
     this.escapes = escapes;
-    this.readsUnicodeText =
-      !escapes &&
-      /[uv]/.test(flags) &&
-      resolveUnicodeEscapes(pattern, REWRITE_MARKERS, flags.includes("v")) !==
-        pattern;
-    this.hasAnchor = resolveAnchor(pattern, ANCHOR_REFUSED) != null;
-    this.compileSource(pattern);
-    const groupsOf = escapes
-      ? compile(
-          resolveAnchor(pattern, ANCHOR_REFUSED) ?? pattern,
-          flags,
-          undefined,
-        )
-      : this.regexp;
-    this.hasCapturingGroups = groupsOf ? hasCapturingGroups(groupsOf) : false;
-    this.groupParents = this.hasCapturingGroups
-      ? analyzeCaptureGroups(pattern)
-      : [0];
-    this.flatGroups = this.groupParents.every((parent) => parent === 0);
   }
 
   protected compileSource(source: string) {
+    this.compiledSource = source;
     this.anchoredByPosition.clear();
     this.leadingAnchoredRegexp = undefined;
     if (!this.hasAnchor) {
-      this.regexp = compile(source, this._flags, this.escapes);
+      this.compiled = compile(source, this._flags, this.escapes);
       return;
     }
-    this.regexp = compile(
+    this.compiled = compile(
       resolveAnchor(source, ANCHOR_REFUSED) ?? source,
       this._flags,
       this.escapes,
@@ -495,8 +520,9 @@ export class RegExpMatcher implements Matcher {
   }
 
   private select(str: string, pos: number, anchored: boolean) {
+    const unanchored = this.regexp;
     if (!anchored || !this.hasAnchor) {
-      return this.regexp;
+      return unanchored;
     }
     if (this.leadingAnchoredRegexp) {
       return this.leadingAnchoredRegexp;

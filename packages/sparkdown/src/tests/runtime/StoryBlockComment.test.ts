@@ -499,10 +499,12 @@ end
       expect(run("scene start\n  Go *a*/ b\n  done\nend\n")).toBe("Go *a*/ b\n");
     });
 
-    test("a comment that opens inside a span and does not close on its line is text, with no error", () => {
-      expect(run("scene start\n  Go *x /* open\n  Next.\n  done\nend\n")).toBe(
-        "Go *x /* open\nNext.\n",
-      );
+    test("a comment after an unclosed mark opens as anywhere in display text, since the mark opens no span", () => {
+      expect(run("scene start\n  Go *x /* open\n  still */ Next.\n  done\nend\n")).toBe("Go *x Next.\n");
+    });
+
+    test("an escaped comment opener after an unclosed mark is text", () => {
+      expect(run("scene start\n  Go *x \\/* open\n  Next.\n  done\nend\n")).toBe("Go *x /* open\nNext.\n");
     });
 
     test("a `//` inside a span is text, as on main", () => {

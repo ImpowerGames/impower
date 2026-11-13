@@ -2,6 +2,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
+import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { parseSource } from "./grammarSnapshot";
+import { tokenize } from "./vscodeGrammarSnapshot";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GRAMMAR_PATH = join(
@@ -121,6 +124,138 @@ const CHOICE_CLOSE_SEARCHES: [string, string, "begin" | "match", string][] = [
   ["unclosed braces in choice inner text", "ChoiceInnerTextContent", "match", "Go" + " {".repeat(40000) + " now"],
   ["unclosed braces in a styled span", "ChoiceStartSpanText", "match", "Go" + " {".repeat(40000) + " now"],
 ];
+
+const SPAN_RULES = ["Raw", "Bold", "Italic", "Underline", "Centered", "EmphasisTilde", "EmphasisColon"].flatMap(
+  (span) => ["", "ChoiceStart", "ChoiceOnly", "ChoiceInner"].map((region) => `${region}${span}`),
+);
+
+const SPAN_CLOSE_SEARCHES: [string, string][] = [
+  ["unclosed stars", "*a ".repeat(500)],
+  ["unclosed double stars", "**a ".repeat(400)],
+  ["unclosed triple stars", "***a ".repeat(300)],
+  ["one star before plain text", "*a" + " b".repeat(800)],
+  ["unclosed underscores", "_a ".repeat(500)],
+  ["unclosed double underscores", "__a ".repeat(400)],
+  ["unclosed carets", "^a ".repeat(500)],
+  ["unclosed tildes", "~~a ".repeat(400)],
+  ["unclosed colons", "::a ".repeat(400)],
+  ["unclosed backticks", "`a ".repeat(500)],
+  ["stars inside words", "a*".repeat(800)],
+  ["double stars inside words", "a**".repeat(500)],
+  ["stars that neither open nor close", "* ".repeat(800)],
+  ["every mark left open", "*a _b ^c ~~d ::e ".repeat(100)],
+  ["a bold span open over closed italics", "**a" + " *b*".repeat(400)],
+  ["an italic span open over closed bolds", "*a" + " **b**".repeat(250)],
+  ["an underline open over closed underlines", "_a" + " _b_".repeat(400)],
+  ["an italic span open over interpolations", "*a" + " {x}".repeat(400)],
+  ["an italic span open over unclosed text commands", "*a" + " <b".repeat(500)],
+  ["an italic span open over escaped text command ends", "*a <b" + " \\>".repeat(500)],
+  ["an italic span open over comments", "*a" + " /* c */".repeat(200)],
+  ["an italic span open over code spans", "*a" + " `c`".repeat(400)],
+  ["an italic span open over unclosed braces", "*a" + " {".repeat(800)],
+  ["a tilde span open over other tilde runs", "~~a" + " ~b~".repeat(400)],
+  ["a backtick run open over other backtick runs", "`a" + " ``b".repeat(400)],
+  ["a long star run before a word", "*".repeat(8000) + "x"],
+  ["a long underscore run before a word", "_".repeat(8000) + "x"],
+  ["a long caret run before a word", "^".repeat(8000) + "x"],
+  ["a long tilde run before a word", "~".repeat(8000) + "x"],
+  ["a long colon run before a word", ":".repeat(8000) + "x"],
+  ["a long backtick run before a word", "`".repeat(8000) + "x"],
+];
+
+describe("a span whose closer never comes is refused at once wherever it could open (#2196)", () => {
+  test.each(SPAN_RULES.flatMap((rule) => SPAN_CLOSE_SEARCHES.map(([what, line]) => [rule, what, line] as const)))(
+    "%s on %s",
+    (rule, _what, line) => {
+      const source = grammar.repository?.[rule]?.match;
+      expect(source, `${rule}.match exists`).toBeTruthy();
+      const re = new RegExp(source, "muy");
+      re.lastIndex = 0;
+      re.exec("warm");
+      const t0 = performance.now();
+      for (let i = 0; i < line.length; i++) {
+        if (!"*_^~:`".includes(line[i]!)) continue;
+        re.lastIndex = i;
+        re.exec(line);
+      }
+      const ms = performance.now() - t0;
+      expect(ms, `${rule}.match took ${ms.toFixed(1)}ms`).toBeLessThan(150);
+    },
+  );
+});
+
+const LONG_RUN_PLACES: [string, (run: string) => string][] = [
+  ["a display line", (run) => `scene start\n  ${run}\nend\n`],
+  ["choice start text", (run) => `scene start\n  choose\n    + ${run}\n      done\n  end\nend\n`],
+  ["a suppression's text", (run) => `scene start\n  choose\n    + [${run}]\n      done\n  end\nend\n`],
+  ["choice inner text", (run) => `scene start\n  choose\n    + [a] ${run}\n      done\n  end\nend\n`],
+];
+
+const LONG_RUNS = ["*", "_", "^", "~", ":"].flatMap((mark) =>
+  LONG_RUN_PLACES.map(([where, at]) => [mark, where, (n: number) => at(`A ${mark.repeat(n)}x`)] as const),
+);
+
+const fastest = async (read: () => unknown) => {
+  let best = Infinity;
+  for (let i = 0; i < 2; i++) {
+    const t0 = performance.now();
+    await read();
+    best = Math.min(best, performance.now() - t0);
+  }
+  return best;
+};
+
+const growth = async (read: (source: string) => unknown, line: (n: number) => string) => {
+  await read("scene start\n  A *a* b\nend\n");
+  const short = await fastest(() => read(line(4000)));
+  const long = await fastest(() => read(line(16000)));
+  return { short, long };
+};
+
+describe("a run of one mark is read in time linear in its length (#2196)", () => {
+  test.each(LONG_RUNS)("%s in %s, in the tree parser, grows less than eightfold from 4,000 marks to 16,000", async (_mark, _where, line) => {
+    const { short, long } = await growth(parseSource, line);
+    expect(long, `4,000 marks took ${short.toFixed(1)}ms, 16,000 took ${long.toFixed(1)}ms`).toBeLessThan(8 * short + 40);
+  });
+
+  test.each(LONG_RUNS.filter(([mark]) => mark !== "_"))(
+    "%s in %s, in vscode-textmate, grows less than eightfold from 4,000 marks to 16,000",
+    async (_mark, _where, line) => {
+      const { short, long } = await growth(tokenize, line);
+      expect(long, `4,000 marks took ${short.toFixed(1)}ms, 16,000 took ${long.toFixed(1)}ms`).toBeLessThan(8 * short + 40);
+    },
+  );
+
+  test.each(LONG_RUNS.filter(([mark]) => mark === "_"))(
+    "%s in %s, in vscode-textmate, which reads an underscore run in time quadratic in its length outside the span rules on main too (0.3 s for 8,000 there), within four seconds for 8,000",
+    async (_mark, _where, line) => {
+      await tokenize("scene start\n  A *a* b\nend\n");
+      const ms = await fastest(() => tokenize(line(8000)));
+      expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(4000);
+    },
+  );
+});
+
+describe("building a parser compiles no pattern before it is used (#2196)", () => {
+  test("the sparkdown grammar's parser is built in well under the time its patterns take to compile", () => {
+    const unseen = (node: unknown): unknown => {
+      if (Array.isArray(node)) return node.map(unseen);
+      if (!node || typeof node !== "object") return node;
+      return Object.fromEntries(
+        Object.entries(node).map(([k, v]) => [
+          k,
+          typeof v === "string" && ["match", "begin", "end", "while"].includes(k) ? `(?:)${v}` : unseen(v),
+        ]),
+      );
+    };
+    const fresh = unseen(grammar) as typeof grammar;
+    new TextmateGrammarParser({ scopeName: "source.warm", patterns: [], repository: {} });
+    const t0 = performance.now();
+    new TextmateGrammarParser(fresh);
+    const ms = performance.now() - t0;
+    expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(100);
+  });
+});
 
 describe("a choice line that never meets a close is read at once (#2083)", () => {
   test.each(CHOICE_CLOSE_SEARCHES)("%s", (_what, rule, key, line) => {

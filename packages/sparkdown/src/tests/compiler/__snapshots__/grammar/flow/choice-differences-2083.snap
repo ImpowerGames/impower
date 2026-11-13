@@ -463,81 +463,74 @@ sparkdown [0..417]
  │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [208..211]
  │   │   │   │       │   │       ├─ Word [208..210]: "Go"
  │   │   │   │       │   │       └─ Space [210..211]: " "
- │   │   │   │       │   └─ ChoiceStartItalic [211..233]
- │   │   │   │       │       ├─ ChoiceStartItalic_begin [211..212]
- │   │   │   │       │       │   └─ ChoiceStartItalic_begin_c1 [211..212]
- │   │   │   │       │       │       └─ StylingMark [211..212]
- │   │   │   │       │       │           └─ StylingMark_c1 [211..212]: "*"
- │   │   │   │       │       ├─ ChoiceStartItalic_content [212..233]
- │   │   │   │       │       │   ├─ ChoiceStartSpanText [212..216]
- │   │   │   │       │       │   │   └─ ChoiceStartSpanText_c1 [212..216]
- │   │   │   │       │       │   │       ├─ Word [212..215]: "far"
- │   │   │   │       │       │   │       └─ Space [215..216]: " "
- │   │   │   │       │       │   ├─ LuauInterpolatedStringExpression [216..228]
- │   │   │   │       │       │   │   ├─ LuauInterpolatedStringExpression_begin [216..217]
- │   │   │   │       │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [216..217]
- │   │   │   │       │       │   │   │       └─ PunctuationBraceOpen [216..217]: "{"
- │   │   │   │       │       │   │   ├─ LuauInterpolatedStringExpression_content [217..227]
- │   │   │   │       │       │   │   │   └─ LuauLengthOperation [217..227]
- │   │   │   │       │       │   │   │       ├─ LuauLengthOperation_begin 217
- │   │   │   │       │       │   │   │       │   └─ LuauLengthOperation_begin_c1 217
- │   │   │   │       │       │   │   │       ├─ LuauLengthOperation_content [217..227]
- │   │   │   │       │       │   │   │       │   ├─ LuauLengthOperator [217..218]
- │   │   │   │       │       │   │   │       │   │   ├─ LuauLengthOperator_begin [217..218]
- │   │   │   │       │       │   │   │       │   │   │   ├─ LuauLengthOperator_begin_c1 217
- │   │   │   │       │       │   │   │       │   │   │   │   └─ OptionalWhitespace 217
- │   │   │   │       │       │   │   │       │   │   │   ├─ LuauLengthOperator_begin_c2 [217..218]: "#"
- │   │   │   │       │       │   │   │       │   │   │   └─ LuauLengthOperator_begin_c3 218
- │   │   │   │       │       │   │   │       │   │   └─ LuauLengthOperator_end 218
- │   │   │   │       │       │   │   │       │   └─ LuauTable [218..227]
- │   │   │   │       │       │   │   │       │       ├─ LuauTable_begin [218..219]
- │   │   │   │       │       │   │   │       │       │   └─ LuauTable_begin_c1 [218..219]
- │   │   │   │       │       │   │   │       │       │       └─ PunctuationBraceOpen [218..219]: "{"
- │   │   │   │       │       │   │   │       │       ├─ LuauTable_content [219..226]
- │   │   │   │       │       │   │   │       │       │   └─ LuauTable [219..226]
- │   │   │   │       │       │   │   │       │       │       ├─ LuauTable_begin [219..220]
- │   │   │   │       │       │   │   │       │       │       │   └─ LuauTable_begin_c1 [219..220]
- │   │   │   │       │       │   │   │       │       │       │       └─ PunctuationBraceOpen [219..220]: "{"
- │   │   │   │       │       │   │   │       │       │       ├─ LuauTable_content [220..225]
- │   │   │   │       │       │   │   │       │       │       │   └─ LuauTable [220..225]
- │   │   │   │       │       │   │   │       │       │       │       ├─ LuauTable_begin [220..221]
- │   │   │   │       │       │   │   │       │       │       │       │   └─ LuauTable_begin_c1 [220..221]
- │   │   │   │       │       │   │   │       │       │       │       │       └─ PunctuationBraceOpen [220..221]: "{"
- │   │   │   │       │       │   │   │       │       │       │       ├─ LuauTable_content [221..224]
- │   │   │   │       │       │   │   │       │       │       │       │   └─ LuauTable [221..224]
- │   │   │   │       │       │   │   │       │       │       │       │       ├─ LuauTable_begin [221..222]
- │   │   │   │       │       │   │   │       │       │       │       │       │   └─ LuauTable_begin_c1 [221..222]
- │   │   │   │       │       │   │   │       │       │       │       │       │       └─ PunctuationBraceOpen [221..222]: "{"
- │   │   │   │       │       │   │   │       │       │       │       │       ├─ LuauTable_content [222..223]
- │   │   │   │       │       │   │   │       │       │       │       │       │   └─ LuauNumericDecimal [222..223]
- │   │   │   │       │       │   │   │       │       │       │       │       │       ├─ LuauNumericDecimal_c1 [222..223]: "1"
- │   │   │   │       │       │   │   │       │       │       │       │       │       └─ LuauNumericDecimal_c2 223
- │   │   │   │       │       │   │   │       │       │       │       │       └─ LuauTable_end [223..224]
- │   │   │   │       │       │   │   │       │       │       │       │           ├─ LuauTable_end_c1 [223..224]
- │   │   │   │       │       │   │   │       │       │       │       │           │   └─ PunctuationBraceClose [223..224]: "}"
- │   │   │   │       │       │   │   │       │       │       │       │           └─ LuauTable_end_c2 224
- │   │   │   │       │       │   │   │       │       │       │       └─ LuauTable_end [224..225]
- │   │   │   │       │       │   │   │       │       │       │           ├─ LuauTable_end_c1 [224..225]
- │   │   │   │       │       │   │   │       │       │       │           │   └─ PunctuationBraceClose [224..225]: "}"
- │   │   │   │       │       │   │   │       │       │       │           └─ LuauTable_end_c2 225
- │   │   │   │       │       │   │   │       │       │       └─ LuauTable_end [225..226]
- │   │   │   │       │       │   │   │       │       │           ├─ LuauTable_end_c1 [225..226]
- │   │   │   │       │       │   │   │       │       │           │   └─ PunctuationBraceClose [225..226]: "}"
- │   │   │   │       │       │   │   │       │       │           └─ LuauTable_end_c2 226
- │   │   │   │       │       │   │   │       │       └─ LuauTable_end [226..227]
- │   │   │   │       │       │   │   │       │           ├─ LuauTable_end_c1 [226..227]
- │   │   │   │       │       │   │   │       │           │   └─ PunctuationBraceClose [226..227]: "}"
- │   │   │   │       │       │   │   │       │           └─ LuauTable_end_c2 227
- │   │   │   │       │       │   │   │       └─ LuauLengthOperation_end 227
- │   │   │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [227..228]
- │   │   │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [227..228]
- │   │   │   │       │       │   │           └─ PunctuationBraceClose [227..228]: "}"
- │   │   │   │       │       │   └─ ChoiceStartSpanText [228..233]
- │   │   │   │       │       │       └─ ChoiceStartSpanText_c1 [228..233]
- │   │   │   │       │       │           ├─ Space [228..229]: " "
- │   │   │   │       │       │           └─ Word [229..233]: "away"
- │   │   │   │       │       └─ ChoiceStartItalic_end 233
- │   │   │   │       │           └─ ChoiceStartItalic_end_c1 233
+ │   │   │   │       │   ├─ ChoiceSpanMarkText [211..212]: "*"
+ │   │   │   │       │   ├─ ChoiceStartTextContent [212..216]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [212..216]
+ │   │   │   │       │   │       ├─ Word [212..215]: "far"
+ │   │   │   │       │   │       └─ Space [215..216]: " "
+ │   │   │   │       │   ├─ LuauInterpolatedStringExpression [216..228]
+ │   │   │   │       │   │   ├─ LuauInterpolatedStringExpression_begin [216..217]
+ │   │   │   │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [216..217]
+ │   │   │   │       │   │   │       └─ PunctuationBraceOpen [216..217]: "{"
+ │   │   │   │       │   │   ├─ LuauInterpolatedStringExpression_content [217..227]
+ │   │   │   │       │   │   │   └─ LuauLengthOperation [217..227]
+ │   │   │   │       │   │   │       ├─ LuauLengthOperation_begin 217
+ │   │   │   │       │   │   │       │   └─ LuauLengthOperation_begin_c1 217
+ │   │   │   │       │   │   │       ├─ LuauLengthOperation_content [217..227]
+ │   │   │   │       │   │   │       │   ├─ LuauLengthOperator [217..218]
+ │   │   │   │       │   │   │       │   │   ├─ LuauLengthOperator_begin [217..218]
+ │   │   │   │       │   │   │       │   │   │   ├─ LuauLengthOperator_begin_c1 217
+ │   │   │   │       │   │   │       │   │   │   │   └─ OptionalWhitespace 217
+ │   │   │   │       │   │   │       │   │   │   ├─ LuauLengthOperator_begin_c2 [217..218]: "#"
+ │   │   │   │       │   │   │       │   │   │   └─ LuauLengthOperator_begin_c3 218
+ │   │   │   │       │   │   │       │   │   └─ LuauLengthOperator_end 218
+ │   │   │   │       │   │   │       │   └─ LuauTable [218..227]
+ │   │   │   │       │   │   │       │       ├─ LuauTable_begin [218..219]
+ │   │   │   │       │   │   │       │       │   └─ LuauTable_begin_c1 [218..219]
+ │   │   │   │       │   │   │       │       │       └─ PunctuationBraceOpen [218..219]: "{"
+ │   │   │   │       │   │   │       │       ├─ LuauTable_content [219..226]
+ │   │   │   │       │   │   │       │       │   └─ LuauTable [219..226]
+ │   │   │   │       │   │   │       │       │       ├─ LuauTable_begin [219..220]
+ │   │   │   │       │   │   │       │       │       │   └─ LuauTable_begin_c1 [219..220]
+ │   │   │   │       │   │   │       │       │       │       └─ PunctuationBraceOpen [219..220]: "{"
+ │   │   │   │       │   │   │       │       │       ├─ LuauTable_content [220..225]
+ │   │   │   │       │   │   │       │       │       │   └─ LuauTable [220..225]
+ │   │   │   │       │   │   │       │       │       │       ├─ LuauTable_begin [220..221]
+ │   │   │   │       │   │   │       │       │       │       │   └─ LuauTable_begin_c1 [220..221]
+ │   │   │   │       │   │   │       │       │       │       │       └─ PunctuationBraceOpen [220..221]: "{"
+ │   │   │   │       │   │   │       │       │       │       ├─ LuauTable_content [221..224]
+ │   │   │   │       │   │   │       │       │       │       │   └─ LuauTable [221..224]
+ │   │   │   │       │   │   │       │       │       │       │       ├─ LuauTable_begin [221..222]
+ │   │   │   │       │   │   │       │       │       │       │       │   └─ LuauTable_begin_c1 [221..222]
+ │   │   │   │       │   │   │       │       │       │       │       │       └─ PunctuationBraceOpen [221..222]: "{"
+ │   │   │   │       │   │   │       │       │       │       │       ├─ LuauTable_content [222..223]
+ │   │   │   │       │   │   │       │       │       │       │       │   └─ LuauNumericDecimal [222..223]
+ │   │   │   │       │   │   │       │       │       │       │       │       ├─ LuauNumericDecimal_c1 [222..223]: "1"
+ │   │   │   │       │   │   │       │       │       │       │       │       └─ LuauNumericDecimal_c2 223
+ │   │   │   │       │   │   │       │       │       │       │       └─ LuauTable_end [223..224]
+ │   │   │   │       │   │   │       │       │       │       │           ├─ LuauTable_end_c1 [223..224]
+ │   │   │   │       │   │   │       │       │       │       │           │   └─ PunctuationBraceClose [223..224]: "}"
+ │   │   │   │       │   │   │       │       │       │       │           └─ LuauTable_end_c2 224
+ │   │   │   │       │   │   │       │       │       │       └─ LuauTable_end [224..225]
+ │   │   │   │       │   │   │       │       │       │           ├─ LuauTable_end_c1 [224..225]
+ │   │   │   │       │   │   │       │       │       │           │   └─ PunctuationBraceClose [224..225]: "}"
+ │   │   │   │       │   │   │       │       │       │           └─ LuauTable_end_c2 225
+ │   │   │   │       │   │   │       │       │       └─ LuauTable_end [225..226]
+ │   │   │   │       │   │   │       │       │           ├─ LuauTable_end_c1 [225..226]
+ │   │   │   │       │   │   │       │       │           │   └─ PunctuationBraceClose [225..226]: "}"
+ │   │   │   │       │   │   │       │       │           └─ LuauTable_end_c2 226
+ │   │   │   │       │   │   │       │       └─ LuauTable_end [226..227]
+ │   │   │   │       │   │   │       │           ├─ LuauTable_end_c1 [226..227]
+ │   │   │   │       │   │   │       │           │   └─ PunctuationBraceClose [226..227]: "}"
+ │   │   │   │       │   │   │       │           └─ LuauTable_end_c2 227
+ │   │   │   │       │   │   │       └─ LuauLengthOperation_end 227
+ │   │   │   │       │   │   └─ LuauInterpolatedStringExpression_end [227..228]
+ │   │   │   │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [227..228]
+ │   │   │   │       │   │           └─ PunctuationBraceClose [227..228]: "}"
+ │   │   │   │       │   └─ ChoiceStartTextContent [228..233]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [228..233]
+ │   │   │   │       │           ├─ Space [228..229]: " "
+ │   │   │   │       │           └─ Word [229..233]: "away"
  │   │   │   │       └─ ChoiceStartText_end 233
  │   │   │   └─ Choice_end 233
  │   │   ├─ Newline [233..234]: "\n"
@@ -620,11 +613,10 @@ sparkdown [0..417]
  │   │   │   │       │   │       ├─ Word [280..282]: "Go"
  │   │   │   │       │   │       └─ Space [282..283]: " "
  │   │   │   │       │   ├─ ChoiceStartItalic [283..299]
- │   │   │   │       │   │   ├─ ChoiceStartItalic_begin [283..284]
- │   │   │   │       │   │   │   └─ ChoiceStartItalic_begin_c1 [283..284]
- │   │   │   │       │   │   │       └─ StylingMark [283..284]
- │   │   │   │       │   │   │           └─ StylingMark_c1 [283..284]: "*"
- │   │   │   │       │   │   ├─ ChoiceStartItalic_content [284..298]
+ │   │   │   │       │   │   ├─ ChoiceStartItalic_c1 [283..284]
+ │   │   │   │       │   │   │   └─ SpanOpenMark [283..284]
+ │   │   │   │       │   │   │       └─ SpanOpenMark_c1 [283..284]: "*"
+ │   │   │   │       │   │   ├─ ChoiceStartItalic_c2 [284..298]
  │   │   │   │       │   │   │   └─ ChoiceStartSpanText [284..298]
  │   │   │   │       │   │   │       └─ ChoiceStartSpanText_c1 [284..298]
  │   │   │   │       │   │   │           ├─ Word [284..287]: "far"
@@ -649,10 +641,9 @@ sparkdown [0..417]
  │   │   │   │       │   │   │           │           └─ PunctuationBraceClose [292..293]: "}"
  │   │   │   │       │   │   │           ├─ Space [293..294]: " "
  │   │   │   │       │   │   │           └─ Word [294..298]: "away"
- │   │   │   │       │   │   └─ ChoiceStartItalic_end [298..299]
- │   │   │   │       │   │       └─ ChoiceStartItalic_end_c1 [298..299]
- │   │   │   │       │   │           └─ StylingMark [298..299]
- │   │   │   │       │   │               └─ StylingMark_c1 [298..299]: "*"
+ │   │   │   │       │   │   └─ ChoiceStartItalic_c3 [298..299]
+ │   │   │   │       │   │       └─ SpanCloseMark [298..299]
+ │   │   │   │       │   │           └─ SpanCloseMark_c1 [298..299]: "*"
  │   │   │   │       │   └─ ChoiceStartTextContent [299..303]
  │   │   │   │       │       └─ ChoiceStartTextContent_c1 [299..303]
  │   │   │   │       │           ├─ Space [299..300]: " "
@@ -684,11 +675,10 @@ sparkdown [0..417]
  │   │   │   │       ├─ ChoiceStartText_begin 321
  │   │   │   │       ├─ ChoiceStartText_content [321..334]
  │   │   │   │       │   └─ ChoiceStartItalic [321..334]
- │   │   │   │       │       ├─ ChoiceStartItalic_begin [321..322]
- │   │   │   │       │       │   └─ ChoiceStartItalic_begin_c1 [321..322]
- │   │   │   │       │       │       └─ StylingMark [321..322]
- │   │   │   │       │       │           └─ StylingMark_c1 [321..322]: "*"
- │   │   │   │       │       ├─ ChoiceStartItalic_content [322..333]
+ │   │   │   │       │       ├─ ChoiceStartItalic_c1 [321..322]
+ │   │   │   │       │       │   └─ SpanOpenMark [321..322]
+ │   │   │   │       │       │       └─ SpanOpenMark_c1 [321..322]: "*"
+ │   │   │   │       │       ├─ ChoiceStartItalic_c2 [322..333]
  │   │   │   │       │       │   └─ ChoiceStartSpanText [322..333]
  │   │   │   │       │       │       └─ ChoiceStartSpanText_c1 [322..333]
  │   │   │   │       │       │           ├─ Word [322..325]: "Say"
@@ -712,10 +702,9 @@ sparkdown [0..417]
  │   │   │   │       │       │           │           └─ PunctuationBraceClose [328..329]: "}"
  │   │   │   │       │       │           ├─ Space [329..330]: " "
  │   │   │   │       │       │           └─ Word [330..333]: "now"
- │   │   │   │       │       └─ ChoiceStartItalic_end [333..334]
- │   │   │   │       │           └─ ChoiceStartItalic_end_c1 [333..334]
- │   │   │   │       │               └─ StylingMark [333..334]
- │   │   │   │       │                   └─ StylingMark_c1 [333..334]: "*"
+ │   │   │   │       │       └─ ChoiceStartItalic_c3 [333..334]
+ │   │   │   │       │           └─ SpanCloseMark [333..334]
+ │   │   │   │       │               └─ SpanCloseMark_c1 [333..334]: "*"
  │   │   │   │       └─ ChoiceStartText_end 334
  │   │   │   └─ Choice_end 334
  │   │   ├─ Newline [334..335]: "\n"

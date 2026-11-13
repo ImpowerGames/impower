@@ -177,11 +177,8 @@ describe("lowerer synthesis: display() from authored prose", () => {
     });
   });
 
-  test("an unclosed mark styles to the end of the line", () => {
-    expect(runsOf("A *rest of line").runs).toEqual([
-      { text: "A " },
-      { text: "rest of line", marks: ["*"], ended: true },
-    ]);
+  test("an unclosed mark is literal text", () => {
+    expect(runsOf("A *rest of line").runs).toEqual([{ text: "A *rest of line" }]);
   });
 
   test("an interpolation inside a span is a value run that keeps the span's marks", () => {
