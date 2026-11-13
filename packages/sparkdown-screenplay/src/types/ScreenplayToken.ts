@@ -9,4 +9,5 @@ export interface ScreenplayToken {
   prefix?: string;
   suffix?: string;
   from?: number;
+  continued?: boolean;
 }

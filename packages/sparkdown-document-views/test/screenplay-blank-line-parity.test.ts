@@ -2,6 +2,8 @@ import type { EditorView } from "@codemirror/view";
 import { afterAll, describe, expect, it } from "vitest";
 import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { isHiddenIdentifier } from "../../sparkdown-screenplay/src/utils/isHiddenIdentifier";
+import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
+import { generateScreenplayPrintData } from "../../sparkdown-screenplay/src/utils/generateScreenplayPrintData";
 import createEditorView from "../src/modules/screenplay-preview/utils/createEditorView";
 import { settleParse } from "./helpers/parseSettle";
 import { extractPdfText } from "./helpers/pdfText";
@@ -275,6 +277,22 @@ describe("a blank line written after a block", () => {
     const expected = ["Before.", "First.", "", "Second.", "", "First.", "After."];
     expect(exportRows("default", source)).toEqual(expected);
     expect(layout(screenRows("default", source))).toBe(layout(expected));
+  });
+});
+
+describe("a heading split by a blank line", () => {
+  it("is numbered once, on the page and in the export", () => {
+    const source = sourceOf(["InlineHeading", "BlockHeadingInnerBlank"]);
+    const spans = generateScreenplayPrintData(new ScreenplayParser().parse(source), CONFIGS["default"]).spans;
+    const exported = spans.flatMap((span) =>
+      span.tag === "heading" ? [`${span.lines[0]?.scene ?? "-"} ${span.lines.map((l) => l.content.map((c) => c.text).join("")).join("|")}`] : [],
+    );
+    expect(exported).toEqual(["1 INT. ROOM - DAY", "2 INT. A", "- INT. B"]);
+    const view = show("default", source);
+    const numbered = Array.from(view.contentDOM.querySelectorAll<HTMLElement>(".sp-heading")).map(
+      (heading) => heading.dataset["sceneNumber"],
+    );
+    expect(numbered).toEqual(["1", "2"]);
   });
 });
 

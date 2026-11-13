@@ -63,14 +63,20 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
     const readChoiceText = (node: SyntaxNode): string =>
       readSkipping(node, read, (child) => CHOICE_TEXT_COMMENTS.has(child.name));
 
+    let headingContinues = false;
     const flushText = () => {
       if (title) {
         tokens.push({ tag: "title", text: title });
         title = "";
       }
       if (heading) {
-        tokens.push({ tag: "heading", text: heading });
+        tokens.push(
+          headingContinues
+            ? { tag: "heading", text: heading, continued: true }
+            : { tag: "heading", text: heading },
+        );
         heading = "";
+        headingContinues = true;
       }
       if (transitional) {
         tokens.push({ tag: "transitional", text: transitional });
@@ -289,6 +295,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
           name === "ImplicitAction"
         ) {
           flushText();
+          headingContinues = false;
         }
 
         if (name === "DialogueCharacter") {

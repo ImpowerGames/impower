@@ -169,7 +169,9 @@ export default class ScreenplayTypesetter {
           { prefix: t.prefix, suffix: t.suffix },
           style,
         );
-        if (lines.length > 0) {
+        if (lines.length > 0 && t.continued) {
+          spans.push({ tag: t.tag, lines });
+        } else if (lines.length > 0) {
           const scene = t.scene ?? sceneIndex + 1;
           lines[0]!.scene = scene;
           spans.push({ tag: t.tag, lines });
