@@ -828,7 +828,7 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     );
     const { imageStacks } = await import("../../src/modules/spark-editor/utils/imageStacks");
     const [stack] = imageStacks(STACK.map((path) => path.replace("imani@night", "imani@dark.v2")));
-    expect(stack!.pictures.find((picture) => picture.alternate === "dark.v2")?.layers).toEqual([`${P}/imani@dark.v2~face.sad.png`]);
+    expect(stack!.pictures.find((picture) => picture.alternate === "dark")?.layers).toEqual([`${P}/imani@dark.v2~face.sad.png`]);
   });
 
   it("leaves a script the author saved during a failed alternate rename as saved, puts the file back, and says so from the rollback", async () => {

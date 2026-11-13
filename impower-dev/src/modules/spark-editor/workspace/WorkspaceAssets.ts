@@ -14,7 +14,7 @@ import { downloadFile } from "../utils/downloadFile";
 import { reasonOf, type FileMove } from "../utils/fileMoves";
 import { recordCreate, recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
 import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
-import { imageFileNameOf, stackBaseOf } from "@impower/sparkdown/src/attributes/imageFileName";
+import { imageFileNameOf, stackBaseOf, thingNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import type { ImageVariant } from "../utils/imageVariants";
 import getUniqueFileName from "../utils/getUniqueFileName";
@@ -435,7 +435,7 @@ export default class WorkspaceAssets {
       ? availableName(name, this.siblings(parentOf(path)), extensionOf(path), nameOf(path))
       : undefined;
     const typed = own ? own.split(".")[0]! : validName(name, extension).slice(0, -extension.length || undefined);
-    if (/[@~]/.test(own ?? typed)) {
+    if (thingNameOf(own ?? typed) !== (own ?? typed)) {
       throw new NameError(TAGGED_NAME);
     }
     if (!plain && typed.includes(".")) {
