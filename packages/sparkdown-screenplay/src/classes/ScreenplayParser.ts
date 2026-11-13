@@ -17,19 +17,7 @@ const SAME_LINE_TEXT_SEPARATORS = new Set([
 
 const CHOICE_TEXT_COMMENTS = new Set(["SparkdownBlockComment", "SparkdownInlineComment"]);
 
-const TOKENS_ON_LEAVE = new Set([
-  "BlockTitle",
-  "InlineTitle",
-  "BlockHeading",
-  "InlineHeading",
-  "BlockTransitional",
-  "InlineTransitional",
-  "BlockAction",
-  "InlineAction",
-  "ImplicitAction",
-  "DialogueCharacter",
-  "Choice",
-]);
+const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
 
 export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] => {
     const stack: SparkdownNodeName[] = [];
@@ -75,12 +63,34 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
     const readChoiceText = (node: SyntaxNode): string =>
       readSkipping(node, read, (child) => CHOICE_TEXT_COMMENTS.has(child.name));
 
+    const flushText = () => {
+      if (title) {
+        tokens.push({ tag: "title", text: title });
+        title = "";
+      }
+      if (heading) {
+        tokens.push({ tag: "heading", text: heading });
+        heading = "";
+      }
+      if (transitional) {
+        tokens.push({ tag: "transitional", text: transitional });
+        transitional = "";
+      }
+      if (action) {
+        tokens.push({ tag: "action", text: action });
+        action = "";
+      }
+    };
+
     let pendingTokens = 0;
     let heldSeparator: number | undefined = undefined;
     const addSeparator = (from: number) => {
       if (pendingTokens > 0) {
         heldSeparator ??= from;
-      } else if (tokens.at(-1)?.tag !== "separator") {
+        return;
+      }
+      flushText();
+      if (tokens.at(-1)?.tag !== "separator") {
         tokens.push({ tag: "separator", from });
       }
     };
@@ -267,40 +277,18 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
           });
         }
 
-        if (name === "BlockTitle" || name === "InlineTitle") {
-          tokens.push({
-            tag: "title",
-            text: title,
-          });
-          title = "";
-        }
-
-        if (name === "BlockHeading" || name === "InlineHeading") {
-          tokens.push({
-            tag: "heading",
-            text: heading,
-          });
-          heading = "";
-        }
-
-        if (name === "BlockTransitional" || name === "InlineTransitional") {
-          tokens.push({
-            tag: "transitional",
-            text: transitional,
-          });
-          transitional = "";
-        }
-
         if (
+          name === "BlockTitle" ||
+          name === "InlineTitle" ||
+          name === "BlockHeading" ||
+          name === "InlineHeading" ||
+          name === "BlockTransitional" ||
+          name === "InlineTransitional" ||
           name === "BlockAction" ||
           name === "InlineAction" ||
           name === "ImplicitAction"
         ) {
-          tokens.push({
-            tag: "action",
-            text: action,
-          });
-          action = "";
+          flushText();
         }
 
         if (name === "DialogueCharacter") {

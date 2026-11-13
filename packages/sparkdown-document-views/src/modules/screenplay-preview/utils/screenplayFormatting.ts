@@ -4,7 +4,7 @@ import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
-import { SyntaxNodeRef } from "@lezer/common";
+import { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
@@ -374,13 +374,70 @@ export const decorate = (
           separator: true,
         });
 
-  const hideLines = (fromPosition: number, toPosition: number, name = "") => {
+  const printsText = (node: SyntaxNode) =>
+    node.name !== "Newline" &&
+    node.name !== "Whitespace" &&
+    !printsAsBlankLine(node.name, node.parent?.name);
+
+  const sharesLineWithText = (node: SyntaxNode, line: Line) => {
+    for (let before = node.prevSibling; before && before.to > line.from; before = before.prevSibling) {
+      if (printsText(before)) return "before";
+    }
+    for (let after = node.nextSibling; after && after.from < line.to; after = after.nextSibling) {
+      if (printsText(after)) return "after";
+    }
+    return undefined;
+  };
+
+  const insertRows = (line: Line, side: "before" | "after", blank: boolean, name: string) => {
+    const at = side === "after" ? line.to : line.from;
+    const [blankSide, nameSide] = side === "after" ? [1, 2] : [-2, -1];
+    if (blank) {
+      decorations.push(
+        Decoration.widget({
+          widget: new CollapseWidget({ type: "collapse", from: at, to: at }),
+          block: true,
+          side: blankSide,
+        }).range(at),
+      );
+    }
+    if (name) {
+      decorations.push(
+        Decoration.widget({
+          widget: new NameWidget({ type: "name", from: at, to: at, name, pageBreak: false }),
+          block: true,
+          side: nameSide,
+        }).range(at),
+      );
+    }
+  };
+
+  const hideLines = (
+    fromPosition: number,
+    toPosition: number,
+    name = "",
+    node?: SyntaxNode,
+  ) => {
     const first = doc.lineAt(fromPosition).number;
     const last = doc.lineAt(toPosition).number;
     for (let number = first; number <= last; number++) {
       if (handledLines.has(number)) continue;
-      handledLines.add(number);
       const line = doc.line(number);
+      const shared =
+        node && (number === first || number === last)
+          ? sharesLineWithText(node, line)
+          : undefined;
+      if (shared) {
+        handledLines.add(number);
+        const from = Math.max(fromPosition, line.from);
+        const to = Math.min(toPosition, line.to);
+        if (to > from) {
+          decorations.push(Decoration.replace({}).range(from, to));
+        }
+        insertRows(line, shared === "before" ? "after" : "before", blankLines.has(number), number === first ? name : "");
+        continue;
+      }
+      handledLines.add(number);
       if (number === first && name) {
         if (blankLines.has(number)) {
           decorations.push(
@@ -614,7 +671,7 @@ export const decorate = (
         const functionName = config?.screenplay_print_function_identifiers
           ? rootFunctionName(nodeRef.node, (from, to) => doc.sliceString(from, to))
           : "";
-        hideLines(from, blockEnd(nodeRef), functionName);
+        hideLines(from, blockEnd(nodeRef), functionName, nodeRef.node);
         lineStart = nodeRef.to;
         return false;
       } else if (name === "BlockWrite" || name === "InlineWrite") {

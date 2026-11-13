@@ -9,10 +9,15 @@ import { extractPdfText } from "./helpers/pdfText";
 const KINDS: Record<string, string[]> = {
   AudioLine: ["  ((play music))"],
   BlockAction: ["  :", "    The door creaks."],
+  BlockActionInnerBlank: ["  :", "    First.", "", "    Second."],
+  BlockActionLeadingBlank: ["  :", "", "    First."],
   BlockDialogue: ["  GUIDE:", "    (softly)", "    Hello there."],
   BlockHeading: ["  $:", "    INT. ROOM - DAY"],
+  BlockHeadingInnerBlank: ["  $:", "    INT. A", "", "    INT. B"],
   BlockTitle: ["  ^:", "    THE END"],
+  BlockTitleInnerBlank: ["  ^:", "    ONE", "    ", "    TWO"],
   BlockTransitional: ["  %:", "    CUT TO:"],
+  BlockTransitionalInnerBlank: ["  %:", "    CUT", "", "    TO:"],
   BlockWrite: ["  @ hud:", "    Score up."],
   Branch: ["  branch b", "    Inside.", "  end"],
   Choice: ["  * [Stray.]"],
@@ -43,6 +48,7 @@ const KINDS: Record<string, string[]> = {
   LuauFunctionDefinition: ["  function f()", "    Inner.", "  end"],
   LuauFunctionDefinitionLocal: ["  local function lf()", "  end"],
   LuauFunctionDefinitionOneLine: ["  function f1() end"],
+  LuauFunctionDefinitionSharedLine: ["  function f2() end : Same line."],
   LuauSparkdownExplicitFunction: ["  & function h()", "  end"],
   LuauFunctionTypeDeclaration: ["  type function tf()", "  end"],
   LuauGotoStatement: ["  goto here"],
@@ -259,6 +265,23 @@ describe("a blank line written after a block", () => {
     const expected = ["Before.", "CUT TO:", "", "THE END", "", "After."];
     expect(exportRows("default", source)).toEqual(expected);
     expect(layout(screenRows("default", source))).toBe(layout(expected));
+  });
+
+  it("prints where it is written inside a block", () => {
+    const source = sourceOf(["BlockActionInnerBlank", "BlockActionLeadingBlank"]);
+    const expected = ["Before.", "First.", "", "Second.", "", "First.", "After."];
+    expect(exportRows("default", source)).toEqual(expected);
+    expect(layout(screenRows("default", source))).toBe(layout(expected));
+  });
+});
+
+describe("a line shared by a hidden node and printed text", () => {
+  it.each(["default", "function identifiers"])("keeps the printed text with %s settings", (configName) => {
+    const source = sourceOf(["LuauFunctionDefinitionSharedLine"]);
+    const name = configName === "default" ? [] : ["f2"];
+    const expected = ["Before.", "", ...name, "Same line.", "After."];
+    expect(exportRows(configName, source)).toEqual(expected);
+    expect(layout(screenRows(configName, source))).toBe(layout(expected));
   });
 });
 
