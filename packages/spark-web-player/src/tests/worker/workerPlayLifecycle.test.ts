@@ -623,7 +623,7 @@ describe("the PLAY button pressed before the first program, then STOP", () => {
     });
     framesForStop(h);
     try {
-      const clicked = h.controller.handleClickPlayButton();
+      const clicked = h.controller.run();
       await settle(10);
       await h.controller.stopGame("quit");
       h.toEditor.length = 0;
@@ -784,7 +784,7 @@ describe("the PLAY button pressed while the audio context resumes", () => {
         await h.select(AFTER);
         const resumed = gate();
         h.controller.ensureAudioContext = () => resumed.opened;
-        const clicked = h.controller.handleClickPlayButton();
+        const clicked = h.controller.run();
         await settle(10);
         if (ending === "STOP") {
           await h.controller.stopGame("quit");

@@ -462,6 +462,24 @@ export const dropdownRadioItemVariants = cva(
   },
 );
 
+export function DropdownItemText({
+  hint,
+  children,
+}: {
+  hint?: ComponentChildren;
+  children?: ComponentChildren;
+}) {
+  if (hint === undefined) {
+    return <>{children}</>;
+  }
+  return (
+    <span class="flex min-w-0 flex-col gap-0.5 py-2.5" data-dropdown-item-text>
+      <span>{children}</span>
+      <small class="max-w-[200px] text-[11px]/[1.4] font-normal whitespace-normal text-muted">{hint}</small>
+    </span>
+  );
+}
+
 export type DropdownRadioItemIndicator = NonNullable<
   VariantProps<typeof dropdownRadioItemVariants>["indicator"]
 >;

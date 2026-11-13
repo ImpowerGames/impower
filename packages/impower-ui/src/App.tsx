@@ -1,6 +1,7 @@
 import Button from "./components/button/Button";
 import { actionSheetGallery } from "./components/action-sheet/ActionSheet.gallery";
 import { buttonGallery } from "./components/button/Button.gallery";
+import { caretColorChipGallery } from "./components/caret-color-chip/CaretColorChip.gallery";
 import { choiceGroupGallery } from "./components/choice-group/ChoiceGroup.gallery";
 import { colorChipsGallery } from "./components/color-chips/ColorChips.gallery";
 import { colorWellGallery } from "./components/color-well/ColorWell.gallery";
@@ -60,6 +61,7 @@ import { GallerySection, type GalleryEntry } from "./gallery/GallerySection";
 export const galleryEntries: readonly GalleryEntry[] = [
   actionSheetGallery,
   buttonGallery,
+  caretColorChipGallery,
   choiceGroupGallery,
   colorChipsGallery,
   colorWellGallery,

@@ -42,6 +42,7 @@ export {
   DropdownSeparator,
   DropdownContent,
   DropdownItem,
+  DropdownItemText,
   DropdownCheckboxItem,
   DropdownLabel,
   dropdownLabelVariants,
@@ -207,8 +208,15 @@ export {
   type ChoiceGroupProps,
   type ChoiceOption,
   type ChoiceGroupSize,
+  type ChoiceGroupFill,
   type ChoiceGroupVariant,
 } from "./choice-group/ChoiceGroup";
+export {
+  default as CaretColorChip,
+  caretColorChipVariants,
+  type CaretColorChipProps,
+  type CaretColorChipSize,
+} from "./caret-color-chip/CaretColorChip";
 export {
   default as KeysChip,
   keysChipVariants,
@@ -403,6 +411,7 @@ export {
   default as Tile,
   tileVariants,
   tileOpenVariants,
+  tileActionsVariants,
   tileMarkVariants,
   tileMediaVariants,
   tileLabelVariants,
@@ -421,7 +430,6 @@ export {
   type ZoomFrameProps,
   type ZoomFrameFit,
   type ZoomFrameSurface,
-  type ZoomFrameBackdrop,
 } from "./zoom-frame/ZoomFrame";
 export {
   default as PanelHead,

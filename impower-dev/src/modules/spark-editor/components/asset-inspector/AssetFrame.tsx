@@ -176,7 +176,6 @@ function PictureFrame({
       <ZoomFrame
         label={asset.name}
         zoomable={!failed}
-        backdrop={failed ? "none" : "checker"}
         ratio={ratio}
         onExpand={failed || !src ? undefined : () => view(true)}
       >
@@ -184,7 +183,7 @@ function PictureFrame({
         {failed && <FrameFailure>This picture could not be shown.</FrameFailure>}
       </ZoomFrame>
       <Lightbox label={`${asset.name} full size`} open={full && !failed} onOpenChange={view}>
-        <ZoomFrame label={asset.name} fit="screen" zoomable backdrop="checker" ratio={ratio}>
+        <ZoomFrame label={asset.name} fit="screen" zoomable ratio={ratio}>
           {image()}
         </ZoomFrame>
       </Lightbox>

@@ -121,6 +121,26 @@ describe("ChoiceGroup tiles", () => {
   });
 });
 
+describe("ChoiceGroup small segments", () => {
+  it("fills the chosen segment with the tint at 12px, bold only when chosen, a step taller than the default", async () => {
+    const radios = await mount(
+      <ChoiceGroup size="small" fill="tint" name="form" aria-label="Show as" options={OPTIONS} value="plain" onValueChange={() => {}} />,
+    );
+    const segment = radios[0]!.nextElementSibling!.className.split(" ");
+    expect(segment).toEqual(expect.arrayContaining(["text-[12px]/[1.2]", "min-h-[32px]", "font-normal", "peer-checked:font-semibold", "peer-checked:bg-tint", "peer-checked:text-ink"]));
+    expect(segment).not.toContain("peer-checked:bg-elevated");
+    expect(segment).not.toContain("text-[13px]/[1.2]");
+    expect(segment).not.toContain("font-semibold");
+    expect(radios[0]!.closest('[role="radiogroup"]')!.className.split(" ")).toContain("rounded-[10px]");
+  });
+
+  it("keeps the default segments the settings use: 13px, bold, the raised fill", () => {
+    const segment = choiceOptionVariants({ variant: "segmented" }).split(" ");
+    expect(segment).toEqual(expect.arrayContaining(["text-[13px]/[1.2]", "font-semibold", "min-h-[30px]", "peer-checked:bg-elevated"]));
+    expect(segment).not.toContain("peer-checked:bg-tint");
+  });
+});
+
 describe("ChoiceGroup and native form reset", () => {
   it("returns to its default, controlled at the owner's value", async () => {
     host = document.body.appendChild(document.createElement("div"));

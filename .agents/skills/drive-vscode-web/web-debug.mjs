@@ -8,11 +8,10 @@ export async function debugWorkbench(page, { expression, result, screenshot }) {
     await page.frameLocator("iframe.webview").frameLocator("#active-frame").locator("#game span").first().waitFor({ timeout: 60000 });
     await page.locator(".monaco-editor .view-line").first().click();
     await page.keyboard.press("ArrowRight");
-    const run = page.frameLocator("iframe.webview").frameLocator("#active-frame").locator("#play-button");
-    if (await run.isVisible()) {
-      await run.hover();
+    const run = page.frameLocator("iframe.webview").frameLocator("#active-frame").locator("#run-button");
+    if ((await run.textContent()) === "Run") {
       await run.click();
-      await run.waitFor({ state: "hidden", timeout: 30000 });
+      await run.filter({ hasText: /^Stop$/ }).waitFor({ timeout: 30000 });
     }
     await page.locator(".debug-toolbar").waitFor({ timeout: 60000 });
     if (await page.locator(".debug-toolbar .codicon-debug-continue").isVisible()) {

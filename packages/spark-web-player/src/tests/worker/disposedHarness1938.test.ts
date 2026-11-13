@@ -8,9 +8,6 @@ const harness = async () => {
     files: [{ uri: MAIN_URI, text: START }],
     startFrom: { file: MAIN_URI, line: 1 },
   });
-  h.refs.playButton = Object.assign(h.overlay.ownerDocument.createElement("div"), {
-    getAnimations: () => [],
-  });
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   return h;

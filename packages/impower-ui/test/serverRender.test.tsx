@@ -6,6 +6,7 @@ import { collectingTypes, componentNames, exported, exportedValue, NOT_COMPONENT
 
 const PORTALED = [
   "DropdownItem",
+  "DropdownItemText",
   "DropdownCheckboxItem",
   "DropdownSeparator",
   "DropdownLabel",

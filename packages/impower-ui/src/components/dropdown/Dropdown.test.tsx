@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   DropdownContent,
   DropdownItem,
+  DropdownItemText,
   DropdownLabel,
   DropdownRadioGroup,
   DropdownRadioItem,
@@ -393,5 +394,42 @@ describe("DropdownLabel variants", () => {
     expect(heading.getAttribute("role")).toBeNull();
     expect(heading.className).toContain("uppercase");
     expect(heading.className).toContain("text-muted");
+  });
+});
+
+describe("DropdownItemText", () => {
+  it("puts an item's hint on its own line beneath its label, and is the label alone without one", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot defaultOpen>
+          <DropdownTrigger asChild>
+            <button type="button">Face</button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownRadioGroup value="happy" label="Face">
+              <DropdownRadioItem value="happy" indicator="end">
+                <DropdownItemText hint="Default">Happy</DropdownItemText>
+              </DropdownRadioItem>
+              <DropdownRadioItem value="sad" indicator="end">
+                <DropdownItemText>Sad</DropdownItemText>
+              </DropdownRadioItem>
+            </DropdownRadioGroup>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    await settle(50);
+    const [happy, sad] = Array.from(menu()!.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
+    const text = happy!.querySelector<HTMLElement>("[data-dropdown-item-text]")!;
+    expect(text.className.split(" ")).toContain("flex-col");
+    expect(Array.from(text.children).map((child) => [child.tagName, child.textContent])).toEqual([
+      ["SPAN", "Happy"],
+      ["SMALL", "Default"],
+    ]);
+    expect(text.lastElementChild!.className.split(" ")).toEqual(expect.arrayContaining(["text-[11px]/[1.4]", "text-muted"]));
+    expect(sad!.querySelector("small")).toBeNull();
+    expect(sad!.textContent).toBe("Sad");
   });
 });
