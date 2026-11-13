@@ -234,6 +234,7 @@ import WorkspaceWindow, {
   PLAYER_DID_NOT_CONNECT_MESSAGE,
 } from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
 import { snackbar } from "../../src/modules/spark-editor/utils/snackbar";
+import { STEP_REASONS } from "../../src/modules/spark-editor/workspace/stepStates";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { ProjectImportError } from "../../src/modules/spark-editor/workspace/projectImport";
 import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
@@ -1846,7 +1847,10 @@ describe("PLAY pressed before the game player has connected", () => {
 
   const pressed = () => vi.waitFor(() => expect(game().starting).toBe(true));
 
+  let before: typeof workspace.current;
+
   beforeEach(() => {
+    before = workspace.current;
     localStorage.clear();
     started = [];
     stopped = [];
@@ -1873,6 +1877,7 @@ describe("PLAY pressed before the game player has connected", () => {
     current.window = undefined;
     window.removeEventListener(MessageProtocol.event, listener);
     win.dispose();
+    workspace.current = before;
   });
 
   it("delivers a press made before the game preview has loaded to the player once it initializes", async () => {
@@ -1893,8 +1898,9 @@ describe("PLAY pressed before the game player has connected", () => {
       channels.all = [];
       render(h(PreviewGame, {}), stage);
       transport().click();
-      await pressed();
-      expect(game().running).toBeFalsy();
+      await vi.waitFor(() =>
+        expect(transport().getAttribute("aria-label")).toBe("Stop"),
+      );
       stage.querySelector("iframe")!.dispatchEvent(new Event("load"));
       await vi.waitFor(() => expect(startsPosted()).toHaveLength(1), {
         timeout: 15000,
@@ -1989,6 +1995,11 @@ describe("PLAY pressed before the game player has connected", () => {
     expect(container.querySelector('[aria-label="Pause"]')).toBeNull();
     expect(container.querySelector('[aria-label="Step Over"]')).toBeNull();
     expect(container.querySelector("[data-running]")).toBeNull();
+    for (const label of ["Skip back", "Skip forward"]) {
+      const skip = container.querySelector(`[aria-label="${label}"]`)!;
+      expect(skip.getAttribute("aria-disabled")).toBe("true");
+      expect(skip.getAttribute("title")).toBe(STEP_REASONS.starting);
+    }
   });
 });
 
@@ -2767,10 +2778,11 @@ describe("The preview's top bar", () => {
     expect(control("Skip forward")?.title).toBe(
       "No later played beat. Continue the story to play more.",
     );
+    const skipBeat = vi.spyOn(win, "skipBeat");
     control("Skip back")!.click();
     control("Skip forward")!.click();
-    expect(await win.skipBeat(-1)).toBe(false);
-    expect(await win.skipBeat(1)).toBe(false);
+    await vi.waitFor(() => expect(skipBeat).toHaveBeenCalled());
+    await Promise.all(skipBeat.mock.results.map((result) => result.value));
     expect(rollBack).not.toHaveBeenCalled();
     expect(rollForward).not.toHaveBeenCalled();
   });
