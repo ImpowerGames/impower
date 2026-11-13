@@ -10,6 +10,7 @@ export interface InsertEditorConstructParams {
   textDocument: TextDocumentIdentifier;
   construct: string;
   name?: string;
+  reference?: string;
 }
 
 export interface InsertEditorConstructResult {

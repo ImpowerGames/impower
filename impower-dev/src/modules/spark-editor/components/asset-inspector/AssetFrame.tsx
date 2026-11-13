@@ -1,4 +1,4 @@
-import { Thumbnail, ZoomFrame } from "@impower/impower-ui/components";
+import { Lightbox, Thumbnail, ZoomFrame } from "@impower/impower-ui/components";
 import { useEffect, useState } from "preact/hooks";
 import type { InspectedAsset } from "../../utils/assetDetails";
 import SoundFrame from "./SoundFrame";
@@ -149,28 +149,46 @@ function PictureFrame({
   asset,
   pixels,
   picture,
+  onFull,
 }: {
   asset: InspectedAsset;
   pixels?: { width: number; height: number } | null;
   picture?: string | null;
+  onFull?: (open: boolean) => void;
 }) {
   const [brokenSrc, setBrokenSrc] = useState<string | undefined>(undefined);
+  const [full, setFull] = useState(false);
   const src = picture === undefined ? asset.src : picture;
   const failed = picture === null || (!!src && brokenSrc === src);
+  const ratio = pixels ? pixels.width / pixels.height : undefined;
+  const view = (open: boolean) => {
+    setFull(open);
+    onFull?.(open);
+  };
+  const image = () =>
+    src ? (
+      <div class="absolute inset-0" onErrorCapture={() => setBrokenSrc(src)}>
+        <Thumbnail size="fill" fit="contain" src={src} class="bg-transparent" />
+      </div>
+    ) : null;
   return (
-    <ZoomFrame
-      label={asset.name}
-      zoomable={!failed}
-      backdrop={failed ? "none" : "checker"}
-      ratio={pixels ? pixels.width / pixels.height : undefined}
-    >
-      {src ? (
-        <div class="absolute inset-0" onErrorCapture={() => setBrokenSrc(src)}>
-          <Thumbnail size="fill" fit="contain" src={src} class="bg-transparent" />
-        </div>
-      ) : null}
-      {failed && <FrameFailure>This picture could not be shown.</FrameFailure>}
-    </ZoomFrame>
+    <>
+      <ZoomFrame
+        label={asset.name}
+        zoomable={!failed}
+        backdrop={failed ? "none" : "checker"}
+        ratio={ratio}
+        onExpand={failed || !src ? undefined : () => view(true)}
+      >
+        {image()}
+        {failed && <FrameFailure>This picture could not be shown.</FrameFailure>}
+      </ZoomFrame>
+      <Lightbox label={`${asset.name} full size`} open={full && !failed} onOpenChange={view}>
+        <ZoomFrame label={asset.name} fit="screen" zoomable backdrop="checker" ratio={ratio}>
+          {image()}
+        </ZoomFrame>
+      </Lightbox>
+    </>
   );
 }
 
@@ -180,11 +198,12 @@ export type AssetFrameProps = {
   picture?: string | null;
   read: (path: string) => Promise<string>;
   onSeconds: (seconds: number) => void;
+  onFull?: (open: boolean) => void;
 };
 
-export default function AssetFrame({ asset, pixels, picture, read, onSeconds }: AssetFrameProps) {
+export default function AssetFrame({ asset, pixels, picture, read, onSeconds, onFull }: AssetFrameProps) {
   if (asset.type === "image") {
-    return <PictureFrame asset={asset} pixels={pixels} picture={picture} />;
+    return <PictureFrame asset={asset} pixels={pixels} picture={picture} onFull={onFull} />;
   }
   if (asset.type === "video") {
     return <VideoFrame asset={asset} onSeconds={onSeconds} />;

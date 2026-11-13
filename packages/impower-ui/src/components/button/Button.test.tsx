@@ -75,6 +75,25 @@ describe("Button kinds", () => {
     expect(css).toMatch(/\[aria-pressed="true"\][^{]*\{[^}]*background-color: var\(--tint\)/);
   });
 
+  it("draws a menu field 38px tall on the page colour with a 44px target, its edge in the accent when changed or open", async () => {
+    const classes = buttonVariants({ variant: "field", size: "field" });
+    for (const name of [
+      "min-h-[38px]",
+      "bg-bg",
+      "border-edge",
+      "justify-between",
+      "data-[changed]:border-accent",
+      "aria-expanded:border-accent",
+      "before:-inset-y-[3px]",
+    ]) {
+      expect(classes).toContain(name);
+    }
+    const css = await packageCss(classes.split(" "));
+    expect(css).toMatch(/\[data-changed\][^{]*\{[^}]*border-color: var\(--accent\)/);
+    expect(css).toMatch(/\[aria-expanded="true"\][^{]*\{[^}]*border-color: var\(--accent\)/);
+    expect(css).toMatch(/:before \{[^}]*inset-block: -3px/);
+  });
+
   it("draws every kind with the one control radius except the phone pill", () => {
     for (const variant of VARIANTS) {
       expect(buttonVariants({ variant, size: "default" })).toContain("rounded-control");

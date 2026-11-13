@@ -742,7 +742,7 @@ export class ScriptEditorController {
       InsertEditorConstructParams
     >,
   ) => {
-    const { textDocument, construct, name } = message.params;
+    const { textDocument, construct, name, reference } = message.params;
     const view = this._view;
     if (!view || textDocument.uri !== this._textDocument?.uri) {
       return undefined;
@@ -754,12 +754,12 @@ export class ScriptEditorController {
     const startState = view.state;
     const plan =
       structure && isInsertConstruct(construct)
-        ? planConstruct(view, construct, structure, name)
+        ? planConstruct(view, construct, structure, name, reference)
         : null;
     const inserted =
       !!structure &&
       isInsertConstruct(construct) &&
-      insertConstruct(construct, structure, name)(view);
+      insertConstruct(construct, structure, name, reference)(view);
     this.endAudition(
       inserted && plan ? this.auditionOf(startState, plan) : undefined,
     );

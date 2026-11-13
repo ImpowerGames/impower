@@ -1320,6 +1320,31 @@ describe("insertConstruct command", () => {
     expect(editor.state.doc.toString()).toContain(lines("  Hello.", "  ((play sound door))"));
   });
 
+  it("writes a whole reference as it is given, where the construct goes, with the caret after it, in one undo step", () => {
+    const source = lines("scene start", "  Hello.", "end", "");
+    const caret = caretAt(source, "Hello.");
+    const written = (
+      [
+        ["portrait", "[[imani@night:happy]]"],
+        ["backdrop", "[[show backdrop harbor:dusk]]"],
+      ] as const
+    ).map(([construct, reference]) => {
+      const plan = planInsertion(source, caret, construct, structureOf(source), undefined, reference)!;
+      const text = source.slice(0, plan.from) + plan.insert + source.slice(plan.to);
+      return [text, plan.anchor === plan.head && text.slice(0, plan.head).endsWith(reference)];
+    });
+    expect(written).toEqual([
+      [lines("scene start", "  Hello.", "  [[imani@night:happy]]", "end", ""), true],
+      [lines("scene start", "  Hello.", "  [[show backdrop harbor:dusk]]", "end", ""), true],
+    ]);
+    const editor = mount(source, caret);
+    expect(insertConstruct("portrait", structureOf(source), undefined, "[[imani:happy]]")(editor)).toBe(true);
+    expect(editor.state.doc.toString()).toBe(lines("scene start", "  Hello.", "  [[imani:happy]]", "end", ""));
+    expect(editor.state.sliceDoc(0, editor.state.selection.main.head).endsWith("[[imani:happy]]")).toBe(true);
+    expect(undo(editor)).toBe(true);
+    expect(editor.state.doc.toString()).toBe(source);
+  });
+
   it("does nothing outside a scene or in a read-only script", () => {
     expect(
       insertConstruct("branch", structureOf(SCRIPT))(mount(SCRIPT, 0)),

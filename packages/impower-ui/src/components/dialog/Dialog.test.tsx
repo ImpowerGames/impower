@@ -8,6 +8,7 @@ import {
   DialogActions,
   DialogDescription,
   DialogTitle,
+  Lightbox,
   Sheet,
   type DialogProps,
   type SheetSize,
@@ -359,6 +360,79 @@ describe("Sheet and the responsive Dialog", () => {
     await settle(50);
     expect(dialog()!.className).not.toContain("rounded-t-card");
     expect(dialog()!.className).toContain("max-w-sm");
+  });
+});
+
+describe("Lightbox under preact/compat", () => {
+  function LightboxHarness() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)}>
+          View full size
+        </button>
+        <Lightbox label="harbor full size" open={open} onOpenChange={setOpen}>
+          <img alt="" data-picture />
+        </Lightbox>
+      </>
+    );
+  }
+
+  const open = async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(<LightboxHarness />, host!));
+    const opener = host.querySelector("button")!;
+    opener.focus();
+    await act(async () => opener.click());
+    await settle(50);
+    return opener;
+  };
+
+  const closed = async () => {
+    await settle(DIALOG_TRANSITION_MS + 50);
+    await settle(10);
+    return dialog() === null;
+  };
+
+  it("covers the screen on the stage colour, named by its label, with focus inside", async () => {
+    await open();
+    const box = dialog()!;
+    expect(box.getAttribute("aria-modal")).toBe("true");
+    expect(document.getElementById(box.getAttribute("aria-labelledby")!)!.textContent).toBe("harbor full size");
+    expect(box.className).toContain("size-full");
+    expect(box.className).toContain("bg-stage");
+    expect(backdrop()!.className).toContain("items-stretch");
+    expect(box.contains(document.activeElement)).toBe(true);
+  });
+
+  it("closes on Escape and returns focus to the button that opened it", async () => {
+    const opener = await open();
+    expect(dialog()!.contains(document.activeElement)).toBe(true);
+    await pressEscape();
+    expect(await closed()).toBe(true);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("closes from its Close button and on a click beside the picture, but not on the picture", async () => {
+    const opener = await open();
+    await act(async () => dialog()!.querySelector<HTMLElement>("[data-picture]")!.click());
+    await settle(10);
+    expect(dialog()).not.toBeNull();
+    await act(async () => dialog()!.querySelector<HTMLElement>("[data-lightbox-stage]")!.click());
+    expect(await closed()).toBe(true);
+    expect(document.activeElement).toBe(opener);
+    await act(async () => opener.click());
+    await settle(50);
+    const close = dialog()!.querySelector<HTMLButtonElement>("[data-lightbox-close]")!;
+    expect(close.getAttribute("aria-label")).toBe("Close");
+    await act(async () => close.click());
+    expect(await closed()).toBe(true);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("gates its fade behind prefers-reduced-motion", async () => {
+    await open();
+    expect(dialog()!.className.split(" ")).toContain("motion-safe:transition-opacity");
   });
 });
 

@@ -164,6 +164,35 @@ describe("ZoomFrame", () => {
     expect(readout().textContent).toBe("272%");
   });
 
+  it("offers View full size only when asked, and its button neither zooms nor drags the picture", async () => {
+    expect((await mount(<ZoomFrame label="harbor" zoomable />)).querySelector("[data-zoom-expand]")).toBeNull();
+    let expanded = 0;
+    const frame = await mount(<ZoomFrame label="harbor" zoomable onExpand={() => (expanded += 1)} />);
+    const expand = frame.querySelector<HTMLButtonElement>("[data-zoom-expand]")!;
+    expect(expand.getAttribute("aria-label")).toBe("View full size");
+    expect(expand.hasAttribute("data-zoom-controls")).toBe(true);
+    const down = new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, pointerType: "mouse" });
+    await act(async () => {
+      expand.dispatchEvent(down);
+      expand.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    });
+    expect(down.defaultPrevented).toBe(false);
+    expect(frame.hasAttribute("data-zoomed")).toBe(false);
+    await click(expand);
+    expect(expanded).toBe(1);
+  });
+
+  it("fits a pane by width and the screen by both edges, square edged", async () => {
+    const pane = await mount(<ZoomFrame label="harbor" ratio={2} />);
+    expect(pane.className).toContain("w-full");
+    expect(pane.className).toContain("rounded-[10px]");
+    const screen = await mount(<ZoomFrame label="harbor" ratio={2} fit="screen" />);
+    expect(screen.className).toContain("w-[min(100vw,calc(100dvh*var(--frame-ratio)))]");
+    expect(screen.className).toContain("max-h-dvh");
+    expect(screen.className).toContain("rounded-none");
+    expect(screen.className).not.toContain("max-h-[40vh]");
+  });
+
   it("does not zoom on a double click on its own controls", async () => {
     const frame = await mount(<ZoomFrame label="harbor" zoomable />);
     await act(async () => {
