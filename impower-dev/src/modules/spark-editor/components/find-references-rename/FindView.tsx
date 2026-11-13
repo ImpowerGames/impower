@@ -50,6 +50,7 @@ export default function FindView() {
             ref={field}
             width="full"
             class="flex-1"
+            purpose="search"
             placeholder="Find"
             name="search"
             aria-label="Words to find"
@@ -80,6 +81,8 @@ export default function FindView() {
             placeholder={reading ? "Tap Edit to replace." : "Replace"}
             disabled={reading}
             name="replace"
+            purpose="literal"
+            enterkeyhint="search"
             aria-label="Replace with"
             value={snapshot.replacement}
             onValueChange={(value) =>

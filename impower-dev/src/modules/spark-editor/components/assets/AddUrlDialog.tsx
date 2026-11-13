@@ -5,6 +5,7 @@ import {
   DialogActions,
   DialogTitle,
   LinkIcon,
+  TextField,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 
@@ -48,9 +49,6 @@ export default function AddUrlDialog({
     onClose();
   };
 
-  const inputClass =
-    "h-11 w-full select-text rounded-control border border-edge bg-transparent px-3 text-sm text-ink placeholder:text-muted";
-
   return (
     <Dialog
       open={open}
@@ -71,13 +69,17 @@ export default function AddUrlDialog({
         </Button>
       </div>
 
-      <label class="mb-1 block text-xs font-medium text-foreground/60">
+      <label for="add-url-address" class="mb-1 block text-xs font-medium text-foreground/60">
         URL
       </label>
-      <input
+      <TextField
         ref={urlRef}
+        purpose="url"
+        size="tall"
+        width="full"
+        id="add-url-address"
         value={url}
-        onInput={(e) => setUrl((e.target as HTMLInputElement).value)}
+        onValueChange={setUrl}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -85,17 +87,21 @@ export default function AddUrlDialog({
           }
         }}
         placeholder="https://cdn.example.com/image.png"
-        class={`mb-3 ${inputClass}`}
+        class="mb-3"
       />
 
-      <label class="mb-1 block text-xs font-medium text-foreground/60">
+      <label for="add-url-name" class="mb-1 block text-xs font-medium text-foreground/60">
         Name
       </label>
-      <input
+      <TextField
+        purpose="literal"
+        size="tall"
+        width="full"
+        id="add-url-name"
         value={displayName}
-        onInput={(e) => {
+        onValueChange={(next) => {
           setNameEdited(true);
-          setName((e.target as HTMLInputElement).value);
+          setName(next);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -104,7 +110,7 @@ export default function AddUrlDialog({
           }
         }}
         placeholder="asset"
-        class={`mb-5 ${inputClass}`}
+        class="mb-5"
       />
 
       <DialogActions>
