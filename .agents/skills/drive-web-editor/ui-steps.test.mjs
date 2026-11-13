@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, DRIVER_PREVIEW_KEY, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 import { NAMED_STEPS } from "./steps.mjs";
 
@@ -834,6 +834,25 @@ await asyncCheck("the preview is revealed the way an author does, by the title b
   const noPane = await revealPreview(stuck.page, { timeout: 10 });
   assert.equal(noPane.revealed, true, "a press that showed nothing still leaves the claim for the run to hide and release");
   assert.match(noPane.reason, /the preview pane did not show within 0\.01 s of pressing Show the preview/);
+});
+
+check("the saved-hidden check reads only the loaded project's workspace, so another project's saved preview cannot hold a run", () => {
+  const read = (entries) => {
+    const saved = globalThis.localStorage;
+    globalThis.localStorage = { getItem: (key) => entries[key] ?? null };
+    try {
+      return previewSavedHidden();
+    } finally {
+      globalThis.localStorage = saved;
+    }
+  };
+  const revealed = JSON.stringify({ preview: { revealed: true } });
+  const hidden = JSON.stringify({ preview: { revealed: false } });
+  assert.equal(read({ "workspace/local": hidden, "workspace/other": revealed }), true);
+  assert.equal(read({ "workspace/local": revealed }), false);
+  assert.equal(read({ project: "p1", "workspace/p1": revealed, "workspace/local": hidden }), false);
+  assert.equal(read({ project: "p1", "workspace/p1": hidden }), true);
+  assert.equal(read({}), true);
 });
 
 check("the steps whose surface sits in the preview pane reveal it first, every reveal a step names exists, and every built step has a body", () => {

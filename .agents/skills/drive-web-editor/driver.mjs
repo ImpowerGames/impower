@@ -1770,6 +1770,8 @@ async function verify(args, deps = liveDeps) {
           return result;
         }
       }
+      const reclaimed = await (deps.reclaimPreview ?? reclaimDriverPreview)(page);
+      if (reclaimed) result.previewReclaimed = reclaimed;
       const shell = await deps.ensureScriptEditor(page);
       if (shell.switched) result.switchedToLogic = true;
       if (!shell.present) {
@@ -2584,15 +2586,12 @@ export function previewOwnership(page, op) {
 }
 
 export function previewSavedHidden() {
-  return Object.keys(localStorage)
-    .filter((key) => key.startsWith("workspace/"))
-    .every((key) => {
-      try {
-        return !JSON.parse(localStorage.getItem(key))?.preview?.revealed;
-      } catch {
-        return true;
-      }
-    });
+  const saved = localStorage.getItem(`workspace/${localStorage.getItem("project") || "local"}`);
+  try {
+    return !JSON.parse(saved)?.preview?.revealed;
+  } catch {
+    return true;
+  }
 }
 
 export async function revealPreview(page, { timeout = 10_000 } = {}) {
@@ -2640,6 +2639,7 @@ export async function hidePreview(page, { timeout = 5000 } = {}) {
 
 export async function reclaimDriverPreview(page) {
   if ((await previewOwnership(page, "read").catch(() => false)) !== true) return null;
+  await page.locator(`${PREVIEW_PANE_SELECTOR}, ${SHOW_PREVIEW_SELECTOR}`).first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
   const hidden = await hidePreview(page);
   return hidden.hidden ? { restored: true } : { restored: false, reason: `an earlier run revealed the preview pane and ended before hiding it, and it could not be hidden now: ${hidden.reason}` };
 }
