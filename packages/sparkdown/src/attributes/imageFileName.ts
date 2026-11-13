@@ -18,6 +18,7 @@ export interface ImagePicture {
   name: string;
   alternate: string | null;
   path?: string;
+  duplicates: string[];
   layers: ImageLayerFile[];
   unnumbered: string[];
 }
@@ -37,7 +38,7 @@ export const stemOf = (path: string): string => {
   return dot > 0 ? leaf.slice(0, dot) : leaf;
 };
 
-export const stackBaseOf = (path: string): string => stemOf(path).split(/[@~]/)[0]!;
+export const thingNameOf = (name: string): string => name.split(/[@~]/)[0]!;
 
 export const stackNameOf = (base: string): string => {
   const dot = base.indexOf(".");
@@ -54,14 +55,21 @@ export const imageFileNameOf = (path: string): ImageFileName => {
   const stem = stemOf(path);
   const cut = rasterLayerOfPath(path) ? -1 : stem.indexOf("~");
   const picture = cut < 0 ? stem : stem.slice(0, cut);
-  const at = picture.indexOf("@");
+  const decoded = picture.replaceAll("%40", "@");
+  const at = decoded.indexOf("@");
   return {
     name: stackNameOf(picture),
     picture,
-    alternate: at < 0 ? null : picture.slice(at + 1),
+    alternate: at < 0 ? null : decoded.slice(at + 1),
     ...(cut < 0 ? {} : layerOf(stem.slice(cut + 1))),
   };
 };
+
+export const encodedAssetNameOf = (path: string, type: string): string =>
+  type === "image" ? imageFileNameOf(path).name : leafOf(path).split(".")[0]!;
+
+export const assetNameOf = (path: string, type: string): string =>
+  encodedAssetNameOf(path, type).replaceAll("%40", "@");
 
 export const imageMemberOf = (file: ImageFileName): string =>
   file.layer === undefined
@@ -85,27 +93,34 @@ export const imageThingsOf = (paths: Iterable<string>): ImageThing[] => {
   for (const path of paths) {
     if (rasterLayerOfPath(path)) continue;
     const file = imageFileNameOf(path);
-    const name = file.name.replaceAll("%40", "@");
+    const name = assetNameOf(path, "image");
     const picture = pictures.get(name) ?? {
       name,
       alternate: name.includes("@") ? name.slice(name.indexOf("@") + 1) : null,
+      duplicates: [],
       layers: [],
       unnumbered: [],
     };
     pictures.set(name, picture);
     if (file.layer === undefined) {
-      if (picture.path === undefined || compare(path, picture.path) < 0) picture.path = path;
+      if (picture.path === undefined || compare(path, picture.path) < 0) {
+        if (picture.path !== undefined) picture.duplicates.push(picture.path);
+        picture.path = path;
+      } else {
+        picture.duplicates.push(path);
+      }
     } else {
       picture.layers.push({ path, layer: file.layer, ...(file.order === undefined ? {} : { order: file.order }) });
     }
   }
   const things = new Map<string, ImageThing>();
   for (const picture of [...pictures.values()].sort((a, b) => compare(a.name, b.name))) {
+    picture.duplicates.sort(compare);
     picture.layers.sort(byLayerStacking);
     if (picture.layers.some((layer) => layer.order !== undefined)) {
       picture.unnumbered = picture.layers.filter((layer) => layer.order === undefined).map((layer) => layer.path);
     }
-    const thingName = picture.name.split(/[@~]/)[0]!;
+    const thingName = thingNameOf(picture.name);
     const thing = things.get(thingName) ?? { name: thingName, pictures: [] };
     things.set(thingName, thing);
     thing.pictures.push(picture);
