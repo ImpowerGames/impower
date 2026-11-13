@@ -17,6 +17,8 @@ const { NameRow } =
   await import("../../src/modules/spark-editor/components/library-page");
 const { availableName } =
   await import("../../src/modules/spark-editor/utils/fileListModel");
+const { snackbar } =
+  await import("../../src/modules/spark-editor/utils/snackbar");
 const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 
@@ -137,6 +139,66 @@ describe("the focus rule", () => {
       expect(committed).toEqual([typed]);
     }
     render(null, rowHost);
+  });
+
+  it.each([
+    ["a row", "[data-bar-button]", "beta", "That name is already in use in this folder."],
+    ["a bottom-bar tab", "[data-nav-button]", "beta", "That name is already in use in this folder."],
+    ["a row", "[data-bar-button]", "gamma", undefined],
+  ])("activates %s pressed outside a rename of %s, keeping the reason a rejected name was not applied", async (_target, selector, typed, message) => {
+    snackbar.value = null;
+    const committed: string[] = [];
+    const activated = vi.fn();
+    const rowHost = host!.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        h(NameRow, {
+          icon: null,
+          label: "Rename alpha",
+          initial: "alpha",
+          suffix: ".sd",
+          onCommit: async (name: string) => {
+            availableName(name, ["beta.sd"], ".sd");
+            committed.push(name);
+          },
+          onCancel: vi.fn(),
+        }),
+        rowHost,
+      ),
+    );
+    const input = rowHost.querySelector("input")!;
+    await act(async () => {
+      input.value = typed;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const target = the(selector);
+    const activate = () => {
+      activated();
+      render(null, rowHost);
+    };
+    target.addEventListener("click", activate);
+    let prevented = false;
+    await act(async () => {
+      prevented = press(target);
+      if (!prevented) {
+        target.focus();
+      }
+    });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+    await act(async () => {
+      target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    target.removeEventListener("click", activate);
+    expect(prevented).toBe(false);
+    expect(activated).toHaveBeenCalledTimes(1);
+    expect(rowHost.querySelector("input")).toBeNull();
+    if (message) {
+      expect(committed).toEqual([]);
+      expect(snackbar.value?.message).toBe(message);
+    } else {
+      expect(committed).toEqual([typed]);
+      expect(snackbar.value).toBeNull();
+    }
   });
 
   it("leaves a name field alone when the press is inside it", () => {

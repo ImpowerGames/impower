@@ -1,6 +1,7 @@
 import { ListRow, TextField } from "@impower/impower-ui/components";
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { showSnackbar } from "../../utils/snackbar";
 import { closeWatcher } from "../desktop-shell";
 
 export type NameRowProps = {
@@ -29,6 +30,8 @@ export default function NameRow({
   const [error, setError] = useState("");
   const busy = useRef(false);
   const cancelled = useRef(false);
+  const mounted = useRef(true);
+  const rejection = useRef("");
 
   useLayoutEffect(() => {
     input.current?.focus();
@@ -48,6 +51,21 @@ export default function NameRow({
 
   useEffect(() => closeWatcher(() => cancelRef.current()), []);
 
+  useEffect(
+    () => () => {
+      mounted.current = false;
+      if (rejection.current && !cancelled.current) {
+        showSnackbar({ message: rejection.current });
+      }
+    },
+    [],
+  );
+
+  const reject = (message: string) => {
+    rejection.current = message;
+    setError(message);
+  };
+
   const commit = async (submitted: boolean) => {
     if (busy.current || cancelled.current) {
       return;
@@ -59,10 +77,18 @@ export default function NameRow({
       return;
     }
     busy.current = true;
+    rejection.current = "";
     try {
       await onCommit(name);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      if (!mounted.current) {
+        if (!cancelled.current) {
+          showSnackbar({ message });
+        }
+        return;
+      }
+      reject(message);
       input.current?.focus();
     } finally {
       busy.current = false;
@@ -88,7 +114,7 @@ export default function NameRow({
             class="px-2 text-[14px]"
             onValueChange={(next) => {
               setValue(next);
-              setError("");
+              reject("");
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
