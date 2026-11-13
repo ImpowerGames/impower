@@ -5,6 +5,7 @@ export interface VSCodeConfigDefinition {
   };
   brackets?: string[][];
   autoClosingPairs?: { open: string; close: string; notIn?: string[] }[];
+  autoCloseBefore?: string;
   surroundingPairs?: string[][];
   wordChars?: string;
   wordPattern?: {

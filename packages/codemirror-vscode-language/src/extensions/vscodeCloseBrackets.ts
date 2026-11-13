@@ -4,6 +4,11 @@ import {
   EditorSelection,
   EditorState,
   Facet,
+  MapMode,
+  RangeSet,
+  RangeValue,
+  StateEffect,
+  StateField,
   type Extension,
 } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -54,7 +59,57 @@ const longest = (pairs: readonly AutoClosingPair[]) =>
     undefined,
   );
 
-export const autoCloseBrackets =Facet.define<boolean, boolean>({
+const DEFAULT_WORD_SEPARATORS = "`~!@#$%^&*()-=+[{]}\\|;:'\",.<>/?";
+
+const isWordChar = (ch: string) =>
+  ch !== "" && !/\s/.test(ch) && !DEFAULT_WORD_SEPARATORS.includes(ch);
+
+const isBeforeClosingPair = (
+  pairs: readonly AutoClosingPair[],
+  lineAfter: string,
+) =>
+  !pairs.some(({ open }) => open && lineAfter.startsWith(open)) &&
+  pairs.some(({ close }) => close && lineAfter.startsWith(close));
+
+const autoClosedEffect = StateEffect.define<number>({
+  map: (value, mapping) => mapping.mapPos(value, -1, MapMode.TrackAfter) ?? undefined,
+});
+
+const autoClosedMarker = new (class extends RangeValue {})();
+autoClosedMarker.startSide = 1;
+autoClosedMarker.endSide = -1;
+
+const autoClosedState = StateField.define<RangeSet<typeof autoClosedMarker>>({
+  create: () => RangeSet.empty,
+  update(value, tr) {
+    if (tr.selection) {
+      const lineStart = tr.state.doc.lineAt(tr.selection.main.head).from;
+      const prevLineStart = tr.startState.doc.lineAt(
+        tr.startState.selection.main.head,
+      ).from;
+      if (lineStart != tr.changes.mapPos(prevLineStart, -1)) {
+        value = RangeSet.empty;
+      }
+    }
+    value = value.map(tr.changes);
+    for (const effect of tr.effects) {
+      if (effect.is(autoClosedEffect)) {
+        value = value.update({
+          add: [autoClosedMarker.range(effect.value, effect.value + 1)],
+        });
+      }
+    }
+    if (tr.selection) {
+      const heads = tr.state.selection.ranges.map((range) => range.head);
+      value = value.update({
+        filter: (from) => heads.some((head) => head <= from),
+      });
+    }
+    return value;
+  },
+});
+
+export const autoCloseBrackets = Facet.define<boolean, boolean>({
   combine: (values) => values.at(-1) ?? true,
 });
 
@@ -112,10 +167,42 @@ export function vscodeCloseBrackets(
       ),
     );
 
-    return containedPair &&
-      state.sliceDoc(pos, line.to).startsWith(containedPair.close)
+    const lineAfter = state.sliceDoc(pos, line.to);
+    if (
+      lineAfter &&
+      !isBeforeClosingPair(pairs, lineAfter) &&
+      !(autoCloseBeforeAt(state, pos) ?? "").includes(lineAfter[0]!)
+    ) {
+      return null;
+    }
+
+    if (
+      pair.open.length === 1 &&
+      (insert === '"' || insert === "'") &&
+      pos > line.from &&
+      isWordChar(state.sliceDoc(pos - 1, pos))
+    ) {
+      return null;
+    }
+
+    return containedPair && lineAfter.startsWith(containedPair.close)
       ? pair.close.slice(0, pair.close.length - containedPair.close.length)
       : pair.close;
+  };
+
+  const autoCloseBeforeAt = (state: EditorState, pos: number) =>
+    configOf(configs, languageAt(reader, state, pos, documentLanguage), documentLanguage)
+      ?.autoCloseBefore;
+
+  const overtypes = (state: EditorState, pos: number, insert: string) => {
+    if (insert.length !== 1 || state.sliceDoc(pos, pos + 1) !== insert) {
+      return false;
+    }
+    let found = false;
+    state.field(autoClosedState).between(pos, pos + 1, (from) => {
+      if (from === pos) found = true;
+    });
+    return found && pairsAt(state, pos).some(({ close }) => close === insert);
   };
 
   const inputHandler = EditorView.inputHandler.of((view, from, to, insert) => {
@@ -133,20 +220,45 @@ export function vscodeCloseBrackets(
     }
 
     const state = view.state;
+    if (state.selection.ranges.some((range) => !range.empty)) {
+      return false;
+    }
+
+    if (state.selection.ranges.every((range) => overtypes(state, range.from, insert))) {
+      view.dispatch(
+        state.update({
+          selection: EditorSelection.create(
+            state.selection.ranges.map((range) =>
+              EditorSelection.cursor(range.from + insert.length),
+            ),
+            state.selection.mainIndex,
+          ),
+          userEvent: "input.type",
+          scrollIntoView: true,
+        }),
+      );
+      return true;
+    }
+
     const closes = state.selection.ranges.map((range) =>
       closeAt(state, range.from, insert),
     );
 
-    if (closes.every((close) => close === null)) {
+    if (closes.some((close) => close === null)) {
       return false;
     }
 
     let index = 0;
     const tr = state.changeByRange((range) => {
       const close = closes[index++] ?? "";
+      const at = range.from + insert.length;
       return {
         changes: { from: range.from, to: range.to, insert: insert + close },
-        range: EditorSelection.cursor(range.from + insert.length),
+        range: EditorSelection.cursor(at),
+        effects:
+          close.length === 1
+            ? autoClosedEffect.of(at)
+            : [],
       };
     });
 
@@ -162,6 +274,7 @@ export function vscodeCloseBrackets(
 
   return [
     closeBracketsState,
+    autoClosedState,
     EditorState.languageData.of((state, pos) => [
       {
         get closeBrackets() {

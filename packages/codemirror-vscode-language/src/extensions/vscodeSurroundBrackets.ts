@@ -70,10 +70,7 @@ const bracketState = StateField.define<RangeSet<typeof surroundedBracket>>({
 const surroundBracketsOf = (
   config: VSCodeConfigDefinition | undefined,
 ): SurroundBracketConfig => {
-  const autoClosingPairs = config?.autoClosingPairs ?? [];
-  const pairs = (config?.surroundingPairs ?? []).filter(
-    ([open]) => !autoClosingPairs.some((pair) => pair.open === open),
-  );
+  const pairs = config?.surroundingPairs ?? [];
   return {
     brackets: pairs.map(([open]) => open!),
     before: pairs.map(([, close]) => close!).join(""),
