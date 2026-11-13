@@ -158,7 +158,7 @@ const BRACKET_CONTROLS = [
   ...variables["MOVIE_CONTROL_KEYWORDS"]!,
 ];
 const AUDIO_CONTROLS = variables["AUDIO_CONTROL_KEYWORDS"]!;
-const RAW_VALUE_WORDS = DIRECTIVE_VALUE_WORDS.filter((word) => word === "with" || word === "ease");
+const RAW_VALUE_WORDS: readonly string[] = DIRECTIVE_VALUE_WORDS.filter((word) => word === "with" || word === "ease");
 
 interface Reading {
   links: string[];
