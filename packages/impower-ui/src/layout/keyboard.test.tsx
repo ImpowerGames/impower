@@ -7,6 +7,7 @@ import { fitToKeyboard, keyboard, KEYBOARD_MIN_HEIGHT } from "./keyboard";
 const KEYBOARD_HEIGHT = 320;
 
 let keyboardOpen = false;
+let keyboardGrowth = 0;
 let offsetTop = 0;
 let scale = 1;
 let viewportListeners: Map<string, Set<() => void>>;
@@ -19,7 +20,7 @@ const hold = (...args: Parameters<typeof fitToKeyboard>) => {
 };
 
 const visibleHeight = () =>
-  window.innerHeight - (keyboardOpen ? KEYBOARD_HEIGHT : 0);
+  window.innerHeight - (keyboardOpen ? KEYBOARD_HEIGHT + keyboardGrowth : 0);
 
 const emit = (type: "resize" | "scroll") =>
   viewportListeners.get(type)?.forEach((listener) => listener());
@@ -39,6 +40,7 @@ const rootReleased = () =>
 
 beforeEach(() => {
   keyboardOpen = false;
+  keyboardGrowth = 0;
   offsetTop = 0;
   scale = 1;
   viewportListeners = new Map();
@@ -59,9 +61,7 @@ beforeEach(() => {
     removeEventListener: (type: string, listener: () => void) =>
       viewportListeners.get(type)?.delete(listener),
   });
-  vi.spyOn(window, "scrollTo").mockImplementation(() => {
-    offsetTop = 0;
-  });
+  vi.spyOn(window, "scrollTo").mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -108,15 +108,15 @@ describe("fitting the root to the on-screen keyboard", () => {
     release();
   });
 
-  it("pans the page back to the top when the browser scrolls it to reveal a field", () => {
+  it("asks the page to scroll back to the top when the browser has panned it", () => {
     const release = hold();
     setKeyboard(true);
+    expect(window.scrollTo).not.toHaveBeenCalled();
 
     offsetTop = 112;
     emit("scroll");
 
     expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
-    expect(offsetTop).toBe(0);
     expect(rootFitted()).toBe(true);
     release();
   });
@@ -146,6 +146,9 @@ describe("fitting the root to the on-screen keyboard", () => {
     vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT + 48);
     emit("resize");
     expect(keyboard()).toEqual({ open: true, height: KEYBOARD_HEIGHT - 48 });
+    vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT - 48);
+    emit("resize");
+    expect(keyboard()).toEqual({ open: true, height: KEYBOARD_HEIGHT + 48 });
 
     vi.stubGlobal("innerHeight", full);
     emit("resize");
@@ -207,9 +210,16 @@ describe("fitting the root to the on-screen keyboard", () => {
 
     setKeyboard(true);
     emit("scroll");
+    keyboardGrowth = 48;
+    emit("resize");
+    emit("scroll");
     setKeyboard(false);
 
-    expect(seen).toEqual([`true:${KEYBOARD_HEIGHT}`, "false:0"]);
+    expect(seen).toEqual([
+      `true:${KEYBOARD_HEIGHT}`,
+      `true:${KEYBOARD_HEIGHT + 48}`,
+      "false:0",
+    ]);
     release();
   });
 

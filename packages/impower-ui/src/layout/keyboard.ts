@@ -46,7 +46,7 @@ const measureFullHeight = () => {
   lastInnerHeight = window.innerHeight;
   if (
     window.innerWidth !== fullHeightWidth ||
-    (shorter && !takesText(focusedElement()))
+    (shorter && !last.open && !takesText(focusedElement()))
   ) {
     fullHeightWidth = window.innerWidth;
     fullHeight = window.innerHeight;
