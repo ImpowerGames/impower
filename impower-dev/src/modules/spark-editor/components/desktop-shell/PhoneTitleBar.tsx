@@ -41,7 +41,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
     <header
       data-phone-title-bar
       class={cn(
-        "relative z-20 flex h-[54px] flex-none items-center gap-[7px] border-b border-edge bg-bg pr-1 pl-2.5",
+        "hit-bound relative z-20 flex h-[54px] flex-none items-center gap-[7px] border-b border-edge bg-bg pr-1 pl-2.5",
         "motion-safe:transition-shadow motion-safe:duration-150",
         scrolled && "shadow-[0_7px_10px_-4px_var(--editor-sticky-shadow)]",
       )}
@@ -54,7 +54,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
           <div class="flex min-w-0 flex-1 flex-col items-start -ml-1.5">
             <ProjectNameField />
             <div class="w-full min-w-0 pl-1.5">
-              <div class="relative z-[2] flex items-center overflow-hidden whitespace-nowrap fade-edge">
+              <div class="z-[2] flex items-center fade-edge-over">
                 <SyncStatusLine />
                 <StoryProblemCount />
               </div>
