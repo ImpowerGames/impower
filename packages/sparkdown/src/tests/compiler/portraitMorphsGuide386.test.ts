@@ -106,6 +106,13 @@ describe("the talking section of the portrait morphs guide chapter", () => {
     for (const text of own.slice(1)) expect(diagnosticsOf(text)).toEqual([]);
   });
 
+  test("the voiced characters the section names are the built-in typewriter's", () => {
+    const builtins = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../../compiler/builtins/builtins.sd"), "utf8");
+    expect(builtins).toContain("voiced = @/([\\p{L}\\p{N}']+)/u");
+    expect(talking()).toContain("letters, digits and the apostrophe unless the typewriter sets another");
+    expect(talking()).toContain("- Other punctuation, spaces");
+  });
+
   test("the timing table lists `trigger` and Portraits links to the section", () => {
     expect(chapter()).toMatch(/\| `trigger` \| `appear` \|/);
     expect(readFileSync(resolve(GUIDE, "Portraits.md"), "utf8")).toContain("(./PortraitMorphs.md#talking)");

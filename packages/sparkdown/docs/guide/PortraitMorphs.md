@@ -709,9 +709,9 @@ When a character speaks, every portrait of theirs on screen flaps, wherever it w
 
 When the line's block plays a clip on the `voice` channel, as the third line plays `raffles_laugh`, the mouth flaps for as long as the clip is heard: from its start until it ends, or until the next line stops it. The text does not matter then, so skipping the typing leaves the clip and the mouth going, and the mouth keeps flapping through silences inside the clip. A voice clip that cannot play counts as no clip.
 
-Otherwise the mouth flaps while the line's voiced characters type: the characters the typewriter's `voiced` pattern matches, letters and digits unless the typewriter sets another, the same characters that make the character's voice beep. Each counts for its own letter pause, the typewriter's `letter_pause` divided by the text speed in force.
+Otherwise the mouth flaps while the line's voiced characters type: the characters the typewriter's `voiced` pattern matches, letters, digits and the apostrophe unless the typewriter sets another, the same characters that make the character's voice beep. Each counts for its own letter pause, the typewriter's `letter_pause` divided by the text speed in force.
 
-- Punctuation, spaces and the extra time a typewriter pause adds, such as a run of spaces, a dash or a spaced ellipsis, are not speech, so a pause in the typing is a pause in the flap.
+- Other punctuation, spaces and the extra time a typewriter pause adds, such as a run of spaces, a dash or a spaced ellipsis, are not speech, so a pause in the typing is a pause in the flap.
 - The character name and parenthetical at the top of a line are not speech.
 - A line with no voiced character, such as `. . .`, does not move the mouth. In `...AND THEN YOU DIE!` the mouth starts at the `A`.
 - Skipping the typing, so that the whole line shows at once, ends the speech.
