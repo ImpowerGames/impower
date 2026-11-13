@@ -231,7 +231,23 @@ import { WorkspaceConstants } from "../../src/modules/spark-editor/workspace/Wor
 import workspace, {
   savedWorkspaceState,
 } from "../../src/modules/spark-editor/workspace/WorkspaceStore";
-import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+import WorkspaceWindow, {
+  LAUNCH_LIMIT_MS,
+  LAUNCH_LIMIT_MESSAGE,
+} from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+import { snackbar } from "../../src/modules/spark-editor/utils/snackbar";
+import { STEP_REASONS } from "../../src/modules/spark-editor/workspace/stepStates";
+import {
+  LAUNCH_EVENTS,
+  launchPhaseOf,
+  type LaunchEvent,
+  type LaunchPhase,
+} from "../../src/modules/spark-editor/workspace/launchMachine";
+import statuses, {
+  NO_GAME_STATUSES,
+  shownStatuses,
+} from "../../src/modules/spark-editor/workspace/statuses/StatusesStore";
+import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { ProjectImportError } from "../../src/modules/spark-editor/workspace/projectImport";
 import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
 import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
@@ -239,6 +255,12 @@ import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloa
 beforeEach(() => {
   window.history.replaceState(null, "", window.location.pathname);
 });
+
+const runGame = (win: WorkspaceWindow) => {
+  win.connectPlayer();
+  win.toggleGameRunning();
+  win.syncGameStarted();
+};
 
 describe("WorkspaceWindow store transitions", () => {
   let win: WorkspaceWindow;
@@ -1148,7 +1170,7 @@ describe("Preview preferences", () => {
 
   it("stops a running game when the viewing mode changes", () => {
     const win = load();
-    win.startGame();
+    runGame(win);
     expect(workspace.current.preview.modes.game.running).toBe(true);
     win.setPreviewMode("screenplay");
     expect(workspace.current.preview.modes.game.running).toBe(false);
@@ -1156,7 +1178,7 @@ describe("Preview preferences", () => {
 
   it("keeps a running game when the viewing mode moves between Visual Novel and Interactive Fiction", () => {
     const win = load();
-    win.startGame();
+    runGame(win);
     win.setPreviewMode("textstream");
     expect(workspaceSettings.preferences.value.previewMode).toBe("textstream");
     expect(workspace.current.preview.modes.game.running).toBe(true);
@@ -1772,9 +1794,10 @@ describe("PLAY for a story with no start scene", () => {
   });
 
   it("stops showing a game as running when the player refuses a PLAY asked for before the refusal arrived", () => {
+    win.connectPlayer();
     win.toggleGameRunning();
     expect(started).toHaveLength(1);
-    expect(game().running).toBe(true);
+    expect(game().starting).toBe(true);
     compiled(STORY, NO_START_SCENE_MESSAGE);
     sendProtocolMessage(
       StartGameMessage.type.error(started[0]!.id, {
@@ -1783,15 +1806,410 @@ describe("PLAY for a story with no start scene", () => {
       }),
     );
     expect(game().running).toBe(false);
+    expect(game().starting).toBe(false);
     expect(play()?.getAttribute("aria-disabled")).toBe("true");
   });
 
   it("keeps a started game running when the player answers PLAY with success", () => {
+    win.connectPlayer();
     win.toggleGameRunning();
     sendProtocolMessage(
       StartGameMessage.type.response(started[0]!.id, { success: true }),
     );
     expect(game().running).toBe(true);
+  });
+});
+
+describe("PLAY pressed before the game player has connected", () => {
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+  let started: StartGameMessage.Request[] = [];
+  let stopped: unknown[] = [];
+
+  const listener = (e: Event) => {
+    if (!(e instanceof CustomEvent)) {
+      return;
+    }
+    if (StartGameMessage.type.isRequest(e.detail)) {
+      started.push(e.detail);
+    }
+    if (StopGameMessage.type.isRequest(e.detail)) {
+      stopped.push(e.detail);
+    }
+  };
+
+  const transport = () => {
+    render(h(PreviewTopBar, {}), container);
+    return container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Play From Here"], button[aria-label="Stop"]',
+    )!;
+  };
+
+  const answer = (success: boolean) =>
+    sendProtocolMessage(
+      success
+        ? StartGameMessage.type.response(started.at(-1)!.id, { success })
+        : StartGameMessage.type.error(started.at(-1)!.id, {
+            code: 1,
+            message: "The game could not be started",
+          }),
+    );
+
+  const game = () => workspace.current.preview.modes.game;
+
+  let before: typeof workspace.current;
+
+  beforeEach(() => {
+    before = workspace.current;
+    localStorage.clear();
+    started = [];
+    stopped = [];
+    snackbar.value = null;
+    window.addEventListener(MessageProtocol.event, listener);
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    workspace.current = {
+      ...workspace.current,
+      project: { ...workspace.current.project, id: "proj" },
+      preview: {
+        ...workspace.current.preview,
+        modes: { ...workspace.current.preview.modes, game: {} },
+      },
+    };
+    container = document.createElement("div");
+    document.body.append(container);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    render(null, container);
+    container.remove();
+    current.window = undefined;
+    window.removeEventListener(MessageProtocol.event, listener);
+    win.dispose();
+    workspace.current = before;
+  });
+
+  it("delivers a press made before the game preview has loaded to the player once it initializes", async () => {
+    Object.assign(Workspace.fs, {
+      getFiles: async () => ({}),
+      getDirectoryUri: async () => "file://local",
+    });
+    (Workspace as unknown as { configuration: unknown }).configuration = {
+      settings: {},
+    };
+    const stage = document.createElement("div");
+    document.body.append(stage);
+    const startsPosted = () =>
+      channels.all.flatMap((channel) =>
+        channel.posted.filter((m) => StartGameMessage.type.isRequest(m)),
+      );
+    try {
+      channels.all = [];
+      render(h(PreviewGame, {}), stage);
+      transport().click();
+      await vi.waitFor(() =>
+        expect(transport().getAttribute("aria-label")).toBe("Stop"),
+      );
+      stage.querySelector("iframe")!.dispatchEvent(new Event("load"));
+      await vi.waitFor(() => expect(startsPosted()).toHaveLength(1), {
+        timeout: 15000,
+      });
+      answer(true);
+      expect(game().running).toBe(true);
+      render(null, stage);
+      win.stopGame();
+      win.toggleGameRunning();
+      expect(started).toHaveLength(1);
+    } finally {
+      render(null, stage);
+      stage.remove();
+    }
+  }, 30000);
+
+  describe("walks every launch state against every event", () => {
+    type Setup =
+      | "idle"
+      | "idle with a player"
+      | "awaiting"
+      | "awaiting after an answered run"
+      | "awaiting after a refused start"
+      | "awaiting after a player-reported run"
+      | "starting"
+      | "running"
+      | "paused"
+      | "ended";
+    type Sent = "start" | "stop";
+    interface Row {
+      phase: LaunchPhase;
+      sent?: Sent[];
+      says?: boolean;
+      clears?: boolean;
+      then?: { advance: number; phase: LaunchPhase; says: boolean };
+    }
+
+    const ENDED_STATUSES = {
+      completion: null,
+      ending: { text: "Story ran out", hover: "", kind: "out" },
+    } as unknown as typeof NO_GAME_STATUSES;
+
+    const live = (phase: "running" | "paused" | "ended"): Record<LaunchEvent, Row> => ({
+      press: { phase: "idle", sent: ["stop"] },
+      stop: { phase: "idle", sent: ["stop"] },
+      connected: { phase },
+      lost: { phase: "idle", clears: true },
+      answered: { phase },
+      refused: { phase },
+      reported: { phase },
+      limit: { phase },
+      ended: { phase: "ended" },
+      exited: { phase: "idle" },
+    });
+
+    const idle = (press: Row): Record<LaunchEvent, Row> => ({
+      press,
+      stop: { phase: "idle" },
+      connected: { phase: "idle" },
+      lost: { phase: "idle", clears: true },
+      answered: { phase: "idle" },
+      refused: { phase: "idle" },
+      reported: { phase: "running", sent: ["start"] },
+      limit: { phase: "idle" },
+      ended: { phase: "idle" },
+      exited: { phase: "idle" },
+    });
+
+    const LIMIT_LEFT = 1000;
+
+    const awaiting: Record<LaunchEvent, Row> = {
+      press: { phase: "idle" },
+      stop: { phase: "idle" },
+      connected: { phase: "starting", sent: ["start"] },
+      lost: {
+        phase: "awaiting",
+        clears: true,
+        then: { advance: LIMIT_LEFT, phase: "idle", says: true },
+      },
+      answered: { phase: "awaiting" },
+      refused: { phase: "awaiting" },
+      reported: { phase: "awaiting" },
+      limit: { phase: "idle", says: true },
+      ended: { phase: "awaiting" },
+      exited: { phase: "awaiting" },
+    };
+
+    const EXPECTED: Record<Setup, Record<LaunchEvent, Row>> = {
+      idle: idle({ phase: "awaiting" }),
+      "idle with a player": idle({ phase: "starting", sent: ["start"] }),
+      awaiting,
+      "awaiting after an answered run": awaiting,
+      "awaiting after a refused start": awaiting,
+      "awaiting after a player-reported run": awaiting,
+      starting: {
+        press: { phase: "idle", sent: ["stop"] },
+        stop: { phase: "idle", sent: ["stop"] },
+        connected: {
+          phase: "starting",
+          then: { advance: LIMIT_LEFT, phase: "idle", says: true },
+        },
+        lost: {
+          phase: "awaiting",
+          clears: true,
+          then: { advance: LIMIT_LEFT, phase: "idle", says: true },
+        },
+        answered: { phase: "running" },
+        refused: { phase: "idle" },
+        reported: { phase: "running" },
+        limit: { phase: "idle", sent: ["stop"], says: true },
+        ended: { phase: "starting" },
+        exited: { phase: "idle" },
+      },
+      running: live("running"),
+      paused: live("paused"),
+      ended: live("ended"),
+    };
+
+    let sent: Sent[] = [];
+    let lastStart: StartGameMessage.Request | undefined;
+    const hear = (e: Event) => {
+      if (!(e instanceof CustomEvent)) {
+        return;
+      }
+      if (StartGameMessage.type.isRequest(e.detail)) {
+        sent.push("start");
+        lastStart = e.detail;
+      }
+      if (StopGameMessage.type.isRequest(e.detail)) {
+        sent.push("stop");
+      }
+    };
+
+    const reply = (success: boolean) =>
+      sendProtocolMessage(
+        success
+          ? StartGameMessage.type.response(lastStart?.id ?? "none", { success })
+          : StartGameMessage.type.error(lastStart?.id ?? "none", {
+              code: 1,
+              message: "The game could not be started",
+            }),
+      );
+
+    const SETUPS: Record<Setup, () => void> = {
+      idle: () => {},
+      "idle with a player": () => win.connectPlayer(),
+      awaiting: () => {
+        win.toggleGameRunning();
+        vi.advanceTimersByTime(LAUNCH_LIMIT_MS - LIMIT_LEFT);
+      },
+      "awaiting after an answered run": () => {
+        SETUPS.running();
+        win.disconnectPlayer();
+        SETUPS.awaiting();
+      },
+      "awaiting after a refused start": () => {
+        win.connectPlayer();
+        win.toggleGameRunning();
+        reply(false);
+        win.disconnectPlayer();
+        SETUPS.awaiting();
+      },
+      "awaiting after a player-reported run": () => {
+        win.connectPlayer();
+        win.syncGameStarted();
+        win.disconnectPlayer();
+        SETUPS.awaiting();
+      },
+      starting: () => {
+        win.connectPlayer();
+        win.toggleGameRunning();
+        vi.advanceTimersByTime(LAUNCH_LIMIT_MS - LIMIT_LEFT);
+      },
+      running: () => {
+        win.connectPlayer();
+        win.toggleGameRunning();
+        reply(true);
+      },
+      paused: () => {
+        SETUPS.running();
+        win.syncGamePaused(true);
+      },
+      ended: () => {
+        SETUPS.running();
+        win.syncGameEnded(true);
+      },
+    };
+
+    const EVENTS: Record<LaunchEvent, () => void> = {
+      press: () => win.toggleGameRunning(),
+      stop: () => win.stopGame(),
+      connected: () => win.connectPlayer(),
+      lost: () => win.disconnectPlayer(),
+      answered: () => reply(true),
+      refused: () => reply(false),
+      reported: () => win.syncGameStarted(),
+      limit: () => vi.advanceTimersByTime(LIMIT_LEFT),
+      ended: () => win.syncGameEnded(true),
+      exited: () => win.syncGameExited(),
+    };
+
+    const phase = () =>
+      launchPhaseOf(
+        game(),
+        (win as unknown as { _startGameRequestId?: unknown })._startGameRequestId !==
+          undefined,
+      );
+
+    const CONTROL: Record<LaunchPhase, string> = {
+      idle: "Play From Here",
+      awaiting: "Stop",
+      starting: "Stop",
+      running: "Stop",
+      paused: "Stop",
+      ended: "Stop",
+    };
+
+    const showsBadge = (p: LaunchPhase) => p === "awaiting" || p === "starting";
+
+    const expectBar = (p: LaunchPhase) => {
+      expect(phase()).toBe(p);
+      expect(transport().getAttribute("aria-label")).toBe(CONTROL[p]);
+      expect(
+        shownStatuses(statuses.statuses.value, "game", Boolean(game().starting)).some(
+          (status) => status.key === "starting",
+        ),
+      ).toBe(showsBadge(p));
+    };
+
+    const cases = (Object.keys(EXPECTED) as Setup[]).flatMap((setup) =>
+      LAUNCH_EVENTS.map((event) => [setup, event, EXPECTED[setup][event]] as const),
+    );
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      sent = [];
+      lastStart = undefined;
+      window.addEventListener(MessageProtocol.event, hear);
+    });
+
+    afterEach(() => {
+      window.removeEventListener(MessageProtocol.event, hear);
+      statuses.statuses.value = NO_GAME_STATUSES;
+    });
+
+    it.each(cases)("%s, then %s", (setup, event, row) => {
+      SETUPS[setup]();
+      statuses.statuses.value = ENDED_STATUSES;
+      snackbar.value = null;
+      sent = [];
+      EVENTS[event]();
+      expectBar(row.phase);
+      expect(sent).toEqual(row.sent ?? []);
+      expect(snackbar.value?.message ?? null).toBe(row.says ? LAUNCH_LIMIT_MESSAGE : null);
+      expect(statuses.statuses.value).toBe(row.clears ? NO_GAME_STATUSES : ENDED_STATUSES);
+      if (row.then) {
+        snackbar.value = null;
+        vi.advanceTimersByTime(row.then.advance);
+        expectBar(row.then.phase);
+        expect(snackbar.value?.message ?? null).toBe(
+          row.then.says ? LAUNCH_LIMIT_MESSAGE : null,
+        );
+      }
+    });
+
+    it("sends nothing to a player that connects after the limit returned the bar to Play", () => {
+      win.toggleGameRunning();
+      vi.advanceTimersByTime(LAUNCH_LIMIT_MS);
+      expect(phase()).toBe("idle");
+      sent = [];
+      win.connectPlayer();
+      expect(sent).toEqual([]);
+      expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+    });
+
+    it("ignores the player's late answer to a start that was cancelled, and a disconnect after the cancel", () => {
+      win.connectPlayer();
+      win.toggleGameRunning();
+      win.toggleGameRunning();
+      expect(sent).toEqual(["start", "stop"]);
+      reply(true);
+      win.disconnectPlayer();
+      expect(phase()).toBe("idle");
+      expect(sent).toEqual(["start", "stop"]);
+      expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+    });
+  });
+
+  it("keeps the step, skip and pause controls off while the game is only starting", () => {
+    win.toggleGameRunning();
+    transport();
+    expect(container.querySelector('[aria-label="Pause"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Step Over"]')).toBeNull();
+    expect(container.querySelector("[data-running]")).toBeNull();
+    for (const label of ["Skip back", "Skip forward"]) {
+      const skip = container.querySelector(`[aria-label="${label}"]`)!;
+      expect(skip.getAttribute("aria-disabled")).toBe("true");
+      expect(skip.getAttribute("title")).toBe(STEP_REASONS.starting);
+    }
   });
 });
 
@@ -1838,7 +2256,7 @@ describe("Choosing during a Screenplay play-through", () => {
     container.querySelector("iframe")!.dispatchEvent(new Event("load"));
     await vi.waitFor(() => expect(channels.all).toHaveLength(1), { timeout: 15000 });
     const channel = channels.all[0]!;
-    win.startGame();
+    runGame(win);
     const location = { uri: "file://a/main.sd", range: { start: { line: 3, character: 0 }, end: { line: 3, character: 0 } } };
 
     channel.receive({ jsonrpc: "2.0", method: "game/awaitingInteraction", params: { location, choices: false } });
@@ -1866,7 +2284,7 @@ describe("Choosing during a Screenplay play-through", () => {
     container.querySelector("iframe")!.dispatchEvent(new Event("load"));
     await vi.waitFor(() => expect(channels.all).toHaveLength(1), { timeout: 15000 });
     const channel = channels.all[0]!;
-    win.startGame();
+    runGame(win);
     const uri = "file://a/main.sd";
     const at = (line: number) => ({ uri, range: { start: { line, character: 2 }, end: { line, character: 2 } } });
     const executed = (ranges: number[]) => ({
@@ -1973,7 +2391,7 @@ describe("The game preview's player bar", () => {
     select(3);
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(heard()).toEqual(["select 1"]);
-    win.startGame();
+    runGame(win);
     await vi.waitFor(() =>
       expect(heard()).toEqual(["select 1", "select 3", "start"]),
     );
@@ -2038,7 +2456,7 @@ describe("The game preview's player bar", () => {
       );
     report(true);
     expect(workspace.current.preview.modes.game.paused).toBeFalsy();
-    win.startGame();
+    runGame(win);
     report(true);
     await vi.waitFor(() =>
       expect(workspace.current.preview.modes.game.paused).toBe(true),
@@ -2356,7 +2774,7 @@ describe("The preview's top bar", () => {
     };
     window.addEventListener(MessageProtocol.event, player);
     try {
-      win.startGame();
+      runGame(win);
       show(workspace.current.preview.modes.game);
       expect(labels()).toEqual([
         "Viewing mode",
@@ -2570,10 +2988,15 @@ describe("The preview's top bar", () => {
     expect(control("Skip forward")?.title).toBe(
       "No later played beat. Continue the story to play more.",
     );
+    const skipBeat = vi.spyOn(win, "skipBeat");
     control("Skip back")!.click();
+    await vi.waitFor(() => expect(skipBeat).toHaveBeenCalledTimes(1));
     control("Skip forward")!.click();
-    expect(await win.skipBeat(-1)).toBe(false);
-    expect(await win.skipBeat(1)).toBe(false);
+    await vi.waitFor(() => expect(skipBeat).toHaveBeenCalledTimes(2));
+    expect(await Promise.all(skipBeat.mock.results.map((result) => result.value))).toEqual([
+      false,
+      false,
+    ]);
     expect(rollBack).not.toHaveBeenCalled();
     expect(rollForward).not.toHaveBeenCalled();
   });
@@ -2593,7 +3016,7 @@ describe("The preview's top bar", () => {
 
   it("opens a restored choice menu to the author, and closes it on a restored beat with none", () => {
     show();
-    win.startGame();
+    runGame(win);
     const rolled = (choices: string[]) =>
       sendProtocolMessage({
         jsonrpc: "2.0",
@@ -2616,7 +3039,7 @@ describe("The preview's top bar", () => {
     const setItem = vi.spyOn(Storage.prototype, "setItem");
     try {
       show();
-      win.startGame();
+      runGame(win);
       setItem.mockClear();
       win.dispose();
       expect(setItem.mock.calls.map(([key]) => key)).toEqual([

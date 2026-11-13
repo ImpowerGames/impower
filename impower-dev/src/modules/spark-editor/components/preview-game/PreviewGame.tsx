@@ -254,6 +254,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           if (!iframe) return;
           if (setupInFlight) return;
           setupInFlight = true;
+          Workspace.window.disconnectPlayer();
           if (iframeChannelRef.current) {
             iframeChannelRef.current.removeEventListener?.(
               "message",
@@ -306,6 +307,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
           aspectRatioSync.initialized();
           initializingResolveRef.current?.();
           setupInFlight = false;
+          if (!cancelled) {
+            Workspace.window.connectPlayer();
+          }
         };
 
         const onProtocol = async (e: Event) => {
@@ -339,7 +343,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
 
           if (GameStartedMessage.type.is(message)) {
-            Workspace.window.startGame();
+            Workspace.window.syncGameStarted();
           }
           if (GameResizedMessage.type.isNotification(message)) {
             const { width, height, aspectRatio } = message.params;
@@ -402,7 +406,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
           if (GameExitedMessage.type.is(message)) {
             Workspace.window.setHighlights({});
-            Workspace.window.endGame();
+            Workspace.window.syncGameExited();
           }
           if (GameWorkerRestartedMessage.type.isNotification(message)) {
             const { location } = message.params;
@@ -446,6 +450,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         }
 
         cleanup = () => {
+          Workspace.window.disconnectPlayer();
           preferences.dispose();
           disposeFollowsCursor();
           aspectRatioSync.dispose();
