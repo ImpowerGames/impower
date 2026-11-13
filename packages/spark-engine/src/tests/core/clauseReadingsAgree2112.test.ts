@@ -1,25 +1,45 @@
+import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
+import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
-import { readDirectiveClauses } from "@impower/sparkdown/src/compiler/morph/morphClause";
+import {
+  DIRECTIVE_CLAUSE_WORDS,
+  DIRECTIVE_CONTROL_WORDS,
+  DIRECTIVE_VALUE_WORDS,
+  directiveValueKind,
+} from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { beforeAll, describe, expect, test } from "vitest";
-import { createHarness } from "../ui/harness/uiTestHarness";
+import { MAIN_URI, compileUI, createHarness } from "../ui/harness/uiTestHarness";
 
 type Bracket = "image" | "audio";
 type Row = readonly [label: string, bracket: Bracket, text: string];
 
 const PUNCTUATION = [..."!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"];
 
-const SEPARATOR_ROWS: Row[] = PUNCTUATION.flatMap((c): Row[] => [
-  [`name with a clause word after ${JSON.stringify(c)}`, "image", `mia${c}morph`],
-  [`name with a clause word before ${JSON.stringify(c)}`, "image", `morph${c}x`],
-  [`value with a clause word after ${JSON.stringify(c)}`, "image", `mia with x${c}morph`],
-  [`value with a clause word before ${JSON.stringify(c)}`, "image", `mia with morph${c}x`],
-  [`audio name with a clause word after ${JSON.stringify(c)}`, "audio", `play music x${c}with`],
-  [`audio value with a clause word after ${JSON.stringify(c)}`, "audio", `play music theme with x${c}over`],
-]);
+const SEPARATOR_CONTEXTS: readonly (readonly [context: string, bracket: Bracket, before: string, after: string])[] = [
+  ["name with a clause word after", "image", "mia", "morph"],
+  ["name with a clause word before", "image", "morph", "x"],
+  ["value with a clause word after", "image", "mia with x", "morph"],
+  ["value with a clause word before", "image", "mia with morph", "x"],
+  ["word after a flag with a clause word after", "image", "mia wait x", "morph"],
+  ["word after a flag with a clause word before", "image", "mia wait morph", "x"],
+  ["word after a complete clause with a clause word after", "image", "mia with fade x", "morph"],
+  ["word after a complete clause with a clause word before", "image", "mia with fade morph", "x"],
+  ["audio name with a clause word after", "audio", "play music x", "with"],
+  ["audio value with a clause word after", "audio", "play music theme with x", "over"],
+  ["audio word after a flag with a clause word after", "audio", "play music theme loop x", "with"],
+];
+
+const SEPARATOR_ROWS: Row[] = PUNCTUATION.flatMap((c): Row[] =>
+  SEPARATOR_CONTEXTS.map(([context, bracket, before, after]): Row => [
+    `${context} ${JSON.stringify(c)}`,
+    bracket,
+    `${before}${c}${after}${after === "morph" ? " talk" : ""}`,
+  ]),
+);
 
 const KINDS: readonly (readonly [kind: string, bracket: Bracket, plain: string])[] = [
   ["image", "image", "mia"],
-  ["image with a control", "image", "show portrait mia"],
+  ["image with a control", "image", "show backdrop mia"],
   ["audio", "audio", "play music theme"],
   ["open (screen)", "image", "open menu"],
   ["close (screen)", "image", "close menu"],
@@ -43,6 +63,39 @@ const KIND_ROWS: Row[] = KINDS.flatMap(([kind, bracket, plain]): Row[] => {
   ];
 });
 
+const CONTROL_ROWS: Row[] = [...DIRECTIVE_CONTROL_WORDS, ...LAYOUT_VERBS].flatMap((control): Row[] => [
+  [`control \`${control}\` in an image directive`, "image", `${control} pane mia with fade`],
+  [`control \`${control}\` in an audio directive`, "audio", `${control} music theme with echo`],
+  [`control \`${control}\` before a clause word`, "image", `${control} with mia`],
+  [`control \`${control}\` before a clause word in an audio directive`, "audio", `${control} with theme`],
+]);
+
+const DELIMITER_ROWS: Row[] = [
+  ["doubled image opener inside a name", "image", "mia[[morph talk"],
+  ["doubled audio opener inside a name", "image", "mia((morph talk"],
+  ["doubled image opener inside an audio name", "audio", "play music x[[loop"],
+  ["doubled audio opener inside an audio name", "audio", "play music x((loop"],
+  ["backslash before the image closer", "image", "mia with x\\]] morph talk"],
+  ["backslash before the audio closer", "audio", "play music x\\)) loop"],
+  ["escaped closer characters", "image", "mia with x\\]\\] morph talk"],
+  ["single closer character in a name", "image", "mia]x morph talk"],
+  ["single closer character in an audio name", "audio", "play music x)y loop"],
+  ["hash attached on the left of a word", "image", "mia# note morph none"],
+  ["hash attached on the right of a word", "image", "mia #note morph none"],
+  ["hash after a clause value", "image", "mia morph talk#"],
+  ["hash attached in an audio directive", "audio", "play music theme# loop"],
+  ["two hashes", "image", "mia ## note morph none"],
+  ["no-break space inside a clause", "image", "mia morph talk"],
+  ["no-break space after a clause value", "image", "mia morph talk wait"],
+  ["vertical tab after a clause value", "image", "mia morph talk\u000bwait"],
+  ["form feed after a clause value", "image", "mia morph talk\u000cwait"],
+  ["em space after a clause value", "image", "mia morph talk wait"],
+  ["ideographic space after a clause value", "image", "mia morph talk　wait"],
+  ["no-break space in an audio directive", "audio", "play music theme loop"],
+  ["tab between words", "image", "mia\tmorph\ttalk"],
+  ["several spaces between words", "image", "mia  morph   talk "],
+];
+
 const OPENING_ROWS: Row[] = [
   ["image opens with `with`", "image", "with fade"],
   ["image opens with `wait`", "image", "wait"],
@@ -58,6 +111,8 @@ const CLAUSE_ROWS: Row[] = [
   ["after and over", "image", "mia after 0.5 over 1s"],
   ["ease", "image", "mia ease linear"],
   ["morph", "image", "mia morph talk"],
+  ["morph none", "image", "mia morph none"],
+  ["two morph clauses", "image", "mia morph talk morph shout"],
   ["to", "image", "mia to 0.5"],
   ["morph named like a flag", "image", "mia morph wait"],
   ["morph named like a clause word that takes a value", "image", "mia morph over"],
@@ -67,19 +122,27 @@ const CLAUSE_ROWS: Row[] = [
   ["tag before any clause", "image", "mia # note morph none"],
   ["number after a flag", "image", "mia wait 1s"],
   ["empty value", "image", "mia morph"],
+  ["empty `with`", "image", "mia with"],
+  ["empty `ease`", "image", "mia ease"],
+  ["empty audio `with`", "audio", "play music theme with"],
   ["empty value after a value", "image", "mia with fade over"],
   ["value that is not a name", "image", "mia morph = talk"],
   ["clause word as a qualified state", "image", "mia:mouth.morph"],
   ["clause word as a filtered state", "image", "mia~mouth.morph"],
   ["clause after a qualified state", "image", "mia:mouth.morph with fade"],
-  ["target and composition", "image", "show portrait mia + bunny morph talk with fade"],
+  ["target and composition", "image", "show backdrop mia + bunny morph talk with fade"],
+  ["composition without a control", "image", "mia+bunny morph talk"],
+  ["navigate with a clause before `to`", "image", "navigate with main to menu"],
+  ["navigate without a destination", "image", "navigate main"],
+  ["navigate with `to` and no destination", "image", "navigate main to"],
+  ["navigate with a stray word", "image", "navigate main to menu extra"],
   ["audio to and over", "audio", "fade music theme to 0.5 over 2s"],
   ["audio flags", "audio", "play music theme loop mute now"],
   ["audio with named like a clause word", "audio", "play music theme loop with over"],
   ["audio tag between words", "audio", "play music theme # note loop"],
 ];
 
-const ROWS: Row[] = [...CLAUSE_ROWS, ...KIND_ROWS, ...OPENING_ROWS, ...SEPARATOR_ROWS];
+const ROWS: Row[] = [...CLAUSE_ROWS, ...KIND_ROWS, ...CONTROL_ROWS, ...DELIMITER_ROWS, ...OPENING_ROWS, ...SEPARATOR_ROWS];
 
 const directive = (bracket: Bracket, text: string) => (bracket === "image" ? `[[${text}]]` : `((${text}))`);
 
@@ -87,37 +150,167 @@ const lines = ["scene start", ...ROWS.flatMap(([, bracket, text], i) => [`  ${di
 const source = lines.join("\n");
 const lineOf = (i: number) => 1 + i * 2;
 
+const variables = GRAMMAR_DEFINITION.variables as unknown as Record<string, string[]>;
+const BRACKET_CONTROLS = [
+  ...variables["IMAGE_CONTROL_KEYWORDS"]!,
+  ...LAYOUT_VERBS,
+  ...variables["LOAD_CONTROL_KEYWORDS"]!,
+  ...variables["MOVIE_CONTROL_KEYWORDS"]!,
+];
+const AUDIO_CONTROLS = variables["AUDIO_CONTROL_KEYWORDS"]!;
+const RAW_VALUE_WORDS = DIRECTIVE_VALUE_WORDS.filter((word) => word === "with" || word === "ease");
+
 interface Reading {
+  links: string[];
+  pick?: string;
+  strays: string[];
+  missing: string[];
+  incompleteNavigate: boolean;
+  unrecognizedControl?: string;
+}
+
+const empty = (): Reading => ({ links: [], strays: [], missing: [], incompleteNavigate: false });
+
+const isName = (text: string) => directiveValueKind(text) === "name";
+const countable = (text: string) => {
+  const kind = directiveValueKind(text);
+  return kind !== "time" && kind !== "number";
+};
+
+interface Chunk {
+  tag: string;
+  control: string;
+  target?: string;
+  assets: string[];
   clauses: Record<string, unknown>;
-  destination?: unknown;
+}
+
+function expected(bracket: Bracket, content: string, chunk: Chunk): Reading {
+  const reading = empty();
+  const words = content.split(/[ \t]+/);
+  const written = (word: string | undefined) => !!word && words.includes(word);
+  const controlWritten = words.filter(Boolean)[0] === chunk.control;
+  const target = written(chunk.target) && controlWritten ? chunk.target : undefined;
+  const clauses = chunk.clauses;
+  const value = (key: string) => (Object.hasOwn(clauses, key) && typeof clauses[key] === "string" ? (clauses[key] as string) : undefined);
+  const link = (role: string, text: string) => reading.links.push(`${role}:${text}`);
+  const navigate = chunk.tag === "layout" && chunk.control === "navigate";
+  const imageNames = () => {
+    for (const asset of chunk.assets) {
+      const base = asset.split(/[:~]/)[0]!;
+      if (!isName(base) || base === "none") continue;
+      if (/[:~]/.test(asset) && /^[^:~]+(?:[:~][^:~\s]+)+$/u.test(asset)) link("filtered_image", asset);
+      link("filtered_image", base);
+    }
+  };
+  if (chunk.tag === "audio") {
+    if (target) link("channel", target);
+    for (const asset of chunk.assets) if (isName(asset) && asset !== "none") link("layered_audio", asset);
+    const modulation = value("with");
+    if (modulation && isName(modulation)) link("modulation", modulation);
+  } else {
+    if (navigate) {
+      if (target) link("screen", target);
+      const destination = chunk.assets[0];
+      if (destination && isName(destination)) link("layout", destination);
+      reading.incompleteNavigate = !destination;
+    } else if (chunk.tag === "layout") {
+      if (target) link("layout", target);
+      imageNames();
+    } else if (chunk.tag === "load") {
+      if (target) link("load", target);
+      for (const asset of chunk.assets) {
+        const base = asset.split(/[:~]/)[0]!;
+        if (isName(base) && base !== "none") link("load", base);
+      }
+    } else if (chunk.tag === "cutscene") {
+      if (target && !target.includes("+")) link("video", target);
+    } else {
+      if (target) link("layer", target);
+      imageNames();
+    }
+    const transition = value("with");
+    if (transition && isName(transition)) link("transition", transition);
+    const ease = value("ease");
+    if (ease && isName(ease)) link("ease", ease);
+  }
+  if (chunk.tag === "image" && Object.hasOwn(clauses, "morph")) {
+    const pick = clauses["morph"];
+    if (pick === undefined) reading.pick = "(missing)";
+    else if (pick !== "none") reading.pick = String(pick);
+  }
+  if (chunk.tag !== "cutscene") {
+    reading.strays = Object.keys(clauses).filter((key) => !DIRECTIVE_CLAUSE_WORDS.includes(key) && countable(key));
+  }
+  reading.missing = Object.keys(clauses).filter(
+    (key) =>
+      RAW_VALUE_WORDS.includes(key) && clauses[key] === undefined && !(bracket === "audio" && key === "ease"),
+  );
+  if (controlWritten && !(bracket === "image" ? BRACKET_CONTROLS : AUDIO_CONTROLS).includes(chunk.control)) {
+    reading.unrecognizedControl = chunk.control;
+  }
+  return normalize(reading);
+}
+
+function normalize(reading: Reading): Reading {
+  return {
+    ...reading,
+    links: [...new Set(reading.links)].sort(),
+    strays: [...new Set(reading.strays)].sort(),
+    missing: [...new Set(reading.missing)].sort(),
+  };
 }
 
 const compilerReadings = new Map<number, Reading>();
 const interpreterReadings = new Map<number, Reading>();
-let interpreter: any;
-
-const lineAt = (offset: number) => source.slice(0, offset).split("\n").length - 1;
 
 beforeAll(async () => {
   const documents = new SparkdownDocumentRegistry(["references"]);
-  const uri = "file:///clauses.sd";
-  documents.set({ textDocument: { uri, text: source, version: 1, languageId: "sparkdown" } });
+  documents.set({ textDocument: { uri: MAIN_URI, text: source, version: 1, languageId: "sparkdown" } });
+  const doc = documents.get(MAIN_URI)!;
+  const reading = (line: number) => {
+    let found = compilerReadings.get(line);
+    if (!found) compilerReadings.set(line, (found = empty()));
+    return found;
+  };
+  const references = documents.annotations(MAIN_URI).references.iter();
+  while (references.value) {
+    const ref = references.value.type as any;
+    const types: string[] = ref.selectors?.[0]?.types ?? [];
+    const role = ref.usage === "divert" ? "load" : types[0];
+    const line = doc.positionAt(references.from).line;
+    if (role && line % 2 === 1) reading(line).links.push(`${role}:${doc.read(references.from, references.to)}`);
+    references.next();
+  }
+  const { program } = compileUI(source);
+  for (const diagnostic of (program.diagnostics?.[MAIN_URI] ?? []) as any[]) {
+    const line = diagnostic.range.start.line;
+    if (line % 2 !== 1) continue;
+    const message: string = typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value;
+    const at = doc.read(doc.offsetAt(diagnostic.range.start), doc.offsetAt(diagnostic.range.end));
+    const zeroWidth = diagnostic.range.start.line === diagnostic.range.end.line && diagnostic.range.start.character === diagnostic.range.end.character;
+    if (message.startsWith("No morph named")) reading(line).pick = at;
+    else if (message.startsWith("`morph` needs the name")) reading(line).pick = "(missing)";
+    else if (message.startsWith("Write the morph's name")) reading(line).pick = at;
+    else if (/ is not (?:a clause|part of a clause)/.test(message)) reading(line).strays.push(at);
+    else if (/should be followed by/.test(message) && zeroWidth) {
+      const keyword = message.match(/^`([^`]+)`/)?.[1] ?? "?";
+      if (RAW_VALUE_WORDS.includes(keyword)) reading(line).missing.push(keyword);
+    }
+    else if (message.startsWith("Incomplete `navigate`")) reading(line).incompleteNavigate = true;
+    else if (message.startsWith("Unrecognized")) reading(line).unrecognizedControl = at;
+  }
+  for (const [line, found] of compilerReadings) compilerReadings.set(line, normalize(found));
+
   const harness = createHarness(source);
   await harness.ready;
-  interpreter = (harness.game.module as any).interpreter;
-  for (const read of readDirectiveClauses(documents.tree(uri)!, (from, to) => source.slice(from, to))) {
-    const navigate = read.control === "navigate";
-    const groups = navigate && read.groups[0]?.[0] === "to" ? read.groups.slice(1) : read.groups;
-    const reading: Reading = { clauses: Object.assign({}, ...groups.map((group) => interpreter.parseAssetClauses(group))) };
-    if (navigate) reading.destination = read.groups[0]?.[0] === "to" ? read.groups[0][1] : undefined;
-    compilerReadings.set(lineAt(read.directive.from), reading);
-  }
-  const seen: { name: string; chunk: any }[] = [];
+  const interpreter = (harness.game.module as any).interpreter;
+  const seen: { bracket: Bracket; content: string; chunk: Chunk }[] = [];
   for (const name of ["createImageChunk", "createAudioChunk", "createLoadChunk", "createLayoutChunk", "createCutsceneChunk"]) {
     const original = interpreter[name].bind(interpreter);
     interpreter[name] = (content: string) => {
       const chunk = original(content);
-      seen.push({ name, chunk });
+      seen.push({ bracket: name === "createAudioChunk" ? "audio" : "image", content, chunk });
       return chunk;
     };
   }
@@ -125,24 +318,24 @@ beforeAll(async () => {
     const before = seen.length;
     await harness.preview(lineOf(i));
     const found = seen[before];
-    if (!found) continue;
-    const navigate = found.chunk.control === "navigate";
-    interpreterReadings.set(lineOf(i), {
-      clauses: { ...(found.chunk.clauses ?? {}) },
-      ...(navigate ? { destination: found.chunk.assets?.[0] || undefined } : {}),
-    });
+    if (found) interpreterReadings.set(lineOf(i), expected(found.bracket, found.content, found.chunk));
   }
 });
 
-describe("the compiler's reading of a directive's clauses equals the interpreter's (I-2112)", () => {
+describe("every editor reader of a directive agrees with the interpreter's chunk (I-2112)", () => {
   test("the table holds every row", () => {
-    expect(ROWS.length).toBe(CLAUSE_ROWS.length + KIND_ROWS.length + OPENING_ROWS.length + PUNCTUATION.length * 6);
+    expect(ROWS.length).toBe(
+      CLAUSE_ROWS.length +
+        KIND_ROWS.length +
+        CONTROL_ROWS.length +
+        DELIMITER_ROWS.length +
+        OPENING_ROWS.length +
+        PUNCTUATION.length * SEPARATOR_CONTEXTS.length,
+    );
   });
 
   test.each(ROWS.map(([label, bracket, text], i) => [label, directive(bracket, text), i] as const))("%s: `%s`", (_label, _text, i) => {
-    const compiler = compilerReadings.get(lineOf(i));
-    const game = interpreterReadings.get(lineOf(i));
-    expect(compiler === undefined, "both read a directive here, or neither does").toBe(game === undefined);
-    if (compiler && game) expect(compiler).toStrictEqual(game);
+    const line = lineOf(i);
+    expect(compilerReadings.get(line) ?? empty()).toStrictEqual(interpreterReadings.get(line) ?? empty());
   });
 });

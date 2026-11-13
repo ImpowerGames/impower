@@ -26,7 +26,14 @@ import type { InstructionOptions } from "../types/InstructionOptions";
 import type { Phrase } from "../types/Phrase";
 import { stressPhrases } from "../utils/stressPhrases";
 import { Matcher } from "./helpers/Matcher";
-import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
+import {
+  DIRECTIVE_LOAD_WORDS,
+  DIRECTIVE_MOVIE_WORDS,
+  parseDirectiveClauses,
+  readDirective,
+  type DirectiveClause,
+  type DirectiveKind,
+} from "@impower/sparkdown/src/compiler/utils/readDirective";
 
 export interface InterpreterConfig {}
 
@@ -84,32 +91,6 @@ export class InterpreterModule extends Module<
     "sup",
     "br",
     "noparse",
-  ];
-
-  ASSET_CONTROL_KEYWORDS = [
-    "show",
-    "hide",
-    "animate",
-    "play",
-    "stop",
-    "fade",
-    "queue",
-    "await",
-    "write",
-    "load",
-  ];
-
-  LOAD_CONTROL_KEYWORDS = ["load"];
-
-  MOVIE_CONTROL_KEYWORDS = ["play"];
-
-  ASSET_VALUE_ARG_KEYWORDS: string[] = [...ASSET_VALUE_CLAUSE_WORDS];
-
-  ASSET_FLAG_ARG_KEYWORDS = ["wait", "loop", "once", "mute", "unmute", "now"];
-
-  ASSET_ARG_KEYWORDS = [
-    ...this.ASSET_VALUE_ARG_KEYWORDS,
-    ...this.ASSET_FLAG_ARG_KEYWORDS,
   ];
 
   CHAR_REGEX =
@@ -843,44 +824,19 @@ export class InterpreterModule extends Module<
             "layout",
             LayoutVerb.open,
             "",
-            isLayoutVerb,
           );
     this.applyScreenWaitDuration(layoutChunk);
     return layoutChunk;
   }
 
-  protected assetWords(content: string): string[] {
-    const words = content
-      .replaceAll("\t", " ")
-      .split(" ")
-      .filter((word) => word !== "");
-    const tagAt = words.findIndex((word) => /^#+$/.test(word));
-    return tagAt >= 0 ? words.slice(0, tagAt) : words;
-  }
-
   protected createNavigateChunk(navigateTagContent: string): Chunk {
-    const tokens = this.assetWords(navigateTagContent);
-    let screen = "";
-    let destination = "";
-    let i = 1;
-    if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
-      screen = tokens[i]!;
-      i += 1;
-    }
-    if (tokens[i] === "to") {
-      i += 1;
-      if (tokens[i]) {
-        destination = tokens[i]!;
-        i += 1;
-      }
-    }
-    const clauses = this.parseAssetClauses(tokens.slice(i));
+    const reading = readDirective("image", navigateTagContent, "layout");
     return {
       tag: "layout",
       control: LayoutVerb.navigate,
-      target: screen,
-      assets: destination ? [destination] : [],
-      clauses,
+      target: reading.target?.text ?? "",
+      assets: reading.destination ? [reading.destination.text] : [],
+      clauses: this.assetClauseValues(reading.clauses),
       duration: 0,
       speed: 1,
     };
@@ -971,78 +927,35 @@ export class InterpreterModule extends Module<
     tag: string,
     defaultControl: string,
     defaultTarget: string | undefined,
-    isControl: (word: string) => boolean = (word) =>
-      this.ASSET_CONTROL_KEYWORDS.includes(word),
   ): Chunk {
-    let parts = this.assetWords(assetTagContent);
-    let control = defaultControl;
-    let target = defaultTarget;
-    const assets: string[] = [];
-    const args: string[] = [];
-    if (parts[0] && isControl(parts[0])) {
-      control = parts[0];
-      if (parts[1]) {
-        target = parts[1];
-      }
-      parts = parts.slice(2);
-    }
-    let foundClauseKeyword = false;
-    for (const part of parts) {
-      if (this.ASSET_ARG_KEYWORDS.includes(part)) {
-        foundClauseKeyword = true;
-      }
-      if (foundClauseKeyword) {
-        args.push(part);
-      } else {
-        for (const a of part.split("+")) {
-          if (a) {
-            assets.push(a);
-          }
-        }
-      }
-    }
-    const clauses = this.parseAssetClauses(args);
+    const kind = tag as DirectiveKind;
+    const reading = readDirective(kind === "audio" ? "audio" : "image", assetTagContent, kind);
     return {
       tag,
-      control,
-      target,
-      assets,
-      clauses,
+      control: reading.control?.text ?? defaultControl,
+      target: reading.target?.text ?? defaultTarget,
+      assets: reading.names.map((name) => name.text),
+      clauses: this.assetClauseValues(reading.clauses),
       duration: 0,
       speed: 1,
     };
   }
 
   protected parseAssetClauses(args: string[]): Record<string, unknown> {
+    return this.assetClauseValues(parseDirectiveClauses(args.map((text) => ({ text }))));
+  }
+
+  protected assetClauseValues(parsed: readonly DirectiveClause<{ text: string }>[]): Record<string, unknown> {
     const clauses: Record<string, unknown> = {};
-    for (let i = 0; i < args.length; i += 1) {
-      const arg = args[i];
-      if (arg) {
-        if (this.ASSET_VALUE_ARG_KEYWORDS.includes(arg)) {
-          i += 1;
-          const value = args[i];
-          if (arg === "after") {
-            clauses[arg] = getTimeValue(value);
-          }
-          if (arg === "over") {
-            clauses[arg] = getTimeValue(value);
-          }
-          if (arg === "to") {
-            clauses[arg] = getNumberValue(value);
-          }
-          if (arg === "with") {
-            clauses[arg] = value;
-          }
-          if (arg === "ease") {
-            clauses[arg] = value;
-          }
-          if (arg === "morph") {
-            clauses[arg] = value;
-          }
-        } else {
-          clauses[arg] = true;
-        }
-      }
+    for (const { word, takesValue, value } of parsed) {
+      const key = word.text;
+      clauses[key] = !takesValue
+        ? true
+        : key === "after" || key === "over"
+          ? getTimeValue(value?.text)
+          : key === "to"
+            ? getNumberValue(value?.text)
+            : value?.text;
     }
     return clauses;
   }
@@ -1155,9 +1068,9 @@ export class InterpreterModule extends Module<
                     const isScreenDirective =
                       !!verb && isLayoutVerb(verb);
                     const isLoadDirective =
-                      !!verb && this.LOAD_CONTROL_KEYWORDS.includes(verb);
+                      !!verb && DIRECTIVE_LOAD_WORDS.includes(verb);
                     const isCutsceneDirective =
-                      !!verb && this.MOVIE_CONTROL_KEYWORDS.includes(verb);
+                      !!verb && DIRECTIVE_MOVIE_WORDS.includes(verb);
                     const directiveChunk = isLoadDirective
                       ? this.createLoadChunk(imageTagContent)
                       : isScreenDirective

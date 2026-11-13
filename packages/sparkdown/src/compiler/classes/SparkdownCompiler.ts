@@ -11,7 +11,13 @@ import {
 } from "../morph/collectMorphDiagnostics";
 import { buildMorphChannel, shownLook, shownLookStruct, speechMorphsForStruct } from "../../morph/channel";
 import { MORPH_PICK_NONE } from "../../morph/types";
-import { readDirectiveClauses, type MorphClause, type StrayClauseText } from "../morph/morphClause";
+import {
+  DIRECTIVE_CLAUSE_WORDS,
+  directiveValueKind,
+  readSourceDirectives,
+  type DirectiveWord,
+  type SourceDirective,
+} from "../utils/readDirective";
 import { resolveImageLayers } from "../utils/resolveImageLayers";
 import type { MorphProgramChannel } from "../../morph/types";
 import {
@@ -84,28 +90,45 @@ import type {
   ScriptStructure,
 } from "../utils/routeDecisions";
 
-function strayClauseIssue(
-  text: StrayClauseText,
-  control: string | undefined,
-): { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string } | undefined {
-  const after = text.after;
-  if (control !== undefined && isMovieControl(control)) return undefined;
-  if (after && !after.takesValue && (text.node === "TimeValue" || text.node === "NumberValue")) return undefined;
-  const message =
-    text.node === undefined
-      ? `\`${text.text}\` is not part of a clause.`
-      : after?.text === "morph"
-        ? `\`${text.text}\` is not a clause: \`morph\` takes one morph name, such as \`morph talk_gritted\`.`
-        : after?.takesValue
-          ? `\`${text.text}\` is not a clause: \`${after.text}\` takes one value.`
-          : after !== undefined
-            ? `\`${text.text}\` is not a clause, and \`${after.text}\` takes no value.`
-            : `\`${text.text}\` is not a clause.`;
-  return { at: text, severity: DiagnosticSeverity.Error, message };
+interface MorphClause {
+  keyword: DirectiveWord;
+  value?: DirectiveWord;
 }
 
-const isMovieControl = (control: string): boolean =>
-  (GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS as readonly string[]).includes(control);
+function morphClauseOf(directive: SourceDirective): MorphClause | undefined {
+  if (directive.kind !== "image") return undefined;
+  const clause = [...directive.clauses].reverse().find((clause) => clause.word.text === "morph");
+  return clause ? { keyword: clause.word, ...(clause.value ? { value: clause.value } : {}) } : undefined;
+}
+
+function strayClauseIssues(
+  directive: SourceDirective,
+): { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string }[] {
+  if (directive.kind === "cutscene") return [];
+  const issues: { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string }[] = [];
+  let last: { text: string; takesValue: boolean } | undefined;
+  for (const clause of directive.clauses) {
+    const word = clause.word;
+    if (DIRECTIVE_CLAUSE_WORDS.includes(word.text)) {
+      last = { text: word.text, takesValue: clause.takesValue };
+      continue;
+    }
+    const kind = directiveValueKind(word.text);
+    if (last && !last.takesValue && (kind === "time" || kind === "number")) continue;
+    const message =
+      kind === "other"
+        ? `\`${word.text}\` is not part of a clause.`
+        : last?.text === "morph"
+          ? `\`${word.text}\` is not a clause: \`morph\` takes one morph name, such as \`morph talk_gritted\`.`
+          : last?.takesValue
+            ? `\`${word.text}\` is not a clause: \`${last.text}\` takes one value.`
+            : last !== undefined
+              ? `\`${word.text}\` is not a clause, and \`${last.text}\` takes no value.`
+              : `\`${word.text}\` is not a clause.`;
+    issues.push({ at: word, severity: DiagnosticSeverity.Error, message });
+  }
+  return issues;
+}
 
 const REPEAT_LOOP_NODES = nodeNameSet([
   "LuauRepeatLoop",
@@ -4756,7 +4779,7 @@ export class SparkdownCompiler {
       const annotations = this.documents.annotations(uri);
       const emitted = new Set<string>();
       const scriptTree = this.documents.tree(uri);
-      const clauses = scriptTree ? readDirectiveClauses(scriptTree, (from, to) => doc.read(from, to)) : [];
+      const directives = scriptTree ? readSourceDirectives(scriptTree, (from, to) => doc.read(from, to)) : [];
       const emit = (struct: any, from: number, to: number, written: readonly string[], pick?: string) => {
         const look = shownLook(program.context, program.morphs, struct, undefined, pick);
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
@@ -4815,6 +4838,11 @@ export class SparkdownCompiler {
         }
         references.next();
       }
+      const pickAt = (at: number) => {
+        const directive = directives.find((directive) => directive.contentFrom <= at && at < directive.contentTo);
+        const pick = directive?.kind === "image" ? directive.values["morph"] : undefined;
+        return typeof pick === "string" ? pick : undefined;
+      };
       let coveredTo = -1;
       const shownImages: typeof images = [];
       for (const image of images.sort((a, b) => a.from - b.from || b.to - a.to)) {
@@ -4825,16 +4853,17 @@ export class SparkdownCompiler {
             image.from,
             image.to,
             doc.read(image.from, image.to).split(/[:~]/).slice(1).map((part) => part.trim()).filter(Boolean),
-            clauses.find(({ directive }) => directive.from <= image.from && image.from < directive.to)?.morph?.value?.text,
+            pickAt(image.from),
           );
           coveredTo = image.to;
         }
       }
-      for (const { kind, directive, control, morph, stray } of clauses) {
-        const directiveImages = shownImages.filter((image) => directive.from <= image.from && image.to <= directive.to);
+      for (const directive of directives) {
+        const directiveImages = shownImages.filter((image) => directive.contentFrom <= image.from && image.to <= directive.contentTo);
+        const morph = morphClauseOf(directive);
         const issues = [
           morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
-          ...stray.map((text) => ({ ...strayClauseIssue(text, kind === "image" ? control : undefined), keyword: text })),
+          ...strayClauseIssues(directive).map((issue) => ({ ...issue, keyword: issue.at })),
         ];
         for (const issue of issues) {
           if (!issue?.message || issue.severity === undefined) continue;

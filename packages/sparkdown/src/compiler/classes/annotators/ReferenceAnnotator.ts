@@ -19,13 +19,8 @@ import {
   isValueListName,
 } from "../../utils/variableDefinitionNames";
 import { Range } from "@codemirror/state";
-import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
-import {
-  LayoutVerb,
-  isLayoutVerb,
-} from "../../../../language/sparkdown.layout-verbs";
+import { LayoutVerb } from "../../../../language/sparkdown.layout-verbs";
 import type { SparkDeclaration } from "../../types/SparkDeclaration";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { SparkSelector } from "../../types/SparkSelector";
@@ -33,7 +28,13 @@ import { sortFilteredName } from "../../utils/sortFilteredName";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { isLuauName } from "../../utils/luauName";
-import { keywordOfValue } from "../../utils/assetClauseTree";
+import {
+  DIRECTIVE_NODE_BRACKETS,
+  directiveValueKind,
+  readSourceDirective,
+  type DirectiveWord,
+  type SourceDirective,
+} from "../../utils/readDirective";
 
 export interface Reference {
   usage?: "divert" | "handler";
@@ -154,9 +155,7 @@ const PARAMETER_OWNER = nodeNameSet([
   "LuauFunctionTypeDeclaration",
 ]);
 const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
-const ASSET_COMMAND_INSTRUCTION = nodeNameSet(["AssetCommandInstruction"]);
-const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
-const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
+const FILTERED_NAME = /^([^:~]+)((?:[:~][^:~\s]+)+)$/u;
 
 const PROPERTY_DEFINITION = nodeNameSet(["LuauPropertyDefinition"]);
 
@@ -189,12 +188,6 @@ const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauMorph: "morph",
 };
 
-const LOAD_CONTROL_KEYWORDS: string[] =
-  GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
-
-const MOVIE_CONTROL_KEYWORDS: string[] =
-  GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
-
 export class ReferenceAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Reference>
 > {
@@ -208,6 +201,61 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       firstMatchOnly: true,
       kind: "read",
     }).range(nodeRef.from, nodeRef.to);
+  }
+
+  protected directiveReferences(directive: SourceDirective): Range<SparkdownAnnotation<Reference>>[] {
+    const references: Range<SparkdownAnnotation<Reference>>[] = [];
+    const shown = (word: DirectiveWord, types: string[], displayType?: string, name = word.text, extra: Partial<Reference> = {}) =>
+      references.push(
+        SparkdownAnnotation.mark<Reference>({
+          selectors: [{ types, name, ...(displayType ? { displayType } : {}) }],
+          symbolIds: types.map((type) => `${type}.${name}`),
+          kind: "read",
+          linkable: true,
+          ...extra,
+        }).range(word.from, word.to),
+      );
+    const valueOf = (keyword: string) =>
+      directive.clauses.filter((clause) => clause.word.text === keyword && clause.value && directiveValueKind(clause.value.text) === "name").map((clause) => clause.value!);
+    const { kind, target, names } = directive;
+    if (directive.bracket === "audio") {
+      if (target) shown(target, ["channel"]);
+      for (const name of names) {
+        if (directiveValueKind(name.text) === "name" && name.text !== "none") shown(name, ["layered_audio", "audio", "synth"], "audio");
+      }
+      for (const value of valueOf("with")) shown(value, ["modulation"]);
+      return references;
+    }
+    const control = directive.control?.text;
+    if (kind === "layout" && control === LayoutVerb.navigate) {
+      if (target) shown(target, ["screen"], "screen");
+      if (directive.destination && directiveValueKind(directive.destination.text) === "name") shown(directive.destination, ["layout"], "layout");
+    } else if (kind === "layout") {
+      if (target) shown(target, ["layout"], "layout");
+    } else if (kind === "load") {
+      if (target) references.push(this.loadTargetReference(target.text, target));
+    } else if (kind === "cutscene") {
+      if (target && !target.text.includes("+")) shown(target, ["video"], "video");
+    } else if (target) {
+      shown(target, ["layer"], "layer", target.text, { interdependentIds: [`style.${target.text}`] });
+    }
+    if (kind !== "cutscene") {
+      for (const name of names) {
+        const filtered = name.text.match(FILTERED_NAME);
+        const base = filtered ? filtered[1]! : name.text;
+        if (directiveValueKind(base) !== "name" || base === "none") continue;
+        const baseWord = { text: base, from: name.from, to: name.from + base.length };
+        if (kind === "load") {
+          references.push(this.loadTargetReference(base, baseWord));
+          continue;
+        }
+        if (filtered) shown(name, ["filtered_image", "layered_image", "image", "graphic"], "image", sortFilteredName(name.text));
+        shown(baseWord, ["filtered_image", "layered_image", "image", "graphic", "video"], "image");
+      }
+    }
+    for (const value of valueOf("with")) shown(value, ["transition", "animation"], "transition or animation");
+    for (const value of valueOf("ease")) shown(value, ["ease"], "ease");
+    return references;
   }
 
   defineType = "";
@@ -829,248 +877,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "AssetCommandTarget") {
-      const context = getContextNames(nodeRef.node);
-      if (context.includes("ImageCommand")) {
-        const name = this.read(nodeRef.from, nodeRef.to);
-        const instruction = ancestorMatching(
-          nodeRef.node,
-          ASSET_COMMAND_INSTRUCTION,
-        );
-        const controlNode = instruction
-          ? firstDescendant(instruction, ASSET_COMMAND_CONTROL)
-          : null;
-        const control = controlNode
-          ? this.read(controlNode.from, controlNode.to).trim()
-          : "";
-        if (control === LayoutVerb.navigate) {
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              selectors: [{ types: ["screen"], name, displayType: "screen" }],
-              symbolIds: [`screen.${name}`],
-              kind: "read",
-              linkable: true,
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        }
-        if (isLayoutVerb(control)) {
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              selectors: [{ types: ["layout"], name, displayType: "layout" }],
-              symbolIds: [`layout.${name}`],
-              kind: "read",
-              linkable: true,
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        }
-        if (LOAD_CONTROL_KEYWORDS.includes(control)) {
-          annotations.push(this.loadTargetReference(name, nodeRef));
-          return annotations;
-        }
-        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
-          if (!name.includes("+")) {
-            annotations.push(
-              SparkdownAnnotation.mark<Reference>({
-                selectors: [{ types: ["video"], name, displayType: "video" }],
-                symbolIds: [`video.${name}`],
-                kind: "read",
-                linkable: true,
-              }).range(nodeRef.from, nodeRef.to),
-            );
-          }
-          return annotations;
-        }
-        const types: string[] = ["layer"];
-        const displayType = `layer`;
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            selectors: [
-              {
-                types,
-                name,
-                displayType,
-              },
-            ],
-            symbolIds: types.map((type) => `${type}.${name}`),
-            kind: "read",
-            linkable: true,
-            interdependentIds: [`style.${name}`],
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-      if (context.includes("AudioCommand")) {
-        const types = ["channel"];
-        const name = this.read(nodeRef.from, nodeRef.to);
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            selectors: [{ types, name }],
-            symbolIds: types.map((type) => `${type}.${name}`),
-            kind: "read",
-            linkable: true,
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "AssetCommandFilteredFileName") {
-      const context = getContextNames(nodeRef.node);
-      if (context.includes("ImageCommand")) {
-        const instruction = ancestorMatching(
-          nodeRef.node,
-          ASSET_COMMAND_INSTRUCTION,
-        );
-        const controlNode = instruction
-          ? firstDescendant(instruction, ASSET_COMMAND_CONTROL)
-          : null;
-        const control = controlNode
-          ? this.read(controlNode.from, controlNode.to).trim()
-          : "";
-        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
-          return annotations;
-        }
-        const types = ["filtered_image", "layered_image", "image", "graphic"];
-        const name = sortFilteredName(this.read(nodeRef.from, nodeRef.to));
-        const displayType = "image";
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            selectors: [{ types, name, displayType }],
-            symbolIds: types.map((type) => `${type}.${name}`),
-            kind: "read",
-            linkable: true,
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "AssetCommandFileName") {
-      const context = getContextNames(nodeRef.node);
-      if (context.includes("ImageCommand")) {
-        const name = this.read(nodeRef.from, nodeRef.to);
-        const instruction = ancestorMatching(
-          nodeRef.node,
-          ASSET_COMMAND_INSTRUCTION,
-        );
-        const controlNode = instruction
-          ? firstDescendant(instruction, ASSET_COMMAND_CONTROL)
-          : null;
-        const control = controlNode
-          ? this.read(controlNode.from, controlNode.to).trim()
-          : "";
-        if (LOAD_CONTROL_KEYWORDS.includes(control)) {
-          annotations.push(this.loadTargetReference(name, nodeRef));
-          return annotations;
-        }
-        if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
-          return annotations;
-        }
-        const types = [
-          "filtered_image",
-          "layered_image",
-          "image",
-          "graphic",
-          "video",
-        ];
-        const displayType = "image";
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            selectors: [{ types, name, displayType }],
-            symbolIds: types.map((type) => `${type}.${name}`),
-            kind: "read",
-            linkable: true,
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-      if (context.includes("AudioCommand")) {
-        const types = ["layered_audio", "audio", "synth"];
-        const name = this.read(nodeRef.from, nodeRef.to);
-        const displayType = "audio";
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            selectors: [{ types, name, displayType }],
-            symbolIds: types.map((type) => `${type}.${name}`),
-            kind: "read",
-            linkable: true,
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "NameValue") {
-      const context = getContextNames(nodeRef.node);
-      if (context.includes("ImageCommand")) {
-        const clauseKeywordNode = keywordOfValue(nodeRef.node);
-        const clauseKeyword = clauseKeywordNode
-          ? this.read(clauseKeywordNode.from, clauseKeywordNode.to)
-          : undefined;
-        const name = this.read(nodeRef.from, nodeRef.to);
-        if (clauseKeyword === "with") {
-          const types = ["transition", "animation"];
-          const displayType = `transition or animation`;
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              selectors: [{ types, name, displayType }],
-              symbolIds: types.map((type) => `${type}.${name}`),
-              kind: "read",
-              linkable: true,
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        }
-        if (clauseKeyword === "ease") {
-          const types = ["ease"];
-          const displayType = `ease`;
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              selectors: [{ types, name, displayType }],
-              symbolIds: types.map((type) => `${type}.${name}`),
-              kind: "read",
-              linkable: true,
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        }
-        if (clauseKeyword === "to") {
-          const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
-          const controlNode = command
-            ? firstDescendant(command, ASSET_COMMAND_CONTROL)
-            : null;
-          const control = controlNode
-            ? this.read(controlNode.from, controlNode.to).trim()
-            : "";
-          if (control === LayoutVerb.navigate) {
-            annotations.push(
-              SparkdownAnnotation.mark<Reference>({
-                selectors: [{ types: ["layout"], name, displayType: "layout" }],
-                symbolIds: [`layout.${name}`],
-                kind: "read",
-                linkable: true,
-              }).range(nodeRef.from, nodeRef.to),
-            );
-            return annotations;
-          }
-        }
-      }
-      if (context.includes("AudioCommand")) {
-        const keyword = keywordOfValue(nodeRef.node);
-        if (!keyword || this.read(keyword.from, keyword.to) !== "with") {
-          return annotations;
-        }
-        const types = ["modulation"];
-        const name = this.read(nodeRef.from, nodeRef.to);
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            selectors: [{ types, name }],
-            symbolIds: types.map((type) => `${type}.${name}`),
-            kind: "read",
-            linkable: true,
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
+    if (Object.hasOwn(DIRECTIVE_NODE_BRACKETS, nodeRef.name)) {
+      const directive = readSourceDirective(nodeRef, (from, to) => this.read(from, to));
+      if (directive) annotations.push(...this.directiveReferences(directive));
+      return annotations;
     }
     if (nodeRef.name === "DialogueCharacterName") {
       const name = this.read(nodeRef.from, nodeRef.to);
