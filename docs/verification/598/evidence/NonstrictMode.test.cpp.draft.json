@@ -1,0 +1,436 @@
+[
+  {
+    "line": 27,
+    "result": {
+      "name": "infer_nullary_function",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        function foo(x, y) end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "foo"
+            },
+            {
+              "type": "foo",
+              "equals": "(unknown, unknown) -> ()"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 44,
+    "result": {
+      "name": "infer_the_maximum_number_of_values_the_function_could_return",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        function getMinCardCountForWidth(width)\n            if width < 513 then\n                return 3\n            else\n                return 8, 'jellybeans'\n            end\n        end\n    ",
+          "expect": [
+            {
+              "type": "getMinCardCountForWidth"
+            },
+            {
+              "type": "getMinCardCountForWidth",
+              "equals": "(number) -> number"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 66,
+    "result": {
+      "name": "return_annotation_is_still_checked",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        function foo(x): number return 'hello' end\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "type": "foo",
+              "notEquals": "any"
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 79,
+    "result": {
+      "name": "function_parameters_are_any",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        function f(arg)\n            arg = 9\n            arg:concat(4)\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 92,
+    "result": {
+      "name": "inconsistent_return_types_are_ok",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        function f()\n            if 1 then\n                return 4\n            else\n                return 'hello'\n            end\n            return 'one', 'two'\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 109,
+    "result": {
+      "name": "locals_are_any_by_default",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local m = 55\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "m",
+              "equals": "number",
+              "options": {
+                "exhaustive": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 124,
+    "result": {
+      "name": "parameters_having_type_any_are_optional",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local function f(a, b)\n            return a\n        end\n\n        f(5)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 138,
+    "result": {
+      "name": "local_tables_are_not_any",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local T = {}\n        function T:method() end\n        function T.staticmethod() end\n\n        T.method()\n        T:staticmethod()\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "does not pass on Luau's new solver upstream"
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 156,
+    "result": {
+      "name": "offer_a_hint_if_you_use_a_dot_instead_of_a_colon",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local T = {}\n        function T:method(x: number) end\n        T.method(5)\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "does not pass on Luau's new solver upstream"
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 171,
+    "result": {
+      "name": "table_props_are_any",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local T = {}\n        T.foo = 55\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "T",
+              "equals": "{ foo: number }",
+              "options": {
+                "exhaustive": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 187,
+    "result": {
+      "name": "inline_table_props_are_also_any",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local T = {\n            one = 1,\n            two = 'two',\n            three = function() return 3 end\n        }\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "T",
+              "equals": "{ one: number, three: () -> number, two: string }",
+              "options": {
+                "exhaustive": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 206,
+    "result": {
+      "name": "for_in_iterator_variables_are_any",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        function requires_a_table(arg: {}) end\n        function requires_a_number(arg: number) end\n\n        local T = {}\n        for a, b in pairs(T) do\n            requires_a_table(a)\n            requires_a_table(b)\n            requires_a_number(a)\n            requires_a_number(b)\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 225,
+    "result": {
+      "name": "table_dot_insert_and_recursive_calls",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        function populateListFromIds(list, normalizedData)\n            local newList = {}\n\n            for _, value in ipairs(list) do\n                if type(value) == \"table\" then\n                    table.insert(newList, populateListFromIds(value, normalizedData))\n                else\n                    table.insert(newList, normalizedData[value])\n                end\n            end\n\n            return newList\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 247,
+    "result": {
+      "name": "delay_function_does_not_require_its_argument_to_return_anything",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n\n        function delay(ms: number?, cb: () -> ()): () end\n\n        delay(50, function() end)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 260,
+    "result": {
+      "name": "inconsistent_module_return_types_are_ok",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n\n        local FFlag: any\n\n        if FFlag.get('SomeFlag') then\n            return {foo='bar'}\n        else\n            return function(prop)\n                return 'bar'\n            end\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "moduleReturn": true,
+              "equals": "{ foo: string }"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 285,
+    "result": {
+      "name": "returning_insufficient_return_values",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n\n        function foo(): (boolean, string?)\n            if true then\n                return true, \"hello\"\n            else\n                return false\n            end\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 302,
+    "result": {
+      "name": "returning_too_many_values",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n\n        function foo(): boolean\n            if true then\n                return true, \"hello\"\n            else\n                return false\n            end\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 319,
+    "result": {
+      "name": "standalone_constraint_solving_incomplete_is_hidden_nonstrict",
+      "fixture": "Fixture",
+      "flags": {
+        "DebugLuauMagicTypes": true,
+        "DebugLuauAlwaysShowConstraintSolvingIncomplete": false
+      },
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local function _f(_x: _luau_force_constraint_solving_incomplete) end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 337,
+    "result": {
+      "name": "non_standalone_constraint_solving_incomplete_is_hidden_nonstrict",
+      "fixture": "BuiltinsFixture",
+      "flags": {
+        "DebugLuauMagicTypes": true
+      },
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local function _f(_x: _luau_force_constraint_solving_incomplete) end\n        math.abs(\"pls\")\n    ",
+          "expect": [
+            {
+              "errors": 2
+            },
+            {
+              "error": 0,
+              "code": "CheckedFunctionCallError"
+            },
+            {
+              "error": 1,
+              "code": "ConstraintSolvingIncompleteError"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 355,
+    "result": {
+      "name": "allow_error_type_nonstrict",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local sublist: any\n        if sublist then\n            for _, entry in sublist do\n                local _ = string.upper(entry)\n            end\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 367,
+    "result": {
+      "name": "error_in_union_suppresses",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local sublist: any\n        if sublist then\n            local subitem = sublist.item\n            local _ = string.upper(subitem)\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "mode": "nonstrict"
+        }
+      ]
+    },
+    "audit": []
+  }
+]

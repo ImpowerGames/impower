@@ -1,0 +1,2205 @@
+[
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "math_things_are_defined",
+    "line": 18,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "next_iterator_should_infer_types_and_type_check",
+    "line": 61,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "pairs_iterator_should_infer_types_and_type_check",
+    "line": 74,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "ipairs_iterator_should_infer_types_and_type_check",
+    "line": 86,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_dot_remove_optionally_returns_generic",
+    "line": 98,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_concat_returns_string",
+    "line": 109,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "sort",
+    "line": 119,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "sort_with_predicate",
+    "line": 129,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "sort_with_bad_predicate",
+    "line": 143,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "does not pass on Luau's new solver upstream"
+    },
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "strings_have_methods",
+    "line": 171,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "math_max_variatic",
+    "line": 181,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "math_max_checks_for_numbers",
+    "line": 191,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "builtin_tables_sealed",
+    "line": 201,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "comparison",
+        "expr": "CHECK_EQ(bit32t->state, TableState::Sealed)"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "lua_51_exported_globals_all_exist",
+    "line": 213,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "setmetatable_unpacks_arg_types_correctly",
+    "line": 370,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "setmetatable_on_union_of_tables",
+    "line": 378,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_insert_correctly_infers_type_of_array_2_args_overload",
+    "line": 398,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_insert_correctly_infers_type_of_array_3_args_overload",
+    "line": 410,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_pack",
+    "line": 422,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_pack_variadic",
+    "line": 432,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_pack_reduce_1",
+    "line": 447,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_pack_reduce_2",
+    "line": 457,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gcinfo",
+    "line": 483,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "getfenv",
+    "line": 493,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "os_time_takes_optional_date_table",
+    "line": 498,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "thread_is_a_type",
+    "line": 512,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "buffer_is_a_type",
+    "line": 522,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "coroutine_resume_anything_goes",
+    "line": 532,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "coroutine_wrap_anything_goes",
+    "line": 552,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "setmetatable_should_not_mutate_persisted_types",
+    "line": 571,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver."
+    },
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_arg_types_inference",
+    "line": 589,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_arg_count_mismatch",
+    "line": 604,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_correctly_ordered_types",
+    "line": 620,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver (CLI-115690)."
+    },
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_tostring_specifier",
+    "line": 638,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_tostring_specifier_type_constraint",
+    "line": 648,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "xpcall",
+    "line": 663,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "pcall_returns_at_least_two_value_but_function_returns_nothing",
+    "line": 679,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "trivial_select",
+    "line": 695,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "see_thru_select",
+    "line": 704,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "see_thru_select_count",
+    "line": 713,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "select_with_decimal_argument_is_rounded_down",
+    "line": 723,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "bad_select_should_not_crash",
+    "line": 733,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "select_way_out_of_range",
+    "line": 774,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver (CLI-115720)."
+    },
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "select_slightly_out_of_range",
+    "line": 789,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver (CLI-115720)."
+    },
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "select_with_variadic_typepack_tail",
+    "line": 804,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "select_with_variadic_typepack_tail_and_string_head",
+    "line": 823,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver (CLI-115720)."
+    },
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_as_method",
+    "line": 846,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_trivial_arity",
+    "line": 858,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_use_correct_argument",
+    "line": 869,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_use_correct_argument2",
+    "line": 880,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_use_correct_argument3",
+    "line": 892,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "debug_traceback_is_crazy",
+    "line": 906,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "debug_info_is_crazy",
+    "line": 924,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "aliased_string_format",
+    "line": 938,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_lib_self_noself",
+    "line": 949,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gmatch_definition",
+    "line": 968,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "select_on_variadic",
+    "line": 981,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_report_all_type_errors_at_correct_positions",
+    "line": 997,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{stringType, numberType}), result.errors[0].data)"
+      },
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{numberType, stringType}), result.errors[1].data)"
+      },
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{stringType, booleanType}), result.errors[2].data)"
+      },
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{stringType, numberType}), result.errors[3].data)"
+      },
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{numberType, stringType}), result.errors[4].data)"
+      },
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{stringType, booleanType}), result.errors[5].data)"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "tonumber_returns_optional_number_type",
+    "line": 1029,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "tonumber_returns_optional_number_type2",
+    "line": 1059,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "dont_add_definitions_to_persistent_types",
+    "line": 1069,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver."
+    },
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "assert_removes_falsy_types",
+    "line": 1096,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "assert_removes_falsy_types2",
+    "line": 1114,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "assert_removes_falsy_types3",
+    "line": 1126,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "assert_removes_falsy_types_even_from_type_pack_tail_but_only_for_the_first_type",
+    "line": 1144,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver."
+    },
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "assert_returns_false_and_string_iff_it_knows_the_first_argument_cannot_be_truthy",
+    "line": 1159,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver (CLI-114134)."
+    },
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_is_generic",
+    "line": 1177,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_does_not_retroactively_block_mutation",
+    "line": 1227,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_no_generic_table",
+    "line": 1255,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_on_metatable",
+    "line": 1275,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_errors_on_no_args",
+    "line": 1292,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_errors_on_non_tables",
+    "line": 1304,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_persistent_skip",
+    "line": 1323,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_clone_persistent_skip",
+    "line": 1332,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_clone_should_support_variadic_any_in_old_solver",
+    "line": 1341,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 2,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "set_metatable_needs_arguments",
+    "line": 1359,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "does not pass on Luau's new solver upstream"
+    },
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_clone_intersection_of_tables",
+    "line": 1375,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "typeof_unresolved_function",
+    "line": 1397,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "no_persistent_typelevel_change",
+    "line": 1406,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "comparison",
+        "expr": "CHECK(ftv->level.level == original.level)"
+      },
+      {
+        "what": "comparison",
+        "expr": "CHECK(ftv->level.subLevel == original.subLevel)"
+      },
+      {
+        "what": "pre-check global object capture",
+        "expr": "TypeId mathTy = requireType(getFrontend().globals.globalScope, \"math\");\n    REQUIRE(mathTy);\n    TableType* ttv = getMutable<TableType>(mathTy);\n    REQUIRE(ttv);\n\n    REQUIRE(ttv->props[\"frexp\"].readTy);\n    const FunctionType* ftv = get<FunctionType>(*ttv->props[\"frexp\"].readTy);\n\n    REQUIRE(ftv);\n    auto original = ftv->level;"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "global_singleton_types_are_sealed",
+    "line": 1426,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_match",
+    "line": 1441,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gmatch_capture_types",
+    "line": 1452,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gmatch_capture_types2",
+    "line": 1465,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gmatch_capture_types_default_capture",
+    "line": 1478,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gmatch_capture_types_balanced_escaped_parens",
+    "line": 1495,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gmatch_capture_types_parens_in_sets_are_ignored",
+    "line": 1514,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gmatch_capture_types_set_containing_lbracket",
+    "line": 1532,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gmatch_capture_types_leading_end_bracket_is_part_of_set",
+    "line": 1544,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gmatch_capture_types_invalid_pattern_fallback_to_builtin",
+    "line": 1559,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "gmatch_capture_types_invalid_pattern_fallback_to_builtin2",
+    "line": 1570,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "match_capture_types",
+    "line": 1581,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "match_capture_types2",
+    "line": 1594,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "find_capture_types",
+    "line": 1612,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "find_capture_types2",
+    "line": 1627,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "find_capture_types3",
+    "line": 1647,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "find_capture_types3",
+    "line": 1667,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_find_should_not_crash",
+    "line": 1685,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_dot_clone_type_states",
+    "line": 1701,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_clone_should_not_break",
+    "line": 1725,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_clone_should_not_break_2",
+    "line": 1746,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_should_support_any",
+    "line": 1763,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_should_support_any_2",
+    "line": 1775,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "string_format_should_support_singleton_types",
+    "line": 1790,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "write_only_table_assertion",
+    "line": 1807,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_insert_into_any",
+    "line": 1819,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_insert_requires_all_fields",
+    "line": 1826,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "read_refinements_on_persistent_tables_known_property_identity",
+    "line": 1841,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "read_refinements_on_persistent_tables_unknown_property",
+    "line": 1850,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "read_refinements_on_persistent_tables_known_property_narrow",
+    "line": 1863,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "next_with_refined_any",
+    "line": 1877,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "pairs_with_refined_any",
+    "line": 1897,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "vector_lerp_should_not_crash",
+    "line": 1919,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "instantiation_works_on_builtins",
+    "line": 1928,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_on_any_should_not_error",
+    "line": 1941,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_with_type_check_should_not_error",
+    "line": 1956,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_no_args",
+    "line": 1971,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_with_type_pack_should_error",
+    "line": 1983,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_with_variadic_any_should_not_error",
+    "line": 1995,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_with_variadic_non_error_suppressing_should_error",
+    "line": 2010,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "variadic_return_to_single_parameter_function",
+    "line": 2027,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_generic_pack",
+    "line": 2045,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "TypeInfer.builtins.test.cpp",
+    "name": "table_freeze_function",
+    "line": 2063,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "interesting_checked_functions",
+    "line": 140,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 12), \"onlyNums\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(5, 10), \"mixedArgs\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(6, 15), \"mixedArgs\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(10, 12), \"optionalArg\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "simple_negation_caching_example",
+    "line": 165,
+    "checks": 2,
+    "literalSourcesChecked": 2,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 10), \"contrived\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(3, 10), \"contrived\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "simple_non_strict_failure",
+    "line": 186,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(1, 4), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "nested_function_calls_constant",
+    "line": 195,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 4), \"abs\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 10), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "if_then_else_does_not_warn_with_never_local",
+    "line": 208,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "if_then_else_warns_nil_branches",
+    "line": 222,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(3, 8), \"abs\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(5, 10), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "if_then_else_doesnt_warn_else_branch",
+    "line": 238,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(3, 8), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "if_then_no_else",
+    "line": 253,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(3, 8), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "if_then_no_else_err_in_cond",
+    "line": 266,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 7), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "if_then_else_expr_should_warn",
+    "line": 278,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 43), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "if_then_else_expr_should_not_warn_for_never",
+    "line": 289,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "if_then_else_expr_doesnt_warn_else_branch",
+    "line": 299,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 29), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "sequencing_if_checked_call",
+    "line": 309,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(7, 6), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "function_def_unrelated_checked_calls",
+    "line": 324,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "function_def_basic_no_errors",
+    "line": 336,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "function_def_basic_errors",
+    "line": 346,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 8), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "function_def_failure",
+    "line": 358,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 8), \"abs\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "function_def_sequencing_errors",
+    "line": 369,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_FUNC_DEFINITION_ERR(Position(1, 11), \"x\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "function_def_sequencing_errors_2",
+    "line": 382,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "local_fn_produces_error",
+    "line": 395,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 25), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "fn_expr_produces_error",
+    "line": 406,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 27), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "function_def_if_warns_never",
+    "line": 418,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "function_def_if_no_else",
+    "line": 433,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "function_def_if_assignment_errors",
+    "line": 445,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(7, 10), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "generic_type_instantiation",
+    "line": 461,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "function_def_if_assignment_no_errors",
+    "line": 477,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "local_only_one_warning",
+    "line": 492,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 6), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "phi_node_assignment",
+    "line": 502,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "phi_node_assignment_err",
+    "line": 515,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(8, 10), \"lower\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "tblprop_is_checked",
+    "line": 533,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(1, 8), \"foo.bar\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "exprgroup_is_checked",
+    "line": 542,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "binop_is_checked",
+    "line": 557,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "incorrect_arg_count",
+    "line": 572,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "optionals_in_checked_function_can_be_omitted",
+    "line": 587,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "generic_type_packs_in_non_strict",
+    "line": 598,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "optionals_in_checked_function_in_middle_cannot_be_omitted",
+    "line": 608,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(1, 27), \"optionalArgsAtTheEnd2\", result)"
+      },
+      {
+        "what": "position diagnostic macro",
+        "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(4, 27), \"optionalArgsAtTheEnd2\", result)"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "non_testable_type_throws_ice",
+    "line": 625,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "actual thrown InternalCompilerError",
+        "expr": "CHECK_THROWS_AS(\n        checkNonStrict(R\"(\nos.time({year = 0, month = 0, day = 0, min = 0, isdst = nil})\n)\"),\n        Luau::InternalCompilerError\n    );"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "non_strict_shouldnt_warn_on_require_module",
+    "line": 635,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 2,
+    "generated": false,
+    "pending": [
+      {
+        "what": "module SourceCode::Module setup",
+        "expr": "fileResolver.sourceTypes[\"Modules/A\"] = SourceCode::Module"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "nonstrict_shouldnt_warn_on_valid_buffer_use",
+    "line": 654,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "nonstrict_method_calls",
+    "line": 672,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": [
+      {
+        "what": "per-case builtin registration",
+        "expr": "Luau::unfreeze(getFrontend().globals.globalTypes);\n    Luau::unfreeze(getFrontend().globalsForAutocomplete.globalTypes);\n\n    registerBuiltinGlobals(getFrontend(), getFrontend().globals);\n    registerTestTypes();\n\n    Luau::freeze(getFrontend().globals.globalTypes);\n    Luau::freeze(getFrontend().globalsForAutocomplete.globalTypes);"
+      }
+    ]
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "unknown_globals_in_non_strict_1",
+    "line": 691,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "unknown_types_in_non_strict",
+    "line": 704,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "unknown_types_in_non_strict_2",
+    "line": 717,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "buffer_is_not_unknown",
+    "line": 730,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "incomplete_function_annotation",
+    "line": 741,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "unknown_globals_in_function_calls",
+    "line": 750,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "unknown_globals_in_one_sided_conditionals",
+    "line": 764,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "new_non_strict_should_suppress_dynamic_require_errors",
+    "line": 780,
+    "checks": 2,
+    "literalSourcesChecked": 2,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "new_non_strict_should_suppress_unknown_require_errors",
+    "line": 807,
+    "checks": 2,
+    "literalSourcesChecked": 2,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "new_non_strict_stringifies_checked_function_errors_as_one_indexed",
+    "line": 831,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "new_non_strict_skips_warnings_on_unreduced_typefunctions",
+    "line": 854,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "nonstrict_check_block_recursion_limit",
+    "line": 866,
+    "checks": 1,
+    "literalSourcesChecked": 0,
+    "moduleDependencies": 0,
+    "generated": true,
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "nonstrict_check_expr_recursion_limit",
+    "line": 883,
+    "checks": 1,
+    "literalSourcesChecked": 0,
+    "moduleDependencies": 0,
+    "generated": true,
+    "skip": {
+      "disabledUpstream": true
+    },
+    "pending": []
+  },
+  {
+    "file": "NonStrictTypeChecker.test.cpp",
+    "name": "typecheck_class_method_bodies",
+    "line": 900,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "notApplicable": "User-defined class declarations are excluded by DIVERGENCES.md section No `class` declarations."
+    },
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "infer_nullary_function",
+    "line": 27,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "infer_the_maximum_number_of_values_the_function_could_return",
+    "line": 44,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "return_annotation_is_still_checked",
+    "line": 66,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "function_parameters_are_any",
+    "line": 79,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "inconsistent_return_types_are_ok",
+    "line": 92,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "locals_are_any_by_default",
+    "line": 109,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "parameters_having_type_any_are_optional",
+    "line": 124,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "local_tables_are_not_any",
+    "line": 138,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "does not pass on Luau's new solver upstream"
+    },
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "offer_a_hint_if_you_use_a_dot_instead_of_a_colon",
+    "line": 156,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "skip": {
+      "newSolver": "does not pass on Luau's new solver upstream"
+    },
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "table_props_are_any",
+    "line": 171,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "inline_table_props_are_also_any",
+    "line": 187,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "for_in_iterator_variables_are_any",
+    "line": 206,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "table_dot_insert_and_recursive_calls",
+    "line": 225,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "delay_function_does_not_require_its_argument_to_return_anything",
+    "line": 247,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "inconsistent_module_return_types_are_ok",
+    "line": 260,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "returning_insufficient_return_values",
+    "line": 285,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "returning_too_many_values",
+    "line": 302,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "standalone_constraint_solving_incomplete_is_hidden_nonstrict",
+    "line": 319,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "non_standalone_constraint_solving_incomplete_is_hidden_nonstrict",
+    "line": 337,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "allow_error_type_nonstrict",
+    "line": 355,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  },
+  {
+    "file": "NonstrictMode.test.cpp",
+    "name": "error_in_union_suppresses",
+    "line": 367,
+    "checks": 1,
+    "literalSourcesChecked": 1,
+    "moduleDependencies": 0,
+    "generated": false,
+    "pending": []
+  }
+]
