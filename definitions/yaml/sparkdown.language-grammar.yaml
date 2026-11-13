@@ -96,8 +96,21 @@ variables:
   # the clauses at `morph`. A name has no end the split could stop at
   # instead, and the lists' boundary must keep those characters as word ends
   # elsewhere, so the split starts a clause word only after whitespace or the
-  # directive's opening bracket, as the interpreter splits words.
-  ASSET_CLAUSE_START: (?<={{WS}}|[\[(])
+  # directive's opening `[[` or `((`, as the interpreter splits words.
+  ASSET_CLAUSE_START: (?<={{WS}}|\[\[|[(][(])
+  # lookaround: the interpreter takes the word after a control as its target
+  # whatever it is spelled like (`[[show with fade]]` shows `with`), except
+  # after `navigate`, whose screen is optional and never a clause word
+  # (`[[navigate to menu]]`). The control lists are shared with
+  # `AssetCommandInstruction`, so `navigate` is refused here rather than
+  # copied into a second list without it.
+  ASSET_TARGET_CONTROL: (?:{{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}}|(?!navigate){{LAYOUT_CONTROL_KEYWORDS}})
+  ASSET_WORD: (?:[#]*[^\s#]\S*)
+  ASSET_CONTROL_AND_TARGET: (?:{{ASSET_TARGET_CONTROL}}{{WS}}+{{ASSET_WORD}})
+  # lookaround: a clause word is a whole word, so it is followed by whitespace
+  # or the directive's end; followed by anything else it is part of a name
+  # (`with-x`), which `AssetCommandFileName` reads whole.
+  ASSET_CLAUSES_START: (?:{{TAG_START}}|{{ASSET_CLAUSE_START}}(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}))
   NOT_TAG_HASH: (?:[#]+[^#\s])
   # lookaround: ActionLineEnd and LineEnd own a `#x` the line begins with,
   # as display text. The line rules that end here (ImplicitAction,
@@ -681,8 +694,8 @@ variables:
   NUMBER: (?:[-]?(?:\d*[.])?\d+)
   DOUBLE_QUOTED_CHAR: (?:\\.|[^"\r\n])
   SINGLE_QUOTED_CHAR: (?:\\.|[^'\r\n])
-  IMAGE_COMMAND_CHAR: (?:\\.|[^\]\r\n])
-  AUDIO_COMMAND_CHAR: (?:\\.|[^)\r\n])
+  IMAGE_COMMAND_CHAR: (?:\\.|[^\r\n])
+  AUDIO_COMMAND_CHAR: (?:\\.|[^\r\n])
   QUOTED_STRING: (?:["]{{DOUBLE_QUOTED_CHAR}}*["])
   STRICT_PROPERTY_IDENTIFIER: (?:{{INTEGER}}|{{IDENTIFIER}}|{{QUOTED_STRING}})
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}]|[{{IDENTIFIER_END_CHAR}}][@])(?:(?<=\.\.\.)|(?<!\.))
@@ -3470,7 +3483,7 @@ repository:
           - { include: "#AssetCommandContent" }
 
   AssetCommandContent:
-    match: (.*?)($|(?:{{TAG_START}}|{{ASSET_CLAUSE_START}}(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}})).*)
+    match: ({{ASSET_CONTROL_AND_TARGET}}?.*?)($|{{ASSET_CLAUSES_START}}.*)
     captures:
       1:
         patterns:
@@ -3487,7 +3500,7 @@ repository:
           - { include: "#NameValue" }
 
   AssetCommandValueClause:
-    match: ({{ASSET_VALUE_CLAUSE_KEYWORDS}})({{WS}}+)((?:[#]*[^\s#])\S*)
+    match: ({{ASSET_VALUE_CLAUSE_KEYWORDS}})({{WS}}+)({{ASSET_WORD}})
     captures:
       1:
         patterns:

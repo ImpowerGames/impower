@@ -111,7 +111,11 @@
     "STORY_NAME_START": "(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])",
     "IDENTIFIER": "(?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}{{IDENTIFIER_AT_PART}}*(?<![-]))",
     "TAG_START": "(?:[#]+(?=$|{{WS}}))",
-    "ASSET_CLAUSE_START": "(?<={{WS}}|[\\[(])",
+    "ASSET_CLAUSE_START": "(?<={{WS}}|\\[\\[|[(][(])",
+    "ASSET_TARGET_CONTROL": "(?:{{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}}|(?!navigate){{LAYOUT_CONTROL_KEYWORDS}})",
+    "ASSET_WORD": "(?:[#]*[^\\s#]\\S*)",
+    "ASSET_CONTROL_AND_TARGET": "(?:{{ASSET_TARGET_CONTROL}}{{WS}}+{{ASSET_WORD}})",
+    "ASSET_CLAUSES_START": "(?:{{TAG_START}}|{{ASSET_CLAUSE_START}}(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}))",
     "NOT_TAG_HASH": "(?:[#]+[^#\\s])",
     "NOT_TAG_HASH_AFTER_TEXT": "(?<=[^\\s.]|[^\\s.][.]|[^\\s.][.][.])(?={{NOT_TAG_HASH}})",
     "COMMENT_START": "(?:[-][-])",
@@ -297,8 +301,8 @@
     "NUMBER": "(?:[-]?(?:\\d*[.])?\\d+)",
     "DOUBLE_QUOTED_CHAR": "(?:\\\\.|[^\"\\r\\n])",
     "SINGLE_QUOTED_CHAR": "(?:\\\\.|[^'\\r\\n])",
-    "IMAGE_COMMAND_CHAR": "(?:\\\\.|[^\\]\\r\\n])",
-    "AUDIO_COMMAND_CHAR": "(?:\\\\.|[^)\\r\\n])",
+    "IMAGE_COMMAND_CHAR": "(?:\\\\.|[^\\r\\n])",
+    "AUDIO_COMMAND_CHAR": "(?:\\\\.|[^\\r\\n])",
     "QUOTED_STRING": "(?:[\"]{{DOUBLE_QUOTED_CHAR}}*[\"])",
     "STRICT_PROPERTY_IDENTIFIER": "(?:{{INTEGER}}|{{IDENTIFIER}}|{{QUOTED_STRING}})",
     "BEFORE_KEYWORD": "(?<![{{IDENTIFIER_END_CHAR}}]|[{{IDENTIFIER_END_CHAR}}][@])(?:(?<=\\.\\.\\.)|(?<!\\.))",
@@ -5579,7 +5583,7 @@
       ]
     },
     "ImageLine": {
-      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]\\r\\n])*?\\]\\]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\r\\n])*?\\]\\]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -5608,7 +5612,7 @@
       }
     },
     "AudioLine": {
-      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:[(][(](?:\\\\.|[^)\\r\\n])*?[)][)]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:[(][(](?:\\\\.|[^\\r\\n])*?[)][)]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -5637,7 +5641,7 @@
       }
     },
     "ImageAndAudioLine": {
-      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]\\r\\n])*?\\]\\]|[(][(](?:\\\\.|[^)\\r\\n])*?[)][)]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "match": "^((?:[^\\S\\n\\r])*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\r\\n])*?\\]\\]|[(][(](?:\\\\.|[^\\r\\n])*?[)][)]|(?:[^\\S\\n\\r])+)+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -5734,7 +5738,7 @@
       }
     },
     "ImageCommandContent": {
-      "match": "((?:\\\\.|[^\\]\\r\\n])*?)(?=$|(?:[^\\S\\n\\r])*\\]\\])",
+      "match": "((?:\\\\.|[^\\r\\n])*?)(?=$|(?:[^\\S\\n\\r])*\\]\\])",
       "captures": {
         "1": {
           "patterns": [
@@ -5798,7 +5802,7 @@
       }
     },
     "AudioCommandContent": {
-      "match": "((?:\\\\.|[^)\\r\\n])*?)(?=$|(?:[^\\S\\n\\r])*[)][)])",
+      "match": "((?:\\\\.|[^\\r\\n])*?)(?=$|(?:[^\\S\\n\\r])*[)][)])",
       "captures": {
         "1": {
           "patterns": [
@@ -5810,7 +5814,7 @@
       }
     },
     "AssetCommandContent": {
-      "match": "(.*?)($|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?<=(?:[^\\S\\n\\r])|[\\[(])(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?=$|(?:[^\\S\\n\\r]))).*)",
+      "match": "((?:(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:show|hide|animate)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:play|stop|fade|queue|await)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:load)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:play)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?!navigate)(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:open|close|navigate|clear)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?:[^\\S\\n\\r])+(?:[#]*[^\\s#]\\S*))?.*?)($|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?<=(?:[^\\S\\n\\r])|\\[\\[|[(][(])(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?=$|(?:[^\\S\\n\\r]))).*)",
       "captures": {
         "1": {
           "patterns": [
@@ -5850,7 +5854,7 @@
       }
     },
     "AssetCommandValueClause": {
-      "match": "((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:after|over|to|with|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))((?:[^\\S\\n\\r])+)((?:[#]*[^\\s#])\\S*)",
+      "match": "((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:after|over|to|with|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))((?:[^\\S\\n\\r])+)((?:[#]*[^\\s#]\\S*))",
       "captures": {
         "1": {
           "patterns": [
