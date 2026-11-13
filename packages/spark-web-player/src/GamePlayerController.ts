@@ -1418,7 +1418,12 @@ export class GamePlayerController {
     sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
   }
 
-  stop = () => this.stopGame("quit");
+  stop = () => {
+    const ended = this._workerPlay?.ended;
+    return this.stopGame(
+      !ended ? "quit" : ended.kind === "error" ? "error" : "finished",
+    );
+  };
 
   toggleFullscreen = () => {
     sendProtocolMessage(
@@ -2073,10 +2078,7 @@ export class GamePlayerController {
   };
 
   protected handleStopGame = async (message: StopGameMessage.Request) => {
-    const ended = this._workerPlay?.ended;
-    await this.stopGame(
-      !ended ? "quit" : ended.kind === "error" ? "error" : "finished",
-    );
+    await this.stop();
     return StopGameMessage.type.response(message.id, {});
   };
 

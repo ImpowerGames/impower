@@ -209,32 +209,38 @@ describe("PLAY in the worker reaching the end of the story", () => {
     }
   }, 120_000);
 
-  it("STOP from the ended frame sends game/exited and selects the line the run ended on", async () => {
-    const { h } = await start(RAN_OUT, HELLO);
-    try {
-      await click(h);
-      const [ended] = sent(h, "game/ended");
-      h.workspace.selections.length = 0;
-      await h.controller.handleStopGame({ id: 1, params: {} });
-      await settle(20);
-      expect(sent(h, "game/exited")).toEqual([
-        expect.objectContaining({
-          reason: "finished",
-          run: expect.any(Number),
-        }),
-      ]);
-      expect(launchStates(h).at(-1)).toBe("preview");
-      expect(h.controller.playing).toBe(false);
-      expect(h.bar("#ending-status").hidden).toBe(false);
-      expect(h.bar("#ending-status").textContent).toBe("Story ran out");
-      expect(h.workspace.selections.map((s: any) => s.selectedRange.start.line)).toEqual([
-        ended.location.range.start.line,
-      ]);
-      expect(ended.location.range.start.line).toBe(3);
-    } finally {
-      h.dispose();
-    }
-  }, 120_000);
+  for (const caller of ["handleStopGame", "stop"] as const) {
+    it(`STOP through ${caller} from the ended frame sends game/exited and selects the line the run ended on`, async () => {
+      const { h } = await start(RAN_OUT, HELLO);
+      try {
+        await click(h);
+        const [ended] = sent(h, "game/ended");
+        h.workspace.selections.length = 0;
+        if (caller === "stop") {
+          await h.controller.stop();
+        } else {
+          await h.controller.handleStopGame({ id: 1, params: {} });
+        }
+        await settle(20);
+        expect(sent(h, "game/exited")).toEqual([
+          expect.objectContaining({
+            reason: "finished",
+            run: expect.any(Number),
+          }),
+        ]);
+        expect(launchStates(h).at(-1)).toBe("preview");
+        expect(h.controller.playing).toBe(false);
+        expect(h.bar("#ending-status").hidden).toBe(false);
+        expect(h.bar("#ending-status").textContent).toBe("Story ran out");
+        expect(h.workspace.selections.map((s: any) => s.selectedRange.start.line)).toEqual([
+          ended.location.range.start.line,
+        ]);
+        expect(ended.location.range.start.line).toBe(3);
+      } finally {
+        h.dispose();
+      }
+    }, 120_000);
+  }
 
   it("STOP after an error selects the error's line", async () => {
     const { h } = await start(ERROR, HELLO);
