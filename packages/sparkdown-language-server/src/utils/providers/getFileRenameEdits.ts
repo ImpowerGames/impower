@@ -1,3 +1,4 @@
+import { FONT_STYLE_SUFFIXES } from "@impower/sparkdown/src/attributes/fontFileName";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
   type CreateFile,
@@ -11,8 +12,6 @@ import { type DocumentUri } from "vscode-languageserver-textdocument";
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { getFileSymbol } from "./getFileSymbol";
 import { collectReferencesForTarget } from "./getReferences";
-
-const FONT_SUFFIXES = ["", "__bolditalic", "__bold_italic", "__bold", "__italic"];
 
 export const getFileRenameEdits = (
   workspace: SparkdownLanguageServerWorkspace,
@@ -49,7 +48,7 @@ export const getFileRenameEdits = (
       changes[reference.uri]!.push({ range: reference.range, newText: newName });
     }
 
-    const suffixes = seed.type === "font" ? FONT_SUFFIXES : [""];
+    const suffixes = seed.type === "font" ? FONT_STYLE_SUFFIXES : [""];
     for (const suffix of suffixes) {
       for (const siblingUri of workspace.findFiles(seed.name + suffix, seed.type)) {
         renameFile(siblingUri, workspace.getRenamedUri(siblingUri, newName + suffix));

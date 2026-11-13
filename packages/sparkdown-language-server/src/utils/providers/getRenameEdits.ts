@@ -1,3 +1,4 @@
+import { FONT_STYLE_SUFFIXES } from "@impower/sparkdown/src/attributes/fontFileName";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { runOperandNameSpan } from "@impower/sparkdown/src/compiler/utils/runOperand";
@@ -104,10 +105,7 @@ export const getRenameEdits = (
   };
 
   const renameFileByType = (type: string) => {
-    const possibleNameSuffixes =
-      type === "font"
-        ? ["", "__bolditalic", "__bold_italic", "__bold", "__italic"]
-        : [""];
+    const possibleNameSuffixes = type === "font" ? FONT_STYLE_SUFFIXES : [""];
     for (const suffix of possibleNameSuffixes) {
       for (const oldUri of workspace.findFiles(currentName + suffix, type)) {
         const newUri = workspace.getRenamedUri(oldUri, newName + suffix);

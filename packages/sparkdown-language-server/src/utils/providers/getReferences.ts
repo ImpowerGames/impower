@@ -1,4 +1,5 @@
 import { RangeCursor } from "@codemirror/state";
+import { FONT_STYLE_SUFFIXES } from "@impower/sparkdown/src/attributes/fontFileName";
 import { SparkdownAnnotation } from "@impower/sparkdown/src/compiler/classes/SparkdownAnnotation";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { Reference } from "@impower/sparkdown/src/compiler/classes/annotators/ReferenceAnnotator";
@@ -82,10 +83,7 @@ export const collectReferencesForTarget = (
     if (!context.addAssetFiles) {
       return;
     }
-    const possibleNameSuffixes =
-      type === "font"
-        ? ["", "__bolditalic", "__bold_italic", "__bold", "__italic"]
-        : [""];
+    const possibleNameSuffixes = type === "font" ? FONT_STYLE_SUFFIXES : [""];
     for (const suffix of possibleNameSuffixes) {
       for (const uri of workspace.findFiles(symbolName + suffix, type)) {
         references.push({
