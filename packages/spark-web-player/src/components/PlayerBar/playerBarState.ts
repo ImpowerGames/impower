@@ -80,6 +80,15 @@ export const initialPlayerBarState: PlayerBarState = {
   runHistory: initialRunHistory,
 };
 
+export type RunButtonState = "run" | "stop" | "run-again";
+
+export const runButtonState = (state: PlayerBarState): RunButtonState =>
+  state.launchState === "ended"
+    ? "run-again"
+    : state.playing
+      ? "stop"
+      : "run";
+
 export const skipRefusal = (
   history: GameHistory | null | undefined,
   direction: -1 | 1,

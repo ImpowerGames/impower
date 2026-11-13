@@ -1,12 +1,14 @@
 import { Fragment, type Ref } from "preact";
 import {
   playerBarLocation,
+  runButtonState,
   skipRefusal,
   type PlayerBarState,
 } from "./playerBarState";
 import { useHoldRepeat } from "./useHoldRepeat";
 
 export interface PlayerBarControls {
+  run?: boolean;
   skip?: boolean;
   step?: boolean;
   fullscreen?: boolean;
@@ -22,6 +24,10 @@ export interface PlayerBarProps {
   toolbarRef?: Ref<HTMLDivElement>;
   routeButtonRef?: Ref<HTMLDivElement>;
   savesButtonRef?: Ref<HTMLDivElement>;
+  runRefusal?: string;
+  starting?: boolean;
+  onRun?: () => void;
+  onStop?: () => void;
   onSkip?: (direction: -1 | 1) => void;
   onPause?: () => void;
   onResume?: () => void;
@@ -94,6 +100,51 @@ function TransportButton({
   );
 }
 
+const RUN_LABELS = {
+  run: "Run",
+  stop: "Stop",
+  "run-again": "Run again",
+} as const;
+
+function RunButton({
+  state,
+  refusal,
+  starting,
+  onRun,
+  onStop,
+}: {
+  state: PlayerBarState;
+  refusal?: string;
+  starting?: boolean;
+  onRun?: () => void;
+  onStop?: () => void;
+}) {
+  const mode = runButtonState(state);
+  const label = RUN_LABELS[mode];
+  const stopping = mode === "stop";
+  const reason = stopping ? undefined : refusal;
+  const disabled = !stopping && (reason != null || !!starting);
+  return (
+    <button
+      type="button"
+      id="run-button"
+      class="toolbar-button transport-button"
+      title={reason ?? label}
+      aria-disabled={disabled ? "true" : undefined}
+      aria-description={reason}
+      onPointerDown={stopPointer}
+      onClick={() => {
+        if (!disabled) {
+          (stopping ? onStop : onRun)?.();
+        }
+      }}
+    >
+      <span class="transport-icon" data-icon={mode} />
+      <span id="run-label">{label}</span>
+    </button>
+  );
+}
+
 export default function PlayerBar({
   state,
   controls,
@@ -103,6 +154,10 @@ export default function PlayerBar({
   toolbarRef,
   routeButtonRef,
   savesButtonRef,
+  runRefusal,
+  starting,
+  onRun,
+  onStop,
   onSkip,
   onPause,
   onResume,
@@ -124,6 +179,15 @@ export default function PlayerBar({
       class={snapping ? "snapping" : undefined}
     >
       {controls.resize ? <div id="resize-handle" /> : null}
+      {controls.run ? (
+        <RunButton
+          state={state}
+          refusal={runRefusal}
+          starting={starting}
+          onRun={onRun}
+          onStop={onStop}
+        />
+      ) : null}
       {controls.skip || debugging ? (
         <div id="transport-items">
           {debugging ? (

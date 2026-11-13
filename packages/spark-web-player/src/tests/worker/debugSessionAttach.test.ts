@@ -21,8 +21,6 @@ describe("a VS Code debug session attached to PLAY in the worker", () => {
       const win = doc.defaultView as any;
       win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
       h.refs.toolbar = doc.createElement("div");
-      h.refs.playButton = doc.createElement("div");
-      h.refs.playButton.getAnimations = () => [];
       const events: any[] = [];
       const pending: Promise<unknown>[] = [];
       let session: any;
@@ -72,7 +70,7 @@ describe("a VS Code debug session attached to PLAY in the worker", () => {
         if (!onStarted) {
           attach();
         }
-        await h.controller.handleClickPlayButton();
+        await h.controller.run();
         await settle(40);
         await h.tick(1000 / 60, 60);
         await Promise.all(pending);

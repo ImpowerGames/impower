@@ -10,9 +10,8 @@ import {
 } from "./components/PlayerBar/playerBarState";
 
 export const propDefaults = {
-  playLabel: "PLAY",
-  playButton: false,
   toolbar: false,
+  runButton: false,
   fullscreenButton: false,
   skipButtons: false,
   stepButtons: false,
@@ -25,9 +24,8 @@ const flag = (v: unknown): boolean =>
   v !== false && v !== "false" && v != null;
 
 export default function SparkWebPlayer({
-  playLabel,
-  playButton,
   toolbar,
+  runButton,
   fullscreenButton,
   skipButtons,
   stepButtons,
@@ -38,7 +36,6 @@ export default function SparkWebPlayer({
   const gameBackgroundRef = useRef<HTMLDivElement>(null);
   const gameViewRef = useRef<HTMLDivElement>(null);
   const gameUIRef = useRef<HTMLDivElement>(null);
-  const playButtonRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const routeButtonRef = useRef<HTMLDivElement>(null);
   const routeListRef = useRef<HTMLDivElement>(null);
@@ -53,7 +50,7 @@ export default function SparkWebPlayer({
     view: PlayerBarView;
   }>({
     state: initialPlayerBarState,
-    view: { routeShown: false, snapping: false },
+    view: { routeShown: false, snapping: false, starting: false },
   });
 
   useEffect(() => {
@@ -83,7 +80,6 @@ export default function SparkWebPlayer({
           gameBackground,
           gameView,
           gameUI,
-          playButton: playButtonRef.current,
           toolbar: toolbarRef.current,
           routeButton: routeButtonRef.current,
           routeList: routeListRef.current,
@@ -107,7 +103,6 @@ export default function SparkWebPlayer({
       controllerRef.current = null;
     };
   }, [
-    flag(playButton),
     flag(toolbar),
     flag(fullscreenButton),
     flag(hostDisplay),
@@ -127,28 +122,12 @@ export default function SparkWebPlayer({
           />
         ) : null}
         {strip ? <div id="saves-menu" ref={savesMenuRef} /> : null}
-        {flag(playButton) ? (
-          <div id="play-button" ref={playButtonRef}>
-            <svg
-              id="play-icon"
-              xmlns="http://www.w3.org/2000/svg"
-              width="512"
-              height="512"
-              viewBox="0 0 512 512"
-            >
-              <path
-                fill="currentColor"
-                d="M464 256a208 208 0 1 0-416 0a208 208 0 1 0 416 0M0 256a256 256 0 1 1 512 0a256 256 0 1 1-512 0m188.3-108.9c7.6-4.2 16.8-4.1 24.3.5l144 88c7.1 4.4 11.5 12.1 11.5 20.5s-4.4 16.1-11.5 20.5l-144 88c-7.4 4.5-16.7 4.7-24.3.5S176 352.9 176 344.2v-176c0-8.7 4.7-16.7 12.3-20.9z"
-              />
-            </svg>
-            <div id="play-label">{playLabel}</div>
-          </div>
-        ) : null}
       </div>
       {strip ? (
         <PlayerBar
           state={bar.state}
           controls={{
+            run: flag(runButton),
             skip: flag(skipButtons),
             step: flag(stepButtons),
             fullscreen: flag(fullscreenButton),
@@ -160,6 +139,10 @@ export default function SparkWebPlayer({
           toolbarRef={toolbarRef}
           routeButtonRef={routeButtonRef}
           savesButtonRef={savesButtonRef}
+          runRefusal={bar.view.runRefusal}
+          starting={bar.view.starting}
+          onRun={() => void controllerRef.current?.run()}
+          onStop={() => void controllerRef.current?.stop()}
           onSkip={(direction) => void controllerRef.current?.skipBeat(direction)}
           onPause={() => void controllerRef.current?.pauseGame()}
           onResume={() => void controllerRef.current?.resumeGame()}

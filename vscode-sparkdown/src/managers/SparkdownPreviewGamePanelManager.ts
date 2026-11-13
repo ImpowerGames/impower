@@ -16,14 +16,6 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
 import { ListSavesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { RenameSaveMessage } from "@impower/spark-editor-protocol/src/protocols/preview/RenameSaveMessage";
-import { SetPreviewControlsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPreviewControlsMessage";
-import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
-import {
-  RollBackDebugRequest,
-  RollForwardDebugRequest,
-  type RollDebugArguments,
-  type RollDebugResult,
-} from "@impower/spark-editor-protocol/src/protocols/debug/RollDebugRequest";
 import {
   SetRoutePinsMessage,
   type RoutePin,
@@ -58,6 +50,9 @@ import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/m
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
+import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
+import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import { ResizeGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
@@ -74,6 +69,7 @@ import { getUri } from "../utils/getUri";
 import { getWebviewUri } from "../utils/getWebviewUri";
 import { getWorkspaceFileWatchers } from "../utils/getWorkspaceFileWatchers";
 import { getWorkspaceFiles } from "../utils/getWorkspaceFiles";
+import { SparkdownDebugManager } from "./SparkdownDebugManager";
 import { SparkdownPreviewSavesManager } from "./SparkdownPreviewSavesManager";
 import { SparkdownRoutePinsManager } from "./SparkdownRoutePinsManager";
 import { SparkdownStartingValuesManager } from "./SparkdownStartingValuesManager";
@@ -152,8 +148,6 @@ export class SparkdownPreviewGamePanelManager {
 
   protected _gameRunning = false;
 
-  protected _debugSession?: vscode.DebugSession;
-
   protected _onDidDisposePanel = new vscode.EventEmitter<void>();
   readonly onDidDisposePanel = this._onDidDisposePanel.event;
 
@@ -190,56 +184,12 @@ export class SparkdownPreviewGamePanelManager {
     );
   }
 
-  syncDebugSession(ended?: vscode.DebugSession) {
-    const active = vscode.debug.activeDebugSession;
-    const session =
-      active &&
-      active.id !== ended?.id &&
-      active.type === "game" &&
-      !active.configuration["noDebug"]
-        ? active
-        : undefined;
-    if (session?.id === this._debugSession?.id) {
-      return;
-    }
-    this._debugSession = session;
-    this.sendControls();
-  }
-
   protected sendStartingDisplayMode() {
     this._panel?.webview.postMessage(startingDisplayModeRequest());
   }
 
   notifyChangedColorTheme() {
     this._panel?.webview.postMessage(simulatedColorSchemeRequest());
-  }
-
-  protected sendControls() {
-    this._panel?.webview.postMessage(
-      SetPreviewControlsMessage.type.notification({
-        skipButtons: this._debugSession != null,
-      }),
-    );
-  }
-
-  protected async rollDebugSession(
-    session: vscode.DebugSession,
-    direction: -1 | 1,
-  ): Promise<RollDebugResult> {
-    const command =
-      direction < 0
-        ? RollBackDebugRequest.command
-        : RollForwardDebugRequest.command;
-    const args: RollDebugArguments = { to: "beat" };
-    try {
-      const result: RollDebugResult | undefined = await session.customRequest(
-        command,
-        args,
-      );
-      return { moved: Boolean(result?.moved) };
-    } catch {
-      return { moved: false };
-    }
   }
 
   protected async answerRequest<M extends string, P, R>(
@@ -339,7 +289,6 @@ export class SparkdownPreviewGamePanelManager {
         }).catch(console.error);
         this.sendStartingValues(SparkdownStartingValuesManager.instance.values);
         this.sendRoutePins(SparkdownRoutePinsManager.instance.pins);
-        this.sendControls();
         this.sendStartingDisplayMode();
         this.notifyChangedColorTheme();
         try {
@@ -386,14 +335,6 @@ export class SparkdownPreviewGamePanelManager {
             return {};
           },
         );
-      }
-      if (SkipBeatMessage.type.isRequest(message)) {
-        const session = this._debugSession;
-        if (session) {
-          await this.answerRequest(SkipBeatMessage.type, message.id, () =>
-            this.rollDebugSession(session, message.params.direction),
-          );
-        }
       }
       if (ListSavesMessage.type.isRequest(message)) {
         await this.answerRequest(
@@ -527,8 +468,21 @@ export class SparkdownPreviewGamePanelManager {
       if (GameReloadedMessage.type.isNotification(message)) {
         vscode.commands.executeCommand("sparkdown.debug.unpin");
       }
+      if (
+        GameExecutedMessage.type.isNotification(message) ||
+        GameRolledMessage.type.isNotification(message) ||
+        GameSteppedMessage.type.isNotification(message)
+      ) {
+        const history = message.params.history;
+        if (history) {
+          SparkdownDebugManager.instance?.setCanSkipForward(
+            history.canRollForward,
+          );
+        }
+      }
       if (GameExitedMessage.type.isNotification(message)) {
         this._gameRunning = false;
+        SparkdownDebugManager.instance?.setCanSkipForward(false);
       }
       if (GameWorkerRestartedMessage.type.isNotification(message)) {
         const { location } = message.params;
@@ -988,7 +942,7 @@ export class SparkdownPreviewGamePanelManager {
         </head>
         <body>
           <div class="loading" role="progressbar" aria-busy="true" aria-label="Loading Game Preview"></div>
-          <spark-web-player toolbar play-button play-label="RUN"></spark-web-player>
+          <spark-web-player toolbar run-button></spark-web-player>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
       </html>

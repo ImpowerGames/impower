@@ -523,3 +523,128 @@ describe("PlayerBar controls", () => {
     expect(onToolbarPointerDown).not.toHaveBeenCalled();
   });
 });
+
+describe("PlayerBar Run button", () => {
+  const runState = (overrides: Partial<GameState>) =>
+    reducePlayerBar(initialPlayerBarState, gameState(overrides));
+
+  const read = ($: ReturnType<typeof mount>) => {
+    const button = $("#run-button")!;
+    return {
+      tag: button.tagName,
+      name: button.textContent,
+      disabled: button.getAttribute("aria-disabled"),
+      title: button.title,
+      description: button.getAttribute("aria-description"),
+    };
+  };
+
+  it("is absent unless the host asks for it", () => {
+    const $ = mount({ state: initialPlayerBarState });
+    expect($("#run-button")).toBeNull();
+  });
+
+  it("reads Run with no game, Stop while playing or paused, and Run again after the run ends", () => {
+    const states: [string, PlayerBarState][] = [
+      ["first load", initialPlayerBarState],
+      ["preview", runState({ launchState: "preview" })],
+      ["playing", runState({ launchState: "play", run: 1 })],
+      ["paused", runState({ launchState: "pause", paused: true, run: 1 })],
+      [
+        "ended",
+        runState({
+          launchState: "ended",
+          run: 1,
+          statuses: {
+            completion: null,
+            ending: { text: "End of story", hover: "", kind: "fin" },
+          },
+        }),
+      ],
+      [
+        "stopped by an error",
+        runState({
+          launchState: "ended",
+          run: 1,
+          statuses: {
+            completion: null,
+            ending: { text: "Stopped by an error", hover: "", kind: "error" },
+          },
+        }),
+      ],
+    ];
+    const names = states.map(([label, state]) => {
+      const $ = mount({ state, controls: { run: true } });
+      const button = read($);
+      expect(button.tag).toBe("BUTTON");
+      expect(button.disabled).toBeNull();
+      return [label, button.name];
+    });
+    expect(names).toEqual([
+      ["first load", "Run"],
+      ["preview", "Run"],
+      ["playing", "Stop"],
+      ["paused", "Stop"],
+      ["ended", "Run again"],
+      ["stopped by an error", "Run again"],
+    ]);
+  });
+
+  it("starts, stops and restarts through the host's handlers", () => {
+    const onRun = vi.fn();
+    const onStop = vi.fn();
+    const click = (state: PlayerBarState) => {
+      const $ = mount({ state, controls: { run: true }, onRun, onStop });
+      act(() => $("#run-button")!.click());
+    };
+    click(initialPlayerBarState);
+    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([1, 0]);
+    click(runState({ launchState: "play", run: 1 }));
+    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([1, 1]);
+    click(runState({ launchState: "ended", run: 1 }));
+    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([2, 1]);
+  });
+
+  it("is disabled with the refusal as its tooltip and description when the program cannot run", () => {
+    const onRun = vi.fn();
+    const refusal = "The story has no scene named start.";
+    const $ = mount({
+      state: initialPlayerBarState,
+      controls: { run: true },
+      runRefusal: refusal,
+      onRun,
+    });
+    expect(read($)).toEqual({
+      tag: "BUTTON",
+      name: "Run",
+      disabled: "true",
+      title: refusal,
+      description: refusal,
+    });
+    act(() => $("#run-button")!.click());
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it("stays Run and disabled while a start is pending", () => {
+    const onRun = vi.fn();
+    const $ = mount({
+      state: initialPlayerBarState,
+      controls: { run: true },
+      starting: true,
+      onRun,
+    });
+    expect(read($)).toMatchObject({ name: "Run", disabled: "true" });
+    act(() => $("#run-button")!.click());
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it("keeps a Run press from starting the bar's resize drag", () => {
+    const onToolbarPointerDown = vi.fn();
+    const $ = mount({ state: initialPlayerBarState, controls: { run: true, resize: true } });
+    $("#toolbar")!.addEventListener("pointerdown", onToolbarPointerDown);
+    act(() => {
+      $("#run-button")!.dispatchEvent(pointer("pointerdown"));
+    });
+    expect(onToolbarPointerDown).not.toHaveBeenCalled();
+  });
+});

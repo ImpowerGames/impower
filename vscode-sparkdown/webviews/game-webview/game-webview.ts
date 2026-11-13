@@ -4,14 +4,12 @@ import {
   MessageProtocol,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { SetPreviewControlsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPreviewControlsMessage";
 import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
 import {
   SparkWebPlayerElement,
   setWorkspace,
   whenControllerListening,
 } from "@impower/spark-web-player/src/index.js";
-import type { SparkWebPlayerProps } from "@impower/spark-web-player/src/SparkWebPlayer";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
 import { previewedDocumentUri } from "./previewedDocumentUri";
 import { revealsPreview } from "./revealsPreview";
@@ -43,14 +41,6 @@ const workspaceState = installWorkspaceWorker(
 
 connection.addEventListener("message", async (e: MessageEvent) => {
   const message = e.data;
-  if (SetPreviewControlsMessage.type.isNotification(message)) {
-    const player = document.querySelector<
-      HTMLElement & SparkWebPlayerProps
-    >("spark-web-player");
-    if (player) {
-      player.skipButtons = message.params.skipButtons;
-    }
-  }
   if (isMessage(message)) {
     sendProtocolMessage(message);
   }

@@ -1,7 +1,7 @@
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/startScene";
 import { describe, expect, it, vi } from "vitest";
-import { createPlayerHarness, holdFirstInit, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, holdFirstInit, MAIN_URI, runButton, settle } from "./playerHarness";
 
 const START = "scene start\n  Hello.\nend\n";
 
@@ -9,9 +9,6 @@ const harness = async () => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: START }],
     startFrom: { file: MAIN_URI, line: 1 },
-  });
-  h.refs.playButton = Object.assign(h.overlay.ownerDocument.createElement("div"), {
-    getAnimations: () => [],
   });
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
@@ -31,24 +28,23 @@ const coldHarness = async () => {
     files: [{ uri: MAIN_URI, text: NO_STORY }],
     startFrom: { file: MAIN_URI, line: 1 },
   });
-  h.refs.playButton = h.overlay.ownerDocument.createElement("div");
   return h;
 };
 
-const button = (h: Awaited<ReturnType<typeof harness>>) => ({
-  title: h.refs.playButton.getAttribute("title"),
-  disabled: h.refs.playButton.getAttribute("aria-disabled"),
-});
+const button = (h: Awaited<ReturnType<typeof harness>>) => {
+  const { mode, refusal } = runButton(h);
+  return { mode, refusal };
+};
 
 describe("PLAY in the player while the story has no start scene", { timeout: 120000 }, () => {
-  it("is refused, and the play button says why, while no scene is named start", async () => {
+  it("is refused, and the Run button says why, while no scene is named start", async () => {
     const h = await harness();
     try {
       await h.compile();
       await h.edit([{ text: "scene other\n  Other.\nend\n" }]);
       const result = await h.compile();
       expect(result.program.playRefusal).toBe(NO_START_SCENE_MESSAGE);
-      expect(button(h)).toEqual({ title: NO_START_SCENE_MESSAGE, disabled: "true" });
+      expect(button(h)).toEqual({ mode: "run", refusal: NO_START_SCENE_MESSAGE });
       expect(await h.controller.startGameAndApp()).toBe(false);
     } finally {
       h.dispose();
@@ -63,7 +59,7 @@ describe("PLAY in the player while the story has no start scene", { timeout: 120
       const result = await h.compile();
       expect(result.program.runnable).toBe(false);
       expect(result.program.playRefusal).toBe(NO_START_SCENE_MESSAGE);
-      expect(button(h)).toEqual({ title: NO_START_SCENE_MESSAGE, disabled: "true" });
+      expect(button(h)).toEqual({ mode: "run", refusal: NO_START_SCENE_MESSAGE });
       expect(await h.controller.startGameAndApp()).toBe(false);
     } finally {
       h.dispose();
@@ -103,7 +99,7 @@ describe("PLAY in the player while the story has no start scene", { timeout: 120
       await h.compile();
       await h.edit([{ text: START }]);
       await h.compile();
-      expect(button(h)).toEqual({ title: null, disabled: null });
+      expect(button(h).refusal).toBeNull();
       expect(await h.controller.startGameAndApp()).toBe(true);
     } finally {
       h.dispose();
@@ -208,7 +204,7 @@ describe("a start the refusal cancels", { timeout: 120000 }, () => {
     }
   });
 
-  it("keeps the play button and sends no exit when another PLAY is refused meanwhile", async () => {
+  it("keeps Run and sends no exit when another PLAY is refused meanwhile", async () => {
     const { h, release, starting } = await holdingStart();
     try {
       await h.edit([{ text: NO_STORY }]);
@@ -219,7 +215,7 @@ describe("a start the refusal cancels", { timeout: 120000 }, () => {
       release();
       await starting;
       await settle(60);
-      expect(h.refs.playButton.style.display).not.toBe("none");
+      expect(button(h).mode).toBe("run");
       expect(exits(h)).toHaveLength(0);
     } finally {
       h.dispose();
@@ -290,15 +286,15 @@ describe("the start's own check of the refusal", { timeout: 120000 }, () => {
       expect(exits(h)).toHaveLength(1);
       expect(exits(h)[0]?.params.reason).toBe("invalidated");
       expect(h.controller.playing).toBe(false);
-      expect(h.refs.playButton.style.display).not.toBe("none");
+      expect(button(h).mode).toBe("run");
     } finally {
       h.dispose();
     }
   });
 });
 
-describe("the play button after a refused start", { timeout: 120000 }, () => {
-  it("stays hidden for a newer PLAY that started while the refused one recovered", async () => {
+describe("the Run button after a refused start", { timeout: 120000 }, () => {
+  it("reads Stop for a newer PLAY that started while the refused one recovered", async () => {
     const h = await harness();
     try {
       await h.compile();
@@ -328,7 +324,7 @@ describe("the play button after a refused start", { timeout: 120000 }, () => {
       expect(await refused).toMatchObject({ error: { message: NO_START_SCENE_MESSAGE } });
       await settle(60);
       expect(h.controller.playing).toBe(true);
-      expect(h.refs.playButton.style.display).toBe("none");
+      expect(button(h).mode).toBe("stop");
     } finally {
       h.dispose();
     }
