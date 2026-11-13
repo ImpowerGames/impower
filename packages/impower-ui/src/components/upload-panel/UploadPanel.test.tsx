@@ -24,9 +24,9 @@ describe("UploadPanel", () => {
   it("announces its heading, lists a row per file with its bar and note, and closes", async () => {
     const onClose = vi.fn();
     host = document.body.appendChild(document.createElement("div"));
-    await act(async () => render(<UploadPanel heading="Uploading 3 of 4" rows={ROWS} onClose={onClose} />, host!));
-    const panel = host.querySelector<HTMLElement>('section[aria-label="Uploads"]')!;
-    expect(panel.querySelector('[role="status"]')!.textContent).toBe("Uploading 3 of 4");
+    await act(async () => render(<UploadPanel heading="Adding 3 of 4" rows={ROWS} onClose={onClose} />, host!));
+    const panel = host.querySelector<HTMLElement>('section[aria-label="Added files"]')!;
+    expect(panel.querySelector('[role="status"]')!.textContent).toBe("Adding 3 of 4");
     const rows = Array.from(panel.querySelectorAll("li"));
     expect(rows.map((row) => row.getAttribute("data-upload-row"))).toEqual(["added", "working", "waiting", "failed"]);
     expect(rows.map((row) => row.querySelector("small")!.textContent)).toEqual([
@@ -39,7 +39,7 @@ describe("UploadPanel", () => {
     expect(bars.map((bar) => bar.getAttribute("aria-valuenow"))).toEqual(["100", null, "0", "0"]);
     expect(bars.map((bar) => bar.getAttribute("aria-label"))).toEqual(["forest.png", "rain.ogg", "wind.ogg", "big.mp4"]);
     expect(rows[3]!.className).toContain("[&_small]:text-error");
-    const close = panel.querySelector<HTMLButtonElement>('button[aria-label="Close uploads"]')!;
+    const close = panel.querySelector<HTMLButtonElement>('button[aria-label="Close added files"]')!;
     await act(async () => close.click());
     expect(onClose).toHaveBeenCalledTimes(1);
   });

@@ -347,7 +347,7 @@ describe("the Replace dialog", () => {
       await settle();
       const replace = Array.from(dialog()!.querySelectorAll("button")).find((b) => b.textContent === "Replace project")!;
       expect(replace.disabled).toBe(true);
-      expect(dialog()!.textContent).toContain("Wait for the upload to finish, then replace the project.");
+      expect(dialog()!.textContent).toContain("Wait for the files to finish being added, then replace the project.");
       await act(async () => {
         workspace.uploadBatches.value = 0;
       });

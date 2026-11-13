@@ -14,6 +14,7 @@ The old editor (impower.dev today) uses Logic, assets, URL, cache, Untitled Game
 | cache | `saved` | Save captions: `Draft saved` (app.js:614), `Saved locally` (app.js:619), `Saved to this device` (app.js:2319). The word cache appears in no interface copy. |
 | Untitled Game | `Untitled story` | Default project name in the top bar name field (app.js:350); default title in the project data (folio-project.js:30). Notes: folio/decisions.md:163. |
 | Paper (theme id `paper`) | `Sepia` | Settings, Appearance, Theme grid (folio-themes.js:11); the Chalk note names it again (folio-themes.js:20). The id stays `paper` in the source (folio-themes.js:11). `Paper` is still the name of one option of Settings, Preview, Screenplay paper color (folio-settings.js:520); that is a different setting. |
+| upload, uploading, uploads | Add, adding, added | Not in the prototype's notes: the maintainer's decision of 2026-11-13, because adding a file saves it on this device and sends nothing online. Live in the editor: `Add files from this device`, `Adding ` + done + ` of ` + total, `Added files`, `Close added files`, the Assets empty states and `Add files here…` (see Assets). Syncing with Google Drive does send files online and keeps its own words. |
 
 The prototype's own notes state these further renames. The live markup is checked against each.
 
@@ -585,7 +586,7 @@ The Assets page shares the Scripts page's header, search and Add button, with a 
 | `Clear search` | aria-label of the clear button | folio-assets.js:162, folio-assets.js:1315 |  |
 | `Add` | button label (opens the Add menu below) | folio-assets.js:162, app.js:2179 |  |
 | `Collection` | aria-label of the list panel | folio-assets.js:163 |  |
-| `Uploads` | aria-label of the uploads panel | folio-assets.js:164 |  |
+| `Added files` | aria-label of the added-files panel | folio-assets.js:164 | prototype: `Uploads`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `Asset types` | aria-label of the type tab list | folio-assets.js:1300 |  |
 | `Images` | type tab | folio-library.js:56 |  |
 | `Audio` | type tab | folio-library.js:57, folio-library.js:74 |  |
@@ -598,8 +599,8 @@ The Assets page shares the Scripts page's header, search and Add button, with a 
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
-| `Upload files` | menu row (also an empty-state button) | folio-assets.js:1335, folio-assets.js:2788 |  |
-| `Into ` | hint under Upload files: `Into ` + folder or tab name | folio-assets.js:2790 |  |
+| `Add files from this device` | menu row (also an empty-state button) | folio-assets.js:1335, folio-assets.js:2788 | prototype: `Upload files`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
+| `Into ` | hint under Add files from this device: `Into ` + folder or tab name | folio-assets.js:2790 |  |
 | `Add a link` | menu row (also the dialog title) | folio-assets.js:2306, folio-assets.js:2794 |  |
 | `A file hosted on the web` | hint under Add a link | folio-assets.js:2796 |  |
 | `New folder` | menu row (also the dialog title) | folio-assets.js:2343, folio-assets.js:2800 |  |
@@ -673,7 +674,7 @@ A caption joins its parts with ` · `: where the file is (when searching), `link
 | `Move…` | row menu, folder menu | folio-assets.js:1239, folio-assets.js:2726, folio-assets.js:2764 |  |
 | `Delete…` | row menu, folder menu, file menu | folio-assets.js:1239, folio-assets.js:1974, folio-assets.js:2734 |  |
 | `Open` | folder menu | folio-assets.js:2745 |  |
-| `Upload here…` | folder menu | folio-assets.js:2752 |  |
+| `Add files here…` | folder menu | folio-assets.js:2752 | prototype: `Upload here…`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `New folder inside…` | folder menu | folio-assets.js:2757 |  |
 | `Replace…` | file menu (inspector Files section) | folio-assets.js:1947 |  |
 | `Download` | file menu | folio-assets.js:1239, folio-assets.js:1752, folio-assets.js:1963 |  |
@@ -683,24 +684,24 @@ A caption joins its parts with ` · `: where the file is (when searching), `link
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
 | `No images yet` | heading (Images tab) | folio-assets.js:111 |  |
-| `Upload portraits and backgrounds with the Add button.` | description (Images tab) | folio-assets.js:112 |  |
+| `Add portraits and backgrounds with the Add button.` | description (Images tab) | folio-assets.js:112 | prototype: `Upload portraits and backgrounds with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `No audio yet` | heading (Audio tab) | folio-assets.js:114 |  |
-| `Upload sounds and music with the Add button.` | description (Audio tab) | folio-assets.js:114 |  |
+| `Add sounds and music with the Add button.` | description (Audio tab) | folio-assets.js:114 | prototype: `Upload sounds and music with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `No video yet` | heading (Video tab) | folio-assets.js:115 |  |
-| `Upload a video with the Add button.` | description (Video tab) | folio-assets.js:115 |  |
+| `Add a video with the Add button.` | description (Video tab) | folio-assets.js:115 | prototype: `Upload a video with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `No text yet` | heading (Text tab) | folio-assets.js:116 |  |
-| `Upload notes with the Add button.` | description (Text tab) | folio-assets.js:116 |  |
+| `Add notes with the Add button.` | description (Text tab) | folio-assets.js:116 | prototype: `Upload notes with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `No fonts yet` | heading (Fonts tab) | folio-assets.js:117 |  |
-| `Upload a font with the Add button.` | description (Fonts tab) | folio-assets.js:117 |  |
+| `Add a font with the Add button.` | description (Fonts tab) | folio-assets.js:117 | prototype: `Upload a font with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `Nothing yet` | heading (Other tab) | folio-assets.js:119 |  |
-| `Files of any other type land here when you upload them.` | description (Other tab) | folio-assets.js:120 |  |
+| `Files of any other type land here when you add them.` | description (Other tab) | folio-assets.js:120 | prototype: `Files of any other type land here when you upload them.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `No matching assets` | heading (search) | folio-assets.js:1315 |  |
 | `Try a different name, or a kind such as music or location.` | description (search) | folio-assets.js:1315 |  |
 | `A collection of your art` | heading (project with no assets at all) | folio-assets.js:1335 |  |
 | `Your portraits, backgrounds, sounds and music will appear here.` | description (project with no assets at all) | folio-assets.js:1335 |  |
-| `Upload files` | button (project with no assets at all) | folio-assets.js:1335, folio-assets.js:2788 |  |
+| `Add files from this device` | button (project with no assets at all) | folio-assets.js:1335, folio-assets.js:2788 | prototype: `Upload files`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `This folder is empty` | heading (empty folder) | folio-assets.js:1339 |  |
-| `Upload into it with the Add button, or drop files on it from its parent folder.` | description (empty folder) | folio-assets.js:1339 |  |
+| `Add files to it with the Add button, or drop files on it from its parent folder.` | description (empty folder) | folio-assets.js:1339 | prototype: `Upload into it with the Add button, or drop files on it from its parent folder.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 
 ### Inspector
 
@@ -812,16 +813,16 @@ The inspector opens beside the list on desktop and replaces it on phones.
 | `This link file is empty. Enter the address it points to.` | caption | folio-assets.js:1643 |  |
 | `Link saved.` | toast | folio-assets.js:1450 |  |
 
-### Uploads and drop notes
+### Added-files panel and drop notes
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
-| `Uploading ` | panel heading: `Uploading ` + done + ` of ` + total | folio-assets.js:2216 |  |
+| `Adding ` | panel heading: `Adding ` + done + ` of ` + total | folio-assets.js:2216 | prototype: `Uploading `; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `  of  ` | panel heading, middle | folio-assets.js:310, folio-assets.js:2216, app.js:1159 |  |
 | ` added,` | panel heading when some failed: count + the word file (with s unless the count is 1) + this + a count + ` not added` | folio-assets.js:2218 |  |
 | ` not added` | panel heading when some failed | folio-assets.js:2218 |  |
 | ` added` | panel heading when all landed: count + the word file (with s unless the count is 1) + this word | folio-assets.js:2219 |  |
-| `Close uploads` | aria-label | folio-assets.js:2221 |  |
+| `Close added files` | aria-label | folio-assets.js:2221 | prototype: `Close uploads`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
 | `Waiting` | row note | folio-assets.js:2246 |  |
 | `Reading` | row note | folio-assets.js:2255 |  |
 | `Added to ` | row note: `Added to ` + folder or tab name | folio-assets.js:2270 |  |
@@ -1425,7 +1426,7 @@ Text read out by assistive technology or shown as a status or error, built in sc
 | `Zoom 100%` | inspector zoom status at actual size | folio-assets.js:847 |  |
 | `Zoom ` | inspector zoom status when enlarged: this text + the percentage + `%, fit to frame` | folio-assets.js:847 |  |
 | `%, fit to frame` | piece of that status | folio-assets.js:847 |  |
-| ` is larger than 1.5 MB, which is the prototype's limit for files kept in the browser.` | upload error: the file's name + this text | folio-assets.js:2144 | prototype limit |
+| ` is larger than 1.5 MB, which is the prototype's limit for files kept in the browser.` | adding error: the file's name + this text | folio-assets.js:2144 | prototype limit |
 | `Choose a ` | Replace error when the new file is another type: this text + the tab's name in lower case (for example `images`) + ` file to replace this one.` | folio-library.js:1215 |  |
 | ` file to replace this one.` | piece of that error | folio-library.js:1215 |  |
 | ` needs a group and an option, like face.happy.` | variants problem: the quoted part name + this text | folio-library.js:133 |  |
