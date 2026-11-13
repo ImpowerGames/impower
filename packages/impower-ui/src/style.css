@@ -6,16 +6,6 @@
 
 @custom-variant phone (&:where([data-layout="phone"], [data-layout="phone"] *));
 @custom-variant compact (&:where([data-layout="compact"], [data-layout="compact"] *));
-@custom-variant short-viewport {
-  @media (max-height: 710px) {
-    &:where(:root:not([data-viewport-height]) *) {
-      @slot;
-    }
-  }
-  &:where([data-viewport-height="short"] *) {
-    @slot;
-  }
-}
 
 @theme {
   --radius-sm: 4px;

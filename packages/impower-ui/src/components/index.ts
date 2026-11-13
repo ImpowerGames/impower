@@ -334,7 +334,6 @@ export {
   default as PreviewStrip,
   previewStripVariants,
   previewStripStatusVariants,
-  type PreviewStripHeight,
   type PreviewStripProps,
   type PreviewStripStatus,
   type PreviewStripSymbol,

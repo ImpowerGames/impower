@@ -156,30 +156,6 @@ describe("fitting the root to the on-screen keyboard", () => {
     release();
   });
 
-  it("marks the viewport short or tall by its height without the keyboard, so the keyboard never flips it", () => {
-    const viewportHeight = () => document.documentElement.dataset.viewportHeight;
-    const field = document.body.appendChild(document.createElement("input"));
-    for (const [full, expected] of [
-      [932, "tall"],
-      [700, "short"],
-    ] as const) {
-      vi.stubGlobal("innerWidth", full);
-      vi.stubGlobal("innerHeight", full);
-      const release = hold();
-      expect(viewportHeight()).toBe(expected);
-      field.focus();
-      vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT);
-      emit("resize");
-      expect(keyboard().open).toBe(true);
-      expect(viewportHeight()).toBe(expected);
-      vi.stubGlobal("innerHeight", full);
-      emit("resize");
-      field.blur();
-      release();
-      expect(viewportHeight()).toBeUndefined();
-    }
-  });
-
   it("treats a shorter window at the same width as no keyboard while no field has focus", () => {
     const full = window.innerHeight;
     const release = hold();

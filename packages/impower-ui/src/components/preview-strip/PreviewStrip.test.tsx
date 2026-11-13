@@ -77,27 +77,19 @@ describe("PreviewStrip", () => {
     expect(play().disabled).toBe(true);
   });
 
-  it("reserves its height and clamps the words, giving a line to each status row", async () => {
+  it("keeps the shorter form at every size and clamps the words to two lines, one beside two status rows", async () => {
     await mount(<PreviewStrip label="ACTION" words="Rain." />);
-    expect(host!.querySelector("section")!.className).toContain("h-(--strip-h)");
-    expect(words().className).toContain("line-clamp-(--words-lines)");
+    const strip = host!.querySelector("section")!.className;
+    expect(strip).toContain("h-[91px]");
+    expect(strip).not.toContain("104px");
+    expect(host!.querySelector("[data-preview-strip-picture]")!.className).toContain("h-[72px]");
+    expect(words().className).toContain("line-clamp-2");
     await mount(<PreviewStrip label="ACTION" words="Rain." statuses={[status("problem")]} />);
     expect(words().className).toContain("line-clamp-2");
     await mount(
       <PreviewStrip label="ACTION" words="Rain." statuses={[status("problem"), status("forced")]} />,
     );
     expect(words().className).toContain("line-clamp-1");
-  });
-
-  it("offers the prototype's two heights, choosing the shorter on a short viewport by default", async () => {
-    await mount(<PreviewStrip label="ACTION" words="Rain." />);
-    const fit = host!.querySelector("section")!.className;
-    expect(fit).toContain("[--strip-h:104px]");
-    expect(fit).toContain("short-viewport:[--strip-h:91px]");
-    await mount(<PreviewStrip height="short" label="ACTION" words="Rain." />);
-    const short = host!.querySelector("section")!.className;
-    expect(short).toContain("[--strip-h:91px]");
-    expect(short).not.toContain("[--strip-h:104px]");
   });
 
   it("presses a status row and keeps its one-line title cut with an ellipsis", async () => {

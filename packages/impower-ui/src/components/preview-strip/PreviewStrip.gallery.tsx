@@ -2,17 +2,11 @@ import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import { CloseIcon, DetourIcon, ErrorIcon, WarningIcon } from "../icon/icons.generated";
 import PreviewStrip, {
-  type PreviewStripHeight,
   type PreviewStripProps,
   type PreviewStripStatus,
 } from "./PreviewStrip";
 
 const THEMES = ["charcoal", "chalk"] as const;
-
-const HEIGHTS: Record<Exclude<PreviewStripHeight, "fit">, string> = {
-  regular: "104px",
-  short: "91px",
-};
 
 const noop = () => {};
 
@@ -126,7 +120,6 @@ function Expandable() {
   const [expanded, setExpanded] = useState(false);
   return (
     <PreviewStrip
-      height="regular"
       label="ACTION"
       words="Play expands this picture to the full view; Escape or the X brings it back."
       expanded={expanded}
@@ -154,18 +147,16 @@ function PreviewStripDemo() {
     <div class="space-y-6">
       {THEMES.map((theme) => (
         <div key={theme} data-theme={theme} class="space-y-4 rounded-card bg-bg p-4 text-ink">
-          {(Object.keys(HEIGHTS) as (keyof typeof HEIGHTS)[]).map((height) =>
-            STATES.map(({ name, props }) => (
-              <GalleryRow key={`${height}-${name}`} label={`${name}, ${HEIGHTS[height]}, ${theme}`}>
-                <div class="max-w-[430px]">
-                  <PreviewStrip height={height} onPlay={noop} {...props} />
-                </div>
-              </GalleryRow>
-            )),
-          )}
+          {STATES.map(({ name, props }) => (
+            <GalleryRow key={name} label={`${name}, ${theme}`}>
+              <div class="max-w-[430px]">
+                <PreviewStrip onPlay={noop} {...props} />
+              </div>
+            </GalleryRow>
+          ))}
           <GalleryRow label={`Narrow (380px and below), ${theme}`}>
             <div class="max-w-[360px]">
-              <PreviewStrip height="regular" onPlay={noop} {...STATES[0]!.props} />
+              <PreviewStrip onPlay={noop} {...STATES[0]!.props} />
             </div>
           </GalleryRow>
         </div>

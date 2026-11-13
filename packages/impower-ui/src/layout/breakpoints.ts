@@ -11,8 +11,6 @@ export const layoutMinWidths = {
 
 export const railFullMinWidth = 1001;
 
-export const shortViewportMaxHeight = 710;
-
 export const layoutQueries = {
   compact: `(min-width: ${layoutMinWidths.compact}px)`,
   desktop: `(min-width: ${layoutMinWidths.desktop}px)`,

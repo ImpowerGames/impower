@@ -7,17 +7,7 @@ import { FileIcon, PencilIcon } from "../icon/icons.generated";
 import PlayButton from "../play-button/PlayButton";
 
 export const previewStripVariants = cva(
-  "@container relative flex h-(--strip-h) w-full flex-none border-b border-edge bg-preview-strip text-ink",
-  {
-    variants: {
-      height: {
-        fit: "[--picture-h:83px] [--strip-h:104px] [--words-lines:3] short-viewport:[--picture-h:72px] short-viewport:[--strip-h:91px] short-viewport:[--words-lines:2]",
-        regular: "[--picture-h:83px] [--strip-h:104px] [--words-lines:3]",
-        short: "[--picture-h:72px] [--strip-h:91px] [--words-lines:2]",
-      },
-    },
-    defaultVariants: { height: "fit" },
-  },
+  "@container relative flex h-[91px] w-full flex-none border-b border-edge bg-preview-strip text-ink",
 );
 
 export const previewStripStatusVariants = cva(
@@ -39,10 +29,6 @@ export const previewStripStatusVariants = cva(
   },
 );
 
-export type PreviewStripHeight = NonNullable<
-  VariantProps<typeof previewStripVariants>["height"]
->;
-
 export type PreviewStripTone = NonNullable<
   VariantProps<typeof previewStripStatusVariants>["tone"]
 >;
@@ -58,7 +44,7 @@ export interface PreviewStripStatus {
 
 export type PreviewStripSymbol = "file" | "pencil";
 
-export type PreviewStripProps = VariantProps<typeof previewStripVariants> & {
+export type PreviewStripProps = {
   label: string;
   words: string;
   symbol?: PreviewStripSymbol;
@@ -70,16 +56,11 @@ export type PreviewStripProps = VariantProps<typeof previewStripVariants> & {
   onPlay?: () => void;
   playDisabled?: boolean;
   class?: string;
-} & Omit<JSX.HTMLAttributes<HTMLElement>, "label" | "height" | "class">;
+} & Omit<JSX.HTMLAttributes<HTMLElement>, "label" | "class">;
 
-const WORDS_CLAMP = [
-  "line-clamp-(--words-lines)",
-  "line-clamp-2",
-  "line-clamp-1",
-] as const;
+const WORDS_CLAMP = ["line-clamp-2", "line-clamp-2", "line-clamp-1"] as const;
 
 export default function PreviewStrip({
-  height,
   label,
   words,
   symbol,
@@ -154,13 +135,13 @@ export default function PreviewStrip({
       aria-label="Preview"
       data-preview-strip=""
       data-symbol={symbol}
-      class={cn(previewStripVariants({ height }), className)}
+      class={cn(previewStripVariants(), className)}
       {...rest}
     >
       <div class="flex h-full w-full min-w-0 items-center gap-3 py-[9px] pr-[max(20px,env(safe-area-inset-right))] pl-3 @max-[380px]:gap-[9px] @max-[380px]:pl-[11px]">
         <div
           data-preview-strip-picture=""
-          class="relative h-(--picture-h) w-[98px] flex-none overflow-hidden rounded-[7px] border border-solid border-edge bg-stage @max-[380px]:h-[min(var(--picture-h),81px)] @max-[380px]:w-[88px]"
+          class="relative h-[72px] w-[98px] flex-none overflow-hidden rounded-[7px] border border-solid border-edge bg-stage @max-[380px]:w-[88px]"
         >
           <dialog
             ref={dialogRef}
