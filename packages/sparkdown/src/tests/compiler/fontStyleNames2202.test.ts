@@ -32,7 +32,12 @@ describe("font styles named with @ (#2202)", () => {
     "file:///proj/fonts/title@italicbold.ttf",
     "file:///proj/fonts/title@BoldItalic.ttf",
     "file:///proj/fonts/caption__bold.ttf",
+    "file:///proj/fonts/title@light.ttf",
   ]);
+
+  it("keeps title@light.ttf, whose word is not a style, a separate regular font", () => {
+    expect(face(program, "title@light")).toEqual({ family: "title@light", weight: "normal", style: "normal" });
+  });
 
   it("reads title.ttf as regular title", () => {
     expect(face(program, "title")).toEqual({ family: "title", weight: "normal", style: "normal" });

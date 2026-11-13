@@ -9,10 +9,10 @@ export interface FontFileName {
 
 export const fontFileNameOf = (name: string): FontFileName => {
   const at = name.indexOf("@");
-  const family = at > 0 ? name.slice(0, at) : name;
   const word = at > 0 ? name.slice(at + 1).toLowerCase() : "";
+  const styled = BOLD_WORDS.has(word) || ITALIC_WORDS.has(word);
   return {
-    family,
+    family: styled ? name.slice(0, at) : name,
     weight: BOLD_WORDS.has(word) ? "700" : "normal",
     style: ITALIC_WORDS.has(word) ? "italic" : "normal",
   };
