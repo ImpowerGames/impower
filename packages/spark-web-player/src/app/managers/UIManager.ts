@@ -2066,18 +2066,30 @@ export default class UIManager extends Manager {
       }
     }
 
+    let targetPlayed: Promise<void> | undefined;
     if (targetEffects.length > 0) {
       const player = new AnimationPlayer(this._theme, this._hold);
       for (const e of targetEffects) {
         player.add(e);
       }
-      await player.play(startTime);
+      const shift = player.endTimeUndelayed;
+      if (shift > 0) {
+        startTime ??= Number(document.timeline.currentTime);
+      }
+      targetPlayed = player.play(startTime);
       if (startTime != null) {
-        startTime = player.finishTime ?? startTime + player.endTime;
+        startTime += shift;
       }
     }
-    for (const video of newMovies) {
-      this.startMovie(video);
+    const startMovies = () => {
+      for (const video of newMovies) {
+        this.startMovie(video);
+      }
+    };
+    if (targetPlayed) {
+      void targetPlayed.then(startMovies);
+    } else {
+      startMovies();
     }
     const exiting = new Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>();
     const playEffects = (
@@ -2095,6 +2107,7 @@ export default class UIManager extends Manager {
       return player.play(startTime);
     };
     const played = Promise.all([
+      targetPlayed,
       playEffects(enterEffects),
       playEffects(exitEffects, exiting),
     ]);
