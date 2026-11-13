@@ -33,6 +33,7 @@ import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilt
 import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
+import { DIRECTIVE_CLOSERS, readDirective } from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -472,21 +473,21 @@ const addKeywordCompletions = (
   }
 };
 
-const directiveAssets = (
-  directive: SyntaxNode,
+const morphPickAt = (
+  directive: { from: number; to: number } | undefined,
+  cursor: number,
   read: (from: number, to: number) => string,
-): string[] => {
-  const assets: string[] = [];
-  const visit = (node: SyntaxNode) => {
-    if (node.name === "AssetCommandName") {
-      const text = read(node.from, node.to).trim();
-      if (text) assets.push(text);
-      return;
-    }
-    for (let child = node.firstChild; child; child = child.nextSibling) visit(child);
-  };
-  visit(directive);
-  return assets;
+): { names: string[] } | undefined => {
+  if (!directive || cursor < directive.from + 2) return undefined;
+  const typed = read(directive.from + 2, cursor);
+  if (typed.includes(DIRECTIVE_CLOSERS.image)) return undefined;
+  const reading = readDirective("image", typed);
+  if (reading.kind !== "image") return undefined;
+  const last = reading.clauses.at(-1);
+  if (!last || last.word.text !== "morph" || !last.takesValue) return undefined;
+  if (last.value && last.value.to !== typed.length) return undefined;
+  if (!last.value && last.word.to === typed.length) return undefined;
+  return { names: reading.names.map((name) => name.text) };
 };
 
 const addMorphPickCompletions = (
@@ -1834,6 +1835,15 @@ const completionsAt = (
     ) {
       return buildCompletions();
     }
+    const morphPick = morphPickAt(
+      leftStack.find((n) => n.type.name === "ImageCommand"),
+      documentCursorOffset,
+      read,
+    );
+    if (morphPick) {
+      addMorphPickCompletions(completions, program, morphPick.names);
+      return buildCompletions();
+    }
     if (
       (isWhitespaceNode(leftStack[0]?.name) &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
@@ -1867,19 +1877,6 @@ const completionsAt = (
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, ["ease"]);
-      }
-      return buildCompletions();
-    }
-    if (
-      (isWhitespaceNode(leftStack[0]?.name) &&
-        prevNode?.name === "AssetCommandClauseKeyword" &&
-        prevText === "morph") ||
-      (leftStack[0]?.name === "NameValue" &&
-        getNodeText(keywordOfValue(leftStack[0].node)) === "morph")
-    ) {
-      if (isCursorAfterNodeText(leftStack[0])) {
-        const directive = leftStack.find((n) => n.type.name === "ImageCommand");
-        addMorphPickCompletions(completions, program, directive ? directiveAssets(directive.node, read) : []);
       }
       return buildCompletions();
     }
