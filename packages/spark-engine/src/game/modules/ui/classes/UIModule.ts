@@ -1709,6 +1709,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const value of propValues) {
       scan(value, 0);
     }
+    for (const fontName of [...referenced]) {
+      for (const sibling of byFamily.get(fonts[fontName]?.font_family ?? "") ?? []) {
+        referenced.add(sibling);
+      }
+    }
     return [...referenced];
   }
 

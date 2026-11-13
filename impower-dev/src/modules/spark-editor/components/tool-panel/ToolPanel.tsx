@@ -370,7 +370,7 @@ export function ToolPanel({
           event.preventDefault();
           close("escape");
         }}
-        class="max-h-[42dvh]"
+        class="max-h-[42%]"
       >
         {body}
       </Sheet>

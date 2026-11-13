@@ -1,13 +1,15 @@
 import { StatusBadge } from "@impower/impower-ui/components";
 import type { PreviewMode } from "../../workspace/settings/settingsSchema";
 import statuses, { shownStatuses } from "../../workspace/statuses/StatusesStore";
+import workspace from "../../workspace/WorkspaceStore";
 
 export interface PreviewStatusesProps {
   mode: PreviewMode;
 }
 
 export default function PreviewStatuses({ mode }: PreviewStatusesProps) {
-  const shown = shownStatuses(statuses.statuses.value, mode);
+  const starting = !!workspace.state.value.preview?.modes?.game?.starting;
+  const shown = shownStatuses(statuses.statuses.value, mode, starting);
   if (shown.length === 0) {
     return null;
   }

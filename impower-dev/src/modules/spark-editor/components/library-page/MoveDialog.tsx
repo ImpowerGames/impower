@@ -53,7 +53,7 @@ export default function MoveDialog({
       onOpenChange={(open) => !open && close()}
       size="md"
       flush
-      class="max-h-[80vh]"
+      class="max-h-[80%]"
     >
       <div class="flex flex-none flex-col gap-1 px-5 pt-5 pb-3">
         <DialogTitle>Move {label}</DialogTitle>

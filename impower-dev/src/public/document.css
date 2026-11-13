@@ -166,6 +166,7 @@ body {
 }
 
 body {
+  contain: layout;
   font-family: var(--font-ui);
   font-size: 14px;
   line-height: 1.6;

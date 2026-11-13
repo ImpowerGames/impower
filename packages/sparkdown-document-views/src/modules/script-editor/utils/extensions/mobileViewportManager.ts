@@ -1,5 +1,6 @@
 import { Extension } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
+import { fitToKeyboard, keyboard } from "@impower/impower-ui/layout";
 import {
   closeKeyboardToolbar,
   hasScriptMode,
@@ -27,22 +28,18 @@ const viewportPlugin = ViewPlugin.fromClass(
     view: EditorView;
     closeTimeout?: ReturnType<typeof setTimeout>;
     destroyed = false;
-    lockedLayout = false;
+    releaseFit: () => void;
 
     constructor(view: EditorView) {
       this.view = view;
+      this.releaseFit = fitToKeyboard(() => this.onKeyboardUpdate());
       this.bind();
-      this.onVisualViewportUpdate();
+      this.onKeyboardUpdate();
     }
 
-    openKeyboardUI(keyboardHeight: number) {
+    openKeyboardUI() {
       requestAnimationFrame(() => {
         if (this.destroyed) return;
-        document.body.style.setProperty(
-          "--keyboard-height",
-          `${keyboardHeight}px`,
-        );
-        document.documentElement.classList.add("keyboard-open");
         this.view.dom.classList.add("keyboard-open");
         if (!hasScriptMode(this.view.state)) {
           openKeyboardToolbar(this.view);
@@ -53,9 +50,6 @@ const viewportPlugin = ViewPlugin.fromClass(
     closeKeyboardUI() {
       requestAnimationFrame(() => {
         if (this.destroyed) return;
-        this.lockedLayout = false;
-        document.body.style.height = "";
-        document.documentElement.classList.remove("keyboard-open");
         this.view.dom.classList.remove("keyboard-open");
         if (!hasScriptMode(this.view.state)) {
           closeKeyboardToolbar(this.view);
@@ -63,12 +57,7 @@ const viewportPlugin = ViewPlugin.fromClass(
       });
     }
 
-    onVisualViewportUpdate = (e?: Event) => {
-      const vv = window.visualViewport;
-      if (!vv) return;
-
-      window.scrollTo(0, 0);
-
+    onKeyboardUpdate = (e?: Event) => {
       const root = this.view.dom.getRootNode() as Document | ShadowRoot;
 
       const activeElt = root.activeElement;
@@ -85,10 +74,10 @@ const viewportPlugin = ViewPlugin.fromClass(
 
       const isBlurEvent = e?.type === "focusout" || e?.type === "blur";
 
-      const keyboardHeight = window.innerHeight - vv.height;
+      const isKeyboardVisible = keyboard().open;
 
       if (
-        keyboardHeight > 0 &&
+        isKeyboardVisible &&
         !isFocusEvent &&
         (isBlurEvent || !isEditorInputFocused)
       ) {
@@ -106,13 +95,8 @@ const viewportPlugin = ViewPlugin.fromClass(
         this.closeTimeout = undefined;
       }
 
-      this.lockedLayout = true;
-      document.body.style.height = `${vv.height}px`;
-
-      const isKeyboardVisible = keyboardHeight > 0;
-
       if (isKeyboardVisible) {
-        this.openKeyboardUI(keyboardHeight);
+        this.openKeyboardUI();
       } else {
         this.closeKeyboardUI();
       }
@@ -129,40 +113,15 @@ const viewportPlugin = ViewPlugin.fromClass(
     };
 
     bind() {
-      window.visualViewport?.addEventListener(
-        "resize",
-        this.onVisualViewportUpdate,
-      );
-      window.visualViewport?.addEventListener(
-        "scroll",
-        this.onVisualViewportUpdate,
-      );
-      window.addEventListener("focusout", this.onVisualViewportUpdate);
-      this.view.scrollDOM.addEventListener(
-        "focus",
-        this.onVisualViewportUpdate,
-      );
-      this.view.scrollDOM.addEventListener("blur", this.onVisualViewportUpdate);
+      window.addEventListener("focusout", this.onKeyboardUpdate);
+      this.view.scrollDOM.addEventListener("focus", this.onKeyboardUpdate);
+      this.view.scrollDOM.addEventListener("blur", this.onKeyboardUpdate);
     }
 
     unbind() {
-      window.visualViewport?.removeEventListener(
-        "resize",
-        this.onVisualViewportUpdate,
-      );
-      window.visualViewport?.removeEventListener(
-        "scroll",
-        this.onVisualViewportUpdate,
-      );
-      window.removeEventListener("focusout", this.onVisualViewportUpdate);
-      this.view.scrollDOM.removeEventListener(
-        "focus",
-        this.onVisualViewportUpdate,
-      );
-      this.view.scrollDOM.removeEventListener(
-        "blur",
-        this.onVisualViewportUpdate,
-      );
+      window.removeEventListener("focusout", this.onKeyboardUpdate);
+      this.view.scrollDOM.removeEventListener("focus", this.onKeyboardUpdate);
+      this.view.scrollDOM.removeEventListener("blur", this.onKeyboardUpdate);
       if (this.closeTimeout) {
         clearTimeout(this.closeTimeout);
       }
@@ -171,11 +130,8 @@ const viewportPlugin = ViewPlugin.fromClass(
     destroy() {
       this.destroyed = true;
       this.unbind();
+      this.releaseFit();
       this.view.dom.classList.remove("keyboard-open");
-      if (this.lockedLayout) {
-        document.body.style.height = "";
-        document.documentElement.classList.remove("keyboard-open");
-      }
     }
   },
 );
@@ -186,10 +142,10 @@ export function mobileViewportManager(): Extension {
     viewportPlugin,
     EditorView.domEventObservers({
       focus: (e, view) => {
-        view.plugin(viewportPlugin)?.onVisualViewportUpdate(e);
+        view.plugin(viewportPlugin)?.onKeyboardUpdate(e);
       },
       blur: (e, view) => {
-        view.plugin(viewportPlugin)?.onVisualViewportUpdate(e);
+        view.plugin(viewportPlugin)?.onKeyboardUpdate(e);
       },
     }),
   ];

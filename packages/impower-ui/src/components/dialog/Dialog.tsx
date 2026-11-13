@@ -40,7 +40,7 @@ const surface =
 export const dialogVariants = cva(
   [
     surface,
-    "rounded-dialog",
+    "max-h-full rounded-dialog",
     "motion-safe:transition-[opacity,scale] motion-safe:duration-180",
   ],
   {
@@ -52,7 +52,7 @@ export const dialogVariants = cva(
       },
       flush: {
         true: "flex flex-col overflow-hidden",
-        false: "p-5",
+        false: "overflow-y-auto overscroll-contain p-5",
       },
       visible: {
         true: "scale-none opacity-100 ease-[ease-out]",
@@ -72,7 +72,7 @@ export const sheetVariants = cva(
   {
     variants: {
       size: {
-        auto: "max-h-[80vh] rounded-t-card border-b-0",
+        auto: "max-h-[80%] rounded-t-card border-b-0",
         full: "h-full max-h-none rounded-none border-0 pb-[env(safe-area-inset-bottom)]",
       },
       flush: {

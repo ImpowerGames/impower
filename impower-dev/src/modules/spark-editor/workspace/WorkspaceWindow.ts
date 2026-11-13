@@ -195,6 +195,21 @@ import {
   ProjectImportError,
   REFUSED_BEFORE_CHANGE,
 } from "./projectImport";
+import {
+  launchGameState,
+  launchPhaseOf,
+  launchStep,
+  type LaunchEffect,
+  type LaunchEvent,
+} from "./launchMachine";
+import statuses from "./statuses/StatusesStore";
+
+export const LAUNCH_LIMIT_MS = 15_000;
+
+export const LAUNCH_LIMIT_MESSAGE =
+  "The game player didn't respond. Try Play again.";
+
+const inPlay = (game: GameState) => Boolean(game.running || game.starting);
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -844,6 +859,8 @@ export default class WorkspaceWindow {
   dispose() {
     this._disposers.forEach((dispose) => dispose());
     this._disposers = [];
+    clearTimeout(this._launchLimit);
+    this._launchLimit = undefined;
     this.debug.end();
     this.cacheProjectWorkspace.flush();
   }
@@ -912,11 +929,83 @@ export default class WorkspaceWindow {
   protected _startGameRequestId?: string | number;
 
   protected handleStartGameResponse = (message: StartGameMessage.Response) => {
-    this._startGameRequestId = undefined;
-    if ("error" in message && message.error) {
-      this.endGame();
-    }
+    this.launch("error" in message && message.error ? "refused" : "answered");
   };
+
+  protected _playerConnected = false;
+
+  protected _launchLimit?: ReturnType<typeof setTimeout>;
+
+  protected launch(event: LaunchEvent) {
+    const game = this.store.preview.modes.game;
+    const from = launchPhaseOf(game, this._startGameRequestId !== undefined);
+    const next = launchStep(from, event, {
+      connected: this._playerConnected,
+      refused: Boolean(game.playRefusal),
+    });
+    if (!next) {
+      return;
+    }
+    const updated = launchGameState(game, from, next);
+    if (updated !== game) {
+      this.updateGame(updated);
+    }
+    for (const effect of next.effects) {
+      this.runLaunchEffect(effect);
+    }
+  }
+
+  protected runLaunchEffect(effect: LaunchEffect) {
+    switch (effect) {
+      case "armLimit":
+        clearTimeout(this._launchLimit);
+        this._launchLimit = setTimeout(() => {
+          this._launchLimit = undefined;
+          this.launch("limit");
+        }, LAUNCH_LIMIT_MS);
+        return;
+      case "clearLimit":
+        clearTimeout(this._launchLimit);
+        this._launchLimit = undefined;
+        return;
+      case "sendStart": {
+        const request = StartGameMessage.type.request({});
+        this._startGameRequestId = request.id;
+        sendProtocolMessage(request);
+        return;
+      }
+      case "forgetStart":
+        this._startGameRequestId = undefined;
+        return;
+      case "sendStop":
+        sendProtocolMessage(StopGameMessage.type.request({}));
+        return;
+      case "startDebug":
+        void this.debug.start(this.getOpenedDocumentUri() ?? "");
+        return;
+      case "endDebug":
+        this.debug.end();
+        return;
+      case "clearStatuses":
+        statuses.clear();
+        return;
+      case "sayLimit":
+        showSnackbar({ message: LAUNCH_LIMIT_MESSAGE });
+        return;
+      case "markEnded":
+        return;
+    }
+  }
+
+  connectPlayer() {
+    this._playerConnected = true;
+    this.launch("connected");
+  }
+
+  disconnectPlayer() {
+    this._playerConnected = false;
+    this.launch("lost");
+  }
 
   get store() {
     return workspace.current;
@@ -2000,57 +2089,21 @@ export default class WorkspaceWindow {
     });
   }
 
-  startGame() {
-    if (!this.store.preview.modes.game.running) {
-      this.update({
-        ...this.store,
-        preview: {
-          ...this.store.preview,
-          modes: {
-            ...this.store.preview.modes,
-            game: {
-              ...this.store.preview.modes.game,
-              loading: false,
-              running: true,
-              paused: false,
-              picks: {},
-            },
-          },
-        },
-      });
-      const request = StartGameMessage.type.request({});
-      this._startGameRequestId = request.id;
-      sendProtocolMessage(request);
-      void this.debug.start(this.getOpenedDocumentUri() ?? "");
-    }
+  syncGameStarted() {
+    this.launch("reported");
   }
 
-  endGame() {
-    if (this.store.preview.modes.game.running) {
-      this.update({
-        ...this.store,
-        preview: {
-          ...this.store.preview,
-          modes: {
-            ...this.store.preview.modes,
-            game: {
-              ...this.store.preview.modes.game,
-              loading: false,
-              running: false,
-              ended: false,
-              choosing: false,
-              picks: {},
-            },
-          },
-        },
-      });
-      this.debug.end();
-    }
+  syncGameExited() {
+    this.launch("exited");
   }
 
   syncGameEnded(ended: boolean) {
+    if (ended) {
+      this.launch("ended");
+      return;
+    }
     const game = this.store.preview.modes.game;
-    if (!game.running || (Boolean(game.ended) === ended && !game.loading)) {
+    if (!inPlay(game) || (!game.ended && !game.loading)) {
       return;
     }
     this.update({
@@ -2084,10 +2137,7 @@ export default class WorkspaceWindow {
   }
 
   stopGame() {
-    if (this.store.preview.modes.game.running) {
-      this.endGame();
-      sendProtocolMessage(StopGameMessage.type.request({}));
-    }
+    this.launch("stop");
   }
 
   async pauseGame() {
@@ -2138,7 +2188,7 @@ export default class WorkspaceWindow {
 
   syncGameChose(option?: { uri: string; line: number }) {
     const game = this.store.preview.modes.game;
-    if (!game.running) {
+    if (!inPlay(game)) {
       return;
     }
     const picks = game.picks ?? {};
@@ -2155,7 +2205,7 @@ export default class WorkspaceWindow {
 
   syncGameChoosing(choosing: boolean) {
     const game = this.store.preview.modes.game;
-    if (Boolean(game.choosing) === choosing || (choosing && !game.running)) {
+    if (Boolean(game.choosing) === choosing || (choosing && !inPlay(game))) {
       return;
     }
     this.updateGame({ ...game, choosing });
@@ -2177,7 +2227,7 @@ export default class WorkspaceWindow {
 
   syncGamePaused(paused: boolean) {
     const game = this.store.preview.modes.game;
-    if (!game.running || Boolean(game.paused) === paused) {
+    if (!inPlay(game) || Boolean(game.paused) === paused) {
       return;
     }
     this.update({
@@ -2246,10 +2296,10 @@ export default class WorkspaceWindow {
     to: RollDebugTarget = "beat",
   ): Promise<boolean> {
     const game = this.store.preview.modes.game;
+    if (skipRefusal(game, workspace.debugSession.peek(), direction)) {
+      return false;
+    }
     if (game.running) {
-      if (skipRefusal(game, workspace.debugSession.peek(), direction)) {
-        return false;
-      }
       return direction < 0 ? this.debug.rollBack(to) : this.debug.rollForward(to);
     }
     const ls = this._workspace.ls;
@@ -2268,11 +2318,7 @@ export default class WorkspaceWindow {
   }
 
   toggleGameRunning() {
-    if (this.store.preview.modes.game.running) {
-      this.stopGame();
-    } else if (!this.store.preview.modes.game.playRefusal) {
-      this.startGame();
-    }
+    this.launch("press");
   }
 
   unloadProject() {
