@@ -68,7 +68,12 @@ const gameAt = (text: string, line: number): Shown => {
 const stripAt = (text: string, line: number) => {
   const documents = new SparkdownDocumentRegistry(["declarations"]);
   documents.set({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
-  return getPreviewLine(documents.get(URI)!, documents.tree(URI)!, line);
+  const shown = getPreviewLine(documents.get(URI)!, documents.tree(URI)!, line) as Partial<Shown>;
+  return {
+    kind: shown.kind,
+    words: shown.words,
+    ...(shown.speaker ? { speaker: shown.speaker } : {}),
+  };
 };
 
 interface Row {
