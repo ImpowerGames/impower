@@ -9,7 +9,7 @@ import type {
   StyleTransformer,
   ThemeVariables,
 } from "../types/themeVariables.js";
-import { cssIdent } from "./cssSyntax.js";
+import { escapeCssNames } from "./cssSyntax.js";
 import { getCssPropertyName } from "./getCssPropertyName.js";
 import { getCssWideKeyword } from "./getCssWideKeyword.js";
 
@@ -41,7 +41,7 @@ const getUnrecognizedCssValue = (name: string, value: unknown): string => {
     return getCssValueText(value)
       .split(",")
       .map((names, _, list) =>
-        (list.length > 1 ? names.trim() : names).split(" ").map(cssIdent).join(" "),
+        escapeCssNames(list.length > 1 ? names.trim() : names),
       )
       .join(", ");
   }

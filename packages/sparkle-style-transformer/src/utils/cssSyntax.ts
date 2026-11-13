@@ -10,6 +10,7 @@ import {
   type TokenNode,
 } from "@csstools/css-parser-algorithms";
 import { tokenize, TokenType, type CSSToken } from "@csstools/css-tokenizer";
+import { escapeCssIdentifier } from "./themeVariableName.js";
 
 export type { ComponentValue, FunctionNode, SimpleBlockNode, TokenNode };
 export { isFunctionNode, isSimpleBlockNode, isTokenNode, TokenType };
@@ -59,7 +60,78 @@ export const splitAt = (
 export const isCurlyBlock = (node: ComponentValue): node is SimpleBlockNode =>
   isSimpleBlockNode(node) && node.startToken[0] === TokenType.OpenCurly;
 
-export const cssIdent = (name: string): string => name.replaceAll("@", "\\@");
+const OPENERS = new Set<TokenType>([
+  TokenType.OpenParen,
+  TokenType.OpenSquare,
+  TokenType.OpenCurly,
+]);
+
+const CLOSERS = new Set<TokenType>([
+  TokenType.CloseParen,
+  TokenType.CloseSquare,
+  TokenType.CloseCurly,
+]);
+
+const SEPARATORS = new Set<TokenType>([
+  TokenType.Whitespace,
+  TokenType.Comment,
+  TokenType.Comma,
+  TokenType.EOF,
+]);
+
+const WHOLE_TOKENS = new Set<TokenType>([
+  TokenType.Ident,
+  TokenType.String,
+  TokenType.Hash,
+  TokenType.URL,
+  TokenType.Number,
+  TokenType.Percentage,
+]);
+
+const TIME_UNITS = new Set(["s", "ms"]);
+
+const isWholeToken = (token: CSSToken): boolean =>
+  WHOLE_TOKENS.has(token[0]) ||
+  (token[0] === TokenType.Dimension &&
+    TIME_UNITS.has((token[4] as { unit: string }).unit.toLowerCase()));
+
+export const escapeCssNames = (css: string): string => {
+  const edits: SourceEdit[] = [];
+  const walked: boolean[] = [true];
+  let word: CSSToken[] = [];
+  const flush = () => {
+    const first = word[0];
+    const last = word[word.length - 1];
+    if (first && last && !(word.length === 1 && isWholeToken(first))) {
+      edits.push({
+        start: first[2],
+        end: last[3] + 1,
+        text: escapeCssIdentifier(css.slice(first[2], last[3] + 1)),
+      });
+    }
+    word = [];
+  };
+  for (const token of tokenize({ css })) {
+    if (SEPARATORS.has(token[0])) {
+      flush();
+    } else if (token[0] === TokenType.Function) {
+      flush();
+      const name = (token[4] as { value: string }).value.toLowerCase();
+      walked.push(walked[walked.length - 1]! && name === "var");
+    } else if (OPENERS.has(token[0])) {
+      flush();
+      walked.push(false);
+    } else if (CLOSERS.has(token[0])) {
+      flush();
+      if (walked.length > 1) {
+        walked.pop();
+      }
+    } else if (walked[walked.length - 1]) {
+      word.push(token);
+    }
+  }
+  return applyEdits(css, edits);
+};
 
 export const applyEdits = (css: string, edits: SourceEdit[]): string => {
   let result = css;

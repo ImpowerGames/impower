@@ -1,5 +1,4 @@
 import type { Animation } from "../../../spark-engine/src/game/modules/ui/types/Animation";
-import { cssIdent } from "../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
@@ -75,7 +74,7 @@ export const getAnimationContent = (
       }
     }
     if (animationContent) {
-      textContent += `@keyframes ${cssIdent(name)} {\n  ${animationContent.trimEnd()}\n}\n`;
+      textContent += `@keyframes ${escapeCssIdentifier(name)} {\n  ${animationContent.trimEnd()}\n}\n`;
     }
   });
   textContent = textContent.trim();

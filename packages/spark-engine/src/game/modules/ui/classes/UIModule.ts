@@ -85,7 +85,7 @@ import type { PageEntry, PageRecord, PageState } from "../types/PageState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
-import { cssIdent } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
+import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "../utils/getImageOwner";
 import { getVarName } from "../utils/getVarName";
 import {
@@ -2049,10 +2049,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const fonts = this.context?.font;
     if (fonts) {
-      for (const [name] of Object.entries(fonts)) {
+      for (const [name, font] of Object.entries(fonts)) {
         if (!name.startsWith("$")) {
           const varName = getVarName("font", name);
-          const varValue = cssIdent(name);
+          const family = font?.font_family;
+          const varValue = escapeCssIdentifier(
+            typeof family === "string" && family ? family : name,
+          );
           if (varValue) {
             variablesStyle[varName] = varValue;
           }
