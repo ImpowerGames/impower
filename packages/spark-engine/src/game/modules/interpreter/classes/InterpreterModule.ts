@@ -551,7 +551,7 @@ export class InterpreterModule extends Module<
       }
       lastTextbox.options = [
         ...(lastTextbox.options ?? []),
-        ...choices.map((choice) => stripStyleCodes(choice)),
+        ...choices.map((choice) => this.plainText(choice)),
       ];
       for (let i = 0; i < choices.length; i += 1) {
         const choice = choices[i]!;
@@ -980,6 +980,14 @@ export class InterpreterModule extends Module<
             : value?.text;
     }
     return clauses;
+  }
+
+  plainText(content: string): string {
+    const target = "plain";
+    const instructions = this.parse(content, target, { choice: true });
+    return (instructions.text?.[target] ?? [])
+      .map((event) => event.text ?? "")
+      .join("");
   }
 
   parse(

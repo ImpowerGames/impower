@@ -250,9 +250,10 @@ const BRACE_SPANS: [what: string, rules: string[], open: string, unit: string][]
   ["a raw span over nested unclosed braces", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {{{b"],
   ["a raw span over closed brace groups", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {b}"],
   ["a raw span over braces holding unclosed quotes", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", ' {"b'],
-  ["a raw span over braces holding unclosed long brackets", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {[[b"],
-  ["a raw span over braces holding closed quotes and long brackets", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", ' {"}" [[}]]}'],
+  ["a raw span over braces holding unclosed long brackets", ["Raw"], "`a", " {[[b"],
+  ["a raw span over braces holding closed quotes and long brackets", ["Raw"], "`a", ' {"}" [[}]]}'],
   ["a raw span over braces whose quotes hold the next brace", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", ' {b "c'],
+  ["a raw span over braces holding unclosed long brackets that hold braces", ["Raw"], "`a", " {[[{b"],
   ["an italic span over code spans holding braces", ["Italic", "ChoiceStartItalic", "ChoiceOnlyItalic", "ChoiceInnerItalic"], "*a", " `{b}`"],
 ];
 

@@ -6,7 +6,7 @@ import { Game } from "../../game/core/classes/Game";
 const MAIN = "file:///local/main.sd";
 
 const FIXTURE = [
-  "store name = \"Nova\"",
+  "store name = \"*Nova*\"",
   "",
   "scene start",
   "  The gate.",
@@ -15,6 +15,8 @@ const FIXTURE = [
   "      Paid.",
   "    * Climb _over_ [~~the~~ wall] ^now^",
   "      Climbed.",
+  "    * Leave *now",
+  "      Left.",
   "  end",
   "  The end.",
   "end",
@@ -62,7 +64,7 @@ function play() {
 }
 
 describe("the choice text the engine sends to the host is plain", () => {
-  test("the made choice's text has no marks", () => {
+  test("the made choice's text has no marks, a value's own included", () => {
     const h = play();
     h.game.start();
     h.tapUntil(h.atMenu);
@@ -78,7 +80,7 @@ describe("the choice text the engine sends to the host is plain", () => {
     const rolled = await h.game.rollBack("choice", h.chosen[0]!.checkpoint);
     expect(rolled).toMatchObject({
       moved: true,
-      restored: { choices: ["Pay the toll, Nova.", "Climb over the wall"], chosen: 1 },
+      restored: { choices: ["Pay the toll, Nova.", "Climb over the wall", "Leave *now"], chosen: 1 },
     });
   });
 });
