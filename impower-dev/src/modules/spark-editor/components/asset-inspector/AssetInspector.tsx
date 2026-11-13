@@ -68,25 +68,15 @@ const EMPTY_LISTING = { files: {}, folders: [] };
 
 const SKIPS_ARROWS = "input, textarea, select, video, audio, [contenteditable], [role=slider]";
 
-function useAudioSeconds(asset: InspectedAsset) {
-  const [seconds, setSeconds] = useState<number | null>(null);
+function useAudioSeconds(asset: InspectedAsset, intents: () => Promise<typeof WorkspaceIntents>) {
   const sound = asset.type === "audio" ? soundOfAsset(asset) : null;
   const refused = !!sound && audioSession.failureOf(sound) === "too_large";
   useEffect(() => {
-    setSeconds(null);
-    if (!sound || refused || typeof Audio === "undefined") {
-      return;
+    if (sound && !refused) {
+      void intents().then((Workspace) => Workspace.assets.measureDurations([asset.path]));
     }
-    const probe = new Audio();
-    probe.preload = "metadata";
-    probe.onloadedmetadata = () => setSeconds(probe.duration);
-    probe.src = sound.src;
-    return () => {
-      probe.onloadedmetadata = null;
-      probe.removeAttribute("src");
-    };
   }, [asset.path, asset.src, asset.type, refused]);
-  return seconds;
+  return sound && !refused ? (workspace.assetDurations.value[sound.src] ?? null) : null;
 }
 
 const OPENABLE = /^https?:\/\//i;
@@ -189,7 +179,7 @@ export default function AssetInspector({
   const picker = useRef<HTMLInputElement | null>(null);
   const [facts, setFacts] = useState<InspectorFacts | null>(null);
   const [videoSeconds, setVideoSeconds] = useState<number | null>(null);
-  const audioSeconds = useAudioSeconds(asset);
+  const audioSeconds = useAudioSeconds(asset, intents);
   const { projectSettings } = useSettings();
   const pixels = asset.src ? workspace.assetSizes.value[asset.src] : undefined;
   const filesKey = asset.files.map((file) => `${file.path} ${file.src ?? ""}`).join("\n");
@@ -409,6 +399,18 @@ export default function AssetInspector({
   const lines = uses?.reduce((sum, group) => sum + group.uses.length, 0) ?? 0;
   const problems = facts ? facts.problems : [];
 
+  const frame = (
+    <AssetFrame
+      key={`${asset.path}\n${asset.src ?? ""}`}
+      asset={asset}
+      picture={stack ? picture : undefined}
+      pixels={pixels}
+      read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
+      onSeconds={setVideoSeconds}
+      onFull={(open) => open && setFullEdge(edgeOf(innerWidth, innerHeight))}
+    />
+  );
+
   const stepButton = (direction: "previous" | "next") => {
     const to = direction === "next" ? next : previous;
     const label = to
@@ -493,34 +495,32 @@ export default function AssetInspector({
       />
       <div
         ref={body}
-        class="grid min-h-0 flex-1 auto-rows-max content-start gap-5 overflow-x-hidden overflow-y-auto px-4 pt-3.5 pb-7"
+        class="grid min-h-0 flex-1 auto-rows-max content-start gap-5 overflow-x-hidden overflow-y-auto bg-inherit px-4 pt-3.5 pb-7"
         data-inspector-body
       >
-        <AssetFrame
-          key={`${asset.path}\n${asset.src ?? ""}`}
-          asset={asset}
-          picture={stack ? picture : undefined}
-          pixels={pixels}
-          read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
-          onSeconds={setVideoSeconds}
-          onFull={(open) => open && setFullEdge(edgeOf(innerWidth, innerHeight))}
-        />
-        {stack && (
-          <VariantsSection
-            stack={stack}
-            selection={selection}
-            form={form}
-            onSelect={setSelection}
-            onPreview={setPreviewing}
-            onForm={setChosenForm}
-            onInsert={
-              insertScript
-                ? (reference) =>
-                    void intents().then((Workspace) => Workspace.window.insertReference(insertScript, form, reference))
-                : undefined
-            }
-            sheetContainer={region}
-          />
+        {stack ? (
+          <div class="grid gap-5 bg-inherit" data-variant-bench>
+            <div class="sticky top-0 z-10 -mb-2.5 bg-inherit pb-2.5 before:absolute before:inset-x-0 before:bottom-full before:h-3.5 before:bg-inherit before:content-['']">
+              {frame}
+            </div>
+            <VariantsSection
+              stack={stack}
+              selection={selection}
+              form={form}
+              onSelect={setSelection}
+              onPreview={setPreviewing}
+              onForm={setChosenForm}
+              onInsert={
+                insertScript
+                  ? (reference) =>
+                      void intents().then((Workspace) => Workspace.window.insertReference(insertScript, form, reference))
+                  : undefined
+              }
+              sheetContainer={region}
+            />
+          </div>
+        ) : (
+          frame
         )}
         {asset.link && <LinkAddress key={`${asset.path}\n${asset.address ?? ""}`} asset={asset} intents={intents} />}
         {problems === null ? (
@@ -564,8 +564,9 @@ export default function AssetInspector({
               Where it is used could not be looked up. Edit a script to try again.
             </p>
           ) : lines ? (
-            <div class="-mx-2 -mt-2.5">
+            <div class="-mx-2">
               <UsesList
+                layout="lines"
                 groups={uses}
                 onOpen={(use) =>
                   void intents().then((Workspace) => Workspace.window.revealDocument(use.uri, use.range))

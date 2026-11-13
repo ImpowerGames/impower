@@ -1,8 +1,10 @@
 import { clock, PlayButton } from "@impower/impower-ui/components";
+import { useEffect } from "preact/hooks";
 import { addMenuFolders, loopsByDefault } from "../../utils/addMenuFolders";
 import { PLAYBACK_FAILURES, type Sound } from "../../workspace/AudioSession";
 import { audioSession, soundPeaks } from "../../workspace/editorAudio";
 import { useSettings } from "../../workspace/settings/useSettings";
+import workspace from "../../workspace/WorkspaceStore";
 
 const statusOf = (owner: string) => {
   const playback = audioSession.playback.value;
@@ -27,21 +29,44 @@ export function SoundPlay({ name, sound }: { name: string; sound: Sound }) {
   );
 }
 
-export function SoundLine({ sound, line }: { sound: Sound; line: string }) {
+const lengthOf = (sound: Sound): number | null => {
+  if (sound.size === undefined) {
+    return null;
+  }
+  void soundPeaks.settled.value;
+  const shape = soundPeaks.peek({ src: sound.src, size: sound.size });
+  return workspace.assetDurations.value[sound.src] ?? (shape?.ok ? shape.duration : null);
+};
+
+export function SoundLine({
+  sound,
+  line,
+  requestLength,
+}: {
+  sound: Sound;
+  line: string;
+  requestLength: (path: string) => () => void;
+}) {
   const failed = audioSession.failureOf(sound);
+  useEffect(
+    () => (sound.size === undefined || failed ? undefined : requestLength(sound.owner)),
+    [sound.owner, sound.src, sound.size, failed],
+  );
   if (failed) {
     return <span data-asset-sound-failed>{PLAYBACK_FAILURES[failed]}</span>;
   }
+  const known = lengthOf(sound);
   if (!statusOf(sound.owner)) {
-    return <>{line}</>;
+    return <span data-asset-sound-line>{known === null ? line : `${clock(Math.round(known))} · ${line}`}</span>;
   }
-  void soundPeaks.settled.value;
-  const shape = soundPeaks.peek({ src: sound.src, size: sound.size ?? 0 });
-  const length = audioSession.playback.value!.duration ?? (shape?.ok ? shape.duration : null);
+  const length = audioSession.playback.value!.duration ?? known;
   const elapsed = clock(audioSession.time.value);
   return (
-    <span class="tabular-nums" data-asset-sound-time>
-      {length === null ? elapsed : `${elapsed} / ${clock(Math.round(length))}`}
+    <span data-asset-sound-line>
+      <span class="tabular-nums" data-asset-sound-time>
+        {length === null ? elapsed : `${elapsed} / ${clock(Math.round(length))}`}
+      </span>
+      {` · ${line}`}
     </span>
   );
 }

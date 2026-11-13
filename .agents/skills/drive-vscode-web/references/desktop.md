@@ -23,7 +23,7 @@ For an external project, pass `--project <whole-folder> --scenario <local-json>`
   "preview": {
     "text": "Desktop preview is ready.",
     "steps": [
-      { "selector": "#play-button", "text": "Desktop preview is ready." },
+      { "selector": "#run-button", "text": "Desktop preview is ready." },
       { "selector": "#game", "text": "Continue the driver story" },
       { "textButton": "Continue the driver story", "text": "Continue the driver story" },
       { "selector": "#game", "text": "The driver choice worked." }

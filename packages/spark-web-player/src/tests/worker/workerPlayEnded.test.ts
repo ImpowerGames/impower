@@ -3,7 +3,13 @@ import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/me
 import { SetStartingDisplayModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetStartingDisplayModeMessage";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlayMessage } from "../../main/workers/messages/PlayMessage";
-import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
+import {
+  createPlayerHarness,
+  MAIN_URI,
+  runButton,
+  settle,
+  writtenText,
+} from "./playerHarness";
 
 const RAN_OUT = "scene start\n  First.\n  Hello.\n  done\nend\n";
 const FIN = "scene start\n  First.\n  Hello.\n  fin\nend\n";
@@ -24,9 +30,6 @@ const start = async (source: string, line: number, host: Host = "editor") => {
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   if (host === "editor") {
     h.refs.toolbar = doc.createElement("div");
-  } else {
-    h.refs.playButton = doc.createElement("div");
-    h.refs.playButton.getAnimations = () => [];
   }
   const plays: unknown[] = [];
   const request = h.link.request.bind(h.link);
@@ -280,32 +283,38 @@ describe("PLAY in the worker reaching the end of the story", () => {
     }
   }, 120_000);
 
-  it("STOP from the ended frame sends game/exited and selects the line the run ended on", async () => {
-    const { h } = await start(RAN_OUT, HELLO);
-    try {
-      await click(h);
-      const [ended] = sent(h, "game/ended");
-      h.workspace.selections.length = 0;
-      await h.controller.handleStopGame({ id: 1, params: {} });
-      await settle(20);
-      expect(sent(h, "game/exited")).toEqual([
-        expect.objectContaining({
-          reason: "finished",
-          run: expect.any(Number),
-        }),
-      ]);
-      expect(launchStates(h).at(-1)).toBe("preview");
-      expect(h.controller.playing).toBe(false);
-      expect(h.bar("#ending-status").hidden).toBe(false);
-      expect(h.bar("#ending-status").textContent).toBe("Story ran out");
-      expect(h.workspace.selections.map((s: any) => s.selectedRange.start.line)).toEqual([
-        ended.location.range.start.line,
-      ]);
-      expect(ended.location.range.start.line).toBe(3);
-    } finally {
-      h.dispose();
-    }
-  }, 120_000);
+  for (const caller of ["handleStopGame", "stop"] as const) {
+    it(`STOP through ${caller} from the ended frame sends game/exited and selects the line the run ended on`, async () => {
+      const { h } = await start(RAN_OUT, HELLO);
+      try {
+        await click(h);
+        const [ended] = sent(h, "game/ended");
+        h.workspace.selections.length = 0;
+        if (caller === "stop") {
+          await h.controller.stop();
+        } else {
+          await h.controller.handleStopGame({ id: 1, params: {} });
+        }
+        await settle(20);
+        expect(sent(h, "game/exited")).toEqual([
+          expect.objectContaining({
+            reason: "finished",
+            run: expect.any(Number),
+          }),
+        ]);
+        expect(launchStates(h).at(-1)).toBe("preview");
+        expect(h.controller.playing).toBe(false);
+        expect(h.bar("#ending-status").hidden).toBe(false);
+        expect(h.bar("#ending-status").textContent).toBe("Story ran out");
+        expect(h.workspace.selections.map((s: any) => s.selectedRange.start.line)).toEqual([
+          ended.location.range.start.line,
+        ]);
+        expect(ended.location.range.start.line).toBe(3);
+      } finally {
+        h.dispose();
+      }
+    }, 120_000);
+  }
 
   it("STOP after an error selects the error's line", async () => {
     const { h } = await start(ERROR, HELLO);
@@ -356,21 +365,20 @@ describe("PLAY in the worker reaching the end of the story", () => {
     }
   }, 120_000);
 
-  it("without an editor host, keeps the frame under the Play button, which replays the run", async () => {
+  it("without an editor host, keeps the frame and offers Run again, which replays the run", async () => {
     const { h, plays } = await start(RAN_OUT, HELLO, "standalone");
     try {
-      h.refs.playButton.style.display = "none";
       await click(h);
       expect(sent(h, "game/exited")).toEqual([]);
       expect(h.workerState.gameState.running).toBeTruthy();
-      expect(h.refs.playButton.style.display).toBe("");
-      await h.controller.handleClickPlayButton();
+      expect(runButton(h).mode).toBe("run-again");
+      await h.controller.run();
       await settle(40);
       await h.tick(1000 / 60, 10);
       expect(plays).toHaveLength(2);
       expect(plays[1]).toEqual(plays[0]);
       expect(launchStates(h).at(-1)).toBe("play");
-      expect(h.refs.playButton.style.display).toBe("none");
+      expect(runButton(h).mode).toBe("stop");
     } finally {
       await h.controller.destroyGameAndApp();
       h.dispose();
@@ -387,8 +395,6 @@ const standalone = async (source: string) => {
   const doc = h.overlay.ownerDocument;
   const win = doc.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
-  h.refs.playButton = doc.createElement("div");
-  h.refs.playButton.getAnimations = () => [];
   await h.compile();
   await h.select(0);
   await settle(40);
@@ -407,18 +413,17 @@ describe("PLAY in the worker ending as it starts, or failing to replay an ending
     ["fin", "fin"],
     ["done", "out"],
   ] as const) {
-    it(`without an editor host, keeps the Play button over a story that ends by ${last} as the first click starts it`, async () => {
+    it(`without an editor host, offers Run again for a story that ends by ${last} as the first click starts it`, async () => {
       const h = await standalone(`scene start\n  ${last}\nend\n`);
       try {
-        await h.controller.handleClickPlayButton();
+        await h.controller.run();
         await settle(40);
         await h.tick(1000 / 60, 10);
         expect(sent(h, "game/ended").at(-1)).toEqual(
           expect.objectContaining({ kind }),
         );
         expect(launchStates(h).at(-1)).toBe("ended");
-        expect(h.refs.playButton.style.display).not.toBe("none");
-        expect(h.refs.playButton.style.pointerEvents).not.toBe("none");
+        expect(runButton(h).mode).toBe("run-again");
       } finally {
         await h.controller.destroyGameAndApp();
         h.dispose();
@@ -428,7 +433,7 @@ describe("PLAY in the worker ending as it starts, or failing to replay an ending
 
   for (const caller of [
     "handleRestartGame",
-    "handleClickPlayButton",
+    "run",
     "scheduleRestartGame",
     "restartGame",
   ] as const) {
@@ -450,8 +455,8 @@ describe("PLAY in the worker ending as it starts, or failing to replay an ending
         }) as typeof h.link.request;
         if (caller === "handleRestartGame") {
           await h.controller.handleRestartGame({ id: 1, params: {} });
-        } else if (caller === "handleClickPlayButton") {
-          await h.controller.handleClickPlayButton();
+        } else if (caller === "run") {
+          await h.controller.run();
         } else if (caller === "scheduleRestartGame") {
           h.controller.scheduleRestartGame();
           await attempt;
@@ -463,7 +468,7 @@ describe("PLAY in the worker ending as it starts, or failing to replay an ending
         expect(sent(h, "game/exited").map((p: any) => p.reason)).toEqual([
           "invalidated",
         ]);
-        expect(h.refs.playButton.style.display).not.toBe("none");
+        expect(runButton(h).mode).toBe("run");
       } finally {
         await h.controller.destroyGameAndApp();
         h.dispose();

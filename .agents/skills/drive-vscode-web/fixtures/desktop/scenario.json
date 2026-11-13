@@ -5,7 +5,7 @@
   "preview": {
     "text": "Desktop preview is ready.",
     "steps": [
-      { "selector": "#play-button", "text": "Desktop preview is ready." },
+      { "selector": "#run-button", "text": "Desktop preview is ready." },
       { "selector": "#game", "text": "Constructor image is ready." },
       { "selector": "#game", "text": "HasOwnProperty image is ready." },
       { "selector": "#game", "text": "Prototype image is ready." },

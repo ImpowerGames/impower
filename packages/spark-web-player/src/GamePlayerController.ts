@@ -281,6 +281,8 @@ interface WorkerPlay {
 export interface PlayerBarView {
   routeShown: boolean;
   snapping: boolean;
+  starting: boolean;
+  runRefusal?: string;
   workspace?: string;
 }
 
@@ -290,7 +292,6 @@ export interface GamePlayerRefs {
   gameView: HTMLElement;
   gameUI: HTMLElement;
   game: HTMLElement;
-  playButton: HTMLElement | null;
   toolbar: HTMLElement | null;
   routeButton?: HTMLElement | null;
   routeList?: HTMLElement | null;
@@ -483,7 +484,11 @@ export class GamePlayerController {
   _stepping = false;
   _ending: GameEnding | null = null;
   protected _bar: PlayerBarState = initialPlayerBarState;
-  protected _barView: PlayerBarView = { routeShown: false, snapping: false };
+  protected _barView: PlayerBarView = {
+    routeShown: false,
+    snapping: false,
+    starting: false,
+  };
   protected _barListeners = new Set<
     (state: PlayerBarState, view: PlayerBarView) => void
   >();
@@ -517,7 +522,6 @@ export class GamePlayerController {
     window.addEventListener("resize", this.handleResize);
     window.addEventListener("pointerdown", this.handleUserInteraction, true);
     window.addEventListener("keydown", this.handleUserInteraction, true);
-    this.refs.playButton?.addEventListener("click", this.handleClickPlayButton);
     if (this._resizable) {
       this.refs.toolbar?.addEventListener(
         "pointerdown",
@@ -572,10 +576,6 @@ export class GamePlayerController {
     window.removeEventListener("resize", this.handleResize);
     window.removeEventListener("pointerdown", this.handleUserInteraction, true);
     window.removeEventListener("keydown", this.handleUserInteraction, true);
-    this.refs.playButton?.removeEventListener(
-      "click",
-      this.handleClickPlayButton,
-    );
     this.refs.toolbar?.removeEventListener(
       "pointerdown",
       this.handlePointerDownToolbar,
@@ -634,48 +634,12 @@ export class GamePlayerController {
     }
   }
 
-  protected _playButtonShows = 0;
-
-  protected async hidePlayButton() {
-    if (this.refs.playButton) {
-      const shows = this._playButtonShows;
-      this.refs.playButton.style.pointerEvents = "none";
-      this.refs.playButton.style.opacity = "0";
-      const animations = this.refs.playButton.getAnimations();
-      await Promise.allSettled(
-        animations.map((animation) => animation.finished),
-      );
-      if (shows === this._playButtonShows) {
-        this.refs.playButton.style.display = "none";
-      }
-    }
-  }
-
   protected refusePlay(refusal: string | undefined) {
     this._playRefusal = refusal;
     if (refusal) {
       this._resolveLoadingInitialProgram();
     }
-    const button = this.refs.playButton;
-    if (!button) {
-      return;
-    }
-    if (refusal) {
-      button.title = refusal;
-      button.setAttribute("aria-disabled", "true");
-    } else {
-      button.removeAttribute("title");
-      button.removeAttribute("aria-disabled");
-    }
-  }
-
-  protected async showPlayButton() {
-    this._playButtonShows += 1;
-    if (this.refs.playButton) {
-      this.refs.playButton.style.pointerEvents = "";
-      this.refs.playButton.style.opacity = "";
-      this.refs.playButton.style.display = "";
-    }
+    this.updateBarView({ runRefusal: refusal });
   }
 
   getRelativeFilePath(path: string | undefined) {
@@ -1184,7 +1148,6 @@ export class GamePlayerController {
     if (plays !== this._plays || !this._mounted || !this.playing) {
       return;
     }
-    this.hidePlayButton();
     sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
     if (this._workerPlay?.ended) {
       this.publishGameState();
@@ -1427,7 +1390,19 @@ export class GamePlayerController {
     void this.ensureAudioContext();
   };
 
-  protected handleClickPlayButton = async () => {
+  run = async () => {
+    if (this._barView.starting) {
+      return;
+    }
+    this.updateBarView({ starting: true });
+    try {
+      await this.runOrRestart();
+    } finally {
+      this.updateBarView({ starting: false });
+    }
+  };
+
+  protected async runOrRestart() {
     const stops = this._stops;
     const clicked = this._plays;
     await this.ensureAudioContext();
@@ -1436,7 +1411,6 @@ export class GamePlayerController {
     }
     const plays = this._plays + 1;
     if (this._workerPlay?.ended) {
-      this.hidePlayButton();
       await this.restartGame();
       return;
     }
@@ -1444,10 +1418,14 @@ export class GamePlayerController {
     if (plays !== this._plays || !this._mounted || !this.playing) {
       return;
     }
-    if (!this._workerPlay?.ended) {
-      this.hidePlayButton();
-    }
     sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
+  }
+
+  stop = () => {
+    const ended = this._workerPlay?.ended;
+    return this.stopGame(
+      !ended ? "quit" : ended.kind === "error" ? "error" : "finished",
+    );
   };
 
   toggleFullscreen = () => {
@@ -2088,14 +2066,7 @@ export class GamePlayerController {
     if (this._workerPlay?.save !== undefined) {
       return StartGameMessage.type.response(message.id, { success: true });
     }
-    const hid = !this._playRefusal;
-    if (hid) {
-      this.hidePlayButton();
-    }
-    const { started: success, refusal, owned } = await this.startPlay();
-    if (!success && refusal && hid && owned) {
-      this.showPlayButton();
-    }
+    const { started: success, refusal } = await this.startPlay();
     this.updateLaunchStateIcon();
     return success
       ? StartGameMessage.type.response(message.id, { success })
@@ -2110,10 +2081,7 @@ export class GamePlayerController {
   };
 
   protected handleStopGame = async (message: StopGameMessage.Request) => {
-    const ended = this._workerPlay?.ended;
-    await this.stopGame(
-      !ended ? "quit" : ended.kind === "error" ? "error" : "finished",
-    );
+    await this.stop();
     return StopGameMessage.type.response(message.id, {});
   };
 
@@ -3121,9 +3089,6 @@ export class GamePlayerController {
       GameEndedMessage.type.notification({ ...ending, run: play.run }),
       this.host,
     );
-    if (!this.refs.toolbar) {
-      this.showPlayButton();
-    }
   }
 
   protected releaseEndedPlay(owner: unknown) {
@@ -3134,9 +3099,6 @@ export class GamePlayerController {
     play.ended = undefined;
     this.updateLaunchStateIcon();
     this.setEndingStatus(null);
-    if (!this.refs.toolbar) {
-      this.hidePlayButton();
-    }
   }
 
   protected setEndingStatus(ending: GameEnding | null) {
@@ -3173,7 +3135,6 @@ export class GamePlayerController {
     if (overtaken()) {
       return;
     }
-    this.showPlayButton();
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     if (overtaken()) {
       return;
@@ -3301,7 +3262,6 @@ export class GamePlayerController {
           this.host,
         );
       }
-      this.showPlayButton();
       if (!outcome.previewShown) {
         await this.showPreviewAfterRefusal();
       }

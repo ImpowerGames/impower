@@ -56,7 +56,7 @@ function TileDemo() {
   return (
     <div class="space-y-6">
       {SHAPES.map((shape) => (
-        <GalleryRow key={shape} label={`${shape}: a folder, a picture, a stacked picture with its badge, the current one`}>
+        <GalleryRow key={shape} label={`${shape}: a folder, a picture, a stacked picture with its badge, the current one with its accent edge and its menu shown`}>
           <div class="grid grid-cols-4 gap-3">
             {[0, 1, 2, 3].map((index) => (
               <div key={index} style={{ height: `${tileHeight(shape, 176)}px` }}>
@@ -106,6 +106,6 @@ function TileDemo() {
 
 export const tileGallery: GalleryEntry = {
   title: "Tile",
-  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileHeight", "TILE_GAP", "TILE_MIN_WIDTH"],
+  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileActionsVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileHeight", "TILE_GAP", "TILE_MIN_WIDTH"],
   Demo: TileDemo,
 };

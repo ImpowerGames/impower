@@ -174,6 +174,10 @@ export default class WorkspaceAssets {
 
   protected readonly _measuring = new Set<string>();
 
+  protected readonly _durationRequests = new Map<string, number>();
+
+  protected _durationsReading = 0;
+
   protected _usageRequest = 0;
 
   protected _latestUsage: Promise<AssetUsage | null> = Promise.resolve(null);
@@ -586,6 +590,53 @@ export default class WorkspaceAssets {
     }
     for (const src of wanted) this._measuring.delete(src);
     workspace.assetSizes.value = { ...workspace.assetSizes.peek(), ...measured };
+  }
+
+  requestDuration(path: string): () => void {
+    const src = isLinkPath(path) ? undefined : this.listing.files[path]?.src;
+    if (!src || Object.hasOwn(workspace.assetDurations.peek(), src) || this._measuring.has(src)) {
+      return () => {};
+    }
+    this._durationRequests.set(src, (this._durationRequests.get(src) ?? 0) + 1);
+    this.readRequestedDurations();
+    let dropped = false;
+    return () => {
+      if (dropped) {
+        return;
+      }
+      dropped = true;
+      const wanted = this._durationRequests.get(src);
+      if (wanted === undefined) {
+        return;
+      }
+      if (wanted > 1) {
+        this._durationRequests.set(src, wanted - 1);
+      } else {
+        this._durationRequests.delete(src);
+      }
+    };
+  }
+
+  protected readRequestedDurations(): void {
+    while (this._durationsReading < MEASURE_BATCH) {
+      const next = this._durationRequests.keys().next();
+      if (next.done) {
+        return;
+      }
+      const src = next.value;
+      this._durationRequests.delete(src);
+      if (Object.hasOwn(workspace.assetDurations.peek(), src) || this._measuring.has(src)) {
+        continue;
+      }
+      this._measuring.add(src);
+      this._durationsReading += 1;
+      void readAudioDuration(src).then((seconds) => {
+        this._measuring.delete(src);
+        this._durationsReading -= 1;
+        workspace.assetDurations.value = { ...workspace.assetDurations.peek(), [src]: seconds };
+        this.readRequestedDurations();
+      });
+    }
   }
 
   async measureDurations(paths: readonly string[]): Promise<void> {

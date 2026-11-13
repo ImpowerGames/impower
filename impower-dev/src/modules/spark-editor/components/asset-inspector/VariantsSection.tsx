@@ -4,11 +4,13 @@ import {
   ChoiceGroup,
   CopyIcon,
   DropdownContent,
+  DropdownItemText,
   DropdownRadioGroup,
   DropdownRadioItem,
   DropdownRoot,
   DropdownTrigger,
   InsertIcon,
+  Switch,
   variantsLabel,
   WheelSheet,
 } from "@impower/impower-ui/components";
@@ -122,10 +124,9 @@ function GroupMenu({
               onFocus={() => onPreview(option)}
               onPointerEnter={() => onPreview(option)}
             >
-              <span class="flex min-w-0 flex-1 items-baseline justify-between gap-3">
+              <DropdownItemText hint={option === group.default ? "Default" : undefined}>
                 {optionLabel(option)}
-                {option === group.default ? <small class="text-[11px] font-normal text-muted">Default</small> : null}
-              </span>
+              </DropdownItemText>
             </DropdownRadioItem>
           ))}
         </DropdownRadioGroup>
@@ -173,16 +174,26 @@ export default function VariantsSection({
             {groups.map((group) => (
               <div key={group.key} class="grid min-w-0 gap-px" data-variant-cell>
                 <span class="truncate text-[11px] text-muted">{groupLabel(group)}</span>
-                <GroupMenu
-                  sheetContainer={sheetContainer}
-                  group={group}
-                  value={chosenIn(group, selection)}
-                  onPick={(value) => {
-                    onPreview(null);
-                    onSelect({ ...selection, [group.key]: value });
-                  }}
-                  onPreview={(value) => onPreview(value === null ? null : { ...selection, [group.key]: value })}
-                />
+                {group.switch ? (
+                  <Switch
+                    class="my-2.5"
+                    aria-label={groupLabel(group)}
+                    data-variant-switch={group.key}
+                    checked={chosenIn(group, selection) === "on"}
+                    onCheckedChange={(on) => onSelect({ ...selection, [group.key]: on ? "on" : "off" })}
+                  />
+                ) : (
+                  <GroupMenu
+                    sheetContainer={sheetContainer}
+                    group={group}
+                    value={chosenIn(group, selection)}
+                    onPick={(value) => {
+                      onPreview(null);
+                      onSelect({ ...selection, [group.key]: value });
+                    }}
+                    onPreview={(value) => onPreview(value === null ? null : { ...selection, [group.key]: value })}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -192,6 +203,8 @@ export default function VariantsSection({
             Show as
           </span>
           <ChoiceGroup
+            size="small"
+            fill="tint"
             name={`${formLabel}-form`}
             aria-labelledby={formLabel}
             options={FORMS}

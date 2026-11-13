@@ -1,4 +1,4 @@
-import { ListRow } from "@impower/impower-ui/components";
+import { FileIcon, ListRow } from "@impower/impower-ui/components";
 import type { Range } from "vscode-languageserver-protocol";
 import type { SearchGroup, SearchUse } from "../../workspace/searchState";
 import { scriptTitle } from "./scriptTitle";
@@ -35,15 +35,44 @@ const isCurrent = (
   current.range.end.line === use.range.end.line &&
   current.range.end.character === use.range.end.character;
 
+function UseLines({ groups, onOpen }: { groups: readonly SearchGroup[]; onOpen: (use: SearchUse) => void }) {
+  return (
+    <ul class="m-0 list-none p-0">
+      {groups.flatMap((group) => {
+        const title = scriptTitle(group.uri);
+        return group.uses.map((use) => {
+          const line = use.range.start.line + 1;
+          return (
+            <li key={`${group.uri}:${use.range.start.line}:${use.range.start.character}`}>
+              <ListRow
+                icon={<FileIcon />}
+                aria-label={`Open ${title} at line ${line}`}
+                label={`${title} · line ${line}`}
+                description={use.lineText.trim()}
+                onClick={() => onOpen(use)}
+              />
+            </li>
+          );
+        });
+      })}
+    </ul>
+  );
+}
+
 export default function UsesList({
   groups,
   current,
+  layout = "grouped",
   onOpen,
 }: {
   groups: readonly SearchGroup[];
   current?: { uri: string; range: Range };
+  layout?: "grouped" | "lines";
   onOpen: (use: SearchUse) => void;
 }) {
+  if (layout === "lines") {
+    return <UseLines groups={groups} onOpen={onOpen} />;
+  }
   return (
     <>
       {groups.map((group) => (

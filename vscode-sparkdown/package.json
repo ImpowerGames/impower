@@ -494,7 +494,24 @@
           "group": "1_startingMode@2"
         }
       ],
+      "editor/title/run": [
+        {
+          "command": "sparkdown.runGame",
+          "when": "resourceLangId == sparkdown",
+          "group": "navigation@1"
+        },
+        {
+          "command": "sparkdown.debugGame",
+          "when": "resourceLangId == sparkdown",
+          "group": "navigation@2"
+        }
+      ],
       "debug/toolBar": [
+        {
+          "command": "sparkdown.debug.skipForward",
+          "when": "debugType == game",
+          "group": "navigation@58"
+        },
         {
           "command": "sparkdown.debug.pin",
           "when": "!sparkdown.debug.pinned"
@@ -589,6 +606,13 @@
         "category": "Sparkdown Debugger",
         "enablement": "!inDebugMode",
         "icon": "$(play)"
+      },
+      {
+        "command": "sparkdown.debug.skipForward",
+        "title": "Skip Forward",
+        "icon": "$(redo)",
+        "category": "Debug",
+        "enablement": "debugType == game && sparkdown.debug.canSkipForward"
       },
       {
         "command": "sparkdown.debug.pin",
