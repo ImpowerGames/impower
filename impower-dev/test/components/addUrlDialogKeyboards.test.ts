@@ -94,6 +94,12 @@ describe("Add URL's fields", () => {
     const { url, name } = await mount(onSubmit);
     await type(url, "https://cdn.example.com/horn.mp3");
     await type(name, "");
+    expect(name.value).toBe("");
+    expect(name.placeholder).toBe("horn");
+    await type(url, "https://cdn.example.com/bell.mp3");
+    expect(name.value).toBe("");
+    expect(name.placeholder).toBe("bell");
+    await type(url, "https://cdn.example.com/horn.mp3");
     await press(url);
     expect(onSubmit).toHaveBeenCalledWith("https://cdn.example.com/horn.mp3", "horn");
   });

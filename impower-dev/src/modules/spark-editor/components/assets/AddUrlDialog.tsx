@@ -117,6 +117,7 @@ export default function AddUrlDialog({
         width="full"
         suffix=".url"
         value={displayName}
+        placeholder={deriveName(url)}
         onValueChange={(next) => {
           setNameEdited(true);
           setName(next);
