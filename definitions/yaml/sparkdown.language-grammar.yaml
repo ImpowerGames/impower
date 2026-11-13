@@ -535,19 +535,15 @@ variables:
   # lookaround: as UNDERSCORE_SHORTER, for Raw, whose content is literal: a
   # backtick run of another length than the opener's is text.
   RAW_OTHER_RUN: (?:(?!\1(?:[^`\r\n]|$))[`]+(?![`]))
-  # lookaround: inside a long string of a raw span's brace group, a `[` is text unless it opens
-  # another long bracket, where a long string left open stops: without that stop it reads on to the
-  # line's end from every brace that holds one, in time quadratic in the line's length. The text
-  # holds no backtick, so a group never hides the raw span's closer. As RAW_BRACE_TEXT, only the
-  # characters after the `[` tell the two apart.
-  RAW_BRACE_LONG_TEXT: (?:[^\]\[`\r\n]|\[(?!=*\[))
   # lookaround: as SPAN_LONG_BRACKET, inside a raw span's brace group (RAW_BRACE_GROUP): a Luau long
-  # string or comment of level 0 ends at its first `]]`.
-  RAW_BRACE_DOUBLE_BRACKET: (?:\[\[(?:{{RAW_BRACE_LONG_TEXT}}|\](?!\]))*\]\])
+  # string or comment of level 0 ends at its first `]]`. Its text holds no backtick, so a group never
+  # hides the raw span's closer, and at most 64 characters, so a long string left open is given up
+  # there rather than read to the line's end from every brace that holds one.
+  RAW_BRACE_DOUBLE_BRACKET: (?:\[\[(?:[^\]`\r\n]|\](?!\])){0,64}\]\])
   # lookaround: as RAW_BRACE_DOUBLE_BRACKET, for level 1.
-  RAW_BRACE_LONG_BRACKET_1: (?:\[=\[(?:{{RAW_BRACE_LONG_TEXT}}|\](?!=\]))*\]=\])
+  RAW_BRACE_LONG_BRACKET_1: (?:\[=\[(?:[^\]`\r\n]|\](?!=\])){0,64}\]=\])
   # lookaround: as RAW_BRACE_DOUBLE_BRACKET, for level 2.
-  RAW_BRACE_LONG_BRACKET_2: (?:\[==\[(?:{{RAW_BRACE_LONG_TEXT}}|\](?!==\]))*\]==\])
+  RAW_BRACE_LONG_BRACKET_2: (?:\[==\[(?:[^\]`\r\n]|\](?!==\])){0,64}\]==\])
   RAW_BRACE_DOUBLE_QUOTED: (?:["](?:[^"`\\\r\n]|[\\][^`\r\n])*["])
   RAW_BRACE_SINGLE_QUOTED: (?:['](?:[^'`\\\r\n]|[\\][^`\r\n])*['])
   RAW_BRACE_QUOTED: (?:{{RAW_BRACE_DOUBLE_QUOTED}}|{{RAW_BRACE_SINGLE_QUOTED}})

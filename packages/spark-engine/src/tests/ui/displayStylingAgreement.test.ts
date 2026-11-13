@@ -351,6 +351,8 @@ const CHOICE_CORPUS: string[] = [
   "Go *a `far {[[a]]} away` b* now",
   "Go `far {\"->\"} away` now",
   "Go [`far {t[1]} away`] now",
+  "Go `far {[[a [[ b]]} away` now",
+  "Go `far {\"}->\"} away` now",
   "Go \\[a] [b] c",
   "Go [a\\] b] c",
   "Go *a* [b *c] d",

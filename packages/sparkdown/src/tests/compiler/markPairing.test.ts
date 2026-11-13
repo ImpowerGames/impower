@@ -148,7 +148,9 @@ describe("a backtick run is raw only where a run of its own length closes it", (
     ["`far {[=[}->]=]} away`", "far {[=[}->]=]} away"],
     ["`far {[[{a}]]} away`", "far {[[{a}]]} away"],
     ["`far {[=[{a}]=]} away`", "far {[=[{a}]=]} away"],
-  ])("a raw span holding %s, whose braces hold a brace inside a string, is raw in each part of a choice", async (span, raw) => {
+    ["`far {[[a [[ b]]} away`", "far {[[a [[ b]]} away"],
+    ["`far {[=[a [[ b]=]} away`", "far {[=[a [[ b]=]} away"],
+  ])("a raw span holding %s, whose braces hold a brace or a bracket inside a string, is raw in each part of a choice", async (span, raw) => {
     expect(await readings(`A ${span} now`)).toEqual(both(`A [raw: ${raw}] now`));
     expect(await choiceReadings(`Go ${span} now`)).toEqual(both(`Go [raw: ${raw}] now`));
     expect(choiceTextOf(`Go ${span} now`)).toBe(`Go ${span} now`);
