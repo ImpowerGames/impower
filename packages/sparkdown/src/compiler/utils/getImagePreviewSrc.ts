@@ -1,4 +1,4 @@
-import { filterImage } from "./filterImage";
+import { filterImage, resolveImageMember, resolveImageRoot } from "./filterImage";
 import { resolveImageReference } from "./resolveImageReference";
 
 export const getImagePreviewSrc = (
@@ -31,10 +31,11 @@ export const getImagePreviewSrc = (
     }
     const filteredLayers = filtered.layers;
     if (filteredLayers) {
+      visited.add(resolveImageRoot(context, struct));
       for (const layer of filteredLayers) {
         const src = getImagePreviewSrc(
           context,
-          resolveImageReference(context, layer),
+          resolveImageMember(context, layer, visited),
           visited,
         );
         if (src) {
@@ -60,7 +61,7 @@ export const getImagePreviewSrc = (
     for (const layer of layers) {
       const src = getImagePreviewSrc(
         context,
-        resolveImageReference(context, layer),
+        resolveImageMember(context, layer, visited),
         visited,
       );
       if (src) {

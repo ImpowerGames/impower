@@ -28,7 +28,7 @@ import {
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { MORPH_CLAUSE_DOC } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
-import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
+import { resolveImageReference, typedImageTypes } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
@@ -1068,7 +1068,7 @@ const addStructPropertyValueContextCompletions = (
         "$type" in value &&
         typeof value.$type === "string"
       ) {
-        addStructReferenceCompletions(completions, program, [value.$type]);
+        addStructReferenceCompletions(completions, program, typedImageTypes(value.$type));
       }
     }
   }
@@ -1246,7 +1246,7 @@ const addStructAccessPathCompletions = (
     const type = parts[0];
     if (program?.context) {
       if (parts.length === 2 && type) {
-        addStructReferenceCompletions(completions, program, [type]);
+        addStructReferenceCompletions(completions, program, typedImageTypes(type));
       } else {
         const parentPath =
           parts.length === 1
