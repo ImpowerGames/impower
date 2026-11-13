@@ -23,6 +23,7 @@ const FRAMES: Record<TextFieldFrame, string> = {
 const SIZES: Record<TextFieldSize, string> = {
   default: "Default",
   tall: "Tall",
+  dialog: "Dialog form field",
 };
 
 const WIDTHS: Record<TextFieldWidth, string> = {
@@ -95,6 +96,22 @@ function TextFieldDemo() {
               <TextField key={frame} frame={frame} aria-label={FRAMES[frame]} placeholder={FRAMES[frame]} data-gallery-control />
             ),
           )}
+        </div>
+      </GalleryRow>
+      <GalleryRow label="With a suffix, in every size">
+        <div class="flex flex-wrap items-center gap-4">
+          {(Object.keys(SIZES) as TextFieldSize[]).map((size) => (
+            <TextField
+              key={size}
+              size={size}
+              width="wide"
+              purpose="literal"
+              suffix=".url"
+              aria-label={`${SIZES[size]} with a suffix`}
+              defaultValue="backdrop"
+              data-gallery-control
+            />
+          ))}
         </div>
       </GalleryRow>
       <GalleryRow label={`Controlled: ${name}`}>

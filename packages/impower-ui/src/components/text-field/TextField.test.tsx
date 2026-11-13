@@ -127,6 +127,25 @@ describe("TextField", () => {
       expect(inset).not.toContain(dropped);
     }
   });
+
+  it("gives the dialog size a 50px field with 16px type on the page fill at every width", () => {
+    const dialog = textFieldVariants({ size: "dialog" }).split(/\s+/);
+    expect(dialog).toEqual(expect.arrayContaining(["h-[50px]", "p-3", "text-[16px]/[1.5]", "bg-bg", "border-edge"]));
+    expect(dialog.some((name) => name.startsWith("compact:") || name.startsWith("phone:"))).toBe(false);
+  });
+
+  it("draws a suffix inside its own frame, keeping the input and its purpose inside", async () => {
+    const input = await mount(<TextField aria-label="Name" purpose="literal" size="dialog" width="full" suffix=".url" />);
+    const frame = input.parentElement!;
+    expect(frame.hasAttribute("data-text-field-frame")).toBe(true);
+    expect(frame.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["h-[50px]", "bg-bg", "border-edge", "w-full", "flex", "p-0", "has-[input:focus-visible]:border-accent"]),
+    );
+    expect(frame.lastElementChild!.textContent).toBe(".url");
+    expect(input.className.split(/\s+/)).toEqual(expect.arrayContaining(["border-0", "bg-transparent", "text-[16px]/[1.5]", "px-3"]));
+    expect(input.getAttribute("autocapitalize")).toBe("off");
+    expect(input.getAttribute("enterkeyhint")).toBe("done");
+  });
 });
 
 describe("TextField's controlled contract", () => {
