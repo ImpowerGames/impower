@@ -49,6 +49,9 @@ const KINDS: Record<string, string[]> = {
   LuauFunctionDefinitionLocal: ["  local function lf()", "  end"],
   LuauFunctionDefinitionOneLine: ["  function f1() end"],
   LuauFunctionDefinitionSharedLine: ["  function f2() end : Same line."],
+  LuauFunctionDefinitionThenCommentSharedLine: ["  function f4() end /* c */ : Shared."],
+  SparkdownBlockCommentThenFunctionSharedLine: ["  /* c */ function f3() end : Shared."],
+  LuauFunctionDefinitionPairSharedLine: ["  function f5() end function f6() end : Shared."],
   LuauSparkdownExplicitFunction: ["  & function h()", "  end"],
   LuauFunctionTypeDeclaration: ["  type function tf()", "  end"],
   LuauGotoStatement: ["  goto here"],
@@ -280,6 +283,20 @@ describe("a line shared by a hidden node and printed text", () => {
     const source = sourceOf(["LuauFunctionDefinitionSharedLine"]);
     const name = configName === "default" ? [] : ["f2"];
     const expected = ["Before.", "", ...name, "Same line.", "After."];
+    expect(exportRows(configName, source)).toEqual(expected);
+    expect(layout(screenRows(configName, source))).toBe(layout(expected));
+  });
+
+  it.each([
+    ["default", "LuauFunctionDefinitionThenCommentSharedLine", ["", "Shared."]],
+    ["function identifiers", "LuauFunctionDefinitionThenCommentSharedLine", ["", "f4", "", "Shared."]],
+    ["default", "SparkdownBlockCommentThenFunctionSharedLine", ["", "Shared."]],
+    ["function identifiers", "SparkdownBlockCommentThenFunctionSharedLine", ["", "f3", "Shared."]],
+    ["default", "LuauFunctionDefinitionPairSharedLine", ["", "Shared."]],
+    ["function identifiers", "LuauFunctionDefinitionPairSharedLine", ["", "f5", "", "f6", "Shared."]],
+  ] as const)("keeps every hidden part in order with %s settings: %s", (configName, kind, rows) => {
+    const source = sourceOf([kind]);
+    const expected = ["Before.", ...rows, "After."];
     expect(exportRows(configName, source)).toEqual(expected);
     expect(layout(screenRows(configName, source))).toBe(layout(expected));
   });

@@ -356,10 +356,10 @@ export const decorate = (
 
   const tree = treeOverride ?? syntaxTree(state);
 
+  const blankPositions = new Set(screenplayBlankLines(tree, doc.toString(), config));
+
   const blankLines = new Set(
-    screenplayBlankLines(tree, doc.toString(), config).map(
-      (position) => doc.lineAt(Math.min(position, doc.length)).number,
-    ),
+    [...blankPositions].map((position) => doc.lineAt(Math.min(position, doc.length)).number),
   );
 
   const handledLines = new Set<number>();
@@ -379,37 +379,56 @@ export const decorate = (
     node.name !== "Whitespace" &&
     !printsAsBlankLine(node.name, node.parent?.name);
 
-  const sharesLineWithText = (node: SyntaxNode, line: Line) => {
-    for (let before = node.prevSibling; before && before.to > line.from; before = before.prevSibling) {
-      if (printsText(before)) return "before";
+  const functionNameOf = (node: SyntaxNode) =>
+    config?.screenplay_print_function_identifiers
+      ? rootFunctionName(node, (from, to) => doc.sliceString(from, to))
+      : "";
+
+  const lineParts = (line: Line) => {
+    const parts: SyntaxNode[] = [];
+    for (
+      let part = tree.topNode.childAfter(line.from);
+      part && part.from < line.to;
+      part = part.nextSibling
+    ) {
+      parts.push(part);
     }
-    for (let after = node.nextSibling; after && after.from < line.to; after = after.nextSibling) {
-      if (printsText(after)) return "after";
-    }
-    return undefined;
+    return parts;
   };
 
-  const insertRows = (line: Line, side: "before" | "after", blank: boolean, name: string) => {
-    const at = side === "after" ? line.to : line.from;
-    const [blankSide, nameSide] = side === "after" ? [1, 2] : [-2, -1];
-    if (blank) {
+  const splitSharedLine = (line: Line) => {
+    const parts = lineParts(line);
+    const firstText = parts.findIndex(printsText);
+    if (firstText < 0) return false;
+    handledLines.add(line.number);
+    const above: (CollapseWidget | NameWidget)[] = [];
+    const below: (CollapseWidget | NameWidget)[] = [];
+    parts.forEach((part, index) => {
+      if (!printsAsBlankLine(part.name, part.parent?.name)) return;
+      const from = Math.max(part.from, line.from);
+      const to = Math.min(blockEnd(part), line.to);
+      if (to > from) {
+        decorations.push(Decoration.replace({}).range(from, to));
+      }
+      if (part.from < line.from) return;
+      const rows = index < firstText ? above : below;
+      if (blankPositions.has(part.from)) {
+        rows.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from }));
+      }
+      const name = functionNameOf(part);
+      if (name) {
+        rows.push(new NameWidget({ type: "name", from: part.from, to: part.from, name, pageBreak: false }));
+      }
+    });
+    above.forEach((widget, index) => {
       decorations.push(
-        Decoration.widget({
-          widget: new CollapseWidget({ type: "collapse", from: at, to: at }),
-          block: true,
-          side: blankSide,
-        }).range(at),
+        Decoration.widget({ widget, block: true, side: index - above.length }).range(line.from),
       );
-    }
-    if (name) {
-      decorations.push(
-        Decoration.widget({
-          widget: new NameWidget({ type: "name", from: at, to: at, name, pageBreak: false }),
-          block: true,
-          side: nameSide,
-        }).range(at),
-      );
-    }
+    });
+    below.forEach((widget, index) => {
+      decorations.push(Decoration.widget({ widget, block: true, side: index + 1 }).range(line.to));
+    });
+    return true;
   };
 
   const hideLines = (
@@ -423,18 +442,7 @@ export const decorate = (
     for (let number = first; number <= last; number++) {
       if (handledLines.has(number)) continue;
       const line = doc.line(number);
-      const shared =
-        node && (number === first || number === last)
-          ? sharesLineWithText(node, line)
-          : undefined;
-      if (shared) {
-        handledLines.add(number);
-        const from = Math.max(fromPosition, line.from);
-        const to = Math.min(toPosition, line.to);
-        if (to > from) {
-          decorations.push(Decoration.replace({}).range(from, to));
-        }
-        insertRows(line, shared === "before" ? "after" : "before", blankLines.has(number), number === first ? name : "");
+      if (node && (number === first || number === last) && splitSharedLine(line)) {
         continue;
       }
       handledLines.add(number);
