@@ -762,7 +762,6 @@ The inspector opens beside the list on desktop and replaces it on phones.
 | `None` | menu row when no part uses the group | folio-assets.js:1538 |  |
 | `Copy` | button (copies the variant tag) | folio-assets.js:1563 |  |
 | `Insert at caret` | button | folio-assets.js:1563 |  |
-| `Save as a variant` | button | folio-assets.js:1563 |  |
 | `Could not copy.` | toast | folio-assets.js:1867 |  |
 | `Copied.` | toast | folio-assets.js:1866 |  |
 | `Files` | section heading | folio-assets.js:1667, folio-assets.js:1744, folio-assets.js:3081 |  |
@@ -775,7 +774,8 @@ The inspector opens beside the list on desktop and replaces it on phones.
 | `Alternate · ` | file role prefix: `Alternate · ` + the alternate's name | folio-assets.js:1708 |  |
 | `Alternate · plain` | file role | folio-assets.js:1710 |  |
 | `Base` | file role | folio-assets.js:1712 |  |
-| `Layer` | file role prefix (followed by its order number) | folio-assets.js:1720 |  |
+| `Asset name collision · also provides ` | file role: this text + the picture's name, for a second file the compiler gives the same name (`ava.v2.png` beside `ava.png`) | none | Not in the prototype. Worded as the compiler's `Asset name collision` problem, which the inspector's Problems section shows for the same file. |
+| `Layer` | file role prefix (followed by its order number) | folio-assets.js:1720 | The order number is shown whenever the file has one: the number before a folder layer's name, or the number right after the `~` of a layer file beside its picture (`ava~20_face.happy.png` is `Layer 20`). The lowest number is the top layer. |
 | `always shown` | file role part | folio-assets.js:1721 |  |
 | `default` | file role part | folio-assets.js:1716, folio-assets.js:1722, folio-library.js:146 |  |
 | `on ` | file role part: `on ` + the alternate's name | folio-assets.js:1723 |  |
@@ -1516,8 +1516,6 @@ A toast is a short status message at the bottom of the screen; the role of every
 | `Renamed.` | toast | folio-assets.js:1999, folio-assets.js:2397, folio-assets.js:2427 |  |
 | `Renamed. Your scripts were updated.` | toast | folio-assets.js:2396 |  |
 | `Deleted from the local draft.` | toast | folio-assets.js:2024, folio-assets.js:2547, folio-assets.js:2573 |  |
-| `Saved. Write [[` | toast: this text + the name + `]] to show this variant.` | folio-assets.js:2116 |  |
-| `]] to show this variant.` | toast, end | folio-assets.js:2116 |  |
 | `Replaced. Every line that shows it now uses the new file.` | toast | folio-assets.js:2298 |  |
 | `Added ` | toast: this text + the file name + a full stop | folio-assets.js:2333 |  |
 | `Folder created.` | toast | folio-assets.js:2354 |  |
@@ -1676,17 +1674,6 @@ The body is a context line, the name of the scope, a ` · ` and the counts, then
 | `  will be removed from your local draft; the rest of  ` | body, middle | folio-assets.js:2011 |  |
 | ` stays.` | body, end | folio-assets.js:2011 |  |
 | `It is the picture the layers sit on. Without it the layers rest on nothing and will report a missing base.` | body, second paragraph when deleting a Base file | folio-assets.js:2011 |  |
-
-### Save this variant
-
-| String | Role | Source | Note |
-| --- | --- | --- | --- |
-| `Save this variant` | dialog title | folio-assets.js:2075 |  |
-| `The variant is written into Definitions/variants.sd, and the script can then show it by name.` | body | folio-assets.js:2076 |  |
-| `Variant name` | label | folio-assets.js:2076 |  |
-| `Save variant` | button | folio-assets.js:2077 |  |
-| `Use letters, digits and underscores, starting with a letter.` | error message | folio-assets.js:2090 |  |
-| `A definition with that name already exists.` | error message | folio-assets.js:2101 |  |
 
 ### Name errors
 

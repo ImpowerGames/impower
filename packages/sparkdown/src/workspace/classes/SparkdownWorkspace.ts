@@ -43,7 +43,7 @@ import type {
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
 import { isSameProgram } from "../../compiler/utils/programSummary";
 import { playRefusalOf } from "../../compiler/utils/startScene";
-import { imageFileNameOf } from "../../attributes/imageFileName";
+import { assetNameOf, encodedAssetNameOf } from "../../attributes/imageFileName";
 import { profile } from "../utils/logging/profile";
 import { ProgramTransportDecoder } from "../utils/programTransport";
 import { debounce } from "../utils/timing/debounce";
@@ -537,13 +537,11 @@ export abstract class SparkdownWorkspace {
   }
 
   protected getEncodedFileName(uri: string): string {
-    return this.getFileType(uri) === "image"
-      ? imageFileNameOf(uri).name
-      : this.getFilenameWithExtension(uri).split(".")[0]!;
+    return encodedAssetNameOf(uri, this.getFileType(uri));
   }
 
   getFileName(uri: string): string {
-    return this.getEncodedFileName(uri).replaceAll("%40", "@");
+    return assetNameOf(uri, this.getFileType(uri));
   }
 
   getFileType(uri: string): string {

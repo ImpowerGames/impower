@@ -68,7 +68,7 @@ import {
   type FileMove,
   type RenameOutcome,
 } from "../utils/fileMoves";
-import { imageFileNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
+import { assetNameOf, thingNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { imageStacks } from "../utils/imageStacks";
 import { storageLeft } from "../utils/storageLeft";
 import { storagePath } from "../utils/storageName";
@@ -139,8 +139,7 @@ interface ReferenceEdits {
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-const symbolOf = (path: string) =>
-  assetTypeOf(path, assetEndings.peek()) === "image" ? imageFileNameOf(path).name : leafOf(path).split(".")[0]!;
+const symbolOf = (path: string) => assetNameOf(path, assetTypeOf(path, assetEndings.peek()));
 
 const normalized = (text: string) =>
   text.split(CARRIAGE_RETURN + LINE_BREAK).join(LINE_BREAK).split(CARRIAGE_RETURN).join(LINE_BREAK);
@@ -1164,7 +1163,7 @@ export default class WorkspaceFileSystem {
     projectId: string,
     moves: readonly FileMove[],
   ): Promise<RenameOutcome & { scriptsAffected: number }> {
-    const name = symbolOf(moves[0]?.from ?? "").split(/[@~]/)[0]!;
+    const name = thingNameOf(symbolOf(moves[0]?.from ?? ""));
     const refuse = (reason: string) =>
       new Error(`Couldn't rename ${name}: ${reason}`);
     const before = await snapshotPaths(this, projectId);

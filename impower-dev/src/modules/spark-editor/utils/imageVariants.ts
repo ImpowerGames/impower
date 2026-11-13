@@ -133,6 +133,9 @@ const conditionsOf = (layer: string): string[] | null => {
 };
 
 export const fileRole = (stack: ImageStack, member: StackMember): string => {
+  if (member.duplicate) {
+    return `Asset name collision · also provides ${member.alternate === null ? stack.name : `${stack.name}@${member.alternate}`}`;
+  }
   if (member.layer === undefined) {
     if (member.alternate !== null) {
       return `Alternate · ${member.alternate}`;
