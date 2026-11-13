@@ -109,6 +109,10 @@ describe("the preview stage's game card", () => {
   it("insets the game from the pane's sides and rounds its corners at desktop widths", async () => {
     await mount();
     expectInsetCard();
+    const panel = card()!.closest<HTMLElement>("[data-panel]");
+    expect(panel?.dataset["panel"]).toBe("start");
+    expect(panel!.classList).toContain("overflow-visible");
+    expect(panel!.classList).not.toContain("overflow-hidden");
   });
 
   it("insets and rounds the game on a phone, as the prototype's phone player does", async () => {

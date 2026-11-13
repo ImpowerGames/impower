@@ -61,6 +61,21 @@ const startPx = (separator: HTMLElement) => {
 };
 
 describe("SplitPane", () => {
+  it("clips both panels unless one is named to overflow", async () => {
+    await mount({});
+    const panels = host!.querySelectorAll<HTMLElement>("[data-panel]");
+    expect(Array.from(panels).map((p) => p.classList.contains("overflow-hidden"))).toEqual([true, true]);
+  });
+
+  it("lets the named panel paint past its edge and keeps the other clipped", async () => {
+    await mount({ overflowPanel: "start" });
+    const start = host!.querySelector<HTMLElement>('[data-panel="start"]')!;
+    const end = host!.querySelector<HTMLElement>('[data-panel="end"]')!;
+    expect(start.classList.contains("overflow-visible")).toBe(true);
+    expect(start.classList.contains("overflow-hidden")).toBe(false);
+    expect(end.classList.contains("overflow-hidden")).toBe(true);
+  });
+
   it("starts at the default sizes", async () => {
     const { separator } = await mount({ defaultSizes: [53, 47] });
     expect(separator.getAttribute("aria-valuenow")).toBe("53");
@@ -140,6 +155,14 @@ describe("SplitPane with a pinned panel", () => {
     expect(separator.getAttribute("aria-label")).toBe("Resize game and panel");
     expect(pinnedPx(separator)).toBe(44);
     expect(root.dataset["split"]).toBe("collapsed");
+  });
+
+  it("lets the named panel paint past its edge while pinned", async () => {
+    const { root } = await mountPinned({}, { overflowPanel: "start" });
+    const start = root.querySelector<HTMLElement>('[data-panel="start"]')!;
+    const end = root.querySelector<HTMLElement>('[data-panel="end"]')!;
+    expect(start.classList.contains("overflow-visible")).toBe(true);
+    expect(end.classList.contains("overflow-hidden")).toBe(true);
   });
 
   it("grows the end panel when dragged up and commits once on release", async () => {
