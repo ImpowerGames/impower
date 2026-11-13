@@ -234,7 +234,6 @@ export {
   selectWordLeft,
   selectWordRight,
   vscodeWordSelection,
-  wordAtPosition,
   wordForDoubleClick,
 } from "./wordOperations";
 export { Workspace, type WorkspaceFile } from "./workspace";

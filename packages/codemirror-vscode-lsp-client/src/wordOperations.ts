@@ -243,7 +243,7 @@ const touches = (found: FoundWord | null, ch: number, type: WordType, endInclusi
 const strictlyInside = (found: FoundWord | null, ch: number) =>
   found !== null && found.type === REGULAR && found.start < ch && ch < found.end;
 
-export function wordAtPosition(state: EditorState, pos: number): SelectionRange | null {
+function wordAtPosition(state: EditorState, pos: number): SelectionRange | null {
   const line = state.doc.lineAt(pos);
   const ch = pos - line.from;
   const prev = previousWordOnLine(line.text, ch);
