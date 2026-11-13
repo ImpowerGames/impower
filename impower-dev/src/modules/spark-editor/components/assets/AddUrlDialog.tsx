@@ -5,7 +5,7 @@ import {
   DialogActions,
   DialogTitle,
   LinkIcon,
-  TextField,
+  textFieldPurposeAttributes,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 
@@ -49,6 +49,9 @@ export default function AddUrlDialog({
     onClose();
   };
 
+  const inputClass =
+    "h-11 w-full select-text rounded-control border border-edge bg-transparent px-3 text-sm text-ink placeholder:text-muted";
+
   return (
     <Dialog
       open={open}
@@ -72,14 +75,12 @@ export default function AddUrlDialog({
       <label for="add-url-address" class="mb-1 block text-xs font-medium text-foreground/60">
         URL
       </label>
-      <TextField
-        ref={urlRef}
-        purpose="url"
-        size="tall"
-        width="full"
+      <input
+        {...textFieldPurposeAttributes("url")}
         id="add-url-address"
+        ref={urlRef}
         value={url}
-        onValueChange={setUrl}
+        onInput={(e) => setUrl((e.target as HTMLInputElement).value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -87,21 +88,19 @@ export default function AddUrlDialog({
           }
         }}
         placeholder="https://cdn.example.com/image.png"
-        class="mb-3"
+        class={`mb-3 ${inputClass}`}
       />
 
       <label for="add-url-name" class="mb-1 block text-xs font-medium text-foreground/60">
         Name
       </label>
-      <TextField
-        purpose="literal"
-        size="tall"
-        width="full"
+      <input
+        {...textFieldPurposeAttributes("literal")}
         id="add-url-name"
         value={displayName}
-        onValueChange={(next) => {
+        onInput={(e) => {
           setNameEdited(true);
-          setName(next);
+          setName((e.target as HTMLInputElement).value);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -110,7 +109,7 @@ export default function AddUrlDialog({
           }
         }}
         placeholder="asset"
-        class="mb-5"
+        class={`mb-5 ${inputClass}`}
       />
 
       <DialogActions>
