@@ -30,6 +30,11 @@ export const script = (body: string, values = VALUES) =>
   `${SCREEN}\n${values}\nscene start\n  ${body}\nend\n`;
 
 export async function renderedBeat(source: string) {
+  const [first] = await renderedBeats(source, 1);
+  return first!;
+}
+
+export async function renderedBeats(source: string, count: number) {
   const harness = createHarness(source);
   if (harness.errors.length > 0) {
     harness.game.destroy();
@@ -38,13 +43,22 @@ export async function renderedBeat(source: string) {
   await harness.ready;
   harness.jumpToFlow("start");
   harness.reset();
-  const beat = harness.nextBeat() as Instructions;
-  await harness.display(beat, true);
-  await flushMicrotasks();
+  const beats: Instructions[] = [];
+  for (let i = 0; i < count; i++) {
+    await new Promise((resolve) => setImmediate(resolve));
+    const beat = harness.nextBeat() as Instructions;
+    await harness.display(beat, true);
+    await flushMicrotasks();
+    beats.push(beat);
+  }
   const animation = (harness.game.context as any)?.animation ?? {};
   const wavy = animation["wavy"]?.$name;
   const shaky = animation["shaky"]?.$name;
   harness.game.destroy();
+  return beats.map((beat) => cellsIn(beat, wavy, shaky));
+}
+
+function cellsIn(beat: Instructions, wavy: unknown, shaky: unknown) {
   const cellsOf = (target: string): Cell[] => {
     const cells: Cell[] = [];
     for (const event of beat.text?.[target] ?? []) {
@@ -56,8 +70,8 @@ export async function renderedBeat(source: string) {
         style["text_decoration"] === "underline" ? "underline" : "",
         style["text_align"] === "center" ? "centered" : "",
         style["white_space"] === "pre" ? "raw" : "",
-        wavy && animations.includes(wavy) ? "wavy" : "",
-        shaky && animations.includes(shaky) ? "shaky" : "",
+        typeof wavy === "string" && animations.includes(wavy) ? "wavy" : "",
+        typeof shaky === "string" && animations.includes(shaky) ? "shaky" : "",
       ].filter(Boolean);
       for (const char of event.text ?? "") {
         cells.push({ char, style: styles.sort().join(" ") });

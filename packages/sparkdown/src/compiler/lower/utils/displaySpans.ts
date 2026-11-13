@@ -12,7 +12,6 @@ type SourceReader = Pick<LowerContext, "read">;
 
 const SPAN_NODES: ReadonlySet<string> = nodeNameSet([
   "Bold",
-  "BoldItalic",
   "Italic",
   "Underline",
   "Centered",
@@ -33,6 +32,14 @@ export interface DisplaySpans {
   marks: { from: number; to: number }[];
 }
 
+const spanMark = (span: SyntaxNode, name: string): SyntaxNode | null => {
+  for (let capture = span.firstChild; capture; capture = capture.nextSibling) {
+    const mark = capture.name === name ? capture : findChildByName(capture, name);
+    if (mark) return mark;
+  }
+  return null;
+};
+
 export function collectDisplaySpans(
   root: SyntaxNode,
   from: number,
@@ -51,8 +58,8 @@ export function collectDisplaySpans(
     if (node !== root && isOpaque(node)) return;
     let childDepth = depth;
     if (SPAN_NODES.has(node.name)) {
-      const begin = findChildByName(node, `${node.name}_begin`);
-      const end = findChildByName(node, `${node.name}_end`);
+      const begin = spanMark(node, "SpanOpenMark");
+      const end = spanMark(node, "SpanCloseMark");
       if (begin && end) {
         hide(node.from, begin.to);
         hide(end.from, node.to);

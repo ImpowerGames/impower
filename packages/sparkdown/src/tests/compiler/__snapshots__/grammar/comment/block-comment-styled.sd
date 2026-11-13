@@ -10,6 +10,7 @@ scene start
   Go *italic*/* n */ after
   Go *a*/ b
   Go *x /* open
+  still */ y* home
   Go *far // note* home
   choose
     + Go *far /*n*/ away* home

@@ -122,6 +122,59 @@ const CHOICE_CLOSE_SEARCHES: [string, string, "begin" | "match", string][] = [
   ["unclosed braces in a styled span", "ChoiceStartSpanText", "match", "Go" + " {".repeat(40000) + " now"],
 ];
 
+const SPAN_RULES = ["Raw", "Bold", "Italic", "Underline", "Centered", "EmphasisTilde", "EmphasisColon"].flatMap(
+  (span) => ["", "ChoiceStart", "ChoiceOnly", "ChoiceInner"].map((region) => `${region}${span}`),
+);
+
+const SPAN_CLOSE_SEARCHES: [string, string][] = [
+  ["unclosed stars", "*a ".repeat(500)],
+  ["unclosed double stars", "**a ".repeat(400)],
+  ["unclosed triple stars", "***a ".repeat(300)],
+  ["one star before plain text", "*a" + " b".repeat(800)],
+  ["unclosed underscores", "_a ".repeat(500)],
+  ["unclosed double underscores", "__a ".repeat(400)],
+  ["unclosed carets", "^a ".repeat(500)],
+  ["unclosed tildes", "~~a ".repeat(400)],
+  ["unclosed colons", "::a ".repeat(400)],
+  ["unclosed backticks", "`a ".repeat(500)],
+  ["stars inside words", "a*".repeat(800)],
+  ["double stars inside words", "a**".repeat(500)],
+  ["stars that neither open nor close", "* ".repeat(800)],
+  ["every mark left open", "*a _b ^c ~~d ::e ".repeat(100)],
+  ["a bold span open over closed italics", "**a" + " *b*".repeat(400)],
+  ["an italic span open over closed bolds", "*a" + " **b**".repeat(250)],
+  ["an underline open over closed underlines", "_a" + " _b_".repeat(400)],
+  ["an italic span open over interpolations", "*a" + " {x}".repeat(400)],
+  ["an italic span open over unclosed text commands", "*a" + " <b".repeat(500)],
+  ["an italic span open over escaped text command ends", "*a <b" + " \\>".repeat(500)],
+  ["an italic span open over comments", "*a" + " /* c */".repeat(200)],
+  ["an italic span open over code spans", "*a" + " `c`".repeat(400)],
+  ["an italic span open over unclosed braces", "*a" + " {".repeat(800)],
+  ["a tilde span open over other tilde runs", "~~a" + " ~b~".repeat(400)],
+  ["a backtick run open over other backtick runs", "`a" + " ``b".repeat(400)],
+];
+
+describe("a span whose closer never comes is refused at once wherever it could open (#2196)", () => {
+  test.each(SPAN_RULES.flatMap((rule) => SPAN_CLOSE_SEARCHES.map(([what, line]) => [rule, what, line] as const)))(
+    "%s on %s",
+    (rule, _what, line) => {
+      const source = grammar.repository?.[rule]?.match;
+      expect(source, `${rule}.match exists`).toBeTruthy();
+      const re = new RegExp(source, "muy");
+      re.lastIndex = 0;
+      re.exec("warm");
+      const t0 = performance.now();
+      for (let i = 0; i < line.length; i++) {
+        if (!"*_^~:`".includes(line[i]!)) continue;
+        re.lastIndex = i;
+        re.exec(line);
+      }
+      const ms = performance.now() - t0;
+      expect(ms, `${rule}.match took ${ms.toFixed(1)}ms`).toBeLessThan(150);
+    },
+  );
+});
+
 describe("a choice line that never meets a close is read at once (#2083)", () => {
   test.each(CHOICE_CLOSE_SEARCHES)("%s", (_what, rule, key, line) => {
     const source = grammar.repository?.[rule]?.[key];

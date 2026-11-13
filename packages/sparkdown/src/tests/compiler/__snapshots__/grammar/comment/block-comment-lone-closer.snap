@@ -29,17 +29,10 @@ sparkdown [0..33]
  │   │       │       ├─ TextChunk_content [14..20]
  │   │       │       │   ├─ Word [14..15]: "A"
  │   │       │       │   ├─ Space [15..16]: " "
- │   │       │       │   └─ Italic [16..20]
- │   │       │       │       ├─ Italic_begin [16..17]
- │   │       │       │       │   └─ Italic_begin_c1 [16..17]
- │   │       │       │       │       └─ StylingMark [16..17]
- │   │       │       │       │           └─ StylingMark_c1 [16..17]: "*"
- │   │       │       │       ├─ Italic_content [17..20]
- │   │       │       │       │   ├─ Punctuation [17..18]: "/"
- │   │       │       │       │   ├─ Space [18..19]: " "
- │   │       │       │       │   └─ Word [19..20]: "B"
- │   │       │       │       └─ Italic_end 20
- │   │       │       │           └─ Italic_end_c1 20
+ │   │       │       │   ├─ Punctuation [16..17]: "*"
+ │   │       │       │   ├─ Punctuation [17..18]: "/"
+ │   │       │       │   ├─ Space [18..19]: " "
+ │   │       │       │   └─ Word [19..20]: "B"
  │   │       │       └─ TextChunk_end 20
  │   │       └─ ActionLineEnd_end 20
  │   └─ ImplicitAction_end 20
@@ -57,15 +50,8 @@ sparkdown [0..33]
  │   │       │   └─ TextChunk [23..25]
  │   │       │       ├─ TextChunk_begin 23
  │   │       │       ├─ TextChunk_content [23..25]
- │   │       │       │   └─ Italic [23..25]
- │   │       │       │       ├─ Italic_begin [23..24]
- │   │       │       │       │   └─ Italic_begin_c1 [23..24]
- │   │       │       │       │       └─ StylingMark [23..24]
- │   │       │       │       │           └─ StylingMark_c1 [23..24]: "*"
- │   │       │       │       ├─ Italic_content [24..25]
- │   │       │       │       │   └─ Punctuation [24..25]: "/"
- │   │       │       │       └─ Italic_end 25
- │   │       │       │           └─ Italic_end_c1 25
+ │   │       │       │   ├─ Punctuation [23..24]: "*"
+ │   │       │       │   └─ Punctuation [24..25]: "/"
  │   │       │       └─ TextChunk_end 25
  │   │       └─ ActionLineEnd_end 25
  │   └─ ImplicitAction_end 25
