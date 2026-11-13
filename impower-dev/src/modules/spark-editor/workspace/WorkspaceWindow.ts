@@ -196,6 +196,13 @@ import {
   REFUSED_BEFORE_CHANGE,
 } from "./projectImport";
 
+export const PLAYER_CONNECT_TIMEOUT_MS = 15_000;
+
+export const PLAYER_DID_NOT_CONNECT_MESSAGE =
+  "The game player didn't load. Try Play again.";
+
+const inPlay = (game: GameState) => Boolean(game.running || game.starting);
+
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
     this._loadProject.bind(this),
@@ -844,6 +851,7 @@ export default class WorkspaceWindow {
   dispose() {
     this._disposers.forEach((dispose) => dispose());
     this._disposers = [];
+    this.clearPlayerWait();
     this.debug.end();
     this.cacheProjectWorkspace.flush();
   }
@@ -915,8 +923,55 @@ export default class WorkspaceWindow {
     this._startGameRequestId = undefined;
     if ("error" in message && message.error) {
       this.endGame();
+    } else {
+      this.syncGameStarted();
     }
   };
+
+  protected _playerConnected = false;
+
+  protected _playerWait?: ReturnType<typeof setTimeout>;
+
+  protected clearPlayerWait() {
+    clearTimeout(this._playerWait);
+    this._playerWait = undefined;
+  }
+
+  protected awaitPlayer() {
+    this.clearPlayerWait();
+    this._playerWait = setTimeout(() => {
+      this._playerWait = undefined;
+      if (this.store.preview.modes.game.starting && !this._playerConnected) {
+        this.endGame();
+        showSnackbar({ message: PLAYER_DID_NOT_CONNECT_MESSAGE });
+      }
+    }, PLAYER_CONNECT_TIMEOUT_MS);
+  }
+
+  connectPlayer() {
+    this._playerConnected = true;
+    this.clearPlayerWait();
+    const game = this.store.preview.modes.game;
+    if (game.starting && this._startGameRequestId === undefined) {
+      this.launchGame();
+    }
+  }
+
+  disconnectPlayer() {
+    this._playerConnected = false;
+    if (this.store.preview.modes.game.starting) {
+      this._startGameRequestId = undefined;
+      this.debug.end();
+      this.awaitPlayer();
+    }
+  }
+
+  protected launchGame() {
+    const request = StartGameMessage.type.request({});
+    this._startGameRequestId = request.id;
+    sendProtocolMessage(request);
+    void this.debug.start(this.getOpenedDocumentUri() ?? "");
+  }
 
   get store() {
     return workspace.current;
@@ -2001,48 +2056,57 @@ export default class WorkspaceWindow {
   }
 
   startGame() {
-    if (!this.store.preview.modes.game.running) {
-      this.update({
-        ...this.store,
-        preview: {
-          ...this.store.preview,
-          modes: {
-            ...this.store.preview.modes,
-            game: {
-              ...this.store.preview.modes.game,
-              loading: false,
-              running: true,
-              paused: false,
-              picks: {},
-            },
-          },
-        },
-      });
-      const request = StartGameMessage.type.request({});
-      this._startGameRequestId = request.id;
-      sendProtocolMessage(request);
-      void this.debug.start(this.getOpenedDocumentUri() ?? "");
+    const game = this.store.preview.modes.game;
+    if (game.running || game.starting) {
+      return;
+    }
+    this.updateGame({
+      ...game,
+      loading: false,
+      starting: true,
+      paused: false,
+      ended: false,
+      choosing: false,
+      picks: {},
+    });
+    if (this._playerConnected) {
+      this.launchGame();
+    } else {
+      this.awaitPlayer();
+    }
+  }
+
+  syncGameStarted() {
+    const game = this.store.preview.modes.game;
+    if (game.running) {
+      return;
+    }
+    this.clearPlayerWait();
+    this.updateGame({
+      ...game,
+      loading: false,
+      starting: false,
+      running: true,
+      ...(game.starting ? {} : { paused: false, picks: {} }),
+    });
+    if (!game.starting) {
+      this.launchGame();
     }
   }
 
   endGame() {
-    if (this.store.preview.modes.game.running) {
-      this.update({
-        ...this.store,
-        preview: {
-          ...this.store.preview,
-          modes: {
-            ...this.store.preview.modes,
-            game: {
-              ...this.store.preview.modes.game,
-              loading: false,
-              running: false,
-              ended: false,
-              choosing: false,
-              picks: {},
-            },
-          },
-        },
+    const game = this.store.preview.modes.game;
+    if (game.running || game.starting) {
+      this._startGameRequestId = undefined;
+      this.clearPlayerWait();
+      this.updateGame({
+        ...game,
+        loading: false,
+        running: false,
+        starting: false,
+        ended: false,
+        choosing: false,
+        picks: {},
       });
       this.debug.end();
     }
@@ -2050,7 +2114,7 @@ export default class WorkspaceWindow {
 
   syncGameEnded(ended: boolean) {
     const game = this.store.preview.modes.game;
-    if (!game.running || (Boolean(game.ended) === ended && !game.loading)) {
+    if (!inPlay(game) || (Boolean(game.ended) === ended && !game.loading)) {
       return;
     }
     this.update({
@@ -2084,8 +2148,10 @@ export default class WorkspaceWindow {
   }
 
   stopGame() {
-    if (this.store.preview.modes.game.running) {
-      this.endGame();
+    const game = this.store.preview.modes.game;
+    const reached = game.running || this._startGameRequestId !== undefined;
+    this.endGame();
+    if (reached) {
       sendProtocolMessage(StopGameMessage.type.request({}));
     }
   }
@@ -2138,7 +2204,7 @@ export default class WorkspaceWindow {
 
   syncGameChose(option?: { uri: string; line: number }) {
     const game = this.store.preview.modes.game;
-    if (!game.running) {
+    if (!inPlay(game)) {
       return;
     }
     const picks = game.picks ?? {};
@@ -2155,7 +2221,7 @@ export default class WorkspaceWindow {
 
   syncGameChoosing(choosing: boolean) {
     const game = this.store.preview.modes.game;
-    if (Boolean(game.choosing) === choosing || (choosing && !game.running)) {
+    if (Boolean(game.choosing) === choosing || (choosing && !inPlay(game))) {
       return;
     }
     this.updateGame({ ...game, choosing });
@@ -2177,7 +2243,7 @@ export default class WorkspaceWindow {
 
   syncGamePaused(paused: boolean) {
     const game = this.store.preview.modes.game;
-    if (!game.running || Boolean(game.paused) === paused) {
+    if (!inPlay(game) || Boolean(game.paused) === paused) {
       return;
     }
     this.update({
@@ -2246,10 +2312,10 @@ export default class WorkspaceWindow {
     to: RollDebugTarget = "beat",
   ): Promise<boolean> {
     const game = this.store.preview.modes.game;
+    if (skipRefusal(game, workspace.debugSession.peek(), direction)) {
+      return false;
+    }
     if (game.running) {
-      if (skipRefusal(game, workspace.debugSession.peek(), direction)) {
-        return false;
-      }
       return direction < 0 ? this.debug.rollBack(to) : this.debug.rollForward(to);
     }
     const ls = this._workspace.ls;
@@ -2268,9 +2334,10 @@ export default class WorkspaceWindow {
   }
 
   toggleGameRunning() {
-    if (this.store.preview.modes.game.running) {
+    const game = this.store.preview.modes.game;
+    if (game.running || game.starting) {
       this.stopGame();
-    } else if (!this.store.preview.modes.game.playRefusal) {
+    } else if (!game.playRefusal) {
       this.startGame();
     }
   }

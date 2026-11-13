@@ -462,11 +462,12 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const mode = preferences.previewMode;
   const game = workspace.state.value.preview?.modes?.game;
   const running = !!game?.running;
+  const live = running || !!game?.starting;
   const ended = running && !!game?.ended;
   const playing = running && !ended;
   const paused = playing && !!game?.paused;
   const loading = !!game?.loading;
-  const refusal = running ? undefined : game?.playRefusal;
+  const refusal = live ? undefined : game?.playRefusal;
   const session = workspace.debugSession.value;
   const refusals = stepRefusals(game, session);
   const caretScript = useCaretScript();
@@ -524,8 +525,8 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         <Button
           variant="primary"
           size="icon"
-          aria-label={running ? "Stop" : "Play From Here"}
-          title={refusal ?? (running ? "Stop" : "Play From Here")}
+          aria-label={live ? "Stop" : "Play From Here"}
+          title={refusal ?? (live ? "Stop" : "Play From Here")}
           aria-disabled={refusal || loading ? true : undefined}
           onClick={
             refusal || loading
@@ -534,7 +535,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           }
           class="rounded-full border-0 aria-disabled:cursor-default aria-disabled:opacity-40 [&_svg]:size-6"
         >
-          {running ? <StopIcon /> : <PlayIcon />}
+          {live ? <StopIcon /> : <PlayIcon />}
         </Button>
         <SkipButton direction={1} reason={skipRefusal(game, session, 1)} />
         {steps && !phone ? stepButton("out") : null}

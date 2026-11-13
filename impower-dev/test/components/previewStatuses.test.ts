@@ -61,6 +61,9 @@ const { default: Preview } = await import(
 const { default: statuses, NO_GAME_STATUSES } = await import(
   "../../src/modules/spark-editor/workspace/statuses/StatusesStore"
 );
+const { default: workspace } = await import(
+  "../../src/modules/spark-editor/workspace/WorkspaceStore"
+);
 
 let host: HTMLDivElement | undefined;
 
@@ -173,6 +176,32 @@ describe("the statuses over the game", () => {
     await mount();
     await report({ ...PREVIEWING, ending: ENDED.ending });
     expect(badges().map((badge) => badge.dataset["status"])).toEqual(["completion"]);
+  });
+
+  it("says the game is starting while a PLAY waits for the player, and drops it once the game runs", async () => {
+    const before = workspace.current;
+    const setGame = (game: Record<string, unknown>) =>
+      act(() => {
+        workspace.current = {
+          ...workspace.current,
+          preview: {
+            ...workspace.current.preview,
+            modes: { ...workspace.current.preview.modes, game },
+          },
+        };
+      });
+    try {
+      await mount();
+      await setGame({ starting: true });
+      const [badge] = badges();
+      expect(badge!.textContent).toBe("Starting the game…");
+      expect(badge!.dataset["status"]).toBe("starting");
+      expect(badge!.dataset["statusBadge"]).toBe("default");
+      await setGame({ running: true });
+      expect(badges()).toEqual([]);
+    } finally {
+      workspace.current = before;
+    }
   });
 
   it("shows the same badge over the phone's game", async () => {

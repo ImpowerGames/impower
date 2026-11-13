@@ -19,6 +19,7 @@ export const STEP_REASONS = {
   ended: "The story is over, so there is nothing to step to.",
   topLevel: HISTORY_REASONS.stepOut,
   behind: HISTORY_REASONS.step,
+  starting: "The game is starting.",
 } as const;
 
 export type SkipDirection = -1 | 1;
@@ -48,4 +49,8 @@ export const skipRefusal = (
   session: DebugSessionState,
   direction: SkipDirection,
 ): string | undefined =>
-  game?.running ? historySkipRefusal(session.history, direction) : undefined;
+  game?.running
+    ? historySkipRefusal(session.history, direction)
+    : game?.starting
+      ? STEP_REASONS.starting
+      : undefined;

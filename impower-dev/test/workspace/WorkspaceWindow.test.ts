@@ -229,7 +229,12 @@ import { WorkspaceConstants } from "../../src/modules/spark-editor/workspace/Wor
 import workspace, {
   savedWorkspaceState,
 } from "../../src/modules/spark-editor/workspace/WorkspaceStore";
-import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+import WorkspaceWindow, {
+  PLAYER_CONNECT_TIMEOUT_MS,
+  PLAYER_DID_NOT_CONNECT_MESSAGE,
+} from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+import { snackbar } from "../../src/modules/spark-editor/utils/snackbar";
+import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { ProjectImportError } from "../../src/modules/spark-editor/workspace/projectImport";
 import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
 import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
@@ -237,6 +242,12 @@ import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloa
 beforeEach(() => {
   window.history.replaceState(null, "", window.location.pathname);
 });
+
+const runGame = (win: WorkspaceWindow) => {
+  win.connectPlayer();
+  win.startGame();
+  win.syncGameStarted();
+};
 
 describe("WorkspaceWindow store transitions", () => {
   let win: WorkspaceWindow;
@@ -1146,7 +1157,7 @@ describe("Preview preferences", () => {
 
   it("stops a running game when the viewing mode changes", () => {
     const win = load();
-    win.startGame();
+    runGame(win);
     expect(workspace.current.preview.modes.game.running).toBe(true);
     win.setPreviewMode("screenplay");
     expect(workspace.current.preview.modes.game.running).toBe(false);
@@ -1154,7 +1165,7 @@ describe("Preview preferences", () => {
 
   it("keeps a running game when the viewing mode moves between Visual Novel and Interactive Fiction", () => {
     const win = load();
-    win.startGame();
+    runGame(win);
     win.setPreviewMode("textstream");
     expect(workspaceSettings.preferences.value.previewMode).toBe("textstream");
     expect(workspace.current.preview.modes.game.running).toBe(true);
@@ -1770,9 +1781,10 @@ describe("PLAY for a story with no start scene", () => {
   });
 
   it("stops showing a game as running when the player refuses a PLAY asked for before the refusal arrived", () => {
+    win.connectPlayer();
     win.toggleGameRunning();
     expect(started).toHaveLength(1);
-    expect(game().running).toBe(true);
+    expect(game().starting).toBe(true);
     compiled(STORY, NO_START_SCENE_MESSAGE);
     sendProtocolMessage(
       StartGameMessage.type.error(started[0]!.id, {
@@ -1781,15 +1793,202 @@ describe("PLAY for a story with no start scene", () => {
       }),
     );
     expect(game().running).toBe(false);
+    expect(game().starting).toBe(false);
     expect(play()?.getAttribute("aria-disabled")).toBe("true");
   });
 
   it("keeps a started game running when the player answers PLAY with success", () => {
+    win.connectPlayer();
     win.toggleGameRunning();
     sendProtocolMessage(
       StartGameMessage.type.response(started[0]!.id, { success: true }),
     );
     expect(game().running).toBe(true);
+  });
+});
+
+describe("PLAY pressed before the game player has connected", () => {
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+  let started: StartGameMessage.Request[] = [];
+  let stopped: unknown[] = [];
+
+  const listener = (e: Event) => {
+    if (!(e instanceof CustomEvent)) {
+      return;
+    }
+    if (StartGameMessage.type.isRequest(e.detail)) {
+      started.push(e.detail);
+    }
+    if (StopGameMessage.type.isRequest(e.detail)) {
+      stopped.push(e.detail);
+    }
+  };
+
+  const transport = () => {
+    render(h(PreviewTopBar, {}), container);
+    return container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Play From Here"], button[aria-label="Stop"]',
+    )!;
+  };
+
+  const answer = (success: boolean) =>
+    sendProtocolMessage(
+      success
+        ? StartGameMessage.type.response(started.at(-1)!.id, { success })
+        : StartGameMessage.type.error(started.at(-1)!.id, {
+            code: 1,
+            message: "The game could not be started",
+          }),
+    );
+
+  const game = () => workspace.current.preview.modes.game;
+
+  const pressed = () => vi.waitFor(() => expect(game().starting).toBe(true));
+
+  beforeEach(() => {
+    localStorage.clear();
+    started = [];
+    stopped = [];
+    snackbar.value = null;
+    window.addEventListener(MessageProtocol.event, listener);
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    workspace.current = {
+      ...workspace.current,
+      project: { ...workspace.current.project, id: "proj" },
+      preview: {
+        ...workspace.current.preview,
+        modes: { ...workspace.current.preview.modes, game: {} },
+      },
+    };
+    container = document.createElement("div");
+    document.body.append(container);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    render(null, container);
+    container.remove();
+    current.window = undefined;
+    window.removeEventListener(MessageProtocol.event, listener);
+    win.dispose();
+  });
+
+  it("delivers a press made before the game preview has loaded to the player once it initializes", async () => {
+    Object.assign(Workspace.fs, {
+      getFiles: async () => ({}),
+      getDirectoryUri: async () => "file://local",
+    });
+    (Workspace as unknown as { configuration: unknown }).configuration = {
+      settings: {},
+    };
+    const stage = document.createElement("div");
+    document.body.append(stage);
+    const startsPosted = () =>
+      channels.all.flatMap((channel) =>
+        channel.posted.filter((m) => StartGameMessage.type.isRequest(m)),
+      );
+    try {
+      channels.all = [];
+      render(h(PreviewGame, {}), stage);
+      transport().click();
+      await pressed();
+      expect(game().running).toBeFalsy();
+      stage.querySelector("iframe")!.dispatchEvent(new Event("load"));
+      await vi.waitFor(() => expect(startsPosted()).toHaveLength(1), {
+        timeout: 15000,
+      });
+      answer(true);
+      expect(game().running).toBe(true);
+      render(null, stage);
+      win.stopGame();
+      win.toggleGameRunning();
+      expect(started).toHaveLength(1);
+    } finally {
+      render(null, stage);
+      stage.remove();
+    }
+  }, 30000);
+
+  it("holds an early press until the player connects, then starts the game, and shows Stop only while it starts or runs", async () => {
+    transport().click();
+    await pressed();
+    expect(started).toEqual([]);
+    expect(game().running).toBeFalsy();
+    expect(transport().getAttribute("aria-label")).toBe("Stop");
+
+    win.connectPlayer();
+    expect(started).toHaveLength(1);
+    expect(game().running).toBeFalsy();
+    expect(game().starting).toBe(true);
+
+    answer(true);
+    expect(game().running).toBe(true);
+    expect(game().starting).toBeFalsy();
+    expect(transport().getAttribute("aria-label")).toBe("Stop");
+  });
+
+  it("sends a press after the player connects at once and still waits for the player to report the start", () => {
+    win.connectPlayer();
+    win.toggleGameRunning();
+    expect(started).toHaveLength(1);
+    expect(game().running).toBeFalsy();
+    expect(transport().getAttribute("aria-label")).toBe("Stop");
+    answer(false);
+    expect(game().running).toBeFalsy();
+    expect(game().starting).toBeFalsy();
+    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+  });
+
+  it("cancels the start when Stop is pressed while the game is starting, as VS Code's Stop does during a launch", () => {
+    win.toggleGameRunning();
+    expect(game().starting).toBe(true);
+    win.toggleGameRunning();
+    expect(game().starting).toBeFalsy();
+    win.connectPlayer();
+    expect(started).toEqual([]);
+    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+
+    win.toggleGameRunning();
+    expect(started).toHaveLength(1);
+    win.toggleGameRunning();
+    expect(stopped).toHaveLength(1);
+    answer(true);
+    expect(game().running).toBeFalsy();
+    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+  });
+
+  it("returns the bar to Play and says why when the player does not connect in time", () => {
+    vi.useFakeTimers();
+    win.toggleGameRunning();
+    vi.advanceTimersByTime(PLAYER_CONNECT_TIMEOUT_MS - 1);
+    expect(game().starting).toBe(true);
+    expect(snackbar.value).toBeNull();
+    vi.advanceTimersByTime(1);
+    expect(game().starting).toBeFalsy();
+    expect(game().running).toBeFalsy();
+    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+    expect(snackbar.value?.message).toBe(PLAYER_DID_NOT_CONNECT_MESSAGE);
+    win.connectPlayer();
+    expect(started).toEqual([]);
+  });
+
+  it("carries a held press over to the player that connects after the last one went away", () => {
+    win.connectPlayer();
+    win.disconnectPlayer();
+    win.toggleGameRunning();
+    expect(started).toEqual([]);
+    win.connectPlayer();
+    expect(started).toHaveLength(1);
+  });
+
+  it("keeps the step, skip and pause controls off while the game is only starting", () => {
+    win.toggleGameRunning();
+    transport();
+    expect(container.querySelector('[aria-label="Pause"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Step Over"]')).toBeNull();
+    expect(container.querySelector("[data-running]")).toBeNull();
   });
 });
 
@@ -1836,7 +2035,7 @@ describe("Choosing during a Screenplay play-through", () => {
     container.querySelector("iframe")!.dispatchEvent(new Event("load"));
     await vi.waitFor(() => expect(channels.all).toHaveLength(1), { timeout: 15000 });
     const channel = channels.all[0]!;
-    win.startGame();
+    runGame(win);
     const location = { uri: "file://a/main.sd", range: { start: { line: 3, character: 0 }, end: { line: 3, character: 0 } } };
 
     channel.receive({ jsonrpc: "2.0", method: "game/awaitingInteraction", params: { location, choices: false } });
@@ -1864,7 +2063,7 @@ describe("Choosing during a Screenplay play-through", () => {
     container.querySelector("iframe")!.dispatchEvent(new Event("load"));
     await vi.waitFor(() => expect(channels.all).toHaveLength(1), { timeout: 15000 });
     const channel = channels.all[0]!;
-    win.startGame();
+    runGame(win);
     const uri = "file://a/main.sd";
     const at = (line: number) => ({ uri, range: { start: { line, character: 2 }, end: { line, character: 2 } } });
     const executed = (ranges: number[]) => ({
@@ -1971,7 +2170,7 @@ describe("The game preview's player bar", () => {
     select(3);
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(heard()).toEqual(["select 1"]);
-    win.startGame();
+    runGame(win);
     await vi.waitFor(() =>
       expect(heard()).toEqual(["select 1", "select 3", "start"]),
     );
@@ -2036,7 +2235,7 @@ describe("The game preview's player bar", () => {
       );
     report(true);
     expect(workspace.current.preview.modes.game.paused).toBeFalsy();
-    win.startGame();
+    runGame(win);
     report(true);
     await vi.waitFor(() =>
       expect(workspace.current.preview.modes.game.paused).toBe(true),
@@ -2354,7 +2553,7 @@ describe("The preview's top bar", () => {
     };
     window.addEventListener(MessageProtocol.event, player);
     try {
-      win.startGame();
+      runGame(win);
       show(workspace.current.preview.modes.game);
       expect(labels()).toEqual([
         "Viewing mode",
@@ -2591,7 +2790,7 @@ describe("The preview's top bar", () => {
 
   it("opens a restored choice menu to the author, and closes it on a restored beat with none", () => {
     show();
-    win.startGame();
+    runGame(win);
     const rolled = (choices: string[]) =>
       sendProtocolMessage({
         jsonrpc: "2.0",
@@ -2614,7 +2813,7 @@ describe("The preview's top bar", () => {
     const setItem = vi.spyOn(Storage.prototype, "setItem");
     try {
       show();
-      win.startGame();
+      runGame(win);
       setItem.mockClear();
       win.dispose();
       expect(setItem.mock.calls.map(([key]) => key)).toEqual([
