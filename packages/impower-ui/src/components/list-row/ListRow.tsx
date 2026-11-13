@@ -67,6 +67,8 @@ export const listRowBodyVariants = cva(
           "min-h-11 gap-2.5 px-2 py-1 text-[12px]/[1.4] [&>svg:first-child]:size-[18px]",
         block:
           "min-h-16 gap-3 px-2.5 py-2 text-[14px]/[1.4] [&>svg:first-child]:size-[22px]",
+        dense:
+          "min-h-[52px] gap-[13px] px-2.5 py-1.5 text-[14px]/[1.5] [&>svg:first-child]:size-[18px]",
       },
       interactive: {
         true: "control-overlay cursor-pointer focus-inset",
@@ -105,6 +107,7 @@ export const listRowMarkVariants = cva(
         default: "left-3 [&>span]:size-[21px] [&_svg]:size-3.5",
         compact: "left-2 [&>span]:size-[18px] [&_svg]:size-3",
         block: "left-2.5 [&>span]:size-[22px] [&_svg]:size-3.5",
+        dense: "left-2.5 [&>span]:size-[18px] [&_svg]:size-3",
       },
       selection: {
         available:
@@ -133,6 +136,7 @@ export const listRowControlVariants = cva("relative flex flex-none items-center"
       default: "pl-2",
       compact: "pl-1",
       block: "pl-2",
+      dense: "pl-2",
     },
     selection: {
       none: "",
@@ -149,6 +153,7 @@ export const listRowDescriptionVariants = cva("text-muted", {
       default: "text-[11px]/[1.4]",
       compact: "text-[11px]/[1.4]",
       block: "text-[12px]/[1.5]",
+      dense: "text-[11px]/[1.4]",
     },
     fit: {
       line: "[--fade:24px] fade-edge",
@@ -375,6 +380,7 @@ export const listRowBadgeVariants = cva(
         default: "w-[46px] pl-3 [&>svg]:size-[21px]",
         compact: "w-9 pl-2 [&>svg]:size-[18px]",
         block: "w-[46px] pl-2.5 [&>svg]:size-[22px]",
+        dense: "w-[46px] pl-2.5 [&>svg]:size-[18px]",
       },
     },
     defaultVariants: { size: "default" },

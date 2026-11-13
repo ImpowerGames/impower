@@ -57,14 +57,14 @@ export function SoundLine({
   }
   const known = lengthOf(sound);
   if (!statusOf(sound.owner)) {
-    return <span data-asset-sound-line>{known === null ? line : `${clock(Math.round(known))} · ${line}`}</span>;
+    return <span data-asset-sound-line>{known === null ? line : `${clock(known)} · ${line}`}</span>;
   }
   const length = audioSession.playback.value!.duration ?? known;
   const elapsed = clock(audioSession.time.value);
   return (
     <span data-asset-sound-line>
       <span class="tabular-nums" data-asset-sound-time>
-        {length === null ? elapsed : `${elapsed} / ${clock(Math.round(length))}`}
+        {length === null ? elapsed : `${elapsed} / ${clock(length)}`}
       </span>
       {` · ${line}`}
     </span>

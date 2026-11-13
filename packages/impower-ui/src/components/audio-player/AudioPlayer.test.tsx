@@ -66,12 +66,12 @@ describe("AudioPlayer", () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it("names its toggle Pause while playing and shows the elapsed and total time", async () => {
+  it("names its toggle Pause while playing and shows the elapsed and total time, each floored to whole seconds", async () => {
     const root = await mount(<AudioPlayer {...props({ state: "playing", time: 65, duration: 79.6 })} />);
     expect(root.querySelector("[data-audio-toggle]")!.getAttribute("aria-label")).toBe("Pause door");
     expect(root.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("playing");
     expect(root.querySelector("[data-audio-elapsed]")!.textContent).toBe("1:05");
-    expect(root.querySelector("[data-audio-total]")!.textContent).toBe("1:20");
+    expect(root.querySelector("[data-audio-total]")!.textContent).toBe("1:19");
   });
 
   it("names its toggle Play while paused and holds the place on the scrubber and in the time", async () => {
@@ -121,6 +121,13 @@ describe("AudioPlayer", () => {
     ]);
     expect(slider.getAttribute("aria-valuetext")).toBe("0:20 of 1:20");
     expect(root.querySelectorAll("[data-audio-wave] rect").length).toBe(8);
+  });
+
+  it("floors the slider's bounds and position as it floors the time it shows", async () => {
+    const root = await mount(<AudioPlayer {...props({ time: 1.5, duration: 1.5 })} />);
+    const slider = scrubber(root);
+    expect([slider.getAttribute("aria-valuemax"), slider.getAttribute("aria-valuenow")]).toEqual(["1", "1"]);
+    expect(slider.getAttribute("aria-valuetext")).toBe("0:01 of 0:01");
   });
 
   it("seeks by the arrow keys a twentieth of the sound at a time, at least half a second, and to either end by Home and End", async () => {

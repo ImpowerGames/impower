@@ -191,7 +191,7 @@ describe("Dropdown under preact/compat", () => {
 
 const RATIOS = ["auto", "16:9", "9:16"];
 
-const mountRadio = async (value = "auto", disabled = false) => {
+const mountRadio = async (value = "auto", disabled = false, size?: "default" | "small") => {
   const onValueChange = vi.fn();
   host = document.body.appendChild(document.createElement("div"));
   await act(async () =>
@@ -207,7 +207,7 @@ const mountRadio = async (value = "auto", disabled = false) => {
             onValueChange={onValueChange}
           >
             {RATIOS.map((ratio) => (
-              <DropdownRadioItem key={ratio} value={ratio} disabled={disabled}>
+              <DropdownRadioItem key={ratio} value={ratio} disabled={disabled} size={size}>
                 {ratio}
               </DropdownRadioItem>
             ))}
@@ -255,6 +255,24 @@ describe("Dropdown radio items under preact/compat", () => {
     expect(onValueChange.mock.calls).toEqual([["9:16"]]);
     expect(menu()).toBeNull();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("draws the chosen item semibold at the default size, and every item 13px at weight 400 at the small size", async () => {
+    const { trigger } = await mountRadio("16:9");
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    expect(radios().map((item) => item.className.split(" ").includes("data-[state=checked]:font-semibold"))).toEqual([true, true, true]);
+    await act(async () => render(null, host!));
+    host!.remove();
+    const small = await mountRadio("16:9", false, "small");
+    await key(small.trigger, "ArrowDown");
+    await settle(50);
+    for (const item of radios()) {
+      const classes = item.className.split(" ");
+      expect(classes).toEqual(expect.arrayContaining(["text-[13px]", "font-normal"]));
+      expect(classes).not.toContain("text-sm");
+      expect(classes).not.toContain("data-[state=checked]:font-semibold");
+    }
   });
 
   it("chooses from the keyboard with Enter", async () => {

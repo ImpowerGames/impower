@@ -121,6 +121,7 @@ function GroupMenu({
               key={option}
               value={option}
               indicator="end"
+              size="small"
               onFocus={() => onPreview(option)}
               onPointerEnter={() => onPreview(option)}
             >

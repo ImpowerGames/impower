@@ -1,5 +1,6 @@
 import {
   Button,
+  cn,
   DropdownContent,
   DropdownRoot,
   DropdownTrigger,
@@ -88,7 +89,7 @@ export default function LibraryPage<T>({
               <VirtualList
                 listRef={list.listRef}
                 label={list.label}
-                class="-mr-4 flex-1 pt-2 pr-4 pb-5"
+                class={cn("-mr-4 flex-1 pt-2 pr-4 pb-5", list.grid && "pt-4")}
                 items={list.items}
                 getKey={list.getKey}
                 renderItem={list.renderItem}
