@@ -12,6 +12,43 @@ let last: Keyboard = CLOSED;
 let fullHeight = 0;
 let fullHeightWidth = -1;
 
+const NON_TEXT_INPUTS = new Set([
+  "button",
+  "checkbox",
+  "color",
+  "file",
+  "hidden",
+  "image",
+  "radio",
+  "range",
+  "reset",
+  "submit",
+]);
+
+const takesText = (element: Element | null): boolean =>
+  element instanceof HTMLTextAreaElement ||
+  (element instanceof HTMLInputElement && !NON_TEXT_INPUTS.has(element.type)) ||
+  (element instanceof HTMLElement &&
+    (element.isContentEditable ||
+      element.matches('[contenteditable]:not([contenteditable="false"])')));
+
+const focusedElement = (): Element | null => {
+  let element = document.activeElement;
+  while (element?.shadowRoot?.activeElement) {
+    element = element.shadowRoot.activeElement;
+  }
+  return element;
+};
+
+const measureFullHeight = () => {
+  if (window.innerWidth !== fullHeightWidth || !takesText(focusedElement())) {
+    fullHeightWidth = window.innerWidth;
+    fullHeight = window.innerHeight;
+  } else {
+    fullHeight = Math.max(fullHeight, window.innerHeight);
+  }
+};
+
 export function keyboard(): Keyboard {
   const viewport =
     typeof window === "undefined" ? undefined : window.visualViewport;
@@ -19,10 +56,7 @@ export function keyboard(): Keyboard {
     return CLOSED;
   }
   if (window.innerWidth !== fullHeightWidth) {
-    fullHeightWidth = window.innerWidth;
-    fullHeight = window.innerHeight;
-  } else {
-    fullHeight = Math.max(fullHeight, window.innerHeight);
+    measureFullHeight();
   }
   const height = Math.max(0, fullHeight - viewport.height);
   return height > KEYBOARD_MIN_HEIGHT ? { open: true, height } : CLOSED;
@@ -38,6 +72,7 @@ const fit = () => {
   if (!viewport) {
     return;
   }
+  measureFullHeight();
   const next = keyboard();
   if (next.open) {
     document.body.style.height = `${viewport.height}px`;

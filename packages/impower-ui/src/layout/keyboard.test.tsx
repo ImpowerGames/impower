@@ -115,6 +115,13 @@ describe("fitting the root to the on-screen keyboard", () => {
   it("measures the keyboard when the browser shrinks the layout viewport with it", () => {
     const full = window.innerHeight;
     const release = fitToKeyboard();
+    const host = document.body.appendChild(document.createElement("div"));
+    const editable = host
+      .attachShadow({ mode: "open" })
+      .appendChild(document.createElement("div"));
+    editable.setAttribute("contenteditable", "true");
+    editable.tabIndex = 0;
+    editable.focus();
     vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT);
     emit("resize");
 
@@ -124,8 +131,24 @@ describe("fitting the root to the on-screen keyboard", () => {
       true,
     );
 
+    const button = document.body.appendChild(document.createElement("button"));
+    button.focus();
+    expect(keyboard().open).toBe(true);
+
     vi.stubGlobal("innerHeight", full);
     emit("resize");
+    expect(rootReleased()).toBe(true);
+    release();
+  });
+
+  it("treats a shorter window at the same width as no keyboard while no field has focus", () => {
+    const full = window.innerHeight;
+    const release = fitToKeyboard();
+    vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT);
+    emit("resize");
+
+    expect(document.activeElement).toBe(document.body);
+    expect(keyboard().open).toBe(false);
     expect(rootReleased()).toBe(true);
     release();
   });
