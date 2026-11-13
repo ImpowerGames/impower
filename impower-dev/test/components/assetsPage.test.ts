@@ -23,6 +23,7 @@ const assets = vi.hoisted(() => ({
   measureImages: vi.fn(async (_paths: string[]) => undefined),
   watchFacts: vi.fn((_paths: string[]) => () => {}),
   watchPicture: vi.fn((_path: string, _variant: unknown, _size: number, _listener: (src: string | null) => void) => () => {}),
+  requestDuration: vi.fn((_path: string) => () => {}),
 }));
 const measured = vi.hoisted(() => ({ sizes: {} as Record<string, { width: number; height: number }> }));
 const window = vi.hoisted(() => ({
@@ -44,7 +45,6 @@ const speaker = vi.hoisted(() => ({
 vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
   const { default: AudioSession } = await import("../../src/modules/spark-editor/workspace/AudioSession");
   const { default: SoundPeaks } = await import("../../src/modules/spark-editor/workspace/SoundPeaks");
-  const { default: SoundLengths } = await import("../../src/modules/spark-editor/workspace/SoundLengths");
   class FakeAudio extends EventTarget {
     src = "";
     currentTime = 0;
@@ -84,16 +84,6 @@ vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
         decode: async (bytes) => ({ channels: [new Float32Array(bytes)], duration: 5 }),
       },
       { limit: 8, maxBytes: 1_000_000, count: 2 },
-    ),
-    soundLengths: new SoundLengths(
-      {
-        probe: async (src) => {
-          speaker.probes.push(src);
-          if (!(src in speaker.lengths)) throw new Error("unreadable");
-          return speaker.lengths[src]!;
-        },
-      },
-      { limit: 512, concurrency: 4 },
     ),
   };
 });
@@ -194,6 +184,15 @@ beforeEach(() => {
   speaker.reads = [];
   speaker.probes = [];
   speaker.lengths = {};
+  workspace.assetDurations.value = {};
+  assets.requestDuration.mockImplementation((path: string) => {
+    const src = workspace.assetListing.value!.files[path]?.src;
+    if (src && !Object.hasOwn(workspace.assetDurations.value, src)) {
+      speaker.probes.push(src);
+      workspace.assetDurations.value = { ...workspace.assetDurations.value, [src]: speaker.lengths[src] ?? null };
+    }
+    return () => {};
+  });
   window.setListState.mockImplementation((lists) => {
     workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, ...lists } };
   });

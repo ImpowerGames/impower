@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   importFiles: vi.fn(async (_projectId: string, items: { rel: string }[]) => items.map((item) => item.rel)),
@@ -220,6 +220,97 @@ describe("the Assets page's file intents", () => {
     await assets.load();
     expect(await assets.createFolder("Assets/Audio", "Ambience")).toBe("Assets/Audio/Ambience");
     expect(fs.createFolder).toHaveBeenCalledWith(PROJECT, "Assets/Audio/Ambience");
+  });
+});
+
+describe("reading sound lengths for the rows on screen", () => {
+  const probes: string[] = [];
+  const pending = new Map<string, { fire: (seconds: number) => void; fail: () => void }>();
+  class FakeAudio {
+    preload = "";
+    duration = Number.NaN;
+    onloadedmetadata: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    set src(value: string) {
+      probes.push(value);
+      pending.set(value, {
+        fire: (seconds) => {
+          this.duration = seconds;
+          this.onloadedmetadata?.();
+        },
+        fail: () => this.onerror?.(),
+      });
+    }
+    removeAttribute() {}
+  }
+  const answer = async (path: string, seconds: number | "fail") => {
+    const src = `/src/${path}`;
+    const waiting = pending.get(src)!;
+    pending.delete(src);
+    if (seconds === "fail") waiting.fail();
+    else waiting.fire(seconds);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+  const SOUNDS = Array.from({ length: 10 }, (_, i) => `Assets/Audio/Sounds/s${i}.wav`);
+
+  beforeEach(() => {
+    probes.length = 0;
+    pending.clear();
+    workspace.assetDurations.value = {};
+    vi.stubGlobal("Audio", FakeAudio);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const loaded = async () => {
+    const { assets } = fakeWorkspace({ ...Object.fromEntries(SOUNDS.map((path) => [path, "wav"])), "Assets/Audio/web.url": "https://example.com/a.mp3" });
+    await assets.load();
+    return assets;
+  };
+
+  it("reads a sound's length once into the durations the Add panel reads, and measureDurations then reads nothing", async () => {
+    const assets = await loaded();
+    assets.requestDuration(SOUNDS[0]!);
+    assets.requestDuration(SOUNDS[0]!);
+    await answer(SOUNDS[0]!, 1.5);
+    expect(workspace.assetDurations.value).toEqual({ [`/src/${SOUNDS[0]}`]: 1.5 });
+    assets.requestDuration(SOUNDS[0]!);
+    await assets.measureDurations([SOUNDS[0]!]);
+    expect(probes).toEqual([`/src/${SOUNDS[0]}`]);
+  });
+
+  it("reads at most eight at once, and starts the next as one finishes", async () => {
+    const assets = await loaded();
+    for (const path of SOUNDS) assets.requestDuration(path);
+    expect(probes).toEqual(SOUNDS.slice(0, 8).map((path) => `/src/${path}`));
+    await answer(SOUNDS[3]!, 2);
+    expect(probes.at(-1)).toBe(`/src/${SOUNDS[8]}`);
+  });
+
+  it("drops a waiting request whose row left the screen, and reads it when the row comes back", async () => {
+    const assets = await loaded();
+    for (const path of SOUNDS.slice(0, 8)) assets.requestDuration(path);
+    const leave = assets.requestDuration(SOUNDS[8]!);
+    assets.requestDuration(SOUNDS[9]!);
+    leave();
+    await answer(SOUNDS[0]!, 1);
+    expect(probes.at(-1)).toBe(`/src/${SOUNDS[9]}`);
+    expect(probes).not.toContain(`/src/${SOUNDS[8]}`);
+    assets.requestDuration(SOUNDS[8]!);
+    await answer(SOUNDS[1]!, 1);
+    expect(probes.at(-1)).toBe(`/src/${SOUNDS[8]}`);
+  });
+
+  it("records no length for a sound it cannot read or a link, and does not ask again", async () => {
+    const assets = await loaded();
+    assets.requestDuration(SOUNDS[0]!);
+    assets.requestDuration("Assets/Audio/web.url");
+    await answer(SOUNDS[0]!, "fail");
+    expect(workspace.assetDurations.value).toEqual({ [`/src/${SOUNDS[0]}`]: null });
+    assets.requestDuration(SOUNDS[0]!);
+    expect(probes).toEqual([`/src/${SOUNDS[0]}`]);
   });
 });
 

@@ -212,6 +212,20 @@ const soundOf = (listing: AssetListing, path: string): Sound | null => {
   return src ? { owner: path, src, size: facts?.address ? undefined : facts?.size } : null;
 };
 
+const requestLength = (path: string) => {
+  let alive = true;
+  let drop: (() => void) | undefined;
+  void intents().then((Workspace) => {
+    if (alive) {
+      drop = Workspace.assets.requestDuration(path);
+    }
+  });
+  return () => {
+    alive = false;
+    drop?.();
+  };
+};
+
 const usesCount = (groups: readonly SearchGroup[]) => groups.reduce((sum, group) => sum + group.uses.length, 0);
 
 const firstUses = (groups: readonly SearchGroup[], count: number): SearchGroup[] => {
@@ -672,7 +686,7 @@ function AssetsBrowser() {
             row.name
           )
         }
-        description={sound ? <SoundLine sound={sound} line={line} /> : line}
+        description={sound ? <SoundLine sound={sound} line={line} requestLength={requestLength} /> : line}
         aria-label={openLabel(row, line)}
         trailing={folder ? <ChevronIcon /> : undefined}
         current={!folder && row.path === openPath}

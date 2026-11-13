@@ -2,8 +2,9 @@ import { clock, PlayButton } from "@impower/impower-ui/components";
 import { useEffect } from "preact/hooks";
 import { addMenuFolders, loopsByDefault } from "../../utils/addMenuFolders";
 import { PLAYBACK_FAILURES, type Sound } from "../../workspace/AudioSession";
-import { audioSession, soundLengths, soundPeaks } from "../../workspace/editorAudio";
+import { audioSession, soundPeaks } from "../../workspace/editorAudio";
 import { useSettings } from "../../workspace/settings/useSettings";
+import workspace from "../../workspace/WorkspaceStore";
 
 const statusOf = (owner: string) => {
   const playback = audioSession.playback.value;
@@ -32,17 +33,23 @@ const lengthOf = (sound: Sound): number | null => {
   if (sound.size === undefined) {
     return null;
   }
-  void soundLengths.settled.value;
   void soundPeaks.settled.value;
-  const file = { src: sound.src, size: sound.size };
-  const shape = soundPeaks.peek(file);
-  return soundLengths.peek(file) ?? (shape?.ok ? shape.duration : null);
+  const shape = soundPeaks.peek({ src: sound.src, size: sound.size });
+  return workspace.assetDurations.value[sound.src] ?? (shape?.ok ? shape.duration : null);
 };
 
-export function SoundLine({ sound, line }: { sound: Sound; line: string }) {
+export function SoundLine({
+  sound,
+  line,
+  requestLength,
+}: {
+  sound: Sound;
+  line: string;
+  requestLength: (path: string) => () => void;
+}) {
   useEffect(
-    () => (sound.size === undefined ? undefined : soundLengths.request({ src: sound.src, size: sound.size })),
-    [sound.src, sound.size],
+    () => (sound.size === undefined ? undefined : requestLength(sound.owner)),
+    [sound.owner, sound.src, sound.size],
   );
   const failed = audioSession.failureOf(sound);
   if (failed) {
