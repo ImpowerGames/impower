@@ -594,8 +594,9 @@ describe("naming the project on a phone", () => {
       nameField().value = "Night shift";
       nameField().dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(press(done)).toBe(true);
-    expect(document.activeElement).toBe(nameField());
+    await act(async () => {
+      expect(press(done)).toBe(false);
+    });
     await act(async () => done.click());
     await settle();
     expect(calls.finished).toEqual(["Night shift"]);
@@ -604,12 +605,25 @@ describe("naming the project on a phone", () => {
     expect(button("Search")).not.toBeNull();
   });
 
-  it("keeps the field focused through a press on the bar's background, but lets another field, a link or the navigation take it", async () => {
+  it("commits the name on a press on the bar's background, and lets another field, a link or the navigation take the focus", async () => {
     await mount();
     await act(async () => nameField().focus());
     await settle();
-    expect(press(titleBar())).toBe(true);
-    expect(press(host!.querySelector('[data-route="logic"]')!)).toBe(true);
+    await act(async () => {
+      nameField().value = "Night shift";
+      nameField().dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      expect(press(titleBar())).toBe(false);
+    });
+    await settle();
+    expect(calls.finished).toEqual(["Night shift"]);
+    expect(document.activeElement).not.toBe(nameField());
+    await act(async () => nameField().focus());
+    await settle();
+    expect(press(host!.querySelector('[data-route="logic"]')!)).toBe(false);
+    await act(async () => nameField().focus());
+    await settle();
     expect(
       press(host!.querySelector('input[aria-label="Other field"]')!),
     ).toBe(false);

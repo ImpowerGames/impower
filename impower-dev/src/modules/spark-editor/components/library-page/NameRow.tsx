@@ -2,6 +2,8 @@ import { ListRow, TextField } from "@impower/impower-ui/components";
 import { fitToKeyboard, useCoarsePointer } from "@impower/impower-ui/layout";
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { showSnackbar } from "../../utils/snackbar";
+import { closeWatcher } from "../desktop-shell";
 
 export type NameRowProps = {
   icon: ComponentChildren;
@@ -53,6 +55,8 @@ export default function NameRow({
   const [error, setError] = useState("");
   const busy = useRef(false);
   const cancelled = useRef(false);
+  const mounted = useRef(true);
+  const rejection = useRef("");
   const box = useRef<HTMLSpanElement>(null);
   const message = useRef<HTMLSpanElement>(null);
   const coarse = useCoarsePointer();
@@ -69,6 +73,34 @@ export default function NameRow({
     input.current?.select();
   }, []);
 
+  const cancel = () => {
+    cancelled.current = true;
+    const back = returnFocus?.();
+    onCancel();
+    if (back?.isConnected) {
+      back.focus();
+    }
+  };
+  const cancelRef = useRef(cancel);
+  cancelRef.current = cancel;
+
+  useEffect(() => closeWatcher(() => cancelRef.current()), []);
+
+  useEffect(
+    () => () => {
+      mounted.current = false;
+      if (rejection.current && !cancelled.current) {
+        showSnackbar({ message: rejection.current });
+      }
+    },
+    [],
+  );
+
+  const reject = (message: string) => {
+    rejection.current = message;
+    setError(message);
+  };
+
   useEffect(() => (coarse ? fitToKeyboard(reveal) : undefined), [coarse]);
 
   useLayoutEffect(reveal, [error]);
@@ -84,10 +116,18 @@ export default function NameRow({
       return;
     }
     busy.current = true;
+    rejection.current = "";
     try {
       await onCommit(name);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      if (!mounted.current) {
+        if (!cancelled.current) {
+          showSnackbar({ message });
+        }
+        return;
+      }
+      reject(message);
       input.current?.focus();
     } finally {
       busy.current = false;
@@ -106,6 +146,7 @@ export default function NameRow({
         >
           <TextField
             ref={input}
+            data-name-field="row"
             frame="inset"
             purpose="literal"
             aria-label={label}
@@ -116,21 +157,19 @@ export default function NameRow({
             class="px-2 text-[14px]"
             onValueChange={(next) => {
               setValue(next);
-              setError("");
+              reject("");
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
+                if (e.isComposing || e.keyCode === 229) {
+                  return;
+                }
                 void commit(true);
               } else if (e.key === "Escape") {
                 e.preventDefault();
                 e.stopPropagation();
-                cancelled.current = true;
-                const back = returnFocus?.();
-                onCancel();
-                if (back?.isConnected) {
-                  back.focus();
-                }
+                cancel();
               }
             }}
             onBlur={() => {

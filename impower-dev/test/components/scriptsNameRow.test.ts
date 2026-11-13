@@ -136,6 +136,58 @@ describe("the Scripts page's inline name field", () => {
     back.remove();
   });
 
+  it("cancels a rename and returns focus when the back gesture closes it", async () => {
+    const watchers: { onclose: (() => void) | null; destroyed: boolean }[] = [];
+    (globalThis as { CloseWatcher?: unknown }).CloseWatcher = class {
+      onclose: (() => void) | null = null;
+      destroyed = false;
+      constructor() {
+        watchers.push(this);
+      }
+      destroy() {
+        this.destroyed = true;
+      }
+    };
+    const back = document.body.appendChild(document.createElement("button"));
+    try {
+      host = document.body.appendChild(document.createElement("div"));
+      const onCommit = vi.fn(async () => {});
+      const onCancel = vi.fn(() => render(null, host!));
+      await act(async () =>
+        render(
+          h(NameRow, { icon: null, label: "Rename", initial: "intro", returnFocus: () => back, onCommit, onCancel }),
+          host!,
+        ),
+      );
+      await type(host.querySelector("input")!, "outro");
+      expect(watchers).toHaveLength(1);
+      await act(async () => watchers[0]!.onclose!());
+      await settle();
+      expect(onCancel).toHaveBeenCalledTimes(1);
+      expect(onCommit).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(back);
+      expect(watchers[0]!.destroyed).toBe(true);
+    } finally {
+      back.remove();
+      delete (globalThis as { CloseWatcher?: unknown }).CloseWatcher;
+    }
+  });
+
+  it("marks its field as a name field", async () => {
+    const { input } = await mount({ initial: "intro" });
+    expect(input.matches("[data-name-field]")).toBe(true);
+  });
+
+  it("does not commit an Enter that ends a composition", async () => {
+    const { input, onCommit } = await mount({});
+    await type(input, "chapter");
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true, cancelable: true }));
+    });
+    await settle();
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
   it("commits a valid name", async () => {
     const { input, onCommit } = await mount({});
     await type(input, "chapter two");
