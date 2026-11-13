@@ -169,9 +169,9 @@ export default function VariantsSection({
     >
       <div class="grid gap-3">
         {groups.length > 0 && (
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-3 gap-y-2.5">
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-3 gap-y-1">
             {groups.map((group) => (
-              <div key={group.key} class="grid min-w-0 gap-1" data-variant-cell>
+              <div key={group.key} class="grid min-w-0 gap-px" data-variant-cell>
                 <span class="truncate text-[11px] text-muted">{groupLabel(group)}</span>
                 <GroupMenu
                   sheetContainer={sheetContainer}

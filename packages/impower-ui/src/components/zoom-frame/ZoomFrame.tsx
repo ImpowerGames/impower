@@ -108,7 +108,7 @@ export const zoomFrameContentVariants = cva(
 const zoomButtonVariants = cva(
   [
     "relative grid size-8 cursor-pointer place-items-center rounded-full text-inherit",
-    "before:absolute before:-inset-1.5 before:content-['']",
+    "before:absolute before:-inset-1.5 before:content-[''] before:pointer-events-auto",
     "control-overlay disabled:cursor-default disabled:opacity-35 [&>svg]:size-[15px]",
   ],
   {
@@ -123,9 +123,8 @@ const zoomButtonVariants = cva(
 );
 
 const zoomExpandVariants = cva([
-  "absolute right-2 bottom-2 z-[1] grid size-10 cursor-pointer place-items-center rounded-full",
-  "before:absolute before:-inset-0.5 before:content-['']",
-  "bg-media-badge text-media-badge-ink control-overlay [&>svg]:size-[18px]",
+  "absolute right-1.5 bottom-1.5 z-[1] grid size-11 cursor-pointer place-items-center rounded-full",
+  "border-2 border-transparent bg-media-badge bg-clip-padding text-media-badge-ink control-overlay [&>svg]:size-[18px]",
 ]);
 
 export type ZoomFrameFit = NonNullable<VariantProps<typeof zoomFrameVariants>["fit"]>;

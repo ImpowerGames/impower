@@ -1,6 +1,7 @@
 import { render, type ComponentChild } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
+import { hitArea } from "../../../test/hitArea";
 import ZoomFrame, {
   clampZoom,
   ZOOM_FIT,
@@ -171,6 +172,8 @@ describe("ZoomFrame", () => {
     const expand = frame.querySelector<HTMLButtonElement>("[data-zoom-expand]")!;
     expect(expand.getAttribute("aria-label")).toBe("View full size");
     expect(expand.hasAttribute("data-zoom-controls")).toBe(true);
+    const target = await hitArea(expand);
+    expect([target.width, target.height]).toEqual([44, 44]);
     const down = new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, pointerType: "mouse" });
     await act(async () => {
       expand.dispatchEvent(down);

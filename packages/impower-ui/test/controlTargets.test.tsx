@@ -47,6 +47,9 @@ it("gives every Button kind a 44px square or taller target", async () => {
         x
       </Button>
       <Button size="pill">Done</Button>
+      <Button variant="field" size="field">
+        As is
+      </Button>
     </>,
   );
   for (const button of Array.from(host!.querySelectorAll("button"))) {

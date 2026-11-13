@@ -29,8 +29,10 @@ export const buttonVariants = cva(
           "[&_svg]:motion-safe:transition-transform [&_svg]:motion-safe:duration-150 aria-pressed:[&_svg]:rotate-180",
         ],
         field: [
-          "justify-between border-edge bg-bg text-left text-ink [&_svg]:text-muted",
-          "data-[changed]:border-accent aria-expanded:border-accent aria-expanded:shadow-[0_0_0_1px_var(--accent)]",
+          "justify-between border-transparent bg-bg bg-clip-padding text-left text-ink [&_svg]:text-muted",
+          "shadow-[inset_0_0_0_1px_var(--edge)] data-[changed]:not-aria-expanded:shadow-[inset_0_0_0_1px_var(--accent)]",
+          "aria-expanded:shadow-[inset_0_0_0_2px_var(--accent)]",
+          "focus-visible:shadow-[inset_0_0_0_1px_var(--accent)] focus-visible:outline-transparent",
         ],
       },
       size: {
@@ -41,10 +43,7 @@ export const buttonVariants = cva(
           "min-h-11 min-w-11 gap-1.5 px-2 text-[12px]/[1.4] font-normal [&_svg]:size-4",
         glyph: "size-11 p-0 [&_svg]:size-4",
         inset: "h-9 w-7 min-w-7 p-0 [&_svg]:size-4",
-        field: [
-          "min-h-[38px] min-w-0 gap-1.5 pr-2 pl-3 text-[12px]/[1.4] font-normal [&_svg]:size-3.5",
-          "before:absolute before:inset-x-0 before:-inset-y-[3px] before:content-['']",
-        ],
+        field: "min-h-11 min-w-11 gap-1.5 border-y-[3px] pr-2 pl-3 text-[12px]/[1.4] font-normal [&_svg]:size-3.5",
         pill: "min-h-[46px] min-w-11 gap-2 px-[13px] rounded-[16px] border-4 bg-clip-padding text-[14px]/none font-semibold [&_svg]:size-5",
       },
     },
