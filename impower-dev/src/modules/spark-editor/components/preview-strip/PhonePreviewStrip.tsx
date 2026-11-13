@@ -69,7 +69,7 @@ export default function PhonePreviewStrip() {
       words={copy.words}
       symbol={copy.symbol}
       statuses={statuses}
-      playDisabled={!!copy.setup}
+      playDisabled={!copy.playable}
       expanded={expanded}
       onPlay={() => void withWorkspace((win) => win.playInFullView())}
       onCollapse={() => void withWorkspace((win) => win.collapsePreviewPane())}

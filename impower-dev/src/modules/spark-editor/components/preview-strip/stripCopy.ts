@@ -6,7 +6,7 @@ export interface StripCopy {
   label: string;
   words: string;
   symbol?: PreviewStripSymbol;
-  setup?: boolean;
+  playable: boolean;
 }
 
 const KIND_LABELS = {
@@ -25,17 +25,21 @@ export const FORCED_TEXT = "Forced to reach this line";
 
 export const stripCopy = (preview: PreviewLine | undefined): StripCopy => {
   if (!preview) {
-    return { label: "", words: "" };
+    return { label: "", words: "", playable: true };
   }
   switch (preview.kind) {
     case "setup":
-      return { label: "STORY SETUP", words: SETUP_WORDS, symbol: "file", setup: true };
+      return { label: "STORY SETUP", words: SETUP_WORDS, symbol: "file", playable: false };
     case "empty":
-      return { label: "YOUR GAME", words: EMPTY_WORDS, symbol: "pencil" };
+      return { label: "YOUR GAME", words: EMPTY_WORDS, symbol: "pencil", playable: false };
     case "dialogue":
-      return { label: (preview.speaker ?? "").toUpperCase(), words: preview.words };
+      return {
+        label: (preview.speaker ?? "").toUpperCase(),
+        words: preview.words,
+        playable: true,
+      };
     default:
-      return { label: KIND_LABELS[preview.kind], words: preview.words };
+      return { label: KIND_LABELS[preview.kind], words: preview.words, playable: true };
   }
 };
 

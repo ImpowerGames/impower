@@ -117,6 +117,7 @@ const STATES: { name: string; props: PreviewStripProps }[] = [
       label: "YOUR GAME",
       words: "Write a line and it appears here.",
       symbol: "pencil",
+      playDisabled: true,
     },
   },
 ];

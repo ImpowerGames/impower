@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, STRIP_PLAY_DISABLED, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 import { NAMED_STEPS } from "./steps.mjs";
 
@@ -664,6 +664,12 @@ await asyncCheck("on a phone, play presses the preview strip's Play from this li
   assert.equal(started.revealed, "preview");
   assert.equal(storage[DRIVER_PREVIEW_KEY], "1");
   assert.equal(NAMED_STEPS.play.revealsItself, true);
+  const idle = playPage((sel) => sel === SHOW_PREVIEW_SELECTOR);
+  idle.page.locator = ((locator) => (selector) => ({ first: () => ({ ...locator(selector).first(), isDisabled: async () => selector === SHOW_PREVIEW_SELECTOR }) }))(idle.page.locator);
+  const refused = await playPreview(idle.page, "start", { request: async () => ({ launchState: "preview" }), notifications: silent, now: () => 0, pause: async () => {}, timeout: 1000 });
+  assert.equal(refused.clicked, false);
+  assert.deepEqual(idle.clicks, []);
+  assert.equal(refused.reason, STRIP_PLAY_DISABLED);
 });
 
 check("advance takes an optional positive click count", () => {
@@ -811,7 +817,7 @@ await asyncCheck("play waits for the player to load the story before pressing, a
   assert.match(refused.reason, /the player had not loaded the story within 1s \(launch state null\), so Play was not pressed/);
 });
 
-function previewPage({ paneShown = false, showButton = true, paneShowsOnPress = true } = {}) {
+function previewPage({ paneShown = false, showButton = true, paneShowsOnPress = true, showDisabled = false } = {}) {
   const state = { paneShown, pressed: [], claimedBeforePress: null, storage: {} };
   const page = {
     evaluate: async (_fn, [key, op]) => {
@@ -820,6 +826,7 @@ function previewPage({ paneShown = false, showButton = true, paneShowsOnPress = 
     },
     locator: (selector) => ({
       first: () => ({
+        isDisabled: async () => selector === SHOW_PREVIEW_SELECTOR && showDisabled,
         isVisible: async () => (selector === PREVIEW_PANE_SELECTOR ? state.paneShown : selector === SHOW_PREVIEW_SELECTOR ? showButton : false),
         click: async () => {
           state.pressed.push(selector);
@@ -853,6 +860,10 @@ await asyncCheck("the preview is revealed the way an author does, by the preview
   const noPane = await revealPreview(stuck.page, { timeout: 10 });
   assert.equal(noPane.revealed, true, "a press that showed nothing still leaves the claim for the run to hide and release");
   assert.match(noPane.reason, /the preview pane did not show within 0\.01 s of pressing the strip's Play from this line/);
+  const disabled = previewPage({ showDisabled: true });
+  assert.deepEqual(await revealPreview(disabled.page), { revealed: false, reason: STRIP_PLAY_DISABLED });
+  assert.deepEqual(disabled.state.pressed, []);
+  assert.deepEqual(disabled.state.storage, {}, "nothing is claimed when the strip's Play cannot be pressed");
 });
 
 check("the saved-hidden check reads only the loaded project's workspace, so another project's saved preview cannot hold a run", () => {

@@ -2545,6 +2545,9 @@ export async function playPreview(page, action, { request = (method, params) => 
   if (start && !(await button.isVisible().catch(() => false))) {
     const strip = page.locator(SHOW_PREVIEW_SELECTOR).first();
     if (await strip.isVisible().catch(() => false)) {
+      if (await strip.isDisabled?.().catch(() => false)) {
+        return { ...out, launchState: out.launchStateBefore, reason: STRIP_PLAY_DISABLED };
+      }
       button = strip;
       viaStrip = true;
     }
@@ -2591,6 +2594,7 @@ async function gameStateNotifications(page) {
 export const PREVIEW_PANE_SELECTOR = '[role="group"][aria-label="Playback controls"]';
 export const SHOW_PREVIEW_SELECTOR = 'button[aria-label="Play from this line"]';
 export const CLOSE_PREVIEW_SELECTOR = 'button[aria-label="Close the preview"]';
+export const STRIP_PLAY_DISABLED = "the preview strip's Play from this line is disabled: the caret's line sets up the story or the script has nothing to play yet; put the caret on a line of the story (--scrub <line>) first";
 export const DRIVER_PREVIEW_KEY = "impower-driver/revealed-preview";
 
 export function previewOwnership(page, op) {
@@ -2616,6 +2620,9 @@ export async function revealPreview(page, { timeout = 10_000 } = {}) {
   const show = page.locator(SHOW_PREVIEW_SELECTOR).first();
   if (!(await show.isVisible().catch(() => false))) {
     return { revealed: false, reason: "the preview pane is not on screen and the preview strip's Play from this line is not either; the strip shows on the Story screen with a script open" };
+  }
+  if (await show.isDisabled?.().catch(() => false)) {
+    return { revealed: false, reason: STRIP_PLAY_DISABLED };
   }
   await previewOwnership(page, "claim");
   await show.click();

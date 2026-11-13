@@ -527,10 +527,13 @@ describe("the phone's preview strip", () => {
       expect([label(), words()], JSON.stringify(preview)).toEqual(expected);
     }
     expect(strip().querySelector("[data-preview-strip-symbol]")!.getAttribute("data-preview-strip-symbol")).toBe("pencil");
-    expect(button("Play from this line")!.disabled).toBe(false);
+    expect(button("Play from this line")!.disabled).toBe(true);
     await caretOn({ kind: "setup" });
     expect(strip().querySelector("[data-preview-strip-symbol]")!.getAttribute("data-preview-strip-symbol")).toBe("file");
     expect(button("Play from this line")!.disabled).toBe(true);
+    await caretOn({ kind: "action", line: 4, words: "Rain falls." });
+    expect(strip().querySelector("[data-preview-strip-symbol]")).toBeNull();
+    expect(button("Play from this line")!.disabled).toBe(false);
   });
 
   it("names the caret line's worst problem and opens its popover in the editor", async () => {

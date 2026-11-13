@@ -111,6 +111,67 @@ describe("the caret line's preview record", () => {
     expect(previewOf("")(0)).toEqual({ kind: "empty" });
   });
 
+  test("calls a comment line inside a dialogue or action block setup, and leaves the lines around it to their beat", () => {
+    const nested = previewOf(
+      [
+        "scene start",
+        "  ALICE:",
+        "    Hello.",
+        "    // A note for the author.",
+        "    Goodbye.",
+        "  :",
+        "    The room is quiet.",
+        "    /* A stage note. */",
+        "    The door opens.",
+        "end",
+      ].join("\n"),
+    );
+    expect(nested(3)).toEqual({ kind: "setup" });
+    expect(nested(7)).toEqual({ kind: "setup" });
+    expect(nested(4)).toEqual({
+      kind: "dialogue",
+      line: 2,
+      words: "Hello. Goodbye.",
+      speaker: "ALICE",
+    });
+    expect(nested(8)).toEqual({
+      kind: "action",
+      line: 6,
+      words: "The room is quiet. The door opens.",
+    });
+  });
+
+  test("shows the beat a block's line belongs to, a break mark ending one beat and starting the next", () => {
+    const blocks = previewOf(
+      [
+        "scene start",
+        "  ALICE:",
+        "    Hello. >",
+        "    Goodbye.",
+        "    And more.",
+        "  :",
+        "    The room is quiet. >",
+        "    The door opens.",
+        "  BOB:",
+        "    /* aside */ Bye /* mid */ now. // trailing",
+        "end",
+      ].join("\n"),
+    );
+    expect(blocks(1)).toEqual({ kind: "dialogue", line: 2, words: "Hello.", speaker: "ALICE" });
+    expect(blocks(2)).toEqual({ kind: "dialogue", line: 2, words: "Hello.", speaker: "ALICE" });
+    for (const line of [3, 4]) {
+      expect(blocks(line)).toEqual({
+        kind: "dialogue",
+        line: 3,
+        words: "Goodbye. And more.",
+        speaker: "ALICE",
+      });
+    }
+    expect(blocks(6)).toEqual({ kind: "action", line: 6, words: "The room is quiet." });
+    expect(blocks(7)).toEqual({ kind: "action", line: 7, words: "The door opens." });
+    expect(blocks(9)).toEqual({ kind: "dialogue", line: 9, words: "Bye now.", speaker: "BOB" });
+  });
+
   test("shows the beat a line of logic follows", () => {
     expect(at(23)).toEqual({ kind: "choice", line: 20, words: "Where now?" });
     expect(previewOf("scene a\n  Hello.\n  x = 1\nend\n")(2)).toEqual({

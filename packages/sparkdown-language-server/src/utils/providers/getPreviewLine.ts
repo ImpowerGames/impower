@@ -17,8 +17,12 @@ const SETUP = new Set([
   "LuauTheme",
   "LuauScreen",
   "LuauComponent",
+]);
+
+const COMMENTS = new Set([
   "SparkdownLineComment",
   "SparkdownBlockComment",
+  "SparkdownInlineComment",
 ]);
 
 const DISPLAY: Record<string, PreviewBeatKind> = {
@@ -47,6 +51,7 @@ const MARKUP = new Set([
   "SparkdownBlockComment",
   "SpanOpenMark",
   "SpanCloseMark",
+  "Break",
   "ImageCommand",
   "AudioCommand",
   "TextCommand",
@@ -171,7 +176,38 @@ export const getPreviewLine = (
 
   visit(tree.topNode);
 
-  if (setup.some((lines) => lines.has(line))) {
+  const onlyComments = () => {
+    const from = document.offsetAt({ line, character: 0 });
+    const to =
+      line + 1 < document.lineCount
+        ? document.offsetAt({ line: line + 1, character: 0 })
+        : document.length;
+    const comments: [number, number][] = [];
+    tree.iterate({
+      from,
+      to,
+      enter: (node) => {
+        if (COMMENTS.has(node.name)) {
+          comments.push([Math.max(from, node.from), Math.min(to, node.to)]);
+          return false;
+        }
+        return undefined;
+      },
+    });
+    if (!comments.length) {
+      return false;
+    }
+    let rest = "";
+    let pos = from;
+    for (const [start, end] of comments.sort((a, b) => a[0] - b[0])) {
+      rest += read(pos, Math.max(pos, start));
+      pos = Math.max(pos, end);
+    }
+    rest += read(pos, to);
+    return rest.trim() === "";
+  };
+
+  if (setup.some((lines) => lines.has(line)) || onlyComments()) {
     return { kind: "setup" };
   }
 
@@ -184,26 +220,38 @@ export const getPreviewLine = (
         words: question || beat.options!.map(optionWords).join(" · "),
       };
     }
-    if (beat.kind === "dialogue") {
-      const name = descendants(beat.node, "DialogueCharacterName")[0];
-      const chunks = descendants(beat.node, "TextChunk")
-        .map((chunk) => ({
+    const breaks = descendants(beat.node, "Break").map((mark) => mark.to);
+    const segmentOf = (offset: number) =>
+      breaks.filter((end) => end <= offset).length;
+    const segments: { line: number; words: string[] }[] = [];
+    for (const chunk of descendants(beat.node, "TextChunk")) {
+      const words = clean(
+        readSkipping(chunk, read, (d) => MARKUP.has(d.name)),
+      );
+      if (words) {
+        const segment = (segments[segmentOf(chunk.from)] ??= {
           line: firstLine(chunk),
-          words: clean(readSkipping(chunk, read, (d) => MARKUP.has(d.name))),
-        }))
-        .filter((chunk) => chunk.words);
-      const spoken =
-        chunks.find((chunk) => chunk.line === line) ??
-        chunks.find((chunk) => chunk.line > line) ??
-        chunks.at(-1);
-      return {
-        kind: "dialogue",
-        line: spoken?.line ?? beat.start,
-        words: spoken?.words ?? "",
-        speaker: name ? clean(read(name.from, name.to)) : undefined,
-      };
+          words: [],
+        });
+        segment.words.push(words);
+      }
     }
-    return { kind: beat.kind, line: beat.start, words: wordsOf(beat.node) };
+    const caret = segmentOf(document.offsetAt({ line, character: 0 }));
+    const spoken = (segment: (typeof segments)[number] | undefined) =>
+      !!segment?.words.length;
+    const shown =
+      segments.slice(caret).find(spoken) ??
+      segments.slice(0, caret).reverse().find(spoken);
+    const name =
+      beat.kind === "dialogue"
+        ? descendants(beat.node, "DialogueCharacterName")[0]
+        : undefined;
+    return {
+      kind: beat.kind,
+      line: shown?.line ?? beat.start,
+      words: shown ? clean(shown.words.join(" ")) : "",
+      ...(name ? { speaker: clean(read(name.from, name.to)) } : {}),
+    };
   };
 
   const at = beats.find((beat) => beat.lines.has(line));
