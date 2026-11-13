@@ -558,6 +558,8 @@ export class GamePlayerController {
     this._disposed = true;
     window.clearTimeout(this._completionStatusTimer);
     this._completionStatusTimer = undefined;
+    clearTimeout(this._morphRest);
+    this._morphRest = undefined;
     this._stops += 1;
     window.removeEventListener("pointerdown", this.handleSavesPointerDown, true);
     window.removeEventListener("keydown", this.handleSavesKeyDown, true);
