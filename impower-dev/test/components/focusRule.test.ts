@@ -13,6 +13,10 @@ vi.mock("@impower/impower-ui/layout", () => ({
 
 const { useFocusRule } =
   await import("../../src/modules/spark-editor/components/desktop-shell/naming");
+const { NameRow } =
+  await import("../../src/modules/spark-editor/components/library-page");
+const { availableName } =
+  await import("../../src/modules/spark-editor/utils/fileListModel");
 const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 
@@ -88,6 +92,51 @@ describe("the focus rule", () => {
     name.focus();
     expect(press(the("[data-bar-button]"))).toBe(false);
     expect(blurred).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["saves a valid rename", "gamma", undefined],
+    ["keeps a clashing rename open with its message", "beta", "That name is already in use in this folder."],
+  ])("%s when blank space outside the row is pressed", async (_case, typed, message) => {
+    const committed: string[] = [];
+    const onCancel = vi.fn();
+    const rowHost = host!.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        h(NameRow, {
+          icon: null,
+          label: "Rename alpha",
+          initial: "alpha",
+          suffix: ".sd",
+          onCommit: async (name: string) => {
+            availableName(name, ["beta.sd"], ".sd");
+            committed.push(name);
+          },
+          onCancel,
+        }),
+        rowHost,
+      ),
+    );
+    const input = rowHost.querySelector("input")!;
+    await act(async () => {
+      input.value = typed;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    let prevented = false;
+    await act(async () => {
+      prevented = press(the("[data-panel-background]"));
+    });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(prevented).toBe(false);
+    expect(onCancel).not.toHaveBeenCalled();
+    if (message) {
+      expect(committed).toEqual([]);
+      expect(rowHost.querySelector('[role="alert"]')?.textContent).toBe(message);
+      expect(document.activeElement).toBe(input);
+    } else {
+      expect(committed).toEqual([typed]);
+    }
+    render(null, rowHost);
   });
 
   it("leaves a name field alone when the press is inside it", () => {
