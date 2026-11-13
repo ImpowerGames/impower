@@ -88,6 +88,29 @@ const mux = (
   return concat(pages);
 };
 
+const monoHead = () => {
+  const head = TONE_HEAD.slice();
+  head[9] = 1;
+  return head;
+};
+
+const surroundHead = () => {
+  const head = concat([TONE_HEAD, new Uint8Array([3, 3, 0, 4, 1, 2, 3, 5])]);
+  head[9] = 6;
+  head[18] = 1;
+  return head;
+};
+
+const selfDelimited = (packet: Uint8Array) => {
+  const size = packet.length - 1;
+  const first = size < 252 ? size : 252 + (size % 4);
+  const length = size < 252 ? [size] : [first, (size - first) / 4];
+  return concat([packet.subarray(0, 1), new Uint8Array(length), packet.subarray(1)]);
+};
+
+const surroundPackets = () =>
+  TONE_PACKETS.map((packet) => concat([selfDelimited(packet), selfDelimited(packet), packet]));
+
 class StandInBuffer {
   channels: Float32Array[];
   constructor(
@@ -189,24 +212,32 @@ describe("an Ogg Opus clip in a webview whose decoder has no Opus (#2265)", () =
   });
 
   test("puts surround channels on Web Audio's speakers", async () => {
-    const head = concat([TONE_HEAD, new Uint8Array([3, 3, 0, 4, 1, 2, 3, 5])]);
-    head[9] = 6;
-    head[18] = 1;
-    const selfDelimited = (packet: Uint8Array) =>
-      concat([packet.subarray(0, 1), new Uint8Array([packet.length - 1]), packet.subarray(1)]);
-    const surround = TONE_PACKETS.map((packet) =>
-      concat([selfDelimited(packet), selfDelimited(packet), packet]),
-    );
     const buffer = (await load(
       makeContext(opusUnsupported),
-      mux(surround, { head }),
+      mux(surroundPackets(), { head: surroundHead() }),
     )) as StandInBuffer;
     expect(buffer.numberOfChannels).toBe(6);
+    expect(buffer.length).toBe(TONE_FRAMES);
     const rate = (channel: number) =>
       crossingsPerSecond(buffer.channels[channel]!.subarray(4800, 43200), 48000);
     expect(rate(0)).toBeCloseTo(880, -1);
     expect(rate(1)).toBeCloseTo(1320, -1);
     expect(rate(2)).toBeCloseTo(880, -1);
     expect(rate(3)).toBeCloseTo(1320, -1);
+  });
+
+  test("plays a mono link of a surround chain from the centre speaker only", async () => {
+    const chained = concat([
+      mux(TONE_PACKETS, { serial: 1, head: monoHead() }),
+      mux(surroundPackets(), { serial: 2, head: surroundHead() }),
+    ]);
+    const buffer = (await load(makeContext(opusUnsupported), chained)) as StandInBuffer;
+    expect(buffer.numberOfChannels).toBe(6);
+    expect(buffer.length).toBe(2 * TONE_FRAMES);
+    const monoSection = buffer.channels.map((channel) => rms(channel.subarray(4800, 43200)));
+    expect(monoSection[2]).toBeGreaterThan(0.2);
+    for (const speaker of [0, 1, 3, 4, 5]) {
+      expect(monoSection[speaker]).toBe(0);
+    }
   });
 });

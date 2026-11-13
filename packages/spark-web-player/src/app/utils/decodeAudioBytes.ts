@@ -10,6 +10,15 @@ const WEB_AUDIO_ORDER_FROM_VORBIS_ORDER: Record<number, number[]> = {
   8: [0, 2, 1, 7, 5, 6, 3, 4],
 };
 
+const SPEAKER_UPMIX: Record<string, number[][]> = {
+  "1>2": [[0, 1]],
+  "1>4": [[0, 1]],
+  "1>6": [[2]],
+  "2>4": [[0], [1]],
+  "2>6": [[0], [1]],
+  "4>6": [[0], [1], [4], [5]],
+};
+
 export interface OggOpusLink {
   channels: number;
   preSkip: number;
@@ -253,12 +262,14 @@ export const decodeOggOpus = async (
   const output = Array.from({ length: channels }, () => new Float32Array(length));
   let offset = 0;
   for (const link of decoded) {
-    for (let channel = 0; channel < channels; channel++) {
-      const samples = link.length === 1 ? link[0] : link[channel];
-      if (samples) {
-        output[channel]!.set(samples, offset);
+    const placement =
+      SPEAKER_UPMIX[`${link.length}>${channels}`] ??
+      link.map((_, i) => [i]);
+    placement.forEach((targets, source) => {
+      for (const target of targets) {
+        output[target]!.set(link[source]!, offset);
       }
-    }
+    });
     offset += link[0]?.length ?? 0;
   }
   output.forEach((samples, channel) =>
