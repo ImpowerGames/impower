@@ -14,6 +14,30 @@ export type NameRowProps = {
   onCancel: () => void;
 };
 
+const REVEAL_MARGIN = 8;
+
+const scrolls = (element: Element) =>
+  element.scrollHeight > element.clientHeight &&
+  !["visible", "clip"].includes(getComputedStyle(element).overflowY);
+
+function keepInView(first: Element, last: Element) {
+  for (let scroller = first.parentElement; scroller; scroller = scroller.parentElement) {
+    if (!scrolls(scroller)) {
+      continue;
+    }
+    const top = first.getBoundingClientRect().top;
+    const bottom = last.getBoundingClientRect().bottom;
+    const start = scroller.getBoundingClientRect().top + scroller.clientTop;
+    const end = start + scroller.clientHeight;
+    const margin = Math.max(0, Math.min(REVEAL_MARGIN, (scroller.clientHeight - (bottom - top)) / 2));
+    const below = Math.max(0, bottom + margin - end);
+    const shift = top - margin - below < start ? top - margin - start : below;
+    if (shift) {
+      scroller.scrollTop += shift;
+    }
+  }
+}
+
 export default function NameRow({
   icon,
   label,
@@ -34,11 +58,10 @@ export default function NameRow({
   const coarse = useCoarsePointer();
 
   const reveal = () => {
-    if (!input.current || input.current !== document.activeElement) {
+    if (!box.current || input.current !== document.activeElement) {
       return;
     }
-    box.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
-    message.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    keepInView(box.current, message.current ?? box.current);
   };
 
   useLayoutEffect(() => {
@@ -79,7 +102,7 @@ export default function NameRow({
       label={
         <span
           ref={box}
-          class="flex h-[26px] min-w-0 scroll-my-2 items-center rounded-control border border-edge bg-bg focus-within:border-accent"
+          class="flex h-[26px] min-w-0 items-center rounded-control border border-edge bg-bg focus-within:border-accent"
         >
           <TextField
             ref={input}
@@ -123,7 +146,7 @@ export default function NameRow({
       }
       description={
         error ? (
-          <span ref={message} id="scripts-name-error" role="alert" class="scroll-my-2 text-error">
+          <span ref={message} id="scripts-name-error" role="alert" class="text-error">
             {error}
           </span>
         ) : undefined
