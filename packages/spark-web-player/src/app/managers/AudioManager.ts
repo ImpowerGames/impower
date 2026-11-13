@@ -159,14 +159,14 @@ export default class AudioManager extends Manager {
 
   protected clipStarted(
     channel: string | undefined,
-    { startedAt, ended }: AudioPlayer["instances"][number],
+    instance: AudioPlayer["instances"][number],
   ) {
     const context = this.app.audioContext;
     const listeners = channel ? this._clipStartListeners.get(channel) : undefined;
     if (!context || context.state !== "running" || !listeners?.size) {
       return;
     }
-    const clip = { startedAt, ended };
+    const clip = { startedAt: instance.startedAt, ended: instance.ended };
     for (const listener of [...listeners]) {
       listener(clip);
     }
