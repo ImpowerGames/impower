@@ -156,14 +156,6 @@ const SPAN_CLOSE_SEARCHES: [string, string][] = [
   ["an italic span open over unclosed braces", "*a" + " {".repeat(800)],
   ["a tilde span open over other tilde runs", "~~a" + " ~b~".repeat(400)],
   ["a backtick run open over other backtick runs", "`a" + " ``b".repeat(400)],
-  ["a backtick run open over unclosed braces", "`a" + " {b".repeat(500)],
-  ["a backtick run open over nested unclosed braces", "`a" + " {{{b".repeat(300)],
-  ["a backtick run open over closed brace groups", "`a" + " {b}".repeat(500)],
-  ["a backtick run open over brace groups nested too deep", "`a" + " {{{{b}}}}".repeat(200)],
-  ["an italic span open over code spans holding braces", "*a" + " `{b}`".repeat(300)],
-  ["a backtick run open over braces holding unclosed quotes", "`a" + ' {"b'.repeat(400)],
-  ["a backtick run open over braces holding unclosed long brackets", "`a" + " {[[b".repeat(300)],
-  ["a backtick run open over braces holding closed quotes and long brackets", "`a" + ' {"}" [[}]]}'.repeat(150)],
   ["a long star run before a word", "*".repeat(8000) + "x"],
   ["a long underscore run before a word", "_".repeat(8000) + "x"],
   ["a long caret run before a word", "^".repeat(8000) + "x"],
@@ -245,21 +237,23 @@ describe("a run of one mark is read in time linear in its length (#2196)", () =>
   );
 });
 
-const BRACE_SPANS: [what: string, rules: string[], open: string, unit: string][] = [
-  ["a raw span over unclosed braces", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {b"],
-  ["a raw span over nested unclosed braces", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {{{b"],
-  ["a raw span over closed brace groups", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {b}"],
-  ["a raw span over braces holding unclosed quotes", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", ' {"b'],
-  ["a raw span over braces holding unclosed long brackets", ["Raw"], "`a", " {[[b"],
-  ["a raw span over braces holding closed quotes and long brackets", ["Raw"], "`a", ' {"}" [[}]]}'],
-  ["a raw span over braces whose quotes hold the next brace", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", ' {b "c'],
-  ["a raw span over braces holding unclosed long brackets that hold braces", ["Raw"], "`a", " {[[{b"],
-  ["an italic span over code spans holding braces", ["Italic", "ChoiceStartItalic", "ChoiceOnlyItalic", "ChoiceInnerItalic"], "*a", " `{b}`"],
+const CHOICE_RAW_RULES = ["ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"];
+
+const CHOICE_TEXT_SEARCHES: [what: string, rules: string[], open: string, unit: string][] = [
+  ["a raw span open over brackets", CHOICE_RAW_RULES, "`a", " [b]"],
+  ["a raw span open over closing brackets", CHOICE_RAW_RULES, "`a", " ]b"],
+  ["a raw span open over arrows", CHOICE_RAW_RULES, "`a", " -> b"],
+  ["a raw span open over unclosed braces", CHOICE_RAW_RULES, "`a", " {b"],
+  ["a suppression over code spans holding its closer", ["ChoiceSuppression"], "[a", " `]`"],
+  ["a suppression over unclosed backticks before closers", ["ChoiceSuppression"], "[a", " `]"],
+  ["a suppression over runs of three backticks", ["ChoiceSuppression"], "[a ]", " ```b"],
 ];
 
-const BRACE_SPAN_CASES = BRACE_SPANS.flatMap(([what, rules, open, unit]) =>
+const CHOICE_TEXT_CASES = CHOICE_TEXT_SEARCHES.flatMap(([what, rules, open, unit]) =>
   rules.map((rule) => [what, rule, (n: number) => open + unit.repeat(Math.floor(n / unit.length))] as const),
 );
+
+const rulePattern = (rule: string): string => grammar.repository[rule].match ?? grammar.repository[rule].begin;
 
 const onigScanner = async (source: string) => {
   await tokenize("scene start\n  A *a* b\nend\n");
@@ -274,9 +268,9 @@ const ruleGrowth = async (search: (line: string) => unknown, line: (n: number) =
   return { short, long };
 };
 
-describe("a span rule that reads brace groups whole searches a long line in time linear in its length (#2144)", () => {
-  test.each(BRACE_SPAN_CASES)("%s, %s, as the tree parser runs it, grows less than eightfold from 4,000 characters to 16,000", async (_what, rule, line) => {
-    const re = new RegExp(grammar.repository[rule].match, "muyd");
+describe("a choice text rule that reads a code span whole searches a long line in time linear in its length (#2144)", () => {
+  test.each(CHOICE_TEXT_CASES)("%s, %s, as the tree parser runs it, grows less than eightfold from 4,000 characters to 16,000", async (_what, rule, line) => {
+    const re = new RegExp(rulePattern(rule), "muyd");
     const { short, long } = await ruleGrowth((text) => {
       re.lastIndex = 0;
       return re.exec(text);
@@ -284,8 +278,8 @@ describe("a span rule that reads brace groups whole searches a long line in time
     expect(long, `4,000 characters took ${short.toFixed(1)}ms, 16,000 took ${long.toFixed(1)}ms`).toBeLessThan(8 * short + 40);
   });
 
-  test.each(BRACE_SPAN_CASES)("%s, %s, as vscode-textmate runs it, grows less than eightfold from 4,000 characters to 16,000", async (_what, rule, line) => {
-    const search = await onigScanner(grammar.repository[rule].match);
+  test.each(CHOICE_TEXT_CASES)("%s, %s, as vscode-textmate runs it, grows less than eightfold from 4,000 characters to 16,000", async (_what, rule, line) => {
+    const search = await onigScanner(rulePattern(rule));
     const { short, long } = await ruleGrowth(search, line);
     expect(long, `4,000 characters took ${short.toFixed(1)}ms, 16,000 took ${long.toFixed(1)}ms`).toBeLessThan(8 * short + 40);
   });

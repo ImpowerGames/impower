@@ -105,7 +105,7 @@ const displayOutput = (text: string) => compile(displayScript(text)).story.Conti
 
 const both = (reading: string) => ({ tree: reading, vscode: reading, doubled: false });
 
-const CROSSING = ["*", "**", "_", "^", "~~", "::", "`"].flatMap((mark) => [
+const CROSSING = ["*", "**", "_", "^", "~~", "::"].flatMap((mark) => [
   `Go ${mark}a [b${mark} c] d`,
   `Go ${mark}a [b] c${mark} d`,
   `Go [a ${mark}b] c${mark} d`,
@@ -123,6 +123,17 @@ describe("marks never cross a choice bracket", () => {
       labels: ["Cross *far away"],
       chosen: "Cross *far now* x\nBody.\n",
     });
+  });
+});
+
+describe("a raw span in choice text holds a bracket as its text, as a code span holds a link bracket in CommonMark", () => {
+  test.each([
+    ["Go `a [b` c] d", "Go [raw: a [b] c] d", ["Go `a [b` c] d"], "Go `a [b` c] d\nBody.\n"],
+    ["Go `a [b] c` d", "Go [raw: a [b] c] d", ["Go `a [b] c` d"], "Go `a [b] c` d\nBody.\n"],
+    ["Go [a `b] c` d", "Go [a [raw: b] c] d", ["Go [a `b] c` d"], "Go [a `b] c` d\nBody.\n"],
+  ])("%s opens no suppression", async (text, reading, labels, chosen) => {
+    expect(await choiceReadings(text)).toEqual(both(reading));
+    expect(choiceOutcome(text)).toEqual({ errors: [], labels, chosen });
   });
 });
 

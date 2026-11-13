@@ -47,7 +47,7 @@ const VALUES = `store x = "plain"\n`;
 const displayScript = (line: string) => `${VALUES}scene start\n  ${line}\nend\n`;
 
 const choiceScript = (text: string) =>
-  `${VALUES}scene start\n  choose\n    + ${text}\n      Body.\n      done\n  end\nend\n`;
+  `${VALUES}scene start\n  choose\n    + ${text}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n`;
 
 async function readingsOf(source: string, text: string) {
   const from = source.indexOf(text);
@@ -77,7 +77,7 @@ const choiceReadings = (text: string) => readingsOf(choiceScript(text), text);
 
 const both = (reading: string) => ({ tree: reading, vscode: reading });
 
-const choiceTextOf = (text: string): string => {
+const choiceStory = (text: string) => {
   const compiler = testCompiler();
   compiler.configure({
     files: [
@@ -95,8 +95,31 @@ const choiceTextOf = (text: string): string => {
   const result = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
   const story = testStory(result.program.chunks);
   story.ContinueMaximally();
-  return story.currentChoices.map((choice: { text: string }) => choice.text).join("|");
+  return story;
 };
+
+const choiceTextOf = (text: string): string =>
+  choiceStory(text)
+    .currentChoices.map((choice: { text: string }) => choice.text)
+    .join("|");
+
+const chosenOutputOf = (text: string): string => {
+  const story = choiceStory(text);
+  story.ChooseChoiceIndex(0);
+  return story.ContinueMaximally();
+};
+
+const SUPPRESSION_BRACKET = "punctuation.definition.template-expression.begin.choice.suppression.sd";
+
+async function opensSuppressionAt(text: string, at: number) {
+  const source = choiceScript(text);
+  const index = source.indexOf(text) + at;
+  const vscode = await vscodeScopeStacksPerChar(source);
+  return {
+    tree: treeScopeStackAt(parseSource(source), index).includes(SUPPRESSION_BRACKET),
+    vscode: (vscode[index] ?? []).includes(SUPPRESSION_BRACKET),
+  };
+}
 
 describe("a backtick run is raw only where a run of its own length closes it", () => {
   test.each([
@@ -142,21 +165,51 @@ describe("a backtick run is raw only where a run of its own length closes it", (
   });
 
   test.each([
+    ["`far [a] away`", "far [a] away"],
+    ["`far ] away`", "far ] away"],
+    ["`far -> next away`", "far -> next away"],
     ['`far {"}->"} away`', 'far {"}->"} away'],
-    ["`far {'}[a]'} away`", "far {'}[a]'} away"],
-    ["`far {[[}[]]} away`", "far {[[}[]]} away"],
-    ["`far {[=[}->]=]} away`", "far {[=[}->]=]} away"],
-    ["`far {[[{a}]]} away`", "far {[[{a}]]} away"],
-    ["`far {[=[{a}]=]} away`", "far {[=[{a}]=]} away"],
-    ["`far {[[a [[ b]]} away`", "far {[[a [[ b]]} away"],
-    ["`far {[=[a [[ b]=]} away`", "far {[=[a [[ b]=]} away"],
-  ])("a raw span holding %s, whose braces hold a brace or a bracket inside a string, is raw in each part of a choice", async (span, raw) => {
+    ["`far { ({ { {x} } })[1] } away`", "far { ({ { {x} } })[1] } away"],
+    ["`far {[[a } -> next} away`", "far {[[a } -> next} away"],
+    ["`far {[===[a]===]} away`", "far {[===[a]===]} away"],
+    [`\`far {[[${"a".repeat(65)}]]} away\``, `far {[[${"a".repeat(65)}]]} away`],
+    ["``far `[a]` away``", "far `[a]` away"],
+  ])("in choice text a raw span holding %s is raw in each part, as on a display line", async (span, raw) => {
     expect(await readings(`A ${span} now`)).toEqual(both(`A [raw: ${raw}] now`));
     expect(await choiceReadings(`Go ${span} now`)).toEqual(both(`Go [raw: ${raw}] now`));
     expect(choiceTextOf(`Go ${span} now`)).toBe(`Go ${span} now`);
+    expect(chosenOutputOf(`Go ${span} now`)).toBe(`Go ${span} now\nBody.\n`);
     expect(await choiceReadings(`Go [${span}] now`)).toEqual(both(`Go [[raw: ${raw}]] now`));
     expect(choiceTextOf(`Go [${span}] now`)).toBe(`Go ${span}`);
+    expect(await opensSuppressionAt(`Go [${span}] now`, 3)).toEqual({ tree: true, vscode: true });
     expect(await choiceReadings(`Go [a] ${span} now`)).toEqual(both(`Go [a] [raw: ${raw}] now`));
+    expect(chosenOutputOf(`Go [a] ${span} now`)).toBe(`Go ${span} now\nBody.\n`);
+  });
+
+  test("an unclosed backtick is text, and a suppression after it still opens and closes", async () => {
+    expect(choiceTextOf("Go `far [away] now")).toBe("Go `far away");
+    expect(chosenOutputOf("Go `far [away] now")).toBe("Go `far now\nBody.\n");
+    expect(await opensSuppressionAt("Go `far [away] now", 8)).toEqual({ tree: true, vscode: true });
+    expect(choiceTextOf("Go [far `away] now")).toBe("Go far `away");
+    expect(chosenOutputOf("Go [far `away] now")).toBe("Go now\nBody.\n");
+  });
+
+  test("a raw span that opens before a bracket takes the bracket as its text, so no suppression opens", async () => {
+    expect(await choiceReadings("Go `far [away` now] then")).toEqual(both("Go [raw: far [away] now] then"));
+    expect(choiceTextOf("Go `far [away` now] then")).toBe("Go `far [away` now] then");
+    expect(chosenOutputOf("Go `far [away` now] then")).toBe("Go `far [away` now] then\nBody.\n");
+  });
+
+  test("a raw span that opens inside a suppression and holds its only closer leaves the opening bracket as text", async () => {
+    expect(await choiceReadings("Go [far `away] now` then")).toEqual(both("Go [far [raw: away] now] then"));
+    expect(await opensSuppressionAt("Go [far `away] now` then", 3)).toEqual({ tree: false, vscode: false });
+    expect(choiceTextOf("Go [far `away] now` then")).toBe("Go [far `away] now` then");
+    expect(chosenOutputOf("Go [far `away] now` then")).toBe("Go [far `away] now` then\nBody.\n");
+  });
+
+  test("an arrow inside a raw span diverts nowhere, and one after it diverts", () => {
+    expect(chosenOutputOf("Go `far -> next` now")).toBe("Go `far -> next` now\nBody.\n");
+    expect(chosenOutputOf("Go `far` now -> next")).toBe("Go `far` now Next.\n");
   });
 
   test("a code span holding braces inside a styled span leaves the styled span read", async () => {
