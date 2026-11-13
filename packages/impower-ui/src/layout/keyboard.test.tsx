@@ -2,7 +2,7 @@ import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useKeyboardFit } from "../hooks/useKeyboardFit";
-import { fitToKeyboard, keyboard } from "./keyboard";
+import { fitToKeyboard, keyboard, KEYBOARD_MIN_HEIGHT } from "./keyboard";
 
 const KEYBOARD_HEIGHT = 320;
 
@@ -109,6 +109,47 @@ describe("fitting the root to the on-screen keyboard", () => {
     expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
     expect(offsetTop).toBe(0);
     expect(rootFitted()).toBe(true);
+    release();
+  });
+
+  it("measures the keyboard when the browser shrinks the layout viewport with it", () => {
+    const full = window.innerHeight;
+    const release = fitToKeyboard();
+    vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT);
+    emit("resize");
+
+    expect(keyboard()).toEqual({ open: true, height: KEYBOARD_HEIGHT });
+    expect(document.body.style.height).toBe(`${full - KEYBOARD_HEIGHT}px`);
+    expect(document.documentElement.classList.contains("keyboard-open")).toBe(
+      true,
+    );
+
+    vi.stubGlobal("innerHeight", full);
+    emit("resize");
+    expect(rootReleased()).toBe(true);
+    release();
+  });
+
+  it("ignores a change in height smaller than a keyboard", () => {
+    const full = window.innerHeight;
+    const release = fitToKeyboard();
+    vi.stubGlobal("innerHeight", full - KEYBOARD_MIN_HEIGHT);
+    emit("resize");
+
+    expect(keyboard().open).toBe(false);
+    expect(rootReleased()).toBe(true);
+    release();
+  });
+
+  it("measures from the new full height after the width changes", () => {
+    const width = window.innerWidth;
+    const release = fitToKeyboard();
+    vi.stubGlobal("innerWidth", window.innerHeight);
+    vi.stubGlobal("innerHeight", width / 2);
+    emit("resize");
+
+    expect(keyboard().open).toBe(false);
+    expect(rootReleased()).toBe(true);
     release();
   });
 

@@ -4,9 +4,13 @@ const OPEN_CLASS = "keyboard-open";
 
 const CLOSED: Keyboard = { open: false, height: 0 };
 
+export const KEYBOARD_MIN_HEIGHT = 140;
+
 const listeners = new Set<(keyboard: Keyboard) => void>();
 let holders = 0;
 let last: Keyboard = CLOSED;
+let fullHeight = 0;
+let fullHeightWidth = -1;
 
 export function keyboard(): Keyboard {
   const viewport =
@@ -14,8 +18,14 @@ export function keyboard(): Keyboard {
   if (!viewport || viewport.scale > 1) {
     return CLOSED;
   }
-  const height = Math.max(0, window.innerHeight - viewport.height);
-  return height > 0 ? { open: true, height } : CLOSED;
+  if (window.innerWidth !== fullHeightWidth) {
+    fullHeightWidth = window.innerWidth;
+    fullHeight = window.innerHeight;
+  } else {
+    fullHeight = Math.max(fullHeight, window.innerHeight);
+  }
+  const height = Math.max(0, fullHeight - viewport.height);
+  return height > KEYBOARD_MIN_HEIGHT ? { open: true, height } : CLOSED;
 }
 
 const release = () => {
