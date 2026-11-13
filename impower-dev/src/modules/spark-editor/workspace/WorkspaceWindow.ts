@@ -1527,10 +1527,11 @@ export default class WorkspaceWindow {
     takeFocus?: boolean,
     userEvent?: boolean,
   ): Promise<ShowDocumentResult> {
-    const filename = this._workspace.fs.getRelativePath(
-      this.store.project.id ?? "",
-      uri,
-    );
+    const projectId = this.store.project.id ?? "";
+    if (!uri.startsWith(this._workspace.fs.getFileUri(projectId, ""))) {
+      return { success: false };
+    }
+    const filename = this._workspace.fs.getRelativePath(projectId, uri);
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (!pane || !panel) {

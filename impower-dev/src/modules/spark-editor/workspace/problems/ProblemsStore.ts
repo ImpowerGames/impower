@@ -338,26 +338,15 @@ export class ProblemsStore {
     return left;
   }
 
-  async jump(target: {
-    uri?: string;
-    path?: string;
-    line: number;
-    character?: number;
-  }) {
+  async jump(target: { uri: string; line: number; character?: number }) {
     this._leftForScript = !!this.dialog.peek();
     this.closeDialog();
     const { Workspace } = await import("../Workspace");
-    const uri =
-      target.uri ??
-      (target.path ? Workspace.fs.getUriFromPath(target.path) : undefined);
-    if (!uri) {
-      return;
-    }
     const at = {
       line: Math.max(0, target.line - 1),
       character: target.character ?? 0,
     };
-    await Workspace.window.revealDocument(uri, { start: at, end: at });
+    await Workspace.window.revealDocument(target.uri, { start: at, end: at });
   }
 
   applyFix(choice: FixChoice): Promise<boolean> {

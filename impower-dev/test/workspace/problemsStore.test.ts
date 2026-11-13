@@ -225,7 +225,9 @@ describe("the problems model", () => {
       title: "Out of songs",
       message: "The jukebox is empty.",
       path: "scripts/chapter_1.sd",
+      uri: CHAPTER,
       line: 7,
+      character: 2,
     });
   });
 

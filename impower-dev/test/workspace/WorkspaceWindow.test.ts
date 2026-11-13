@@ -372,6 +372,29 @@ describe("WorkspaceWindow store transitions", () => {
     ).resolves.toEqual({ success: false });
   });
 
+  it("showDocument refuses a uri outside the project and leaves the caret the editor reported", async () => {
+    const projectId = workspace.current.project.id;
+    const caret = { start: { line: 7, character: 13 }, end: { line: 7, character: 13 } };
+    await win.showDocument(`file://${projectId}/main.sd`, caret);
+    const selects: unknown[] = [];
+    const hear = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (message?.method === "editor/select") selects.push(message.params);
+    };
+    window.addEventListener(MessageProtocol.event, hear);
+    await expect(
+      win.showDocument("file://main.sd", {
+        start: { line: 1, character: 0 },
+        end: { line: 1, character: 0 },
+      }),
+    ).resolves.toEqual({ success: false });
+    window.removeEventListener(MessageProtocol.event, hear);
+    expect(selects).toEqual([]);
+    expect(
+      workspace.current.panes.logic.panels.main!.activeEditor?.selectedRange,
+    ).toEqual(caret);
+  });
+
   it("answers a window/showDocument request with its response", async () => {
     const projectId = workspace.current.project.id;
     const responses: unknown[] = [];
