@@ -1772,6 +1772,12 @@ async function verify(args, deps = liveDeps) {
       }
       const reclaimed = await (deps.reclaimPreview ?? reclaimDriverPreview)(page);
       if (reclaimed) result.previewReclaimed = reclaimed;
+      if (reclaimed?.reason) {
+        result.error = reclaimed.reason;
+        deps.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
       const shell = await deps.ensureScriptEditor(page);
       if (shell.switched) result.switchedToLogic = true;
       if (!shell.present) {

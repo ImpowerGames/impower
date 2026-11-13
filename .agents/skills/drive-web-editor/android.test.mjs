@@ -824,6 +824,27 @@ await check("a pane an earlier run revealed and never hid is hidden when the nex
   process.exitCode = 0;
 });
 
+await check("verify fails when it cannot hide a pane an earlier run left, as ui does, and hides one it can", async () => {
+  const failing = phonePreviewPage({ paneShown: true, owned: true, saveStuck: true });
+  const verifyDeps = (page) => ({ ...uiDeps(page, null).deps, ensureScriptEditor: async () => ({ present: false, reason: "stub stops here" }), previewSummary: async () => null });
+  const failed = await verify([], verifyDeps(failing.page));
+  assert.equal(failed.previewReclaimed.restored, false);
+  assert.match(failed.error, /an earlier run revealed the preview pane and ended before hiding it, and it could not be hidden now: the workspace had not saved the preview as hidden/);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = 0;
+  const viaUi = await ui(["--shot", path.join(scratch, "reclaim-fail.png")], uiDeps(phonePreviewPage({ paneShown: true, owned: true, saveStuck: true }).page, null).deps);
+  assert.match(viaUi.failed.join(" "), /could not be hidden now/);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = 0;
+  const left = phonePreviewPage({ paneShown: true, owned: true });
+  let reached = false;
+  await verify([], { ...verifyDeps(left.page), ensureScriptEditor: async () => { reached = true; return { present: false, reason: "stub stops here" }; } });
+  assert.equal(reached, true);
+  assert.equal(left.state.paneShown, false);
+  assert.deepEqual(left.state.storage, {});
+  process.exitCode = 0;
+});
+
 await check("a device run whose page measures 0x0 stops at the start with a failure and exit code 1, in ui and in verify", async () => {
   const blank = () => {
     const page = stubPage();
