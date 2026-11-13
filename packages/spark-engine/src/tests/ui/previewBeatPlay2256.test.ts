@@ -421,7 +421,7 @@ end
     expect(
       await timelineOf([
         { control: "play", assets: ["long"], after: 0 },
-        { control: "play", assets: ["third"], after: 1 },
+        { control: "play", assets: ["third"], after: 1, over: 0 },
         { control: "queue", assets: ["third"], after: 0 },
       ]),
     ).toEqual([
@@ -429,6 +429,39 @@ end
       [1, 2],
       [2, 3],
     ]);
+  });
+
+  test("a stopped clip is heard until its fade ends, and a queue waits for the fade", async () => {
+    expect(
+      await timelineOf([
+        { control: "start", assets: ["long"], after: 0 },
+        { control: "stop", assets: ["long"], after: 1, over: 1 },
+        { control: "queue", assets: ["third"], after: 0 },
+      ]),
+    ).toEqual([
+      [0, 2],
+      [2, 3],
+    ]);
+  });
+
+  test("a clip stopped before it starts is never heard, and a queue waits only for the stop", async () => {
+    expect(
+      await timelineOf([
+        { control: "start", assets: ["long"], after: 5 },
+        { control: "stop", assets: ["long"], after: 1, over: 1 },
+        { control: "queue", assets: ["third"], after: 0 },
+      ]),
+    ).toEqual([[2, 3]]);
+  });
+
+  test("a stop with no fade given takes the player's default fade", async () => {
+    const spans = await timelineOf([
+      { control: "start", assets: ["first"], after: 0 },
+      { control: "stop", assets: ["first"], after: 1 },
+    ]);
+    expect(spans).toHaveLength(1);
+    expect(spans[0]![0]).toBe(0);
+    expect(spans[0]![1]).toBeCloseTo(1.016, 9);
   });
 
   test("a queued event starts its after when the clips before it end, and its clips start together", async () => {

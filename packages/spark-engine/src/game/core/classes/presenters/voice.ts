@@ -3,6 +3,8 @@ import type { LoadAudioPlayerParams } from "../../../modules/audio/types/LoadAud
 import type { Instructions } from "../../types/Instructions";
 import type { Game } from "../Game";
 
+const STOP_FADE_SECONDS = 0.016;
+
 export interface SilentVoice {
   updates: AudioPlayerUpdate[];
   clips: LoadAudioPlayerParams[];
@@ -31,7 +33,8 @@ export function voiceSpans(
   lengthOf: (clip: LoadAudioPlayerParams) => number | undefined,
 ): [number, number][] {
   const clips = new Map(voice.clips.map((clip) => [clip.key, clip]));
-  const heard: { key: string; from: number; to: number }[] = [];
+  const instances: { key: string; from: number; natural: number; ends: number }[] =
+    [];
   let origin = 0;
   const apply = (update: AudioPlayerUpdate, key: string) => {
     const when = origin + (update.after ?? 0);
@@ -39,12 +42,13 @@ export function voiceSpans(
       const clip = clips.get(key);
       const length = clip ? lengthOf(clip) : undefined;
       if (length != null && length > 0) {
-        heard.push({ key, from: when, to: when + length });
+        instances.push({ key, from: when, natural: when + length, ends: when + length });
       }
     } else if (update.control === "stop") {
-      for (const instance of heard) {
-        if (instance.key === key && instance.to > when) {
-          instance.to = Math.max(instance.from, when);
+      const disconnects = when + (update.over ?? STOP_FADE_SECONDS);
+      for (const instance of instances) {
+        if (instance.key === key && instance.ends > when) {
+          instance.ends = Math.min(instance.natural, disconnects);
         }
       }
     }
@@ -54,14 +58,14 @@ export function voiceSpans(
       apply(update, update.key);
       continue;
     }
-    for (const key of new Set(heard.map((instance) => instance.key))) {
+    for (const key of new Set(instances.map((instance) => instance.key))) {
       apply(update, key);
     }
-    if (update.control === "await" && heard.length > 0) {
-      origin = Math.max(origin, ...heard.map((instance) => instance.to));
+    if (update.control === "await" && instances.length > 0) {
+      origin = Math.max(origin, ...instances.map((instance) => instance.ends));
     }
   }
-  return heard
-    .filter((instance) => instance.to > instance.from)
-    .map(({ from, to }): [number, number] => [from, to]);
+  return instances
+    .filter((instance) => instance.ends > instance.from)
+    .map(({ from, ends }): [number, number] => [from, ends]);
 }
