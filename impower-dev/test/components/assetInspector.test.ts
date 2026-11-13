@@ -49,6 +49,7 @@ const window = vi.hoisted(() => ({
   setListState: vi.fn(),
   navigateTo: vi.fn(),
   revealDocument: vi.fn(async () => undefined),
+  insertReference: vi.fn(async (_filename: string, _construct: string, _reference: string) => true),
 }));
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: { assets, window },
@@ -811,8 +812,10 @@ describe("the asset inspector", () => {
 
 describe("the inspector when its item is renamed, moved or deleted from the page", () => {
   const P = "Assets/Images/Portraits";
-  const menu = async (name: string, item: string) => {
-    const trigger = all<HTMLElement>(`button[aria-label="Options for ${name}"]`)[0]!;
+  const menu = async (name: string, item: string, within: "row" | "head" = "row") => {
+    const trigger = all<HTMLElement>(`button[aria-label="Options for ${name}"]`).find(
+      (button) => (within === "head") === !!region()?.querySelector("header")?.contains(button),
+    )!;
     await act(async () => {
       trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse" }));
     });
@@ -864,6 +867,56 @@ describe("the inspector when its item is renamed, moved or deleted from the page
     expect(assets.move).toHaveBeenCalledWith([`${P}/bunny.png`], `${P}/Cast`);
     expect(title()).toBe("bunny");
     expect(region()!.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/8003");
+  });
+
+  it("offers the row menu's Rename, Move, Download and Delete in its head, each acting on the item it shows", async () => {
+    await mount();
+    await open("imani");
+    const head = region()!.querySelector<HTMLElement>('header button[aria-label="Options for imani"]')!;
+    expect(head.getAttribute("aria-haspopup")).toBe("menu");
+    await act(async () => {
+      head.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse" }));
+    });
+    await settle();
+    await vi.waitFor(() => expect(all('[role="menuitem"]').length).toBeGreaterThan(0));
+    expect(all<HTMLElement>('[role="menuitem"]').map((item) => item.textContent)).toEqual([
+      "Rename",
+      "Move…",
+      "Download",
+      "Delete",
+    ]);
+    await click(all<HTMLElement>('[role="menuitem"]').find((item) => item.textContent === "Download"));
+    expect(assets.downloadAll).toHaveBeenCalledWith([`${P}/imani.png`]);
+    await menu("imani", "Move", "head");
+    expect(document.querySelector('[role="dialog"]')!.textContent).toContain("imani");
+    await key(document.querySelector('[role="dialog"]')!, "Escape");
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
+    await menu("imani", "Rename", "head");
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani"]')!;
+    expect(document.activeElement).toBe(input);
+    expect(dock().contains(region())).toBe(true);
+  });
+
+  it("deletes the item it shows from its head's menu, and closes", async () => {
+    assets.remove.mockImplementationOnce(async () => {
+      setFiles({ [`${P}/bunny.png`]: fact(8003) }, [`${P}/Cast`]);
+    });
+    await mount();
+    await open("imani");
+    await menu("imani", "Delete", "head");
+    expect(assets.remove).toHaveBeenCalledWith([`${P}/imani.png`]);
+    await vi.waitFor(() => expect(region()).toBeNull());
+  });
+
+  it("closes its sheet and renames the item's row from its head's menu on a phone", async () => {
+    layout.value = "phone";
+    await mount(false);
+    await open("imani");
+    await menu("imani", "Rename", "head");
+    await vi.waitFor(() => expect(region()).toBeNull());
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(host!.querySelector('input[aria-label="Rename imani"]')),
+    );
   });
 
   it("closes when the item it shows is deleted, with focus on the page", async () => {
@@ -1033,6 +1086,93 @@ describe("the Variants tester and the Files section", () => {
     expect(reference()).toBe("[[imani@night:happy]]");
     await click(region()!.querySelector<HTMLElement>("[data-variant-reset]"));
     expect(reference()).toBe("[[imani]]");
+  });
+
+  it("puts each group's name above its menu, and shows the count in the header until a choice, then Reset", async () => {
+    await mount();
+    await open("imani");
+    const cells = [...region()!.querySelectorAll<HTMLElement>("[data-variant-cell]")];
+    expect(
+      cells.map((cell) => [cell.firstElementChild!.textContent, cell.lastElementChild!.getAttribute("data-variant-group")]),
+    ).toEqual([
+      ["Alternate", "@"],
+      ["Face", "face"],
+      ["Mouth", "mouth"],
+    ]);
+    const aside = () =>
+      region()!.querySelector('section[aria-label="Variants"] h3')!.nextElementSibling!.textContent;
+    expect(aside()).toBe("8 variants");
+    expect(group("face").hasAttribute("data-changed")).toBe(false);
+    await pick(group("face"), "Happy");
+    expect(group("face").hasAttribute("data-changed")).toBe(true);
+    expect(aside()).toBe("Reset");
+    await click(region()!.querySelector<HTMLElement>("[data-variant-reset]"));
+    expect(aside()).toBe("8 variants");
+  });
+
+  it("inserts the reference shown at the script's caret, and says why it cannot while no script has a caret", async () => {
+    await mount();
+    await open("imani");
+    const insert = () => region()!.querySelector<HTMLButtonElement>("[data-variant-insert]")!;
+    expect(insert().textContent).toBe("Insert at caret");
+    expect(insert().disabled).toBe(true);
+    const reason = document.getElementById(insert().getAttribute("aria-describedby")!)!;
+    expect(reason.textContent).toBe("Open a script and place the caret there to insert at it.");
+    const logic = workspace.current.panes.logic;
+    await act(async () => {
+      workspace.current = {
+        ...workspace.current,
+        panes: {
+          ...workspace.current.panes,
+          logic: {
+            ...logic,
+            view: "list",
+            panel: "main",
+            panels: {
+              ...logic.panels,
+              main: {
+                ...logic.panels.main,
+                activeEditor: {
+                  open: true,
+                  filename: "main.sd",
+                  selectedRange: { start: { line: 3, character: 2 }, end: { line: 3, character: 2 } },
+                },
+              },
+            },
+          },
+        },
+      };
+    });
+    await settle();
+    expect(insert().disabled).toBe(false);
+    expect(insert().hasAttribute("aria-describedby")).toBe(false);
+    expect(region()!.querySelector("[data-variant-no-caret]")).toBeNull();
+    await pick(group("face"), "Happy");
+    await click(insert());
+    expect(window.insertReference).toHaveBeenCalledWith("main.sd", "portrait", "[[imani:happy]]");
+  });
+
+  it("opens the picture full size on the stage and closes it back to the inspector with focus on its button", async () => {
+    await mount();
+    await open("imani");
+    await pick(group("face"), "Happy");
+    const expand = region()!.querySelector<HTMLButtonElement>("[data-zoom-frame] [data-zoom-expand]")!;
+    expect(expand.getAttribute("aria-label")).toBe("View full size");
+    expand.focus();
+    await click(expand);
+    const full = await vi.waitFor(() => {
+      const found = all<HTMLElement>('[role="dialog"]').find((dialog) => dialog.textContent?.includes("imani full size"));
+      expect(found).toBeTruthy();
+      return found!;
+    });
+    expect(full.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/picture/imani~happy");
+    const edge = Math.ceil((Math.max(innerWidth, innerHeight) * 3) / 128) * 128;
+    expect(edge).toBeGreaterThan(1280);
+    expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, edge, expect.any(Function));
+    await key(full, "Escape");
+    await vi.waitFor(() => expect(all('[role="dialog"]').some((dialog) => dialog.textContent?.includes("imani full size"))).toBe(false));
+    await vi.waitFor(() => expect(document.activeElement).toBe(expand));
+    expect(region()).not.toBeNull();
   });
 
   it("shows the reference as a portrait from its folder, as a backdrop when chosen, and copies it", async () => {

@@ -8,6 +8,8 @@ import {
   DropdownRadioItem,
   DropdownRoot,
   DropdownTrigger,
+  InsertIcon,
+  variantsLabel,
   WheelSheet,
 } from "@impower/impower-ui/components";
 import { useCoarsePointer } from "@impower/impower-ui/layout";
@@ -41,8 +43,12 @@ export type VariantsSectionProps = {
   onSelect: (selection: VariantSelection) => void;
   onPreview: (selection: VariantSelection | null) => void;
   onForm: (form: VariantForm) => void;
+  onInsert?: (reference: string) => void;
   sheetContainer: RefObject<HTMLElement>;
 };
+
+const NO_CARET =
+  "Open a script and place the caret there to insert at it.";
 
 function GroupMenu({
   group,
@@ -64,14 +70,15 @@ function GroupMenu({
   const trigger = (
     <Button
       ref={button}
-      size="compact"
-      class={value === group.default ? "min-w-0 justify-between" : "min-w-0 justify-between text-accent"}
+      variant="field"
+      size="field"
       aria-label={`${name}: ${optionLabel(value)}`}
       data-variant-group={group.key}
+      data-changed={value === group.default ? undefined : ""}
       {...(coarse ? { "aria-haspopup": "dialog" as const, onClick: () => setOpen(true) } : {})}
     >
       <span class="truncate">{optionLabel(value)}</span>
-      <ChevronDownIcon class="text-muted" />
+      <ChevronDownIcon />
     </Button>
   );
   if (coarse) {
@@ -134,9 +141,11 @@ export default function VariantsSection({
   onSelect,
   onPreview,
   onForm,
+  onInsert,
   sheetContainer,
 }: VariantsSectionProps) {
   const formLabel = useId();
+  const noCaret = useId();
   const groups = testerGroups(stack, selection);
   const reference = referenceOf(variantOf(stack, selection), form);
   const copy = () =>
@@ -153,15 +162,17 @@ export default function VariantsSection({
           <Button variant="quiet" size="compact" class="-my-3 text-accent" data-variant-reset onClick={() => onSelect({})}>
             Reset
           </Button>
-        ) : undefined
+        ) : (
+          variantsLabel(stack.variantCount)
+        )
       }
     >
       <div class="grid gap-3">
         {groups.length > 0 && (
-          <div class="grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-3 gap-y-1">
             {groups.map((group) => (
-              <div key={group.key} class="contents">
-                <span class="truncate text-[13px] text-muted">{groupLabel(group)}</span>
+              <div key={group.key} class="grid min-w-0 gap-px" data-variant-cell>
+                <span class="truncate text-[11px] text-muted">{groupLabel(group)}</span>
                 <GroupMenu
                   sheetContainer={sheetContainer}
                   group={group}
@@ -188,18 +199,33 @@ export default function VariantsSection({
             onValueChange={onForm}
           />
         </div>
-        <div class="flex items-center gap-2 rounded-control border border-edge bg-bg py-1 pr-1 pl-3">
-          <code
-            class="min-w-0 flex-1 font-mono text-[13px]/[1.5] break-all text-ink select-text"
-            data-variant-reference
-          >
-            {reference}
-          </code>
-          <Button variant="quiet" size="compact" data-variant-copy onClick={copy}>
+        <code
+          class="block rounded-control border border-edge bg-bg px-3 py-[9px] font-mono text-[14px]/[1.4] break-all text-ink select-text"
+          data-variant-reference
+        >
+          {reference}
+        </code>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <Button variant="quiet" data-variant-copy onClick={copy}>
             <CopyIcon />
             Copy
           </Button>
+          <Button
+            variant="quiet"
+            data-variant-insert
+            disabled={!onInsert}
+            aria-describedby={onInsert ? undefined : noCaret}
+            onClick={() => onInsert?.(reference)}
+          >
+            <InsertIcon />
+            Insert at caret
+          </Button>
         </div>
+        {!onInsert && (
+          <p id={noCaret} class="-mt-2 mb-0 text-[12px]/[1.5] text-muted" data-variant-no-caret>
+            {NO_CARET}
+          </p>
+        )}
       </div>
     </Section>
   );

@@ -1,4 +1,6 @@
+import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
+import { Lightbox } from "../dialog/Dialog";
 import { SAMPLE_PICTURE } from "../thumbnail/Thumbnail.gallery";
 import ZoomFrame, { type ZoomFrameBackdrop, type ZoomFrameSurface } from "./ZoomFrame";
 
@@ -15,6 +17,7 @@ const SURFACES: Record<ZoomFrameSurface, string> = { stage: "Stage", sheet: "She
 const BACKDROPS: Record<ZoomFrameBackdrop, string> = { none: "no backdrop", checker: "checkerboard behind transparency" };
 
 function ZoomFrameDemo() {
+  const [full, setFull] = useState(false);
   return (
     <div class="space-y-4">
       {(Object.keys(SURFACES) as ZoomFrameSurface[]).map((surface) =>
@@ -34,6 +37,18 @@ function ZoomFrameDemo() {
             <img src={SAMPLE_PICTURE} alt="" draggable={false} class="absolute inset-0 size-full object-contain" />
           </ZoomFrame>
         </div>
+      </GalleryRow>
+      <GalleryRow label='Stage, zoomable, with View full size: opens the picture at fit="screen" in a Lightbox'>
+        <div class="w-80">
+          <ZoomFrame label="Wide picture" zoomable ratio={320 / 200} onExpand={() => setFull(true)}>
+            <img src={SAMPLE_PICTURE} alt="" draggable={false} class="absolute inset-0 size-full object-contain" />
+          </ZoomFrame>
+        </div>
+        <Lightbox label="Wide picture full size" open={full} onOpenChange={setFull}>
+          <ZoomFrame label="Wide picture" fit="screen" zoomable ratio={320 / 200}>
+            <img src={SAMPLE_PICTURE} alt="" draggable={false} class="absolute inset-0 size-full object-contain" />
+          </ZoomFrame>
+        </Lightbox>
       </GalleryRow>
       <GalleryRow label="Sheet, a frame for text without zoom">
         <div class="w-80">

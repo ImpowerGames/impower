@@ -520,6 +520,7 @@ function planStoryBlock(
   construct: InsertConstruct,
   structure: ScriptStructure,
   name: string | undefined,
+  reference: string | undefined,
 ): InsertPlan | null {
   const body = bodiesAt(lines, index, structure).find((candidate) =>
     ACCEPTED_BY[construct].includes(candidate.kind),
@@ -556,7 +557,9 @@ function planStoryBlock(
     source,
     lines,
     placement,
-    templateOf(construct, source, speaker, name),
+    reference === undefined
+      ? templateOf(construct, source, speaker, name)
+      : { lines: [reference], placeholder: reference, picked: true },
   );
 }
 
@@ -629,6 +632,7 @@ export function planInsertion(
   construct: InsertConstruct,
   structure: ScriptStructure,
   name?: string,
+  reference?: string,
 ): InsertPlan | null {
   if (source.includes(CRLF)) {
     const lf = source.split(CRLF).join(LF);
@@ -638,6 +642,7 @@ export function planInsertion(
       construct,
       structure,
       name,
+      reference,
     );
     if (!plan) return null;
     const next = lf.slice(0, plan.from) + plan.insert + lf.slice(plan.to);
@@ -660,7 +665,15 @@ export function planInsertion(
   if (construct === "character") {
     return planCharacter(source, lines, structure.scenes);
   }
-  return planStoryBlock(source, lines, index, construct, structure, name);
+  return planStoryBlock(
+    source,
+    lines,
+    index,
+    construct,
+    structure,
+    name,
+    reference,
+  );
 }
 
 export const planConstruct = (
@@ -668,6 +681,7 @@ export const planConstruct = (
   construct: InsertConstruct,
   structure: ScriptStructure,
   name?: string,
+  reference?: string,
 ): InsertPlan | null =>
   view.state.readOnly || (structure.doc && structure.doc !== view.state.doc)
     ? null
@@ -677,6 +691,7 @@ export const planConstruct = (
         construct,
         structure,
         name,
+        reference,
       );
 
 export const insertConstruct =
@@ -684,9 +699,10 @@ export const insertConstruct =
     construct: InsertConstruct,
     structure: ScriptStructure,
     name?: string,
+    reference?: string,
   ): Command =>
   (view) => {
-    const plan = planConstruct(view, construct, structure, name);
+    const plan = planConstruct(view, construct, structure, name, reference);
     if (!plan) return false;
     view.dispatch({
       changes: { from: plan.from, to: plan.to, insert: plan.insert },

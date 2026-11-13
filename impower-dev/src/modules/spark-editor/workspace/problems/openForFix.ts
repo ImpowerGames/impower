@@ -46,7 +46,7 @@ export const findSameFix = (
         ),
       );
 
-const loadedVersion = (uri: string, timeoutMs: number) =>
+export const loadedVersion = (uri: string, timeoutMs: number) =>
   new Promise<number | null>((resolve) => {
     const stop = onProtocolMessage(DidLoadEditorMessage.type, (message) => {
       if (message.params.textDocument.uri === uri) {

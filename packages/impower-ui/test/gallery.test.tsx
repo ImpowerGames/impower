@@ -35,7 +35,7 @@ it("mounts the gallery with every exported component on the page", async () => {
       await act(async () => trigger.click());
       const dialog = document.querySelector('[role="dialog"]');
       expect(dialog).not.toBeNull();
-      const cancel = Array.from(dialog!.querySelectorAll("button")).find((b) => /^(Cancel|Close)$/.test(b.textContent ?? ""));
+      const cancel = Array.from(dialog!.querySelectorAll("button")).find((b) => /^(Cancel|Close)$/.test(b.textContent || (b.getAttribute("aria-label") ?? "")));
       await act(async () => cancel!.click());
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 250));

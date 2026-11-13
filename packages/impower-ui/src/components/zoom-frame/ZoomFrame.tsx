@@ -2,7 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
-import { MinusIcon, PlusIcon } from "../icon/icons.generated";
+import { ExpandIcon, MinusIcon, PlusIcon } from "../icon/icons.generated";
 
 export type Zoom = { scale: number; x: number; y: number };
 
@@ -72,12 +72,13 @@ const ARROW_PANS: Record<string, readonly [number, number]> = {
 };
 
 export const zoomFrameVariants = cva(
-  [
-    "relative w-full flex-none overflow-hidden rounded-[10px] aspect-(--frame-ratio)",
-    "max-h-[40vh] [:root[data-layout=desktop]_&]:max-h-[44vh]",
-  ],
+  "relative flex-none overflow-hidden aspect-(--frame-ratio)",
   {
     variants: {
+      fit: {
+        pane: "w-full rounded-[10px] max-h-[40vh] [:root[data-layout=desktop]_&]:max-h-[44vh]",
+        screen: "w-[min(100vw,calc(100dvh*var(--frame-ratio)))] max-h-dvh rounded-none",
+      },
       surface: {
         stage: "bg-stage",
         sheet: "border border-edge bg-bg",
@@ -87,7 +88,7 @@ export const zoomFrameVariants = cva(
         false: "",
       },
     },
-    defaultVariants: { surface: "stage", zoomable: false },
+    defaultVariants: { fit: "pane", surface: "stage", zoomable: false },
   },
 );
 
@@ -107,7 +108,7 @@ export const zoomFrameContentVariants = cva(
 const zoomButtonVariants = cva(
   [
     "relative grid size-8 cursor-pointer place-items-center rounded-full text-inherit",
-    "before:absolute before:-inset-1.5 before:content-['']",
+    "before:absolute before:-inset-1.5 before:content-[''] before:pointer-events-auto",
     "control-overlay disabled:cursor-default disabled:opacity-35 [&>svg]:size-[15px]",
   ],
   {
@@ -121,6 +122,12 @@ const zoomButtonVariants = cva(
   },
 );
 
+const zoomExpandVariants = cva([
+  "absolute right-1.5 bottom-1.5 z-[1] grid size-11 cursor-pointer place-items-center rounded-full",
+  "border-2 border-transparent bg-media-badge bg-clip-padding text-media-badge-ink control-overlay [&>svg]:size-[18px]",
+]);
+
+export type ZoomFrameFit = NonNullable<VariantProps<typeof zoomFrameVariants>["fit"]>;
 export type ZoomFrameSurface = NonNullable<VariantProps<typeof zoomFrameVariants>["surface"]>;
 export type ZoomFrameBackdrop = NonNullable<
   VariantProps<typeof zoomFrameContentVariants>["backdrop"]
@@ -129,9 +136,12 @@ export type ZoomFrameBackdrop = NonNullable<
 export type ZoomFrameProps = {
   label: string;
   ratio?: number;
+  fit?: ZoomFrameFit;
   surface?: ZoomFrameSurface;
   backdrop?: ZoomFrameBackdrop;
   zoomable?: boolean;
+  expandLabel?: string;
+  onExpand?: () => void;
   class?: string;
   children?: ComponentChildren;
 };
@@ -143,9 +153,12 @@ type Gesture = { from: Zoom; points: Point[] };
 export default function ZoomFrame({
   label,
   ratio,
+  fit,
   surface,
   backdrop,
   zoomable = false,
+  expandLabel = "View full size",
+  onExpand,
   class: className,
   children,
 }: ZoomFrameProps) {
@@ -369,7 +382,7 @@ export default function ZoomFrame({
   return (
     <div
       ref={frame}
-      class={cn(zoomFrameVariants({ surface, zoomable }), className)}
+      class={cn(zoomFrameVariants({ fit, surface, zoomable }), className)}
       style={ratioStyle}
       data-zoom-frame
       data-zoomed={zoom.scale > 1 ? "" : undefined}
@@ -425,6 +438,20 @@ export default function ZoomFrame({
             <PlusIcon />
           </button>
         </div>
+      )}
+      {onExpand && (
+        <button
+          type="button"
+          aria-label={expandLabel}
+          aria-haspopup="dialog"
+          title={expandLabel}
+          data-zoom-controls
+          data-zoom-expand
+          class={zoomExpandVariants()}
+          onClick={onExpand}
+        >
+          <ExpandIcon />
+        </button>
       )}
     </div>
   );

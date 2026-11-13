@@ -15,13 +15,16 @@ export {
 export {
   default as Dialog,
   Sheet,
+  Lightbox,
   DialogTitle,
   DialogDescription,
   DialogActions,
   dialogVariants,
   sheetVariants,
+  lightboxVariants,
   type DialogProps,
   type SheetProps,
+  type LightboxProps,
   type SheetSize,
   type DialogSize,
 } from "./dialog/Dialog";
@@ -405,6 +408,7 @@ export {
   zoomFrameVariants,
   zoomFrameContentVariants,
   type ZoomFrameProps,
+  type ZoomFrameFit,
   type ZoomFrameSurface,
   type ZoomFrameBackdrop,
 } from "./zoom-frame/ZoomFrame";

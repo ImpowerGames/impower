@@ -9,6 +9,8 @@ import { cn } from "../../utils/cn";
 import { focusReturnTarget } from "../../utils/focusReturn";
 import { portalContainer } from "../../utils/portalContainer";
 import { useToastLayer } from "../../utils/toastLayer";
+import Button from "../button/Button";
+import { CloseIcon } from "../icon/icons.generated";
 
 export const DIALOG_TRANSITION_MS = 180;
 
@@ -22,6 +24,7 @@ const backdropVariants = cva(
       placement: {
         center: "items-center justify-center p-4",
         bottom: "flex-col justify-end",
+        fill: "items-stretch",
       },
       visible: {
         true: "opacity-100 ease-[ease-out]",
@@ -85,6 +88,22 @@ export const sheetVariants = cva(
   },
 );
 
+export const lightboxVariants = cva(
+  [
+    "relative size-full select-none bg-stage text-ink outline-none",
+    "motion-safe:transition-opacity motion-safe:duration-180",
+  ],
+  {
+    variants: {
+      visible: {
+        true: "opacity-100 ease-[ease-out]",
+        false: "opacity-0 ease-[ease-in]",
+      },
+    },
+    defaultVariants: { visible: true },
+  },
+);
+
 export type SheetSize = NonNullable<VariantProps<typeof sheetVariants>["size"]>;
 
 export type DialogSize = NonNullable<
@@ -121,7 +140,7 @@ function Modal({
   card,
   children,
 }: Omit<ModalProps, "flush" | "class"> & {
-  placement: "center" | "bottom";
+  placement: "center" | "bottom" | "fill";
   card: (visible: boolean) => string;
 }) {
   const { mounted, visible } = useMountTransition(open, DIALOG_TRANSITION_MS);
@@ -224,6 +243,52 @@ export function Dialog({
         )
       }
     />
+  );
+}
+
+export type LightboxProps = Omit<ModalProps, "flush" | "dismissable"> & {
+  label: string;
+  closeLabel?: string;
+};
+
+export function Lightbox({
+  label,
+  closeLabel = "Close",
+  class: className,
+  children,
+  ...rest
+}: LightboxProps) {
+  const close = () => rest.onOpenChange(false);
+  return (
+    <Modal
+      {...rest}
+      placement="fill"
+      card={(visible) => cn(lightboxVariants({ visible }), className)}
+    >
+      <DialogPrimitive.Title class="sr-only">{label}</DialogPrimitive.Title>
+      <div
+        class="absolute inset-0 flex items-center justify-center"
+        data-lightbox-stage
+        onClick={(event) => {
+          if (event.target === event.currentTarget) {
+            close();
+          }
+        }}
+      >
+        {children}
+      </div>
+      <Button
+        variant="quiet"
+        size="icon"
+        class="absolute top-3 right-3 rounded-full border-transparent bg-media-badge text-media-badge-ink [&_svg]:size-[18px]"
+        aria-label={closeLabel}
+        title={closeLabel}
+        data-lightbox-close
+        onClick={close}
+      >
+        <CloseIcon />
+      </Button>
+    </Modal>
   );
 }
 
