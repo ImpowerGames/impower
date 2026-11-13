@@ -310,8 +310,11 @@ function doubleClickSelection(view: EditorView, event: MouseEvent): MouseSelecti
       }
     },
     get(curEvent, extend, multiple) {
+      if (extend) {
+        const word = wordForDoubleClick(view.state, posOf(curEvent));
+        return startSel.replaceRange(startSel.main.extend(word.from, word.to));
+      }
       const range = dragWordSelection(view.state, start, posOf(curEvent));
-      if (extend) return startSel.replaceRange(startSel.main.extend(range.from, range.to));
       if (multiple) return startSel.addRange(range);
       return EditorSelection.create([range]);
     },

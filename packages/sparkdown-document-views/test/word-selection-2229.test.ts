@@ -53,6 +53,13 @@ const liveEditor = (lines: string[]) => {
     top: 0,
     bottom: 0,
   } as never) as unknown as [EditorView];
+  return withPointer(view);
+};
+
+const plainEditor = (lines: string[]) =>
+  withPointer(new EditorView({ doc: lines.join("\n"), parent: document.body.appendChild(document.createElement("div")) }));
+
+const withPointer = (view: EditorView) => {
   const posAt = ({ x }: { x: number }) => Math.round(x / PX);
   vi.spyOn(view, "posAtCoords").mockImplementation(posAt as never);
   vi.spyOn(view, "posAndSideAtCoords").mockImplementation(((coords: { x: number }) => ({
@@ -77,18 +84,18 @@ const rightQuarterOf = (ch: number) => (ch + 1) * PX - PX / 4;
 const boundaryOn = (lines: string[], [line, pos]: Point) =>
   pos < lines[line]!.length ? leftQuarterOf(offset(lines, [line, pos])) : rightQuarterOf(offset(lines, [line, pos]) - 1);
 
-const mouse = (view: EditorView, type: string, x: number, detail: number) => {
-  const init = { bubbles: true, cancelable: true, button: 0, buttons: type === "mouseup" ? 0 : 1, detail, clientX: x, clientY: 1 };
+const mouse = (view: EditorView, type: string, x: number, detail: number, shiftKey = false) => {
+  const init = { bubbles: true, cancelable: true, button: 0, buttons: type === "mouseup" ? 0 : 1, detail, clientX: x, clientY: 1, shiftKey };
   (type === "mousedown" ? view.contentDOM : view.contentDOM.ownerDocument).dispatchEvent(new MouseEvent(type, init));
 };
 
-const doubleClick = (view: EditorView, x: number, dragTo?: number) => {
-  view.dispatch({ selection: { anchor: 0 } });
-  mouse(view, "mousedown", x, 1);
-  mouse(view, "mouseup", x, 1);
-  mouse(view, "mousedown", x, 2);
-  if (dragTo !== undefined) mouse(view, "mousemove", dragTo, 2);
-  mouse(view, "mouseup", dragTo ?? x, 2);
+const doubleClick = (view: EditorView, x: number, dragTo?: number, { caret = 0, shiftKey = false } = {}) => {
+  view.dispatch({ selection: { anchor: caret } });
+  mouse(view, "mousedown", x, 1, shiftKey);
+  mouse(view, "mouseup", x, 1, shiftKey);
+  mouse(view, "mousedown", x, 2, shiftKey);
+  if (dragTo !== undefined) mouse(view, "mousemove", dragTo, 2, shiftKey);
+  mouse(view, "mouseup", dragTo ?? x, 2, shiftKey);
   return view.state.selection;
 };
 
@@ -142,6 +149,22 @@ describe("double-click selects the word VS Code selects (#2229)", () => {
     });
     const expected = cases.map(({ start, target, head, selected }) => `${start} to ${target}: head ${offset(lines, head)} selected ${selected}`);
     expect(actual).toEqual(expected);
+  });
+
+  it.each([
+    { caret: 0, click: 5, dragTo: undefined, selected: "one two" },
+    { caret: 0, click: 5, dragTo: 1, selected: "one" },
+    { caret: 13, click: 5, dragTo: undefined, selected: "two three" },
+    { caret: 13, click: 5, dragTo: 10, selected: "three" },
+  ])("with Shift held, extends from the caret at $caret to the word under the pointer as CodeMirror's own double-click does ($click, dragged to $dragTo)", ({ caret, click, dragTo, selected }) => {
+    const lines = ["one two three"];
+    const shiftDoubleClick = (view: EditorView) => {
+      const { main } = doubleClick(view, leftQuarterOf(click), dragTo === undefined ? undefined : leftQuarterOf(dragTo), { caret, shiftKey: true });
+      return { anchor: main.anchor, head: main.head, text: view.state.sliceDoc(main.from, main.to) };
+    };
+    const editor = shiftDoubleClick(liveEditor(lines));
+    expect(editor.text).toBe(selected);
+    expect(editor).toEqual(shiftDoubleClick(plainEditor(lines)));
   });
 });
 
