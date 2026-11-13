@@ -831,43 +831,6 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(stack!.pictures.find((picture) => picture.alternate === "dark")?.layers).toEqual([`${P}/imani@dark.v2~face.sad.png`]);
   });
 
-  it("renames a second file of the picture's name out of the collision, leaving the lines that show the picture alone (#2204)", async () => {
-    const h = await harness(project({ [`${P}/imani.v2.png`]: "copy" }));
-    expect(await h.assets.renameMember(`${P}/imani.v2.png`, "kai")).toBe(`${P}/kai.png`);
-    expect(await inPortraits(h)).toEqual([...ORIGINAL, `${P}/kai.png`].sort());
-    expect(await h.read("main.sd")).toBe(SCRIPT);
-  });
-
-  it("renames a dotted second file into an alternate when the picture's own file is dotted too (#2204)", async () => {
-    const script = lines("scene start", "  [[show portrait ava]]", "end");
-    const h = await harness({ "main.sd": script, [`${P}/ava.v1.png`]: "one", [`${P}/ava.v2.png`]: "two" });
-    expect(await h.assets.renameMember(`${P}/ava.v2.png`, "ava@night")).toBe(`${P}/ava@night.png`);
-    expect(await inPortraits(h)).toEqual([`${P}/ava.v1.png`, `${P}/ava@night.png`]);
-    expect(await h.read(`${P}/ava@night.png`)).toBe("two");
-    expect(await h.read("main.sd")).toBe(script);
-  });
-
-  it("takes along every layer the compiler puts on a dotted alternate when that alternate is renamed (#2204)", async () => {
-    const script = lines("scene start", "  [[show portrait imani]]", "end");
-    const h = await harness({
-      "main.sd": script,
-      [`${P}/imani.png`]: "base",
-      [`${P}/imani@dark.v2.png`]: "dark",
-      [`${P}/imani@dark~face.happy.png`]: "happy",
-    });
-    expect(await h.assets.renameMember(`${P}/imani@dark.v2.png`, "imani@night")).toBe(`${P}/imani@night.png`);
-    expect(await inPortraits(h)).toEqual([`${P}/imani.png`, `${P}/imani@night.png`, `${P}/imani@night~face.happy.png`]);
-    expect(await h.read(`${P}/imani@night~face.happy.png`)).toBe("happy");
-  });
-
-  it("renames a layer of a dotted picture while it keeps that picture's prefix (#2204)", async () => {
-    const script = lines("scene start", "  [[show portrait ava]]", "end");
-    const h = await harness({ "main.sd": script, [`${P}/ava.v1.png`]: "base", [`${P}/ava.v1~face.happy.png`]: "happy" });
-    expect(await h.assets.renameMember(`${P}/ava.v1~face.happy.png`, "ava.v1~face.sad")).toBe(`${P}/ava.v1~face.sad.png`);
-    expect(await inPortraits(h)).toEqual([`${P}/ava.v1.png`, `${P}/ava.v1~face.sad.png`]);
-    expect(await h.read("main.sd")).toBe(script);
-  });
-
   it("leaves a script the author saved during a failed alternate rename as saved, puts the file back, and says so from the rollback", async () => {
     const other = lines("scene other", "  [[show portrait imani@night]]", "end");
     const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
@@ -981,5 +944,194 @@ describe("a folder stack", { timeout: 120000 }, () => {
     await h.assets.downloadAll([FOLDER_STACK[0]!]);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(h.saved.at(-1)!.name).toBe("mia.zip");
+  });
+});
+
+const DOTTED =
+  "Use a name without a dot for a picture with alternates or layers. Scripts name a picture by the part before its first dot.";
+const KEEP = (name: string) =>
+  `Keep ${name} before the @ or ~. That part names the picture the file belongs to; rename the picture to change it.`;
+
+interface MemberRename {
+  row: string;
+  files: string[];
+  shows: string[];
+  rename: string;
+  to: string;
+  after?: string[];
+  showsAfter?: string[];
+  refused?: string;
+}
+
+const MEMBER_RENAMES: MemberRename[] = [
+  {
+    row: "a picture's own file, plain: its layers move with it and the lines follow",
+    files: ["imani.png", "imani~face.happy.png", "imani@night.png"],
+    shows: ["imani"],
+    rename: "imani.png",
+    to: "imani@day",
+    after: ["imani@day.png", "imani@day~face.happy.png", "imani@night.png"],
+    showsAfter: ["imani@day"],
+  },
+  {
+    row: "a picture's own file, dotted: the compiler still names it ava, so nothing else moves and no line changes",
+    files: ["ava.v1.png", "ava.v1~face.happy.png", "ava@night.png"],
+    shows: ["ava"],
+    rename: "ava.v1.png",
+    to: "ava.v2",
+    after: ["ava.v2.png", "ava.v1~face.happy.png", "ava@night.png"],
+    showsAfter: ["ava"],
+  },
+  {
+    row: "a picture's own file, dotted before a new @: the dot would swallow the alternate, so it is refused",
+    files: ["ava.v1.png", "ava.v1~face.happy.png", "ava@night.png"],
+    shows: ["ava"],
+    rename: "ava.v1.png",
+    to: "ava.v1@day",
+    refused: DOTTED,
+  },
+  {
+    row: "an @ alternate, plain: its layers move with it and the lines follow",
+    files: ["imani.png", "imani@night.png", "imani@night~face.sad.png"],
+    shows: ["imani", "imani@night"],
+    rename: "imani@night.png",
+    to: "imani@dark",
+    after: ["imani.png", "imani@dark.png", "imani@dark~face.sad.png"],
+    showsAfter: ["imani", "imani@dark"],
+  },
+  {
+    row: "an @ alternate, dotted: the layers the compiler puts on it move too, however they are spelt",
+    files: ["imani.png", "imani@dark.v2.png", "imani@dark~face.happy.png"],
+    shows: ["imani", "imani@dark"],
+    rename: "imani@dark.v2.png",
+    to: "imani@night",
+    after: ["imani.png", "imani@night.png", "imani@night~face.happy.png"],
+    showsAfter: ["imani", "imani@night"],
+  },
+  {
+    row: "an @ alternate renamed with a dot after its name: the compiler reads the alternate before the dot",
+    files: ["imani.png", "imani@night.png", "imani@night~face.sad.png"],
+    shows: ["imani", "imani@night"],
+    rename: "imani@night.png",
+    to: "imani@dark.v2",
+    after: ["imani.png", "imani@dark.v2.png", "imani@dark.v2~face.sad.png"],
+    showsAfter: ["imani", "imani@dark"],
+  },
+  {
+    row: "an @ alternate, dotted before its @: refused",
+    files: ["imani.png", "imani@night.png"],
+    shows: ["imani", "imani@night"],
+    rename: "imani@night.png",
+    to: "imani.v2@night",
+    refused: DOTTED,
+  },
+  {
+    row: "a layer, plain: only the layer moves and no line changes",
+    files: ["imani.png", "imani~face.happy.png", "imani@night.png"],
+    shows: ["imani"],
+    rename: "imani~face.happy.png",
+    to: "imani~face.sad",
+    after: ["imani.png", "imani@night.png", "imani~face.sad.png"],
+    showsAfter: ["imani"],
+  },
+  {
+    row: "a layer, dotted: renamed while it keeps its picture's prefix",
+    files: ["ava.v1.png", "ava.v1~face.happy.png"],
+    shows: ["ava"],
+    rename: "ava.v1~face.happy.png",
+    to: "ava.v1~face.sad",
+    after: ["ava.v1.png", "ava.v1~face.sad.png"],
+    showsAfter: ["ava"],
+  },
+  {
+    row: "a layer, dotted, moved in front of a new @: refused",
+    files: ["ava.v1.png", "ava.v1~face.happy.png", "ava@night.png"],
+    shows: ["ava"],
+    rename: "ava.v1~face.happy.png",
+    to: "ava.v1@night~face.happy",
+    refused: DOTTED,
+  },
+  {
+    row: "a layer moved to another alternate of its picture: only the layer moves",
+    files: ["imani.png", "imani~face.happy.png", "imani@night.png"],
+    shows: ["imani"],
+    rename: "imani~face.happy.png",
+    to: "imani@night~face.happy",
+    after: ["imani.png", "imani@night.png", "imani@night~face.happy.png"],
+    showsAfter: ["imani"],
+  },
+  {
+    row: "a layer moved to another picture: refused",
+    files: ["imani.png", "imani~face.happy.png"],
+    shows: ["imani"],
+    rename: "imani~face.happy.png",
+    to: "zadie~face.happy",
+    refused: KEEP("imani"),
+  },
+  {
+    row: "a duplicate, plain (ava.webp beside ava.png): renamed out alone and no line changes",
+    files: ["ava.png", "ava.webp", "ava@night.png"],
+    shows: ["ava"],
+    rename: "ava.webp",
+    to: "kai",
+    after: ["ava.png", "ava@night.png", "kai.webp"],
+    showsAfter: ["ava"],
+  },
+  {
+    row: "a duplicate, plain, renamed to another alternate: no layer of its picture goes with it",
+    files: ["ava.png", "ava.webp", "ava~face.happy.png"],
+    shows: ["ava"],
+    rename: "ava.webp",
+    to: "ava@night",
+    after: ["ava.png", "ava@night.webp", "ava~face.happy.png"],
+    showsAfter: ["ava"],
+  },
+  {
+    row: "a duplicate, dotted: renamed into an alternate when the picture's own file is dotted too",
+    files: ["ava.v1.png", "ava.v2.png"],
+    shows: ["ava"],
+    rename: "ava.v2.png",
+    to: "ava@night",
+    after: ["ava.v1.png", "ava@night.png"],
+    showsAfter: ["ava"],
+  },
+  {
+    row: "an alternate spelt %40: read as @ by the compiler, so the line naming it follows",
+    files: ["imani.png", "imani%40dusk.png"],
+    shows: ["imani", "imani@dusk"],
+    rename: "imani%40dusk.png",
+    to: "imani@dawn",
+    after: ["imani.png", "imani@dawn.png"],
+    showsAfter: ["imani", "imani@dawn"],
+  },
+  {
+    row: "a name with nothing before its @ (@foo.png): renamed within the nameless thing the shared rule reads",
+    files: ["@foo.png", "bar.png"],
+    shows: [],
+    rename: "@foo.png",
+    to: "@baz",
+    after: ["@baz.png", "bar.png"],
+    showsAfter: [],
+  },
+];
+
+describe("the member-rename plan, by the compiler's file-name rule (#2204)", { timeout: 120000 }, () => {
+  it.each(MEMBER_RENAMES)("$row", async ({ files, shows, rename, to, after, showsAfter, refused }) => {
+    const script = lines("scene start", ...shows.map((name) => `  [[show portrait ${name}]]`), "end");
+    const h = await harness({
+      "main.sd": script,
+      ...Object.fromEntries(files.map((file) => [`${P}/${file}`, file])),
+    });
+    const at = (file: string) => `${P}/${file}`;
+    if (refused) {
+      await expect(h.assets.renameMember(at(rename), to)).rejects.toThrow(refused);
+      expect(await inPortraits(h)).toEqual(files.map(at).sort());
+      expect(await h.read("main.sd")).toBe(script);
+      return;
+    }
+    await h.assets.renameMember(at(rename), to);
+    expect(await inPortraits(h)).toEqual(after!.map(at).sort());
+    expect(await h.read(at(after!.find((file) => !files.includes(file))!))).toBe(rename);
+    expect(shown(await h.read("main.sd"))).toEqual(showsAfter!.map((name) => `[[show portrait ${name}]]`));
   });
 });

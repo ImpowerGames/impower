@@ -14,7 +14,7 @@ import { downloadFile } from "../utils/downloadFile";
 import { reasonOf, type FileMove } from "../utils/fileMoves";
 import { recordCreate, recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
 import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
-import { imageFileNameOf, imageThingsOf, stackBaseOf, thingNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
+import { imageFileNameOf, imageThingsOf, stackNameOf, thingNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import type { ImageVariant } from "../utils/imageVariants";
 import getUniqueFileName from "../utils/getUniqueFileName";
@@ -474,8 +474,8 @@ export default class WorkspaceAssets {
     const [thing] = imageThingsOf([to]);
     const alternate = thing?.pictures[0]?.alternate ?? null;
     if (stack.kind === "files" && !duplicate) {
-      const base = stackBaseOf(to);
-      const dotted = base.includes(".") && base !== stackBaseOf(path);
+      const spelt = imageFileNameOf(to).alternate;
+      const dotted = (spelt === null ? null : stackNameOf(spelt)) !== alternate;
       if (dotted || thing?.name !== stack.name) {
         throw new NameError(dotted ? DOTTED_NAME : keepBase(stack.name));
       }

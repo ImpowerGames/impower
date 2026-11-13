@@ -40,8 +40,6 @@ export const stemOf = (path: string): string => {
 
 export const thingNameOf = (name: string): string => name.split(/[@~]/)[0]!;
 
-export const stackBaseOf = (path: string): string => thingNameOf(stemOf(path));
-
 export const stackNameOf = (base: string): string => {
   const dot = base.indexOf(".");
   return dot > 0 ? base.slice(0, dot) : base;
@@ -66,6 +64,12 @@ export const imageFileNameOf = (path: string): ImageFileName => {
   };
 };
 
+export const encodedAssetNameOf = (path: string, type: string): string =>
+  type === "image" ? imageFileNameOf(path).name : leafOf(path).split(".")[0]!;
+
+export const assetNameOf = (path: string, type: string): string =>
+  encodedAssetNameOf(path, type).replaceAll("%40", "@");
+
 export const imageMemberOf = (file: ImageFileName): string =>
   file.layer === undefined
     ? file.name
@@ -88,7 +92,7 @@ export const imageThingsOf = (paths: Iterable<string>): ImageThing[] => {
   for (const path of paths) {
     if (rasterLayerOfPath(path)) continue;
     const file = imageFileNameOf(path);
-    const name = file.name.replaceAll("%40", "@");
+    const name = assetNameOf(path, "image");
     const picture = pictures.get(name) ?? {
       name,
       alternate: name.includes("@") ? name.slice(name.indexOf("@") + 1) : null,
