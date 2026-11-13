@@ -16,6 +16,7 @@ export const MAIN_URI = "inmemory:///main.sd";
 
 export interface UIHarness {
   game: Game;
+  readonly errors: string[];
   readonly messages: any[];
   ready: Promise<void>;
   reset(): void;
@@ -123,7 +124,7 @@ export function createHarness(
     scripts?: Record<string, string>;
   },
 ): UIHarness {
-  const { program } = compileUI(source, {
+  const { program, errors } = compileUI(source, {
     assets: opts?.assets,
     scripts: opts?.scripts,
   });
@@ -201,6 +202,7 @@ export function createHarness(
 
   const harness: UIHarness = {
     game,
+    errors,
     messages,
     ready,
     reset() {
@@ -228,7 +230,7 @@ export function createHarness(
           interpreter.queue(
             story.currentDisplayInstructions,
             story.currentChoices.map((c: any) => c.text),
-            story.currentText || "",
+            story.currentStyledText || "",
           );
         }
         guard++;

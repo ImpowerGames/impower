@@ -6604,6 +6604,9 @@
       "patterns": [
         {
           "include": "#Italic"
+        },
+        {
+          "include": "#SpanContent"
         }
       ]
     },

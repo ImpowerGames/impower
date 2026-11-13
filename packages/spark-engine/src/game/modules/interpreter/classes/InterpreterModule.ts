@@ -1,5 +1,18 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
 import { ObjectValue } from "@impower/sparkdown/src/runtime/Value";
+import {
+  SCAN_CLOSE,
+  SCAN_OPEN,
+  SCANNED_MARKS,
+  SPAN_CLOSE,
+  SPAN_END,
+  isStyleCode,
+  readSpanOpen,
+  scanned,
+  stripStyleCodes,
+  writtenText,
+  trimStyled,
+} from "@impower/sparkdown/src/runtime/displayStyle";
 import { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { Module } from "../../../core/classes/Module";
 import type {
@@ -59,7 +72,7 @@ export class InterpreterModule extends Module<
   InterpreterMessageMap,
   InterpreterBuiltins
 > {
-  MARKERS = ["^", "*", "_", "~~", "::"];
+  MARKERS = SCANNED_MARKS;
 
   CONTROL_TAGS = ["speed", "pitch", "p", "wait", "w", "!", "/!"];
 
@@ -265,12 +278,13 @@ export class InterpreterModule extends Module<
     const characterParentheticalMatch = match?.[3] || "";
     const characterPositionMatch = match?.[7] || "";
     const characterMap = this.context?.["character"] as any;
-    const characterId = this._characterNameMap[characterNameMatch] || "";
+    const writtenName = writtenText(characterNameMatch);
+    const characterId = this._characterNameMap[writtenName] || "";
     const characterObj =
-      characterMap?.[characterNameMatch] || characterMap?.[characterId];
+      characterMap?.[writtenName] || characterMap?.[characterId];
     const characterName =
       typeof characterObj?.name === "string" && characterObj.name
-        ? characterObj.name
+        ? scanned(characterObj.name)
         : characterNameMatch;
     const position =
       characterPositionMatch === "<"
@@ -292,7 +306,7 @@ export class InterpreterModule extends Module<
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i]!;
-      if (!line.trim() || this.ASSET_LINE_REGEX.test(line)) {
+      if (!stripStyleCodes(line).trim() || this.ASSET_LINE_REGEX.test(line)) {
         continue;
       }
       const match = line.match(this.PARENTHETICAL_REGEX);
@@ -331,7 +345,10 @@ export class InterpreterModule extends Module<
       delete beat.kind;
     }
     if (cue?.name) {
-      beat.speaker = { name: cue.name, parenthetical: cue.parenthetical };
+      beat.speaker = {
+        name: stripStyleCodes(cue.name),
+        parenthetical: stripStyleCodes(cue.parenthetical),
+      };
       if (cue.character) beat.speaker.character = cue.character;
     } else {
       delete beat.speaker;
@@ -564,7 +581,7 @@ export class InterpreterModule extends Module<
         if (load === null) {
           if (before.length > 0) this.queue(before, [], text, source);
         } else {
-          const loadInstructions: LoadInstruction[] = `${load}${text}`
+          const loadInstructions: LoadInstruction[] = stripStyleCodes(`${load}${text}`)
             .split(this.WHITESPACE_REGEX)
             .filter(Boolean)
             .map((name) => ({ name }));
@@ -983,6 +1000,13 @@ export class InterpreterModule extends Module<
     let currChunk: Chunk | undefined = undefined;
 
     const activeMarks: [string][] = [];
+    const spanMarks: [string][] = [];
+    const scansAll = Boolean(options?.choice);
+    let scanDepth = 0;
+    let spanRaw = false;
+    const lastMark = (test: (mark: string) => boolean) =>
+      activeMarks.findLast(([m]) => test(m)) ??
+      spanMarks.findLast(([m]) => test(m));
     let alignModifier = "";
     let speedModifier = 1;
     let pitchModifier: number | undefined = undefined;
@@ -1041,13 +1065,30 @@ export class InterpreterModule extends Module<
         for (let i = 0; i < chars.length; ) {
           const char = chars[i] ?? "";
           const nextChar = chars[i + 1] ?? "";
+          if (isStyleCode(char)) {
+            const opened = readSpanOpen(chars, i);
+            i = opened ? opened.next : i + 1;
+            if (char === SCAN_OPEN || char === SCAN_CLOSE) {
+              scanDepth = Math.max(0, scanDepth + (char === SCAN_OPEN ? 1 : -1));
+              activeMarks.length = 0;
+              raw = false;
+              escaped = false;
+            } else if (opened) {
+              spanMarks.push([opened.mark]);
+            } else if (char === SPAN_CLOSE || char === SPAN_END) {
+              spanMarks.pop();
+            }
+            spanRaw = spanMarks.some(([m]) => m.startsWith("`"));
+            continue;
+          }
+          const scanning = scansAll || scanDepth > 0;
           if (!escaped) {
-            if (char === "`") {
+            if (scanning && char === "`") {
               i += 1;
               raw = !raw;
               continue;
             }
-            if (!raw) {
+            if (!raw && !spanRaw) {
               if (char === "\\") {
                 i += 1;
                 escaped = true;
@@ -1192,10 +1233,12 @@ export class InterpreterModule extends Module<
                 }
                 continue;
               }
-              const styleMarker = this.MARKERS.find(
-                (marker) =>
-                  marker === chars.slice(i, i + marker.length).join(""),
-              );
+              const styleMarker = scanning
+                ? this.MARKERS.find(
+                    (marker) =>
+                      marker === chars.slice(i, i + marker.length).join(""),
+                  )
+                : undefined;
               if (styleMarker) {
                 let currentMarker = "";
                 const startIndex = i;
@@ -1236,23 +1279,13 @@ export class InterpreterModule extends Module<
             continue;
           }
 
-          const activeCenteredMark = activeMarks.findLast(([m]) =>
-            m.startsWith("^"),
-          );
-          const activeUnderlineMark = activeMarks.findLast(([m]) =>
-            m.startsWith("_"),
-          );
-          const activeBoldItalicMark = activeMarks.findLast(([m]) =>
-            m.startsWith("***"),
-          );
-          const activeBoldMark = activeMarks.findLast(([m]) => m === "**");
-          const activeItalicMark = activeMarks.findLast(([m]) => m === "*");
-          const activeWavyMark = activeMarks.findLast(([m]) =>
-            m.startsWith("~~"),
-          );
-          const activeShakyMark = activeMarks.findLast(([m]) =>
-            m.startsWith("::"),
-          );
+          const activeCenteredMark = lastMark((m) => m.startsWith("^"));
+          const activeUnderlineMark = lastMark((m) => m.startsWith("_"));
+          const activeBoldItalicMark = lastMark((m) => m.startsWith("***"));
+          const activeBoldMark = lastMark((m) => m === "**");
+          const activeItalicMark = lastMark((m) => m === "*");
+          const activeWavyMark = lastMark((m) => m.startsWith("~~"));
+          const activeShakyMark = lastMark((m) => m.startsWith("::"));
           const isCentered = Boolean(activeCenteredMark);
           const isUnderlined = Boolean(activeUnderlineMark);
           const isItalicized =
@@ -1383,7 +1416,7 @@ export class InterpreterModule extends Module<
               voicedSyllable,
               voiced,
               yelled,
-              raw,
+              raw: raw || spanRaw,
               centered,
               bolded,
               italicized,
@@ -1426,7 +1459,7 @@ export class InterpreterModule extends Module<
                   voicedSyllable,
                   voiced,
                   yelled,
-                  raw,
+                  raw: raw || spanRaw,
                   centered,
                   bolded,
                   italicized,
@@ -1447,9 +1480,9 @@ export class InterpreterModule extends Module<
       return linePhrases;
     };
 
-    const lines = content?.trim().split("\n");
+    const lines = trimStyled(content ?? "").split("\n");
     for (let l = 0; l < lines.length; l += 1) {
-      const line = lines[l]!?.trimStart();
+      const line = trimStyled(lines[l]!, { end: false });
       if (line.match(this.PARENTHETICAL_REGEX)) {
         alignModifier = "center";
         speedModifier = 0;
@@ -1589,32 +1622,37 @@ export class InterpreterModule extends Module<
               event.style["white_space"] = "pre";
             }
 
-            if (c.wavy) {
+            const animations = (
+              [
+                ["wavy", c.wavy ?? 0],
+                ["shaky", c.shaky ?? 0],
+              ] as const
+            ).flatMap(([name, offset]) => {
+              const animation = offset
+                ? (this.context as any)?.animation?.[name]
+                : undefined;
+              return animation
+                ? [
+                    {
+                      animation_name: animation.$name,
+                      animation_timing_function: animation.timing.easing,
+                      animation_iteration_count: animation.timing.iterations,
+                      animation_duration: animation.timing.duration,
+                      animation_delay: offset * animationOffset * -1,
+                    },
+                  ]
+                : [];
+            });
+            if (c.wavy || c.shaky) {
               event.style ??= {};
-              const animation = (this.context as any)?.animation?.["wavy"];
-              if (animation) {
-                event.style["display"] = "inline-block";
-                event.style["animation_name"] = animation.$name;
-                event.style["animation_timing_function"] =
-                  animation.timing.easing;
-                event.style["animation_iteration_count"] =
-                  animation.timing.iterations;
-                event.style["animation_duration"] = animation.timing.duration;
-                event.style["animation_delay"] = c.wavy * animationOffset * -1;
-              }
             }
-            if (c.shaky) {
-              event.style ??= {};
-              const animation = (this.context as any)?.animation?.["shaky"];
-              if (animation) {
-                event.style["display"] = "inline-block";
-                event.style["animation_name"] = animation.$name;
-                event.style["animation_timing_function"] =
-                  animation.timing.easing;
-                event.style["animation_iteration_count"] =
-                  animation.timing.iterations;
-                event.style["animation_duration"] = animation.timing.duration;
-                event.style["animation_delay"] = c.shaky * animationOffset * -1;
+            if (animations.length > 0) {
+              event.style!["display"] = "inline-block";
+              for (const key of Object.keys(animations[0]!) as (keyof (typeof animations)[0])[]) {
+                event.style![key] =
+                  animations.length === 1
+                    ? animations[0]![key]
+                    : animations.map((a) => a[key]).join(",");
               }
             }
             if (debug) {

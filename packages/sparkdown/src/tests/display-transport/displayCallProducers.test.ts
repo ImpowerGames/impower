@@ -3,6 +3,7 @@ import { continueShowedSomething } from "../runtime/runtimeTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { ControlCommand } from "../../runtime/ControlCommand";
 import { ObjectValue, StringValue } from "../../runtime/Value";
+import { writtenText } from "../../runtime/displayStyle";
 
 interface Step {
   text: string;
@@ -70,7 +71,9 @@ function steps(source: string): Step[] {
                 ? [...(v.value?.values() ?? [])].map(
                     (e) => (e as { value?: unknown }).value,
                   )
-                : (v as { value?: unknown }).value,
+                : v instanceof StringValue
+                  ? writtenText(v.value ?? "")
+                  : (v as { value?: unknown }).value,
             ]),
           ),
         ),
@@ -336,6 +339,30 @@ describe("producers outside display statements", () => {
       ],
     );
     expect(run[1]!.tags).toEqual(["2", "3"]);
+  });
+
+  test("a string constant spelling a long span code compiles, and its value shows without the code", () => {
+    const [step] = steps(
+      `store v = "\\u{E010}${"\\u{E03F}".repeat(7)}"\nscene start\n  A {v} Z\n  done\nend\n`,
+    );
+    expect(step!.text.replace(/\s+/g, " ").trim()).toBe("A Z");
+  });
+
+  test("a value in a line's tag or a choice's tag reaches the host's tags as written, without style codes", () => {
+    const values = `store v = "*a\\u{E002}b\\u{E010}\\u{E021}c"\n`;
+    const [line] = displayCallSteps(`${values}scene start\n  Said. # {v}\n  done\nend\n`, [
+      ["Said.\n", ["*abc"]],
+    ]);
+    expect(line!.tables[0]!["tags"]).toEqual(["*abc"]);
+    const run = displayCallSteps(
+      `${values}scene start\n  choose\n    * Take # {v}\n      Taken.\n  end\n  done\nend\n`,
+      [
+        ["", []],
+        ["Take\n", ["*abc"]],
+        ["Taken.\n", []],
+      ],
+    );
+    expect(run[1]!.tables[0]!["tags"]).toEqual(["*abc"]);
   });
 
   test("a picked choice ending in an inline divert joins the target's line", () => {

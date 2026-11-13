@@ -75,18 +75,22 @@
                   "value": {
                     "type": "StringExpression",
                     "content": [
+                      "",
                       {
                         "type": "VariableReference",
                         "path": [
                           "x"
                         ]
                       },
+                      "",
+                      "",
                       {
                         "type": "VariableReference",
                         "path": [
                           "y"
                         ]
-                      }
+                      },
+                      ""
                     ]
                   }
                 }

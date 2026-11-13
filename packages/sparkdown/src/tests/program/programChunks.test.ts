@@ -40,7 +40,7 @@ describe("the writer", () => {
       'Str "text"',
       'Str "Hello there."',
       "MakeTable 2",
-      "CallStd display/1 flags 1",
+      "CallStd display/1 flags 5",
       "Done",
     ]);
   });
@@ -55,7 +55,7 @@ describe("the writer", () => {
       'Str "text"',
       'Str "Hi."',
       "MakeTable 3",
-      "CallStd display/1 flags 1",
+      "CallStd display/1 flags 5",
       "Done",
     ]);
   });
@@ -63,8 +63,8 @@ describe("the writer", () => {
   it("marks a trailing glue open and gives its continuation no line start", () => {
     const lines = listing("You see a ..\n.. red door.\n");
     expect(lines.filter((line) => line.startsWith("CallStd"))).toEqual([
-      "CallStd display/1 flags 3",
-      "CallStd display/1 flags 1",
+      "CallStd display/1 flags 7",
+      "CallStd display/1 flags 5",
     ]);
     expect(lines.filter((line) => line === "LineStart")).toHaveLength(1);
   });

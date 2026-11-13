@@ -11,6 +11,7 @@ import {
   BEAT_DECISIONS_FIXED,
   BEAT_REWIND_FLOOR,
   BEAT_WAITED,
+  SAVE_FORMAT,
 } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, programSession } from "./programHarness";
@@ -789,6 +790,6 @@ describe("a save of format 1", () => {
     expect(loaded.loadSave(v1).format).toBe(1);
     expect(loaded.loadedSaveReport!.beats).toBe(1);
     expect(play(loaded)).toEqual(["Bumped 12.", "The end."]);
-    expect(JSON.parse(loaded.toSave()).format).toBe(2);
+    expect(JSON.parse(loaded.toSave()).format).toBe(SAVE_FORMAT);
   });
 });

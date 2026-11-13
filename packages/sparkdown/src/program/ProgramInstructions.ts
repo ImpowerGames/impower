@@ -68,6 +68,7 @@ export const NUM_FLOAT = 1;
 
 export const CALL_DISCARD = 1;
 export const CALL_OPEN = 2;
+export const CALL_STYLED = 4;
 
 export const NATIVE_CALL_ARGS = 1;
 

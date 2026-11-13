@@ -662,6 +662,16 @@ export const getCssEase = (
   if (!value) {
     return defaultValue;
   }
+  if (value.includes(",")) {
+    const entries = splitAt(parseComponentValues(value), TokenType.Comma);
+    if (entries.length > 1) {
+      return entries
+        .map((entry) =>
+          getCssEase(entry.map((node) => node.toString()).join("").trim(), theme, defaultValue),
+        )
+        .join(", ");
+    }
+  }
   const variable = getThemeVar(theme, "ease", value);
   if (variable !== undefined) {
     return variable;

@@ -266,6 +266,7 @@ function chosenTextAsDisplayCall(
     const body = startEcho ? [startEcho, ...words] : words;
     call = buildDisplayCall(undefined, undefined, body, null, ctx, [], {
       open,
+      readsMarks: true,
     });
   }
   const out: ParsedObject[] = [call];
