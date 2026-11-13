@@ -37,6 +37,7 @@ import {
 import { useLayout } from "@impower/impower-ui/layout";
 import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
+import type { VNode } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
@@ -123,6 +124,8 @@ const COUNTING_NOTE = "Counting uses…";
 
 const UNCOUNTED_NOTE = "Uses could not be counted. Edit a script to try again.";
 const ROW_HEIGHT = 63;
+
+const SCROLL_SETTLE_MS = 800;
 
 const TYPE_ICONS: Record<AssetType, IconComponent> = {
   image: ImageIcon,
@@ -383,7 +386,73 @@ function AssetsBrowser() {
 
   const settling = useRef<readonly string[]>([]);
   const relocated = useRef<readonly FileMove[]>([]);
+  const heldInspector = useRef<VNode | null>(null);
   const [settled, setSettled] = useState(0);
+
+  const replayed = workspace.movesReplayed.value;
+  const seenReplay = useRef(workspace.movesReplayed.peek());
+  const replay = replayed !== seenReplay.current ? replayed : null;
+  const pendingPaths = (): readonly string[] =>
+    replay && !replay.settled ? [...settling.current, ...replay.moves.map((move) => move.from)] : settling.current;
+  const relocations = (): readonly FileMove[] =>
+    replay?.settled ? [...relocated.current, ...replay.moves] : relocated.current;
+  const pending = (path: string) => pendingPaths().some((from) => path === from || isInside(path, from));
+
+  const gesture = useRef({ held: false, at: -Infinity });
+  useEffect(() => {
+    const element = page.current;
+    if (!element) {
+      return;
+    }
+    const inList = (event: Event) => !!list.current && list.current.contains(event.target as Node);
+    const moved = (event: Event) => {
+      if (inList(event)) {
+        gesture.current.at = performance.now();
+      }
+    };
+    const held = (event: PointerEvent) => {
+      gesture.current.held = !!list.current && event.target === list.current;
+    };
+    const released = () => {
+      if (gesture.current.held) {
+        gesture.current.held = false;
+        gesture.current.at = performance.now();
+      }
+    };
+    element.addEventListener("wheel", moved, { passive: true });
+    element.addEventListener("touchmove", moved, { passive: true });
+    element.addEventListener("pointerdown", held);
+    window.addEventListener("pointerup", released);
+    window.addEventListener("pointercancel", released);
+    return () => {
+      element.removeEventListener("wheel", moved);
+      element.removeEventListener("touchmove", moved);
+      element.removeEventListener("pointerdown", held);
+      window.removeEventListener("pointerup", released);
+      window.removeEventListener("pointercancel", released);
+    };
+  }, []);
+
+  const browsing = () => {
+    const search = page.current?.querySelector('input[type="search"]');
+    return (
+      gesture.current.held ||
+      performance.now() - gesture.current.at < SCROLL_SETTLE_MS ||
+      (!!search && document.activeElement === search)
+    );
+  };
+
+  const revealMoved = (path: string) => {
+    if (browsing()) {
+      return;
+    }
+    const moved = assetTypeOf(path, endings, listing.files[path]?.address);
+    const folder = parentOf(path);
+    if (!searching && (moved !== type || folder !== level.folder)) {
+      setLists({ assetsType: moved, assetsFolders: { ...folders, [moved]: folder } });
+    }
+    revealRow(path);
+  };
 
   useEffect(() => {
     if (openPath && openRowOf && openRowOf.path !== openPath) {
@@ -391,13 +460,15 @@ function AssetsBrowser() {
       return;
     }
     if (openPath && !openRowOf) {
-      if (settling.current.some((path) => openPath === path || isInside(openPath, path))) {
+      if (pending(openPath)) {
         return;
       }
-      const next = followed(openPath, relocated.current);
+      const next = followed(openPath, relocations());
       relocated.current = [];
+      seenReplay.current = replayed;
       if (next !== openPath && rowOf(next)) {
         setOpenPath(next);
+        revealMoved(next);
         return;
       }
       setOpenPath(null);
@@ -407,7 +478,7 @@ function AssetsBrowser() {
         focusRow(openPath);
       }
     }
-  }, [openPath, openRowOf, settled]);
+  }, [openPath, openRowOf, settled, replayed]);
 
   const relocating = async (paths: readonly string[], action: () => Promise<readonly FileMove[]>) => {
     settling.current = paths;
@@ -423,6 +494,7 @@ function AssetsBrowser() {
 
   const openAsset = (path: string) => {
     relocated.current = [];
+    seenReplay.current = workspace.movesReplayed.peek();
     setOpenedIn(host);
     setOpenPath(path);
   };
@@ -700,7 +772,11 @@ function AssetsBrowser() {
       }
     />
   );
-  const inspector = openRowOf ? inspectorOf(openRowOf) : null;
+  const followedPath = openPath && openedIn === host && !openRowOf ? followed(openPath, relocations()) : null;
+  const shownRow = openRowOf ?? (followedPath && followedPath !== openPath ? rowOf(followedPath) : null);
+  const inFlight = !shownRow && !!openPath && pending(openPath);
+  const inspector = shownRow ? inspectorOf(shownRow) : inFlight ? heldInspector.current : null;
+  heldInspector.current = inspector;
   const closing = !inspector && lastPath.current ? rowOf(lastPath.current) : null;
   const lastInspector = inspector ?? (closing ? inspectorOf(closing) : null);
 
@@ -937,7 +1013,7 @@ function AssetsBrowser() {
         <Sheet
           size="full"
           flush
-          open={!!openRowOf}
+          open={!!inspector}
           onOpenChange={(open) => {
             if (!open) closeInspector();
           }}

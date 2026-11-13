@@ -1078,6 +1078,7 @@ export abstract class SparkdownWorkspace {
     await this.compilerReady();
     await this._documentUpdatesPosted;
     this._lastCompiledUri = uri;
+    const filesRevision = this._fileUpdatesByUri.size ? undefined : this._filesRevision;
     const startFrom = this.compileStartFrom();
     this._lastCompileStartFrom = startFrom;
     const result = await this._compilerChannelConnection.sendRequest(
@@ -1090,6 +1091,7 @@ export abstract class SparkdownWorkspace {
     if (!result.program?.summary) {
       this._programTransport.decode(result.program);
     }
+    this._compiledFilesRevisions.set(uri, filesRevision);
     return result;
   }
 
@@ -1168,6 +1170,36 @@ export abstract class SparkdownWorkspace {
 
   program(uri: string) {
     return this.getProgramState(uri).program;
+  }
+
+  protected _compiledFilesRevisions = new Map<string, number | undefined>();
+
+  protected _currentCompiles = new Map<string, { revision: number; program: Promise<SparkProgram | undefined> }>();
+
+  async currentProgram(uri: string): Promise<SparkProgram | undefined> {
+    await this._fileUpdates;
+    const revision = this._filesRevision;
+    const program = this.program(uri);
+    if (program && this._compiledFilesRevisions.get(uri) === revision) {
+      return program;
+    }
+    const pending = this._currentCompiles.get(uri);
+    if (pending?.revision === revision) {
+      return pending.program;
+    }
+    const compiling = this.compile(uri, true);
+    this._currentCompiles.set(uri, { revision, program: compiling });
+    const forget = () => {
+      if (this._currentCompiles.get(uri)?.program === compiling) {
+        this._currentCompiles.delete(uri);
+      }
+    };
+    compiling.then(forget, forget);
+    return compiling;
+  }
+
+  protected holdsScript(uri: string) {
+    return this.textDocumentExists(uri) || this._watchedFiles.has(uri);
   }
 
   async openTextDocument(params: {
@@ -1308,7 +1340,7 @@ export abstract class SparkdownWorkspace {
     });
     if (
       this._lastCompiledUri &&
-      this.textDocumentExists(this._lastCompiledUri)
+      this.holdsScript(this._lastCompiledUri)
     ) {
       await this.debouncedCompile(this._lastCompiledUri, true);
     }
@@ -1352,7 +1384,7 @@ export abstract class SparkdownWorkspace {
     }
     if (
       this._lastCompiledUri &&
-      this.textDocumentExists(this._lastCompiledUri)
+      this.holdsScript(this._lastCompiledUri)
     ) {
       await this.debouncedCompile(this._lastCompiledUri, true);
     }
@@ -1385,7 +1417,7 @@ export abstract class SparkdownWorkspace {
     });
     if (
       this._lastCompiledUri &&
-      this.textDocumentExists(this._lastCompiledUri)
+      this.holdsScript(this._lastCompiledUri)
     ) {
       await this.debouncedCompile(this._lastCompiledUri, true);
     }
