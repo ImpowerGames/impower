@@ -66,12 +66,12 @@ describe("AudioPlayer", () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it("names its toggle Pause while playing and shows the elapsed and total time", async () => {
+  it("names its toggle Pause while playing and shows the elapsed and total time, each floored to whole seconds", async () => {
     const root = await mount(<AudioPlayer {...props({ state: "playing", time: 65, duration: 79.6 })} />);
     expect(root.querySelector("[data-audio-toggle]")!.getAttribute("aria-label")).toBe("Pause door");
     expect(root.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("playing");
     expect(root.querySelector("[data-audio-elapsed]")!.textContent).toBe("1:05");
-    expect(root.querySelector("[data-audio-total]")!.textContent).toBe("1:20");
+    expect(root.querySelector("[data-audio-total]")!.textContent).toBe("1:19");
   });
 
   it("names its toggle Play while paused and holds the place on the scrubber and in the time", async () => {

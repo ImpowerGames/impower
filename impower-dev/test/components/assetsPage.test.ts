@@ -440,6 +440,7 @@ describe("image folders as tiles", () => {
     await mount();
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
     expect(rowLabels()).toEqual(["Open image imani, 4 variants, modified 2d · 330 b"]);
+    expect(host!.querySelector('[aria-label="Assets and folders"]')!.parentElement!.className.split(" ")).toContain("pt-4");
     const badge = tiles()[0]!.querySelector('[data-variants-badge]')!;
     expect(badge.getAttribute("aria-label")).toBe("4 variants");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");

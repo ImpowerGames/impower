@@ -504,17 +504,19 @@ describe("the asset inspector", () => {
     expect(details()).toContain("Used as: Sound, Define");
     const rows = [...region()!.querySelectorAll<HTMLElement>('section[aria-label="Uses"] li button')];
     expect(rows.map((row) => row.getAttribute("aria-label"))).toEqual([
-      "Open Main at line 4",
-      "Open Main at line 12",
+      "Open main at line 4",
+      "Open main at line 12",
       "Open audio at line 1",
       "Open market at line 3",
     ]);
     expect(rows.map((row) => [...row.querySelectorAll("span, small")].filter((el) => !el.children.length).map((el) => el.textContent))).toEqual([
-      ["Main · line 4", "((door_chime))"],
-      ["Main · line 12", "((play sound door_chime))"],
+      ["main · line 4", "((door_chime))"],
+      ["main · line 12", "((play sound door_chime))"],
       ["audio · line 1", "define door_chime as sound with"],
       ["market · line 3", "((door_chime))"],
     ]);
+    expect(rows.every((row) => row.className.split(" ").includes("min-h-[52px]"))).toBe(true);
+    expect(rows[0]!.closest("ul")!.className.split(" ")).toEqual(expect.arrayContaining(["grid", "gap-[3px]"]));
     expect(region()!.querySelector('section[aria-label="Uses"] h3 + * h3, section[aria-label="Uses"] section')).toBeNull();
     await click(rows[1]);
     expect(window.revealDocument).toHaveBeenCalledWith("file:///p/main.sd", {
@@ -548,7 +550,7 @@ describe("the asset inspector", () => {
     expect(assets.watchFacts.mock.calls[0]![0]).toEqual(["Assets/Audio/Sounds/door_chime.wav"]);
     expect(sectionTitles()).toContain("Used in 2 lines");
     expect(details()).toContain("Used as: Sound");
-    const use = region()!.querySelector<HTMLElement>('button[aria-label="Open Main at line 5"]');
+    const use = region()!.querySelector<HTMLElement>('button[aria-label="Open main at line 5"]');
     await click(use);
     expect(window.revealDocument).toHaveBeenCalledWith("file:///p/main.sd", range);
   });
@@ -574,7 +576,7 @@ describe("the asset inspector", () => {
       };
     });
     await settle();
-    expect(details()).toContain("Length: 0:08");
+    expect(details()).toContain("Length: 0:07");
   });
 
   it("says a file is not used yet, with its type's note", async () => {
@@ -1139,7 +1141,7 @@ describe("the Variants tester and the Files section", () => {
     expect(details()).toContain("Used as: Portrait");
     expect(
       [...region()!.querySelectorAll<HTMLElement>('section[aria-label="Uses"] li button')].map((b) => b.getAttribute("aria-label")),
-    ).toEqual(["Open Main at line 4", "Open market at line 2", "Open market at line 7"]);
+    ).toEqual(["Open main at line 4", "Open market at line 2", "Open market at line 7"]);
   });
 
   it("offers a row per group, writes the reference live, shows the engine's picture, and resets", async () => {

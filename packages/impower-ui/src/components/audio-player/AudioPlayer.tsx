@@ -178,7 +178,7 @@ export default function AudioPlayer({
                 aria-valuemin={0}
                 aria-valuemax={Math.round(length)}
                 aria-valuenow={Math.round(Math.min(time, length))}
-                aria-valuetext={`${clock(time)} of ${clock(Math.round(length))}`}
+                aria-valuetext={`${clock(time)} of ${clock(length)}`}
                 class="absolute inset-0 cursor-pointer touch-pan-y rounded-[4px] outline-none focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-accent"
                 onKeyDown={onKeyDown}
                 onPointerDown={(event) => {
@@ -197,7 +197,7 @@ export default function AudioPlayer({
             </div>
             <div class="absolute inset-x-1.5 top-[calc(100%+1px)] flex justify-between text-[11px]/[14px] whitespace-nowrap text-muted tabular-nums">
               <span data-audio-elapsed>{clock(time)}</span>
-              <span data-audio-total>{clock(Math.round(length))}</span>
+              <span data-audio-total>{clock(length)}</span>
             </div>
           </div>
           <Button
