@@ -1,5 +1,9 @@
 import { LiveRegion, SplitPane } from "@impower/impower-ui/components";
-import { useLayout } from "@impower/impower-ui/layout";
+import {
+  useCoarsePointer,
+  useKeyboardFit,
+  useLayout,
+} from "@impower/impower-ui/layout";
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
@@ -36,6 +40,7 @@ export default function MainWindow(_props: MainWindowProps) {
   useWorkspaceSession();
   useFocusRule();
   useFindShortcut();
+  useKeyboardFit(useCoarsePointer());
   const layout = useLayout();
   const isSSR = typeof window === "undefined";
   const desktop = !isSSR && layout === "desktop";
