@@ -65,9 +65,14 @@ interface ChoiceTextPart extends TextRange {
   node: SyntaxNode;
 }
 
+export interface ChoiceTextSpans {
+  ranges: TextRange[];
+  values: TextRange[];
+}
+
 export interface ChoiceTextRanges {
-  chosen: TextRange[];
-  offered: TextRange[];
+  chosen: ChoiceTextSpans;
+  offered: ChoiceTextSpans;
 }
 
 export function choiceTextRanges(choiceNode: SyntaxNode): ChoiceTextRanges {
@@ -75,19 +80,23 @@ export function choiceTextRanges(choiceNode: SyntaxNode): ChoiceTextRanges {
   const start = text.start.map((part) => ({ node: part.node, from: part.node.from, to: part.to }));
   const only = text.only ? [{ node: text.only, from: text.only.from, to: text.only.to }] : [];
   const inner = text.inner ? [{ node: text.inner, from: text.inner.from + 1, to: text.inner.to }] : [];
-  return { chosen: uncommentedRanges([...start, ...inner]), offered: uncommentedRanges([...start, ...only]) };
+  return { chosen: textSpans([...start, ...inner]), offered: textSpans([...start, ...only]) };
 }
 
-function uncommentedRanges(parts: readonly ChoiceTextPart[]): TextRange[] {
+function textSpans(parts: readonly ChoiceTextPart[]): ChoiceTextSpans {
   const ranges: TextRange[] = [];
+  const values: TextRange[] = [];
   for (const part of parts) {
     let cursor = part.from;
     for (const marker of choiceTextMarkers(part.node, part.to)) {
-      if (marker.kind !== "comment") continue;
+      if (marker.kind === "expr") {
+        values.push({ from: marker.node.from, to: marker.node.to });
+        continue;
+      }
       if (marker.node.from > cursor) ranges.push({ from: cursor, to: marker.node.from });
       cursor = Math.max(cursor, marker.node.to);
     }
     if (part.to > cursor) ranges.push({ from: cursor, to: part.to });
   }
-  return ranges;
+  return { ranges, values };
 }

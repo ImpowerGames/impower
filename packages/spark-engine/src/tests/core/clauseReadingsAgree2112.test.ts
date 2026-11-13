@@ -341,7 +341,11 @@ const CHOICE_DIRECTIVES: readonly (readonly [label: string, text: string])[] = [
   ["an image directive after the choice brackets", "Go [x] [[mia {t[1]} morph talk]] now"],
   ["a directive closed before the choice brackets", "Go ((a b)) [x] now"],
   ["a directive closed inside the choice brackets", "Go ((a [b)) c] d"],
+  ["a directive closed both inside and after the choice brackets", "Go ((a [x)) y] z)) now"],
+  ["a closer inside a tag after the choice brackets", "Go ((a [x] # note)) now"],
 ];
+
+const UNREAD_CHOICE_DIRECTIVES = ["a closer inside a tag after the choice brackets"];
 
 const CHOICE_ROWS: (readonly [label: string, text: string])[] = CHOICE_DIRECTIVES.flatMap(([label, text]) => [
   [label, text] as const,
@@ -458,14 +462,29 @@ beforeAll(async () => {
     await rowHarness.ready;
     const rowSeen = spyOnChunks(rowHarness);
     await rowHarness.preview(0);
-    const offered = rowSeen.length;
     if (rowHarness.game.story.currentChoices.length !== 1) continue;
     rowHarness.game.story.ChooseChoiceIndex(0);
     rowHarness.nextBeat();
-    const read = rowSeen[offered] ?? rowSeen[0];
-    if (read) choiceInterpreterReadings.set(label, readingOf(read));
+    if (rowSeen.length > 0) choiceInterpreterReadings.set(label, merged(rowSeen.map(readingOf)));
   }
 });
+
+function merged(readings: readonly Reading[]): Reading {
+  const all = empty();
+  for (const reading of readings) {
+    all.links.push(...reading.links);
+    all.strays.push(...reading.strays);
+    all.valueErrors.push(...reading.valueErrors);
+    all.flagArguments.push(...reading.flagArguments);
+    all.implicitNames.push(...reading.implicitNames);
+    all.incompleteNavigate ||= reading.incompleteNavigate;
+    all.clearWarning ||= reading.clearWarning;
+    all.playArity ||= reading.playArity;
+    if (all.pick === undefined && reading.pick !== undefined) all.pick = reading.pick;
+    if (all.unrecognizedControl === undefined && reading.unrecognizedControl !== undefined) all.unrecognizedControl = reading.unrecognizedControl;
+  }
+  return normalize(all);
+}
 
 describe("every editor reader of a directive agrees with the interpreter's chunk (I-2112)", () => {
   test("the table holds every row", () => {
@@ -486,8 +505,12 @@ describe("every editor reader of a directive agrees with the interpreter's chunk
 });
 
 describe("every editor reader of a directive in a choice line agrees with the chunk the story hands the interpreter (I-2225)", () => {
+  test("the interpreter reads a directive on every row but those whose closer the story sends as a tag", () => {
+    const unread = CHOICE_ROWS.filter(([label]) => !choiceInterpreterReadings.has(label)).map(([label]) => label);
+    expect(unread).toEqual(UNREAD_CHOICE_DIRECTIVES.flatMap((label) => [label, `${label}, with a divert`]));
+  });
+
   test.each(CHOICE_ROWS.map(([label, text]) => [label, text] as const))("%s: `+ %s`", (label) => {
-    expect(choiceInterpreterReadings.has(label)).toBe(true);
-    expect(choiceCompilerReadings.get(label) ?? empty()).toStrictEqual(choiceInterpreterReadings.get(label));
+    expect(choiceCompilerReadings.get(label) ?? empty()).toStrictEqual(choiceInterpreterReadings.get(label) ?? empty());
   });
 });

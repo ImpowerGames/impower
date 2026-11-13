@@ -179,14 +179,22 @@ function rangesFrom(at: number, ranges: readonly TextRange[]): TextRange[] | und
   return index < 0 ? undefined : [{ from: at, to: ranges[index]!.to }, ...ranges.slice(index + 1)];
 }
 
-function directiveTexts(node: DirectiveNodeRef): TextRange[][] {
+interface DirectiveText {
+  ranges: TextRange[];
+  values: TextRange[];
+}
+
+function directiveTexts(node: DirectiveNodeRef): DirectiveText[] {
   let choice = node.node?.parent ?? null;
   while (choice && choice.name !== "Choice") choice = choice.parent;
   const game = choice ? choiceTextRanges(choice) : undefined;
   const texts = game
-    ? [game.chosen, game.offered].map((ranges) => rangesFrom(node.from, ranges)).filter((ranges) => ranges !== undefined)
+    ? [game.chosen, game.offered].flatMap(({ ranges, values }) => {
+        const from = rangesFrom(node.from, ranges);
+        return from ? [{ ranges: from, values }] : [];
+      })
     : [];
-  return texts.length > 0 ? texts : [[{ from: node.from, to: node.to }]];
+  return texts.length > 0 ? texts : [{ ranges: [{ from: node.from, to: node.to }], values: [] }];
 }
 
 function composeText(ranges: TextRange[], read: (from: number, to: number) => string) {
@@ -196,27 +204,49 @@ function composeText(ranges: TextRange[], read: (from: number, to: number) => st
     starts.push(text.length);
     text += read(range.from, range.to);
   }
-  return { ranges, starts, text };
-}
-
-export function readSourceDirective(
-  node: DirectiveNodeRef,
-  read: (from: number, to: number) => string,
-): SourceDirective | undefined {
-  const bracket = Object.hasOwn(DIRECTIVE_NODE_BRACKETS, node.name) ? DIRECTIVE_NODE_BRACKETS[node.name] : undefined;
-  if (!bracket) return undefined;
-  const closer = DIRECTIVE_CLOSERS[bracket];
-  const found = directiveTexts(node)
-    .map((ranges) => composeText(ranges, read))
-    .find(({ text }) => text.indexOf(closer, 2) >= 0);
-  if (!found) return undefined;
-  const { ranges, starts, text } = found;
-  const closeAt = text.indexOf(closer, 2);
   const sourceAt = (index: number): number => {
     let i = ranges.length - 1;
     while (i > 0 && starts[i]! > index) i -= 1;
     return ranges[i]!.from + index - starts[i]!;
   };
+  return { text, sourceAt };
+}
+
+export interface SourceDirectiveTexts {
+  directives: SourceDirective[];
+  filledValues: TextRange[];
+}
+
+export function readSourceDirectiveTexts(
+  node: DirectiveNodeRef,
+  read: (from: number, to: number) => string,
+): SourceDirectiveTexts {
+  const found: SourceDirectiveTexts = { directives: [], filledValues: [] };
+  const bracket = Object.hasOwn(DIRECTIVE_NODE_BRACKETS, node.name) ? DIRECTIVE_NODE_BRACKETS[node.name] : undefined;
+  if (!bracket) return found;
+  const seen = new Set<string>();
+  for (const { ranges, values } of directiveTexts(node)) {
+    const { text, sourceAt } = composeText(ranges, read);
+    const closeAt = text.indexOf(DIRECTIVE_CLOSERS[bracket], 2);
+    if (closeAt < 0) continue;
+    const end = sourceAt(closeAt);
+    const value = values.find((range) => range.from < end && node.from < range.to);
+    const key = value ? `value:${value.from}:${value.to}` : `${end}:${text.slice(0, closeAt)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (value) found.filledValues.push(value);
+    else found.directives.push(sourceDirective(node, bracket, text, closeAt, sourceAt));
+  }
+  return found;
+}
+
+function sourceDirective(
+  node: DirectiveNodeRef,
+  bracket: DirectiveBracket,
+  text: string,
+  closeAt: number,
+  sourceAt: (index: number) => number,
+): SourceDirective {
   const reading = readDirective(bracket, text.slice(2, closeAt));
   const shift = (word: DirectiveWord): DirectiveWord => ({
     text: word.text,
@@ -253,8 +283,7 @@ export function readSourceDirectives(
   tree.iterate({
     enter: (node) => {
       if (!Object.hasOwn(DIRECTIVE_NODE_BRACKETS, node.name)) return undefined;
-      const directive = readSourceDirective(node, read);
-      if (directive) directives.push(directive);
+      directives.push(...readSourceDirectiveTexts(node, read).directives);
       return false;
     },
   });

@@ -51,9 +51,13 @@ import {
   DIRECTIVE_NODE_BRACKETS,
   directiveClauseWords,
   directiveValueKind,
-  readSourceDirective,
+  readSourceDirectiveTexts,
   type SourceDirective,
 } from "../../utils/readDirective";
+import { distinctRanges } from "../../utils/distinctRanges";
+
+const FILLED_DIRECTIVE_VALUE_MESSAGE =
+  "The game fills in this value before it reads the directive it sits in, because the directive runs past the choice's brackets, so the editor cannot check that directive's names and clauses. Close the directive before the brackets, or move the value out of it.";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -1462,8 +1466,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
     }
     if (Object.hasOwn(DIRECTIVE_NODE_BRACKETS, nodeRef.name)) {
-      const directive = readSourceDirective(nodeRef, (from, to) => this.read(from, to));
-      if (directive) this.directiveIssues(annotations, directive);
+      const { directives, filledValues } = readSourceDirectiveTexts(nodeRef, (from, to) => this.read(from, to));
+      const issues: Range<SparkdownAnnotation<Diagnostic>>[] = [];
+      for (const directive of directives) this.directiveIssues(issues, directive);
+      annotations.push(...distinctRanges(issues));
+      for (const value of filledValues) {
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message: FILLED_DIRECTIVE_VALUE_MESSAGE,
+            severity: "warning",
+          }).range(value.from, value.to),
+        );
+      }
     }
     if (nodeRef.name === "EventAttributeName") {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
@@ -1633,8 +1647,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "IllegalChar") {
       const context = getContextNames(nodeRef.node);
       const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
-      const directive = command ? readSourceDirective(command, (from, to) => this.read(from, to)) : undefined;
-      if (directive && directiveClauseWords(directive).some((word) => word.from <= nodeRef.from && nodeRef.to <= word.to)) {
+      const directives = command ? readSourceDirectiveTexts(command, (from, to) => this.read(from, to)).directives : [];
+      if (directives.some((directive) => directiveClauseWords(directive).some((word) => word.from <= nodeRef.from && nodeRef.to <= word.to))) {
         return annotations;
       }
       if (context.includes("ImageCommand")) {
