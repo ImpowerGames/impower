@@ -86,10 +86,18 @@ describe("PreviewStrip", () => {
     expect(words().className).toContain("line-clamp-2");
     await mount(<PreviewStrip label="ACTION" words="Rain." statuses={[status("problem")]} />);
     expect(words().className).toContain("line-clamp-2");
+    expect(host!.querySelector("[data-preview-strip-status]")!.className).toContain("-my-[11px]");
     await mount(
       <PreviewStrip label="ACTION" words="Rain." statuses={[status("problem"), status("forced")]} />,
     );
     expect(words().className).toContain("line-clamp-1");
+    const rows = Array.from(host!.querySelectorAll("[data-preview-strip-status]"));
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.className).toContain("min-h-11");
+      expect(row.className).toContain("-my-[13px]");
+    }
+    expect(host!.querySelector("[data-preview-strip-copy]")!.className).toContain("self-start");
   });
 
   it("presses a status row and keeps its one-line title cut with an ellipsis", async () => {

@@ -12,7 +12,7 @@ export const previewStripVariants = cva(
 
 export const previewStripStatusVariants = cva(
   [
-    "-mx-2 -my-[11px] box-border flex min-h-11 w-max max-w-full cursor-pointer items-center gap-1.5",
+    "-mx-2 box-border flex min-h-11 w-max max-w-full cursor-pointer items-center gap-1.5",
     "rounded-[10px/15px] border-x-4 border-y-[9px] border-solid border-transparent bg-transparent bg-clip-padding px-1 py-0.5",
     "text-left text-[11px]/[1.4] [&_svg]:size-4 [&_svg]:flex-none",
     "hover:bg-tint focus-visible:outline-2 focus-visible:outline-accent",
@@ -24,8 +24,12 @@ export const previewStripStatusVariants = cva(
         warning: "text-warning",
         info: "text-muted",
       },
+      rows: {
+        one: "-my-[11px]",
+        two: "-my-[13px]",
+      },
     },
-    defaultVariants: { tone: "warning" },
+    defaultVariants: { tone: "warning", rows: "one" },
   },
 );
 
@@ -171,9 +175,17 @@ export default function PreviewStrip({
         </div>
         <div
           data-preview-strip-copy=""
-          class="flex min-w-0 flex-1 flex-col items-start"
+          class={cn(
+            "flex min-w-0 flex-1 flex-col items-start",
+            shown.length > 1 && "self-start",
+          )}
         >
-          <b class="mb-[2px] block w-full truncate text-[10px]/[1.4] font-bold tracking-[0.06em] text-ink">
+          <b
+            class={cn(
+              "block w-full truncate text-[10px]/[1.4] font-bold tracking-[0.06em] text-ink",
+              shown.length > 1 ? "mb-0" : "mb-[2px]",
+            )}
+          >
             {label}
           </b>
           <p
@@ -191,7 +203,10 @@ export default function PreviewStrip({
               aria-label={status.label}
               title={status.label ?? status.text}
               data-preview-strip-status={status.key}
-              class={previewStripStatusVariants({ tone: status.tone })}
+              class={previewStripStatusVariants({
+                tone: status.tone,
+                rows: shown.length > 1 ? "two" : "one",
+              })}
               onClick={status.onPress}
             >
               {status.icon}
