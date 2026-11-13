@@ -267,10 +267,24 @@ export const getPreviewLine = (
     const captions: SyntaxNode[] = [];
     const content = block.getChild(`${CHOOSE}_content`);
     let optionsEnded = false;
+    let direct = false;
+    const addOption = (option: SyntaxNode) => {
+      choice.options!.push(option);
+      linesOf(option).forEach((l) => choice.lines.add(l));
+    };
+    const addNestedOptions = (parent: SyntaxNode) => {
+      for (let inner = parent.firstChild; inner; inner = inner.nextSibling) {
+        if (inner.name === "Choice") {
+          addOption(inner);
+        } else if (inner.name !== CHOOSE) {
+          addNestedOptions(inner);
+        }
+      }
+    };
     for (let child = content?.firstChild; child; child = child.nextSibling) {
       if (child.name === "Choice") {
-        choice.options!.push(child);
-        linesOf(child).forEach((l) => choice.lines.add(l));
+        direct = true;
+        addOption(child);
       } else if (child.name === THEN_CLAUSE) {
         optionsEnded = true;
         visitNode(child);
@@ -281,6 +295,9 @@ export const getPreviewLine = (
       ) {
         captions.push(child);
       } else {
+        if (!optionsEnded && !direct) {
+          addNestedOptions(child);
+        }
         visitNode(child);
       }
     }

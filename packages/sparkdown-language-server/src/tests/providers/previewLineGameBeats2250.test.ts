@@ -208,6 +208,34 @@ const ROWS: Row[] = [
     menuAt: 1,
     shows: { kind: "choice", words: "North. · South." },
   },
+  {
+    shape: "a choose block whose options sit inside an if block, on an option",
+    lines: ["choose", "  if true then", "    * [North.]", "    * [South.]", "  end", "end"],
+    caret: 3,
+    menuAt: 1,
+    shows: { kind: "choice", words: "North. · South." },
+  },
+  {
+    shape: "a choose block whose options sit inside a do block",
+    lines: ["choose", "  do", "    * [North.]", "    * [South.]", "  end", "end"],
+    caret: 3,
+    menuAt: 1,
+    shows: { kind: "choice", words: "North. · South." },
+  },
+  {
+    shape: "a captioned choose block whose options sit inside an if block",
+    lines: ["choose", "  Where now?", "  if true then", "    * [North.]", "    * [South.]", "  end", "end"],
+    caret: 4,
+    menuAt: 2,
+    shows: { kind: "choice", words: "Where now?" },
+  },
+  {
+    shape: "the choose line of a block whose options sit inside an if block",
+    lines: ["choose", "  if true then", "    * [North.]", "    * [South.]", "  end", "end"],
+    caret: 1,
+    menuAt: 1,
+    shows: { kind: "choice", words: "North. · South." },
+  },
 ];
 
 describe("the strip shows the beat the game previews for the caret's line", () => {
