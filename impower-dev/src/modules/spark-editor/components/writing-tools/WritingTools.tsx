@@ -162,8 +162,32 @@ export default function WritingTools({
     };
   }, [colorTarget]);
 
-  const close = (_reason?: ToolPanelCloseReason) =>
-    void withWindow((win) => win.closeWritingTools());
+  const workingElement = () => {
+    const back = returnTo.current;
+    return back?.isConnected ? back : null;
+  };
+  const focusScript = (win: WorkspaceWindow) => {
+    if (workspace.effectiveScriptMode.peek() === "reading") return;
+    win.executeEditorCommand(filename, "focus");
+  };
+
+  const close = (reason?: ToolPanelCloseReason) =>
+    void withWindow((win) => {
+      win.closeWritingTools();
+      if ((reason === "close" || reason === "escape") && !workingElement()) {
+        focusScript(win);
+      }
+    });
+  const applyColor = (value: string) =>
+    withWindow(async (win) => {
+      const outcome = await win.applyChangeColor(value);
+      if (outcome === "applied") {
+        const back = workingElement();
+        if (back) back.focus({ preventScroll: true });
+        else focusScript(win);
+      }
+      return outcome;
+    });
   const show = (next: WritingToolsView) =>
     void withWindow((win) => win.showWritingToolsView(next));
   const onName = (action: NameAction) => {
@@ -214,7 +238,7 @@ export default function WritingTools({
         keepOpenOn={(target) =>
           !!target.closest("[data-writer-bar], .cm-keyboard-toolbar")
         }
-        returnFocus={() => returnTo.current}
+        returnFocus={workingElement}
       >
         {view === "menu" ? (
           <WritingToolsMenu
@@ -233,7 +257,7 @@ export default function WritingTools({
             color={colorTarget.color}
             colors={storyColors}
             canEdit={canEdit}
-            onUse={(value) => withWindow((win) => win.applyChangeColor(value))}
+            onUse={applyColor}
           />
         ) : view === "guide" ? (
           <SparkdownGuide />
