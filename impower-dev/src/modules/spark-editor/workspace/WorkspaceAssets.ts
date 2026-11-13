@@ -14,7 +14,8 @@ import { downloadFile } from "../utils/downloadFile";
 import { reasonOf, type FileMove } from "../utils/fileMoves";
 import { recordCreate, recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
 import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
-import { imageStacks, isStacked, stackBaseOf, type ImageStack } from "../utils/imageStacks";
+import { imageFileNameOf, stackBaseOf } from "@impower/sparkdown/src/attributes/imageFileName";
+import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import type { ImageVariant } from "../utils/imageVariants";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
@@ -475,8 +476,16 @@ export default class WorkspaceAssets {
       return path;
     }
     const member = stack.members.find((candidate) => candidate.path === path);
+    const named = imageFileNameOf(path).picture;
+    const renamed = imageFileNameOf(to).picture;
+    const layers =
+      stack.kind === "files" && member?.layer === undefined && renamed !== named
+        ? stack.members
+            .filter((candidate) => candidate.layer !== undefined && imageFileNameOf(candidate.path).picture === named)
+            .map((candidate) => ({ from: candidate.path, to: joinPath(folder, renamed + nameOf(candidate.path).slice(named.length)) }))
+        : [];
     try {
-      await this.applyRenames(projectId, [{ from: path, to }], nameOf(path), nameOf(path), stack, member?.layer === undefined);
+      await this.applyRenames(projectId, [{ from: path, to }, ...layers], nameOf(path), nameOf(path), stack, member?.layer === undefined);
     } catch (error) {
       const rollback = (error as { rollback?: WorkspaceEditRollback }).rollback;
       throw rollback ? Object.assign(new NameError(renameFailureMessage(path, to, error)), { rollback }) : error;

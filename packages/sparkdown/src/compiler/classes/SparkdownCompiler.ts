@@ -32,6 +32,7 @@ import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
 import { STDLIB } from "../../runtime/StdLib";
 import { executionWatch } from "../../runtime/ExecutionWatch";
+import { imageFileNameOf, imageMemberOf } from "../../attributes/imageFileName";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import type { File } from "../types/File";
 import { diagnoseRareAttributeOptions, resolveAttributes, type AttributeVocabulary } from "../../attributes";
@@ -4209,6 +4210,19 @@ export class SparkdownCompiler {
     if (files) {
       const claimedBy = new Map<string, string>();
       const flaggedCollision = new Set<string>();
+      const claim = (uri: string, type: string, name: string) => {
+        const key = `${type}/${name}`;
+        const firstUri = claimedBy.get(key);
+        if (firstUri === undefined) {
+          claimedBy.set(key, uri);
+        } else if (firstUri !== uri) {
+          this.pushAssetCollisionDiagnostic(program, uri, firstUri, type, name);
+          if (!flaggedCollision.has(key)) {
+            this.pushAssetCollisionDiagnostic(program, firstUri, uri, type, name);
+            flaggedCollision.add(key);
+          }
+        }
+      };
       for (const file of files) {
         const rasterFile = isRasterLayerFile(file);
         const rasterPath = rasterFile ? decodeURIComponent(new URL(file.uri).pathname) : "";
@@ -4216,31 +4230,14 @@ export class SparkdownCompiler {
         const explicitRaster = rasterFile && getContextEntry(state.structDefinitions, "layered_image", rasterFolder) !== undefined;
         if (rasterFile && !explicitRaster && rasterAliases.get(file.name)! > 1) continue;
         const type = file.type;
+        const member = type === "image" && !rasterFile ? imageFileNameOf(file.uri) : undefined;
+        if (member?.layer !== undefined) {
+          claim(file.uri, type, imageMemberOf(member).replaceAll("%40", "@"));
+          continue;
+        }
         const name = file.name;
         if (name && type !== "script") {
-          const key = `${type}/${name}`;
-          const firstUri = claimedBy.get(key);
-          if (firstUri === undefined) {
-            claimedBy.set(key, file.uri);
-          } else if (firstUri !== file.uri) {
-            this.pushAssetCollisionDiagnostic(
-              program,
-              file.uri,
-              firstUri,
-              type,
-              name,
-            );
-            if (!flaggedCollision.has(key)) {
-              this.pushAssetCollisionDiagnostic(
-                program,
-                firstUri,
-                file.uri,
-                type,
-                name,
-              );
-              flaggedCollision.add(key);
-            }
-          }
+          claim(file.uri, type, name);
         }
         program.context[type] ??= {};
         if (!Object.hasOwn(program.context[type], name)) {
@@ -4315,17 +4312,7 @@ export class SparkdownCompiler {
           const filename = rasterPath.split("/").at(-1)!;
           const stem = filename.slice(0, -(file.ext.length + 1));
           if (stem !== name) {
-            const key = `${type}/${stem}`;
-            const firstUri = claimedBy.get(key);
-            if (firstUri && firstUri !== file.uri) {
-              this.pushAssetCollisionDiagnostic(program, file.uri, firstUri, type, stem);
-              if (!flaggedCollision.has(key)) {
-                this.pushAssetCollisionDiagnostic(program, firstUri, file.uri, type, stem);
-                flaggedCollision.add(key);
-              }
-            } else {
-              claimedBy.set(key, file.uri);
-            }
+            claim(file.uri, type, stem);
             program.context[type][stem] = { ...program.context[type][name], $name: stem, name: stem };
           }
         }
