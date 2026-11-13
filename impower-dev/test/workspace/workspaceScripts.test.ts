@@ -158,6 +158,22 @@ describe("Scripts through the workspace", () => {
     ]);
   });
 
+  it("reads the scripts before naming a script created while the list is still loading, never writing over one", async () => {
+    const { scripts, files } = fakeWorkspace([...PATHS, "Scripts/Untitled script.sd"], FOLDERS);
+    workspace.scriptListing.value = null;
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script 2.sd");
+    expect(files.get("Scripts/Untitled script.sd")).toBe("text of Scripts/Untitled script.sd");
+  });
+
+  it("names past a script it has just written that the file list does not show yet", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    const before = await fs.getFiles();
+    fs.getFiles.mockImplementation(async () => before);
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script 2.sd");
+  });
+
   it("runs the next waiting create after one ahead of it fails, which keeps no name", async () => {
     const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();

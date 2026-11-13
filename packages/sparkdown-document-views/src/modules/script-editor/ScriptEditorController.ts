@@ -638,6 +638,7 @@ export class ScriptEditorController {
       !this._view?.contentDOM.contains(target)
     ) {
       this._focusLeft = true;
+      this._focusWhenLoaded = false;
     }
   };
 

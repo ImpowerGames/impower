@@ -656,6 +656,24 @@ describe("ScriptEditorController commands", () => {
     expect(focus).not.toHaveBeenCalled();
   });
 
+  it("drops a focus waiting for the editor to settle when the author moves focus elsewhere first", async () => {
+    const { controller, view } = await loadedEditor();
+    controller.setup();
+    const focus = vi.spyOn(view, "focus");
+    run(controller, "focus");
+    const name = document.body.appendChild(document.createElement("input"));
+    try {
+      name.focus();
+      expect(document.activeElement).toBe(name);
+      controller["handleIdle"]();
+      expect(focus).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(name);
+    } finally {
+      name.remove();
+      controller.dispose();
+    }
+  });
+
   it("drops a focus waiting for the editor to settle when another script loads first", async () => {
     const { controller, view } = await loadedEditor();
     const focus = vi.spyOn(view, "focus");

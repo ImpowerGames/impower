@@ -97,6 +97,18 @@ describe("sort model", () => {
     ]);
   });
 
+  it("keeps a shown name whole when it does not end with its file's ending, as an asset or a folder stack shows", () => {
+    const row = (name: string, path: string): ListEntry => ({
+      kind: "file", path, name, modified: 1, size: 1, uses: 0, position: 0,
+    });
+    const rows = [
+      row("z.1", "Assets/Images/z.1/90_body.png"),
+      row("z 2", "Assets/Images/z 2.png"),
+      row("Main", "main.sd"),
+    ];
+    expect(sortEntries(rows, "name-asc").map((e) => e.name)).toEqual(["Main", "z 2", "z.1"]);
+  });
+
   it("reads the legacy keys asc, desc and story", () => {
     expect(parseSort("asc")).toEqual({ field: "name", direction: "asc" });
     expect(parseSort("desc")).toEqual({ field: "name", direction: "desc" });

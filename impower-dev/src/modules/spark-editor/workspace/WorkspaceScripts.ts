@@ -69,6 +69,8 @@ type Deps = {
 
 export const PROJECT_CHANGED = "Another project opened first. Nothing was added.";
 
+export const SCRIPTS_LOADING = "Your scripts are still loading. Nothing was added; try again in a moment.";
+
 const extensionOf = (path: string) => {
   const name = nameOf(path);
   const dot = name.lastIndexOf(".");
@@ -121,6 +123,12 @@ export default class WorkspaceScripts {
     }
     if (workspace.scriptListing.peek()?.projectId !== projectId) {
       workspace.scriptReferences.value = [];
+      this.unlisted.clear();
+    }
+    for (const path of this.unlisted) {
+      if (Object.hasOwn(files, path) || listing.folders.includes(path)) {
+        this.unlisted.delete(path);
+      }
     }
     workspace.scriptListing.value = listing;
     await this.loadReferences(generation, projectId);
@@ -179,11 +187,14 @@ export default class WorkspaceScripts {
     return Object.hasOwn(this.listing.files, path) ? "file" : "folder";
   }
 
+  protected unlisted = new Set<string>();
+
   protected siblings(folder: string): string[] {
     const listing = this.listing;
     return [
       ...Object.keys(listing.files),
       ...listing.folders,
+      ...this.unlisted,
     ]
       .filter((p) => parentOf(p) === folder)
       .map(nameOf);
@@ -209,8 +220,15 @@ export default class WorkspaceScripts {
   protected naming<T>(task: (projectId: string) => Promise<T>): Promise<T> {
     const projectId = this.openProject();
     return withLock(`impower-dev:script-names:${projectId}`, async () => {
+      const listed = () => workspace.scriptListing.peek()?.projectId === projectId;
+      if (this.projectId === projectId && !listed()) {
+        await this.load();
+      }
       if (this.projectId !== projectId) {
         throw new NameError(PROJECT_CHANGED);
+      }
+      if (!listed()) {
+        throw new NameError(SCRIPTS_LOADING);
       }
       return task(projectId);
     });
@@ -224,6 +242,7 @@ export default class WorkspaceScripts {
       const { fs } = this._workspace;
       const uri = fs.getFileUri(projectId, path);
       await fs.createFiles({ files: [{ uri, data: new ArrayBuffer(0) }] });
+      this.unlisted.add(path);
       recordCreate(projectId, [uri], leaf);
       await this.changed("file");
       return path;
@@ -235,6 +254,7 @@ export default class WorkspaceScripts {
       const target = realFolder(folder, scriptsHome(this.listing));
       const path = joinPath(target, availableName(name, this.siblings(target)));
       await this._workspace.fs.createFolder(projectId, path);
+      this.unlisted.add(path);
       await this.changed("folder");
       return path;
     });
@@ -327,6 +347,7 @@ export default class WorkspaceScripts {
     if (files.length) {
       await fs.createFiles({ files });
     }
+    this.unlisted.add(to);
     await this.changed(kind);
     return to;
   }
