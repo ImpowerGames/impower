@@ -102,7 +102,8 @@ describe("editor panel layering vs the host app's chrome (#337)", () => {
     expect(panels).toBeTruthy();
     expect(panel).toBeTruthy();
 
-    expect(resolved(panel!, "margin-top")).toBe("-48px");
+    expect(resolved(panel!, "margin-top") ?? "0").not.toMatch(/^-/);
+    expect(resolved(panels!, "top")).toBeNull();
 
     const z = resolvedZ(panels!);
     expect(z).not.toBeNull();
@@ -116,6 +117,22 @@ describe("editor panel layering vs the host app's chrome (#337)", () => {
     const tooltipZ = resolvedZ(tooltip);
     expect(tooltipZ).not.toBeNull();
     expect(z!).toBeLessThan(tooltipZ!);
+  });
+
+  it("starts every top panel at the editor's top edge, below the host's title bar (#2211)", () => {
+    const view = mount(
+      showPanel.of(() => ({
+        dom: Object.assign(document.createElement("div"), {
+          className: "cm-probe-top",
+        }),
+        top: true,
+      }))
+    );
+
+    const panel = view.dom.querySelector<HTMLElement>(".cm-panel.cm-probe-top");
+    expect(panel).toBeTruthy();
+    expect(resolved(panel!, "margin-top") ?? "0").not.toMatch(/^-/);
+    expect(resolved(panel!, "transform")).toBeNull();
   });
 
   it("leaves bottom panels below the whole host chrome band", () => {

@@ -354,7 +354,6 @@ const EDITOR_THEME: {
   "& .cm-panels.cm-panels-top": {
     zIndex: "30",
     "& .cm-panel": {
-      marginTop: "-48px",
       minHeight: "40px",
     },
   },
