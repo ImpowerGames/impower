@@ -74,7 +74,6 @@ import { nextDiagnostic } from "@codemirror/lint";
 import {
   closeSearchPanel,
   gotoLine,
-  selectNextOccurrence,
   selectSelectionMatches,
 } from "@codemirror/search";
 import type { EditorState } from "@codemirror/state";
@@ -85,6 +84,7 @@ import {
   cursorWordRight,
   deleteWordLeft,
   deleteWordRight,
+  selectNextOccurrence,
   selectWordLeft,
   selectWordRight,
   findReferences,

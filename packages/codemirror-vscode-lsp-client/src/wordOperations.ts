@@ -1,10 +1,16 @@
+import { SearchCursor } from "@codemirror/search";
 import {
   EditorSelection,
   type EditorState,
+  type Extension,
   type Line,
   type SelectionRange,
 } from "@codemirror/state";
-import { EditorView, type Command } from "@codemirror/view";
+import {
+  EditorView,
+  type Command,
+  type MouseSelectionStyle,
+} from "@codemirror/view";
 
 const VSCODE_WORD_SEPARATORS = "`~!@#$%^&*()-=+[{]}\\|;:'\",.<>/?";
 
@@ -227,3 +233,141 @@ const deleteBy =
 
 export const deleteWordLeft: Command = deleteBy(deleteWordLeftTarget, "delete.backward");
 export const deleteWordRight: Command = deleteBy(deleteWordRightTarget, "delete.forward");
+
+const touches = (found: FoundWord | null, ch: number, type: WordType, endInclusive: boolean) =>
+  found !== null &&
+  found.type === type &&
+  found.start <= ch &&
+  (endInclusive ? ch <= found.end : ch < found.end);
+
+const strictlyInside = (found: FoundWord | null, ch: number) =>
+  found !== null && found.type === REGULAR && found.start < ch && ch < found.end;
+
+function wordAtPosition(state: EditorState, pos: number): SelectionRange | null {
+  const line = state.doc.lineAt(pos);
+  const ch = pos - line.from;
+  const prev = previousWordOnLine(line.text, ch);
+  if (touches(prev, ch, REGULAR, true)) {
+    return EditorSelection.range(line.from + prev!.start, line.from + prev!.end);
+  }
+  const next = nextWordOnLine(line.text, ch);
+  if (touches(next, ch, REGULAR, true)) {
+    return EditorSelection.range(line.from + next!.start, line.from + next!.end);
+  }
+  return null;
+}
+
+export function wordForDoubleClick(state: EditorState, pos: number): SelectionRange {
+  const line = state.doc.lineAt(pos);
+  const ch = pos - line.from;
+  const prev = previousWordOnLine(line.text, ch);
+  const next = nextWordOnLine(line.text, ch);
+  const found = touches(prev, ch, REGULAR, true)
+    ? prev
+    : touches(prev, ch, SEPARATOR, false)
+      ? prev
+      : touches(next, ch, REGULAR, true)
+        ? next
+        : touches(next, ch, SEPARATOR, false)
+          ? next
+          : null;
+  const start = found ? found.start : prev ? prev.end : 0;
+  const end = found ? found.end : next ? next.start : line.length;
+  return EditorSelection.range(line.from + start, line.from + end);
+}
+
+function dragWordSelection(state: EditorState, start: SelectionRange, pos: number): SelectionRange {
+  const line = state.doc.lineAt(pos);
+  const ch = pos - line.from;
+  const prev = previousWordOnLine(line.text, ch);
+  const next = nextWordOnLine(line.text, ch);
+  const found = strictlyInside(prev, ch) ? prev : strictlyInside(next, ch) ? next : null;
+  const wordStart = found ? line.from + found.start : pos;
+  const wordEnd = found ? line.from + found.end : pos;
+  const contains = (at: number) => start.from <= at && at <= start.to;
+  let head: number;
+  if (contains(pos)) {
+    head = start.to;
+  } else if (pos <= start.from) {
+    head = contains(wordStart) ? start.to : wordStart;
+  } else {
+    head = contains(wordEnd) ? start.from : wordEnd;
+  }
+  const anchor = !start.empty && head <= start.from ? start.to : start.from;
+  return EditorSelection.range(anchor, head);
+}
+
+function doubleClickSelection(view: EditorView, event: MouseEvent): MouseSelectionStyle | null {
+  if (event.button !== 0 || event.detail !== 2) return null;
+  const posOf = (e: MouseEvent) => view.posAtCoords({ x: e.clientX, y: e.clientY }, false);
+  let startSel = view.state.selection;
+  let start = wordForDoubleClick(view.state, posOf(event));
+  return {
+    update(update) {
+      if (update.docChanged) {
+        start = start.map(update.changes);
+        startSel = startSel.map(update.changes);
+      }
+    },
+    get(curEvent, extend, multiple) {
+      if (extend) {
+        const word = wordForDoubleClick(view.state, posOf(curEvent));
+        return startSel.replaceRange(startSel.main.extend(word.from, word.to));
+      }
+      const range = dragWordSelection(view.state, start, posOf(curEvent));
+      if (multiple) return startSel.addRange(range);
+      return EditorSelection.create([range]);
+    },
+  };
+}
+
+export const vscodeWordSelection: Extension = EditorView.mouseSelectionStyle.of(doubleClickSelection);
+
+function findNextOccurrence(state: EditorState, query: string): SelectionRange | null {
+  const { main, ranges } = state.selection;
+  const word = wordAtPosition(state, main.head);
+  const fullWord = word !== null && word.from === main.from && word.to === main.to;
+  const last = ranges[ranges.length - 1]!;
+  let cycled = false;
+  let cursor = new SearchCursor(state.doc, query, last.to);
+  for (;;) {
+    cursor.next();
+    if (cursor.done) {
+      if (cycled) return null;
+      cursor = new SearchCursor(state.doc, query, 0, Math.max(0, last.from - 1));
+      cycled = true;
+      continue;
+    }
+    const { from, to } = cursor.value;
+    if (cycled && ranges.some((range) => range.from === from)) continue;
+    if (fullWord) {
+      const found = wordAtPosition(state, from);
+      if (!found || found.from !== from || found.to !== to) continue;
+    }
+    return EditorSelection.range(from, to);
+  }
+}
+
+export const selectNextOccurrence: Command = ({ state, dispatch }) => {
+  const { ranges } = state.selection;
+  if (ranges.some((range) => range.empty)) {
+    const selection = EditorSelection.create(
+      ranges.map((range) => wordAtPosition(state, range.head) ?? EditorSelection.cursor(range.head)),
+      state.selection.mainIndex,
+    );
+    if (selection.eq(state.selection)) return false;
+    dispatch(state.update({ selection }));
+    return true;
+  }
+  const searched = state.sliceDoc(ranges[0]!.from, ranges[0]!.to);
+  if (ranges.some((range) => state.sliceDoc(range.from, range.to) !== searched)) return false;
+  const range = findNextOccurrence(state, searched);
+  if (!range) return false;
+  dispatch(
+    state.update({
+      selection: state.selection.addRange(range, false),
+      effects: EditorView.scrollIntoView(range.to),
+    }),
+  );
+  return true;
+};
