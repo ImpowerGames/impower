@@ -1,4 +1,4 @@
-import { h, render } from "preact";
+import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -94,6 +94,7 @@ vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: selection } = await import("../../src/modules/spark-editor/workspace/assetsSelection");
 const { default: Assets } = await import("../../src/modules/spark-editor/components/assets");
+const { InspectorDockProvider, InspectorDock } = await import("../../src/modules/spark-editor/components/asset-inspector/dock");
 const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
 await import("../../src/modules/spark-editor/workspace/editorAudio");
 const { PROJECT_SETTINGS_SCHEMA } = await import(
@@ -1617,5 +1618,296 @@ describe("sorting by Uses and Story order", () => {
     await openMenu(all<HTMLElement>('button[aria-label="Options for harbor"]')[0]);
     await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Delete")));
     expect(assets.usedBy).toHaveBeenCalledWith([`${P}/harbor.png`]);
+  });
+});
+
+describe("the inspector of an asset that moves", () => {
+  const P = "Assets/Images/Portraits";
+  const S = "Assets/Audio";
+  const inspector = () => document.querySelector<HTMLElement>('section[aria-label="Asset details"]');
+  const title = () => inspector()?.querySelector("header h2")?.textContent;
+  const dialog = () => document.querySelector<HTMLElement>('[role="listbox"][aria-label="Folders"]')?.closest<HTMLElement>('[role="dialog"]');
+  const leaf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+  const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/"));
+  const stem = (path: string) => leaf(path).replace(/\.[^.]*$/, "");
+  const at = (path: string, size: number) => ({ ...facts(size), src: `/src/${path}` });
+  const belongs = (path: string, cover: string) =>
+    folderOf(path) === folderOf(cover) &&
+    (path === cover || (leaf(path).startsWith(stem(cover)) && /^[@~]/.test(leaf(path).slice(stem(cover).length))));
+  const moveFiles = (moves: readonly { from: string; to: string }[]) => {
+    const { files, folders } = workspace.assetListing.value!;
+    const next = { ...files };
+    for (const { from, to } of moves) {
+      next[to] = { ...next[from]!, src: `/src/${to}` };
+      delete next[from];
+    }
+    workspace.assetListing.value = { projectId: PROJECT, files: next, folders };
+  };
+  const press = async (label: string) => click(all<HTMLElement>(`button[aria-label^="${label}"]`)[0]);
+  const chooseMove = async (trigger: HTMLElement | undefined) => {
+    await openMenu(trigger);
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Move")));
+  };
+  const moveHere = async (folder: string) => {
+    await click([...dialog()!.querySelectorAll<HTMLElement>('[role="option"]')].find((el) => el.textContent?.includes(folder)));
+    await click([...dialog()!.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.trim() === "Move here"));
+  };
+  const listMenu = (name: string) =>
+    all<HTMLElement>(`button[aria-label="Options for ${name}"]`).find((button) => !inspector()?.contains(button));
+  const headMenu = (name: string) => inspector()?.querySelector<HTMLElement>(`button[aria-label="Options for ${name}"]`) ?? undefined;
+  const frameSrc = () => inspector()?.querySelector("[data-zoom-frame] img")?.getAttribute("src");
+  const watchedFiles = () => assets.watchFacts.mock.calls.at(-1)![0];
+
+  beforeEach(() => {
+    selection.end();
+    workspace.assetListing.value = {
+      projectId: PROJECT,
+      files: {
+        [`${P}/ava.png`]: at(`${P}/ava.png`, 8001),
+        [`${P}/ava@night.png`]: at(`${P}/ava@night.png`, 8002),
+        [`${P}/ava~face.happy.png`]: at(`${P}/ava~face.happy.png`, 8003),
+        [`${P}/bo.png`]: at(`${P}/bo.png`, 8004),
+        [`${P}/Cast/dex.png`]: at(`${P}/Cast/dex.png`, 8005),
+        [`${S}/Sounds/chime.wav`]: at(`${S}/Sounds/chime.wav`, 8006),
+        [`${S}/Music/theme.wav`]: at(`${S}/Music/theme.wav`, 8007),
+      },
+      folders: [`${P}/Cast`],
+    };
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P, audio: `${S}/Sounds` } } };
+    assets.move.mockImplementation(async (paths: readonly string[], folder: string) => {
+      const files = Object.keys(workspace.assetListing.value!.files);
+      const moves = files
+        .filter((path) => paths.some((cover) => belongs(path, cover)))
+        .map((from) => ({ from, to: `${folder}/${leaf(from)}` }));
+      moveFiles(moves);
+      return moves;
+    });
+  });
+
+  afterEach(() => {
+    assets.move.mockImplementation(async () => []);
+    workspace.movesReplayed.value = null;
+  });
+
+  const expectStackAtCast = () => {
+    expect(title()).toBe("ava");
+    expect(inspector()!.querySelector("header small")!.textContent).toBe("Image · PNG · 3 variants");
+    expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
+    expect(watchedFiles()).toEqual([`${P}/Cast/ava.png`, `${P}/Cast/ava@night.png`, `${P}/Cast/ava~face.happy.png`]);
+    expect(workspace.current.lists?.assetsFolders?.image).toBe(`${P}/Cast`);
+    expect(host!.querySelector(`[data-asset-path="${P}/Cast/ava.png"]`)).not.toBeNull();
+  };
+
+  it("shows a stacked picture moved from its row menu at its new folder, with every member file, and opens that folder in the list", async () => {
+    await mount();
+    await press("Open image ava");
+    expect(frameSrc()).toBe(`/src/${P}/ava.png`);
+    await chooseMove(listMenu("ava"));
+    await moveHere("Cast");
+    expect(assets.move).toHaveBeenCalledWith([`${P}/ava.png`], `${P}/Cast`);
+    expectStackAtCast();
+  });
+
+  it("shows a stacked picture moved from the inspector's own menu at its new folder", async () => {
+    await mount();
+    await press("Open image ava");
+    await chooseMove(headMenu("ava"));
+    await moveHere("Cast");
+    expectStackAtCast();
+  });
+
+  it("shows a stacked picture moved from the selection bar at its new folder", async () => {
+    await mount();
+    await press("Open image ava");
+    await act(async () => host!.querySelector<HTMLInputElement>('input[aria-label="Select ava"]')!.click());
+    await settle();
+    await click(all<HTMLButtonElement>("button").find((button) => button.textContent?.trim() === "Move…"));
+    await moveHere("Cast");
+    expectStackAtCast();
+  });
+
+  it("shows a plain picture moved from its row menu at its new folder", async () => {
+    await mount();
+    await press("Open image bo");
+    await chooseMove(listMenu("bo"));
+    await moveHere("Cast");
+    expect(title()).toBe("bo");
+    expect(frameSrc()).toBe(`/src/${P}/Cast/bo.png`);
+    expect(watchedFiles()).toEqual([`${P}/Cast/bo.png`]);
+    expect(workspace.current.lists?.assetsFolders?.image).toBe(`${P}/Cast`);
+  });
+
+  it("shows a sound moved from the inspector's own menu at its new folder", async () => {
+    await mount();
+    await showTab("Audio");
+    await press("Open audio chime");
+    expect(title()).toBe("chime");
+    await chooseMove(headMenu("chime"));
+    await moveHere("Music");
+    expect(title()).toBe("chime");
+    expect(watchedFiles()).toEqual([`${S}/Music/chime.wav`]);
+    expect(workspace.current.lists?.assetsFolders?.audio).toBe(`${S}/Music`);
+  });
+
+  it("follows the stacked picture back to its first folder when Undo puts its files back", async () => {
+    await mount();
+    await press("Open image ava");
+    await chooseMove(listMenu("ava"));
+    await moveHere("Cast");
+    expectStackAtCast();
+    const back = [`ava.png`, `ava@night.png`, `ava~face.happy.png`].map((name) => ({
+      from: `${P}/Cast/${name}`,
+      to: `${P}/${name}`,
+    }));
+    const shown = inspector();
+    await act(async () => {
+      workspace.movesReplayed.value = { moves: back, settled: false };
+      moveFiles(back);
+    });
+    const sheetState = () => inspector()?.closest('[role="dialog"]')?.getAttribute("data-state");
+    expect(inspector()).toBe(shown);
+    expect(sheetState()).toBe("open");
+    expect(title()).toBe("ava");
+    await settle();
+    expect(inspector()).toBe(shown);
+    expect(sheetState()).toBe("open");
+    await act(async () => {
+      workspace.movesReplayed.value = { moves: back, settled: true };
+    });
+    await settle();
+    expect(inspector()).toBe(shown);
+    expect(sheetState()).toBe("open");
+    expect(title()).toBe("ava");
+    expect(frameSrc()).toBe(`/src/${P}/ava.png`);
+    expect(watchedFiles()).toEqual([`${P}/ava.png`, `${P}/ava@night.png`, `${P}/ava~face.happy.png`]);
+    expect(workspace.current.lists?.assetsFolders?.image).toBe(P);
+  });
+
+  const replay = async (moves: readonly { from: string; to: string }[]) => {
+    await act(async () => {
+      workspace.movesReplayed.value = { moves, settled: false };
+    });
+    await act(async () => moveFiles(moves));
+    await act(async () => {
+      workspace.movesReplayed.value = { moves, settled: true };
+    });
+    await settle();
+  };
+  const toCast = [`ava.png`, `ava@night.png`, `ava~face.happy.png`].map((name) => ({
+    from: `${P}/${name}`,
+    to: `${P}/Cast/${name}`,
+  }));
+  const searchField = () => host!.querySelector<HTMLInputElement>('input[aria-label="Search assets"]')!;
+
+  it("follows the picture but leaves the list in its folder while the author scrolls it", async () => {
+    await mount();
+    await press("Open image ava");
+    await act(async () => {
+      host!.querySelector(`[data-asset-path="${P}/bo.png"]`)!.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 40 }));
+    });
+    await replay(toCast);
+    expect(title()).toBe("ava");
+    expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
+    expect(workspace.current.lists?.assetsFolders?.image).toBe(P);
+  });
+
+  it("follows the picture but leaves the search and its results alone while the author types in it", async () => {
+    await mount();
+    await press("Open image ava");
+    await search("ava");
+    await act(async () => searchField().focus());
+    await replay(toCast);
+    expect(title()).toBe("ava");
+    expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
+    expect(searchField().value).toBe("ava");
+    expect(document.activeElement).toBe(searchField());
+    expect(workspace.current.lists?.assetsFolders?.image).toBe(P);
+  });
+
+  it("keeps showing the picture at its new folder when the search in the list leaves it out", async () => {
+    await mount();
+    await press("Open image ava");
+    await search("dex");
+    await act(async () => searchField().blur());
+    await replay(toCast);
+    expect(title()).toBe("ava");
+    expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
+    expect(searchField().value).toBe("dex");
+    expect(rowLabels().map((label) => label!.split(",")[0])).toEqual(["Open image dex"]);
+  });
+
+  const renameFromInspector = async (name: string, typed: string, key: "Enter" | "Escape") => {
+    await openMenu(headMenu(name));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.trim() === "Rename"));
+    await vi.waitFor(() => expect(host!.querySelector(`input[aria-label="Rename ${name}"]`)).not.toBeNull());
+    const input = host!.querySelector<HTMLInputElement>(`input[aria-label="Rename ${name}"]`)!;
+    await act(async () => {
+      input.value = typed;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    });
+    await settle();
+  };
+
+  const renameToBea = () =>
+    assets.rename.mockImplementationOnce(async (path: string, name: string) => {
+      const to = `${folderOf(path)}/${name}.png`;
+      moveFiles([{ from: path, to }]);
+      return to;
+    });
+
+  it("shows a picture renamed from the inspector's own menu under its new name in the phone's sheet", async () => {
+    layout.value = "phone";
+    renameToBea();
+    await mount();
+    await press("Open image bo");
+    await renameFromInspector("bo", "bea", "Enter");
+    expect(assets.rename).toHaveBeenCalledWith(`${P}/bo.png`, "bea");
+    expect(title()).toBe("bea");
+    expect(frameSrc()).toBe(`/src/${P}/bea.png`);
+    expect(inspector()!.closest('[role="dialog"]')?.getAttribute("data-state")).toBe("open");
+  });
+
+  it("keeps the docked inspector on a picture renamed from its own menu at desktop width", async () => {
+    renameToBea();
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(h(InspectorDockProvider, { children: h(Fragment, {}, h(InspectorDock, {}), h(Assets, {})) }), host!),
+    );
+    await settle();
+    await press("Open image bo");
+    const shown = inspector();
+    expect(shown!.closest('[role="dialog"]')).toBeNull();
+    await renameFromInspector("bo", "bea", "Enter");
+    expect(inspector()).toBe(shown);
+    expect(title()).toBe("bea");
+    expect(frameSrc()).toBe(`/src/${P}/bea.png`);
+  });
+
+  it("returns to the inspector on the same picture when a rename from its menu is cancelled on a phone", async () => {
+    layout.value = "phone";
+    await mount();
+    await press("Open image bo");
+    await renameFromInspector("bo", "bea", "Escape");
+    expect(assets.rename).not.toHaveBeenCalled();
+    expect(title()).toBe("bo");
+    expect(inspector()!.closest('[role="dialog"]')?.getAttribute("data-state")).toBe("open");
+  });
+
+  it("closes when the moved picture is deleted", async () => {
+    await mount();
+    await press("Open image ava");
+    await chooseMove(listMenu("ava"));
+    await moveHere("Cast");
+    const { files, folders } = workspace.assetListing.value!;
+    await act(async () => {
+      workspace.assetListing.value = {
+        projectId: PROJECT,
+        files: Object.fromEntries(Object.entries(files).filter(([path]) => !path.includes("/ava"))),
+        folders,
+      };
+    });
+    await settle();
+    expect(inspector()).toBeNull();
   });
 });
