@@ -647,19 +647,26 @@ describe("ScriptEditorController commands", () => {
     expect(focus).toHaveBeenCalledOnce();
   });
 
-  it("drops a focus waiting for the editor to settle when another script loads or the script returns to reading", async () => {
+  it("drops a focus waiting for the editor to settle when the script returns to reading", async () => {
     const { controller, view } = await loadedEditor();
     const focus = vi.spyOn(view, "focus");
     run(controller, "focus");
     controller.setScriptMode("reading");
     controller["handleIdle"]();
     expect(focus).not.toHaveBeenCalled();
+  });
 
+  it("drops a focus waiting for the editor to settle when another script loads first", async () => {
+    const { controller, view } = await loadedEditor();
+    const focus = vi.spyOn(view, "focus");
     run(controller, "focus");
+    expect(controller["_focusWhenLoaded"]).toBe(true);
     await load(controller, "file:///other.sd");
     const { view: other } = created[created.length - 1]!;
+    expect(other).not.toBe(view);
     const focusOther = vi.spyOn(other, "focus");
     controller["handleIdle"]();
+    expect(focus).not.toHaveBeenCalled();
     expect(focusOther).not.toHaveBeenCalled();
   });
 
