@@ -294,6 +294,17 @@ describe("Dialog under preact/compat", () => {
     },
   );
 
+  it("keeps the card inside its backdrop and scrolls the card's own body when it is taller", async () => {
+    await mount();
+    const card = dialog()!.className.split(" ");
+    expect(backdrop()!.className.split(" ")).toEqual(
+      expect.arrayContaining(["fixed", "inset-0"]),
+    );
+    expect(card).toEqual(
+      expect.arrayContaining(["max-h-full", "overflow-y-auto"]),
+    );
+  });
+
   it("drops the card padding when flush", async () => {
     await mount({ flush: true });
     expect(dialog()!.className).toContain("overflow-hidden");
@@ -319,6 +330,8 @@ describe("Sheet and the responsive Dialog", () => {
     const opener = await mount({ sheet: true, withInitialFocus: true });
     const card = dialog()!;
     expect(card.className).toContain("rounded-t-card");
+    expect(card.className.split(" ")).toContain("max-h-[80%]");
+    expect(card.className).not.toContain("vh]");
     expect(backdrop()!.className).toContain("justify-end");
     expect(card.getAttribute("aria-modal")).toBe("true");
     expect(document.activeElement?.getAttribute("aria-label")).toBe("name");
@@ -335,7 +348,7 @@ describe("Sheet and the responsive Dialog", () => {
     expect(card.className).toContain("h-full");
     expect(card.className).toContain("max-h-none");
     expect(card.className).toContain("rounded-none");
-    expect(card.className).not.toContain("max-h-[80vh]");
+    expect(card.className).not.toContain("max-h-[80%]");
     expect(card.className).not.toContain("rounded-t-card");
     expect(document.activeElement?.getAttribute("aria-label")).toBe("name");
     await pressEscape();
