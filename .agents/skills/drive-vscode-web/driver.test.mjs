@@ -1769,13 +1769,19 @@ await check("the page is 1400 x 900, a record names its own worktree's state fil
 
 await check("desktop preview reads per-character story spans without inventing spaces and excludes hidden content", () => {
   const saved = globalThis.document;
-  const element = (text, opacity = "1") => ({ textContent: text, opacity, getBoundingClientRect: () => ({ width: 10, height: 10 }), querySelector: () => null });
+  const element = (text, opacity = "1") => ({ id: "", tagName: "SPAN", textContent: text, opacity, getBoundingClientRect: () => ({ x: 0, y: 0, width: 10, height: 10 }), querySelector: () => null, closest: selector => selector === "#game-view, #game-ui" ? {} : null });
   const player = element("");
   const spans = [..."Story text"].map(c => element(c));
   spans.push(element("hidden", "0"));
-  const d = { defaultView: { getComputedStyle: el => ({ opacity: el.opacity }) }, querySelector: () => player, querySelectorAll: () => spans, images: [], body: { innerText: "Story text", className: "ready" } };
+  const hits = [];
+  const d = { defaultView: { getComputedStyle: el => ({ opacity: el.opacity }) }, querySelector: () => player, querySelectorAll: () => spans, elementFromPoint: (x, y) => (hits.push([x, y]), spans[0]), images: [], body: { innerText: "Story text", className: "ready" } };
   globalThis.document = { getElementById: () => ({ contentDocument: d }) };
-  try { assert.equal(previewRead().text, "Story text"); }
+  try {
+    const read = previewRead();
+    assert.equal(read.text, "Story text");
+    assert.deepEqual(read.center, { id: "", tag: "span", inPlayer: true });
+    assert.deepEqual(hits, [[5, 5]]);
+  }
   finally { if (saved === undefined) delete globalThis.document; else globalThis.document = saved; }
 });
 
