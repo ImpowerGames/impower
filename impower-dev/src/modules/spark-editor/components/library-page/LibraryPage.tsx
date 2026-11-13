@@ -27,6 +27,7 @@ export type LibraryPageProps<T> = {
   searchLabel: string;
   query: string;
   onQueryChange: (query: string) => void;
+  newLabel: string;
   newMenu: ComponentChildren;
   newAttributes?: Record<string, string>;
   newRef?: RefObject<HTMLButtonElement>;
@@ -45,6 +46,7 @@ export default function LibraryPage<T>({
   searchLabel,
   query,
   onQueryChange,
+  newLabel,
   newMenu,
   newAttributes,
   newRef,
@@ -68,7 +70,7 @@ export default function LibraryPage<T>({
               <DropdownTrigger asChild>
                 <Button ref={newRef} class="bg-transparent text-accent" {...newAttributes}>
                   <PlusIcon />
-                  New
+                  {newLabel}
                 </Button>
               </DropdownTrigger>
               <DropdownContent align="end" class="min-w-[196px]">

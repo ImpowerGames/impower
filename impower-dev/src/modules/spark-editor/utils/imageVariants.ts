@@ -10,6 +10,8 @@ export type VariantForm = "portrait" | "backdrop";
 
 export type VariantSelection = Readonly<Record<string, string>>;
 
+const SWITCH_OPTIONS = ["off", "on"];
+
 export interface TesterGroup {
   key: string;
   label: string;
@@ -49,14 +51,19 @@ export const testerGroups = (stack: ImageStack, selection: VariantSelection): Te
       switch: false,
     });
   }
+  const offered: TesterGroup[] = [];
   for (const group of pictureFor(stack, selection).groups) {
     const resting = group.default ?? (group.switch ? "off" : AS_IS);
-    const options = choicesOf(group);
+    const options = group.switch ? SWITCH_OPTIONS : choicesOf(group);
     if (options.length > 1) {
-      groups.push({ key: group.name, label: group.name, options, default: resting, switch: group.switch });
+      offered.push({ key: group.name, label: group.name, options, default: resting, switch: group.switch });
     }
   }
-  return groups;
+  if (stack.kind === "files") {
+    offered.sort((a, b) => a.key.localeCompare(b.key));
+  }
+  offered.sort((a, b) => Number(a.switch) - Number(b.switch));
+  return [...groups, ...offered];
 };
 
 export const chosenIn = (group: TesterGroup, selection: VariantSelection): string => {

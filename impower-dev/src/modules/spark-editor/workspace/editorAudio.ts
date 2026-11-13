@@ -1,7 +1,39 @@
 import AudioSession, { MAX_SOUND_BYTES } from "./AudioSession";
+import SoundLengths from "./SoundLengths";
 import SoundPeaks, { PEAK_COUNT } from "./SoundPeaks";
 
 const DECODE_RATE = 8000;
+
+const PROBE_TIMEOUT_MS = 10_000;
+
+const probeLength = (src: string) =>
+  new Promise<number>((resolve, reject) => {
+    const audio = new Audio();
+    const done = () => {
+      clearTimeout(timer);
+      audio.onloadedmetadata = null;
+      audio.onerror = null;
+      audio.removeAttribute("src");
+      audio.load();
+    };
+    const timer = setTimeout(() => {
+      done();
+      reject(new Error("timeout"));
+    }, PROBE_TIMEOUT_MS);
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      const seconds = audio.duration;
+      done();
+      resolve(seconds);
+    };
+    audio.onerror = () => {
+      done();
+      reject(new Error("unreadable"));
+    };
+    audio.src = src;
+  });
+
+export const soundLengths = new SoundLengths({ probe: probeLength }, { limit: 2048, concurrency: 4 });
 
 export const audioSession = new AudioSession({
   audio: () => new Audio(),

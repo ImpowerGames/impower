@@ -2,7 +2,7 @@ import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import { Lightbox } from "../dialog/Dialog";
 import { SAMPLE_PICTURE } from "../thumbnail/Thumbnail.gallery";
-import ZoomFrame, { type ZoomFrameBackdrop, type ZoomFrameSurface } from "./ZoomFrame";
+import ZoomFrame, { type ZoomFrameSurface } from "./ZoomFrame";
 
 const SHAPE =
   "data:image/svg+xml," +
@@ -14,23 +14,20 @@ const SHAPE =
   );
 
 const SURFACES: Record<ZoomFrameSurface, string> = { stage: "Stage", sheet: "Sheet" };
-const BACKDROPS: Record<ZoomFrameBackdrop, string> = { none: "no backdrop", checker: "checkerboard behind transparency" };
 
 function ZoomFrameDemo() {
   const [full, setFull] = useState(false);
   return (
     <div class="space-y-4">
-      {(Object.keys(SURFACES) as ZoomFrameSurface[]).map((surface) =>
-        (Object.keys(BACKDROPS) as ZoomFrameBackdrop[]).map((backdrop) => (
-          <GalleryRow key={`${surface}-${backdrop}`} label={`${SURFACES[surface]}, ${BACKDROPS[backdrop]}: zoomable`}>
-            <div class="w-80">
-              <ZoomFrame label="Zoomable picture" zoomable surface={surface} backdrop={backdrop} ratio={1}>
-                <img src={SHAPE} alt="" draggable={false} class="absolute inset-0 size-full object-contain" />
-              </ZoomFrame>
-            </div>
-          </GalleryRow>
-        )),
-      )}
+      {(Object.keys(SURFACES) as ZoomFrameSurface[]).map((surface) => (
+        <GalleryRow key={surface} label={`${SURFACES[surface]}, a transparent picture on the surface itself: zoomable`}>
+          <div class="w-80">
+            <ZoomFrame label="Zoomable picture" zoomable surface={surface} ratio={1}>
+              <img src={SHAPE} alt="" draggable={false} class="absolute inset-0 size-full object-contain" />
+            </ZoomFrame>
+          </div>
+        </GalleryRow>
+      ))}
       <GalleryRow label="Stage, wide picture: zoomable">
         <div class="w-80">
           <ZoomFrame label="Wide picture" zoomable ratio={320 / 200}>

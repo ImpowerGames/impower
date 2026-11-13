@@ -2,6 +2,7 @@ import {
   Button,
   ClockIcon,
   DropdownContent,
+  DropdownItemText,
   DropdownLabel,
   DropdownRadioGroup,
   DropdownRadioItem,
@@ -70,16 +71,7 @@ export default function SortMenu({ value, fields = ALL_FIELDS, usesHint = USES_H
             return (
               <DropdownRadioItem key={field.field} value={field.key} indicator="end">
                 <Icon class="text-muted" />
-                {field.field === "uses" ? (
-                  <span class="flex min-w-0 flex-col gap-0.5 py-1.5">
-                    <span>{field.label}</span>
-                    <small class="max-w-[200px] text-[11px]/[1.4] font-normal whitespace-normal text-muted">
-                      {usesHint}
-                    </small>
-                  </span>
-                ) : (
-                  field.label
-                )}
+                <DropdownItemText hint={field.field === "uses" ? usesHint : undefined}>{field.label}</DropdownItemText>
               </DropdownRadioItem>
             );
           })}

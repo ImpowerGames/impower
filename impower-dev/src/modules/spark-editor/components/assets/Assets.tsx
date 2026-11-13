@@ -2,7 +2,12 @@ import {
   ArtIcon,
   Button,
   ChevronIcon,
+  DropdownContent,
   DropdownItem,
+  DropdownRadioGroup,
+  DropdownRadioItem,
+  DropdownRoot,
+  DropdownTrigger,
   DropZone,
   FolderIcon,
   FolderPlusIcon,
@@ -84,6 +89,7 @@ import {
   DeleteDialog,
   DROP_FOLDER,
   EmptyState,
+  type FolderLayout,
   LibraryPage,
   MoveDialog,
   NameRow,
@@ -124,6 +130,11 @@ const COUNTING_NOTE = "Counting uses…";
 const UNCOUNTED_NOTE = "Uses could not be counted. Edit a script to try again.";
 const ROW_HEIGHT = 63;
 
+const FOLDER_LAYOUTS: readonly { layout: FolderLayout; label: string; Icon: IconComponent }[] = [
+  { layout: "tiles", label: "Tiles", Icon: GridIcon },
+  { layout: "rows", label: "List", Icon: ListIcon },
+];
+
 const TYPE_ICONS: Record<AssetType, IconComponent> = {
   image: ImageIcon,
   audio: MusicIcon,
@@ -143,11 +154,11 @@ const TYPE_NOUNS: Record<AssetType, string> = {
 };
 
 const EMPTY_TYPES: Record<AssetType, readonly [string, string]> = {
-  image: ["No images yet", "Upload portraits and backgrounds with the New button."],
-  audio: ["No audio yet", "Upload sounds and music with the New button."],
-  video: ["No video yet", "Upload a video with the New button."],
-  text: ["No text yet", "Upload notes with the New button."],
-  font: ["No fonts yet", "Upload a font with the New button."],
+  image: ["No images yet", "Upload portraits and backgrounds with the Add button."],
+  audio: ["No audio yet", "Upload sounds and music with the Add button."],
+  video: ["No video yet", "Upload a video with the Add button."],
+  text: ["No text yet", "Upload notes with the Add button."],
+  font: ["No fonts yet", "Upload a font with the Add button."],
   other: ["Nothing yet", "Files of any other type land here when you upload them."],
 };
 
@@ -737,6 +748,7 @@ function AssetsBrowser() {
       onQueryChange={setQuery}
       newAttributes={{ "data-assets-action": "add" }}
       newRef={newButton}
+      newLabel="Add"
       newMenu={
         <>
           <DropdownItem disabled={busy} onSelect={() => upload.current?.click()}>
@@ -799,17 +811,40 @@ function AssetsBrowser() {
             />
           )}
           {!searching && loaded && type === "image" && !level.empty && (
-            <Button
-              variant="quiet"
-              size="icon"
-              class="ml-auto flex-none text-muted"
-              aria-label={tiles ? "Show this folder as rows" : "Show this folder as tiles"}
-              title={tiles ? "Show as rows" : "Show as tiles"}
-              data-assets-action="layout"
-              onClick={() => setLayout(tiles ? "rows" : "tiles")}
-            >
-              {tiles ? <ListIcon /> : <GridIcon />}
-            </Button>
+            <DropdownRoot>
+              <DropdownTrigger asChild>
+                <Button
+                  variant="quiet"
+                  size="icon"
+                  class="ml-auto flex-none text-muted"
+                  aria-label="Change how this folder is shown"
+                  title="Change how this folder is shown"
+                  data-assets-action="layout"
+                  data-layout={layout}
+                >
+                  {layout === "rows" ? <ListIcon /> : <GridIcon />}
+                </Button>
+              </DropdownTrigger>
+              <DropdownContent align="end" class="min-w-[180px]">
+                <DropdownRadioGroup
+                  label="Show this folder as"
+                  value={layout}
+                  onValueChange={(next) => {
+                    const picked = FOLDER_LAYOUTS.find((option) => option.layout === next);
+                    if (picked) {
+                      setLayout(picked.layout);
+                    }
+                  }}
+                >
+                  {FOLDER_LAYOUTS.map(({ layout: value, label, Icon }) => (
+                    <DropdownRadioItem key={value} value={value} indicator="end">
+                      <Icon class="text-muted" />
+                      {label}
+                    </DropdownRadioItem>
+                  ))}
+                </DropdownRadioGroup>
+              </DropdownContent>
+            </DropdownRoot>
           )}
           <SortMenu
             value={sort}
@@ -872,7 +907,7 @@ function AssetsBrowser() {
           <EmptyState
             icon={<FolderIcon />}
             title="This folder is empty"
-            body="Upload into it with the New button."
+            body="Upload into it with the Add button."
           />
         )
       }

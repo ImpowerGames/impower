@@ -18,7 +18,7 @@ export const tileOpenVariants = cva(
   {
     variants: {
       current: {
-        true: "border-accent bg-tint",
+        true: "border-accent bg-tint hover:border-accent",
         false: "",
       },
       selection: {
@@ -81,6 +81,19 @@ export const tileLabelVariants = cva("min-w-0 truncate text-[13px]/[18px] text-i
   },
   defaultVariants: { kind: "file" },
 });
+
+export const tileActionsVariants = cva(
+  "absolute top-2.5 right-2.5 z-10 flex rounded-full bg-bg/80 text-ink motion-safe:transition-opacity",
+  {
+    variants: {
+      current: {
+        true: "opacity-100",
+        false: "opacity-0 group-hover/tile:opacity-100 group-focus-within/tile:opacity-100 [:root[data-pointer=coarse]_&]:opacity-100",
+      },
+    },
+    defaultVariants: { current: false },
+  },
+);
 
 export type TileShape = NonNullable<VariantProps<typeof tileVariants>["shape"]>;
 export type TileSelection = NonNullable<VariantProps<typeof tileOpenVariants>["selection"]>;
@@ -156,7 +169,7 @@ export default function Tile({
       )}
       <button
         type="button"
-        class={tileOpenVariants({ current, selection, selected, dropTarget })}
+        class={cn(tileOpenVariants({ current, selection, selected, dropTarget }))}
         aria-current={current ? "true" : undefined}
         aria-pressed={selection === "active" ? selected : undefined}
         onClick={onClick}
@@ -176,7 +189,7 @@ export default function Tile({
         </span>
       </button>
       {actions && (
-        <span class="absolute top-2.5 right-2.5 z-10 flex rounded-full bg-bg/80 text-ink opacity-0 group-hover/tile:opacity-100 group-focus-within/tile:opacity-100 motion-safe:transition-opacity [:root[data-pointer=coarse]_&]:opacity-100">
+        <span class={tileActionsVariants({ current })}>
           {actions}
         </span>
       )}

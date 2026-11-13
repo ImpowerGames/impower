@@ -92,18 +92,7 @@ export const zoomFrameVariants = cva(
   },
 );
 
-export const zoomFrameContentVariants = cva(
-  "relative mx-auto h-full max-w-full aspect-(--frame-ratio)",
-  {
-    variants: {
-      backdrop: {
-        none: "",
-        checker: "checkerboard",
-      },
-    },
-    defaultVariants: { backdrop: "none" },
-  },
-);
+export const zoomFrameContentVariants = cva("relative mx-auto h-full max-w-full aspect-(--frame-ratio)");
 
 const zoomButtonVariants = cva(
   [
@@ -129,16 +118,12 @@ const zoomExpandVariants = cva([
 
 export type ZoomFrameFit = NonNullable<VariantProps<typeof zoomFrameVariants>["fit"]>;
 export type ZoomFrameSurface = NonNullable<VariantProps<typeof zoomFrameVariants>["surface"]>;
-export type ZoomFrameBackdrop = NonNullable<
-  VariantProps<typeof zoomFrameContentVariants>["backdrop"]
->;
 
 export type ZoomFrameProps = {
   label: string;
   ratio?: number;
   fit?: ZoomFrameFit;
   surface?: ZoomFrameSurface;
-  backdrop?: ZoomFrameBackdrop;
   zoomable?: boolean;
   expandLabel?: string;
   onExpand?: () => void;
@@ -155,7 +140,6 @@ export default function ZoomFrame({
   ratio,
   fit,
   surface,
-  backdrop,
   zoomable = false,
   expandLabel = "View full size",
   onExpand,
@@ -401,7 +385,7 @@ export default function ZoomFrame({
             : undefined
         }
       >
-        <div class={zoomFrameContentVariants({ backdrop })}>{children}</div>
+        <div class={zoomFrameContentVariants()}>{children}</div>
       </div>
       {zoomable && (
         <div

@@ -97,14 +97,16 @@ describe("ZoomFrame", () => {
 
   it("zooms by the buttons, a double click and the plus key to the same 200% readout, and fits again", async () => {
     const frame = await mount(
-      <ZoomFrame label="harbor" zoomable backdrop="checker">
+      <ZoomFrame label="harbor" zoomable>
         <img alt="" />
       </ZoomFrame>,
     );
     expect(frame.getAttribute("tabindex")).toBe("0");
     expect(frame.getAttribute("aria-roledescription")).toBe("zoomable picture");
     expect(frame.getAttribute("aria-description")).toBe(ZOOM_HELP);
-    expect(frame.querySelector(".checkerboard")).not.toBeNull();
+    expect(frame.className.split(" ")).toContain("bg-stage");
+    expect(frame.querySelector("[class*=checker]")).toBeNull();
+    expect(frame.querySelector("img")!.parentElement!.className).not.toMatch(/(^| )bg-/);
     expect(readout().textContent).toBe("100%");
     expect(button("Zoom out").disabled).toBe(true);
 
