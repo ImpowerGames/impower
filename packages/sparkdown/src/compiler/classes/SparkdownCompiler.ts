@@ -4480,7 +4480,12 @@ export class SparkdownCompiler {
     const images = { ...program.context?.["image"], ...program.context?.["layered_image"] };
     if (images) {
       for (const image of Object.values(images)) {
-        if (image["ext"]?.toLowerCase() === "svg" || image["data"] || image.attribute_vocabulary) {
+        if (
+          image["ext"]?.toLowerCase() === "svg" ||
+          image["data"] ||
+          image.attribute_vocabulary ||
+          (image["$type"] === "layered_image" && getContextEntry(program.context, "image", image["$name"]))
+        ) {
           const type = image["$type"];
           const name = image["$name"];
           const implicitType = "filtered_image";

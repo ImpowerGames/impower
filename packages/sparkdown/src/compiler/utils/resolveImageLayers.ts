@@ -1,5 +1,5 @@
 import { filterImage } from "./filterImage";
-import { resolveImageReference } from "./resolveImageReference";
+import { resolveImageMember, resolveImageReference, resolveImageRoot } from "./resolveImageReference";
 
 export interface ImageLayer {
   src: string;
@@ -36,11 +36,12 @@ export const resolveImageLayers = (
     }
     const filteredLayers = filtered.layers;
     if (filteredLayers) {
+      const containing = new Set(visited).add(resolveImageRoot(context, struct));
       return filteredLayers.flatMap((layer: unknown) =>
         resolveImageLayers(
           context,
-          resolveImageReference(context, layer),
-          new Set(visited),
+          resolveImageMember(context, layer, containing),
+          new Set(containing),
         ),
       );
     }
@@ -61,7 +62,7 @@ export const resolveImageLayers = (
     return layers.flatMap((layer) =>
       resolveImageLayers(
         context,
-        resolveImageReference(context, layer),
+        resolveImageMember(context, layer, visited),
         new Set(visited),
       ),
     );

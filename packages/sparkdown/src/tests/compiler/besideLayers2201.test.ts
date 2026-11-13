@@ -207,6 +207,24 @@ ${scene("[[ava]]")}`;
     expect(drawn(program, "ava")).toEqual(["ava.png", "office.png"]);
   });
 
+  it("keeps a layered_image define's bare member naming its own file as that file, with or without layer files", () => {
+    const text = `define ava as layered_image with
+  assets = { ava, office }
+end
+
+define poster as filtered_image with
+  image = layered_image.ava
+end
+
+${scene("[[ava]]", "[[poster]]")}`;
+    const office = `${ROOT}/assets/Images/office.png`;
+    for (const files of [[`${P}/ava.png`, office], [`${P}/ava.png`, `${P}/ava~face.happy.png`, office]]) {
+      const program = compile(files, text);
+      expect(drawn(program, "ava")).toEqual(["ava.png", "office.png"]);
+      expect(drawn(program, "poster")).toEqual(["ava.png", "office.png"]);
+    }
+  });
+
   it("strips image data from a composed picture's files as from any other image when asked", () => {
     const svg = (uri: string) => ({ uri, type: "image", name: workspace.getFileName(uri), ext: "svg", src: uri, data: "<svg xmlns=\"http://www.w3.org/2000/svg\"/>", version: 1 });
     const compiler = new SparkdownCompiler();
