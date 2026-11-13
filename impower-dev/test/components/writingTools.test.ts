@@ -10,6 +10,7 @@ const calls = vi.hoisted(() => ({
   keys: null as unknown,
   names: [] as [string, unknown][],
   finds: 0,
+  colorOutcome: "applied" as string,
 }));
 const layout = vi.hoisted(() => ({ value: "desktop", coarse: false }));
 
@@ -53,6 +54,12 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
         closeWritingTools: () => screen(undefined),
         readNameAtCaret: async () => calls.name,
         readEditorKeybindings: async () => calls.keys,
+        readStoryColors: async () => [],
+        applyChangeColor: async () => {
+          const outcome = calls.colorOutcome;
+          if (outcome === "applied") screen(undefined);
+          return outcome;
+        },
       },
     },
   };
@@ -126,6 +133,8 @@ beforeEach(() => {
   calls.keys = null;
   calls.names.length = 0;
   calls.finds = 0;
+  calls.colorOutcome = "applied";
+  workspace.scriptMode.value = "editing";
   layout.value = "desktop";
   workspace.layout.value = layout.value as Layout;
   layout.coarse = false;
@@ -446,5 +455,129 @@ describe("Writing tools focus", () => {
     });
     await settle(250);
     expect(panel()).not.toBeNull();
+  });
+});
+
+describe("Change color focus", () => {
+  const phone = () => {
+    layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
+    layout.coarse = true;
+  };
+
+  const openColor = async (from?: HTMLElement) => {
+    from?.focus();
+    await act(async () => {
+      workspace.current = {
+        ...workspace.current,
+        screen: {
+          ...workspace.current.screen,
+          writingTools: {
+            view: "color",
+            fromMenu: true,
+            color: {
+              filename: "main.sd",
+              range: { start: { line: 5, character: 28 }, end: { line: 5, character: 35 } },
+              value: "#ff8800",
+              color: { red: 1, green: 0.5333, blue: 0, alpha: 1 },
+            },
+          },
+        },
+      } as typeof workspace.current;
+    });
+    await until(() => panel()?.querySelector("form"));
+    await settle(50);
+    from?.remove();
+  };
+
+  const useColor = async () => {
+    const submit = Array.from(panel()!.querySelectorAll("button")).find(
+      (b) => b.textContent === "Use color",
+    )!;
+    await act(async () => submit.click());
+    await settle(50);
+  };
+
+  const menuItem = () => {
+    const item = document.body.appendChild(document.createElement("button"));
+    item.setAttribute("role", "menuitem");
+    return item;
+  };
+
+  it("on a phone, puts focus back in the script after Use color from the long-press menu", async () => {
+    phone();
+    await mount();
+    await openColor(menuItem());
+    await useColor();
+    await until(() => !panel());
+    expect(workspace.current.screen.writingTools).toBeUndefined();
+    expect(calls.commands).toEqual([["main.sd", "focus"]]);
+  });
+
+  it("on a phone, puts focus back in the script when Change color is closed", async () => {
+    phone();
+    await mount();
+    await openColor(menuItem());
+    const close = panel()!.querySelector<HTMLButtonElement>('[aria-label="Close writing tools"]')!;
+    await act(async () => close.click());
+    await until(() => !panel());
+    await until(() => calls.commands.length);
+    expect(calls.commands).toEqual([["main.sd", "focus"]]);
+  });
+
+  it("on a phone, puts focus back in the script after Use color from the toolbar chip", async () => {
+    phone();
+    await mount();
+    await openColor();
+    await useColor();
+    await until(() => !panel());
+    expect(calls.commands).toEqual([["main.sd", "focus"]]);
+  });
+
+  it("on desktop, puts focus back in the script after Use color and on Escape", async () => {
+    await mount();
+    await openColor(menuItem());
+    await useColor();
+    await until(() => !panel());
+    expect(calls.commands).toEqual([["main.sd", "focus"]]);
+    calls.commands.length = 0;
+    await openColor(menuItem());
+    await key(panel()!.querySelector("input[type=text]")!, "Escape");
+    await until(() => !panel());
+    await until(() => calls.commands.length);
+    expect(calls.commands).toEqual([["main.sd", "focus"]]);
+  });
+
+  it("gives focus back to the element it opened over after Use color", async () => {
+    await mount();
+    const swatch = document.body.appendChild(document.createElement("button"));
+    swatch.focus();
+    await openColor();
+    await useColor();
+    await until(() => !panel());
+    await settle(50);
+    expect(document.activeElement).toBe(swatch);
+    expect(calls.commands).toEqual([]);
+  });
+
+  it("keeps focus in its field and the panel open when the color is refused", async () => {
+    phone();
+    calls.colorOutcome = "moved";
+    await mount();
+    await openColor(menuItem());
+    await useColor();
+    expect(panel()).not.toBeNull();
+    expect(document.activeElement).toBe(panel()!.querySelector("input[type=text]"));
+    expect(calls.commands).toEqual([]);
+  });
+
+  it("leaves the script unfocused in Read mode", async () => {
+    phone();
+    workspace.scriptMode.value = "reading";
+    await mount();
+    await openColor(menuItem());
+    await useColor();
+    await until(() => !panel());
+    expect(calls.commands).toEqual([]);
   });
 });
