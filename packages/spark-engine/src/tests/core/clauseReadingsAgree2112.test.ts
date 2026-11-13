@@ -329,16 +329,38 @@ function normalize(reading: Reading): Reading {
   };
 }
 
-const compilerReadings = new Map<number, Reading>();
-const interpreterReadings = new Map<number, Reading>();
+const CHOICE_DIRECTIVES: readonly (readonly [label: string, text: string])[] = [
+  ["choice brackets", "Go ((a [x] b)) now"],
+  ["choice brackets inside braces", "Go ((a {[x]} b)) now"],
+  ["a long-string bracket", "Go ((a {[[a]]} b)) now"],
+  ["a levelled long-string bracket", "Go ((a {[=[a]=]} b)) now"],
+  ["a long comment bracket", "Go ((a {1 --[[c]] + 1} b)) now"],
+  ["an indexing bracket", "Go ((a {t[1]} b)) now"],
+  ["a comment after the choice brackets", "Go ((a [x] /* c */ b)) now"],
+  ["clauses after the choice brackets", "Go ((play music theme [x] loop)) now"],
+  ["an image directive after the choice brackets", "Go [x] [[mia {t[1]} morph talk]] now"],
+  ["a directive closed before the choice brackets", "Go ((a b)) [x] now"],
+  ["a directive closed inside the choice brackets", "Go ((a [b)) c] d"],
+];
 
-beforeAll(async () => {
+const CHOICE_ROWS: (readonly [label: string, text: string])[] = CHOICE_DIRECTIVES.flatMap(([label, text]) => [
+  [label, text] as const,
+  [`${label}, with a divert`, `${text} -> next`] as const,
+]);
+
+const CHOICE_LINE = 2;
+
+const choiceSource = (text: string) =>
+  ["scene start", "  choose", `    + ${text}`, "      Body.", "      done", "  end", "end", "scene next", "  Next.", "  done", "end", ""].join("\n");
+
+function compilerReadingsOf(text: string, keep: (line: number, from: number) => boolean): Map<number, Reading> {
+  const readings = new Map<number, Reading>();
   const documents = new SparkdownDocumentRegistry(["references", "implicits"]);
-  documents.set({ textDocument: { uri: MAIN_URI, text: source, version: 1, languageId: "sparkdown" } });
+  documents.set({ textDocument: { uri: MAIN_URI, text, version: 1, languageId: "sparkdown" } });
   const doc = documents.get(MAIN_URI)!;
   const reading = (line: number) => {
-    let found = compilerReadings.get(line);
-    if (!found) compilerReadings.set(line, (found = empty()));
+    let found = readings.get(line);
+    if (!found) readings.set(line, (found = empty()));
     return found;
   };
   const annotations = documents.annotations(MAIN_URI);
@@ -348,19 +370,19 @@ beforeAll(async () => {
     const types: string[] = ref.selectors?.[0]?.types ?? [];
     const role = ref.usage === "divert" ? "load" : types[0];
     const line = doc.positionAt(references.from).line;
-    if (role && line % 2 === 1) reading(line).links.push(`${role}:${doc.read(references.from, references.to)}`);
+    if (role && keep(line, references.from)) reading(line).links.push(`${role}:${doc.read(references.from, references.to)}`);
     references.next();
   }
   const implicits = annotations.implicits.iter();
   while (implicits.value) {
     const line = doc.positionAt(implicits.from).line;
-    if (implicits.value.type === "filtered_image" && line % 2 === 1) reading(line).implicitNames.push(doc.read(implicits.from, implicits.to));
+    if (implicits.value.type === "filtered_image" && keep(line, implicits.from)) reading(line).implicitNames.push(doc.read(implicits.from, implicits.to));
     implicits.next();
   }
-  const { program } = compileUI(source);
+  const { program } = compileUI(text);
   for (const diagnostic of (program.diagnostics?.[MAIN_URI] ?? []) as any[]) {
     const line = diagnostic.range.start.line;
-    if (line % 2 !== 1) continue;
+    if (!keep(line, doc.offsetAt(diagnostic.range.start))) continue;
     const message: string = typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value;
     const at = doc.read(doc.offsetAt(diagnostic.range.start), doc.offsetAt(diagnostic.range.end));
     const zeroWidth = diagnostic.range.start.line === diagnostic.range.end.line && diagnostic.range.start.character === diagnostic.range.end.character;
@@ -376,10 +398,18 @@ beforeAll(async () => {
     else if (message.startsWith("`play` takes one video name")) reading(line).playArity = true;
     else if (message.startsWith("Unrecognized")) reading(line).unrecognizedControl = at;
   }
-  for (const [line, found] of compilerReadings) compilerReadings.set(line, normalize(found));
+  for (const [line, found] of readings) readings.set(line, normalize(found));
+  return readings;
+}
 
-  const harness = createHarness(source);
-  await harness.ready;
+interface Seen {
+  bracket: Bracket;
+  content: string;
+  chunk: Chunk;
+  parsed: Parsed[];
+}
+
+function spyOnChunks(harness: ReturnType<typeof createHarness>): Seen[] {
   const interpreter = (harness.game.module as any).interpreter;
   let parsed: Parsed[] = [];
   const clauseValues = interpreter.assetClauseValues.bind(interpreter);
@@ -387,7 +417,7 @@ beforeAll(async () => {
     parsed = [...clauses];
     return clauseValues(clauses);
   };
-  const seen: { bracket: Bracket; content: string; chunk: Chunk; parsed: Parsed[] }[] = [];
+  const seen: Seen[] = [];
   for (const name of ["createImageChunk", "createAudioChunk", "createLoadChunk", "createLayoutChunk", "createCutsceneChunk"]) {
     const original = interpreter[name].bind(interpreter);
     interpreter[name] = (content: string) => {
@@ -397,11 +427,43 @@ beforeAll(async () => {
       return chunk;
     };
   }
+  return seen;
+}
+
+const readingOf = (found: Seen) => expected(found.bracket, found.content, found.chunk, found.parsed);
+
+const compilerReadings = new Map<number, Reading>();
+const interpreterReadings = new Map<number, Reading>();
+const choiceCompilerReadings = new Map<string, Reading>();
+const choiceInterpreterReadings = new Map<string, Reading>();
+
+beforeAll(async () => {
+  for (const [line, found] of compilerReadingsOf(source, (line) => line % 2 === 1)) compilerReadings.set(line, found);
+  const harness = createHarness(source);
+  await harness.ready;
+  const seen = spyOnChunks(harness);
   for (let i = 0; i < ROWS.length; i += 1) {
     const before = seen.length;
     await harness.preview(lineOf(i));
     const found = seen[before];
-    if (found) interpreterReadings.set(lineOf(i), expected(found.bracket, found.content, found.chunk, found.parsed));
+    if (found) interpreterReadings.set(lineOf(i), readingOf(found));
+  }
+
+  for (const [label, text] of CHOICE_ROWS) {
+    const rowSource = choiceSource(text);
+    const divertAt = rowSource.indexOf(" -> ");
+    const found = compilerReadingsOf(rowSource, (line, from) => line === CHOICE_LINE && (divertAt < 0 || from < divertAt)).get(CHOICE_LINE);
+    if (found) choiceCompilerReadings.set(label, found);
+    const rowHarness = createHarness(rowSource);
+    await rowHarness.ready;
+    const rowSeen = spyOnChunks(rowHarness);
+    await rowHarness.preview(0);
+    const offered = rowSeen.length;
+    if (rowHarness.game.story.currentChoices.length !== 1) continue;
+    rowHarness.game.story.ChooseChoiceIndex(0);
+    rowHarness.nextBeat();
+    const read = rowSeen[offered] ?? rowSeen[0];
+    if (read) choiceInterpreterReadings.set(label, readingOf(read));
   }
 });
 
@@ -420,5 +482,12 @@ describe("every editor reader of a directive agrees with the interpreter's chunk
   test.each(ROWS.map(([label, bracket, text], i) => [label, directive(bracket, text), i] as const))("%s: `%s`", (_label, _text, i) => {
     const line = lineOf(i);
     expect(compilerReadings.get(line) ?? empty()).toStrictEqual(interpreterReadings.get(line) ?? empty());
+  });
+});
+
+describe("every editor reader of a directive in a choice line agrees with the chunk the story hands the interpreter (I-2225)", () => {
+  test.each(CHOICE_ROWS.map(([label, text]) => [label, text] as const))("%s: `+ %s`", (label) => {
+    expect(choiceInterpreterReadings.has(label)).toBe(true);
+    expect(choiceCompilerReadings.get(label) ?? empty()).toStrictEqual(choiceInterpreterReadings.get(label));
   });
 });
