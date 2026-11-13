@@ -173,10 +173,23 @@ export const relativeScriptPath = (
   uri: string,
   workspace: string | undefined,
 ) => {
-  const path =
-    workspace && uri.startsWith(workspace) ? uri.slice(workspace.length + 1) : uri;
+  const path = workspace ? pathWithin(uriPath(uri), uriPath(workspace)) : uri;
   const extIndex = path.lastIndexOf(".");
-  return extIndex < 0 ? path : path.slice(0, extIndex);
+  return extIndex <= path.lastIndexOf("/") ? path : path.slice(0, extIndex);
+};
+
+const uriPath = (uriOrPath: string) => {
+  const path = /^[a-z][a-z0-9+.-]*:\/\/[^/]*(.*)$/i.exec(uriOrPath)?.[1] ?? uriOrPath;
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+};
+
+const pathWithin = (path: string, folder: string) => {
+  const prefix = folder.endsWith("/") ? folder : `${folder}/`;
+  return path.startsWith(prefix) ? path.slice(prefix.length) : path;
 };
 
 const at = (
