@@ -23432,11 +23432,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {[[a]]} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *far ((a {[[a]]} b)) away* now"
+    "Go *far ((a {[a"
    ],
    "runs": [
     {
-     "out": "Go *far ((a {[[a]]} b)) away* now\nBody.\n",
+     "out": "Go *far ((a {]} b)) away* now\nBody.\n",
      "errs": []
     }
    ],
@@ -23444,7 +23444,7 @@
    "diags": [
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "f546d6d0"
+   "scopes": "fb0bdb4c"
   },
   {
    "id": "plain-command-24",
@@ -23809,11 +23809,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {[=[a]=]} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *far ((a {[=[a]=]} b)) away* now"
+    "Go *far ((a {=[a"
    ],
    "runs": [
     {
-     "out": "Go *far ((a {[=[a]=]} b)) away* now\nBody.\n",
+     "out": "Go *far ((a {=]} b)) away* now\nBody.\n",
      "errs": []
     }
    ],
@@ -23821,7 +23821,7 @@
    "diags": [
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "3c7f58ac"
+   "scopes": "ed66487d"
   },
   {
    "id": "plain-command-44",
@@ -24196,11 +24196,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {1 --[[c]] + 1} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *far ((a {1 --[[c]] + 1} b)) away* now"
+    "Go *far ((a {1 --[c"
    ],
    "runs": [
     {
-     "out": "Go *far ((a {1 --[[c]] + 1} b)) away* now\nBody.\n",
+     "out": "Go *far ((a {1 --] + 1} b)) away* now\nBody.\n",
      "errs": []
     }
    ],
@@ -24211,7 +24211,7 @@
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "a99681c5"
+   "scopes": "7d507473"
   },
   {
    "id": "plain-command-64",
@@ -24595,11 +24595,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {\"->\"} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *far ((a {\"->\"} b)) away* now"
+    "Go *far ((a {\""
    ],
    "runs": [
     {
-     "out": "Go *far ((a {\"->\"} b)) away* now\nBody.\n",
+     "out": "Go *far ((a {\"\nBody.\n",
      "errs": []
     }
    ],
@@ -24608,7 +24608,7 @@
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
    ],
-   "scopes": "28ba3f2c"
+   "scopes": "4a8abe56"
   },
   {
    "id": "plain-command-84",
@@ -24978,11 +24978,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {t[1]} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *far ((a {t[1]} b)) away* now"
+    "Go *far ((a {t1"
    ],
    "runs": [
     {
-     "out": "Go *far ((a {t[1]} b)) away* now\nBody.\n",
+     "out": "Go *far ((a {t} b)) away* now\nBody.\n",
      "errs": []
     }
    ],
@@ -24990,7 +24990,7 @@
    "diags": [
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "38f1b918"
+   "scopes": "357dc055"
   },
   {
    "id": "plain-command-104",

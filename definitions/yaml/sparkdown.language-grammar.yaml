@@ -517,7 +517,7 @@ variables:
   SPAN_LONG_BRACKET_1: (?:\[=\[(?:[^\]\r\n]|\](?!=\]))*\]=\])
   # lookaround: as SPAN_LONG_BRACKET, for level 2.
   SPAN_LONG_BRACKET_2: (?:\[==\[(?:[^\]\r\n]|\](?!==\]))*\]==\])
-  SPAN_CODE_CHARACTER: (?:{{CHOICE_PLAIN_CODE_CHARACTER}}|{{SPAN_LONG_BRACKET}}|[-][-]{{SPAN_LONG_BRACKET}})
+  SPAN_CODE_CHARACTER: (?:{{CHOICE_PLAIN_CODE_CHARACTER}}|{{SPAN_LONG_BRACKET}}|[-][-]{{SPAN_LONG_BRACKET}}|{{BLOCK_COMMENT_CLOSED}})
   SPAN_INTERPOLATION_CHARACTER: (?:{{SPAN_CODE_CHARACTER}}|{{CHOICE_PLAIN_BACKTICK_STRING}})
   SPAN_TABLE_1: (?:[{]{{SPAN_INTERPOLATION_CHARACTER}}*[}])
   SPAN_TABLE_2: (?:[{](?:{{SPAN_INTERPOLATION_CHARACTER}}|{{SPAN_TABLE_1}})*[}])
@@ -528,22 +528,27 @@ variables:
   # lookaround: Raw reads a backtick run with the next run of its length, which
   # a span's content takes whole so a mark inside it ends nothing; Punctuation
   # takes a run that closes nothing.
-  SPAN_CODE_ONE: (?:[`](?![`])(?:[^`\r\n]|[`][`]+(?![`]))+[`](?![`]))
+  SPAN_CODE_ONE: (?:[`](?![`])(?:{{RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
   # lookaround: as SPAN_CODE_ONE.
-  SPAN_CODE_TWO: (?:[`][`](?![`])(?:[^`\r\n]|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
   # lookaround: as SPAN_CODE_ONE.
   SPAN_CODE_TEXT: (?:(?!{{SPAN_CODE_ONE}}|{{SPAN_CODE_TWO}})[`]{1,2}(?![`]))
   SPAN_CODE: (?:{{SPAN_CODE_ONE}}|{{SPAN_CODE_TWO}}|{{SPAN_CODE_TEXT}})
-  SPAN_COMMAND_UNIT: (?:[\\][^\r\n]|[^\\>\r\n])
+  # lookaround: as SPAN_STAR_FREE; a command inside a span's content stops at
+  # its region's end, as CHOICE_START_COMMAND_CHARACTER reads a command in choice
+  # text.
+  SPAN_COMMAND_CHARACTER: (?:(?!{{SPAN_END}})[^\r\n])
+  # lookaround: as SPAN_COMMAND_CHARACTER; a backslash takes the character after it.
+  SPAN_COMMAND_UNIT: (?:[\\]{{SPAN_COMMAND_CHARACTER}}|(?![\\>]){{SPAN_COMMAND_CHARACTER}})
   # lookaround: TextCommand's end, whose `(?<![-])` keeps an arrow's `>` from
   # closing the command.
   SPAN_COMMAND_WALK: (?:{{SPAN_COMMAND_UNIT}}*(?<![-])[>])
   # lookaround: TextCommand's end when no `>` but escaped ones follows, where
   # it gives the last of them back as its end; CHOICE_START_TEXT_COMMAND_ESCAPED_END
   # reads the same end for a choice.
-  SPAN_COMMAND_ESCAPED_UNIT: (?:[\\](?![>])[^\r\n]|[\\][>]|[^\\>\r\n])
+  SPAN_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{SPAN_COMMAND_CHARACTER}}|[\\][>]|(?![\\>]){{SPAN_COMMAND_CHARACTER}})
   # lookaround: as SPAN_COMMAND_ESCAPED_UNIT.
-  SPAN_COMMAND_ESCAPED_LATER: (?:(?:[\\](?![>])[^\r\n]|[^\\>\r\n])*[\\][>])
+  SPAN_COMMAND_ESCAPED_LATER: (?:(?:[\\](?![>]){{SPAN_COMMAND_CHARACTER}}|(?![\\>]){{SPAN_COMMAND_CHARACTER}})*[\\][>])
   # lookaround: as SPAN_COMMAND_ESCAPED_UNIT.
   SPAN_COMMAND_ESCAPED_END: (?:{{SPAN_COMMAND_ESCAPED_UNIT}}*[\\][>](?!{{SPAN_COMMAND_ESCAPED_LATER}}))
   # lookaround: TextCommand's begin.
@@ -553,10 +558,17 @@ variables:
   SPAN_ANGLE: (?:[<]{{SPAN_COMMAND_TAIL}}|[<](?!{{SPAN_COMMAND_TAIL}}))
   # lookaround: ImageCommand ends at the first `]]`; Punctuation takes a `[`
   # that starts none.
-  SPAN_BRACKET: (?:{{SPAN_DOUBLE_BRACKET}}|\[(?!\[))
+  SPAN_BRACKET: (?:\[\[{{SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  # lookaround: as SPAN_COMMAND_CHARACTER, for an image command.
+  SPAN_IMAGE_TEXT: (?:(?!{{SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
   # lookaround: AudioCommand ends at the first `))`; Punctuation takes a `(`
   # that starts none.
-  SPAN_PAREN: (?:[(][(](?:[^)\r\n]|[)](?![)]))*[)][)]|[(](?![(]))
+  SPAN_PAREN: (?:[(][(]{{SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  # lookaround: as SPAN_COMMAND_CHARACTER, for an audio command, which ends at
+  # its first `))`.
+  SPAN_AUDIO_TEXT: (?:(?!{{SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
+  # lookaround: AudioCommand ends at the first `))`.
+  SPAN_DOUBLE_PAREN_TEXT: (?:[^)\r\n]|[)](?![)]))
   # lookaround: SparkdownBlockCommentOnLine takes a closed comment whole;
   # Punctuation takes any other `/`, a `//` inside a span included.
   SPAN_SLASH: (?:{{BLOCK_COMMENT_CLOSED}}|[/](?![*]))
@@ -620,16 +632,53 @@ variables:
   # lookaround: as RAW_CHARACTER, in ChoiceStartText.
   CHOICE_START_RAW_CHARACTER: (?:(?![`]|{{CHOICE_START_SPAN_END}})[^\r\n])
   CHOICE_START_RAW_CONTENT: (?:(?:{{CHOICE_START_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  # lookaround: as SPAN_CODE_ONE, in ChoiceStartText.
+  CHOICE_START_SPAN_CODE_ONE: (?:[`](?![`])(?:{{CHOICE_START_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  # lookaround: as SPAN_CODE_TWO, in ChoiceStartText.
+  CHOICE_START_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{CHOICE_START_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  # lookaround: as SPAN_CODE_TEXT, in ChoiceStartText.
+  CHOICE_START_SPAN_CODE_TEXT: (?:(?!{{CHOICE_START_SPAN_CODE_ONE}}|{{CHOICE_START_SPAN_CODE_TWO}})[`]{1,2}(?![`]))
+  CHOICE_START_SPAN_CODE: (?:{{CHOICE_START_SPAN_CODE_ONE}}|{{CHOICE_START_SPAN_CODE_TWO}}|{{CHOICE_START_SPAN_CODE_TEXT}})
+  # lookaround: as SPAN_COMMAND_CHARACTER, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_CHARACTER: (?:(?!{{CHOICE_START_SPAN_END}})[^\r\n])
+  # lookaround: as SPAN_COMMAND_UNIT, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_UNIT: (?:[\\]{{CHOICE_START_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_START_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_WALK, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_WALK: (?:{{CHOICE_START_SPAN_COMMAND_UNIT}}*(?<![-])[>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_UNIT, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_START_SPAN_COMMAND_CHARACTER}}|[\\][>]|(?![\\>]){{CHOICE_START_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_ESCAPED_LATER, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_ESCAPED_LATER: (?:(?:[\\](?![>]){{CHOICE_START_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_START_SPAN_COMMAND_CHARACTER}})*[\\][>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_END, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_ESCAPED_END: (?:{{CHOICE_START_SPAN_COMMAND_ESCAPED_UNIT}}*[\\][>](?!{{CHOICE_START_SPAN_COMMAND_ESCAPED_LATER}}))
+  # lookaround: as SPAN_COMMAND_TAIL, in ChoiceStartText.
+  CHOICE_START_SPAN_COMMAND_TAIL: (?:(?!{{WS}})(?:{{CHOICE_START_SPAN_COMMAND_WALK}}|{{CHOICE_START_SPAN_COMMAND_ESCAPED_END}}))
+  # lookaround: as SPAN_ANGLE, in ChoiceStartText.
+  CHOICE_START_SPAN_ANGLE: (?:[<]{{CHOICE_START_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_START_SPAN_COMMAND_TAIL}}))
+  # lookaround: as SPAN_BRACKET, in ChoiceStartText.
+  CHOICE_START_SPAN_BRACKET: (?:\[\[{{CHOICE_START_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  # lookaround: as SPAN_IMAGE_TEXT, in ChoiceStartText.
+  CHOICE_START_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
+  # lookaround: as SPAN_PAREN, in ChoiceStartText.
+  CHOICE_START_SPAN_PAREN: (?:[(][(]{{CHOICE_START_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  # lookaround: as SPAN_AUDIO_TEXT, in ChoiceStartText.
+  CHOICE_START_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
+  CHOICE_START_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{CHOICE_START_SPAN_CODE}}|{{CHOICE_START_SPAN_ANGLE}}|{{CHOICE_START_SPAN_BRACKET}}|{{CHOICE_START_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
   # lookaround: as SPAN_STAR_FREE, in ChoiceStartText.
-  CHOICE_START_SPAN_STAR_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_STAR_TEXT}})
+  CHOICE_START_SPAN_STAR_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{CHOICE_START_SPAN_STAR_TEXT}})
   # lookaround: as SPAN_UNDERSCORE_FREE, in ChoiceStartText.
-  CHOICE_START_SPAN_UNDERSCORE_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_UNDERSCORE_TEXT}})
+  CHOICE_START_SPAN_UNDERSCORE_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{CHOICE_START_SPAN_UNDERSCORE_TEXT}})
   # lookaround: as SPAN_CARET_FREE, in ChoiceStartText.
-  CHOICE_START_SPAN_CARET_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_CARET_TEXT}})
+  CHOICE_START_SPAN_CARET_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{CHOICE_START_SPAN_CARET_TEXT}})
   # lookaround: as SPAN_TILDE_FREE, in ChoiceStartText.
-  CHOICE_START_SPAN_TILDE_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_TILDE_TEXT}})
+  CHOICE_START_SPAN_TILDE_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{CHOICE_START_SPAN_TILDE_TEXT}})
   # lookaround: as SPAN_COLON_FREE, in ChoiceStartText.
-  CHOICE_START_SPAN_COLON_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_COLON_TEXT}})
+  CHOICE_START_SPAN_COLON_FREE: (?:(?!{{CHOICE_START_SPAN_END}}){{CHOICE_START_SPAN_COLON_TEXT}})
+  CHOICE_START_SPAN_STAR_TEXT: (?:{{CHOICE_START_SPAN_UNIT}}|[_\^~:])
+  CHOICE_START_SPAN_UNDERSCORE_TEXT: (?:{{CHOICE_START_SPAN_UNIT}}|[*\^~:])
+  CHOICE_START_SPAN_CARET_TEXT: (?:{{CHOICE_START_SPAN_UNIT}}|[*_~:])
+  CHOICE_START_SPAN_TILDE_TEXT: (?:{{CHOICE_START_SPAN_UNIT}}|[*_\^:])
+  CHOICE_START_SPAN_COLON_TEXT: (?:{{CHOICE_START_SPAN_UNIT}}|[*_\^~])
   CHOICE_ONLY_STAR_ITALIC_INNER: (?:(?:{{CHOICE_ONLY_SPAN_STAR_FREE}}|{{STAR_ITALIC_TEXT_RUN}})+)
   CHOICE_ONLY_STAR_BOLD_INNER: (?:(?:{{CHOICE_ONLY_SPAN_STAR_FREE}}|{{STAR_BOLD_TEXT_RUN}})+)
   CHOICE_ONLY_STAR_NESTED_BOLD: (?:[*][*]{{CHOICE_ONLY_STAR_BOLD_INNER}}{{STAR_CLOSE_BOLD}}[*][*])
@@ -662,16 +711,53 @@ variables:
   # lookaround: as RAW_CHARACTER, in ChoiceOnlyText.
   CHOICE_ONLY_RAW_CHARACTER: (?:(?![`]|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
   CHOICE_ONLY_RAW_CONTENT: (?:(?:{{CHOICE_ONLY_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  # lookaround: as SPAN_CODE_ONE, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_CODE_ONE: (?:[`](?![`])(?:{{CHOICE_ONLY_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  # lookaround: as SPAN_CODE_TWO, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{CHOICE_ONLY_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  # lookaround: as SPAN_CODE_TEXT, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_CODE_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_CODE_ONE}}|{{CHOICE_ONLY_SPAN_CODE_TWO}})[`]{1,2}(?![`]))
+  CHOICE_ONLY_SPAN_CODE: (?:{{CHOICE_ONLY_SPAN_CODE_ONE}}|{{CHOICE_ONLY_SPAN_CODE_TWO}}|{{CHOICE_ONLY_SPAN_CODE_TEXT}})
+  # lookaround: as SPAN_COMMAND_CHARACTER, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_CHARACTER: (?:(?!{{CHOICE_ONLY_SPAN_END}})[^\r\n])
+  # lookaround: as SPAN_COMMAND_UNIT, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_UNIT: (?:[\\]{{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_WALK, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_WALK: (?:{{CHOICE_ONLY_SPAN_COMMAND_UNIT}}*(?<![-])[>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_UNIT, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}}|[\\][>]|(?![\\>]){{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_ESCAPED_LATER, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_ESCAPED_LATER: (?:(?:[\\](?![>]){{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_ONLY_SPAN_COMMAND_CHARACTER}})*[\\][>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_END, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_ESCAPED_END: (?:{{CHOICE_ONLY_SPAN_COMMAND_ESCAPED_UNIT}}*[\\][>](?!{{CHOICE_ONLY_SPAN_COMMAND_ESCAPED_LATER}}))
+  # lookaround: as SPAN_COMMAND_TAIL, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_COMMAND_TAIL: (?:(?!{{WS}})(?:{{CHOICE_ONLY_SPAN_COMMAND_WALK}}|{{CHOICE_ONLY_SPAN_COMMAND_ESCAPED_END}}))
+  # lookaround: as SPAN_ANGLE, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_ANGLE: (?:[<]{{CHOICE_ONLY_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_ONLY_SPAN_COMMAND_TAIL}}))
+  # lookaround: as SPAN_BRACKET, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_BRACKET: (?:\[\[{{CHOICE_ONLY_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  # lookaround: as SPAN_IMAGE_TEXT, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
+  # lookaround: as SPAN_PAREN, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_PAREN: (?:[(][(]{{CHOICE_ONLY_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  # lookaround: as SPAN_AUDIO_TEXT, in ChoiceOnlyText.
+  CHOICE_ONLY_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
+  CHOICE_ONLY_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{CHOICE_ONLY_SPAN_CODE}}|{{CHOICE_ONLY_SPAN_ANGLE}}|{{CHOICE_ONLY_SPAN_BRACKET}}|{{CHOICE_ONLY_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
   # lookaround: as SPAN_STAR_FREE, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_STAR_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_STAR_TEXT}})
+  CHOICE_ONLY_SPAN_STAR_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_SPAN_STAR_TEXT}})
   # lookaround: as SPAN_UNDERSCORE_FREE, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_UNDERSCORE_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_UNDERSCORE_TEXT}})
+  CHOICE_ONLY_SPAN_UNDERSCORE_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_SPAN_UNDERSCORE_TEXT}})
   # lookaround: as SPAN_CARET_FREE, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_CARET_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_CARET_TEXT}})
+  CHOICE_ONLY_SPAN_CARET_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_SPAN_CARET_TEXT}})
   # lookaround: as SPAN_TILDE_FREE, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_TILDE_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_TILDE_TEXT}})
+  CHOICE_ONLY_SPAN_TILDE_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_SPAN_TILDE_TEXT}})
   # lookaround: as SPAN_COLON_FREE, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_COLON_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_COLON_TEXT}})
+  CHOICE_ONLY_SPAN_COLON_FREE: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_SPAN_COLON_TEXT}})
+  CHOICE_ONLY_SPAN_STAR_TEXT: (?:{{CHOICE_ONLY_SPAN_UNIT}}|[_\^~:])
+  CHOICE_ONLY_SPAN_UNDERSCORE_TEXT: (?:{{CHOICE_ONLY_SPAN_UNIT}}|[*\^~:])
+  CHOICE_ONLY_SPAN_CARET_TEXT: (?:{{CHOICE_ONLY_SPAN_UNIT}}|[*_~:])
+  CHOICE_ONLY_SPAN_TILDE_TEXT: (?:{{CHOICE_ONLY_SPAN_UNIT}}|[*_\^:])
+  CHOICE_ONLY_SPAN_COLON_TEXT: (?:{{CHOICE_ONLY_SPAN_UNIT}}|[*_\^~])
   CHOICE_INNER_STAR_ITALIC_INNER: (?:(?:{{CHOICE_INNER_SPAN_STAR_FREE}}|{{STAR_ITALIC_TEXT_RUN}})+)
   CHOICE_INNER_STAR_BOLD_INNER: (?:(?:{{CHOICE_INNER_SPAN_STAR_FREE}}|{{STAR_BOLD_TEXT_RUN}})+)
   CHOICE_INNER_STAR_NESTED_BOLD: (?:[*][*]{{CHOICE_INNER_STAR_BOLD_INNER}}{{STAR_CLOSE_BOLD}}[*][*])
@@ -704,16 +790,53 @@ variables:
   # lookaround: as RAW_CHARACTER, in ChoiceInnerText.
   CHOICE_INNER_RAW_CHARACTER: (?:(?![`]|{{CHOICE_INNER_SPAN_END}})[^\r\n])
   CHOICE_INNER_RAW_CONTENT: (?:(?:{{CHOICE_INNER_RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
+  # lookaround: as SPAN_CODE_ONE, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_CODE_ONE: (?:[`](?![`])(?:{{CHOICE_INNER_RAW_CHARACTER}}|[`][`]+(?![`]))+[`](?![`]))
+  # lookaround: as SPAN_CODE_TWO, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_CODE_TWO: (?:[`][`](?![`])(?:{{CHOICE_INNER_RAW_CHARACTER}}|[`](?![`])|[`]{3,}(?![`]))+[`][`](?![`]))
+  # lookaround: as SPAN_CODE_TEXT, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_CODE_TEXT: (?:(?!{{CHOICE_INNER_SPAN_CODE_ONE}}|{{CHOICE_INNER_SPAN_CODE_TWO}})[`]{1,2}(?![`]))
+  CHOICE_INNER_SPAN_CODE: (?:{{CHOICE_INNER_SPAN_CODE_ONE}}|{{CHOICE_INNER_SPAN_CODE_TWO}}|{{CHOICE_INNER_SPAN_CODE_TEXT}})
+  # lookaround: as SPAN_COMMAND_CHARACTER, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_CHARACTER: (?:(?!{{CHOICE_INNER_SPAN_END}})[^\r\n])
+  # lookaround: as SPAN_COMMAND_UNIT, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_UNIT: (?:[\\]{{CHOICE_INNER_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_INNER_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_WALK, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_WALK: (?:{{CHOICE_INNER_SPAN_COMMAND_UNIT}}*(?<![-])[>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_UNIT, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_INNER_SPAN_COMMAND_CHARACTER}}|[\\][>]|(?![\\>]){{CHOICE_INNER_SPAN_COMMAND_CHARACTER}})
+  # lookaround: as SPAN_COMMAND_ESCAPED_LATER, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_ESCAPED_LATER: (?:(?:[\\](?![>]){{CHOICE_INNER_SPAN_COMMAND_CHARACTER}}|(?![\\>]){{CHOICE_INNER_SPAN_COMMAND_CHARACTER}})*[\\][>])
+  # lookaround: as SPAN_COMMAND_ESCAPED_END, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_ESCAPED_END: (?:{{CHOICE_INNER_SPAN_COMMAND_ESCAPED_UNIT}}*[\\][>](?!{{CHOICE_INNER_SPAN_COMMAND_ESCAPED_LATER}}))
+  # lookaround: as SPAN_COMMAND_TAIL, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_COMMAND_TAIL: (?:(?!{{WS}})(?:{{CHOICE_INNER_SPAN_COMMAND_WALK}}|{{CHOICE_INNER_SPAN_COMMAND_ESCAPED_END}}))
+  # lookaround: as SPAN_ANGLE, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_ANGLE: (?:[<]{{CHOICE_INNER_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_INNER_SPAN_COMMAND_TAIL}}))
+  # lookaround: as SPAN_BRACKET, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_BRACKET: (?:\[\[{{CHOICE_INNER_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  # lookaround: as SPAN_IMAGE_TEXT, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
+  # lookaround: as SPAN_PAREN, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_PAREN: (?:[(][(]{{CHOICE_INNER_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  # lookaround: as SPAN_AUDIO_TEXT, in ChoiceInnerText.
+  CHOICE_INNER_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
+  CHOICE_INNER_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{CHOICE_INNER_SPAN_CODE}}|{{CHOICE_INNER_SPAN_ANGLE}}|{{CHOICE_INNER_SPAN_BRACKET}}|{{CHOICE_INNER_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
   # lookaround: as SPAN_STAR_FREE, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_STAR_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_STAR_TEXT}})
+  CHOICE_INNER_SPAN_STAR_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_SPAN_STAR_TEXT}})
   # lookaround: as SPAN_UNDERSCORE_FREE, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_UNDERSCORE_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_UNDERSCORE_TEXT}})
+  CHOICE_INNER_SPAN_UNDERSCORE_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_SPAN_UNDERSCORE_TEXT}})
   # lookaround: as SPAN_CARET_FREE, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_CARET_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_CARET_TEXT}})
+  CHOICE_INNER_SPAN_CARET_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_SPAN_CARET_TEXT}})
   # lookaround: as SPAN_TILDE_FREE, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_TILDE_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_TILDE_TEXT}})
+  CHOICE_INNER_SPAN_TILDE_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_SPAN_TILDE_TEXT}})
   # lookaround: as SPAN_COLON_FREE, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_COLON_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_COLON_TEXT}})
+  CHOICE_INNER_SPAN_COLON_FREE: (?:(?!{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_SPAN_COLON_TEXT}})
+  CHOICE_INNER_SPAN_STAR_TEXT: (?:{{CHOICE_INNER_SPAN_UNIT}}|[_\^~:])
+  CHOICE_INNER_SPAN_UNDERSCORE_TEXT: (?:{{CHOICE_INNER_SPAN_UNIT}}|[*\^~:])
+  CHOICE_INNER_SPAN_CARET_TEXT: (?:{{CHOICE_INNER_SPAN_UNIT}}|[*_~:])
+  CHOICE_INNER_SPAN_TILDE_TEXT: (?:{{CHOICE_INNER_SPAN_UNIT}}|[*_\^:])
+  CHOICE_INNER_SPAN_COLON_TEXT: (?:{{CHOICE_INNER_SPAN_UNIT}}|[*_\^~])
   # lookaround: LuauInterpolatedStringExpression reads a `{` as a unit
   # (ChoiceTextUnit) only where CHOICE_PLAIN_INTERPOLATION cannot keep it in the
   # text segment.
