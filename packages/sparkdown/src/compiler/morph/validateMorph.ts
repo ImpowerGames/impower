@@ -806,6 +806,17 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       }
     }
   }
+  if (Object.hasOwn(own, "default")) {
+    const value = own["default"];
+    if (typeof value !== "boolean") {
+      push(valueSpan(own, "default"), `${describeValue(value)} is not a \`default\`. Use \`true\` or \`false\`.`);
+    } else if (!isRecord(effectiveTiming) || effectiveTiming["trigger"] !== "speech") {
+      push(
+        keySpan(own, "default"),
+        "`default` marks the speech morph a directive plays when its `morph` clause picks none, and this morph is not a speech morph. Remove it, or add `trigger = speech` to its `timing`.",
+      );
+    }
+  }
   return issues;
 }
 

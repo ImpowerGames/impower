@@ -632,6 +632,31 @@ const buildLayoutVerbsModule = async (outGrammarPath: string) => {
   await fs.promises.writeFile(outModulePath, source);
 };
 
+const CLAUSE_WORDS_MODULE_NAME = "sparkdown.clause-words";
+
+const buildClauseWordsModule = async (outGrammarPath: string) => {
+  const parsed = await readGrammarSource();
+  const words: unknown = parsed.variables?.ASSET_VALUE_CLAUSE_KEYWORDS;
+  if (
+    !Array.isArray(words) ||
+    words.length === 0 ||
+    !words.every((word) => typeof word === "string" && /^[a-z]+$/.test(word))
+  ) {
+    throw new Error(
+      `Grammar build: the grammar's \`variables.ASSET_VALUE_CLAUSE_KEYWORDS\` must be a non-empty list of lowercase words (got ${JSON.stringify(words)})`,
+    );
+  }
+  const outModulePath = path.join(
+    path.dirname(outGrammarPath),
+    `${CLAUSE_WORDS_MODULE_NAME}.ts`,
+  );
+  const source = [
+    `export const ASSET_VALUE_CLAUSE_WORDS = [${words.map((word) => JSON.stringify(word)).join(", ")}] as const;`,
+    ``,
+  ].join("\n");
+  await fs.promises.writeFile(outModulePath, source);
+};
+
 const build = async () => {
   console.log(LOG_PREFIX + `build started`);
   await Promise.all(
@@ -645,6 +670,9 @@ const build = async () => {
   );
   await Promise.all(
     OUT_GRAMMAR_PATHS.map((outPath) => buildLayoutVerbsModule(outPath)),
+  );
+  await Promise.all(
+    OUT_GRAMMAR_PATHS.map((outPath) => buildClauseWordsModule(outPath)),
   );
   await Promise.all(
     SNIPPETS_BUILDS.map(({ inPath, outPath }) => buildJson(inPath, outPath)),

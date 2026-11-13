@@ -1,0 +1,6 @@
+scene start
+  [[mia morph talk_gritted]]
+  [[mia morph none]]
+  [[mia with fade morph talk_gritted]]
+  [[show portrait mia@confident:mouth.closed morph none with fade]]
+end

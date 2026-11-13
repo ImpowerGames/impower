@@ -15,7 +15,7 @@ import { buildFilteredSrc, serializeImageFilterParam } from "../filters/filtered
 import { hashText } from "./hash";
 import { own, table } from "./own";
 import { buildMorphRecipe, morphOverlaps, morphRestPose, parseMorphRecipe, recipeAsMorph, serializeMorphRecipe } from "./recipe";
-import { MORPH_BAKE_FORMAT, type MorphConditions, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
+import { MORPH_BAKE_FORMAT, MORPH_PICK_NONE, type MorphConditions, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
 
 type Context = { [type: string]: { [name: string]: any } };
 
@@ -73,12 +73,48 @@ function makeRef(
   return ref;
 }
 
+export interface MorphChoice<T> {
+  chosen: T[];
+  ambiguous: string[][];
+}
+
+export function chooseSpeechMorphs<T extends { name: string; groups: readonly string[] }>(
+  members: readonly T[],
+  speech: MorphProgramChannel["speech"],
+  pick: string | undefined,
+): MorphChoice<T> {
+  const isSpeech = (member: T) => own(speech, member.name) !== undefined;
+  const chosen = members.filter((member) => !isSpeech(member));
+  const ambiguous: string[][] = [];
+  if (pick === MORPH_PICK_NONE) return { chosen, ambiguous };
+  const pending = members.filter(isSpeech);
+  while (pending.length > 0) {
+    const cluster = [pending.shift()!];
+    for (let i = 0; i < cluster.length; i += 1) {
+      for (let j = pending.length - 1; j >= 0; j -= 1) {
+        if (pending[j]!.groups.some((group) => cluster[i]!.groups.includes(group))) cluster.push(...pending.splice(j, 1));
+      }
+    }
+    const defaults = cluster.filter((member) => own(speech, member.name)?.default);
+    const one =
+      cluster.length === 1
+        ? cluster[0]
+        : (cluster.find((member) => member.name === pick) ?? (defaults.length === 1 ? defaults[0] : undefined));
+    if (one) chosen.push(one);
+    else ambiguous.push(cluster.map((member) => member.name).sort());
+  }
+  return { chosen: ambiguous.length > 0 ? [] : chosen, ambiguous };
+}
+
+const choiceMembers = (members: readonly MorphMember[]) => members.map((member) => ({ ...member, name: member.recipe.name }));
+
 function makeRefs(
   members: readonly MorphMember[],
   imageName: string,
   image: any,
   selection: Record<string, string>,
 ): MorphRef[] {
+  if (members.length === 0) return [];
   const sorted = [...members].sort((a, b) => (a.recipe.name < b.recipe.name ? -1 : a.recipe.name > b.recipe.name ? 1 : 0));
   const sets = morphOverlaps(sorted.map((member) => member.recipe)).length ? sorted.map((member) => [member]) : [sorted];
   return sets.flatMap((set) => makeRef(set, imageName, image, selection) ?? []);
@@ -98,6 +134,10 @@ export function buildMorphChannel(
     channel.recipes[name] = text;
     const conditions = conditionsOf(effective);
     if (conditions) (channel.conditions ??= table())[name] = conditions;
+    const timing = effective["timing"];
+    if (timing && typeof timing === "object" && (timing as Record<string, unknown>)["trigger"] === "speech") {
+      (channel.speech ??= table())[name] = effective["default"] === true ? { default: true } : {};
+    }
     const binding = bindMorph(context, effective, images);
     if (!startsEveryGroup(binding.requirements)) continue;
     const member: MorphMember = { recipe, text, groups: [...binding.requirements.groups.keys()] };
@@ -112,25 +152,96 @@ export function buildMorphChannel(
     }
   }
   for (const [variant, { image, selection, members }] of playing) {
-    const refs = makeRefs(members, image, own(context["image"], image), selection);
+    const struct = own(context["image"], image);
+    const refsFor = (pick: string | undefined) =>
+      makeRefs(chooseSpeechMorphs(choiceMembers(members), channel.speech, pick).chosen, image, struct, selection);
+    const refs = refsFor(undefined);
     if (refs.length) channel.variants[variant] = refs;
+    const speech = members.map((member) => member.recipe.name).filter((name) => own(channel.speech, name) !== undefined);
+    if (speech.length === 0) continue;
+    const picks: Record<string, MorphRef[]> = table();
+    for (const pick of [MORPH_PICK_NONE, ...speech]) picks[pick] = refsFor(pick);
+    (channel.picks ??= table())[variant] = picks;
   }
   return channel;
+}
+
+export function channelRefs(channel: MorphProgramChannel | undefined): { variant: string; ref: MorphRef }[] {
+  const seen = new Set<string>();
+  const refs: { variant: string; ref: MorphRef }[] = [];
+  const add = (variant: string, list: readonly MorphRef[]) => {
+    for (const ref of list) {
+      const id = JSON.stringify([variant, ref.key]);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      refs.push({ variant, ref });
+    }
+  };
+  for (const [variant, list] of Object.entries(channel?.variants ?? {})) add(variant, list);
+  for (const [variant, picks] of Object.entries(channel?.picks ?? {})) {
+    for (const [pick, list] of Object.entries(picks)) if (pick !== MORPH_PICK_NONE) add(variant, list);
+  }
+  return refs;
+}
+
+export function speechMorphsForStruct(
+  context: Context | undefined,
+  channel: MorphProgramChannel | undefined,
+  struct: any,
+): string[] {
+  const name = struct?.["$name"];
+  if (!context || !channel?.speech || typeof name !== "string") return [];
+  const picks = own(channel.picks, name);
+  if (picks) return Object.keys(picks).filter((pick) => pick !== MORPH_PICK_NONE);
+  if (own(channel.variants, name)) return [];
+  return playingMembers(context, channel, struct)
+    .members.map((member) => member.recipe.name)
+    .filter((morph) => own(channel.speech, morph) !== undefined);
+}
+
+export function ambiguousSpeechMorphs(
+  context: Context | undefined,
+  channel: MorphProgramChannel | undefined,
+  struct: any,
+): string[][] {
+  if (!channel) return [];
+  const members = speechMorphsForStruct(context, channel, struct).flatMap((morph) => {
+    const entry = recipeEntry(own(channel.recipes, morph) ?? "", own(channel.conditions ?? {}, morph));
+    return entry ? [{ name: morph, groups: entry.groups }] : [];
+  });
+  return chooseSpeechMorphs(members, channel.speech, undefined).ambiguous;
 }
 
 export function morphRefsForStruct(
   context: Context | undefined,
   channel: MorphProgramChannel | undefined,
   struct: any,
+  pick?: string,
 ): MorphRef[] {
   const name = struct?.["$name"];
   if (!context || !channel || typeof name !== "string") return [];
+  const picks = own(channel.picks, name);
+  const picked = pick === undefined ? undefined : own(picks, pick);
+  if (picked) return picked;
   const listed = own(channel.variants, name);
-  if (listed) return listed;
+  if (listed || picks) return listed ?? [];
+  const { image, selection, members } = playingMembers(context, channel, struct);
+  if (!image || members.length === 0) return [];
+  return makeRefs(chooseSpeechMorphs(choiceMembers(members), channel.speech, pick).chosen, image.$name, image, selection);
+}
+
+function playingMembers(
+  context: Context,
+  channel: MorphProgramChannel,
+  struct: any,
+): { image?: any; selection: Record<string, string>; members: MorphMember[] } {
+  const name = struct["$name"] as string;
   const resolved = resolveImageAttributes(context, struct, { visibility: false });
   const image = resolved.image;
   const vocabulary = resolved.vocabulary;
-  if (!image || image.$type !== "image" || !vocabulary || typeof image.$name !== "string") return [];
+  if (!image || image.$type !== "image" || !vocabulary || typeof image.$name !== "string") {
+    return { selection: resolved.selection, members: [] };
+  }
   const members: MorphMember[] = [];
   for (const [morph, text] of Object.entries(channel.recipes)) {
     const entry = recipeEntry(text, own(channel.conditions ?? {}, morph));
@@ -144,7 +255,7 @@ export function morphRefsForStruct(
     if (bindVariant(vocabulary, name, resolved.selection, requirements).status !== "active") continue;
     members.push({ recipe, text, groups });
   }
-  return members.length ? makeRefs(members, image.$name, image, resolved.selection) : [];
+  return { image, selection: resolved.selection, members };
 }
 
 function conditionsOf(morph: Record<string, unknown>): MorphConditions | undefined {
@@ -191,8 +302,9 @@ export function shownLook(
   channel: MorphProgramChannel | undefined,
   struct: any,
   poseOf: (recipe: MorphRecipe) => Record<string, string> = morphRestPose,
+  pick?: string,
 ): ShownLook | undefined {
-  const refs = morphRefsForStruct(context, channel, struct);
+  const refs = morphRefsForStruct(context, channel, struct, pick);
   if (refs.length !== 1 || !context || !channel) return undefined;
   const resolved = resolveImageAttributes(context, struct, { visibility: false });
   if (!resolved.vocabulary) return undefined;
@@ -222,11 +334,12 @@ export function shownImageLayers(
   channel: MorphProgramChannel | undefined,
   struct: any,
   poseOf: (recipe: MorphRecipe) => Record<string, string> = morphRestPose,
+  pick?: string,
 ): (ImageLayer & { shown?: true })[] {
   const layers = resolveImageLayers(context, struct);
   if (!context || !channel) return layers;
   return layers.map((layer) => {
-    const look = layer.struct ? shownLook(context, channel, layer.struct, poseOf) : undefined;
+    const look = layer.struct ? shownLook(context, channel, layer.struct, poseOf, pick) : undefined;
     if (!look?.attributes.length) return layer;
     const src = filterImage(context, shownLookStruct(layer.struct, look.attributes)).src;
     return src ? { ...layer, src, shown: true as const } : layer;
