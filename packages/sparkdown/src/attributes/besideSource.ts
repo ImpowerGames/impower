@@ -38,12 +38,13 @@ export const createBesideImageDefinitions = (
       layered.push(picture.name);
       if (overridden(picture.name)) continue;
       const members = [
-        ...(picture.path === undefined ? [] : [{ path: picture.path, layer: "" }]),
-        ...picture.layers,
+        ...(picture.path === undefined ? [] : [{ path: picture.path, layer: "", base: true }]),
+        ...picture.layers.map((layer) => ({ ...layer, base: false })),
       ];
       const assets: Record<string, any> = Object.create(null);
       const keys = new Map<string, string>();
       const inputs: { key: string; name: string }[] = [];
+      const unnamed: AttributeDiagnostic[] = [];
       for (const member of members) {
         const leaf = leafOf(member.path);
         const key = Object.hasOwn(assets, leaf) ? member.path : leaf;
@@ -52,8 +53,18 @@ export const createBesideImageDefinitions = (
         assets[key] = { $type: "image", $name: name };
         keys.set(key, leaf);
         inputs.push({ key, name: member.layer });
+        if (!member.base && !member.layer) {
+          unnamed.push({
+            code: "invalid-layer-name",
+            severity: "warning",
+            path: key,
+            layer: "",
+            message: `Layer file "${leaf}" has no name after the ~. Name the layer, as in ${picture.name}~blush.png or ${picture.name}~face.happy.png.`,
+          });
+        }
       }
       const vocabulary = buildAttributeVocabulary(inputs);
+      vocabulary.diagnostics.push(...unnamed);
       const layers = vocabulary.layers.map((layer) => ({
         key: layer.key,
         default: layer.parsed.default,

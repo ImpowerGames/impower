@@ -250,6 +250,12 @@ describe("the problems a picture's layer files can have (#1039)", () => {
     expect(found[0]!.message).toContain('Layer "face..happy"');
   });
 
+  it("warns on a layer file with no name after the ~", () => {
+    const found = warnings(compile([`${P}/ava.png`, `${P}/ava~.png`, `${P}/ava~10_.png`], scene("[[ava]]")));
+    expect(found.map(({ file }) => file).sort()).toEqual(["ava~.png", "ava~10_.png"]);
+    expect(found.find(({ file }) => file === "ava~.png")!.message).toContain("ava~.png");
+  });
+
   it("raises no warning for a group with no default beside a base, and shows none of its layers", () => {
     const program = compile([`${P}/ava.png`, `${P}/ava~face.happy.png`, `${P}/ava~face.sad.png`], scene("[[ava]]"));
     expect(drawn(program, "ava")).toEqual(["ava.png"]);
