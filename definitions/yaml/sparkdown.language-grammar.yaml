@@ -541,6 +541,7 @@ variables:
   RAW_BRACE_GROUP_1: (?:[{]{{RAW_BRACE_TEXT}}*[}])
   RAW_BRACE_GROUP_2: (?:[{](?:{{RAW_BRACE_TEXT}}|{{RAW_BRACE_GROUP_1}})*[}])
   RAW_BRACE_GROUP: (?:[{](?:{{RAW_BRACE_TEXT}}|{{RAW_BRACE_GROUP_2}})*[}])
+  # lookaround: RAW_BRACE_GROUP, which RAW_CONTENT and SPAN_CODE_ONE take first, so a `{` that opens a group is never a character of its own; a backtick is the closer's and SPAN_END the line's.
   RAW_CHARACTER: (?:(?![`]|{{SPAN_END}}|{{RAW_BRACE_GROUP}})[^\r\n])
   RAW_CONTENT: (?:(?:{{RAW_BRACE_GROUP}}|{{RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
   SPAN_ESCAPE: (?:[\\][^\r\n])
