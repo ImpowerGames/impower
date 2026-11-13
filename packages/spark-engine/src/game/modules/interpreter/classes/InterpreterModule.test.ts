@@ -207,18 +207,27 @@ describe("InterpreterModule text tags", () => {
   });
 
   describe("choice text", () => {
-    it("is still scanned for marks", () => {
+    const choiceText = (content: string) => {
       const instructions =
-        createModule().parse("A *word* here.", TARGET, { choice: true }).text?.[
-          TARGET
-        ] ?? [];
-      expect(instructions.map((i) => i.text).join("")).toBe("A word here.");
-      expect(
-        instructions
+        createModule().parse(content, TARGET, { choice: true }).text?.[TARGET] ?? [];
+      return {
+        text: instructions.map((i) => i.text).join(""),
+        styled: instructions
           .filter((i) => emphasisOf(i.style as Record<string, unknown>).length)
           .map((i) => i.text)
           .join(""),
-      ).toBe("word");
+      };
+    };
+
+    it("is not scanned for marks", () => {
+      expect(choiceText("A *word* here.")).toEqual({ text: "A *word* here.", styled: "" });
+    });
+
+    it("is styled by its codes", () => {
+      expect(choiceText(`A ${spanOpen("*")}word${SPAN_CLOSE} here.`)).toEqual({
+        text: "A word here.",
+        styled: "word",
+      });
     });
   });
 
