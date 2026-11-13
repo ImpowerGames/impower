@@ -847,6 +847,27 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(await h.read("main.sd")).toBe(script);
   });
 
+  it("takes along every layer the compiler puts on a dotted alternate when that alternate is renamed (#2204)", async () => {
+    const script = lines("scene start", "  [[show portrait imani]]", "end");
+    const h = await harness({
+      "main.sd": script,
+      [`${P}/imani.png`]: "base",
+      [`${P}/imani@dark.v2.png`]: "dark",
+      [`${P}/imani@dark~face.happy.png`]: "happy",
+    });
+    expect(await h.assets.renameMember(`${P}/imani@dark.v2.png`, "imani@night")).toBe(`${P}/imani@night.png`);
+    expect(await inPortraits(h)).toEqual([`${P}/imani.png`, `${P}/imani@night.png`, `${P}/imani@night~face.happy.png`]);
+    expect(await h.read(`${P}/imani@night~face.happy.png`)).toBe("happy");
+  });
+
+  it("renames a layer of a dotted picture while it keeps that picture's prefix (#2204)", async () => {
+    const script = lines("scene start", "  [[show portrait ava]]", "end");
+    const h = await harness({ "main.sd": script, [`${P}/ava.v1.png`]: "base", [`${P}/ava.v1~face.happy.png`]: "happy" });
+    expect(await h.assets.renameMember(`${P}/ava.v1~face.happy.png`, "ava.v1~face.sad")).toBe(`${P}/ava.v1~face.sad.png`);
+    expect(await inPortraits(h)).toEqual([`${P}/ava.v1.png`, `${P}/ava.v1~face.sad.png`]);
+    expect(await h.read("main.sd")).toBe(script);
+  });
+
   it("leaves a script the author saved during a failed alternate rename as saved, puts the file back, and says so from the rollback", async () => {
     const other = lines("scene other", "  [[show portrait imani@night]]", "end");
     const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
