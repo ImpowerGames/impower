@@ -65,6 +65,7 @@ Each beat becomes an entry below the last:
 - A title, a scene heading or a transition is a centred heading.
 - A horizontal rule comes before the first entry of a new scene.
 - A menu is a list of option buttons. Pick one by clicking it, by pressing its number (1 to 9), or by moving to it with the arrow keys and pressing Enter. The picked option stays on the page as a muted line marked ▸, and the others are removed. The number and arrow keys work in the dialogue box's menus too.
+- When the story ends, a centred line in small capitals at the foot of the page says how: "End of story" after `fin`, "Story ran out" when nothing is left to run, or "Stopped by an error" in the alert colour. Stepping back past the end or playing again removes it, and a save taken at the end loads with it.
 
 Text is typed out with the same timing as the dialogue box, so pauses read as pauses, a click finishes the line, and bold, italic, underline, centring and the wavy and shaky effects all show. Set the typing speed to 0 to show each entry at once.
 
@@ -91,14 +92,15 @@ The page follows the newest entry. Scroll up to reread, and it stays where you a
 
 With both `textbox` and `textstream` open, each beat shows in both, and a choice can be picked from either.
 
-The page draws every colour from four styles, so a game re-themes the whole page by redefining them:
+The page draws every colour from five styles, so a game re-themes the whole page by redefining them:
 
 | Style | What it colours | Built-in value | Dark value |
 | --- | --- | --- | --- |
 | `paper` | The page's ground | `neutral_99` | `neutral_10` |
 | `ink` | The text | `slate_20` | `slate_90` |
 | `accent` | Speaker names and option buttons | `orange_30` | `orange_80` |
-| `muted` | Headings, captions and the picked option | `slate_60` | `slate_70` |
+| `muted` | Headings, captions, the picked option and the line that ends the story | `slate_60` | `slate_70` |
+| `alert` | The line that ends the story when an error stopped it | `red_40` | `red_80` |
 
 ```sparkdown
 style paper {
@@ -116,6 +118,10 @@ style accent {
 
 style muted {
   text-color = slate_70
+}
+
+style alert {
+  text-color = red_80
 }
 ```
 
@@ -137,7 +143,7 @@ end
 
 `light` or `dark` pins the whole game. Any other value acts as `system`, and the play log says once per run: "ui.color_scheme must be system, light or dark. Using system."
 
-Only styles with a dark variant change. Of the built-in styles, only these four have one, so the dialogue box and the other built-in elements look the same in both schemes. Give a style of your own a dark variant with `@theme(dark)`:
+Only styles with a dark variant change. Of the built-in styles, only these five have one, so the dialogue box and the other built-in elements look the same in both schemes. Give a style of your own a dark variant with `@theme(dark)`:
 
 ```sparkdown
 style note {
@@ -150,11 +156,11 @@ style note {
 
 `@theme` takes `(light)` or `(dark)`. Anything else, such as `@theme(darkness)` or `@theme[dark]`, gets a warning, because the block would never apply.
 
-A colour you set on one of the four styles replaces its dark value too, so the page keeps your colour in both schemes: the example above shows the same dark page whatever the reader's setting. A style you leave alone still follows the scheme, so restyle all four together, or none, to keep the page readable. To give your own colour a dark value, add an `@theme(dark)` block to your style.
+A colour you set on one of the five styles replaces its dark value too, so the page keeps your colour in both schemes: the example above shows the same dark page whatever the reader's setting. A style you leave alone still follows the scheme, so restyle all five together, or none, to keep the page readable. To give your own colour a dark value, add an `@theme(dark)` block to your style.
 
 The scheme is not part of a save or a checkpoint. Loading a save shows the same page in the scheme the reader has now. An exported game uses `ui.color_scheme` and the reader's device the same way.
 
-The page's other styles, `textstream` (the scrolling page), `textstream_column`, `textstream_action`, `textstream_dialogue`, `textstream_name`, `textstream_heading`, `textstream_rule`, `textstream_options`, `textstream_option`, `textstream_chosen`, `textstream_caption`, `textstream_end` (the line at the foot of the page saying how the story ended) and `textstream_error` (that line's colour when an error stopped the story), can be restyled the same way. The `textstream` layout stacks with `textbox`: above `main`'s `stage` and below `main`'s `screen`.
+The page's other styles, `textstream` (the scrolling page), `textstream_column`, `textstream_action`, `textstream_dialogue`, `textstream_name`, `textstream_heading`, `textstream_rule`, `textstream_options`, `textstream_option`, `textstream_chosen`, `textstream_caption` and `textstream_end` (the line at the foot of the page saying how the story ended), can be restyled the same way. The `textstream` layout stacks with `textbox`: above `main`'s `stage` and below `main`'s `screen`.
 
 ---
 

@@ -125,7 +125,7 @@ describe("PLAY in the worker reaching the end of the story", () => {
         const line = lines()[0]!;
         expect(line.textContent).toBe(statuses.ending.text);
         expect(line.getAttribute("role")).toBe("status");
-        expect(line.classList.contains("textstream_error")).toBe(kind === "error");
+        expect(line.classList.contains("alert")).toBe(kind === "error");
         expect(line.classList.contains("muted")).toBe(kind !== "error");
         expect(line.parentElement!.lastElementChild).toBe(line);
         expect(line.parentElement!.classList.contains("textstream_column")).toBe(true);

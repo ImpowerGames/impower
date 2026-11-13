@@ -5470,7 +5470,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return $.createElement(column, {
             name:
               ending === "error"
-                ? "textstream_end textstream_error"
+                ? "textstream_end alert"
                 : "textstream_end muted",
             attributes: { role: "status" },
             content: { text: endingStatusText(ending) },

@@ -2582,6 +2582,7 @@ export class Game<T extends M = {}> {
         this.module.interpreter.requeue(resumed);
       }
       this.continue(true);
+      this.endResumedEnding();
     } else if (this._simulation === "success") {
       this.observeStanding();
       this.saveFirstScene();
@@ -4065,6 +4066,19 @@ export class Game<T extends M = {}> {
       this._simulation !== "simulating"
     ) {
       this.endStory("error");
+    }
+  }
+
+  protected endResumedEnding() {
+    const saved = this._story.ending;
+    if (
+      saved &&
+      !this._ending &&
+      this._state === "running" &&
+      !this._story.canContinue &&
+      this._story.currentChoices.length === 0
+    ) {
+      this.endStory(saved);
     }
   }
 

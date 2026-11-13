@@ -1697,6 +1697,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "text_align": "center",
                   },
                 },
+                "alert": {
+                  "$name": "alert",
+                  "$type": "style",
+                  "@theme(dark)": {
+                    "text-color": "red_80",
+                  },
+                  "text-color": "red_40",
+                },
                 "article": {
                   "$name": "article",
                   "$type": "style",
@@ -3614,14 +3622,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "letter_spacing": "0.1em",
                   "margin": "1em 0",
                   "text_align": "center",
-                },
-                "textstream_error": {
-                  "$name": "textstream_error",
-                  "$type": "style",
-                  "@theme(dark)": {
-                    "text-color": "red_80",
-                  },
-                  "text-color": "red_40",
                 },
                 "textstream_heading": {
                   "$name": "textstream_heading",

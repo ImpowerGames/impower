@@ -5,6 +5,7 @@ import type { Clock } from "../../game/core/classes/Clock";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
 import { EventMessage } from "../../game/core/classes/messages/EventMessage";
+import { GameFinishedMessage } from "../../game/core/classes/messages/GameFinishedMessage";
 import type { PageEntry } from "../../game/modules/ui/types/PageState";
 import {
   createHarness,
@@ -724,21 +725,54 @@ end
     expect(endings(h)).toEqual([]);
   });
 
-  test("a save taken at the ending loads with the line, once", () => {
+  for (const [mode, prelude] of [
+    ["Interactive Fiction", OPEN_TEXTSTREAM],
+    ["Visual Novel", ""],
+  ] as const) {
+    test.each(["fin", "out", "error"] as const)(
+      `${mode}: a save taken at a %s ending loads ended, with the line, and tells the host once`,
+      (kind) => {
+        const h = play(ending(kind, prelude));
+        playToEnd(h);
+        const saved = h.game.saveHere();
+        expect(saved).not.toBeNull();
+        const entries = structuredClone(h.page());
+        expect(entries.at(-1)).toEqual({ kind: "ending", ending: kind });
+        const loaded = play(ending(kind, prelude));
+        const finished: unknown[] = [];
+        loaded.game.connection.outgoing.addListener(
+          GameFinishedMessage.method,
+          (message: any) => finished.push(message.params),
+        );
+        expect(loaded.game.loadToResume(saved!.data)).toBe(true);
+        loaded.game.start();
+        expect(loaded.game.ending?.kind).toBe(kind);
+        expect(loaded.page()).toEqual(entries);
+        expect(finished).toEqual([expect.objectContaining({ kind })]);
+        if (kind === "error") {
+          expect(loaded.game.ending?.error).toBeUndefined();
+        }
+        loaded.game.clickedToContinue();
+        expect(loaded.page()).toEqual(entries);
+        expect(finished).toHaveLength(1);
+      },
+    );
+  }
+
+  test("a save taken before the ending loads where it was, not ended", () => {
     const h = play(ending("fin"));
-    playToEnd(h);
+    h.game.start();
+    h.tapTo("Last.");
     const saved = h.game.saveHere();
-    expect(saved).not.toBeNull();
-    const entries = structuredClone(h.page());
-    expect(entries.at(-1)).toEqual({ kind: "ending", ending: "fin" });
     const loaded = play(ending("fin"));
     expect(loaded.game.loadToResume(saved!.data)).toBe(true);
-    expect(loaded.page()).toEqual(entries);
     loaded.game.start();
-    for (let i = 0; i < 4; i += 1) {
+    expect(loaded.game.ending).toBeNull();
+    expect(endings(loaded)).toEqual([]);
+    for (let i = 0; i < 4 && !loaded.game.ending; i += 1) {
       loaded.game.clickedToContinue();
     }
-    expect(loaded.page()).toEqual(entries);
+    expect(endings(loaded)).toEqual([{ kind: "ending", ending: "fin" }]);
   });
 
   test.each(["fin", "out", "error"] as const)(
@@ -778,7 +812,7 @@ end
     for (const [kind, name, text] of [
       ["fin", "textstream_end muted", "End of story"],
       ["out", "textstream_end muted", "Story ran out"],
-      ["error", "textstream_end textstream_error", "Stopped by an error"],
+      ["error", "textstream_end alert", "Stopped by an error"],
     ] as const) {
       const h = createHarness(ending(kind), 0, {
         reactive: true,
