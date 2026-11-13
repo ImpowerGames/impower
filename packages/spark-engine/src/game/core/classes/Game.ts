@@ -5379,6 +5379,12 @@ export class Game<T extends M = {}> {
     return this._beatPlay != null;
   }
 
+  protected beatPlayed(): void {
+    this._checkpoints.truncate(this._checkpoints.length - 1);
+    this.checkpoint();
+    this.stopBeatPlay();
+  }
+
   protected settleBeatPlay(): void {
     this._beatPlay?.coordinator.settle();
   }
@@ -5411,7 +5417,7 @@ export class Game<T extends M = {}> {
       this._coordinator = new Coordinator(
         this,
         instructions,
-        playId != null ? { played: () => this.stopBeatPlay() } : undefined,
+        playId != null ? { played: () => this.beatPlayed() } : undefined,
       );
       if (playId != null) {
         this._beatPlay = { id: playId, coordinator: this._coordinator };

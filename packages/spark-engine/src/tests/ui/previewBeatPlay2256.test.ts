@@ -510,3 +510,31 @@ end
     expect(portraitVideos(h).at(-1)?.preview).toBe(true);
   });
 });
+
+describe("the preview's checkpoint after a played beat (#2256)", () => {
+  const latestCheckpoint = (h: UIHarness) => {
+    const store = (h.game as any)._checkpoints;
+    return { count: store.length, json: JSON.parse(store.at(store.length - 1)) };
+  };
+
+  test("a beat that plays to its end or is clicked leaves the same checkpoint the still does", async () => {
+    const still = await harness();
+    await still.preview(WAITING_LINE);
+    await flushMicrotasks(10);
+    const expected = latestCheckpoint(still);
+
+    const ended = await harness();
+    await play(ended, WAITING_LINE);
+    await advance(ended, BEAT_LEAD_MS + 5000);
+    expect(ended.game.playingBeat).toBe(false);
+    expect(latestCheckpoint(ended)).toEqual(expected);
+
+    const clicked = await harness();
+    await play(clicked, WAITING_LINE);
+    await advance(clicked, BEAT_LEAD_MS + 200);
+    await clicked.game.onReceive(pointerDown);
+    await flushMicrotasks(10);
+    expect(clicked.game.playingBeat).toBe(false);
+    expect(latestCheckpoint(clicked)).toEqual(expected);
+  });
+});
