@@ -5,8 +5,9 @@ import type {
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewLineMessage";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import {
-  breakEndsItsLine,
+  displayBeatRanges,
   displayCaptionText,
+  type BeatRange,
 } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
 import { readSkipping } from "@impower/sparkdown/src/compiler/utils/readSkipping";
 import type { SyntaxNode, Tree } from "@lezer/common";
@@ -69,17 +70,13 @@ interface Flow {
 interface Beat {
   kind: PreviewBeatKind;
   node: SyntaxNode;
+  range?: BeatRange;
   start: number;
   position: number;
+  order: number;
   lines: Set<number>;
   flow: Flow | null;
-  caption?: SyntaxNode;
   options?: SyntaxNode[];
-}
-
-interface Segment {
-  line: number;
-  words: string[];
 }
 
 const descendants = (node: SyntaxNode, name: string): SyntaxNode[] => {
@@ -115,11 +112,13 @@ export const getPreviewLine = (
     read,
     characterNumber: (pos: number) => document.positionAt(pos).character,
   };
-  const firstLine = (node: SyntaxNode) => document.positionAt(node.from).line;
-  const lastLine = (node: SyntaxNode) =>
-    document.positionAt(Math.max(node.from, node.to - 1)).line;
+  const lineAt = (offset: number) => document.positionAt(offset).line;
+  const firstLine = (node: SyntaxNode) => lineAt(node.from);
+  const lastLine = (node: SyntaxNode) => lineAt(Math.max(node.from, node.to - 1));
   const linesOf = (node: SyntaxNode) => span(firstLine(node), lastLine(node));
   const lineStart = (l: number) => document.offsetAt({ line: l, character: 0 });
+  const lineEnd = (l: number) =>
+    l + 1 < document.lineCount ? lineStart(l + 1) : document.length;
   const clean = (text: string) => text.replace(/\s+/g, " ").trim();
   const optionWords = (option: SyntaxNode) => {
     const content = option.getChild("Choice_content");
@@ -132,26 +131,13 @@ export const getPreviewLine = (
         )
       : "";
   };
-  const segmentsOf = (node: SyntaxNode) => {
-    const marks = descendants(node, "Break");
-    const breaks = marks.map((mark) => mark.to);
-    const segmentAt = (offset: number) =>
-      breaks.filter((end) => end <= offset).length;
-    const segments: Segment[] = [];
-    for (const chunk of descendants(node, "TextChunk")) {
-      const words = clean(readSkipping(chunk, read, (d) => MARKUP.has(d.name)));
-      if (words) {
-        const segment = (segments[segmentAt(chunk.from)] ??= {
-          line: firstLine(chunk),
-          words: [],
-        });
-        segment.words.push(words);
-      }
-    }
-    return { segments, segmentAt, marks };
-  };
-  const lineEnd = (l: number) =>
-    l + 1 < document.lineCount ? lineStart(l + 1) : document.length;
+  const wordsIn = (node: SyntaxNode, range: BeatRange) =>
+    clean(
+      descendants(node, "TextChunk")
+        .filter((chunk) => chunk.from >= range.from && chunk.from < range.to)
+        .map((chunk) => readSkipping(chunk, read, (d) => MARKUP.has(d.name)))
+        .join(" "),
+    );
   const uncommented = (from: number, to: number) => {
     const comments: [number, number][] = [];
     tree.iterate({
@@ -173,14 +159,41 @@ export const getPreviewLine = (
     }
     return rest + read(pos, to);
   };
-  const spoken = (segment: Segment | undefined): segment is Segment =>
-    !!segment?.words.length;
 
   const beats: Beat[] = [];
   const flows: Flow[] = [];
   const open: Flow[] = [];
   const setup: Set<number>[] = [];
   const flowOf = () => open.at(-1) ?? null;
+
+  const displayBeats = (
+    node: SyntaxNode,
+    kind: PreviewBeatKind,
+    flow: Flow | null,
+  ): Beat[] => {
+    const ranges = displayBeatRanges(node, source) ?? [];
+    const made = ranges.map<Beat>((range) => {
+      const start = lineAt(range.from);
+      return {
+        kind,
+        node,
+        range,
+        start,
+        position: start,
+        order: range.from,
+        lines: span(start, lineAt(Math.max(range.from, range.to - 1))),
+        flow,
+      };
+    });
+    for (const l of linesOf(node)) {
+      if (made.some((beat) => beat.lines.has(l))) {
+        continue;
+      }
+      const owner = made.find((beat) => beat.start > l) ?? made.at(-1);
+      owner?.lines.add(l);
+    }
+    return made;
+  };
 
   const visitNode = (node: SyntaxNode) => {
     const name = node.name;
@@ -209,14 +222,7 @@ export const getPreviewLine = (
     }
     const kind = DISPLAY[name];
     if (kind) {
-      beats.push({
-        kind,
-        node,
-        start: firstLine(node),
-        position: firstLine(node),
-        lines: linesOf(node),
-        flow: flowOf(),
-      });
+      beats.push(...displayBeats(node, kind, flowOf()));
       return;
     }
     if (name === CHOOSE) {
@@ -233,79 +239,56 @@ export const getPreviewLine = (
   };
 
   const visitChoose = (block: SyntaxNode) => {
-    const beat: Beat = {
+    const flow = flowOf();
+    const choice: Beat = {
       kind: "choice",
       node: block,
       start: firstLine(block),
       position: firstLine(block),
+      order: block.from,
       lines: new Set([firstLine(block), lastLine(block)]),
-      flow: flowOf(),
+      flow,
       options: [],
     };
-    beats.push(beat);
+    beats.push(choice);
+    const captions: SyntaxNode[] = [];
     const content = block.getChild(`${CHOOSE}_content`);
     let optionsEnded = false;
     for (let child = content?.firstChild; child; child = child.nextSibling) {
       if (child.name === "Choice") {
-        beat.options!.push(child);
-        linesOf(child).forEach((l) => beat.lines.add(l));
+        choice.options!.push(child);
+        linesOf(child).forEach((l) => choice.lines.add(l));
       } else if (child.name === THEN_CLAUSE) {
         optionsEnded = true;
         visitNode(child);
       } else if (
         !optionsEnded &&
-        !beat.options!.length &&
+        !choice.options!.length &&
         displayCaptionText(child, source) !== undefined
       ) {
-        if (beat.caption) {
-          beats.push({
-            kind: DISPLAY[beat.caption.name] ?? "action",
-            node: beat.caption,
-            start: firstLine(beat.caption),
-            position: firstLine(beat.caption),
-            lines: linesOf(beat.caption),
-            flow: beat.flow,
-          });
-        }
-        beat.caption = child;
+        captions.push(child);
       } else {
         visitNode(child);
       }
     }
-    let captionFrom: number | undefined;
-    if (beat.caption) {
-      const caption = beat.caption;
-      const { segments, marks } = segmentsOf(caption);
-      const first = firstLine(beat.caption);
-      let last = segments.length - 1;
-      while (last > 0 && !spoken(segments[last])) {
-        last -= 1;
-      }
-      captionFrom = first;
-      if (last > 0 && segments.slice(0, last).some(spoken)) {
-        const mark = marks[last - 1]!;
-        const newline = read(mark.to, caption.to).indexOf("\n");
-        const end = newline < 0 ? caption.to : mark.to + newline;
-        const breakLine = document.positionAt(mark.to).line;
-        captionFrom = breakEndsItsLine(caption, mark, end, marks, source)
-          ? breakLine + 1
-          : breakLine;
-      }
-      if (captionFrom > first) {
-        beats.push({
-          kind: DISPLAY[beat.caption.name] ?? "action",
-          node: beat.caption,
-          start: first,
-          position: first,
-          lines: span(first, captionFrom - 1),
-          flow: beat.flow,
-        });
-      }
-      span(captionFrom, lastLine(beat.caption)).forEach((l) => beat.lines.add(l));
+    const caption = captions.at(-1);
+    for (const earlier of captions.slice(0, -1)) {
+      beats.push(...displayBeats(earlier, DISPLAY[earlier.name] ?? "action", flow));
     }
-    beat.position =
-      captionFrom ??
-      (beat.options![0] ? firstLine(beat.options![0]) : beat.start);
+    if (caption) {
+      const parts = displayBeats(caption, DISPLAY[caption.name] ?? "action", flow);
+      const question = parts.pop();
+      beats.push(...parts);
+      if (question) {
+        question.lines.forEach((l) => choice.lines.add(l));
+        choice.node = caption;
+        choice.range = question.range;
+        choice.order = question.order;
+        choice.position = question.start;
+      }
+    } else if (choice.options![0]) {
+      choice.position = firstLine(choice.options![0]);
+    }
   };
 
   visit(tree.topNode);
@@ -324,34 +307,31 @@ export const getPreviewLine = (
 
   const describe = (beat: Beat): PreviewBeat => {
     if (beat.kind === "choice") {
-      const caption = beat.caption ? segmentsOf(beat.caption).segments : [];
-      const question = caption.filter(spoken).at(-1);
+      const question = beat.range ? wordsIn(beat.node, beat.range) : "";
       return {
         kind: "choice",
         line: beat.start,
-        words: question
-          ? clean(question.words.join(" "))
-          : beat.options!.map(optionWords).join(" · "),
+        words: question || beat.options!.map(optionWords).join(" · "),
       };
     }
-    const { segments, segmentAt } = segmentsOf(beat.node);
-    const caret = segmentAt(lineStart(line));
-    const shown =
-      segments.slice(caret).find(spoken) ??
-      segments.slice(0, caret).reverse().find(spoken);
     const name =
       beat.kind === "dialogue"
         ? descendants(beat.node, "DialogueCharacterName")[0]
         : undefined;
     return {
       kind: beat.kind,
-      line: shown?.line ?? beat.start,
-      words: shown ? clean(shown.words.join(" ")) : "",
+      line: beat.start,
+      words: beat.range ? wordsIn(beat.node, beat.range) : "",
       ...(name ? { speaker: clean(read(name.from, name.to)) } : {}),
     };
   };
 
-  const at = beats.find((beat) => beat.lines.has(line));
+  const at = beats
+    .filter((beat) => beat.lines.has(line))
+    .reduce<Beat | undefined>(
+      (last, beat) => (!last || beat.order > last.order ? beat : last),
+      undefined,
+    );
   if (at) {
     return describe(at);
   }
@@ -366,7 +346,7 @@ export const getPreviewLine = (
       );
   const inFlow = beats
     .filter((beat) => beat.flow === flow)
-    .sort((a, b) => a.position - b.position);
+    .sort((a, b) => a.position - b.position || a.order - b.order);
   const before = declared
     ? undefined
     : inFlow.filter((beat) => beat.position < line).at(-1);

@@ -71,7 +71,7 @@ describe("the caret line's preview record", () => {
   test("gives a dialogue line's speaker for a cue block and for one-line dialogue", () => {
     const spoken = {
       kind: "dialogue",
-      line: 18,
+      line: 17,
       words: "Where were you at nine?",
       speaker: "INSPECTOR",
     };

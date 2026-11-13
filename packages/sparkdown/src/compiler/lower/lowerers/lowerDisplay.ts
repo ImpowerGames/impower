@@ -276,7 +276,9 @@ function splitBodyRangeAtBreaks(
   for (const brk of breaks) {
     const newline = ctx.read(brk.to, bodyEnd).indexOf("\n");
     const lineEnd = newline < 0 ? bodyEnd : brk.to + newline;
-    const endsLine = breakEndsItsLine(parent, brk, lineEnd, breaks, ctx);
+    const endsLine =
+      !hasBodyContent(parent, brk.to, lineEnd, ctx) &&
+      !breaks.some((other) => other.from >= brk.to && other.from < lineEnd);
     const to = endsLine
       ? ctx.read(lineEnd - 1, lineEnd) === "\r"
         ? lineEnd - 1
@@ -304,20 +306,7 @@ function splitBodyRangeAtBreaks(
     : [{ from: bodyStart, to: bodyEnd, pause: false, leads: false }];
 }
 
-export function breakEndsItsLine(
-  parent: SyntaxNode,
-  brk: SyntaxNode,
-  lineEnd: number,
-  breaks: readonly SyntaxNode[],
-  ctx: SourceReader,
-): boolean {
-  return (
-    !hasBodyContent(parent, brk.to, lineEnd, ctx) &&
-    !breaks.some((other) => other.from >= brk.to && other.from < lineEnd)
-  );
-}
-
-interface BeatRange {
+export interface BeatRange {
   from: number;
   to: number;
   pause: boolean;
@@ -1370,10 +1359,10 @@ function findFirstDirectChild(
   return null;
 }
 
-export function displayCaptionText(
+export function displayBeatRanges(
   node: SyntaxNode,
   ctx: SourceReader,
-): string | undefined {
+): BeatRange[] | undefined {
   if (!Object.hasOwn(DISPLAY_LINE_TYPES, node.name)) return undefined;
   const nodeRef = {
     node,
@@ -1396,13 +1385,21 @@ export function displayCaptionText(
       from = glue.from;
     }
   }
-  const ranges = splitBodyRangeAtBreaks(
+  return splitBodyRangeAtBreaks(
     node,
     from,
     to,
     ctx,
     block ? "block" : "inline",
   );
+}
+
+export function displayCaptionText(
+  node: SyntaxNode,
+  ctx: SourceReader,
+): string | undefined {
+  const ranges = displayBeatRanges(node, ctx);
+  if (!ranges) return undefined;
   const last = ranges[ranges.length - 1]!;
   let text = "";
   let pos = last.from;
