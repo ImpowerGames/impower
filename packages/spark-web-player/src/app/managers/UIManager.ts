@@ -107,6 +107,10 @@ const COMMIT_WAIT_LIMIT_MS = 1_000;
 
 const UNENDED_SPEECH = 1e9;
 
+interface Speech {
+  clips?: { retime: () => void; stopHearing?: () => void };
+}
+
 let playSessions = 0;
 
 const MOVIE_IN_STEP = 0.25;
@@ -442,6 +446,7 @@ export default class UIManager extends Manager {
     }
     this._hold.resume();
     this.morphs?.setPaused(false);
+    this._speech?.clips?.retime();
     this.resumeMovies();
     this.scheduleCommit();
   }
@@ -1627,23 +1632,23 @@ export default class UIManager extends Manager {
     }
   }
 
-  protected _speech?: object;
-
-  protected _stopHearingClips?: () => void;
+  protected _speech?: Speech;
 
   protected endSpeech() {
-    this._stopHearingClips?.();
-    this._stopHearingClips = undefined;
+    this._speech?.clips?.stopHearing?.();
     this._speech = undefined;
   }
 
-  protected speak({ character, spans, voiced, time }: SpeechParams) {
+  protected speak({ character, spans, voiced, revealed, time }: SpeechParams) {
     const morphs = this.morphs;
     if (!morphs) {
       return;
     }
+    if (revealed && this._speech?.clips) {
+      return;
+    }
     this.endSpeech();
-    const speech = {};
+    const speech: Speech = {};
     this._speech = speech;
     const clips = voiced && character ? (this.app.audio?.liveClips("voice") ?? []) : [];
     if (character && clips.length > 0) {
@@ -1667,10 +1672,11 @@ export default class UIManager extends Manager {
     morphs: MorphPlayback,
     character: string,
     clips: LiveClip[],
-    speech: object,
+    speech: Speech,
   ) {
     const latency = this.app.audioClock.reading.outputLatency;
-    const heard: { start: number; end: number }[] = [];
+    const audioNow = () => this.app.audioContext?.currentTime ?? 0;
+    const heard: { clip: LiveClip; start: number; end: number }[] = [];
     const seen = new Set<Promise<unknown>>();
     const update = () => {
       if (this._speech !== speech || this._disposed) {
@@ -1690,7 +1696,7 @@ export default class UIManager extends Manager {
         return;
       }
       seen.add(clip.ended);
-      const span = { start: morphs.now + clip.startsIn + latency, end: Infinity };
+      const span = { clip, start: morphs.now + (clip.startedAt - audioNow()) + latency, end: Infinity };
       heard.push(span);
       void clip.ended.then(() => {
         span.end = morphs.now + latency;
@@ -1698,10 +1704,22 @@ export default class UIManager extends Manager {
       });
     };
     clips.forEach(hear);
-    this._stopHearingClips = this.app.audio?.onClipStart("voice", (clip) => {
-      hear(clip);
-      update();
-    });
+    speech.clips = {
+      retime: () => {
+        const now = morphs.now;
+        const pending = heard.filter((span) => span.start > now);
+        for (const span of pending) {
+          span.start = now + Math.max(0, span.clip.startedAt - audioNow()) + latency;
+        }
+        if (pending.length > 0) {
+          update();
+        }
+      },
+      stopHearing: this.app.audio?.onClipStart("voice", (clip) => {
+        hear(clip);
+        update();
+      }),
+    };
     update();
   }
 

@@ -149,10 +149,27 @@ describe("a line's voice clip drives the speaker's speech (#2113)", () => {
     await page.play([{ control: "start", key: "mia_hello" }]);
     page.say({ character: "mia", spans: TYPED, voiced: true });
     page.frame(0.1);
-    page.say({ character: "mia", spans: [], voiced: true });
+    page.say({ character: "mia", spans: [], voiced: true, revealed: true });
     page.frame(1);
     expect(page.speaking()).toBe(true);
     page.sources[0]!.end();
+    await flushMicrotasks(5);
+    page.frame(0.05);
+    expect(page.speaking()).toBe(false);
+  });
+
+  test("a skip while the clip fades out keeps speech until the fade ends", async () => {
+    const page = makePage();
+    page.clip("mia_hello");
+    await page.play([{ control: "start", key: "mia_hello" }]);
+    page.say({ character: "mia", spans: TYPED, voiced: true });
+    page.frame(0.5);
+    await page.play([{ control: "stop", key: "mia_hello", over: 0.3 }]);
+    page.frame(0.1);
+    page.say({ character: "mia", spans: [], voiced: true, revealed: true });
+    page.frame(0.1);
+    expect(page.speaking()).toBe(true);
+    await sleep(400);
     await flushMicrotasks(5);
     page.frame(0.05);
     expect(page.speaking()).toBe(false);
@@ -185,8 +202,12 @@ describe("a line's voice clip drives the speaker's speech (#2113)", () => {
   test("a clip that cannot play because audio is not running leaves the typed spans to drive the mouth", async () => {
     const page = makePage({ running: false });
     page.clip("mia_hello");
+    await page.play([{ control: "start", key: "mia_hello" }]);
+    expect(page.sources).toHaveLength(1);
     page.say({ character: "mia", spans: TYPED, voiced: true });
-    page.frame(0.5);
+    page.frame(0.1);
+    expect(page.speaking()).toBe(true);
+    page.frame(0.4);
     expect(page.speaking()).toBe(false);
   });
 
@@ -195,9 +216,38 @@ describe("a line's voice clip drives the speaker's speech (#2113)", () => {
     page.say({ character: "mia", spans: [[0, 2]], voiced: true });
     page.frame(0.1);
     expect(page.speaking()).toBe(true);
-    page.say({ character: "mia", spans: [], voiced: true });
+    page.say({ character: "mia", spans: [], voiced: true, revealed: true });
     page.frame(0.05);
     expect(page.speaking()).toBe(false);
+  });
+
+  test("a pause before a delayed clip starts keeps the mouth with the clip when play resumes", async () => {
+    const page = makePage();
+    page.clip("mia_hello");
+    await page.play([{ control: "start", key: "mia_hello", after: 0.5 }]);
+    page.say({ character: "mia", spans: [[0, 0.05]], voiced: true });
+    page.frame(0.1);
+    expect(page.speaking()).toBe(false);
+    page.pause();
+    page.frame(2);
+    page.unpause();
+    page.frame(0.05);
+    expect(page.speaking()).toBe(true);
+  });
+
+  test("a pause before a delayed clip starts holds the mouth until the clip is due", async () => {
+    const page = makePage();
+    page.clip("mia_hello");
+    await page.play([{ control: "start", key: "mia_hello", after: 3 }]);
+    page.say({ character: "mia", spans: [[0, 0.05]], voiced: true });
+    page.frame(0.1);
+    page.pause();
+    page.frame(1);
+    page.unpause();
+    page.frame(1);
+    expect(page.speaking()).toBe(false);
+    page.frame(1);
+    expect(page.speaking()).toBe(true);
   });
 
   test("pausing the story pauses the clip and freezes the speech with it", async () => {

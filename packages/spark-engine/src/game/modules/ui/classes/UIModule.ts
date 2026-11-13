@@ -1838,6 +1838,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ...(speech?.character ? { character: speech.character } : {}),
         spans,
         ...(voiced ? { voiced: true as const } : {}),
+        ...(voiced && instant ? { revealed: true as const } : {}),
         ...(time != null ? { time } : {}),
       }),
     );

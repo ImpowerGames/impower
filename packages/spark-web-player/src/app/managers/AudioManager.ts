@@ -17,7 +17,7 @@ import { parseMidi } from "../../../../spark-engine/src/game/modules/audio/utils
 import { Manager } from "../Manager";
 
 export interface LiveClip {
-  startsIn: number;
+  startedAt: number;
   ended: Promise<unknown>;
 }
 
@@ -139,7 +139,7 @@ export default class AudioManager extends Manager {
     return [...players.values()].flatMap((player) =>
       player.instances
         .filter((instance) => instance.stoppedAt == null || instance.stoppedAt > now)
-        .map((instance) => this.liveClip(instance, now)),
+        .map(({ startedAt, ended }) => ({ startedAt, ended })),
     );
   }
 
@@ -157,23 +157,16 @@ export default class AudioManager extends Manager {
     };
   }
 
-  protected liveClip(
-    instance: AudioPlayer["instances"][number],
-    now: number,
-  ): LiveClip {
-    return { startsIn: instance.startedAt - now, ended: instance.ended };
-  }
-
   protected clipStarted(
     channel: string | undefined,
-    instance: AudioPlayer["instances"][number],
+    { startedAt, ended }: AudioPlayer["instances"][number],
   ) {
     const context = this.app.audioContext;
     const listeners = channel ? this._clipStartListeners.get(channel) : undefined;
     if (!context || context.state !== "running" || !listeners?.size) {
       return;
     }
-    const clip = this.liveClip(instance, context.currentTime);
+    const clip = { startedAt, ended };
     for (const listener of [...listeners]) {
       listener(clip);
     }

@@ -6,6 +6,7 @@ export interface SpeechParams {
   character?: string;
   spans: [number, number][];
   voiced?: true;
+  revealed?: true;
   time?: number;
 }
 

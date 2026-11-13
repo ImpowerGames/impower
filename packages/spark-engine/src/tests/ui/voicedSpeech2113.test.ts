@@ -99,7 +99,7 @@ describe("a dialogue beat that plays a voice clip (#2113)", () => {
     await flushMicrotasks(10);
     expect(sent().map((message) => message.params)).toEqual([
       expect.objectContaining({ character: "mia", spans: beat.speech!.spans, voiced: true }),
-      { character: "mia", spans: [], voiced: true },
+      { character: "mia", spans: [], voiced: true, revealed: true },
     ]);
   });
 
