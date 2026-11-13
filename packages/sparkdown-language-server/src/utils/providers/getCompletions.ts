@@ -33,7 +33,7 @@ import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilt
 import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
-import { DIRECTIVE_CLOSERS, readDirective } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import { DIRECTIVE_CLOSERS, readDirective, type DirectiveReading } from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -473,21 +473,22 @@ const addKeywordCompletions = (
   }
 };
 
-const morphPickAt = (
+const clauseValueAt = (
   directive: { from: number; to: number } | undefined,
+  bracket: "image" | "audio",
   cursor: number,
   read: (from: number, to: number) => string,
-): { names: string[] } | undefined => {
+): { keyword: string; reading: DirectiveReading } | undefined => {
   if (!directive || cursor < directive.from + 2) return undefined;
   const typed = read(directive.from + 2, cursor);
-  if (typed.includes(DIRECTIVE_CLOSERS.image)) return undefined;
-  const reading = readDirective("image", typed);
-  if (reading.kind !== "image") return undefined;
+  if (typed.includes(DIRECTIVE_CLOSERS[bracket])) return undefined;
+  if (typed.split(/[ \t]+/).some((word) => /^#+$/.test(word))) return undefined;
+  const reading = readDirective(bracket, typed);
   const last = reading.clauses.at(-1);
-  if (!last || last.word.text !== "morph" || !last.takesValue) return undefined;
+  if (!last || !last.takesValue) return undefined;
   if (last.value && last.value.to !== typed.length) return undefined;
   if (!last.value && last.word.to === typed.length) return undefined;
-  return { names: reading.names.map((name) => name.text) };
+  return { keyword: last.word.text, reading };
 };
 
 const addMorphPickCompletions = (
@@ -1835,29 +1836,18 @@ const completionsAt = (
     ) {
       return buildCompletions();
     }
-    const morphPick = morphPickAt(
+    const imageValue = clauseValueAt(
       leftStack.find((n) => n.type.name === "ImageCommand"),
+      "image",
       documentCursorOffset,
       read,
     );
-    if (morphPick) {
-      addMorphPickCompletions(completions, program, morphPick.names);
-      return buildCompletions();
-    }
-    if (
-      (isWhitespaceNode(leftStack[0]?.name) &&
-        prevNode?.name === "AssetCommandClauseKeyword" &&
-        prevText === "with") ||
-      (leftStack[0]?.name === "NameValue" &&
-        getNodeText(keywordOfValue(leftStack[0].node)) === "with")
-    ) {
-      if (isCursorAfterNodeText(leftStack[0])) {
-        const controlNode = getDescendentInsideParent(
-          "AssetCommandControl",
-          "ImageCommand",
-          leftStack,
-        );
-        const control = getNodeText(controlNode);
+    if (imageValue) {
+      const { keyword, reading } = imageValue;
+      if (keyword === "morph" && reading.kind === "image") {
+        addMorphPickCompletions(completions, program, reading.names.map((name) => name.text));
+      } else if (keyword === "with") {
+        const control = reading.control?.text ?? "";
         const types =
           control === "animate"
             ? ["animation"]
@@ -1865,19 +1855,17 @@ const completionsAt = (
               ? ["transition"]
               : ["transition", "animation"];
         addStructReferenceCompletions(completions, program, types);
+      } else if (keyword === "ease") {
+        addStructReferenceCompletions(completions, program, ["ease"]);
       }
       return buildCompletions();
     }
     if (
       (isWhitespaceNode(leftStack[0]?.name) &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
-        prevText === "ease") ||
-      (leftStack[0]?.name === "NameValue" &&
-        getNodeText(keywordOfValue(leftStack[0].node)) === "ease")
+        (prevText === "with" || prevText === "ease" || prevText === "morph")) ||
+      (leftStack[0]?.name === "NameValue" && !!keywordOfValue(leftStack[0].node))
     ) {
-      if (isCursorAfterNodeText(leftStack[0])) {
-        addStructReferenceCompletions(completions, program, ["ease"]);
-      }
       return buildCompletions();
     }
     if (isClauseStart(leftStack[0]?.node)) {
@@ -2002,16 +1990,24 @@ const completionsAt = (
       }
       return buildCompletions();
     }
+    const audioValue = clauseValueAt(
+      leftStack.find((n) => n.type.name === "AudioCommand"),
+      "audio",
+      documentCursorOffset,
+      read,
+    );
+    if (audioValue) {
+      if (audioValue.keyword === "with") {
+        addStructReferenceCompletions(completions, program, ["modulation"]);
+      }
+      return buildCompletions();
+    }
     if (
       (isWhitespaceNode(leftStack[0]?.name) &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
-      (leftStack[0]?.name === "NameValue" &&
-        getNodeText(keywordOfValue(leftStack[0].node)) === "with")
+      (leftStack[0]?.name === "NameValue" && !!keywordOfValue(leftStack[0].node))
     ) {
-      if (isCursorAfterNodeText(leftStack[0])) {
-        addStructReferenceCompletions(completions, program, ["modulation"]);
-      }
       return buildCompletions();
     }
     if (isClauseStart(leftStack[0]?.node)) {

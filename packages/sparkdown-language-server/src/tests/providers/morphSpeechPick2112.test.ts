@@ -102,6 +102,17 @@ describe("completion and hover for the `morph` clause (I-2112)", () => {
     expect(labels("  [[bunny morph |]]")).not.toContain("talk_gritted");
     expect(labels("  [[bunny with morph |]]")).not.toContain("talk_gritted");
     expect(labels("  [[bunny wait morph |]]").sort()).toEqual(["none", "talk", "talk_gritted"]);
+    expect(labels("  [[bunny morph # note |]]")).not.toContain("talk");
+  });
+
+  test("clause values are offered only where the game reads that clause", () => {
+    expect(labels("  [[bunny wait x.with |]]")).toEqual([]);
+    expect(labels("  [[bunny wait x.ease |]]")).toEqual([]);
+    expect(labels("  ((play music theme wait x.with |))")).toEqual([]);
+  });
+
+  test("hover explains `morph` only where the game reads a `morph` clause", async () => {
+    expect(await hoverAt(story("  [[bunny wait x.morph talk]]"), "x.morph", "x.m".length)).toBeNull();
   });
 
   test("with no speech morph there, only `none` is offered", () => {
