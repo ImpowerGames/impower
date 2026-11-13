@@ -310,6 +310,12 @@ describe("the Assets page", () => {
     expect(text()).toContain("No audio yet");
     expect(text()).toContain("Add sounds and music with the Add button.");
     expect(text()).not.toContain("New button");
+    await showTab("Video");
+    expect(text()).toContain("Add a video with the Add button.");
+    await showTab("Text");
+    expect(text()).toContain("Add notes with the Add button.");
+    await showTab("Fonts");
+    expect(text()).toContain("Add a font with the Add button.");
     await showTab("Other");
     expect(text()).toContain("Files of any other type land here when you add them.");
     await showTab("Images");
@@ -323,6 +329,13 @@ describe("the Assets page", () => {
     expect(text()).toContain("A collection of your art");
     expect(text()).toContain("Your portraits, backgrounds, sounds and music will appear here.");
     expect(all<HTMLButtonElement>("button").some((b) => b.textContent?.includes("Add files from this device"))).toBe(true);
+    await act(async () => {
+      setListing({ "Assets/Audio/theme.ogg": facts() });
+    });
+    await settle();
+    await showTab("Images");
+    expect(text()).toContain("No images yet");
+    expect(text()).toContain("Add portraits and backgrounds with the Add button.");
   });
 
   it("opens the inspector on a press and the row menu from its own button", async () => {
