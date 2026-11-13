@@ -741,10 +741,37 @@ end
     expect(loaded.page()).toEqual(entries);
   });
 
-  test("the Visual Novel output keeps an empty page when its story ends", () => {
+  test.each(["fin", "out", "error"] as const)(
+    "a story that ends with %s before any line opens the page with only the line",
+    (kind) => {
+      const h = play(
+        `${OPEN_TEXTSTREAM}\nscene start\n${ENDINGS[kind]}end\n`,
+      );
+      h.game.start();
+      expect(h.game.ending?.kind).toBe(kind);
+      expect(h.game.module.ui.openedLayoutsAfter([])).toContain("textstream");
+      expect(h.page()).toEqual([{ kind: "ending", ending: kind }]);
+    },
+  );
+
+  test("switching to Interactive Fiction after a Visual Novel ending puts the line on the page", () => {
     const h = play(ending("fin", ""));
     playToEnd(h);
-    expect(h.page()).toEqual([]);
+    expect(h.game.module.ui.openedLayoutsAfter([])).not.toContain("textstream");
+    h.game.setStartingDisplayMode("textstream");
+    expect(h.game.module.ui.openedLayoutsAfter([])).toContain("textstream");
+    expect(h.page().at(-1)).toEqual({ kind: "ending", ending: "fin" });
+    expect(endings(h)).toHaveLength(1);
+    h.game.setStartingDisplayMode("textbox");
+    h.game.setStartingDisplayMode("textstream");
+    expect(endings(h)).toHaveLength(1);
+  });
+
+  test("the Visual Novel output opens no page when its story ends, and records no entry but the ending", () => {
+    const h = play(ending("fin", ""));
+    playToEnd(h);
+    expect(h.game.module.ui.openedLayoutsAfter([])).not.toContain("textstream");
+    expect(h.page()).toEqual([{ kind: "ending", ending: "fin" }]);
   });
 
   test("the line is a status in the page column, muted for an ending and in the error colour for an error", async () => {

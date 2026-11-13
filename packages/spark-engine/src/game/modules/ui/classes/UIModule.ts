@@ -5260,7 +5260,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       get entries(): readonly PageEntry[] {
-        return $._state.page?.entries ?? [];
+        const page = $._state.page;
+        return this.withEnding(page?.entries ?? []);
+      }
+
+      protected withEnding(entries: readonly PageEntry[]): PageEntry[] {
+        const ending = $._state.page?.ending;
+        return ending ? [...entries, { kind: "ending", ending }] : [...entries];
       }
 
       loaded(): void {
@@ -5308,6 +5314,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         page.entries = [...before.slice(0, keep), ...entries];
         page.current = keep;
         page.key = key;
+        delete page.ending;
         if (absorbed.length > 0) {
           page.absorbed = absorbed;
         } else {
@@ -5337,18 +5344,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       end(ending: StoryEnding | null): void {
-        const shown =
-          ending && $.openedLayoutsAfter([]).includes(PAGE_SCROLLER)
-            ? ending
-            : null;
-        const before = $._state.page?.entries ?? [];
-        const entries = before.filter((entry) => entry.kind !== "ending");
-        if (!shown && entries.length === before.length) {
+        if (ending) {
+          this.state.ending = ending;
+        } else if ($._state.page?.ending) {
+          delete $._state.page.ending;
+        } else {
           return;
         }
-        this.state.entries = shown
-          ? [...entries, { kind: "ending", ending: shown }]
-          : entries;
         this.sync(this._presented);
       }
 
@@ -5423,9 +5425,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         const page = $._state.page;
         const current = page?.current ?? 0;
-        const entries = (page?.entries ?? []).slice(
-          0,
-          presented ? undefined : current,
+        const entries = this.withEnding(
+          (page?.entries ?? []).slice(0, presented ? undefined : current),
         );
         const signatures = entries.map((entry) => JSON.stringify(entry));
         let kept = 0;

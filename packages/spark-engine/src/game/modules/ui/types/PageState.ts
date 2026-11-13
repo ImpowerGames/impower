@@ -35,4 +35,5 @@ export interface PageState {
   absorbed?: PageEntry[];
   shown?: number;
   beat?: number;
+  ending?: StoryEnding;
 }

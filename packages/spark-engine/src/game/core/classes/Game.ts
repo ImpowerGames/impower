@@ -175,7 +175,8 @@ import { Clock } from "./Clock";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
 import type { StartingDisplayMode } from "./messages/SetStartingDisplayModeMessage";
-import { initialLayouts } from "./presenters/textLayouts";
+import { TEXTSTREAM_LAYOUT } from "./presenters/InteractiveFictionPresenter";
+import { initialLayouts, openInitialLayouts } from "./presenters/textLayouts";
 import { GameAutoAdvancedToContinueMessage } from "./messages/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "./messages/GameChosePathToContinueMessage";
@@ -4081,6 +4082,12 @@ export class Game<T extends M = {}> {
     };
     this._announcedStop = true;
     this.module.ui.style.update("continue_indicator", { display: "none" });
+    if (
+      !this.module.ui.initialLayoutsOpened &&
+      initialLayouts(this).includes(TEXTSTREAM_LAYOUT)
+    ) {
+      openInitialLayouts(this, true);
+    }
     this.module.ui.page.end(kind);
     if (kind === "fin") {
       this.module.ui.openEnding();
