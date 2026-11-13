@@ -474,12 +474,19 @@ describe("image folders as tiles", () => {
     await openMenu(layoutButton()!);
     await vi.waitFor(() => expect(menuItems()).toEqual(["Tiles", "List"]));
     expect(all<HTMLElement>('[role="menuitemradio"]').map((el) => el.getAttribute("aria-checked"))).toEqual(["true", "false"]);
-    expect(all<HTMLElement>('[role="menuitemradio"]').every((el) => el.querySelector("svg"))).toBe(true);
+    const itemIcon = (label: string) =>
+      all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === label)!.querySelector("svg:not([data-radio-indicator])")!.innerHTML;
+    const tilesIcon = itemIcon("Tiles");
+    const listIcon = itemIcon("List");
+    expect(tilesIcon).not.toBe(listIcon);
+    const triggerIcon = () => layoutButton()!.querySelector("svg")!.innerHTML;
+    expect(triggerIcon()).toBe(tilesIcon);
     await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === "List"));
     expect(window.setListState).toHaveBeenCalledWith({ assetsLayouts: { "Assets/Images/Portraits": "rows" } });
     expect(tiles()).toEqual([]);
     expect(host!.querySelector("[data-variants-chip]")!.textContent).toBe("4 variants");
     expect(layoutButton()!.getAttribute("data-layout")).toBe("rows");
+    expect(triggerIcon()).toBe(listIcon);
     await openMenu(layoutButton()!);
     await vi.waitFor(() =>
       expect(all<HTMLElement>('[role="menuitemradio"]').map((el) => el.getAttribute("aria-checked"))).toEqual(["false", "true"]),
