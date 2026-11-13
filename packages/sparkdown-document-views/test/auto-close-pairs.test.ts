@@ -104,4 +104,31 @@ describe("auto-closing pairs in the web editor match VS Code", () => {
     const editor = open(SCENE(before));
     expect(type(editor, typed)).toBe(SCENE(after));
   });
+
+  it("steps over one cursor's auto-inserted closer while another cursor inserts", () => {
+    const doc = "Intro\n  first\n  second\n";
+    const first = doc.indexOf("first") + "first".length;
+    const state = EditorState.create({
+      doc,
+      selection: EditorSelection.cursor(first),
+      extensions: [EXTENSION, EditorState.allowMultipleSelections.of(true)],
+    });
+    expect(ensureSyntaxTree(state, state.doc.length, 10_000)).not.toBeNull();
+    const editor = new EditorView({ state, parent: document.body });
+    view = editor;
+    type(editor, "`");
+    const second = editor.state.doc.toString().indexOf("second");
+    editor.dispatch({
+      selection: EditorSelection.create([
+        EditorSelection.cursor(first + 1),
+        EditorSelection.cursor(second),
+      ]),
+    });
+    type(editor, "`");
+    expect(editor.state.doc.toString()).toBe("Intro\n  first``\n  `second\n");
+    expect(editor.state.selection.ranges.map((range) => range.head)).toEqual([
+      first + 2,
+      second + 1,
+    ]);
+  });
 });

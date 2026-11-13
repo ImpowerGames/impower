@@ -224,34 +224,24 @@ export function vscodeCloseBrackets(
       return false;
     }
 
-    if (state.selection.ranges.every((range) => overtypes(state, range.from, insert))) {
-      view.dispatch(
-        state.update({
-          selection: EditorSelection.create(
-            state.selection.ranges.map((range) =>
-              EditorSelection.cursor(range.from + insert.length),
-            ),
-            state.selection.mainIndex,
-          ),
-          userEvent: "input.type",
-          scrollIntoView: true,
-        }),
-      );
-      return true;
-    }
-
-    const closes = state.selection.ranges.map((range) =>
-      closeAt(state, range.from, insert),
+    const actions = state.selection.ranges.map((range) =>
+      overtypes(state, range.from, insert)
+        ? true
+        : closeAt(state, range.from, insert),
     );
 
-    if (closes.every((close) => close === null)) {
+    if (actions.every((action) => action === null)) {
       return false;
     }
 
     let index = 0;
     const tr = state.changeByRange((range) => {
-      const close = closes[index++] ?? "";
+      const action = actions[index++] ?? null;
       const at = range.from + insert.length;
+      if (action === true) {
+        return { range: EditorSelection.cursor(at) };
+      }
+      const close = action ?? "";
       return {
         changes: { from: range.from, to: range.to, insert: insert + close },
         range: EditorSelection.cursor(at),
