@@ -6,6 +6,7 @@ export type SpeechMethod = typeof SpeechMessage.method;
 export interface SpeechClip {
   load: LoadAudioPlayerParams;
   after: number;
+  queued?: true;
 }
 
 export interface SpeechParams {

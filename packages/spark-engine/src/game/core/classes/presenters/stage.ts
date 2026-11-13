@@ -15,7 +15,11 @@ function unheardVoice(
     VOICING_CONTROLS.has(event.control) && event.assets?.length
       ? game.module.audio
           .resolveLoadParams("voice", event.assets)
-          .map((load) => ({ load, after: event.after ?? 0 }))
+          .map((load) => ({
+            load,
+            after: event.after ?? 0,
+            ...(event.control === "queue" ? { queued: true as const } : {}),
+          }))
       : [],
   );
 }

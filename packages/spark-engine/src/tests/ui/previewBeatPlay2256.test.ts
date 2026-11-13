@@ -92,6 +92,9 @@ const uiState = (h: UIHarness) =>
 const played = (h: UIHarness) =>
   h.messages.filter((m) => m?.method === PLAYED);
 
+const textWrites = (h: UIHarness) =>
+  flattenMessages(h.messages).filter((m) => m?.method === "ui/write-text");
+
 const speech = (h: UIHarness) =>
   flattenMessages(h.messages).filter((m) => m?.method === "morph/speech");
 
@@ -113,6 +116,14 @@ describe("playing the previewed beat once (#2256)", () => {
     expect(spoken.length).toBeGreaterThan(0);
     expect(spoken[0].params.spans.length).toBeGreaterThan(0);
     expect(spoken[0].params.time).toBeTypeOf("number");
+    const timed = textWrites(h).filter((m) => m.params.instant === false);
+    expect(timed.length).toBeGreaterThan(0);
+    expect(timed.every((m) => typeof m.params.time === "number")).toBe(true);
+    const afters = timed.flatMap((m) =>
+      m.params.instructions.map((i: { after?: number }) => i.after ?? 0),
+    );
+    expect(Math.min(...afters)).toBe(0);
+    expect(Math.max(...afters)).toBeGreaterThanOrEqual(1);
 
     const endMS = (await waitingBeat()).end! * 1000;
     expect(endMS).toBeGreaterThan(1000);
@@ -201,16 +212,26 @@ describe("playing the previewed beat once (#2256)", () => {
     expect(uiState(h)).toEqual(still);
   });
 
-  test("a voiced line's still keeps the speech on the clip when the beat ends, and rests it when a click finishes the beat", async () => {
+  test("a voiced line plays until the clip the page measured has ended, then rests on the still", async () => {
     const ended = await harness();
     await play(ended, VOICED_LINE);
     await advance(ended, 5000);
+    expect(ended.game.playingBeat).toBe(true);
+    ended.game.connection.receive({
+      jsonrpc: "2.0",
+      method: "morph/speechMeasured",
+      params: { end: 6 },
+    } as any);
+    await advance(ended, 6000 - 5000 - 200);
+    expect(ended.game.playingBeat).toBe(true);
+    await advance(ended, BEAT_LEAD_MS + 1000);
     expect(ended.game.playingBeat).toBe(false);
-    expect(speech(ended).at(-1).params).toMatchObject({
-      voiced: true,
-      revealed: true,
-    });
+    const still = speech(ended).at(-1).params;
+    expect(still.spans).toEqual([]);
+    expect(still.voiced).toBeUndefined();
+  });
 
+  test("a click finishes a voiced line at once and rests its mouth", async () => {
     const clicked = await harness();
     await play(clicked, VOICED_LINE);
     await advance(clicked, BEAT_LEAD_MS + 100);

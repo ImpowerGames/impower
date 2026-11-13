@@ -1,25 +1,28 @@
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { AudioClock } from "../../app/AudioClock";
 import AudioManager from "../../app/managers/AudioManager";
 import UIManager from "../../app/managers/UIManager";
 import { MorphPlayback } from "../../app/morph/MorphPlayback";
 import { flushMicrotasks } from "./domTestHarness";
 
-const CLIP_SECONDS = 2.5;
-
-const HELLO = {
-  load: {
-    channel: "voice",
-    key: "mia_hello",
-    src: "https://example.com/mia_hello.wav",
-  },
-  after: 0.5,
+const LENGTHS: Record<string, number> = {
+  mia_hello: 2.5,
+  mia_first: 2,
+  mia_second: 3,
 };
+
+const clip = (key: string, after: number, queued = false) => ({
+  load: { channel: "voice", key, src: `https://example.com/${key}.wav` },
+  after,
+  ...(queued ? { queued: true } : {}),
+});
+
+const HELLO = clip("mia_hello", 0.5);
 
 const makePreview = () => {
   const overlay = document.createElement("div");
   document.body.appendChild(overlay);
-  const scheduled: unknown[] = [];
+  const sent: any[] = [];
   const decoded: string[] = [];
   const app: any = {
     overlay,
@@ -29,11 +32,14 @@ const makePreview = () => {
       cache: {
         getAudio: (key: string) => {
           decoded.push(key);
-          return { duration: CLIP_SECONDS };
+          if (!(key in LENGTHS)) {
+            throw new Error("not decodable");
+          }
+          return { duration: LENGTHS[key] };
         },
       },
     },
-    emit: (message: unknown) => scheduled.push(message),
+    emit: (message: unknown) => sent.push(message),
   };
   const audio = new AudioManager(app);
   const ui = new UIManager(app);
@@ -44,7 +50,7 @@ const makePreview = () => {
   return {
     morphs,
     decoded,
-    scheduled,
+    sent,
     say(params: Record<string, unknown>) {
       ui.onReceiveNotification({
         jsonrpc: "2.0",
@@ -56,22 +62,23 @@ const makePreview = () => {
       const speech = (morphs as any).speech as
         | { character?: string; spans: [number, number][] }
         | undefined;
-      return speech?.character === "mia" ? speech.spans : [];
-    },
-    speakingAt(seconds: number) {
-      return this.spans().some(
-        ([start, end]) => start <= seconds + 1e-9 && seconds < end,
+      return (speech?.character === "mia" ? speech.spans : []).map(
+        ([start, end]): [number, number] => [start - morphs.now, end - morphs.now],
       );
+    },
+    measured() {
+      return sent.filter((m) => m?.method === "morph/speechMeasured");
     },
   };
 };
 
 afterEach(() => {
   document.body.innerHTML = "";
+  vi.restoreAllMocks();
 });
 
 describe("a voiced line played in the stopped preview (#2256)", () => {
-  test("its mouth follows the clip's length, silently, not the typed text", async () => {
+  test("its mouth follows the clip's length, silently, and the game is told when the clip ends", async () => {
     const preview = makePreview();
     preview.say({
       character: "mia",
@@ -83,72 +90,47 @@ describe("a voiced line played in the stopped preview (#2256)", () => {
     expect(preview.decoded).toEqual(["mia_hello"]);
     const [span] = preview.spans();
     expect(preview.spans()).toHaveLength(1);
-    expect(span![0] - preview.morphs.now).toBeCloseTo(HELLO.after, 6);
-    expect(span![1] - span![0]).toBeCloseTo(CLIP_SECONDS, 6);
-    expect(preview.speakingAt(preview.morphs.now + 2)).toBe(true);
-    expect(preview.speakingAt(preview.morphs.now + 3.1)).toBe(false);
-    expect(preview.scheduled).toEqual([]);
+    expect(span![0]).toBeCloseTo(0.5, 6);
+    expect(span![1]).toBeCloseTo(3, 6);
+    expect(preview.sent.filter((m) => m?.method?.startsWith("audio/"))).toEqual([]);
+    expect(preview.measured().map((m) => m.params.end)).toEqual([3]);
   });
 
-  test("when the beat ends on its own, the still keeps the mouth on the clip until the clip's length", async () => {
+  test("a queued clip starts when the one before it ends", async () => {
     const preview = makePreview();
-    preview.morphs.setEnabled(false);
-    preview.morphs.setPlaying(true);
     preview.say({
       character: "mia",
       spans: [[0, 0.3]],
       voiced: true,
-      clips: [HELLO],
+      clips: [clip("mia_first", 0), clip("mia_second", 0, true)],
     });
     await flushMicrotasks(10);
-    const before = preview.spans();
-    preview.say({ character: "mia", spans: [], voiced: true, revealed: true });
-    preview.morphs.setPlaying(false);
-    expect(preview.spans()).toEqual(before);
-    expect(preview.morphs.animating).toBe(true);
-    preview.morphs.advance(HELLO.after + CLIP_SECONDS - 0.1);
-    expect(preview.morphs.animating).toBe(true);
-    preview.morphs.advance(0.2);
-    expect(preview.morphs.animating).toBe(false);
+    const spans = preview.spans();
+    expect(spans).toHaveLength(2);
+    expect(spans[1]![0]).toBeCloseTo(2, 6);
+    expect(spans[1]![1]).toBeCloseTo(5, 6);
+    expect(preview.measured().map((m) => m.params.end)).toEqual([5]);
   });
 
-  test("a clip length decoded after the beat has ended still moves the mouth to the clip's end", async () => {
-    const overlay = document.createElement("div");
-    document.body.appendChild(overlay);
-    let decoded!: (seconds: number) => void;
-    const duration = new Promise<number>((resolve) => {
-      decoded = resolve;
+  test("a clip that cannot be measured is reported and left out, and the game still hears when the speech ends", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const preview = makePreview();
+    preview.say({
+      character: "mia",
+      spans: [[0, 0.3]],
+      voiced: true,
+      clips: [clip("mia_missing", 0), HELLO],
     });
-    const app: any = {
-      overlay,
-      audioClock: new AudioClock(0, () => 0),
-      audio: { liveClips: () => [], clipDuration: () => duration },
-    };
-    const ui = new UIManager(app);
-    const morphs = MorphPlayback.for(overlay);
-    morphs.configure({ requestFrame: () => 0, cancelFrame: () => {} });
-    morphs.setEnabled(false);
-    morphs.setPlaying(true);
-    const say = (params: Record<string, unknown>) =>
-      ui.onReceiveNotification({
-        jsonrpc: "2.0",
-        method: "morph/speech",
-        params,
-      } as any);
-    say({ character: "mia", spans: [[0, 0.2]], voiced: true, clips: [HELLO] });
-    say({ character: "mia", spans: [], voiced: true, revealed: true });
-    morphs.setPlaying(false);
-    expect(morphs.animating).toBe(true);
-    decoded(4);
     await flushMicrotasks(10);
-    expect(morphs.animating).toBe(true);
-    morphs.advance(HELLO.after + 3.9);
-    expect(morphs.animating).toBe(true);
-    morphs.advance(0.2);
-    expect(morphs.animating).toBe(false);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("mia_missing"),
+      expect.anything(),
+    );
+    expect(preview.spans()).toHaveLength(1);
+    expect(preview.measured().map((m) => m.params.end)).toEqual([3]);
   });
 
-  test("a click or a later preview rests the mouth at once, even before the clip's length is known", async () => {
+  test("a click or a later preview rests the mouth at once, before the clip's length is known, and nothing is measured", async () => {
     const preview = makePreview();
     preview.morphs.setEnabled(false);
     preview.morphs.setPlaying(true);
@@ -163,6 +145,7 @@ describe("a voiced line played in the stopped preview (#2256)", () => {
     await flushMicrotasks(10);
     expect(preview.spans()).toEqual([]);
     expect(preview.morphs.animating).toBe(false);
+    expect(preview.measured()).toEqual([]);
   });
 
   test("an unvoiced still after the play rests the mouth", async () => {

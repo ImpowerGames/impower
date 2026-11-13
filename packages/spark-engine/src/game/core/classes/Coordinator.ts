@@ -123,7 +123,7 @@ export class Coordinator<G extends Game> {
     this._onTick?.(0);
   }
 
-  settle(voiceRests = true): void {
+  settle(): void {
     const played = this._played;
     if (!played) {
       return;
@@ -131,9 +131,7 @@ export class Coordinator<G extends Game> {
     this._played = undefined;
     this._onTick = undefined;
     this._game.module.ui.setBeatPlaying(false);
-    if (voiceRests) {
-      this._game.module.ui.restSpeech();
-    }
+    this._game.module.ui.restSpeech();
     this.display({ instant: true, preview: true });
     played();
   }
@@ -157,7 +155,7 @@ export class Coordinator<G extends Game> {
     }
     if (this._plays) {
       if (this._finishedExecution) {
-        this.settle(false);
+        this.settle();
       }
       return;
     }
@@ -474,7 +472,13 @@ export class Coordinator<G extends Game> {
           cutsceneTriggerId = null;
           this._cutscenePlaying = false;
         }
-        if (elapsedMS >= totalDurationMS && cutsceneTriggerId == null) {
+        const voiceEnd = game.module.ui.voiceEnd;
+        if (
+          elapsedMS >= totalDurationMS &&
+          cutsceneTriggerId == null &&
+          voiceEnd !== null &&
+          elapsedMS >= (voiceEnd ?? 0) * 1000
+        ) {
           finished = true;
           handleFinished();
         }

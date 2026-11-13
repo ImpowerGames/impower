@@ -218,22 +218,17 @@ export class MorphPlayback {
 
   protected playing = false;
   protected lingering = false;
-  protected speechPending = false;
-
-  protected get speaking(): boolean {
-    return this.speechPending || this.speechRemaining > 0;
-  }
 
   setPlaying(playing: boolean) {
     if (this.playing === playing) return;
     const was = this.animating;
     this.playing = playing;
-    this.lingering = !playing && this.speaking;
+    this.lingering = !playing && this.speechRemaining > 0;
     this.animatingChanged(was);
   }
 
   protected endLinger() {
-    if (!this.lingering || this.speaking) return;
+    if (!this.lingering || this.speechRemaining > 0) return;
     const was = this.animating;
     this.lingering = false;
     this.animatingChanged(was);
@@ -259,13 +254,7 @@ export class MorphPlayback {
     this.schedule();
   }
 
-  awaitSpeech(character: string) {
-    this.speak(character, []);
-    this.speechPending = true;
-  }
-
   speak(character: string | undefined, spans: readonly (readonly [number, number])[]) {
-    this.speechPending = false;
     this.speech = {
       ...(character ? { character } : {}),
       spans: spans.map(([start, end]): [number, number] => [this.time + start, this.time + end]),
@@ -311,7 +300,6 @@ export class MorphPlayback {
     if (this.session === session) return;
     this.session = session;
     this.speech = undefined;
-    this.speechPending = false;
     this.restartAll();
     this.render();
     this.endLinger();

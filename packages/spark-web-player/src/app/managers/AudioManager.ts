@@ -121,7 +121,8 @@ export default class AudioManager extends Manager {
   async clipDuration(params: LoadAudioPlayerParams): Promise<number | undefined> {
     try {
       return (await this.getAudioBuffer(params)).duration;
-    } catch {
+    } catch (e) {
+      console.warn(`Could not measure the voice clip ${params.key}`, e);
       return undefined;
     }
   }

@@ -88,6 +88,14 @@ describe("Replay beat in the stopped preview (#2256)", () => {
     const spoken = speech(h);
     expect(spoken.length).toBeGreaterThan(0);
     expect(spoken[0].params.spans.length).toBeGreaterThan(0);
+    const timed = ops(h.toRouter).filter(
+      (m) => m?.method === "ui/write-text" && m.params?.instant === false,
+    );
+    expect(timed.length).toBeGreaterThan(0);
+    const afters = timed.flatMap((m) =>
+      m.params.instructions.map((i: { after?: number }) => i.after ?? 0),
+    );
+    expect(Math.max(...afters)).toBeGreaterThanOrEqual(1);
 
     await h.tick(100, 5);
     expect(beatState(h)?.playing).toBe(true);

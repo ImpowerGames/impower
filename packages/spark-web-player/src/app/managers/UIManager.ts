@@ -39,6 +39,7 @@ import {
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphArtifactMessage";
 import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphNeedMessage";
+import { SpeechMeasuredMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SpeechMeasuredMessage";
 import {
   SpeechMessage,
   type SpeechClip,
@@ -116,7 +117,6 @@ const UNENDED_SPEECH = 1e9;
 
 interface Speech {
   clips?: { retime: () => void; stopHearing?: () => void };
-  unheard?: true;
 }
 
 let playSessions = 0;
@@ -1648,7 +1648,7 @@ export default class UIManager extends Manager {
     if (!morphs) {
       return;
     }
-    if (revealed && (this._speech?.clips || this._speech?.unheard)) {
+    if (revealed && this._speech?.clips) {
       return;
     }
     this.endSpeech();
@@ -1683,8 +1683,7 @@ export default class UIManager extends Manager {
     time: number | undefined,
     speech: Speech,
   ) {
-    speech.unheard = true;
-    morphs.awaitSpeech(character);
+    morphs.speak(character, []);
     const audio = this.app.audio;
     void Promise.all(
       unheard.map((clip) => audio?.clipDuration(clip.load)),
@@ -1692,16 +1691,23 @@ export default class UIManager extends Manager {
       if (this._speech !== speech || this._disposed) {
         return;
       }
+      const spans: [number, number][] = [];
+      let end = 0;
+      unheard.forEach((clip, index) => {
+        const duration = durations[index];
+        if (duration == null || duration <= 0) {
+          return;
+        }
+        const start = clip.queued ? Math.max(clip.after, end) : clip.after;
+        spans.push([start, start + duration]);
+        end = Math.max(end, start + duration);
+      });
       const lead = this.leadOf(time);
       morphs.speak(
         character,
-        unheard.flatMap((clip, index): [number, number][] => {
-          const duration = durations[index];
-          return duration != null && duration > 0
-            ? [[clip.after + lead, clip.after + duration + lead]]
-            : [];
-        }),
+        spans.map(([start, stop]): [number, number] => [start + lead, stop + lead]),
       );
+      this.app.emit(SpeechMeasuredMessage.type.notification({ end }));
     });
   }
 
