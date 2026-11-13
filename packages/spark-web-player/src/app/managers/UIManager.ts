@@ -51,6 +51,7 @@ import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock
 import type { StreamMessage } from "../../../../spark-engine/src/game/core/classes/Connection";
 import { isAdvanceKey } from "../../../../spark-engine/src/game/core/utils/isAdvanceKey";
 import { Manager } from "../Manager";
+import type { LiveClip } from "./AudioManager";
 import { MorphGroup, MorphPlayback } from "../morph/MorphPlayback";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
@@ -103,6 +104,12 @@ interface Cutscene {
 type OverlayWithCutscene = HTMLElement & { __sdCutscene?: Cutscene };
 
 const COMMIT_WAIT_LIMIT_MS = 1_000;
+
+const UNENDED_SPEECH = 1e9;
+
+interface Speech {
+  clips?: { retime: () => void; stopHearing?: () => void };
+}
 
 let playSessions = 0;
 
@@ -397,6 +404,7 @@ export default class UIManager extends Manager {
     const morphs = this.morphs;
     morphs?.attachClock(this);
     morphs?.setSession(`play:${++playSessions}`);
+    this.endSpeech();
     this._morphClockSeen = undefined;
   }
 
@@ -438,6 +446,7 @@ export default class UIManager extends Manager {
     }
     this._hold.resume();
     this.morphs?.setPaused(false);
+    this._speech?.clips?.retime();
     this.resumeMovies();
     this.scheduleCommit();
   }
@@ -454,6 +463,7 @@ export default class UIManager extends Manager {
   }
 
   override onDispose() {
+    this.endSpeech();
     this._hold.release();
     for (const id of Object.keys(this._listeners)) {
       this.removeListeners(id);
@@ -1622,9 +1632,27 @@ export default class UIManager extends Manager {
     }
   }
 
-  protected speak({ character, spans, time }: SpeechParams) {
+  protected _speech?: Speech;
+
+  protected endSpeech() {
+    this._speech?.clips?.stopHearing?.();
+    this._speech = undefined;
+  }
+
+  protected speak({ character, spans, voiced, revealed, time }: SpeechParams) {
     const morphs = this.morphs;
     if (!morphs) {
+      return;
+    }
+    if (revealed && this._speech?.clips) {
+      return;
+    }
+    this.endSpeech();
+    const speech: Speech = {};
+    this._speech = speech;
+    const clips = voiced && character ? (this.app.audio?.liveClips("voice") ?? []) : [];
+    if (character && clips.length > 0) {
+      this.speakClips(morphs, character, clips, speech);
       return;
     }
     const shown = this.getDisplayTime(time);
@@ -1638,6 +1666,61 @@ export default class UIManager extends Manager {
       character,
       spans.map(([start, end]): [number, number] => [start + lead, end + lead]),
     );
+  }
+
+  protected speakClips(
+    morphs: MorphPlayback,
+    character: string,
+    clips: LiveClip[],
+    speech: Speech,
+  ) {
+    const latency = this.app.audioClock.reading.outputLatency;
+    const audioNow = () => this.app.audioContext?.currentTime ?? 0;
+    const heard: { clip: LiveClip; start: number; end: number }[] = [];
+    const seen = new Set<Promise<unknown>>();
+    const update = () => {
+      if (this._speech !== speech || this._disposed) {
+        return;
+      }
+      const now = morphs.now;
+      morphs.speak(
+        character,
+        heard.map(({ start, end }): [number, number] => [
+          start - now,
+          Number.isFinite(end) ? end - now : UNENDED_SPEECH,
+        ]),
+      );
+    };
+    const hear = (clip: LiveClip) => {
+      if (seen.has(clip.ended)) {
+        return;
+      }
+      seen.add(clip.ended);
+      const span = { clip, start: morphs.now + (clip.startedAt - audioNow()) + latency, end: Infinity };
+      heard.push(span);
+      void clip.ended.then(() => {
+        span.end = morphs.now + latency;
+        update();
+      });
+    };
+    clips.forEach(hear);
+    speech.clips = {
+      retime: () => {
+        const now = morphs.now;
+        const pending = heard.filter((span) => span.start > now);
+        for (const span of pending) {
+          span.start = now + Math.max(0, span.clip.startedAt - audioNow()) + latency;
+        }
+        if (pending.length > 0) {
+          update();
+        }
+      },
+      stopHearing: this.app.audio?.onClipStart("voice", (clip) => {
+        hear(clip);
+        update();
+      }),
+    };
+    update();
   }
 
   protected getDisplayTime(time: number | undefined): number | undefined {

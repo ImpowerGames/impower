@@ -16,6 +16,11 @@ import { convertMidiToToneSequences } from "../../../../spark-engine/src/game/mo
 import { parseMidi } from "../../../../spark-engine/src/game/modules/audio/utils/parseMidi";
 import { Manager } from "../Manager";
 
+export interface LiveClip {
+  startedAt: number;
+  ended: Promise<unknown>;
+}
+
 export default class AudioManager extends Manager {
   protected _unsafeAudioContext?: AudioContext;
   protected get unsafeAudioContext() {
@@ -122,6 +127,49 @@ export default class AudioManager extends Manager {
       }
     }
     return keys;
+  }
+
+  liveClips(channel: string): LiveClip[] {
+    const context = this.app.audioContext;
+    const players = this._audioChannels.get(channel);
+    if (!context || context.state !== "running" || !players) {
+      return [];
+    }
+    const now = context.currentTime;
+    return [...players.values()].flatMap((player) =>
+      player.instances
+        .filter((instance) => instance.stoppedAt == null || instance.stoppedAt > now)
+        .map(({ startedAt, ended }) => ({ startedAt, ended })),
+    );
+  }
+
+  protected _clipStartListeners = new Map<string, Set<(clip: LiveClip) => void>>();
+
+  onClipStart(channel: string, listener: (clip: LiveClip) => void): () => void {
+    let listeners = this._clipStartListeners.get(channel);
+    if (!listeners) {
+      listeners = new Set();
+      this._clipStartListeners.set(channel, listeners);
+    }
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+
+  protected clipStarted(
+    channel: string | undefined,
+    instance: AudioPlayer["instances"][number],
+  ) {
+    const context = this.app.audioContext;
+    const listeners = channel ? this._clipStartListeners.get(channel) : undefined;
+    if (!context || context.state !== "running" || !listeners?.size) {
+      return;
+    }
+    const clip = { startedAt: instance.startedAt, ended: instance.ended };
+    for (const listener of [...listeners]) {
+      listener(clip);
+    }
   }
 
   protected async getAudioBuffer(
@@ -254,7 +302,8 @@ export default class AudioManager extends Manager {
       audioPlayer.loop = update.loop;
     }
     if (update.control === "start") {
-      audioPlayer.start(when, over, gain, at);
+      const instance = audioPlayer.start(when, over, gain, at);
+      this.clipStarted(channel, instance);
       if (channel && key) {
         this.pruneWhenDone(channel, key, audioPlayer);
       }
