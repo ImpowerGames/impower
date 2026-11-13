@@ -45,6 +45,25 @@ function shown(h: UIHarness, target: string): string {
     .join("");
 }
 
+function displayOf(h: UIHarness, id: string): string | null | undefined {
+  let display: string | null | undefined;
+  for (const m of flattenMessages(
+    h.messages.flatMap((m: any) => (m.method === "ui/beat" ? m.params.messages : [m])),
+  )) {
+    const params = m?.params;
+    const style =
+      m?.method === "ui/create" && params?.element === id
+        ? params.style
+        : m?.method === "ui/update" && params?.element === id
+          ? params.style
+          : undefined;
+    if (style && "display" in style) {
+      display = style.display;
+    }
+  }
+  return display;
+}
+
 function lineOf(source: string, text: string): number {
   return source.split("\n").findIndex((l) => l.includes(text));
 }
@@ -191,6 +210,61 @@ end
     await playLive(h, release);
     expect(mounted(h)).toEqual(["main", "textbox"]);
     expect(shown(h, "action")).toBe("First line.");
+  });
+
+  test.each([
+    ["with a font to load", FONTS],
+    ["with no font to load", []],
+  ])("a line shown while the textbox layout mounts leaves its empty choice slots hidden, %s", async (_name, assets) => {
+    const h = createHarness(`${FANCY_TEXTBOX}\nscene start\n  First line.\nend\n`, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      holdAssets: true,
+      assets,
+    });
+    const release = async () => {
+      h.releaseAssets();
+      await flushMicrotasks(20);
+    };
+    await release();
+    await h.ready;
+    await playLive(h, release);
+    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(shown(h, "action")).toBe("First line.");
+    const slots = h.game.module.ui.findIds("choice");
+    expect(slots).toHaveLength(6);
+    expect(slots.map((id) => displayOf(h, id))).toEqual(slots.map(() => "none"));
+  });
+
+  test("previewing a line while the textbox layout's font loads leaves its empty choice slots hidden", async () => {
+    const source = `${FANCY_TEXTBOX}\nscene start\n  First line.\nend\n`;
+    const line = lineOf(source, "First line.");
+    const h = createHarness(source, line, {
+      reactive: true,
+      autoOpenAll: false,
+      holdAssets: true,
+      assets: FONTS,
+      connect: false,
+    });
+    h.game.setStartFrom({ file: MAIN_URI, line });
+    h.game.simulate();
+    const connecting = h.reconnect();
+    for (let i = 0; i < 5; i += 1) {
+      h.releaseAssets();
+      await flushMicrotasks(20);
+    }
+    await connecting;
+    const previewing = h.preview(line);
+    for (let i = 0; i < 5; i += 1) {
+      h.releaseAssets();
+      await flushMicrotasks(20);
+    }
+    await previewing;
+    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(shown(h, "action")).toBe("First line.");
+    const slots = h.game.module.ui.findIds("choice");
+    expect(slots).toHaveLength(6);
+    expect(slots.map((id) => displayOf(h, id))).toEqual(slots.map(() => "none"));
   });
 
   test("a choice shown while the textbox layout's font loads can be picked once it mounts", async () => {

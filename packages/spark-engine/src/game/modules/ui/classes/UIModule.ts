@@ -3904,6 +3904,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       element = this.constructLayoutFromAst(layout);
       vs.takeReactiveChanges();
       vs.restoreReactiveChanges(pending);
+      this.clearUnwrittenTargets(element);
       this.notifyMounted(name);
       this.reveal();
     } finally {
@@ -4500,6 +4501,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   getTransientTargets() {
     return Array.from(this._clearOnContinue.values());
+  }
+
+  protected clearUnwrittenTargets(layout: Element): void {
+    const inLayout = (el: Element) => {
+      for (let node: Element | null = el; node; node = node.parent) {
+        if (node === layout) {
+          return true;
+        }
+      }
+      return false;
+    };
+    for (const target of this.getTransientTargets()) {
+      if (!this.findElements(target, true).some(inLayout)) {
+        continue;
+      }
+      if (!this._state.text?.[target]) {
+        void this.text.clear(target);
+      }
+      if (!this._state.image?.[target]) {
+        void this.image.clear(target);
+      }
+    }
   }
 
   getAnimationDefinition(
