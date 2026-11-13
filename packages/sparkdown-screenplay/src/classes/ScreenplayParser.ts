@@ -6,6 +6,7 @@ import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/c
 import { getDescendent } from "../../../textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
+import { printsAsBlankLine } from "../utils/printsAsBlankLine";
 
 const COMPILER_FIELDS = new Set(["typecheck"]);
 
@@ -113,30 +114,8 @@ export default class ScreenplayParser {
         const from = nodeRef.from;
         const to = nodeRef.to;
 
-        if (nodeRef.node.parent?.name === "sparkdown") {
-          if (
-            name !== "FrontMatter" &&
-            name !== "Scene" &&
-            name !== "Branch" &&
-            name !== "BlockTitle" &&
-            name !== "InlineTitle" &&
-            name !== "BlockHeading" &&
-            name !== "InlineHeading" &&
-            name !== "BlockTransitional" &&
-            name !== "InlineTransitional" &&
-            name !== "BlockWrite" &&
-            name !== "InlineWrite" &&
-            name !== "BlockDialogue" &&
-            name !== "InlineDialogue" &&
-            name !== "BlockAction" &&
-            name !== "InlineAction" &&
-            name !== "ImplicitAction" &&
-            name !== "Choice" &&
-            name !== "Newline" &&
-            name !== "Whitespace"
-          ) {
-            addSeparator();
-          }
+        if (printsAsBlankLine(name, nodeRef.node.parent?.name)) {
+          addSeparator();
         }
         if (name === "SparkdownBlockComment") {
           return false;

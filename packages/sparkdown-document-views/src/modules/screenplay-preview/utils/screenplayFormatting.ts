@@ -7,6 +7,7 @@ import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/Sparkdo
 import { SyntaxNodeRef } from "@lezer/common";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
+import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
@@ -329,7 +330,7 @@ export const decorate = (
   };
 
   const isLuauFlowBlockContainer = (name: string) =>
-    /^LuauSparkdown[A-Za-z]*(Block|Clause)$/.test(name);
+    /^LuauSparkdown[A-Za-z]*(Block|Clause|Loop)$/.test(name);
 
   const isHiddenFlowLogic = (name: string) =>
     name === "Divert" ||
@@ -340,32 +341,21 @@ export const decorate = (
     name === "LuauElseifBlockCondition" ||
     name === "LuauSparkdownExplicitIfCondition";
 
-  const isBlockHidden = (nodeRef: SyntaxNodeRef) => {
-    const name = nodeRef.name as SparkdownNodeName;
-    if (nodeRef.node.parent?.name === "sparkdown") {
-      return (
-        name !== "FrontMatter" &&
-        name !== "Scene" &&
-        name !== "BlockTitle" &&
-        name !== "InlineTitle" &&
-        name !== "BlockHeading" &&
-        name !== "InlineHeading" &&
-        name !== "BlockTransitional" &&
-        name !== "InlineTransitional" &&
-        name !== "BlockWrite" &&
-        name !== "InlineWrite" &&
-        name !== "BlockDialogue" &&
-        name !== "InlineDialogue" &&
-        name !== "BlockAction" &&
-        name !== "InlineAction" &&
-        name !== "ImplicitAction" &&
-        name !== "Choice" &&
-        name !== "Newline" &&
-        name !== "Whitespace" &&
-        !isLuauFlowBlockContainer(name)
-      );
+  const isBlankLine = (nodeRef: SyntaxNodeRef) =>
+    printsAsBlankLine(nodeRef.name, nodeRef.node.parent?.name);
+
+  const hideOpeningLine = (nodeRef: SyntaxNodeRef) => {
+    const opening = doc.lineAt(nodeRef.from);
+    if (opening.from !== nodeRef.from || opening.to >= nodeRef.to) {
+      return;
     }
-    return false;
+    decorations.push(
+      ...createDecorations(doc, {
+        type: "collapse",
+        from: opening.from,
+        to: opening.to,
+      }),
+    );
   };
 
   const isInlineHidden = (nodeRef: SyntaxNodeRef) => {
@@ -584,15 +574,18 @@ export const decorate = (
       } else if (name === "ColonSeparator") {
         hideInlineRange(nodeRef);
         return false;
+      } else if (isBlankLine(nodeRef) && isLuauFlowBlockContainer(name)) {
+        hideOpeningLine(nodeRef);
+        return true;
+      } else if (isBlankLine(nodeRef)) {
+        hideBlockRange(nodeRef);
+        return false;
       } else if (isHiddenFlowLogic(name)) {
         hideInlineRange(nodeRef);
         return false;
       } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
         return true;
-      } else if (isBlockHidden(nodeRef)) {
-        hideBlockRange(nodeRef);
-        return false;
       } else if (isInlineHidden(nodeRef)) {
         hideInlineRange(nodeRef);
       }
