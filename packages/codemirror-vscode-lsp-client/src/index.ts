@@ -7,14 +7,17 @@ export {
 } from "./client";
 export {
   applyDocumentColor,
+  changeableColorAt,
   changeColor,
   changeColorAt,
+  colorCSS,
   colorPresentationFor,
   convertFromServerColors,
   documentColorAt,
   presentColorPicker,
   serverColorDecorations,
   setDocumentColors,
+  swatchPressChangesColor,
   updateDocumentColors,
   type ColorPick,
   type ColorPickerPresenter,

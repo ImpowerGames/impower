@@ -1,6 +1,7 @@
 import { EditorSelection, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
+  changeColor,
   contextMenu,
   presentColorPicker,
   serverColorDecorations,
@@ -9,6 +10,7 @@ import {
   type ColorPick,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { scriptMode } from "../src/modules/script-editor/utils/extensions/scriptMode";
 
 let view: EditorView | undefined;
 
@@ -68,6 +70,33 @@ describe("the swatch in the script", () => {
     expect(document.querySelector("input[type=color]")).toBeNull();
   });
 
+  it("only places the caret on a phone, in editing and in reading mode", () => {
+    for (const mode of ["editing", "reading"] as const) {
+      const shown: ColorPick[] = [];
+      mount(0, [
+        scriptMode(mode),
+        presentColorPicker((pick) => shown.push(pick)),
+      ]);
+      swatch().click();
+      expect(shown, mode).toEqual([]);
+      expect(document.querySelector("input[type=color]"), mode).toBeNull();
+      view!.destroy();
+      document.body.innerHTML = "";
+    }
+    view = undefined;
+  });
+
+  it("asks for nothing while the script cannot be edited", () => {
+    const shown: ColorPick[] = [];
+    mount(0, [
+      EditorState.readOnly.of(true),
+      presentColorPicker((pick) => shown.push(pick)),
+    ]);
+    swatch().click();
+    expect(shown).toEqual([]);
+    expect(document.querySelector("input[type=color]")).toBeNull();
+  });
+
   it("opens the device's picker where the host has no Change color view", () => {
     mount(0);
     const showPicker = vi
@@ -90,6 +119,18 @@ describe("the context menu's Change color", () => {
     expect(shown).toEqual([
       { from: FROM, to: TO, color: COLOR, text: "#ff880080" },
     ]);
+  });
+
+  it("is not offered while the script cannot be edited", () => {
+    const shown: ColorPick[] = [];
+    const v = mount(FROM + 2, [
+      EditorState.readOnly.of(true),
+      presentColorPicker((pick) => shown.push(pick)),
+    ]);
+    showContextMenu(v, { pos: FROM + 2, x: 10, y: 10 });
+    expect(rows()).not.toContain("Change color");
+    expect(changeColor(v)).toBe(false);
+    expect(shown).toEqual([]);
   });
 
   it("is not offered where the caret is off every color", () => {

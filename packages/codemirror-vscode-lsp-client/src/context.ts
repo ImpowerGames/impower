@@ -1,7 +1,7 @@
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { EditorSelection, EditorState, Extension, Facet } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { changeColor, documentColorAt } from "./color";
+import { changeableColorAt, changeColor } from "./color";
 import { jumpToDefinition } from "./definition";
 import { coarsePointer } from "./pointer";
 import { findReferences } from "./tools";
@@ -284,7 +284,7 @@ export const colorContextMenuItems: ContextMenuItem[] = [
   {
     label: "Change color",
     command: changeColor,
-    when: (state, pos) => documentColorAt(state, pos) != null,
+    when: (state, pos) => changeableColorAt(state, pos) != null,
   },
 ];
 
