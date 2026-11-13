@@ -38,7 +38,12 @@ const getCssValueText = (value: unknown): string => {
 
 const getUnrecognizedCssValue = (name: string, value: unknown): string => {
   if (name === "animation-name") {
-    return getCssValueText(value).split(" ").map(cssIdent).join(" ");
+    return getCssValueText(value)
+      .split(",")
+      .map((names, _, list) =>
+        (list.length > 1 ? names.trim() : names).split(" ").map(cssIdent).join(" "),
+      )
+      .join(", ");
   }
   if (LENGTH_PROPERTY_SUFFIX.test(name)) {
     if (Array.isArray(value)) {

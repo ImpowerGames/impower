@@ -49,14 +49,15 @@ export async function renderedBeat(source: string) {
     const cells: Cell[] = [];
     for (const event of beat.text?.[target] ?? []) {
       const style = (event.style ?? {}) as Record<string, unknown>;
+      const animations = String(style["animation_name"] ?? "").split(",");
       const styles = [
         style["font_weight"] === "bold" ? "bold" : "",
         style["font_style"] === "italic" ? "italic" : "",
         style["text_decoration"] === "underline" ? "underline" : "",
         style["text_align"] === "center" ? "centered" : "",
         style["white_space"] === "pre" ? "raw" : "",
-        wavy && style["animation_name"] === wavy ? "wavy" : "",
-        shaky && style["animation_name"] === shaky ? "shaky" : "",
+        wavy && animations.includes(wavy) ? "wavy" : "",
+        shaky && animations.includes(shaky) ? "shaky" : "",
       ].filter(Boolean);
       for (const char of event.text ?? "") {
         cells.push({ char, style: styles.sort().join(" ") });

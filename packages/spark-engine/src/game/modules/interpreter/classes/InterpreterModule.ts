@@ -1703,32 +1703,37 @@ export class InterpreterModule extends Module<
               event.style["white_space"] = "pre";
             }
 
-            if (c.wavy) {
+            const animations = (
+              [
+                ["wavy", c.wavy ?? 0],
+                ["shaky", c.shaky ?? 0],
+              ] as const
+            ).flatMap(([name, offset]) => {
+              const animation = offset
+                ? (this.context as any)?.animation?.[name]
+                : undefined;
+              return animation
+                ? [
+                    {
+                      animation_name: animation.$name,
+                      animation_timing_function: animation.timing.easing,
+                      animation_iteration_count: animation.timing.iterations,
+                      animation_duration: animation.timing.duration,
+                      animation_delay: offset * animationOffset * -1,
+                    },
+                  ]
+                : [];
+            });
+            if (c.wavy || c.shaky) {
               event.style ??= {};
-              const animation = (this.context as any)?.animation?.["wavy"];
-              if (animation) {
-                event.style["display"] = "inline-block";
-                event.style["animation_name"] = animation.$name;
-                event.style["animation_timing_function"] =
-                  animation.timing.easing;
-                event.style["animation_iteration_count"] =
-                  animation.timing.iterations;
-                event.style["animation_duration"] = animation.timing.duration;
-                event.style["animation_delay"] = c.wavy * animationOffset * -1;
-              }
             }
-            if (c.shaky) {
-              event.style ??= {};
-              const animation = (this.context as any)?.animation?.["shaky"];
-              if (animation) {
-                event.style["display"] = "inline-block";
-                event.style["animation_name"] = animation.$name;
-                event.style["animation_timing_function"] =
-                  animation.timing.easing;
-                event.style["animation_iteration_count"] =
-                  animation.timing.iterations;
-                event.style["animation_duration"] = animation.timing.duration;
-                event.style["animation_delay"] = c.shaky * animationOffset * -1;
+            if (animations.length > 0) {
+              event.style!["display"] = "inline-block";
+              for (const key of Object.keys(animations[0]!) as (keyof (typeof animations)[0])[]) {
+                event.style![key] =
+                  animations.length === 1
+                    ? animations[0]![key]
+                    : animations.map((a) => a[key]).join(",");
               }
             }
             if (debug) {

@@ -30,7 +30,30 @@ const action = (body: string): Case => ({
   parts: [{ target: "action", sources: [body] }],
 });
 
+const MARKS: Record<string, string> = {
+  bold: "**",
+  italic: "*",
+  underline: "_",
+  centered: "^",
+  wavy: "~~",
+  shaky: "::",
+};
+
+const PAIRS: Case[] = Object.values(MARKS).flatMap((outer) => [
+  ...Object.values(MARKS)
+    .filter((inner) => inner !== outer)
+    .map((inner) => action(`A ${outer}a ${inner}b${inner} c${outer} D`)),
+  action(`A ${outer}a \`b\` c${outer} D`),
+]);
+
+const ANIMATIONS_INSIDE: Case[] = ["**", "*", "_", "^"].flatMap((outer) => [
+  action(`A ${outer}a ~~b ::c:: d~~ e${outer} F`),
+  action(`A ${outer}a ::b ~~c~~ d:: e${outer} F`),
+]);
+
 const CORPUS: Case[] = [
+  ...PAIRS,
+  ...ANIMATIONS_INSIDE,
   action("The room is quiet."),
   action("A *word* here."),
   action("A **word** here."),
@@ -277,6 +300,13 @@ describe("a mark inside an inserted value is styled within the value only", () =
     );
     expect(cellsOf.beat.speaker?.character).toBe("nova");
     expect(show(cellsOf("character_name"))).toBe("[italic: NOVA]");
+  });
+
+  test("a value's animation adds to the script's animation around it", async () => {
+    const cellsOf = await renderedBeat(
+      script("A ~~a {v} c~~ D", `store v = "::b::"\n`),
+    );
+    expect(show(cellsOf("action"))).toBe("A [wavy: a ][shaky wavy: b][wavy:  c] D");
   });
 
   test("a value's unclosed mark ends with the value", async () => {

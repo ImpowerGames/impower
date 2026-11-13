@@ -658,6 +658,12 @@ export const getCssEase = (
   if (value.includes("(")) {
     return value;
   }
+  if (value.includes(",")) {
+    return value
+      .split(",")
+      .map((part) => getCssEase(part.trim(), theme, defaultValue))
+      .join(", ");
+  }
   const [ease, outgoing, incoming] = value.split("-");
   const outgoingPercent = Number(outgoing);
   const incomingPercent = Number(incoming);
