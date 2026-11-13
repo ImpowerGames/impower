@@ -82,7 +82,10 @@ const expectInsetCard = () => {
   expect(frame).not.toBeNull();
   expect(frame!.classList).toContain("rounded-preview-frame");
   expect(frame!.classList).toContain("overflow-hidden");
+  expect(frame!.classList).toContain("shadow-preview-frame");
   expect(frame!.parentElement!.classList).toContain("px-preview-inline");
+  expect(frame!.parentElement!.classList).toContain("pt-preview-stage-gap");
+  expect((host!.firstElementChild as HTMLElement).classList).toContain("bg-preview-mat");
   expect(frame!.querySelector('[data-stage="game"]')).not.toBeNull();
 };
 
@@ -151,6 +154,8 @@ describe("the preview stage's game card", () => {
     const frame = card();
     expect(frame).not.toBeNull();
     expect(frame!.classList).not.toContain("rounded-preview-frame");
+    expect(frame!.classList).not.toContain("shadow-preview-frame");
     expect(frame!.parentElement!.classList).not.toContain("px-preview-inline");
+    expect(frame!.parentElement!.classList).not.toContain("pt-preview-stage-gap");
   });
 });

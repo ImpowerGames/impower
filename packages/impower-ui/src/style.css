@@ -87,6 +87,8 @@
   --radius-toast: var(--toast-radius);
   --radius-preview-frame: var(--preview-frame-radius);
   --spacing-preview-inline: var(--preview-inline-padding);
+  --spacing-preview-stage-gap: var(--preview-stage-gap);
+  --shadow-preview-frame: var(--preview-frame-shadow);
   --shadow-float: var(--float-shadow);
 }
 

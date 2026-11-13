@@ -85,14 +85,14 @@ export default function Preview(_props: PreviewProps) {
     <div
       class={cn(
         "flex min-h-0 flex-1 flex-col",
-        !fullscreen && "px-preview-inline",
+        !fullscreen && "px-preview-inline pt-preview-stage-gap",
       )}
     >
       <div
         data-preview-card
         class={cn(
           "relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-stage",
-          !fullscreen && "rounded-preview-frame",
+          !fullscreen && "rounded-preview-frame shadow-preview-frame",
         )}
       >
         {stage}
@@ -117,7 +117,7 @@ export default function Preview(_props: PreviewProps) {
   return (
     <div
       ref={ref}
-      class="@container flex h-full w-full min-h-0 flex-1 flex-col bg-panel"
+      class="@container flex h-full w-full min-h-0 flex-1 flex-col bg-preview-mat"
     >
       <PreviewTopBar />
       {phone ? (

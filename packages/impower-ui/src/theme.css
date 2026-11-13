@@ -598,9 +598,16 @@
   --toast-radius: 10px;
   --preview-frame-radius: 10px;
   --preview-inline-padding: 10px;
+  --preview-stage-gap: 8px;
+  --preview-frame-shadow: none;
   --float-shadow: 0 12px 40px rgb(0 0 0 / 0.4);
   --fade: 20px;
   --scrollbar-track: transparent;
   --toast-top: 64px;
   --stage: var(--stage-full, rgb(0 0 0));
+}
+
+[data-theme="chalk"],
+[data-theme="paper"] {
+  --preview-frame-shadow: 0 10px 30px rgb(0 0 0 / 0.16);
 }
