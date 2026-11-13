@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
-import { ObjectValue } from "../../runtime/Value";
+import { ObjectValue, StringValue } from "../../runtime/Value";
 import {
   SCAN_CLOSE,
   SCAN_OPEN,
@@ -172,6 +172,33 @@ describe("a save made before style codes, by the runtime of that time", () => {
     }
     expect(after).toEqual(remaining);
     expect(remaining).toHaveLength(3);
+  });
+
+  test("a save taken just after a value's scan code resumes after it, not before", () => {
+    const compiled = compile(
+      `scene start\n  A *{queue | "literal" | "literal" end}* B \`\`raw \`x\` y\`\`.\n  done\nend\n`,
+    );
+    const story = testStory(compiled);
+    const scanOpened = () =>
+      story.state.outputStream.some(
+        (obj) => obj instanceof StringValue && (obj.value ?? "").includes(SCAN_OPEN),
+      );
+    for (let guard = 0; !scanOpened() && guard < 1000; guard++) story.Step();
+    expect(scanOpened()).toBe(true);
+    const save = story.saveOfImage(story.capture())!;
+    const anchors = JSON.stringify(JSON.parse(save).beats).match(/\[\d+,"[0-9a-f]{16}",\d+\]/g);
+    expect(anchors?.length).toBeGreaterThan(0);
+    const loaded = testStory(compiled);
+    loaded.loadSave(save);
+    expect(loaded.currentStyledText).toBe(story.currentStyledText);
+    for (let guard = 0; story.canContinue && guard < 1000; guard++) {
+      story.Step();
+      loaded.Step();
+    }
+    expect(loaded.canContinue).toBe(false);
+    expect(loaded.currentStyledText).toBe(story.currentStyledText);
+    const styled = loaded.currentStyledText ?? "";
+    expect(styled.split(SCAN_OPEN).length).toBe(styled.split(SCAN_CLOSE).length);
   });
 
   test("migrating its output leaves the script's own table as the script wrote it", () => {
