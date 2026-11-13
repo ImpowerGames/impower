@@ -197,6 +197,19 @@ ${scene("[[ava]]")}`;
     expect(collisions(program)).toEqual([]);
   });
 
+  it("keeps an explicit image define of that name as the author wrote it", () => {
+    const text = `define ava as image with
+  src = "override.png"
+end
+
+${scene("[[ava]]", "[[ava@night:face.happy]]")}`;
+    const program = compile(AVA, text);
+    expect(program.context?.["image"]?.["ava"]?.src).toBe("override.png");
+    expect(program.context?.["layered_image"]?.["ava"]).toBeUndefined();
+    expect(drawn(program, "ava")).toEqual(["override.png"]);
+    expect(drawn(program, "ava@night:face.happy")).toEqual(["ava@night.png", "ava@night~face.happy.png"]);
+  });
+
   it("draws a folder stack and a picture with layer files side by side in one project", () => {
     const files = [...AVA, `${P}/mia/90_body.png`, `${P}/mia/30_face.happy.png`, `${P}/mia/30_face.neutral~default.png`];
     const program = compile(files, scene("[[mia:happy]]", "[[ava:happy]]"));

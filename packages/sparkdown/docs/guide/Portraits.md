@@ -390,7 +390,7 @@ What shows when the script chooses nothing:
 
 A group with no `~default` layer shows none of its layers until the script picks one. Beside a picture that is not a mistake and raises no warning: the picture is already a complete look. A picture may also be all layers with no file of its own, such as `cy~body.png` and `cy~face.happy.png` with no `cy.png`.
 
-A picture with layer files is still named `image.ava` in a define, so a named look can start from it: `image = image.ava@night` with `attributes = { "face.happy" }`. The same holds for a portrait folder: `image.mia` names the folder's portrait. An explicit `layered_image` definition with the picture's name replaces the picture built from its files.
+A picture with layer files is still named `image.ava` in a define, so a named look can start from it: `image = image.ava@night` with `attributes = { "face.happy" }`. The same holds for a portrait folder: `image.mia` names the folder's portrait. An explicit `layered_image` or `image` definition with the picture's name replaces the picture built from its files.
 
 `ava.png` beside a portrait folder `ava/` is one picture stacked two ways and gives a name-collision warning naming both. So do two files that are the same layer of one picture, such as `ava~face.happy.png` and `ava~face.happy.webp`. Two options of one group, `ava~face.happy.png` and `ava~face.sad.png`, are not a collision.
 

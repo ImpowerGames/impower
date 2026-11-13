@@ -4321,7 +4321,11 @@ export class SparkdownCompiler {
       }
     }
     const beside = createBesideImageDefinitions(files, (name) =>
-      getContextEntry(state.structDefinitions, "layered_image", name) !== undefined,
+      getContextEntry(state.structDefinitions, "layered_image", name) !== undefined
+        ? "layered_image"
+        : getContextEntry(state.structDefinitions, "image", name) !== undefined
+          ? "image"
+          : undefined,
     );
     program.context["image"] ??= {};
     for (const name of beside.layered) delete program.context["image"][name];
