@@ -20,7 +20,7 @@ const SPEAKER_UPMIX: Record<string, number[][]> = {
   "4>6": [[0], [1], [4], [5]],
 };
 
-export interface OggOpusLink {
+interface OggOpusLink {
   channels: number;
   preSkip: number;
   outputGain: number;
@@ -74,7 +74,7 @@ const concat = (parts: Uint8Array[]): Uint8Array => {
   return joined;
 };
 
-export const isOggOpus = (bytes: Uint8Array): boolean => {
+const isOggOpus = (bytes: Uint8Array): boolean => {
   let offset = 0;
   while (
     offset + 27 <= bytes.length &&
@@ -220,7 +220,7 @@ const readLink = (stream: OggLogicalStream): OggOpusLink | null => {
   };
 };
 
-export const readOggOpus = (bytes: Uint8Array): OggOpusLink[] => {
+const readOggOpus = (bytes: Uint8Array): OggOpusLink[] => {
   if (!isOggOpus(bytes)) {
     return [];
   }
@@ -275,7 +275,7 @@ const decodeLink = async (link: OggOpusLink): Promise<Float32Array[]> => {
   }
 };
 
-export const decodeOggOpus = async (
+const decodeOggOpus = async (
   links: OggOpusLink[],
   context: BaseAudioContext,
 ): Promise<AudioBuffer> => {
