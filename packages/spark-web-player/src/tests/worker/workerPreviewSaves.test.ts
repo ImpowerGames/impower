@@ -121,10 +121,23 @@ describe("a save taken at the ending (#2189)", () => {
         await settle(40);
         expect(states().at(-1).launchState).toBe("preview");
 
+        const before = h.toEditor.length;
         await h.controller.playFromSave(saved.data);
         await settle(40);
         await h.tick(1000 / 60, 10);
         expect(h.playing()?.ending?.kind).toBe("fin");
+        const after = h.toEditor.slice(before);
+        const started = after.findIndex((m: any) => m.method === "game/started");
+        expect(started).toBeGreaterThanOrEqual(0);
+        expect(
+          after
+            .slice(started + 1)
+            .some(
+              (m: any) =>
+                m.method === "preview/didChangeGameState" &&
+                m.params.launchState === "ended",
+            ),
+        ).toBe(true);
         const state = states().at(-1);
         expect(state.launchState).toBe("ended");
         expect(state.statuses.ending.text).toBe("End of story");
