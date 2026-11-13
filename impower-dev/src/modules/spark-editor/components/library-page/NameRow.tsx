@@ -1,6 +1,7 @@
 import { ListRow, TextField } from "@impower/impower-ui/components";
+import { fitToKeyboard, useCoarsePointer } from "@impower/impower-ui/layout";
 import type { ComponentChildren } from "preact";
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 
 export type NameRowProps = {
   icon: ComponentChildren;
@@ -12,6 +13,30 @@ export type NameRowProps = {
   onCommit: (name: string) => Promise<void>;
   onCancel: () => void;
 };
+
+const REVEAL_MARGIN = 8;
+
+const scrolls = (element: Element) =>
+  element.scrollHeight > element.clientHeight &&
+  !["visible", "clip"].includes(getComputedStyle(element).overflowY);
+
+function keepInView(first: Element, last: Element) {
+  for (let scroller = first.parentElement; scroller; scroller = scroller.parentElement) {
+    if (!scrolls(scroller)) {
+      continue;
+    }
+    const top = first.getBoundingClientRect().top;
+    const bottom = last.getBoundingClientRect().bottom;
+    const start = scroller.getBoundingClientRect().top + scroller.clientTop;
+    const end = start + scroller.clientHeight;
+    const margin = Math.max(0, Math.min(REVEAL_MARGIN, (scroller.clientHeight - (bottom - top)) / 2));
+    const below = Math.max(0, bottom + margin - end);
+    const shift = top - margin - below < start ? top - margin - start : below;
+    if (shift) {
+      scroller.scrollTop += shift;
+    }
+  }
+}
 
 export default function NameRow({
   icon,
@@ -28,11 +53,25 @@ export default function NameRow({
   const [error, setError] = useState("");
   const busy = useRef(false);
   const cancelled = useRef(false);
+  const box = useRef<HTMLSpanElement>(null);
+  const message = useRef<HTMLSpanElement>(null);
+  const coarse = useCoarsePointer();
+
+  const reveal = () => {
+    if (!box.current || input.current !== document.activeElement) {
+      return;
+    }
+    keepInView(box.current, message.current ?? box.current);
+  };
 
   useLayoutEffect(() => {
     input.current?.focus();
     input.current?.select();
   }, []);
+
+  useEffect(() => (coarse ? fitToKeyboard(reveal) : undefined), [coarse]);
+
+  useLayoutEffect(reveal, [error]);
 
   const commit = async (submitted: boolean) => {
     if (busy.current || cancelled.current) {
@@ -61,7 +100,10 @@ export default function NameRow({
       descriptionFit={wrapError ? "wrap" : undefined}
       overflow="self"
       label={
-        <span class="flex h-[26px] min-w-0 items-center rounded-control border border-edge bg-bg focus-within:border-accent">
+        <span
+          ref={box}
+          class="flex h-[26px] min-w-0 items-center rounded-control border border-edge bg-bg focus-within:border-accent"
+        >
           <TextField
             ref={input}
             frame="inset"
@@ -104,7 +146,7 @@ export default function NameRow({
       }
       description={
         error ? (
-          <span id="scripts-name-error" role="alert" class="text-error">
+          <span ref={message} id="scripts-name-error" role="alert" class="text-error">
             {error}
           </span>
         ) : undefined

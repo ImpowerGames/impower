@@ -963,7 +963,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             if (this._building) {
               this.watchBuild();
             }
-            this.constructLayoutFromAst(layout);
+            this.hideUnwrittenTargets(this.constructLayoutFromAst(layout));
             if (this._building) {
               this.noteBuildWrites(vs.takeReactiveChanges());
               vs.trackWrites = false;
@@ -3904,6 +3904,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       element = this.constructLayoutFromAst(layout);
       vs.takeReactiveChanges();
       vs.restoreReactiveChanges(pending);
+      this.hideUnwrittenTargets(element);
       this.notifyMounted(name);
       this.reveal();
     } finally {
@@ -4500,6 +4501,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   getTransientTargets() {
     return Array.from(this._clearOnContinue.values());
+  }
+
+  protected hideUnwrittenTargets(layout: Element): void {
+    const inLayout = (el: Element) => {
+      for (let node: Element | null = el; node; node = node.parent) {
+        if (node === layout) {
+          return true;
+        }
+      }
+      return false;
+    };
+    for (const target of this.getTransientTargets()) {
+      if (this._state.text?.[target] || this._state.image?.[target]) {
+        continue;
+      }
+      for (const el of this.findElements(target, true)) {
+        if (inLayout(el)) {
+          this.updateElement(el, { style: { display: "none" } });
+        }
+      }
+    }
   }
 
   getAnimationDefinition(
