@@ -37,6 +37,12 @@ export interface PlayerBarProps {
 
 const stopPointer = (e: PointerEvent) => e.stopPropagation();
 
+const keepActivationKeys = (e: KeyboardEvent) => {
+  if (e.key === " " || e.key === "Enter") {
+    e.stopPropagation();
+  }
+};
+
 function SkipButton({
   direction,
   reason,
@@ -119,7 +125,7 @@ function RunButton({
   onRun?: () => void;
   onStop?: () => void;
 }) {
-  const mode = runButtonState(state);
+  const mode = starting ? "run" : runButtonState(state);
   const label = RUN_LABELS[mode];
   const stopping = mode === "stop";
   const reason = stopping ? undefined : refusal;
@@ -177,6 +183,9 @@ export default function PlayerBar({
       id="toolbar"
       ref={toolbarRef}
       class={snapping ? "snapping" : undefined}
+      onKeyDown={keepActivationKeys}
+      onKeyUp={keepActivationKeys}
+      onKeyPress={keepActivationKeys}
     >
       {controls.resize ? <div id="resize-handle" /> : null}
       {controls.run ? (

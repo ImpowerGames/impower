@@ -638,6 +638,54 @@ describe("PlayerBar Run button", () => {
     expect(onRun).not.toHaveBeenCalled();
   });
 
+  it("stays Run and disabled while a pending start has already allocated its run", () => {
+    const onRun = vi.fn();
+    const onStop = vi.fn();
+    const $ = mount({
+      state: runState({ launchState: "play", run: 1 }),
+      controls: { run: true },
+      starting: true,
+      onRun,
+      onStop,
+    });
+    expect(read($)).toMatchObject({ name: "Run", disabled: "true" });
+    act(() => $("#run-button")!.click());
+    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([0, 0]);
+  });
+
+  it("keeps Space and Enter on its controls from the game's window key handlers", () => {
+    const reached: string[] = [];
+    const game = (e: KeyboardEvent) => {
+      reached.push(`${e.type} ${e.key}`);
+      if (e.key === " ") {
+        e.preventDefault();
+      }
+    };
+    const types = ["keydown", "keyup", "keypress"] as const;
+    types.forEach((type) => window.addEventListener(type, game));
+    try {
+      const $ = mount({
+        state: runState({ launchState: "pause", paused: true, run: 1 }),
+        controls: { run: true, step: true },
+      });
+      const press = (target: HTMLElement, type: (typeof types)[number], key: string) => {
+        const event = new KeyboardEvent(type, { key, bubbles: true, cancelable: true });
+        target.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      const controls = [$("#run-button")!, $("[aria-label='Resume']")!];
+      const cancelled = controls.flatMap((control) =>
+        types.flatMap((type) => [press(control, type, " "), press(control, type, "Enter")]),
+      );
+      expect(cancelled.every((c) => !c)).toBe(true);
+      expect(reached).toEqual([]);
+      press($("#run-button")!, "keydown", "p");
+      expect(reached).toEqual(["keydown p"]);
+    } finally {
+      types.forEach((type) => window.removeEventListener(type, game));
+    }
+  });
+
   it("keeps a Run press from starting the bar's resize drag", () => {
     const onToolbarPointerDown = vi.fn();
     const $ = mount({ state: initialPlayerBarState, controls: { run: true, resize: true } });
