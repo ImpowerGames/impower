@@ -320,7 +320,7 @@ variables:
   CHOICE_TEXT_ESCAPED_BRACE: (?:[\\][{])
   SPAN_END: (?:{{EOL}}|{{DISPLAY_CHAIN_END}})
   CHOICE_SPAN_MARK: (?:[*_`^]|[~][~]|[:][:])
-  MARK_PUNCTUATION: (?:[\p{P}\p{S}])
+  STAR_OTHER_PUNCTUATION: (?:[^\P{P}*]|\p{S})
   # lookaround: the flanking of a mark run, for every span mark. Rivals:
   # Punctuation, which takes a mark no span takes, and Word, which takes an
   # underscore inside a word. CommonMark decides whether a run opens or closes
@@ -332,26 +332,28 @@ variables:
   # parent's end cannot: each span is one match whose closer is found before
   # anything is taken, and a scoped span would commit to an opener that never
   # closes. Tightening a variable is what these variables do, and a run's
-  # neighbours are visible only around it. Up to two marks before the span's
-  # own are read as the run's; STAR_NEAR_RUN_END bounds the read after it.
-  STAR_BEFORE_OPEN: (?:(?<![*])(?<=^|{{WS}}|{{MARK_PUNCTUATION}})|(?<=^[*]|{{WS}}[*]|{{MARK_PUNCTUATION}}[*])(?<![*][*])|(?<=^[*][*]|{{WS}}[*][*]|{{MARK_PUNCTUATION}}[*][*])(?<![*]{3}))
+  # neighbours are visible only around it. The marks before the span's own,
+  # up to 64, are read as the run's, and STAR_RUN_IN_REACH bounds both
+  # reads; STAR_OTHER_PUNCTUATION is punctuation other than a star, so the read
+  # before a span stops at the run's first star.
+  STAR_BEFORE_OPEN: (?<=(?:^|{{WS}}|{{STAR_OTHER_PUNCTUATION}})[*]{0,64})
   # lookaround: as STAR_BEFORE_OPEN.
-  STAR_BEFORE_TEXT: (?:(?<=[^\s\p{P}\p{S}])|(?<=[^\s\p{P}\p{S}][*])|(?<=[^\s\p{P}\p{S}][*][*]))
+  STAR_BEFORE_TEXT: (?<=[^\s\p{P}\p{S}][*]{0,64})
   # lookaround: as STAR_BEFORE_OPEN.
-  STAR_BEFORE_SOLID: (?:(?<=[^\s*])|(?<=[^\s*][*])|(?<=[^\s*][*][*]))
+  STAR_BEFORE_SOLID: (?<=[^\s*][*]{0,64})
   # lookaround: as STAR_BEFORE_OPEN. Reading the rest of a run at every
   # position of a long one costs time quadratic in its length, in both
-  # engines; a position more than 64 stars before its run's end neither opens
-  # nor closes, so each position reads at most 65 stars.
-  STAR_NEAR_RUN_END: (?![*]{65})
+  # engines; a position more than 64 stars from either end of its run neither
+  # opens nor closes, so each position reads at most 65 stars on each side.
+  STAR_RUN_IN_REACH: (?<![*]{65})(?![*]{65})
   # lookaround: as STAR_BEFORE_OPEN. A run never ends on a star, so the class
   # after it needs no lookahead of its own.
-  STAR_LEFT_TEST: (?:{{STAR_NEAR_RUN_END}}(?:{{STAR_BEFORE_OPEN}}(?=[*]+[^*\s])|(?=[*]+[^*\s\p{P}\p{S}])))
+  STAR_LEFT_TEST: (?:{{STAR_RUN_IN_REACH}}(?:{{STAR_BEFORE_OPEN}}(?=[*]+[^*\s])|(?=[*]+[^*\s\p{P}\p{S}])))
   # lookaround: STAR_LEFT_TEST read once, so a span that backtracks past it
   # finds one way through its branches.
   STAR_LEFT: (?={{STAR_LEFT_TEST}})
   # lookaround: as STAR_BEFORE_OPEN, for the run that closes Italic and Bold.
-  STAR_RIGHT_TEST: (?:{{STAR_NEAR_RUN_END}}(?:{{STAR_BEFORE_TEXT}}|{{STAR_BEFORE_SOLID}}(?![*]+[^*\s\p{P}\p{S}])))
+  STAR_RIGHT_TEST: (?:{{STAR_RUN_IN_REACH}}(?:{{STAR_BEFORE_TEXT}}|{{STAR_BEFORE_SOLID}}(?![*]+[^*\s\p{P}\p{S}])))
   # lookaround: STAR_RIGHT_TEST read once, so a span that backtracks past it
   # finds one way through its branches.
   STAR_RIGHT: (?={{STAR_RIGHT_TEST}})
@@ -402,23 +404,24 @@ variables:
   STAR_BOLD_RUN: (?:(?!{{STAR_CLOSE_BOLD}}){{STAR_NESTED_OR_TEXT}})
   STAR_ITALIC_CONTENT: (?:(?:{{SPAN_STAR_FREE}}|{{STAR_ITALIC_RUN}})+)
   STAR_BOLD_CONTENT: (?:(?:{{SPAN_STAR_FREE}}|{{STAR_BOLD_RUN}})+)
+  UNDERSCORE_OTHER_PUNCTUATION: (?:[^\P{P}_]|\p{S})
   # lookaround: as STAR_BEFORE_OPEN, for Underline, whose span opens inside a run as Italic's does and leaves the run's first marks to Punctuation.
-  UNDERSCORE_BEFORE_OPEN: (?:(?<![_])(?<=^|{{WS}}|{{MARK_PUNCTUATION}})|(?<=^[_]|{{WS}}[_]|{{MARK_PUNCTUATION}}[_])(?<![_][_])|(?<=^[_][_]|{{WS}}[_][_]|{{MARK_PUNCTUATION}}[_][_])(?<![_]{3}))
+  UNDERSCORE_BEFORE_OPEN: (?<=(?:^|{{WS}}|{{UNDERSCORE_OTHER_PUNCTUATION}})[_]{0,64})
   # lookaround: as STAR_BEFORE_OPEN, for Underline.
-  UNDERSCORE_BEFORE_TEXT: (?:(?<=[^\s\p{P}\p{S}])|(?<=[^\s\p{P}\p{S}][_])|(?<=[^\s\p{P}\p{S}][_][_]))
+  UNDERSCORE_BEFORE_TEXT: (?<=[^\s\p{P}\p{S}][_]{0,64})
   # lookaround: as STAR_BEFORE_OPEN, for Underline.
-  UNDERSCORE_BEFORE_SOLID: (?:(?<=[^\s_])|(?<=[^\s_][_])|(?<=[^\s_][_][_]))
+  UNDERSCORE_BEFORE_SOLID: (?<=[^\s_][_]{0,64})
   # lookaround: as UNDERSCORE_BEFORE_OPEN; CommonMark lets an underscore run inside a word open or close only beside punctuation.
-  UNDERSCORE_BEFORE_PUNCTUATION: (?:(?<![_])(?<={{MARK_PUNCTUATION}})|(?<={{MARK_PUNCTUATION}}[_])(?<![_][_])|(?<={{MARK_PUNCTUATION}}[_][_])(?<![_]{3}))
-  # lookaround: as STAR_NEAR_RUN_END, for UNDERSCORE_LEFT_TEST and UNDERSCORE_RIGHT_TEST.
-  UNDERSCORE_NEAR_RUN_END: (?![_]{65})
+  UNDERSCORE_BEFORE_PUNCTUATION: (?<={{UNDERSCORE_OTHER_PUNCTUATION}}[_]{0,64})
+  # lookaround: as STAR_RUN_IN_REACH, for UNDERSCORE_LEFT_TEST and UNDERSCORE_RIGHT_TEST.
+  UNDERSCORE_RUN_IN_REACH: (?<![_]{65})(?![_]{65})
   # lookaround: as STAR_LEFT_TEST, for Underline.
-  UNDERSCORE_LEFT_TEST: (?:{{UNDERSCORE_NEAR_RUN_END}}(?:{{UNDERSCORE_BEFORE_OPEN}}(?=[_]+[^_\s])|(?=[_]+[^_\s\p{P}\p{S}])))
+  UNDERSCORE_LEFT_TEST: (?:{{UNDERSCORE_RUN_IN_REACH}}(?:{{UNDERSCORE_BEFORE_OPEN}}(?=[_]+[^_\s])|(?=[_]+[^_\s\p{P}\p{S}])))
   # lookaround: UNDERSCORE_LEFT_TEST read once, so a span that backtracks past it
   # finds one way through its branches.
   UNDERSCORE_LEFT: (?={{UNDERSCORE_LEFT_TEST}})
   # lookaround: as STAR_RIGHT_TEST, for Underline.
-  UNDERSCORE_RIGHT_TEST: (?:{{UNDERSCORE_NEAR_RUN_END}}(?:{{UNDERSCORE_BEFORE_TEXT}}|{{UNDERSCORE_BEFORE_SOLID}}(?![_]+[^_\s\p{P}\p{S}])))
+  UNDERSCORE_RIGHT_TEST: (?:{{UNDERSCORE_RUN_IN_REACH}}(?:{{UNDERSCORE_BEFORE_TEXT}}|{{UNDERSCORE_BEFORE_SOLID}}(?![_]+[^_\s\p{P}\p{S}])))
   # lookaround: UNDERSCORE_RIGHT_TEST read once, so a span that backtracks past it
   # finds one way through its branches.
   UNDERSCORE_RIGHT: (?={{UNDERSCORE_RIGHT_TEST}})
@@ -442,21 +445,22 @@ variables:
   # lookaround: as STAR_CLOSE_ITALIC and STAR_NESTED, for Underline.
   UNDERSCORE_NESTED: (?:{{UNDERSCORE_SAME}}{{UNDERSCORE_OPEN}}(?!{{UNDERSCORE_CLOSE}})\1{{UNDERSCORE_INNER}}{{UNDERSCORE_CLOSE}}\1)
   UNDERSCORE_CONTENT: (?:(?:{{SPAN_UNDERSCORE_FREE}}|{{UNDERSCORE_SHORTER}}|{{UNDERSCORE_LONG_TEXT}}|{{UNDERSCORE_NESTED}})+)
+  CARET_OTHER_PUNCTUATION: (?:\p{P}|[^\P{S}\^])
   # lookaround: as UNDERSCORE_BEFORE_OPEN, for Centered.
-  CARET_BEFORE_OPEN: (?:(?<![\^])(?<=^|{{WS}}|{{MARK_PUNCTUATION}})|(?<=^[\^]|{{WS}}[\^]|{{MARK_PUNCTUATION}}[\^])(?<![\^][\^])|(?<=^[\^][\^]|{{WS}}[\^][\^]|{{MARK_PUNCTUATION}}[\^][\^])(?<![\^]{3}))
+  CARET_BEFORE_OPEN: (?<=(?:^|{{WS}}|{{CARET_OTHER_PUNCTUATION}})[\^]{0,64})
   # lookaround: as UNDERSCORE_BEFORE_OPEN, for Centered.
-  CARET_BEFORE_TEXT: (?:(?<=[^\s\p{P}\p{S}])|(?<=[^\s\p{P}\p{S}][\^])|(?<=[^\s\p{P}\p{S}][\^][\^]))
+  CARET_BEFORE_TEXT: (?<=[^\s\p{P}\p{S}][\^]{0,64})
   # lookaround: as UNDERSCORE_BEFORE_OPEN, for Centered.
-  CARET_BEFORE_SOLID: (?:(?<=[^\s\^])|(?<=[^\s\^][\^])|(?<=[^\s\^][\^][\^]))
-  # lookaround: as STAR_NEAR_RUN_END, for CARET_LEFT_TEST and CARET_RIGHT_TEST.
-  CARET_NEAR_RUN_END: (?![\^]{65})
+  CARET_BEFORE_SOLID: (?<=[^\s\^][\^]{0,64})
+  # lookaround: as STAR_RUN_IN_REACH, for CARET_LEFT_TEST and CARET_RIGHT_TEST.
+  CARET_RUN_IN_REACH: (?<![\^]{65})(?![\^]{65})
   # lookaround: as UNDERSCORE_LEFT_TEST, for Centered.
-  CARET_LEFT_TEST: (?:{{CARET_NEAR_RUN_END}}(?:{{CARET_BEFORE_OPEN}}(?=[\^]+[^\^\s])|(?=[\^]+[^\^\s\p{P}\p{S}])))
+  CARET_LEFT_TEST: (?:{{CARET_RUN_IN_REACH}}(?:{{CARET_BEFORE_OPEN}}(?=[\^]+[^\^\s])|(?=[\^]+[^\^\s\p{P}\p{S}])))
   # lookaround: CARET_LEFT_TEST read once, so a span that backtracks past it
   # finds one way through its branches.
   CARET_LEFT: (?={{CARET_LEFT_TEST}})
   # lookaround: as UNDERSCORE_RIGHT_TEST, for Centered.
-  CARET_RIGHT_TEST: (?:{{CARET_NEAR_RUN_END}}(?:{{CARET_BEFORE_TEXT}}|{{CARET_BEFORE_SOLID}}(?![\^]+[^\^\s\p{P}\p{S}])))
+  CARET_RIGHT_TEST: (?:{{CARET_RUN_IN_REACH}}(?:{{CARET_BEFORE_TEXT}}|{{CARET_BEFORE_SOLID}}(?![\^]+[^\^\s\p{P}\p{S}])))
   # lookaround: CARET_RIGHT_TEST read once, so a span that backtracks past it
   # finds one way through its branches.
   CARET_RIGHT: (?={{CARET_RIGHT_TEST}})
@@ -470,21 +474,22 @@ variables:
   # lookaround: as UNDERSCORE_NESTED, for Centered.
   CARET_NESTED: (?:{{CARET_SAME}}{{CARET_LEFT}}(?!{{CARET_RIGHT}})\1{{CARET_INNER}}{{CARET_RIGHT}}\1)
   CARET_CONTENT: (?:(?:{{SPAN_CARET_FREE}}|{{CARET_SHORTER}}|{{CARET_LONG_TEXT}}|{{CARET_NESTED}})+)
+  TILDE_OTHER_PUNCTUATION: (?:\p{P}|[^\P{S}~])
   # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisTilde.
-  TILDE_BEFORE_OPEN: (?:(?<![~])(?<=^|{{WS}}|{{MARK_PUNCTUATION}})|(?<=^[~]|{{WS}}[~]|{{MARK_PUNCTUATION}}[~])(?<![~][~])|(?<=^[~][~]|{{WS}}[~][~]|{{MARK_PUNCTUATION}}[~][~])(?<![~]{3}))
+  TILDE_BEFORE_OPEN: (?<=(?:^|{{WS}}|{{TILDE_OTHER_PUNCTUATION}})[~]{0,64})
   # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisTilde.
-  TILDE_BEFORE_TEXT: (?:(?<=[^\s\p{P}\p{S}])|(?<=[^\s\p{P}\p{S}][~])|(?<=[^\s\p{P}\p{S}][~][~]))
+  TILDE_BEFORE_TEXT: (?<=[^\s\p{P}\p{S}][~]{0,64})
   # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisTilde.
-  TILDE_BEFORE_SOLID: (?:(?<=[^\s~])|(?<=[^\s~][~])|(?<=[^\s~][~][~]))
-  # lookaround: as STAR_NEAR_RUN_END, for TILDE_LEFT_TEST and TILDE_RIGHT_TEST.
-  TILDE_NEAR_RUN_END: (?![~]{65})
+  TILDE_BEFORE_SOLID: (?<=[^\s~][~]{0,64})
+  # lookaround: as STAR_RUN_IN_REACH, for TILDE_LEFT_TEST and TILDE_RIGHT_TEST.
+  TILDE_RUN_IN_REACH: (?<![~]{65})(?![~]{65})
   # lookaround: as UNDERSCORE_LEFT_TEST, for EmphasisTilde.
-  TILDE_LEFT_TEST: (?:{{TILDE_NEAR_RUN_END}}(?:{{TILDE_BEFORE_OPEN}}(?=[~]+[^~\s])|(?=[~]+[^~\s\p{P}\p{S}])))
+  TILDE_LEFT_TEST: (?:{{TILDE_RUN_IN_REACH}}(?:{{TILDE_BEFORE_OPEN}}(?=[~]+[^~\s])|(?=[~]+[^~\s\p{P}\p{S}])))
   # lookaround: TILDE_LEFT_TEST read once, so a span that backtracks past it
   # finds one way through its branches.
   TILDE_LEFT: (?={{TILDE_LEFT_TEST}})
   # lookaround: as UNDERSCORE_RIGHT_TEST, for EmphasisTilde.
-  TILDE_RIGHT_TEST: (?:{{TILDE_NEAR_RUN_END}}(?:{{TILDE_BEFORE_TEXT}}|{{TILDE_BEFORE_SOLID}}(?![~]+[^~\s\p{P}\p{S}])))
+  TILDE_RIGHT_TEST: (?:{{TILDE_RUN_IN_REACH}}(?:{{TILDE_BEFORE_TEXT}}|{{TILDE_BEFORE_SOLID}}(?![~]+[^~\s\p{P}\p{S}])))
   # lookaround: TILDE_RIGHT_TEST read once, so a span that backtracks past it
   # finds one way through its branches.
   TILDE_RIGHT: (?={{TILDE_RIGHT_TEST}})
@@ -498,21 +503,22 @@ variables:
   # lookaround: as UNDERSCORE_NESTED, for EmphasisTilde.
   TILDE_NESTED: (?:{{TILDE_SAME}}{{TILDE_LEFT}}(?!{{TILDE_RIGHT}})\1{{TILDE_INNER}}{{TILDE_RIGHT}}\1)
   TILDE_CONTENT: (?:(?:{{SPAN_TILDE_FREE}}|{{TILDE_SHORTER}}|{{TILDE_LONG_TEXT}}|{{TILDE_NESTED}})+)
+  COLON_OTHER_PUNCTUATION: (?:[^\P{P}:]|\p{S})
   # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisColon.
-  COLON_BEFORE_OPEN: (?:(?<![:])(?<=^|{{WS}}|{{MARK_PUNCTUATION}})|(?<=^[:]|{{WS}}[:]|{{MARK_PUNCTUATION}}[:])(?<![:][:])|(?<=^[:][:]|{{WS}}[:][:]|{{MARK_PUNCTUATION}}[:][:])(?<![:]{3}))
+  COLON_BEFORE_OPEN: (?<=(?:^|{{WS}}|{{COLON_OTHER_PUNCTUATION}})[:]{0,64})
   # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisColon.
-  COLON_BEFORE_TEXT: (?:(?<=[^\s\p{P}\p{S}])|(?<=[^\s\p{P}\p{S}][:])|(?<=[^\s\p{P}\p{S}][:][:]))
+  COLON_BEFORE_TEXT: (?<=[^\s\p{P}\p{S}][:]{0,64})
   # lookaround: as UNDERSCORE_BEFORE_OPEN, for EmphasisColon.
-  COLON_BEFORE_SOLID: (?:(?<=[^\s:])|(?<=[^\s:][:])|(?<=[^\s:][:][:]))
-  # lookaround: as STAR_NEAR_RUN_END, for COLON_LEFT_TEST and COLON_RIGHT_TEST.
-  COLON_NEAR_RUN_END: (?![:]{65})
+  COLON_BEFORE_SOLID: (?<=[^\s:][:]{0,64})
+  # lookaround: as STAR_RUN_IN_REACH, for COLON_LEFT_TEST and COLON_RIGHT_TEST.
+  COLON_RUN_IN_REACH: (?<![:]{65})(?![:]{65})
   # lookaround: as UNDERSCORE_LEFT_TEST, for EmphasisColon.
-  COLON_LEFT_TEST: (?:{{COLON_NEAR_RUN_END}}(?:{{COLON_BEFORE_OPEN}}(?=[:]+[^:\s])|(?=[:]+[^:\s\p{P}\p{S}])))
+  COLON_LEFT_TEST: (?:{{COLON_RUN_IN_REACH}}(?:{{COLON_BEFORE_OPEN}}(?=[:]+[^:\s])|(?=[:]+[^:\s\p{P}\p{S}])))
   # lookaround: COLON_LEFT_TEST read once, so a span that backtracks past it
   # finds one way through its branches.
   COLON_LEFT: (?={{COLON_LEFT_TEST}})
   # lookaround: as UNDERSCORE_RIGHT_TEST, for EmphasisColon.
-  COLON_RIGHT_TEST: (?:{{COLON_NEAR_RUN_END}}(?:{{COLON_BEFORE_TEXT}}|{{COLON_BEFORE_SOLID}}(?![:]+[^:\s\p{P}\p{S}])))
+  COLON_RIGHT_TEST: (?:{{COLON_RUN_IN_REACH}}(?:{{COLON_BEFORE_TEXT}}|{{COLON_BEFORE_SOLID}}(?![:]+[^:\s\p{P}\p{S}])))
   # lookaround: COLON_RIGHT_TEST read once, so a span that backtracks past it
   # finds one way through its branches.
   COLON_RIGHT: (?={{COLON_RIGHT_TEST}})

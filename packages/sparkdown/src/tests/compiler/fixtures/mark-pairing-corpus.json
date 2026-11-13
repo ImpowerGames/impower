@@ -1161,9 +1161,7 @@
   {
    "line": "A ~~~~foo ~~~~bar~~~~~~~~",
    "from": "CommonMark 0.31.2 example 427, `~~` for `*`",
-   "styled": "A ~~~~foo [wavy: bar]~~~~",
-   "commonmark": "A [wavy: foo bar]",
-   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+   "styled": "A [wavy: foo bar]"
   },
   {
    "line": "A ~~~~foo ~~bar~~ baz~~~~",
@@ -1450,9 +1448,7 @@
   {
    "line": "A ::::foo ::::bar::::::::",
    "from": "CommonMark 0.31.2 example 427, `::` for `*`",
-   "styled": "A ::::foo [shaky: bar]::::",
-   "commonmark": "A [shaky: foo bar]",
-   "reason": "a run of `_`, `^`, `~~` or `::` inside a span of the same mark is text unless it is as long as the span's opener or closes it; CommonMark's algorithm pairs it with the nearest opener instead"
+   "styled": "A [shaky: foo bar]"
   },
   {
    "line": "A ::::foo ::bar:: baz::::",

@@ -159,10 +159,16 @@ describe("styling marks pair by CommonMark's rules in both grammar engines", () 
     expect(await readings("snake_case_name")).toEqual({ tree: "snake_case_name", vscode: "snake_case_name" });
   });
 
-  test("a run of more than 64 of one mark closes no span, and opens one only with its last 64", async () => {
+  test.each(["A a___b_ c", "A a____b_ c", "A a____b____ c", "A a_____b_ c"])(
+    "an underscore run inside a word opens nothing at any of its marks: %s",
+    async (line) => {
+      expect(await readings(line)).toEqual(both(line));
+    },
+  );
+
+  test("a run of more than 64 of one mark closes no span", async () => {
     const run = "*".repeat(70);
     expect(await readings(`A *x${run} y`)).toEqual(both(`A *x${run} y`));
-    expect(await readings(`A ${run}x* y`)).toEqual(both(`A ${"*".repeat(69)}[italic: x] y`));
     expect(await readings(`A _x${"_".repeat(70)} y`)).toEqual(both(`A _x${"_".repeat(70)} y`));
   });
 

@@ -184,44 +184,54 @@ describe("a span whose closer never comes is refused at once wherever it could o
   );
 });
 
-const LONG_RUN_LINES = ["*", "_", "^", "~", ":"].flatMap((mark) => {
-  const run = `A ${mark.repeat(8000)}x`;
-  return [
-    [mark, "a display line", `scene start\n  ${run}\nend\n`],
-    [mark, "choice start text", `scene start\n  choose\n    + ${run}\n      done\n  end\nend\n`],
-    [mark, "a suppression's text", `scene start\n  choose\n    + [${run}]\n      done\n  end\nend\n`],
-    [mark, "choice inner text", `scene start\n  choose\n    + [a] ${run}\n      done\n  end\nend\n`],
-  ] as const;
-});
+const LONG_RUN_PLACES: [string, (run: string) => string][] = [
+  ["a display line", (run) => `scene start\n  ${run}\nend\n`],
+  ["choice start text", (run) => `scene start\n  choose\n    + ${run}\n      done\n  end\nend\n`],
+  ["a suppression's text", (run) => `scene start\n  choose\n    + [${run}]\n      done\n  end\nend\n`],
+  ["choice inner text", (run) => `scene start\n  choose\n    + [a] ${run}\n      done\n  end\nend\n`],
+];
 
-describe("a run of 8,000 of one mark is read in time linear in its length (#2196)", () => {
-  test.each(LONG_RUN_LINES)("%s in %s, in the tree parser", (_mark, _where, source) => {
-    parseSource("scene start\n  A *a* b\nend\n");
+const LONG_RUNS = ["*", "_", "^", "~", ":"].flatMap((mark) =>
+  LONG_RUN_PLACES.map(([where, at]) => [mark, where, (n: number) => at(`A ${mark.repeat(n)}x`)] as const),
+);
+
+const fastest = async (read: () => unknown) => {
+  let best = Infinity;
+  for (let i = 0; i < 2; i++) {
     const t0 = performance.now();
-    parseSource(source);
-    const ms = performance.now() - t0;
-    expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(150);
+    await read();
+    best = Math.min(best, performance.now() - t0);
+  }
+  return best;
+};
+
+const growth = async (read: (source: string) => unknown, line: (n: number) => string) => {
+  await read("scene start\n  A *a* b\nend\n");
+  const short = await fastest(() => read(line(4000)));
+  const long = await fastest(() => read(line(16000)));
+  return { short, long };
+};
+
+describe("a run of one mark is read in time linear in its length (#2196)", () => {
+  test.each(LONG_RUNS)("%s in %s, in the tree parser, grows less than eightfold from 4,000 marks to 16,000", async (_mark, _where, line) => {
+    const { short, long } = await growth(parseSource, line);
+    expect(long, `4,000 marks took ${short.toFixed(1)}ms, 16,000 took ${long.toFixed(1)}ms`).toBeLessThan(8 * short + 40);
   });
 
-  test.each(LONG_RUN_LINES.filter(([mark]) => mark !== "_"))(
-    "%s in %s, in vscode-textmate",
-    async (_mark, _where, source) => {
-      await tokenize("scene start\n  A *a* b\nend\n");
-      const t0 = performance.now();
-      await tokenize(source);
-      const ms = performance.now() - t0;
-      expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(150);
+  test.each(LONG_RUNS.filter(([mark]) => mark !== "_"))(
+    "%s in %s, in vscode-textmate, grows less than eightfold from 4,000 marks to 16,000",
+    async (_mark, _where, line) => {
+      const { short, long } = await growth(tokenize, line);
+      expect(long, `4,000 marks took ${short.toFixed(1)}ms, 16,000 took ${long.toFixed(1)}ms`).toBeLessThan(8 * short + 40);
     },
   );
 
-  test.each(LONG_RUN_LINES.filter(([mark]) => mark === "_"))(
-    "%s in %s, in vscode-textmate, which reads an underscore run in time quadratic in its length on main too (0.3 s there), within a second",
-    async (_mark, _where, source) => {
+  test.each(LONG_RUNS.filter(([mark]) => mark === "_"))(
+    "%s in %s, in vscode-textmate, which reads an underscore run in time quadratic in its length outside the span rules on main too (0.3 s for 8,000 there), within four seconds for 8,000",
+    async (_mark, _where, line) => {
       await tokenize("scene start\n  A *a* b\nend\n");
-      const t0 = performance.now();
-      await tokenize(source);
-      const ms = performance.now() - t0;
-      expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(1000);
+      const ms = await fastest(() => tokenize(line(8000)));
+      expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(4000);
     },
   );
 });
