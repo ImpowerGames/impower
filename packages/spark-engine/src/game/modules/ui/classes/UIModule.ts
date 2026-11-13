@@ -1819,19 +1819,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _speaking = false;
 
+  protected _voicedSpeech?: BeatSpeech;
+
   speak(speech: BeatSpeech | undefined, instant = false, time?: number) {
     if (this.context?.system?.simulating) {
       return;
     }
+    const voiced = Boolean(speech?.voiced) && (!instant || speech === this._voicedSpeech);
     const spans = instant ? [] : (speech?.spans ?? []);
-    if (spans.length === 0 && !this._speaking) {
+    const speaking = voiced || spans.length > 0;
+    this._voicedSpeech = voiced ? speech : undefined;
+    if (!speaking && !this._speaking) {
       return;
     }
-    this._speaking = spans.length > 0;
+    this._speaking = speaking;
     void this.emit(
       SpeechMessage.type.notification({
         ...(speech?.character ? { character: speech.character } : {}),
         spans,
+        ...(voiced ? { voiced: true as const } : {}),
         ...(time != null ? { time } : {}),
       }),
     );

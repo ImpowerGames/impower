@@ -16,6 +16,11 @@ import { convertMidiToToneSequences } from "../../../../spark-engine/src/game/mo
 import { parseMidi } from "../../../../spark-engine/src/game/modules/audio/utils/parseMidi";
 import { Manager } from "../Manager";
 
+export interface LiveClip {
+  startsIn: number;
+  ended: Promise<unknown>;
+}
+
 export default class AudioManager extends Manager {
   protected _unsafeAudioContext?: AudioContext;
   protected get unsafeAudioContext() {
@@ -122,6 +127,22 @@ export default class AudioManager extends Manager {
       }
     }
     return keys;
+  }
+
+  liveClips(channel: string): LiveClip[] {
+    const context = this.app.audioContext;
+    const players = this._audioChannels.get(channel);
+    if (!context || context.state !== "running" || !players) {
+      return [];
+    }
+    return [...players.values()].flatMap((player) =>
+      player.instances
+        .filter((instance) => instance.stoppedAt == null)
+        .map((instance) => ({
+          startsIn: instance.startedAt - context.currentTime,
+          ended: instance.ended,
+        })),
+    );
   }
 
   protected async getAudioBuffer(

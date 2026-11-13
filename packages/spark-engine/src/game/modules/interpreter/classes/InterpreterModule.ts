@@ -54,6 +54,8 @@ export interface ShownBox {
 
 export interface InterpreterMessageMap extends Record<string, any> {}
 
+const VOICING_CONTROLS: ReadonlySet<string> = new Set(["play", "start", "queue"]);
+
 export class InterpreterModule extends Module<
   InterpreterState,
   InterpreterMessageMap,
@@ -1552,6 +1554,7 @@ export class InterpreterModule extends Module<
     > = {};
     const spans: [number, number][] = [];
     const speaker = options?.spoken ? character : undefined;
+    let voiced = false;
     for (const phrase of allPhrases) {
       const target = phrase.target || "";
       const typewriter = this.lookupContextValue("typewriter", target);
@@ -1767,6 +1770,9 @@ export class InterpreterModule extends Module<
               control: (c.control || "play") as AudioInstruction["control"],
               assets: c.assets,
             };
+            if (target === "voice" && VOICING_CONTROLS.has(event.control) && c.assets?.length) {
+              voiced = true;
+            }
             if (time) {
               event.after = time;
             }
@@ -1857,8 +1863,8 @@ export class InterpreterModule extends Module<
       });
     }
 
-    if (speaker && spans.length > 0) {
-      result.speech = { character: speaker, spans };
+    if (speaker && (spans.length > 0 || voiced)) {
+      result.speech = { character: speaker, spans, ...(voiced ? { voiced } : {}) };
     }
 
     result.end = time;

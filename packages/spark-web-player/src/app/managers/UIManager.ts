@@ -51,6 +51,7 @@ import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock
 import type { StreamMessage } from "../../../../spark-engine/src/game/core/classes/Connection";
 import { isAdvanceKey } from "../../../../spark-engine/src/game/core/utils/isAdvanceKey";
 import { Manager } from "../Manager";
+import type { LiveClip } from "./AudioManager";
 import { MorphGroup, MorphPlayback } from "../morph/MorphPlayback";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
@@ -103,6 +104,8 @@ interface Cutscene {
 type OverlayWithCutscene = HTMLElement & { __sdCutscene?: Cutscene };
 
 const COMMIT_WAIT_LIMIT_MS = 1_000;
+
+const UNENDED_SPEECH = 1e9;
 
 let playSessions = 0;
 
@@ -397,6 +400,7 @@ export default class UIManager extends Manager {
     const morphs = this.morphs;
     morphs?.attachClock(this);
     morphs?.setSession(`play:${++playSessions}`);
+    this._speech = undefined;
     this._morphClockSeen = undefined;
   }
 
@@ -1622,9 +1626,18 @@ export default class UIManager extends Manager {
     }
   }
 
-  protected speak({ character, spans, time }: SpeechParams) {
+  protected _speech?: object;
+
+  protected speak({ character, spans, voiced, time }: SpeechParams) {
     const morphs = this.morphs;
     if (!morphs) {
+      return;
+    }
+    const speech = {};
+    this._speech = speech;
+    const clips = voiced && character ? (this.app.audio?.liveClips("voice") ?? []) : [];
+    if (character && clips.length > 0) {
+      this.speakClips(morphs, character, clips, speech);
       return;
     }
     const shown = this.getDisplayTime(time);
@@ -1638,6 +1651,39 @@ export default class UIManager extends Manager {
       character,
       spans.map(([start, end]): [number, number] => [start + lead, end + lead]),
     );
+  }
+
+  protected speakClips(
+    morphs: MorphPlayback,
+    character: string,
+    clips: LiveClip[],
+    speech: object,
+  ) {
+    const latency = this.app.audioClock.reading.outputLatency;
+    const heard = clips.map((clip) => ({
+      start: morphs.now + clip.startsIn + latency,
+      end: Infinity,
+    }));
+    const update = () => {
+      if (this._speech !== speech || this._disposed) {
+        return;
+      }
+      const now = morphs.now;
+      morphs.speak(
+        character,
+        heard.map(({ start, end }): [number, number] => [
+          start - now,
+          Number.isFinite(end) ? end - now : UNENDED_SPEECH,
+        ]),
+      );
+    };
+    clips.forEach((clip, index) => {
+      void clip.ended.then(() => {
+        heard[index]!.end = morphs.now + latency;
+        update();
+      });
+    });
+    update();
   }
 
   protected getDisplayTime(time: number | undefined): number | undefined {
