@@ -2962,9 +2962,13 @@ describe("The preview's top bar", () => {
     );
     const skipBeat = vi.spyOn(win, "skipBeat");
     control("Skip back")!.click();
+    await vi.waitFor(() => expect(skipBeat).toHaveBeenCalledTimes(1));
     control("Skip forward")!.click();
-    await vi.waitFor(() => expect(skipBeat).toHaveBeenCalled());
-    await Promise.all(skipBeat.mock.results.map((result) => result.value));
+    await vi.waitFor(() => expect(skipBeat).toHaveBeenCalledTimes(2));
+    expect(await Promise.all(skipBeat.mock.results.map((result) => result.value))).toEqual([
+      false,
+      false,
+    ]);
     expect(rollBack).not.toHaveBeenCalled();
     expect(rollForward).not.toHaveBeenCalled();
   });
