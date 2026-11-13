@@ -831,6 +831,22 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(stack!.pictures.find((picture) => picture.alternate === "dark")?.layers).toEqual([`${P}/imani@dark.v2~face.sad.png`]);
   });
 
+  it("renames a second file of the picture's name out of the collision, leaving the lines that show the picture alone (#2204)", async () => {
+    const h = await harness(project({ [`${P}/imani.v2.png`]: "copy" }));
+    expect(await h.assets.renameMember(`${P}/imani.v2.png`, "kai")).toBe(`${P}/kai.png`);
+    expect(await inPortraits(h)).toEqual([...ORIGINAL, `${P}/kai.png`].sort());
+    expect(await h.read("main.sd")).toBe(SCRIPT);
+  });
+
+  it("renames a dotted second file into an alternate when the picture's own file is dotted too (#2204)", async () => {
+    const script = lines("scene start", "  [[show portrait ava]]", "end");
+    const h = await harness({ "main.sd": script, [`${P}/ava.v1.png`]: "one", [`${P}/ava.v2.png`]: "two" });
+    expect(await h.assets.renameMember(`${P}/ava.v2.png`, "ava@night")).toBe(`${P}/ava@night.png`);
+    expect(await inPortraits(h)).toEqual([`${P}/ava.v1.png`, `${P}/ava@night.png`]);
+    expect(await h.read(`${P}/ava@night.png`)).toBe("two");
+    expect(await h.read("main.sd")).toBe(script);
+  });
+
   it("leaves a script the author saved during a failed alternate rename as saved, puts the file back, and says so from the rollback", async () => {
     const other = lines("scene other", "  [[show portrait imani@night]]", "end");
     const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));

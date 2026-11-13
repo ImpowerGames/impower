@@ -1,7 +1,5 @@
 import {
   imageThingsOf,
-  stackBaseOf,
-  stemOf,
   type ImagePicture,
   type ImageThing,
 } from "@impower/sparkdown/src/attributes/imageFileName";
@@ -35,7 +33,6 @@ export interface StackMember {
 export interface ImageStack {
   kind: "files" | "folder";
   name: string;
-  base: string;
   folder: string;
   paths: string[];
   members: StackMember[];
@@ -122,7 +119,6 @@ const stackOf = (folder: string, thing: ImageThing): ImageStack => {
   return {
     kind: "files",
     name: thing.name,
-    base: stackBaseOf(paths[0]!),
     folder,
     paths,
     members,
@@ -150,7 +146,6 @@ const folderStackOf = (directory: string, paths: string[]): ImageStack => {
   return {
     kind: "folder",
     name,
-    base: name,
     folder: directory,
     paths,
     members,
@@ -161,7 +156,10 @@ const folderStackOf = (directory: string, paths: string[]): ImageStack => {
 };
 
 export const isStacked = (stack: ImageStack): boolean =>
-  stack.kind === "folder" || stack.paths.length > 1 || stemOf(stack.cover) !== stack.base;
+  stack.kind === "folder" ||
+  stack.paths.length > 1 ||
+  stack.pictures[0]!.alternate !== null ||
+  stack.pictures[0]!.layers.length > 0;
 
 export const imageStacks = (paths: readonly string[]): ImageStack[] => {
   const sorted = [...paths].sort(compare);
