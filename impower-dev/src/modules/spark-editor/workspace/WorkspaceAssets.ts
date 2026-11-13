@@ -476,12 +476,12 @@ export default class WorkspaceAssets {
       return path;
     }
     const member = stack.members.find((candidate) => candidate.path === path);
-    const named = imageFileNameOf(path).name;
-    const renamed = imageFileNameOf(to).name;
+    const named = imageFileNameOf(path).picture;
+    const renamed = imageFileNameOf(to).picture;
     const layers =
       stack.kind === "files" && member?.layer === undefined && renamed !== named
         ? stack.members
-            .filter((candidate) => candidate.layer !== undefined && imageFileNameOf(candidate.path).name === named)
+            .filter((candidate) => candidate.layer !== undefined && imageFileNameOf(candidate.path).picture === named)
             .map((candidate) => ({ from: candidate.path, to: joinPath(folder, renamed + nameOf(candidate.path).slice(named.length)) }))
         : [];
     try {

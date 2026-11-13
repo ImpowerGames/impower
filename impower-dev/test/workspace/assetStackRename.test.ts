@@ -820,6 +820,17 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(await inPortraits(h)).toEqual(ORIGINAL);
   });
 
+  it("keeps an alternate's layer files with it when the new alternate name holds a dot (#2186)", async () => {
+    const h = await harness(project());
+    expect(await h.assets.renameMember(STACK[1]!, "imani@dark.v2")).toBe(`${P}/imani@dark.v2.png`);
+    expect(await inPortraits(h)).toEqual(
+      [STACK[0]!, `${P}/imani@dark.v2.png`, `${P}/imani@dark.v2~face.sad.png`, STACK[3]!, `${P}/imani_extra.png`].sort(),
+    );
+    const { imageStacks } = await import("../../src/modules/spark-editor/utils/imageStacks");
+    const [stack] = imageStacks(STACK.map((path) => path.replace("imani@night", "imani@dark.v2")));
+    expect(stack!.pictures.find((picture) => picture.alternate === "dark.v2")?.layers).toEqual([`${P}/imani@dark.v2~face.sad.png`]);
+  });
+
   it("leaves a script the author saved during a failed alternate rename as saved, puts the file back, and says so from the rollback", async () => {
     const other = lines("scene other", "  [[show portrait imani@night]]", "end");
     const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
