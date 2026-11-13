@@ -35,12 +35,13 @@ export type { DiagnosticFixAction };
 
 export interface PlayedInput extends ConsoleEntry {
   checkpoint?: number;
+  uri?: string;
+  character?: number;
 }
 
 export interface PlayedEntry extends PlayedInput {
   id: number;
   time: number;
-  uri?: string;
   run?: number;
 }
 
@@ -240,15 +241,20 @@ export function playedFromRuntimeError(
     type: number;
     location?: { uri: string; range: Range };
   },
-): ConsoleEntry {
+): PlayedInput {
   const { title, message } = splitMessage(params.message);
-  const uri = params.location?.uri;
+  const location = params.location;
+  if (!location) {
+    return { severity: severityOf({ severity: params.type }), title, message };
+  }
   return {
     severity: severityOf({ severity: params.type }),
     title,
     message,
-    path: uri ? projectPath(uri) : undefined,
-    line: params.location ? params.location.range.start.line + 1 : undefined,
+    path: projectPath(location.uri),
+    uri: location.uri,
+    line: location.range.start.line + 1,
+    character: location.range.start.character,
   };
 }
 
