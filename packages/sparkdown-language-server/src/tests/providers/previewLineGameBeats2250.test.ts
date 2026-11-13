@@ -189,6 +189,20 @@ const ROWS: Row[] = [
     caret: 2,
     shows: { kind: "choice", words: "North. · South." },
   },
+  {
+    shape: "a choose block without a caption, an option with response text",
+    lines: ["choose", "  * [North.] You turn north.", "  * [South.]", "end"],
+    caret: 2,
+    menuAt: 1,
+    shows: { kind: "choice", words: "North. · South." },
+  },
+  {
+    shape: "a choose block without a caption, an option that diverts",
+    lines: ["choose", "  * [North.] -> start", "  * [South.]", "end"],
+    caret: 2,
+    menuAt: 1,
+    shows: { kind: "choice", words: "North. · South." },
+  },
 ];
 
 describe("the strip shows the beat the game previews for the caret's line", () => {

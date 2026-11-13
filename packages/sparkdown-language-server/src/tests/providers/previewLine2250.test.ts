@@ -101,6 +101,17 @@ describe("the caret line's preview record", () => {
     }
   });
 
+  test("calls every definition the compiler counts as a declaration setup, layouts and morphs included", () => {
+    for (const definition of [
+      'layout main {\n  content {\n    text = "Hi"\n  }\n}',
+      "morph blink {\n  fallback = fade\n}",
+    ]) {
+      const lines = previewOf(`${definition}\n\nscene start\n  Hello.\nend\n`);
+      expect(lines(0), definition).toEqual({ kind: "setup" });
+      expect(lines(1), definition).toEqual({ kind: "setup" });
+    }
+  });
+
   test("calls a scene with nothing to show, and an empty script, empty", () => {
     expect(at(32)).toEqual({ kind: "empty" });
     expect(at(33)).toEqual({ kind: "empty" });

@@ -9,20 +9,15 @@ import {
   displayCaptionText,
   type BeatRange,
 } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
+import { declares } from "@impower/sparkdown/src/compiler/utils/declarationOnly";
+import {
+  choiceTextRanges,
+  type TextRange,
+} from "@impower/sparkdown/src/compiler/utils/readChoiceText";
 import { readSkipping } from "@impower/sparkdown/src/compiler/utils/readSkipping";
 import type { SyntaxNode, Tree } from "@lezer/common";
 
-const SETUP = new Set([
-  "FrontMatter",
-  "Include",
-  "LuauDefine",
-  "LuauSparkdownVariableDefinition",
-  "LuauStyle",
-  "LuauAnimation",
-  "LuauTheme",
-  "LuauScreen",
-  "LuauComponent",
-]);
+const SETUP = new Set(["FrontMatter", "Include"]);
 
 const COMMENTS = new Set([
   "SparkdownLineComment",
@@ -120,17 +115,35 @@ export const getPreviewLine = (
   const lineEnd = (l: number) =>
     l + 1 < document.lineCount ? lineStart(l + 1) : document.length;
   const clean = (text: string) => text.replace(/\s+/g, " ").trim();
-  const optionWords = (option: SyntaxNode) => {
-    const content = option.getChild("Choice_content");
-    return content
-      ? clean(
-          readSkipping(content, read, (d) => MARKUP.has(d.name)).replace(
-            /[[\]]/g,
-            "",
-          ),
-        )
-      : "";
+  const readWithout = (node: SyntaxNode, ranges: readonly TextRange[]) => {
+    const marks: [number, number][] = [];
+    tree.iterate({
+      from: node.from,
+      to: node.to,
+      enter: (inner) => {
+        if (MARKUP.has(inner.name)) {
+          marks.push([inner.from, inner.to]);
+          return false;
+        }
+        return undefined;
+      },
+    });
+    let text = "";
+    for (const range of ranges) {
+      let pos = range.from;
+      for (const [from, to] of marks) {
+        if (to <= pos || from >= range.to) {
+          continue;
+        }
+        text += read(pos, Math.max(pos, from));
+        pos = Math.max(pos, to);
+      }
+      text += read(pos, Math.max(pos, range.to));
+    }
+    return text;
   };
+  const optionWords = (option: SyntaxNode) =>
+    clean(readWithout(option, choiceTextRanges(option).offered.ranges));
   const wordsIn = (node: SyntaxNode, range: BeatRange) =>
     clean(
       descendants(node, "TextChunk")
@@ -197,7 +210,7 @@ export const getPreviewLine = (
 
   const visitNode = (node: SyntaxNode) => {
     const name = node.name;
-    if (SETUP.has(name)) {
+    if (SETUP.has(name) || declares(node, read)) {
       setup.push(linesOf(node));
       return;
     }
