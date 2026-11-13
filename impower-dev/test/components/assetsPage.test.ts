@@ -1,4 +1,4 @@
-import { h, render } from "preact";
+import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -94,6 +94,7 @@ vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: selection } = await import("../../src/modules/spark-editor/workspace/assetsSelection");
 const { default: Assets } = await import("../../src/modules/spark-editor/components/assets");
+const { InspectorDockProvider, InspectorDock } = await import("../../src/modules/spark-editor/components/asset-inspector/dock");
 const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
 await import("../../src/modules/spark-editor/workspace/editorAudio");
 const { PROJECT_SETTINGS_SCHEMA } = await import(
@@ -1833,6 +1834,64 @@ describe("the inspector of an asset that moves", () => {
     expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
     expect(searchField().value).toBe("dex");
     expect(rowLabels().map((label) => label!.split(",")[0])).toEqual(["Open image dex"]);
+  });
+
+  const renameFromInspector = async (name: string, typed: string, key: "Enter" | "Escape") => {
+    await openMenu(headMenu(name));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.trim() === "Rename"));
+    await vi.waitFor(() => expect(host!.querySelector(`input[aria-label="Rename ${name}"]`)).not.toBeNull());
+    const input = host!.querySelector<HTMLInputElement>(`input[aria-label="Rename ${name}"]`)!;
+    await act(async () => {
+      input.value = typed;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    });
+    await settle();
+  };
+
+  const renameToBea = () =>
+    assets.rename.mockImplementationOnce(async (path: string, name: string) => {
+      const to = `${folderOf(path)}/${name}.png`;
+      moveFiles([{ from: path, to }]);
+      return to;
+    });
+
+  it("shows a picture renamed from the inspector's own menu under its new name in the phone's sheet", async () => {
+    layout.value = "phone";
+    renameToBea();
+    await mount();
+    await press("Open image bo");
+    await renameFromInspector("bo", "bea", "Enter");
+    expect(assets.rename).toHaveBeenCalledWith(`${P}/bo.png`, "bea");
+    expect(title()).toBe("bea");
+    expect(frameSrc()).toBe(`/src/${P}/bea.png`);
+    expect(inspector()!.closest('[role="dialog"]')?.getAttribute("data-state")).toBe("open");
+  });
+
+  it("keeps the docked inspector on a picture renamed from its own menu at desktop width", async () => {
+    renameToBea();
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(h(InspectorDockProvider, { children: h(Fragment, {}, h(InspectorDock, {}), h(Assets, {})) }), host!),
+    );
+    await settle();
+    await press("Open image bo");
+    const shown = inspector();
+    expect(shown!.closest('[role="dialog"]')).toBeNull();
+    await renameFromInspector("bo", "bea", "Enter");
+    expect(inspector()).toBe(shown);
+    expect(title()).toBe("bea");
+    expect(frameSrc()).toBe(`/src/${P}/bea.png`);
+  });
+
+  it("returns to the inspector on the same picture when a rename from its menu is cancelled on a phone", async () => {
+    layout.value = "phone";
+    await mount();
+    await press("Open image bo");
+    await renameFromInspector("bo", "bea", "Escape");
+    expect(assets.rename).not.toHaveBeenCalled();
+    expect(title()).toBe("bo");
+    expect(inspector()!.closest('[role="dialog"]')?.getAttribute("data-state")).toBe("open");
   });
 
   it("closes when the moved picture is deleted", async () => {

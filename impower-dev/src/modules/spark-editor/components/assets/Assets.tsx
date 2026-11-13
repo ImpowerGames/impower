@@ -253,6 +253,7 @@ function AssetsBrowser() {
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const renameAfterClose = useRef<string | null>(null);
+  const reopenAfterRename = useRef<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const [deleting, setDeleting] = useState<{ paths: readonly string[]; groups: SearchGroup[] | null } | null>(null);
@@ -499,6 +500,15 @@ function AssetsBrowser() {
     setOpenPath(path);
   };
 
+  const reopenInspector = (from: string, to: string) => {
+    if (reopenAfterRename.current !== from) {
+      return false;
+    }
+    reopenAfterRename.current = null;
+    openAsset(to);
+    return true;
+  };
+
   const stepTo = (path: string) => {
     setOpenPath(path);
     revealRow(path);
@@ -600,8 +610,10 @@ function AssetsBrowser() {
 
   const onAction = (row: AssetRow, action: AssetRowAction) => {
     if (action === "select") selection.start(row.path);
-    else if (action === "rename") setRenaming(row.path);
-    else if (action === "move") setMoving([row.path]);
+    else if (action === "rename") {
+      reopenAfterRename.current = null;
+      setRenaming(row.path);
+    } else if (action === "move") setMoving([row.path]);
     else if (action === "download") void run(async () => (await intents()).assets.downloadAll([row.path]));
     else requestDelete([row.path]);
   };
@@ -611,6 +623,7 @@ function AssetsBrowser() {
       onAction(row, action);
     } else if (host === "sheet") {
       renameAfterClose.current = row.path;
+      reopenAfterRename.current = row.path;
       closeInspector();
     } else {
       revealRow(row.path);
@@ -701,13 +714,18 @@ function AssetsBrowser() {
           suffix={extension}
           onCancel={() => {
             setRenaming(null);
-            focusRenamed(row.path);
+            if (!reopenInspector(row.path, row.path)) {
+              focusRenamed(row.path);
+            }
           }}
           onCommit={async (name) => {
-            await relocating(row.paths ?? [row.path], async () => [
-              { from: row.path, to: await (await intents()).assets.rename(row.path, name) },
-            ]);
+            let renamed = row.path;
+            await relocating(row.paths ?? [row.path], async () => {
+              renamed = await (await intents()).assets.rename(row.path, name);
+              return [{ from: row.path, to: renamed }];
+            });
             setRenaming(null);
+            reopenInspector(row.path, renamed);
           }}
         />
       );
