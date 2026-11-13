@@ -195,11 +195,19 @@ import {
   ProjectImportError,
   REFUSED_BEFORE_CHANGE,
 } from "./projectImport";
+import {
+  launchGameState,
+  launchPhaseOf,
+  launchStep,
+  type LaunchEffect,
+  type LaunchEvent,
+} from "./launchMachine";
+import statuses from "./statuses/StatusesStore";
 
-export const PLAYER_CONNECT_TIMEOUT_MS = 15_000;
+export const LAUNCH_LIMIT_MS = 15_000;
 
-export const PLAYER_DID_NOT_CONNECT_MESSAGE =
-  "The game player didn't load. Try Play again.";
+export const LAUNCH_LIMIT_MESSAGE =
+  "The game player didn't respond. Try Play again.";
 
 const inPlay = (game: GameState) => Boolean(game.running || game.starting);
 
@@ -851,7 +859,8 @@ export default class WorkspaceWindow {
   dispose() {
     this._disposers.forEach((dispose) => dispose());
     this._disposers = [];
-    this.clearPlayerWait();
+    clearTimeout(this._launchLimit);
+    this._launchLimit = undefined;
     this.debug.end();
     this.cacheProjectWorkspace.flush();
   }
@@ -920,62 +929,82 @@ export default class WorkspaceWindow {
   protected _startGameRequestId?: string | number;
 
   protected handleStartGameResponse = (message: StartGameMessage.Response) => {
-    this._startGameRequestId = undefined;
-    if ("error" in message && message.error) {
-      this.endGame();
-    } else {
-      this.syncGameStarted();
-    }
+    this.launch("error" in message && message.error ? "refused" : "answered");
   };
 
   protected _playerConnected = false;
 
-  protected _playerWait?: ReturnType<typeof setTimeout>;
+  protected _launchLimit?: ReturnType<typeof setTimeout>;
 
-  protected clearPlayerWait() {
-    clearTimeout(this._playerWait);
-    this._playerWait = undefined;
-  }
-
-  protected awaitPlayer() {
-    if (this._playerWait !== undefined) {
+  protected launch(event: LaunchEvent) {
+    const game = this.store.preview.modes.game;
+    const from = launchPhaseOf(game, this._startGameRequestId !== undefined);
+    const next = launchStep(from, event, {
+      connected: this._playerConnected,
+      refused: Boolean(game.playRefusal),
+    });
+    if (!next) {
       return;
     }
-    this._playerWait = setTimeout(() => {
-      this._playerWait = undefined;
-      if (this.store.preview.modes.game.starting && !this._playerConnected) {
-        this.endGame();
-        showSnackbar({ message: PLAYER_DID_NOT_CONNECT_MESSAGE });
+    const updated = launchGameState(game, from, next);
+    if (updated !== game) {
+      this.updateGame(updated);
+    }
+    for (const effect of next.effects) {
+      this.runLaunchEffect(effect);
+    }
+  }
+
+  protected runLaunchEffect(effect: LaunchEffect) {
+    switch (effect) {
+      case "armLimit":
+        clearTimeout(this._launchLimit);
+        this._launchLimit = setTimeout(() => {
+          this._launchLimit = undefined;
+          this.launch("limit");
+        }, LAUNCH_LIMIT_MS);
+        return;
+      case "clearLimit":
+        clearTimeout(this._launchLimit);
+        this._launchLimit = undefined;
+        return;
+      case "sendStart": {
+        const request = StartGameMessage.type.request({});
+        this._startGameRequestId = request.id;
+        sendProtocolMessage(request);
+        return;
       }
-    }, PLAYER_CONNECT_TIMEOUT_MS);
+      case "forgetStart":
+        this._startGameRequestId = undefined;
+        return;
+      case "sendStop":
+        sendProtocolMessage(StopGameMessage.type.request({}));
+        return;
+      case "startDebug":
+        void this.debug.start(this.getOpenedDocumentUri() ?? "");
+        return;
+      case "endDebug":
+        this.debug.end();
+        return;
+      case "clearStatuses":
+        statuses.clear();
+        return;
+      case "sayLimit":
+        showSnackbar({ message: LAUNCH_LIMIT_MESSAGE });
+        return;
+      case "markEnded":
+        return;
+    }
   }
 
   connectPlayer() {
     this._playerConnected = true;
-    this.clearPlayerWait();
-    const game = this.store.preview.modes.game;
-    if (game.starting && this._startGameRequestId === undefined) {
-      this.launchGame();
-    }
+    this.launch("connected");
   }
 
   disconnectPlayer() {
     this._playerConnected = false;
-    const game = this.store.preview.modes.game;
-    if (game.running) {
-      this.endGame();
-    } else if (game.starting) {
-      this._startGameRequestId = undefined;
-      this.debug.end();
-      this.awaitPlayer();
-    }
-  }
-
-  protected launchGame() {
-    const request = StartGameMessage.type.request({});
-    this._startGameRequestId = request.id;
-    sendProtocolMessage(request);
-    void this.debug.start(this.getOpenedDocumentUri() ?? "");
+    this.launch("lost");
   }
 
   get store() {
@@ -2060,66 +2089,21 @@ export default class WorkspaceWindow {
     });
   }
 
-  startGame() {
-    const game = this.store.preview.modes.game;
-    if (game.running || game.starting) {
-      return;
-    }
-    this.updateGame({
-      ...game,
-      loading: false,
-      starting: true,
-      paused: false,
-      ended: false,
-      choosing: false,
-      picks: {},
-    });
-    if (this._playerConnected) {
-      this.launchGame();
-    } else {
-      this.awaitPlayer();
-    }
-  }
-
   syncGameStarted() {
-    const game = this.store.preview.modes.game;
-    if (game.running) {
-      return;
-    }
-    this.clearPlayerWait();
-    this.updateGame({
-      ...game,
-      loading: false,
-      starting: false,
-      running: true,
-      ...(game.starting ? {} : { paused: false, picks: {} }),
-    });
-    if (!game.starting) {
-      this.launchGame();
-    }
+    this.launch("reported");
   }
 
-  endGame() {
-    const game = this.store.preview.modes.game;
-    if (game.running || game.starting) {
-      this._startGameRequestId = undefined;
-      this.clearPlayerWait();
-      this.updateGame({
-        ...game,
-        loading: false,
-        running: false,
-        starting: false,
-        ended: false,
-        choosing: false,
-        picks: {},
-      });
-      this.debug.end();
-    }
+  syncGameExited() {
+    this.launch("exited");
   }
 
   syncGameEnded(ended: boolean) {
+    if (ended) {
+      this.launch("ended");
+      return;
+    }
     const game = this.store.preview.modes.game;
-    if (!inPlay(game) || (Boolean(game.ended) === ended && !game.loading)) {
+    if (!inPlay(game) || (!game.ended && !game.loading)) {
       return;
     }
     this.update({
@@ -2153,12 +2137,7 @@ export default class WorkspaceWindow {
   }
 
   stopGame() {
-    const game = this.store.preview.modes.game;
-    const reached = game.running || this._startGameRequestId !== undefined;
-    this.endGame();
-    if (reached) {
-      sendProtocolMessage(StopGameMessage.type.request({}));
-    }
+    this.launch("stop");
   }
 
   async pauseGame() {
@@ -2339,12 +2318,7 @@ export default class WorkspaceWindow {
   }
 
   toggleGameRunning() {
-    const game = this.store.preview.modes.game;
-    if (game.running || game.starting) {
-      this.stopGame();
-    } else if (!game.playRefusal) {
-      this.startGame();
-    }
+    this.launch("press");
   }
 
   unloadProject() {

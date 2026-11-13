@@ -230,11 +230,21 @@ import workspace, {
   savedWorkspaceState,
 } from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 import WorkspaceWindow, {
-  PLAYER_CONNECT_TIMEOUT_MS,
-  PLAYER_DID_NOT_CONNECT_MESSAGE,
+  LAUNCH_LIMIT_MS,
+  LAUNCH_LIMIT_MESSAGE,
 } from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
 import { snackbar } from "../../src/modules/spark-editor/utils/snackbar";
 import { STEP_REASONS } from "../../src/modules/spark-editor/workspace/stepStates";
+import {
+  LAUNCH_EVENTS,
+  launchPhaseOf,
+  type LaunchEvent,
+  type LaunchPhase,
+} from "../../src/modules/spark-editor/workspace/launchMachine";
+import statuses, {
+  NO_GAME_STATUSES,
+  shownStatuses,
+} from "../../src/modules/spark-editor/workspace/statuses/StatusesStore";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { ProjectImportError } from "../../src/modules/spark-editor/workspace/projectImport";
 import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
@@ -246,7 +256,7 @@ beforeEach(() => {
 
 const runGame = (win: WorkspaceWindow) => {
   win.connectPlayer();
-  win.startGame();
+  win.toggleGameRunning();
   win.syncGameStarted();
 };
 
@@ -1845,8 +1855,6 @@ describe("PLAY pressed before the game player has connected", () => {
 
   const game = () => workspace.current.preview.modes.game;
 
-  const pressed = () => vi.waitFor(() => expect(game().starting).toBe(true));
-
   let before: typeof workspace.current;
 
   beforeEach(() => {
@@ -1917,100 +1925,250 @@ describe("PLAY pressed before the game player has connected", () => {
     }
   }, 30000);
 
-  it("holds an early press until the player connects, then starts the game, and shows Stop only while it starts or runs", async () => {
-    transport().click();
-    await pressed();
-    expect(started).toEqual([]);
-    expect(game().running).toBeFalsy();
-    expect(transport().getAttribute("aria-label")).toBe("Stop");
+  describe("walks every launch state against every event", () => {
+    type Setup =
+      | "idle"
+      | "idle with a player"
+      | "awaiting"
+      | "starting"
+      | "running"
+      | "paused"
+      | "ended";
+    type Sent = "start" | "stop";
+    interface Row {
+      phase: LaunchPhase;
+      sent?: Sent[];
+      says?: boolean;
+      clears?: boolean;
+      then?: { advance: number; phase: LaunchPhase; says: boolean };
+    }
 
-    win.connectPlayer();
-    expect(started).toHaveLength(1);
-    expect(game().running).toBeFalsy();
-    expect(game().starting).toBe(true);
+    const ENDED_STATUSES = {
+      completion: null,
+      ending: { text: "Story ran out", hover: "", kind: "out" },
+    } as unknown as typeof NO_GAME_STATUSES;
 
-    answer(true);
-    expect(game().running).toBe(true);
-    expect(game().starting).toBeFalsy();
-    expect(transport().getAttribute("aria-label")).toBe("Stop");
-  });
+    const live = (phase: "running" | "paused" | "ended"): Record<LaunchEvent, Row> => ({
+      press: { phase: "idle", sent: ["stop"] },
+      stop: { phase: "idle", sent: ["stop"] },
+      connected: { phase },
+      lost: { phase: "idle", clears: true },
+      answered: { phase },
+      refused: { phase },
+      reported: { phase },
+      limit: { phase },
+      ended: { phase: "ended" },
+      exited: { phase: "idle" },
+    });
 
-  it("sends a press after the player connects at once and still waits for the player to report the start", () => {
-    win.connectPlayer();
-    win.toggleGameRunning();
-    expect(started).toHaveLength(1);
-    expect(game().running).toBeFalsy();
-    expect(transport().getAttribute("aria-label")).toBe("Stop");
-    answer(false);
-    expect(game().running).toBeFalsy();
-    expect(game().starting).toBeFalsy();
-    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
-  });
+    const idle = (press: Row): Record<LaunchEvent, Row> => ({
+      press,
+      stop: { phase: "idle" },
+      connected: { phase: "idle" },
+      lost: { phase: "idle", clears: true },
+      answered: { phase: "idle" },
+      refused: { phase: "idle" },
+      reported: { phase: "running", sent: ["start"] },
+      limit: { phase: "idle" },
+      ended: { phase: "idle" },
+      exited: { phase: "idle" },
+    });
 
-  it("cancels the start when Stop is pressed while the game is starting, as VS Code's Stop does during a launch", () => {
-    win.toggleGameRunning();
-    expect(game().starting).toBe(true);
-    win.toggleGameRunning();
-    expect(game().starting).toBeFalsy();
-    win.connectPlayer();
-    expect(started).toEqual([]);
-    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+    const LIMIT_LEFT = 1000;
 
-    win.toggleGameRunning();
-    expect(started).toHaveLength(1);
-    win.toggleGameRunning();
-    expect(stopped).toHaveLength(1);
-    answer(true);
-    expect(game().running).toBeFalsy();
-    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
-  });
+    const EXPECTED: Record<Setup, Record<LaunchEvent, Row>> = {
+      idle: idle({ phase: "awaiting" }),
+      "idle with a player": idle({ phase: "starting", sent: ["start"] }),
+      awaiting: {
+        press: { phase: "idle" },
+        stop: { phase: "idle" },
+        connected: { phase: "starting", sent: ["start"] },
+        lost: {
+          phase: "awaiting",
+          clears: true,
+          then: { advance: LIMIT_LEFT, phase: "idle", says: true },
+        },
+        answered: { phase: "awaiting" },
+        refused: { phase: "awaiting" },
+        reported: { phase: "awaiting" },
+        limit: { phase: "idle", says: true },
+        ended: { phase: "awaiting" },
+        exited: { phase: "awaiting" },
+      },
+      starting: {
+        press: { phase: "idle", sent: ["stop"] },
+        stop: { phase: "idle", sent: ["stop"] },
+        connected: {
+          phase: "starting",
+          then: { advance: LIMIT_LEFT, phase: "idle", says: true },
+        },
+        lost: {
+          phase: "awaiting",
+          clears: true,
+          then: { advance: LIMIT_LEFT, phase: "idle", says: true },
+        },
+        answered: { phase: "running" },
+        refused: { phase: "idle" },
+        reported: { phase: "running" },
+        limit: { phase: "idle", sent: ["stop"], says: true },
+        ended: { phase: "starting" },
+        exited: { phase: "idle" },
+      },
+      running: live("running"),
+      paused: live("paused"),
+      ended: live("ended"),
+    };
 
-  it("returns the bar to Play and says why when the player does not connect in time", () => {
-    vi.useFakeTimers();
-    win.toggleGameRunning();
-    vi.advanceTimersByTime(PLAYER_CONNECT_TIMEOUT_MS - 1);
-    expect(game().starting).toBe(true);
-    expect(snackbar.value).toBeNull();
-    vi.advanceTimersByTime(1);
-    expect(game().starting).toBeFalsy();
-    expect(game().running).toBeFalsy();
-    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
-    expect(snackbar.value?.message).toBe(PLAYER_DID_NOT_CONNECT_MESSAGE);
-    win.connectPlayer();
-    expect(started).toEqual([]);
-  });
+    let sent: Sent[] = [];
+    let lastStart: StartGameMessage.Request | undefined;
+    const hear = (e: Event) => {
+      if (!(e instanceof CustomEvent)) {
+        return;
+      }
+      if (StartGameMessage.type.isRequest(e.detail)) {
+        sent.push("start");
+        lastStart = e.detail;
+      }
+      if (StopGameMessage.type.isRequest(e.detail)) {
+        sent.push("stop");
+      }
+    };
 
-  it("keeps the limit counted from the press when the preview loads its player meanwhile", () => {
-    vi.useFakeTimers();
-    win.toggleGameRunning();
-    vi.advanceTimersByTime(PLAYER_CONNECT_TIMEOUT_MS - 1000);
-    win.disconnectPlayer();
-    vi.advanceTimersByTime(1000);
-    expect(game().starting).toBeFalsy();
-    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
-    expect(snackbar.value?.message).toBe(PLAYER_DID_NOT_CONNECT_MESSAGE);
-  });
+    const reply = (success: boolean) =>
+      sendProtocolMessage(
+        success
+          ? StartGameMessage.type.response(lastStart?.id ?? "none", { success })
+          : StartGameMessage.type.error(lastStart?.id ?? "none", {
+              code: 1,
+              message: "The game could not be started",
+            }),
+      );
 
-  it("returns the bar to Play when the player of a running game goes away", () => {
-    win.connectPlayer();
-    win.toggleGameRunning();
-    answer(true);
-    expect(game().running).toBe(true);
-    win.disconnectPlayer();
-    expect(game().running).toBeFalsy();
-    expect(game().starting).toBeFalsy();
-    expect(transport().getAttribute("aria-label")).toBe("Play From Here");
-    win.connectPlayer();
-    expect(started).toHaveLength(1);
-  });
+    const SETUPS: Record<Setup, () => void> = {
+      idle: () => {},
+      "idle with a player": () => win.connectPlayer(),
+      awaiting: () => {
+        win.toggleGameRunning();
+        vi.advanceTimersByTime(LAUNCH_LIMIT_MS - LIMIT_LEFT);
+      },
+      starting: () => {
+        win.connectPlayer();
+        win.toggleGameRunning();
+        vi.advanceTimersByTime(LAUNCH_LIMIT_MS - LIMIT_LEFT);
+      },
+      running: () => {
+        win.connectPlayer();
+        win.toggleGameRunning();
+        reply(true);
+      },
+      paused: () => {
+        SETUPS.running();
+        win.syncGamePaused(true);
+      },
+      ended: () => {
+        SETUPS.running();
+        win.syncGameEnded(true);
+      },
+    };
 
-  it("carries a held press over to the player that connects after the last one went away", () => {
-    win.connectPlayer();
-    win.disconnectPlayer();
-    win.toggleGameRunning();
-    expect(started).toEqual([]);
-    win.connectPlayer();
-    expect(started).toHaveLength(1);
+    const EVENTS: Record<LaunchEvent, () => void> = {
+      press: () => win.toggleGameRunning(),
+      stop: () => win.stopGame(),
+      connected: () => win.connectPlayer(),
+      lost: () => win.disconnectPlayer(),
+      answered: () => reply(true),
+      refused: () => reply(false),
+      reported: () => win.syncGameStarted(),
+      limit: () => vi.advanceTimersByTime(LIMIT_LEFT),
+      ended: () => win.syncGameEnded(true),
+      exited: () => win.syncGameExited(),
+    };
+
+    const phase = () =>
+      launchPhaseOf(
+        game(),
+        (win as unknown as { _startGameRequestId?: unknown })._startGameRequestId !==
+          undefined,
+      );
+
+    const CONTROL: Record<LaunchPhase, string> = {
+      idle: "Play From Here",
+      awaiting: "Stop",
+      starting: "Stop",
+      running: "Stop",
+      paused: "Stop",
+      ended: "Stop",
+    };
+
+    const showsBadge = (p: LaunchPhase) => p === "awaiting" || p === "starting";
+
+    const expectBar = (p: LaunchPhase) => {
+      expect(phase()).toBe(p);
+      expect(transport().getAttribute("aria-label")).toBe(CONTROL[p]);
+      expect(
+        shownStatuses(statuses.statuses.value, "game", Boolean(game().starting)).some(
+          (status) => status.key === "starting",
+        ),
+      ).toBe(showsBadge(p));
+    };
+
+    const cases = (Object.keys(EXPECTED) as Setup[]).flatMap((setup) =>
+      LAUNCH_EVENTS.map((event) => [setup, event, EXPECTED[setup][event]] as const),
+    );
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      sent = [];
+      lastStart = undefined;
+      window.addEventListener(MessageProtocol.event, hear);
+    });
+
+    afterEach(() => {
+      window.removeEventListener(MessageProtocol.event, hear);
+      statuses.statuses.value = NO_GAME_STATUSES;
+    });
+
+    it.each(cases)("%s, then %s", (setup, event, row) => {
+      SETUPS[setup]();
+      statuses.statuses.value = ENDED_STATUSES;
+      snackbar.value = null;
+      sent = [];
+      EVENTS[event]();
+      expectBar(row.phase);
+      expect(sent).toEqual(row.sent ?? []);
+      expect(snackbar.value?.message ?? null).toBe(row.says ? LAUNCH_LIMIT_MESSAGE : null);
+      expect(statuses.statuses.value).toBe(row.clears ? NO_GAME_STATUSES : ENDED_STATUSES);
+      if (row.then) {
+        snackbar.value = null;
+        vi.advanceTimersByTime(row.then.advance);
+        expectBar(row.then.phase);
+        expect(snackbar.value?.message ?? null).toBe(
+          row.then.says ? LAUNCH_LIMIT_MESSAGE : null,
+        );
+      }
+    });
+
+    it("sends nothing to a player that connects after the limit returned the bar to Play", () => {
+      win.toggleGameRunning();
+      vi.advanceTimersByTime(LAUNCH_LIMIT_MS);
+      expect(phase()).toBe("idle");
+      sent = [];
+      win.connectPlayer();
+      expect(sent).toEqual([]);
+      expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+    });
+
+    it("ignores the player's late answer to a start that was cancelled, and a disconnect after the cancel", () => {
+      win.connectPlayer();
+      win.toggleGameRunning();
+      win.toggleGameRunning();
+      expect(sent).toEqual(["start", "stop"]);
+      reply(true);
+      win.disconnectPlayer();
+      expect(phase()).toBe("idle");
+      expect(sent).toEqual(["start", "stop"]);
+      expect(transport().getAttribute("aria-label")).toBe("Play From Here");
+    });
   });
 
   it("keeps the step, skip and pause controls off while the game is only starting", () => {

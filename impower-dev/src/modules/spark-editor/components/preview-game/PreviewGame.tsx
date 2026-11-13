@@ -406,7 +406,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
           if (GameExitedMessage.type.is(message)) {
             Workspace.window.setHighlights({});
-            Workspace.window.endGame();
+            Workspace.window.syncGameExited();
           }
           if (GameWorkerRestartedMessage.type.isNotification(message)) {
             const { location } = message.params;

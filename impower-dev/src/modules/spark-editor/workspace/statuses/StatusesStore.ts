@@ -44,6 +44,10 @@ export const shownStatuses = (
 export class StatusesStore {
   readonly statuses = signal<GameStatuses>(NO_GAME_STATUSES);
 
+  clear() {
+    this.statuses.value = NO_GAME_STATUSES;
+  }
+
   receive(message: unknown) {
     if (DidChangeGameStateMessage.type.isNotification(message)) {
       this.statuses.value = message.params.statuses ?? NO_GAME_STATUSES;
