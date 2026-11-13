@@ -63,11 +63,15 @@ describe("undoing and redoing a move", () => {
     expect(workspace.movesReplayed.value).toEqual({ moves: moved, settled: true });
   });
 
-  it("says the move has ended when the workspace refuses it", async () => {
+  it("says the move has ended and names no file as moved when the workspace refuses it", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    mocks.moveFile.mockRejectedValue(new Error("refused"));
+    mocks.moveFile.mockImplementation(async () => {
+      mocks.duringMove.push(workspace.movesReplayed.peek());
+      throw new Error("refused");
+    });
     recordMoves("p", moved, "ava", "Move");
     expect(await undo()).toBe(false);
-    expect(workspace.movesReplayed.value).toEqual({ moves: back, settled: true });
+    expect(mocks.duringMove[0]).toEqual({ moves: back, settled: false });
+    expect(workspace.movesReplayed.value).toEqual({ moves: [], settled: true });
   });
 });

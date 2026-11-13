@@ -153,6 +153,7 @@ export function recordMoves(
     const Workspace = references ? workspace : { fs: workspace.fs, autoRenameFiles: () => false };
     const [only] = set;
     store.movesReplayed.value = { moves: set, settled: false };
+    let landed = false;
     try {
       if (set.length === 1 && only) {
         const move = await renameOrReport<unknown>(only.from, only.to, () =>
@@ -169,9 +170,10 @@ export function recordMoves(
           throw error;
         }
       }
+      landed = true;
       await markProjectDirty();
     } finally {
-      store.movesReplayed.value = { moves: set, settled: true };
+      store.movesReplayed.value = { moves: landed ? set : [], settled: true };
     }
   };
   const all = [...moves];
