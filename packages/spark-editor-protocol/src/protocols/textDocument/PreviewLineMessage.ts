@@ -15,7 +15,6 @@ export type PreviewBeatKind =
 
 export interface PreviewBeat {
   kind: PreviewBeatKind;
-  line: number;
   words: string;
   speaker?: string;
 }

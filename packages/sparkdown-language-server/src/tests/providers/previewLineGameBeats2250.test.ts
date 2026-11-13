@@ -36,7 +36,7 @@ const entriesOf = (instruction: unknown): Record<string, unknown> =>
     ),
   );
 
-const gameAt = (text: string, line: number): Shown & { line?: number } => {
+const gameAt = (text: string, line: number): Shown => {
   const compiler = testCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
@@ -56,7 +56,6 @@ const gameAt = (text: string, line: number): Shown & { line?: number } => {
         kind: shown["caption"] ? "choice" : KINDS[String(shown["target"])]!,
         words: shownWords(String(shown["text"] ?? "")),
         ...(typeof character === "string" && !shown["caption"] ? { speaker: character } : {}),
-        line: root.locationOf(address!)?.startLine,
       };
     }
   }
@@ -195,14 +194,7 @@ const ROWS: Row[] = [
 describe("the strip shows the beat the game previews for the caret's line", () => {
   test.each(ROWS)("$shape", ({ lines, caret, shows, menuAt }) => {
     const text = scriptOf(lines);
-    const game = gameAt(text, menuAt ?? caret);
-    const strip = stripAt(text, caret);
-    const { line: gameLine, ...gameShows } = game;
-    expect(gameShows, "what the game shows").toEqual(shows);
-    const { line: stripLine, ...stripShows } = strip as Shown & { line?: number };
-    expect(stripShows, "what the strip shows").toEqual(shows);
-    if (shows.kind !== "choice") {
-      expect(stripLine, "the line the beat starts on").toBe(gameLine);
-    }
+    expect(gameAt(text, menuAt ?? caret), "what the game shows").toEqual(shows);
+    expect(stripAt(text, caret), "what the strip shows").toEqual(shows);
   });
 });

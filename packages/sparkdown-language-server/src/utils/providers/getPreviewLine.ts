@@ -310,7 +310,6 @@ export const getPreviewLine = (
       const question = beat.range ? wordsIn(beat.node, beat.range) : "";
       return {
         kind: "choice",
-        line: beat.start,
         words: question || beat.options!.map(optionWords).join(" · "),
       };
     }
@@ -320,7 +319,6 @@ export const getPreviewLine = (
         : undefined;
     return {
       kind: beat.kind,
-      line: beat.start,
       words: beat.range ? wordsIn(beat.node, beat.range) : "",
       ...(name ? { speaker: clean(read(name.from, name.to)) } : {}),
     };

@@ -514,12 +514,12 @@ describe("the phone's preview strip", () => {
   it("names each kind of line the way the prototype does", async () => {
     await mount();
     for (const [preview, expected] of [
-      [{ kind: "title", line: 4, words: "THE JUKEBOX" }, ["TITLE", "THE JUKEBOX"]],
-      [{ kind: "heading", line: 4, words: "INT. LOUNGE" }, ["HEADING", "INT. LOUNGE"]],
-      [{ kind: "transition", line: 4, words: "CUT TO:" }, ["TRANSITIONAL", "CUT TO:"]],
-      [{ kind: "action", line: 4, words: "Rain falls." }, ["ACTION", "Rain falls."]],
-      [{ kind: "dialogue", line: 4, words: "Hello.", speaker: "Imani" }, ["IMANI", "Hello."]],
-      [{ kind: "choice", line: 4, words: "Where now?" }, ["CHOOSE", "Where now?"]],
+      [{ kind: "title", words: "THE JUKEBOX" }, ["TITLE", "THE JUKEBOX"]],
+      [{ kind: "heading", words: "INT. LOUNGE" }, ["HEADING", "INT. LOUNGE"]],
+      [{ kind: "transition", words: "CUT TO:" }, ["TRANSITIONAL", "CUT TO:"]],
+      [{ kind: "action", words: "Rain falls." }, ["ACTION", "Rain falls."]],
+      [{ kind: "dialogue", words: "Hello.", speaker: "Imani" }, ["IMANI", "Hello."]],
+      [{ kind: "choice", words: "Where now?" }, ["CHOOSE", "Where now?"]],
       [{ kind: "setup" }, ["STORY SETUP", "This line sets up your story."]],
       [{ kind: "empty" }, ["YOUR GAME", "Write a line and it appears here."]],
     ] as const) {
@@ -531,7 +531,7 @@ describe("the phone's preview strip", () => {
     await caretOn({ kind: "setup" });
     expect(strip().querySelector("[data-preview-strip-symbol]")!.getAttribute("data-preview-strip-symbol")).toBe("file");
     expect(button("Play from this line")!.disabled).toBe(true);
-    await caretOn({ kind: "action", line: 4, words: "Rain falls." });
+    await caretOn({ kind: "action", words: "Rain falls." });
     expect(strip().querySelector("[data-preview-strip-symbol]")).toBeNull();
     expect(button("Play from this line")!.disabled).toBe(false);
   });
@@ -551,14 +551,14 @@ describe("the phone's preview strip", () => {
         ],
       };
     });
-    await caretOn({ kind: "action", line: 4, words: "Rain." });
+    await caretOn({ kind: "action", words: "Rain." });
     const row = status("problem")!;
     expect(row.textContent).toContain("Cannot find character named `INSPECTER`");
     expect(row.className).toContain("text-error");
     await act(async () => row.click());
     await settle();
     expect(calls.commands).toEqual([["main.sd", "problems"]]);
-    await caretOn({ kind: "action", line: 5, words: "Rain." }, 5);
+    await caretOn({ kind: "action", words: "Rain." }, 5);
     expect(status("problem")).toBeNull();
     await act(async () => {
       problems.diagnostics.value = {};
@@ -571,7 +571,7 @@ describe("the phone's preview strip", () => {
     );
     const show = vi.spyOn(route, "show").mockImplementation(() => {});
     await mount();
-    await caretOn({ kind: "action", line: 4, words: "You found 4 clues." });
+    await caretOn({ kind: "action", words: "You found 4 clues." });
     const view = (kind: string) =>
       ({ route: { decisions: [{ kind }] }, pins: [], open: false }) as never;
     for (const kind of ["auto", "pinned", "clipped"]) {

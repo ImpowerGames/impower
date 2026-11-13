@@ -54,16 +54,14 @@ describe("the caret line's preview record", () => {
   const at = previewOf(SCRIPT);
 
   test("names the kind of each display line and its words without markers", () => {
-    expect(at(10)).toEqual({ kind: "title", line: 10, words: "THE MIDNIGHT JUKEBOX" });
+    expect(at(10)).toEqual({ kind: "title", words: "THE MIDNIGHT JUKEBOX" });
     expect(at(11)).toEqual({
       kind: "heading",
-      line: 11,
       words: "INT. IMANI'S HOUSE - LOUNGE - MORNING",
     });
-    expect(at(12)).toEqual({ kind: "transition", line: 12, words: "CUT TO:" });
+    expect(at(12)).toEqual({ kind: "transition", words: "CUT TO:" });
     expect(at(15)).toEqual({
       kind: "action",
-      line: 15,
       words: "Imani sorts index cards into neat piles.",
     });
   });
@@ -71,7 +69,6 @@ describe("the caret line's preview record", () => {
   test("gives a dialogue line's speaker for a cue block and for one-line dialogue", () => {
     const spoken = {
       kind: "dialogue",
-      line: 17,
       words: "Where were you at nine?",
       speaker: "INSPECTOR",
     };
@@ -80,23 +77,22 @@ describe("the caret line's preview record", () => {
     expect(at(18)).toEqual(spoken);
     expect(at(19)).toEqual({
       kind: "dialogue",
-      line: 19,
       words: "You are not going to believe this.",
       speaker: "ZADIE",
     });
   });
 
   test("gives a choose block's question on its question and option lines", () => {
-    const choice = { kind: "choice", line: 20, words: "Where now?" };
+    const choice = { kind: "choice", words: "Where now?" };
     for (const line of [20, 21, 22, 24, 26]) {
       expect(at(line)).toEqual(choice);
     }
-    expect(at(25)).toEqual({ kind: "action", line: 25, words: "You lie badly." });
+    expect(at(25)).toEqual({ kind: "action", words: "You lie badly." });
   });
 
   test("shows the first beat inside a scene or branch declaration", () => {
     expect(at(14)).toEqual(at(15));
-    expect(at(27)).toEqual({ kind: "action", line: 28, words: "The rain comes down." });
+    expect(at(27)).toEqual({ kind: "action", words: "The rain comes down." });
   });
 
   test("calls front matter, definitions, includes, stored values and comments setup", () => {
@@ -130,13 +126,11 @@ describe("the caret line's preview record", () => {
     expect(nested(7)).toEqual({ kind: "setup" });
     expect(nested(4)).toEqual({
       kind: "dialogue",
-      line: 2,
       words: "Hello. Goodbye.",
       speaker: "ALICE",
     });
     expect(nested(8)).toEqual({
       kind: "action",
-      line: 6,
       words: "The room is quiet. The door opens.",
     });
   });
@@ -157,19 +151,18 @@ describe("the caret line's preview record", () => {
         "end",
       ].join("\n"),
     );
-    expect(blocks(1)).toEqual({ kind: "dialogue", line: 2, words: "Hello.", speaker: "ALICE" });
-    expect(blocks(2)).toEqual({ kind: "dialogue", line: 2, words: "Hello.", speaker: "ALICE" });
+    expect(blocks(1)).toEqual({ kind: "dialogue", words: "Hello.", speaker: "ALICE" });
+    expect(blocks(2)).toEqual({ kind: "dialogue", words: "Hello.", speaker: "ALICE" });
     for (const line of [3, 4]) {
       expect(blocks(line)).toEqual({
         kind: "dialogue",
-        line: 3,
         words: "Goodbye. And more.",
         speaker: "ALICE",
       });
     }
-    expect(blocks(6)).toEqual({ kind: "action", line: 6, words: "The room is quiet." });
-    expect(blocks(7)).toEqual({ kind: "action", line: 7, words: "The door opens." });
-    expect(blocks(9)).toEqual({ kind: "dialogue", line: 9, words: "Bye now.", speaker: "BOB" });
+    expect(blocks(6)).toEqual({ kind: "action", words: "The room is quiet." });
+    expect(blocks(7)).toEqual({ kind: "action", words: "The door opens." });
+    expect(blocks(9)).toEqual({ kind: "dialogue", words: "Bye now.", speaker: "BOB" });
   });
 
   test("keeps a branch's beats inside the branch and resumes the enclosing scene after its end", () => {
@@ -192,12 +185,12 @@ describe("the caret line's preview record", () => {
         "end",
       ].join("\n"),
     );
-    const outer = { kind: "action", line: 1, words: "Outer." };
+    const outer = { kind: "action", words: "Outer." };
     expect(nested(5)).toEqual(outer);
     expect(nested(6)).toEqual(outer);
-    expect(nested(2)).toEqual({ kind: "action", line: 3, words: "Inner." });
+    expect(nested(2)).toEqual({ kind: "action", words: "Inner." });
     expect(nested(9)).toEqual({ kind: "empty" });
-    expect(nested(10)).toEqual({ kind: "action", line: 13, words: "Outer again." });
+    expect(nested(10)).toEqual({ kind: "action", words: "Outer again." });
     expect(nested(11)).toEqual({ kind: "empty" });
   });
 
@@ -217,15 +210,15 @@ describe("the caret line's preview record", () => {
         "end",
       ].join("\n"),
     );
-    const choice = { kind: "choice", line: 1, words: "Second question." };
+    const choice = { kind: "choice", words: "Second question." };
     for (const line of [1, 3, 4, 6, 9]) {
       expect(menu(line)).toEqual(choice);
     }
-    expect(menu(0)).toEqual({ kind: "action", line: 2, words: "First question." });
-    expect(menu(2)).toEqual({ kind: "action", line: 2, words: "First question." });
-    expect(menu(5)).toEqual({ kind: "action", line: 5, words: "You agree." });
-    expect(menu(8)).toEqual({ kind: "action", line: 8, words: "After the menu." });
-    expect(menu(10)).toEqual({ kind: "action", line: 8, words: "After the menu." });
+    expect(menu(0)).toEqual({ kind: "action", words: "First question." });
+    expect(menu(2)).toEqual({ kind: "action", words: "First question." });
+    expect(menu(5)).toEqual({ kind: "action", words: "You agree." });
+    expect(menu(8)).toEqual({ kind: "action", words: "After the menu." });
+    expect(menu(10)).toEqual({ kind: "action", words: "After the menu." });
   });
 
   test("keeps the earlier beats of a caption block apart from the choice it captions", () => {
@@ -241,11 +234,11 @@ describe("the caret line's preview record", () => {
         "end",
       ].join("\n"),
     );
-    const listen = { kind: "dialogue", line: 3, words: "Listen carefully.", speaker: "ALICE" };
+    const listen = { kind: "dialogue", words: "Listen carefully.", speaker: "ALICE" };
     expect(menu(2)).toEqual(listen);
     expect(menu(3)).toEqual(listen);
     expect(menu(0)).toEqual(listen);
-    const choice = { kind: "choice", line: 1, words: "Will you help?" };
+    const choice = { kind: "choice", words: "Will you help?" };
     for (const line of [1, 4, 5, 6]) {
       expect(menu(line)).toEqual(choice);
     }
@@ -271,10 +264,10 @@ describe("the caret line's preview record", () => {
           "end",
         ].join("\n"),
       );
-      const listen = { kind: "dialogue", line: 3, words: "Listen carefully.", speaker: "ALICE" };
+      const listen = { kind: "dialogue", words: "Listen carefully.", speaker: "ALICE" };
       expect(menu(2)).toEqual(listen);
       expect(menu(3)).toEqual(listen);
-      const choice = { kind: "choice", line: 1, words: "Will you help?" };
+      const choice = { kind: "choice", words: "Will you help?" };
       for (const line of [1, 4, 5, 6, 8]) {
         expect(menu(line)).toEqual(choice);
       }
@@ -282,10 +275,9 @@ describe("the caret line's preview record", () => {
   });
 
   test("shows the beat a line of logic follows", () => {
-    expect(at(23)).toEqual({ kind: "choice", line: 20, words: "Where now?" });
+    expect(at(23)).toEqual({ kind: "choice", words: "Where now?" });
     expect(previewOf("scene a\n  Hello.\n  x = 1\nend\n")(2)).toEqual({
       kind: "action",
-      line: 1,
       words: "Hello.",
     });
   });
