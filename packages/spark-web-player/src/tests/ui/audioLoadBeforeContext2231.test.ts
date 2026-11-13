@@ -88,6 +88,19 @@ describe("an audio load that finishes before the audio context is set (#2231)", 
     expect([...(page.audio as any)._audioMixers.keys()]).toContain("voice");
   });
 
+  test("a mixer configured before the context is set exists with its gain once the context is set", async () => {
+    const page = makeAudio();
+    await page.audio.onReceiveRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "audio/configure",
+      params: { mixer: "music", gain: 0.25 },
+    } as any);
+    expect((page.audio as any)._audioMixers.has("music")).toBe(false);
+    page.setContext();
+    expect((page.audio as any)._audioMixers.get("music")?.gain).toBe(0.25);
+  });
+
   test("a load that finishes after the context is set still gets its player", async () => {
     const page = makeAudio();
     page.setContext();
