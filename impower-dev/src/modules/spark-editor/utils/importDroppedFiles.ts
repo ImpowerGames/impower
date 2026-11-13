@@ -17,6 +17,7 @@ import { resolveUploadConflicts } from "./uploadConflicts";
 export interface DroppedItem {
   rel: string;
   getBuffer: () => Promise<ArrayBuffer>;
+  address?: string;
 }
 
 const leafOf = (rel: string) => rel.slice(rel.lastIndexOf("/") + 1);
@@ -53,7 +54,7 @@ export async function importFiles(projectId: string, items: DroppedItem[]): Prom
     try {
       await resolveUploadConflicts(
         projectId,
-        items.map((item, index) => ({ rel: item.rel, payload: { item, index } })),
+        items.map((item, index) => ({ rel: item.rel, address: item.address, payload: { item, index } })),
         async ({ survivors, trashedOldUris, since }) => {
           const surviving = new Set(survivors.map((s) => s.payload.index));
           items.forEach((_, index) => {

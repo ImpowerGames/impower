@@ -180,14 +180,16 @@ describe("the Assets page's file intents", () => {
     ]);
   });
 
-  it("adds a link under the type its address names, with a name no other file has", async () => {
-    const { assets, fs, files } = fakeWorkspace({ "Assets/Audio/horn.wav": "wav", "Assets/Images/horn.url": "https://cdn.example.com/horn.png" });
+  it("adds a link under the type its address names through the upload conflict check", async () => {
+    const { assets } = fakeWorkspace({ "Assets/Audio/horn.wav": "wav", "Assets/Images/horn.url": "https://cdn.example.com/horn.png" });
     await assets.load();
+    mocks.importFiles.mockClear();
     const path = await assets.addLink("https://cdn.example.com/horn.mp3", "horn", "Assets/Images");
-    expect(path).toBe("Assets/Audio/horn01.url");
-    expect(files.get(path)).toBe("https://cdn.example.com/horn.mp3");
-    expect(mocks.recordCreate).toHaveBeenCalledWith(PROJECT, [uri(path)], "horn01.url");
-    expect(fs.createFiles).toHaveBeenCalledTimes(1);
+    expect(path).toBe("Assets/Audio/horn.url");
+    const [[projectId, items]] = mocks.importFiles.mock.calls as unknown as [[string, { rel: string; address?: string; getBuffer: () => Promise<ArrayBuffer> }[]]];
+    expect(projectId).toBe(PROJECT);
+    expect(items).toMatchObject([{ rel: "Assets/Audio/horn.url", address: "https://cdn.example.com/horn.mp3" }]);
+    expect(new TextDecoder().decode(await items[0]!.getBuffer())).toBe("https://cdn.example.com/horn.mp3");
     expect(await assets.addLink("https://example.com/about", "about", "")).toBe("Assets/Other/about.url");
   });
 

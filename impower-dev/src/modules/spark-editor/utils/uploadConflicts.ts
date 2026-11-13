@@ -1,4 +1,5 @@
 import { signal } from "@preact/signals";
+import { assetClaimOf } from "./assetClaim";
 import getUniqueFileName from "./getUniqueFileName";
 
 export type ConflictAction = "replace" | "keepboth" | "skip";
@@ -43,13 +44,30 @@ const dirOf = (rel: string) =>
 const baseOf = (rel: string) =>
   rel.includes("/") ? rel.slice(rel.lastIndexOf("/") + 1) : rel;
 
-function uniqueRel(rel: string, taken: Set<string>): string {
+function uniqueRel(
+  rel: string,
+  address: string | undefined,
+  taken: Set<string>,
+  claimed: Set<string>,
+): string {
   const dir = dirOf(rel);
   const namesInDir = [...taken]
     .filter((r) => dirOf(r) === lc(dir))
     .map((r) => baseOf(r));
-  const unique = getUniqueFileName(namesInDir, baseOf(rel));
-  return dir + unique;
+  for (;;) {
+    const candidate = dir + getUniqueFileName(namesInDir, baseOf(rel));
+    const claim = assetClaimOf(candidate, address);
+    if (claim === undefined || !claimed.has(claim)) {
+      return candidate;
+    }
+    namesInDir.push(baseOf(candidate));
+  }
+}
+
+export interface UploadItem<T> {
+  rel: string;
+  payload: T;
+  address?: string;
 }
 
 export interface ResolvedUpload<T> {
@@ -60,7 +78,7 @@ export interface ResolvedUpload<T> {
 
 export function resolveUploadConflicts<T, R>(
   projectId: string,
-  items: { rel: string; payload: T }[],
+  items: UploadItem<T>[],
   write: (resolved: ResolvedUpload<T>) => Promise<R>,
 ): Promise<R> {
   return withUploadLock(async () =>
@@ -70,44 +88,65 @@ export function resolveUploadConflicts<T, R>(
 
 async function resolveLocked<T>(
   projectId: string,
-  items: { rel: string; payload: T }[],
+  items: UploadItem<T>[],
 ): Promise<ResolvedUpload<T>> {
   const { Workspace } = await import("../workspace/Workspace");
-  const files = await Workspace.fs.getFiles(projectId);
+  const files: Record<string, { src?: string } | undefined> =
+    await Workspace.fs.getFiles(projectId);
   const actualByKey = new Map<string, string>();
-  for (const u of Object.keys(files)) {
+  const actualByClaim = new Map<string, string>();
+  for (const [u, file] of Object.entries(files)) {
     const r = Workspace.fs.getRelativePath(projectId, u);
     actualByKey.set(lc(r), r);
+    const claim = assetClaimOf(r, file?.src);
+    if (claim !== undefined && !actualByClaim.has(claim)) {
+      actualByClaim.set(claim, r);
+    }
   }
-  const existing = new Set(actualByKey.keys());
-  const taken = new Set(existing);
-  const replacedKeys = new Set<string>();
-  const conflicting = items.filter((it) => existing.has(lc(it.rel)));
-  let remaining = conflicting.length;
+  const existingOf = (item: UploadItem<T>) => {
+    const claim = assetClaimOf(item.rel, item.address);
+    return (
+      actualByKey.get(lc(item.rel)) ??
+      (claim === undefined ? undefined : actualByClaim.get(claim))
+    );
+  };
+  const taken = new Set(actualByKey.keys());
+  const claimed = new Set(actualByClaim.keys());
+  const replaced = new Set<string>();
+  let remaining = items.filter((it) => existingOf(it) !== undefined).length;
 
   const survivors: { uri: string; payload: T }[] = [];
   const trashedRels: string[] = [];
   let applyAll: ConflictResolution | null = null;
+  const land = (rel: string, item: UploadItem<T>) => {
+    taken.add(lc(rel));
+    const claim = assetClaimOf(rel, item.address);
+    if (claim !== undefined) {
+      claimed.add(claim);
+    }
+    survivors.push({
+      uri: Workspace.fs.getFileUri(projectId, rel),
+      payload: item.payload,
+    });
+  };
 
   for (const item of items) {
-    let rel = item.rel;
-    const key = lc(rel);
-    const existsInProject = existing.has(key);
+    const existingRel = existingOf(item);
 
-    if (!existsInProject) {
-      if (taken.has(key)) {
-        rel = uniqueRel(rel, taken);
-      }
-      taken.add(lc(rel));
-      survivors.push({
-        uri: Workspace.fs.getFileUri(projectId, rel),
-        payload: item.payload,
-      });
+    if (existingRel === undefined) {
+      const claim = assetClaimOf(item.rel, item.address);
+      const clashes =
+        taken.has(lc(item.rel)) || (claim !== undefined && claimed.has(claim));
+      land(
+        clashes ? uniqueRel(item.rel, item.address, taken, claimed) : item.rel,
+        item,
+      );
       continue;
     }
 
     const res: ConflictResolution =
-      applyAll ?? (await requestResolution(baseOf(rel), dirOf(rel), remaining));
+      applyAll ??
+      (await requestResolution(baseOf(existingRel), dirOf(existingRel), remaining));
     remaining -= 1;
     if (res.applyToAll) {
       applyAll = res;
@@ -116,23 +155,12 @@ async function resolveLocked<T>(
       continue;
     }
 
-    const canonicalRel = actualByKey.get(key) ?? rel;
-
-    if (res.action === "replace" && !replacedKeys.has(key)) {
-      replacedKeys.add(key);
-      taken.add(key);
-      trashedRels.push(canonicalRel);
-      survivors.push({
-        uri: Workspace.fs.getFileUri(projectId, canonicalRel),
-        payload: item.payload,
-      });
+    if (res.action === "replace" && !replaced.has(existingRel)) {
+      replaced.add(existingRel);
+      trashedRels.push(existingRel);
+      land(lc(existingRel) === lc(item.rel) ? existingRel : item.rel, item);
     } else {
-      rel = uniqueRel(rel, taken);
-      taken.add(lc(rel));
-      survivors.push({
-        uri: Workspace.fs.getFileUri(projectId, rel),
-        payload: item.payload,
-      });
+      land(uniqueRel(item.rel, item.address, taken, claimed), item);
     }
   }
 

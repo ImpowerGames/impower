@@ -12,12 +12,11 @@ import { storageSegments } from "../utils/storageName";
 import { canMoveFolder } from "../utils/fileTree";
 import { downloadFile } from "../utils/downloadFile";
 import { reasonOf, type FileMove } from "../utils/fileMoves";
-import { recordCreate, recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
+import { recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
 import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
 import { imageFileNameOf, imageThingsOf, stackNameOf, thingNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import type { ImageVariant } from "../utils/imageVariants";
-import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
 import { renameFailureMessage, renameOrReport } from "../utils/renameOrReport";
@@ -352,19 +351,17 @@ export default class WorkspaceAssets {
     return written;
   }
 
-  async addLink(url: string, name: string, folder: string): Promise<string> {
+  async addLink(url: string, name: string, folder: string): Promise<string | undefined> {
     const projectId = this.requireProject();
-    const { fs, window } = this._workspace;
-    const filenames = Object.keys(await fs.getFiles(projectId)).map((uri) =>
-      fs.getFilename(uri),
-    );
-    const filename = getUniqueFileName(filenames, `${getValidFileName(name) || "asset"}.url`);
+    const filename = `${getValidFileName(name) || "asset"}.url`;
     const type = assetTypeOf(filename, assetEndings.peek(), url);
-    const path = joinPath(landingFolder(this.listing, type, folder), filename);
-    const uri = fs.getFileUri(projectId, path);
-    await fs.createFiles({ files: [{ uri, data: new TextEncoder().encode(url).buffer }] });
-    await window.recordAssetChange();
-    recordCreate(projectId, [uri], filename);
+    const [path] = await importFiles(projectId, [
+      {
+        rel: joinPath(landingFolder(this.listing, type, folder), filename),
+        address: url,
+        getBuffer: async () => new TextEncoder().encode(url).buffer,
+      },
+    ]);
     await this.load();
     return path;
   }
