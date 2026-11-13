@@ -82,6 +82,7 @@ vi.mock("../../src/modules/spark-editor/components/problems", () => ({
 vi.mock("@impower/impower-ui/components", async () => {
   const { h, createContext } = await import("preact");
   const { useContext } = await import("preact/hooks");
+  const { cn } = await import("../../../packages/impower-ui/src/utils/cn");
   const element =
     (tag: string) =>
     ({ asChild: _asChild, variant: _v, size: _s, align: _a, ...props }: Record<string, unknown>) =>
@@ -108,6 +109,7 @@ vi.mock("@impower/impower-ui/components", async () => {
     "VisualIcon",
   ];
   return {
+    cn,
     Button: element("button"),
     SplitPane: ({ start, end }: { start: unknown; end: unknown }) =>
       h("div", {}, start as never, end as never),
