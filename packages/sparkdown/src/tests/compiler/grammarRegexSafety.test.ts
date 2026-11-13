@@ -161,6 +161,9 @@ const SPAN_CLOSE_SEARCHES: [string, string][] = [
   ["a backtick run open over closed brace groups", "`a" + " {b}".repeat(500)],
   ["a backtick run open over brace groups nested too deep", "`a" + " {{{{b}}}}".repeat(200)],
   ["an italic span open over code spans holding braces", "*a" + " `{b}`".repeat(300)],
+  ["a backtick run open over braces holding unclosed quotes", "`a" + ' {"b'.repeat(400)],
+  ["a backtick run open over braces holding unclosed long brackets", "`a" + " {[[b".repeat(300)],
+  ["a backtick run open over braces holding closed quotes and long brackets", "`a" + ' {"}" [[}]]}'.repeat(150)],
   ["a long star run before a word", "*".repeat(8000) + "x"],
   ["a long underscore run before a word", "_".repeat(8000) + "x"],
   ["a long caret run before a word", "^".repeat(8000) + "x"],
@@ -246,6 +249,10 @@ const BRACE_SPANS: [what: string, rules: string[], open: string, unit: string][]
   ["a raw span over unclosed braces", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {b"],
   ["a raw span over nested unclosed braces", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {{{b"],
   ["a raw span over closed brace groups", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {b}"],
+  ["a raw span over braces holding unclosed quotes", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", ' {"b'],
+  ["a raw span over braces holding unclosed long brackets", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", " {[[b"],
+  ["a raw span over braces holding closed quotes and long brackets", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", ' {"}" [[}]]}'],
+  ["a raw span over braces whose quotes hold the next brace", ["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"], "`a", ' {b "c'],
   ["an italic span over code spans holding braces", ["Italic", "ChoiceStartItalic", "ChoiceOnlyItalic", "ChoiceInnerItalic"], "*a", " `{b}`"],
 ];
 

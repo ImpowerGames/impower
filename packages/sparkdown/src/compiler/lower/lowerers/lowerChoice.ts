@@ -39,7 +39,7 @@ import {
   buildOrderedDisplayCall,
   displayText,
 } from "../utils/displayCall";
-import { collectDisplaySpans } from "../utils/displaySpans";
+import { collectDisplaySpans, writeStyledRange } from "../utils/displaySpans";
 import {
   inlineGluedAlternatorFrom,
   isInlineGluedAlternator,
@@ -311,13 +311,8 @@ function appendNodeContent(
   from = captureNode.from,
   to = captureNode.to,
 ): boolean {
-  const { codes, marks: hidden } = collectDisplaySpans(
-    captureNode,
-    from,
-    to,
-    ctx,
-    isChoiceTextOpaque,
-  );
+  const spans = collectDisplaySpans(captureNode, from, to, ctx, isChoiceTextOpaque);
+  const spanCursor = { code: 0, mark: 0 };
   const alternators: SyntaxNode[] = [];
   const findAlternators = (node: SyntaxNode): void => {
     if (choiceTextMarkerKind(node)) return;
@@ -339,13 +334,7 @@ function appendNodeContent(
 
   let appended = false;
   let cursor = from;
-  let codeIndex = 0;
   let buffer = "";
-  const takeCodes = (at: number): void => {
-    while (codeIndex < codes.length && codes[codeIndex]!.at <= at) {
-      buffer += codes[codeIndex++]!.code;
-    }
-  };
   const flushBuffer = (): void => {
     const leading = trimStart && list.content.length === 0;
     const text = leading ? trimStyled(buffer, { end: false }) : buffer;
@@ -356,28 +345,12 @@ function appendNodeContent(
     }
   };
   const flushText = (until: number): void => {
-    let pos = cursor;
-    while (pos < until) {
-      takeCodes(pos);
-      const mark = hidden.find((h) => h.from <= pos && pos < h.to);
-      if (mark) {
-        pos = Math.min(mark.to, until);
-        continue;
-      }
-      const next = Math.min(
-        until,
-        codes[codeIndex]?.at ?? until,
-        hidden.find((h) => h.from > pos)?.from ?? until,
-      );
-      buffer += ctx.read(pos, Math.max(next, pos + 1));
-      pos = Math.max(next, pos + 1);
-    }
+    buffer += writeStyledRange(spans, cursor, until, ctx, spanCursor);
     cursor = Math.max(cursor, until);
   };
   for (const m of inRange) {
     if (m.from < cursor) continue;
     flushText(m.from);
-    takeCodes(m.from);
     flushBuffer();
     if (m.kind === "alt") {
       for (const obj of lowerInlineGluedAlternator(m.node, ctx)) {
@@ -404,7 +377,6 @@ function appendNodeContent(
     cursor = m.node.to;
   }
   flushText(to);
-  takeCodes(to);
   flushBuffer();
   return appended;
 }

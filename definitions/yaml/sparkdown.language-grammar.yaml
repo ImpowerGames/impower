@@ -535,13 +535,37 @@ variables:
   # lookaround: as UNDERSCORE_SHORTER, for Raw, whose content is literal: a
   # backtick run of another length than the opener's is text.
   RAW_OTHER_RUN: (?:(?!\1(?:[^`\r\n]|$))[`]+(?![`]))
-  # lookaround: as SPAN_LONG_BRACKET and SPAN_STAR_FREE, for Raw's literal text, which takes a
-  # backtick only as a run of another length (RAW_OTHER_RUN).
-  RAW_BRACE_TEXT: (?:[^`{}\r\n])
+  # lookaround: as SPAN_LONG_BRACKET, inside a raw span's brace group (RAW_BRACE_GROUP): a Luau long
+  # string or comment of level 0 ends at its first `]]`, and the text holds no backtick, so a group
+  # never hides the raw span's closer. It holds no `{` either, so one left open stops at the next
+  # brace rather than reading to the line's end at every brace.
+  RAW_BRACE_DOUBLE_BRACKET: (?:\[\[(?:[^\]{`\r\n]|\](?!\]))*\]\])
+  # lookaround: as RAW_BRACE_DOUBLE_BRACKET, for level 1.
+  RAW_BRACE_LONG_BRACKET_1: (?:\[=\[(?:[^\]{`\r\n]|\](?!=\]))*\]=\])
+  # lookaround: as RAW_BRACE_DOUBLE_BRACKET, for level 2.
+  RAW_BRACE_LONG_BRACKET_2: (?:\[==\[(?:[^\]{`\r\n]|\](?!==\]))*\]==\])
+  RAW_BRACE_DOUBLE_QUOTED: (?:["](?:[^"`\\\r\n]|[\\][^`\r\n])*["])
+  RAW_BRACE_SINGLE_QUOTED: (?:['](?:[^'`\\\r\n]|[\\][^`\r\n])*['])
+  RAW_BRACE_QUOTED: (?:{{RAW_BRACE_DOUBLE_QUOTED}}|{{RAW_BRACE_SINGLE_QUOTED}})
+  # lookaround: inside a raw span's brace group a `[` is an index bracket unless it opens a long
+  # bracket, which RAW_BRACE_DOUBLE_BRACKET and its siblings take whole. The alternatives sit in one
+  # regex that must find the raw span's closer, so no order, Switch split or parent end reaches them,
+  # and `[` cannot leave the character class without losing index brackets; only the characters after
+  # it tell the two apart.
+  RAW_BRACE_TEXT: (?:[^`{}"'\[\r\n]|{{RAW_BRACE_QUOTED}}|{{RAW_BRACE_DOUBLE_BRACKET}}|{{RAW_BRACE_LONG_BRACKET_1}}|{{RAW_BRACE_LONG_BRACKET_2}}|\[(?!=*\[))
   RAW_BRACE_GROUP_1: (?:[{]{{RAW_BRACE_TEXT}}*[}])
   RAW_BRACE_GROUP_2: (?:[{](?:{{RAW_BRACE_TEXT}}|{{RAW_BRACE_GROUP_1}})*[}])
   RAW_BRACE_GROUP: (?:[{](?:{{RAW_BRACE_TEXT}}|{{RAW_BRACE_GROUP_2}})*[}])
-  # lookaround: RAW_BRACE_GROUP, which RAW_CONTENT and SPAN_CODE_ONE take first, so a `{` that opens a group is never a character of its own; a backtick is the closer's and SPAN_END the line's.
+  # lookaround: as SPAN_LONG_BRACKET and SPAN_STAR_FREE, for Raw's literal text, which takes a
+  # backtick only as a run of another length (RAW_OTHER_RUN). It also refuses where RAW_BRACE_GROUP,
+  # a closed brace group holding no backtick, starts: in choice text a bracket or an arrow inside the
+  # braces must not end the region, as the region's own text reads the braces whole. RAW_CONTENT and
+  # the code spans already try the group first, but each is one regex that must find its closer, and
+  # when a later step fails the regex backtracks into a `{` it took as a group and retakes it as a
+  # character, so the order alone gives every brace two readings and exponential time; the two must
+  # be disjoint. No Switch split or parent end reaches inside one match, and removing `{` from the
+  # character would leave a brace that opens no closed group unreadable: only the text after the `{`
+  # tells a group from a lone brace.
   RAW_CHARACTER: (?:(?![`]|{{SPAN_END}}|{{RAW_BRACE_GROUP}})[^\r\n])
   RAW_CONTENT: (?:(?:{{RAW_BRACE_GROUP}}|{{RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
   SPAN_ESCAPE: (?:[\\][^\r\n])

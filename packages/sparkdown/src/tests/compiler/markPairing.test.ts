@@ -141,6 +141,20 @@ describe("a backtick run is raw only where a run of its own length closes it", (
     expect(choiceTextOf("Go `far {[[a]]} away` now")).toBe("Go `far {[[a]]} away` now");
   });
 
+  test.each([
+    ['`far {"}->"} away`', 'far {"}->"} away'],
+    ["`far {'}[a]'} away`", "far {'}[a]'} away"],
+    ["`far {[[}[]]} away`", "far {[[}[]]} away"],
+    ["`far {[=[}->]=]} away`", "far {[=[}->]=]} away"],
+  ])("a raw span holding %s, whose braces hold a closing brace inside a string, is raw in each part of a choice", async (span, raw) => {
+    expect(await readings(`A ${span} now`)).toEqual(both(`A [raw: ${raw}] now`));
+    expect(await choiceReadings(`Go ${span} now`)).toEqual(both(`Go [raw: ${raw}] now`));
+    expect(choiceTextOf(`Go ${span} now`)).toBe(`Go ${span} now`);
+    expect(await choiceReadings(`Go [${span}] now`)).toEqual(both(`Go [[raw: ${raw}]] now`));
+    expect(choiceTextOf(`Go [${span}] now`)).toBe(`Go ${span}`);
+    expect(await choiceReadings(`Go [a] ${span} now`)).toEqual(both(`Go [a] [raw: ${raw}] now`));
+  });
+
   test("a code span holding braces inside a styled span leaves the styled span read", async () => {
     expect(await readings("A *a `far {x -- c} away` b* c")).toEqual(
       both("A [italic: a ][italic raw: far {x -- c} away][italic:  b] c"),
