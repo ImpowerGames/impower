@@ -18,6 +18,8 @@ import { scriptModeField } from "../modules/script-editor/utils/extensions/scrip
 import {
   createGutterButton,
   gutterButtons,
+  MARK_COLUMN_RANK,
+  markColumnClaims,
 } from "../cm-gutter-button/gutterButton";
 
 export interface BreakpointState {
@@ -213,6 +215,21 @@ const keepsTouch = (view: EditorView, _line: BlockInfo, event: Event) => {
   return false;
 };
 
+const breakpointLines = (state: EditorState): number[] => {
+  const lines: number[] = [];
+  const iter = state.field(breakpointsField).iter(0);
+  while (iter.value) {
+    lines.push(state.doc.lineAt(iter.from).number);
+    iter.next();
+  }
+  return lines;
+};
+
+const breakpointClaim = markColumnClaims.of({
+  rank: MARK_COLUMN_RANK.breakpoint,
+  lines: breakpointLines,
+});
+
 const breakpointAttributes = EditorView.editorAttributes.compute(
   [breakpointsField, coarsePointer],
   (state) => {
@@ -229,6 +246,8 @@ const breakpointAttributes = EditorView.editorAttributes.compute(
 
 const breakpointTheme = EditorView.baseTheme({
   ".cm-breakpoint-gutter": {
+    position: "relative",
+    zIndex: "1",
     width: "14px",
     overflow: "hidden",
   },
@@ -261,6 +280,7 @@ export const breakpoints = () => [
   breakpointsField,
   breakpointAttributes,
   breakpointTheme,
+  breakpointClaim,
   gutterButtons(),
   gutter({
     class: "cm-breakpoint-gutter",

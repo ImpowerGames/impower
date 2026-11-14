@@ -71,7 +71,7 @@ const coarse = matchMedia("(pointer: coarse)").matches;
 const view = mount(coarse);
 
 const setPinned = (pinned: boolean) =>
-  setChoiceMarkers(view, [choice(3, pinned), choice(5, false)]);
+  setChoiceMarkers(view, [choice(3, false), choice(5, pinned)]);
 
 setPinned(false);
 

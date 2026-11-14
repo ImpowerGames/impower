@@ -17,8 +17,11 @@ import {
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
 import {
+  claimsChanged,
   createGutterButton,
   gutterButtons,
+  linesClaimedBefore,
+  MARK_COLUMN_RANK,
   type GutterButtonMark,
   updateGutterButton,
 } from "../cm-gutter-button/gutterButton";
@@ -329,9 +332,15 @@ const markerElements = (view: EditorView): ChoiceMarkerElement[] => {
     (view.documentTop - rect.top) / view.scaleY + scroller.scrollTop;
   const open = view.state.field(openChoiceField);
   const { from, to } = view.viewport;
+  const claimed = linesClaimedBefore(view.state, MARK_COLUMN_RANK.choice);
   return view.state
     .field(choiceMarkersField)
-    .filter((placed) => placed.from >= from && placed.from <= to)
+    .filter(
+      (placed) =>
+        placed.from >= from &&
+        placed.from <= to &&
+        !claimed.has(view.state.doc.lineAt(placed.from).number),
+    )
     .map((placed) => {
       const block = view.lineBlockAt(placed.from);
       return new ChoiceMarkerElement(
@@ -558,7 +567,8 @@ export const choiceMarkers = () => [
       update.startState.field(choiceMarkersField) !==
         update.state.field(choiceMarkersField) ||
       update.startState.field(openChoiceField) !==
-        update.state.field(openChoiceField),
+        update.state.field(openChoiceField) ||
+      claimsChanged(update.startState, update.state, MARK_COLUMN_RANK.choice),
   }),
   choiceMarkerEvents,
   choiceMarkersTheme,

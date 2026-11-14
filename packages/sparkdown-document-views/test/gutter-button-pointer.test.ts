@@ -18,6 +18,8 @@ interface Mark {
   label: string | null;
   box: Box;
   glyph: Box;
+  column: Box;
+  textLeft: number;
   lineCentre: number;
 }
 
@@ -68,6 +70,8 @@ const marks = (page: Page): Promise<Mark[]> =>
           label: el.getAttribute("aria-label"),
           box: box(el),
           glyph: box(glyph),
+          column: box(el.closest(".cm-gutter") ?? el),
+          textLeft: document.querySelector(".cm-content")!.getBoundingClientRect().left,
           lineCentre: block ? view.documentTop + block.top + block.height / 2 : NaN,
         };
       });
@@ -92,7 +96,8 @@ describe.each([
     for (const mark of found) {
       expect([mark.kind, mark.glyph.width, mark.glyph.height]).toEqual([mark.kind, 16, 16]);
       expect([mark.kind, mark.box.width, mark.box.height]).toEqual([mark.kind, target, target]);
-      expect(mark.glyph.left + 8).toBeCloseTo(mark.box.left + mark.box.width / 2, 1);
+      expect([mark.kind, mark.glyph.left + 8]).toEqual([mark.kind, expect.closeTo(mark.column.left + mark.column.width / 2, 1)]);
+      expect([mark.kind, mark.box.left + mark.box.width <= mark.textLeft]).toEqual([mark.kind, true]);
       expect(mark.glyph.top + 8).toBeCloseTo(mark.box.top + mark.box.height / 2, 1);
     }
     await page.context().close();
@@ -100,17 +105,58 @@ describe.each([
 
   it("centres a choice marker's glyph on its line and keeps its box when pinned and unpinned", async () => {
     const page = await open(coarse);
-    const choice = async () => (await marks(page)).find((m) => m.kind === "cm-choice-marker" && m.label?.endsWith("line 3"))!;
+    const choice = async () => (await marks(page)).find((m) => m.kind === "cm-choice-marker" && m.label?.endsWith("line 5"))!;
     const auto = await choice();
-    expect(auto.label).toBe("Choice the preview made on line 3");
+    expect(auto.label).toBe("Choice the preview made on line 5");
     expect(auto.glyph.top + 8).toBeCloseTo(auto.lineCentre, 0);
     await setPinned(page, true);
     const pinned = await choice();
-    expect(pinned.label).toBe("Pinned choice on line 3");
+    expect(pinned.label).toBe("Pinned choice on line 5");
     expect(pinned.box).toEqual(auto.box);
     expect(pinned.glyph).toEqual(auto.glyph);
     await setPinned(page, false);
     expect((await choice()).box).toEqual(auto.box);
+    await page.context().close();
+  });
+});
+
+const lineCentre = (page: Page, line: number) =>
+  page.evaluate((n) => {
+    const view = (window as unknown as { gutterMarks: { view: { lineBlockAt(pos: number): { top: number; height: number }; state: { doc: { line(n: number): { from: number } } }; documentTop: number } } }).gutterMarks.view;
+    const block = view.lineBlockAt(view.state.doc.line(n).from);
+    return view.documentTop + block.top + block.height / 2;
+  }, line);
+
+describe.each([
+  ["a fine pointer", false],
+  ["a coarse pointer", true],
+])("the mark column under %s", (_label, coarse) => {
+  it("draws one mark on a line that holds a breakpoint and a choice: the breakpoint", async () => {
+    const page = await open(coarse);
+    const found = await marks(page);
+    const y = await lineCentre(page, 3);
+    const onLine3 = found.filter((m) => m.box.top <= y && m.box.top + m.box.height >= y && m.kind !== "cm-fold-marker");
+    expect(onLine3.map((m) => m.kind)).toEqual(["cm-breakpoint"]);
+    expect(found.some((m) => m.label === "Choice the preview made on line 3")).toBe(false);
+    await page.context().close();
+  });
+});
+
+describe("a press where a fold marker's touch target reaches into the breakpoint column", () => {
+  it("goes to the breakpoint column, whether or not the line holds a breakpoint", async () => {
+    const page = await open(true);
+    const hits = await page.evaluate(async () => {
+      const column = document.querySelector(".cm-breakpoint-gutter")!.getBoundingClientRect();
+      const view = (window as unknown as { gutterMarks: { view: { lineBlockAt(pos: number): { top: number; height: number }; state: { doc: { line(n: number): { from: number } } }; documentTop: number } } }).gutterMarks.view;
+      const at = (n: number) => {
+        const block = view.lineBlockAt(view.state.doc.line(n).from);
+        const target = document.elementFromPoint(column.right - 2, view.documentTop + block.top + block.height / 2);
+        return target?.closest(".cm-fold-marker") ? "fold" : target?.closest(".cm-breakpoint-gutter") ? "breakpoint column" : target?.className;
+      };
+      const reach = [...document.querySelectorAll(".cm-fold-marker")].some((fold) => fold.getBoundingClientRect().left < column.right - 2);
+      return { reach, line2: at(2), line3: at(3) };
+    });
+    expect(hits).toEqual({ reach: true, line2: "breakpoint column", line3: "breakpoint column" });
     await page.context().close();
   });
 });

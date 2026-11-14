@@ -1,9 +1,47 @@
+import { type EditorState, Facet } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
 
 export const GUTTER_GLYPH_SIZE = 16;
 export const GUTTER_TOUCH_SIZE = 44;
 const FINE_TARGET_OUTSET = 4;
+
+export const MARK_COLUMN_RANK = {
+  breakpoint: 0,
+  choice: 1,
+} as const;
+
+export interface MarkColumnClaim {
+  rank: number;
+  lines: (state: EditorState) => Iterable<number>;
+}
+
+export const markColumnClaims = Facet.define<MarkColumnClaim>();
+
+export const linesClaimedBefore = (
+  state: EditorState,
+  rank: number,
+): ReadonlySet<number> => {
+  const claimed = new Set<number>();
+  for (const claim of state.facet(markColumnClaims)) {
+    if (claim.rank < rank) {
+      for (const line of claim.lines(state)) {
+        claimed.add(line);
+      }
+    }
+  }
+  return claimed;
+};
+
+export const claimsChanged = (
+  before: EditorState,
+  after: EditorState,
+  rank: number,
+): boolean => {
+  const a = linesClaimedBefore(before, rank);
+  const b = linesClaimedBefore(after, rank);
+  return a.size !== b.size || [...a].some((line) => !b.has(line));
+};
 
 export interface GutterButtonMark {
   icon: string;
@@ -62,10 +100,18 @@ const gutterButtonTheme = EditorView.baseTheme({
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
   },
-  ".cm-gutterElement:has(> .cm-gutter-button)": {
+  ".cm-gutter .cm-gutterElement:has(> .cm-gutter-button)": {
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-end",
+    alignSelf: "stretch",
+    containerType: "inline-size",
+  },
+  ".cm-gutter .cm-gutterElement > .cm-gutter-button": {
+    placeItems: "center end",
+  },
+  ".cm-gutterElement > .cm-gutter-button > .cm-gutter-button-glyph": {
+    marginInlineEnd: `calc((100cqw - ${GUTTER_GLYPH_SIZE}px) / 2)`,
   },
   "&:not(.cm-gutter-coarse) .cm-gutter-button::after": {
     content: '""',
