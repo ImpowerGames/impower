@@ -77,6 +77,52 @@ describe("`aliases` on a character (#2282)", () => {
     ]);
   });
 
+  test("an edit to another character revalidates the aliases and cues it affects, as a cold compile does", () => {
+    const text = RAFFLES(`{ "STRANGER" }`) + scene(`  STRANGER:\n    Hello.\n`);
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+    } as any);
+    const messages = () =>
+      (compiler.compile({ textDocument: { uri: URI } }).program.diagnostics?.[URI] ?? []).map(
+        (d) => `${d.range.start.line}:${d.range.start.character} ${typeof d.message === "string" ? d.message : d.message.value}`,
+      );
+    const cold = (source: string) => {
+      const fresh = new SparkdownCompiler();
+      fresh.configure({
+        files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }],
+      } as any);
+      return (fresh.compile({ textDocument: { uri: URI } }).program.diagnostics?.[URI] ?? []).map(
+        (d) => `${d.range.start.line}:${d.range.start.character} ${typeof d.message === "string" ? d.message : d.message.value}`,
+      );
+    };
+    let current = text;
+    const edit = (find: string, replace: string, version: number) => {
+      const offset = current.indexOf(find);
+      const at = (o: number) => {
+        const lines = current.slice(0, o).split("\n");
+        return { line: lines.length - 1, character: lines.at(-1)!.length };
+      };
+      compiler.updateDocument({
+        textDocument: { uri: URI, version },
+        contentChanges: [{ range: { start: at(offset), end: at(offset + find.length) }, text: replace }],
+      } as any);
+      current = current.slice(0, offset) + replace + current.slice(offset + find.length);
+    };
+
+    expect(messages()).toEqual([]);
+    edit(`name = "BUNNY"`, `name = "STRANGER"`, 2);
+    const clash = messages();
+    expect(clash).toEqual(["2:15 `STRANGER` names the character `bunny`, so it cannot be an alias of `raffles`"]);
+    expect(clash).toEqual(cold(current));
+    edit(`name = "STRANGER"`, `name = "BUNNY"\n  aliases = { "STRANGER" }`, 3);
+    const shared = messages();
+    expect(shared).toEqual(["11:2 `STRANGER` is an alias of `raffles` and `bunny`, so this line names none of them"]);
+    expect(shared).toEqual(cold(current));
+    edit(`\n  aliases = { "STRANGER" }\nend\n\nscene`, `\nend\n\nscene`, 4);
+    expect(messages()).toEqual([]);
+  });
+
   test("a cue that is an alias of two characters warns that the line names neither, and does not warn that it cannot find a character", () => {
     const { diagnostics } = diagnosticsOf(
       `define raffles as character with
