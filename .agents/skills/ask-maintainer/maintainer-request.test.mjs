@@ -186,6 +186,8 @@ try {
   refusedFor("picture markup typed into text", edit(decision(), (r) => (r.shortVersion = 'See <img src="./a.png">.')), /holds picture markup/);
   refusedFor("an HTML comment marker in text", edit(decision(), (r) => (r.meanwhile = "nothing -->")), /HTML comment marker/);
   refusedFor("a picture missing from the folder", edit(decision(), (r) => (r.options[0].pictures[0].file = "missing.png")), /missing\.png is not a file in the pictures folder/);
+  refusedFor("a picture name with a space", edit(decision(), (r) => (r.options[0].pictures[0].file = "phone screenshot.png")), /phone screenshot\.png must be named with letters, digits/);
+  refusedFor("a picture name with a Markdown-significant character", edit(decision(), (r) => (r.options[0].pictures[0].file = "a(1).png")), /must be named with letters, digits/);
   refusedFor("a picture outside the folder", edit(decision(), (r) => (r.options[0].pictures[0].file = "../a.png")), /a path inside the pictures folder/);
   refusedFor("a misspelled field", edit(decision(), (r) => (r.options[0].pro = "x")), /unknown field "pro"/);
   refusedFor("a missing ticket list", edit(decision(), (r) => delete r.tickets), /"tickets" must list/);
@@ -216,9 +218,9 @@ try {
     console.log("ok: the read-back check fails on a relative picture path and on an appended picture, as gh left them when the sample request was filed");
   }
 
-  function fakeTracker({ open = {}, failUpload = null, appendOnWrite = false, existing = {}, type = "Task", fail = {} } = {}) {
+  function fakeTracker({ open = {}, failUpload = null, appendOnWrite = false, existing = {}, type = "Task", fail = {}, competitor = null, rivalTag = false, existingComments = [] } = {}) {
     const issues = new Map(Object.entries(existing).map(([n, issue]) => [Number(n), { labels: [], assignees: [], state: "open", id: Number(n) * 10, ...issue, number: Number(n) }]));
-    const comments = new Map();
+    const comments = new Map(existingComments.map((comment) => [comment.id, structuredClone(comment)]));
     const blocked = new Map();
     const calls = [];
     const counts = {};
@@ -248,8 +250,15 @@ try {
       parent: () => null,
       create: ({ title, bodyFile, labels: names, assignee, attach }) => {
         calls.push(["create", title, names, assignee, attach]);
-        const number = next++;
-        issues.set(number, { number, id: number * 10, title, body: host(readFileSync(bodyFile, "utf8"), attach), type: type === null ? null : { name: type }, labels: names.map((name) => ({ name })), assignees: [{ login: assignee }], milestone: null, state: "open", html_url: `https://github.com/acme/tickets/issues/${number}` });
+        const add = (body) => {
+          const number = next++;
+          issues.set(number, { number, id: number * 10, title, body, type: type === null ? null : { name: type }, labels: names.map((name) => ({ name })), assignees: [{ login: assignee }], milestone: null, state: "open", html_url: `https://github.com/acme/tickets/issues/${number}` });
+          return number;
+        };
+        const body = host(readFileSync(bodyFile, "utf8"), attach);
+        if (competitor === "before") add(body);
+        const number = add(body);
+        if (competitor === "after") add(body);
         return failUpload ? { number, uploadError: `upload of ${failUpload} failed` } : { number };
       },
       editBody: (n, bodyFile) => {
@@ -278,11 +287,16 @@ try {
       },
       comment: ({ number, bodyFile, attach }) => {
         calls.push(["comment", number, attach]);
+        if (rivalTag) {
+          const rival = 7000 + comments.size;
+          comments.set(rival, { id: rival, issue: number, body: `rival\n\n${dataLine({ kind: "task", tagged: true, blocks: [], owner: "rival" })}\n` });
+        }
         const id = 7000 + comments.size;
-        comments.set(id, { id, body: host(readFileSync(bodyFile, "utf8"), attach) });
+        comments.set(id, { id, issue: number, body: host(readFileSync(bodyFile, "utf8"), attach) });
         return { id };
       },
       readComment: (id) => structuredClone(comments.get(id)),
+      comments: (n) => structuredClone([...comments.values()].filter((comment) => comment.issue === n)),
       editComment: (id, bodyFile) => {
         calls.push(["editComment", id]);
         comments.get(id).body = readFileSync(bodyFile, "utf8");
@@ -309,7 +323,7 @@ try {
       }
       return method(...args);
     }]));
-    return { repo: "acme/tickets", calls, issues, comments, blocked, ...wrapped };
+    return { repo: "acme/tickets", calls, issues, commentStore: comments, blocked, ...wrapped };
   }
 
   const decisionFile = path.join(scratch, "decision.json");
@@ -400,7 +414,7 @@ try {
     const tracker = fakeTracker({ fail: { addBlockedBy: 1 }, existing: { 2240: { title: "Draw the title art", body: "Body.", html_url: "https://github.com/acme/tickets/issues/2240" } } });
     assert.throws(() => tagTicket(2240, task(), { pictures, tracker, repos }), (error) => /Tagging acme\/tickets#2240 failed/.test(error.message) && /deleted the task comment 7000/.test(error.message) && /removed the label maintainer: task/.test(error.message) && /unassigned/.test(error.message));
     const ticket = tracker.issues.get(2240);
-    assert.equal(tracker.comments.size, 0);
+    assert.equal(tracker.commentStore.size, 0);
     assert.deepEqual(ticket.labels, []);
     assert.deepEqual(ticket.assignees, []);
     console.log("ok: a failed tag deletes its comment and removes the label and assignee it added");
@@ -413,7 +427,7 @@ try {
     assert.deepEqual(tracker.blocked.get(2271), [22400]);
     assert.deepEqual(tracker.blocked.get(2272), [22400]);
     assert.ok(!tracker.calls.some((call) => call[0] === "addAssignee"), "an already assigned maintainer is not assigned twice");
-    assert.deepEqual(readDataLine(tracker.comments.get(result.comment).body).blocks, [2271, 2272]);
+    assert.deepEqual(readDataLine(tracker.commentStore.get(result.comment).body).blocks, [2271, 2272]);
     assert.throws(() => tagTicket(2271, task(), { pictures, tracker, repos }), /no issue 2271/);
     const self = fakeTracker({ existing: { 2271: { title: "x", body: "y" } } });
     assert.throws(() => tagTicket(2271, task(), { pictures, tracker: self, repos }), /#2271 cannot hold itself up/);
@@ -442,6 +456,30 @@ try {
     gh.removeBlockedBy(5, 990);
     assert.deepEqual(runs.at(-1).args, ["api", "-X", "DELETE", "repos/acme/tickets/issues/5/dependencies/blocked_by/990"]);
     console.log("ok: the gh adapter creates the issue in one typed call with its label, assignee and attachments from the pictures folder, and reads a missing parent as none");
+  }
+
+  {
+    const tracker = fakeTracker({ competitor: "before" });
+    assert.throws(() => fileRequest(task(), { pictures, tracker, repos, now, timeZone }), (error) => /filed at the same time already asks this about the same ticket: #9000/.test(error.message) && /closed #9001 as not planned/.test(error.message) && /Use #9000 instead\./.test(error.message));
+    assert.equal(tracker.issues.get(9000).state, "open");
+    assert.equal(tracker.issues.get(9001).state, "closed");
+    assert.ok(!tracker.calls.some((call) => call[0] === "addBlockedBy"), "the withdrawn duplicate links nothing");
+    const kept = fakeTracker({ competitor: "after" });
+    const result = fileRequest(task(), { pictures, tracker: kept, repos, now, timeZone });
+    assert.equal(result.number, 9000, "the earliest of two overlapping filings stands");
+    assert.deepEqual(kept.blocked.get(2271), [90000]);
+    console.log("ok: of two overlapping filings of one request, the earliest stands and the later withdraws itself before linking, naming the earlier");
+  }
+
+  {
+    const existing = { 2240: { title: "Draw the title art", body: "Body.", html_url: "https://github.com/acme/tickets/issues/2240" } };
+    const tracker = fakeTracker({ rivalTag: true, existing });
+    assert.throws(() => tagTicket(2240, task(), { pictures, tracker, repos }), (error) => /tagged at the same time by comment 7000/.test(error.message) && /deleted the task comment 7001/.test(error.message));
+    assert.deepEqual([...tracker.commentStore.keys()], [7000]);
+    assert.ok(!tracker.calls.some((call) => call[0] === "addLabel"));
+    const old = fakeTracker({ existing, existingComments: [{ id: 6000, issue: 2240, body: `old\n\n${dataLine({ kind: "task", tagged: true, blocks: [], owner: "o" })}\n` }] });
+    assert.equal(tagTicket(2240, edit(task(), (r) => delete r.tickets), { pictures, tracker: old, repos }).number, 2240, "a tag comment left from before this run does not block a new tag");
+    console.log("ok: of two overlapping tags of one ticket, the earlier comment stands and the later tag deletes its own comment before labelling");
   }
 
   {
@@ -480,8 +518,8 @@ try {
     const ticket = tracker.issues.get(2240);
     assert.ok(ticket.labels.some((l) => l.name === labels.task));
     assert.ok(ticket.assignees.some((a) => a.login === repos.maintainer.login));
-    assert.equal(tracker.comments.size, 1);
-    const comment = tracker.comments.get(result.comment).body;
+    assert.equal(tracker.commentStore.size, 1);
+    const comment = tracker.commentStore.get(result.comment).body;
     assert.match(comment, /## What to do\n\nTest the route strip on your phone\./);
     assert.match(comment, /- \*\*Parked until it's done:\*\* Nothing beyond this ticket\./);
     assert.match(comment, /<img src="https:\/\/github\.com\/user-attachments\/assets\/[0-9a-f]+" width="300"/);

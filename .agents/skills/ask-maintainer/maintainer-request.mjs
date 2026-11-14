@@ -110,6 +110,9 @@ function checkPicture(picture, where, refuse, lookup) {
   if (!oneLine(picture.file) || path.isAbsolute(picture.file) || picture.file.split(/[\\/]/).includes("..") || /^[a-z]+:/i.test(picture.file)) {
     refuse(`${where} needs "file", a path inside the pictures folder`);
     ok = false;
+  } else if (!/^[A-Za-z0-9._\/\\-]+$/.test(picture.file)) {
+    refuse(`${where} file ${picture.file} must be named with letters, digits, ".", "_", "-" and "/" only, so its upload can be matched to its place; rename it`);
+    ok = false;
   } else if (!PICTURE_TYPES.includes(path.extname(picture.file).toLowerCase())) {
     refuse(`${where} file ${picture.file} is not a picture (${PICTURE_TYPES.join(", ")})`);
     ok = false;
@@ -487,15 +490,17 @@ export function questionOf(title) {
   return (title ?? "").replace(/\s*\((?:#\d+(?:,\s*)?)+\)\s*$/, "").trim();
 }
 
-export function findDuplicate(checked, openIssues) {
+export function findDuplicate(checked, openIssues, { before = Infinity } = {}) {
   const question = checked.kind === "decision" ? checked.question : checked.action;
+  let earliest = null;
   for (const issue of openIssues) {
+    if (issue.number >= before) continue;
     const data = readDataLine(issue.body);
     if (!data || data.kind !== checked.kind || data.tagged) continue;
     if (!(data.blocks ?? []).some((n) => checked.tickets.includes(n))) continue;
-    if (sameQuestion(questionOf(issue.title), question)) return issue;
+    if (sameQuestion(questionOf(issue.title), question) && (!earliest || issue.number < earliest.number)) earliest = issue;
   }
-  return null;
+  return earliest;
 }
 
 export function ghTracker(repo = ticketsRepo(), run = (args, options = {}) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 50 * 1024 * 1024, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], ...options })) {
@@ -548,6 +553,7 @@ export function ghTracker(repo = ticketsRepo(), run = (args, options = {}) => ex
       return { id: Number(id), uploadError };
     },
     readComment: (id) => json(["api", `repos/${repo}/issues/comments/${id}`]),
+    comments: (n) => json(["api", `repos/${repo}/issues/${n}/comments`, "--paginate", "--slurp"]).flat(),
     editComment: (id, bodyFile) => json(["api", "-X", "PATCH", `repos/${repo}/issues/comments/${id}`, "-F", `body=@${bodyFile}`]),
     close: (n, reason, bodyFile) => {
       json(["api", "-X", "POST", `repos/${repo}/issues/${n}/comments`, "-F", `body=@${bodyFile}`]);
@@ -660,11 +666,11 @@ function unlinkSteps(tracker, attempted, blocker) {
   return attempted.map((ticket) => [`removed the dependency of #${ticket} on #${blocker.number}`, () => tracker.removeBlockedBy(ticket, blocker.id)]);
 }
 
-function withdraw(tracker, { number, id, attempted }, problems, scratch) {
+function withdraw(tracker, { number, id, attempted }, problems, scratch, hint = "Correct the cause and file the request again.") {
   const file = path.join(scratch, "withdraw.md");
   writeFileSync(file, `Withdrawn by the ask-maintainer tool: filing did not finish, so this request is incomplete and nothing waits on it.\n\n${bullets(problems)}\n`);
   const result = undo([...unlinkSteps(tracker, attempted, { number, id }), [`closed #${number} as not planned`, () => tracker.close(number, "not_planned", file)]]);
-  return new Error(`Filing ${tracker.repo}#${number} failed:\n${bullets(problems)}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\nCorrect the cause and file the request again.`);
+  return new Error(`Filing ${tracker.repo}#${number} failed:\n${bullets(problems)}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\n${hint}`);
 }
 
 export function fileRequest(request, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone, templates, dryRun = false }) {
@@ -693,11 +699,17 @@ export function fileRequest(request, { pictures: folder, tracker, repos = readRe
       const verified = verifyFiled(tracker, filed.number, { label, login: repos.maintainer.login });
       if (verified.problems.length) throw new FilingProblems(verified.problems);
       filed.id = verified.issue.id;
+      const earlier = findDuplicate(checked, tracker.open(label), { before: filed.number });
+      if (earlier) {
+        const duplicate = new FilingProblems([`An open request filed at the same time already asks this about the same ticket: #${earlier.number} ${earlier.title} (${earlier.html_url}); the earliest request stands and this one is withdrawn as its duplicate`]);
+        duplicate.hint = `Use #${earlier.number} instead.`;
+        throw duplicate;
+      }
       linkTickets(tracker, checked.tickets, { number: filed.number, id: filed.id }, filed.attempted);
       return { number: filed.number, url: verified.issue.html_url, title: built.title, data: built.data, blocked: checked.tickets, pictures: placed.urls.length };
     } catch (error) {
       if (filed.number === null) throw error;
-      throw withdraw(tracker, filed, problemsOf(error), scratch);
+      throw withdraw(tracker, filed, problemsOf(error), scratch, error.hint);
     }
   });
 }
@@ -713,6 +725,7 @@ export function tagTicket(number, request, { pictures: folder, tracker, repos = 
   if ((ticket.labels ?? []).some((l) => l.name === label)) throw new RequestRefused([`#${number} is already tagged ${label}`]);
   if (checked.tickets.includes(number)) throw new RequestRefused([`#${number} cannot hold itself up; remove it from "tickets"`]);
   const wasAssigned = (ticket.assignees ?? []).some((a) => a.login === login);
+  const existingComments = new Set(tracker.comments(number).map((comment) => comment.id));
   return withScratch((scratch) => {
     const done = { comment: null, labelled: false, assigned: false, attempted: [] };
     try {
@@ -729,6 +742,8 @@ export function tagTicket(number, request, { pictures: folder, tracker, repos = 
         write: (target, file) => tracker.editComment(target.id, file),
       });
       if (placed.problems.length) throw new FilingProblems(placed.problems);
+      const earlier = tracker.comments(number).find((comment) => comment.id < done.comment && !existingComments.has(comment.id) && readDataLine(comment.body)?.tagged);
+      if (earlier) throw new FilingProblems([`#${number} was tagged at the same time by comment ${earlier.id}; that tag stands and this one is withdrawn`]);
       done.labelled = true;
       tracker.addLabel(number, label);
       if (!wasAssigned) {
