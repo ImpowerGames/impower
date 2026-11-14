@@ -1,8 +1,52 @@
 import type { Layout } from "@impower/impower-ui/layout";
 import { signal } from "@preact/signals";
+import { compile, optimize } from "@tailwindcss/node";
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const IMPOWER_UI_SRC = resolve("../packages/impower-ui/src");
+
+const flattenRules = (rules: CSSRuleList, out: CSSStyleRule[] = []) => {
+  for (const rule of Array.from(rules)) {
+    if (rule instanceof CSSStyleRule) {
+      out.push(rule);
+    } else if ("cssRules" in rule) {
+      flattenRules((rule as CSSGroupingRule).cssRules, out);
+    }
+  }
+  return out;
+};
+
+const compiledRules = async (elements: Element[]) => {
+  const compiler = await compile(
+    readFileSync(join(IMPOWER_UI_SRC, "style.css"), "utf8"),
+    { base: IMPOWER_UI_SRC, onDependency: () => {} },
+  );
+  const classes = elements.flatMap((element) =>
+    Array.from(element.classList),
+  );
+  const style = document.createElement("style");
+  style.textContent = optimize(compiler.build(classes), { minify: false }).code;
+  document.head.append(style);
+  const rules = flattenRules(style.sheet!.cssRules);
+  style.remove();
+  return rules;
+};
+
+const applied = (rules: CSSStyleRule[], element: Element, property: string) =>
+  rules
+    .filter((rule) => {
+      try {
+        return element.matches(rule.selectorText);
+      } catch {
+        return false;
+      }
+    })
+    .map((rule) => rule.style.getPropertyValue(property))
+    .filter(Boolean);
 
 const calls = vi.hoisted(() => ({
   renames: [] as [string, string][],
@@ -179,21 +223,24 @@ describe("ScriptHeader name field", () => {
         component as typeof ScriptHeader,
       );
       const folder = host!.querySelector<HTMLElement>("[data-script-folder]")!;
-      expect(field().classList.contains("not-focus:fade-edge")).toBe(true);
-      expect(field().classList.contains("fade-edge")).toBe(false);
-      expect(folder.classList.contains("fade-edge")).toBe(true);
-      for (const line of [field(), folder]) {
-        expect(line.classList.contains("truncate")).toBe(false);
-        expect(line.className).not.toMatch(/\btext-ellipsis\b/);
-      }
+      const rules = await compiledRules([field(), folder]);
+      expect(applied(rules, folder, "mask-image")).not.toEqual([]);
+      expect(applied(rules, folder, "text-overflow")).not.toContain("ellipsis");
+      expect(applied(rules, field(), "mask-image")).not.toEqual([]);
+      expect(applied(rules, field(), "text-overflow")).not.toContain("ellipsis");
+      await act(async () => field().focus());
+      expect(document.activeElement).toBe(field());
+      expect(applied(rules, field(), "mask-image")).toEqual([]);
+      expect(applied(rules, field(), "text-overflow")).not.toContain("ellipsis");
     },
   );
 
   it("fades Main's name without an ellipsis", async () => {
     await mount({ filename: "main.sd" });
     const name = host!.querySelector<HTMLElement>("[data-script-name]")!;
-    expect(name.classList.contains("fade-edge")).toBe(true);
-    expect(name.classList.contains("truncate")).toBe(false);
+    const rules = await compiledRules([name]);
+    expect(applied(rules, name, "mask-image")).not.toEqual([]);
+    expect(applied(rules, name, "text-overflow")).not.toContain("ellipsis");
   });
 
   it("on a phone, swaps Browse scripts for Done while the name is focused", async () => {
