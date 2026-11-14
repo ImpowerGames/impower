@@ -10,7 +10,7 @@ import {
   readableSymbolLabel,
   type SequenceKind,
 } from "./ProgramSymbols";
-import { DONE_HOLD, Op, flagsOf, opOf } from "./ProgramInstructions";
+import { CALL_TUNNEL, DONE_HOLD, Op, flagsOf, opOf } from "./ProgramInstructions";
 import {
   ANCHOR_STATEMENT,
   BLOCK_FUNCTION,
@@ -863,7 +863,11 @@ export class ProgramRoot {
     sequence: SequenceRow,
     entry: number,
     offset: number,
+    depth = 0,
   ): number | null | undefined {
+    if (depth > 16) {
+      return null;
+    }
     const chunks = sequence.arrays.chunks;
     for (let e = entry; e < chunks.length; e += 1, offset = 0) {
       const chunk = chunks[e]!;
@@ -877,12 +881,24 @@ export class ProgramRoot {
         if (op === Op.Done && flagsOf(word) & DONE_HOLD) {
           return addressOf(chunkId(chunk), this.menuOffsetIn(chunk, offset));
         }
-        if (op === Op.Done || op === Op.End || op === Op.JumpSym || op === Op.JumpVar) {
+        const arg = chunk[HEADER_WORDS + offset + 1]!;
+        if (op === Op.JumpSym) {
+          const target = this.flow(arg);
+          return target ? (this.shownBeatIn(target, 0, 0, depth + 1) ?? null) : null;
+        }
+        if (op === Op.Done || op === Op.End || op === Op.JumpVar) {
           return null;
         }
+        if (op === Op.Call && flagsOf(word) & CALL_TUNNEL) {
+          const target = this.flow(arg);
+          const inTunnel = target ? this.shownBeatIn(target, 0, 0, depth + 1) : undefined;
+          if (inTunnel !== undefined) {
+            return inTunnel;
+          }
+        }
         if (op === Op.EnterBlock) {
-          const body = this.body(chunk, chunk[HEADER_WORDS + offset + 1]!);
-          const inBody = body ? this.shownBeatIn(body, 0, 0) : undefined;
+          const body = this.body(chunk, arg);
+          const inBody = body ? this.shownBeatIn(body, 0, 0, depth + 1) : undefined;
           if (inBody !== undefined) {
             return inBody;
           }

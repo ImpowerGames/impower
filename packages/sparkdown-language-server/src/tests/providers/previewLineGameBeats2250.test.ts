@@ -21,8 +21,8 @@ const KINDS: Record<string, string> = {
   transitional: "transition",
 };
 
-const scriptOf = (lines: string[]) =>
-  ["scene start", ...lines.map((line) => `  ${line}`), "end", ""].join("\n");
+const scriptOf = (lines: string[], tail: string[] = []) =>
+  ["scene start", ...lines.map((line) => `  ${line}`), "end", ...tail, ""].join("\n");
 
 const shownWords = (text: string) =>
   stripStyleCodes(text)
@@ -94,6 +94,7 @@ interface Row {
   lines: string[];
   caret: number;
   shows: Shown;
+  tail?: string[];
 }
 
 const ROWS: Row[] = [
@@ -289,11 +290,38 @@ const ROWS: Row[] = [
     caret: 3,
     shows: { kind: "action", words: "Intro." },
   },
+  {
+    shape: "a divert between the caret and the next beat",
+    lines: ["Before.", "-> elsewhere"],
+    tail: ["scene elsewhere", "  Arrived.", "end"],
+    caret: 2,
+    shows: { kind: "action", words: "Arrived." },
+  },
+  {
+    shape: "a function call between the caret and the next beat",
+    lines: ["Before.", "x = twice(2)", "After."],
+    tail: ["function twice(n)", "  return n * 2", "end"],
+    caret: 2,
+    shows: { kind: "action", words: "After." },
+  },
+  {
+    shape: "a loop between the caret and the next beat",
+    lines: ["Before.", "for i = 1, 2 do", "  Looping.", "end", "After."],
+    caret: 2,
+    shows: { kind: "action", words: "Looping." },
+  },
+  {
+    shape: "a tunnel between the caret and the next beat",
+    lines: ["Before.", "-> aside ->", "After."],
+    tail: ["scene aside", "  Aside.", "  ->->", "end"],
+    caret: 2,
+    shows: { kind: "action", words: "Aside." },
+  },
 ];
 
 describe("the strip shows the beat the game previews for the caret's line", () => {
-  test.each(ROWS)("$shape", ({ lines, caret, shows }) => {
-    const { game, strip } = previewAt(scriptOf(lines), caret);
+  test.each(ROWS)("$shape", ({ lines, caret, shows, tail }) => {
+    const { game, strip } = previewAt(scriptOf(lines, tail), caret);
     expect(strip, "the strip names the beat the game shows").toEqual(game);
     expect(game, "what the game shows").toEqual(shows);
   });
