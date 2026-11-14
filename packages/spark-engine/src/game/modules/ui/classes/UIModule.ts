@@ -1592,7 +1592,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const layout = this._game.program?.sparkle?.layouts?.[layoutName];
     const components = this._game.program?.sparkle?.components ?? {};
     const classes = new Set<string>(["layouts", "main", layoutName]);
-    const propValues: string[] = [];
+    const propValues: [string, string][] = [];
     const expanded = new Set<string>();
     const visit = (nodes: unknown[] | undefined) => {
       for (const node of nodes ?? []) {
@@ -1616,10 +1616,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             classes.add(cls);
           }
         }
-        for (const prop of Object.values(n["props"] ?? {})) {
+        for (const [key, prop] of Object.entries(n["props"] ?? {})) {
           const value = (prop as Record<string, unknown>)?.["value"];
           if (typeof value === "string") {
-            propValues.push(value);
+            propValues.push([key, value]);
           }
         }
         visit(n["children"]);
@@ -1643,7 +1643,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     const referenced = new Set<string>();
-    const scan = (value: unknown, depth: number) => {
+    const scan = (value: unknown, depth: number, key: string) => {
       if (depth > 8 || value == null) {
         return;
       }
@@ -1659,7 +1659,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
           return;
         }
-        if (value.includes(",")) {
+        if (value.includes(",") && key.includes("font")) {
           for (const match of value.matchAll(/\s*(?:"([^"]*)"|'([^']*)'|([^,]*))\s*(?:,|$)/g)) {
             const family = (match[1] ?? match[2] ?? match[3] ?? "").trim();
             if (fonts[family] && !family.startsWith("$")) {
@@ -1685,19 +1685,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         referenced.add(v["$name"]);
         return;
       }
-      for (const inner of Object.values(v)) {
-        scan(inner, depth + 1);
+      for (const [innerKey, inner] of Object.entries(v)) {
+        scan(inner, depth + 1, innerKey);
       }
     };
     const styles = this.context?.style ?? {};
     for (const cls of classes) {
       const style = (styles as Record<string, unknown>)[cls];
       if (style) {
-        scan(style, 0);
+        scan(style, 0, "");
       }
     }
-    for (const value of propValues) {
-      scan(value, 0);
+    for (const [key, value] of propValues) {
+      scan(value, 0, key);
     }
     for (const fontName of [...referenced]) {
       for (const sibling of byFamily.get(fonts[fontName]?.font_family ?? "") ?? []) {

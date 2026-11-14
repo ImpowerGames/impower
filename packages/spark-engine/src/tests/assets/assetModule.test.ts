@@ -403,6 +403,10 @@ style badge {
   font_family = "serif, Fancy"
 }
 
+style menu {
+  animation_name = "Fancy, none"
+}
+
 layout hud {
   text "Score"
 }
@@ -413,6 +417,14 @@ layout deck {
 
 layout badge {
   text "Rank"
+}
+
+layout menu {
+  text "Menu"
+}
+
+layout banner {
+  text "Banner" #font_family="Fancy, serif"
 }
 
 scene A
@@ -428,6 +440,8 @@ end
     expect(h.game.module.ui.getFontNamesForLayout("hud")).toEqual(["Fancy"]);
     expect(h.game.module.ui.getFontNamesForLayout("deck")).toEqual(["Fancy"]);
     expect(h.game.module.ui.getFontNamesForLayout("badge")).toEqual(["Fancy"]);
+    expect(h.game.module.ui.getFontNamesForLayout("banner")).toEqual(["Fancy"]);
+    expect(h.game.module.ui.getFontNamesForLayout("menu")).toEqual([]);
   });
 
   it("loads a font by its declared family inside a font list, including a quoted family holding a comma (#2235)", async () => {
