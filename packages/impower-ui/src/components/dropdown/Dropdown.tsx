@@ -205,7 +205,7 @@ export const dropdownContentVariants = cva(
     variants: {
       fit: {
         free: "",
-        room: "max-h-[var(--radix-dropdown-menu-content-available-height)]",
+        room: "min-h-14 max-h-[var(--radix-dropdown-menu-content-available-height)]",
       },
     },
     defaultVariants: { fit: "free" },

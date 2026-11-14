@@ -171,13 +171,15 @@ describe("WheelSheet", () => {
     expect(chosen).toEqual(["happy"]);
   });
 
-  it("stops below the bottom of its keepClear element in a short region, and no shorter than its floor", async () => {
+  it("stops below the bottom of its keepClear element in a short region, and no shorter than its own header and one row", async () => {
     const { frame, container } = panelHost();
     const picture = frame.appendChild(document.createElement("div"));
     const bottoms = new Map<Element, number>([[frame, 430]]);
+    const CHROME = 57;
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
       const bottom = bottoms.get(this) ?? 0;
-      return { top: 0, left: 0, right: 0, bottom, x: 0, y: 0, width: 0, height: bottom, toJSON: () => ({}) } as DOMRect;
+      const height = this.hasAttribute("data-wheel-sheet") ? CHROME + 220 : this.hasAttribute("data-wheel-room") ? 220 : bottom;
+      return { top: 0, left: 0, right: 0, bottom, x: 0, y: 0, width: 0, height, toJSON: () => ({}) } as DOMRect;
     });
     const sheet = (keepClear?: { current: HTMLElement | null }) => (
       <WheelSheet container={container} keepClear={keepClear} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={() => {}} />
@@ -192,9 +194,12 @@ describe("WheelSheet", () => {
     bottoms.set(picture, 249);
     await mount(sheet({ current: picture }));
     expect(room()).toEqual({ room: `${430 - 249 - 6}px`, capped: true });
+    bottoms.set(picture, 300);
+    await act(async () => render(sheet({ current: picture }), host!));
+    expect(room()).toEqual({ room: `${430 - 300 - 6}px`, capped: true });
     bottoms.set(picture, 380);
     await act(async () => render(sheet({ current: picture }), host!));
-    expect(room()).toEqual({ room: "160px", capped: true });
+    expect(room()).toEqual({ room: `${CHROME + WHEEL_ROW}px`, capped: true });
     await act(async () => render(sheet(), host!));
     expect(room()).toEqual({ room: "", capped: false });
     vi.restoreAllMocks();

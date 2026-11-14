@@ -547,7 +547,9 @@ describe("DropdownContent keepClear", () => {
     expect(placed.side).toBe("bottom");
     expect(placed.top).toBeGreaterThanOrEqual(PICTURE.bottom);
     expect(placed.room).toBe(`${560 - 12 - TRIGGER.bottom - 8}px`);
-    expect(menu()!.className.split(" ")).toContain("max-h-[var(--radix-dropdown-menu-content-available-height)]");
+    expect(menu()!.className.split(" ")).toEqual(
+      expect.arrayContaining(["min-h-14", "max-h-[var(--radix-dropdown-menu-content-available-height)]"]),
+    );
   });
 
   it("opens above its trigger, still under the kept-clear element, when the room there is larger", async () => {

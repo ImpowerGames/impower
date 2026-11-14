@@ -1,5 +1,6 @@
 import { useRef, useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
+import { KEEP_CLEAR_RULE } from "../../utils/keepClear";
 import Button from "../button/Button";
 import { WheelPicker, WheelSheet, type WheelOption, type WheelPickerSize } from "./WheelPicker";
 
@@ -51,7 +52,7 @@ function WheelPickerDemo() {
           onCancel={() => setOpen(false)}
         />
       </GalleryRow>
-      <GalleryRow label={`keepClear: the sheet stops below the bottom of the kept-clear element (at least 160px tall) and the wheel spins within what shows; chosen: ${label(value)}`}>
+      <GalleryRow label={`${KEEP_CLEAR_RULE} The wheel stays centred in what shows; chosen: ${label(value)}`}>
         <div ref={clearFrame} class="relative grid h-[360px] w-72 content-start gap-3 rounded-card border border-edge bg-bg p-4">
           <div ref={picture} class="grid h-40 place-items-center rounded-card bg-stage text-xs text-muted">
             Kept clear

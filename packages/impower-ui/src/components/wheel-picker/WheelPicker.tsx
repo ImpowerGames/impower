@@ -200,8 +200,6 @@ export type WheelSheetSize = NonNullable<VariantProps<typeof wheelSheetVariants>
 
 export type WheelSheetFit = NonNullable<VariantProps<typeof wheelSheetVariants>["fit"]>;
 
-export const WHEEL_SHEET_FLOOR = 160;
-
 export type WheelSheetProps = Omit<VariantProps<typeof wheelSheetVariants>, "fit"> & {
   container: RefObject<HTMLElement>;
   keepClear?: KeepClear;
@@ -268,7 +266,12 @@ export function WheelSheet({
   const room = useClearLine(
     keepClear,
     open,
-    (line) => Math.max(WHEEL_SHEET_FLOOR, (container.current?.getBoundingClientRect().bottom ?? line) - line),
+    (line) => {
+      const sheet = panel.current;
+      const wheelRoom = sheet?.querySelector("[data-wheel-room]");
+      const chrome = sheet && wheelRoom ? sheet.getBoundingClientRect().height - wheelRoom.getBoundingClientRect().height : 0;
+      return Math.max(chrome + WHEEL_ROW, (container.current?.getBoundingClientRect().bottom ?? line) - line);
+    },
     container,
   );
 

@@ -5,6 +5,9 @@ export type KeepClear = RefObject<HTMLElement | null>;
 
 export const KEEP_CLEAR_GAP = 6;
 
+export const KEEP_CLEAR_RULE =
+  "keepClear: the part stays below the bottom of the kept-clear element, 6px clear, and follows it while open. It shrinks to fit the room left, down to a minimum that still shows its header, if it has one, and one whole row; with less room than that it keeps that minimum and rises over the element rather than vanishing.";
+
 export const clearLine = (keepClear: KeepClear | undefined): number | undefined => {
   const element = keepClear?.current;
   return element ? element.getBoundingClientRect().bottom + KEEP_CLEAR_GAP : undefined;
