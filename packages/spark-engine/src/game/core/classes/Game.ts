@@ -189,6 +189,7 @@ import {
 import { GameExitedThreadMessage } from "./messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "./messages/GameFinishedMessage";
 import { GameHitBreakpointMessage } from "./messages/GameHitBreakpointMessage";
+import { GamePlayedBeatMessage } from "./messages/GamePlayedBeatMessage";
 import { GamePreviewedMessage } from "./messages/GamePreviewedMessage";
 import { GameRolledMessage } from "./messages/GameRolledMessage";
 import { GameSavedSceneEntryMessage } from "./messages/GameSavedSceneEntryMessage";
@@ -281,6 +282,11 @@ const drawsSettled = (beat: Instructions): boolean =>
     ([target, events]) => target === "typewriter" || events.length === 0,
   );
 
+interface BeatPlay<G extends Game> {
+  id: number;
+  coordinator: Coordinator<G>;
+}
+
 interface Stage {
   text: string[];
   image: string[];
@@ -369,6 +375,7 @@ export class Game<T extends M = {}> {
     promise: Promise<ProgramAddress | null>;
     abandon: () => void;
     cancel: () => void;
+    playId?: number;
   } | null = null;
 
   protected _shownChoices: string[] = [];
@@ -5150,19 +5157,27 @@ export class Game<T extends M = {}> {
     line: number,
     runFrom?: ProgramAddress,
     address?: ProgramAddress,
+    options?: { playId?: number },
   ): Promise<ProgramAddress | null> {
     if (this._state === "running") {
       return null;
     }
+    const playId = options?.playId;
+    const play = playId != null;
     const previewAddress =
       address ?? this.locator.addressAt(file, line, { beat: "last" });
     if (previewAddress == null) {
+      this._previewShowsBeat = false;
       this.cancelPreview();
       this.module.assets.releaseAbandonedGates();
       this.module.ui.reveal();
       return null;
     }
-    if (this._previewedAddress === previewAddress) {
+    if (this._previewedAddress === previewAddress && !play) {
+      this.settleBeatPlay();
+      if (this._pendingPreview) {
+        this._pendingPreview.playId = undefined;
+      }
       return this._pendingPreview?.promise ?? previewAddress;
     }
     this.cancelPreview();
@@ -5188,6 +5203,7 @@ export class Game<T extends M = {}> {
       this._coordinator = null;
     }
     const executed = this.executedParams();
+    this._previewShowsBeat = held?.instructions != null;
     const gate = this.module.assets.gatePreviewBeat(
       held?.instructions ?? null,
     );
@@ -5197,7 +5213,7 @@ export class Game<T extends M = {}> {
       return previewAddress;
     }
     if (!gate) {
-      this.displayHeld(held.instructions);
+      this.displayHeld(held.instructions, playId);
       this.finishPreview(previewAddress, executed);
       return previewAddress;
     }
@@ -5219,6 +5235,7 @@ export class Game<T extends M = {}> {
       promise: waiting,
       abandon: gate.abandon,
       cancel,
+      playId,
     };
     return waiting;
   }
@@ -5241,6 +5258,7 @@ export class Game<T extends M = {}> {
       this._state = "previewing";
     }
     this.markPreviewing();
+    this._previewShowsBeat = false;
     await this.connect(send);
     if (superseded()) {
       return false;
@@ -5265,7 +5283,11 @@ export class Game<T extends M = {}> {
       if (generation !== this._previewGeneration || this._destroyed) {
         return null;
       }
-      this.displayHeld(instructions);
+      const pending = this._pendingPreview;
+      this.displayHeld(
+        instructions,
+        pending?.generation === generation ? pending.playId : undefined,
+      );
     } finally {
       this.forgetPendingPreview(generation);
       this.module.ui.afterCompose(() => gate.release());
@@ -5301,13 +5323,18 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.onPreview();
     }
-    this._coordinator = null;
+    this._coordinator = this._beatPlay?.coordinator ?? null;
     this.notifyPreviewed(previewAddress);
+    if (this._beatPlay && this._clock) {
+      this._clock.add(this._tickBeatPlay);
+      this._clock.start();
+    }
   }
 
   protected cancelPreview(): void {
     this._previewGeneration += 1;
     this._previewedAddress = undefined;
+    this.stopBeatPlay();
     const pending = this._pendingPreview;
     if (pending) {
       this._pendingPreview = null;
@@ -5316,10 +5343,63 @@ export class Game<T extends M = {}> {
     }
   }
 
-  protected displayHeld(instructions: Instructions | null) {
+  protected _beatPlay: BeatPlay<typeof this> | null = null;
+
+  protected readonly _tickBeatPlay = (time: Clock) => this.update(time);
+
+  protected _previewShowsBeat = false;
+
+  get previewShowsBeat(): boolean {
+    return this._previewShowsBeat;
+  }
+
+  get playingBeat(): boolean {
+    return this._beatPlay != null;
+  }
+
+  protected beatPlayed(): void {
+    this._checkpoints.truncate(this._checkpoints.length - 1);
+    this.checkpoint();
+    this.stopBeatPlay();
+  }
+
+  protected settleBeatPlay(): void {
+    this._beatPlay?.coordinator.settle();
+  }
+
+  stopBeatPlay(): void {
+    const play = this._beatPlay;
+    if (!play) {
+      return;
+    }
+    this._beatPlay = null;
+    this.module.ui.setBeatPlaying(false);
+    if (this._coordinator === play.coordinator) {
+      this._coordinator = null;
+    }
+    if (this._clock && this._state !== "running") {
+      this._clock.remove(this._tickBeatPlay);
+      this._clock.stop();
+    }
+    this.connection.emit(
+      GamePlayedBeatMessage.type.notification({ playId: play.id }),
+    );
+  }
+
+  protected displayHeld(
+    instructions: Instructions | null,
+    playId?: number,
+  ) {
     this._coordinator = null;
     if (instructions) {
-      this._coordinator = new Coordinator(this, instructions);
+      this._coordinator = new Coordinator(
+        this,
+        instructions,
+        playId != null ? { played: () => this.beatPlayed() } : undefined,
+      );
+      if (playId != null) {
+        this._beatPlay = { id: playId, coordinator: this._coordinator };
+      }
       this.noteShownChoices(instructions);
       if (
         !this._coordinator.shouldContinue() &&

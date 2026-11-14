@@ -19,6 +19,8 @@ export interface PlayResult {
   refusal?: string;
 }
 
+export const NO_BEAT_REFUSAL = "This line shows no beat to play.";
+
 export const OUTSIDE_EVERY_SCENE_REFUSAL =
   "This line is outside every scene. Put the cursor in a scene to play from there.";
 

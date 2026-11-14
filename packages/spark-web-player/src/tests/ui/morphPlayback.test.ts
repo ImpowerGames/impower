@@ -1761,3 +1761,91 @@ describe("layer motion on the morph's clock", () => {
     }
   });
 });
+
+describe("a beat played in the stopped preview moves the speaker's mouth (#2256)", () => {
+  const SPEECH_TIMING = `  timing {
+    trigger = speech
+    duration = 0.1
+    easing = linear
+  }
+`;
+  const source = `define hero as character with
+  name = "HERO"
+end
+
+${talkScript(SPEECH_TIMING)}
+
+scene start
+  HERO:
+    [[show portrait hero]]
+    A long line for the mouth to say, letter by letter, while the beat plays.
+end
+`;
+  const files = [{ uri: "inmemory:///hero.svg", type: "image", name: "hero", ext: "svg", data: talkingPortrait({ dx: 0, dy: 0 }) }];
+  const tick = (deltaMS: number) => ({ deltaMS }) as Clock;
+
+  test("with idle animations off, the mouth rests in the still, moves while the beat plays and rests again after", async () => {
+    const h = createDOMHarness(source, 0, { files });
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+    await h.ready;
+    playback.setEnabled(false);
+    const line = lineOf(source, "A long line");
+    await h.preview(line);
+    await flushMicrotasks(10);
+    await until(() => playback.stats.live === 1, "the portrait's artifact");
+    const rest = leafStates(shadowOf(portraitSpan(h.overlay))!);
+    playback.advance(1);
+    expect(leafStates(shadowOf(portraitSpan(h.overlay))!)).toEqual(rest);
+
+    playback.setPlaying(true);
+    await h.game.preview("inmemory:///main.sd", line, undefined, undefined, { playId: 1 });
+    await flushMicrotasks(10);
+    await until(() => playback.stats.live === 1, "the played portrait's artifact");
+    const seen = new Set<string>();
+    for (let step = 0; step < 120 && h.game.playingBeat; step += 1) {
+      playback.advance(0.025);
+      h.game.update(tick(25));
+      await flushMicrotasks(5);
+      seen.add(JSON.stringify(leafStates(shadowOf(portraitSpan(h.overlay))!)));
+    }
+    expect(seen.size).toBeGreaterThan(2);
+    expect([...seen].some((states) => states !== JSON.stringify(rest))).toBe(true);
+    expect(h.game.playingBeat).toBe(false);
+
+    playback.setPlaying(false);
+    expect(playback.animating).toBe(false);
+    expect(leafStates(shadowOf(portraitSpan(h.overlay))!)).toEqual(rest);
+  });
+
+  test("with idle animations on, a click mid-flap rests the mouth at once", async () => {
+    const h = createDOMHarness(source, 0, { files });
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+    await h.ready;
+    const line = lineOf(source, "A long line");
+    await h.preview(line);
+    await flushMicrotasks(10);
+    await until(() => playback.stats.live === 1, "the portrait's artifact");
+    const rest = leafStates(shadowOf(portraitSpan(h.overlay))!);
+
+    playback.setPlaying(true);
+    await h.game.preview("inmemory:///main.sd", line, undefined, undefined, { playId: 2 });
+    await flushMicrotasks(10);
+    await until(() => playback.stats.live === 1, "the played portrait's artifact");
+    let moving = false;
+    for (let step = 0; step < 120 && !moving; step += 1) {
+      playback.advance(0.025);
+      h.game.update(tick(25));
+      await flushMicrotasks(5);
+      moving = JSON.stringify(leafStates(shadowOf(portraitSpan(h.overlay))!)) !== JSON.stringify(rest);
+    }
+    expect(moving).toBe(true);
+    await h.game.onReceive({ jsonrpc: "2.0", method: "event", params: { type: "pointerdown", button: 0 } } as any);
+    await flushMicrotasks(10);
+    expect(h.game.playingBeat).toBe(false);
+    playback.setPlaying(false);
+    expect(playback.animating).toBe(true);
+    expect(leafStates(shadowOf(portraitSpan(h.overlay))!)).toEqual(rest);
+  });
+});
