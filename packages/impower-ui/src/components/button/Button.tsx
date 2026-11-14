@@ -39,12 +39,20 @@ export const buttonVariants = cva(
         default:
           "min-h-11 min-w-11 gap-2 px-3 py-2 text-[13px]/[1.4] font-semibold [&_svg]:size-[18px]",
         icon: "size-11 p-0 [&_svg]:size-5",
+        narrow: "h-11 w-9 p-0 [&_svg]:size-5",
         compact:
           "min-h-11 min-w-11 gap-1.5 px-2 text-[12px]/[1.4] font-normal [&_svg]:size-4",
+        action:
+          "min-h-[38px] min-w-11 gap-1.5 px-3 py-1.5 text-[12px]/[1.4] font-semibold pointer-coarse:min-h-11 [&_svg]:size-4",
         glyph: "size-11 p-0 [&_svg]:size-4",
         inset: "h-9 w-7 min-w-7 p-0 [&_svg]:size-4",
-        field: "min-h-11 min-w-11 gap-1.5 border-x-0 border-y-[3px] pr-2 pl-3 text-[12px]/[1.4] font-normal [&_svg]:size-3.5",
+        field: "min-h-[38px] min-w-11 gap-1.5 border-x-0 border-y-0 pr-2 pl-3 text-[12px]/[1.4] font-normal pointer-coarse:min-h-11 pointer-coarse:border-y-[3px] [&_svg]:size-3.5",
         pill: "min-h-[46px] min-w-11 gap-2 px-[13px] rounded-[16px] border-4 bg-clip-padding text-[14px]/none font-semibold [&_svg]:size-5",
+      },
+      glyph: {
+        sm: "[&_svg]:size-4",
+        md: "[&_svg]:size-[17px]",
+        lg: "[&_svg]:size-[18px]",
       },
     },
     compoundVariants: [
@@ -63,6 +71,9 @@ export type ButtonVariant = NonNullable<
 export type ButtonSize = NonNullable<
   VariantProps<typeof buttonVariants>["size"]
 >;
+export type ButtonGlyph = NonNullable<
+  VariantProps<typeof buttonVariants>["glyph"]
+>;
 
 export type ButtonProps = Omit<
   JSX.HTMLAttributes<HTMLButtonElement>,
@@ -78,10 +89,10 @@ export type ButtonProps = Omit<
   };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant, size, asChild, class: className, type = "button", children, ...rest },
+  { variant, size, glyph, asChild, class: className, type = "button", children, ...rest },
   ref,
 ) {
-  const classes = cn(buttonVariants({ variant, size }), className);
+  const classes = cn(buttonVariants({ variant, size, glyph }), className);
   if (asChild) {
     return (
       <Slot ref={ref as Ref<HTMLElement>} class={classes} {...rest}>

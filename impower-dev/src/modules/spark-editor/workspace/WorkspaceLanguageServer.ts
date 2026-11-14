@@ -25,7 +25,6 @@ import type {
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
   PreviewLineMessage,
-  type PreviewLineParams,
   type PreviewLineResult,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewLineMessage";
 import {
@@ -535,15 +534,11 @@ export default class WorkspaceLanguageServer {
     );
   }
 
-  async getPreviewLine(
-    uri: string,
-    line: number,
-    shownBeat: PreviewLineParams["shownBeat"],
-  ): Promise<PreviewLineResult> {
+  async getPreviewLine(uri: string, line: number): Promise<PreviewLineResult> {
     await this.initialization();
     return this._connection.sendRequest<PreviewLineResult>(
       PreviewLineMessage.method,
-      { textDocument: { uri }, line, shownBeat },
+      { textDocument: { uri }, line },
     );
   }
 

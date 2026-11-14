@@ -225,6 +225,19 @@ describe("WheelSheet", () => {
     vi.restoreAllMocks();
   });
 
+  it("heads its sheet like the prototype: a muted Cancel, a 14px title centred between Cancel and Done, 4px and 6px insets", async () => {
+    const { container } = panelHost();
+    await mount(<WheelSheet container={container} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={() => {}} />);
+    const sheet = document.querySelector("[data-wheel-sheet]")!;
+    const head = sheet.firstElementChild!;
+    expect(head.className.split(" ")).toEqual(expect.arrayContaining(["grid", "grid-cols-[1fr_auto_1fr]", "px-1.5", "py-1"]));
+    const [cancel, done] = Array.from(head.querySelectorAll("button"));
+    expect(cancel!.className.split(" ")).toEqual(expect.arrayContaining(["text-muted", "border-0", "justify-self-start"]));
+    expect(done!.className.split(" ")).toEqual(expect.arrayContaining(["text-accent", "justify-self-end"]));
+    expect(head.querySelector("h2")!.className.split(" ")).toContain("text-[14px]/[1.4]");
+    expect(sheet.querySelector("[data-wheel-room]")!.className.split(" ")).toEqual(expect.arrayContaining(["pt-1.5", "pb-2.5"]));
+  });
+
   it("cancels with Cancel, Escape or a tap outside it, but not a tap on the picture's zoom frame", async () => {
     const { zoom, container } = panelHost();
     const cancelled = vi.fn();

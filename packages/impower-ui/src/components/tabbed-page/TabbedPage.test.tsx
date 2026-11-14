@@ -67,4 +67,20 @@ describe("TabbedPage", () => {
     expect(host!.querySelector('[role="tabpanel"]')).toBeNull();
     expect(host!.querySelector('[data-body="one"]')).not.toBeNull();
   });
+
+  it("draws the header as a workspace band, 56px tall below desktop, with the title in ink", async () => {
+    await mount(
+      <TabbedPage title="Things" tabs={TABS} value="one" onValueChange={() => {}} onBack={() => {}} />,
+    );
+    const header = host!.querySelector("header")!.className.split(" ");
+    expect(header).toEqual(expect.arrayContaining(["h-14", "bg-workspace", "gap-2.5", "px-4"]));
+    expect(header).toEqual(
+      expect.arrayContaining([
+        "[:root[data-layout=desktop]_&]:h-[68px]",
+        "[:root[data-layout=desktop]_&]:gap-3",
+        "[:root[data-layout=desktop]_&]:px-[22px]",
+      ]),
+    );
+    expect(host!.querySelector("h1")!.className.split(" ")).toContain("text-ink");
+  });
 });

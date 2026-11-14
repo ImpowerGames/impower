@@ -6,6 +6,7 @@ import { useLayout } from "../../hooks/useLayout";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import { holdSheetOpen } from "../../hooks/useSheetOpen";
 import { cn } from "../../utils/cn";
+import "../../utils/uniqueIds";
 import { focusReturnTarget } from "../../utils/focusReturn";
 import { portalContainer } from "../../utils/portalContainer";
 import { useToastLayer } from "../../utils/toastLayer";
@@ -285,7 +286,7 @@ export function Lightbox({
       <Button
         variant="quiet"
         size="icon"
-        class="absolute top-3 right-3 rounded-full border-transparent bg-media-badge text-media-badge-ink [&_svg]:size-[18px]"
+        class="absolute top-3 right-3 rounded-full border-transparent bg-media-button text-media-badge-ink [&_svg]:size-[18px]"
         aria-label={closeLabel}
         title={closeLabel}
         data-lightbox-close

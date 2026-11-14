@@ -579,7 +579,7 @@ Timing is set in `timing { … }`. Every value is optional:
 | --- | --- | --- |
 | `trigger` | `appear` | What starts the plays: `appear` when the portrait appears, `speech` while its character speaks ([Talking](#talking)). |
 | `sync` | `none` | On a speech morph, `beep` starts each play on one of the character's voice beeps ([Flapping on the beeps](#flapping-on-the-beeps)). |
-| `duration` | `0.25` | Seconds one play lasts. |
+| `duration` | `0.25` | Seconds one play lasts, at least `0.001` (one millisecond). |
 | `delay` | `0` | Seconds before the first play only. Meanwhile the portrait shows the pose that play starts from. |
 | `iterations` | `1` | How many plays in all: a whole number, or `infinite`. `0` turns playback off, and the portrait shows the morph's rest. |
 | `iteration_delay_min` | none | Shortest quiet time, in seconds, from the end of one play to the start of the next. |

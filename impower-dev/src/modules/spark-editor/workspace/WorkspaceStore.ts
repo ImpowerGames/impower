@@ -57,12 +57,12 @@ export interface OutlineSnapshot {
   firstContentLine: number | undefined;
 }
 
-export type ShownBeat = PreviewGameState["shownBeat"];
+export type ShownBeatDescription = PreviewGameState["shownBeatDescription"];
 
 export interface PreviewLineSnapshot {
   uri: string;
   line: number;
-  preview: PreviewLine;
+  preview: PreviewLine | NonNullable<ShownBeatDescription>;
 }
 
 export interface DebugSessionState {
@@ -285,7 +285,7 @@ class WorkspaceStore {
 
   readonly previewLine = signal<PreviewLineSnapshot | null>(null);
 
-  readonly previewShownBeat = signal<ShownBeat>(null);
+  readonly previewShownBeatDescription = signal<ShownBeatDescription>(null);
 
   readonly syncConflictOpen = signal<boolean>(false);
 

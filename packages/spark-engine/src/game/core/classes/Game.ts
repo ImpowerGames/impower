@@ -129,7 +129,9 @@ import type {
   RunMenu,
   ScriptSource,
 } from "../types/PreviewRoute";
+import type { ShownBeatDescription } from "../types/ShownBeatDescription";
 import { conditionText } from "../utils/conditionText";
+import { describeShownBeat } from "../utils/describeShownBeat";
 import type { ExecutedLines } from "../types/ExecutedLines";
 import type { GameConfiguration } from "../types/GameConfiguration";
 import type { GameContext } from "../types/GameContext";
@@ -365,10 +367,7 @@ export class Game<T extends M = {}> {
 
   protected _holdingFlush = false;
 
-  protected _held: {
-    instructions: Instructions | null;
-    location: DocumentLocation | null;
-  } | null = null;
+  protected _held: { instructions: Instructions | null } | null = null;
 
   protected _previewGeneration = 0;
 
@@ -3646,12 +3645,7 @@ export class Game<T extends M = {}> {
         }
         const instructions = this.module.interpreter.flush();
         if (this._holdingFlush) {
-          this._held = {
-            instructions: instructions ?? null,
-            location: instructions?.source
-              ? this.getDocumentLocation(instructions.source)
-              : this.getLastExecutedDocumentLocation(),
-          };
+          this._held = { instructions: instructions ?? null };
           return true;
         }
         this.showBeat(instructions ?? null, false);
@@ -5132,6 +5126,10 @@ export class Game<T extends M = {}> {
     }
   }
 
+  warn(message: string, location?: ScriptLocation) {
+    this.Error(message, ErrorType.Warning, location);
+  }
+
   log(message: unknown, severity: "info" | "warning" | "error" = "info") {
     this._context.system.log?.(message, severity);
   }
@@ -5180,7 +5178,7 @@ export class Game<T extends M = {}> {
       address ?? this.locator.addressAt(file, line, { beat: "last" });
     if (previewAddress == null) {
       this._previewShowsBeat = false;
-      this._previewShownLocation = null;
+      this._previewShownDescription = null;
       this.cancelPreview();
       this.module.assets.releaseAbandonedGates();
       this.module.ui.reveal();
@@ -5190,6 +5188,8 @@ export class Game<T extends M = {}> {
       this.settleBeatPlay();
       if (this._pendingPreview) {
         this._pendingPreview.playId = undefined;
+      } else if (this._previewAudio) {
+        this.module.audio.restartPending();
       }
       return this._pendingPreview?.promise ?? previewAddress;
     }
@@ -5205,10 +5205,7 @@ export class Game<T extends M = {}> {
     this._previewedAddress = previewAddress;
     const generation = ++this._previewGeneration;
     this._holdingFlush = true;
-    let held: {
-      instructions: Instructions | null;
-      location: DocumentLocation | null;
-    } | null = null;
+    let held: { instructions: Instructions | null } | null = null;
     try {
       this.observeScene(previewAddress);
       this.runPreview(runFrom ?? previewAddress);
@@ -5220,12 +5217,14 @@ export class Game<T extends M = {}> {
     }
     const executed = this.executedParams();
     this._previewShowsBeat = held?.instructions != null;
-    this._previewShownLocation = held?.instructions != null ? held.location : null;
+    this._previewShownDescription =
+      held?.instructions != null ? describeShownBeat(held.instructions) : null;
     const gate = this.module.assets.gatePreviewBeat(
       held?.instructions ?? null,
     );
     this.clearChoices();
     if (!held) {
+      this.module.audio.settlePreview();
       this.finishPreview(previewAddress, executed);
       return previewAddress;
     }
@@ -5261,6 +5260,9 @@ export class Game<T extends M = {}> {
     send: (message: Message, transfer?: ArrayBuffer[]) => void,
     superseded: () => boolean,
   ): Promise<boolean> {
+    if (this._previewAudio) {
+      this.module.audio.silence();
+    }
     this.reset();
     this._runtimeState = new RuntimeState();
     this._startAddress = null;
@@ -5276,7 +5278,7 @@ export class Game<T extends M = {}> {
     }
     this.markPreviewing();
     this._previewShowsBeat = false;
-    this._previewShownLocation = null;
+    this._previewShownDescription = null;
     await this.connect(send);
     if (superseded()) {
       return false;
@@ -5365,16 +5367,39 @@ export class Game<T extends M = {}> {
 
   protected readonly _tickBeatPlay = (time: Clock) => this.update(time);
 
+  protected _previewAudio = false;
+
+  get previewAudio(): boolean {
+    return this._previewAudio;
+  }
+
+  setPreviewAudio(enabled: boolean): void {
+    if (this._previewAudio === enabled) {
+      return;
+    }
+    this._previewAudio = enabled;
+    if (!this._context.system.previewing || this._state === "running") {
+      return;
+    }
+    this.settleBeatPlay();
+    if (!enabled) {
+      this.module.audio.silence();
+      return;
+    }
+    this.module.audio.forgetHeard();
+    this.module.audio.settlePreview();
+  }
+
   protected _previewShowsBeat = false;
 
   get previewShowsBeat(): boolean {
     return this._previewShowsBeat;
   }
 
-  protected _previewShownLocation: DocumentLocation | null = null;
+  protected _previewShownDescription: ShownBeatDescription | null = null;
 
-  get previewShownLocation(): DocumentLocation | null {
-    return this._previewShownLocation;
+  get previewShownDescription(): ShownBeatDescription | null {
+    return this._previewShownDescription;
   }
 
   get playingBeat(): boolean {
@@ -5414,6 +5439,10 @@ export class Game<T extends M = {}> {
     instructions: Instructions | null,
     playId?: number,
   ) {
+    const audio = this.module.audio;
+    if (playId != null) {
+      audio.settlePreview();
+    }
     this._coordinator = null;
     if (instructions) {
       this._coordinator = new Coordinator(
@@ -5434,6 +5463,12 @@ export class Game<T extends M = {}> {
           (instructions.choices?.length ?? 0) > 0,
         );
       }
+    }
+    if (playId == null || !this._previewAudio) {
+      audio.recordBeat(instructions?.audio);
+    }
+    if (playId == null) {
+      audio.settlePreview();
     }
     this.checkpoint();
     if (!this._coordinator) {

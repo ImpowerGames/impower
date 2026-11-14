@@ -11,12 +11,18 @@ const UNPRINTED = new Set(["ImageCommand", "AudioCommand", "TextCommand"]);
 
 const ESCAPE_MARKS = new Set(["Escape_c1", "Escape_c3", "Escape_c5"]);
 
+export interface StyledReading {
+  styled: string;
+  at?: number[];
+}
+
 export const readStyled = (
   node: SyntaxNode,
   read: (from: number, to: number) => string,
   skipped: (descendant: SyntaxNode) => boolean = () => false,
-  replaced?: (descendant: SyntaxNode) => string | undefined,
-): string => {
+  replaced?: (descendant: SyntaxNode) => StyledReading | undefined,
+  positions = false,
+): StyledReading => {
   const ctx = { read };
   const hidden = (child: SyntaxNode) =>
     skipped(child) || UNPRINTED.has(child.name) || ESCAPE_MARKS.has(child.name);
@@ -27,7 +33,7 @@ export const readStyled = (
     ctx,
     (child) => hidden(child) || SHOWN_AS_SOURCE.has(child.name),
   );
-  const cuts: { from: number; to: number; text?: string }[] = [];
+  const cuts: { from: number; to: number; text?: StyledReading }[] = [];
   const visit = (parent: SyntaxNode) => {
     for (let child = parent.firstChild; child; child = child.nextSibling) {
       if (hidden(child)) {
@@ -48,13 +54,23 @@ export const readStyled = (
   visit(node);
   spans.marks.sort((a, b) => a.from - b.from);
   const cursor = { code: 0, mark: 0 };
+  const at = positions ? [] as number[] : undefined;
   let out = "";
   let pos = node.from;
   for (const cut of cuts) {
-    out += writeStyledRange(spans, pos, cut.from, ctx, cursor);
-    out +=
-      cut.text ?? SCAN_OPEN + writeStyledRange(spans, cut.from, cut.to, ctx, cursor) + SCAN_CLOSE;
+    out += writeStyledRange(spans, pos, cut.from, ctx, cursor, at);
+    if (cut.text) {
+      out += cut.text.styled;
+      at?.push(...(cut.text.at ?? new Array<number>(cut.text.styled.length).fill(-1)));
+    } else {
+      out += SCAN_OPEN;
+      at?.push(-1);
+      out += writeStyledRange(spans, cut.from, cut.to, ctx, cursor, at);
+      out += SCAN_CLOSE;
+      at?.push(-1);
+    }
     pos = cut.to;
   }
-  return out + writeStyledRange(spans, pos, node.to, ctx, cursor);
+  out += writeStyledRange(spans, pos, node.to, ctx, cursor, at);
+  return at ? { styled: out, at } : { styled: out };
 };

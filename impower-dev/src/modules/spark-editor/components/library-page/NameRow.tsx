@@ -1,4 +1,4 @@
-import { ListRow, TextField } from "@impower/impower-ui/components";
+import { ListRow, TextField, type ListRowSize } from "@impower/impower-ui/components";
 import { fitToKeyboard, useCoarsePointer } from "@impower/impower-ui/layout";
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
@@ -11,6 +11,7 @@ export type NameRowProps = {
   initial?: string;
   suffix?: string;
   wrapError?: boolean;
+  size?: ListRowSize;
   returnFocus?: () => HTMLElement | null;
   onCommit: (name: string) => Promise<void>;
   onCancel: () => void;
@@ -46,6 +47,7 @@ export default function NameRow({
   initial = "",
   suffix,
   wrapError = false,
+  size,
   returnFocus,
   onCommit,
   onCancel,
@@ -136,6 +138,7 @@ export default function NameRow({
 
   return (
     <ListRow
+      size={size}
       icon={icon}
       descriptionFit={wrapError ? "wrap" : undefined}
       overflow="self"

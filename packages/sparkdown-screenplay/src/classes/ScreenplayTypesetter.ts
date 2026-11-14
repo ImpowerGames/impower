@@ -61,6 +61,7 @@ export default class ScreenplayTypesetter {
           { prefix: t.prefix, suffix: t.suffix },
           { align },
           { source: t.source },
+          t.at,
         );
       } else if (t.tag === "page_break") {
         const prevSpan = spans.at(-1);
@@ -157,7 +158,8 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           undefined,
-          { source: t.source, inserts: t.inserts },
+          { source: t.source },
+          t.at,
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -172,13 +174,15 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           style,
-          { source: t.source, inserts: t.inserts },
+          { source: t.source },
+          t.at,
         );
         if (lines.length > 0 && t.continued) {
           spans.push({ tag: t.tag, lines });
         } else if (lines.length > 0) {
           const scene = t.scene ?? sceneIndex + 1;
           lines[0]!.scene = scene;
+          if (style?.bold) lines[0]!.sceneBold = true;
           spans.push({ tag: t.tag, lines });
           sceneIndex++;
         }
@@ -190,7 +194,8 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           style,
-          { source: t.source, inserts: t.inserts },
+          { source: t.source },
+          t.at,
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -204,8 +209,9 @@ export default class ScreenplayTypesetter {
           undefined,
           {
             canSplitAfter: 3,
-            source: t.source, inserts: t.inserts,
+            source: t.source,
           },
+          t.at,
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -216,9 +222,9 @@ export default class ScreenplayTypesetter {
         t.tag === "dialogue_content"
       ) {
         const lineOptions: LineOptions | undefined = t.position
-          ? { position: t.position, source: t.source, inserts: t.inserts }
+          ? { position: t.position, source: t.source }
           : {
-              source: t.source, inserts: t.inserts,
+              source: t.source,
               canSplitAfter:
                 t.tag === "dialogue_content" &&
                 config?.screenplay_print_dialogue_split_across_pages
@@ -233,6 +239,7 @@ export default class ScreenplayTypesetter {
           { prefix: t.prefix, suffix: t.suffix },
           undefined,
           lineOptions,
+          t.at,
         );
         if (lines.length > 0) {
           if (t.position === "l" || t.position === "r") {
@@ -286,7 +293,8 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           undefined,
-          { source: t.source, inserts: t.inserts },
+          { source: t.source },
+          t.at,
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -342,6 +350,7 @@ export default class ScreenplayTypesetter {
     affixOptions: { prefix?: string; suffix?: string } = {},
     textOptions: TextOptions = {},
     lineOptions: LineOptions = {},
+    at?: number[],
   ): PageLine[] {
     let affixedText = text;
     if (affixOptions.prefix) {
@@ -350,14 +359,17 @@ export default class ScreenplayTypesetter {
     if (affixOptions.suffix) {
       affixedText += affixOptions.suffix;
     }
-    const textLines = affixedText.split(/\r\n|\r|\n/);
     const pageLines: PageLine[] = [];
-    for (const textLine of textLines) {
+    let start = 0;
+    for (const lineBreak of [...affixedText.matchAll(/\r\n|\r|\n/g), undefined]) {
+      const end = lineBreak?.index ?? affixedText.length;
+      const textLine = affixedText.slice(start, end);
       if (textLine) {
         pageLines.push(
-          this.line(tag, textLine, profile, textOptions, lineOptions),
+          this.line(tag, textLine, profile, textOptions, lineOptions, at?.slice(start, end)),
         );
       }
+      start = end + (lineBreak?.[0].length ?? 0);
     }
     return pageLines;
   }
@@ -368,8 +380,9 @@ export default class ScreenplayTypesetter {
     profile?: PrintProfile,
     textOptions: TextOptions = {},
     lineOptions: LineOptions = {},
+    at?: number[],
   ): PageLine {
-    const styledContent = this.style(tag, text, textOptions, profile);
+    const styledContent = this.style(tag, text, textOptions, profile, at);
     const content = this.consolidateContent(styledContent);
     return {
       tag,
@@ -383,6 +396,7 @@ export default class ScreenplayTypesetter {
     text: string | undefined,
     textOptions: TextOptions = {},
     profile?: PrintProfile,
+    at?: number[],
   ): FormattedText[] {
     if (text == null) {
       return [];
@@ -401,7 +415,7 @@ export default class ScreenplayTypesetter {
     if (settings?.align) {
       defaultTextSettings.align = settings?.align;
     }
-    return styleText(text, { ...defaultTextSettings, ...textOptions });
+    return styleText(text, { ...defaultTextSettings, ...textOptions }, at);
   }
 
   protected consolidateContent(content: FormattedText[] | undefined) {
@@ -420,6 +434,7 @@ export default class ScreenplayTypesetter {
           c.highlightColor === prev.highlightColor
         ) {
           prev.text += c.text;
+          if (prev.at && c.at) prev.at.push(...c.at);
         } else {
           consolidatedContent.push(c);
         }

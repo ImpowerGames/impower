@@ -482,7 +482,8 @@ are the derived colours above (`folio-editor.css:71`), and focus, links and the 
 selection's accents are `--accent`. The sticky header shadow takes the one-third black
 of the popovers (`folio-hierarchy.css:918`). A badge laid over a picture, `--media-badge`
 on `--media-badge-ink`, is the prototype's fixed dark pill in every theme, Midnight and Dusk
-included, because it sits on the picture rather than on a surface. The one value the themes do not share
+included, because it sits on the picture rather than on a surface; a round button laid over a picture,
+`--media-button`, is the same fixed dark at the prototype's lighter strength. The one value the themes do not share
 is the modal backdrop `--scrim`, declared in each theme's own block from the overlay
 strengths under [Elevation](#elevation): `rgb(0 0 0 / 0.6)` in the dark themes (`app.css:1093-1094`)
 and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
@@ -503,6 +504,7 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--warning-strong` | `var(--warning)` | Problem colour: warning |
 | `--media-badge` | `rgb(0 0 0 / 0.67)` | Badge laid over a picture: the variants count and the folder mark on a cover, `folio-assets.css:280` (`#000a`) |
 | `--media-badge-ink` | `rgb(255 255 255)` | Ink of a badge laid over a picture, `folio-assets.css:280` (`#fff`) |
+| `--media-button` | `rgb(0 0 0 / 0.6)` | Round button laid over a picture: the picture's full-size button and the full-size view's Close, `folio-assets.css:108` and `:216` (`#0009`) |
 | `--status-badge-error-edge` | `#93625d`; `var(--error)` in Chalk, Paper, Midnight and Dusk | Edge of the game's error status badge, `folio-playback.css:732-735`, `folio-themes.css:257`, `folio-themes.css:507` |
 | `--editor-line-number` | `var(--muted)` | `folio-editor.css:39` |
 | `--editor-line-number-active` | `var(--ink)` | Ink |

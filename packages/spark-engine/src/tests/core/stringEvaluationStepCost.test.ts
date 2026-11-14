@@ -19,7 +19,7 @@ scene start
 end
 `;
 
-const program = compileProgram(SRC);
+const program = compileProgram(SRC, { seedBuiltinsIntoStory: true });
 
 const runToCeiling = (limit: number) => {
   const game = new Game({

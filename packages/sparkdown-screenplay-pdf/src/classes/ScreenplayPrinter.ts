@@ -388,7 +388,7 @@ export default class ScreenplayPrinter {
         const sceneNumber = String(span.scene);
         const sceneNumberWidth = sceneNumber.length * this._state.fontWidth;
         const sceneTextOptions = { ...textOptions };
-        if (this._config?.screenplay_print_headings_bold) {
+        if (span.sceneBold) {
           sceneTextOptions.bold = true;
         }
         if (
