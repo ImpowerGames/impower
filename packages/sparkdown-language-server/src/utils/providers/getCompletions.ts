@@ -171,6 +171,15 @@ const getDefineContext = (
   return null;
 };
 
+const DEFINE_VALUE_ASSET_TYPES = new Set([
+  "image",
+  "layered_image",
+  "filtered_image",
+  "audio",
+  "font",
+  "video",
+]);
+
 const KEYFRAME_POSITION_KEYWORDS = ["from", "to"];
 
 const blockStates = (
@@ -2284,6 +2293,17 @@ const completionsAt = (
         valueCursorOffset,
       );
     } else {
+      if (
+        DEFINE_VALUE_ASSET_TYPES.has(valueText.split(".")[0] ?? "") &&
+        getDefineContext(leftStack, read)
+      ) {
+        addStructAccessPathCompletions(
+          completions,
+          program,
+          valueText,
+          valueCursorOffset,
+        );
+      }
       const scopes = getDeclarationScopes(scripts, cursor);
       const scopePath = getParentSectionPath(leftStack, read).join(".");
       addMutableAccessPathCompletions(
