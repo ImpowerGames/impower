@@ -5,7 +5,7 @@ import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
 import type { PageLine } from "../types/DocumentSpan";
 import type { FormattedText } from "../types/FormattedText";
 import type { ScreenplayConfig } from "../types/ScreenplayConfig";
-import { insertAnchor } from "./printedPosition";
+import { insertAnchor, UNPLACED } from "./printedPosition";
 
 export interface PrintedRun {
   from: number;
@@ -42,17 +42,17 @@ export interface ScreenplayPageLayout extends PrintedPlaces {
 
 export const placePrintedLine = (line: PageLine, script: string, places: PrintedPlaces) => {
   for (const piece of line.content) {
-    const at = piece.at ?? [];
+    const positionOf = (index: number) => piece.at?.[index] ?? UNPLACED;
     let start = -1;
     let previous = -1;
     const close = () => {
       if (start >= 0) places.runs.push({ from: start, to: previous + 1, style: piece });
       start = -1;
     };
-    for (let index = 0; index < at.length; ) {
-      const position = at[index]!;
+    for (let index = 0; index < piece.text.length; ) {
+      const position = positionOf(index);
       let end = index + 1;
-      while (end < at.length && at[end] === position) end++;
+      while (end < piece.text.length && positionOf(end) === position) end++;
       const printed = piece.text.slice(index, end);
       const anchor = insertAnchor(position);
       if (anchor !== undefined) {
@@ -130,7 +130,7 @@ export const screenplayPageLayout = (
   let lastSource: number[] | undefined;
   const addPrinted = (lines: PageLine[] | undefined) => {
     for (const line of lines ?? []) {
-      placePrintedLine(line, script, places);
+      if (line.source) placePrintedLine(line, script, places);
       const sceneAt = line.scene !== undefined ? firstPlaced(line) : undefined;
       if (sceneAt !== undefined) scenes.push({ at: sceneAt, scene: line.scene!, bold: !!line.sceneBold });
       if (line.source && line.source === lastSource) {

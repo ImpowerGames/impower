@@ -4,7 +4,7 @@ import { screenplayPageLayout } from "../../sparkdown-screenplay/src/utils/scree
 
 const LINE = "    The author reads another quiet line in the hall.";
 
-const LINES = 3000;
+const LINES = 10000;
 
 const oneBlock = ["scene s", "  :", ...Array.from({ length: LINES }, () => LINE), "end", ""].join("\n");
 

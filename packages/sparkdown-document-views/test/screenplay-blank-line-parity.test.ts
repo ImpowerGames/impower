@@ -973,4 +973,14 @@ describe("text the export inserts", () => {
     ]);
     expect(places.unplaced).toEqual(["?"]);
   });
+
+  it.each([
+    ["a piece with no positions", [{ text: "lost" }], ["lost"]],
+    ["a piece with fewer positions than characters", [{ text: "ab", at: [0] }], ["b"]],
+    ["an unmapped space between mapped characters", [{ text: "a b", at: [0, -1, 1] }], [" "]],
+  ])("reports %s as text with no place", (_name, content, unplaced) => {
+    const places: PrintedPlaces = { runs: [], inserts: [], unplaced: [] };
+    placePrintedLine({ tag: "action", source: [0, 2], content }, "ab", places);
+    expect(places.unplaced).toEqual(unplaced);
+  });
 });

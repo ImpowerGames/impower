@@ -74,8 +74,12 @@ const placedOf = (reading: { styled: string; at?: Positions }): Positions =>
   reading.at ?? new Array<number>(reading.styled.length).fill(UNPLACED);
 
 const join = (...parts: Reading[]): Reading => {
-  const text = parts.map((part) => part.text).join("");
-  const styled = parts.map((part) => part.styled).join("");
+  let text = "";
+  let styled = "";
+  for (const part of parts) {
+    text += part.text;
+    styled += part.styled;
+  }
   return parts.some((part) => part.at)
     ? { text, styled, at: { parts: parts.map(placedOf), length: styled.length } }
     : { text, styled };
