@@ -91,6 +91,7 @@ export const PREFERENCES_SCHEMA = {
   suggestAutocompletions: setting(true),
   previewMode: choice("game", PREVIEW_MODES),
   previewFollowsCursor: setting(true),
+  previewAutoPlayBeats: setting(false),
   previewIdleAnimations: setting(true),
   previewTypingPauses: setting(false),
   previewScreenplaySync: setting(true),
@@ -206,6 +207,41 @@ export type Preferences = ValuesOf<typeof PREFERENCES_SCHEMA>;
 export type PreferenceKey = keyof Preferences;
 export type ProjectSettings = ValuesOf<typeof PROJECT_SETTINGS_SCHEMA>;
 export type ProjectSettingKey = keyof ProjectSettings;
+
+export const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+export interface PreviewMotion {
+  autoPlayBeats: boolean;
+  idleAnimations: boolean;
+}
+
+export const previewMotionOf = (
+  preferences: Preferences,
+  reducedMotion: boolean,
+): PreviewMotion => {
+  const autoPlayBeats = preferences.previewAutoPlayBeats && !reducedMotion;
+  return {
+    autoPlayBeats,
+    idleAnimations: autoPlayBeats || preferences.previewIdleAnimations,
+  };
+};
+
+export const lockedPreviewSwitch = (
+  preferences: Preferences,
+  reducedMotion: boolean,
+  key: PreferenceKey,
+): boolean | undefined => {
+  if (key === "previewAutoPlayBeats" && reducedMotion) {
+    return false;
+  }
+  if (
+    key === "previewIdleAnimations" &&
+    previewMotionOf(preferences, reducedMotion).autoPlayBeats
+  ) {
+    return true;
+  }
+  return undefined;
+};
 
 export const isValidSetting = (spec: SettingSpec, value: unknown): boolean =>
   typeof value === typeof spec.default &&

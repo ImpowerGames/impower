@@ -18,6 +18,7 @@ import {
   SetStartingDisplayModeMessage,
   type StartingDisplayMode,
 } from "@impower/spark-engine/src/game/core/classes/messages/SetStartingDisplayModeMessage";
+import { SetAutoPlayBeatsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetAutoPlayBeatsMessage";
 import { SetPreviewThemeMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPreviewThemeMessage";
 import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
 import { effect, type ReadonlySignal } from "@preact/signals";
@@ -29,6 +30,7 @@ import {
   simulatedColorSchemeOf,
   startingDisplayModeOf,
   type Preferences,
+  type PreviewMotion,
   type ProjectSettings,
 } from "../../workspace/settings/settingsSchema";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
@@ -62,11 +64,16 @@ export const createPlayerPreferenceSync = (
   theme: ReadonlySignal<string> = workspaceSettings.theme,
   preferences: ReadonlySignal<Preferences> = workspaceSettings.preferences,
   projectSettings: ReadonlySignal<ProjectSettings> = workspaceSettings.projectSettings,
+  motion: ReadonlySignal<PreviewMotion> = workspaceSettings.previewMotion,
 ) => {
   const sendTheme = (value: string) =>
     post(SetPreviewThemeMessage.type.notification({ theme: value }));
   const sendIdleAnimations = (enabled: boolean) =>
     post(SetAnimatePortraitsMessage.type.request({ enabled }));
+  const autoPlayBeatsOf = () =>
+    motion.peek().autoPlayBeats && preferences.peek().previewFollowsCursor;
+  const sendAutoPlayBeats = (enabled: boolean) =>
+    post(SetAutoPlayBeatsMessage.type.request({ enabled }));
   const sendTypingPauses = (enabled: boolean) =>
     post(
       enabled
@@ -84,7 +91,8 @@ export const createPlayerPreferenceSync = (
     post(SetSimulatedColorSchemeMessage.type.request({ color_scheme: scheme }));
   const send = () => {
     sendTheme(theme.peek());
-    sendIdleAnimations(preferences.peek().previewIdleAnimations);
+    sendIdleAnimations(motion.peek().idleAnimations);
+    sendAutoPlayBeats(autoPlayBeatsOf());
     sendTypingPauses(preferences.peek().previewTypingPauses);
     sendDisplayMode(startingDisplayModeOf(preferences.peek().previewMode));
     sendColorScheme(currentColorScheme());
@@ -109,19 +117,27 @@ export const createPlayerPreferenceSync = (
       sendTheme(value);
     }
   });
-  let idleAnimations = preferences.peek().previewIdleAnimations;
+  let idleAnimations = motion.peek().idleAnimations;
+  let autoPlayBeats = autoPlayBeatsOf();
   let typingPauses = preferences.peek().previewTypingPauses;
   let displayMode = startingDisplayModeOf(preferences.peek().previewMode);
   const disposePreferences = effect(() => {
     const value = preferences.value;
+    const nextMotion = motion.value;
     const nextDisplayMode = startingDisplayModeOf(value.previewMode);
     if (nextDisplayMode !== displayMode) {
       displayMode = nextDisplayMode;
       sendDisplayMode(displayMode);
     }
-    if (value.previewIdleAnimations !== idleAnimations) {
-      idleAnimations = value.previewIdleAnimations;
+    if (nextMotion.idleAnimations !== idleAnimations) {
+      idleAnimations = nextMotion.idleAnimations;
       sendIdleAnimations(idleAnimations);
+    }
+    const nextAutoPlayBeats =
+      nextMotion.autoPlayBeats && value.previewFollowsCursor;
+    if (nextAutoPlayBeats !== autoPlayBeats) {
+      autoPlayBeats = nextAutoPlayBeats;
+      sendAutoPlayBeats(autoPlayBeats);
     }
     if (value.previewTypingPauses !== typingPauses) {
       typingPauses = value.previewTypingPauses;

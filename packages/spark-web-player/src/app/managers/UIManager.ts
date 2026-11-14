@@ -1757,13 +1757,20 @@ export default class UIManager extends Manager {
           (JSON.stringify(a.__sdAll) === sig && a.__sdAllRev === (a.__sdRev ?? 0)))
       );
     };
-    if (
+    const holding =
       decision === "same" ||
-      (decision == null && targetEls.length > 0 && targetEls.every(holds))
-    ) {
+      (decision == null && targetEls.length > 0 && targetEls.every(holds));
+    const replays =
+      holding &&
+      !instant &&
+      this.app.previewing === true &&
+      instructions.slice(shown).some((e) => (e.after ?? 0) > 0) &&
+      targetEls.every((el) => (el as any).__sdTxtAtOnce === true);
+    if (holding && !replays) {
       if (instant) {
         for (const el of targetEls) {
           this.revealAtOnce(el);
+          (el as any).__sdTxtAtOnce = true;
         }
       }
       return;
@@ -1771,12 +1778,16 @@ export default class UIManager extends Manager {
     for (const el of targetEls) {
       if (
         instructions.length > 0 &&
-        (decision === "rebuild" || stale.includes(el) || holdsNoWrite(el))
+        (decision === "rebuild" ||
+          replays ||
+          stale.includes(el) ||
+          holdsNoWrite(el))
       ) {
         this.clearWrittenText(el, true);
       }
       (el as any).__sdTxt = sig;
       (el as any).__sdTxtRev = (el as any).__sdRev ?? 0;
+      (el as any).__sdTxtAtOnce = instant;
     }
     const enter: {
       element: HTMLElement;

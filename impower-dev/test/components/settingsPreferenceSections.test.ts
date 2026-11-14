@@ -204,12 +204,14 @@ describe("the Preview section", () => {
   it("writes the screenplay paper and every switch, and resets them", async () => {
     await mountPreview();
     await click(radio("screenplay-page", "theme"));
-    for (const key of PREVIEW_PREFERENCES.filter((key) => key !== "screenplayPaper")) {
+    const toggled = PREVIEW_PREFERENCES.filter((key) => key !== "previewAutoPlayBeats");
+    for (const key of toggled.filter((key) => key !== "screenplayPaper")) {
       await click(switchOf(`preview-${key}`));
     }
-    for (const key of PREVIEW_PREFERENCES) {
+    for (const key of toggled) {
       expect(workspaceSettings.preferences.value[key], key).not.toBe(PREFERENCES_SCHEMA[key].default);
     }
+    workspaceSettings.setPreference("previewAutoPlayBeats", true);
     await click(host!.querySelector("[data-reset-all]")!);
     for (const key of PREVIEW_PREFERENCES) {
       expect(workspaceSettings.preferences.value[key], key).toBe(PREFERENCES_SCHEMA[key].default);

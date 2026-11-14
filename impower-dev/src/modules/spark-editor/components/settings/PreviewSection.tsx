@@ -6,7 +6,11 @@ import {
   SwitchRow,
   type ChoiceRowOption,
 } from "@impower/impower-ui/components";
-import type { PreferenceKey, Preferences } from "../../workspace/settings/settingsSchema";
+import {
+  lockedPreviewSwitch,
+  type PreferenceKey,
+  type Preferences,
+} from "../../workspace/settings/settingsSchema";
 import { useSettings } from "../../workspace/settings/useSettings";
 import type { SettingsSectionInfo } from "./sections";
 import { useSectionReset } from "./useSectionReset";
@@ -14,6 +18,7 @@ import { useSectionReset } from "./useSectionReset";
 type PreviewSwitchKey =
   | "screenplayPaperTexture"
   | "previewFollowsCursor"
+  | "previewAutoPlayBeats"
   | "previewIdleAnimations"
   | "previewTypingPauses"
   | "previewScreenplaySync";
@@ -26,6 +31,11 @@ const PAPER_OPTIONS: readonly ChoiceRowOption<Preferences["screenplayPaper"]>[] 
 const PREVIEW_SWITCHES: readonly { key: PreviewSwitchKey; name: string; detail: string }[] = [
   { key: "screenplayPaperTexture", name: "Screenplay paper texture", detail: "Display a faint paper grain." },
   { key: "previewFollowsCursor", name: "Game preview follows cursor", detail: "The game shows the line the caret is on." },
+  {
+    key: "previewAutoPlayBeats",
+    name: "Auto-play beats",
+    detail: "When the caret lands on a line, its beat plays once, as it would in the game.",
+  },
   {
     key: "previewIdleAnimations",
     name: "Show idle animations",
@@ -50,7 +60,7 @@ export const PREVIEW_PREFERENCES: readonly PreferenceKey[] = [
 ];
 
 export default function PreviewSection({ section }: { section: SettingsSectionInfo }) {
-  const { preferences, setPreference } = useSettings();
+  const { preferences, reducedMotion, setPreference } = useSettings();
   const reset = useSectionReset({ preferences: PREVIEW_PREFERENCES });
   return (
     <SettingsSection id={section.id} title={section.title} detail={section.detail} {...reset}>
@@ -65,17 +75,21 @@ export default function PreviewSection({ section }: { section: SettingsSectionIn
             value={preferences.screenplayPaper}
             onValueChange={(paper) => setPreference("screenplayPaper", paper)}
           />
-          {PREVIEW_SWITCHES.map((spec) => (
-            <SwitchRow
-              key={spec.key}
-              id={`preview-${spec.key}`}
-              name={spec.name}
-              detail={spec.detail}
-              setting={spec.key}
-              checked={preferences[spec.key]}
-              onCheckedChange={(checked) => setPreference(spec.key, checked)}
-            />
-          ))}
+          {PREVIEW_SWITCHES.map((spec) => {
+            const locked = lockedPreviewSwitch(preferences, reducedMotion, spec.key);
+            return (
+              <SwitchRow
+                key={spec.key}
+                id={`preview-${spec.key}`}
+                name={spec.name}
+                detail={spec.detail}
+                setting={spec.key}
+                checked={locked ?? preferences[spec.key]}
+                disabled={locked != null}
+                onCheckedChange={(checked) => setPreference(spec.key, checked)}
+              />
+            );
+          })}
         </SettingsList>
       </SettingsGroup>
     </SettingsSection>
