@@ -141,15 +141,24 @@ describe("screenplay preview follows the print settings", () => {
   it("prints headings bold only when the setting is on", () => {
     const bold = render({ screenplay_print_headings_bold: true });
     expect(bold.dom.dataset["headingsBold"]).toBe("on");
-    expect(headings(bold).map((h) => getComputedStyle(h).fontWeight)).toEqual(["bold", "bold"]);
+    expect(headingTextWeights(bold)).toEqual(["bold", "bold"]);
     const plain = render({ screenplay_print_headings_bold: false });
     expect(plain.dom.dataset["headingsBold"]).toBe("off");
-    expect(headings(plain).map((h) => getComputedStyle(h).fontWeight)).not.toContain("bold");
+    expect(headingTextWeights(plain)).not.toContain("bold");
   });
 
   it("weights the heading text by the setting", () => {
     expect(headingTextWeights(render({ screenplay_print_headings_bold: true }))).toEqual(["bold", "bold"]);
     expect(headingTextWeights(render({ screenplay_print_headings_bold: false }))).toEqual(["normal", "normal"]);
+  });
+
+  it("re-weights the heading text when the setting changes on a page already on screen", () => {
+    const view = render({ screenplay_print_headings_bold: false });
+    expect(headingTextWeights(view)).toEqual(["normal", "normal"]);
+    view.dispatch({ effects: setScreenplayConfig.of({ screenplay_print_title_page: false, screenplay_print_headings_bold: true }) });
+    expect(headingTextWeights(view)).toEqual(["bold", "bold"]);
+    view.dispatch({ effects: setScreenplayConfig.of({ screenplay_print_title_page: false, screenplay_print_headings_bold: false }) });
+    expect(headingTextWeights(view)).toEqual(["normal", "normal"]);
   });
 
   it("lays the page out at the paper size's proportions", () => {

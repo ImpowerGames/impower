@@ -74,7 +74,7 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
       - name: Install Chromium for the real-browser editor tests
-        if: matrix.package == 'packages/sparkdown-document-views'
+        if: matrix.package == 'packages/sparkdown-document-views' || matrix.package == 'impower-dev'
         run: npx playwright install --with-deps --only-shell chromium
 
       - name: Verify generated definition ASTs

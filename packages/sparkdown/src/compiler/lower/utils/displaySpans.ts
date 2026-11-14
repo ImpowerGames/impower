@@ -145,12 +145,17 @@ export function writeStyledRange(
   to: number,
   ctx: SourceReader,
   cursor: StyledCursor = { code: 0, mark: 0 },
+  positions?: number[],
 ): string {
   let out = "";
   let pos = from;
+  const writeCode = (code: string) => {
+    out += code;
+    for (let index = 0; positions && index < code.length; index++) positions.push(-1);
+  };
   while (pos < to) {
     while (cursor.code < codes.length && codes[cursor.code]!.at <= pos) {
-      out += codes[cursor.code++]!.code;
+      writeCode(codes[cursor.code++]!.code);
     }
     while (cursor.mark < marks.length && marks[cursor.mark]!.to <= pos) {
       cursor.mark++;
@@ -166,10 +171,11 @@ export function writeStyledRange(
       hidden?.from ?? to,
     );
     out += ctx.read(pos, next);
+    for (let index = pos; positions && index < next; index++) positions.push(index);
     pos = next;
   }
   while (cursor.code < codes.length && codes[cursor.code]!.at <= to) {
-    out += codes[cursor.code++]!.code;
+    writeCode(codes[cursor.code++]!.code);
   }
   return out;
 }

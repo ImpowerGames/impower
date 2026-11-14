@@ -7,7 +7,7 @@ import { SAMPLE_PICTURE } from "../thumbnail/Thumbnail.gallery";
 import Thumbnail from "../thumbnail/Thumbnail";
 import VariantsBadge from "../variants-badge/VariantsBadge";
 import VirtualList from "../virtual-list/VirtualList";
-import Tile, { TILE_GAP, TILE_MEDIA_FIT, TILE_MIN_WIDTH, tileHeight, type TileShape } from "./Tile";
+import Tile, { TILE_MEDIA_FIT, tileGrid, tileHeight, type TileShape } from "./Tile";
 
 const SHAPES: TileShape[] = ["landscape", "portrait"];
 
@@ -141,7 +141,7 @@ function TileDemo() {
           class="h-80 rounded-card border border-edge p-2"
           items={ITEMS}
           getKey={(item) => String(item)}
-          grid={{ minWidth: TILE_MIN_WIDTH.landscape, gap: TILE_GAP, height: (width) => tileHeight("landscape", width) }}
+          grid={{ ...tileGrid("landscape", "desktop"), height: (width) => tileHeight("landscape", width) }}
           renderItem={(item) => (
             <Tile
               shape="landscape"
@@ -159,6 +159,6 @@ function TileDemo() {
 
 export const tileGallery: GalleryEntry = {
   title: "Tile",
-  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileActionsVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileHeight", "TILE_GAP", "TILE_MEDIA_FIT", "TILE_MIN_WIDTH"],
+  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileActionsVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileHeight", "tileGrid", "TILE_MEDIA_FIT"],
   Demo: TileDemo,
 };

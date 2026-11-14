@@ -48,8 +48,8 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
     <header
       data-phone-title-bar
       class={cn(
-        "hit-bound relative z-20 flex h-[54px] flex-none items-center border-b border-edge bg-bg pr-1 pl-2.5",
-        !editing && "gap-[7px]",
+        "hit-bound relative z-20 flex h-[54px] flex-none items-center border-b border-edge bg-bg",
+        writing ? "pr-1 pl-2" : "gap-[7px] px-2.5",
         "motion-safe:transition-shadow motion-safe:duration-150",
         scrolled && "shadow-[0_7px_10px_-4px_var(--editor-sticky-shadow)]",
       )}
@@ -58,10 +58,17 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
         <FoldedScriptHeader filename={script!} />
       ) : (
         <>
-          <SparkLogo layout="mark" size="md" class="flex-none" />
-          <div class="flex min-w-0 flex-1 flex-col items-start -ml-1.5">
+          <span class="flex size-11 flex-none items-center justify-center">
+            <SparkLogo layout="mark" size="md" class="[&_svg]:w-6" />
+          </span>
+          <div
+            class={cn(
+              "flex min-w-0 flex-1 flex-col items-start",
+              writing && "ml-1",
+            )}
+          >
             <ProjectNameField />
-            <div class="w-full min-w-0 pl-1.5">
+            <div class="w-full min-w-0">
               <div class="z-[2] flex items-center fade-edge-over">
                 <SyncStatusLine />
                 <StoryProblemCount />
@@ -74,14 +81,15 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
         <Button
           size="pill"
           aria-label="Keep the name"
-          class="mr-1"
           onClick={finishNaming}
         >
           <CheckIcon />
           Done
         </Button>
       ) : (
-        <div class="flex flex-none items-center">
+        <div
+          class={cn("flex flex-none items-center", !writing && "gap-[7px]")}
+        >
           {!editing && <SyncButton />}
           <Button
             variant="quiet"
@@ -94,7 +102,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
             <SearchIcon />
           </Button>
           {editing && (
-            <div role="group" aria-label="Edit history" class="flex">
+            <div role="group" aria-label="Edit history" class="mr-1 flex">
               <Button
                 variant="quiet"
                 size="icon"
@@ -123,7 +131,6 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
             <Button
               size="pill"
               aria-label="Done editing"
-              class="mr-1"
               onClick={() => void withWindow((win) => win.finishEditing())}
             >
               <CheckIcon />

@@ -210,7 +210,7 @@ describe("the asset inspector", () => {
     expect(document.activeElement).toBe(closeButton());
     expect(closeButton().getAttribute("aria-label")).toBe("Close details");
     expect(title()).toBe("door_chime");
-    expect(subtitle()).toBe("Audio · WAV");
+    expect(subtitle()).toBe("Audio");
     expect(step("previous").getAttribute("aria-label")).toBe("Previous: bell");
     expect(step("next").getAttribute("aria-label")).toBe("Next: footsteps");
     expect(rowFor("Assets/Audio/Sounds/door_chime.wav").getAttribute("aria-current")).toBeTruthy();
@@ -374,7 +374,7 @@ describe("the asset inspector", () => {
     lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
     await mount();
     await open("harbor");
-    expect(subtitle()).toBe("Image · PNG · 2 variants");
+    expect(subtitle()).toBe("Image · 2 variants");
     expect(details()).toContain("Files: 2 files · 1 kB");
     await search("market");
     expect(title()).toBe("harbor");
@@ -384,7 +384,7 @@ describe("the asset inspector", () => {
     });
     await settle();
     expect(title()).toBe("harbor");
-    expect(subtitle()).toBe("Image · PNG");
+    expect(subtitle()).toBe("Image");
     expect(details()).toContain("File: 600 B");
   });
 
@@ -417,7 +417,8 @@ describe("the asset inspector", () => {
     expect(title()).toBe("sky");
     await relink("https://example.com/rain.mp3");
     expect(title()).toBe("sky");
-    expect(subtitle()).toBe("Audio · MP3 · link");
+    expect(subtitle()).toBe("Link");
+    expect(details()[0]).toBe("Type: Audio · MP3 · link");
     expect(region()!.querySelector<HTMLInputElement>('input[aria-label="Address"]')!.value).toBe(
       "https://example.com/rain.mp3",
     );
@@ -434,7 +435,7 @@ describe("the asset inspector", () => {
     lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
     await mount();
     await open("sky");
-    expect(subtitle()).toBe("Image · PNG · link");
+    expect(subtitle()).toBe("Link");
     expect(region()!.querySelector("[data-inspector-replace]")).toBeNull();
     const field = region()!.querySelector<HTMLInputElement>('input[aria-label="Address"]')!;
     expect(field.value).toBe("https://example.com/sky.png");
@@ -1147,7 +1148,7 @@ describe("the Variants tester and the Files section", () => {
   it("offers a row per group, writes the reference live, shows the engine's picture, and resets", async () => {
     await mount();
     await open("imani");
-    expect(subtitle()).toBe("Image · PNG · 8 variants");
+    expect(subtitle()).toBe("Image · 8 variants");
     expect(sectionTitles()).toEqual(["Variants", "Details", "Files", "Not used yet"]);
     expect([group("@"), group("face"), group("mouth")].map((button) => button.getAttribute("aria-label"))).toEqual([
       "Alternate: As is",
@@ -1239,7 +1240,7 @@ describe("the Variants tester and the Files section", () => {
         cell.lastElementChild!.getAttribute("role") ?? cell.lastElementChild!.getAttribute("data-variant-group"),
       ]);
     await open("tower");
-    expect(subtitle()).toBe("Image · PNG · 8 variants");
+    expect(subtitle()).toBe("Image · 8 variants");
     expect(cells()).toEqual([
       ["Face", "face"],
       ["Banner", "switch"],
@@ -1259,7 +1260,7 @@ describe("the Variants tester and the Files section", () => {
 
     await click(closeButton());
     await open("rooftop");
-    expect(subtitle()).toBe("Image · PNG · 2 variants");
+    expect(subtitle()).toBe("Image · 2 variants");
     expect(cells()).toEqual([["Lamp", "switch"]]);
     expect(switches()[0]!.getAttribute("aria-checked")).toBe("false");
     await click(switches()[0]);
@@ -1479,6 +1480,44 @@ describe("the Variants tester and the Files section", () => {
     assets.download.mockRejectedValueOnce({ code: -32000, message: "The file could not be read" });
     await fileMenu("imani@night.png", "Download");
     expect(snackbar.value?.message).toBe("The file could not be read");
+  });
+
+  it("draws the Variants tester and the head at the prototype's sizes", async () => {
+    await mount();
+    await open("imani");
+    const classes = (element: Element | null) => element!.className.split(" ");
+    const cell = region()!.querySelector("[data-variant-cell]")!;
+    expect(classes(cell)).toContain("gap-1");
+    expect(classes(cell.parentElement!)).toContain("gap-y-2.5");
+    expect(classes(cell.parentElement!.parentElement!)).toEqual(expect.arrayContaining(["gap-3.5", "pt-3.5"]));
+    expect(classes(region()!.querySelector("[data-variant-reference]"))).toEqual(
+      expect.arrayContaining(["whitespace-nowrap", "overflow-hidden", "fade-edge", "[--fade:24px]"]),
+    );
+    expect(classes(region()!.querySelector("[data-variant-reference]"))).not.toContain("break-all");
+    for (const action of ["[data-variant-copy]", "[data-variant-insert]"]) {
+      expect(classes(region()!.querySelector(action))).toEqual(expect.arrayContaining(["text-[12px]/[1.4]", "[&_svg]:size-4", "min-h-11"]));
+    }
+    const step = region()!.querySelector("[data-inspector-step]")!;
+    expect(classes(step)).toEqual(expect.arrayContaining(["size-11", "[&_svg]:size-[18px]"]));
+    expect(classes(step)).not.toContain("w-10");
+    expect(classes(region()!.querySelector("[data-inspector-close]"))).toContain("[&_svg]:size-[18px]");
+    expect(classes(region()!.querySelector("[data-inspector-body]"))).toEqual(expect.arrayContaining(["pl-4", "pr-gutter-4", "pt-3", "pb-8"]));
+  });
+
+  it("draws the Files section at the prototype's sizes: file rows 3px apart, a 38px add action, 11px code, 18px above", async () => {
+    await mount();
+    await open("imani");
+    const list = region()!.querySelector<HTMLElement>("[data-inspector-files]")!;
+    const classes = (element: Element | null) => element!.className.split(" ");
+    expect(classes(list)).toEqual(expect.arrayContaining(["grid", "gap-[3px]", "pt-2"]));
+    expect(classes(list)).not.toContain("-mx-2");
+    expect(classes(list.closest("section"))).toContain("mt-[18px]");
+    expect(classes(list.querySelector("[role=listitem]"))).toContain("h-[52px]");
+    expect(classes(list.querySelector('[role=listitem] [class*="text-[13px]/[1.5]"]'))).toEqual(expect.arrayContaining(["min-h-[52px]", "pl-1.5"]));
+    expect(classes(list.querySelector('button[aria-label^="Options for"]'))).toContain("[&_svg]:size-[17px]");
+    expect(classes(region()!.querySelector("[data-file-add]"))).toEqual(expect.arrayContaining(["min-h-[38px]", "text-[12px]/[1.4]", "pointer-coarse:min-h-11"]));
+    expect(classes(region()!.querySelector("[data-file-add]"))).not.toContain("-ml-3");
+    expect(classes(region()!.querySelector("[data-file-note] code"))).toContain("text-[11px]");
   });
 
   it("adds a picked file beside the base", async () => {

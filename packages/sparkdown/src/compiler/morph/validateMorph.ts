@@ -10,6 +10,8 @@ import {
   MORPH_CONDITION_FIELDS,
   MORPH_CONTAINER_FIELDS,
   MORPH_DIRECTIONS,
+  MORPH_DURATION_MINIMUM_PROBLEM,
+  MORPH_MIN_DURATION,
   MORPH_FALLBACKS,
   MORPH_LAYER_FIELDS,
   MORPH_LAYER_PROPERTIES,
@@ -797,6 +799,9 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         `\`iteration_delay_max\` (${max}) must be at least \`iteration_delay_min\` (${min}).`,
       );
     }
+    if (decl.parent && !(ownTiming && "duration" in ownTiming) && durationTooShort(effectiveTiming["duration"])) {
+      push(decl.parent, `\`duration\`, inherited: ${MORPH_DURATION_MINIMUM_PROBLEM}`);
+    }
     const named = (field: string, at: Span) => (at === decl.parent ? `\`${field}\`, inherited,` : `\`${field}\``);
     const exclude = (fields: Record<string, string>, kind: string, other: string) => {
       for (const [field, reason] of Object.entries(fields)) {
@@ -829,6 +834,9 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   }
   return issues;
 }
+
+const durationTooShort = (value: unknown): boolean =>
+  typeof value === "number" && value > 0 && value < MORPH_MIN_DURATION;
 
 function checkTiming(
   timing: Record<string, unknown>,
@@ -872,6 +880,7 @@ function checkTiming(
         break;
       case "duration":
         seconds(field, value, true);
+        if (durationTooShort(value)) report(field, MORPH_DURATION_MINIMUM_PROBLEM);
         break;
       case "delay":
       case "iteration_delay_min":

@@ -21,6 +21,7 @@ import {
 import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
+import "../../utils/uniqueIds";
 import { registerFocusReturn } from "../../utils/focusReturn";
 import { KEEP_CLEAR_MARGIN, type KeepClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";

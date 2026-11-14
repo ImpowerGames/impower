@@ -10,11 +10,11 @@ export const tabbedPageVariants = cva(
 );
 
 export const tabbedPageHeaderVariants = cva(
-  "flex h-12 flex-none items-center gap-2.5 border-b border-edge px-4 [:root[data-layout=desktop]_&]:h-[68px] [:root[data-layout=desktop]_&]:px-[18px]",
+  "flex h-14 flex-none items-center gap-2.5 border-b border-edge bg-workspace px-4 [:root[data-layout=desktop]_&]:h-[68px] [:root[data-layout=desktop]_&]:gap-3 [:root[data-layout=desktop]_&]:px-[22px]",
 );
 
 export const tabbedPageTitleVariants = cva(
-  "min-w-0 flex-1 text-[14px] font-semibold [:root[data-layout=desktop]_&]:text-[17px]",
+  "min-w-0 flex-1 text-[14px] font-semibold text-ink [:root[data-layout=desktop]_&]:text-[17px]",
 );
 
 export type TabbedPageVariantProps = VariantProps<typeof tabbedPageVariants>;
@@ -61,7 +61,7 @@ export default function TabbedPage({
       <header class={tabbedPageHeaderVariants()}>
         {icon}
         <h1 class={tabbedPageTitleVariants()}>{title}</h1>
-        <Button variant="quiet" size="compact" class="text-accent" onClick={onBack}>
+        <Button variant="quiet" size="compact" glyph="md" class="gap-2 px-0.5 text-accent" onClick={onBack}>
           <BackIcon />
           {backLabel}
         </Button>

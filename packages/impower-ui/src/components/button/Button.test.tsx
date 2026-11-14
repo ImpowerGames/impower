@@ -75,7 +75,7 @@ describe("Button kinds", () => {
     expect(css).toMatch(/\[aria-pressed="true"\][^{]*\{[^}]*background-color: var\(--tint\)/);
   });
 
-  it("draws a menu field 38px tall inside its own 44px target, its edge in the accent when changed, open or focused", async () => {
+  it("draws a menu field 38px tall, inside a 44px target on a coarse pointer, its edge in the accent when changed, open or focused", async () => {
     const host = await mount(
       <Button variant="field" size="field">
         As is
@@ -84,12 +84,12 @@ describe("Button kinds", () => {
     const area = await hitArea(host.querySelector("button")!);
     expect(area.height).toBeGreaterThanOrEqual(44);
     const classes = buttonVariants({ variant: "field", size: "field" });
-    for (const name of ["min-h-11", "border-y-[3px]", "border-transparent", "bg-clip-padding", "bg-bg", "justify-between"]) {
-      expect(classes).toContain(name);
+    for (const name of ["min-h-[38px]", "border-y-0", "pointer-coarse:min-h-11", "pointer-coarse:border-y-[3px]", "border-transparent", "bg-clip-padding", "bg-bg", "justify-between"]) {
+      expect(classes.split(" ")).toContain(name);
     }
     expect(classes).not.toContain("before:");
     const css = await packageCss(classes.split(" "));
-    expect(css).toContain("border-block-width: 3px;");
+    expect(css).toMatch(/@media \(pointer: coarse\)\s*\{[^@]*border-block-width: 3px;/);
     expect(css).toContain("background-clip: padding-box;");
     expect(css).toContain("--tw-shadow: inset 0 0 0 1px var(--tw-shadow-color, var(--edge));");
     expect(css).toMatch(/\[data-changed\]:not\([^)]*aria-expanded="true"[^)]*\)[^{]*\{[^}]*--tw-shadow: inset 0 0 0 1px var\(--tw-shadow-color, var\(--accent\)\)/);
@@ -102,6 +102,36 @@ describe("Button kinds", () => {
       expect(buttonVariants({ variant, size: "default" })).toContain("rounded-control");
       expect(buttonVariants({ variant, size: "icon" })).toContain("rounded-control");
     }
+  });
+
+  it("draws a narrow icon button 36px wide and 44px tall, left to the coarse-pointer minimum for its width", () => {
+    const classes = buttonVariants({ variant: "quiet", size: "narrow" }).split(" ");
+    expect(classes).toEqual(expect.arrayContaining(["h-11", "w-9", "p-0"]));
+    expect(classes.some((name) => name.startsWith("min-w-"))).toBe(false);
+  });
+
+  it("sets the glyph to 16, 17 or 18px over the size's own glyph", async () => {
+    const sizes = { sm: "[&_svg]:size-4", md: "[&_svg]:size-[17px]", lg: "[&_svg]:size-[18px]" } as const;
+    for (const [glyph, name] of Object.entries(sizes) as [keyof typeof sizes, string][]) {
+      const host = await mount(
+        <Button size="icon" glyph={glyph} aria-label="Options">
+          <svg />
+        </Button>,
+      );
+      const classes = host.querySelector("button")!.className.split(/\s+/);
+      expect(classes).toContain(name);
+      expect(classes).not.toContain("[&_svg]:size-5");
+      host.remove();
+    }
+  });
+
+  it("draws an action button 38px tall in 12px semibold with a 16px glyph, 44px on a coarse pointer", async () => {
+    const classes = buttonVariants({ variant: "quiet", size: "action" });
+    for (const name of ["min-h-[38px]", "min-w-11", "gap-1.5", "px-3", "text-[12px]/[1.4]", "font-semibold", "pointer-coarse:min-h-11", "[&_svg]:size-4"]) {
+      expect(classes.split(" ")).toContain(name);
+    }
+    const css = await packageCss(classes.split(" "));
+    expect(css).toMatch(/@media \(pointer: coarse\)[^{]*\{[^}]*min-height: calc\(var\(--spacing\) \* 11\)/);
   });
 
   it("lets the page's class replace the variant's conflicting radius", async () => {

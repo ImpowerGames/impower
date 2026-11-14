@@ -256,9 +256,13 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const open = PRESENTERS.filter((kind) => kind.presents(game, instructions));
     if (open.length === 0) {
-      if (presentsText(instructions) && !reportedUnshownText.has(game)) {
+      if (
+        presentsText(instructions) &&
+        !game.replaying &&
+        !reportedUnshownText.has(game)
+      ) {
         reportedUnshownText.add(game);
-        game.log(UNSHOWN_TEXT_MESSAGE, "warning");
+        game.warn(UNSHOWN_TEXT_MESSAGE, instructions.source);
       }
       return [new StagePresenter(game, instructions, { ...options, stage: true })];
     }
@@ -374,7 +378,7 @@ export class Coordinator<G extends Game> {
     };
 
     const extended = Boolean(instructions.extended);
-    const silent = previewing && !instant;
+    const silent = previewing && !instant && !game.previewAudio;
 
     if ((!instant || options?.presented) && !extended && !silent) {
       game.module.audio.stopChannel("sound");

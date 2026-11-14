@@ -22,8 +22,6 @@ export default abstract class BlockWidget<
     };
     delete (serializableSpec as any).from;
     delete serializableSpec.to;
-    delete serializableSpec.language;
-    delete serializableSpec.highlighter;
     return JSON.stringify(serializableSpec);
   }
 }

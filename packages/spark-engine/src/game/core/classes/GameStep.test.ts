@@ -11,7 +11,8 @@ const THREE_BEATS = [
   "",
 ].join("\n");
 
-const compile = (source: string) => compileProgram(source);
+const compile = (source: string) =>
+  compileProgram(source, { seedBuiltinsIntoStory: true });
 
 let program: ReturnType<typeof compileProgram>;
 

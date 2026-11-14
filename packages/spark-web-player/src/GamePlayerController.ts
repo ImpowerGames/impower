@@ -3,6 +3,7 @@ import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene"
 import { getSharedAssetCache } from "./main/assets/sharedAssetCache";
 import { compiledElsewhere } from "./utils/compiledElsewhere";
 import { DisplayPreviewMessage } from "./main/workers/messages/DisplayPreviewMessage";
+import { SetPreviewAudioMessage } from "./main/workers/messages/SetPreviewAudioMessage";
 import type {
   WorkerDisplayWorkspace,
   WorkerHang,
@@ -69,6 +70,7 @@ import {
 } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
 import { PlayBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/PlayBeatMessage";
 import { SetAutoPlayBeatsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetAutoPlayBeatsMessage";
+import { SetPlayAudioMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPlayAudioMessage";
 import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
 import {
   clearPlayerBarExecution,
@@ -326,7 +328,7 @@ export class GamePlayerController {
   private _disposed = false;
   private _previewPosition: GameState["position"] = null;
 
-  private _displayedBeat: GameState["shownBeat"] = null;
+  private _displayedBeatDescription: GameState["shownBeatDescription"] = null;
   private _selectionVersion = 0;
   private _launchState: GameState["launchState"] = null;
   protected _routeState: RouteViewState = {
@@ -527,6 +529,7 @@ export class GamePlayerController {
     window.addEventListener("resize", this.handleResize);
     window.addEventListener("pointerdown", this.handleUserInteraction, true);
     window.addEventListener("keydown", this.handleUserInteraction, true);
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
     if (this._resizable) {
       this.refs.toolbar?.addEventListener(
         "pointerdown",
@@ -570,7 +573,7 @@ export class GamePlayerController {
     this._saves.dispose();
     ColorSchemeHost.release(this.refs.gameUI);
     this._previewPosition = null;
-    this._displayedBeat = null;
+    this._displayedBeatDescription = null;
     this._selectionVersion++;
     this._launchState = null;
     this.publishGameState();
@@ -583,6 +586,10 @@ export class GamePlayerController {
     window.removeEventListener("resize", this.handleResize);
     window.removeEventListener("pointerdown", this.handleUserInteraction, true);
     window.removeEventListener("keydown", this.handleUserInteraction, true);
+    document.removeEventListener(
+      "visibilitychange",
+      this.handleVisibilityChange,
+    );
     this.refs.toolbar?.removeEventListener(
       "pointerdown",
       this.handlePointerDownToolbar,
@@ -680,7 +687,7 @@ export class GamePlayerController {
       stepping: this._stepping,
       run: this._workerPlay?.run ?? null,
       position: this._previewPosition,
-      shownBeat: this._displayedBeat,
+      shownBeatDescription: this._displayedBeatDescription,
       completion: this._completionStatus
         ? { request: this._completionRequest, status: this._completionStatus }
         : null,
@@ -1501,6 +1508,7 @@ export class GamePlayerController {
       this.handleSetAutoPlayBeats,
       this.host,
     );
+    p.onRequest(SetPlayAudioMessage.type, this.handleSetPlayAudio, this.host);
     p.onRequest(
       SetAnimatePortraitsMessage.type,
       this.handleSetAnimatePortraits,
@@ -1661,7 +1669,7 @@ export class GamePlayerController {
     }
     if (this._previewPosition?.uri === textDocument.uri || !this._options.startFrom) {
       this._previewPosition = null;
-      this._displayedBeat = null;
+      this._displayedBeatDescription = null;
       this._selectionVersion++;
       this.publishGameState();
     }
@@ -2184,6 +2192,50 @@ export class GamePlayerController {
       this.cancelLanding();
     }
     return SetAutoPlayBeatsMessage.type.response(message.id, {});
+  };
+
+  protected _playAudio = false;
+
+  protected _switchingOn?: object;
+
+  protected handleSetPlayAudio = async (
+    message: SetPlayAudioMessage.Request,
+  ) => {
+    this._playAudio = message.params.enabled;
+    const switching = this._playAudio ? {} : undefined;
+    this._switchingOn = switching;
+    this.openPreviewOutput(this.previewApp);
+    await workspace?.gameLink
+      ?.request(SetPreviewAudioMessage.type, { enabled: this._playAudio })
+      .catch((e) => reportUnlessRestarted(e));
+    if (switching && this._switchingOn === switching) {
+      this._switchingOn = undefined;
+      this.openPreviewOutput(this.previewApp);
+    }
+    return SetPlayAudioMessage.type.response(message.id, {});
+  };
+
+  protected get previewApp(): Application | undefined {
+    return this._workerPlay || this._startingPlay ? undefined : this._app;
+  }
+
+  protected openPreviewOutput(app: Application | undefined) {
+    app?.audio?.setPlaysAudio(this._playAudio);
+    app?.audio?.setOutputOpen(
+      this._playAudio &&
+        !this._switchingOn &&
+        document.visibilityState !== "hidden",
+    );
+  }
+
+  protected handleVisibilityChange = () => {
+    const app = this.previewApp;
+    if (document.visibilityState === "hidden") {
+      app?.audio?.pausePlayers();
+    } else {
+      app?.audio?.unpausePlayers();
+    }
+    this.openPreviewOutput(app);
   };
 
   protected cancelLanding(): boolean {
@@ -3156,8 +3208,8 @@ export class GamePlayerController {
 
   async detachWorkerPreview() {
     this._workerDetaches += 1;
-    if (this._displayedBeat) {
-      this._displayedBeat = null;
+    if (this._displayedBeatDescription) {
+      this._displayedBeatDescription = null;
       this.publishGameState();
     }
     if (this._beatPlay) {
@@ -3432,6 +3484,12 @@ export class GamePlayerController {
     await this.ensureAudioContext();
     profile("start", "app/create");
     const app = this.createApp(game, previewing);
+    if (previewing) {
+      if (document.visibilityState === "hidden") {
+        app.audio?.pausePlayers();
+      }
+      this.openPreviewOutput(app);
+    }
     if (owned()) {
       this._app = app;
       this._appPlay = play;
@@ -3790,7 +3848,7 @@ export class GamePlayerController {
           ending?: GameEnding;
           playing?: boolean;
           beatRefusal?: string;
-          shownBeat?: GameState["shownBeat"];
+          shownBeatDescription?: GameState["shownBeatDescription"];
           shownAddress?: number;
         }
       | undefined;
@@ -3843,7 +3901,7 @@ export class GamePlayerController {
     }
     if (selectionVersion === this._selectionVersion) {
       this._previewPosition = { uri: file, line };
-      this._displayedBeat = result.shownBeat ?? null;
+      this._displayedBeatDescription = result.shownBeatDescription ?? null;
       this.publishGameState();
     }
     return true;
@@ -3851,7 +3909,9 @@ export class GamePlayerController {
 
   protected restoreWorkerDebugger(link: WorkerGameLink) {
     const options = this._options;
-    const sent: Promise<unknown>[] = [];
+    const sent: Promise<unknown>[] = [
+      link.request(SetPreviewAudioMessage.type, { enabled: this._playAudio }),
+    ];
     if (options?.startingValues) {
       sent.push(
         link.request(SetGameStartingValuesMessage.type, {
