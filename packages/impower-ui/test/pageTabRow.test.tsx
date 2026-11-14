@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import TabbedPage from "../src/components/tabbed-page/TabbedPage";
 import Tabs, { Tab } from "../src/components/tabs/Tabs";
 
 type Rule = { selector: string; style: CSSStyleDeclaration; media: string[] };
@@ -40,6 +41,7 @@ const compiled = async (classes: string[]) => {
 
 const px = (value: string | undefined) => {
   const text = (value ?? "").trim();
+  if (text === "var(--spacing)") return 4;
   const spacing = /^calc\(var\(--spacing\)\s*\*\s*([\d.]+)\)$/.exec(text);
   if (spacing) return Number(spacing[1]) * 4;
   const plain = /^([\d.]+)px$/.exec(text);
@@ -114,5 +116,41 @@ describe("Tabs page variant", () => {
       expect(cascaded(rules, tab, "min-width")).toBeGreaterThanOrEqual(44);
       expect(declaredValue(rules, tab, "flex")).toBe("none");
     }
+    const [active, inactive] = tabs;
+    expect(active!.dataset.state).toBe("active");
+    expect(declaredValue(rules, active!, "font-weight")).toBe(declaredValue(rules, inactive!, "font-weight"));
+  });
+});
+
+describe("TabbedPage tab row", () => {
+  it.each(["phone", "compact"] as const)("insets the row 16px from the page edges at the %s layout", async (layout) => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    host = document.body.appendChild(document.createElement("div"));
+    host.dataset.layout = layout;
+    await act(async () =>
+      render(
+        <TabbedPage
+          title="Scripts"
+          onBack={() => {}}
+          value="all"
+          onValueChange={() => {}}
+          tabs={[
+            { value: "all", label: "All scripts", content: null },
+            { value: "outline", label: "In this script", content: null },
+          ]}
+        />,
+        host!,
+      ),
+    );
+    const list = host.querySelector<HTMLElement>('[role="tablist"]')!;
+    const row = list.parentElement!;
+    const rules = await compiled(Array.from(row.classList));
+    expect(cascaded(rules, row, "margin-inline")).toBe(16);
   });
 });
