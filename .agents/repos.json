@@ -10,6 +10,11 @@
       "decision": "maintainer: decision",
       "task": "maintainer: task",
       "decidedWithoutYou": "maintainer: decided without you"
+    },
+    "app": {
+      "slug": null,
+      "id": null,
+      "installationId": null
     }
   }
 }
