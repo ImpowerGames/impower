@@ -42,7 +42,7 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: "rename"
   return (
     <DropdownRoot>
       <DropdownTrigger asChild>
-        <Button variant="quiet" size="icon" aria-label={`Options for ${row.name}`} class="flex-none text-muted">
+        <Button variant="quiet" size="icon" glyph="md" aria-label={`Options for ${row.name}`} class="flex-none text-muted">
           <MoreVerticalIcon />
         </Button>
       </DropdownTrigger>
@@ -101,12 +101,13 @@ export default function FilesSection({ stack, sizes, intents, relocate }: FilesS
   };
 
   return (
-    <Section title="Files" aside={filesSummary(rows)} label="Files">
-      <div role="list" class="-mx-2" data-inspector-files>
+    <Section title="Files" aside={filesSummary(rows)} label="Files" class="mt-[18px]">
+      <div role="list" class="grid gap-[3px] pt-2" data-inspector-files>
         {rows.map((row) => (
-          <div role="listitem" key={row.path} class="h-14" data-file-path={row.path}>
+          <div role="listitem" key={row.path} class="h-[52px]" data-file-path={row.path}>
             {renaming === row.path ? (
               <NameRow
+                size="file"
                 icon={<ImageIcon class="text-muted" />}
                 label={`Rename ${row.name}`}
                 initial={stemAndExtension(row.name)[0]}
@@ -121,6 +122,7 @@ export default function FilesSection({ stack, sizes, intents, relocate }: FilesS
               />
             ) : (
               <ListRow
+                size="file"
                 icon={<ImageIcon class="text-muted" />}
                 label={row.name}
                 description={`${row.role} · ${bytesLabel(row.size)}`}
@@ -130,21 +132,21 @@ export default function FilesSection({ stack, sizes, intents, relocate }: FilesS
           </div>
         ))}
       </div>
-      <div class="mt-2 flex flex-col items-start gap-1.5">
-        <Button variant="quiet" class="-ml-3" data-file-add onClick={() => picker.current?.click()}>
+      <div class="mt-2 flex flex-col items-start gap-2">
+        <Button variant="quiet" size="action" data-file-add onClick={() => picker.current?.click()}>
           <PlusIcon />
           Add a layer or alternate…
         </Button>
         <p class="m-0 text-[12px]/[1.5] text-muted" data-file-note>
           {stack.kind === "folder" ? (
             <>
-              A file named <code class="font-mono text-ink">NN_group.option.png</code> in this folder adds a layer; NN
+              A file named <code class="font-mono text-[11px] text-ink">NN_group.option.png</code> in this folder adds a layer; NN
               sets where it stacks.
             </>
           ) : (
             <>
-              A file named <code class="font-mono text-ink">{stack.name}~group.option.png</code> adds a layer and{" "}
-              <code class="font-mono text-ink">{stack.name}@name.png</code> another alternate.
+              A file named <code class="font-mono text-[11px] text-ink">{stack.name}~group.option.png</code> adds a layer and{" "}
+              <code class="font-mono text-[11px] text-ink">{stack.name}@name.png</code> another alternate.
             </>
           )}
         </p>

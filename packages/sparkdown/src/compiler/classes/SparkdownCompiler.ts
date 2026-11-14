@@ -2,6 +2,7 @@
 import type { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
 import type { SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { ASSET_TYPES } from "../constants/assetTypes";
 import { resolveImageAttributes } from "../utils/filterImage";
 import { fingerprintSource } from "../utils/fingerprintSource";
 import {
@@ -4106,7 +4107,6 @@ export class SparkdownCompiler {
     if (styles) {
       program.styles = styles;
     }
-    const ASSET_TYPES = ["image", "audio", "font", "video", "layered_image", "filtered_image"];
     for (const type of ASSET_TYPES) {
       const assets = channelFor(type, cloneSharingVocabularies);
       if (assets) {

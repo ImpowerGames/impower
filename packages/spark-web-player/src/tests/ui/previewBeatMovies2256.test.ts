@@ -21,7 +21,7 @@ async function played(source: string, line: number, compose = false) {
 }
 
 describe("movies in a beat played in the stopped preview (#2256)", () => {
-  test("a cutscene starts playing, muted", async () => {
+  test("a cutscene starts playing, unmuted unless its author muted it", async () => {
     const { h, media } = await played(
       'define intro as video with\n  src = "intro.webm"\nend\nscene start\n  [[play intro]]\n  After.\nend\n',
       4,
@@ -31,7 +31,7 @@ describe("movies in a beat played in the stopped preview (#2256)", () => {
       const video = h.overlay.querySelector(".cutscene video") as HTMLVideoElement;
       expect(video).toBeTruthy();
       expect(media.of(video, "play")).toBeGreaterThan(0);
-      expect(video.muted).toBe(true);
+      expect(video.muted).toBe(false);
     } finally {
       h.game.destroy();
       h.ui.onDispose();
@@ -39,7 +39,7 @@ describe("movies in a beat played in the stopped preview (#2256)", () => {
     }
   });
 
-  test("a movie on a layer starts playing, muted", async () => {
+  test("a movie on a layer starts playing, unmuted unless its author muted it", async () => {
     const { h, media } = await played(
       'define wave as video with\n  src = "wave.webm"\nend\nscene start\n  [[show portrait wave]]\n  Waving.\nend\n',
       4,
@@ -49,7 +49,7 @@ describe("movies in a beat played in the stopped preview (#2256)", () => {
       const video = h.overlay.querySelector("video") as HTMLVideoElement;
       expect(video).toBeTruthy();
       expect(media.of(video, "play")).toBeGreaterThan(0);
-      expect(video.muted).toBe(true);
+      expect(video.muted).toBe(false);
     } finally {
       h.game.destroy();
       h.ui.onDispose();

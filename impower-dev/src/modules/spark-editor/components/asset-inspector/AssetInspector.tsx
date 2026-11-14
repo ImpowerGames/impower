@@ -16,7 +16,7 @@ import {
   TextField,
   useEscapeWithin,
 } from "@impower/impower-ui/components";
-import { useLayout } from "@impower/impower-ui/layout";
+import { useLayout, useScrollbarSize } from "@impower/impower-ui/layout";
 import type { ComponentChildren, Ref } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
@@ -164,6 +164,7 @@ export default function AssetInspector({
   menu,
 }: AssetInspectorProps) {
   const desktop = useLayout() === "desktop";
+  useScrollbarSize();
   const sheet = host === "sheet";
   const close = useRef<HTMLButtonElement | null>(null);
   const stepButtons = useRef<Record<"previous" | "next", HTMLButtonElement | null>>({
@@ -422,7 +423,8 @@ export default function AssetInspector({
         }}
         variant="quiet"
         size="icon"
-        class="w-10 text-muted"
+        glyph="lg"
+        class="text-muted"
         aria-label={label}
         title={label}
         data-inspector-step={direction}
@@ -452,7 +454,7 @@ export default function AssetInspector({
       <PanelHead
         size={desktop && !sheet ? "tall" : "default"}
         titleSize="sm"
-        class="px-2"
+        class="px-2 py-0"
         title={
           sheet ? (
             <DialogTitle class={panelHeadTitleVariants({ titleSize: "sm" })}>{asset.name}</DialogTitle>
@@ -473,6 +475,7 @@ export default function AssetInspector({
             }}
             variant="quiet"
             size="icon"
+            glyph="lg"
             class="flex-none text-muted"
             aria-label={sheet ? "Back to the collection" : "Close details"}
             title={sheet ? "Back to the collection" : "Close details"}
@@ -483,7 +486,7 @@ export default function AssetInspector({
           </Button>
         }
         end={
-          <div class="flex flex-none items-center">
+          <div class="flex flex-none items-center gap-1.5">
             <div role="group" aria-label="Previous and next" class="flex flex-none">
               {stepButton("previous")}
               {stepButton("next")}
@@ -494,7 +497,7 @@ export default function AssetInspector({
       />
       <div
         ref={body}
-        class="grid min-h-0 flex-1 auto-rows-max content-start gap-5 overflow-x-hidden overflow-y-auto bg-inherit px-4 pt-3.5 pb-7"
+        class="grid min-h-0 flex-1 auto-rows-max content-start gap-5 overflow-x-hidden overflow-y-auto bg-inherit pt-3 pr-gutter-4 pb-8 pl-4 [:root[data-layout=desktop]_&]:pt-3.5 [:root[data-layout=desktop]_&]:pb-7"
         data-inspector-body
       >
         {stack ? (
