@@ -175,20 +175,24 @@ describe("the gutter marks and route pins under forced colours", () => {
       const probe = document.body.appendChild(document.createElement("span"));
       probe.style.color = "CanvasText";
       const canvasText = getComputedStyle(probe).color;
-      const drawn = (kind: string, style: CSSStyleDeclaration, width: number, height: number) => ({
-        kind,
-        paint: style.backgroundColor,
-        size: [Math.round(width), Math.round(height)],
-        shown: style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0",
-      });
+      const drawn = (kind: string, element: Element, paint: string) => {
+        const box = element.getBoundingClientRect();
+        return {
+          kind,
+          paint,
+          size: [Math.round(box.width), Math.round(box.height)],
+          shown: element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }),
+        };
+      };
       const glyphs = [...document.querySelectorAll(".cm-breakpoint, .cm-choice-marker")].map((mark) => {
-        const style = getComputedStyle(mark.querySelector(".cm-gutter-button-glyph")!, "::before");
-        return drawn(mark.className.replace("cm-gutter-button ", ""), style, parseFloat(style.width) || 0, parseFloat(style.height) || 0);
+        const glyph = mark.querySelector(".cm-gutter-button-glyph")!;
+        const before = getComputedStyle(glyph, "::before");
+        const paint = before.display === "none" || before.content === "none" ? "no ::before" : before.backgroundColor;
+        return drawn(mark.className.replace("cm-gutter-button ", ""), glyph, paint);
       });
       const masks = [...document.querySelectorAll(".route-icon-mask, .cm-choice-popover .cm-choice-icon")].map((icon) => {
-        const box = icon.getBoundingClientRect();
         const name = icon.classList.contains("route-icon-mask") ? `route ${(icon as HTMLElement).dataset["icon"]}` : icon.className;
-        return drawn(name, getComputedStyle(icon), box.width, box.height);
+        return drawn(name, icon, getComputedStyle(icon).backgroundColor);
       });
       const folds = [...document.querySelectorAll(".cm-fold-marker")].map((mark) =>
         getComputedStyle(mark.querySelector(".cm-gutter-button-glyph")!, "::before").backgroundColor,
