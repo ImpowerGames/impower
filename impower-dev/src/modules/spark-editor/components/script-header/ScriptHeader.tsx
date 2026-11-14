@@ -59,7 +59,7 @@ function ScriptName({
 }) {
   const { folder, name } = splitScriptPath(filename);
   const nameClass = cn(
-    "block min-w-0 max-w-full truncate font-semibold leading-[1.3] text-ink",
+    "block min-w-0 max-w-full font-semibold leading-[1.3] text-ink",
     desktop ? "text-[17px]" : "text-[14px] leading-[1.35]",
   );
   return (
@@ -81,7 +81,7 @@ function ScriptName({
       {folder && (
         <span
           data-script-folder
-          class="truncate text-[11px] leading-[1.3] text-muted"
+          class="text-[11px] leading-[1.3] text-muted fade-edge"
         >
           {folder}
         </span>
@@ -94,7 +94,7 @@ export function FoldedScriptHeader({ filename }: { filename: string }) {
   return (
     <div
       data-script-header-folded
-      class="flex h-11 min-w-0 flex-1 items-center gap-2.5 pl-1"
+      class="flex h-11 min-w-0 flex-1 items-center gap-2.5 pl-0.5"
     >
       <ScriptStatusButton filename={filename} />
       <ScriptName filename={filename} desktop={false} />
