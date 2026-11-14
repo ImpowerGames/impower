@@ -1,0 +1,10 @@
+{
+  "source": [
+    "packages/sparkdown/src/tests/luau-conformance/cyclicUnionFixture.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/cyclicUnionFixture.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeCyclicUnionAcceptance.test.ts"
+  ],
+  "archivedNativeProbes": [
+    "packages/sparkdown/src/tests/luau-conformance/nativeCyclicUnionAcceptance.test.ts"
+  ]
+}
