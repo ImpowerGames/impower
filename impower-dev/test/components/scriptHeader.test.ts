@@ -37,7 +37,7 @@ const { default: workspaceSettings, PREFERENCES_STORAGE_KEY, WorkspaceSettings }
   await import("../../src/modules/spark-editor/workspace/settings/WorkspaceSettings");
 const { default: problems } =
   await import("../../src/modules/spark-editor/workspace/problems/ProblemsStore");
-const { default: ScriptHeader } =
+const { default: ScriptHeader, FoldedScriptHeader } =
   await import("../../src/modules/spark-editor/components/script-header/ScriptHeader");
 
 let host: HTMLDivElement | undefined;
@@ -47,9 +47,12 @@ const settle = () =>
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
-const mount = async (props: Record<string, unknown>) => {
+const mount = async (
+  props: Record<string, unknown>,
+  component: typeof ScriptHeader = ScriptHeader,
+) => {
   host = document.body.appendChild(document.createElement("div"));
-  await act(async () => render(h(ScriptHeader, props), host!));
+  await act(async () => render(h(component, props), host!));
   return host;
 };
 
@@ -162,12 +165,19 @@ describe("ScriptHeader name field", () => {
     expect(host!.querySelector("[data-script-folder]")!.textContent).toBe("scripts/act1");
   });
 
-  it.each(["phone", "desktop"])(
-    "on %s, fades a long name and its folder at the edge instead of cutting them to an ellipsis, and leaves a focused name uncut",
-    async (value) => {
+  it.each([
+    ["the phone's folded title bar header", "phone", FoldedScriptHeader],
+    ["a phone's script header", "phone", ScriptHeader],
+    ["the desktop script header", "desktop", ScriptHeader],
+  ] as const)(
+    "in %s, fades a long name and its folder at the edge instead of cutting them to an ellipsis, and leaves a focused name uncut",
+    async (_where, value, component) => {
       layout.value = value;
       workspace.layout.value = layout.value as Layout;
-      await mount({ filename: "Scripts/Extras/Untitled script 4.sd" });
+      await mount(
+        { filename: "Scripts/Extras/Untitled script 4.sd" },
+        component as typeof ScriptHeader,
+      );
       const folder = host!.querySelector<HTMLElement>("[data-script-folder]")!;
       expect(field().classList.contains("not-focus:fade-edge")).toBe(true);
       expect(field().classList.contains("fade-edge")).toBe(false);
