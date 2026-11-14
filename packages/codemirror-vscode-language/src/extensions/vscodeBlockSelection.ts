@@ -262,15 +262,19 @@ export const vscodeBlockSelection = (
   configs: Readonly<Record<string, VSCodeConfigDefinition>>,
 ): Extension => {
   const doubleClickBlock: DoubleClickBlock = (state, pos) => {
-    const tree = ensureSyntaxTree(state, state.doc.length, PARSE_TIMEOUT_MS);
-    if (!tree) return null;
-    const pairs = pairBrackets(
-      bracketsOf(reader, state, tree, documentLanguage, configs),
-    );
-    return (
-      bracketContent(pairs, state, pos) ??
-      stringContent(reader, tree, state, pos)
-    );
+    const full = ensureSyntaxTree(state, state.doc.length, PARSE_TIMEOUT_MS);
+    const bracket =
+      full &&
+      bracketContent(
+        pairBrackets(bracketsOf(reader, state, full, documentLanguage, configs)),
+        state,
+        pos,
+      );
+    if (bracket) return bracket;
+    const tree =
+      full ??
+      ensureSyntaxTree(state, state.doc.lineAt(pos).to, PARSE_TIMEOUT_MS);
+    return tree && stringContent(reader, tree, state, pos);
   };
   return EditorState.languageData.of(() => [
     { [DOUBLE_CLICK_BLOCK]: doubleClickBlock },

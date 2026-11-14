@@ -1,3 +1,4 @@
+import { ensureSyntaxTree, forceParsing } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -84,6 +85,14 @@ describe("double-click just inside a bracket pair or a quoted string selects its
     { text: "{mia@night)", where: "a { closed by )" },
   ])("selects the word right after $where", ({ text }) => {
     expect(doubleClickAt(parsedEditor([text]), [text], [0, 0], 1)).toBe("mia");
+  });
+
+  it("selects a string's contents on a parsed line while the rest of a long document is still unparsed", () => {
+    const long = ['x = "hi there"', ...Array.from({ length: 20000 }, (_, i) => `Display text number ${i}`)];
+    const view = liveEditor(long);
+    forceParsing(view, long[0]!.length, 5000);
+    expect(ensureSyntaxTree(view.state, view.state.doc.length, 0)).toBeNull();
+    expect(doubleClickAt(view, long, [0, 4], 1)).toBe("hi there");
   });
 
   it("selects the word right after the opening quote of an unterminated string", () => {
