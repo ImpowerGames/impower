@@ -33,11 +33,13 @@ describe("a beep-synced speech morph's plays (#2261)", () => {
 
   test("a beep at the moment a play ends starts the next play", () => {
     const timeline = beepSynced({ duration: 0.15 });
-    timeline.speak([[0, 0.45]], 0, BEEPS);
+    timeline.speak([[0, 0.6]], 0, [0, 0.15, 0.4]);
     const offsets = [0.149, 0.15, 0.151].map((t) => timeline.at(t));
     expect(offsets[0]).toMatchObject({ phase: "playing", play: 0 });
     expect(offsets[1]).toEqual({ phase: "playing", play: 1, offset: 0 });
     expect(offsets[2]).toMatchObject({ phase: "playing", play: 1 });
+    expect(timeline.at(0.35)).toEqual({ phase: "between", play: 1, offset: 1 });
+    expect(timeline.at(0.4)).toEqual({ phase: "playing", play: 2, offset: 0 });
   });
 
   test("the first play waits for the first beep, not the first span", () => {
