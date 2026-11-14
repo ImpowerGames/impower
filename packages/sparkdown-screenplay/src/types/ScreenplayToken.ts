@@ -10,4 +10,5 @@ export interface ScreenplayToken {
   suffix?: string;
   from?: number;
   continued?: boolean;
+  source?: number[];
 }

@@ -25,6 +25,9 @@ const KINDS: Record<string, string[]> = {
   BlockWrite: ["  @ hud:", "    Score up."],
   Branch: ["  branch b", "    Inside.", "  end"],
   Choice: ["  * [Stray.]"],
+  ChoiceDivert: ["  * [Onward.] -> s"],
+  ImplicitActionDivert: ["  They leave. -> s"],
+  InlineDialogueDivert: ["  GUIDE: Bye. -> s"],
   Divert: ["  -> s"],
   DoneStatement: ["  done"],
   DualDialogue: ["  GUIDE <:", "    Left.", "  VISITOR >:", "    Right."],
@@ -243,6 +246,90 @@ describe("screenplay page and export agree on blank lines", () => {
     },
     600_000,
   );
+});
+
+const CONTAINERS: Record<string, { open: string[]; close: string[]; indent: string }> = {
+  if: { open: ["  if true then"], close: ["  end"], indent: "  " },
+  elseif: { open: ["  if false then", "    No.", "  elseif true then"], close: ["  end"], indent: "  " },
+  else: { open: ["  if false then", "    No.", "  else"], close: ["  end"], indent: "  " },
+  while: { open: ["  while true do"], close: ["  end"], indent: "  " },
+  for: { open: ["  for i = 1, 2 do"], close: ["  end"], indent: "  " },
+  repeat: { open: ["  repeat"], close: ["  until true"], indent: "  " },
+  do: { open: ["  do"], close: ["  end"], indent: "  " },
+  branch: { open: ["  branch b"], close: ["  end"], indent: "  " },
+  choice: { open: ["  choose", "    * [Go.]"], close: ["  end"], indent: "    " },
+  queueBranch: { open: ["  queue", "    | First one | Second one", "    | Third line"], close: ["  end"], indent: "    " },
+  matchBranch: { open: ["  match x", "    | Small."], close: ["  end"], indent: "    " },
+};
+
+const NOT_NESTABLE = new Set([
+  "LuauShebang",
+  "Scene",
+  "LuauEndKeyword",
+  "TrailingWhitespace",
+  "LuauStrayUntilStatement",
+  "LuauSparkdownElseBlock",
+  "LuauSparkdownElseifBlock",
+]);
+
+const NESTED_KINDS = Object.keys(KINDS).filter((kind) => !NOT_NESTABLE.has(kind));
+
+const NESTED_CHUNK = 12;
+
+const NESTED_CHUNKS = Array.from({ length: Math.ceil(NESTED_KINDS.length / NESTED_CHUNK) }, (_, index) =>
+  NESTED_KINDS.slice(index * NESTED_CHUNK, (index + 1) * NESTED_CHUNK),
+);
+
+const nestedSourceOf = (container: string, kinds: readonly string[]) => {
+  const { open, close, indent } = CONTAINERS[container]!;
+  const body = kinds.flatMap((kind) => KINDS[kind]!.map((line) => (line ? `${indent}${line}` : line)));
+  return ["scene s", "  Before.", ...open, ...body, ...close, "  After.", "end", ""].join("\n");
+};
+
+describe("screenplay page and export agree on text inside blocks", () => {
+  it.each(Object.keys(CONFIGS).flatMap((configName) => Object.keys(CONTAINERS).map((container) => [configName, container])))(
+    "with %s settings inside %s",
+    async (configName, container) => {
+      const failures: string[] = [];
+      for (const [index, kinds] of NESTED_CHUNKS.entries()) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const source = nestedSourceOf(container, kinds);
+        const found = difference(screenRows(configName, source), exportRows(configName, source));
+        if (found) {
+          failures.push(`sequence ${index}: ${found}; kinds ${kinds.join(" > ")}`);
+        }
+      }
+      expect(failures).toEqual([]);
+    },
+    600_000,
+  );
+});
+
+describe("the ticket's nested loop and alternator", () => {
+  it("shows only the text the export prints", () => {
+    const source = [
+      "scene s",
+      "  INT. ROOM - DAY",
+      "  local x = 0",
+      "  if x == 0 then",
+      "    while x < 3 do",
+      "      Hero: Again.",
+      "      x += 1",
+      "    end",
+      "  end",
+      "  Hero: Hi.",
+      "  queue",
+      "    | First one | Second one",
+      "    | Third line",
+      "        Hero: Multi.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const screen = screenRows("default", source);
+    expect(difference(screen, exportRows("default", source))).toBe("");
+    expect(screen.join("\n")).not.toMatch(/x\s*<\s*3|x\s*\+=\s*1|^\|/m);
+  });
 });
 
 describe("the element sequences", () => {

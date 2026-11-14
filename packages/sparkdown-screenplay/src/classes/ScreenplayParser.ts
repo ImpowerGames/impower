@@ -15,7 +15,9 @@ const SAME_LINE_TEXT_SEPARATORS = new Set([
   "SparkdownBlockCommentOnLine",
 ]);
 
-const CHOICE_TEXT_COMMENTS = new Set(["SparkdownBlockComment", "SparkdownInlineComment"]);
+const TEXT_UNPRINTED = new Set(["Glue", "SparkdownBlockComment", "Divert"]);
+
+const CHOICE_UNPRINTED =new Set(["SparkdownBlockComment", "SparkdownInlineComment", "Divert"]);
 
 const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
 
@@ -33,14 +35,26 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
     let choice_suffix = "";
     let character = "";
     let position: "l" | "r" | undefined = undefined;
+    let textSource: number[] = [];
+    let characterSource: number[] = [];
+    let choiceSource: number[] = [];
     let lineStart = 0;
     const read = (from: number, to: number) => script.slice(from, to);
+    let sink: number[] = [];
+    const readIntoSink = (from: number, to: number) => {
+      if (to > from) sink.push(from, to);
+      return read(from, to);
+    };
+    const readInto = (source: number[]) => {
+      sink = source;
+      return readIntoSink;
+    };
     let leading = false;
-    const readWords = (node: SyntaxNode): string => {
+    const readWords = (node: SyntaxNode, source: number[]): string => {
       const text = readSkipping(
         node,
-        read,
-        (child) => child.name === "Glue" || child.name === "SparkdownBlockComment",
+        readInto(source),
+        (child) => TEXT_UNPRINTED.has(child.name),
       );
       if (leading) {
         leading = false;
@@ -61,29 +75,31 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         ? `${lines.replace(/\n$/, "")}${text}\n`
         : `${lines}${text}\n`;
     const readChoiceText = (node: SyntaxNode): string =>
-      readSkipping(node, read, (child) => CHOICE_TEXT_COMMENTS.has(child.name));
+      readSkipping(node, readInto(choiceSource), (child) => CHOICE_UNPRINTED.has(child.name));
 
     let headingContinues = false;
     const flushText = () => {
+      const source = textSource;
+      textSource = [];
       if (title) {
-        tokens.push({ tag: "title", text: title });
+        tokens.push({ tag: "title", text: title, source });
         title = "";
       }
       if (heading) {
         tokens.push(
           headingContinues
-            ? { tag: "heading", text: heading, continued: true }
-            : { tag: "heading", text: heading },
+            ? { tag: "heading", text: heading, continued: true, source }
+            : { tag: "heading", text: heading, source },
         );
         heading = "";
         headingContinues = true;
       }
       if (transitional) {
-        tokens.push({ tag: "transitional", text: transitional });
+        tokens.push({ tag: "transitional", text: transitional, source });
         transitional = "";
       }
       if (action) {
-        tokens.push({ tag: "action", text: action });
+        tokens.push({ tag: "action", text: action, source });
         action = "";
       }
     };
@@ -168,9 +184,10 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
 
         if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
           if (name === "TextChunk") {
-            title = appendLine(title, nodeRef.node, readWords(nodeRef.node));
+            title = appendLine(title, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
+            textSource.push(from, to);
             const text = read(from, to);
             title += text + "\n";
           }
@@ -178,9 +195,10 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
 
         if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
           if (name === "TextChunk") {
-            heading = appendLine(heading, nodeRef.node, readWords(nodeRef.node));
+            heading = appendLine(heading, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
+            textSource.push(from, to);
             const text = read(from, to);
             heading += text + "\n";
           }
@@ -194,10 +212,11 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             transitional = appendLine(
               transitional,
               nodeRef.node,
-              readWords(nodeRef.node),
+              readWords(nodeRef.node, textSource),
             );
           }
           if (name === "ParentheticalLineContent") {
+            textSource.push(from, to);
             const text = read(from, to);
             transitional += text + "\n";
           }
@@ -209,9 +228,10 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
           stack.includes("ImplicitAction")
         ) {
           if (name === "TextChunk") {
-            action = appendLine(action, nodeRef.node, readWords(nodeRef.node));
+            action = appendLine(action, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
+            textSource.push(from, to);
             const text = read(from, to);
             action += text + "\n";
           }
@@ -220,10 +240,12 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "DialogueCharacterName") {
           const text = read(from, to);
           character = text;
+          characterSource = [from, to];
         }
         if (name === "DialogueCharacterParenthetical") {
           const text = read(from, to);
           character += text;
+          characterSource.push(from, to);
         }
         if (name === "DialogueCharacterPositionContent") {
           const text = read(from, to);
@@ -239,15 +261,16 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         ) {
           if (name === "TextChunk") {
             const continues = continuesAfterComment(nodeRef.node);
-            const text = readWords(nodeRef.node);
             const last = tokens.at(-1);
             if (continues && last?.tag === "dialogue_content") {
-              last.text = `${last.text ?? ""}${text}`;
+              last.text = `${last.text ?? ""}${readWords(nodeRef.node, (last.source ??= []))}`;
             } else {
+              const source: number[] = [];
               tokens.push({
                 tag: "dialogue_content",
-                text,
+                text: readWords(nodeRef.node, source),
                 position,
+                source,
               });
             }
           }
@@ -257,6 +280,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
               tag: "dialogue_parenthetical",
               text,
               position,
+              source: [from, to],
             });
           }
         }
@@ -265,6 +289,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
           if (name === "ChoiceMark") {
             const text = read(from, to);
             choice_prefix += text;
+            choiceSource.push(from, to);
           }
           if (name === "Choice_content") {
             choice += readChoiceText(nodeRef.node);
@@ -303,8 +328,10 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             tag: "dialogue_character",
             text: character,
             position,
+            source: characterSource,
           });
           character = "";
+          characterSource = [];
         }
         if (name === "BlockDialogue" || name === "InlineDialogue") {
           position = undefined;
@@ -316,8 +343,10 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             text: choice,
             prefix: choice_prefix,
             suffix: choice_suffix,
+            source: choiceSource,
           });
           choice = "";
+          choiceSource = [];
           choice_prefix = "";
           choice_suffix = "";
         }

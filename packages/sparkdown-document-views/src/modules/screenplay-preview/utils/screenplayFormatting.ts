@@ -10,7 +10,7 @@ import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
-import { screenplayBlankLines } from "../../../../../sparkdown-screenplay/src/utils/screenplayBlankLines";
+import { screenplayPageLayout } from "../../../../../sparkdown-screenplay/src/utils/screenplayPageLayout";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
@@ -255,17 +255,24 @@ const PRINTED_NAME_SETTINGS = [
   "screenplay_print_stitch_identifiers",
 ] as const;
 
-const blankPositionCache = new WeakMap<Tree, { settings: string; positions: Set<number> }>();
+interface CachedPageLayout {
+  settings: string;
+  blankPositions: Set<number>;
+  printed: number[];
+}
 
-const cachedBlankPositions = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
+const pageLayoutCache = new WeakMap<Tree, CachedPageLayout>();
+
+const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
   const settings = PRINTED_NAME_SETTINGS.map((key) => (config?.[key] ? "1" : "0")).join("");
-  const cached = blankPositionCache.get(tree);
+  const cached = pageLayoutCache.get(tree);
   if (cached && cached.settings === settings) {
-    return cached.positions;
+    return cached;
   }
-  const positions = new Set(screenplayBlankLines(tree, doc.toString(), config));
-  blankPositionCache.set(tree, { settings, positions });
-  return positions;
+  const layout = screenplayPageLayout(tree, doc.toString(), config);
+  const result = { settings, blankPositions: new Set(layout.blankLines), printed: layout.printed };
+  pageLayoutCache.set(tree, result);
+  return result;
 };
 
 export const decorate = (
@@ -356,15 +363,6 @@ export const decorate = (
   const isLuauFlowBlockContainer = (name: string) =>
     /^LuauSparkdown[A-Za-z]*(Block|Clause|Loop)$/.test(name);
 
-  const isHiddenFlowLogic = (name: string) =>
-    name === "Divert" ||
-    name === "Label" ||
-    name === "LuauSparkdownExplicitStatement" ||
-    name === "LuauSparkdownExplicitBlockStatement" ||
-    name === "LuauIfBlockCondition" ||
-    name === "LuauElseifBlockCondition" ||
-    name === "LuauSparkdownExplicitIfCondition";
-
   const isBlankLine = (nodeRef: SyntaxNodeRef) =>
     printsAsBlankLine(nodeRef.name, nodeRef.node.parent?.name);
 
@@ -378,7 +376,35 @@ export const decorate = (
 
   const tree = treeOverride ?? syntaxTree(state);
 
-  const blankPositions = cachedBlankPositions(tree, doc, config);
+  const { blankPositions, printed } = cachedPageLayout(tree, doc, config);
+
+  let printedIndex = 0;
+  const holdsPrintedText = (from: number, to: number) => {
+    while (printedIndex < printed.length && printed[printedIndex + 1]! <= from) {
+      printedIndex += 2;
+    }
+    return printedIndex < printed.length && printed[printedIndex]! < to;
+  };
+
+  const isUnprinted = (nodeRef: SyntaxNodeRef) => {
+    const { from, to } = nodeRef;
+    if (inFrontMatter || to <= from || nodeRef.name === "Newline" || holdsPrintedText(from, to)) {
+      return false;
+    }
+    if (doc.lineAt(from).to < to - 1 && nodeRef.node.firstChild) {
+      return false;
+    }
+    return /\S/.test(doc.sliceString(from, to));
+  };
+
+  const printedSlice = (from: number, to: number) => {
+    holdsPrintedText(from, to);
+    let text = "";
+    for (let index = printedIndex; index < printed.length && printed[index]! < to; index += 2) {
+      text += doc.sliceString(Math.max(from, printed[index]!), Math.min(to, printed[index + 1]!));
+    }
+    return text;
+  };
 
   const blankLines = new Set(
     [...blankPositions].map((position) => doc.lineAt(Math.min(position, doc.length)).number),
@@ -554,6 +580,7 @@ export const decorate = (
   let frontMatterPositionContent: Record<string, MarkupContent[]> = {};
   let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
   let frontMatterKeyword = "";
+  let inFrontMatter = false;
 
   tree.iterate({
     from,
@@ -567,6 +594,7 @@ export const decorate = (
       }
       if (name === "FrontMatter") {
         frontMatterPositionContent = {};
+        inFrontMatter = true;
       } else if (name === "FrontMatterField") {
         frontMatterFieldCaptureBlocks = [];
         frontMatterKeyword = "";
@@ -603,23 +631,17 @@ export const decorate = (
             style: getDialogueLineStyle("character"),
           },
         });
-      } else if (name === "DialogueCharacterPositionContent") {
-        const value = doc.sliceString(from, to).trim();
-        if (value) {
-          inDualDialogue = true;
-          if (value === "<" || value === "left" || value === "l") {
-            dialoguePosition = 1;
-          }
-          if (value === ">" || value === "right" || value === "r") {
-            dialoguePosition = 2;
-          }
-        } else {
-          inDualDialogue = false;
-          dialoguePosition = 0;
-        }
+        const side = declarationName(nodeRef, "DialogueCharacterPositionContent");
+        inDualDialogue = side !== "";
+        dialoguePosition =
+          side === "<" || side === "left" || side === "l"
+            ? 1
+            : side === ">" || side === "right" || side === "r"
+              ? 2
+              : 0;
       } else if (name === "TextChunk") {
         if (inDialogue) {
-          const value = doc.sliceString(from, to).trimEnd();
+          const value = printedSlice(from, to).trimEnd();
           const directiveOnly = isOnlyHiddenDirectives(value);
           dialogueContent.push({
             type: "dialogue",
@@ -693,12 +715,6 @@ export const decorate = (
         hideInlineRange(nodeRef);
         return false;
       } else if (
-        name === "LuauAlternatorSeparator" &&
-        doc.lineAt(from).from === from
-      ) {
-        hideInlineRange(nodeRef);
-        return false;
-      } else if (
         isBlankLine(nodeRef) &&
         isLuauFlowBlockContainer(name) &&
         opensOwnLine(nodeRef)
@@ -716,7 +732,7 @@ export const decorate = (
         hideLines(from, blockEnd(nodeRef));
         lineStart = nodeRef.to;
         return false;
-      } else if (isHiddenFlowLogic(name)) {
+      } else if (isUnprinted(nodeRef)) {
         hideInlineRange(nodeRef);
         return false;
       } else if (isCentered(nodeRef)) {
@@ -732,6 +748,7 @@ export const decorate = (
       const from = nodeRef.from;
       const to = nodeRef.to;
       if (name === "FrontMatter") {
+        inFrontMatter = false;
         if (config?.screenplay_print_title_page === false) {
           hideLines(from, blockEnd(nodeRef));
           lineStart = nodeRef.to;

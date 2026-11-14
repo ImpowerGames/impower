@@ -6,4 +6,5 @@ export interface LineOptions {
   position?: PagePosition;
   repeatAfterSplit?: boolean;
   canSplitAfter?: number;
+  source?: number[];
 }
