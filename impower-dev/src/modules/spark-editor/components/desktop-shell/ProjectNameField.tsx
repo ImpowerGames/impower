@@ -35,14 +35,14 @@ export default function ProjectNameField() {
   }
 
   return (
-    <div class="relative h-6 w-[400px] max-w-full rounded-control control-overlay focus-within-edge in-data-[layout=phone]:h-5 in-data-[layout=phone]:w-full">
+    <div class="relative h-6 w-[400px] max-w-full rounded-control control-overlay focus-within-edge in-data-[layout=phone]:h-[15.6px] in-data-[layout=phone]:w-full in-data-[layout=phone]:rounded-none">
       <label class="inline-hit-up size-full">
         <input
           {...props}
           {...textFieldPurposeAttributes("text")}
           aria-label="Project name"
           maxLength={120}
-          class="h-full w-full rounded-control border border-transparent bg-transparent px-1.5 py-0.5 text-[14px]/[18px] font-semibold text-ink outline-none in-data-[layout=phone]:text-[12px]/[1.4] placeholder:text-placeholder not-focus:fade-edge"
+          class="h-full w-full rounded-control border border-transparent bg-transparent px-1.5 py-0.5 text-[14px]/[18px] font-semibold text-ink outline-none in-data-[layout=phone]:rounded-none in-data-[layout=phone]:border-0 in-data-[layout=phone]:p-0 in-data-[layout=phone]:text-[12px]/[1.3] in-data-[layout=phone]:[--fade:24px] placeholder:text-placeholder not-focus:fade-edge"
         />
       </label>
     </div>

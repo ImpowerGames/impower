@@ -569,7 +569,11 @@ export function installPlayerWorker(connection: MessageConnection) {
           sendToPage,
           () => display !== displays || gameState.game !== game,
         );
-        return { displayed, beatRefusal: OUTSIDE_EVERY_SCENE_REFUSAL, shownBeat: null };
+        return {
+          displayed,
+          beatRefusal: OUTSIDE_EVERY_SCENE_REFUSAL,
+          shownBeatDescription: null,
+        };
       }
       const route = routeTo(game, entry, shown.point, shown.beat);
       displayedId = entry.id;
@@ -644,7 +648,7 @@ export function installPlayerWorker(connection: MessageConnection) {
                 ? { shownAddress: game.previewedAddress }
                 : {}
               : { beatRefusal: NO_BEAT_REFUSAL }),
-            shownBeat: game.previewShownLocation,
+            shownBeatDescription: game.previewShownDescription,
             ...(taken
               ? taken.beatOnly
                 ? { path: "beat" as const }
