@@ -47,7 +47,7 @@ const wheelBand = [
   "pointer-events-none absolute inset-x-3 top-1/2 h-11 -translate-y-1/2 rounded-[10px]",
   "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]",
   "outline-1 -outline-offset-1 outline-solid outline-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
-  "peer-focus-visible:outline-accent forced-colors:peer-focus-visible:outline-2",
+  "peer-focus-visible:outline-accent forced-colors:peer-focus-visible:outline-2 forced-colors:peer-focus-visible:outline-[Highlight]",
 ];
 
 export type WheelPickerProps = VariantProps<typeof wheelPickerVariants> & {
@@ -135,7 +135,7 @@ export function WheelPicker({
   };
 
   return (
-    <div class={cn("relative", className)} data-wheel-frame>
+    <div class="relative" data-wheel-frame>
       <div
         ref={(element: HTMLDivElement | null) => {
           wheel.current = element;
@@ -147,7 +147,7 @@ export function WheelPicker({
         tabIndex={0}
         aria-label={label}
         aria-activedescendant={`${id}-${at}`}
-        class={wheelPickerVariants({ size })}
+        class={cn(wheelPickerVariants({ size }), className)}
         data-wheel-picker
         onScroll={() => {
           frame.current ||= requestAnimationFrame(settle);

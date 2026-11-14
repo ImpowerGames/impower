@@ -12,6 +12,8 @@ const OPTIONS: WheelOption[] = [
   { value: "cross", label: "Cross" },
 ];
 
+const KEYFRAMES_RULE = 7;
+
 interface StyleRule {
   selector: string;
   style: CSSStyleDeclaration;
@@ -21,6 +23,11 @@ const collectRules = (rules: CSSRuleList, out: StyleRule[] = []): StyleRule[] =>
   for (const rule of Array.from(rules)) {
     if (rule instanceof CSSStyleRule) {
       out.push({ selector: rule.selectorText, style: rule.style });
+    } else if (rule.type === KEYFRAMES_RULE) {
+      const keyframes = rule as CSSKeyframesRule;
+      for (const frame of Array.from(keyframes.cssRules) as CSSKeyframeRule[]) {
+        out.push({ selector: `@keyframes ${keyframes.name} ${frame.keyText}`, style: frame.style });
+      }
     } else if ("cssRules" in rule) {
       collectRules((rule as CSSGroupingRule).cssRules, out);
     }
@@ -127,5 +134,29 @@ describe("the wheel's chosen row", () => {
   it("fades rows towards both ends and tilts them as the prototype's drum does", () => {
     expect(declared(wheel(), "perspective")).toEqual(["520px"]);
     expect(declared(wheel(), "mask-image")).toEqual(["linear-gradient(#0000, #000 28% 72%, #0000)"]);
+    const animation = rows().flatMap((row) => declared(row, "animation"));
+    expect(animation.join(" ")).toContain("wheel-row-tilt");
+    const frame = (key: string) =>
+      rules
+        .filter(({ selector }) => selector === `@keyframes wheel-row-tilt ${key}`)
+        .map(({ style }) => style.getPropertyValue("transform"));
+    expect(frame("from")).toEqual(["rotateX(-66deg)"]);
+    expect(frame("to")).toEqual(["rotateX(66deg)"]);
+  });
+
+  it("rings the band in the system highlight while the wheel has focus in forced colours", () => {
+    expect(declaredWhen(band()!, "outline-color", /\.peer\)?:focus-visible/)).toContain("highlight");
+  });
+
+  it("styles the scrolling wheel itself with the caller's class", () => {
+    const own = document.createElement("div");
+    document.body.append(own);
+    render(<WheelPicker label="Face" options={OPTIONS} value="happy" onChoose={() => {}} class="h-[132px]" />, own);
+    const list = own.querySelector('[role="listbox"]')!;
+    expect(list.classList.contains("h-[132px]")).toBe(true);
+    expect(list.classList.contains("h-[220px]")).toBe(false);
+    expect(own.querySelector("[data-wheel-frame]")!.classList.contains("h-[132px]")).toBe(false);
+    render(null, own);
+    own.remove();
   });
 });
