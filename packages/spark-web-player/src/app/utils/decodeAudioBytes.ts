@@ -1,3 +1,5 @@
+import { OpusDecoder, OpusDecoderWebWorker } from "opus-decoder";
+
 const OPUS_RATE = 48000;
 const CONTINUED_PACKET = 1;
 const BEGINNING_OF_STREAM = 2;
@@ -245,11 +247,14 @@ interface DecodedFrames {
 }
 
 interface WorkerDecoder {
-  worker: import("opus-decoder").OpusDecoderWebWorker & Worker;
-  failed: Promise<never>;
+  worker: OpusDecoderWebWorker & Worker;
+  abandoned: Promise<never>;
+  abandon: (reason: unknown) => void;
   queue: Promise<unknown>;
   used: boolean;
 }
+
+const WORKER_ANSWER_DEADLINE_MS = 15_000;
 
 const workerDecoders = new Map<string, WorkerDecoder>();
 let workersUnavailable = false;
@@ -263,7 +268,6 @@ const decoderOptions = (link: OggOpusLink) => ({
 });
 
 const decodeOnThisThread = async (link: OggOpusLink): Promise<DecodedFrames> => {
-  const { OpusDecoder } = await import("opus-decoder");
   const decoder = new OpusDecoder(decoderOptions(link));
   try {
     await decoder.ready;
@@ -273,50 +277,70 @@ const decodeOnThisThread = async (link: OggOpusLink): Promise<DecodedFrames> => 
   }
 };
 
-const workerDecoderFor = async (link: OggOpusLink): Promise<WorkerDecoder> => {
-  const options = decoderOptions(link);
-  const key = JSON.stringify(options);
-  const existing = workerDecoders.get(key);
-  if (existing) {
-    return existing;
-  }
-  const { OpusDecoderWebWorker } = await import("opus-decoder");
+const createWorkerDecoder = (
+  options: ReturnType<typeof decoderOptions>,
+): WorkerDecoder => {
   const worker = new OpusDecoderWebWorker(options) as WorkerDecoder["worker"];
-  const failed = new Promise<never>((_, reject) => {
-    worker.addEventListener("error", (event: Event) =>
-      reject((event as ErrorEvent).error ?? new Error("Opus decoder worker failed")),
-    );
-    worker.addEventListener("messageerror", () =>
-      reject(new Error("Opus decoder worker could not read a message")),
+  let abandon: (reason: unknown) => void = () => undefined;
+  const abandoned = new Promise<never>((_, reject) => {
+    abandon = reject;
+  });
+  abandoned.catch(() => undefined);
+  worker.addEventListener("error", (event: Event) =>
+    abandon((event as ErrorEvent).error ?? new Error("Opus decoder worker failed")),
+  );
+  worker.addEventListener("messageerror", () =>
+    abandon(new Error("Opus decoder worker could not read a message")),
+  );
+  return { worker, abandoned, abandon, queue: Promise.resolve(), used: false };
+};
+
+const abandonWorkers = (reason: unknown) => {
+  workersUnavailable = true;
+  const abandoned = [...workerDecoders.values()];
+  workerDecoders.clear();
+  for (const { worker, abandon } of abandoned) {
+    abandon(reason);
+    worker.terminate();
+  }
+};
+
+const answeredInTime = <T>(work: Promise<T>): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error("Opus decoder worker did not answer")),
+      WORKER_ANSWER_DEADLINE_MS,
     );
   });
-  failed.catch(() => undefined);
-  const decoder: WorkerDecoder = { worker, failed, queue: Promise.resolve(), used: false };
-  workerDecoders.set(key, decoder);
-  return decoder;
+  return Promise.race([work, deadline]).finally(() => clearTimeout(timer));
 };
 
 const decodeInWorker = async (link: OggOpusLink): Promise<DecodedFrames> => {
-  const decoder = await workerDecoderFor(link);
-  const packets = link.packets.map((packet) => packet.slice());
-  const decoded = decoder.queue.then(async () => {
-    if (decoder.used) {
-      await decoder.worker.reset();
-    } else {
-      await decoder.worker.ready;
-    }
-    decoder.used = true;
-    return decoder.worker.decodeFrames(packets);
-  });
-  decoder.queue = decoded.catch(() => undefined);
+  const options = decoderOptions(link);
+  const key = JSON.stringify(options);
   try {
-    return await Promise.race([decoded, decoder.failed]);
+    const decoder =
+      workerDecoders.get(key) ??
+      workerDecoders.set(key, createWorkerDecoder(options)).get(key)!;
+    const packets = link.packets.map((packet) => packet.slice());
+    const turn = decoder.queue.then(() =>
+      answeredInTime(
+        (async () => {
+          if (decoder.used) {
+            await decoder.worker.reset();
+          } else {
+            await decoder.worker.ready;
+          }
+          decoder.used = true;
+          return decoder.worker.decodeFrames(packets);
+        })(),
+      ),
+    );
+    decoder.queue = turn.catch(() => undefined);
+    return await Promise.race([turn, decoder.abandoned]);
   } catch (error) {
-    workersUnavailable = true;
-    for (const [key, entry] of workerDecoders) {
-      entry.worker.terminate();
-      workerDecoders.delete(key);
-    }
+    abandonWorkers(error);
     throw error;
   }
 };
