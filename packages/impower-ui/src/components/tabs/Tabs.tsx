@@ -34,7 +34,7 @@ const tabsList = cva("flex w-full", {
       default: "",
       rail: "",
       bar: "items-center justify-evenly",
-      page: "",
+      page: "gap-[22px]",
       inline: "min-w-0 gap-[18px] phone:gap-2",
     },
     scroll: {
@@ -72,7 +72,10 @@ const tabTrigger = cva(
           "@max-[140px]:flex-col @max-[140px]:justify-center @max-[140px]:gap-1 @max-[140px]:min-h-[66px] @max-[140px]:px-0 @max-[140px]:text-[11px]/[1.35]",
         ],
         bar: "flex-none flex-col gap-1 size-16 min-h-16 p-0 rounded-control text-[12px]/[1.4] font-normal",
-        page: "min-h-12 rounded-none px-4 text-[14px] font-semibold",
+        page: [
+          "flex-none min-h-12 min-w-11 rounded-none px-1 text-[14px] font-normal",
+          "phone:min-h-[46px] phone:text-[13px] compact:min-h-[46px] compact:text-[13px]",
+        ],
         inline: "flex-none min-h-[50px] min-w-11 px-1 text-[13px] font-normal phone:px-px",
       },
     },
@@ -158,7 +161,7 @@ export default function Tabs({
       const ar = active.getBoundingClientRect();
       const style = getComputedStyle(active);
       const inset =
-        variant === "inline"
+        variant === "inline" || variant === "page"
           ? { left: parseFloat(style.paddingLeft) || 0, right: parseFloat(style.paddingRight) || 0 }
           : { left: 0, right: 0 };
       setIndicatorRect({
