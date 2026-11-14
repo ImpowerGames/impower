@@ -104,6 +104,7 @@ export class AudioModule extends Module<
     for (const [channel, sequence] of Object.entries(audio ?? {})) {
       this.plan(channel, sequence);
     }
+    this._channelsCurrentlyPlaying = this.playingFromState();
   }
 
   override getStored() {
