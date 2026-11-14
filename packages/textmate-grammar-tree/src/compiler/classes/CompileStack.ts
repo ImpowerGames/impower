@@ -9,14 +9,17 @@ const EMPTY = new Int32Array(0);
 export class CompileStack {
   declare entries: Int32Array;
   declare length: number;
+  declare added: number;
 
   constructor(stack?: CompileStack) {
     if (stack && stack.length > 0) {
       this.entries = stack.entries.slice(0, stack.length * 3);
       this.length = stack.length;
+      this.added = stack.added;
     } else {
       this.entries = EMPTY;
       this.length = 0;
+      this.added = 0;
     }
   }
 
@@ -29,7 +32,7 @@ export class CompileStack {
   }
 
   childCount(index: number) {
-    return this.entries[index * 3 + 2]!;
+    return this.entries[index * 3 + 2]! + this.added;
   }
 
   setPosition(index: number, position: number) {
@@ -41,10 +44,7 @@ export class CompileStack {
   }
 
   increment() {
-    const entries = this.entries;
-    for (let i = 2; i < this.length * 3; i += 3) {
-      entries[i]!++;
-    }
+    this.added++;
   }
 
   push(id: number, start: number, children: number) {
@@ -60,7 +60,7 @@ export class CompileStack {
     }
     entries[at] = id;
     entries[at + 1] = start;
-    entries[at + 2] = children;
+    entries[at + 2] = children - this.added;
     this.length++;
   }
 
@@ -68,7 +68,7 @@ export class CompileStack {
     const at = (this.length - 1) * 3;
     const entries = this.entries;
     this.length--;
-    return [entries[at], entries[at + 1], entries[at + 2]];
+    return [entries[at], entries[at + 1], entries[at + 2]! + this.added];
   }
 
   close(idx: number) {

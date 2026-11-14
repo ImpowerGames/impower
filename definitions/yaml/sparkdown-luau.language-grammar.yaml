@@ -4958,7 +4958,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitAccessPart" }
-    end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
+    end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
     endCaptures:
       1:
         emit: true
@@ -6156,7 +6156,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAccessPart" }
-    end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}}|{{WS}}*{{LUAU_COLON_BEFORE_LONG_COMMENT}}|{{WS}}*{{LUAU_COLON_BEFORE_NO_NAME}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
+    end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}}|{{WS}}*{{LUAU_COLON_BEFORE_LONG_COMMENT}}|{{WS}}*{{LUAU_COLON_BEFORE_NO_NAME}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
     endCaptures:
       1:
         emit: true
@@ -6367,9 +6367,9 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
 
-  # lookaround: the lookbehind reads a name only after `function` or `external`, since LuauAccessPart includes this rule and would otherwise declare every path's first name; `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name to LuauPropertyAccessor and LuauFunctionAccessor; GRAMMAR.md §10.1 gives why neither ordering nor a tighter variable replaces either.
+  # lookaround: the lookbehind reads a name only after `function` or `external`, since LuauAccessPart includes this rule and would otherwise declare every path's first name; `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name to LuauPropertyAccessor and LuauFunctionAccessor; GRAMMAR.md §10.1 gives why neither ordering nor a tighter variable replaces either. The one-character `(?<={{WS}}|\])` first reads the space or comment close every declared name follows, since oniguruma searches a pattern that begins with a lookbehind of no fixed length from the line's start at every position.
   LuauFunctionDeclarationName:
-    match: (?<={{LUAU_NAME_START_BEHIND}}{{LUAU_DECLARATION_KEYWORDS}}{{WS}}+|{{LUAU_HEADER_LINE_START}}{{LUAU_DECLARATION_KEYWORDS}}{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}}){{LUAU_NAME_END}}({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
+    match: (?<={{WS}}|\])(?<={{LUAU_NAME_START_BEHIND}}{{LUAU_DECLARATION_KEYWORDS}}{{WS}}+|{{LUAU_HEADER_LINE_START}}{{LUAU_DECLARATION_KEYWORDS}}{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}}){{LUAU_NAME_END}}({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
       1:
         patterns:
