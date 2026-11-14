@@ -1,6 +1,7 @@
 import { isolateHistory } from "@codemirror/commands";
 import {
   ChangeSet,
+  EditorSelection,
   type EditorState,
   StateEffect,
   StateField,
@@ -93,9 +94,11 @@ const dispatchFix = (
   view: EditorView,
   changes: ChangeSet,
   record: AppliedFix | null,
+  caret?: number,
 ) => {
   view.dispatch({
     changes,
+    selection: caret === undefined ? undefined : EditorSelection.cursor(caret),
     userEvent: FIX_EVENT,
     annotations: isolateHistory.of("full"),
     effects: recordFix.of(record),
@@ -114,6 +117,7 @@ export const applyEditorFix = (
   view: EditorView,
   fix: EditorFix,
   id: number | string,
+  focus = false,
 ): EditorFixRevert | null => {
   const current = currentChanges(view, fix);
   if (!current) {
@@ -155,7 +159,15 @@ export const applyEditorFix = (
   );
   const inverse = changes.invert(view.state.doc);
   const inserted = insertedTexts(changes);
-  dispatchFix(view, changes, { id, inverse, inserted });
+  dispatchFix(
+    view,
+    changes,
+    { id, inverse, inserted },
+    focus ? inserted.at(-1)?.to : undefined,
+  );
+  if (focus) {
+    view.focus();
+  }
   return revertOf(inverse, view.state.doc.toString());
 };
 
