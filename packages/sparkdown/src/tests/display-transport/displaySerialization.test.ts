@@ -172,6 +172,20 @@ describe("a save written before tag codes (#2145)", () => {
     expect(storyB.currentStyledText?.trim()).toBe(`A ${tagCode("speed:0.5")}word.`);
   });
 
+  test("matches a delivery tag's name with its case and a look tag's without, as the player did then", () => {
+    const compiled = compile(`scene start\n  A word.\n  done\nend\n`);
+    const storyA = testStory(compiled);
+    storyA.Continue();
+    const saved = JSON.stringify(legacy(JSON.parse(storyA.state.ToJson() as string)));
+    const load = (line: string) => {
+      const story = testStory(compiled);
+      story.state.LoadJson(saved.replace("A word.", line));
+      return story.currentStyledText?.trim();
+    };
+    expect(load("A <SPEED:0.5>word.")).toBe("A <SPEED:0.5>word.");
+    expect(load("A <B>word</B>.")).toBe(`A ${tagCode("B")}word${tagCode("/B")}.`);
+  });
+
   test("reads a known tag in a waiting choice's styled text", () => {
     const compiled = compile(
       `scene start\n  The gate.\n  choose\n    + Go <b>far</b> now\n      Gone.\n      done\n  end\nend\n`,

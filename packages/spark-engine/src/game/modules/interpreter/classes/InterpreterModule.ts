@@ -311,7 +311,7 @@ export class InterpreterModule extends Module<
       if (!stripStyleCodes(line).trim() || this.ASSET_LINE_REGEX.test(line)) {
         continue;
       }
-      const match = line.match(this.PARENTHETICAL_REGEX);
+      const match = stripTagCodes(line).match(this.PARENTHETICAL_REGEX);
       if (!match) {
         return null;
       }
@@ -1109,6 +1109,7 @@ export class InterpreterModule extends Module<
         } else if (tag.name === "/!") {
           hidden = false;
         } else if (tag.name === "br") {
+          if (hidden) return;
           const currentPhrase = linePhrases.at(-1);
           if (currentPhrase?.text) {
             currentPhrase.text += "\n";

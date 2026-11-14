@@ -3,7 +3,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { createSparkdownParser } from "../../compiler/utils/createSparkdownParser";
-import { TEXT_COMMAND, readStoryTag } from "../../runtime/storyTags";
+import {
+  TEXT_COMMAND,
+  TEXT_COMMAND_CONTENT,
+} from "../../../language/sparkdown.text-command";
+import { readStoryTag } from "../../runtime/storyTags";
 import { parseSource } from "./grammarSnapshot";
 import { treeScopeStackAt, vscodeScopeStacksPerChar } from "./scopeEquality";
 
@@ -28,6 +32,7 @@ const readings = (pattern: string, line: string) => {
 describe("TextCommand reads a tag with disjoint alternatives (#2160)", () => {
   test("the player's reader of a tag in an inserted value is the grammar's rule", () => {
     expect(TEXT_COMMAND).toBe(grammar.repository.TextCommand.match);
+    expect(TEXT_COMMAND_CONTENT).toBe(grammar.repository.TextCommandContent.match);
   });
 
   test("every line of up to six characters reads as it did with the overlapping rule", () => {

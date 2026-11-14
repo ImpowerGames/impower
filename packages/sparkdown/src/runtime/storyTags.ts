@@ -7,6 +7,10 @@ import {
   tagCode,
 } from "./displayStyle";
 import { ObjectValue, StringValue } from "./Value";
+import {
+  TEXT_COMMAND,
+  TEXT_COMMAND_CONTENT,
+} from "../../language/sparkdown.text-command";
 
 export const DELIVERY_TAGS: readonly string[] = [
   "speed",
@@ -43,11 +47,9 @@ export const LOOK_TAGS: readonly string[] = [
   "br",
 ];
 
-export const TEXT_COMMAND = String.raw`([<](?!(?:[^\S\n\r])))((?:(?:[\\][^\r\n]|[^>\\\r\n])*?(?<![-])(?=[>])|(?:[\\][^\r\n]|[^>\\\r\n])*?[\\](?![>](?:(?:[\\][^>\r\n]|[^>\\\r\n])*[\\][>]))(?=[>])))([>])`;
-
 const TEXT_COMMAND_AT = new RegExp(TEXT_COMMAND, "y");
 
-const TAG_CONTENT = /^[^\S\n\r]*([^ :\r\n]+)[^\S\n\r]*(?:(:)[^\S\n\r]*(.*))?/;
+const TAG_CONTENT = new RegExp(TEXT_COMMAND_CONTENT);
 
 export interface StoryTag {
   name: string;
@@ -65,8 +67,8 @@ const knownName = (name: string): string | undefined =>
 
 export function readStoryTag(content: string): StoryTag {
   const match = TAG_CONTENT.exec(content);
-  const written = match?.[1] ?? "";
-  const argument = match?.[2] ? { argument: (match[3] ?? "").trim() } : {};
+  const written = match?.[2] ?? "";
+  const argument = match?.[4] ? { argument: (match[6] ?? "").trim() } : {};
   const name = knownName(written);
   if (name) return { name, known: true, closes: false, ...argument };
   const closed = written.startsWith("/") ? knownName(written.slice(1)) : undefined;
@@ -74,7 +76,7 @@ export function readStoryTag(content: string): StoryTag {
   return { name: written, known: false, closes: false, ...argument };
 }
 
-const SCANNED_BEFORE_TAG_CODES = [...DELIVERY_TAGS, ...LOOK_TAGS, "noparse"];
+const LOOKS_BEFORE_TAG_CODES = [...LOOK_TAGS, "noparse"];
 
 export function codeWrittenTags(text: string): string {
   if (!text.includes("<")) return text;
@@ -116,8 +118,8 @@ export function codeWrittenTags(text: string): string {
       const name = (control.split(/\s/)[0] ?? "").replace(/^\//, "");
       if (
         tag &&
-        (SCANNED_BEFORE_TAG_CODES.includes(name) ||
-          SCANNED_BEFORE_TAG_CODES.includes(name.toLowerCase()))
+        (DELIVERY_TAGS.includes(name) ||
+          LOOKS_BEFORE_TAG_CODES.includes(name.toLowerCase()))
       ) {
         const argument = tag[2]?.trim();
         out += tagCode(argument === undefined ? control : `${control}:${argument}`);

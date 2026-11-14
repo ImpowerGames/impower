@@ -569,14 +569,14 @@ variables:
   RAW_CONTENT: (?:(?:{{RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
   SPAN_ESCAPE: (?:[\\][^\r\n])
   TEXT_COMMAND_UNIT: (?:[\\][^\r\n]|[^>\\\r\n])
-  # lookaround: TextCommand's end, a `>` whose `(?<![-])` keeps an arrow's `>`
-  # from closing the command, as SPAN_COMMAND_WALK reads it.
-  TEXT_COMMAND_CLOSES: (?<![-])(?=[>])
-  # lookaround: TextCommand's end when no `>` but escaped ones follows, where it
-  # gives the last of them back as its end, as SPAN_COMMAND_ESCAPED_END reads it.
-  TEXT_COMMAND_ESCAPED_CLOSES: (?![>]{{TEXT_COMMAND_ESCAPED_LATER}})(?=[>])
-  TEXT_COMMAND_ESCAPED_LATER: (?:(?:[\\][^>\r\n]|[^>\\\r\n])*[\\][>])
-  TEXT_COMMAND_CONTENT: (?:{{TEXT_COMMAND_UNIT}}*?{{TEXT_COMMAND_CLOSES}}|{{TEXT_COMMAND_UNIT}}*?[\\]{{TEXT_COMMAND_ESCAPED_CLOSES}})
+  # lookaround: Divert takes the `>` of an arrow (`->`), which ends no command, as
+  # SPAN_COMMAND_WALK reads it. TextCommand is one Match that finds its own end, so
+  # no patterns order, Switch split or parent end reaches inside it. A unit that
+  # takes `-` only before a unit that is not a dash would say the same without a
+  # lookbehind, but backtracks over every run of dashes, quadratic in a run before
+  # a `>`, where this checks one character.
+  TEXT_COMMAND_NOT_ARROW: (?<![-])
+  TEXT_COMMAND_CONTENT: (?:{{TEXT_COMMAND_UNIT}}*?{{TEXT_COMMAND_NOT_ARROW}}|{{TEXT_COMMAND_UNIT}}*[\\])
   # lookaround: the units of a span's content, for every span. Rivals: the
   # rules InlineTextAndLogic and SpanContent try before plain text, which take
   # their whole text so that a mark inside it ends nothing: TextCommand,
@@ -4240,8 +4240,12 @@ repository:
     name: variable.other.constant.sd
     match: ({{IDENTIFIER}})(?=$|{{WS}})
 
-  # lookaround: Punctuation takes a `<` before whitespace, which never opens a
-  # command, as SPAN_COMMAND_TAIL reads it.
+  # lookaround: Punctuation takes a `<` before whitespace (`a < b`), which opens no
+  # command, as SPAN_COMMAND_TAIL reads it. Both rules start at the same `<` and
+  # TextCommand is tried first so that a command wins, so no order decides it, and
+  # no parent end applies inside one Match. Refusing whitespace in the content's
+  # first unit instead would need a second copy of both content alternatives, one
+  # with a first unit and one without, to keep `<>` a command.
   TextCommand:
     tag: macroName
     name: meta.text.sd

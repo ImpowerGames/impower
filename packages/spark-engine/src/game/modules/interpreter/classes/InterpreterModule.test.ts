@@ -469,6 +469,10 @@ describe("InterpreterModule text tags", () => {
     it("hides through the end of the line when never reopened", () => {
       expect(render(`Hidden${tagCode("!")}rest of line`).text).toBe("Hidden");
     });
+
+    it("hides a line break tag inside the hidden text", () => {
+      expect(render(`A${tagCode("!")}secret${tagCode("br")}rest${tagCode("/!")}B`).text).toBe("AB");
+    });
   });
 
   describe("assets", () => {

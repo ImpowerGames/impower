@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 import type { Instructions } from "../../game/core/types/Instructions";
-import { renderedBeat, renderedChoiceBeats, script } from "./harness/displayStyleHarness";
+import {
+  renderedBeat,
+  renderedBeats,
+  renderedChoiceBeats,
+  script,
+} from "./harness/displayStyleHarness";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const BOLD = { "text-weight": "700" };
@@ -73,6 +78,18 @@ describe("a known look tag styles the text it encloses (#2145, #1491)", () => {
       { text: "far", style: BOLD },
       { text: " now" },
     ]);
+  });
+});
+
+describe("a tag before a continuation's parenthetical (#2145)", () => {
+  test("the parenthetical still moves into the cue", async () => {
+    const [, second] = await renderedBeats(
+      script("HERO:\n    Quiet .. >\n    .. <p:2>(louder)\n    now!"),
+      2,
+    );
+    const text = (target: string) => second!(target).map((cell) => cell.char).join("");
+    expect(text("character_parenthetical")).toBe("(louder)");
+    expect(text("dialogue")).toBe("Quiet now!");
   });
 });
 
