@@ -57,6 +57,10 @@ export function readTagCode(
   return { content: new TextDecoder().decode(Uint8Array.from(bytes)), next };
 }
 
+export function isTagCodeCharacter(character: string): boolean {
+  return character === TAG || tagByte(character) >= 0;
+}
+
 export function stripTagCodes(text: string): string {
   return text.includes(TAG) ? text.replace(TAG_CODE, "") : text;
 }
@@ -186,12 +190,7 @@ export function trimStyled(
   }
   const chars = [...text];
   const visible = (c: string) =>
-    c !== SCAN_OPEN &&
-    c !== SCAN_CLOSE &&
-    c !== SPAN_END &&
-    c !== TAG &&
-    tagByte(c) < 0 &&
-    !/\s/.test(c);
+    c !== SCAN_OPEN && c !== SCAN_CLOSE && c !== SPAN_END && !/\s/.test(c);
   let from = 0;
   let to = chars.length;
   if (start) {
