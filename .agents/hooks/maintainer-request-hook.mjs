@@ -160,7 +160,7 @@ function curlTransfers(args) {
   return transfers.filter((transfer) => transfer.urls.length);
 }
 
-const WEB_PARAMETERS = [["uri", 2], ["url", 3], ["method", 2], ["body", 1]];
+const WEB_PARAMETERS = [["uri", 2], ["url", 3], ["method", 2], ["body", 1], ["infile", 2]];
 
 function webParameter(text) {
   const m = /^-([A-Za-z]+)(?::([\s\S]*))?$/.exec(text);
@@ -171,7 +171,7 @@ function webParameter(text) {
 }
 
 function webRequest(args) {
-  const request = { urls: [], method: null, data: [], get: false, upload: false, unread: false };
+  const request = { urls: [], method: null, data: [], files: [], get: false, upload: false, unread: false };
   for (let k = 0; k < args.length; k++) {
     const parameter = webParameter(args[k].text);
     if (parameter === null || parameter.name === null) {
@@ -184,6 +184,10 @@ function webRequest(args) {
     else if (parameter.name === "method") request.method = (token?.text ?? "").toUpperCase();
     else if (parameter.name === "body") {
       if (token?.quoted && !/^\$/.test(token.text)) request.data.push(token.text);
+      else request.unread = true;
+      request.body = true;
+    } else if (parameter.name === "infile") {
+      if (token && !/^\$/.test(token.text)) request.files.push(token.text);
       else request.unread = true;
       request.body = true;
     }
@@ -218,14 +222,17 @@ function localPath(file) {
   return msys ? `${msys[1]}:${msys[2] || "/"}` : file;
 }
 
-function readBodyFile(file, cwd) {
+function readBodyFiles(file, cwds) {
   const local = localPath(file);
-  if (cwd === null && !path.isAbsolute(local)) return null;
-  try {
-    return readFileSync(path.resolve(cwd ?? process.cwd(), local), "utf8");
-  } catch {
-    return null;
+  const places = path.isAbsolute(local) ? [path.resolve(local)] : cwds.filter((cwd) => cwd !== null).map((cwd) => path.resolve(cwd, local));
+  const texts = [];
+  for (const place of new Set(places)) {
+    try {
+      texts.push(readFileSync(place, "utf8"));
+    } catch {
+    }
   }
+  return texts;
 }
 
 const CHANGES_DIRECTORY = new Set(["cd", "chdir", "set-location", "sl"]);
@@ -241,13 +248,16 @@ function moveTo(cwd, args) {
   return cwd === null ? null : path.resolve(cwd, local);
 }
 
+const union = (...lists) => [...new Set(lists.flat())];
+
 function nextDirectory(seg, positions, place) {
   const at = [...positions].find((k) => k < seg.length && !/^[A-Za-z_][A-Za-z0-9_]*=/.test(seg[k].text));
   const name = at === undefined ? null : baseName(seg[at]);
   const args = at === undefined ? [] : seg.slice(at + 1);
-  if (CHANGES_DIRECTORY.has(name)) return { cwd: moveTo(place.cwd, args), stack: place.stack };
-  if (PUSHES_DIRECTORY.has(name)) return { cwd: moveTo(place.cwd, args), stack: [...place.stack, place.cwd] };
-  if (POPS_DIRECTORY.has(name)) return args.length || !place.stack.length ? { cwd: null, stack: [] } : { cwd: place.stack.at(-1), stack: place.stack.slice(0, -1) };
+  const moved = () => union(place.cwds, place.cwds.map((cwd) => moveTo(cwd, args)));
+  if (CHANGES_DIRECTORY.has(name)) return { cwds: moved(), stack: place.stack };
+  if (PUSHES_DIRECTORY.has(name)) return { cwds: moved(), stack: [...place.stack, place.cwds] };
+  if (POPS_DIRECTORY.has(name)) return args.length || !place.stack.length ? { cwds: union(place.cwds, [null]), stack: [] } : { cwds: union(place.cwds, place.stack.at(-1)), stack: place.stack.slice(0, -1) };
   return place;
 }
 
@@ -270,7 +280,7 @@ function oneRepo(urls) {
   return repos.length === 1 && urls.every((url) => endpointRepo(url)) ? repos[0] : null;
 }
 
-function publishedText(seg, i, command, cwd) {
+function publishedText(seg, i, command, cwds) {
   const base = baseName(seg[i]);
   const args = seg.slice(i + 1);
   if (base === "curl" || WEB_REQUEST.has(base)) {
@@ -281,15 +291,17 @@ function publishedText(seg, i, command, cwd) {
       .map((request) => {
         const texts = [];
         let whole = request.unread === true;
+        const read = (name) => {
+          const found = readBodyFiles(name, cwds);
+          if (!found.length) whole = true;
+          for (const text of found) texts.push(...transportValues(text));
+        };
         for (const value of request.data) {
           if (base !== "curl" || !value.startsWith("@")) texts.push(...transportValues(value));
           else if (value === "@-") whole = true;
-          else {
-            const text = readBodyFile(value.slice(1), cwd);
-            if (text === null) whole = true;
-            else texts.push(...transportValues(text));
-          }
+          else read(value.slice(1));
         }
+        for (const name of request.files ?? []) read(name);
         return { texts, raw: whole ? [command] : [], destination: oneRepo(request.urls) };
       });
   }
@@ -301,9 +313,9 @@ function publishedText(seg, i, command, cwd) {
       whole = true;
       return;
     }
-    const text = readBodyFile(name.replace(/^@/, ""), cwd);
-    if (text === null) whole = true;
-    else texts.push(...(decode ? transportValues(text) : [text]));
+    const found = readBodyFiles(name.replace(/^@/, ""), cwds);
+    if (!found.length) whole = true;
+    for (const text of found) texts.push(...(decode ? transportValues(text) : [text]));
   };
   if (base === "gh") {
     const parsed = ghParse(args);
@@ -404,16 +416,16 @@ function decideAt(command, shell, depth, context) {
     const inner = decideAt(sub, shell, depth + 1, context);
     if (inner) return inner;
   }
-  let place = { cwd: context.cwd === undefined ? process.cwd() : context.cwd, stack: context.stack ?? [] };
+  let place = context.place ?? { cwds: [context.cwd === undefined ? process.cwd() : context.cwd], stack: [] };
   for (const { tokens: seg, positions } of segments) {
     place = nextDirectory(seg, positions, place);
-    const { cwd } = place;
+    const cwds = place.cwds;
     for (let i = 0; i < seg.length; i++) {
       const tok = seg[i];
       if (tok.quoted && isShellCommandString(seg, i, positions)) {
         const program = programBefore(seg, i - 1);
         const innerShell = program >= 0 && /^(pwsh|powershell)$/.test(baseName(seg[program])) ? "powershell" : program >= 0 ? "bash" : shell;
-        const inner = decideAt(tok.text, innerShell, depth + 1, { ...context, cwd, stack: place.stack });
+        const inner = decideAt(tok.text, innerShell, depth + 1, { ...context, place });
         if (inner) return inner;
       }
       if (!positions.has(i) || !["gh", "curl", "invoke-restmethod", "irm", "invoke-webrequest", "iwr"].includes(baseName(tok))) continue;
@@ -428,7 +440,7 @@ function decideAt(command, shell, depth, context) {
           throw error;
         }
       }
-      for (const published of publishedText(seg, i, command, cwd)) {
+      for (const published of publishedText(seg, i, command, cwds)) {
         const claim = claimReason(published, context.repos, context.env);
         if (claim) return claim;
       }

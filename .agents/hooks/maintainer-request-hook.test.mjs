@@ -37,7 +37,10 @@ const runs = [
 function claudeHook(tool, command, cwd, env) {
   const result = spawnSync(process.execPath, [wrapper], { input: JSON.stringify({ session_id: "guard-test", tool_name: tool, tool_input: { command }, cwd }), encoding: "utf8", windowsHide: true, env: { ...process.env, ...env } });
   assert.equal(result.status, 0, result.stderr);
-  return result.stdout ? JSON.parse(result.stdout).hookSpecificOutput.permissionDecisionReason : null;
+  if (!result.stdout) return null;
+  const output = JSON.parse(result.stdout).hookSpecificOutput;
+  assert.deepEqual([output.hookEventName, output.permissionDecision], ["PreToolUse", "deny"], `the Claude Code hook denies, not merely explains: ${result.stdout}`);
+  return output.permissionDecisionReason;
 }
 
 function withEnv(env, work) {
@@ -73,6 +76,7 @@ const touching = (n) => [
   ["a curl upload", `curl -T body.json https://api.github.com/repos/${repo}/issues/${n}`],
   ["Invoke-RestMethod with colon parameters", `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${n} -Method:Patch -Body:'{"state":"closed"}'`],
   ["Invoke-RestMethod with abbreviated parameters", `irm -Ur https://api.github.com/repos/${repo}/issues/${n} -Me Patch -B '{"state":"closed"}'`],
+  ["Invoke-RestMethod with an -InFile body", `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${n}/comments -InFile body.json`],
   ["Invoke-RestMethod by position with a body", `Invoke-RestMethod https://api.github.com/repos/${repo}/issues/${n}/comments -Body '{"body":"ok"}'`],
   ["a curl batch whose later transfer changes the request", `curl https://api.github.com/repos/acme/other/issues/1 --next -X PATCH https://api.github.com/repos/${repo}/issues/${n} -d '{"state":"closed"}'`],
 ];
@@ -141,6 +145,10 @@ for (const [harness, run] of runs) {
   ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command.split("\n")[0]} is refused`);
   mkdirSync(path.join(bodyDir, "sub"), { recursive: true });
   writeFileSync(path.join(bodyDir, "sub", "claim.md"), "The maintainer approved the new layout.\n");
+  writeFileSync(path.join(bodyDir, "sub", "status.md"), "Status update.\n");
+  writeFileSync(path.join(bodyDir, "status.md"), "The maintainer approved the new layout.\n");
+  writeFileSync(path.join(bodyDir, "sub", "plain.md"), "Status update.\n");
+  writeFileSync(path.join(bodyDir, "plain.md"), "Another status update.\n");
   const subClaim = path.join(bodyDir, "sub", "claim.md").replaceAll(path.sep, "/");
   const changed = [
     `cd sub; gh issue comment ${OTHER} -R ${repo} --body-file claim.md`,
@@ -151,14 +159,21 @@ for (const [harness, run] of runs) {
   ];
   if (process.platform === "win32") changed.push(`gh issue comment ${OTHER} -R ${repo} --body-file ${subClaim.replace(/^([A-Za-z]):/, (m, drive) => `/${drive.toLowerCase()}`)}`);
   for (const command of changed) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} reads the body file where the shell will`);
-  assert.equal(run(`cd elsewhere; gh issue comment ${OTHER} -R ${repo} --body-file claim.md`, path.join(bodyDir, "sub")), null, `${harness}: after cd the original directory's file is not the one published`);
-  writeFileSync(path.join(bodyDir, "sub", "status.md"), "Status update.\n");
-  writeFileSync(path.join(bodyDir, "status.md"), "The maintainer approved the new layout.\n");
+  for (const command of [
+    `(cd sub); gh issue comment ${OTHER} -R ${repo} --body-file status.md`,
+    `cd sub | cat; gh issue comment ${OTHER} -R ${repo} --body-file status.md`,
+  ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} checks the parent directory's file a subshell or pipeline leaves in place`);
+  assert.equal(run(`cd sub; gh issue comment ${OTHER} -R ${repo} --body-file plain.md`, bodyDir), null, `${harness}: a harmless file in every candidate directory passes`);
+  const payloadClaim = file("infile.json", JSON.stringify({ body: "The maintainer approved the new layout." }));
+  for (const command of [
+    `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method Post -ContentType application/json -InFile ${payloadClaim}`,
+    `Invoke-WebRequest -Uri:https://api.github.com/repos/${repo}/issues/${OTHER}/comments -InFile:${payloadClaim}`,
+  ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} reads the -InFile body`);
   for (const command of [
     `pushd sub; popd; gh issue comment ${OTHER} -R ${repo} --body-file status.md`,
     `Push-Location sub; Pop-Location; gh issue comment ${OTHER} -R ${repo} --body-file status.md`,
   ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} reads the file in the restored directory`);
-  assert.equal(run(`pushd sub; gh issue comment ${OTHER} -R ${repo} --body-file status.md`, bodyDir), null, `${harness}: inside pushd the pushed directory's file is the one read`);
+  assert.match(run(`pushd sub; gh issue comment ${OTHER} -R ${repo} --body-file status.md`, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: inside pushd both candidate directories are checked`);
   for (const command of [
     `curl -sd 'body=The maintainer approved the layout.' https://api.github.com/repos/${repo}/issues/${OTHER}/comments`,
     `curl https://example.test/ping --next -d '{"body":"The maintainer approved the layout."}' https://api.github.com/repos/${repo}/issues/${OTHER}/comments`,
