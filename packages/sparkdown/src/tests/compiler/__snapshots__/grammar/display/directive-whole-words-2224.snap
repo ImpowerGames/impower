@@ -26,23 +26,12 @@ sparkdown [0..396]
  │   │       ├─ ImageCommand_content [16..42]
  │   │       │   └─ ImageCommandContent [16..42]
  │   │       │       └─ ImageCommandContent_c1 [16..42]
- │   │       │           └─ ImageCommandWords [16..42]
- │   │       │               ├─ ImageCommandWords_c1 16
- │   │       │               ├─ ImageCommandWords_c2 16
- │   │       │               ├─ ImageCommandWords_c3 16
- │   │       │               ├─ ImageCommandWords_c4 16
- │   │       │               ├─ ImageCommandWords_c5 16
- │   │       │               ├─ ImageCommandWords_c6 16
- │   │       │               ├─ ImageCommandWords_c7 16
- │   │       │               ├─ ImageCommandWords_c8 16
- │   │       │               ├─ ImageCommandWords_c9 16
- │   │       │               ├─ ImageCommandWords_c10 16
- │   │       │               ├─ ImageCommandWords_c11 16
- │   │       │               ├─ ImageCommandWords_c12 [16..19]
+ │   │       │           └─ AssetCommandNamesFirst [16..42]
+ │   │       │               ├─ AssetCommandNamesFirst_c1 [16..19]
  │   │       │               │   └─ AssetCommandName [16..19]
  │   │       │               │       └─ AssetCommandName_c1 [16..19]
  │   │       │               │           └─ AssetCommandFileName [16..19]: "mia"
- │   │       │               ├─ ImageCommandWords_c13 [19..42]
+ │   │       │               ├─ AssetCommandNamesFirst_c2 [19..42]
  │   │       │               │   ├─ AssetCommandSeparator [19..20]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [19..20]
  │   │       │               │   │       └─ RequiredWhitespace [19..20]: " "
@@ -69,9 +58,8 @@ sparkdown [0..396]
  │   │       │               │   └─ AssetCommandClauseValue [38..42]
  │   │       │               │       └─ AssetCommandClauseValue_c1 [38..42]
  │   │       │               │           └─ NameValue [38..42]: "talk"
- │   │       │               ├─ ImageCommandWords_c14 42
- │   │       │               └─ ImageCommandWords_c15 42
- │   │       │                   └─ OptionalWhitespace 42
+ │   │       │               ├─ AssetCommandNamesFirst_c3 42
+ │   │       │               └─ AssetCommandNamesFirst_c4 42
  │   │       └─ ImageCommand_end [42..44]
  │   │           ├─ ImageCommand_end_c1 42
  │   │           ├─ ImageCommand_end_c2 [42..44]
@@ -93,29 +81,19 @@ sparkdown [0..396]
  │   │       ├─ ImageCommand_content [49..70]
  │   │       │   └─ ImageCommandContent [49..70]
  │   │       │       └─ ImageCommandContent_c1 [49..70]
- │   │       │           └─ ImageCommandWords [49..70]
- │   │       │               ├─ ImageCommandWords_c1 49
- │   │       │               ├─ ImageCommandWords_c2 49
- │   │       │               ├─ ImageCommandWords_c3 49
- │   │       │               ├─ ImageCommandWords_c4 49
- │   │       │               ├─ ImageCommandWords_c5 49
- │   │       │               ├─ ImageCommandWords_c6 49
- │   │       │               ├─ ImageCommandWords_c7 49
- │   │       │               ├─ ImageCommandWords_c8 49
- │   │       │               ├─ ImageCommandWords_c9 49
- │   │       │               ├─ ImageCommandWords_c10 49
- │   │       │               ├─ ImageCommandWords_c11 49
- │   │       │               ├─ ImageCommandWords_c12 [49..52]
+ │   │       │           └─ AssetCommandNamesFirst [49..70]
+ │   │       │               ├─ AssetCommandNamesFirst_c1 [49..52]
  │   │       │               │   └─ AssetCommandName [49..52]
  │   │       │               │       └─ AssetCommandName_c1 [49..52]
  │   │       │               │           └─ AssetCommandFileName [49..52]: "mia"
- │   │       │               ├─ ImageCommandWords_c13 [52..70]
+ │   │       │               ├─ AssetCommandNamesFirst_c2 [52..70]
  │   │       │               │   ├─ AssetCommandSeparator [52..53]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [52..53]
  │   │       │               │   │       └─ RequiredWhitespace [52..53]: " "
- │   │       │               │   ├─ AssetCommandClauseKeyword [53..57]: "wait"
- │   │       │               │   ├─ AssetCommandSeparator [57..58]
- │   │       │               │   │   └─ AssetCommandSeparator_c1 [57..58]
+ │   │       │               │   ├─ AssetCommandBareClause [53..58]
+ │   │       │               │   │   ├─ AssetCommandBareClause_c1 [53..57]
+ │   │       │               │   │   │   └─ AssetCommandClauseKeyword [53..57]: "wait"
+ │   │       │               │   │   └─ AssetCommandBareClause_c2 [57..58]
  │   │       │               │   │       └─ RequiredWhitespace [57..58]: " "
  │   │       │               │   ├─ AssetCommandClauseValue [58..65]
  │   │       │               │   │   └─ AssetCommandClauseValue_c1 [58..65]
@@ -126,9 +104,8 @@ sparkdown [0..396]
  │   │       │               │   └─ AssetCommandClauseValue [66..70]
  │   │       │               │       └─ AssetCommandClauseValue_c1 [66..70]
  │   │       │               │           └─ NameValue [66..70]: "talk"
- │   │       │               ├─ ImageCommandWords_c14 70
- │   │       │               └─ ImageCommandWords_c15 70
- │   │       │                   └─ OptionalWhitespace 70
+ │   │       │               ├─ AssetCommandNamesFirst_c3 70
+ │   │       │               └─ AssetCommandNamesFirst_c4 70
  │   │       └─ ImageCommand_end [70..72]
  │   │           ├─ ImageCommand_end_c1 70
  │   │           ├─ ImageCommand_end_c2 [70..72]
@@ -159,25 +136,14 @@ sparkdown [0..396]
  │   │       │       │       ├─ ImageCommand_content [77..93]
  │   │       │       │       │   └─ ImageCommandContent [77..93]
  │   │       │       │       │       └─ ImageCommandContent_c1 [77..93]
- │   │       │       │       │           └─ ImageCommandWords [77..93]
- │   │       │       │       │               ├─ ImageCommandWords_c1 77
- │   │       │       │       │               ├─ ImageCommandWords_c2 77
- │   │       │       │       │               ├─ ImageCommandWords_c3 77
- │   │       │       │       │               ├─ ImageCommandWords_c4 77
- │   │       │       │       │               ├─ ImageCommandWords_c5 77
- │   │       │       │       │               ├─ ImageCommandWords_c6 77
- │   │       │       │       │               ├─ ImageCommandWords_c7 77
- │   │       │       │       │               ├─ ImageCommandWords_c8 77
- │   │       │       │       │               ├─ ImageCommandWords_c9 77
- │   │       │       │       │               ├─ ImageCommandWords_c10 77
- │   │       │       │       │               ├─ ImageCommandWords_c11 77
- │   │       │       │       │               ├─ ImageCommandWords_c12 [77..82]
+ │   │       │       │       │           └─ AssetCommandNamesFirst [77..93]
+ │   │       │       │       │               ├─ AssetCommandNamesFirst_c1 [77..82]
  │   │       │       │       │               │   └─ AssetCommandName [77..82]
  │   │       │       │       │               │       └─ AssetCommandName_c1 [77..82]
  │   │       │       │       │               │           ├─ AssetCommandFileName [77..80]: "mia"
  │   │       │       │       │               │           ├─ IllegalChar [80..81]: "]"
  │   │       │       │       │               │           └─ AssetCommandFileName [81..82]: "x"
- │   │       │       │       │               ├─ ImageCommandWords_c13 [82..93]
+ │   │       │       │       │               ├─ AssetCommandNamesFirst_c2 [82..93]
  │   │       │       │       │               │   ├─ AssetCommandSeparator [82..83]
  │   │       │       │       │               │   │   └─ AssetCommandSeparator_c1 [82..83]
  │   │       │       │       │               │   │       └─ RequiredWhitespace [82..83]: " "
@@ -190,9 +156,8 @@ sparkdown [0..396]
  │   │       │       │       │               │           └─ AssetCommandClauseValue [89..93]
  │   │       │       │       │               │               └─ AssetCommandClauseValue_c1 [89..93]
  │   │       │       │       │               │                   └─ NameValue [89..93]: "talk"
- │   │       │       │       │               ├─ ImageCommandWords_c14 93
- │   │       │       │       │               └─ ImageCommandWords_c15 93
- │   │       │       │       │                   └─ OptionalWhitespace 93
+ │   │       │       │       │               ├─ AssetCommandNamesFirst_c3 93
+ │   │       │       │       │               └─ AssetCommandNamesFirst_c4 93
  │   │       │       │       └─ ImageCommand_end [93..95]
  │   │       │       │           ├─ ImageCommand_end_c1 93
  │   │       │       │           ├─ ImageCommand_end_c2 [93..95]
@@ -216,19 +181,8 @@ sparkdown [0..396]
  │   │       ├─ ImageCommand_content [100..115]
  │   │       │   └─ ImageCommandContent [100..115]
  │   │       │       └─ ImageCommandContent_c1 [100..115]
- │   │       │           └─ ImageCommandWords [100..115]
- │   │       │               ├─ ImageCommandWords_c1 100
- │   │       │               ├─ ImageCommandWords_c2 100
- │   │       │               ├─ ImageCommandWords_c3 100
- │   │       │               ├─ ImageCommandWords_c4 100
- │   │       │               ├─ ImageCommandWords_c5 100
- │   │       │               ├─ ImageCommandWords_c6 100
- │   │       │               ├─ ImageCommandWords_c7 100
- │   │       │               ├─ ImageCommandWords_c8 100
- │   │       │               ├─ ImageCommandWords_c9 100
- │   │       │               ├─ ImageCommandWords_c10 100
- │   │       │               ├─ ImageCommandWords_c11 100
- │   │       │               ├─ ImageCommandWords_c12 [100..115]
+ │   │       │           └─ AssetCommandNamesFirst [100..115]
+ │   │       │               ├─ AssetCommandNamesFirst_c1 [100..115]
  │   │       │               │   ├─ AssetCommandName [100..110]
  │   │       │               │   │   └─ AssetCommandName_c1 [100..110]
  │   │       │               │   │       ├─ AssetCommandFileName [100..103]: "mia"
@@ -247,10 +201,9 @@ sparkdown [0..396]
  │   │       │               │   └─ AssetCommandName [111..115]
  │   │       │               │       └─ AssetCommandName_c1 [111..115]
  │   │       │               │           └─ AssetCommandFileName [111..115]: "talk"
- │   │       │               ├─ ImageCommandWords_c13 115
- │   │       │               ├─ ImageCommandWords_c14 115
- │   │       │               └─ ImageCommandWords_c15 115
- │   │       │                   └─ OptionalWhitespace 115
+ │   │       │               ├─ AssetCommandNamesFirst_c2 115
+ │   │       │               ├─ AssetCommandNamesFirst_c3 115
+ │   │       │               └─ AssetCommandNamesFirst_c4 115
  │   │       └─ ImageCommand_end [115..117]
  │   │           ├─ ImageCommand_end_c1 115
  │   │           ├─ ImageCommand_end_c2 [115..117]
@@ -272,19 +225,8 @@ sparkdown [0..396]
  │   │       ├─ ImageCommand_content [122..142]
  │   │       │   └─ ImageCommandContent [122..142]
  │   │       │       └─ ImageCommandContent_c1 [122..142]
- │   │       │           └─ ImageCommandWords [122..142]
- │   │       │               ├─ ImageCommandWords_c1 122
- │   │       │               ├─ ImageCommandWords_c2 122
- │   │       │               ├─ ImageCommandWords_c3 122
- │   │       │               ├─ ImageCommandWords_c4 122
- │   │       │               ├─ ImageCommandWords_c5 122
- │   │       │               ├─ ImageCommandWords_c6 122
- │   │       │               ├─ ImageCommandWords_c7 122
- │   │       │               ├─ ImageCommandWords_c8 122
- │   │       │               ├─ ImageCommandWords_c9 122
- │   │       │               ├─ ImageCommandWords_c10 122
- │   │       │               ├─ ImageCommandWords_c11 122
- │   │       │               ├─ ImageCommandWords_c12 [122..131]
+ │   │       │           └─ AssetCommandNamesFirst [122..142]
+ │   │       │               ├─ AssetCommandNamesFirst_c1 [122..131]
  │   │       │               │   ├─ AssetCommandName [122..126]
  │   │       │               │   │   └─ AssetCommandName_c1 [122..126]
  │   │       │               │   │       ├─ AssetCommandFileName [122..125]: "mia"
@@ -295,7 +237,7 @@ sparkdown [0..396]
  │   │       │               │   └─ AssetCommandName [127..131]
  │   │       │               │       └─ AssetCommandName_c1 [127..131]
  │   │       │               │           └─ AssetCommandFileName [127..131]: "note"
- │   │       │               ├─ ImageCommandWords_c13 [131..142]
+ │   │       │               ├─ AssetCommandNamesFirst_c2 [131..142]
  │   │       │               │   ├─ AssetCommandSeparator [131..132]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [131..132]
  │   │       │               │   │       └─ RequiredWhitespace [131..132]: " "
@@ -308,9 +250,8 @@ sparkdown [0..396]
  │   │       │               │           └─ AssetCommandClauseValue [138..142]
  │   │       │               │               └─ AssetCommandClauseValue_c1 [138..142]
  │   │       │               │                   └─ NameValue [138..142]: "none"
- │   │       │               ├─ ImageCommandWords_c14 142
- │   │       │               └─ ImageCommandWords_c15 142
- │   │       │                   └─ OptionalWhitespace 142
+ │   │       │               ├─ AssetCommandNamesFirst_c3 142
+ │   │       │               └─ AssetCommandNamesFirst_c4 142
  │   │       └─ ImageCommand_end [142..144]
  │   │           ├─ ImageCommand_end_c1 142
  │   │           ├─ ImageCommand_end_c2 [142..144]
@@ -332,23 +273,12 @@ sparkdown [0..396]
  │   │       ├─ ImageCommand_content [149..168]
  │   │       │   └─ ImageCommandContent [149..168]
  │   │       │       └─ ImageCommandContent_c1 [149..168]
- │   │       │           └─ ImageCommandWords [149..168]
- │   │       │               ├─ ImageCommandWords_c1 149
- │   │       │               ├─ ImageCommandWords_c2 149
- │   │       │               ├─ ImageCommandWords_c3 149
- │   │       │               ├─ ImageCommandWords_c4 149
- │   │       │               ├─ ImageCommandWords_c5 149
- │   │       │               ├─ ImageCommandWords_c6 149
- │   │       │               ├─ ImageCommandWords_c7 149
- │   │       │               ├─ ImageCommandWords_c8 149
- │   │       │               ├─ ImageCommandWords_c9 149
- │   │       │               ├─ ImageCommandWords_c10 149
- │   │       │               ├─ ImageCommandWords_c11 149
- │   │       │               ├─ ImageCommandWords_c12 [149..152]
+ │   │       │           └─ AssetCommandNamesFirst [149..168]
+ │   │       │               ├─ AssetCommandNamesFirst_c1 [149..152]
  │   │       │               │   └─ AssetCommandName [149..152]
  │   │       │               │       └─ AssetCommandName_c1 [149..152]
  │   │       │               │           └─ AssetCommandFileName [149..152]: "mia"
- │   │       │               ├─ ImageCommandWords_c13 [152..168]
+ │   │       │               ├─ AssetCommandNamesFirst_c2 [152..168]
  │   │       │               │   ├─ AssetCommandSeparator [152..153]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [152..153]
  │   │       │               │   │       └─ RequiredWhitespace [152..153]: " "
@@ -363,9 +293,8 @@ sparkdown [0..396]
  │   │       │               │                   ├─ NameValue [159..163]: "talk"
  │   │       │               │                   ├─ IllegalChar [163..164]: " "
  │   │       │               │                   └─ NameValue [164..168]: "wait"
- │   │       │               ├─ ImageCommandWords_c14 168
- │   │       │               └─ ImageCommandWords_c15 168
- │   │       │                   └─ OptionalWhitespace 168
+ │   │       │               ├─ AssetCommandNamesFirst_c3 168
+ │   │       │               └─ AssetCommandNamesFirst_c4 168
  │   │       └─ ImageCommand_end [168..170]
  │   │           ├─ ImageCommand_end_c1 168
  │   │           ├─ ImageCommand_end_c2 [168..170]
@@ -387,27 +316,21 @@ sparkdown [0..396]
  │   │       ├─ ImageCommand_content [175..199]
  │   │       │   └─ ImageCommandContent [175..199]
  │   │       │       └─ ImageCommandContent_c1 [175..199]
- │   │       │           └─ ImageCommandWords [175..199]
- │   │       │               ├─ ImageCommandWords_c1 175
- │   │       │               ├─ ImageCommandWords_c2 175
- │   │       │               ├─ ImageCommandWords_c3 175
- │   │       │               ├─ ImageCommandWords_c4 175
- │   │       │               ├─ ImageCommandWords_c5 175
- │   │       │               ├─ ImageCommandWords_c6 175
- │   │       │               ├─ ImageCommandWords_c7 [175..180]
+ │   │       │           └─ ImageCommandControlled [175..199]
+ │   │       │               ├─ ImageCommandControlled_c1 [175..180]
  │   │       │               │   └─ AssetCommandControl [175..180]: "write"
- │   │       │               ├─ ImageCommandWords_c8 [180..181]
+ │   │       │               ├─ ImageCommandControlled_c2 [180..181]
  │   │       │               │   └─ RequiredWhitespace [180..181]: " "
- │   │       │               ├─ ImageCommandWords_c9 [181..185]
+ │   │       │               ├─ ImageCommandControlled_c3 [181..185]
  │   │       │               │   └─ AssetCommandTarget [181..185]: "pane"
- │   │       │               ├─ ImageCommandWords_c10 [185..189]
+ │   │       │               ├─ ImageCommandControlled_c4 [185..189]
  │   │       │               │   ├─ AssetCommandSeparator [185..186]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [185..186]
  │   │       │               │   │       └─ RequiredWhitespace [185..186]: " "
  │   │       │               │   └─ AssetCommandName [186..189]
  │   │       │               │       └─ AssetCommandName_c1 [186..189]
  │   │       │               │           └─ AssetCommandFileName [186..189]: "mia"
- │   │       │               ├─ ImageCommandWords_c11 [189..199]
+ │   │       │               ├─ ImageCommandControlled_c5 [189..199]
  │   │       │               │   ├─ AssetCommandSeparator [189..190]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [189..190]
  │   │       │               │   │       └─ RequiredWhitespace [189..190]: " "
@@ -420,11 +343,8 @@ sparkdown [0..396]
  │   │       │               │           └─ AssetCommandClauseValue [195..199]
  │   │       │               │               └─ AssetCommandClauseValue_c1 [195..199]
  │   │       │               │                   └─ NameValue [195..199]: "fade"
- │   │       │               ├─ ImageCommandWords_c12 199
- │   │       │               ├─ ImageCommandWords_c13 199
- │   │       │               ├─ ImageCommandWords_c14 199
- │   │       │               └─ ImageCommandWords_c15 199
- │   │       │                   └─ OptionalWhitespace 199
+ │   │       │               ├─ ImageCommandControlled_c6 199
+ │   │       │               └─ ImageCommandControlled_c7 199
  │   │       └─ ImageCommand_end [199..201]
  │   │           ├─ ImageCommand_end_c1 199
  │   │           ├─ ImageCommand_end_c2 [199..201]
@@ -446,13 +366,8 @@ sparkdown [0..396]
  │   │       ├─ AudioCommand_content [206..232]
  │   │       │   └─ AudioCommandContent [206..232]
  │   │       │       └─ AudioCommandContent_c1 [206..232]
- │   │       │           └─ AudioCommandWords [206..232]
- │   │       │               ├─ AudioCommandWords_c1 206
- │   │       │               ├─ AudioCommandWords_c2 206
- │   │       │               ├─ AudioCommandWords_c3 206
- │   │       │               ├─ AudioCommandWords_c4 206
- │   │       │               ├─ AudioCommandWords_c5 206
- │   │       │               ├─ AudioCommandWords_c6 [206..222]
+ │   │       │           └─ AssetCommandNamesFirst [206..232]
+ │   │       │               ├─ AssetCommandNamesFirst_c1 [206..222]
  │   │       │               │   ├─ AssetCommandName [206..210]
  │   │       │               │   │   └─ AssetCommandName_c1 [206..210]
  │   │       │               │   │       └─ AssetCommandFileName [206..210]: "open"
@@ -468,7 +383,7 @@ sparkdown [0..396]
  │   │       │               │   └─ AssetCommandName [217..222]
  │   │       │               │       └─ AssetCommandName_c1 [217..222]
  │   │       │               │           └─ AssetCommandFileName [217..222]: "theme"
- │   │       │               ├─ AudioCommandWords_c7 [222..232]
+ │   │       │               ├─ AssetCommandNamesFirst_c2 [222..232]
  │   │       │               │   ├─ AssetCommandSeparator [222..223]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [222..223]
  │   │       │               │   │       └─ RequiredWhitespace [222..223]: " "
@@ -481,9 +396,8 @@ sparkdown [0..396]
  │   │       │               │           └─ AssetCommandClauseValue [228..232]
  │   │       │               │               └─ AssetCommandClauseValue_c1 [228..232]
  │   │       │               │                   └─ NameValue [228..232]: "echo"
- │   │       │               ├─ AudioCommandWords_c8 232
- │   │       │               └─ AudioCommandWords_c9 232
- │   │       │                   └─ OptionalWhitespace 232
+ │   │       │               ├─ AssetCommandNamesFirst_c3 232
+ │   │       │               └─ AssetCommandNamesFirst_c4 232
  │   │       └─ AudioCommand_end [232..234]
  │   │           ├─ AudioCommand_end_c1 232
  │   │           ├─ AudioCommand_end_c2 [232..234]
@@ -505,30 +419,30 @@ sparkdown [0..396]
  │   │       ├─ AudioCommand_content [239..260]
  │   │       │   └─ AudioCommandContent [239..260]
  │   │       │       └─ AudioCommandContent_c1 [239..260]
- │   │       │           └─ AudioCommandWords [239..260]
- │   │       │               ├─ AudioCommandWords_c1 [239..243]
+ │   │       │           └─ AudioCommandControlled [239..260]
+ │   │       │               ├─ AudioCommandControlled_c1 [239..243]
  │   │       │               │   └─ AssetCommandControl [239..243]: "show"
- │   │       │               ├─ AudioCommandWords_c2 [243..244]
+ │   │       │               ├─ AudioCommandControlled_c2 [243..244]
  │   │       │               │   └─ RequiredWhitespace [243..244]: " "
- │   │       │               ├─ AudioCommandWords_c3 [244..249]
+ │   │       │               ├─ AudioCommandControlled_c3 [244..249]
  │   │       │               │   └─ AssetCommandTarget [244..249]: "music"
- │   │       │               ├─ AudioCommandWords_c4 [249..255]
+ │   │       │               ├─ AudioCommandControlled_c4 [249..255]
  │   │       │               │   ├─ AssetCommandSeparator [249..250]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [249..250]
  │   │       │               │   │       └─ RequiredWhitespace [249..250]: " "
  │   │       │               │   └─ AssetCommandName [250..255]
  │   │       │               │       └─ AssetCommandName_c1 [250..255]
  │   │       │               │           └─ AssetCommandFileName [250..255]: "theme"
- │   │       │               ├─ AudioCommandWords_c5 [255..260]
+ │   │       │               ├─ AudioCommandControlled_c5 [255..260]
  │   │       │               │   ├─ AssetCommandSeparator [255..256]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [255..256]
  │   │       │               │   │       └─ RequiredWhitespace [255..256]: " "
- │   │       │               │   └─ AssetCommandClauseKeyword [256..260]: "loop"
- │   │       │               ├─ AudioCommandWords_c6 260
- │   │       │               ├─ AudioCommandWords_c7 260
- │   │       │               ├─ AudioCommandWords_c8 260
- │   │       │               └─ AudioCommandWords_c9 260
- │   │       │                   └─ OptionalWhitespace 260
+ │   │       │               │   └─ AssetCommandBareClause [256..260]
+ │   │       │               │       ├─ AssetCommandBareClause_c1 [256..260]
+ │   │       │               │       │   └─ AssetCommandClauseKeyword [256..260]: "loop"
+ │   │       │               │       └─ AssetCommandBareClause_c2 260
+ │   │       │               ├─ AudioCommandControlled_c6 260
+ │   │       │               └─ AudioCommandControlled_c7 260
  │   │       └─ AudioCommand_end [260..262]
  │   │           ├─ AudioCommand_end_c1 260
  │   │           ├─ AudioCommand_end_c2 [260..262]
@@ -550,16 +464,20 @@ sparkdown [0..396]
  │   │       ├─ ImageCommand_content [267..298]
  │   │       │   └─ ImageCommandContent [267..298]
  │   │       │       └─ ImageCommandContent_c1 [267..298]
- │   │       │           └─ ImageCommandWords [267..298]
- │   │       │               ├─ ImageCommandWords_c1 [267..275]
+ │   │       │           └─ ImageCommandNavigation [267..298]
+ │   │       │               ├─ ImageCommandNavigation_c1 [267..275]
  │   │       │               │   └─ AssetCommandControl [267..275]: "navigate"
- │   │       │               ├─ ImageCommandWords_c2 [275..276]
+ │   │       │               ├─ ImageCommandNavigation_c2 275
+ │   │       │               ├─ ImageCommandNavigation_c3 275
+ │   │       │               ├─ ImageCommandNavigation_c4 275
+ │   │       │               ├─ ImageCommandNavigation_c5 275
+ │   │       │               ├─ ImageCommandNavigation_c6 [275..276]
  │   │       │               │   └─ RequiredWhitespace [275..276]: " "
- │   │       │               ├─ ImageCommandWords_c3 [276..280]
+ │   │       │               ├─ ImageCommandNavigation_c7 [276..280]
  │   │       │               │   └─ AssetCommandTarget [276..280]: "main"
- │   │       │               ├─ ImageCommandWords_c4 [280..281]
+ │   │       │               ├─ ImageCommandNavigation_c8 [280..281]
  │   │       │               │   └─ RequiredWhitespace [280..281]: " "
- │   │       │               ├─ ImageCommandWords_c5 [281..288]
+ │   │       │               ├─ ImageCommandNavigation_c9 [281..288]
  │   │       │               │   └─ AssetCommandValueClause [281..288]
  │   │       │               │       ├─ AssetCommandValueClause_c1 [281..283]
  │   │       │               │       │   └─ AssetCommandClauseKeyword [281..283]: "to"
@@ -569,7 +487,7 @@ sparkdown [0..396]
  │   │       │               │           └─ AssetCommandClauseValue [284..288]
  │   │       │               │               └─ AssetCommandClauseValue_c1 [284..288]
  │   │       │               │                   └─ NameValue [284..288]: "menu"
- │   │       │               ├─ ImageCommandWords_c6 [288..298]
+ │   │       │               ├─ ImageCommandNavigation_c10 [288..298]
  │   │       │               │   ├─ AssetCommandSeparator [288..289]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [288..289]
  │   │       │               │   │       └─ RequiredWhitespace [288..289]: " "
@@ -582,16 +500,8 @@ sparkdown [0..396]
  │   │       │               │           └─ AssetCommandClauseValue [294..298]
  │   │       │               │               └─ AssetCommandClauseValue_c1 [294..298]
  │   │       │               │                   └─ NameValue [294..298]: "fade"
- │   │       │               ├─ ImageCommandWords_c7 298
- │   │       │               ├─ ImageCommandWords_c8 298
- │   │       │               ├─ ImageCommandWords_c9 298
- │   │       │               ├─ ImageCommandWords_c10 298
- │   │       │               ├─ ImageCommandWords_c11 298
- │   │       │               ├─ ImageCommandWords_c12 298
- │   │       │               ├─ ImageCommandWords_c13 298
- │   │       │               ├─ ImageCommandWords_c14 298
- │   │       │               └─ ImageCommandWords_c15 298
- │   │       │                   └─ OptionalWhitespace 298
+ │   │       │               ├─ ImageCommandNavigation_c11 298
+ │   │       │               └─ ImageCommandNavigation_c12 298
  │   │       └─ ImageCommand_end [298..300]
  │   │           ├─ ImageCommand_end_c1 298
  │   │           ├─ ImageCommand_end_c2 [298..300]
@@ -613,14 +523,13 @@ sparkdown [0..396]
  │   │       ├─ ImageCommand_content [305..331]
  │   │       │   └─ ImageCommandContent [305..331]
  │   │       │       └─ ImageCommandContent_c1 [305..331]
- │   │       │           └─ ImageCommandWords [305..331]
- │   │       │               ├─ ImageCommandWords_c1 [305..313]
+ │   │       │           └─ ImageCommandNavigation [305..331]
+ │   │       │               ├─ ImageCommandNavigation_c1 [305..313]
  │   │       │               │   └─ AssetCommandControl [305..313]: "navigate"
- │   │       │               ├─ ImageCommandWords_c2 313
- │   │       │               ├─ ImageCommandWords_c3 313
- │   │       │               ├─ ImageCommandWords_c4 313
- │   │       │               ├─ ImageCommandWords_c5 313
- │   │       │               ├─ ImageCommandWords_c6 [313..331]
+ │   │       │               ├─ ImageCommandNavigation_c2 313
+ │   │       │               ├─ ImageCommandNavigation_c3 313
+ │   │       │               ├─ ImageCommandNavigation_c4 313
+ │   │       │               ├─ ImageCommandNavigation_c5 [313..331]
  │   │       │               │   ├─ AssetCommandSeparator [313..314]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [313..314]
  │   │       │               │   │       └─ RequiredWhitespace [313..314]: " "
@@ -645,16 +554,13 @@ sparkdown [0..396]
  │   │       │               │           └─ AssetCommandClauseValue [327..331]
  │   │       │               │               └─ AssetCommandClauseValue_c1 [327..331]
  │   │       │               │                   └─ NameValue [327..331]: "menu"
- │   │       │               ├─ ImageCommandWords_c7 331
- │   │       │               ├─ ImageCommandWords_c8 331
- │   │       │               ├─ ImageCommandWords_c9 331
- │   │       │               ├─ ImageCommandWords_c10 331
- │   │       │               ├─ ImageCommandWords_c11 331
- │   │       │               ├─ ImageCommandWords_c12 331
- │   │       │               ├─ ImageCommandWords_c13 331
- │   │       │               ├─ ImageCommandWords_c14 331
- │   │       │               └─ ImageCommandWords_c15 331
- │   │       │                   └─ OptionalWhitespace 331
+ │   │       │               ├─ ImageCommandNavigation_c6 331
+ │   │       │               ├─ ImageCommandNavigation_c7 331
+ │   │       │               ├─ ImageCommandNavigation_c8 331
+ │   │       │               ├─ ImageCommandNavigation_c9 331
+ │   │       │               ├─ ImageCommandNavigation_c10 331
+ │   │       │               ├─ ImageCommandNavigation_c11 331
+ │   │       │               └─ ImageCommandNavigation_c12 331
  │   │       └─ ImageCommand_end [331..333]
  │   │           ├─ ImageCommand_end_c1 331
  │   │           ├─ ImageCommand_end_c2 [331..333]
@@ -676,20 +582,14 @@ sparkdown [0..396]
  │   │       ├─ ImageCommand_content [338..368]
  │   │       │   └─ ImageCommandContent [338..368]
  │   │       │       └─ ImageCommandContent_c1 [338..368]
- │   │       │           └─ ImageCommandWords [338..368]
- │   │       │               ├─ ImageCommandWords_c1 338
- │   │       │               ├─ ImageCommandWords_c2 338
- │   │       │               ├─ ImageCommandWords_c3 338
- │   │       │               ├─ ImageCommandWords_c4 338
- │   │       │               ├─ ImageCommandWords_c5 338
- │   │       │               ├─ ImageCommandWords_c6 338
- │   │       │               ├─ ImageCommandWords_c7 [338..342]
+ │   │       │           └─ ImageCommandControlled [338..368]
+ │   │       │               ├─ ImageCommandControlled_c1 [338..342]
  │   │       │               │   └─ AssetCommandControl [338..342]: "show"
- │   │       │               ├─ ImageCommandWords_c8 [342..343]
+ │   │       │               ├─ ImageCommandControlled_c2 [342..343]
  │   │       │               │   └─ RequiredWhitespace [342..343]: " "
- │   │       │               ├─ ImageCommandWords_c9 [343..347]
+ │   │       │               ├─ ImageCommandControlled_c3 [343..347]
  │   │       │               │   └─ AssetCommandTarget [343..347]: "with"
- │   │       │               ├─ ImageCommandWords_c10 [347..368]
+ │   │       │               ├─ ImageCommandControlled_c4 [347..368]
  │   │       │               │   ├─ AssetCommandSeparator [347..348]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [347..348]
  │   │       │               │   │       └─ RequiredWhitespace [347..348]: " "
@@ -712,12 +612,9 @@ sparkdown [0..396]
  │   │       │               │   └─ AssetCommandName [363..368]
  │   │       │               │       └─ AssetCommandName_c1 [363..368]
  │   │       │               │           └─ AssetCommandFileName [363..368]: "bunny"
- │   │       │               ├─ ImageCommandWords_c11 368
- │   │       │               ├─ ImageCommandWords_c12 368
- │   │       │               ├─ ImageCommandWords_c13 368
- │   │       │               ├─ ImageCommandWords_c14 368
- │   │       │               └─ ImageCommandWords_c15 368
- │   │       │                   └─ OptionalWhitespace 368
+ │   │       │               ├─ ImageCommandControlled_c5 368
+ │   │       │               ├─ ImageCommandControlled_c6 368
+ │   │       │               └─ ImageCommandControlled_c7 368
  │   │       └─ ImageCommand_end [368..370]
  │   │           ├─ ImageCommand_end_c1 368
  │   │           ├─ ImageCommand_end_c2 [368..370]
@@ -739,23 +636,12 @@ sparkdown [0..396]
  │   │       ├─ ImageCommand_content [375..389]
  │   │       │   └─ ImageCommandContent [375..389]
  │   │       │       └─ ImageCommandContent_c1 [375..389]
- │   │       │           └─ ImageCommandWords [375..389]
- │   │       │               ├─ ImageCommandWords_c1 375
- │   │       │               ├─ ImageCommandWords_c2 375
- │   │       │               ├─ ImageCommandWords_c3 375
- │   │       │               ├─ ImageCommandWords_c4 375
- │   │       │               ├─ ImageCommandWords_c5 375
- │   │       │               ├─ ImageCommandWords_c6 375
- │   │       │               ├─ ImageCommandWords_c7 375
- │   │       │               ├─ ImageCommandWords_c8 375
- │   │       │               ├─ ImageCommandWords_c9 375
- │   │       │               ├─ ImageCommandWords_c10 375
- │   │       │               ├─ ImageCommandWords_c11 375
- │   │       │               ├─ ImageCommandWords_c12 [375..378]
+ │   │       │           └─ AssetCommandNamesFirst [375..389]
+ │   │       │               ├─ AssetCommandNamesFirst_c1 [375..378]
  │   │       │               │   └─ AssetCommandName [375..378]
  │   │       │               │       └─ AssetCommandName_c1 [375..378]
  │   │       │               │           └─ AssetCommandFileName [375..378]: "mia"
- │   │       │               ├─ ImageCommandWords_c13 [378..389]
+ │   │       │               ├─ AssetCommandNamesFirst_c2 [378..389]
  │   │       │               │   ├─ AssetCommandSeparator [378..379]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [378..379]
  │   │       │               │   │       └─ RequiredWhitespace [378..379]: "\t"
@@ -768,9 +654,8 @@ sparkdown [0..396]
  │   │       │               │           └─ AssetCommandClauseValue [385..389]
  │   │       │               │               └─ AssetCommandClauseValue_c1 [385..389]
  │   │       │               │                   └─ NameValue [385..389]: "talk"
- │   │       │               ├─ ImageCommandWords_c14 389
- │   │       │               └─ ImageCommandWords_c15 389
- │   │       │                   └─ OptionalWhitespace 389
+ │   │       │               ├─ AssetCommandNamesFirst_c3 389
+ │   │       │               └─ AssetCommandNamesFirst_c4 389
  │   │       └─ ImageCommand_end [389..391]
  │   │           ├─ ImageCommand_end_c1 389
  │   │           ├─ ImageCommand_end_c2 [389..391]

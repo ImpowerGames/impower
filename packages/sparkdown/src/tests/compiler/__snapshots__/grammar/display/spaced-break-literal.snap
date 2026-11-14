@@ -144,19 +144,8 @@ sparkdown [0..186]
  │   │       │       │   │   ├─ ImageCommand_content [67..73]
  │   │       │       │   │   │   └─ ImageCommandContent [67..73]
  │   │       │       │   │   │       └─ ImageCommandContent_c1 [67..73]
- │   │       │       │   │   │           └─ ImageCommandWords [67..73]
- │   │       │       │   │   │               ├─ ImageCommandWords_c1 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c2 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c3 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c4 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c5 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c6 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c7 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c8 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c9 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c10 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c11 67
- │   │       │       │   │   │               ├─ ImageCommandWords_c12 [67..73]
+ │   │       │       │   │   │           └─ AssetCommandNamesFirst [67..73]
+ │   │       │       │   │   │               ├─ AssetCommandNamesFirst_c1 [67..73]
  │   │       │       │   │   │               │   ├─ AssetCommandName [67..69]
  │   │       │       │   │   │               │   │   └─ AssetCommandName_c1 [67..69]
  │   │       │       │   │   │               │   │       └─ AssetCommandFileName [67..69]: "cg"
@@ -172,10 +161,9 @@ sparkdown [0..186]
  │   │       │       │   │   │               │   └─ AssetCommandName [72..73]
  │   │       │       │   │   │               │       └─ AssetCommandName_c1 [72..73]
  │   │       │       │   │   │               │           └─ AssetCommandFileName [72..73]: "x"
- │   │       │       │   │   │               ├─ ImageCommandWords_c13 73
- │   │       │       │   │   │               ├─ ImageCommandWords_c14 73
- │   │       │       │   │   │               └─ ImageCommandWords_c15 73
- │   │       │       │   │   │                   └─ OptionalWhitespace 73
+ │   │       │       │   │   │               ├─ AssetCommandNamesFirst_c2 73
+ │   │       │       │   │   │               ├─ AssetCommandNamesFirst_c3 73
+ │   │       │       │   │   │               └─ AssetCommandNamesFirst_c4 73
  │   │       │       │   │   └─ ImageCommand_end [73..75]
  │   │       │       │   │       ├─ ImageCommand_end_c1 73
  │   │       │       │   │       ├─ ImageCommand_end_c2 [73..75]

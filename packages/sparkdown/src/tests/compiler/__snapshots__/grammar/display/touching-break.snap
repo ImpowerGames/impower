@@ -1100,19 +1100,8 @@ sparkdown [0..1131]
  │   │   │   │       │   │   ├─ ImageCommand_content [423..429]
  │   │   │   │       │   │   │   └─ ImageCommandContent [423..429]
  │   │   │   │       │   │   │       └─ ImageCommandContent_c1 [423..429]
- │   │   │   │       │   │   │           └─ ImageCommandWords [423..429]
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c1 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c2 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c3 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c4 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c5 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c6 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c7 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c8 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c9 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c10 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c11 423
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c12 [423..429]
+ │   │   │   │       │   │   │           └─ AssetCommandNamesFirst [423..429]
+ │   │   │   │       │   │   │               ├─ AssetCommandNamesFirst_c1 [423..429]
  │   │   │   │       │   │   │               │   ├─ AssetCommandName [423..425]
  │   │   │   │       │   │   │               │   │   └─ AssetCommandName_c1 [423..425]
  │   │   │   │       │   │   │               │   │       └─ AssetCommandFileName [423..425]: "cg"
@@ -1128,10 +1117,9 @@ sparkdown [0..1131]
  │   │   │   │       │   │   │               │   └─ AssetCommandName [428..429]
  │   │   │   │       │   │   │               │       └─ AssetCommandName_c1 [428..429]
  │   │   │   │       │   │   │               │           └─ IllegalChar [428..429]: "1"
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c13 429
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c14 429
- │   │   │   │       │   │   │               └─ ImageCommandWords_c15 429
- │   │   │   │       │   │   │                   └─ OptionalWhitespace 429
+ │   │   │   │       │   │   │               ├─ AssetCommandNamesFirst_c2 429
+ │   │   │   │       │   │   │               ├─ AssetCommandNamesFirst_c3 429
+ │   │   │   │       │   │   │               └─ AssetCommandNamesFirst_c4 429
  │   │   │   │       │   │   └─ ImageCommand_end [429..432]
  │   │   │   │       │   │       ├─ ImageCommand_end_c1 429
  │   │   │   │       │   │       ├─ ImageCommand_end_c2 [429..431]
@@ -1147,13 +1135,8 @@ sparkdown [0..1131]
  │   │   │   │       │       ├─ AudioCommand_content [434..441]
  │   │   │   │       │       │   └─ AudioCommandContent [434..441]
  │   │   │   │       │       │       └─ AudioCommandContent_c1 [434..441]
- │   │   │   │       │       │           └─ AudioCommandWords [434..441]
- │   │   │   │       │       │               ├─ AudioCommandWords_c1 434
- │   │   │   │       │       │               ├─ AudioCommandWords_c2 434
- │   │   │   │       │       │               ├─ AudioCommandWords_c3 434
- │   │   │   │       │       │               ├─ AudioCommandWords_c4 434
- │   │   │   │       │       │               ├─ AudioCommandWords_c5 434
- │   │   │   │       │       │               ├─ AudioCommandWords_c6 [434..441]
+ │   │   │   │       │       │           └─ AssetCommandNamesFirst [434..441]
+ │   │   │   │       │       │               ├─ AssetCommandNamesFirst_c1 [434..441]
  │   │   │   │       │       │               │   ├─ AssetCommandName [434..437]
  │   │   │   │       │       │               │   │   └─ AssetCommandName_c1 [434..437]
  │   │   │   │       │       │               │   │       └─ AssetCommandFileName [434..437]: "sfx"
@@ -1169,10 +1152,9 @@ sparkdown [0..1131]
  │   │   │   │       │       │               │   └─ AssetCommandName [440..441]
  │   │   │   │       │       │               │       └─ AssetCommandName_c1 [440..441]
  │   │   │   │       │       │               │           └─ IllegalChar [440..441]: "2"
- │   │   │   │       │       │               ├─ AudioCommandWords_c7 441
- │   │   │   │       │       │               ├─ AudioCommandWords_c8 441
- │   │   │   │       │       │               └─ AudioCommandWords_c9 441
- │   │   │   │       │       │                   └─ OptionalWhitespace 441
+ │   │   │   │       │       │               ├─ AssetCommandNamesFirst_c2 441
+ │   │   │   │       │       │               ├─ AssetCommandNamesFirst_c3 441
+ │   │   │   │       │       │               └─ AssetCommandNamesFirst_c4 441
  │   │   │   │       │       └─ AudioCommand_end [441..444]
  │   │   │   │       │           ├─ AudioCommand_end_c1 441
  │   │   │   │       │           ├─ AudioCommand_end_c2 [441..443]
@@ -1279,28 +1261,16 @@ sparkdown [0..1131]
  │   │   │   │       │   │   ├─ ImageCommand_content [470..474]
  │   │   │   │       │   │   │   └─ ImageCommandContent [470..474]
  │   │   │   │       │   │   │       └─ ImageCommandContent_c1 [470..474]
- │   │   │   │       │   │   │           └─ ImageCommandWords [470..474]
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c1 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c2 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c3 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c4 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c5 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c6 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c7 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c8 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c9 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c10 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c11 470
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c12 [470..474]
+ │   │   │   │       │   │   │           └─ AssetCommandNamesFirst [470..474]
+ │   │   │   │       │   │   │               ├─ AssetCommandNamesFirst_c1 [470..474]
  │   │   │   │       │   │   │               │   └─ AssetCommandName [470..474]
  │   │   │   │       │   │   │               │       └─ AssetCommandName_c1 [470..474]
  │   │   │   │       │   │   │               │           ├─ AssetCommandFileName [470..472]: "cg"
  │   │   │   │       │   │   │               │           ├─ IllegalChar [472..473]: ">"
  │   │   │   │       │   │   │               │           └─ IllegalChar [473..474]: "1"
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c13 474
- │   │   │   │       │   │   │               ├─ ImageCommandWords_c14 474
- │   │   │   │       │   │   │               └─ ImageCommandWords_c15 474
- │   │   │   │       │   │   │                   └─ OptionalWhitespace 474
+ │   │   │   │       │   │   │               ├─ AssetCommandNamesFirst_c2 474
+ │   │   │   │       │   │   │               ├─ AssetCommandNamesFirst_c3 474
+ │   │   │   │       │   │   │               └─ AssetCommandNamesFirst_c4 474
  │   │   │   │       │   │   └─ ImageCommand_end [474..477]
  │   │   │   │       │   │       ├─ ImageCommand_end_c1 474
  │   │   │   │       │   │       ├─ ImageCommand_end_c2 [474..476]
@@ -1316,22 +1286,16 @@ sparkdown [0..1131]
  │   │   │   │       │       ├─ AudioCommand_content [479..484]
  │   │   │   │       │       │   └─ AudioCommandContent [479..484]
  │   │   │   │       │       │       └─ AudioCommandContent_c1 [479..484]
- │   │   │   │       │       │           └─ AudioCommandWords [479..484]
- │   │   │   │       │       │               ├─ AudioCommandWords_c1 479
- │   │   │   │       │       │               ├─ AudioCommandWords_c2 479
- │   │   │   │       │       │               ├─ AudioCommandWords_c3 479
- │   │   │   │       │       │               ├─ AudioCommandWords_c4 479
- │   │   │   │       │       │               ├─ AudioCommandWords_c5 479
- │   │   │   │       │       │               ├─ AudioCommandWords_c6 [479..484]
+ │   │   │   │       │       │           └─ AssetCommandNamesFirst [479..484]
+ │   │   │   │       │       │               ├─ AssetCommandNamesFirst_c1 [479..484]
  │   │   │   │       │       │               │   └─ AssetCommandName [479..484]
  │   │   │   │       │       │               │       └─ AssetCommandName_c1 [479..484]
  │   │   │   │       │       │               │           ├─ AssetCommandFileName [479..482]: "sfx"
  │   │   │   │       │       │               │           ├─ IllegalChar [482..483]: ">"
  │   │   │   │       │       │               │           └─ IllegalChar [483..484]: "2"
- │   │   │   │       │       │               ├─ AudioCommandWords_c7 484
- │   │   │   │       │       │               ├─ AudioCommandWords_c8 484
- │   │   │   │       │       │               └─ AudioCommandWords_c9 484
- │   │   │   │       │       │                   └─ OptionalWhitespace 484
+ │   │   │   │       │       │               ├─ AssetCommandNamesFirst_c2 484
+ │   │   │   │       │       │               ├─ AssetCommandNamesFirst_c3 484
+ │   │   │   │       │       │               └─ AssetCommandNamesFirst_c4 484
  │   │   │   │       │       └─ AudioCommand_end [484..487]
  │   │   │   │       │           ├─ AudioCommand_end_c1 484
  │   │   │   │       │           ├─ AudioCommand_end_c2 [484..486]
