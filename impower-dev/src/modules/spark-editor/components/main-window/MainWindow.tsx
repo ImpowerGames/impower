@@ -86,6 +86,7 @@ export default function MainWindow(_props: MainWindowProps) {
               orientation={strip ? "vertical" : "horizontal"}
               reverse={strip}
               label={strip ? "Resize preview" : undefined}
+              class="[--split-start-surface:var(--color-workspace)] [--split-end-surface:var(--color-preview-mat)]"
               pinned={
                 strip
                   ? {

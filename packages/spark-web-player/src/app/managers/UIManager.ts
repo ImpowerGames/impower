@@ -1634,7 +1634,7 @@ export default class UIManager extends Manager {
     this._speech = undefined;
   }
 
-  protected speak({ character, spans, voiced, revealed, time }: SpeechParams) {
+  protected speak({ character, spans, beeps, voiced, revealed, time }: SpeechParams) {
     const morphs = this.morphs;
     if (!morphs) {
       return;
@@ -1660,6 +1660,7 @@ export default class UIManager extends Manager {
     morphs.speak(
       character,
       spans.map(([start, end]): [number, number] => [start + lead, end + lead]),
+      (beeps ?? []).map((beep) => beep + lead),
     );
   }
 
