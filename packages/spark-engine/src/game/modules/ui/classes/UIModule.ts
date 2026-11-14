@@ -1659,6 +1659,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
           return;
         }
+        if (value.includes(",")) {
+          for (const entry of value.split(",")) {
+            const family = entry.trim().replace(/^(["'])(.*)\1$/, "$2");
+            if (fonts[family] && !family.startsWith("$")) {
+              referenced.add(family);
+            }
+            for (const fontName of byFamily.get(family) ?? []) {
+              referenced.add(fontName);
+            }
+          }
+        }
         for (const fontName of fontNames) {
           if (value.includes(`--font-${fontName}`)) {
             referenced.add(fontName);

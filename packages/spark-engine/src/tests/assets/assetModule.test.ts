@@ -390,6 +390,46 @@ end
     });
   });
 
+  it("loads the font a style names inside a font list with a fallback (#2235)", async () => {
+    const source = `style hud {
+  font_family = "Fancy, serif"
+}
+
+style deck {
+  font_family = "'Fancy' , sans-serif"
+}
+
+style badge {
+  font_family = "serif, Fancy"
+}
+
+layout hud {
+  text "Score"
+}
+
+layout deck {
+  text "Cards"
+}
+
+layout badge {
+  text "Rank"
+}
+
+scene A
+  Hello.
+end
+`;
+    const h = createHarness(source, 0, {
+      assets: ASSETS,
+      beforeConnect: playing,
+      autoOpenAll: false,
+    });
+    await h.ready;
+    expect(h.game.module.ui.getFontNamesForLayout("hud")).toEqual(["Fancy"]);
+    expect(h.game.module.ui.getFontNamesForLayout("deck")).toEqual(["Fancy"]);
+    expect(h.game.module.ui.getFontNamesForLayout("badge")).toEqual(["Fancy"]);
+  });
+
   it("loads a family's @ style files with the family a style names (#2202)", async () => {
     const source = `style hud {
   font_family = "Plain"
