@@ -406,6 +406,26 @@ describe("InterpreterModule text tags", () => {
   });
 });
 
+describe("a style boundary inside zero-delay text", () => {
+  const timing = (source: string) => {
+    const instructions = createModule().parse(source, TARGET);
+    return { end: instructions.end, audio: JSON.stringify(instructions.audio ?? {}) };
+  };
+
+  it.each([
+    ["a raw span", `<speed=0>... a${spanOpen("`")}b${SPAN_CLOSE}c`],
+    ["a centred span", `<speed=0>... a${spanOpen("^")}b${SPAN_CLOSE}c`],
+  ])("glued to its neighbours, %s adds no time and no tone", (_what, styled) => {
+    expect(timing(styled)).toEqual(timing("<speed=0>... abc"));
+  });
+
+  it("keeps the raw span's style", () => {
+    const instructions = createModule().parse(`<speed=0>a${spanOpen("`")}b${SPAN_CLOSE}c`, TARGET).text?.[TARGET] ?? [];
+    expect(instructions.map((i) => i.text).join("")).toBe("abc");
+    expect(instructions.length).toBeGreaterThan(1);
+  });
+});
+
 describe("InterpreterModule.queue", () => {
   const moduleWithDefaultTarget = () => {
     const game = {

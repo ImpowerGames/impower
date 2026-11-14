@@ -6,7 +6,7 @@ import {
   choiceTextMarkers,
   readChoiceText,
 } from "../../utils/readChoiceText";
-import { isStyleCode, trimStyled, writesNothing } from "../../../runtime/displayStyle";
+import { trimStyled, writesNothing } from "../../../runtime/displayStyle";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
@@ -294,28 +294,17 @@ function chosenTextAsDisplayCall(
 const isSpace = (c: string) => c === " " || c === "\t";
 
 function endsInSpace(objects: readonly ParsedObject[]): boolean {
-  for (let o = objects.length - 1; o >= 0; o -= 1) {
-    const obj = objects[o];
-    if (!(obj instanceof Text)) return false;
-    for (let i = obj.text.length - 1; i >= 0; i -= 1) {
-      const c = obj.text[i]!;
-      if (!isStyleCode(c)) return isSpace(c);
-    }
-  }
-  return false;
+  const last = objects.at(-1);
+  return last instanceof Text && isSpace(last.text.at(-1) ?? "");
 }
 
 function withoutLeadingSpace(words: ParsedObject[]): ParsedObject[] {
   const first = words[0];
   if (!(first instanceof Text)) return words;
-  let codes = "";
   let i = 0;
-  while (i < first.text.length && (isStyleCode(first.text[i]!) || isSpace(first.text[i]!))) {
-    if (isStyleCode(first.text[i]!)) codes += first.text[i];
-    i += 1;
-  }
-  if (codes.length === i) return words;
-  const rest = codes + first.text.slice(i);
+  while (i < first.text.length && isSpace(first.text[i]!)) i += 1;
+  if (i === 0) return words;
+  const rest = first.text.slice(i);
   return rest ? [new Text(rest), ...words.slice(1)] : words.slice(1);
 }
 

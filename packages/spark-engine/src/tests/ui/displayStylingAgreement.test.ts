@@ -485,6 +485,17 @@ describe("the output joins the text on either side of a suppression with one spa
         .join(""),
     ).toBe(output);
   });
+
+  test.each([
+    ["Go a [b]` c ` d", "Go a ` c ` d"],
+    ["Go `x `[b] c", "Go `x ` c"],
+    ["Go `x ` [b] c", "Go `x ` c"],
+    ["Go {x} [b] c", "Go {x} c"],
+  ])("%s keeps the spaces inside a raw span or a value, as the display line %s does", async (text, display) => {
+    const { echo } = await renderedChoiceBeats(script(`choose\n    + ${text}\n      Done.\n  end`));
+    const line = await renderedBeat(script(display));
+    expect(show(echo("action"))).toBe(show(line("action")));
+  });
 });
 
 describe("a mark inside an inserted value is styled within the value only", () => {

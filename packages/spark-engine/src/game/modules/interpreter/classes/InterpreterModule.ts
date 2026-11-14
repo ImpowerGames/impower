@@ -1450,28 +1450,33 @@ export class InterpreterModule extends Module<
             if (currentPhrase) {
               currentPhrase.text ??= "";
               currentPhrase.text += char;
-              if (
+              const timingContinues = Boolean(
                 currChunk &&
                 !currChunk.duration &&
                 !this.isWhitespace(char) &&
                 !this.isWhitespace(currChunk.text) &&
-                (raw || spanRaw) === currChunk.raw &&
-                centered === currChunk.centered &&
                 bolded === currChunk.bolded &&
                 italicized === currChunk.italicized &&
                 underlined === currChunk.underlined &&
                 wavy === currChunk.wavy &&
                 shaky === currChunk.shaky &&
-                tilde === currChunk.tilde &&
-                speed === currChunk.speed
+                speed === currChunk.speed,
+              );
+              if (
+                currChunk &&
+                timingContinues &&
+                (raw || spanRaw) === currChunk.raw &&
+                centered === currChunk.centered &&
+                tilde === currChunk.tilde
               ) {
                 currChunk.text += char;
               } else {
                 currChunk = {
                   text: char,
-                  duration,
+                  duration: timingContinues ? 0 : duration,
                   speed,
-                  voicedSyllable,
+                  voicedSyllable: timingContinues ? false : voicedSyllable,
+                  timingContinues: timingContinues || undefined,
                   voiced,
                   yelled,
                   raw: raw || spanRaw,
@@ -1563,7 +1568,7 @@ export class InterpreterModule extends Module<
             const minSynthDuration = this.getMinSynthDuration(typewriterSynth);
             for (let c = 0; c < phrase.chunks.length; c += 1) {
               const chunk = phrase.chunks[c]!;
-              if (chunk.text && !this.isWhitespace(chunk.text)) {
+              if (chunk.text && !this.isWhitespace(chunk.text) && !chunk.timingContinues) {
                 chunk.punctuatedSyllable = true;
                 chunk.duration = Math.max(
                   minSynthDuration,
