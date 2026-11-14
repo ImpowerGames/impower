@@ -1817,12 +1817,36 @@ try {
     assert.deepEqual([raised.action, raised.decides, raised.maintainerRequest], ["decision-needed", "maintainer", { filed: { number: 9305, state: "open" } }], "triage's recorded request is the entry's request");
     const unlinkedTriage = planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9002, state: "open", delivered: false, request: true }] }])).tickets.find((t) => t.number === 3005);
     assert.equal(unlinkedTriage.maintainerRequest.unlinked, 9305, "with triage's request no longer blocking the ticket, another open request does not stand in for it");
+    assert.equal(unlinkedTriage.maintainerRequest.triage, true);
+    {
+      const unlinkedPlan = write("triage-unlinked-plan.json", planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9306, state: "open", delivered: false, request: true }] }])));
+      const replaced = run.readRecord(f.file);
+      run.asked(replaced, { plan: unlinkedPlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }) });
+      assert.deepEqual([replaced.filed[3005].outcome.maintainerRequest.number, replaced.filed[3005].outcome.replaced.map((r) => r.number), replaced.tickets[3005]?.waits], [9306, [9305], undefined], "asked on a triage entry replaces triage's request, keeping the old one as history");
+      const after = run.planDispatch({ record: replaced, snapshot: snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9306, state: "open", delivered: false, request: true }] }]), freeBytes: 100 * GB, defaults }).tickets.find((t) => t.number === 3005);
+      assert.deepEqual(after.maintainerRequest, { filed: { number: 9306, state: "open" } }, "the next plan names the replacement, so the recovery path converges");
+    }
+    {
+      const answered = (number, over = {}) => cacheKey({ number, state: "answered", answered: true, recorded: true, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: `https://github.com/acme/widgets/issues/${number}#issuecomment-9`, at: "2026-11-13T16:09:00Z", body: "Use the blue label." }], ...over });
+      const retriage = (maintainerRequest) => run.triage(run.readRecord(f.file), { filed: 3005, outcome: "needed", under: 300, reason: "the parent needs it", maintainerRequest });
+      assert.throws(() => retriage(undefined), /#3005 waits on the maintainer's answer in request #9305; triage it as needed only once that answer is recorded or the request is withdrawn, passing --maintainer-request 9305$/, "re-triage refuses to release a pending maintainer question silently");
+      assert.throws(() => retriage(answered(9400)), /passing --maintainer-request 9305, not #9400$/, "an unrelated answer on the same ticket does not release it");
+      assert.throws(() => retriage(cacheKey()), /#9305 has no answer yet: it is waiting/, "nor does the question itself before its answer");
+      assert.throws(() => retriage(answered(9305, { recorded: false })), /answer is not recorded/);
+      const settled = run.readRecord(f.file);
+      run.triage(settled, { filed: 3005, outcome: "needed", under: 300, reason: "the parent needs it", maintainerRequest: answered(9305) });
+      assert.deepEqual([settled.filed[3005].outcome.kind, settled.filed[3005].outcome.released], ["needed", { request: 9305, state: "answered" }], "the recorded answer releases it, and the record says which request did");
+      const withdrawn = run.readRecord(f.file);
+      run.triage(withdrawn, { filed: 3005, outcome: "needed", under: 300, reason: "the parent needs it", maintainerRequest: cacheKey({ state: "withdrawn" }) });
+      assert.deepEqual(withdrawn.filed[3005].outcome.released, { request: 9305, state: "withdrawn" }, "a withdrawn request releases it too");
+    }
     assert.match(raised.reason, /raised with the maintainer: "Should the cache key change\?".*; maintainer request #9305 is open: the maintainer has not answered$/, "the plan names the filed request");
     assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002, 3005]);
     const keepNarrow = cacheKey({ state: "answered", answered: true, recorded: true, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: "https://github.com/acme/widgets/issues/9305#issuecomment-5", at: "2026-11-13T16:09:00Z", body: "Keep the narrow fix for now." }] });
     assert.throws(() => f.change((r) => run.interim(r, { filed: 3003, maintainerRequest: keepNarrow })), /not triaged as completing/);
     assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, decision: "Keep the narrow fix for now", evidence: "the maintainer's reply on the parent" })), /interim takes the number of an answered maintainer request with --maintainer-request, never typed decision text/, "interim refuses typed decision text");
     assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: cacheKey() })), /#9305 has no answer yet: it is waiting/, "interim refuses an unanswered request");
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: { ...keepNarrow, number: 9400, url: "https://github.com/acme/widgets/issues/9400" } })), /#3005 was raised with the maintainer in request #9305; only that request's recorded answer accepts the narrow fix as an interim, not #9400/, "an unrelated recorded answer on the same ticket does not release the slice's hold");
     assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: { ...keepNarrow, recorded: false } })), /answer is not recorded/);
     f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: keepNarrow }));
     const after = run.readRecord(f.file).filed[3005].outcome;

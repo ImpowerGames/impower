@@ -1080,22 +1080,23 @@ const waitKind = (entry) => (entry.action === "await-maintainer" ? "task" : entr
 function askMaintainer(record, snapshot, tickets) {
   const byNumber = new Map(snapshot.tickets.map((t) => [t.number, t]));
   for (const entry of tickets) {
-    const triageRequest = entry.triageRequest;
+    const triage = Object.hasOwn(entry, "triageRequest");
+    const triageRequest = entry.triageRequest ?? null;
     delete entry.triageRequest;
     const kind = waitKind(entry);
     if (!kind) continue;
     const key = waitKey(entry);
-    const asked = triageRequest ?? (record.tickets?.[entry.number]?.waits ?? []).filter((w) => w.key === key).at(-1)?.request ?? null;
+    const asked = triage ? triageRequest : (record.tickets?.[entry.number]?.waits ?? []).filter((w) => w.key === key).at(-1)?.request ?? null;
     const what = kind === "task" ? `a maintainer task request asking the maintainer to merge PR #${entry.pr}` : "a maintainer decision request asking the question this reason raises";
     const fileIt = `${fileRequest(record, entry.number, kind)} (${what}), then record it with issue-run.mjs asked --plan <this plan> --ticket ${entry.number} --maintainer-request <its number>, and the plan names it here`;
     if (!asked) {
-      entry.maintainerRequest = { file: kind, key, ...(kind === "task" && { pr: entry.pr }) };
+      entry.maintainerRequest = { file: kind, key, ...(kind === "task" && { pr: entry.pr }), ...(triage && { triage: true }) };
       entry.reason += `; the maintainer has no request for it yet: ${fileIt}`;
       continue;
     }
     const blocker = (byNumber.get(entry.number)?.blockers ?? []).find((b) => b.request && b.number === asked.number);
     if (!blocker) {
-      entry.maintainerRequest = { file: kind, key, ...(kind === "task" && { pr: entry.pr }), unlinked: asked.number };
+      entry.maintainerRequest = { file: kind, key, ...(kind === "task" && { pr: entry.pr }), ...(triage && { triage: true }), unlinked: asked.number };
       entry.reason += `; its maintainer request #${asked.number} no longer blocks it on GitHub, so it holds nothing: ${fileIt}`;
       continue;
     }
@@ -1110,6 +1111,14 @@ export function asked(record, { plan: planFile, ticket: number, maintainerReques
   const kind = entry.maintainerRequest?.file;
   if (!kind) throw new Error(`The plan does not ask for a maintainer request for #${number}${entry.maintainerRequest?.filed ? `: it already waits on #${entry.maintainerRequest.filed.number}` : ""}`);
   const filed = heldRequest(record, maintainerRequest, number, { what: `Recording the request #${number}'s ${entry.action} entry waits on`, kinds: [kind] });
+  if (entry.maintainerRequest.triage) {
+    const outcome = record.filed?.[number]?.outcome;
+    if (outcome?.kind !== "maintainer") throw new Error(`#${number} is no longer triaged as raised with the maintainer; plan again`);
+    const replaced = outcome.maintainerRequest ?? null;
+    record.filed[number].outcome = { ...outcome, maintainerRequest: filed, ...(replaced && { replaced: [...(outcome.replaced ?? []), replaced] }) };
+    log(record, "asked", { ticket: number, triage: true, maintainerRequest: filed.number, ...(replaced && { replaced: replaced.number }) });
+    return { request: filed.number };
+  }
   const ticket = ticketOf(record, number);
   (ticket.waits ??= []).push({ key: entry.maintainerRequest.key, action: entry.action, ...(entry.maintainerRequest.pr && { pr: entry.maintainerRequest.pr }), request: filed, time: new Date().toISOString() });
   log(record, "asked", { ticket: number, key: entry.maintainerRequest.key, maintainerRequest: filed.number });
@@ -1214,7 +1223,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   const blockedDelivery = (n) => blockedDeliverers.get(n) ?? null;
   const triageHold = (t) => {
     const triaged = record.filed?.[t.number]?.outcome;
-    if (triaged?.kind === "maintainer") return { action: "decision-needed", decides: "maintainer", ...(triaged.maintainerRequest && { triageRequest: triaged.maintainerRequest }), reason: `filed during the run and raised with the maintainer: "${triaged.question}"; no writer starts on it until their answer is recorded with triage or interim` };
+    if (triaged?.kind === "maintainer") return { action: "decision-needed", decides: "maintainer", triageRequest: triaged.maintainerRequest ?? null, reason: `filed during the run and raised with the maintainer: "${triaged.question}"; no writer starts on it until their answer is recorded with triage or interim` };
     if (triaged?.kind !== "completes") return null;
     const fixOf = snapshot.tickets.find((x) => x.number === triaged.slice);
     if (!fixOf) return { action: "decision-needed", decides: "coordinator", reason: `it completes #${triaged.slice}'s fix (${triaged.reason}), but #${triaged.slice} is not in the parent's tree, so whether its PR made the proper fix is unknown; re-triage the ticket or restore #${triaged.slice}` };
@@ -1354,7 +1363,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (!t.effort) { add(t, "assign-effort", "the ticket has no Effort value: estimate one, publish and read it back through the issue-fields procedure, then snapshot and plan again"); continue; }
     if (!writerEffortOf(t.effort)) { add(t, "decision-needed", `Effort ${t.effort} has no writer effort`, { decides: "maintainer" }); continue; }
     const hold = triageHold(t);
-    if (hold) { add(t, hold.action, hold.reason, { ...(hold.decides && { decides: hold.decides }), ...(hold.triageRequest && { triageRequest: hold.triageRequest }), ...(hold.waitingFor && { waitingFor: hold.waitingFor }) }); continue; }
+    if (hold) { add(t, hold.action, hold.reason, { ...(hold.decides && { decides: hold.decides }), ...(hold.triageRequest !== undefined && { triageRequest: hold.triageRequest }), ...(hold.waitingFor && { waitingFor: hold.waitingFor }) }); continue; }
     const waiting = undelivered(t);
     if (waiting.length) { add(t, "wait-dependency", waitingFor(waiting), { waitingFor: waiting.map((b) => b.number) }); continue; }
     const held = heldAncestor(t);
@@ -1860,9 +1869,20 @@ export function dismiss(record, { filed: number, ticket: from, evidence }) {
   log(record, "filed-dismissed", { filed: number, from: from ?? named[0] });
 }
 
+const raisedRequest = (outcome) => (outcome?.kind === "maintainer" ? outcome.maintainerRequest ?? null : null);
+function releaseRaised(raised, maintainerRequest, number, what) {
+  const release = `#${number} waits on the maintainer's answer in request #${raised.number}; ${what} only once that answer is recorded or the request is withdrawn, passing --maintainer-request ${raised.number}`;
+  if (typeof maintainerRequest !== "object" || maintainerRequest === null || maintainerRequest.number !== raised.number) throw new Error(`${release}${maintainerRequest?.number ? `, not #${maintainerRequest.number}` : ""}`);
+  if (maintainerRequest.state === "withdrawn") return { request: raised.number, state: "withdrawn" };
+  return recordedAnswer(maintainerRequest, number, { what: release });
+}
+
 export function triage(record, { filed: number, outcome: kind, slice, under, reason, question, maintainerRequest }) {
   const entry = filedEntry(record, number);
   if (!FILED_OUTCOMES.includes(kind)) throw new Error(`--outcome must be ${FILED_OUTCOMES.join(", ")}`);
+  const raised = raisedRequest(entry.outcome);
+  const released = kind !== "maintainer" && raised ? releaseRaised(raised, maintainerRequest, number, `triage it as ${kind}`) : null;
+  if (kind !== "maintainer" && !raised && maintainerRequest !== undefined) throw new Error("--maintainer-request belongs to --outcome maintainer, which raises the ticket with the maintainer, or to re-triaging a ticket raised with a request, which names that request");
   let outcome;
   if (kind === "completes") {
     if (!Number.isSafeInteger(slice) || !reason) throw new Error("--slice must name the slice whose fix the ticket completes, and --reason say how (the same root cause, code it would replace or remove, or a workaround it names)");
@@ -1879,9 +1899,8 @@ export function triage(record, { filed: number, outcome: kind, slice, under, rea
     const filedRequest = heldRequest(record, maintainerRequest, number, { what: `Raising #${number} with the maintainer`, kinds: ["decision"] });
     outcome = { kind, question, maintainerRequest: filedRequest, ...(slice !== undefined && { slice }) };
   }
-  if (kind !== "maintainer" && maintainerRequest !== undefined) throw new Error("--maintainer-request belongs to --outcome maintainer, which raises the ticket with the maintainer");
   const previous = entry.outcome;
-  entry.outcome = { ...outcome, time: new Date().toISOString() };
+  entry.outcome = { ...outcome, ...(released && { released: { request: released.request, state: released.state } }), time: new Date().toISOString() };
   log(record, "triaged", { filed: number, outcome: kind, ...(previous && { replaced: previous.kind }) });
 }
 
@@ -1889,6 +1908,8 @@ export function interim(record, { filed: number, maintainerRequest }) {
   const entry = filedEntry(record, number);
   const o = entry.outcome;
   if (!o || !(o.kind === "completes" || (o.kind === "maintainer" && o.slice !== undefined))) throw new Error(`#${number} is not triaged as completing a slice's fix`);
+  const raised = raisedRequest(o);
+  if (raised && Number.isSafeInteger(maintainerRequest?.number) && maintainerRequest.number !== raised.number) throw new Error(`#${number} was raised with the maintainer in request #${raised.number}; only that request's recorded answer accepts the narrow fix as an interim, not #${maintainerRequest.number}`);
   const recorded = recordedAnswer(maintainerRequest, number, { what: "interim" });
   const time = new Date().toISOString();
   entry.outcome = { kind: "completes", slice: o.slice, reason: o.reason ?? o.question, interim: { request: recorded.request, url: recorded.url, state: recorded.state, decision: recorded.text, time }, time };
