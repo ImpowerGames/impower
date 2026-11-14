@@ -10,6 +10,7 @@ import {
   readSpanOpen,
   readTagCode,
   scanned,
+  spanStyle,
   stripStyleCodes,
   stripTagCodes,
   writtenText,
@@ -1334,19 +1335,19 @@ export class InterpreterModule extends Module<
             continue;
           }
 
-          const activeCenteredMark = lastMark((m) => m.startsWith("^"));
-          const activeUnderlineMark = lastMark((m) => m.startsWith("_"));
-          const activeBoldItalicMark = lastMark((m) => m.startsWith("***"));
-          const activeBoldMark = lastMark((m) => m === "**");
-          const activeItalicMark = lastMark((m) => m === "*");
-          const activeWavyMark = lastMark((m) => m.startsWith("~~"));
-          const activeShakyMark = lastMark((m) => m.startsWith("::"));
-          const isCentered = Boolean(activeCenteredMark);
-          const isUnderlined = Boolean(activeUnderlineMark);
-          const isItalicized =
-            Boolean(activeBoldItalicMark) || Boolean(activeItalicMark);
-          const isBolded =
-            Boolean(activeBoldItalicMark) || Boolean(activeBoldMark);
+          const style = spanStyle(
+            [...activeMarks, ...spanMarks].map(([m]) => m),
+          );
+          const activeWavyMark = style.wavy
+            ? lastMark((m) => spanStyle([m]).wavy)
+            : undefined;
+          const activeShakyMark = style.shaky
+            ? lastMark((m) => spanStyle([m]).shaky)
+            : undefined;
+          const isCentered = style.centered;
+          const isUnderlined = style.underline;
+          const isItalicized = style.italic;
+          const isBolded = style.bold;
           const voiced = Boolean(voicedMatcher?.test(char));
 
           if (activeWavyMark) {
@@ -1414,24 +1415,12 @@ export class InterpreterModule extends Module<
           const centered =
             alignModifier === "center"
               ? 1
-              : isCentered && activeCenteredMark
-                ? activeCenteredMark.length
-                : isCentered
-                  ? 1
-                  : 0;
-          const italicized = isItalicized ? 1 : 0;
-          const bolded =
-            isBolded && activeBoldItalicMark
-              ? activeBoldItalicMark.length
-              : isBolded
-                ? 2
-                : 0;
-          const underlined =
-            isUnderlined && activeUnderlineMark
-              ? activeUnderlineMark.length
-              : isUnderlined
+              : isCentered
                 ? 1
                 : 0;
+          const italicized = isItalicized ? 1 : 0;
+          const bolded = isBolded ? 2 : 0;
+          const underlined = isUnderlined ? 1 : 0;
           const pitch = pitchModifier;
 
           const charIndex = phraseUnpauseLength - 1;
