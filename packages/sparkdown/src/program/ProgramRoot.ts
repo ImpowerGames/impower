@@ -773,15 +773,10 @@ export class ProgramRoot {
     const id = chunkId(chunk);
     const firstChoice = firstOpIn(chunk, Op.Choice, 0, offer);
     const question = firstChoice < 0 ? offer : firstChoice;
-    const captionKey = this.table.stringIds.get("caption");
-    let caption = -1;
-    let optionStart = -1;
     let next = -1;
     let nextLine = Infinity;
     let beatOnLine = -1;
     let beatOver = -1;
-    let part = -1;
-    let partLines = Infinity;
     const rows = chunk[H_LINE_ROWS]!;
     for (let r = 0; r < rows; r += 1) {
       const from = chunk[lineTableStart(chunk) + r * LINE_ROW_WORDS]!;
@@ -793,14 +788,8 @@ export class ProgramRoot {
           ? Math.min(chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!, offer)
           : offer;
       const range = this.rowRange(sequence, entry, r);
-      if (from <= firstChoice && firstChoice < to) {
-        optionStart = from;
-      }
       const beatAt = firstOpIn(chunk, Op.LineStart, from, to);
       if (beatAt >= 0 && beatAt < question) {
-        if (captionKey !== undefined && holdsFlag(chunk, beatAt, to, captionKey)) {
-          caption = Math.max(caption, beatAt);
-        }
         if (range.startLine > line && range.startLine < nextLine) {
           next = beatAt;
           nextLine = range.startLine;
@@ -815,13 +804,8 @@ export class ProgramRoot {
         }
         beatOver = beatOver < 0 ? beatAt : Math.min(beatOver, beatAt);
       }
-      const lines = range.endLine - range.startLine;
-      if (lines < partLines || (lines === partLines && from < part)) {
-        part = from;
-        partLines = lines;
-      }
     }
-    const menu = caption >= 0 ? caption : Math.max(optionStart, 0);
+    const menu = this.menuOffsetIn(chunk, offer);
     const offset =
       line === top
         ? menu
@@ -829,12 +813,83 @@ export class ProgramRoot {
           ? beatOnLine
           : beatOver >= 0
             ? beatOver
-            : part >= 0
-              ? part
-              : next >= 0
-                ? next
-                : menu;
+            : next >= 0
+              ? next
+              : menu;
     return addressOf(id, offset);
+  }
+
+  protected menuOffsetIn(chunk: ProgramChunk, offer: number): number {
+    const firstChoice = firstOpIn(chunk, Op.Choice, 0, offer);
+    const question = firstChoice < 0 ? offer : firstChoice;
+    const captionKey = this.table.stringIds.get("caption");
+    let caption = -1;
+    let optionStart = -1;
+    const rows = chunk[H_LINE_ROWS]!;
+    for (let r = 0; r < rows; r += 1) {
+      const from = chunk[lineTableStart(chunk) + r * LINE_ROW_WORDS]!;
+      if (from >= offer) {
+        continue;
+      }
+      const to =
+        r + 1 < rows
+          ? Math.min(chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!, offer)
+          : offer;
+      if (from <= firstChoice && firstChoice < to) {
+        optionStart = from;
+      }
+      const beatAt = firstOpIn(chunk, Op.LineStart, from, to);
+      if (
+        beatAt >= 0 &&
+        beatAt < question &&
+        captionKey !== undefined &&
+        holdsFlag(chunk, beatAt, to, captionKey)
+      ) {
+        caption = Math.max(caption, beatAt);
+      }
+    }
+    return caption >= 0 ? caption : Math.max(optionStart, 0);
+  }
+
+  shownBeatAddress(address: number): number {
+    const at = this.position(chunkOfAddress(address));
+    return (
+      (at && this.shownBeatIn(at.sequence, at.entry, offsetOfAddress(address))) ??
+      address
+    );
+  }
+
+  protected shownBeatIn(
+    sequence: SequenceRow,
+    entry: number,
+    offset: number,
+  ): number | null | undefined {
+    const chunks = sequence.arrays.chunks;
+    for (let e = entry; e < chunks.length; e += 1, offset = 0) {
+      const chunk = chunks[e]!;
+      const words = codeWords(chunk);
+      for (; offset < words; offset += 2) {
+        const word = chunk[HEADER_WORDS + offset]!;
+        const op = opOf(word);
+        if (op === Op.LineStart) {
+          return addressOf(chunkId(chunk), offset);
+        }
+        if (op === Op.Done && flagsOf(word) & DONE_HOLD) {
+          return addressOf(chunkId(chunk), this.menuOffsetIn(chunk, offset));
+        }
+        if (op === Op.Done || op === Op.End || op === Op.JumpSym || op === Op.JumpVar) {
+          return null;
+        }
+        if (op === Op.EnterBlock) {
+          const body = this.body(chunk, chunk[HEADER_WORDS + offset + 1]!);
+          const inBody = body ? this.shownBeatIn(body, 0, 0) : undefined;
+          if (inBody !== undefined) {
+            return inBody;
+          }
+        }
+      }
+    }
+    return undefined;
   }
 
   protected entryOn(sequence: SequenceRow, line: number): ChunkPosition | undefined {

@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import {
-  HEADER_WORDS,
-  chunkOfAddress,
-  codeWords,
-  offsetOfAddress,
-} from "../../program/ProgramChunk";
+import { HEADER_WORDS, codeWords } from "../../program/ProgramChunk";
 import {
   DONE_HOLD,
   OP_NAMES,
@@ -266,17 +261,15 @@ describe("the preview address of an option line", () => {
     ["with response text", 3],
     ["with a divert", 4],
     ["without brackets", 5],
-  ])("gives an option line %s its offer in the menu, not what runs after it is taken", (_name, line) => {
-    const address = shown(root, line)!;
-    expect(address).toBeDefined();
-    expect(chunkOfAddress(address)).toBe(chunkOfAddress(menu!));
-    expect(root.locationOf(address)?.startLine).toBe(line);
-    expect(offsetOfAddress(address)).toBeLessThan(offsetOfAddress(started(root, line)!));
+  ])("gives an option line %s the menu, not what runs after it is taken", (_name, line) => {
+    expect(menu).toBeDefined();
+    expect(shown(root, line)).toBe(menu);
+    expect(shown(root, line)).not.toBe(started(root, line));
   });
 
-  it("gives a bare option line the address it had", () => {
+  it("gives a bare option line the menu", () => {
     const root = rootOf(CAPTION);
-    expect(shown(root, 6)).toBe(started(root, 6));
+    expect(shown(root, 6)).toBe(shown(root, 5));
   });
 
   it("gives the block's end the menu", () => {

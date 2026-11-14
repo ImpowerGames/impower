@@ -2,6 +2,12 @@ import type { MessageConnection } from "@impower/jsonrpc/src/browser/classes/Mes
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
+import {
+  spansHold,
+  startPoint,
+  startPointInScene,
+  type StartPoint,
+} from "@impower/sparkdown/src/compiler/utils/previewStartPoint";
 import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification";
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
@@ -89,7 +95,6 @@ interface DisplayableProgram {
   log: RouteSearchLog;
 }
 
-type StartPoint = { file: string; line: number; address?: ProgramAddress };
 
 const PLAY_SAVES = { saveHistory: 1, savesSceneEntries: true };
 
@@ -778,23 +783,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     return { built: true, compiled, run: beginRun(running, []), errors: [] };
   };
 
-  const startPoint = (
-    program: SparkProgram,
-    point: StartPoint,
-    beat: "first" | "last",
-  ): { point: StartPoint; beat: "first" | "last" } | undefined =>
-    spansHold(program.sceneSpans, point)
-      ? startPointInScene(program, point, beat)
-      : undefined;
-
-  const spansHold = (
-    spans: { [uri: string]: [number, number][] } | undefined,
-    point: StartPoint,
-  ) =>
-    (spans?.[point.file] ?? []).some(
-      ([first, last]) => first <= point.line && point.line <= last,
-    );
-
   let lastScenePoint: { scene: string; offset: number } | undefined;
 
   const sceneHeaderOf = (program: SparkProgram, scene: string) => {
@@ -842,64 +830,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     const start = sceneHeaderOf(program, "start");
     return start ? startPointInScene(program, start, "last") : undefined;
-  };
-
-  const startPointInScene = (
-    program: SparkProgram,
-    point: StartPoint,
-    beat: "first" | "last",
-  ): { point: StartPoint; beat: "first" | "last" } => {
-    const locator = programLocator(program);
-    const ends = program.flowEnds?.[point.file] ?? [];
-    const closed = ends.find(([, end]) => end === point.line);
-    if (!closed && locator.addressAt(point.file, point.line, { beat }) != null) {
-      return { point, beat };
-    }
-    const lineAbove = (
-      from: number,
-      floor: number,
-      skipped: readonly (readonly [number, number])[],
-    ) => {
-      for (let line = from; line > floor; line -= 1) {
-        if (skipped.some(([header, end]) => header <= line && line <= end)) {
-          continue;
-        }
-        const closedAbove = ends.find(
-          ([header, end]) =>
-            end === line &&
-            !ends.some(([h, e]) => h < header && end < e),
-        );
-        if (closedAbove) {
-          return startPointInScene(program, { file: point.file, line }, "last");
-        }
-        const address = locator.addressAt(point.file, line, { beat: "last" });
-        const location = locator.locationOf(address);
-        if (location && location.startLine <= line) {
-          return { point: { file: point.file, line }, beat: "last" as const };
-        }
-      }
-      return undefined;
-    };
-    if (closed) {
-      const [header] = closed;
-      const address = program.chunks?.flowEndAddress(point.file, header);
-      if (address !== undefined) {
-        return { point: { ...point, address }, beat: "last" };
-      }
-      const nested = ends.filter(([h, e]) => h > header && e < point.line);
-      const own = lineAbove(point.line - 1, header, nested);
-      if (own) {
-        return own;
-      }
-      const first = nested.reduce<(typeof nested)[number] | undefined>(
-        (earliest, flow) => (!earliest || flow[0] < earliest[0] ? flow : earliest),
-        undefined,
-      );
-      if (first && program.chunks?.bindsParameters(point.file, first[0]) === false) {
-        return startPointInScene(program, { file: point.file, line: first[1] }, beat);
-      }
-    }
-    return lineAbove(point.line - 1, -1, []) ?? { point, beat };
   };
 
   const stopPlay = (params: StopPlayParams): StopPlayResult => {

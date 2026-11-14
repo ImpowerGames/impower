@@ -1,5 +1,8 @@
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { previewBeatAt } from "@impower/sparkdown/src/compiler/utils/previewStartPoint";
+import { testCompiler } from "@impower/sparkdown/src/tests/engineUnderTest";
 import { describe, expect, test } from "vitest";
+import { answerPreviewLine } from "../../utils/providers/answerPreviewLine";
 import { getPreviewLine } from "../../utils/providers/getPreviewLine";
 
 const URI = "file:///main.sd";
@@ -11,7 +14,22 @@ const previewOf = (source: string) => {
   });
   const document = documents.get(URI)!;
   const tree = documents.tree(URI)!;
-  return (line: number) => getPreviewLine(document, tree, line);
+  const compiler = testCompiler();
+  compiler.configure({
+    files: [
+      { uri: URI, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" },
+    ],
+  });
+  const program = compiler.compile({ textDocument: { uri: URI } }).program;
+  return (line: number) => {
+    const location = previewBeatAt(program, URI, line)?.location;
+    return getPreviewLine(
+      document,
+      tree,
+      line,
+      location ? { line: location.startLine, character: location.startColumn } : null,
+    );
+  };
 };
 
 const SCRIPT = `---
@@ -50,16 +68,58 @@ scene quiet
 end
 `;
 
+describe("the preview line request", () => {
+  const sourceOf = (text: string, compiled: boolean) => {
+    const documents = new SparkdownDocumentRegistry(["declarations"]);
+    documents.set({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
+    const compiler = testCompiler();
+    compiler.configure({
+      files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+    });
+    const program = compiled ? compiler.compile({ textDocument: { uri: URI } }).program : undefined;
+    return {
+      getMainScriptUri: () => undefined,
+      currentProgram: async () => program,
+      previewBeatAt: async (p: NonNullable<typeof program>, uri: string, line: number) =>
+        previewBeatAt(p, uri, line),
+      document: (uri: string) => documents.get(uri),
+      tree: (uri: string) => documents.tree(uri),
+    };
+  };
+  const SCENE = "scene start\n  Hello.\nend\n";
+  const params = (line: number) => ({ textDocument: { uri: URI }, line });
+
+  test("answers nothing before a program has compiled, as the game preview shows nothing then", async () => {
+    expect(await answerPreviewLine(sourceOf(SCENE, false), params(1))).toBeNull();
+  });
+
+  test("describes the beat at the game's preview address once the program has compiled", async () => {
+    expect(await answerPreviewLine(sourceOf(SCENE, true), params(0))).toEqual({
+      kind: "action",
+      words: "Hello.",
+    });
+  });
+});
+
 describe("the caret line's preview record", () => {
   const at = previewOf(SCRIPT);
 
   test("names the kind of each display line and its words without markers", () => {
-    expect(at(10)).toEqual({ kind: "title", words: "THE MIDNIGHT JUKEBOX" });
-    expect(at(11)).toEqual({
+    const shown = previewOf(
+      [
+        "scene start",
+        "  ^: THE MIDNIGHT JUKEBOX",
+        "  $: INT. IMANI'S HOUSE - LOUNGE - MORNING",
+        "  %: CUT TO:",
+        "end",
+      ].join("\n"),
+    );
+    expect(shown(1)).toEqual({ kind: "title", words: "THE MIDNIGHT JUKEBOX" });
+    expect(shown(2)).toEqual({
       kind: "heading",
       words: "INT. IMANI'S HOUSE - LOUNGE - MORNING",
     });
-    expect(at(12)).toEqual({ kind: "transition", words: "CUT TO:" });
+    expect(shown(3)).toEqual({ kind: "transition", words: "CUT TO:" });
     expect(at(15)).toEqual({
       kind: "action",
       words: "Imani sorts index cards into neat piles.",
@@ -112,13 +172,19 @@ describe("the caret line's preview record", () => {
     }
   });
 
+  test("calls a display line outside every scene empty, as the game shows nothing there", () => {
+    for (const line of [10, 11, 12]) {
+      expect(at(line)).toEqual({ kind: "empty" });
+    }
+  });
+
   test("calls a scene with nothing to show, and an empty script, empty", () => {
     expect(at(32)).toEqual({ kind: "empty" });
     expect(at(33)).toEqual({ kind: "empty" });
     expect(previewOf("")(0)).toEqual({ kind: "empty" });
   });
 
-  test("calls a comment line inside a dialogue or action block setup, and leaves the lines around it to their beat", () => {
+  test("shows the beat the game previews on a comment line inside a dialogue or action block", () => {
     const nested = previewOf(
       [
         "scene start",
@@ -133,8 +199,8 @@ describe("the caret line's preview record", () => {
         "end",
       ].join("\n"),
     );
-    expect(nested(3)).toEqual({ kind: "setup" });
-    expect(nested(7)).toEqual({ kind: "setup" });
+    expect(nested(3)).toEqual(nested(4));
+    expect(nested(7)).toEqual(nested(8));
     expect(nested(4)).toEqual({
       kind: "dialogue",
       words: "Hello. Goodbye.",
@@ -176,7 +242,7 @@ describe("the caret line's preview record", () => {
     expect(blocks(9)).toEqual({ kind: "dialogue", words: "Bye now.", speaker: "BOB" });
   });
 
-  test("keeps a branch's beats inside the branch and resumes the enclosing scene after its end", () => {
+  test("keeps a branch's beats inside the branch and shows the scene's next beat after its end", () => {
     const nested = previewOf(
       [
         "scene start",
@@ -196,13 +262,13 @@ describe("the caret line's preview record", () => {
         "end",
       ].join("\n"),
     );
-    const outer = { kind: "action", words: "Outer." };
-    expect(nested(5)).toEqual(outer);
-    expect(nested(6)).toEqual(outer);
+    const after = { kind: "action", words: "After." };
+    expect(nested(5)).toEqual(after);
+    expect(nested(6)).toEqual(after);
     expect(nested(2)).toEqual({ kind: "action", words: "Inner." });
     expect(nested(9)).toEqual({ kind: "empty" });
-    expect(nested(10)).toEqual({ kind: "action", words: "Outer again." });
-    expect(nested(11)).toEqual({ kind: "empty" });
+    expect(nested(10)).toEqual(after);
+    expect(nested(11)).toEqual(after);
   });
 
   test("captions a choose block with its last beat before the options, as the outline does, and keeps earlier beats apart", () => {

@@ -2,6 +2,7 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/class
 import { stripStyleCodes } from "@impower/sparkdown/src/runtime/displayStyle";
 import { testCompiler, testStory } from "@impower/sparkdown/src/tests/engineUnderTest";
 import { describe, expect, test } from "vitest";
+import { previewBeatAt } from "@impower/sparkdown/src/compiler/utils/previewStartPoint";
 import { getPreviewLine } from "../../utils/providers/getPreviewLine";
 
 const URI = "inmemory:///main.sd";
@@ -36,16 +37,7 @@ const entriesOf = (instruction: unknown): Record<string, unknown> =>
     ),
   );
 
-const gameAt = (text: string, line: number): Shown => {
-  const compiler = testCompiler();
-  compiler.configure({
-    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
-  });
-  const root = compiler.compile({ textDocument: { uri: URI } }).program.chunks!;
-  const address = root.addressAt(URI, line, { beat: "last" });
-  expect(address, `the game previews something at line ${line}`).toBeDefined();
-  const story = testStory(root);
-  story.ChooseAddress(address!);
+const shownBy = (story: ReturnType<typeof testStory>): Shown => {
   for (let step = 0; step < 20 && story.canContinue; step += 1) {
     story.Continue();
     const [instruction] = story.currentDisplayInstructions;
@@ -65,14 +57,35 @@ const gameAt = (text: string, line: number): Shown => {
   };
 };
 
-const stripAt = (text: string, line: number) => {
+const previewAt = (text: string, line: number): { game: Shown | null; strip: Partial<Shown> } => {
+  const compiler = testCompiler();
+  compiler.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  });
+  const program = compiler.compile({ textDocument: { uri: URI } }).program;
+  const beat = previewBeatAt(program, URI, line);
+  let game: Shown | null = null;
+  if (beat) {
+    const story = testStory(program.chunks!);
+    story.ChooseAddress(beat.address);
+    game = shownBy(story);
+  }
   const documents = new SparkdownDocumentRegistry(["declarations"]);
   documents.set({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
-  const shown = getPreviewLine(documents.get(URI)!, documents.tree(URI)!, line) as Partial<Shown>;
+  const location = beat?.location;
+  const strip = getPreviewLine(
+    documents.get(URI)!,
+    documents.tree(URI)!,
+    line,
+    location ? { line: location.startLine, character: location.startColumn } : null,
+  ) as Partial<Shown>;
   return {
-    kind: shown.kind,
-    words: shown.words,
-    ...(shown.speaker ? { speaker: shown.speaker } : {}),
+    game,
+    strip: {
+      kind: strip.kind,
+      words: strip.words,
+      ...(strip.speaker ? { speaker: strip.speaker } : {}),
+    },
   };
 };
 
@@ -81,7 +94,6 @@ interface Row {
   lines: string[];
   caret: number;
   shows: Shown;
-  menuAt?: number;
 }
 
 const ROWS: Row[] = [
@@ -185,7 +197,6 @@ const ROWS: Row[] = [
     shape: "a choose block with a caption, on an option",
     lines: ["choose", "  Where now?", "  * [North.]", "  * [South.]", "end"],
     caret: 3,
-    menuAt: 2,
     shows: { kind: "choice", words: "Where now?" },
   },
   {
@@ -234,36 +245,56 @@ const ROWS: Row[] = [
     shape: "a choose block whose options sit inside an if block, on an option",
     lines: ["choose", "  if true then", "    * [North.]", "    * [South.]", "  end", "end"],
     caret: 3,
-    menuAt: 1,
     shows: { kind: "choice", words: "North. · South." },
   },
   {
     shape: "a choose block whose options sit inside a do block",
     lines: ["choose", "  do", "    * [North.]", "    * [South.]", "  end", "end"],
     caret: 3,
-    menuAt: 1,
     shows: { kind: "choice", words: "North. · South." },
   },
   {
     shape: "a captioned choose block whose options sit inside an if block",
     lines: ["choose", "  Where now?", "  if true then", "    * [North.]", "    * [South.]", "  end", "end"],
     caret: 4,
-    menuAt: 2,
     shows: { kind: "choice", words: "Where now?" },
   },
   {
     shape: "the choose line of a block whose options sit inside an if block",
     lines: ["choose", "  if true then", "    * [North.]", "    * [South.]", "  end", "end"],
     caret: 1,
-    menuAt: 1,
     shows: { kind: "choice", words: "North. · South." },
+  },
+  {
+    shape: "the inner block's end inside a captioned choose block with an option's response",
+    lines: ["choose", "  Question?", "  if true then", "    * [One]", "      Response.", "    * [Two]", "  end", "end"],
+    caret: 7,
+    shows: { kind: "choice", words: "Question?" },
+  },
+  {
+    shape: "the choose line of a block with a beat inside an if before its options",
+    lines: ["choose", "  if true then", "    Intro.", "  end", "  * [One]", "  * [Two]", "end"],
+    caret: 1,
+    shows: { kind: "choice", words: "One · Two" },
+  },
+  {
+    shape: "the end of a block with a beat inside an if before its options",
+    lines: ["choose", "  if true then", "    Intro.", "  end", "  * [One]", "  * [Two]", "end"],
+    caret: 7,
+    shows: { kind: "choice", words: "One · Two" },
+  },
+  {
+    shape: "a beat inside an if before a block's options, on its own line",
+    lines: ["choose", "  if true then", "    Intro.", "  end", "  * [One]", "  * [Two]", "end"],
+    caret: 3,
+    shows: { kind: "action", words: "Intro." },
   },
 ];
 
 describe("the strip shows the beat the game previews for the caret's line", () => {
-  test.each(ROWS)("$shape", ({ lines, caret, shows, menuAt }) => {
-    const text = scriptOf(lines);
-    expect(gameAt(text, menuAt ?? caret), "what the game shows").toEqual(shows);
-    expect(stripAt(text, caret), "what the strip shows").toEqual(shows);
+  test.each(ROWS)("$shape", ({ lines, caret, shows }) => {
+    const { game, strip } = previewAt(scriptOf(lines), caret);
+    expect(strip, "the strip names the beat the game shows").toEqual(game);
+    expect(game, "what the game shows").toEqual(shows);
   });
 });
