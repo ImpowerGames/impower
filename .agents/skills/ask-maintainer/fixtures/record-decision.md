@@ -13,4 +13,4 @@ The maintainer's words, from [their comment](https://github.com/acme/tickets/iss
 > Thanks!
 
 <!-- ask-maintainer: posted by the tool -->
-<!-- maintainer-request-note {"kind":"record","request":9001,"answer":"comments:101:1df727bf29881c01"} -->
+<!-- maintainer-request-note {"kind":"record","request":9001,"answer":"answered:comments:101:1df727bf29881c01"} -->

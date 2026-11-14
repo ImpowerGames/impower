@@ -66,7 +66,7 @@ const states = (cases) => {
 };
 
 function fakeTracker({ issues = [], comments = [], polls = null } = {}) {
-  const t = { issues: new Map(issues.map((i) => [i.number, structuredClone(i)])), store: new Map(comments.map((c) => [c.id, { issue: c.issue ?? REQUEST, ...structuredClone(c) }])), next: 6000, calls: [], now: new Date("2026-11-13T16:20:00Z") };
+  const t = { issues: new Map(issues.map((i) => [i.number, structuredClone(i)])), store: new Map(comments.map((c) => [c.id, { issue: c.issue ?? REQUEST, ...structuredClone(c) }])), next: 6000, calls: [], log: [], now: new Date("2026-11-13T16:20:00Z") };
   const tick = () => {
     t.now = new Date(t.now.getTime() + 1000);
     return t.now.toISOString().replace(".000Z", "Z");
@@ -124,6 +124,7 @@ function fakeTracker({ issues = [], comments = [], polls = null } = {}) {
     reopen: (n) => {
       t.calls.push(["reopen", n]);
       Object.assign(issueOf(n), { state: "open", state_reason: "reopened", closed_at: null, closed_by: null });
+      t.log.push({ issue: n, event: "reopened", created_at: tick() });
     },
     close: (n, reason, bodyFile) => {
       t.calls.push(["close", n, reason]);
@@ -131,6 +132,7 @@ function fakeTracker({ issues = [], comments = [], polls = null } = {}) {
       Object.assign(issueOf(n), { state: "closed", state_reason: reason, closed_at: tick(), closed_by: { login: M, type: "User" } });
     },
     poll: (n, etag) => polls(n, etag),
+    events: (n) => structuredClone(t.log.filter((event) => event.issue === n)),
   });
   return t;
 }
@@ -212,7 +214,7 @@ try {
     const confirmation = tracker.store.get(result.confirmation.id);
     assert.equal(confirmation.issue, REQUEST);
     assert.match(confirmation.body, /^Recorded by the ask-maintainer tool on #2271 \(\[record\]\(https:\/\/github\.com\/acme\/tickets\/issues\/2271#issuecomment-\d+\)\)\./);
-    assert.deepEqual(readNote(confirmation.body), { kind: "recorded", request: REQUEST, answer: "comments:101:1df727bf29881c01", records: [{ ticket: 2271, comment: result.records[0].id }] });
+    assert.deepEqual(readNote(confirmation.body), { kind: "recorded", request: REQUEST, answer: "answered:comments:101:1df727bf29881c01", records: [{ ticket: 2271, comment: result.records[0].id }] });
     const again = recordAnswer(REQUEST, { tracker, repos });
     assert.deepEqual([again.records[0].reused, again.confirmation.reused, tracker.calls.filter((c) => c[0] === "comment").length], [true, true, 2], "recording again posts nothing new");
     assert.equal(fetchAnswer(REQUEST, { tracker, repos }).state, "answered", "the tool's record and confirmation do not change the answer");
@@ -392,6 +394,60 @@ try {
   }
 
   {
+    const task = issue({ title: "Test the route strip on your phone (#2271, #2272)", body: taskBody, labels: [{ name: labels.task }], ...closedBy("completed") });
+    const tracker = fakeTracker({ issues: [task, { number: 2271, html_url: issueUrl(2271), state: "open" }, { number: 2272, html_url: issueUrl(2272), state: "open" }], comments: [comment(190, "I tested this on my phone.", "2026-11-13T16:10:00Z")] });
+    const done = recordAnswer(REQUEST, { tracker, repos });
+    tracker.reopen(REQUEST);
+    Object.assign(tracker.issues.get(REQUEST), { state: "closed", state_reason: "not_planned", closed_at: "2026-11-13T16:30:00Z", closed_by: { login: M } });
+    const changed = recordAnswer(REQUEST, { tracker, repos });
+    assert.deepEqual([done.answer.state, changed.answer.state, changed.records[0].reused, changed.confirmation.reused], ["done", "will-not-do", false, false], "a changed outcome is recorded again");
+    assert.match(tracker.store.get(changed.records[0].id).body, /- \*\*Answer:\*\* will not be done: closed as not planned by the maintainer/);
+    console.log("ok: a task closed again with the other outcome is recorded again, never confirmed against the opposite record");
+  }
+
+  {
+    const tracker = fakeTracker({ issues: [issue(closedBy("completed")), { number: 2271, html_url: issueUrl(2271), state: "open" }], comments: [comment(195, "Use B.  ", "2026-11-13T16:10:00Z")] });
+    const result = recordAnswer(REQUEST, { tracker, repos });
+    const body = tracker.store.get(result.records[0].id).body;
+    assert.match(body, /\n> Use B\. {2}\n\n<!-- ask-maintainer/, "trailing spaces on the last quoted line are kept");
+    assert.equal(unquote(/UTC:\n\n([\s\S]*?)\n\n<!-- ask-maintainer/.exec(body)[1]), "Use B.  ");
+    console.log("ok: record keeps the maintainer's last line character for character, trailing spaces included");
+  }
+
+  {
+    const codex = fixtureFile("codex-transcript.jsonl");
+    const tracker = fakeTracker({ issues: [issue(), { number: 2271, html_url: issueUrl(2271), state: "open" }] });
+    withdrawRequest(REQUEST, "No longer needed", { tracker, repos });
+    tracker.reopen(REQUEST);
+    assert.equal(fetchAnswer(REQUEST, { tracker, repos }).state, "waiting", "a reopened withdrawn request waits again");
+    const relayed = answerFromChat(REQUEST, "Go with B, the hollow pin.", codex, { tracker, repos });
+    assert.deepEqual([relayed.answer.state, relayed.answer.words[0].body, relayed.records.length], ["answered", "Go with B, the hollow pin.", 1], "a relay after the maintainer reopened a withdrawn request is the answer");
+    const plain = fakeTracker({ issues: [issue()] });
+    withdrawRequest(REQUEST, "No longer needed", { tracker: plain, repos });
+    plain.reopen(REQUEST);
+    Object.assign(plain.issues.get(REQUEST), { state: "closed", state_reason: "completed", closed_at: "2026-11-13T16:40:00Z", closed_by: { login: M } });
+    assert.equal(fetchAnswer(REQUEST, { tracker: plain, repos }).state, "accepted", "a withdrawal the maintainer reopened does not explain their later close");
+    console.log("ok: a withdrawal or relay note counts only for the close it preceded, never after the request was reopened");
+  }
+
+  {
+    const request = JSON.parse(fixture("decision.json"));
+    delete request.background;
+    request.showsOnScreen = false;
+    request.options = request.options.map(({ pictures, ...option }) => ({ ...option, example: option.example ?? `Option ${option.name} as it would look.` }));
+    const tracker = fakeTracker({ issues: [issue()], comments: [comment(200, "Can I see this in dark mode?", "2026-11-13T15:50:00Z")] });
+    const read = tracker.readComment;
+    tracker.readComment = () => {
+      throw new Error("HTTP 503");
+    };
+    assert.throws(() => reviseRequest(REQUEST, request, "Added the dark-mode note.", { pictures: scratch, tracker, repos, now: new Date("2026-11-13T16:20:00Z") }), /Rolled back: deleted the revision note \d+; restored the earlier body/);
+    tracker.readComment = read;
+    const after = fetchAnswer(REQUEST, { tracker, repos });
+    assert.deepEqual([after.state, after.words.map((w) => w.body)], ["question", ["Can I see this in dark mode?"]], "a failed revision leaves the maintainer's question open");
+    console.log("ok: a revision whose note read-back fails deletes the note, so the maintainer's question stays open");
+  }
+
+  {
     const waitCase = ({ timeline, fallbackAt = "2026-11-13T17:37:00.000Z", start = "2026-11-13T16:00:00.000Z", interval }) => {
       let now = Date.parse(start);
       const requests = [];
@@ -408,6 +464,10 @@ try {
           requests[requests.length - 1].changed = true;
           served = current;
           return { status: 200, etag: tag, issue: { ...current.issue, body: current.issue.body ?? body } };
+        },
+        events: () => {
+          requests.push({ at: now, kind: "events", conditional: false });
+          return [];
         },
         comments: () => {
           requests.push({ at: now, kind: "comments", conditional: false });
@@ -434,7 +494,7 @@ try {
     assert.deepEqual([fallback.result.why, fallback.result.returnedAt, fallback.result.fallbackAt], ["fallback", "2026-11-13T16:02:30.000Z", "2026-11-13T16:02:30.000Z"]);
     assert.equal(fallback.requests.filter((r) => r.kind === "poll").length, 3, "the fallback time is reached between polls, without an extra request");
     const already = waitCase({ timeline: () => ({ issue: issue({ body, ...closedBy("completed", "2026-11-13T15:59:00Z") }), comments: [] }) });
-    assert.deepEqual([already.result.why, already.result.returnedAt, already.requests.length], ["closed", "2026-11-13T16:00:00.000Z", 2]);
+    assert.deepEqual([already.result.why, already.result.returnedAt, already.requests.length], ["closed", "2026-11-13T16:00:00.000Z", 3]);
     const asked = waitCase({ fallbackAt: "2026-11-13T16:00:30.000Z", timeline: (ms) => (ms >= 120000 ? { issue: issue({ body, ...closedBy("completed", "2026-11-13T16:01:50Z") }), comments: [comment(142, "Is C dark?", "2026-11-13T15:50:00Z")] } : { issue: issue({ body }), comments: [comment(142, "Is C dark?", "2026-11-13T15:50:00Z")] }) });
     assert.deepEqual([asked.result.why, asked.result.state], ["closed", "answered"], "an open question stops the fallback clock, and an old comment is not news");
     assert.throws(() => waitCase({ interval: 30, timeline: () => null }), /at least 60/);

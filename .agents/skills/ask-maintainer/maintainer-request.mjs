@@ -391,7 +391,7 @@ export function readNote(body) {
 }
 
 export function toolText(text, note) {
-  return `${text.trimEnd()}\n\n${TOOL_MARK}\n${noteLine(note)}\n`;
+  return `${text.replace(/(?:\r?\n)+$/, "")}\n\n${TOOL_MARK}\n${noteLine(note)}\n`;
 }
 
 export function commentAuthor(comment, { maintainerLogin }) {
@@ -591,6 +591,7 @@ export function ghTracker(repo = ticketsRepo(), run = (args, options = {}) => ex
     },
     readComment: (id) => json(["api", `repos/${repo}/issues/comments/${id}`]),
     comments: (n) => json(["api", `repos/${repo}/issues/${n}/comments`, "--paginate", "--slurp"]).flat(),
+    events: (n) => json(["api", `repos/${repo}/issues/${n}/events`, "--paginate", "--slurp"]).flat(),
     editComment: (id, bodyFile) => json(["api", "-X", "PATCH", `repos/${repo}/issues/comments/${id}`, "-F", `body=@${bodyFile}`]),
     close: (n, reason, bodyFile) => {
       const note = json(["api", "-X", "POST", `repos/${repo}/issues/${n}/comments`, "-F", `body=@${bodyFile}`]);
@@ -896,7 +897,7 @@ function requestData(issue, comments, who) {
   throw new RequestRefused([`#${issue.number} is not a maintainer request: neither its body nor a task comment holds the request's data line`]);
 }
 
-export function readAnswer(issue, comments, repos = readRepos()) {
+export function readAnswer(issue, comments, repos = readRepos(), events = []) {
   const who = identity(repos);
   const { data, body, floor: tagged } = requestData(issue, comments, who);
   const notes = comments.filter((comment) => commentAuthor(comment, who) === "tool").map((comment) => ({ comment, note: readNote(comment.body) })).filter((entry) => entry.note);
@@ -907,16 +908,16 @@ export function readAnswer(issue, comments, repos = readRepos()) {
   const words = comments
     .filter((comment) => later(comment) && commentAuthor(comment, who) === "maintainer" && Date.parse(comment.created_at) <= closedAt)
     .map((comment) => ({ id: comment.id, url: comment.html_url, at: comment.created_at, body: lf(comment.body) }));
-  const lastNote = (kind) => notes.filter((entry) => entry.note.kind === kind && later(entry.comment) && Date.parse(entry.comment.created_at) <= closedAt && !words.some((word) => word.id > entry.comment.id)).at(-1) ?? null;
+  const reopenedAt = Math.max(-Infinity, ...events.filter((event) => event.event === "reopened").map((event) => Date.parse(event.created_at)));
+  const closing = notes.filter((entry) => ["withdrawn", "relayed"].includes(entry.note.kind) && later(entry.comment) && Date.parse(entry.comment.created_at) <= closedAt && Date.parse(entry.comment.created_at) > reopenedAt && !words.some((word) => word.id > entry.comment.id)).at(-1) ?? null;
   const shown = { at: revision?.created_at ?? tagged?.created_at ?? issue.created_at, revised: Boolean(revision), options: data.options?.length ?? 0, pictures: imageReferences(body).length };
   const base = { number: issue.number, url: issue.html_url, title: issue.title, kind: data.kind, tagged: Boolean(data.tagged), question: data.tagged ? issue.title : questionOf(issue.title), tickets: data.blocks ?? [], data, shown, recommended: data.recommended ? { letter: data.recommended, name: optionName(body, data.recommended) } : null };
   if (issue.state !== "closed") return words.length ? { ...base, state: "question", words } : { ...base, state: "waiting", fallback: data.fallback ?? null, words: [] };
   const closed = { at: issue.closed_at, by: issue.closed_by?.login ?? null, reason: issue.state_reason ?? null };
-  const withdrawn = lastNote("withdrawn");
-  if (withdrawn) return { ...base, state: "withdrawn", closed, reason: withdrawn.note.reason ?? null, words: [] };
+  if (closing?.note.kind === "withdrawn") return { ...base, state: "withdrawn", closed, reason: closing.note.reason ?? null, words: [] };
   if (revision && Date.parse(revision.created_at) > closedAt) return { ...base, state: "unclear", closed, why: "closed before its latest revision, so the close does not answer it", words: [] };
   if (closed.by !== who.maintainerLogin) return { ...base, state: "unclear", closed, why: `closed by ${closed.by ?? "an account GitHub did not name"}, not by the maintainer`, words };
-  const relay = lastNote("relayed");
+  const relay = closing?.note.kind === "relayed" ? closing : null;
   const said = relay ? [{ id: relay.comment.id, url: relay.comment.html_url, at: relay.note.at, body: relay.note.words, relayed: { session: relay.note.session, runner: relay.note.runner, postedAt: relay.comment.created_at } }] : words;
   const notPlanned = closed.reason === "not_planned" || closed.reason === "duplicate";
   if (data.kind === "task") return { ...base, state: notPlanned ? "will-not-do" : "done", closed, words: said };
@@ -932,16 +933,16 @@ function optionName(body, letter) {
 }
 
 export function fetchAnswer(number, { tracker, repos = readRepos() }) {
-  return readAnswer(tracker.issue(number), tracker.comments(number), repos);
+  return readAnswer(tracker.issue(number), tracker.comments(number), repos, tracker.events(number));
 }
 
 const RUNNERS = { "claude-code": "Claude Code", codex: "Codex" };
 const ANSWERED = ["answered", "accepted", "done", "will-not-do"];
 
 export function answerKey(answer) {
-  if (!answer.words.length) return `closed:${answer.closed.at}`;
+  if (!answer.words.length) return `${answer.state}:closed:${answer.closed.at}`;
   const digest = createHash("sha256").update(JSON.stringify(answer.words.map((word) => word.body))).digest("hex").slice(0, 16);
-  return `comments:${answer.words.map((word) => word.id).join(",")}:${digest}`;
+  return `${answer.state}:comments:${answer.words.map((word) => word.id).join(",")}:${digest}`;
 }
 
 function wordsLines(answer) {
@@ -977,10 +978,11 @@ export function recordBody(answer) {
   return toolText(lines.join("\n"), { kind: "record", request: answer.number, answer: answerKey(answer) });
 }
 
-function postNote(tracker, number, text, scratch, name) {
+function postNote(tracker, number, text, scratch, name, posted = () => {}) {
   const file = path.join(scratch, `${name}.md`);
   writeFileSync(file, text);
   const { id } = tracker.comment({ number, bodyFile: file, attach: [] });
+  posted(id);
   const back = tracker.readComment(id);
   if (lf(back.body).trimEnd() !== lf(text).trimEnd()) throw new Error(`comment ${id} on #${number} reads back differently from the text the tool posted`);
   return { id, url: back.html_url };
@@ -1022,7 +1024,7 @@ const sameTickets = (a, b) => JSON.stringify([...a].sort((x, y) => x - y)) === J
 
 export function reviseRequest(number, request, changes, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates }) {
   const issue = tracker.issue(number);
-  const answer = readAnswer(issue, tracker.comments(number), repos);
+  const answer = readAnswer(issue, tracker.comments(number), repos, tracker.events(number));
   if (answer.tagged) throw new RequestRefused([`#${number} is a tagged ticket, not a filed request; it has no request body to revise`]);
   if (issue.state === "closed" && answer.state !== "unclear") throw new RequestRefused([`#${number} is closed (${answer.state}); revise reopens only a request whose answer is unclear`]);
   const changed = checkNoteText(changes, "What changed");
@@ -1073,8 +1075,7 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
         if (lf(noted.body).trimEnd() !== lf(note).trimEnd()) throw new FilingProblems([`the revision note ${done.note} reads back differently`]);
         comment = { id: done.note, url: noted.html_url };
       } else {
-        comment = postNote(tracker, number, note, scratch, "note");
-        done.note = comment.id;
+        comment = postNote(tracker, number, note, scratch, "note", (id) => (done.note = id));
       }
       if (issue.state === "closed") {
         tracker.reopen(number);
@@ -1144,7 +1145,7 @@ export function waitForRequests(numbers, { tracker, repos = readRepos(), clock =
   const watched = numbers.map((number) => {
     const polled = tracker.poll(number, null);
     const comments = tracker.comments(number);
-    return { number, etag: polled.etag, answer: readAnswer(polled.issue, comments, repos), seen: maintainerIds(comments) };
+    return { number, etag: polled.etag, answer: readAnswer(polled.issue, comments, repos, tracker.events(number)), seen: maintainerIds(comments) };
   });
   let nextPoll = clock().getTime() + interval;
   for (;;) {
@@ -1170,7 +1171,7 @@ export function waitForRequests(numbers, { tracker, repos = readRepos(), clock =
       if (polled.status === 304) continue;
       const comments = tracker.comments(entry.number);
       entry.etag = polled.etag;
-      entry.answer = readAnswer(polled.issue, comments, repos);
+      entry.answer = readAnswer(polled.issue, comments, repos, tracker.events(entry.number));
       const fresh = [...maintainerIds(comments)].filter((id) => !entry.seen.has(id));
       if (entry.answer.state !== "waiting" && entry.answer.state !== "question") return result(entry, "closed");
       if (fresh.length) return result(entry, "comment");
