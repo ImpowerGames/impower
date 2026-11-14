@@ -39,11 +39,16 @@ const styles = async () => {
   return compiler.build(candidates);
 };
 
-const withSheet = async (height: number, kind: "short" | "tall" | "tall-long", run: (page: Page) => Promise<void>) => {
+const withSheet = async (
+  height: number,
+  kind: "short" | "tall" | "tall-long",
+  run: (page: Page) => Promise<void>,
+  reducedMotion: "reduce" | "no-preference" = "reduce",
+) => {
   const [script, css] = await Promise.all([pageScript(), styles()]);
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage({ viewport: { width: WIDTH, height }, reducedMotion: "reduce" });
+    const page = await browser.newPage({ viewport: { width: WIDTH, height }, reducedMotion });
     await page.goto(`about:blank#${kind}`);
     await page.setContent(
       `<!doctype html><html data-theme="charcoal" data-layout="phone"><head><style>${css}</style></head><body style="margin:0"></body></html>`,
@@ -120,6 +125,35 @@ describe.skipIf(!browserAvailable)("the Dropdown's phone-layout sheet kept clear
       expect(row.bottom).toBeLessThanOrEqual(480);
       expect(sheet.top).toBeGreaterThan(480 - (row.height + 24));
     });
+  });
+
+  test("keeps the picture undimmed and the sheet below it while the sheet animates closed", async () => {
+    await withSheet(
+      480,
+      "tall",
+      async (page) => {
+        await open(page);
+        await page.waitForTimeout(300);
+        const picture = await boxOf(page, "[data-picture]");
+        const clip = { x: picture.left, y: picture.top, width: picture.width, height: picture.height - 60 };
+        const before = await page.screenshot({ clip });
+        await page.keyboard.press("Escape");
+        await page.waitForTimeout(60);
+        const closing = await page.evaluate(() => {
+          const backdrop = document.querySelector("[data-keep-clear-backdrop]");
+          const card = document.querySelector('[role="dialog"]');
+          return backdrop && card
+            ? { backdrop: backdrop.getBoundingClientRect().top, card: card.getBoundingClientRect().top }
+            : null;
+        });
+        const during = await page.screenshot({ clip });
+        expect(closing).not.toBeNull();
+        expect(closing!.backdrop).toBeGreaterThan(picture.bottom - 60);
+        expect(closing!.card).toBeGreaterThan(picture.bottom - 60);
+        expect(during.equals(before)).toBe(true);
+      },
+      "no-preference",
+    );
   });
 
   test("keeps a whole row showing when it opens scrolled to a chosen option far down a long list", async () => {

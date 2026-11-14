@@ -196,7 +196,7 @@ function Modal({
   const content = useRef<HTMLDivElement | null>(null);
   const top = useClearLine(
     kept ? keepClear : undefined,
-    open,
+    mounted,
     (line) => Math.max(0, Math.min(line, window.innerHeight - leastSheet(content.current))),
     content,
   );

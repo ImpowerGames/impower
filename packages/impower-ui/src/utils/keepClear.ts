@@ -28,8 +28,11 @@ export function useClearLine<T>(
   const latest = useRef(measure);
   latest.current = measure;
   useLayoutEffect(() => {
+    if (!active) {
+      return;
+    }
     const element = keepClear?.current;
-    if (!active || !element) {
+    if (!element) {
       setValue(undefined);
       return;
     }
@@ -52,7 +55,7 @@ export function useClearLine<T>(
     };
   }, [active, keepClear, within]);
   if (!active) {
-    return undefined;
+    return value;
   }
   if (value !== undefined) {
     return value;

@@ -37,11 +37,11 @@ const styles = async () => {
   return compiler.build(candidates);
 };
 
-const open = async (height: number, kind: "hinted" | "plain") => {
+const open = async (height: number, kind: "hinted" | "plain", closing = false) => {
   const [script, css] = await Promise.all([pageScript(), styles()]);
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage({ viewport: { width: 1440, height }, reducedMotion: "reduce" });
+    const page = await browser.newPage({ viewport: { width: 1440, height }, reducedMotion: closing ? "no-preference" : "reduce" });
     await page.goto(`about:blank#${kind}`);
     await page.setContent(
       `<!doctype html><html data-theme="charcoal" data-layout="desktop"><head><style>${css}</style></head><body style="margin:0"></body></html>`,
@@ -50,6 +50,10 @@ const open = async (height: number, kind: "hinted" | "plain") => {
     await page.locator("[data-face]").click();
     await page.locator('[role="menu"]').waitFor();
     await page.waitForTimeout(200);
+    if (closing) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(60);
+    }
     return await page.evaluate(() => {
       const box = (element: Element) => {
         const rect = element.getBoundingClientRect();
@@ -76,6 +80,12 @@ describe.skipIf(!browserAvailable)("a DropdownContent kept clear of a picture, o
     expect(placed.row.top).toBeGreaterThanOrEqual(placed.menu.top);
     expect(placed.row.bottom).toBeLessThanOrEqual(placed.menu.bottom);
     expect(placed.menu.bottom).toBeLessThanOrEqual(560 - 4);
+  });
+
+  test("at 528px, it keeps its place below the picture while it fades out", async () => {
+    const placed = await open(528, "plain", true);
+    expect(placed.menu.top).toBeGreaterThanOrEqual(PICTURE_BOTTOM);
+    expect(placed.menu.bottom).toBeLessThanOrEqual(528 - 4);
   });
 
   test("at 528px, where even the smallest margins leave no room for a whole row, it keeps to the room it has rather than flipping over the picture", async () => {
