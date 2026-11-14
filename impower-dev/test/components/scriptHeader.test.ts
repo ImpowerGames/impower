@@ -162,6 +162,30 @@ describe("ScriptHeader name field", () => {
     expect(host!.querySelector("[data-script-folder]")!.textContent).toBe("scripts/act1");
   });
 
+  it.each(["phone", "desktop"])(
+    "on %s, fades a long name and its folder at the edge instead of cutting them to an ellipsis, and leaves a focused name uncut",
+    async (value) => {
+      layout.value = value;
+      workspace.layout.value = layout.value as Layout;
+      await mount({ filename: "Scripts/Extras/Untitled script 4.sd" });
+      const folder = host!.querySelector<HTMLElement>("[data-script-folder]")!;
+      expect(field().classList.contains("not-focus:fade-edge")).toBe(true);
+      expect(field().classList.contains("fade-edge")).toBe(false);
+      expect(folder.classList.contains("fade-edge")).toBe(true);
+      for (const line of [field(), folder]) {
+        expect(line.classList.contains("truncate")).toBe(false);
+        expect(line.className).not.toMatch(/\btext-ellipsis\b/);
+      }
+    },
+  );
+
+  it("fades Main's name without an ellipsis", async () => {
+    await mount({ filename: "main.sd" });
+    const name = host!.querySelector<HTMLElement>("[data-script-name]")!;
+    expect(name.classList.contains("fade-edge")).toBe(true);
+    expect(name.classList.contains("truncate")).toBe(false);
+  });
+
   it("on a phone, swaps Browse scripts for Done while the name is focused", async () => {
     layout.value = "phone";
     workspace.layout.value = layout.value as Layout;

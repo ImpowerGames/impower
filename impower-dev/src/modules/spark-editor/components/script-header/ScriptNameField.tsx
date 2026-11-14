@@ -32,7 +32,7 @@ export default function ScriptNameField({
         title="Rename this script"
         maxLength={120}
         size={Math.max(4, Math.min(40, draft.length + 1))}
-        class="truncate border-0 bg-transparent px-1.5 text-inherit outline-none"
+        class="border-0 bg-transparent px-1.5 text-inherit outline-none not-focus:fade-edge"
       />
     </span>
   );
