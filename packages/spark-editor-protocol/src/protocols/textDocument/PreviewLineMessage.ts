@@ -1,30 +1,15 @@
-import type { Location, TextDocumentIdentifier } from "vscode-languageserver-protocol";
+import type { TextDocumentIdentifier } from "vscode-languageserver-protocol";
 import { RequestMessage } from "../../types/base/RequestMessage";
 import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type PreviewLineMethod = typeof PreviewLineMessage.method;
 
-export type PreviewBeatKind =
-  | "title"
-  | "heading"
-  | "transition"
-  | "action"
-  | "dialogue"
-  | "choice";
-
-export interface PreviewBeat {
-  kind: PreviewBeatKind;
-  words: string;
-  speaker?: string;
-}
-
-export type PreviewLine = PreviewBeat | { kind: "setup" } | { kind: "empty" };
+export type PreviewLine = { kind: "setup" } | { kind: "empty" };
 
 export interface PreviewLineParams {
   textDocument: TextDocumentIdentifier;
   line: number;
-  shownBeat: Location | null;
 }
 
 export type PreviewLineResult = PreviewLine | null;

@@ -6,8 +6,14 @@ import {
   writtenText,
 } from "@impower/spark-web-player/src/tests/worker/playerHarness";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { signal } from "@preact/signals";
 import { describe, expect, test } from "vitest";
 import { answerPreviewLine } from "../../../packages/sparkdown-language-server/src/utils/providers/answerPreviewLine";
+import { stripCopy } from "../../src/modules/spark-editor/components/preview-strip/stripCopy";
+import WorkspacePreviewLine from "../../src/modules/spark-editor/workspace/WorkspacePreviewLine";
+import workspace, {
+  type ShownBeatDescription,
+} from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 
 interface Shown {
   kind: string;
@@ -30,34 +36,72 @@ const scriptOf = ({ lines, head = [], tail = [] }: Row) =>
 const lastGameState = (sent: any[]): GameState | undefined =>
   sent.filter((m) => m.method === "preview/didChangeGameState").at(-1)?.params;
 
-const previewAt = async (text: string, caret: number) => {
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const stripFor = async (text: string, caret: number, sent: any[]) => {
+  const documents = new SparkdownDocumentRegistry(["declarations"]);
+  documents.set({ textDocument: { uri: MAIN_URI, text, version: 1, languageId: "sparkdown" } });
+  const shown = signal<ShownBeatDescription>(lastGameState(sent)?.shownBeatDescription ?? null);
+  const lines = new WorkspacePreviewLine({
+    caret: () => ({ uri: MAIN_URI, line: caret }),
+    shownBeatDescription: () => shown.value,
+    getPreviewLine: async (uri, line) =>
+      answerPreviewLine(
+        { document: (u) => documents.get(u), tree: (u) => documents.tree(u) },
+        { textDocument: { uri }, line },
+      ),
+    onPublishedDiagnostics: () => () => {},
+  });
+  try {
+    await flush();
+    const preview = workspace.previewLine.value?.preview;
+    const copy = stripCopy(preview);
+    return { preview, label: copy.label, words: copy.words };
+  } finally {
+    lines.dispose();
+    workspace.previewLine.value = null;
+  }
+};
+
+const pictureOf = (sent: any[]) => writtenText(sent).replace(/\s+/g, " ");
+
+const harnessAt = async (text: string, caret: number) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text }],
     startFrom: { file: MAIN_URI, line: caret },
   });
+  await h.compile();
+  await h.select(caret);
+  await settle(40);
+  return h;
+};
+
+const previewAt = async (text: string, caret: number) => {
+  const h = await harnessAt(text, caret);
   try {
-    await h.compile();
-    await h.select(caret);
-    await settle(40);
-    const shownBeat = lastGameState(h.toEditor)?.shownBeat ?? null;
-    const picture = writtenText(h.toRouter).replace(/\s+/g, " ");
-    const documents = new SparkdownDocumentRegistry(["declarations"]);
-    documents.set({ textDocument: { uri: MAIN_URI, text, version: 1, languageId: "sparkdown" } });
-    const strip = answerPreviewLine(
-      { document: (uri) => documents.get(uri), tree: (uri) => documents.tree(uri) },
-      { textDocument: { uri: MAIN_URI }, line: caret, shownBeat },
-    );
-    const ending = lastGameState(h.toEditor)?.ending?.kind ?? null;
-    return { shownBeat, picture, strip, ending };
+    const state = lastGameState(h.toEditor);
+    const described = state?.shownBeatDescription ?? null;
+    const picture = pictureOf(h.toRouter);
+    const strip = await stripFor(text, caret, h.toEditor);
+    const ending = state?.ending?.kind ?? null;
+    return { described, picture, strip, ending };
   } finally {
     h.dispose();
   }
 };
 
-const wordsOf = (shown: Shown) =>
-  [...(shown.words?.split(" · ") ?? []), ...(shown.speaker ? [shown.speaker] : [])].filter(
-    (words) => words.length > 0,
-  );
+const KIND_LABELS: Record<string, string> = {
+  action: "ACTION",
+  choice: "CHOOSE",
+  title: "TITLE",
+  heading: "HEADING",
+  transition: "TRANSITIONAL",
+};
+
+const copyOf = (shown: Shown) => ({
+  label: shown.kind === "dialogue" ? (shown.speaker ?? "") : KIND_LABELS[shown.kind]!,
+  words: shown.words ?? "",
+});
 
 const action = (words: string): Shown => ({ kind: "action", words });
 
@@ -116,19 +160,114 @@ const ROWS: Row[] = [
   { shape: "a condition that reads a variable set earlier on the route", head: ["store x = 0"], lines: ["x = 1", "Before.", "if x == 1 then", "  Set.", "else", "  Unset.", "end"], caret: 4, shows: action("Set.") },
 ];
 
-describe("the strip names the beat the player displays for the caret's line", () => {
+const describedWords = (described: ShownBeatDescription) =>
+  [described?.words ?? "", described?.speaker ?? "", ...(described?.options ?? [])].filter(
+    (words) => words.length > 0,
+  );
+
+describe("the strip shows what the player describes for the beat it displays", () => {
   test.each(ROWS)(
     "$shape",
     async (row) => {
-      const { shownBeat, picture, strip } = await previewAt(scriptOf(row), row.caret);
-      expect(shownBeat, "the player reports the beat it displays").not.toBeNull();
-      for (const words of wordsOf(strip ?? { kind: "empty" })) {
-        expect(picture, "the picture shows the strip's words").toContain(words);
+      const { described, picture, strip } = await previewAt(scriptOf(row), row.caret);
+      expect(described, "the player describes the beat it displays").not.toBeNull();
+      for (const words of describedWords(described)) {
+        expect(picture, "the picture shows the described words").toContain(words);
       }
-      expect(strip, "the strip describes that beat").toEqual(row.shows);
+      expect(strip.preview, "the strip holds the player's description").toEqual(described);
+      expect({ label: strip.label, words: strip.words }).toEqual(copyOf(row.shows));
     },
     120_000,
   );
+});
+
+describe("the strip follows the picture where the syntax says otherwise", () => {
+  test("a glued continuation keeps its speaker and its earlier words", async () => {
+    const { described, picture, strip } = await previewAt(
+      "scene start\n  ALICE: First. ..\n  .. Second.\nend\n",
+      2,
+    );
+    expect(picture).toContain("First. Second.");
+    expect(described).toEqual({ kind: "dialogue", speaker: "ALICE", words: "First. Second." });
+    expect({ label: strip.label, words: strip.words }).toEqual({
+      label: "ALICE",
+      words: "First. Second.",
+    });
+  }, 120_000);
+
+  test("a speaker's name reads as the picture writes it, its text commands carried out", async () => {
+    const { described, picture, strip } = await previewAt(
+      'define KING as character with\n  name = "King <wait 1s>Arthur"\nend\n\nscene start\n  KING: Hail!\nend\n',
+      5,
+    );
+    expect(picture).toContain("King Arthur");
+    expect(described).toEqual({ kind: "dialogue", speaker: "King Arthur", words: "Hail!" });
+    expect({ label: strip.label, words: strip.words }).toEqual({ label: "KING ARTHUR", words: "Hail!" });
+  }, 120_000);
+
+  test("a beat that is only a write line describes no words, so the strip is blank", async () => {
+    const { described, strip } = await previewAt(
+      "scene start\n  Rain falls.\n  @clock: 12:00\n  The door opens.\nend\n",
+      2,
+    );
+    expect(described).toEqual({ kind: null, words: "" });
+    expect({ label: strip.label, words: strip.words }).toEqual({ label: "", words: "" });
+  }, 120_000);
+
+  test("a story line after a write line describes only its own story text", async () => {
+    const { described, picture, strip } = await previewAt(
+      "scene start\n  @clock: 12:00\n  Rain falls.\nend\n",
+      2,
+    );
+    expect(picture).toContain("Rain falls.");
+    expect(described).toEqual({ kind: "action", words: "Rain falls." });
+    expect({ label: strip.label, words: strip.words }).toEqual({ label: "ACTION", words: "Rain falls." });
+  }, 120_000);
+
+  test("story text glued after a write line is written into the write line's target, so it is not story words", async () => {
+    const { described, strip } = await previewAt(
+      "scene start\n  @clock: 12:00 ..\n  .. Rain falls.\nend\n",
+      2,
+    );
+    expect(described).toEqual({ kind: null, words: "" });
+    expect({ label: strip.label, words: strip.words }).toEqual({ label: "", words: "" });
+  }, 120_000);
+
+  test("a menu without a caption lists only the options a condition lets through", async () => {
+    const { described, picture, strip } = await previewAt(
+      "scene start\n  choose\n    if false then\n      * [Hidden]\n    end\n    * [Shown]\n  end\nend\n",
+      1,
+    );
+    expect(picture).not.toContain("Hidden");
+    expect(described).toEqual({ kind: "choice", words: "", options: ["Shown"] });
+    expect({ label: strip.label, words: strip.words }).toEqual({ label: "CHOOSE", words: "Shown" });
+  }, 120_000);
+
+  test("a completion preview's strip follows the suggested text and returns to the document's when it ends", async () => {
+    const text = "scene start\n  Original.\nend\n";
+    const h = await harnessAt(text, 1);
+    try {
+      expect((await stripFor(text, 1, h.toEditor)).words).toBe("Original.");
+      await h.suggest(
+        [{ range: { start: { line: 1, character: 2 }, end: { line: 1, character: 11 } }, text: "Suggested." }],
+        1,
+      );
+      expect(lastGameState(h.toEditor)?.completion?.status).toBe("showing");
+      expect(pictureOf(h.toRouter)).toContain("Suggested.");
+      expect(await stripFor(text, 1, h.toEditor)).toMatchObject({
+        label: "ACTION",
+        words: "Suggested.",
+      });
+      await h.closeSuggestions();
+      expect(lastGameState(h.toEditor)?.completion).toBeNull();
+      expect(await stripFor(text, 1, h.toEditor)).toMatchObject({
+        label: "ACTION",
+        words: "Original.",
+      });
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
 });
 
 describe("the strip shows no beat's words when the picture shows none", () => {
@@ -140,13 +279,15 @@ describe("the strip shows no beat's words when the picture shows none", () => {
   ])(
     "$shape",
     async ({ text, caret, shows, ending = null }) => {
-      expect(await previewAt(text, caret)).toEqual({
+      const { described, picture, strip, ending: ended } = await previewAt(text, caret);
+      expect({ ending: ended, described, picture, preview: strip.preview }).toEqual({
         ending,
-        shownBeat: null,
+        described: null,
         picture: "",
-        strip: shows,
+        preview: shows,
       });
     },
     120_000,
   );
 });
+
