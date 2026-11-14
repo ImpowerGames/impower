@@ -161,6 +161,19 @@ function PreviewStripDemo() {
           </GalleryRow>
         </div>
       ))}
+      <div data-theme="charcoal" class="space-y-4 rounded-card bg-bg p-4 text-ink">
+        {[430, 384].map((width) => (
+          <GalleryRow key={width} label={`Problem and forced route, ${width}px, tap areas outlined`}>
+            <div
+              data-preview-strip-targets=""
+              style={{ maxWidth: `${width}px` }}
+              class="[&_[data-preview-strip-status]]:outline-1 [&_[data-preview-strip-status]]:outline-accent [&_[data-preview-strip-status]]:outline-dashed"
+            >
+              <PreviewStrip onPlay={noop} {...STATES.find(({ name }) => name === "Problem and forced route")!.props} />
+            </div>
+          </GalleryRow>
+        ))}
+      </div>
       <GalleryRow label="Press Play to expand the picture to the full view">
         <div class="max-w-[430px]">
           <Expandable />

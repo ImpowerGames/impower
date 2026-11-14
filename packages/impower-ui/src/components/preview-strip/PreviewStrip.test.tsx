@@ -4,6 +4,7 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { portalContainer } from "../../utils/portalContainer";
 import { topToastLayer } from "../../utils/toastLayer";
+import { blockExtent, hitArea } from "../../../test/hitArea";
 import PreviewStrip, { type PreviewStripStatus } from "./PreviewStrip";
 
 let host: HTMLDivElement | undefined;
@@ -86,18 +87,34 @@ describe("PreviewStrip", () => {
     expect(words().className).toContain("line-clamp-2");
     await mount(<PreviewStrip label="ACTION" words="Rain." statuses={[status("problem")]} />);
     expect(words().className).toContain("line-clamp-2");
-    expect(host!.querySelector("[data-preview-strip-status]")!.className).toContain("-my-[11px]");
     await mount(
       <PreviewStrip label="ACTION" words="Rain." statuses={[status("problem"), status("forced")]} />,
     );
     expect(words().className).toContain("line-clamp-1");
-    const rows = Array.from(host!.querySelectorAll("[data-preview-strip-status]"));
-    expect(rows).toHaveLength(2);
-    for (const row of rows) {
-      expect(row.className).toContain("min-h-11");
-      expect(row.className).toContain("-my-[13px]");
-    }
     expect(host!.querySelector("[data-preview-strip-copy]")!.className).toContain("self-start");
+  });
+
+  it.each(["problem", "forced"])("gives a %s row shown alone its 44px target", async (key) => {
+    await mount(<PreviewStrip label="ACTION" words="Rain." statuses={[status(key)]} />);
+    const row = host!.querySelector(`[data-preview-strip-status="${key}"]`)!;
+    expect((await hitArea(row)).height).toBe(44);
+  });
+
+  it("splits two rows' targets at the midpoint between them, so the boxes meet and never overlap", async () => {
+    await mount(
+      <PreviewStrip label="ACTION" words="Rain." statuses={[status("problem"), status("forced")]} />,
+    );
+    const [first, second] = Array.from(host!.querySelectorAll("[data-preview-strip-status]"));
+    const upper = await blockExtent(first!);
+    const lower = await blockExtent(second!);
+    const upperTop = upper.marginTop;
+    const upperBottom = upperTop + upper.height;
+    const lowerTop = upperBottom + upper.marginBottom + lower.marginTop;
+    const upperSlot = upper.height + upper.marginTop + upper.marginBottom;
+    const lowerSlot = lower.height + lower.marginTop + lower.marginBottom;
+    expect(lowerTop, "the lower box starts where the upper one ends").toBe(upperBottom);
+    expect(upperSlot, "the boundary sits midway between the rows").toBe(lowerSlot);
+    expect(upperBottom - upperTop).toBe(lower.height);
   });
 
   it("presses a status row and keeps its one-line title cut with an ellipsis", async () => {

@@ -12,8 +12,8 @@ export const previewStripVariants = cva(
 
 export const previewStripStatusVariants = cva(
   [
-    "-mx-2 box-border flex min-h-11 w-max max-w-full cursor-pointer items-center gap-1.5",
-    "rounded-[10px/15px] border-x-4 border-y-[9px] border-solid border-transparent bg-transparent bg-clip-padding px-1 py-0.5",
+    "-mx-2 box-border flex w-max max-w-full cursor-pointer gap-1.5",
+    "rounded-[10px/15px] border-x-4 border-solid border-transparent bg-transparent bg-clip-padding px-1",
     "text-left text-[11px]/[1.4] [&_svg]:size-4 [&_svg]:flex-none",
     "hover:bg-tint focus-visible:outline-2 focus-visible:outline-accent",
   ],
@@ -25,8 +25,9 @@ export const previewStripStatusVariants = cva(
         info: "text-muted",
       },
       rows: {
-        one: "-my-[11px]",
-        two: "-my-[13px]",
+        one: "-my-[11px] min-h-11 items-center border-y-[9px] py-0.5",
+        first: "-mt-[13px] mb-0 h-[31px] min-h-0 items-end border-y-0 pt-0 pb-px",
+        second: "mt-0 -mb-[13px] h-[31px] min-h-0 items-start border-y-0 pt-px pb-0",
       },
     },
     defaultVariants: { tone: "warning", rows: "one" },
@@ -196,7 +197,7 @@ export default function PreviewStrip({
           >
             {words}
           </p>
-          {shown.map((status) => (
+          {shown.map((status, index) => (
             <button
               key={status.key}
               type="button"
@@ -205,7 +206,7 @@ export default function PreviewStrip({
               data-preview-strip-status={status.key}
               class={previewStripStatusVariants({
                 tone: status.tone,
-                rows: shown.length > 1 ? "two" : "one",
+                rows: shown.length < 2 ? "one" : index === 0 ? "first" : "second",
               })}
               onClick={status.onPress}
             >
