@@ -909,13 +909,16 @@ export function readAnswer(issue, comments, repos = readRepos(), events = []) {
     .filter((comment) => later(comment) && commentAuthor(comment, who) === "maintainer" && Date.parse(comment.created_at) <= closedAt)
     .map((comment) => ({ id: comment.id, url: comment.html_url, at: comment.created_at, body: lf(comment.body) }));
   const reopenedAt = Math.max(-Infinity, ...events.filter((event) => event.event === "reopened").map((event) => Date.parse(event.created_at)));
-  const closing = notes.filter((entry) => ["withdrawn", "relayed"].includes(entry.note.kind) && later(entry.comment) && Date.parse(entry.comment.created_at) <= closedAt && Date.parse(entry.comment.created_at) > reopenedAt && !words.some((word) => word.id > entry.comment.id)).at(-1) ?? null;
+  const closingNotes = notes.filter((entry) => ["withdrawn", "relayed"].includes(entry.note.kind) && later(entry.comment) && Date.parse(entry.comment.created_at) <= closedAt && !words.some((word) => word.id > entry.comment.id));
+  const closing = closingNotes.filter((entry) => Date.parse(entry.comment.created_at) > reopenedAt).at(-1) ?? null;
+  const tiedWithReopen = closingNotes.some((entry) => Date.parse(entry.comment.created_at) === reopenedAt);
   const shown = { at: revision?.created_at ?? tagged?.created_at ?? issue.created_at, revised: Boolean(revision), options: data.options?.length ?? 0, pictures: imageReferences(body).length };
   const base = { number: issue.number, url: issue.html_url, title: issue.title, kind: data.kind, tagged: Boolean(data.tagged), question: data.tagged ? issue.title : questionOf(issue.title), tickets: data.blocks ?? [], data, shown, recommended: data.recommended ? { letter: data.recommended, name: optionName(body, data.recommended) } : null };
   if (issue.state !== "closed") return words.length ? { ...base, state: "question", words } : { ...base, state: "waiting", fallback: data.fallback ?? null, words: [] };
   const closed = { at: issue.closed_at, by: issue.closed_by?.login ?? null, reason: issue.state_reason ?? null };
+  if (!closing && tiedWithReopen) return { ...base, state: "unclear", closed, why: "a withdrawal or relay note and a reopen share one second, so which came first is unknown", words: [] };
   if (closing?.note.kind === "withdrawn") return { ...base, state: "withdrawn", closed, reason: closing.note.reason ?? null, words: [] };
-  if (revision && Date.parse(revision.created_at) > closedAt) return { ...base, state: "unclear", closed, why: "closed before its latest revision, so the close does not answer it", words: [] };
+  if (revision && Date.parse(revision.created_at) >= closedAt) return { ...base, state: "unclear", closed, why: "closed before its latest revision, or in the same second, so the close does not answer it", words: [] };
   if (closed.by !== who.maintainerLogin) return { ...base, state: "unclear", closed, why: `closed by ${closed.by ?? "an account GitHub did not name"}, not by the maintainer`, words };
   const relay = closing?.note.kind === "relayed" ? closing : null;
   const said = relay ? [{ id: relay.comment.id, url: relay.comment.html_url, at: relay.note.at, body: relay.note.words, relayed: { session: relay.note.session, runner: relay.note.runner, postedAt: relay.comment.created_at } }] : words;
@@ -1145,7 +1148,7 @@ export function waitForRequests(numbers, { tracker, repos = readRepos(), clock =
   const watched = numbers.map((number) => {
     const polled = tracker.poll(number, null);
     const comments = tracker.comments(number);
-    return { number, etag: polled.etag, answer: readAnswer(polled.issue, comments, repos, tracker.events(number)), seen: maintainerIds(comments) };
+    return { number, etag: polled.etag, readAt: clock().getTime(), answer: readAnswer(polled.issue, comments, repos, tracker.events(number)), seen: maintainerIds(comments) };
   });
   let nextPoll = clock().getTime() + interval;
   for (;;) {
@@ -1154,9 +1157,9 @@ export function waitForRequests(numbers, { tracker, repos = readRepos(), clock =
     const now = clock().getTime();
     const due = watched.filter((entry) => entry.answer.state === "waiting" && entry.answer.fallback?.at).sort((a, b) => Date.parse(a.answer.fallback.at) - Date.parse(b.answer.fallback.at))[0];
     const fallbackAt = due ? Date.parse(due.answer.fallback.at) : Infinity;
-    if (fallbackAt <= now) return result(due, "fallback");
+    if (fallbackAt <= now && due.readAt >= fallbackAt) return result(due, "fallback");
     if (now < nextPoll) {
-      sleep(Math.min(nextPoll, fallbackAt) - now);
+      sleep(nextPoll - now);
       continue;
     }
     nextPoll = now + interval;
@@ -1168,6 +1171,7 @@ export function waitForRequests(numbers, { tracker, repos = readRepos(), clock =
         warn(`Reading #${entry.number} failed (${error.message.split("\n")[0]}); trying again in ${intervalSeconds} seconds.`);
         continue;
       }
+      entry.readAt = now;
       if (polled.status === 304) continue;
       const comments = tracker.comments(entry.number);
       entry.etag = polled.etag;

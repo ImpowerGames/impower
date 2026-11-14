@@ -341,7 +341,13 @@ try {
       assert.equal(other.issues.get(REQUEST).body, decisionBody);
     }
     const revisedAfterClose = readAnswer(issue(closedBy("completed", "2026-11-13T16:10:05Z")), [toolComment(160, "Revised by the ask-maintainer tool.", { kind: "revised" }, "2026-11-13T16:12:00Z")], repos);
-    assert.deepEqual([revisedAfterClose.state, revisedAfterClose.why], ["unclear", "closed before its latest revision, so the close does not answer it"]);
+    assert.deepEqual([revisedAfterClose.state, revisedAfterClose.why], ["unclear", "closed before its latest revision, or in the same second, so the close does not answer it"]);
+    const sameSecond = readAnswer(issue(closedBy("completed", "2026-11-13T16:10:05Z")), [toolComment(161, "Revised by the ask-maintainer tool.", { kind: "revised" }, "2026-11-13T16:10:05Z")], repos);
+    assert.equal(sameSecond.state, "unclear", "a close in the same second as the latest revision does not answer it");
+    const relayAt = (at) => readAnswer(issue(closedBy("completed", "2026-11-13T16:00:02Z")), [toolComment(162, "Relayed.", { kind: "relayed", words: "Choose A instead of B.", session: "s", at: "2026-11-13T15:59:00Z", runner: "codex" }, at)], repos, [{ event: "reopened", created_at: "2026-11-13T16:00:00Z" }]);
+    assert.deepEqual([relayAt("2026-11-13T16:00:00Z").state, relayAt("2026-11-13T16:00:00Z").why], ["unclear", "a withdrawal or relay note and a reopen share one second, so which came first is unknown"], "a relay in the reopen's second is neither trusted nor dropped");
+    assert.deepEqual([relayAt("2026-11-13T16:00:01Z").state, relayAt("2026-11-13T16:00:01Z").words[0].body], ["answered", "Choose A instead of B."]);
+    assert.equal(relayAt("2026-11-13T15:59:59Z").state, "accepted", "a relay before the reopen does not explain the later close");
     console.log("ok: revise replaces the body with its pictures hosted, posts what changed, restarts the clock, reopens an unclear answer last, keeps the tickets, and rolls back a failed revision without closing the request itself");
   }
 
@@ -491,8 +497,12 @@ try {
     const commented = waitCase({ timeline: (ms) => (ms >= 61000 ? { issue: issue({ body }), comments: [comment(141, "Can I see C in dark mode?", "2026-11-13T16:01:01Z")] } : null) });
     assert.deepEqual([commented.result.why, commented.result.state, commented.result.returnedAt], ["comment", "question", "2026-11-13T16:02:00.000Z"]);
     const fallback = waitCase({ fallbackAt: "2026-11-13T16:02:30.000Z", timeline: () => null });
-    assert.deepEqual([fallback.result.why, fallback.result.returnedAt, fallback.result.fallbackAt], ["fallback", "2026-11-13T16:02:30.000Z", "2026-11-13T16:02:30.000Z"]);
-    assert.equal(fallback.requests.filter((r) => r.kind === "poll").length, 3, "the fallback time is reached between polls, without an extra request");
+    assert.deepEqual([fallback.result.why, fallback.result.returnedAt, fallback.result.fallbackAt], ["fallback", "2026-11-13T16:03:00.000Z", "2026-11-13T16:02:30.000Z"], "the fallback is taken at the first read at or after its time");
+    assert.equal(fallback.requests.filter((r) => r.kind === "poll").length, 4, "the read after the fallback time is the next scheduled poll, never an extra one");
+    const questionBeforeFallback = waitCase({ fallbackAt: "2026-11-13T16:01:00.000Z", timeline: (ms) => (ms >= 30000 ? { issue: issue({ body }), comments: [comment(143, "Can I see C in dark mode?", "2026-11-13T16:00:30Z")] } : null) });
+    assert.deepEqual([questionBeforeFallback.result.why, questionBeforeFallback.result.state, questionBeforeFallback.result.returnedAt], ["comment", "question", "2026-11-13T16:01:00.000Z"], "a question asked before the fallback time is found before the fallback is taken");
+    const answerBeforeFallback = waitCase({ fallbackAt: "2026-11-13T16:01:00.000Z", timeline: (ms) => (ms >= 30000 ? { issue: issue({ body, ...closedBy("completed", "2026-11-13T16:00:30Z") }), comments: [comment(144, "A", "2026-11-13T16:00:29Z")] } : null) });
+    assert.deepEqual([answerBeforeFallback.result.why, answerBeforeFallback.result.state], ["closed", "answered"], "an answer given before the fallback time is found before the fallback is taken");
     const already = waitCase({ timeline: () => ({ issue: issue({ body, ...closedBy("completed", "2026-11-13T15:59:00Z") }), comments: [] }) });
     assert.deepEqual([already.result.why, already.result.returnedAt, already.requests.length], ["closed", "2026-11-13T16:00:00.000Z", 3]);
     const asked = waitCase({ fallbackAt: "2026-11-13T16:00:30.000Z", timeline: (ms) => (ms >= 120000 ? { issue: issue({ body, ...closedBy("completed", "2026-11-13T16:01:50Z") }), comments: [comment(142, "Is C dark?", "2026-11-13T15:50:00Z")] } : { issue: issue({ body }), comments: [comment(142, "Is C dark?", "2026-11-13T15:50:00Z")] }) });

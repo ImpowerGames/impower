@@ -10,7 +10,7 @@ Closing is the answer, and only the maintainer closes. The maintainer's words ar
 - **Closed with no comment:** the recommendation is accepted.
 - **A comment without closing:** a question, or a statement of what is missing. The fallback clock stops; answer it with `revise`, which restarts the clock.
 - **A task:** closed as completed means done; closed as not planned means the maintainer will not do it, so carry on without it and say what that leaves undone.
-- **Unclear:** a decision closed as not planned with no comment, closed by another account, or closed before its latest revision. Reopen it with a question through `revise`.
+- **Unclear:** a decision closed as not planned with no comment, closed by another account, or closed before or in the same second as its latest revision; or a request whose withdrawal or relay note shares a second with a reopen, since GitHub's one-second times cannot order them. Reopen it with a question through `revise`.
 - **An answer typed in chat** counts only through `answer-from-chat`, which accepts the quoted words only when they appear as one unbroken run in a message the maintainer typed in that session's transcript (below). A paraphrase, words an agent wrote, tool output and relayed or injected messages are refused.
 
 Never write that the maintainer decided anything unless `record` has recorded it.
@@ -42,7 +42,7 @@ GitHub does not notify a session. `wait` returns when any request it names is cl
 node .agents/skills/ask-maintainer/maintainer-request.mjs wait <request> [<request> ...] [--interval=<seconds>]
 ```
 
-It reads each request once a minute (`--interval` may lengthen that, never shorten it) with a conditional request, which costs nothing while the request is unchanged, and prints the seconds between a close and its return.
+It reads each request once a minute (`--interval` may lengthen that, never shorten it) with a conditional request, which costs nothing while the request is unchanged, and prints the seconds between a close and its return. It reports a fallback only after a read at or after the fallback time still finds no answer and no question, so it returns up to a minute after that time.
 
 How a session is woken:
 
