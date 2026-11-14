@@ -23864,11 +23864,12 @@
    ],
    "rt": [],
    "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
     "2@4:27-4:28 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "755c6c65"
+   "scopes": "189de895"
   },
   {
    "id": "plain-command-46",
@@ -24176,7 +24177,7 @@
     "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
     "2@4:33-4:34 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "0b8920bf"
+   "scopes": "3d9acd93"
   },
   {
    "id": "plain-command-62",
@@ -24423,7 +24424,7 @@
     "1@4:30-4:31 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "a92263b0"
+   "scopes": "680a282c"
   },
   {
    "id": "plain-command-74",
@@ -25041,11 +25042,15 @@
    ],
    "rt": [],
    "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
     "2@4:24-4:25 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "479ac38a"
+   "scopes": "d39fce6b"
   },
   {
    "id": "plain-command-106",

@@ -577,26 +577,34 @@ sparkdown [0..456]
  │   │       ├─ ImageCommand_content [366..381]
  │   │       │   └─ ImageCommandContent [366..381]
  │   │       │       └─ ImageCommandContent_c1 [366..381]
- │   │       │           └─ AssetCommandContent [366..381]
- │   │       │               ├─ AssetCommandContent_c1 [366..381]
- │   │       │               │   └─ AssetCommandInstruction [366..381]
- │   │       │               │       ├─ AssetCommandInstruction_c1 366
- │   │       │               │       ├─ AssetCommandInstruction_c2 366
- │   │       │               │       ├─ AssetCommandInstruction_c3 366
- │   │       │               │       ├─ AssetCommandInstruction_c4 366
- │   │       │               │       └─ AssetCommandInstruction_c5 [366..381]
- │   │       │               │           └─ AssetCommandName [366..381]
- │   │       │               │               └─ AssetCommandName_c1 [366..381]
- │   │       │               │                   └─ AssetCommandFilteredFileName [366..381]
- │   │       │               │                       ├─ AssetCommandFilteredFileName_c1 [366..375]
- │   │       │               │                       │   └─ AssetCommandFileName [366..375]: "mia@night"
- │   │       │               │                       └─ AssetCommandFilteredFileName_c2 [375..381]
- │   │       │               │                           └─ AssetCommandFilter [375..381]
- │   │       │               │                               ├─ AssetCommandFilter_c1 [375..376]
- │   │       │               │                               │   └─ AssetCommandFilterOperator [375..376]: ":"
- │   │       │               │                               └─ AssetCommandFilter_c2 [376..381]
- │   │       │               │                                   └─ AssetCommandFilterName [376..381]: "happy"
- │   │       │               └─ AssetCommandContent_c2 381
+ │   │       │           └─ ImageCommandWords [366..381]
+ │   │       │               ├─ ImageCommandWords_c1 366
+ │   │       │               ├─ ImageCommandWords_c2 366
+ │   │       │               ├─ ImageCommandWords_c3 366
+ │   │       │               ├─ ImageCommandWords_c4 366
+ │   │       │               ├─ ImageCommandWords_c5 366
+ │   │       │               ├─ ImageCommandWords_c6 366
+ │   │       │               ├─ ImageCommandWords_c7 366
+ │   │       │               ├─ ImageCommandWords_c8 366
+ │   │       │               ├─ ImageCommandWords_c9 366
+ │   │       │               ├─ ImageCommandWords_c10 366
+ │   │       │               ├─ ImageCommandWords_c11 366
+ │   │       │               ├─ ImageCommandWords_c12 [366..381]
+ │   │       │               │   └─ AssetCommandName [366..381]
+ │   │       │               │       └─ AssetCommandName_c1 [366..381]
+ │   │       │               │           └─ AssetCommandFilteredFileName [366..381]
+ │   │       │               │               ├─ AssetCommandFilteredFileName_c1 [366..375]
+ │   │       │               │               │   └─ AssetCommandFileName [366..375]: "mia@night"
+ │   │       │               │               └─ AssetCommandFilteredFileName_c2 [375..381]
+ │   │       │               │                   └─ AssetCommandFilter [375..381]
+ │   │       │               │                       ├─ AssetCommandFilter_c1 [375..376]
+ │   │       │               │                       │   └─ AssetCommandFilterOperator [375..376]: ":"
+ │   │       │               │                       └─ AssetCommandFilter_c2 [376..381]
+ │   │       │               │                           └─ AssetCommandFilterName [376..381]: "happy"
+ │   │       │               ├─ ImageCommandWords_c13 381
+ │   │       │               ├─ ImageCommandWords_c14 381
+ │   │       │               └─ ImageCommandWords_c15 381
+ │   │       │                   └─ OptionalWhitespace 381
  │   │       └─ ImageCommand_end [381..383]
  │   │           ├─ ImageCommand_end_c1 381
  │   │           ├─ ImageCommand_end_c2 [381..383]
@@ -618,26 +626,34 @@ sparkdown [0..456]
  │   │       ├─ ImageCommand_content [388..401]
  │   │       │   └─ ImageCommandContent [388..401]
  │   │       │       └─ ImageCommandContent_c1 [388..401]
- │   │       │           └─ AssetCommandContent [388..401]
- │   │       │               ├─ AssetCommandContent_c1 [388..401]
- │   │       │               │   └─ AssetCommandInstruction [388..401]
- │   │       │               │       ├─ AssetCommandInstruction_c1 388
- │   │       │               │       ├─ AssetCommandInstruction_c2 388
- │   │       │               │       ├─ AssetCommandInstruction_c3 388
- │   │       │               │       ├─ AssetCommandInstruction_c4 388
- │   │       │               │       └─ AssetCommandInstruction_c5 [388..401]
- │   │       │               │           └─ AssetCommandName [388..401]
- │   │       │               │               └─ AssetCommandName_c1 [388..401]
- │   │       │               │                   └─ AssetCommandFilteredFileName [388..401]
- │   │       │               │                       ├─ AssetCommandFilteredFileName_c1 [388..397]
- │   │       │               │                       │   └─ AssetCommandFileName [388..397]: "mia@night"
- │   │       │               │                       └─ AssetCommandFilteredFileName_c2 [397..401]
- │   │       │               │                           └─ AssetCommandFilter [397..401]
- │   │       │               │                               ├─ AssetCommandFilter_c1 [397..398]
- │   │       │               │                               │   └─ AssetCommandFilterOperator [397..398]: "~"
- │   │       │               │                               └─ AssetCommandFilter_c2 [398..401]
- │   │       │               │                                   └─ AssetCommandFilterName [398..401]: "hat"
- │   │       │               └─ AssetCommandContent_c2 401
+ │   │       │           └─ ImageCommandWords [388..401]
+ │   │       │               ├─ ImageCommandWords_c1 388
+ │   │       │               ├─ ImageCommandWords_c2 388
+ │   │       │               ├─ ImageCommandWords_c3 388
+ │   │       │               ├─ ImageCommandWords_c4 388
+ │   │       │               ├─ ImageCommandWords_c5 388
+ │   │       │               ├─ ImageCommandWords_c6 388
+ │   │       │               ├─ ImageCommandWords_c7 388
+ │   │       │               ├─ ImageCommandWords_c8 388
+ │   │       │               ├─ ImageCommandWords_c9 388
+ │   │       │               ├─ ImageCommandWords_c10 388
+ │   │       │               ├─ ImageCommandWords_c11 388
+ │   │       │               ├─ ImageCommandWords_c12 [388..401]
+ │   │       │               │   └─ AssetCommandName [388..401]
+ │   │       │               │       └─ AssetCommandName_c1 [388..401]
+ │   │       │               │           └─ AssetCommandFilteredFileName [388..401]
+ │   │       │               │               ├─ AssetCommandFilteredFileName_c1 [388..397]
+ │   │       │               │               │   └─ AssetCommandFileName [388..397]: "mia@night"
+ │   │       │               │               └─ AssetCommandFilteredFileName_c2 [397..401]
+ │   │       │               │                   └─ AssetCommandFilter [397..401]
+ │   │       │               │                       ├─ AssetCommandFilter_c1 [397..398]
+ │   │       │               │                       │   └─ AssetCommandFilterOperator [397..398]: "~"
+ │   │       │               │                       └─ AssetCommandFilter_c2 [398..401]
+ │   │       │               │                           └─ AssetCommandFilterName [398..401]: "hat"
+ │   │       │               ├─ ImageCommandWords_c13 401
+ │   │       │               ├─ ImageCommandWords_c14 401
+ │   │       │               └─ ImageCommandWords_c15 401
+ │   │       │                   └─ OptionalWhitespace 401
  │   │       └─ ImageCommand_end [401..403]
  │   │           ├─ ImageCommand_end_c1 401
  │   │           ├─ ImageCommand_end_c2 [401..403]
@@ -659,18 +675,26 @@ sparkdown [0..456]
  │   │       ├─ ImageCommand_content [408..417]
  │   │       │   └─ ImageCommandContent [408..417]
  │   │       │       └─ ImageCommandContent_c1 [408..417]
- │   │       │           └─ AssetCommandContent [408..417]
- │   │       │               ├─ AssetCommandContent_c1 [408..417]
- │   │       │               │   └─ AssetCommandInstruction [408..417]
- │   │       │               │       ├─ AssetCommandInstruction_c1 408
- │   │       │               │       ├─ AssetCommandInstruction_c2 408
- │   │       │               │       ├─ AssetCommandInstruction_c3 408
- │   │       │               │       ├─ AssetCommandInstruction_c4 408
- │   │       │               │       └─ AssetCommandInstruction_c5 [408..417]
- │   │       │               │           └─ AssetCommandName [408..417]
- │   │       │               │               └─ AssetCommandName_c1 [408..417]
- │   │       │               │                   └─ AssetCommandFileName [408..417]: "mia@party"
- │   │       │               └─ AssetCommandContent_c2 417
+ │   │       │           └─ ImageCommandWords [408..417]
+ │   │       │               ├─ ImageCommandWords_c1 408
+ │   │       │               ├─ ImageCommandWords_c2 408
+ │   │       │               ├─ ImageCommandWords_c3 408
+ │   │       │               ├─ ImageCommandWords_c4 408
+ │   │       │               ├─ ImageCommandWords_c5 408
+ │   │       │               ├─ ImageCommandWords_c6 408
+ │   │       │               ├─ ImageCommandWords_c7 408
+ │   │       │               ├─ ImageCommandWords_c8 408
+ │   │       │               ├─ ImageCommandWords_c9 408
+ │   │       │               ├─ ImageCommandWords_c10 408
+ │   │       │               ├─ ImageCommandWords_c11 408
+ │   │       │               ├─ ImageCommandWords_c12 [408..417]
+ │   │       │               │   └─ AssetCommandName [408..417]
+ │   │       │               │       └─ AssetCommandName_c1 [408..417]
+ │   │       │               │           └─ AssetCommandFileName [408..417]: "mia@party"
+ │   │       │               ├─ ImageCommandWords_c13 417
+ │   │       │               ├─ ImageCommandWords_c14 417
+ │   │       │               └─ ImageCommandWords_c15 417
+ │   │       │                   └─ OptionalWhitespace 417
  │   │       └─ ImageCommand_end [417..419]
  │   │           ├─ ImageCommand_end_c1 417
  │   │           ├─ ImageCommand_end_c2 [417..419]
@@ -692,31 +716,44 @@ sparkdown [0..456]
  │   │       ├─ ImageCommand_content [424..449]
  │   │       │   └─ ImageCommandContent [424..449]
  │   │       │       └─ ImageCommandContent_c1 [424..449]
- │   │       │           └─ AssetCommandContent [424..449]
- │   │       │               ├─ AssetCommandContent_c1 [424..449]
- │   │       │               │   └─ AssetCommandInstruction [424..449]
- │   │       │               │       ├─ AssetCommandInstruction_c1 424
- │   │       │               │       ├─ AssetCommandInstruction_c2 424
- │   │       │               │       ├─ AssetCommandInstruction_c3 424
- │   │       │               │       ├─ AssetCommandInstruction_c4 424
- │   │       │               │       └─ AssetCommandInstruction_c5 [424..449]
- │   │       │               │           ├─ AssetCommandName [424..434]
- │   │       │               │           │   └─ AssetCommandName_c1 [424..434]
- │   │       │               │           │       ├─ AssetCommandFileName [424..433]: "mia@night"
- │   │       │               │           │       └─ RequiredWhitespace [433..434]: " "
- │   │       │               │           ├─ AssetCommandAddOperator [434..436]: "+ "
- │   │       │               │           └─ AssetCommandName [436..449]
- │   │       │               │               └─ AssetCommandName_c1 [436..449]
- │   │       │               │                   └─ AssetCommandFilteredFileName [436..449]
- │   │       │               │                       ├─ AssetCommandFilteredFileName_c1 [436..445]
- │   │       │               │                       │   └─ AssetCommandFileName [436..445]: "mia@party"
- │   │       │               │                       └─ AssetCommandFilteredFileName_c2 [445..449]
- │   │       │               │                           └─ AssetCommandFilter [445..449]
- │   │       │               │                               ├─ AssetCommandFilter_c1 [445..446]
- │   │       │               │                               │   └─ AssetCommandFilterOperator [445..446]: ":"
- │   │       │               │                               └─ AssetCommandFilter_c2 [446..449]
- │   │       │               │                                   └─ AssetCommandFilterName [446..449]: "hat"
- │   │       │               └─ AssetCommandContent_c2 449
+ │   │       │           └─ ImageCommandWords [424..449]
+ │   │       │               ├─ ImageCommandWords_c1 424
+ │   │       │               ├─ ImageCommandWords_c2 424
+ │   │       │               ├─ ImageCommandWords_c3 424
+ │   │       │               ├─ ImageCommandWords_c4 424
+ │   │       │               ├─ ImageCommandWords_c5 424
+ │   │       │               ├─ ImageCommandWords_c6 424
+ │   │       │               ├─ ImageCommandWords_c7 424
+ │   │       │               ├─ ImageCommandWords_c8 424
+ │   │       │               ├─ ImageCommandWords_c9 424
+ │   │       │               ├─ ImageCommandWords_c10 424
+ │   │       │               ├─ ImageCommandWords_c11 424
+ │   │       │               ├─ ImageCommandWords_c12 [424..449]
+ │   │       │               │   ├─ AssetCommandName [424..433]
+ │   │       │               │   │   └─ AssetCommandName_c1 [424..433]
+ │   │       │               │   │       └─ AssetCommandFileName [424..433]: "mia@night"
+ │   │       │               │   ├─ AssetCommandSeparator [433..434]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [433..434]
+ │   │       │               │   │       └─ RequiredWhitespace [433..434]: " "
+ │   │       │               │   ├─ AssetCommandAddOperator [434..435]: "+"
+ │   │       │               │   ├─ AssetCommandSeparator [435..436]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [435..436]
+ │   │       │               │   │       └─ RequiredWhitespace [435..436]: " "
+ │   │       │               │   └─ AssetCommandName [436..449]
+ │   │       │               │       └─ AssetCommandName_c1 [436..449]
+ │   │       │               │           └─ AssetCommandFilteredFileName [436..449]
+ │   │       │               │               ├─ AssetCommandFilteredFileName_c1 [436..445]
+ │   │       │               │               │   └─ AssetCommandFileName [436..445]: "mia@party"
+ │   │       │               │               └─ AssetCommandFilteredFileName_c2 [445..449]
+ │   │       │               │                   └─ AssetCommandFilter [445..449]
+ │   │       │               │                       ├─ AssetCommandFilter_c1 [445..446]
+ │   │       │               │                       │   └─ AssetCommandFilterOperator [445..446]: ":"
+ │   │       │               │                       └─ AssetCommandFilter_c2 [446..449]
+ │   │       │               │                           └─ AssetCommandFilterName [446..449]: "hat"
+ │   │       │               ├─ ImageCommandWords_c13 449
+ │   │       │               ├─ ImageCommandWords_c14 449
+ │   │       │               └─ ImageCommandWords_c15 449
+ │   │       │                   └─ OptionalWhitespace 449
  │   │       └─ ImageCommand_end [449..451]
  │   │           ├─ ImageCommand_end_c1 449
  │   │           ├─ ImageCommand_end_c2 [449..451]

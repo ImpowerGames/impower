@@ -26,28 +26,38 @@ sparkdown [0..173]
  │   │       ├─ ImageCommand_content [16..38]
  │   │       │   └─ ImageCommandContent [16..38]
  │   │       │       └─ ImageCommandContent_c1 [16..38]
- │   │       │           └─ AssetCommandContent [16..38]
- │   │       │               ├─ AssetCommandContent_c1 [16..20]
- │   │       │               │   └─ AssetCommandInstruction [16..20]
- │   │       │               │       ├─ AssetCommandInstruction_c1 16
- │   │       │               │       ├─ AssetCommandInstruction_c2 16
- │   │       │               │       ├─ AssetCommandInstruction_c3 16
- │   │       │               │       ├─ AssetCommandInstruction_c4 16
- │   │       │               │       └─ AssetCommandInstruction_c5 [16..20]
- │   │       │               │           └─ AssetCommandName [16..20]
- │   │       │               │               └─ AssetCommandName_c1 [16..20]
- │   │       │               │                   ├─ AssetCommandFileName [16..19]: "mia"
- │   │       │               │                   └─ RequiredWhitespace [19..20]: " "
- │   │       │               └─ AssetCommandContent_c2 [20..38]
- │   │       │                   └─ AssetCommandValueClause [20..38]
- │   │       │                       ├─ AssetCommandValueClause_c1 [20..25]
- │   │       │                       │   └─ AssetCommandClauseKeyword [20..25]: "morph"
- │   │       │                       ├─ AssetCommandValueClause_c2 [25..26]
- │   │       │                       │   └─ RequiredWhitespace [25..26]: " "
- │   │       │                       └─ AssetCommandValueClause_c3 [26..38]
- │   │       │                           └─ AssetCommandClauseValue [26..38]
- │   │       │                               └─ AssetCommandClauseValue_c1 [26..38]
- │   │       │                                   └─ NameValue [26..38]: "talk_gritted"
+ │   │       │           └─ ImageCommandWords [16..38]
+ │   │       │               ├─ ImageCommandWords_c1 16
+ │   │       │               ├─ ImageCommandWords_c2 16
+ │   │       │               ├─ ImageCommandWords_c3 16
+ │   │       │               ├─ ImageCommandWords_c4 16
+ │   │       │               ├─ ImageCommandWords_c5 16
+ │   │       │               ├─ ImageCommandWords_c6 16
+ │   │       │               ├─ ImageCommandWords_c7 16
+ │   │       │               ├─ ImageCommandWords_c8 16
+ │   │       │               ├─ ImageCommandWords_c9 16
+ │   │       │               ├─ ImageCommandWords_c10 16
+ │   │       │               ├─ ImageCommandWords_c11 16
+ │   │       │               ├─ ImageCommandWords_c12 [16..19]
+ │   │       │               │   └─ AssetCommandName [16..19]
+ │   │       │               │       └─ AssetCommandName_c1 [16..19]
+ │   │       │               │           └─ AssetCommandFileName [16..19]: "mia"
+ │   │       │               ├─ ImageCommandWords_c13 [19..38]
+ │   │       │               │   ├─ AssetCommandSeparator [19..20]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [19..20]
+ │   │       │               │   │       └─ RequiredWhitespace [19..20]: " "
+ │   │       │               │   └─ AssetCommandValueClause [20..38]
+ │   │       │               │       ├─ AssetCommandValueClause_c1 [20..25]
+ │   │       │               │       │   └─ AssetCommandClauseKeyword [20..25]: "morph"
+ │   │       │               │       ├─ AssetCommandValueClause_c2 [25..26]
+ │   │       │               │       │   └─ RequiredWhitespace [25..26]: " "
+ │   │       │               │       └─ AssetCommandValueClause_c3 [26..38]
+ │   │       │               │           └─ AssetCommandClauseValue [26..38]
+ │   │       │               │               └─ AssetCommandClauseValue_c1 [26..38]
+ │   │       │               │                   └─ NameValue [26..38]: "talk_gritted"
+ │   │       │               ├─ ImageCommandWords_c14 38
+ │   │       │               └─ ImageCommandWords_c15 38
+ │   │       │                   └─ OptionalWhitespace 38
  │   │       └─ ImageCommand_end [38..40]
  │   │           ├─ ImageCommand_end_c1 38
  │   │           ├─ ImageCommand_end_c2 [38..40]
@@ -69,28 +79,38 @@ sparkdown [0..173]
  │   │       ├─ ImageCommand_content [45..59]
  │   │       │   └─ ImageCommandContent [45..59]
  │   │       │       └─ ImageCommandContent_c1 [45..59]
- │   │       │           └─ AssetCommandContent [45..59]
- │   │       │               ├─ AssetCommandContent_c1 [45..49]
- │   │       │               │   └─ AssetCommandInstruction [45..49]
- │   │       │               │       ├─ AssetCommandInstruction_c1 45
- │   │       │               │       ├─ AssetCommandInstruction_c2 45
- │   │       │               │       ├─ AssetCommandInstruction_c3 45
- │   │       │               │       ├─ AssetCommandInstruction_c4 45
- │   │       │               │       └─ AssetCommandInstruction_c5 [45..49]
- │   │       │               │           └─ AssetCommandName [45..49]
- │   │       │               │               └─ AssetCommandName_c1 [45..49]
- │   │       │               │                   ├─ AssetCommandFileName [45..48]: "mia"
- │   │       │               │                   └─ RequiredWhitespace [48..49]: " "
- │   │       │               └─ AssetCommandContent_c2 [49..59]
- │   │       │                   └─ AssetCommandValueClause [49..59]
- │   │       │                       ├─ AssetCommandValueClause_c1 [49..54]
- │   │       │                       │   └─ AssetCommandClauseKeyword [49..54]: "morph"
- │   │       │                       ├─ AssetCommandValueClause_c2 [54..55]
- │   │       │                       │   └─ RequiredWhitespace [54..55]: " "
- │   │       │                       └─ AssetCommandValueClause_c3 [55..59]
- │   │       │                           └─ AssetCommandClauseValue [55..59]
- │   │       │                               └─ AssetCommandClauseValue_c1 [55..59]
- │   │       │                                   └─ NameValue [55..59]: "none"
+ │   │       │           └─ ImageCommandWords [45..59]
+ │   │       │               ├─ ImageCommandWords_c1 45
+ │   │       │               ├─ ImageCommandWords_c2 45
+ │   │       │               ├─ ImageCommandWords_c3 45
+ │   │       │               ├─ ImageCommandWords_c4 45
+ │   │       │               ├─ ImageCommandWords_c5 45
+ │   │       │               ├─ ImageCommandWords_c6 45
+ │   │       │               ├─ ImageCommandWords_c7 45
+ │   │       │               ├─ ImageCommandWords_c8 45
+ │   │       │               ├─ ImageCommandWords_c9 45
+ │   │       │               ├─ ImageCommandWords_c10 45
+ │   │       │               ├─ ImageCommandWords_c11 45
+ │   │       │               ├─ ImageCommandWords_c12 [45..48]
+ │   │       │               │   └─ AssetCommandName [45..48]
+ │   │       │               │       └─ AssetCommandName_c1 [45..48]
+ │   │       │               │           └─ AssetCommandFileName [45..48]: "mia"
+ │   │       │               ├─ ImageCommandWords_c13 [48..59]
+ │   │       │               │   ├─ AssetCommandSeparator [48..49]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [48..49]
+ │   │       │               │   │       └─ RequiredWhitespace [48..49]: " "
+ │   │       │               │   └─ AssetCommandValueClause [49..59]
+ │   │       │               │       ├─ AssetCommandValueClause_c1 [49..54]
+ │   │       │               │       │   └─ AssetCommandClauseKeyword [49..54]: "morph"
+ │   │       │               │       ├─ AssetCommandValueClause_c2 [54..55]
+ │   │       │               │       │   └─ RequiredWhitespace [54..55]: " "
+ │   │       │               │       └─ AssetCommandValueClause_c3 [55..59]
+ │   │       │               │           └─ AssetCommandClauseValue [55..59]
+ │   │       │               │               └─ AssetCommandClauseValue_c1 [55..59]
+ │   │       │               │                   └─ NameValue [55..59]: "none"
+ │   │       │               ├─ ImageCommandWords_c14 59
+ │   │       │               └─ ImageCommandWords_c15 59
+ │   │       │                   └─ OptionalWhitespace 59
  │   │       └─ ImageCommand_end [59..61]
  │   │           ├─ ImageCommand_end_c1 59
  │   │           ├─ ImageCommand_end_c2 [59..61]
@@ -112,38 +132,50 @@ sparkdown [0..173]
  │   │       ├─ ImageCommand_content [66..98]
  │   │       │   └─ ImageCommandContent [66..98]
  │   │       │       └─ ImageCommandContent_c1 [66..98]
- │   │       │           └─ AssetCommandContent [66..98]
- │   │       │               ├─ AssetCommandContent_c1 [66..70]
- │   │       │               │   └─ AssetCommandInstruction [66..70]
- │   │       │               │       ├─ AssetCommandInstruction_c1 66
- │   │       │               │       ├─ AssetCommandInstruction_c2 66
- │   │       │               │       ├─ AssetCommandInstruction_c3 66
- │   │       │               │       ├─ AssetCommandInstruction_c4 66
- │   │       │               │       └─ AssetCommandInstruction_c5 [66..70]
- │   │       │               │           └─ AssetCommandName [66..70]
- │   │       │               │               └─ AssetCommandName_c1 [66..70]
- │   │       │               │                   ├─ AssetCommandFileName [66..69]: "mia"
- │   │       │               │                   └─ RequiredWhitespace [69..70]: " "
- │   │       │               └─ AssetCommandContent_c2 [70..98]
- │   │       │                   ├─ AssetCommandValueClause [70..79]
- │   │       │                   │   ├─ AssetCommandValueClause_c1 [70..74]
- │   │       │                   │   │   └─ AssetCommandClauseKeyword [70..74]: "with"
- │   │       │                   │   ├─ AssetCommandValueClause_c2 [74..75]
- │   │       │                   │   │   └─ RequiredWhitespace [74..75]: " "
- │   │       │                   │   └─ AssetCommandValueClause_c3 [75..79]
- │   │       │                   │       └─ AssetCommandClauseValue [75..79]
- │   │       │                   │           └─ AssetCommandClauseValue_c1 [75..79]
- │   │       │                   │               └─ NameValue [75..79]: "fade"
- │   │       │                   ├─ RequiredWhitespace [79..80]: " "
- │   │       │                   └─ AssetCommandValueClause [80..98]
- │   │       │                       ├─ AssetCommandValueClause_c1 [80..85]
- │   │       │                       │   └─ AssetCommandClauseKeyword [80..85]: "morph"
- │   │       │                       ├─ AssetCommandValueClause_c2 [85..86]
- │   │       │                       │   └─ RequiredWhitespace [85..86]: " "
- │   │       │                       └─ AssetCommandValueClause_c3 [86..98]
- │   │       │                           └─ AssetCommandClauseValue [86..98]
- │   │       │                               └─ AssetCommandClauseValue_c1 [86..98]
- │   │       │                                   └─ NameValue [86..98]: "talk_gritted"
+ │   │       │           └─ ImageCommandWords [66..98]
+ │   │       │               ├─ ImageCommandWords_c1 66
+ │   │       │               ├─ ImageCommandWords_c2 66
+ │   │       │               ├─ ImageCommandWords_c3 66
+ │   │       │               ├─ ImageCommandWords_c4 66
+ │   │       │               ├─ ImageCommandWords_c5 66
+ │   │       │               ├─ ImageCommandWords_c6 66
+ │   │       │               ├─ ImageCommandWords_c7 66
+ │   │       │               ├─ ImageCommandWords_c8 66
+ │   │       │               ├─ ImageCommandWords_c9 66
+ │   │       │               ├─ ImageCommandWords_c10 66
+ │   │       │               ├─ ImageCommandWords_c11 66
+ │   │       │               ├─ ImageCommandWords_c12 [66..69]
+ │   │       │               │   └─ AssetCommandName [66..69]
+ │   │       │               │       └─ AssetCommandName_c1 [66..69]
+ │   │       │               │           └─ AssetCommandFileName [66..69]: "mia"
+ │   │       │               ├─ ImageCommandWords_c13 [69..98]
+ │   │       │               │   ├─ AssetCommandSeparator [69..70]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [69..70]
+ │   │       │               │   │       └─ RequiredWhitespace [69..70]: " "
+ │   │       │               │   ├─ AssetCommandValueClause [70..79]
+ │   │       │               │   │   ├─ AssetCommandValueClause_c1 [70..74]
+ │   │       │               │   │   │   └─ AssetCommandClauseKeyword [70..74]: "with"
+ │   │       │               │   │   ├─ AssetCommandValueClause_c2 [74..75]
+ │   │       │               │   │   │   └─ RequiredWhitespace [74..75]: " "
+ │   │       │               │   │   └─ AssetCommandValueClause_c3 [75..79]
+ │   │       │               │   │       └─ AssetCommandClauseValue [75..79]
+ │   │       │               │   │           └─ AssetCommandClauseValue_c1 [75..79]
+ │   │       │               │   │               └─ NameValue [75..79]: "fade"
+ │   │       │               │   ├─ AssetCommandSeparator [79..80]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [79..80]
+ │   │       │               │   │       └─ RequiredWhitespace [79..80]: " "
+ │   │       │               │   └─ AssetCommandValueClause [80..98]
+ │   │       │               │       ├─ AssetCommandValueClause_c1 [80..85]
+ │   │       │               │       │   └─ AssetCommandClauseKeyword [80..85]: "morph"
+ │   │       │               │       ├─ AssetCommandValueClause_c2 [85..86]
+ │   │       │               │       │   └─ RequiredWhitespace [85..86]: " "
+ │   │       │               │       └─ AssetCommandValueClause_c3 [86..98]
+ │   │       │               │           └─ AssetCommandClauseValue [86..98]
+ │   │       │               │               └─ AssetCommandClauseValue_c1 [86..98]
+ │   │       │               │                   └─ NameValue [86..98]: "talk_gritted"
+ │   │       │               ├─ ImageCommandWords_c14 98
+ │   │       │               └─ ImageCommandWords_c15 98
+ │   │       │                   └─ OptionalWhitespace 98
  │   │       └─ ImageCommand_end [98..100]
  │   │           ├─ ImageCommand_end_c1 98
  │   │           ├─ ImageCommand_end_c2 [98..100]
@@ -165,50 +197,64 @@ sparkdown [0..173]
  │   │       ├─ ImageCommand_content [105..166]
  │   │       │   └─ ImageCommandContent [105..166]
  │   │       │       └─ ImageCommandContent_c1 [105..166]
- │   │       │           └─ AssetCommandContent [105..166]
- │   │       │               ├─ AssetCommandContent_c1 [105..146]
- │   │       │               │   └─ AssetCommandInstruction [105..146]
- │   │       │               │       ├─ AssetCommandInstruction_c1 [105..109]
- │   │       │               │       │   └─ AssetCommandControl [105..109]: "show"
- │   │       │               │       ├─ AssetCommandInstruction_c2 [109..110]
- │   │       │               │       │   └─ RequiredWhitespace [109..110]: " "
- │   │       │               │       ├─ AssetCommandInstruction_c3 [110..118]
- │   │       │               │       │   └─ AssetCommandTarget [110..118]: "portrait"
- │   │       │               │       ├─ AssetCommandInstruction_c4 [118..119]
- │   │       │               │       │   └─ RequiredWhitespace [118..119]: " "
- │   │       │               │       └─ AssetCommandInstruction_c5 [119..146]
- │   │       │               │           └─ AssetCommandName [119..146]
- │   │       │               │               └─ AssetCommandName_c1 [119..146]
- │   │       │               │                   ├─ AssetCommandFilteredFileName [119..145]
- │   │       │               │                   │   ├─ AssetCommandFilteredFileName_c1 [119..132]
- │   │       │               │                   │   │   └─ AssetCommandFileName [119..132]: "mia@confident"
- │   │       │               │                   │   └─ AssetCommandFilteredFileName_c2 [132..145]
- │   │       │               │                   │       └─ AssetCommandFilter [132..145]
- │   │       │               │                   │           ├─ AssetCommandFilter_c1 [132..133]
- │   │       │               │                   │           │   └─ AssetCommandFilterOperator [132..133]: ":"
- │   │       │               │                   │           └─ AssetCommandFilter_c2 [133..145]
- │   │       │               │                   │               └─ AssetCommandFilterName [133..145]: "mouth.closed"
- │   │       │               │                   └─ RequiredWhitespace [145..146]: " "
- │   │       │               └─ AssetCommandContent_c2 [146..166]
- │   │       │                   ├─ AssetCommandValueClause [146..156]
- │   │       │                   │   ├─ AssetCommandValueClause_c1 [146..151]
- │   │       │                   │   │   └─ AssetCommandClauseKeyword [146..151]: "morph"
- │   │       │                   │   ├─ AssetCommandValueClause_c2 [151..152]
- │   │       │                   │   │   └─ RequiredWhitespace [151..152]: " "
- │   │       │                   │   └─ AssetCommandValueClause_c3 [152..156]
- │   │       │                   │       └─ AssetCommandClauseValue [152..156]
- │   │       │                   │           └─ AssetCommandClauseValue_c1 [152..156]
- │   │       │                   │               └─ NameValue [152..156]: "none"
- │   │       │                   ├─ RequiredWhitespace [156..157]: " "
- │   │       │                   └─ AssetCommandValueClause [157..166]
- │   │       │                       ├─ AssetCommandValueClause_c1 [157..161]
- │   │       │                       │   └─ AssetCommandClauseKeyword [157..161]: "with"
- │   │       │                       ├─ AssetCommandValueClause_c2 [161..162]
- │   │       │                       │   └─ RequiredWhitespace [161..162]: " "
- │   │       │                       └─ AssetCommandValueClause_c3 [162..166]
- │   │       │                           └─ AssetCommandClauseValue [162..166]
- │   │       │                               └─ AssetCommandClauseValue_c1 [162..166]
- │   │       │                                   └─ NameValue [162..166]: "fade"
+ │   │       │           └─ ImageCommandWords [105..166]
+ │   │       │               ├─ ImageCommandWords_c1 105
+ │   │       │               ├─ ImageCommandWords_c2 105
+ │   │       │               ├─ ImageCommandWords_c3 105
+ │   │       │               ├─ ImageCommandWords_c4 105
+ │   │       │               ├─ ImageCommandWords_c5 105
+ │   │       │               ├─ ImageCommandWords_c6 105
+ │   │       │               ├─ ImageCommandWords_c7 [105..109]
+ │   │       │               │   └─ AssetCommandControl [105..109]: "show"
+ │   │       │               ├─ ImageCommandWords_c8 [109..110]
+ │   │       │               │   └─ RequiredWhitespace [109..110]: " "
+ │   │       │               ├─ ImageCommandWords_c9 [110..118]
+ │   │       │               │   └─ AssetCommandTarget [110..118]: "portrait"
+ │   │       │               ├─ ImageCommandWords_c10 [118..145]
+ │   │       │               │   ├─ AssetCommandSeparator [118..119]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [118..119]
+ │   │       │               │   │       └─ RequiredWhitespace [118..119]: " "
+ │   │       │               │   └─ AssetCommandName [119..145]
+ │   │       │               │       └─ AssetCommandName_c1 [119..145]
+ │   │       │               │           └─ AssetCommandFilteredFileName [119..145]
+ │   │       │               │               ├─ AssetCommandFilteredFileName_c1 [119..132]
+ │   │       │               │               │   └─ AssetCommandFileName [119..132]: "mia@confident"
+ │   │       │               │               └─ AssetCommandFilteredFileName_c2 [132..145]
+ │   │       │               │                   └─ AssetCommandFilter [132..145]
+ │   │       │               │                       ├─ AssetCommandFilter_c1 [132..133]
+ │   │       │               │                       │   └─ AssetCommandFilterOperator [132..133]: ":"
+ │   │       │               │                       └─ AssetCommandFilter_c2 [133..145]
+ │   │       │               │                           └─ AssetCommandFilterName [133..145]: "mouth.closed"
+ │   │       │               ├─ ImageCommandWords_c11 [145..166]
+ │   │       │               │   ├─ AssetCommandSeparator [145..146]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [145..146]
+ │   │       │               │   │       └─ RequiredWhitespace [145..146]: " "
+ │   │       │               │   ├─ AssetCommandValueClause [146..156]
+ │   │       │               │   │   ├─ AssetCommandValueClause_c1 [146..151]
+ │   │       │               │   │   │   └─ AssetCommandClauseKeyword [146..151]: "morph"
+ │   │       │               │   │   ├─ AssetCommandValueClause_c2 [151..152]
+ │   │       │               │   │   │   └─ RequiredWhitespace [151..152]: " "
+ │   │       │               │   │   └─ AssetCommandValueClause_c3 [152..156]
+ │   │       │               │   │       └─ AssetCommandClauseValue [152..156]
+ │   │       │               │   │           └─ AssetCommandClauseValue_c1 [152..156]
+ │   │       │               │   │               └─ NameValue [152..156]: "none"
+ │   │       │               │   ├─ AssetCommandSeparator [156..157]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [156..157]
+ │   │       │               │   │       └─ RequiredWhitespace [156..157]: " "
+ │   │       │               │   └─ AssetCommandValueClause [157..166]
+ │   │       │               │       ├─ AssetCommandValueClause_c1 [157..161]
+ │   │       │               │       │   └─ AssetCommandClauseKeyword [157..161]: "with"
+ │   │       │               │       ├─ AssetCommandValueClause_c2 [161..162]
+ │   │       │               │       │   └─ RequiredWhitespace [161..162]: " "
+ │   │       │               │       └─ AssetCommandValueClause_c3 [162..166]
+ │   │       │               │           └─ AssetCommandClauseValue [162..166]
+ │   │       │               │               └─ AssetCommandClauseValue_c1 [162..166]
+ │   │       │               │                   └─ NameValue [162..166]: "fade"
+ │   │       │               ├─ ImageCommandWords_c12 166
+ │   │       │               ├─ ImageCommandWords_c13 166
+ │   │       │               ├─ ImageCommandWords_c14 166
+ │   │       │               └─ ImageCommandWords_c15 166
+ │   │       │                   └─ OptionalWhitespace 166
  │   │       └─ ImageCommand_end [166..168]
  │   │           ├─ ImageCommand_end_c1 166
  │   │           ├─ ImageCommand_end_c2 [166..168]

@@ -26,18 +26,26 @@ sparkdown [0..155]
  │   │       ├─ ImageCommand_content [16..26]
  │   │       │   └─ ImageCommandContent [16..26]
  │   │       │       └─ ImageCommandContent_c1 [16..26]
- │   │       │           └─ AssetCommandContent [16..26]
- │   │       │               ├─ AssetCommandContent_c1 [16..26]
- │   │       │               │   └─ AssetCommandInstruction [16..26]
- │   │       │               │       ├─ AssetCommandInstruction_c1 [16..20]
- │   │       │               │       │   └─ AssetCommandControl [16..20]: "play"
- │   │       │               │       ├─ AssetCommandInstruction_c2 [20..21]
- │   │       │               │       │   └─ RequiredWhitespace [20..21]: " "
- │   │       │               │       ├─ AssetCommandInstruction_c3 [21..26]
- │   │       │               │       │   └─ AssetCommandTarget [21..26]: "intro"
- │   │       │               │       ├─ AssetCommandInstruction_c4 26
- │   │       │               │       └─ AssetCommandInstruction_c5 26
- │   │       │               └─ AssetCommandContent_c2 26
+ │   │       │           └─ ImageCommandWords [16..26]
+ │   │       │               ├─ ImageCommandWords_c1 16
+ │   │       │               ├─ ImageCommandWords_c2 16
+ │   │       │               ├─ ImageCommandWords_c3 16
+ │   │       │               ├─ ImageCommandWords_c4 16
+ │   │       │               ├─ ImageCommandWords_c5 16
+ │   │       │               ├─ ImageCommandWords_c6 16
+ │   │       │               ├─ ImageCommandWords_c7 [16..20]
+ │   │       │               │   └─ AssetCommandControl [16..20]: "play"
+ │   │       │               ├─ ImageCommandWords_c8 [20..21]
+ │   │       │               │   └─ RequiredWhitespace [20..21]: " "
+ │   │       │               ├─ ImageCommandWords_c9 [21..26]
+ │   │       │               │   └─ AssetCommandTarget [21..26]: "intro"
+ │   │       │               ├─ ImageCommandWords_c10 26
+ │   │       │               ├─ ImageCommandWords_c11 26
+ │   │       │               ├─ ImageCommandWords_c12 26
+ │   │       │               ├─ ImageCommandWords_c13 26
+ │   │       │               ├─ ImageCommandWords_c14 26
+ │   │       │               └─ ImageCommandWords_c15 26
+ │   │       │                   └─ OptionalWhitespace 26
  │   │       └─ ImageCommand_end [26..28]
  │   │           ├─ ImageCommand_end_c1 26
  │   │           ├─ ImageCommand_end_c2 [26..28]
@@ -59,20 +67,30 @@ sparkdown [0..155]
  │   │       ├─ ImageCommand_content [33..48]
  │   │       │   └─ ImageCommandContent [33..48]
  │   │       │       └─ ImageCommandContent_c1 [33..48]
- │   │       │           └─ AssetCommandContent [33..48]
- │   │       │               ├─ AssetCommandContent_c1 [33..44]
- │   │       │               │   └─ AssetCommandInstruction [33..44]
- │   │       │               │       ├─ AssetCommandInstruction_c1 [33..37]
- │   │       │               │       │   └─ AssetCommandControl [33..37]: "play"
- │   │       │               │       ├─ AssetCommandInstruction_c2 [37..38]
- │   │       │               │       │   └─ RequiredWhitespace [37..38]: " "
- │   │       │               │       ├─ AssetCommandInstruction_c3 [38..43]
- │   │       │               │       │   └─ AssetCommandTarget [38..43]: "intro"
- │   │       │               │       ├─ AssetCommandInstruction_c4 [43..44]
- │   │       │               │       │   └─ RequiredWhitespace [43..44]: " "
- │   │       │               │       └─ AssetCommandInstruction_c5 44
- │   │       │               └─ AssetCommandContent_c2 [44..48]
- │   │       │                   └─ AssetCommandClauseKeyword [44..48]: "loop"
+ │   │       │           └─ ImageCommandWords [33..48]
+ │   │       │               ├─ ImageCommandWords_c1 33
+ │   │       │               ├─ ImageCommandWords_c2 33
+ │   │       │               ├─ ImageCommandWords_c3 33
+ │   │       │               ├─ ImageCommandWords_c4 33
+ │   │       │               ├─ ImageCommandWords_c5 33
+ │   │       │               ├─ ImageCommandWords_c6 33
+ │   │       │               ├─ ImageCommandWords_c7 [33..37]
+ │   │       │               │   └─ AssetCommandControl [33..37]: "play"
+ │   │       │               ├─ ImageCommandWords_c8 [37..38]
+ │   │       │               │   └─ RequiredWhitespace [37..38]: " "
+ │   │       │               ├─ ImageCommandWords_c9 [38..43]
+ │   │       │               │   └─ AssetCommandTarget [38..43]: "intro"
+ │   │       │               ├─ ImageCommandWords_c10 43
+ │   │       │               ├─ ImageCommandWords_c11 [43..48]
+ │   │       │               │   ├─ AssetCommandSeparator [43..44]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [43..44]
+ │   │       │               │   │       └─ RequiredWhitespace [43..44]: " "
+ │   │       │               │   └─ AssetCommandClauseKeyword [44..48]: "loop"
+ │   │       │               ├─ ImageCommandWords_c12 48
+ │   │       │               ├─ ImageCommandWords_c13 48
+ │   │       │               ├─ ImageCommandWords_c14 48
+ │   │       │               └─ ImageCommandWords_c15 48
+ │   │       │                   └─ OptionalWhitespace 48
  │   │       └─ ImageCommand_end [48..50]
  │   │           ├─ ImageCommand_end_c1 48
  │   │           ├─ ImageCommand_end_c2 [48..50]
@@ -94,28 +112,38 @@ sparkdown [0..155]
  │   │       ├─ ImageCommand_content [55..75]
  │   │       │   └─ ImageCommandContent [55..75]
  │   │       │       └─ ImageCommandContent_c1 [55..75]
- │   │       │           └─ AssetCommandContent [55..75]
- │   │       │               ├─ AssetCommandContent_c1 [55..66]
- │   │       │               │   └─ AssetCommandInstruction [55..66]
- │   │       │               │       ├─ AssetCommandInstruction_c1 [55..59]
- │   │       │               │       │   └─ AssetCommandControl [55..59]: "play"
- │   │       │               │       ├─ AssetCommandInstruction_c2 [59..60]
- │   │       │               │       │   └─ RequiredWhitespace [59..60]: " "
- │   │       │               │       ├─ AssetCommandInstruction_c3 [60..65]
- │   │       │               │       │   └─ AssetCommandTarget [60..65]: "intro"
- │   │       │               │       ├─ AssetCommandInstruction_c4 [65..66]
- │   │       │               │       │   └─ RequiredWhitespace [65..66]: " "
- │   │       │               │       └─ AssetCommandInstruction_c5 66
- │   │       │               └─ AssetCommandContent_c2 [66..75]
- │   │       │                   └─ AssetCommandValueClause [66..75]
- │   │       │                       ├─ AssetCommandValueClause_c1 [66..70]
- │   │       │                       │   └─ AssetCommandClauseKeyword [66..70]: "with"
- │   │       │                       ├─ AssetCommandValueClause_c2 [70..71]
- │   │       │                       │   └─ RequiredWhitespace [70..71]: " "
- │   │       │                       └─ AssetCommandValueClause_c3 [71..75]
- │   │       │                           └─ AssetCommandClauseValue [71..75]
- │   │       │                               └─ AssetCommandClauseValue_c1 [71..75]
- │   │       │                                   └─ NameValue [71..75]: "fade"
+ │   │       │           └─ ImageCommandWords [55..75]
+ │   │       │               ├─ ImageCommandWords_c1 55
+ │   │       │               ├─ ImageCommandWords_c2 55
+ │   │       │               ├─ ImageCommandWords_c3 55
+ │   │       │               ├─ ImageCommandWords_c4 55
+ │   │       │               ├─ ImageCommandWords_c5 55
+ │   │       │               ├─ ImageCommandWords_c6 55
+ │   │       │               ├─ ImageCommandWords_c7 [55..59]
+ │   │       │               │   └─ AssetCommandControl [55..59]: "play"
+ │   │       │               ├─ ImageCommandWords_c8 [59..60]
+ │   │       │               │   └─ RequiredWhitespace [59..60]: " "
+ │   │       │               ├─ ImageCommandWords_c9 [60..65]
+ │   │       │               │   └─ AssetCommandTarget [60..65]: "intro"
+ │   │       │               ├─ ImageCommandWords_c10 65
+ │   │       │               ├─ ImageCommandWords_c11 [65..75]
+ │   │       │               │   ├─ AssetCommandSeparator [65..66]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [65..66]
+ │   │       │               │   │       └─ RequiredWhitespace [65..66]: " "
+ │   │       │               │   └─ AssetCommandValueClause [66..75]
+ │   │       │               │       ├─ AssetCommandValueClause_c1 [66..70]
+ │   │       │               │       │   └─ AssetCommandClauseKeyword [66..70]: "with"
+ │   │       │               │       ├─ AssetCommandValueClause_c2 [70..71]
+ │   │       │               │       │   └─ RequiredWhitespace [70..71]: " "
+ │   │       │               │       └─ AssetCommandValueClause_c3 [71..75]
+ │   │       │               │           └─ AssetCommandClauseValue [71..75]
+ │   │       │               │               └─ AssetCommandClauseValue_c1 [71..75]
+ │   │       │               │                   └─ NameValue [71..75]: "fade"
+ │   │       │               ├─ ImageCommandWords_c12 75
+ │   │       │               ├─ ImageCommandWords_c13 75
+ │   │       │               ├─ ImageCommandWords_c14 75
+ │   │       │               └─ ImageCommandWords_c15 75
+ │   │       │                   └─ OptionalWhitespace 75
  │   │       └─ ImageCommand_end [75..77]
  │   │           ├─ ImageCommand_end_c1 75
  │   │           ├─ ImageCommand_end_c2 [75..77]
@@ -137,44 +165,60 @@ sparkdown [0..155]
  │   │       ├─ ImageCommand_content [82..120]
  │   │       │   └─ ImageCommandContent [82..120]
  │   │       │       └─ ImageCommandContent_c1 [82..120]
- │   │       │           └─ AssetCommandContent [82..120]
- │   │       │               ├─ AssetCommandContent_c1 [82..93]
- │   │       │               │   └─ AssetCommandInstruction [82..93]
- │   │       │               │       ├─ AssetCommandInstruction_c1 [82..86]
- │   │       │               │       │   └─ AssetCommandControl [82..86]: "play"
- │   │       │               │       ├─ AssetCommandInstruction_c2 [86..87]
- │   │       │               │       │   └─ RequiredWhitespace [86..87]: " "
- │   │       │               │       ├─ AssetCommandInstruction_c3 [87..92]
- │   │       │               │       │   └─ AssetCommandTarget [87..92]: "intro"
- │   │       │               │       ├─ AssetCommandInstruction_c4 [92..93]
- │   │       │               │       │   └─ RequiredWhitespace [92..93]: " "
- │   │       │               │       └─ AssetCommandInstruction_c5 93
- │   │       │               └─ AssetCommandContent_c2 [93..120]
- │   │       │                   ├─ AssetCommandClauseKeyword [93..97]: "loop"
- │   │       │                   ├─ RequiredWhitespace [97..98]: " "
- │   │       │                   ├─ AssetCommandClauseKeyword [98..102]: "mute"
- │   │       │                   ├─ RequiredWhitespace [102..103]: " "
- │   │       │                   ├─ AssetCommandValueClause [103..112]
- │   │       │                   │   ├─ AssetCommandValueClause_c1 [103..107]
- │   │       │                   │   │   └─ AssetCommandClauseKeyword [103..107]: "with"
- │   │       │                   │   ├─ AssetCommandValueClause_c2 [107..108]
- │   │       │                   │   │   └─ RequiredWhitespace [107..108]: " "
- │   │       │                   │   └─ AssetCommandValueClause_c3 [108..112]
- │   │       │                   │       └─ AssetCommandClauseValue [108..112]
- │   │       │                   │           └─ AssetCommandClauseValue_c1 [108..112]
- │   │       │                   │               └─ NameValue [108..112]: "fade"
- │   │       │                   ├─ RequiredWhitespace [112..113]: " "
- │   │       │                   └─ AssetCommandValueClause [113..120]
- │   │       │                       ├─ AssetCommandValueClause_c1 [113..117]
- │   │       │                       │   └─ AssetCommandClauseKeyword [113..117]: "over"
- │   │       │                       ├─ AssetCommandValueClause_c2 [117..118]
- │   │       │                       │   └─ RequiredWhitespace [117..118]: " "
- │   │       │                       └─ AssetCommandValueClause_c3 [118..120]
- │   │       │                           └─ AssetCommandClauseValue [118..120]
- │   │       │                               └─ AssetCommandClauseValue_c1 [118..120]
- │   │       │                                   └─ TimeValue [118..120]
- │   │       │                                       ├─ TimeValue_c1 [118..119]: "1"
- │   │       │                                       └─ TimeValue_c2 [119..120]: "s"
+ │   │       │           └─ ImageCommandWords [82..120]
+ │   │       │               ├─ ImageCommandWords_c1 82
+ │   │       │               ├─ ImageCommandWords_c2 82
+ │   │       │               ├─ ImageCommandWords_c3 82
+ │   │       │               ├─ ImageCommandWords_c4 82
+ │   │       │               ├─ ImageCommandWords_c5 82
+ │   │       │               ├─ ImageCommandWords_c6 82
+ │   │       │               ├─ ImageCommandWords_c7 [82..86]
+ │   │       │               │   └─ AssetCommandControl [82..86]: "play"
+ │   │       │               ├─ ImageCommandWords_c8 [86..87]
+ │   │       │               │   └─ RequiredWhitespace [86..87]: " "
+ │   │       │               ├─ ImageCommandWords_c9 [87..92]
+ │   │       │               │   └─ AssetCommandTarget [87..92]: "intro"
+ │   │       │               ├─ ImageCommandWords_c10 92
+ │   │       │               ├─ ImageCommandWords_c11 [92..120]
+ │   │       │               │   ├─ AssetCommandSeparator [92..93]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [92..93]
+ │   │       │               │   │       └─ RequiredWhitespace [92..93]: " "
+ │   │       │               │   ├─ AssetCommandClauseKeyword [93..97]: "loop"
+ │   │       │               │   ├─ AssetCommandSeparator [97..98]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [97..98]
+ │   │       │               │   │       └─ RequiredWhitespace [97..98]: " "
+ │   │       │               │   ├─ AssetCommandClauseKeyword [98..102]: "mute"
+ │   │       │               │   ├─ AssetCommandSeparator [102..103]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [102..103]
+ │   │       │               │   │       └─ RequiredWhitespace [102..103]: " "
+ │   │       │               │   ├─ AssetCommandValueClause [103..112]
+ │   │       │               │   │   ├─ AssetCommandValueClause_c1 [103..107]
+ │   │       │               │   │   │   └─ AssetCommandClauseKeyword [103..107]: "with"
+ │   │       │               │   │   ├─ AssetCommandValueClause_c2 [107..108]
+ │   │       │               │   │   │   └─ RequiredWhitespace [107..108]: " "
+ │   │       │               │   │   └─ AssetCommandValueClause_c3 [108..112]
+ │   │       │               │   │       └─ AssetCommandClauseValue [108..112]
+ │   │       │               │   │           └─ AssetCommandClauseValue_c1 [108..112]
+ │   │       │               │   │               └─ NameValue [108..112]: "fade"
+ │   │       │               │   ├─ AssetCommandSeparator [112..113]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [112..113]
+ │   │       │               │   │       └─ RequiredWhitespace [112..113]: " "
+ │   │       │               │   └─ AssetCommandValueClause [113..120]
+ │   │       │               │       ├─ AssetCommandValueClause_c1 [113..117]
+ │   │       │               │       │   └─ AssetCommandClauseKeyword [113..117]: "over"
+ │   │       │               │       ├─ AssetCommandValueClause_c2 [117..118]
+ │   │       │               │       │   └─ RequiredWhitespace [117..118]: " "
+ │   │       │               │       └─ AssetCommandValueClause_c3 [118..120]
+ │   │       │               │           └─ AssetCommandClauseValue [118..120]
+ │   │       │               │               └─ AssetCommandClauseValue_c1 [118..120]
+ │   │       │               │                   └─ TimeValue [118..120]
+ │   │       │               │                       ├─ TimeValue_c1 [118..119]: "1"
+ │   │       │               │                       └─ TimeValue_c2 [119..120]: "s"
+ │   │       │               ├─ ImageCommandWords_c12 120
+ │   │       │               ├─ ImageCommandWords_c13 120
+ │   │       │               ├─ ImageCommandWords_c14 120
+ │   │       │               └─ ImageCommandWords_c15 120
+ │   │       │                   └─ OptionalWhitespace 120
  │   │       └─ ImageCommand_end [120..122]
  │   │           ├─ ImageCommand_end_c1 120
  │   │           ├─ ImageCommand_end_c2 [120..122]
@@ -196,24 +240,30 @@ sparkdown [0..155]
  │   │       ├─ AudioCommand_content [127..148]
  │   │       │   └─ AudioCommandContent [127..148]
  │   │       │       └─ AudioCommandContent_c1 [127..148]
- │   │       │           └─ AssetCommandContent [127..148]
- │   │       │               ├─ AssetCommandContent_c1 [127..144]
- │   │       │               │   └─ AssetCommandInstruction [127..144]
- │   │       │               │       ├─ AssetCommandInstruction_c1 [127..131]
- │   │       │               │       │   └─ AssetCommandControl [127..131]: "play"
- │   │       │               │       ├─ AssetCommandInstruction_c2 [131..132]
- │   │       │               │       │   └─ RequiredWhitespace [131..132]: " "
- │   │       │               │       ├─ AssetCommandInstruction_c3 [132..137]
- │   │       │               │       │   └─ AssetCommandTarget [132..137]: "music"
- │   │       │               │       ├─ AssetCommandInstruction_c4 [137..138]
- │   │       │               │       │   └─ RequiredWhitespace [137..138]: " "
- │   │       │               │       └─ AssetCommandInstruction_c5 [138..144]
- │   │       │               │           └─ AssetCommandName [138..144]
- │   │       │               │               └─ AssetCommandName_c1 [138..144]
- │   │       │               │                   ├─ AssetCommandFileName [138..143]: "theme"
- │   │       │               │                   └─ RequiredWhitespace [143..144]: " "
- │   │       │               └─ AssetCommandContent_c2 [144..148]
- │   │       │                   └─ AssetCommandClauseKeyword [144..148]: "loop"
+ │   │       │           └─ AudioCommandWords [127..148]
+ │   │       │               ├─ AudioCommandWords_c1 [127..131]
+ │   │       │               │   └─ AssetCommandControl [127..131]: "play"
+ │   │       │               ├─ AudioCommandWords_c2 [131..132]
+ │   │       │               │   └─ RequiredWhitespace [131..132]: " "
+ │   │       │               ├─ AudioCommandWords_c3 [132..137]
+ │   │       │               │   └─ AssetCommandTarget [132..137]: "music"
+ │   │       │               ├─ AudioCommandWords_c4 [137..143]
+ │   │       │               │   ├─ AssetCommandSeparator [137..138]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [137..138]
+ │   │       │               │   │       └─ RequiredWhitespace [137..138]: " "
+ │   │       │               │   └─ AssetCommandName [138..143]
+ │   │       │               │       └─ AssetCommandName_c1 [138..143]
+ │   │       │               │           └─ AssetCommandFileName [138..143]: "theme"
+ │   │       │               ├─ AudioCommandWords_c5 [143..148]
+ │   │       │               │   ├─ AssetCommandSeparator [143..144]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [143..144]
+ │   │       │               │   │       └─ RequiredWhitespace [143..144]: " "
+ │   │       │               │   └─ AssetCommandClauseKeyword [144..148]: "loop"
+ │   │       │               ├─ AudioCommandWords_c6 148
+ │   │       │               ├─ AudioCommandWords_c7 148
+ │   │       │               ├─ AudioCommandWords_c8 148
+ │   │       │               └─ AudioCommandWords_c9 148
+ │   │       │                   └─ OptionalWhitespace 148
  │   │       └─ AudioCommand_end [148..150]
  │   │           ├─ AudioCommand_end_c1 148
  │   │           ├─ AudioCommand_end_c2 [148..150]

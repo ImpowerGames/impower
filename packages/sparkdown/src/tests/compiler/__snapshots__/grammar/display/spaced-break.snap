@@ -152,18 +152,26 @@ sparkdown [0..184]
  │   │       │   │   │       ├─ ImageCommand_content [63..72]
  │   │       │   │   │       │   └─ ImageCommandContent [63..72]
  │   │       │   │   │       │       └─ ImageCommandContent_c1 [63..72]
- │   │       │   │   │       │           └─ AssetCommandContent [63..72]
- │   │       │   │   │       │               ├─ AssetCommandContent_c1 [63..72]
- │   │       │   │   │       │               │   └─ AssetCommandInstruction [63..72]
- │   │       │   │   │       │               │       ├─ AssetCommandInstruction_c1 63
- │   │       │   │   │       │               │       ├─ AssetCommandInstruction_c2 63
- │   │       │   │   │       │               │       ├─ AssetCommandInstruction_c3 63
- │   │       │   │   │       │               │       ├─ AssetCommandInstruction_c4 63
- │   │       │   │   │       │               │       └─ AssetCommandInstruction_c5 [63..72]
- │   │       │   │   │       │               │           └─ AssetCommandName [63..72]
- │   │       │   │   │       │               │               └─ AssetCommandName_c1 [63..72]
- │   │       │   │   │       │               │                   └─ AssetCommandFileName [63..72]: "cg_sunset"
- │   │       │   │   │       │               └─ AssetCommandContent_c2 72
+ │   │       │   │   │       │           └─ ImageCommandWords [63..72]
+ │   │       │   │   │       │               ├─ ImageCommandWords_c1 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c2 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c3 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c4 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c5 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c6 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c7 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c8 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c9 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c10 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c11 63
+ │   │       │   │   │       │               ├─ ImageCommandWords_c12 [63..72]
+ │   │       │   │   │       │               │   └─ AssetCommandName [63..72]
+ │   │       │   │   │       │               │       └─ AssetCommandName_c1 [63..72]
+ │   │       │   │   │       │               │           └─ AssetCommandFileName [63..72]: "cg_sunset"
+ │   │       │   │   │       │               ├─ ImageCommandWords_c13 72
+ │   │       │   │   │       │               ├─ ImageCommandWords_c14 72
+ │   │       │   │   │       │               └─ ImageCommandWords_c15 72
+ │   │       │   │   │       │                   └─ OptionalWhitespace 72
  │   │       │   │   │       └─ ImageCommand_end [72..75]
  │   │       │   │   │           ├─ ImageCommand_end_c1 72
  │   │       │   │   │           ├─ ImageCommand_end_c2 [72..74]
