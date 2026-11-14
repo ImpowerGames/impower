@@ -43,6 +43,7 @@
   --color-workspace: var(--workspace);
   --color-workspace-deep: var(--workspace-deep);
   --color-preview-mat: var(--preview-mat);
+  --color-preview-strip: var(--preview-strip);
   --color-elevated: var(--elevated);
   --color-ink: var(--ink);
   --color-muted: var(--muted);

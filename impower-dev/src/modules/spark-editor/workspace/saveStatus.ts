@@ -102,7 +102,7 @@ export const saveStatusOf = (
 ): SaveStatus | null => {
   if (importProgress) {
     return {
-      text: `Importing ${importProgress.loaded} of ${importProgress.total}…`,
+      text: `Adding ${importProgress.loaded} of ${importProgress.total}…`,
       tone: "pending",
       action: "menu",
     };

@@ -1,6 +1,19 @@
 import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
-import TextField, { type TextFieldFont, type TextFieldFrame, type TextFieldSize, type TextFieldWidth } from "./TextField";
+import TextField, {
+  type TextFieldFont,
+  type TextFieldFrame,
+  type TextFieldPurpose,
+  type TextFieldSize,
+  type TextFieldWidth,
+} from "./TextField";
+
+const PURPOSES: Record<TextFieldPurpose, { label: string; example: string }> = {
+  text: { label: "Words: a project title", example: "Night shift" },
+  literal: { label: "Typed exactly: a name or value", example: "backdrop_day" },
+  search: { label: "Search", example: "" },
+  url: { label: "Web address", example: "https://cdn.example.com/image.png" },
+};
 
 const FRAMES: Record<TextFieldFrame, string> = {
   own: "Its own border",
@@ -10,6 +23,7 @@ const FRAMES: Record<TextFieldFrame, string> = {
 const SIZES: Record<TextFieldSize, string> = {
   default: "Default",
   tall: "Tall",
+  dialog: "Dialog form field",
 };
 
 const WIDTHS: Record<TextFieldWidth, string> = {
@@ -52,6 +66,21 @@ function TextFieldDemo() {
           <TextField aria-label="Disabled" defaultValue="Disabled" disabled data-gallery-control />
         </div>
       </GalleryRow>
+      <GalleryRow label="Every purpose, each with its own keyboard and Enter key">
+        <div class="flex flex-wrap items-center gap-4">
+          {(Object.keys(PURPOSES) as TextFieldPurpose[]).map((purpose) => (
+            <TextField
+              key={purpose}
+              purpose={purpose}
+              width="wide"
+              aria-label={PURPOSES[purpose].label}
+              placeholder={PURPOSES[purpose].label}
+              defaultValue={PURPOSES[purpose].example}
+              data-gallery-control
+            />
+          ))}
+        </div>
+      </GalleryRow>
       <GalleryRow label="Every frame">
         <div class="flex flex-wrap items-center gap-4">
           {(Object.keys(FRAMES) as TextFieldFrame[]).map((frame) =>
@@ -69,6 +98,22 @@ function TextFieldDemo() {
           )}
         </div>
       </GalleryRow>
+      <GalleryRow label="With a suffix, in every size">
+        <div class="flex flex-wrap items-center gap-4">
+          {(Object.keys(SIZES) as TextFieldSize[]).map((size) => (
+            <TextField
+              key={size}
+              size={size}
+              width="wide"
+              purpose="literal"
+              suffix=".url"
+              aria-label={`${SIZES[size]} with a suffix`}
+              defaultValue="backdrop"
+              data-gallery-control
+            />
+          ))}
+        </div>
+      </GalleryRow>
       <GalleryRow label={`Controlled: ${name}`}>
         <TextField aria-label="Folder" value={name} onValueChange={setName} />
       </GalleryRow>
@@ -78,6 +123,6 @@ function TextFieldDemo() {
 
 export const textFieldGallery: GalleryEntry = {
   title: "TextField",
-  exports: ["TextField", "textFieldVariants"],
+  exports: ["TextField", "textFieldVariants", "textFieldPurposeAttributes"],
   Demo: TextFieldDemo,
 };

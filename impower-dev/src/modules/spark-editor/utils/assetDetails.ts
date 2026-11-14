@@ -111,7 +111,7 @@ export const assetDetails = ({
     rows.push({ label: "Size", value: `${measured.pixels.width} × ${measured.pixels.height}` });
   }
   if (measured.seconds != null && Number.isFinite(measured.seconds) && measured.seconds > 0) {
-    rows.push({ label: "Length", value: clock(Math.round(measured.seconds)) });
+    rows.push({ label: "Length", value: clock(measured.seconds) });
   }
   const total = asset.files.reduce((sum, file) => sum + file.size, 0);
   rows.push(

@@ -1,17 +1,22 @@
+import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
+import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const downloadFile = vi.hoisted(() => vi.fn());
+const recordCreate = vi.hoisted(() => vi.fn());
 vi.mock("../../src/modules/spark-editor/utils/downloadFile", () => ({ downloadFile }));
 vi.mock("../../src/modules/spark-editor/utils/fileUndo", async (original) => ({
   renameFile: (await original<typeof import("../../src/modules/spark-editor/utils/fileUndo")>()).renameFile,
   recordMove: vi.fn(),
+  recordCreate,
   recordTrashDeletion: vi.fn(async () => undefined),
 }));
 
 const { default: workspace } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceStore"
 );
-const { default: WorkspaceScripts } = await import(
+const { default: WorkspaceScripts, PROJECT_CHANGED, SCRIPTS_LOADING } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceScripts"
 );
 const { scriptRows } = await import(
@@ -126,18 +131,125 @@ describe("Scripts through the workspace", () => {
     ]);
   });
 
-  it("refuses a new script named con with the reserved-name message", async () => {
+  it("refuses a new folder named con with the reserved-name message", async () => {
     const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
-    await expect(scripts.create("script", "", "con")).rejects.toThrow(NAME_MESSAGES.reserved);
-    expect(fs.createFiles).not.toHaveBeenCalled();
+    await expect(scripts.createFolder("", "con")).rejects.toThrow(NAME_MESSAGES.reserved);
+    expect(fs.createFolder).not.toHaveBeenCalled();
   });
 
-  it("creates a script in the Scripts folder when the browser is at its root", async () => {
+  it("creates an empty Untitled script in the Scripts folder when the browser is at its root, and records it for Undo", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
+    const [created] = fs.createFiles.mock.calls[0]![0].files;
+    expect(created!.uri).toBe(uri("Scripts/Untitled script.sd"));
+    expect((created!.data as ArrayBuffer).byteLength).toBe(0);
+    expect(recordCreate).toHaveBeenCalledWith(PROJECT, [uri("Scripts/Untitled script.sd")], "Untitled script.sd");
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script 2.sd");
+  });
+
+  it("gives scripts created at the same time a name each, each recorded once for Undo", async () => {
+    const { scripts } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    recordCreate.mockClear();
+    const created = await Promise.all([scripts.createScript(""), scripts.createScript("")]);
+    expect(created).toEqual(["Scripts/Untitled script.sd", "Scripts/Untitled script 2.sd"]);
+    expect(recordCreate.mock.calls.map(([, uris]) => uris)).toEqual([
+      [uri("Scripts/Untitled script.sd")],
+      [uri("Scripts/Untitled script 2.sd")],
+    ]);
+  });
+
+  it("reads the scripts before naming a script created while the list is still loading, never writing over one", async () => {
+    const { scripts, files } = fakeWorkspace([...PATHS, "Scripts/Untitled script.sd"], FOLDERS);
+    workspace.scriptListing.value = null;
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script 2.sd");
+    expect(files.get("Scripts/Untitled script.sd")).toBe("text of Scripts/Untitled script.sd");
+  });
+
+  it("reads the scripts again when a read fails, and refuses with the message, adding nothing, only when every read fails", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
+    workspace.scriptListing.value = null;
+    fs.getFiles.mockRejectedValueOnce(new Error("Project not loaded: p"));
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
+    workspace.scriptListing.value = null;
+    fs.getFiles.mockRejectedValue(new Error("Project not loaded: p"));
+    await expect(scripts.createScript("")).rejects.toThrow(SCRIPTS_LOADING);
+    expect(fs.createFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("names past a script it has just written that the file list does not show yet", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    const before = await fs.getFiles();
+    fs.getFiles.mockImplementation(async () => before);
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script 2.sd");
+  });
+
+  it("stops counting a written script once the list shows it, or once it is deleted or renamed first", async () => {
+    const { scripts, fs, files } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    const unlisted = () => [...(scripts as unknown as { unlisted: Set<string> }).unlisted];
+    const current = fs.getFiles.getMockImplementation()!;
+    const before = await fs.getFiles();
+    fs.getFiles.mockImplementation(async () => before);
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
+    expect(unlisted()).toEqual(["Scripts/Untitled script.sd"]);
+    files.delete("Scripts/Untitled script.sd");
+    sendProtocolMessage(DidDeleteFilesMessage.type.notification({ files: [{ uri: uri("Scripts/Untitled script.sd") }] }));
+    expect(unlisted()).toEqual([]);
+    expect(await scripts.createScript("Scripts/Drafts")).toBe("Scripts/Drafts/Untitled script.sd");
+    sendProtocolMessage(
+      DidRenameFilesMessage.type.notification({
+        files: [{ oldUri: uri("Scripts/Drafts"), newUri: uri("Scripts/Old drafts") }],
+      }),
+    );
+    expect(unlisted()).toEqual([]);
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
+    fs.getFiles.mockImplementation(current);
+    await scripts.load();
+    expect(unlisted()).toEqual([]);
+  });
+
+  it("runs the next waiting create after one ahead of it fails, which keeps no name", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    fs.createFiles.mockRejectedValueOnce(new Error("disk full"));
+    const [failed, next] = await Promise.allSettled([scripts.createScript(""), scripts.createScript("")]);
+    expect(failed).toMatchObject({ status: "rejected", reason: new Error("disk full") });
+    expect(next).toEqual({ status: "fulfilled", value: "Scripts/Untitled script.sd" });
+  });
+
+  it("refuses a waiting create once another project has opened, adding nothing", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    let release!: () => void;
+    fs.createFiles.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve([]); }));
+    const first = scripts.createScript("");
+    const waiting = scripts.createScript("");
+    await vi.waitFor(() => expect(fs.createFiles).toHaveBeenCalledTimes(1));
+    workspace.current = { ...workspace.current, project: { ...workspace.current.project, id: "other" } };
+    release();
+    await expect(first).resolves.toBe("Scripts/Untitled script.sd");
+    await expect(waiting).rejects.toThrow(PROJECT_CHANGED);
+    expect(fs.createFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives copies duplicated at the same time a name each", async () => {
     const { scripts, files } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
-    expect(await scripts.create("script", "", "chapter two")).toBe("Scripts/chapter two.sd");
-    expect(files.has("Scripts/chapter two.sd")).toBe(true);
+    const copies = await Promise.all([scripts.duplicate("Scripts/intro.sd"), scripts.duplicate("Scripts/intro.sd")]);
+    expect(copies).toEqual(["Scripts/intro copy.sd", "Scripts/intro copy 2.sd"]);
+    expect(files.has("Scripts/intro copy 2.sd")).toBe(true);
+  });
+
+  it("numbers a new script past a folder holding its name, and keeps it beside a folder named without the ending", async () => {
+    const { scripts } = fakeWorkspace(PATHS, [...FOLDERS, "Scripts/Untitled script.sd", "Scripts/Drafts/Untitled script"]);
+    await scripts.load();
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script 2.sd");
+    expect(await scripts.createScript("Scripts/Drafts")).toBe("Scripts/Drafts/Untitled script.sd");
   });
 
   it("refuses a rename to a name in use and renames otherwise, following an open editor", async () => {

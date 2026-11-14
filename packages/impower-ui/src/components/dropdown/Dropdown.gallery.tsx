@@ -17,6 +17,7 @@ import {
   DropdownItemText,
   DropdownRadioItem,
   type DropdownRadioItemIndicator,
+  type DropdownRadioItemSize,
   DropdownRoot,
   DropdownSeparator,
   DropdownTrigger,
@@ -95,12 +96,12 @@ const FACES = [
   ["sad", "Sad", undefined],
 ] as const;
 
-function HintedItems() {
+function HintedItems({ size }: { size?: DropdownRadioItemSize }) {
   const [value, setValue] = useState<string>("happy");
   return (
     <DropdownRadioGroup label="Face" value={value} onValueChange={setValue}>
       {FACES.map(([id, name, hint]) => (
-        <DropdownRadioItem key={id} value={id} indicator="end">
+        <DropdownRadioItem key={id} value={id} indicator="end" size={size}>
           <DropdownItemText hint={hint}>{name}</DropdownItemText>
         </DropdownRadioItem>
       ))}
@@ -163,6 +164,16 @@ function DropdownDemo() {
           </DropdownTrigger>
           <DropdownContent align="start" class="min-w-[180px]">
             <HintedItems />
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
+      <GalleryRow label="Small radio items: 13px at weight 400, the chosen one included (the asset inspector's variant menus)">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Choose a face</Button>
+          </DropdownTrigger>
+          <DropdownContent align="start" class="min-w-[180px]">
+            <HintedItems size="small" />
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>

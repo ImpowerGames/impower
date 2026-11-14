@@ -308,21 +308,34 @@ describe("the Assets page", () => {
     await mount();
     await showTab("Audio");
     expect(text()).toContain("No audio yet");
-    expect(text()).toContain("Upload sounds and music with the Add button.");
+    expect(text()).toContain("Add sounds and music with the Add button.");
     expect(text()).not.toContain("New button");
+    await showTab("Video");
+    expect(text()).toContain("Add a video with the Add button.");
+    await showTab("Text");
+    expect(text()).toContain("Add notes with the Add button.");
+    await showTab("Fonts");
+    expect(text()).toContain("Add a font with the Add button.");
     await showTab("Other");
-    expect(text()).toContain("Files of any other type land here when you upload them.");
+    expect(text()).toContain("Files of any other type land here when you add them.");
     await showTab("Images");
     await click(all<HTMLElement>('button[aria-label^="Open folder Empty"]')[0]);
     expect(text()).toContain("This folder is empty");
-    expect(text()).toContain("Upload into it with the Add button.");
+    expect(text()).toContain("Add files to it with the Add button, or drop files on it from its parent folder.");
     await act(async () => {
       setListing({});
     });
     await settle();
     expect(text()).toContain("A collection of your art");
     expect(text()).toContain("Your portraits, backgrounds, sounds and music will appear here.");
-    expect(all<HTMLButtonElement>("button").some((b) => b.textContent?.includes("Upload files"))).toBe(true);
+    expect(all<HTMLButtonElement>("button").some((b) => b.textContent?.includes("Add files from this device"))).toBe(true);
+    await act(async () => {
+      setListing({ "Assets/Audio/theme.ogg": facts() });
+    });
+    await settle();
+    await showTab("Images");
+    expect(text()).toContain("No images yet");
+    expect(text()).toContain("Add portraits and backgrounds with the Add button.");
   });
 
   it("opens the inspector on a press and the row menu from its own button", async () => {
@@ -361,7 +374,7 @@ describe("the Assets page", () => {
     await mount();
     await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
     await vi.waitFor(() =>
-      expect(menuItems()).toEqual(["Upload files", "Link a file by address", "New folder"]),
+      expect(menuItems()).toEqual(["Add files from this device", "Add a linkA file hosted on the web", "New folder"]),
     );
   });
 
@@ -405,14 +418,14 @@ describe("the Assets page", () => {
     });
     await mount();
     await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
-    await vi.waitFor(() => expect(menuItems()).toContain("Link a file by address"));
-    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Link a file by address")));
+    await vi.waitFor(() => expect(menuItems()).toContain("Add a linkA file hosted on the web"));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Add a link")));
     const [url, name] = all<HTMLInputElement>('[role="dialog"] input');
     await act(async () => {
       url!.value = "https://cdn.example.com/horn.mp3";
       url!.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await click(all<HTMLButtonElement>('[role="dialog"] button').find((b) => b.textContent?.trim() === "Add"));
+    await click(all<HTMLButtonElement>('[role="dialog"] button').find((b) => b.textContent?.trim() === "Add link"));
     expect(assets.addLink).toHaveBeenCalledWith("https://cdn.example.com/horn.mp3", "horn", "Assets/Images");
     expect(name).toBeTruthy();
     expect(selectedTab()).toBe("audio");
@@ -440,6 +453,7 @@ describe("image folders as tiles", () => {
     await mount();
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
     expect(rowLabels()).toEqual(["Open image imani, 4 variants, modified 2d · 330 b"]);
+    expect(host!.querySelector('[aria-label="Assets and folders"]')!.parentElement!.className.split(" ")).toContain("pt-4");
     const badge = tiles()[0]!.querySelector('[data-variants-badge]')!;
     expect(badge.getAttribute("aria-label")).toBe("4 variants");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");
@@ -857,13 +871,13 @@ describe("playing sounds from their rows", () => {
     expect(speaker.audio.log).toEqual(["play /p/512", "stop /p/512", "play /p/768", "stop /p/768"]);
   });
 
-  it("leads a row's line with the sound's length, read once for the rows shown, and keeps it beside the elapsed time while playing", async () => {
+  it("leads a row's line with the sound's length floored to whole seconds, read once for the rows shown, and keeps it beside the elapsed time while playing", async () => {
     setListing({
       "Assets/Audio/Sounds/bell.wav": facts(5121),
       "Assets/Audio/Sounds/creak.wav": facts(5122),
       ...Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`Assets/Audio/Sounds/zz_${String(i).padStart(3, "0")}.wav`, facts(6000 + i)])),
     });
-    speaker.lengths = { "/p/5121": 5.4 };
+    speaker.lengths = { "/p/5121": 5.6 };
     await openSounds();
     const line = (name: string) => rowOf(name).querySelector("[data-asset-sound-line]")!.textContent;
     await vi.waitFor(() => expect(line("bell")).toMatch(/^0:05 · Modified 2d · 5 kB$/));
@@ -877,7 +891,7 @@ describe("playing sounds from their rows", () => {
     expect(speaker.probes.length).toBeLessThan(60);
     expect(new Set(speaker.probes).size).toBe(speaker.probes.length);
     await click(playButton("bell"));
-    await tell("loadedmetadata", () => (speaker.audio.duration = 5.4));
+    await tell("loadedmetadata", () => (speaker.audio.duration = 5.6));
     await tell("timeupdate", () => (speaker.audio.currentTime = 2.4));
     expect(line("bell")).toMatch(/^0:02 \/ 0:05 · Modified 2d · 5 kB$/);
     expect(rowOf("bell").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:02 / 0:05");
@@ -1562,7 +1576,7 @@ describe("adding files dragged in from the desktop", () => {
     expect(rowLabels()).toContain("Open audio rain, modified 2d · 300 b");
   });
 
-  it("shows the upload panel at the page's foot with each file's note, until closed", async () => {
+  it("shows the added-files panel at the page's foot with each file's note, until closed", async () => {
     await mount();
     workspace.uploads.value = [
       { id: 1, name: "ada.png", state: "added", path: `${P}/ada.png` },
@@ -1570,15 +1584,15 @@ describe("adding files dragged in from the desktop", () => {
       { id: 3, name: "big.mp4", state: "failed", reason: { kind: "storage" } },
     ];
     await settle();
-    const panel = host!.querySelector<HTMLElement>('section[aria-label="Uploads"]')!;
+    const panel = host!.querySelector<HTMLElement>('section[aria-label="Added files"]')!;
     expect(panel.querySelector('[role="status"]')!.textContent).toBe("2 files added, 1 not added");
     expect([...panel.querySelectorAll("li small")].map((el) => el.textContent)).toEqual([
       "Added to Portraits",
       "Added to Audio",
       "Not added: this browser ran out of room for it, so free some space and try again.",
     ]);
-    await click(panel.querySelector<HTMLElement>('button[aria-label="Close uploads"]')!);
-    expect(host!.querySelector('section[aria-label="Uploads"]')).toBeNull();
+    await click(panel.querySelector<HTMLElement>('button[aria-label="Close added files"]')!);
+    expect(host!.querySelector('section[aria-label="Added files"]')).toBeNull();
   });
 });
 

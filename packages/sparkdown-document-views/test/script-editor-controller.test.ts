@@ -630,13 +630,67 @@ describe("ScriptEditorController commands", () => {
 
   it("focuses the script at once when it is editable", async () => {
     const { controller, view } = await loadedEditor();
+    controller["handleIdle"]();
     const focus = vi.spyOn(view, "focus");
     expect(run(controller, "focus")).toMatchObject({ result: { ran: true } });
     expect(focus).toHaveBeenCalledOnce();
   });
 
+  it("waits to focus a script it has just loaded until the editor settles and shows it", async () => {
+    const { controller, view, host } = await loadedEditor();
+    const focus = vi.spyOn(view, "focus");
+    expect(run(controller, "focus")).toMatchObject({ result: { ran: true } });
+    expect(focus).not.toHaveBeenCalled();
+
+    controller["handleIdle"]();
+    expect(host.querySelector<HTMLElement>("div")!.style.visibility).toBe("visible");
+    expect(focus).toHaveBeenCalledOnce();
+  });
+
+  it("drops a focus waiting for the editor to settle when the script returns to reading", async () => {
+    const { controller, view } = await loadedEditor();
+    const focus = vi.spyOn(view, "focus");
+    run(controller, "focus");
+    controller.setScriptMode("reading");
+    controller["handleIdle"]();
+    expect(focus).not.toHaveBeenCalled();
+  });
+
+  it("drops a focus waiting for the editor to settle when the author moves focus elsewhere first", async () => {
+    const { controller, view } = await loadedEditor();
+    controller.setup();
+    const focus = vi.spyOn(view, "focus");
+    run(controller, "focus");
+    const name = document.body.appendChild(document.createElement("input"));
+    try {
+      name.focus();
+      expect(document.activeElement).toBe(name);
+      controller["handleIdle"]();
+      expect(focus).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(name);
+    } finally {
+      name.remove();
+      controller.dispose();
+    }
+  });
+
+  it("drops a focus waiting for the editor to settle when another script loads first", async () => {
+    const { controller, view } = await loadedEditor();
+    const focus = vi.spyOn(view, "focus");
+    run(controller, "focus");
+    expect(controller["_focusWhenLoaded"]).toBe(true);
+    await load(controller, "file:///other.sd");
+    const { view: other } = created[created.length - 1]!;
+    expect(other).not.toBe(view);
+    const focusOther = vi.spyOn(other, "focus");
+    controller["handleIdle"]();
+    expect(focus).not.toHaveBeenCalled();
+    expect(focusOther).not.toHaveBeenCalled();
+  });
+
   it("waits to focus a read-only script until it can be edited, for Edit's round trip", async () => {
     const { controller, view } = await loadedEditor();
+    controller["handleIdle"]();
     controller.setReadonly(true);
     const focus = vi.spyOn(view, "focus");
     expect(run(controller, "focus")).toMatchObject({ result: { ran: true } });
@@ -649,6 +703,7 @@ describe("ScriptEditorController commands", () => {
 
   it("drops a waiting focus when the script returns to reading", async () => {
     const { controller, view } = await loadedEditor();
+    controller["handleIdle"]();
     controller.setReadonly(true);
     run(controller, "focus");
     controller.setScriptMode("reading");

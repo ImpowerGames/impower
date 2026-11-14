@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { JSX } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 import { forwardRef } from "preact/compat";
 import { useEffect, useRef } from "preact/hooks";
 import { useForwardedRef } from "../../hooks/useForwardedRef";
@@ -8,7 +8,7 @@ import { cn } from "../../utils/cn";
 export const textFieldVariants = cva(
   [
     "m-0 min-w-0 shrink-0 text-ink",
-    "placeholder:text-placeholder",
+    "placeholder:text-placeholder [&::-webkit-search-cancel-button]:hidden",
     "disabled:cursor-default disabled:opacity-40",
   ],
   {
@@ -23,6 +23,7 @@ export const textFieldVariants = cva(
       size: {
         default: "min-h-9 px-2.5 py-1.5 text-[13px]/[1.4]",
         tall: "h-14 px-3 py-2 text-[16px]/[1.5] compact:h-11 phone:h-11",
+        dialog: "h-[50px] p-3 text-[16px]/[1.5]",
       },
       width: {
         default: "w-[180px]",
@@ -50,6 +51,21 @@ export const textFieldVariants = cva(
   },
 );
 
+export type TextFieldPurpose = "text" | "literal" | "search" | "url";
+
+const PURPOSE_ATTRIBUTES = {
+  text: { type: "text", enterkeyhint: "done" },
+  literal: { type: "text", autocapitalize: "off", autocorrect: "off", enterkeyhint: "done" },
+  search: { type: "search", enterkeyhint: "search" },
+  url: { type: "text", inputmode: "url", autocapitalize: "off", autocorrect: "off", enterkeyhint: "go" },
+} satisfies Record<TextFieldPurpose, JSX.InputHTMLAttributes<HTMLInputElement>>;
+
+export const textFieldPurposeAttributes = (purpose: TextFieldPurpose = "text") => ({
+  autocomplete: "off",
+  spellcheck: false,
+  ...PURPOSE_ATTRIBUTES[purpose],
+});
+
 export type TextFieldFrame = NonNullable<VariantProps<typeof textFieldVariants>["frame"]>;
 export type TextFieldSize = NonNullable<VariantProps<typeof textFieldVariants>["size"]>;
 export type TextFieldWidth = NonNullable<VariantProps<typeof textFieldVariants>["width"]>;
@@ -61,12 +77,13 @@ export type TextFieldProps = Omit<
 > &
   VariantProps<typeof textFieldVariants> & {
     class?: string;
-    type?: "text" | "search" | "url" | "email" | "tel" | "password";
+    purpose?: TextFieldPurpose;
     value?: string;
     defaultValue?: string;
     disabled?: boolean;
     onValueChange?: (value: string) => void;
     onCommit?: (value: string) => void;
+    suffix?: ComponentChildren;
   };
 
 const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
@@ -76,12 +93,13 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
     width,
     font,
     class: className,
-    type = "text",
+    purpose,
     value,
     defaultValue,
     onValueChange,
     onCommit,
     onInput,
+    suffix,
     ...rest
   },
   ref,
@@ -105,13 +123,15 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
     return () => input.removeEventListener("change", onChange);
   }, []);
 
-  return (
+  const input = (
     <input
       ref={setRef}
-      type={type}
-      class={cn(textFieldVariants({ frame, size, width, font }), className)}
-      autocomplete="off"
-      spellcheck={false}
+      class={
+        suffix === undefined
+          ? cn(textFieldVariants({ frame, size, width, font }), className)
+          : cn(textFieldVariants({ frame: "inset", size, font }), "self-stretch px-3", className)
+      }
+      {...textFieldPurposeAttributes(purpose)}
       {...rest}
       {...(value !== undefined ? { value, defaultValue: value } : { defaultValue })}
       onInput={(event) => {
@@ -128,6 +148,22 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
         }
       }}
     />
+  );
+
+  if (suffix === undefined) {
+    return input;
+  }
+  return (
+    <span
+      class={cn(
+        textFieldVariants({ frame, size, width, font }),
+        "flex items-center p-0 has-[input:focus-visible]:border-accent",
+      )}
+      data-text-field-frame
+    >
+      {input}
+      <span class="shrink-0 pr-3 text-[14px] text-muted">{suffix}</span>
+    </span>
   );
 });
 

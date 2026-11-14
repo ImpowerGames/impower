@@ -705,3 +705,14 @@ describe("Dropdown motion", () => {
     },
   );
 });
+
+describe("Dialog form size", () => {
+  it("is the prototype's 440px tool dialog with 26px padding, 19px on a phone", async () => {
+    const { dialogVariants } = await import("./Dialog");
+    const form = dialogVariants({ size: "form" }).split(/\s+/);
+    expect(form).toEqual(expect.arrayContaining(["max-w-[440px]", "p-[26px]", "phone:p-[19px]"]));
+    expect(form).not.toContain("p-5");
+    expect(dialogVariants().split(/\s+/)).toContain("p-5");
+    expect(dialogVariants({ size: "form", flush: true }).split(/\s+/)).not.toContain("p-[26px]");
+  });
+});

@@ -52,7 +52,7 @@ const PREVIEW_THEME: {
       left: "calc(100% + 1.2em)",
     },
   "& .sp-name": {
-    margin: "2em 0 1em",
+    margin: "0",
     fontWeight: "bold",
     textDecoration: "underline",
   },
@@ -80,23 +80,12 @@ const PREVIEW_THEME: {
     backgroundColor: "transparent",
     boxShadow: "none",
   },
-  "& .collapse + .collapse": {
+  "& .sp-gone": {
     display: "block",
     visibility: "hidden",
     width: "0",
     height: "0",
-  },
-  "& .collapse:first-child": {
-    display: "block",
-    visibility: "hidden",
-    width: "0",
-    height: "0",
-  },
-  "& .collapse:last-child": {
-    display: "block",
-    visibility: "hidden",
-    width: "0",
-    height: "0",
+    overflow: "hidden",
   },
   "& .cm-widgetBuffer": {
     display: "none",

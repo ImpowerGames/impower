@@ -4,8 +4,8 @@ const getUniqueFileName = (
   ignoreIndex?: number,
   maxCollisionsAllowed?: number,
 ): string => {
-  const defaultIndexStr = defaultName.match(/\d+/)?.[0];
   const extIndex = defaultName.indexOf(".");
+  const defaultIndexStr = (extIndex >= 0 ? defaultName.slice(0, extIndex) : defaultName).match(/\d+/)?.[0];
   const padStart = defaultIndexStr?.length ?? 2;
   let key = defaultName;
   let suffix = 0;

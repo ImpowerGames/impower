@@ -1,7 +1,7 @@
 import { FileIcon, ListRow } from "@impower/impower-ui/components";
 import type { Range } from "vscode-languageserver-protocol";
 import type { SearchGroup, SearchUse } from "../../workspace/searchState";
-import { scriptTitle } from "./scriptTitle";
+import { scriptStem, scriptTitle } from "./scriptTitle";
 
 const LEADING_SPACE = /^\s*/;
 
@@ -37,14 +37,15 @@ const isCurrent = (
 
 function UseLines({ groups, onOpen }: { groups: readonly SearchGroup[]; onOpen: (use: SearchUse) => void }) {
   return (
-    <ul class="m-0 list-none p-0">
+    <ul class="m-0 grid list-none gap-[3px] p-0">
       {groups.flatMap((group) => {
-        const title = scriptTitle(group.uri);
+        const title = scriptStem(group.uri);
         return group.uses.map((use) => {
           const line = use.range.start.line + 1;
           return (
             <li key={`${group.uri}:${use.range.start.line}:${use.range.start.character}`}>
               <ListRow
+                size="dense"
                 icon={<FileIcon />}
                 aria-label={`Open ${title} at line ${line}`}
                 label={`${title} · line ${line}`}

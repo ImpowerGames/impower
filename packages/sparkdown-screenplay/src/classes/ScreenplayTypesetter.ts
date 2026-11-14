@@ -67,7 +67,7 @@ export default class ScreenplayTypesetter {
       } else if (t.tag === "separator") {
         const prevSpan = spans.at(-1);
         if (prevSpan && prevSpan.tag !== "separator") {
-          spans.push({ tag: t.tag });
+          spans.push({ tag: t.tag, from: t.from });
         }
       } else if (t.tag === "function") {
         if (isHiddenIdentifier(t.tag, config)) {
@@ -169,7 +169,9 @@ export default class ScreenplayTypesetter {
           { prefix: t.prefix, suffix: t.suffix },
           style,
         );
-        if (lines.length > 0) {
+        if (lines.length > 0 && t.continued) {
+          spans.push({ tag: t.tag, lines });
+        } else if (lines.length > 0) {
           const scene = t.scene ?? sceneIndex + 1;
           lines[0]!.scene = scene;
           spans.push({ tag: t.tag, lines });
@@ -260,6 +262,11 @@ export default class ScreenplayTypesetter {
               const prevSpan = spans.at(-1);
               if (prevSpan?.tag === "dialogue") {
                 prevSpan.lines.push(...lines);
+              } else if (
+                prevSpan?.tag === "separator" &&
+                spans.at(-2)?.tag === "dialogue"
+              ) {
+                spans.push({ tag: "dialogue", lines });
               }
             }
           }

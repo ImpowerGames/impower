@@ -16,6 +16,8 @@ const calls = vi.hoisted(() => ({
   commands: [] as [string, string][],
   routes: [] as string[],
   finds: 0,
+  played: 0,
+  collapsed: 0,
 }));
 
 vi.mock("../../src/modules/spark-editor/components/preview/Preview", () => ({
@@ -98,7 +100,15 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
             preview: { ...store.current.preview, revealed: true },
           };
         },
+        playInFullView: () => {
+          calls.played += 1;
+          store.current = {
+            ...store.current,
+            preview: { ...store.current.preview, revealed: true },
+          };
+        },
         collapsePreviewPane: () => {
+          calls.collapsed += 1;
           store.current = {
             ...store.current,
             preview: { ...store.current.preview, revealed: false },
@@ -132,6 +142,21 @@ beforeAll(() => {
     unobserve() {}
     disconnect() {}
   };
+  const dialog = HTMLDialogElement.prototype as HTMLDialogElement & {
+    showModal?: () => void;
+    close?: () => void;
+  };
+  if (typeof dialog.showModal !== "function") {
+    dialog.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    };
+  }
+  if (typeof dialog.close !== "function") {
+    dialog.close = function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+      this.dispatchEvent(new Event("close"));
+    };
+  }
 });
 
 const { default: workspace } =
@@ -150,6 +175,9 @@ beforeEach(() => {
   calls.commands.length = 0;
   calls.routes.length = 0;
   calls.finds = 0;
+  calls.played = 0;
+  calls.collapsed = 0;
+  workspace.previewLine.value = null;
   workspace.editorHistory.value = {};
   workspace.scriptMode.value = "reading";
   workspace.current = stateForRoute(
@@ -261,7 +289,7 @@ describe("the phone shell", () => {
 
   it("leaves the preview for the route the navigation or the app menu opens", async () => {
     await mount();
-    await act(async () => button("Show the preview")!.click());
+    await act(async () => button("Play from this line")!.click());
     await settle();
     expect(workspace.current.preview.revealed).toBe(true);
     const assets = Array.from(
@@ -281,7 +309,7 @@ describe("the phone shell", () => {
     expect(workspace.current.preview.revealed).toBe(false);
 
     await go("write");
-    await act(async () => button("Show the preview")!.click());
+    await act(async () => button("Play from this line")!.click());
     await settle();
     expect(workspace.current.preview.revealed).toBe(true);
     await go("project");
@@ -314,7 +342,8 @@ describe("the phone shell", () => {
     });
     await settle();
     expect(button("Search")).not.toBeNull();
-    expect(button("Show the preview")).not.toBeNull();
+    expect(button("Play from this line")).not.toBeNull();
+    expect(button("Show the preview")).toBeNull();
     await act(async () => button("Search")!.click());
     await settle();
     expect(calls.finds).toBe(1);
@@ -385,7 +414,7 @@ describe("the phone shell", () => {
     expect(button("App menu")).not.toBeNull();
   });
 
-  it("opens Settings in place of the route with no tab current, returns to Story from its tab, and gives the preview a Back control", async () => {
+  it("opens Settings in place of the route with no tab current, returns to Story from its tab, and closes the full view on Escape", async () => {
     await mount();
     await go("project");
     expect(host!.querySelector("[data-settings-page]")).not.toBeNull();
@@ -406,15 +435,166 @@ describe("the phone shell", () => {
     expect(calls.routes).toEqual(["write"]);
     expect(host!.querySelector("[data-settings-page]")).toBeNull();
 
-    await act(async () => button("Show the preview")!.click());
+    await act(async () => button("Play from this line")!.click());
     await settle();
     expect(workspace.current.preview.revealed).toBe(true);
-    const previewBack = host!
-      .querySelector("[data-player]")!
-      .parentElement!.querySelector<HTMLAnchorElement>('a[href="#write"]')!;
-    await act(async () => previewBack.click());
+    const cancel = new Event("cancel", { cancelable: true });
+    await act(async () => {
+      host!.querySelector("[data-preview-strip] dialog")!.dispatchEvent(cancel);
+    });
     await settle();
+    expect(cancel.defaultPrevented).toBe(true);
+    expect(calls.collapsed).toBe(1);
     expect(workspace.current.preview.revealed).toBe(false);
+  });
+});
+
+describe("the phone's preview strip", () => {
+  const strip = () => host!.querySelector<HTMLElement>("[data-phone-strip]")!;
+  const label = () => strip().querySelector("[data-preview-strip-copy] b")!.textContent;
+  const words = () => strip().querySelector("[data-preview-strip-copy] p")!.textContent;
+  const status = (key: string) =>
+    strip().querySelector<HTMLButtonElement>(`[data-preview-strip-status="${key}"]`);
+  const caretOn = async (preview: unknown, line = 4) => {
+    await act(async () => {
+      workspace.previewLine.value = {
+        uri: "file:///local/main.sd",
+        line,
+        preview: preview as never,
+      };
+    });
+    await settle();
+  };
+
+  it("sits above the script on the Story route, in reading and editing modes alike, and the title bar has no Show the preview", async () => {
+    await mount();
+    expect(strip().hidden).toBe(false);
+    expect(
+      strip().compareDocumentPosition(host!.querySelector('[data-route="logic"]')!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(titleBar().nextElementSibling).toBe(strip());
+    expect(button("Show the preview")).toBeNull();
+    const reading = strip().querySelector("[data-preview-strip]");
+    await act(async () => {
+      workspace.scriptMode.value = "editing";
+    });
+    await settle();
+    expect(strip().hidden).toBe(false);
+    expect(strip().querySelector("[data-preview-strip]")).toBe(reading);
+    for (const route of ["collection", "share", "project", "scripts"]) {
+      await go(route);
+      expect(strip().hidden, route).toBe(true);
+    }
+  });
+
+  it("plays in the full view with the one player, which stays the same element from the strip to the full view and back", async () => {
+    await mount();
+    const players = () => document.querySelectorAll("[data-player]");
+    expect(players()).toHaveLength(1);
+    const player = players()[0]!;
+    const dialog = strip().querySelector("dialog")!;
+    expect(dialog.contains(player)).toBe(true);
+    expect(dialog.open).toBe(false);
+    await act(async () => button("Play from this line")!.click());
+    await settle();
+    expect(calls.played).toBe(1);
+    expect(dialog.open).toBe(true);
+    expect(players()).toHaveLength(1);
+    expect(players()[0]).toBe(player);
+    await act(async () => {
+      dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
+    });
+    await settle();
+    expect(dialog.open).toBe(false);
+    expect(players()[0]).toBe(player);
+    expect(document.activeElement).toBe(button("Play from this line"));
+  });
+
+  it("names each kind of line the way the prototype does", async () => {
+    await mount();
+    for (const [preview, expected] of [
+      [{ kind: "title", words: "THE JUKEBOX" }, ["TITLE", "THE JUKEBOX"]],
+      [{ kind: "heading", words: "INT. LOUNGE" }, ["HEADING", "INT. LOUNGE"]],
+      [{ kind: "transition", words: "CUT TO:" }, ["TRANSITIONAL", "CUT TO:"]],
+      [{ kind: "action", words: "Rain falls." }, ["ACTION", "Rain falls."]],
+      [{ kind: "dialogue", words: "Hello.", speaker: "Imani" }, ["IMANI", "Hello."]],
+      [{ kind: "choice", words: "Where now?" }, ["CHOOSE", "Where now?"]],
+      [{ kind: "setup" }, ["STORY SETUP", "This line sets up your story."]],
+      [{ kind: "empty" }, ["YOUR GAME", "Write a line and it appears here."]],
+    ] as const) {
+      await caretOn(preview);
+      expect([label(), words()], JSON.stringify(preview)).toEqual(expected);
+    }
+    expect(strip().querySelector("[data-preview-strip-symbol]")!.getAttribute("data-preview-strip-symbol")).toBe("pencil");
+    expect(button("Play from this line")!.disabled).toBe(true);
+    await caretOn({ kind: "setup" });
+    expect(strip().querySelector("[data-preview-strip-symbol]")!.getAttribute("data-preview-strip-symbol")).toBe("file");
+    expect(button("Play from this line")!.disabled).toBe(true);
+    await caretOn({ kind: "action", words: "Rain falls." });
+    expect(strip().querySelector("[data-preview-strip-symbol]")).toBeNull();
+    expect(button("Play from this line")!.disabled).toBe(false);
+  });
+
+  it("names the caret line's worst problem and opens its popover in the editor", async () => {
+    const { default: problems } = await import(
+      "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
+    );
+    await mount();
+    const at = (line: number) => ({ start: { line, character: 0 }, end: { line, character: 4 } });
+    await act(async () => {
+      problems.diagnostics.value = {
+        "file:///local/main.sd": [
+          { range: at(4), severity: 2, message: "This sound is not in Assets yet" },
+          { range: at(4), severity: 1, message: "Cannot find character named `INSPECTER`" },
+          { range: at(9), severity: 1, message: "Another line's problem" },
+        ],
+      };
+    });
+    await caretOn({ kind: "action", words: "Rain." });
+    const row = status("problem")!;
+    expect(row.textContent).toContain("Cannot find character named `INSPECTER`");
+    expect(row.className).toContain("text-error");
+    await act(async () => row.click());
+    await settle();
+    expect(calls.commands).toEqual([["main.sd", "problems"]]);
+    await caretOn({ kind: "action", words: "Rain." }, 5);
+    expect(status("problem")).toBeNull();
+    await act(async () => {
+      problems.diagnostics.value = {};
+    });
+  });
+
+  it("shows Forced to reach this line only for a forced route, and opens the route list from it", async () => {
+    const { default: route } = await import(
+      "../../src/modules/spark-editor/workspace/route/RouteStore"
+    );
+    const show = vi.spyOn(route, "show").mockImplementation(() => {});
+    await mount();
+    await caretOn({ kind: "action", words: "You found 4 clues." });
+    const view = (kind: string) =>
+      ({ route: { decisions: [{ kind }] }, pins: [], open: false }) as never;
+    for (const kind of ["auto", "pinned", "clipped"]) {
+      await act(async () => {
+        route.view.value = view(kind);
+      });
+      await settle();
+      expect(status("forced"), kind).toBeNull();
+    }
+    await act(async () => {
+      route.view.value = view("forced");
+    });
+    await settle();
+    const forced = status("forced")!;
+    expect(forced.textContent).toBe("Forced to reach this line");
+    expect(forced.querySelector('[data-icon="detour"]')).not.toBeNull();
+    expect(forced.className).toContain("text-warning");
+    await act(async () => forced.click());
+    expect(show).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      route.view.value = null;
+    });
+    show.mockRestore();
   });
 });
 
@@ -594,8 +774,9 @@ describe("naming the project on a phone", () => {
       nameField().value = "Night shift";
       nameField().dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(press(done)).toBe(true);
-    expect(document.activeElement).toBe(nameField());
+    await act(async () => {
+      expect(press(done)).toBe(false);
+    });
     await act(async () => done.click());
     await settle();
     expect(calls.finished).toEqual(["Night shift"]);
@@ -604,12 +785,25 @@ describe("naming the project on a phone", () => {
     expect(button("Search")).not.toBeNull();
   });
 
-  it("keeps the field focused through a press on the bar's background, but lets another field, a link or the navigation take it", async () => {
+  it("commits the name on a press on the bar's background, and lets another field, a link or the navigation take the focus", async () => {
     await mount();
     await act(async () => nameField().focus());
     await settle();
-    expect(press(titleBar())).toBe(true);
-    expect(press(host!.querySelector('[data-route="logic"]')!)).toBe(true);
+    await act(async () => {
+      nameField().value = "Night shift";
+      nameField().dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      expect(press(titleBar())).toBe(false);
+    });
+    await settle();
+    expect(calls.finished).toEqual(["Night shift"]);
+    expect(document.activeElement).not.toBe(nameField());
+    await act(async () => nameField().focus());
+    await settle();
+    expect(press(host!.querySelector('[data-route="logic"]')!)).toBe(false);
+    await act(async () => nameField().focus());
+    await settle();
     expect(
       press(host!.querySelector('input[aria-label="Other field"]')!),
     ).toBe(false);

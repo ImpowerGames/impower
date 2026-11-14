@@ -1,12 +1,17 @@
 import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { withLock } from "../../../../../packages/opfs-workspace/src/utils/locks";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
+import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
 import { downloadFile } from "../utils/downloadFile";
-import { recordMove, renameFile } from "../utils/fileUndo";
+import { recordCreate, recordMove, renameFile } from "../utils/fileUndo";
 import {
   availableName,
   copyName,
+  defaultName,
   NameError,
+  UNTITLED_SCRIPT,
   plural,
   referencedBy,
   type Reference,
@@ -64,6 +69,12 @@ type Deps = {
   autoRenameFiles: () => boolean;
 };
 
+export const PROJECT_CHANGED = "Another project opened first. Nothing was added.";
+
+export const SCRIPTS_LOADING = "Your scripts couldn't be read yet. Nothing was added; try again in a moment.";
+
+const LISTING_TRIES = 3;
+
 const extensionOf = (path: string) => {
   const name = nameOf(path);
   const dot = name.lastIndexOf(".");
@@ -77,6 +88,28 @@ export default class WorkspaceScripts {
 
   constructor(deps: Deps) {
     this._workspace = deps;
+    onProtocolMessage(DidDeleteFilesMessage.type, (message) =>
+      this.forget(message.params.files.map((file) => file.uri)),
+    );
+    onProtocolMessage(DidRenameFilesMessage.type, (message) =>
+      this.forget(message.params.files.map((file) => file.oldUri)),
+    );
+    onProtocolMessage(DidChangeDirectoriesMessage.type, (message) =>
+      this.forget(message.params.deleted),
+    );
+  }
+
+  protected forget(uris: readonly string[]) {
+    const projectId = this.projectId;
+    if (!projectId || this.unlisted.size === 0) {
+      return;
+    }
+    const gone = uris.map((uri) => this._workspace.fs.getRelativePath(projectId, uri));
+    for (const path of this.unlisted) {
+      if (gone.some((folder) => isInside(path, folder))) {
+        this.unlisted.delete(path);
+      }
+    }
   }
 
   protected isCurrent(generation: number, projectId: string) {
@@ -116,6 +149,12 @@ export default class WorkspaceScripts {
     }
     if (workspace.scriptListing.peek()?.projectId !== projectId) {
       workspace.scriptReferences.value = [];
+      this.unlisted.clear();
+    }
+    for (const path of this.unlisted) {
+      if (Object.hasOwn(files, path) || listing.folders.includes(path)) {
+        this.unlisted.delete(path);
+      }
     }
     workspace.scriptListing.value = listing;
     await this.loadReferences(generation, projectId);
@@ -174,11 +213,14 @@ export default class WorkspaceScripts {
     return Object.hasOwn(this.listing.files, path) ? "file" : "folder";
   }
 
+  protected unlisted = new Set<string>();
+
   protected siblings(folder: string): string[] {
     const listing = this.listing;
     return [
       ...Object.keys(listing.files),
       ...listing.folders,
+      ...this.unlisted,
     ]
       .filter((p) => parentOf(p) === folder)
       .map(nameOf);
@@ -193,24 +235,55 @@ export default class WorkspaceScripts {
     await this.load();
   }
 
-  async create(kind: "script" | "folder", folder: string, name: string): Promise<string> {
+  protected openProject(): string {
     const projectId = this.projectId;
     if (!projectId) {
       throw new NameError("No project is open.");
     }
-    const target = realFolder(folder, scriptsHome(this.listing));
-    const leaf = availableName(name, this.siblings(target), kind === "script" ? ".sd" : "");
-    const path = joinPath(target, leaf);
-    const { fs } = this._workspace;
-    if (kind === "script") {
-      await fs.createFiles({
-        files: [{ uri: fs.getFileUri(projectId, path), data: new ArrayBuffer(0) }],
-      });
-    } else {
-      await fs.createFolder(projectId, path);
-    }
-    await this.changed(kind === "script" ? "file" : "folder");
-    return path;
+    return projectId;
+  }
+
+  protected naming<T>(task: (projectId: string) => Promise<T>): Promise<T> {
+    const projectId = this.openProject();
+    return withLock(`impower-dev:script-names:${projectId}`, async () => {
+      const listed = () => workspace.scriptListing.peek()?.projectId === projectId;
+      for (let tries = 0; tries < LISTING_TRIES && this.projectId === projectId && !listed(); tries += 1) {
+        await this.load().catch(() => null);
+      }
+      if (this.projectId !== projectId) {
+        throw new NameError(PROJECT_CHANGED);
+      }
+      if (!listed()) {
+        throw new NameError(SCRIPTS_LOADING);
+      }
+      return task(projectId);
+    });
+  }
+
+  createScript(folder: string): Promise<string> {
+    return this.naming(async (projectId) => {
+      const target = realFolder(folder, scriptsHome(this.listing));
+      const leaf = defaultName(UNTITLED_SCRIPT, this.siblings(target), ".sd");
+      const path = joinPath(target, leaf);
+      const { fs } = this._workspace;
+      const uri = fs.getFileUri(projectId, path);
+      await fs.createFiles({ files: [{ uri, data: new ArrayBuffer(0) }] });
+      this.unlisted.add(path);
+      recordCreate(projectId, [uri], leaf);
+      await this.changed("file");
+      return path;
+    });
+  }
+
+  createFolder(folder: string, name: string): Promise<string> {
+    return this.naming(async (projectId) => {
+      const target = realFolder(folder, scriptsHome(this.listing));
+      const path = joinPath(target, availableName(name, this.siblings(target)));
+      await this._workspace.fs.createFolder(projectId, path);
+      this.unlisted.add(path);
+      await this.changed("folder");
+      return path;
+    });
   }
 
   protected async relocate(from: string, to: string) {
@@ -267,8 +340,11 @@ export default class WorkspaceScripts {
     return moved;
   }
 
-  async duplicate(path: string): Promise<string> {
-    const projectId = this.projectId!;
+  duplicate(path: string): Promise<string> {
+    return this.naming((projectId) => this.duplicateIn(projectId, path));
+  }
+
+  protected async duplicateIn(projectId: string, path: string): Promise<string> {
     const { fs } = this._workspace;
     const kind = this.kindOf(path);
     const extension = kind === "file" ? extensionOf(path) : "";
@@ -297,6 +373,7 @@ export default class WorkspaceScripts {
     if (files.length) {
       await fs.createFiles({ files });
     }
+    this.unlisted.add(to);
     await this.changed(kind);
     return to;
   }

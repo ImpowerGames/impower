@@ -48,7 +48,6 @@ import { startingDisplayModeRequest } from "../utils/previewStartingMode";
 import { simulatedColorSchemeRequest } from "../utils/previewColorScheme";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
-import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
@@ -465,9 +464,6 @@ export class SparkdownPreviewGamePanelManager {
           vscode.commands.executeCommand("sparkdown.debugGame");
         }
       }
-      if (GameReloadedMessage.type.isNotification(message)) {
-        vscode.commands.executeCommand("sparkdown.debug.unpin");
-      }
       if (
         GameExecutedMessage.type.isNotification(message) ||
         GameRolledMessage.type.isNotification(message) ||
@@ -833,7 +829,7 @@ export class SparkdownPreviewGamePanelManager {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; media-src ${webview.cspSource}; img-src ${webview.cspSource} https: data: blob: ; script-src 'nonce-${scriptNonce}'; worker-src blob:;">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; media-src ${webview.cspSource}; img-src ${webview.cspSource} https: data: blob: ; script-src 'nonce-${scriptNonce}' 'wasm-unsafe-eval'; worker-src blob:;">
           <title>Spark Game</title>
           <style nonce="${styleNonce}">
             @font-face {

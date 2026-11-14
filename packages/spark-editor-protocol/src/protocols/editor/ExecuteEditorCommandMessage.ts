@@ -24,6 +24,7 @@ export const EDITOR_COMMANDS = [
   "rename",
   "references",
   "definition",
+  "problems",
 ] as const;
 
 export type EditorCommand = (typeof EDITOR_COMMANDS)[number];

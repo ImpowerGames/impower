@@ -19,7 +19,8 @@ const scripts = vi.hoisted(() => ({
   download: vi.fn(async () => undefined),
   duplicate: vi.fn(async () => ""),
   rename: vi.fn(async () => ""),
-  create: vi.fn(async () => ""),
+  createScript: vi.fn(async () => "Scripts/Untitled script.sd"),
+  createFolder: vi.fn(async () => ""),
 }));
 const assets = vi.hoisted(() => ({
   watch: vi.fn(() => () => {}),
@@ -36,6 +37,7 @@ const assets = vi.hoisted(() => ({
 }));
 const window = vi.hoisted(() => ({
   openScript: vi.fn(),
+  writeScript: vi.fn(async () => undefined),
   setListState: vi.fn(),
   navigateTo: vi.fn(),
   openTrash: vi.fn(),
@@ -52,6 +54,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 };
 
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+const { NameError } = await import("../../src/modules/spark-editor/utils/fileListModel");
 const { default: ScriptsPage } = await import("../../src/modules/spark-editor/components/scripts-page");
 const { default: Assets } = await import("../../src/modules/spark-editor/components/assets");
 const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
@@ -176,16 +179,58 @@ describe.each(["desktop", "phone"] as const)("the name row opened from a menu, %
     layout.value = width;
   });
 
-  it.each([
-    ["Script", "New script name"],
-    ["Folder", "New folder name"],
-  ])("Scripts New > %s keeps every keystroke typed at once, and Escape returns focus to New", async (item, label) => {
+  it("Scripts New > Folder keeps every keystroke typed at once, and Escape returns focus to New", async () => {
     await mount(ScriptsPage);
     await openMenu(newButton());
-    const input = await chooseAndType(item, label);
+    const input = await chooseAndType("Folder", "New folder name");
     await escape(input);
-    expect(host!.querySelector(`input[aria-label="${label}"]`)).toBeNull();
+    expect(host!.querySelector('input[aria-label="New folder name"]')).toBeNull();
     expect(document.activeElement).toBe(newButton());
+  });
+
+  it("Scripts New > Script creates the script at once and opens it to write, with no name row", async () => {
+    await mount(ScriptsPage);
+    await openMenu(newButton());
+    const item = all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.trim() === "Script");
+    await act(async () => item!.click());
+    await settle();
+    expect(host!.querySelector('input[aria-label^="New "]')).toBeNull();
+    expect(scripts.createScript).toHaveBeenCalledWith("");
+    expect(window.writeScript).toHaveBeenCalledWith("Scripts/Untitled script.sd");
+  });
+
+  it("says so when a new script is refused while the scripts load, and the next New > Script makes it", async () => {
+    const { SCRIPTS_LOADING } = await import("../../src/modules/spark-editor/workspace/WorkspaceScripts");
+    const { snackbar } = await import("../../src/modules/spark-editor/utils/snackbar");
+    scripts.createScript.mockRejectedValueOnce(new NameError(SCRIPTS_LOADING));
+    await mount(ScriptsPage);
+    const choose = async () => {
+      await openMenu(newButton());
+      const item = all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.trim() === "Script");
+      await act(async () => item!.click());
+      await settle();
+    };
+    await choose();
+    expect(snackbar.value?.message).toBe(SCRIPTS_LOADING);
+    expect(window.writeScript).not.toHaveBeenCalled();
+    await choose();
+    expect(window.writeScript).toHaveBeenCalledWith("Scripts/Untitled script.sd");
+  });
+
+  it("an empty folder's New script button creates the script there at once and opens it to write", async () => {
+    workspace.scriptListing.value = {
+      projectId: PROJECT,
+      files: { "main.sd": { modified: 1, size: 10 } },
+      folders: ["Scripts", "Scripts/Empty"],
+    };
+    workspace.current = { ...workspace.current, lists: { scriptsFolder: "Scripts/Empty" } };
+    await mount(ScriptsPage);
+    const button = all<HTMLButtonElement>("button").find((b) => b.textContent?.trim() === "New script");
+    await act(async () => button!.click());
+    await settle();
+    expect(host!.querySelector('input[aria-label^="New "]')).toBeNull();
+    expect(scripts.createScript).toHaveBeenCalledWith("Scripts/Empty");
+    expect(window.writeScript).toHaveBeenCalledWith("Scripts/Untitled script.sd");
   });
 
   it("Scripts row Rename keeps every keystroke typed at once, and Escape returns focus to the row", async () => {

@@ -75,6 +75,8 @@ export class Clock {
 
   protected _callbacks = new Set<TickerCallback>();
 
+  protected _generation = 0;
+
   constructor(
     clock: ClockSource,
     requestFrame: (callback: FrameRequestCallback) => number,
@@ -110,18 +112,22 @@ export class Clock {
     const now = this.getCurrentTime();
     this._prevTime = now;
     this._startTime = now;
-    this.loop();
+    const generation = ++this._generation;
+    const frame = () => {
+      if (!this._running || generation !== this._generation) {
+        return;
+      }
+      this.tick();
+      this._requestFrame(frame);
+    };
+    frame();
   }
 
   stop() {
     this._running = false;
   }
 
-  protected loop = () => {
-    if (!this._running) {
-      return;
-    }
-
+  protected tick(): void {
     const frameInterval = this._maxFPS > 0 ? 1 / this._maxFPS : 0;
     const currentTime = this.getCurrentTime();
 
@@ -138,7 +144,5 @@ export class Clock {
         callback(this);
       });
     }
-
-    this._requestFrame(this.loop);
-  };
+  }
 }
