@@ -339,6 +339,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
                     (content ? processLuauEscapes(this.read(content.from, content.to)) : ""),
                 ],
                 assigned,
+                kind: "write",
               }
             : { declaration: "character_alias", assigned },
         ).range(node?.from ?? entry[0]!.from, node?.to ?? entry.at(-1)!.to),
@@ -799,6 +800,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               SparkdownAnnotation.mark<Reference>({
                 declaration: "character_name",
                 symbolIds: ["character.?.name=" + value],
+                kind: "write",
               }).range(contentNode.from, contentNode.to),
             );
           }
