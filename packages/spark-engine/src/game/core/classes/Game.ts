@@ -2814,7 +2814,9 @@ export class Game<T extends M = {}> {
       location: this._executingLocation
         ? this.getDocumentLocation(this._executingLocation)
         : null,
-      choices: this._story.currentChoices.map((c) => c.text),
+      choices: this._story.currentChoices.map((c) =>
+        this.module.interpreter.plainText(c.styledText),
+      ),
       chosen: beat.chosen ?? null,
       textRevealed: true,
       transitionsEnded: true,
@@ -3732,7 +3734,7 @@ export class Game<T extends M = {}> {
         ) {
           this.module.interpreter.queue(
             this._story.currentDisplayInstructions,
-            this._story.currentChoices.map((c) => c.text),
+            this._story.currentChoices.map((c) => c.styledText),
             this._story.currentStyledText || "",
             location,
           );
@@ -3901,7 +3903,9 @@ export class Game<T extends M = {}> {
     if (beat?.shown.choices?.length) {
       made = {
         checkpoint: beat.checkpoint,
-        text: (this._story.currentChoices[index]?.text ?? "").trim(),
+        text: this.module.interpreter
+          .plainText(this._story.currentChoices[index]?.styledText ?? "")
+          .trim(),
       };
       if (this._run.behindLatest) {
         if (beat.chosen === index) {

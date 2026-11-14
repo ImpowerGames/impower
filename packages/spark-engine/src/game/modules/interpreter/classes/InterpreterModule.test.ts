@@ -207,18 +207,27 @@ describe("InterpreterModule text tags", () => {
   });
 
   describe("choice text", () => {
-    it("is still scanned for marks", () => {
+    const choiceText = (content: string) => {
       const instructions =
-        createModule().parse("A *word* here.", TARGET, { choice: true }).text?.[
-          TARGET
-        ] ?? [];
-      expect(instructions.map((i) => i.text).join("")).toBe("A word here.");
-      expect(
-        instructions
+        createModule().parse(content, TARGET, { choice: true }).text?.[TARGET] ?? [];
+      return {
+        text: instructions.map((i) => i.text).join(""),
+        styled: instructions
           .filter((i) => emphasisOf(i.style as Record<string, unknown>).length)
           .map((i) => i.text)
           .join(""),
-      ).toBe("word");
+      };
+    };
+
+    it("is not scanned for marks", () => {
+      expect(choiceText("A *word* here.")).toEqual({ text: "A *word* here.", styled: "" });
+    });
+
+    it("is styled by its codes", () => {
+      expect(choiceText(`A ${spanOpen("*")}word${SPAN_CLOSE} here.`)).toEqual({
+        text: "A word here.",
+        styled: "word",
+      });
     });
   });
 
@@ -394,6 +403,26 @@ describe("InterpreterModule text tags", () => {
       expect(result.text).toBe("Hear ((sfx and more.");
       expect(assets("Hear ((sfx and more.").audio).toEqual({});
     });
+  });
+});
+
+describe("a style boundary inside zero-delay text", () => {
+  const timing = (source: string) => {
+    const instructions = createModule().parse(source, TARGET);
+    return { end: instructions.end, audio: JSON.stringify(instructions.audio ?? {}) };
+  };
+
+  it.each([
+    ["a raw span", `<speed=0>... a${spanOpen("`")}b${SPAN_CLOSE}c`],
+    ["a centred span", `<speed=0>... a${spanOpen("^")}b${SPAN_CLOSE}c`],
+  ])("glued to its neighbours, %s adds no time and no tone", (_what, styled) => {
+    expect(timing(styled)).toEqual(timing("<speed=0>... abc"));
+  });
+
+  it("keeps the raw span's style", () => {
+    const instructions = createModule().parse(`<speed=0>a${spanOpen("`")}b${SPAN_CLOSE}c`, TARGET).text?.[TARGET] ?? [];
+    expect(instructions.map((i) => i.text).join("")).toBe("abc");
+    expect(instructions.length).toBeGreaterThan(1);
   });
 });
 

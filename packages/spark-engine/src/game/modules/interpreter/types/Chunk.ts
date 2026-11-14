@@ -21,6 +21,7 @@ export interface Chunk {
 
   voicedSyllable?: boolean;
   punctuatedSyllable?: boolean;
+  timingContinues?: boolean;
   pitch?: number;
 
   speed: number;

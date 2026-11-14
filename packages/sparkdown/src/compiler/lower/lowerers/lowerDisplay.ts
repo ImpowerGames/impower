@@ -441,20 +441,7 @@ function processDisplayBody(
     } else if (seg.kind === "lead") {
       out.push(new LeadMark({ from: seg.from, to: seg.to }));
     } else if (seg.kind === "inlineGluedAlt") {
-      const lowered =
-        seg.node.name === "LuauSparkdownInlineGluedSequentialAlternatorBlock"
-          ? lowerSparkdownSequentialAlternatorBlock(
-              makeAltNodeRef(seg.node),
-              ctx,
-            )
-          : lowerSparkdownConditionalAlternatorBlock(
-              makeAltNodeRef(seg.node),
-              ctx,
-            );
-      forwardBlockDiagnostics(lowered, ctx);
-      if (lowered.content) {
-        for (const obj of lowered.content) out.push(obj);
-      }
+      out.push(...lowerInlineGluedAlternator(seg.node, ctx));
     } else if (seg.kind === "tag") {
       appendDisplayTags(seg.node, ctx, out);
     } else if (seg.kind === "expr") {
@@ -1218,6 +1205,26 @@ function tryLowerInlineAlternator(
     return lowered.content ?? null;
   }
   return null;
+}
+
+export function isInlineGluedAlternator(node: SyntaxNode): boolean {
+  return INLINE_GLUED_ALTERNATOR_NAMES.has(node.name);
+}
+
+export function inlineGluedAlternatorFrom(node: SyntaxNode): number {
+  return injectionFrom(node, "inlineGluedAlt");
+}
+
+export function lowerInlineGluedAlternator(
+  node: SyntaxNode,
+  ctx: LowerContext,
+): ParsedObject[] {
+  const lowered =
+    node.name === "LuauSparkdownInlineGluedSequentialAlternatorBlock"
+      ? lowerSparkdownSequentialAlternatorBlock(makeAltNodeRef(node), ctx)
+      : lowerSparkdownConditionalAlternatorBlock(makeAltNodeRef(node), ctx);
+  forwardBlockDiagnostics(lowered, ctx);
+  return lowered.content ?? [];
 }
 
 function makeAltNodeRef(node: SyntaxNode): SparkdownSyntaxNodeRef {

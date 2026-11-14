@@ -229,7 +229,7 @@ export function createHarness(
         if (story.asyncContinueComplete && story.continueShowedSomething) {
           interpreter.queue(
             story.currentDisplayInstructions,
-            story.currentChoices.map((c: any) => c.text),
+            story.currentChoices.map((c: any) => c.styledText),
             story.currentStyledText || "",
           );
         }

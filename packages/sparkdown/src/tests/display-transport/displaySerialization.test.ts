@@ -128,6 +128,22 @@ const PRE_CHANGE_SAVES: Record<string, PreChangeSave> = JSON.parse(
   ),
 );
 
+interface PreChangeChoiceSave {
+  source: string;
+  text: string;
+  choices: string[];
+  chosen: number;
+  remaining: string[];
+  save: string;
+}
+
+const PRE_CHANGE_CHOICE_SAVES: Record<string, PreChangeChoiceSave> = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL("./fixtures/choice-saves-pre-2144.json", import.meta.url)),
+    "utf8",
+  ),
+);
+
 describe("a save made before style codes, by the runtime of that time", () => {
   test.each(Object.entries(PRE_CHANGE_SAVES))(
     "%s loads on its beat and continues as it did",
@@ -199,6 +215,46 @@ describe("a save made before style codes, by the runtime of that time", () => {
     expect(loaded.currentStyledText).toBe(story.currentStyledText);
     const styled = loaded.currentStyledText ?? "";
     expect(styled.split(SCAN_OPEN).length).toBe(styled.split(SCAN_CLOSE).length);
+  });
+
+  test.each(Object.entries(PRE_CHANGE_CHOICE_SAVES))(
+    "a save made before choice style codes with %s on screen offers the same choices and continues as it did",
+    (_name, { source, text, choices, chosen, remaining, save }) => {
+      const story = testStory(compile(source));
+      const errors: string[] = [];
+      story.onError = (m) => errors.push(m);
+      story.loadSave(save);
+      while (story.canContinue) story.Continue();
+      expect(story.currentText).toBe(text);
+      expect(story.currentChoices.map((choice) => choice.text)).toEqual(choices);
+      expect(
+        story.currentChoices.map((choice) => writtenText(choice.styledText)),
+      ).toEqual(choices);
+      story.ChooseChoiceIndex(chosen);
+      const after: string[] = [];
+      while (story.canContinue) {
+        story.Continue();
+        after.push(story.currentText ?? "");
+      }
+      expect(after).toEqual(remaining);
+      expect(errors).toEqual([]);
+    },
+  );
+
+  test("a save made now with a styled choice on screen keeps the choice's styling", () => {
+    const compiled = compile(
+      `scene start\n  The gate.\n  choose\n    + *Go* [**now**] there\n      Gone.\n      done\n  end\nend\n`,
+    );
+    const story = testStory(compiled);
+    story.keepBeatImages = true;
+    story.ContinueMaximally();
+    const styled = story.currentChoices.map((choice) => choice.styledText);
+    expect(styled[0]).not.toBe(story.currentChoices[0]!.text);
+    const loaded = testStory(compiled);
+    loaded.loadSave(story.toSave());
+    while (loaded.canContinue) loaded.Continue();
+    expect(loaded.currentChoices.map((choice) => choice.styledText)).toEqual(styled);
+    expect(loaded.currentChoices.map((choice) => choice.text)).toEqual(["*Go* **now**"]);
   });
 
   test("migrating its output leaves the script's own table as the script wrote it", () => {
