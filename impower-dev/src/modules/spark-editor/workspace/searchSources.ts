@@ -80,7 +80,7 @@ export const searchSources = (parts: {
         return;
       }
       window.navigateTo("collection");
-      window.openFileEditor(fs.getRelativePath(projectId, uri));
+      workspace.assetsInspect.value = fs.getRelativePath(projectId, uri);
     },
     setMatches: (uri, ranges) => {
       sendProtocolMessage(

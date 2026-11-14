@@ -579,6 +579,15 @@ function AssetsBrowser() {
     }
   }, [revealing, loaded]);
 
+  const inspecting = workspace.assetsInspect.value;
+  useEffect(() => {
+    if (inspecting && loaded) {
+      workspace.assetsInspect.value = null;
+      show([inspecting]);
+      openAsset(inspecting);
+    }
+  }, [inspecting, loaded]);
+
   const add = (items: DropItem[], folder: string) => void run(async () => show(await addAssetFiles(items, folder)));
 
   const onUpload = (event: Event) => {

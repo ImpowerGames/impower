@@ -1614,6 +1614,19 @@ describe("adding files dragged in from the desktop", () => {
     expect(rowLabels()).toContain("Open audio rain, modified 2d · 300 b");
   });
 
+  it("opens the inspector for a file another surface asks to show, on that file's tab", async () => {
+    await mount();
+    setListing({ [`${P}/imani.png`]: facts(7001), "Assets/Audio/rain.ogg": facts(300) }, [`${P}/Cast`]);
+    await act(async () => {
+      workspace.assetsInspect.value = "Assets/Audio/rain.ogg";
+    });
+    await settle();
+    expect(workspace.assetsInspect.value).toBeNull();
+    expect(workspace.current.lists?.assetsType).toBe("audio");
+    const inspector = document.querySelector<HTMLElement>('section[aria-label="Asset details"]');
+    expect(inspector?.textContent).toContain("rain");
+  });
+
   it("shows the added-files panel at the page's foot with each file's note, until closed", async () => {
     await mount();
     workspace.uploads.value = [
