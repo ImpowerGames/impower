@@ -57,18 +57,13 @@ const pinsKey = (offers: ReadonlyMap<string, ReadonlySet<number>>): string =>
     .sort()
     .join(",");
 
-export const pinTakenOptions = (
+export const pinFirstTakenOption = (
   menus: readonly { sources?: readonly string[]; selected: number }[],
   pinned: PinnedOptions,
   from = 0,
 ): PinnedOptions | null => {
-  const offers = new Map<string, Set<number>>(
-    [...pinned.offers].map(([source, offer]) => [source, new Set(offer)]),
-  );
-  const sites = new Set(pinned.sites);
   const counts = new Map<string, number>();
-  let added = false;
-  menus.forEach((menu, index) => {
+  for (const [index, menu] of menus.entries()) {
     const sources = menu.sources ?? [];
     const taken = sources[menu.selected];
     if (
@@ -76,22 +71,27 @@ export const pinTakenOptions = (
       index >= from &&
       pinnedAtMenu(pinned, sources, counts).length === 0
     ) {
+      const offers = new Map<string, Set<number>>(
+        [...pinned.offers].map(([source, offer]) => [source, new Set(offer)]),
+      );
       let pinnedOffers = offers.get(taken);
       if (!pinnedOffers) {
         pinnedOffers = new Set();
         offers.set(taken, pinnedOffers);
       }
       pinnedOffers.add((counts.get(taken) ?? 0) + 1);
-      sites.add(Number(taken));
-      added = true;
+      return {
+        offers,
+        sites: new Set([...pinned.sites, Number(taken)]),
+        unresolved: pinned.unresolved,
+        key: pinsKey(offers),
+      };
     }
     for (const source of sources) {
       counts.set(source, (counts.get(source) ?? 0) + 1);
     }
-  });
-  return added
-    ? { offers, sites, unresolved: pinned.unresolved, key: pinsKey(offers) }
-    : null;
+  }
+  return null;
 };
 
 export const pinnedOfferCounts = (

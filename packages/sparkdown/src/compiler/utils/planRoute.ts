@@ -20,7 +20,7 @@ import {
   pinnedOfferCounts,
   pinnedOfferKey,
   pinsNextOffer,
-  pinTakenOptions,
+  pinFirstTakenOption,
   type PinnedOptions,
 } from "./routePins";
 
@@ -1113,23 +1113,27 @@ const searchRoute = (
   to: ProgramAddress,
   options?: SearchOptions,
 ): RoutePlan | null => {
-  const route = searchRouteOnce(story, from, to, options);
-  const pins =
-    route?.decisions.some((d) => d.kind === "condition" && d.departs) &&
-    pinTakenOptions(
+  let route = searchRouteOnce(story, from, to, options);
+  let pins = options?.pins ?? NO_PINS;
+  while (route?.decisions.some((d) => d.kind === "condition" && d.departs)) {
+    const next = pinFirstTakenOption(
       route.choices,
-      options?.pins ?? NO_PINS,
+      pins,
       options?.resumeFrom?.choices.length,
     );
-  if (!pins) {
-    return route;
+    if (!next) {
+      break;
+    }
+    const stats = { ...lastSearchStats, errors: [...lastSearchStats.errors] };
+    const pinned = searchRouteOnce(story, from, to, { ...options, pins: next });
+    if (!pinned) {
+      Object.assign(lastSearchStats, stats);
+      break;
+    }
+    route = pinned;
+    pins = next;
   }
-  const stats = { ...lastSearchStats, errors: [...lastSearchStats.errors] };
-  const pinned = searchRouteOnce(story, from, to, { ...options, pins });
-  if (!pinned) {
-    Object.assign(lastSearchStats, stats);
-  }
-  return pinned ?? route;
+  return route;
 };
 
 const searchRouteOnce = (

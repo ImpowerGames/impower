@@ -575,4 +575,47 @@ describe("pinning the option the route already takes changes only its kind", () 
     expect(withoutKinds(auto.route)).toEqual(withoutKinds(pinned.route));
     expect(auto.count).toBe(pinned.count);
   }, 120_000);
+
+  test("pinning the first option leaves the later menu's option the route takes", () => {
+    const lines = [
+      "store trust = 0",
+      "store clues = 0",
+      "scene start",
+      "  choose",
+      "    * [Tell the truth.]",
+      "      trust = 2",
+      "    * [Show the photograph.]",
+      "      for i = 1, 40000 do",
+      "        clues += 1",
+      "      end",
+      "  end",
+      "  choose",
+      "    * [Keep the story.]",
+      "      trust += 0",
+      "    * [Improve the story.]",
+      "      trust = 5",
+      "      for j = 1, 3000 do",
+      "        clues += 1",
+      "      end",
+      "  end",
+      "  if trust > 3 then",
+      "    You found {clues} clues.",
+      "  end",
+      "end",
+      "",
+    ];
+    const auto = preview(lines, 22, [], "clues");
+    const pinned = preview(lines, 22, [pin(5)], "clues");
+    expect(kindsAndLines(auto.route)).toEqual([
+      ["auto", 5],
+      ["auto", 15],
+    ]);
+    expect(kindsAndLines(pinned.route)).toEqual([
+      ["pinned", 5],
+      ["auto", 15],
+    ]);
+    expect(withoutKinds(auto.route)).toEqual(withoutKinds(pinned.route));
+    expect(auto.count).toBe(3000);
+    expect(pinned.count).toBe(3000);
+  }, 120_000);
 });
