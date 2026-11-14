@@ -71,14 +71,19 @@ test("every ListRow spelling is recognised through the type checker", () => {
 
 test("a form the check cannot resolve fails closed", () => {
   assert.deepEqual(run(`<ListRow label={<Clip />} />`, { head: `import { Clip } from "./index";\n` }), ["clips:fade"]);
-  assert.deepEqual(run(`<ListRow label={<Tile label="x" />} />`, { imports: `import { ListRow, Tile } from "@impower/impower-ui/components";\n` }), ["label:fade", "component:not statically known"]);
+  assert.deepEqual(run(`<ListRow label={<Tile label="x" />} />`, { imports: `import { ListRow, Tile } from "@impower/impower-ui/components";\n` }), ["label:fade", "component:fade"]);
   assert.deepEqual(run(`<ListRow label={row.node} />`, { head: `declare const row: { node: VNode };\n` }), ["label:fade"]);
   assert.deepEqual(run(`<ListRow label={make()} />`, { head: `declare function make(): VNode;\n` }), ["label:fade"]);
   assert.deepEqual(run(`<ListRow {...make()} />`, { head: `declare function make(): { label: VNode };\n` }), ["label:fade"]);
   assert.deepEqual(run(`<ListRow {...make()} />`, { head: `declare function make(): any;\n` }), ["label:not statically known"]);
   assert.deepEqual(run(`<ListRow label="a" {...make()} />`, { head: `declare function make(): any;\n` }), ["label:not statically known"]);
   assert.deepEqual(run(`<ListRow {...make()} label={<Snippet />} />`, { head: `declare function make(): { overflow: string };\n` }), ["clips:not statically known"]);
-  assert.deepEqual(run(`<Mystery label={<b>a</b>} />`, { head: `declare const Mystery: any;\n` }), ["component:not statically known"]);
+  assert.deepEqual(run(`<Mystery label={<b>a</b>} />`, { head: `declare const Mystery: any;\n` }), ["component:fade"]);
+  assert.deepEqual(run(`<Mystery overflow={mode} label={<b>a</b>} />`, { head: `declare const Mystery: any;\ndeclare const mode: string;\n` }), ["component:not statically known"]);
+  assert.deepEqual(run(`<SafeList label={<b>a</b>} />`, { head: `import { memo } from "preact/compat";\nconst SafeList = memo(ListRow);\n` }), ["component:fade"]);
+  assert.deepEqual(run(`<ListRow label={<Clip />} />`, { head: `const labelClass = "truncate";\nfunction Clip() {\n  return <span class={labelClass}>name</span>;\n}\n` }), ["clips:fade"]);
+  assert.deepEqual(run(`<ListRow label={<Clip />} />`, { head: `const styles = { label: "min-w-0 truncate" };\nfunction Clip() {\n  return <span class={cn("x", styles.label)}>name</span>;\n}\ndeclare function cn(...c: string[]): string;\n` }), ["clips:fade"]);
+  assert.deepEqual(run(`<ListRow label={<Clip />} />`, { head: `declare const tone: "truncate" | "block";\nfunction Clip() {\n  return <span class={tone}>name</span>;\n}\n` }), ["clips:fade"]);
 });
 
 test("a self-clipping or unresolved label with overflow self or wrap passes, as do labels that do not clip", () => {
@@ -90,6 +95,9 @@ test("a self-clipping or unresolved label with overflow self or wrap passes, as 
   assert.deepEqual(run(`<ListRow overflow="self" label={row.node} />`, { head: `declare const row: { node: VNode };\n` }), []);
   assert.deepEqual(run(`<ListRow {...props} />`, { head: `const props = { label: <span class="fade-edge">a</span>, overflow: "self" as const };\n` }), []);
   assert.deepEqual(run(`<ListRow {...props} overflow="self" />`, { head: `const props = { label: <span class="fade-edge">a</span> };\n` }), []);
+  assert.deepEqual(run(`<SafeList overflow="self" label={<span class="truncate" />} />`, { head: `import { memo } from "preact/compat";\nconst SafeList = memo(ListRow);\n` }), []);
+  assert.deepEqual(run(`<Mystery overflow="wrap" label={<b>a</b>} />`, { head: `declare const Mystery: any;\n` }), []);
+  assert.deepEqual(run(`<ListRow label={<Clip />} />`, { head: `const labelClass = "block";\nfunction Clip() {\n  return <span class={labelClass}>name</span>;\n}\n` }), []);
   assert.deepEqual(run(`<ListRow label="A string" />`), []);
   assert.deepEqual(run(`<ListRow label={row.name} />`, { head: `declare const row: { name: string };\n` }), []);
   assert.deepEqual(run(`<ListRow label={name()} />`, { head: `declare function name(): string;\n` }), []);

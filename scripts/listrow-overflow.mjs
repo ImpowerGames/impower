@@ -49,15 +49,6 @@ function walk(node, visit) {
 const isStringish = (node) =>
   ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node);
 
-const hasClipString = (node) => {
-  let found = false;
-  walk(node, (n) => {
-    if (found) return false;
-    if (isStringish(n) && selfClipClass(n.text)) found = true;
-  });
-  return found;
-};
-
 const isClassAttribute = (n) => ts.isJsxAttribute(n) && CLASS_ATTRIBUTES.has(n.name.getText()) && n.initializer;
 
 const isClassCall = (n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && CLASS_FUNCTIONS.has(n.expression.text);
@@ -146,12 +137,48 @@ export function analyse(files, root = ROOT) {
 
   const intrinsic = (tag) => ts.isIdentifier(tag) && /^[a-z]/.test(tag.text);
 
+  const valueReference = (n) =>
+    (ts.isIdentifier(n) || ts.isPropertyAccessExpression(n)) &&
+    !(ts.isJsxAttribute(n.parent) && n.parent.name === n) &&
+    !(ts.isCallExpression(n.parent) && n.parent.expression === n) &&
+    !(ts.isPropertyAccessExpression(n.parent) && n.parent.name === n);
+
+  const constantInitializer = (n) => {
+    let symbol = checker.getSymbolAtLocation(ts.isPropertyAccessExpression(n) ? n.name : n);
+    if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+    const decl = symbol?.declarations?.length === 1 ? symbol.declarations[0] : undefined;
+    if (decl && ts.isVariableDeclaration(decl) && decl.initializer && ts.getCombinedNodeFlags(decl) & ts.NodeFlags.Const) return decl.initializer;
+    if (decl && ts.isPropertyAssignment(decl)) return decl.initializer;
+    return undefined;
+  };
+
+  const classClips = (node, seen = new Set()) => {
+    let found = false;
+    walk(node, (n) => {
+      if (found) return false;
+      if (isStringish(n) && selfClipClass(n.text)) found = true;
+      else if (valueReference(n) && !seen.has(n)) {
+        seen.add(n);
+        const init = constantInitializer(n);
+        if (init && !seen.has(init)) {
+          seen.add(init);
+          found = classClips(init, seen);
+        } else {
+          const type = checker.getTypeAtLocation(n);
+          found = (type.isUnion() ? type.types : [type]).some((t) => t.isStringLiteral() && selfClipClass(t.value));
+        }
+        return false;
+      }
+    });
+    return found;
+  };
+
   const clipping = new Set();
   const bodyClips = (body) => {
     let found = false;
     walk(body, (n) => {
       if (found) return false;
-      if ((isClassAttribute(n) || isClassCall(n)) && hasClipString(n)) found = true;
+      if ((isClassAttribute(n) || isClassCall(n)) && classClips(n)) found = true;
       const o = opening(n);
       if (o && !intrinsic(o.tagName) && clipping.has(resolveTag(o.tagName))) found = true;
     });
@@ -178,7 +205,7 @@ export function analyse(files, root = ROOT) {
     let result = NO;
     walk(node, (n) => {
       if (result === YES) return false;
-      if ((isClassAttribute(n) || isClassCall(n)) && hasClipString(n)) {
+      if ((isClassAttribute(n) || isClassCall(n)) && classClips(n)) {
         result = YES;
         return false;
       }
@@ -286,7 +313,10 @@ export function violations(file, analysis) {
     const key = resolveTag(o.tagName);
     const given = props(o);
     if (key === undefined) {
-      if (given.has("label")) report(o, { overflow: "not statically known", reason: "component" });
+      if (!given.has("label")) return;
+      const ov = given.get("overflow");
+      const values = ov ? overflowValues(ov.node, ov.type) : ["fade"];
+      if (!values.every((v) => ALLOWED_OVERFLOW.has(v))) report(o, { overflow: describe(values.filter((v) => !ALLOWED_OVERFLOW.has(v))), reason: "component" });
       return;
     }
     if (key !== LISTROW || !given.has("label")) return;
