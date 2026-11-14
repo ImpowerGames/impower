@@ -308,6 +308,19 @@ try {
 
   {
     const tracker = fakeTracker();
+    const repeated = edit(decision(), (r) => (r.options[1].pictures[1].file = "a.png"));
+    const result = fileRequest(repeated, { pictures, tracker, repos, now, timeZone });
+    const issue = tracker.issues.get(result.number);
+    const create = tracker.calls.find((call) => call[0] === "create");
+    assert.deepEqual(create[4], ["./phone.png", "./a.png", "./b.png", "./c.png", "./d.png", "./e.png"]);
+    const hostedA = `https://github.com/user-attachments/assets/${Buffer.from("./a.png").toString("hex")}`;
+    assert.equal(issue.body.split(`<img src="${hostedA}"`).length - 1, 2);
+    assert.doesNotMatch(issue.body, /src="\.\//);
+    console.log("ok: a picture used twice is uploaded once and its hosted address is written at both places");
+  }
+
+  {
+    const tracker = fakeTracker();
     const result = fileRequest(task(), { pictures, tracker, repos, now, timeZone });
     assert.deepEqual(tracker.calls.find((call) => call[0] === "create")[2], [labels.task]);
     assert.deepEqual(result.blocked, [2271, 2272]);

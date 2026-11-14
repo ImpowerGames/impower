@@ -454,6 +454,7 @@ export function checkPlacedBody(body, placed) {
 export function stagingBody(body) {
   const pictures = [];
   const staged = body.replace(/<img src="(\.\/[^"]+)"[^>]*>/g, (_, src) => {
+    if (pictures.some((picture) => picture.src === src)) return "";
     const token = `picture-${pictures.length + 1}`;
     pictures.push({ token, src });
     return `![${token}](${src})`;
@@ -463,21 +464,18 @@ export function stagingBody(body) {
 
 export function hostedAddresses(stagedBack, pictures) {
   const problems = [];
-  const urls = pictures.map(({ token, src }) => {
+  const urls = {};
+  for (const { token, src } of pictures) {
     const match = new RegExp(`!\\[${token}\\]\\(([^)\\s]+)\\)`).exec(stagedBack);
-    if (!match) {
-      problems.push(`the reference for ${src} is gone from the uploaded body`);
-      return null;
-    }
-    if (!/^https:\/\//.test(match[1])) problems.push(`${src} was not uploaded: the body still holds its relative path`);
-    return match[1];
-  });
+    if (!match) problems.push(`the reference for ${src} is gone from the uploaded body`);
+    else if (!/^https:\/\//.test(match[1])) problems.push(`${src} was not uploaded: the body still holds its relative path`);
+    else urls[src] = match[1];
+  }
   return { urls, problems };
 }
 
 export function placeAddresses(body, urls) {
-  let index = 0;
-  return body.replace(/(<img src=")(\.\/[^"]+)(")/g, (_, open, src, close) => `${open}${urls[index++] ?? src}${close}`);
+  return body.replace(/(<img src=")(\.\/[^"]+)(")/g, (_, open, src, close) => `${open}${Object.hasOwn(urls, src) ? urls[src] : src}${close}`);
 }
 
 export function sameQuestion(a, b) {
@@ -584,22 +582,22 @@ function placeInto({ built, folder, scratch, post, read, write }) {
   writeFileSync(stagedFile, staged);
   const target = post(stagedFile, attachments(built.pictures, folder));
   const problems = target.uploadError ? [`an upload failed: ${target.uploadError}`] : [];
-  let urls = [];
+  let addresses = {};
   if (pictures.length) {
     const hosted = hostedAddresses(read(target).replace(/\r\n/g, "\n"), pictures);
     problems.push(...hosted.problems);
-    urls = hosted.urls.filter(Boolean);
+    addresses = hosted.urls;
     if (!hosted.problems.length) {
       const finalFile = path.join(scratch, "final.md");
-      const final = placeAddresses(built.body, hosted.urls);
-      writeFileSync(finalFile, final);
+      writeFileSync(finalFile, placeAddresses(built.body, addresses));
       write(target, finalFile);
     }
   }
+  const urls = Object.values(addresses);
   const back = read(target).replace(/\r\n/g, "\n");
   if (!problems.length) {
     problems.push(...checkPlacedBody(back, urls));
-    const expected = placeAddresses(built.body, urls);
+    const expected = placeAddresses(built.body, addresses);
     if (!problems.length && back.trimEnd() !== expected.trimEnd()) problems.push("the body read back differs from the body the tool wrote");
   }
   return { target, problems, urls };
