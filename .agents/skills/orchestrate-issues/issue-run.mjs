@@ -866,6 +866,10 @@ export function maintainerRequest({ labels } = readRepos().maintainer) {
   return (issue) => labelNames(issue).some((name) => names.has(name));
 }
 
+export function requestKind({ labels } = readRepos().maintainer) {
+  return (issue) => (labelNames(issue).includes(labels.decision) ? "decision" : labelNames(issue).includes(labels.task) ? "task" : null);
+}
+
 export function wentAheadRequest({ labels } = readRepos().maintainer) {
   return (issue) => labelNames(issue).includes(labels.decidedWithoutYou);
 }
@@ -882,6 +886,7 @@ export function heldRequest(record, facts, ticket, { what, kinds = ["decision", 
   if (typeof facts !== "object" || !Number.isSafeInteger(facts.number)) throw new Error(`${what} takes a maintainer request's number, not typed text: ${fileFirst(record, ticket, kinds.length === 1 ? kinds[0] : "decision or task")}`);
   if (!kinds.includes(facts.kind)) throw new Error(`#${facts.number} is a maintainer ${facts.kind} request; ${what} needs a ${kinds.join(" or ")} request`);
   if (!facts.tickets.includes(ticket)) throw new Error(`Maintainer request #${facts.number} does not hold up #${ticket} (it blocks ${facts.tickets.map((n) => `#${n}`).join(", ") || "no ticket"}); ${fileFirst(record, ticket, facts.kind)}`);
+  if (facts.holding !== ticket || facts.holds !== true) throw new Error(`GitHub does not block #${ticket} on maintainer request #${facts.number}, although the request names it, so the request holds nothing; ${fileFirst(record, ticket, facts.kind)}`);
   if (facts.owner !== requestOwner(record)) throw new Error(`Maintainer request #${facts.number} is owned by ${JSON.stringify(facts.owner)}, not by this run (${JSON.stringify(requestOwner(record))}), so this run would never read its answer or take its fallback; ${fileFirst(record, ticket, facts.kind)}`);
   if (facts.state === "withdrawn") throw new Error(`Maintainer request #${facts.number} was withdrawn; ${fileFirst(record, ticket, facts.kind)}`);
   return { number: facts.number, url: facts.url, title: facts.title, kind: facts.kind };
@@ -903,6 +908,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
   const mergedOnMain = (p) => Boolean(p.state === "MERGED" && p.mergeCommit?.oid && client.onMain(p.mergeCommit.oid));
   const delivered = (n) => pullsOf(n).some(mergedOnMain);
   const isRequest = maintainerRequest();
+  const kindOf = requestKind();
   const wentAhead = wentAheadRequest();
   const parent = client.issue(issue);
   const walked = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf });
@@ -919,7 +925,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     return {
       ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
-      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
+      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, kind: kindOf(b), ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });
@@ -1075,17 +1081,20 @@ export const DECIDERS = ["maintainer", "coordinator"];
 
 function askMaintainer(record, snapshot, tickets) {
   const byNumber = new Map(snapshot.tickets.map((t) => [t.number, t]));
+  const otherWaits = new Set(Object.values(record.tickets ?? {}).flatMap((t) => [...(t.requests ?? []).map((r) => r.relayed?.maintainerRequest?.number), ...(t.checkpoints ?? []).map((d) => d.maintainerRequest?.number)]).filter(Number.isSafeInteger));
   for (const entry of tickets) {
     const kind = entry.action === "await-maintainer" ? "task" : entry.action === "decision-needed" && entry.decides === "maintainer" ? "decision" : null;
     if (!kind) continue;
-    const filed = (byNumber.get(entry.number)?.blockers ?? []).filter((b) => b.request);
+    const requests = (byNumber.get(entry.number)?.blockers ?? []).filter((b) => b.request && b.kind === kind && !otherWaits.has(b.number));
+    const filed = requests.filter((b) => b.state !== "closed");
+    const answered = requests.filter((b) => b.state === "closed").map((b) => b.number);
     const what = kind === "task" ? `a maintainer task request asking the maintainer to merge PR #${entry.pr}` : "a maintainer decision request asking the question this reason raises";
     if (!filed.length) {
-      entry.maintainerRequest = { file: kind, ...(entry.pr && kind === "task" && { pr: entry.pr }) };
-      entry.reason += `; the maintainer has no request for it yet: ${fileRequest(record, entry.number, kind)} (${what}), and the plan names it here once filed`;
+      entry.maintainerRequest = { file: kind, ...(entry.pr && kind === "task" && { pr: entry.pr }), ...(answered.length && { answered }) };
+      entry.reason += `; no open maintainer ${kind} request holds it: ${fileRequest(record, entry.number, kind)} (${what}), and the plan names it here once filed${answered.length ? `; closed maintainer ${kind} request${answered.length > 1 ? "s" : ""} ${answered.map((n) => `#${n}`).join(", ")} also block${answered.length > 1 ? "" : "s"} it: if one answered this, record its answer and act on it instead of filing` : ""}`;
       continue;
     }
-    const stateOf = (b) => (b.state === "closed" ? "is closed: read and record its answer, then act on it" : b.wentAhead ? "went ahead without the maintainer: act on its fallback, and record their answer once they keep or change it" : "is open: the maintainer has not answered");
+    const stateOf = (b) => (b.wentAhead ? "went ahead without the maintainer: act on its fallback, and record their answer once they keep or change it" : "is open: the maintainer has not answered");
     entry.maintainerRequest = { filed: filed.map((b) => ({ number: b.number, state: b.state, ...(b.wentAhead && { wentAhead: true }) })) };
     entry.reason += `; ${filed.map((b) => `maintainer request #${b.number} ${stateOf(b)}`).join("; ")}`;
   }
@@ -2318,8 +2327,8 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
   };
   const number = () => integer(o.ticket, "ticket");
   const requestNumbers = () => (o.maintainerRequest ?? []).map((value) => integer(String(value).replace(/^#/, ""), "maintainer-request"));
-  const requestsOf = () => { const numbers = requestNumbers(); if (!numbers.length) return []; const tracker = requestsFor(readRecord(absolute(o.record, "record"))); return numbers.map((n) => requestFacts(n, { tracker })); };
-  const oneRequest = () => { if ((o.maintainerRequest?.length ?? 0) > 1) throw new Error("--maintainer-request given twice"); return requestsOf()[0]; };
+  const requestsOf = (holding = null) => { const numbers = requestNumbers(); if (!numbers.length) return []; const tracker = requestsFor(readRecord(absolute(o.record, "record"))); return numbers.map((n) => requestFacts(n, { tracker, holding })); };
+  const oneRequest = (holding = null) => { if ((o.maintainerRequest?.length ?? 0) > 1) throw new Error("--maintainer-request given twice"); return requestsOf(holding)[0]; };
   switch (command) {
     case "init": {
       if (!o.merging) throw new Error(`--merging must record who merges: ${MERGING.join(" or ")}`);
@@ -2363,7 +2372,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry) }));
     case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
     case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
-    case "relay": { const filed = oneRequest(); return mutate((r) => relay(r, { ticket: number(), request: o.request, to: o.to, maintainerRequest: filed })); }
+    case "relay": { const filed = oneRequest(number()); return mutate((r) => relay(r, { ticket: number(), request: o.request, to: o.to, maintainerRequest: filed })); }
     case "answer": { const filed = oneRequest(); return mutate((r) => answer(r, { ticket: number(), request: o.request, text: o.text, retry: Boolean(o.retry), maintainerRequest: filed })); }
     case "answered": return mutate((r) => answered(r, { ticket: number(), request: o.request, evidence: o.evidence }));
     case "launched": return mutate((r) => launched(r, { ticket: number(), handleKind: o.handleKind, handle: o.handle, observedOn: o.observedOn }));
@@ -2380,7 +2389,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "clean-artifacts": return mutate((r) => cleanArtifacts(r, { ticket: number() }));
     case "filed": return mutate((r) => filed(r, { filed: integer(o.filed, "filed"), ticket: o.ticket === undefined ? undefined : number(), pr: o.pr === undefined ? undefined : integer(o.pr, "pr"), source: o.source, reading: o.reading }));
     case "dismiss": return mutate((r) => dismiss(r, { filed: integer(o.filed, "filed"), ticket: o.ticket === undefined ? undefined : number(), evidence: o.evidence }));
-    case "triage": { const filed = oneRequest(); return mutate((r) => triage(r, { filed: integer(o.filed, "filed"), outcome: o.outcome, slice: o.slice === undefined ? undefined : integer(o.slice, "slice"), under: o.under === undefined ? undefined : integer(o.under, "under"), reason: o.reason, question: o.question, maintainerRequest: filed })); }
+    case "triage": { const filed = oneRequest(integer(o.filed, "filed")); return mutate((r) => triage(r, { filed: integer(o.filed, "filed"), outcome: o.outcome, slice: o.slice === undefined ? undefined : integer(o.slice, "slice"), under: o.under === undefined ? undefined : integer(o.under, "under"), reason: o.reason, question: o.question, maintainerRequest: filed })); }
     case "interim": {
       if (o.decision || o.evidence) throw new Error(`interim ${TYPED_DECISION}`);
       const filed = oneRequest();

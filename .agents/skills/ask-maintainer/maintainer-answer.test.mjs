@@ -247,6 +247,11 @@ try {
     recordAnswer(REQUEST, { tracker, repos });
     const after = requestFacts(REQUEST, { tracker, repos });
     assert.equal(after.recorded, true, "a recorded answer reads as recorded");
+    assert.equal("holds" in after, false, "facts read without a ticket say nothing about a live dependency");
+    tracker.blockedBy = (n) => (n === 2271 ? [{ number: REQUEST }] : []);
+    assert.deepEqual([requestFacts(REQUEST, { tracker, repos, holding: 2271 }).holds, requestFacts(REQUEST, { tracker, repos, holding: 2272 }).holds], [true, false], "with a ticket, the facts say whether GitHub blocks that ticket on the request");
+    tracker.blockedBy = () => [];
+    assert.equal(requestFacts(REQUEST, { tracker, repos, holding: 2271 }).holds, false, "a removed dependency reads as not holding, whatever the request's own list says");
     const text = answerText(after);
     assert.equal(text, `Maintainer request #${REQUEST} (${issueUrl(REQUEST)}) asked "What should mark a choice the preview picked by itself?"; the maintainer answered in the words quoted below.\n\nTheir comment at 2026-11-13 16:10 UTC (${answerComment.html_url}):\n${quote(typed.replace(/\r\n/g, "\n").trimEnd())}`);
     assert.equal(unquote(text.split("):\n").at(-1)), typed.replace(/\r\n/g, "\n").trimEnd(), "the text carries the maintainer's words character for character");

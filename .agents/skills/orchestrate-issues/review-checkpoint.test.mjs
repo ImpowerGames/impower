@@ -77,7 +77,7 @@ try {
     trace(name, out.body);
     return { ...out, posted };
   };
-  const asked = (over = {}) => ({ number: 9042, url: "https://github.com/acme/widgets/issues/9042", title: "Should round 3 stop here? (#42)", kind: "decision", question: "Should round 3 stop here?", owner: "orchestrate-issues #40", tickets: [42], state: "waiting", answered: false, recorded: false, words: [], ...over });
+  const asked = (over = {}) => ({ number: 9042, url: "https://github.com/acme/widgets/issues/9042", title: "Should round 3 stop here? (#42)", kind: "decision", question: "Should round 3 stop here?", owner: "orchestrate-issues #40", tickets: [42], holding: 42, holds: true, state: "waiting", answered: false, recorded: false, words: [], ...over });
   const findingsSoFar = () => rc.roundState(rc.readJournals(jobDir)).reports.map((r) => ({ comment: r.comment, finding: `round ${r.round} ${r.reviewerId} findings`, disposition: "accepted" }));
   const assess = (more = {}) => ({
     mechanisms: "test", regressions: "test", repairOptions: "test", residualRisk: "test", coverage: "test", nextRoundValue: "test", rationale: "test", next: "test",
@@ -112,6 +112,7 @@ try {
   assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e }), /A checkpoint decision of kind maintainer waits on the maintainer only through a filed request: file a maintainer decision request with .*, naming #42 in its tickets and "orchestrate-issues #40" as its owner, then pass its number with --maintainer-request/, "a decision of kind maintainer refuses without a request number");
   assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e, maintainerRequest: asked({ tickets: [43] }) }), /Maintainer request #9042 does not hold up #42/);
   assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e, maintainerRequest: asked({ owner: "orchestrate-issues #977" }) }), /owned by "orchestrate-issues #977", not by this run/);
+  assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e, maintainerRequest: asked({ holds: false }) }), /GitHub does not block #42 on maintainer request #9042/, "a decision of kind maintainer refuses a request whose live dependency is gone");
   assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "accept-unreviewed", assessment: assess({ verification: ["x"] }), evidence: e, maintainerRequest: asked() }), /--maintainer-request belongs to a decision of kind maintainer/);
   const earlyRecord = structuredClone(record());
   const early = rc.decide(earlyRecord, { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e, maintainerRequest: asked() });

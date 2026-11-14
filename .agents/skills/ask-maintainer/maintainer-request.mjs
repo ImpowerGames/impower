@@ -1083,13 +1083,14 @@ export function recordAnswer(number, { tracker, repos = readRepos(), identity = 
   });
 }
 
-export function requestFacts(number, { tracker, repos = readRepos() }) {
+export function requestFacts(number, { tracker, repos = readRepos(), holding = null }) {
   const answer = fetchAnswer(number, { tracker, repos });
+  const holds = holding === null ? null : tracker.blockedBy(holding).some((issue) => issue.number === number);
   const answered = ANSWERED.includes(answer.state);
   const key = answered ? answerKey(answer) : null;
   const who = whoOf(repos);
   const recorded = answered && tracker.comments(number).some((comment) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === "recorded" && readNote(comment.body)?.request === number && readNote(comment.body)?.answer === key);
-  return { number, url: answer.url, title: answer.title, kind: answer.kind, question: answer.question, owner: answer.data.owner ?? null, tickets: answer.tickets, state: answer.state, answered, recorded, recommended: answer.recommended, wentAhead: answer.wentAhead ?? null, closed: answer.closed ?? null, words: answer.words.map(({ url, at, body, relayed }) => ({ url, at, body, ...(relayed && { relayed: true }) })) };
+  return { number, url: answer.url, title: answer.title, kind: answer.kind, question: answer.question, owner: answer.data.owner ?? null, tickets: answer.tickets, ...(holding !== null && { holding, holds }), state: answer.state, answered, recorded, recommended: answer.recommended, wentAhead: answer.wentAhead ?? null, closed: answer.closed ?? null, words: answer.words.map(({ url, at, body, relayed }) => ({ url, at, body, ...(relayed && { relayed: true }) })) };
 }
 
 export function answerText(facts) {

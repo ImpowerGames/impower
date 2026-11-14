@@ -418,7 +418,7 @@ try {
     const legacyRaised = structuredClone(withFiled);
     legacyRaised.filed[48].outcome = { kind: "maintainer", question: "Does the proper fix change agreed behavior?", slice: 41, time: "2026-11-01T00:00:00.000Z" };
     blocked(filedGate(legacyRaised), /^#48, filed during the run, waits on the maintainer's answer to "Does the proper fix change agreed behavior\?", and the PR holds until it is recorded/, "a record written before requests still holds its slice on the old question");
-    const asked48 = { number: 9048, url: "https://github.com/acme/widgets/issues/9048", title: "Does the proper fix change agreed behavior? (#48)", kind: "decision", question: "Does the proper fix change agreed behavior?", owner: `orchestrate-issues #${ISSUE}`, tickets: [48], state: "waiting", answered: false, recorded: false, words: [] };
+    const asked48 = { number: 9048, url: "https://github.com/acme/widgets/issues/9048", title: "Does the proper fix change agreed behavior? (#48)", kind: "decision", question: "Does the proper fix change agreed behavior?", owner: `orchestrate-issues #${ISSUE}`, tickets: [48], holding: 48, holds: true, state: "waiting", answered: false, recorded: false, words: [] };
     const raised = structuredClone(withFiled);
     run.triage(raised, { filed: 48, outcome: "maintainer", question: "Does the proper fix change agreed behavior?", slice: 41, maintainerRequest: asked48 });
     blocked(filedGate(raised), /^#48, filed during the run, waits on the maintainer's answer to "Does the proper fix change agreed behavior\?" in maintainer request #9048 \(https:\/\/github\.com\/acme\/widgets\/issues\/9048\), and the PR holds until it is recorded/, "a ticket raised with the maintainer holds its slice, and the gate names the request");
@@ -724,7 +724,7 @@ try {
     change((r) => rc.published(r, { ticket: 43, id: d.id, comment: c.id, readBack: d.body, head: h43c }));
     return d;
   };
-  const hold = decide43("maintainer", { question: "Should the README keep main's line last?" }, { maintainerRequest: { number: 9043, url: "https://github.com/acme/widgets/issues/9043", title: "Should the README keep main's line last? (#43)", kind: "decision", owner: `orchestrate-issues #${ISSUE}`, tickets: [43], state: "waiting" } });
+  const hold = decide43("maintainer", { question: "Should the README keep main's line last?" }, { maintainerRequest: { number: 9043, url: "https://github.com/acme/widgets/issues/9043", title: "Should the README keep main's line last? (#43)", kind: "decision", owner: `orchestrate-issues #${ISSUE}`, tickets: [43], holding: 43, holds: true, state: "waiting" } });
   blocked(gate(43), new RegExp(`decision ${hold.id} \\(maintainer after round 3\\) is in force; the ticket waits for the maintainer's answer in maintainer request #9043 \\(https://github\\.com/acme/widgets/issues/9043\\)`), "a question to the maintainer holds a reviewed head, and the gate names the request");
   decide43("finish");
   setHead(43, h43c, passing().map((c) => (c.name === "hook-tests" ? { ...c, state: "FAILURE" } : c)));

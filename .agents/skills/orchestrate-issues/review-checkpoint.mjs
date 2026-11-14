@@ -478,7 +478,7 @@ export function main(argv, { clientFor = checkpointClient, gitFor = localGit, re
       const evidence = gatherEvidence({ record, ticket: int(o.ticket, "ticket"), pr: int(o.pr, "pr"), client, git });
       const assessment = readJson(abs(o.assessment, "assessment"));
       const out = abs(o.out, "out");
-      const maintainerRequest = o.maintainerRequest === undefined ? undefined : requestFacts(int(String(o.maintainerRequest).replace(/^#/, ""), "maintainer-request"), { tracker: requestsFor(record) });
+      const maintainerRequest = o.maintainerRequest === undefined ? undefined : requestFacts(int(String(o.maintainerRequest).replace(/^#/, ""), "maintainer-request"), { tracker: requestsFor(record), holding: int(o.ticket, "ticket") });
       const done = mutate(file, (r) => decide(r, { ticket: int(o.ticket, "ticket"), kind: o.kind, assessment, inspected: o.inspected, evidence, maintainerRequest }));
       fs.writeFileSync(out, done.body + "\n");
       return { revision: done.revision, id: done.id, body: out, next: `post it with ${postCommand(record, evidence.pr, int(o.ticket, "ticket"), out)}, read the comment back to a file, then record published` };
