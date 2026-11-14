@@ -485,6 +485,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const paused = playing && !!game?.paused;
   const loading = !!game?.loading;
   const refusal = live ? undefined : game?.playRefusal;
+  const pressRefusal = live ? undefined : (refusal ?? game?.startRefusal);
   const session = workspace.debugSession.value;
   const refusals = stepRefusals(game, session);
   const caretScript = useCaretScript();
@@ -558,10 +559,10 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           variant="primary"
           size="icon"
           aria-label={live ? "Stop" : "Play From Here"}
-          title={refusal ?? (live ? "Stop" : "Play From Here")}
-          aria-disabled={refusal || loading ? true : undefined}
+          title={pressRefusal ?? (live ? "Stop" : "Play From Here")}
+          aria-disabled={pressRefusal || loading ? true : undefined}
           onClick={
-            refusal || loading
+            pressRefusal || loading
               ? undefined
               : () => void withWindow((window) => window.toggleGameRunning())
           }

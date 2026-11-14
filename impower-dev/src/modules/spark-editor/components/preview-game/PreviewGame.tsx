@@ -396,9 +396,11 @@ export default function PreviewGame(_props: PreviewGameProps) {
             Workspace.window.syncGameEnded(true);
           }
           if (DidChangeGameStateMessage.type.is(message)) {
-            const { launchState, paused, beat, shownBeat } = message.params;
+            const { launchState, paused, beat, shownBeat, startRefusal } =
+              message.params;
             Workspace.window.syncGamePaused(paused);
             Workspace.window.syncShownBeat(shownBeat ?? null);
+            Workspace.window.syncStartRefusal(startRefusal ?? null);
             if (beat) {
               Workspace.window.syncPreviewBeat(beat);
             }

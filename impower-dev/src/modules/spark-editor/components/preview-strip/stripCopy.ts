@@ -23,13 +23,26 @@ export const EMPTY_WORDS = "Write a line and it appears here.";
 
 export const FORCED_TEXT = "Forced to reach this line";
 
-export const stripCopy = (preview: PreviewLine | undefined): StripCopy => {
+const SETUP_COPY: StripCopy = {
+  label: "STORY SETUP",
+  words: SETUP_WORDS,
+  symbol: "file",
+  playable: false,
+};
+
+export const stripCopy = (
+  preview: PreviewLine | undefined,
+  startRefused = false,
+): StripCopy => {
+  if (startRefused) {
+    return SETUP_COPY;
+  }
   if (!preview) {
     return { label: "", words: "", playable: true };
   }
   switch (preview.kind) {
     case "setup":
-      return { label: "STORY SETUP", words: SETUP_WORDS, symbol: "file", playable: false };
+      return SETUP_COPY;
     case "empty":
       return { label: "YOUR GAME", words: EMPTY_WORDS, symbol: "pencil", playable: false };
     case "dialogue":

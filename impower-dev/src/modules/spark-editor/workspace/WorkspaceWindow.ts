@@ -958,7 +958,7 @@ export default class WorkspaceWindow {
     const from = launchPhaseOf(game, this._startGameRequestId !== undefined);
     const next = launchStep(from, event, {
       connected: this._playerConnected,
-      refused: Boolean(game.playRefusal),
+      refused: Boolean(game.playRefusal || game.startRefusal),
     });
     if (!next) {
       return;
@@ -2290,6 +2290,15 @@ export default class WorkspaceWindow {
         },
       },
     });
+  }
+
+  syncStartRefusal(refusal: string | null) {
+    const game = this.store.preview.modes.game;
+    const startRefusal = refusal ?? undefined;
+    if (game.startRefusal === startRefusal) {
+      return;
+    }
+    this.updateGame({ ...game, startRefusal });
   }
 
   playBeat() {

@@ -19,6 +19,7 @@ export interface GameState {
   ending: GameStateEnding | null;
   statuses?: GameStatuses;
   beat?: GameStateBeat;
+  startRefusal?: string | null;
 }
 
 export interface GameStateBeat {
