@@ -676,13 +676,13 @@ export const decorate = (
         dialoguePosition = 0;
         dialogueContent = [];
       } else if (name === "DialogueCharacter") {
-        const value = doc.sliceString(from, to).trim();
+        const exported = exportedLinesFrom(from, to);
         dialogueContent.push({
           type: "character",
           from,
           to,
-          value: value + ": ",
-          markdown: true,
+          value: exported ? printedHtml(exported) : doc.sliceString(from, to).trim() + ": ",
+          markdown: !exported,
           attributes: {
             style: getDialogueLineStyle("character"),
           },
