@@ -6,6 +6,7 @@ import { useLayout } from "../../hooks/useLayout";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import { holdSheetOpen } from "../../hooks/useSheetOpen";
 import { cn } from "../../utils/cn";
+import "../../utils/uniqueIds";
 import { focusReturnTarget } from "../../utils/focusReturn";
 import { portalContainer } from "../../utils/portalContainer";
 import { useToastLayer } from "../../utils/toastLayer";

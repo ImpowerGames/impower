@@ -3,6 +3,7 @@ import type { RefObject } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
+import "../../utils/uniqueIds";
 import { useEscapeWithin } from "../../utils/escapeWithin";
 import { type KeepClear, useClearLine } from "../../utils/keepClear";
 import Button from "../button/Button";
