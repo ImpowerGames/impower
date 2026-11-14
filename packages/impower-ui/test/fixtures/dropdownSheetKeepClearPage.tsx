@@ -9,6 +9,9 @@ import {
 } from "../../src/components/dropdown/Dropdown";
 
 const tall = location.hash.includes("tall");
+const long = location.hash.includes("long");
+const faces = long ? Array.from({ length: 20 }, (_, index) => `face-${index + 1}`) : ["happy", "angry", "sad"];
+const chosen = long ? faces[faces.length - 1]! : "happy";
 
 function Page() {
   const picture = useRef<HTMLDivElement>(null);
@@ -27,8 +30,8 @@ function Page() {
           </button>
         </DropdownTrigger>
         <DropdownContent keepClear={picture}>
-          <DropdownRadioGroup value="happy" label="Face">
-            {["happy", "angry", "sad"].map((face) => (
+          <DropdownRadioGroup value={chosen} label="Face">
+            {faces.map((face) => (
               <DropdownRadioItem
                 key={face}
                 value={face}

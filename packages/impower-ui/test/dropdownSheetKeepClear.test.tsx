@@ -39,7 +39,7 @@ const styles = async () => {
   return compiler.build(candidates);
 };
 
-const withSheet = async (height: number, kind: "short" | "tall", run: (page: Page) => Promise<void>) => {
+const withSheet = async (height: number, kind: "short" | "tall" | "tall-long", run: (page: Page) => Promise<void>) => {
   const [script, css] = await Promise.all([pageScript(), styles()]);
   const browser = await chromium.launch();
   try {
@@ -119,6 +119,17 @@ describe.skipIf(!browserAvailable)("the Dropdown's phone-layout sheet kept clear
       expect(row.top).toBeGreaterThanOrEqual(sheet.top);
       expect(row.bottom).toBeLessThanOrEqual(480);
       expect(sheet.top).toBeGreaterThan(480 - (row.height + 24));
+    });
+  });
+
+  test("keeps a whole row showing when it opens scrolled to a chosen option far down a long list", async () => {
+    await withSheet(480, "tall-long", async (page) => {
+      await open(page);
+      const chosen = await boxOf(page, '[role="menuitemradio"][aria-checked="true"]');
+      const sheet = await boxOf(page, '[role="dialog"]');
+      expect(await page.evaluate(() => document.activeElement?.textContent)).toBe("face-20");
+      expect(chosen.top).toBeGreaterThanOrEqual(sheet.top);
+      expect(chosen.bottom).toBeLessThanOrEqual(480);
     });
   });
 });

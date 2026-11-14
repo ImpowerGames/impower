@@ -52,11 +52,13 @@ const leastSheet = (card: HTMLElement | null) => {
     return card.scrollHeight;
   }
   let foot = 0;
+  let scrolled = 0;
   for (let at = row.parentElement; at; at = at === card ? null : at.parentElement) {
     const style = getComputedStyle(at);
     foot += (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0);
+    scrolled += at.scrollTop;
   }
-  return row.getBoundingClientRect().bottom - card.getBoundingClientRect().top + foot;
+  return row.getBoundingClientRect().bottom + scrolled - card.getBoundingClientRect().top + foot;
 };
 
 const surface =
