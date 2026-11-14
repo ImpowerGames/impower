@@ -103,7 +103,7 @@ const setup = () => {
 const serve = async () => {
   const { workspace, program } = setup();
   workspace.program = () => program;
-  workspace.listen = () => {};
+  workspace.listen = () => ({ dispose: () => {} });
   server.workspace = workspace;
   vi.stubGlobal("self", globalThis);
   await import("../../sparkdown-language-server");
