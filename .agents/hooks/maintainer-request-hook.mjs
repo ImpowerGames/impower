@@ -44,19 +44,6 @@ function parseArgs(args, valueFlags) {
       positional.push(t);
       continue;
     }
-    if (!t.startsWith("--")) {
-      for (let p = 1; p < t.length; p++) {
-        const letter = `-${t[p]}`;
-        if (!valueFlags.has(letter)) {
-          flags.push([letter, ""]);
-          continue;
-        }
-        const rest = t.slice(p + 1).replace(/^=/, "");
-        flags.push([letter, rest.length ? rest : (args[++i]?.text ?? "")]);
-        break;
-      }
-      continue;
-    }
     if (valueFlags.has(name)) {
       const [value, used] = flagValue(args, i);
       flags.push([name, value]);
@@ -121,8 +108,8 @@ function touches(seg, i, repo) {
     }
     return null;
   }
-  const requests = base === "curl" ? curlTransfers(args) : WEB_REQUEST.has(base) ? [webRequest(args)] : [];
-  const numbers = requests.filter(changes).flatMap((request) => request.urls.filter(githubUrl).map((url) => apiTarget(url, repo))).filter((n) => n !== null);
+  const request = base === "curl" ? curlRequest(args) : WEB_REQUEST.has(base) ? webRequest(args) : null;
+  const numbers = request && changes(request) ? request.urls.filter(githubUrl).map((url) => apiTarget(url, repo)).filter((n) => n !== null) : [];
   return numbers.length ? { numbers, action: "api" } : null;
 }
 
@@ -130,82 +117,129 @@ const WEB_REQUEST = new Set(["invoke-restmethod", "irm", "invoke-webrequest", "i
 const CURL_SHORT_VALUE = "AbcCdDeEFHKmoQrtTuUwxXyYzP";
 const CURL_LONG_VALUE = new Set(["--header", "--output", "--user", "--user-agent", "--referer", "--write-out", "--config", "--cookie", "--cookie-jar", "--cacert", "--cert", "--key", "--proxy", "--max-time", "--connect-timeout", "--retry", "--range", "--resolve", "--connect-to", "--oauth2-bearer", "--variable", "--expand-url"]);
 const CURL_LONG_DATA = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)$/;
+const CURL_SHORT_DATA = { d: "data", F: "form" };
 
-function curlTransfers(args) {
-  const transfers = [];
-  let current = null;
-  const start = () => transfers.push((current = { urls: [], method: null, data: [], get: false, upload: false }));
-  start();
+function curlRequest(args) {
+  const request = { urls: [], method: null, data: [], get: false, upload: false };
   for (let i = 0; i < args.length; i++) {
     const t = args[i].text;
-    if (t === "--next" || t === "-:") {
-      start();
-      continue;
-    }
     const eq = t.startsWith("--") ? t.indexOf("=") : -1;
     const name = eq > 0 ? t.slice(0, eq) : t;
     const value = () => (eq > 0 ? t.slice(eq + 1) : (args[++i]?.text ?? ""));
-    if (name === "--request") current.method = value().toUpperCase();
-    else if (name === "--url") current.urls.push(value());
-    else if (name === "--get") current.get = true;
+    if (name === "--request") request.method = value().toUpperCase();
+    else if (name === "--url") request.urls.push(value());
+    else if (name === "--get") request.get = true;
     else if (name === "--upload-file") {
       value();
-      current.upload = true;
-    } else if (CURL_LONG_DATA.test(name)) current.data.push({ kind: name === "--json" ? "json" : name.startsWith("--form") ? "form" : name === "--data-raw" ? "raw" : "data", value: value() });
-    else if (CURL_LONG_VALUE.has(name)) value();
-    else if (t.startsWith("--")) continue;
-    else if (t.startsWith("-") && t.length > 1) {
-      for (let p = 1; p < t.length; p++) {
-        const ch = t[p];
-        if (!CURL_SHORT_VALUE.includes(ch)) {
-          if (ch === "G") current.get = true;
-          continue;
-        }
-        const rest = t.slice(p + 1).replace(/^=/, "");
-        const v = rest.length ? rest : (args[++i]?.text ?? "");
-        if (ch === "d" || ch === "F") current.data.push({ kind: ch === "d" ? "data" : "form", value: v });
-        else if (ch === "X") current.method = v.toUpperCase();
-        else if (ch === "T") current.upload = true;
-        break;
-      }
-    } else current.urls.push(t);
+      request.upload = true;
+    } else if (CURL_LONG_DATA.test(name)) request.data.push({ kind: name === "--json" ? "json" : name.startsWith("--form") ? "form" : name === "--data-raw" ? "raw" : "data", value: value() });
+    else if (CURL_LONG_VALUE.has(name) || t.startsWith("--")) {
+      if (CURL_LONG_VALUE.has(name)) value();
+    } else if (/^-[A-Za-z]$/.test(t)) {
+      const letter = t[1];
+      if (letter === "G") request.get = true;
+      if (!CURL_SHORT_VALUE.includes(letter)) continue;
+      const v = args[++i]?.text ?? "";
+      if (CURL_SHORT_DATA[letter]) request.data.push({ kind: CURL_SHORT_DATA[letter], value: v });
+      else if (letter === "X") request.method = v.toUpperCase();
+      else if (letter === "T") request.upload = true;
+    } else if (!t.startsWith("-")) request.urls.push(t);
   }
-  return transfers.filter((transfer) => transfer.urls.length);
+  return request;
 }
 
-const WEB_PARAMETERS = [["uri", 2, "uri"], ["url", 3, "uri"], ["method", 2, "method"], ["custommethod", 2, "method"], ["cm", 2, "method"], ["body", 1, "body"], ["infile", 2, "infile"]];
-
-function webParameter(text) {
-  const m = /^-([A-Za-z]+)(?::([\s\S]*))?$/.exec(text);
-  if (!m) return null;
-  const name = m[1].toLowerCase();
-  const found = WEB_PARAMETERS.find(([full, least]) => name.length >= least && full.startsWith(name));
-  return found ? { name: found[2], attached: m[2] } : { name: null, attached: m[2] };
-}
+const WEB_NAMED = { "-uri": "uri", "-method": "method", "-custommethod": "method", "-body": "body", "-infile": "infile" };
 
 function webRequest(args) {
   const request = { urls: [], method: null, data: [], files: [], get: false, upload: false, unread: false, defaultMethod: "GET" };
   for (let k = 0; k < args.length; k++) {
-    const parameter = webParameter(args[k].text);
-    if (parameter === null || parameter.name === null) {
-      if (parameter === null) request.urls.push(args[k].text);
+    const text = args[k].text;
+    if (!text.startsWith("-")) {
+      request.urls.push(text);
       continue;
     }
-    const token = parameter.attached !== undefined && parameter.attached !== "" ? { text: parameter.attached, quoted: true } : args[k + 1];
-    if (parameter.attached === undefined || parameter.attached === "") k++;
-    if (parameter.name === "uri") request.urls.push(token?.text ?? "");
-    else if (parameter.name === "method") request.method = (token?.text ?? "").toUpperCase();
-    else if (parameter.name === "body") {
+    const name = WEB_NAMED[text.toLowerCase()];
+    if (!name) continue;
+    const token = args[++k];
+    if (name === "uri") request.urls.push(token?.text ?? "");
+    else if (name === "method") request.method = (token?.text ?? "").toUpperCase();
+    else if (name === "body") {
       if (token?.quoted && !/^\$/.test(token.text)) request.data.push(token.text);
       else request.unread = true;
       request.body = true;
-    } else if (parameter.name === "infile") {
+    } else {
       if (token && !/^\$/.test(token.text)) request.files.push(token.text);
       else request.unread = true;
       request.body = true;
     }
   }
   return request;
+}
+
+const GH_CHANGING = {
+  issue: new Set([...MUTATING_ISSUE_ACTIONS, "create", "new", "develop"]),
+  pr: new Set(["create", "new", "comment", "edit", "review", "close", "merge", "reopen", "ready", "lock", "unlock"]),
+};
+const WEB_PARAMETER_NAMES = new Set([
+  "uri", "method", "custommethod", "body", "infile", "form", "headers", "contenttype", "authentication", "token", "credential", "usedefaultcredentials",
+  "usebasicparsing", "outfile", "passthru", "skipcertificatecheck", "skiphttperrorcheck", "skipheadervalidation", "timeoutsec", "operationtimeoutseconds",
+  "connectiontimeoutseconds", "maximumredirection", "maximumretrycount", "retryintervalsec", "useragent", "websession", "sessionvariable",
+  "statuscodevariable", "responseheadersvariable", "noproxy", "proxy", "proxycredential", "proxyusedefaultcredentials", "allowunencryptedauthentication",
+  "allowinsecureredirect", "sslprotocol", "httpversion", "resume", "preserveauthorizationonredirect", "preservehttpmethodonredirect", "disablekeepalive",
+  "transferencoding", "followrellink", "maximumfollowrellink", "certificate", "certificatethumbprint", "unixsocket", "erroraction", "errorvariable",
+  "warningaction", "warningvariable", "informationaction", "informationvariable", "verbose", "debug", "outvariable", "outbuffer", "pipelinevariable",
+]);
+const WEB_CHANGING_PARAMETERS = ["method", "custommethod", "body", "infile", "form"];
+const shortCluster = (token) => /^-[A-Za-z]./.test(token.text);
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function unmodelled(seg, i, repo) {
+  const base = baseName(seg[i]);
+  const args = seg.slice(i + 1);
+  const slug = repo.split("/").map(escapeRegExp).join("/");
+  const plain = (why, example) => `This command changes or publishes to ${repo} in a form the maintainer request guard does not model: ${why}. Only plain forms are accepted there, so the guard can tell what the command sends. Use the plain form, for example: ${example}`;
+  if (base === "gh") {
+    const named = new RegExp(`(?:^|^-[A-Za-z]+|[^\\w.-])${slug}(?:\\.git)?(?:$|[/#?])`, "i");
+    if (!args.some((a) => !/\s/.test(a.text) && named.test(a.text)) && !sameRepo(envRepo(seg, i), repo)) return null;
+    const at = args.findIndex((a) => ["issue", "pr", "api"].includes(a.text.toLowerCase()));
+    if (at < 0) return null;
+    const group = args[at].text.toLowerCase();
+    const cluster = args.find(shortCluster);
+    if (group === "api") {
+      const texts = args.map((a) => a.text);
+      const changing = texts.some((t) => /^(-X|--method|-f|-F|--field|--raw-field|--input)(=|$)/.test(t)) || args.some((a) => shortCluster(a) && /[XfF]/.test(a.text.slice(1)));
+      if (!changing) return null;
+      const methods = texts.filter((t) => /^(-X|--method)(=|$)/.test(t)).length;
+      const example = `gh api -X PATCH repos/${repo}/issues/<N> -f state=closed`;
+      if (cluster) return plain(`\`${cluster.text}\` runs short options together or attaches a value to a short option; give each flag and its value separately`, example);
+      if (methods > 1) return plain("it names the method more than once; give one -X or --method", example);
+      return null;
+    }
+    const action = args.slice(at + 1).find((a) => !a.text.startsWith("-"))?.text.toLowerCase();
+    if (!GH_CHANGING[group].has(action) || !cluster) return null;
+    return plain(`\`${cluster.text}\` runs short options together or attaches a value to a short option; give each flag and its value separately`, `gh ${group} ${action} <N> -R ${repo} --body-file <file>`);
+  }
+  if (base !== "curl" && !WEB_REQUEST.has(base)) return null;
+  const addressed = new RegExp(`github\\.com/(?:repos/)?${slug}(?:$|[/#?])`, "i");
+  if (!args.some((a) => addressed.test(a.text))) return null;
+  if (base === "curl") {
+    const texts = args.map((a) => a.text);
+    const changing = texts.some((t) => /^(-X|--request|-d|--data[\w-]*|--json|-F|--form[\w-]*|-T|--upload-file)(=|$)/.test(t)) || args.some((a) => shortCluster(a) && /[XdFT]/.test(a.text.slice(1)));
+    if (!changing) return null;
+    const example = `curl -X POST https://api.github.com/repos/${repo}/issues/<N>/comments -H "Authorization: Bearer <token>" --data @body.json`;
+    const cluster = args.find(shortCluster);
+    if (cluster) return plain(`\`${cluster.text}\` runs short options together or attaches a value to a short option; give each flag and its value separately`, example);
+    if (texts.some((t) => t === "--next" || t === "-:")) return plain("it batches several transfers (`--next`); make one curl call per request", example);
+    const urls = args.filter((a) => /^(?:--url=)?(?:https?:\/\/|[\w.-]+\.[a-z]{2,}(?::\d+)?\/)/i.test(a.text) && !/^\s*[{[]/.test(a.text));
+    if (urls.length > 1) return plain("it names more than one URL, which curl sends as several transfers; make one curl call per request", example);
+    return null;
+  }
+  const parameters = args.map((a) => /^-([A-Za-z]+)(:[\s\S]*)?$/.exec(a.text)).filter(Boolean);
+  const changing = parameters.some(([, name]) => name.toLowerCase() === "cm" || WEB_CHANGING_PARAMETERS.some((full) => full.startsWith(name.toLowerCase())));
+  if (!changing) return null;
+  const odd = parameters.find(([, name, attached]) => attached !== undefined || !WEB_PARAMETER_NAMES.has(name.toLowerCase()));
+  if (!odd) return null;
+  return plain(`\`${odd[0]}\` is ${odd[2] !== undefined ? "a parameter with its value attached by a colon" : "not a full parameter name"}; give each parameter by its full name with its value separately`, `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/<N>/comments -Method Post -Body <json>`);
 }
 
 function changes(request) {
@@ -298,7 +332,7 @@ function publishedText(seg, i, command, cwds) {
   const base = baseName(seg[i]);
   const args = seg.slice(i + 1);
   if (base === "curl" || WEB_REQUEST.has(base)) {
-    const requests = base === "curl" ? curlTransfers(args) : [webRequest(args)];
+    const requests = [base === "curl" ? curlRequest(args) : webRequest(args)];
     return requests
       .map((request) => ({ ...request, urls: request.urls.filter(githubUrl) }))
       .filter((request) => request.urls.length && changes(request))
@@ -477,6 +511,8 @@ function decideAt(command, shell, depth, context) {
         if (inner) return inner;
       }
       if (!positions.has(i) || !["gh", "curl", "invoke-restmethod", "irm", "invoke-webrequest", "iwr"].includes(baseName(tok))) continue;
+      const refused = unmodelled(seg, i, context.repo);
+      if (refused) return refused;
       const touched = touches(seg, i, context.repo);
       if (touched) {
         try {

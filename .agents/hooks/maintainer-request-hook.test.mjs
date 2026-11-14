@@ -71,18 +71,29 @@ const touching = (n) => [
   ["gh issue comment under a host-qualified -R", `gh issue comment ${n} -R github.com/${repo} --body ok`],
   ["gh issue close under a repository address", `gh issue close ${n} --repo https://github.com/${repo}.git`],
   ["gh issue edit naming the request after another issue", `gh issue edit 4243 ${n} -R ${repo} --add-label x`],
-  ["a gh api short-option cluster", `gh api -iX DELETE repos/${repo}/issues/${n}/labels`],
-  ["a gh issue short-option cluster", `gh issue close ${n} -R${repo}`],
-  ["a curl short-option cluster", `curl -sX DELETE https://api.github.com/repos/${repo}/issues/${n}/labels`],
-  ["a curl data cluster", `curl -sd '{"body":"ok"}' https://api.github.com/repos/${repo}/issues/${n}/comments`],
   ["a curl upload", `curl -T body.json https://api.github.com/repos/${repo}/issues/${n}`],
-  ["Invoke-RestMethod with colon parameters", `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${n} -Method:Patch -Body:'{"state":"closed"}'`],
-  ["Invoke-RestMethod with abbreviated parameters", `irm -Ur https://api.github.com/repos/${repo}/issues/${n} -Me Patch -B '{"state":"closed"}'`],
+  ["a curl data call with --request", `curl --request PATCH --data '{"state":"closed"}' https://api.github.com/repos/${repo}/issues/${n}`],
   ["Invoke-RestMethod with an -InFile body", `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${n}/comments -Method Post -InFile body.json`],
   ["Invoke-RestMethod by position with a body", `Invoke-RestMethod https://api.github.com/repos/${repo}/issues/${n}/comments -Method Post -Body '{"body":"ok"}'`],
   ["Invoke-RestMethod with -CustomMethod", `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${n}/labels -CustomMethod DELETE`],
-  ["Invoke-WebRequest with -CM", `Invoke-WebRequest -Uri https://api.github.com/repos/${repo}/issues/${n}/labels -CM:DELETE`],
-  ["a curl batch whose later transfer changes the request", `curl https://api.github.com/repos/acme/other/issues/1 --next -X PATCH https://api.github.com/repos/${repo}/issues/${n} -d '{"state":"closed"}'`],
+  ["Invoke-WebRequest with headers", `Invoke-WebRequest -Uri https://api.github.com/repos/${repo}/issues/${n} -Method Patch -Headers $h -ContentType application/json -Body '{"state":"closed"}'`],
+];
+const unmodelled = (n) => [
+  ["a gh api short-option cluster", `gh api -iX DELETE repos/${repo}/issues/${n}/labels`],
+  ["a gh api attached method", `gh api -XPATCH repos/${repo}/issues/${n} -f state=closed`],
+  ["a gh api attached field", `gh api -X POST repos/${repo}/issues/${n}/comments -fbody="The maintainer approved it."`],
+  ["a gh api with two methods", `gh api -X GET --method PATCH repos/${repo}/issues/${n} -f state=closed`],
+  ["a gh issue attached repository", `gh issue close ${n} -R${repo}`],
+  ["a gh issue short-option cluster", `gh issue comment ${n} -R ${repo} -wb "ok"`],
+  ["a curl short-option cluster", `curl -sX DELETE https://api.github.com/repos/${repo}/issues/${n}/labels`],
+  ["a curl data cluster", `curl -sd '{"body":"ok"}' https://api.github.com/repos/${repo}/issues/${n}/comments`],
+  ["a curl --next batch", `curl https://api.github.com/repos/acme/other/issues/1 --next -X PATCH https://api.github.com/repos/${repo}/issues/${n} -d '{"state":"closed"}'`],
+  ["a curl --next batch from a foreign host", `curl -d 'status=ok' https://example.test/telemetry --next https://api.github.com/repos/${repo}/issues/${n}`],
+  ["a curl call with two URLs", `curl -X PATCH https://api.github.com/repos/${repo}/issues/${n} https://api.github.com/repos/${repo}/issues/1 -d '{"state":"closed"}'`],
+  ["Invoke-RestMethod with colon parameters", `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${n} -Method:Patch -Body:'{"state":"closed"}'`],
+  ["Invoke-RestMethod with abbreviated parameters", `irm -Ur https://api.github.com/repos/${repo}/issues/${n} -Me Patch -B '{"state":"closed"}'`],
+  ["Invoke-WebRequest with -CM", `Invoke-WebRequest -Uri https://api.github.com/repos/${repo}/issues/${n}/labels -CM DELETE`],
+  ["Invoke-WebRequest with a colon InFile", `Invoke-WebRequest -Uri https://api.github.com/repos/${repo}/issues/${n}/comments -Method Post -InFile:body.json`],
 ];
 
 for (const [harness, run] of runs) {
@@ -92,6 +103,11 @@ for (const [harness, run] of runs) {
     assert.match(reason, /maintainer-request\.mjs (revise|withdraw|read)/, `${harness}: ${label}'s refusal names the tool command`);
   }
   for (const [label, command] of touching(OTHER)) assert.equal(run(command, scratch), null, `${harness}: ${label} on an issue that is not a request passes`);
+  for (const n of [REQUEST, OTHER]) for (const [label, command] of unmodelled(n)) {
+    const reason = run(command, scratch);
+    assert.match(reason ?? "", new RegExp(`changes or publishes to ${repo} in a form the maintainer request guard does not model`), `${harness}: ${label} on #${n} is refused as unmodelled`);
+    assert.match(reason, /Use the plain form, for example: (gh|curl|Invoke-RestMethod) /, `${harness}: ${label}'s refusal names the plain form`);
+  }
   for (const command of [
     `${TOOL} revise ${REQUEST} request.json what-changed.md`,
     `${TOOL} withdraw ${REQUEST} "Nothing waits on it any more"`,
@@ -99,8 +115,22 @@ for (const [harness, run] of runs) {
     `gh issue view ${REQUEST} -R ${repo} --json state`,
     `gh api repos/${repo}/issues/${REQUEST}/comments --paginate --slurp`,
     `gh api repos/${repo}/issues/${REQUEST}/timeline`,
+    `gh issue view ${OTHER} -R ${repo} --comments`,
+    `gh issue list -R ${repo} --label "maintainer: decision" --state open`,
+    `gh issue comment ${OTHER} -R ${repo} --body-file reply.md`,
+    `gh issue edit ${OTHER} -R ${repo} --add-label "workflow: skills" --title "New title"`,
+    `gh issue create -R ${repo} --type Task --title "Follow-up" --body-file reply.md`,
+    `gh api -i repos/${repo}/issues/${OTHER} --jq .state`,
+    `gh api -X GET repos/${repo}/issues -f state=open -f per_page=100`,
+    `curl -sS -H "Authorization: Bearer x" https://api.github.com/repos/${repo}/issues/${REQUEST}`,
+    `curl -s -G https://api.github.com/repos/${repo}/issues/${REQUEST}/comments -d per_page=100`,
+    `irm -Ur https://api.github.com/repos/${repo}/issues/${REQUEST}`,
+    `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${REQUEST}/comments -Body @{per_page=1}`,
+    `gh pr create --draft -dt "Guards" -b ok`,
+    `curl -sX POST https://api.github.com/repos/acme/other/issues/1/comments -d '{"body":"ok"}'`,
+    `Invoke-RestMethod -Uri https://example.test/repos/${repo}/issues/${REQUEST} -Method Patch -Body '{"state":"closed"}'`,
   ]) assert.equal(run(command, scratch), null, `${harness}: ${command} passes`);
-  console.log(`ok: ${harness} refuses gh issue comment, close, edit and reopen and the REST comment and update calls on an indexed request, passes them on other issues, and passes the tool and reads`);
+  console.log(`ok: ${harness} refuses gh issue comment, close, edit and reopen and the REST comment and update calls on an indexed request, refuses unmodelled forms aimed at the tickets repository, and passes ordinary ticket commands, reads, other repositories and the tool`);
 }
 
 assert.match(touching(REQUEST)[0][1], /--body/);
@@ -176,12 +206,11 @@ for (const [harness, run] of runs) {
     `curl https://api.github.com/repos/${repo}/issues/${OTHER}/comments --json '{"body":' --json '"The maintainer approved it."}'`,
     `curl https://api.github.com/repos/${repo}/issues/${OTHER}/comments -d 'title=Status' -d 'body=The maintainer approved it.'`,
     `curl https://api.github.com/repos/${repo}/issues/${OTHER}/comments --data-binary '{"body": "The maintainer approved it.",'`,
-    `gh api -X POST repos/${repo}/issues/${OTHER}/comments -fbody="The maintainer approved it."`,
   ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} is refused`);
   const payloadClaim = file("infile.json", JSON.stringify({ body: "The maintainer approved the new layout." }));
   for (const command of [
     `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method Post -ContentType application/json -InFile ${payloadClaim}`,
-    `Invoke-WebRequest -Uri:https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method:Post -InFile:${payloadClaim}`,
+    `Invoke-WebRequest -Uri https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method Post -InFile ${payloadClaim}`,
   ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} reads the -InFile body`);
   writeFileSync(path.join(bodyDir, "head.json"), '{"body":"Status ');
   writeFileSync(path.join(bodyDir, "tail.json"), 'update."}');
@@ -199,16 +228,14 @@ for (const [harness, run] of runs) {
   ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} reads the file in the restored directory`);
   assert.match(run(`pushd sub; gh issue comment ${OTHER} -R ${repo} --body-file status.md`, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: inside pushd both candidate directories are checked`);
   for (const command of [
+    `curl -X POST -d 'body=The maintainer approved the layout.' https://api.github.com/repos/${repo}/issues/${OTHER}/comments`,
+    `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method Post -Body '{"body":"The maintainer approved the layout."}'`,
+  ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} is refused`);
+  for (const command of [
     `curl -sd 'body=The maintainer approved the layout.' https://api.github.com/repos/${repo}/issues/${OTHER}/comments`,
     `curl https://example.test/ping --next -d '{"body":"The maintainer approved the layout."}' https://api.github.com/repos/${repo}/issues/${OTHER}/comments`,
     `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method:Post -Body:'{"body":"The maintainer approved the layout."}'`,
-  ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} is refused`);
-  for (const command of [
-    `curl -d 'status=ok' https://example.test/telemetry --next https://api.github.com/repos/${repo}/issues/${REQUEST}`,
-    `curl -d 'body=The maintainer approved the layout.' https://example.test/telemetry --next https://api.github.com/repos/${repo}/issues/${OTHER}`,
-    `Invoke-RestMethod -Uri https://example.test/repos/${repo}/issues/${REQUEST} -Method Patch -Body '{"state":"closed"}'`,
-    `curl -sG https://api.github.com/repos/${repo}/issues/${REQUEST}/comments -d per_page=100`,
-  ]) assert.equal(run(command, bodyDir), null, `${harness}: ${command} passes`);
+  ]) assert.match(run(command, bodyDir) ?? "", /does not model/, `${harness}: ${command} is refused as unmodelled before its text is read`);
   const json = file("payload.json", JSON.stringify({ body: "The maintainer approved the layout." }));
   const citedJson = file("payload-cited.json", JSON.stringify({ body: `The maintainer approved the layout, recorded on #${ANSWERED}.` }));
   for (const command of [
