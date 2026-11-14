@@ -2,6 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { cn } from "../../utils/cn";
 import { CheckIcon } from "../icon/icons.generated";
+import type { ThumbnailFit } from "../thumbnail/Thumbnail";
 
 export const tileVariants = cva("group/tile relative h-full min-w-0", {
   variants: {
@@ -60,7 +61,7 @@ export const tileMarkVariants = cva(
 );
 
 export const tileMediaVariants = cva(
-  "relative block w-full flex-none overflow-hidden rounded-[9px] bg-muted/12",
+  "relative block w-full flex-none overflow-hidden rounded-[9px]",
   {
     variants: {
       shape: {
@@ -98,6 +99,8 @@ export const tileActionsVariants = cva(
 export type TileShape = NonNullable<VariantProps<typeof tileVariants>["shape"]>;
 export type TileSelection = NonNullable<VariantProps<typeof tileOpenVariants>["selection"]>;
 export type TileKind = NonNullable<VariantProps<typeof tileLabelVariants>["kind"]>;
+
+export const TILE_MEDIA_FIT: Record<TileShape, ThumbnailFit> = { portrait: "height", landscape: "contain" };
 
 const MEDIA_RATIO: Record<TileShape, number> = { portrait: 4 / 3, landscape: 10 / 16 };
 

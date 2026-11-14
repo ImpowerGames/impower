@@ -31,6 +31,7 @@ import {
   Thumbnail,
   Tile,
   TILE_GAP,
+  TILE_MEDIA_FIT,
   TILE_MIN_WIDTH,
   tileHeight,
   type TileShape,
@@ -250,7 +251,7 @@ const followed = (path: string, moves: readonly FileMove[]) => {
 
 function RowGlyph({ row, listing }: { row: AssetRow; listing: AssetListing }) {
   if (row.kind === "folder") return <FolderIcon />;
-  if (row.type === "image" && !row.link) return <Thumbnail src={srcOf(listing, row.path)} />;
+  if (row.type === "image" && !row.link) return <Thumbnail fit="contain" src={srcOf(listing, row.path)} />;
   const Glyph = row.link && row.type === "other" ? LinkIcon : TYPE_ICONS[row.type];
   return <Glyph />;
 }
@@ -695,9 +696,12 @@ function AssetsBrowser() {
         kind={folder ? "folder" : "file"}
         media={
           folder ? (
-            <FolderCover sources={(row.covers ?? []).map((path) => srcOf(listing, path))} />
+            <FolderCover
+              fit={TILE_MEDIA_FIT[shape]}
+              sources={(row.covers ?? []).map((path) => srcOf(listing, path))}
+            />
           ) : (
-            <Thumbnail size="fill" src={srcOf(listing, row.path)} />
+            <Thumbnail size="fill" fit={TILE_MEDIA_FIT[shape]} src={srcOf(listing, row.path)} />
           )
         }
         badge={row.variantCount ? <VariantsBadge count={row.variantCount} /> : undefined}
