@@ -173,18 +173,18 @@ function curlTransfers(args) {
   return transfers.filter((transfer) => transfer.urls.length);
 }
 
-const WEB_PARAMETERS = [["uri", 2], ["url", 3], ["method", 2], ["body", 1], ["infile", 2]];
+const WEB_PARAMETERS = [["uri", 2, "uri"], ["url", 3, "uri"], ["method", 2, "method"], ["custommethod", 2, "method"], ["cm", 2, "method"], ["body", 1, "body"], ["infile", 2, "infile"]];
 
 function webParameter(text) {
   const m = /^-([A-Za-z]+)(?::([\s\S]*))?$/.exec(text);
   if (!m) return null;
   const name = m[1].toLowerCase();
   const found = WEB_PARAMETERS.find(([full, least]) => name.length >= least && full.startsWith(name));
-  return found ? { name: found[0] === "url" ? "uri" : found[0], attached: m[2] } : { name: null, attached: m[2] };
+  return found ? { name: found[2], attached: m[2] } : { name: null, attached: m[2] };
 }
 
 function webRequest(args) {
-  const request = { urls: [], method: null, data: [], files: [], get: false, upload: false, unread: false };
+  const request = { urls: [], method: null, data: [], files: [], get: false, upload: false, unread: false, defaultMethod: "GET" };
   for (let k = 0; k < args.length; k++) {
     const parameter = webParameter(args[k].text);
     if (parameter === null || parameter.name === null) {
@@ -210,6 +210,7 @@ function webRequest(args) {
 
 function changes(request) {
   if (request.method) return !["GET", "HEAD"].includes(request.method);
+  if (request.defaultMethod === "GET") return false;
   return request.upload || ((request.data.length > 0 || Boolean(request.body)) && !request.get);
 }
 
@@ -300,7 +301,7 @@ function publishedText(seg, i, command, cwds) {
     const requests = base === "curl" ? curlTransfers(args) : [webRequest(args)];
     return requests
       .map((request) => ({ ...request, urls: request.urls.filter(githubUrl) }))
-      .filter((request) => request.urls.length)
+      .filter((request) => request.urls.length && changes(request))
       .map((request) => {
         const texts = [];
         const raw = [];
@@ -310,25 +311,31 @@ function publishedText(seg, i, command, cwds) {
           texts.push(...values.texts);
           raw.push(...values.raw);
         };
-        const contents = (name) => {
+        const entries = request.data.map((entry) => (typeof entry === "string" ? { kind: "body", value: entry } : entry));
+        const isFile = (entry) => base === "curl" && entry.kind !== "raw" && entry.kind !== "form" && entry.value.startsWith("@");
+        if (entries.some((entry) => isFile(entry) && entry.value === "@-")) whole = true;
+        const places = entries.some((entry) => isFile(entry) && entry.value !== "@-") ? cwds : [null];
+        let assembled = false;
+        for (const cwd of places) {
+          const resolved = entries.map((entry) => (!isFile(entry) ? entry.value : entry.value === "@-" ? "" : (readBodyFiles(entry.value.slice(1), [cwd])[0] ?? null)));
+          if (resolved.some((value) => value === null)) continue;
+          assembled = true;
+          const json = [];
+          const data = [];
+          entries.forEach((entry, k) => {
+            if (entry.kind === "json") json.push(resolved[k]);
+            else if (entry.kind === "data" || entry.kind === "raw") data.push(resolved[k]);
+            else scan(resolved[k]);
+          });
+          if (json.length) scan(json.join(""));
+          if (data.length) scan(data.join("&"));
+        }
+        if (!assembled) whole = true;
+        for (const name of request.files ?? []) {
           const found = readBodyFiles(name, cwds);
           if (!found.length) whole = true;
-          return found;
-        };
-        const pieces = { json: [], data: [] };
-        for (const entry of request.data) {
-          const { kind, value } = typeof entry === "string" ? { kind: "body", value: entry } : entry;
-          const file = base === "curl" && kind !== "raw" && value.startsWith("@") && !(kind === "form");
-          if (file && value === "@-") whole = true;
-          const found = file ? (value === "@-" ? [] : contents(value.slice(1))) : [value];
-          if (kind === "json" || kind === "data" || kind === "raw") {
-            pieces[kind === "json" ? "json" : "data"].push(found[0] ?? "");
-            for (const other of found.slice(1)) scan(other);
-          } else for (const text of found) scan(text);
+          found.forEach(scan);
         }
-        if (pieces.json.length) scan(pieces.json.join(""));
-        if (pieces.data.length) scan(pieces.data.join("&"));
-        for (const name of request.files ?? []) for (const text of contents(name)) scan(text);
         return { texts, raw: [...raw, ...(whole ? [command] : [])], destination: oneRepo(request.urls) };
       });
   }

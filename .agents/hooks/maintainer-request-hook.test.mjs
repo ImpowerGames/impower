@@ -78,8 +78,10 @@ const touching = (n) => [
   ["a curl upload", `curl -T body.json https://api.github.com/repos/${repo}/issues/${n}`],
   ["Invoke-RestMethod with colon parameters", `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${n} -Method:Patch -Body:'{"state":"closed"}'`],
   ["Invoke-RestMethod with abbreviated parameters", `irm -Ur https://api.github.com/repos/${repo}/issues/${n} -Me Patch -B '{"state":"closed"}'`],
-  ["Invoke-RestMethod with an -InFile body", `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${n}/comments -InFile body.json`],
-  ["Invoke-RestMethod by position with a body", `Invoke-RestMethod https://api.github.com/repos/${repo}/issues/${n}/comments -Body '{"body":"ok"}'`],
+  ["Invoke-RestMethod with an -InFile body", `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${n}/comments -Method Post -InFile body.json`],
+  ["Invoke-RestMethod by position with a body", `Invoke-RestMethod https://api.github.com/repos/${repo}/issues/${n}/comments -Method Post -Body '{"body":"ok"}'`],
+  ["Invoke-RestMethod with -CustomMethod", `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${n}/labels -CustomMethod DELETE`],
+  ["Invoke-WebRequest with -CM", `Invoke-WebRequest -Uri https://api.github.com/repos/${repo}/issues/${n}/labels -CM:DELETE`],
   ["a curl batch whose later transfer changes the request", `curl https://api.github.com/repos/acme/other/issues/1 --next -X PATCH https://api.github.com/repos/${repo}/issues/${n} -d '{"state":"closed"}'`],
 ];
 
@@ -179,8 +181,18 @@ for (const [harness, run] of runs) {
   const payloadClaim = file("infile.json", JSON.stringify({ body: "The maintainer approved the new layout." }));
   for (const command of [
     `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method Post -ContentType application/json -InFile ${payloadClaim}`,
-    `Invoke-WebRequest -Uri:https://api.github.com/repos/${repo}/issues/${OTHER}/comments -InFile:${payloadClaim}`,
+    `Invoke-WebRequest -Uri:https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method:Post -InFile:${payloadClaim}`,
   ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} reads the -InFile body`);
+  writeFileSync(path.join(bodyDir, "head.json"), '{"body":"Status ');
+  writeFileSync(path.join(bodyDir, "tail.json"), 'update."}');
+  writeFileSync(path.join(bodyDir, "sub", "head.json"), '{"body":"The maintainer ');
+  writeFileSync(path.join(bodyDir, "sub", "tail.json"), 'approved it."}');
+  assert.match(run(`cd sub; curl https://api.github.com/repos/${repo}/issues/${OTHER}/comments --json @head.json --json @tail.json`, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: split curl body files are assembled per candidate directory`);
+  assert.equal(run(`curl https://api.github.com/repos/${repo}/issues/${OTHER}/comments --json @head.json --json @tail.json`, bodyDir), null, `${harness}: split harmless curl body files pass`);
+  for (const command of [
+    `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${REQUEST}/comments -Body @{per_page=1}`,
+    `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Body '{"body":"The maintainer approved it."}'`,
+  ]) assert.equal(run(command, bodyDir), null, `${harness}: ${command} is a PowerShell GET and passes`);
   for (const command of [
     `pushd sub; popd; gh issue comment ${OTHER} -R ${repo} --body-file status.md`,
     `Push-Location sub; Pop-Location; gh issue comment ${OTHER} -R ${repo} --body-file status.md`,
