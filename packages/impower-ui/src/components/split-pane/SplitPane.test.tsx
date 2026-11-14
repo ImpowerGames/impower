@@ -61,6 +61,26 @@ const startPx = (separator: HTMLElement) => {
 };
 
 describe("SplitPane", () => {
+  it("draws the edge line at rest unless asked for none, and keeps the accent bar and target either way", async () => {
+    for (const orientation of ["horizontal", "vertical"] as const) {
+      const edge = (await mount({ orientation })).separator.classList;
+      expect(edge.contains("before:bg-edge")).toBe(true);
+      expect(edge.contains("before:bg-transparent")).toBe(false);
+      const none = (await mount({ orientation, line: "none" })).separator
+        .classList;
+      expect(none.contains("before:bg-edge")).toBe(false);
+      expect(none.contains("before:bg-transparent")).toBe(true);
+      for (const kept of [
+        "hover:after:opacity-100",
+        "focus-visible:after:opacity-100",
+        "data-[separator=active]:after:opacity-100",
+        orientation === "horizontal" ? "w-2" : "h-2",
+      ]) {
+        expect(none.contains(kept)).toBe(true);
+      }
+    }
+  });
+
   it("clips both panels unless one is named to overflow", async () => {
     await mount({});
     const panels = host!.querySelectorAll<HTMLElement>("[data-panel]");
