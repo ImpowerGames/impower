@@ -225,17 +225,30 @@ const printedStyle = (piece: FormattedText) => ({
   ].join(""),
 });
 
-const printedHtml = (lines: FormattedText[][]) =>
-  lines
-    .map((line) =>
-      line
-        .map((piece) => {
-          const { source, style } = printedStyle(piece);
-          return `<span${source ? ' class="sp-source"' : ""}${style ? ` style="${style}"` : ""}>${escapeHtml(piece.text)}</span>`;
-        })
-        .join(""),
-    )
-    .join("<br>");
+const alignedStyle = (align: string) => `display: block; text-align: ${align};`;
+
+const printedPieceHtml = (piece: FormattedText) => {
+  const { source, style } = printedStyle(piece);
+  return `<span${source ? ' class="sp-source"' : ""}${style ? ` style="${style}"` : ""}>${escapeHtml(piece.text)}</span>`;
+};
+
+const printedLineHtml = (line: FormattedText[]) => {
+  let html = "";
+  for (let start = 0; start < line.length; ) {
+    const align = line[start]!.align ?? "";
+    let end = start;
+    let pieces = "";
+    while (end < line.length && (line[end]!.align ?? "") === align) {
+      pieces += printedPieceHtml(line[end]!);
+      end++;
+    }
+    html += align ? `<span style="${alignedStyle(align)}">${pieces}</span>` : pieces;
+    start = end;
+  }
+  return `<div>${html}</div>`;
+};
+
+const printedHtml = (lines: FormattedText[][]) => lines.map(printedLineHtml).join("");
 
 const pageLayoutCache = new WeakMap<Tree, CachedPageLayout>();
 
@@ -877,7 +890,7 @@ export const decorate = (
     if (inRange(scene.at)) {
       decorations.push(
         Decoration.line({
-          class: "sp-heading",
+          class: scene.bold ? "sp-heading sp-scene-bold" : "sp-heading",
           attributes: { "data-scene-number": String(scene.scene) },
         }).range(doc.lineAt(scene.at).from),
       );
@@ -895,7 +908,7 @@ export const decorate = (
   const closeAlign = () => {
     if (align) {
       decorations.push(
-        Decoration.mark({ attributes: { style: `display: block; text-align: ${align};` } }).range(alignFrom, alignTo),
+        Decoration.mark({ attributes: { style: alignedStyle(align) } }).range(alignFrom, alignTo),
       );
     }
     align = "";

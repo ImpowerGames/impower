@@ -34,6 +34,9 @@ const PREVIEW_THEME: {
   "& .sp-heading": {
     position: "relative",
   },
+  "& .sp-scene-bold::before, & .sp-scene-bold::after": {
+    fontWeight: "bold",
+  },
   "&[data-scene-numbers=left] .sp-heading::before, &[data-scene-numbers=both] .sp-heading::before":
     {
       content: "attr(data-scene-number)",

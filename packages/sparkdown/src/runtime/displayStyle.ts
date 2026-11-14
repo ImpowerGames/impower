@@ -133,30 +133,34 @@ export function writtenText(
   return out;
 }
 
-export function trimStyled(
+export function trimStyledBounds(
   text: string,
   { start = true, end = true }: { start?: boolean; end?: boolean } = {},
-): string {
-  if (!STYLE_CODE.test(text)) {
-    return start && end ? text.trim() : start ? text.trimStart() : text.trimEnd();
-  }
-  const chars = [...text];
+): { from: number; to: number } {
   const visible = (c: string) =>
     c !== SCAN_OPEN && c !== SCAN_CLOSE && c !== SPAN_END && !/\s/.test(c);
   let from = 0;
-  let to = chars.length;
+  let to = text.length;
   if (start) {
-    while (from < to && !visible(chars[from]!)) from++;
+    while (from < to && !visible(text[from]!)) from++;
   }
   if (end) {
-    while (to > from && !visible(chars[to - 1]!)) to--;
+    while (to > from && !visible(text[to - 1]!)) to--;
   }
-  const codes = (part: string[]) => part.filter(isStyleCode).join("");
-  return (
-    codes(chars.slice(0, from)) +
-    chars.slice(from, to).join("") +
-    codes(chars.slice(to))
-  );
+  return { from, to };
+}
+
+export function trimStyled(
+  text: string,
+  options: { start?: boolean; end?: boolean } = {},
+): string {
+  if (!STYLE_CODE.test(text)) {
+    const { start = true, end = true } = options;
+    return start && end ? text.trim() : start ? text.trimStart() : text.trimEnd();
+  }
+  const { from, to } = trimStyledBounds(text, options);
+  const codes = (part: string) => [...part].filter(isStyleCode).join("");
+  return codes(text.slice(0, from)) + text.slice(from, to) + codes(text.slice(to));
 }
 
 export function scanned(text: string): string {

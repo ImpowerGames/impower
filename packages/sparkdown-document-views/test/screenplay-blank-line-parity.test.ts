@@ -130,6 +130,7 @@ const KINDS: Record<string, string[]> = {
   InlineDialogueMarkup: ["  GUIDE: A *cat* \\*here\\*."],
   BlockDialogueMarkup: ["  GUIDE:", "    (*softly*)", "    A _quiet_ word."],
   ChoiceMarkup: ["  * [A *cat ..* tail.]"],
+  InlineDialogueCentredMarkup: ["  GUIDE: ^Hello there.^"],
   ChoiceEscape: ["  * [Pick \\*one\\* _now_.]"],
   LuauSparkdownVariableDefinition: ["  local z = 3"],
   LuauSparkdownWhileLoop: ["  while false do", "    It hails.", "  end"],
@@ -400,7 +401,7 @@ const exportStyle = (configName: string, source: string): string => {
     .filter((line) => !NAME_TAGS.has(line.tag))
     .map((line) => {
       const text = line.content.map((piece) => piece.text).join("");
-      const scene = line.scene !== undefined ? `#${line.scene}[${compact(text)}]` : "";
+      const scene = line.scene !== undefined ? `#${line.scene}${line.sceneBold ? "b" : ""}[${compact(text)}]` : "";
       return (
         scene +
         line.content
@@ -434,6 +435,19 @@ const pageStyleOf = (element: Element, row: Element, cache: Map<Element, Charact
   return result;
 };
 
+const numberIsBold = (row: Element) =>
+  Array.from(row.ownerDocument.styleSheets).some((sheet) =>
+    Array.from(sheet.cssRules).some(
+      (rule) =>
+        rule instanceof CSSStyleRule &&
+        (rule.style.getPropertyValue("font-weight") === "bold" || Number(rule.style.getPropertyValue("font-weight")) >= 600) &&
+        rule.selectorText.split(",").some((selector) => {
+          const pseudo = selector.trim().match(/^(.*)::(before|after)$/);
+          return !!pseudo && row.matches(pseudo[1]!);
+        }),
+    ),
+  );
+
 const pageStyle = (view: EditorView): string => {
   const cache = new Map<Element, CharacterStyle>();
   let out = "";
@@ -456,7 +470,7 @@ const pageStyle = (view: EditorView): string => {
     const shown = getComputedStyle(row).opacity !== "0";
     const number = (row as HTMLElement).dataset["sceneNumber"];
     if (row.classList.contains("sp-heading") && number !== undefined) {
-      out += `#${number}[${shown ? compact(visibleText(row)) : ""}]`;
+      out += `#${number}${numberIsBold(row) ? "b" : ""}[${shown ? compact(visibleText(row)) : ""}]`;
     }
     if (shown) visit(row, row);
   }
@@ -836,5 +850,15 @@ describe("a block heading", () => {
     screenRows("bold headings", source);
     const headings = Array.from(views.get("bold headings")!.contentDOM.querySelectorAll<HTMLElement>(".sp-heading"));
     expect(headings.map((heading) => [heading.dataset["sceneNumber"], visibleText(heading).trim()])).toEqual([["1", "INT. HALL - NIGHT"]]);
+    expect(headings.map(numberIsBold)).toEqual([true]);
+  });
+
+  it("prints the scene number in regular weight when headings are not bold", () => {
+    CONFIGS["plain headings"] = { ...config, screenplay_print_headings_bold: false };
+    const source = ["scene street", "  $:", "    INT. HALL - NIGHT", "end", ""].join("\n");
+    screenRows("plain headings", source);
+    const headings = Array.from(views.get("plain headings")!.contentDOM.querySelectorAll<HTMLElement>(".sp-heading"));
+    expect(headings.map(numberIsBold)).toEqual([false]);
+    expect(styleDifference("plain headings", source)).toBe("");
   });
 });

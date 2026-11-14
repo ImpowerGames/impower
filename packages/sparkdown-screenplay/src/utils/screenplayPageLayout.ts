@@ -16,6 +16,7 @@ export interface PrintedRun {
 export interface PrintedScene {
   at: number;
   scene: string | number;
+  bold: boolean;
 }
 
 export interface ScreenplayPageLayout {
@@ -101,7 +102,7 @@ export const screenplayPageLayout = (
     for (const line of lines ?? []) {
       addRuns(line, runs);
       const sceneAt = line.scene !== undefined ? firstPlaced(line) : undefined;
-      if (sceneAt !== undefined) scenes.push({ at: sceneAt, scene: line.scene! });
+      if (sceneAt !== undefined) scenes.push({ at: sceneAt, scene: line.scene!, bold: !!line.sceneBold });
       if (line.source && line.source === lastSource) {
         printedLines.at(-1)?.lines.push(line.content);
       }

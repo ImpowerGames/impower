@@ -182,6 +182,7 @@ export default class ScreenplayTypesetter {
         } else if (lines.length > 0) {
           const scene = t.scene ?? sceneIndex + 1;
           lines[0]!.scene = scene;
+          if (style?.bold) lines[0]!.sceneBold = true;
           spans.push({ tag: t.tag, lines });
           sceneIndex++;
         }

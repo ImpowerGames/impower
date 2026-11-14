@@ -2,7 +2,7 @@ import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
 import { readSkipping } from "../../../sparkdown/src/compiler/utils/readSkipping";
-import { SCAN_CLOSE, SCAN_OPEN, SPAN_END, isStyleCode, trimStyled } from "../../../sparkdown/src/runtime/displayStyle";
+import { isStyleCode, trimStyled, trimStyledBounds } from "../../../sparkdown/src/runtime/displayStyle";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import type { PrintedInsert } from "../types/PrintedInsert";
 import { ScreenplayToken } from "../types/ScreenplayToken";
@@ -56,13 +56,8 @@ const trimReading = (
 ): { styled: string; at?: number[] } => {
   const styled = trimStyled(reading.styled, options);
   if (!reading.at) return { styled };
-  const { start = true, end = true } = options;
   const written = reading.styled;
-  const visible = (c: string) => c !== SCAN_OPEN && c !== SCAN_CLOSE && c !== SPAN_END && !/\s/.test(c);
-  let from = 0;
-  let to = written.length;
-  if (start) while (from < to && !visible(written[from]!)) from++;
-  if (end) while (to > from && !visible(written[to - 1]!)) to--;
+  const { from, to } = trimStyledBounds(written, options);
   const at: number[] = [];
   for (let index = 0; index < from; index++) if (isStyleCode(written[index]!)) at.push(reading.at[index]!);
   for (let index = from; index < to; index++) at.push(reading.at[index]!);
