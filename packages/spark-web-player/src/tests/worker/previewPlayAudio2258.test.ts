@@ -332,6 +332,24 @@ end
     expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
   }, 120_000);
 
+  it("stops a loop that finished loading while Play audio was off when the caret leaves every scene, so switching on brings nothing back", async () => {
+    const audio = createStandInAudio();
+    const held = holdAudioLoads(audio);
+    const h = await previewAt(FIRST, audio);
+    await setPlayAudio(h, true);
+    expect(held.waiting).toBeGreaterThan(0);
+    await setPlayAudio(h, false);
+    held.release();
+    await settle(60);
+    const [theme] = audio.sourcesOf(THEME);
+    expect(theme!.startedAt).toBeTypeOf("number");
+    expect(audio.sounding()).toEqual([]);
+    await select(h, 0);
+    expect(h.workerState.gameState.game!.previewShowsBeat).toBe(false);
+    await setPlayAudio(h, true);
+    expect(audio.sounding()).toEqual([]);
+  }, 120_000);
+
   it("keeps a loop that finishes loading after the page hides silent and paused until the page is shown", async () => {
     const audio = createStandInAudio();
     const held = holdAudioLoads(audio);

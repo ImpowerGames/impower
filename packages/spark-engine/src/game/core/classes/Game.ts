@@ -5264,7 +5264,7 @@ export class Game<T extends M = {}> {
     send: (message: Message, transfer?: ArrayBuffer[]) => void,
     superseded: () => boolean,
   ): Promise<boolean> {
-    if (this._previewAudio) {
+    if (this._previewAudio || this.module.audio.hearsAnything) {
       this.module.audio.silence();
     }
     this.reset();
