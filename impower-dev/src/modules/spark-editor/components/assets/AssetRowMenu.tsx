@@ -42,7 +42,7 @@ export default function AssetRowMenu({ name, kept, actions = ROW_ACTIONS, onActi
   return (
     <DropdownRoot>
       <DropdownTrigger asChild>
-        <Button variant="quiet" size="icon" aria-label={`Options for ${name}`} class="flex-none text-muted">
+        <Button variant="quiet" size="icon" glyph="md" aria-label={`Options for ${name}`} class="flex-none text-muted">
           <MoreVerticalIcon />
         </Button>
       </DropdownTrigger>

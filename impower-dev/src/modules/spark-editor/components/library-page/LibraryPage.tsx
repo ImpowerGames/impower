@@ -8,9 +8,13 @@ import {
   VirtualList,
   type VirtualListGrid,
 } from "@impower/impower-ui/components";
+import { useLayout } from "@impower/impower-ui/layout";
+import type { Layout } from "@impower/impower-ui/layout";
 import type { ComponentChildren, JSX, Ref, RefObject } from "preact";
 import LibraryToolbar from "./LibraryToolbar";
 import SearchBox from "./SearchBox";
+
+export const libraryRowHeight = (layout: Layout) => (layout === "desktop" ? 63 : 65);
 
 export type LibraryList<T> = {
   label: string;
@@ -61,6 +65,7 @@ export default function LibraryPage<T>({
   foot,
   children,
 }: LibraryPageProps<T>) {
+  const rowHeight = libraryRowHeight(useLayout());
   return (
     <div class="flex min-h-0 flex-1 flex-col" {...area}>
       <div class="@container flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">
@@ -93,7 +98,7 @@ export default function LibraryPage<T>({
                 items={list.items}
                 getKey={list.getKey}
                 renderItem={list.renderItem}
-                itemHeight={list.itemHeight}
+                itemHeight={list.itemHeight ?? (() => rowHeight)}
                 grid={list.grid}
                 revealIndex={list.revealIndex}
                 revealRequest={list.revealRequest}

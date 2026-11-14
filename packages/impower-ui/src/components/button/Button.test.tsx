@@ -125,6 +125,15 @@ describe("Button kinds", () => {
     }
   });
 
+  it("draws an action button 38px tall in 12px semibold with a 16px glyph, 44px on a coarse pointer", async () => {
+    const classes = buttonVariants({ variant: "quiet", size: "action" });
+    for (const name of ["min-h-[38px]", "min-w-11", "gap-1.5", "px-3", "text-[12px]/[1.4]", "font-semibold", "pointer-coarse:min-h-11", "[&_svg]:size-4"]) {
+      expect(classes.split(" ")).toContain(name);
+    }
+    const css = await packageCss(classes.split(" "));
+    expect(css).toMatch(/@media \(pointer: coarse\)[^{]*\{[^}]*min-height: calc\(var\(--spacing\) \* 11\)/);
+  });
+
   it("lets the page's class replace the variant's conflicting radius", async () => {
     const host = await mount(<Button size="pill">Done</Button>);
     const classes = host.querySelector("button")!.className.split(/\s+/);

@@ -1481,6 +1481,22 @@ describe("the Variants tester and the Files section", () => {
     expect(snackbar.value?.message).toBe("The file could not be read");
   });
 
+  it("draws the Files section at the prototype's sizes: file rows 3px apart, a 38px add action, 11px code, 18px above", async () => {
+    await mount();
+    await open("imani");
+    const list = region()!.querySelector<HTMLElement>("[data-inspector-files]")!;
+    const classes = (element: Element | null) => element!.className.split(" ");
+    expect(classes(list)).toEqual(expect.arrayContaining(["grid", "gap-[3px]", "pt-2"]));
+    expect(classes(list)).not.toContain("-mx-2");
+    expect(classes(list.closest("section"))).toContain("mt-[18px]");
+    expect(classes(list.querySelector("[role=listitem]"))).toContain("h-[52px]");
+    expect(classes(list.querySelector('[role=listitem] [class*="text-[13px]/[1.5]"]'))).toEqual(expect.arrayContaining(["min-h-[52px]", "pl-1.5"]));
+    expect(classes(list.querySelector('button[aria-label^="Options for"]'))).toContain("[&_svg]:size-[17px]");
+    expect(classes(region()!.querySelector("[data-file-add]"))).toEqual(expect.arrayContaining(["min-h-[38px]", "text-[12px]/[1.4]", "pointer-coarse:min-h-11"]));
+    expect(classes(region()!.querySelector("[data-file-add]"))).not.toContain("-ml-3");
+    expect(classes(region()!.querySelector("[data-file-note] code"))).toContain("text-[11px]");
+  });
+
   it("adds a picked file beside the base", async () => {
     await mount();
     await open("imani");

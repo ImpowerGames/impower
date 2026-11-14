@@ -42,6 +42,8 @@ export const buttonVariants = cva(
         narrow: "h-11 w-9 p-0 [&_svg]:size-5",
         compact:
           "min-h-11 min-w-11 gap-1.5 px-2 text-[12px]/[1.4] font-normal [&_svg]:size-4",
+        action:
+          "min-h-[38px] min-w-11 gap-1.5 px-3 py-1.5 text-[12px]/[1.4] font-semibold pointer-coarse:min-h-11 [&_svg]:size-4",
         glyph: "size-11 p-0 [&_svg]:size-4",
         inset: "h-9 w-7 min-w-7 p-0 [&_svg]:size-4",
         field: "min-h-11 min-w-11 gap-1.5 border-x-0 border-y-[3px] pr-2 pl-3 text-[12px]/[1.4] font-normal [&_svg]:size-3.5",

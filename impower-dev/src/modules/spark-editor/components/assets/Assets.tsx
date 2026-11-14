@@ -100,6 +100,7 @@ import {
   useRowFocusReturn,
   SortMenu,
   Trail,
+  libraryRowHeight,
   useFolderLayout,
   useLibraryDrag,
   useSavedScroll,
@@ -131,7 +132,6 @@ const USES_HINT = "Lines in the scripts that show or play it.";
 const COUNTING_NOTE = "Counting uses…";
 
 const UNCOUNTED_NOTE = "Uses could not be counted. Edit a script to try again.";
-const ROW_HEIGHT = 63;
 
 const FOLDER_LAYOUTS: readonly { layout: FolderLayout; label: string; Icon: IconComponent }[] = [
   { layout: "tiles", label: "Tiles", Icon: GridIcon },
@@ -737,6 +737,7 @@ function AssetsBrowser() {
         row.kind === "folder" ? [row.name, ""] : row.paths ? [row.name, stemAndExtension(leafOf(row.path))[1]!] : stemAndExtension(leafOf(row.path));
       return (
         <NameRow
+          size="library"
           icon={<RowGlyph row={row} listing={listing} />}
           label={`Rename ${row.name}`}
           wrapError={tiles}
@@ -768,6 +769,7 @@ function AssetsBrowser() {
     const sound = !folder && row.type === "audio" ? soundOf(listing, row.path) : null;
     return (
       <ListRow
+        size="library"
         icon={sound ? undefined : <RowGlyph row={row} listing={listing} />}
         control={sound ? <SoundPlay name={row.name} sound={sound} /> : undefined}
         overflow={row.variantCount ? "self" : undefined}
@@ -973,6 +975,7 @@ function AssetsBrowser() {
       creating={
         creating && (
           <NameRow
+            size="library"
             icon={<FolderIcon />}
             label="New folder name"
             returnFocus={() => newButton.current}
@@ -996,7 +999,7 @@ function AssetsBrowser() {
         items,
         getKey: (item) => (item.kind === "heading" ? `heading:${item.type}` : item.path),
         renderItem,
-        itemHeight: (item) => (item.kind === "heading" ? HEADING_HEIGHT : ROW_HEIGHT),
+        itemHeight: (item) => (item.kind === "heading" ? HEADING_HEIGHT : libraryRowHeight(layoutName)),
         grid: tiles
           ? { minWidth: TILE_MIN_WIDTH[shape], gap: TILE_GAP, height: (width) => tileHeight(shape, width) }
           : undefined,
