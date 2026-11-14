@@ -193,7 +193,16 @@ export default function AssetInspector({
   const [picture, setPicture] = useState<string | null | undefined>(undefined);
   const [soloPath, setSoloPath] = useState<string | null>(null);
   const soloFile = stack ? (asset.files.find((file) => file.path === soloPath) ?? null) : null;
-  const soloPixels = soloFile?.src ? workspace.assetSizes.value[soloFile.src] : undefined;
+  const sizeOf = (file: { src?: string }) => (file.src ? workspace.assetSizes.value[file.src] : null);
+  const fileSizes = asset.files.map(sizeOf);
+  const measured = fileSizes.flatMap((size) => (size ? [size] : []));
+  const canvas =
+    fileSizes.every((size) => size !== undefined) && measured.length
+      ? {
+          width: Math.max(...measured.map((size) => size.width)),
+          height: Math.max(...measured.map((size) => size.height)),
+        }
+      : null;
   const [frameEdge, setFrameEdge] = useState(0);
   const [fullEdge, setFullEdge] = useState(0);
   const pictureSize = Math.max(frameEdge, fullEdge);
@@ -243,10 +252,10 @@ export default function AssetInspector({
   }, [asset.path]);
 
   useEffect(() => {
-    if (soloFile?.src && soloPixels === undefined) {
-      void intents().then((Workspace) => Workspace.assets.measureImages([soloFile.path]));
+    if (soloFile && fileSizes.includes(undefined)) {
+      void intents().then((Workspace) => Workspace.assets.measureImages(asset.files.map((file) => file.path)));
     }
-  }, [soloFile?.path, soloFile?.src]);
+  }, [soloFile?.path, filesKey]);
 
   useEffect(() => {
     const frame = stack ? body.current?.querySelector<HTMLElement>("[data-zoom-frame]") : null;
@@ -415,7 +424,7 @@ export default function AssetInspector({
       key={`${asset.path}\n${asset.src ?? ""}`}
       asset={asset}
       picture={stack ? picture : undefined}
-      solo={soloFile && { name: nameOf(soloFile.path), src: soloFile.src, pixels: soloPixels }}
+      solo={soloFile && { name: nameOf(soloFile.path), src: soloFile.src, pixels: sizeOf(soloFile), canvas }}
       pixels={pixels}
       read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
       onSeconds={setVideoSeconds}

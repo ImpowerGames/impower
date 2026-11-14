@@ -1669,24 +1669,36 @@ describe("the Variants tester and the Files section", () => {
     expect((frame.firstElementChild as HTMLElement).style.transform).toBe(transform);
   });
 
-  it("places a file of another size where it sits on the base, measuring it when soloed", async () => {
+  const sized = (sizes: Record<string, { width: number; height: number }>, rest = { width: 400, height: 400 }) =>
+    Object.fromEntries(IMANI.map((path) => [srcOf(path)!, sizes[path.split("/").pop()!] ?? rest]));
+  const placed = () => {
+    const box = region()!.querySelector<HTMLElement>("[data-zoom-frame] [data-thumbnail]")!.parentElement!;
+    const { left, top, width, height } = box.style;
+    return { left, top, width, height, fills: box.className.split(" ").includes("inset-0") };
+  };
+
+  it("places a smaller file where the composition draws it, measuring the stack's files when soloed", async () => {
     workspace.assetSizes.value = { [srcOf(`${P}/imani.png`)!]: { width: 400, height: 200 } };
     await mount();
     await open("imani");
     await click(soloButton("imani~face.happy.png"));
-    expect(assets.measureImages).toHaveBeenCalledWith([`${P}/imani~face.happy.png`]);
-    const placed = () => region()!.querySelector<HTMLElement>("[data-zoom-frame] [data-thumbnail]")!.parentElement!;
-    expect(placed().className.split(" ")).toContain("inset-0");
+    expect(assets.measureImages).toHaveBeenCalledWith(expect.arrayContaining(IMANI));
+    expect(placed().fills).toBe(true);
     await act(async () => {
-      workspace.assetSizes.value = {
-        ...workspace.assetSizes.value,
-        [srcOf(`${P}/imani~face.happy.png`)!]: { width: 200, height: 50 },
-      };
+      workspace.assetSizes.value = sized({ "imani~face.happy.png": { width: 200, height: 50 } }, { width: 400, height: 200 });
     });
     await settle();
-    expect(placed().style.width).toBe("50%");
-    expect(placed().style.height).toBe("25%");
-    expect(placed().className.split(" ")).toEqual(expect.arrayContaining(["top-0", "left-0"]));
+    expect(placed()).toEqual({ left: "0%", top: "0%", width: "50%", height: "25%", fills: false });
+  });
+
+  it("frames a stack whose largest file is not the base by that file's canvas, letterboxed, so nothing is clipped", async () => {
+    workspace.assetSizes.value = sized({ "imani~mouth.open.png": { width: 800, height: 400 } });
+    await mount();
+    await open("imani");
+    await click(soloButton("imani~mouth.open.png"));
+    expect(placed()).toEqual({ left: "0%", top: "25%", width: "100%", height: "50%", fills: false });
+    await click(soloButton("imani.png"));
+    expect(placed()).toEqual({ left: "0%", top: "25%", width: "50%", height: "50%", fills: false });
   });
 
   it("keeps the file menu working without starting solo, and lets Escape cancel a rename while soloed", async () => {

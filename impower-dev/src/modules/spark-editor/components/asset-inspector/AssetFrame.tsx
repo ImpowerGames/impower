@@ -151,15 +151,26 @@ export type SoloPicture = {
   name: string;
   src: string | undefined;
   pixels?: Pixels | null;
+  canvas?: Pixels | null;
 };
 
-const soloBox = (solo: SoloPicture | null | undefined, cover: Pixels | null | undefined) =>
-  solo?.pixels && cover
-    ? {
-        width: `${(solo.pixels.width / cover.width) * 100}%`,
-        height: `${(solo.pixels.height / cover.height) * 100}%`,
-      }
-    : undefined;
+const percent = (share: number) => `${share * 100}%`;
+
+const soloBox = (solo: SoloPicture | null | undefined, frame: Pixels | null | undefined) => {
+  if (!solo?.pixels || !solo.canvas || !frame) {
+    return undefined;
+  }
+  const frameRatio = frame.width / frame.height;
+  const canvasRatio = solo.canvas.width / solo.canvas.height;
+  const across = canvasRatio >= frameRatio ? 1 : canvasRatio / frameRatio;
+  const down = canvasRatio >= frameRatio ? frameRatio / canvasRatio : 1;
+  return {
+    left: percent((1 - across) / 2),
+    top: percent((1 - down) / 2),
+    width: percent((across * solo.pixels.width) / solo.canvas.width),
+    height: percent((down * solo.pixels.height) / solo.canvas.height),
+  };
+};
 
 function PictureFrame({
   asset,
@@ -187,7 +198,7 @@ function PictureFrame({
   const image = () =>
     src ? (
       <div
-        class={box ? "absolute top-0 left-0" : "absolute inset-0"}
+        class={box ? "absolute" : "absolute inset-0"}
         style={box}
         onErrorCapture={() => setBrokenSrc(src)}
       >
