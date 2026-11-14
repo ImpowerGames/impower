@@ -50,6 +50,7 @@ import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
 import { getOffsetSourceLocation } from "./utils/providers/getOffsetSourceLocation";
 import { answerPreviewLine } from "./utils/providers/answerPreviewLine";
+import { getDefinition } from "./utils/providers/getDefinition";
 import { getReferences } from "./utils/providers/getReferences";
 import { getRenameEdits } from "./utils/providers/getRenameEdits";
 import {
@@ -546,16 +547,9 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    const { references } = profiled("lsp: onDefinition", uri, () =>
-      getReferences(document, tree, program, workspace, params.position, {
-        searchOtherFiles: true,
-        includeDeclaration: true,
-        excludeUses: true,
-        includeInterdependent: false,
-        includeLinks: false,
-      }),
+    return profiled("lsp: onDefinition", uri, () =>
+      getDefinition(document, tree, program, workspace, params.position),
     );
-    return references;
   });
 
   connection.onDocumentLinks((params) => {

@@ -3638,3 +3638,46 @@ describe("The preview's top bar in a narrow pane", () => {
     render(null, probe);
   });
 });
+
+describe("readNameAtCaret on an asset's definition (#2171)", () => {
+  const TEXT = "scene start\n  [[show portrait mara_smile]]\nend\n";
+  const nameRange = { start: { line: 1, character: 18 }, end: { line: 1, character: 28 } };
+  const fileStart = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+
+  const nameFor = async (assetPath: string) => {
+    const projectId = workspace.current.project.id;
+    const assetUri = `file://${projectId}/${assetPath}`;
+    const ls = {
+      initialization: async () => {},
+      connection: {
+        sendRequest: async (method: string) =>
+          method === "textDocument/documentHighlight"
+            ? [{ range: nameRange, kind: 2 }]
+            : [{ uri: assetUri, range: fileStart }],
+      },
+    };
+    const win = new WorkspaceWindow({ ...Workspace, ls } as unknown as typeof Workspace);
+    const reader = win as unknown as { requestEditor: () => Promise<unknown> };
+    reader.requestEditor = async () => ({
+      textDocument: { uri: `file://${projectId}/main.sd`, text: TEXT, version: 1 },
+      caret: { line: 1, character: 22 },
+    });
+    try {
+      return await win.readNameAtCaret("main.sd");
+    } finally {
+      win.dispose();
+    }
+  };
+
+  it("leaves a picture inside the assets folder open to go to", async () => {
+    const name = await nameFor("assets/images/mara_smile.png");
+    expect(name).toMatchObject({ name: "mara_smile", kind: "picture" });
+    expect(name?.definition).not.toBeNull();
+    expect(name?.outsideAssets).toBeUndefined();
+  });
+
+  it("marks a picture outside the assets folder, which the Assets page does not list", async () => {
+    const name = await nameFor("images/mara_smile.png");
+    expect(name).toMatchObject({ name: "mara_smile", kind: "picture", outsideAssets: true });
+  });
+});

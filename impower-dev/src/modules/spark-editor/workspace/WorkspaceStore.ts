@@ -219,6 +219,8 @@ class WorkspaceStore {
 
   readonly assetsReveal = signal<readonly string[] | null>(null);
 
+  readonly assetsInspect = signal<string | null>(null);
+
   readonly movesReplayed = signal<{ moves: readonly FileMove[]; settled: boolean } | null>(null);
 
   readonly uploadBatches = signal(0);
