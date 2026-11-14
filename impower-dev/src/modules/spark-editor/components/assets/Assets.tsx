@@ -251,7 +251,7 @@ const followed = (path: string, moves: readonly FileMove[]) => {
 
 function RowGlyph({ row, listing }: { row: AssetRow; listing: AssetListing }) {
   if (row.kind === "folder") return <FolderIcon />;
-  if (row.type === "image" && !row.link) return <Thumbnail src={srcOf(listing, row.path)} />;
+  if (row.type === "image" && !row.link) return <Thumbnail fit="contain" src={srcOf(listing, row.path)} />;
   const Glyph = row.link && row.type === "other" ? LinkIcon : TYPE_ICONS[row.type];
   return <Glyph />;
 }

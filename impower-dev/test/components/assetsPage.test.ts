@@ -488,7 +488,7 @@ describe("image folders as tiles", () => {
     expect(portraits.querySelector("[data-folder-cover]")!.getAttribute("data-folder-cover")).toBe("1");
     await click(all<HTMLElement>('button[aria-label^="Open folder Backdrops"]')[0]);
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["landscape"]);
-    expect(tiles()[0]!.querySelector("img")!.className.split(" ")).toEqual(expect.arrayContaining(["size-full", "object-cover"]));
+    expect(tiles()[0]!.querySelector("img")!.className.split(" ")).toEqual(expect.arrayContaining(["size-full", "object-contain"]));
   });
 
   it("offers the folder's layouts from a menu showing the current one's icon, and keeps a choice for that folder only, with the chip beside the name", async () => {
@@ -526,6 +526,7 @@ describe("image folders as tiles", () => {
     await mount();
     await search("imani");
     expect(tiles()).toEqual([]);
+    expect(host!.querySelector('[data-thumbnail] img')!.className.split(" ")).toEqual(expect.arrayContaining(["size-full", "object-contain"]));
     expect(rowLabels()).toEqual([
       "Open image imani, 4 variants, portraits · modified 2d · 330 b",
       "Open audio imani, audio · modified 2d · 5 b",
