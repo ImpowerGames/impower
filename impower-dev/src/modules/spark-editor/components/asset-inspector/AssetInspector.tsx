@@ -426,6 +426,31 @@ export default function AssetInspector({
   const lines = uses?.reduce((sum, group) => sum + group.uses.length, 0) ?? 0;
   const problems = facts ? facts.problems : [];
 
+  const problemsSection =
+    problems === null ? (
+      <Section title="Problems" label="Problems">
+        <p class="m-0 text-[12px]/[1.5] text-muted" data-problems-failed>
+          Its problems could not be checked. Edit a script to try again.
+        </p>
+      </Section>
+    ) : (
+      problems.length > 0 && (
+        <Section title="Problems" aside={String(problems.length)} label="Problems">
+          <div>
+            {problems.map((problem, index) => (
+              <MessageEntry key={index} severity={severityOf(problem.severity)} title={messageOf(problem)} />
+            ))}
+          </div>
+        </Section>
+      )
+    );
+
+  const detailsSection = (
+    <Section title="Details" label="Details">
+      <DetailList rows={rows} />
+    </Section>
+  );
+
   const frame = (
     <AssetFrame
       key={`${asset.path}\n${asset.src ?? ""}`}
@@ -548,44 +573,26 @@ export default function AssetInspector({
               sheetContainer={region}
               keepClear={pinned}
             />
+            {problemsSection}
+            {detailsSection}
+            {stack.paths.length > 1 && (
+              <FilesSection
+                stack={stack}
+                sizes={Object.fromEntries(asset.files.map((file) => [file.path, file.size]))}
+                sources={Object.fromEntries(asset.files.map((file) => [file.path, file.src]))}
+                soloed={soloFile?.path ?? null}
+                onSolo={setSoloPath}
+                intents={intents}
+                relocate={relocate}
+              />
+            )}
           </div>
         ) : (
           frame
         )}
         {asset.link && <LinkAddress key={`${asset.path}\n${asset.address ?? ""}`} asset={asset} intents={intents} />}
-        {problems === null ? (
-          <Section title="Problems" label="Problems">
-            <p class="m-0 text-[12px]/[1.5] text-muted" data-problems-failed>
-              Its problems could not be checked. Edit a script to try again.
-            </p>
-          </Section>
-        ) : problems.length > 0 && (
-          <Section title="Problems" aside={String(problems.length)} label="Problems">
-            <div>
-              {problems.map((problem, index) => (
-                <MessageEntry
-                  key={index}
-                  severity={severityOf(problem.severity)}
-                  title={messageOf(problem)}
-                />
-              ))}
-            </div>
-          </Section>
-        )}
-        <Section title="Details" label="Details">
-          <DetailList rows={rows} />
-        </Section>
-        {stack && stack.paths.length > 1 && (
-          <FilesSection
-            stack={stack}
-            sizes={Object.fromEntries(asset.files.map((file) => [file.path, file.size]))}
-            sources={Object.fromEntries(asset.files.map((file) => [file.path, file.src]))}
-            soloed={soloFile?.path ?? null}
-            onSolo={setSoloPath}
-            intents={intents}
-            relocate={relocate}
-          />
-        )}
+        {!stack && problemsSection}
+        {!stack && detailsSection}
         <Section
           title={!uses ? "Uses" : lines ? `Used in ${plural(lines, "line")}` : "Not used yet"}
           label="Uses"

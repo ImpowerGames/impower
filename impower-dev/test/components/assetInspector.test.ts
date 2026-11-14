@@ -1270,7 +1270,7 @@ describe("the Variants tester and the Files section", () => {
     expect(rowFor(`${P}/rooftop.png`).getAttribute("aria-label")).toContain("2 variants");
   });
 
-  it("keeps the picture pinned above the Variants while they scroll, and pins nothing for a single picture", async () => {
+  it("keeps the picture pinned above the Variants, Details and Files while they scroll, and pins nothing for a single picture", async () => {
     await mount();
     await open("imani");
     const bench = region()!.querySelector<HTMLElement>("[data-variant-bench]")!;
@@ -1278,7 +1278,8 @@ describe("the Variants tester and the Files section", () => {
     const stage = bench.firstElementChild as HTMLElement;
     expect(stage.querySelector("[data-zoom-frame]")).not.toBeNull();
     expect(stage.className.split(" ")).toEqual(expect.arrayContaining(["sticky", "top-0"]));
-    expect(bench.lastElementChild!.matches('section[aria-label="Variants"]')).toBe(true);
+    expect([...bench.children].slice(1).map((child) => child.getAttribute("aria-label"))).toEqual(["Variants", "Details", "Files"]);
+    expect(sectionTitles()).toEqual(["Variants", "Details", "Files", "Not used yet"]);
     await click(closeButton());
     lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
     workspace.assetListing.value = { projectId: PROJECT, folders: [], files: { "Assets/Images/Backdrops/harbor.png": fact(600) } };
