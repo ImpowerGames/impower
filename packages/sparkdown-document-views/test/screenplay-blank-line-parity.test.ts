@@ -103,6 +103,9 @@ const KINDS: Record<string, string[]> = {
   InlineDialogueInterpolation: ["  GUIDE: Hi {person} again."],
   ChoiceInterpolation: ["  * [Greet {person} warmly.]"],
   SingleLineAlternatorInterpolation: ["  queue | Wave at {person}. | Nod. end"],
+  SingleLineAlternatorMarkup: ["  queue | A *bold* arm. | A _plain_ arm. end"],
+  GluedMarkupAlternator: ["  They spot .. queue | a *big* owl | a hawk .. above."],
+  ImplicitActionMarkupBesideInterpolation: ["  Meet *{person}* and _{guest}_ now."],
   LuauSparkdownVariableDefinition: ["  local z = 3"],
   LuauSparkdownWhileLoop: ["  while false do", "    It hails.", "  end"],
   LuauStrayUntilStatement: ["  until true"],
@@ -125,6 +128,7 @@ const GLUED_LAYOUTS: Record<string, string[]> = {
   GluedChoiceAlternator: ["* [Pick red / blue]"],
   GluedConditionalAlternator: ["It is cold / warm today."],
   GluedInterpolatedAlternator: ["They see {animal} / a dog outside."],
+  GluedMarkupAlternator: ["They spot a big owl / a hawk above."],
 };
 
 const PRINTED: Record<string, string[]> = {
@@ -133,6 +137,8 @@ const PRINTED: Record<string, string[]> = {
   InlineDialogueInterpolation: ["GUIDE", "Hi {person} again."],
   ChoiceInterpolation: ["* [Greet {person} warmly.]"],
   SingleLineAlternatorInterpolation: ["Wave at {person}.", "Nod."],
+  SingleLineAlternatorMarkup: ["A bold arm.", "A plain arm."],
+  ImplicitActionMarkupBesideInterpolation: ["Meet {person} and {guest} now."],
   BlockAction: ["The door creaks."],
   BlockActionInnerBlank: ["First.", "Second."],
   BlockActionLeadingBlank: ["First."],
@@ -546,6 +552,21 @@ describe("an alternative written inside a sentence", () => {
     const printed = exportRows("default", source);
     expect(printed.filter((row) => row && row !== "Before." && row !== "After.")).toEqual(rows);
     expect(layout(screenRows("default", source))).toBe(layout(printed));
+  });
+});
+
+describe("a title page field", () => {
+  it("shows the text the export prints, with markup and an interpolation", () => {
+    const config = { ...BASE, screenplay_print_title_page: true };
+    CONFIGS["title page field"] = config;
+    const source = ["---", "title: The *Big* {place} Heist", "---", "", sourceOf(["ImplicitAction"])].join("\n");
+    const printed = extractPdfText(source, config)
+      .split("\n")
+      .find((row) => row.includes("title:"))!;
+    expect(printed.replace(/^.*title: /, "")).toBe("The Big {place} Heist");
+    const view = show("title page field", source);
+    const titlePage = view.contentDOM.querySelector(".sp-title-page") ?? view.contentDOM;
+    expect(compact(visibleText(titlePage))).toContain(compact("The Big {place} Heist"));
   });
 });
 
