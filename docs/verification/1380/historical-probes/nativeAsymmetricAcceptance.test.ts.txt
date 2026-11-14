@@ -1,0 +1,197 @@
+/** Private, nonportable #1380 acceptance against the frozen #1388 worktree. */
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { loadNativeFixture, type NativeFixture, type NativeCheck } from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/analysis-backend/native-conformance/nativeFixture.ts";
+import { asymmetricExternSource } from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/analysis-backend/native-conformance/fixtureSources.ts";
+import { nativeQuery } from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/luau-conformance/typecheckNativeQueries.ts";
+
+const evidence = "C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-1380/";
+const upstream = "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/tests/TypeInfer.externTypes.test.cpp";
+const sha = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+let fixture: NativeFixture;
+let source: string;
+let expectedHashes: Record<string, string>;
+const receipt: Record<string, unknown> = { state: "PRIVATE bounded acceptance; not portable completion" };
+async function hashes() {
+  return Object.fromEntries(await Promise.all(Object.keys(expectedHashes).map(async path => [path, sha(await readFile(path))])));
+}
+
+beforeAll(async () => {
+  expectedHashes = JSON.parse(await readFile(evidence + "native-frozen-input-hashes.json", "utf8"));
+  expect(Object.keys(expectedHashes)).toHaveLength(45);
+  expect(await hashes()).toEqual(expectedHashes);
+  // C++ phase-one line endings only; extract the original literal, not rewritten Luau.
+  const text = (await readFile(upstream, "utf8")).replaceAll("\r\n", "\n");
+  const start = text.indexOf('TEST_CASE_FIXTURE(Fixture, "read_write_class_properties")');
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(text.slice(0, start).split("\n")).toHaveLength(803);
+  const end = text.indexOf("TEST_CASE_FIXTURE(", start + 1);
+  const body = text.slice(start, end);
+  const literalStart = body.indexOf('R"(') + 3;
+  const literalEnd = body.indexOf(')"', literalStart);
+  expect(literalStart).toBeGreaterThan(2);
+  expect(literalEnd).toBeGreaterThan(literalStart);
+  source = body.slice(literalStart, literalEnd);
+  expect(source).toBe(asymmetricExternSource);
+  receipt.source = { pin: "7d5f73364fdbbaa984fa545071630eba73cfea98", file: upstream,
+    case: "read_write_class_properties", line: 803, sha256: sha(source), bytes: Buffer.byteLength(source) };
+  fixture = await loadNativeFixture();
+});
+beforeEach(() => { fixture.clearFlags(); fixture.create("Fixture"); fixture.flag("DebugLuauForceOldSolver", false); });
+afterAll(async () => {
+  try { fixture?.dispose(); }
+  finally {
+    if (expectedHashes) {
+      const after = await hashes();
+      receipt.hashes = after;
+      receipt.inputIntervalStable = JSON.stringify(after) === JSON.stringify(expectedHashes);
+      await writeFile(evidence + "native-asymmetric-acceptance-result.json", JSON.stringify(receipt, null, 2));
+      expect(after).toEqual(expectedHashes);
+    }
+  }
+});
+
+function exactCheck(): NativeCheck {
+  fixture.synthetic("asymmetricExtern");
+  fixture.source("MainModule", source);
+  return fixture.check("MainModule");
+}
+
+describe("independent pinned #1380 native acceptance", () => {
+  it("preserves every original assertion in original order", () => {
+    const result = exactCheck();
+    expect(result.diagnostics).toHaveLength(1);
+    const error = result.diagnostics[0]!;
+    expect([error.begin.line, error.begin.column, error.end.line, error.end.column]).toEqual([1, 40, 1, 48]);
+    expect(error.kind).toBe("TypeMismatch");
+    expect(fixture.identical(fixture.errorType(result, error.nativeIndex, "wanted"), fixture.builtin(result, "string"))).toBe(true);
+    expect(fixture.identical(fixture.errorType(result, error.nativeIndex, "given"), fixture.builtin(result, "number"))).toBe(true);
+    receipt.original = { diagnostics: result.diagnostics, effectiveFlags: result.effectiveFlags };
+  });
+
+  it("observes exact native shared identities, own properties, directions and superclass links", () => {
+    const result = exactCheck();
+    const script = fixture.global(result, "script");
+    const workspace = fixture.child(script, "read", "Parent");
+    const instance = fixture.child(script, "write", "Parent");
+    const part = fixture.child(workspace, "read", "Part");
+    for (const [type, name, properties] of [[instance, "Instance", ["Parent"]], [workspace, "Workspace", ["Part", "Script"]],
+      [script, "Script", ["Parent"]], [part, "Part", ["BrickColor", "Parent"]]] as const) {
+      expect(fixture.identical(type, fixture.follow(type))).toBe(true); // Raw extern predicate, not only followed kind.
+      expect(fixture.facts(type)).toMatchObject({ kind: "extern", name, definitionModuleName: "Test" });
+      expect(fixture.propertyNames(type)).toEqual(properties);
+      expect(fixture.inArena(type, "global")).toBe(true);
+    }
+    expect(() => fixture.child(instance, "parent")).toThrow("Absent or invalid native child selector: parent");
+    expect(() => fixture.child(workspace, "parent")).toThrow("Absent or invalid native child selector: parent");
+    for (const type of [instance, workspace, script, part])
+      expect(() => fixture.child(type, "metatable")).toThrow("Absent or invalid native child selector: metatable");
+    for (const direction of ["read", "write"] as const)
+      expect(fixture.identical(fixture.child(instance, direction, "Parent"), instance)).toBe(true);
+    for (const type of [script, part]) {
+      expect(fixture.identical(fixture.child(type, "parent"), instance)).toBe(true);
+      expect(fixture.identical(fixture.child(type, "read", "Parent"), workspace)).toBe(true);
+      expect(fixture.identical(fixture.child(type, "write", "Parent"), instance)).toBe(true);
+      expect(fixture.identical(fixture.child(type, "read", "Parent"), fixture.child(type, "write", "Parent"))).toBe(false);
+    }
+    expect(fixture.identical(fixture.child(workspace, "read", "Script"), script)).toBe(true);
+    for (const name of ["Script", "Part"]) {
+      expect(fixture.propertyFacts(workspace, name)).toMatchObject({ readable: true, writable: false });
+      expect(() => fixture.child(workspace, "write", name)).toThrow("Absent native property direction");
+    }
+    for (const direction of ["read", "write"] as const)
+      expect(fixture.identical(fixture.child(part, direction, "BrickColor"), fixture.builtin(result, "string"))).toBe(true);
+    expect(fixture.bindingFacts(result, "script").documentation).toBeNull();
+  });
+
+  it("rejects collapsed-direction, wrong-parent and reversed mismatch identities with real native values", () => {
+    const result = exactCheck();
+    const script = fixture.global(result, "script");
+    const workspace = fixture.child(script, "read", "Parent");
+    const instance = fixture.child(script, "write", "Parent");
+    const part = fixture.child(workspace, "read", "Part");
+    for (const type of [script, part]) {
+      expect(() => expect(fixture.identical(fixture.child(type, "write", "Parent"), workspace)).toBe(true)).toThrow();
+      expect(() => expect(fixture.identical(fixture.child(type, "parent"), workspace)).toBe(true)).toThrow();
+      expect(fixture.identical(fixture.child(type, "parent"), instance)).toBe(true);
+    }
+    expect(fixture.mismatchEquals(result, 0, fixture.builtin(result, "number"), fixture.builtin(result, "string"))).toBe(false);
+    expect(fixture.mismatchEquals(result, 0, fixture.builtin(result, "string"), fixture.builtin(result, "number"))).toBe(true);
+  });
+
+  it("requires the actual raw persistent bit: bespoke externs false and builtin identities true", () => {
+    const result = exactCheck();
+    const script = fixture.global(result, "script");
+    const workspace = fixture.child(script, "read", "Parent");
+    const instance = fixture.child(script, "write", "Parent");
+    const part = fixture.child(workspace, "read", "Part");
+    // Required bounded native observation. An absent field fails honestly;
+    // neither printed type nor global arena membership substitutes for it.
+    const rawPersistent = (type: typeof script) =>
+      (fixture.facts(type) as ReturnType<NativeFixture["facts"]> & { rawPersistent?: boolean }).rawPersistent;
+    for (const type of [instance, workspace, script, part]) expect(rawPersistent(type)).toBe(false);
+    for (const name of ["string", "number"] as const) expect(rawPersistent(fixture.builtin(result, name))).toBe(true);
+  });
+
+  it("preserves own shadowing in the shared property query without substituting parent Parent", () => {
+    const result = exactCheck();
+    const script = fixture.global(result, "script");
+    const own = fixture.child(script, "read", "Parent");
+    const inherited = fixture.child(fixture.child(script, "parent"), "read", "Parent");
+    expect(fixture.identical(own, inherited)).toBe(false);
+    const shared = nativeQuery(fixture, result, "MainModule", { global: "script", path: [{ property: "Parent" }] });
+    expect(shared.is(nativeQuery(fixture, result, "MainModule", { global: "script", path: [{ property: "Parent" }, { property: "Script" }, { property: "Parent" }] }))).toBe(true);
+    expect(shared.is(nativeQuery(fixture, result, "MainModule", { global: "script", path: [{ property: "Parent" }, { property: "Part" }, { property: "Parent" }] }))).toBe(true);
+  });
+
+  it("exposes exact missing setup with original source and genuine UnknownSymbol diagnostics", () => {
+    fixture.source("MainModule", source);
+    const result = fixture.check("MainModule");
+    expect(result.diagnostics.some(error => error.kind === "UnknownSymbol")).toBe(true);
+    expect(() => fixture.global(result, "script")).toThrow("Missing native global: script");
+    expect(result.diagnostics.map(error => error.kind)).not.toEqual(["TypeMismatch"]);
+    receipt.missingSetup = { diagnostics: result.diagnostics };
+  });
+
+  it("rejects invented graph recipes, wrong presets and late graph setup", () => {
+    const unknown = fixture.observe("synthetic", "inventedAsymmetricGraph");
+    expect(unknown.status).toBe("error");
+    expect(unknown.message).toBe("Unknown audited native graph setup");
+    fixture.create("BuiltinsFixture");
+    expect(() => fixture.synthetic("asymmetricExtern")).toThrow("exact Fixture preset");
+    fixture.create("Fixture"); fixture.source("MainModule", source);
+    expect(() => fixture.synthetic("asymmetricExtern")).toThrow("fresh fixture before sources, definitions or checks");
+  });
+
+  it("distinguishes own-property primitive rejection from shared inherited extern selection", () => {
+    fixture.create("ExternTypeFixture");
+    fixture.source("MainModule", "");
+    const result = fixture.check("MainModule");
+    expect(result.diagnostics).toEqual([]);
+    const child = fixture.globalAlias(result, "ChildClass");
+    expect(fixture.propertyNames(child)).not.toContain("BaseField");
+    expect(() => fixture.child(child, "read", "BaseField")).toThrow("Missing native own property: BaseField");
+    const inherited = nativeQuery(fixture, result, "MainModule", { alias: "ChildClass", path: [{ property: "BaseField" }] });
+    expect(inherited.is(nativeQuery(fixture, result, "MainModule", { builtin: "number" }))).toBe(true);
+  });
+
+  it("isolates graphs across independent fixture instances and invalidates former handles on recreation", async () => {
+    const first = exactCheck();
+    const formerScript = fixture.global(first, "script");
+    const other = await loadNativeFixture();
+    try {
+      other.create("Fixture"); other.flag("DebugLuauForceOldSolver", false);
+      other.synthetic("asymmetricExtern"); other.source("MainModule", source);
+      const second = other.check("MainModule");
+      expect(second.diagnostics).toEqual(first.diagnostics);
+      expect(() => fixture.identical(formerScript, other.global(second, "script"))).toThrow("Foreign native fixture handle");
+    } finally { other.dispose(); }
+    fixture.create("Fixture");
+    expect(() => fixture.facts(formerScript)).toThrow();
+    fixture.synthetic("asymmetricExtern"); fixture.source("MainModule", source);
+    const recreated = fixture.check("MainModule");
+    expect(recreated.diagnostics).toEqual(first.diagnostics);
+    expect(fixture.identical(fixture.errorType(recreated, 0, "wanted"), fixture.builtin(recreated, "string"))).toBe(true);
+  });
+});
