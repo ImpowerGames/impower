@@ -8,7 +8,7 @@ import {
   PencilIcon,
   PlusIcon,
 } from "../icon/icons.generated";
-import Button, { type ButtonSize, type ButtonVariant } from "./Button";
+import Button, { type ButtonGlyph, type ButtonSize, type ButtonVariant } from "./Button";
 
 const VARIANTS: Record<ButtonVariant, string> = {
   default: "Default",
@@ -23,11 +23,18 @@ const VARIANTS: Record<ButtonVariant, string> = {
 const SIZES: Record<ButtonSize, string> = {
   default: "Text button",
   icon: "Icon button",
+  narrow: "Narrow icon button, 36px wide under a fine pointer",
   compact: "Compact text button",
   glyph: "Small glyph button",
   inset: "Inside a field",
   field: "Menu field",
   pill: "Phone pill",
+};
+
+const GLYPHS: Record<ButtonGlyph, string> = {
+  sm: "16px glyph",
+  md: "17px glyph",
+  lg: "18px glyph",
 };
 
 const variants = Object.keys(VARIANTS) as ButtonVariant[];
@@ -42,7 +49,7 @@ function Cell({
   size: ButtonSize;
   disabled?: boolean;
 }) {
-  if (size === "icon" || size === "glyph") {
+  if (size === "icon" || size === "narrow" || size === "glyph") {
     return (
       <Button
         variant={variant}
@@ -97,6 +104,18 @@ function ButtonDemo() {
               )}
             </tbody>
           </table>
+        </div>
+      </GalleryRow>
+      <GalleryRow label="Glyph sizes on a quiet icon button: the size's own glyph, then 16, 17 and 18px">
+        <div class="flex flex-wrap items-center gap-2">
+          <Button variant="quiet" size="icon" aria-label="Icon button glyph" data-gallery-control>
+            <PlusIcon />
+          </Button>
+          {(Object.keys(GLYPHS) as ButtonGlyph[]).map((glyph) => (
+            <Button key={glyph} variant="quiet" size="icon" glyph={glyph} aria-label={GLYPHS[glyph]} data-gallery-control>
+              <PlusIcon />
+            </Button>
+          ))}
         </div>
       </GalleryRow>
       <GalleryRow label="A dialog's actions and a panel's close">

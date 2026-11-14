@@ -11,6 +11,7 @@ export {
   type ButtonProps,
   type ButtonVariant,
   type ButtonSize,
+  type ButtonGlyph,
 } from "./button/Button";
 export {
   default as Dialog,

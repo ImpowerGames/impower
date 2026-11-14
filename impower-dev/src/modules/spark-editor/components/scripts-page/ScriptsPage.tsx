@@ -308,7 +308,6 @@ function AllScripts() {
               <Trail
                 label="Scripts"
                 icon={<RootIcon />}
-                glyph="small"
                 summary={plural(Object.keys(listing.files).length, "script")}
                 crumbs={folder ? crumbsOf(folder, home) : []}
                 root=""

@@ -57,7 +57,7 @@ export default function SortMenu({ value, fields = ALL_FIELDS, usesHint = USES_H
           variant="quiet"
           size="compact"
           aria-label={`Sort by ${label.description}`}
-          class="text-muted @max-[440px]:[&>span]:hidden"
+          class="px-[7px] text-[11px] text-muted @max-[440px]:[&>span]:hidden [:root:not([data-layout=desktop])_&]:[&>span]:hidden"
         >
           <DirectionIcon />
           <span>{label.name}</span>

@@ -61,7 +61,7 @@ export default function TabbedPage({
       <header class={tabbedPageHeaderVariants()}>
         {icon}
         <h1 class={tabbedPageTitleVariants()}>{title}</h1>
-        <Button variant="quiet" size="compact" class="text-accent" onClick={onBack}>
+        <Button variant="quiet" size="compact" glyph="md" class="gap-2 px-0.5 text-accent" onClick={onBack}>
           <BackIcon />
           {backLabel}
         </Button>

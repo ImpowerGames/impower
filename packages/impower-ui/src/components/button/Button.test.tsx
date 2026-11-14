@@ -104,6 +104,27 @@ describe("Button kinds", () => {
     }
   });
 
+  it("draws a narrow icon button 36px wide and 44px tall, left to the coarse-pointer minimum for its width", () => {
+    const classes = buttonVariants({ variant: "quiet", size: "narrow" }).split(" ");
+    expect(classes).toEqual(expect.arrayContaining(["h-11", "w-9", "p-0"]));
+    expect(classes.some((name) => name.startsWith("min-w-"))).toBe(false);
+  });
+
+  it("sets the glyph to 16, 17 or 18px over the size's own glyph", async () => {
+    const sizes = { sm: "[&_svg]:size-4", md: "[&_svg]:size-[17px]", lg: "[&_svg]:size-[18px]" } as const;
+    for (const [glyph, name] of Object.entries(sizes) as [keyof typeof sizes, string][]) {
+      const host = await mount(
+        <Button size="icon" glyph={glyph} aria-label="Options">
+          <svg />
+        </Button>,
+      );
+      const classes = host.querySelector("button")!.className.split(/\s+/);
+      expect(classes).toContain(name);
+      expect(classes).not.toContain("[&_svg]:size-5");
+      host.remove();
+    }
+  });
+
   it("lets the page's class replace the variant's conflicting radius", async () => {
     const host = await mount(<Button size="pill">Done</Button>);
     const classes = host.querySelector("button")!.className.split(/\s+/);

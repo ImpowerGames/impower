@@ -929,6 +929,7 @@ function AssetsBrowser() {
                 <Button
                   variant="quiet"
                   size="icon"
+                  glyph="md"
                   class="ml-auto flex-none text-muted"
                   aria-label="Change how this folder is shown"
                   title="Change how this folder is shown"
