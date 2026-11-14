@@ -1017,8 +1017,8 @@ repository:
     name: keyword.other.statement.explicit.luau.mark.sd
 
   LuauReassignment:
-    # lookaround: LuauAccessPath and LuauCommaSeparator own a path's or list's later names, so the targets begin only at their first name; a begin tried at each later name would read the rest of a long list or path (GRAMMAR.md §16.5).
-    begin: ({{WS}}*)(?<![.:,]|[.:,]{{WS}})({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*{{LUAU_REASSIGNMENT_TARGETS_END}})
+    # lookaround: LuauAccessPath and LuauCommaSeparator own a path's or list's later names, so the targets begin only at a name's first character and not after a `.`, `:` or `,` and up to 32 spaces; a begin tried at each later name would read the rest of a long list or path. The bound keeps the lookbehind fixed in cost, since one of no fixed length costs the distance to the line's start wherever it fails (GRAMMAR.md §16.5).
+    begin: ({{WS}}*){{LUAU_NAME_START}}(?<![.:,]{{WS}}{0,32})({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*{{LUAU_REASSIGNMENT_TARGETS_END}})
     beginCaptures:
       1:
         patterns:
@@ -1040,8 +1040,8 @@ repository:
 
   LuauSparkdownReassignment:
     contentName: meta.embedded.line.luau
-    # lookaround: LuauAccessPath and LuauCommaSeparator own a path's or list's later names, so the targets begin only at their first name; a begin tried at each later name would read the rest of a long list or path (GRAMMAR.md §16.5).
-    begin: ({{WS}}*)(?<![.:,]|[.:,]{{WS}})({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*(?:{{LUAU_ASSIGNMENT_OPERATORS}}))
+    # lookaround: LuauAccessPath and LuauCommaSeparator own a path's or list's later names, so the targets begin only at a name's first character and not after a `.`, `:` or `,` and up to 32 spaces; a begin tried at each later name would read the rest of a long list or path. The bound keeps the lookbehind fixed in cost, since one of no fixed length costs the distance to the line's start wherever it fails (GRAMMAR.md §16.5).
+    begin: ({{WS}}*){{LUAU_NAME_START}}(?<![.:,]{{WS}}{0,32})({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*(?:{{LUAU_ASSIGNMENT_OPERATORS}}))
     beginCaptures:
       1:
         patterns:
@@ -4266,7 +4266,7 @@ repository:
   LuauSparkdownExplicitReassignment:
     # lookaround: LuauVariableDefinition owns declarations; this reassignment opens only at identifier bindings followed by an assignment and ends before unrelated content.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: ({{WS}}*)(?<![.:,]|[.:,]{{WS}})({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*{{LUAU_REASSIGNMENT_TARGETS_END}})
+    begin: ({{WS}}*){{LUAU_NAME_START}}(?<![.:,]{{WS}}{0,32})({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*{{LUAU_REASSIGNMENT_TARGETS_END}})
     beginCaptures:
       1:
         patterns:
@@ -6372,9 +6372,9 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
 
-  # lookaround: the lookbehind reads a name only after `function` or `external`, since LuauAccessPart includes this rule and would otherwise declare every path's first name; `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name to LuauPropertyAccessor and LuauFunctionAccessor; GRAMMAR.md §10.1 gives why neither ordering nor a tighter variable replaces either. The fixed-length lookbehind first reads what every declared name follows (the keyword and a space, a comment close and an optional space, or the last two of several spaces), so the lookbehind of no fixed length, which costs the distance to the line's start wherever it fails, runs only there (GRAMMAR.md §16.5).
+  # lookaround: the lookbehind reads a name only after `function` or `external`, since LuauAccessPart includes this rule and would otherwise declare every path's first name; `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name to LuauPropertyAccessor and LuauFunctionAccessor; GRAMMAR.md §10.1 gives why neither ordering nor a tighter variable replaces either. The bounded lookbehind first reads what every declared name follows (the keyword and up to 32 spaces, a comment close and up to 32 spaces, or the last 33 of a longer run of spaces), so the lookbehind of no fixed length, which costs the distance to the line's start wherever it fails, runs only there (GRAMMAR.md §16.5).
   LuauFunctionDeclarationName:
-    match: (?<={{LUAU_DECLARATION_KEYWORDS}}{{WS}}|{{WS}}{{WS}}|\]{{WS}}|\])(?<={{LUAU_NAME_START_BEHIND}}{{LUAU_DECLARATION_KEYWORDS}}{{WS}}+|{{LUAU_HEADER_LINE_START}}{{LUAU_DECLARATION_KEYWORDS}}{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}}){{LUAU_NAME_END}}({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
+    match: (?<={{LUAU_DECLARATION_KEYWORDS}}{{WS}}{1,32}|\]{{WS}}{0,32}|{{WS}}{33})(?<={{LUAU_NAME_START_BEHIND}}{{LUAU_DECLARATION_KEYWORDS}}{{WS}}+|{{LUAU_HEADER_LINE_START}}{{LUAU_DECLARATION_KEYWORDS}}{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}}){{LUAU_NAME_END}}({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
       1:
         patterns:

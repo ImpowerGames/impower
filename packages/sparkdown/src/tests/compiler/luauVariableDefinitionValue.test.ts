@@ -67,7 +67,8 @@ describe("the narrative assignment rules", () => {
     const narrativeEnd = narrative.end!.replace(NARRATIVE_CLOSERS, CLOSERS);
     const afterComment = narrativeEnd.lastIndexOf("|(?<=\\]=*\\])");
     expect(afterComment).toBeGreaterThan(0);
-    expect(luau.end!.startsWith(`${narrativeEnd.slice(0, afterComment)}|(?<=^`)).toBe(true);
+    expect(luau.end!.startsWith(`${narrativeEnd.slice(0, afterComment)}|(?!`)).toBe(true);
+    expect(luau.end!.endsWith("(?<!\\S(?:[^\\S\\n\\r])*)")).toBe(true);
   });
 
   test("a narrative assignment operation is the Luau one without the line break and its ends, and with a stop before an `&`", () => {

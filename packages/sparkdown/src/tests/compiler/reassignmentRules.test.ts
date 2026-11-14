@@ -37,7 +37,7 @@ describe("the two reassignment rules", () => {
     const statementMarkStop = "|(?=(?:[^\\S\\n\\r])*[&])";
     expect(narrative.end!.endsWith(statementMarkStop)).toBe(true);
     expect(luau.end!).not.toContain(statementMarkStop);
-    expect(luau.end!.startsWith(`${narrative.end!.slice(0, -statementMarkStop.length)}|(?<=^`)).toBe(true);
+    expect(luau.end!.startsWith(`${narrative.end!.slice(0, -statementMarkStop.length)}|(?<!\\S`)).toBe(true);
   });
 });
 

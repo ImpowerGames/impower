@@ -1,4 +1,11 @@
-type Capture = { name?: string; contentName?: string; patterns?: { include?: string }[] };
+import {
+  isLookaround,
+  type RegexGroup,
+  regexGroups,
+  splitTopLevelAlternation,
+} from "../../packages/eslint-plugin-sparkdown-grammar/src/utils/regex-scan";
+
+type Capture ={ name?: string; contentName?: string; patterns?: { include?: string }[] };
 type Captures = Record<string, Capture>;
 type Rule = Record<string, unknown>;
 
@@ -6,91 +13,40 @@ const WHITESPACE = "(?:[^\\S\\n\\r])";
 const NAME_END = "(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))";
 const SPACE_OR_TAB_ONLY = /^(?:\(\?:|\)|\||\$|[*+]|\(\?:\[\^\\S\\n\\r\]\)|\(\?:\[ \\t\]\)|\[ \\t\])+$/;
 const LINE_BREAK_CAPABLE = /\\[nrsWDHPv]|\[\^(?!\\S\\n\\r\])|\\x0[aAdD]|\\u000[aAdD]/;
-const BLIND_TO_LINE_END = /^\(\?(?:<[!=]|!)/;
 const SEES_LINE_END = /\$|\\[zZ]|\(\?=/;
 const WORD = /^[A-Za-z]+$/;
 
-const skipClass = (re: string, at: number) => {
-  let j = at + 1;
-  if (re[j] === "^") j++;
-  if (re[j] === "]") j++;
-  for (; j < re.length && re[j] !== "]"; j++) {
-    if (re[j] === "\\") j++;
-  }
-  return j;
-};
+const capturingGroupsOf = (re: string): RegexGroup[] =>
+  regexGroups(re)
+    .filter((g) => g.kind === "capture" || g.kind === "named")
+    .sort((a, b) => a.start - b.start);
 
-const closingParen = (re: string, at: number) => {
-  let depth = 0;
-  for (let j = at; j < re.length; j++) {
-    const c = re[j];
-    if (c === "\\") {
-      j++;
-    } else if (c === "[") {
-      j = skipClass(re, j);
-    } else if (c === "(") {
-      depth++;
-    } else if (c === ")") {
-      depth--;
-      if (depth === 0) return j;
-    }
-  }
-  return re.length;
-};
+export const capturingGroups = (re: string): (string | undefined)[] => [
+  undefined,
+  ...capturingGroupsOf(re).map((g) => g.text),
+];
 
-const opensCapture = (re: string, at: number) =>
-  re[at + 1] !== "?" || (re[at + 2] === "<" && re[at + 3] !== "=" && re[at + 3] !== "!");
+const isWholeGroup = (re: string) => regexGroups(re).some((g) => g.start === 0 && g.end === re.length - 1);
 
-export const capturingGroups =(re: string): (string | undefined)[] => {
-  const groups: (string | undefined)[] = [undefined];
-  const open: { at: number; index: number }[] = [];
-  for (let j = 0; j < re.length; j++) {
-    const c = re[j];
-    if (c === "\\") {
-      j++;
-    } else if (c === "[") {
-      j = skipClass(re, j);
-    } else if (c === "(") {
-      const capturing = opensCapture(re, j);
-      open.push({ at: j, index: capturing ? groups.length : -1 });
-      if (capturing) groups.push(undefined);
-    } else if (c === ")") {
-      const group = open.pop();
-      if (group && group.index > 0) groups[group.index] = re.slice(group.at, j + 1);
-    }
+const withoutGroups = (re: string, drop: (group: RegexGroup) => boolean) => {
+  let out = "";
+  let from = 0;
+  for (const group of regexGroups(re)
+    .filter(drop)
+    .sort((a, b) => a.start - b.start)) {
+    if (group.start < from) continue;
+    out += re.slice(from, group.start);
+    from = group.end + 1;
   }
-  return groups;
+  return out + re.slice(from);
 };
 
 const LITERAL_CLASS_MEMBER = /\\([^A-Za-z0-9])|([^\\\]^-])/g;
 
-const topLevelAlternatives = (re: string) => {
-  const alternatives: string[] = [];
-  let depth = 0;
-  let from = 0;
-  for (let j = 0; j < re.length; j++) {
-    const c = re[j];
-    if (c === "\\") {
-      j++;
-    } else if (c === "[") {
-      j = skipClass(re, j);
-    } else if (c === "(") {
-      depth++;
-    } else if (c === ")") {
-      depth--;
-    } else if (c === "|" && depth === 0) {
-      alternatives.push(re.slice(from, j));
-      from = j + 1;
-    }
-  }
-  alternatives.push(re.slice(from));
-  return alternatives;
-};
-
 const singleCharacters = (body: string): Set<string> | undefined => {
-  const unwrapped = body.startsWith("(?:") && closingParen(body, 0) === body.length - 1 ? body.slice(3, -1) : body;
+  const unwrapped = body.startsWith("(?:") && isWholeGroup(body) ? body.slice(3, -1) : body;
   const chars = new Set<string>();
-  for (const alternative of topLevelAlternatives(unwrapped)) {
+  for (const { text: alternative } of splitTopLevelAlternation(unwrapped)) {
     const escaped = /^\\([^A-Za-z0-9])$/.exec(alternative);
     if (escaped) {
       chars.add(escaped[1]!);
@@ -103,34 +59,17 @@ const singleCharacters = (body: string): Set<string> | undefined => {
   return chars;
 };
 
+const BLIND_TO_LINE_END = new Set(["negative-lookahead", "lookbehind", "negative-lookbehind"]);
+
 const withoutLookarounds = (re: string, truncated = true) => {
-  let out = "";
-  for (let j = 0; j < re.length; j++) {
-    if (re[j] === "(" && BLIND_TO_LINE_END.test(re.slice(j, j + 4))) {
-      const end = closingParen(re, j);
-      const lookahead = re[j + 2] === "!";
-      if (truncated && lookahead && SEES_LINE_END.test(re.slice(j + 3, end))) return undefined;
-      j = end;
-      continue;
-    }
-    out += re[j];
-    if (re[j] === "\\") out += re[++j] ?? "";
-  }
-  return out;
+  const seesLineEnd = regexGroups(re).some(
+    (g) => g.kind === "negative-lookahead" && SEES_LINE_END.test(g.body),
+  );
+  if (truncated && seesLineEnd) return undefined;
+  return withoutGroups(re, (g) => BLIND_TO_LINE_END.has(g.kind));
 };
 
-const withoutZeroWidth = (re: string) => {
-  let out = "";
-  for (let j = 0; j < re.length; j++) {
-    if (re[j] === "(" && /^\(\?(?:<?[!=])/.test(re.slice(j, j + 4))) {
-      j = closingParen(re, j);
-      continue;
-    }
-    out += re[j];
-    if (re[j] === "\\") out += re[++j] ?? "";
-  }
-  return out;
-};
+const withoutZeroWidth = (re: string) => withoutGroups(re, (g) => isLookaround(g.kind));
 
 const coversWholeCapture = (group: string, leafMatch: string) => {
   const groupBody = group.slice(1, -1);
@@ -141,7 +80,7 @@ const coversWholeCapture = (group: string, leafMatch: string) => {
     return !LINE_BREAK_CAPABLE.test(group);
   }
   const keyword = leafMatch.endsWith(NAME_END) ? leafMatch.slice(0, -NAME_END.length) : leafMatch;
-  if (!keyword.startsWith("(") || closingParen(keyword, 0) !== keyword.length - 1) return false;
+  if (!keyword.startsWith("(") || !isWholeGroup(keyword)) return false;
   const leafBody = keyword.slice(1, -1);
   if (WORD.test(leafBody)) {
     const core = withoutLookarounds(groupBody, false) ?? "";
@@ -200,43 +139,17 @@ const rewriteRule = (rule: Rule, repository: Record<string, Rule>) => {
 
 const NAME_BODY = `(?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]+)*${NAME_END})`;
 
-const groupStart = (re: string, index: number) => {
-  let seen = 0;
-  for (let j = 0; j < re.length; j++) {
-    const c = re[j];
-    if (c === "\\") {
-      j++;
-    } else if (c === "[") {
-      j = skipClass(re, j);
-    } else if (c === "(" && opensCapture(re, j)) {
-      seen++;
-      if (seen === index) return j;
-    }
-  }
-  return -1;
-};
+const groupStart = (re: string, index: number) => capturingGroupsOf(re)[index - 1]?.start ?? -1;
 
 const nonCapturing = (re: string) => {
   let out = "";
-  for (let j = 0; j < re.length; j++) {
-    const c = re[j]!;
-    if (c === "\\") {
-      out += c + (re[j + 1] ?? "");
-      j++;
-    } else if (c === "[") {
-      const end = skipClass(re, j);
-      out += re.slice(j, end + 1);
-      j = end;
-    } else {
-      if (c === "(" && opensCapture(re, j)) {
-        out += "(?:";
-        if (re[j + 1] === "?") j = re.indexOf(">", j);
-      } else {
-        out += c;
-      }
-    }
+  let from = 0;
+  for (const group of capturingGroupsOf(re)) {
+    const opener = group.kind === "named" ? re.indexOf(">", group.start) + 1 : group.start + 1;
+    out += `${re.slice(from, group.start)}(?:`;
+    from = opener;
   }
-  return out;
+  return out + re.slice(from);
 };
 
 const wordLeaf = (repository: Record<string, Rule>, include: string | undefined) => {
