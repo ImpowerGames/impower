@@ -171,7 +171,7 @@ function checkTickets(value, refuse, { required }) {
 export function tableColumns(markdown) {
   let widest = 0;
   for (const line of markdown.split(/\r?\n/)) {
-    const row = line.trim();
+    const row = line.replace(/^(?:\s*(?:>|[-*+](?=\s)|\d{1,9}[.)](?=\s)))+/, "").trim();
     if (!row.includes("|") || !/^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?$/.test(row)) continue;
     widest = Math.max(widest, row.replace(/^\|/, "").replace(/\|$/, "").split("|").length);
   }
@@ -725,7 +725,8 @@ export function tagTicket(number, request, { pictures: folder, tracker, repos = 
   if ((ticket.labels ?? []).some((l) => l.name === label)) throw new RequestRefused([`#${number} is already tagged ${label}`]);
   if (checked.tickets.includes(number)) throw new RequestRefused([`#${number} cannot hold itself up; remove it from "tickets"`]);
   const wasAssigned = (ticket.assignees ?? []).some((a) => a.login === login);
-  const existingComments = new Set(tracker.comments(number).map((comment) => comment.id));
+  const standing = tracker.comments(number).find((comment) => readDataLine(comment.body)?.tagged);
+  if (standing) throw new RequestRefused([`#${number} already has a maintainer task comment (${standing.id}); if its tag was removed on purpose, delete that comment and tag again`]);
   return withScratch((scratch) => {
     const done = { comment: null, labelled: false, assigned: false, attempted: [] };
     try {
@@ -742,7 +743,7 @@ export function tagTicket(number, request, { pictures: folder, tracker, repos = 
         write: (target, file) => tracker.editComment(target.id, file),
       });
       if (placed.problems.length) throw new FilingProblems(placed.problems);
-      const earlier = tracker.comments(number).find((comment) => comment.id < done.comment && !existingComments.has(comment.id) && readDataLine(comment.body)?.tagged);
+      const earlier = tracker.comments(number).find((comment) => comment.id < done.comment && readDataLine(comment.body)?.tagged);
       if (earlier) throw new FilingProblems([`#${number} was tagged at the same time by comment ${earlier.id}; that tag stands and this one is withdrawn`]);
       done.labelled = true;
       tracker.addLabel(number, label);

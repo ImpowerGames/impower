@@ -183,6 +183,11 @@ try {
   assert.equal(tableColumns("a | b | c | d\n:-- | --- | :-: | --:"), 4);
   assert.equal(tableColumns("- a list\n- with a dash\n\n---\n\nand a thematic break"), 0);
   assert.deepEqual(refusals(edit(decision(), (r) => (r.comparison = "Option | A | B | C\n--- | --- | --- | ---\nx | 1 | 2 | 3"))), []);
+  refusedFor("a five-column table inside a blockquote", edit(decision(), (r) => (r.comparison = "> Option | Shape | Pinning | Phone | Cost\n> --- | --- | --- | --- | ---\n> A | list | no | yes | none")), /table of 5 columns/);
+  refusedFor("a five-column table inside a list item", edit(decision(), (r) => (r.comparison = "1. Compared:\n\n   | a | b | c | d | e |\n   | - | - | - | - | - |")), /table of 5 columns/);
+  assert.equal(tableColumns("> > | a | b |\n> > |---|---|"), 2);
+  assert.equal(tableColumns("- item\n  - a | b | c | d | e\n    --- | --- | --- | --- | ---"), 5);
+  assert.equal(tableColumns("> ---\n> quoted thematic break"), 0);
   refusedFor("picture markup typed into text", edit(decision(), (r) => (r.shortVersion = 'See <img src="./a.png">.')), /holds picture markup/);
   refusedFor("an HTML comment marker in text", edit(decision(), (r) => (r.meanwhile = "nothing -->")), /HTML comment marker/);
   refusedFor("a picture missing from the folder", edit(decision(), (r) => (r.options[0].pictures[0].file = "missing.png")), /missing\.png is not a file in the pictures folder/);
@@ -290,6 +295,7 @@ try {
         if (rivalTag) {
           const rival = 7000 + comments.size;
           comments.set(rival, { id: rival, issue: number, body: `rival\n\n${dataLine({ kind: "task", tagged: true, blocks: [], owner: "rival" })}\n` });
+          if (rivalTag === "finished") issues.get(number).labels.push({ name: labels.task });
         }
         const id = 7000 + comments.size;
         comments.set(id, { id, issue: number, body: host(readFileSync(bodyFile, "utf8"), attach) });
@@ -477,9 +483,15 @@ try {
     assert.throws(() => tagTicket(2240, task(), { pictures, tracker, repos }), (error) => /tagged at the same time by comment 7000/.test(error.message) && /deleted the task comment 7001/.test(error.message));
     assert.deepEqual([...tracker.commentStore.keys()], [7000]);
     assert.ok(!tracker.calls.some((call) => call[0] === "addLabel"));
+    const finished = fakeTracker({ rivalTag: "finished", existing });
+    assert.throws(() => tagTicket(2240, task(), { pictures, tracker: finished, repos }), /tagged at the same time by comment 7000/);
+    assert.deepEqual([...finished.commentStore.keys()], [7000]);
+    assert.deepEqual(finished.issues.get(2240).labels.map((l) => l.name), [labels.task], "the withdrawn tag leaves the earlier tag's label in place");
+    assert.ok(!finished.calls.some((call) => call[0] === "removeLabel"));
     const old = fakeTracker({ existing, existingComments: [{ id: 6000, issue: 2240, body: `old\n\n${dataLine({ kind: "task", tagged: true, blocks: [], owner: "o" })}\n` }] });
-    assert.equal(tagTicket(2240, edit(task(), (r) => delete r.tickets), { pictures, tracker: old, repos }).number, 2240, "a tag comment left from before this run does not block a new tag");
-    console.log("ok: of two overlapping tags of one ticket, the earlier comment stands and the later tag deletes its own comment before labelling");
+    assert.throws(() => tagTicket(2240, task(), { pictures, tracker: old, repos }), /#2240 already has a maintainer task comment \(6000\); if its tag was removed on purpose, delete that comment and tag again/);
+    assert.ok(!old.calls.some((call) => call[0] === "comment"), "a standing task comment refuses the tag before anything is posted");
+    console.log("ok: of two overlapping tags of one ticket, the earlier comment stands, even when its tag finished first, and the later tag deletes only its own comment; a standing task comment refuses a new tag");
   }
 
   {
