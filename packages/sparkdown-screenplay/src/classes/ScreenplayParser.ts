@@ -2,12 +2,12 @@ import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
 import { readSkipping } from "../../../sparkdown/src/compiler/utils/readSkipping";
-import { trimStyled } from "../../../sparkdown/src/runtime/displayStyle";
+import { isStyleCode, trimStyled, trimStyledBounds } from "../../../sparkdown/src/runtime/displayStyle";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
-import type { PrintedInsert } from "../types/PrintedInsert";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
 import { GLUED_ALTERNATOR_BLOCKS, gluedAlternatorJoin } from "../utils/gluedAlternatorLayout";
+import { insertedAt, UNPLACED } from "../utils/printedPosition";
 import { printsAsBlankLine } from "../utils/printsAsBlankLine";
 import { readStyled } from "../utils/readStyled";
 import { isRootFunctionName } from "../utils/rootFunctionName";
@@ -29,21 +29,82 @@ const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
 
 const GLUED_ARM = "LuauSparkdownInlineGluedAlternatorArm";
 
+interface JoinedPositions {
+  readonly parts: readonly Positions[];
+  readonly length: number;
+}
+
+type Positions = readonly number[] | JoinedPositions;
+
 interface Reading {
   text: string;
   styled: string;
+  at?: Positions;
 }
 
 const NO_TEXT: Reading = { text: "", styled: "" };
 
 const NEWLINE: Reading = { text: "\n", styled: "\n" };
 
-const join = (...parts: Reading[]): Reading => ({
-  text: parts.map((part) => part.text).join(""),
-  styled: parts.map((part) => part.styled).join(""),
-});
+const isFlat = (positions: Positions): positions is readonly number[] => Array.isArray(positions);
+
+const flatten = (positions: Positions): number[] => {
+  const flat: number[] = [];
+  const pending: Positions[] = [positions];
+  while (pending.length > 0) {
+    const next = pending.pop()!;
+    if (isFlat(next)) {
+      for (const position of next) flat.push(position);
+    } else {
+      for (let index = next.parts.length - 1; index >= 0; index--) pending.push(next.parts[index]!);
+    }
+  }
+  return flat;
+};
+
+const withoutLast = (positions: Positions): Positions => {
+  if (isFlat(positions)) return positions.slice(0, -1);
+  const parts = positions.parts.filter((part) => part.length > 0);
+  const last = parts.pop();
+  if (!last) return [];
+  return { parts: [...parts, withoutLast(last)], length: positions.length - 1 };
+};
+
+const placedOf = (reading: { styled: string; at?: Positions }): Positions =>
+  reading.at ?? new Array<number>(reading.styled.length).fill(UNPLACED);
+
+const join = (...parts: Reading[]): Reading => {
+  let text = "";
+  let styled = "";
+  for (const part of parts) {
+    text += part.text;
+    styled += part.styled;
+  }
+  return parts.some((part) => part.at)
+    ? { text, styled, at: { parts: parts.map(placedOf), length: styled.length } }
+    : { text, styled };
+};
+
+const flatReading = <T extends { at?: Positions }>(reading: T): Omit<T, "at"> & { at?: number[] } =>
+  reading.at ? { ...reading, at: flatten(reading.at) } : (reading as Omit<T, "at">);
 
 const plain = (text: string): Reading => ({ text, styled: text });
+
+const trimReading = (
+  reading: { styled: string; at?: Positions },
+  options: { start?: boolean; end?: boolean } = {},
+): { styled: string; at?: number[] } => {
+  const styled = trimStyled(reading.styled, options);
+  if (!reading.at) return { styled };
+  const placed = flatten(reading.at);
+  const written = reading.styled;
+  const { from, to } = trimStyledBounds(written, options);
+  const at: number[] = [];
+  for (let index = 0; index < from; index++) if (isStyleCode(written[index]!)) at.push(placed[index]!);
+  for (let index = from; index < to; index++) at.push(placed[index]!);
+  for (let index = to; index < written.length; index++) if (isStyleCode(written[index]!)) at.push(placed[index]!);
+  return { styled, at };
+};
 
 const isTextUnprinted = (child: SyntaxNode) => TEXT_UNPRINTED.has(child.name);
 
@@ -79,7 +140,7 @@ const trimRanges = (ranges: number[], leading: number, trailing: number): number
   return trimmed;
 };
 
-export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] => {
+export const screenplayTokens = (tree: Tree, script: string, positions = false): ScreenplayToken[] => {
     const stack: SparkdownNodeName[] = [];
     const tokens: ScreenplayToken[] = [{ tag: "page_break" }];
     let frontMatterKey = "";
@@ -91,14 +152,13 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
     let action = NO_TEXT;
     let choice = NO_TEXT;
     let choice_prefix = "";
+    let choicePrefixAt: number[] = [];
     let choice_suffix = "";
     let character = NO_TEXT;
     let position: "l" | "r" | undefined = undefined;
     let textSource: number[] = [];
     let characterSource: number[] = [];
     let choiceSource: number[] = [];
-    let textInserts: PrintedInsert[] = [];
-    let choiceInserts: PrintedInsert[] = [];
     let lineStart = 0;
     const read = (from: number, to: number) => script.slice(from, to);
     let sink: number[] = [];
@@ -113,16 +173,16 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
     let leading = false;
     const readWords = (node: SyntaxNode, source: number[]): Reading => {
       const text = readSkipping(node, readInto(source), isTextUnprinted);
-      const styled = readStyled(node, read, isTextUnprinted);
+      const styled = readStyled(node, read, isTextUnprinted, undefined, positions);
       if (leading) {
         leading = false;
-        return { text: text.trimStart(), styled: trimStyled(styled, { end: false }) };
+        return { text: text.trimStart(), ...trimReading(styled, { end: false }) };
       }
-      return { text, styled };
+      return { text, ...styled };
     };
     const readLine = (node: SyntaxNode, source?: number[]): Reading => {
       if (source && node.to > node.from) source.push(node.from, node.to);
-      return { text: read(node.from, node.to), styled: readStyled(node, read) };
+      return { text: read(node.from, node.to), ...readStyled(node, read, undefined, undefined, positions) };
     };
 
     const textBefore = (node: SyntaxNode) => {
@@ -141,10 +201,12 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
       const before = textBefore(node);
       return before?.name === "TextChunk" || (!!before && GLUED_ALTERNATOR_BLOCKS.has(before.name));
     };
-    const withoutEndNewline = (lines: Reading): Reading => ({
-      text: lines.text.replace(/\n$/, ""),
-      styled: lines.styled.replace(/\n$/, ""),
-    });
+    const withoutEndNewline = (lines: Reading): Reading => {
+      const text = lines.text.replace(/\n$/, "");
+      const styled = lines.styled.replace(/\n$/, "");
+      if (!lines.at) return { text, styled };
+      return { text, styled, at: styled.length < lines.styled.length ? withoutLast(lines.at) : lines.at };
+    };
     const appendLine = (lines: Reading, node: SyntaxNode, line: Reading): Reading =>
       continuesAfterComment(node)
         ? join(withoutEndNewline(lines), line, NEWLINE)
@@ -152,7 +214,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
     const appendGlued = (lines: Reading, node: SyntaxNode, glued: Reading): Reading =>
       continuesBeforeGlued(node)
         ? join(withoutEndNewline(lines), glued, NEWLINE)
-        : join(lines, { text: glued.text.trimStart(), styled: trimStyled(glued.styled, { end: false }) }, NEWLINE);
+        : join(lines, { text: glued.text.trimStart(), ...trimReading(glued, { end: false }) }, NEWLINE);
     const readArm = (arm: SyntaxNode, source: number[]): { reading: Reading; ranges: number[] } | undefined => {
       const outer = sink;
       const ranges: number[] = [];
@@ -162,9 +224,14 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
       if (!text) return undefined;
       const trimmed = trimRanges(ranges, raw.length - raw.trimStart().length, raw.length - raw.trimEnd().length);
       source.push(...trimmed);
-      return { reading: { text, styled: trimStyled(readStyled(arm, read, isArmUnprinted)) }, ranges: trimmed };
+      return {
+        reading: { text, ...trimReading(readStyled(arm, read, isArmUnprinted, undefined, positions)) },
+        ranges: trimmed,
+      };
     };
-    const readGlued = (block: SyntaxNode, source: number[], inserts: PrintedInsert[]): Reading => {
+    const inserted = (text: string, anchor: number): Reading =>
+      positions ? { text, styled: text, at: new Array<number>(text.length).fill(insertedAt(anchor)) } : plain(text);
+    const readGlued = (block: SyntaxNode, source: number[]): Reading => {
       const arms: { reading: Reading; ranges: number[] }[] = [];
       const cursor = block.cursor();
       while (cursor.next() && cursor.from < block.to) {
@@ -173,20 +240,13 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (arm) arms.push(arm);
       }
       if (arms.length === 0) return NO_TEXT;
-      const parts: Reading[] = [plain(gluedAlternatorJoin("before"))];
-      inserts.push({ at: arms[0]!.ranges[0]!, text: gluedAlternatorJoin("before") });
+      const parts: Reading[] = [inserted(gluedAlternatorJoin("before"), arms[0]!.ranges[0]!)];
       arms.forEach((arm, index) => {
-        if (index > 0) {
-          parts.push(plain(gluedAlternatorJoin("between")));
-          inserts.push({ at: arm.ranges[0]!, text: gluedAlternatorJoin("between") });
-        }
+        if (index > 0) parts.push(inserted(gluedAlternatorJoin("between"), arm.ranges[0]!));
         parts.push(arm.reading);
       });
       const after = gluedAlternatorJoin("after");
-      if (after) {
-        parts.push(plain(after));
-        inserts.push({ at: arms.at(-1)!.ranges.at(-1)!, text: after });
-      }
+      if (after) parts.push(inserted(after, arms.at(-1)!.ranges.at(-1)!));
       return join(...parts);
     };
     const readChoiceText = (node: SyntaxNode): Reading => {
@@ -195,41 +255,53 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (!GLUED_ALTERNATOR_BLOCKS.has(child.name)) return undefined;
         let reading = glued.get(child.from);
         if (!reading) {
-          reading = readGlued(child, choiceSource, choiceInserts);
+          reading = readGlued(child, choiceSource);
           glued.set(child.from, reading);
         }
         return reading;
       };
       const text = readSkipping(node, readInto(choiceSource), isChoiceUnprinted, (child) => gluedReading(child)?.text ?? "");
-      const styled = readStyled(node, read, isChoiceUnprinted, (child) => gluedReading(child)?.styled);
-      return { text, styled };
+      const styled = readStyled(node, read, isChoiceUnprinted, (child) => {
+        const reading = gluedReading(child);
+        return reading && flatReading(reading);
+      }, positions);
+      return { text, ...styled };
+    };
+
+    const appendReading = (token: ScreenplayToken, reading: Reading) => {
+      const before = token.styled ?? "";
+      token.text = `${token.text ?? ""}${reading.text}`;
+      token.styled = `${before}${reading.styled}`;
+      if (token.at || reading.at) {
+        const at = token.at ?? new Array<number>(before.length).fill(UNPLACED);
+        for (const position of flatten(placedOf(reading))) at.push(position);
+        token.at = at;
+      }
     };
 
     let headingContinues = false;
     const flushText = () => {
       const source = textSource;
       textSource = [];
-      const inserts = textInserts.length > 0 ? { inserts: textInserts } : {};
-      textInserts = [];
       if (title.text) {
-        tokens.push({ tag: "title", ...title, source, ...inserts });
+        tokens.push({ tag: "title", ...flatReading(title), source });
         title = NO_TEXT;
       }
       if (heading.text) {
         tokens.push(
           headingContinues
-            ? { tag: "heading", ...heading, continued: true, source, ...inserts }
-            : { tag: "heading", ...heading, source, ...inserts },
+            ? { tag: "heading", ...flatReading(heading), continued: true, source }
+            : { tag: "heading", ...flatReading(heading), source },
         );
         heading = NO_TEXT;
         headingContinues = true;
       }
       if (transitional.text) {
-        tokens.push({ tag: "transitional", ...transitional, source, ...inserts });
+        tokens.push({ tag: "transitional", ...flatReading(transitional), source });
         transitional = NO_TEXT;
       }
       if (action.text) {
-        tokens.push({ tag: "action", ...action, source, ...inserts });
+        tokens.push({ tag: "action", ...flatReading(action), source });
         action = NO_TEXT;
       }
     };
@@ -315,26 +387,22 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
           if (stack.includes("BlockDialogue_content") || stack.includes("InlineDialogue_content")) {
             const last = tokens.at(-1);
             if (continuesBeforeGlued(nodeRef.node) && last?.tag === "dialogue_content") {
-              const glued = readGlued(nodeRef.node, (last.source ??= []), (last.inserts ??= []));
-              last.text = `${last.text ?? ""}${glued.text}`;
-              last.styled = `${last.styled ?? ""}${glued.styled}`;
+              appendReading(last, readGlued(nodeRef.node, (last.source ??= [])));
             } else {
               const source: number[] = [];
-              const inserts: PrintedInsert[] = [];
-              const glued = readGlued(nodeRef.node, source, inserts);
+              const glued = readGlued(nodeRef.node, source);
               if (glued.text) {
                 tokens.push({
                   tag: "dialogue_content",
                   text: glued.text.trimStart(),
-                  styled: trimStyled(glued.styled, { end: false }),
+                  ...trimReading(glued, { end: false }),
                   position,
                   source,
-                  inserts,
                 });
               }
             }
           } else {
-            const glued = readGlued(nodeRef.node, textSource, textInserts);
+            const glued = readGlued(nodeRef.node, textSource);
             if (glued.text) {
               if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
                 title = appendGlued(title, nodeRef.node, glued);
@@ -433,14 +501,12 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             const continues = continuesAfterComment(nodeRef.node);
             const last = tokens.at(-1);
             if (continues && last?.tag === "dialogue_content") {
-              const words = readWords(nodeRef.node, (last.source ??= []));
-              last.text = `${last.text ?? ""}${words.text}`;
-              last.styled = `${last.styled ?? ""}${words.styled}`;
+              appendReading(last, readWords(nodeRef.node, (last.source ??= [])));
             } else {
               const source: number[] = [];
               tokens.push({
                 tag: "dialogue_content",
-                ...readWords(nodeRef.node, source),
+                ...flatReading(readWords(nodeRef.node, source)),
                 position,
                 source,
               });
@@ -450,7 +516,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             const source: number[] = [];
             tokens.push({
               tag: "dialogue_parenthetical",
-              ...readLine(nodeRef.node, source),
+              ...flatReading(readLine(nodeRef.node, source)),
               position,
               source,
             });
@@ -462,6 +528,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             const text = read(from, to);
             choice_prefix += text;
             choiceSource.push(from, to);
+            for (let index = from; index < to; index++) choicePrefixAt.push(index);
           }
           if (name === "Choice_content") {
             choice = join(choice, readChoiceText(nodeRef.node));
@@ -476,7 +543,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "FrontMatterField" && !COMPILER_FIELDS.has(frontMatterKey)) {
           tokens.push({
             tag: ("meta:" + frontMatterKey) as MetadataTokenType,
-            ...frontMatterValue,
+            ...flatReading(frontMatterValue),
             source: frontMatterSource,
           });
         }
@@ -499,7 +566,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "DialogueCharacter") {
           tokens.push({
             tag: "dialogue_character",
-            ...character,
+            ...flatReading(character),
             position,
             source: characterSource,
           });
@@ -513,17 +580,17 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "Choice") {
           tokens.push({
             tag: "choice",
-            ...choice,
+            ...flatReading(choice),
             prefix: choice_prefix,
             suffix: choice_suffix,
             source: choiceSource,
-            ...(choiceInserts.length > 0 ? { inserts: choiceInserts } : {}),
+            ...(positions ? { at: [...choicePrefixAt, ...flatten(placedOf(choice))] } : {}),
           });
           choice = NO_TEXT;
           choice_prefix = "";
+          choicePrefixAt = [];
           choice_suffix = "";
           choiceSource = [];
-          choiceInserts = [];
         }
 
         if (TOKENS_ON_LEAVE.has(name)) {

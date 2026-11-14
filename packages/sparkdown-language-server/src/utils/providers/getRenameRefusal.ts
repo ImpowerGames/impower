@@ -1,8 +1,35 @@
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { createSparkdownParser } from "@impower/sparkdown/src/compiler/utils/createSparkdownParser";
+import { type TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { linkedTypes } from "./getReferences";
 
 export const NAME_REGEX = /^[_\p{L}][_\p{L}\p{N}]*(?:@[_\p{L}\p{N}]+)*$/u;
+
+let cueParser: TextmateGrammarParser | undefined;
+
+const CUE_SCENE_START = "scene start\n  ";
+
+const isCueName = (name: string, quotes: ReadonlySet<string>): boolean => {
+  if (!name || name.includes("\\") || [...quotes].some((q) => name.includes(q))) {
+    return false;
+  }
+  cueParser ??= createSparkdownParser();
+  const text = `${CUE_SCENE_START}${name}:\n    Hello.\nend\n`;
+  let found = false;
+  cueParser.parse(text).iterate({
+    enter: (node) => {
+      if (node.name === "DialogueCharacterName") {
+        found ||=
+          node.from === CUE_SCENE_START.length &&
+          node.to === CUE_SCENE_START.length + name.length;
+        return false;
+      }
+      return !found;
+    },
+  });
+  return found;
+};
 
 const IGNORED_DECLARATIONS = new Set(["end", "param"]);
 
@@ -17,8 +44,13 @@ export const getRenameRefusal = (
   currentName: string,
   newName: string,
   resolvedSymbolIds: readonly string[] | undefined,
+  cueQuotes?: ReadonlySet<string>,
 ): string | null => {
-  if (!NAME_REGEX.test(newName)) {
+  if (cueQuotes) {
+    if (!isCueName(newName, cueQuotes)) {
+      return `${newName || "An empty name"} is not a valid cue name. A cue name is text a line of dialogue can start with before its colon: no :, { or }, no comment, no (…) or […] at its end, no space at either end, no backslash and no quote that would close its string.`;
+    }
+  } else if (!NAME_REGEX.test(newName)) {
     return `${newName || "An empty name"} is not a valid name. A name starts with a letter or _ and has only letters, digits and _, with an @ allowed between two of them.`;
   }
   if (newName === currentName) {

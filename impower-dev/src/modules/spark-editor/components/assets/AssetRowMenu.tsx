@@ -11,6 +11,7 @@ import {
   MoreVerticalIcon,
   PencilIcon,
   TrashIcon,
+  type ButtonGlyph,
 } from "@impower/impower-ui/components";
 
 export type AssetRowAction = "select" | "rename" | "move" | "download" | "delete";
@@ -23,6 +24,7 @@ export type AssetRowMenuProps = {
   name: string;
   kept?: string;
   actions?: readonly AssetRowAction[];
+  glyph?: ButtonGlyph;
   onAction: (action: AssetRowAction) => void;
 };
 
@@ -37,12 +39,12 @@ function Kept({ label, reason }: { label: string; reason?: string }) {
   );
 }
 
-export default function AssetRowMenu({ name, kept, actions = ROW_ACTIONS, onAction }: AssetRowMenuProps) {
+export default function AssetRowMenu({ name, kept, actions = ROW_ACTIONS, glyph = "md", onAction }: AssetRowMenuProps) {
   const offers = (action: AssetRowAction) => actions.includes(action);
   return (
     <DropdownRoot>
       <DropdownTrigger asChild>
-        <Button variant="quiet" size="icon" aria-label={`Options for ${name}`} class="flex-none text-muted">
+        <Button variant="quiet" size="icon" glyph={glyph} aria-label={`Options for ${name}`} class="flex-none text-muted">
           <MoreVerticalIcon />
         </Button>
       </DropdownTrigger>

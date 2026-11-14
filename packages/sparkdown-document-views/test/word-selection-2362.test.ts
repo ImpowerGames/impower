@@ -25,7 +25,8 @@ afterEach(destroyEditors);
 type Span = [from: number, to: number];
 const MEASURED: {
   lines: string[];
-  block: { line: number; ch: number; side: number; selection: Span; selected: string }[];
+  doubleClick: (Span | null)[][][];
+  block:{ line: number; ch: number; side: number; selection: Span; selected: string }[];
 } = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", "vscodeWordSelection2229.json"), "utf8"),
 );
@@ -61,22 +62,26 @@ describe("double-click just inside a bracket pair or a quoted string selects its
     expect(doubleClickAt(parsedEditor(lines), lines, at, side)).toBe(selected);
   });
 
-  it("selects the contents VS Code selected at every measured block position next to a bracket or quote", () => {
+  it("selects the contents VS Code selected at every measured block position", () => {
     const view = parsedEditor(MEASURED.lines);
     const doc = MEASURED.lines.join("\n");
     const label = ({ line, ch, side }: (typeof MEASURED.block)[number]) => `${line}:${ch}${side ? " right" : " left"}`;
-    const touchesBracketOrQuote = ({ line, ch, side }: (typeof MEASURED.block)[number]) => {
-      const caret = ch + side;
-      return /[()[\]{}"'`]/.test(MEASURED.lines[line]!.slice(Math.max(0, caret - 1), caret + 1));
-    };
-    const measured = MEASURED.block.filter(touchesBracketOrQuote);
-    expect(MEASURED.block.filter((entry) => !touchesBracketOrQuote(entry)).map(label)).toEqual(["1:0 left", "1:0 right", "1:1 left", "1:1 right"]);
-    const actual = measured.map((entry) => {
+    const actual = MEASURED.block.map((entry) => {
       const at = offset(MEASURED.lines, [entry.line, entry.ch]);
       const { main } = doubleClick(view, entry.side ? rightQuarterOf(at) : leftQuarterOf(at));
       return `${label(entry)} -> ${JSON.stringify(doc.slice(main.from, main.to))}`;
     });
-    expect(actual).toEqual(measured.map((entry) => `${label(entry)} -> ${JSON.stringify(entry.selected)}`));
+    expect(actual).toEqual(MEASURED.block.map((entry) => `${label(entry)} -> ${JSON.stringify(entry.selected)}`));
+  });
+
+  it.each([
+    { at: [1, 0] as Point, side: 0 },
+    { at: [1, 0] as Point, side: 1 },
+    { at: [1, 1] as Point, side: 0 },
+    { at: [1, 1] as Point, side: 1 },
+  ])("selects the word VS Code selected, not the enclosing block, in the leading whitespace at $at side $side", ({ at: [line, ch], side }) => {
+    const [from, to] = MEASURED.doubleClick[line]![ch]![side]!;
+    expect(doubleClickAt(parsedEditor(MEASURED.lines), MEASURED.lines, [line, ch], side)).toBe(MEASURED.lines[line]!.slice(from, to));
   });
 
   it.each([

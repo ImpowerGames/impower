@@ -2,10 +2,14 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
 
-export const compileProgram = (source: string) => {
+export const compileProgram = (
+  source: string,
+  options: { seedBuiltinsIntoStory?: boolean } = {},
+) => {
   const uri = "inmemory:///main.sd";
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    ...options,
     files: [
       {
         uri,

@@ -65,6 +65,7 @@ type PreviewToggleKey = Extract<
   PreferenceKey,
   | "previewFollowsCursor"
   | "previewAutoPlayBeats"
+  | "previewPlayAudio"
   | "previewIdleAnimations"
   | "previewTypingPauses"
   | "previewScreenplaySync"
@@ -105,6 +106,10 @@ export const PREVIEW_TOGGLES: Record<
     name: "Auto-play beats",
     detail: "When the caret lands on a line, its beat plays once, as it would in the game.",
   },
+  previewPlayAudio: {
+    name: "Play audio",
+    detail: "Beats played in the preview play their sound, as Play From Here would.",
+  },
   previewIdleAnimations: {
     name: "Show idle animations",
     detail:
@@ -134,10 +139,11 @@ export const QUICK_TOGGLES: Record<PreviewMode, PreviewToggleKey[]> = {
   game: [
     "previewFollowsCursor",
     "previewAutoPlayBeats",
+    "previewPlayAudio",
     "previewIdleAnimations",
     "previewTypingPauses",
   ],
-  textstream: ["previewFollowsCursor", "previewAutoPlayBeats"],
+  textstream: ["previewFollowsCursor", "previewAutoPlayBeats", "previewPlayAudio"],
   screenplay: [
     "previewScreenplaySync",
     "screenplayPaper",

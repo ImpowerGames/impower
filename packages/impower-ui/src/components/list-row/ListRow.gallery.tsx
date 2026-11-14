@@ -15,14 +15,16 @@ import PlayButton from "../play-button/PlayButton";
 import ListRow, { ListRowBadge, type ListRowSize } from "./ListRow";
 
 const SIZES: Record<ListRowSize, string> = {
-  default: "Default: 60px, the Scripts and Assets pages' rows",
+  default: "Default: 60px with a 21px glyph",
+  library: "Library: the Scripts and Assets pages' rows, 62px with an 8px inset and 10px gap below desktop, 60px with 12px and 13px on desktop",
   compact: "Compact: 44px",
   block: "Block: 64px with a 12px help line, the Add panel's rows",
-  dense: "Dense: 52px with an 18px glyph, the asset inspector's uses list",
+  dense: "Dense: 52px with an 18px glyph, the asset inspector's uses list, its gap 10px below desktop",
+  file: "File: 52px with an 18px glyph in a 28px column and 13px names, the asset inspector's Files list",
 };
 
 const menu = (
-  <Button variant="quiet" size="icon" aria-label="Options" class="text-muted">
+  <Button variant="quiet" size="icon" glyph="md" aria-label="Options" class="text-muted">
     <MoreVerticalIcon />
   </Button>
 );
@@ -198,6 +200,7 @@ function SelectionDemo() {
           {(["available", "active"] as const).map((selection) => (
             <ListRow
               key={selection}
+              size="library"
               control={<PlayButton name="door_knock" playing={selection === "available"} />}
               selection={selection}
               selected={false}

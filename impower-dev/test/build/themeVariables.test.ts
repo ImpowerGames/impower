@@ -33,6 +33,7 @@ const COMPONENT_VARIABLES = [
   "--scrim",
   "--media-badge",
   "--media-badge-ink",
+  "--media-button",
   "--status-badge-error-edge",
   "--preview-strip",
 ];

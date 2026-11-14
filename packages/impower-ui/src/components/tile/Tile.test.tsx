@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import Tile, { TILE_MIN_WIDTH, tileHeight } from "./Tile";
+import Tile, { tileGrid, tileHeight } from "./Tile";
 
 let host: HTMLDivElement | undefined;
 
@@ -14,8 +14,16 @@ afterEach(async () => {
 });
 
 describe("Tile", () => {
+  it("lays its grid out at the prototype's narrower minimum and 10px gap below desktop", () => {
+    for (const layout of ["compact", "phone"] as const) {
+      expect(tileGrid("portrait", layout)).toEqual({ minWidth: 150, gap: 10 });
+      expect(tileGrid("landscape", layout)).toEqual({ minWidth: 160, gap: 10 });
+    }
+  });
+
   it("gives each shape a fixed height for its width, so a grid of them never reflows", () => {
-    expect(TILE_MIN_WIDTH).toEqual({ portrait: 138, landscape: 176 });
+    expect(tileGrid("portrait", "desktop")).toEqual({ minWidth: 138, gap: 12 });
+    expect(tileGrid("landscape", "desktop")).toEqual({ minWidth: 176, gap: 12 });
     expect(tileHeight("landscape", 176)).toBe(Math.ceil(158 * (10 / 16) + 65));
     expect(tileHeight("portrait", 138)).toBe(Math.ceil(120 * (4 / 3) + 65));
     expect(tileHeight("portrait", 200)).toBeGreaterThan(tileHeight("landscape", 200));
@@ -124,5 +132,20 @@ describe("Tile", () => {
     expect(menu("Options for a")).toContain("opacity-100");
     expect(menu("Options for a")).not.toContain("opacity-0");
     expect(menu("Options for b")).toContain("opacity-0");
+  });
+
+  it("sets its name and meta lines at 1.4 and backs its menu with the page colour at 78%", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <Tile media={null} label="imani" description="Modified Sep 29" aria-label="Open imani" actions={<button aria-label="Options for imani" />} onClick={() => {}} />,
+        host!,
+      ),
+    );
+    const open = host.querySelector('button[aria-label="Open imani"]')!;
+    const name = Array.from(open.querySelectorAll("span")).find((span) => span.textContent === "imani")!;
+    expect(name.className.split(" ")).toContain("text-[13px]/[1.4]");
+    expect(open.querySelector("small")!.className.split(" ")).toContain("text-[11px]/[1.4]");
+    expect(host.querySelector('[aria-label="Options for imani"]')!.parentElement!.className.split(" ")).toEqual(expect.arrayContaining(["bg-bg/78", "rounded-full", "[&>button]:rounded-full"]));
   });
 });

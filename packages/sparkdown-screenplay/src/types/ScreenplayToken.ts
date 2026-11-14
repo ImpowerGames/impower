@@ -1,4 +1,3 @@
-import { PrintedInsert } from "./PrintedInsert";
 import { ScreenplayTokenType } from "./ScreenplayTokenType";
 
 export interface ScreenplayToken {
@@ -13,5 +12,5 @@ export interface ScreenplayToken {
   from?: number;
   continued?: boolean;
   source?: number[];
-  inserts?: PrintedInsert[];
+  at?: number[];
 }

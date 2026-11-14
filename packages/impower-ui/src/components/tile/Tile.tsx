@@ -1,5 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
+import type { Layout } from "../../layout/breakpoints";
 import { cn } from "../../utils/cn";
 import { CheckIcon } from "../icon/icons.generated";
 import type { ThumbnailFit } from "../thumbnail/Thumbnail";
@@ -73,7 +74,7 @@ export const tileMediaVariants = cva(
   },
 );
 
-export const tileLabelVariants = cva("min-w-0 truncate text-[13px]/[18px] text-ink [--fade:20px] fade-edge", {
+export const tileLabelVariants = cva("min-w-0 truncate text-[13px]/[1.4] text-ink [--fade:20px] fade-edge", {
   variants: {
     kind: {
       file: "",
@@ -84,7 +85,7 @@ export const tileLabelVariants = cva("min-w-0 truncate text-[13px]/[18px] text-i
 });
 
 export const tileActionsVariants = cva(
-  "absolute top-2.5 right-2.5 z-10 flex rounded-full bg-bg/80 text-ink motion-safe:transition-opacity",
+  "absolute top-2.5 right-2.5 z-10 flex rounded-full bg-bg/78 text-ink motion-safe:transition-opacity [&>button]:rounded-full",
   {
     variants: {
       current: {
@@ -104,9 +105,17 @@ export const TILE_MEDIA_FIT: Record<TileShape, ThumbnailFit> = { portrait: "heig
 
 const MEDIA_RATIO: Record<TileShape, number> = { portrait: 4 / 3, landscape: 10 / 16 };
 
-export const TILE_GAP = 12;
+export type TileGrid = { minWidth: number; gap: number };
 
-export const TILE_MIN_WIDTH: Record<TileShape, number> = { portrait: 138, landscape: 176 };
+const TILE_GRIDS: Record<"desktop" | "narrow", { gap: number; minWidth: Record<TileShape, number> }> = {
+  desktop: { gap: 12, minWidth: { portrait: 138, landscape: 176 } },
+  narrow: { gap: 10, minWidth: { portrait: 150, landscape: 160 } },
+};
+
+export const tileGrid = (shape: TileShape, layout: Layout): TileGrid => {
+  const grid = TILE_GRIDS[layout === "desktop" ? "desktop" : "narrow"];
+  return { minWidth: grid.minWidth[shape], gap: grid.gap };
+};
 
 const FRAME = 2;
 const INSET_X = 16;
@@ -185,7 +194,7 @@ export default function Tile({
         <span class="flex min-w-0 flex-col gap-0.5 px-0.5">
           <span class={tileLabelVariants({ kind })}>{label}</span>
           {description && (
-            <small class="min-w-0 truncate text-[11px]/[16px] text-muted [--fade:20px] fade-edge">
+            <small class="min-w-0 truncate text-[11px]/[1.4] text-muted [--fade:20px] fade-edge">
               {description}
             </small>
           )}
