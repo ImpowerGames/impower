@@ -630,7 +630,10 @@ describe("a movie's sound", () => {
     expect(movie.volumeNode.gain.value).toBe(0.25);
     expect(main.volumeNode.gain.value).toBe(0.8);
     expect(movie.analyser.outputs).toEqual([main.volumeNode]);
-    expect(main.analyser.outputs).toEqual([context.destination]);
+    const output = (audio as any)._output;
+    expect(main.analyser.outputs).toEqual([output.volumeNode]);
+    expect(output.volumeNode.gain.value).toBe(1);
+    expect(output.analyser.outputs).toEqual([context.destination]);
   });
 
   test("a mixer a movie creates plays into a `main` at main's own gain", async () => {

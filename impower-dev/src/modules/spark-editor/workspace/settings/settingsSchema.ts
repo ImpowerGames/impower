@@ -92,6 +92,7 @@ export const PREFERENCES_SCHEMA = {
   previewMode: choice("game", PREVIEW_MODES),
   previewFollowsCursor: setting(true),
   previewAutoPlayBeats: setting(false),
+  previewPlayAudio: setting(false),
   previewIdleAnimations: setting(true),
   previewTypingPauses: setting(false),
   previewScreenplaySync: setting(true),

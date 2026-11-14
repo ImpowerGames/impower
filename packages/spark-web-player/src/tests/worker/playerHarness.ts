@@ -10,6 +10,7 @@ import { PreviewCompileProgramMessage } from "@impower/sparkdown/src/compiler/cl
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { UpdateCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerDocumentMessage";
 import { Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
+import { AudioClockMessage } from "@impower/spark-engine/src/game/modules/audio/classes/messages/AudioClockMessage";
 import type { GameEndpoint } from "../../app/Application";
 import type { ImageTarget } from "../../app/assets/AssetCache";
 import { MessageRouter } from "../../app/MessageRouter";
@@ -36,6 +37,7 @@ import {
   serializeDOM,
   SilentPageManager,
 } from "../ui/domTestHarness";
+import type { StandInAudio } from "./standInAudio";
 
 export const MAIN_URI = "file:///local/main.sd";
 
@@ -172,6 +174,7 @@ export interface PlayerHarnessOptions {
   holdImage?: (src: string) => Promise<void> | undefined;
   recordMessages?: boolean;
   manualClock?: boolean;
+  audio?: StandInAudio;
 }
 
 export async function createPlayerHarness(options: PlayerHarnessOptions) {
@@ -311,14 +314,24 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   const toRouter: any[] = [];
   let ui: UIManager | undefined;
   controller.ensureAudioContext = async () => {};
-  controller.createApp = (endpoint: GameEndpoint) => {
+  controller.createApp = (endpoint: GameEndpoint, previewing: boolean) => {
     const stubApp = createStubApp(
       overlay,
       (message: any) => endpoint.receive(structuredClone(message)),
       createImage,
     );
+    if (options.audio) {
+      stubApp.previewing = previewing;
+    }
+    const emit = (message: any) => endpoint.receive(structuredClone(message));
+    const audio = options.audio?.attach(stubApp, emit);
     ui = new UIManager(stubApp);
-    const managers = [ui, new AssetManager(stubApp), new SilentPageManager(stubApp)];
+    const managers = [
+      ui,
+      new AssetManager(stubApp),
+      ...(audio ? [audio] : []),
+      new SilentPageManager(stubApp),
+    ];
     const router = new MessageRouter(
       () => managers,
       (message) => endpoint.receive(structuredClone(message)),
@@ -326,6 +339,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     stubApp.answer = (message: any, work: Promise<any>) => router.answer(message, work);
     let resolveInit!: () => void;
     const app = {
+      audio,
       initializing: new Promise<void>((resolve) => (resolveInit = resolve)),
       paused: false,
       clock: new Clock(
@@ -381,6 +395,9 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         try {
           await Promise.all(managers.map((m) => m.onInit()));
           await app.connectGame();
+          if (audio) {
+            emit(AudioClockMessage.type.notification(stubApp.audioClock.read()));
+          }
         } finally {
           resolveInit();
         }

@@ -59,6 +59,7 @@ import {
   type PlayResult,
 } from "./messages/PlayMessage";
 import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
+import { SetPreviewAudioMessage } from "./messages/SetPreviewAudioMessage";
 import { StartPlayMessage } from "./messages/StartPlayMessage";
 import { WorkerBusyMessage } from "./messages/WorkerBusyMessage";
 import {
@@ -204,6 +205,8 @@ export function installPlayerWorker(connection: MessageConnection) {
     profile("end", compiler.profilerId + " " + "game/update");
   };
 
+  let previewAudio = false;
+
   const createOrUpdateGame = (program: SparkProgram) => {
     const profilerId = compiler.profilerId;
     if (!gameState.hasStartingValues() && compiler.config.startingValues) {
@@ -213,6 +216,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       profile("start", profilerId + " " + "game/create");
       gameState.game = gameState.createGame({ program });
       gameState.game.setRoutePins(routePins);
+      gameState.game.setPreviewAudio(previewAudio);
       profile("end", profilerId + " " + "game/create");
     } else if (gameState.game.program !== program) {
       updateGameProgram(gameState.game, program);
@@ -549,6 +553,9 @@ export function installPlayerWorker(connection: MessageConnection) {
         : undefined;
       if (!entry || !game) {
         return { displayed: false, missing: true };
+      }
+      if (params.fresh) {
+        game.module.audio.forgetHeard();
       }
       const programChanged =
         fresh || displayedId !== entry.id || game.program !== entry.program;
@@ -973,6 +980,14 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (PlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => play(message.params));
+      return;
+    }
+    if (SetPreviewAudioMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        previewAudio = message.params.enabled;
+        gameState.game?.setPreviewAudio(previewAudio);
+        return {};
+      });
       return;
     }
     if (ConnectPlayMessage.type.isRequest(message)) {

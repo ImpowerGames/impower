@@ -59,9 +59,50 @@ export class AudioModule extends Module<
     return this._outputLatency;
   }
 
+  protected _pageHears = false;
+
   override onReceiveNotification(msg: NotificationMessage): void {
     if (AudioClockMessage.type.isNotification(msg)) {
       this._outputLatency = msg.params.outputLatency;
+      const hears = msg.params.contextTime != null;
+      if (hears && !this._pageHears && this.context.system.previewing) {
+        this.forgetHeard();
+      }
+      this._pageHears = hears;
+    }
+  }
+
+  forgetHeard(): void {
+    this._audible = new Map();
+    this._sounding = new Map();
+  }
+
+  silence(): void {
+    const channels = new Set([
+      ...this._audible.keys(),
+      ...this._sounding.keys(),
+      ...this._channelsCurrentlyPlaying.keys(),
+    ]);
+    for (const channel of channels) {
+      this.update(channel, [{ control: "stop", now: true }]);
+    }
+    this.forgetHeard();
+  }
+
+  settlePreview(): void {
+    if (!this._game.previewAudio) {
+      return;
+    }
+    if (this._channelsCurrentlyPlaying.get("typewriter")?.size) {
+      this.update("typewriter", [{ control: "stop", now: true }]);
+    }
+    this.settleLoops(this.loopsPlaying());
+  }
+
+  recordBeat(audio: Record<string, AudioInstruction[]> | undefined): void {
+    this._channelsCurrentlyPlaying = this.playingFromState();
+    for (const [channel, sequence] of Object.entries(audio ?? {})) {
+      this.plan(channel, sequence);
     }
   }
 
@@ -659,6 +700,29 @@ export class AudioModule extends Module<
     sequence: AudioInstruction[],
     autoTrigger = false,
   ): number {
+    const { audioToLoad, updates } = this.plan(channel, sequence);
+    const id = this.nextTriggerId();
+    if (this.context.system.simulating) {
+      this.enableTrigger(id);
+      return id;
+    }
+    const trigger = (time?: number) => {
+      this.update(channel, updates, time);
+    };
+    const epoch = this._game.connection.epoch;
+    this.loadAllAudio(Array.from(audioToLoad)).then(() => {
+      this.enableTrigger(id, trigger);
+      if (autoTrigger && !this.superseded(epoch)) {
+        trigger();
+      }
+    });
+    return id;
+  }
+
+  protected plan(
+    channel: string,
+    sequence: AudioInstruction[],
+  ): { audioToLoad: Set<LoadAudioPlayerParams>; updates: AudioPlayerUpdate[] } {
     const audioToLoad = new Set<LoadAudioPlayerParams>();
     const updates: AudioPlayerUpdate[] = [];
     for (const e of sequence) {
@@ -718,22 +782,7 @@ export class AudioModule extends Module<
         }
       }
     }
-    const id = this.nextTriggerId();
-    if (this.context.system.simulating) {
-      this.enableTrigger(id);
-      return id;
-    }
-    const trigger = (time?: number) => {
-      this.update(channel, updates, time);
-    };
-    const epoch = this._game.connection.epoch;
-    this.loadAllAudio(Array.from(audioToLoad)).then(() => {
-      this.enableTrigger(id, trigger);
-      if (autoTrigger && !this.superseded(epoch)) {
-        trigger();
-      }
-    });
-    return id;
+    return { audioToLoad, updates };
   }
 
   stopChannel(channel: string, after?: number, over?: number, now?: boolean) {

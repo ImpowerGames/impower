@@ -3,6 +3,7 @@ import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene"
 import { getSharedAssetCache } from "./main/assets/sharedAssetCache";
 import { compiledElsewhere } from "./utils/compiledElsewhere";
 import { DisplayPreviewMessage } from "./main/workers/messages/DisplayPreviewMessage";
+import { SetPreviewAudioMessage } from "./main/workers/messages/SetPreviewAudioMessage";
 import type {
   WorkerDisplayWorkspace,
   WorkerHang,
@@ -69,6 +70,7 @@ import {
 } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
 import { PlayBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/PlayBeatMessage";
 import { SetAutoPlayBeatsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetAutoPlayBeatsMessage";
+import { SetPlayAudioMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPlayAudioMessage";
 import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
 import {
   clearPlayerBarExecution,
@@ -525,6 +527,7 @@ export class GamePlayerController {
     window.addEventListener("resize", this.handleResize);
     window.addEventListener("pointerdown", this.handleUserInteraction, true);
     window.addEventListener("keydown", this.handleUserInteraction, true);
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
     if (this._resizable) {
       this.refs.toolbar?.addEventListener(
         "pointerdown",
@@ -580,6 +583,10 @@ export class GamePlayerController {
     window.removeEventListener("resize", this.handleResize);
     window.removeEventListener("pointerdown", this.handleUserInteraction, true);
     window.removeEventListener("keydown", this.handleUserInteraction, true);
+    document.removeEventListener(
+      "visibilitychange",
+      this.handleVisibilityChange,
+    );
     this.refs.toolbar?.removeEventListener(
       "pointerdown",
       this.handlePointerDownToolbar,
@@ -1497,6 +1504,7 @@ export class GamePlayerController {
       this.handleSetAutoPlayBeats,
       this.host,
     );
+    p.onRequest(SetPlayAudioMessage.type, this.handleSetPlayAudio, this.host);
     p.onRequest(
       SetAnimatePortraitsMessage.type,
       this.handleSetAnimatePortraits,
@@ -2179,6 +2187,39 @@ export class GamePlayerController {
       this.cancelLanding();
     }
     return SetAutoPlayBeatsMessage.type.response(message.id, {});
+  };
+
+  protected _playAudio = false;
+
+  protected handleSetPlayAudio = async (
+    message: SetPlayAudioMessage.Request,
+  ) => {
+    this._playAudio = message.params.enabled;
+    this.openPreviewOutput(this.previewApp);
+    await workspace?.gameLink
+      ?.request(SetPreviewAudioMessage.type, { enabled: this._playAudio })
+      .catch((e) => reportUnlessRestarted(e));
+    return SetPlayAudioMessage.type.response(message.id, {});
+  };
+
+  protected get previewApp(): Application | undefined {
+    return this._workerPlay || this._startingPlay ? undefined : this._app;
+  }
+
+  protected openPreviewOutput(app: Application | undefined) {
+    app?.audio?.setOutputOpen(
+      this._playAudio && document.visibilityState !== "hidden",
+    );
+  }
+
+  protected handleVisibilityChange = () => {
+    const app = this.previewApp;
+    if (document.visibilityState === "hidden") {
+      app?.audio?.pausePlayers();
+    } else {
+      app?.audio?.unpausePlayers();
+    }
+    this.openPreviewOutput(app);
   };
 
   protected cancelLanding(): boolean {
@@ -3423,6 +3464,12 @@ export class GamePlayerController {
     await this.ensureAudioContext();
     profile("start", "app/create");
     const app = this.createApp(game, previewing);
+    if (previewing) {
+      if (document.visibilityState === "hidden") {
+        app.audio?.pausePlayers();
+      }
+      this.openPreviewOutput(app);
+    }
     if (owned()) {
       this._app = app;
       this._appPlay = play;
@@ -3840,7 +3887,9 @@ export class GamePlayerController {
 
   protected restoreWorkerDebugger(link: WorkerGameLink) {
     const options = this._options;
-    const sent: Promise<unknown>[] = [];
+    const sent: Promise<unknown>[] = [
+      link.request(SetPreviewAudioMessage.type, { enabled: this._playAudio }),
+    ];
     if (options?.startingValues) {
       sent.push(
         link.request(SetGameStartingValuesMessage.type, {
