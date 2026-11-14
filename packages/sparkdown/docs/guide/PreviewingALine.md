@@ -42,8 +42,8 @@ When the route made no decisions at all, the list says "The preview runs this li
 
 | Kind | Icon | Meaning |
 | --- | --- | --- |
-| Pinned | pin | Choices you pinned |
-| Auto | options list | Choices the preview made where you have no pin |
+| Pinned | filled pin, in the accent colour | Choices you pinned |
+| Auto | hollow pin, in a muted colour | Choices the preview made where you have no pin; pinning one fills the pin in |
 | Forced | detour arrow | Conditions the preview forced to reach the target line; the game would not go this way |
 | Clipped | scissors | Loops the preview left before the game would; the game runs them to the end |
 

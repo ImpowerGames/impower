@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { LSPClient } from "@impower/codemirror-vscode-lsp-client/src";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
 import { afterEach, describe, expect, it } from "vitest";
+import { foldMarkerDOM } from "../src/cm-fold-marks/foldMarks";
 import EDITOR_LSP_ICONS from "../src/modules/script-editor/constants/EDITOR_LSP_ICONS";
 import EDITOR_THEME from "../src/modules/script-editor/constants/EDITOR_THEME";
 import {
@@ -68,7 +69,6 @@ const CHROME = [
   ["the go-to-line submit", "button[name='submit']", "arrow"],
   ["the previous problem", ".cm-navLeftIcon", "chevron-down"],
   ["the next problem", ".cm-navRightIcon", "chevron-down"],
-  ["the fold arrows", ".cm-fold-arrow", "chevron-down"],
 ] as const;
 
 describe("the code editor's chrome icons", () => {
@@ -81,10 +81,20 @@ describe("the code editor's chrome icons", () => {
   it("holds no mask in the go-to-line, status, menu or fold chrome that the map does not hold", () => {
     mount();
     const chrome = maskRules().filter((rule) =>
-      /cm-gotoLine|cm-navLeftIcon|cm-navRightIcon|cm-menu-|cm-fold-arrow|cm-toolbar-icon/.test(rule.selector),
+      /cm-gotoLine|cm-navLeftIcon|cm-navRightIcon|cm-menu-|cm-toolbar-icon/.test(rule.selector),
     );
     expect(chrome.length).toBeGreaterThan(0);
     expect(chrome.filter((rule) => !known.has(rule.mask))).toEqual([]);
+  });
+
+  it("draws the fold markers as gutter buttons from the map, open and closed", () => {
+    for (const open of [true, false]) {
+      const marker = foldMarkerDOM(open);
+      expect(marker.tagName).toBe("BUTTON");
+      expect(marker.classList.contains("cm-gutter-button")).toBe(true);
+      expect(marker.style.getPropertyValue("--gutter-button-icon")).toBe(iconMasks["chevron-down"]);
+      expect(marker.getAttribute("aria-label")).toBe(open ? "Fold" : "Unfold");
+    }
   });
 
   it("draws the keyboard toolbar's indent, dedent, format, writing tools and add from the map", () => {
