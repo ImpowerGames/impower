@@ -336,6 +336,21 @@ export default class WorkspaceWindow {
     this.navigateTo("write");
   }
 
+  async writeScript(filename: string) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return;
+    }
+    const loaded = loadedVersion(
+      this._workspace.fs.getFileUri(projectId, filename),
+      FIX_OPEN_WAIT_MS,
+    );
+    this.openScript(filename);
+    if ((await loaded) !== null) {
+      this.startEditing(filename);
+    }
+  }
+
   closeSettings() {
     if (!this.store.screen.settingsOpen) {
       return;

@@ -14,6 +14,7 @@ export interface PageBreak {
 
 export interface Separator {
   tag: "separator";
+  from?: number;
 }
 
 export interface MetaLayout {

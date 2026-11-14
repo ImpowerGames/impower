@@ -308,21 +308,34 @@ describe("the Assets page", () => {
     await mount();
     await showTab("Audio");
     expect(text()).toContain("No audio yet");
-    expect(text()).toContain("Upload sounds and music with the Add button.");
+    expect(text()).toContain("Add sounds and music with the Add button.");
     expect(text()).not.toContain("New button");
+    await showTab("Video");
+    expect(text()).toContain("Add a video with the Add button.");
+    await showTab("Text");
+    expect(text()).toContain("Add notes with the Add button.");
+    await showTab("Fonts");
+    expect(text()).toContain("Add a font with the Add button.");
     await showTab("Other");
-    expect(text()).toContain("Files of any other type land here when you upload them.");
+    expect(text()).toContain("Files of any other type land here when you add them.");
     await showTab("Images");
     await click(all<HTMLElement>('button[aria-label^="Open folder Empty"]')[0]);
     expect(text()).toContain("This folder is empty");
-    expect(text()).toContain("Upload into it with the Add button.");
+    expect(text()).toContain("Add files to it with the Add button, or drop files on it from its parent folder.");
     await act(async () => {
       setListing({});
     });
     await settle();
     expect(text()).toContain("A collection of your art");
     expect(text()).toContain("Your portraits, backgrounds, sounds and music will appear here.");
-    expect(all<HTMLButtonElement>("button").some((b) => b.textContent?.includes("Upload files"))).toBe(true);
+    expect(all<HTMLButtonElement>("button").some((b) => b.textContent?.includes("Add files from this device"))).toBe(true);
+    await act(async () => {
+      setListing({ "Assets/Audio/theme.ogg": facts() });
+    });
+    await settle();
+    await showTab("Images");
+    expect(text()).toContain("No images yet");
+    expect(text()).toContain("Add portraits and backgrounds with the Add button.");
   });
 
   it("opens the inspector on a press and the row menu from its own button", async () => {
@@ -361,7 +374,7 @@ describe("the Assets page", () => {
     await mount();
     await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
     await vi.waitFor(() =>
-      expect(menuItems()).toEqual(["Upload files", "Link a file by address", "New folder"]),
+      expect(menuItems()).toEqual(["Add files from this device", "Add a linkA file hosted on the web", "New folder"]),
     );
   });
 
@@ -405,14 +418,14 @@ describe("the Assets page", () => {
     });
     await mount();
     await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
-    await vi.waitFor(() => expect(menuItems()).toContain("Link a file by address"));
-    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Link a file by address")));
+    await vi.waitFor(() => expect(menuItems()).toContain("Add a linkA file hosted on the web"));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Add a link")));
     const [url, name] = all<HTMLInputElement>('[role="dialog"] input');
     await act(async () => {
       url!.value = "https://cdn.example.com/horn.mp3";
       url!.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await click(all<HTMLButtonElement>('[role="dialog"] button').find((b) => b.textContent?.trim() === "Add"));
+    await click(all<HTMLButtonElement>('[role="dialog"] button').find((b) => b.textContent?.trim() === "Add link"));
     expect(assets.addLink).toHaveBeenCalledWith("https://cdn.example.com/horn.mp3", "horn", "Assets/Images");
     expect(name).toBeTruthy();
     expect(selectedTab()).toBe("audio");
@@ -1563,7 +1576,7 @@ describe("adding files dragged in from the desktop", () => {
     expect(rowLabels()).toContain("Open audio rain, modified 2d · 300 b");
   });
 
-  it("shows the upload panel at the page's foot with each file's note, until closed", async () => {
+  it("shows the added-files panel at the page's foot with each file's note, until closed", async () => {
     await mount();
     workspace.uploads.value = [
       { id: 1, name: "ada.png", state: "added", path: `${P}/ada.png` },
@@ -1571,15 +1584,15 @@ describe("adding files dragged in from the desktop", () => {
       { id: 3, name: "big.mp4", state: "failed", reason: { kind: "storage" } },
     ];
     await settle();
-    const panel = host!.querySelector<HTMLElement>('section[aria-label="Uploads"]')!;
+    const panel = host!.querySelector<HTMLElement>('section[aria-label="Added files"]')!;
     expect(panel.querySelector('[role="status"]')!.textContent).toBe("2 files added, 1 not added");
     expect([...panel.querySelectorAll("li small")].map((el) => el.textContent)).toEqual([
       "Added to Portraits",
       "Added to Audio",
       "Not added: this browser ran out of room for it, so free some space and try again.",
     ]);
-    await click(panel.querySelector<HTMLElement>('button[aria-label="Close uploads"]')!);
-    expect(host!.querySelector('section[aria-label="Uploads"]')).toBeNull();
+    await click(panel.querySelector<HTMLElement>('button[aria-label="Close added files"]')!);
+    expect(host!.querySelector('section[aria-label="Added files"]')).toBeNull();
   });
 });
 

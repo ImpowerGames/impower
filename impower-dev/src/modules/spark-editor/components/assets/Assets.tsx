@@ -4,6 +4,7 @@ import {
   ChevronIcon,
   DropdownContent,
   DropdownItem,
+  DropdownItemText,
   DropdownRadioGroup,
   DropdownRadioItem,
   DropdownRoot,
@@ -157,12 +158,12 @@ const TYPE_NOUNS: Record<AssetType, string> = {
 };
 
 const EMPTY_TYPES: Record<AssetType, readonly [string, string]> = {
-  image: ["No images yet", "Upload portraits and backgrounds with the Add button."],
-  audio: ["No audio yet", "Upload sounds and music with the Add button."],
-  video: ["No video yet", "Upload a video with the Add button."],
-  text: ["No text yet", "Upload notes with the Add button."],
-  font: ["No fonts yet", "Upload a font with the Add button."],
-  other: ["Nothing yet", "Files of any other type land here when you upload them."],
+  image: ["No images yet", "Add portraits and backgrounds with the Add button."],
+  audio: ["No audio yet", "Add sounds and music with the Add button."],
+  video: ["No video yet", "Add a video with the Add button."],
+  text: ["No text yet", "Add notes with the Add button."],
+  font: ["No fonts yet", "Add a font with the Add button."],
+  other: ["Nothing yet", "Files of any other type land here when you add them."],
 };
 
 type Heading = { kind: "heading"; type: AssetType; title: string };
@@ -830,7 +831,7 @@ function AssetsBrowser() {
   const uploadAction = (
     <Button disabled={busy} onClick={() => upload.current?.click()}>
       <UploadIcon />
-      Upload files
+      Add files from this device
     </Button>
   );
 
@@ -861,11 +862,11 @@ function AssetsBrowser() {
         <>
           <DropdownItem disabled={busy} onSelect={() => upload.current?.click()}>
             <UploadIcon class="text-muted" />
-            Upload files
+            Add files from this device
           </DropdownItem>
           <DropdownItem disabled={busy} onSelect={() => setLinking(true)}>
             <LinkIcon class="text-muted" />
-            Link a file by address
+            <DropdownItemText hint="A file hosted on the web">Add a link</DropdownItemText>
           </DropdownItem>
           <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating(true); }}>
             <FolderPlusIcon class="text-muted" />
@@ -1015,7 +1016,7 @@ function AssetsBrowser() {
           <EmptyState
             icon={<FolderIcon />}
             title="This folder is empty"
-            body="Upload into it with the Add button."
+            body="Add files to it with the Add button, or drop files on it from its parent folder."
           />
         )
       }

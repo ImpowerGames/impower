@@ -269,6 +269,7 @@ export class ScriptEditorController {
   protected _viewScrolled = false;
   protected _focusLeft = false;
   protected _focusWhenEditable = false;
+  protected _focusWhenLoaded = false;
   protected _settling = false;
   protected _loaded = false;
   protected _editing = false;
@@ -403,10 +404,21 @@ export class ScriptEditorController {
     }
   }
 
+  protected requestFocus() {
+    if (!this._loaded) {
+      this._focusWhenLoaded = true;
+    } else if (this._view?.state.facet(EditorView.editable)) {
+      this.focusAtCaret();
+    } else {
+      this._focusWhenEditable = true;
+    }
+  }
+
   setScriptMode(mode: ScriptModeValue | null): void {
     this.options.scriptMode = mode;
     if (mode === "reading") {
       this._focusWhenEditable = false;
+      this._focusWhenLoaded = false;
     }
     const view = this._view;
     if (!view) return;
@@ -627,6 +639,7 @@ export class ScriptEditorController {
       !this._view?.contentDOM.contains(target)
     ) {
       this._focusLeft = true;
+      this._focusWhenLoaded = false;
     }
   };
 
@@ -892,11 +905,7 @@ export class ScriptEditorController {
   protected executeCommand(view: EditorView, command: EditorCommand) {
     switch (command) {
       case "focus":
-        if (view.state.facet(EditorView.editable)) {
-          this.focusAtCaret();
-        } else {
-          this._focusWhenEditable = true;
-        }
+        this.requestFocus();
         return true;
       case "indent":
         view.focus();
@@ -1434,6 +1443,7 @@ export class ScriptEditorController {
       this._initialVisibleRange = visibleRange;
       this._initialSelectedRange = selectedRange;
       this._loaded = false;
+      this._focusWhenLoaded = false;
       this._gotoLineInputFocused = false;
       this._textDocument = textDocument;
       const editorContainer = this.refs.editor;
@@ -1955,6 +1965,10 @@ export class ScriptEditorController {
         this.bindView(this._view);
       }
       this._loaded = true;
+      if (this._focusWhenLoaded) {
+        this._focusWhenLoaded = false;
+        this.requestFocus();
+      }
     }
   };
 

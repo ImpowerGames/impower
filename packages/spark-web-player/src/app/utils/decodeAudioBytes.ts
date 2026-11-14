@@ -1,3 +1,5 @@
+import { OpusDecoder, OpusDecoderWebWorker } from "opus-decoder";
+
 const OPUS_RATE = 48000;
 const CONTINUED_PACKET = 1;
 const BEGINNING_OF_STREAM = 2;
@@ -239,40 +241,166 @@ const readOggOpus = (bytes: Uint8Array): OggOpusLink[] => {
   return links;
 };
 
-const decodeLink = async (link: OggOpusLink): Promise<Float32Array[]> => {
-  const { OpusDecoder } = await import("opus-decoder");
-  const decoder = new OpusDecoder({
-    channels: link.channels,
-    preSkip: link.preSkip,
-    streamCount: link.streamCount,
-    coupledStreamCount: link.coupledStreamCount,
-    channelMappingTable: link.channelMappingTable,
-  });
+interface DecodedFrames {
+  channelData: Float32Array[];
+  samplesDecoded: number;
+}
+
+interface WorkerDecoder {
+  worker: OpusDecoderWebWorker & Worker;
+  abandoned: Promise<never>;
+  abandon: (reason: unknown) => void;
+  queue: Promise<unknown>;
+  used: boolean;
+  pending: number;
+  idle?: ReturnType<typeof setTimeout>;
+}
+
+const WORKER_ANSWER_DEADLINE_MS = 15_000;
+const WORKER_IDLE_RETIREMENT_MS = 30_000;
+
+const workerDecoders = new Map<string, WorkerDecoder>();
+let workersUnavailable = false;
+
+const decoderOptions = (link: OggOpusLink) => ({
+  channels: link.channels,
+  preSkip: link.preSkip,
+  streamCount: link.streamCount,
+  coupledStreamCount: link.coupledStreamCount,
+  channelMappingTable: link.channelMappingTable,
+});
+
+const decodeOnThisThread = async (link: OggOpusLink): Promise<DecodedFrames> => {
+  const decoder = new OpusDecoder(decoderOptions(link));
   try {
     await decoder.ready;
-    const decoded = decoder.decodeFrames(link.packets);
-    const expected = link.finalGranule - link.origin - link.preSkip;
-    const length =
-      link.finalGranule >= 0
-        ? Math.min(decoded.samplesDecoded, Math.max(0, expected))
-        : decoded.samplesDecoded;
-    const order =
-      link.family === 1
-        ? WEB_AUDIO_ORDER_FROM_VORBIS_ORDER[decoded.channelData.length]
-        : undefined;
-    const gain = Math.pow(10, link.outputGain / (20 * 256));
-    return (order ?? decoded.channelData.map((_, i) => i)).map((source) => {
-      const samples = decoded.channelData[source]!.slice(0, Math.max(0, length));
-      if (gain !== 1) {
-        for (let i = 0; i < samples.length; i++) {
-          samples[i] = samples[i]! * gain;
-        }
-      }
-      return samples;
-    });
+    return decoder.decodeFrames(link.packets);
   } finally {
     decoder.free();
   }
+};
+
+const createWorkerDecoder = (
+  options: ReturnType<typeof decoderOptions>,
+): WorkerDecoder => {
+  const worker = new OpusDecoderWebWorker(options) as WorkerDecoder["worker"];
+  let abandon: (reason: unknown) => void = () => undefined;
+  const abandoned = new Promise<never>((_, reject) => {
+    abandon = reject;
+  });
+  abandoned.catch(() => undefined);
+  worker.addEventListener("error", (event: Event) =>
+    abandon((event as ErrorEvent).error ?? new Error("Opus decoder worker failed")),
+  );
+  worker.addEventListener("messageerror", () =>
+    abandon(new Error("Opus decoder worker could not read a message")),
+  );
+  return { worker, abandoned, abandon, queue: Promise.resolve(), used: false, pending: 0 };
+};
+
+const abandonWorkers = (reason: unknown) => {
+  workersUnavailable = true;
+  const abandoned = [...workerDecoders.values()];
+  workerDecoders.clear();
+  for (const { worker, abandon, idle } of abandoned) {
+    clearTimeout(idle);
+    abandon(reason);
+    worker.terminate();
+  }
+};
+
+const answeredInTime = <T>(work: Promise<T>): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error("Opus decoder worker did not answer")),
+      WORKER_ANSWER_DEADLINE_MS,
+    );
+  });
+  return Promise.race([work, deadline]).finally(() => clearTimeout(timer));
+};
+
+const retireWhenIdle = (key: string, decoder: WorkerDecoder) => {
+  clearTimeout(decoder.idle);
+  if (decoder.pending > 0 || workerDecoders.get(key) !== decoder) {
+    return;
+  }
+  decoder.idle = setTimeout(() => {
+    if (decoder.pending === 0 && workerDecoders.get(key) === decoder) {
+      workerDecoders.delete(key);
+      decoder.worker.terminate();
+    }
+  }, WORKER_IDLE_RETIREMENT_MS);
+};
+
+const decodeInWorker = async (link: OggOpusLink): Promise<DecodedFrames> => {
+  const options = decoderOptions(link);
+  const key = JSON.stringify(options);
+  try {
+    const decoder =
+      workerDecoders.get(key) ??
+      workerDecoders.set(key, createWorkerDecoder(options)).get(key)!;
+    decoder.pending++;
+    clearTimeout(decoder.idle);
+    const packets = link.packets.map((packet) => packet.slice());
+    const turn = decoder.queue.then(() =>
+      answeredInTime(
+        (async () => {
+          if (decoder.used) {
+            await decoder.worker.reset();
+          } else {
+            await decoder.worker.ready;
+          }
+          decoder.used = true;
+          return decoder.worker.decodeFrames(packets);
+        })(),
+      ),
+    );
+    decoder.queue = turn.catch(() => undefined);
+    try {
+      return await Promise.race([turn, decoder.abandoned]);
+    } finally {
+      decoder.pending--;
+      retireWhenIdle(key, decoder);
+    }
+  } catch (error) {
+    abandonWorkers(error);
+    throw error;
+  }
+};
+
+const decodeFrames = async (link: OggOpusLink): Promise<DecodedFrames> => {
+  if (!workersUnavailable) {
+    try {
+      return await decodeInWorker(link);
+    } catch {
+      return decodeOnThisThread(link);
+    }
+  }
+  return decodeOnThisThread(link);
+};
+
+const decodeLink = async (link: OggOpusLink): Promise<Float32Array[]> => {
+  const decoded = await decodeFrames(link);
+  const expected = link.finalGranule - link.origin - link.preSkip;
+  const length =
+    link.finalGranule >= 0
+      ? Math.min(decoded.samplesDecoded, Math.max(0, expected))
+      : decoded.samplesDecoded;
+  const order =
+    link.family === 1
+      ? WEB_AUDIO_ORDER_FROM_VORBIS_ORDER[decoded.channelData.length]
+      : undefined;
+  const gain = Math.pow(10, link.outputGain / (20 * 256));
+  return (order ?? decoded.channelData.map((_, i) => i)).map((source) => {
+    const samples = decoded.channelData[source]!.slice(0, Math.max(0, length));
+    if (gain !== 1) {
+      for (let i = 0; i < samples.length; i++) {
+        samples[i] = samples[i]! * gain;
+      }
+    }
+    return samples;
+  });
 };
 
 const decodeOggOpus = async (
