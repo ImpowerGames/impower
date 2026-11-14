@@ -81,7 +81,7 @@ describe("PreviewStrip", () => {
   it("keeps the shorter form at every size and clamps the words to two lines, one beside two status rows", async () => {
     await mount(<PreviewStrip label="ACTION" words="Rain." />);
     const strip = host!.querySelector("section")!.className;
-    expect(strip).toContain("h-[91px]");
+    expect(strip).toContain("h-[var(--preview-strip-height)]");
     expect(strip).not.toContain("104px");
     expect(host!.querySelector("[data-preview-strip-picture]")!.className).toContain("h-[72px]");
     expect(words().className).toContain("line-clamp-2");
