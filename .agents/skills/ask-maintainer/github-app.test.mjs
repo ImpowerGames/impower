@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createVerify, generateKeyPairSync } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRepos } from "../../repos.mjs";
-import { KEY_VARIABLE, KeyError, TOOL_MARK, actorOf, commentAuthor, isMarked, readKey, resolveIdentity, tokenEnv } from "./github-app.mjs";
+import { KEY_VARIABLE, KeyError, TOOL_MARK, actorOf, commentAuthor, insideRepository, isMarked, readKey, resolveIdentity, tokenEnv } from "./github-app.mjs";
 import { buildRequest, ghTracker, main, markComment, validateRequest } from "./maintainer-request.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -118,32 +118,56 @@ try {
     const secret = "SECRET-KEY-CONTENTS-must-not-leak";
     const garbled = path.join(scratch, "garbled.pem");
     writeFileSync(garbled, `-----BEGIN RSA PRIVATE KEY-----\n${secret}\n-----END RSA PRIVATE KEY-----\n`);
-    const refusal = (file, pattern, options = { inRepository: outside }) => {
+    const pem = readFileSync(keyFile, "utf8");
+    const refusal = (file, pattern, options = { inRepository: outside }, extra = {}) => {
       let caught;
       try {
-        readKey({ [KEY_VARIABLE]: file }, options);
+        readKey({ ...extra, [KEY_VARIABLE]: file }, options);
       } catch (error) {
         caught = error;
       }
-      assert.ok(caught instanceof KeyError, `${file}: a key error, not ${caught}`);
+      assert.ok(caught instanceof KeyError, `${file.slice(0, 80)}: a key error, not ${caught}`);
       assert.ok(caught.message.includes(KEY_VARIABLE), "the error names the variable");
       assert.ok(!caught.message.includes(secret), "the error never quotes the key");
+      assert.ok(!pem.split("\n").slice(1, -2).some((line) => line && caught.message.includes(line)), "the error never quotes a line of the key");
       assert.match(caught.message, pattern);
       return caught.message;
     };
     refusal(missing, /cannot be read \(ENOENT\)/);
     refusal(garbled, /is not an RSA private key in PEM form/);
-    refusal("app-key.pem", /is not an absolute path/);
+    refusal("app-key.pem", /does not hold an absolute path/);
+    assert.ok(!refusal(pem, /does not hold an absolute path; set it to the absolute path of the App's private key file, never to the key itself/).includes(pem), "a key pasted into the variable is not echoed");
     const repo = path.join(scratch, "a-repository");
     mkdirSync(repo);
     execFileSync("git", ["init", "-q", repo]);
     const inside = path.join(repo, "app-key.pem");
-    writeFileSync(inside, readFileSync(keyFile));
+    writeFileSync(inside, pem);
+    mkdirSync(path.join(repo, ".git", "keys"));
+    const inGitDir = path.join(repo, ".git", "keys", "app-key.pem");
+    writeFileSync(inGitDir, pem);
     console.log(`Scratch repository: ${repo}`);
-    refusal(inside, /inside a Git work tree/, {});
+    refusal(inside, /lies inside a Git repository/, {});
+    refusal(inGitDir, /lies inside a Git repository/, {});
+    refusal(inside, /lies inside a Git repository/, {}, { GIT_DIR: path.join(scratch, "no-such-git-dir"), GIT_CEILING_DIRECTORIES: scratch, PATH: process.env.PATH });
+    const link = path.join(scratch, "linked-key.pem");
+    let linked = true;
+    try {
+      symlinkSync(inside, link, "file");
+    } catch (error) {
+      if (error.code !== "EPERM") throw error;
+      linked = false;
+      console.log("skip: this account cannot create a file symlink (EPERM); the symlinked-key case runs where it can");
+    }
+    if (linked) refusal(link, /lies inside a Git repository/, {});
+    const failing = (status, stderr, code) => () => {
+      throw Object.assign(new Error("Command failed"), { status, stderr, code });
+    };
+    assert.throws(() => insideRepository(scratch, { run: failing(128, "fatal: detected dubious ownership in repository") }), (error) => error instanceof KeyError && /git exited with status 128.; the key is not used/.test(error.message));
+    assert.throws(() => insideRepository(scratch, { run: failing(undefined, "", "ENOENT") }), (error) => error instanceof KeyError && /git did not run: ENOENT./.test(error.message));
+    assert.equal(insideRepository(scratch, { run: failing(128, "fatal: not a git repository (or any of the parent directories): .git") }), false);
     assert.equal(readKey({ [KEY_VARIABLE]: keyFile }).asymmetricKeyType, "rsa", "a key outside every repository is read");
     await assert.rejects(resolveIdentity({ repo: "ImpowerGames/impower-internal", app, env: { [KEY_VARIABLE]: garbled }, fetch: () => assert.fail("a bad key makes no request") }), (error) => error instanceof KeyError && !error.message.includes(secret));
-    console.log("ok: an unreadable, garbled, relative or in-repository key is an error that names the variable and never the key's contents");
+    console.log("ok: a relative, pasted, unreadable, garbled or in-repository key (in the work tree, in .git, through a symlink, or under a misrouted GIT_DIR) is an error that names the variable and never the key; a repository check that cannot run refuses the key");
   }
 
   {

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createPrivateKey, createSign } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 export const KEY_VARIABLE = "ASK_MAINTAINER_APP_KEY";
@@ -20,32 +20,36 @@ export function signJwt(appId, key, now = new Date()) {
   return `${header}.${payload}.${signer.sign(key).toString("base64url")}`;
 }
 
-function insideWorkTree(file) {
+export function insideRepository(dir, { env = process.env, run = execFileSync } = {}) {
+  const clean = Object.fromEntries(Object.entries(env).filter(([name]) => !/^GIT_/i.test(name)));
   try {
-    return execFileSync("git", ["-C", path.dirname(file), "rev-parse", "--is-inside-work-tree"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim() === "true";
-  } catch {
-    return false;
+    run("git", ["-C", dir, "rev-parse", "--git-dir"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true, env: { ...clean, LC_ALL: "C", LANGUAGE: "C" } });
+    return true;
+  } catch (error) {
+    if (error.status === 128 && /not a git repository/i.test(`${error.stderr ?? ""}`)) return false;
+    throw new KeyError(`Cannot tell whether the file ${KEY_VARIABLE} names lies inside a Git repository (git ${error.status === undefined ? `did not run: ${error.code ?? "unknown error"}` : `exited with status ${error.status}`}); the key is not used until that check succeeds`);
   }
 }
 
-export function readKey(env = process.env, { inRepository = insideWorkTree } = {}) {
+export function readKey(env = process.env, { inRepository = insideRepository } = {}) {
   const file = env[KEY_VARIABLE];
   if (!file) return null;
-  const where = `${KEY_VARIABLE} names ${file}`;
-  if (!path.isAbsolute(file)) throw new KeyError(`${where}, which is not an absolute path; set ${KEY_VARIABLE} to the absolute path of the App's private key file`);
+  if (!path.isAbsolute(file)) throw new KeyError(`${KEY_VARIABLE} does not hold an absolute path; set it to the absolute path of the App's private key file, never to the key itself`);
   let text;
+  let real;
   try {
     text = readFileSync(file, "utf8");
+    real = realpathSync(file);
   } catch (error) {
-    throw new KeyError(`${where}, which cannot be read (${error.code ?? "unreadable"}); save the App's private key there or correct ${KEY_VARIABLE}`);
+    throw new KeyError(`The file ${KEY_VARIABLE} names cannot be read (${error.code ?? "unreadable"}); save the App's private key there or correct ${KEY_VARIABLE}`);
   }
-  if (inRepository(file)) throw new KeyError(`${where}, which is inside a Git work tree; move the key outside every repository and point ${KEY_VARIABLE} at its new place`);
+  if ([...new Set([path.dirname(file), path.dirname(real)])].some((dir) => inRepository(dir, { env }))) throw new KeyError(`The file ${KEY_VARIABLE} names lies inside a Git repository; move the key outside every repository and point ${KEY_VARIABLE} at its new place`);
   try {
     const key = createPrivateKey(text);
     if (key.asymmetricKeyType !== "rsa") throw new Error();
     return key;
   } catch {
-    throw new KeyError(`${where}, which is not an RSA private key in PEM form; download a new private key from the App's settings and save it there`);
+    throw new KeyError(`The file ${KEY_VARIABLE} names is not an RSA private key in PEM form; download a new private key from the App's settings and save it there`);
   }
 }
 
