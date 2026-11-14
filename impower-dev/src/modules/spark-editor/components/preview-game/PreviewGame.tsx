@@ -152,6 +152,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           if (heldSelection) {
             iframeChannelRef.current?.postMessage(heldSelection);
             heldSelection = null;
+            Workspace.window.syncHeldStart(null);
           }
         };
         const disposeFollowsCursor = effect(() => {
@@ -334,6 +335,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
               !workspaceSettings.preferences.peek().previewFollowsCursor
             ) {
               heldSelection = message;
+              const { textDocument, selectedRange, userEvent } = message.params;
+              Workspace.window.syncHeldStart(
+                userEvent
+                  ? { file: textDocument.uri, line: selectedRange.start.line }
+                  : null,
+              );
             } else {
               if (StartGameMessage.type.isRequest(message)) {
                 releaseHeldSelection();

@@ -107,6 +107,8 @@ import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/me
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
+import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { startRefusalAt } from "@impower/spark-web-player/src/main/utils/startRefusal";
 import {
   type DocumentSymbol,
   type ShowDocumentResult,
@@ -1296,6 +1298,7 @@ export default class WorkspaceWindow {
       !!projectId &&
       program.uri === this._workspace.fs.getFileUri(projectId, "main.sd");
     if (story) {
+      this._storyProgram = program;
       this.setStoryFrontMatter(program.frontMatter ?? {});
     }
     this.update({
@@ -1311,6 +1314,7 @@ export default class WorkspaceWindow {
         },
       },
     });
+    this.applyStartRefusal();
   };
   protected handleLayoutChange = (layout: Layout) => {
     const horizontalLayout = layout !== "phone";
@@ -2292,7 +2296,30 @@ export default class WorkspaceWindow {
     });
   }
 
+  protected _playerStartRefusal: string | null = null;
+
+  protected _heldStart: { file: string; line: number } | null = null;
+
+  protected _storyProgram?: SparkProgram;
+
   syncStartRefusal(refusal: string | null) {
+    this._playerStartRefusal = refusal;
+    this.applyStartRefusal();
+  }
+
+  syncHeldStart(start: { file: string; line: number } | null) {
+    this._heldStart = start;
+    this.applyStartRefusal();
+  }
+
+  protected applyStartRefusal() {
+    const held = this._heldStart;
+    const program = this._storyProgram;
+    const refusal = held
+      ? program && held.file in (program.scripts ?? {})
+        ? startRefusalAt(program, held)
+        : null
+      : this._playerStartRefusal;
     const game = this.store.preview.modes.game;
     const startRefusal = refusal ?? undefined;
     if (game.startRefusal === startRefusal) {
