@@ -16,6 +16,7 @@ import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
+import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
 import TitlePageWidget, {
@@ -259,6 +260,7 @@ interface CachedPageLayout {
   settings: string;
   blankPositions: Set<number>;
   printed: number[];
+  actionStarts: number[];
 }
 
 const pageLayoutCache = new WeakMap<Tree, CachedPageLayout>();
@@ -270,7 +272,12 @@ const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
     return cached;
   }
   const layout = screenplayPageLayout(tree, doc.toString(), config);
-  const result = { settings, blankPositions: new Set(layout.blankLines), printed: layout.printed };
+  const result = {
+    settings,
+    blankPositions: new Set(layout.blankLines),
+    printed: layout.printed,
+    actionStarts: layout.actionStarts,
+  };
   pageLayoutCache.set(tree, result);
   return result;
 };
@@ -376,7 +383,24 @@ export const decorate = (
 
   const tree = treeOverride ?? syntaxTree(state);
 
-  const { blankPositions, printed } = cachedPageLayout(tree, doc, config);
+  const { blankPositions, printed, actionStarts } = cachedPageLayout(tree, doc, config);
+
+  const printedBefore = (from: number, to: number) => {
+    let low = 0;
+    let high = printed.length / 2;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (printed[middle * 2 + 1]! <= from) low = middle + 1;
+      else high = middle;
+    }
+    return low * 2 < printed.length && printed[low * 2]! < to;
+  };
+
+  for (const start of actionStarts) {
+    if (start >= from && (to === undefined || start <= to) && printedBefore(doc.lineAt(start).from, start)) {
+      decorations.push(Decoration.widget({ widget: new LineBreakWidget(), side: 1 }).range(start));
+    }
+  }
 
   let printedIndex = 0;
   const holdsPrintedText = (from: number, to: number) => {
@@ -720,6 +744,19 @@ export const decorate = (
         opensOwnLine(nodeRef)
       ) {
         hideLines(from, from);
+        return true;
+      } else if (isBlankLine(nodeRef) && holdsPrintedText(from, to)) {
+        const line = doc.lineAt(from);
+        if (!handledLines.has(line.number) && blankLines.has(line.number)) {
+          decorations.push(
+            Decoration.widget({
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              block: true,
+              side: -1,
+            }).range(line.from),
+          );
+        }
+        handledLines.add(line.number);
         return true;
       } else if (isBlankLine(nodeRef)) {
         const functionName = config?.screenplay_print_function_identifiers

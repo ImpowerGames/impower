@@ -89,8 +89,11 @@ const KINDS: Record<string, string[]> = {
   LuauSparkdownReassignment: ["  x = 2"],
   LuauSparkdownRepeatLoop: ["  repeat", "    It drizzles.", "  until true"],
   LuauSparkdownSequentialAlternatorBlock: ["  queue", "    | First time.", "    | Second time.", "  end"],
-  LuauSparkdownSingleLineConditionalAlternatorBlock: ["  match(x) | Small | Big end"],
-  LuauSparkdownSingleLineSequentialAlternatorBlock: ["  queue | A # t | B end"],
+  LuauSparkdownSingleLineConditionalAlternatorBlock: ["  match(x) | Small arm | Big arm end"],
+  LuauSparkdownSingleLineSequentialAlternatorBlock: ["  queue | Arm one # t | Arm two end"],
+  SingleLineCycleAlternator: ["  cycle | Cycle one. | Cycle two. end"],
+  SingleLineShuffleAlternator: ["  shuffle | Shuffle one. | Shuffle two. end"],
+  SingleLineAlternatorArmDivert: ["  queue | Leave now. -> s | Stay here. end"],
   LuauSparkdownVariableDefinition: ["  local z = 3"],
   LuauSparkdownWhileLoop: ["  while false do", "    It hails.", "  end"],
   LuauStrayUntilStatement: ["  until true"],
@@ -151,6 +154,11 @@ const PRINTED: Record<string, string[]> = {
   LuauSparkdownIfElseBlock: ["No.", "Yes."],
   LuauSparkdownRepeatLoop: ["It drizzles."],
   LuauSparkdownSequentialAlternatorBlock: ["First time.", "Second time."],
+  LuauSparkdownSingleLineConditionalAlternatorBlock: ["Small arm", "Big arm"],
+  LuauSparkdownSingleLineSequentialAlternatorBlock: ["Arm one", "Arm two"],
+  SingleLineCycleAlternator: ["Cycle one.", "Cycle two."],
+  SingleLineShuffleAlternator: ["Shuffle one.", "Shuffle two."],
+  SingleLineAlternatorArmDivert: ["Leave now.", "Stay here."],
   LuauSparkdownWhileLoop: ["It hails."],
 };
 
@@ -509,6 +517,24 @@ describe("a line shared by a hidden node and printed text", () => {
     const expected = ["Before.", ...rows, "After."];
     expect(exportRows(configName, source)).toEqual(expected);
     expect(layout(screenRows(configName, source))).toBe(layout(expected));
+  });
+});
+
+describe("a single-line alternator", () => {
+  it.each([
+    ["at the top of a scene", ["  queue | Tea, please. | Coffee, please. end"]],
+    ["inside an if", ["  if true then", "    queue | Tea, please. | Coffee, please. end", "  end"]],
+    ["inside a choice", ["  choose", "    * [Go.]", "      queue | Tea, please. | Coffee, please. end", "  end"]],
+  ] as const)("prints each branch on its own line, on the page as in the export, %s", (_where, lines) => {
+    const source = ["scene s", "  Before.", ...lines, "  After.", "end", ""].join("\n");
+    const printed = exportRows("default", source);
+    expect(printed.filter((row) => row.endsWith("please."))).toEqual(["Tea, please.", "Coffee, please."]);
+    const screen = screenRows("default", source);
+    expect(layout(screen)).toBe(layout(printed));
+    const view = views.get("default")!;
+    const row = Array.from(view.contentDOM.children).find((element) => element.textContent?.includes("Tea, please."))!;
+    expect(row.querySelectorAll(".sp-break")).toHaveLength(1);
+    expect(visibleText(row)).not.toMatch(/queue|\||end/);
   });
 });
 

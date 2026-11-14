@@ -19,7 +19,9 @@ const TEXT_UNPRINTED = new Set(["Glue", "SparkdownBlockComment", "Divert"]);
 
 const CHOICE_UNPRINTED = new Set(["SparkdownBlockComment", "SparkdownInlineComment", "Divert", "Tags", "Tag"]);
 
-const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
+const ARM_UNPRINTED = new Set(["ArmTag", "ArmDivert", "ArmTunnel", "ArmUnknown", "SparkdownBlockComment"]);
+
+const TOKENS_ON_LEAVE =new Set(["DialogueCharacter", "Choice"]);
 
 export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] => {
     const stack: SparkdownNodeName[] = [];
@@ -167,6 +169,18 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "SceneDeclarationName") {
           const text = read(from, to);
           tokens.push({ tag: "scene", text });
+        }
+
+        if (name === "LuauSparkdownAlternatorArm") {
+          flushText();
+          const text = readSkipping(nodeRef.node, readInto(textSource), (child) => ARM_UNPRINTED.has(child.name)).trim();
+          if (text) {
+            action = `${text}\n`;
+            flushText();
+          } else {
+            textSource = [];
+          }
+          return false;
         }
 
         if (name === "BranchDeclarationName") {

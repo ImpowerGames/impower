@@ -8,6 +8,7 @@ import type { ScreenplayConfig } from "../types/ScreenplayConfig";
 export interface ScreenplayPageLayout {
   blankLines: number[];
   printed: number[];
+  actionStarts: number[];
 }
 
 const mergeRanges = (ranges: number[]): number[] => {
@@ -48,12 +49,14 @@ export const screenplayPageLayout = (
   );
   const blankLines: number[] = [];
   const printed: number[] = [];
+  const actionStarts: number[] = [];
   let lastSource: number[] | undefined;
   const addPrinted = (lines: PageLine[] | undefined) => {
     for (const line of lines ?? []) {
       if (line.source && line.source !== lastSource) {
         printed.push(...line.source);
         lastSource = line.source;
+        if (line.tag === "action" && line.source[0] !== undefined) actionStarts.push(line.source[0]);
       }
     }
   };
@@ -67,5 +70,5 @@ export const screenplayPageLayout = (
       addPrinted(span.lines);
     }
   }
-  return { blankLines, printed: mergeRanges(printed) };
+  return { blankLines, printed: mergeRanges(printed), actionStarts };
 };
