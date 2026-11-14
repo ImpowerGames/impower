@@ -8,10 +8,12 @@ import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
+import type { FormattedText } from "../../../../../sparkdown-screenplay/src/types/FormattedText";
 import type { PrintedInsert } from "../../../../../sparkdown-screenplay/src/types/PrintedInsert";
 import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/gluedAlternatorLayout";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import { SHOWN_AS_SOURCE } from "../../../../../sparkdown-screenplay/src/utils/readStyled";
+import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styleText";
 import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
 import { screenplayPageLayout } from "../../../../../sparkdown-screenplay/src/utils/screenplayPageLayout";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
@@ -23,6 +25,7 @@ import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
+import { escapeHtml } from "./getFormattedHTML";
 import TitlePageWidget, {
   TitlePageSpec,
 } from "../classes/widgets/TitlePageWidget";
@@ -266,7 +269,27 @@ interface CachedPageLayout {
   printed: number[];
   actionStarts: number[];
   inserts: PrintedInsert[];
+  printedLines: { at: number; lines: FormattedText[][] }[];
 }
+
+const printedHtml = (lines: FormattedText[][]) =>
+  lines
+    .map((line) =>
+      line
+        .map((piece) => {
+          const style = [
+            piece.bold ? "font-weight: bold;" : "",
+            piece.italic ? "font-style: italic;" : "",
+            piece.underline || piece.strike
+              ? `text-decoration:${piece.underline ? " underline" : ""}${piece.strike ? " line-through" : ""};`
+              : "",
+          ].join("");
+          const source = piece.color === SOURCE_COLOR ? ' class="sp-source"' : "";
+          return `<span${source}${style ? ` style="${style}"` : ""}>${escapeHtml(piece.text)}</span>`;
+        })
+        .join(""),
+    )
+    .join("<br>");
 
 const pageLayoutCache = new WeakMap<Tree, CachedPageLayout>();
 
@@ -283,6 +306,7 @@ const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
     printed: layout.printed,
     actionStarts: layout.actionStarts,
     inserts: layout.inserts,
+    printedLines: layout.printedLines,
   };
   pageLayoutCache.set(tree, result);
   return result;
@@ -315,15 +339,6 @@ export const decorate = (
     doc.sliceString(nodeRef.from, nodeRef.to).endsWith("\n")
       ? nodeRef.to - 1
       : nodeRef.to;
-
-  const isOnlyHiddenDirectives = (text: string): boolean => {
-    const stripped = text
-      .replace(/\[\[[^\]]*\]\]/g, "")
-      .replace(/\(\([^)]*\)\)/g, "")
-      .replace(/<[^>]*>/g, "")
-      .trim();
-    return stripped.length === 0 && text.trim().length > 0;
-  };
 
   const findBlockContentEnd = (from: number, to: number): number => {
     let lastContentChar = -1;
@@ -389,7 +404,19 @@ export const decorate = (
 
   const tree = treeOverride ?? syntaxTree(state);
 
-  const { blankPositions, printed, actionStarts, inserts } = cachedPageLayout(tree, doc, config);
+  const { blankPositions, printed, actionStarts, inserts, printedLines } = cachedPageLayout(tree, doc, config);
+
+  const exportedLinesFrom = (from: number, to: number) => {
+    let low = 0;
+    let high = printedLines.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (printedLines[middle]!.at < from) low = middle + 1;
+      else high = middle;
+    }
+    const found = printedLines[low];
+    return found && found.at < to ? found.lines : undefined;
+  };
 
   const printedBefore = (from: number, to: number) => {
     let low = 0;
@@ -415,19 +442,6 @@ export const decorate = (
     }
   }
 
-  const insertsWithin = (from: number, to: number) => {
-    let low = 0;
-    let high = inserts.length;
-    while (low < high) {
-      const middle = (low + high) >> 1;
-      if (inserts[middle]!.at < from) low = middle + 1;
-      else high = middle;
-    }
-    const within: PrintedInsert[] = [];
-    for (let index = low; index < inserts.length && inserts[index]!.at < to; index++) within.push(inserts[index]!);
-    return within;
-  };
-
   let printedIndex = 0;
   const holdsPrintedText = (from: number, to: number) => {
     while (printedIndex < printed.length && printed[printedIndex + 1]! <= from) {
@@ -445,17 +459,6 @@ export const decorate = (
     const printable = /\S/.test(doc.sliceString(from, to));
     if (line.to >= to - 1) return printable || /\S/.test(line.text);
     return !nodeRef.node.firstChild && printable;
-  };
-
-  const printedSlice = (from: number, to: number) => {
-    holdsPrintedText(from, to);
-    const pieces: [number, number, string][] = insertsWithin(from, to).map((insert) => [insert.at, 0, insert.text]);
-    for (let index = printedIndex; index < printed.length && printed[index]! < to; index += 2) {
-      const start = Math.max(from, printed[index]!);
-      pieces.push([start, 1, doc.sliceString(start, Math.min(to, printed[index + 1]!))]);
-    }
-    pieces.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    return pieces.map((piece) => piece[2]).join("");
   };
 
   const blankLines = new Set(
@@ -656,13 +659,13 @@ export const decorate = (
         frontMatterKeyword = value;
         return false;
       } else if (name === "FrontMatterString") {
-        const value = doc.sliceString(from, to).trim();
+        const exported = exportedLinesFrom(from, to);
         frontMatterFieldCaptureBlocks.push({
           type: frontMatterKeyword.toLowerCase(),
           from,
           to,
-          value,
-          markdown: true,
+          value: exported ? printedHtml(exported) : doc.sliceString(from, to).trim(),
+          markdown: !exported,
           attributes: {
             style: "min-height: 1em",
           },
@@ -694,56 +697,42 @@ export const decorate = (
               : 0;
       } else if (inDialogue && GLUED_ALTERNATOR_BLOCKS.has(name)) {
         const last = dialogueContent.at(-1);
-        const value = printedSlice(from, to);
-        if (last?.type === "dialogue") {
-          last.value = `${last.value}${value}`;
-          last.to = to;
-        } else {
-          dialogueContent.push({
-            type: "dialogue",
-            from,
-            to,
-            value: value.trimStart(),
-            markdown: true,
-            attributes: { style: getDialogueLineStyle("dialogue") },
-          });
-        }
-      } else if (
-        name === "TextChunk" &&
-        inDialogue &&
-        nodeRef.node.prevSibling &&
-        GLUED_ALTERNATOR_BLOCKS.has(nodeRef.node.prevSibling.name) &&
-        dialogueContent.at(-1)?.type === "dialogue"
-      ) {
-        const last = dialogueContent.at(-1)!;
-        last.value = `${last.value}${printedSlice(from, to).trimEnd()}`;
-        last.to = to;
+        if (last?.type === "dialogue") last.to = to;
       } else if (name === "TextChunk") {
         if (inDialogue) {
-          const value = printedSlice(from, to).trimEnd();
-          const directiveOnly = isOnlyHiddenDirectives(value);
-          dialogueContent.push({
-            type: "dialogue",
-            from,
-            to,
-            value,
-            markdown: true,
-            attributes: {
-              style: directiveOnly
-                ? "display: none;"
-                : getDialogueLineStyle("dialogue"),
-            },
-          });
+          const exported = exportedLinesFrom(from, to);
+          const last = dialogueContent.at(-1);
+          if (exported) {
+            dialogueContent.push({
+              type: "dialogue",
+              from,
+              to,
+              value: printedHtml(exported),
+              markdown: false,
+              attributes: { style: getDialogueLineStyle("dialogue") },
+            });
+          } else if (holdsPrintedText(from, to) && last?.type === "dialogue") {
+            last.to = to;
+          } else {
+            dialogueContent.push({
+              type: "dialogue",
+              from,
+              to,
+              value: "",
+              markdown: false,
+              attributes: { style: "display: none;" },
+            });
+          }
         }
       } else if (name === "ParentheticalLineContent") {
         if (inDialogue) {
-          const value = doc.sliceString(from, to).trim();
+          const exported = exportedLinesFrom(from, to);
           dialogueContent.push({
             type: "parenthetical",
             from,
             to,
-            value,
-            markdown: true,
+            value: exported ? printedHtml(exported) : doc.sliceString(from, to).trim(),
+            markdown: !exported,
             attributes: {
               style: getDialogueLineStyle("parenthetical"),
             },

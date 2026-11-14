@@ -3,6 +3,9 @@ import { highlightTree } from "@lezer/highlight";
 import { SHOWN_AS_SOURCE } from "../../../../../sparkdown-screenplay/src/utils/readStyled";
 import { MarkupContent } from "../types/MarkupContent";
 
+export const escapeHtml = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 export const getSyntaxHighlightedHtml = (
   str: string,
   language: Language,
@@ -30,17 +33,17 @@ export const getSyntaxHighlightedHtml = (
       const unstyled = str.slice(from - diff, from);
       if (unstyled) {
         html += shownAsSource(from - diff, from)
-          ? `<span class="sp-source">${unstyled}</span>`
-          : `<span>${unstyled}</span>`;
+          ? `<span class="sp-source">${escapeHtml(unstyled)}</span>`
+          : `<span>${escapeHtml(unstyled)}</span>`;
       }
     }
     const s = str.slice(from, to);
-    html += `<span class="${shownAsSource(from, to) ? "sp-source" : token}">${s}</span>`;
+    html += `<span class="${shownAsSource(from, to) ? "sp-source" : token}">${escapeHtml(s)}</span>`;
     prev = to;
   });
   const remainingUnstyled = str.slice(prev);
   if (remainingUnstyled) {
-    html += `<span>${remainingUnstyled}</span>`;
+    html += `<span>${escapeHtml(remainingUnstyled)}</span>`;
   }
   return html;
 };

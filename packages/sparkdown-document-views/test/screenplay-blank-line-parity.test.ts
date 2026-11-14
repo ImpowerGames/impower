@@ -570,6 +570,38 @@ describe("a title page field", () => {
   });
 });
 
+const WIDGET_CASES: [string, string, string][] = [
+  ["title", "queue | A *cat* | A _dog_ end", "queue | A cat | A dog end"],
+  ["title", "A {person .. '*bold*'} beside _word_.", "A {person .. 'bold'} beside word."],
+  ["title", 'A {"&amp;"} beside *word*.', 'A {"&amp;"} beside word.'],
+  ["dialogue", "A *bold .. queue | cat | dog .. bold* beside {person}.", "A *bold cat / dog bold* beside {person}."],
+  ["dialogue", 'A {"<b>owl</b>"} beside *word*.', 'A {"<b>owl</b>"} beside word.'],
+];
+
+describe("a widget on the page", () => {
+  it.each(WIDGET_CASES)("draws the export's %s text for %s", (where, written, expected) => {
+    const config = { ...BASE, screenplay_print_title_page: where === "title" };
+    const configName = `widget ${where}`;
+    CONFIGS[configName] = config;
+    const source =
+      where === "title"
+        ? ["---", `title: ${written}`, "---", "", sourceOf(["ImplicitAction"])].join("\n")
+        : ["scene s", "  Before.", `  GUIDE: ${written}`, "  After.", "end", ""].join("\n");
+    const rows = extractPdfText(source, config).split("\n");
+    const printed =
+      where === "title"
+        ? rows.find((row) => row.includes("title:"))!.replace(/^.*title: /, "")
+        : rows.find((row) => row.startsWith("<dialogue>"))!.replace(/^<dialogue> /, "");
+    expect(printed).toBe(expected);
+    const view = show(configName, source);
+    const widget =
+      where === "title"
+        ? view.contentDOM.querySelector(".sp-title-page")!
+        : Array.from(view.contentDOM.children).find((row) => row.textContent?.includes("GUIDE"))!;
+    expect(compact(visibleText(widget))).toContain(compact(expected));
+  });
+});
+
 describe("a single-line alternator", () => {
   it.each([
     ["at the top of a scene", ["  queue | Tea, please. | Coffee, please. end"]],

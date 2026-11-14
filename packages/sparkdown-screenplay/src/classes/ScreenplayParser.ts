@@ -84,6 +84,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
     const tokens: ScreenplayToken[] = [{ tag: "page_break" }];
     let frontMatterKey = "";
     let frontMatterValue = NO_TEXT;
+    let frontMatterSource: number[] = [];
     let title = NO_TEXT;
     let heading = NO_TEXT;
     let transitional = NO_TEXT;
@@ -284,9 +285,10 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
           const text = read(from, to);
           frontMatterKey = text;
           frontMatterValue = NO_TEXT;
+          frontMatterSource = [];
         }
         if (name === "FrontMatterString") {
-          frontMatterValue = join(frontMatterValue, readLine(nodeRef.node));
+          frontMatterValue = join(frontMatterValue, readLine(nodeRef.node, frontMatterSource));
         }
 
         if (name === "Scene") {
@@ -475,6 +477,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
           tokens.push({
             tag: ("meta:" + frontMatterKey) as MetadataTokenType,
             ...frontMatterValue,
+            source: frontMatterSource,
           });
         }
 

@@ -3,6 +3,7 @@ import { screenplayTokens } from "../classes/ScreenplayParser";
 import ScreenplayTypesetter from "../classes/ScreenplayTypesetter";
 import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
 import type { PageLine } from "../types/DocumentSpan";
+import type { FormattedText } from "../types/FormattedText";
 import type { PrintedInsert } from "../types/PrintedInsert";
 import type { ScreenplayConfig } from "../types/ScreenplayConfig";
 
@@ -11,6 +12,7 @@ export interface ScreenplayPageLayout {
   printed: number[];
   actionStarts: number[];
   inserts: PrintedInsert[];
+  printedLines: { at: number; lines: FormattedText[][] }[];
 }
 
 const mergeRanges = (ranges: number[]): number[] => {
@@ -53,19 +55,26 @@ export const screenplayPageLayout = (
   const printed: number[] = [];
   const actionStarts: number[] = [];
   const inserts: PrintedInsert[] = [];
+  const printedLines: { at: number; lines: FormattedText[][] }[] = [];
   let lastSource: number[] | undefined;
   const addPrinted = (lines: PageLine[] | undefined) => {
     for (const line of lines ?? []) {
+      if (line.source && line.source === lastSource) {
+        printedLines.at(-1)?.lines.push(line.content);
+      }
       if (line.source && line.source !== lastSource) {
         printed.push(...line.source);
         lastSource = line.source;
+        if (line.source[0] !== undefined) printedLines.push({ at: line.source[0], lines: [line.content] });
         if (line.inserts) inserts.push(...line.inserts);
         if (line.tag === "action" && line.source[0] !== undefined) actionStarts.push(line.source[0]);
       }
     }
   };
   for (const span of spans) {
-    if (span.tag === "separator") {
+    if (span.tag === "meta") {
+      for (const lines of Object.values(span.positions)) addPrinted(lines);
+    } else if (span.tag === "separator") {
       if (span.from !== undefined) blankLines.push(span.from);
     } else if (span.tag === "dual") {
       addPrinted(span.positions.l);
@@ -74,5 +83,7 @@ export const screenplayPageLayout = (
       addPrinted(span.lines);
     }
   }
-  return { blankLines, printed: mergeRanges(printed), actionStarts, inserts: inserts.sort((a, b) => a.at - b.at) };
+  return { blankLines, printed: mergeRanges(printed), actionStarts, inserts: inserts.sort((a, b) => a.at - b.at),
+    printedLines: printedLines.sort((a, b) => a.at - b.at),
+  };
 };

@@ -60,6 +60,7 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           { align },
+          { source: t.source },
         );
       } else if (t.tag === "page_break") {
         const prevSpan = spans.at(-1);
