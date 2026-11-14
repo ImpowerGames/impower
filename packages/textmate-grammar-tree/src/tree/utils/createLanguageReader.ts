@@ -17,6 +17,7 @@ export interface LanguageReader {
     position: number,
     documentLanguage: string,
   ): string;
+  scope(type: NodeType): string | undefined;
 }
 
 const languageOfScope = (
@@ -90,6 +91,8 @@ export const createLanguageReader = (
     scopeName === undefined
       ? null
       : (languageOfScopeName(scopeName, keys, embeddedLanguages) ?? null);
+  const scope = (type: NodeType): string | undefined =>
+    type.id >= loadedTypes ? expandedScopeOf(type) : nameByNode.get(type.name);
   const languageOfNode = (type: NodeType): string | null => {
     if (type.id >= loadedTypes) {
       const cached = languageByExpandedType.get(type);
@@ -124,6 +127,7 @@ export const createLanguageReader = (
   };
   return {
     character,
+    scope,
     cursor: (tree, text, position, documentLanguage) => {
       const offset = cursorCharacter(text, position);
       return offset === null

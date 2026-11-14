@@ -1,6 +1,8 @@
 import { SearchCursor } from "@codemirror/search";
 import {
   EditorSelection,
+  StateEffect,
+  StateField,
   type EditorState,
   type Extension,
   type Line,
@@ -297,19 +299,39 @@ function dragWordSelection(state: EditorState, start: SelectionRange, pos: numbe
   return EditorSelection.range(anchor, head);
 }
 
+const DOUBLE_CLICK_BLOCK = "doubleClickBlock";
+
+type DoubleClickBlock = (state: EditorState, pos: number) => SelectionRange | null;
+
+function blockForDoubleClick(state: EditorState, pos: number): SelectionRange | null {
+  for (const find of state.languageDataAt<DoubleClickBlock>(DOUBLE_CLICK_BLOCK, pos)) {
+    const block = find(state, pos);
+    if (block) return block;
+  }
+  return null;
+}
+
 function doubleClickSelection(view: EditorView, event: MouseEvent): MouseSelectionStyle | null {
   if (event.button !== 0 || event.detail !== 2) return null;
   const posOf = (e: MouseEvent) => view.posAtCoords({ x: e.clientX, y: e.clientY }, false);
+  let startPos = posOf(event);
   let startSel = view.state.selection;
-  let start = wordForDoubleClick(view.state, posOf(event));
+  let start = wordForDoubleClick(view.state, startPos);
+  let block: SelectionRange | null | undefined;
   return {
     update(update) {
       if (update.docChanged) {
         start = start.map(update.changes);
         startSel = startSel.map(update.changes);
+        startPos = update.changes.mapPos(startPos);
+        block = block?.map(update.changes);
       }
     },
     get(curEvent, extend, multiple) {
+      if (!extend && !multiple && posOf(curEvent) === startPos) {
+        block ??= blockForDoubleClick(view.state, startPos);
+        if (block) return EditorSelection.create([block]);
+      }
       if (extend) {
         const word = wordForDoubleClick(view.state, posOf(curEvent));
         return startSel.replaceRange(startSel.main.extend(word.from, word.to));
@@ -323,50 +345,103 @@ function doubleClickSelection(view: EditorView, event: MouseEvent): MouseSelecti
 
 export const vscodeWordSelection: Extension = EditorView.mouseSelectionStyle.of(doubleClickSelection);
 
-function findNextOccurrence(state: EditorState, query: string): SelectionRange | null {
-  const { main, ranges } = state.selection;
-  const word = wordAtPosition(state, main.head);
-  const fullWord = word !== null && word.from === main.from && word.to === main.to;
+interface NextOccurrenceSession {
+  searchText: string;
+  wholeWord: boolean;
+  matchCase: boolean;
+}
+
+const setNextOccurrenceSession = StateEffect.define<NextOccurrenceSession | null>();
+
+const nextOccurrenceSession = StateField.define<NextOccurrenceSession | null>({
+  create: () => null,
+  update(session, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setNextOccurrenceSession)) return effect.value;
+    }
+    return session && (tr.selection || tr.docChanged) ? null : session;
+  },
+  provide: (field) =>
+    EditorView.focusChangeEffect.of((state) => (state.field(field) ? setNextOccurrenceSession.of(null) : null)),
+});
+
+const isWordCharAt = (state: EditorState, pos: number) => {
+  const char = state.sliceDoc(pos, pos + 1);
+  return char !== "\n" && char !== "\r" && classAt(char, 0) === REGULAR;
+};
+
+const isWholeWord = (state: EditorState, from: number, to: number) =>
+  (from === 0 || !isWordCharAt(state, from - 1) || (to > from && !isWordCharAt(state, from))) &&
+  (to === state.doc.length || !isWordCharAt(state, to) || (to > from && !isWordCharAt(state, to - 1)));
+
+const lowerCase = (text: string) => text.toLowerCase();
+
+function findNextOccurrence(state: EditorState, session: NextOccurrenceSession): SelectionRange | null {
+  const { ranges } = state.selection;
+  const { searchText, wholeWord, matchCase } = session;
+  const normalize = matchCase ? undefined : lowerCase;
   const last = ranges[ranges.length - 1]!;
   let cycled = false;
-  let cursor = new SearchCursor(state.doc, query, last.to);
+  let cursor = new SearchCursor(state.doc, searchText, last.to, undefined, normalize);
   for (;;) {
     cursor.next();
     if (cursor.done) {
       if (cycled) return null;
-      cursor = new SearchCursor(state.doc, query, 0, Math.max(0, last.from - 1));
+      cursor = new SearchCursor(state.doc, searchText, 0, last.to, normalize);
       cycled = true;
       continue;
     }
     const { from, to } = cursor.value;
-    if (cycled && ranges.some((range) => range.from === from)) continue;
-    if (fullWord) {
-      const found = wordAtPosition(state, from);
-      if (!found || found.from !== from || found.to !== to) continue;
-    }
+    if (cycled && ranges.some((range) => range.from < to && from < range.to)) continue;
+    if (wholeWord && !isWholeWord(state, from, to)) continue;
     return EditorSelection.range(from, to);
   }
 }
 
-export const selectNextOccurrence: Command = ({ state, dispatch }) => {
-  const { ranges } = state.selection;
+function beginSession(state: EditorState): NextOccurrenceSession | SelectionRange[] | null {
+  const { ranges, main } = state.selection;
+  if (ranges.length === 1 && main.empty) {
+    const word = wordAtPosition(state, main.head);
+    return word && { searchText: state.sliceDoc(word.from, word.to), wholeWord: true, matchCase: true };
+  }
   if (ranges.some((range) => range.empty)) {
-    const selection = EditorSelection.create(
-      ranges.map((range) => wordAtPosition(state, range.head) ?? EditorSelection.cursor(range.head)),
-      state.selection.mainIndex,
-    );
+    return ranges.map((range) => wordAtPosition(state, range.head) ?? EditorSelection.cursor(range.head));
+  }
+  const searched = lowerCase(state.sliceDoc(main.from, main.to));
+  if (ranges.some((range) => lowerCase(state.sliceDoc(range.from, range.to)) !== searched)) return null;
+  return { searchText: state.sliceDoc(main.from, main.to), wholeWord: false, matchCase: false };
+}
+
+export const selectNextOccurrence: Command = (view) => {
+  if (view.state.field(nextOccurrenceSession, false) === undefined) {
+    view.dispatch({ effects: StateEffect.appendConfig.of(nextOccurrenceSession) });
+  }
+  const { state, dispatch } = view;
+  const current = state.field(nextOccurrenceSession);
+  const begun = current ?? beginSession(state);
+  if (!begun) return false;
+  if (Array.isArray(begun)) {
+    const selection = EditorSelection.create(begun, state.selection.mainIndex);
     if (selection.eq(state.selection)) return false;
     dispatch(state.update({ selection }));
     return true;
   }
-  const searched = state.sliceDoc(ranges[0]!.from, ranges[0]!.to);
-  if (ranges.some((range) => state.sliceDoc(range.from, range.to) !== searched)) return false;
-  const range = findNextOccurrence(state, searched);
-  if (!range) return false;
+  const effects = [setNextOccurrenceSession.of(begun)];
+  const { main } = state.selection;
+  if (!current && main.empty) {
+    const word = wordAtPosition(state, main.head)!;
+    dispatch(state.update({ selection: EditorSelection.create([word]), effects }));
+    return true;
+  }
+  const range = findNextOccurrence(state, begun);
+  if (!range) {
+    if (!current) dispatch(state.update({ effects }));
+    return false;
+  }
   dispatch(
     state.update({
       selection: state.selection.addRange(range, false),
-      effects: EditorView.scrollIntoView(range.to),
+      effects: [...effects, EditorView.scrollIntoView(range.to)],
     }),
   );
   return true;
