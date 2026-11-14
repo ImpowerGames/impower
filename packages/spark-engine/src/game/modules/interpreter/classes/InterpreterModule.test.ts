@@ -555,6 +555,27 @@ describe("a style boundary inside zero-delay text", () => {
   });
 });
 
+describe("bold and italic stress", () => {
+  const voice = (source: string) => {
+    const instructions = createModule({
+      typewriter: {
+        ...PRELUDE["typewriter"],
+        $default: { ...PRELUDE["typewriter"]?.$default, letter_pause: 0.05 },
+      },
+    }).parse(source, TARGET, { character: "hero" });
+    return { end: instructions.end, audio: JSON.stringify(instructions.audio ?? {}) };
+  };
+
+  it("stresses a `***` span like a `**` span holding a `*` span", () => {
+    const tripled = voice(`Oh ${spanOpen("***")}my god${SPAN_CLOSE} now.`);
+    const nested = voice(
+      `Oh ${spanOpen("**")}${spanOpen("*")}my god${SPAN_CLOSE}${SPAN_CLOSE} now.`,
+    );
+    expect(tripled.audio).not.toBe("{}");
+    expect(tripled).toEqual(nested);
+  });
+});
+
 describe("InterpreterModule.queue", () => {
   const moduleWithDefaultTarget = () => {
     const game = {
