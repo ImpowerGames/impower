@@ -146,19 +146,19 @@ try {
   {
     const waiting = edit(decision(), (r) => {
       delete r.fallback;
-      r.waits = "Only you can say which mark reads right.";
+      r.waits = "confirms-built";
     });
     const built = buildRequest(validateRequest(waiting, { pictures: lookup }), { now, timeZone });
-    assert.match(built.body, /^> \*\*This one waits for you,\*\* however long it takes: Only you can say which mark reads right\.$/m);
-    assert.equal(readDataLine(built.body).waits, "Only you can say which mark reads right.");
+    assert.match(built.body, /^> \*\*This one waits for you,\*\* however long it takes, because it asks you to confirm something already built\.$/m);
+    assert.equal(readDataLine(built.body).waits, "confirms-built");
     assert.equal(readDataLine(built.body).fallback, undefined);
     const never = edit(decision(), (r) => {
       delete r.fallback;
-      r.alwaysWaits = "waives-check";
+      r.waits = "waives-check";
     });
     const neverBuilt = buildRequest(validateRequest(never, { pictures: lookup }), { now, timeZone });
-    assert.equal(readDataLine(neverBuilt.body).alwaysWaits, "waives-check");
-    assert.match(neverBuilt.body, /This one waits for you,\*\* however long it takes: the choice waives a failed check/);
+    assert.equal(readDataLine(neverBuilt.body).waits, "waives-check");
+    assert.match(neverBuilt.body, /This one waits for you,\*\* however long it takes, because it waives a failed check\./);
     const late = buildRequest(validateRequest(edit(decision(), (r) => (r.fallback.waitMinutes = 1440)), { pictures: lookup }), { now, timeZone });
     assert.match(late.body, /If you don't answer by 15:37 tomorrow, I'll go ahead with B/);
     const quoted = buildRequest(validateRequest(edit(decision(), (r) => (r.owner = "session <x> & y")), { pictures: lookup }), { now, timeZone });
@@ -190,9 +190,15 @@ try {
   refusedFor("neither a fallback nor a reason it waits", edit(decision(), (r) => delete r.fallback), /names neither a fallback .* nor a reason it waits/);
   refusedFor("a fallback wait under 30 minutes", edit(decision(), (r) => (r.fallback.waitMinutes = 20)), /30 minutes to 24 hours/);
   refusedFor("a fallback wait over 24 hours", edit(decision(), (r) => (r.fallback.waitMinutes = 1441)), /30 minutes to 24 hours/);
-  refusedFor("a fallback on a choice that deletes work", edit(decision(), (r) => (r.alwaysWaits = "deletes-work")), /names a fallback, but it deletes or overwrites work .* always wait/);
-  refusedFor("a fallback on a choice that leaves the repository", edit(decision(), (r) => (r.alwaysWaits = "leaves-repository")), /names a fallback, but it publishes, sends or spends/);
-  refusedFor("a fallback on a choice that waives a failed check", edit(decision(), (r) => (r.alwaysWaits = "waives-check")), /names a fallback, but it waives a failed check/);
+  refusedFor("a fallback on a choice that deletes work", edit(decision(), (r) => (r.waits = "deletes-work")), /names a fallback, but it waits because it deletes or overwrites work that cannot be restored, one of the four reasons a request never falls back/);
+  refusedFor("a fallback on a choice that leaves the repository", edit(decision(), (r) => (r.waits = "leaves-repository")), /names a fallback, but it waits because it publishes, sends or spends/);
+  refusedFor("a fallback on a choice that waives a failed check", edit(decision(), (r) => (r.waits = "waives-check")), /names a fallback, but it waits because it waives a failed check/);
+  refusedFor("a fallback on a request that confirms something already built", edit(decision(), (r) => (r.waits = "confirms-built")), /names a fallback, but it waits because it asks you to confirm something already built/);
+  refusedFor("a reason to wait that is not one of the four", edit(decision(), (r) => {
+    delete r.fallback;
+    r.waits = "Only you can say which mark reads right.";
+  }), /"waits" must name one of the four reasons a request waits: deletes-work \(deletes or overwrites work that cannot be restored\), leaves-repository .*, waives-check .*, confirms-built \(asks you to confirm something already built\)/);
+  refusedFor("the retired alwaysWaits field", edit(decision(), (r) => (r.alwaysWaits = "deletes-work")), /unknown field "alwaysWaits"/);
   refusedFor("a comparison wider than four columns", edit(decision(), (r) => (r.comparison = "| a | b | c | d | e |\n| - | - | - | - | - |")), /table of 5 columns/);
   refusedFor("a five-column table written without outer pipes", edit(decision(), (r) => (r.comparison = "Option | Shape | Pinning | Phone | Cost\n--- | --- | --- | --- | ---\nA | list | no | yes | none")), /table of 5 columns/);
   assert.equal(tableColumns("a | b | c | d\n:-- | --- | :-: | --:"), 4);
