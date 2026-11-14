@@ -1,0 +1,7 @@
+{
+  "source": [
+    "packages/sparkdown/src/tests/luau-conformance/typecheck/TypeInfer.functions.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/typecheck/TypeInfer.typePacks.test.ts"
+  ],
+  "archivedNativeProbes": []
+}
