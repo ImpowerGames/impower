@@ -375,6 +375,7 @@ export {
   type ThumbnailProps,
   type ThumbnailSize,
   type ThumbnailFit,
+  type ThumbnailSurface,
 } from "./thumbnail/Thumbnail";
 export {
   default as FolderCover,

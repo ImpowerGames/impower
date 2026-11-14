@@ -13,6 +13,7 @@ export const listRowVariants = cva(
       state: {
         none: "text-ink",
         current: "bg-tint text-ink before:opacity-100",
+        pressed: "bg-tint text-ink before:opacity-100",
         "contains-current": "text-accent",
       },
       nested: {
@@ -221,6 +222,7 @@ export type ListRowProps = (ListRowLeadingProps | ListRowSelectionProps) & {
   trailing?: ComponentChildren;
   actions?: ComponentChildren;
   current?: boolean | "location";
+  pressed?: boolean;
   containsCurrent?: boolean;
   depth?: number;
   size?: ListRowSize;
@@ -268,6 +270,7 @@ export default function ListRow({
   trailing,
   actions,
   current = false,
+  pressed,
   containsCurrent = false,
   depth = 0,
   size,
@@ -284,7 +287,9 @@ export default function ListRow({
 }: ListRowProps) {
   const state: ListRowState = current
     ? "current"
-    : containsCurrent
+    : pressed
+      ? "pressed"
+      : containsCurrent
       ? "contains-current"
       : "none";
   const copy = (
@@ -352,7 +357,7 @@ export default function ListRow({
           aria-current={
             current === "location" ? "location" : current ? "true" : undefined
           }
-          aria-pressed={selection === "active" ? selected : undefined}
+          aria-pressed={pressed ?? (selection === "active" ? selected : undefined)}
           onClick={onClick}
           {...rest}
         >

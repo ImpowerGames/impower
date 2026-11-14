@@ -145,21 +145,40 @@ function VideoFrame({ asset, onSeconds }: { asset: InspectedAsset; onSeconds: (s
   );
 }
 
+type Pixels = { width: number; height: number };
+
+export type SoloPicture = {
+  name: string;
+  src: string | undefined;
+  pixels?: Pixels | null;
+};
+
+const soloBox = (solo: SoloPicture | null | undefined, cover: Pixels | null | undefined) =>
+  solo?.pixels && cover
+    ? {
+        width: `${(solo.pixels.width / cover.width) * 100}%`,
+        height: `${(solo.pixels.height / cover.height) * 100}%`,
+      }
+    : undefined;
+
 function PictureFrame({
   asset,
   pixels,
   picture,
+  solo,
   onFull,
 }: {
   asset: InspectedAsset;
-  pixels?: { width: number; height: number } | null;
+  pixels?: Pixels | null;
   picture?: string | null;
+  solo?: SoloPicture | null;
   onFull?: (open: boolean) => void;
 }) {
   const [brokenSrc, setBrokenSrc] = useState<string | undefined>(undefined);
   const [full, setFull] = useState(false);
-  const src = picture === undefined ? asset.src : picture;
-  const failed = picture === null || (!!src && brokenSrc === src);
+  const src = solo ? solo.src : picture === undefined ? asset.src : picture;
+  const failed = (!solo && picture === null) || (!!src && brokenSrc === src);
+  const box = soloBox(solo, pixels);
   const ratio = pixels ? pixels.width / pixels.height : undefined;
   const view = (open: boolean) => {
     setFull(open);
@@ -167,7 +186,11 @@ function PictureFrame({
   };
   const image = () =>
     src ? (
-      <div class="absolute inset-0" onErrorCapture={() => setBrokenSrc(src)}>
+      <div
+        class={box ? "absolute top-0 left-0" : "absolute inset-0"}
+        style={box}
+        onErrorCapture={() => setBrokenSrc(src)}
+      >
         <Thumbnail size="fill" fit="contain" src={src} class="bg-transparent" />
       </div>
     ) : null;
@@ -177,6 +200,7 @@ function PictureFrame({
         label={asset.name}
         zoomable={!failed}
         ratio={ratio}
+        caption={solo ? `Showing ${solo.name} alone` : undefined}
         onExpand={failed || !src ? undefined : () => view(true)}
       >
         {image()}
@@ -193,16 +217,17 @@ function PictureFrame({
 
 export type AssetFrameProps = {
   asset: InspectedAsset;
-  pixels?: { width: number; height: number } | null;
+  pixels?: Pixels | null;
   picture?: string | null;
+  solo?: SoloPicture | null;
   read: (path: string) => Promise<string>;
   onSeconds: (seconds: number) => void;
   onFull?: (open: boolean) => void;
 };
 
-export default function AssetFrame({ asset, pixels, picture, read, onSeconds, onFull }: AssetFrameProps) {
+export default function AssetFrame({ asset, pixels, picture, solo, read, onSeconds, onFull }: AssetFrameProps) {
   if (asset.type === "image") {
-    return <PictureFrame asset={asset} pixels={pixels} picture={picture} onFull={onFull} />;
+    return <PictureFrame asset={asset} pixels={pixels} picture={picture} solo={solo} onFull={onFull} />;
   }
   if (asset.type === "video") {
     return <VideoFrame asset={asset} onSeconds={onSeconds} />;

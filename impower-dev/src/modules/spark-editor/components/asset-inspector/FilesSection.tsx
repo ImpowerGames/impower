@@ -6,11 +6,11 @@ import {
   DropdownRoot,
   DropdownSeparator,
   DropdownTrigger,
-  ImageIcon,
   ListRow,
   MoreVerticalIcon,
   PencilIcon,
   PlusIcon,
+  Thumbnail,
   TrashIcon,
 } from "@impower/impower-ui/components";
 import { useRef, useState } from "preact/hooks";
@@ -26,6 +26,9 @@ import Section from "./Section";
 export type FilesSectionProps = {
   stack: ImageStack;
   sizes: Readonly<Record<string, number>>;
+  sources: Readonly<Record<string, string | undefined>>;
+  soloed: string | null;
+  onSolo: (path: string | null) => void;
   intents: () => Promise<typeof WorkspaceIntents>;
   relocate: (paths: readonly string[], action: () => Promise<readonly FileMove[]>) => Promise<void>;
 };
@@ -65,11 +68,13 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: "rename"
   );
 }
 
-export default function FilesSection({ stack, sizes, intents, relocate }: FilesSectionProps) {
+export default function FilesSection({ stack, sizes, sources, soloed, onSolo, intents, relocate }: FilesSectionProps) {
   const rows = fileRows(stack, sizes);
   const picker = useRef<HTMLInputElement | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<FileRow | null>(null);
+
+  const thumbnailOf = (row: FileRow) => <Thumbnail surface="stage" fit="contain" src={sources[row.path]} />;
 
   const act = (row: FileRow, action: "rename" | "download" | "delete") => {
     if (action === "rename") {
@@ -107,7 +112,7 @@ export default function FilesSection({ stack, sizes, intents, relocate }: FilesS
           <div role="listitem" key={row.path} class="h-14" data-file-path={row.path}>
             {renaming === row.path ? (
               <NameRow
-                icon={<ImageIcon class="text-muted" />}
+                icon={thumbnailOf(row)}
                 label={`Rename ${row.name}`}
                 initial={stemAndExtension(row.name)[0]}
                 suffix={stemAndExtension(row.name)[1]}
@@ -121,9 +126,14 @@ export default function FilesSection({ stack, sizes, intents, relocate }: FilesS
               />
             ) : (
               <ListRow
-                icon={<ImageIcon class="text-muted" />}
+                size="dense"
+                icon={thumbnailOf(row)}
                 label={row.name}
                 description={`${row.role} · ${bytesLabel(row.size)}`}
+                pressed={soloed === row.path}
+                aria-label={`Show ${row.name} alone`}
+                data-file-solo
+                onClick={() => onSolo(soloed === row.path ? null : row.path)}
                 actions={<FileMenu row={row} onAction={(action) => act(row, action)} />}
               />
             )}

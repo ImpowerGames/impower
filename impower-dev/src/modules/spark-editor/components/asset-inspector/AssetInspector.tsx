@@ -34,6 +34,7 @@ import { showSnackbar } from "../../utils/snackbar";
 import { assetsHome } from "../../workspace/assetsListing";
 import { usedAs, usesOf } from "../../workspace/assetUsage";
 import { usageGroups } from "../../workspace/WorkspaceSearch";
+import { nameOf } from "../../workspace/scriptsListing";
 import type { Workspace as WorkspaceIntents } from "../../workspace/Workspace";
 import type { InspectorFacts } from "../../workspace/WorkspaceAssets";
 import { useSettings } from "../../workspace/settings/useSettings";
@@ -190,6 +191,9 @@ export default function AssetInspector({
   const [previewing, setPreviewing] = useState<VariantSelection | null>(null);
   const [chosenForm, setChosenForm] = useState<VariantForm | null>(null);
   const [picture, setPicture] = useState<string | null | undefined>(undefined);
+  const [soloPath, setSoloPath] = useState<string | null>(null);
+  const soloFile = stack ? (asset.files.find((file) => file.path === soloPath) ?? null) : null;
+  const soloPixels = soloFile?.src ? workspace.assetSizes.value[soloFile.src] : undefined;
   const [frameEdge, setFrameEdge] = useState(0);
   const [fullEdge, setFullEdge] = useState(0);
   const pictureSize = Math.max(frameEdge, fullEdge);
@@ -201,6 +205,7 @@ export default function AssetInspector({
   const sounding =
     !!playback && playback.owner !== AUDITION_OWNER && (playback.status === "playing" || playback.status === "loading");
   useEscapeWithin(region, sounding, () => audioSession.stop());
+  useEscapeWithin(region, !sounding && !!soloFile, () => setSoloPath(null), "input, textarea, [contenteditable]");
 
   useEffect(() => {
     close.current?.focus({ preventScroll: true });
@@ -234,7 +239,14 @@ export default function AssetInspector({
     setChosenForm(null);
     setPicture(undefined);
     setFullEdge(0);
+    setSoloPath(null);
   }, [asset.path]);
+
+  useEffect(() => {
+    if (soloFile?.src && soloPixels === undefined) {
+      void intents().then((Workspace) => Workspace.assets.measureImages([soloFile.path]));
+    }
+  }, [soloFile?.path, soloFile?.src]);
 
   useEffect(() => {
     const frame = stack ? body.current?.querySelector<HTMLElement>("[data-zoom-frame]") : null;
@@ -403,6 +415,7 @@ export default function AssetInspector({
       key={`${asset.path}\n${asset.src ?? ""}`}
       asset={asset}
       picture={stack ? picture : undefined}
+      solo={soloFile && { name: nameOf(soloFile.path), src: soloFile.src, pixels: soloPixels }}
       pixels={pixels}
       read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
       onSeconds={setVideoSeconds}
@@ -515,6 +528,7 @@ export default function AssetInspector({
                       void intents().then((Workspace) => Workspace.window.insertReference(insertScript, form, reference))
                   : undefined
               }
+              soloed={!!soloFile}
               sheetContainer={region}
               keepClear={pinned}
             />
@@ -549,6 +563,9 @@ export default function AssetInspector({
           <FilesSection
             stack={stack}
             sizes={Object.fromEntries(asset.files.map((file) => [file.path, file.size]))}
+            sources={Object.fromEntries(asset.files.map((file) => [file.path, file.src]))}
+            soloed={soloFile?.path ?? null}
+            onSolo={setSoloPath}
             intents={intents}
             relocate={relocate}
           />

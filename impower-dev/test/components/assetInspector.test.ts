@@ -1545,6 +1545,178 @@ describe("the Variants tester and the Files section", () => {
     }
   });
 
+  const fileRowsShown = () => [...region()!.querySelectorAll<HTMLElement>("[data-file-path]")];
+  const soloButton = (name: string) => region()!.querySelector<HTMLButtonElement>(`button[aria-label="Show ${name} alone"]`)!;
+  const stageImage = () => region()!.querySelector<HTMLElement>("[data-zoom-frame] img")!.getAttribute("src");
+  const caption = () => region()!.querySelector("[data-zoom-frame] [data-zoom-caption]")?.textContent ?? null;
+  const pressedRows = () =>
+    [...region()!.querySelectorAll<HTMLElement>('[data-inspector-files] button[aria-pressed="true"]')].map((b) =>
+      b.getAttribute("aria-label"),
+    );
+  const srcOf = (path: string) => workspace.assetListing.value!.files[path]!.src;
+
+  it("draws each file's own picture on its row, on the stage, with the failed glyph in the same space", async () => {
+    await mount();
+    await open("imani");
+    const rows = fileRowsShown();
+    expect(rows.map((row) => row.getAttribute("data-file-path")).sort()).toEqual([...IMANI].sort());
+    for (const row of rows) {
+      const thumbnail = row.querySelector<HTMLElement>("[data-thumbnail]")!;
+      expect(thumbnail.className.split(" ")).toEqual(expect.arrayContaining(["size-11", "bg-stage"]));
+      expect(thumbnail.querySelector("img")!.getAttribute("src")).toBe(srcOf(row.getAttribute("data-file-path")!));
+      expect(row.className.split(" ")).toContain("h-14");
+    }
+    const night = rows.find((row) => row.getAttribute("data-file-path") === `${P}/imani@night.png`)!;
+    await act(async () => {
+      night.querySelector("[data-thumbnail] img")!.dispatchEvent(new Event("error"));
+    });
+    await settle();
+    const failed = night.querySelector<HTMLElement>("[data-thumbnail]")!;
+    expect(failed.hasAttribute("data-thumbnail-failed")).toBe(true);
+    expect(failed.className.split(" ")).toEqual(expect.arrayContaining(["size-11", "bg-stage"]));
+    expect(failed.querySelector("svg")).not.toBeNull();
+  });
+
+  it("shows one file alone on the stage when its row is pressed, names it, holds the tester, and moves or ends on another press", async () => {
+    await mount();
+    await open("imani");
+    await pick(group("face"), "Happy");
+    expect(stageImage()).toBe("/picture/imani~happy");
+    expect(caption()).toBeNull();
+    expect(pressedRows()).toEqual([]);
+
+    await click(soloButton("imani~face.sad.png"));
+    expect(stageImage()).toBe(srcOf(`${P}/imani~face.sad.png`));
+    expect(caption()).toBe("Showing imani~face.sad.png alone");
+    expect(pressedRows()).toEqual(["Show imani~face.sad.png alone"]);
+    expect(soloButton("imani~face.sad.png").parentElement!.className.split(" ")).toEqual(
+      expect.arrayContaining(["bg-tint", "before:opacity-100"]),
+    );
+    expect(soloButton("imani.png").getAttribute("aria-pressed")).toBe("false");
+    expect([group("@"), group("face"), group("mouth")].every((button) => button.disabled)).toBe(true);
+    expect(region()!.querySelector<HTMLButtonElement>("[data-variant-copy]")!.disabled).toBe(true);
+    expect(region()!.querySelector<HTMLButtonElement>("[data-variant-reset]")!.disabled).toBe(true);
+    expect([...region()!.querySelectorAll<HTMLInputElement>('input[type="radio"]')].every((input) => input.disabled)).toBe(true);
+
+    await click(soloButton("imani@night.png"));
+    expect(stageImage()).toBe(srcOf(`${P}/imani@night.png`));
+    expect(caption()).toBe("Showing imani@night.png alone");
+    expect(pressedRows()).toEqual(["Show imani@night.png alone"]);
+
+    await click(soloButton("imani@night.png"));
+    expect(stageImage()).toBe("/picture/imani~happy");
+    expect(caption()).toBeNull();
+    expect(pressedRows()).toEqual([]);
+    expect(group("face").disabled).toBe(false);
+    expect(reference()).toBe("[[imani:happy]]");
+  });
+
+  it("ends solo on Escape without closing, and the next Escape closes", async () => {
+    await mount();
+    await open("imani");
+    await click(soloButton("imani~mouth.open.png"));
+    expect(caption()).toBe("Showing imani~mouth.open.png alone");
+    await key(soloButton("imani~mouth.open.png"), "Escape");
+    expect(region()).not.toBeNull();
+    expect(caption()).toBeNull();
+    expect(stageImage()).toBe("/picture/imani");
+    expect(pressedRows()).toEqual([]);
+    await key(closeButton(), "Escape");
+    expect(region()).toBeNull();
+  });
+
+  it("ends solo on Escape in a phone's sheet without closing it", async () => {
+    layout.value = "phone";
+    await mount();
+    await open("imani");
+    await click(soloButton("imani~face.happy.png"));
+    await key(soloButton("imani~face.happy.png"), "Escape");
+    expect(region()).not.toBeNull();
+    expect(region()!.getAttribute("data-asset-inspector")).toBe("sheet");
+    expect(caption()).toBeNull();
+  });
+
+  it("ends solo on choosing another asset, and comes back composed", async () => {
+    workspace.assetListing.value = {
+      ...workspace.assetListing.value!,
+      files: { ...workspace.assetListing.value!.files, [`${P}/zara.png`]: fact(99) },
+    };
+    await mount();
+    await open("imani");
+    await click(soloButton("imani~face.happy.png"));
+    expect(step("next").getAttribute("aria-label")).toBe("Next: zara");
+    await click(step("next"));
+    expect(title()).toBe("zara");
+    await click(step("previous"));
+    expect(title()).toBe("imani");
+    expect(caption()).toBeNull();
+    expect(pressedRows()).toEqual([]);
+    expect(stageImage()).toBe("/picture/imani");
+  });
+
+  it("keeps the stage's zoom and frame when solo starts and ends", async () => {
+    await mount();
+    await open("imani");
+    const frame = region()!.querySelector<HTMLElement>("[data-zoom-frame]")!;
+    await click(frame.querySelector<HTMLElement>('button[aria-label="Zoom in"]'));
+    const transform = (frame.firstElementChild as HTMLElement).style.transform;
+    expect(frame.hasAttribute("data-zoomed")).toBe(true);
+    await click(soloButton("imani~face.happy.png"));
+    expect(region()!.querySelector("[data-zoom-frame]")).toBe(frame);
+    expect((frame.firstElementChild as HTMLElement).style.transform).toBe(transform);
+    await click(soloButton("imani~face.happy.png"));
+    expect(region()!.querySelector("[data-zoom-frame]")).toBe(frame);
+    expect((frame.firstElementChild as HTMLElement).style.transform).toBe(transform);
+  });
+
+  it("places a file of another size where it sits on the base, measuring it when soloed", async () => {
+    workspace.assetSizes.value = { [srcOf(`${P}/imani.png`)!]: { width: 400, height: 200 } };
+    await mount();
+    await open("imani");
+    await click(soloButton("imani~face.happy.png"));
+    expect(assets.measureImages).toHaveBeenCalledWith([`${P}/imani~face.happy.png`]);
+    const placed = () => region()!.querySelector<HTMLElement>("[data-zoom-frame] [data-thumbnail]")!.parentElement!;
+    expect(placed().className.split(" ")).toContain("inset-0");
+    await act(async () => {
+      workspace.assetSizes.value = {
+        ...workspace.assetSizes.value,
+        [srcOf(`${P}/imani~face.happy.png`)!]: { width: 200, height: 50 },
+      };
+    });
+    await settle();
+    expect(placed().style.width).toBe("50%");
+    expect(placed().style.height).toBe("25%");
+    expect(placed().className.split(" ")).toEqual(expect.arrayContaining(["top-0", "left-0"]));
+  });
+
+  it("keeps the file menu working without starting solo, and lets Escape cancel a rename while soloed", async () => {
+    await mount();
+    await open("imani");
+    await fileMenu("imani~face.sad.png", "Download");
+    expect(assets.download).toHaveBeenCalledWith(`${P}/imani~face.sad.png`);
+    expect(pressedRows()).toEqual([]);
+    await click(soloButton("imani~face.happy.png"));
+    await fileMenu("imani~face.sad.png", "Rename");
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani~face.sad.png"]')!;
+    await key(input, "Escape");
+    expect(host!.querySelector('input[aria-label="Rename imani~face.sad.png"]')).toBeNull();
+    expect(caption()).toBe("Showing imani~face.happy.png alone");
+  });
+
+  it("gives a folder stack's rows the same pictures and solo", async () => {
+    lists({ assetsType: "image", assetsFolders: { image: `${P}/mia` } });
+    await mount();
+    await open("mia");
+    const rows = fileRowsShown();
+    expect(rows.length).toBe(MIA.length);
+    for (const row of rows) {
+      expect(row.querySelector("[data-thumbnail] img")!.getAttribute("src")).toBe(srcOf(row.getAttribute("data-file-path")!));
+    }
+    await click(soloButton("30_face.happy.png"));
+    expect(stageImage()).toBe(srcOf(`${P}/mia/30_face.happy.png`));
+    expect(caption()).toBe("Showing 30_face.happy.png alone");
+  });
+
   it("shows a folder stack as one picture with the same tester, and keeps its Rename and Move to the folder", async () => {
     lists({ assetsType: "image", assetsFolders: { image: `${P}/mia` } });
     await mount();
