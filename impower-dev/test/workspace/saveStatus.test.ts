@@ -110,7 +110,7 @@ describe("the save status caption map", () => {
   it("reads a saved local project as a saved draft, with the prototype's tooltip", () => {
     expect(saveStatusOf("cached", true)).toEqual({
       text: "Draft saved",
-      title: "Saved in this browser. Open Save & sync.",
+      title: "Saved in this browser.",
       tone: "saved",
       action: "menu",
     });

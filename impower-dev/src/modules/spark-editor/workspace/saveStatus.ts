@@ -93,7 +93,7 @@ export const savedLocally = (
   local: boolean,
 ): boolean => !(local && status && LOCAL_SAVE_ERRORS.includes(status));
 
-const SETTLED_LOCAL_TITLE = "Saved in this browser. Open Save & sync.";
+const SETTLED_LOCAL_TITLE = "Saved in this browser.";
 
 export const saveStatusOf = (
   status: SyncStatus | undefined,

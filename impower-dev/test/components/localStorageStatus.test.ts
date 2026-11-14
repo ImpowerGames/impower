@@ -97,9 +97,7 @@ afterEach(async () => {
 describe("the local project's storage status", () => {
   it("says where the work lives, with a marker while the browser has not agreed to keep it", async () => {
     expect(trigger()?.textContent?.trim()).toBe("Draft saved");
-    expect(trigger()?.getAttribute("title")).toBe(
-      "Saved in this browser. Open Save & sync.",
-    );
+    expect(trigger()?.getAttribute("title")).toBe("Saved in this browser.");
     expect(trigger()?.querySelector("[data-storage-marker]")).not.toBeNull();
   });
 
