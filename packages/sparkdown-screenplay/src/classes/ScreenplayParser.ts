@@ -29,39 +29,76 @@ const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
 
 const GLUED_ARM = "LuauSparkdownInlineGluedAlternatorArm";
 
+interface JoinedPositions {
+  readonly parts: readonly Positions[];
+  readonly length: number;
+}
+
+type Positions = readonly number[] | JoinedPositions;
+
 interface Reading {
   text: string;
   styled: string;
-  at?: number[];
+  at?: Positions;
 }
 
 const NO_TEXT: Reading = { text: "", styled: "" };
 
 const NEWLINE: Reading = { text: "\n", styled: "\n" };
 
-const placedOf = (reading: { styled: string; at?: number[] }): number[] =>
+const isFlat = (positions: Positions): positions is readonly number[] => Array.isArray(positions);
+
+const flatten = (positions: Positions): number[] => {
+  const flat: number[] = [];
+  const pending: Positions[] = [positions];
+  while (pending.length > 0) {
+    const next = pending.pop()!;
+    if (isFlat(next)) {
+      for (const position of next) flat.push(position);
+    } else {
+      for (let index = next.parts.length - 1; index >= 0; index--) pending.push(next.parts[index]!);
+    }
+  }
+  return flat;
+};
+
+const withoutLast = (positions: Positions): Positions => {
+  if (isFlat(positions)) return positions.slice(0, -1);
+  const parts = positions.parts.filter((part) => part.length > 0);
+  const last = parts.pop();
+  if (!last) return [];
+  return { parts: [...parts, withoutLast(last)], length: positions.length - 1 };
+};
+
+const placedOf = (reading: { styled: string; at?: Positions }): Positions =>
   reading.at ?? new Array<number>(reading.styled.length).fill(-1);
 
 const join = (...parts: Reading[]): Reading => {
   const text = parts.map((part) => part.text).join("");
   const styled = parts.map((part) => part.styled).join("");
-  return parts.some((part) => part.at) ? { text, styled, at: parts.flatMap(placedOf) } : { text, styled };
+  return parts.some((part) => part.at)
+    ? { text, styled, at: { parts: parts.map(placedOf), length: styled.length } }
+    : { text, styled };
 };
+
+const flatReading = <T extends { at?: Positions }>(reading: T): Omit<T, "at"> & { at?: number[] } =>
+  reading.at ? { ...reading, at: flatten(reading.at) } : (reading as Omit<T, "at">);
 
 const plain = (text: string): Reading => ({ text, styled: text });
 
 const trimReading = (
-  reading: { styled: string; at?: number[] },
+  reading: { styled: string; at?: Positions },
   options: { start?: boolean; end?: boolean } = {},
 ): { styled: string; at?: number[] } => {
   const styled = trimStyled(reading.styled, options);
   if (!reading.at) return { styled };
+  const placed = flatten(reading.at);
   const written = reading.styled;
   const { from, to } = trimStyledBounds(written, options);
   const at: number[] = [];
-  for (let index = 0; index < from; index++) if (isStyleCode(written[index]!)) at.push(reading.at[index]!);
-  for (let index = from; index < to; index++) at.push(reading.at[index]!);
-  for (let index = to; index < written.length; index++) if (isStyleCode(written[index]!)) at.push(reading.at[index]!);
+  for (let index = 0; index < from; index++) if (isStyleCode(written[index]!)) at.push(placed[index]!);
+  for (let index = from; index < to; index++) at.push(placed[index]!);
+  for (let index = to; index < written.length; index++) if (isStyleCode(written[index]!)) at.push(placed[index]!);
   return { styled, at };
 };
 
@@ -165,7 +202,8 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
     const withoutEndNewline = (lines: Reading): Reading => {
       const text = lines.text.replace(/\n$/, "");
       const styled = lines.styled.replace(/\n$/, "");
-      return lines.at ? { text, styled, at: lines.at.slice(0, styled.length) } : { text, styled };
+      if (!lines.at) return { text, styled };
+      return { text, styled, at: styled.length < lines.styled.length ? withoutLast(lines.at) : lines.at };
     };
     const appendLine = (lines: Reading, node: SyntaxNode, line: Reading): Reading =>
       continuesAfterComment(node)
@@ -226,14 +264,22 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         return reading;
       };
       const text = readSkipping(node, readInto(choiceSource), isChoiceUnprinted, (child) => gluedReading(child)?.text ?? "");
-      return { text, ...readStyled(node, read, isChoiceUnprinted, gluedReading, positions) };
+      const styled = readStyled(node, read, isChoiceUnprinted, (child) => {
+        const reading = gluedReading(child);
+        return reading && flatReading(reading);
+      }, positions);
+      return { text, ...styled };
     };
 
     const appendReading = (token: ScreenplayToken, reading: Reading) => {
-      const before = { styled: token.styled ?? "", at: token.at };
+      const before = token.styled ?? "";
       token.text = `${token.text ?? ""}${reading.text}`;
-      token.styled = `${before.styled}${reading.styled}`;
-      if (before.at || reading.at) token.at = [...placedOf(before), ...placedOf(reading)];
+      token.styled = `${before}${reading.styled}`;
+      if (token.at || reading.at) {
+        const at = token.at ?? new Array<number>(before.length).fill(-1);
+        for (const position of flatten(placedOf(reading))) at.push(position);
+        token.at = at;
+      }
     };
 
     let headingContinues = false;
@@ -243,24 +289,24 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
       const inserts = textInserts.length > 0 ? { inserts: textInserts } : {};
       textInserts = [];
       if (title.text) {
-        tokens.push({ tag: "title", ...title, source, ...inserts });
+        tokens.push({ tag: "title", ...flatReading(title), source, ...inserts });
         title = NO_TEXT;
       }
       if (heading.text) {
         tokens.push(
           headingContinues
-            ? { tag: "heading", ...heading, continued: true, source, ...inserts }
-            : { tag: "heading", ...heading, source, ...inserts },
+            ? { tag: "heading", ...flatReading(heading), continued: true, source, ...inserts }
+            : { tag: "heading", ...flatReading(heading), source, ...inserts },
         );
         heading = NO_TEXT;
         headingContinues = true;
       }
       if (transitional.text) {
-        tokens.push({ tag: "transitional", ...transitional, source, ...inserts });
+        tokens.push({ tag: "transitional", ...flatReading(transitional), source, ...inserts });
         transitional = NO_TEXT;
       }
       if (action.text) {
-        tokens.push({ tag: "action", ...action, source, ...inserts });
+        tokens.push({ tag: "action", ...flatReading(action), source, ...inserts });
         action = NO_TEXT;
       }
     };
@@ -467,7 +513,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
               const source: number[] = [];
               tokens.push({
                 tag: "dialogue_content",
-                ...readWords(nodeRef.node, source),
+                ...flatReading(readWords(nodeRef.node, source)),
                 position,
                 source,
               });
@@ -477,7 +523,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
             const source: number[] = [];
             tokens.push({
               tag: "dialogue_parenthetical",
-              ...readLine(nodeRef.node, source),
+              ...flatReading(readLine(nodeRef.node, source)),
               position,
               source,
             });
@@ -504,7 +550,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         if (name === "FrontMatterField" && !COMPILER_FIELDS.has(frontMatterKey)) {
           tokens.push({
             tag: ("meta:" + frontMatterKey) as MetadataTokenType,
-            ...frontMatterValue,
+            ...flatReading(frontMatterValue),
             source: frontMatterSource,
           });
         }
@@ -527,7 +573,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         if (name === "DialogueCharacter") {
           tokens.push({
             tag: "dialogue_character",
-            ...character,
+            ...flatReading(character),
             position,
             source: characterSource,
           });
@@ -541,12 +587,12 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         if (name === "Choice") {
           tokens.push({
             tag: "choice",
-            ...choice,
+            ...flatReading(choice),
             prefix: choice_prefix,
             suffix: choice_suffix,
             source: choiceSource,
             ...(choiceInserts.length > 0 ? { inserts: choiceInserts } : {}),
-            ...(positions ? { at: [...choicePrefixAt, ...placedOf(choice)] } : {}),
+            ...(positions ? { at: [...choicePrefixAt, ...flatten(placedOf(choice))] } : {}),
           });
           choice = NO_TEXT;
           choice_prefix = "";

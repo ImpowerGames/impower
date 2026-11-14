@@ -933,6 +933,9 @@ export const decorate = (
     }
     alignTo = Math.max(alignTo, run.to);
     const { source, style } = printedStyle(run.style);
+    if (run.text !== undefined) {
+      decorations.push(Decoration.replace({ widget: new InsertedTextWidget(run.text) }).range(run.from, run.to));
+    }
     if (source || style) {
       decorations.push(
         Decoration.mark({

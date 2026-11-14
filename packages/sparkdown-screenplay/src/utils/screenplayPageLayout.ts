@@ -11,6 +11,7 @@ export interface PrintedRun {
   from: number;
   to: number;
   style: FormattedText;
+  text?: string;
 }
 
 export interface PrintedScene {
@@ -29,20 +30,35 @@ export interface ScreenplayPageLayout {
   scenes: PrintedScene[];
 }
 
-const addRuns = (line: PageLine, runs: PrintedRun[]) => {
+const addRuns = (line: PageLine, runs: PrintedRun[], script: string) => {
   for (const piece of line.content) {
+    const at = piece.at ?? [];
     let start = -1;
     let previous = -1;
-    for (const position of piece.at ?? []) {
-      if (start >= 0 && position === previous + 1) {
-        previous = position;
-        continue;
-      }
+    const close = () => {
       if (start >= 0) runs.push({ from: start, to: previous + 1, style: piece });
-      start = position;
-      previous = position;
+      start = -1;
+    };
+    for (let index = 0; index < at.length; ) {
+      const position = at[index]!;
+      let end = index + 1;
+      while (end < at.length && at[end] === position) end++;
+      const printed = piece.text.slice(index, end);
+      if (position < 0) {
+        close();
+      } else if (printed !== script[position]) {
+        close();
+        runs.push({ from: position, to: position + 1, style: piece, text: printed });
+      } else if (start >= 0 && position === previous + 1) {
+        previous = position;
+      } else {
+        close();
+        start = position;
+        previous = position;
+      }
+      index = end;
     }
-    if (start >= 0) runs.push({ from: start, to: previous + 1, style: piece });
+    close();
   }
 };
 
@@ -100,7 +116,7 @@ export const screenplayPageLayout = (
   let lastSource: number[] | undefined;
   const addPrinted = (lines: PageLine[] | undefined) => {
     for (const line of lines ?? []) {
-      addRuns(line, runs);
+      addRuns(line, runs, script);
       const sceneAt = line.scene !== undefined ? firstPlaced(line) : undefined;
       if (sceneAt !== undefined) scenes.push({ at: sceneAt, scene: line.scene!, bold: !!line.sceneBold });
       if (line.source && line.source === lastSource) {

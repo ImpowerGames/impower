@@ -862,3 +862,16 @@ describe("a block heading", () => {
     expect(styleDifference("plain headings", source)).toBe("");
   });
 });
+
+describe("a tab in printed text", () => {
+  it("shows the spaces the export prints, character for character", () => {
+    const source = ["scene s", "  : A\tB", "  : A    B", "end", ""].join("\n");
+    const printed = exportRows("default", source);
+    expect(printed).toEqual(["A    B", "A    B"]);
+    screenRows("default", source);
+    const rows = Array.from(views.get("default")!.contentDOM.children)
+      .map((row) => visibleText(row))
+      .filter((text) => text.trim());
+    expect(rows).toEqual(printed);
+  });
+});
