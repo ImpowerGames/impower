@@ -453,6 +453,104 @@ end
   }, 120_000);
 });
 
+const TOGGLE_SOURCE = `define theme as audio with
+  src = "https://example.com/theme.mp3"
+end
+
+define storm as audio with
+  src = "https://example.com/storm.mp3"
+end
+
+scene start
+  ((play music theme))
+  MIA: This is a long sentence that is still typing when the audio preference changes during its beat.
+  MIA: Another beat sharing the music.
+  ((play music storm))
+  MIA: A different beat with different music.
+end
+`;
+
+const TOGGLE_LINES = TOGGLE_SOURCE.split("\n");
+const LONG = TOGGLE_LINES.findIndex((l) => l.includes("This is a long"));
+const DIFFERENT = TOGGLE_LINES.findIndex((l) => l.includes("A different beat"));
+
+describe("switching Play audio around a played beat (#2258)", () => {
+  async function toggleAt(audio: StandInAudio) {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: TOGGLE_SOURCE }],
+      startFrom: { file: MAIN_URI, line: LONG },
+      manualClock: true,
+      audio,
+    });
+    harness = h;
+    const win = h.overlay.ownerDocument.defaultView as any;
+    win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+    await h.compile();
+    await select(h, LONG);
+    return h;
+  }
+
+  async function beginBeat(h: Harness) {
+    await h.controller.playBeat();
+    await settle(40);
+    for (let i = 0; i < 4; i += 1) {
+      await h.tick(100);
+      await settle(5);
+    }
+    expect(playing(h)).toBe(true);
+  }
+
+  it("starts the shown beat's own loop once on switching on after the beat was played silently to its end", async () => {
+    const audio = createStandInAudio();
+    const h = await toggleAt(audio);
+    await beginBeat(h);
+    for (let elapsed = 0; elapsed < 20_000 && playing(h); elapsed += 100) {
+      await h.tick(100);
+      await settle(5);
+    }
+    expect(playing(h)).toBe(false);
+    expect(audio.sources).toEqual([]);
+    await setPlayAudio(h, true);
+    expect(audio.sourcesOf(THEME)).toHaveLength(1);
+    expect(audio.sounding()).toEqual([THEME]);
+  }, 120_000);
+
+  it("starts the shown beat's loop, and no one-shot, on switching on during a beat begun silently", async () => {
+    const audio = createStandInAudio();
+    const h = await toggleAt(audio);
+    await beginBeat(h);
+    expect(audio.sources).toEqual([]);
+    await setPlayAudio(h, true);
+    expect(playing(h)).toBe(true);
+    expect(audio.sources).toHaveLength(1);
+    expect(audio.sounding()).toEqual([THEME]);
+  }, 120_000);
+
+  it("brings the music back on switching off and on again during a played beat", async () => {
+    const audio = createStandInAudio();
+    const h = await toggleAt(audio);
+    await setPlayAudio(h, true);
+    expect(audio.sounding()).toEqual([THEME]);
+    await beginBeat(h);
+    await setPlayAudio(h, false);
+    expect(audio.sounding()).toEqual([]);
+    await setPlayAudio(h, true);
+    expect(playing(h)).toBe(true);
+    expect(audio.sounding()).toEqual([THEME]);
+  }, 120_000);
+
+  it("brings back only the shown beat's music after caret moves with Play audio off", async () => {
+    const audio = createStandInAudio();
+    const h = await toggleAt(audio);
+    await setPlayAudio(h, true);
+    await setPlayAudio(h, false);
+    await select(h, DIFFERENT);
+    expect(audio.sounding()).toEqual([]);
+    await setPlayAudio(h, true);
+    expect(audio.sounding()).toEqual([STORM]);
+  }, 120_000);
+});
+
 const MOVIE_SOURCE = `define intro as video with
   src = "intro.webm"
 end

@@ -5390,9 +5390,7 @@ export class Game<T extends M = {}> {
       return;
     }
     this.module.audio.forgetHeard();
-    if (!this._beatPlay) {
-      this.module.audio.settlePreview();
-    }
+    this.module.audio.settlePreview();
   }
 
   protected _previewShowsBeat = false;
@@ -5469,8 +5467,10 @@ export class Game<T extends M = {}> {
         );
       }
     }
-    if (playId == null) {
+    if (playId == null || !this._previewAudio) {
       audio.recordBeat(instructions?.audio);
+    }
+    if (playId == null) {
       audio.settlePreview();
     }
     this.checkpoint();
