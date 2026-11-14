@@ -17,6 +17,12 @@ export interface GameState {
   } | null;
   ending: GameStateEnding | null;
   statuses?: GameStatuses;
+  beat?: GameStateBeat;
+}
+
+export interface GameStateBeat {
+  playing: boolean;
+  refusal: string | null;
 }
 
 export interface GameStatuses {

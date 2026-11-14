@@ -339,7 +339,7 @@ describe("PLAY in the worker reaching the end of the story", () => {
     }
   }, 120_000);
 
-  it("restarts PLAY when an edit compiles while it is ended", async () => {
+  it("leaves an ended PLAY ended when an edit compiles", async () => {
     const { h, plays } = await start(RAN_OUT, HELLO);
     try {
       await click(h);
@@ -351,13 +351,10 @@ describe("PLAY in the worker reaching the end of the story", () => {
         },
       ]);
       await h.compile();
-      for (let i = 0; i < 40 && plays.length < 2; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await new Promise((resolve) => setTimeout(resolve, 2500));
       await settle(40);
-      expect(plays).toHaveLength(2);
-      expect(sent(h, "game/reloaded")).toHaveLength(1);
-      expect(launchStates(h).at(-1)).toBe("play");
+      expect(plays).toHaveLength(1);
+      expect(launchStates(h).at(-1)).toBe("ended");
       expect(sent(h, "game/exited")).toEqual([]);
     } finally {
       await h.controller.destroyGameAndApp();
@@ -434,7 +431,6 @@ describe("PLAY in the worker ending as it starts, or failing to replay an ending
   for (const caller of [
     "handleRestartGame",
     "run",
-    "scheduleRestartGame",
     "restartGame",
   ] as const) {
     it(`returns to editing through ${caller} when the replay of an ended run cannot start`, async () => {
@@ -444,11 +440,8 @@ describe("PLAY in the worker ending as it starts, or failing to replay an ending
         await settle(40);
         expect(launchStates(h).at(-1)).toBe("ended");
         const request = h.link.request.bind(h.link);
-        let attempted!: () => void;
-        const attempt = new Promise<void>((resolve) => (attempted = resolve));
         h.link.request = ((type: any, params: any) => {
           if (type.method === PlayMessage.method) {
-            attempted();
             return Promise.resolve({ built: false });
           }
           return request(type, params);
@@ -457,9 +450,6 @@ describe("PLAY in the worker ending as it starts, or failing to replay an ending
           await h.controller.handleRestartGame({ id: 1, params: {} });
         } else if (caller === "run") {
           await h.controller.run();
-        } else if (caller === "scheduleRestartGame") {
-          h.controller.scheduleRestartGame();
-          await attempt;
         } else {
           expect(await h.controller.restartGame()).toBe(false);
         }

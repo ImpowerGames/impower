@@ -1,5 +1,6 @@
 import {
   Button,
+  CloseIcon,
   DetourIcon,
   DropdownContent,
   DropdownRoot,
@@ -36,6 +37,7 @@ import {
 export interface PreviewBarProps {
   fullscreen: boolean;
   onToggleFullscreen: () => void;
+  onClose?: () => void;
 }
 
 const BAR_TEXT = "text-[11px]/[1.4] font-semibold tabular-nums";
@@ -43,6 +45,7 @@ const BAR_TEXT = "text-[11px]/[1.4] font-semibold tabular-nums";
 export default function PreviewBar({
   fullscreen,
   onToggleFullscreen,
+  onClose,
 }: PreviewBarProps) {
   const layout = useLayout();
   const size = sizeControl(workspaceSettings.preferences.value.previewMode);
@@ -59,16 +62,29 @@ export default function PreviewBar({
       ) : layout === "phone" ? null : (
         <AspectRatioMenu pageFillsPane={size === "pageFillsPane"} />
       )}
-      <Button
-        variant="quiet"
-        size="icon"
-        aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen preview"}
-        title={fullscreen ? "Exit fullscreen" : "Fullscreen preview"}
-        class="text-muted"
-        onClick={onToggleFullscreen}
-      >
-        {fullscreen ? <ShrinkIcon /> : <ExpandIcon />}
-      </Button>
+      {onClose ? (
+        <Button
+          variant="quiet"
+          size="icon"
+          aria-label="Close the preview"
+          title="Close the preview"
+          class="text-muted"
+          onClick={onClose}
+        >
+          <CloseIcon />
+        </Button>
+      ) : (
+        <Button
+          variant="quiet"
+          size="icon"
+          aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen preview"}
+          title={fullscreen ? "Exit fullscreen" : "Fullscreen preview"}
+          class="text-muted"
+          onClick={onToggleFullscreen}
+        >
+          {fullscreen ? <ShrinkIcon /> : <ExpandIcon />}
+        </Button>
+      )}
     </div>
   );
 }

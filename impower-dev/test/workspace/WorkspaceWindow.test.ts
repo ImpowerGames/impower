@@ -2,6 +2,8 @@ import {
   MessageProtocol,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
+import { ExecuteEditorCommandMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ToggleEditorBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ToggleEditorBreakpointMessage";
 import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
@@ -97,6 +99,7 @@ vi.mock("@impower/impower-ui/components", async () => {
     "NextIcon",
     "PauseIcon",
     "PlayIcon",
+    "PlayOutlineIcon",
     "PreviousIcon",
     "RestartIcon",
     "ResumeIcon",
@@ -727,6 +730,37 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.panes.logic.panel).toBe("main");
     });
 
+    it("opens a new script on write in Edit mode and focuses its editor once the editor has loaded it", async () => {
+      const projectId = workspace.current.project.id;
+      const uri = `file://${projectId}/Scripts/Untitled script.sd`;
+      const commands: unknown[] = [];
+      const hear = (e: Event) => {
+        const message = (e as CustomEvent).detail;
+        if (ExecuteEditorCommandMessage.type.isRequest(message)) commands.push(message.params);
+      };
+      window.addEventListener(MessageProtocol.event, hear);
+      try {
+        workspace.scriptMode.value = "reading";
+        win.navigateTo("scripts");
+        const writing = win.writeScript("Scripts/Untitled script.sd");
+        expect(window.location.hash).toBe("#write");
+        expect(workspace.current.panes.logic.panels.scripts?.activeEditor).toMatchObject({
+          open: true,
+          filename: "Scripts/Untitled script.sd",
+        });
+        expect(commands).toEqual([]);
+        sendProtocolMessage(
+          DidLoadEditorMessage.type.notification({ textDocument: { uri, version: 1 } }),
+        );
+        await writing;
+        expect(workspace.scriptMode.value).toBe("editing");
+        expect(commands).toEqual([{ textDocument: { uri }, command: "focus" }]);
+      } finally {
+        window.removeEventListener(MessageProtocol.event, hear);
+        workspace.scriptMode.value = "reading";
+      }
+    });
+
     it("browses the scripts from either editor; a script's Back returns to the Scripts page and Back to story to that script", () => {
       win.navigateTo("write");
       win.browseScripts();
@@ -1272,7 +1306,7 @@ describe("Preview preferences", () => {
     it("hears the editor's resolved theme in its URL, when it connects, and whenever it changes", () => {
       const theme = signal<string>("charcoal");
       expect(playerUrl("https://player.test/", theme)).toBe(
-        "https://player.test/#theme=charcoal",
+        "https://player.test/#theme=charcoal&backdrop=game",
       );
       const posted: { method: string; params: any }[] = [];
       const sync = createPlayerPreferenceSync(
@@ -2729,16 +2763,81 @@ describe("The preview's top bar", () => {
     };
   });
 
-  it("shows only the skips and Play while stopped", () => {
+  it("shows Replay beat, the skips and Play while stopped", () => {
     show();
     expect(labels()).toEqual([
       "Viewing mode",
+      "Replay beat",
       "Skip back",
       "Play From Here",
       "Skip forward",
       "Saves",
       "Preview settings",
     ]);
+  });
+
+  it("holds Replay beat in the slot Pause and Play Again take, at the same size", () => {
+    const sizeOf = (button: HTMLButtonElement | null) =>
+      button?.className
+        .split(/\s+/)
+        .filter((token) => token !== "text-accent" && token !== "text-muted")
+        .join(" ");
+    const slotOf = (label: string) => {
+      const group = control(label)?.closest(".justify-self-start");
+      return group?.contains(control("Viewing mode")) ? "left" : null;
+    };
+    show();
+    const stopped = sizeOf(control("Replay beat"));
+    expect(slotOf("Replay beat")).toBe("left");
+    show({ running: true });
+    expect(control("Replay beat")).toBeNull();
+    expect(sizeOf(control("Pause"))).toBe(stopped);
+    expect(slotOf("Pause")).toBe("left");
+    show({ running: true, paused: true });
+    expect(sizeOf(control("Resume"))).toBe(stopped);
+    show({ running: true, ended: true });
+    expect(control("Replay beat")).toBeNull();
+    expect(sizeOf(control("Play Again"))).toBe(stopped);
+    expect(slotOf("Play Again")).toBe("left");
+  });
+
+  it("plays the shown beat from Replay beat, pressed while it plays, with its shortcut in the title", async () => {
+    show();
+    const replay = control("Replay beat")!;
+    expect(replay.hasAttribute("aria-disabled")).toBe(false);
+    expect(replay.getAttribute("aria-pressed")).not.toBe("true");
+    expect(replay.title).toMatch(/^Replay beat \(.+\)$/);
+    replay.click();
+    await vi.waitFor(() => expect(requests).toContain("preview/playBeat"));
+    show({ beatPlaying: true });
+    expect(control("Replay beat")?.getAttribute("aria-pressed")).toBe("true");
+    requests.length = 0;
+    control("Replay beat")!.click();
+    await vi.waitFor(() => expect(requests).toContain("preview/playBeat"));
+  });
+
+  it("disables Replay beat with the reason in its title when no beat can play, and sends nothing", async () => {
+    show({ beatRefusal: "This line shows no beat to play." });
+    expect(control("Replay beat")?.getAttribute("aria-disabled")).toBe("true");
+    expect(control("Replay beat")?.title).toBe("This line shows no beat to play.");
+    show({ playRefusal: "Fix the errors to play the story." });
+    expect(control("Replay beat")?.getAttribute("aria-disabled")).toBe("true");
+    expect(control("Replay beat")?.title).toBe("Fix the errors to play the story.");
+    control("Replay beat")!.click();
+    win.playBeat();
+    await Promise.resolve();
+    expect(requests).not.toContain("preview/playBeat");
+  });
+
+  it("follows the player's beat state, playing and refused", () => {
+    win.syncPreviewBeat({ playing: true, refusal: null });
+    expect(workspace.current.preview.modes.game.beatPlaying).toBe(true);
+    expect(workspace.current.preview.modes.game.beatRefusal).toBeUndefined();
+    win.syncPreviewBeat({ playing: false, refusal: "This line shows no beat to play." });
+    expect(workspace.current.preview.modes.game.beatPlaying).toBe(false);
+    expect(workspace.current.preview.modes.game.beatRefusal).toBe(
+      "This line shows no beat to play.",
+    );
   });
 
   it("pauses, steps and resumes through the debug client while playing, each step's refusal on its button", async () => {

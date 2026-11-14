@@ -1,5 +1,6 @@
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { Event } from "../types/Event";
 import type { Instructions } from "../types/Instructions";
 import { isAdvanceKey } from "../utils/isAdvanceKey";
 import { pageKey } from "../utils/pageKey";
@@ -50,6 +51,13 @@ const PREVIOUS_KEYS = ["ArrowUp", "ArrowLeft"];
 
 const reportedUnshownText = new WeakSet<Game>();
 
+const finishesPlay = (params: Event): boolean => {
+  if (params.type === "pointerdown") {
+    return params.button === 0;
+  }
+  return params.type === "keydown" && isAdvanceKey(params);
+};
+
 export class Coordinator<G extends Game> {
   protected _game: G;
 
@@ -77,15 +85,21 @@ export class Coordinator<G extends Game> {
 
   protected _focused: number | null = null;
 
+  protected _plays = false;
+
+  protected _played?: () => void;
+
   constructor(
     game: G,
     instructions: Instructions,
-    options?: { settled?: "restored" | "presented" },
+    options?: { settled?: "restored" | "presented"; played?: () => void },
   ) {
     this._game = game;
     this._instructions = instructions;
     if (options?.settled) {
       this.onSettle(options.settled === "restored");
+    } else if (game.context.system.previewing && options?.played) {
+      this.onPlay(options.played);
     } else if (game.context.system.previewing) {
       this.onPreview();
     } else {
@@ -93,8 +107,32 @@ export class Coordinator<G extends Game> {
     }
   }
 
+  get playing(): boolean {
+    return this._played != null;
+  }
+
   onPreview() {
     this.display({ instant: true, preview: true });
+  }
+
+  onPlay(played: () => void) {
+    this._plays = true;
+    this._played = played;
+    this._game.module.ui.setBeatPlaying(true);
+    this._onTick = this.display({ preview: true });
+    this._onTick?.(0);
+  }
+
+  settle(): void {
+    const played = this._played;
+    if (!played) {
+      return;
+    }
+    this._played = undefined;
+    this._onTick = undefined;
+    this._game.module.ui.setBeatPlaying(false);
+    this.display({ instant: true, preview: true });
+    played();
   }
 
   onSettle(restored: boolean) {
@@ -114,6 +152,12 @@ export class Coordinator<G extends Game> {
       this._onTick(time.deltaMS);
       this._elapsedMS += time.deltaMS;
     }
+    if (this._plays) {
+      if (this._finishedExecution) {
+        this.settle();
+      }
+      return;
+    }
     const advance = this.shouldContinue();
     if (advance === 1) {
       this._game.autoAdvancedToContinue();
@@ -123,6 +167,12 @@ export class Coordinator<G extends Game> {
   }
 
   onMessage(msg: RequestMessage | NotificationMessage) {
+    if (this._plays) {
+      if (EventMessage.type.isNotification(msg) && finishesPlay(msg.params)) {
+        this.settle();
+      }
+      return;
+    }
     if (EventMessage.type.isNotification(msg)) {
       const params = msg.params;
       if (params.type === "pointerdown") {
@@ -182,7 +232,13 @@ export class Coordinator<G extends Game> {
   protected choose(index: number): void {
     const game = this._game;
     const count = this._instructions.choices?.length ?? 0;
-    if (game.ending || this._chosen || index < 0 || index >= count) {
+    if (
+      this._plays ||
+      game.ending ||
+      this._chosen ||
+      index < 0 ||
+      index >= count
+    ) {
       return;
     }
     this._chosen = true;
@@ -318,23 +374,21 @@ export class Coordinator<G extends Game> {
     };
 
     const extended = Boolean(instructions.extended);
+    const silent = previewing && !instant;
 
-    if ((!instant || options?.presented) && !extended) {
+    if ((!instant || options?.presented) && !extended && !silent) {
       game.module.audio.stopChannel("sound");
       game.module.audio.stopChannel("voice");
     }
-    game.module.audio.stopChannel("typewriter");
+    if (!silent) {
+      game.module.audio.stopChannel("typewriter");
+    }
 
     const audioTriggerIds =
-      instant || !instructions.audio
+      instant || silent || !instructions.audio
         ? []
         : Object.entries(instructions.audio).map(([target, events]) =>
-            game.module.audio.schedule(
-              target,
-              events,
-              false,
-              instructions.redelivered,
-            ),
+            game.module.audio.schedule(target, events),
           );
 
     const assets = game.module.assets;

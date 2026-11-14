@@ -732,9 +732,10 @@ await check("on a device, --shot after a named step waits until that step's surf
 
 const OWNED_PREVIEW = "impower-driver/revealed-preview";
 
-function phonePreviewPage({ paneShown = false, owned = false, saveStuck = false, backMissing = false } = {}) {
+function phonePreviewPage({ paneShown = false, owned = false, saveStuck = false, closeMissing = false } = {}) {
   const pane = '[role="group"][aria-label="Playback controls"]';
-  const show = 'button[aria-label="Show the preview"]';
+  const show = 'button[aria-label="Play from this line"]';
+  const close = 'button[aria-label="Close the preview"]';
   const settings = 'button[aria-label="Preview settings"]';
   const open = '[role="menu"], [role="dialog"]';
   const state = { paneShown, savedRevealed: paneShown, menuOpen: false, storage: owned ? { [OWNED_PREVIEW]: "1" } : {}, pressed: [] };
@@ -742,7 +743,7 @@ function phonePreviewPage({ paneShown = false, owned = false, saveStuck = false,
     if (selector === pane || selector === settings) return state.paneShown;
     if (selector === show) return !state.paneShown;
     if (selector === open) return state.menuOpen;
-    if (options?.hasText === "Back to story") return state.paneShown && !backMissing;
+    if (selector === close) return state.paneShown && !closeMissing;
     return false;
   };
   const page = stubPage();
@@ -751,10 +752,10 @@ function phonePreviewPage({ paneShown = false, owned = false, saveStuck = false,
     first: () => ({
       isVisible: async () => visible(selector, options),
       click: async () => {
-        state.pressed.push(options?.hasText ?? selector);
+        state.pressed.push(selector);
         if (selector === show) state.paneShown = state.savedRevealed = true;
         if (selector === settings) state.menuOpen = true;
-        if (options?.hasText === "Back to story") state.paneShown = false;
+        if (selector === close) state.paneShown = false;
       },
       waitFor: async ({ state: want } = {}) => {
         if ((want === "hidden") === visible(selector, options)) throw new Error("timeout");
@@ -786,7 +787,7 @@ await check("in the phone layout a preview step reveals the pane through ui befo
   const result = await ui(["--step", "preview-settings"], uiDeps(page, null).deps);
   assert.equal(result.steps[0].ran, true, JSON.stringify(result.steps[0]));
   assert.equal(result.steps[0].revealed, "preview");
-  assert.deepEqual(state.pressed, ['button[aria-label="Show the preview"]', 'button[aria-label="Preview settings"]', "Back to story"]);
+  assert.deepEqual(state.pressed, ['button[aria-label="Play from this line"]', 'button[aria-label="Preview settings"]', 'button[aria-label="Close the preview"]']);
   assert.deepEqual(result.hidAgain, [{ reveal: "preview", hidden: true }]);
   assert.equal(state.paneShown, false);
   assert.equal(state.savedRevealed, false);
@@ -796,7 +797,7 @@ await check("in the phone layout a preview step reveals the pane through ui befo
 });
 
 await check("a run whose revealed pane cannot be hidden and saved again fails, naming why", async () => {
-  for (const [label, options, cause] of [["save never lands", { saveStuck: true }, /the workspace had not saved the preview as hidden within 5 s/], ["no Back to story", { backMissing: true }, /the preview pane is on screen and its Back to story link is not/]]) {
+  for (const [label, options, cause] of [["save never lands", { saveStuck: true }, /the workspace had not saved the preview as hidden within 5 s/], ["no Close the preview", { closeMissing: true }, /the preview pane is on screen and its Close the preview button is not/]]) {
     const { page, state } = phonePreviewPage(options);
     const result = await ui(["--step", "preview-settings"], uiDeps(page, null).deps);
     assert.equal(result.hidAgain[0].hidden, false, label);

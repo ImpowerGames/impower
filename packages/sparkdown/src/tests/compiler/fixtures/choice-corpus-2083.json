@@ -1002,17 +1002,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * \\[ -{\"[\"}Go@ \\]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "-[Go@"
+    "[ -[Go@ ]"
    ],
    "runs": [
     {
-     "out": "\nBody.\n",
+     "out": "[ -[Go@ ]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "bf4a8e87"
+   "scopes": "1b19e983"
   },
   {
    "id": "plain-choice-61",
@@ -1982,17 +1982,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * * -\\[ <- [[x]]\\[ {t[1]}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "- <- [[x"
+    "-[ <- [x"
    ],
    "runs": [
     {
-     "out": "-][ a\nBody.\n",
+     "out": "-[ <- ][ a\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a58e141b"
+   "scopes": "e1351734"
   },
   {
    "id": "plain-choice-121",
@@ -2739,11 +2739,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * \\[|[[x]] #tag {\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "|[[x"
+    "[|[x"
    ],
    "runs": [
     {
-     "out": "] #tag\nBody.\n",
+     "out": "[|] #tag\nBody.\n",
      "errs": []
     }
    ],
@@ -2751,7 +2751,7 @@
    "diags": [
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
    ],
-   "scopes": "a7387f57"
+   "scopes": "cbfd19ba"
   },
   {
    "id": "plain-choice-167",
@@ -4480,17 +4480,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + {\"->\"} <>}\\[.. ]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "-> <>}.."
+    "-> <>}[.. ]"
    ],
    "runs": [
     {
-     "out": "-> <>}\nBody.\n",
+     "out": "-> <>}[.. ]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "4497a3a6"
+   "scopes": "00ce3399"
   },
   {
    "id": "plain-choice-273",
@@ -6111,17 +6111,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + if x \\[ {\"[\"} ] [a]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "["
+    "[ [ ] a"
    ],
    "runs": [
     {
-     "out": "[a]\nBody.\n",
+     "out": "[ [ ]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "7260df38"
+   "scopes": "aa6d2ba3"
   },
   {
    "id": "plain-choice-378",
@@ -6382,17 +6382,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    +  [ \\]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    ""
+    "[ ]"
    ],
    "runs": [
     {
-     "out": "Body.\n",
+     "out": "[ ]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "33a38804"
+   "scopes": "508f09ad"
   },
   {
    "id": "plain-choice-394",
@@ -8561,17 +8561,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * * \\[ [ ' \\]Go\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "[ '"
+    "[ [ ' ]Go"
    ],
    "runs": [
     {
-     "out": "Go\nBody.\n",
+     "out": "[ [ ' ]Go\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "22b60250"
+   "scopes": "a1f01306"
   },
   {
    "id": "plain-choice-530",
@@ -8779,7 +8779,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "9813e57e"
+   "scopes": "ef7fe8d7"
   },
   {
    "id": "plain-choice-543",
@@ -9580,17 +9580,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + (lbl) if x #tag@ {\"->\"} \\[ =]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "#tag@ -> ="
+    "#tag@ -> [ =]"
    ],
    "runs": [
     {
-     "out": "#tag@ ->\nBody.\n",
+     "out": "#tag@ -> [ =]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "eceae685"
+   "scopes": "58fda380"
   },
   {
    "id": "plain-choice-593",
@@ -9652,7 +9652,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "3122428d"
+   "scopes": "460086e4"
   },
   {
    "id": "plain-choice-597",
@@ -9721,17 +9721,17 @@
    "class": "A",
    "first": "",
    "choices": [
-    "<> a ["
+    "<> [ a"
    ],
    "runs": [
     {
-     "out": "<> \\] [\nBody.\n",
+     "out": "<> [ a ] [\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a3cd9de7"
+   "scopes": "332fccb6"
   },
   {
    "id": "plain-choice-616",
@@ -10427,7 +10427,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "8008cf21"
+   "scopes": "ff5efc66"
   },
   {
    "id": "plain-choice-863",
@@ -10962,7 +10962,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "97fa3f65"
+   "scopes": "f9f6573a"
   },
   {
    "id": "plain-choice-1031",
@@ -11006,17 +11006,17 @@
    "class": "A",
    "first": "",
    "choices": [
-    "a| a"
+    "a| [ a ]"
    ],
    "runs": [
     {
-     "out": "a|\nBody.\n",
+     "out": "a| [ a ]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "c92c0984"
+   "scopes": "25c2fe94"
   },
   {
    "id": "plain-choice-1052",
@@ -11495,7 +11495,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e4ce5b8e"
+   "scopes": "66c6081f"
   },
   {
    "id": "plain-choice-1172",
@@ -11588,7 +11588,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "559aa39f"
+   "scopes": "31ea907e"
   },
   {
    "id": "plain-choice-1223",
@@ -11940,7 +11940,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "04064e53"
+   "scopes": "221d793e"
   },
   {
    "id": "plain-choice-1324",
@@ -12332,7 +12332,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "3dd40bdf"
+   "scopes": "197d2f2e"
   },
   {
    "id": "plain-choice-1439",
@@ -26337,17 +26337,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {[[a]]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away` now"
+    "Go `far {[[a]]} away` now"
    ],
    "runs": [
     {
-     "out": "Go `far a away` now\nBody.\n",
+     "out": "Go `far {[[a]]} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "2bb2e8b2"
+   "scopes": "9ba9d3b7"
   },
   {
    "id": "plain-raw-13",
@@ -26371,7 +26371,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {[[a]]} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away`"
+    "Go `far {[[a]]} away`"
    ],
    "runs": [
     {
@@ -26381,41 +26381,41 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a11a2ade"
+   "scopes": "2cbf5a9f"
   },
   {
    "id": "plain-raw-15",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {[[a]]} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a `far a away` b* now"
+    "Go *a `far {[[a]]} away` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a `far a away` b* now\nBody.\n",
+     "out": "Go *a `far {[[a]]} away` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "83d66e76"
+   "scopes": "15aa5409"
   },
   {
    "id": "plain-raw-16",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {[[a]]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away`` now"
+    "Go ``far {[[a]]} away`` now"
    ],
    "runs": [
     {
-     "out": "Go ``far a away`` now\nBody.\n",
+     "out": "Go ``far {[[a]]} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "43411eda"
+   "scopes": "3f4b111b"
   },
   {
    "id": "plain-raw-17",
@@ -26439,7 +26439,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {[[a]]} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away``"
+    "Go ``far {[[a]]} away``"
    ],
    "runs": [
     {
@@ -26449,24 +26449,24 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "716d4436"
+   "scopes": "a8c4ec83"
   },
   {
    "id": "plain-raw-19",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {[[a]]} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a ``far a away`` b* now"
+    "Go *a ``far {[[a]]} away`` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a ``far a away`` b* now\nBody.\n",
+     "out": "Go *a ``far {[[a]]} away`` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "26248e06"
+   "scopes": "364bf1a9"
   },
   {
    "id": "plain-raw-20",
@@ -26541,17 +26541,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {[=[a]=]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away` now"
+    "Go `far {[=[a]=]} away` now"
    ],
    "runs": [
     {
-     "out": "Go `far a away` now\nBody.\n",
+     "out": "Go `far {[=[a]=]} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "5608c27e"
+   "scopes": "784103b1"
   },
   {
    "id": "plain-raw-25",
@@ -26575,7 +26575,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {[=[a]=]} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away`"
+    "Go `far {[=[a]=]} away`"
    ],
    "runs": [
     {
@@ -26585,41 +26585,41 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "4523b412"
+   "scopes": "c3df2c8d"
   },
   {
    "id": "plain-raw-27",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {[=[a]=]} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a `far a away` b* now"
+    "Go *a `far {[=[a]=]} away` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a `far a away` b* now\nBody.\n",
+     "out": "Go *a `far {[=[a]=]} away` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e92b561a"
+   "scopes": "81b8a963"
   },
   {
    "id": "plain-raw-28",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {[=[a]=]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away`` now"
+    "Go ``far {[=[a]=]} away`` now"
    ],
    "runs": [
     {
-     "out": "Go ``far a away`` now\nBody.\n",
+     "out": "Go ``far {[=[a]=]} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "6c471236"
+   "scopes": "178e9c45"
   },
   {
    "id": "plain-raw-29",
@@ -26643,7 +26643,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {[=[a]=]} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away``"
+    "Go ``far {[=[a]=]} away``"
    ],
    "runs": [
     {
@@ -26653,24 +26653,24 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "eb4899ca"
+   "scopes": "1f97f4b9"
   },
   {
    "id": "plain-raw-31",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {[=[a]=]} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a ``far a away`` b* now"
+    "Go *a ``far {[=[a]=]} away`` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a ``far a away`` b* now\nBody.\n",
+     "out": "Go *a ``far {[=[a]=]} away`` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "eddce0d6"
+   "scopes": "1fe895a7"
   },
   {
    "id": "plain-raw-32",
@@ -26745,17 +26745,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {1 --[[c]] + 1} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far 2 away` now"
+    "Go `far {1 --[[c]] + 1} away` now"
    ],
    "runs": [
     {
-     "out": "Go `far 2 away` now\nBody.\n",
+     "out": "Go `far {1 --[[c]] + 1} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a20fb6af"
+   "scopes": "16479ac3"
   },
   {
    "id": "plain-raw-37",
@@ -26779,7 +26779,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {1 --[[c]] + 1} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far 2 away`"
+    "Go `far {1 --[[c]] + 1} away`"
    ],
    "runs": [
     {
@@ -26789,41 +26789,41 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "fa1cb523"
+   "scopes": "73f2c0db"
   },
   {
    "id": "plain-raw-39",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {1 --[[c]] + 1} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a `far 2 away` b* now"
+    "Go *a `far {1 --[[c]] + 1} away` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a `far 2 away` b* now\nBody.\n",
+     "out": "Go *a `far {1 --[[c]] + 1} away` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "b9f86cff"
+   "scopes": "3d1b367d"
   },
   {
    "id": "plain-raw-40",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {1 --[[c]] + 1} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far 2 away`` now"
+    "Go ``far {1 --[[c]] + 1} away`` now"
    ],
    "runs": [
     {
-     "out": "Go ``far 2 away`` now\nBody.\n",
+     "out": "Go ``far {1 --[[c]] + 1} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "0aa3bcd3"
+   "scopes": "13c5e2cb"
   },
   {
    "id": "plain-raw-41",
@@ -26847,7 +26847,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {1 --[[c]] + 1} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far 2 away``"
+    "Go ``far {1 --[[c]] + 1} away``"
    ],
    "runs": [
     {
@@ -26857,24 +26857,24 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "da5296a7"
+   "scopes": "7a22cc73"
   },
   {
    "id": "plain-raw-43",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {1 --[[c]] + 1} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a ``far 2 away`` b* now"
+    "Go *a ``far {1 --[[c]] + 1} away`` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a ``far 2 away`` b* now\nBody.\n",
+     "out": "Go *a ``far {1 --[[c]] + 1} away`` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "25fc3b47"
+   "scopes": "3e11363d"
   },
   {
    "id": "plain-raw-44",
@@ -26949,17 +26949,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {\"->\"} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far -> away` now"
+    "Go `far {\"->\"} away` now"
    ],
    "runs": [
     {
-     "out": "Go `far -> away` now\nBody.\n",
+     "out": "Go `far {\"->\"} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "cb6747f4"
+   "scopes": "0c0f98ac"
   },
   {
    "id": "plain-raw-49",
@@ -26970,13 +26970,13 @@
    ],
    "runs": [
     {
-     "out": "Go `far -> away` now\nBody.\n",
+     "out": "Go `far {\"->\"} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "81214723"
+   "scopes": "ade24f53"
   },
   {
    "id": "plain-raw-50",
@@ -26984,7 +26984,7 @@
    "class": "D",
    "first": "",
    "choices": [
-    "Go `far -> away`"
+    "Go `far {\"->\"} away`"
    ],
    "runs": [
     {
@@ -26994,41 +26994,41 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "1c4678e0"
+   "scopes": "17f6e1ec"
   },
   {
    "id": "plain-raw-51",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {\"->\"} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a `far -> away` b* now"
+    "Go *a `far {\"->\"} away` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a `far -> away` b* now\nBody.\n",
+     "out": "Go *a `far {\"->\"} away` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "71e84ef7"
+   "scopes": "68d4af35"
   },
   {
    "id": "plain-raw-52",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {\"->\"} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far -> away`` now"
+    "Go ``far {\"->\"} away`` now"
    ],
    "runs": [
     {
-     "out": "Go ``far -> away`` now\nBody.\n",
+     "out": "Go ``far {\"->\"} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "735f9334"
+   "scopes": "273fa3c0"
   },
   {
    "id": "plain-raw-53",
@@ -27039,13 +27039,13 @@
    ],
    "runs": [
     {
-     "out": "Go ``far -> away`` now\nBody.\n",
+     "out": "Go ``far {\"->\"} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e40ab721"
+   "scopes": "08c91093"
   },
   {
    "id": "plain-raw-54",
@@ -27053,7 +27053,7 @@
    "class": "D",
    "first": "",
    "choices": [
-    "Go ``far -> away``"
+    "Go ``far {\"->\"} away``"
    ],
    "runs": [
     {
@@ -27063,24 +27063,24 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "d1f5cec0"
+   "scopes": "16f2d850"
   },
   {
    "id": "plain-raw-55",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {\"->\"} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a ``far -> away`` b* now"
+    "Go *a ``far {\"->\"} away`` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a ``far -> away`` b* now\nBody.\n",
+     "out": "Go *a ``far {\"->\"} away`` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "65fc5141"
+   "scopes": "c4675d75"
   },
   {
    "id": "plain-raw-56",
@@ -27156,17 +27156,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {t[1]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away` now"
+    "Go `far {t[1]} away` now"
    ],
    "runs": [
     {
-     "out": "Go `far a away` now\nBody.\n",
+     "out": "Go `far {t[1]} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "60d9be35"
+   "scopes": "b2479d26"
   },
   {
    "id": "plain-raw-61",
@@ -27190,7 +27190,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {t[1]} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away`"
+    "Go `far {t[1]} away`"
    ],
    "runs": [
     {
@@ -27200,41 +27200,41 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "55488545"
+   "scopes": "120f2b92"
   },
   {
    "id": "plain-raw-63",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {t[1]} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a `far a away` b* now"
+    "Go *a `far {t[1]} away` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a `far a away` b* now\nBody.\n",
+     "out": "Go *a `far {t[1]} away` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "1a919c50"
+   "scopes": "789b0757"
   },
   {
    "id": "plain-raw-64",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {t[1]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away`` now"
+    "Go ``far {t[1]} away`` now"
    ],
    "runs": [
     {
-     "out": "Go ``far a away`` now\nBody.\n",
+     "out": "Go ``far {t[1]} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "6c5c2d6d"
+   "scopes": "07283ab2"
   },
   {
    "id": "plain-raw-65",
@@ -27258,7 +27258,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {t[1]} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away``"
+    "Go ``far {t[1]} away``"
    ],
    "runs": [
     {
@@ -27268,24 +27268,24 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "2f5c960d"
+   "scopes": "fc8f1b96"
   },
   {
    "id": "plain-raw-67",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {t[1]} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a ``far a away`` b* now"
+    "Go *a ``far {t[1]} away`` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a ``far a away`` b* now\nBody.\n",
+     "out": "Go *a ``far {t[1]} away`` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "6cd15b10"
+   "scopes": "7df6af8b"
   },
   {
    "id": "plain-raw-68",
@@ -29177,11 +29177,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* c */ b| now"
+    "Go a /* c */ b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* c */ b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29194,11 +29194,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* c */ b .. x"
+    "Go a /* c */ b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* c */ b .. x\nBody.\n",
+     "out": "Go a /* c */ b x\nBody.\n",
      "errs": []
     }
    ],
@@ -29312,11 +29312,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* -> next */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /*"
+    "Go a /*"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* Next.\n",
+     "out": "Go a /* Next.\n",
      "errs": []
     }
    ],
@@ -29329,11 +29329,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* -> next */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /*"
+    "Go a /*"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* Next.\n",
+     "out": "Go a /* Next.\n",
      "errs": []
     }
    ],
@@ -29427,11 +29427,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* ] */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* ] */ b| now"
+    "Go a /* ] */ b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* ] */ b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29444,11 +29444,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* ] */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* ] */ b .. x"
+    "Go a /* ] */ b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* ] */ b .. x\nBody.\n",
+     "out": "Go a /* ] */ b x\nBody.\n",
      "errs": []
     }
    ],
@@ -29561,11 +29561,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* c b| now"
+    "Go a /* c b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* c b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29578,11 +29578,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* c b .. x"
+    "Go a /* c b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* c b .. x\nBody.\n",
+     "out": "Go a /* c b x\nBody.\n",
      "errs": []
     }
    ],
@@ -29695,11 +29695,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\// c b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a // c b| now"
+    "Go a // c b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a // c b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29712,11 +29712,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\// c b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a // c b .. x"
+    "Go a // c b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a // c b .. x\nBody.\n",
+     "out": "Go a // c b x\nBody.\n",
      "errs": []
     }
    ],
@@ -29829,11 +29829,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/*\\/* c */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /*/* c */ b| now"
+    "Go a /*/* c */ b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /*/* c */ b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29846,11 +29846,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/*\\/* c */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /*/* c */ b .. x"
+    "Go a /*/* c */ b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /*/* c */ b .. x\nBody.\n",
+     "out": "Go a /*/* c */ b x\nBody.\n",
      "errs": []
     }
    ],
@@ -29963,11 +29963,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* > */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* > */ b| now"
+    "Go a /* > */ b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* > */ b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29980,11 +29980,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* > */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* > */ b .. x"
+    "Go a /* > */ b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* > */ b .. x\nBody.\n",
+     "out": "Go a /* > */ b x\nBody.\n",
      "errs": []
     }
    ],
@@ -30078,11 +30078,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* )) */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* )) */ b| now"
+    "Go a /* )) */ b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* )) */ b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -30095,11 +30095,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* )) */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* )) */ b .. x"
+    "Go a /* )) */ b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* )) */ b .. x\nBody.\n",
+     "out": "Go a /* )) */ b x\nBody.\n",
      "errs": []
     }
    ],

@@ -306,7 +306,7 @@ function splitBodyRangeAtBreaks(
     : [{ from: bodyStart, to: bodyEnd, pause: false, leads: false }];
 }
 
-interface BeatRange {
+export interface BeatRange {
   from: number;
   to: number;
   pause: boolean;
@@ -441,20 +441,7 @@ function processDisplayBody(
     } else if (seg.kind === "lead") {
       out.push(new LeadMark({ from: seg.from, to: seg.to }));
     } else if (seg.kind === "inlineGluedAlt") {
-      const lowered =
-        seg.node.name === "LuauSparkdownInlineGluedSequentialAlternatorBlock"
-          ? lowerSparkdownSequentialAlternatorBlock(
-              makeAltNodeRef(seg.node),
-              ctx,
-            )
-          : lowerSparkdownConditionalAlternatorBlock(
-              makeAltNodeRef(seg.node),
-              ctx,
-            );
-      forwardBlockDiagnostics(lowered, ctx);
-      if (lowered.content) {
-        for (const obj of lowered.content) out.push(obj);
-      }
+      out.push(...lowerInlineGluedAlternator(seg.node, ctx));
     } else if (seg.kind === "tag") {
       appendDisplayTags(seg.node, ctx, out);
     } else if (seg.kind === "expr") {
@@ -1220,6 +1207,26 @@ function tryLowerInlineAlternator(
   return null;
 }
 
+export function isInlineGluedAlternator(node: SyntaxNode): boolean {
+  return INLINE_GLUED_ALTERNATOR_NAMES.has(node.name);
+}
+
+export function inlineGluedAlternatorFrom(node: SyntaxNode): number {
+  return injectionFrom(node, "inlineGluedAlt");
+}
+
+export function lowerInlineGluedAlternator(
+  node: SyntaxNode,
+  ctx: LowerContext,
+): ParsedObject[] {
+  const lowered =
+    node.name === "LuauSparkdownInlineGluedSequentialAlternatorBlock"
+      ? lowerSparkdownSequentialAlternatorBlock(makeAltNodeRef(node), ctx)
+      : lowerSparkdownConditionalAlternatorBlock(makeAltNodeRef(node), ctx);
+  forwardBlockDiagnostics(lowered, ctx);
+  return lowered.content ?? [];
+}
+
 function makeAltNodeRef(node: SyntaxNode): SparkdownSyntaxNodeRef {
   return {
     from: node.from,
@@ -1359,10 +1366,10 @@ function findFirstDirectChild(
   return null;
 }
 
-export function displayCaptionText(
+export function displayBeatRanges(
   node: SyntaxNode,
   ctx: SourceReader,
-): string | undefined {
+): BeatRange[] | undefined {
   if (!Object.hasOwn(DISPLAY_LINE_TYPES, node.name)) return undefined;
   const nodeRef = {
     node,
@@ -1385,13 +1392,21 @@ export function displayCaptionText(
       from = glue.from;
     }
   }
-  const ranges = splitBodyRangeAtBreaks(
+  return splitBodyRangeAtBreaks(
     node,
     from,
     to,
     ctx,
     block ? "block" : "inline",
   );
+}
+
+export function displayCaptionText(
+  node: SyntaxNode,
+  ctx: SourceReader,
+): string | undefined {
+  const ranges = displayBeatRanges(node, ctx);
+  if (!ranges) return undefined;
   const last = ranges[ranges.length - 1]!;
   let text = "";
   let pos = last.from;

@@ -11,8 +11,9 @@ doesn't cover:
 1. **A multi-target build** — an SSR'd API bundle, browser page bundles, a
    service worker, and several workers built by a *different* bundler (esbuild,
    in sibling packages).
-2. **Custom SSG** — render the root Preact component to HTML and inline the
-   editor's compiled Tailwind into the page, so it's styled before JS runs.
+2. **Custom SSG** — inline the editor's compiled Tailwind into the page shell,
+   so it's styled before JS runs. `<div id="root">` ships empty and the client
+   renders the editor into it, so no control is on screen before its handlers.
 3. **A Fastify-mounted dev server** — the dev server is the Fastify app with
    Vite attached as middleware, not Vite's own server.
 
@@ -61,8 +62,8 @@ there is no custom asset-loader plugin.
    `grep -oE "from ['\"][^.][^'\"]+" out/api/index.js | sort -u`.) That's why the
    Docker runtime image needs only those few packages — see *Deployment*.
 4. **`buildPages`** — bundle `src/pages/**/*.ts` browser entries → `out/public`.
-5. **`expandPageComponents`** (the SSG) — for each page HTML shell: render the
-   root Preact component into `<div id="root">`, compile impower-ui's Tailwind
+5. **`expandPageComponents`** (the SSG) — for each page HTML shell: leave
+   `<div id="root">` empty for the client to render, compile impower-ui's Tailwind
    (via a transient middleware-mode Vite server hitting
    `impowerUiStyleCss?direct`), and inline `normalize + theme + Tailwind` into a
    `<style id="ssg-css">` block. Writes the styled HTML to `out/public`.
@@ -75,9 +76,9 @@ there is no custom asset-loader plugin.
 `npm run dev` (`tsx ./build.ts --watch`) starts the Fastify app with a Vite
 server mounted in middleware mode:
 
-- Page requests hit **`viteStaticallyRenderedPagesPlugin`**, which SSGs the page
-  on the fly (same render + Tailwind inline as the prod build, via
-  `server.transformRequest` and `ssrLoadModule`).
+- Page requests hit **`viteStaticallyRenderedPagesPlugin`**, which builds the
+  page with `renderDevPage` on the fly (the same empty root and Tailwind inline
+  as the prod build, via `server.transformRequest`).
 - `optimizeDeps.entries` points the dep scanner at the **page JS**
   (`src/pages/**/*.{js,mjs,ts}`), not the contentless HTML shells — otherwise
   Vite auto-globs the `*.html` and (on Windows) the scan aborts.

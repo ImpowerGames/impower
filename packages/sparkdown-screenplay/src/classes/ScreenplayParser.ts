@@ -2,12 +2,14 @@ import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
 import { readSkipping } from "../../../sparkdown/src/compiler/utils/readSkipping";
+import { trimStyled } from "../../../sparkdown/src/runtime/displayStyle";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import type { PrintedInsert } from "../types/PrintedInsert";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
 import { GLUED_ALTERNATOR_BLOCKS, gluedAlternatorJoin } from "../utils/gluedAlternatorLayout";
 import { printsAsBlankLine } from "../utils/printsAsBlankLine";
+import { readStyled } from "../utils/readStyled";
 import { isRootFunctionName } from "../utils/rootFunctionName";
 
 const COMPILER_FIELDS = new Set(["typecheck"]);
@@ -26,6 +28,29 @@ const ARM_UNPRINTED = new Set(["ArmTag", "ArmDivert", "ArmTunnel", "ArmUnknown",
 const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
 
 const GLUED_ARM = "LuauSparkdownInlineGluedAlternatorArm";
+
+interface Reading {
+  text: string;
+  styled: string;
+}
+
+const NO_TEXT: Reading = { text: "", styled: "" };
+
+const NEWLINE: Reading = { text: "\n", styled: "\n" };
+
+const join = (...parts: Reading[]): Reading => ({
+  text: parts.map((part) => part.text).join(""),
+  styled: parts.map((part) => part.styled).join(""),
+});
+
+const plain = (text: string): Reading => ({ text, styled: text });
+
+const isTextUnprinted = (child: SyntaxNode) => TEXT_UNPRINTED.has(child.name);
+
+const isArmUnprinted = (child: SyntaxNode) => ARM_UNPRINTED.has(child.name);
+
+const isChoiceUnprinted = (child: SyntaxNode) =>
+  CHOICE_UNPRINTED.has(child.name) || GLUED_ALTERNATOR_BLOCKS.has(child.name);
 
 const trimRanges = (ranges: number[], leading: number, trailing: number): number[] => {
   const trimmed = [...ranges];
@@ -58,15 +83,15 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
     const stack: SparkdownNodeName[] = [];
     const tokens: ScreenplayToken[] = [{ tag: "page_break" }];
     let frontMatterKey = "";
-    let frontMatterValue = "";
-    let title = "";
-    let heading = "";
-    let transitional = "";
-    let action = "";
-    let choice = "";
+    let frontMatterValue = NO_TEXT;
+    let title = NO_TEXT;
+    let heading = NO_TEXT;
+    let transitional = NO_TEXT;
+    let action = NO_TEXT;
+    let choice = NO_TEXT;
     let choice_prefix = "";
     let choice_suffix = "";
-    let character = "";
+    let character = NO_TEXT;
     let position: "l" | "r" | undefined = undefined;
     let textSource: number[] = [];
     let characterSource: number[] = [];
@@ -85,17 +110,18 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
       return readIntoSink;
     };
     let leading = false;
-    const readWords = (node: SyntaxNode, source: number[]): string => {
-      const text = readSkipping(
-        node,
-        readInto(source),
-        (child) => TEXT_UNPRINTED.has(child.name),
-      );
+    const readWords = (node: SyntaxNode, source: number[]): Reading => {
+      const text = readSkipping(node, readInto(source), isTextUnprinted);
+      const styled = readStyled(node, read, isTextUnprinted);
       if (leading) {
         leading = false;
-        return text.trimStart();
+        return { text: text.trimStart(), styled: trimStyled(styled, { end: false }) };
       }
-      return text;
+      return { text, styled };
+    };
+    const readLine = (node: SyntaxNode, source?: number[]): Reading => {
+      if (source && node.to > node.from) source.push(node.from, node.to);
+      return { text: read(node.from, node.to), styled: readStyled(node, read) };
     };
 
     const textBefore = (node: SyntaxNode) => {
@@ -114,53 +140,69 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
       const before = textBefore(node);
       return before?.name === "TextChunk" || (!!before && GLUED_ALTERNATOR_BLOCKS.has(before.name));
     };
-    const readGlued = (block: SyntaxNode, source: number[], inserts: PrintedInsert[]): string => {
+    const withoutEndNewline = (lines: Reading): Reading => ({
+      text: lines.text.replace(/\n$/, ""),
+      styled: lines.styled.replace(/\n$/, ""),
+    });
+    const appendLine = (lines: Reading, node: SyntaxNode, line: Reading): Reading =>
+      continuesAfterComment(node)
+        ? join(withoutEndNewline(lines), line, NEWLINE)
+        : join(lines, line, NEWLINE);
+    const appendGlued = (lines: Reading, node: SyntaxNode, glued: Reading): Reading =>
+      continuesBeforeGlued(node)
+        ? join(withoutEndNewline(lines), glued, NEWLINE)
+        : join(lines, { text: glued.text.trimStart(), styled: trimStyled(glued.styled, { end: false }) }, NEWLINE);
+    const readArm = (arm: SyntaxNode, source: number[]): { reading: Reading; ranges: number[] } | undefined => {
       const outer = sink;
-      const arms: { text: string; ranges: number[] }[] = [];
+      const ranges: number[] = [];
+      const raw = readSkipping(arm, readInto(ranges), isArmUnprinted);
+      sink = outer;
+      const text = raw.trim();
+      if (!text) return undefined;
+      const trimmed = trimRanges(ranges, raw.length - raw.trimStart().length, raw.length - raw.trimEnd().length);
+      source.push(...trimmed);
+      return { reading: { text, styled: trimStyled(readStyled(arm, read, isArmUnprinted)) }, ranges: trimmed };
+    };
+    const readGlued = (block: SyntaxNode, source: number[], inserts: PrintedInsert[]): Reading => {
+      const arms: { reading: Reading; ranges: number[] }[] = [];
       const cursor = block.cursor();
       while (cursor.next() && cursor.from < block.to) {
         if (cursor.name !== GLUED_ARM) continue;
-        const ranges: number[] = [];
-        const raw = readSkipping(cursor.node, readInto(ranges), (child) => ARM_UNPRINTED.has(child.name));
-        const text = raw.trim();
-        if (text) {
-          arms.push({ text, ranges: trimRanges(ranges, raw.length - raw.trimStart().length, raw.length - raw.trimEnd().length) });
-        }
+        const arm = readArm(cursor.node, source);
+        if (arm) arms.push(arm);
       }
-      sink = outer;
-      if (arms.length === 0) return "";
-      let text = gluedAlternatorJoin("before");
+      if (arms.length === 0) return NO_TEXT;
+      const parts: Reading[] = [plain(gluedAlternatorJoin("before"))];
       inserts.push({ at: arms[0]!.ranges[0]!, text: gluedAlternatorJoin("before") });
       arms.forEach((arm, index) => {
         if (index > 0) {
-          text += gluedAlternatorJoin("between");
+          parts.push(plain(gluedAlternatorJoin("between")));
           inserts.push({ at: arm.ranges[0]!, text: gluedAlternatorJoin("between") });
         }
-        text += arm.text;
-        source.push(...arm.ranges);
+        parts.push(arm.reading);
       });
       const after = gluedAlternatorJoin("after");
       if (after) {
-        text += after;
+        parts.push(plain(after));
         inserts.push({ at: arms.at(-1)!.ranges.at(-1)!, text: after });
       }
-      return text;
+      return join(...parts);
     };
-    const appendGlued = (lines: string, node: SyntaxNode, text: string) =>
-      continuesBeforeGlued(node)
-        ? `${lines.replace(/\n$/, "")}${text}\n`
-        : `${lines}${text.trimStart()}\n`;
-    const appendLine = (lines: string, node: SyntaxNode, text: string) =>
-      continuesAfterComment(node)
-        ? `${lines.replace(/\n$/, "")}${text}\n`
-        : `${lines}${text}\n`;
-    const readChoiceText = (node: SyntaxNode): string =>
-      readSkipping(
-        node,
-        readInto(choiceSource),
-        (child) => CHOICE_UNPRINTED.has(child.name) || GLUED_ALTERNATOR_BLOCKS.has(child.name),
-        (child) => (GLUED_ALTERNATOR_BLOCKS.has(child.name) ? readGlued(child, choiceSource, choiceInserts) : ""),
-      );
+    const readChoiceText = (node: SyntaxNode): Reading => {
+      const glued = new Map<number, Reading>();
+      const gluedReading = (child: SyntaxNode) => {
+        if (!GLUED_ALTERNATOR_BLOCKS.has(child.name)) return undefined;
+        let reading = glued.get(child.from);
+        if (!reading) {
+          reading = readGlued(child, choiceSource, choiceInserts);
+          glued.set(child.from, reading);
+        }
+        return reading;
+      };
+      const text = readSkipping(node, readInto(choiceSource), isChoiceUnprinted, (child) => gluedReading(child)?.text ?? "");
+      const styled = readStyled(node, read, isChoiceUnprinted, (child) => gluedReading(child)?.styled);
+      return { text, styled };
+    };
 
     let headingContinues = false;
     const flushText = () => {
@@ -168,26 +210,26 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
       textSource = [];
       const inserts = textInserts.length > 0 ? { inserts: textInserts } : {};
       textInserts = [];
-      if (title) {
-        tokens.push({ tag: "title", text: title, source, ...inserts });
-        title = "";
+      if (title.text) {
+        tokens.push({ tag: "title", ...title, source, ...inserts });
+        title = NO_TEXT;
       }
-      if (heading) {
+      if (heading.text) {
         tokens.push(
           headingContinues
-            ? { tag: "heading", text: heading, continued: true, source, ...inserts }
-            : { tag: "heading", text: heading, source, ...inserts },
+            ? { tag: "heading", ...heading, continued: true, source, ...inserts }
+            : { tag: "heading", ...heading, source, ...inserts },
         );
-        heading = "";
+        heading = NO_TEXT;
         headingContinues = true;
       }
-      if (transitional) {
-        tokens.push({ tag: "transitional", text: transitional, source, ...inserts });
-        transitional = "";
+      if (transitional.text) {
+        tokens.push({ tag: "transitional", ...transitional, source, ...inserts });
+        transitional = NO_TEXT;
       }
-      if (action) {
-        tokens.push({ tag: "action", text: action, source, ...inserts });
-        action = "";
+      if (action.text) {
+        tokens.push({ tag: "action", ...action, source, ...inserts });
+        action = NO_TEXT;
       }
     };
 
@@ -241,11 +283,10 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "FrontMatterFieldKeyword") {
           const text = read(from, to);
           frontMatterKey = text;
-          frontMatterValue = "";
+          frontMatterValue = NO_TEXT;
         }
         if (name === "FrontMatterString") {
-          const text = read(from, to);
-          frontMatterValue += text;
+          frontMatterValue = join(frontMatterValue, readLine(nodeRef.node));
         }
 
         if (name === "Scene") {
@@ -258,9 +299,9 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
 
         if (name === "LuauSparkdownAlternatorArm") {
           flushText();
-          const text = readSkipping(nodeRef.node, readInto(textSource), (child) => ARM_UNPRINTED.has(child.name)).trim();
-          if (text) {
-            action = `${text}\n`;
+          const arm = readArm(nodeRef.node, textSource);
+          if (arm) {
+            action = join(arm.reading, NEWLINE);
             flushText();
           } else {
             textSource = [];
@@ -272,25 +313,35 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
           if (stack.includes("BlockDialogue_content") || stack.includes("InlineDialogue_content")) {
             const last = tokens.at(-1);
             if (continuesBeforeGlued(nodeRef.node) && last?.tag === "dialogue_content") {
-              const inserts = (last.inserts ??= []);
-              last.text = `${last.text ?? ""}${readGlued(nodeRef.node, (last.source ??= []), inserts)}`;
+              const glued = readGlued(nodeRef.node, (last.source ??= []), (last.inserts ??= []));
+              last.text = `${last.text ?? ""}${glued.text}`;
+              last.styled = `${last.styled ?? ""}${glued.styled}`;
             } else {
               const source: number[] = [];
               const inserts: PrintedInsert[] = [];
-              const text = readGlued(nodeRef.node, source, inserts).trimStart();
-              if (text) tokens.push({ tag: "dialogue_content", text, position, source, inserts });
+              const glued = readGlued(nodeRef.node, source, inserts);
+              if (glued.text) {
+                tokens.push({
+                  tag: "dialogue_content",
+                  text: glued.text.trimStart(),
+                  styled: trimStyled(glued.styled, { end: false }),
+                  position,
+                  source,
+                  inserts,
+                });
+              }
             }
           } else {
-            const text = readGlued(nodeRef.node, textSource, textInserts);
-            if (text) {
+            const glued = readGlued(nodeRef.node, textSource, textInserts);
+            if (glued.text) {
               if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
-                title = appendGlued(title, nodeRef.node, text);
+                title = appendGlued(title, nodeRef.node, glued);
               } else if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
-                heading = appendGlued(heading, nodeRef.node, text);
+                heading = appendGlued(heading, nodeRef.node, glued);
               } else if (stack.includes("BlockTransitional") || stack.includes("InlineTransitional")) {
-                transitional = appendGlued(transitional, nodeRef.node, text);
+                transitional = appendGlued(transitional, nodeRef.node, glued);
               } else {
-                action = appendGlued(action, nodeRef.node, text);
+                action = appendGlued(action, nodeRef.node, glued);
               }
             }
           }
@@ -315,9 +366,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             title = appendLine(title, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
-            textSource.push(from, to);
-            const text = read(from, to);
-            title += text + "\n";
+            title = join(title, readLine(nodeRef.node, textSource), NEWLINE);
           }
         }
 
@@ -326,9 +375,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             heading = appendLine(heading, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
-            textSource.push(from, to);
-            const text = read(from, to);
-            heading += text + "\n";
+            heading = join(heading, readLine(nodeRef.node, textSource), NEWLINE);
           }
         }
 
@@ -344,9 +391,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             );
           }
           if (name === "ParentheticalLineContent") {
-            textSource.push(from, to);
-            const text = read(from, to);
-            transitional += text + "\n";
+            transitional = join(transitional, readLine(nodeRef.node, textSource), NEWLINE);
           }
         }
 
@@ -359,21 +404,16 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             action = appendLine(action, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
-            textSource.push(from, to);
-            const text = read(from, to);
-            action += text + "\n";
+            action = join(action, readLine(nodeRef.node, textSource), NEWLINE);
           }
         }
 
         if (name === "DialogueCharacterName") {
-          const text = read(from, to);
-          character = text;
-          characterSource = [from, to];
+          characterSource = [];
+          character = readLine(nodeRef.node, characterSource);
         }
         if (name === "DialogueCharacterParenthetical") {
-          const text = read(from, to);
-          character += text;
-          characterSource.push(from, to);
+          character = join(character, readLine(nodeRef.node, characterSource));
         }
         if (name === "DialogueCharacterPositionContent") {
           const text = read(from, to);
@@ -391,24 +431,26 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             const continues = continuesAfterComment(nodeRef.node);
             const last = tokens.at(-1);
             if (continues && last?.tag === "dialogue_content") {
-              last.text = `${last.text ?? ""}${readWords(nodeRef.node, (last.source ??= []))}`;
+              const words = readWords(nodeRef.node, (last.source ??= []));
+              last.text = `${last.text ?? ""}${words.text}`;
+              last.styled = `${last.styled ?? ""}${words.styled}`;
             } else {
               const source: number[] = [];
               tokens.push({
                 tag: "dialogue_content",
-                text: readWords(nodeRef.node, source),
+                ...readWords(nodeRef.node, source),
                 position,
                 source,
               });
             }
           }
           if (name === "ParentheticalLineContent") {
-            const text = read(from, to);
+            const source: number[] = [];
             tokens.push({
               tag: "dialogue_parenthetical",
-              text,
+              ...readLine(nodeRef.node, source),
               position,
-              source: [from, to],
+              source,
             });
           }
         }
@@ -420,7 +462,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             choiceSource.push(from, to);
           }
           if (name === "Choice_content") {
-            choice += readChoiceText(nodeRef.node);
+            choice = join(choice, readChoiceText(nodeRef.node));
           }
         }
 
@@ -432,7 +474,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "FrontMatterField" && !COMPILER_FIELDS.has(frontMatterKey)) {
           tokens.push({
             tag: ("meta:" + frontMatterKey) as MetadataTokenType,
-            text: frontMatterValue,
+            ...frontMatterValue,
           });
         }
 
@@ -454,11 +496,11 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "DialogueCharacter") {
           tokens.push({
             tag: "dialogue_character",
-            text: character,
+            ...character,
             position,
             source: characterSource,
           });
-          character = "";
+          character = NO_TEXT;
           characterSource = [];
         }
         if (name === "BlockDialogue" || name === "InlineDialogue") {
@@ -468,17 +510,17 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "Choice") {
           tokens.push({
             tag: "choice",
-            text: choice,
+            ...choice,
             prefix: choice_prefix,
             suffix: choice_suffix,
             source: choiceSource,
             ...(choiceInserts.length > 0 ? { inserts: choiceInserts } : {}),
           });
-          choice = "";
-          choiceSource = [];
-          choiceInserts = [];
+          choice = NO_TEXT;
           choice_prefix = "";
           choice_suffix = "";
+          choiceSource = [];
+          choiceInserts = [];
         }
 
         if (TOKENS_ON_LEAVE.has(name)) {

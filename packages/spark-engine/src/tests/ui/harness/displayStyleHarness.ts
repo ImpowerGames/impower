@@ -58,6 +58,32 @@ export async function renderedBeats(source: string, count: number) {
   return beats.map((beat) => cellsIn(beat, wavy, shaky));
 }
 
+export async function renderedChoiceBeats(source: string, choice = 0) {
+  const harness = createHarness(source);
+  if (harness.errors.length > 0) {
+    harness.game.destroy();
+    throw new Error(`fixture failed to compile: ${harness.errors.join("; ")}`);
+  }
+  await harness.ready;
+  harness.jumpToFlow("start");
+  harness.reset();
+  const nextBeat = async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    const beat = harness.nextBeat() as Instructions;
+    await harness.display(beat, true);
+    await flushMicrotasks();
+    return beat;
+  };
+  const menu = await nextBeat();
+  harness.game.story.ChooseChoiceIndex(choice);
+  const echo = await nextBeat();
+  const animation = (harness.game.context as any)?.animation ?? {};
+  const wavy = animation["wavy"]?.$name;
+  const shaky = animation["shaky"]?.$name;
+  harness.game.destroy();
+  return { menu: cellsIn(menu, wavy, shaky), echo: cellsIn(echo, wavy, shaky) };
+}
+
 function cellsIn(beat: Instructions, wavy: unknown, shaky: unknown) {
   const cellsOf = (target: string): Cell[] => {
     const cells: Cell[] = [];

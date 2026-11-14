@@ -48,7 +48,6 @@ import { startingDisplayModeRequest } from "../utils/previewStartingMode";
 import { simulatedColorSchemeRequest } from "../utils/previewColorScheme";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
-import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
@@ -464,9 +463,6 @@ export class SparkdownPreviewGamePanelManager {
         if (!vscode.debug.activeDebugSession) {
           vscode.commands.executeCommand("sparkdown.debugGame");
         }
-      }
-      if (GameReloadedMessage.type.isNotification(message)) {
-        vscode.commands.executeCommand("sparkdown.debug.unpin");
       }
       if (
         GameExecutedMessage.type.isNotification(message) ||

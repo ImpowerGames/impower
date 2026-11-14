@@ -173,6 +173,7 @@ export interface ThreadCopy {
 
 export interface ChoiceCopy {
   readonly text: string;
+  readonly styledText: string;
   readonly tags: readonly string[] | null;
   readonly index: number;
   readonly sourcePath: string;
@@ -1163,6 +1164,7 @@ export class ProgramStoryState {
         for (const choice of this.generatedChoices) {
           w.WriteObjectStart();
           w.WriteProperty("text", choice.text);
+          w.WriteProperty("styled", choice.styledText);
           w.WriteProperty("tags", (tw) => {
             tw.WriteArrayStart();
             for (const tag of choice.tags ?? []) {
@@ -1349,6 +1351,7 @@ export class ProgramStoryState {
       threadCounter: this.callStack._threadCounter,
       choices: this.generatedChoices.map((choice) => ({
         text: choice.text,
+        styledText: choice.styledText,
         tags: choice.tags ? choice.tags.slice() : null,
         index: choice.index,
         sourcePath: choice.sourcePath,
@@ -1513,6 +1516,7 @@ export class ProgramStoryState {
         remap(saved.previousFlow),
       );
       choice.text = saved.text;
+      choice.styledText = saved.styledText;
       choice.tags = saved.tags ? saved.tags.slice() : null;
       choice.index = saved.index;
       choice.sourcePath = placedChoice.sourcePath ?? saved.sourcePath;
@@ -1778,6 +1782,8 @@ export class ProgramStoryState {
         this.readPreviousFlow(saved),
       );
       choice.text = String(saved["text"] ?? "");
+      choice.styledText =
+        typeof saved["styled"] === "string" ? saved["styled"] : choice.text;
       choice.tags = Array.isArray(saved["tags"])
         ? saved["tags"].map(String)
         : [];

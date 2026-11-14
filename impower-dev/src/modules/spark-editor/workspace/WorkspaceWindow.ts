@@ -102,6 +102,7 @@ import {
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
+import { PlayBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/PlayBeatMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
@@ -334,6 +335,21 @@ export default class WorkspaceWindow {
     this.openPanel("logic", panel);
     this.openFileEditor(filename);
     this.navigateTo("write");
+  }
+
+  async writeScript(filename: string) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return;
+    }
+    const loaded = loadedVersion(
+      this._workspace.fs.getFileUri(projectId, filename),
+      FIX_OPEN_WAIT_MS,
+    );
+    this.openScript(filename);
+    if ((await loaded) !== null) {
+      this.startEditing(filename);
+    }
   }
 
   closeSettings() {
@@ -1932,7 +1948,21 @@ export default class WorkspaceWindow {
     sendProtocolMessage(DidExpandPreviewPaneMessage.type.notification({}));
   }
 
+  playInFullView() {
+    if (!playsGame(workspaceSettings.preferences.peek().previewMode)) {
+      this.setPreviewMode("game");
+    }
+    const game = this.store.preview.modes.game;
+    if (launchPhaseOf(game, this._startGameRequestId !== undefined) === "idle") {
+      this.launch("press");
+    }
+    this.expandPreviewPane();
+  }
+
   collapsePreviewPane() {
+    if (this.store.preview.revealed && layoutState.current() === "phone") {
+      this.stopGame();
+    }
     this.update({
       ...this.store,
       preview: {
@@ -2223,6 +2253,41 @@ export default class WorkspaceWindow {
       this.navigateTo("write");
     }
     return result;
+  }
+
+  syncPreviewBeat(beat: { playing: boolean; refusal: string | null }) {
+    const game = this.store.preview.modes.game;
+    const refusal = beat.refusal ?? undefined;
+    if (
+      Boolean(game.beatPlaying) === beat.playing &&
+      game.beatRefusal === refusal
+    ) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: {
+          ...this.store.preview.modes,
+          game: { ...game, beatPlaying: beat.playing, beatRefusal: refusal },
+        },
+      },
+    });
+  }
+
+  playBeat() {
+    const game = this.store.preview.modes.game;
+    if (
+      game.running ||
+      game.starting ||
+      game.loading ||
+      game.playRefusal ||
+      game.beatRefusal
+    ) {
+      return;
+    }
+    sendProtocolMessage(PlayBeatMessage.type.request({}));
   }
 
   syncGamePaused(paused: boolean) {

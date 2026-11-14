@@ -549,7 +549,10 @@ export class InterpreterModule extends Module<
       if (!lastTextbox.text) {
         this.describeBeat(lastTextbox, "choice", undefined, source);
       }
-      lastTextbox.options = [...(lastTextbox.options ?? []), ...choices];
+      lastTextbox.options = [
+        ...(lastTextbox.options ?? []),
+        ...choices.map((choice) => this.plainText(choice)),
+      ];
       for (let i = 0; i < choices.length; i += 1) {
         const choice = choices[i]!;
         const choiceInstructions = this.parse(choice, `choice ${i}`, {
@@ -979,6 +982,14 @@ export class InterpreterModule extends Module<
     return clauses;
   }
 
+  plainText(content: string): string {
+    const target = "plain";
+    const instructions = this.parse(content, target, { choice: true });
+    return (instructions.text?.[target] ?? [])
+      .map((event) => event.text ?? "")
+      .join("");
+  }
+
   parse(
     content: string,
     target: string,
@@ -1003,7 +1014,6 @@ export class InterpreterModule extends Module<
 
     const activeMarks: [string][] = [];
     const spanMarks: [string][] = [];
-    const scansAll = Boolean(options?.choice);
     let scanDepth = 0;
     let spanRaw = false;
     const lastMark = (test: (mark: string) => boolean) =>
@@ -1083,7 +1093,7 @@ export class InterpreterModule extends Module<
             spanRaw = spanMarks.some(([m]) => m.startsWith("`"));
             continue;
           }
-          const scanning = scansAll || scanDepth > 0;
+          const scanning = scanDepth > 0;
           if (!escaped) {
             if (scanning && char === "`") {
               i += 1;
@@ -1440,7 +1450,7 @@ export class InterpreterModule extends Module<
             if (currentPhrase) {
               currentPhrase.text ??= "";
               currentPhrase.text += char;
-              if (
+              const timingContinues: boolean = Boolean(
                 currChunk &&
                 !currChunk.duration &&
                 !this.isWhitespace(char) &&
@@ -1450,15 +1460,23 @@ export class InterpreterModule extends Module<
                 underlined === currChunk.underlined &&
                 wavy === currChunk.wavy &&
                 shaky === currChunk.shaky &&
-                speed === currChunk.speed
+                speed === currChunk.speed,
+              );
+              if (
+                currChunk &&
+                timingContinues &&
+                (raw || spanRaw) === currChunk.raw &&
+                centered === currChunk.centered &&
+                tilde === currChunk.tilde
               ) {
                 currChunk.text += char;
               } else {
                 currChunk = {
                   text: char,
-                  duration,
+                  duration: timingContinues ? 0 : duration,
                   speed,
-                  voicedSyllable,
+                  voicedSyllable: timingContinues ? false : voicedSyllable,
+                  timingContinues: timingContinues || undefined,
                   voiced,
                   yelled,
                   raw: raw || spanRaw,
@@ -1550,7 +1568,7 @@ export class InterpreterModule extends Module<
             const minSynthDuration = this.getMinSynthDuration(typewriterSynth);
             for (let c = 0; c < phrase.chunks.length; c += 1) {
               const chunk = phrase.chunks[c]!;
-              if (chunk.text && !this.isWhitespace(chunk.text)) {
+              if (chunk.text && !this.isWhitespace(chunk.text) && !chunk.timingContinues) {
                 chunk.punctuatedSyllable = true;
                 chunk.duration = Math.max(
                   minSynthDuration,
