@@ -921,7 +921,9 @@ function fallbackOf(issue, items, notes, data, tagged, who, label) {
   const changed = (item) => ["closed", "reopened"].includes(item.event) || (item.event === "commented" && readNote(item.body)?.kind === "revised");
   if (items.filter((item) => item.pos < at && ["closed", "reopened"].includes(item.event)).at(-1)?.event === "closed") return { fellBack: null, unfinished: null };
   const valid = committed && candidate.note.fallbackAt === data.fallback?.at && !items.some((item) => item.pos < committed.pos && ((item.pos > from && asked(item)) || (item.pos > at && changed(item))));
-  return valid ? { fellBack: candidate, unfinished: null } : { fellBack: null, unfinished: candidate };
+  if (valid) return { fellBack: candidate, unfinished: null };
+  const superseded = notes.some((entry) => entry.note.kind === "revised" && entry.comment.pos > at);
+  return { fellBack: null, unfinished: superseded ? null : candidate };
 }
 
 export function fallbackCommitted(issue, timeline, repos = readRepos()) {
@@ -1044,7 +1046,7 @@ export function recordAnswer(number, { tracker, repos = readRepos(), identity = 
     throw new RequestRefused([`#${number} has no answer to record: it is ${answer.state} (${next})`]);
   }
   const who = whoOf(repos);
-  const cleared = answer.kind === "decision" && !answer.wentAhead ? clearLeftovers(tracker, number, fallbackLeftovers(tracker, number, answer.tickets, repos), null) : [];
+  const cleared = answer.kind === "decision" && !answer.wentAhead ? clearLeftovers(tracker, number, fallbackLeftovers(tracker, number, answer.tickets, repos).filter((left) => left.kind !== "fallback"), null) : [];
   const key = answerKey(answer);
   const mine = (comment, kind) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === kind && readNote(comment.body)?.request === number && readNote(comment.body)?.answer === key;
   return withScratch((scratch) => {
@@ -1161,7 +1163,7 @@ export function withdrawRequest(number, reason, { tracker, repos = readRepos(), 
   const why = checkNoteText(reason, "The reason");
   if (/[\r\n]/.test(why)) throw new RequestRefused(["The reason must be one line"]);
   const label = repos.maintainer.labels.decidedWithoutYou;
-  if (answer.kind === "decision") clearLeftovers(tracker, number, fallbackLeftovers(tracker, number, answer.tickets, repos), labelNames(tracker.issue(number)).includes(label) ? label : null);
+  if (answer.kind === "decision") clearLeftovers(tracker, number, fallbackLeftovers(tracker, number, answer.tickets, repos).filter((left) => left.kind !== "fallback"), labelNames(tracker.issue(number)).includes(label) ? label : null);
   return withScratch((scratch) => {
     tracker.close(number, "not_planned", writeNote(scratch, toolText(`Withdrawn by the ask-maintainer tool: ${asSentence(why)} Nothing waits on this request any more.`, { kind: "withdrawn", reason: why }, identity)));
     return fetchAnswer(number, { tracker, repos });

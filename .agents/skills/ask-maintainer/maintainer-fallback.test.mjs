@@ -365,6 +365,23 @@ try {
     assert.deepEqual([fetchAnswer(REQUEST, { tracker: failedAfterClose, repos }).state, recordsOn(failedAfterClose, REQUEST).map((e) => e.note.kind)], ["unclear", ["fallback"]], "a publication step that throws after the maintainer closed keeps the note, so the close reads unclear");
     console.log("ok: a failed publication step keeps the note when the request is closed");
 
+    const revisedAway = tracker({ onAddLabel: (self) => {
+      self.closeAs("completed", "2026-11-13T17:40:03Z");
+      throw new Error("HTTP 502: label service down");
+    } });
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: revisedAway, repos, now }), /label service down/);
+    assert.equal(fetchAnswer(REQUEST, { tracker: revisedAway, repos }).state, "unclear");
+    revisedAway.issues.get(REQUEST).body = decisionBody.replace(dataLine(readDataLine(decisionBody)), dataLine({ ...readDataLine(decisionBody), fallback: undefined, waits: "confirms-built" }));
+    revisedAway.say(toolNote("Revised by the ask-maintainer tool, and reopened because the answer was unclear.", { kind: "revised" }), "2026-11-13T17:50:00Z");
+    Object.assign(revisedAway.issues.get(REQUEST), { state: "open", state_reason: "reopened", closed_at: null, closed_by: null });
+    revisedAway.items.push({ event: "reopened", issue: REQUEST, created_at: "2026-11-13T17:50:01Z", actor: { login: M }, seq: revisedAway.seq++ });
+    assert.equal(fetchAnswer(REQUEST, { tracker: revisedAway, repos }).state, "waiting");
+    revisedAway.closeAs("completed", "2026-11-13T18:00:00Z");
+    assert.equal(fetchAnswer(REQUEST, { tracker: revisedAway, repos }).state, "accepted", "a revision supersedes an unfinished fallback note, so the revised request's close answers it");
+    assert.equal(recordAnswer(REQUEST, { tracker: revisedAway, repos }).answer.state, "accepted");
+    assert.equal(recordsOn(revisedAway, REQUEST).filter((e) => e.note.kind === "fallback").length, 1, "the superseded note stays as history");
+    console.log("ok: a revision after an unfinished fallback note supersedes it, and the revised request's no-comment close is recorded");
+
     const ambiguous = tracker();
     leftovers(ambiguous);
     ambiguous.closeAs("completed", "2026-11-13T17:45:00Z");
