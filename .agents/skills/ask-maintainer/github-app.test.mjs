@@ -165,8 +165,11 @@ try {
     assert.throws(() => insideRepository(scratch, { run: failing(128, "fatal: detected dubious ownership in repository") }), (error) => error instanceof KeyError && /git exited with status 128.; the key is not used/.test(error.message));
     assert.throws(() => insideRepository(scratch, { run: failing(undefined, "", "ENOENT") }), (error) => error instanceof KeyError && /git did not run: ENOENT./.test(error.message));
     assert.equal(insideRepository(scratch, { run: failing(128, "fatal: not a git repository (or any of the parent directories): .git") }), false);
-    assert.equal(readKey({ [KEY_VARIABLE]: keyFile }).asymmetricKeyType, "rsa", "a key outside every repository is read");
-    await assert.rejects(resolveIdentity({ repo: "ImpowerGames/impower-internal", app, env: { [KEY_VARIABLE]: garbled }, fetch: () => assert.fail("a bad key makes no request") }), (error) => error instanceof KeyError && !error.message.includes(secret));
+    const asked = [];
+    const notRepository = (dir) => (asked.push(dir), false);
+    assert.equal(readKey({ [KEY_VARIABLE]: keyFile }, { inRepository: notRepository }).asymmetricKeyType, "rsa", "a key outside every repository is read");
+    assert.deepEqual(asked, [path.dirname(keyFile)], "the key's directory is the one checked");
+    await assert.rejects(resolveIdentity({ repo: "ImpowerGames/impower-internal", app, env: { [KEY_VARIABLE]: garbled }, fetch: () => assert.fail("a bad key makes no request"), inRepository: outside }), (error) => error instanceof KeyError && !error.message.includes(secret));
     console.log("ok: a relative, pasted, unreadable, garbled or in-repository key (in the work tree, in .git, through a symlink, or under a misrouted GIT_DIR) is an error that names the variable and never the key; a repository check that cannot run refuses the key");
   }
 
