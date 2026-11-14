@@ -63,6 +63,7 @@ function tracker({ body = decisionBody, failAddLabel = false, onAddLabel = () =>
       if (failAddLabel) throw new Error("HTTP 502: label service down");
       onAddLabel(t);
       of(n).labels.push({ name: label });
+      t.items.push({ event: "labeled", issue: n, label: { name: label }, created_at: tick(), seq: t.seq++ });
     },
     close: (n, reason, bodyFile) => {
       post(n, readFileSync(bodyFile, "utf8"), M);
@@ -269,6 +270,58 @@ try {
     assert.equal(withdrawRequest(REQUEST, "no longer needed", { tracker: withdrawn, repos }).state, "withdrawn");
     assert.deepEqual([recordsOn(withdrawn, TICKET), recordsOn(withdrawn, REQUEST).map((e) => e.note.kind), withdrawn.issue(REQUEST).labels.map((l) => l.name)], [[], ["withdrawn"], [labels.decision]], "withdraw clears an unfinished fallback's record and label before closing");
     console.log("ok: withdraw clears what an unfinished fallback left");
+
+    const label = (self) => {
+      self.issues.get(REQUEST).labels.push({ name: labels.decidedWithoutYou });
+      self.items.push({ event: "labeled", issue: REQUEST, label: { name: labels.decidedWithoutYou }, created_at: "2026-11-13T17:39:30Z", seq: self.seq++ });
+    };
+    const crossed = tracker();
+    leftovers(crossed);
+    crossed.say("Wait. Can I see C first?", "2026-11-13T17:39:10Z");
+    label(crossed);
+    const crossedAnswer = fetchAnswer(REQUEST, { tracker: crossed, repos });
+    assert.deepEqual([crossedAnswer.state, crossedAnswer.wentAhead], ["question", undefined], "a label added after a maintainer question that followed the fallback note does not commit the fallback");
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: crossed, repos, now: at("2026-11-13T17:50:00Z") }), (error) => error instanceof RequestRefused && /question is open/.test(error.reasons[0]) && /removed the label maintainer: decided without you/.test(error.reasons[1]));
+    assert.deepEqual([recordsOn(crossed, TICKET), recordsOn(crossed, REQUEST), crossed.issue(REQUEST).labels.map((l) => l.name)], [[], [], [labels.decision]], "the owner's next fallback clears a fallback interrupted by a question, label included");
+    const later = tracker();
+    fallbackRequest(REQUEST, OWNER, doing, { tracker: later, repos, now });
+    later.say("Why B?", "2026-11-13T18:00:00Z");
+    const laterAnswer = fetchAnswer(REQUEST, { tracker: later, repos });
+    assert.deepEqual([laterAnswer.state, laterAnswer.wentAhead.option], ["question", "B"], "a question after the label is a question on a fallback that stands");
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: later, repos, now: at("2026-11-13T18:10:00Z") }), /already went ahead/);
+    assert.ok(later.issue(REQUEST).labels.some((l) => l.name === labels.decidedWithoutYou), "a later question leaves a committed fallback in place");
+    console.log("ok: a fallback is committed only when its label follows its note with no maintainer comment, revision, close or reopen in between");
+
+    const revisedMidway = tracker({ onAddLabel: (self) => {
+      const restarted = "2026-11-13T19:40:01.000Z";
+      self.issues.get(REQUEST).body = decisionBody.replace(dataLine(readDataLine(decisionBody)), dataLine({ ...readDataLine(decisionBody), fallback: { option: "A", at: restarted } }));
+      self.say(toolNote("Revised by the ask-maintainer tool.", { kind: "revised", fallback: restarted }), "2026-11-13T17:40:01Z");
+    } });
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: revisedMidway, repos, now }), /changed while going ahead: it now reads waiting/);
+    assert.deepEqual([fetchAnswer(REQUEST, { tracker: revisedMidway, repos }).state, readDataLine(revisedMidway.issue(REQUEST).body).fallback.option], ["waiting", "A"], "a revision made while the fallback published wins, and the stale fallback is rolled back");
+    const revisedThenStopped = tracker();
+    leftovers(revisedThenStopped);
+    revisedThenStopped.issues.get(REQUEST).body = decisionBody.replace(dataLine(readDataLine(decisionBody)), dataLine({ ...readDataLine(decisionBody), fallback: { option: "A", at: "2026-11-13T19:40:01.000Z" } }));
+    revisedThenStopped.say(toolNote("Revised by the ask-maintainer tool.", { kind: "revised", fallback: "2026-11-13T19:40:01.000Z" }), "2026-11-13T17:39:20Z");
+    label(revisedThenStopped);
+    assert.deepEqual([fetchAnswer(REQUEST, { tracker: revisedThenStopped, repos }).state, fetchAnswer(REQUEST, { tracker: revisedThenStopped, repos }).wentAhead], ["waiting", undefined], "a stopped run whose label followed a revision does not commit the older fallback");
+    const revisedFirst = tracker();
+    revisedFirst.issues.get(REQUEST).body = decisionBody.replace(dataLine(readDataLine(decisionBody)), dataLine({ ...readDataLine(decisionBody), fallback: { option: "A", at: "2026-11-13T19:38:50.000Z" } }));
+    revisedFirst.say(toolNote("Revised by the ask-maintainer tool.", { kind: "revised", fallback: "2026-11-13T19:38:50.000Z" }), "2026-11-13T17:38:50Z");
+    leftovers(revisedFirst);
+    label(revisedFirst);
+    assert.equal(fetchAnswer(REQUEST, { tracker: revisedFirst, repos }).wentAhead, undefined, "a fallback note for a fallback time the request no longer states does not commit, even when its label follows");
+    console.log("ok: a revision during publication cancels the fallback, whether or not the run finished");
+
+    const ambiguous = tracker();
+    leftovers(ambiguous);
+    ambiguous.closeAs("completed", "2026-11-13T17:45:00Z");
+    const unclearAnswer = fetchAnswer(REQUEST, { tracker: ambiguous, repos });
+    assert.equal(unclearAnswer.state, "unclear");
+    assert.match(unclearAnswer.why, /closed with no comment while a fallback to B was posted but not finished/);
+    assert.throws(() => recordAnswer(REQUEST, { tracker: ambiguous, repos }), /has no answer to record: it is unclear/);
+    assert.equal(recordsOn(ambiguous, TICKET).length, 1, "nothing is recorded or cleared for an unclear close");
+    console.log("ok: a close with no comment while a visible fallback note was unfinished is unclear, never accepted");
 
     const revisedBody = decisionBody.replace(dataLine(readDataLine(decisionBody)), dataLine({ ...readDataLine(decisionBody), fallback: { option: "C", at: "2026-11-13T19:30:00.000Z" } }));
     const stale = tracker();

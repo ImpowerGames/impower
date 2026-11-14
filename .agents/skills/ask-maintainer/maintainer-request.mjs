@@ -411,7 +411,7 @@ function decisionBody(checked, { now, timeZone, template, identity, wentAhead })
   const data = { kind: "decision", options: checked.options.map((option) => option.letter), recommended: checked.recommended };
   const lines = [];
   if (wentAhead) {
-    data.fallback = { option: wentAhead.option, at: wentAhead.at };
+    data.fallback = { option: wentAhead.option, at: wentAhead.fallbackAt };
     lines.push("> [!IMPORTANT]", `> **I went ahead with ${wentAhead.option}${wentAhead.name ? ` · ${wentAhead.name}` : ""} at ${describeTime(new Date(wentAhead.at), now, timeZone)} without you,** and moved this to "decided without you". Close this issue with no comment to keep it, or with a comment to change it.`);
   } else if (checked.fallback) {
     const at = new Date(now.getTime() + checked.fallback.waitMinutes * 60 * 1000);
@@ -911,6 +911,17 @@ function clearLeftovers(tracker, number, leftovers, label) {
   return result.done;
 }
 
+function fallbackOf(issue, items, notes, data, tagged, who, label) {
+  const candidate = data.kind === "decision" ? notes.filter((entry) => entry.note.kind === "fallback").at(-1) ?? null : null;
+  if (!candidate) return { fellBack: null, unfinished: null };
+  const at = candidate.comment.pos;
+  const committed = labelNames(issue).includes(label) ? items.find((item) => item.pos > at && item.event === "labeled" && item.label?.name === label) : null;
+  const from = notes.filter((entry) => entry.note.kind === "revised" && entry.comment.pos < at).at(-1)?.comment.pos ?? tagged?.pos ?? -1;
+  const interrupted = (item) => item.pos !== at && (["closed", "reopened"].includes(item.event) || (item.event === "commented" && (commentAuthor(item, who) === "maintainer" || readNote(item.body)?.kind === "revised")));
+  const valid = committed && candidate.note.fallbackAt === data.fallback?.at && !items.some((item) => item.pos > from && item.pos < committed.pos && interrupted(item));
+  return valid ? { fellBack: candidate, unfinished: null } : { fellBack: null, unfinished: candidate };
+}
+
 export function readAnswer(issue, timeline, repos = readRepos()) {
   const who = whoOf(repos);
   const items = timeline.map((item, pos) => ({ ...item, pos }));
@@ -918,8 +929,7 @@ export function readAnswer(issue, timeline, repos = readRepos()) {
   const { data, body, floor: tagged } = requestData(issue, comments, who);
   const notes = comments.filter((comment) => commentAuthor(comment, who) === "tool").map((comment) => ({ comment, note: readNote(comment.body) })).filter((entry) => entry.note);
   const revision = notes.filter((entry) => entry.note.kind === "revised").at(-1)?.comment ?? null;
-  const finished = labelNames(issue).includes(repos.maintainer.labels.decidedWithoutYou);
-  const fellBack = data.kind === "decision" && finished ? notes.filter((entry) => entry.note.kind === "fallback").at(-1) ?? null : null;
+  const { fellBack, unfinished } = fallbackOf(issue, items, notes, data, tagged, who, repos.maintainer.labels.decidedWithoutYou);
   const floorPos = (revision ?? tagged)?.pos ?? -1;
   const lastPos = (event) => items.filter((item) => item.event === event).at(-1)?.pos ?? -1;
   const closedPos = issue.state === "closed" ? lastPos("closed") : Infinity;
@@ -928,7 +938,7 @@ export function readAnswer(issue, timeline, repos = readRepos()) {
   const words = maintainerWords.map((comment) => ({ id: comment.id, url: comment.html_url, at: comment.created_at, body: lf(comment.body) }));
   const closing = notes.filter((entry) => ["withdrawn", "relayed"].includes(entry.note.kind) && entry.comment.pos > Math.max(floorPos, reopenedPos) && entry.comment.pos < closedPos && !maintainerWords.some((comment) => comment.pos > entry.comment.pos)).at(-1) ?? null;
   const shown = { at: revision?.created_at ?? tagged?.created_at ?? issue.created_at, revised: Boolean(revision), options: data.options?.length ?? 0, pictures: imageReferences(body).length };
-  const wentAhead = fellBack ? { option: fellBack.note.option, name: fellBack.note.name ?? null, at: fellBack.comment.created_at, url: fellBack.comment.html_url, owner: fellBack.note.owner ?? null } : null;
+  const wentAhead = fellBack ? { option: fellBack.note.option, name: fellBack.note.name ?? null, at: fellBack.comment.created_at, url: fellBack.comment.html_url, owner: fellBack.note.owner ?? null, fallbackAt: fellBack.note.fallbackAt ?? null } : null;
   const base = { number: issue.number, url: issue.html_url, title: issue.title, kind: data.kind, tagged: Boolean(data.tagged), question: data.tagged ? issue.title : questionOf(issue.title), tickets: data.blocks ?? [], data, shown, recommended: data.recommended ? { letter: data.recommended, name: optionName(body, data.recommended) } : null, ...(wentAhead && { wentAhead }) };
   if (issue.state !== "closed") {
     if (words.length) return { ...base, state: "question", words };
@@ -948,6 +958,7 @@ export function readAnswer(issue, timeline, repos = readRepos()) {
   if (data.kind === "task") return { ...base, state: notPlanned ? "will-not-do" : "done", closed, words: said };
   if (said.length) return { ...base, state: wentAhead ? "changed" : "answered", closed, words: said };
   if (wentAhead && !notPlanned) return { ...base, state: "kept", closed, words: [] };
+  if (unfinished) return { ...base, state: "unclear", closed, why: `closed with no comment while a fallback to ${unfinished.note.option} was posted but not finished, so it cannot say whether the maintainer kept that fallback or accepted the recommendation`, words: [] };
   if (notPlanned) return { ...base, state: "unclear", closed, why: "a decision closed as not planned with no comment", words: [] };
   return { ...base, state: "accepted", closed, words: [] };
 }
