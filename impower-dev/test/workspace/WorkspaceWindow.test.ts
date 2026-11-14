@@ -1306,7 +1306,7 @@ describe("Preview preferences", () => {
     it("hears the editor's resolved theme in its URL, when it connects, and whenever it changes", () => {
       const theme = signal<string>("charcoal");
       expect(playerUrl("https://player.test/", theme)).toBe(
-        "https://player.test/#theme=charcoal",
+        "https://player.test/#theme=charcoal&backdrop=game",
       );
       const posted: { method: string; params: any }[] = [];
       const sync = createPlayerPreferenceSync(

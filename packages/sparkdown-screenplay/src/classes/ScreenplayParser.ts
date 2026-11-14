@@ -2,10 +2,12 @@ import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
 import { readSkipping } from "../../../sparkdown/src/compiler/utils/readSkipping";
+import { trimStyled } from "../../../sparkdown/src/runtime/displayStyle";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
 import { printsAsBlankLine } from "../utils/printsAsBlankLine";
+import { readStyled } from "../utils/readStyled";
 import { isRootFunctionName } from "../utils/rootFunctionName";
 
 const COMPILER_FIELDS = new Set(["typecheck"]);
@@ -19,35 +21,53 @@ const CHOICE_TEXT_COMMENTS = new Set(["SparkdownBlockComment", "SparkdownInlineC
 
 const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
 
+interface Reading {
+  text: string;
+  styled: string;
+}
+
+const NO_TEXT: Reading = { text: "", styled: "" };
+
+const NEWLINE: Reading = { text: "\n", styled: "\n" };
+
+const join = (...parts: Reading[]): Reading => ({
+  text: parts.map((part) => part.text).join(""),
+  styled: parts.map((part) => part.styled).join(""),
+});
+
+const isWordSeparator = (child: SyntaxNode) =>
+  child.name === "Glue" || child.name === "SparkdownBlockComment";
+
 export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] => {
     const stack: SparkdownNodeName[] = [];
     const tokens: ScreenplayToken[] = [{ tag: "page_break" }];
     let frontMatterKey = "";
-    let frontMatterValue = "";
-    let title = "";
-    let heading = "";
-    let transitional = "";
-    let action = "";
-    let choice = "";
+    let frontMatterValue = NO_TEXT;
+    let title = NO_TEXT;
+    let heading = NO_TEXT;
+    let transitional = NO_TEXT;
+    let action = NO_TEXT;
+    let choice = NO_TEXT;
     let choice_prefix = "";
     let choice_suffix = "";
-    let character = "";
+    let character = NO_TEXT;
     let position: "l" | "r" | undefined = undefined;
     let lineStart = 0;
     const read = (from: number, to: number) => script.slice(from, to);
     let leading = false;
-    const readWords = (node: SyntaxNode): string => {
-      const text = readSkipping(
-        node,
-        read,
-        (child) => child.name === "Glue" || child.name === "SparkdownBlockComment",
-      );
+    const readWords = (node: SyntaxNode): Reading => {
+      const text = readSkipping(node, read, isWordSeparator);
+      const styled = readStyled(node, read, isWordSeparator);
       if (leading) {
         leading = false;
-        return text.trimStart();
+        return { text: text.trimStart(), styled: trimStyled(styled, { end: false }) };
       }
-      return text;
+      return { text, styled };
     };
+    const readLine = (node: SyntaxNode): Reading => ({
+      text: read(node.from, node.to),
+      styled: readStyled(node, read),
+    });
 
     const continuesAfterComment = (node: SyntaxNode): boolean => {
       let before = node.prevSibling;
@@ -56,35 +76,45 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
       }
       return before !== node.prevSibling && before?.name === "TextChunk";
     };
-    const appendLine = (lines: string, node: SyntaxNode, text: string) =>
+    const appendLine = (lines: Reading, node: SyntaxNode, line: Reading): Reading =>
       continuesAfterComment(node)
-        ? `${lines.replace(/\n$/, "")}${text}\n`
-        : `${lines}${text}\n`;
-    const readChoiceText = (node: SyntaxNode): string =>
-      readSkipping(node, read, (child) => CHOICE_TEXT_COMMENTS.has(child.name));
+        ? join(
+            {
+              text: lines.text.replace(/\n$/, ""),
+              styled: lines.styled.replace(/\n$/, ""),
+            },
+            line,
+            NEWLINE,
+          )
+        : join(lines, line, NEWLINE);
+    const isChoiceComment = (child: SyntaxNode) => CHOICE_TEXT_COMMENTS.has(child.name);
+    const readChoiceText = (node: SyntaxNode): Reading => ({
+      text: readSkipping(node, read, isChoiceComment),
+      styled: readStyled(node, read, isChoiceComment),
+    });
 
     let headingContinues = false;
     const flushText = () => {
-      if (title) {
-        tokens.push({ tag: "title", text: title });
-        title = "";
+      if (title.text) {
+        tokens.push({ tag: "title", ...title });
+        title = NO_TEXT;
       }
-      if (heading) {
+      if (heading.text) {
         tokens.push(
           headingContinues
-            ? { tag: "heading", text: heading, continued: true }
-            : { tag: "heading", text: heading },
+            ? { tag: "heading", ...heading, continued: true }
+            : { tag: "heading", ...heading },
         );
-        heading = "";
+        heading = NO_TEXT;
         headingContinues = true;
       }
-      if (transitional) {
-        tokens.push({ tag: "transitional", text: transitional });
-        transitional = "";
+      if (transitional.text) {
+        tokens.push({ tag: "transitional", ...transitional });
+        transitional = NO_TEXT;
       }
-      if (action) {
-        tokens.push({ tag: "action", text: action });
-        action = "";
+      if (action.text) {
+        tokens.push({ tag: "action", ...action });
+        action = NO_TEXT;
       }
     };
 
@@ -138,11 +168,10 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "FrontMatterFieldKeyword") {
           const text = read(from, to);
           frontMatterKey = text;
-          frontMatterValue = "";
+          frontMatterValue = NO_TEXT;
         }
         if (name === "FrontMatterString") {
-          const text = read(from, to);
-          frontMatterValue += text;
+          frontMatterValue = join(frontMatterValue, readLine(nodeRef.node));
         }
 
         if (name === "Scene") {
@@ -171,8 +200,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             title = appendLine(title, nodeRef.node, readWords(nodeRef.node));
           }
           if (name === "ParentheticalLineContent") {
-            const text = read(from, to);
-            title += text + "\n";
+            title = join(title, readLine(nodeRef.node), NEWLINE);
           }
         }
 
@@ -181,8 +209,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             heading = appendLine(heading, nodeRef.node, readWords(nodeRef.node));
           }
           if (name === "ParentheticalLineContent") {
-            const text = read(from, to);
-            heading += text + "\n";
+            heading = join(heading, readLine(nodeRef.node), NEWLINE);
           }
         }
 
@@ -198,8 +225,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             );
           }
           if (name === "ParentheticalLineContent") {
-            const text = read(from, to);
-            transitional += text + "\n";
+            transitional = join(transitional, readLine(nodeRef.node), NEWLINE);
           }
         }
 
@@ -212,18 +238,15 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             action = appendLine(action, nodeRef.node, readWords(nodeRef.node));
           }
           if (name === "ParentheticalLineContent") {
-            const text = read(from, to);
-            action += text + "\n";
+            action = join(action, readLine(nodeRef.node), NEWLINE);
           }
         }
 
         if (name === "DialogueCharacterName") {
-          const text = read(from, to);
-          character = text;
+          character = readLine(nodeRef.node);
         }
         if (name === "DialogueCharacterParenthetical") {
-          const text = read(from, to);
-          character += text;
+          character = join(character, readLine(nodeRef.node));
         }
         if (name === "DialogueCharacterPositionContent") {
           const text = read(from, to);
@@ -239,23 +262,23 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         ) {
           if (name === "TextChunk") {
             const continues = continuesAfterComment(nodeRef.node);
-            const text = readWords(nodeRef.node);
+            const words = readWords(nodeRef.node);
             const last = tokens.at(-1);
             if (continues && last?.tag === "dialogue_content") {
-              last.text = `${last.text ?? ""}${text}`;
+              last.text = `${last.text ?? ""}${words.text}`;
+              last.styled = `${last.styled ?? ""}${words.styled}`;
             } else {
               tokens.push({
                 tag: "dialogue_content",
-                text,
+                ...words,
                 position,
               });
             }
           }
           if (name === "ParentheticalLineContent") {
-            const text = read(from, to);
             tokens.push({
               tag: "dialogue_parenthetical",
-              text,
+              ...readLine(nodeRef.node),
               position,
             });
           }
@@ -267,7 +290,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             choice_prefix += text;
           }
           if (name === "Choice_content") {
-            choice += readChoiceText(nodeRef.node);
+            choice = join(choice, readChoiceText(nodeRef.node));
           }
         }
 
@@ -279,7 +302,7 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "FrontMatterField" && !COMPILER_FIELDS.has(frontMatterKey)) {
           tokens.push({
             tag: ("meta:" + frontMatterKey) as MetadataTokenType,
-            text: frontMatterValue,
+            ...frontMatterValue,
           });
         }
 
@@ -301,10 +324,10 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "DialogueCharacter") {
           tokens.push({
             tag: "dialogue_character",
-            text: character,
+            ...character,
             position,
           });
-          character = "";
+          character = NO_TEXT;
         }
         if (name === "BlockDialogue" || name === "InlineDialogue") {
           position = undefined;
@@ -313,11 +336,11 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
         if (name === "Choice") {
           tokens.push({
             tag: "choice",
-            text: choice,
+            ...choice,
             prefix: choice_prefix,
             suffix: choice_suffix,
           });
-          choice = "";
+          choice = NO_TEXT;
           choice_prefix = "";
           choice_suffix = "";
         }

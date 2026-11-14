@@ -65,6 +65,30 @@ export function readSpanOpen(
   return { mark: character.repeat(length), next };
 }
 
+export interface SpanStyle {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  centered: boolean;
+  wavy: boolean;
+  shaky: boolean;
+  raw: boolean;
+}
+
+export function spanStyle(marks: readonly string[]): SpanStyle {
+  const has = (test: (mark: string) => boolean) => marks.some(test);
+  const boldItalic = has((m) => m.startsWith("***"));
+  return {
+    bold: boldItalic || has((m) => m === "**"),
+    italic: boldItalic || has((m) => m === "*"),
+    underline: has((m) => m.startsWith("_")),
+    centered: has((m) => m.startsWith("^")),
+    wavy: has((m) => m.startsWith("~~")),
+    shaky: has((m) => m.startsWith("::")),
+    raw: has((m) => m.startsWith("`")),
+  };
+}
+
 export function isStyleCode(character: string): boolean {
   return character.length === 1 && STYLE_CODE.test(character);
 }

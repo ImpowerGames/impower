@@ -81,6 +81,8 @@ It is the only option that explains itself and needs no new icon.
 
 **To answer:** close this issue with a comment, either a letter (`B`) or your own words, which are recorded word for word. Close it with no comment to accept the recommendation. Comment without closing to ask a question or say what's missing; it stays open, and any fallback clock starts again when I reply.
 
-_Filed by an agent through your GitHub account, so GitHub shows you as the author of this request; an agent wrote it._
+_Filed by an agent through your GitHub account, because the tool's GitHub App could not be used on this machine: GitHub shows you as the author and sends you no alert for it._
+
+<!-- ask-maintainer: posted by the tool -->
 
 <!-- maintainer-request {"kind":"decision","options":["A","B","C","D","E"],"recommended":"B","fallback":{"option":"B","at":"2026-11-13T17:37:00.000Z"},"blocks":[2271],"owner":"orchestrate-issues #977"} -->

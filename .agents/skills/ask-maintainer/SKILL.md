@@ -43,6 +43,7 @@ node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<
 node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<pictures-folder>]
 node .agents/skills/ask-maintainer/maintainer-request.mjs tag <ticket> <task.json> [<pictures-folder>]
 node .agents/skills/ask-maintainer/maintainer-request.mjs list
+node .agents/skills/ask-maintainer/maintainer-request.mjs identity
 ```
 
 The dry run validates the request, checks for an open request asking the same question about the same ticket, and prints the body without filing. Correct every refusal it lists and run it again.
@@ -51,7 +52,9 @@ The dry run validates the request, checks for an open request asking the same qu
 
 `tag` gives an existing ticket the `maintainer: task` label, the assignee and one comment with the task's fields, blocks each ticket the task names on it, and creates no issue; when a step fails it deletes the comment and removes what it added. It refuses a ticket that already has a task comment; when that ticket's tag was removed on purpose, delete the old comment and tag again. `list` prints the open requests in three groups (decisions, tasks, went ahead without you) with links, ages and fallback times; `list --json` prints the same data for a report.
 
-Until the tool has its own identity, it files through the maintainer's account and says so at the end of every request.
+## Who the tool acts as
+
+The tool acts as its own GitHub App where the App's key is on the machine; elsewhere it files through the maintainer's account and says so on each request. Read [identity](references/identity.md) before setting up the App or deciding whose a comment is.
 
 ## After filing
 

@@ -56,7 +56,7 @@ const storedRouteTab = (): "route" | "values" | undefined => {
 export const playerUrl = (
   base: string,
   theme: ReadonlySignal<string> = workspaceSettings.theme,
-) => `${base}#theme=${theme.peek()}`;
+) => `${base}#theme=${theme.peek()}&backdrop=game`;
 
 export const createPlayerPreferenceSync = (
   post: (message: unknown) => void,

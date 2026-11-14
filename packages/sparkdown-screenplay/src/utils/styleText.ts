@@ -1,217 +1,59 @@
+import {
+  SCAN_CLOSE,
+  SCAN_OPEN,
+  SPAN_CLOSE,
+  SPAN_END,
+  isStyleCode,
+  readSpanOpen,
+  spanStyle,
+} from "../../../sparkdown/src/runtime/displayStyle";
 import { FormattedText } from "../types/FormattedText";
 import { TextOptions } from "../types/TextOptions";
 
-const MARKERS = ["^", "*", "_", "~~", "::"];
-const CHAR_REGEX =
-  /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
-
-const isWhitespace = (part: string | undefined) => {
-  if (!part) {
-    return false;
-  }
-  for (let i = 0; i < part.length; i += 1) {
-    const c = part[i]!;
-    if (c !== " " && c !== "\t" && c !== "\n" && c !== "\r") {
-      return false;
-    }
-  }
-  return true;
-};
-
-const isSpace = (part: string | undefined) => {
-  if (!part) {
-    return false;
-  }
-  for (let i = 0; i < part.length; i += 1) {
-    const c = part[i]!;
-    if (c !== " " && c !== "\t") {
-      return false;
-    }
-  }
-  return true;
-};
+const SOURCE_COLOR = "#808080";
 
 export const styleText = (
   text: string,
   overrides?: TextOptions,
 ): FormattedText[] => {
   const textChunks: FormattedText[] = [];
-  const chars = text.replace("\t", "    ").match(CHAR_REGEX);
-  if (chars) {
-    const activeMarks: [string][] = [];
-    let escaped = false;
-    let logic = false;
-    let divert = false;
-    let raw = false;
-    for (let i = 0; i < chars.length; ) {
-      const char = chars[i] ?? "";
-      const nextChar = chars[i + 1] ?? "";
-      let charIsLogicCloser = false;
-      if (!escaped) {
-        if (char === "{") {
-          logic = true;
-        }
-        if (char === "}") {
-          if (logic) {
-            charIsLogicCloser = true;
-          }
-          logic = false;
-        }
-        if (char === "-" && nextChar === ">") {
-          divert = true;
-        }
-        if (char === "\n") {
-          divert = false;
-        }
-        if (char === "`") {
-          i += 1;
-          raw = !raw;
-          continue;
-        }
-        if (!logic && !divert && !raw) {
-          if (char === "\\") {
-            i += 1;
-            escaped = true;
-            continue;
-          }
-          if (char === "[" && nextChar === "[") {
-            let closed = false;
-            const startIndex = i;
-            i += 2;
-            while (i < chars.length) {
-              if (chars[i] === "]" && chars[i + 1] === "]") {
-                closed = true;
-                i += 2;
-                while (i < chars.length) {
-                  if (!isSpace(chars[i])) {
-                    break;
-                  }
-                  i += 1;
-                }
-                break;
-              }
-              i += 1;
-            }
-            if (!closed) {
-              i = startIndex;
-              escaped = true;
-            }
-            continue;
-          }
-          if (char === "(" && nextChar === "(") {
-            let closed = false;
-            const startIndex = i;
-            i += 2;
-            while (i < chars.length) {
-              if (chars[i] === ")" && chars[i + 1] === ")") {
-                closed = true;
-                i += 2;
-                while (i < chars.length) {
-                  if (!isSpace(chars[i])) {
-                    break;
-                  }
-                  i += 1;
-                }
-                break;
-              }
-              i += 1;
-            }
-            if (!closed) {
-              i = startIndex;
-              escaped = true;
-            }
-            continue;
-          }
-          if (char === "<" && !isWhitespace(chars[i + 1])) {
-            const startIndex = i;
-            i += 1;
-            while (chars[i] && chars[i] !== ">" && chars[i] !== ":") {
-              i += 1;
-            }
-            if (chars[i] === ":") {
-              i += 1;
-              while (chars[i] && chars[i] !== ">") {
-                i += 1;
-              }
-            }
-            const closed = chars[i] === ">";
-            if (closed) {
-              i += 1;
-            } else {
-              i = startIndex;
-              escaped = true;
-            }
-            continue;
-          }
-          const styleMarker = MARKERS.find(
-            (marker) => marker === chars.slice(i, i + marker.length).join(""),
-          );
-          if (styleMarker) {
-            let currentMarker = "";
-            const startIndex = i;
-            while (chars[i] && chars[i] === char) {
-              currentMarker += chars[i];
-              i += 1;
-            }
-            const lastMatchingMark =
-              activeMarks.findLast(
-                ([activeMarker]) => activeMarker === currentMarker,
-              ) ||
-              activeMarks.findLast(
-                ([activeMarker]) =>
-                  activeMarker.slice(0, styleMarker.length) ===
-                  currentMarker.slice(0, styleMarker.length),
-              );
-            if (lastMatchingMark) {
-              while (activeMarks.at(-1) !== lastMatchingMark) {
-                activeMarks.pop();
-              }
-              activeMarks.pop();
-              const [lastMatchingMarker] = lastMatchingMark;
-              i = startIndex + lastMatchingMarker.length;
-            } else {
-              activeMarks.push([currentMarker]);
-            }
-            continue;
-          }
-        }
-      }
-      escaped = false;
-      const activeCenteredMark = activeMarks.findLast(([m]) =>
-        m.startsWith("^"),
-      );
-      const activeUnderlineMark = activeMarks.findLast(([m]) =>
-        m.startsWith("_"),
-      );
-      const activeBoldItalicMark = activeMarks.findLast(([m]) =>
-        m.startsWith("***"),
-      );
-      const activeBoldMark = activeMarks.findLast(([m]) => m === "**");
-      const activeItalicMark = activeMarks.findLast(([m]) => m === "*");
-      const isCentered = Boolean(activeCenteredMark);
-      const isUnderlined = Boolean(activeUnderlineMark);
-      const isItalicized =
-        Boolean(activeBoldItalicMark) || Boolean(activeItalicMark);
-      const isBolded = Boolean(activeBoldItalicMark) || Boolean(activeBoldMark);
+  const marks: string[] = [];
+  let source = 0;
+  const chars = text.replace("\t", "    ");
+  for (let i = 0; i < chars.length; ) {
+    const opened = readSpanOpen(chars, i);
+    if (opened) {
+      marks.push(opened.mark);
+      i = opened.next;
+      continue;
+    }
+    const char = chars[i]!;
+    i += 1;
+    if (char === SPAN_CLOSE || char === SPAN_END) {
+      marks.pop();
+    } else if (char === SCAN_OPEN) {
+      source += 1;
+    } else if (char === SCAN_CLOSE) {
+      source = Math.max(0, source - 1);
+    } else if (!isStyleCode(char)) {
+      const style = spanStyle(marks);
       const chunk: FormattedText = { text: char };
-      if (isBolded) {
+      if (style.bold) {
         chunk.bold = true;
       }
-      if (isItalicized) {
+      if (style.italic) {
         chunk.italic = true;
       }
-      if (isUnderlined) {
+      if (style.underline) {
         chunk.underline = true;
       }
-      if (isCentered) {
+      if (style.centered) {
         chunk.align = "center";
       }
-      if (logic || charIsLogicCloser || divert) {
-        chunk.color = "#808080";
+      if (source > 0) {
+        chunk.color = SOURCE_COLOR;
       }
-      const overriddenChunk = { ...chunk, ...overrides };
-      textChunks.push(overriddenChunk);
-      i += 1;
+      textChunks.push({ ...chunk, ...overrides });
     }
   }
   return textChunks;
