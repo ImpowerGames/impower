@@ -496,7 +496,7 @@ export default function AssetInspector({
       />
       <div
         ref={body}
-        class="grid min-h-0 flex-1 auto-rows-max content-start gap-5 overflow-x-hidden overflow-y-auto bg-inherit px-4 pt-3.5 pb-7"
+        class="grid min-h-0 flex-1 auto-rows-max content-start gap-5 overflow-x-hidden overflow-y-auto bg-inherit px-4 pt-3 pb-8 [:root[data-layout=desktop]_&]:pt-3.5 [:root[data-layout=desktop]_&]:pb-7"
         data-inspector-body
       >
         {stack ? (

@@ -75,6 +75,7 @@
   --color-scrim: var(--scrim);
   --color-media-badge: var(--media-badge);
   --color-media-badge-ink: var(--media-badge-ink);
+  --color-media-button: var(--media-button);
   --color-status-badge-error-edge: var(--status-badge-error-edge);
   --color-stage: var(--stage);
 
