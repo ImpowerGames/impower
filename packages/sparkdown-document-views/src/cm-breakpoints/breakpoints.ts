@@ -30,15 +30,15 @@ export interface BreakpointState {
 
 const UNPLACED_FALLBACK_TITLE = "Breakpoint not placed.";
 
-const dotMask = (circle: string) =>
-  `url("data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${circle}</svg>`,
-  )}")`;
+const svgMask = (svg: string) =>
+  `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 
-const BREAKPOINT_MASK = dotMask(`<circle cx="12" cy="12" r="6" fill="black"/>`);
+const BREAKPOINT_MASK = svgMask(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="black"/></svg>`,
+);
 
-const UNVERIFIED_BREAKPOINT_MASK = dotMask(
-  `<circle cx="12" cy="12" r="4.875" fill="none" stroke="black" stroke-width="2.25"/>`,
+const UNVERIFIED_BREAKPOINT_MASK = svgMask(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.875" fill="none" stroke="black" stroke-width="2.25"/></svg>`,
 );
 
 class BreakpointMarker extends GutterMarker {
