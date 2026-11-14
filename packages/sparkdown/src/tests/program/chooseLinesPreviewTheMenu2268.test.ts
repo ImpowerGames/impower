@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
+import { ProgramStory } from "../../program/ProgramStory";
 import { chunkOfAddress, offsetOfAddress } from "../../program/ProgramChunk";
 import { MAIN_URI, compileScript, programSession } from "./programHarness";
 
@@ -161,6 +162,44 @@ describe("the preview address of a choose block inside an option's body", () => 
 
   it("leaves the line after the inner block its own beat", () => {
     expect(shown(root, 9)).toBe(started(root, 9));
+  });
+});
+
+const SAVED = (gap: string) => `scene start
+  choose
+    Intro. >
+    Question?
+    if true then
+      * [One]
+      * [Two]
+    end
+${gap}  end
+end
+`;
+
+describe("a save taken inside a choose block", () => {
+  const shownOf = (story: ProgramStory) => story.currentText?.trim() ?? "";
+  const storyOf = (root: ProgramRoot, options = {}) => {
+    const story = new ProgramStory(root, options);
+    story.keepBeatImages = true;
+    story.onError = () => {};
+    return story;
+  };
+
+  it("loads where it was after a blank line moves the block's end", () => {
+    const saving = storyOf(rootOf(SAVED("")), { saveHistory: 1 });
+    while (saving.canContinue && shownOf(saving) !== "Intro.") {
+      saving.Continue();
+    }
+    expect(shownOf(saving)).toBe("Intro.");
+    const save = saving.toSave();
+    for (const gap of ["", "\n"]) {
+      const loaded = storyOf(rootOf(SAVED(gap)));
+      loaded.loadSave(save);
+      expect(loaded.loadedSaveReport!.exact, JSON.stringify(gap)).toBe(true);
+      loaded.Continue();
+      expect(shownOf(loaded), JSON.stringify(gap)).toBe("Question?");
+    }
   });
 });
 

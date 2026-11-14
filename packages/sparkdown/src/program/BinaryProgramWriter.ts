@@ -351,6 +351,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
       }
     } else if (op === Op.CallValue) {
       this._layout.push(`${op}:${flags & ~CALL_METHOD}:${aux}:0`);
+    } else if (op === Op.Done) {
+      this._layout.push(`${op}:${flags}:${aux}:0`);
     } else if (op === Op.CallStd) {
       this._layout.push(
         `${op}:${flags & ~CALL_STYLED}:${aux}:${this.describeArg(op, arg)}`,
