@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import { chunkOfAddress, offsetOfAddress } from "../../program/ProgramChunk";
+import {
+  HEADER_WORDS,
+  chunkOfAddress,
+  codeWords,
+  offsetOfAddress,
+} from "../../program/ProgramChunk";
+import {
+  DONE_HOLD,
+  OP_NAMES,
+  Op,
+  flagsOf,
+  opOf,
+  operandInLayout,
+} from "../../program/ProgramInstructions";
+import { layoutOf } from "../../program/ProgramSave";
 import { MAIN_URI, compileScript, programSession } from "./programHarness";
 
 const quiet = <T>(run: () => T): T => {
@@ -176,6 +190,34 @@ const SAVED = (gap: string) => `scene start
 ${gap}  end
 end
 `;
+
+describe("the menu offer's end operand", () => {
+  it("is the only operand the execution layout leaves out", () => {
+    for (const op of Object.values(Op)) {
+      expect(operandInLayout(op, 7), OP_NAMES[op]).toBe(op === Op.Done ? 0 : 7);
+    }
+  });
+
+  it("changes no chunk's layout when only a choose block's end moves", () => {
+    const words = (root: ProgramRoot) =>
+      [...root.sequences()].flatMap((sequence) => [...sequence.arrays.chunks]);
+    const before = words(rootOf(SAVED("")));
+    const after = words(rootOf(SAVED("\n")));
+    expect(after.length).toBe(before.length);
+    const moved: string[] = [];
+    before.forEach((chunk, k) => {
+      const other = after[k]!;
+      expect(layoutOf(other), `chunk ${k}`).toBe(layoutOf(chunk));
+      for (let offset = 0; offset < codeWords(chunk); offset += 1) {
+        if (chunk[HEADER_WORDS + offset] !== other[HEADER_WORDS + offset]) {
+          const word = chunk[HEADER_WORDS + offset - 1]!;
+          moved.push(`${OP_NAMES[opOf(word)]} ${flagsOf(word) & DONE_HOLD ? "hold" : ""}`);
+        }
+      }
+    });
+    expect(moved).toEqual(["Done hold"]);
+  });
+});
 
 describe("a save taken inside a choose block", () => {
   const shownOf = (story: ProgramStory) => story.currentText?.trim() ?? "";

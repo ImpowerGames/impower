@@ -759,7 +759,7 @@ export class ProgramRoot {
     const blocks = blockCount(chunk);
     const end =
       (blocks > 0 ? this.blockEndLine(sequence, entry, blocks - 1) : top) +
-      chunk[HEADER_WORDS + offer + 1]!;
+      menuEndGapAt(chunk, offer);
     let then = end;
     for (let k = 0; k < blocks; k += 1) {
       const body = this.body(chunk, k);
@@ -987,6 +987,9 @@ const firstOpIn = (
   }
   return -1;
 };
+
+const menuEndGapAt = (chunk: ProgramChunk, offer: number): number =>
+  chunk[HEADER_WORDS + offer + 1]!;
 
 const menuOfferIn = (chunk: ProgramChunk): number => {
   const words = codeWords(chunk);
