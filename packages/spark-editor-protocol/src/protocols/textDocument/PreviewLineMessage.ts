@@ -1,4 +1,4 @@
-import type { TextDocumentIdentifier } from "vscode-languageserver-protocol";
+import type { Location, TextDocumentIdentifier } from "vscode-languageserver-protocol";
 import { RequestMessage } from "../../types/base/RequestMessage";
 import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
@@ -24,6 +24,7 @@ export type PreviewLine = PreviewBeat | { kind: "setup" } | { kind: "empty" };
 export interface PreviewLineParams {
   textDocument: TextDocumentIdentifier;
   line: number;
+  shownBeat: Location | null;
 }
 
 export type PreviewLineResult = PreviewLine | null;

@@ -176,6 +176,15 @@ export function lowerSparkdownChooseBlock(
       : new Gather(null, depth);
   if (gather) {
     gather.endsChooseBlock = !inPreamble;
+    const closing = findChildByName(nodeRef.node, "LuauSparkdownChooseBlock_end");
+    const lastBody = currentStatement(ctx)?.bodies.at(-1);
+    if (closing) {
+      gather.endLinesAfterBody =
+        ctx.lineNumber(Math.max(closing.from, closing.to - 1)) -
+        ctx.lineNumber(
+          lastBody ? (ctx.chunkFrom ?? 0) + lastBody.nextStart : nodeRef.from,
+        );
+    }
     weaveContent.push(gather);
   }
 
