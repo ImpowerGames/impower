@@ -2,7 +2,6 @@ import { isTokenAtKeyword, isTokenCloseCurly, isTokenFunction, isTokenIdent, isT
 import { beforeAll, describe, expect, it } from "vitest";
 import { createImageElement } from "@impower/spark-dom/src/utils/createImageElement";
 import { getAnimationContent } from "@impower/spark-dom/src/utils/getAnimationContent";
-import { getFontContent } from "@impower/spark-dom/src/utils/getFontContent";
 import { getCssTokenValue } from "@impower/spark-dom/src/utils/getCssTokenValue";
 import { getCSSSelector, getStyleContent } from "@impower/spark-dom/src/utils/getStyleContent";
 import { getVarName } from "@impower/spark-engine/src/game/modules/ui/utils/getVarName";
@@ -192,12 +191,6 @@ describe("an @ name reaches every stylesheet writer whole (#2109)", () => {
     expect(identValues(declared(getVarName("font", "serif@bold"))!)).toEqual([loadedAs]);
   });
 
-  it("writes an @ font's family into @font-face as that one name", () => {
-    const face = rulesOf(getFontContent({ "serif@bold": { font_family: "serif@bold", src: "a.woff2" } }))[0]!;
-    expect(face.prelude).toBe("@font-face");
-    expect(identValues(face.declarations.get("font-family")!)).toEqual(["serif@bold"]);
-  });
-
   it("resolves an @ color with an alpha to that color's variable", () => {
     const theme = new Set([getVarName("color", "red@dim")]);
     const [[, value]] = getCssEquivalent("background-color", "red@dim/0.5", theme) as [[string, string]];
@@ -261,7 +254,6 @@ describe("an @ name gets output distinct from the same name with _ or - (#2109)"
     ["screen animation timing", (name) => String(renderVNode({ root: "animation", type: "timing", children: [{ root: "animation", type: "property", args: { key: "duration", value: "1s" } }] }, createScreenRenderContext({}, {}, theme), { root: "animation", type: "animation", args: { name } }))],
     ["getCSSSelector", (name) => getCSSSelector(name, {})],
     ["@keyframes", (name) => getAnimationContent({ [name]: { keyframes: [{ opacity: 1 }] } as never }, theme)],
-    ["@font-face", (name) => getFontContent({ [name]: { font_family: name, src: "a.woff2" } })],
   ];
   it.each(writers)("%s", (_, write) => {
     const outputs = ["mia@night", "mia_night", "mia-night"].map(write);
@@ -269,7 +261,6 @@ describe("an @ name gets output distinct from the same name with _ or - (#2109)"
   });
 
   it("writes a name without an @ as before", () => {
-    expect(getFontContent({ mia_night: { font_family: "mia_night" } })).toContain("font-family: mia_night;");
     expect(getVarName("image", "mia_night")).toBe("--theme-image-mia_night");
     expect(getCssTokenValue({ $type: "image", $name: "mia_night" })).toBe("var(--theme-image-mia_night)");
     expect(getThemeVar(new Set(["--theme-color-red"]), "color", "red")).toBe("var(--theme-color-red)");

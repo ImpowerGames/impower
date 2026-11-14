@@ -1,7 +1,6 @@
 import { isTokenIdent, tokenize } from "@csstools/css-tokenizer";
 import { beforeAll, describe, expect, it } from "vitest";
 import { getAnimationContent } from "@impower/spark-dom/src/utils/getAnimationContent";
-import { getFontContent } from "@impower/spark-dom/src/utils/getFontContent";
 import { getCSSSelector } from "@impower/spark-dom/src/utils/getStyleContent";
 import { getVarName } from "@impower/spark-engine/src/game/modules/ui/utils/getVarName";
 import { renderVNode } from "../../../../sparkle-screen-renderer/src";
@@ -30,7 +29,6 @@ const declarationOf = (css: string, property: string) => {
 };
 
 const keyframes = (name: string) => getAnimationContent({ [name]: { keyframes: [{ opacity: 0 }, { opacity: 1 }] } as never }, theme);
-const fontFace = (name: string) => getFontContent({ face: { font_family: name, src: "a.woff2" } });
 const screenKeyframes = (name: string) =>
   String(
     renderVNode(
@@ -45,10 +43,6 @@ const screenTheme = (name: string) =>
 describe("every name writer uses the full CSS identifier escape (#2176)", () => {
   it.each(NAMES)("names the @keyframes rule %s as that one identifier", (name) => {
     expect(identValues(preludeOf(keyframes(name)))).toEqual([name]);
-  });
-
-  it.each(NAMES)("writes the @font-face family %s as that one identifier", (name) => {
-    expect(identValues(declarationOf(fontFace(name), "font-family")!)).toEqual([name]);
   });
 
   it.each(WORD_NAMES)("writes the animation-name %s as that one identifier", (name) => {
@@ -196,7 +190,6 @@ layout main {
 describe("a name of only letters and hyphens and authored CSS are written as before (#2176)", () => {
   it.each([
     ["@keyframes", () => keyframes(PLAIN), `@keyframes ${PLAIN} {`],
-    ["@font-face", () => fontFace(PLAIN), `font-family: ${PLAIN};`],
     ["screen @keyframes", () => screenKeyframes(PLAIN), `@keyframes ${PLAIN} {`],
     ["screen theme", () => screenTheme(PLAIN), `:is([theme="${PLAIN}"],.theme-${PLAIN}) > * {`],
   ])("%s", (_, write, expected) => {

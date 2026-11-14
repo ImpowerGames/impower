@@ -1,7 +1,7 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
+import type { ShownBeatDescription } from "@impower/spark-engine/src/game/core/types/ShownBeatDescription";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 
 export type DisplayPreviewMethod = typeof DisplayPreviewMessage.method;
@@ -26,7 +26,7 @@ export interface DisplayPreviewResult {
   ending?: GameEnding;
   playing?: boolean;
   beatRefusal?: string;
-  shownBeat?: DocumentLocation | null;
+  shownBeatDescription?: ShownBeatDescription | null;
   shownAddress?: number;
 }
 

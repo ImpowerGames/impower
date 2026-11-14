@@ -326,7 +326,7 @@ export class GamePlayerController {
   private _disposed = false;
   private _previewPosition: GameState["position"] = null;
 
-  private _displayedBeat: GameState["shownBeat"] = null;
+  private _displayedBeatDescription: GameState["shownBeatDescription"] = null;
   private _selectionVersion = 0;
   private _launchState: GameState["launchState"] = null;
   protected _routeState: RouteViewState = {
@@ -570,7 +570,7 @@ export class GamePlayerController {
     this._saves.dispose();
     ColorSchemeHost.release(this.refs.gameUI);
     this._previewPosition = null;
-    this._displayedBeat = null;
+    this._displayedBeatDescription = null;
     this._selectionVersion++;
     this._launchState = null;
     this.publishGameState();
@@ -680,7 +680,7 @@ export class GamePlayerController {
       stepping: this._stepping,
       run: this._workerPlay?.run ?? null,
       position: this._previewPosition,
-      shownBeat: this._displayedBeat,
+      shownBeatDescription: this._displayedBeatDescription,
       completion: this._completionStatus
         ? { request: this._completionRequest, status: this._completionStatus }
         : null,
@@ -1661,7 +1661,7 @@ export class GamePlayerController {
     }
     if (this._previewPosition?.uri === textDocument.uri || !this._options.startFrom) {
       this._previewPosition = null;
-      this._displayedBeat = null;
+      this._displayedBeatDescription = null;
       this._selectionVersion++;
       this.publishGameState();
     }
@@ -3156,8 +3156,8 @@ export class GamePlayerController {
 
   async detachWorkerPreview() {
     this._workerDetaches += 1;
-    if (this._displayedBeat) {
-      this._displayedBeat = null;
+    if (this._displayedBeatDescription) {
+      this._displayedBeatDescription = null;
       this.publishGameState();
     }
     if (this._beatPlay) {
@@ -3790,7 +3790,7 @@ export class GamePlayerController {
           ending?: GameEnding;
           playing?: boolean;
           beatRefusal?: string;
-          shownBeat?: GameState["shownBeat"];
+          shownBeatDescription?: GameState["shownBeatDescription"];
           shownAddress?: number;
         }
       | undefined;
@@ -3843,7 +3843,7 @@ export class GamePlayerController {
     }
     if (selectionVersion === this._selectionVersion) {
       this._previewPosition = { uri: file, line };
-      this._displayedBeat = result.shownBeat ?? null;
+      this._displayedBeatDescription = result.shownBeatDescription ?? null;
       this.publishGameState();
     }
     return true;

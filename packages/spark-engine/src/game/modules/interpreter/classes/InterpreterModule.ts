@@ -36,6 +36,7 @@ import type {
   Instructions,
 } from "../../../core/types/Instructions";
 import type { ScriptLocation } from "../../../core/types/ScriptLocation";
+import { beatKindOfTarget } from "../../../core/constants/BEAT_KIND_OF_TARGET";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { InterpreterBuiltins } from "../types/InterpreterBuiltins";
@@ -150,8 +151,22 @@ export class InterpreterModule extends Module<
   }
 
   setup() {
-    this._characterNameMap = {};
-    for (const [k, v] of Object.entries(this.context.character || {})) {
+    this._characterNameMap = Object.create(null);
+    const characters = Object.entries(this.context.character || {});
+    for (const [k, v] of characters) {
+      const aliases = v.aliases;
+      if (!k.startsWith("$") && Array.isArray(aliases)) {
+        for (const alias of aliases) {
+          if (typeof alias === "string" && alias) {
+            const owner = Object.hasOwn(this._characterNameMap, alias)
+              ? this._characterNameMap[alias]
+              : k;
+            this._characterNameMap[alias] = owner === k ? k : "";
+          }
+        }
+      }
+    }
+    for (const [k, v] of characters) {
       const name = v.name;
       if (typeof name === "string" && name) {
         this._characterNameMap[name] = k;
@@ -283,9 +298,15 @@ export class InterpreterModule extends Module<
     const writtenName = writtenText(characterNameMatch);
     const characterId = this._characterNameMap[writtenName] || "";
     const characterObj =
-      characterMap?.[writtenName] || characterMap?.[characterId];
+      (characterMap && Object.hasOwn(characterMap, writtenName)
+        ? characterMap[writtenName]
+        : undefined) || characterMap?.[characterId];
+    const namedByAlias =
+      characterObj &&
+      writtenName !== characterObj.$name &&
+      writtenName !== characterObj.name;
     const characterName =
-      typeof characterObj?.name === "string" && characterObj.name
+      !namedByAlias && typeof characterObj?.name === "string" && characterObj.name
         ? scanned(characterObj.name)
         : characterNameMatch;
     const position =
@@ -319,20 +340,6 @@ export class InterpreterModule extends Module<
       return { parenthetical: match[4] || "", rest: lines.join("\n") };
     }
     return null;
-  }
-
-  protected beatKind(target: string): BeatKind | undefined {
-    switch (target) {
-      case "action":
-      case "dialogue":
-      case "title":
-      case "heading":
-        return target;
-      case "transitional":
-        return "transition";
-      default:
-        return undefined;
-    }
   }
 
   protected describeBeat(
@@ -501,14 +508,14 @@ export class InterpreterModule extends Module<
           }
           this.describeBeat(
             lastTextbox,
-            this.beatKind(textTarget),
+            beatKindOfTarget(textTarget),
             cue,
             source,
           );
         } else {
           this.describeBeat(
             contentInstructions,
-            this.beatKind(textTarget),
+            beatKindOfTarget(textTarget),
             cue,
             source,
           );

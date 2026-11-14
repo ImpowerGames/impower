@@ -5241,6 +5241,7 @@ end
 define character with
   ["$link"] = { image = {}, audio = {}, synth = {}, typewriter = {}, inflection = {}, prosody = {} }
   name = ""
+  aliases = {}
 end
 
 define prosody with

@@ -107,12 +107,23 @@ describe("the save status caption map", () => {
     );
   });
 
-  it("says a saved local project lives on this device", () => {
+  it("reads a saved local project as a saved draft, with the prototype's tooltip", () => {
     expect(saveStatusOf("cached", true)).toEqual({
-      text: "Saved on this device",
+      text: "Draft saved",
+      title: "Saved in this browser.",
       tone: "saved",
       action: "menu",
     });
+  });
+
+  it("keeps the storage tooltip on a local project's other menu states", () => {
+    expect(saveStatusOf("cached", true, { loaded: 2, total: 5 })?.title).toBe(
+      "Where this project is stored",
+    );
+    expect(saveStatusOf("loading", true)?.title).toBe(
+      "Where this project is stored",
+    );
+    expect(saveStatusOf("load_error", true)?.title).toBeUndefined();
   });
 
   it.each(["load_error", "import_error"] as const)(

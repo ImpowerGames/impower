@@ -579,7 +579,7 @@ Timing is set in `timing { … }`. Every value is optional:
 | --- | --- | --- |
 | `trigger` | `appear` | What starts the plays: `appear` when the portrait appears, `speech` while its character speaks ([Talking](#talking)). |
 | `sync` | `none` | On a speech morph, `beep` starts each play on one of the character's voice beeps ([Flapping on the beeps](#flapping-on-the-beeps)). |
-| `duration` | `0.25` | Seconds one play lasts. |
+| `duration` | `0.25` | Seconds one play lasts, at least `0.001` (one millisecond). |
 | `delay` | `0` | Seconds before the first play only. Meanwhile the portrait shows the pose that play starts from. |
 | `iterations` | `1` | How many plays in all: a whole number, or `infinite`. `0` turns playback off, and the portrait shows the morph's rest. |
 | `iteration_delay_min` | none | Shortest quiet time, in seconds, from the end of one play to the start of the next. |
@@ -702,6 +702,22 @@ Changing `trigger` or `sync` changes only when the morph plays, so the portrait'
 ### Who is speaking
 
 A line's cue names its character the way the rest of the story does: by the define's own name or its `name` field, so `RAFFLES:` names `raffles` above. A cue with no `define … as character` behind it names nobody, and narration names nobody, so no mouth moves for them.
+
+A character who speaks under another name lists it in `aliases`:
+
+```sparkdown
+define raffles as character with
+  name = "RAFFLES"
+  aliases = { "STRANGER", "STRANGER?" }
+end
+
+scene doorway
+  STRANGER? (O.S.):
+    Bunny--?
+end
+```
+
+A cue that is one of a character's aliases names that character, so `STRANGER? (O.S.):` is Raffles speaking: his portraits flap and the line uses his voice, while the name box shows `STRANGER?` as written. An alias matches the cue's name exactly, case and punctuation included, and the parenthetical and the position are not part of it. Several characters may list the same alias, such as `???`; a cue that is an alias of more than one character names nobody, with a warning that names the characters. An empty alias, an alias listed twice, and an alias that is the character's own name or define name or another character's are errors on the alias.
 
 An image is a character's portrait when its name, up to its first `@`, is the character's define name: `raffles`, `raffles@confident` and `raffles@happy` are all Raffles. A project that keeps one file per expression names its files that way ([Character Portraits](./Portraits.md)). A named look whose own name names no character belongs to the character of the image it is built on.
 
@@ -840,7 +856,7 @@ For a speech morph:
 - `default` on a morph that is not `trigger = speech` is an error, and so is a `default` that is not `true` or `false`.
 - A `morph` clause naming no morph, or a morph that is not a speech morph, is an error on the clause. One naming a speech morph that plays on none of the line's images, because it does not fit them or its `when` or `unless` keeps it off their looks, is a warning.
 - A warning on the morphs that they play on one image and drive the same group: none of them plays there until a line picks one or exactly one is marked `default = true`.
-- A mouth that never moves: check that the cue names a `define … as character`, that the portrait's name up to its first `@` is that define's name, and that the line has voiced characters or a `voice` clip.
+- A mouth that never moves: check that the cue names a `define … as character` by its define name, its `name` or one of its `aliases`, that the portrait's name up to its first `@` is that define's name, and that the line has voiced characters or a `voice` clip.
 - A mouth that shows the morph's rest instead of the line's choice: the choice gets a warning naming the morph. Route the look with `when` or `unless`, or add `morph none` to the line.
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
