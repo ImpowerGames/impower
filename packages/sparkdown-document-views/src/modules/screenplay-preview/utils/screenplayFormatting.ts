@@ -1,12 +1,16 @@
 import { HighlightStyle, syntaxTree } from "@codemirror/language";
-import type { EditorState, Text } from "@codemirror/state";
+import type { EditorState, Line, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
-import { SyntaxNodeRef } from "@lezer/common";
+import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
+import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
+import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
+import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
+import { screenplayBlankLines } from "../../../../../sparkdown-screenplay/src/utils/screenplayBlankLines";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
@@ -243,6 +247,27 @@ const createDecorations = (
 
 export const SCREENPLAY_LANGUAGE_SUPPORT = LANGUAGE_SUPPORT;
 
+const PRINTED_NAME_SETTINGS = [
+  "screenplay_print_scene_identifiers",
+  "screenplay_print_branch_identifiers",
+  "screenplay_print_function_identifiers",
+  "screenplay_print_knot_identifiers",
+  "screenplay_print_stitch_identifiers",
+] as const;
+
+const blankPositionCache = new WeakMap<Tree, { settings: string; positions: Set<number> }>();
+
+const cachedBlankPositions = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
+  const settings = PRINTED_NAME_SETTINGS.map((key) => (config?.[key] ? "1" : "0")).join("");
+  const cached = blankPositionCache.get(tree);
+  if (cached && cached.settings === settings) {
+    return cached.positions;
+  }
+  const positions = new Set(screenplayBlankLines(tree, doc.toString(), config));
+  blankPositionCache.set(tree, { settings, positions });
+  return positions;
+};
+
 export const decorate = (
   state: EditorState,
   from: number = 0,
@@ -329,7 +354,7 @@ export const decorate = (
   };
 
   const isLuauFlowBlockContainer = (name: string) =>
-    /^LuauSparkdown[A-Za-z]*(Block|Clause)$/.test(name);
+    /^LuauSparkdown[A-Za-z]*(Block|Clause|Loop)$/.test(name);
 
   const isHiddenFlowLogic = (name: string) =>
     name === "Divert" ||
@@ -340,54 +365,145 @@ export const decorate = (
     name === "LuauElseifBlockCondition" ||
     name === "LuauSparkdownExplicitIfCondition";
 
-  const isBlockHidden = (nodeRef: SyntaxNodeRef) => {
-    const name = nodeRef.name as SparkdownNodeName;
-    if (nodeRef.node.parent?.name === "sparkdown") {
-      return (
-        name !== "FrontMatter" &&
-        name !== "Scene" &&
-        name !== "BlockTitle" &&
-        name !== "InlineTitle" &&
-        name !== "BlockHeading" &&
-        name !== "InlineHeading" &&
-        name !== "BlockTransitional" &&
-        name !== "InlineTransitional" &&
-        name !== "BlockWrite" &&
-        name !== "InlineWrite" &&
-        name !== "BlockDialogue" &&
-        name !== "InlineDialogue" &&
-        name !== "BlockAction" &&
-        name !== "InlineAction" &&
-        name !== "ImplicitAction" &&
-        name !== "Choice" &&
-        name !== "Newline" &&
-        name !== "Whitespace" &&
-        !isLuauFlowBlockContainer(name)
-      );
-    }
-    return false;
-  };
+  const isBlankLine = (nodeRef: SyntaxNodeRef) =>
+    printsAsBlankLine(nodeRef.name, nodeRef.node.parent?.name);
+
+  const opensOwnLine = (nodeRef: SyntaxNodeRef) =>
+    doc.lineAt(nodeRef.from).to < blockEnd(nodeRef);
 
   const isInlineHidden = (nodeRef: SyntaxNodeRef) => {
     const result = getStyleTags(nodeRef);
     return result?.tags.some((t) => INLINE_HIDDEN_TAGS.includes(t));
   };
 
-  const hideBlockRange = (nodeRef: SyntaxNodeRef) => {
-    const from = nodeRef.from;
-    const to = nodeRef.to;
-    const text = doc.sliceString(from, to);
-    const hiddenNodeEndsWithNewline = text.endsWith("\n");
-    const hideFrom = from;
-    const hideTo = hiddenNodeEndsWithNewline ? to - 1 : to;
-    decorations.push(
-      ...createDecorations(doc, {
-        type: "collapse",
-        from: hideFrom,
-        to: hideTo,
-      }),
-    );
-    lineStart = nodeRef.to;
+  const tree = treeOverride ?? syntaxTree(state);
+
+  const blankPositions = cachedBlankPositions(tree, doc, config);
+
+  const blankLines = new Set(
+    [...blankPositions].map((position) => doc.lineAt(Math.min(position, doc.length)).number),
+  );
+
+  const handledLines = new Set<number>();
+
+  const blankRow = (line: Line) =>
+    line.text.trim()
+      ? createDecorations(doc, { type: "collapse", from: line.from, to: line.to })
+      : createDecorations(doc, {
+          type: "collapse",
+          from: line.from,
+          to: line.to,
+          separator: true,
+        });
+
+  const printsText = (node: SyntaxNode) =>
+    node.name !== "Newline" &&
+    node.name !== "Whitespace" &&
+    !printsAsBlankLine(node.name, node.parent?.name);
+
+  const functionNameOf = (node: SyntaxNode) =>
+    config?.screenplay_print_function_identifiers
+      ? rootFunctionName(node, (from, to) => doc.sliceString(from, to))
+      : "";
+
+  const lineParts = (line: Line, node: SyntaxNode) => {
+    let first = node;
+    while (first.prevSibling && first.prevSibling.to > line.from) {
+      first = first.prevSibling;
+    }
+    const parts: SyntaxNode[] = [];
+    for (let part: SyntaxNode | null = first; part && part.from < line.to; part = part.nextSibling) {
+      parts.push(part);
+    }
+    return parts;
+  };
+
+  const splitSharedLine = (line: Line, node: SyntaxNode) => {
+    const parts = lineParts(line, node);
+    const firstText = parts.findIndex(printsText);
+    const hiddenParts = parts.filter((part) => printsAsBlankLine(part.name, part.parent?.name));
+    if (firstText < 0 && hiddenParts.length < 2) return false;
+    handledLines.add(line.number);
+    if (firstText < 0) {
+      decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
+      if (line.length > 0) {
+        decorations.push(Decoration.replace({}).range(line.from, line.to));
+      }
+    }
+    const textIndex = firstText < 0 ? parts.length : firstText;
+    const above: (CollapseWidget | NameWidget)[] = [];
+    const below: (CollapseWidget | NameWidget)[] = [];
+    parts.forEach((part, index) => {
+      if (!printsAsBlankLine(part.name, part.parent?.name)) return;
+      const from = Math.max(part.from, line.from);
+      const to = Math.min(blockEnd(part), line.to);
+      if (firstText >= 0 && to > from) {
+        decorations.push(Decoration.replace({}).range(from, to));
+      }
+      if (part.from < line.from) return;
+      const rows = index < textIndex ? above : below;
+      if (blankPositions.has(part.from)) {
+        rows.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from }));
+      }
+      const name = functionNameOf(part);
+      if (name) {
+        rows.push(new NameWidget({ type: "name", from: part.from, to: part.from, name, pageBreak: false }));
+      }
+    });
+    above.forEach((widget, index) => {
+      decorations.push(
+        Decoration.widget({ widget, block: true, side: index - above.length }).range(line.from),
+      );
+    });
+    below.forEach((widget, index) => {
+      decorations.push(Decoration.widget({ widget, block: true, side: index + 1 }).range(line.to));
+    });
+    return true;
+  };
+
+  const hideLines = (
+    fromPosition: number,
+    toPosition: number,
+    name = "",
+    node?: SyntaxNode,
+  ) => {
+    const first = doc.lineAt(fromPosition).number;
+    const last = doc.lineAt(toPosition).number;
+    for (let number = first; number <= last; number++) {
+      if (handledLines.has(number)) continue;
+      const line = doc.line(number);
+      if (node && (number === first || number === last) && splitSharedLine(line, node)) {
+        continue;
+      }
+      handledLines.add(number);
+      if (number === first && name) {
+        if (blankLines.has(number)) {
+          decorations.push(
+            Decoration.widget({
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              block: true,
+              side: -1,
+            }).range(line.from),
+          );
+        }
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "name",
+            from: line.from,
+            to: line.to,
+            name,
+            pageBreak: false,
+          }),
+        );
+      } else if (blankLines.has(number)) {
+        decorations.push(...blankRow(line));
+      } else {
+        decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
+        if (line.length > 0) {
+          decorations.push(Decoration.replace({}).range(line.from, line.to));
+        }
+      }
+    }
   };
 
   const hideInlineRange = (nodeRef: SyntaxNodeRef) => {
@@ -427,14 +543,7 @@ export const decorate = (
   let lineStart = from;
   const processNewline = (newlineFrom: number, newlineTo: number) => {
     if (isWhitespaceOnly(lineStart, newlineFrom)) {
-      decorations.push(
-        ...createDecorations(doc, {
-          type: "collapse",
-          from: lineStart,
-          to: newlineFrom,
-          separator: true,
-        }),
-      );
+      hideLines(lineStart, lineStart);
     }
     lineStart = newlineTo;
   };
@@ -445,8 +554,6 @@ export const decorate = (
   let frontMatterPositionContent: Record<string, MarkupContent[]> = {};
   let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
   let frontMatterKeyword = "";
-
-  const tree = treeOverride ?? syntaxTree(state);
 
   tree.iterate({
     from,
@@ -569,6 +676,7 @@ export const decorate = (
             pageBreak: false,
           }),
         );
+        handledLines.add(doc.lineAt(from).number);
         lineStart = nodeRef.to;
         return false;
       } else if (isLeadingIndent(name, from, to)) {
@@ -584,15 +692,36 @@ export const decorate = (
       } else if (name === "ColonSeparator") {
         hideInlineRange(nodeRef);
         return false;
+      } else if (
+        name === "LuauAlternatorSeparator" &&
+        doc.lineAt(from).from === from
+      ) {
+        hideInlineRange(nodeRef);
+        return false;
+      } else if (
+        isBlankLine(nodeRef) &&
+        isLuauFlowBlockContainer(name) &&
+        opensOwnLine(nodeRef)
+      ) {
+        hideLines(from, from);
+        return true;
+      } else if (isBlankLine(nodeRef)) {
+        const functionName = config?.screenplay_print_function_identifiers
+          ? rootFunctionName(nodeRef.node, (from, to) => doc.sliceString(from, to))
+          : "";
+        hideLines(from, blockEnd(nodeRef), functionName, nodeRef.node);
+        lineStart = nodeRef.to;
+        return false;
+      } else if (name === "BlockWrite" || name === "InlineWrite") {
+        hideLines(from, blockEnd(nodeRef));
+        lineStart = nodeRef.to;
+        return false;
       } else if (isHiddenFlowLogic(name)) {
         hideInlineRange(nodeRef);
         return false;
       } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
         return true;
-      } else if (isBlockHidden(nodeRef)) {
-        hideBlockRange(nodeRef);
-        return false;
       } else if (isInlineHidden(nodeRef)) {
         hideInlineRange(nodeRef);
       }
@@ -604,7 +733,8 @@ export const decorate = (
       const to = nodeRef.to;
       if (name === "FrontMatter") {
         if (config?.screenplay_print_title_page === false) {
-          hideBlockRange(nodeRef);
+          hideLines(from, blockEnd(nodeRef));
+          lineStart = nodeRef.to;
           return;
         }
         decorations.push(

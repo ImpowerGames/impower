@@ -3,9 +3,10 @@ import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-g
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
 import { readSkipping } from "../../../sparkdown/src/compiler/utils/readSkipping";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
-import { getDescendent } from "../../../textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
+import { printsAsBlankLine } from "../utils/printsAsBlankLine";
+import { isRootFunctionName } from "../utils/rootFunctionName";
 
 const COMPILER_FIELDS = new Set(["typecheck"]);
 
@@ -16,22 +17,9 @@ const SAME_LINE_TEXT_SEPARATORS = new Set([
 
 const CHOICE_TEXT_COMMENTS = new Set(["SparkdownBlockComment", "SparkdownInlineComment"]);
 
-const ROOT_FUNCTION_WRAPPERS = new Set([
-  "LuauFunctionAttributes",
-  "LuauFunctionAttributes_content",
-  "LuauSparkdownExplicitStatement",
-  "LuauSparkdownExplicitStatement_content",
-]);
+const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
 
-export default class ScreenplayParser {
-  protected _parser = new TextmateGrammarParser(GRAMMAR_DEFINITION);
-
-  parse(script: string): ScreenplayToken[] {
-    if (!script) {
-      return [];
-    }
-
-    const tree = this.buildTree(script);
+export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] => {
     const stack: SparkdownNodeName[] = [];
     const tokens: ScreenplayToken[] = [{ tag: "page_break" }];
     let frontMatterKey = "";
@@ -75,28 +63,42 @@ export default class ScreenplayParser {
     const readChoiceText = (node: SyntaxNode): string =>
       readSkipping(node, read, (child) => CHOICE_TEXT_COMMENTS.has(child.name));
 
-    const addSeparator = () => {
-      if (tokens.at(-1)?.tag !== "separator") {
-        tokens.push({ tag: "separator" });
+    let headingContinues = false;
+    const flushText = () => {
+      if (title) {
+        tokens.push({ tag: "title", text: title });
+        title = "";
+      }
+      if (heading) {
+        tokens.push(
+          headingContinues
+            ? { tag: "heading", text: heading, continued: true }
+            : { tag: "heading", text: heading },
+        );
+        heading = "";
+        headingContinues = true;
+      }
+      if (transitional) {
+        tokens.push({ tag: "transitional", text: transitional });
+        transitional = "";
+      }
+      if (action) {
+        tokens.push({ tag: "action", text: action });
+        action = "";
       }
     };
 
-    const isRootFunctionName = (node: SyntaxNode): boolean => {
-      const definition = node.parent?.parent;
-      let container = definition?.parent;
-      while (container && ROOT_FUNCTION_WRAPPERS.has(container.name)) {
-        container = container.parent;
+    let pendingTokens = 0;
+    let heldSeparator: number | undefined = undefined;
+    const addSeparator = (from: number) => {
+      if (pendingTokens > 0) {
+        heldSeparator ??= from;
+        return;
       }
-      if (
-        node.parent?.name !== "LuauFunctionDefinition_content" ||
-        definition?.name !== "LuauFunctionDefinition" ||
-        container?.name !== "sparkdown"
-      ) {
-        return false;
+      flushText();
+      if (tokens.at(-1)?.tag !== "separator") {
+        tokens.push({ tag: "separator", from });
       }
-      const begin = definition.getChild("LuauFunctionDefinition_begin");
-      const modifier = begin && getDescendent("LuauScopeModifier", begin);
-      return !modifier || read(modifier.from, modifier.to) !== "local";
     };
 
     const isWhitespaceOnly = (start: number, end: number): boolean => {
@@ -113,37 +115,18 @@ export default class ScreenplayParser {
         const from = nodeRef.from;
         const to = nodeRef.to;
 
-        if (nodeRef.node.parent?.name === "sparkdown") {
-          if (
-            name !== "FrontMatter" &&
-            name !== "Scene" &&
-            name !== "Branch" &&
-            name !== "BlockTitle" &&
-            name !== "InlineTitle" &&
-            name !== "BlockHeading" &&
-            name !== "InlineHeading" &&
-            name !== "BlockTransitional" &&
-            name !== "InlineTransitional" &&
-            name !== "BlockWrite" &&
-            name !== "InlineWrite" &&
-            name !== "BlockDialogue" &&
-            name !== "InlineDialogue" &&
-            name !== "BlockAction" &&
-            name !== "InlineAction" &&
-            name !== "ImplicitAction" &&
-            name !== "Choice" &&
-            name !== "Newline" &&
-            name !== "Whitespace"
-          ) {
-            addSeparator();
-          }
+        if (printsAsBlankLine(name, nodeRef.node.parent?.name)) {
+          addSeparator(from);
+        }
+        if (TOKENS_ON_LEAVE.has(name)) {
+          pendingTokens++;
         }
         if (name === "SparkdownBlockComment") {
           return false;
         }
         if (name === "Newline") {
           if (isWhitespaceOnly(lineStart, from)) {
-            addSeparator();
+            addSeparator(lineStart);
           }
           lineStart = to;
           leading = false;
@@ -177,7 +160,7 @@ export default class ScreenplayParser {
 
         if (
           name === "LuauFunctionDeclarationName" &&
-          isRootFunctionName(nodeRef.node)
+          isRootFunctionName(nodeRef.node, read)
         ) {
           const text = read(from, to);
           tokens.push({ tag: "function", text });
@@ -300,40 +283,19 @@ export default class ScreenplayParser {
           });
         }
 
-        if (name === "BlockTitle" || name === "InlineTitle") {
-          tokens.push({
-            tag: "title",
-            text: title,
-          });
-          title = "";
-        }
-
-        if (name === "BlockHeading" || name === "InlineHeading") {
-          tokens.push({
-            tag: "heading",
-            text: heading,
-          });
-          heading = "";
-        }
-
-        if (name === "BlockTransitional" || name === "InlineTransitional") {
-          tokens.push({
-            tag: "transitional",
-            text: transitional,
-          });
-          transitional = "";
-        }
-
         if (
+          name === "BlockTitle" ||
+          name === "InlineTitle" ||
+          name === "BlockHeading" ||
+          name === "InlineHeading" ||
+          name === "BlockTransitional" ||
+          name === "InlineTransitional" ||
           name === "BlockAction" ||
           name === "InlineAction" ||
           name === "ImplicitAction"
         ) {
-          tokens.push({
-            tag: "action",
-            text: action,
-          });
-          action = "";
+          flushText();
+          headingContinues = false;
         }
 
         if (name === "DialogueCharacter") {
@@ -360,6 +322,15 @@ export default class ScreenplayParser {
           choice_suffix = "";
         }
 
+        if (TOKENS_ON_LEAVE.has(name)) {
+          pendingTokens--;
+          if (pendingTokens === 0 && heldSeparator !== undefined) {
+            const held = heldSeparator;
+            heldSeparator = undefined;
+            addSeparator(held);
+          }
+        }
+
         stack.pop();
       },
     });
@@ -372,6 +343,16 @@ export default class ScreenplayParser {
     }
 
     return tokens;
+};
+
+export default class ScreenplayParser {
+  protected _parser = new TextmateGrammarParser(GRAMMAR_DEFINITION);
+
+  parse(script: string): ScreenplayToken[] {
+    if (!script) {
+      return [];
+    }
+    return screenplayTokens(this.buildTree(script), script);
   }
 
   parseAll(scripts: string[]): ScreenplayToken[] {
