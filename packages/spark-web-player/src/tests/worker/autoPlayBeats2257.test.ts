@@ -258,6 +258,37 @@ describe("Auto-play beats in the stopped preview (#2257)", () => {
     expect(plays(h)).toBe(0);
   }, 120_000);
 
+  it("returns to the still at once when typing starts while a beat plays", async () => {
+    const h = await previewAt(FIRST);
+    await h.select(WAITING);
+    await rest(h);
+    await h.tick(100, 3);
+    expect(playing(h)).toBe(true);
+    await h.edit([
+      {
+        range: { start: { line: WAITING, character: 9 }, end: { line: WAITING, character: 9 } },
+        text: "X",
+      },
+    ]);
+    const edited = await h.page.sendRequest(SelectCompilerDocumentMessage.type, {
+      textDocument: { uri: MAIN_URI },
+      selectedRange: {
+        start: { line: WAITING, character: 10 },
+        end: { line: WAITING, character: 10 },
+      },
+      docChanged: true,
+      userEvent: true,
+    });
+    expect(edited.programOutdated).toBe(true);
+    await h.controller.handleSelectedCompilerDocument({ params: edited });
+    await settle(40);
+    expect(playing(h)).toBe(false);
+    expect(h.workerState.gameState.game?.playingBeat).toBe(false);
+    expect(shownText(h)).toContain("there.");
+    await rest(h);
+    expect(plays(h)).toBe(1);
+  }, 120_000);
+
   it("plays nothing on landing while auto-play is off, including after it is turned off during the delay", async () => {
     const h = await previewAt(FIRST, false);
     await h.select(WAITING);

@@ -1636,6 +1636,12 @@ export class GamePlayerController {
             startFrom.line,
             docChanged ? undefined : { landing: { pending, id: landing } },
           );
+        } else if (programOutdated && docChanged && this._beatPlay) {
+          await this.updatePreview(
+            this._program,
+            this._beatPlay.file,
+            this._beatPlay.line,
+          );
         }
       }
     }
@@ -2207,7 +2213,8 @@ export class GamePlayerController {
 
   protected _beatPlays = 0;
 
-  protected _beatPlay: { id: number } | null = null;
+  protected _beatPlay: { id: number; file: string; line: number } | null =
+    null;
 
   protected _beatRefusal: string | null = NO_BEAT_REFUSAL;
 
@@ -2227,7 +2234,7 @@ export class GamePlayerController {
       return false;
     }
     const id = ++this._beatPlays;
-    this._beatPlay = { id };
+    this._beatPlay = { id, file: startFrom.file, line: startFrom.line };
     this.morphs?.setPlaying(true);
     this.publishGameState();
     const shown = await this.updatePreview(
