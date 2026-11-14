@@ -772,6 +772,9 @@ export const decorate = (
       } else if (isUnprinted(nodeRef)) {
         hideInlineRange(nodeRef);
         return false;
+      } else if (name === "LuauSparkdownAlternatorArm") {
+        decorations.push(...createDecorations(doc, { type: "reveal", from, to }));
+        return true;
       } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
         return true;

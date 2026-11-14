@@ -254,17 +254,21 @@ const trimBlankRows = (rows: string[]) => {
   return rows;
 };
 
-const screenRows = (configName: string, source: string): string[] => {
-  const view = show(configName, source);
-  expect(view.contentDOM.querySelector(".cm-gap"), "every line rendered").toBeNull();
+const rowsOf = (view: EditorView): string[] => {
   const rows: string[] = [];
   for (const row of Array.from(view.contentDOM.children)) {
     if (isHidden(row, false)) continue;
     const text = visibleText(row);
-    if (text.trim()) rows.push(text.trim());
+    if (text.trim() && getComputedStyle(row).opacity !== "0") rows.push(text.trim());
     else if (text.length > 0 || row.querySelector("br")) rows.push("");
   }
-  return trimBlankRows(rows);
+  return rows;
+};
+
+const screenRows = (configName: string, source: string): string[] => {
+  const view = show(configName, source);
+  expect(view.contentDOM.querySelector(".cm-gap"), "every line rendered").toBeNull();
+  return trimBlankRows(rowsOf(view));
 };
 
 const exportRows = (configName: string, source: string): string[] => {
@@ -487,13 +491,7 @@ describe("a line shared by a hidden node and printed text", () => {
     expect(layout(screenRows("default", source))).toBe(layout(["Before.", "", "Shared.", "After."]));
     const view = views.get("default")!;
     view.dispatch({ effects: setScreenplayConfig.of(CONFIGS["function identifiers"]) });
-    const rows: string[] = [];
-    for (const row of Array.from(view.contentDOM.children)) {
-      if (isHidden(row, false)) continue;
-      const text = visibleText(row);
-      if (text.trim()) rows.push(text.trim());
-      else if (text.length > 0 || row.querySelector("br")) rows.push("");
-    }
+    const rows = rowsOf(view);
     view.dispatch({ effects: setScreenplayConfig.of(CONFIGS["default"]) });
     expect(layout(trimBlankRows(rows))).toBe(layout(["Before.", "", "f5", "", "f6", "Shared.", "After."]));
   });
