@@ -14,6 +14,7 @@ import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { liveDeps, removeJobDir, usersOf } from "../clean-worktrees/clean-worktrees.mjs";
 import { readRepos, reviewThread, ticketsRepo } from "../../repos.mjs";
 import { ACCOUNT_PULL_METADATA_QUERY, requestAccountPullMetadata } from "../../hooks/typed-issue-hook.mjs";
+import { fallbackCommitted } from "../ask-maintainer/maintainer-request.mjs";
 import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
 import { runParallel } from "./gh-parallel.mjs";
 
@@ -582,6 +583,7 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   const reads = {
     subIssues: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/sub_issues`]), parse: pagesOf },
     blockedBy: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/dependencies/blocked_by`]), parse: pagesOf },
+    timeline: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/timeline`]), parse: pagesOf },
     fields: {
       args: (n) => pagesArgs(["-H", "X-GitHub-Api-Version: 2026-03-10", `repos/${tickets}/issues/${n}/issue-field-values`]),
       parse: (out) => { const values = pagesOf(out); const option = (name) => values.find((v) => v.issue_field_name === name)?.single_select_option?.name ?? null; return { effort: option("Effort"), priority: option("Priority") }; },
@@ -658,6 +660,7 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   return {
     issue: (n) => JSON.parse(run("gh", ["api", `repos/${tickets}/issues/${n}`])),
     subIssues: (n) => read("subIssues", n),
+    timeline: (n) => read("timeline", n),
     blockedBy: (n) => read("blockedBy", n),
     fields: (n) => read("fields", n),
     prefetch,
@@ -856,10 +859,18 @@ const pullsFilter = (client, tickets = null, split = false) => {
   };
 };
 
+const labelNames = (issue) => (issue.labels ?? []).map((label) => (typeof label === "string" ? label : label?.name));
+
 export function maintainerRequest({ labels } = readRepos().maintainer) {
   const names = new Set([labels.decision, labels.task]);
-  return (issue) => (issue.labels ?? []).some((label) => names.has(typeof label === "string" ? label : label?.name));
+  return (issue) => labelNames(issue).some((name) => names.has(name));
 }
+
+export function wentAheadRequest({ labels } = readRepos().maintainer) {
+  return (issue) => labelNames(issue).includes(labels.decidedWithoutYou);
+}
+
+export const requestMet = (blocker) => Boolean(blocker.request && (blocker.state === "closed" || blocker.wentAhead));
 
 export function takeSnapshot({ repository, issue, tickets: ticketsRepository = repository, scope = null }, client) {
   const originMain = client.fetchMain();
@@ -868,6 +879,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
   const mergedOnMain = (p) => Boolean(p.state === "MERGED" && p.mergeCommit?.oid && client.onMain(p.mergeCommit.oid));
   const delivered = (n) => pullsOf(n).some(mergedOnMain);
   const isRequest = maintainerRequest();
+  const wentAhead = wentAheadRequest();
   const parent = client.issue(issue);
   const walked = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf });
   const members = scope === null ? null : new Set(walked.filter((t) => t.number === scope || t.deliveredBy?.ticket === scope).map((t) => t.number));
@@ -883,7 +895,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     return {
       ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
-      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
+      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });
@@ -1097,7 +1109,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   };
   const historic = new Set(snapshot.tickets.filter((t) => closedBeforeRun(record, t)).map((t) => t.number));
   const containers = finishedContainers(record, snapshot);
-  const met = (b) => b.delivered || (b.request && b.state === "closed") || historic.has(b.number) || containers.closed.has(b.number);
+  const met = (b) => b.delivered || requestMet(b) || historic.has(b.number) || containers.closed.has(b.number);
   const undelivered = (t) => t.blockers.filter((b) => !met(b));
   const blockerState = (b) => (b.request ? "an open maintainer request" : b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open");
   const waitingFor = (blockers) => `waiting for ${blockers.map((b) => `#${b.number} (${blockerState(b)})`).join(", ")}`;
