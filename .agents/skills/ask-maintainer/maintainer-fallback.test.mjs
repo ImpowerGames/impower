@@ -8,6 +8,7 @@ import { TOOL_MARK } from "./github-app.mjs";
 import { RequestRefused, dataLine, fallbackCommitted, fallbackRequest, fetchAnswer, formatAnswer, listRequests, main, readDataLine, readNote, recordAnswer, reviseRequest, waitForRequests, withMarker, withdrawRequest } from "./maintainer-request.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+process.env.IMPOWER_MAINTAINER_REQUEST_INDEX = mkdtempSync(path.join(tmpdir(), "request-index-"));
 const fixture = (name) => readFileSync(path.join(here, "fixtures", name), "utf8").replace(/\r\n/g, "\n");
 const repos = readRepos();
 const M = repos.maintainer.login;
@@ -67,6 +68,7 @@ function tracker({ body = decisionBody, failCommit = null, beforeCommit = () => 
     },
     issue: (n) => structuredClone(of(n)),
     open: (name) => structuredClone([...t.issues.values()].filter((value) => value.state === "open" && value.labels.some((l) => l.name === name))),
+    all: (name) => structuredClone([...t.issues.values()].filter((value) => value.labels.some((l) => l.name === name))),
     timeline: (n) => structuredClone(t.items.filter((item) => item.issue === n).sort((a, b) => a.seq - b.seq)),
     comments: (n) => structuredClone(t.items.filter((item) => item.issue === n && item.event === "commented")),
     comment: ({ number, bodyFile }) => {
@@ -387,6 +389,7 @@ try {
     let clock = Date.parse("2026-11-13T17:41:00Z");
     let reads = 0;
     const polling = {
+      repo: "acme/tickets",
       poll: () => {
         reads += 1;
         if (reads === 3) t.closeAs("completed", new Date(clock).toISOString());

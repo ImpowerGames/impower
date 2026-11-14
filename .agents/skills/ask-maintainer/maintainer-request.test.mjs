@@ -25,6 +25,7 @@ import {
 } from "./maintainer-request.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+process.env.IMPOWER_MAINTAINER_REQUEST_INDEX = mkdtempSync(path.join(tmpdir(), "request-index-"));
 const fixture = (name) => readFileSync(path.join(here, "fixtures", name), "utf8").replace(/\r\n/g, "\n");
 const request = (name) => JSON.parse(fixture(name));
 const repos = readRepos();
