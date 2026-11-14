@@ -2,7 +2,6 @@ import {
   BackIcon,
   Button,
   ChevronIcon,
-  cn,
   DropdownContent,
   DropdownItem,
   DropdownRoot,
@@ -110,7 +109,7 @@ export default function Trail({
               variant="quiet"
               size="compact"
               {...dropAt(crumb.path)}
-              class={cn(CRUMB, dropTarget === crumb.path && DROP_HIGHLIGHT)}
+              class={dropTarget === crumb.path ? `${CRUMB} ${DROP_HIGHLIGHT}` : CRUMB}
               onClick={() => onOpen(crumb.path)}
             >
               {crumb.name}
