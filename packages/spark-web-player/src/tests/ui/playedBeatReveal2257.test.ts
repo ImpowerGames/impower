@@ -9,6 +9,8 @@ import { flushMicrotasks } from "./domTestHarness";
 import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimation";
 
 const LETTER_STEP = 0.1;
+const PREVIEW = true;
+const PLAY = false;
 const TEXT = "abcdefghij";
 
 const clear = () =>
@@ -33,12 +35,13 @@ const beat = (instant: boolean, time?: number) =>
     sweep: true,
   } as any);
 
-const makePage = () => {
+const makePage = (previewing: boolean) => {
   timeline.currentTime = 0;
   const overlay = document.createElement("div");
   overlay.innerHTML = `<div class="dialogue"><div class="text"></div></div>`;
   document.body.appendChild(overlay);
   const app: any = {
+    previewing,
     overlay,
     audioClock: new AudioClock(0, () => 0),
     emit: () => {},
@@ -104,7 +107,7 @@ afterEach(() => {
 
 describe("a played preview beat over the same still (#2257, correcting #2256)", () => {
   test("types its letters out over the beat, though the still already shows the same text, and ends with every letter shown", async () => {
-    const page = makePage();
+    const page = makePage(PREVIEW);
     await page.send(beat(true));
     expect(page.letters()).toHaveLength(TEXT.length);
     expect(page.revealed()).toBe(TEXT.length);
@@ -121,7 +124,7 @@ describe("a played preview beat over the same still (#2257, correcting #2256)", 
   });
 
   test("types out again on the next play, after the beat settles back to its still", async () => {
-    const page = makePage();
+    const page = makePage(PREVIEW);
     await page.send(beat(true));
     page.frame(1_000);
     await page.send(beat(false, page.now()));
@@ -134,9 +137,22 @@ describe("a played preview beat over the same still (#2257, correcting #2256)", 
     page.frame(450);
     expect(page.revealed()).toBeLessThan(TEXT.length);
   });
+});
+
+describe("writes the replay leaves alone (#2257)", () => {
+  test("leaves a line drawn at once alone when PLAY writes the same line timed", async () => {
+    const page = makePage(PLAY);
+    await page.send(beat(true));
+    expect(page.revealed()).toBe(TEXT.length);
+    const before = page.letters();
+    page.frame(1_000);
+    await page.send(beat(false, page.now()));
+    expect(page.letters()).toEqual(before);
+    expect(page.revealed()).toBe(TEXT.length);
+  });
 
   test("leaves a line PLAY typed and a click finished at once alone when the same line comes again", async () => {
-    const page = makePage();
+    const page = makePage(PLAY);
     await page.send(beat(false, page.now()));
     page.frame(250);
     expect(page.revealed()).toBeLessThan(TEXT.length);
@@ -149,8 +165,11 @@ describe("a played preview beat over the same still (#2257, correcting #2256)", 
     expect(page.revealed()).toBe(TEXT.length);
   });
 
-  test("leaves a line PLAY has already typed alone when the same line is reconciled again", async () => {
-    const page = makePage();
+  test.each([
+    ["PLAY", false],
+    ["the preview", true],
+  ])("leaves a line %s has already typed alone when the same line is reconciled again", async (_app, previewing) => {
+    const page = makePage(previewing);
     await page.send(beat(false, page.now()));
     page.frame(2_000);
     expect(page.revealed()).toBe(TEXT.length);

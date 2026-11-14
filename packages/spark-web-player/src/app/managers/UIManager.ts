@@ -1763,15 +1763,14 @@ export default class UIManager extends Manager {
     const replays =
       holding &&
       !instant &&
+      this.app.previewing === true &&
       instructions.slice(shown).some((e) => (e.after ?? 0) > 0) &&
       targetEls.every((el) => (el as any).__sdTxtAtOnce === true);
     if (holding && !replays) {
       if (instant) {
         for (const el of targetEls) {
           this.revealAtOnce(el);
-          if ((el as any).__sdTxtReplayed) {
-            (el as any).__sdTxtAtOnce = true;
-          }
+          (el as any).__sdTxtAtOnce = true;
         }
       }
       return;
@@ -1789,7 +1788,6 @@ export default class UIManager extends Manager {
       (el as any).__sdTxt = sig;
       (el as any).__sdTxtRev = (el as any).__sdRev ?? 0;
       (el as any).__sdTxtAtOnce = instant;
-      (el as any).__sdTxtReplayed = replays;
     }
     const enter: {
       element: HTMLElement;

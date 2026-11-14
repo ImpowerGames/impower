@@ -19,6 +19,7 @@ export interface IApplication {
   stage: Container;
   overlay: HTMLElement | null;
   paused?: boolean;
+  previewing?: boolean;
   audioContext?: AudioContext;
   audioClock: AudioClock;
   dolly: CameraOrbitControl;
