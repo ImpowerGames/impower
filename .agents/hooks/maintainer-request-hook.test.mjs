@@ -65,6 +65,9 @@ const touching = (n) => [
   ["a curl update", `curl -X PATCH -H "Authorization: Bearer x" https://api.github.com/repos/${repo}/issues/${n} -d '{"state":"closed"}'`],
   ["a nested shell", `bash -c "gh issue comment ${n} -R ${repo} --body ok"`],
   ["gh issue close by address under another -R", `gh issue close https://github.com/${repo}/issues/${n} -R acme/other`],
+  ["gh issue comment under a host-qualified -R", `gh issue comment ${n} -R github.com/${repo} --body ok`],
+  ["gh issue close under a repository address", `gh issue close ${n} --repo https://github.com/${repo}.git`],
+  ["a curl batch whose later transfer changes the request", `curl https://api.github.com/repos/acme/other/issues/1 --next -X PATCH https://api.github.com/repos/${repo}/issues/${n} -d '{"state":"closed"}'`],
 ];
 
 for (const [harness, run] of runs) {
@@ -129,6 +132,19 @@ for (const [harness, run] of runs) {
     `gh issue create -R ${repo} --type Task --title "Follow-up" --body "The maintainer decided this."`,
     `gh issue comment ${OTHER} -R ${repo} --body-file - <<'EOF'\nThe maintainer accepted the fallback.\nEOF`,
   ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command.split("\n")[0]} is refused`);
+  mkdirSync(path.join(bodyDir, "sub"), { recursive: true });
+  writeFileSync(path.join(bodyDir, "sub", "claim.md"), "The maintainer approved the new layout.\n");
+  const subClaim = path.join(bodyDir, "sub", "claim.md").replaceAll(path.sep, "/");
+  const changed = [
+    `cd sub; gh issue comment ${OTHER} -R ${repo} --body-file claim.md`,
+    `cd sub && gh issue comment ${OTHER} -R ${repo} --body-file claim.md`,
+    `Set-Location sub; gh issue comment ${OTHER} -R ${repo} --body-file claim.md`,
+    `cd "${path.join(bodyDir, "sub").replaceAll(path.sep, "/")}"; gh issue comment ${OTHER} -R ${repo} --body-file claim.md`,
+    `bash -c "cd sub && gh issue comment ${OTHER} -R ${repo} --body-file claim.md"`,
+  ];
+  if (process.platform === "win32") changed.push(`gh issue comment ${OTHER} -R ${repo} --body-file ${subClaim.replace(/^([A-Za-z]):/, (m, drive) => `/${drive.toLowerCase()}`)}`);
+  for (const command of changed) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} reads the body file where the shell will`);
+  assert.equal(run(`cd elsewhere; gh issue comment ${OTHER} -R ${repo} --body-file claim.md`, path.join(bodyDir, "sub")), null, `${harness}: after cd the original directory's file is not the one published`);
   const json = file("payload.json", JSON.stringify({ body: "The maintainer approved the layout." }));
   const citedJson = file("payload-cited.json", JSON.stringify({ body: `The maintainer approved the layout, recorded on #${ANSWERED}.` }));
   for (const command of [

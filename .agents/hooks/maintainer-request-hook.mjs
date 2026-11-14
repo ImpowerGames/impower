@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { readRepos, ticketsRepo } from "../repos.mjs";
@@ -60,7 +61,12 @@ function ghParse(args) {
   return parseArgs(args, api ? new Set([...GH_API_VALUE_FLAGS, ...GH_API_FIELD_FLAGS]) : GH_VALUE_FLAGS);
 }
 
-const sameRepo = (a, b) => typeof a === "string" && a.replace(/\.git$/, "").toLowerCase() === b.toLowerCase();
+function normalizeRepo(value) {
+  const v = value.trim().replace(/^=/, "").replace(/\/+$/, "").replace(/\.git$/i, "").toLowerCase();
+  return /(?:^|[/:])([^/:]+\/[^/:]+)$/.exec(v)?.[1] ?? v;
+}
+
+const sameRepo = (a, b) => typeof a === "string" && typeof b === "string" && normalizeRepo(a) === normalizeRepo(b);
 
 function requestNumber(selector, repo) {
   if (/^#?[1-9]\d*$/.test(selector ?? "")) return { number: Number(selector.replace(/^#/, "")), repo: null };
@@ -107,11 +113,10 @@ function touches(seg, i, repo) {
   }
   if (base === "curl") {
     const parsed = parseArgs(args, new Set([...CURL_VALUE, "-d", "--data", "--data-ascii", "--data-raw", "--data-binary", "--data-urlencode", "--json", "-F", "--form", "--form-string", "--url"]));
-    const url = [...parsed.values("--url"), ...parsed.positional].find((p) => /api\.github\.com\//i.test(p));
-    const number = url ? apiTarget(url, repo) : null;
+    const number = [...parsed.values("--url"), ...parsed.positional].filter(githubUrl).map((url) => apiTarget(url, repo)).find((n) => n !== null) ?? null;
     if (number === null) return null;
-    const method = (parsed.values("-X", "--request").at(-1) ?? (parsed.flags.some(([n]) => CURL_DATA.test(n)) ? "POST" : "GET")).toUpperCase();
-    return method === "GET" || method === "HEAD" ? null : { number, action: "api" };
+    const changing = parsed.values("-X", "--request").some((m) => !["GET", "HEAD"].includes(m.toUpperCase())) || parsed.flags.some(([n]) => CURL_DATA.test(n));
+    return changing ? { number, action: "api" } : null;
   }
   if (["invoke-restmethod", "irm", "invoke-webrequest", "iwr"].includes(base)) {
     let url = null;
@@ -148,12 +153,31 @@ function touchReason({ number, action }, repo) {
   return `${repo}#${number} is a maintainer request, and only the ask-maintainer tool comments on, edits, closes or reopens one: an agent posts with the maintainer's login, so a direct comment or close would read as the maintainer's own answer. ${next} Read the answer with \`${TOOL} read ${number}\` and record it with \`${TOOL} record ${number}\`.`;
 }
 
+function localPath(file) {
+  if (file === "~" || file.startsWith("~/")) return path.join(os.homedir(), file.slice(1));
+  const msys = process.platform === "win32" ? /^\/([a-zA-Z])(\/.*|)$/.exec(file) : null;
+  return msys ? `${msys[1]}:${msys[2] || "/"}` : file;
+}
+
 function readBodyFile(file, cwd) {
+  const local = localPath(file);
+  if (cwd === null && !path.isAbsolute(local)) return null;
   try {
-    return readFileSync(path.resolve(cwd ?? process.cwd(), file), "utf8");
+    return readFileSync(path.resolve(cwd ?? process.cwd(), local), "utf8");
   } catch {
     return null;
   }
+}
+
+const CHANGES_DIRECTORY = new Set(["cd", "pushd", "chdir", "set-location", "sl", "push-location"]);
+
+function nextDirectory(seg, positions, cwd) {
+  const at = [...positions].find((k) => k < seg.length && !/^[A-Za-z_][A-Za-z0-9_]*=/.test(seg[k].text));
+  if (at === undefined || !CHANGES_DIRECTORY.has(baseName(seg[at]))) return cwd;
+  const args = seg.slice(at + 1).filter((a) => !/^-(?:LiteralPath|Path)$/i.test(a.text) && a.text !== "--");
+  const target = args[0]?.text;
+  if (args.length !== 1 || !target || target === "-" || /[$`*?]/.test(target)) return null;
+  return cwd === null ? (path.isAbsolute(localPath(target)) ? path.resolve(localPath(target)) : null) : path.resolve(cwd, localPath(target));
 }
 
 function transportValues(text) {
@@ -170,14 +194,20 @@ function transportValues(text) {
   return [text];
 }
 
-function curlUrl(args) {
+function curlUrls(args) {
+  const urls = [];
   for (let k = 0; k < args.length; k++) {
     const t = args[k].text;
-    if (t === "--url") return args[k + 1]?.text ?? null;
-    if (t.startsWith("--url=")) return t.slice(6);
-    if (!t.startsWith("-") && /^(?:https?:\/\/)?[\w.-]+\.[a-z]{2,}(?::\d+)?\//i.test(t)) return t;
+    if (t === "--url") urls.push(args[++k]?.text ?? "");
+    else if (t.startsWith("--url=")) urls.push(t.slice(6));
+    else if (!t.startsWith("-") && /^(?:https?:\/\/)?[\w.-]+\.[a-z]{2,}(?::\d+)?\//i.test(t)) urls.push(t);
   }
-  return null;
+  return urls;
+}
+
+function oneRepo(urls) {
+  const repos = [...new Set(urls.map(endpointRepo).filter(Boolean).map(normalizeRepo))];
+  return repos.length === 1 && urls.every((url) => endpointRepo(url)) ? repos[0] : null;
 }
 
 function publishedText(seg, i, command, cwd) {
@@ -215,9 +245,9 @@ function publishedText(seg, i, command, cwd) {
       }
     } else return null;
   } else if (base === "curl") {
-    const url = curlUrl(args);
-    if (!githubUrl(url)) return null;
-    destination = endpointRepo(url);
+    const urls = curlUrls(args).filter(githubUrl);
+    if (!urls.length) return null;
+    destination = oneRepo(urls);
     for (let k = 0; k < args.length; k++) {
       const name = flagName(args[k].text);
       if (name === null || !CURL_DATA.test(name)) continue;
@@ -321,13 +351,15 @@ function decideAt(command, shell, depth, context) {
     const inner = decideAt(sub, shell, depth + 1, context);
     if (inner) return inner;
   }
+  let cwd = context.cwd === undefined ? process.cwd() : context.cwd;
   for (const { tokens: seg, positions } of segments) {
+    cwd = nextDirectory(seg, positions, cwd);
     for (let i = 0; i < seg.length; i++) {
       const tok = seg[i];
       if (tok.quoted && isShellCommandString(seg, i, positions)) {
         const program = programBefore(seg, i - 1);
         const innerShell = program >= 0 && /^(pwsh|powershell)$/.test(baseName(seg[program])) ? "powershell" : program >= 0 ? "bash" : shell;
-        const inner = decideAt(tok.text, innerShell, depth + 1, context);
+        const inner = decideAt(tok.text, innerShell, depth + 1, { ...context, cwd });
         if (inner) return inner;
       }
       if (!positions.has(i) || !["gh", "curl", "invoke-restmethod", "irm", "invoke-webrequest", "iwr"].includes(baseName(tok))) continue;
@@ -340,7 +372,7 @@ function decideAt(command, shell, depth, context) {
           throw error;
         }
       }
-      const claim = claimReason(publishedText(seg, i, command, context.cwd), context.repos, context.env);
+      const claim = claimReason(publishedText(seg, i, command, cwd), context.repos, context.env);
       if (claim) return claim;
     }
   }
