@@ -98,6 +98,17 @@ describe("a cue that is one of a character's aliases (#2282)", () => {
     expect(beat?.speaker).toEqual({ name: "MASK", parenthetical: "", character: "raffles" });
   });
 
+  test.each(["constructor", "toString"])("an alias named like an object property, `%s`, names its character", async (alias) => {
+    const h = createHarness(
+      `define raffles as character with\n  name = "RAFFLES"\n  aliases = { "${alias}" }\nend\n\n\nscene start\n  ${alias}:\n    Hello.\nend\n`,
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    await flushMicrotasks(10);
+    const beat = h.nextBeat();
+    expect(beat?.speaker).toEqual({ name: alias, parenthetical: "", character: "raffles" });
+  });
+
   test("a cue written as the define name or the `name` shows the `name` as before", async () => {
     const [byName, byDefine] = await beatsOf(`  RAFFLES:\n    Hello.\n  raffles:\n    Hello.\n`, 2);
     expect(byName!.speaker).toEqual({ name: "RAFFLES", parenthetical: "", character: "raffles" });

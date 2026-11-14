@@ -67,6 +67,22 @@ describe("`aliases` on a character (#2282)", () => {
     expect(diagnostics).toEqual([{ message: expect.stringContaining(message), severity: 1, text }]);
   });
 
+  test("an escaped alias is checked by the name it spells", () => {
+    expect(diagnosticsOf(RAFFLES(`{ "\\82AFFLES" }`) + scene(`  Hello.\n`)).diagnostics).toEqual([
+      {
+        message: expect.stringContaining("`RAFFLES` already names this character"),
+        severity: 1,
+        text: "\\82AFFLES",
+      },
+    ]);
+    expect(
+      diagnosticsOf(RAFFLES(`{ "VISITOR", "\\86ISITOR" }`) + scene(`  Hello.\n`)).diagnostics,
+    ).toEqual([
+      { message: "`VISITOR` is listed more than once in these aliases", severity: 1, text: "VISITOR" },
+      { message: "`VISITOR` is listed more than once in these aliases", severity: 1, text: "\\86ISITOR" },
+    ]);
+  });
+
   test("the same alias twice in one list is an error on each", () => {
     const { diagnostics } = diagnosticsOf(
       RAFFLES(`{ "STRANGER", "STRANGER?", "STRANGER" }`) + scene(`  Hello.\n`),

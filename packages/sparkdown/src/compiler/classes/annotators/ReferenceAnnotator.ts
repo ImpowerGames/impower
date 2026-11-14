@@ -37,6 +37,7 @@ import {
 } from "../../utils/readDirective";
 import { distinctRanges } from "../../utils/distinctRanges";
 import { CHARACTER_ALIAS_ID } from "../../utils/characterAliasOwners";
+import { processLuauEscapes } from "../../utils/stringLiteralValue";
 
 export interface Reference {
   usage?: "divert" | "handler";
@@ -334,7 +335,8 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             ? {
                 declaration: "character_alias",
                 symbolIds: [
-                  CHARACTER_ALIAS_ID + (content ? this.read(content.from, content.to) : ""),
+                  CHARACTER_ALIAS_ID +
+                    (content ? processLuauEscapes(this.read(content.from, content.to)) : ""),
                 ],
                 assigned,
               }
@@ -792,7 +794,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             ? getDescendent("LuauDoubleQuotedString_content", stringNode)
             : null;
           if (contentNode) {
-            const value = this.read(contentNode.from, contentNode.to);
+            const value = processLuauEscapes(this.read(contentNode.from, contentNode.to));
             annotations.push(
               SparkdownAnnotation.mark<Reference>({
                 declaration: "character_name",

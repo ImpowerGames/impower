@@ -89,6 +89,31 @@ describe("a character's aliases in the editor (#2282)", () => {
     expect(text).toContain(`name = "RAFFLES"`);
   });
 
+  test.each([
+    ["an escaped alias", `aliases = { "\\86ISITOR" }`, "\\86ISITOR"],
+    ["an escaped `name`", `name = "\\86ISITOR"`, "\\86ISITOR"],
+  ])("go to definition on a cue lands on %s that spells it", (_label, field, declared) => {
+    const source = `define raffles as character with\n  ${field}\nend\n\nscene start\n  VISITOR:\n    Hello.\nend\n`;
+    const { documents, workspace } = workspaceOf(source);
+    const { references } = getReferences(
+      documents.get(URI),
+      documents.tree(URI),
+      undefined,
+      workspace,
+      positionOf(source, "VISITOR", 1),
+      {
+        searchOtherFiles: true,
+        includeDeclaration: true,
+        excludeUses: true,
+        includeInterdependent: false,
+        includeLinks: false,
+      },
+    );
+    expect(
+      (references ?? []).map((r) => ({ text: documents.get(URI)!.getText(r.range), line: r.range.start.line })),
+    ).toEqual([{ text: declared, line: 1 }]);
+  });
+
   test("go to definition on the cue lands on the alias in the define", () => {
     const { documents, workspace } = workspaceOf(SOURCE);
     const { references } = getReferences(

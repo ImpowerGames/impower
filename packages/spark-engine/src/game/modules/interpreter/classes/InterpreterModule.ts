@@ -150,7 +150,7 @@ export class InterpreterModule extends Module<
   }
 
   setup() {
-    this._characterNameMap = {};
+    this._characterNameMap = Object.create(null);
     const characters = Object.entries(this.context.character || {});
     for (const [k, v] of characters) {
       const aliases = v.aliases;
@@ -297,7 +297,9 @@ export class InterpreterModule extends Module<
     const writtenName = writtenText(characterNameMatch);
     const characterId = this._characterNameMap[writtenName] || "";
     const characterObj =
-      characterMap?.[writtenName] || characterMap?.[characterId];
+      (characterMap && Object.hasOwn(characterMap, writtenName)
+        ? characterMap[writtenName]
+        : undefined) || characterMap?.[characterId];
     const namedByAlias =
       characterObj &&
       writtenName !== characterObj.$name &&
