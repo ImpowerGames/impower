@@ -114,10 +114,7 @@ describe("the pickers' cards", () => {
   });
 
   it("offer each sound or piece of music by its name, captioned with its subfolder, and only audio", () => {
-    expect(summary("sound")).toEqual([
-      ["door", "", "blob:assets/Sounds/door.wav"],
-      ["click", "ui", "blob:assets/Sounds/ui/click.ogg"],
-    ]);
+    expect(summary("sound")).toEqual([["door", "", "blob:assets/Sounds/door.wav"]]);
     expect(summary("music")).toEqual([["theme", "", "blob:assets/Music/theme.mp3"]]);
   });
 
@@ -138,7 +135,7 @@ describe("the pickers' cards", () => {
       pickerItems(kind, shared, FOLDERS).map((item) => item.reference);
     expect(references("backdrop")).toEqual(["beach@dusk", "beach@night", "rain", "Sea"]);
     expect(references("portrait")).toEqual(["imani", "kai", "mia"]);
-    expect(references("sound")).toEqual(["rain", "click"]);
+    expect(references("sound")).toEqual(["rain"]);
     expect(references("music")).toEqual(["theme"]);
   });
 
@@ -347,6 +344,8 @@ describe("what the pickers insert", () => {
       file("assets/Sounds/rain.wav", "audio"),
       file("assets/Music/rain.mp3", "audio"),
       file("assets/Backdrops/rain.png"),
+      file("assets/Sounds/ui/click.ogg", "audio"),
+      file("assets/Sounds/ui/click.v2.ogg", "audio"),
     ];
     const { messagesOf } = compiled(SCRIPT, files);
     const warned = files
@@ -367,7 +366,7 @@ describe("the files a picker leaves out", () => {
     ["sound", "only names a script can use", [file("assets/Sounds/door.wav", "audio")], 0],
     [
       "sound",
-      "a space, a clause word, a dot and a name another sound shares",
+      "a space, a clause word and a name another sound shares, but not a dotted file, which the compiler names to its first dot",
       [
         file("assets/Sounds/door.wav", "audio"),
         file("assets/Sounds/door knock.wav", "audio"),
@@ -376,7 +375,7 @@ describe("the files a picker leaves out", () => {
         file("assets/Sounds/rain.wav", "audio"),
         file("assets/Music/rain.mp3", "audio"),
       ],
-      4,
+      3,
     ],
     [
       "music",

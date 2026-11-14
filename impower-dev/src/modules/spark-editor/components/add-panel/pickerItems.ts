@@ -7,8 +7,8 @@ import {
   ADD_MENU_FILE_TYPES,
 } from "../../utils/addMenuFolders";
 import {
+  assetNameOf,
   imageThingsOf,
-  stemOf,
   type ImagePicture,
 } from "@impower/sparkdown/src/attributes/imageFileName";
 import { imageStacks } from "../../utils/imageStacks";
@@ -140,9 +140,9 @@ const candidatesOf = (
   const paths = addMenuFiles(files, kind, folders).map((file) => file.path);
   const own = files.filter((file) => file.type === type).map((file) => file.path);
   if (type === "audio") {
-    const shared = sharedNames(own.map(stemOf));
+    const shared = sharedNames(own.map((path) => assetNameOf(path, type)));
     return paths.map((path) => {
-      const name = stemOf(path);
+      const name = assetNameOf(path, type);
       const candidate: Candidate = { reference: name, name, alternate: null, path };
       return { candidate, writable: writableName(name) && !shared.has(name) };
     });
