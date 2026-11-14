@@ -12,4 +12,7 @@ scene start
   [[navigate with main to menu]]
   [[show with backdrop mia + bunny]]
   [[mia	morph	talk]]
+  [[nonexistent + none]]
+  [[mia+nonesuch morph none]]
+  [[none:mouth.open]]
 end
