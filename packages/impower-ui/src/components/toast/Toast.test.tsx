@@ -11,6 +11,39 @@ import Toast, { TOAST_SWIPE_DISMISS_PX, TOAST_TRANSITION_MS, toastVariants } fro
 
 const themeCss = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../theme.css"), "utf8");
 
+const layoutTokens = (layout: string) => {
+  const tokens = new Map<string, string>();
+  for (const block of themeCss.split("}")) {
+    const [selector, body] = block.split("{");
+    if (body === undefined || ![":root", `:root[data-layout="${layout}"]`].includes(selector!.trim())) {
+      continue;
+    }
+    for (const declaration of body.split(";")) {
+      const colon = declaration.indexOf(":");
+      const name = declaration.slice(0, colon).trim();
+      if (name.startsWith("--")) {
+        tokens.set(name, declaration.slice(colon + 1).trim());
+      }
+    }
+  }
+  return tokens;
+};
+
+const resolvePx = (tokens: Map<string, string>, name: string): number => {
+  const value = tokens.get(name);
+  if (value === undefined) {
+    return Number.NaN;
+  }
+  const expression = value.replace(/^calc\((.*)\)$/, "$1");
+  return expression
+    .split("+")
+    .map((term) => term.trim())
+    .reduce((sum, term) => {
+      const reference = term.match(/^var\((--[a-z-]+)\)$/);
+      return sum + (reference ? resolvePx(tokens, reference[1]!) : Number.parseFloat(term));
+    }, 0);
+};
+
 let coarse = false;
 const mediaListeners = new Set<() => void>();
 
@@ -92,13 +125,14 @@ describe("Toast", () => {
   });
 
   it.each([
-    ["desktop", 76 + 68],
-    ["compact", 54 + 52],
-    ["phone", 54 + 91 + 48],
-  ])("hangs below the %s layout's toolbar rows, clear of their controls", (layout, rowsBottom) => {
-    const rule = themeCss.match(new RegExp(`:root\\[data-layout="${layout}"\\]\\s*\\{[^}]*--toast-top:\\s*(\\d+)px`));
-    expect(rule).not.toBeNull();
-    expect(Number(rule![1])).toBeGreaterThanOrEqual(rowsBottom);
+    ["desktop", ["--title-bar-height", "--script-header-height"]],
+    ["compact", ["--title-bar-height", "--preview-top-bar-height"]],
+    ["phone", ["--title-bar-height", "--preview-strip-height", "--script-header-height"]],
+  ])("hangs below the %s layout's toolbar rows, clear of their controls", (layout, rows) => {
+    const tokens = layoutTokens(layout);
+    const rowsBottom = rows.reduce((sum, row) => sum + resolvePx(tokens, row), 0);
+    expect(rowsBottom).toBeGreaterThan(0);
+    expect(resolvePx(tokens, "--toast-top")).toBeGreaterThanOrEqual(rowsBottom);
   });
 
   it("fires its action's callback once from the action button, then leaves after its exit", async () => {

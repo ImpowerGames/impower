@@ -606,20 +606,25 @@
   --float-shadow: 0 12px 40px rgb(0 0 0 / 0.4);
   --fade: 20px;
   --scrollbar-track: transparent;
-  --toast-top: 64px;
   --stage: var(--stage-full, rgb(0 0 0));
-}
-
-:root[data-layout="desktop"] {
-  --toast-top: 152px;
+  --title-bar-height: 76px;
+  --script-header-height: 68px;
+  --preview-top-bar-height: 52px;
+  --preview-strip-height: 91px;
+  --toast-gap: 8px;
+  --toast-top: calc(var(--title-bar-height) + var(--script-header-height) + var(--toast-gap));
 }
 
 :root[data-layout="compact"] {
-  --toast-top: 114px;
+  --title-bar-height: 54px;
+  --script-header-height: 48px;
+  --toast-top: calc(var(--title-bar-height) + var(--preview-top-bar-height) + var(--toast-gap));
 }
 
 :root[data-layout="phone"] {
-  --toast-top: 201px;
+  --title-bar-height: 54px;
+  --script-header-height: 48px;
+  --toast-top: calc(var(--title-bar-height) + var(--preview-strip-height) + var(--script-header-height) + var(--toast-gap));
 }
 
 [data-theme="chalk"],
