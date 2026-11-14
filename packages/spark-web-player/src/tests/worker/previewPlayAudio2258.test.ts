@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { MorphPlayback } from "../../app/morph/MorphPlayback";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 import { createStandInAudio, type StandInAudio } from "./standInAudio";
+import { stubMedia } from "../ui/mediaStubs";
 
 const SOURCE = `define mia as character with
   name = "MIA"
@@ -274,25 +275,46 @@ end
     expect(theme!.sounding).toBe(true);
   }, 120_000);
 
-  it("keeps a loop that finishes loading after the page hides paused until the page is shown", async () => {
-    const audio = createStandInAudio();
+  const holdAudioLoads = (audio: StandInAudio) => {
     const attach = audio.attach.bind(audio);
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
-    let waiting = 0;
+    const held = { waiting: 0, release: () => release() };
     audio.attach = (app, emit) => {
       const manager = attach(app, emit);
       const load = (manager as any).onLoadAudioPlayer.bind(manager);
       (manager as any).onLoadAudioPlayer = async (params: unknown) => {
-        waiting += 1;
+        held.waiting += 1;
         await gate;
         return load(params);
       };
       return manager;
     };
+    return held;
+  };
+
+  it("keeps a loop that finishes loading after Play audio is switched off silent", async () => {
+    const audio = createStandInAudio();
+    const held = holdAudioLoads(audio);
     const h = await previewAt(FIRST, audio);
     await setPlayAudio(h, true);
-    expect(waiting).toBeGreaterThan(0);
+    expect(held.waiting).toBeGreaterThan(0);
+    await setPlayAudio(h, false);
+    held.release();
+    await settle(60);
+    expect(audio.sounding()).toEqual([]);
+    await setPlayAudio(h, true);
+    expect(audio.sounding()).toEqual([THEME]);
+    expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
+  }, 120_000);
+
+  it("keeps a loop that finishes loading after the page hides silent until the page is shown", async () => {
+    const audio = createStandInAudio();
+    const held = holdAudioLoads(audio);
+    const h = await previewAt(FIRST, audio);
+    await setPlayAudio(h, true);
+    expect(held.waiting).toBeGreaterThan(0);
+    const release = held.release;
     const doc = h.overlay.ownerDocument;
     Object.defineProperty(doc, "visibilityState", { value: "hidden", configurable: true });
     h.controller.handleVisibilityChange();
@@ -340,5 +362,104 @@ end
       .filter((s) => s.key === THEME && s.sounding);
     expect(again).toHaveLength(1);
     expect(audio.sounding()).toEqual([THEME]);
+  }, 120_000);
+});
+
+const MOVIE_SOURCE = `define intro as video with
+  src = "intro.webm"
+end
+
+scene start
+  [[play intro]]
+  After the movie.
+end
+`;
+
+const MOVIE_BEAT = 5;
+
+describe("a played beat's movie in the stopped preview (#2258, #2327)", () => {
+  async function movieAt(audio: StandInAudio) {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: MOVIE_SOURCE }],
+      startFrom: { file: MAIN_URI, line: MOVIE_BEAT },
+      manualClock: true,
+      audio,
+    });
+    harness = h;
+    stubMedia(h.overlay);
+    const win = h.overlay.ownerDocument.defaultView as any;
+    win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+    await h.compile();
+    await select(h, MOVIE_BEAT);
+    return h;
+  }
+
+  async function playMovie(h: Harness) {
+    await h.controller.playBeat();
+    await settle(40);
+    await h.tick(100);
+    await settle(40);
+    expect(playing(h)).toBe(true);
+    const video = h.overlay.querySelector(".cutscene video") as HTMLVideoElement;
+    expect(video).toBeTruthy();
+    expect(video.paused).toBe(false);
+    return video;
+  }
+
+  const setVisibility = (h: Harness, state: "hidden" | "visible") => {
+    Object.defineProperty(h.overlay.ownerDocument, "visibilityState", {
+      value: state,
+      configurable: true,
+    });
+    h.controller.handleVisibilityChange();
+  };
+
+  it("plays silent with Play audio off and is heard with it on", async () => {
+    const audio = createStandInAudio();
+    const h = await movieAt(audio);
+    const silent = await playMovie(h);
+    expect(audio.movieSounding(silent)).toBe(false);
+    await select(h, MOVIE_BEAT);
+    await setPlayAudio(h, true);
+    const heard = await playMovie(h);
+    expect(audio.movieSounding(heard)).toBe(true);
+  }, 120_000);
+
+  it("falls silent, still playing, when Play audio is switched off mid-beat", async () => {
+    const audio = createStandInAudio();
+    const h = await movieAt(audio);
+    await setPlayAudio(h, true);
+    const video = await playMovie(h);
+    expect(audio.movieSounding(video)).toBe(true);
+    await setPlayAudio(h, false);
+    expect(video.paused).toBe(false);
+    expect(audio.movieSounding(video)).toBe(false);
+  }, 120_000);
+
+  it("falls silent, still playing, while the page is hidden, and is heard again when shown", async () => {
+    const audio = createStandInAudio();
+    const h = await movieAt(audio);
+    await setPlayAudio(h, true);
+    const video = await playMovie(h);
+    setVisibility(h, "hidden");
+    await settle(5);
+    expect(video.paused).toBe(false);
+    expect(audio.movieSounding(video)).toBe(false);
+    setVisibility(h, "visible");
+    await settle(5);
+    expect(playing(h)).toBe(true);
+    expect(audio.movieSounding(video)).toBe(true);
+  }, 120_000);
+
+  it("stays muted until the audio context runs, then is heard", async () => {
+    const audio = createStandInAudio({ running: false });
+    const h = await movieAt(audio);
+    await setPlayAudio(h, true);
+    const video = await playMovie(h);
+    expect(video.muted).toBe(true);
+    audio.start();
+    await settle(20);
+    expect(video.muted).toBe(false);
+    expect(audio.movieSounding(video)).toBe(true);
   }, 120_000);
 });

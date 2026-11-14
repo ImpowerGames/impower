@@ -72,10 +72,7 @@ export class AudioModule extends Module<
     }
   }
 
-  protected _hearing = 0;
-
   forgetHeard(): void {
-    this._hearing += 1;
     this._audible = new Map();
     this._sounding = new Map();
   }
@@ -280,7 +277,6 @@ export class AudioModule extends Module<
 
   protected async restoreChannel(channel: string, only?: ReadonlySet<string>) {
     const epoch = this._game.connection.epoch;
-    const hearing = this._hearing;
     const restored: {
       update: AudioPlayerUpdate;
       data: LoadAudioPlayerParams[];
@@ -314,7 +310,7 @@ export class AudioModule extends Module<
       }
     }
     await this.loadAllAudio(audioToLoad);
-    if (this.superseded(epoch) || hearing !== this._hearing) {
+    if (this.superseded(epoch)) {
       return;
     }
     const playing = this._channelsCurrentlyPlaying.get(channel);
@@ -710,11 +706,8 @@ export class AudioModule extends Module<
       this.enableTrigger(id);
       return id;
     }
-    const hearing = this._hearing;
     const trigger = (time?: number) => {
-      if (hearing === this._hearing) {
-        this.update(channel, updates, time);
-      }
+      this.update(channel, updates, time);
     };
     const epoch = this._game.connection.epoch;
     this.loadAllAudio(Array.from(audioToLoad)).then(() => {

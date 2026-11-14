@@ -142,10 +142,6 @@ import {
   type ColorSchemeSetting,
 } from "../../../core/classes/messages/SetSimulatedColorSchemeMessage";
 import {
-  MuteMoviesMessage,
-  type MuteMoviesMessageMap,
-} from "./messages/MuteMoviesMessage";
-import {
   SkipCutsceneMessage,
   type SkipCutsceneMessageMap,
 } from "./messages/SkipCutsceneMessage";
@@ -429,7 +425,6 @@ export type UIMessageMap = AnimateElementsMessageMap &
   CreateElementMessageMap &
   DestroyElementMessageMap &
   MoveElementMessageMap &
-  MuteMoviesMessageMap &
   ObserveElementMessageMap &
   PlayCutsceneMessageMap &
   SetThemeMessageMap &
@@ -1821,10 +1816,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected showsMovieStill(): boolean {
     const previewing = this.context?.system?.previewing;
     return previewing != null && previewing !== false && !this._beatPlaying;
-  }
-
-  protected mutesPlayedMovies(): boolean {
-    return this._beatPlaying && !this._game.previewAudio;
   }
 
   speak(speech: BeatSpeech | undefined, instant = false, time?: number) {
@@ -4174,7 +4165,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const params: PlayCutsceneParams = {
       src,
       loop: Boolean(cutscene.loop),
-      muted: Boolean(cutscene.mute) || this.mutesPlayedMovies(),
+      muted: Boolean(cutscene.mute),
       ...this.getMovieMixer(),
     };
     if (cutscene.with) {
@@ -4205,10 +4196,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     this.emit(SkipCutsceneMessage.type.notification({}));
-  }
-
-  muteMovies(): void {
-    this.emit(MuteMoviesMessage.type.notification({}));
   }
 
   async navigateScreen(
@@ -4999,7 +4986,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               content.video = {
                 src: videoSrc,
                 loop: !e.once,
-                muted: Boolean(e.mute) || $.mutesPlayedMovies(),
+                muted: Boolean(e.mute),
                 ...$.getMovieMixer(),
                 ...($.showsMovieStill() ? { preview: true } : {}),
               };

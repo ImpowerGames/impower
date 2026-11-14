@@ -28,7 +28,6 @@ import {
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PlayCutsceneMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
 import { ColorSchemeHost } from "../ColorSchemeHost";
-import { MuteMoviesMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MuteMoviesMessage";
 import { SkipCutsceneMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SkipCutsceneMessage";
 import { SweepReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SweepReconcileMessage";
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
@@ -1402,12 +1401,6 @@ export default class UIManager extends Manager {
     }
     if (SkipCutsceneMessage.type.isNotification(msg)) {
       this.endCutscene();
-      return;
-    }
-    if (MuteMoviesMessage.type.isNotification(msg)) {
-      for (const video of this.app.overlay?.querySelectorAll("video") ?? []) {
-        video.muted = true;
-      }
       return;
     }
     if (msg.method.startsWith("ui/")) {

@@ -14,26 +14,45 @@ class StandInParam {
   }
 }
 
+class StandInNode {
+  outputs: StandInNode[] = [];
+  gain?: StandInParam;
+  connect(to: StandInNode) {
+    this.outputs.push(to);
+    return to;
+  }
+  disconnect() {
+    this.outputs.length = 0;
+  }
+  reaches(destination: StandInNode): boolean {
+    if (this === destination) {
+      return true;
+    }
+    if (this.gain && this.gain.value <= 0) {
+      return false;
+    }
+    return this.outputs.some((node) => node.reaches(destination));
+  }
+}
+
 export interface StandInBuffer {
   key: string;
   duration: number;
   length: number;
 }
 
-export class StandInSource {
+export class StandInSource extends StandInNode {
   detune = new StandInParam(0);
   playbackRate = new StandInParam(1);
   loop = false;
   buffer: StandInBuffer | null = null;
   startedAt?: number;
   stopped = false;
-  gain?: StandInParam;
+  constructor(protected destination: StandInNode) {
+    super();
+  }
   addEventListener() {}
   removeEventListener() {}
-  connect(node: { gain?: StandInParam }) {
-    this.gain ??= node.gain;
-  }
-  disconnect() {}
   start(when: number) {
     this.startedAt = when;
   }
@@ -48,7 +67,23 @@ export class StandInSource {
       this.startedAt != null &&
       !this.stopped &&
       this.playbackRate.value > 0 &&
-      (this.gain?.value ?? 1) > 0
+      this.reaches(this.destination)
+    );
+  }
+}
+
+class StandInMovieSource extends StandInNode {
+  constructor(
+    readonly mediaElement: HTMLMediaElement,
+    protected destination: StandInNode,
+  ) {
+    super();
+  }
+  get sounding(): boolean {
+    return (
+      !this.mediaElement.paused &&
+      !this.mediaElement.muted &&
+      this.reaches(this.destination)
     );
   }
 }
@@ -58,6 +93,7 @@ export interface StandInAudio {
   readonly running: boolean;
   sourcesOf(key: string): StandInSource[];
   sounding(): string[];
+  movieSounding(video: HTMLMediaElement): boolean;
   start(): void;
   attach(app: any, emit: (message: unknown) => void): AudioManager;
 }
@@ -66,23 +102,25 @@ export function createStandInAudio(
   options: { running?: boolean } = {},
 ): StandInAudio {
   const sources: StandInSource[] = [];
+  const movies: StandInMovieSource[] = [];
+  const destination = new StandInNode();
+  const gainNode = () => {
+    const node = new StandInNode();
+    node.gain = new StandInParam(1);
+    return node;
+  };
   const context = {
     currentTime: 0,
     sampleRate: 48000,
     state: (options.running === false ? "suspended" : "running") as AudioContextState,
     outputLatency: 0,
-    destination: {},
-    createGain: () => ({
-      gain: new StandInParam(1),
-      connect() {},
-      disconnect() {},
-    }),
-    createAnalyser: () => ({
-      fftSize: 2048,
-      connect() {},
-      disconnect() {},
-      getFloatTimeDomainData() {},
-    }),
+    destination,
+    createGain: gainNode,
+    createAnalyser: () =>
+      Object.assign(new StandInNode(), {
+        fftSize: 2048,
+        getFloatTimeDomainData() {},
+      }),
     createBuffer: (_channels: number, length: number) => ({
       key: "",
       duration: length / 48000,
@@ -90,8 +128,14 @@ export function createStandInAudio(
       copyToChannel() {},
     }),
     createBufferSource: () => {
-      const source = new StandInSource();
+      const source = new StandInSource(destination);
       sources.push(source);
+      return source;
+    },
+    createMediaElementSource: (mediaElement: HTMLMediaElement) => {
+      const source = new StandInMovieSource(mediaElement, destination);
+      Object.assign(source, { context });
+      movies.push(source);
       return source;
     },
   };
@@ -105,6 +149,8 @@ export function createStandInAudio(
     sounding: () => [
       ...new Set(sources.filter((s) => s.sounding).map((s) => s.key.split("~")[0]!)),
     ],
+    movieSounding: (video) =>
+      movies.some((m) => m.mediaElement === video && m.sounding),
     start() {
       context.state = "running";
       if (!attached) {

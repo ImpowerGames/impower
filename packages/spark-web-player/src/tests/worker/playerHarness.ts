@@ -314,12 +314,15 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   const toRouter: any[] = [];
   let ui: UIManager | undefined;
   controller.ensureAudioContext = async () => {};
-  controller.createApp = (endpoint: GameEndpoint) => {
+  controller.createApp = (endpoint: GameEndpoint, previewing: boolean) => {
     const stubApp = createStubApp(
       overlay,
       (message: any) => endpoint.receive(structuredClone(message)),
       createImage,
     );
+    if (options.audio) {
+      stubApp.previewing = previewing;
+    }
     const emit = (message: any) => endpoint.receive(structuredClone(message));
     const audio = options.audio?.attach(stubApp, emit);
     ui = new UIManager(stubApp);

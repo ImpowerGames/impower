@@ -2195,6 +2195,7 @@ export class GamePlayerController {
     message: SetPlayAudioMessage.Request,
   ) => {
     this._playAudio = message.params.enabled;
+    this.openPreviewOutput(this.previewApp);
     await workspace?.gameLink
       ?.request(SetPreviewAudioMessage.type, { enabled: this._playAudio })
       .catch((e) => reportUnlessRestarted(e));
@@ -2205,13 +2206,20 @@ export class GamePlayerController {
     return this._workerPlay || this._startingPlay ? undefined : this._app;
   }
 
+  protected openPreviewOutput(app: Application | undefined) {
+    app?.audio?.setOutputOpen(
+      this._playAudio && document.visibilityState !== "hidden",
+    );
+  }
+
   protected handleVisibilityChange = () => {
-    const audio = this.previewApp?.audio;
+    const app = this.previewApp;
     if (document.visibilityState === "hidden") {
-      audio?.pausePlayers();
+      app?.audio?.pausePlayers();
     } else {
-      audio?.unpausePlayers();
+      app?.audio?.unpausePlayers();
     }
+    this.openPreviewOutput(app);
   };
 
   protected cancelLanding(): boolean {
@@ -3456,8 +3464,8 @@ export class GamePlayerController {
     await this.ensureAudioContext();
     profile("start", "app/create");
     const app = this.createApp(game, previewing);
-    if (previewing && document.visibilityState === "hidden") {
-      app.audio?.pausePlayers();
+    if (previewing) {
+      this.openPreviewOutput(app);
     }
     if (owned()) {
       this._app = app;

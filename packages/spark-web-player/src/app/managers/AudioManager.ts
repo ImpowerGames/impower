@@ -37,7 +37,10 @@ export default class AudioManager extends Manager {
 
   protected _audioChannels = new Map<string, Map<string, AudioPlayer>>();
 
-  protected _audioProbe = new AudioProbe(() => this._audioMixers.entries());
+  protected _audioProbe = new AudioProbe((): [string, AudioMixer][] => [
+    ...this._audioMixers.entries(),
+    ...(this._output ? [["$output", this._output] as [string, AudioMixer]] : []),
+  ]);
   get audioProbe() {
     return this._audioProbe;
   }
@@ -73,6 +76,7 @@ export default class AudioManager extends Manager {
       delete (window as any).__audioProbe;
     }
     this._audioMixers.clear();
+    this._output = undefined;
     this._mixerGains.clear();
     this._waitingMovies.clear();
     this._pendingPlayers.clear();
@@ -196,6 +200,25 @@ export default class AudioManager extends Manager {
 
   protected _mixerGains = new Map<string, number>();
 
+  protected _output?: AudioMixer;
+
+  protected _outputOpen = !this.app.previewing;
+
+  setOutputOpen(open: boolean): void {
+    this._outputOpen = open;
+    if (this._output) {
+      this._output.gain = open ? 1 : 0;
+    }
+  }
+
+  protected getOutput(audioContext: AudioContext): AudioMixer {
+    if (!this._output) {
+      this._output = new AudioMixer(audioContext);
+      this._output.gain = this._outputOpen ? 1 : 0;
+    }
+    return this._output;
+  }
+
   protected getAudioMixer(
     mixer: string,
     gain?: number,
@@ -207,7 +230,7 @@ export default class AudioManager extends Manager {
     if (this.app.audioContext) {
       const destination =
         mixer === "main"
-          ? this.app.audioContext.destination
+          ? this.getOutput(this.app.audioContext).volumeNode
           : this.getAudioMixer("main")?.volumeNode;
       const audioMixer = new AudioMixer(this.app.audioContext, destination);
       const initialGain = this._mixerGains.get(mixer) ?? gain;
@@ -330,9 +353,6 @@ export default class AudioManager extends Manager {
     }
     if (update.control === "start") {
       const instance = audioPlayer.start(when, over, gain, at);
-      if (this._playersPaused) {
-        audioPlayer.pause(currentTime);
-      }
       this.clipStarted(channel, instance);
       if (channel && key) {
         this.pruneWhenDone(channel, key, audioPlayer);
@@ -352,36 +372,53 @@ export default class AudioManager extends Manager {
   >();
 
   connectMovie(video: HTMLMediaElement, mixer: string, mixerGain: number) {
+    if (this.routeMovie(video, mixer, mixerGain)) {
+      if ((video as any).__sdUnrouted) {
+        delete (video as any).__sdUnrouted;
+        video.muted = false;
+      }
+    } else if (this.app.previewing && !video.muted) {
+      (video as any).__sdUnrouted = true;
+      video.muted = true;
+    }
+  }
+
+  protected routeMovie(
+    video: HTMLMediaElement,
+    mixer: string,
+    mixerGain: number,
+  ): boolean {
     const audioContext = this.app.audioContext;
     if (!audioContext) {
       this._waitingMovies.set(video, { mixer, mixerGain });
-      return;
+      return false;
     }
     this._waitingMovies.delete(video);
     const audioMixer = this.getAudioMixer(mixer, mixerGain);
     if (!audioMixer) {
-      return;
+      return false;
     }
     let source = (video as any).__sdAudioSource as
       | MediaElementAudioSourceNode
       | undefined;
     if (source && source.context !== audioContext) {
-      return;
+      return false;
     }
     if (!source) {
       source = audioContext.createMediaElementSource(video);
       (video as any).__sdAudioSource = source;
     }
-    if ((video as any).__sdAudioTarget === audioMixer.volumeNode) {
-      return;
+    if ((video as any).__sdAudioTarget !== audioMixer.volumeNode) {
+      source.disconnect();
+      source.connect(audioMixer.volumeNode);
+      (video as any).__sdAudioTarget = audioMixer.volumeNode;
     }
-    source.disconnect();
-    source.connect(audioMixer.volumeNode);
-    (video as any).__sdAudioTarget = audioMixer.volumeNode;
+    return true;
   }
 
   disconnectMovie(video: HTMLMediaElement) {
     this._waitingMovies.delete(video);
+    delete (video as any).__sdUnrouted;
     ((video as any).__sdAudioSource as AudioNode | undefined)?.disconnect();
     delete (video as any).__sdAudioTarget;
   }
@@ -490,10 +527,7 @@ export default class AudioManager extends Manager {
     this.unpausePlayers();
   }
 
-  protected _playersPaused = false;
-
   pausePlayers(): void {
-    this._playersPaused = true;
     if (this.app.audioContext) {
       const scheduledTime = this.app.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {
@@ -505,7 +539,6 @@ export default class AudioManager extends Manager {
   }
 
   unpausePlayers(): void {
-    this._playersPaused = false;
     if (this.app.audioContext) {
       const scheduledTime = this.app.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {
