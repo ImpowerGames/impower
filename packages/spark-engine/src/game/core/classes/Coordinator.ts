@@ -89,6 +89,10 @@ export class Coordinator<G extends Game> {
 
   protected _played?: () => void;
 
+  protected _audioTriggerIds: number[] = [];
+
+  protected _audioTime?: number;
+
   constructor(
     game: G,
     instructions: Instructions,
@@ -133,6 +137,26 @@ export class Coordinator<G extends Game> {
     this._game.module.ui.setBeatPlaying(false);
     this.display({ instant: true, preview: true });
     played();
+  }
+
+  resumeAudio(): void {
+    if (!this._played || !this._instructions.audio) {
+      return;
+    }
+    if (this._audioTime == null) {
+      if (this._audioTriggerIds.length === 0) {
+        this._audioTriggerIds = this.scheduleAudio();
+      }
+      return;
+    }
+    this.scheduleAudio(this._audioTime);
+  }
+
+  protected scheduleAudio(time?: number): number[] {
+    return Object.entries(this._instructions.audio ?? {}).map(
+      ([target, events]) =>
+        this._game.module.audio.schedule(target, events, time != null, time),
+    );
   }
 
   onSettle(restored: boolean) {
@@ -384,12 +408,10 @@ export class Coordinator<G extends Game> {
       game.module.audio.stopChannel("typewriter");
     }
 
-    const audioTriggerIds =
+    this._audioTriggerIds =
       instant || silent || !instructions.audio
         ? []
-        : Object.entries(instructions.audio).map(([target, events]) =>
-            game.module.audio.schedule(target, events),
-          );
+        : this.scheduleAudio();
 
     const assets = game.module.assets;
     const simulating = Boolean(game.context.system.simulating);
@@ -429,7 +451,7 @@ export class Coordinator<G extends Game> {
     const totalDurationMS = (instructions.end ?? 0) * 1000;
     const handleTick = (deltaMS: number): void => {
       if (!ready) {
-        const audioReady = audioTriggerIds.every((n) =>
+        const audioReady = this._audioTriggerIds.every((n) =>
           game.module.audio.isReady(n),
         );
         const assetsReady =
@@ -439,7 +461,8 @@ export class Coordinator<G extends Game> {
           ready = true;
           this._startedExecution = true;
           const time = game.context.system.now() + BEAT_LEAD_MS;
-          game.module.audio.triggerAll(audioTriggerIds, time);
+          this._audioTime = time;
+          game.module.audio.triggerAll(this._audioTriggerIds, time);
           if (assetTriggerId != null) {
             assets.trigger(assetTriggerId);
           }

@@ -5391,6 +5391,7 @@ export class Game<T extends M = {}> {
     }
     this.module.audio.forgetHeard();
     this.module.audio.settlePreview();
+    this._beatPlay?.coordinator.resumeAudio();
   }
 
   protected _previewShowsBeat = false;

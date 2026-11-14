@@ -700,6 +700,7 @@ export class AudioModule extends Module<
     channel: string,
     sequence: AudioInstruction[],
     autoTrigger = false,
+    triggerTime?: number,
   ): number {
     const { audioToLoad, updates } = this.plan(channel, sequence);
     const id = this.nextTriggerId();
@@ -714,7 +715,7 @@ export class AudioModule extends Module<
     this.loadAllAudio(Array.from(audioToLoad)).then(() => {
       this.enableTrigger(id, trigger);
       if (autoTrigger && !this.superseded(epoch)) {
-        trigger();
+        trigger(triggerTime);
       }
     });
     return id;

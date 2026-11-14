@@ -453,7 +453,11 @@ end
   }, 120_000);
 });
 
-const TOGGLE_SOURCE = `define theme as audio with
+const TOGGLE_SOURCE = `define mia as character with
+  name = "MIA"
+end
+
+define theme as audio with
   src = "https://example.com/theme.mp3"
 end
 
@@ -461,9 +465,16 @@ define storm as audio with
   src = "https://example.com/storm.mp3"
 end
 
+define chime as audio with
+  src = "https://example.com/chime.wav"
+end
+
 scene start
   ((play music theme))
-  MIA: This is a long sentence that is still typing when the audio preference changes during its beat.
+  MIA:
+    This is a long sentence that is still typing when the audio preference changes during its beat.
+    ((play sound chime))
+    And a sound effect after it.
   MIA: Another beat sharing the music.
   ((play music storm))
   MIA: A different beat with different music.
@@ -472,6 +483,7 @@ end
 
 const TOGGLE_LINES = TOGGLE_SOURCE.split("\n");
 const LONG = TOGGLE_LINES.findIndex((l) => l.includes("This is a long"));
+const CHIME = "audio.chime";
 const DIFFERENT = TOGGLE_LINES.findIndex((l) => l.includes("A different beat"));
 
 describe("switching Play audio around a played beat (#2258)", () => {
@@ -515,15 +527,77 @@ describe("switching Play audio around a played beat (#2258)", () => {
     expect(audio.sounding()).toEqual([THEME]);
   }, 120_000);
 
-  it("starts the shown beat's loop, and no one-shot, on switching on during a beat begun silently", async () => {
+  it("sounds the rest of a beat begun silently on switching on mid-beat: its loop once, its later typing blips and its sound effect", async () => {
     const audio = createStandInAudio();
     const h = await toggleAt(audio);
     await beginBeat(h);
     expect(audio.sources).toEqual([]);
     await setPlayAudio(h, true);
     expect(playing(h)).toBe(true);
-    expect(audio.sources).toHaveLength(1);
-    expect(audio.sounding()).toEqual([THEME]);
+    expect(audio.sourcesOf(THEME)).toHaveLength(1);
+    expect(audio.sourcesOf(THEME)[0]!.sounding).toBe(true);
+    expect(blips(audio).length).toBeGreaterThan(0);
+    expect(audio.sourcesOf(CHIME)).toHaveLength(1);
+  }, 120_000);
+
+  it("on switching off and on mid-beat, keeps one music node and one sound effect, and schedules the later typing blips again", async () => {
+    const audio = createStandInAudio();
+    const h = await toggleAt(audio);
+    await setPlayAudio(h, true);
+    await beginBeat(h);
+    const [theme] = audio.sourcesOf(THEME);
+    const blipsBefore = blips(audio).length;
+    expect(blipsBefore).toBeGreaterThan(0);
+    await setPlayAudio(h, false);
+    expect(audio.sounding()).toEqual([]);
+    await setPlayAudio(h, true);
+    expect(playing(h)).toBe(true);
+    expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
+    expect(audio.sourcesOf(CHIME).filter((s) => s.sounding)).toHaveLength(1);
+    expect(blips(audio).length).toBeGreaterThan(blipsBefore);
+    expect(theme).toBeDefined();
+  }, 120_000);
+
+  it("plays a beat whose audio was still loading when switched off and on again exactly once", async () => {
+    const audio = createStandInAudio();
+    const attach = audio.attach.bind(audio);
+    let gate: Promise<void> | null = null;
+    let open = () => {};
+    let waiting = 0;
+    audio.attach = (app, emit) => {
+      const manager = attach(app, emit);
+      const load = (manager as any).onLoadAudioPlayer.bind(manager);
+      (manager as any).onLoadAudioPlayer = async (params: unknown) => {
+        while (gate) {
+          waiting += 1;
+          await gate;
+        }
+        return load(params);
+      };
+      return manager;
+    };
+    const h = await toggleAt(audio);
+    await setPlayAudio(h, true);
+    gate = new Promise<void>((resolve) => {
+      open = () => {
+        gate = null;
+        resolve();
+      };
+    });
+    await h.controller.playBeat();
+    await settle(40);
+    expect(waiting).toBeGreaterThan(0);
+    await setPlayAudio(h, false);
+    await setPlayAudio(h, true);
+    open();
+    await settle(40);
+    for (let i = 0; i < 4; i += 1) {
+      await h.tick(100);
+      await settle(5);
+    }
+    expect(playing(h)).toBe(true);
+    expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
+    expect(audio.sourcesOf(CHIME)).toHaveLength(1);
   }, 120_000);
 
   it("brings the music back on switching off and on again during a played beat", async () => {
@@ -536,7 +610,8 @@ describe("switching Play audio around a played beat (#2258)", () => {
     expect(audio.sounding()).toEqual([]);
     await setPlayAudio(h, true);
     expect(playing(h)).toBe(true);
-    expect(audio.sounding()).toEqual([THEME]);
+    expect(audio.sounding()).toContain(THEME);
+    expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
   }, 120_000);
 
   it("brings back only the shown beat's music after caret moves with Play audio off", async () => {
