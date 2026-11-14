@@ -50,7 +50,7 @@ describe("the beep times a speaking line carries (#2261)", () => {
     ["a phrase pause", "Hello there,  my good friend"],
     ["an em dash", "Hello there -- my good friend"],
     ["a stressed word", "Hello *there* my good friend"],
-    ["a changed text speed", "Hello <speed=0.5>there my<speed=2> good friend"],
+    ["a changed text speed", "Hello <speed:0.5>there my<speed:2> good friend"],
   ])("%s: the beeps are the times of the voice synth events the typewriter schedules", async (_label, line) => {
     const beat = await beatOf(line);
     const voice = synthTimes(beat)["character"];
@@ -60,7 +60,7 @@ describe("the beep times a speaking line carries (#2261)", () => {
 
   test("a changed text speed changes the beep times", async () => {
     const plain = await beatOf("Hello there my good friend");
-    const slowed = await beatOf("Hello <speed=0.5>there my good friend");
+    const slowed = await beatOf("Hello <speed:0.5>there my good friend");
     expect(slowed.speech!.beeps!.at(-1)!).toBeGreaterThan(plain.speech!.beeps!.at(-1)!);
   });
 

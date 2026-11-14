@@ -6,6 +6,8 @@ import { ObjectValue, StringValue } from "../../runtime/Value";
 import {
   SCAN_CLOSE,
   SCAN_OPEN,
+  readTagCode,
+  tagCode,
   writtenText,
 } from "../../runtime/displayStyle";
 import { styleRuns } from "./styleRuns";
@@ -111,6 +113,76 @@ end
       { text: "two", marks: ["*"] },
       { text: " there." },
     ]);
+  });
+});
+
+describe("a save written before tag codes (#2145)", () => {
+  const writtenTags = (text: string): string => {
+    let out = "";
+    for (let i = 0; i < text.length; ) {
+      const tag = readTagCode(text, i);
+      if (tag) {
+        out += `<${tag.content}>`;
+        i = tag.next;
+      } else {
+        out += text[i++];
+      }
+    }
+    return out;
+  };
+  const legacy = (value: unknown): unknown =>
+    typeof value === "string"
+      ? writtenTags(value)
+      : Array.isArray(value)
+        ? value.map(legacy)
+        : value && typeof value === "object"
+          ? Object.fromEntries(
+              Object.entries(value)
+                .filter(([key]) => key !== "tagCodes")
+                .map(([key, item]) => [key, legacy(item)]),
+            )
+          : value;
+
+  test("reads a known tag in its tables' text as the player read it then, and leaves an unknown one as text", () => {
+    const compiled = compile(
+      `scene start\n  A <b>word</b> <speed:0.5>here <b2>x</b2> \`<i>\`.\n  done\nend\n`,
+    );
+    const storyA = testStory(compiled);
+    storyA.Continue();
+    const current = JSON.parse(storyA.state.ToJson() as string);
+    expect(current.tagCodes).toBe(true);
+    const storyB = testStory(compiled);
+    storyB.state.LoadJson(JSON.stringify(legacy(current)));
+    const now = storyA.currentStyledText ?? "";
+    expect(now).toContain(`A ${tagCode("b")}word${tagCode("/b")} ${tagCode("speed:0.5")}here`);
+    expect(storyB.currentStyledText).toBe(
+      now.replace(tagCode("b2"), "<b2>").replace(tagCode("/b2"), "</b2>"),
+    );
+    expect(storyB.currentText).toBe(storyA.currentText);
+  });
+
+  test("reads a tag written with an equals sign as the player read it then", () => {
+    const compiled = compile(`scene start\n  A word.\n  done\nend\n`);
+    const storyA = testStory(compiled);
+    storyA.Continue();
+    const saved = legacy(JSON.parse(storyA.state.ToJson() as string)) as Record<string, any>;
+    const json = JSON.stringify(saved).replace("A word.", "A <speed=0.5>word.");
+    const storyB = testStory(compiled);
+    storyB.state.LoadJson(json);
+    expect(storyB.currentStyledText?.trim()).toBe(`A ${tagCode("speed:0.5")}word.`);
+  });
+
+  test("reads a known tag in a waiting choice's styled text", () => {
+    const compiled = compile(
+      `scene start\n  The gate.\n  choose\n    + Go <b>far</b> now\n      Gone.\n      done\n  end\nend\n`,
+    );
+    const storyA = testStory(compiled);
+    storyA.ContinueMaximally();
+    const styled = storyA.currentChoices.map((choice) => choice.styledText);
+    expect(styled[0]).toContain(tagCode("b"));
+    const storyB = testStory(compiled);
+    storyB.state.LoadJson(JSON.stringify(legacy(JSON.parse(storyA.state.ToJson() as string))));
+    expect(storyB.currentChoices.map((choice) => choice.styledText)).toEqual(styled);
   });
 });
 

@@ -90,6 +90,14 @@ export const CORPUS: Case[] = [
   action(`A ${"_".repeat(40)}long${"_".repeat(40)} B`),
   action("**bold /* c */ more** end"),
   action("*a /* c */ b* c"),
+  action("A <b>word</b> here."),
+  action("A <b2>word</b2> here."),
+  action("A *a <u>b</u> c* d"),
+  action("A <i>*a* b</i> c"),
+  action("A **a <speed:0.5>b** c"),
+  action("A <color:red>_a_</color> <x> b"),
+  action("A <wait:1>*b* <p:2>c"),
+  action("A *a <b>b* c</b> d"),
   {
     label: "a dialogue line with a span around an interpolation",
     body: "NOVA: Hi *there {x}* now",
@@ -166,7 +174,8 @@ export function treeReading(source: string): GrammarReading {
     if (
       /^Span(Open|Close)Mark$/.test(name) ||
       /^Escape_c[135]$/.test(name) ||
-      /^SparkdownBlockComment(OnLine)?$/.test(name)
+      /^SparkdownBlockComment(OnLine)?$/.test(name) ||
+      name === "TextCommand"
     ) {
       for (let i = cursor.from; i < cursor.to; i++) hidden.add(i);
     }
@@ -274,6 +283,9 @@ export const CHOICE_CORPUS: string[] = [
   "Go *a* [b *c] d",
   "Go *x [*b*] c",
   "Go [a *b] *c* d",
+  "Go <b>far</b> now",
+  "Go [<b>far</b>] *now*",
+  "Go *a <x>b* [c <i>d] e",
   ...["*", "**", "_", "^", "~~", "::", "`"].flatMap((mark) => [
     `Go ${mark}a [b${mark} c] d`,
     `Go ${mark}a [b] c${mark} d`,

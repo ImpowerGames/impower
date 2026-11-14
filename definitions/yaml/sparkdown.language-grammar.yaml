@@ -568,6 +568,15 @@ variables:
   RAW_CHARACTER: (?:(?![`]|{{SPAN_END}})[^\r\n])
   RAW_CONTENT: (?:(?:{{RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)
   SPAN_ESCAPE: (?:[\\][^\r\n])
+  TEXT_COMMAND_UNIT: (?:[\\][^\r\n]|[^>\\\r\n])
+  # lookaround: TextCommand's end, a `>` whose `(?<![-])` keeps an arrow's `>`
+  # from closing the command, as SPAN_COMMAND_WALK reads it.
+  TEXT_COMMAND_CLOSES: (?<![-])(?=[>])
+  # lookaround: TextCommand's end when no `>` but escaped ones follows, where it
+  # gives the last of them back as its end, as SPAN_COMMAND_ESCAPED_END reads it.
+  TEXT_COMMAND_ESCAPED_CLOSES: (?![>]{{TEXT_COMMAND_ESCAPED_LATER}})(?=[>])
+  TEXT_COMMAND_ESCAPED_LATER: (?:(?:[\\][^>\r\n]|[^>\\\r\n])*[\\][>])
+  TEXT_COMMAND_CONTENT: (?:{{TEXT_COMMAND_UNIT}}*?{{TEXT_COMMAND_CLOSES}}|{{TEXT_COMMAND_UNIT}}*?[\\]{{TEXT_COMMAND_ESCAPED_CLOSES}})
   # lookaround: the units of a span's content, for every span. Rivals: the
   # rules InlineTextAndLogic and SpanContent try before plain text, which take
   # their whole text so that a mark inside it ends nothing: TextCommand,
@@ -4231,10 +4240,12 @@ repository:
     name: variable.other.constant.sd
     match: ({{IDENTIFIER}})(?=$|{{WS}})
 
+  # lookaround: Punctuation takes a `<` before whitespace, which never opens a
+  # command, as SPAN_COMMAND_TAIL reads it.
   TextCommand:
     tag: macroName
     name: meta.text.sd
-    match: ([<](?!{{WS}}))((?:\\.|[^>\r\n])*?)((?<![-])[>])
+    match: ([<](?!{{WS}}))({{TEXT_COMMAND_CONTENT}})([>])
     captures:
       1:
         tag: keyword

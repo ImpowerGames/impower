@@ -45,6 +45,7 @@ export interface TextInstruction extends IInstruction {
     animation_iteration_count?: string | number;
     animation_duration?: string | number;
     animation_delay?: string | number;
+    [property: string]: string | number | undefined;
   };
 }
 
