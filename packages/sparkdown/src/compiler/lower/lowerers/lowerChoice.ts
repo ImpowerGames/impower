@@ -1,7 +1,12 @@
 import { CHOICE_OUTSIDE_CHOOSE_MESSAGE } from "../../utils/unsupportedConstructMessage";
 import { identifierAt } from "../utils/debugMetadata";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { choiceTextMarkers, readChoiceText } from "../../utils/readChoiceText";
+import {
+  choiceTextMarkerKind,
+  choiceTextMarkers,
+  readChoiceText,
+} from "../../utils/readChoiceText";
+import { trimStyled, writesNothing } from "../../../runtime/displayStyle";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
@@ -32,7 +37,14 @@ import {
 import {
   buildDisplayCall,
   buildOrderedDisplayCall,
+  displayText,
 } from "../utils/displayCall";
+import { collectDisplaySpans, writeStyledRange } from "../utils/displaySpans";
+import {
+  inlineGluedAlternatorFrom,
+  isInlineGluedAlternator,
+  lowerInlineGluedAlternator,
+} from "./lowerDisplay";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { recordAlternatorSource } from "../utils/statementShape";
 import { statementSource } from "../utils/statementSource";
@@ -137,7 +149,11 @@ export function lowerChoice(
     for (const obj of chosenTail) innerContent.AddContent(obj);
   }
 
-  const choice = new Choice(startContent, choiceOnlyContent, innerContent);
+  const choice = new Choice(
+    confinedContent(startContent),
+    confinedContent(choiceOnlyContent),
+    innerContent,
+  );
   choice.startEcho = echo?.startEcho ?? null;
   if (choice.startEcho) {
     choice.startEcho.choice = choice;
@@ -243,7 +259,9 @@ function chosenTextAsDisplayCall(
   startEcho: ChoiceStartEcho | null;
   repeatsStartContent: boolean;
 } | null {
-  const words = inner.content.slice();
+  const words = endsInSpace(start.content)
+    ? withoutLeadingSpace(inner.content.slice())
+    : inner.content.slice();
   const hasStart = start.content.length > 0;
   if (!hasStart && words.length === 0) return null;
   const tagged = [...start.content, ...words].some(
@@ -266,12 +284,28 @@ function chosenTextAsDisplayCall(
     const body = startEcho ? [startEcho, ...words] : words;
     call = buildDisplayCall(undefined, undefined, body, null, ctx, [], {
       open,
-      readsMarks: true,
     });
   }
   const out: ParsedObject[] = [call];
   if (arrow.length > 0) out.push(...tail);
   return { inner: out, startEcho, repeatsStartContent: !tagged };
+}
+
+const isSpace = (c: string) => c === " " || c === "\t";
+
+function endsInSpace(objects: readonly ParsedObject[]): boolean {
+  const last = objects.at(-1);
+  return last instanceof Text && isSpace(last.text.at(-1) ?? "");
+}
+
+function withoutLeadingSpace(words: ParsedObject[]): ParsedObject[] {
+  const first = words[0];
+  if (!(first instanceof Text)) return words;
+  let i = 0;
+  while (i < first.text.length && isSpace(first.text[i]!)) i += 1;
+  if (i === 0) return words;
+  const rest = first.text.slice(i);
+  return rest ? [new Text(rest), ...words.slice(1)] : words.slice(1);
 }
 
 function collectChoiceCondition(
@@ -284,6 +318,10 @@ function collectChoiceCondition(
 }
 
 
+function isChoiceTextOpaque(node: SyntaxNode): boolean {
+  return choiceTextMarkerKind(node) !== null || isInlineGluedAlternator(node);
+}
+
 function appendNodeContent(
   captureNode: SyntaxNode,
   ctx: LowerContext,
@@ -292,26 +330,53 @@ function appendNodeContent(
   from = captureNode.from,
   to = captureNode.to,
 ): boolean {
-  const inRange = choiceTextMarkers(captureNode, to);
+  const spans = collectDisplaySpans(captureNode, from, to, ctx, isChoiceTextOpaque);
+  const spanCursor = { code: 0, mark: 0 };
+  const alternators: SyntaxNode[] = [];
+  const findAlternators = (node: SyntaxNode): void => {
+    if (choiceTextMarkerKind(node)) return;
+    if (isInlineGluedAlternator(node)) {
+      alternators.push(node);
+      return;
+    }
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      findAlternators(child);
+    }
+  };
+  findAlternators(captureNode);
+  const inRange = [
+    ...choiceTextMarkers(captureNode, to).map((m) => ({ ...m, from: m.node.from })),
+    ...alternators
+      .filter((node) => node.from < to)
+      .map((node) => ({ kind: "alt" as const, node, from: inlineGluedAlternatorFrom(node) })),
+  ].sort((a, b) => a.from - b.from);
 
   let appended = false;
   let cursor = from;
-  const flushText = (until: number): void => {
-    if (until > cursor) {
-      const read = ctx.read(cursor, until);
-      const leading = trimStart && list.content.length === 0;
-      // value-level: trims the isolated choice-text value's leading inline whitespace.
-      const text = leading ? read.replace(/^[ \t]+/, "") : read;
-      if (text.length > 0) {
-        list.AddContent(new Text(text));
-        appended = true;
-      }
+  let buffer = "";
+  const flushBuffer = (): void => {
+    const leading = trimStart && list.content.length === 0;
+    const text = leading ? trimStyled(buffer, { end: false }) : buffer;
+    buffer = "";
+    if (text.length > 0) {
+      list.AddContent(new Text(text));
+      if (!writesNothing(text)) appended = true;
     }
-    cursor = until;
+  };
+  const flushText = (until: number): void => {
+    buffer += writeStyledRange(spans, cursor, until, ctx, spanCursor);
+    cursor = Math.max(cursor, until);
   };
   for (const m of inRange) {
-    flushText(m.node.from);
-    if (m.kind === "expr") {
+    if (m.from < cursor) continue;
+    flushText(m.from);
+    flushBuffer();
+    if (m.kind === "alt") {
+      for (const obj of lowerInlineGluedAlternator(m.node, ctx)) {
+        list.AddContent(obj);
+        appended = true;
+      }
+    } else if (m.kind === "expr") {
       const expr = lowerExpressionFromContainer(m.node, ctx, "expression");
       if (expr) {
         expr.outputWhenComplete = true;
@@ -331,7 +396,18 @@ function appendNodeContent(
     cursor = m.node.to;
   }
   flushText(to);
+  flushBuffer();
   return appended;
+}
+
+function confinedContent(list: ContentList): ContentList {
+  const out: ParsedObject[] = [];
+  let inTag = false;
+  for (const obj of list.content) {
+    if (obj instanceof Tag) inTag = obj.isStart;
+    out.push(...(inTag || obj instanceof Tag ? [obj] : displayText([obj])));
+  }
+  return new ContentList(out);
 }
 
 function appendTagContent(

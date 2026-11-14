@@ -3,6 +3,7 @@ import { throwNullException } from "./NullException";
 import type { InkObject } from "./Object";
 import { StringBuilder } from "./StringBuilder";
 import { StringValue } from "./Value";
+import { isStyleCode } from "./displayStyle";
 
 export function cleanOutputWhitespace(
   str: string,
@@ -31,8 +32,15 @@ export function cleanOutputWhitespace(
     let sb = new StringBuilder();
     let currentWhitespaceStart = -1;
     let startOfLine = 0;
+    let heldCodes = "";
     for (let i = 0; i < str.length; i++) {
       let c = str.charAt(i);
+      if (isStyleCode(c)) {
+        if (i == startOfLine) startOfLine = i + 1;
+        if (currentWhitespaceStart == -1) sb.Append(c);
+        else heldCodes += c;
+        continue;
+      }
       let isInlineWhitespace = c == " " || c == "\t";
       if (isInlineWhitespace && currentWhitespaceStart == -1)
         currentWhitespaceStart = i;
@@ -44,11 +52,14 @@ export function cleanOutputWhitespace(
         ) {
           sb.Append(" ");
         }
+        sb.Append(heldCodes);
+        heldCodes = "";
         currentWhitespaceStart = -1;
       }
       if (c == "\n") startOfLine = i + 1;
       if (!isInlineWhitespace) sb.Append(c);
     }
+    sb.Append(heldCodes);
     return sb.toString();
   } else {
     return str;

@@ -4,7 +4,6 @@ import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/pr
 import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
 import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
-import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { SparkDebugSession } from "../src/SparkDebugSession";
 
 const launch = (launchState: "play" | "pause" | "ended" | "preview") =>
@@ -112,8 +111,6 @@ describe("the debug adapter at the end of the story", () => {
       ["continued", null],
       ["stopped", "end"],
     ]);
-    await notify(GameReloadedMessage.type.notification({}));
-    expect(events).toHaveLength(4);
   });
 
   it("answers a step or continue on an ended run with the end stop, and sends the game nothing", async () => {

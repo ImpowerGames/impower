@@ -60,6 +60,5 @@ export interface Instructions {
    *  own (pictures, sound or a load while the box waits), which leaves the
    *  box's text on the page. */
   extended?: Record<string, number>;
-  redelivered?: boolean;
   end: number;
 }

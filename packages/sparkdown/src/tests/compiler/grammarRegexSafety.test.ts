@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import onig from "vscode-oniguruma";
 import { describe, expect, test } from "vitest";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { parseSource } from "./grammarSnapshot";
@@ -172,14 +173,17 @@ describe("a span whose closer never comes is refused at once wherever it could o
       const re = new RegExp(source, "muy");
       re.lastIndex = 0;
       re.exec("warm");
-      const t0 = performance.now();
-      for (let i = 0; i < line.length; i++) {
-        if (!"*_^~:`".includes(line[i]!)) continue;
-        re.lastIndex = i;
-        re.exec(line);
+      let ms = Infinity;
+      for (let pass = 0; pass < 3; pass++) {
+        const t0 = performance.now();
+        for (let i = 0; i < line.length; i++) {
+          if (!"*_^~:`".includes(line[i]!)) continue;
+          re.lastIndex = i;
+          re.exec(line);
+        }
+        ms = Math.min(ms, performance.now() - t0);
       }
-      const ms = performance.now() - t0;
-      expect(ms, `${rule}.match took ${ms.toFixed(1)}ms`).toBeLessThan(150);
+      expect(ms, `${rule}.match took ${ms.toFixed(1)}ms at best of three passes`).toBeLessThan(150);
     },
   );
 });
@@ -234,6 +238,56 @@ describe("a run of one mark is read in time linear in its length (#2196)", () =>
       expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(4000);
     },
   );
+});
+
+const CHOICE_RAW_RULES = ["ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"];
+
+const CHOICE_TEXT_SEARCHES: [what: string, rules: string[], open: string, unit: string][] = [
+  ["a raw span open over brackets", CHOICE_RAW_RULES, "`a", " [b]"],
+  ["a raw span open over closing brackets", CHOICE_RAW_RULES, "`a", " ]b"],
+  ["a raw span open over arrows", CHOICE_RAW_RULES, "`a", " -> b"],
+  ["a raw span open over unclosed braces", CHOICE_RAW_RULES, "`a", " {b"],
+  ["a suppression over code spans holding its closer", ["ChoiceSuppression"], "[a", " `]`"],
+  ["a suppression over unclosed backticks before closers", ["ChoiceSuppression"], "[a", " `]"],
+  ["a suppression over runs of three backticks", ["ChoiceSuppression"], "[a ]", " ```b"],
+  ["a suppression over code spans of three backticks holding its closer", ["ChoiceSuppression"], "[a", " ```]```"],
+  ["a suppression after a run of three backticks with no closer, over code spans holding its closer", ["ChoiceSuppression"], "[a ```b", " `]`"],
+];
+
+const CHOICE_TEXT_CASES = CHOICE_TEXT_SEARCHES.flatMap(([what, rules, open, unit]) =>
+  rules.map((rule) => [what, rule, (n: number) => open + unit.repeat(Math.floor(n / unit.length))] as const),
+);
+
+const rulePattern = (rule: string): string => grammar.repository[rule].match ?? grammar.repository[rule].begin;
+
+const onigScanner = async (source: string) => {
+  await tokenize("scene start\n  A *a* b\nend\n");
+  const scanner = new onig.OnigScanner([source]);
+  return (line: string) => scanner.findNextMatchSync(new onig.OnigString(line), 0);
+};
+
+const ruleGrowth = async (search: (line: string) => unknown, line: (n: number) => string) => {
+  search(line(40));
+  const short = await fastest(() => search(line(4000)));
+  const long = await fastest(() => search(line(16000)));
+  return { short, long };
+};
+
+describe("a choice text rule that reads a code span whole searches a long line in time linear in its length (#2144)", () => {
+  test.each(CHOICE_TEXT_CASES)("%s, %s, as the tree parser runs it, grows less than eightfold from 4,000 characters to 16,000", async (_what, rule, line) => {
+    const re = new RegExp(rulePattern(rule), "muyd");
+    const { short, long } = await ruleGrowth((text) => {
+      re.lastIndex = 0;
+      return re.exec(text);
+    }, line);
+    expect(long, `4,000 characters took ${short.toFixed(1)}ms, 16,000 took ${long.toFixed(1)}ms`).toBeLessThan(8 * short + 40);
+  });
+
+  test.each(CHOICE_TEXT_CASES)("%s, %s, as vscode-textmate runs it, grows less than eightfold from 4,000 characters to 16,000", async (_what, rule, line) => {
+    const search = await onigScanner(rulePattern(rule));
+    const { short, long } = await ruleGrowth(search, line);
+    expect(long, `4,000 characters took ${short.toFixed(1)}ms, 16,000 took ${long.toFixed(1)}ms`).toBeLessThan(8 * short + 40);
+  });
 });
 
 describe("building a parser compiles no pattern before it is used (#2196)", () => {

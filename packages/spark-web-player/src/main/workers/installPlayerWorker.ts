@@ -10,7 +10,6 @@ import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/class
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
-import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
 import type {
   PreviewRoute,
   RoutePin,
@@ -667,7 +666,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     | undefined;
   let runs = 0;
   let lastRun: RunMenu[] = [];
-  let onScreenAtStop: Instructions | undefined;
 
   const sendFromPlay =
     (running: Game, channel: BroadcastChannel) => (message: Message) => {
@@ -694,8 +692,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     stopPlay({});
     game.stopBeatPlay();
-    const onScreen = onScreenAtStop;
-    onScreenAtStop = undefined;
     const program = entry.program;
     if (game.program !== entry.program) {
       updateGameProgram(game, entry.program);
@@ -723,7 +719,6 @@ export function installPlayerWorker(connection: MessageConnection) {
       program,
       startFrom: params.startFrom,
       restarted: params.restarted,
-      redelivers: params.delivery === "redelivery" ? onScreen : undefined,
       ...PLAY_SAVES,
     });
     running.setRoutePins(routePins);
@@ -918,7 +913,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     const location = ending.game.getLastExecutedDocumentLocation();
     lastRun = ending.game.runMenus(ending.prefix);
-    onScreenAtStop = ending.game.shownBeatOnScreen;
     current = undefined;
     gameState.running = undefined;
     ending.game.destroy();

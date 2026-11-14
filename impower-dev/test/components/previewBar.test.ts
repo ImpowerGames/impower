@@ -139,7 +139,11 @@ const setState = (
     workspace.current = change(structuredClone(workspace.current));
   });
 
-const mount = async () => {
+const mount = async ({ fullView = phone } = {}) => {
+  workspace.current = {
+    ...workspace.current,
+    preview: { ...workspace.current.preview, revealed: fullView },
+  };
   vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(HEIGHT);
   host = document.body.appendChild(document.createElement("div"));
   await act(async () => render(h(Preview, {}), host!));
@@ -400,12 +404,42 @@ describe("the bar under the game", () => {
         (control) => control.getAttribute("aria-label") ?? control.textContent,
       );
     expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
-    expect(labels()).toEqual(["No problems", "main : 1", "Fullscreen preview"]);
+    expect(labels()).toEqual(["No problems", "main : 1", "Close the preview"]);
     await act(async () =>
       workspaceSettings.setPreference("previewMode", "textstream"),
     );
     expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
-    expect(labels()).toEqual(["No problems", "main : 1", "Fullscreen preview"]);
+    expect(labels()).toEqual(["No problems", "main : 1", "Close the preview"]);
+  });
+
+  it("shows no bar on a phone while the preview sits in the strip, shows the game there whatever the saved mode, and keeps the fullscreen toggle off phones", async () => {
+    phone = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount({ fullView: false });
+    expect(
+      host!.querySelector('[role="group"][aria-label="Problems and display"]'),
+    ).toBeNull();
+    expect(
+      host!.querySelector('[role="group"][aria-label="Playback controls"]'),
+    ).toBeNull();
+    expect(host!.querySelector("[data-preview-card]")).not.toBeNull();
+    await unmount();
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    await mount({ fullView: false });
+    const game = host!.querySelector('[data-stage="game"]')!;
+    expect(game.parentElement!.className).not.toContain("hidden");
+    expect(host!.querySelector('[data-stage="screenplay"]')).toBeNull();
+    await unmount();
+    await mount({ fullView: true });
+    expect(host!.querySelector('[data-stage="screenplay"]')).not.toBeNull();
+    expect(host!.querySelector('[data-stage="game"]')!.parentElement!.className).toContain("hidden");
+    await unmount();
+    workspaceSettings.setPreference("previewMode", "game");
+    phone = false;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    expect(bar().querySelector('[aria-label="Fullscreen preview"]')).not.toBeNull();
+    expect(bar().querySelector('[aria-label="Close the preview"]')).toBeNull();
   });
 
   it("opens the route list from the readout in the Problems panel's place, one panel at a time", async () => {
@@ -579,6 +613,10 @@ describe("the bar under the game", () => {
   it("shows a forced route on the phone's preview readout, whose press opens the list as a sheet", async () => {
     phone = true;
     await act(async () => mediaListeners.forEach((listener) => listener()));
+    workspace.current = {
+      ...workspace.current,
+      preview: { ...workspace.current.preview, revealed: true },
+    };
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(HEIGHT);
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>

@@ -34,9 +34,7 @@
                           "value": {
                             "type": "StringExpression",
                             "content": [
-                              "",
-                              " ",
-                              ""
+                              " "
                             ]
                           }
                         },
