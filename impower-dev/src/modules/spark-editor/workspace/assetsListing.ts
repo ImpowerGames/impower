@@ -7,8 +7,8 @@ import {
   type AssetType,
 } from "../utils/assetTypes";
 import {
-  holdingsLabel,
   parseSort,
+  plural,
   sortEntries,
   sortKey,
   UNREACHED,
@@ -276,8 +276,16 @@ export const assetLevel = ({
   const at = folder && folder !== root && reachable(folder) ? folder : root;
   const atRoot = at === root;
 
-  const folderRow = (path: string, location?: string): AssetRow => {
+  const folderRow = (path: string): AssetRow => {
     const inside = ofType.filter((p) => isInside(p, path));
+    const stacks = type === "image" ? imageStacks(inside) : [];
+    const things = type === "image" ? stacks.length : inside.length;
+    const subfolders = folders.filter(
+      (f) =>
+        parentOf(f) === path &&
+        shown(f) &&
+        !stacks.some((stack) => stack.kind === "folder" && stack.folder === f),
+    ).length;
     return {
       kind: "folder",
       path,
@@ -287,14 +295,13 @@ export const assetLevel = ({
       uses: 0,
       position: UNREACHED,
       type,
-      holdings: holdingsLabel(
-        folders.filter((f) => parentOf(f) === path && shown(f)).length,
-        ofType.filter((p) => parentOf(p) === path).length,
-        assetTypeSpec(type).unit,
-      ),
-      location,
+      holdings: things
+        ? plural(things, assetTypeSpec(type).unit)
+        : subfolders
+          ? plural(subfolders, "folder")
+          : "Empty",
       ...(type === "image"
-        ? { covers: imageStacks(inside).slice(0, FOLDER_COVERS).map((stack) => stack.cover) }
+        ? { covers: stacks.slice(0, FOLDER_COVERS).map((stack) => stack.cover) }
         : {}),
     };
   };
@@ -309,8 +316,8 @@ export const assetLevel = ({
       )
     : [];
   const rows: AssetRow[] = [
-    ...childFolders.map((f) => folderRow(f)),
-    ...strays.map((f) => folderRow(f, parentOf(f))),
+    ...childFolders.map(folderRow),
+    ...strays.map(folderRow),
     ...stackedRows(
       listing,
       ofType.filter((path) => parentOf(path) === at),

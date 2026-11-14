@@ -267,7 +267,7 @@ describe("the Assets page", () => {
     setListing({ "assets/music/theme.wav": facts(2048), "assets/bunny.png": facts(600) });
     workspace.current = { ...workspace.current, lists: { assetsType: "audio" } };
     await mount();
-    expect(rowLabels()).toEqual(["Open folder music, assets"]);
+    expect(rowLabels()).toEqual(["Open folder music, 1 sound"]);
     await click(all<HTMLElement>('button[aria-label^="Open folder music"]')[0]);
     expect(rowLabels()).toEqual(["Open audio theme, assets/music · modified 2d · 2 kb"]);
   });
@@ -473,7 +473,7 @@ describe("image folders as tiles", () => {
 
   it("draws landscape tiles under Backdrops and folder tiles covered by the pictures inside", async () => {
     await mount();
-    expect(rowLabels()).toEqual(["Open folder Backdrops, 1 image", "Open folder Portraits, 4 images"]);
+    expect(rowLabels()).toEqual(["Open folder Backdrops, 1 image", "Open folder Portraits, 1 image"]);
     const portraits = tiles()[1]!;
     expect(portraits.querySelector("[data-folder-cover]")!.getAttribute("data-folder-cover")).toBe("1");
     await click(all<HTMLElement>('button[aria-label^="Open folder Backdrops"]')[0]);
