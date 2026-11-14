@@ -50,7 +50,13 @@ function SplitPaneExample({
   );
 }
 
-function PinnedSplitPaneExample({ reverse = false }: { reverse?: boolean }) {
+function PinnedSplitPaneExample({
+  reverse = false,
+  line,
+}: {
+  reverse?: boolean;
+  line?: SplitPaneProps["line"];
+}) {
   const [size, setSize] = useState<number | undefined>(undefined);
   return (
     <div class="space-y-2">
@@ -61,6 +67,7 @@ function PinnedSplitPaneExample({ reverse = false }: { reverse?: boolean }) {
         <SplitPane
           orientation="vertical"
           reverse={reverse}
+          line={line}
           label="Resize panel"
           pinned={{
             panel: "end",
@@ -133,6 +140,9 @@ function SplitPaneDemo() {
       </GalleryRow>
       <GalleryRow label="Vertical, reversed, with the pinned end panel shown first: drag and the arrow keys follow what is on screen">
         <PinnedSplitPaneExample reverse />
+      </GalleryRow>
+      <GalleryRow label="Vertical with line none, for a divider inside one surface: nothing is drawn at rest, and hover, focus and drag still show the accent bar">
+        <PinnedSplitPaneExample line="none" />
       </GalleryRow>
       <GalleryRow label="Vertical with the start panel allowed to overflow: its content's shadow falls past the divider onto the end panel, while the end panel still clips">
         <OverflowSplitPaneExample />

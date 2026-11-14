@@ -802,6 +802,15 @@ describe("the bar under the game", () => {
 });
 
 describe("the divider above the bar", () => {
+  it("draws no resting line between the game and the bar, and keeps the divider's accent bar", async () => {
+    await mount();
+    const handle = separator().classList;
+    expect(handle.contains("before:bg-edge")).toBe(false);
+    expect(handle.contains("before:bg-transparent")).toBe(true);
+    expect(handle.contains("hover:after:opacity-100")).toBe(true);
+    expect(handle.contains("focus-visible:after:opacity-100")).toBe(true);
+  });
+
   it("starts collapsed to the bar and grows the panel with Up", async () => {
     await mount();
     const handle = separator();
