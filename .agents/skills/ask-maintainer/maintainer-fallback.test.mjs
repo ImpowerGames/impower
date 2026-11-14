@@ -64,6 +64,10 @@ function tracker({ body = decisionBody, failAddLabel = false, onAddLabel = () =>
       onAddLabel(t);
       of(n).labels.push({ name: label });
     },
+    close: (n, reason, bodyFile) => {
+      post(n, readFileSync(bodyFile, "utf8"), M);
+      t.closeAs(reason);
+    },
     editBody: (n, bodyFile) => {
       of(n).body = readFileSync(bodyFile, "utf8");
     },
@@ -259,6 +263,12 @@ try {
     assert.ok(recorded.cleared.includes(`deleted the unfinished fallback record ${orphan} on #2271`));
     assert.deepEqual(recordsOn(answered, TICKET).map((e) => e.note.kind), ["record"], "record clears a fallback record no finished fallback backs before recording the answer");
     console.log("ok: record clears what an unfinished fallback left before recording the maintainer's answer");
+
+    const withdrawn = tracker();
+    leftovers(withdrawn, { label: true, note: false });
+    assert.equal(withdrawRequest(REQUEST, "no longer needed", { tracker: withdrawn, repos }).state, "withdrawn");
+    assert.deepEqual([recordsOn(withdrawn, TICKET), recordsOn(withdrawn, REQUEST).map((e) => e.note.kind), withdrawn.issue(REQUEST).labels.map((l) => l.name)], [[], ["withdrawn"], [labels.decision]], "withdraw clears an unfinished fallback's record and label before closing");
+    console.log("ok: withdraw clears what an unfinished fallback left");
 
     const revisedBody = decisionBody.replace(dataLine(readDataLine(decisionBody)), dataLine({ ...readDataLine(decisionBody), fallback: { option: "C", at: "2026-11-13T19:30:00.000Z" } }));
     const stale = tracker();

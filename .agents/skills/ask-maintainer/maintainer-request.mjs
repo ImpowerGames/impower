@@ -1142,6 +1142,8 @@ export function withdrawRequest(number, reason, { tracker, repos = readRepos(), 
   if (answer.state !== "waiting" && answer.state !== "question") throw new RequestRefused([`#${number} is already closed (${answer.state})`]);
   const why = checkNoteText(reason, "The reason");
   if (/[\r\n]/.test(why)) throw new RequestRefused(["The reason must be one line"]);
+  const label = repos.maintainer.labels.decidedWithoutYou;
+  if (answer.kind === "decision") clearLeftovers(tracker, number, fallbackLeftovers(tracker, number, answer.tickets, repos), labelNames(tracker.issue(number)).includes(label) ? label : null);
   return withScratch((scratch) => {
     tracker.close(number, "not_planned", writeNote(scratch, toolText(`Withdrawn by the ask-maintainer tool: ${asSentence(why)} Nothing waits on this request any more.`, { kind: "withdrawn", reason: why }, identity)));
     return fetchAnswer(number, { tracker, repos });
