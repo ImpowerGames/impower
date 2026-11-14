@@ -2,6 +2,7 @@ import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
+  DropdownCheckboxItem,
   DropdownContent,
   DropdownItem,
   DropdownItemText,
@@ -344,6 +345,152 @@ describe("Dropdown radio items under preact/compat", () => {
     await settle(300);
     expect(onValueChange.mock.calls).toEqual([["16:9"]]);
     expect(menu()).toBeNull();
+  });
+});
+
+describe("Dropdown rows in the menu and in the phone layout's sheet", () => {
+  const mountRows = async (handlers: {
+    onFocus: (row: string) => void;
+    onPointerEnter: (row: string) => void;
+    onCloseAutoFocus?: (event: Event) => void;
+    keepOpen?: boolean;
+  }) => {
+    host = document.body.appendChild(document.createElement("div"));
+    const row = (name: string) => ({
+      "data-row": name,
+      onFocus: () => handlers.onFocus(name),
+      onPointerEnter: () => handlers.onPointerEnter(name),
+    });
+    await act(async () =>
+      render(
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <button type="button">Face</button>
+          </DropdownTrigger>
+          <DropdownContent data-menu="faces" onCloseAutoFocus={handlers.onCloseAutoFocus}>
+            <DropdownItem {...row("item")}>Rename</DropdownItem>
+            <DropdownCheckboxItem
+              {...row("checkbox")}
+              checked={false}
+              onSelect={(event) => handlers.keepOpen && event.preventDefault()}
+            >
+              Word wrap
+            </DropdownCheckboxItem>
+            <DropdownRadioGroup value="sad" label="Face">
+              <DropdownRadioItem value="happy" {...row("happy")}>
+                Happy
+              </DropdownRadioItem>
+              <DropdownRadioItem value="sad" {...row("sad")}>
+                Sad
+              </DropdownRadioItem>
+            </DropdownRadioGroup>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    const trigger = host.querySelector("button")!;
+    trigger.focus();
+    return trigger;
+  };
+
+  const openRows = async (trigger: HTMLElement, sheet: boolean) => {
+    if (sheet) await act(async () => trigger.click());
+    else await key(trigger, "ArrowDown");
+    await settle(300);
+  };
+
+  it.each([
+    ["menu", false],
+    ["phone layout's sheet", true],
+  ])("passes each row's attributes, focus and pointer-enter handlers through in the %s", async (_mode, sheet) => {
+    await setPhone(sheet);
+    const focused: string[] = [];
+    const entered: string[] = [];
+    const trigger = await mountRows({ onFocus: (row) => focused.push(row), onPointerEnter: (row) => entered.push(row) });
+    await openRows(trigger, sheet);
+    expect(menu()!.getAttribute("data-menu")).toBe("faces");
+    focused.length = 0;
+    for (const name of ["happy", "checkbox", "item", "sad"]) {
+      const row = document.querySelector<HTMLElement>(`[data-row="${name}"]`)!;
+      await act(async () => row.focus());
+      await act(async () => {
+        row.dispatchEvent(new Event("pointerenter"));
+      });
+    }
+    expect(focused).toEqual(["happy", "checkbox", "item", "sad"]);
+    expect(entered).toEqual(["happy", "checkbox", "item", "sad"]);
+  });
+
+  it("opens the phone layout's sheet with focus on the chosen option, so no other option previews", async () => {
+    await setPhone(true);
+    const focused: string[] = [];
+    const trigger = await mountRows({ onFocus: (row) => focused.push(row), onPointerEnter: () => {} });
+    await openRows(trigger, true);
+    expect(document.activeElement?.getAttribute("data-row")).toBe("sad");
+    expect(focused).toEqual(["sad"]);
+  });
+
+  it.each([
+    ["menu", false],
+    ["phone layout's sheet", true],
+  ])("keeps the %s open when a checkbox row's onSelect prevents it, and closes it otherwise", async (_mode, sheet) => {
+    await setPhone(sheet);
+    for (const keepOpen of [true, false]) {
+      const trigger = await mountRows({ onFocus: () => {}, onPointerEnter: () => {}, keepOpen });
+      await openRows(trigger, sheet);
+      await act(async () => document.querySelector<HTMLElement>('[data-row="checkbox"]')!.click());
+      await settle(300);
+      expect(menu() !== null).toBe(keepOpen);
+      await act(async () => render(null, host!));
+      host!.remove();
+      host = undefined;
+      await settle(50);
+    }
+  });
+
+  it.each([
+    ["menu", false],
+    ["phone layout's sheet", true],
+  ])("lets onCloseAutoFocus keep focus from returning to the trigger in the %s", async (_mode, sheet) => {
+    await setPhone(sheet);
+    const elsewhere = document.body.appendChild(document.createElement("input"));
+    const onCloseAutoFocus = vi.fn((event: Event) => {
+      event.preventDefault();
+      elsewhere.focus();
+    });
+    const trigger = await mountRows({ onFocus: () => {}, onPointerEnter: () => {}, onCloseAutoFocus });
+    await openRows(trigger, sheet);
+    await act(async () => document.querySelector<HTMLElement>('[data-row="item"]')!.click());
+    await settle(400);
+    await settle(10);
+    expect(menu()).toBeNull();
+    expect(onCloseAutoFocus).toHaveBeenCalled();
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
+  it("opens as a menu, not a sheet, in the phone layout with a fine pointer when it chooses by pointer", async () => {
+    await setPhone(true);
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot sheetBy="pointer">
+          <DropdownTrigger asChild>
+            <button type="button">Face</button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownItem>Rename</DropdownItem>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    const trigger = host.querySelector("button")!;
+    trigger.focus();
+    await key(trigger, "ArrowDown");
+    await settle(300);
+    expect(menu()).not.toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 });
 

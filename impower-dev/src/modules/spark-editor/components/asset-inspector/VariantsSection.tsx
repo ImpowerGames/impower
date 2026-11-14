@@ -116,7 +116,7 @@ function GroupMenu({
     );
   }
   return (
-    <DropdownRoot onOpenChange={(next) => !next && onPreview(null)}>
+    <DropdownRoot sheetBy="pointer" onOpenChange={(next) => !next && onPreview(null)}>
       <DropdownTrigger asChild>{trigger}</DropdownTrigger>
       <DropdownContent align="end" sideOffset={6} keepClear={keepClear} class="min-w-[196px]">
         <DropdownRadioGroup value={value} onValueChange={onPick} label={name}>

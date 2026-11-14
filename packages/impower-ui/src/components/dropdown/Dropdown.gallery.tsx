@@ -200,8 +200,18 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
-      <GalleryRow label={`${KEEP_CLEAR_RULE} The menu opens on whichever side of its trigger has more room and scrolls within itself.`}>
+      <GalleryRow label={`${KEEP_CLEAR_RULE} The menu opens on whichever side of its trigger has more room and scrolls within itself; in the phone layout's sheet, the sheet and its backdrop stay below the line.`}>
         <KeepClearDemo />
+      </GalleryRow>
+      <GalleryRow label="Chosen by pointer (sheetBy pointer): a menu under a fine pointer at any width and a bottom sheet under a coarse one (the asset inspector's variant menus)">
+        <DropdownRoot sheetBy="pointer">
+          <DropdownTrigger asChild>
+            <Button>Choose a face</Button>
+          </DropdownTrigger>
+          <DropdownContent align="start" class="min-w-[180px]">
+            <HintedItems size="small" />
+          </DropdownContent>
+        </DropdownRoot>
       </GalleryRow>
       <GalleryRow label="Disabled radio items (the aspect-ratio group in Interactive Fiction)">
         <DropdownRoot>

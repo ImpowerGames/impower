@@ -138,9 +138,8 @@ describe("WheelPicker", () => {
 describe("WheelSheet", () => {
   const panelHost = () => {
     const frame = document.body.appendChild(document.createElement("div"));
-    const zoom = frame.appendChild(document.createElement("div"));
-    zoom.setAttribute("data-zoom-frame", "");
-    return { frame, zoom, container: { current: frame } };
+    const pinned = frame.appendChild(document.createElement("div"));
+    return { frame, pinned, container: { current: frame } };
   };
 
   it("opens across the foot of its container on its wheel, previews while spinning, and chooses with Done", async () => {
@@ -238,10 +237,13 @@ describe("WheelSheet", () => {
     expect(sheet.querySelector("[data-wheel-room]")!.className.split(" ")).toEqual(expect.arrayContaining(["pt-1.5", "pb-2.5"]));
   });
 
-  it("cancels with Cancel, Escape or a tap outside it, but not a tap on the picture's zoom frame", async () => {
-    const { zoom, container } = panelHost();
+  it("cancels with Cancel, Escape or a tap outside it, but not a tap inside its keepClear element", async () => {
+    const { pinned, container } = panelHost();
+    const zoom = pinned.appendChild(document.createElement("button"));
     const cancelled = vi.fn();
-    await mount(<WheelSheet container={container} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={cancelled} />);
+    await mount(
+      <WheelSheet container={container} keepClear={{ current: pinned }} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={cancelled} />,
+    );
     const cancel = Array.from(document.querySelectorAll("button")).find((button) => button.textContent === "Cancel")!;
     await act(async () => cancel.click());
     await act(async () => {
