@@ -24,6 +24,9 @@ import ProjectNameField from "./ProjectNameField";
 import StoryProblemCount from "./StoryProblemCount";
 import { withWindow } from "./workspaceWindow";
 
+const searchStory = () =>
+  void withWindow((win) => win.navigateTo("write")).then(openFind);
+
 export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
   const namingField = useNaming();
   const script = useComputed(() => storyScriptOf()).value;
@@ -75,18 +78,16 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
       ) : (
         <div class="flex flex-none items-center">
           {!editing && <SyncButton />}
-          {story && (
-            <Button
-              variant="quiet"
-              size="icon"
-              aria-label="Search"
-              title="Search"
-              class="text-muted"
-              onClick={openFind}
-            >
-              <SearchIcon />
-            </Button>
-          )}
+          <Button
+            variant="quiet"
+            size="icon"
+            aria-label="Search"
+            title="Search"
+            class="text-muted"
+            onClick={story ? openFind : searchStory}
+          >
+            <SearchIcon />
+          </Button>
           {editing && (
             <div role="group" aria-label="Edit history" class="flex">
               <Button

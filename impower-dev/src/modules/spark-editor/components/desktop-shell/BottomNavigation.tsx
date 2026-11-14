@@ -35,7 +35,7 @@ export default function BottomNavigation() {
       aria-label="Project"
       data-bottom-navigation
       hidden={naming || sheetOpen || editing || panelOpen}
-      class="min-h-[65px] flex-none border-t border-edge bg-panel pb-[env(safe-area-inset-bottom)] [.keyboard-open_&]:hidden"
+      class="min-h-[65px] flex-none border-t border-edge bg-bg pb-[env(safe-area-inset-bottom)] [.keyboard-open_&]:hidden"
     >
       {typeof window !== "undefined" && (
         <Tabs

@@ -112,7 +112,7 @@ export const stateForRoute = (
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
-export const transitionRoute = (apply: () => void): void => {
+export const transitionRoute = (apply: () => void): Promise<void> => {
   const doc = typeof document === "undefined" ? undefined : document;
   const reduced =
     typeof window === "undefined" ||
@@ -120,11 +120,12 @@ export const transitionRoute = (apply: () => void): void => {
     window.matchMedia(REDUCED_MOTION).matches;
   if (!doc || reduced || typeof doc.startViewTransition !== "function") {
     apply();
-    return;
+    return Promise.resolve();
   }
   const transition = doc.startViewTransition(async () => {
     apply();
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
   transition.ready.catch(() => undefined);
+  return transition.updateCallbackDone.catch(() => undefined);
 };

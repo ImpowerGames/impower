@@ -302,10 +302,10 @@ export default class WorkspaceWindow {
     this.update(stateForRoute(this.store, route));
   }
 
-  navigateTo(route: Route, section?: string) {
+  navigateTo(route: Route, section?: string): Promise<void> {
     if (typeof window === "undefined") {
       this.openRoute(route);
-      return;
+      return Promise.resolve();
     }
     const hash = hashOfRoute(route, section);
     if (window.location.hash !== hash) {
@@ -314,7 +314,7 @@ export default class WorkspaceWindow {
         window.dispatchEvent(new HashChangeEvent("hashchange"));
       }
     }
-    transitionRoute(() => this.openRoute(route));
+    return transitionRoute(() => this.openRoute(route));
   }
 
   setListState(lists: Partial<ListsState>) {
