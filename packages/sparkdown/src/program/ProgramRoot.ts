@@ -14,6 +14,7 @@ import { DONE_HOLD, Op, flagsOf, opOf } from "./ProgramInstructions";
 import {
   ANCHOR_STATEMENT,
   BLOCK_FUNCTION,
+  BLOCK_THEN,
   B_HEAD_LINES,
   B_SEQUENCE,
   HEADER_WORDS,
@@ -707,7 +708,11 @@ export class ProgramRoot {
         }
       }
       if (!body) {
-        return this.addressOnLine(at.sequence, at.entry, line, beat);
+        const menu =
+          beat === "last"
+            ? this.menuAddressOn(at.sequence, at.entry, line)
+            : undefined;
+        return menu ?? this.addressOnLine(at.sequence, at.entry, line, beat);
       }
       at = this.entryOn(body, line);
     }
@@ -740,6 +745,112 @@ export class ProgramRoot {
     return undefined;
   }
 
+  protected menuAddressOn(
+    sequence: SequenceRow,
+    entry: number,
+    line: number,
+  ): number | undefined {
+    const chunk = sequence.arrays.chunks[entry]!;
+    const offer = menuOfferIn(chunk);
+    if (offer < 0) {
+      return undefined;
+    }
+    const top = this.lineOf(sequence, entry);
+    const blocks = blockCount(chunk);
+    const end =
+      (blocks > 0 ? this.blockEndLine(sequence, entry, blocks - 1) : top) +
+      menuEndGapAt(chunk, offer);
+    let then = end;
+    for (let k = 0; k < blocks; k += 1) {
+      const body = this.body(chunk, k);
+      if (body && blockFlags(chunk, k) & BLOCK_THEN) {
+        then = Math.min(then, this.firstLineOf(body) - blockField(chunk, k, B_HEAD_LINES));
+      }
+    }
+    if (line < top || line > end || (line >= then && line < end)) {
+      return undefined;
+    }
+    const id = chunkId(chunk);
+    const firstChoice = firstOpIn(chunk, Op.Choice, 0, offer);
+    const question = firstChoice < 0 ? offer : firstChoice;
+    let next = -1;
+    let nextLine = Infinity;
+    let beatOnLine = -1;
+    let beatOver = -1;
+    const rows = chunk[H_LINE_ROWS]!;
+    for (let r = 0; r < rows; r += 1) {
+      const from = chunk[lineTableStart(chunk) + r * LINE_ROW_WORDS]!;
+      if (from >= offer) {
+        continue;
+      }
+      const to =
+        r + 1 < rows
+          ? Math.min(chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!, offer)
+          : offer;
+      const range = this.rowRange(sequence, entry, r);
+      const beatAt = firstOpIn(chunk, Op.LineStart, from, to);
+      if (beatAt >= 0 && beatAt < question) {
+        if (range.startLine > line && range.startLine < nextLine) {
+          next = beatAt;
+          nextLine = range.startLine;
+        }
+      }
+      if (range.startLine === top || range.startLine > line || range.endLine < line) {
+        continue;
+      }
+      if (beatAt >= 0) {
+        if (range.startLine === line) {
+          beatOnLine = Math.max(beatOnLine, beatAt);
+        }
+        beatOver = beatOver < 0 ? beatAt : Math.min(beatOver, beatAt);
+      }
+    }
+    const menu = this.menuOffsetIn(chunk, offer);
+    const offset =
+      line === top
+        ? menu
+        : beatOnLine >= 0
+          ? beatOnLine
+          : beatOver >= 0
+            ? beatOver
+            : next >= 0
+              ? next
+              : menu;
+    return addressOf(id, offset);
+  }
+
+  protected menuOffsetIn(chunk: ProgramChunk, offer: number): number {
+    const firstChoice = firstOpIn(chunk, Op.Choice, 0, offer);
+    const question = firstChoice < 0 ? offer : firstChoice;
+    const captionKey = this.table.stringIds.get("caption");
+    let caption = -1;
+    let optionStart = -1;
+    const rows = chunk[H_LINE_ROWS]!;
+    for (let r = 0; r < rows; r += 1) {
+      const from = chunk[lineTableStart(chunk) + r * LINE_ROW_WORDS]!;
+      if (from >= offer) {
+        continue;
+      }
+      const to =
+        r + 1 < rows
+          ? Math.min(chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!, offer)
+          : offer;
+      if (from <= firstChoice && firstChoice < to) {
+        optionStart = from;
+      }
+      const beatAt = firstOpIn(chunk, Op.LineStart, from, to);
+      if (
+        beatAt >= 0 &&
+        beatAt < question &&
+        captionKey !== undefined &&
+        holdsFlag(chunk, beatAt, to, captionKey)
+      ) {
+        caption = Math.max(caption, beatAt);
+      }
+    }
+    return caption >= 0 ? caption : Math.max(optionStart, 0);
+  }
+
   protected entryOn(sequence: SequenceRow, line: number): ChunkPosition | undefined {
     const at = this.entryAt(sequence, line);
     return at && this.lineOf(sequence, at.entry) <= line ? at : undefined;
@@ -768,7 +879,7 @@ export class ProgramRoot {
         r + 1 < rows
           ? chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!
           : words;
-      const beatAt = lineStartIn(chunk, from, to);
+      const beatAt = firstOpIn(chunk, Op.LineStart, from, to);
       if (beatAt >= 0) {
         if (firstBeat < 0 || beatAt < firstBeat) {
           firstBeat = beatAt;
@@ -885,9 +996,46 @@ export class ProgramRoot {
   }
 }
 
-const lineStartIn = (chunk: ProgramChunk, from: number, to: number): number => {
+const firstOpIn = (
+  chunk: ProgramChunk,
+  op: number,
+  from: number,
+  to: number,
+): number => {
   for (let offset = from; offset < to; offset += 2) {
-    if (opOf(chunk[HEADER_WORDS + offset]!) === Op.LineStart) {
+    if (opOf(chunk[HEADER_WORDS + offset]!) === op) {
+      return offset;
+    }
+  }
+  return -1;
+};
+
+const holdsFlag = (
+  chunk: ProgramChunk,
+  from: number,
+  to: number,
+  key: number,
+): boolean => {
+  for (let offset = from; offset + 2 < to; offset += 2) {
+    if (
+      opOf(chunk[HEADER_WORDS + offset]!) === Op.Str &&
+      chunk[HEADER_WORDS + offset + 1] === key &&
+      opOf(chunk[HEADER_WORDS + offset + 2]!) === Op.Const
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const menuEndGapAt = (chunk: ProgramChunk, offer: number): number =>
+  chunk[HEADER_WORDS + offer + 1]!;
+
+const menuOfferIn = (chunk: ProgramChunk): number => {
+  const words = codeWords(chunk);
+  for (let offset = 0; offset < words; offset += 2) {
+    const word = chunk[HEADER_WORDS + offset]!;
+    if (opOf(word) === Op.Done && flagsOf(word) & DONE_HOLD) {
       return offset;
     }
   }

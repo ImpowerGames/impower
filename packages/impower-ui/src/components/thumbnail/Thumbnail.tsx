@@ -18,12 +18,13 @@ export const thumbnailVariants = cva(
   },
 );
 
-export const thumbnailImageVariants = cva("absolute inset-0 size-full", {
+export const thumbnailImageVariants = cva("absolute", {
   variants: {
     fit: {
-      cover: "object-cover",
-      contain: "object-contain",
-      top: "object-cover object-top",
+      cover: "inset-0 size-full object-cover",
+      contain: "inset-0 size-full object-contain",
+      top: "inset-0 size-full object-cover object-top",
+      height: "inset-y-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2",
     },
   },
   defaultVariants: { fit: "cover" },

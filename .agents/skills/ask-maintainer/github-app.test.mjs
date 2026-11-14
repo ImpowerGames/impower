@@ -10,6 +10,7 @@ import { KEY_VARIABLE, KeyError, TOOL_MARK, actorOf, commentAuthor, insideReposi
 import { buildRequest, ghTracker, main, markComment, validateRequest } from "./maintainer-request.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+process.env.IMPOWER_MAINTAINER_REQUEST_INDEX = mkdtempSync(path.join(tmpdir(), "request-index-"));
 const repos = readRepos();
 const login = repos.maintainer.login;
 const app = { slug: "impower-ask-maintainer", id: 123456, installationId: 9876543 };
@@ -83,7 +84,7 @@ try {
     assert.ok(isMarked(asApp.body));
     assert.ok(!asApp.body.includes(token) && !asApp.body.includes(readFileSync(keyFile, "utf8").split("\n")[1]), "neither the token nor the key reaches the body");
     const lines = [];
-    const tracker = { open: () => [] };
+    const tracker = { repo: "acme/tickets", open: () => [], all: () => [] };
     assert.equal(main(["list"], { repos, identity, tracker, out: (line) => lines.push(line), now }), 0);
     assert.equal(main(["identity"], { repos, identity, tracker, out: (line) => lines.push(line), now }), 0);
     assert.equal(lines.at(-1), `Acting as the GitHub App ${app.slug}[bot].`);

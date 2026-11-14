@@ -40,4 +40,6 @@ export interface Chunk {
   underlined?: number;
   wavy?: number;
   shaky?: number;
+
+  look?: Record<string, string>;
 }

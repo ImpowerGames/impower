@@ -244,6 +244,52 @@ describe("the script editor's breakpoint gutter", () => {
     expect(mount().view.dom.classList).not.toContain("cm-breakpoints-coarse");
   });
 
+  it("clears a breakpoint when its own button is pressed", () => {
+    const { view } = mount();
+    pressGutterAt(view, 3);
+    const block = view.lineBlockAt(view.state.doc.line(3).from);
+    vi.spyOn(view, "lineBlockAtHeight").mockReturnValue(block);
+    markers(view)[0]!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    expect(getBreakpointLineNumbers(view)).toEqual([]);
+  });
+
+  it("clears a breakpoint from the keyboard, and a mouse click after the press does not toggle it again", () => {
+    const { view } = mount();
+    pressGutterAt(view, 3);
+    const button = markers(view)[0] as HTMLButtonElement;
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+    expect(getBreakpointLineNumbers(view)).toEqual([3]);
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 0 }));
+    expect(getBreakpointLineNumbers(view)).toEqual([]);
+  });
+
+  it("draws each breakpoint as a gutter button assistive technology can reach, with its name", async () => {
+    const { view } = mount();
+    setBreakpointStates(view, [
+      { line: 3, verified: true },
+      { line: 5, verified: false, message: "No statement to stop at here." },
+    ]);
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    const buttons = markers(view);
+    expect(buttons.map((b) => [b.tagName, b.classList.contains("cm-gutter-button"), b.getAttribute("aria-label")])).toEqual([
+      ["BUTTON", true, "Remove breakpoint"],
+      ["BUTTON", true, "Remove breakpoint. No statement to stop at here."],
+    ]);
+    expect(buttons[0]!.closest("[aria-hidden=true]")).toBeNull();
+    expect(view.dom.querySelector(".cm-lineNumbers")!.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("shows its hover ghost under a fine pointer only", () => {
+    mount();
+    const ghost = Array.from(document.styleSheets)
+      .flatMap((sheet) => Array.from(sheet.cssRules))
+      .map((rule) => (rule as CSSStyleRule).selectorText ?? "")
+      .filter((selector) => selector.includes(".cm-breakpoint-gutter") && selector.includes(":hover::after"));
+    expect(ghost).toHaveLength(1);
+    expect(ghost[0]).toContain(":not(.cm-breakpoints-coarse)");
+    expect(ghost[0]).toContain(":not(:has(.cm-breakpoint))");
+  });
+
   it("takes a press only in editing mode when the script has a mode", () => {
     const { view, changes } = mount({ coarse: true, mode: "reading" });
     pressGutterAt(view, 3);

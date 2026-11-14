@@ -108,6 +108,9 @@ export const CHOICE_DECISION = 32;
 
 export const DONE_HOLD = 1;
 
+export const operandInLayout = (op: number, arg: number): number =>
+  op === Op.Done ? 0 : arg;
+
 export const AUX_MAX = 0xffff;
 
 export const encodeWord0 = (op: number, flags: number, aux: number): number =>

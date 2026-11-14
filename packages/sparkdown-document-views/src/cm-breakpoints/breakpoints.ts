@@ -15,6 +15,12 @@ import {
 } from "@codemirror/view";
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
 import { scriptModeField } from "../modules/script-editor/utils/extensions/scriptMode";
+import {
+  createGutterButton,
+  gutterButtons,
+  MARK_COLUMN_RANK,
+  markColumnClaims,
+} from "../cm-gutter-button/gutterButton";
 
 export interface BreakpointState {
   line: number;
@@ -23,6 +29,17 @@ export interface BreakpointState {
 }
 
 const UNPLACED_FALLBACK_TITLE = "Breakpoint not placed.";
+
+const svgMask = (svg: string) =>
+  `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+
+const BREAKPOINT_MASK = svgMask(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="black"/></svg>`,
+);
+
+const UNVERIFIED_BREAKPOINT_MASK = svgMask(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.875" fill="none" stroke="black" stroke-width="2.25"/></svg>`,
+);
 
 class BreakpointMarker extends GutterMarker {
   constructor(
@@ -41,14 +58,20 @@ class BreakpointMarker extends GutterMarker {
   }
 
   override toDOM() {
-    const dot = document.createElement("span");
-    dot.className = this.verified
-      ? "cm-breakpoint"
-      : "cm-breakpoint cm-breakpoint-unverified";
+    const button = createGutterButton({
+      icon: this.verified ? BREAKPOINT_MASK : UNVERIFIED_BREAKPOINT_MASK,
+      color: "var(--editor-breakpoint)",
+      label: this.verified
+        ? "Remove breakpoint"
+        : `Remove breakpoint. ${this.message ?? UNPLACED_FALLBACK_TITLE}`,
+      className: this.verified
+        ? "cm-breakpoint"
+        : "cm-breakpoint cm-breakpoint-unverified",
+    });
     if (!this.verified) {
-      dot.title = this.message ?? UNPLACED_FALLBACK_TITLE;
+      button.title = this.message ?? UNPLACED_FALLBACK_TITLE;
     }
-    return dot;
+    return button;
   }
 }
 
@@ -192,6 +215,21 @@ const keepsTouch = (view: EditorView, _line: BlockInfo, event: Event) => {
   return false;
 };
 
+const breakpointLines = (state: EditorState): number[] => {
+  const lines: number[] = [];
+  const iter = state.field(breakpointsField).iter(0);
+  while (iter.value) {
+    lines.push(state.doc.lineAt(iter.from).number);
+    iter.next();
+  }
+  return lines;
+};
+
+const breakpointClaim = markColumnClaims.of({
+  rank: MARK_COLUMN_RANK.breakpoint,
+  lines: breakpointLines,
+});
+
 const breakpointAttributes = EditorView.editorAttributes.compute(
   [breakpointsField, coarsePointer],
   (state) => {
@@ -208,6 +246,8 @@ const breakpointAttributes = EditorView.editorAttributes.compute(
 
 const breakpointTheme = EditorView.baseTheme({
   ".cm-breakpoint-gutter": {
+    position: "relative",
+    zIndex: "1",
     width: "14px",
     overflow: "hidden",
   },
@@ -223,18 +263,6 @@ const breakpointTheme = EditorView.baseTheme({
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
-  },
-  ".cm-breakpoint": {
-    display: "block",
-    width: "8px",
-    height: "8px",
-    borderRadius: "50%",
-    boxSizing: "border-box",
-    border: "1.5px solid var(--editor-breakpoint)",
-    backgroundColor: "var(--editor-breakpoint)",
-  },
-  ".cm-breakpoint.cm-breakpoint-unverified": {
-    backgroundColor: "transparent",
   },
   "&:not(.cm-breakpoints-coarse) .cm-breakpoint-gutter .cm-gutterElement:not(:has(.cm-breakpoint)):hover::after":
     {
@@ -252,6 +280,8 @@ export const breakpoints = () => [
   breakpointsField,
   breakpointAttributes,
   breakpointTheme,
+  breakpointClaim,
+  gutterButtons(),
   gutter({
     class: "cm-breakpoint-gutter",
     markers: (v) => v.state.field(breakpointsField),
@@ -262,6 +292,13 @@ export const breakpoints = () => [
           toggleBreakpoint(view, line.from);
         }
         return true;
+      },
+      click(view, line, event) {
+        if ((event as MouseEvent).detail === 0 && takesPress(view)) {
+          toggleBreakpoint(view, line.from);
+          return true;
+        }
+        return false;
       },
       touchstart: keepsTouch,
       touchmove: keepsTouch,

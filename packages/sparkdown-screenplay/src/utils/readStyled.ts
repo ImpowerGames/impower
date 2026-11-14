@@ -5,7 +5,7 @@ import {
 } from "../../../sparkdown/src/compiler/lower/utils/displaySpans";
 import { SCAN_CLOSE, SCAN_OPEN } from "../../../sparkdown/src/runtime/displayStyle";
 
-const SHOWN_AS_SOURCE = new Set(["LuauInterpolatedStringExpression", "Divert"]);
+export const SHOWN_AS_SOURCE: ReadonlySet<string> = new Set(["LuauInterpolatedStringExpression", "Divert"]);
 
 const UNPRINTED = new Set(["ImageCommand", "AudioCommand", "TextCommand"]);
 
@@ -15,6 +15,7 @@ export const readStyled = (
   node: SyntaxNode,
   read: (from: number, to: number) => string,
   skipped: (descendant: SyntaxNode) => boolean = () => false,
+  replaced?: (descendant: SyntaxNode) => string | undefined,
 ): string => {
   const ctx = { read };
   const hidden = (child: SyntaxNode) =>
@@ -26,15 +27,19 @@ export const readStyled = (
     ctx,
     (child) => hidden(child) || SHOWN_AS_SOURCE.has(child.name),
   );
-  const source: { from: number; to: number }[] = [];
+  const cuts: { from: number; to: number; text?: string }[] = [];
   const visit = (parent: SyntaxNode) => {
     for (let child = parent.firstChild; child; child = child.nextSibling) {
       if (hidden(child)) {
         if (child.from < child.to) {
           spans.marks.push({ from: child.from, to: child.to });
         }
+        const text = replaced?.(child);
+        if (text !== undefined) {
+          cuts.push({ from: child.from, to: child.to, text });
+        }
       } else if (SHOWN_AS_SOURCE.has(child.name)) {
-        source.push({ from: child.from, to: child.to });
+        cuts.push({ from: child.from, to: child.to });
       } else {
         visit(child);
       }
@@ -45,10 +50,11 @@ export const readStyled = (
   const cursor = { code: 0, mark: 0 };
   let out = "";
   let pos = node.from;
-  for (const range of source) {
-    out += writeStyledRange(spans, pos, range.from, ctx, cursor);
-    out += SCAN_OPEN + writeStyledRange(spans, range.from, range.to, ctx, cursor) + SCAN_CLOSE;
-    pos = range.to;
+  for (const cut of cuts) {
+    out += writeStyledRange(spans, pos, cut.from, ctx, cursor);
+    out +=
+      cut.text ?? SCAN_OPEN + writeStyledRange(spans, cut.from, cut.to, ctx, cursor) + SCAN_CLOSE;
+    pos = cut.to;
   }
   return out + writeStyledRange(spans, pos, node.to, ctx, cursor);
 };

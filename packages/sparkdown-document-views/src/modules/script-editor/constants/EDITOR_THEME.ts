@@ -144,7 +144,7 @@ const EDITOR_THEME: {
     "button:hover": {
       backgroundColor: "var(--control-hover)",
     },
-    "& .cm-foldGutter .cm-fold-arrow:hover": {
+    "& .cm-foldGutter .cm-fold-marker:hover": {
       color: "var(--ink)",
     },
     "& .cm-foldPlaceholder:hover": {
@@ -246,23 +246,19 @@ const EDITOR_THEME: {
     opacity: "0.65",
     transform: "none",
   },
-  "& .cm-gutter-lint": {
-    width: "1em",
-  },
   "& .cm-foldGutter .cm-gutterElement": {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
   },
-  "& .cm-foldGutter .cm-fold-arrow": {
-    width: "11px",
-    height: "11px",
-    color: "var(--muted)",
+  "& .cm-foldGutter .cm-fold-marker": {
     opacity: "0",
-    cursor: "pointer",
     transition: "opacity .12s ease, transform .15s ease",
   },
-  "& .cm-foldGutter:hover .cm-fold-arrow, & .cm-activeLineGutter .cm-fold-arrow, & .cm-foldGutter .cm-fold-arrow.cm-fold-closed":
+  "& .cm-fold-marker-closed .cm-gutter-button-glyph": {
+    transform: "rotate(-90deg)",
+  },
+  "& .cm-foldGutter:hover .cm-fold-marker, & .cm-activeLineGutter .cm-fold-marker, & .cm-foldGutter .cm-fold-marker-closed, & .cm-foldGutter .cm-fold-marker:focus-visible":
     {
       opacity: "1",
     },

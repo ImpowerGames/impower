@@ -158,6 +158,7 @@ import {
 import workspace, {
   cacheableWorkspaceState,
   loadedProjectId,
+  type ShownBeat,
 } from "./WorkspaceStore";
 import type WorkspaceSync from "./WorkspaceSync";
 import type { AccountInfo } from "./types/AccountInfo";
@@ -2253,6 +2254,21 @@ export default class WorkspaceWindow {
       this.navigateTo("write");
     }
     return result;
+  }
+
+  syncShownBeat(shownBeat: ShownBeat) {
+    const now = workspace.previewShownBeat.value;
+    if (
+      now === shownBeat ||
+      (now &&
+        shownBeat &&
+        now.uri === shownBeat.uri &&
+        now.range.start.line === shownBeat.range.start.line &&
+        now.range.start.character === shownBeat.range.start.character)
+    ) {
+      return;
+    }
+    workspace.previewShownBeat.value = shownBeat;
   }
 
   syncPreviewBeat(beat: { playing: boolean; refusal: string | null }) {

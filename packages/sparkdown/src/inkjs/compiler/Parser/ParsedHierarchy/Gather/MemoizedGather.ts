@@ -20,6 +20,7 @@ export interface MemoGather {
   readonly name: string;
   readonly indentationDepth: number;
   readonly endsChooseBlock: boolean;
+  readonly endLinesAfterBody: number;
   /** Where its name stands relative to it. */
   readonly at: MemoPosition | null;
 }
@@ -37,6 +38,7 @@ export const memoGatherOf = (gather: Gather): MemoGather | null => {
     name,
     indentationDepth: gather.indentationDepth,
     endsChooseBlock: gather.endsChooseBlock,
+    endLinesAfterBody: gather.endLinesAfterBody,
     at: namePosition(gather),
   };
 };
@@ -55,6 +57,7 @@ export class MemoizedGather extends Gather {
     super(new Identifier(recorded.name), recorded.indentationDepth);
     markMemoized(this, memo);
     this.endsChooseBlock = recorded.endsChooseBlock;
+    this.endLinesAfterBody = recorded.endLinesAfterBody;
   }
 
   /** What its generation does: the memo's record reported again (`memoGenerate`). */

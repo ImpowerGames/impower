@@ -54,7 +54,7 @@ describe("the image stack rule", () => {
     expect(imani.pictures[0]!.groups).toEqual([{ name: "face", options: ["happy", "sad"], switch: false }]);
     expect(imani.pictures[1]!.groups).toEqual([
       { name: "face", options: ["sad"], switch: false },
-      { name: "mouth", options: ["open", "closed"], switch: false },
+      { name: "mouth", options: ["closed", "open"], switch: false },
     ]);
   });
 
@@ -157,8 +157,8 @@ describe("a folder stack", () => {
   it("reads its groups and defaults from the layer names after the order prefix", () => {
     const [mia] = imageStacks(MIA);
     expect(mia!.pictures[0]!.groups).toEqual([
-      { name: "face", options: ["happy", "neutral"], switch: false, default: "neutral" },
-      { name: "hat", options: ["on", "off"], switch: true },
+      { name: "face", options: ["neutral", "happy"], switch: false, default: "neutral" },
+      { name: "hat", options: ["off", "on"], switch: true },
     ]);
     expect(mia!.variantCount).toBe(4);
   });
@@ -190,5 +190,24 @@ describe("a folder stack", () => {
   it("leaves numbered files outside an assets folder, or directly in it, as they are", () => {
     expect(imageStacks(["Images/mia/10_hat.on.png"]).map((stack) => stack.kind)).toEqual(["files"]);
     expect(imageStacks(["Assets/10_hat.on.png"]).map((stack) => stack.kind)).toEqual(["files"]);
+  });
+
+  it("lists a group's default option first and the rest by name, whatever the file order", () => {
+    const [imani] = imageStacks([
+      "Assets/Images/Portraits/imani~face.angry.png",
+      "Assets/Images/Portraits/imani~face.happy~default.png",
+      "Assets/Images/Portraits/imani~face.sad.png",
+    ]);
+    const picture = imani!.pictures[0]!;
+    expect(picture.groups).toEqual([
+      { name: "face", options: ["happy", "angry", "sad"], switch: false, default: "happy" },
+    ]);
+    expect(testerGroups(imani!, {}).map((group) => group.options)).toEqual([["happy", "angry", "sad"]]);
+    expect(picture.variants).toBe(3);
+  });
+
+  it("keeps As is first in a group with no default and lists the options by name", () => {
+    const [kai] = imageStacks(["Assets/Images/kai~face.sad.angry.png"]);
+    expect(testerGroups(kai!, {}).map((group) => group.options)).toEqual([[AS_IS, "angry", "sad"]]);
   });
 });

@@ -273,10 +273,6 @@ export const OpenIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M14 4h6v6M20 4l-9 9M18 13v6H5V6h6\"/>" }} />
 );
 
-export const OptionsIcon: IconComponent = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M9 6h11M9 12h11M9 18h11\"/><circle cx=\"4.5\" cy=\"6\" r=\"0.9\" fill=\"currentColor\"/><circle cx=\"4.5\" cy=\"12\" r=\"0.9\" fill=\"currentColor\"/><circle cx=\"4.5\" cy=\"18\" r=\"0.9\" fill=\"currentColor\"/>" }} />
-);
-
 export const OtherIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M5 2h10l4 4v16H5zM14 2v6h5\"/>" }} />
 );
@@ -303,6 +299,10 @@ export const PencilIcon: IconComponent = (props) => (
 
 export const PeopleIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<circle cx=\"9\" cy=\"8\" r=\"3\"/><path d=\"M3 20v-3a6 6 0 0 1 12 0v3m1-15a3 3 0 0 1 0 6m3 9v-3a5 5 0 0 0-3-4\"/>" }} />
+);
+
+export const PinFillIcon: IconComponent = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M9 3v6l-3 3v2h12v-2l-3-3V3z\" fill=\"currentColor\"/><path d=\"M8 3h8M9 3v6l-3 3v2h12v-2l-3-3V3M12 14v7\"/>" }} />
 );
 
 export const PinIcon: IconComponent = (props) => (

@@ -128,6 +128,7 @@ export interface MemoHolder {
   readonly name: { readonly before: string; readonly shift: number | null; readonly after: string };
   readonly depth: number;
   readonly endsChooseBlock: boolean;
+  readonly endLinesAfterBody: number;
   readonly onceOnly: boolean;
   readonly anchor:
     | { readonly kind: "before" | "in"; readonly at: number }
@@ -784,6 +785,7 @@ const holdersInto = (
       case "label": {
         const gather = new Gather(name, holder.depth);
         gather.endsChooseBlock = holder.endsChooseBlock;
+        gather.endLinesAfterBody = holder.endLinesAfterBody;
         obj = gather;
         break;
       }
@@ -1095,6 +1097,7 @@ const holdersOf = (
         name: nameOf(name),
         depth: obj instanceof Gather || obj instanceof Choice ? obj.indentationDepth : 0,
         endsChooseBlock: obj instanceof Gather && obj.endsChooseBlock,
+        endLinesAfterBody: obj instanceof Gather ? obj.endLinesAfterBody : 0,
         onceOnly: obj instanceof Choice && obj.onceOnly,
         anchor: anchorOf(atOf(part)),
         place: first

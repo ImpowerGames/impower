@@ -362,9 +362,9 @@
 @utility anim-toast-out { animation: fade-out 150ms ease-out forwards; }
 
 @keyframes wheel-row-tilt {
-  from { transform: rotateX(-56deg); opacity: 0.28; }
+  from { transform: rotateX(-66deg); opacity: 0.28; }
   50% { transform: none; opacity: 1; }
-  to { transform: rotateX(56deg); opacity: 0.28; }
+  to { transform: rotateX(66deg); opacity: 0.28; }
 }
 @utility wheel-row-tilt {
   @media (prefers-reduced-motion: no-preference) {

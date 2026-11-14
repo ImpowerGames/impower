@@ -14,6 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const script = path.join(here, "issue-run.mjs");
 const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "issue-run-")));
 console.log(`scratch: ${tmp}`);
+process.env.IMPOWER_MAINTAINER_REQUEST_INDEX = path.join(tmp, "request-index");
 const defaults = run.readWriterDefaults();
 const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -1939,7 +1940,7 @@ try {
     assert.throws(() => run.main(["brief", "--record", f.file, "--plan", write("cli-plan.json", legacyPlan), "--ticket", "3006", "--decision", "No stacked branches."], { defaults }), /^Error: brief takes no typed decision text/);
     const body = fs.readFileSync(path.join(here, "..", "ask-maintainer", "fixtures", "decision-body.md"), "utf8").replace('"blocks":[2271],"owner":"orchestrate-issues #977"', '"blocks":[3001],"owner":"orchestrate-issues #300"');
     const reads = [];
-    const tracker = { issue: (n) => { reads.push(n); return { number: n, title: "May the cache key change? (#3001)", html_url: `https://github.com/acme/widgets/issues/${n}`, state: "open", state_reason: null, created_at: "2026-11-13T15:37:00Z", closed_at: null, closed_by: null, labels: [{ name: readRepos().maintainer.labels.decision }], body }; }, timeline: () => [], comments: () => [], blockedBy: (n) => (n === 3001 ? [{ number: 9310 }] : []) };
+    const tracker = { repo: "acme/widgets", issue: (n) => { reads.push(n); return { number: n, title: "May the cache key change? (#3001)", html_url: `https://github.com/acme/widgets/issues/${n}`, state: "open", state_reason: null, created_at: "2026-11-13T15:37:00Z", closed_at: null, closed_by: null, labels: [{ name: readRepos().maintainer.labels.decision }], body }; }, timeline: () => [], comments: () => [], blockedBy: (n) => (n === 3001 ? [{ number: 9310 }] : []) };
     const asks = run.updateRecord(f.file, { expectRevision: run.readRecord(f.file).revision, coordinator }, (r) => run.request(r, { ticket: 3001, text: "may the cache key change now?", source: "transcript" })).output.id;
     assert.throws(() => cli(["relay", "--ticket", "3001", "--request", asks, "--to", "the maintainer"], { requestsFor: () => tracker }), /waits on the maintainer only through a filed request/, "the command refuses a relay without a request number");
     assert.throws(() => cli(["relay", "--ticket", "3001", "--request", asks, "--maintainer-request", "9310"], { requestsFor: () => ({ ...tracker, blockedBy: () => [] }) }), /GitHub does not block #3001 on maintainer request #9310/, "the command reads the live dependency, not only the request's own list");

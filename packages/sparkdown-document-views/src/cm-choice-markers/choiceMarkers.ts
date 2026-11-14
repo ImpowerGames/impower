@@ -16,6 +16,15 @@ import {
 } from "@codemirror/view";
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
+import {
+  claimsChanged,
+  createGutterButton,
+  gutterButtons,
+  linesClaimedBefore,
+  MARK_COLUMN_RANK,
+  type GutterButtonMark,
+  updateGutterButton,
+} from "../cm-gutter-button/gutterButton";
 
 export type ChoiceMarkerIcon = "pinned" | "auto";
 
@@ -256,8 +265,22 @@ const choiceTooltip = ({ from, marker }: PlacedMarker): Tooltip => ({
   },
 });
 
-const MARKER_SIZE = 16;
 const MARKER_LEFT = 2;
+
+const CHOICE_MARKS: Record<ChoiceMarkerIcon, (line: number) => GutterButtonMark> = {
+  auto: (line) => ({
+    icon: iconMasks["pin"],
+    color: "var(--muted)",
+    label: `Choice the preview made on line ${line}`,
+    className: "cm-choice-marker",
+  }),
+  pinned: (line) => ({
+    icon: iconMasks["pin-fill"],
+    color: "var(--accent)",
+    label: `Pinned choice on line ${line}`,
+    className: "cm-choice-marker",
+  }),
+};
 
 class ChoiceMarkerElement implements LayerMarker {
   constructor(
@@ -269,9 +292,7 @@ class ChoiceMarkerElement implements LayerMarker {
   ) {}
 
   draw() {
-    const el = document.createElement("button");
-    el.type = "button";
-    el.className = "cm-choice-marker";
+    const el = createGutterButton(CHOICE_MARKS[this.icon](this.line));
     this.adjust(el);
     return el;
   }
@@ -285,13 +306,10 @@ class ChoiceMarkerElement implements LayerMarker {
   }
 
   adjust(el: HTMLElement) {
+    updateGutterButton(el, CHOICE_MARKS[this.icon](this.line));
     el.dataset["icon"] = this.icon;
     el.dataset["line"] = String(this.line);
     el.setAttribute("aria-expanded", String(this.open));
-    el.setAttribute(
-      "aria-label",
-      `${this.icon === "pinned" ? "Pinned choice" : "Choice"} on line ${this.line}`,
-    );
     el.style.left = `${this.left}px`;
     el.style.top = `${this.top}px`;
   }
@@ -314,9 +332,15 @@ const markerElements = (view: EditorView): ChoiceMarkerElement[] => {
     (view.documentTop - rect.top) / view.scaleY + scroller.scrollTop;
   const open = view.state.field(openChoiceField);
   const { from, to } = view.viewport;
+  const claimed = linesClaimedBefore(view.state, MARK_COLUMN_RANK.choice);
   return view.state
     .field(choiceMarkersField)
-    .filter((placed) => placed.from >= from && placed.from <= to)
+    .filter(
+      (placed) =>
+        placed.from >= from &&
+        placed.from <= to &&
+        !claimed.has(view.state.doc.lineAt(placed.from).number),
+    )
     .map((placed) => {
       const block = view.lineBlockAt(placed.from);
       return new ChoiceMarkerElement(
@@ -324,7 +348,7 @@ const markerElements = (view: EditorView): ChoiceMarkerElement[] => {
         view.state.doc.lineAt(placed.from).number,
         placed.from === open,
         scroller.scrollLeft + MARKER_LEFT,
-        offsetTop + block.top + (block.height - MARKER_SIZE) / 2,
+        offsetTop + block.top + block.height / 2,
       );
     });
 };
@@ -408,35 +432,10 @@ const choiceMarkersTheme = EditorView.baseTheme({
     zIndex: "201",
     pointerEvents: "none",
   },
-  ".cm-choice-marker": {
+  ".cm-choice-markers .cm-choice-marker": {
     position: "absolute",
-    boxSizing: "border-box",
-    width: `${MARKER_SIZE}px`,
-    height: `${MARKER_SIZE}px`,
-    padding: "0",
-    border: "none",
-    borderRadius: "var(--radius-sm)",
-    backgroundColor: "var(--muted)",
+    transform: "translateY(-50%)",
     pointerEvents: "auto",
-    cursor: "pointer",
-    maskImage: iconMasks["options"],
-    WebkitMaskImage: iconMasks["options"],
-    maskSize: "contain",
-    maskRepeat: "no-repeat",
-  },
-  ".cm-choice-marker::after": {
-    content: '""',
-    position: "absolute",
-    inset: `-${MARKER_SIZE / 2}px`,
-  },
-  ".cm-choice-marker[data-icon='pinned']": {
-    backgroundColor: "var(--accent)",
-    maskImage: iconMasks["pin"],
-    WebkitMaskImage: iconMasks["pin"],
-  },
-  ".cm-choice-marker:focus-visible": {
-    outline: "2px solid var(--accent)",
-    outlineOffset: "1px",
   },
   ".cm-choice-popover": {
     boxSizing: "border-box",
@@ -536,12 +535,15 @@ const choiceMarkersTheme = EditorView.baseTheme({
     color: "var(--accent)",
   },
   ".cm-choice-icon-pinned": {
-    maskImage: iconMasks["pin"],
-    WebkitMaskImage: iconMasks["pin"],
+    maskImage: iconMasks["pin-fill"],
+    WebkitMaskImage: iconMasks["pin-fill"],
+  },
+  ".cm-choice-popover-head .cm-choice-icon-auto": {
+    color: "var(--muted)",
   },
   ".cm-choice-icon-auto": {
-    maskImage: iconMasks["options"],
-    WebkitMaskImage: iconMasks["options"],
+    maskImage: iconMasks["pin"],
+    WebkitMaskImage: iconMasks["pin"],
   },
   ".cm-choice-icon-arrow": {
     color: "var(--muted)",
@@ -565,8 +567,10 @@ export const choiceMarkers = () => [
       update.startState.field(choiceMarkersField) !==
         update.state.field(choiceMarkersField) ||
       update.startState.field(openChoiceField) !==
-        update.state.field(openChoiceField),
+        update.state.field(openChoiceField) ||
+      claimsChanged(update.startState, update.state, MARK_COLUMN_RANK.choice),
   }),
   choiceMarkerEvents,
   choiceMarkersTheme,
+  gutterButtons(),
 ];

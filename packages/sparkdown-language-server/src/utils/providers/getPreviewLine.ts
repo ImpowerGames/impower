@@ -101,6 +101,7 @@ export const getPreviewLine = (
   document: SparkdownDocument,
   tree: Tree,
   line: number,
+  shown: { line: number; character: number } | null,
 ): PreviewLine => {
   const read = (from: number, to: number) => document.read(from, to);
   const source = {
@@ -331,8 +332,10 @@ export const getPreviewLine = (
     );
   };
 
-  if (setup.some((lines) => lines.has(line)) || onlyComments()) {
-    return { kind: "setup" };
+  if (shown === null) {
+    return setup.some((lines) => lines.has(line)) || onlyComments()
+      ? { kind: "setup" }
+      : { kind: "empty" };
   }
 
   const describe = (beat: Beat): PreviewBeat => {
@@ -354,31 +357,29 @@ export const getPreviewLine = (
     };
   };
 
-  const at = beats
-    .filter((beat) => beat.lines.has(line))
-    .reduce<Beat | undefined>(
+  const shownLine = shown.line;
+  const shownAt = document.offsetAt(shown);
+  const onLine = beats.filter((beat) => beat.lines.has(shownLine));
+  const at =
+    onLine.find(
+      (beat) => beat.range && beat.range.from <= shownAt && shownAt < beat.range.to,
+    ) ??
+    onLine.reduce<Beat | undefined>(
       (last, beat) => (!last || beat.order > last.order ? beat : last),
       undefined,
     );
   if (at) {
     return describe(at);
   }
-  const declared = flows.find((flow) => flow.start === line);
-  const flow =
-    declared ??
-    flows
-      .filter((f) => f.start <= line && line <= f.end)
-      .reduce<Flow | null>(
-        (inner, f) => (!inner || f.start > inner.start ? f : inner),
-        null,
-      );
-  const inFlow = beats
-    .filter((beat) => beat.flow === flow)
-    .sort((a, b) => a.position - b.position || a.order - b.order);
-  const before = declared
-    ? undefined
-    : inFlow.filter((beat) => beat.position < line).at(-1);
-  const after = inFlow.find((beat) => beat.position > line);
-  const shown = before ?? after;
-  return shown ? describe(shown) : { kind: "empty" };
+  const flow = flows
+    .filter((f) => f.start <= shownLine && shownLine <= f.end)
+    .reduce<Flow | null>(
+      (inner, f) => (!inner || f.start > inner.start ? f : inner),
+      null,
+    );
+  const before = beats
+    .filter((beat) => beat.flow === flow && beat.position < shownLine)
+    .sort((a, b) => a.position - b.position || a.order - b.order)
+    .at(-1);
+  return before ? describe(before) : { kind: "empty" };
 };
