@@ -1,6 +1,10 @@
 import { HighlightStyle, Language } from "@codemirror/language";
 import { highlightTree } from "@lezer/highlight";
+import { SHOWN_AS_SOURCE } from "../../../../../sparkdown-screenplay/src/utils/readStyled";
 import { MarkupContent } from "../types/MarkupContent";
+
+export const escapeHtml = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export const getSyntaxHighlightedHtml = (
   str: string,
@@ -8,6 +12,18 @@ export const getSyntaxHighlightedHtml = (
   highlighter: HighlightStyle,
 ) => {
   const tree = language.parser.parse(str);
+  const sourceRanges: [number, number][] = [];
+  tree.iterate({
+    enter: (node) => {
+      if (SHOWN_AS_SOURCE.has(node.name)) {
+        sourceRanges.push([node.from, node.to]);
+        return false;
+      }
+      return undefined;
+    },
+  });
+  const shownAsSource = (from: number, to: number) =>
+    sourceRanges.some(([start, end]) => start <= from && to <= end);
   let html = "";
   let prev = 0;
 
@@ -16,16 +32,18 @@ export const getSyntaxHighlightedHtml = (
     if (diff > 0) {
       const unstyled = str.slice(from - diff, from);
       if (unstyled) {
-        html += `<span>${unstyled}</span>`;
+        html += shownAsSource(from - diff, from)
+          ? `<span class="sp-source">${escapeHtml(unstyled)}</span>`
+          : `<span>${escapeHtml(unstyled)}</span>`;
       }
     }
     const s = str.slice(from, to);
-    html += `<span class="${token}">${s}</span>`;
+    html += `<span class="${shownAsSource(from, to) ? "sp-source" : token}">${escapeHtml(s)}</span>`;
     prev = to;
   });
   const remainingUnstyled = str.slice(prev);
   if (remainingUnstyled) {
-    html += `<span>${remainingUnstyled}</span>`;
+    html += `<span>${escapeHtml(remainingUnstyled)}</span>`;
   }
   return html;
 };

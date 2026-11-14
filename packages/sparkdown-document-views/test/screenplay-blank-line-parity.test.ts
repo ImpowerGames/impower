@@ -25,6 +25,15 @@ const KINDS: Record<string, string[]> = {
   BlockWrite: ["  @ hud:", "    Score up."],
   Branch: ["  branch b", "    Inside.", "  end"],
   Choice: ["  * [Stray.]"],
+  ChoiceDivert: ["  * [Onward.] -> s"],
+  ImplicitActionDivert: ["  They leave. -> s"],
+  InlineDialogueDivert: ["  GUIDE: Bye. -> s"],
+  ImplicitActionTag: ["  They go. # mood"],
+  ChoiceTag: ["  * [Go.] # mood"],
+  InlineDialogueTag: ["  GUIDE: Hi. # mood"],
+  ImplicitActionImageMidLine: ["  They go. [[show bg x]] on."],
+  ChoiceLineComment: ["  * [Go.] // note"],
+  ImplicitActionGlue: ["  They go <>", "  on."],
   Divert: ["  -> s"],
   DoneStatement: ["  done"],
   DualDialogue: ["  GUIDE <:", "    Left.", "  VISITOR >:", "    Right."],
@@ -80,8 +89,33 @@ const KINDS: Record<string, string[]> = {
   LuauSparkdownReassignment: ["  x = 2"],
   LuauSparkdownRepeatLoop: ["  repeat", "    It drizzles.", "  until true"],
   LuauSparkdownSequentialAlternatorBlock: ["  queue", "    | First time.", "    | Second time.", "  end"],
-  LuauSparkdownSingleLineConditionalAlternatorBlock: ["  match(x) | Small | Big end"],
-  LuauSparkdownSingleLineSequentialAlternatorBlock: ["  queue | A # t | B end"],
+  LuauSparkdownSingleLineConditionalAlternatorBlock: ["  match(x) | Small arm | Big arm end"],
+  LuauSparkdownSingleLineSequentialAlternatorBlock: ["  queue | Arm one # t | Arm two end"],
+  SingleLineCycleAlternator: ["  cycle | Cycle one. | Cycle two. end"],
+  SingleLineShuffleAlternator: ["  shuffle | Shuffle one. | Shuffle two. end"],
+  SingleLineAlternatorArmDivert: ["  queue | Leave now. -> s | Stay here. end"],
+  GluedActionAlternator: ["  They see .. queue | a cat | a dog .. outside."],
+  GluedDialogueAlternator: ["  HERO: I want .. queue | tea | coffee .. now."],
+  GluedChoiceAlternator: ["  * [Pick .. queue | red | blue ..]"],
+  GluedConditionalAlternator: ["  It is .. match(x) | cold | warm .. today."],
+  GluedInterpolatedAlternator: ["  They see .. queue | {animal} | a dog .. outside."],
+  ImplicitActionInterpolation: ["  Hello {person} there."],
+  InlineDialogueInterpolation: ["  GUIDE: Hi {person} again."],
+  ChoiceInterpolation: ["  * [Greet {person} warmly.]"],
+  SingleLineAlternatorInterpolation: ["  queue | Wave at {person}. | Nod. end"],
+  SingleLineAlternatorMarkup: ["  queue | A *bold* arm. | A _plain_ arm. end"],
+  GluedMarkupAlternator: ["  They spot .. queue | a *big* owl | a hawk .. above."],
+  ImplicitActionMarkupBesideInterpolation: ["  Meet *{person}* and _{guest}_ now."],
+  DialogueNameMarkup: ["  *GUIDE*: Hello."],
+  InlineDialogueLeadingGlued: ["  GUIDE: .. queue | cat | dog .. outside."],
+  InlineDialogueOnlyGlued: ["  GUIDE: .. queue | owl | hawk .."],
+  DialogueNameParentheticalMarkup: ["  GUIDE (*V.O.*): Hello."],
+  BlockDialogueNameMarkup: ["  GUIDE (_quietly_):", "    Hello there."],
+  DialogueNameInterpolation: ["  GUIDE {person}: Hi."],
+  ImplicitActionHtml: ["  A <b>bold</b> &amp; \"quoted\" 'single' </script> line."],
+  ChoiceHtml: ["  * [Pick <i>this</i> &amp; \"that\" </script>]"],
+  InlineDialogueHtml: ["  GUIDE: Say <b>hi</b> &amp; \"bye\" </script>."],
+  InlineDialogueHtmlInterpolation: ["  GUIDE: Say {\"<b>hi</b> &amp; </script>\"} now."],
   LuauSparkdownVariableDefinition: ["  local z = 3"],
   LuauSparkdownWhileLoop: ["  while false do", "    It hails.", "  end"],
   LuauStrayUntilStatement: ["  until true"],
@@ -96,6 +130,91 @@ const KINDS: Record<string, string[]> = {
   Thread: ["  <- other"],
   TrailingWhitespace: ["  end   "],
   Whitespace: ["    "],
+};
+
+const GLUED_LAYOUTS: Record<string, string[]> = {
+  GluedActionAlternator: ["They see a cat / a dog outside."],
+  GluedDialogueAlternator: ["HERO", "I want tea / coffee now."],
+  GluedChoiceAlternator: ["* [Pick red / blue]"],
+  GluedConditionalAlternator: ["It is cold / warm today."],
+  GluedInterpolatedAlternator: ["They see {animal} / a dog outside."],
+  GluedMarkupAlternator: ["They spot a big owl / a hawk above."],
+};
+
+const PRINTED: Record<string, string[]> = {
+  ...GLUED_LAYOUTS,
+  ImplicitActionInterpolation: ["Hello {person} there."],
+  InlineDialogueInterpolation: ["GUIDE", "Hi {person} again."],
+  ChoiceInterpolation: ["* [Greet {person} warmly.]"],
+  SingleLineAlternatorInterpolation: ["Wave at {person}.", "Nod."],
+  SingleLineAlternatorMarkup: ["A bold arm.", "A plain arm."],
+  ImplicitActionMarkupBesideInterpolation: ["Meet {person} and {guest} now."],
+  DialogueNameMarkup: ["GUIDE", "Hello."],
+  InlineDialogueLeadingGlued: ["GUIDE", "cat / dog outside."],
+  InlineDialogueOnlyGlued: ["GUIDE", "owl / hawk"],
+  DialogueNameParentheticalMarkup: ["GUIDE (V.O.)", "Hello."],
+  BlockDialogueNameMarkup: ["GUIDE (quietly)", "Hello there."],
+  DialogueNameInterpolation: ["GUIDE {person}: Hi."],
+  ImplicitActionHtml: ["A bold &amp; \"quoted\" 'single'  line."],
+  ChoiceHtml: ["* [Pick this &amp; \"that\" ]"],
+  InlineDialogueHtml: ["GUIDE", "Say hi &amp; \"bye\" ."],
+  InlineDialogueHtmlInterpolation: ["GUIDE", "Say {\"<b>hi</b> &amp; </script>\"} now."],
+  BlockAction: ["The door creaks."],
+  BlockActionInnerBlank: ["First.", "Second."],
+  BlockActionLeadingBlank: ["First."],
+  BlockDialogue: ["GUIDE", "(softly)", "Hello there."],
+  BlockDialogueInnerBlank: ["GUIDE", "First line.", "Second line."],
+  BlockHeading: ["INT. ROOM - DAY"],
+  BlockHeadingInnerBlank: ["INT. A", "INT. B"],
+  BlockTitle: ["THE END"],
+  BlockTitleInnerBlank: ["ONE", "TWO"],
+  BlockTransitional: ["CUT TO:"],
+  BlockTransitionalInnerBlank: ["CUT", "TO:"],
+  Branch: ["Inside."],
+  Choice: ["* [Stray.]"],
+  ChoiceDivert: ["* [Onward.]"],
+  ImplicitActionDivert: ["They leave."],
+  InlineDialogueDivert: ["GUIDE", "Bye."],
+  ImplicitActionTag: ["They go."],
+  ChoiceTag: ["* [Go.]"],
+  InlineDialogueTag: ["GUIDE", "Hi."],
+  ImplicitActionImageMidLine: ["They go.", "on."],
+  ChoiceLineComment: ["* [Go.]"],
+  ImplicitActionGlue: ["They go", "on."],
+  DualDialogue: ["GUIDE", "Left.", "VISITOR", "Right."],
+  ImplicitAction: ["The door creaks."],
+  InlineAction: ["The door creaks."],
+  InlineDialogue: ["GUIDE", "Hello."],
+  InlineHeading: ["INT. ROOM - DAY"],
+  InlineTitle: ["THE END"],
+  InlineTransitional: ["CUT TO:"],
+  LuauFunctionDefinitionSharedLine: ["Same line."],
+  LuauFunctionDefinitionThenCommentSharedLine: ["Shared."],
+  SparkdownBlockCommentThenFunctionSharedLine: ["Shared."],
+  LuauFunctionDefinitionPairSharedLine: ["Shared."],
+  LuauSparkdownChooseBlock: ["* [Go.]", "They go."],
+  LuauSparkdownConditionalAlternatorBlock: ["Small.", "Big."],
+  LuauSparkdownDoBlock: ["It snows."],
+  LuauSparkdownElseBlock: ["Yes."],
+  LuauSparkdownElseifBlock: ["Maybe."],
+  LuauSparkdownForLoop: ["Again."],
+  LuauSparkdownIfBlock: ["It rains."],
+  LuauSparkdownIfElseBlock: ["No.", "Yes."],
+  LuauSparkdownRepeatLoop: ["It drizzles."],
+  LuauSparkdownSequentialAlternatorBlock: ["First time.", "Second time."],
+  LuauSparkdownSingleLineConditionalAlternatorBlock: ["Small arm", "Big arm"],
+  LuauSparkdownSingleLineSequentialAlternatorBlock: ["Arm one", "Arm two"],
+  SingleLineCycleAlternator: ["Cycle one.", "Cycle two."],
+  SingleLineShuffleAlternator: ["Shuffle one.", "Shuffle two."],
+  SingleLineAlternatorArmDivert: ["Leave now.", "Stay here."],
+  LuauSparkdownWhileLoop: ["It hails."],
+};
+
+const compact = (text: string) => text.replace(/\s+/g, "");
+
+const missingText = (rows: string[], expected: readonly string[]) => {
+  const page = compact(rows.join(""));
+  return expected.filter((text) => !page.includes(compact(text)));
 };
 
 const BASE: ScreenplayConfig = { screenplay_print_title_page: false };
@@ -183,17 +302,21 @@ const trimBlankRows = (rows: string[]) => {
   return rows;
 };
 
-const screenRows = (configName: string, source: string): string[] => {
-  const view = show(configName, source);
-  expect(view.contentDOM.querySelector(".cm-gap"), "every line rendered").toBeNull();
+const rowsOf = (view: EditorView): string[] => {
   const rows: string[] = [];
   for (const row of Array.from(view.contentDOM.children)) {
     if (isHidden(row, false)) continue;
     const text = visibleText(row);
-    if (text.trim()) rows.push(text.trim());
+    if (text.trim() && getComputedStyle(row).opacity !== "0") rows.push(text.trim());
     else if (text.length > 0 || row.querySelector("br")) rows.push("");
   }
-  return trimBlankRows(rows);
+  return rows;
+};
+
+const screenRows = (configName: string, source: string): string[] => {
+  const view = show(configName, source);
+  expect(view.contentDOM.querySelector(".cm-gap"), "every line rendered").toBeNull();
+  return trimBlankRows(rowsOf(view));
 };
 
 const exportRows = (configName: string, source: string): string[] => {
@@ -238,11 +361,112 @@ describe("screenplay page and export agree on blank lines", () => {
         if (found) {
           failures.push(`sequence ${index}: ${found}; kinds ${kinds.join(" > ")}`);
         }
+        const missing = missingText(screen, kinds.flatMap((kind) => PRINTED[kind] ?? []));
+        if (missing.length) {
+          failures.push(`sequence ${index}: page lacks ${JSON.stringify(missing)}; kinds ${kinds.join(" > ")}`);
+        }
       }
       expect(failures).toEqual([]);
     },
     600_000,
   );
+});
+
+const CONTAINERS: Record<string, { open: string[]; close: string[]; indent: string; prints: string[] }> = {
+  if: { open: ["  if true then"], close: ["  end"], indent: "  ", prints: [] },
+  elseif: { open: ["  if false then", "    No.", "  elseif true then"], close: ["  end"], indent: "  ", prints: ["No."] },
+  else: { open: ["  if false then", "    No.", "  else"], close: ["  end"], indent: "  ", prints: ["No."] },
+  while: { open: ["  while true do"], close: ["  end"], indent: "  ", prints: [] },
+  for: { open: ["  for i = 1, 2 do"], close: ["  end"], indent: "  ", prints: [] },
+  repeat: { open: ["  repeat"], close: ["  until true"], indent: "  ", prints: [] },
+  do: { open: ["  do"], close: ["  end"], indent: "  ", prints: [] },
+  branch: { open: ["  branch b"], close: ["  end"], indent: "  ", prints: [] },
+  choice: { open: ["  choose", "    * [Go.]"], close: ["  end"], indent: "    ", prints: ["* [Go.]"] },
+  queueBranch: {
+    open: ["  queue", "    | First one | Second one", "    | Third line"],
+    close: ["  end"],
+    indent: "    ",
+    prints: ["First one | Second one", "Third line"],
+  },
+  matchBranch: { open: ["  match x", "    | Small."], close: ["  end"], indent: "    ", prints: ["Small."] },
+};
+
+const NOT_NESTABLE = new Set([
+  "LuauShebang",
+  "Scene",
+  "LuauEndKeyword",
+  "TrailingWhitespace",
+  "LuauStrayUntilStatement",
+  "LuauSparkdownElseBlock",
+  "LuauSparkdownElseifBlock",
+]);
+
+const NESTED_KINDS = Object.keys(KINDS).filter((kind) => !NOT_NESTABLE.has(kind));
+
+const NESTED_CHUNK = 12;
+
+const NESTED_CHUNKS = Array.from({ length: Math.ceil(NESTED_KINDS.length / NESTED_CHUNK) }, (_, index) =>
+  NESTED_KINDS.slice(index * NESTED_CHUNK, (index + 1) * NESTED_CHUNK),
+);
+
+const nestedSourceOf = (container: string, kinds: readonly string[]) => {
+  const { open, close, indent } = CONTAINERS[container]!;
+  const body = kinds.flatMap((kind) => KINDS[kind]!.map((line) => (line ? `${indent}${line}` : line)));
+  return ["scene s", "  Before.", ...open, ...body, ...close, "  After.", "end", ""].join("\n");
+};
+
+describe("screenplay page and export agree on text inside blocks", () => {
+  it.each(Object.keys(CONFIGS).flatMap((configName) => Object.keys(CONTAINERS).map((container) => [configName, container])))(
+    "with %s settings inside %s",
+    async (configName, container) => {
+      const failures: string[] = [];
+      for (const [index, kinds] of NESTED_CHUNKS.entries()) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const source = nestedSourceOf(container, kinds);
+        const screen = screenRows(configName, source);
+        const found = difference(screen, exportRows(configName, source));
+        if (found) {
+          failures.push(`sequence ${index}: ${found}; kinds ${kinds.join(" > ")}`);
+        }
+        const expected = [...CONTAINERS[container]!.prints, ...kinds.flatMap((kind) => PRINTED[kind] ?? [])];
+        const missing = missingText(screen, expected);
+        if (missing.length) {
+          failures.push(`sequence ${index}: page lacks ${JSON.stringify(missing)}; kinds ${kinds.join(" > ")}`);
+        }
+      }
+      expect(failures).toEqual([]);
+    },
+    600_000,
+  );
+});
+
+describe("the ticket's nested loop and alternator", () => {
+  it("shows only the text the export prints", () => {
+    const source = [
+      "scene s",
+      "  INT. ROOM - DAY",
+      "  local x = 0",
+      "  if x == 0 then",
+      "    while x < 3 do",
+      "      Hero: Again.",
+      "      x += 1",
+      "    end",
+      "  end",
+      "  Hero: Hi.",
+      "  queue",
+      "    | First one | Second one",
+      "    | Third line",
+      "        Hero: Multi.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const expected = ["INT. ROOM - DAY", "", "Hero", "Again.", "Hero", "Hi.", "", "First one | Second one", "Third line", "Hero", "Multi."];
+    const screen = screenRows("default", source);
+    expect(layout(screen)).toBe(layout(expected));
+    expect(layout(exportRows("default", source))).toBe(layout(expected));
+    expect(screen.join("\n")).not.toMatch(/x\s*<\s*3|x\s*\+=\s*1|^\|/m);
+  });
 });
 
 describe("the element sequences", () => {
@@ -315,13 +539,7 @@ describe("a line shared by a hidden node and printed text", () => {
     expect(layout(screenRows("default", source))).toBe(layout(["Before.", "", "Shared.", "After."]));
     const view = views.get("default")!;
     view.dispatch({ effects: setScreenplayConfig.of(CONFIGS["function identifiers"]) });
-    const rows: string[] = [];
-    for (const row of Array.from(view.contentDOM.children)) {
-      if (isHidden(row, false)) continue;
-      const text = visibleText(row);
-      if (text.trim()) rows.push(text.trim());
-      else if (text.length > 0 || row.querySelector("br")) rows.push("");
-    }
+    const rows = rowsOf(view);
     view.dispatch({ effects: setScreenplayConfig.of(CONFIGS["default"]) });
     expect(layout(trimBlankRows(rows))).toBe(layout(["Before.", "", "f5", "", "f6", "Shared.", "After."]));
   });
@@ -345,6 +563,101 @@ describe("a line shared by a hidden node and printed text", () => {
     const expected = ["Before.", ...rows, "After."];
     expect(exportRows(configName, source)).toEqual(expected);
     expect(layout(screenRows(configName, source))).toBe(layout(expected));
+  });
+});
+
+describe("an alternative written inside a sentence", () => {
+  it.each(Object.entries(GLUED_LAYOUTS))("prints %s as its layout row, on the page as in the export", (kind, rows) => {
+    const source = sourceOf([kind]);
+    const printed = exportRows("default", source);
+    expect(printed.filter((row) => row && row !== "Before." && row !== "After.")).toEqual(rows);
+    expect(layout(screenRows("default", source))).toBe(layout(printed));
+  });
+});
+
+describe("a title page field", () => {
+  it("shows the text the export prints, with markup and an interpolation", () => {
+    const config = { ...BASE, screenplay_print_title_page: true };
+    CONFIGS["title page field"] = config;
+    const source = ["---", "title: The *Big* {place} Heist", "---", "", sourceOf(["ImplicitAction"])].join("\n");
+    const printed = extractPdfText(source, config)
+      .split("\n")
+      .find((row) => row.includes("title:"))!;
+    expect(printed.replace(/^.*title: /, "")).toBe("The Big {place} Heist");
+    const view = show("title page field", source);
+    const titlePage = view.contentDOM.querySelector(".sp-title-page") ?? view.contentDOM;
+    expect(compact(visibleText(titlePage))).toContain(compact("The Big {place} Heist"));
+  });
+});
+
+const WIDGET_CASES: [string, string, string][] = [
+  ["title", "queue | A *cat* | A _dog_ end", "queue | A cat | A dog end"],
+  ["title", "A {person .. '*bold*'} beside _word_.", "A {person .. 'bold'} beside word."],
+  ["title", 'A {"&amp;"} beside *word*.', 'A {"&amp;"} beside word.'],
+  ["dialogue", "A *bold .. queue | cat | dog .. bold* beside {person}.", "A *bold cat / dog bold* beside {person}."],
+  ["dialogue", 'A {"<b>owl</b>"} beside *word*.', 'A {"<b>owl</b>"} beside word.'],
+  ["title", 'A <b>x</b> &amp; "q" </script> end', 'A x &amp; "q"  end'],
+];
+
+describe("a widget on the page", () => {
+  it.each(WIDGET_CASES)("draws the export's %s text for %s", (where, written, expected) => {
+    const config = { ...BASE, screenplay_print_title_page: where === "title" };
+    const configName = `widget ${where}`;
+    CONFIGS[configName] = config;
+    const source =
+      where === "title"
+        ? ["---", `title: ${written}`, "---", "", sourceOf(["ImplicitAction"])].join("\n")
+        : ["scene s", "  Before.", `  GUIDE: ${written}`, "  After.", "end", ""].join("\n");
+    const rows = extractPdfText(source, config).split("\n");
+    const printed =
+      where === "title"
+        ? rows.find((row) => row.includes("title:"))!.replace(/^.*title: /, "")
+        : rows.find((row) => row.startsWith("<dialogue>"))!.replace(/^<dialogue> /, "");
+    expect(printed).toBe(expected);
+    const view = show(configName, source);
+    const widget =
+      where === "title"
+        ? view.contentDOM.querySelector(".sp-title-page")!
+        : Array.from(view.contentDOM.children).find((row) => row.textContent?.includes("GUIDE"))!;
+    expect(compact(visibleText(widget))).toContain(compact(expected));
+  });
+});
+
+const TITLE_PAGE_CASES: [string, string[]][] = [
+  ["a field written on two lines", ["title: First", "  Second"]],
+  ["a field written twice", ["title: First", "title: Second"]],
+  ["a key the export does not know", ["Title: First"]],
+];
+
+describe("the title page", () => {
+  it.each(TITLE_PAGE_CASES)("shows what the export prints for %s", (_name, fields) => {
+    const config = { ...BASE, screenplay_print_title_page: true };
+    CONFIGS["title page cases"] = config;
+    const source = ["---", ...fields, "---", "", sourceOf(["ImplicitAction"])].join("\n");
+    const rows = extractPdfText(source, config).split("\n");
+    const start = rows.indexOf("=== TITLE PAGE ===");
+    const printed = start < 0 ? [] : rows.slice(start + 1, rows.indexOf("=== BODY ===")).map((row) => row.replace(/^\[[a-z]+\] [^:]*: /, ""));
+    const view = show("title page cases", source);
+    const titlePage = view.contentDOM.querySelector(".sp-title-page");
+    expect(compact(titlePage ? visibleText(titlePage) : "")).toBe(compact(printed.join("")));
+  });
+});
+
+describe("a single-line alternator", () => {
+  it.each([
+    ["at the top of a scene", ["  queue | Tea, please. | Coffee, please. end"]],
+    ["inside an if", ["  if true then", "    queue | Tea, please. | Coffee, please. end", "  end"]],
+    ["inside a choice", ["  choose", "    * [Go.]", "      queue | Tea, please. | Coffee, please. end", "  end"]],
+  ] as const)("prints each branch on its own line, on the page as in the export, %s", (_where, lines) => {
+    const source = ["scene s", "  Before.", ...lines, "  After.", "end", ""].join("\n");
+    const printed = exportRows("default", source);
+    expect(printed.filter((row) => row.endsWith("please."))).toEqual(["Tea, please.", "Coffee, please."]);
+    const screen = screenRows("default", source);
+    expect(layout(screen)).toBe(layout(printed));
+    const view = views.get("default")!;
+    const row = Array.from(view.contentDOM.children).find((element) => element.textContent?.includes("Tea, please."))!;
+    expect(row.querySelectorAll(".sp-break")).toHaveLength(1);
+    expect(visibleText(row)).not.toMatch(/queue|\||end/);
   });
 });
 

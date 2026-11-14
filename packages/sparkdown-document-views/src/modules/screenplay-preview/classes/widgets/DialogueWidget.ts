@@ -12,7 +12,7 @@ const DEFAULT_LINE_HEIGHT = 22.390625;
 
 const escapeDialogueLines = (block: MarkupContent[]) => {
   return block.map((c, i) =>
-    i === 0
+    i === 0 || !c.markdown
       ?
         c
       :

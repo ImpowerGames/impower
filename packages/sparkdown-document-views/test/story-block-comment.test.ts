@@ -84,7 +84,8 @@ describe("a story block comment in the screenplay", () => {
     const commented = script(`${mark}far /* secret */ away${mark}`);
     const plain = script(`${mark}far away${mark}`);
     const parser = new ScreenplayParser();
-    expect(parser.parse(commented)).toEqual(parser.parse(plain));
+    const printed = (text: string) => parser.parse(text).map((token) => ({ ...token, source: undefined }));
+    expect(printed(commented)).toEqual(printed(plain));
     expect(extractPdfText(commented)).toBe(extractPdfText(plain));
   });
 

@@ -10,7 +10,7 @@ import {
 import { FormattedText } from "../types/FormattedText";
 import { TextOptions } from "../types/TextOptions";
 
-const SOURCE_COLOR = "#808080";
+export const SOURCE_COLOR = "#808080";
 
 export const styleText = (
   text: string,
