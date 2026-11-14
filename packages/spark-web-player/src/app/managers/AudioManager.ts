@@ -480,6 +480,14 @@ export default class AudioManager extends Manager {
   }
 
   override onPause(): void {
+    this.pausePlayers();
+  }
+
+  override onUnpause(): void {
+    this.unpausePlayers();
+  }
+
+  pausePlayers(): void {
     if (this.app.audioContext) {
       const scheduledTime = this.app.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {
@@ -490,7 +498,7 @@ export default class AudioManager extends Manager {
     }
   }
 
-  override onUnpause(): void {
+  unpausePlayers(): void {
     if (this.app.audioContext) {
       const scheduledTime = this.app.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {

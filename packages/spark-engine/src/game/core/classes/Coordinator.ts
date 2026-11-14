@@ -374,7 +374,7 @@ export class Coordinator<G extends Game> {
     };
 
     const extended = Boolean(instructions.extended);
-    const silent = previewing && !instant;
+    const silent = previewing && !instant && !game.previewAudio;
 
     if ((!instant || options?.presented) && !extended && !silent) {
       game.module.audio.stopChannel("sound");

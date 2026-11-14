@@ -5213,6 +5213,7 @@ export class Game<T extends M = {}> {
     );
     this.clearChoices();
     if (!held) {
+      this.module.audio.settlePreview();
       this.finishPreview(previewAddress, executed);
       return previewAddress;
     }
@@ -5248,6 +5249,9 @@ export class Game<T extends M = {}> {
     send: (message: Message, transfer?: ArrayBuffer[]) => void,
     superseded: () => boolean,
   ): Promise<boolean> {
+    if (this._previewAudio) {
+      this.module.audio.silence();
+    }
     this.reset();
     this._runtimeState = new RuntimeState();
     this._startAddress = null;
@@ -5351,6 +5355,27 @@ export class Game<T extends M = {}> {
 
   protected readonly _tickBeatPlay = (time: Clock) => this.update(time);
 
+  protected _previewAudio = false;
+
+  get previewAudio(): boolean {
+    return this._previewAudio;
+  }
+
+  setPreviewAudio(enabled: boolean): void {
+    if (this._previewAudio === enabled) {
+      return;
+    }
+    this._previewAudio = enabled;
+    if (!this._context.system.previewing || this._state === "running") {
+      return;
+    }
+    if (!enabled) {
+      this.module.audio.silence();
+    } else if (!this._beatPlay) {
+      this.module.audio.settlePreview();
+    }
+  }
+
   protected _previewShowsBeat = false;
 
   get previewShowsBeat(): boolean {
@@ -5394,6 +5419,10 @@ export class Game<T extends M = {}> {
     instructions: Instructions | null,
     playId?: number,
   ) {
+    const audio = this.module.audio;
+    if (playId != null) {
+      audio.settlePreview();
+    }
     this._coordinator = null;
     if (instructions) {
       this._coordinator = new Coordinator(
@@ -5414,6 +5443,10 @@ export class Game<T extends M = {}> {
           (instructions.choices?.length ?? 0) > 0,
         );
       }
+    }
+    if (playId == null) {
+      audio.recordBeat(instructions?.audio);
+      audio.settlePreview();
     }
     this.checkpoint();
     if (!this._coordinator) {
