@@ -160,6 +160,12 @@ const CLAUSE_ROWS: Row[] = [
   ["audio flags", "audio", "play music theme loop mute now"],
   ["audio with named like a clause word", "audio", "play music theme loop with over"],
   ["audio tag between words", "audio", "play music theme # note loop"],
+  ["none as a name", "image", "none"],
+  ["none as a name after a target", "image", "show pane none with fade"],
+  ["none in a composition", "image", "mia + none+bunny morph talk"],
+  ["none inside longer names", "image", "#none nonexistent x.none"],
+  ["none with a filter", "image", "none:mouth.open"],
+  ["none as a sound name", "audio", "play music none loop"],
 ];
 
 const ROWS: Row[] = [
@@ -551,6 +557,7 @@ const COLOURED_ROLES: Readonly<Record<string, string>> = {
   AssetCommandControl: "control",
   AssetCommandTarget: "target",
   AssetCommandName: "name",
+  AssetCommandNoneName: "name",
   AssetCommandClauseKeyword: "clause",
   AssetCommandClauseValue: "value",
 };
@@ -589,7 +596,8 @@ function colouringOf(text: string, from: number, to: number) {
       if (node.to <= from || node.from >= to) return false;
       const role = Object.hasOwn(COLOURED_ROLES, node.name) ? COLOURED_ROLES[node.name] : undefined;
       if (!role) return undefined;
-      words.push([node.from, `${role} ${text.slice(node.from, node.to)}`]);
+      const word = text.slice(node.from, node.to);
+      words.push([node.from, `${role} ${node.name === "AssetCommandNoneName" ? word.replace(/[+ \t]+$/, "") : word}`]);
       return false;
     },
   });
@@ -606,6 +614,29 @@ describe("the grammar colours every directive word as the game reads it (I-2224)
     const line = lineOf(i);
     const { grammar, games } = colouringOf(source, lineStarts[line]!, lineStarts[line]! + lines[line]!.length);
     expect(grammar).toEqual(games.flat());
+  });
+
+  test("`none` is the keyword only where it is a whole name", () => {
+    const noneLines = [
+      "[[none]]",
+      "[[none:mouth.open]]",
+      "[[mia + none+bunny]]",
+      "((play music none loop))",
+      "[[#none]]",
+      "[[#none:mouth.open]]",
+      "((#none))",
+      "[[nonexistent]]",
+      "[[x.none]]",
+      "[[mia+nonesuch]]",
+    ];
+    const noneSource = ["scene start", ...noneLines.map((line) => `  ${line}`), "end", ""].join("\n");
+    const keywords: string[] = [];
+    parser.parse(noneSource).iterate({
+      enter: (node) => {
+        if (node.name === "AssetCommandKeywordNone") keywords.push(noneLines[noneSource.slice(0, node.from).split("\n").length - 2]!);
+      },
+    });
+    expect(keywords).toEqual(noneLines.slice(0, 4));
   });
 
   test("the VS Code grammar colours the table as the editor's tree does", async () => {

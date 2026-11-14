@@ -133,7 +133,7 @@
     "DIRECTIVE_CONTROL": "(?:{{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}}|{{WRITE_CONTROL_KEYWORDS}})",
     "IMAGE_DIRECTIVE_CONTROL": "(?:{{DIRECTIVE_CONTROL}}|{{LAYOUT_CONTROL_KEYWORDS}})",
     "DIRECTIVE_NAME_TEXT": "(?:[^ \\t\\r\\n+]+)",
-    "ASSET_FILTERS": "(?:(?:[:~][^:~\\s]+)+)",
+    "ASSET_FILTERS": "(?:(?:[:~][^:~+\\s]+)+)",
     "_DIRECTIVE_END_": "({{DIRECTIVE_SPACE}}*)$",
     "_DIRECTIVE_TAG_AND_END_": "(?:({{DIRECTIVE_SEPARATOR}}{{DIRECTIVE_TAG}}))?{{_DIRECTIVE_END_}}",
     "_DIRECTIVE_NAVIGATE_TO_": "({{DIRECTIVE_SEPARATOR}})({{DIRECTIVE_DESTINATION}})({{DIRECTIVE_NEXT_WORD}}*)",
@@ -6281,6 +6281,9 @@
           "include": "#AssetCommandAddOperator"
         },
         {
+          "include": "#AssetCommandNoneName"
+        },
+        {
           "include": "#AssetCommandName"
         }
       ]
@@ -6423,12 +6426,6 @@
               "include": "#LuauString"
             },
             {
-              "include": "#AssetCommandKeywordNone"
-            },
-            {
-              "include": "#AssetCommandFilteredNone"
-            },
-            {
               "include": "#AssetCommandFilteredFileName"
             },
             {
@@ -6444,13 +6441,8 @@
         }
       }
     },
-    "AssetCommandKeywordNone": {
-      "tag": "keyword",
-      "name": "keyword.asset.keyword.none.sd",
-      "match": "(none)$"
-    },
-    "AssetCommandFilteredNone": {
-      "match": "(none)((?:(?:[:~][^:~\\s]+)+))$",
+    "AssetCommandNoneName": {
+      "match": "(none)((?:(?:[:~][^:~+\\s]+)+)?)(?:([+])|((?:(?:[ \\t])+))|$)",
       "captures": {
         "1": {
           "patterns": [
@@ -6465,13 +6457,32 @@
               "include": "#AssetCommandFilter"
             }
           ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssetCommandAddOperator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
         }
       }
+    },
+    "AssetCommandKeywordNone": {
+      "tag": "keyword",
+      "name": "keyword.asset.keyword.none.sd",
+      "match": "(none)"
     },
     "AssetCommandFilteredFileName": {
       "tag": "constant(variableName)",
       "name": "variable.other.constant.asset.file.sd",
-      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*(?:[@][0-9_\\p{L}][0-9_\\p{L}-]*)*(?<![-])))((?:(?:[:~][^:~\\s]+)+))",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*(?:[@][0-9_\\p{L}][0-9_\\p{L}-]*)*(?<![-])))((?:(?:[:~][^:~+\\s]+)+))",
       "captures": {
         "1": {
           "patterns": [

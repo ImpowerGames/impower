@@ -15,4 +15,7 @@ scene start
   [[nonexistent + none]]
   [[mia+nonesuch morph none]]
   [[none:mouth.open]]
+  [[#none]]
+  [[#none:mouth.open]]
+  ((#none))
 end
