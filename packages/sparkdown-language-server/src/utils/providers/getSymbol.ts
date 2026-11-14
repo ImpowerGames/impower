@@ -15,7 +15,9 @@ const findCharacterNameValue = (
   | { symbol: GrammarSyntaxNode<SparkdownNodeName>; nameRange: Range; canRename: true }
   | undefined => {
   const contentNode = stack.find(
-    (n) => n.name === "LuauDoubleQuotedString_content",
+    (n) =>
+      n.name === "LuauDoubleQuotedString_content" ||
+      n.name === "LuauSingleQuotedString_content",
   );
   if (!contentNode) {
     return undefined;
@@ -27,9 +29,13 @@ const findCharacterNameValue = (
     return undefined;
   }
   const propertyNameNode = getDescendent("LuauVariableName", propertyDefinition);
+  const propertyName = propertyNameNode
+    ? document.read(propertyNameNode.from, propertyNameNode.to).trim()
+    : "";
   if (
-    !propertyNameNode ||
-    document.read(propertyNameNode.from, propertyNameNode.to).trim() !== "name"
+    propertyName !== "aliases" &&
+    (propertyName !== "name" ||
+      contentNode.name !== "LuauDoubleQuotedString_content")
   ) {
     return undefined;
   }
