@@ -1391,6 +1391,14 @@ So we accept the bill: a 200-line function re-parses on every keystroke inside i
 
 **Takeaway for anyone adding a new construct:** if you can possibly avoid wrapping a potentially-large region in a `Scoped` rule, do. `LuauFunctionDefinition` is the compromise we settled for; don't add another one without a comparably strong reason.
 
+### 16.5 Long lines: lookbehinds and captures
+
+Each engine searches a line once for every token on it, so any check that reads back to the line's start makes a long line cost time in proportion to the square of its length (I-2306).
+
+- **A lookbehind of no fixed length goes after a check that rarely passes.** Oniguruma tests a lookbehind containing `*`, `+` or a `^` with text after it by trying each start position before the current one, so it costs the distance to the line's start wherever it finds no match close by. Put it after a lookahead or a fixed-length lookbehind that fails at most positions: `(?=$|{{LUAU_COMMENT_START}})(?<=^{{WS}}*return{{WS}}*)`, never the reverse. Every part is zero-width at the same position, so the order does not change what matches. Write "only whitespace before it on its line" as `(?<!\S{{WS}}*)`, which finds the nearest non-space at once, never as `(?<=^{{WS}}*)`. A guard that must stop a rule from starting inside a list or path is fixed-length (`(?<![.:,]|[.:,]{{WS}})`).
+- **VS Code's copy of the grammar names whole-capture scopes directly.** vscode-textmate re-reads the line from its start for every capture that has `patterns`. The generator therefore writes `vscode-sparkdown/language/sparkdown.language-grammar.json` with a scope in place of an include that matches the capture's whole text: whitespace, single characters, keywords, and name rules identical to the capture (`definitions/src/directCaptureScopes.ts`). A name rule whose capture picks its scope from several word rules (`LuauVariable`: `self`, the standard library's names, any other name) becomes one rule per word rule there. The tree builds its nodes from those includes, so its copy keeps them. VS Code's tests read VS Code's copy (`vscodeGrammarSnapshot.ts`), so `scopeEquality.test.ts` compares the two copies scope for scope (§17.4). A capture whose include is not shown to match its whole text keeps its re-read in VS Code.
+- `unclosedBraceGrowth2306.test.ts` pins the growth of both engines on long lines. A line nested deeply (a thousand `function() return` on one line) still grows faster than its length in vscode-textmate, whose tokens each carry every enclosing scope.
+
 ---
 
 ## 17. Engine equality: the grammar must parse identically in both engines

@@ -2,6 +2,7 @@ import * as chokidar from "chokidar";
 import fs from "fs";
 import path from "path";
 import YAML from "yaml";
+import { withDirectCaptureScopes } from "./directCaptureScopes";
 
 const outPaths = process.argv.slice(2).filter((path) => !path.startsWith("--"));
 const WATCH = process.argv.includes("--watch");
@@ -26,6 +27,7 @@ const CONFIG_BUILDS =CONFIG_NAMES.flatMap((name) =>
 );
 
 const GRAMMAR_NAME = "sparkdown.language-grammar";
+const VSCODE_EXTENSION_DIRECTORY = "vscode-sparkdown";
 const IN_GRAMMAR_PATH = `./yaml/${GRAMMAR_NAME}.yaml`;
 const IN_LUAU_GRAMMAR_PATH = `./yaml/sparkdown-luau.language-grammar.yaml`;
 const LUAU_GRAMMAR_SECTIONS = ["variables", "repository"];
@@ -505,9 +507,10 @@ const writeJson = async (
   parsed: TmGrammar,
   inYamlPaths: string | string[],
   outJsonPath: string,
+  finish: (grammar: TmGrammar) => TmGrammar = (grammar) => grammar,
 ) => {
   applyDefaultMatch(parsed);
-  const resolved = updateGrammarVariables(parsed);
+  const resolved = finish(updateGrammarVariables(parsed));
   const stamped = {
     _generated_: generatedWarning(inYamlPaths, outJsonPath),
     ...resolved,
@@ -566,11 +569,16 @@ const readGrammarSource = async () => {
   return story;
 };
 
+const isVsCodeExtensionOutput = (outJsonPath: string) =>
+  path.basename(path.dirname(path.dirname(path.resolve(outJsonPath)))) ===
+  VSCODE_EXTENSION_DIRECTORY;
+
 const buildGrammarJson = async (outJsonPath: string) => {
   await writeJson(
     await readGrammarSource(),
     [IN_GRAMMAR_PATH, IN_LUAU_GRAMMAR_PATH],
     outJsonPath,
+    isVsCodeExtensionOutput(outJsonPath) ? withDirectCaptureScopes : undefined,
   );
 };
 

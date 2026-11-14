@@ -21,7 +21,11 @@ vanishes:
 | `vscode-sparkdown/language/sparkdown-luau.language-snippets.json`   | `definitions/yaml/sparkdown-luau.language-snippets.yaml` |
 
 (Each YAML source propagates to both `packages/sparkdown/language/` and
-`vscode-sparkdown/language/`.)
+`vscode-sparkdown/language/`. The two `sparkdown.language-grammar.json` copies
+differ in one way: VS Code's names a capture's scope directly where its include
+matches the capture's whole text, which vscode-textmate would otherwise re-read
+from the line's start (`definitions/src/directCaptureScopes.ts`; GRAMMAR.md
+§16.5). The tree builds its nodes from those includes, so its copy keeps them.)
 
 The grammar has two sources that the build merges into the one
 `sparkdown.language-grammar.json`: every `Luau*` rule and every `LUAU_*` (or

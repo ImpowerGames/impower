@@ -17,7 +17,11 @@ import { GrammarNode } from "../GrammarNode";
 import type { GrammarRepository } from "../GrammarRepository";
 import { GrammarState } from "../GrammarState";
 import { Matched } from "../Matched";
-import { RegExpMatcher, type RegExpMatchResult } from "../RegExpMatcher";
+import {
+  RegExpMatcher,
+  sliceWithTextRange,
+  type RegExpMatchResult,
+} from "../RegExpMatcher";
 import { ResumableTokenizer } from "../ResumableTokenizer";
 import { SwitchRule } from "./SwitchRule";
 
@@ -268,7 +272,7 @@ export class MatchRule implements Rule {
     const { tokens, to } = ResumableTokenizer.tokenizeCapture(
       this.repo.grammar,
       [capture],
-      lineText.slice(0, start + resultStrLength),
+      sliceWithTextRange(lineText, start + resultStrLength),
       start,
       lineStart,
       state.enclosingAt(lineStart, capture.id, pos),

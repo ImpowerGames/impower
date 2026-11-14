@@ -15,6 +15,9 @@ const GRAMMAR_PATH = join(
   "..",
   "..",
   "..",
+  "..",
+  "..",
+  "vscode-sparkdown",
   "language",
   "sparkdown.language-grammar.json",
 );
