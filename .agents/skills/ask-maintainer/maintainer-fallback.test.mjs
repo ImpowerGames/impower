@@ -25,7 +25,7 @@ const issueUrl = (n) => `https://github.com/acme/tickets/issues/${n}`;
 const doing = "Merges #2271 with the outlined pin in the gutter button.\n";
 const claimsMaintainerDecided = /\b(?:the )?maintainer(?:'s)? (?:decided|decision|chose|choice|approved|agreed|accepted|kept)\b/i;
 
-function tracker({ body = decisionBody, failAddLabel = false, onAddLabel = () => {}, afterAddLabel = () => {} } = {}) {
+function tracker({ body = decisionBody, failAddLabel = false, onAddLabel = () => {}, afterAddLabel = () => {}, beforeNote = () => {} } = {}) {
   const t = { seq: 0, next: 7000, now: new Date("2026-11-13T17:40:00Z"), calls: [], items: [] };
   const tick = () => (t.now = new Date(t.now.getTime() + 1000)).toISOString().replace(".000Z", "Z");
   const issue = (number, over) => ({ number, html_url: issueUrl(number), state: "open", state_reason: null, created_at: filedAt, closed_at: null, closed_by: null, labels: [], ...over });
@@ -51,7 +51,9 @@ function tracker({ body = decisionBody, failAddLabel = false, onAddLabel = () =>
     comments: (n) => structuredClone(t.items.filter((item) => item.issue === n && item.event === "commented")),
     comment: ({ number, bodyFile }) => {
       t.calls.push(["comment", number]);
-      return { id: post(number, readFileSync(bodyFile, "utf8"), M) };
+      const text = readFileSync(bodyFile, "utf8");
+      if (number === REQUEST && readNote(text)?.kind === "fallback") beforeNote(t);
+      return { id: post(number, text, M) };
     },
     readComment: (id) => structuredClone(t.items.find((item) => item.id === id)),
     deleteComment: (id) => {
@@ -328,7 +330,7 @@ try {
     console.log("ok: a fallback after revise reopened an unclear request commits");
 
     const closedBefore = tracker({ onAddLabel: (self) => self.closeAs("completed", "2026-11-13T17:40:01Z") });
-    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: closedBefore, repos, now }), /changed while going ahead: it now reads unclear; the note stays, since the maintainer closed the request after it was posted; read it again before acting\nRolled back: deleted the fallback record \d+ on #2271; removed the label maintainer: decided without you\./);
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: closedBefore, repos, now }), /changed while going ahead: it now reads unclear; read it again before acting\nRolled back: deleted the fallback record \d+ on #2271; removed the label maintainer: decided without you; kept the fallback note \d+, since the maintainer closed the request after it was posted, or the request could not be read\./);
     const closedBeforeAnswer = fetchAnswer(REQUEST, { tracker: closedBefore, repos });
     assert.deepEqual([closedBeforeAnswer.state, recordsOn(closedBefore, REQUEST).map((e) => e.note.kind)], ["unclear", ["fallback"]], "a no-comment close before the label keeps the fallback note, so the close reads unclear, never accepted");
     assert.throws(() => recordAnswer(REQUEST, { tracker: closedBefore, repos }), /it is unclear/);
@@ -342,6 +344,26 @@ try {
     assert.equal(fallbackRequest(REQUEST, OWNER, doing, { tracker: askedAfter, repos, now }).state, "question", "a question after the label leaves the committed fallback standing");
     assert.equal(fetchAnswer(REQUEST, { tracker: askedAfter, repos }).wentAhead.option, "B");
     console.log("ok: a close during publication keeps the context that decides what closing meant: unclear before the label, kept after it");
+
+    const closedFirst = tracker({ beforeNote: (self) => self.closeAs("completed", "2026-11-13T17:40:00Z") });
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: closedFirst, repos, now }), /changed while going ahead: it now reads accepted/);
+    const closedFirstAnswer = fetchAnswer(REQUEST, { tracker: closedFirst, repos });
+    assert.deepEqual([closedFirstAnswer.state, closedFirstAnswer.wentAhead], ["accepted", undefined], "a close before the fallback note accepted the recommendation; a note and label after it commit nothing");
+    assert.doesNotMatch(recordAnswer(REQUEST, { tracker: closedFirst, repos }).records.map((r) => closedFirst.readComment(r.id).body).join(""), /Kept by the maintainer/);
+    const stoppedAfterClose = tracker();
+    stoppedAfterClose.closeAs("completed", "2026-11-13T17:39:00Z");
+    leftovers(stoppedAfterClose);
+    label(stoppedAfterClose);
+    assert.equal(fetchAnswer(REQUEST, { tracker: stoppedAfterClose, repos }).state, "accepted", "a run that stopped after posting onto a closed request commits nothing");
+    console.log("ok: a fallback note posted after the request closed never commits, so the earlier close keeps its meaning");
+
+    const failedAfterClose = tracker({ onAddLabel: (self) => {
+      self.closeAs("completed", "2026-11-13T17:40:03Z");
+      throw new Error("HTTP 502: label service down");
+    } });
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: failedAfterClose, repos, now }), /HTTP 502: label service down\nRolled back: deleted the fallback record \d+ on #2271; removed the label maintainer: decided without you; kept the fallback note \d+, since the maintainer closed the request after it was posted, or the request could not be read\./);
+    assert.deepEqual([fetchAnswer(REQUEST, { tracker: failedAfterClose, repos }).state, recordsOn(failedAfterClose, REQUEST).map((e) => e.note.kind)], ["unclear", ["fallback"]], "a publication step that throws after the maintainer closed keeps the note, so the close reads unclear");
+    console.log("ok: a failed publication step keeps the note when the request is closed");
 
     const ambiguous = tracker();
     leftovers(ambiguous);

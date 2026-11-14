@@ -919,6 +919,7 @@ function fallbackOf(issue, items, notes, data, tagged, who, label) {
   const from = notes.filter((entry) => entry.note.kind === "revised" && entry.comment.pos < at).at(-1)?.comment.pos ?? tagged?.pos ?? -1;
   const asked = (item) => item.event === "commented" && commentAuthor(item, who) === "maintainer";
   const changed = (item) => ["closed", "reopened"].includes(item.event) || (item.event === "commented" && readNote(item.body)?.kind === "revised");
+  if (items.filter((item) => item.pos < at && ["closed", "reopened"].includes(item.event)).at(-1)?.event === "closed") return { fellBack: null, unfinished: null };
   const valid = committed && candidate.note.fallbackAt === data.fallback?.at && !items.some((item) => item.pos < committed.pos && ((item.pos > from && asked(item)) || (item.pos > at && changed(item))));
   return valid ? { fellBack: candidate, unfinished: null } : { fellBack: null, unfinished: candidate };
 }
@@ -1268,15 +1269,24 @@ export function fallbackRequest(number, owner, doing, { tracker, repos = readRep
       tracker.addLabel(number, label);
       const back = tracker.issue(number);
       const after = readAnswer(back, tracker.timeline(number), repos);
-      if (after.wentAhead?.url !== note.url) {
-        done.keepNote = back.state === "closed";
-        throw new FilingProblems([`#${number} changed while going ahead: it now reads ${after.state}${after.words.length ? `, with the maintainer's comment ${after.words.at(-1).url}` : ""}${done.keepNote ? "; the note stays, since the maintainer closed the request after it was posted" : ""}; read it again before acting`]);
-      }
+      if (after.wentAhead?.url !== note.url) throw new FilingProblems([`#${number} changed while going ahead: it now reads ${after.state}${after.words.length ? `, with the maintainer's comment ${after.words.at(-1).url}` : ""}; read it again before acting`]);
       return { number, url: back.html_url, option: going.option, name, note, records, label, cleared, state: after.state };
     } catch (error) {
+      if (done.note !== null) {
+        try {
+          if (tracker.issue(number).state === "closed") {
+            const events = tracker.timeline(number);
+            const noteAt = events.findIndex((item) => item.event === "commented" && item.id === done.note);
+            done.keepNote = noteAt === -1 || events.map((item) => item.event).lastIndexOf("closed") > noteAt;
+          }
+        } catch {
+          done.keepNote = true;
+        }
+      }
       const steps = done.records.map(([ticket, id]) => [`deleted the fallback record ${id} on #${ticket}`, () => tracker.deleteComment(id)]);
       if (done.labelled) steps.push([`removed the label ${label}`, () => tracker.removeLabel(number, label)]);
       if (done.note !== null && !done.keepNote) steps.push([`deleted the fallback note ${done.note}`, () => tracker.deleteComment(done.note)]);
+      if (done.note !== null && done.keepNote) steps.push([`kept the fallback note ${done.note}, since the maintainer closed the request after it was posted, or the request could not be read`, () => {}]);
       const result = undo(steps);
       throw new Error(`Going ahead on ${tracker.repo}#${number} failed:\n${bullets(problemsOf(error))}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\nCorrect the cause and run fallback again.`);
     }
