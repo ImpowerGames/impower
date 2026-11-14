@@ -5,6 +5,7 @@ import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
 import { setBreakpointStates } from "../../src/cm-breakpoints/breakpoints";
 import {
+  openChoicePopover,
   setChoiceMarkers,
   type ChoiceMarker,
 } from "../../src/cm-choice-markers/choiceMarkers";
@@ -79,7 +80,7 @@ setPinned(false);
 
 const routeIcons = document.body.appendChild(document.createElement("spark-web-player"));
 routeIcons.className = "route-icon-samples";
-routeIcons.style.cssText = "position: fixed; right: 0; bottom: 0; display: flex; gap: 8px;";
+routeIcons.style.cssText = "position: fixed; right: 0; bottom: 0; display: flex; gap: 8px; --swp-toolbar-icon-size: 16px;";
 for (const [kind, mask] of [
   ["auto", iconMasks["pin"]],
   ["pinned", iconMasks["pin-fill"]],
@@ -93,4 +94,6 @@ for (const [kind, mask] of [
   icon.style.setProperty("--route-icon-mask", mask);
 }
 
-Object.assign(window, { gutterMarks: { view, setPinned, coarse } });
+const openChoice = (line: number | null) => openChoicePopover(view, line);
+
+Object.assign(window, { gutterMarks: { view, setPinned, openChoice, coarse } });

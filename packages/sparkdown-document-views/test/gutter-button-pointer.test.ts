@@ -162,30 +162,50 @@ describe("a press where a fold marker's touch target reaches into the breakpoint
 });
 
 describe("the gutter marks and route pins under forced colours", () => {
-  it("paint every masked glyph in CanvasText, so none turns into Canvas on Canvas", async () => {
+  it("draw every masked glyph at 16 by 16 in CanvasText, so none turns into Canvas on Canvas or into nothing", async () => {
     const context = await browser.newContext({ viewport: { width: 430, height: 600 }, forcedColors: "active" });
     const page = await context.newPage();
     await page.goto(pageUrl);
     await page.waitForFunction(() => "gutterMarks" in window);
-    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    await page.evaluate(async () => {
+      (window as unknown as { gutterMarks: { openChoice(line: number): void } }).gutterMarks.openChoice(5);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    });
     const paints = await page.evaluate(() => {
       const probe = document.body.appendChild(document.createElement("span"));
       probe.style.color = "CanvasText";
       const canvasText = getComputedStyle(probe).color;
-      const glyphs = [...document.querySelectorAll(".cm-breakpoint, .cm-fold-marker, .cm-choice-marker")].map((mark) => [
-        mark.className.replace("cm-gutter-button ", ""),
+      const drawn = (kind: string, style: CSSStyleDeclaration, width: number, height: number) => ({
+        kind,
+        paint: style.backgroundColor,
+        size: [Math.round(width), Math.round(height)],
+        shown: style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0",
+      });
+      const glyphs = [...document.querySelectorAll(".cm-breakpoint, .cm-choice-marker")].map((mark) => {
+        const style = getComputedStyle(mark.querySelector(".cm-gutter-button-glyph")!, "::before");
+        return drawn(mark.className.replace("cm-gutter-button ", ""), style, parseFloat(style.width) || 0, parseFloat(style.height) || 0);
+      });
+      const masks = [...document.querySelectorAll(".route-icon-mask, .cm-choice-popover .cm-choice-icon")].map((icon) => {
+        const box = icon.getBoundingClientRect();
+        const name = icon.classList.contains("route-icon-mask") ? `route ${(icon as HTMLElement).dataset["icon"]}` : icon.className;
+        return drawn(name, getComputedStyle(icon), box.width, box.height);
+      });
+      const folds = [...document.querySelectorAll(".cm-fold-marker")].map((mark) =>
         getComputedStyle(mark.querySelector(".cm-gutter-button-glyph")!, "::before").backgroundColor,
-      ]);
-      const route = [...document.querySelectorAll(".route-icon-mask")].map((icon) => [
-        `route ${(icon as HTMLElement).dataset["icon"]}`,
-        getComputedStyle(icon).backgroundColor,
-      ]);
-      return { canvasText, marks: [...glyphs, ...route] };
+      );
+      return { canvasText, marks: [...glyphs, ...masks], folds };
     });
-    expect(paints.marks.some(([kind]) => kind === "route auto")).toBe(true);
-    expect(paints.marks.some(([kind]) => kind === "route pinned")).toBe(true);
-    for (const [kind, paint] of paints.marks) {
-      expect([kind, paint]).toEqual([kind, paints.canvasText]);
+    const kinds = paints.marks.map((mark) => mark.kind);
+    expect(kinds).toContain("route auto");
+    expect(kinds).toContain("route pinned");
+    expect(kinds.some((kind) => kind.includes("cm-choice-icon-auto"))).toBe(true);
+    expect(kinds.some((kind) => kind.includes("cm-breakpoint"))).toBe(true);
+    for (const mark of paints.marks) {
+      expect(mark).toEqual({ kind: mark.kind, paint: paints.canvasText, size: [16, 16], shown: true });
+    }
+    expect(paints.folds.length).toBeGreaterThan(0);
+    for (const paint of paints.folds) {
+      expect(paint).toBe(paints.canvasText);
     }
     await context.close();
   });
