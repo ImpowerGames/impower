@@ -209,34 +209,65 @@ try {
 
   {
     const t = tracker({ failAddLabel: true });
-    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: t, repos, now }), /Going ahead on acme\/tickets#9001 failed:\n- HTTP 502: label service down\nRolled back: deleted the fallback record \d+ on #2271; removed the label maintainer: decided without you\.\nCorrect the cause and run fallback again\.$/);
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: t, repos, now }), /Going ahead on acme\/tickets#9001 failed:\n- HTTP 502: label service down\nRolled back: deleted the fallback record \d+ on #2271; removed the label maintainer: decided without you; deleted the fallback note \d+\.\nCorrect the cause and run fallback again\.$/);
     assert.equal(fetchAnswer(REQUEST, { tracker: t, repos }).state, "waiting", "a failed fallback leaves the request waiting");
-    assert.deepEqual(recordsOn(t, TICKET), []);
-    assert.deepEqual(recordsOn(t, REQUEST), [], "the request note is posted last, so a failure before it leaves no note");
-    console.log("ok: a fallback that fails part-way rolls back its records and label, and posts no request note");
+    assert.deepEqual([recordsOn(t, TICKET), recordsOn(t, REQUEST)], [[], []]);
+    console.log("ok: a fallback that fails part-way rolls back its note, records and label");
 
-    const crashed = tracker();
-    const left = crashed.say(toolNote("**Decided by fallback, not reviewed by the maintainer** (left by a run that stopped)", { kind: "fallback-record", request: REQUEST, option: "B", fallbackAt }), "2026-11-13T17:39:00Z", TICKET);
-    const older = crashed.say(toolNote("**Decided by fallback, not reviewed by the maintainer** (left by a run before a revision)", { kind: "fallback-record", request: REQUEST, option: "C", fallbackAt: "2026-11-13T17:00:00.000Z" }), "2026-11-13T17:39:01Z", TICKET);
-    crashed.issues.get(REQUEST).labels.push({ name: labels.decidedWithoutYou });
-    assert.equal(fetchAnswer(REQUEST, { tracker: crashed, repos }).state, "waiting", "a record and label with no request note is not a fallback");
-    const resumed = fallbackRequest(REQUEST, OWNER, doing, { tracker: crashed, repos, now });
-    assert.deepEqual(resumed.records.map((r) => [r.id, r.reused]), [[left, true]], "a rerun reuses the record a stopped run left for the same option and fallback time");
-    assert.deepEqual(recordsOn(crashed, TICKET).map((e) => e.c.id), [left], "a record left for another option or fallback time is deleted");
-    assert.ok(crashed.calls.some(([kind, id]) => kind === "deleteComment" && id === older));
-    assert.equal(crashed.calls.filter(([kind]) => kind === "addLabel").length, 0, "the label already there is not added again");
-    assert.equal(fetchAnswer(REQUEST, { tracker: crashed, repos }).state, "went-ahead");
-    console.log("ok: a fallback run that stopped before its request note is completed by running fallback again, reusing only its own record");
+    const leftovers = (self, { label = false, note = true } = {}) => {
+      const ids = [];
+      if (note) ids.push(self.say(toolNote("**Went ahead without you.** (left by a run that stopped)", { kind: "fallback", option: "B", name: "A hollow pin", owner: OWNER, at: "2026-11-13T17:39:00.000Z", fallbackAt }), "2026-11-13T17:39:00Z"));
+      ids.push(self.say(toolNote("**Decided by fallback, not reviewed by the maintainer** (left by a run that stopped)", { kind: "fallback-record", request: REQUEST, option: "B", fallbackAt }), "2026-11-13T17:39:01Z", TICKET));
+      if (label) self.issues.get(REQUEST).labels.push({ name: labels.decidedWithoutYou });
+      return ids;
+    };
+
+    const stopped = tracker();
+    const [oldNote, oldRecord] = leftovers(stopped);
+    assert.equal(fetchAnswer(REQUEST, { tracker: stopped, repos }).state, "waiting", "a note and record with no label are not a fallback: the label is the commit marker");
+    const rerun = fallbackRequest(REQUEST, OWNER, doing, { tracker: stopped, repos, now });
+    assert.deepEqual(rerun.cleared, [`deleted the unfinished fallback note ${oldNote} on #9001`, `deleted the unfinished fallback record ${oldRecord} on #2271`]);
+    assert.deepEqual([recordsOn(stopped, REQUEST).length, recordsOn(stopped, TICKET).length], [1, 1], "the rerun leaves one note and one record, its own");
+    assert.equal(fetchAnswer(REQUEST, { tracker: stopped, repos }).wentAhead.url, rerun.note.url);
+    console.log("ok: a fallback run that stopped before its label is cleared and taken again by running fallback again");
+
+    const labelOnly = tracker();
+    leftovers(labelOnly, { label: true, note: false });
+    labelOnly.say("Wait. Can I see C first?", "2026-11-13T17:45:00Z");
+    assert.equal(fetchAnswer(REQUEST, { tracker: labelOnly, repos }).state, "question");
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: labelOnly, repos, now: at("2026-11-13T17:50:00Z") }), (error) => error instanceof RequestRefused && /question is open/.test(error.reasons[0]) && /what a stopped fallback run left was cleared: deleted the unfinished fallback record \d+ on #2271; removed the label maintainer: decided without you, which no finished fallback backs/.test(error.reasons[1]));
+    assert.deepEqual([recordsOn(labelOnly, TICKET), labelOnly.issue(REQUEST).labels.map((l) => l.name)], [[], [labels.decision]], "the owner's refused fallback still clears the label and record a stopped run left, so the planner holds the ticket again");
+    assert.throws(() => fallbackRequest(REQUEST, "someone else", doing, { tracker: tracker(), repos, now }), RequestRefused);
+    console.log("ok: a label and record left without a note are cleared by the owner's next fallback, even when it is refused for an open question");
+
+    const resumedQuestion = tracker({ onAddLabel: (self) => self.say("Wait. Can I see C first?", "2026-11-13T17:40:30Z") });
+    leftovers(resumedQuestion);
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: resumedQuestion, repos, now }), /changed while going ahead: it now reads question/);
+    assert.deepEqual([recordsOn(resumedQuestion, TICKET), recordsOn(resumedQuestion, REQUEST), resumedQuestion.issue(REQUEST).labels.map((l) => l.name)], [[], [], [labels.decision]], "a resumed fallback cancelled by a question leaves no fallback note, record or label");
+    const resumedFailure = tracker({ failAddLabel: true });
+    leftovers(resumedFailure);
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: resumedFailure, repos, now }), /label service down/);
+    assert.deepEqual([recordsOn(resumedFailure, TICKET), recordsOn(resumedFailure, REQUEST)], [[], []], "a resumed fallback that fails leaves no fallback note or record");
+    console.log("ok: a resumed fallback that is cancelled or fails leaves no claim that a fallback was taken");
+
+    const answered = tracker();
+    const [, orphan] = leftovers(answered);
+    answered.say("Go with C.", "2026-11-13T17:50:00Z");
+    answered.closeAs("completed", "2026-11-13T17:50:01Z");
+    const recorded = recordAnswer(REQUEST, { tracker: answered, repos });
+    assert.equal(recorded.answer.state, "answered");
+    assert.ok(recorded.cleared.includes(`deleted the unfinished fallback record ${orphan} on #2271`));
+    assert.deepEqual(recordsOn(answered, TICKET).map((e) => e.note.kind), ["record"], "record clears a fallback record no finished fallback backs before recording the answer");
+    console.log("ok: record clears what an unfinished fallback left before recording the maintainer's answer");
 
     const revisedBody = decisionBody.replace(dataLine(readDataLine(decisionBody)), dataLine({ ...readDataLine(decisionBody), fallback: { option: "C", at: "2026-11-13T19:30:00.000Z" } }));
     const stale = tracker();
-    stale.say(toolNote("**Decided by fallback, not reviewed by the maintainer** (B, from a run whose cleanup failed)", { kind: "fallback-record", request: REQUEST, option: "B", fallbackAt }), "2026-11-13T17:39:00Z", TICKET);
+    leftovers(stale);
     stale.issues.get(REQUEST).body = revisedBody;
-    stale.items.push({ event: "commented", issue: REQUEST, id: 7998, html_url: `${issueUrl(REQUEST)}#issuecomment-7998`, created_at: "2026-11-13T17:30:00Z", updated_at: "2026-11-13T17:30:00Z", user: { login: M, type: "User" }, body: toolNote("Revised by the ask-maintainer tool.", { kind: "revised", fallback: "2026-11-13T19:30:00.000Z" }), seq: stale.seq++ });
-    const retaken = fallbackRequest(REQUEST, OWNER, doing, { tracker: stale, repos, now: at("2026-11-13T19:31:00Z") });
+    stale.items.push({ event: "commented", issue: REQUEST, id: 7998, html_url: `${issueUrl(REQUEST)}#issuecomment-7998`, created_at: "2026-11-13T17:45:00Z", updated_at: "2026-11-13T17:45:00Z", user: { login: M, type: "User" }, body: toolNote("Revised by the ask-maintainer tool.", { kind: "revised", fallback: "2026-11-13T19:30:00.000Z" }), seq: stale.seq++ });
+    fallbackRequest(REQUEST, OWNER, doing, { tracker: stale, repos, now: at("2026-11-13T19:31:00Z") });
     const ticketRecords = recordsOn(stale, TICKET);
-    assert.deepEqual(ticketRecords.map((e) => [e.note.option, e.note.fallbackAt]), [["C", "2026-11-13T19:30:00.000Z"]], "the stale B record is replaced by a C record after the revision changed the fallback");
-    assert.equal(retaken.records[0].reused, false);
+    assert.deepEqual(ticketRecords.map((e) => [e.note.option, e.note.fallbackAt]), [["C", "2026-11-13T19:30:00.000Z"]], "the B record left before the revision is replaced by a C record");
     assert.match(ticketRecords[0].c.body, /\*\*Went ahead with:\*\* C · A small dot on the strip/);
     console.log("ok: a record left from before a revision that changed the fallback is not reused");
   }
