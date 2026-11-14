@@ -5373,6 +5373,9 @@ export class Game<T extends M = {}> {
     }
     if (!enabled) {
       this.module.audio.silence();
+      if (this._beatPlay) {
+        this.module.ui.muteMovies();
+      }
     } else if (!this._beatPlay) {
       this.module.audio.settlePreview();
     }

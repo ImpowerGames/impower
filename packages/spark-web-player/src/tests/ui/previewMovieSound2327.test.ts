@@ -40,6 +40,32 @@ const dispose = (h: Awaited<ReturnType<typeof played>>["h"]) => {
 
 describe("movie sound in a beat played with Play audio (#2327)", () => {
   test.each([
+    ["cutscene", CUTSCENE, ".cutscene video", true],
+    ["movie on a layer", LAYER, "video", false],
+  ] as const)(
+    "switching preview audio off mutes a %s that is playing",
+    async (_kind, source, selector, compose) => {
+      const { h, media } = await played(source, 4, true, compose);
+      try {
+        if (!compose) {
+          await untilShown(h.overlay);
+        }
+        const video = h.overlay.querySelector(selector) as HTMLVideoElement;
+        expect(video).toBeTruthy();
+        expect(media.of(video, "play")).toBeGreaterThan(0);
+        expect(video.muted).toBe(false);
+        expect(h.game.playingBeat).toBe(true);
+        h.game.setPreviewAudio(false);
+        await flushMicrotasks(30);
+        expect(video.muted).toBe(true);
+        expect(video.paused).toBe(false);
+      } finally {
+        dispose(h);
+      }
+    },
+  );
+
+  test.each([
     [true, false],
     [false, true],
   ])(

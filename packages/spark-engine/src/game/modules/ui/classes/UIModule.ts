@@ -142,6 +142,10 @@ import {
   type ColorSchemeSetting,
 } from "../../../core/classes/messages/SetSimulatedColorSchemeMessage";
 import {
+  MuteMoviesMessage,
+  type MuteMoviesMessageMap,
+} from "./messages/MuteMoviesMessage";
+import {
   SkipCutsceneMessage,
   type SkipCutsceneMessageMap,
 } from "./messages/SkipCutsceneMessage";
@@ -425,6 +429,7 @@ export type UIMessageMap = AnimateElementsMessageMap &
   CreateElementMessageMap &
   DestroyElementMessageMap &
   MoveElementMessageMap &
+  MuteMoviesMessageMap &
   ObserveElementMessageMap &
   PlayCutsceneMessageMap &
   SetThemeMessageMap &
@@ -4200,6 +4205,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     this.emit(SkipCutsceneMessage.type.notification({}));
+  }
+
+  muteMovies(): void {
+    this.emit(MuteMoviesMessage.type.notification({}));
   }
 
   async navigateScreen(
