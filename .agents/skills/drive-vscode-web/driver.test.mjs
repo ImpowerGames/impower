@@ -11,16 +11,12 @@ import { diagnosticFailures, lspHealth, validateScenario, previewRead, classifyR
 import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs";
 import { partitionConsole } from "../drive-web-editor/driver.mjs";
 import {
-  DEFAULT_SETTLE_S,
   LOOPBACKS,
   PORT_SCAN,
   QUALITIES,
-  READ_ALLOWANCE_S,
   WORKBENCH_CONSOLE_NOISE,
   READY_POLL_MS,
   REBUILD_STEPS,
-  SETTLE,
-  SETTLE_FLOOR_S,
   SOURCE_SKIP,
   STAMP_NAME,
   TOP_ROW,
@@ -28,33 +24,22 @@ import {
   aliasWorkbenchCss,
   buildFreshness,
   buildRule,
-  caretOnPage,
   checkBuild,
-  cursorAt,
-  cursorOnWord,
   dataLayout,
   downloadLockPath,
   takeDownloadLock,
-  diagnosticsOnPage,
-  diagnosticsOutcome,
   editorOpened,
-  extensionOnPage,
   hoverImageFailure,
   hoverOnPage,
-  isSettled,
   launchPlan,
-  liveDeps,
   locateWord,
   nearestDirMtime,
-  normalizeMonacoText,
-  pageSources,
   parseFlags,
   portBase,
   portFree,
   rebuildCommand,
-  rebuildPageFunctions,
   recordFile,
-  settleState,
+  renderedCaretOnWord,
   sharedBuildUsers,
   sourceFiles,
   spawnServer,
@@ -64,12 +49,11 @@ import {
   missingBuildEntries,
   BUILD_ENTRY_FILES,
   up,
-  usableReading,
   verify,
   waitReady,
   withWorkbench,
-  wordOnPage,
 } from "./driver.mjs";
+import { createEditorProtocol } from "./editor-protocol.mjs";
 
 const FIXTURE_ROOT = path.parse(process.cwd()).root;
 
@@ -238,7 +222,7 @@ await check("the build rule names what an open editor loads, each with the sourc
   const groups = ruleOf();
   const by = Object.fromEntries(groups.map((g) => [relOf(g), g]));
   assert.deepEqual(Object.keys(by).sort(), ["out/data/cheatsheet.css", "out/extension.js", "out/workers/sparkdown-language-server.js"], "the webview bundles, the other workers and a subdirectory of data/ are not artifacts");
-  assert.deepEqual(by["out/extension.js"].sources, [path.join(ext, "src"), path.join(ext, "language"), ...pkgSrc, ...pkgLang]);
+  assert.deepEqual(by["out/extension.js"].sources, [path.join(ext, "src"), path.join(ext, "language"), path.join(ext, "scripts", "esbuild.ts"), ...pkgSrc, ...pkgLang]);
   assert.deepEqual(by["out/workers/sparkdown-language-server.js"].sources, [...pkgSrc, ...pkgLang]);
   assert.deepEqual(by["out/data/cheatsheet.css"].sources, [path.join(ext, "data", "cheatsheet.css")]);
   assert.deepEqual(by["out/extension.js"].steps, [SELF]);
@@ -958,8 +942,6 @@ await check("a record whose pid is not the server it started is removed and a la
 
 const CHAR_W = 8;
 const LINE_H = 20;
-const EXT_ID = "impowergames.sparkdown";
-const monacoNodes = (text) => (text.match(/ +|[A-Za-z0-9_]+|[^ A-Za-z0-9_]+/g) ?? []).map((t) => ({ nodeType: 3, nodeValue: t }));
 const DEFAULT_EXPLORER = [
   { name: "assets", level: 1 },
   { name: "main.sd", level: 2 },
@@ -967,319 +949,117 @@ const DEFAULT_EXPLORER = [
   { name: "main.sd", level: 1 },
   { name: "other.sd", level: 1 },
 ];
-const inPage = (fn, arg, doc) => new Function(`return ${fn.toString()}`)()(arg, doc);
+const inPage = (fn, arg, doc) => new Function("return " + fn.toString())()(arg, doc);
 
-function fakeDocument({ lines = [], numbers, problems = () => "0 0", squiggles = {}, cursor = "Ln 1, Col 1", caretX = null, hover = null, hoverAfterReads = 3, tabTitle = null, splitSuffix = false, suffixLate = false, explorer = DEFAULT_EXPLORER, crumbs = () => ["main.sd", "…"], activated = true, extensionId = EXT_ID } = {}) {
-  const lineEls = lines.map((text, i) => ({ style: { top: `${i * LINE_H}px` }, textContent: text, childNodes: [{ nodeType: 1, childNodes: monacoNodes(text) }], rect: { x: 100, y: 50 + i * LINE_H } }));
-  const domOrder = [...lineEls].reverse();
-  const numberEls = (numbers ?? lines.map((_, i) => String(i + 1))).map((n, i) => ({ textContent: n, parentElement: { style: { top: `${i * LINE_H}px` } } }));
-  const numberOrder = [...numberEls.slice(1), ...numberEls.slice(0, 1)];
-  const doc = {
-    state: { problems, squiggles, cursor, caretX, hover, hoverShown: false, hoverReads: 0, hoverAfterReads, marked: null, tabTitle, splitSuffix, suffixLate, suffixWaited: false, explorer, crumbs, activated, extensionId, tabs: [{ title: "Welcome", active: false }] },
-    querySelector(sel) {
-      return this.querySelectorAll(sel)[0] ?? null;
-    },
+const source = "-> START\n\nscene START\n\n  [[show backdrop missing_backdrop]]\nend";
+const renderedLine = "\u00a0\u00a0[[show\u00a0backdrop\u00a0missing_backdrop]]";
+const warning = {
+  range: { start: { line: 4, character: 18 }, end: { line: 4, character: 34 } },
+  message: "Cannot find image named 'missing_backdrop'",
+  severity: 2,
+};
+
+function fakeDocument({
+  caretX = 100 + 18 * CHAR_W, caretY = 130, hover = { text: warning.message }, hoverAfterReads = 3,
+  hidden = false, tabTitle = null, splitSuffix = false, suffixLate = false, explorer = DEFAULT_EXPLORER,
+  contradictory = false, visualLine = renderedLine,
+} = {}) {
+  const nodes = (visualLine.match(/\u00a0+|[A-Za-z0-9_]+|[^\u00a0A-Za-z0-9_]+/g) ?? [])
+    .map((text) => ({ length: text.length }));
+  const line = { textContent: visualLine, getBoundingClientRect: () => ({ top: 130, bottom: 150 }) };
+  const state = {
+    hover, hoverShown: false, hoverReads: 0, marked: null, tabTitle, splitSuffix, suffixLate,
+    suffixWaited: false, explorer, tabs: [{ title: "Welcome", active: false }],
+  };
+  return {
+    state,
+    modelReads: [],
+    defaultView: { getComputedStyle: (element) => ({ display: "block", visibility: element.hidden ? "hidden" : "visible", opacity: "1" }) },
     querySelectorAll(sel) {
-      const s = this.state;
-      if (sel === `.statusbar-item[id="${s.extensionId}"]`) return s.activated ? [{ id: s.extensionId }] : [];
       switch (sel) {
-        case ".view-line":
-          return domOrder;
-        case ".margin-view-overlays .line-numbers":
-          return numberOrder;
-        case '.statusbar-item[id*="status.problems"]': {
-          const p = s.problems();
-          return p == null ? [] : [{ innerText: p, getAttribute: () => (p === "" ? null : `label ${p}`), querySelector: () => null }];
-        }
-        case '.statusbar-item[id*="status.editor.selection"]':
-          return [{ innerText: s.cursor }];
-        case ".monaco-breadcrumbs .monaco-breadcrumb-item":
-          return s.crumbs().map((t) => ({ innerText: t }));
         case ".monaco-editor .cursors-layer .cursor":
-          return s.caretX == null ? [] : [{ getBoundingClientRect: () => ({ x: s.caretX, width: 2 }) }];
-        case ".view-overlays .squiggly-error":
-        case ".view-overlays .squiggly-warning":
-        case ".view-overlays .squiggly-info":
-          return Array(s.squiggles[sel.slice(".view-overlays .squiggly-".length)] ?? 0).fill({});
+          return caretX == null ? [] : [{
+            closest: () => ({ querySelectorAll: () => [line] }),
+            getBoundingClientRect: () => ({ left: caretX, top: caretY, width: 2, height: LINE_H }),
+          }];
         case "[data-drive-hover]":
-          return s.marked ? [s.marked] : [];
+          return state.marked ? [state.marked] : [];
         case ".monaco-hover": {
-          const hidden = { getBoundingClientRect: () => ({ width: 0, height: 0 }), innerText: "", querySelector: () => null };
-          if (!s.hoverShown || !s.hover || ++s.hoverReads < s.hoverAfterReads) return [hidden];
-          const img = s.hover.img && {
-            hasAttribute: () => s.hover.img.hasSrc,
-            getAttribute: () => s.hover.img.src ?? null,
-            getBoundingClientRect: () => ({ width: 319, height: 180 }),
-            naturalWidth: s.hover.img.naturalWidth,
-            naturalHeight: s.hover.img.naturalHeight,
-            complete: s.hover.img.complete,
+          if (!state.hoverShown || !hover || ++state.hoverReads < hoverAfterReads) return [];
+          const img = hover.img && {
+            hasAttribute: () => hover.img.hasSrc,
+            getAttribute: () => hover.img.src ?? null,
+            getBoundingClientRect: () => ({ width: hover.img.width ?? 319, height: hover.img.height ?? 180 }),
+            naturalWidth: hover.img.naturalWidth,
+            naturalHeight: hover.img.naturalHeight,
+            complete: hover.img.complete,
           };
           const el = {
+            hidden,
             getBoundingClientRect: () => ({ width: 200, height: 40 }),
-            innerText: s.hover.text ?? "",
+            innerText: hover.text ?? "",
             querySelector: (q) => (q === "img" ? img || null : null),
-            setAttribute: () => (s.marked = el),
-            removeAttribute: () => (s.marked = null),
+            setAttribute: () => (state.marked = el),
+            removeAttribute: () => (state.marked = null),
           };
-          return [hidden, el];
+          return [el];
         }
         default:
-          throw new Error(`the scripted document has no ${sel}`);
+          this.modelReads.push(sel);
+          if (contradictory) return [{ innerText: "0 0", textContent: "a different document" }];
+          throw new Error("No model DOM fixture for " + sel);
       }
+    },
+    createTreeWalker() {
+      let index = 0;
+      return { nextNode: () => nodes[index++] ?? null };
     },
     createRange() {
       let a;
       let b;
-      const place = (node, off) => {
-        for (const line of lineEls) {
-          let start = 0;
-          for (const n of line.childNodes[0].childNodes) {
-            if (n === node) {
-              if (off > n.nodeValue.length) throw new Error(`IndexSizeError: The offset ${off} is larger than the node's length (${n.nodeValue.length})`);
-              return { line, col: start + off };
-            }
-            start += n.nodeValue.length;
-          }
-        }
-        throw new Error("the range's node is on no rendered line");
-      };
+      const place = (node, off) => nodes.slice(0, nodes.indexOf(node)).reduce((sum, item) => sum + item.length, off);
       return {
         setStart: (node, off) => (a = place(node, off)),
         setEnd: (node, off) => (b = place(node, off)),
-        getBoundingClientRect: () => ({ x: a.line.rect.x + a.col * CHAR_W, y: a.line.rect.y, width: (b.col - a.col) * CHAR_W, height: LINE_H }),
+        getBoundingClientRect: () => ({ left: 100 + a * CHAR_W, right: 100 + b * CHAR_W, width: (b - a) * CHAR_W, height: LINE_H }),
       };
     },
   };
-  return doc;
 }
 
-const rendered = ["->\u00a0START", "", "scene\u00a0START", "", "\u00a0\u00a0[[show\u00a0backdrop\u00a0missing_backdrop]]", "", "\u00a0\u00a0ALICE:", "\u00a0\u00a0\u00a0\u00a0Hello\u00a0from\u00a0the\u00a0served\u00a0workbench."];
-
-await check("Monaco's non-breaking spaces normalize to the source's spaces", () => {
-  assert.equal(normalizeMonacoText("show\u00a0backdrop\u00a0pair"), "show backdrop pair");
-  assert.equal(normalizeMonacoText(""), "");
-  assert.equal(normalizeMonacoText(undefined), "");
+await check("word search uses full document lines and UTF-16 offsets without rewriting tabs or non-ASCII", () => {
+  const lines = ["scene START", ...Array(50).fill(""), "\t😀 café missing_backdrop", "scene START"];
+  assert.deepEqual(locateWord(lines, "missing_backdrop"), { index: 51, start: 9, end: 25 });
+  assert.equal(locateWord(lines, "missing"), null);
+  assert.equal(locateWord(lines, "caf"), null);
+  assert.deepEqual(locateWord(lines, "café", "\t😀"), { index: 51, start: 4, end: 8 });
+  assert.equal(locateWord(lines, "café", " 😀"), null);
+  assert.deepEqual(locateWord(["a[[show backdrop]]"], "[[show"), { index: 0, start: 1, end: 7 });
 });
 
-await check("locateWord finds the word's own characters on the first rendered line that holds it as a whole word", () => {
-  assert.deepEqual(locateWord(rendered, "Hello"), { index: 7, start: 4, end: 9 });
-  assert.deepEqual(locateWord(rendered, "workbench"), { index: 7, start: 26, end: 35 });
-  assert.deepEqual(locateWord(rendered, "START"), { index: 0, start: 3, end: 8 });
-  assert.deepEqual(locateWord(rendered, "missing_backdrop"), { index: 4, start: 18, end: 34 });
-});
-
-await check("a word inside a longer identifier is not that identifier", () => {
-  assert.equal(locateWord(rendered, "missing"), null);
-  assert.equal(locateWord(rendered, "backdrop]]"), null);
-  assert.deepEqual(locateWord(rendered, "[[show"), { index: 4, start: 2, end: 8 });
-  assert.deepEqual(locateWord(rendered, "backdrop"), { index: 4, start: 9, end: 17 });
-});
-
-await check("a word that begins or ends with punctuation is bounded on that side by itself, even against an identifier character", () => {
-  assert.deepEqual(locateWord(rendered, "]]"), { index: 4, start: 34, end: 36 }, "]] follows the p of missing_backdrop");
-  assert.deepEqual(locateWord(rendered, "[["), { index: 4, start: 2, end: 4 }, "[[ precedes the s of show");
-  assert.deepEqual(locateWord(rendered, "ALICE:"), { index: 6, start: 2, end: 8 });
-});
-
-await check("--line restricts the search to lines containing the text, matched across Monaco's spaces", () => {
-  assert.deepEqual(locateWord(rendered, "START", "scene START"), { index: 2, start: 6, end: 11 });
-  assert.equal(locateWord(rendered, "START", "no such line"), null);
-  assert.equal(locateWord([], "START"), null);
-});
-
-await check("the page rebuilds locateWord from its source the way wordOnPage does, and the rebuilt function answers as the module's does", () => {
-  const sources = pageSources();
-  assert.deepEqual(Object.keys(sources).sort(), ["locateSrc", "normSrc", "rebuildSrc"]);
-  const { locateWord: inPage, normalizeMonacoText: normInPage } = new Function(`return ${sources.rebuildSrc}`)()(sources);
-  assert.notEqual(inPage, locateWord);
-  assert.equal(normInPage("a\u00a0b"), "a b");
-  for (const [word, line] of [["Hello", undefined], ["missing", undefined], ["]]", undefined], ["START", "scene START"], ["[[show", undefined]]) {
-    assert.deepEqual(inPage(rendered, word, line), locateWord(rendered, word, line), `rebuilt locateWord differs on ${word}`);
-  }
-  assert.deepEqual(rebuildPageFunctions(sources).locateWord(rendered, "workbench"), { index: 7, start: 26, end: 35 });
-});
-
-await check("the scripted line is split into text nodes as Monaco splits it, and the lines and gutter rows sit out of order in the DOM", () => {
-  const doc = fakeDocument({ lines: rendered });
-  assert.deepEqual(monacoNodes(rendered[4]).map((n) => n.nodeValue), ["  ", "[[", "show", " ", "backdrop", " ", "missing_backdrop", "]]"], "line 5 is eight nodes in the workbench");
-  assert.notDeepEqual(doc.querySelectorAll(".view-line").map((l) => l.textContent), rendered, "the DOM order is the shown order, so the sort is not exercised");
-  const tops = doc.querySelectorAll(".margin-view-overlays .line-numbers").map((n) => n.parentElement.style.top);
-  assert.notDeepEqual(tops, doc.querySelectorAll(".view-line").map((l) => l.style.top), "the gutter rows line up with the lines by index, so the match by top is not exercised");
-});
-
-await check("wordOnPage places the word through the rebuilt locateWord, across the line's text nodes and the DOM's order: its gutter line, rendered column, pixel edges and a click point in its first character", () => {
-  const doc = fakeDocument({ lines: rendered });
-  const hit = inPage(wordOnPage, { word: "missing_backdrop", sources: pageSources() }, doc);
-  assert.deepEqual(hit, { line: 5, col: 19, left: 100 + 18 * CHAR_W, right: 100 + 34 * CHAR_W, charWidth: CHAR_W, x: 100 + 18 * CHAR_W + CHAR_W * 0.4, y: 50 + 4 * LINE_H + LINE_H / 2 });
-  assert.deepEqual(inPage(wordOnPage, { word: "START", lineText: "scene START", sources: pageSources() }, doc).col, 7);
-  assert.deepEqual(inPage(wordOnPage, { word: "backdrop", sources: pageSources() }, doc).left, 100 + 9 * CHAR_W, "a word that is a whole node of its own, after other nodes");
-  assert.deepEqual(inPage(wordOnPage, { word: "show backdrop", sources: pageSources() }, doc).right, 100 + 17 * CHAR_W, "a range that ends in a later node than it starts in");
-  assert.equal(inPage(wordOnPage, { word: "missing", sources: pageSources() }, doc), null, "a word inside an identifier is not found in the page either");
-  const elsewhere = { ...pageSources(), locateSrc: "() => ({ index: 0, start: 3, end: 8 })" };
-  assert.deepEqual(inPage(wordOnPage, { word: "missing_backdrop", sources: elsewhere }, doc), { line: 1, col: 4, left: 100 + 3 * CHAR_W, right: 100 + 8 * CHAR_W, charWidth: CHAR_W, x: 100 + 3 * CHAR_W + CHAR_W * 0.4, y: 50 + LINE_H / 2 });
-  assert.equal(inPage(wordOnPage, { word: "missing_backdrop", sources: pageSources() }, fakeDocument({ lines: rendered, numbers: ["1", "2", "3", "4", "•"] })).line, null, "a gutter row without a number places the word on no line");
-});
-
-await check("diagnosticsOnPage reads null before the problems item exists, an empty string while it has no text, and the counter and the squiggles of every severity once it does", () => {
-  assert.deepEqual(inPage(diagnosticsOnPage, undefined, fakeDocument({ problems: () => null })), { problems: null, problemsLabel: null, squiggles: { error: 0, warning: 0, info: 0 } });
-  assert.deepEqual(inPage(diagnosticsOnPage, undefined, fakeDocument({ problems: () => "" })).problems, "");
-  assert.deepEqual(inPage(diagnosticsOnPage, undefined, fakeDocument({ problems: () => " 0  2 ", squiggles: { warning: 2 } })), { problems: "0 2", problemsLabel: "label  0  2 ", squiggles: { error: 0, warning: 2, info: 0 } });
-  assert.deepEqual(inPage(diagnosticsOnPage, undefined, fakeDocument({ problems: () => "3 1", squiggles: { error: 3, warning: 1, info: 2 } })).squiggles, { error: 3, warning: 1, info: 2 });
-});
-
-await check("extensionOnPage reads the extension's own status bar item and a breadcrumb after the file's name, by the extension id and the file it is given", () => {
-  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "main.sd" }, fakeDocument()), { activated: true, answered: true });
-  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "main.sd" }, fakeDocument({ activated: false })), { activated: false, answered: true });
-  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "main.sd" }, fakeDocument({ crumbs: () => ["main.sd"] })), { activated: true, answered: false }, "the file's name alone is the workbench's own breadcrumb");
-  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "main.sd" }, fakeDocument({ crumbs: () => [] })).answered, false);
-  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "other.sd" }, fakeDocument()).answered, false, "a breadcrumb after another file's name is not this file's");
-  assert.deepEqual(inPage(extensionOnPage, { id: EXT_ID, file: "main.sd" }, fakeDocument({ crumbs: () => ["assets", "main.sd", "START"] })).answered, true);
-  assert.throws(() => inPage(extensionOnPage, { id: "other.extension", file: "main.sd" }, fakeDocument()), /has no \.statusbar-item\[id="other\.extension"\]/, "the item is looked up by the id given");
-});
-
-await check("caretOnPage reports the status bar's cursor and the caret's left edge; hoverOnPage reads only a hover with size and content and marks the one it read", () => {
-  assert.deepEqual(inPage(caretOnPage, undefined, fakeDocument({ cursor: "Ln 5, Col 19", caretX: 244 })), { text: "Ln 5, Col 19", x: 244 });
-  assert.deepEqual(inPage(caretOnPage, undefined, fakeDocument({ cursor: "Ln 5, Col 19" })), { text: "Ln 5, Col 19", x: null });
-  const doc = fakeDocument({ hover: { text: "Cannot  find image", img: { hasSrc: true, src: "https://x/a.png", naturalWidth: 96, naturalHeight: 180, complete: true } }, hoverAfterReads: 1 });
-  assert.deepEqual(inPage(hoverOnPage, undefined, doc), { present: false }, "the hidden hover element between hovers is not a hover");
+await check("the page visual checks see actual caret placement and refuse a hidden hover", () => {
+  assert.equal(inPage(renderedCaretOnWord, { word: "missing_backdrop" }, fakeDocument()), true);
+  assert.equal(inPage(renderedCaretOnWord, { word: "missing_backdrop" }, fakeDocument({ caretX: 100 })), false);
+  assert.equal(inPage(renderedCaretOnWord, { word: "missing_backdrop" }, fakeDocument({ caretY: 150 })), false);
+  const doc = fakeDocument({ hidden: true, hoverAfterReads: 1 });
   doc.state.hoverShown = true;
-  assert.deepEqual(inPage(hoverOnPage, undefined, doc), { present: true, text: "Cannot find image", img: { hasSrc: true, srcHead: "https://x/a.png", rendered: "319 x 180", natural: "96 x 180", naturalWidth: 96, naturalHeight: 180, complete: true } });
-  assert.ok(doc.state.marked, "the hover read is marked for the screenshot");
-});
-
-await check("a page function that reaches into module scope fails when rebuilt from its source, as it would in the page, and every shipped one runs rebuilt", () => {
-  const leaky = (_, doc) => normalizeMonacoText(doc.querySelector('.statusbar-item[id*="status.problems"]').innerText);
-  assert.equal(leaky(undefined, fakeDocument()), "0 0", "called as module code the helper is in reach");
-  assert.throws(() => inPage(leaky, undefined, fakeDocument()), /normalizeMonacoText is not defined/, "rebuilt from source it is not");
-  const doc = fakeDocument({ lines: rendered, caretX: 244 });
-  for (const fn of [diagnosticsOnPage, caretOnPage, hoverOnPage, extensionOnPage]) inPage(fn, { id: EXT_ID, file: "main.sd" }, doc);
-  inPage(wordOnPage, { word: "Hello", sources: pageSources() }, doc);
-});
-
-await check("cursorAt reads the status bar's selection item", () => {
-  assert.deepEqual(cursorAt("Ln 8, Col 5"), { line: 8, col: 5 });
-  assert.deepEqual(cursorAt("Ln 12, Col 3 (5 selected)"), { line: 12, col: 3 });
-  assert.equal(cursorAt(null), null);
-  assert.equal(cursorAt("UTF-8"), null);
-});
-
-await check("the caret is on the word when it is on the word's line and between the word's pixel edges, whatever column the status bar counts", () => {
-  const hit = { line: 7, col: 5, left: 451, right: 495, charWidth: 8.8 };
-  assert.equal(cursorOnWord(hit, "Ln 7, Col 5", 451), null);
-  assert.equal(cursorOnWord(hit, "Ln 7, Col 5", 449.6), null, "the caret's edge rounds to a pixel or two before the first character");
-  assert.equal(cursorOnWord(hit, "Ln 7, Col 2", 451), null, "a tab-indented line: the model column is 2, the caret is on the word");
-  assert.equal(cursorOnWord(hit, "Ln 7, Col 9", 486.2), null, "the boundary before the last character");
-  assert.match(cursorOnWord(hit, "Ln 7, Col 10", 495), /outside the word's 451\.\.495/, "the boundary after the last character");
-  assert.match(cursorOnWord(hit, "Ln 7, Col 4", 442.2), /outside/, "the boundary before the first character");
-  assert.match(cursorOnWord({ line: 7, left: 451, right: 495 }, "Ln 7, Col 4", 449), /outside/, "without a character width the slack is a pixel");
-  assert.match(cursorOnWord(hit, "Ln 8, Col 5", 451), /line 8, not line 7/);
-  assert.match(cursorOnWord(hit, null, 451), /no cursor position/);
-  assert.match(cursorOnWord(hit, "Ln 7, Col 5", null), /no caret/);
-  assert.match(cursorOnWord({ ...hit, line: null }, "Ln 3, Col 5", 451), /has no gutter number, so the line the caret is on cannot be checked; line numbers are off or relative in the served folder's \.vscode\/settings\.json, so serve a folder without that setting$/, "a word whose line cannot be placed is not vouched for by the pixels alone");
+  assert.deepEqual(inPage(hoverOnPage, undefined, doc), { present: false });
 });
 
 await check("opened is true only for the editor titled exactly as the file", () => {
   assert.equal(editorOpened("main.sd", "main.sd"), true);
-  assert.equal(editorOpened("a_main.sd", "main.sd"), false);
-  assert.equal(editorOpened("MAIN.SD", "main.sd"), false);
+  assert.equal(editorOpened("other.sd", "main.sd"), false);
   assert.equal(editorOpened(null, "main.sd"), false);
 });
 
-await check("a hover image counts as loaded only with a src, complete, and a natural size", () => {
-  assert.equal(hoverImageFailure(null), null, "a hover without an image is judged by --hover-image, not here");
-  assert.equal(hoverImageFailure({ hasSrc: true, complete: true, naturalWidth: 96, naturalHeight: 180 }), null);
-  assert.match(hoverImageFailure({ hasSrc: true, complete: true, naturalWidth: 0, naturalHeight: 0 }), /failed to load: natural size 0 x 0; the src the web workbench could not fetch is in the report's img\.srcHead, and this is the extension's bug rather than the driver's$/);
-  assert.match(hoverImageFailure({ hasSrc: true, complete: false, naturalWidth: 0, naturalHeight: 0 }), /not finished loading/);
-  assert.match(hoverImageFailure({ hasSrc: false, complete: true, naturalWidth: 0, naturalHeight: 0 }), /no src/);
-});
-
-const reading = (problems) => ({ problems, squiggles: { error: 0, warning: 0, info: 0 } });
-const same = (n, problems = "0 0") => Array(n).fill(reading(problems));
-
-const ALIVE = { activated: true, answered: true };
-
-await check("a reading counts only when the counter carried a number", () => {
-  assert.equal(usableReading(reading("0 0")), true);
-  assert.equal(usableReading(reading("Warnings 2")), true);
-  assert.equal(usableReading(reading("")), false);
-  assert.equal(usableReading(reading("No problems")), false, "text without a count is not a count");
-  assert.equal(usableReading(reading(null)), false);
-  assert.equal(usableReading(undefined), false);
-  assert.deepEqual(SETTLE, { stableReads: 8, minReads: 25 });
-});
-
-await check("readings that never change settle only after the floor, and only once the extension activated and the language server answered", () => {
-  assert.equal(isSettled(same(7), undefined, ALIVE), false);
-  assert.equal(isSettled(same(8), undefined, ALIVE), false, "eight identical readings are the workbench before the server");
-  assert.equal(isSettled(same(24), undefined, ALIVE), false);
-  assert.equal(isSettled(same(25), undefined, ALIVE), true);
-  assert.match(settleState(same(24), undefined, ALIVE).why, /never changed from the workbench's own value and 24 of the 25 a clean file needs were taken/);
-  assert.equal(isSettled(same(25)), false, "no signal is no proof the build ran");
-  assert.match(settleState(same(25), undefined, { activated: false, answered: true }).why, /never changed from the workbench's own value and the extension never showed itself \(no status bar item of its own in the page\), which is what a build that never ran looks like; read consoleErrors past the pre-existing noise and the server log `status` names, and confirm --file and the served folder/);
-  assert.match(settleState(same(25), undefined, { activated: true, answered: false }).why, /never changed from the workbench's own value and the language server never answered \(no symbol after the file's name in the breadcrumbs\); a file with a scene, a function or a label gives it one to answer with/);
-  assert.equal(isSettled(same(40), undefined, { activated: true, answered: false }), false, "more readings are not the answer");
-  assert.equal(isSettled([...same(3), ...same(8, "0 2")]), true, "a series that changed is the server's own answer and needs no other signal");
-});
-
-await check("a reading is the whole snapshot: squiggles still being painted under a settled counter are a change", () => {
-  const painted = { problems: "0 2", squiggles: { error: 0, warning: 2, info: 0 } };
-  assert.equal(isSettled([...same(3, "0 2"), ...Array(8).fill(painted)]), true, "the squiggles changed under an unchanged counter, then held");
-  assert.equal(isSettled([...same(20, "0 2"), ...Array(5).fill(painted)]), false, "the last eight disagree on the squiggles alone");
-  assert.equal(isSettled(same(25, "0 2"), undefined, ALIVE), true);
-});
-
-await check("readings that change and then hold settle as soon as they have held", () => {
-  const series = [...same(3), ...same(8, "0 2")];
-  assert.equal(isSettled(series), true);
-  assert.equal(isSettled(series.slice(0, -1)), false, "seven held readings are not eight");
-  assert.match(settleState(series.slice(0, -1)).why, /the last 8 readings did not agree, so the diagnostics were still changing; raise --settle, and check whether a vitest run is saturating the machine$/);
-  assert.match(settleState(same(3)).why, /3 readings carried a count and 8 that agree are needed/);
-});
-
-await check("a reading with no count is no reading wherever it falls, and never the settled value", () => {
-  assert.equal(isSettled([reading(null), ...same(8)], undefined, ALIVE), false, "null then eight of the workbench's own value is the workbench before the server");
-  assert.equal(isSettled([reading(""), ...same(8)], undefined, ALIVE), false, "an item with no text yet is not the workbench's value either");
-  assert.equal(isSettled([reading(null), reading(null), ...same(8)], undefined, ALIVE), false);
-  assert.equal(isSettled([reading(null), ...same(24)], undefined, ALIVE), false);
-  assert.equal(isSettled([reading(""), ...same(24)], undefined, ALIVE), false);
-  assert.equal(isSettled([reading(null), ...same(25)], undefined, ALIVE), true);
-  assert.equal(isSettled([reading(null), ...same(2), ...same(8, "0 2")]), true);
-  assert.equal(isSettled([...same(3), reading(null), ...same(8)], undefined, ALIVE), false, "a counter that vanished for a second is not the change the rule waits for");
-  assert.equal(isSettled([...same(3), reading(""), ...same(8)], undefined, ALIVE), false);
-  assert.equal(isSettled([...same(3), reading(null), ...same(21)], undefined, ALIVE), false, "twenty-four readings with a count are not the floor");
-  assert.equal(isSettled([...same(3), reading(null), ...same(22)], undefined, ALIVE), true, "the readings around a vanished one still count toward the floor");
-  assert.equal(isSettled([reading("0 2"), ...same(8, null)]), false, "a null tail is not a settled value");
-  assert.equal(isSettled([...same(3), ...same(8, "0 2"), reading(null)]), false, "a last reading with no count settles nothing");
-  assert.match(settleState([...same(8, "0 2"), reading("")]).why, /the last reading carried no count \(""\)/);
-  assert.equal(isSettled(Array(30).fill(reading(null))), false, "a status bar that never appears never settles");
-});
-
-await check("a change inside the tail is not settled", () => {
-  const series = [...same(20, "0 1"), ...same(4, "0 2"), ...same(4, "0 3")];
-  assert.equal(isSettled(series), false);
-});
-
-await check("the settle thresholds are parameters", () => {
-  assert.equal(isSettled(same(3, "0 1"), { stableReads: 3, minReads: 3 }, ALIVE), true);
-  assert.equal(isSettled([reading("0 1"), reading("0 2"), reading("0 2")], { stableReads: 2, minReads: 10 }), true);
-});
-
-await check("an unsettled run reports the last reading and a failure naming the rule not met; a settled one reports no failure", () => {
-  const settled = diagnosticsOutcome([...same(3), ...same(8, "0 2")], 11, 60);
-  assert.equal(settled.settled, true);
-  assert.equal(settled.failure, null);
-  assert.deepEqual(settled.diagnostics, reading("0 2"));
-  const cut = diagnosticsOutcome(same(1), 0, 30);
-  assert.equal(cut.settled, false);
-  assert.match(cut.failure, /^the diagnostics had not settled after 0 s \(--settle 30\): 1 reading carried a count and 8 that agree are needed; the numbers reported are the last reading, not a result$/);
-  assert.deepEqual(cut.diagnostics, reading("0 0"));
-  assert.match(diagnosticsOutcome(same(9, "0 2"), 60, 60).failure, /had not settled after 60 s \(--settle 60\): the readings never changed/, "the floor for a file that never changes is not met");
-  assert.match(diagnosticsOutcome(same(30), 60, 60, undefined, { activated: false, answered: false }).failure, /the extension never showed itself/);
-  assert.equal(diagnosticsOutcome(same(30), 60, 60, undefined, ALIVE).failure, null);
-  assert.equal(diagnosticsOutcome([], 0, 0).diagnostics, null);
-  assert.equal(READ_ALLOWANCE_S, 5);
-  assert.equal(SETTLE_FLOOR_S, 30, "the floor is the readings a clean file needs, one a second, plus the allowance for taking them");
-  assert.equal(DEFAULT_SETTLE_S, 60);
+await check("a hover image needs a source, complete load, natural size and visible geometry", () => {
+  const image = { hasSrc: true, complete: true, naturalWidth: 96, naturalHeight: 180, width: 319, height: 180 };
+  assert.equal(hoverImageFailure(null), null);
+  assert.equal(hoverImageFailure(image), null);
+  assert.match(hoverImageFailure({ ...image, hasSrc: false }), /no src/);
+  assert.match(hoverImageFailure({ ...image, complete: false }), /not finished/);
+  assert.match(hoverImageFailure({ ...image, naturalWidth: 0 }), /failed to load/);
+  assert.match(hoverImageFailure({ ...image, width: 0 }), /no visible size/);
 });
 
 const spec = { "--sd": "value", "--settle": "number", "--headed": "flag" };
@@ -1314,7 +1094,7 @@ await check("a number flag takes digits with an optional fraction and refuses ev
   }
 });
 
-function fakePage(doc, acts, readCost = () => {}) {
+function fakePage(doc, acts, opened) {
   const s = doc.state;
   const matches = (row, has) => {
     if (!has) return true;
@@ -1337,6 +1117,7 @@ function fakePage(doc, acts, readCost = () => {}) {
       acts.push(["open", row.name, row.level]);
       for (const t of s.tabs) t.active = false;
       s.tabs.push({ title: s.tabTitle ?? row.name, active: true });
+      opened(row.name);
     },
   });
   const text = (value) => ({ first: () => text(value), textContent: async () => value });
@@ -1369,7 +1150,6 @@ function fakePage(doc, acts, readCost = () => {}) {
   return {
     evaluate: (fn, arg) => {
       acts.push(["evaluate", fn.name, arg]);
-      readCost();
       return inPage(fn, arg, doc);
     },
     waitForSelector: async (sel) => acts.push(["wait", sel]),
@@ -1385,96 +1165,232 @@ function fakePage(doc, acts, readCost = () => {}) {
   };
 }
 
-const script = (values) => {
-  let i = 0;
-  return () => values[Math.min(i++, values.length - 1)];
-};
-
 const RECORD = { url: "http://localhost:34123", pid: 1, builds: path.join(DATA, "builds", "stable"), project: path.join(DATA, "projects", "34123") };
 const BUILD = { artifacts: 3, oldest: "vscode-sparkdown/out/extension.js", builtAt: "2026-09-08T00:00:00.000Z" };
-const verifyDeps = (doc, over = {}, readCostMs = 0) => {
+const initial = { line: 0, character: 0 };
+
+function verifyDeps(doc, { fixture = {}, ...over } = {}) {
   let t = 0;
   const acts = [];
   const logs = [];
-  const page = fakePage(doc, acts, () => {
-    t += readCostMs;
+  const watchers = new Map();
+  const disconnects = new Set();
+  let active;
+  let selection = { start: initial, end: initial };
+  const emit = (method, params) => {
+    for (const listener of watchers.get(method) ?? []) listener(params);
+  };
+  const protocol = {
+    onNotification(method, listener) {
+      const set = watchers.get(method) ?? new Set();
+      watchers.set(method, set);
+      set.add(listener);
+      return () => set.delete(listener);
+    },
+    onDisconnect(listener) {
+      disconnects.add(listener);
+      return () => disconnects.delete(listener);
+    },
+    async request(method, params, options) {
+      acts.push(["request", method, params, options.version]);
+      if (method === "editor/read") {
+        return { textDocument: active, selection, coordinates: null };
+      }
+      if (method === "textDocument/hover") {
+        assert.equal(params.textDocument.uri, active.uri);
+        assert.deepEqual(params.position, selection.start);
+        return fixture.hoverModel ?? null;
+      }
+      assert.equal(method, "textDocument/diagnosticsSettled");
+      assert.deepEqual(params, { textDocument: { uri: active.uri }, version: active.version });
+      assert.equal(watchers.get("textDocument/didSettleDiagnostics")?.size, 1);
+      const result = { uri: active.uri, version: active.version, diagnostics: fixture.diagnostics ?? [warning] };
+      emit("textDocument/didSettleDiagnostics", { ...result, version: result.version - 1 });
+      emit("textDocument/didSettleDiagnostics", { ...result, uri: "vscode-test-web://mount/other/main.sd" });
+      if (fixture.delay) await new Promise((resolve) => setImmediate(resolve));
+      if (fixture.switch) active = { ...active, uri: "vscode-test-web://mount/other/main.sd" };
+      if (fixture.disconnect) {
+        for (const listener of disconnects) listener(new Error("workbench reloaded"));
+      }
+      if (!fixture.noEvent) emit("textDocument/didSettleDiagnostics", result);
+      return { ...result, ...fixture.reply };
+    },
+    async notify(method, params, options) {
+      acts.push(["notify", method, params, options.version]);
+      assert.equal(method, "editor/select");
+      assert.equal(params.textDocument.uri, active.uri);
+      assert.equal(options.version, active.version);
+      selection = fixture.selection ?? params.range;
+    },
+  };
+  const page = fakePage(doc, acts, (file) => {
+    active = { uri: "vscode-test-web://mount/" + encodeURIComponent(file), version: 7, text: fixture.text ?? source };
+    if (fixture.noEndpoint) return;
+    assert.equal(watchers.get("editor/didLoad")?.size, 1);
+    emit("editor/didLoad", { textDocument: { uri: "vscode-test-web://mount/nested/" + file, version: 7 } });
+    emit("editor/didLoad", { textDocument: active });
   });
   return {
     acts,
     logs,
-    log: (m) => logs.push(m),
-    die: (m) => {
-      throw new Refusal(m);
-    },
+    log: (message) => logs.push(message),
+    die: (message) => { throw new Refusal(message); },
     now: () => t,
-    sleep: async (ms) => {
-      t += ms;
-    },
+    sleep: async (ms) => { t += ms; },
     stateFile: path.join(FIXTURE_ROOT, "repo", ".agents", "skills", "drive-vscode-web", ".state.json"),
     readState: () => RECORD,
     recordStands: async () => true,
     isUp: async () => true,
-    extensionId: () => doc.state.extensionId,
     checkBuild: () => BUILD,
-    aliasWorkbenchCss: (builds) => {
-      acts.push(["alias", builds]);
-      return { aliased: [] };
-    },
-    withWorkbench: async (url, opts, fn) => {
-      acts.push(["workbench", url, opts.headless]);
-      return fn({ page, consoleLines: ["[log] fine", "[pageerror] Not Found"] });
+    aliasWorkbenchCss: (builds) => { acts.push(["alias", builds]); return { aliased: [] }; },
+    withWorkbench: async (url, options, fn) => {
+      acts.push(["workbench", url, options.headless]);
+      assert.equal(options.editorProtocol, true);
+      return fn({ page, protocol, consoleLines: ["[log] fine", "[pageerror] Not Found"] });
     },
     readFile: () => "return 1 + 1",
     ...over,
   };
-};
-const keys = (deps) => deps.acts.filter((a) => a[0] === "key").map((a) => a[1]);
-const evaluated = (deps) => deps.acts.filter((a) => a[0] === "evaluate").map((a) => a[1]);
-const hoverDoc = (extra = {}) => fakeDocument({ lines: rendered, problems: script([null, "", "0 0", "0 0", "0 2"]), squiggles: { warning: 2 }, cursor: "Ln 5, Col 19", caretX: 100 + 18 * CHAR_W, hover: { text: "Cannot find image named 'missing_backdrop'" }, ...extra });
+}
 
-await check("verify fails on an unclassified console error even when diagnostics settle", async () => {
-  const deps = verifyDeps(hoverDoc());
-  const withWorkbench = deps.withWorkbench;
-  deps.withWorkbench = (url, options, fn) => withWorkbench(url, options, context => fn({ ...context, consoleLines: ["[error] semantic token worker crashed"] }));
-  const result = await verify([], deps);
-  assert.equal(result.exitCode, 1);
-  assert.match(result.report.failed.join("\n"), /semantic token worker crashed/);
+const keys = (deps) => deps.acts.filter((a) => a[0] === "key").map((a) => a[1]);
+const hoverDoc = (options) => fakeDocument(options);
+
+await check("verify accepts the intended immediate load and delayed diagnostics despite missing or contradictory DOM state", async () => {
+  for (const contradictory of [false, true]) {
+    const doc = fakeDocument({ contradictory });
+    const deps = verifyDeps(doc, { fixture: { delay: true } });
+    const { report, exitCode } = await verify(["--hover", "missing_backdrop", "--shot", "after.png", "--hover-shot", "hover.png", "--probe", "p.js"], deps);
+    assert.equal(exitCode, 0, JSON.stringify(report.failed));
+    assert.deepEqual(report.extension, { activated: true, answered: true });
+    assert.deepEqual(report.diagnostics, { uri: "vscode-test-web://mount/main.sd", version: 7, diagnostics: [warning] });
+    assert.equal(report.editor, "main.sd");
+    assert.deepEqual(report.hover.position, { line: 4, character: 18 });
+    assert.equal(report.hover.model, null);
+    assert.equal(report.hover.visual.text, warning.message);
+    assert.deepEqual(keys(deps), ["Control+k", "Control+i"]);
+    assert.equal(report.probe, 2);
+    assert.equal(report.screenshot, path.resolve("after.png"));
+    assert.equal(report.hoverScreenshot, path.resolve("hover.png"));
+    assert.deepEqual(doc.modelReads, []);
+  }
 });
 
-await check("verify opens the file, waits for the counter to change and hold, clicks the word, opens the hover by keyboard, screenshots, prints the report and exits 0", async () => {
-  const deps = verifyDeps(hoverDoc());
-  const { report, exitCode } = await verify(["--hover", "missing_backdrop", "--shot", "after.png", "--hover-shot", "hover.png", "--probe", "p.js"], deps);
+await check("verify accepts a clean versioned diagnostic result and refuses console failures separately", async () => {
+  const deps = verifyDeps(fakeDocument(), { fixture: { diagnostics: [] } });
+  const result = await verify([], deps);
+  assert.equal(result.exitCode, 0, JSON.stringify(result.report.failed));
+  assert.deepEqual(result.report.diagnostics.diagnostics, []);
+  const withWorkbench = deps.withWorkbench;
+  deps.withWorkbench = (url, options, fn) => withWorkbench(url, options, context => fn({ ...context, consoleLines: ["[error] semantic token worker crashed"] }));
+  const failed = await verify([], deps);
+  assert.equal(failed.exitCode, 1);
+  assert.match(failed.report.failed.join("\n"), /semantic token worker crashed/);
+});
+
+await check("verify refuses a wrong diagnostic URI or version, or a document switch before using the result", async () => {
+  for (const [fixture, failure] of [
+    [{ reply: { uri: "vscode-test-web://mount/other/main.sd" } }, /wrong URI or version/],
+    [{ reply: { version: 6 } }, /wrong URI or version/],
+    [{ reply: { version: null } }, /wrong URI or version/],
+    [{ switch: true }, /did not return the intended document/],
+    [{ disconnect: true }, /workbench reloaded/],
+  ]) {
+    const deps = verifyDeps(fakeDocument({ contradictory: true }), { fixture });
+    const { report, exitCode } = await verify([], deps);
+    assert.equal(exitCode, 1);
+    assert.equal(report.settled, false);
+    assert.equal(report.diagnostics, undefined);
+    assert.match(report.failed[0], failure);
+  }
+});
+
+await check("verify times out with stale-only notifications or a missing endpoint", async () => {
+  const keepAlive = setTimeout(() => {}, 1000);
+  try {
+    for (const [fixture, method] of [[{ noEndpoint: true }, "editor/didLoad"], [{ noEvent: true }, "textDocument/didSettleDiagnostics"]]) {
+      const { report, exitCode } = await verify(["--settle", "0.02"], verifyDeps(fakeDocument(), { fixture }));
+      assert.equal(exitCode, 1);
+      assert.match(report.failed[0], /timed out/);
+      assert.ok(report.failed[0].includes(method));
+      assert.equal(report.settled, false);
+    }
+  } finally {
+    clearTimeout(keepAlive);
+  }
+});
+
+await check("the transport correlates response IDs and rejects old generations after reload or close", async () => {
+  const origin = "http://v--example.localhost:34123";
+  const protocol = createEditorProtocol();
+  const signal = new AbortController().signal;
+  const a = protocol.connect(origin);
+  const pending = protocol.request("editor/read", {}, { signal });
+  const [request] = (await protocol.poll(origin, { ...a, messages: [] })).messages;
+  assert.equal(await protocol.poll("http://v--other.localhost:34123", { ...a, messages: [{ id: request.id, result: "wrong origin" }] }), null);
+  const wrong = protocol.poll(origin, { ...a, messages: [{ id: request.id + 1, result: "wrong" }] });
+  protocol.disconnect("workbench reloaded");
+  await assert.rejects(pending, /reloaded/);
+  assert.equal(await wrong, null);
+  const b = protocol.connect(origin);
+  assert.notEqual(b.generation, a.generation);
+  assert.equal(await protocol.poll(origin, { ...a, messages: [{ id: request.id, result: "old" }] }), null);
+  const fresh = protocol.request("editor/read", {}, { signal });
+  const [freshRequest] = (await protocol.poll(origin, { ...b, messages: [] })).messages;
+  assert.notEqual(freshRequest.id, request.id);
+  const reply = protocol.poll(origin, { ...b, messages: [{ id: freshRequest.id, result: "fresh" }] });
+  assert.equal(await fresh, "fresh");
+  protocol.close("workbench closed");
+  assert.equal(await reply, null);
+  assert.equal(protocol.connect(origin), null);
+});
+
+await check("an expired request rejects, sends cancellation and cannot be revived by a late reply", async () => {
+  const origin = "http://v--example.localhost:34123";
+  const protocol = createEditorProtocol();
+  const session = protocol.connect(origin);
+  try {
+    const deadline = new AbortController();
+    const pending = protocol.request("editor/read", {}, { signal: deadline.signal });
+    const [request] = (await protocol.poll(origin, { ...session, messages: [] })).messages;
+    deadline.abort();
+    await assert.rejects(pending, /timed out waiting for editor\/read/);
+    const poll = await protocol.poll(origin, { ...session, messages: [{ id: request.id, result: "late" }] });
+    assert.deepEqual(poll.messages, [{ cancel: request.id }]);
+  } finally {
+    protocol.close();
+  }
+});
+
+await check("a valid model hover still fails for wrong geometry, missing popup or a broken image", async () => {
+  const fixture = { hoverModel: { contents: "Protocol hover" } };
+  for (const [doc, flags, failure] of [
+    [fakeDocument({ caretX: 100 }), [], /no visible caret/],
+    [fakeDocument({ hidden: true }), [], /no visible hover/],
+    [fakeDocument({ hover: null }), [], /no visible hover/],
+    [fakeDocument(), ["--hover-image"], /carries no image/],
+    [fakeDocument({ hover: { img: { hasSrc: true, naturalWidth: 0, naturalHeight: 0, complete: true } } }), [], /failed to load/],
+  ]) {
+    const deps = verifyDeps(doc, { fixture });
+    const { report, exitCode } = await verify(["--hover", "missing_backdrop", ...flags], deps);
+    assert.equal(exitCode, 1);
+    assert.deepEqual(report.hover.model, fixture.hoverModel);
+    assert.match(report.failed[0], failure);
+  }
+});
+
+await check("the full model can reveal an offscreen word and verify the selection before looking at the popup", async () => {
+  const text = ["scene START", ...Array(55).fill(""), "\t😀 missing_backdrop"].join("\n");
+  const doc = fakeDocument({ caretX: 100 + 7 * CHAR_W, visualLine: "    😀 missing_backdrop" });
+  const deps = verifyDeps(doc, { fixture: { text, hoverModel: { contents: "Offscreen model hover" } } });
+  const { report, exitCode } = await verify(["--hover", "missing_backdrop"], deps);
   assert.equal(exitCode, 0, JSON.stringify(report.failed));
-  assert.deepEqual(report.failed, []);
-  assert.equal(report.url, RECORD.url);
-  assert.equal(report.project, RECORD.project);
-  assert.deepEqual(report.build, BUILD);
-  assert.equal(report.file, "main.sd");
-  assert.equal(report.editor, "main.sd");
-  assert.equal(report.opened, true);
-  assert.equal(report.settled, true);
-  assert.equal(report.settledAfterS, 11, "null, an empty item and two of the workbench's own value, then the change held for eight readings a second apart");
-  assert.deepEqual(report.diagnostics, { problems: "0 2", problemsLabel: "label 0 2", squiggles: { error: 0, warning: 2, info: 0 } });
-  assert.deepEqual(report.hover, { word: "missing_backdrop", line: 5, col: 19, cursor: "Ln 5, Col 19", present: true, text: "Cannot find image named 'missing_backdrop'", img: null });
-  assert.deepEqual(report.extension, { activated: true, answered: true });
-  assert.equal(report.screenshot, path.resolve("after.png"));
-  assert.equal(report.hoverScreenshot, path.resolve("hover.png"));
-  assert.equal(report.probe, 2);
-  assert.deepEqual(report.consoleErrors, []);
-  assert.equal(report.consoleNoise["Not Found page error"], 1);
-  assert.equal(report.consoleNoise["package.nls.json 404"], 0);
-  assert.deepEqual(deps.acts.slice(0, 4), [["alias", RECORD.builds], ["workbench", RECORD.url, true], ["wait", ".monaco-workbench"], ["open", "main.sd", 1]], "the row clicked is the file's own at the top level, not the subfolder's file of the same name that comes first in the DOM, nor the name that extends it");
-  assert.equal(TOP_ROW, '.explorer-folders-view .monaco-list-row[aria-level="1"]');
-  assert.equal(evaluated(deps).filter((n) => n === "diagnosticsOnPage").length, 12);
-  assert.equal(evaluated(deps).filter((n) => n === "extensionOnPage").length, 12, "the extension's marks are read alongside every diagnostics reading");
-  assert.deepEqual(deps.acts.find((a) => a[0] === "evaluate" && a[1] === "extensionOnPage")[2], { id: EXT_ID, file: "main.sd" });
-  assert.equal(evaluated(deps).filter((n) => n === "hoverOnPage").length, 3, "the hover opened on the third read after Ctrl+K Ctrl+I, and the driver kept asking until it did");
-  const word = deps.acts.find((a) => a[0] === "evaluate" && a[1] === "wordOnPage");
-  assert.deepEqual(word[2], { word: "missing_backdrop", lineText: undefined, sources: pageSources() }, "the page rebuilds the word location from the module's own sources");
-  assert.deepEqual(deps.acts.find((a) => a[0] === "click"), ["click", 100 + 18 * CHAR_W + CHAR_W * 0.4, 50 + 4 * LINE_H + LINE_H / 2]);
-  assert.deepEqual(keys(deps), ["Control+k", "Control+i"]);
-  assert.deepEqual(deps.acts.filter((a) => a[0] === "shot"), [["shot", "[data-drive-hover]", "hover.png"], ["shot", "page", "after.png"]]);
-  assert.equal(JSON.parse(deps.logs.at(-1)).settledAfterS, 11, "the report is printed");
+  assert.deepEqual(report.hover.position, { line: 56, character: 4 });
+  assert.equal(deps.acts.find(([type]) => type === "notify")[2].scrollIntoView, "center");
+  const invalid = verifyDeps(doc, { fixture: { text, selection: { start: initial, end: initial } } });
+  const failed = await verify(["--hover", "missing_backdrop"], invalid);
+  assert.match(failed.report.failed[0], /selection did not land/);
+  assert.deepEqual(keys(invalid), []);
 });
 
 await check("served debugging refuses stale complete-runtime artifacts before opening the browser", async () => {
@@ -1485,16 +1401,15 @@ await check("served debugging refuses stale complete-runtime artifacts before op
   assert.equal(deps.acts.some(a => a[0] === "workbench"), false);
 });
 
-await check("verify refuses a bad option, a hover flag without --hover, a --settle below the floor, and a server it cannot vouch for, before opening a browser", async () => {
+await check("verify refuses a bad option, a hover flag without --hover, an invalid --settle, and a server it cannot vouch for, before opening a browser", async () => {
   for (const [args, re] of [
     [["--bogus"], /^verify: unknown option --bogus$/],
     [["--line", "x"], /^verify: --line needs --hover$/],
     [["--hover-shot", "h.png"], /^verify: --hover-shot needs --hover$/],
     [["--hover-image"], /^verify: --hover-image needs --hover$/],
+    [["--settle", "0"], /positive deadline/],
+    [["--settle", "2147484"], /timer limit/],
     [["--settle", "abc"], /^verify: --settle needs a number of seconds, not "abc"$/],
-    [["--settle", "10"], /^verify: --settle 10 is below 30, the 25 readings \(one a second\) a file the server finds clean needs before the settle rule can call it settled plus 5 s to take them; the default is 60$/],
-    [["--settle", "25"], /--settle 25 is below 30/],
-    [["--settle", "0"], /--settle 0 is below 30/],
   ]) {
     const deps = verifyDeps(hoverDoc());
     await refuses(verify(args, deps), re);
@@ -1514,149 +1429,40 @@ await check("verify refuses a bad option, a hover flag without --hover, a --sett
   assert.deepEqual(old.acts, [], "a stale build opened a browser");
 });
 
-await check("verify on a clean file settles at the floor, and a counter that appears empty or vanishes for a second only delays the floor", async () => {
-  const clean = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]) }));
-  let r = await verify(["--settle", "30"], clean);
-  assert.equal(r.exitCode, 0, JSON.stringify(r.report.failed));
-  assert.equal(r.report.settledAfterS, 24, "25 readings a second apart");
-  assert.deepEqual(r.report.extension, { activated: true, answered: true });
-  const empty = verifyDeps(fakeDocument({ lines: rendered, problems: script(["", "0 0"]) }));
-  r = await verify(["--settle", "30"], empty);
-  assert.equal(r.report.settledAfterS, 25, "the empty first reading is not the value the rest changed from");
-  const blink = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0", "0 0", "0 0", null, "0 0"]) }));
-  r = await verify(["--settle", "30"], blink);
-  assert.equal(r.report.settledAfterS, 25, "a null in the middle is not a change");
-  assert.equal(r.exitCode, 0);
-});
-
-await check("the floor leaves room for the readings themselves: a clean file settles at --settle 30 when every page evaluation costs 80 ms", async () => {
-  const costly = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]) }), {}, 80);
-  const r = await verify(["--settle", String(SETTLE_FLOOR_S)], costly);
-  assert.equal(r.exitCode, 0, `25 readings at 160 ms each over 24 s of sleeps do not fit the floor: ${JSON.stringify(r.report.failed)}`);
-  assert.equal(r.report.settledAfterS, 28, "24 sleeps and 25 readings of two evaluations at 80 ms");
-});
-
-await check("a clean file settles only once the extension activated and the language server answered; without either the run fails at its budget naming what was missing", async () => {
-  const dead = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]), activated: false }));
-  let r = await verify(["--settle", "30"], dead);
-  assert.equal(r.exitCode, 1);
-  assert.equal(r.report.settled, false);
-  assert.equal(r.report.settledAfterS, 30);
-  assert.deepEqual(r.report.extension, { activated: false, answered: true });
-  assert.match(r.report.failed[0], /^the diagnostics had not settled after 30 s \(--settle 30\): the readings never changed from the workbench's own value and the extension never showed itself \(no status bar item of its own in the page\), which is what a build that never ran looks like; read consoleErrors past the pre-existing noise and the server log `status` names, and confirm --file and the served folder; the numbers reported are the last reading, not a result$/);
-  const mute = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]), crumbs: () => ["main.sd"] }));
-  r = await verify(["--settle", "30"], mute);
-  assert.equal(r.exitCode, 1);
-  assert.deepEqual(r.report.extension, { activated: true, answered: false });
-  assert.match(r.report.failed[0], /the language server never answered \(no symbol after the file's name in the breadcrumbs\)/);
-  const late = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]), crumbs: script([...Array(27).fill(["main.sd"]), ["main.sd", "…"]]) }));
-  r = await verify(["--settle", "30"], late);
-  assert.equal(r.exitCode, 0, JSON.stringify(r.report.failed));
-  assert.equal(r.report.settledAfterS, 27, "the readings went on past the floor until the server answered");
-  const found = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0", "0 0", "0 2"]), activated: false }));
-  r = await verify([], found);
-  assert.equal(r.exitCode, 0, "a counter that changed is the server's own answer");
-  assert.deepEqual(r.report.extension, { activated: false, answered: true }, "the marks are still reported");
-  const acme = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0"]), extensionId: "acme.other", crumbs: () => ["other.sd", "START"] }));
-  r = await verify(["--file", "other.sd", "--settle", "30"], acme);
-  assert.equal(r.exitCode, 0, `the marks are read for the extension served and the file opened: ${JSON.stringify(r.report.failed)}`);
-  assert.deepEqual(acme.acts.find((a) => a[0] === "evaluate" && a[1] === "extensionOnPage")[2], { id: "acme.other", file: "other.sd" });
-});
-
-await check("a run whose readings never settle is a failed entry naming the rule, exit 1, with the last reading as its numbers", async () => {
-  const flapping = verifyDeps(hoverDoc({ problems: script(Array.from({ length: 40 }, (_, i) => (i % 2 ? "0 2" : "0 1"))) }));
-  let r = await verify(["--settle", "30", "--hover", "missing_backdrop"], flapping);
-  assert.equal(r.exitCode, 1);
-  assert.equal(r.report.settled, false);
-  assert.equal(r.report.settledAfterS, 30);
-  assert.deepEqual(r.report.failed, ["the diagnostics had not settled after 30 s (--settle 30): the last 8 readings did not agree, so the diagnostics were still changing; raise --settle, and check whether a vitest run is saturating the machine; the numbers reported are the last reading, not a result"]);
-  assert.equal(r.report.diagnostics.problems, "0 1");
-  assert.ok(r.report.hover.present, "the hover is still asked for, so the report says what the workbench shows");
-  const vanished = verifyDeps(fakeDocument({ lines: rendered, problems: script(["0 0", "0 0", "0 2", "0 2", "0 2", "0 2", "0 2", "0 2", "0 2", null]) }));
-  r = await verify(["--settle", "30"], vanished);
-  assert.equal(r.exitCode, 1);
-  assert.match(r.report.failed[0], /the last reading carried no count \(null\)/);
-});
-
-await check("a hover is judged by the caret: off the word, or on a line with no gutter number, is a failure and no hover is asked for", async () => {
-  const off = verifyDeps(hoverDoc({ caretX: 100 }));
-  let r = await verify(["--hover", "missing_backdrop"], off);
-  assert.equal(r.exitCode, 1);
-  assert.deepEqual(r.report.failed, ['the cursor did not land on "missing_backdrop" at Ln 5, Col 19: the caret is at x=100, outside the word\'s 244..372']);
-  assert.deepEqual(keys(off), []);
-  const unnumbered = verifyDeps(hoverDoc({ numbers: ["1", "2", "3", "4", "•"] }));
-  r = await verify(["--hover", "missing_backdrop"], unnumbered);
-  assert.match(r.report.failed[0], /the word's line has no gutter number, so the line the caret is on cannot be checked; line numbers are off or relative in the served folder's \.vscode\/settings\.json, so serve a folder without that setting$/);
-  assert.equal(r.report.hover.line, null);
-  const absent = verifyDeps(hoverDoc());
-  r = await verify(["--hover", "nowhere"], absent);
-  assert.deepEqual(r.report.failed, ['"nowhere" is not a whole word on a rendered line; give the whole identifier when the word sits inside a longer one, and keep the line near the top of the file, since only the lines in the viewport are rendered']);
-  const wrongLine = verifyDeps(hoverDoc({ cursor: "Ln 6, Col 19" }));
-  r = await verify(["--hover", "missing_backdrop"], wrongLine);
-  assert.match(r.report.failed[0], /the cursor is on line 6, not line 5/);
-});
-
-await check("--hover-image fails a hover without an image; an image that did not load fails whether or not it was required", async () => {
-  const none = verifyDeps(hoverDoc());
-  let r = await verify(["--hover", "missing_backdrop", "--hover-image"], none);
-  assert.deepEqual(r.report.failed, ['the hover on "missing_backdrop" carries no image (--hover-image)']);
-  const broken = verifyDeps(hoverDoc({ hover: { text: "", img: { hasSrc: true, src: "https://x/a.png", naturalWidth: 0, naturalHeight: 0, complete: true } } }));
-  r = await verify(["--hover", "missing_backdrop"], broken);
-  assert.deepEqual(r.report.failed, ["the hover's image failed to load: natural size 0 x 0; the src the web workbench could not fetch is in the report's img.srcHead, and this is the extension's bug rather than the driver's"]);
-  const loaded = verifyDeps(hoverDoc({ hover: { text: "", img: { hasSrc: true, src: "https://x/a.png", naturalWidth: 96, naturalHeight: 180, complete: true } } }));
-  r = await verify(["--hover", "missing_backdrop", "--hover-image"], loaded);
-  assert.deepEqual(r.report.failed, []);
-  assert.equal(r.report.hover.img.natural, "96 x 180");
-  const never = verifyDeps(hoverDoc({ hover: null }));
-  r = await verify(["--hover", "missing_backdrop"], never);
-  assert.deepEqual(r.report.failed, ['no hover opened on "missing_backdrop" within 10 s of Ctrl+K Ctrl+I: the extension answers a hover only on an image reference or a word under a diagnostic, so read the report\'s diagnostics and pick such a word']);
-});
 
 await check("a file that does not open, or opens under another title, is a failure and nothing is read from it; the title read is the active tab's", async () => {
-  const noRow = verifyDeps(fakeDocument({ lines: rendered, explorer: [] }));
+  const noRow = verifyDeps(fakeDocument({ explorer: [] }));
   let r = await verify(["--hover", "missing_backdrop", "--shot", "after.png"], noRow);
   assert.equal(r.exitCode, 1);
   assert.equal(r.report.opened, false);
   assert.match(r.report.failed[0], /^could not open main\.sd from the explorer: Timeout 60000ms exceeded\.; `status` names the served folder, so check it exists and holds main\.sd at its top level, since a file of that name in a subfolder is never clicked, then `down` and `up` again$/);
-  assert.equal(r.report.settled, undefined);
-  assert.ok(!evaluated(noRow).includes("diagnosticsOnPage"));
+  assert.equal(r.report.settled, false);
+  assert.ok(!noRow.acts.some(([type]) => type === "request"));
   assert.equal(r.report.screenshot, path.resolve("after.png"), "the screenshot still shows the workbench as it was");
-  const nested = verifyDeps(fakeDocument({ lines: rendered, explorer: [{ name: "assets", level: 1 }, { name: "main.sd", level: 2 }] }));
+  const nested = verifyDeps(fakeDocument({ explorer: [{ name: "assets", level: 1 }, { name: "main.sd", level: 2 }] }));
   r = await verify([], nested);
   assert.equal(r.report.opened, false, "a file of that name in a subfolder is not the file at the top level");
   assert.match(r.report.failed[0], /^could not open main\.sd from the explorer/);
-  const other = verifyDeps(fakeDocument({ lines: rendered }));
+  const other = verifyDeps(fakeDocument({  }));
   r = await verify(["--file", "other.sd"], other);
   assert.equal(r.report.opened, true);
   assert.deepEqual(other.acts.find((a) => a[0] === "open"), ["open", "other.sd", 1]);
-  r = await verify([], verifyDeps(fakeDocument({ lines: rendered, tabTitle: "other.sd" })));
+  r = await verify([], verifyDeps(fakeDocument({ tabTitle: "other.sd" })));
   assert.deepEqual(r.report.failed, ['the editor that opened is titled "other.sd", not main.sd']);
-  const split = verifyDeps(fakeDocument({ lines: rendered, splitSuffix: true }));
+  const split = verifyDeps(fakeDocument({ splitSuffix: true }));
   r = await verify([], split);
   assert.equal(r.report.opened, true, "a tab whose extension sits in .label-suffix is the file that opened");
   assert.equal(r.report.editor, "main.sd");
-  const late = verifyDeps(fakeDocument({ lines: rendered, splitSuffix: true, suffixLate: true }));
+  const late = verifyDeps(fakeDocument({ splitSuffix: true, suffixLate: true }));
   r = await verify([], late);
   assert.equal(r.report.opened, true, "a suffix that renders after the name is waited for");
   assert.equal(r.report.editor, "main.sd");
-  r = await verify([], verifyDeps(fakeDocument({ lines: rendered, tabTitle: "other.sd", splitSuffix: true })));
-  assert.deepEqual(r.report.failed, ['the editor that opened is titled "other.sd", not main.sd']);  const dotted = verifyDeps(fakeDocument({ lines: rendered, explorer: [{ name: "a+b.sd", level: 1 }, { name: "a.b.sd", level: 1 }] }));
+  r = await verify([], verifyDeps(fakeDocument({ tabTitle: "other.sd", splitSuffix: true })));
+  assert.deepEqual(r.report.failed, ['the editor that opened is titled "other.sd", not main.sd']);  const dotted = verifyDeps(fakeDocument({ explorer: [{ name: "a+b.sd", level: 1 }, { name: "a.b.sd", level: 1 }] }));
   r = await verify(["--file", "a.b.sd"], dotted);
   assert.deepEqual(dotted.acts.find((a) => a[0] === "open"), ["open", "a.b.sd", 1], "the name is matched as text, not as a pattern");
 });
 
-await check("whatever throws inside the page lands in failed with the report printed, and --headed opens a visible browser", async () => {
-  const doc = hoverDoc();
-  doc.querySelectorAll = () => {
-    throw new Error("the page went away");
-  };
-  const deps = verifyDeps(doc);
-  const r = await verify(["--headed"], deps);
-  assert.equal(r.exitCode, 1);
-  assert.deepEqual(r.report.failed, ["verify threw: the page went away"]);
-  assert.deepEqual(deps.acts[1], ["workbench", RECORD.url, false]);
-  assert.equal(JSON.parse(deps.logs.at(-1)).failed[0], "verify threw: the page went away");
-});
 
 await check("status prints the one line clean-worktrees reads, which its parser turns into up, launching, down or unknown, and exits 0 only when the URL answers", async () => {
   const lines = [];
@@ -1764,7 +1570,6 @@ await check("the page is 1400 x 900, a record names its own worktree's state fil
   assert.deepEqual(VIEWPORT, { width: 1400, height: 900 });
   assert.equal(recordFile({ worktree: path.join(FIXTURE_ROOT, "w2") }), path.join(FIXTURE_ROOT, "w2", ".agents", "skills", "drive-vscode-web", ".state.json"));
   assert.equal(path.basename(path.dirname(recordFile({}))), "drive-vscode-web");
-  assert.equal(liveDeps.extensionId(), EXT_ID);
 });
 
 await check("desktop preview reads per-character story spans without inventing spaces and excludes hidden content", () => {

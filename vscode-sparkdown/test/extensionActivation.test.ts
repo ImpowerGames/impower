@@ -1,8 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ activated: [] as string[] }));
+const state = vi.hoisted(() => ({
+  activated: [] as string[],
+  clientReady: Promise.resolve({}),
+  attach: vi.fn(),
+}));
 
-vi.mock("vscode", async () => (await import("./fakeVscode")).fakeVscode());
+vi.mock("vscode", async () => ({
+  ...(await import("./fakeVscode")).fakeVscode(),
+  ExtensionMode: { Production: 1, Development: 2 },
+}));
+vi.mock("../src/utils/driveEditorProtocol", () => ({ attachDriveEditorProtocol: state.attach }));
 vi.mock("../src/state/fileSystemWatcherState", () => ({
   fileSystemWatcherState: {},
 }));
@@ -48,7 +56,10 @@ vi.mock("../src/utils/activateInspector", () => ({
   activateInspector: () => state.activated.push("activateInspector"),
 }));
 vi.mock("../src/utils/activateLanguageClient", () => ({
-  activateLanguageClient: () => state.activated.push("activateLanguageClient"),
+  activateLanguageClient: () => {
+    state.activated.push("activateLanguageClient");
+    return state.clientReady;
+  },
 }));
 vi.mock("../src/utils/activateOutlineView", () => ({
   activateOutlineView: () => state.activated.push("activateOutlineView"),
@@ -85,5 +96,23 @@ describe("the extension", () => {
     expect(state.activated).toContain("activateLanguageClient");
     expect(state.activated).toContain("activatePreviewGamePanel");
     expect(state.activated).toContain("activateRuntimeDiagnostics");
+    expect(state.attach).not.toHaveBeenCalled();
+  });
+
+  it("requires both an opted-in build and a development extension host", async () => {
+    const { activate } = await import("../src/extension");
+    vi.stubGlobal("__SPARKDOWN_DRIVER_PROTOCOL__", true);
+    try {
+      activate({ subscriptions: [], extensionMode: 1 } as never);
+      expect(state.attach).not.toHaveBeenCalled();
+      const context = { subscriptions: [], extensionMode: 2 };
+      activate(context as never);
+      await vi.waitFor(() => {
+        expect(state.attach).toHaveBeenCalledTimes(1);
+        expect(state.attach).toHaveBeenCalledWith(context, state.clientReady);
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

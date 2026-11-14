@@ -10,6 +10,14 @@ Start with the full runtime build, about a minute on the development machine:
 cd vscode-sparkdown && npm run build
 ```
 
+For served `verify`, opt in to the development editor protocol by rebuilding the extension entry from the same directory:
+
+```bash
+node scripts/esbuild.ts --driver-protocol
+```
+
+The opt-in bundle opens the transport only in a loopback Extension Development Host when the driver's private browser context supplies the endpoint. The ordinary development build and `--production` exclude the adapter. The driver reports a timeout with an opted-in build check if it cannot receive the document.
+
 The optional `spark-web-player` declaration generator can report unresolved imports, finish with `Error: Compiled with errors` and `no type bundle produced; skipping post-process`, and leave the build command's exit status at 0. The runtime outputs do not require that type bundle; the extension handles an absent `spark.d.ts` separately.
 
 The driver checks the artifacts for the selected surface:
@@ -19,7 +27,7 @@ The driver checks the artifacts for the selected surface:
 | Served `up` and ordinary `verify` | `out/extension.js`, `out/workers/sparkdown-language-server.js`, copies of `data/*` |
 | `desktop --mode full`, F5 after its task, and served `verify --debug` | The editor artifacts, PDF worker and all four webviews, including the player and its embedded workers |
 
-For the served editor, `vscode-sparkdown/src/`, `language/` and `data/` feed the extension output; `packages/*/src/` and `packages/*/language/` feed the extension and language-server bundles because workspace imports resolve to source. Tests, snapshots, `node_modules`, `dist` and `out` are excluded. Regenerating language definitions makes their consuming bundles stale. `package.json` is read directly by the workbench.
+For the served editor, `vscode-sparkdown/src/`, `language/`, `data/` and `scripts/esbuild.ts` feed the extension output. `packages/*/src/` and `packages/*/language/` feed the extension and language-server bundles because workspace imports resolve to source. Tests, snapshots, `node_modules`, `dist` and `out` are excluded. Regenerating language definitions makes their consuming bundles stale. `package.json` is read directly by the workbench.
 
 Complete-runtime checks additionally include package and extension build inputs and webview sources. Package and extension `tsconfig.json` files are inputs too: esbuild discovers them when compiling bundled TypeScript, and JSX or class-field settings can change runtime bytes without a source edit. Webview configs are already included through their source directories. An editor-only rebuild cannot verify Game Preview. The F5 task builds and watches both workers and all four webviews before starting the extension copier; it does not require the optional declaration bundle. See [desktop scenarios](desktop.md) for missing-output and source-propagation verification.
 
@@ -28,13 +36,13 @@ A missing or stale artifact refuses launch/verification and names the outputs, s
 For changes confined to `vscode-sparkdown/src/`, `language/` or `data/`, the served editor can use:
 
 ```bash
-cd vscode-sparkdown && node scripts/esbuild.ts
+cd vscode-sparkdown && node scripts/esbuild.ts --driver-protocol
 ```
 
 For shared-package changes, the served editor can use:
 
 ```bash
-cd vscode-sparkdown && npm run build:sparkdown-language-server && node scripts/esbuild.ts
+cd vscode-sparkdown && npm run build:sparkdown-language-server && node scripts/esbuild.ts --driver-protocol
 ```
 
 These narrower steps leave the PDF worker and webviews untouched. Run the full build before Game Preview, debugging, packaging or export verification when their inputs changed. Prefer the driver's refusal text for the exact required rebuild steps.

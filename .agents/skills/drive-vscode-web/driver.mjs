@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { systemTemp, useWorktreeTemp } from "../drive-web-editor/worktree-temp.mjs";
 import { desktop } from "./desktop.mjs";
+import { installEditorProtocol, watchNotification } from "./editor-protocol.mjs";
 import { debugWorkbench } from "./web-debug.mjs";
 import {
   consoleLine,
@@ -249,8 +250,9 @@ export function buildRule(extDir, packagesDir, io = fs, surface = "editor") {
   const pkgLang = list(packagesDir).map((p) => path.join(packagesDir, p, "language")).filter(present);
   const shared = [...pkgSrc, ...pkgLang];
   const [lsBuild, self] = REBUILD_STEPS;
+  const editorBuildInput = surface === "editor" ? [path.join(extDir, "scripts", "esbuild.ts")] : [];
   const groups = [
-    { artifact: path.join(out, "extension.js"), sources: [path.join(extDir, "src"), path.join(extDir, "language"), ...shared], steps: [self] },
+    { artifact: path.join(out, "extension.js"), sources: [path.join(extDir, "src"), path.join(extDir, "language"), ...editorBuildInput, ...shared], steps: [self] },
     { artifact: path.join(out, "workers", "sparkdown-language-server.js"), sources: shared, steps: [lsBuild, self] },
   ];
   for (const f of list(path.join(extDir, "data"))) {
@@ -325,55 +327,26 @@ export function nearestDirMtime(file, top, io = fs) {
   }
 }
 
-export function normalizeMonacoText(text) {
-  return (text || "").replace(/\u00a0/g, " ");
-}
-
 export function locateWord(lines, word, lineText) {
-  const wordChar = (c) => /[A-Za-z0-9_]/.test(c);
-  const wanted = lineText ? normalizeMonacoText(lineText) : null;
+  if (!word) return null;
+  const wordChar = (char) => char != null && /\p{ID_Continue}/u.test(char);
+  const first = String.fromCodePoint(word.codePointAt(0));
+  const last = Array.from(word).at(-1);
   for (let index = 0; index < lines.length; index++) {
-    const text = normalizeMonacoText(lines[index]);
-    if (wanted && !text.includes(wanted)) continue;
-    for (let from = 0; from <= text.length - word.length; ) {
+    const text = lines[index];
+    if (lineText && !text.includes(lineText)) continue;
+    for (let from = 0; from <= text.length - word.length;) {
       const start = text.indexOf(word, from);
       if (start < 0) break;
       const end = start + word.length;
-      const left = start === 0 || !wordChar(text[start - 1]) || !wordChar(word[0]);
-      const right = end === text.length || !wordChar(text[end]) || !wordChar(word[word.length - 1]);
+      const left = start === 0 || !wordChar(Array.from(text.slice(0, start)).at(-1)) || !wordChar(first);
+      const right = end === text.length || !wordChar(String.fromCodePoint(text.codePointAt(end))) || !wordChar(last);
       if (left && right) return { index, start, end };
       from = start + 1;
     }
   }
   return null;
 }
-
-export function pageSources() {
-  return { normSrc: normalizeMonacoText.toString(), locateSrc: locateWord.toString(), rebuildSrc: rebuildPageFunctions.toString() };
-}
-export function rebuildPageFunctions({ normSrc, locateSrc }) {
-  const normalizeMonacoText = new Function(`return ${normSrc}`)();
-  const locateWord = new Function("normalizeMonacoText", `return ${locateSrc}`)(normalizeMonacoText);
-  return { normalizeMonacoText, locateWord };
-}
-
-export function cursorAt(text) {
-  const m = /Ln (\d+), Col (\d+)/.exec(text || "");
-  return m ? { line: Number(m[1]), col: Number(m[2]) } : null;
-}
-
-export function cursorOnWord(hit, cursorText, caretX) {
-  const at = cursorAt(cursorText);
-  if (!at) return `the status bar reports no cursor position (${JSON.stringify(cursorText)})`;
-  if (hit.line == null)
-    return "the word's line has no gutter number, so the line the caret is on cannot be checked; line numbers are off or relative in the served folder's .vscode/settings.json, so serve a folder without that setting";
-  if (at.line !== hit.line) return `the cursor is on line ${at.line}, not line ${hit.line}`;
-  if (caretX == null) return "no caret is drawn";
-  const slack = (hit.charWidth ?? 2) / 2;
-  if (caretX < hit.left - slack || caretX >= hit.right - slack) return `the caret is at x=${Math.round(caretX)}, outside the word's ${Math.round(hit.left)}..${Math.round(hit.right)}`;
-  return null;
-}
-
 export function editorOpened(title, file) {
   return title === file;
 }
@@ -384,49 +357,11 @@ export function hoverImageFailure(img) {
   if (!img.complete) return "the hover's image had not finished loading within 10 s";
   if (!(img.naturalWidth > 0 && img.naturalHeight > 0))
     return `the hover's image failed to load: natural size ${img.naturalWidth} x ${img.naturalHeight}; the src the web workbench could not fetch is in the report's img.srcHead, and this is the extension's bug rather than the driver's`;
+  if (!(img.width > 0 && img.height > 0)) return "the hover’s image has no visible size";
   return null;
 }
 
-export function usableReading(r) {
-  return /\d/.test(r?.problems ?? "");
-}
-
-export const SETTLE = { stableReads: 8, minReads: 25 };
-export function settleState(readings, { stableReads = SETTLE.stableReads, minReads = SETTLE.minReads } = {}, signal = null) {
-  const last = readings[readings.length - 1];
-  if (!usableReading(last))
-    return { settled: false, why: `the last reading carried no count (${JSON.stringify(last?.problems ?? null)}): the status bar's problems item was gone or empty at the end, so read the report's consoleErrors` };
-  const series = readings.filter(usableReading).map((r) => JSON.stringify(r));
-  if (series.length < stableReads) return { settled: false, why: `${series.length} reading${series.length === 1 ? "" : "s"} carried a count and ${stableReads} that agree are needed` };
-  const held = series[series.length - 1];
-  if (!series.slice(-stableReads).every((r) => r === held))
-    return { settled: false, why: `the last ${stableReads} readings did not agree, so the diagnostics were still changing; raise --settle, and check whether a vitest run is saturating the machine` };
-  if (series.some((r) => r !== series[0])) return { settled: true, why: null };
-  const unchanged = "the readings never changed from the workbench's own value";
-  if (series.length < minReads)
-    return { settled: false, why: `${unchanged} and ${series.length} of the ${minReads} a clean file needs were taken; raise --settle so the ${minReads} readings fit` };
-  if (!signal?.activated)
-    return { settled: false, why: `${unchanged} and the extension never showed itself (no status bar item of its own in the page), which is what a build that never ran looks like; read consoleErrors past the pre-existing noise and the server log \`status\` names, and confirm --file and the served folder` };
-  if (!signal?.answered) return { settled: false, why: `${unchanged} and the language server never answered (no symbol after the file's name in the breadcrumbs); a file with a scene, a function or a label gives it one to answer with` };
-  return { settled: true, why: null };
-}
-export function isSettled(readings, thresholds, signal) {
-  return settleState(readings, thresholds, signal).settled;
-}
-
-export const READ_ALLOWANCE_S = 5;
-export const SETTLE_FLOOR_S = SETTLE.minReads + READ_ALLOWANCE_S;
 export const DEFAULT_SETTLE_S = 60;
-
-export function diagnosticsOutcome(readings, elapsedS, budgetS, thresholds, signal) {
-  const { settled, why } = settleState(readings, thresholds, signal);
-  return {
-    settled,
-    settledAfterS: elapsedS,
-    diagnostics: readings[readings.length - 1] ?? null,
-    failure: settled ? null : `the diagnostics had not settled after ${elapsedS} s (--settle ${budgetS}): ${why}; the numbers reported are the last reading, not a result`,
-  };
-}
 
 export function parseFlags(args, spec) {
   const opts = {};
@@ -451,71 +386,53 @@ export function parseFlags(args, spec) {
   return { opts };
 }
 
-export function diagnosticsOnPage(_, doc = document) {
-  const item = doc.querySelector('.statusbar-item[id*="status.problems"]');
-  const count = (cls) => doc.querySelectorAll(`.view-overlays .${cls}`).length;
-  return {
-    problems: item ? (item.innerText || "").replace(/\s+/g, " ").trim() : null,
-    problemsLabel: item?.getAttribute("aria-label") ?? item?.querySelector("[aria-label]")?.getAttribute("aria-label") ?? null,
-    squiggles: { error: count("squiggly-error"), warning: count("squiggly-warning"), info: count("squiggly-info") },
+export function renderedCaretOnWord({ word }, doc = document) {
+  const visible = (element) => {
+    const style = doc.defaultView?.getComputedStyle(element);
+    return !style || (style.visibility === "visible" && style.display !== "none" && style.opacity !== "0");
   };
-}
-
-export function wordOnPage({ word, lineText, sources }, doc = document) {
-  const { locateWord } = new Function(`return ${sources.rebuildSrc}`)()(sources);
-  const top = (el) => parseFloat(el?.style.top) || 0;
-  const lines = [...doc.querySelectorAll(".view-line")].sort((a, b) => top(a) - top(b));
-  const hit = locateWord(lines.map((l) => l.textContent), word, lineText);
-  if (!hit) return null;
-  const line = lines[hit.index];
-  const number = [...doc.querySelectorAll(".margin-view-overlays .line-numbers")].find((n) => top(n.parentElement) === top(line));
-  const lineNumber = Number(number?.textContent);
-  const texts = [];
-  const collect = (node) => {
-    for (const c of node.childNodes) {
-      if (c.nodeType === 3) texts.push(c);
-      else collect(c);
+  const carets = [...doc.querySelectorAll(".monaco-editor .cursors-layer .cursor")].filter(visible);
+  for (const caret of carets) {
+    const cursor = caret.getBoundingClientRect();
+    if (!(cursor.width > 0 && cursor.height > 0)) continue;
+    const editor = caret.closest(".monaco-editor");
+    for (const line of editor?.querySelectorAll(".view-line") ?? []) {
+      const row = line.getBoundingClientRect();
+      const y = cursor.top + cursor.height / 2;
+      if (y < row.top || y >= row.bottom) continue;
+      const rendered = (line.textContent ?? "").replace(/\u00a0/g, " ");
+      const target = word.replace(/\u00a0/g, " ");
+      const walker = doc.createTreeWalker(line, 4);
+      const nodes = [];
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
+      for (let start = rendered.indexOf(target); start >= 0; start = rendered.indexOf(target, start + 1)) {
+        const range = doc.createRange();
+        let offset = 0;
+        const end = start + target.length;
+        for (const node of nodes) {
+          const next = offset + node.length;
+          if (offset <= start && start < next) range.setStart(node, start - offset);
+          if (offset < end && end <= next) {
+            range.setEnd(node, end - offset);
+            break;
+          }
+          offset = next;
+        }
+        const wordRect = range.getBoundingClientRect();
+        if (wordRect.width > 0 && wordRect.height > 0 &&
+          cursor.left >= wordRect.left - 2 && cursor.left < wordRect.right - 1) return true;
+      }
     }
-  };
-  collect(line);
-  const range = doc.createRange();
-  let offset = 0;
-  let started = false;
-  for (const node of texts) {
-    const len = node.nodeValue.length;
-    if (!started && hit.start < offset + len) {
-      range.setStart(node, hit.start - offset);
-      started = true;
-    }
-    if (started && hit.end <= offset + len) {
-      range.setEnd(node, hit.end - offset);
-      break;
-    }
-    offset += len;
   }
-  if (!started) return null;
-  const r = range.getBoundingClientRect();
-  if (!(r.width > 0 && r.height > 0)) return null;
-  const charWidth = r.width / (hit.end - hit.start);
-  return { line: Number.isInteger(lineNumber) ? lineNumber : null, col: hit.start + 1, left: r.x, right: r.x + r.width, charWidth, x: r.x + charWidth * 0.4, y: r.y + r.height / 2 };
+  return false;
 }
-
-export function extensionOnPage({ id, file }, doc = document) {
-  const crumbs = [...doc.querySelectorAll(".monaco-breadcrumbs .monaco-breadcrumb-item")].map((c) => (c.innerText || "").trim());
-  const at = crumbs.indexOf(file);
-  return { activated: Boolean(doc.querySelector(`.statusbar-item[id="${id}"]`)), answered: at >= 0 && at < crumbs.length - 1 };
-}
-
-export function caretOnPage(_, doc = document) {
-  const r = doc.querySelector(".monaco-editor .cursors-layer .cursor")?.getBoundingClientRect();
-  return { text: doc.querySelector('.statusbar-item[id*="status.editor.selection"]')?.innerText.trim() ?? null, x: r ? r.x : null };
-}
-
 export function hoverOnPage(_, doc = document) {
   for (const h of doc.querySelectorAll("[data-drive-hover]")) h.removeAttribute("data-drive-hover");
   const shown = [...doc.querySelectorAll(".monaco-hover")].filter((h) => {
     const r = h.getBoundingClientRect();
-    return r.width > 1 && r.height > 1;
+    const style = doc.defaultView?.getComputedStyle(h);
+    return r.width > 1 && r.height > 1 &&
+      (!style || (style.display !== "none" && style.visibility === "visible" && style.opacity !== "0"));
   });
   const hover = shown.find((h) => h.querySelector("img") || h.innerText.trim());
   if (!hover) return { present: false };
@@ -529,6 +446,8 @@ export function hoverOnPage(_, doc = document) {
       ? {
           hasSrc: img.hasAttribute("src"),
           srcHead: (img.getAttribute("src") || "").slice(0, 40),
+          width: r?.width ?? 0,
+          height: r?.height ?? 0,
           rendered: r ? `${Math.round(r.width)} x ${Math.round(r.height)}` : null,
           natural: `${img.naturalWidth} x ${img.naturalHeight}`,
           naturalWidth: img.naturalWidth,
@@ -699,15 +618,16 @@ async function launchWorkbenchBrowser({ headless }) {
   return chromium.launch({ headless, ...(executablePath ? { executablePath } : {}) });
 }
 
-export async function withWorkbench(url, { headless = true, launch = launchWorkbenchBrowser } = {}, fn) {
+export async function withWorkbench(url, { headless = true, launch = launchWorkbenchBrowser, editorProtocol = false } = {}, fn) {
   const browser = await launch({ headless });
-  const page = await browser.newPage({ viewport: VIEWPORT });
-  const consoleLines = [];
-  page.on("console", (m) => consoleLines.push(consoleLine(m)));
-  page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
   try {
+    const page = await browser.newPage({ viewport: VIEWPORT });
+    const consoleLines = [];
+    page.on("console", (m) => consoleLines.push(consoleLine(m)));
+    page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
+    const protocol = editorProtocol ? await installEditorProtocol(page, url) : null;
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
-    return await fn({ page, consoleLines });
+    return await fn({ page, consoleLines, protocol });
   } finally {
     await browser.close();
   }
@@ -722,10 +642,6 @@ export const liveDeps = {
   extDir: EXT_DIR,
   packagesDir: PACKAGES_DIR,
   io: fs,
-  extensionId: () => {
-    const pkg = JSON.parse(fs.readFileSync(path.join(EXT_DIR, "package.json"), "utf8"));
-    return `${pkg.publisher}.${pkg.name}`;
-  },
   serverEntry: SERVER_ENTRY,
   defaultDataDir: DEFAULT_DATA_DIR,
   stateFile: STATE_FILE,
@@ -997,8 +913,8 @@ export async function verify(args, deps = liveDeps) {
   for (const f of ["--hover-shot", "--hover-image", "--line"]) if (opts[f] && !opts["--hover"]) deps.die(`verify: ${f} needs --hover`);
   for (const f of ["--expression", "--result", "--debug-shot"]) if (opts[f] && !opts["--debug"]) deps.die(`verify: ${f} needs --debug`);
   const settleBudgetS = opts["--settle"] ?? DEFAULT_SETTLE_S;
-  if (settleBudgetS < SETTLE_FLOOR_S) {
-    deps.die(`verify: --settle ${settleBudgetS} is below ${SETTLE_FLOOR_S}, the ${SETTLE.minReads} readings (one a second) a file the server finds clean needs before the settle rule can call it settled plus ${READ_ALLOWANCE_S} s to take them; the default is ${DEFAULT_SETTLE_S}`);
+  if (settleBudgetS <= 0 || Math.ceil(settleBudgetS * 1000) > 2_147_483_647) {
+    deps.die("verify: --settle must be a positive deadline within the timer limit");
   }
   const s = deps.readState();
   if (!s?.url) deps.die("no server URL; run `node .agents/skills/drive-vscode-web/driver.mjs up --sd <file.sd>` first");
@@ -1007,37 +923,37 @@ export async function verify(args, deps = liveDeps) {
   const build = deps.checkBuild(opts["--debug"] ? "desktop" : "editor");
 
   const file = opts["--file"] ?? "main.sd";
-  const report = { url: s.url, project: s.project, file, build, failed: [] };
+  const report = { url: s.url, project: s.project, file, build, failed: [], settled: false, extension: { activated: false, answered: false } };
   const fail = (msg) => report.failed.push(msg);
 
   try {
     const { aliased } = deps.aliasWorkbenchCss(s.builds);
     for (const dir of aliased) deps.log(`stylesheet alias written in ${dir}`);
-    await deps.withWorkbench(s.url, { headless: !opts["--headed"] }, async ({ page, consoleLines }) => {
+    await deps.withWorkbench(s.url, { headless: !opts["--headed"], editorProtocol: true }, async ({ page, consoleLines, protocol }) => {
       try {
         await page.waitForSelector(".monaco-workbench", { timeout: 120_000 });
-        await openFile(page, file, report, fail);
-
-        if (report.opened) {
-          const readings = [];
-          const signalArg = { id: deps.extensionId(), file };
-          let signal = null;
-          const started = deps.now();
-          for (;;) {
-            readings.push(await page.evaluate(diagnosticsOnPage));
-            signal = await page.evaluate(extensionOnPage, signalArg);
-            if (isSettled(readings, undefined, signal) || deps.now() - started >= settleBudgetS * 1000) break;
-            await deps.sleep(1000);
+        const loaded = watchNotification(protocol, "editor/didLoad", (params) => mountedFile(params?.textDocument?.uri, file));
+        let document;
+        try {
+          await openFile(page, file, report, fail);
+          if (report.opened) {
+            const started = deps.now();
+            const signal = AbortSignal.timeout(Math.ceil(settleBudgetS * 1000));
+            const active = (await loaded.wait(signal)).textDocument;
+            const snapshot = await readEditor(protocol, active, signal);
+            document = snapshot.textDocument;
+            report.document = { uri: document.uri, version: document.version, selection: snapshot.selection };
+            report.extension.activated = true;
+            report.diagnostics = await readCurrentDiagnostics(protocol, document, signal);
+            report.extension.answered = true;
+            report.settled = true;
+            report.settledAfterS = Math.round((deps.now() - started) / 1000);
           }
-          const outcome = diagnosticsOutcome(readings, Math.round((deps.now() - started) / 1000), settleBudgetS, undefined, signal);
-          report.settled = outcome.settled;
-          report.settledAfterS = outcome.settledAfterS;
-          report.diagnostics = outcome.diagnostics;
-          report.extension = signal;
-          if (outcome.failure) fail(outcome.failure);
+        } finally {
+          loaded.dispose();
         }
 
-        if (opts["--hover"] && report.opened) await hoverOn(page, opts, report, fail, deps);
+        if (opts["--hover"] && document) await hoverOn(page, opts, report, fail, deps, protocol, document, settleBudgetS);
         if (opts["--debug"] && report.opened) {
           report.debug = await debugWorkbench(page, { expression: opts["--expression"] ?? "1 + 1", result: opts["--result"] ?? "2", screenshot: opts["--debug-shot"] });
           report.failed.push(...report.debug.failed);
@@ -1056,6 +972,7 @@ export async function verify(args, deps = liveDeps) {
         fail(`verify threw: ${firstLine(err)}`);
       }
 
+      report.protocol = protocol?.trace ?? [];
       if (opts["--shot"]) {
         try {
           await page.screenshot({ path: opts["--shot"] });
@@ -1100,36 +1017,96 @@ async function openFile(page, file, report, fail) {
   if (!report.opened) fail(`the editor that opened is titled ${JSON.stringify(title)}, not ${file}`);
 }
 
-async function hoverOn(page, opts, report, fail, deps) {
+function mountedFile(uri, file) {
+  try {
+    const url = new URL(uri);
+    return url.protocol === "vscode-test-web:" && url.host === "mount" &&
+      decodeURIComponent(url.pathname) === "/" + file && !url.search && !url.hash;
+  } catch {
+    return false;
+  }
+}
+
+async function readEditor(protocol, document, signal) {
+  const { uri, version } = document;
+  if (!Number.isSafeInteger(version) || version < 0) throw new Error("editor protocol did not report a valid document version");
+  const result = await protocol.request("editor/read", { textDocument: { uri } }, { version, signal });
+  const read = result?.textDocument;
+  if (read?.uri !== uri || read.version !== version || typeof read.text !== "string" ||
+    !result.selection?.start || !result.selection?.end) {
+    throw new Error(`editor protocol did not return the intended document ${uri} at version ${version}`);
+  }
+  return result;
+}
+
+export async function readCurrentDiagnostics(protocol, document, signal) {
+  const { uri, version } = document;
+  const exact = (result) => result?.uri === uri && result.version === version && Array.isArray(result.diagnostics);
+  const settled = watchNotification(protocol, "textDocument/didSettleDiagnostics", exact);
+  try {
+    const result = await protocol.request("textDocument/diagnosticsSettled", { textDocument: { uri }, version }, { signal, version });
+    if (!exact(result)) throw new Error(`editor protocol returned diagnostics for the wrong URI or version (expected ${uri} at ${version})`);
+    const event = await settled.wait(signal);
+    if (JSON.stringify(event.diagnostics) !== JSON.stringify(result.diagnostics)) {
+      throw new Error("editor protocol diagnostic notification disagreed with the response");
+    }
+    await readEditor(protocol, document, signal);
+    return result;
+  } finally {
+    settled.dispose();
+  }
+}
+
+async function hoverOn(page, opts, report, fail, deps, protocol, document, settleBudgetS) {
+  const { uri, version } = document;
   const word = opts["--hover"];
-  const hit = await page.evaluate(wordOnPage, { word, lineText: opts["--line"], sources: pageSources() });
+  const hit = locateWord(document.text.split(/\r\n|\r|\n/), word, opts["--line"]);
   if (!hit) {
-    fail(`"${word}" is not a whole word on a rendered line${opts["--line"] ? ` containing "${opts["--line"]}"` : ""}; give the whole identifier when the word sits inside a longer one, and keep the line near the top of the file, since only the lines in the viewport are rendered`);
+    fail(`"${word}" is not a whole word in the document${opts["--line"] ? ` on a line containing "${opts["--line"]}"` : ""}`);
     return;
   }
-  await page.mouse.click(hit.x, hit.y);
-  await deps.sleep(400);
-  const caret = await page.evaluate(caretOnPage);
-  report.hover = { word, line: hit.line, col: hit.col, cursor: caret.text };
-  const off = cursorOnWord(hit, caret.text, caret.x);
-  if (off) {
-    fail(`the cursor did not land on "${word}" at Ln ${hit.line}, Col ${hit.col}: ${off}`);
+  const signal = AbortSignal.timeout(Math.ceil(settleBudgetS * 1000));
+  const position = { line: hit.index, character: hit.start };
+  const textDocument = { uri };
+  const range = { start: position, end: position };
+  await protocol.notify("editor/select", { textDocument, range, scrollIntoView: "center", takeFocus: true }, { version, signal });
+  const { selection } = await readEditor(protocol, document, signal);
+  const at = (point) => point?.line === position.line && point.character === position.character;
+  if (!at(selection.start) || !at(selection.end)) {
+    fail(`editor protocol selection did not land on "${word}"`);
+    return;
+  }
+  const model = await protocol.request("textDocument/hover", { textDocument, position }, { version, signal });
+  await readEditor(protocol, document, signal);
+  const order = (a, b) => a.line - b.line || a.character - b.character;
+  const diagnostics = report.diagnostics.diagnostics.filter(({ range }) =>
+    range?.start && range.end && order(range.start, position) <= 0 && order(position, range.end) < 0,
+  );
+  report.hover = { word, position, selection, model, diagnostics };
+  if (model == null && !diagnostics.length) fail(`no protocol hover or current diagnostic covers "${word}"`);
+  let caret = false;
+  for (let i = 0; i < 10 && !caret; i++) {
+    caret = await page.evaluate(renderedCaretOnWord, { word });
+    if (!caret) await deps.sleep(100);
+  }
+  if (!caret) {
+    fail(`no visible caret on the rendered word "${word}" after revealing the protocol selection`);
     return;
   }
   await page.keyboard.press("Control+k");
   await page.keyboard.press("Control+i");
-  let hover = { present: false };
-  for (let i = 0; i < 20 && (!hover.present || (hover.img && !hover.img.complete)); i++) {
+  let visual = { present: false };
+  for (let i = 0; i < 20 && (!visual.present || (visual.img && !visual.img.complete)); i++) {
     await deps.sleep(500);
-    hover = await page.evaluate(hoverOnPage);
+    visual = await page.evaluate(hoverOnPage);
   }
-  Object.assign(report.hover, hover);
-  if (!hover.present) {
-    fail(`no hover opened on "${word}" within 10 s of Ctrl+K Ctrl+I: the extension answers a hover only on an image reference or a word under a diagnostic, so read the report's diagnostics and pick such a word`);
+  report.hover.visual = visual;
+  if (!visual.present) {
+    fail(`no visible hover opened on "${word}" within 10 s of Ctrl+K Ctrl+I`);
     return;
   }
-  if (opts["--hover-image"] && !hover.img) fail(`the hover on "${word}" carries no image (--hover-image)`);
-  const broken = hoverImageFailure(hover.img);
+  if (opts["--hover-image"] && !visual.img) fail(`the rendered hover on "${word}" carries no image (--hover-image)`);
+  const broken = hoverImageFailure(visual.img);
   if (broken) fail(broken);
   if (opts["--hover-shot"]) {
     await page.locator("[data-drive-hover]").first().screenshot({ path: opts["--hover-shot"] });
@@ -1191,7 +1168,7 @@ switch (cmd) {
         "  --result <text>     exact expected evaluation result (default: 2)",
         "  --debug-shot <png>  screenshot the paused web debugger",
         "  --probe <file.js>    body of an async fn evaluated in the page; result -> JSON",
-        `  --settle <seconds>   how long to wait for diagnostics to stop changing (default ${DEFAULT_SETTLE_S}, at least ${SETTLE_FLOOR_S}: ${SETTLE.minReads} readings a second apart plus ${READ_ALLOWANCE_S} s to take them); not settling is a failure`,
+        `  --settle <seconds>   deadline for protocol document and diagnostic reads (default ${DEFAULT_SETTLE_S})`,
         "  --headed             run a visible browser instead of headless",
       ].join("\n"),
     );
