@@ -216,6 +216,10 @@ try {
   });
   assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "repair", assessment: { ...semantics, scope: "s", verificationChange: "v" }, evidence: evidence() })), /maintainer's decision/);
   decideAndPublish("round-5-maintainer-changed-semantics", "maintainer", semantics, { maintainerRequest: asked({ number: 9043, url: "https://github.com/acme/widgets/issues/9043" }) });
+  const released9043 = asked({ number: 9043, url: "https://github.com/acme/widgets/issues/9043", state: "answered", answered: true, recorded: true, closed: { at: "2026-10-12T12:00:00.000Z", by: "maintainer", reason: "completed" }, words: [{ url: "https://github.com/acme/widgets/issues/9043#issuecomment-1", at: "2026-10-12T11:59:00.000Z", body: "Keep holding it; do not continue the PR." }] });
+  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "finish", assessment: assess(), evidence: evidence() })), /#42 waits on the maintainer's answer in request #9043; decide finish only once that answer is recorded or the request is withdrawn, passing --maintainer-request 9043$/, "a later decision does not release a maintainer question without its recorded answer");
+  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "finish", assessment: assess(), evidence: evidence(), maintainerRequest: asked({ number: 9043 }) })), /#9043 has no answer yet: it is waiting/);
+  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "maintainer", assessment: assess({ question: "q2" }), evidence: evidence(), maintainerRequest: asked({ number: 9050 }) })), /a new decision of kind maintainer keeps that request/, "another question waits until the first is released");
 
   pull.head = c.final;
   pull.checks = [{ name: "test-suite", state: "IN_PROGRESS" }];
@@ -231,22 +235,22 @@ try {
     verification: ["review-checkpoint and issue-run checks green on the head", "test-suite passed on the head"],
   });
   e = evidence();
-  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e })), /Every CI check .* must have passed: test-suite pending/);
+  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", maintainerRequest: released9043, assessment: acceptance, inspected: e.range.diffSha256, evidence: e })), /Every CI check .* must have passed: test-suite pending/);
   pull.checks = [{ name: "test-suite", state: "SUCCESS" }, { name: "skills-checks", state: "SKIPPED" }];
   e = evidence();
-  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: "0".repeat(64), evidence: e })), /--inspected must be the SHA-256 of the unreviewed diff/);
+  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", maintainerRequest: released9043, assessment: acceptance, inspected: "0".repeat(64), evidence: e })), /--inspected must be the SHA-256 of the unreviewed diff/);
   const withOpen = { ...acceptance, findings: [...acceptance.findings.slice(1), { ...acceptance.findings[0], disposition: "open" }] };
-  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", assessment: withOpen, inspected: e.range.diffSha256, evidence: e })), /still open; a known defect is resolved/);
-  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", assessment: { ...acceptance, verification: [] }, inspected: e.range.diffSha256, evidence: e })), /lists the verification/);
-  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: { ...e, head: e.reviewedHead, range: { ...e.range, commits: [] } } })), /Nothing after .* is unreviewed/);
+  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", maintainerRequest: released9043, assessment: withOpen, inspected: e.range.diffSha256, evidence: e })), /still open; a known defect is resolved/);
+  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", maintainerRequest: released9043, assessment: { ...acceptance, verification: [] }, inspected: e.range.diffSha256, evidence: e })), /lists the verification/);
+  assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", maintainerRequest: released9043, assessment: acceptance, inspected: e.range.diffSha256, evidence: { ...e, head: e.reviewedHead, range: { ...e.range, commits: [] } } })), /Nothing after .* is unreviewed/);
   const selfRecord = structuredClone(record());
   selfRecord.tickets[42].owner.handle.id = "local_coord";
-  assert.throws(() => rc.decide(selfRecord, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), /a writer never decides its own review checkpoint/);
+  assert.throws(() => rc.decide(selfRecord, { ticket: 42, kind: "accept-unreviewed", maintainerRequest: released9043, assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), /a writer never decides its own review checkpoint/);
   const formerWriter = structuredClone(record());
   formerWriter.tickets[42].history.push({ owner: formerWriter.tickets[42].owner, released: "session archived" });
   formerWriter.tickets[42].owner = null;
   formerWriter.coordinator.session = "local_writer";
-  assert.throws(() => rc.decide(formerWriter, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), /local_writer wrote for #42, and is now its coordinator/);
+  assert.throws(() => rc.decide(formerWriter, { ticket: 42, kind: "accept-unreviewed", maintainerRequest: released9043, assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), /local_writer wrote for #42, and is now its coordinator/);
   const cliSession = "6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f";
   const cliStream = (dir) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, "out.jsonl"), `${JSON.stringify({ type: "system", subtype: "init", session_id: cliSession })}\n`); return dir; };
   const cliHeld = structuredClone(record());
@@ -257,11 +261,11 @@ try {
   cliStream(run.launchDirOf(cliPending.tickets[42].pending, 42));
   for (const [name, held] of [["held", cliHeld], ["pending", cliPending]]) {
     for (const session of [cliSession, `local_${cliSession}`]) {
-      assert.throws(() => rc.decide({ ...held, coordinator: { ...held.coordinator, session } }, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), new RegExp(`${session} wrote for #42, and is now its coordinator`), `a ${name} CLI writer's session ${session} is the ticket's writer`);
+      assert.throws(() => rc.decide({ ...held, coordinator: { ...held.coordinator, session } }, { ticket: 42, kind: "accept-unreviewed", maintainerRequest: released9043, assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), new RegExp(`${session} wrote for #42, and is now its coordinator`), `a ${name} CLI writer's session ${session} is the ticket's writer`);
     }
     assert.ok(!rc.trustedCoordinators({ ...held, previousCoordinators: [{ session: `local_${cliSession}` }] }, 42).includes(`local_${cliSession}`), `a ${name} CLI writer's opened session is never a trusted coordinator`);
   }
-  const decideAs = (rec, session) => rc.decide({ ...rec, coordinator: { ...rec.coordinator, session } }, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e });
+  const decideAs = (rec, session) => rc.decide({ ...rec, coordinator: { ...rec.coordinator, session } }, { ticket: 42, kind: "accept-unreviewed", maintainerRequest: released9043, assessment: acceptance, inspected: e.range.diffSha256, evidence: e });
   const releasedRecord = structuredClone(cliHeld);
   run.release(releasedRecord, { ticket: 42, observations: {}, evidence: "its turn ended" });
   assert.equal(releasedRecord.tickets[42].history.at(-1).owner.sessionId, cliSession, "release keeps the session its stream named");
@@ -285,7 +289,8 @@ try {
   adoptedByProcess.tickets[42].owner = { ...adoptedByProcess.tickets[42].owner, route: "claude-cli", handle: { kind: "process", pid: 4242, start: "1", host: os.hostname() } };
   assert.throws(() => decideAs(adoptedByProcess, "local_coord"), /#42's writer process 4242 has no recorded session and no stream was recorded for it.*writer-session --ticket 42 --writer 4242/);
   assert.deepEqual(e.range.commits.map((x) => x.sha), [c.round5, c.final]);
-  const accepted = change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", now: new Date(at()), assessment: acceptance, inspected: e.range.diffSha256, evidence: e }));
+  const accepted = change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", maintainerRequest: released9043, now: new Date(at()), assessment: acceptance, inspected: e.range.diffSha256, evidence: e }));
+  assert.deepEqual(record().tickets[42].checkpoints.find((d) => d.id === accepted.id).released, { request: 9043, state: "answered" }, "the decision after a maintainer question records the request whose answer released it");
   const acceptedComment = comment(accepted.body);
   assert.equal(rc.acceptanceApplies(rc.restore(comments, { trusted: ["local_coord"], record: record() }), c.final).applies, false, "an acceptance posted but never read back does not apply");
   const takenOverMidPublish = { ...structuredClone(record()), coordinator: { session: "local_successor" }, previousCoordinators: [{ session: "local_coord" }] };

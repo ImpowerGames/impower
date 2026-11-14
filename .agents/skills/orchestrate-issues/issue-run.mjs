@@ -920,7 +920,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     return {
       ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
-      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
+      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "closed" && { stateReason: b.state_reason ?? null }), ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });
@@ -1098,6 +1098,11 @@ function askMaintainer(record, snapshot, tickets) {
     if (!blocker) {
       entry.maintainerRequest = { file: kind, key, ...(kind === "task" && { pr: entry.pr }), ...(triage && { triage: true }), unlinked: asked.number };
       entry.reason += `; its maintainer request #${asked.number} no longer blocks it on GitHub, so it holds nothing: ${fileIt}`;
+      continue;
+    }
+    if (blocker.state === "closed" && blocker.stateReason === "not_planned") {
+      entry.maintainerRequest = { file: kind, key, ...(kind === "task" && { pr: entry.pr }), ...(triage && { triage: true }), closedNotPlanned: asked.number };
+      entry.reason += `; its maintainer request #${asked.number} was closed as not planned (withdrawn, will not be done, or unclear): read it, reopen an unclear one with revise, or ${fileIt}`;
       continue;
     }
     const state = blocker.state === "closed" ? "is closed: read and record its answer, then act on it" : blocker.wentAhead ? "went ahead without the maintainer: act on its fallback, and record their answer once they keep or change it" : "is open: the maintainer has not answered";
@@ -1743,12 +1748,18 @@ export function request(record, { ticket: number, text, source }) {
   log(record, "request", { ticket: number, id });
   return { id };
 }
-export function relay(record, { ticket: number, request: id, to = "the maintainer", maintainerRequest }) {
+const ENDED = ["withdrawn", "unclear", "will-not-do"];
+export function relay(record, { ticket: number, request: id, to = "the maintainer", maintainerRequest, relayedBefore }) {
   const r = findRequest(record, number, id);
   if (!/\bmaintainer\b/i.test(to ?? "")) throw new Error(`--to names who decides, and only the maintainer decides what the coordinator does not: give --to "the maintainer", not ${JSON.stringify(to)}`);
   if (r.answer) throw new Error(`Request ${id} already has an answer at ${r.answer.state}`);
   const filed = heldRequest(record, maintainerRequest, number, { what: `Relaying request ${id} to the maintainer` });
-  r.relayed = { time: new Date().toISOString(), to, maintainerRequest: filed };
+  const before = r.relayed?.maintainerRequest ?? null;
+  if (before && before.number !== filed.number) {
+    if (relayedBefore?.number !== before.number) throw new Error(`Request ${id} is relayed as maintainer request #${before.number}; relaying it as #${filed.number} needs #${before.number}'s state, which the command reads`);
+    if (!ENDED.includes(relayedBefore.state) && relayedBefore.holds !== false) throw new Error(`Request ${id} is relayed as maintainer request #${before.number}, which is ${relayedBefore.state}; it moves to another request only once #${before.number} is withdrawn, closed as not planned or no longer blocks #${number}, so an open question or a recorded answer is never set aside`);
+  }
+  r.relayed = { time: new Date().toISOString(), to, maintainerRequest: filed, ...(before && before.number !== filed.number && { replaced: [...(r.relayed.replaced ?? []), before] }) };
   log(record, "relayed", { ticket: number, id, to, maintainerRequest: filed.number });
 }
 const coordinatorName = (record) => `coordinator session ${record.coordinator.session}${record.title ? ` (title ${JSON.stringify(record.title)})` : ""}`;
@@ -1870,7 +1881,7 @@ export function dismiss(record, { filed: number, ticket: from, evidence }) {
 }
 
 const raisedRequest = (outcome) => (outcome?.kind === "maintainer" ? outcome.maintainerRequest ?? null : null);
-function releaseRaised(raised, maintainerRequest, number, what) {
+export function releaseRaised(raised, maintainerRequest, number, what) {
   const release = `#${number} waits on the maintainer's answer in request #${raised.number}; ${what} only once that answer is recorded or the request is withdrawn, passing --maintainer-request ${raised.number}`;
   if (typeof maintainerRequest !== "object" || maintainerRequest === null || maintainerRequest.number !== raised.number) throw new Error(`${release}${maintainerRequest?.number ? `, not #${maintainerRequest.number}` : ""}`);
   if (maintainerRequest.state === "withdrawn") return { request: raised.number, state: "withdrawn" };
@@ -1882,6 +1893,8 @@ export function triage(record, { filed: number, outcome: kind, slice, under, rea
   if (!FILED_OUTCOMES.includes(kind)) throw new Error(`--outcome must be ${FILED_OUTCOMES.join(", ")}`);
   const raised = raisedRequest(entry.outcome);
   const released = kind !== "maintainer" && raised ? releaseRaised(raised, maintainerRequest, number, `triage it as ${kind}`) : null;
+  const heldSlice = entry.outcome?.slice;
+  if (kind === "maintainer" && raised && (maintainerRequest?.number !== raised.number || (heldSlice !== undefined && slice !== heldSlice))) throw new Error(`#${number} waits on the maintainer's answer in request #${raised.number}${heldSlice !== undefined ? `, holding #${heldSlice}'s PR` : ""}; raising it again keeps that request${heldSlice !== undefined ? ` and --slice ${heldSlice}` : ""}. Replace the request with asked, or release the hold first by triaging it as another outcome with the request's recorded answer or withdrawal`);
   if (kind !== "maintainer" && !raised && maintainerRequest !== undefined) throw new Error("--maintainer-request belongs to --outcome maintainer, which raises the ticket with the maintainer, or to re-triaging a ticket raised with a request, which names that request");
   let outcome;
   if (kind === "completes") {
@@ -2411,7 +2424,12 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
     case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
     case "asked": { const filed = oneRequest(number()); return mutate((r) => asked(r, { plan: absolute(o.plan, "plan"), ticket: number(), maintainerRequest: filed })); }
-    case "relay": { const filed = oneRequest(number()); return mutate((r) => relay(r, { ticket: number(), request: o.request, to: o.to, maintainerRequest: filed })); }
+    case "relay": {
+      const filed = oneRequest(number());
+      const before = readRecord(absolute(o.record, "record")).tickets?.[number()]?.requests?.find((q) => q.id === o.request)?.relayed?.maintainerRequest?.number;
+      const relayedBefore = filed && Number.isSafeInteger(before) && before !== filed.number ? requestFacts(before, { tracker: requestsFor(readRecord(absolute(o.record, "record"))), holding: number() }) : undefined;
+      return mutate((r) => relay(r, { ticket: number(), request: o.request, to: o.to, maintainerRequest: filed, relayedBefore }));
+    }
     case "answer": { const filed = oneRequest(); return mutate((r) => answer(r, { ticket: number(), request: o.request, text: o.text, retry: Boolean(o.retry), maintainerRequest: filed })); }
     case "answered": return mutate((r) => answered(r, { ticket: number(), request: o.request, evidence: o.evidence }));
     case "launched": return mutate((r) => launched(r, { ticket: number(), handleKind: o.handleKind, handle: o.handle, observedOn: o.observedOn }));

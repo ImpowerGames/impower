@@ -537,6 +537,18 @@ try {
     assert.deepEqual(unlinked.maintainerRequest, { file: "decision", key, unlinked: 9101 }, "a recorded request GitHub no longer blocks the ticket on holds nothing, and another open request does not replace it");
     assert.match(unlinked.reason, /; its maintainer request #9101 no longer blocks it on GitHub, so it holds nothing: file a maintainer decision request/);
     assert.deepEqual(entry107([request(9101, "open")], [{ key: "reason:0000000000000000", action: "decision-needed", request: { number: 9101 } }]).maintainerRequest, { file: "decision", key }, "a request recorded for another wait on the ticket is not this entry's");
+    const withdrawn = entry107([request(9101, "closed", { stateReason: "not_planned" })], on9101);
+    assert.deepEqual(withdrawn.maintainerRequest, { file: "decision", key, closedNotPlanned: 9101 }, "a recorded request closed as not planned (a withdrawal among them) has no answer to record, so the entry asks for a replacement");
+    assert.match(withdrawn.reason, /; its maintainer request #9101 was closed as not planned \(withdrawn, will not be done, or unclear\): read it, reopen an unclear one with revise, or file a maintainer decision request/);
+    assert.deepEqual(entry107([request(9101, "closed", { stateReason: "completed" })], on9101).maintainerRequest, { filed: { number: 9101, state: "closed" } }, "a request closed as completed is the entry's answer");
+    {
+      const blockers107 = [request(9101, "closed", { stateReason: "not_planned" }), request(9102, "open")];
+      const snap107 = { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge", blockers: blockers107 } : t)) };
+      const withdrawnPlan = write("withdrawn-plan.json", plan({ record: waiting(settled105(run.readRecord(record)), on9101), snapshot: snap107 }));
+      const replacing = waiting(settled105(run.readRecord(record)), on9101);
+      run.asked(replacing, { plan: withdrawnPlan, ticket: 107, maintainerRequest: { number: 9102, url: "u", title: "t", kind: "decision", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state: "waiting" } });
+      assert.deepEqual(plan({ record: replacing, snapshot: snap107 }).tickets.find((t) => t.number === 107).maintainerRequest, { filed: { number: 9102, state: "open" } }, "asked records the replacement for a withdrawn request, and the plan names it");
+    }
     const readyPr = (blockers, waits = []) => plan({ record: { ...settled105(run.readRecord(record)), tickets: { ...settled105(run.readRecord(record)).tickets, 105: { ...settled105(run.readRecord(record)).tickets[105], waits } } }, snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 105 ? { ...t, blockers } : t)) } }).tickets.find((t) => t.number === 105);
     assert.deepEqual(readyPr([request(9001, "closed")]).maintainerRequest, { file: "task", key: "pr:505", pr: 505 }, "an answered design decision on the ticket does not stand in for the task to merge its ready PR");
     assert.deepEqual(readyPr([request(9003, "open")]).maintainerRequest, { file: "task", key: "pr:505", pr: 505 }, "an open task asking for something else, such as a phone test, does not stand in for the merge");
@@ -728,6 +740,19 @@ try {
   rev = mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, maintainerRequest: asking }));
   assert.deepEqual(run.readRecord(record).tickets[104].requests[0].relayed.maintainerRequest, { number: 9002, url: "https://github.com/acme/widgets/issues/9002", title: "Should branches stack? (#101)", kind: "decision" }, "the record stores the request number beside the question");
   assert.equal(run.readRecord(record).tickets[104].requests[0].text, "authorize round 4?");
+  {
+    const next = { ...asking, number: 9003, url: "https://github.com/acme/widgets/issues/9003" };
+    const rerelay = (relayedBefore) => run.relay(run.readRecord(record), { ticket: 104, request: requestId, maintainerRequest: next, relayedBefore });
+    assert.throws(() => rerelay(undefined), /is relayed as maintainer request #9002; relaying it as #9003 needs #9002's state/, "moving a relayed question to another request reads the first one");
+    assert.throws(() => rerelay(asking), /which is waiting; it moves to another request only once #9002 is withdrawn, closed as not planned or no longer blocks #104/, "an open question is never set aside");
+    assert.throws(() => rerelay({ ...asking, state: "answered" }), /which is answered/, "nor is an answer");
+    const moved = run.readRecord(record);
+    run.relay(moved, { ticket: 104, request: requestId, maintainerRequest: next, relayedBefore: { ...asking, state: "withdrawn" } });
+    assert.deepEqual([moved.tickets[104].requests[0].relayed.maintainerRequest.number, moved.tickets[104].requests[0].relayed.replaced.map((x) => x.number)], [9003, [9002]], "a withdrawn request is replaced, and kept as history");
+    const unlinkedMove = run.readRecord(record);
+    run.relay(unlinkedMove, { ticket: 104, request: requestId, maintainerRequest: next, relayedBefore: { ...asking, holds: false } });
+    assert.equal(unlinkedMove.tickets[104].requests[0].relayed.maintainerRequest.number, 9003, "so is one GitHub no longer blocks the ticket on");
+  }
   assert.match(plan104().reason, /relayed to the maintainer at .* as maintainer request #9002 \(https:\/\/github\.com\/acme\/widgets\/issues\/9002\); once .*maintainer-request\.mjs read shows it answered, record it there, then record answer with the recorded words and send it/, "a relayed request stays open and names its maintainer request");
   assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 104, request: requestId, text: "round 4 is authorized" })), /relayed as maintainer request #9002; answer it with --maintainer-request 9002/, "a relayed request's answer is not typed");
   assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 104, request: requestId, maintainerRequest: asking })), /#9002 has no answer yet: it is waiting/);
@@ -1711,7 +1736,7 @@ try {
       const labelled = (name, state) => ({ number: name === "plain" ? 2299 : 2290, state, labels: name === "plain" ? [{ name: "workflow: skills" }] : [{ name: maintainer.labels[name] }] });
       const requestClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: (n) => ({ number: n, state: "open", title: "T", body: "", type: { name: "Task" } }), subIssues: (n) => (n === 300 ? [{ number: 1107, state: "open", title: "slice" }] : []), blockedBy: () => [labelled("decision", "closed"), labelled("plain", "closed")], fields: () => ({ effort: "Medium", priority: null }), pulls: () => [], comments: () => [], checks: () => [] };
       const read = run.takeSnapshot({ repository: "acme/widgets", issue: 300 }, requestClient).tickets.find((t) => t.number === 1107);
-      assert.deepEqual(read.blockers, [{ number: 2290, state: "closed", delivered: false, request: true }, { number: 2299, state: "closed", delivered: false }], "the snapshot marks a blocker labelled as a maintainer request");
+      assert.deepEqual(read.blockers, [{ number: 2290, state: "closed", delivered: false, request: true, stateReason: null }, { number: 2299, state: "closed", delivered: false }], "the snapshot marks a blocker labelled as a maintainer request, with a closed one's state reason");
       assert.deepEqual([labelled("decision"), labelled("task"), labelled("decidedWithoutYou"), labelled("plain")].map(isRequest), [true, true, false, false], "a decision or task label marks a request; the decided-without-you label alone does not");
       const fallbackAt = "2026-11-13T17:37:00.000Z";
       const requestBody = `Body\n<!-- maintainer-request ${JSON.stringify({ kind: "decision", options: ["A", "B"], recommended: "A", fallback: { option: "B", at: fallbackAt }, blocks: [1107], owner: "orchestrate-issues #300", wentAhead: { option: "B", name: "Two", owner: "orchestrate-issues #300", at: "2026-11-13T17:40:00.000Z", fallbackAt } })} -->\n`;
@@ -1839,6 +1864,13 @@ try {
       const withdrawn = run.readRecord(f.file);
       run.triage(withdrawn, { filed: 3005, outcome: "needed", under: 300, reason: "the parent needs it", maintainerRequest: cacheKey({ state: "withdrawn" }) });
       assert.deepEqual(withdrawn.filed[3005].outcome.released, { request: 9305, state: "withdrawn" }, "a withdrawn request releases it too");
+      const reraise = (over) => run.triage(run.readRecord(f.file), { filed: 3005, outcome: "maintainer", question: "May the narrow fix merge?", slice: 3001, maintainerRequest: cacheKey(), ...over });
+      assert.throws(() => reraise({ slice: undefined }), /#3005 waits on the maintainer's answer in request #9305, holding #3001's PR; raising it again keeps that request and --slice 3001/, "raising it again without its slice would drop the slice's hold");
+      assert.throws(() => reraise({ slice: 3002 }), /keeps that request and --slice 3001/, "moving the hold to another slice is refused too");
+      assert.throws(() => reraise({ maintainerRequest: cacheKey({ number: 9307 }) }), /raising it again keeps that request.*Replace the request with asked/, "a new request goes through asked, which keeps the slice");
+      const reworded = run.readRecord(f.file);
+      run.triage(reworded, { filed: 3005, outcome: "maintainer", question: "May the narrow fix merge?", slice: 3001, maintainerRequest: cacheKey() });
+      assert.deepEqual([reworded.filed[3005].outcome.question, reworded.filed[3005].outcome.slice, reworded.filed[3005].outcome.maintainerRequest.number], ["May the narrow fix merge?", 3001, 9305], "rewording the question keeps the request and the hold");
     }
     assert.match(raised.reason, /raised with the maintainer: "Should the cache key change\?".*; maintainer request #9305 is open: the maintainer has not answered$/, "the plan names the filed request");
     assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002, 3005]);

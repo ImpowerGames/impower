@@ -9,7 +9,7 @@ import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
 import { readRepos } from "../../repos.mjs";
 import { requestFacts } from "../ask-maintainer/maintainer-request.mjs";
-import { branchTicket, heldRequest, launchDirOf, postedReviewRounds, readRecord, repositoriesOf, requestsTracker, startRepositories, updateRecord } from "./issue-run.mjs";
+import { branchTicket, heldRequest, releaseRaised, launchDirOf, postedReviewRounds, readRecord, repositoriesOf, requestsTracker, startRepositories, updateRecord } from "./issue-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
@@ -239,10 +239,13 @@ function checkAssessment(kind, a, evidence) {
 
 export function decide(record, { ticket: number, kind, assessment: a, inspected, evidence: e, maintainerRequest, now = new Date() }) {
   if (!KINDS.includes(kind)) throw new Error(`--kind must be one of ${KINDS.join(", ")}`);
-  if (kind !== "maintainer" && maintainerRequest !== undefined) throw new Error("--maintainer-request belongs to a decision of kind maintainer");
   const ticket = record.tickets[number];
   if (!ticket) throw new Error(`#${number} is not in the run record`);
   if (writersOf(ticket, number).includes(record.coordinator.session)) throw new Error(`${record.coordinator.session} wrote for #${number}, and is now its coordinator; a writer never decides its own review checkpoint`);
+  const prior = (ticket.checkpoints ?? []).filter((d) => d.state !== "abandoned").at(-1);
+  const held = prior?.kind === "maintainer" ? prior.maintainerRequest ?? null : null;
+  if (held && kind === "maintainer" && Number.isSafeInteger(maintainerRequest?.number) && maintainerRequest.number !== held.number) throw new Error(`Decision ${prior.id} waits on the maintainer's answer in request #${held.number}; a new decision of kind maintainer keeps that request, and another question waits until a decision of another kind has released it with its recorded answer or withdrawal`);
+  if (kind !== "maintainer" && !held && maintainerRequest !== undefined) throw new Error("--maintainer-request belongs to a decision of kind maintainer, or to the decision after one, which names that decision's request");
   const accepting = kind === "accept-unreviewed";
   if (e.completedRound < (accepting ? 1 : FIRST_CHECKPOINT_ROUND)) throw new Error(accepting ? `No review round is complete on PR #${e.pr}; an acceptance follows a completed round` : `No formal checkpoint before round ${FIRST_CHECKPOINT_ROUND}: round ${e.completedRound} is the last complete round, and the writer's ordinary review continues; only an acceptance of verified final corrections may be decided before it`);
   const due = e.due || (accepting && e.acceptanceDue);
@@ -251,6 +254,7 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
   const unsettled = earlier.find((d) => d.state === "intent");
   if (unsettled) throw new Error(`Decision ${unsettled.id} is not published; publish it and record published, or record abandon with evidence that it was never posted`);
   const previous = earlier.filter((d) => d.state !== "abandoned").at(-1);
+  const released = kind !== "maintainer" && held ? releaseRaised(held, maintainerRequest, number, `decide ${kind}`) : null;
   if (previous && previous.round > e.completedRound) throw new Error(`Decision ${previous.id} was made after round ${previous.round}, but the journals now show round ${e.completedRound}; a count never goes back`);
   checkAssessment(kind, a, e);
   const extra = {};
@@ -264,6 +268,7 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
   if (kind === "repair" && (!present(a.scope) || !present(a.verificationChange))) throw new Error("A root-cause repair records the scope it widens in scope and how verification changes in verificationChange");
   if (kind === "maintainer" && !present(a.question)) throw new Error("A maintainer decision records the question in question");
   if (kind === "maintainer") extra.maintainerRequest = heldRequest(record, maintainerRequest, number, { what: "A checkpoint decision of kind maintainer", kinds: ["decision"] });
+  if (released) extra.released = { request: released.request, state: released.state };
   if (kind === "accept-unreviewed") {
     if (!e.range || e.head === e.reviewedHead || !e.range.commits.length) throw new Error(`Nothing after ${e.reviewedHead} is unreviewed; finish through ordinary readiness instead`);
     if (!present(record.invocation?.text)) throw new Error("The run record holds no invocation to authorize an acceptance");

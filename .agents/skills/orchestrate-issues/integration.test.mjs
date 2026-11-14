@@ -726,7 +726,8 @@ try {
   };
   const hold = decide43("maintainer", { question: "Should the README keep main's line last?" }, { maintainerRequest: { number: 9043, url: "https://github.com/acme/widgets/issues/9043", title: "Should the README keep main's line last? (#43)", kind: "decision", owner: `orchestrate-issues #${ISSUE}`, tickets: [43], holding: 43, holds: true, state: "waiting" } });
   blocked(gate(43), new RegExp(`decision ${hold.id} \\(maintainer after round 3\\) is in force; the ticket waits for the maintainer's answer in maintainer request #9043 \\(https://github\\.com/acme/widgets/issues/9043\\)`), "a question to the maintainer holds a reviewed head, and the gate names the request");
-  decide43("finish");
+  blocked(gate(43), /in maintainer request #9043/, "still held before the answer");
+  decide43("finish", {}, { maintainerRequest: { number: 9043, url: "https://github.com/acme/widgets/issues/9043", title: "Should the README keep main's line last? (#43)", kind: "decision", question: "Should the README keep main's line last?", owner: `orchestrate-issues #${ISSUE}`, tickets: [43], state: "answered", answered: true, recorded: true, recommended: null, wentAhead: null, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: "https://github.com/acme/widgets/issues/9043#issuecomment-1", at: "2026-11-13T16:09:00Z", body: "Keep it last." }] } });
   setHead(43, h43c, passing().map((c) => (c.name === "hook-tests" ? { ...c, state: "FAILURE" } : c)));
   blocked(gate(43), /Hook Tests \/ hook-tests concluded FAILURE/, "a failed check that is not the required gate still refuses");
   setHead(43, h43c);
