@@ -99,8 +99,16 @@ export const MORPH_SPEECH_EXCLUDED_TIMING = {
   iterations: "speech decides how many plays there are",
 } as const;
 
+export const MORPH_SYNCS = ["none", "beep"] as const;
+
+export const MORPH_BEEP_EXCLUDED_TIMING = {
+  iteration_delay_min: "its character's beeps decide when its plays start",
+  iteration_delay_max: "its character's beeps decide when its plays start",
+} as const;
+
 export const MORPH_TIMING_FIELDS = [
   "trigger",
+  "sync",
   "duration",
   "delay",
   "easing",
@@ -187,6 +195,8 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
     "Apertures cut from the facing edges of `between` layers and applied to the `targets` layers.",
   trigger:
     "What starts the morph: `appear` (default) plays it on its own schedule from the moment its portrait appears; `speech` marks it as a speech morph, which never plays on its own schedule: in the preview, in play and in its still it shows its rest. A speech morph takes no `delay` or `iterations`.",
+  sync:
+    "When a speech morph's plays start: `none` (default) plays it again and again while its character speaks; `beep` starts a play on each of its character's voice beeps that finds no play in progress, so a beep that arrives during a play is skipped. A line spoken by a clip on the `voice` channel has no beeps, and its plays follow one another. Only a `trigger = speech` morph takes it. A morph with `sync = beep` takes no `iteration_delay_min` or `iteration_delay_max`.",
   duration: "Seconds one play lasts. Default 0.25.",
   delay: "Seconds before the first play. Default 0. Not allowed with `trigger = speech`.",
   easing:
@@ -194,9 +204,9 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   iterations: "How many plays: a whole number, or `infinite`. `0` disables playback. Default 1. Not allowed with `trigger = speech`.",
   direction: "`normal` (default), `reverse`, `alternate` or `alternate-reverse`.",
   iteration_delay_min:
-    "Shortest quiet time, in seconds, between the end of one play and the start of the next. Needs `iteration_delay_max`.",
+    "Shortest quiet time, in seconds, between the end of one play and the start of the next. Needs `iteration_delay_max`. Not allowed with `sync = beep`.",
   iteration_delay_max:
-    "Longest quiet time, in seconds, between plays. Each gap is drawn uniformly between the two bounds.",
+    "Longest quiet time, in seconds, between plays. Each gap is drawn uniformly between the two bounds. Not allowed with `sync = beep`.",
   offset: "Where this pose sits on the play, from 0 to 1.",
   state: "The attribute state this group shows at this pose, such as `closed` or `eyes.closed`.",
   translate: "Moves the layer by `x y`: lengths in `px`, the artwork's own units, or percentages of the layer's own box, such as `0 8px`. Default `0`.",

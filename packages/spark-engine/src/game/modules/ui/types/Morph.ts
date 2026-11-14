@@ -12,6 +12,7 @@ export interface MorphPolicy {
 
 export interface MorphTiming {
   trigger?: "appear" | "speech";
+  sync?: "none" | "beep";
   duration: number;
   delay: number;
   easing: string;

@@ -578,6 +578,7 @@ Timing is set in `timing { … }`. Every value is optional:
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `trigger` | `appear` | What starts the plays: `appear` when the portrait appears, `speech` while its character speaks ([Talking](#talking)). |
+| `sync` | `none` | On a speech morph, `beep` starts each play on one of the character's voice beeps ([Flapping on the beeps](#flapping-on-the-beeps)). |
 | `duration` | `0.25` | Seconds one play lasts. |
 | `delay` | `0` | Seconds before the first play only. Meanwhile the portrait shows the pose that play starts from. |
 | `iterations` | `1` | How many plays in all: a whole number, or `infinite`. `0` turns playback off, and the portrait shows the morph's rest. |
@@ -693,9 +694,10 @@ The first line flaps between `open` and `closed` and rests closed. The second fl
 
 - `duration`, `easing` and `direction` shape each play as on any morph, and `iteration_delay_min` and `iteration_delay_max` set the gap between plays, with no gap when they are absent.
 - `delay` and `iterations` are errors, on the field, since speech decides when the plays start and how many there are. A child morph that inherits either from its parent is reported where it names the parent.
+- `sync = beep` starts each play on a voice beep instead of playing again and again ([Flapping on the beeps](#flapping-on-the-beeps)). `sync = none`, the default, is written to switch a parent's `sync = beep` back. `sync` on a morph that is not a speech morph is an error on the field.
 - `when`, `unless` and `rest` work as on every morph ([Which portraits a morph plays on](#which-portraits-a-morph-plays-on), [Where a morph rests](#where-a-morph-rests)).
 
-Changing `trigger` changes only when the morph plays, so the portrait's movement is not prepared again.
+Changing `trigger` or `sync` changes only when the morph plays, so the portrait's movement is not prepared again.
 
 ### Who is speaking
 
@@ -716,7 +718,38 @@ Otherwise the mouth flaps while the line's voiced characters type: the character
 - A line with no voiced character, such as `. . .`, does not move the mouth. In `...AND THEN YOU DIE!` the mouth starts at the `A`.
 - Skipping the typing, so that the whole line shows at once, ends the speech.
 
-While speech lasts the morph plays again and again: each play takes `duration`, and the gap before the next is drawn between `iteration_delay_min` and `iteration_delay_max`. The first play starts as the speech starts. Between plays the mouth holds the pose the last play ended on. A play in progress always finishes, but none starts once the speech has stopped, so after the last letter, during a pause in the typing or after a skip the mouth finishes its flap and shows its rest.
+While speech lasts the morph plays again and again, unless it flaps on the beeps ([Flapping on the beeps](#flapping-on-the-beeps)): each play takes `duration`, and the gap before the next is drawn between `iteration_delay_min` and `iteration_delay_max`. The first play starts as the speech starts. Between plays the mouth holds the pose the last play ended on. A play in progress always finishes, but none starts once the speech has stopped, so after the last letter, during a pause in the typing or after a skip the mouth finishes its flap and shows its rest.
+
+### Flapping on the beeps
+
+A speech morph with `sync = beep` opens the mouth in time with the character's voice beeps instead of on its own rhythm:
+
+```sparkdown
+morph talk {
+  blend = cut
+
+  keyframes {
+    from { mouth { state = closed } }
+    50% { mouth { state = open } }
+    to { mouth { state = closed } }
+  }
+
+  timing {
+    trigger = speech
+    sync = beep
+    duration = 0.12
+  }
+}
+```
+
+- A play starts on a beep when no play of the morph is in progress on the portrait. A beep that arrives during a play is skipped, so the mouth always opens on a beep and never faster than its `duration`. With the default typewriter a beep falls about every 75 ms, so a `duration` of `0.16` opens the mouth on every third beep. To open it on more of them, shorten `duration` or raise the typewriter's `min_syllable_length`.
+- A beep at the moment a play ends starts the next play. The first play starts on the line's first beep, its first voiced letter. A play in progress always finishes, and none starts after the last beep or after a skip.
+- The beeps follow the typewriter: its `min_syllable_length`, its `letter_pause`, the text speed in force and its pauses. The morph has no speed of its own.
+- The beeps that count are the character's voice beeps, the ones the typewriter makes on a voiced syllable. They count whether or not they are heard, so a typewriter with no sound, muted audio and audio the browser has not allowed yet move the mouth the same. The ticks of a punctuated pause such as `. . .` are not speech and do not move it.
+- When the line's block plays a clip on the `voice` channel there are no beeps, and the morph's plays follow one another with no gap for as long as the clip is heard. A voice clip that cannot play counts as no clip, so the beeps move the mouth.
+- `iteration_delay_min` and `iteration_delay_max` are errors on the field, since the beeps decide when the plays start. A child morph that inherits either from a parent it makes beep-synced is reported where it names the parent.
+
+A project can keep both kinds and pick one per line: a `morph talk_beep as talk` whose `timing` sets `sync = beep`, beside a looping `talk` that sets no quiet time, and `[[raffles@confident morph talk_beep]]` on the lines that should flap on the beeps.
 
 ### Where the mouth rests
 

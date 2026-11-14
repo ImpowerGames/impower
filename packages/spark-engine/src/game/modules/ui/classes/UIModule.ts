@@ -1824,6 +1824,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const voiced = Boolean(speech?.voiced) && (!instant || speech === this._voicedSpeech);
     const spans = instant ? [] : (speech?.spans ?? []);
+    const beeps = instant ? undefined : speech?.beeps;
     const speaking = voiced || spans.length > 0;
     this._voicedSpeech = voiced ? speech : undefined;
     if (!speaking && !this._speaking) {
@@ -1834,6 +1835,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       SpeechMessage.type.notification({
         ...(speech?.character ? { character: speech.character } : {}),
         spans,
+        ...(beeps ? { beeps } : {}),
         ...(voiced ? { voiced: true as const } : {}),
         ...(voiced && instant ? { revealed: true as const } : {}),
         ...(time != null ? { time } : {}),
