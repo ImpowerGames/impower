@@ -89,8 +89,8 @@ export class MorphTimeline {
     this.beeps = this.timing.sync === "beep" && beeps ? beeps.filter(Number.isFinite).sort((a, b) => a - b) : undefined;
   }
 
-  protected nextStart(from: number): number | undefined {
-    if (this.beeps) return this.beeps.find((beep) => beep >= from - 1e-9);
+  protected nextStart(from: number, last: number | undefined): number | undefined {
+    if (this.beeps) return this.beeps.find((beep) => beep >= from - 1e-9 && (last === undefined || beep > last));
     const span = this.spans.find(([, end]) => end > from);
     return span && Math.max(from, span[0]);
   }
@@ -100,8 +100,8 @@ export class MorphTimeline {
     for (;;) {
       const last = this.starts[this.starts.length - 1];
       if (last !== undefined && last + this.duration > t) break;
-      const next = this.nextStart(last === undefined ? -Infinity : this.ready);
-      if (next === undefined || next > t) break;
+      const next = this.nextStart(last === undefined ? -Infinity : this.ready, last);
+      if (next === undefined || next > t || (last !== undefined && !(next > last))) break;
       this.starts.push(next);
       this.ready = next + this.duration + (this.beeps ? 0 : this.gapAfter());
     }

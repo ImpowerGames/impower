@@ -73,6 +73,20 @@ describe("a beep-synced speech morph's plays (#2261)", () => {
     expect(startsOf(timeline, 1)).toEqual([0, 0.16, 0.32, 0.48]);
   });
 
+  test("a play shorter than the beep tolerance never starts twice on one beep", () => {
+    const timeline = beepSynced({ duration: 0.0000000005 });
+    timeline.speak([[0, 0.5]], 0, [0, 0.075]);
+    expect(timeline.at(0.075)).toEqual({ phase: "playing", play: 1, offset: 0 });
+    expect(timeline.at(0.1)).toEqual({ phase: "between", play: 1, offset: 1 });
+    expect(timeline.at(1)).toEqual({ phase: "off" });
+  });
+
+  test("a play too short to move the clock past its own start ends the loop instead of repeating", () => {
+    const timeline = beepSynced({ sync: "none", duration: 1e-15 });
+    timeline.speak([[100, 101]], 0);
+    expect(timeline.at(100.5)).toEqual({ phase: "between", play: 0, offset: 1 });
+  });
+
   test("a `sync = none` speech morph loops inside the spans and ignores the beeps", () => {
     const timeline = beepSynced({ sync: "none" });
     timeline.speak([[0, 0.5]], 0, [0.1, 0.4]);
