@@ -58,7 +58,7 @@ The tool acts as its own GitHub App where the App's key is on the machine; elsew
 
 ## After filing
 
-Give the request's number and address wherever you would have raised the question, and carry on with the work it does not hold up. Never comment on, edit, close or reopen a request yourself; the tool marks its own comments so they are never taken for the maintainer's.
+Give the request's number and address wherever you would have raised the question, and carry on with the work it does not hold up. Never comment on, edit, close or reopen a request yourself; a [hook](references/guards.md) refuses it, and the tool marks its comments as its own.
 
 Closing is the answer: with a comment, the maintainer's words decide; with none, the recommendation is accepted; a comment without closing is a question, answered with `revise`. `record` the answer before acting on it, and never write that the maintainer decided anything it has not recorded. Read [answers](references/answers.md) before reading, recording, revising, withdrawing or waiting for a request, or relaying a chat answer.
 
