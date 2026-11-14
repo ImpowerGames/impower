@@ -866,10 +866,6 @@ export function maintainerRequest({ labels } = readRepos().maintainer) {
   return (issue) => labelNames(issue).some((name) => names.has(name));
 }
 
-export function requestKind({ labels } = readRepos().maintainer) {
-  return (issue) => (labelNames(issue).includes(labels.decision) ? "decision" : labelNames(issue).includes(labels.task) ? "task" : null);
-}
-
 export function wentAheadRequest({ labels } = readRepos().maintainer) {
   return (issue) => labelNames(issue).includes(labels.decidedWithoutYou);
 }
@@ -908,7 +904,6 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
   const mergedOnMain = (p) => Boolean(p.state === "MERGED" && p.mergeCommit?.oid && client.onMain(p.mergeCommit.oid));
   const delivered = (n) => pullsOf(n).some(mergedOnMain);
   const isRequest = maintainerRequest();
-  const kindOf = requestKind();
   const wentAhead = wentAheadRequest();
   const parent = client.issue(issue);
   const walked = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf });
@@ -925,7 +920,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     return {
       ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
-      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, kind: kindOf(b), ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
+      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });
@@ -1079,26 +1074,48 @@ export function remainingFor(record, complete) {
 const OPEN_OPERATION = new Set(["intent", "uncertain"]);
 export const DECIDERS = ["maintainer", "coordinator"];
 
+export const waitKey = (entry) => (entry.action === "await-maintainer" ? `pr:${entry.pr}` : `reason:${createHash("sha256").update(entry.reason).digest("hex").slice(0, 16)}`);
+const waitKind = (entry) => (entry.action === "await-maintainer" ? "task" : entry.action === "decision-needed" && entry.decides === "maintainer" ? "decision" : null);
+
 function askMaintainer(record, snapshot, tickets) {
   const byNumber = new Map(snapshot.tickets.map((t) => [t.number, t]));
-  const otherWaits = new Set(Object.values(record.tickets ?? {}).flatMap((t) => [...(t.requests ?? []).map((r) => r.relayed?.maintainerRequest?.number), ...(t.checkpoints ?? []).map((d) => d.maintainerRequest?.number)]).filter(Number.isSafeInteger));
   for (const entry of tickets) {
-    const kind = entry.action === "await-maintainer" ? "task" : entry.action === "decision-needed" && entry.decides === "maintainer" ? "decision" : null;
+    const triageRequest = entry.triageRequest;
+    delete entry.triageRequest;
+    const kind = waitKind(entry);
     if (!kind) continue;
-    const requests = (byNumber.get(entry.number)?.blockers ?? []).filter((b) => b.request && b.kind === kind && !otherWaits.has(b.number));
-    const filed = requests.filter((b) => b.state !== "closed");
-    const answered = requests.filter((b) => b.state === "closed").map((b) => b.number);
+    const key = waitKey(entry);
+    const asked = triageRequest ?? (record.tickets?.[entry.number]?.waits ?? []).filter((w) => w.key === key).at(-1)?.request ?? null;
     const what = kind === "task" ? `a maintainer task request asking the maintainer to merge PR #${entry.pr}` : "a maintainer decision request asking the question this reason raises";
-    if (!filed.length) {
-      entry.maintainerRequest = { file: kind, ...(entry.pr && kind === "task" && { pr: entry.pr }), ...(answered.length && { answered }) };
-      entry.reason += `; no open maintainer ${kind} request holds it: ${fileRequest(record, entry.number, kind)} (${what}), and the plan names it here once filed${answered.length ? `; closed maintainer ${kind} request${answered.length > 1 ? "s" : ""} ${answered.map((n) => `#${n}`).join(", ")} also block${answered.length > 1 ? "" : "s"} it: if one answered this, record its answer and act on it instead of filing` : ""}`;
+    const fileIt = `${fileRequest(record, entry.number, kind)} (${what}), then record it with issue-run.mjs asked --plan <this plan> --ticket ${entry.number} --maintainer-request <its number>, and the plan names it here`;
+    if (!asked) {
+      entry.maintainerRequest = { file: kind, key, ...(kind === "task" && { pr: entry.pr }) };
+      entry.reason += `; the maintainer has no request for it yet: ${fileIt}`;
       continue;
     }
-    const stateOf = (b) => (b.wentAhead ? "went ahead without the maintainer: act on its fallback, and record their answer once they keep or change it" : "is open: the maintainer has not answered");
-    entry.maintainerRequest = { filed: filed.map((b) => ({ number: b.number, state: b.state, ...(b.wentAhead && { wentAhead: true }) })) };
-    entry.reason += `; ${filed.map((b) => `maintainer request #${b.number} ${stateOf(b)}`).join("; ")}`;
+    const blocker = (byNumber.get(entry.number)?.blockers ?? []).find((b) => b.request && b.number === asked.number);
+    if (!blocker) {
+      entry.maintainerRequest = { file: kind, key, ...(kind === "task" && { pr: entry.pr }), unlinked: asked.number };
+      entry.reason += `; its maintainer request #${asked.number} no longer blocks it on GitHub, so it holds nothing: ${fileIt}`;
+      continue;
+    }
+    const state = blocker.state === "closed" ? "is closed: read and record its answer, then act on it" : blocker.wentAhead ? "went ahead without the maintainer: act on its fallback, and record their answer once they keep or change it" : "is open: the maintainer has not answered";
+    entry.maintainerRequest = { filed: { number: asked.number, state: blocker.state, ...(blocker.wentAhead && { wentAhead: true }) } };
+    entry.reason += `; maintainer request #${asked.number} ${state}`;
   }
 }
+
+export function asked(record, { plan: planFile, ticket: number, maintainerRequest }) {
+  const entry = planEntry(readPlan(planFile, record), number, ["decision-needed", "await-maintainer"]);
+  const kind = entry.maintainerRequest?.file;
+  if (!kind) throw new Error(`The plan does not ask for a maintainer request for #${number}${entry.maintainerRequest?.filed ? `: it already waits on #${entry.maintainerRequest.filed.number}` : ""}`);
+  const filed = heldRequest(record, maintainerRequest, number, { what: `Recording the request #${number}'s ${entry.action} entry waits on`, kinds: [kind] });
+  const ticket = ticketOf(record, number);
+  (ticket.waits ??= []).push({ key: entry.maintainerRequest.key, action: entry.action, ...(entry.maintainerRequest.pr && { pr: entry.maintainerRequest.pr }), request: filed, time: new Date().toISOString() });
+  log(record, "asked", { ticket: number, key: entry.maintainerRequest.key, maintainerRequest: filed.number });
+  return { request: filed.number };
+}
+
 function readyAction(record, pr, why = "") {
   const op = (record.operations ?? []).find((o) => o.pr === pr.number && o.kind !== "close" && OPEN_OPERATION.has(o.state));
   if (op) return ["reconcile-pending", `${op.kind} ${op.id} of PR #${pr.number} at ${op.expectHead} is ${op.state}; settle it with checkpoint.mjs reconcile-operations from a fresh snapshot before any retry`];
@@ -1197,7 +1214,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   const blockedDelivery = (n) => blockedDeliverers.get(n) ?? null;
   const triageHold = (t) => {
     const triaged = record.filed?.[t.number]?.outcome;
-    if (triaged?.kind === "maintainer") return { action: "decision-needed", decides: "maintainer", reason: `filed during the run and raised with the maintainer: "${triaged.question}"; no writer starts on it until their answer is recorded with triage or interim` };
+    if (triaged?.kind === "maintainer") return { action: "decision-needed", decides: "maintainer", ...(triaged.maintainerRequest && { triageRequest: triaged.maintainerRequest }), reason: `filed during the run and raised with the maintainer: "${triaged.question}"; no writer starts on it until their answer is recorded with triage or interim` };
     if (triaged?.kind !== "completes") return null;
     const fixOf = snapshot.tickets.find((x) => x.number === triaged.slice);
     if (!fixOf) return { action: "decision-needed", decides: "coordinator", reason: `it completes #${triaged.slice}'s fix (${triaged.reason}), but #${triaged.slice} is not in the parent's tree, so whether its PR made the proper fix is unknown; re-triage the ticket or restore #${triaged.slice}` };
@@ -1337,7 +1354,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (!t.effort) { add(t, "assign-effort", "the ticket has no Effort value: estimate one, publish and read it back through the issue-fields procedure, then snapshot and plan again"); continue; }
     if (!writerEffortOf(t.effort)) { add(t, "decision-needed", `Effort ${t.effort} has no writer effort`, { decides: "maintainer" }); continue; }
     const hold = triageHold(t);
-    if (hold) { add(t, hold.action, hold.reason, { ...(hold.decides && { decides: hold.decides }), ...(hold.waitingFor && { waitingFor: hold.waitingFor }) }); continue; }
+    if (hold) { add(t, hold.action, hold.reason, { ...(hold.decides && { decides: hold.decides }), ...(hold.triageRequest && { triageRequest: hold.triageRequest }), ...(hold.waitingFor && { waitingFor: hold.waitingFor }) }); continue; }
     const waiting = undelivered(t);
     if (waiting.length) { add(t, "wait-dependency", waitingFor(waiting), { waitingFor: waiting.map((b) => b.number) }); continue; }
     const held = heldAncestor(t);
@@ -2372,6 +2389,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry) }));
     case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
     case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
+    case "asked": { const filed = oneRequest(number()); return mutate((r) => asked(r, { plan: absolute(o.plan, "plan"), ticket: number(), maintainerRequest: filed })); }
     case "relay": { const filed = oneRequest(number()); return mutate((r) => relay(r, { ticket: number(), request: o.request, to: o.to, maintainerRequest: filed })); }
     case "answer": { const filed = oneRequest(); return mutate((r) => answer(r, { ticket: number(), request: o.request, text: o.text, retry: Boolean(o.retry), maintainerRequest: filed })); }
     case "answered": return mutate((r) => answered(r, { ticket: number(), request: o.request, evidence: o.evidence }));
@@ -2400,7 +2418,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
       return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), requestsOf(), defaults);
     }
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
-    default: throw new Error("Usage: issue-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|clean-artifacts|filed|dismiss|triage|interim|brief|recover-lock --option value ...");
+    default: throw new Error("Usage: issue-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|asked|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|clean-artifacts|filed|dismiss|triage|interim|brief|recover-lock --option value ...");
   }
 }
 

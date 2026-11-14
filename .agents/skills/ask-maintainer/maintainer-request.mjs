@@ -879,12 +879,7 @@ export function formatList(groups, { now = new Date(), timeZone = Intl.DateTimeF
 
 export function listRequests(tracker, repos = readRepos(), { owner = null } = {}) {
   const { decision, task, decidedWithoutYou } = repos.maintainer.labels;
-  const ownerOf = (issue) => {
-    const own = readDataLine(issue.body);
-    if (own && !own.tagged) return own.owner ?? null;
-    const tag = tracker.comments(issue.number).find((comment) => commentAuthor(comment, whoOf(repos)) !== "other" && readDataLine(comment.body)?.tagged);
-    return tag ? readDataLine(tag.body).owner ?? null : null;
-  };
+  const ownerOf = (issue) => findRequestData(issue, () => tracker.comments(issue.number), whoOf(repos))?.data.owner ?? null;
   const owned = (list) => (owner === null ? list : list.filter((issue) => ownerOf(issue) === owner));
   const wentAhead = owned(tracker.open(decidedWithoutYou)).filter((issue) => fallbackCommitted(issue, tracker.timeline(issue.number), repos));
   return groupRequests({ decisions: owned(tracker.open(decision)), tasks: owned(tracker.open(task)), decidedWithoutYou: wentAhead });
@@ -896,12 +891,17 @@ export const stamp = (iso) => `${new Date(iso).toISOString().slice(0, 16).replac
 export const quote = (text) => lf(text).split("\n").map((line) => (line ? `> ${line}` : ">")).join("\n");
 export const unquote = (text) => lf(text).split("\n").map((line) => (line === ">" ? "" : line.replace(/^> /, ""))).join("\n");
 
-function requestData(issue, comments, who) {
-  if (issue.pull_request) throw new RequestRefused([`#${issue.number} is a pull request, not a maintainer request`]);
+function findRequestData(issue, comments, who) {
   const own = readDataLine(issue.body);
   if (own && !own.tagged) return { data: own, body: lf(issue.body), floor: null };
-  const tag = comments.find((comment) => commentAuthor(comment, who) !== "other" && readDataLine(comment.body)?.tagged);
-  if (tag) return { data: readDataLine(tag.body), body: lf(tag.body), floor: tag };
+  const tag = comments().find((comment) => commentAuthor(comment, who) !== "other" && readDataLine(comment.body)?.tagged);
+  return tag ? { data: readDataLine(tag.body), body: lf(tag.body), floor: tag } : null;
+}
+
+function requestData(issue, comments, who) {
+  if (issue.pull_request) throw new RequestRefused([`#${issue.number} is a pull request, not a maintainer request`]);
+  const found = findRequestData(issue, () => comments, who);
+  if (found) return found;
   throw new RequestRefused([`#${issue.number} is not a maintainer request: neither its body nor a task comment holds the request's data line`]);
 }
 
