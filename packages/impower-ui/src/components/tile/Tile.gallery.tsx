@@ -7,9 +7,34 @@ import { SAMPLE_PICTURE } from "../thumbnail/Thumbnail.gallery";
 import Thumbnail from "../thumbnail/Thumbnail";
 import VariantsBadge from "../variants-badge/VariantsBadge";
 import VirtualList from "../virtual-list/VirtualList";
-import Tile, { TILE_GAP, TILE_MIN_WIDTH, tileHeight, type TileShape } from "./Tile";
+import Tile, { TILE_GAP, TILE_MEDIA_FIT, TILE_MIN_WIDTH, tileHeight, type TileShape } from "./Tile";
 
 const SHAPES: TileShape[] = ["landscape", "portrait"];
+
+const picture = (width: number, height: number, body: string) =>
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${body}</svg>`,
+  );
+
+const TALL_FIGURE = picture(
+  60,
+  150,
+  '<circle cx="30" cy="18" r="14" fill="#c98b5e"/><rect x="12" y="34" width="36" height="58" rx="8" fill="#e8e1cf"/><rect x="14" y="92" width="14" height="58" fill="#5a6f8a"/><rect x="32" y="92" width="14" height="58" fill="#5a6f8a"/>',
+);
+
+const VERY_WIDE = picture(
+  400,
+  100,
+  '<rect width="400" height="100" fill="#6b8f4f"/><circle cx="40" cy="50" r="30" fill="#f2c26b"/><circle cx="360" cy="50" r="30" fill="#c0504d"/>',
+);
+
+const FIT_SAMPLES = [
+  { name: "Lineups", src: VERY_WIDE },
+  { name: "wide", src: SAMPLE_PICTURE },
+  { name: "tall", src: TALL_FIGURE },
+  { name: "very_wide", src: VERY_WIDE },
+];
 
 const ITEMS = Array.from({ length: 200 }, (_, i) => i);
 
@@ -78,6 +103,34 @@ function TileDemo() {
         </GalleryRow>
       ))}
       {SHAPES.map((shape) => (
+        <GalleryRow
+          key={`fit-${shape}`}
+          label={`${shape}: TILE_MEDIA_FIT with a one-picture folder cover, a wide picture, a tall figure and a very wide picture`}
+        >
+          <div class="grid grid-cols-4 gap-3">
+            {FIT_SAMPLES.map((sample, index) => (
+              <div key={sample.name} style={{ height: `${tileHeight(shape, 176)}px` }}>
+                <Tile
+                  shape={shape}
+                  kind={index === 0 ? "folder" : "file"}
+                  media={
+                    index === 0 ? (
+                      <FolderCover fit={TILE_MEDIA_FIT[shape]} sources={[sample.src]} />
+                    ) : (
+                      <Thumbnail size="fill" fit={TILE_MEDIA_FIT[shape]} src={sample.src} />
+                    )
+                  }
+                  label={sample.name}
+                  description={index === 0 ? "1 image" : "Modified 2d · 40 kb"}
+                  aria-label={`Open ${sample.name}`}
+                  onClick={() => {}}
+                />
+              </div>
+            ))}
+          </div>
+        </GalleryRow>
+      ))}
+      {SHAPES.map((shape) => (
         <GalleryRow key={`select-${shape}`} label={`${shape}: the selection mark on hover, while selecting, when selected, and a folder as a drop target`}>
           <SelectionDemo shape={shape} />
         </GalleryRow>
@@ -106,6 +159,6 @@ function TileDemo() {
 
 export const tileGallery: GalleryEntry = {
   title: "Tile",
-  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileActionsVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileHeight", "TILE_GAP", "TILE_MIN_WIDTH"],
+  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileActionsVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileHeight", "TILE_GAP", "TILE_MEDIA_FIT", "TILE_MIN_WIDTH"],
   Demo: TileDemo,
 };

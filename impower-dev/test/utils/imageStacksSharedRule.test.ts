@@ -68,7 +68,7 @@ describe("the Assets page groups image files by the compiler's file-name rule", 
     const ava = stacks.find((stack) => stack.name === "ava")!;
     expect(ava.pictures.map((picture) => picture.alternate)).toEqual([null, "night"]);
     expect(ava.pictures[0]!.groups).toEqual([
-      { name: "hat", options: ["on", "off"], switch: true },
+      { name: "hat", options: ["off", "on"], switch: true },
       { name: "face", options: ["happy", "sad"], switch: false },
       { name: "mouth", options: ["closed", "open"], switch: false, default: "closed" },
     ]);

@@ -20,6 +20,7 @@ import {
   MORPH_PAINT_FIELDS,
   MORPH_POLICY_FIELDS,
   MORPH_ROOT_FIELDS,
+  MORPH_SYNCS,
   MORPH_TIMING_FIELDS,
   MORPH_TRIGGERS,
   MORPH_DEFAULT_VALUES,
@@ -46,6 +47,7 @@ const VALUE_CHOICES: Record<string, readonly string[]> = {
   easing: MORPH_EASING_KEYWORDS,
   iterations: ["infinite"],
   trigger: MORPH_TRIGGERS,
+  sync: MORPH_SYNCS,
   default: MORPH_DEFAULT_VALUES,
 };
 

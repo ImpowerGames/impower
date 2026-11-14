@@ -89,6 +89,7 @@ describe("morph completion in brace bodies", () => {
   test("timing fields and values", () => {
     const fields = [
       "trigger",
+      "sync",
       "duration",
       "delay",
       "easing",
@@ -137,6 +138,12 @@ describe("morph completion in brace bodies", () => {
 }
 `),
     ).toEqual(["infinite"]);
+    expect(
+      labelsAt(`morph talk {
+  timing { sync = | }
+}
+`),
+    ).toEqual(["none", "beep"]);
   });
 
   test("`trigger` offers `appear` and `speech`, each documented with what it does", () => {

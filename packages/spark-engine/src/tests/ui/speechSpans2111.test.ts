@@ -195,7 +195,7 @@ describe("the speech the page receives with a beat (#2111)", () => {
     const text = written();
     expect(text?.params.time).toBeDefined();
     expect(sent().map((message) => message.params)).toEqual([
-      { character: "mia", spans: beat.speech!.spans, time: text.params.time },
+      { character: "mia", spans: beat.speech!.spans, beeps: beat.speech!.beeps, time: text.params.time },
     ]);
     coordinator.onMessage(pointerDown);
     coordinator.onUpdate(tick());

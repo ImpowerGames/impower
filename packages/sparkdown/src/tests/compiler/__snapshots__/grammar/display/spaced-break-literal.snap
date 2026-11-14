@@ -144,22 +144,26 @@ sparkdown [0..186]
  │   │       │       │   │   ├─ ImageCommand_content [67..73]
  │   │       │       │   │   │   └─ ImageCommandContent [67..73]
  │   │       │       │   │   │       └─ ImageCommandContent_c1 [67..73]
- │   │       │       │   │   │           └─ AssetCommandContent [67..73]
- │   │       │       │   │   │               ├─ AssetCommandContent_c1 [67..73]
- │   │       │       │   │   │               │   └─ AssetCommandInstruction [67..73]
- │   │       │       │   │   │               │       ├─ AssetCommandInstruction_c1 67
- │   │       │       │   │   │               │       ├─ AssetCommandInstruction_c2 67
- │   │       │       │   │   │               │       ├─ AssetCommandInstruction_c3 67
- │   │       │       │   │   │               │       ├─ AssetCommandInstruction_c4 67
- │   │       │       │   │   │               │       └─ AssetCommandInstruction_c5 [67..73]
- │   │       │       │   │   │               │           └─ AssetCommandName [67..73]
- │   │       │       │   │   │               │               └─ AssetCommandName_c1 [67..73]
- │   │       │       │   │   │               │                   ├─ AssetCommandFileName [67..69]: "cg"
- │   │       │       │   │   │               │                   ├─ RequiredWhitespace [69..70]: " "
- │   │       │       │   │   │               │                   ├─ IllegalChar [70..71]: ">"
- │   │       │       │   │   │               │                   ├─ RequiredWhitespace [71..72]: " "
- │   │       │       │   │   │               │                   └─ AssetCommandFileName [72..73]: "x"
- │   │       │       │   │   │               └─ AssetCommandContent_c2 73
+ │   │       │       │   │   │           └─ AssetCommandNamesFirst [67..73]
+ │   │       │       │   │   │               ├─ AssetCommandNamesFirst_c1 [67..73]
+ │   │       │       │   │   │               │   ├─ AssetCommandName [67..69]
+ │   │       │       │   │   │               │   │   └─ AssetCommandName_c1 [67..69]
+ │   │       │       │   │   │               │   │       └─ AssetCommandFileName [67..69]: "cg"
+ │   │       │       │   │   │               │   ├─ AssetCommandSeparator [69..70]
+ │   │       │       │   │   │               │   │   └─ AssetCommandSeparator_c1 [69..70]
+ │   │       │       │   │   │               │   │       └─ RequiredWhitespace [69..70]: " "
+ │   │       │       │   │   │               │   ├─ AssetCommandName [70..71]
+ │   │       │       │   │   │               │   │   └─ AssetCommandName_c1 [70..71]
+ │   │       │       │   │   │               │   │       └─ IllegalChar [70..71]: ">"
+ │   │       │       │   │   │               │   ├─ AssetCommandSeparator [71..72]
+ │   │       │       │   │   │               │   │   └─ AssetCommandSeparator_c1 [71..72]
+ │   │       │       │   │   │               │   │       └─ RequiredWhitespace [71..72]: " "
+ │   │       │       │   │   │               │   └─ AssetCommandName [72..73]
+ │   │       │       │   │   │               │       └─ AssetCommandName_c1 [72..73]
+ │   │       │       │   │   │               │           └─ AssetCommandFileName [72..73]: "x"
+ │   │       │       │   │   │               ├─ AssetCommandNamesFirst_c2 73
+ │   │       │       │   │   │               ├─ AssetCommandNamesFirst_c3 73
+ │   │       │       │   │   │               └─ AssetCommandNamesFirst_c4 73
  │   │       │       │   │   └─ ImageCommand_end [73..75]
  │   │       │       │   │       ├─ ImageCommand_end_c1 73
  │   │       │       │   │       ├─ ImageCommand_end_c2 [73..75]

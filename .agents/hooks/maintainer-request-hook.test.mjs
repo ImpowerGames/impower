@@ -255,6 +255,9 @@ for (const [harness, run] of runs) {
     `curl https://example.test/ping --next -d '{"body":"The maintainer approved the layout."}' https://api.github.com/repos/${repo}/issues/${OTHER}/comments`,
     `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method:Post -Body:'{"body":"The maintainer approved the layout."}'`,
   ]) assert.match(run(command, bodyDir) ?? "", /does not model/, `${harness}: ${command} is refused as unmodelled before its text is read`);
+  noteRequests(repo, [{ number: 3002, kind: "decision", state: "kept" }, { number: 3003, kind: "decision", state: "went-ahead" }]);
+  assert.equal(run(`gh issue comment ${OTHER} -R ${repo} --body "The maintainer accepted the fallback (#3002)."`, bodyDir), null, `${harness}: a request whose fallback the maintainer kept is an answered citation`);
+  assert.match(run(`gh issue comment ${OTHER} -R ${repo} --body "The maintainer accepted the fallback (#3003)."`, bodyDir) ?? "", /#3003 as went-ahead/, `${harness}: a fallback the maintainer has not reviewed is no citation`);
   const queryOnly = file("query-only.json", JSON.stringify({ body: "The maintainer approved it." }));
   assert.match(run(`gh api -X POST repos/${repo}/issues/${OTHER}/comments --input ${queryOnly} -f title=#${ANSWERED}`, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: a citation in a query-only field does not cover an --input body`);
   for (const command of [

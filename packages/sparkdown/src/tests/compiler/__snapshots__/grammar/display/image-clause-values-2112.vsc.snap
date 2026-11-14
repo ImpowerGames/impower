@@ -147,9 +147,9 @@ text.source.sparkdown [0..413]
  ├─ meta.image.sd [304..329]
  │   ├─ keyword.operator.expression.begin.image.sd [304..306]: "[["
  │   ├─ variable.other.constant.asset.file.sd [306..309]: "mia"
- │   ├─ punctuation.whitespace.required.sd [309..310]: " "
- │   ├─ comment.line.sd [310..327]
- │   │   └─ entity.tag.sd [310..327]
+ │   ├─ comment.line.sd [309..327]
+ │   │   └─ entity.tag.sd [309..327]
+ │   │       ├─ punctuation.whitespace.required.sd [309..310]: " "
  │   │       └─ comment.line.sd [310..327]
  │   │           └─ entity.tag.sd [310..327]
  │   │               ├─ punctuation.definition.comment.sd [310..311]

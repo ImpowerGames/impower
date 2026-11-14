@@ -25,6 +25,7 @@ export interface DisplayPreviewResult {
   ending?: GameEnding;
   playing?: boolean;
   beatRefusal?: string;
+  shownAddress?: number;
 }
 
 export class DisplayPreviewMessage {

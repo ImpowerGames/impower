@@ -146,7 +146,7 @@ export class MorphPlayback {
 
   protected layers = new Set<MorphLayer>();
   protected occurrences = new Map<string, Occurrence>();
-  protected speech?: { character?: string; spans: [number, number][] };
+  protected speech?: { character?: string; spans: [number, number][]; beeps?: number[] };
   protected resizeObserver?: ResizeObserver;
 
   constructor(
@@ -247,10 +247,11 @@ export class MorphPlayback {
     this.schedule();
   }
 
-  speak(character: string | undefined, spans: readonly (readonly [number, number])[]) {
+  speak(character: string | undefined, spans: readonly (readonly [number, number])[], beeps?: readonly number[]) {
     this.speech = {
       ...(character ? { character } : {}),
       spans: spans.map(([start, end]): [number, number] => [this.time + start, this.time + end]),
+      ...(beeps ? { beeps: beeps.map((beep) => this.time + beep) } : {}),
     };
     for (const occurrence of this.occurrences.values()) this.hear(occurrence);
     this.render();
@@ -259,11 +260,12 @@ export class MorphPlayback {
   protected hear(occurrence: Occurrence) {
     if (occurrence.timing.trigger !== "speech") return;
     const speech = this.speech;
-    const spans =
-      speech && occurrence.owner && occurrence.owner === speech.character
-        ? speech.spans.map(([start, end]): [number, number] => [start - occurrence.start, end - occurrence.start])
-        : [];
-    occurrence.timeline.speak(spans, this.time - occurrence.start);
+    const heard = speech && occurrence.owner && occurrence.owner === speech.character ? speech : undefined;
+    occurrence.timeline.speak(
+      heard?.spans.map(([start, end]): [number, number] => [start - occurrence.start, end - occurrence.start]) ?? [],
+      this.time - occurrence.start,
+      heard?.beeps?.map((beep) => beep - occurrence.start),
+    );
   }
 
   advance(seconds: number) {

@@ -1604,6 +1604,7 @@ export class InterpreterModule extends Module<
       { time?: number; speed?: number; bend?: number }[]
     > = {};
     const spans: [number, number][] = [];
+    const beeps: number[] = [];
     const speaker = options?.spoken ? character : undefined;
     let voiced = false;
     for (const phrase of allPhrases) {
@@ -1896,6 +1897,9 @@ export class InterpreterModule extends Module<
                 speed: c.speed ?? 1,
                 bend: c.pitch ?? 0,
               });
+              if (speaker) {
+                beeps.push(time);
+              }
             }
           }
 
@@ -1920,7 +1924,7 @@ export class InterpreterModule extends Module<
     }
 
     if (speaker && (spans.length > 0 || voiced)) {
-      result.speech = { character: speaker, spans, ...(voiced ? { voiced } : {}) };
+      result.speech = { character: speaker, spans, ...(beeps.length > 0 ? { beeps } : {}), ...(voiced ? { voiced } : {}) };
     }
 
     result.end = time;

@@ -25,6 +25,7 @@ export interface BeatSpeaker {
 export interface BeatSpeech {
   character: string;
   spans: [number, number][];
+  beeps?: number[];
   voiced?: true;
 }
 

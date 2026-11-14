@@ -13,7 +13,7 @@ export const SAMPLE_PICTURE =
   );
 
 const SIZES: Record<ThumbnailSize, string> = { row: "Row", card: "Card", fill: "Fill" };
-const FITS: ThumbnailFit[] = ["cover", "contain", "top"];
+const FITS: ThumbnailFit[] = ["cover", "contain", "top", "height"];
 
 function ThumbnailDemo() {
   return (

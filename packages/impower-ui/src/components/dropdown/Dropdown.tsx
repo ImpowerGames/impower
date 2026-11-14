@@ -365,18 +365,20 @@ export function DropdownItem({
 export function DropdownCheckboxItem({
   class: className,
   checked,
+  disabled,
   onCheckedChange,
   children,
   ...rest
 }: {
   class?: string;
   checked?: boolean;
+  disabled?: boolean;
   onCheckedChange?: (checked: boolean) => void;
   onSelect?: (event: Event) => void;
   children?: ComponentChildren;
 } & Omit<
   JSX.HTMLAttributes<HTMLDivElement>,
-  "class" | "checked" | "onChange" | "onSelect"
+  "class" | "checked" | "disabled" | "onChange" | "onSelect"
 >) {
   const ctx = useMenuCtx();
   if (ctx.mode === "sheet") {
@@ -385,6 +387,7 @@ export function DropdownCheckboxItem({
         type="button"
         role="menuitemcheckbox"
         aria-checked={checked}
+        disabled={disabled}
         class={cn(dropdownItem(), className)}
         onClick={() => onCheckedChange?.(!checked)}
       >
@@ -395,6 +398,7 @@ export function DropdownCheckboxItem({
   return (
     <DropdownMenuPrimitive.CheckboxItem
       checked={checked}
+      disabled={disabled}
       onCheckedChange={onCheckedChange}
       class={cn(dropdownItem(), className)}
       {...rest}

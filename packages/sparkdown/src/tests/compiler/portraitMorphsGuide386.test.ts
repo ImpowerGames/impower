@@ -133,6 +133,19 @@ describe("the talking section of the portrait morphs guide chapter", () => {
     expect(messages(text.replace("morph talk_gritted]]", "morph talk_smile]]"))).toEqual([expect.stringContaining("`talk_smile` plays on no image in this directive")]);
     expect(messages(text.replace("  default = true\n", ""))).toContainEqual(expect.stringContaining("none is marked `default = true`"));
   });
+
+  test("the beep-synced example compiles, and the rules it states are the rules the compiler reports", () => {
+    const beep = examples().find((text) => text.includes("sync = beep"))!;
+    expect(chapter()).toMatch(/\| `sync` \| `none` \|/);
+    expect(talking()).toContain("### Flapping on the beeps");
+    expect(diagnosticsOf(beep)).toEqual([]);
+    const messages = (source: string) => diagnosticsOf(source).filter((d) => d.severity === 1).map((d) => d.message);
+    expect(messages(beep.replace("    duration = 0.12", "    duration = 0.12\n    iteration_delay_min = 0\n    iteration_delay_max = 0.08"))).toEqual([
+      expect.stringContaining("`iteration_delay_min` does not apply to a morph with `sync = beep`"),
+      expect.stringContaining("`iteration_delay_max` does not apply to a morph with `sync = beep`"),
+    ]);
+    expect(messages(beep.replace("    trigger = speech\n", ""))).toEqual([expect.stringContaining("`sync` applies only to a speech morph")]);
+  });
 });
 
 describe("the portrait morphs guide chapter", () => {

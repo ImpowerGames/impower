@@ -2,8 +2,8 @@ import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, wri
 import os from "node:os";
 import path from "node:path";
 
-export const ANSWERED_STATES = Object.freeze(["answered", "accepted", "done", "will-not-do"]);
-const OPEN_STATES = new Set(["open", "waiting", "question"]);
+export const ANSWERED_STATES = Object.freeze(["answered", "accepted", "done", "will-not-do", "kept", "changed"]);
+const OPEN_STATES = new Set(["open", "waiting", "question", "went-ahead"]);
 const CLOSED_STATES = new Set(["closed", "withdrawn", "unclear", ...ANSWERED_STATES]);
 const STATES = new Set([...OPEN_STATES, ...CLOSED_STATES]);
 

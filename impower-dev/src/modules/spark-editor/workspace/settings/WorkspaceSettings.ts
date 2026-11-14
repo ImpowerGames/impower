@@ -22,9 +22,12 @@ import {
   buildConfiguration,
   isValidSetting,
   PREFERENCES_SCHEMA,
+  previewMotionOf,
   PROJECT_SETTINGS_SCHEMA,
+  REDUCED_MOTION_QUERY,
   resolveSettings,
   type PreferenceKey,
+  type PreviewMotion,
   type Preferences,
   type ProjectSettingKey,
   type ProjectSettings,
@@ -99,6 +102,18 @@ export class WorkspaceSettings {
     this._prefersLight.value = e.matches;
   };
 
+  protected readonly _reducedMotionQuery: MediaQueryList | undefined;
+
+  protected readonly _reducedMotion;
+
+  protected readonly _onReducedMotionChange = (e: MediaQueryListEvent) => {
+    this._reducedMotion.value = e.matches;
+  };
+
+  readonly reducedMotion: ReadonlySignal<boolean>;
+
+  readonly previewMotion: ReadonlySignal<PreviewMotion>;
+
   readonly preferences: ReadonlySignal<Preferences>;
 
   readonly projectSettings: ReadonlySignal<ProjectSettings>;
@@ -121,11 +136,18 @@ export class WorkspaceSettings {
     lightScheme: MediaQueryList | undefined = typeof matchMedia === "function"
       ? matchMedia(LIGHT_SCHEME_QUERY)
       : undefined,
+    reducedMotion: MediaQueryList | undefined = typeof matchMedia === "function"
+      ? matchMedia(REDUCED_MOTION_QUERY)
+      : undefined,
   ) {
     this._storage = storage;
     this._lightScheme = lightScheme;
     this._prefersLight = signal(lightScheme?.matches ?? false);
     lightScheme?.addEventListener("change", this._onSchemeChange);
+    this._reducedMotionQuery = reducedMotion;
+    this._reducedMotion = signal(reducedMotion?.matches ?? false);
+    reducedMotion?.addEventListener("change", this._onReducedMotionChange);
+    this.reducedMotion = this._reducedMotion;
     this._storedPreferences = signal<StoredSettings>(
       readStored(storage, PREFERENCES_STORAGE_KEY),
     );
@@ -139,6 +161,9 @@ export class WorkspaceSettings {
     );
     this.projectSettings = computed(() =>
       resolveSettings(PROJECT_SETTINGS_SCHEMA, this._storedProject.value.stored),
+    );
+    this.previewMotion = computed(() =>
+      previewMotionOf(this.preferences.value, this._reducedMotion.value),
     );
     this.configuration = computed(() =>
       buildConfiguration(this.preferences.value, this.projectSettings.value),
@@ -188,6 +213,10 @@ export class WorkspaceSettings {
   dispose() {
     this._disposeProjectEffect();
     this._lightScheme?.removeEventListener("change", this._onSchemeChange);
+    this._reducedMotionQuery?.removeEventListener(
+      "change",
+      this._onReducedMotionChange,
+    );
     this._listeners.clear();
   }
 

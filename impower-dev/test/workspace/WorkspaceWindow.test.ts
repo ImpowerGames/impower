@@ -3230,11 +3230,12 @@ describe("The preview's top bar", () => {
       ]);
     expect(names()).toEqual([
       ["Game preview follows cursor", "true"],
+      ["Auto-play beats", "false"],
       ["Show idle animations", "true"],
       ["Color typing pauses", "false"],
     ]);
-    rows("menuitemcheckbox")[1]!.click();
     rows("menuitemcheckbox")[2]!.click();
+    rows("menuitemcheckbox")[3]!.click();
     rows("menuitemcheckbox")[0]!.click();
     expect(workspaceSettings.preferences.value).toMatchObject({
       previewFollowsCursor: false,
@@ -3244,12 +3245,16 @@ describe("The preview's top bar", () => {
     render(h(PreviewTopBar, {}), container);
     expect(names()).toEqual([
       ["Game preview follows cursor", "false"],
+      ["Auto-play beats", "false"],
       ["Show idle animations", "false"],
       ["Color typing pauses", "true"],
     ]);
     workspaceSettings.setPreference("previewMode", "textstream");
     render(h(PreviewTopBar, {}), container);
-    expect(names()).toEqual([["Game preview follows cursor", "false"]]);
+    expect(names()).toEqual([
+      ["Game preview follows cursor", "false"],
+      ["Auto-play beats", "false"],
+    ]);
     workspaceSettings.setPreference("previewMode", "screenplay");
     render(h(PreviewTopBar, {}), container);
     expect(names()).toEqual([
