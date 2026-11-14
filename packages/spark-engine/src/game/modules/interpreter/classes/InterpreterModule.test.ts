@@ -9,6 +9,8 @@ import {
   spanOpen,
   tagCode,
 } from "@impower/sparkdown/src/runtime/displayStyle";
+import { LOOK_TAGS } from "@impower/sparkdown/src/runtime/storyTags";
+import { FLAG_TAGS, VALUE_TAGS } from "../../ui/utils/parseRichText";
 
 const TARGET = "textbox";
 
@@ -369,6 +371,12 @@ describe("InterpreterModule text tags", () => {
         ]);
       });
     }
+
+    it("names every look tag the player has a style for, and no other", () => {
+      expect([...LOOK_TAGS].sort()).toEqual(
+        [...Object.keys(FLAG_TAGS), ...Object.keys(VALUE_TAGS), "sub", "sup", "br"].sort(),
+      );
+    });
 
     it("breaks the line at <br>", () => {
       expect(render(`A${tagCode("br")} here.`).text).toBe("A\n here.");
