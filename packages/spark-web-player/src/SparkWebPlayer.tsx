@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { PlayBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/PlayBeatMessage";
 import type {
   GamePlayerController as GamePlayerControllerType,
   PlayerBarView,
@@ -12,6 +14,8 @@ import {
 export const propDefaults = {
   toolbar: false,
   runButton: false,
+  replayButton: false,
+  replayShortcut: "",
   fullscreenButton: false,
   skipButtons: false,
   stepButtons: false,
@@ -26,6 +30,8 @@ const flag = (v: unknown): boolean =>
 export default function SparkWebPlayer({
   toolbar,
   runButton,
+  replayButton,
+  replayShortcut,
   fullscreenButton,
   skipButtons,
   stepButtons,
@@ -128,6 +134,7 @@ export default function SparkWebPlayer({
           state={bar.state}
           controls={{
             run: flag(runButton),
+            replay: flag(replayButton),
             skip: flag(skipButtons),
             step: flag(stepButtons),
             fullscreen: flag(fullscreenButton),
@@ -141,8 +148,12 @@ export default function SparkWebPlayer({
           savesButtonRef={savesButtonRef}
           runRefusal={bar.view.runRefusal}
           starting={bar.view.starting}
+          replayShortcut={replayShortcut || undefined}
           onRun={() => void controllerRef.current?.run()}
           onStop={() => void controllerRef.current?.stop()}
+          onReplayBeat={() =>
+            sendProtocolMessage(PlayBeatMessage.type.request({}))
+          }
           onSkip={(direction) => void controllerRef.current?.skipBeat(direction)}
           onPause={() => void controllerRef.current?.pauseGame()}
           onResume={() => void controllerRef.current?.resumeGame()}

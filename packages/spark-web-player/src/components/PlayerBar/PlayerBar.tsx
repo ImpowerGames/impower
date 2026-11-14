@@ -1,14 +1,17 @@
 import { Fragment, type Ref } from "preact";
 import {
   playerBarLocation,
+  replayBeatState,
   runButtonState,
   skipRefusal,
   type PlayerBarState,
 } from "./playerBarState";
+import { REPLAY_BEAT } from "./replayBeat";
 import { useHoldRepeat } from "./useHoldRepeat";
 
 export interface PlayerBarControls {
   run?: boolean;
+  replay?: boolean;
   skip?: boolean;
   step?: boolean;
   fullscreen?: boolean;
@@ -26,8 +29,10 @@ export interface PlayerBarProps {
   savesButtonRef?: Ref<HTMLDivElement>;
   runRefusal?: string;
   starting?: boolean;
+  replayShortcut?: string;
   onRun?: () => void;
   onStop?: () => void;
+  onReplayBeat?: () => void;
   onSkip?: (direction: -1 | 1) => void;
   onPause?: () => void;
   onResume?: () => void;
@@ -151,6 +156,47 @@ function RunButton({
   );
 }
 
+function ReplayBeatButton({
+  state,
+  refusal,
+  starting,
+  shortcut,
+  onReplayBeat,
+}: {
+  state: PlayerBarState;
+  refusal?: string;
+  starting?: boolean;
+  shortcut?: string;
+  onReplayBeat?: () => void;
+}) {
+  const replay = replayBeatState(state, { starting, runRefusal: refusal });
+  if (!replay.shown) {
+    return null;
+  }
+  const disabled = replay.reason != null;
+  return (
+    <button
+      type="button"
+      id="replay-beat-button"
+      class="toolbar-button transport-button"
+      aria-label={REPLAY_BEAT}
+      title={replay.reason ?? (shortcut ? `${REPLAY_BEAT} (${shortcut})` : REPLAY_BEAT)}
+      aria-pressed={replay.pressed ? "true" : "false"}
+      aria-disabled={disabled ? "true" : undefined}
+      aria-description={replay.reason}
+      data-pressed={replay.pressed ? "" : undefined}
+      onPointerDown={stopPointer}
+      onClick={() => {
+        if (!disabled) {
+          onReplayBeat?.();
+        }
+      }}
+    >
+      <span class="transport-icon" data-icon="replay-beat" />
+    </button>
+  );
+}
+
 export default function PlayerBar({
   state,
   controls,
@@ -162,8 +208,10 @@ export default function PlayerBar({
   savesButtonRef,
   runRefusal,
   starting,
+  replayShortcut,
   onRun,
   onStop,
+  onReplayBeat,
   onSkip,
   onPause,
   onResume,
@@ -195,6 +243,15 @@ export default function PlayerBar({
           starting={starting}
           onRun={onRun}
           onStop={onStop}
+        />
+      ) : null}
+      {controls.replay ? (
+        <ReplayBeatButton
+          state={state}
+          refusal={runRefusal}
+          starting={starting}
+          shortcut={replayShortcut}
+          onReplayBeat={onReplayBeat}
         />
       ) : null}
       {controls.skip || debugging ? (
