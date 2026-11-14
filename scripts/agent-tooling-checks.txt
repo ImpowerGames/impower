@@ -1,6 +1,7 @@
 .agents/hooks/policy.test.mjs
 .agents/hooks/session-title.test.mjs
 .agents/skills/ask-maintainer/github-app.test.mjs
+.agents/skills/ask-maintainer/maintainer-answer.test.mjs
 .agents/skills/ask-maintainer/maintainer-request.test.mjs
 .agents/skills/clean-worktrees/clean-worktrees.test.mjs
 .agents/skills/clean-worktrees/job-protection.test.mjs

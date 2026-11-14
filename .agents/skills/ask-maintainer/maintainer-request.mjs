@@ -1,11 +1,13 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readRepos, ticketsRepo } from "../../repos.mjs";
 import { ghClient as dependencyClient } from "../references/record-blockers.mjs";
-import { TOOL_MARK, resolveIdentity, tokenEnv } from "./github-app.mjs";
+import { findTypedWords } from "./chat-transcript.mjs";
+import { TOOL_MARK, actorOf, commentAuthor, resolveIdentity, tokenEnv } from "./github-app.mjs";
 
 export const TEMPLATE_FILES = Object.freeze({
   decision: fileURLToPath(new URL("../../templates/issues/maintainer_decision.md", import.meta.url)),
@@ -22,6 +24,8 @@ export const WAIT_MINUTES = Object.freeze({ min: 30, max: 1440, unstated: 120 })
 const PICTURE_TYPES = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 const DATA_MARK = "maintainer-request";
 const DATA_LINE = /^<!-- maintainer-request (\{.*\}) -->$/m;
+const NOTE_MARK = "maintainer-request-note";
+const NOTE_LINE = /^<!-- maintainer-request-note (\{.*\}) -->$/m;
 const FILED_AS = "Filed by an agent through your GitHub account, because the tool's GitHub App could not be used on this machine: GitHub shows you as the author and sends you no alert for it.";
 const POSTED_AS = "Posted by the ask-maintainer tool through your GitHub account, not by you.";
 const AS_MAINTAINER = Object.freeze({ mode: "maintainer", reason: "no App identity was resolved" });
@@ -370,8 +374,28 @@ export function requestTitle(checked) {
   return `${checked.kind === "decision" ? checked.question : checked.action} (${ticketList(checked.tickets)})`;
 }
 
+const hiddenLine = (mark, data) => `<!-- ${mark} ${JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e")} -->`;
+
 export function dataLine(data) {
-  return `<!-- ${DATA_MARK} ${JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e")} -->`;
+  return hiddenLine(DATA_MARK, data);
+}
+
+export function noteLine(note) {
+  return hiddenLine(NOTE_MARK, note);
+}
+
+export function readNote(body) {
+  const match = NOTE_LINE.exec((body ?? "").replace(/\r\n/g, "\n"));
+  if (!match) return null;
+  try {
+    return JSON.parse(match[1]);
+  } catch {
+    return null;
+  }
+}
+
+export function toolText(text, note, identity = AS_MAINTAINER) {
+  return `${text.replace(/(?:\r?\n)+$/, "")}\n\n${signature(identity, POSTED_AS).join("\n").trimEnd()}\n${noteLine(note)}\n`;
 }
 
 export function readDataLine(body) {
@@ -566,10 +590,20 @@ export function ghTracker(repo = ticketsRepo(), runGh = (args, options = {}) => 
     },
     readComment: (id) => json(["api", `repos/${repo}/issues/comments/${id}`]),
     comments: (n) => json(["api", `repos/${repo}/issues/${n}/comments`, "--paginate", "--slurp"]).flat(),
+    timeline: (n) => json(["api", `repos/${repo}/issues/${n}/timeline`, "--paginate", "--slurp"]).flat(),
     editComment: (id, bodyFile) => json(["api", "-X", "PATCH", `repos/${repo}/issues/comments/${id}`, "-F", `body=@${bodyFile}`]),
     close: (n, reason, bodyFile) => {
-      json(["api", "-X", "POST", `repos/${repo}/issues/${n}/comments`, "-F", `body=@${bodyFile}`]);
-      return json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-f", "state=closed", "-f", `state_reason=${reason}`]);
+      const note = json(["api", "-X", "POST", `repos/${repo}/issues/${n}/comments`, "-F", `body=@${bodyFile}`]);
+      try {
+        return json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-f", "state=closed", "-f", `state_reason=${reason}`]);
+      } catch (error) {
+        try {
+          json(["api", "-X", "DELETE", `repos/${repo}/issues/comments/${note.id}`]);
+        } catch (cleanup) {
+          error.message = `${error.message}\nThe closing comment ${note.id} could not be deleted (${cleanup.message.split("\n")[0]}); delete it by hand, or it reads as the reason for a later close.`;
+        }
+        throw error;
+      }
     },
     removeLabel: (n, label) => json(["api", "-X", "DELETE", `repos/${repo}/issues/${n}/labels/${encodeURIComponent(label)}`]),
     removeAssignee: (n, login) => json(["api", "-X", "DELETE", `repos/${repo}/issues/${n}/assignees`, "-f", `assignees[]=${login}`]),
@@ -577,6 +611,27 @@ export function ghTracker(repo = ticketsRepo(), runGh = (args, options = {}) => 
     blockedBy: dependencies.blockedBy,
     addBlockedBy: dependencies.add,
     removeBlockedBy: (n, id) => json(["api", "-X", "DELETE", `repos/${repo}/issues/${n}/dependencies/blocked_by/${id}`]),
+    editTitle: (n, title) => json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-f", `title=${title}`]),
+    reopen: (n) => json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-f", "state=open"]),
+    poll: (n, etag) => {
+      const args = ["api", "-i", `repos/${repo}/issues/${n}`];
+      if (etag) args.push("-H", `If-None-Match: ${etag}`);
+      let out;
+      try {
+        out = run(args);
+      } catch (error) {
+        out = `${error.stdout ?? ""}`;
+        if (!/^HTTP\/[\d.]+ 304/m.test(out)) throw error;
+      }
+      const text = out.replace(/\r\n/g, "\n");
+      const split = text.indexOf("\n\n");
+      const head = split === -1 ? text : text.slice(0, split);
+      const status = Number(/^HTTP\/[\d.]+ (\d{3})/.exec(head)?.[1]);
+      const tag = /^etag:\s*(.+)$/im.exec(head)?.[1]?.trim() ?? etag;
+      if (status === 304) return { status, etag: tag };
+      if (status !== 200) throw new Error(`GET issue ${n} answered HTTP ${status || "with no status line"}`);
+      return { status, etag: tag, issue: JSON.parse(text.slice(split + 2)) };
+    },
   };
 }
 
@@ -680,7 +735,7 @@ function unlinkSteps(tracker, attempted, blocker) {
 
 function withdraw(tracker, { number, id, attempted }, problems, scratch, hint = "Correct the cause and file the request again.", identity = AS_MAINTAINER) {
   const file = path.join(scratch, "withdraw.md");
-  writeFileSync(file, markComment(`Withdrawn by the ask-maintainer tool: filing did not finish, so this request is incomplete and nothing waits on it.\n\n${bullets(problems)}`, identity));
+  writeFileSync(file, toolText(`Withdrawn by the ask-maintainer tool: filing did not finish, so this request is incomplete and nothing waits on it.\n\n${bullets(problems)}`, { kind: "withdrawn", reason: "filing did not finish" }, identity));
   const result = undo([...unlinkSteps(tracker, attempted, { number, id }), [`closed #${number} as not planned`, () => tracker.close(number, "not_planned", file)]]);
   return new Error(`Filing ${tracker.repo}#${number} failed:\n${bullets(problems)}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\n${hint}`);
 }
@@ -826,12 +881,405 @@ export function listRequests(tracker, repos = readRepos()) {
   return groupRequests({ decisions: tracker.open(decision), tasks: tracker.open(task), decidedWithoutYou: tracker.open(decidedWithoutYou) });
 }
 
+const lf = (text) => (text ?? "").replace(/\r\n/g, "\n");
+const whoOf = (repos) => ({ maintainerLogin: repos.maintainer.login, app: repos.maintainer.app });
+export const stamp = (iso) => `${new Date(iso).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+export const quote = (text) => lf(text).split("\n").map((line) => (line ? `> ${line}` : ">")).join("\n");
+export const unquote = (text) => lf(text).split("\n").map((line) => (line === ">" ? "" : line.replace(/^> /, ""))).join("\n");
+
+function requestData(issue, comments, who) {
+  if (issue.pull_request) throw new RequestRefused([`#${issue.number} is a pull request, not a maintainer request`]);
+  const own = readDataLine(issue.body);
+  if (own && !own.tagged) return { data: own, body: lf(issue.body), floor: null };
+  const tag = comments.find((comment) => commentAuthor(comment, who) !== "other" && readDataLine(comment.body)?.tagged);
+  if (tag) return { data: readDataLine(tag.body), body: lf(tag.body), floor: tag };
+  throw new RequestRefused([`#${issue.number} is not a maintainer request: neither its body nor a task comment holds the request's data line`]);
+}
+
+export function readAnswer(issue, timeline, repos = readRepos()) {
+  const who = whoOf(repos);
+  const items = timeline.map((item, pos) => ({ ...item, pos }));
+  const comments = items.filter((item) => item.event === "commented");
+  const { data, body, floor: tagged } = requestData(issue, comments, who);
+  const notes = comments.filter((comment) => commentAuthor(comment, who) === "tool").map((comment) => ({ comment, note: readNote(comment.body) })).filter((entry) => entry.note);
+  const revision = notes.filter((entry) => entry.note.kind === "revised").at(-1)?.comment ?? null;
+  const floorPos = (revision ?? tagged)?.pos ?? -1;
+  const lastPos = (event) => items.filter((item) => item.event === event).at(-1)?.pos ?? -1;
+  const closedPos = issue.state === "closed" ? lastPos("closed") : Infinity;
+  const reopenedPos = lastPos("reopened");
+  const maintainerWords = comments.filter((comment) => comment.pos > floorPos && comment.pos < closedPos && commentAuthor(comment, who) === "maintainer");
+  const words = maintainerWords.map((comment) => ({ id: comment.id, url: comment.html_url, at: comment.created_at, body: lf(comment.body) }));
+  const closing = notes.filter((entry) => ["withdrawn", "relayed"].includes(entry.note.kind) && entry.comment.pos > Math.max(floorPos, reopenedPos) && entry.comment.pos < closedPos && !maintainerWords.some((comment) => comment.pos > entry.comment.pos)).at(-1) ?? null;
+  const shown = { at: revision?.created_at ?? tagged?.created_at ?? issue.created_at, revised: Boolean(revision), options: data.options?.length ?? 0, pictures: imageReferences(body).length };
+  const base = { number: issue.number, url: issue.html_url, title: issue.title, kind: data.kind, tagged: Boolean(data.tagged), question: data.tagged ? issue.title : questionOf(issue.title), tickets: data.blocks ?? [], data, shown, recommended: data.recommended ? { letter: data.recommended, name: optionName(body, data.recommended) } : null };
+  if (issue.state !== "closed") return words.length ? { ...base, state: "question", words } : { ...base, state: "waiting", fallback: data.fallback ?? null, words: [] };
+  const closeEvent = items[closedPos] ?? null;
+  const closed = { at: issue.closed_at, by: closeEvent?.actor?.login ?? issue.closed_by?.login ?? null, reason: issue.state_reason ?? null };
+  if (!closeEvent) return { ...base, state: "unclear", closed, why: "the request is closed but its timeline holds no close, so the order of its answer cannot be read", words: [] };
+  if (closing?.note.kind === "withdrawn") return { ...base, state: "withdrawn", closed, reason: closing.note.reason ?? null, words: [] };
+  if (revision && floorPos > closedPos) return { ...base, state: "unclear", closed, why: "closed before its latest revision, so the close does not answer it", words: [] };
+  const relay = closing?.note.kind === "relayed" ? closing : null;
+  const closer = actorOf(closeEvent.actor ?? issue.closed_by, who);
+  if (closer === "other") return { ...base, state: "unclear", closed, why: `closed by ${closed.by ?? "an account GitHub did not name"}, not by the maintainer`, words };
+  if (closer === "tool" && !relay) return { ...base, state: "unclear", closed, why: "closed by the tool with no withdrawal or relayed answer to explain it", words };
+  const said = relay ? [{ id: relay.comment.id, url: relay.comment.html_url, at: relay.note.at, body: relay.note.words, relayed: { session: relay.note.session, runner: relay.note.runner, postedAt: relay.comment.created_at } }] : words;
+  const notPlanned = closed.reason === "not_planned" || closed.reason === "duplicate";
+  if (data.kind === "task") return { ...base, state: notPlanned ? "will-not-do" : "done", closed, words: said };
+  if (said.length) return { ...base, state: "answered", closed, words: said };
+  if (notPlanned) return { ...base, state: "unclear", closed, why: "a decision closed as not planned with no comment", words: [] };
+  return { ...base, state: "accepted", closed, words: [] };
+}
+
+function optionName(body, letter) {
+  if (!/^[A-E]$/.test(letter)) return null;
+  const heading = new RegExp(`^### ${letter} · (.+?)(?: \\(recommended\\))?$`, "m").exec(body);
+  return heading ? heading[1] : null;
+}
+
+export function fetchAnswer(number, { tracker, repos = readRepos() }) {
+  return readAnswer(tracker.issue(number), tracker.timeline(number), repos);
+}
+
+const RUNNERS = { "claude-code": "Claude Code", codex: "Codex" };
+const ANSWERED = ["answered", "accepted", "done", "will-not-do"];
+
+export function answerKey(answer) {
+  if (!answer.words.length) return `${answer.state}:closed:${answer.closed.at}`;
+  const digest = createHash("sha256").update(JSON.stringify(answer.words.map((word) => word.body))).digest("hex").slice(0, 16);
+  return `${answer.state}:comments:${answer.words.map((word) => word.id).join(",")}:${digest}`;
+}
+
+function wordsLines(answer) {
+  return answer.words.flatMap((word) => {
+    const lead = word.relayed
+      ? `Typed by the maintainer in ${RUNNERS[word.relayed.runner] ?? word.relayed.runner} session ${word.relayed.session} at ${stamp(word.at)}, found word for word in that session's transcript and relayed on the request in [this comment](${word.url}):`
+      : `The maintainer's words, from [their comment](${word.url}) at ${stamp(word.at)}:`;
+    return ["", lead, "", quote(word.body)];
+  });
+}
+
+export function recordBody(answer, identity = AS_MAINTAINER) {
+  const what = answer.kind === "decision" ? "decision" : "task";
+  const by = `at ${stamp(answer.closed.at)}`;
+  const outcome = {
+    answered: "in the maintainer's words, quoted below.",
+    accepted: `accepted the recommendation by closing without comment ${by}.`,
+    done: `done: closed as completed by the maintainer ${by}${answer.words.length ? ", with the words quoted below" : ""}.`,
+    "will-not-do": `will not be done: closed as not planned by the maintainer ${by}${answer.words.length ? ", with the words quoted below" : ""}.`,
+  }[answer.state];
+  const shown = answer.tagged
+    ? `the task comment as posted at ${stamp(answer.shown.at)}, with ${answer.shown.pictures} picture(s)`
+    : `the request as ${answer.shown.revised ? "last revised" : "filed"} at ${stamp(answer.shown.at)}, with ${answer.kind === "decision" ? `${answer.shown.options} options and ` : ""}${answer.shown.pictures} picture(s); GitHub's edit history keeps that version`;
+  const lines = [
+    `**Maintainer ${what} recorded** from [#${answer.number}](${answer.url}).`,
+    "",
+    `- **${answer.kind === "decision" ? "Question" : "Task"}:** ${answer.question}`,
+    `- **Answer:** ${outcome}`,
+    `- **What was shown:** ${shown}.`,
+  ];
+  if (answer.recommended) lines.push(`- **Recommended:** ${answer.recommended.letter}${answer.recommended.name ? ` · ${answer.recommended.name}` : ""}`);
+  lines.push(...wordsLines(answer));
+  return toolText(lines.join("\n"), { kind: "record", request: answer.number, answer: answerKey(answer) }, identity);
+}
+
+function postNote(tracker, number, text, scratch, name, posted = () => {}) {
+  const file = path.join(scratch, `${name}.md`);
+  writeFileSync(file, text);
+  const { id } = tracker.comment({ number, bodyFile: file, attach: [] });
+  posted(id);
+  const back = tracker.readComment(id);
+  if (lf(back.body).trimEnd() !== lf(text).trimEnd()) throw new Error(`comment ${id} on #${number} reads back differently from the text the tool posted`);
+  return { id, url: back.html_url };
+}
+
+export function recordAnswer(number, { tracker, repos = readRepos(), identity = AS_MAINTAINER }) {
+  const answer = fetchAnswer(number, { tracker, repos });
+  if (!ANSWERED.includes(answer.state)) {
+    const next = { waiting: "wait for the answer", question: "answer the question with revise", withdrawn: "nothing waits on it", unclear: `${answer.why}; reopen it with a question through revise` }[answer.state];
+    throw new RequestRefused([`#${number} has no answer to record: it is ${answer.state} (${next})`]);
+  }
+  const who = whoOf(repos);
+  const key = answerKey(answer);
+  const mine = (comment, kind) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === kind && readNote(comment.body)?.request === number && readNote(comment.body)?.answer === key;
+  return withScratch((scratch) => {
+    const body = recordBody(answer, identity);
+    const records = answer.tickets.map((ticket) => {
+      const standing = tracker.comments(ticket).find((comment) => mine(comment, "record"));
+      if (standing) return { ticket, id: standing.id, url: standing.html_url, reused: true };
+      return { ticket, ...postNote(tracker, ticket, body, scratch, `record-${ticket}`), reused: false };
+    });
+    const confirmed = tracker.comments(number).find((comment) => mine(comment, "recorded"));
+    const confirmation = confirmed
+      ? { id: confirmed.id, url: confirmed.html_url, reused: true }
+      : { ...postNote(tracker, number, toolText(`Recorded by the ask-maintainer tool${records.length ? ` on ${records.map((r) => `#${r.ticket} ([record](${r.url}))`).join(", ")}` : "; no other ticket waits on this request, so there was nothing to record elsewhere"}.`, { kind: "recorded", request: number, answer: key, records: records.map((r) => ({ ticket: r.ticket, comment: r.id })) }, identity), scratch, "recorded"), reused: false };
+    return { answer, records, confirmation };
+  });
+}
+
+function checkNoteText(value, what) {
+  const reasons = [];
+  if (!filled(value)) reasons.push(`${what} is empty`);
+  else checkText(value, what, (reason) => reasons.push(reason));
+  if (reasons.length) throw new RequestRefused(reasons);
+  return value.trim();
+}
+
+const sameTickets = (a, b) => JSON.stringify([...a].sort((x, y) => x - y)) === JSON.stringify([...b].sort((x, y) => x - y));
+
+export function reviseRequest(number, request, changes, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates, identity = AS_MAINTAINER }) {
+  const issue = tracker.issue(number);
+  const answer = readAnswer(issue, tracker.timeline(number), repos);
+  if (answer.tagged) throw new RequestRefused([`#${number} is a tagged ticket, not a filed request; it has no request body to revise`]);
+  if (issue.state === "closed" && answer.state !== "unclear") throw new RequestRefused([`#${number} is closed (${answer.state}); revise reopens only a request whose answer is unclear`]);
+  const changed = checkNoteText(changes, "What changed");
+  const checked = validateRequest(request, { pictures: folderPictures(folder) });
+  const problems = [];
+  if (checked.kind !== answer.kind) problems.push(`#${number} is a ${answer.kind} request; a revision cannot make it a ${checked.kind}`);
+  if (!sameTickets(checked.tickets, answer.tickets)) problems.push(`#${number} holds up ${ticketList(answer.tickets)}; a revision keeps the same tickets (file a new request for others)`);
+  if (problems.length) throw new RequestRefused(problems);
+  const built = buildRequest(checked, { now, timeZone, templates, identity });
+  const fallback = built.data.fallback;
+  const clock = checked.kind === "task" ? "" : fallback ? `\n\nThe clock starts again: if you don't answer by ${describeTime(new Date(fallback.at), now, timeZone)}, I'll go ahead with ${fallback.option}.` : "\n\nIt still waits for you, with no fallback.";
+  const note = toolText(`Revised by the ask-maintainer tool${issue.state === "closed" ? ", and reopened because the answer was unclear" : ""}; GitHub's edit history keeps the earlier version.\n\n**What changed:** ${changed}${clock}`, { kind: "revised", ...(fallback && { fallback: fallback.at }) }, identity);
+  return withScratch((scratch) => {
+    const done = { reopened: false, body: false, title: false, note: null };
+    try {
+      const { staged, pictures: staging } = stagingBody(built.body);
+      let urls = {};
+      if (staging.length) {
+        const stagedFile = path.join(scratch, "staged.md");
+        writeFileSync(stagedFile, `${staged}\n\n${note}`);
+        const posted = tracker.comment({ number, bodyFile: stagedFile, attach: attachments(built.pictures, folder), cwd: folder });
+        done.note = posted.id;
+        if (posted.uploadError) throw new FilingProblems([`an upload failed: ${posted.uploadError}`]);
+        const hosted = hostedAddresses(lf(tracker.readComment(posted.id).body), staging);
+        if (hosted.problems.length) throw new FilingProblems(hosted.problems);
+        urls = hosted.urls;
+      }
+      const finalBody = placeAddresses(built.body, urls);
+      const bodyFile = path.join(scratch, "body.md");
+      writeFileSync(bodyFile, finalBody);
+      done.body = true;
+      tracker.editBody(number, bodyFile);
+      if (built.title !== issue.title) {
+        done.title = true;
+        tracker.editTitle(number, built.title);
+      }
+      const back = tracker.issue(number);
+      const placed = checkPlacedBody(lf(back.body), Object.values(urls));
+      if (!placed.length && lf(back.body).trimEnd() !== finalBody.trimEnd()) placed.push("the body read back differs from the body the tool wrote");
+      if (back.title !== built.title) placed.push(`the title reads back as "${back.title}"`);
+      if (placed.length) throw new FilingProblems(placed);
+      let comment;
+      if (done.note !== null) {
+        const noteFile = path.join(scratch, "note.md");
+        writeFileSync(noteFile, note);
+        tracker.editComment(done.note, noteFile);
+        const noted = tracker.readComment(done.note);
+        if (lf(noted.body).trimEnd() !== lf(note).trimEnd()) throw new FilingProblems([`the revision note ${done.note} reads back differently`]);
+        comment = { id: done.note, url: noted.html_url };
+      } else {
+        comment = postNote(tracker, number, note, scratch, "note", (id) => (done.note = id));
+      }
+      if (issue.state === "closed") {
+        tracker.reopen(number);
+        done.reopened = true;
+      }
+      return { number, url: back.html_url, title: built.title, data: built.data, note: comment, reopened: done.reopened };
+    } catch (error) {
+      const steps = [];
+      if (done.note !== null) steps.push([`deleted the revision note ${done.note}`, () => tracker.deleteComment(done.note)]);
+      if (done.body) {
+        const original = path.join(scratch, "original.md");
+        writeFileSync(original, issue.body ?? "");
+        steps.push(["restored the earlier body", () => tracker.editBody(number, original)]);
+      }
+      if (done.title) steps.push(["restored the earlier title", () => tracker.editTitle(number, issue.title)]);
+      const result = undo(steps);
+      throw new Error(`Revising ${tracker.repo}#${number} failed:\n${bullets(problemsOf(error))}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\nCorrect the cause and revise again.`);
+    }
+  });
+}
+
+function writeNote(scratch, text) {
+  const file = path.join(scratch, `note-${Date.now()}-${Math.random().toString(36).slice(2)}.md`);
+  writeFileSync(file, text);
+  return file;
+}
+
+export function withdrawRequest(number, reason, { tracker, repos = readRepos(), identity = AS_MAINTAINER }) {
+  const answer = fetchAnswer(number, { tracker, repos });
+  if (answer.tagged) throw new RequestRefused([`#${number} is a tagged ticket; remove its ${repos.maintainer.labels.task} label instead of closing the ticket`]);
+  if (answer.state !== "waiting" && answer.state !== "question") throw new RequestRefused([`#${number} is already closed (${answer.state})`]);
+  const why = checkNoteText(reason, "The reason");
+  if (/[\r\n]/.test(why)) throw new RequestRefused(["The reason must be one line"]);
+  return withScratch((scratch) => {
+    tracker.close(number, "not_planned", writeNote(scratch, toolText(`Withdrawn by the ask-maintainer tool: ${asSentence(why)} Nothing waits on this request any more.`, { kind: "withdrawn", reason: why }, identity)));
+    return fetchAnswer(number, { tracker, repos });
+  });
+}
+
+export function answerFromChat(number, words, transcript, { tracker, repos = readRepos(), notPlanned = false, read, identity = AS_MAINTAINER }) {
+  const answer = fetchAnswer(number, { tracker, repos });
+  if (answer.state !== "waiting" && answer.state !== "question") throw new RequestRefused([`#${number} is already closed (${answer.state}); there is nothing to answer`]);
+  const found = findTypedWords(words, transcript, read ? { read } : {});
+  if (!found.ok) throw new RequestRefused([`The words are refused: ${found.reason}`]);
+  if (/<!--|-->/.test(found.words)) throw new RequestRefused(["The words hold an HTML comment marker, which would hide them on GitHub"]);
+  const text = `Relayed from chat by the ask-maintainer tool: the maintainer typed these words in ${RUNNERS[found.runner]} session ${found.session} at ${stamp(found.at)}, and the tool found them as one unbroken run in a message the maintainer typed in that session's transcript.\n\n${quote(found.words)}`;
+  withScratch((scratch) => tracker.close(number, notPlanned ? "not_planned" : "completed", writeNote(scratch, toolText(text, { kind: "relayed", words: found.words, session: found.session, at: found.at, runner: found.runner }, identity))));
+  return recordAnswer(number, { tracker, repos, identity });
+}
+
+export const WAIT_INTERVAL_SECONDS = 60;
+const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
+
+export async function waitForRequests(numbers, { tracker, refresh, repos = readRepos(), clock = () => new Date(), sleep = sleepFor, intervalSeconds = WAIT_INTERVAL_SECONDS, warn = (message) => console.error(message) }) {
+  if (!numbers.length) throw new RequestRefused(["Name at least one request to wait for"]);
+  if (!Number.isSafeInteger(intervalSeconds) || intervalSeconds < WAIT_INTERVAL_SECONDS) throw new RequestRefused([`The interval must be a whole number of seconds, at least ${WAIT_INTERVAL_SECONDS}`]);
+  const who = whoOf(repos);
+  const interval = intervalSeconds * 1000;
+  const maintainerIds = (timeline) => new Set(timeline.filter((item) => item.event === "commented" && commentAuthor(item, who) === "maintainer").map((item) => item.id));
+  const result = (entry, why) => {
+    const returnedAt = clock();
+    const out = { number: entry.number, why, state: entry.answer.state, returnedAt: returnedAt.toISOString(), answer: entry.answer };
+    if (why === "closed" && entry.answer.closed?.at) out.secondsSinceClose = Math.round((returnedAt.getTime() - Date.parse(entry.answer.closed.at)) / 1000);
+    if (why === "fallback") out.fallbackAt = entry.answer.fallback.at;
+    return out;
+  };
+  const settled = (entry) => entry.answer.state !== "waiting" && entry.answer.state !== "question";
+  const fallbackAt = (entry) => (entry.answer.state === "waiting" && entry.answer.fallback?.at ? Date.parse(entry.answer.fallback.at) : Infinity);
+  const watched = numbers.map((number) => {
+    const readAt = clock().getTime();
+    const polled = tracker.poll(number, null);
+    const timeline = tracker.timeline(number);
+    const answer = readAnswer(polled.issue, timeline, repos);
+    return { number, etag: polled.etag, readAt, nextRead: clock().getTime() + interval, answer, seen: maintainerIds(timeline), fresh: false };
+  });
+  for (;;) {
+    const closed = watched.find(settled);
+    if (closed) return result(closed, "closed");
+    const now = clock().getTime();
+    const confirmed = watched.filter((entry) => fallbackAt(entry) <= now && entry.readAt >= fallbackAt(entry)).sort((x, y) => fallbackAt(x) - fallbackAt(y))[0];
+    if (confirmed) return result(confirmed, "fallback");
+    const next = Math.min(...watched.map((entry) => entry.nextRead));
+    if (now < next) {
+      await sleep(next - now);
+      continue;
+    }
+    if (refresh) {
+      try {
+        tracker = await refresh();
+      } catch (error) {
+        warn(`Resolving the tool's GitHub identity failed (${error.message.split("\n")[0]}); reading with the previous one.`);
+      }
+    }
+    for (const entry of watched) {
+      const readAt = clock().getTime();
+      if (readAt < entry.nextRead) continue;
+      let polled;
+      try {
+        polled = tracker.poll(entry.number, entry.etag);
+      } catch (error) {
+        entry.nextRead = clock().getTime() + interval;
+        warn(`Reading #${entry.number} failed (${error.message.split("\n")[0]}); trying again in ${intervalSeconds} seconds.`);
+        continue;
+      }
+      if (polled.status !== 304) {
+        const timeline = tracker.timeline(entry.number);
+        entry.etag = polled.etag;
+        entry.answer = readAnswer(polled.issue, timeline, repos);
+        entry.fresh = [...maintainerIds(timeline)].some((id) => !entry.seen.has(id));
+      }
+      entry.readAt = readAt;
+      entry.nextRead = clock().getTime() + interval;
+      if (settled(entry)) return result(entry, "closed");
+      if (entry.fresh) return result(entry, "comment");
+    }
+  }
+}
+
+export function formatAnswer(answer) {
+  const lines = [`#${answer.number} ${answer.title}`, `  ${answer.url}`];
+  const closed = answer.closed ? `closed by ${answer.closed.by ?? "an unnamed account"} at ${stamp(answer.closed.at)} as ${answer.closed.reason ?? "closed"}` : "";
+  const state = {
+    waiting: `waiting for the maintainer${answer.fallback ? `; falls back to ${answer.fallback.option} at ${answer.fallback.at}` : answer.kind === "decision" ? "; no fallback" : ""}`,
+    question: "a question: the maintainer commented without closing; reply with revise",
+    answered: `answered in the maintainer's words; ${closed}`,
+    accepted: `accepted the recommendation (${answer.recommended?.letter ?? "?"}) by closing without comment; ${closed}`,
+    done: `done; ${closed}`,
+    "will-not-do": `will not be done; ${closed}`,
+    unclear: `unclear: ${answer.why}; ${closed}`,
+    withdrawn: `withdrawn: ${answer.reason ?? "no reason recorded"}`,
+  }[answer.state];
+  lines.push(`  state: ${answer.state} (${state})`);
+  for (const word of answer.words) lines.push(`  words${word.relayed ? `, relayed from ${RUNNERS[word.relayed.runner] ?? word.relayed.runner} session ${word.relayed.session}` : ""} at ${stamp(word.at)}: ${word.url}`, ...quote(word.body).split("\n").map((line) => `    ${line}`));
+  return lines.join("\n");
+}
+
 const USAGE = `Usage:
   node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<pictures-folder>] [--dry-run]
   node .agents/skills/ask-maintainer/maintainer-request.mjs tag <ticket> <task.json> [<pictures-folder>]
   node .agents/skills/ask-maintainer/maintainer-request.mjs list [--json]
   node .agents/skills/ask-maintainer/maintainer-request.mjs identity
+  node .agents/skills/ask-maintainer/maintainer-request.mjs read <request> [--json]
+  node .agents/skills/ask-maintainer/maintainer-request.mjs record <request>
+  node .agents/skills/ask-maintainer/maintainer-request.mjs revise <request> <request.json> <what-changed.md> [<pictures-folder>]
+  node .agents/skills/ask-maintainer/maintainer-request.mjs withdraw <request> <reason>
+  node .agents/skills/ask-maintainer/maintainer-request.mjs answer-from-chat <request> <words-file> <transcript.jsonl> [--not-planned]
+  node .agents/skills/ask-maintainer/maintainer-request.mjs wait <request> [<request> ...] [--interval=<seconds>]
 The pictures folder defaults to the request file's folder.`;
+
+const ISSUE_NUMBER = /^#?[1-9]\d*$/;
+const issueNumber = (arg) => Number(arg.replace(/^#/, ""));
+
+function readText(file, what) {
+  try {
+    return readFileSync(file, "utf8");
+  } catch (error) {
+    throw new RequestRefused([`${file} is not a readable ${what} file: ${error.message}`]);
+  }
+}
+
+function answerCommands(command, args, flags, { tracker, repos, out, now, identity, resolve }) {
+  const number = ISSUE_NUMBER.test(args[0] ?? "") ? issueNumber(args[0]) : null;
+  if (command === "read" && number && args.length === 1 && flags.every((flag) => flag === "--json")) {
+    const answer = fetchAnswer(number, { tracker, repos });
+    out(flags.includes("--json") ? JSON.stringify(answer, null, 2) : formatAnswer(answer));
+    return 0;
+  }
+  if (command === "record" && number && args.length === 1 && !flags.length) {
+    const { answer, records, confirmation } = recordAnswer(number, { tracker, repos, identity });
+    out(`${formatAnswer(answer)}\nRecorded: ${records.length ? records.map((r) => `#${r.ticket} ${r.url}${r.reused ? " (already there)" : ""}`).join("; ") : "no other ticket waits on this request"}.\nConfirmed on #${number}: ${confirmation.url}${confirmation.reused ? " (already there)" : ""}`);
+    return 0;
+  }
+  if (command === "revise" && number && args.length >= 3 && args.length <= 4 && !flags.length) {
+    const file = path.resolve(args[1]);
+    const result = reviseRequest(number, readRequest(file), readText(path.resolve(args[2]), "what-changed"), { pictures: path.resolve(args[3] ?? path.dirname(file)), tracker, repos, now, identity });
+    const clock = result.data.fallback ? `falls back at ${result.data.fallback.at} to ${result.data.fallback.option}` : result.data.kind === "task" ? "a task, with no clock" : "waits for the maintainer, with no fallback";
+    out(`Revised #${number}${result.reopened ? " and reopened it" : ""}: ${result.url}\n${clock}; what changed is posted at ${result.note.url}.`);
+    return 0;
+  }
+  if (command === "withdraw" && number && args.length === 2 && !flags.length) {
+    const answer = withdrawRequest(number, args[1], { tracker, repos, identity });
+    out(formatAnswer(answer));
+    return 0;
+  }
+  if (command === "answer-from-chat" && number && args.length === 3 && flags.every((flag) => flag === "--not-planned")) {
+    const { answer, records, confirmation } = answerFromChat(number, readText(path.resolve(args[1]), "words"), path.resolve(args[2]), { tracker, repos, notPlanned: flags.includes("--not-planned"), identity });
+    out(`${formatAnswer(answer)}\nRecorded: ${records.length ? records.map((r) => `#${r.ticket} ${r.url}`).join("; ") : "no other ticket waits on this request"}.\nConfirmed on #${number}: ${confirmation.url}`);
+    return 0;
+  }
+  const interval = flags.find((flag) => flag.startsWith("--interval="));
+  if (command === "wait" && args.length && args.every((arg) => ISSUE_NUMBER.test(arg)) && flags.every((flag) => /^--interval=\d+$/.test(flag)) && flags.length <= 1) {
+    const refresh = resolve ? async () => ghTracker(ticketsRepo(repos), undefined, await resolve()) : undefined;
+    return waitForRequests([...new Set(args.map(issueNumber))], { tracker, refresh, repos, intervalSeconds: interval ? Number(interval.slice("--interval=".length)) : WAIT_INTERVAL_SECONDS }).then((result) => {
+      const why = { closed: "was closed", comment: "has a new maintainer comment", fallback: "reached its fallback time" }[result.why];
+    out(`#${result.number} ${why} (returned at ${result.returnedAt}${result.secondsSinceClose === undefined ? "" : `, ${result.secondsSinceClose} seconds after the close`}${result.fallbackAt ? `, fallback time ${result.fallbackAt}` : ""}).\n${formatAnswer(result.answer)}`);
+      return 0;
+    });
+  }
+  return null;
+}
 
 function readRequest(file) {
   try {
@@ -845,7 +1293,7 @@ function filedBy(identity) {
   return identity.mode === "app" ? `as the GitHub App ${identity.login}.` : `through the maintainer's own account, so GitHub sends them no alert: ${identity.reason}.`;
 }
 
-export function main(argv, { repos = readRepos(), identity = AS_MAINTAINER, tracker = ghTracker(ticketsRepo(repos), undefined, identity), out = console.log, now = new Date() } = {}) {
+export function main(argv, { repos = readRepos(), identity = AS_MAINTAINER, tracker = ghTracker(ticketsRepo(repos), undefined, identity), out = console.log, now = new Date(), resolve } = {}) {
   const [command, ...rest] = argv;
   const flags = rest.filter((arg) => arg.startsWith("--"));
   const args = rest.filter((arg) => !arg.startsWith("--"));
@@ -878,6 +1326,8 @@ export function main(argv, { repos = readRepos(), identity = AS_MAINTAINER, trac
     out(`Acting ${filedBy(identity)}`);
     return 0;
   }
+  const answered = answerCommands(command, args, flags, { tracker, repos, out, now, identity, resolve });
+  if (answered !== null) return answered;
   console.error(USAGE);
   return 2;
 }
@@ -885,8 +1335,9 @@ export function main(argv, { repos = readRepos(), identity = AS_MAINTAINER, trac
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   try {
     const repos = readRepos();
-    const identity = await resolveIdentity({ repo: ticketsRepo(repos), app: repos.maintainer.app });
-    process.exitCode = main(process.argv.slice(2), { repos, identity });
+    const resolve = () => resolveIdentity({ repo: ticketsRepo(repos), app: repos.maintainer.app });
+    const identity = await resolve();
+    process.exitCode = await main(process.argv.slice(2), { repos, identity, resolve });
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
