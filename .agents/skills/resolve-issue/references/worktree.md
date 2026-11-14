@@ -65,4 +65,10 @@ Everything from here runs inside the new worktree.
 
 If postinstall or the standalone installer refuses a copied canonical skills directory in an app-created worktree, follow [copy adoption](../../references/runner-recovery.md) using the refusal's `--adopt-copy` command and an existing private backup parent outside the checkout, then rerun the installer and preflight. A postinstall refusal alone does not establish that dependencies are missing.
 
+## Troubleshooting
+
+| Symptom | Action |
+| --- | --- |
+| `git worktree remove` reports `Directory not empty` | Use clean-worktrees `--remove <path>` (unmerged too; keeps the branch), which refuses external targets. Never bypass refusal with recursive deletion. |
+
 ---

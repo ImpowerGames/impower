@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import { readRepos } from "../../repos.mjs";
 import * as run from "./issue-run.mjs";
 import * as cp from "./checkpoint.mjs";
 import * as rc from "./review-checkpoint.mjs";
@@ -414,16 +415,20 @@ try {
     gh.issues.get(48).state = "closed";
     assert.deepEqual(filedGate(withFiled).blockers, [], "a closed completing ticket holds nothing");
     gh.issues.get(48).state = "open";
+    const legacyRaised = structuredClone(withFiled);
+    legacyRaised.filed[48].outcome = { kind: "maintainer", question: "Does the proper fix change agreed behavior?", slice: 41, time: "2026-11-01T00:00:00.000Z" };
+    blocked(filedGate(legacyRaised), /^#48, filed during the run, waits on the maintainer's answer to "Does the proper fix change agreed behavior\?", and the PR holds until it is recorded/, "a record written before requests still holds its slice on the old question");
+    const asked48 = { number: 9048, url: "https://github.com/acme/widgets/issues/9048", title: "Does the proper fix change agreed behavior? (#48)", kind: "decision", question: "Does the proper fix change agreed behavior?", owner: `orchestrate-issues #${ISSUE}`, tickets: [48], state: "waiting", answered: false, recorded: false, words: [] };
     const raised = structuredClone(withFiled);
-    run.triage(raised, { filed: 48, outcome: "maintainer", question: "Does the proper fix change agreed behavior?", slice: 41 });
-    blocked(filedGate(raised), /^#48, filed during the run, waits on the maintainer's answer to "Does the proper fix change agreed behavior\?"/, "a ticket raised with the maintainer holds its slice");
+    run.triage(raised, { filed: 48, outcome: "maintainer", question: "Does the proper fix change agreed behavior?", slice: 41, maintainerRequest: asked48 });
+    blocked(filedGate(raised), /^#48, filed during the run, waits on the maintainer's answer to "Does the proper fix change agreed behavior\?" in maintainer request #9048 \(https:\/\/github\.com\/acme\/widgets\/issues\/9048\), and the PR holds until it is recorded/, "a ticket raised with the maintainer holds its slice, and the gate names the request");
     gh.pulls.get(141).closes = [41, 48];
     blocked(filedGate(raised), /^#48, filed during the run, waits on the maintainer's answer/, "a closing reference does not answer the maintainer's question");
     gh.issues.get(48).state = "closed";
     blocked(filedGate(raised), /^#48, filed during the run, waits on the maintainer's answer/, "nor does the ticket's closure");
     gh.issues.get(48).state = "open";
     gh.pulls.get(141).closes = [41];
-    run.interim(raised, { filed: 48, decision: "Merge the narrow fix as an interim", evidence: "the maintainer's comment on #40" });
+    run.interim(raised, { filed: 48, maintainerRequest: { ...asked48, state: "answered", answered: true, recorded: true, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: "https://github.com/acme/widgets/issues/9048#issuecomment-1", at: "2026-11-13T16:09:00Z", body: "Merge the narrow fix as an interim." }] } });
     assert.deepEqual(filedGate(raised).blockers, [], "the maintainer's interim decision admits the head");
     assert.deepEqual(filedGate(record()).blockers, [], "the record as it is holds no filed ticket");
     gh.issues.delete(48);
@@ -605,6 +610,10 @@ try {
   assert.equal(gh.mergeCalls.length, callsBeforeSave, "a new relevant blocker still stops the call");
   assert.match(blockedDuringReads.evidence, /not run: .*(slices changed|#41 is blocked by #43)/);
   blocked(gate(41), /#41 is blocked by #43/, "a stable relevant blocker refuses admission");
+  gh.blockers.set(41, [{ number: 9041, state: "open", labels: [{ name: readRepos().maintainer.labels.decision }] }]);
+  blocked(gate(41), /#41 is held by maintainer request #9041, which is open; PR #141 merges once the maintainer closes it or it goes ahead without them/, "an open maintainer request holds the merge, named as a request");
+  gh.blockers.set(41, [{ number: 9041, state: "closed", labels: [{ name: readRepos().maintainer.labels.decision }] }]);
+  assert.ok(!gate(41).blockers.some((b) => /9041/.test(b)), "a closed maintainer request is a met blocker");
   gh.blockers.clear();
   const deliveredDuringReads = merge(41, recordFile, "local_coord", src, () => {
     cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC });
@@ -707,16 +716,16 @@ try {
   reviewed(143, 3, h43c);
   report(43, h43c);
   blocked(gate(43), /round 3's checkpoint has no published finish or acceptance decided at it/, "an undecided round 3 checkpoint");
-  const decide43 = (kind, more = {}) => {
+  const decide43 = (kind, more = {}, extra = {}) => {
     const e = rc.gatherEvidence({ record: record(), ticket: 43, pr: 143, client, git: rcGit(src) });
     const findings = rc.roundState(rc.readJournals(path.join(`${src}.review-jobs`, "pr-143"))).reports.map((x) => ({ comment: x.comment, finding: `round ${x.round}`, disposition: "accepted" }));
-    const d = change((r) => rc.decide(r, { ticket: 43, kind, assessment: { ...assessment, findings, ...more }, evidence: e }));
+    const d = change((r) => rc.decide(r, { ticket: 43, kind, assessment: { ...assessment, findings, ...more }, evidence: e, ...extra }));
     const c = post(143, d.body);
     change((r) => rc.published(r, { ticket: 43, id: d.id, comment: c.id, readBack: d.body, head: h43c }));
     return d;
   };
-  const hold = decide43("maintainer", { question: "Should the README keep main's line last?" });
-  blocked(gate(43), new RegExp(`decision ${hold.id} \\(maintainer after round 3\\) is in force; the ticket waits for the maintainer's answer`), "a question to the maintainer holds a reviewed head");
+  const hold = decide43("maintainer", { question: "Should the README keep main's line last?" }, { maintainerRequest: { number: 9043, url: "https://github.com/acme/widgets/issues/9043", title: "Should the README keep main's line last? (#43)", kind: "decision", owner: `orchestrate-issues #${ISSUE}`, tickets: [43], state: "waiting" } });
+  blocked(gate(43), new RegExp(`decision ${hold.id} \\(maintainer after round 3\\) is in force; the ticket waits for the maintainer's answer in maintainer request #9043 \\(https://github\\.com/acme/widgets/issues/9043\\)`), "a question to the maintainer holds a reviewed head, and the gate names the request");
   decide43("finish");
   setHead(43, h43c, passing().map((c) => (c.name === "hook-tests" ? { ...c, state: "FAILURE" } : c)));
   blocked(gate(43), /Hook Tests \/ hook-tests concluded FAILURE/, "a failed check that is not the required gate still refuses");

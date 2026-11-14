@@ -14,7 +14,7 @@ import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { liveDeps, removeJobDir, usersOf } from "../clean-worktrees/clean-worktrees.mjs";
 import { readRepos, reviewThread, ticketsRepo } from "../../repos.mjs";
 import { ACCOUNT_PULL_METADATA_QUERY, requestAccountPullMetadata } from "../../hooks/typed-issue-hook.mjs";
-import { fallbackCommitted } from "../ask-maintainer/maintainer-request.mjs";
+import { answerText, fallbackCommitted, ghTracker, requestFacts } from "../ask-maintainer/maintainer-request.mjs";
 import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
 import { runParallel } from "./gh-parallel.mjs";
 
@@ -872,6 +872,30 @@ export function wentAheadRequest({ labels } = readRepos().maintainer) {
 
 export const requestMet = (blocker) => Boolean(blocker.request && (blocker.state === "closed" || blocker.wentAhead));
 
+export const requestOwner = (record) => `orchestrate-issues #${record.issue}`;
+const ASK_TOOL = ".agents/skills/ask-maintainer/maintainer-request.mjs";
+const fileRequest = (record, ticket, kind) => `file a maintainer ${kind} request with ${ASK_TOOL} file, naming #${ticket} in its tickets and "${requestOwner(record)}" as its owner`;
+const fileFirst = (record, ticket, kind) => `${fileRequest(record, ticket, kind)}, then pass its number with --maintainer-request`;
+
+export function heldRequest(record, facts, ticket, { what, kinds = ["decision", "task"] }) {
+  if (!facts) throw new Error(`${what} waits on the maintainer only through a filed request: ${fileFirst(record, ticket, kinds.length === 1 ? kinds[0] : "decision or task")}`);
+  if (typeof facts !== "object" || !Number.isSafeInteger(facts.number)) throw new Error(`${what} takes a maintainer request's number, not typed text: ${fileFirst(record, ticket, kinds.length === 1 ? kinds[0] : "decision or task")}`);
+  if (!kinds.includes(facts.kind)) throw new Error(`#${facts.number} is a maintainer ${facts.kind} request; ${what} needs a ${kinds.join(" or ")} request`);
+  if (!facts.tickets.includes(ticket)) throw new Error(`Maintainer request #${facts.number} does not hold up #${ticket} (it blocks ${facts.tickets.map((n) => `#${n}`).join(", ") || "no ticket"}); ${fileFirst(record, ticket, facts.kind)}`);
+  if (facts.owner !== requestOwner(record)) throw new Error(`Maintainer request #${facts.number} is owned by ${JSON.stringify(facts.owner)}, not by this run (${JSON.stringify(requestOwner(record))}), so this run would never read its answer or take its fallback; ${fileFirst(record, ticket, facts.kind)}`);
+  if (facts.state === "withdrawn") throw new Error(`Maintainer request #${facts.number} was withdrawn; ${fileFirst(record, ticket, facts.kind)}`);
+  return { number: facts.number, url: facts.url, title: facts.title, kind: facts.kind };
+}
+
+export function recordedAnswer(facts, ticket, { what, kinds = ["decision"] }) {
+  if (typeof facts !== "object" || facts === null || !Number.isSafeInteger(facts.number)) throw new Error(`${what} takes the number of an answered maintainer request with --maintainer-request, never typed decision text: the words it carries are read from the request`);
+  if (!kinds.includes(facts.kind)) throw new Error(`#${facts.number} is a maintainer ${facts.kind} request; ${what} needs a ${kinds.join(" or ")} request`);
+  if (!facts.tickets.includes(ticket)) throw new Error(`Maintainer request #${facts.number} does not hold up #${ticket} (it blocks ${facts.tickets.map((n) => `#${n}`).join(", ") || "no ticket"}), so its answer is not a decision about it`);
+  if (!facts.answered) throw new Error(`Maintainer request #${facts.number} has no answer yet: it is ${facts.state}; wait for it, reply to a question with revise, or take its fallback, as ask-maintainer describes`);
+  if (!facts.recorded) throw new Error(`Maintainer request #${facts.number}'s answer is not recorded; run ${ASK_TOOL} record ${facts.number} before acting on it`);
+  return { request: facts.number, url: facts.url, state: facts.state, text: answerText(facts) };
+}
+
 export function takeSnapshot({ repository, issue, tickets: ticketsRepository = repository, scope = null }, client) {
   const originMain = client.fetchMain();
   const worktrees = client.worktrees();
@@ -1047,6 +1071,25 @@ export function remainingFor(record, complete) {
 }
 
 const OPEN_OPERATION = new Set(["intent", "uncertain"]);
+export const DECIDERS = ["maintainer", "coordinator"];
+
+function askMaintainer(record, snapshot, tickets) {
+  const byNumber = new Map(snapshot.tickets.map((t) => [t.number, t]));
+  for (const entry of tickets) {
+    const kind = entry.action === "await-maintainer" ? "task" : entry.action === "decision-needed" && entry.decides === "maintainer" ? "decision" : null;
+    if (!kind) continue;
+    const filed = (byNumber.get(entry.number)?.blockers ?? []).filter((b) => b.request);
+    const what = kind === "task" ? `a maintainer task request asking the maintainer to merge PR #${entry.pr}` : "a maintainer decision request asking the question this reason raises";
+    if (!filed.length) {
+      entry.maintainerRequest = { file: kind, ...(entry.pr && kind === "task" && { pr: entry.pr }) };
+      entry.reason += `; the maintainer has no request for it yet: ${fileRequest(record, entry.number, kind)} (${what}), and the plan names it here once filed`;
+      continue;
+    }
+    const stateOf = (b) => (b.state === "closed" ? "is closed: read and record its answer, then act on it" : b.wentAhead ? "went ahead without the maintainer: act on its fallback, and record their answer once they keep or change it" : "is open: the maintainer has not answered");
+    entry.maintainerRequest = { filed: filed.map((b) => ({ number: b.number, state: b.state, ...(b.wentAhead && { wentAhead: true }) })) };
+    entry.reason += `; ${filed.map((b) => `maintainer request #${b.number} ${stateOf(b)}`).join("; ")}`;
+  }
+}
 function readyAction(record, pr, why = "") {
   const op = (record.operations ?? []).find((o) => o.pr === pr.number && o.kind !== "close" && OPEN_OPERATION.has(o.state));
   if (op) return ["reconcile-pending", `${op.kind} ${op.id} of PR #${pr.number} at ${op.expectHead} is ${op.state}; settle it with checkpoint.mjs reconcile-operations from a fresh snapshot before any retry`];
@@ -1086,7 +1129,12 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   const interval = (record.checkIn?.interval ?? CHECK_IN_MINUTES) * 60000;
   const heldPlaces = new Set();
   const holdPlace = (number, own) => heldPlaces.add(writerPlace(record, number, own));
-  const add = (ticket, action, reason, extra = {}) => { const entry = { number: ticket.number, title: ticket.title, effort: writerEffortOf(ticket.effort), action, reason, ...extra }; tickets.push(entry); return entry; };
+  const add = (ticket, action, reason, { decides, ...extra } = {}) => {
+    if (action === "decision-needed" && !DECIDERS.includes(decides)) throw new Error(`#${ticket.number}'s decision-needed entry names no decider`);
+    const entry = { number: ticket.number, title: ticket.title, effort: writerEffortOf(ticket.effort), action, reason, ...(action === "decision-needed" && { decides }), ...extra };
+    tickets.push(entry);
+    return entry;
+  };
   const chooseRoute = (t) => {
     const effort = writerEffortOf(t.effort);
     const verdictOf = (route) => preflights.filter((p) => p.route === route && p.model === model).flatMap((p) => p.verdicts).find((v) => v.ticket === t.number && v.effort === effort);
@@ -1140,10 +1188,10 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   const blockedDelivery = (n) => blockedDeliverers.get(n) ?? null;
   const triageHold = (t) => {
     const triaged = record.filed?.[t.number]?.outcome;
-    if (triaged?.kind === "maintainer") return { action: "decision-needed", reason: `filed during the run and raised with the maintainer: "${triaged.question}"; no writer starts on it until their answer is recorded with triage or interim` };
+    if (triaged?.kind === "maintainer") return { action: "decision-needed", decides: "maintainer", reason: `filed during the run and raised with the maintainer: "${triaged.question}"; no writer starts on it until their answer is recorded with triage or interim` };
     if (triaged?.kind !== "completes") return null;
     const fixOf = snapshot.tickets.find((x) => x.number === triaged.slice);
-    if (!fixOf) return { action: "decision-needed", reason: `it completes #${triaged.slice}'s fix (${triaged.reason}), but #${triaged.slice} is not in the parent's tree, so whether its PR made the proper fix is unknown; re-triage the ticket or restore #${triaged.slice}` };
+    if (!fixOf) return { action: "decision-needed", decides: "coordinator", reason: `it completes #${triaged.slice}'s fix (${triaged.reason}), but #${triaged.slice} is not in the parent's tree, so whether its PR made the proper fix is unknown; re-triage the ticket or restore #${triaged.slice}` };
     if (met(fixOf)) return null;
     return { action: "wait-dependency", waitingFor: [fixOf.number], reason: `it completes #${fixOf.number}'s fix (${triaged.reason}); ${triaged.interim ? `the maintainer accepted #${fixOf.number}'s narrow fix as an interim, so this ticket removes it once #${fixOf.number}'s PR has merged` : `#${fixOf.number}'s writer makes the proper fix in its PR with a closing reference to #${t.number}, which delivers it`}` };
   };
@@ -1156,23 +1204,23 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (t.deliveryConflict) {
       const reserves = Boolean(own.owner || own.pending || (t.worktrees.length && !writerKnownEnded(own)));
       if (reserves) holdPlace(t.number, own);
-      add(t, "decision-needed", `${t.deliveryConflict.map((n) => `#${n}`).join(" and ")} both claim it (by an open or merged PR or a body closing reference), so which slice delivers it is the maintainer's decision; it is not dispatched meanwhile${reserves ? ", and its writer, pending start or worktree keeps a place until it is settled" : ""}`, { deliveryConflict: t.deliveryConflict, ...(reserves && { reserves: true }) });
+      add(t, "decision-needed", `${t.deliveryConflict.map((n) => `#${n}`).join(" and ")} both claim it (by an open or merged PR or a body closing reference), so which slice delivers it is the maintainer's decision; it is not dispatched meanwhile${reserves ? ", and its writer, pending start or worktree keeps a place until it is settled" : ""}`, { decides: "maintainer", deliveryConflict: t.deliveryConflict, ...(reserves && { reserves: true }) });
       continue;
     }
     if (t.claimInvalid) {
       const c = t.claimInvalid, reserves = Boolean(own.owner || own.pending || (t.worktrees.length && !writerKnownEnded(own)));
       if (reserves) holdPlace(t.number, own);
-      add(t, "decision-needed", `#${c.ticket}'s ${c.via === "pr" ? "PR" : "body"} claims it, but #${c.ticket} cannot deliver it (${c.reason}); remove the closing reference or move the work to a slice that delivers it, since it is not dispatched meanwhile${reserves ? ", and its writer, pending start or worktree keeps a place until it is settled" : ""}`, { claimInvalid: c, ...(reserves && { reserves: true }) });
+      add(t, "decision-needed", `#${c.ticket}'s ${c.via === "pr" ? "PR" : "body"} claims it, but #${c.ticket} cannot deliver it (${c.reason}); remove the closing reference or move the work to a slice that delivers it, since it is not dispatched meanwhile${reserves ? ", and its writer, pending start or worktree keeps a place until it is settled" : ""}`, { decides: "maintainer", claimInvalid: c, ...(reserves && { reserves: true }) });
       continue;
     }
     if (t.deliveredBy) {
       const d = t.deliveredBy, by = `#${d.ticket}'s PR${d.pr ? ` #${d.pr}` : ""}`;
       const how = { "sub-issue": `a Bug under slice #${d.ticket}`, body: `#${d.ticket}'s body claims it with a closing keyword`, pr: "that PR closes it" }[d.via];
-      if (own.owner || own.pending) { holdPlace(t.number, own); add(t, "decision-needed", `the record holds a writer or pending start for it, but ${by} delivers it (${how}); settle that writer, since the ticket is never dispatched, and #${d.ticket} waits until it is settled`, { deliveredBy: d }); continue; }
+      if (own.owner || own.pending) { holdPlace(t.number, own); add(t, "decision-needed", `the record holds a writer or pending start for it, but ${by} delivers it (${how}); settle that writer, since the ticket is never dispatched, and #${d.ticket} waits until it is settled`, { decides: "coordinator", deliveredBy: d }); continue; }
       if (t.worktrees.length && !writerKnownEnded(own)) { holdPlace(t.number, own); add(t, "adopt-worktree", `worktree ${t.worktrees.map((w) => w.path).join(", ")} holds work on it although ${by} delivers it (${how}); find that writer and record it with adopt, then release it once it ends, and #${d.ticket} waits until it is settled`, { worktrees: t.worktrees, reserves: true, deliveredBy: d }); continue; }
       if (t.state === "closed" && !t.delivered && closedBeforeRun(record, t)) { add(t, "done", HISTORY, { history: true }); continue; }
-      if (t.state === "closed") { add(t, t.delivered ? "done" : "decision-needed", t.delivered ? `delivered by ${by}, merged on origin/main` : `closed without a merged deliverable on origin/main, although ${by} delivers it; confirm whether the ticket is complete`, { deliveredBy: d }); continue; }
-      if (d.merged) { add(t, "decision-needed", `${by} is merged on origin/main, but GitHub left it open, so that PR's body may lack its closing reference; close it by hand once the merge delivers it, or confirm what remains`, { deliveredBy: d }); continue; }
+      if (t.state === "closed") { add(t, t.delivered ? "done" : "decision-needed", t.delivered ? `delivered by ${by}, merged on origin/main` : `closed without a merged deliverable on origin/main, although ${by} delivers it; confirm whether the ticket is complete`, { decides: "maintainer", deliveredBy: d }); continue; }
+      if (d.merged) { add(t, "decision-needed", `${by} is merged on origin/main, but GitHub left it open, so that PR's body may lack its closing reference; close it by hand once the merge delivers it, or confirm what remains`, { decides: "coordinator", deliveredBy: d }); continue; }
       add(t, "delivered-by", `${by} delivers it (${how}): it is never dispatched and holds no writer place, and it is done once that PR's merge commit is on origin/main and GitHub has closed it`, { deliveredBy: d });
       continue;
     }
@@ -1182,7 +1230,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       const holds = Boolean(own.owner || own.pending || existing);
       if (holds) { heldContainers.add(t.number); holdPlace(t.number, own); }
       const work = existing ? `; existing work on it (${[...open.map((p) => `PR #${p.number}`), ...t.worktrees.map((w) => w.path)].join(", ")}) may still have a writer, so find it and record it with adopt, and its sub-issues wait until it is settled` : holds ? "; its recorded writer or pending start keeps a place and holds its sub-issues until settled" : "";
-      add(t, "decision-needed", `${c.tickets ? `${c.tickets.map((n) => `#${n}`).join(" and ")} both claim it` : `#${c.ticket}'s ${c.via === "pr" ? "PR" : "body"} claims it`}, but it has sub-issues of its own, which are planned individually; remove the closing reference, or settle which slice carries that work${work}`, { claimedContainer: c, ...(holds && { reserves: true }), ...(existing && { worktrees: t.worktrees, ...(open.length && { pr: open[0].number }) }) });
+      add(t, "decision-needed", `${c.tickets ? `${c.tickets.map((n) => `#${n}`).join(" and ")} both claim it` : `#${c.ticket}'s ${c.via === "pr" ? "PR" : "body"} claims it`}, but it has sub-issues of its own, which are planned individually; remove the closing reference, or settle which slice carries that work${work}`, { decides: "maintainer", claimedContainer: c, ...(holds && { reserves: true }), ...(existing && { worktrees: t.worktrees, ...(open.length && { pr: open[0].number }) }) });
       continue;
     }
     if (t.container) {
@@ -1190,13 +1238,13 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
         heldContainers.add(t.number);
         holdPlace(t.number, own);
         const held = own.owner ? `writer ${own.owner.handle.id ?? own.owner.handle.pid} (${statusOf(t.number, own.owner).status})` : `pending ${own.pending.operation} ${own.pending.launchId}`;
-        add(t, "decision-needed", `the ticket gained sub-issues while ${held} holds it; settle that writer before its sub-issues are dispatched`);
+        add(t, "decision-needed", `the ticket gained sub-issues while ${held} holds it; settle that writer before its sub-issues are dispatched`, { decides: "coordinator" });
       } else if (open.length || t.worktrees.length) {
         const reserves = !writerKnownEnded(own);
         if (reserves) { holdPlace(t.number, own); heldContainers.add(t.number); }
         const action = open.length ? "adopt-pr" : "adopt-worktree";
         add(t, action, `the ticket gained sub-issues while existing work on it (${[...open.map((p) => `PR #${p.number}`), ...t.worktrees.map((w) => w.path)].join(", ")}) may still have a writer; find that writer and record it with adopt, then settle it before its sub-issues are dispatched`, { ...(open.length && { pr: open[0].number, rounds: open[0].rounds, branch: open[0].branch }), worktrees: t.worktrees, container: true, continueBlocked: "the ticket is now a container; its sub-issues are planned individually" });
-      } else if (t.truncated) add(t, "decision-needed", "its sub-issues nest deeper than GitHub's limit, so the snapshot could not read them");
+      } else if (t.truncated) add(t, "decision-needed", "its sub-issues nest deeper than GitHub's limit, so the snapshot could not read them", { decides: "maintainer" });
       else if (containers.ready.has(t.number)) {
         const unmet = record.containers?.[t.number];
         add(t, "close-container", unmet ? `every sub-issue is delivered, but it stays open: the check on main ${unmet.mainSha} found ${unmet.unmet.map((c) => `"${c.criterion}" unmet (${c.gap})`).join("; ")}; check its criteria on main again once that is true` : "every sub-issue is delivered; check its acceptance criteria on main and close it with integration.mjs close-container", unmet ? { unmet: unmet.unmet, checkedOn: unmet.mainSha } : {});
@@ -1217,7 +1265,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
         add(t, "release", `${base}; its session ended its turn and its final report names merged PR #${report.pr}: record release with the transcript evidence`, { owner: { route: own.owner.route, launchId: own.owner.launchId ?? null, sessionId: sessionOf(own.owner), handle: own.owner.handle, status: "waiting" }, transcript: { from: transcriptOf(own.owner) } });
         continue;
       }
-      add(t, t.delivered ? "done" : "decision-needed", lingering ? `${base}; its worktree ${t.worktrees.map((w) => w.path).join(", ")} remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses` : base, lingering ? { worktrees: t.worktrees, reserves: true } : {});
+      add(t, t.delivered ? "done" : "decision-needed", lingering ? `${base}; its worktree ${t.worktrees.map((w) => w.path).join(", ")} remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses` : base, { ...(!t.delivered && { decides: "maintainer" }), ...(lingering && { worktrees: t.worktrees, reserves: true }) });
       continue;
     }
     if (own.pending) {
@@ -1261,7 +1309,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       add(t, action, s.reason + advice, extra);
       continue;
     }
-    if (open.length > 1) { holdPlace(t.number, own); add(t, "decision-needed", `open PRs ${open.map((p) => `#${p.number}`).join(", ")} all belong to this ticket`); continue; }
+    if (open.length > 1) { holdPlace(t.number, own); add(t, "decision-needed", `open PRs ${open.map((p) => `#${p.number}`).join(", ")} all belong to this ticket`, { decides: "maintainer" }); continue; }
     if (open.length === 1) {
       const pr = open[0];
       if (!pr.isDraft) {
@@ -1278,9 +1326,9 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     }
     if (t.worktrees.length) { const reserves = !writerKnownEnded(own); if (reserves) holdPlace(t.number, own); existingWork.push({ t, reserves, entry: add(t, "adopt-worktree", `worktree ${t.worktrees.map((w) => w.path).join(", ")} already holds this ticket's work; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue`, { worktrees: t.worktrees }) }); continue; }
     if (!t.effort) { add(t, "assign-effort", "the ticket has no Effort value: estimate one, publish and read it back through the issue-fields procedure, then snapshot and plan again"); continue; }
-    if (!writerEffortOf(t.effort)) { add(t, "decision-needed", `Effort ${t.effort} has no writer effort`); continue; }
+    if (!writerEffortOf(t.effort)) { add(t, "decision-needed", `Effort ${t.effort} has no writer effort`, { decides: "maintainer" }); continue; }
     const hold = triageHold(t);
-    if (hold) { add(t, hold.action, hold.reason, hold.waitingFor ? { waitingFor: hold.waitingFor } : {}); continue; }
+    if (hold) { add(t, hold.action, hold.reason, { ...(hold.decides && { decides: hold.decides }), ...(hold.waitingFor && { waitingFor: hold.waitingFor }) }); continue; }
     const waiting = undelivered(t);
     if (waiting.length) { add(t, "wait-dependency", waitingFor(waiting), { waitingFor: waiting.map((b) => b.number) }); continue; }
     const held = heldAncestor(t);
@@ -1295,8 +1343,9 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   for (const [n, own] of Object.entries(record.tickets)) {
     if (listed.has(Number(n)) || (!own.owner && !own.pending)) continue;
     holdPlace(Number(n), own);
-    tickets.push({ number: Number(n), action: "decision-needed", reason: "the record holds a writer or pending start for a ticket that is no longer one of the parent issue's sub-issues; settle it before reusing its capacity" });
+    tickets.push({ number: Number(n), action: "decision-needed", decides: "coordinator", reason: "the record holds a writer or pending start for a ticket that is no longer one of the parent issue's sub-issues; settle it before reusing its capacity" });
   }
+  askMaintainer(record, snapshot, tickets);
   const free = freeBytes ?? Infinity;
   const room = Math.min(record.concurrency.limit, Math.floor(free / WRITER_DISK));
   const active = heldPlaces.size;
@@ -1639,6 +1688,7 @@ const requestsForOwner = (own) => (own.requests ?? []).filter((r) => own.owner &
 const openRequests = (own) => requestsForOwner(own).filter((r) => !r.closed && r.answer?.state !== "delivered");
 function requestNext(r, ended) {
   if (r.answer?.state === "intent") return `answer ${r.answer.deliveryId} to request ${r.id} has no recorded outcome and may still be queued; ${ended ? "if the writer's transcript shows it, record answered with that evidence; otherwise " : ""}wait, or resend with answer --retry, which tells the writer to ignore a second copy`;
+  if (r.relayed?.maintainerRequest) return `request ${r.id} "${r.text}" was relayed to ${r.relayed.to} at ${r.relayed.time} as maintainer request #${r.relayed.maintainerRequest.number} (${r.relayed.maintainerRequest.url}); once ${ASK_TOOL} read shows it answered, record it there, then record answer with the recorded words and send it`;
   if (r.relayed) return `request ${r.id} "${r.text}" was relayed to ${r.relayed.to} at ${r.relayed.time}; once they decide, record answer and send it`;
   return `the writer asked ${r.id}: "${r.text}"; decide or relay it, then record answer, send it and record answered`;
 }
@@ -1658,12 +1708,13 @@ export function request(record, { ticket: number, text, source }) {
   log(record, "request", { ticket: number, id });
   return { id };
 }
-export function relay(record, { ticket: number, request: id, to }) {
+export function relay(record, { ticket: number, request: id, to = "the maintainer", maintainerRequest }) {
   const r = findRequest(record, number, id);
-  if (!to) throw new Error("--to must name who decides, such as the maintainer");
+  if (!/\bmaintainer\b/i.test(to ?? "")) throw new Error(`--to names who decides, and only the maintainer decides what the coordinator does not: give --to "the maintainer", not ${JSON.stringify(to)}`);
   if (r.answer) throw new Error(`Request ${id} already has an answer at ${r.answer.state}`);
-  r.relayed = { time: new Date().toISOString(), to };
-  log(record, "relayed", { ticket: number, id, to });
+  const filed = heldRequest(record, maintainerRequest, number, { what: `Relaying request ${id} to the maintainer` });
+  r.relayed = { time: new Date().toISOString(), to, maintainerRequest: filed };
+  log(record, "relayed", { ticket: number, id, to, maintainerRequest: filed.number });
 }
 const coordinatorName = (record) => `coordinator session ${record.coordinator.session}${record.title ? ` (title ${JSON.stringify(record.title)})` : ""}`;
 function reportContact(record, owner, defaults = readWriterDefaults()) {
@@ -1675,13 +1726,24 @@ function reportContact(record, owner, defaults = readWriterDefaults()) {
 }
 const contactLine = (record, owner, defaults) => `Your coordinator is now session ${record.coordinator.session} on ${record.coordinator.host}, title ${JSON.stringify(record.title ?? null)}; send every further report, blocker and question using this contact instruction: ${reportContact(record, owner, defaults)}. This holds even if you set the rest of this message aside as a copy you already have.`;
 
-export function answer(record, { ticket: number, request: id, text, retry = false }) {
+function answerWords(number, r, { text, maintainerRequest }) {
+  const relayed = r.relayed?.maintainerRequest;
+  if (!relayed) {
+    if (maintainerRequest) throw new Error(`Request ${r.id} was not relayed to the maintainer as a filed request; relay it with --maintainer-request first`);
+    if (!text) throw new Error("--text must give the answer");
+    return text;
+  }
+  if (!maintainerRequest || maintainerRequest.number !== relayed.number) throw new Error(`Request ${r.id} was relayed as maintainer request #${relayed.number}; answer it with --maintainer-request ${relayed.number}, whose recorded answer is the words sent, and give only your own instructions with --text`);
+  const recorded = recordedAnswer(maintainerRequest, number, { what: `Answering request ${r.id}`, kinds: ["decision", "task"] });
+  return text ? `${recorded.text}\nThe coordinator adds: ${text}` : recorded.text;
+}
+
+export function answer(record, { ticket: number, request: id, text, retry = false, maintainerRequest }) {
   const r = findRequest(record, number, id);
   if (r.answer?.state === "delivered") throw new Error(`Request ${id} was already answered at ${r.answer.time}`);
   if (r.answer?.state === "intent" && !retry) throw new Error(`Answer ${r.answer.deliveryId} to request ${id} has no recorded outcome; settle it from the writer's transcript, or resend with --retry`);
   if (!r.answer && retry) throw new Error(`Request ${id} has no answer to retry`);
-  const words = retry ? r.answer.text : text;
-  if (!words) throw new Error("--text must give the answer");
+  const words = retry ? r.answer.text : answerWords(number, r, { text, maintainerRequest });
   const owner = ticketOf(record, number).owner, to = record.coordinator.session;
   r.answer = { state: "intent", text: words, deliveryId: randomUUID().slice(0, 8), attempts: (r.answer?.attempts ?? 0) + 1, time: new Date().toISOString(), to };
   log(record, "answer-intent", { ticket: number, id, deliveryId: r.answer.deliveryId, attempt: r.answer.attempts });
@@ -1772,7 +1834,7 @@ export function dismiss(record, { filed: number, ticket: from, evidence }) {
   log(record, "filed-dismissed", { filed: number, from: from ?? named[0] });
 }
 
-export function triage(record, { filed: number, outcome: kind, slice, under, reason, question }) {
+export function triage(record, { filed: number, outcome: kind, slice, under, reason, question, maintainerRequest }) {
   const entry = filedEntry(record, number);
   if (!FILED_OUTCOMES.includes(kind)) throw new Error(`--outcome must be ${FILED_OUTCOMES.join(", ")}`);
   let outcome;
@@ -1788,20 +1850,23 @@ export function triage(record, { filed: number, outcome: kind, slice, under, rea
   } else {
     if (!question) throw new Error("--question must give the question raised with the maintainer");
     if (slice !== undefined && !Number.isSafeInteger(slice)) throw new Error("--slice must be the number of the slice whose PR holds on the answer");
-    outcome = { kind, question, ...(slice !== undefined && { slice }) };
+    const filedRequest = heldRequest(record, maintainerRequest, number, { what: `Raising #${number} with the maintainer`, kinds: ["decision"] });
+    outcome = { kind, question, maintainerRequest: filedRequest, ...(slice !== undefined && { slice }) };
   }
+  if (kind !== "maintainer" && maintainerRequest !== undefined) throw new Error("--maintainer-request belongs to --outcome maintainer, which raises the ticket with the maintainer");
   const previous = entry.outcome;
   entry.outcome = { ...outcome, time: new Date().toISOString() };
   log(record, "triaged", { filed: number, outcome: kind, ...(previous && { replaced: previous.kind }) });
 }
 
-export function interim(record, { filed: number, decision, evidence }) {
+export function interim(record, { filed: number, maintainerRequest }) {
   const entry = filedEntry(record, number);
-  if (!decision || !evidence) throw new Error("--decision must quote the maintainer's decision and --evidence say where it was read");
   const o = entry.outcome;
   if (!o || !(o.kind === "completes" || (o.kind === "maintainer" && o.slice !== undefined))) throw new Error(`#${number} is not triaged as completing a slice's fix`);
-  entry.outcome = { kind: "completes", slice: o.slice, reason: o.reason ?? o.question, interim: { decision, evidence, time: new Date().toISOString() }, time: new Date().toISOString() };
-  log(record, "interim", { filed: number, slice: o.slice });
+  const recorded = recordedAnswer(maintainerRequest, number, { what: "interim" });
+  const time = new Date().toISOString();
+  entry.outcome = { kind: "completes", slice: o.slice, reason: o.reason ?? o.question, interim: { request: recorded.request, url: recorded.url, state: recorded.state, decision: recorded.text, time }, time };
+  log(record, "interim", { filed: number, slice: o.slice, maintainerRequest: recorded.request });
 }
 
 export const completingTickets = (record, slice) => Object.values(record.filed ?? {}).filter((e) => e.outcome && (e.outcome.kind === "completes" || e.outcome.kind === "maintainer") && e.outcome.slice === slice && !e.outcome.interim);
@@ -2152,8 +2217,11 @@ const assignmentHeader = (owner) => `Assignment ${owner.launchId} (${sessionOf(o
 
 export function brief(record, planFile, number, decisions = [], defaults = readWriterDefaults()) {
   const owner = record.tickets[number]?.owner;
-  if (owner?.brief?.text) return `${assignmentHeader(owner)}\n${namingCoordinator(owner, record, owner.brief.text, defaults)}`;
-  return briefBody(record, planFile, number, decisions, defaults);
+  if (owner?.brief?.text) {
+    if (decisions.length) throw new Error(`#${number}'s brief was already delivered; a resend repeats it as stored, so send a later decision to the writer as an answer instead`);
+    return `${assignmentHeader(owner)}\n${namingCoordinator(owner, record, owner.brief.text, defaults)}`;
+  }
+  return briefBody(record, planFile, number, decisions.map((facts) => recordedAnswer(facts, number, { what: "brief" }).text), defaults);
 }
 
 function namingCoordinator(owner, record, text, defaults = readWriterDefaults()) {
@@ -2221,7 +2289,7 @@ export function parseArgs(argv) {
     if (FLAGS.has(key)) { options[key] = true; continue; }
     if (i + 1 >= rest.length) throw new Error(`${arg} needs a value`);
     const value = rest[++i];
-    if (key === "arg" || key === "decision") (options[key] ??= []).push(value);
+    if (key === "arg" || key === "decision" || key === "maintainerRequest") (options[key] ??= []).push(value);
     else if (Object.hasOwn(options, key)) throw new Error(`${arg} given twice`);
     else options[key] = value;
   }
@@ -2234,7 +2302,10 @@ const readOptional = (file) => (file ? readJson(absolute(file, "file")) : undefi
 
 const SIDE_EFFECTS = new Set(["launch", "open", "resume"]);
 
-export function main(argv, { defaults = readWriterDefaults(), github, runners = {}, repos, clientFor = githubClient } = {}) {
+const TYPED_DECISION = "takes no typed decision text: file the question with ask-maintainer, record its answer with maintainer-request.mjs record, and pass the request's number with --maintainer-request, whose recorded words are carried";
+export const requestsTracker = (record) => ghTracker(repositoriesOf(record).tickets);
+
+export function main(argv, { defaults = readWriterDefaults(), github, runners = {}, repos, clientFor = githubClient, requestsFor = requestsTracker } = {}) {
   const { command, options: o } = parseArgs(argv);
   const transition = () => `${command}${o.ticket ? ` of #${o.ticket}` : ""}`;
   if (SIDE_EFFECTS.has(command)) ensureSaved(absolute(o.record, "record"), { coordinator: o.coordinator, github });
@@ -2246,6 +2317,9 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     return { revision: record.revision, ...(output && typeof output === "object" ? { result: output } : {}), ...checkpointAfter(file) };
   };
   const number = () => integer(o.ticket, "ticket");
+  const requestNumbers = () => (o.maintainerRequest ?? []).map((value) => integer(String(value).replace(/^#/, ""), "maintainer-request"));
+  const requestsOf = () => { const numbers = requestNumbers(); if (!numbers.length) return []; const tracker = requestsFor(readRecord(absolute(o.record, "record"))); return numbers.map((n) => requestFacts(n, { tracker })); };
+  const oneRequest = () => { if ((o.maintainerRequest?.length ?? 0) > 1) throw new Error("--maintainer-request given twice"); return requestsOf()[0]; };
   switch (command) {
     case "init": {
       if (!o.merging) throw new Error(`--merging must record who merges: ${MERGING.join(" or ")}`);
@@ -2289,8 +2363,8 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry) }));
     case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
     case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
-    case "relay": return mutate((r) => relay(r, { ticket: number(), request: o.request, to: o.to }));
-    case "answer": return mutate((r) => answer(r, { ticket: number(), request: o.request, text: o.text, retry: Boolean(o.retry) }));
+    case "relay": { const filed = oneRequest(); return mutate((r) => relay(r, { ticket: number(), request: o.request, to: o.to, maintainerRequest: filed })); }
+    case "answer": { const filed = oneRequest(); return mutate((r) => answer(r, { ticket: number(), request: o.request, text: o.text, retry: Boolean(o.retry), maintainerRequest: filed })); }
     case "answered": return mutate((r) => answered(r, { ticket: number(), request: o.request, evidence: o.evidence }));
     case "launched": return mutate((r) => launched(r, { ticket: number(), handleKind: o.handleKind, handle: o.handle, observedOn: o.observedOn }));
     case "check-in": { const file = absolute(o.record, "record"); return mutate((r) => recordCheckIn(r, { job: o.job, none: o.none, file, defaults })); }
@@ -2306,9 +2380,16 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "clean-artifacts": return mutate((r) => cleanArtifacts(r, { ticket: number() }));
     case "filed": return mutate((r) => filed(r, { filed: integer(o.filed, "filed"), ticket: o.ticket === undefined ? undefined : number(), pr: o.pr === undefined ? undefined : integer(o.pr, "pr"), source: o.source, reading: o.reading }));
     case "dismiss": return mutate((r) => dismiss(r, { filed: integer(o.filed, "filed"), ticket: o.ticket === undefined ? undefined : number(), evidence: o.evidence }));
-    case "triage": return mutate((r) => triage(r, { filed: integer(o.filed, "filed"), outcome: o.outcome, slice: o.slice === undefined ? undefined : integer(o.slice, "slice"), under: o.under === undefined ? undefined : integer(o.under, "under"), reason: o.reason, question: o.question }));
-    case "interim": { if ((o.decision?.length ?? 0) > 1) throw new Error("--decision given twice"); return mutate((r) => interim(r, { filed: integer(o.filed, "filed"), decision: o.decision?.[0], evidence: o.evidence })); }
-    case "brief": return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), o.decision ?? [], defaults);
+    case "triage": { const filed = oneRequest(); return mutate((r) => triage(r, { filed: integer(o.filed, "filed"), outcome: o.outcome, slice: o.slice === undefined ? undefined : integer(o.slice, "slice"), under: o.under === undefined ? undefined : integer(o.under, "under"), reason: o.reason, question: o.question, maintainerRequest: filed })); }
+    case "interim": {
+      if (o.decision || o.evidence) throw new Error(`interim ${TYPED_DECISION}`);
+      const filed = oneRequest();
+      return mutate((r) => interim(r, { filed: integer(o.filed, "filed"), maintainerRequest: filed }));
+    }
+    case "brief": {
+      if (o.decision) throw new Error(`brief ${TYPED_DECISION}`);
+      return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), requestsOf(), defaults);
+    }
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
     default: throw new Error("Usage: issue-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|clean-artifacts|filed|dismiss|triage|interim|brief|recover-lock --option value ...");
   }

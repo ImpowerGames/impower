@@ -586,6 +586,24 @@ try {
   }
 
   {
+    const at = new Date(now.getTime() - 3600 * 1000).toISOString();
+    const issue = (number, owner, label) => ({ number, title: `Q${number}? (#5)`, created_at: at, html_url: `https://github.com/acme/tickets/issues/${number}`, body: owner === undefined ? "A ticket tagged as a task." : `b\n\n${dataLine({ kind: label === labels.task ? "task" : "decision", waits: "w", owner })}\n`, labels: [{ name: label }] });
+    const tagComment = (owner) => ({ id: 1, user: { login: repos.maintainer.login, type: "User" }, body: `Task.\n\n${dataLine({ kind: "task", tagged: true, owner })}\n` });
+    const open = { [labels.decision]: [issue(11, "orchestrate-issues #977", labels.decision), issue(12, "resolve-issue #2271", labels.decision)], [labels.task]: [issue(13, "orchestrate-issues #977", labels.task), issue(14, undefined, labels.task), issue(15, undefined, labels.task)], [labels.decidedWithoutYou]: [] };
+    const tracker = { open: (label) => open[label], comments: (n) => (n === 14 ? [tagComment("orchestrate-issues #977")] : n === 15 ? [tagComment("orchestrate-issues #2107")] : []), timeline: () => [] };
+    const lines = [];
+    assert.equal(main(["list", "--owner=orchestrate-issues #977"], { repos, tracker, out: (line) => lines.push(line), now }), 0);
+    assert.match(lines[0], /^Open maintainer requests owned by orchestrate-issues #977\n\nDecisions \(1\)\n  #11 Q11\? \(#5\)\n[^\n]*\n\nTasks \(2\)\n  #13 Q13\? \(#5\)\n[^\n]*\n  #14 Q14\? \(#5\)\n/, "list --owner keeps only the run's requests, including a tagged ticket whose task comment names it");
+    assert.ok(!/#12 |#15 /.test(lines[0]), "another owner's requests are left out");
+    lines.length = 0;
+    assert.equal(main(["list", "--owner=orchestrate-issues #977", "--json"], { repos, tracker, out: (line) => lines.push(line), now }), 0);
+    const listed = JSON.parse(lines[0]);
+    assert.deepEqual([listed.owner, listed.decisions.map((i) => i.number), listed.tasks.map((i) => i.number)], ["orchestrate-issues #977", [11], [13, 14]]);
+    for (const args of [["list", "--owner="], ["list", "--owner=a", "--owner=b"]]) assert.equal(main(args, { repos, tracker, out: () => {}, now }), 2, `${args.join(" ")} is refused`);
+    console.log("ok: list --owner prints only the requests one run or session owns");
+  }
+
+  {
     const file = path.join(scratch, "repos.json");
     const bad = (label, maintainer, field) => {
       writeFileSync(file, JSON.stringify({ ...repos, maintainer }));

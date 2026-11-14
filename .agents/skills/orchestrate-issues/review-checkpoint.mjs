@@ -8,7 +8,8 @@ import { readJson } from "../../../scripts/review-job-store.mjs";
 import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
 import { readRepos } from "../../repos.mjs";
-import { branchTicket, launchDirOf, postedReviewRounds, readRecord, repositoriesOf, startRepositories, updateRecord } from "./issue-run.mjs";
+import { requestFacts } from "../ask-maintainer/maintainer-request.mjs";
+import { branchTicket, heldRequest, launchDirOf, postedReviewRounds, readRecord, repositoriesOf, requestsTracker, startRepositories, updateRecord } from "./issue-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
@@ -225,7 +226,7 @@ function checkAssessment(kind, a, evidence) {
   const missing = ASSESSMENT_FIELDS.filter((f) => !present(a[f]));
   if (missing.length) throw new Error(`The assessment lacks ${missing.join(", ")}; every checkpoint answers each one from the PR's whole review history`);
   if (!["preserved", "changed"].includes(a.agreedBehavior) || !["unchanged", "major-change"].includes(a.architecture)) throw new Error("The assessment must say whether the parent issue's agreed behavior is preserved or changed, and whether the architecture is unchanged or takes a major change");
-  if ((a.agreedBehavior === "changed" || a.architecture === "major-change") && kind !== "maintainer") throw new Error("A change to the parent issue's agreed behavior or a major architectural commitment is the maintainer's decision; record kind maintainer with the question");
+  if ((a.agreedBehavior === "changed" || a.architecture === "major-change") && kind !== "maintainer") throw new Error("A change to the parent issue's agreed behavior or a major architectural commitment is the maintainer's decision; record kind maintainer with the question and the number of the maintainer request that asks it");
   if (!Array.isArray(a.findings) || a.findings.some((f) => !Number.isSafeInteger(f?.comment) || !DISPOSITIONS.includes(f.disposition) || !present(f.finding ?? (f.disposition === "none" ? "no findings" : "")))) throw new Error(`The assessment's findings must list every finding as { comment, finding, disposition } with a disposition among ${DISPOSITIONS.join(", ")}`);
   if (kind !== "maintainer") {
     const listed = new Set(a.findings.map((f) => f.comment));
@@ -236,8 +237,9 @@ function checkAssessment(kind, a, evidence) {
   if (open.length && (kind === "finish" || kind === "accept-unreviewed")) throw new Error(`Finding${open.length > 1 ? "s" : ""} ${open.map((f) => `${f.comment} (${line(f.finding)})`).join(", ")} ${open.length > 1 ? "are" : "is"} still open; a known defect is resolved before ${kind}`);
 }
 
-export function decide(record, { ticket: number, kind, assessment: a, inspected, evidence: e, now = new Date() }) {
+export function decide(record, { ticket: number, kind, assessment: a, inspected, evidence: e, maintainerRequest, now = new Date() }) {
   if (!KINDS.includes(kind)) throw new Error(`--kind must be one of ${KINDS.join(", ")}`);
+  if (kind !== "maintainer" && maintainerRequest !== undefined) throw new Error("--maintainer-request belongs to a decision of kind maintainer");
   const ticket = record.tickets[number];
   if (!ticket) throw new Error(`#${number} is not in the run record`);
   if (writersOf(ticket, number).includes(record.coordinator.session)) throw new Error(`${record.coordinator.session} wrote for #${number}, and is now its coordinator; a writer never decides its own review checkpoint`);
@@ -261,6 +263,7 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
   }
   if (kind === "repair" && (!present(a.scope) || !present(a.verificationChange))) throw new Error("A root-cause repair records the scope it widens in scope and how verification changes in verificationChange");
   if (kind === "maintainer" && !present(a.question)) throw new Error("A maintainer decision records the question in question");
+  if (kind === "maintainer") extra.maintainerRequest = heldRequest(record, maintainerRequest, number, { what: "A checkpoint decision of kind maintainer", kinds: ["decision"] });
   if (kind === "accept-unreviewed") {
     if (!e.range || e.head === e.reviewedHead || !e.range.commits.length) throw new Error(`Nothing after ${e.reviewedHead} is unreviewed; finish through ordinary readiness instead`);
     if (!present(record.invocation?.text)) throw new Error("The run record holds no invocation to authorize an acceptance");
@@ -315,7 +318,7 @@ export function renderDecision(d, e) {
     ...(d.kind === "extend" ? [`- Round ${d.round + 1} may launch with \`reviewRoundLimit\` ${d.limit} and \`extendedReviewAuthorization\` set to the invocation quoted above, verbatim. Limit reason: ${d.limitReason} The next checkpoint follows round ${d.round + 1}'s verified fixes, and the count never resets.`] : []),
     ...(d.kind === "repair" ? [`- Repair scope: ${line(a.scope)} Verification change: ${line(a.verificationChange)} The round count stays at ${d.round}; the coordinator reassesses the changed risk once the repair is verified, before choosing the next action.`] : []),
     ...(d.kind === "accept-unreviewed" ? [`- Verification on the head: ${a.verification.map(line).join("; ")}.`, `- This is the coordinator's exception for an orchestrated parent issue: not ordinary readiness and not an independent review. Reviewed code ends at \`${d.reviewedHead}\`; the range above is accepted unreviewed. It applies to head \`${d.head}\` only: any later push invalidates it and needs a new checkpoint.`] : []),
-    ...(d.kind === "maintainer" ? [`- Question for the maintainer: ${line(a.question)} This ticket waits for the answer; independent tickets continue.`] : []),
+    ...(d.kind === "maintainer" ? [`- Question for the maintainer: ${line(a.question)} ${d.maintainerRequest ? `Filed as maintainer request #${d.maintainerRequest.number} (${d.maintainerRequest.url}); this ticket waits for its answer` : "This ticket waits for the answer"}; independent tickets continue.`] : []),
     ...(d.kind === "finish" ? ["- Ordinary review-pr readiness decides the PR; this decision grants nothing beyond it."] : []),
     "",
     `<!-- ${MARK}`,
@@ -459,7 +462,7 @@ export function postCommand(record, pr, ticket, file) {
   return names.split ? `gh issue comment ${thread.number} -R ${thread.repo} --body-file ${file}` : `gh pr comment ${pr} --body-file ${file}`;
 }
 
-export function main(argv, { clientFor = checkpointClient, gitFor = localGit, repos } = {}) {
+export function main(argv, { clientFor = checkpointClient, gitFor = localGit, repos, requestsFor = requestsTracker } = {}) {
   const { command, o } = parse(argv);
   const withRecord = () => { const file = abs(o.record, "record"), record = readRecord(file); return { file, record, client: clientFor(record, record.checkout), git: gitFor(record.checkout) }; };
   const mutate = (file, fn) => { const { record, output } = updateRecord(file, { expectRevision: Number(o.expectRevision), coordinator: o.coordinator }, fn); return { revision: record.revision, ...output }; };
@@ -475,7 +478,8 @@ export function main(argv, { clientFor = checkpointClient, gitFor = localGit, re
       const evidence = gatherEvidence({ record, ticket: int(o.ticket, "ticket"), pr: int(o.pr, "pr"), client, git });
       const assessment = readJson(abs(o.assessment, "assessment"));
       const out = abs(o.out, "out");
-      const done = mutate(file, (r) => decide(r, { ticket: int(o.ticket, "ticket"), kind: o.kind, assessment, inspected: o.inspected, evidence }));
+      const maintainerRequest = o.maintainerRequest === undefined ? undefined : requestFacts(int(String(o.maintainerRequest).replace(/^#/, ""), "maintainer-request"), { tracker: requestsFor(record) });
+      const done = mutate(file, (r) => decide(r, { ticket: int(o.ticket, "ticket"), kind: o.kind, assessment, inspected: o.inspected, evidence, maintainerRequest }));
       fs.writeFileSync(out, done.body + "\n");
       return { revision: done.revision, id: done.id, body: out, next: `post it with ${postCommand(record, evidence.pr, int(o.ticket, "ticket"), out)}, read the comment back to a file, then record published` };
     }

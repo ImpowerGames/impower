@@ -9,12 +9,15 @@ import { TOOL_MARK, commentAuthor } from "./github-app.mjs";
 import {
   RequestRefused,
   answerFromChat,
+  answerText,
   dataLine,
   fetchAnswer,
   ghTracker,
   main,
   readAnswer,
+  quote,
   readNote,
+  requestFacts,
   toolText,
   recordAnswer,
   recordBody,
@@ -235,6 +238,25 @@ try {
     assert.deepEqual([again.records[0].reused, again.confirmation.reused, tracker.calls.filter((c) => c[0] === "comment").length], [true, true, 2], "recording again posts nothing new");
     assert.equal(fetchAnswer(REQUEST, { tracker, repos }).state, "answered", "the tool's record and confirmation do not change the answer");
     console.log("ok: record posts the fixture comment on the affected ticket, quoting the maintainer's comment character for character, confirms on the request, and posts once");
+  }
+
+  {
+    const tracker = fakeTracker({ issues: [issue(closedBy("completed")), { number: 2271, title: "Route gutter", html_url: issueUrl(2271), state: "open" }], comments: [answerComment] });
+    const before = requestFacts(REQUEST, { tracker, repos });
+    assert.deepEqual([before.kind, before.state, before.answered, before.recorded, before.owner, before.tickets, before.question], ["decision", "answered", true, false, "orchestrate-issues #977", [2271], "What should mark a choice the preview picked by itself?"], "the facts a coordinator command checks come from the request");
+    recordAnswer(REQUEST, { tracker, repos });
+    const after = requestFacts(REQUEST, { tracker, repos });
+    assert.equal(after.recorded, true, "a recorded answer reads as recorded");
+    const text = answerText(after);
+    assert.equal(text, `Maintainer request #${REQUEST} (${issueUrl(REQUEST)}) asked "What should mark a choice the preview picked by itself?"; the maintainer answered in the words quoted below.\n\nTheir comment at 2026-11-13 16:10 UTC (${answerComment.html_url}):\n${quote(typed.replace(/\r\n/g, "\n").trimEnd())}`);
+    assert.equal(unquote(text.split("):\n").at(-1)), typed.replace(/\r\n/g, "\n").trimEnd(), "the text carries the maintainer's words character for character");
+    const accepted = requestFacts(REQUEST, { tracker: fakeTracker({ issues: [issue(closedBy("completed"))] }), repos });
+    assert.match(answerText(accepted), /; the maintainer accepted the recommendation, B · A hollow pin, by closing without comment at 2026-11-13 16:10 UTC\.$/);
+    assert.equal(accepted.recorded, false);
+    const waiting = requestFacts(REQUEST, { tracker: fakeTracker({ issues: [issue()] }), repos });
+    assert.deepEqual([waiting.state, waiting.answered, waiting.recorded], ["waiting", false, false]);
+    assert.throws(() => answerText(waiting), /holds no answer: it is waiting/);
+    console.log("ok: requestFacts reports a request's owner, tickets, answer and whether it is recorded, and answerText quotes the recorded words");
   }
 
   {

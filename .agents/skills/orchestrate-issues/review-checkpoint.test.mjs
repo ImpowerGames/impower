@@ -77,6 +77,7 @@ try {
     trace(name, out.body);
     return { ...out, posted };
   };
+  const asked = (over = {}) => ({ number: 9042, url: "https://github.com/acme/widgets/issues/9042", title: "Should round 3 stop here? (#42)", kind: "decision", question: "Should round 3 stop here?", owner: "orchestrate-issues #40", tickets: [42], state: "waiting", answered: false, recorded: false, words: [], ...over });
   const findingsSoFar = () => rc.roundState(rc.readJournals(jobDir)).reports.map((r) => ({ comment: r.comment, finding: `round ${r.round} ${r.reviewerId} findings`, disposition: "accepted" }));
   const assess = (more = {}) => ({
     mechanisms: "test", regressions: "test", repairOptions: "test", residualRisk: "test", coverage: "test", nextRoundValue: "test", rationale: "test", next: "test",
@@ -108,7 +109,14 @@ try {
   adjudicate(corrections3.report);
   e = evidence();
   assert.ok(e.blockers.some((b) => /round 3 still plans undirected/.test(b)), e.blockers.join("; "));
-  const early = rc.decide(structuredClone(record()), { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e });
+  assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e }), /A checkpoint decision of kind maintainer waits on the maintainer only through a filed request: file a maintainer decision request with .*, naming #42 in its tickets and "orchestrate-issues #40" as its owner, then pass its number with --maintainer-request/, "a decision of kind maintainer refuses without a request number");
+  assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e, maintainerRequest: asked({ tickets: [43] }) }), /Maintainer request #9042 does not hold up #42/);
+  assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e, maintainerRequest: asked({ owner: "orchestrate-issues #977" }) }), /owned by "orchestrate-issues #977", not by this run/);
+  assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "accept-unreviewed", assessment: assess({ verification: ["x"] }), evidence: e, maintainerRequest: asked() }), /--maintainer-request belongs to a decision of kind maintainer/);
+  const earlyRecord = structuredClone(record());
+  const early = rc.decide(earlyRecord, { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e, maintainerRequest: asked() });
+  assert.deepEqual(earlyRecord.tickets[42].checkpoints.at(-1).maintainerRequest, { number: 9042, url: "https://github.com/acme/widgets/issues/9042", title: "Should round 3 stop here? (#42)", kind: "decision" }, "the decision stores the request number beside the question");
+  assert.match(early.body, /- Question for the maintainer: Should round 3 stop here\? Filed as maintainer request #9042 \(https:\/\/github\.com\/acme\/widgets\/issues\/9042\); this ticket waits for its answer; independent tickets continue\./, "the published decision names the request");
   assert.match(early.body, /no checkpoint is due, so this question reaches the maintainer before the review gates hold: round 3 still plans undirected/);
   assert.doesNotMatch(early.body, /round 3 is complete/);
   const running3 = journal(3, "undirected", ["corrections", "undirected"], { head: c.round2, exited: false, finished: false });
@@ -206,7 +214,7 @@ try {
     agreedBehavior: "changed", question: "Should a ticket that gained sub-issues keep its PR and continue it, instead of holding it until its writer is settled?",
   });
   assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "repair", assessment: { ...semantics, scope: "s", verificationChange: "v" }, evidence: evidence() })), /maintainer's decision/);
-  decideAndPublish("round-5-maintainer-changed-semantics", "maintainer", semantics);
+  decideAndPublish("round-5-maintainer-changed-semantics", "maintainer", semantics, { maintainerRequest: asked({ number: 9043, url: "https://github.com/acme/widgets/issues/9043" }) });
 
   pull.head = c.final;
   pull.checks = [{ name: "test-suite", state: "IN_PROGRESS" }];
@@ -335,7 +343,7 @@ try {
   assert.equal(rc.acceptanceApplies(rc.restore(comments, { trusted: ["local_coord"], record: record(), pr: 500 }), c.final).applies, true, "in the record's own order the acceptance is last and applies");
   const keptWithdrawals = [];
   const withdrawRecord = structuredClone(record());
-  const w = rc.decide(withdrawRecord, { ticket: 42, kind: "maintainer", assessment: assess({ question: "Hold the acceptance while the maintainer looks?" }), evidence: evidence() });
+  const w = rc.decide(withdrawRecord, { ticket: 42, kind: "maintainer", assessment: assess({ question: "Hold the acceptance while the maintainer looks?" }), evidence: evidence(), maintainerRequest: asked({ number: 9044 }) });
   assert.match(rc.acceptanceApplies(rc.restore(comments, { trusted: ["local_coord"], record: withdrawRecord, pr: 500 }), c.final).reason, new RegExp(`${w.id} \\(maintainer\\) .* replaced acceptance`), "a withdrawal recorded but not yet read back already withdraws, by its record identity");
   const wTime = at();
   const wComment = { id: 9040, created_at: wTime, updated_at: wTime, body: w.body };
