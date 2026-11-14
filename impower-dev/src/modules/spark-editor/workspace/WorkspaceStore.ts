@@ -10,6 +10,7 @@ import type {
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import type { EditorBreakpoint } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
+import type { PreviewLine } from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewLineMessage";
 import type { DebugVariableNode } from "@impower/spark-web-player/src/components/DebugVariables/DebugVariables";
 import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
@@ -53,6 +54,12 @@ export interface OutlineSnapshot {
   symbols: readonly DocumentSymbol[];
   diagnostics: readonly Diagnostic[];
   firstContentLine: number | undefined;
+}
+
+export interface PreviewLineSnapshot {
+  uri: string;
+  line: number;
+  preview: PreviewLine;
 }
 
 export interface DebugSessionState {
@@ -167,6 +174,7 @@ export const cacheableWorkspaceState = (
   copy.debug.pinpoints = {};
   copy.debug.highlights = {};
   copy.preview.modes.game = {};
+  delete copy.preview.revealed;
   return copy;
 };
 
@@ -271,6 +279,8 @@ class WorkspaceStore {
   >({});
 
   readonly outline = signal<OutlineSnapshot | null>(null);
+
+  readonly previewLine = signal<PreviewLineSnapshot | null>(null);
 
   readonly syncConflictOpen = signal<boolean>(false);
 

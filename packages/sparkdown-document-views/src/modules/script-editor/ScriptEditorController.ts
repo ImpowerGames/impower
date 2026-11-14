@@ -42,6 +42,7 @@ import {
   renameSymbol,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
+import { showLineProblems } from "../../cm-problem-marks/problemMarks";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ChoseEditorFixMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChoseEditorFixMessage";
@@ -943,6 +944,8 @@ export class ScriptEditorController {
         return findReferences(view);
       case "definition":
         return jumpToDefinition(view);
+      case "problems":
+        return showLineProblems(view);
     }
   }
 

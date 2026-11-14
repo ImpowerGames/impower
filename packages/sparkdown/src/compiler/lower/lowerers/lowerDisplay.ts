@@ -306,7 +306,7 @@ function splitBodyRangeAtBreaks(
     : [{ from: bodyStart, to: bodyEnd, pause: false, leads: false }];
 }
 
-interface BeatRange {
+export interface BeatRange {
   from: number;
   to: number;
   pause: boolean;
@@ -1359,10 +1359,10 @@ function findFirstDirectChild(
   return null;
 }
 
-export function displayCaptionText(
+export function displayBeatRanges(
   node: SyntaxNode,
   ctx: SourceReader,
-): string | undefined {
+): BeatRange[] | undefined {
   if (!Object.hasOwn(DISPLAY_LINE_TYPES, node.name)) return undefined;
   const nodeRef = {
     node,
@@ -1385,13 +1385,21 @@ export function displayCaptionText(
       from = glue.from;
     }
   }
-  const ranges = splitBodyRangeAtBreaks(
+  return splitBodyRangeAtBreaks(
     node,
     from,
     to,
     ctx,
     block ? "block" : "inline",
   );
+}
+
+export function displayCaptionText(
+  node: SyntaxNode,
+  ctx: SourceReader,
+): string | undefined {
+  const ranges = displayBeatRanges(node, ctx);
+  if (!ranges) return undefined;
   const last = ranges[ranges.length - 1]!;
   let text = "";
   let pos = last.from;
