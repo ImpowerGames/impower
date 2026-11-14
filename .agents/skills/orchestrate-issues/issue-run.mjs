@@ -920,7 +920,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     return {
       ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
-      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "closed" && { stateReason: b.state_reason ?? null }), ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
+      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });
@@ -1100,23 +1100,30 @@ function askMaintainer(record, snapshot, tickets) {
       entry.reason += `; its maintainer request #${asked.number} no longer blocks it on GitHub, so it holds nothing: ${fileIt}`;
       continue;
     }
-    if (blocker.state === "closed" && blocker.stateReason === "not_planned") {
-      entry.maintainerRequest = { file: kind, key, ...(kind === "task" && { pr: entry.pr }), ...(triage && { triage: true }), closedNotPlanned: asked.number };
-      entry.reason += `; its maintainer request #${asked.number} was closed as not planned (withdrawn, will not be done, or unclear): read it, reopen an unclear one with revise, or ${fileIt}`;
-      continue;
-    }
-    const state = blocker.state === "closed" ? "is closed: read and record its answer, then act on it" : blocker.wentAhead ? "went ahead without the maintainer: act on its fallback, and record their answer once they keep or change it" : "is open: the maintainer has not answered";
+    const state = blocker.state === "closed" ? `is closed: read it, then record its answer and act on it; only when read reports it withdrawn, unclear or will not be done, reopen an unclear one with revise or ${fileIt.replace(", and the plan names it here", ", which reads it again before replacing it")}` : blocker.wentAhead ? "went ahead without the maintainer: act on its fallback, and record their answer once they keep or change it" : "is open: the maintainer has not answered";
     entry.maintainerRequest = { filed: { number: asked.number, state: blocker.state, ...(blocker.wentAhead && { wentAhead: true }) } };
     entry.reason += `; maintainer request #${asked.number} ${state}`;
   }
 }
 
-export function asked(record, { plan: planFile, ticket: number, maintainerRequest }) {
+function askedWait(record, number, entry) {
+  const asking = entry.maintainerRequest ?? {};
+  if (asking.file) return { kind: asking.file, key: asking.key, pr: asking.pr, triage: Boolean(asking.triage) };
+  const closed = asking.filed?.state === "closed" ? asking.filed.number : null;
+  if (closed === null) throw new Error(`The plan does not ask for a maintainer request for #${number}${asking.filed ? `: it already waits on #${asking.filed.number}` : ""}`);
+  const outcome = record.filed?.[number]?.outcome;
+  if (outcome?.kind === "maintainer" && outcome.maintainerRequest?.number === closed) return { kind: "decision", triage: true, closed };
+  const tied = (record.tickets?.[number]?.waits ?? []).filter((w) => w.request.number === closed).at(-1);
+  if (!tied) throw new Error(`The record ties no wait of #${number} to maintainer request #${closed}; plan again`);
+  return { kind: tied.request.kind ?? (entry.action === "await-maintainer" ? "task" : "decision"), key: tied.key, pr: tied.pr, triage: false, closed };
+}
+
+export function asked(record, { plan: planFile, ticket: number, maintainerRequest, previousRequest }) {
   const entry = planEntry(readPlan(planFile, record), number, ["decision-needed", "await-maintainer"]);
-  const kind = entry.maintainerRequest?.file;
-  if (!kind) throw new Error(`The plan does not ask for a maintainer request for #${number}${entry.maintainerRequest?.filed ? `: it already waits on #${entry.maintainerRequest.filed.number}` : ""}`);
-  const filed = heldRequest(record, maintainerRequest, number, { what: `Recording the request #${number}'s ${entry.action} entry waits on`, kinds: [kind] });
-  if (entry.maintainerRequest.triage) {
+  const wait = askedWait(record, number, entry);
+  if (wait.closed !== undefined && (previousRequest?.number !== wait.closed || !ENDED.includes(previousRequest.state))) throw new Error(`#${number} waits on maintainer request #${wait.closed}, which is ${previousRequest?.number === wait.closed ? previousRequest.state : "closed"}; record its answer and act on it: only a request read as withdrawn, unclear or will not be done is replaced`);
+  const filed = heldRequest(record, maintainerRequest, number, { what: `Recording the request #${number}'s ${entry.action} entry waits on`, kinds: [wait.kind] });
+  if (wait.triage) {
     const outcome = record.filed?.[number]?.outcome;
     if (outcome?.kind !== "maintainer") throw new Error(`#${number} is no longer triaged as raised with the maintainer; plan again`);
     const replaced = outcome.maintainerRequest ?? null;
@@ -1125,8 +1132,8 @@ export function asked(record, { plan: planFile, ticket: number, maintainerReques
     return { request: filed.number };
   }
   const ticket = ticketOf(record, number);
-  (ticket.waits ??= []).push({ key: entry.maintainerRequest.key, action: entry.action, ...(entry.maintainerRequest.pr && { pr: entry.maintainerRequest.pr }), request: filed, time: new Date().toISOString() });
-  log(record, "asked", { ticket: number, key: entry.maintainerRequest.key, maintainerRequest: filed.number });
+  (ticket.waits ??= []).push({ key: wait.key, action: entry.action, ...(wait.pr && { pr: wait.pr }), request: filed, time: new Date().toISOString() });
+  log(record, "asked", { ticket: number, key: wait.key, maintainerRequest: filed.number, ...(wait.closed !== undefined && { replaced: wait.closed }) });
   return { request: filed.number };
 }
 
@@ -2423,7 +2430,12 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry) }));
     case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
     case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
-    case "asked": { const filed = oneRequest(number()); return mutate((r) => asked(r, { plan: absolute(o.plan, "plan"), ticket: number(), maintainerRequest: filed })); }
+    case "asked": {
+      const filed = oneRequest(number());
+      const waitingOn = readJson(absolute(o.plan, "plan")).tickets?.find((t) => t.number === number())?.maintainerRequest?.filed;
+      const previousRequest = filed && waitingOn?.state === "closed" ? requestFacts(waitingOn.number, { tracker: requestsFor(readRecord(absolute(o.record, "record"))), holding: number() }) : undefined;
+      return mutate((r) => asked(r, { plan: absolute(o.plan, "plan"), ticket: number(), maintainerRequest: filed, previousRequest }));
+    }
     case "relay": {
       const filed = oneRequest(number());
       const before = readRecord(absolute(o.record, "record")).tickets?.[number()]?.requests?.find((q) => q.id === o.request)?.relayed?.maintainerRequest?.number;

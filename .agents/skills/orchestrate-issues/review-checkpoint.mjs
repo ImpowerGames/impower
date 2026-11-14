@@ -214,9 +214,15 @@ export function checkpointEvidence({ pr, state, pull, comments, git, trusted, re
     reviewedHead: state.reviewedHead, plannedReviewers: state.plannedReviewers, range, checks, reports,
     lastExit: state.launches.map((l) => l.exitedAt).filter(Boolean).sort().at(-1) ?? null, lastAdjudication: reports.map((r) => r.adjudicatedAt).filter(Boolean).sort().at(-1) ?? null,
     decisions: decisions.map(({ id, kind, round, head, comment, trusted: t, malformed }) => ({ id, kind, round, head, comment, trusted: t, ...(malformed && { malformed }) })),
+    inForce: inForceOf(decisions),
     audit: violations, blockers: floor ? [...blockers, floor] : blockers, due: !floor && !blockers.length && !violations.length, acceptanceDue: !blockers.length && !violations.length,
   };
 }
+
+const inForceOf = (decisions) => {
+  const d = decisions.filter((x) => x.effective).at(-1);
+  return d ? { id: d.id, kind: d.kind, ...(d.maintainerRequest && { maintainerRequest: d.maintainerRequest }) } : null;
+};
 
 const present = (value) => typeof value === "string" && value.trim().length > 0;
 const line = (text) => String(text).replace(/\s*\r?\n\s*/g, " ").trim();
@@ -242,7 +248,7 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
   const ticket = record.tickets[number];
   if (!ticket) throw new Error(`#${number} is not in the run record`);
   if (writersOf(ticket, number).includes(record.coordinator.session)) throw new Error(`${record.coordinator.session} wrote for #${number}, and is now its coordinator; a writer never decides its own review checkpoint`);
-  const prior = (ticket.checkpoints ?? []).filter((d) => d.state !== "abandoned").at(-1);
+  const prior = e.inForce !== undefined ? e.inForce : (ticket.checkpoints ?? []).filter((d) => d.state !== "abandoned").at(-1);
   const held = prior?.kind === "maintainer" ? prior.maintainerRequest ?? null : null;
   if (held && kind === "maintainer" && Number.isSafeInteger(maintainerRequest?.number) && maintainerRequest.number !== held.number) throw new Error(`Decision ${prior.id} waits on the maintainer's answer in request #${held.number}; a new decision of kind maintainer keeps that request, and another question waits until a decision of another kind has released it with its recorded answer or withdrawal`);
   if (kind !== "maintainer" && !held && maintainerRequest !== undefined) throw new Error("--maintainer-request belongs to a decision of kind maintainer, or to the decision after one, which names that decision's request");

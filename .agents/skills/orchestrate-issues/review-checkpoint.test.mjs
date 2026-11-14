@@ -216,9 +216,15 @@ try {
   });
   assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "repair", assessment: { ...semantics, scope: "s", verificationChange: "v" }, evidence: evidence() })), /maintainer's decision/);
   decideAndPublish("round-5-maintainer-changed-semantics", "maintainer", semantics, { maintainerRequest: asked({ number: 9043, url: "https://github.com/acme/widgets/issues/9043" }) });
+  assert.deepEqual([evidence().inForce.kind, evidence().inForce.maintainerRequest.number], ["maintainer", 9043], "the evidence names the decision in force with its request");
   const released9043 = asked({ number: 9043, url: "https://github.com/acme/widgets/issues/9043", state: "answered", answered: true, recorded: true, closed: { at: "2026-10-12T12:00:00.000Z", by: "maintainer", reason: "completed" }, words: [{ url: "https://github.com/acme/widgets/issues/9043#issuecomment-1", at: "2026-10-12T11:59:00.000Z", body: "Keep holding it; do not continue the PR." }] });
   assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "finish", assessment: assess(), evidence: evidence() })), /#42 waits on the maintainer's answer in request #9043; decide finish only once that answer is recorded or the request is withdrawn, passing --maintainer-request 9043$/, "a later decision does not release a maintainer question without its recorded answer");
   assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "finish", assessment: assess(), evidence: evidence(), maintainerRequest: asked({ number: 9043 }) })), /#9043 has no answer yet: it is waiting/);
+  {
+    const blank = structuredClone(record());
+    blank.tickets[42].checkpoints = [];
+    assert.throws(() => rc.decide(blank, { ticket: 42, kind: "finish", assessment: assess(), evidence: { ...evidence(), inForce: { id: "pred0001", kind: "maintainer", maintainerRequest: { number: 9401 } } } }), /#42 waits on the maintainer's answer in request #9401; decide finish only once/, "a predecessor's maintainer decision in force, absent from this record, still needs its request's answer");
+  }
   assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "maintainer", assessment: assess({ question: "q2" }), evidence: evidence(), maintainerRequest: asked({ number: 9050 }) })), /a new decision of kind maintainer keeps that request/, "another question waits until the first is released");
 
   pull.head = c.final;

@@ -531,23 +531,27 @@ try {
     const open = entry107([request(9101, "open")], on9101);
     assert.deepEqual([open.action, open.maintainerRequest], ["decision-needed", { filed: { number: 9101, state: "open" } }]);
     assert.match(open.reason, /^Effort Huge has no writer effort; maintainer request #9101 is open: the maintainer has not answered$/, "once recorded, the plan names the request and stops asking for one");
-    assert.match(entry107([request(9101, "closed")], on9101).reason, /; maintainer request #9101 is closed: read and record its answer, then act on it$/, "a recorded request that closed is this entry's answer");
     assert.match(entry107([request(9101, "open", { wentAhead: true })], on9101).reason, /; maintainer request #9101 went ahead without the maintainer: act on its fallback/);
     const unlinked = entry107([request(9102, "open")], on9101);
     assert.deepEqual(unlinked.maintainerRequest, { file: "decision", key, unlinked: 9101 }, "a recorded request GitHub no longer blocks the ticket on holds nothing, and another open request does not replace it");
     assert.match(unlinked.reason, /; its maintainer request #9101 no longer blocks it on GitHub, so it holds nothing: file a maintainer decision request/);
     assert.deepEqual(entry107([request(9101, "open")], [{ key: "reason:0000000000000000", action: "decision-needed", request: { number: 9101 } }]).maintainerRequest, { file: "decision", key }, "a request recorded for another wait on the ticket is not this entry's");
-    const withdrawn = entry107([request(9101, "closed", { stateReason: "not_planned" })], on9101);
-    assert.deepEqual(withdrawn.maintainerRequest, { file: "decision", key, closedNotPlanned: 9101 }, "a recorded request closed as not planned (a withdrawal among them) has no answer to record, so the entry asks for a replacement");
-    assert.match(withdrawn.reason, /; its maintainer request #9101 was closed as not planned \(withdrawn, will not be done, or unclear\): read it, reopen an unclear one with revise, or file a maintainer decision request/);
-    assert.deepEqual(entry107([request(9101, "closed", { stateReason: "completed" })], on9101).maintainerRequest, { filed: { number: 9101, state: "closed" } }, "a request closed as completed is the entry's answer");
+    const closedEntry = entry107([request(9101, "closed")], on9101);
+    assert.deepEqual(closedEntry.maintainerRequest, { filed: { number: 9101, state: "closed" } }, "a recorded request that closed is named, whatever GitHub's close reason, since only reading it says whether it holds an answer");
+    assert.match(closedEntry.reason, /; maintainer request #9101 is closed: read it, then record its answer and act on it; only when read reports it withdrawn, unclear or will not be done, reopen an unclear one with revise or file a maintainer decision request .*, which reads it again before replacing it$/);
     {
-      const blockers107 = [request(9101, "closed", { stateReason: "not_planned" }), request(9102, "open")];
+      const blockers107 = [request(9101, "closed"), request(9102, "open")];
       const snap107 = { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge", blockers: blockers107 } : t)) };
-      const withdrawnPlan = write("withdrawn-plan.json", plan({ record: waiting(settled105(run.readRecord(record)), on9101), snapshot: snap107 }));
-      const replacing = waiting(settled105(run.readRecord(record)), on9101);
-      run.asked(replacing, { plan: withdrawnPlan, ticket: 107, maintainerRequest: { number: 9102, url: "u", title: "t", kind: "decision", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state: "waiting" } });
-      assert.deepEqual(plan({ record: replacing, snapshot: snap107 }).tickets.find((t) => t.number === 107).maintainerRequest, { filed: { number: 9102, state: "open" } }, "asked records the replacement for a withdrawn request, and the plan names it");
+      const closedPlan = write("closed-plan.json", plan({ record: waiting(settled105(run.readRecord(record)), on9101), snapshot: snap107 }));
+      const next = { number: 9102, url: "u", title: "t", kind: "decision", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state: "waiting" };
+      const old = (state) => ({ number: 9101, url: "u", title: "t", kind: "decision", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state });
+      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), on9101), { plan: closedPlan, ticket: 107, maintainerRequest: next, previousRequest: old("answered") }), /#107 waits on maintainer request #9101, which is answered; record its answer and act on it: only a request read as withdrawn, unclear or will not be done is replaced/, "an answered request, even one closed as not planned, is never set aside");
+      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), on9101), { plan: closedPlan, ticket: 107, maintainerRequest: next }), /which is closed; record its answer/, "a closed request is read before it is replaced");
+      for (const state of ["withdrawn", "unclear"]) {
+        const replacing = waiting(settled105(run.readRecord(record)), on9101);
+        run.asked(replacing, { plan: closedPlan, ticket: 107, maintainerRequest: next, previousRequest: old(state) });
+        assert.deepEqual(plan({ record: replacing, snapshot: snap107 }).tickets.find((t) => t.number === 107).maintainerRequest, { filed: { number: 9102, state: "open" } }, `asked records the replacement for a ${state} request, and the plan names it`);
+      }
     }
     const readyPr = (blockers, waits = []) => plan({ record: { ...settled105(run.readRecord(record)), tickets: { ...settled105(run.readRecord(record)).tickets, 105: { ...settled105(run.readRecord(record)).tickets[105], waits } } }, snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 105 ? { ...t, blockers } : t)) } }).tickets.find((t) => t.number === 105);
     assert.deepEqual(readyPr([request(9001, "closed")]).maintainerRequest, { file: "task", key: "pr:505", pr: 505 }, "an answered design decision on the ticket does not stand in for the task to merge its ready PR");
@@ -1736,7 +1740,7 @@ try {
       const labelled = (name, state) => ({ number: name === "plain" ? 2299 : 2290, state, labels: name === "plain" ? [{ name: "workflow: skills" }] : [{ name: maintainer.labels[name] }] });
       const requestClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: (n) => ({ number: n, state: "open", title: "T", body: "", type: { name: "Task" } }), subIssues: (n) => (n === 300 ? [{ number: 1107, state: "open", title: "slice" }] : []), blockedBy: () => [labelled("decision", "closed"), labelled("plain", "closed")], fields: () => ({ effort: "Medium", priority: null }), pulls: () => [], comments: () => [], checks: () => [] };
       const read = run.takeSnapshot({ repository: "acme/widgets", issue: 300 }, requestClient).tickets.find((t) => t.number === 1107);
-      assert.deepEqual(read.blockers, [{ number: 2290, state: "closed", delivered: false, request: true, stateReason: null }, { number: 2299, state: "closed", delivered: false }], "the snapshot marks a blocker labelled as a maintainer request, with a closed one's state reason");
+      assert.deepEqual(read.blockers, [{ number: 2290, state: "closed", delivered: false, request: true }, { number: 2299, state: "closed", delivered: false }], "the snapshot marks a blocker labelled as a maintainer request");
       assert.deepEqual([labelled("decision"), labelled("task"), labelled("decidedWithoutYou"), labelled("plain")].map(isRequest), [true, true, false, false], "a decision or task label marks a request; the decided-without-you label alone does not");
       const fallbackAt = "2026-11-13T17:37:00.000Z";
       const requestBody = `Body\n<!-- maintainer-request ${JSON.stringify({ kind: "decision", options: ["A", "B"], recommended: "A", fallback: { option: "B", at: fallbackAt }, blocks: [1107], owner: "orchestrate-issues #300", wentAhead: { option: "B", name: "Two", owner: "orchestrate-issues #300", at: "2026-11-13T17:40:00.000Z", fallbackAt } })} -->\n`;
@@ -1850,6 +1854,11 @@ try {
       assert.deepEqual([replaced.filed[3005].outcome.maintainerRequest.number, replaced.filed[3005].outcome.replaced.map((r) => r.number), replaced.tickets[3005]?.waits], [9306, [9305], undefined], "asked on a triage entry replaces triage's request, keeping the old one as history");
       const after = run.planDispatch({ record: replaced, snapshot: snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9306, state: "open", delivered: false, request: true }] }]), freeBytes: 100 * GB, defaults }).tickets.find((t) => t.number === 3005);
       assert.deepEqual(after.maintainerRequest, { filed: { number: 9306, state: "open" } }, "the next plan names the replacement, so the recovery path converges");
+      const closedTriagePlan = write("triage-closed-plan.json", planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9305, state: "closed", delivered: false, request: true }, { number: 9306, state: "open", delivered: false, request: true }] }])));
+      assert.throws(() => run.asked(run.readRecord(f.file), { plan: closedTriagePlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "answered" }) }), /#3005 waits on maintainer request #9305, which is answered; record its answer and act on it/, "a raised ticket's answered request, whatever its close reason, is not replaced");
+      const afterWithdrawal = run.readRecord(f.file);
+      run.asked(afterWithdrawal, { plan: closedTriagePlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "withdrawn" }) });
+      assert.equal(afterWithdrawal.filed[3005].outcome.maintainerRequest.number, 9306, "a withdrawn one is");
     }
     {
       const answered = (number, over = {}) => cacheKey({ number, state: "answered", answered: true, recorded: true, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: `https://github.com/acme/widgets/issues/${number}#issuecomment-9`, at: "2026-11-13T16:09:00Z", body: "Use the blue label." }], ...over });
