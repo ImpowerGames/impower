@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 import type { Clock } from "../../game/core/classes/Clock";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import type { Instructions } from "../../game/core/types/Instructions";
-import { beatDrawing } from "../../game/core/utils/beatDrawing";
 import { pageKey } from "../../game/core/utils/pageKey";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
@@ -241,35 +240,5 @@ describe("the speech the page receives with a beat (#2111)", () => {
     new Coordinator(h.game, beat, { settled: "restored" });
     await flushMicrotasks(10);
     expect(ops(h.messages).filter((message) => message?.method === "morph/speech").map((message) => message.params.spans)).toEqual([[]]);
-  });
-
-  test.each([
-    ["one write at a time", false],
-    ["composed into one page beat", true],
-  ])("%s: an unchanged line redelivered at once sends no speech", async (_label, composeBeats) => {
-    const h = createHarness(`${MIA}\n\nscene start\n  MIA:\n    Hi yo there\nend\n`, 0, {
-      beforeConnect: (game) => {
-        game.context.system.previewing = undefined;
-        game.context.system.composeBeats = composeBeats;
-      },
-    });
-    await h.ready;
-    h.jumpToFlow("start");
-    await flushMicrotasks(10);
-    const beat = h.nextBeat()!;
-    expect(beat.speech?.spans.length).toBeGreaterThan(0);
-    const redrawn = beatDrawing(beat, "redelivery", beat);
-    expect(redrawn.redelivered).toBe(true);
-    h.reset();
-    const coordinator = new Coordinator(h.game, redrawn);
-    const written = () =>
-      ops(h.messages).find((message) => message?.method === "ui/write-text" && message.params.target === "dialogue" && message.params.instructions.length);
-    for (let n = 0; n < 20 && !written(); n += 1) {
-      await flushMicrotasks(10);
-      coordinator.onUpdate(tick());
-    }
-    await flushMicrotasks(10);
-    expect(written()).toBeDefined();
-    expect(ops(h.messages).filter((message) => message?.method === "morph/speech" && message.params.spans.length)).toEqual([]);
   });
 });

@@ -329,12 +329,7 @@ export class Coordinator<G extends Game> {
       instant || !instructions.audio
         ? []
         : Object.entries(instructions.audio).map(([target, events]) =>
-            game.module.audio.schedule(
-              target,
-              events,
-              false,
-              instructions.redelivered,
-            ),
+            game.module.audio.schedule(target, events),
           );
 
     const assets = game.module.assets;

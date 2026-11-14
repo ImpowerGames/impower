@@ -129,7 +129,6 @@ import type {
   RunMenu,
   ScriptSource,
 } from "../types/PreviewRoute";
-import { beatDrawing } from "../utils/beatDrawing";
 import { conditionText } from "../utils/conditionText";
 import type { ExecutedLines } from "../types/ExecutedLines";
 import type { GameConfiguration } from "../types/GameConfiguration";
@@ -431,11 +430,6 @@ export class Game<T extends M = {}> {
   protected _awaiting: ScriptLocation | null = null;
 
   protected _shownBeatOnScreen?: Instructions;
-  get shownBeatOnScreen() {
-    return this._shownBeatOnScreen;
-  }
-
-  protected _redelivers?: Instructions;
 
   protected _sceneSaveDue: string | null = null;
 
@@ -642,10 +636,6 @@ export class Game<T extends M = {}> {
     return this._restarted;
   }
 
-  get redelivering() {
-    return this._redelivers !== undefined;
-  }
-
   protected _state: GameState = "initial";
   get state() {
     return this._state;
@@ -806,7 +796,6 @@ export class Game<T extends M = {}> {
     });
 
     this._restarted = options?.restarted ?? false;
-    this._redelivers = options?.redelivers;
     const modules = options?.modules;
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
@@ -3813,7 +3802,7 @@ export class Game<T extends M = {}> {
   ) {
     const ending = this.storyEnding(instructions);
     if (instructions) {
-      this._coordinator = new Coordinator(this, this.toDraw(instructions), {
+      this._coordinator = new Coordinator(this, instructions, {
         settled: settled ? "presented" : undefined,
       });
       if (this._simulation !== "simulating") {
@@ -3853,15 +3842,6 @@ export class Game<T extends M = {}> {
     }
   }
 
-  protected toDraw(beat: Instructions): Instructions {
-    if (this._simulation === "simulating") {
-      return beat;
-    }
-    const onScreen = this._redelivers;
-    this._redelivers = undefined;
-    return beatDrawing(beat, onScreen ? "redelivery" : "landing", onScreen);
-  }
-
   protected presentsAtStop(): boolean {
     return (
       this._state === "running" &&
@@ -3876,7 +3856,6 @@ export class Game<T extends M = {}> {
     this._announcedStop = true;
     this.holdStop(reason);
     if (!this.presentsAtStop()) {
-      this.module.ui.releaseHeldConnect();
       return "none";
     }
     const beat = this.module.interpreter.flush()!;
@@ -4091,7 +4070,6 @@ export class Game<T extends M = {}> {
   }
 
   protected endStory(kind: StoryEnding) {
-    this.module.ui.releaseHeldConnect();
     const error = kind === "error" ? this._errorEnding : null;
     this._ending = {
       kind,
