@@ -47,14 +47,26 @@ export class StandInSource extends StandInNode {
   loop = false;
   buffer: StandInBuffer | null = null;
   startedAt?: number;
+  offset?: number;
   stopped = false;
   constructor(protected destination: StandInNode) {
     super();
   }
   addEventListener() {}
   removeEventListener() {}
-  start(when: number) {
+  start(when: number, offset?: number) {
     this.startedAt = when;
+    this.offset = offset;
+  }
+  heardAt(time: number): boolean {
+    if (!this.sounding || this.startedAt == null || time < this.startedAt) {
+      return false;
+    }
+    if (this.loop) {
+      return true;
+    }
+    const position = (this.offset ?? 0) + (time - this.startedAt);
+    return position < (this.buffer?.duration ?? 0);
   }
   stop() {
     this.stopped = true;
@@ -91,16 +103,26 @@ class StandInMovieSource extends StandInNode {
 export interface StandInAudio {
   readonly sources: StandInSource[];
   readonly running: boolean;
+  readonly currentTime: number;
   sourcesOf(key: string): StandInSource[];
   sounding(): string[];
   movieSounding(video: HTMLMediaElement): boolean;
   start(): void;
-  attach(app: any, emit: (message: unknown) => void): AudioManager;
+  attach(
+    app: any,
+    emit: (message: unknown) => void,
+    now?: () => number,
+  ): AudioManager;
 }
 
 export function createStandInAudio(
-  options: { running?: boolean } = {},
+  options: {
+    running?: boolean;
+    timed?: boolean;
+    durations?: Record<string, number>;
+  } = {},
 ): StandInAudio {
+  let clockNow: (() => number) | undefined;
   const sources: StandInSource[] = [];
   const movies: StandInMovieSource[] = [];
   const destination = new StandInNode();
@@ -110,7 +132,9 @@ export function createStandInAudio(
     return node;
   };
   const context = {
-    currentTime: 0,
+    get currentTime() {
+      return clockNow ? clockNow() / 1000 : 0;
+    },
     sampleRate: 48000,
     state: (options.running === false ? "suspended" : "running") as AudioContextState,
     outputLatency: 0,
@@ -145,6 +169,9 @@ export function createStandInAudio(
     get running() {
       return context.state === "running";
     },
+    get currentTime() {
+      return context.currentTime;
+    },
     sourcesOf: (key) => sources.filter((s) => s.key.split("~")[0] === key),
     sounding: () => [
       ...new Set(sources.filter((s) => s.sounding).map((s) => s.key.split("~")[0]!)),
@@ -163,8 +190,11 @@ export function createStandInAudio(
         AudioClockMessage.type.notification(attached.app.audioClock.read()),
       );
     },
-    attach(app, emit) {
-      app.audioClock = new AudioClock(0, () => 0);
+    attach(app, emit, now) {
+      if (options.timed && now) {
+        clockNow = now;
+      }
+      app.audioClock = new AudioClock(0, clockNow ?? (() => 0));
       if (context.state === "running") {
         app.audioContext = context;
         app.audioClock.setContext(context);
@@ -175,10 +205,11 @@ export function createStandInAudio(
         protected override async loadAudioBuffer(
           params: LoadAudioPlayerParams,
         ): Promise<AudioBuffer> {
+          const duration = options.durations?.[params.key.split("~")[0]!] ?? 4;
           return {
             key: params.key,
-            duration: 4,
-            length: 4 * 48000,
+            duration,
+            length: duration * 48000,
           } as unknown as AudioBuffer;
         }
       })(app);

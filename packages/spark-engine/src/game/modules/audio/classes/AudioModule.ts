@@ -107,6 +107,15 @@ export class AudioModule extends Module<
     this._channelsCurrentlyPlaying = this.playingFromState();
   }
 
+  heldChannels(): Record<string, ChannelState> {
+    return structuredClone(this._state.channels ?? {});
+  }
+
+  restoreHeldChannels(channels: Record<string, ChannelState>): void {
+    this._state.channels = structuredClone(channels);
+    this._channelsCurrentlyPlaying = this.playingFromState();
+  }
+
   override getStored() {
     return [];
   }
@@ -700,7 +709,6 @@ export class AudioModule extends Module<
     channel: string,
     sequence: AudioInstruction[],
     autoTrigger = false,
-    triggerTime?: number,
   ): number {
     const { audioToLoad, updates } = this.plan(channel, sequence);
     const id = this.nextTriggerId();
@@ -715,7 +723,7 @@ export class AudioModule extends Module<
     this.loadAllAudio(Array.from(audioToLoad)).then(() => {
       this.enableTrigger(id, trigger);
       if (autoTrigger && !this.superseded(epoch)) {
-        trigger(triggerTime);
+        trigger();
       }
     });
     return id;

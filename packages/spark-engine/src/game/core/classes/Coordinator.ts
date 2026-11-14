@@ -93,6 +93,8 @@ export class Coordinator<G extends Game> {
 
   protected _audioTime?: number;
 
+  protected _resumedTriggerIds?: number[];
+
   constructor(
     game: G,
     instructions: Instructions,
@@ -134,8 +136,13 @@ export class Coordinator<G extends Game> {
     }
     this._played = undefined;
     this._onTick = undefined;
+    const resumePending = this._resumedTriggerIds != null;
+    this._resumedTriggerIds = undefined;
     this._game.module.ui.setBeatPlaying(false);
     this.display({ instant: true, preview: true });
+    if (resumePending) {
+      this._game.module.audio.settlePreview();
+    }
     played();
   }
 
@@ -143,19 +150,17 @@ export class Coordinator<G extends Game> {
     if (!this._played || !this._instructions.audio) {
       return;
     }
+    const triggerIds = this.scheduleAudio();
     if (this._audioTime == null) {
-      if (this._audioTriggerIds.length === 0) {
-        this._audioTriggerIds = this.scheduleAudio();
-      }
-      return;
+      this._audioTriggerIds = triggerIds;
+    } else {
+      this._resumedTriggerIds = triggerIds;
     }
-    this.scheduleAudio(this._audioTime);
   }
 
-  protected scheduleAudio(time?: number): number[] {
+  protected scheduleAudio(): number[] {
     return Object.entries(this._instructions.audio ?? {}).map(
-      ([target, events]) =>
-        this._game.module.audio.schedule(target, events, time != null, time),
+      ([target, events]) => this._game.module.audio.schedule(target, events),
     );
   }
 
@@ -450,6 +455,11 @@ export class Coordinator<G extends Game> {
     let finished = false;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
     const handleTick = (deltaMS: number): void => {
+      const resumed = this._resumedTriggerIds;
+      if (resumed?.every((n) => game.module.audio.isReady(n))) {
+        this._resumedTriggerIds = undefined;
+        game.module.audio.triggerAll(resumed, this._audioTime);
+      }
       if (!ready) {
         const audioReady = this._audioTriggerIds.every((n) =>
           game.module.audio.isReady(n),

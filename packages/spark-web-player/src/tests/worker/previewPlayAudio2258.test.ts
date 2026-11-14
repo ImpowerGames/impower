@@ -486,11 +486,69 @@ const LONG = TOGGLE_LINES.findIndex((l) => l.includes("This is a long"));
 const CHIME = "audio.chime";
 const DIFFERENT = TOGGLE_LINES.findIndex((l) => l.includes("A different beat"));
 
+const LATER_LOOP_SOURCE = `define mia as character with
+  name = "MIA"
+end
+
+define storm as audio with
+  src = "https://example.com/storm.mp3"
+end
+
+scene start
+  MIA:
+    This is a long sentence that is still typing when the audio preference changes during its beat.
+    ((play ambient storm))
+    And now the ambient loop begins.
+  MIA: Another beat.
+end
+`;
+
+const LATER_LOOP_LONG = LATER_LOOP_SOURCE.split("\n").findIndex((l) =>
+  l.includes("This is a long"),
+);
+
+function holdLoads(audio: StandInAudio) {
+  const attach = audio.attach.bind(audio);
+  let gate: Promise<void> | null = null;
+  let open = () => {};
+  const loads = {
+    waiting: 0,
+    hold() {
+      gate = new Promise<void>((resolve) => {
+        open = () => {
+          gate = null;
+          resolve();
+        };
+      });
+    },
+    release() {
+      open();
+    },
+  };
+  audio.attach = (app, emit, now) => {
+    const manager = attach(app, emit, now);
+    const load = (manager as any).onLoadAudioPlayer.bind(manager);
+    (manager as any).onLoadAudioPlayer = async (params: unknown) => {
+      while (gate) {
+        loads.waiting += 1;
+        await gate;
+      }
+      return load(params);
+    };
+    return manager;
+  };
+  return loads;
+}
+
 describe("switching Play audio around a played beat (#2258)", () => {
-  async function toggleAt(audio: StandInAudio) {
+  async function toggleAt(
+    audio: StandInAudio,
+    source = TOGGLE_SOURCE,
+    line = LONG,
+  ) {
     const h = await createPlayerHarness({
-      files: [{ uri: MAIN_URI, text: TOGGLE_SOURCE }],
-      startFrom: { file: MAIN_URI, line: LONG },
+      files: [{ uri: MAIN_URI, text: source }],
+      startFrom: { file: MAIN_URI, line },
       manualClock: true,
       audio,
     });
@@ -498,8 +556,13 @@ describe("switching Play audio around a played beat (#2258)", () => {
     const win = h.overlay.ownerDocument.defaultView as any;
     win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
     await h.compile();
-    await select(h, LONG);
+    await select(h, line);
     return h;
+  }
+
+  async function tickBy(h: Harness, ms: number) {
+    await h.tick(ms);
+    await settle(5);
   }
 
   async function beginBeat(h: Harness) {
@@ -527,69 +590,178 @@ describe("switching Play audio around a played beat (#2258)", () => {
     expect(audio.sounding()).toEqual([THEME]);
   }, 120_000);
 
-  it("sounds the rest of a beat begun silently on switching on mid-beat: its loop once, its later typing blips and its sound effect", async () => {
-    const audio = createStandInAudio();
+  it("sounds the rest of a beat begun silently on switching on mid-beat, on the beat's own timeline", async () => {
+    const audio = createStandInAudio({ timed: true });
     const h = await toggleAt(audio);
     await beginBeat(h);
     expect(audio.sources).toEqual([]);
     await setPlayAudio(h, true);
+    await tickBy(h, 20);
     expect(playing(h)).toBe(true);
-    expect(audio.sourcesOf(THEME)).toHaveLength(1);
-    expect(audio.sourcesOf(THEME)[0]!.sounding).toBe(true);
-    expect(blips(audio).length).toBeGreaterThan(0);
-    expect(audio.sourcesOf(CHIME)).toHaveLength(1);
+    const now = audio.currentTime;
+    const typing = blips(audio);
+    expect(typing).toHaveLength(1);
+    expect(typing[0]!.heardAt(now)).toBe(true);
+    expect(typing[0]!.offset!).toBeGreaterThan(0);
+    const beatStart = typing[0]!.startedAt! - typing[0]!.offset!;
+    expect(beatStart).toBeLessThan(now);
+    const themes = audio.sourcesOf(THEME);
+    expect(themes).toHaveLength(1);
+    expect(themes[0]!.heardAt(now)).toBe(true);
+    expect(themes[0]!.startedAt! - (themes[0]!.offset ?? 0)).toBeCloseTo(beatStart, 6);
+    const chimes = audio.sourcesOf(CHIME);
+    expect(chimes).toHaveLength(1);
+    expect(chimes[0]!.startedAt!).toBeGreaterThan(now);
+    const chimeAt = chimes[0]!.startedAt!;
+    await setPlayAudio(h, false);
+    await tickBy(h, 300);
+    await setPlayAudio(h, true);
+    await tickBy(h, 20);
+    const sounding = audio.sourcesOf(CHIME).filter((s) => s.sounding);
+    expect(sounding).toHaveLength(1);
+    expect(sounding[0]!.startedAt).toBeCloseTo(chimeAt, 6);
+    const resumedTyping = blips(audio).filter((s) => s.sounding);
+    expect(resumedTyping).toHaveLength(1);
+    expect(
+      resumedTyping[0]!.startedAt! - resumedTyping[0]!.offset!,
+    ).toBeCloseTo(beatStart, 6);
+    expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
   }, 120_000);
 
-  it("on switching off and on mid-beat, keeps one music node and one sound effect, and schedules the later typing blips again", async () => {
-    const audio = createStandInAudio();
+  it("leaves a sound effect that already finished silent on switching off and on after it, and resumes the typing where it is", async () => {
+    const audio = createStandInAudio({ timed: true, durations: { [CHIME]: 0.2 } });
     const h = await toggleAt(audio);
     await setPlayAudio(h, true);
     await beginBeat(h);
-    const [theme] = audio.sourcesOf(THEME);
+    const [chime] = audio.sourcesOf(CHIME);
+    while (audio.currentTime < chime!.startedAt! + 0.4 && playing(h)) {
+      await tickBy(h, 100);
+    }
+    expect(playing(h)).toBe(true);
+    expect(chime!.heardAt(audio.currentTime)).toBe(false);
+    await setPlayAudio(h, false);
+    await setPlayAudio(h, true);
+    await tickBy(h, 20);
+    const now = audio.currentTime;
+    const chimes = audio.sourcesOf(CHIME);
+    expect(chimes).toHaveLength(2);
+    expect(chimes[1]!.offset!).toBeGreaterThanOrEqual(chimes[1]!.buffer!.duration);
+    expect(chimes.some((s) => s.heardAt(now))).toBe(false);
+    const typing = blips(audio).filter((s) => s.heardAt(now));
+    expect(typing).toHaveLength(1);
+    expect(typing[0]!.offset!).toBeGreaterThan(chime!.startedAt! - blips(audio)[0]!.startedAt!);
+  }, 120_000);
+
+  it("keeps a later sound effect at its original time on switching off and on mid-beat, with one music node and the later typing blips", async () => {
+    const audio = createStandInAudio({ timed: true });
+    const h = await toggleAt(audio);
+    await setPlayAudio(h, true);
+    await beginBeat(h);
+    const [chime] = audio.sourcesOf(CHIME);
+    expect(chime!.startedAt!).toBeGreaterThan(audio.currentTime);
     const blipsBefore = blips(audio).length;
     expect(blipsBefore).toBeGreaterThan(0);
     await setPlayAudio(h, false);
     expect(audio.sounding()).toEqual([]);
+    await tickBy(h, 500);
     await setPlayAudio(h, true);
+    await tickBy(h, 20);
     expect(playing(h)).toBe(true);
     expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
-    expect(audio.sourcesOf(CHIME).filter((s) => s.sounding)).toHaveLength(1);
+    const chimes = audio.sourcesOf(CHIME).filter((s) => s.sounding);
+    expect(chimes).toHaveLength(1);
+    expect(chimes[0]!.startedAt).toBeCloseTo(chime!.startedAt!, 6);
     expect(blips(audio).length).toBeGreaterThan(blipsBefore);
-    expect(theme).toBeDefined();
+  }, 120_000);
+
+  it("plays a later sound effect once after switching on, off and on while the beat's audio is still loading", async () => {
+    const audio = createStandInAudio({ timed: true });
+    const loads = holdLoads(audio);
+    const h = await toggleAt(audio);
+    await beginBeat(h);
+    loads.hold();
+    await setPlayAudio(h, true);
+    await tickBy(h, 20);
+    await setPlayAudio(h, false);
+    await tickBy(h, 20);
+    await setPlayAudio(h, true);
+    expect(loads.waiting).toBeGreaterThan(0);
+    loads.release();
+    await settle(40);
+    await tickBy(h, 20);
+    expect(playing(h)).toBe(true);
+    expect(audio.sourcesOf(CHIME)).toHaveLength(1);
+    expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
+  }, 120_000);
+
+  it("drops a beat's sound effect still loading when a caret move settles the beat", async () => {
+    const audio = createStandInAudio({ timed: true });
+    const loads = holdLoads(audio);
+    const h = await toggleAt(audio);
+    await beginBeat(h);
+    loads.hold();
+    await setPlayAudio(h, true);
+    await select(h, LONG + 2);
+    expect(playing(h)).toBe(false);
+    loads.release();
+    await settle(40);
+    await tickBy(h, 20);
+    expect(audio.sourcesOf(CHIME)).toEqual([]);
+    expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
+  }, 120_000);
+
+  it("starts a loop the beat begins later only when its command comes, also after switching off and on", async () => {
+    const audio = createStandInAudio({ timed: true });
+    const h = await toggleAt(audio, LATER_LOOP_SOURCE, LATER_LOOP_LONG);
+    await beginBeat(h);
+    await setPlayAudio(h, true);
+    await tickBy(h, 20);
+    const storms = audio.sourcesOf(STORM);
+    expect(storms).toHaveLength(1);
+    expect(storms[0]!.startedAt!).toBeGreaterThan(audio.currentTime);
+    expect(storms[0]!.heardAt(audio.currentTime)).toBe(false);
+    const stormAt = storms[0]!.startedAt!;
+    await setPlayAudio(h, false);
+    await tickBy(h, 200);
+    await setPlayAudio(h, true);
+    await tickBy(h, 20);
+    const sounding = audio.sourcesOf(STORM).filter((s) => s.sounding);
+    expect(sounding).toHaveLength(1);
+    expect(sounding[0]!.startedAt).toBeCloseTo(stormAt, 6);
+    expect(sounding[0]!.heardAt(audio.currentTime)).toBe(false);
+  }, 120_000);
+
+  it("starts the beat's own later loop once when the beat ends while its audio is still loading", async () => {
+    const audio = createStandInAudio({ timed: true });
+    const loads = holdLoads(audio);
+    const h = await toggleAt(audio, LATER_LOOP_SOURCE, LATER_LOOP_LONG);
+    await beginBeat(h);
+    loads.hold();
+    await setPlayAudio(h, true);
+    for (let elapsed = 0; elapsed < 20_000 && playing(h); elapsed += 100) {
+      await tickBy(h, 100);
+    }
+    expect(playing(h)).toBe(false);
+    expect(audio.sources).toEqual([]);
+    loads.release();
+    await settle(40);
+    await tickBy(h, 20);
+    expect(audio.sourcesOf(STORM)).toHaveLength(1);
+    expect(audio.sourcesOf(STORM)[0]!.heardAt(audio.currentTime)).toBe(true);
   }, 120_000);
 
   it("plays a beat whose audio was still loading when switched off and on again exactly once", async () => {
     const audio = createStandInAudio();
-    const attach = audio.attach.bind(audio);
-    let gate: Promise<void> | null = null;
-    let open = () => {};
-    let waiting = 0;
-    audio.attach = (app, emit) => {
-      const manager = attach(app, emit);
-      const load = (manager as any).onLoadAudioPlayer.bind(manager);
-      (manager as any).onLoadAudioPlayer = async (params: unknown) => {
-        while (gate) {
-          waiting += 1;
-          await gate;
-        }
-        return load(params);
-      };
-      return manager;
-    };
+    const loads = holdLoads(audio);
     const h = await toggleAt(audio);
     await setPlayAudio(h, true);
-    gate = new Promise<void>((resolve) => {
-      open = () => {
-        gate = null;
-        resolve();
-      };
-    });
+    loads.hold();
     await h.controller.playBeat();
     await settle(40);
-    expect(waiting).toBeGreaterThan(0);
+    expect(loads.waiting).toBeGreaterThan(0);
     await setPlayAudio(h, false);
     await setPlayAudio(h, true);
-    open();
+    loads.release();
     await settle(40);
     for (let i = 0; i < 4; i += 1) {
       await h.tick(100);
@@ -609,6 +781,7 @@ describe("switching Play audio around a played beat (#2258)", () => {
     await setPlayAudio(h, false);
     expect(audio.sounding()).toEqual([]);
     await setPlayAudio(h, true);
+    await tickBy(h, 20);
     expect(playing(h)).toBe(true);
     expect(audio.sounding()).toContain(THEME);
     expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);

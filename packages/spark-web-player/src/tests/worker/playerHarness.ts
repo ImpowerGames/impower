@@ -324,7 +324,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       stubApp.previewing = previewing;
     }
     const emit = (message: any) => endpoint.receive(structuredClone(message));
-    const audio = options.audio?.attach(stubApp, emit);
+    const audio = options.audio?.attach(stubApp, emit, () => clock.now);
     ui = new UIManager(stubApp);
     const managers = [
       ui,
