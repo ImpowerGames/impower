@@ -219,6 +219,22 @@ describe("a backtick run is raw only where a run of its own length closes it", (
     expect(chosenOutputOf(holds)).toBe(`${holds}\nBody.\n`);
   });
 
+  test.each([1, 2, 3, 4, 5])("past an unclosed brace a run of %i backticks is text to the suppression's colour, as to its text", async (n) => {
+    const ticks = "`".repeat(n);
+    const closes = `Go [{ ${ticks}a ] b${ticks} now`;
+    expect(await opensSuppressionAt(closes, 3)).toEqual({ tree: true, vscode: true });
+    expect(choiceTextOf(closes)).not.toContain("[");
+    const runsOn = `Go [{ ${ticks}a -> next b${ticks} /*\n      */ c] now`;
+    expect(await opensSuppressionAt(runsOn, 3)).toEqual({ tree: false, vscode: false });
+    expect(choiceTextOf(runsOn).startsWith("Go [")).toBe(true);
+  });
+
+  test.each([1, 2, 3])("a run of %i backticks closed only by a run of another length is text, so the bracket after it closes", async (n) => {
+    const text = `Go [${"`".repeat(n)}a ${"`".repeat(n + 1)}] b now`;
+    expect(await opensSuppressionAt(text, 3)).toEqual({ tree: true, vscode: true });
+    expect(choiceTextOf(text)).not.toContain("[");
+  });
+
   test("an arrow inside a raw span diverts nowhere, and one after it diverts", () => {
     expect(chosenOutputOf("Go `far -> next` now")).toBe("Go `far -> next` now\nBody.\n");
     expect(chosenOutputOf("Go `far` now -> next")).toBe("Go `far` now Next.\n");

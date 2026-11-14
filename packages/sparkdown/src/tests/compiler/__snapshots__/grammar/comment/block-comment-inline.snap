@@ -255,7 +255,7 @@ sparkdown [0..338]
  │   │   └─ ChoiceSuppression [180..227]
  │   │       ├─ ChoiceSuppression_begin [180..181]
  │   │       │   ├─ ChoiceSuppression_begin_c1 [180..181]: "["
- │   │       │   └─ ChoiceSuppression_begin_c6 181
+ │   │       │   └─ ChoiceSuppression_begin_c4 181
  │   │       ├─ ChoiceSuppression_content [181..227]
  │   │       │   ├─ ChoiceOnlyText [181..198]
  │   │       │   │   ├─ ChoiceOnlyText_begin 181
