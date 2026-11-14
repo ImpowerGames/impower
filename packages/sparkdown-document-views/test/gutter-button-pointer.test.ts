@@ -18,6 +18,7 @@ interface Mark {
   label: string | null;
   box: Box;
   glyph: Box;
+  painted: [number, number];
   column: Box;
   textLeft: number;
   lineCentre: number;
@@ -70,6 +71,7 @@ const marks = (page: Page): Promise<Mark[]> =>
           label: el.getAttribute("aria-label"),
           box: box(el),
           glyph: box(glyph),
+          painted: (() => { const b = getComputedStyle(glyph, "::before"); return [parseFloat(b.width) || 0, parseFloat(b.height) || 0] as [number, number]; })(),
           column: box(el.closest(".cm-gutter") ?? el),
           textLeft: document.querySelector(".cm-content")!.getBoundingClientRect().left,
           lineCentre: block ? view.documentTop + block.top + block.height / 2 : NaN,
@@ -95,6 +97,7 @@ describe.each([
     );
     for (const mark of found) {
       expect([mark.kind, mark.glyph.width, mark.glyph.height]).toEqual([mark.kind, 16, 16]);
+      expect([mark.kind, ...mark.painted]).toEqual([mark.kind, 16, 16]);
       expect([mark.kind, mark.box.width, mark.box.height]).toEqual([mark.kind, target, target]);
       expect([mark.kind, mark.glyph.left + 8]).toEqual([mark.kind, expect.closeTo(mark.column.left + mark.column.width / 2, 1)]);
       expect([mark.kind, mark.box.left + mark.box.width <= mark.textLeft]).toEqual([mark.kind, true]);

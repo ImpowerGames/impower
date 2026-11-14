@@ -131,11 +131,14 @@ const gutterButtonTheme = EditorView.baseTheme({
     backgroundColor: "transparent",
     pointerEvents: "none",
   },
+  ".cm-gutter-button .cm-gutter-button-glyph": {
+    padding: "0",
+  },
   ".cm-gutter-button-glyph::before": {
     content: '""',
     display: "block",
-    width: "100%",
-    height: "100%",
+    width: `${GUTTER_GLYPH_SIZE}px`,
+    height: `${GUTTER_GLYPH_SIZE}px`,
     backgroundColor: "currentColor",
     maskImage: "var(--gutter-button-icon)",
     WebkitMaskImage: "var(--gutter-button-icon)",
