@@ -70,7 +70,7 @@ const tabTrigger = cva(
           "data-[state=active]:bg-tint data-[state=active]:font-semibold",
           "@max-[140px]:flex-col @max-[140px]:justify-center @max-[140px]:gap-1 @max-[140px]:min-h-[66px] @max-[140px]:px-0 @max-[140px]:text-[11px]/[1.35]",
         ],
-        bar: "flex-none flex-col gap-1 size-16 min-h-16 p-0 rounded-control text-[10px]/none font-normal",
+        bar: "flex-none flex-col gap-1 size-16 min-h-16 p-0 rounded-control text-[12px]/[1.4] font-normal",
         page: "min-h-12 rounded-none px-4 text-[14px] font-semibold",
         inline: "flex-none min-h-[50px] min-w-11 px-1 text-[13px] font-normal phone:px-px",
       },

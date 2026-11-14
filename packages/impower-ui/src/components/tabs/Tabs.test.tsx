@@ -65,14 +65,14 @@ describe("Tabs rail variant", () => {
     expect(tabs[0]!.querySelector("svg")!.style.width).toBe("18px");
   });
 
-  it("lays the bar variant out as 64px targets with the icon over an unscaled word", async () => {
+  it("lays the bar variant out as 64px targets with the icon over an unscaled 12px word", async () => {
     const { tabs } = await mount({ variant: "bar", indicator: "none" });
     expect(classes(host!.querySelector('[role="tablist"]')!)).toContain(
       "justify-evenly",
     );
     for (const tab of tabs) {
       expect(classes(tab)).toEqual(
-        expect.arrayContaining(["flex-col", "size-16", "text-[10px]/none"]),
+        expect.arrayContaining(["flex-col", "size-16", "text-[12px]/[1.4]"]),
       );
       expect(classes(tab)).not.toContain("flex-1");
       expect(tab.innerHTML).not.toContain("scale-80");

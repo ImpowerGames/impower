@@ -61,7 +61,7 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
             aria-label="App menu"
             title="App menu"
             disabled={pickingResource}
-            class="text-muted"
+            class="text-ink"
           >
             <MenuIcon />
           </Button>
