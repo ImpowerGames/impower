@@ -1947,6 +1947,13 @@ try {
     reads.length = 0;
     cli(["relay", "--ticket", "3001", "--request", asks, "--maintainer-request", "#9310"], { requestsFor: () => tracker });
     assert.deepEqual([reads, run.readRecord(f.file).tickets[3001].requests.find((q) => q.id === asks).relayed.maintainerRequest.number], [[9310], 9310], "the command reads the filed request from GitHub and stores its number");
+    {
+      const raisedBody = body.replace('"blocks":[3001]', '"blocks":[3006]');
+      const raisedTracker = { ...tracker, issue: (n) => ({ ...tracker.issue(n), title: "Does the cache key change? (#3006)", body: raisedBody }), blockedBy: (n) => (n === 3006 ? [{ number: 9311 }] : []) };
+      cli(["asked", "--ticket", "3006", "--maintainer-request", "9311"], { requestsFor: () => raisedTracker });
+      assert.equal(run.readRecord(f.file).filed[3006].outcome.maintainerRequest.number, 9311, "asked on a raised ticket runs from the record with no --plan, and stores the request read from GitHub");
+      assert.throws(() => cli(["asked", "--ticket", "3006", "--maintainer-request", "9312"], { requestsFor: () => raisedTracker }), /#3006 was raised with the maintainer in request #9311, which is waiting; record its answer and act on it/, "the command reads the raised request before replacing it");
+    }
   }
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");
