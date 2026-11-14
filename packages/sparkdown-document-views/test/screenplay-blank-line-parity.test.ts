@@ -107,6 +107,8 @@ const KINDS: Record<string, string[]> = {
   GluedMarkupAlternator: ["  They spot .. queue | a *big* owl | a hawk .. above."],
   ImplicitActionMarkupBesideInterpolation: ["  Meet *{person}* and _{guest}_ now."],
   DialogueNameMarkup: ["  *GUIDE*: Hello."],
+  InlineDialogueLeadingGlued: ["  GUIDE: .. queue | cat | dog .. outside."],
+  InlineDialogueOnlyGlued: ["  GUIDE: .. queue | owl | hawk .."],
   DialogueNameParentheticalMarkup: ["  GUIDE (*V.O.*): Hello."],
   BlockDialogueNameMarkup: ["  GUIDE (_quietly_):", "    Hello there."],
   DialogueNameInterpolation: ["  GUIDE {person}: Hi."],
@@ -148,6 +150,8 @@ const PRINTED: Record<string, string[]> = {
   SingleLineAlternatorMarkup: ["A bold arm.", "A plain arm."],
   ImplicitActionMarkupBesideInterpolation: ["Meet {person} and {guest} now."],
   DialogueNameMarkup: ["GUIDE", "Hello."],
+  InlineDialogueLeadingGlued: ["GUIDE", "cat / dog outside."],
+  InlineDialogueOnlyGlued: ["GUIDE", "owl / hawk"],
   DialogueNameParentheticalMarkup: ["GUIDE (V.O.)", "Hello."],
   BlockDialogueNameMarkup: ["GUIDE (quietly)", "Hello there."],
   DialogueNameInterpolation: ["GUIDE {person}: Hi."],
@@ -616,6 +620,26 @@ describe("a widget on the page", () => {
         ? view.contentDOM.querySelector(".sp-title-page")!
         : Array.from(view.contentDOM.children).find((row) => row.textContent?.includes("GUIDE"))!;
     expect(compact(visibleText(widget))).toContain(compact(expected));
+  });
+});
+
+const TITLE_PAGE_CASES: [string, string[]][] = [
+  ["a field written on two lines", ["title: First", "  Second"]],
+  ["a field written twice", ["title: First", "title: Second"]],
+  ["a key the export does not know", ["Title: First"]],
+];
+
+describe("the title page", () => {
+  it.each(TITLE_PAGE_CASES)("shows what the export prints for %s", (_name, fields) => {
+    const config = { ...BASE, screenplay_print_title_page: true };
+    CONFIGS["title page cases"] = config;
+    const source = ["---", ...fields, "---", "", sourceOf(["ImplicitAction"])].join("\n");
+    const rows = extractPdfText(source, config).split("\n");
+    const start = rows.indexOf("=== TITLE PAGE ===");
+    const printed = start < 0 ? [] : rows.slice(start + 1, rows.indexOf("=== BODY ===")).map((row) => row.replace(/^\[[a-z]+\] [^:]*: /, ""));
+    const view = show("title page cases", source);
+    const titlePage = view.contentDOM.querySelector(".sp-title-page");
+    expect(compact(titlePage ? visibleText(titlePage) : "")).toBe(compact(printed.join("")));
   });
 });
 

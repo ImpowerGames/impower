@@ -660,16 +660,18 @@ export const decorate = (
         return false;
       } else if (name === "FrontMatterString") {
         const exported = exportedLinesFrom(from, to);
-        frontMatterFieldCaptureBlocks.push({
-          type: frontMatterKeyword.toLowerCase(),
-          from,
-          to,
-          value: exported ? printedHtml(exported) : doc.sliceString(from, to).trim(),
-          markdown: !exported,
-          attributes: {
-            style: "min-height: 1em",
-          },
-        });
+        if (exported) {
+          frontMatterFieldCaptureBlocks.push({
+            type: frontMatterKeyword.toLowerCase(),
+            from,
+            to,
+            value: printedHtml(exported),
+            markdown: false,
+            attributes: {
+              style: "min-height: 1em",
+            },
+          });
+        }
         return false;
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         inDialogue = true;
@@ -696,8 +698,20 @@ export const decorate = (
               ? 2
               : 0;
       } else if (inDialogue && GLUED_ALTERNATOR_BLOCKS.has(name)) {
+        const exported = exportedLinesFrom(from, to);
         const last = dialogueContent.at(-1);
-        if (last?.type === "dialogue") last.to = to;
+        if (exported) {
+          dialogueContent.push({
+            type: "dialogue",
+            from,
+            to,
+            value: printedHtml(exported),
+            markdown: false,
+            attributes: { style: getDialogueLineStyle("dialogue") },
+          });
+        } else if (last?.type === "dialogue") {
+          last.to = to;
+        }
       } else if (name === "TextChunk") {
         if (inDialogue) {
           const exported = exportedLinesFrom(from, to);
