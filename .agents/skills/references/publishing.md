@@ -65,7 +65,14 @@ gh api repos/<tickets>/issues/<N> --jq .milestone.number                        
 
 The parent read-back answers `No parent issue found (HTTP 404)` when the attach did not land. Then append a line to the parent's Scope, `Added on <date> from <where it was found>: #<N> (<summary>)`, through an editor-authored body file, and read the parent's body back. A parent with no milestone gives none to copy; say so in the report. When no open issue's Scope covers the ticket, a closed umbrella whose Scope fits is reopened with a comment naming the ticket and used; when none exists, report the ticket as filed without a parent and name the missing placement for the maintainer rather than claiming it fully filed.
 
-A root Feature filed by `file-feature` has no parent: it needs a milestone, set with the same PATCH call and read back, and the maintainer adds it to the project board because the `gh` token cannot. Project membership follows the parent link, so a sub-issue never has a project field written for it.
+A root Feature filed by `file-feature` has no parent: it needs a milestone, set with the same PATCH call and read back, and the filing agent adds it to the project board itself. Any agent may add any ticket to a project. Project membership follows the parent link, so a sub-issue is normally on its parent's board already; when its timeline shows no `added_to_project_v2` event, add it the same way as a root ticket.
+
+```sh
+gh project list --owner ImpowerGames                                                      # find the project number
+gh project item-add <project-number> --owner ImpowerGames --url https://github.com/<tickets-owner>/<tickets-repo>/issues/<N>
+```
+
+These calls need the `project` scope. When `gh` answers that the scope is missing, run `gh auth refresh --hostname github.com --scopes project` once and complete the browser authorization (an interactive step: stop and ask the maintainer to do it, then continue); never report the board step as impossible or leave it to the maintainer.
 
 ## Multi-line bodies for `gh` and `git` (silent-corruption footgun)
 
