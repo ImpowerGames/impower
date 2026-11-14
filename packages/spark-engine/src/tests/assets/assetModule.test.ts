@@ -476,6 +476,14 @@ layout card {
   text "Card"
 }
 
+style plaque {
+  font_family = "O\\\\'Connor, serif"
+}
+
+layout plaque {
+  text "Plaque"
+}
+
 layout hud {
   text "Score"
 }
@@ -498,6 +506,8 @@ end
     expect(h.game.module.ui.getFontNamesForLayout("deck")).toEqual(["Plain"]);
     expect((h.game.context as any).style?.card?.font_family).toBe("'O\\'Connor', serif");
     expect(h.game.module.ui.getFontNamesForLayout("card")).toEqual(["OConnor"]);
+    expect((h.game.context as any).style?.plaque?.font_family).toBe("O\\'Connor, serif");
+    expect(h.game.module.ui.getFontNamesForLayout("plaque")).toEqual(["OConnor"]);
     const items = h.game.module.assets.resolveFontItems(["hud", "deck"]) as { family?: string }[];
     expect(items.map((item) => item.family).sort()).toEqual(["1st my.font~x", "Plain, Display"]);
   });

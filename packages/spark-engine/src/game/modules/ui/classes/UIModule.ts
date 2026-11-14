@@ -88,6 +88,7 @@ import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
 import {
+  identName,
   parseComponentValues,
   significant,
   splitAt,
@@ -1670,10 +1671,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           for (const part of splitAt(parseComponentValues(value), TokenType.Comma)) {
             const nodes = significant(part);
             const only = nodes.length === 1 ? tokenOf(nodes[0]!) : undefined;
+            const idents = nodes.map(identName);
             const family =
               only?.[0] === TokenType.String
                 ? (only[4] as { value: string }).value
-                : part.map(String).join("").trim();
+                : nodes.length > 0 && idents.every((name) => name !== undefined)
+                  ? idents.join(" ")
+                  : part.map(String).join("").trim();
             if (fonts[family] && !family.startsWith("$")) {
               referenced.add(family);
             }
