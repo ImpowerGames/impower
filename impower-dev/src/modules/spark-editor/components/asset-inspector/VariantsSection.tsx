@@ -118,7 +118,7 @@ function GroupMenu({
   return (
     <DropdownRoot onOpenChange={(next) => !next && onPreview(null)}>
       <DropdownTrigger asChild>{trigger}</DropdownTrigger>
-      <DropdownContent align="end" keepClear={keepClear} class="min-w-[180px]">
+      <DropdownContent align="end" sideOffset={6} keepClear={keepClear} class="min-w-[196px]">
         <DropdownRadioGroup value={value} onValueChange={onPick} label={name}>
           {group.options.map((option) => (
             <DropdownRadioItem
@@ -174,11 +174,11 @@ export default function VariantsSection({
         )
       }
     >
-      <div class="grid gap-3">
+      <div class="grid gap-3.5 pt-3.5">
         {groups.length > 0 && (
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-3 gap-y-1">
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-3 gap-y-2.5">
             {groups.map((group) => (
-              <div key={group.key} class="grid min-w-0 gap-px" data-variant-cell>
+              <div key={group.key} class="grid min-w-0 gap-1" data-variant-cell>
                 <span class="truncate text-[11px] text-muted">{groupLabel(group)}</span>
                 {group.switch ? (
                   <Switch
@@ -205,47 +205,51 @@ export default function VariantsSection({
             ))}
           </div>
         )}
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <span id={formLabel} class="text-[13px] text-muted">
-            Show as
-          </span>
-          <ChoiceGroup
-            size="small"
-            fill="tint"
-            name={`${formLabel}-form`}
-            aria-labelledby={formLabel}
-            options={FORMS}
-            value={form}
-            onValueChange={onForm}
-          />
-        </div>
-        <code
-          class="block rounded-control border border-edge bg-bg px-3 py-[9px] font-mono text-[14px]/[1.4] break-all text-ink select-text"
-          data-variant-reference
-        >
-          {reference}
-        </code>
-        <div class="flex flex-wrap items-center gap-1.5">
-          <Button variant="quiet" data-variant-copy onClick={copy}>
-            <CopyIcon />
-            Copy
-          </Button>
-          <Button
-            variant="quiet"
-            data-variant-insert
-            disabled={!onInsert}
-            aria-describedby={onInsert ? undefined : noCaret}
-            onClick={() => onInsert?.(reference)}
+        <div class="grid gap-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span id={formLabel} class="text-[12px] text-muted">
+              Show as
+            </span>
+            <ChoiceGroup
+              size="small"
+              fill="tint"
+              name={`${formLabel}-form`}
+              aria-labelledby={formLabel}
+              options={FORMS}
+              value={form}
+              onValueChange={onForm}
+            />
+          </div>
+          <code
+            class="block overflow-hidden rounded-control border border-edge bg-bg px-3 py-[9px] font-mono text-[14px]/[1.4] whitespace-nowrap text-ink select-text [--fade:24px] fade-edge"
+            data-variant-reference
           >
-            <InsertIcon />
-            Insert at caret
-          </Button>
+            {reference}
+          </code>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <Button variant="quiet" size="action" class="min-h-11" data-variant-copy onClick={copy}>
+              <CopyIcon />
+              Copy
+            </Button>
+            <Button
+              variant="quiet"
+              size="action"
+              class="min-h-11"
+              data-variant-insert
+              disabled={!onInsert}
+              aria-describedby={onInsert ? undefined : noCaret}
+              onClick={() => onInsert?.(reference)}
+            >
+              <InsertIcon />
+              Insert at caret
+            </Button>
+          </div>
+          {!onInsert && (
+            <p id={noCaret} class="-mt-1 mb-0 text-[12px]/[1.5] text-muted" data-variant-no-caret>
+              {NO_CARET}
+            </p>
+          )}
         </div>
-        {!onInsert && (
-          <p id={noCaret} class="-mt-2 mb-0 text-[12px]/[1.5] text-muted" data-variant-no-caret>
-            {NO_CARET}
-          </p>
-        )}
       </div>
     </Section>
   );

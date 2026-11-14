@@ -63,12 +63,16 @@ export const listRowBodyVariants = cva(
       size: {
         default:
           "min-h-[60px] gap-[13px] px-3 py-2.5 text-[14px]/[1.5] [&>svg:first-child]:size-[21px]",
+        library:
+          "min-h-[62px] gap-2.5 px-2 py-2.5 text-[14px]/[1.5] [&>svg:first-child]:size-[21px] [:root[data-layout=desktop]_&]:min-h-[60px] [:root[data-layout=desktop]_&]:gap-[13px] [:root[data-layout=desktop]_&]:px-3",
         compact:
           "min-h-11 gap-2.5 px-2 py-1 text-[12px]/[1.4] [&>svg:first-child]:size-[18px]",
         block:
           "min-h-16 gap-3 px-2.5 py-2 text-[14px]/[1.4] [&>svg:first-child]:size-[22px]",
         dense:
-          "min-h-[52px] gap-[13px] px-2.5 py-1.5 text-[14px]/[1.5] [&>svg:first-child]:size-[18px]",
+          "min-h-[52px] gap-2.5 px-2.5 py-1.5 text-[14px]/[1.5] [&>svg:first-child]:size-[18px] [:root[data-layout=desktop]_&]:gap-[13px]",
+        file:
+          "min-h-[52px] gap-2.5 py-1 pr-0 pl-1.5 text-[13px]/[1.5] [&>svg:first-child]:mx-[5px] [&>svg:first-child]:size-[18px]",
       },
       interactive: {
         true: "control-overlay cursor-pointer focus-inset",
@@ -89,6 +93,9 @@ export const listRowBodyVariants = cva(
         false: "",
       },
     },
+    compoundVariants: [
+      { size: "library", control: true, class: "pl-2 [:root[data-layout=desktop]_&]:pl-3" },
+    ],
     defaultVariants: { size: "default", interactive: true, selection: "none", leading: false, control: false },
   },
 );
@@ -105,9 +112,11 @@ export const listRowMarkVariants = cva(
     variants: {
       size: {
         default: "left-3 [&>span]:size-[21px] [&_svg]:size-3.5",
+        library: "left-2 [&>span]:size-[21px] [&_svg]:size-3.5 [:root[data-layout=desktop]_&]:left-3",
         compact: "left-2 [&>span]:size-[18px] [&_svg]:size-3",
         block: "left-2.5 [&>span]:size-[22px] [&_svg]:size-3.5",
         dense: "left-2.5 [&>span]:size-[18px] [&_svg]:size-3",
+        file: "left-[11px] [&>span]:size-[18px] [&_svg]:size-3",
       },
       selection: {
         available:
@@ -134,9 +143,11 @@ export const listRowControlVariants = cva("relative flex flex-none items-center"
   variants: {
     size: {
       default: "pl-2",
+      library: "pl-2",
       compact: "pl-1",
       block: "pl-2",
       dense: "pl-2",
+      file: "pl-1",
     },
     selection: {
       none: "",
@@ -151,9 +162,11 @@ export const listRowDescriptionVariants = cva("text-muted", {
   variants: {
     size: {
       default: "text-[11px]/[1.4]",
+      library: "text-[11px]/[1.4]",
       compact: "text-[11px]/[1.4]",
       block: "text-[12px]/[1.5]",
       dense: "text-[11px]/[1.4]",
+      file: "text-[11px]/[1.4]",
     },
     fit: {
       line: "[--fade:24px] fade-edge",
@@ -300,13 +313,13 @@ export default function ListRow({
     </span>
   );
   const interactive = !!onClick;
-  const body = listRowBodyVariants({
+  const body = cn(listRowBodyVariants({
     size,
     interactive,
     selection,
     leading: !!leading,
     control: !!control,
-  });
+  }));
   return (
     <div
       class={cn(
@@ -378,9 +391,11 @@ export const listRowBadgeVariants = cva(
     variants: {
       size: {
         default: "w-[46px] pl-3 [&>svg]:size-[21px]",
+        library: "w-[46px] pl-2 [&>svg]:size-[21px] [:root[data-layout=desktop]_&]:pl-3",
         compact: "w-9 pl-2 [&>svg]:size-[18px]",
         block: "w-[46px] pl-2.5 [&>svg]:size-[22px]",
         dense: "w-[46px] pl-2.5 [&>svg]:size-[18px]",
+        file: "w-[44px] pl-[11px] [&>svg]:size-[18px]",
       },
     },
     defaultVariants: { size: "default" },

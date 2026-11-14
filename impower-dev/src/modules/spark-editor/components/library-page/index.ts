@@ -4,7 +4,7 @@ export { default as MoveDialog } from "./MoveDialog";
 export { default as SelectionBar, type SelectionAction } from "./SelectionBar";
 export { DROP_FOLDER, useLibraryDrag, type LibraryMoveCheck } from "./useLibraryDrag";
 export { useSelectionKeys } from "./useSelectionKeys";
-export { default as LibraryPage, type LibraryList } from "./LibraryPage";
+export { default as LibraryPage, libraryRowHeight, type LibraryList } from "./LibraryPage";
 export { default as LibraryToolbar } from "./LibraryToolbar";
 export { default as NameRow } from "./NameRow";
 export { useRowFocusReturn } from "./useRowFocusReturn";

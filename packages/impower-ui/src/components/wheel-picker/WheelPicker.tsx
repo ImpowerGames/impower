@@ -290,18 +290,18 @@ export function WheelSheet({
       style={room === undefined ? undefined : { "--wheel-sheet-room": `${room}px` }}
       data-wheel-sheet
     >
-      <div class="flex items-center justify-between gap-2 border-b border-edge px-2 py-1.5">
-        <Button variant="quiet" onClick={onCancel}>
+      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-edge px-1.5 py-1">
+        <Button variant="quiet" class="justify-self-start border-0 px-3 text-muted" onClick={onCancel}>
           Cancel
         </Button>
-        <h2 id={titleId} class="m-0 min-w-0 truncate text-[15px] font-semibold">
+        <h2 id={titleId} class="m-0 min-w-0 truncate text-[14px]/[1.4] font-semibold">
           {title}
         </h2>
-        <Button variant="quiet" class="text-accent" onClick={() => onChoose(centred.current)}>
+        <Button variant="quiet" class="justify-self-end border-0 px-3 text-accent" onClick={() => onChoose(centred.current)}>
           Done
         </Button>
       </div>
-      <div class="flex min-h-0 flex-auto flex-col justify-center overflow-hidden" data-wheel-room>
+      <div class="flex min-h-0 flex-auto flex-col justify-center overflow-hidden pt-1.5 pb-2.5" data-wheel-room>
         <WheelPicker
           label={title}
           options={options}

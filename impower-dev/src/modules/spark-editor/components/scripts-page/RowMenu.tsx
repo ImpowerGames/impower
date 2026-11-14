@@ -28,6 +28,7 @@ export default function RowMenu({ name, main, onAction }: RowMenuProps) {
         <Button
           variant="quiet"
           size="icon"
+          glyph="md"
           aria-label={`Options for ${name}`}
           class="flex-none text-muted"
         >
