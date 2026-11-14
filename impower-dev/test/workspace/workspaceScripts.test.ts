@@ -1,3 +1,6 @@
+import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
+import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const downloadFile = vi.hoisted(() => vi.fn());
@@ -13,7 +16,7 @@ vi.mock("../../src/modules/spark-editor/utils/fileUndo", async (original) => ({
 const { default: workspace } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceStore"
 );
-const { default: WorkspaceScripts, PROJECT_CHANGED } = await import(
+const { default: WorkspaceScripts, PROJECT_CHANGED, SCRIPTS_LOADING } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceScripts"
 );
 const { scriptRows } = await import(
@@ -165,6 +168,17 @@ describe("Scripts through the workspace", () => {
     expect(files.get("Scripts/Untitled script.sd")).toBe("text of Scripts/Untitled script.sd");
   });
 
+  it("reads the scripts again when a read fails, and refuses with the message, adding nothing, only when every read fails", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
+    workspace.scriptListing.value = null;
+    fs.getFiles.mockRejectedValueOnce(new Error("Project not loaded: p"));
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
+    workspace.scriptListing.value = null;
+    fs.getFiles.mockRejectedValue(new Error("Project not loaded: p"));
+    await expect(scripts.createScript("")).rejects.toThrow(SCRIPTS_LOADING);
+    expect(fs.createFiles).toHaveBeenCalledTimes(1);
+  });
+
   it("names past a script it has just written that the file list does not show yet", async () => {
     const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
@@ -172,6 +186,31 @@ describe("Scripts through the workspace", () => {
     fs.getFiles.mockImplementation(async () => before);
     expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
     expect(await scripts.createScript("")).toBe("Scripts/Untitled script 2.sd");
+  });
+
+  it("stops counting a written script once the list shows it, or once it is deleted or renamed first", async () => {
+    const { scripts, fs, files } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    const unlisted = () => [...(scripts as unknown as { unlisted: Set<string> }).unlisted];
+    const current = fs.getFiles.getMockImplementation()!;
+    const before = await fs.getFiles();
+    fs.getFiles.mockImplementation(async () => before);
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
+    expect(unlisted()).toEqual(["Scripts/Untitled script.sd"]);
+    files.delete("Scripts/Untitled script.sd");
+    sendProtocolMessage(DidDeleteFilesMessage.type.notification({ files: [{ uri: uri("Scripts/Untitled script.sd") }] }));
+    expect(unlisted()).toEqual([]);
+    expect(await scripts.createScript("Scripts/Drafts")).toBe("Scripts/Drafts/Untitled script.sd");
+    sendProtocolMessage(
+      DidRenameFilesMessage.type.notification({
+        files: [{ oldUri: uri("Scripts/Drafts"), newUri: uri("Scripts/Old drafts") }],
+      }),
+    );
+    expect(unlisted()).toEqual([]);
+    expect(await scripts.createScript("")).toBe("Scripts/Untitled script.sd");
+    fs.getFiles.mockImplementation(current);
+    await scripts.load();
+    expect(unlisted()).toEqual([]);
   });
 
   it("runs the next waiting create after one ahead of it fails, which keeps no name", async () => {

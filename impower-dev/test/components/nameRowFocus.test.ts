@@ -54,6 +54,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 };
 
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+const { NameError } = await import("../../src/modules/spark-editor/utils/fileListModel");
 const { default: ScriptsPage } = await import("../../src/modules/spark-editor/components/scripts-page");
 const { default: Assets } = await import("../../src/modules/spark-editor/components/assets");
 const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
@@ -195,6 +196,24 @@ describe.each(["desktop", "phone"] as const)("the name row opened from a menu, %
     await settle();
     expect(host!.querySelector('input[aria-label^="New "]')).toBeNull();
     expect(scripts.createScript).toHaveBeenCalledWith("");
+    expect(window.writeScript).toHaveBeenCalledWith("Scripts/Untitled script.sd");
+  });
+
+  it("says so when a new script is refused while the scripts load, and the next New > Script makes it", async () => {
+    const { SCRIPTS_LOADING } = await import("../../src/modules/spark-editor/workspace/WorkspaceScripts");
+    const { snackbar } = await import("../../src/modules/spark-editor/utils/snackbar");
+    scripts.createScript.mockRejectedValueOnce(new NameError(SCRIPTS_LOADING));
+    await mount(ScriptsPage);
+    const choose = async () => {
+      await openMenu(newButton());
+      const item = all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.trim() === "Script");
+      await act(async () => item!.click());
+      await settle();
+    };
+    await choose();
+    expect(snackbar.value?.message).toBe(SCRIPTS_LOADING);
+    expect(window.writeScript).not.toHaveBeenCalled();
+    await choose();
     expect(window.writeScript).toHaveBeenCalledWith("Scripts/Untitled script.sd");
   });
 

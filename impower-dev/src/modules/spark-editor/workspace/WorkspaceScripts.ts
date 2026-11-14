@@ -2,6 +2,8 @@ import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { withLock } from "../../../../../packages/opfs-workspace/src/utils/locks";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
+import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
 import { downloadFile } from "../utils/downloadFile";
 import { recordCreate, recordMove, renameFile } from "../utils/fileUndo";
 import {
@@ -69,7 +71,9 @@ type Deps = {
 
 export const PROJECT_CHANGED = "Another project opened first. Nothing was added.";
 
-export const SCRIPTS_LOADING = "Your scripts are still loading. Nothing was added; try again in a moment.";
+export const SCRIPTS_LOADING = "Your scripts couldn't be read yet. Nothing was added; try again in a moment.";
+
+const LISTING_TRIES = 3;
 
 const extensionOf = (path: string) => {
   const name = nameOf(path);
@@ -84,6 +88,28 @@ export default class WorkspaceScripts {
 
   constructor(deps: Deps) {
     this._workspace = deps;
+    onProtocolMessage(DidDeleteFilesMessage.type, (message) =>
+      this.forget(message.params.files.map((file) => file.uri)),
+    );
+    onProtocolMessage(DidRenameFilesMessage.type, (message) =>
+      this.forget(message.params.files.map((file) => file.oldUri)),
+    );
+    onProtocolMessage(DidChangeDirectoriesMessage.type, (message) =>
+      this.forget(message.params.deleted),
+    );
+  }
+
+  protected forget(uris: readonly string[]) {
+    const projectId = this.projectId;
+    if (!projectId || this.unlisted.size === 0) {
+      return;
+    }
+    const gone = uris.map((uri) => this._workspace.fs.getRelativePath(projectId, uri));
+    for (const path of this.unlisted) {
+      if (gone.some((folder) => isInside(path, folder))) {
+        this.unlisted.delete(path);
+      }
+    }
   }
 
   protected isCurrent(generation: number, projectId: string) {
@@ -221,8 +247,8 @@ export default class WorkspaceScripts {
     const projectId = this.openProject();
     return withLock(`impower-dev:script-names:${projectId}`, async () => {
       const listed = () => workspace.scriptListing.peek()?.projectId === projectId;
-      if (this.projectId === projectId && !listed()) {
-        await this.load();
+      for (let tries = 0; tries < LISTING_TRIES && this.projectId === projectId && !listed(); tries += 1) {
+        await this.load().catch(() => null);
       }
       if (this.projectId !== projectId) {
         throw new NameError(PROJECT_CHANGED);
