@@ -518,10 +518,28 @@ describe("DropdownContent keepClear", () => {
     trigger.focus();
     await key(trigger, "ArrowDown");
     await settle(50);
+    return placement();
+  };
+
+  const placement = () => {
     const wrapper = menu()!.closest<HTMLElement>("[data-radix-popper-content-wrapper]")!;
     const [, y] = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(wrapper.style.transform)!.slice(1).map(Number);
     return { side: menu()!.dataset.side, top: y, room: wrapper.style.getPropertyValue("--radix-popper-available-height") };
   };
+
+  it("moves below its trigger when the kept-clear element grows while the menu is open", async () => {
+    const picture = { ...SHORT_PICTURE };
+    stubGeometry(560, picture);
+    expect((await mountFaceMenu()).side).toBe("top");
+    picture.bottom = PICTURE.bottom;
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    await settle(50);
+    const placed = placement();
+    expect(placed.side).toBe("bottom");
+    expect(placed.top).toBeGreaterThanOrEqual(PICTURE.bottom);
+  });
 
   it("opens below its trigger in the room under the kept-clear element when the room above is under that element", async () => {
     stubGeometry(560);

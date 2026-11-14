@@ -4,7 +4,7 @@ import { createPortal } from "preact/compat";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import { useEscapeWithin } from "../../utils/escapeWithin";
-import { clearLine, type KeepClear } from "../../utils/keepClear";
+import { type KeepClear, useClearLine } from "../../utils/keepClear";
 import Button from "../button/Button";
 import { CheckIcon } from "../icon/icons.generated";
 
@@ -265,12 +265,17 @@ export function WheelSheet({
     };
   }, [open]);
 
+  const room = useClearLine(
+    keepClear,
+    open,
+    (line) => Math.max(WHEEL_SHEET_FLOOR, (container.current?.getBoundingClientRect().bottom ?? line) - line),
+    container,
+  );
+
   const host = container.current;
   if (!open || !host) {
     return null;
   }
-  const line = clearLine(keepClear);
-  const room = line === undefined ? undefined : Math.max(WHEEL_SHEET_FLOOR, host.getBoundingClientRect().bottom - line);
   return createPortal(
     <div
       ref={panel}
@@ -292,17 +297,19 @@ export function WheelSheet({
           Done
         </Button>
       </div>
-      <WheelPicker
-        label={title}
-        options={options}
-        value={value}
-        onCentre={(next) => {
-          centred.current = next;
-          onPreview?.(next);
-        }}
-        onChoose={onChoose}
-        listRef={list}
-      />
+      <div class="flex min-h-0 flex-auto flex-col justify-center overflow-hidden" data-wheel-room>
+        <WheelPicker
+          label={title}
+          options={options}
+          value={value}
+          onCentre={(next) => {
+            centred.current = next;
+            onPreview?.(next);
+          }}
+          onChoose={onChoose}
+          listRef={list}
+        />
+      </div>
     </div>,
     host,
   );

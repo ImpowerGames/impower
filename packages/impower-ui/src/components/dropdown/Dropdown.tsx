@@ -21,7 +21,7 @@ import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 import { registerFocusReturn } from "../../utils/focusReturn";
-import { clearLine, type KeepClear } from "../../utils/keepClear";
+import { type KeepClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
@@ -218,18 +218,12 @@ export type DropdownContentFit = NonNullable<
 
 const EDGE_GAP = 12;
 
-function clearOf(keepClear: KeepClear | undefined) {
-  const line = clearLine(keepClear);
-  if (line === undefined) {
-    return undefined;
-  }
-  return {
-    top: Math.max(EDGE_GAP, line),
-    bottom: EDGE_GAP,
-    left: EDGE_GAP,
-    right: EDGE_GAP,
-  };
-}
+const clearOf = (line: number) => ({
+  top: Math.max(EDGE_GAP, line),
+  bottom: EDGE_GAP,
+  left: EDGE_GAP,
+  right: EDGE_GAP,
+});
 
 function SheetMenu({
   open,
@@ -294,6 +288,7 @@ export function DropdownContent({
       registerFocusReturn(element, () => ctx.trigger.current);
     }
   };
+  const clear = useClearLine(keepClear, ctx.mode === "menu" && ctx.open, clearOf);
   if (ctx.handingOff) {
     return null;
   }
@@ -311,7 +306,6 @@ export function DropdownContent({
       </SheetMenu>
     );
   }
-  const clear = ctx.open ? clearOf(keepClear) : undefined;
   return (
     <DropdownMenuPrimitive.Portal container={portalContainer()}>
       <DropdownMenuPrimitive.Content

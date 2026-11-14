@@ -200,6 +200,26 @@ describe("WheelSheet", () => {
     vi.restoreAllMocks();
   });
 
+  it("keeps clear of its keepClear element when its panel shrinks while it is open", async () => {
+    const { frame, container } = panelHost();
+    const picture = frame.appendChild(document.createElement("div"));
+    const bottoms = new Map<Element, number>([[frame, 560], [picture, 249]]);
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const bottom = bottoms.get(this) ?? 0;
+      return { top: 0, left: 0, right: 0, bottom, x: 0, y: 0, width: 0, height: bottom, toJSON: () => ({}) } as DOMRect;
+    });
+    const keepClear = { current: picture };
+    await mount(<WheelSheet container={container} keepClear={keepClear} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={() => {}} />);
+    const dialog = document.querySelector<HTMLElement>("[data-wheel-sheet]")!;
+    expect(dialog.style.getPropertyValue("--wheel-sheet-room")).toBe(`${560 - 249 - 6}px`);
+    bottoms.set(frame, 430);
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(dialog.style.getPropertyValue("--wheel-sheet-room")).toBe(`${430 - 249 - 6}px`);
+    vi.restoreAllMocks();
+  });
+
   it("cancels with Cancel, Escape or a tap outside it, but not a tap on the picture's zoom frame", async () => {
     const { zoom, container } = panelHost();
     const cancelled = vi.fn();
