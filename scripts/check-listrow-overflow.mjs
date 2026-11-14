@@ -2,13 +2,19 @@
 
 import { analyse, scannedFiles, violations } from "./listrow-overflow.mjs";
 
+const REASONS = {
+  clips: "ListRow label fades or clips itself",
+  label: "ListRow label cannot be resolved statically, so it may fade or clip itself",
+  component: "a component given a label cannot be resolved statically, so it may be a ListRow",
+};
+
 const files = scannedFiles();
 const analysis = analyse(files);
-const found = files.filter((f) => f.path.endsWith(".tsx")).flatMap((f) => violations(f, analysis));
+const found = files.flatMap((f) => violations(f, analysis));
 const names = [...analysis.clipping].map((key) => key.slice(key.indexOf("#") + 1));
 
 for (const v of found) {
-  console.log(`${v.path}:${v.line}: ListRow label fades or clips itself but overflow can be ${v.overflow}; pass overflow="self" (or overflow="wrap" for a wrapping label)`);
+  console.log(`${v.path}:${v.line}: ${REASONS[v.reason]} but overflow can be ${v.overflow}; pass overflow="self" (or overflow="wrap" for a wrapping label)`);
 }
 console.log(`\n${files.length} file(s), ${analysis.clipping.size} self-clipping component(s), ${found.length} violation(s)`);
 if (files.length === 0 || !names.includes("Snippet") || !names.includes("DebugNameValue")) {
