@@ -18,7 +18,10 @@ function WheelPickerDemo() {
   const [value, setValue] = useState("happy");
   const [centre, setCentre] = useState("happy");
   const [open, setOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
   const frame = useRef<HTMLDivElement>(null);
+  const clearFrame = useRef<HTMLDivElement>(null);
+  const picture = useRef<HTMLDivElement | null>(null);
   const label = (picked: string) => FACES.find((face) => face.value === picked)?.label ?? picked;
   return (
     <div class="space-y-4">
@@ -46,6 +49,29 @@ function WheelPickerDemo() {
             setOpen(false);
           }}
           onCancel={() => setOpen(false)}
+        />
+      </GalleryRow>
+      <GalleryRow label={`keepClear: the sheet stops below the bottom of the kept-clear element (at least 160px tall) and the wheel spins within what shows; chosen: ${label(value)}`}>
+        <div ref={clearFrame} class="relative grid h-[360px] w-72 content-start gap-3 rounded-card border border-edge bg-bg p-4">
+          <div ref={picture} class="grid h-40 place-items-center rounded-card bg-stage text-xs text-muted">
+            Kept clear
+          </div>
+          <Button aria-haspopup="dialog" onClick={() => setClearOpen(true)}>
+            Face: {label(value)}
+          </Button>
+        </div>
+        <WheelSheet
+          container={clearFrame}
+          keepClear={picture}
+          open={clearOpen}
+          title="Face"
+          options={FACES}
+          value={value}
+          onChoose={(next) => {
+            setValue(next);
+            setClearOpen(false);
+          }}
+          onCancel={() => setClearOpen(false)}
         />
       </GalleryRow>
     </div>

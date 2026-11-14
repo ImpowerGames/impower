@@ -92,6 +92,7 @@ function GroupMenu({
         {trigger}
         <WheelSheet
           container={sheetContainer}
+          keepClear={keepClear}
           returnFocus={() => button.current}
           open={open}
           title={name}

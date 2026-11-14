@@ -21,6 +21,7 @@ import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 import { registerFocusReturn } from "../../utils/focusReturn";
+import { clearLine, type KeepClear } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
@@ -215,15 +216,15 @@ export type DropdownContentFit = NonNullable<
   VariantProps<typeof dropdownContentVariants>["fit"]
 >;
 
-const CLEAR_GAP = 6;
 const EDGE_GAP = 12;
 
-function clearOf(element: HTMLElement | null | undefined) {
-  if (!element) {
+function clearOf(keepClear: KeepClear | undefined) {
+  const line = clearLine(keepClear);
+  if (line === undefined) {
     return undefined;
   }
   return {
-    top: Math.max(EDGE_GAP, element.getBoundingClientRect().bottom + CLEAR_GAP),
+    top: Math.max(EDGE_GAP, line),
     bottom: EDGE_GAP,
     left: EDGE_GAP,
     right: EDGE_GAP,
@@ -283,7 +284,7 @@ export function DropdownContent({
   sideOffset?: number;
   align?: "start" | "center" | "end";
   side?: "top" | "right" | "bottom" | "left";
-  keepClear?: RefObject<HTMLElement | null>;
+  keepClear?: KeepClear;
   onCloseAutoFocus?: (event: Event) => void;
   children?: ComponentChildren;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">) {
@@ -310,7 +311,7 @@ export function DropdownContent({
       </SheetMenu>
     );
   }
-  const clear = ctx.open ? clearOf(keepClear?.current) : undefined;
+  const clear = ctx.open ? clearOf(keepClear) : undefined;
   return (
     <DropdownMenuPrimitive.Portal container={portalContainer()}>
       <DropdownMenuPrimitive.Content

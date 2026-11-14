@@ -4,6 +4,7 @@ import { createPortal } from "preact/compat";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import { useEscapeWithin } from "../../utils/escapeWithin";
+import { clearLine, type KeepClear } from "../../utils/keepClear";
 import Button from "../button/Button";
 import { CheckIcon } from "../icon/icons.generated";
 
@@ -186,15 +187,24 @@ export const wheelSheetVariants = cva(
       size: {
         default: "max-h-full",
       },
+      fit: {
+        free: "",
+        room: "max-h-[min(100%,var(--wheel-sheet-room))]",
+      },
     },
-    defaultVariants: { size: "default" },
+    defaultVariants: { size: "default", fit: "free" },
   },
 );
 
 export type WheelSheetSize = NonNullable<VariantProps<typeof wheelSheetVariants>["size"]>;
 
-export type WheelSheetProps = VariantProps<typeof wheelSheetVariants> & {
+export type WheelSheetFit = NonNullable<VariantProps<typeof wheelSheetVariants>["fit"]>;
+
+export const WHEEL_SHEET_FLOOR = 160;
+
+export type WheelSheetProps = Omit<VariantProps<typeof wheelSheetVariants>, "fit"> & {
   container: RefObject<HTMLElement>;
+  keepClear?: KeepClear;
   open: boolean;
   title: string;
   options: readonly WheelOption[];
@@ -216,6 +226,7 @@ export function WheelSheet({
   onCancel,
   returnFocus,
   size,
+  keepClear,
 }: WheelSheetProps) {
   const titleId = useId();
   const centred = useRef(value);
@@ -258,13 +269,16 @@ export function WheelSheet({
   if (!open || !host) {
     return null;
   }
+  const line = clearLine(keepClear);
+  const room = line === undefined ? undefined : Math.max(WHEEL_SHEET_FLOOR, host.getBoundingClientRect().bottom - line);
   return createPortal(
     <div
       ref={panel}
       role="dialog"
       aria-modal="false"
       aria-labelledby={titleId}
-      class={wheelSheetVariants({ size })}
+      class={cn(wheelSheetVariants({ size, fit: room === undefined ? "free" : "room" }))}
+      style={room === undefined ? undefined : { "--wheel-sheet-room": `${room}px` }}
       data-wheel-sheet
     >
       <div class="flex items-center justify-between gap-2 border-b border-edge px-2 py-1.5">
