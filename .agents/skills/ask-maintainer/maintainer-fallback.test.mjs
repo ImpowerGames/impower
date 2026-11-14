@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRepos } from "../../repos.mjs";
 import { TOOL_MARK } from "./github-app.mjs";
-import { RequestRefused, dataLine, fallbackRequest, fetchAnswer, formatAnswer, main, readDataLine, readNote, recordAnswer, waitForRequests, withdrawRequest } from "./maintainer-request.mjs";
+import { RequestRefused, dataLine, fallbackRequest, fetchAnswer, formatAnswer, main, readDataLine, readNote, recordAnswer, reviseRequest, waitForRequests, withdrawRequest } from "./maintainer-request.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => readFileSync(path.join(here, "fixtures", name), "utf8").replace(/\r\n/g, "\n");
@@ -62,6 +62,12 @@ function tracker({ body = decisionBody, failAddLabel = false } = {}) {
       t.calls.push(["addLabel", n, label]);
       if (failAddLabel) throw new Error("HTTP 502: label service down");
       of(n).labels.push({ name: label });
+    },
+    editBody: (n, bodyFile) => {
+      of(n).body = readFileSync(bodyFile, "utf8");
+    },
+    editTitle: (n, title) => {
+      of(n).title = title;
     },
     removeLabel: (n, label) => {
       t.calls.push(["removeLabel", n, label]);
@@ -158,6 +164,26 @@ try {
     assert.match(records[1].c.body, /> Not B\. Use C, the small dot, and drop the pop-up\./);
     console.log("ok: a went-ahead request closed with a comment reads as changed, in the maintainer's words, and record adds the change as their decision");
 
+    const asked = tracker();
+    fallbackRequest(REQUEST, OWNER, doing, { tracker: asked, repos, now });
+    asked.say("Why B and not C?", "2026-11-13T18:00:00Z");
+    const plain = JSON.parse(fixture("decision.json"));
+    plain.showsOnScreen = false;
+    plain.background = plain.background.filter((block) => typeof block === "string");
+    for (const option of plain.options) {
+      delete option.pictures;
+      option.example ??= `The ${option.name.toLowerCase()} beside the chosen option.`;
+    }
+    const revised = reviseRequest(REQUEST, plain, "Said why B and not C.", { pictures: scratch, tracker: asked, repos, now: at("2026-11-13T18:10:00Z"), timeZone: "UTC" });
+    const body = asked.issue(REQUEST).body;
+    assert.match(body, /^> \*\*I went ahead with B · A hollow pin at 17:40 today without you,\*\* and moved this to "decided without you"\. Close this issue with no comment to keep it, or with a comment to change it\.$/m, "a revision of a request that went ahead says so instead of promising a new fallback");
+    assert.doesNotMatch(body, /If you don't answer by/);
+    assert.match(asked.readComment(revised.note.id).body, /It has already gone ahead with B · A hollow pin: close this issue with no comment to keep that, or with a comment to change it\./);
+    assert.equal(readNote(asked.readComment(revised.note.id).body).fallback, undefined, "the revision note restarts no clock");
+    assert.equal(fetchAnswer(REQUEST, { tracker: asked, repos }).state, "went-ahead", "the revision answers the question and the request still went ahead");
+    refused(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: asked, repos, now: at("2026-11-14T00:00:00Z") }), /already went ahead/, "after a revision of a request that went ahead");
+    console.log("ok: revise answers a question on a request that went ahead without restarting its clock or promising a new fallback");
+
     const unclear = tracker();
     fallbackRequest(REQUEST, OWNER, doing, { tracker: unclear, repos, now });
     unclear.closeAs("not_planned", "2026-11-13T19:00:00Z");
@@ -182,10 +208,22 @@ try {
 
   {
     const t = tracker({ failAddLabel: true });
-    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: t, repos, now }), /Going ahead on acme\/tickets#9001 failed:\n- HTTP 502: label service down\nRolled back: removed the label maintainer: decided without you; deleted the fallback note \d+\./);
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: t, repos, now }), /Going ahead on acme\/tickets#9001 failed:\n- HTTP 502: label service down\nRolled back: deleted the fallback record \d+ on #2271; removed the label maintainer: decided without you\.\nCorrect the cause and run fallback again\.$/);
     assert.equal(fetchAnswer(REQUEST, { tracker: t, repos }).state, "waiting", "a failed fallback leaves the request waiting");
     assert.deepEqual(recordsOn(t, TICKET), []);
-    console.log("ok: a fallback that fails part-way rolls back its note and label");
+    assert.deepEqual(recordsOn(t, REQUEST), [], "the request note is posted last, so a failure before it leaves no note");
+    console.log("ok: a fallback that fails part-way rolls back its records and label, and posts no request note");
+
+    const crashed = tracker();
+    crashed.say(toolNote("**Decided by fallback, not reviewed by the maintainer** (left by a run that stopped)", { kind: "fallback-record", request: REQUEST, option: "B" }), "2026-11-13T17:39:00Z", TICKET);
+    crashed.issues.get(REQUEST).labels.push({ name: labels.decidedWithoutYou });
+    assert.equal(fetchAnswer(REQUEST, { tracker: crashed, repos }).state, "waiting", "a record and label with no request note is not a fallback");
+    const resumed = fallbackRequest(REQUEST, OWNER, doing, { tracker: crashed, repos, now });
+    assert.deepEqual(resumed.records.map((r) => r.reused), [true], "a rerun reuses the record a stopped run left");
+    assert.equal(recordsOn(crashed, TICKET).length, 1);
+    assert.equal(crashed.calls.filter(([kind]) => kind === "addLabel").length, 0, "the label already there is not added again");
+    assert.equal(fetchAnswer(REQUEST, { tracker: crashed, repos }).state, "went-ahead");
+    console.log("ok: a fallback run that stopped before its request note is completed by running fallback again, without a second record");
   }
 
   {

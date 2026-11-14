@@ -405,12 +405,15 @@ export function readDataLine(body) {
   }
 }
 
-function decisionBody(checked, { now, timeZone, template, identity }) {
+function decisionBody(checked, { now, timeZone, template, identity, wentAhead }) {
   const [shortHeading, backgroundHeading, optionsHeading, sideHeading, whyHeading] = template.headings;
   const name = (letter) => `${letter} · ${checked.options.find((option) => option.letter === letter).name}`;
   const data = { kind: "decision", options: checked.options.map((option) => option.letter), recommended: checked.recommended };
   const lines = [];
-  if (checked.fallback) {
+  if (wentAhead) {
+    data.fallback = { option: wentAhead.option, at: wentAhead.at };
+    lines.push("> [!IMPORTANT]", `> **I went ahead with ${wentAhead.option}${wentAhead.name ? ` · ${wentAhead.name}` : ""} at ${describeTime(new Date(wentAhead.at), now, timeZone)} without you,** and moved this to "decided without you". Close this issue with no comment to keep it, or with a comment to change it.`);
+  } else if (checked.fallback) {
     const at = new Date(now.getTime() + checked.fallback.waitMinutes * 60 * 1000);
     data.fallback = { option: checked.fallback.option, at: at.toISOString() };
     const undo = checked.options.find((option) => option.letter === checked.fallback.option).undo;
@@ -451,9 +454,9 @@ function taskBody(checked, { template, tag, identity }) {
   return { body: lines.join("\n"), data };
 }
 
-export function buildRequest(checked, { now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates = {}, tag = false, identity = AS_MAINTAINER } = {}) {
+export function buildRequest(checked, { now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates = {}, tag = false, identity = AS_MAINTAINER, wentAhead = null } = {}) {
   const template = templates[checked.kind] ?? readTemplate(checked.kind);
-  const built = checked.kind === "decision" ? decisionBody(checked, { now, timeZone, template, identity }) : taskBody(checked, { template, tag, identity });
+  const built = checked.kind === "decision" ? decisionBody(checked, { now, timeZone, template, identity, wentAhead }) : taskBody(checked, { template, tag, identity });
   return { title: requestTitle(checked), ...built, pictures: picturesOf(checked) };
 }
 
@@ -1044,7 +1047,7 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
   if (checked.kind !== answer.kind) problems.push(`#${number} is a ${answer.kind} request; a revision cannot make it a ${checked.kind}`);
   if (!sameTickets(checked.tickets, answer.tickets)) problems.push(`#${number} holds up ${ticketList(answer.tickets)}; a revision keeps the same tickets (file a new request for others)`);
   if (problems.length) throw new RequestRefused(problems);
-  const built = buildRequest(checked, { now, timeZone, templates, identity });
+  const built = buildRequest(checked, { now, timeZone, templates, identity, wentAhead: answer.wentAhead ?? null });
   const fallback = built.data.fallback;
   const clock = checked.kind === "task" ? "" : answer.wentAhead ? `\n\nIt has already gone ahead with ${optionLabel(answer.wentAhead)}: close this issue with no comment to keep that, or with a comment to change it.` : fallback ? `\n\nThe clock starts again: if you don't answer by ${describeTime(new Date(fallback.at), now, timeZone)}, I'll go ahead with ${fallback.option}.` : "\n\nIt still waits for you, with no fallback.";
   const note = toolText(`Revised by the ask-maintainer tool${issue.state === "closed" ? ", and reopened because the answer was unclear" : ""}; GitHub's edit history keeps the earlier version.\n\n**What changed:** ${changed}${clock}`, { kind: "revised", ...(fallback && !answer.wentAhead && { fallback: fallback.at }) }, identity);
@@ -1092,7 +1095,7 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
         tracker.reopen(number);
         done.reopened = true;
       }
-      return { number, url: back.html_url, title: built.title, data: built.data, note: comment, reopened: done.reopened };
+      return { number, url: back.html_url, title: built.title, data: built.data, note: comment, reopened: done.reopened, wentAhead: answer.wentAhead ?? null };
     } catch (error) {
       const steps = [];
       if (done.note !== null) steps.push([`deleted the revision note ${done.note}`, () => tracker.deleteComment(done.note)]);
@@ -1215,19 +1218,28 @@ export function fallbackRequest(number, owner, doing, { tracker, repos = readRep
     recommended: answer.recommended ? optionLabel({ option: answer.recommended.letter, name: answer.recommended.name }) : null,
   };
   const label = repos.maintainer.labels.decidedWithoutYou;
+  const who = whoOf(repos);
+  const standing = (ticket) => tracker.comments(ticket).find((comment) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === "fallback-record" && readNote(comment.body)?.request === number);
+  const labelled = (value) => (value.labels ?? []).some((l) => (typeof l === "string" ? l : l.name) === label);
   return withScratch((scratch) => {
     const done = { note: null, labelled: false, records: [] };
     try {
-      const note = postNote(tracker, number, toolText(fallbackComment(going), { kind: "fallback", option: going.option, owner: going.owner, at: going.at }, identity), scratch, "fallback", (id) => (done.note = id));
-      done.labelled = true;
-      tracker.addLabel(number, label);
       const recordText = toolText(fallbackRecordBody(going), { kind: "fallback-record", request: number, option: going.option }, identity);
-      const records = answer.tickets.map((ticket) => ({ ticket, ...postNote(tracker, ticket, recordText, scratch, `fallback-record-${ticket}`, (id) => done.records.push([ticket, id])) }));
+      const records = answer.tickets.map((ticket) => {
+        const found = standing(ticket);
+        if (found) return { ticket, id: found.id, url: found.html_url, reused: true };
+        return { ticket, ...postNote(tracker, ticket, recordText, scratch, `fallback-record-${ticket}`, (id) => done.records.push([ticket, id])), reused: false };
+      });
+      done.labelled = true;
+      if (!labelled(issue)) {
+        tracker.addLabel(number, label);
+      }
       const back = tracker.issue(number);
       const problems = [];
       if (back.state !== "open") problems.push(`#${number} reads back ${back.state}`);
-      if (!(back.labels ?? []).some((l) => (typeof l === "string" ? l : l.name) === label)) problems.push(`label ${label} is missing`);
+      if (!labelled(back)) problems.push(`label ${label} is missing`);
       if (problems.length) throw new FilingProblems(problems);
+      const note = postNote(tracker, number, toolText(fallbackComment(going), { kind: "fallback", option: going.option, owner: going.owner, at: going.at }, identity), scratch, "fallback", (id) => (done.note = id));
       return { number, url: back.html_url, option: going.option, name, note, records, label };
     } catch (error) {
       const steps = done.records.map(([ticket, id]) => [`deleted the fallback record ${id} on #${ticket}`, () => tracker.deleteComment(id)]);
@@ -1368,7 +1380,7 @@ function answerCommands(command, args, flags, { tracker, repos, out, now, identi
   if (command === "revise" && number && args.length >= 3 && args.length <= 4 && !flags.length) {
     const file = path.resolve(args[1]);
     const result = reviseRequest(number, readRequest(file), readText(path.resolve(args[2]), "what-changed"), { pictures: path.resolve(args[3] ?? path.dirname(file)), tracker, repos, now, identity });
-    const clock = result.data.fallback ? `falls back at ${result.data.fallback.at} to ${result.data.fallback.option}` : result.data.kind === "task" ? "a task, with no clock" : "waits for the maintainer, with no fallback";
+    const clock = result.wentAhead ? `already went ahead with ${result.wentAhead.option} at ${result.wentAhead.at}` : result.data.fallback ? `falls back at ${result.data.fallback.at} to ${result.data.fallback.option}` : result.data.kind === "task" ? "a task, with no clock" : "waits for the maintainer, with no fallback";
     out(`Revised #${number}${result.reopened ? " and reopened it" : ""}: ${result.url}\n${clock}; what changed is posted at ${result.note.url}.`);
     return 0;
   }
