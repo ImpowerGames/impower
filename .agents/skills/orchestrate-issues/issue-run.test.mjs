@@ -545,7 +545,7 @@ try {
       const closedPlan = write("closed-plan.json", plan({ record: waiting(settled105(run.readRecord(record)), on9101), snapshot: snap107 }));
       const next = { number: 9102, url: "u", title: "t", kind: "decision", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state: "waiting" };
       const old = (state) => ({ number: 9101, url: "u", title: "t", kind: "decision", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state });
-      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), on9101), { plan: closedPlan, ticket: 107, maintainerRequest: next, previousRequest: old("answered") }), /#107 waits on maintainer request #9101, which is answered; record its answer and act on it: only a request read as withdrawn, unclear or will not be done is replaced/, "an answered request, even one closed as not planned, is never set aside");
+      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), on9101), { plan: closedPlan, ticket: 107, maintainerRequest: next, previousRequest: old("answered") }), /#107 waits on maintainer request #9101, which is answered; record its answer and act on it: only a request read as withdrawn, unclear or will not be done, or one GitHub no longer blocks the ticket on, is replaced/, "an answered request, even one closed as not planned, is never set aside");
       assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), on9101), { plan: closedPlan, ticket: 107, maintainerRequest: next }), /which is closed; record its answer/, "a closed request is read before it is replaced");
       for (const state of ["withdrawn", "unclear"]) {
         const replacing = waiting(settled105(run.readRecord(record)), on9101);
@@ -1850,15 +1850,21 @@ try {
     {
       const unlinkedPlan = write("triage-unlinked-plan.json", planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9306, state: "open", delivered: false, request: true }] }])));
       const replaced = run.readRecord(f.file);
-      run.asked(replaced, { plan: unlinkedPlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }) });
+      assert.throws(() => run.asked(run.readRecord(f.file), { plan: unlinkedPlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }) }), /#3005 was raised with the maintainer in request #9305, which is unread/, "the raised request is read before it is replaced");
+      run.asked(replaced, { plan: unlinkedPlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ holds: false }) });
       assert.deepEqual([replaced.filed[3005].outcome.maintainerRequest.number, replaced.filed[3005].outcome.replaced.map((r) => r.number), replaced.tickets[3005]?.waits], [9306, [9305], undefined], "asked on a triage entry replaces triage's request, keeping the old one as history");
       const after = run.planDispatch({ record: replaced, snapshot: snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9306, state: "open", delivered: false, request: true }] }]), freeBytes: 100 * GB, defaults }).tickets.find((t) => t.number === 3005);
       assert.deepEqual(after.maintainerRequest, { filed: { number: 9306, state: "open" } }, "the next plan names the replacement, so the recovery path converges");
       const closedTriagePlan = write("triage-closed-plan.json", planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9305, state: "closed", delivered: false, request: true }, { number: 9306, state: "open", delivered: false, request: true }] }])));
-      assert.throws(() => run.asked(run.readRecord(f.file), { plan: closedTriagePlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "answered" }) }), /#3005 waits on maintainer request #9305, which is answered; record its answer and act on it/, "a raised ticket's answered request, whatever its close reason, is not replaced");
+      assert.throws(() => run.asked(run.readRecord(f.file), { plan: closedTriagePlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "answered" }) }), /#3005 was raised with the maintainer in request #9305, which is answered; record its answer and act on it/, "a raised ticket's answered request, whatever its close reason, is not replaced");
       const afterWithdrawal = run.readRecord(f.file);
       run.asked(afterWithdrawal, { plan: closedTriagePlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "withdrawn" }) });
       assert.equal(afterWithdrawal.filed[3005].outcome.maintainerRequest.number, 9306, "a withdrawn one is");
+      const outside = run.readRecord(f.file);
+      run.asked(outside, { ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "withdrawn" }) });
+      assert.deepEqual([outside.filed[3005].outcome.maintainerRequest.number, outside.filed[3005].outcome.slice], [9306, 3001], "a raised ticket's request is replaced from the record alone, with no plan entry (a ticket outside the run's tree has none), and its slice hold stays");
+      assert.throws(() => run.asked(run.readRecord(f.file), { ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey() }), /which is waiting; record its answer/, "an open raised request is not replaced");
+      assert.throws(() => run.asked(run.readRecord(f.file), { ticket: 107, maintainerRequest: cacheKey({ number: 9306 }) }), /--plan must name the plan/, "any other wait needs its plan entry");
     }
     {
       const answered = (number, over = {}) => cacheKey({ number, state: "answered", answered: true, recorded: true, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: `https://github.com/acme/widgets/issues/${number}#issuecomment-9`, at: "2026-11-13T16:09:00Z", body: "Use the blue label." }], ...over });

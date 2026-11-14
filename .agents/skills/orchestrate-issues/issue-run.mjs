@@ -1108,29 +1108,34 @@ function askMaintainer(record, snapshot, tickets) {
 
 function askedWait(record, number, entry) {
   const asking = entry.maintainerRequest ?? {};
-  if (asking.file) return { kind: asking.file, key: asking.key, pr: asking.pr, triage: Boolean(asking.triage) };
+  if (asking.file) return { kind: asking.file, key: asking.key, pr: asking.pr };
   const closed = asking.filed?.state === "closed" ? asking.filed.number : null;
   if (closed === null) throw new Error(`The plan does not ask for a maintainer request for #${number}${asking.filed ? `: it already waits on #${asking.filed.number}` : ""}`);
-  const outcome = record.filed?.[number]?.outcome;
-  if (outcome?.kind === "maintainer" && outcome.maintainerRequest?.number === closed) return { kind: "decision", triage: true, closed };
   const tied = (record.tickets?.[number]?.waits ?? []).filter((w) => w.request.number === closed).at(-1);
   if (!tied) throw new Error(`The record ties no wait of #${number} to maintainer request #${closed}; plan again`);
-  return { kind: tied.request.kind ?? (entry.action === "await-maintainer" ? "task" : "decision"), key: tied.key, pr: tied.pr, triage: false, closed };
+  return { kind: tied.request.kind ?? (entry.action === "await-maintainer" ? "task" : "decision"), key: tied.key, pr: tied.pr, closed };
+}
+
+const ended = (facts) => ENDED.includes(facts?.state) || facts?.holds === false;
+const endedText = "only a request read as withdrawn, unclear or will not be done, or one GitHub no longer blocks the ticket on, is replaced";
+
+function replaceRaised(record, number, outcome, { maintainerRequest, previousRequest }) {
+  const old = outcome.maintainerRequest ?? null;
+  if (old && (previousRequest?.number !== old.number || !ended(previousRequest))) throw new Error(`#${number} was raised with the maintainer in request #${old.number}, which is ${previousRequest?.number === old.number ? previousRequest.state : "unread"}; record its answer and act on it: ${endedText}`);
+  const filed = heldRequest(record, maintainerRequest, number, { what: `Replacing the request #${number} was raised with`, kinds: ["decision"] });
+  record.filed[number].outcome = { ...outcome, maintainerRequest: filed, ...(old && { replaced: [...(outcome.replaced ?? []), old] }) };
+  log(record, "asked", { ticket: number, triage: true, maintainerRequest: filed.number, ...(old && { replaced: old.number }) });
+  return { request: filed.number };
 }
 
 export function asked(record, { plan: planFile, ticket: number, maintainerRequest, previousRequest }) {
+  const outcome = record.filed?.[number]?.outcome;
+  if (outcome?.kind === "maintainer") return replaceRaised(record, number, outcome, { maintainerRequest, previousRequest });
+  if (!planFile) throw new Error(`--plan must name the plan whose entry for #${number} asks for a maintainer request`);
   const entry = planEntry(readPlan(planFile, record), number, ["decision-needed", "await-maintainer"]);
   const wait = askedWait(record, number, entry);
-  if (wait.closed !== undefined && (previousRequest?.number !== wait.closed || !ENDED.includes(previousRequest.state))) throw new Error(`#${number} waits on maintainer request #${wait.closed}, which is ${previousRequest?.number === wait.closed ? previousRequest.state : "closed"}; record its answer and act on it: only a request read as withdrawn, unclear or will not be done is replaced`);
+  if (wait.closed !== undefined && (previousRequest?.number !== wait.closed || !ended(previousRequest))) throw new Error(`#${number} waits on maintainer request #${wait.closed}, which is ${previousRequest?.number === wait.closed ? previousRequest.state : "closed"}; record its answer and act on it: ${endedText}`);
   const filed = heldRequest(record, maintainerRequest, number, { what: `Recording the request #${number}'s ${entry.action} entry waits on`, kinds: [wait.kind] });
-  if (wait.triage) {
-    const outcome = record.filed?.[number]?.outcome;
-    if (outcome?.kind !== "maintainer") throw new Error(`#${number} is no longer triaged as raised with the maintainer; plan again`);
-    const replaced = outcome.maintainerRequest ?? null;
-    record.filed[number].outcome = { ...outcome, maintainerRequest: filed, ...(replaced && { replaced: [...(outcome.replaced ?? []), replaced] }) };
-    log(record, "asked", { ticket: number, triage: true, maintainerRequest: filed.number, ...(replaced && { replaced: replaced.number }) });
-    return { request: filed.number };
-  }
   const ticket = ticketOf(record, number);
   (ticket.waits ??= []).push({ key: wait.key, action: entry.action, ...(wait.pr && { pr: wait.pr }), request: filed, time: new Date().toISOString() });
   log(record, "asked", { ticket: number, key: wait.key, maintainerRequest: filed.number, ...(wait.closed !== undefined && { replaced: wait.closed }) });
@@ -2432,9 +2437,13 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
     case "asked": {
       const filed = oneRequest(number());
-      const waitingOn = readJson(absolute(o.plan, "plan")).tickets?.find((t) => t.number === number())?.maintainerRequest?.filed;
-      const previousRequest = filed && waitingOn?.state === "closed" ? requestFacts(waitingOn.number, { tracker: requestsFor(readRecord(absolute(o.record, "record"))), holding: number() }) : undefined;
-      return mutate((r) => asked(r, { plan: absolute(o.plan, "plan"), ticket: number(), maintainerRequest: filed, previousRequest }));
+      const record = readRecord(absolute(o.record, "record"));
+      const plan = o.plan === undefined ? undefined : absolute(o.plan, "plan");
+      const raised = record.filed?.[number()]?.outcome?.kind === "maintainer" ? record.filed[number()].outcome.maintainerRequest?.number : undefined;
+      const waitingOn = raised ?? (plan ? readJson(plan).tickets?.find((t) => t.number === number())?.maintainerRequest?.filed : undefined);
+      const previous = typeof waitingOn === "number" ? waitingOn : waitingOn?.state === "closed" ? waitingOn.number : undefined;
+      const previousRequest = filed && previous !== undefined ? requestFacts(previous, { tracker: requestsFor(record), holding: number() }) : undefined;
+      return mutate((r) => asked(r, { plan, ticket: number(), maintainerRequest: filed, previousRequest }));
     }
     case "relay": {
       const filed = oneRequest(number());
