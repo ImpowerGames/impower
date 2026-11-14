@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRepos } from "../../repos.mjs";
 import { TOOL_MARK } from "./github-app.mjs";
-import { RequestRefused, dataLine, fallbackCommitted, fallbackRequest, fetchAnswer, formatAnswer, main, readDataLine, readNote, recordAnswer, reviseRequest, waitForRequests, withMarker, withdrawRequest } from "./maintainer-request.mjs";
+import { RequestRefused, dataLine, fallbackCommitted, fallbackRequest, fetchAnswer, formatAnswer, listRequests, main, readDataLine, readNote, recordAnswer, reviseRequest, waitForRequests, withMarker, withdrawRequest } from "./maintainer-request.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => readFileSync(path.join(here, "fixtures", name), "utf8").replace(/\r\n/g, "\n");
@@ -59,13 +59,14 @@ function tracker({ body = decisionBody, failCommit = null, beforeCommit = () => 
     },
     revise: (change, at) => {
       of(REQUEST).body = withData(change);
-      post(REQUEST, toolNote("Revised by the ask-maintainer tool.", { kind: "revised", ...(change.fallback && { fallback: change.fallback.at }) }), M, at);
+      post(REQUEST, toolNote("Revised by the ask-maintainer tool.", { kind: "revised", fallback: change.fallback?.at ?? null }), M, at);
     },
     commitBy: (marker) => {
       of(REQUEST).body = withMarker(of(REQUEST).body, { option: "B", name: "A hollow pin", owner: OWNER, at: "2026-11-13T17:39:30.000Z", fallbackAt, doing: "Merges #2271.", undo: "Swap one icon.", unanswered: "2h 2m", since: filedAt, revised: false, ...marker }).body;
       setLabels(REQUEST, [labels.decision, labels.decidedWithoutYou]);
     },
     issue: (n) => structuredClone(of(n)),
+    open: (name) => structuredClone([...t.issues.values()].filter((value) => value.state === "open" && value.labels.some((l) => l.name === name))),
     timeline: (n) => structuredClone(t.items.filter((item) => item.issue === n).sort((a, b) => a.seq - b.seq)),
     comments: (n) => structuredClone(t.items.filter((item) => item.issue === n && item.event === "commented")),
     comment: ({ number, bodyFile }) => {
@@ -259,7 +260,26 @@ try {
     const revisedFirst = tracker({ beforeCommit: (self) => self.revise({ fallback: { option: "A", at: "2026-11-13T19:40:01.000Z" } }, "2026-11-13T17:40:00Z") });
     assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: revisedFirst, repos, now }), /changed while going ahead: it now reads waiting/);
     assert.deepEqual([fetchAnswer(REQUEST, { tracker: revisedFirst, repos }).wentAhead, labelsOf(revisedFirst)], [undefined, [labels.decision]], "a revision just before the commit cancels the older fallback");
-    console.log("ok: a revision just before the commit cancels it");
+    const waitsFirst = tracker({ beforeCommit: (self) => self.revise({ fallback: undefined, waits: "waives-check" }, "2026-11-13T17:40:00Z") });
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: waitsFirst, repos, now }), /changed while going ahead/);
+    assert.deepEqual([fetchAnswer(REQUEST, { tracker: waitsFirst, repos }).wentAhead, committedFor(waitsFirst), labelsOf(waitsFirst)], [undefined, false, [labels.decision]], "a revision just before the commit that removes the fallback cancels it");
+    const waitsStopped = tracker();
+    waitsStopped.revise({ fallback: undefined, waits: "waives-check" }, "2026-11-13T17:39:00Z");
+    waitsStopped.commitBy({});
+    assert.deepEqual([fetchAnswer(REQUEST, { tracker: waitsStopped, repos }).wentAhead, committedFor(waitsStopped)], [undefined, false], "a stopped run's commit over a revision that removed the fallback does not count");
+    const plainWaits = JSON.parse(fixture("decision.json"));
+    plainWaits.showsOnScreen = false;
+    plainWaits.background = plainWaits.background.filter((block) => typeof block === "string");
+    for (const option of plainWaits.options) {
+      delete option.pictures;
+      option.example ??= `The ${option.name.toLowerCase()} beside the chosen option.`;
+    }
+    delete plainWaits.fallback;
+    plainWaits.waits = "waives-check";
+    const noted = tracker();
+    const revisedToWait = reviseRequest(REQUEST, plainWaits, "Now waits.", { pictures: scratch, tracker: noted, repos, now: at("2026-11-13T17:00:00Z"), timeZone: "UTC" });
+    assert.equal(readNote(noted.readComment(revisedToWait.note.id).body).fallback, null, "revise records that the request no longer has a fallback");
+    console.log("ok: a revision just before the commit cancels it, including one that removes the fallback");
 
     const failedBefore = tracker({ failCommit: "before" });
     assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: failedBefore, repos, now }), /HTTP 502: edit failed/);
@@ -335,6 +355,17 @@ try {
     assert.equal(withdrawRequest(REQUEST, "no longer needed", { tracker: withdrawn, repos }).state, "withdrawn");
     assert.deepEqual([readDataLine(withdrawn.issue(REQUEST).body).wentAhead, labelsOf(withdrawn)], [undefined, [labels.decision]], "withdraw takes an uncounted fallback out before closing");
     console.log("ok: withdraw takes an uncounted fallback out before closing");
+
+    const listed = tracker();
+    listed.say("Wait. Can I see C first?", "2026-11-13T17:39:10Z");
+    listed.commitBy({});
+    const stoppedGroups = listRequests(listed, repos);
+    assert.deepEqual([stoppedGroups.decisions.map((i) => i.number), stoppedGroups.decidedWithoutYou.map((i) => i.number)], [[REQUEST], []], "list keeps a request whose commit does not count among the decisions, not under went ahead");
+    const listedAhead = tracker();
+    fallbackRequest(REQUEST, OWNER, doing, { tracker: listedAhead, repos, now });
+    const aheadGroups = listRequests(listedAhead, repos);
+    assert.deepEqual([aheadGroups.decisions.map((i) => i.number), aheadGroups.decidedWithoutYou.map((i) => i.number)], [[], [REQUEST]], "list shows a committed fallback under went ahead");
+    console.log("ok: list applies the same commit rule as every other reader");
   }
 
   {

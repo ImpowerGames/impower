@@ -15,7 +15,7 @@ When a decision's fallback time passes with no answer and no open question, the 
 
 ## When the commit counts
 
-Every reader (`read`, `record`, `withdraw`, `fallback`, the orchestrate-issues planner and its merge gate) applies one rule. The marker counts only while the request carries the label and the edit that added it, the latest `labeled` event in the timeline, was made while the request was open, with no maintainer comment since the last revision before it, and with no revision before it naming another fallback time. A maintainer comment or close after that edit is a question on, or an answer to, a fallback that stands.
+Every reader (`read`, `record`, `withdraw`, `fallback`, `list`, the orchestrate-issues planner and its merge gate) applies one rule. The marker counts only while the request carries the label and the edit that added it, the latest `labeled` event in the timeline, was made while the request was open, with no maintainer comment since the last revision before it, and with no revision before it naming another fallback time or none. A maintainer comment or close after that edit is a question on, or an answer to, a fallback that stands.
 
 `fallback` reads the request once more after its edit. If the commit does not count, because the maintainer commented, closed or a revision landed just before it, it takes the marker and the label back out in one edit, restoring the body, and posts nothing. If it stopped between the edit and the note, your next `fallback` posts the missing note and records, and `record` completes them before adding its own record. A marker that does not count, left by a run that stopped, is ignored by every reader; your next `fallback` (even one refused for an open question) or `withdraw` takes it out.
 

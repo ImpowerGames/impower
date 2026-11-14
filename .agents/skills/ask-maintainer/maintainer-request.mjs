@@ -879,7 +879,8 @@ export function formatList(groups, { now = new Date(), timeZone = Intl.DateTimeF
 
 export function listRequests(tracker, repos = readRepos()) {
   const { decision, task, decidedWithoutYou } = repos.maintainer.labels;
-  return groupRequests({ decisions: tracker.open(decision), tasks: tracker.open(task), decidedWithoutYou: tracker.open(decidedWithoutYou) });
+  const wentAhead = tracker.open(decidedWithoutYou).filter((issue) => fallbackCommitted(issue, tracker.timeline(issue.number), repos));
+  return groupRequests({ decisions: tracker.open(decision), tasks: tracker.open(task), decidedWithoutYou: wentAhead });
 }
 
 const lf = (text) => (text ?? "").replace(/\r\n/g, "\n");
@@ -932,7 +933,7 @@ function fallbackOf(issue, items, notes, data, tagged, who, label) {
   const revision = notes.filter((entry) => entry.note.kind === "revised" && entry.comment.pos < at).at(-1) ?? null;
   const from = revision?.comment.pos ?? tagged?.pos ?? -1;
   const asked = items.some((item) => item.pos > from && item.pos < at && item.event === "commented" && commentAuthor(item, who) === "maintainer");
-  const overwritten = revision?.note.fallback !== undefined && revision.note.fallback !== marker.fallbackAt;
+  const overwritten = Boolean(revision) && Object.hasOwn(revision.note, "fallback") && revision.note.fallback !== marker.fallbackAt;
   const valid = !closedAtCommit && !asked && !overwritten && marker.fallbackAt === data.fallback?.at;
   return valid ? { fellBack: { marker, pos: at }, stale: null } : { fellBack: null, stale: { marker, pos: at } };
 }
@@ -1099,7 +1100,7 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
   const built = buildRequest(checked, { now, timeZone, templates, identity, wentAhead: answer.wentAhead ?? null });
   const fallback = built.data.fallback;
   const clock = checked.kind === "task" ? "" : answer.wentAhead ? `\n\nIt has already gone ahead with ${optionLabel(answer.wentAhead)}: close this issue with no comment to keep that, or with a comment to change it.` : fallback ? `\n\nThe clock starts again: if you don't answer by ${describeTime(new Date(fallback.at), now, timeZone)}, I'll go ahead with ${fallback.option}.` : "\n\nIt still waits for you, with no fallback.";
-  const note = toolText(`Revised by the ask-maintainer tool${issue.state === "closed" ? ", and reopened because the answer was unclear" : ""}; GitHub's edit history keeps the earlier version.\n\n**What changed:** ${changed}${clock}`, { kind: "revised", ...(fallback && !answer.wentAhead && { fallback: fallback.at }) }, identity);
+  const note = toolText(`Revised by the ask-maintainer tool${issue.state === "closed" ? ", and reopened because the answer was unclear" : ""}; GitHub's edit history keeps the earlier version.\n\n**What changed:** ${changed}${clock}`, { kind: "revised", ...(!answer.wentAhead && checked.kind === "decision" && { fallback: fallback?.at ?? null }) }, identity);
   return withScratch((scratch) => {
     const done = { reopened: false, body: false, title: false, note: null };
     try {
