@@ -1,4 +1,4 @@
-import { HighlightStyle, syntaxTree } from "@codemirror/language";
+import { syntaxTree } from "@codemirror/language";
 import type { EditorState, Line, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
@@ -6,16 +6,18 @@ import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
-import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import type { FormattedText } from "../../../../../sparkdown-screenplay/src/types/FormattedText";
 import type { PrintedInsert } from "../../../../../sparkdown-screenplay/src/types/PrintedInsert";
 import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/gluedAlternatorLayout";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
-import { SHOWN_AS_SOURCE } from "../../../../../sparkdown-screenplay/src/utils/readStyled";
 import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styleText";
 import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
-import { screenplayPageLayout } from "../../../../../sparkdown-screenplay/src/utils/screenplayPageLayout";
+import {
+  type PrintedRun,
+  type PrintedScene,
+  screenplayPageLayout,
+} from "../../../../../sparkdown-screenplay/src/utils/screenplayPageLayout";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
@@ -90,60 +92,6 @@ const getDualDialogueLineStyle = (type: string) => {
 const LANGUAGE_NAME = "sparkdown";
 
 const LANGUAGE_SUPPORT = new VSCodeLanguageSupport(LANGUAGE_NAME, GRAMMAR);
-
-const INLINE_HIDDEN_TAGS = [
-  tags.definition(tags.escape),
-  tags.definition(tags.keyword),
-  tags.definition(tags.controlKeyword),
-  tags.definition(tags.typeName),
-  tags.definition(tags.variableName),
-  tags.definition(tags.propertyName),
-  tags.definition(tags.punctuation),
-  tags.definition(tags.content),
-  tags.definition(tags.separator),
-  tags.definition(tags.logicOperator),
-  tags.local(tags.content),
-  tags.comment,
-  tags.blockComment,
-  tags.docComment,
-  tags.macroName,
-  tags.meta,
-  tags.logicOperator,
-  tags.controlKeyword,
-];
-
-const createHighlightStyle = (inlineHiddenStyle: Record<string, string>) =>
-  HighlightStyle.define([
-    { tag: tags.emphasis, fontStyle: "italic" },
-    { tag: tags.strong, fontWeight: "bold" },
-    { tag: tags.link, textDecoration: "underline", textUnderlineOffset: "5px" },
-    { tag: tags.strikethrough, textDecoration: "line-through" },
-    { tag: tags.labelName, display: "block", textAlign: "right" },
-
-    {
-      tag: tags.special(tags.meta),
-      display: "block",
-      visibility: "hidden",
-      height: "0",
-    },
-
-    ...INLINE_HIDDEN_TAGS.map((tag) => ({ tag, ...inlineHiddenStyle })),
-
-    {
-      tag: tags.contentSeparator,
-      display: "block",
-      color: "transparent",
-      borderBottom: "1px solid #00000033",
-    },
-  ]);
-
-const LANGUAGE_HIGHLIGHTS = createHighlightStyle({
-  display: "none",
-});
-
-const DUAL_LANGUAGE_HIGHLIGHTS = createHighlightStyle({
-  display: "none",
-});
 
 export const debugDecorations = (
   decorations: RangeSet<Decoration>,
@@ -270,22 +218,28 @@ interface CachedPageLayout {
   actionStarts: number[];
   inserts: PrintedInsert[];
   printedLines: { at: number; lines: FormattedText[][] }[];
+  runs: PrintedRun[];
+  scenes: PrintedScene[];
 }
+
+const printedStyle = (piece: FormattedText) => ({
+  source: piece.color === SOURCE_COLOR,
+  style: [
+    piece.bold ? "font-weight: bold;" : "",
+    piece.italic ? "font-style: italic;" : "",
+    piece.underline || piece.strike
+      ? `text-decoration:${piece.underline ? " underline" : ""}${piece.strike ? " line-through" : ""};`
+      : "",
+  ].join(""),
+});
 
 const printedHtml = (lines: FormattedText[][]) =>
   lines
     .map((line) =>
       line
         .map((piece) => {
-          const style = [
-            piece.bold ? "font-weight: bold;" : "",
-            piece.italic ? "font-style: italic;" : "",
-            piece.underline || piece.strike
-              ? `text-decoration:${piece.underline ? " underline" : ""}${piece.strike ? " line-through" : ""};`
-              : "",
-          ].join("");
-          const source = piece.color === SOURCE_COLOR ? ' class="sp-source"' : "";
-          return `<span${source}${style ? ` style="${style}"` : ""}>${escapeHtml(piece.text)}</span>`;
+          const { source, style } = printedStyle(piece);
+          return `<span${source ? ' class="sp-source"' : ""}${style ? ` style="${style}"` : ""}>${escapeHtml(piece.text)}</span>`;
         })
         .join(""),
     )
@@ -307,6 +261,8 @@ const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
     actionStarts: layout.actionStarts,
     inserts: layout.inserts,
     printedLines: layout.printedLines,
+    runs: layout.runs,
+    scenes: layout.scenes,
   };
   pageLayoutCache.set(tree, result);
   return result;
@@ -323,7 +279,6 @@ export const decorate = (
   const doc = state.doc;
   const config = state.field(screenplayConfigField, false);
   const picks = state.field(screenplayPicksField, false);
-  let sceneNumber = 0;
 
   const declarationName = (nodeRef: SyntaxNodeRef, child: SparkdownNodeName) => {
     const cursor = nodeRef.node.cursor();
@@ -358,36 +313,6 @@ export const decorate = (
     return to;
   };
 
-  const isCentered = (nodeRef: SyntaxNodeRef) => {
-    const name = nodeRef.name as SparkdownNodeName;
-    if (
-      name === "Centered" ||
-      name === "ChoiceStartCentered" ||
-      name === "ChoiceOnlyCentered" ||
-      name === "ChoiceInnerCentered" ||
-      name === "BlockTitle" ||
-      name === "InlineTitle"
-    ) {
-      return true;
-    }
-    return false;
-  };
-
-  const centerRange = (nodeRef: SyntaxNodeRef) => {
-    const from = nodeRef.from;
-    const to = nodeRef.to;
-    decorations.push(
-      ...createDecorations(doc, {
-        type: "mark",
-        from,
-        to,
-        attributes: {
-          style: "display: block; opacity: 1; text-align: center;",
-        },
-      }),
-    );
-  };
-
   const isLuauFlowBlockContainer = (name: string) =>
     /^LuauSparkdown[A-Za-z]*(Block|Clause|Loop)$/.test(name);
 
@@ -397,14 +322,13 @@ export const decorate = (
   const opensOwnLine = (nodeRef: SyntaxNodeRef) =>
     doc.lineAt(nodeRef.from).to < blockEnd(nodeRef);
 
-  const isInlineHidden = (nodeRef: SyntaxNodeRef) => {
-    const result = getStyleTags(nodeRef);
-    return result?.tags.some((t) => INLINE_HIDDEN_TAGS.includes(t));
-  };
-
   const tree = treeOverride ?? syntaxTree(state);
 
-  const { blankPositions, printed, actionStarts, inserts, printedLines } = cachedPageLayout(tree, doc, config);
+  const { blankPositions, printed, actionStarts, inserts, printedLines, runs, scenes } = cachedPageLayout(
+    tree,
+    doc,
+    config,
+  );
 
   const exportedLinesFrom = (from: number, to: number) => {
     let low = 0;
@@ -636,7 +560,6 @@ export const decorate = (
   let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
   let frontMatterKeyword = "";
   let inFrontMatter = false;
-  const shownAsSource: number[] = [];
 
   tree.iterate({
     from,
@@ -666,7 +589,6 @@ export const decorate = (
             from,
             to,
             value: printedHtml(exported),
-            markdown: false,
             attributes: {
               style: "min-height: 1em",
             },
@@ -679,16 +601,17 @@ export const decorate = (
         dialogueContent = [];
       } else if (name === "DialogueCharacter") {
         const exported = exportedLinesFrom(from, to);
-        dialogueContent.push({
-          type: "character",
-          from,
-          to,
-          value: exported ? printedHtml(exported) : doc.sliceString(from, to).trim() + ": ",
-          markdown: !exported,
-          attributes: {
-            style: getDialogueLineStyle("character"),
-          },
-        });
+        if (exported) {
+          dialogueContent.push({
+            type: "character",
+            from,
+            to,
+            value: printedHtml(exported),
+            attributes: {
+              style: getDialogueLineStyle("character"),
+            },
+          });
+        }
         const side = declarationName(nodeRef, "DialogueCharacterPositionContent");
         inDualDialogue = side !== "";
         dialoguePosition =
@@ -706,7 +629,6 @@ export const decorate = (
             from,
             to,
             value: printedHtml(exported),
-            markdown: false,
             attributes: { style: getDialogueLineStyle("dialogue") },
           });
         } else if (last?.type === "dialogue") {
@@ -722,7 +644,6 @@ export const decorate = (
               from,
               to,
               value: printedHtml(exported),
-              markdown: false,
               attributes: { style: getDialogueLineStyle("dialogue") },
             });
           } else if (holdsPrintedText(from, to) && last?.type === "dialogue") {
@@ -733,20 +654,18 @@ export const decorate = (
               from,
               to,
               value: "",
-              markdown: false,
               attributes: { style: "display: none;" },
             });
           }
         }
       } else if (name === "ParentheticalLineContent") {
-        if (inDialogue) {
-          const exported = exportedLinesFrom(from, to);
+        const exported = inDialogue ? exportedLinesFrom(from, to) : undefined;
+        if (exported) {
           dialogueContent.push({
             type: "parenthetical",
             from,
             to,
-            value: exported ? printedHtml(exported) : doc.sliceString(from, to).trim(),
-            markdown: !exported,
+            value: printedHtml(exported),
             attributes: {
               style: getDialogueLineStyle("parenthetical"),
             },
@@ -788,12 +707,6 @@ export const decorate = (
         if (indentLine.from === from && /^[ \t]*$/.test(indentLine.text)) {
           return false;
         }
-        hideInlineRange(nodeRef);
-        return false;
-      } else if (name === "Break") {
-        hideInlineRange(nodeRef);
-        return false;
-      } else if (name === "ColonSeparator") {
         hideInlineRange(nodeRef);
         return false;
       } else if (
@@ -839,18 +752,6 @@ export const decorate = (
           decorations.push(Decoration.line({ attributes: { style: "display: none;" } }).range(line.from));
         }
         return false;
-      } else if (SHOWN_AS_SOURCE.has(name)) {
-        shownAsSource.push(from, to);
-        decorations.push(Decoration.mark({ class: "sp-source" }).range(from, to));
-        return false;
-      } else if (name === "LuauSparkdownAlternatorArm") {
-        decorations.push(...createDecorations(doc, { type: "reveal", from, to }));
-        return true;
-      } else if (isCentered(nodeRef)) {
-        centerRange(nodeRef);
-        return true;
-      } else if (isInlineHidden(nodeRef)) {
-        hideInlineRange(nodeRef);
       }
       return true;
     },
@@ -877,8 +778,6 @@ export const decorate = (
             type: "title_page",
             from,
             to,
-            language: LANGUAGE_SUPPORT.language,
-            highlighter: LANGUAGE_HIGHLIGHTS,
             ...frontMatterPositionContent,
           }),
         );
@@ -907,58 +806,7 @@ export const decorate = (
             ...frontMatterFieldCaptureBlocks,
           );
         }
-      } else if (name === "BlockTitle" || name === "InlineTitle") {
-        decorations.push(
-          ...createDecorations(doc, {
-            type: "reveal",
-            from,
-            to,
-          }),
-        );
-      } else if (name === "BlockHeading" || name === "InlineHeading") {
-        sceneNumber += 1;
-        decorations.push(
-          ...createDecorations(doc, {
-            type: "reveal",
-            from,
-            to,
-          }),
-          Decoration.line({
-            class: "sp-heading",
-            attributes: { "data-scene-number": String(sceneNumber) },
-          }).range(doc.lineAt(from).from),
-        );
-      } else if (
-        name === "BlockTransitional" ||
-        name === "InlineTransitional"
-      ) {
-        decorations.push(
-          ...createDecorations(doc, {
-            type: "reveal",
-            from,
-            to,
-          }),
-        );
-      } else if (
-        name === "BlockAction" ||
-        name === "InlineAction" ||
-        name === "ImplicitAction"
-      ) {
-        decorations.push(
-          ...createDecorations(doc, {
-            type: "reveal",
-            from,
-            to,
-          }),
-        );
       } else if (name === "Choice") {
-        decorations.push(
-          ...createDecorations(doc, {
-            type: "reveal",
-            from,
-            to,
-          }),
-        );
         const optionLine = doc.lineAt(from);
         decorations.push(
           Decoration.line({
@@ -976,8 +824,6 @@ export const decorate = (
               type: "dialogue",
               from,
               to: contentEnd,
-              language: LANGUAGE_SUPPORT.language,
-              highlighter: DUAL_LANGUAGE_HIGHLIGHTS,
               blocks: [
                 dialogueContent.map((c) => {
                   c.attributes = {
@@ -1020,8 +866,6 @@ export const decorate = (
             type: "dialogue",
             from,
             to,
-            language: LANGUAGE_SUPPORT.language,
-            highlighter: LANGUAGE_HIGHLIGHTS,
             blocks: [dialogueContent],
             grid: name === "InlineDialogue",
           };
@@ -1035,30 +879,66 @@ export const decorate = (
     },
   });
 
-  let sourceIndex = 0;
-  const insideShownSource = (from: number, to: number) => {
-    while (sourceIndex < shownAsSource.length && shownAsSource[sourceIndex + 1]! <= from) {
-      sourceIndex += 2;
-    }
-    return sourceIndex < shownAsSource.length && shownAsSource[sourceIndex]! <= from && to <= shownAsSource[sourceIndex + 1]!;
-  };
+  const inRange = (position: number) => position >= from && (to === undefined || position <= to);
 
-  highlightTree(
-    tree,
-    [LANGUAGE_HIGHLIGHTS],
-    (from, to, style) => {
-      const line = doc.lineAt(from);
-      if (line.from === from && isWhitespaceOnly(line.from, line.to)) {
-        return;
-      }
-      if (insideShownSource(from, to)) {
-        return;
-      }
-      decorations.push(Decoration.mark({ class: style }).range(from, to));
-    },
-    from,
-    to,
-  );
+  for (const scene of scenes) {
+    if (inRange(scene.at)) {
+      decorations.push(
+        Decoration.line({
+          class: "sp-heading",
+          attributes: { "data-scene-number": String(scene.scene) },
+        }).range(doc.lineAt(scene.at).from),
+      );
+    }
+  }
+
+  const hideUnprinted = (start: number, end: number) => {
+    if (end > start) decorations.push(Decoration.replace({}).range(start, end));
+  };
+  let printedLine: Line | undefined;
+  let printedUpTo = 0;
+  let align = "";
+  let alignFrom = 0;
+  let alignTo = 0;
+  const closeAlign = () => {
+    if (align) {
+      decorations.push(
+        Decoration.mark({ attributes: { style: `display: block; text-align: ${align};` } }).range(alignFrom, alignTo),
+      );
+    }
+    align = "";
+  };
+  for (const run of runs) {
+    if (!inRange(run.from)) continue;
+    if (!printedLine || run.from > printedLine.to) {
+      closeAlign();
+      if (printedLine) hideUnprinted(printedUpTo, printedLine.to);
+      printedLine = doc.lineAt(run.from);
+      printedUpTo = printedLine.from;
+      decorations.push(...createRevealDecorations(doc, printedLine.from));
+    }
+    hideUnprinted(printedUpTo, run.from);
+    printedUpTo = Math.max(printedUpTo, run.to);
+    const runAlign = run.style.align ?? "";
+    if (runAlign !== align) {
+      closeAlign();
+      align = runAlign;
+      alignFrom = run.from;
+      alignTo = run.to;
+    }
+    alignTo = Math.max(alignTo, run.to);
+    const { source, style } = printedStyle(run.style);
+    if (source || style) {
+      decorations.push(
+        Decoration.mark({
+          class: source ? "sp-source" : undefined,
+          attributes: style ? { style } : undefined,
+        }).range(run.from, run.to),
+      );
+    }
+  }
+  closeAlign();
+  if (printedLine) hideUnprinted(printedUpTo, printedLine.to);
 
   return decorations;
 };
@@ -1093,8 +973,6 @@ const screenplayFormatting = (): Extension => {
   return [
     LANGUAGE_SUPPORT,
     replaceDecorations,
-    EditorView.styleModule.of(LANGUAGE_HIGHLIGHTS.module!),
-    EditorView.styleModule.of(DUAL_LANGUAGE_HIGHLIGHTS.module!),
   ];
 };
 

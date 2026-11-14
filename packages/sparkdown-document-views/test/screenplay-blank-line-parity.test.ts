@@ -1,7 +1,9 @@
 import type { EditorView } from "@codemirror/view";
 import { afterAll, describe, expect, it } from "vitest";
 import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
+import type { PageLine } from "../../sparkdown-screenplay/src/types/DocumentSpan";
 import { isHiddenIdentifier } from "../../sparkdown-screenplay/src/utils/isHiddenIdentifier";
+import { SOURCE_COLOR } from "../../sparkdown-screenplay/src/utils/styleText";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import { generateScreenplayPrintData } from "../../sparkdown-screenplay/src/utils/generateScreenplayPrintData";
 import createEditorView from "../src/modules/screenplay-preview/utils/createEditorView";
@@ -116,6 +118,19 @@ const KINDS: Record<string, string[]> = {
   ChoiceHtml: ["  * [Pick <i>this</i> &amp; \"that\" </script>]"],
   InlineDialogueHtml: ["  GUIDE: Say <b>hi</b> &amp; \"bye\" </script>."],
   InlineDialogueHtmlInterpolation: ["  GUIDE: Say {\"<b>hi</b> &amp; </script>\"} now."],
+  ImplicitActionMarkup: ["  A *cat* and **dog** and _owl_ \\*star\\*."],
+  InlineActionMarkup: ["  : A ***loud*** _low_ line."],
+  BlockActionMarkup: ["  :", "    A *soft* \\_escaped\\_ line."],
+  InlineHeadingMarkup: ["  $: INT. *ROOM* - DAY"],
+  BlockHeadingMarkup: ["  $:", "    INT. _HALL_ - NIGHT"],
+  InlineTitleMarkup: ["  ^: THE *END*"],
+  BlockTitleMarkup: ["  ^:", "    THE _LAST_ END"],
+  InlineTransitionalMarkup: ["  %: *CUT* TO:"],
+  BlockTransitionalMarkup: ["  %:", "    _FADE_ OUT."],
+  InlineDialogueMarkup: ["  GUIDE: A *cat* \\*here\\*."],
+  BlockDialogueMarkup: ["  GUIDE:", "    (*softly*)", "    A _quiet_ word."],
+  ChoiceMarkup: ["  * [A *cat ..* tail.]"],
+  ChoiceEscape: ["  * [Pick \\*one\\* _now_.]"],
   LuauSparkdownVariableDefinition: ["  local z = 3"],
   LuauSparkdownWhileLoop: ["  while false do", "    It hails.", "  end"],
   LuauStrayUntilStatement: ["  until true"],
@@ -143,6 +158,7 @@ const GLUED_LAYOUTS: Record<string, string[]> = {
 
 const PRINTED: Record<string, string[]> = {
   ...GLUED_LAYOUTS,
+  ChoiceMarkup: ["* [A cat .. tail.]"],
   ImplicitActionInterpolation: ["Hello {person} there."],
   InlineDialogueInterpolation: ["GUIDE", "Hi {person} again."],
   ChoiceInterpolation: ["* [Greet {person} warmly.]"],
@@ -347,6 +363,116 @@ const difference = (screen: string[], printed: string[]) => {
   return `page "${around(page)}" export "${around(pdf)}" (${BLANK} is a blank line)`;
 };
 
+interface CharacterStyle {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  align?: string;
+  source?: boolean;
+}
+
+const flagsOf = (style: CharacterStyle) =>
+  [
+    style.bold ? "b" : "",
+    style.italic ? "i" : "",
+    style.underline ? "u" : "",
+    style.align === "center" ? "c" : style.align === "right" ? "r" : "",
+    style.source ? "s" : "",
+  ].join("");
+
+const signed = (character: string, style: CharacterStyle) => {
+  const flags = flagsOf(style);
+  return flags && /\S/.test(character) ? `${character}(${flags})` : "";
+};
+
+const NAME_TAGS = new Set(["scene", "function", "knot", "stitch", "branch"]);
+
+const exportStyle = (configName: string, source: string): string => {
+  const spans = generateScreenplayPrintData(new ScreenplayParser().parse(source), CONFIGS[configName]).spans;
+  const lines: PageLine[] = spans.flatMap((span) =>
+    span.tag === "meta" || span.tag === "page_break" || span.tag === "separator"
+      ? []
+      : span.tag === "dual"
+        ? [...(span.positions.l ?? []), ...(span.positions.r ?? [])]
+        : span.lines,
+  );
+  return lines
+    .filter((line) => !NAME_TAGS.has(line.tag))
+    .map((line) => {
+      const text = line.content.map((piece) => piece.text).join("");
+      const scene = line.scene !== undefined ? `#${line.scene}[${compact(text)}]` : "";
+      return (
+        scene +
+        line.content
+          .map((piece) =>
+            Array.from(piece.text, (character) =>
+              signed(character, { ...piece, source: piece.color === SOURCE_COLOR }),
+            ).join(""),
+          )
+          .join("")
+      );
+    })
+    .join("");
+};
+
+const pageStyleOf = (element: Element, row: Element, cache: Map<Element, CharacterStyle>): CharacterStyle => {
+  const known = cache.get(element);
+  if (known) return known;
+  const inherited = element === row || !element.parentElement ? {} : pageStyleOf(element.parentElement, row, cache);
+  const style = getComputedStyle(element);
+  const weight = style.fontWeight;
+  const block = style.display === "block" || element.tagName === "DIV";
+  const align = style.textAlign === "center" || style.textAlign === "right" ? style.textAlign : "";
+  const result: CharacterStyle = {
+    bold: inherited.bold || weight === "bold" || Number(weight) >= 600,
+    italic: inherited.italic || style.fontStyle === "italic",
+    underline: inherited.underline || /underline/.test(`${style.textDecoration} ${style.textDecorationLine}`),
+    align: (block && align) || inherited.align,
+    source: inherited.source || element.classList.contains("sp-source"),
+  };
+  cache.set(element, result);
+  return result;
+};
+
+const pageStyle = (view: EditorView): string => {
+  const cache = new Map<Element, CharacterStyle>();
+  let out = "";
+  const visit = (element: Element, row: Element) => {
+    element.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const style = pageStyleOf(element, row, cache);
+        out += Array.from(node.textContent ?? "", (character) => signed(character, style)).join("");
+      } else if (
+        node.nodeType === Node.ELEMENT_NODE &&
+        !(node as Element).classList.contains("sp-name") &&
+        !isHidden(node as Element, true)
+      ) {
+        visit(node as Element, row);
+      }
+    });
+  };
+  for (const row of Array.from(view.contentDOM.children)) {
+    if (isHidden(row, false)) continue;
+    const shown = getComputedStyle(row).opacity !== "0";
+    const number = (row as HTMLElement).dataset["sceneNumber"];
+    if (row.classList.contains("sp-heading") && number !== undefined) {
+      out += `#${number}[${shown ? compact(visibleText(row)) : ""}]`;
+    }
+    if (shown) visit(row, row);
+  }
+  return out;
+};
+
+const styleDifference = (configName: string, source: string) => {
+  const page = pageStyle(views.get(configName)!);
+  const pdf = exportStyle(configName, source);
+  if (page === pdf) return "";
+  let at = 0;
+  while (at < page.length && page[at] === pdf[at]) at++;
+  const around = (text: string) => text.slice(Math.max(0, at - 40), at + 40);
+  return `styles: page "${around(page)}" export "${around(pdf)}" (b bold, i italic, u underline, c centred, r right, s source, #n[row] scene number)`;
+};
+
 describe("screenplay page and export agree on blank lines", () => {
   it.each(Object.keys(CONFIGS))(
     "for every element sequence with %s settings",
@@ -360,6 +486,10 @@ describe("screenplay page and export agree on blank lines", () => {
         const found = difference(screen, printed);
         if (found) {
           failures.push(`sequence ${index}: ${found}; kinds ${kinds.join(" > ")}`);
+        }
+        const styles = styleDifference(configName, source);
+        if (styles) {
+          failures.push(`sequence ${index}: ${styles}; kinds ${kinds.join(" > ")}`);
         }
         const missing = missingText(screen, kinds.flatMap((kind) => PRINTED[kind] ?? []));
         if (missing.length) {
@@ -427,6 +557,10 @@ describe("screenplay page and export agree on text inside blocks", () => {
         const found = difference(screen, exportRows(configName, source));
         if (found) {
           failures.push(`sequence ${index}: ${found}; kinds ${kinds.join(" > ")}`);
+        }
+        const styles = styleDifference(configName, source);
+        if (styles) {
+          failures.push(`sequence ${index}: ${styles}; kinds ${kinds.join(" > ")}`);
         }
         const expected = [...CONTAINERS[container]!.prints, ...kinds.flatMap((kind) => PRINTED[kind] ?? [])];
         const missing = missingText(screen, expected);
@@ -678,5 +812,29 @@ describe("the ticket's script", () => {
     const screen = screenRows("default", source);
     const index = screen.indexOf("More than you would like.");
     expect(screen.slice(index, index + 3)).toEqual(["More than you would like.", "", "* [Climb.]"]);
+  });
+});
+
+const MARKUP_KINDS = Object.keys(KINDS).filter((kind) => kind.endsWith("Markup") || kind.endsWith("Escape"));
+
+describe("a block heading", () => {
+  const config: ScreenplayConfig = { ...BASE, screenplay_print_headings_bold: true, screenplay_print_scene_numbers: "left" };
+  CONFIGS["bold headings"] = config;
+
+  it.each([
+    ["the bug's script", ["scene street", "  $: EXT. STREET - NIGHT", "  The rain stops.", "  $:", "    INT. HALL - NIGHT", "  The lights come up.", "end", ""].join("\n")],
+    ["a blank line inside it", sourceOf(["InlineHeading", "BlockHeadingInnerBlank"])],
+    ["markup on every line kind", sourceOf(MARKUP_KINDS)],
+  ])("is bold and numbered on its text's row, on the page as in the export, for %s", (_name, source) => {
+    const screen = screenRows("bold headings", source);
+    expect(difference(screen, exportRows("bold headings", source))).toBe("");
+    expect(styleDifference("bold headings", source)).toBe("");
+  });
+
+  it("numbers the row holding the heading text", () => {
+    const source = ["scene street", "  $:", "    INT. HALL - NIGHT", "  The lights come up.", "end", ""].join("\n");
+    screenRows("bold headings", source);
+    const headings = Array.from(views.get("bold headings")!.contentDOM.querySelectorAll<HTMLElement>(".sp-heading"));
+    expect(headings.map((heading) => [heading.dataset["sceneNumber"], visibleText(heading).trim()])).toEqual([["1", "INT. HALL - NIGHT"]]);
   });
 });

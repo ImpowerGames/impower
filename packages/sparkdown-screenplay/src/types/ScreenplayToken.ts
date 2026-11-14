@@ -14,4 +14,5 @@ export interface ScreenplayToken {
   continued?: boolean;
   source?: number[];
   inserts?: PrintedInsert[];
+  at?: number[];
 }

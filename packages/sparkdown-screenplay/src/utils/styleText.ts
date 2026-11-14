@@ -15,11 +15,15 @@ export const SOURCE_COLOR = "#808080";
 export const styleText = (
   text: string,
   overrides?: TextOptions,
+  at?: number[],
 ): FormattedText[] => {
   const textChunks: FormattedText[] = [];
   const marks: string[] = [];
   let source = 0;
   const chars = text.replace("\t", "    ");
+  const tab = text.indexOf("\t");
+  const placed =
+    at && tab >= 0 ? [...at.slice(0, tab), ...new Array<number>(4).fill(at[tab]!), ...at.slice(tab + 1)] : at;
   for (let i = 0; i < chars.length; ) {
     const opened = readSpanOpen(chars, i);
     if (opened) {
@@ -28,6 +32,7 @@ export const styleText = (
       continue;
     }
     const char = chars[i]!;
+    const position = placed?.[i];
     i += 1;
     if (char === SPAN_CLOSE || char === SPAN_END) {
       marks.pop();
@@ -53,7 +58,7 @@ export const styleText = (
       if (source > 0) {
         chunk.color = SOURCE_COLOR;
       }
-      textChunks.push({ ...chunk, ...overrides });
+      textChunks.push(position === undefined ? { ...chunk, ...overrides } : { ...chunk, ...overrides, at: [position] });
     }
   }
   return textChunks;

@@ -7,13 +7,51 @@ import type { FormattedText } from "../types/FormattedText";
 import type { PrintedInsert } from "../types/PrintedInsert";
 import type { ScreenplayConfig } from "../types/ScreenplayConfig";
 
+export interface PrintedRun {
+  from: number;
+  to: number;
+  style: FormattedText;
+}
+
+export interface PrintedScene {
+  at: number;
+  scene: string | number;
+}
+
 export interface ScreenplayPageLayout {
   blankLines: number[];
   printed: number[];
   actionStarts: number[];
   inserts: PrintedInsert[];
   printedLines: { at: number; lines: FormattedText[][] }[];
+  runs: PrintedRun[];
+  scenes: PrintedScene[];
 }
+
+const addRuns = (line: PageLine, runs: PrintedRun[]) => {
+  for (const piece of line.content) {
+    let start = -1;
+    let previous = -1;
+    for (const position of piece.at ?? []) {
+      if (start >= 0 && position === previous + 1) {
+        previous = position;
+        continue;
+      }
+      if (start >= 0) runs.push({ from: start, to: previous + 1, style: piece });
+      start = position;
+      previous = position;
+    }
+    if (start >= 0) runs.push({ from: start, to: previous + 1, style: piece });
+  }
+};
+
+const firstPlaced = (line: PageLine) => {
+  for (const piece of line.content) {
+    const found = piece.at?.find((position) => position >= 0);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+};
 
 const mergeRanges = (ranges: number[]): number[] => {
   let sorted = true;
@@ -47,7 +85,7 @@ export const screenplayPageLayout = (
     PRINT_PROFILES[config?.screenplay_print_paper_size || ""] ||
     PRINT_PROFILES.usletter;
   const spans = new ScreenplayTypesetter().compose(
-    screenplayTokens(tree, script),
+    screenplayTokens(tree, script, true),
     config,
     profile,
   );
@@ -56,9 +94,14 @@ export const screenplayPageLayout = (
   const actionStarts: number[] = [];
   const inserts: PrintedInsert[] = [];
   const printedLines: { at: number; lines: FormattedText[][] }[] = [];
+  const runs: PrintedRun[] = [];
+  const scenes: PrintedScene[] = [];
   let lastSource: number[] | undefined;
   const addPrinted = (lines: PageLine[] | undefined) => {
     for (const line of lines ?? []) {
+      addRuns(line, runs);
+      const sceneAt = line.scene !== undefined ? firstPlaced(line) : undefined;
+      if (sceneAt !== undefined) scenes.push({ at: sceneAt, scene: line.scene! });
       if (line.source && line.source === lastSource) {
         printedLines.at(-1)?.lines.push(line.content);
       }
@@ -85,5 +128,7 @@ export const screenplayPageLayout = (
   }
   return { blankLines, printed: mergeRanges(printed), actionStarts, inserts: inserts.sort((a, b) => a.at - b.at),
     printedLines: printedLines.sort((a, b) => a.at - b.at),
+    runs: runs.sort((a, b) => a.from - b.from),
+    scenes,
   };
 };

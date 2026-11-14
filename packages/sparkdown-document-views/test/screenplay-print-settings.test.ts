@@ -141,10 +141,10 @@ describe("screenplay preview follows the print settings", () => {
   it("prints headings bold only when the setting is on", () => {
     const bold = render({ screenplay_print_headings_bold: true });
     expect(bold.dom.dataset["headingsBold"]).toBe("on");
-    expect(headings(bold).map((h) => getComputedStyle(h).fontWeight)).toEqual(["bold", "bold"]);
+    expect(headingTextWeights(bold)).toEqual(["bold", "bold"]);
     const plain = render({ screenplay_print_headings_bold: false });
     expect(plain.dom.dataset["headingsBold"]).toBe("off");
-    expect(headings(plain).map((h) => getComputedStyle(h).fontWeight)).not.toContain("bold");
+    expect(headingTextWeights(plain)).not.toContain("bold");
   });
 
   it("weights the heading text by the setting", () => {

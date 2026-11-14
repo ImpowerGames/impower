@@ -20,8 +20,6 @@ export interface TitlePageSpec extends DecorationSpec {
 
 export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
   override toDOM(_view: EditorView) {
-    const language = this.spec.language;
-    const highlighter = this.spec.highlighter;
     const container = document.createElement("div");
     container.classList.add("sp-title-page");
     container.style.pointerEvents = "none";
@@ -34,7 +32,7 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     tlEl.style.gridColumnStart = "1";
     tlEl.style.gridColumnEnd = "3";
     if (this.spec.tl) {
-      tlEl.innerHTML = getFormattedHTML(this.spec.tl, language, highlighter);
+      tlEl.innerHTML = getFormattedHTML(this.spec.tl);
     }
     gridEl.appendChild(tlEl);
     const tcEl = document.createElement("div");
@@ -42,7 +40,7 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     tcEl.style.gridColumnEnd = "5";
     tcEl.style.textAlign = "center";
     if (this.spec.tc) {
-      tcEl.innerHTML = getFormattedHTML(this.spec.tc, language, highlighter);
+      tcEl.innerHTML = getFormattedHTML(this.spec.tc);
     }
     gridEl.appendChild(tcEl);
     const trEl = document.createElement("div");
@@ -50,7 +48,7 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     trEl.style.gridColumnEnd = "7";
     trEl.style.textAlign = "right";
     if (this.spec.tr) {
-      trEl.innerHTML = getFormattedHTML(this.spec.tr, language, highlighter);
+      trEl.innerHTML = getFormattedHTML(this.spec.tr);
     }
     gridEl.appendChild(trEl);
     const ccEl = document.createElement("div");
@@ -59,7 +57,7 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     ccEl.style.textAlign = "center";
     ccEl.style.alignSelf = "center";
     if (this.spec.cc) {
-      ccEl.innerHTML = getFormattedHTML(this.spec.cc, language, highlighter);
+      ccEl.innerHTML = getFormattedHTML(this.spec.cc);
     }
     gridEl.appendChild(ccEl);
     const blEl = document.createElement("div");
@@ -67,7 +65,7 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     blEl.style.gridColumnEnd = "4";
     blEl.style.alignSelf = "end";
     if (this.spec.bl) {
-      blEl.innerHTML = getFormattedHTML(this.spec.bl, language, highlighter);
+      blEl.innerHTML = getFormattedHTML(this.spec.bl);
     }
     gridEl.appendChild(blEl);
     const brEl = document.createElement("div");
@@ -76,7 +74,7 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     brEl.style.textAlign = "right";
     brEl.style.alignSelf = "end";
     if (this.spec.br) {
-      brEl.innerHTML = getFormattedHTML(this.spec.br, language, highlighter);
+      brEl.innerHTML = getFormattedHTML(this.spec.br);
     }
     gridEl.appendChild(brEl);
     container.appendChild(gridEl);
