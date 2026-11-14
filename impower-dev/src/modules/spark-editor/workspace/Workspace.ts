@@ -73,8 +73,8 @@ export namespace Workspace {
         ? { uri: editor.uri, line: editor.selectedRange?.start?.line ?? 0 }
         : undefined;
     },
-    shownBeat: () => workspace.previewShownBeat.value,
-    getPreviewLine: (uri, line, shownBeat) => ls.getPreviewLine(uri, line, shownBeat),
+    shownBeatDescription: () => workspace.previewShownBeatDescription.value,
+    getPreviewLine: (uri, line) => ls.getPreviewLine(uri, line),
     onPublishedDiagnostics: (listener) => ls.onPublishedDiagnostics(listener),
   });
 }

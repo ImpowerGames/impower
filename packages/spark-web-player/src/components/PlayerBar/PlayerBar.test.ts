@@ -44,6 +44,7 @@ const gameState = (
     run: null,
     position: null,
     shownBeat: null,
+    shownBeatDescription: null,
     completion: null,
     ending: null,
     statuses: { completion: null, ending: null },

@@ -16,6 +16,7 @@ const launch = (launchState: "play" | "pause" | "ended" | "preview") =>
     stepping: false,
     position: null,
     shownBeat: null,
+    shownBeatDescription: null,
     completion: null,
     ending: null,
   });

@@ -31,6 +31,7 @@ const state = (
     run,
     position: null,
     shownBeat: null,
+    shownBeatDescription: null,
     completion: null,
   });
 

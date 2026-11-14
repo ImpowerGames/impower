@@ -2485,6 +2485,7 @@ describe("The game preview's player bar", () => {
           run: 1,
           position: null,
           shownBeat: null,
+          shownBeatDescription: null,
           completion: null,
           ending: null,
         }),
