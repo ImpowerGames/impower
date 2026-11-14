@@ -3,6 +3,7 @@ import {
   SPAN_CLOSE,
   SPAN_END,
   spanOpen,
+  tagCode,
 } from "../../../runtime/displayStyle";
 import { findChildByName } from "../../utils/findChildByName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
@@ -66,6 +67,16 @@ export function collectDisplaySpans(
   const visit = (node: SyntaxNode, depth: number): void => {
     if (node.to <= from || node.from >= to) return;
     if (node !== root && isOpaque(node)) return;
+    if (node.name === "TextCommand" && node.from >= from && node.to <= to) {
+      hide(node.from, node.to);
+      codes.push({
+        at: node.from,
+        code: tagCode(ctx.read(node.from + 1, node.to - 1)),
+        closes: false,
+        depth,
+      });
+      return;
+    }
     let childDepth = depth;
     if (SPAN_NODES.has(node.name)) {
       const begin = spanMark(node, "SpanOpenMark");

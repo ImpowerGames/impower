@@ -97,7 +97,10 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
+    "2@4:21-4:23 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "c8eae8db"
   },
   {
@@ -385,7 +388,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "21d6a9e0"
   },
   {
@@ -395,7 +400,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:5-4:7 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "ebbef1e6"
   },
   {
@@ -547,7 +554,8 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:21-4:24 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string, expected expression inside `{}`\"}"
+    "1@4:21-4:24 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string, expected expression inside `{}`\"}",
+    "2@4:17-4:19 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
    ],
    "scopes": "02148070"
   },
@@ -733,7 +741,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:15-4:17 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "30d96ddc"
   },
   {
@@ -1046,7 +1056,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "fb6ea9ef"
   },
   {
@@ -1595,7 +1607,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:13-4:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "bfc3b1ab"
   },
   {
@@ -1612,7 +1626,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "fca554a8"
   },
   {
@@ -1693,7 +1709,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:5-4:7 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5e93a6ba"
   },
   {
@@ -1758,7 +1776,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:19-4:21 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "cfea1d1e"
   },
   {
@@ -1828,7 +1848,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:17-4:19 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "16830af8"
   },
   {
@@ -1868,7 +1890,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "ea29c84d"
   },
   {
@@ -1964,7 +1988,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:13-4:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "96b44c70"
   },
   {
@@ -2042,7 +2068,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "90a92394"
   },
   {
@@ -2059,7 +2087,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:17 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<- Go<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "83e63136"
   },
   {
@@ -2233,7 +2263,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:17-4:19 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "88b1483f"
   },
   {
@@ -2421,7 +2453,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:5-4:7 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5e64fc54"
   },
   {
@@ -2490,7 +2524,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:23-4:25 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "69dd2043"
   },
   {
@@ -3247,7 +3283,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:11-4:13 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "acca4134"
   },
   {
@@ -3518,7 +3556,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:24-4:26 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "accabbe8"
   },
   {
@@ -3778,7 +3818,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "3a2dfebb"
   },
   {
@@ -3829,7 +3871,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "da60c0ad"
   },
   {
@@ -3846,7 +3890,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "a0cbca91"
   },
   {
@@ -3943,7 +3989,8 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:22-4:27 {\"kind\":\"markdown\",\"value\":\"target not found: `-> nexta`\"}"
+    "1@4:22-4:27 {\"kind\":\"markdown\",\"value\":\"target not found: `-> nexta`\"}",
+    "2@4:16-4:18 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
    ],
    "scopes": "dbb66a27"
   },
@@ -4087,7 +4134,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "8462c375"
   },
   {
@@ -4489,7 +4538,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:13-4:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "00ce3399"
   },
   {
@@ -5256,7 +5307,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "f0a7a52e"
   },
   {
@@ -5338,7 +5391,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:22-4:24 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "0609b238"
   },
   {
@@ -5355,7 +5410,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:13-4:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "f086ce93"
   },
   {
@@ -5740,7 +5797,10 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
+    "2@4:25-4:27 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "94e1d631"
   },
   {
@@ -5852,7 +5912,10 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:19-4:21 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
+    "2@4:27-4:29 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "275a7be4"
   },
   {
@@ -6357,7 +6420,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "fc7842d4"
   },
   {
@@ -6374,7 +6439,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "eae49e32"
   },
   {
@@ -6503,7 +6570,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5d0cbbd9"
   },
   {
@@ -6698,7 +6767,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:5-4:7 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "58199ef0"
   },
   {
@@ -6829,7 +6900,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:7-4:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "20c2c734"
   },
   {
@@ -7135,7 +7208,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:19-4:21 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "803a0995"
   },
   {
@@ -7742,7 +7817,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:9-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<- <>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "81fec230"
   },
   {
@@ -7794,7 +7871,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "46a3fe20"
   },
   {
@@ -8140,7 +8219,8 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"target not found: `-> _u_`\"}"
+    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"target not found: `-> _u_`\"}",
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
    ],
    "scopes": "cfbe895f"
   },
@@ -8405,7 +8485,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:16-4:18 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "c1559bfb"
   },
   {
@@ -9521,7 +9603,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:13-4:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "0ace9ff0"
   },
   {
@@ -9730,7 +9814,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "332fccb6"
   },
   {
@@ -10511,7 +10597,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "4dee183f"
   },
   {
@@ -10693,7 +10781,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:11-4:13 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "1fdc6925"
   },
   {
@@ -11173,6 +11263,7 @@
    "runs": [],
    "rt": [],
    "diags": [
+    "2@4:22-4:24 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
     "2@4:4-4:24 {\"kind\":\"markdown\",\"value\":\"Blank choice - if you intended a default fallback choice, use the `* ->` syntax\"}"
    ],
    "scopes": "96a77541"
@@ -11301,7 +11392,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:23-4:25 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "de20ed40"
   },
   {
@@ -12606,7 +12699,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "86368b30"
   },
   {
@@ -12894,7 +12989,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5e5e94f4"
   },
   {
@@ -12904,7 +13001,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "487c8f1b"
   },
   {
@@ -13140,7 +13239,9 @@
    "rt": [
     "RUNTIME ERROR: 'main' line 4: Found tunnel onwards statement (->->), when expected end of flow (-> END or choice)"
    ],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "47cbf152"
   },
   {
@@ -13152,7 +13253,9 @@
    "rt": [
     "RUNTIME ERROR: 'main' line 4: Found tunnel onwards statement (->->), when expected end of flow (-> END or choice)"
    ],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "a9f0de09"
   },
   {
@@ -13350,7 +13453,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:13-3:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5f95498d"
   },
   {
@@ -13360,7 +13465,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:13-3:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "ba0cf304"
   },
   {
@@ -13390,7 +13497,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:10-3:12 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "b1bd83d3"
   },
   {
@@ -13400,7 +13509,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:10-3:12 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "babf5ace"
   },
   {
@@ -13569,7 +13680,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:14-3:16 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "15087db3"
   },
   {
@@ -13579,7 +13692,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:14-3:16 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "df03d66e"
   },
   {
@@ -14015,7 +14130,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "489eba4e"
   },
   {
@@ -14025,7 +14142,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5737f7e1"
   },
   {
@@ -14076,6 +14195,7 @@
    "runs": [],
    "rt": [],
    "diags": [
+    "2@3:19-3:21 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
     "2@3:2-3:16 {\"value\":\"Cannot find character named `Lead -> nextGo`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "86d9075f"
@@ -14088,6 +14208,7 @@
    "runs": [],
    "rt": [],
    "diags": [
+    "2@3:19-3:21 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
     "2@3:2-3:16 {\"value\":\"Cannot find character named `Lead -> nextGo`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "4b439c7b"
@@ -14119,7 +14240,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "502af434"
   },
   {
@@ -14129,7 +14252,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "cbf8d4db"
   },
   {
@@ -14569,7 +14694,9 @@
    "rt": [
     "RUNTIME ERROR: 'main' line 4: Found tunnel onwards statement (->->), when expected end of flow (-> END or choice)"
    ],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "216a6ea9"
   },
   {
@@ -14581,7 +14708,9 @@
    "rt": [
     "RUNTIME ERROR: 'main' line 4: Found tunnel onwards statement (->->), when expected end of flow (-> END or choice)"
    ],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "f183ed6e"
   },
   {
@@ -14734,7 +14863,8 @@
    "runs": [],
    "rt": [],
    "diags": [
-    "2@3:12-3:13 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}"
+    "2@3:12-3:13 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}",
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
    ],
    "scopes": "1d3cb116"
   },
@@ -14787,7 +14917,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5e5e94f4"
   },
   {
@@ -16072,7 +16204,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@5:6-5:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "abd0834a"
   },
   {
@@ -16310,7 +16444,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@5:15-5:17 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "d7ccb78a"
   },
   {
@@ -16471,7 +16607,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@5:13-5:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "53bf9a26"
   },
   {

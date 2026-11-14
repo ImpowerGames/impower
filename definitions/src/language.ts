@@ -657,6 +657,30 @@ const buildClauseWordsModule = async (outGrammarPath: string) => {
   await fs.promises.writeFile(outModulePath, source);
 };
 
+const TEXT_COMMAND_MODULE_NAME = "sparkdown.text-command";
+
+const buildTextCommandModule = async (outGrammarPath: string) => {
+  const grammar = JSON.parse(await fs.promises.readFile(outGrammarPath, "utf8"));
+  const command: unknown = grammar.repository?.TextCommand?.match;
+  const content: unknown = grammar.repository?.TextCommandContent?.match;
+  if (typeof command !== "string" || typeof content !== "string") {
+    throw new Error(
+      "Grammar build: the grammar's `TextCommand` and `TextCommandContent` rules must each have a `match`",
+    );
+  }
+  const outModulePath = path.join(
+    path.dirname(outGrammarPath),
+    `${TEXT_COMMAND_MODULE_NAME}.ts`,
+  );
+  const source = [
+    `export const TEXT_COMMAND = ${JSON.stringify(command)};`,
+    ``,
+    `export const TEXT_COMMAND_CONTENT = ${JSON.stringify(content)};`,
+    ``,
+  ].join("\n");
+  await fs.promises.writeFile(outModulePath, source);
+};
+
 const build = async () => {
   console.log(LOG_PREFIX + `build started`);
   await Promise.all(
@@ -673,6 +697,9 @@ const build = async () => {
   );
   await Promise.all(
     OUT_GRAMMAR_PATHS.map((outPath) => buildClauseWordsModule(outPath)),
+  );
+  await Promise.all(
+    OUT_GRAMMAR_PATHS.map((outPath) => buildTextCommandModule(outPath)),
   );
   await Promise.all(
     SNIPPETS_BUILDS.map(({ inPath, outPath }) => buildJson(inPath, outPath)),

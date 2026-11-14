@@ -42,14 +42,14 @@ function compile(source: string): SparkProgram {
   return compiler.compile({ textDocument: { uri: MAIN } }).program as SparkProgram;
 }
 
-function play() {
+function play(source = FIXTURE) {
   const game = new Game({
     now: () => 0,
     setTimeout: (() => 0) as never,
     resolve: (path: string) => path,
     fetch: async () => "",
     log: () => {},
-    program: compile(FIXTURE),
+    program: compile(source),
   } as never);
   const chosen: { text: string; checkpoint: number }[] = [];
   game.connection.outgoing.addListener("*", (message: any) => {
@@ -82,5 +82,25 @@ describe("the choice text the engine sends to the host is plain", () => {
       moved: true,
       restored: { choices: ["Pay the toll, Nova.", "Climb over the wall", "Leave *now"], chosen: 1 },
     });
+  });
+});
+
+describe("the choice text the engine sends to the host has no tags", () => {
+  test("a known and an unknown tag are both removed", () => {
+    const h = play(
+      [
+        "scene start",
+        "  choose",
+        "    * Go <b>far</b> <b2>x</b2> [<speed:0.5>now] later",
+        "      Gone.",
+        "  end",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    h.game.start();
+    h.tapUntil(h.atMenu);
+    h.game.chosePathToContinue(0);
+    expect(h.chosen.map((made) => made.text)).toEqual(["Go far x now"]);
   });
 });

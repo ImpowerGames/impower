@@ -107,7 +107,7 @@ describe("the speech a typed line yields (#2111)", () => {
   });
 
   test("slowed text speaks for each letter's slowed pause", async () => {
-    const beat = await beatOf("<speed=0.5>Hi yo");
+    const beat = await beatOf("<speed:0.5>Hi yo");
     expectSpans(beat, [
       [0, 4 * L],
       [6 * L, 10 * L],
@@ -149,7 +149,7 @@ end
     ["narration", "Hi yo", {}],
     ["a cue with no character define", "Hi yo", { cue: "BOB" }],
     ["a line with no voiced character", ". . .", {}],
-    ["a line shown at once", "<speed=0>Hi yo", {}],
+    ["a line shown at once", "<speed:0>Hi yo", {}],
     [
       "a letter pause of zero",
       "Hi yo",

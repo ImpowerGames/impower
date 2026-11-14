@@ -9,7 +9,7 @@ const ELEMENT_RUN_TAGS: Record<string, string> = {
   sup: "sup",
 };
 
-const FLAG_TAGS: Record<string, Record<string, string>> = {
+export const FLAG_TAGS: Record<string, Record<string, string>> = {
   b: { "text-weight": "700" },
   i: { "text-style": "italic" },
   u: { "text-decoration-line": "underline" },
@@ -21,7 +21,7 @@ const FLAG_TAGS: Record<string, Record<string, string>> = {
   nobr: { "text-whitespace": "nowrap" },
 };
 
-const VALUE_TAGS: Record<string, (value: string) => Record<string, string>> = {
+export const VALUE_TAGS: Record<string, (value: string) => Record<string, string>> = {
   color: (v) => ({ "text-color": v }),
   mark: (v) => ({ "background-color": v }),
   size: (v) => ({ "text-size": v }),
