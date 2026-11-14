@@ -1412,6 +1412,7 @@ const completionsAt = (
     let name = node.parent;
     while (name && name.name !== "AssetCommandName") name = name.parent;
     const gap = name?.prevSibling;
+    if (gap?.name === "AssetCommandNoneName") return /[ \t]$/.test(read(gap.from, gap.to));
     return gap?.name === "AssetCommandSeparator" && gap.prevSibling?.name === "AssetCommandName";
   };
 
