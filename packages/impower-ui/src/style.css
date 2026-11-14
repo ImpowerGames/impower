@@ -324,6 +324,10 @@
   }
 }
 
+@utility pr-gutter-* {
+  padding-right: max(0px, calc(var(--spacing) * --value(integer) - var(--scrollbar-size, 0px)));
+}
+
 @utility fade-edge {
   overflow: clip;
   white-space: nowrap;

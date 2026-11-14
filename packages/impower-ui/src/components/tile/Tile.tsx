@@ -1,5 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
+import type { Layout } from "../../layout/breakpoints";
 import { cn } from "../../utils/cn";
 import { CheckIcon } from "../icon/icons.generated";
 import type { ThumbnailFit } from "../thumbnail/Thumbnail";
@@ -104,9 +105,17 @@ export const TILE_MEDIA_FIT: Record<TileShape, ThumbnailFit> = { portrait: "heig
 
 const MEDIA_RATIO: Record<TileShape, number> = { portrait: 4 / 3, landscape: 10 / 16 };
 
-export const TILE_GAP = 12;
+export type TileGrid = { minWidth: number; gap: number };
 
-export const TILE_MIN_WIDTH: Record<TileShape, number> = { portrait: 138, landscape: 176 };
+const TILE_GRIDS: Record<"desktop" | "narrow", { gap: number; minWidth: Record<TileShape, number> }> = {
+  desktop: { gap: 12, minWidth: { portrait: 138, landscape: 176 } },
+  narrow: { gap: 10, minWidth: { portrait: 150, landscape: 160 } },
+};
+
+export const tileGrid = (shape: TileShape, layout: Layout): TileGrid => {
+  const grid = TILE_GRIDS[layout === "desktop" ? "desktop" : "narrow"];
+  return { minWidth: grid.minWidth[shape], gap: grid.gap };
+};
 
 const FRAME = 2;
 const INSET_X = 16;

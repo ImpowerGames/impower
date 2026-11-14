@@ -1501,6 +1501,7 @@ describe("the Variants tester and the Files section", () => {
     expect(classes(step)).toEqual(expect.arrayContaining(["size-11", "[&_svg]:size-[18px]"]));
     expect(classes(step)).not.toContain("w-10");
     expect(classes(region()!.querySelector("[data-inspector-close]"))).toContain("[&_svg]:size-[18px]");
+    expect(classes(region()!.querySelector("[data-inspector-body]"))).toEqual(expect.arrayContaining(["pl-4", "pr-gutter-4", "pt-3", "pb-8"]));
   });
 
   it("draws the Files section at the prototype's sizes: file rows 3px apart, a 38px add action, 11px code, 18px above", async () => {

@@ -16,7 +16,7 @@ import {
   TextField,
   useEscapeWithin,
 } from "@impower/impower-ui/components";
-import { useLayout } from "@impower/impower-ui/layout";
+import { useLayout, useScrollbarSize } from "@impower/impower-ui/layout";
 import type { ComponentChildren, Ref } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
@@ -164,6 +164,7 @@ export default function AssetInspector({
   menu,
 }: AssetInspectorProps) {
   const desktop = useLayout() === "desktop";
+  useScrollbarSize();
   const sheet = host === "sheet";
   const close = useRef<HTMLButtonElement | null>(null);
   const stepButtons = useRef<Record<"previous" | "next", HTMLButtonElement | null>>({
@@ -496,7 +497,7 @@ export default function AssetInspector({
       />
       <div
         ref={body}
-        class="grid min-h-0 flex-1 auto-rows-max content-start gap-5 overflow-x-hidden overflow-y-auto bg-inherit px-4 pt-3 pb-8 [:root[data-layout=desktop]_&]:pt-3.5 [:root[data-layout=desktop]_&]:pb-7"
+        class="grid min-h-0 flex-1 auto-rows-max content-start gap-5 overflow-x-hidden overflow-y-auto bg-inherit pt-3 pr-gutter-4 pb-8 pl-4 [:root[data-layout=desktop]_&]:pt-3.5 [:root[data-layout=desktop]_&]:pb-7"
         data-inspector-body
       >
         {stack ? (

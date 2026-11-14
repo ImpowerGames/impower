@@ -30,9 +30,8 @@ import {
   TextIcon,
   Thumbnail,
   Tile,
-  TILE_GAP,
   TILE_MEDIA_FIT,
-  TILE_MIN_WIDTH,
+  tileGrid,
   tileHeight,
   type TileShape,
   UploadIcon,
@@ -1003,7 +1002,7 @@ function AssetsBrowser() {
         renderItem,
         itemHeight: (item) => (item.kind === "heading" ? HEADING_HEIGHT : libraryRowHeight(layoutName)),
         grid: tiles
-          ? { minWidth: TILE_MIN_WIDTH[shape], gap: TILE_GAP, height: (width) => tileHeight(shape, width) }
+          ? { ...tileGrid(shape, layoutName), height: (width) => tileHeight(shape, width) }
           : undefined,
       }}
       empty={
