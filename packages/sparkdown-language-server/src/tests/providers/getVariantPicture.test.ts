@@ -146,6 +146,21 @@ describe("the tester's picture", () => {
     expect(canvases).toEqual(["300x400", "180x240", "270x360"]);
   });
 
+  it("answers only the file a fallback picture shows when composing fails", async () => {
+    stubComposition();
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        getContext() {
+          return null;
+        }
+      },
+    );
+    const answer = await getVariantPicture(compile(MIA), { image: "mia", attributes: ["happy", "hat"] }, { size: 500 });
+    expect(answer!.src).toBe(`/src/${P}/mia/90_body.png`);
+    expect(answer!.layers).toEqual([`${ROOT}/${P}/mia/90_body.png`]);
+  });
+
   it("draws nothing without a program", async () => {
     expect(await getVariantPicture(undefined, { image: "mia", attributes: [] })).toBeNull();
   });

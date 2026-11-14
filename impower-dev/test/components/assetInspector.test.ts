@@ -1705,6 +1705,32 @@ describe("the Variants tester and the Files section", () => {
     expect(placed()).toEqual({ left: "0%", top: "0%", width: "50%", height: "25%", fills: false });
   });
 
+  it("measures a soloed file again when it is replaced at the same path, and places the new picture", async () => {
+    drawing(() => RESTING);
+    const happy = `${P}/imani~face.happy.png`;
+    workspace.assetSizes.value = sized({ "imani~face.happy.png": { width: 200, height: 100 } });
+    await mount();
+    await open("imani");
+    await click(soloButton("imani~face.happy.png"));
+    expect(placed()).toEqual({ left: "0%", top: "0%", width: "50%", height: "25%", fills: false });
+    assets.measureImages.mockClear();
+    await act(async () => {
+      workspace.assetListing.value = {
+        ...workspace.assetListing.value!,
+        files: { ...workspace.assetListing.value!.files, [happy]: { ...workspace.assetListing.value!.files[happy]!, src: "/p/replaced" } },
+      };
+    });
+    await settle();
+    expect(stageImage()).toBe("/p/replaced");
+    expect(soloButton("imani~face.happy.png").getAttribute("aria-pressed")).toBe("true");
+    expect(assets.measureImages).toHaveBeenCalledWith(expect.arrayContaining([happy]));
+    await act(async () => {
+      workspace.assetSizes.value = { ...workspace.assetSizes.value, "/p/replaced": { width: 100, height: 50 } };
+    });
+    await settle();
+    expect(placed()).toEqual({ left: "0%", top: "0%", width: "25%", height: "12.5%", fills: false });
+  });
+
   it("frames a soloed file by the files the shown variant draws, so a larger file it does not draw changes nothing", async () => {
     drawing(() => RESTING);
     workspace.assetSizes.value = sized({ "imani@night.png": { width: 800, height: 400 } });

@@ -195,10 +195,8 @@ export default function AssetInspector({
   const [soloPath, setSoloPath] = useState<string | null>(null);
   const soloFile = stack ? (asset.files.find((file) => file.path === soloPath) ?? null) : null;
   const framed = soloFile && drawn ? [soloFile.path, ...drawn] : [];
-  const framedSizes = framed.map((path) => {
-    const src = path ? workspace.assetListing.value?.files[path]?.src : undefined;
-    return src ? workspace.assetSizes.value[src] : null;
-  });
+  const framedSources = framed.map((path) => (path ? workspace.assetListing.value?.files[path]?.src : undefined));
+  const framedSizes = framedSources.map((src) => (src ? workspace.assetSizes.value[src] : null));
   const canvas = framedSizes.length && framedSizes.every((size) => !!size)
     ? {
         width: Math.max(...framedSizes.map((size) => size!.width)),
@@ -259,7 +257,7 @@ export default function AssetInspector({
       const paths = framed.flatMap((path) => (path ? [path] : []));
       void intents().then((Workspace) => Workspace.assets.measureImages(paths));
     }
-  }, [framed.join("\n")]);
+  }, [framed.map((path, index) => `${path ?? ""} ${framedSources[index] ?? ""}`).join("\n")]);
 
   useEffect(() => {
     const frame = stack ? body.current?.querySelector<HTMLElement>("[data-zoom-frame]") : null;
