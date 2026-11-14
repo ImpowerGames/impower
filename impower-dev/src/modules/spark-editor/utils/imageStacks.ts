@@ -68,7 +68,7 @@ const groupsOf = (names: readonly string[]): StackGroup[] => {
     return {
       name,
       options: group.switch
-        ? [...group.options]
+        ? ["off", "on"]
         : [...group.options].sort((a, b) =>
             a === resting ? -1 : b === resting ? 1 : compare(a, b),
           ),

@@ -158,7 +158,7 @@ describe("a folder stack", () => {
     const [mia] = imageStacks(MIA);
     expect(mia!.pictures[0]!.groups).toEqual([
       { name: "face", options: ["neutral", "happy"], switch: false, default: "neutral" },
-      { name: "hat", options: ["on", "off"], switch: true },
+      { name: "hat", options: ["off", "on"], switch: true },
     ]);
     expect(mia!.variantCount).toBe(4);
   });
