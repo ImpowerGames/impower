@@ -11,7 +11,6 @@ export interface GameState {
   stepping: boolean;
   run?: number | null;
   position: { uri: string; line: number } | null;
-  shownBeat: Location | null;
   shownBeatDescription: ShownBeatDescription | null;
   completion: {
     request: number;

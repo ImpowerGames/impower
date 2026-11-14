@@ -572,7 +572,6 @@ export function installPlayerWorker(connection: MessageConnection) {
         return {
           displayed,
           beatRefusal: OUTSIDE_EVERY_SCENE_REFUSAL,
-          shownBeat: null,
           shownBeatDescription: null,
         };
       }
@@ -649,7 +648,6 @@ export function installPlayerWorker(connection: MessageConnection) {
                 ? { shownAddress: game.previewedAddress }
                 : {}
               : { beatRefusal: NO_BEAT_REFUSAL }),
-            shownBeat: game.previewShownLocation,
             shownBeatDescription: game.previewShownDescription,
             ...(taken
               ? taken.beatOnly

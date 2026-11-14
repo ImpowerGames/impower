@@ -1,11 +1,10 @@
 import { stripStyleCodes } from "@impower/sparkdown/src/runtime/displayStyle";
+import { beatKindOfTarget } from "../constants/BEAT_KIND_OF_TARGET";
 import type { TextInstruction } from "../types/Instruction";
 import type { Instructions } from "../types/Instructions";
 import type { ShownBeatDescription } from "../types/ShownBeatDescription";
 
 const NAME_TARGET = "character_name";
-
-const CUE_TARGETS = new Set([NAME_TARGET, "character_parenthetical"]);
 
 const plain = (text: string) => stripStyleCodes(text).replace(/\s+/g, " ").trim();
 
@@ -15,7 +14,7 @@ const written = (events: readonly TextInstruction[] | undefined) =>
 export const describeShownBeat = (beat: Instructions): ShownBeatDescription => {
   const text = beat.text ?? {};
   const words = Object.entries(text)
-    .filter(([target]) => !CUE_TARGETS.has(target) && !target.startsWith("choice "))
+    .filter(([target]) => beatKindOfTarget(target) !== undefined)
     .map(([, events]) => written(events))
     .join(" ");
   const speaker = plain(written(text[NAME_TARGET]));

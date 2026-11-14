@@ -84,7 +84,7 @@ const previewAt = async (text: string, caret: number) => {
     const picture = pictureOf(h.toRouter);
     const strip = await stripFor(text, caret, h.toEditor);
     const ending = state?.ending?.kind ?? null;
-    return { shownBeat: state?.shownBeat ?? null, described, picture, strip, ending };
+    return { described, picture, strip, ending };
   } finally {
     h.dispose();
   }
@@ -169,8 +169,7 @@ describe("the strip shows what the player describes for the beat it displays", (
   test.each(ROWS)(
     "$shape",
     async (row) => {
-      const { shownBeat, described, picture, strip } = await previewAt(scriptOf(row), row.caret);
-      expect(shownBeat, "the player reports the beat it displays").not.toBeNull();
+      const { described, picture, strip } = await previewAt(scriptOf(row), row.caret);
       expect(described, "the player describes the beat it displays").not.toBeNull();
       for (const words of describedWords(described)) {
         expect(picture, "the picture shows the described words").toContain(words);
@@ -204,6 +203,34 @@ describe("the strip follows the picture where the syntax says otherwise", () => 
     expect(picture).toContain("King Arthur");
     expect(described).toEqual({ kind: "dialogue", speaker: "King Arthur", words: "Hail!" });
     expect({ label: strip.label, words: strip.words }).toEqual({ label: "KING ARTHUR", words: "Hail!" });
+  }, 120_000);
+
+  test("a beat that is only a write line describes no words, so the strip is blank", async () => {
+    const { described, strip } = await previewAt(
+      "scene start\n  Rain falls.\n  @clock: 12:00\n  The door opens.\nend\n",
+      2,
+    );
+    expect(described).toEqual({ kind: null, words: "" });
+    expect({ label: strip.label, words: strip.words }).toEqual({ label: "", words: "" });
+  }, 120_000);
+
+  test("a story line after a write line describes only its own story text", async () => {
+    const { described, picture, strip } = await previewAt(
+      "scene start\n  @clock: 12:00\n  Rain falls.\nend\n",
+      2,
+    );
+    expect(picture).toContain("Rain falls.");
+    expect(described).toEqual({ kind: "action", words: "Rain falls." });
+    expect({ label: strip.label, words: strip.words }).toEqual({ label: "ACTION", words: "Rain falls." });
+  }, 120_000);
+
+  test("story text glued after a write line is written into the write line's target, so it is not story words", async () => {
+    const { described, strip } = await previewAt(
+      "scene start\n  @clock: 12:00 ..\n  .. Rain falls.\nend\n",
+      2,
+    );
+    expect(described).toEqual({ kind: null, words: "" });
+    expect({ label: strip.label, words: strip.words }).toEqual({ label: "", words: "" });
   }, 120_000);
 
   test("a menu without a caption lists only the options a condition lets through", async () => {
@@ -252,10 +279,9 @@ describe("the strip shows no beat's words when the picture shows none", () => {
   ])(
     "$shape",
     async ({ text, caret, shows, ending = null }) => {
-      const { shownBeat, described, picture, strip, ending: ended } = await previewAt(text, caret);
-      expect({ ending: ended, shownBeat, described, picture, preview: strip.preview }).toEqual({
+      const { described, picture, strip, ending: ended } = await previewAt(text, caret);
+      expect({ ending: ended, described, picture, preview: strip.preview }).toEqual({
         ending,
-        shownBeat: null,
         described: null,
         picture: "",
         preview: shows,

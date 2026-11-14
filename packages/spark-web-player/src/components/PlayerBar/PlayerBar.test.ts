@@ -43,7 +43,6 @@ const gameState = (
     stepping: false,
     run: null,
     position: null,
-    shownBeat: null,
     shownBeatDescription: null,
     completion: null,
     ending: null,

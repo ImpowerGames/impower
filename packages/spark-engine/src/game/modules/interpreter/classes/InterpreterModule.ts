@@ -28,6 +28,7 @@ import type {
   Instructions,
 } from "../../../core/types/Instructions";
 import type { ScriptLocation } from "../../../core/types/ScriptLocation";
+import { beatKindOfTarget } from "../../../core/constants/BEAT_KIND_OF_TARGET";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { InterpreterBuiltins } from "../types/InterpreterBuiltins";
@@ -321,20 +322,6 @@ export class InterpreterModule extends Module<
     return null;
   }
 
-  protected beatKind(target: string): BeatKind | undefined {
-    switch (target) {
-      case "action":
-      case "dialogue":
-      case "title":
-      case "heading":
-        return target;
-      case "transitional":
-        return "transition";
-      default:
-        return undefined;
-    }
-  }
-
   protected describeBeat(
     beat: Instructions,
     kind: BeatKind | undefined,
@@ -501,14 +488,14 @@ export class InterpreterModule extends Module<
           }
           this.describeBeat(
             lastTextbox,
-            this.beatKind(textTarget),
+            beatKindOfTarget(textTarget),
             cue,
             source,
           );
         } else {
           this.describeBeat(
             contentInstructions,
-            this.beatKind(textTarget),
+            beatKindOfTarget(textTarget),
             cue,
             source,
           );
