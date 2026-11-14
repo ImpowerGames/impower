@@ -1,6 +1,5 @@
 import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
 import { compile } from "@tailwindcss/node";
-import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 import { h, render } from "preact";
@@ -34,7 +33,6 @@ const { stateForRoute } =
 
 const UI_PACKAGE = resolve(process.cwd(), "../packages/impower-ui");
 
-const browserAvailable = existsSync(chromium.executablePath());
 
 const LONG_NAME =
   "The Extraordinarily Long Midnight Jukebox Story of Raffles X";
@@ -134,7 +132,7 @@ const measure = async (markup: string, width: number) => {
 
 const rounded = (value: number) => Math.round(value * 10) / 10;
 
-describe.skipIf(!browserAvailable)(
+describe(
   "the phone title bar against the Folio prototype",
   () => {
     it.each([
