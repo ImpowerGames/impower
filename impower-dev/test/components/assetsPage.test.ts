@@ -478,7 +478,7 @@ describe("image folders as tiles", () => {
     await click(all<HTMLElement>('button[aria-label^="Open image imani"]')[0]);
     const inspector = document.querySelector('section[aria-label="Asset details"]')!;
     expect(inspector.querySelector("header h2")!.textContent).toBe("imani");
-    expect(inspector.querySelector("header small")!.textContent).toBe("Image · PNG · 4 variants");
+    expect(inspector.querySelector("header small")!.textContent).toBe("Image · 4 variants");
     expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/100");
     expect(assets.watchFacts.mock.calls.at(-1)![0]).toEqual([
       "Assets/Images/Portraits/imani.png",
@@ -1831,7 +1831,7 @@ describe("the inspector of an asset that moves", () => {
 
   const expectStackAtCast = () => {
     expect(title()).toBe("ava");
-    expect(inspector()!.querySelector("header small")!.textContent).toBe("Image · PNG · 3 variants");
+    expect(inspector()!.querySelector("header small")!.textContent).toBe("Image · 3 variants");
     expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
     expect(watchedFiles()).toEqual([`${P}/Cast/ava.png`, `${P}/Cast/ava@night.png`, `${P}/Cast/ava~face.happy.png`]);
     expect(workspace.current.lists?.assetsFolders?.image).toBe(`${P}/Cast`);

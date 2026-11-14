@@ -75,7 +75,7 @@ describe("Button kinds", () => {
     expect(css).toMatch(/\[aria-pressed="true"\][^{]*\{[^}]*background-color: var\(--tint\)/);
   });
 
-  it("draws a menu field 38px tall inside its own 44px target, its edge in the accent when changed, open or focused", async () => {
+  it("draws a menu field 38px tall, inside a 44px target on a coarse pointer, its edge in the accent when changed, open or focused", async () => {
     const host = await mount(
       <Button variant="field" size="field">
         As is
@@ -84,12 +84,12 @@ describe("Button kinds", () => {
     const area = await hitArea(host.querySelector("button")!);
     expect(area.height).toBeGreaterThanOrEqual(44);
     const classes = buttonVariants({ variant: "field", size: "field" });
-    for (const name of ["min-h-11", "border-y-[3px]", "border-transparent", "bg-clip-padding", "bg-bg", "justify-between"]) {
-      expect(classes).toContain(name);
+    for (const name of ["min-h-[38px]", "border-y-0", "pointer-coarse:min-h-11", "pointer-coarse:border-y-[3px]", "border-transparent", "bg-clip-padding", "bg-bg", "justify-between"]) {
+      expect(classes.split(" ")).toContain(name);
     }
     expect(classes).not.toContain("before:");
     const css = await packageCss(classes.split(" "));
-    expect(css).toContain("border-block-width: 3px;");
+    expect(css).toMatch(/@media \(pointer: coarse\)\s*\{[^@]*border-block-width: 3px;/);
     expect(css).toContain("background-clip: padding-box;");
     expect(css).toContain("--tw-shadow: inset 0 0 0 1px var(--tw-shadow-color, var(--edge));");
     expect(css).toMatch(/\[data-changed\]:not\([^)]*aria-expanded="true"[^)]*\)[^{]*\{[^}]*--tw-shadow: inset 0 0 0 1px var\(--tw-shadow-color, var\(--accent\)\)/);

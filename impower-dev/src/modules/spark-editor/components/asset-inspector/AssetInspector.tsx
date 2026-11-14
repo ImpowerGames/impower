@@ -422,7 +422,8 @@ export default function AssetInspector({
         }}
         variant="quiet"
         size="icon"
-        class="w-10 text-muted"
+        glyph="lg"
+        class="text-muted"
         aria-label={label}
         title={label}
         data-inspector-step={direction}
@@ -452,7 +453,7 @@ export default function AssetInspector({
       <PanelHead
         size={desktop && !sheet ? "tall" : "default"}
         titleSize="sm"
-        class="px-2"
+        class="px-2 py-0"
         title={
           sheet ? (
             <DialogTitle class={panelHeadTitleVariants({ titleSize: "sm" })}>{asset.name}</DialogTitle>
@@ -473,6 +474,7 @@ export default function AssetInspector({
             }}
             variant="quiet"
             size="icon"
+            glyph="lg"
             class="flex-none text-muted"
             aria-label={sheet ? "Back to the collection" : "Close details"}
             title={sheet ? "Back to the collection" : "Close details"}
@@ -483,7 +485,7 @@ export default function AssetInspector({
           </Button>
         }
         end={
-          <div class="flex flex-none items-center">
+          <div class="flex flex-none items-center gap-1.5">
             <div role="group" aria-label="Previous and next" class="flex flex-none">
               {stepButton("previous")}
               {stepButton("next")}
