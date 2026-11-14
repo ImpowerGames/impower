@@ -47,9 +47,9 @@ node .agents/skills/ask-maintainer/maintainer-request.mjs list
 
 The dry run validates the request, checks for an open request asking the same question about the same ticket, and prints the body without filing. Correct every refusal it lists and run it again.
 
-`file` creates the issue in one typed call with its label and assignee, uploads the pictures and writes each hosted address where the request places it, reads the body back, checks type, label, assignee, no parent and no milestone, then blocks every named ticket on the request. It prints the request's number, address and fallback time. When filing fails after the issue exists, the tool closes the issue as not planned with the reason; correct the cause and file again.
+`file` creates the issue in one typed call with its label and assignee, uploads the pictures and writes each hosted address where the request places it, reads the body back, checks type, label, assignee, no parent and no milestone, then blocks every named ticket on the request. It prints the request's number, address and fallback time. When anything fails after the issue exists, the tool rolls back: it removes the dependencies it added and closes the issue as not planned with the reason, so the same request can be filed again once the cause is corrected.
 
-`tag` gives an existing ticket the `maintainer: task` label, the assignee and one comment with the task's fields, and creates no issue. `list` prints the open requests in three groups (decisions, tasks, went ahead without you) with links, ages and fallback times; `list --json` prints the same data for a report.
+`tag` gives an existing ticket the `maintainer: task` label, the assignee and one comment with the task's fields, blocks each ticket the task names on it, and creates no issue; when a step fails it deletes the comment and removes what it added. `list` prints the open requests in three groups (decisions, tasks, went ahead without you) with links, ages and fallback times; `list --json` prints the same data for a report.
 
 Until the tool has its own identity, it files through the maintainer's account and says so at the end of every request.
 

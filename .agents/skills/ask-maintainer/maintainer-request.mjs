@@ -165,12 +165,12 @@ function checkTickets(value, refuse, { required }) {
   return [...new Set(value)];
 }
 
-function tableColumns(markdown) {
+export function tableColumns(markdown) {
   let widest = 0;
   for (const line of markdown.split(/\r?\n/)) {
-    if (!/^\s*\|/.test(line)) continue;
-    const cells = line.trim().replace(/^\|/, "").replace(/(?<!\\)\|\s*$/, "").split(/(?<!\\)\|/);
-    widest = Math.max(widest, cells.length);
+    const row = line.trim();
+    if (!row.includes("|") || !/^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?$/.test(row)) continue;
+    widest = Math.max(widest, row.replace(/^\|/, "").replace(/\|$/, "").split("|").length);
   }
   return widest;
 }
@@ -553,8 +553,12 @@ export function ghTracker(repo = ticketsRepo(), run = (args, options = {}) => ex
       json(["api", "-X", "POST", `repos/${repo}/issues/${n}/comments`, "-F", `body=@${bodyFile}`]);
       return json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-f", "state=closed", "-f", `state_reason=${reason}`]);
     },
+    removeLabel: (n, label) => json(["api", "-X", "DELETE", `repos/${repo}/issues/${n}/labels/${encodeURIComponent(label)}`]),
+    removeAssignee: (n, login) => json(["api", "-X", "DELETE", `repos/${repo}/issues/${n}/assignees`, "-f", `assignees[]=${login}`]),
+    deleteComment: (id) => json(["api", "-X", "DELETE", `repos/${repo}/issues/comments/${id}`]),
     blockedBy: dependencies.blockedBy,
     addBlockedBy: dependencies.add,
+    removeBlockedBy: (n, id) => json(["api", "-X", "DELETE", `repos/${repo}/issues/${n}/dependencies/blocked_by/${id}`]),
   };
 }
 
@@ -615,17 +619,52 @@ export function verifyFiled(tracker, number, { label, login }) {
   return { issue, problems };
 }
 
-function failFiled(tracker, number, problems, scratch) {
-  const file = path.join(scratch, "withdraw.md");
-  writeFileSync(file, `Withdrawn by the ask-maintainer tool: filing did not finish, so this request is incomplete and nothing waits on it.\n\n${problems.map((problem) => `- ${problem}`).join("\n")}\n`);
-  let closed = "";
-  try {
-    tracker.close(number, "not_planned", file);
-    closed = ` #${number} was closed as not planned.`;
-  } catch (error) {
-    closed = ` Closing #${number} failed too (${error.message.split("\n")[0]}); close it as not planned by hand.`;
+class FilingProblems extends Error {
+  constructor(problems) {
+    super(problems.join("; "));
+    this.problems = problems;
   }
-  return new Error(`Filing ${tracker.repo}#${number} failed:\n${problems.map((problem) => `- ${problem}`).join("\n")}\n${closed.trim()}`);
+}
+
+const problemsOf = (error) => (error instanceof FilingProblems ? error.problems : [error.message.split("\n")[0]]);
+const bullets = (lines) => lines.map((line) => `- ${line}`).join("\n");
+
+function linkTickets(tracker, tickets, blocker, attempted) {
+  const problems = [];
+  for (const ticket of tickets) {
+    if (!tracker.blockedBy(ticket).some((issue) => issue.number === blocker.number)) {
+      attempted.push(ticket);
+      tracker.addBlockedBy(ticket, blocker.id);
+    }
+    if (!tracker.blockedBy(ticket).some((issue) => issue.number === blocker.number)) problems.push(`#${ticket} is not blocked by #${blocker.number} after posting the dependency`);
+  }
+  if (problems.length) throw new FilingProblems(problems);
+}
+
+function undo(steps) {
+  const done = [];
+  const failed = [];
+  for (const [what, step] of steps) {
+    try {
+      step();
+      done.push(what);
+    } catch (error) {
+      if (/HTTP 404|Not Found|does not exist/i.test(`${error.stderr ?? ""} ${error.message}`)) done.push(`${what} (already absent)`);
+      else failed.push(`${what} failed (${error.message.split("\n")[0]}); do it by hand`);
+    }
+  }
+  return { done, failed };
+}
+
+function unlinkSteps(tracker, attempted, blocker) {
+  return attempted.map((ticket) => [`removed the dependency of #${ticket} on #${blocker.number}`, () => tracker.removeBlockedBy(ticket, blocker.id)]);
+}
+
+function withdraw(tracker, { number, id, attempted }, problems, scratch) {
+  const file = path.join(scratch, "withdraw.md");
+  writeFileSync(file, `Withdrawn by the ask-maintainer tool: filing did not finish, so this request is incomplete and nothing waits on it.\n\n${bullets(problems)}\n`);
+  const result = undo([...unlinkSteps(tracker, attempted, { number, id }), [`closed #${number} as not planned`, () => tracker.close(number, "not_planned", file)]]);
+  return new Error(`Filing ${tracker.repo}#${number} failed:\n${bullets(problems)}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\nCorrect the cause and file the request again.`);
 }
 
 export function fileRequest(request, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone, templates, dryRun = false }) {
@@ -636,33 +675,30 @@ export function fileRequest(request, { pictures: folder, tracker, repos = readRe
   if (duplicate) throw new RequestRefused([`An open request already asks this about the same ticket: #${duplicate.number} ${duplicate.title} (${duplicate.html_url})`]);
   if (dryRun) return { dryRun: true, title: built.title, body: built.body, data: built.data };
   return withScratch((scratch) => {
-    const placed = placeInto({
-      built,
-      folder,
-      scratch,
-      post: (file, attach) => tracker.create({ title: built.title, bodyFile: file, labels: [label], assignee: repos.maintainer.login, attach, cwd: folder }),
-      read: (target) => tracker.issue(target.number).body ?? "",
-      write: (target, file) => tracker.editBody(target.number, file),
-    });
-    const number = placed.target.number;
-    const problems = [...placed.problems];
-    let issue = null;
-    if (!problems.length) {
-      const filed = verifyFiled(tracker, number, { label, login: repos.maintainer.login });
-      problems.push(...filed.problems);
-      issue = filed.issue;
+    const filed = { number: null, id: null, attempted: [] };
+    try {
+      const placed = placeInto({
+        built,
+        folder,
+        scratch,
+        post: (file, attach) => {
+          const target = tracker.create({ title: built.title, bodyFile: file, labels: [label], assignee: repos.maintainer.login, attach, cwd: folder });
+          filed.number = target.number;
+          return target;
+        },
+        read: (target) => tracker.issue(target.number).body ?? "",
+        write: (target, file) => tracker.editBody(target.number, file),
+      });
+      if (placed.problems.length) throw new FilingProblems(placed.problems);
+      const verified = verifyFiled(tracker, filed.number, { label, login: repos.maintainer.login });
+      if (verified.problems.length) throw new FilingProblems(verified.problems);
+      filed.id = verified.issue.id;
+      linkTickets(tracker, checked.tickets, { number: filed.number, id: filed.id }, filed.attempted);
+      return { number: filed.number, url: verified.issue.html_url, title: built.title, data: built.data, blocked: checked.tickets, pictures: placed.urls.length };
+    } catch (error) {
+      if (filed.number === null) throw error;
+      throw withdraw(tracker, filed, problemsOf(error), scratch);
     }
-    if (problems.length) throw failFiled(tracker, number, problems, scratch);
-    const blocked = [];
-    for (const ticket of checked.tickets) {
-      const before = tracker.blockedBy(ticket).map((blocker) => blocker.number);
-      if (!before.includes(number)) tracker.addBlockedBy(ticket, issue.id);
-      const after = tracker.blockedBy(ticket).map((blocker) => blocker.number);
-      if (!after.includes(number)) problems.push(`#${ticket} is not blocked by #${number} after posting the dependency`);
-      else blocked.push(ticket);
-    }
-    if (problems.length) throw new Error(`Filed ${tracker.repo}#${number} (${issue.html_url}), but linking it failed:\n${problems.map((problem) => `- ${problem}`).join("\n")}\nIt stays open; add the missing blocked_by dependencies with the calls in .agents/skills/references/record-blockers.mjs.`);
-    return { number, url: issue.html_url, title: built.title, data: built.data, blocked, pictures: placed.urls.length };
   });
 }
 
@@ -670,28 +706,51 @@ export function tagTicket(number, request, { pictures: folder, tracker, repos = 
   const checked = validateRequest(request, { pictures: folderPictures(folder), tag: true });
   const built = buildRequest(checked, { templates, tag: true });
   const label = repos.maintainer.labels.task;
+  const login = repos.maintainer.login;
   const ticket = tracker.issue(number);
   if (ticket.pull_request) throw new RequestRefused([`#${number} is a pull request, not a ticket`]);
   if (ticket.state !== "open") throw new RequestRefused([`#${number} is closed`]);
   if ((ticket.labels ?? []).some((l) => l.name === label)) throw new RequestRefused([`#${number} is already tagged ${label}`]);
+  if (checked.tickets.includes(number)) throw new RequestRefused([`#${number} cannot hold itself up; remove it from "tickets"`]);
+  const wasAssigned = (ticket.assignees ?? []).some((a) => a.login === login);
   return withScratch((scratch) => {
-    const placed = placeInto({
-      built,
-      folder,
-      scratch,
-      post: (file, attach) => tracker.comment({ number, bodyFile: file, attach, cwd: folder }),
-      read: (target) => tracker.readComment(target.id).body ?? "",
-      write: (target, file) => tracker.editComment(target.id, file),
-    });
-    if (placed.problems.length) throw new Error(`The task comment on #${number} (id ${placed.target.id}) is incomplete; fix or delete it, then tag again:\n${placed.problems.map((problem) => `- ${problem}`).join("\n")}`);
-    tracker.addLabel(number, label);
-    tracker.addAssignee(number, repos.maintainer.login);
-    const after = tracker.issue(number);
-    const problems = [];
-    if (!(after.labels ?? []).some((l) => l.name === label)) problems.push(`label ${label} is missing`);
-    if (!(after.assignees ?? []).some((a) => a.login === repos.maintainer.login)) problems.push(`${repos.maintainer.login} is not assigned`);
-    if (problems.length) throw new Error(`Tagging #${number} did not finish:\n${problems.map((problem) => `- ${problem}`).join("\n")}`);
-    return { number, url: after.html_url, comment: placed.target.id, pictures: placed.urls.length };
+    const done = { comment: null, labelled: false, assigned: false, attempted: [] };
+    try {
+      const placed = placeInto({
+        built,
+        folder,
+        scratch,
+        post: (file, attach) => {
+          const target = tracker.comment({ number, bodyFile: file, attach, cwd: folder });
+          done.comment = target.id;
+          return target;
+        },
+        read: (target) => tracker.readComment(target.id).body ?? "",
+        write: (target, file) => tracker.editComment(target.id, file),
+      });
+      if (placed.problems.length) throw new FilingProblems(placed.problems);
+      done.labelled = true;
+      tracker.addLabel(number, label);
+      if (!wasAssigned) {
+        done.assigned = true;
+        tracker.addAssignee(number, login);
+      }
+      linkTickets(tracker, checked.tickets, { number, id: ticket.id }, done.attempted);
+      const after = tracker.issue(number);
+      const problems = [];
+      if (!(after.labels ?? []).some((l) => l.name === label)) problems.push(`label ${label} is missing`);
+      if (!(after.assignees ?? []).some((a) => a.login === login)) problems.push(`${login} is not assigned`);
+      if (problems.length) throw new FilingProblems(problems);
+      return { number, url: after.html_url, comment: done.comment, blocked: checked.tickets, pictures: placed.urls.length };
+    } catch (error) {
+      const steps = unlinkSteps(tracker, done.attempted, { number, id: ticket.id });
+      if (done.assigned) steps.push([`unassigned ${login}`, () => tracker.removeAssignee(number, login)]);
+      if (done.labelled) steps.push([`removed the label ${label}`, () => tracker.removeLabel(number, label)]);
+      if (done.comment !== null) steps.push([`deleted the task comment ${done.comment}`, () => tracker.deleteComment(done.comment)]);
+      if (!steps.length) throw error;
+      const result = undo(steps);
+      throw new Error(`Tagging ${tracker.repo}#${number} failed:\n${bullets(problemsOf(error))}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\nCorrect the cause and tag again.`);
+    }
   });
 }
 
@@ -771,7 +830,7 @@ export function main(argv, { tracker = ghTracker(), repos = readRepos(), out = c
   if (command === "tag" && args.length >= 2 && args.length <= 3 && !flags.length && /^#?[1-9]\d*$/.test(args[0])) {
     const file = path.resolve(args[1]);
     const result = tagTicket(Number(args[0].replace(/^#/, "")), readRequest(file), { pictures: path.resolve(args[2] ?? path.dirname(file)), tracker, repos });
-    out(`Tagged #${result.number} as a maintainer task: ${result.url} (comment ${result.comment}, ${result.pictures} picture(s)); no issue was created.`);
+    out(`Tagged #${result.number} as a maintainer task: ${result.url} (comment ${result.comment}, ${result.pictures} picture(s)); blocks ${result.blocked.length ? result.blocked.map((n) => `#${n}`).join(", ") : "no other ticket"}; no issue was created.`);
     return 0;
   }
   if (command === "list" && !args.length && flags.every((flag) => flag === "--json")) {

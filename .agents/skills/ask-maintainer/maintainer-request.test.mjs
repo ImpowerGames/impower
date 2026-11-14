@@ -13,11 +13,13 @@ import {
   findDuplicate,
   folderPictures,
   formatList,
+  ghTracker,
   groupRequests,
   main,
   pictureWidth,
   readDataLine,
   readTemplate,
+  tableColumns,
   tagTicket,
   validateRequest,
 } from "./maintainer-request.mjs";
@@ -177,6 +179,10 @@ try {
   refusedFor("a fallback on a choice that leaves the repository", edit(decision(), (r) => (r.alwaysWaits = "leaves-repository")), /names a fallback, but it publishes, sends or spends/);
   refusedFor("a fallback on a choice that waives a failed check", edit(decision(), (r) => (r.alwaysWaits = "waives-check")), /names a fallback, but it waives a failed check/);
   refusedFor("a comparison wider than four columns", edit(decision(), (r) => (r.comparison = "| a | b | c | d | e |\n| - | - | - | - | - |")), /table of 5 columns/);
+  refusedFor("a five-column table written without outer pipes", edit(decision(), (r) => (r.comparison = "Option | Shape | Pinning | Phone | Cost\n--- | --- | --- | --- | ---\nA | list | no | yes | none")), /table of 5 columns/);
+  assert.equal(tableColumns("a | b | c | d\n:-- | --- | :-: | --:"), 4);
+  assert.equal(tableColumns("- a list\n- with a dash\n\n---\n\nand a thematic break"), 0);
+  assert.deepEqual(refusals(edit(decision(), (r) => (r.comparison = "Option | A | B | C\n--- | --- | --- | ---\nx | 1 | 2 | 3"))), []);
   refusedFor("picture markup typed into text", edit(decision(), (r) => (r.shortVersion = 'See <img src="./a.png">.')), /holds picture markup/);
   refusedFor("an HTML comment marker in text", edit(decision(), (r) => (r.meanwhile = "nothing -->")), /HTML comment marker/);
   refusedFor("a picture missing from the folder", edit(decision(), (r) => (r.options[0].pictures[0].file = "missing.png")), /missing\.png is not a file in the pictures folder/);
@@ -210,11 +216,12 @@ try {
     console.log("ok: the read-back check fails on a relative picture path and on an appended picture, as gh left them when the sample request was filed");
   }
 
-  function fakeTracker({ open = {}, failUpload = null, appendOnWrite = false, existing = {} } = {}) {
-    const issues = new Map(Object.entries(existing).map(([n, issue]) => [Number(n), { labels: [], assignees: [], state: "open", ...issue, number: Number(n) }]));
+  function fakeTracker({ open = {}, failUpload = null, appendOnWrite = false, existing = {}, type = "Task", fail = {} } = {}) {
+    const issues = new Map(Object.entries(existing).map(([n, issue]) => [Number(n), { labels: [], assignees: [], state: "open", id: Number(n) * 10, ...issue, number: Number(n) }]));
     const comments = new Map();
     const blocked = new Map();
     const calls = [];
+    const counts = {};
     let next = 9000;
     const host = (body, attach) => {
       let text = body;
@@ -227,15 +234,11 @@ try {
       }
       return text;
     };
-    return {
-      repo: "acme/tickets",
-      calls,
-      issues,
-      comments,
-      blocked,
+    const methods = {
       open: (label) => {
         calls.push(["open", label]);
-        return open[label] ?? [];
+        const filed = [...issues.values()].filter((issue) => issue.state === "open" && issue.labels.some((l) => l.name === label));
+        return [...(open[label] ?? []), ...structuredClone(filed)];
       },
       issue: (n) => {
         const issue = issues.get(n);
@@ -246,7 +249,7 @@ try {
       create: ({ title, bodyFile, labels: names, assignee, attach }) => {
         calls.push(["create", title, names, assignee, attach]);
         const number = next++;
-        issues.set(number, { number, id: number * 10, title, body: host(readFileSync(bodyFile, "utf8"), attach), type: { name: "Task" }, labels: names.map((name) => ({ name })), assignees: [{ login: assignee }], milestone: null, state: "open", html_url: `https://github.com/acme/tickets/issues/${number}` });
+        issues.set(number, { number, id: number * 10, title, body: host(readFileSync(bodyFile, "utf8"), attach), type: type === null ? null : { name: type }, labels: names.map((name) => ({ name })), assignees: [{ login: assignee }], milestone: null, state: "open", html_url: `https://github.com/acme/tickets/issues/${number}` });
         return failUpload ? { number, uploadError: `upload of ${failUpload} failed` } : { number };
       },
       editBody: (n, bodyFile) => {
@@ -261,9 +264,17 @@ try {
         calls.push(["addLabel", n, label]);
         issues.get(n).labels.push({ name: label });
       },
+      removeLabel: (n, label) => {
+        calls.push(["removeLabel", n, label]);
+        issues.get(n).labels = issues.get(n).labels.filter((l) => l.name !== label);
+      },
       addAssignee: (n, login) => {
         calls.push(["addAssignee", n, login]);
         issues.get(n).assignees.push({ login });
+      },
+      removeAssignee: (n, login) => {
+        calls.push(["removeAssignee", n, login]);
+        issues.get(n).assignees = issues.get(n).assignees.filter((a) => a.login !== login);
       },
       comment: ({ number, bodyFile, attach }) => {
         calls.push(["comment", number, attach]);
@@ -276,12 +287,29 @@ try {
         calls.push(["editComment", id]);
         comments.get(id).body = readFileSync(bodyFile, "utf8");
       },
+      deleteComment: (id) => {
+        calls.push(["deleteComment", id]);
+        comments.delete(id);
+      },
       blockedBy: (n) => (blocked.get(n) ?? []).map((id) => ({ number: id / 10 })),
       addBlockedBy: (n, id) => {
         calls.push(["addBlockedBy", n, id]);
         blocked.set(n, [...(blocked.get(n) ?? []), id]);
       },
+      removeBlockedBy: (n, id) => {
+        calls.push(["removeBlockedBy", n, id]);
+        blocked.set(n, (blocked.get(n) ?? []).filter((other) => other !== id));
+      },
     };
+    const wrapped = Object.fromEntries(Object.entries(methods).map(([name, method]) => [name, (...args) => {
+      counts[name] = (counts[name] ?? 0) + 1;
+      if (fail[name] === counts[name]) {
+        calls.push(["threw", name]);
+        throw new Error(`${name}: network down`);
+      }
+      return method(...args);
+    }]));
+    return { repo: "acme/tickets", calls, issues, comments, blocked, ...wrapped };
   }
 
   const decisionFile = path.join(scratch, "decision.json");
@@ -329,7 +357,7 @@ try {
 
   {
     const tracker = fakeTracker({ failUpload: "./c.png" });
-    assert.throws(() => fileRequest(decision(), { pictures, tracker, repos, now, timeZone }), (error) => /\.\/c\.png was not uploaded: the body still holds its relative path/.test(error.message) && /closed as not planned/.test(error.message));
+    assert.throws(() => fileRequest(decision(), { pictures, tracker, repos, now, timeZone }), (error) => /\.\/c\.png was not uploaded: the body still holds its relative path/.test(error.message) && /closed #9000 as not planned/.test(error.message));
     assert.ok(tracker.calls.some((call) => call[0] === "close" && call[2] === "not_planned"));
     assert.ok(!tracker.calls.some((call) => call[0] === "addBlockedBy"));
     console.log("ok: filing fails, withdraws the request and links nothing when a picture's relative path is left after upload");
@@ -340,6 +368,80 @@ try {
     assert.throws(() => fileRequest(decision(), { pictures, tracker, repos, now, timeZone }), /a picture the request did not place was appended: https:\/\/github\.com\/user-attachments\/assets\/late/);
     assert.ok(tracker.calls.some((call) => call[0] === "close"));
     console.log("ok: filing fails and withdraws the request when an appended picture is left in the body");
+  }
+
+  for (const [label, type] of [["Bug", "Bug"], ["no type", null]]) {
+    const tracker = fakeTracker({ type });
+    assert.throws(() => fileRequest(decision(), { pictures, tracker, repos, now, timeZone }), (error) => new RegExp(`type is ${type ?? "unset"}, not Task`).test(error.message) && /closed #9000 as not planned/.test(error.message));
+    assert.equal(tracker.issues.get(9000).state, "closed");
+    assert.ok(!tracker.calls.some((call) => call[0] === "addBlockedBy"));
+    console.log(`ok: an issue read back with ${label} instead of the Task type fails the filing and is withdrawn`);
+  }
+
+  for (const [method, call] of [["issue", 1], ["editBody", 1], ["parent", 1], ["issue", 3]]) {
+    const tracker = fakeTracker({ fail: { [method]: call } });
+    assert.throws(() => fileRequest(decision(), { pictures, tracker, repos, now, timeZone }), (error) => new RegExp(`${method}: network down`).test(error.message) && /closed #9000 as not planned/.test(error.message) && /file the request again/.test(error.message));
+    assert.equal(tracker.issues.get(9000).state, "closed", `${method} call ${call}`);
+    const retry = fileRequest(decision(), { pictures, tracker, repos, now, timeZone });
+    assert.equal(retry.number, 9001, "the withdrawn request does not block a retry as a duplicate");
+    console.log(`ok: a ${method} error after the issue exists (call ${call}) withdraws the request, and the same request files again`);
+  }
+
+  {
+    const tracker = fakeTracker({ fail: { addBlockedBy: 2 } });
+    assert.throws(() => fileRequest(task(), { pictures, tracker, repos, now, timeZone }), (error) => /addBlockedBy: network down/.test(error.message) && /removed the dependency of #2271 on #9000/.test(error.message) && /closed #9000 as not planned/.test(error.message));
+    assert.deepEqual(tracker.blocked.get(2271), []);
+    assert.deepEqual(tracker.blocked.get(2272) ?? [], []);
+    assert.equal(tracker.issues.get(9000).state, "closed");
+    console.log("ok: an error while linking the second ticket removes the first ticket's dependency and withdraws the request");
+  }
+
+  {
+    const tracker = fakeTracker({ fail: { addBlockedBy: 1 }, existing: { 2240: { title: "Draw the title art", body: "Body.", html_url: "https://github.com/acme/tickets/issues/2240" } } });
+    assert.throws(() => tagTicket(2240, task(), { pictures, tracker, repos }), (error) => /Tagging acme\/tickets#2240 failed/.test(error.message) && /deleted the task comment 7000/.test(error.message) && /removed the label maintainer: task/.test(error.message) && /unassigned/.test(error.message));
+    const ticket = tracker.issues.get(2240);
+    assert.equal(tracker.comments.size, 0);
+    assert.deepEqual(ticket.labels, []);
+    assert.deepEqual(ticket.assignees, []);
+    console.log("ok: a failed tag deletes its comment and removes the label and assignee it added");
+  }
+
+  {
+    const tracker = fakeTracker({ existing: { 2240: { title: "Draw the title art", body: "Body.", html_url: "https://github.com/acme/tickets/issues/2240", assignees: [{ login: repos.maintainer.login }] } } });
+    const result = tagTicket(2240, task(), { pictures, tracker, repos });
+    assert.deepEqual(result.blocked, [2271, 2272]);
+    assert.deepEqual(tracker.blocked.get(2271), [22400]);
+    assert.deepEqual(tracker.blocked.get(2272), [22400]);
+    assert.ok(!tracker.calls.some((call) => call[0] === "addAssignee"), "an already assigned maintainer is not assigned twice");
+    assert.deepEqual(readDataLine(tracker.comments.get(result.comment).body).blocks, [2271, 2272]);
+    assert.throws(() => tagTicket(2271, task(), { pictures, tracker, repos }), /no issue 2271/);
+    const self = fakeTracker({ existing: { 2271: { title: "x", body: "y" } } });
+    assert.throws(() => tagTicket(2271, task(), { pictures, tracker: self, repos }), /#2271 cannot hold itself up/);
+    console.log("ok: tag blocks each ticket the task names on the tagged ticket, and refuses a ticket that would hold itself up");
+  }
+
+  {
+    const runs = [];
+    const run = (args, options = {}) => {
+      runs.push({ args, cwd: options.cwd });
+      if (args[0] === "issue" && args[1] === "create") return "https://github.com/acme/tickets/issues/77\n";
+      if (args.includes("repos/acme/tickets/issues/5/parent")) throw Object.assign(new Error("Command failed"), { stderr: "gh: No parent issue found (HTTP 404)" });
+      return "null";
+    };
+    const gh = ghTracker("acme/tickets", run);
+    assert.deepEqual(gh.create({ title: "Q? (#1)", bodyFile: "/x/staged.md", labels: [labels.decision], assignee: repos.maintainer.login, attach: ["./a.png", "./b.png"], cwd: "/pictures" }), { number: 77 });
+    assert.deepEqual(runs[0].args, ["issue", "create", "-R", "acme/tickets", "--title", "Q? (#1)", "--body-file", "/x/staged.md", "--type", "Task", "--assignee", repos.maintainer.login, "--label", labels.decision, "--attach", "./a.png", "--attach", "./b.png"]);
+    assert.equal(runs[0].cwd, "/pictures");
+    assert.equal(gh.parent(5), null);
+    const partial = ghTracker("acme/tickets", () => {
+      throw Object.assign(new Error("Command failed"), { stdout: "https://github.com/acme/tickets/issues/78\n", stderr: "upload of b.png failed" });
+    });
+    assert.deepEqual(partial.create({ title: "t", bodyFile: "f", labels: ["l"], assignee: "a", attach: ["./b.png"], cwd: "." }), { number: 78, uploadError: "upload of b.png failed" });
+    gh.removeLabel(5, labels.task);
+    assert.deepEqual(runs.at(-1).args, ["api", "-X", "DELETE", "repos/acme/tickets/issues/5/labels/maintainer%3A%20task"]);
+    gh.removeBlockedBy(5, 990);
+    assert.deepEqual(runs.at(-1).args, ["api", "-X", "DELETE", "repos/acme/tickets/issues/5/dependencies/blocked_by/990"]);
+    console.log("ok: the gh adapter creates the issue in one typed call with its label, assignee and attachments from the pictures folder, and reads a missing parent as none");
   }
 
   {
