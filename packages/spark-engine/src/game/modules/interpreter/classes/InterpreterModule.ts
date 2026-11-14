@@ -1450,7 +1450,7 @@ export class InterpreterModule extends Module<
             if (currentPhrase) {
               currentPhrase.text ??= "";
               currentPhrase.text += char;
-              const timingContinues = Boolean(
+              const timingContinues: boolean = Boolean(
                 currChunk &&
                 !currChunk.duration &&
                 !this.isWhitespace(char) &&
