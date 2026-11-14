@@ -29,13 +29,26 @@ export function readRepos(file = REPOS_FILE) {
   if (!labels || typeof labels !== "object" || Array.isArray(labels)) fail("maintainer.labels", "an object with decision, task and decidedWithoutYou");
   for (const key of MAINTAINER_LABELS) if (typeof labels[key] !== "string" || !labels[key].trim() || labels[key] !== labels[key].trim()) fail(`maintainer.labels.${key}`, "a label name");
   if (new Set(MAINTAINER_LABELS.map((key) => labels[key].toLowerCase())).size !== MAINTAINER_LABELS.length) fail("maintainer.labels", "three different label names");
+  const app = maintainer.app;
+  const appWant = "an object whose slug, id and installationId are all null until the App exists, then the App's slug, App id and installation id";
+  if (!app || typeof app !== "object" || Array.isArray(app)) fail("maintainer.app", appWant);
+  const appSet = [app.slug, app.id, app.installationId].filter((value) => value !== null);
+  if (appSet.length && appSet.length !== 3) fail("maintainer.app", appWant);
+  if (appSet.length) {
+    if (typeof app.slug !== "string" || !/^[a-z0-9](?:[a-z0-9-]{0,33})$/.test(app.slug)) fail("maintainer.app.slug", "the App's slug, as in its github.com/apps/<slug> address");
+    for (const key of ["id", "installationId"]) if (!Number.isSafeInteger(app[key]) || app[key] < 1) fail(`maintainer.app.${key}`, "a positive integer");
+  }
   return Object.freeze({
     code: data.code,
     internal: data.internal,
     autolinkPrefix: data.autolinkPrefix,
     cutover: data.cutover,
     feedbackInbox: data.feedbackInbox,
-    maintainer: Object.freeze({ login: maintainer.login, labels: Object.freeze(Object.fromEntries(MAINTAINER_LABELS.map((key) => [key, labels[key]]))) }),
+    maintainer: Object.freeze({
+      login: maintainer.login,
+      labels: Object.freeze(Object.fromEntries(MAINTAINER_LABELS.map((key) => [key, labels[key]]))),
+      app: Object.freeze({ slug: app.slug, id: app.id, installationId: app.installationId }),
+    }),
   });
 }
 

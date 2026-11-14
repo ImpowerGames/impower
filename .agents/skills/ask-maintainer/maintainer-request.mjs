@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readRepos, ticketsRepo } from "../../repos.mjs";
 import { ghClient as dependencyClient } from "../references/record-blockers.mjs";
+import { TOOL_MARK, resolveIdentity, tokenEnv } from "./github-app.mjs";
 
 export const TEMPLATE_FILES = Object.freeze({
   decision: fileURLToPath(new URL("../../templates/issues/maintainer_decision.md", import.meta.url)),
@@ -21,7 +22,11 @@ export const WAIT_MINUTES = Object.freeze({ min: 30, max: 1440, unstated: 120 })
 const PICTURE_TYPES = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 const DATA_MARK = "maintainer-request";
 const DATA_LINE = /^<!-- maintainer-request (\{.*\}) -->$/m;
-const FILED_AS = "Filed by an agent through your GitHub account, so GitHub shows you as the author of this request; an agent wrote it.";
+const FILED_AS = "Filed by an agent through your GitHub account, because the tool's GitHub App could not be used on this machine: GitHub shows you as the author and sends you no alert for it.";
+const POSTED_AS = "Posted by the ask-maintainer tool through your GitHub account, not by you.";
+const AS_MAINTAINER = Object.freeze({ mode: "maintainer", reason: "no App identity was resolved" });
+const signature = (identity, line) => (identity.mode === "app" ? [TOOL_MARK, ""] : [`_${line}_`, "", TOOL_MARK, ""]);
+export const markComment = (text, identity) => `${text.trimEnd()}\n\n${signature(identity, POSTED_AS).join("\n").trimEnd()}\n`;
 const KEYS = {
   decision: ["kind", "question", "tickets", "askedBy", "owner", "parked", "meanwhile", "shortVersion", "background", "showsOnScreen", "options", "comparison", "recommendation", "fallback", "waits", "alwaysWaits"],
   task: ["kind", "action", "tickets", "askedBy", "owner", "why", "steps", "expect", "details", "parked"],
@@ -379,7 +384,7 @@ export function readDataLine(body) {
   }
 }
 
-function decisionBody(checked, { now, timeZone, template }) {
+function decisionBody(checked, { now, timeZone, template, identity }) {
   const [shortHeading, backgroundHeading, optionsHeading, sideHeading, whyHeading] = template.headings;
   const name = (letter) => `${letter} · ${checked.options.find((option) => option.letter === letter).name}`;
   const data = { kind: "decision", options: checked.options.map((option) => option.letter), recommended: checked.recommended };
@@ -408,11 +413,11 @@ function decisionBody(checked, { now, timeZone, template }) {
   }
   lines.push("", `## ${sideHeading}`, "", checked.comparison);
   lines.push("", `## ${whyHeading.replace("<letter>", checked.recommended)}`, "", checked.reason);
-  lines.push("", "---", "", template.answer.replace(/<letter>/g, checked.recommended), "", `_${FILED_AS}_`, "", dataLine(data), "");
+  lines.push("", "---", "", template.answer.replace(/<letter>/g, checked.recommended), "", ...signature(identity, FILED_AS), dataLine(data), "");
   return { body: lines.join("\n"), data };
 }
 
-function taskBody(checked, { template, tag }) {
+function taskBody(checked, { template, tag, identity }) {
   const [doHeading, whyHeading, stepsHeading, expectHeading, holdsHeading] = template.headings;
   const data = { kind: "task", ...(tag ? { tagged: true } : {}), blocks: checked.tickets, owner: checked.owner };
   const parked = checked.parked ?? (checked.tickets.length ? ticketList(checked.tickets) : "Nothing beyond this ticket.");
@@ -422,13 +427,13 @@ function taskBody(checked, { template, tag }) {
   lines.push("", `## ${stepsHeading}`, "", ...checked.steps.map((step, index) => `${index + 1}. ${step}`));
   lines.push("", `## ${expectHeading}`, "", checked.expect.length ? renderContent(checked.expect) : "Nothing to check beyond the steps.");
   lines.push("", `## ${holdsHeading}`, "", `- **Parked until it's done:** ${parked}`, `- **Asked by:** ${checked.askedBy}`);
-  lines.push("", "---", "", template.answer, "", `_${FILED_AS}_`, "", dataLine(data), "");
+  lines.push("", "---", "", template.answer, "", ...signature(identity, tag ? POSTED_AS : FILED_AS), dataLine(data), "");
   return { body: lines.join("\n"), data };
 }
 
-export function buildRequest(checked, { now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates = {}, tag = false } = {}) {
+export function buildRequest(checked, { now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates = {}, tag = false, identity = AS_MAINTAINER } = {}) {
   const template = templates[checked.kind] ?? readTemplate(checked.kind);
-  const built = checked.kind === "decision" ? decisionBody(checked, { now, timeZone, template }) : taskBody(checked, { template, tag });
+  const built = checked.kind === "decision" ? decisionBody(checked, { now, timeZone, template, identity }) : taskBody(checked, { template, tag, identity });
   return { title: requestTitle(checked), ...built, pictures: picturesOf(checked) };
 }
 
@@ -508,7 +513,9 @@ export function findDuplicate(checked, openIssues, { before = Infinity } = {}) {
   return earliest;
 }
 
-export function ghTracker(repo = ticketsRepo(), run = (args, options = {}) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 50 * 1024 * 1024, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], ...options })) {
+export function ghTracker(repo = ticketsRepo(), runGh = (args, options = {}) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 50 * 1024 * 1024, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], ...options }), identity = AS_MAINTAINER) {
+  const env = tokenEnv(identity);
+  const run = env ? (args, options = {}) => runGh(args, { ...options, env }) : runGh;
   const json = (args) => JSON.parse(run(args) || "null");
   const dependencies = dependencyClient(repo, (args) => run(args));
   return {
@@ -671,16 +678,16 @@ function unlinkSteps(tracker, attempted, blocker) {
   return attempted.map((ticket) => [`removed the dependency of #${ticket} on #${blocker.number}`, () => tracker.removeBlockedBy(ticket, blocker.id)]);
 }
 
-function withdraw(tracker, { number, id, attempted }, problems, scratch, hint = "Correct the cause and file the request again.") {
+function withdraw(tracker, { number, id, attempted }, problems, scratch, hint = "Correct the cause and file the request again.", identity = AS_MAINTAINER) {
   const file = path.join(scratch, "withdraw.md");
-  writeFileSync(file, `Withdrawn by the ask-maintainer tool: filing did not finish, so this request is incomplete and nothing waits on it.\n\n${bullets(problems)}\n`);
+  writeFileSync(file, markComment(`Withdrawn by the ask-maintainer tool: filing did not finish, so this request is incomplete and nothing waits on it.\n\n${bullets(problems)}`, identity));
   const result = undo([...unlinkSteps(tracker, attempted, { number, id }), [`closed #${number} as not planned`, () => tracker.close(number, "not_planned", file)]]);
   return new Error(`Filing ${tracker.repo}#${number} failed:\n${bullets(problems)}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\n${hint}`);
 }
 
-export function fileRequest(request, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone, templates, dryRun = false }) {
+export function fileRequest(request, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone, templates, dryRun = false, identity = AS_MAINTAINER }) {
   const checked = validateRequest(request, { pictures: folderPictures(folder) });
-  const built = buildRequest(checked, { now, timeZone, templates });
+  const built = buildRequest(checked, { now, timeZone, templates, identity });
   const label = checked.kind === "decision" ? repos.maintainer.labels.decision : repos.maintainer.labels.task;
   const duplicate = findDuplicate(checked, tracker.open(label));
   if (duplicate) throw new RequestRefused([`An open request already asks this about the same ticket: #${duplicate.number} ${duplicate.title} (${duplicate.html_url})`]);
@@ -714,14 +721,14 @@ export function fileRequest(request, { pictures: folder, tracker, repos = readRe
       return { number: filed.number, url: verified.issue.html_url, title: built.title, data: built.data, blocked: checked.tickets, pictures: placed.urls.length };
     } catch (error) {
       if (filed.number === null) throw error;
-      throw withdraw(tracker, filed, problemsOf(error), scratch, error.hint);
+      throw withdraw(tracker, filed, problemsOf(error), scratch, error.hint, identity);
     }
   });
 }
 
-export function tagTicket(number, request, { pictures: folder, tracker, repos = readRepos(), templates }) {
+export function tagTicket(number, request, { pictures: folder, tracker, repos = readRepos(), templates, identity = AS_MAINTAINER }) {
   const checked = validateRequest(request, { pictures: folderPictures(folder), tag: true });
-  const built = buildRequest(checked, { templates, tag: true });
+  const built = buildRequest(checked, { templates, tag: true, identity });
   const label = repos.maintainer.labels.task;
   const login = repos.maintainer.login;
   const ticket = tracker.issue(number);
@@ -823,6 +830,7 @@ const USAGE = `Usage:
   node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<pictures-folder>] [--dry-run]
   node .agents/skills/ask-maintainer/maintainer-request.mjs tag <ticket> <task.json> [<pictures-folder>]
   node .agents/skills/ask-maintainer/maintainer-request.mjs list [--json]
+  node .agents/skills/ask-maintainer/maintainer-request.mjs identity
 The pictures folder defaults to the request file's folder.`;
 
 function readRequest(file) {
@@ -833,25 +841,29 @@ function readRequest(file) {
   }
 }
 
-export function main(argv, { tracker = ghTracker(), repos = readRepos(), out = console.log, now = new Date() } = {}) {
+function filedBy(identity) {
+  return identity.mode === "app" ? `as the GitHub App ${identity.login}.` : `through the maintainer's own account, so GitHub sends them no alert: ${identity.reason}.`;
+}
+
+export function main(argv, { repos = readRepos(), identity = AS_MAINTAINER, tracker = ghTracker(ticketsRepo(repos), undefined, identity), out = console.log, now = new Date() } = {}) {
   const [command, ...rest] = argv;
   const flags = rest.filter((arg) => arg.startsWith("--"));
   const args = rest.filter((arg) => !arg.startsWith("--"));
   if (command === "file" && args.length >= 1 && args.length <= 2 && flags.every((flag) => flag === "--dry-run")) {
     const file = path.resolve(args[0]);
-    const result = fileRequest(readRequest(file), { pictures: path.resolve(args[1] ?? path.dirname(file)), tracker, repos, now, dryRun: flags.includes("--dry-run") });
+    const result = fileRequest(readRequest(file), { pictures: path.resolve(args[1] ?? path.dirname(file)), tracker, repos, now, dryRun: flags.includes("--dry-run"), identity });
     if (result.dryRun) {
       out(`Dry run: the request is complete and no open request duplicates it. Title:\n${result.title}\n\n${result.body}`);
       return 0;
     }
     const fallback = result.data.fallback ? `falls back at ${describeTime(new Date(result.data.fallback.at), now, Intl.DateTimeFormat().resolvedOptions().timeZone)} (${result.data.fallback.at}) to ${result.data.fallback.option}` : result.data.waits ? "waits for the maintainer, with no fallback" : "a task, with no clock";
-    out(`Filed #${result.number}: ${result.url}\n${fallback}; blocks ${result.blocked.map((n) => `#${n}`).join(", ")}; ${result.pictures} picture(s) hosted and in place.\nFiled through the maintainer's own account until the helper identity exists.`);
+    out(`Filed #${result.number}: ${result.url}\n${fallback}; blocks ${result.blocked.map((n) => `#${n}`).join(", ")}; ${result.pictures} picture(s) hosted and in place.\nFiled ${filedBy(identity)}`);
     return 0;
   }
   if (command === "tag" && args.length >= 2 && args.length <= 3 && !flags.length && /^#?[1-9]\d*$/.test(args[0])) {
     const file = path.resolve(args[1]);
-    const result = tagTicket(Number(args[0].replace(/^#/, "")), readRequest(file), { pictures: path.resolve(args[2] ?? path.dirname(file)), tracker, repos });
-    out(`Tagged #${result.number} as a maintainer task: ${result.url} (comment ${result.comment}, ${result.pictures} picture(s)); blocks ${result.blocked.length ? result.blocked.map((n) => `#${n}`).join(", ") : "no other ticket"}; no issue was created.`);
+    const result = tagTicket(Number(args[0].replace(/^#/, "")), readRequest(file), { pictures: path.resolve(args[2] ?? path.dirname(file)), tracker, repos, identity });
+    out(`Tagged #${result.number} as a maintainer task: ${result.url} (comment ${result.comment}, ${result.pictures} picture(s)); blocks ${result.blocked.length ? result.blocked.map((n) => `#${n}`).join(", ") : "no other ticket"}; no issue was created.\nTagged ${filedBy(identity)}`);
     return 0;
   }
   if (command === "list" && !args.length && flags.every((flag) => flag === "--json")) {
@@ -862,13 +874,19 @@ export function main(argv, { tracker = ghTracker(), repos = readRepos(), out = c
     } else out(formatList(groups, { now }));
     return 0;
   }
+  if (command === "identity" && !rest.length) {
+    out(`Acting ${filedBy(identity)}`);
+    return 0;
+  }
   console.error(USAGE);
   return 2;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   try {
-    process.exitCode = main(process.argv.slice(2));
+    const repos = readRepos();
+    const identity = await resolveIdentity({ repo: ticketsRepo(repos), app: repos.maintainer.app });
+    process.exitCode = main(process.argv.slice(2), { repos, identity });
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
