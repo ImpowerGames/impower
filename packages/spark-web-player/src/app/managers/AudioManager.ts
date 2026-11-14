@@ -353,7 +353,7 @@ export default class AudioManager extends Manager {
     }
     if (update.control === "start") {
       const instance = audioPlayer.start(when, over, gain, at);
-      if (this._playersPaused) {
+      if (this._playersPaused && this.app.previewing) {
         audioPlayer.pause(currentTime);
       }
       this.clipStarted(channel, instance);

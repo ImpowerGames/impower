@@ -164,8 +164,32 @@ describe("Play audio in the stopped preview (#2258)", () => {
 
     const shots = oneShots(audio).length;
     await select(h, SECOND);
+    expect(oneShots(audio).filter((s) => s.sounding)).toEqual([]);
+    expect(theme!.sounding).toBe(true);
     await select(h, VOICED);
     expect(oneShots(audio)).toHaveLength(shots);
+  }, 120_000);
+
+  it("stops a played beat's voice clip and typing blips when the caret moves on mid-beat, and keeps the music", async () => {
+    const audio = createStandInAudio();
+    const h = await previewAt(FIRST, audio);
+    await setPlayAudio(h, true);
+    await select(h, VOICED);
+    const [theme] = audio.sourcesOf(THEME);
+    await h.controller.playBeat();
+    await settle(40);
+    for (let i = 0; i < 4; i += 1) {
+      await h.tick(100);
+      await settle(5);
+    }
+    expect(playing(h)).toBe(true);
+    expect(audio.sourcesOf(VOICE).some((s) => s.sounding)).toBe(true);
+    expect(blips(audio).some((s) => s.sounding)).toBe(true);
+    await select(h, SECOND);
+    expect(playing(h)).toBe(false);
+    expect(oneShots(audio).filter((s) => s.sounding)).toEqual([]);
+    expect(audio.sourcesOf(THEME)).toEqual([theme]);
+    expect(theme!.sounding).toBe(true);
   }, 120_000);
 
   it("schedules nothing with the preference off, on caret moves and on a played beat", async () => {
