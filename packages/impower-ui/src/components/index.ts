@@ -41,6 +41,8 @@ export {
   DropdownTrigger,
   DropdownSeparator,
   DropdownContent,
+  dropdownContentVariants,
+  type DropdownContentFit,
   DropdownItem,
   DropdownItemText,
   DropdownCheckboxItem,

@@ -54,6 +54,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "panelCardRowVariants",
   "disclosureSummaryVariants",
   "disclosureVariants",
+  "dropdownContentVariants",
   "dropdownLabelVariants",
   "dropdownRadioItemVariants",
   "HOLD_REPEAT_DELAY_MS",

@@ -146,10 +146,7 @@ export function DropdownRoot({
       <DropdownMenuPrimitive.Root
         open={openProp}
         defaultOpen={defaultOpen}
-        onOpenChange={(next: boolean) => {
-          opening(next);
-          onOpenChange?.(next);
-        }}
+        onOpenChange={setOpen}
         modal={modal}
       >
         {children}
@@ -196,12 +193,42 @@ export function DropdownTrigger({
   );
 }
 
-const dropdownContent = cva([
-  "z-50 min-w-[120px] overflow-y-auto overscroll-contain rounded-card",
-  "bg-popup p-1.5 text-ink shadow-float ring-1 ring-edge",
-  "origin-[--radix-dropdown-menu-content-transform-origin]",
-  "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
-]);
+export const dropdownContentVariants = cva(
+  [
+    "z-50 min-w-[120px] overflow-y-auto overscroll-contain rounded-card",
+    "bg-popup p-1.5 text-ink shadow-float ring-1 ring-edge",
+    "origin-[--radix-dropdown-menu-content-transform-origin]",
+    "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
+  ],
+  {
+    variants: {
+      fit: {
+        free: "",
+        room: "max-h-[var(--radix-dropdown-menu-content-available-height)]",
+      },
+    },
+    defaultVariants: { fit: "free" },
+  },
+);
+
+export type DropdownContentFit = NonNullable<
+  VariantProps<typeof dropdownContentVariants>["fit"]
+>;
+
+const CLEAR_GAP = 6;
+const EDGE_GAP = 12;
+
+function clearOf(element: HTMLElement | null | undefined) {
+  if (!element) {
+    return undefined;
+  }
+  return {
+    top: Math.max(EDGE_GAP, element.getBoundingClientRect().bottom + CLEAR_GAP),
+    bottom: EDGE_GAP,
+    left: EDGE_GAP,
+    right: EDGE_GAP,
+  };
+}
 
 function SheetMenu({
   open,
@@ -247,6 +274,7 @@ export function DropdownContent({
   class: className,
   sideOffset = 8,
   align = "end",
+  keepClear,
   onCloseAutoFocus,
   children,
   ...rest
@@ -255,6 +283,7 @@ export function DropdownContent({
   sideOffset?: number;
   align?: "start" | "center" | "end";
   side?: "top" | "right" | "bottom" | "left";
+  keepClear?: RefObject<HTMLElement | null>;
   onCloseAutoFocus?: (event: Event) => void;
   children?: ComponentChildren;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">) {
@@ -281,13 +310,18 @@ export function DropdownContent({
       </SheetMenu>
     );
   }
+  const clear = ctx.open ? clearOf(keepClear?.current) : undefined;
   return (
     <DropdownMenuPrimitive.Portal container={portalContainer()}>
       <DropdownMenuPrimitive.Content
         ref={owner}
         sideOffset={sideOffset}
         align={align}
-        class={cn(dropdownContent(), className)}
+        {...(clear ? { collisionPadding: clear } : {})}
+        class={cn(
+          dropdownContentVariants({ fit: keepClear ? "room" : "free" }),
+          className,
+        )}
         onCloseAutoFocus={(event: Event) => {
           if (!ctx.returnsFocus.current) {
             event.preventDefault();
