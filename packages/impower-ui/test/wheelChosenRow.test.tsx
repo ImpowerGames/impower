@@ -17,19 +17,22 @@ const KEYFRAMES_RULE = 7;
 interface StyleRule {
   selector: string;
   style: CSSStyleDeclaration;
+  media: string;
 }
 
-const collectRules = (rules: CSSRuleList, out: StyleRule[] = []): StyleRule[] => {
+const collectRules = (rules: CSSRuleList, out: StyleRule[] = [], media = ""): StyleRule[] => {
   for (const rule of Array.from(rules)) {
     if (rule instanceof CSSStyleRule) {
-      out.push({ selector: rule.selectorText, style: rule.style });
+      out.push({ selector: rule.selectorText, style: rule.style, media });
     } else if (rule.type === KEYFRAMES_RULE) {
       const keyframes = rule as CSSKeyframesRule;
       for (const frame of Array.from(keyframes.cssRules) as CSSKeyframeRule[]) {
-        out.push({ selector: `@keyframes ${keyframes.name} ${frame.keyText}`, style: frame.style });
+        out.push({ selector: `@keyframes ${keyframes.name} ${frame.keyText}`, style: frame.style, media });
       }
+    } else if (rule instanceof CSSMediaRule) {
+      collectRules(rule.cssRules, out, `${media} ${rule.media.mediaText}`.trim());
     } else if ("cssRules" in rule) {
-      collectRules((rule as CSSGroupingRule).cssRules, out);
+      collectRules((rule as CSSGroupingRule).cssRules, out, media);
     }
   }
   return out;
@@ -70,11 +73,14 @@ const declared = (element: Element, property: string) =>
     .filter(({ selector, style }) => style.getPropertyValue(property) !== "" && matches(element, selector))
     .map(({ style }) => style.getPropertyValue(property));
 
-const declaredWhen = (element: Element, property: string, state: RegExp) =>
+const FORCED = /forced-colors:\s*active/;
+
+const declaredWhen = (element: Element, property: string, state: RegExp, forced = false) =>
   rules
     .filter(
-      ({ selector, style }) =>
+      ({ selector, style, media }) =>
         state.test(selector) &&
+        FORCED.test(media) === forced &&
         style.getPropertyValue(property) !== "" &&
         Array.from(element.classList).some((name) => startsWithClass(selector, name)),
     )
@@ -113,7 +119,7 @@ describe("the wheel's chosen row", () => {
 
   it("turns its ring solid accent while the wheel has keyboard focus", () => {
     const solid = declaredWhen(band()!, "outline-color", /\.peer\)?:focus-visible/);
-    expect(solid).toContain("var(--accent)");
+    expect(solid).toEqual(["var(--accent)"]);
   });
 
   it("is not painted on the scrolling wheel itself", () => {
@@ -145,7 +151,7 @@ describe("the wheel's chosen row", () => {
   });
 
   it("rings the band in the system highlight while the wheel has focus in forced colours", () => {
-    expect(declaredWhen(band()!, "outline-color", /\.peer\)?:focus-visible/)).toContain("highlight");
+    expect(declaredWhen(band()!, "outline-color", /\.peer\)?:focus-visible/, true)).toEqual(["highlight"]);
   });
 
   it("styles the scrolling wheel itself with the caller's class", () => {
