@@ -97,6 +97,47 @@ describe("the speaker a cue names with `as` in the editor (#2283)", () => {
     expect(characterLabels(at.labels)).toEqual(["bunny", "raffles"]);
   });
 
+  const AT_PART_SOURCE = `define raffles@shy as character with\nend\n\n${SOURCE}`;
+
+  test.each([
+    ["a speaker with an `@` part", "  ??? as raffles@s@1:\n", "  ??? as raffles@s"],
+    ["a speaker ending in `@`", "  ??? as raffles@@1:\n", "  ??? as raffles@"],
+  ])("completion after `as` on a cue offers a define name with an `@` part for %s and replaces the whole word", (_label, cue, typed) => {
+    const marked = AT_PART_SOURCE.replace("  ??? as raffles:\n", cue);
+    const at = complete(marked, { program: compileProject(AT_PART_SOURCE) });
+    const item = at.items.find((i) => i.label === "raffles@shy") as any;
+    expect(item?.textEdit?.newText).toBe("raffles@shy");
+    const line = marked.split("\n").findIndex((l) => l.includes("@1"));
+    expect(item.textEdit.range).toEqual({
+      start: { line, character: "  ??? as ".length },
+      end: { line, character: typed.length },
+    });
+  });
+
+  test.each([
+    ["`@`", "  ??? as raffles@@1:\n", "@"],
+    ["`@s`", "  ??? as raffles@s@1:\n", undefined],
+  ])("completion after typing %s onto a cue's speaker offers the define name and replaces the whole word", (_label, cue, trigger) => {
+    const marked = AT_PART_SOURCE.replace("  ??? as raffles:\n", cue);
+    const at = complete(marked, { program: compileProject(AT_PART_SOURCE), editedFrom: AT_PART_SOURCE, trigger });
+    const item = at.items.find((i) => i.label === "raffles@shy") as any;
+    expect(item?.textEdit?.newText).toBe("raffles@shy");
+    expect(item.textEdit.range.start.character).toBe("  ??? as ".length);
+  });
+
+  test("completion after `as` on a cue being typed offers a define name with an `@` part", () => {
+    const at = complete(AT_PART_SOURCE.replace("  ??? as raffles:\n", "  ??? as raffles@s@1\n"), {
+      program: compileProject(AT_PART_SOURCE),
+    });
+    expect(at.labels).toContain("raffles@shy");
+  });
+
+  test("completion after `as` on a cue offers the define names when the cue's spaces are not plain spaces", () => {
+    const program = compileProject(SOURCE);
+    const at = complete(SOURCE.replace("  ??? as raffles:\n", "  ??? as r@1:\n"), { program });
+    expect(characterLabels(at.labels)).toEqual(["bunny", "raffles"]);
+  });
+
   test("a line of prose ending in `as` and a word is offered no character define names", () => {
     const program = compileProject(SOURCE);
     const at = complete(SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  He looked as r@1\n"), { program });

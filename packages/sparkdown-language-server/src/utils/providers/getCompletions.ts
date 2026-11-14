@@ -34,6 +34,7 @@ import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
 import { DIRECTIVE_CLOSERS, readDirective, type DirectiveReading } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import { shownNameBeforeSpeaker } from "@impower/sparkdown/src/compiler/utils/readCue";
 import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -435,13 +436,6 @@ const addCharacterCompletions = (
   }
 };
 
-const SPEAKER_BEING_TYPED = /\S[ \t]+as[ \t]+[a-zA-Z0-9_]*$/;
-
-const shownBeforeSpeaker = (text: string) => {
-  const match = SPEAKER_BEING_TYPED.exec(text);
-  return match ? text.slice(0, match.index + 1) : undefined;
-};
-
 const addSpeakerCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
@@ -458,17 +452,16 @@ const addSpeakerCompletions = (
   }
 };
 
-const cueBeingTyped = (text: string | undefined, program: SparkProgram | undefined) =>
-  text !== undefined &&
-  (!/\p{Ll}/u.test(text) ||
-    Object.entries<any>(program?.context?.["character"] || {}).some(
-      ([name, character]) =>
-        !name.startsWith("$") &&
-        (name === text ||
-          character?.name === text ||
-          (Array.isArray(character?.aliases) &&
-            character.aliases.includes(text))),
-    ));
+const cueBeingTyped = (text: string, program: SparkProgram | undefined) =>
+  !/\p{Ll}/u.test(text) ||
+  Object.entries<any>(program?.context?.["character"] || {}).some(
+    ([name, character]) =>
+      !name.startsWith("$") &&
+      (name === text ||
+        character?.name === text ||
+        (Array.isArray(character?.aliases) &&
+          character.aliases.includes(text))),
+  );
 
 const addTriggeredKeywordCompletions = (
   completions: Map<string, CompletionItem>,
@@ -1718,9 +1711,9 @@ const completionsAt = (
       );
     if (
       dialogueCharacterNode &&
-      SPEAKER_BEING_TYPED.test(
+      shownNameBeforeSpeaker(
         read(dialogueCharacterNode.from, documentCursorOffset),
-      )
+      ) !== undefined
     ) {
       addSpeakerCompletions(completions, program);
     } else if (isCursorAfterNodeText(dialogueCharacterNode)) {
@@ -2592,6 +2585,7 @@ const completionsAt = (
     ) {
       const contentNode = leftStack.find((n) => n.name === "ImplicitAction");
       const text = getNodeText(contentNode).trimStart();
+      const shown = shownNameBeforeSpeaker(text);
       if (isCursorAfterNodeText(contentNode)) {
         if (text === "@") {
           addScreenElementReferenceCompletions(
@@ -2607,7 +2601,7 @@ const completionsAt = (
           addSnippet(completions, "heading", "$:", ": ");
         } else if (text === "%") {
           addSnippet(completions, "transitional", "%:", ": ");
-        } else if (cueBeingTyped(shownBeforeSpeaker(text), program)) {
+        } else if (shown !== undefined && cueBeingTyped(shown, program)) {
           addSpeakerCompletions(completions, program, ": ");
         } else {
           addCharacterCompletions(
