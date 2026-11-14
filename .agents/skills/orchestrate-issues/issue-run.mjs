@@ -14,6 +14,7 @@ import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { liveDeps, removeJobDir, usersOf } from "../clean-worktrees/clean-worktrees.mjs";
 import { readRepos, reviewThread, ticketsRepo } from "../../repos.mjs";
 import { ACCOUNT_PULL_METADATA_QUERY, requestAccountPullMetadata } from "../../hooks/typed-issue-hook.mjs";
+import { fallbackCommitted } from "../ask-maintainer/maintainer-request.mjs";
 import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
 import { runParallel } from "./gh-parallel.mjs";
 
@@ -582,6 +583,7 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   const reads = {
     subIssues: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/sub_issues`]), parse: pagesOf },
     blockedBy: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/dependencies/blocked_by`]), parse: pagesOf },
+    timeline: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/timeline`]), parse: pagesOf },
     fields: {
       args: (n) => pagesArgs(["-H", "X-GitHub-Api-Version: 2026-03-10", `repos/${tickets}/issues/${n}/issue-field-values`]),
       parse: (out) => { const values = pagesOf(out); const option = (name) => values.find((v) => v.issue_field_name === name)?.single_select_option?.name ?? null; return { effort: option("Effort"), priority: option("Priority") }; },
@@ -658,6 +660,7 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   return {
     issue: (n) => JSON.parse(run("gh", ["api", `repos/${tickets}/issues/${n}`])),
     subIssues: (n) => read("subIssues", n),
+    timeline: (n) => read("timeline", n),
     blockedBy: (n) => read("blockedBy", n),
     fields: (n) => read("fields", n),
     prefetch,
@@ -892,7 +895,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     return {
       ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
-      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "open" && wentAhead(b) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
+      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });

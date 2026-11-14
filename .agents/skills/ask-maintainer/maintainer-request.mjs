@@ -923,6 +923,11 @@ function fallbackOf(issue, items, notes, data, tagged, who, label) {
   return valid ? { fellBack: candidate, unfinished: null } : { fellBack: null, unfinished: candidate };
 }
 
+export function fallbackCommitted(issue, timeline, repos = readRepos()) {
+  if (issue.state !== "open" || !labelNames(issue).includes(repos.maintainer.labels.decidedWithoutYou) || !readDataLine(issue.body)) return false;
+  return Boolean(readAnswer(issue, timeline, repos).wentAhead);
+}
+
 export function readAnswer(issue, timeline, repos = readRepos()) {
   const who = whoOf(repos);
   const items = timeline.map((item, pos) => ({ ...item, pos }));
@@ -1254,7 +1259,7 @@ export function fallbackRequest(number, owner, doing, { tracker, repos = readRep
     recommended: answer.recommended ? optionLabel({ option: answer.recommended.letter, name: answer.recommended.name }) : null,
   };
   return withScratch((scratch) => {
-    const done = { note: null, labelled: false, records: [] };
+    const done = { note: null, labelled: false, records: [], keepNote: false };
     try {
       const note = postNote(tracker, number, toolText(fallbackComment(going), { kind: "fallback", option: going.option, name: going.name, owner: going.owner, at: going.at, fallbackAt: going.fallbackAt }, identity), scratch, "fallback", (id) => (done.note = id));
       const recordText = toolText(fallbackRecordBody(going), { kind: "fallback-record", request: number, option: going.option, fallbackAt: going.fallbackAt }, identity);
@@ -1263,12 +1268,15 @@ export function fallbackRequest(number, owner, doing, { tracker, repos = readRep
       tracker.addLabel(number, label);
       const back = tracker.issue(number);
       const after = readAnswer(back, tracker.timeline(number), repos);
-      if (after.state !== "went-ahead" || after.wentAhead?.url !== note.url) throw new FilingProblems([`#${number} changed while going ahead: it now reads ${after.state}${after.words.length ? `, with the maintainer's comment ${after.words.at(-1).url}` : ""}; read it again before acting`]);
-      return { number, url: back.html_url, option: going.option, name, note, records, label, cleared };
+      if (after.wentAhead?.url !== note.url) {
+        done.keepNote = back.state === "closed";
+        throw new FilingProblems([`#${number} changed while going ahead: it now reads ${after.state}${after.words.length ? `, with the maintainer's comment ${after.words.at(-1).url}` : ""}${done.keepNote ? "; the note stays, since the maintainer closed the request after it was posted" : ""}; read it again before acting`]);
+      }
+      return { number, url: back.html_url, option: going.option, name, note, records, label, cleared, state: after.state };
     } catch (error) {
       const steps = done.records.map(([ticket, id]) => [`deleted the fallback record ${id} on #${ticket}`, () => tracker.deleteComment(id)]);
       if (done.labelled) steps.push([`removed the label ${label}`, () => tracker.removeLabel(number, label)]);
-      if (done.note !== null) steps.push([`deleted the fallback note ${done.note}`, () => tracker.deleteComment(done.note)]);
+      if (done.note !== null && !done.keepNote) steps.push([`deleted the fallback note ${done.note}`, () => tracker.deleteComment(done.note)]);
       const result = undo(steps);
       throw new Error(`Going ahead on ${tracker.repo}#${number} failed:\n${bullets(problemsOf(error))}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\nCorrect the cause and run fallback again.`);
     }
@@ -1420,7 +1428,7 @@ function answerCommands(command, args, flags, { tracker, repos, out, now, identi
   }
   if (command === "fallback" && number && args.length === 3 && !flags.length) {
     const result = fallbackRequest(number, args[1], readText(path.resolve(args[2]), "what-it-is-doing"), { tracker, repos, now, identity });
-    out(`Went ahead on #${number} with ${optionLabel(result)}: ${result.note.url}\nLabelled "${result.label}"; the request stays open for the maintainer to keep or change.\nRecorded: ${result.records.length ? result.records.map((r) => `#${r.ticket} ${r.url}`).join("; ") : "no other ticket waits on this request"}.`);
+    out(`Went ahead on #${number} with ${optionLabel(result)}: ${result.note.url}\nLabelled "${result.label}"; ${result.state === "went-ahead" ? "the request stays open for the maintainer to keep or change" : `the maintainer has already answered it (${result.state}); read and record it`}.\nRecorded: ${result.records.length ? result.records.map((r) => `#${r.ticket} ${r.url}`).join("; ") : "no other ticket waits on this request"}.`);
     return 0;
   }
   const interval = flags.find((flag) => flag.startsWith("--interval="));
