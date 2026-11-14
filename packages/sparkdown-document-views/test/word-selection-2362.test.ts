@@ -78,6 +78,18 @@ describe("double-click just inside a bracket pair or a quoted string selects its
     expect(actual).toEqual(measured.map((entry) => `${label(entry)} -> ${JSON.stringify(entry.selected)}`));
   });
 
+  it.each([
+    { text: "{mia@night", where: "an unclosed {" },
+    { text: "{mia@night]", where: "a { closed by ]" },
+    { text: "{mia@night)", where: "a { closed by )" },
+  ])("selects the word right after $where", ({ text }) => {
+    expect(doubleClickAt(parsedEditor([text]), [text], [0, 0], 1)).toBe("mia");
+  });
+
+  it("selects the word right after the opening quote of an unterminated string", () => {
+    expect(doubleClickAt(parsedEditor(['x = "hi there']), ['x = "hi there'], [0, 4], 1)).toBe("hi");
+  });
+
   it("extends from the caret by a word, not to the contents, with Shift held", () => {
     expect(doubleClickAt(parsedEditor(["{mia@night}"]), ["{mia@night}"], [0, 1], 0, { caret: 0, shiftKey: true })).toBe("{mia");
   });
