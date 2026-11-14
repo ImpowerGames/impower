@@ -17,7 +17,7 @@ const SAME_LINE_TEXT_SEPARATORS = new Set([
 
 const TEXT_UNPRINTED = new Set(["Glue", "SparkdownBlockComment", "Divert"]);
 
-const CHOICE_UNPRINTED =new Set(["SparkdownBlockComment", "SparkdownInlineComment", "Divert"]);
+const CHOICE_UNPRINTED = new Set(["SparkdownBlockComment", "SparkdownInlineComment", "Divert", "Tags", "Tag"]);
 
 const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
 
