@@ -14,6 +14,7 @@ import {
   type MutableRef,
   useCallback,
   useContext,
+  useMemo,
   useRef,
   useState,
 } from "preact/hooks";
@@ -205,7 +206,7 @@ export const dropdownContentVariants = cva(
     variants: {
       fit: {
         free: "",
-        room: "min-h-14 max-h-[var(--radix-dropdown-menu-content-available-height)]",
+        room: "max-h-[var(--radix-dropdown-menu-content-available-height)]",
       },
     },
     defaultVariants: { fit: "free" },
@@ -217,13 +218,41 @@ export type DropdownContentFit = NonNullable<
 >;
 
 const EDGE_GAP = 12;
+const ROW = 44;
 
-const clearOf = (line: number) => ({
-  top: Math.max(EDGE_GAP, line),
-  bottom: EDGE_GAP,
-  left: EDGE_GAP,
-  right: EDGE_GAP,
-});
+const leastHeight = (menu: HTMLElement | null) => {
+  if (!menu) {
+    return ROW + 12;
+  }
+  const style = getComputedStyle(menu);
+  const chrome = ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"].reduce(
+    (sum, side) => sum + (parseFloat(style[side as keyof CSSStyleDeclaration] as string) || 0),
+    0,
+  );
+  const row = menu.querySelector('[role^="menuitem"]')?.getBoundingClientRect().height || ROW;
+  return chrome + row;
+};
+
+const clearOf = (
+  line: number,
+  trigger: HTMLElement | null,
+  menu: HTMLElement | null,
+  sideOffset: number,
+) => {
+  const top = Math.max(EDGE_GAP, line);
+  const padding = { top, bottom: EDGE_GAP, left: EDGE_GAP, right: EDGE_GAP };
+  if (!trigger) {
+    return padding;
+  }
+  const least = leastHeight(menu);
+  const at = trigger.getBoundingClientRect();
+  const below = window.innerHeight - EDGE_GAP - at.bottom - sideOffset;
+  const above = at.top - sideOffset - top;
+  if (Math.max(below, above) >= least) {
+    return padding;
+  }
+  return { ...padding, top: Math.max(EDGE_GAP, at.top - sideOffset - least) };
+};
 
 function SheetMenu({
   open,
@@ -283,12 +312,22 @@ export function DropdownContent({
   children?: ComponentChildren;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">) {
   const ctx = useMenuCtx();
+  const [menu, setMenu] = useState<HTMLElement | null>(null);
+  const menuRef = useMemo(() => ({ current: menu }), [menu]);
   const owner = (element: HTMLElement | null) => {
     if (element) {
       registerFocusReturn(element, () => ctx.trigger.current);
+      if (keepClear && element !== menu) {
+        setMenu(element);
+      }
     }
   };
-  const clear = useClearLine(keepClear, ctx.mode === "menu" && ctx.open, clearOf);
+  const clear = useClearLine(
+    keepClear,
+    ctx.mode === "menu" && ctx.open,
+    (line) => clearOf(line, ctx.trigger.current, menu, sideOffset),
+    menuRef,
+  );
   if (ctx.handingOff) {
     return null;
   }
