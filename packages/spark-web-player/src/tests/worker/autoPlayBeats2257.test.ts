@@ -190,12 +190,25 @@ describe("Auto-play beats in the stopped preview (#2257)", () => {
       },
     ]);
     await selectWithEdit(h, WAITING, 10);
+    await rest(h);
+    expect(plays(h)).toBe(0);
     await h.compile();
     await settle(40);
     expect(shownText(h)).toContain("HelloX");
     await rest(h);
     expect(plays(h)).toBe(0);
     expect(playing(h)).toBe(false);
+    await h.select(WAITING);
+    await rest(h);
+    expect(plays(h)).toBe(0);
+  }, 120_000);
+
+  it("plays nothing for a selection that comes with a text change, even when it shows a different beat", async () => {
+    const h = await previewAt(FIRST);
+    await selectWithEdit(h, WAITING, 0);
+    await rest(h);
+    expect(shownText(h)).toContain("there.");
+    expect(plays(h)).toBe(0);
     await h.select(WAITING);
     await rest(h);
     expect(plays(h)).toBe(0);
