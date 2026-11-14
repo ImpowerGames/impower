@@ -128,6 +128,42 @@ describe.each([
   });
 });
 
+const NESTED = `scene start
+  choose
+    Outer?
+    * Outer one
+      choose
+        Inner?
+        * [Inner A]
+        * [Inner B]
+      end
+      Back in outer one.
+    * [Outer two]
+  end
+  After.
+end
+`;
+
+describe("the preview address of a choose block inside an option's body", () => {
+  const root = rootOf(NESTED);
+  const outer = shown(root, 2);
+  const inner = shown(root, 5);
+
+  it("gives each block's choose line and end its own menu", () => {
+    expect(outer).toBeDefined();
+    expect(inner).toBeDefined();
+    expect(inner).not.toBe(outer);
+    expect(shown(root, 4)).toBe(inner);
+    expect(shown(root, 8)).toBe(inner);
+    expect(shown(root, 1)).toBe(outer);
+    expect(shown(root, 11)).toBe(outer);
+  });
+
+  it("leaves the line after the inner block its own beat", () => {
+    expect(shown(root, 9)).toBe(started(root, 9));
+  });
+});
+
 describe("the preview address of a block's end after an edit", () => {
   it("follows the block's end when lines are added above and inside it", () => {
     const session = programSession(GATED.replace("  After.", "\n  After."));

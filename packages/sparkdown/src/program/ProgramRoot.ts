@@ -756,9 +756,12 @@ export class ProgramRoot {
       return undefined;
     }
     const top = this.lineOf(sequence, entry);
-    const end = top + chunk[HEADER_WORDS + offer + 1]!;
+    const blocks = blockCount(chunk);
+    const end =
+      (blocks > 0 ? this.blockEndLine(sequence, entry, blocks - 1) : top) +
+      chunk[HEADER_WORDS + offer + 1]!;
     let then = end;
-    for (let k = 0; k < blockCount(chunk); k += 1) {
+    for (let k = 0; k < blocks; k += 1) {
       const body = this.body(chunk, k);
       if (body && blockFlags(chunk, k) & BLOCK_THEN) {
         then = Math.min(then, this.firstLineOf(body) - blockField(chunk, k, B_HEAD_LINES));
