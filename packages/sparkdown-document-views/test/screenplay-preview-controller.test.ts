@@ -89,13 +89,13 @@ describe("screenplay preview position", () => {
   it("lights the block the editor caret moves to, whether the author or play moved it", async () => {
     const { view } = await mount();
     caretAt(2);
-    expect(litText(view)).toBe("Second beat.");
+    await vi.waitFor(() => expect(litText(view)).toBe("Second beat."));
     caretAt(4, { userEvent: true });
-    expect(litText(view)).toBe("Third beat.");
+    await vi.waitFor(() => expect(litText(view)).toBe("Third beat."));
     caretAt(6);
-    expect(litText(view)).toContain("I told you we'd be late.");
+    await vi.waitFor(() => expect(litText(view)).toContain("I told you we'd be late."));
     caretAt(0);
-    expect(litText(view)).toBe("First beat.");
+    await vi.waitFor(() => expect(litText(view)).toBe("First beat."));
   });
 
   it("keeps the lit block while the author is typing", async () => {
