@@ -1,7 +1,7 @@
 import type { GameState } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { describe, expect, it } from "vitest";
 import { OUTSIDE_EVERY_SCENE_REFUSAL } from "../../main/workers/messages/PlayMessage";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, runButton, settle } from "./playerHarness";
 
 const NOTES_URI = MAIN_URI.replace(/main\.sd$/, "notes.sd");
 
@@ -33,6 +33,7 @@ describe("the start refusal the player reports for the caret's line", () => {
       await settle(40);
       expect(lastGameState(h.toEditor)?.startRefusal ?? null).toBeNull();
       expect(h.controller.getGameState().startRefusal ?? null).toBeNull();
+      expect(runButton(h).refusal).toBeNull();
 
       await h.select(0, NOTES_URI);
       await settle(40);
@@ -43,10 +44,12 @@ describe("the start refusal the player reports for the caret's line", () => {
       expect(h.controller.getGameState().startRefusal).toBe(
         OUTSIDE_EVERY_SCENE_REFUSAL,
       );
+      expect(runButton(h).refusal).toBe(OUTSIDE_EVERY_SCENE_REFUSAL);
 
       await h.select(1);
       await settle(40);
       expect(lastGameState(h.toEditor)?.startRefusal ?? null).toBeNull();
+      expect(runButton(h).refusal).toBeNull();
     } finally {
       h.dispose();
     }

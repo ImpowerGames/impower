@@ -647,7 +647,13 @@ export class GamePlayerController {
     if (refusal) {
       this._resolveLoadingInitialProgram();
     }
-    this.updateBarView({ runRefusal: refusal });
+    this.syncRunRefusal();
+  }
+
+  protected syncRunRefusal() {
+    this.updateBarView({
+      runRefusal: this._playRefusal ?? this.startRefusal() ?? undefined,
+    });
   }
 
   getRelativeFilePath(path: string | undefined) {
@@ -707,6 +713,7 @@ export class GamePlayerController {
       this.getGameState(),
     );
     this.updateBar(reducePlayerBar(this._bar, notification));
+    this.syncRunRefusal();
     sendProtocolMessage(notification, this.host);
   }
 
