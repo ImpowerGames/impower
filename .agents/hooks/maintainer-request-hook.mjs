@@ -19,8 +19,6 @@ const GH_VALUE_FLAGS = new Set([
 ]);
 const GH_API_VALUE_FLAGS = new Set(["-H", "--header", "-p", "--preview", "-q", "--jq", "-t", "--template", "--cache", "--hostname", "-X", "--method", "--input"]);
 const GH_API_FIELD_FLAGS = new Set(["-f", "--raw-field", "-F", "--field"]);
-const CURL_VALUE = new Set(["-X", "--request", "-H", "--header", "-o", "--output", "-u", "--user", "-A", "--user-agent", "-e", "--referer", "-w", "--write-out", "-K", "--config"]);
-const CURL_DATA = /^(-d|--data(-ascii|-raw|-binary|-urlencode)?|--json|-F|--form(-string)?)$/;
 
 const flagName = (t) => (t.startsWith("--") ? t.split("=")[0].toLowerCase() : t.startsWith("-") && t.length > 1 ? t.slice(0, 2) : null);
 
@@ -110,30 +108,92 @@ function touches(seg, i, repo) {
     }
     return null;
   }
-  if (base === "curl") {
-    const parsed = parseArgs(args, new Set([...CURL_VALUE, "-d", "--data", "--data-ascii", "--data-raw", "--data-binary", "--data-urlencode", "--json", "-F", "--form", "--form-string", "--url"]));
-    const numbers = [...parsed.values("--url"), ...parsed.positional].filter(githubUrl).map((url) => apiTarget(url, repo)).filter((n) => n !== null);
-    if (!numbers.length) return null;
-    const changing = parsed.values("-X", "--request").some((m) => !["GET", "HEAD"].includes(m.toUpperCase())) || parsed.flags.some(([n]) => CURL_DATA.test(n));
-    return changing ? { numbers, action: "api" } : null;
-  }
-  if (["invoke-restmethod", "irm", "invoke-webrequest", "iwr"].includes(base)) {
-    let url = null;
-    let method = null;
-    let body = false;
-    for (let k = 0; k < args.length; k++) {
-      const t = args[k].text.toLowerCase();
-      if (t === "-uri" || t === "-url") url = args[++k]?.text ?? null;
-      else if (t === "-method") method = (args[++k]?.text ?? "").toUpperCase();
-      else if (t === "-body") body = true;
-      else if (!t.startsWith("-") && url === null && /api\.github\.com\//i.test(args[k].text)) url = args[k].text;
+  const requests = base === "curl" ? curlTransfers(args) : WEB_REQUEST.has(base) ? [webRequest(args)] : [];
+  const numbers = requests.filter(changes).flatMap((request) => request.urls.filter(githubUrl).map((url) => apiTarget(url, repo))).filter((n) => n !== null);
+  return numbers.length ? { numbers, action: "api" } : null;
+}
+
+const WEB_REQUEST = new Set(["invoke-restmethod", "irm", "invoke-webrequest", "iwr"]);
+const CURL_SHORT_VALUE = "AbcCdDeEFHKmoQrtTuUwxXyYzP";
+const CURL_LONG_VALUE = new Set(["--header", "--output", "--user", "--user-agent", "--referer", "--write-out", "--config", "--cookie", "--cookie-jar", "--cacert", "--cert", "--key", "--proxy", "--max-time", "--connect-timeout", "--retry", "--range", "--resolve", "--connect-to", "--oauth2-bearer", "--variable", "--expand-url"]);
+const CURL_LONG_DATA = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)$/;
+
+function curlTransfers(args) {
+  const transfers = [];
+  let current = null;
+  const start = () => transfers.push((current = { urls: [], method: null, data: [], get: false, upload: false }));
+  start();
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i].text;
+    if (t === "--next" || t === "-:") {
+      start();
+      continue;
     }
-    const number = url ? apiTarget(url, repo) : null;
-    if (number === null) return null;
-    const verb = method ?? (body ? "POST" : "GET");
-    return verb === "GET" || verb === "HEAD" ? null : { numbers: [number], action: "api" };
+    const eq = t.startsWith("--") ? t.indexOf("=") : -1;
+    const name = eq > 0 ? t.slice(0, eq) : t;
+    const value = () => (eq > 0 ? t.slice(eq + 1) : (args[++i]?.text ?? ""));
+    if (name === "--request") current.method = value().toUpperCase();
+    else if (name === "--url") current.urls.push(value());
+    else if (name === "--get") current.get = true;
+    else if (name === "--upload-file") {
+      value();
+      current.upload = true;
+    } else if (CURL_LONG_DATA.test(name)) current.data.push(value());
+    else if (CURL_LONG_VALUE.has(name)) value();
+    else if (t.startsWith("--")) continue;
+    else if (t.startsWith("-") && t.length > 1) {
+      for (let p = 1; p < t.length; p++) {
+        const ch = t[p];
+        if (!CURL_SHORT_VALUE.includes(ch)) {
+          if (ch === "G") current.get = true;
+          continue;
+        }
+        const rest = t.slice(p + 1).replace(/^=/, "");
+        const v = rest.length ? rest : (args[++i]?.text ?? "");
+        if (ch === "d" || ch === "F") current.data.push(v);
+        else if (ch === "X") current.method = v.toUpperCase();
+        else if (ch === "T") current.upload = true;
+        break;
+      }
+    } else current.urls.push(t);
   }
-  return null;
+  return transfers.filter((transfer) => transfer.urls.length);
+}
+
+const WEB_PARAMETERS = [["uri", 2], ["url", 3], ["method", 2], ["body", 1]];
+
+function webParameter(text) {
+  const m = /^-([A-Za-z]+)(?::([\s\S]*))?$/.exec(text);
+  if (!m) return null;
+  const name = m[1].toLowerCase();
+  const found = WEB_PARAMETERS.find(([full, least]) => name.length >= least && full.startsWith(name));
+  return found ? { name: found[0] === "url" ? "uri" : found[0], attached: m[2] } : { name: null, attached: m[2] };
+}
+
+function webRequest(args) {
+  const request = { urls: [], method: null, data: [], get: false, upload: false, unread: false };
+  for (let k = 0; k < args.length; k++) {
+    const parameter = webParameter(args[k].text);
+    if (parameter === null || parameter.name === null) {
+      if (parameter === null) request.urls.push(args[k].text);
+      continue;
+    }
+    const token = parameter.attached !== undefined && parameter.attached !== "" ? { text: parameter.attached, quoted: true } : args[k + 1];
+    if (parameter.attached === undefined || parameter.attached === "") k++;
+    if (parameter.name === "uri") request.urls.push(token?.text ?? "");
+    else if (parameter.name === "method") request.method = (token?.text ?? "").toUpperCase();
+    else if (parameter.name === "body") {
+      if (token?.quoted && !/^\$/.test(token.text)) request.data.push(token.text);
+      else request.unread = true;
+      request.body = true;
+    }
+  }
+  return request;
+}
+
+function changes(request) {
+  if (request.method) return !["GET", "HEAD"].includes(request.method);
+  return request.upload || ((request.data.length > 0 || Boolean(request.body)) && !request.get);
 }
 
 function indexFailure(problem) {
@@ -168,15 +228,27 @@ function readBodyFile(file, cwd) {
   }
 }
 
-const CHANGES_DIRECTORY = new Set(["cd", "pushd", "chdir", "set-location", "sl", "push-location"]);
+const CHANGES_DIRECTORY = new Set(["cd", "chdir", "set-location", "sl"]);
+const PUSHES_DIRECTORY = new Set(["pushd", "push-location"]);
+const POPS_DIRECTORY = new Set(["popd", "pop-location"]);
 
-function nextDirectory(seg, positions, cwd) {
+function moveTo(cwd, args) {
+  const rest = args.filter((a) => !/^-(?:LiteralPath|Path)$/i.test(a.text) && a.text !== "--");
+  const target = rest[0]?.text;
+  if (rest.length !== 1 || !target || target === "-" || /^[+-]\d+$/.test(target) || /[$`*?]/.test(target)) return null;
+  const local = localPath(target);
+  if (path.isAbsolute(local)) return path.resolve(local);
+  return cwd === null ? null : path.resolve(cwd, local);
+}
+
+function nextDirectory(seg, positions, place) {
   const at = [...positions].find((k) => k < seg.length && !/^[A-Za-z_][A-Za-z0-9_]*=/.test(seg[k].text));
-  if (at === undefined || !CHANGES_DIRECTORY.has(baseName(seg[at]))) return cwd;
-  const args = seg.slice(at + 1).filter((a) => !/^-(?:LiteralPath|Path)$/i.test(a.text) && a.text !== "--");
-  const target = args[0]?.text;
-  if (args.length !== 1 || !target || target === "-" || /[$`*?]/.test(target)) return null;
-  return cwd === null ? (path.isAbsolute(localPath(target)) ? path.resolve(localPath(target)) : null) : path.resolve(cwd, localPath(target));
+  const name = at === undefined ? null : baseName(seg[at]);
+  const args = at === undefined ? [] : seg.slice(at + 1);
+  if (CHANGES_DIRECTORY.has(name)) return { cwd: moveTo(place.cwd, args), stack: place.stack };
+  if (PUSHES_DIRECTORY.has(name)) return { cwd: moveTo(place.cwd, args), stack: [...place.stack, place.cwd] };
+  if (POPS_DIRECTORY.has(name)) return args.length || !place.stack.length ? { cwd: null, stack: [] } : { cwd: place.stack.at(-1), stack: place.stack.slice(0, -1) };
+  return place;
 }
 
 function transportValues(text) {
@@ -193,17 +265,6 @@ function transportValues(text) {
   return [text];
 }
 
-function curlUrls(args) {
-  const urls = [];
-  for (let k = 0; k < args.length; k++) {
-    const t = args[k].text;
-    if (t === "--url") urls.push(args[++k]?.text ?? "");
-    else if (t.startsWith("--url=")) urls.push(t.slice(6));
-    else if (!t.startsWith("-") && /^(?:https?:\/\/)?[\w.-]+\.[a-z]{2,}(?::\d+)?\//i.test(t)) urls.push(t);
-  }
-  return urls;
-}
-
 function oneRepo(urls) {
   const repos = [...new Set(urls.map(endpointRepo).filter(Boolean).map(normalizeRepo))];
   return repos.length === 1 && urls.every((url) => endpointRepo(url)) ? repos[0] : null;
@@ -212,6 +273,26 @@ function oneRepo(urls) {
 function publishedText(seg, i, command, cwd) {
   const base = baseName(seg[i]);
   const args = seg.slice(i + 1);
+  if (base === "curl" || WEB_REQUEST.has(base)) {
+    const requests = base === "curl" ? curlTransfers(args) : [webRequest(args)];
+    return requests
+      .map((request) => ({ ...request, urls: request.urls.filter(githubUrl) }))
+      .filter((request) => request.urls.length)
+      .map((request) => {
+        const texts = [];
+        let whole = request.unread === true;
+        for (const value of request.data) {
+          if (base !== "curl" || !value.startsWith("@")) texts.push(...transportValues(value));
+          else if (value === "@-") whole = true;
+          else {
+            const text = readBodyFile(value.slice(1), cwd);
+            if (text === null) whole = true;
+            else texts.push(...transportValues(text));
+          }
+        }
+        return { texts, raw: whole ? [command] : [], destination: oneRepo(request.urls) };
+      });
+  }
   const texts = [];
   let whole = false;
   let destination = null;
@@ -242,36 +323,9 @@ function publishedText(seg, i, command, cwd) {
           else texts.push(m[2]);
         } else if (name === "--input") file(value, true);
       }
-    } else return null;
-  } else if (base === "curl") {
-    const urls = curlUrls(args).filter(githubUrl);
-    if (!urls.length) return null;
-    destination = oneRepo(urls);
-    for (let k = 0; k < args.length; k++) {
-      const name = flagName(args[k].text);
-      if (name === null || !CURL_DATA.test(name)) continue;
-      const [value, used] = flagValue(args, k);
-      k += used - 1;
-      if (value.startsWith("@")) file(value, true);
-      else texts.push(...transportValues(value));
-    }
-  } else if (["invoke-restmethod", "irm", "invoke-webrequest", "iwr"].includes(base)) {
-    let url = null;
-    const bodies = [];
-    for (let k = 0; k < args.length; k++) {
-      const t = args[k].text.toLowerCase();
-      if (t === "-uri" || t === "-url") url = args[++k]?.text ?? null;
-      else if (t === "-body") bodies.push(args[++k]);
-      else if (!t.startsWith("-") && url === null && githubUrl(args[k].text)) url = args[k].text;
-    }
-    if (!githubUrl(url)) return null;
-    destination = endpointRepo(url);
-    for (const value of bodies) {
-      if (value?.quoted) texts.push(...transportValues(value.text));
-      else whole = true;
-    }
-  } else return null;
-  return { texts, raw: whole ? [command] : [], destination };
+    } else return [];
+  } else return [];
+  return [{ texts, raw: whole ? [command] : [], destination }];
 }
 
 function unquoted(text, quotes) {
@@ -350,15 +404,16 @@ function decideAt(command, shell, depth, context) {
     const inner = decideAt(sub, shell, depth + 1, context);
     if (inner) return inner;
   }
-  let cwd = context.cwd === undefined ? process.cwd() : context.cwd;
+  let place = { cwd: context.cwd === undefined ? process.cwd() : context.cwd, stack: context.stack ?? [] };
   for (const { tokens: seg, positions } of segments) {
-    cwd = nextDirectory(seg, positions, cwd);
+    place = nextDirectory(seg, positions, place);
+    const { cwd } = place;
     for (let i = 0; i < seg.length; i++) {
       const tok = seg[i];
       if (tok.quoted && isShellCommandString(seg, i, positions)) {
         const program = programBefore(seg, i - 1);
         const innerShell = program >= 0 && /^(pwsh|powershell)$/.test(baseName(seg[program])) ? "powershell" : program >= 0 ? "bash" : shell;
-        const inner = decideAt(tok.text, innerShell, depth + 1, { ...context, cwd });
+        const inner = decideAt(tok.text, innerShell, depth + 1, { ...context, cwd, stack: place.stack });
         if (inner) return inner;
       }
       if (!positions.has(i) || !["gh", "curl", "invoke-restmethod", "irm", "invoke-webrequest", "iwr"].includes(baseName(tok))) continue;
@@ -373,8 +428,10 @@ function decideAt(command, shell, depth, context) {
           throw error;
         }
       }
-      const claim = claimReason(publishedText(seg, i, command, cwd), context.repos, context.env);
-      if (claim) return claim;
+      for (const published of publishedText(seg, i, command, cwd)) {
+        const claim = claimReason(published, context.repos, context.env);
+        if (claim) return claim;
+      }
     }
   }
   return null;

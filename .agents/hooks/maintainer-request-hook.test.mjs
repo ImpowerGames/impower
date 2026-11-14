@@ -68,6 +68,12 @@ const touching = (n) => [
   ["gh issue comment under a host-qualified -R", `gh issue comment ${n} -R github.com/${repo} --body ok`],
   ["gh issue close under a repository address", `gh issue close ${n} --repo https://github.com/${repo}.git`],
   ["gh issue edit naming the request after another issue", `gh issue edit 4243 ${n} -R ${repo} --add-label x`],
+  ["a curl short-option cluster", `curl -sX DELETE https://api.github.com/repos/${repo}/issues/${n}/labels`],
+  ["a curl data cluster", `curl -sd '{"body":"ok"}' https://api.github.com/repos/${repo}/issues/${n}/comments`],
+  ["a curl upload", `curl -T body.json https://api.github.com/repos/${repo}/issues/${n}`],
+  ["Invoke-RestMethod with colon parameters", `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${n} -Method:Patch -Body:'{"state":"closed"}'`],
+  ["Invoke-RestMethod with abbreviated parameters", `irm -Ur https://api.github.com/repos/${repo}/issues/${n} -Me Patch -B '{"state":"closed"}'`],
+  ["Invoke-RestMethod by position with a body", `Invoke-RestMethod https://api.github.com/repos/${repo}/issues/${n}/comments -Body '{"body":"ok"}'`],
   ["a curl batch whose later transfer changes the request", `curl https://api.github.com/repos/acme/other/issues/1 --next -X PATCH https://api.github.com/repos/${repo}/issues/${n} -d '{"state":"closed"}'`],
 ];
 
@@ -146,6 +152,24 @@ for (const [harness, run] of runs) {
   if (process.platform === "win32") changed.push(`gh issue comment ${OTHER} -R ${repo} --body-file ${subClaim.replace(/^([A-Za-z]):/, (m, drive) => `/${drive.toLowerCase()}`)}`);
   for (const command of changed) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} reads the body file where the shell will`);
   assert.equal(run(`cd elsewhere; gh issue comment ${OTHER} -R ${repo} --body-file claim.md`, path.join(bodyDir, "sub")), null, `${harness}: after cd the original directory's file is not the one published`);
+  writeFileSync(path.join(bodyDir, "sub", "status.md"), "Status update.\n");
+  writeFileSync(path.join(bodyDir, "status.md"), "The maintainer approved the new layout.\n");
+  for (const command of [
+    `pushd sub; popd; gh issue comment ${OTHER} -R ${repo} --body-file status.md`,
+    `Push-Location sub; Pop-Location; gh issue comment ${OTHER} -R ${repo} --body-file status.md`,
+  ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} reads the file in the restored directory`);
+  assert.equal(run(`pushd sub; gh issue comment ${OTHER} -R ${repo} --body-file status.md`, bodyDir), null, `${harness}: inside pushd the pushed directory's file is the one read`);
+  for (const command of [
+    `curl -sd 'body=The maintainer approved the layout.' https://api.github.com/repos/${repo}/issues/${OTHER}/comments`,
+    `curl https://example.test/ping --next -d '{"body":"The maintainer approved the layout."}' https://api.github.com/repos/${repo}/issues/${OTHER}/comments`,
+    `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method:Post -Body:'{"body":"The maintainer approved the layout."}'`,
+  ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} is refused`);
+  for (const command of [
+    `curl -d 'status=ok' https://example.test/telemetry --next https://api.github.com/repos/${repo}/issues/${REQUEST}`,
+    `curl -d 'body=The maintainer approved the layout.' https://example.test/telemetry --next https://api.github.com/repos/${repo}/issues/${OTHER}`,
+    `Invoke-RestMethod -Uri https://example.test/repos/${repo}/issues/${REQUEST} -Method Patch -Body '{"state":"closed"}'`,
+    `curl -sG https://api.github.com/repos/${repo}/issues/${REQUEST}/comments -d per_page=100`,
+  ]) assert.equal(run(command, bodyDir), null, `${harness}: ${command} passes`);
   const json = file("payload.json", JSON.stringify({ body: "The maintainer approved the layout." }));
   const citedJson = file("payload-cited.json", JSON.stringify({ body: `The maintainer approved the layout, recorded on #${ANSWERED}.` }));
   for (const command of [
