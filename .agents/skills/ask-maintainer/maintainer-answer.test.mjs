@@ -12,6 +12,7 @@ import {
   commentAuthor,
   dataLine,
   fetchAnswer,
+  ghTracker,
   main,
   readAnswer,
   readNote,
@@ -211,7 +212,7 @@ try {
     const confirmation = tracker.store.get(result.confirmation.id);
     assert.equal(confirmation.issue, REQUEST);
     assert.match(confirmation.body, /^Recorded by the ask-maintainer tool on #2271 \(\[record\]\(https:\/\/github\.com\/acme\/tickets\/issues\/2271#issuecomment-\d+\)\)\./);
-    assert.deepEqual(readNote(confirmation.body), { kind: "recorded", request: REQUEST, answer: "comments:101", records: [{ ticket: 2271, comment: result.records[0].id }] });
+    assert.deepEqual(readNote(confirmation.body), { kind: "recorded", request: REQUEST, answer: "comments:101:1df727bf29881c01", records: [{ ticket: 2271, comment: result.records[0].id }] });
     const again = recordAnswer(REQUEST, { tracker, repos });
     assert.deepEqual([again.records[0].reused, again.confirmation.reused, tracker.calls.filter((c) => c[0] === "comment").length], [true, true, 2], "recording again posts nothing new");
     assert.equal(fetchAnswer(REQUEST, { tracker, repos }).state, "answered", "the tool's record and confirmation do not change the answer");
@@ -327,7 +328,19 @@ try {
     assert.throws(() => reviseRequest(REQUEST, request, "x", { pictures, tracker: failing, repos, now }), /Rolled back: deleted the revision note \d+; restored the earlier body/);
     assert.equal(failing.issues.get(REQUEST).body, original);
     assert.equal([...failing.store.values()].length, 0);
-    console.log("ok: revise replaces the body with its pictures hosted, posts what changed, restarts the clock, reopens an unclear answer, keeps the tickets, and rolls back a failed revision");
+    for (const broken of ["editTitle", "reopen"]) {
+      const other = fakeTracker({ issues: [issue(closedBy("completed", "2026-11-13T16:10:05Z", "a-collaborator"))] });
+      other[broken] = () => {
+        throw new Error("network down");
+      };
+      assert.throws(() => reviseRequest(REQUEST, request, "Which option did you mean?", { pictures, tracker: other, repos, now }), /Revising acme\/tickets#9001 failed/);
+      const after = fetchAnswer(REQUEST, { tracker: other, repos });
+      assert.deepEqual([after.state, after.closed.by, other.calls.some((c) => c[0] === "close")], ["unclear", "a-collaborator", false], `a revision whose ${broken} fails leaves another account's close unclear and never closes the request itself`);
+      assert.equal(other.issues.get(REQUEST).body, decisionBody);
+    }
+    const revisedAfterClose = readAnswer(issue(closedBy("completed", "2026-11-13T16:10:05Z")), [toolComment(160, "Revised by the ask-maintainer tool.", { kind: "revised" }, "2026-11-13T16:12:00Z")], repos);
+    assert.deepEqual([revisedAfterClose.state, revisedAfterClose.why], ["unclear", "closed before its latest revision, so the close does not answer it"]);
+    console.log("ok: revise replaces the body with its pictures hosted, posts what changed, restarts the clock, reopens an unclear answer last, keeps the tickets, and rolls back a failed revision without closing the request itself");
   }
 
   {
@@ -338,6 +351,44 @@ try {
     assert.throws(() => withdrawRequest(REQUEST, "again", { tracker, repos }), /already closed \(withdrawn\)/);
     assert.throws(() => recordAnswer(REQUEST, { tracker, repos }), /withdrawn/);
     console.log("ok: withdraw closes a request as not planned with the reason, and nothing is recorded for it");
+  }
+
+  {
+    const requests = [];
+    const tracker = ghTracker("acme/tickets", (args) => {
+      requests.push(args.slice(0, 4).join(" "));
+      if (args.includes("PATCH")) throw Object.assign(new Error("HTTP 503: Service Unavailable"), { stderr: "HTTP 503" });
+      return args.includes("POST") ? JSON.stringify({ id: 77 }) : "";
+    });
+    const note = path.join(scratch, "close-note.md");
+    writeFileSync(note, "note");
+    assert.throws(() => tracker.close(REQUEST, "completed", note), /HTTP 503/);
+    assert.deepEqual(requests, ["api -X POST repos/acme/tickets/issues/9001/comments", "api -X PATCH repos/acme/tickets/issues/9001", "api -X DELETE repos/acme/tickets/issues/comments/77"], "a close that fails deletes the note it posted");
+    const stubborn = ghTracker("acme/tickets", (args) => {
+      if (args.includes("POST")) return JSON.stringify({ id: 78 });
+      throw new Error("HTTP 503");
+    });
+    assert.throws(() => stubborn.close(REQUEST, "completed", note), /closing comment 78 could not be deleted .*; delete it by hand/);
+    const relay = toolComment(170, "Relayed from chat.", { kind: "relayed", words: "Go with B", session: "s", at: "2026-11-13T16:00:00Z", runner: "codex" }, "2026-11-13T16:00:05Z");
+    const withdrawal = toolComment(171, "Withdrawn.", { kind: "withdrawn", reason: "no longer needed" }, "2026-11-13T16:00:06Z");
+    const later = comment(172, "Use C instead, the dot.", "2026-11-13T16:09:00Z");
+    for (const stale of [relay, withdrawal]) {
+      const read = readAnswer(issue(closedBy("completed")), [stale, later], repos);
+      assert.deepEqual([read.state, read.words.map((w) => w.body)], ["answered", ["Use C instead, the dot."]], `a ${readNote(stale.body).kind} note the maintainer answered after is not the answer`);
+    }
+    console.log("ok: a close that fails deletes its note, and a stale relay or withdrawal note never outranks the maintainer's later comment");
+  }
+
+  {
+    const tracker = fakeTracker({ issues: [issue(closedBy("completed")), { number: 2271, title: "Route gutter", html_url: issueUrl(2271), state: "open" }], comments: [comment(180, "Use B, the hollow pin.", "2026-11-13T16:10:00Z")] });
+    const first = recordAnswer(REQUEST, { tracker, repos });
+    tracker.store.get(180).body = "Correction: use C, the dot.";
+    const second = recordAnswer(REQUEST, { tracker, repos });
+    assert.deepEqual([second.records[0].reused, second.confirmation.reused], [false, false], "an edited answer is recorded again");
+    assert.notEqual(second.records[0].id, first.records[0].id);
+    assert.match(tracker.store.get(second.records[0].id).body, /\n> Correction: use C, the dot\.\n/);
+    assert.match(tracker.store.get(first.records[0].id).body, /\n> Use B, the hollow pin\.\n/, "the earlier record stays as the record of what was first said");
+    console.log("ok: a maintainer comment edited after recording is recorded again with the new words, never confirmed against the old quotation");
   }
 
   {

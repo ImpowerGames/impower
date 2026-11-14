@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -592,8 +593,17 @@ export function ghTracker(repo = ticketsRepo(), run = (args, options = {}) => ex
     comments: (n) => json(["api", `repos/${repo}/issues/${n}/comments`, "--paginate", "--slurp"]).flat(),
     editComment: (id, bodyFile) => json(["api", "-X", "PATCH", `repos/${repo}/issues/comments/${id}`, "-F", `body=@${bodyFile}`]),
     close: (n, reason, bodyFile) => {
-      json(["api", "-X", "POST", `repos/${repo}/issues/${n}/comments`, "-F", `body=@${bodyFile}`]);
-      return json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-f", "state=closed", "-f", `state_reason=${reason}`]);
+      const note = json(["api", "-X", "POST", `repos/${repo}/issues/${n}/comments`, "-F", `body=@${bodyFile}`]);
+      try {
+        return json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-f", "state=closed", "-f", `state_reason=${reason}`]);
+      } catch (error) {
+        try {
+          json(["api", "-X", "DELETE", `repos/${repo}/issues/comments/${note.id}`]);
+        } catch (cleanup) {
+          error.message = `${error.message}\nThe closing comment ${note.id} could not be deleted (${cleanup.message.split("\n")[0]}); delete it by hand, or it reads as the reason for a later close.`;
+        }
+        throw error;
+      }
     },
     removeLabel: (n, label) => json(["api", "-X", "DELETE", `repos/${repo}/issues/${n}/labels/${encodeURIComponent(label)}`]),
     removeAssignee: (n, login) => json(["api", "-X", "DELETE", `repos/${repo}/issues/${n}/assignees`, "-f", `assignees[]=${login}`]),
@@ -897,13 +907,14 @@ export function readAnswer(issue, comments, repos = readRepos()) {
   const words = comments
     .filter((comment) => later(comment) && commentAuthor(comment, who) === "maintainer" && Date.parse(comment.created_at) <= closedAt)
     .map((comment) => ({ id: comment.id, url: comment.html_url, at: comment.created_at, body: lf(comment.body) }));
-  const lastNote = (kind) => notes.filter((entry) => entry.note.kind === kind && later(entry.comment)).at(-1) ?? null;
+  const lastNote = (kind) => notes.filter((entry) => entry.note.kind === kind && later(entry.comment) && Date.parse(entry.comment.created_at) <= closedAt && !words.some((word) => word.id > entry.comment.id)).at(-1) ?? null;
   const shown = { at: revision?.created_at ?? tagged?.created_at ?? issue.created_at, revised: Boolean(revision), options: data.options?.length ?? 0, pictures: imageReferences(body).length };
   const base = { number: issue.number, url: issue.html_url, title: issue.title, kind: data.kind, tagged: Boolean(data.tagged), question: data.tagged ? issue.title : questionOf(issue.title), tickets: data.blocks ?? [], data, shown, recommended: data.recommended ? { letter: data.recommended, name: optionName(body, data.recommended) } : null };
   if (issue.state !== "closed") return words.length ? { ...base, state: "question", words } : { ...base, state: "waiting", fallback: data.fallback ?? null, words: [] };
   const closed = { at: issue.closed_at, by: issue.closed_by?.login ?? null, reason: issue.state_reason ?? null };
   const withdrawn = lastNote("withdrawn");
   if (withdrawn) return { ...base, state: "withdrawn", closed, reason: withdrawn.note.reason ?? null, words: [] };
+  if (revision && Date.parse(revision.created_at) > closedAt) return { ...base, state: "unclear", closed, why: "closed before its latest revision, so the close does not answer it", words: [] };
   if (closed.by !== who.maintainerLogin) return { ...base, state: "unclear", closed, why: `closed by ${closed.by ?? "an account GitHub did not name"}, not by the maintainer`, words };
   const relay = lastNote("relayed");
   const said = relay ? [{ id: relay.comment.id, url: relay.comment.html_url, at: relay.note.at, body: relay.note.words, relayed: { session: relay.note.session, runner: relay.note.runner, postedAt: relay.comment.created_at } }] : words;
@@ -928,7 +939,9 @@ const RUNNERS = { "claude-code": "Claude Code", codex: "Codex" };
 const ANSWERED = ["answered", "accepted", "done", "will-not-do"];
 
 export function answerKey(answer) {
-  return answer.words.length ? `comments:${answer.words.map((word) => word.id).join(",")}` : `closed:${answer.closed.at}`;
+  if (!answer.words.length) return `closed:${answer.closed.at}`;
+  const digest = createHash("sha256").update(JSON.stringify(answer.words.map((word) => word.body))).digest("hex").slice(0, 16);
+  return `comments:${answer.words.map((word) => word.id).join(",")}:${digest}`;
 }
 
 function wordsLines(answer) {
@@ -1025,10 +1038,6 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
   return withScratch((scratch) => {
     const done = { reopened: false, body: false, title: false, note: null };
     try {
-      if (issue.state === "closed") {
-        tracker.reopen(number);
-        done.reopened = true;
-      }
       const { staged, pictures: staging } = stagingBody(built.body);
       let urls = {};
       if (staging.length) {
@@ -1067,6 +1076,10 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
         comment = postNote(tracker, number, note, scratch, "note");
         done.note = comment.id;
       }
+      if (issue.state === "closed") {
+        tracker.reopen(number);
+        done.reopened = true;
+      }
       return { number, url: back.html_url, title: built.title, data: built.data, note: comment, reopened: done.reopened };
     } catch (error) {
       const steps = [];
@@ -1077,7 +1090,6 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
         steps.push(["restored the earlier body", () => tracker.editBody(number, original)]);
       }
       if (done.title) steps.push(["restored the earlier title", () => tracker.editTitle(number, issue.title)]);
-      if (done.reopened) steps.push([`closed #${number} again`, () => tracker.close(number, issue.state_reason ?? "completed", writeNote(scratch, toolText("Closed again by the ask-maintainer tool: the revision did not finish, so the request stands as it was answered.", { kind: "revision-undone" })))]);
       const result = undo(steps);
       throw new Error(`Revising ${tracker.repo}#${number} failed:\n${bullets(problemsOf(error))}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\nCorrect the cause and revise again.`);
     }

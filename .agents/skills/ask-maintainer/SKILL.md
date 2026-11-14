@@ -55,47 +55,14 @@ Until the tool has its own identity, it files through the maintainer's account a
 
 ## After filing
 
-Give the request's number and address wherever you would have raised the question, and carry on with the work it does not hold up. Never comment on, edit, close or reopen a request yourself; every change goes through the tool, which marks its own comments so they are never mistaken for the maintainer's.
+Give the request's number and address wherever you would have raised the question, and carry on with the work it does not hold up. Never comment on, edit, close or reopen a request yourself; the tool marks its own comments so they are never taken for the maintainer's.
 
-## The answer
-
-Closing is the answer, and only the maintainer closes. The maintainer's words are their comments on the request since its last revision, up to the close; a comment the tool posted is never the maintainer's, even though it carries the maintainer's login.
-
-- **Closed with a comment:** answered, in the maintainer's words. An answer that fits no option is acted on as written.
-- **Closed with no comment:** the recommendation is accepted.
-- **A comment without closing:** a question, or a statement of what is missing. The fallback clock stops; answer it with `revise`, which restarts the clock.
-- **A task:** closed as completed means done; closed as not planned means the maintainer will not do it, so carry on without it and say what that leaves undone.
-- **Unclear:** a decision closed as not planned with no comment, or closed by another account. Reopen it with a question through `revise`.
-- **An answer typed in chat** counts only through `answer-from-chat`, which accepts the quoted words only when they appear as one unbroken run in a message the maintainer typed in that session's transcript ([runner notes](../RUNNERS.md) say where each runner keeps it). A paraphrase, words an agent wrote, tool output and relayed or injected messages are refused.
-
-Never write that the maintainer decided anything unless `record` has recorded it.
+Closing is the answer: with a comment, the maintainer's words decide; with none, the recommendation is accepted; a comment without closing is a question, answered with `revise`. `record` the answer before acting on it, and never write that the maintainer decided anything it has not recorded. Read [answers](references/answers.md) before you read, record, revise, withdraw or wait for a request, or relay an answer typed in chat.
 
 ```sh
-node .agents/skills/ask-maintainer/maintainer-request.mjs read <request> [--json]
+node .agents/skills/ask-maintainer/maintainer-request.mjs read <request>
 node .agents/skills/ask-maintainer/maintainer-request.mjs record <request>
-node .agents/skills/ask-maintainer/maintainer-request.mjs revise <request> <request.json> <what-changed.md> [<pictures-folder>]
-node .agents/skills/ask-maintainer/maintainer-request.mjs withdraw <request> <reason>
-node .agents/skills/ask-maintainer/maintainer-request.mjs answer-from-chat <request> <words-file> <transcript.jsonl> [--not-planned]
+node .agents/skills/ask-maintainer/maintainer-request.mjs wait <request> [<request> ...]
 ```
 
-`read` reports the request's state: waiting, question, answered (with each comment's words, address and time), accepted, done, will-not-do, unclear or withdrawn. `record` posts one comment on each ticket the request holds up, copying from GitHub: the question and a link, the answer in the maintainer's words with a link and time (or "accepted the recommendation by closing without comment"), what was shown (the request as filed or last revised, with its option and picture counts) and the recommended option. It then confirms on the request that the record was made; running it again posts nothing new. Record every answer before acting on it.
-
-`revise` replaces the request's body from a corrected request file (same kind, same tickets), posts what changed, restarts the fallback clock and reopens an unclear request; GitHub's edit history keeps the earlier body. `withdraw` closes a request you no longer need as not planned, with the reason. `answer-from-chat` posts the found words on the request, marked as relayed from chat with the session and time, closes it (as not planned with `--not-planned`, for a task the maintainer will not do) and records it. Put the words in a file exactly as the maintainer typed them.
-
-A ticket held by a request stays blocked until the request closes; a closed request then counts as a met blocker for orchestrate-issues, whatever the answer.
-
-## Wait for the answer
-
-GitHub does not notify a session. `wait` returns when any request it names is closed, gets a new maintainer comment, or reaches its fallback time with no question open, and prints which:
-
-```sh
-node .agents/skills/ask-maintainer/maintainer-request.mjs wait <request> [<request> ...] [--interval=<seconds>]
-```
-
-It reads each request once a minute (`--interval` may lengthen that, never shorten it) with a conditional request, which costs nothing while the request is unchanged, and prints the seconds between a close and its return.
-
-How a session is woken:
-
-- **Claude Code:** run `wait` as a background command. The session is woken when it returns, after which you `read` and `record` the answer. Measured: `wait` returned 32 seconds after the close, and the session received the finished command's notice at once.
-- **Codex:** a finished background command does not wake the session, so run `wait` in the foreground of the turn with a shell timeout longer than the wait you expect, or read the request at the next check-in. Measured with codex-cli 0.166.0 `codex exec`: a foreground `wait` returned 31 seconds after the close and the session went on to `record`; a background command that finished 56 seconds after the turn ended started no new turn. The Codex desktop app was not measured.
-- **Anywhere else, or after the session ends:** the answer stays on the request. Read it at the next check-in, or the next session on the ticket reads it, since the ticket stays blocked until the request closes.
+In Claude Code run `wait` as a background command, which wakes the session when it returns; in Codex run it in the foreground, since a finished background command does not wake a Codex session.
