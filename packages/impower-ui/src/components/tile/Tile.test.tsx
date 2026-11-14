@@ -146,6 +146,6 @@ describe("Tile", () => {
     const name = Array.from(open.querySelectorAll("span")).find((span) => span.textContent === "imani")!;
     expect(name.className.split(" ")).toContain("text-[13px]/[1.4]");
     expect(open.querySelector("small")!.className.split(" ")).toContain("text-[11px]/[1.4]");
-    expect(host.querySelector('[aria-label="Options for imani"]')!.parentElement!.className.split(" ")).toContain("bg-bg/78");
+    expect(host.querySelector('[aria-label="Options for imani"]')!.parentElement!.className.split(" ")).toEqual(expect.arrayContaining(["bg-bg/78", "rounded-full", "[&>button]:rounded-full"]));
   });
 });

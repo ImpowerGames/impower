@@ -85,7 +85,7 @@ export const tileLabelVariants = cva("min-w-0 truncate text-[13px]/[1.4] text-in
 });
 
 export const tileActionsVariants = cva(
-  "absolute top-2.5 right-2.5 z-10 flex rounded-full bg-bg/78 text-ink motion-safe:transition-opacity",
+  "absolute top-2.5 right-2.5 z-10 flex rounded-full bg-bg/78 text-ink motion-safe:transition-opacity [&>button]:rounded-full",
   {
     variants: {
       current: {
