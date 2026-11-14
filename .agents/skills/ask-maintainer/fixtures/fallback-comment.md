@@ -9,4 +9,4 @@
 _Posted by the ask-maintainer tool through your GitHub account, not by you._
 
 <!-- ask-maintainer: posted by the tool -->
-<!-- maintainer-request-note {"kind":"fallback","option":"B","owner":"orchestrate-issues #977","at":"2026-11-13T17:40:00.000Z"} -->
+<!-- maintainer-request-note {"kind":"fallback","option":"B","name":"A hollow pin","owner":"orchestrate-issues #977","at":"2026-11-13T17:40:00.000Z","fallbackAt":"2026-11-13T17:37:00.000Z"} -->

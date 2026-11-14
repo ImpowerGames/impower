@@ -903,7 +903,7 @@ export function readAnswer(issue, timeline, repos = readRepos()) {
   const notes = comments.filter((comment) => commentAuthor(comment, who) === "tool").map((comment) => ({ comment, note: readNote(comment.body) })).filter((entry) => entry.note);
   const revision = notes.filter((entry) => entry.note.kind === "revised").at(-1)?.comment ?? null;
   const fellBack = data.kind === "decision" ? notes.filter((entry) => entry.note.kind === "fallback").at(-1) ?? null : null;
-  const floorPos = Math.max((revision ?? tagged)?.pos ?? -1, fellBack?.comment.pos ?? -1);
+  const floorPos = (revision ?? tagged)?.pos ?? -1;
   const lastPos = (event) => items.filter((item) => item.event === event).at(-1)?.pos ?? -1;
   const closedPos = issue.state === "closed" ? lastPos("closed") : Infinity;
   const reopenedPos = lastPos("reopened");
@@ -911,7 +911,7 @@ export function readAnswer(issue, timeline, repos = readRepos()) {
   const words = maintainerWords.map((comment) => ({ id: comment.id, url: comment.html_url, at: comment.created_at, body: lf(comment.body) }));
   const closing = notes.filter((entry) => ["withdrawn", "relayed"].includes(entry.note.kind) && entry.comment.pos > Math.max(floorPos, reopenedPos) && entry.comment.pos < closedPos && !maintainerWords.some((comment) => comment.pos > entry.comment.pos)).at(-1) ?? null;
   const shown = { at: revision?.created_at ?? tagged?.created_at ?? issue.created_at, revised: Boolean(revision), options: data.options?.length ?? 0, pictures: imageReferences(body).length };
-  const wentAhead = fellBack ? { option: fellBack.note.option, name: optionName(body, fellBack.note.option), at: fellBack.comment.created_at, url: fellBack.comment.html_url, owner: fellBack.note.owner ?? null } : null;
+  const wentAhead = fellBack ? { option: fellBack.note.option, name: fellBack.note.name ?? null, at: fellBack.comment.created_at, url: fellBack.comment.html_url, owner: fellBack.note.owner ?? null } : null;
   const base = { number: issue.number, url: issue.html_url, title: issue.title, kind: data.kind, tagged: Boolean(data.tagged), question: data.tagged ? issue.title : questionOf(issue.title), tickets: data.blocks ?? [], data, shown, recommended: data.recommended ? { letter: data.recommended, name: optionName(body, data.recommended) } : null, ...(wentAhead && { wentAhead }) };
   if (issue.state !== "closed") {
     if (words.length) return { ...base, state: "question", words };
@@ -1219,14 +1219,18 @@ export function fallbackRequest(number, owner, doing, { tracker, repos = readRep
   };
   const label = repos.maintainer.labels.decidedWithoutYou;
   const who = whoOf(repos);
-  const standing = (ticket) => tracker.comments(ticket).find((comment) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === "fallback-record" && readNote(comment.body)?.request === number);
+  const attempt = { request: number, option: going.option, fallbackAt: going.fallbackAt };
+  const leftBy = (ticket) => tracker.comments(ticket).filter((comment) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === "fallback-record" && readNote(comment.body)?.request === number);
+  const sameAttempt = (comment) => readNote(comment.body).option === attempt.option && readNote(comment.body).fallbackAt === attempt.fallbackAt;
   const labelled = (value) => (value.labels ?? []).some((l) => (typeof l === "string" ? l : l.name) === label);
   return withScratch((scratch) => {
     const done = { note: null, labelled: false, records: [] };
     try {
-      const recordText = toolText(fallbackRecordBody(going), { kind: "fallback-record", request: number, option: going.option }, identity);
+      const recordText = toolText(fallbackRecordBody(going), { kind: "fallback-record", ...attempt }, identity);
       const records = answer.tickets.map((ticket) => {
-        const found = standing(ticket);
+        const left = leftBy(ticket);
+        for (const stale of left.filter((comment) => !sameAttempt(comment))) tracker.deleteComment(stale.id);
+        const found = left.find(sameAttempt);
         if (found) return { ticket, id: found.id, url: found.html_url, reused: true };
         return { ticket, ...postNote(tracker, ticket, recordText, scratch, `fallback-record-${ticket}`, (id) => done.records.push([ticket, id])), reused: false };
       });
@@ -1239,7 +1243,9 @@ export function fallbackRequest(number, owner, doing, { tracker, repos = readRep
       if (back.state !== "open") problems.push(`#${number} reads back ${back.state}`);
       if (!labelled(back)) problems.push(`label ${label} is missing`);
       if (problems.length) throw new FilingProblems(problems);
-      const note = postNote(tracker, number, toolText(fallbackComment(going), { kind: "fallback", option: going.option, owner: going.owner, at: going.at }, identity), scratch, "fallback", (id) => (done.note = id));
+      const note = postNote(tracker, number, toolText(fallbackComment(going), { kind: "fallback", option: going.option, name: going.name, owner: going.owner, at: going.at, fallbackAt: going.fallbackAt }, identity), scratch, "fallback", (id) => (done.note = id));
+      const after = readAnswer(tracker.issue(number), tracker.timeline(number), repos);
+      if (after.state !== "went-ahead" || after.wentAhead?.url !== note.url) throw new FilingProblems([`#${number} changed while going ahead: it now reads ${after.state}${after.words.length ? `, with the maintainer's comment ${after.words.at(-1).url}` : ""}; read it again before acting`]);
       return { number, url: back.html_url, option: going.option, name, note, records, label };
     } catch (error) {
       const steps = done.records.map(([ticket, id]) => [`deleted the fallback record ${id} on #${ticket}`, () => tracker.deleteComment(id)]);

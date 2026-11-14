@@ -25,7 +25,7 @@ const issueUrl = (n) => `https://github.com/acme/tickets/issues/${n}`;
 const doing = "Merges #2271 with the outlined pin in the gutter button.\n";
 const claimsMaintainerDecided = /\b(?:the )?maintainer(?:'s)? (?:decided|decision|chose|choice|approved|agreed|accepted|kept)\b/i;
 
-function tracker({ body = decisionBody, failAddLabel = false } = {}) {
+function tracker({ body = decisionBody, failAddLabel = false, onAddLabel = () => {} } = {}) {
   const t = { seq: 0, next: 7000, now: new Date("2026-11-13T17:40:00Z"), calls: [], items: [] };
   const tick = () => (t.now = new Date(t.now.getTime() + 1000)).toISOString().replace(".000Z", "Z");
   const issue = (number, over) => ({ number, html_url: issueUrl(number), state: "open", state_reason: null, created_at: filedAt, closed_at: null, closed_by: null, labels: [], ...over });
@@ -61,6 +61,7 @@ function tracker({ body = decisionBody, failAddLabel = false } = {}) {
     addLabel: (n, label) => {
       t.calls.push(["addLabel", n, label]);
       if (failAddLabel) throw new Error("HTTP 502: label service down");
+      onAddLabel(t);
       of(n).labels.push({ name: label });
     },
     editBody: (n, bodyFile) => {
@@ -215,15 +216,62 @@ try {
     console.log("ok: a fallback that fails part-way rolls back its records and label, and posts no request note");
 
     const crashed = tracker();
-    crashed.say(toolNote("**Decided by fallback, not reviewed by the maintainer** (left by a run that stopped)", { kind: "fallback-record", request: REQUEST, option: "B" }), "2026-11-13T17:39:00Z", TICKET);
+    const left = crashed.say(toolNote("**Decided by fallback, not reviewed by the maintainer** (left by a run that stopped)", { kind: "fallback-record", request: REQUEST, option: "B", fallbackAt }), "2026-11-13T17:39:00Z", TICKET);
+    const older = crashed.say(toolNote("**Decided by fallback, not reviewed by the maintainer** (left by a run before a revision)", { kind: "fallback-record", request: REQUEST, option: "C", fallbackAt: "2026-11-13T17:00:00.000Z" }), "2026-11-13T17:39:01Z", TICKET);
     crashed.issues.get(REQUEST).labels.push({ name: labels.decidedWithoutYou });
     assert.equal(fetchAnswer(REQUEST, { tracker: crashed, repos }).state, "waiting", "a record and label with no request note is not a fallback");
     const resumed = fallbackRequest(REQUEST, OWNER, doing, { tracker: crashed, repos, now });
-    assert.deepEqual(resumed.records.map((r) => r.reused), [true], "a rerun reuses the record a stopped run left");
-    assert.equal(recordsOn(crashed, TICKET).length, 1);
+    assert.deepEqual(resumed.records.map((r) => [r.id, r.reused]), [[left, true]], "a rerun reuses the record a stopped run left for the same option and fallback time");
+    assert.deepEqual(recordsOn(crashed, TICKET).map((e) => e.c.id), [left], "a record left for another option or fallback time is deleted");
+    assert.ok(crashed.calls.some(([kind, id]) => kind === "deleteComment" && id === older));
     assert.equal(crashed.calls.filter(([kind]) => kind === "addLabel").length, 0, "the label already there is not added again");
     assert.equal(fetchAnswer(REQUEST, { tracker: crashed, repos }).state, "went-ahead");
-    console.log("ok: a fallback run that stopped before its request note is completed by running fallback again, without a second record");
+    console.log("ok: a fallback run that stopped before its request note is completed by running fallback again, reusing only its own record");
+
+    const revisedBody = decisionBody.replace(dataLine(readDataLine(decisionBody)), dataLine({ ...readDataLine(decisionBody), fallback: { option: "C", at: "2026-11-13T19:30:00.000Z" } }));
+    const stale = tracker();
+    stale.say(toolNote("**Decided by fallback, not reviewed by the maintainer** (B, from a run whose cleanup failed)", { kind: "fallback-record", request: REQUEST, option: "B", fallbackAt }), "2026-11-13T17:39:00Z", TICKET);
+    stale.issues.get(REQUEST).body = revisedBody;
+    stale.items.push({ event: "commented", issue: REQUEST, id: 7998, html_url: `${issueUrl(REQUEST)}#issuecomment-7998`, created_at: "2026-11-13T17:30:00Z", updated_at: "2026-11-13T17:30:00Z", user: { login: M, type: "User" }, body: toolNote("Revised by the ask-maintainer tool.", { kind: "revised", fallback: "2026-11-13T19:30:00.000Z" }), seq: stale.seq++ });
+    const retaken = fallbackRequest(REQUEST, OWNER, doing, { tracker: stale, repos, now: at("2026-11-13T19:31:00Z") });
+    const ticketRecords = recordsOn(stale, TICKET);
+    assert.deepEqual(ticketRecords.map((e) => [e.note.option, e.note.fallbackAt]), [["C", "2026-11-13T19:30:00.000Z"]], "the stale B record is replaced by a C record after the revision changed the fallback");
+    assert.equal(retaken.records[0].reused, false);
+    assert.match(ticketRecords[0].c.body, /\*\*Went ahead with:\*\* C · A small dot on the strip/);
+    console.log("ok: a record left from before a revision that changed the fallback is not reused");
+  }
+
+  {
+    const t = tracker({ onAddLabel: (self) => self.say("Wait. Can you show C first?", "2026-11-13T17:40:30Z") });
+    assert.throws(() => fallbackRequest(REQUEST, OWNER, doing, { tracker: t, repos, now }), /#9001 changed while going ahead: it now reads question, with the maintainer's comment https:\/\/github\.com\/acme\/tickets\/issues\/9001#issuecomment-\d+; read it again before acting\nRolled back: deleted the fallback record \d+ on #2271; removed the label maintainer: decided without you; deleted the fallback note \d+\./);
+    const after = fetchAnswer(REQUEST, { tracker: t, repos });
+    assert.deepEqual([after.state, after.words.map((w) => w.body)], ["question", ["Wait. Can you show C first?"]], "the maintainer's question stays open and its words are kept");
+    assert.deepEqual([recordsOn(t, TICKET), t.issue(REQUEST).labels.map((l) => l.name)], [[], [labels.decision]]);
+    t.closeAs("completed", "2026-11-13T18:00:00Z");
+    assert.equal(fetchAnswer(REQUEST, { tracker: t, repos }).state, "answered", "a later close is answered in the maintainer's words, never kept");
+    console.log("ok: a maintainer question that arrives while fallback publishes is kept: the fallback is rolled back and the request reads as a question");
+
+    const late = tracker();
+    fallbackRequest(REQUEST, OWNER, doing, { tracker: late, repos, now });
+    late.say("Hmm, why B?", "2026-11-13T18:00:00Z");
+    late.closeAs("completed", "2026-11-13T18:00:01Z");
+    const changed = fetchAnswer(REQUEST, { tracker: late, repos });
+    assert.deepEqual([changed.state, changed.words.map((w) => w.body)], ["changed", ["Hmm, why B?"]]);
+    console.log("ok: a maintainer comment after the fallback note is read as their words");
+  }
+
+  {
+    const t = tracker();
+    fallbackRequest(REQUEST, OWNER, doing, { tracker: t, repos, now });
+    const reordered = decisionBody.replace("### B · A hollow pin (recommended)", "### B · A small dot on the strip (recommended)").replace("### C · A small dot on the strip", "### C · A hollow pin");
+    assert.notEqual(reordered, decisionBody);
+    t.issues.get(REQUEST).body = reordered;
+    t.closeAs("completed", "2026-11-13T19:00:00Z");
+    const kept = fetchAnswer(REQUEST, { tracker: t, repos });
+    assert.deepEqual([kept.state, kept.wentAhead.option, kept.wentAhead.name], ["kept", "B", "A hollow pin"], "the option taken is named from the fallback note, not from a body revised since");
+    recordAnswer(REQUEST, { tracker: t, repos });
+    assert.match(recordsOn(t, TICKET).at(-1).c.body, /kept the fallback B · A hollow pin, taken at/);
+    console.log("ok: a revision that renames or reorders options after the fallback leaves the kept record naming the option actually taken");
   }
 
   {
