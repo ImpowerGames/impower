@@ -135,6 +135,20 @@ describe("a played preview beat over the same still (#2257, correcting #2256)", 
     expect(page.revealed()).toBeLessThan(TEXT.length);
   });
 
+  test("leaves a line PLAY typed and a click finished at once alone when the same line comes again", async () => {
+    const page = makePage();
+    await page.send(beat(false, page.now()));
+    page.frame(250);
+    expect(page.revealed()).toBeLessThan(TEXT.length);
+    await page.send(beat(true));
+    expect(page.revealed()).toBe(TEXT.length);
+    const before = page.letters();
+    page.frame(1_000);
+    await page.send(beat(false, page.now()));
+    expect(page.letters()).toEqual(before);
+    expect(page.revealed()).toBe(TEXT.length);
+  });
+
   test("leaves a line PLAY has already typed alone when the same line is reconciled again", async () => {
     const page = makePage();
     await page.send(beat(false, page.now()));

@@ -1769,7 +1769,9 @@ export default class UIManager extends Manager {
       if (instant) {
         for (const el of targetEls) {
           this.revealAtOnce(el);
-          (el as any).__sdTxtAtOnce = true;
+          if ((el as any).__sdTxtReplayed) {
+            (el as any).__sdTxtAtOnce = true;
+          }
         }
       }
       return;
@@ -1787,6 +1789,7 @@ export default class UIManager extends Manager {
       (el as any).__sdTxt = sig;
       (el as any).__sdTxtRev = (el as any).__sdRev ?? 0;
       (el as any).__sdTxtAtOnce = instant;
+      (el as any).__sdTxtReplayed = replays;
     }
     const enter: {
       element: HTMLElement;
