@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import { layoutMinWidths } from "../../layout/breakpoints";
 import Button from "../button/Button";
+import { cn } from "../../utils/cn";
 import SplitPane, { type SplitPaneProps } from "./SplitPane";
 
 function SplitPaneExample({
@@ -30,17 +31,18 @@ function SplitPaneExample({
       </div>
       <div class="h-72 w-full overflow-hidden rounded border border-surface-border">
         <SplitPane
+          class="[--split-start-surface:var(--color-panel)] [--split-end-surface:var(--color-workspace)]"
           orientation={orientation}
           activePanel={active}
           defaultSizes={defaultSizes}
           minSize={minSize}
           start={
-            <div class="flex h-full items-center justify-center bg-surface">
+            <div class="flex h-full items-center justify-center bg-panel">
               Start panel
             </div>
           }
           end={
-            <div class="flex h-full items-center justify-center bg-popup">
+            <div class="flex h-full items-center justify-center bg-workspace">
               End panel
             </div>
           }
@@ -63,8 +65,14 @@ function PinnedSplitPaneExample({
       <span class="text-xs text-foreground/60">
         Saved size: {size === undefined ? "none (default)" : `${size}px`}
       </span>
-      <div class="h-72 w-full overflow-hidden rounded border border-surface-border">
+      <div
+        class={cn(
+          "h-72 w-full overflow-hidden rounded border border-surface-border",
+          line === "none" && "bg-workspace",
+        )}
+      >
         <SplitPane
+          class="[--split-start-surface:var(--color-panel)] [--split-end-surface:var(--color-workspace)]"
           orientation="vertical"
           reverse={reverse}
           line={line}
@@ -79,12 +87,12 @@ function PinnedSplitPaneExample({
             onSizeChange: setSize,
           }}
           start={
-            <div class="flex h-full items-center justify-center bg-surface">
+            <div class="flex h-full items-center justify-center bg-panel">
               Content
             </div>
           }
           end={
-            <div class="flex h-full flex-col bg-popup">
+            <div class="flex h-full flex-col bg-workspace">
               <div class="flex h-11 shrink-0 items-center px-3">Bar</div>
               <div class="flex flex-1 items-center justify-center">Panel</div>
             </div>
@@ -121,7 +129,7 @@ function SplitPaneDemo() {
   return (
     <div class="space-y-6">
       <GalleryRow
-        label={`Horizontal: drag the divider or focus it and press the arrow keys. Below ${layoutMinWidths.compact}px wide (the phone layout) only the chosen pane shows.`}
+        label={`Horizontal between two surfaces: the strip shows each pane's own colour up to the 1px edge line. Drag the divider or focus it and press the arrow keys. Below ${layoutMinWidths.compact}px wide (the phone layout) only the chosen pane shows.`}
       >
         <SplitPaneExample orientation="horizontal" />
       </GalleryRow>
@@ -141,7 +149,7 @@ function SplitPaneDemo() {
       <GalleryRow label="Vertical, reversed, with the pinned end panel shown first: drag and the arrow keys follow what is on screen">
         <PinnedSplitPaneExample reverse />
       </GalleryRow>
-      <GalleryRow label="Vertical with line none, for a divider inside one surface: nothing is drawn at rest, and hover, focus and drag still show the accent bar">
+      <GalleryRow label="Vertical with line none, for a divider inside one surface: nothing is drawn at rest and the strip shows the surface behind the split, while hover, focus and drag still show the accent bar">
         <PinnedSplitPaneExample line="none" />
       </GalleryRow>
       <GalleryRow label="Vertical with the start panel allowed to overflow: its content's shadow falls past the divider onto the end panel, while the end panel still clips">

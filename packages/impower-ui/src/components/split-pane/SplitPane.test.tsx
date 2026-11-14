@@ -81,6 +81,28 @@ describe("SplitPane", () => {
     }
   });
 
+  it("fills a between-surfaces strip with each neighbour's surface on its own side of the line, and a line-none strip with neither", async () => {
+    const strip = (classes: DOMTokenList) =>
+      Array.from(classes).filter((c) => c.startsWith("bg-["));
+    for (const orientation of ["horizontal", "vertical"] as const) {
+      const axis = orientation === "horizontal" ? "to_right" : "to_bottom";
+      const forward = strip((await mount({ orientation })).separator.classList);
+      expect(forward).toEqual([
+        `bg-[linear-gradient(${axis},var(--split-start-surface,transparent)_3px,transparent_3px_4px,var(--split-end-surface,transparent)_4px)]`,
+      ]);
+      const reversed = strip(
+        (await mount({ orientation, reverse: true })).separator.classList,
+      );
+      expect(reversed).toEqual([
+        `bg-[linear-gradient(${axis},var(--split-end-surface,transparent)_3px,transparent_3px_4px,var(--split-start-surface,transparent)_4px)]`,
+      ]);
+      const none = (await mount({ orientation, line: "none" })).separator
+        .classList;
+      expect(strip(none)).toEqual([]);
+      expect(none.contains(orientation === "horizontal" ? "before:left-[3px]" : "before:top-[3px]")).toBe(true);
+    }
+  });
+
   it("clips both panels unless one is named to overflow", async () => {
     await mount({});
     const panels = host!.querySelectorAll<HTMLElement>("[data-panel]");
