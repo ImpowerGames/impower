@@ -8,12 +8,12 @@ import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import type { FormattedText } from "../../../../../sparkdown-screenplay/src/types/FormattedText";
-import type { PrintedInsert } from "../../../../../sparkdown-screenplay/src/types/PrintedInsert";
 import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/gluedAlternatorLayout";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styleText";
 import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
 import {
+  type PageInsert,
   type PrintedRun,
   type PrintedScene,
   screenplayPageLayout,
@@ -208,7 +208,7 @@ interface CachedPageLayout {
   blankPositions: Set<number>;
   printed: number[];
   actionStarts: number[];
-  inserts: PrintedInsert[];
+  inserts: PageInsert[];
   printedLines: { at: number; lines: FormattedText[][] }[];
   runs: PrintedRun[];
   scenes: PrintedScene[];
@@ -366,7 +366,9 @@ export const decorate = (
 
   for (const insert of inserts) {
     if (insert.at >= from && (to === undefined || insert.at <= to)) {
-      const widget = insert.text === "\n" ? new LineBreakWidget() : new InsertedTextWidget(insert.text);
+      const printed = insert.style ? printedStyle(insert.style) : { style: "", source: false };
+      const widget =
+        insert.text === "\n" ? new LineBreakWidget() : new InsertedTextWidget(insert.text, printed.style, printed.source);
       decorations.push(Decoration.widget({ widget, side: 1 }).range(insert.at));
     }
   }
@@ -934,9 +936,10 @@ export const decorate = (
     alignTo = Math.max(alignTo, run.to);
     const { source, style } = printedStyle(run.style);
     if (run.text !== undefined) {
-      decorations.push(Decoration.replace({ widget: new InsertedTextWidget(run.text) }).range(run.from, run.to));
-    }
-    if (source || style) {
+      decorations.push(
+        Decoration.replace({ widget: new InsertedTextWidget(run.text, style, source) }).range(run.from, run.to),
+      );
+    } else if (source || style) {
       decorations.push(
         Decoration.mark({
           class: source ? "sp-source" : undefined,

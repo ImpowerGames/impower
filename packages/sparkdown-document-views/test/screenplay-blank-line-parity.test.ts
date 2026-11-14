@@ -874,4 +874,26 @@ describe("a tab in printed text", () => {
       .filter((text) => text.trim());
     expect(rows).toEqual(printed);
   });
+
+  it.each([
+    ["a tab inside underlined text", "  : _A\tB_ end.", "    ", "u"],
+    ["a tab inside an emphasised interpolation", "  : *{a\tb}* tail.", "    ", "is"],
+    ["a glued alternative's join inside underlined text", "  _They see .. queue | a cat | a dog .. outside._", " / ", ""],
+  ])("styles the export's text drawn in place of the source for %s", (_name, line, drawn, flags) => {
+    const source = ["scene s", line, "end", ""].join("\n");
+    const spans = generateScreenplayPrintData(new ScreenplayParser().parse(source), CONFIGS["default"]).spans;
+    const pieces = spans.flatMap((span) => ("lines" in span ? span.lines.flatMap((printedLine) => printedLine.content) : []));
+    const exported = pieces.find((piece) => piece.text.includes(drawn))!;
+    expect(exported, `the export prints ${JSON.stringify(drawn)}`).toBeDefined();
+    screenRows("default", source);
+    const inserted = Array.from(views.get("default")!.contentDOM.querySelectorAll(".sp-inserted")).find(
+      (element) => element.textContent === drawn,
+    )!;
+    expect(inserted, `the page draws ${JSON.stringify(drawn)} in place of the source`).toBeDefined();
+    const row = inserted.closest(".cm-line")!;
+    expect(flagsOf(pageStyleOf(inserted, row, new Map()))).toBe(
+      flagsOf({ ...exported, align: undefined, source: exported.color === SOURCE_COLOR }),
+    );
+    expect(flagsOf({ ...exported, align: undefined, source: exported.color === SOURCE_COLOR })).toBe(flags);
+  });
 });
