@@ -11,6 +11,7 @@ import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constant
 import type { PrintedInsert } from "../../../../../sparkdown-screenplay/src/types/PrintedInsert";
 import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/gluedAlternatorLayout";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
+import { SHOWN_AS_SOURCE } from "../../../../../sparkdown-screenplay/src/utils/readStyled";
 import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
 import { screenplayPageLayout } from "../../../../../sparkdown-screenplay/src/utils/screenplayPageLayout";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
@@ -632,6 +633,7 @@ export const decorate = (
   let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
   let frontMatterKeyword = "";
   let inFrontMatter = false;
+  const shownAsSource: number[] = [];
 
   tree.iterate({
     from,
@@ -825,6 +827,10 @@ export const decorate = (
       } else if (isUnprinted(nodeRef)) {
         hideInlineRange(nodeRef);
         return false;
+      } else if (SHOWN_AS_SOURCE.has(name)) {
+        shownAsSource.push(from, to);
+        decorations.push(Decoration.mark({ class: "sp-source" }).range(from, to));
+        return false;
       } else if (name === "LuauSparkdownAlternatorArm") {
         decorations.push(...createDecorations(doc, { type: "reveal", from, to }));
         return true;
@@ -1017,12 +1023,23 @@ export const decorate = (
     },
   });
 
+  let sourceIndex = 0;
+  const insideShownSource = (from: number, to: number) => {
+    while (sourceIndex < shownAsSource.length && shownAsSource[sourceIndex + 1]! <= from) {
+      sourceIndex += 2;
+    }
+    return sourceIndex < shownAsSource.length && shownAsSource[sourceIndex]! <= from && to <= shownAsSource[sourceIndex + 1]!;
+  };
+
   highlightTree(
     tree,
     [LANGUAGE_HIGHLIGHTS],
     (from, to, style) => {
       const line = doc.lineAt(from);
       if (line.from === from && isWhitespaceOnly(line.from, line.to)) {
+        return;
+      }
+      if (insideShownSource(from, to)) {
         return;
       }
       decorations.push(Decoration.mark({ class: style }).range(from, to));

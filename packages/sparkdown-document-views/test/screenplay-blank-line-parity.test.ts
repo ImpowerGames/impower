@@ -98,6 +98,11 @@ const KINDS: Record<string, string[]> = {
   GluedDialogueAlternator: ["  HERO: I want .. queue | tea | coffee .. now."],
   GluedChoiceAlternator: ["  * [Pick .. queue | red | blue ..]"],
   GluedConditionalAlternator: ["  It is .. match(x) | cold | warm .. today."],
+  GluedInterpolatedAlternator: ["  They see .. queue | {animal} | a dog .. outside."],
+  ImplicitActionInterpolation: ["  Hello {person} there."],
+  InlineDialogueInterpolation: ["  GUIDE: Hi {person} again."],
+  ChoiceInterpolation: ["  * [Greet {person} warmly.]"],
+  SingleLineAlternatorInterpolation: ["  queue | Wave at {person}. | Nod. end"],
   LuauSparkdownVariableDefinition: ["  local z = 3"],
   LuauSparkdownWhileLoop: ["  while false do", "    It hails.", "  end"],
   LuauStrayUntilStatement: ["  until true"],
@@ -119,10 +124,15 @@ const GLUED_LAYOUTS: Record<string, string[]> = {
   GluedDialogueAlternator: ["HERO", "I want tea / coffee now."],
   GluedChoiceAlternator: ["* [Pick red / blue]"],
   GluedConditionalAlternator: ["It is cold / warm today."],
+  GluedInterpolatedAlternator: ["They see {animal} / a dog outside."],
 };
 
 const PRINTED: Record<string, string[]> = {
   ...GLUED_LAYOUTS,
+  ImplicitActionInterpolation: ["Hello {person} there."],
+  InlineDialogueInterpolation: ["GUIDE", "Hi {person} again."],
+  ChoiceInterpolation: ["* [Greet {person} warmly.]"],
+  SingleLineAlternatorInterpolation: ["Wave at {person}.", "Nod."],
   BlockAction: ["The door creaks."],
   BlockActionInnerBlank: ["First.", "Second."],
   BlockActionLeadingBlank: ["First."],

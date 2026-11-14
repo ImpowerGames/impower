@@ -5,7 +5,7 @@ import {
 } from "../../../sparkdown/src/compiler/lower/utils/displaySpans";
 import { SCAN_CLOSE, SCAN_OPEN } from "../../../sparkdown/src/runtime/displayStyle";
 
-const SHOWN_AS_SOURCE = new Set(["LuauInterpolatedStringExpression", "Divert"]);
+export const SHOWN_AS_SOURCE: ReadonlySet<string> = new Set(["LuauInterpolatedStringExpression", "Divert"]);
 
 const UNPRINTED = new Set(["ImageCommand", "AudioCommand", "TextCommand"]);
 
