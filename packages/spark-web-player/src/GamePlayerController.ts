@@ -3156,6 +3156,10 @@ export class GamePlayerController {
 
   async detachWorkerPreview() {
     this._workerDetaches += 1;
+    if (this._displayedBeat) {
+      this._displayedBeat = null;
+      this.publishGameState();
+    }
     if (this._beatPlay) {
       this.endBeatPlay(this._beatPlay.id);
     }
@@ -3335,7 +3339,6 @@ export class GamePlayerController {
       }).catch((e) => console.error(e));
     } else if (during === "preview") {
       this._previewPosition = null;
-      this._displayedBeat = null;
       this.publishGameState();
       this.detachWorkerPreview().catch((e) => console.error(e));
     }
