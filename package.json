@@ -9,6 +9,7 @@
     "web:dev:cross-origin": "node scripts/dev-preview.mjs --mode cross-origin",
     "vscode:dev": "npm --prefix vscode-sparkdown run watch",
     "typecheck": "node scripts/typecheck.mjs",
+    "check:listrow-overflow": "node scripts/check-listrow-overflow.mjs",
     "check:node-names": "node scripts/check-node-names.mjs",
     "lint:radix-boundary": "eslint --no-inline-config --max-warnings 0 \"**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}\""
   },
