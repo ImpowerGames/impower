@@ -8,6 +8,7 @@ import { readRepos, ticketsRepo } from "../../repos.mjs";
 import { ghClient as dependencyClient } from "../references/record-blockers.mjs";
 import { findTypedWords } from "./chat-transcript.mjs";
 import { TOOL_MARK, actorOf, commentAuthor, resolveIdentity, tokenEnv } from "./github-app.mjs";
+import { ANSWERED_STATES as ANSWERED, noteRequests } from "./request-index.mjs";
 
 export const TEMPLATE_FILES = Object.freeze({
   decision: fileURLToPath(new URL("../../templates/issues/maintainer_decision.md", import.meta.url)),
@@ -545,6 +546,7 @@ export function ghTracker(repo = ticketsRepo(), runGh = (args, options = {}) => 
   return {
     repo,
     open: (label) => json(["api", "-X", "GET", `repos/${repo}/issues`, "-f", "state=open", "-f", `labels=${label}`, "-f", "per_page=100", "--paginate", "--slurp"]).flat().filter((issue) => !issue.pull_request),
+    all: (label) => json(["api", "-X", "GET", `repos/${repo}/issues`, "-f", "state=all", "-f", `labels=${label}`, "-f", "per_page=100", "--paginate", "--slurp"]).flat().filter((issue) => !issue.pull_request),
     issue: (n) => json(["api", `repos/${repo}/issues/${n}`]),
     parent: (n) => {
       try {
@@ -757,6 +759,7 @@ export function fileRequest(request, { pictures: folder, tracker, repos = readRe
         post: (file, attach) => {
           const target = tracker.create({ title: built.title, bodyFile: file, labels: [label], assignee: repos.maintainer.login, attach, cwd: folder });
           filed.number = target.number;
+          noteRequests(tracker.repo, [{ number: target.number, kind: checked.kind, state: "waiting" }]);
           return target;
         },
         read: (target) => tracker.issue(target.number).body ?? "",
@@ -824,6 +827,7 @@ export function tagTicket(number, request, { pictures: folder, tracker, repos = 
       if (!(after.labels ?? []).some((l) => l.name === label)) problems.push(`label ${label} is missing`);
       if (!(after.assignees ?? []).some((a) => a.login === login)) problems.push(`${login} is not assigned`);
       if (problems.length) throw new FilingProblems(problems);
+      noteRequests(tracker.repo, [{ number, kind: "task", tagged: true, state: "waiting" }]);
       return { number, url: after.html_url, comment: done.comment, blocked: checked.tickets, pictures: placed.urls.length };
     } catch (error) {
       const steps = unlinkSteps(tracker, done.attempted, { number, id: ticket.id });
@@ -878,7 +882,11 @@ export function formatList(groups, { now = new Date(), timeZone = Intl.DateTimeF
 
 export function listRequests(tracker, repos = readRepos()) {
   const { decision, task, decidedWithoutYou } = repos.maintainer.labels;
-  return groupRequests({ decisions: tracker.open(decision), tasks: tracker.open(task), decidedWithoutYou: tracker.open(decidedWithoutYou) });
+  const decisions = tracker.all(decision);
+  const tasks = tracker.all(task);
+  noteRequests(tracker.repo, [...decisions.map((issue) => [issue, "decision"]), ...tasks.map((issue) => [issue, "task"])].map(([issue, kind]) => ({ number: issue.number, kind, state: issue.state === "open" ? "open" : "closed" })));
+  const open = (list) => list.filter((issue) => issue.state === "open");
+  return groupRequests({ decisions: open(decisions), tasks: open(tasks), decidedWithoutYou: tracker.open(decidedWithoutYou) });
 }
 
 const lf = (text) => (text ?? "").replace(/\r\n/g, "\n");
@@ -936,12 +944,16 @@ function optionName(body, letter) {
   return heading ? heading[1] : null;
 }
 
+const indexed = (tracker, answer) => {
+  noteRequests(tracker.repo, [{ number: answer.number, kind: answer.kind, tagged: answer.tagged, state: answer.state }]);
+  return answer;
+};
+
 export function fetchAnswer(number, { tracker, repos = readRepos() }) {
-  return readAnswer(tracker.issue(number), tracker.timeline(number), repos);
+  return indexed(tracker, readAnswer(tracker.issue(number), tracker.timeline(number), repos));
 }
 
 const RUNNERS = { "claude-code": "Claude Code", codex: "Codex" };
-const ANSWERED = ["answered", "accepted", "done", "will-not-do"];
 
 export function answerKey(answer) {
   if (!answer.words.length) return `${answer.state}:closed:${answer.closed.at}`;
@@ -1028,7 +1040,7 @@ const sameTickets = (a, b) => JSON.stringify([...a].sort((x, y) => x - y)) === J
 
 export function reviseRequest(number, request, changes, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates, identity = AS_MAINTAINER }) {
   const issue = tracker.issue(number);
-  const answer = readAnswer(issue, tracker.timeline(number), repos);
+  const answer = indexed(tracker, readAnswer(issue, tracker.timeline(number), repos));
   if (answer.tagged) throw new RequestRefused([`#${number} is a tagged ticket, not a filed request; it has no request body to revise`]);
   if (issue.state === "closed" && answer.state !== "unclear") throw new RequestRefused([`#${number} is closed (${answer.state}); revise reopens only a request whose answer is unclear`]);
   const changed = checkNoteText(changes, "What changed");
@@ -1152,7 +1164,7 @@ export async function waitForRequests(numbers, { tracker, refresh, repos = readR
     const readAt = clock().getTime();
     const polled = tracker.poll(number, null);
     const timeline = tracker.timeline(number);
-    const answer = readAnswer(polled.issue, timeline, repos);
+    const answer = indexed(tracker, readAnswer(polled.issue, timeline, repos));
     return { number, etag: polled.etag, readAt, nextRead: clock().getTime() + interval, answer, seen: maintainerIds(timeline), fresh: false };
   });
   for (;;) {
@@ -1187,7 +1199,7 @@ export async function waitForRequests(numbers, { tracker, refresh, repos = readR
       if (polled.status !== 304) {
         const timeline = tracker.timeline(entry.number);
         entry.etag = polled.etag;
-        entry.answer = readAnswer(polled.issue, timeline, repos);
+        entry.answer = indexed(tracker, readAnswer(polled.issue, timeline, repos));
         entry.fresh = [...maintainerIds(timeline)].some((id) => !entry.seen.has(id));
       }
       entry.readAt = readAt;

@@ -25,6 +25,7 @@ import {
 } from "./maintainer-request.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+process.env.IMPOWER_MAINTAINER_REQUEST_INDEX = mkdtempSync(path.join(tmpdir(), "request-index-"));
 const fixtureFile = (name) => path.join(here, "fixtures", name);
 const fixture = (name) => readFileSync(fixtureFile(name), "utf8").replace(/\r\n/g, "\n");
 const repos = readRepos();
@@ -485,6 +486,7 @@ try {
       const stateAt = () => timeline(now - Date.parse(start)) ?? { issue: issue({ body }), comments: [] };
       let served = null;
       const tracker = {
+        repo: "acme/tickets",
         poll: (n, etag) => {
           const current = stateAt();
           const tag = `W/"${JSON.stringify(current).length}-${current.comments.length}-${current.issue.state}"`;
@@ -537,6 +539,7 @@ try {
         return { ...issue({ number: n, body: fallback }), ...(closed ? closedBy("completed", new Date(start + closeAt[n] * 1000).toISOString().replace(".000Z", "Z")) : {}) };
       };
       const tracker = {
+        repo: "acme/tickets",
         poll: (n, etag) => {
           const at = (now - start) / 1000;
           log.push({ n, kind: "poll", at });
@@ -607,6 +610,7 @@ try {
     let now = start;
     const fallbackBody = decisionBody.replace(/"at":"[^"]+"/, '"at":"2026-11-13T18:00:00.000Z"');
     const trackerFor = (name, uses) => ({
+      repo: "acme/tickets",
       poll: (n, etag) => {
         uses.push([name, "poll", (now - start) / 1000]);
         const closed = now - start >= 150000;
