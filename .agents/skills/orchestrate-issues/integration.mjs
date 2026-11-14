@@ -142,7 +142,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   for (const x of [t, ...delivered].filter(Boolean)) {
     if (!requiresDependencies(record, x, number)) continue;
     for (const b of x.blockers ?? []) {
-      if (b.delivered || historic.has(b.number) || (x.number !== number && carried.has(b.number))) continue;
+      if (b.delivered || (b.request && b.state === "closed") || historic.has(b.number) || (x.number !== number && carried.has(b.number))) continue;
       blockers.push(`#${x.number} is blocked by #${b.number} (${b.state}); its deliverable must be on origin/${TARGET} before PR #${pr} merges`);
     }
     if (x.number === number) continue;

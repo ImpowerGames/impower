@@ -856,12 +856,18 @@ const pullsFilter = (client, tickets = null, split = false) => {
   };
 };
 
+export function maintainerRequest({ labels } = readRepos().maintainer) {
+  const names = new Set([labels.decision, labels.task]);
+  return (issue) => (issue.labels ?? []).some((label) => names.has(typeof label === "string" ? label : label?.name));
+}
+
 export function takeSnapshot({ repository, issue, tickets: ticketsRepository = repository, scope = null }, client) {
   const originMain = client.fetchMain();
   const worktrees = client.worktrees();
   const pullsOf = pullsFilter(client, ticketsRepository, repositoriesOf({ repository, ticketsRepository }).split);
   const mergedOnMain = (p) => Boolean(p.state === "MERGED" && p.mergeCommit?.oid && client.onMain(p.mergeCommit.oid));
   const delivered = (n) => pullsOf(n).some(mergedOnMain);
+  const isRequest = maintainerRequest();
   const parent = client.issue(issue);
   const walked = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf });
   const members = scope === null ? null : new Set(walked.filter((t) => t.number === scope || t.deliveredBy?.ticket === scope).map((t) => t.number));
@@ -877,7 +883,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     return {
       ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
-      blockers: full ? client.blockedBy(n).map((b) => ({ number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
+      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });
@@ -1091,9 +1097,10 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   };
   const historic = new Set(snapshot.tickets.filter((t) => closedBeforeRun(record, t)).map((t) => t.number));
   const containers = finishedContainers(record, snapshot);
-  const met = (b) => b.delivered || historic.has(b.number) || containers.closed.has(b.number);
+  const met = (b) => b.delivered || (b.request && b.state === "closed") || historic.has(b.number) || containers.closed.has(b.number);
   const undelivered = (t) => t.blockers.filter((b) => !met(b));
-  const waitingFor = (blockers) => `waiting for ${blockers.map((b) => `#${b.number} (${b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join(", ")}`;
+  const blockerState = (b) => (b.request ? "an open maintainer request" : b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open");
+  const waitingFor = (blockers) => `waiting for ${blockers.map((b) => `#${b.number} (${blockerState(b)})`).join(", ")}`;
   const parentOf = new Map(snapshot.tickets.map((t) => [t.number, t.parent]));
   const heldContainers = new Set();
   const heldAncestor = (t) => { for (let p = t.parent; p !== undefined && p !== snapshot.issue.number; p = parentOf.get(p)) if (heldContainers.has(p)) return p; return null; };
@@ -1128,7 +1135,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (met(fixOf)) return null;
     return { action: "wait-dependency", waitingFor: [fixOf.number], reason: `it completes #${fixOf.number}'s fix (${triaged.reason}); ${triaged.interim ? `the maintainer accepted #${fixOf.number}'s narrow fix as an interim, so this ticket removes it once #${fixOf.number}'s PR has merged` : `#${fixOf.number}'s writer makes the proper fix in its PR with a closing reference to #${t.number}, which delivers it`}` };
   };
-  const blockedText = (list) => list.map((x) => `#${x.ticket}, which its PR delivers, waits for #${x.blocker.number} (${x.blocker.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join("; ");
+  const blockedText = (list) => list.map((x) => `#${x.ticket}, which its PR delivers, waits for #${x.blocker.number} (${blockerState(x.blocker)})`).join("; ");
   const statuses = new Map();
   const statusOf = (n, owner) => { if (!statuses.has(n)) statuses.set(n, ownerStatus(owner, observations, { host, identify })); return statuses.get(n); };
   for (const t of snapshot.tickets) {

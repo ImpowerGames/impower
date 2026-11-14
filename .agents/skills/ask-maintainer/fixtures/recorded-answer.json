@@ -1,0 +1,43 @@
+{
+  "issue": {
+    "number": 2313,
+    "title": "Which word should the test run of the answer recorder copy onto the scratch ticket? (#2312)",
+    "html_url": "https://github.com/ImpowerGames/impower-internal/issues/2313",
+    "state": "closed",
+    "state_reason": "completed",
+    "created_at": "2026-11-14T04:47:32Z",
+    "updated_at": "2026-11-14T04:48:17Z",
+    "closed_at": "2026-11-14T04:48:17Z",
+    "closed_by": {
+      "login": "lovelle-cardoso",
+      "type": "User"
+    },
+    "labels": [
+      {
+        "name": "maintainer: decision"
+      }
+    ],
+    "assignees": [
+      {
+        "login": "lovelle-cardoso"
+      }
+    ],
+    "type": {
+      "name": "Task"
+    },
+    "body": "> [!IMPORTANT]\n> **If you don't answer by 00:17 tomorrow, I'll go ahead with A · Apple,** and move this to \"decided without you\". Undoing it later: Nothing to undo; the scratch ticket is closed after the test.\n\n- **Recommended:** A · Apple\n- **Parked until you answer:** #2312, a scratch ticket that exists only for this test\n- **Carrying on meanwhile:** nothing else; this is a test request and no real work waits on it\n- **Asked by:** the writer for #2288 (reading and recording your answers), as a live test\n\n## The short version\n\nThis is a test, not a real decision. The tool that reads your answers is being checked end to end: a request is filed, closed with a comment, and the tool copies that comment word for word onto a scratch ticket. The writer closes it from the command line for this run; you do not need to do anything.\n\n## The options\n\n### A · Apple (recommended)\n\n**Example:** The record on the scratch ticket would quote the word apple.\n\n- **Pros:** Short and easy to spot in the record.\n- **Cons:** None; it is a test word.\n- **To undo later:** Nothing to undo; the scratch ticket is closed after the test.\n\n### B · Banana\n\n**Example:** The record on the scratch ticket would quote the word banana.\n\n- **Pros:** Also short and easy to spot.\n- **Cons:** None; it is a test word.\n- **To undo later:** Nothing to undo; the scratch ticket is closed after the test.\n\n## Side by side\n\n- **A · Apple:** a test word.\n- **B · Banana:** a test word.\n\n## Why A\n\nEither works; A is first.\n\n---\n\n**To answer:** close this issue with a comment, either a letter (`A`) or your own words, which are recorded word for word. Close it with no comment to accept the recommendation. Comment without closing to ask a question or say what's missing; it stays open, and any fallback clock starts again when I reply.\n\n_Filed by an agent through your GitHub account, so GitHub shows you as the author of this request; an agent wrote it._\n\n<!-- maintainer-request {\"kind\":\"decision\",\"options\":[\"A\",\"B\"],\"recommended\":\"A\",\"fallback\":{\"option\":\"A\",\"at\":\"2026-11-14T05:17:30.419Z\"},\"blocks\":[2312],\"owner\":\"resolve-issue #2288 (Claude Code)\"} -->\n"
+  },
+  "comments": [
+    {
+      "id": 6871951767,
+      "html_url": "https://github.com/ImpowerGames/impower-internal/issues/2313#issuecomment-6871951767",
+      "created_at": "2026-11-14T04:48:16Z",
+      "updated_at": "2026-11-14T04:48:16Z",
+      "user": {
+        "login": "lovelle-cardoso",
+        "type": "User"
+      },
+      "body": "B, Banana.\n\nKeep the record short — this is only a test."
+    }
+  ]
+}
