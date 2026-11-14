@@ -52,6 +52,9 @@ test("a self-clipping label without overflow self or wrap fails", () => {
   assert.deepEqual(run(`<ListRow label={item} />`, { head: `import { Snippet } from "./Snippet";\nconst item = <Snippet text="a" />;\n` }), ["fade"]);
   assert.deepEqual(run(`<MenuRow label={<span class="truncate">a</span>} />`, { head: `import { ListRow as MenuRow } from "@impower/impower-ui/components";\n` }), ["fade"]);
   assert.deepEqual(run(`<ListRow {...props} />`, { head: `const props = { label: <span class="fade-edge">a</span> };\n` }), ["fade"]);
+  assert.deepEqual(run(`<UI.ListRow label={<Snippet text="a" />} />`, { head: `import * as UI from "@impower/impower-ui/components";\nimport { Snippet } from "./Snippet";\n` }), ["fade"]);
+  assert.deepEqual(run(`<ListRow label={<parts.Snippet text="a" />} />`, { head: `import * as parts from "./Snippet";\n` }), ["fade"]);
+  assert.deepEqual(run(`<UI.ListRow overflow="self" label={<Snippet text="a" />} />`, { head: `import * as UI from "@impower/impower-ui/components";\nimport { Snippet } from "./Snippet";\n` }), []);
   assert.deepEqual(run(`<ListRow {...props} />`, { head: `const label = <span class="fade-edge">a</span>;\nconst props = { label, overflow: "clamp" };\n` }), ["clamp"]);
   assert.deepEqual(run(`<ListRow {...{ label: <span class="truncate">a</span> }} overflow="fade" />`), ["fade"]);
 });

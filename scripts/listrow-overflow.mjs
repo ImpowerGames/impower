@@ -56,8 +56,12 @@ function topLevelNames(sourceFile) {
   const components = new Map();
   const imports = new Map();
   const bindings = new Map();
+  const namespaces = new Map();
   for (const statement of sourceFile.statements) {
     if (ts.isFunctionDeclaration(statement) && statement.name && statement.body) components.set(statement.name.text, statement.body);
+    if (ts.isImportDeclaration(statement) && statement.importClause?.namedBindings && ts.isNamespaceImport(statement.importClause.namedBindings)) {
+      namespaces.set(statement.importClause.namedBindings.name.text, statement.moduleSpecifier.text);
+    }
     if (ts.isImportDeclaration(statement) && statement.importClause?.namedBindings && ts.isNamedImports(statement.importClause.namedBindings)) {
       for (const element of statement.importClause.namedBindings.elements) {
         imports.set(element.name.text, { specifier: statement.moduleSpecifier.text, name: (element.propertyName ?? element.name).text });
@@ -71,7 +75,7 @@ function topLevelNames(sourceFile) {
     bindings.set(n.name.text, list);
     if (n.parent?.parent?.parent === sourceFile && (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer))) components.set(n.name.text, n.initializer.body);
   });
-  return { components, imports, bindings };
+  return { components, imports, bindings, namespaces };
 }
 
 const moduleCandidates = (from, specifier) => {
@@ -95,7 +99,8 @@ export function analyse(files) {
   const resolve = (file, name) => {
     const module = modules.get(file);
     if (module.components.has(name)) return [`${file}#${name}`];
-    const imported = module.imports.get(name);
+    const [space, member, ...rest] = name.split(".");
+    const imported = member && !rest.length && module.namespaces.has(space) ? { specifier: module.namespaces.get(space), name: member } : module.imports.get(name);
     if (imported?.specifier.startsWith(".")) {
       const target = moduleCandidates(file, imported.specifier).find((c) => modules.has(c));
       return target && modules.get(target).components.has(imported.name) ? [`${target}#${imported.name}`] : [];
@@ -113,7 +118,7 @@ export function analyse(files) {
     walk(node, (n) => {
       if (found) return false;
       if ((isClassAttribute(n) || isClassCall(n)) && hasClipString(n)) found = true;
-      else if (tagName(n) && /^[A-Z]/.test(tagName(n)) && tagClips(file, tagName(n))) found = true;
+      else if (tagName(n) && /^[A-Z]/.test(tagName(n).split(".").pop()) && tagClips(file, tagName(n))) found = true;
       else if (ts.isIdentifier(n) && !seen.has(n.text) && (n === node || ts.isJsxExpression(n.parent))) {
         seen.add(n.text);
         found = (modules.get(file).bindings.get(n.text) ?? []).some((init) => clips(file, init, seen));
@@ -178,6 +183,7 @@ function props(element, bindings) {
 const listRowTags = (module) => {
   const tags = new Set(module.components.has("ListRow") ? [] : ["ListRow"]);
   for (const [local, { name }] of module.imports) if (name === "ListRow") tags.add(local);
+  for (const space of module.namespaces.keys()) tags.add(`${space}.ListRow`);
   return tags;
 };
 
