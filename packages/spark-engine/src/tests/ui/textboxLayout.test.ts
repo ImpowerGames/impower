@@ -70,6 +70,15 @@ function displayOf(h: UIHarness, id: string): string | null | undefined {
   return display;
 }
 
+function unshownReports(h: UIHarness): any[] {
+  return h.messages
+    .filter(
+      (m: any) =>
+        m?.method === "game/runtimeError" && m.params?.message === UNSHOWN,
+    )
+    .map((m: any) => m.params);
+}
+
 function lineOf(source: string, text: string): number {
   return source.split("\n").findIndex((l) => l.includes(text));
 }
@@ -79,14 +88,12 @@ function mounted(h: UIHarness): string[] {
 }
 
 async function previewAt(source: string, line: number, loadCheckpoint?: string) {
-  const logs: unknown[] = [];
   const h = createHarness(source, line, {
     reactive: true,
     autoOpenAll: false,
     loadCheckpoint,
     connect: false,
   });
-  (h.game.context.system as any).log = (message: unknown) => logs.push(message);
   if (!loadCheckpoint) {
     h.game.setStartFrom({ file: MAIN_URI, line });
     h.game.simulate();
@@ -98,8 +105,8 @@ async function previewAt(source: string, line: number, loadCheckpoint?: string) 
     await h.preview(line);
     await flushMicrotasks(10);
   }
-  const unshown = () => logs.filter((m) => m === UNSHOWN).length;
-  return { h, logs, unshown };
+  const unshown = () => unshownReports(h).length;
+  return { h, unshown };
 }
 
 async function playLive(h: UIHarness, settle?: () => Promise<void>) {
@@ -647,7 +654,6 @@ end
   });
 
   test("a navigate that closes the only text layout reports the unshown text", async () => {
-    const logs: unknown[] = [];
     const h = createHarness(
       `screen menu {
 }
@@ -671,7 +677,6 @@ end
       0,
       { reactive: true, autoOpenAll: false },
     );
-    (h.game.context.system as any).log = (message: unknown) => logs.push(message);
     await h.ready;
     new Coordinator(h.game, {
       end: 0,
@@ -686,7 +691,39 @@ end
     } as any);
     await flushMicrotasks(30);
     expect(h.game.module.ui.findIds("action")).toEqual([]);
-    expect(logs).toContain(UNSHOWN);
+    expect(unshownReports(h)).toHaveLength(1);
+  });
+
+  test("playing past [[close textstream]] reports the unshown text to the play log once, as a warning at its line", async () => {
+    const source = `scene start
+  First on the page.
+  [[close textstream]] A beat after the page closed.
+  Another beat with no page.
+  The end.
+end
+`;
+    const h = createHarness(source, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.game.setStartingDisplayMode("textstream");
+    h.game.start();
+    for (let beat = 0; beat < 4; beat += 1) {
+      for (let i = 0; i < 10; i += 1) {
+        await flushMicrotasks(5);
+        h.game.update({ deltaMS: 100, elapsedMS: i * 100 } as never);
+      }
+      h.game.clickedToContinue();
+    }
+    expect(h.game.state).toBe("running");
+    const reports = unshownReports(h);
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({
+      type: 2,
+      state: "running",
+      location: {
+        uri: MAIN_URI,
+        range: { start: { line: lineOf(source, "A beat after") } },
+      },
+    });
   });
 
   test("with the default layouts_initial a dialogue line shows in the textbox layout", async () => {

@@ -5126,6 +5126,10 @@ export class Game<T extends M = {}> {
     }
   }
 
+  warn(message: string, location?: ScriptLocation) {
+    this.Error(message, ErrorType.Warning, location);
+  }
+
   log(message: unknown, severity: "info" | "warning" | "error" = "info") {
     this._context.system.log?.(message, severity);
   }
