@@ -10,6 +10,7 @@ import type {
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import type { EditorBreakpoint } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
+import type { GameState as PreviewGameState } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import type { PreviewLine } from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewLineMessage";
 import type { DebugVariableNode } from "@impower/spark-web-player/src/components/DebugVariables/DebugVariables";
 import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
@@ -55,6 +56,8 @@ export interface OutlineSnapshot {
   diagnostics: readonly Diagnostic[];
   firstContentLine: number | undefined;
 }
+
+export type ShownBeat = PreviewGameState["shownBeat"];
 
 export interface PreviewLineSnapshot {
   uri: string;
@@ -281,6 +284,8 @@ class WorkspaceStore {
   readonly outline = signal<OutlineSnapshot | null>(null);
 
   readonly previewLine = signal<PreviewLineSnapshot | null>(null);
+
+  readonly previewShownBeat = signal<ShownBeat>(null);
 
   readonly syncConflictOpen = signal<boolean>(false);
 

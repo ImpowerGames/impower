@@ -58,6 +58,7 @@ import {
   encodeWord0,
   flagsOf,
   opOf,
+  operandInLayout,
 } from "./ProgramInstructions";
 import {
   anonymousSymbol,
@@ -356,7 +357,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
         `${op}:${flags & ~CALL_STYLED}:${aux}:${this.describeArg(op, arg)}`,
       );
     } else {
-      this._layout.push(`${op}:${flags}:${aux}:${this.describeArg(op, arg)}`);
+      this._layout.push(
+        `${op}:${flags}:${aux}:${this.describeArg(op, operandInLayout(op, arg))}`,
+      );
     }
     if (op === Op.BeginScope) {
       this._scopes += 1;
@@ -721,7 +724,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._choose = presentation;
     this.emitObjects(content.slice(0, -1));
     this._choose = null;
-    this.emit(Op.Done, 0, 0, DONE_HOLD);
+    this.emit(Op.Done, gather.endLinesAfterBody, 0, DONE_HOLD);
     this.jumpBack(Op.Jump, end);
     const depth = this._scopes;
     const depthAt = (join: ProgramLabel | null) =>

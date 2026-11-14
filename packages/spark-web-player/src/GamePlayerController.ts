@@ -325,6 +325,8 @@ export class GamePlayerController {
   private _mounted = false;
   private _disposed = false;
   private _previewPosition: GameState["position"] = null;
+
+  private _displayedBeat: GameState["shownBeat"] = null;
   private _selectionVersion = 0;
   private _launchState: GameState["launchState"] = null;
   protected _routeState: RouteViewState = {
@@ -568,6 +570,7 @@ export class GamePlayerController {
     this._saves.dispose();
     ColorSchemeHost.release(this.refs.gameUI);
     this._previewPosition = null;
+    this._displayedBeat = null;
     this._selectionVersion++;
     this._launchState = null;
     this.publishGameState();
@@ -677,6 +680,7 @@ export class GamePlayerController {
       stepping: this._stepping,
       run: this._workerPlay?.run ?? null,
       position: this._previewPosition,
+      shownBeat: this._displayedBeat,
       completion: this._completionStatus
         ? { request: this._completionRequest, status: this._completionStatus }
         : null,
@@ -1657,6 +1661,7 @@ export class GamePlayerController {
     }
     if (this._previewPosition?.uri === textDocument.uri || !this._options.startFrom) {
       this._previewPosition = null;
+      this._displayedBeat = null;
       this._selectionVersion++;
       this.publishGameState();
     }
@@ -3330,6 +3335,7 @@ export class GamePlayerController {
       }).catch((e) => console.error(e));
     } else if (during === "preview") {
       this._previewPosition = null;
+      this._displayedBeat = null;
       this.publishGameState();
       this.detachWorkerPreview().catch((e) => console.error(e));
     }
@@ -3781,6 +3787,7 @@ export class GamePlayerController {
           ending?: GameEnding;
           playing?: boolean;
           beatRefusal?: string;
+          shownBeat?: GameState["shownBeat"];
           shownAddress?: number;
         }
       | undefined;
@@ -3833,6 +3840,7 @@ export class GamePlayerController {
     }
     if (selectionVersion === this._selectionVersion) {
       this._previewPosition = { uri: file, line };
+      this._displayedBeat = result.shownBeat ?? null;
       this.publishGameState();
     }
     return true;
