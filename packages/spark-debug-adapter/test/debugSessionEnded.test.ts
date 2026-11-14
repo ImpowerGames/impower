@@ -15,6 +15,7 @@ const launch = (launchState: "play" | "pause" | "ended" | "preview") =>
     paused: launchState === "pause",
     stepping: false,
     position: null,
+    shownBeat: null,
     completion: null,
     ending: null,
   });

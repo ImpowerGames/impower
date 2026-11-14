@@ -458,10 +458,6 @@ try {
   connection.onRequest(PreviewLineMessage.method, (params: PreviewLineParams) =>
     answerPreviewLine(
       {
-        getMainScriptUri: (uri) => workspace.getMainScriptUri(uri),
-        currentProgram: (uri) => workspace.currentProgram(uri),
-        previewBeatAt: (program, uri, line) =>
-          workspace.locatorOf(program).previewBeatAt(uri, line),
         document: (uri) => workspace.document(uri),
         tree: (uri) => workspace.tree(uri),
       },

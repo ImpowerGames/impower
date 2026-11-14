@@ -1,5 +1,6 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 
@@ -25,6 +26,7 @@ export interface DisplayPreviewResult {
   ending?: GameEnding;
   playing?: boolean;
   beatRefusal?: string;
+  shownBeat?: DocumentLocation | null;
 }
 
 export class DisplayPreviewMessage {

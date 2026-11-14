@@ -322,6 +322,8 @@ export class GamePlayerController {
   private _mounted = false;
   private _disposed = false;
   private _previewPosition: GameState["position"] = null;
+
+  private _shownBeat: GameState["shownBeat"] = null;
   private _selectionVersion = 0;
   private _launchState: GameState["launchState"] = null;
   protected _routeState: RouteViewState = {
@@ -564,6 +566,7 @@ export class GamePlayerController {
     this._saves.dispose();
     ColorSchemeHost.release(this.refs.gameUI);
     this._previewPosition = null;
+    this._shownBeat = null;
     this._selectionVersion++;
     this._launchState = null;
     this.publishGameState();
@@ -673,6 +676,7 @@ export class GamePlayerController {
       stepping: this._stepping,
       run: this._workerPlay?.run ?? null,
       position: this._previewPosition,
+      shownBeat: this._shownBeat,
       completion: this._completionStatus
         ? { request: this._completionRequest, status: this._completionStatus }
         : null,
@@ -1574,6 +1578,7 @@ export class GamePlayerController {
       if (m.params.userEvent) {
         this._selectionVersion++;
         this._previewPosition = null;
+        this._shownBeat = null;
         this.publishGameState();
       }
     });
@@ -1612,6 +1617,7 @@ export class GamePlayerController {
       this._options ??= {};
       this._options.startFrom = startFrom;
       this._previewPosition = null;
+      this._shownBeat = null;
       this.publishGameState();
       if (this._program && !this.playing) {
         if (!(startFrom.file in this._program.scripts)) {
@@ -1639,6 +1645,7 @@ export class GamePlayerController {
     }
     if (this._previewPosition?.uri === textDocument.uri || !this._options.startFrom) {
       this._previewPosition = null;
+      this._shownBeat = null;
       this._selectionVersion++;
       this.publishGameState();
     }
@@ -3261,6 +3268,7 @@ export class GamePlayerController {
       }).catch((e) => console.error(e));
     } else if (during === "preview") {
       this._previewPosition = null;
+      this._shownBeat = null;
       this.publishGameState();
       this.detachWorkerPreview().catch((e) => console.error(e));
     }
@@ -3711,6 +3719,7 @@ export class GamePlayerController {
           ending?: GameEnding;
           playing?: boolean;
           beatRefusal?: string;
+          shownBeat?: GameState["shownBeat"];
         }
       | undefined;
     let ended!: () => void;
@@ -3761,6 +3770,7 @@ export class GamePlayerController {
     }
     if (selectionVersion === this._selectionVersion) {
       this._previewPosition = { uri: file, line };
+      this._shownBeat = result.shownBeat ?? null;
       this.publishGameState();
     }
     return true;

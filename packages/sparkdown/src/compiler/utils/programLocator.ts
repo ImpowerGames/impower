@@ -32,7 +32,6 @@ import type {
   SourceLocation,
 } from "../types/ProgramAddress";
 import type { SparkProgram } from "../types/SparkProgram";
-import { previewBeatAt } from "./previewStartPoint";
 
 export const rootLocator = (root: ProgramRoot): ProgramLocator => ({
   addressAt: (uri, line, query) => root.addressAt(uri, line, query),
@@ -78,10 +77,6 @@ export const answerLocateQueries = (
     if ("addressAt" in q) {
       const { uri, line, query } = q.addressAt;
       return locator.addressAt(uri, line, query) ?? null;
-    }
-    if ("previewBeatAt" in q) {
-      const { uri, line } = q.previewBeatAt;
-      return previewBeatAt(program!, uri, line) ?? null;
     }
     if ("beatAt" in q) {
       const { uri, line, query } = q.beatAt;

@@ -42,5 +42,4 @@ export interface AsyncProgramLocator {
     line: number,
     query?: AddressQuery,
   ): Promise<LineBeat | undefined>;
-  previewBeatAt(uri: string, line: number): Promise<LineBeat | undefined>;
 }

@@ -365,7 +365,10 @@ export class Game<T extends M = {}> {
 
   protected _holdingFlush = false;
 
-  protected _held: { instructions: Instructions | null } | null = null;
+  protected _held: {
+    instructions: Instructions | null;
+    location: DocumentLocation | null;
+  } | null = null;
 
   protected _previewGeneration = 0;
 
@@ -3643,7 +3646,10 @@ export class Game<T extends M = {}> {
         }
         const instructions = this.module.interpreter.flush();
         if (this._holdingFlush) {
-          this._held = { instructions: instructions ?? null };
+          this._held = {
+            instructions: instructions ?? null,
+            location: this.getLastExecutedDocumentLocation(),
+          };
           return true;
         }
         this.showBeat(instructions ?? null, false);
@@ -5172,6 +5178,7 @@ export class Game<T extends M = {}> {
       address ?? this.locator.addressAt(file, line, { beat: "last" });
     if (previewAddress == null) {
       this._previewShowsBeat = false;
+      this._previewShownLocation = null;
       this.cancelPreview();
       this.module.assets.releaseAbandonedGates();
       this.module.ui.reveal();
@@ -5196,7 +5203,10 @@ export class Game<T extends M = {}> {
     this._previewedAddress = previewAddress;
     const generation = ++this._previewGeneration;
     this._holdingFlush = true;
-    let held: { instructions: Instructions | null } | null = null;
+    let held: {
+      instructions: Instructions | null;
+      location: DocumentLocation | null;
+    } | null = null;
     try {
       this.observeScene(previewAddress);
       this.runPreview(runFrom ?? previewAddress);
@@ -5208,6 +5218,7 @@ export class Game<T extends M = {}> {
     }
     const executed = this.executedParams();
     this._previewShowsBeat = held?.instructions != null;
+    this._previewShownLocation = held?.instructions != null ? held.location : null;
     const gate = this.module.assets.gatePreviewBeat(
       held?.instructions ?? null,
     );
@@ -5263,6 +5274,7 @@ export class Game<T extends M = {}> {
     }
     this.markPreviewing();
     this._previewShowsBeat = false;
+    this._previewShownLocation = null;
     await this.connect(send);
     if (superseded()) {
       return false;
@@ -5355,6 +5367,12 @@ export class Game<T extends M = {}> {
 
   get previewShowsBeat(): boolean {
     return this._previewShowsBeat;
+  }
+
+  protected _previewShownLocation: DocumentLocation | null = null;
+
+  get previewShownLocation(): DocumentLocation | null {
+    return this._previewShownLocation;
   }
 
   get playingBeat(): boolean {

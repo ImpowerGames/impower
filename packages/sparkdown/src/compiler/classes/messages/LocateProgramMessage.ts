@@ -13,8 +13,7 @@ export type LocateProgramMethod = typeof LocateProgramMessage.method;
 export type LocateQuery =
   | { addressAt: { uri: string; line: number; query?: AddressQuery } }
   | { locationOf: ProgramAddress }
-  | { beatAt: { uri: string; line: number; query?: AddressQuery } }
-  | { previewBeatAt: { uri: string; line: number } };
+  | { beatAt: { uri: string; line: number; query?: AddressQuery } };
 
 export interface LocateProgramParams {
   program: string;

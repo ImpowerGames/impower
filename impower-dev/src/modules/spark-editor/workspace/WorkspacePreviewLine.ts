@@ -1,11 +1,16 @@
 import type { PreviewLineResult } from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewLineMessage";
 import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { effect } from "@preact/signals";
-import workspace from "./WorkspaceStore";
+import workspace, { type ShownBeat } from "./WorkspaceStore";
 
 export interface PreviewLineSources {
   caret: () => { uri: string; line: number } | undefined;
-  getPreviewLine: (uri: string, line: number) => Promise<PreviewLineResult>;
+  shownBeat: () => ShownBeat;
+  getPreviewLine: (
+    uri: string,
+    line: number,
+    shownBeat: ShownBeat,
+  ) => Promise<PreviewLineResult>;
   onPublishedDiagnostics: (
     listener: (params: PublishDiagnosticsParams) => void,
   ) => () => void;
@@ -17,6 +22,8 @@ export default class WorkspacePreviewLine {
   protected readonly _disposers: (() => void)[];
 
   protected _caret: { uri: string; line: number } | undefined;
+
+  protected _shownBeat: ShownBeat = null;
 
   protected _request = 0;
 
@@ -30,8 +37,14 @@ export default class WorkspacePreviewLine {
       }),
       effect(() => {
         const caret = sources.caret();
-        if (caret?.uri !== this._caret?.uri || caret?.line !== this._caret?.line) {
+        const shownBeat = sources.shownBeat();
+        if (
+          caret?.uri !== this._caret?.uri ||
+          caret?.line !== this._caret?.line ||
+          shownBeat !== this._shownBeat
+        ) {
           this._caret = caret;
+          this._shownBeat = shownBeat;
           void this.refresh();
         }
       }),
@@ -40,17 +53,22 @@ export default class WorkspacePreviewLine {
 
   async refresh() {
     const caret = this._caret;
+    const shownBeat = this._shownBeat;
     const request = ++this._request;
     if (!caret) {
       workspace.previewLine.value = null;
       return;
     }
     try {
-      const preview = await this._sources.getPreviewLine(caret.uri, caret.line);
-      if (request !== this._request || !preview) {
+      const preview = await this._sources.getPreviewLine(
+        caret.uri,
+        caret.line,
+        shownBeat,
+      );
+      if (request !== this._request) {
         return;
       }
-      workspace.previewLine.value = { ...caret, preview };
+      workspace.previewLine.value = preview ? { ...caret, preview } : null;
     } catch (err) {
       console.error(err);
     }

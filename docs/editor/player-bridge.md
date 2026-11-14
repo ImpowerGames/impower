@@ -14,7 +14,7 @@ The player package exports two host-agnostic components: `PlayerBar` and `Player
 
 | Method | Direction | Parameters and result |
 | --- | --- | --- |
-| `preview/didChangeGameState` | player → host | `GameState`: `mounted`, `programLoaded`, `programVersion`, `launchState`, `paused`, `stepping`, `run`, `position`, `completion` and `ending` |
+| `preview/didChangeGameState` | player → host | `GameState`: `mounted`, `programLoaded`, `programVersion`, `launchState`, `paused`, `stepping`, `run`, `position`, `shownBeat`, `completion` and `ending` |
 | `game/resized` | player → host | `{width, height, aspectRatio, fit}` after every change to the game's rendered size |
 | `game/resize` | host → player | `{height}` or `{aspectRatio}` → `{}` |
 | `preview/skipBeat` | player → host | `{direction: -1 \| 1}` → `{moved}` |
@@ -27,7 +27,7 @@ The player package exports two host-agnostic components: `PlayerBar` and `Player
 
 ### Game state
 
-`paused` is true while the playing game is paused. `stepping` is true while a `game/step` request is being answered. `ending` is the ending the shown frame holds (`{kind: "fin" | "out" | "error", location, error?}`), on a held PLAY and on a preview of a line where the story ends, and null otherwise. The web editor keeps its store's paused flag equal to `paused` while a game runs.
+`paused` is true while the playing game is paused. `stepping` is true while a `game/step` request is being answered. `ending` is the ending the shown frame holds (`{kind: "fin" | "out" | "error", location, error?}`), on a held PLAY and on a preview of a line where the story ends, and null otherwise. The web editor keeps its store's paused flag equal to `paused` while a game runs. `shownBeat` is the source location of the beat the preview at `position` displays: the dialogue, action, heading, title or transition it shows, or the choose menu it offers. It is null whenever the preview displays no beat: before a program loads, outside every scene, on a setup line, in a scene with no beat, and on an error ending. The web editor's phone strip describes that beat and no other; VS Code's Game Preview, the debug adapter and the player bar ignore it.
 
 ### Size report
 

@@ -1130,8 +1130,6 @@ export abstract class SparkdownWorkspace {
         (await ask({ locationOf: address })) as SourceLocation | undefined,
       beatAt: async (uri, line, query) =>
         (await ask({ beatAt: { uri, line, query } })) as LineBeat | undefined,
-      previewBeatAt: async (uri, line) =>
-        (await ask({ previewBeatAt: { uri, line } })) as LineBeat | undefined,
     };
   }
 
