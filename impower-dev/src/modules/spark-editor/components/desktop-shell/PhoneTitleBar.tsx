@@ -14,6 +14,8 @@ import {
   useEditorHistory,
   useScriptMode,
 } from "../../workspace/useActiveEditor";
+import { routeOfState } from "../../workspace/routes";
+import workspace from "../../workspace/WorkspaceStore";
 import { SyncButton, SyncStatusLine } from "../drive-sync";
 import { openFind } from "../find-references-rename";
 import { FoldedScriptHeader } from "../script-header";
@@ -31,6 +33,9 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
   const namingField = useNaming();
   const script = useComputed(() => storyScriptOf()).value;
   const story = script !== undefined;
+  const writing = useComputed(
+    () => routeOfState(workspace.state.value) === "write",
+  ).value;
   const editing = useScriptMode() === "editing" && story;
   const naming =
     namingField === "project" || (namingField === "script" && editing);
@@ -84,7 +89,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
             aria-label="Search"
             title="Search"
             class="text-muted"
-            onClick={story ? openFind : searchStory}
+            onClick={writing ? openFind : searchStory}
           >
             <SearchIcon />
           </Button>
