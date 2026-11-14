@@ -47,6 +47,7 @@ export type VariantsSectionProps = {
   onForm: (form: VariantForm) => void;
   onInsert?: (reference: string) => void;
   sheetContainer: RefObject<HTMLElement>;
+  keepClear: RefObject<HTMLElement>;
 };
 
 const NO_CARET =
@@ -58,10 +59,12 @@ function GroupMenu({
   onPick,
   onPreview,
   sheetContainer,
+  keepClear,
 }: {
   group: TesterGroup;
   value: string;
   sheetContainer: RefObject<HTMLElement>;
+  keepClear: RefObject<HTMLElement>;
   onPick: (value: string) => void;
   onPreview: (value: string | null) => void;
 }) {
@@ -89,6 +92,7 @@ function GroupMenu({
         {trigger}
         <WheelSheet
           container={sheetContainer}
+          keepClear={keepClear}
           returnFocus={() => button.current}
           open={open}
           title={name}
@@ -114,7 +118,7 @@ function GroupMenu({
   return (
     <DropdownRoot onOpenChange={(next) => !next && onPreview(null)}>
       <DropdownTrigger asChild>{trigger}</DropdownTrigger>
-      <DropdownContent align="end" class="min-w-[180px]">
+      <DropdownContent align="end" keepClear={keepClear} class="min-w-[180px]">
         <DropdownRadioGroup value={value} onValueChange={onPick} label={name}>
           {group.options.map((option) => (
             <DropdownRadioItem
@@ -145,6 +149,7 @@ export default function VariantsSection({
   onForm,
   onInsert,
   sheetContainer,
+  keepClear,
 }: VariantsSectionProps) {
   const formLabel = useId();
   const noCaret = useId();
@@ -186,6 +191,7 @@ export default function VariantsSection({
                 ) : (
                   <GroupMenu
                     sheetContainer={sheetContainer}
+                    keepClear={keepClear}
                     group={group}
                     value={chosenIn(group, selection)}
                     onPick={(value) => {

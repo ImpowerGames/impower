@@ -4,6 +4,7 @@ import { createPortal } from "preact/compat";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import { useEscapeWithin } from "../../utils/escapeWithin";
+import { type KeepClear, useClearLine } from "../../utils/keepClear";
 import Button from "../button/Button";
 import { CheckIcon } from "../icon/icons.generated";
 
@@ -186,15 +187,22 @@ export const wheelSheetVariants = cva(
       size: {
         default: "max-h-full",
       },
+      fit: {
+        free: "",
+        room: "max-h-[min(100%,var(--wheel-sheet-room))]",
+      },
     },
-    defaultVariants: { size: "default" },
+    defaultVariants: { size: "default", fit: "free" },
   },
 );
 
 export type WheelSheetSize = NonNullable<VariantProps<typeof wheelSheetVariants>["size"]>;
 
-export type WheelSheetProps = VariantProps<typeof wheelSheetVariants> & {
+export type WheelSheetFit = NonNullable<VariantProps<typeof wheelSheetVariants>["fit"]>;
+
+export type WheelSheetProps = Omit<VariantProps<typeof wheelSheetVariants>, "fit"> & {
   container: RefObject<HTMLElement>;
+  keepClear?: KeepClear;
   open: boolean;
   title: string;
   options: readonly WheelOption[];
@@ -216,6 +224,7 @@ export function WheelSheet({
   onCancel,
   returnFocus,
   size,
+  keepClear,
 }: WheelSheetProps) {
   const titleId = useId();
   const centred = useRef(value);
@@ -254,6 +263,18 @@ export function WheelSheet({
     };
   }, [open]);
 
+  const room = useClearLine(
+    keepClear,
+    open,
+    (line) => {
+      const sheet = panel.current;
+      const wheelRoom = sheet?.querySelector("[data-wheel-room]");
+      const chrome = sheet && wheelRoom ? sheet.getBoundingClientRect().height - wheelRoom.getBoundingClientRect().height : 0;
+      return Math.max(chrome + WHEEL_ROW, (container.current?.getBoundingClientRect().bottom ?? line) - line);
+    },
+    container,
+  );
+
   const host = container.current;
   if (!open || !host) {
     return null;
@@ -264,7 +285,8 @@ export function WheelSheet({
       role="dialog"
       aria-modal="false"
       aria-labelledby={titleId}
-      class={wheelSheetVariants({ size })}
+      class={cn(wheelSheetVariants({ size, fit: room === undefined ? "free" : "room" }))}
+      style={room === undefined ? undefined : { "--wheel-sheet-room": `${room}px` }}
       data-wheel-sheet
     >
       <div class="flex items-center justify-between gap-2 border-b border-edge px-2 py-1.5">
@@ -278,17 +300,19 @@ export function WheelSheet({
           Done
         </Button>
       </div>
-      <WheelPicker
-        label={title}
-        options={options}
-        value={value}
-        onCentre={(next) => {
-          centred.current = next;
-          onPreview?.(next);
-        }}
-        onChoose={onChoose}
-        listRef={list}
-      />
+      <div class="flex min-h-0 flex-auto flex-col justify-center overflow-hidden" data-wheel-room>
+        <WheelPicker
+          label={title}
+          options={options}
+          value={value}
+          onCentre={(next) => {
+            centred.current = next;
+            onPreview?.(next);
+          }}
+          onChoose={onChoose}
+          listRef={list}
+        />
+      </div>
     </div>,
     host,
   );
