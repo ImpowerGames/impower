@@ -8,6 +8,8 @@ import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
+import type { PrintedInsert } from "../../../../../sparkdown-screenplay/src/types/PrintedInsert";
+import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/gluedAlternatorLayout";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
 import { screenplayPageLayout } from "../../../../../sparkdown-screenplay/src/utils/screenplayPageLayout";
@@ -16,6 +18,7 @@ import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
+import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
@@ -261,6 +264,7 @@ interface CachedPageLayout {
   blankPositions: Set<number>;
   printed: number[];
   actionStarts: number[];
+  inserts: PrintedInsert[];
 }
 
 const pageLayoutCache = new WeakMap<Tree, CachedPageLayout>();
@@ -277,6 +281,7 @@ const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
     blankPositions: new Set(layout.blankLines),
     printed: layout.printed,
     actionStarts: layout.actionStarts,
+    inserts: layout.inserts,
   };
   pageLayoutCache.set(tree, result);
   return result;
@@ -383,7 +388,7 @@ export const decorate = (
 
   const tree = treeOverride ?? syntaxTree(state);
 
-  const { blankPositions, printed, actionStarts } = cachedPageLayout(tree, doc, config);
+  const { blankPositions, printed, actionStarts, inserts } = cachedPageLayout(tree, doc, config);
 
   const printedBefore = (from: number, to: number) => {
     let low = 0;
@@ -402,6 +407,26 @@ export const decorate = (
     }
   }
 
+  for (const insert of inserts) {
+    if (insert.at >= from && (to === undefined || insert.at <= to)) {
+      const widget = insert.text === "\n" ? new LineBreakWidget() : new InsertedTextWidget(insert.text);
+      decorations.push(Decoration.widget({ widget, side: 1 }).range(insert.at));
+    }
+  }
+
+  const insertsWithin = (from: number, to: number) => {
+    let low = 0;
+    let high = inserts.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (inserts[middle]!.at < from) low = middle + 1;
+      else high = middle;
+    }
+    const within: PrintedInsert[] = [];
+    for (let index = low; index < inserts.length && inserts[index]!.at < to; index++) within.push(inserts[index]!);
+    return within;
+  };
+
   let printedIndex = 0;
   const holdsPrintedText = (from: number, to: number) => {
     while (printedIndex < printed.length && printed[printedIndex + 1]! <= from) {
@@ -415,19 +440,21 @@ export const decorate = (
     if (inFrontMatter || to <= from || nodeRef.name === "Newline" || holdsPrintedText(from, to)) {
       return false;
     }
-    if (doc.lineAt(from).to < to - 1 && nodeRef.node.firstChild) {
-      return false;
-    }
-    return /\S/.test(doc.sliceString(from, to));
+    const line = doc.lineAt(from);
+    const printable = /\S/.test(doc.sliceString(from, to));
+    if (line.to >= to - 1) return printable || /\S/.test(line.text);
+    return !nodeRef.node.firstChild && printable;
   };
 
   const printedSlice = (from: number, to: number) => {
     holdsPrintedText(from, to);
-    let text = "";
+    const pieces: [number, number, string][] = insertsWithin(from, to).map((insert) => [insert.at, 0, insert.text]);
     for (let index = printedIndex; index < printed.length && printed[index]! < to; index += 2) {
-      text += doc.sliceString(Math.max(from, printed[index]!), Math.min(to, printed[index + 1]!));
+      const start = Math.max(from, printed[index]!);
+      pieces.push([start, 1, doc.sliceString(start, Math.min(to, printed[index + 1]!))]);
     }
-    return text;
+    pieces.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    return pieces.map((piece) => piece[2]).join("");
   };
 
   const blankLines = new Set(
@@ -663,6 +690,32 @@ export const decorate = (
             : side === ">" || side === "right" || side === "r"
               ? 2
               : 0;
+      } else if (inDialogue && GLUED_ALTERNATOR_BLOCKS.has(name)) {
+        const last = dialogueContent.at(-1);
+        const value = printedSlice(from, to);
+        if (last?.type === "dialogue") {
+          last.value = `${last.value}${value}`;
+          last.to = to;
+        } else {
+          dialogueContent.push({
+            type: "dialogue",
+            from,
+            to,
+            value: value.trimStart(),
+            markdown: true,
+            attributes: { style: getDialogueLineStyle("dialogue") },
+          });
+        }
+      } else if (
+        name === "TextChunk" &&
+        inDialogue &&
+        nodeRef.node.prevSibling &&
+        GLUED_ALTERNATOR_BLOCKS.has(nodeRef.node.prevSibling.name) &&
+        dialogueContent.at(-1)?.type === "dialogue"
+      ) {
+        const last = dialogueContent.at(-1)!;
+        last.value = `${last.value}${printedSlice(from, to).trimEnd()}`;
+        last.to = to;
       } else if (name === "TextChunk") {
         if (inDialogue) {
           const value = printedSlice(from, to).trimEnd();

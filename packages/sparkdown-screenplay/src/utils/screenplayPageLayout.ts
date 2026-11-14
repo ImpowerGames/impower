@@ -3,12 +3,14 @@ import { screenplayTokens } from "../classes/ScreenplayParser";
 import ScreenplayTypesetter from "../classes/ScreenplayTypesetter";
 import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
 import type { PageLine } from "../types/DocumentSpan";
+import type { PrintedInsert } from "../types/PrintedInsert";
 import type { ScreenplayConfig } from "../types/ScreenplayConfig";
 
 export interface ScreenplayPageLayout {
   blankLines: number[];
   printed: number[];
   actionStarts: number[];
+  inserts: PrintedInsert[];
 }
 
 const mergeRanges = (ranges: number[]): number[] => {
@@ -50,12 +52,14 @@ export const screenplayPageLayout = (
   const blankLines: number[] = [];
   const printed: number[] = [];
   const actionStarts: number[] = [];
+  const inserts: PrintedInsert[] = [];
   let lastSource: number[] | undefined;
   const addPrinted = (lines: PageLine[] | undefined) => {
     for (const line of lines ?? []) {
       if (line.source && line.source !== lastSource) {
         printed.push(...line.source);
         lastSource = line.source;
+        if (line.inserts) inserts.push(...line.inserts);
         if (line.tag === "action" && line.source[0] !== undefined) actionStarts.push(line.source[0]);
       }
     }
@@ -70,5 +74,5 @@ export const screenplayPageLayout = (
       addPrinted(span.lines);
     }
   }
-  return { blankLines, printed: mergeRanges(printed), actionStarts };
+  return { blankLines, printed: mergeRanges(printed), actionStarts, inserts: inserts.sort((a, b) => a.at - b.at) };
 };

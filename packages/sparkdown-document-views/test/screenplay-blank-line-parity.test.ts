@@ -94,6 +94,10 @@ const KINDS: Record<string, string[]> = {
   SingleLineCycleAlternator: ["  cycle | Cycle one. | Cycle two. end"],
   SingleLineShuffleAlternator: ["  shuffle | Shuffle one. | Shuffle two. end"],
   SingleLineAlternatorArmDivert: ["  queue | Leave now. -> s | Stay here. end"],
+  GluedActionAlternator: ["  They see .. queue | a cat | a dog .. outside."],
+  GluedDialogueAlternator: ["  HERO: I want .. queue | tea | coffee .. now."],
+  GluedChoiceAlternator: ["  * [Pick .. queue | red | blue ..]"],
+  GluedConditionalAlternator: ["  It is .. match(x) | cold | warm .. today."],
   LuauSparkdownVariableDefinition: ["  local z = 3"],
   LuauSparkdownWhileLoop: ["  while false do", "    It hails.", "  end"],
   LuauStrayUntilStatement: ["  until true"],
@@ -110,7 +114,15 @@ const KINDS: Record<string, string[]> = {
   Whitespace: ["    "],
 };
 
+const GLUED_LAYOUTS: Record<string, string[]> = {
+  GluedActionAlternator: ["They see a cat / a dog outside."],
+  GluedDialogueAlternator: ["HERO", "I want tea / coffee now."],
+  GluedChoiceAlternator: ["* [Pick red / blue]"],
+  GluedConditionalAlternator: ["It is cold / warm today."],
+};
+
 const PRINTED: Record<string, string[]> = {
+  ...GLUED_LAYOUTS,
   BlockAction: ["The door creaks."],
   BlockActionInnerBlank: ["First.", "Second."],
   BlockActionLeadingBlank: ["First."],
@@ -515,6 +527,15 @@ describe("a line shared by a hidden node and printed text", () => {
     const expected = ["Before.", ...rows, "After."];
     expect(exportRows(configName, source)).toEqual(expected);
     expect(layout(screenRows(configName, source))).toBe(layout(expected));
+  });
+});
+
+describe("an alternative written inside a sentence", () => {
+  it.each(Object.entries(GLUED_LAYOUTS))("prints %s as its layout row, on the page as in the export", (kind, rows) => {
+    const source = sourceOf([kind]);
+    const printed = exportRows("default", source);
+    expect(printed.filter((row) => row && row !== "Before." && row !== "After.")).toEqual(rows);
+    expect(layout(screenRows("default", source))).toBe(layout(printed));
   });
 });
 

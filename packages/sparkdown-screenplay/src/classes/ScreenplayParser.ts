@@ -3,8 +3,10 @@ import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-g
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
 import { readSkipping } from "../../../sparkdown/src/compiler/utils/readSkipping";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import type { PrintedInsert } from "../types/PrintedInsert";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
+import { GLUED_ALTERNATOR_BLOCKS, gluedAlternatorJoin } from "../utils/gluedAlternatorLayout";
 import { printsAsBlankLine } from "../utils/printsAsBlankLine";
 import { isRootFunctionName } from "../utils/rootFunctionName";
 
@@ -21,7 +23,36 @@ const CHOICE_UNPRINTED = new Set(["SparkdownBlockComment", "SparkdownInlineComme
 
 const ARM_UNPRINTED = new Set(["ArmTag", "ArmDivert", "ArmTunnel", "ArmUnknown", "SparkdownBlockComment"]);
 
-const TOKENS_ON_LEAVE =new Set(["DialogueCharacter", "Choice"]);
+const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
+
+const GLUED_ARM = "LuauSparkdownInlineGluedAlternatorArm";
+
+const trimRanges = (ranges: number[], leading: number, trailing: number): number[] => {
+  const trimmed = [...ranges];
+  let skip = leading;
+  while (skip > 0 && trimmed.length > 0) {
+    const width = trimmed[1]! - trimmed[0]!;
+    if (width > skip) {
+      trimmed[0]! += skip;
+      skip = 0;
+    } else {
+      trimmed.splice(0, 2);
+      skip -= width;
+    }
+  }
+  skip = trailing;
+  while (skip > 0 && trimmed.length > 0) {
+    const width = trimmed.at(-1)! - trimmed.at(-2)!;
+    if (width > skip) {
+      trimmed[trimmed.length - 1]! -= skip;
+      skip = 0;
+    } else {
+      trimmed.splice(-2, 2);
+      skip -= width;
+    }
+  }
+  return trimmed;
+};
 
 export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] => {
     const stack: SparkdownNodeName[] = [];
@@ -40,6 +71,8 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
     let textSource: number[] = [];
     let characterSource: number[] = [];
     let choiceSource: number[] = [];
+    let textInserts: PrintedInsert[] = [];
+    let choiceInserts: PrintedInsert[] = [];
     let lineStart = 0;
     const read = (from: number, to: number) => script.slice(from, to);
     let sink: number[] = [];
@@ -65,43 +98,95 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
       return text;
     };
 
-    const continuesAfterComment = (node: SyntaxNode): boolean => {
+    const textBefore = (node: SyntaxNode) => {
       let before = node.prevSibling;
       while (before && SAME_LINE_TEXT_SEPARATORS.has(before.name)) {
         before = before.prevSibling;
       }
+      return before;
+    };
+    const continuesAfterComment = (node: SyntaxNode): boolean => {
+      const before = textBefore(node);
+      if (before && GLUED_ALTERNATOR_BLOCKS.has(before.name)) return true;
       return before !== node.prevSibling && before?.name === "TextChunk";
     };
+    const continuesBeforeGlued = (node: SyntaxNode): boolean => {
+      const before = textBefore(node);
+      return before?.name === "TextChunk" || (!!before && GLUED_ALTERNATOR_BLOCKS.has(before.name));
+    };
+    const readGlued = (block: SyntaxNode, source: number[], inserts: PrintedInsert[]): string => {
+      const outer = sink;
+      const arms: { text: string; ranges: number[] }[] = [];
+      const cursor = block.cursor();
+      while (cursor.next() && cursor.from < block.to) {
+        if (cursor.name !== GLUED_ARM) continue;
+        const ranges: number[] = [];
+        const raw = readSkipping(cursor.node, readInto(ranges), (child) => ARM_UNPRINTED.has(child.name));
+        const text = raw.trim();
+        if (text) {
+          arms.push({ text, ranges: trimRanges(ranges, raw.length - raw.trimStart().length, raw.length - raw.trimEnd().length) });
+        }
+      }
+      sink = outer;
+      if (arms.length === 0) return "";
+      let text = gluedAlternatorJoin("before");
+      inserts.push({ at: arms[0]!.ranges[0]!, text: gluedAlternatorJoin("before") });
+      arms.forEach((arm, index) => {
+        if (index > 0) {
+          text += gluedAlternatorJoin("between");
+          inserts.push({ at: arm.ranges[0]!, text: gluedAlternatorJoin("between") });
+        }
+        text += arm.text;
+        source.push(...arm.ranges);
+      });
+      const after = gluedAlternatorJoin("after");
+      if (after) {
+        text += after;
+        inserts.push({ at: arms.at(-1)!.ranges.at(-1)!, text: after });
+      }
+      return text;
+    };
+    const appendGlued = (lines: string, node: SyntaxNode, text: string) =>
+      continuesBeforeGlued(node)
+        ? `${lines.replace(/\n$/, "")}${text}\n`
+        : `${lines}${text.trimStart()}\n`;
     const appendLine = (lines: string, node: SyntaxNode, text: string) =>
       continuesAfterComment(node)
         ? `${lines.replace(/\n$/, "")}${text}\n`
         : `${lines}${text}\n`;
     const readChoiceText = (node: SyntaxNode): string =>
-      readSkipping(node, readInto(choiceSource), (child) => CHOICE_UNPRINTED.has(child.name));
+      readSkipping(
+        node,
+        readInto(choiceSource),
+        (child) => CHOICE_UNPRINTED.has(child.name) || GLUED_ALTERNATOR_BLOCKS.has(child.name),
+        (child) => (GLUED_ALTERNATOR_BLOCKS.has(child.name) ? readGlued(child, choiceSource, choiceInserts) : ""),
+      );
 
     let headingContinues = false;
     const flushText = () => {
       const source = textSource;
       textSource = [];
+      const inserts = textInserts.length > 0 ? { inserts: textInserts } : {};
+      textInserts = [];
       if (title) {
-        tokens.push({ tag: "title", text: title, source });
+        tokens.push({ tag: "title", text: title, source, ...inserts });
         title = "";
       }
       if (heading) {
         tokens.push(
           headingContinues
-            ? { tag: "heading", text: heading, continued: true, source }
-            : { tag: "heading", text: heading, source },
+            ? { tag: "heading", text: heading, continued: true, source, ...inserts }
+            : { tag: "heading", text: heading, source, ...inserts },
         );
         heading = "";
         headingContinues = true;
       }
       if (transitional) {
-        tokens.push({ tag: "transitional", text: transitional, source });
+        tokens.push({ tag: "transitional", text: transitional, source, ...inserts });
         transitional = "";
       }
       if (action) {
-        tokens.push({ tag: "action", text: action, source });
+        tokens.push({ tag: "action", text: action, source, ...inserts });
         action = "";
       }
     };
@@ -179,6 +264,35 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             flushText();
           } else {
             textSource = [];
+          }
+          return false;
+        }
+
+        if (GLUED_ALTERNATOR_BLOCKS.has(name) && !stack.includes("Choice")) {
+          if (stack.includes("BlockDialogue_content") || stack.includes("InlineDialogue_content")) {
+            const last = tokens.at(-1);
+            if (continuesBeforeGlued(nodeRef.node) && last?.tag === "dialogue_content") {
+              const inserts = (last.inserts ??= []);
+              last.text = `${last.text ?? ""}${readGlued(nodeRef.node, (last.source ??= []), inserts)}`;
+            } else {
+              const source: number[] = [];
+              const inserts: PrintedInsert[] = [];
+              const text = readGlued(nodeRef.node, source, inserts).trimStart();
+              if (text) tokens.push({ tag: "dialogue_content", text, position, source, inserts });
+            }
+          } else {
+            const text = readGlued(nodeRef.node, textSource, textInserts);
+            if (text) {
+              if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
+                title = appendGlued(title, nodeRef.node, text);
+              } else if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
+                heading = appendGlued(heading, nodeRef.node, text);
+              } else if (stack.includes("BlockTransitional") || stack.includes("InlineTransitional")) {
+                transitional = appendGlued(transitional, nodeRef.node, text);
+              } else {
+                action = appendGlued(action, nodeRef.node, text);
+              }
+            }
           }
           return false;
         }
@@ -358,9 +472,11 @@ export const screenplayTokens = (tree: Tree, script: string): ScreenplayToken[] 
             prefix: choice_prefix,
             suffix: choice_suffix,
             source: choiceSource,
+            ...(choiceInserts.length > 0 ? { inserts: choiceInserts } : {}),
           });
           choice = "";
           choiceSource = [];
+          choiceInserts = [];
           choice_prefix = "";
           choice_suffix = "";
         }
