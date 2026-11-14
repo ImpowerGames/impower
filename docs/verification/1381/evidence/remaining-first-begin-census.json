@@ -1,0 +1,446 @@
+{
+  "state": "Pinned C++ first-position macro census, read-only",
+  "caseCount": 21,
+  "predicateCount": 28,
+  "rows": [
+    {
+      "name": "interesting_checked_functions",
+      "line": 140,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            12
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "onlyNums"
+        },
+        {
+          "checkIndex": 0,
+          "begin": [
+            5,
+            10
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "mixedArgs"
+        },
+        {
+          "checkIndex": 0,
+          "begin": [
+            6,
+            15
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "mixedArgs"
+        },
+        {
+          "checkIndex": 0,
+          "begin": [
+            10,
+            12
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "optionalArg"
+        }
+      ]
+    },
+    {
+      "name": "simple_negation_caching_example",
+      "line": 165,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 1,
+          "begin": [
+            2,
+            10
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "contrived"
+        },
+        {
+          "checkIndex": 1,
+          "begin": [
+            3,
+            10
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "contrived"
+        }
+      ]
+    },
+    {
+      "name": "simple_non_strict_failure",
+      "line": 186,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            1,
+            4
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "abs"
+        }
+      ]
+    },
+    {
+      "name": "nested_function_calls_constant",
+      "line": 195,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            4
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "abs"
+        },
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            10
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "lower"
+        }
+      ]
+    },
+    {
+      "name": "if_then_else_warns_nil_branches",
+      "line": 222,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            3,
+            8
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "abs"
+        },
+        {
+          "checkIndex": 0,
+          "begin": [
+            5,
+            10
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "lower"
+        }
+      ]
+    },
+    {
+      "name": "if_then_else_doesnt_warn_else_branch",
+      "line": 238,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            3,
+            8
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "abs"
+        }
+      ]
+    },
+    {
+      "name": "if_then_no_else",
+      "line": 253,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            3,
+            8
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "abs"
+        }
+      ]
+    },
+    {
+      "name": "if_then_no_else_err_in_cond",
+      "line": 266,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            7
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "abs"
+        }
+      ]
+    },
+    {
+      "name": "if_then_else_expr_should_warn",
+      "line": 278,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            43
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "lower"
+        }
+      ]
+    },
+    {
+      "name": "if_then_else_expr_doesnt_warn_else_branch",
+      "line": 299,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            29
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "abs"
+        }
+      ]
+    },
+    {
+      "name": "sequencing_if_checked_call",
+      "line": 309,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            7,
+            6
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "lower"
+        }
+      ]
+    },
+    {
+      "name": "function_def_basic_errors",
+      "line": 346,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            8
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "abs"
+        }
+      ]
+    },
+    {
+      "name": "function_def_failure",
+      "line": 358,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            8
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "abs"
+        }
+      ]
+    },
+    {
+      "name": "function_def_sequencing_errors",
+      "line": 369,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            1,
+            11
+          ],
+          "kind": "NonStrictFunctionDefinitionError",
+          "field": "argument",
+          "value": "x"
+        }
+      ]
+    },
+    {
+      "name": "local_fn_produces_error",
+      "line": 395,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            25
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "lower"
+        }
+      ]
+    },
+    {
+      "name": "fn_expr_produces_error",
+      "line": 406,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            27
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "lower"
+        }
+      ]
+    },
+    {
+      "name": "function_def_if_assignment_errors",
+      "line": 445,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            7,
+            10
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "lower"
+        }
+      ]
+    },
+    {
+      "name": "local_only_one_warning",
+      "line": 492,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            2,
+            6
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "lower"
+        }
+      ]
+    },
+    {
+      "name": "phi_node_assignment_err",
+      "line": 515,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            8,
+            10
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "lower"
+        }
+      ]
+    },
+    {
+      "name": "tblprop_is_checked",
+      "line": 533,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            1,
+            8
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "foo.bar"
+        }
+      ]
+    },
+    {
+      "name": "optionals_in_checked_function_in_middle_cannot_be_omitted",
+      "line": 608,
+      "vector": "raw CheckResult.errors, no annotation filtering",
+      "predicates": [
+        {
+          "checkIndex": 0,
+          "begin": [
+            1,
+            27
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "optionalArgsAtTheEnd2"
+        },
+        {
+          "checkIndex": 0,
+          "begin": [
+            4,
+            27
+          ],
+          "kind": "CheckedFunctionCallError",
+          "field": "checkedFunctionName",
+          "value": "optionalArgsAtTheEnd2"
+        }
+      ]
+    }
+  ],
+  "auditInputHashes": {
+    "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/tests/NonStrictTypeChecker.test.cpp": "1f0800305e5e2d9130c7402574f6726e979b1d78f87eb9128be894d42f2f42fd",
+    "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/tests/TypeInfer.builtins.test.cpp": "31419717fb6ef968c7a19b3ccfc68ce88a80ed7f075875a83d38243694857daa",
+    "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/tests/NonstrictMode.test.cpp": "d4fb73799dc8cd2325dcf7e0102fca1b02844320206471ade162cf8fdf494e40",
+    "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/tests/Fixture.cpp": "294821fed2294c54b85f27959e7119e82db1c9c3d062d6ab3e6653a0b0f9c70d",
+    "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/tests/Fixture.h": "067718d082e8c36fcf7ae2c70f4f209c22c9d7ae499da6bceb1607b9251d9991",
+    "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/Analysis/include/Luau/Type.h": "b573afc8df80293fb5cd105dc2c3212033bfae4c8b4e9451f3d3442cecab2854",
+    "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/Analysis/src/NonStrictTypeChecker.cpp": "f88e4ff39a51c54cd80b04a3fe9b63737e61b38f034309c8dbcd43b24b3b70c9",
+    "C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-598/support-audit.md": "0d1dc69a0559a653097f26af41bdac24988ce3f2fc28c5a22e80d2b39a602c8d",
+    "C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-598/source-audit.json": "33d5d3771d19494cc5b16fba94875b317a769b4fa3ad62f76b6766a1d5f1a011",
+    "C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-598/early-return-audit.md": "394a6bb268fc5b6a3aae079cfbf0d232395b042546d774e4b36800cc17d362f7"
+  }
+}
