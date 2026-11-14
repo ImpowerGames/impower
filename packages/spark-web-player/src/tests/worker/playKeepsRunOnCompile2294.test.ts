@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
 const SOURCE = `-> start
 
@@ -27,23 +27,6 @@ const replace = (line: number, from: string, to: string) => [
     text: to,
   },
 ];
-
-const wrote = (messages: any[], words: string): boolean => {
-  let found = false;
-  const visit = (message: any) => {
-    if (message?.method === "ui/beat") {
-      for (const op of message.params?.messages ?? []) visit(op);
-      return;
-    }
-    if (message?.method !== "ui/write-text") return;
-    const text = (message.params?.instructions ?? [])
-      .map((i: any) => i.text ?? "")
-      .join("");
-    if (text.includes(words)) found = true;
-  };
-  for (const message of messages) visit(message);
-  return found;
-};
 
 const playing = async () => {
   const h = await createPlayerHarness({
@@ -98,13 +81,13 @@ describe("a compiled program arriving during PLAY leaves the run where the reade
         await h.compile();
       });
       expect(run).toEqual({ reloads: 0, sameApp: true, destroys: 0, playing: true });
-      expect(wrote(sent, "The second line, edited.")).toBe(false);
+      expect(writtenText(sent)).not.toContain("The second line, edited.");
 
       const at = h.toRouter.length;
       expect(await h.controller.restartGame()).toBe(true);
       await settle(40);
       await h.tick(1000 / 60, 120);
-      expect(wrote(h.toRouter.slice(at), "The second line, edited.")).toBe(true);
+      expect(writtenText(h.toRouter.slice(at))).toContain("The second line, edited.");
     } finally {
       h.dispose();
     }
