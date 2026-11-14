@@ -139,7 +139,7 @@ try {
     assert.ok(!refusal(pem, /does not hold an absolute path; set it to the absolute path of the App's private key file, never to the key itself/).includes(pem), "a key pasted into the variable is not echoed");
     const repo = path.join(scratch, "a-repository");
     mkdirSync(repo);
-    execFileSync("git", ["init", "-q", repo]);
+    execFileSync("git", ["init", "-q", repo], { windowsHide: true });
     const inside = path.join(repo, "app-key.pem");
     writeFileSync(inside, pem);
     mkdirSync(path.join(repo, ".git", "keys"));
