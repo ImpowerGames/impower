@@ -436,7 +436,7 @@ describe("the player renders choice lines styled as the grammar reads them", () 
 describe("marks never cross a choice bracket", () => {
   const rendered = async (text: string) => {
     const reading = await renderedChoice(script(`choose\n    + ${text}\n      Done.\n  end`));
-    const line = (cells: Cell[]) => show(cells.filter(({ char }) => char !== "\n")).replace(/ {2,}/g, " ");
+    const line = (cells: Cell[]) => show(cells.filter(({ char }) => char !== "\n"));
     return { menu: line(reading.menu), echo: line(reading.echo) };
   };
 
@@ -466,6 +466,24 @@ describe("marks never cross a choice bracket", () => {
       menu: "Go [italic: a] b *c",
       echo: "Go [italic: a] d",
     });
+  });
+});
+
+describe("the output joins the text on either side of a suppression with one space", () => {
+  test.each([
+    ["Go a [b] c", "Go a c"],
+    ["Go [a] b", "Go b"],
+    ["Cross *far [away] now* x", "Cross *far now* x"],
+    ["Go *a* [b] *c* d", "Go a c d"],
+    ["Go a [b] c #tag", "Go a c #tag"],
+    ["Go a[b] c", "Go a c"],
+  ])("%s", async (text, output) => {
+    const { echo } = await renderedChoiceBeats(script(`choose\n    + ${text}\n      Done.\n  end`));
+    expect(
+      echo("action")
+        .map(({ char }) => char)
+        .join(""),
+    ).toBe(output);
   });
 });
 

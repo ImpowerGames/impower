@@ -6,7 +6,7 @@ import {
   choiceTextMarkers,
   readChoiceText,
 } from "../../utils/readChoiceText";
-import { trimStyled, writesNothing } from "../../../runtime/displayStyle";
+import { isStyleCode, trimStyled, writesNothing } from "../../../runtime/displayStyle";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
@@ -259,7 +259,9 @@ function chosenTextAsDisplayCall(
   startEcho: ChoiceStartEcho | null;
   repeatsStartContent: boolean;
 } | null {
-  const words = inner.content.slice();
+  const words = endsInSpace(start.content)
+    ? withoutLeadingSpace(inner.content.slice())
+    : inner.content.slice();
   const hasStart = start.content.length > 0;
   if (!hasStart && words.length === 0) return null;
   const tagged = [...start.content, ...words].some(
@@ -287,6 +289,34 @@ function chosenTextAsDisplayCall(
   const out: ParsedObject[] = [call];
   if (arrow.length > 0) out.push(...tail);
   return { inner: out, startEcho, repeatsStartContent: !tagged };
+}
+
+const isSpace = (c: string) => c === " " || c === "\t";
+
+function endsInSpace(objects: readonly ParsedObject[]): boolean {
+  for (let o = objects.length - 1; o >= 0; o -= 1) {
+    const obj = objects[o];
+    if (!(obj instanceof Text)) return false;
+    for (let i = obj.text.length - 1; i >= 0; i -= 1) {
+      const c = obj.text[i]!;
+      if (!isStyleCode(c)) return isSpace(c);
+    }
+  }
+  return false;
+}
+
+function withoutLeadingSpace(words: ParsedObject[]): ParsedObject[] {
+  const first = words[0];
+  if (!(first instanceof Text)) return words;
+  let codes = "";
+  let i = 0;
+  while (i < first.text.length && (isStyleCode(first.text[i]!) || isSpace(first.text[i]!))) {
+    if (isStyleCode(first.text[i]!)) codes += first.text[i];
+    i += 1;
+  }
+  if (codes.length === i) return words;
+  const rest = codes + first.text.slice(i);
+  return rest ? [new Text(rest), ...words.slice(1)] : words.slice(1);
 }
 
 function collectChoiceCondition(

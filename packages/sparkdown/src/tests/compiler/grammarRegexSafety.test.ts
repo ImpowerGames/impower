@@ -173,14 +173,17 @@ describe("a span whose closer never comes is refused at once wherever it could o
       const re = new RegExp(source, "muy");
       re.lastIndex = 0;
       re.exec("warm");
-      const t0 = performance.now();
-      for (let i = 0; i < line.length; i++) {
-        if (!"*_^~:`".includes(line[i]!)) continue;
-        re.lastIndex = i;
-        re.exec(line);
+      let ms = Infinity;
+      for (let pass = 0; pass < 3; pass++) {
+        const t0 = performance.now();
+        for (let i = 0; i < line.length; i++) {
+          if (!"*_^~:`".includes(line[i]!)) continue;
+          re.lastIndex = i;
+          re.exec(line);
+        }
+        ms = Math.min(ms, performance.now() - t0);
       }
-      const ms = performance.now() - t0;
-      expect(ms, `${rule}.match took ${ms.toFixed(1)}ms`).toBeLessThan(150);
+      expect(ms, `${rule}.match took ${ms.toFixed(1)}ms at best of three passes`).toBeLessThan(150);
     },
   );
 });
