@@ -144,6 +144,7 @@ export default function Preview(_props: PreviewProps) {
         <SplitPane
           orientation="vertical"
           label="Resize game and panel"
+          line="none"
           overflowPanel="start"
           pinned={{
             panel: "end",

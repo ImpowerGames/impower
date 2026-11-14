@@ -1626,6 +1626,23 @@ try {
     const pre = [available("claude-cli", "claude-opus-5-5", [1107])];
     assert.equal(actions(planOf(f, waiting(1103), { preflights: pre }))[1107], "dispatch", "history counts as a delivered blocker");
     assert.equal(actions(planOf(f, waiting(1104), { preflights: pre }))[1107], "wait-dependency", "a blocker closed during the run without its deliverable still holds");
+    const asking = (state) => snapshotOf(300, [...snap.tickets, { ...ticket(1107), parent: 300, blockers: [{ number: 2290, state, delivered: false, request: true }] }]);
+    assert.equal(actions(planOf(f, asking("closed"), { preflights: pre }))[1107], "dispatch", "a closed maintainer request is a met blocker, with no deliverable to wait for");
+    const held = planOf(f, asking("open"), { preflights: pre }).tickets.find((t) => t.number === 1107);
+    assert.equal(held.action, "wait-dependency", "an open maintainer request holds the ticket");
+    assert.deepEqual(held.waitingFor, [2290]);
+    assert.match(held.reason, /waiting for #2290 \(an open maintainer request\)/);
+    {
+      const maintainer = readRepos().maintainer;
+      const isRequest = run.maintainerRequest(maintainer);
+      const labelled = (name, state) => ({ number: name === "plain" ? 2299 : 2290, state, labels: name === "plain" ? [{ name: "workflow: skills" }] : [{ name: maintainer.labels[name] }] });
+      const requestClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: (n) => ({ number: n, state: "open", title: "T", body: "", type: { name: "Task" } }), subIssues: (n) => (n === 300 ? [{ number: 1107, state: "open", title: "slice" }] : []), blockedBy: () => [labelled("decision", "closed"), labelled("plain", "closed")], fields: () => ({ effort: "Medium", priority: null }), pulls: () => [], comments: () => [], checks: () => [] };
+      const read = run.takeSnapshot({ repository: "acme/widgets", issue: 300 }, requestClient).tickets.find((t) => t.number === 1107);
+      assert.deepEqual(read.blockers, [{ number: 2290, state: "closed", delivered: false, request: true }, { number: 2299, state: "closed", delivered: false }], "the snapshot marks a blocker labelled as a maintainer request");
+      assert.deepEqual([labelled("decision"), labelled("task"), labelled("decidedWithoutYou"), labelled("plain")].map(isRequest), [true, true, false, false], "a decision or task label marks a request; the decided-without-you label alone does not");
+      assert.equal(actions(planOf(f, snapshotOf(300, [...snap.tickets, { ...read, parent: 300 }]), { preflights: pre }))[1107], "wait-dependency", "the closed plain blocker without a deliverable still holds beside the met request");
+    }
+    console.log("ok: a ticket blocked by a closed maintainer request is no longer waiting, and one blocked by an open request waits naming it");
     const umbrella = snapshotOf(300, [
       { ...ticket(1108), parent: 300, type: "Task" },
       closed(1109, { type: "Bug", parent: 1108, deliveredBy: { ticket: 1108, via: "sub-issue", pr: null, merged: false }, blockers: [{ number: 900, state: "closed", delivered: false }] }),

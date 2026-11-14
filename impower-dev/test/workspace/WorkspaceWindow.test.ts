@@ -1306,7 +1306,7 @@ describe("Preview preferences", () => {
     it("hears the editor's resolved theme in its URL, when it connects, and whenever it changes", () => {
       const theme = signal<string>("charcoal");
       expect(playerUrl("https://player.test/", theme)).toBe(
-        "https://player.test/#theme=charcoal",
+        "https://player.test/#theme=charcoal&backdrop=game",
       );
       const posted: { method: string; params: any }[] = [];
       const sync = createPlayerPreferenceSync(
@@ -2484,6 +2484,7 @@ describe("The game preview's player bar", () => {
           stepping: false,
           run: 1,
           position: null,
+          shownBeat: null,
           completion: null,
           ending: null,
         }),
@@ -3230,11 +3231,12 @@ describe("The preview's top bar", () => {
       ]);
     expect(names()).toEqual([
       ["Game preview follows cursor", "true"],
+      ["Auto-play beats", "false"],
       ["Show idle animations", "true"],
       ["Color typing pauses", "false"],
     ]);
-    rows("menuitemcheckbox")[1]!.click();
     rows("menuitemcheckbox")[2]!.click();
+    rows("menuitemcheckbox")[3]!.click();
     rows("menuitemcheckbox")[0]!.click();
     expect(workspaceSettings.preferences.value).toMatchObject({
       previewFollowsCursor: false,
@@ -3244,12 +3246,16 @@ describe("The preview's top bar", () => {
     render(h(PreviewTopBar, {}), container);
     expect(names()).toEqual([
       ["Game preview follows cursor", "false"],
+      ["Auto-play beats", "false"],
       ["Show idle animations", "false"],
       ["Color typing pauses", "true"],
     ]);
     workspaceSettings.setPreference("previewMode", "textstream");
     render(h(PreviewTopBar, {}), container);
-    expect(names()).toEqual([["Game preview follows cursor", "false"]]);
+    expect(names()).toEqual([
+      ["Game preview follows cursor", "false"],
+      ["Auto-play beats", "false"],
+    ]);
     workspaceSettings.setPreference("previewMode", "screenplay");
     render(h(PreviewTopBar, {}), container);
     expect(names()).toEqual([

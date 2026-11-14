@@ -258,7 +258,7 @@ export const getAssetUses = (
           continue;
         }
         for (const maps of reference.declaration ? [own] : [own, composed]) {
-          if (reference.linkable) {
+          if (reference.linkable && !reference.declaration) {
             for (const target of maps.linked.get(id)?.values() ?? []) {
               hit(target);
             }

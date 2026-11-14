@@ -59,3 +59,7 @@ spark-web-player .fullscreen #completion-status {
   --swp-route-popup-background-color: var(--panel);
   --swp-route-popup-border-color: var(--edge);
 }
+
+:root[data-backdrop="game"] spark-web-player #viewport {
+  background-color: var(--swp-game-background-color);
+}

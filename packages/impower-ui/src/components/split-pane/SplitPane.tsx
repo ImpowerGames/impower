@@ -1,5 +1,6 @@
 import { type ComponentChildren, type JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { cva, type VariantProps } from "class-variance-authority";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 import {
@@ -29,6 +30,7 @@ export type SplitPaneProps = {
   pinned?: SplitPanePinned;
   label?: string;
   overflowPanel?: "start" | "end";
+  line?: NonNullable<SplitPaneSeparatorVariants["line"]>;
   class?: string;
 };
 
@@ -59,23 +61,71 @@ function panelStyle(
 const PINNED_PANEL = "flex-none basis-(--split-pinned-size)";
 const FILL_PANEL = "flex-1 basis-0";
 
-const SEPARATOR_BASE =
-  "relative z-10 shrink-0 self-stretch select-none bg-transparent touch-none " +
-  "before:content-[''] before:absolute before:pointer-events-none before:bg-edge " +
-  "after:content-[''] after:absolute after:pointer-events-none after:bg-primary " +
-  "after:opacity-0 motion-safe:after:transition-opacity motion-safe:after:duration-150 motion-safe:after:ease-in-out " +
-  "hover:after:opacity-100 focus-visible:after:opacity-100 " +
-  "data-[separator=active]:after:opacity-100";
+export const splitPaneSeparatorVariants = cva(
+  "relative z-10 shrink-0 self-stretch select-none touch-none " +
+    "before:content-[''] before:absolute before:pointer-events-none " +
+    "after:content-[''] after:absolute after:pointer-events-none after:bg-primary " +
+    "after:opacity-0 motion-safe:after:transition-opacity motion-safe:after:duration-150 motion-safe:after:ease-in-out " +
+    "hover:after:opacity-100 focus-visible:after:opacity-100 " +
+    "data-[separator=active]:after:opacity-100",
+  {
+    variants: {
+      orientation: {
+        horizontal:
+          "w-2 cursor-col-resize " +
+          "before:inset-y-0 before:left-[3px] before:w-px " +
+          "after:inset-y-0 after:left-[2px] after:w-1",
+        vertical:
+          "h-2 cursor-row-resize " +
+          "before:inset-x-0 before:top-[3px] before:h-px " +
+          "after:inset-x-0 after:top-[2px] after:h-1",
+      },
+      line: {
+        edge: "before:bg-edge",
+        none: "before:bg-transparent",
+      },
+      reverse: {
+        false: "",
+        true: "",
+      },
+    },
+    compoundVariants: [
+      {
+        line: "edge",
+        orientation: "horizontal",
+        reverse: false,
+        class:
+          "bg-[linear-gradient(to_right,var(--split-start-surface,transparent)_3px,transparent_3px_4px,var(--split-end-surface,transparent)_4px)]",
+      },
+      {
+        line: "edge",
+        orientation: "horizontal",
+        reverse: true,
+        class:
+          "bg-[linear-gradient(to_right,var(--split-end-surface,transparent)_3px,transparent_3px_4px,var(--split-start-surface,transparent)_4px)]",
+      },
+      {
+        line: "edge",
+        orientation: "vertical",
+        reverse: false,
+        class:
+          "bg-[linear-gradient(to_bottom,var(--split-start-surface,transparent)_3px,transparent_3px_4px,var(--split-end-surface,transparent)_4px)]",
+      },
+      {
+        line: "edge",
+        orientation: "vertical",
+        reverse: true,
+        class:
+          "bg-[linear-gradient(to_bottom,var(--split-end-surface,transparent)_3px,transparent_3px_4px,var(--split-start-surface,transparent)_4px)]",
+      },
+    ],
+    defaultVariants: { orientation: "horizontal", line: "edge", reverse: false },
+  },
+);
 
-const SEPARATOR_HORIZONTAL =
-  "w-2 cursor-col-resize " +
-  "before:inset-y-0 before:left-[3.5px] before:w-px " +
-  "after:inset-y-0 after:left-[2px] after:w-1";
-
-const SEPARATOR_VERTICAL =
-  "h-2 cursor-row-resize " +
-  "before:inset-x-0 before:top-[3.5px] before:h-px " +
-  "after:inset-x-0 after:top-[2px] after:h-1";
+export type SplitPaneSeparatorVariants = VariantProps<
+  typeof splitPaneSeparatorVariants
+>;
 
 export default function SplitPane({
   orientation = "horizontal",
@@ -88,6 +138,7 @@ export default function SplitPane({
   pinned,
   label,
   overflowPanel,
+  line = "edge",
   class: className,
 }: SplitPaneProps) {
   const collapsed = useLayout() === "phone";
@@ -327,8 +378,7 @@ export default function SplitPane({
           aria-valuenow={valueNow}
           tabIndex={0}
           class={cn(
-            SEPARATOR_BASE,
-            horizontal ? SEPARATOR_HORIZONTAL : SEPARATOR_VERTICAL,
+            splitPaneSeparatorVariants({ orientation, line, reverse }),
             collapsed && "hidden",
           )}
           onPointerDown={onPointerDown}

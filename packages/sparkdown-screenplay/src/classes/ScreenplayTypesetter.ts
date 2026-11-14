@@ -48,7 +48,9 @@ export default class ScreenplayTypesetter {
     const metadataTags = Object.keys(PAGE_POSITIONS);
     let sceneIndex = 0;
 
-    for (const t of tokens) {
+    for (const token of tokens) {
+      const t =
+        token.styled != null ? { ...token, text: token.styled } : token;
       if (metadataTags.includes(t.tag)) {
         const position = PAGE_POSITIONS[t.tag as MetadataTokenType];
         const align = PAGE_ALIGNMENTS[position];
@@ -333,10 +335,10 @@ export default class ScreenplayTypesetter {
   ): PageLine[] {
     let affixedText = text;
     if (affixOptions.prefix) {
-      affixedText = "`" + affixOptions.prefix + "`" + affixedText;
+      affixedText = affixOptions.prefix + affixedText;
     }
     if (affixOptions.suffix) {
-      affixedText += "`" + affixOptions.suffix + "`";
+      affixedText += affixOptions.suffix;
     }
     const textLines = affixedText.split(/\r\n|\r|\n/);
     const pageLines: PageLine[] = [];

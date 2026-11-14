@@ -27,6 +27,8 @@ The pin pop-up opens beside the line:
 
 **When it's done:** close this issue as completed. If you won't do it, close it as not planned; I'll carry on without it and say what that leaves undone. Comment without closing to ask a question or say what's missing.
 
-_Filed by an agent through your GitHub account, so GitHub shows you as the author of this request; an agent wrote it._
+_Filed by an agent through your GitHub account, because the tool's GitHub App could not be used on this machine: GitHub shows you as the author and sends you no alert for it._
+
+<!-- ask-maintainer: posted by the tool -->
 
 <!-- maintainer-request {"kind":"task","blocks":[2271,2272],"owner":"orchestrate-issues #1655"} -->

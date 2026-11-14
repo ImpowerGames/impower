@@ -27,6 +27,7 @@ export interface DisplayPreviewResult {
   playing?: boolean;
   beatRefusal?: string;
   shownBeat?: DocumentLocation | null;
+  shownAddress?: number;
 }
 
 export class DisplayPreviewMessage {

@@ -1,12 +1,16 @@
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { createSparkdownParser } from "@impower/sparkdown/src/compiler/utils/createSparkdownParser";
 import {
   DIRECTIVE_CLAUSE_WORDS,
   DIRECTIVE_CONTROL_WORDS,
   DIRECTIVE_FLAG_WORDS,
   directiveValueKind,
+  readSourceDirectives,
+  type SourceDirective,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import { compareEngines } from "@impower/sparkdown/src/tests/compiler/scopeEquality";
 import { beforeAll, describe, expect, test } from "vitest";
 import { MAIN_URI, compileUI, createHarness } from "../ui/harness/uiTestHarness";
 
@@ -68,6 +72,11 @@ const CONTROL_ROWS: Row[] = [...DIRECTIVE_CONTROL_WORDS, ...LAYOUT_VERBS].flatMa
   [`control \`${control}\` in an audio directive`, "audio", `${control} music theme with echo`],
   [`control \`${control}\` before a clause word`, "image", `${control} with mia`],
   [`control \`${control}\` before a clause word in an audio directive`, "audio", `${control} with theme`],
+]);
+
+const CLAUSE_WORD_ROWS: Row[] = DIRECTIVE_CLAUSE_WORDS.flatMap((word): Row[] => [
+  [`clause word \`${word}\` in an image directive`, "image", `mia ${word} x`],
+  [`clause word \`${word}\` in an audio directive`, "audio", `play music theme ${word} x`],
 ]);
 
 const DELIMITER_ROWS: Row[] = [
@@ -151,9 +160,23 @@ const CLAUSE_ROWS: Row[] = [
   ["audio flags", "audio", "play music theme loop mute now"],
   ["audio with named like a clause word", "audio", "play music theme loop with over"],
   ["audio tag between words", "audio", "play music theme # note loop"],
+  ["none as a name", "image", "none"],
+  ["none as a name after a target", "image", "show pane none with fade"],
+  ["none in a composition", "image", "mia + none+bunny morph talk"],
+  ["none inside longer names", "image", "#none nonexistent x.none"],
+  ["none with a filter", "image", "none:mouth.open"],
+  ["none as a sound name", "audio", "play music none loop"],
 ];
 
-const ROWS: Row[] = [...CLAUSE_ROWS, ...KIND_ROWS, ...CONTROL_ROWS, ...DELIMITER_ROWS, ...OPENING_ROWS, ...SEPARATOR_ROWS];
+const ROWS: Row[] = [
+  ...CLAUSE_ROWS,
+  ...KIND_ROWS,
+  ...CONTROL_ROWS,
+  ...CLAUSE_WORD_ROWS,
+  ...DELIMITER_ROWS,
+  ...OPENING_ROWS,
+  ...SEPARATOR_ROWS,
+];
 
 const directive = (bracket: Bracket, text: string) => (bracket === "image" ? `[[${text}]]` : `((${text}))`);
 
@@ -492,6 +515,7 @@ describe("every editor reader of a directive agrees with the interpreter's chunk
       CLAUSE_ROWS.length +
         KIND_ROWS.length +
         CONTROL_ROWS.length +
+        CLAUSE_WORD_ROWS.length +
         DELIMITER_ROWS.length +
         OPENING_ROWS.length +
         PUNCTUATION.length * SEPARATOR_CONTEXTS.length,
@@ -512,5 +536,122 @@ describe("every editor reader of a directive in a choice line agrees with the ch
 
   test.each(CHOICE_ROWS.map(([label, text]) => [label, text] as const))("%s: `+ %s`", (label) => {
     expect(choiceCompilerReadings.get(label) ?? empty()).toStrictEqual(choiceInterpreterReadings.get(label) ?? empty());
+  });
+});
+
+const CROSS_BRACKET_CHOICE_DIRECTIVES = [
+  "choice brackets",
+  "choice brackets inside braces",
+  "a long-string bracket",
+  "a levelled long-string bracket",
+  "a long comment bracket",
+  "an indexing bracket",
+  "a comment after the choice brackets",
+  "clauses after the choice brackets",
+  "a directive closed inside the choice brackets",
+  "a directive closed both inside and after the choice brackets",
+  "a closer inside a tag after the choice brackets",
+];
+
+const COLOURED_ROLES: Readonly<Record<string, string>> = {
+  AssetCommandControl: "control",
+  AssetCommandTarget: "target",
+  AssetCommandName: "name",
+  AssetCommandNoneName: "name",
+  AssetCommandClauseKeyword: "clause",
+  AssetCommandClauseValue: "value",
+};
+
+type Coloured = readonly [from: number, word: string];
+
+const inOrder = (words: Coloured[]) => words.sort((a, b) => a[0] - b[0]).map(([, word]) => word);
+
+function gameColouring(directive: SourceDirective): string[] {
+  const words: Coloured[] = [];
+  const colour = (role: string, word: { from: number; text: string }) => words.push([word.from, `${role} ${word.text}`]);
+  if (directive.control) colour("control", directive.control);
+  if (directive.target) colour("target", directive.target);
+  if (directive.kind === "layout" && directive.control?.text === "navigate") {
+    const to = directive.words[directive.target ? 2 : 1];
+    if (to?.text === "to") colour("clause", to);
+  }
+  if (directive.destination) colour("value", directive.destination);
+  for (const name of directive.names) colour("name", name);
+  for (const clause of directive.clauses) {
+    colour(DIRECTIVE_CLAUSE_WORDS.includes(clause.word.text) ? "clause" : "value", clause.word);
+    if (clause.value) colour("value", clause.value);
+  }
+  return inOrder(words);
+}
+
+const parser = createSparkdownParser();
+
+function colouringOf(text: string, from: number, to: number) {
+  const tree = parser.parse(text);
+  const words: Coloured[] = [];
+  tree.iterate({
+    from,
+    to,
+    enter: (node) => {
+      if (node.to <= from || node.from >= to) return false;
+      const role = Object.hasOwn(COLOURED_ROLES, node.name) ? COLOURED_ROLES[node.name] : undefined;
+      if (!role) return undefined;
+      const word = text.slice(node.from, node.to);
+      words.push([node.from, `${role} ${node.name === "AssetCommandNoneName" ? word.replace(/[+ \t]+$/, "") : word}`]);
+      return false;
+    },
+  });
+  const games = readSourceDirectives(tree, (a, b) => text.slice(a, b))
+    .filter((directive) => directive.from >= from && directive.from < to)
+    .map(gameColouring);
+  return { grammar: inOrder(words), games };
+}
+
+const lineStarts = lines.map((_, i) => lines.slice(0, i).reduce((at, line) => at + line.length + 1, 0));
+
+describe("the grammar colours every directive word as the game reads it (I-2224)", () => {
+  test.each(ROWS.map(([label, bracket, text], i) => [label, directive(bracket, text), i] as const))("%s: `%s`", (_label, _text, i) => {
+    const line = lineOf(i);
+    const { grammar, games } = colouringOf(source, lineStarts[line]!, lineStarts[line]! + lines[line]!.length);
+    expect(grammar).toEqual(games.flat());
+  });
+
+  test("`none` is the keyword only where it is a whole name", () => {
+    const noneLines = [
+      "[[none]]",
+      "[[none:mouth.open]]",
+      "[[mia + none+bunny]]",
+      "((play music none loop))",
+      "[[#none]]",
+      "[[#none:mouth.open]]",
+      "((#none))",
+      "[[nonexistent]]",
+      "[[x.none]]",
+      "[[mia+nonesuch]]",
+    ];
+    const noneSource = ["scene start", ...noneLines.map((line) => `  ${line}`), "end", ""].join("\n");
+    const keywords: string[] = [];
+    parser.parse(noneSource).iterate({
+      enter: (node) => {
+        if (node.name === "AssetCommandKeywordNone") keywords.push(noneLines[noneSource.slice(0, node.from).split("\n").length - 2]!);
+      },
+    });
+    expect(keywords).toEqual(noneLines.slice(0, 4));
+  });
+
+  test("the VS Code grammar colours the table as the editor's tree does", async () => {
+    expect(await compareEngines(source)).toEqual([]);
+  });
+
+  test.each(CHOICE_ROWS.map(([label, text]) => [label, text] as const))("%s: `+ %s`", async (label, text) => {
+    const rowSource = choiceSource(text);
+    const lineFrom = rowSource.indexOf("    + ");
+    const divertAt = rowSource.indexOf(" -> ");
+    const lineTo = divertAt >= 0 ? divertAt : rowSource.indexOf("\n", lineFrom);
+    const { grammar, games } = colouringOf(rowSource, lineFrom, lineTo);
+    const agrees = games.length === 0 ? grammar.length === 0 : games.some((game) => JSON.stringify(game) === JSON.stringify(grammar));
+    const crossesBracket = CROSS_BRACKET_CHOICE_DIRECTIVES.some((shape) => label === shape || label === `${shape}, with a divert`);
+    expect({ grammar, games, agrees }).toEqual({ grammar, games, agrees: !crossesBracket });
+    expect(await compareEngines(rowSource)).toEqual([]);
   });
 });

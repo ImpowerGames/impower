@@ -163,6 +163,10 @@ export class Application implements IApplication {
     return this._manager.ui;
   }
 
+  get previewing() {
+    return this._previewing;
+  }
+
   get audio() {
     return this._manager.audio;
   }

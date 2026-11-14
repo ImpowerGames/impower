@@ -1,0 +1,21 @@
+scene start
+  [[mia with fade x.morph talk]]
+  [[mia wait morph-x talk]]
+  [[mia]x morph talk]]
+  [[mia[[morph talk]]
+  [[mia# note morph none]]
+  [[mia morph talk wait]]
+  [[write pane mia with fade]]
+  ((open music theme with echo))
+  ((show music theme loop))
+  [[navigate main to menu with fade]]
+  [[navigate with main to menu]]
+  [[show with backdrop mia + bunny]]
+  [[mia	morph	talk]]
+  [[nonexistent + none]]
+  [[mia+nonesuch morph none]]
+  [[none:mouth.open]]
+  [[#none]]
+  [[#none:mouth.open]]
+  ((#none))
+end

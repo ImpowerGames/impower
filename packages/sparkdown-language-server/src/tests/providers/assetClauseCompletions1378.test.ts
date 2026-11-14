@@ -43,8 +43,17 @@ describe("a word typed after a name or a clause may start a clause (I-1378)", ()
     ["[[show backdrop bunny_idle over 2s wa|]]", "wait"],
     ["((play music theme lo|))", "loop"],
     ["((play music theme loop mu|))", "mute"],
+    ["[[show backdrop none lo|]]", "loop"],
+    ["[[show backdrop none:eyes.closed lo|]]", "loop"],
+    ["[[none mo|]]", "morph"],
+    ["((play music none lo|))", "loop"],
   ])("%s offers %s", (source, clause) => {
     expect(labels(source)).toContain(clause);
+  });
+
+  it("offers clauses after a whole none name and a space", () => {
+    expect(labels("[[show backdrop none |]]")).toEqual(expect.arrayContaining(["loop", "morph", "with"]));
+    expect(labels("((play music none |))")).toEqual(expect.arrayContaining(["loop", "over"]));
   });
 
   it("still offers names after a name, since a command can show several", () => {
@@ -54,6 +63,7 @@ describe("a word typed after a name or a clause may start a clause (I-1378)", ()
   it("offers no clause for the first name or one joined with +", () => {
     expect(labels("[[show backdrop bun|]]")).not.toContain("with");
     expect(labels("[[show backdrop forest+bun|]]")).not.toContain("with");
+    expect(labels("[[show backdrop none+bun|]]")).not.toContain("with");
   });
 
   it("keeps a clause's value position for its values", () => {

@@ -1,6 +1,6 @@
 ---
 name: ask-maintainer
-description: File a maintainer decision or maintainer task as a GitHub issue through a tool that refuses an incomplete request, uploads its pictures into place and blocks the tickets it holds up. Use wherever a coordinator or stand-alone session would otherwise stop or hold work for the maintainer; a writer under a coordinator asks its coordinator instead.
+description: File a maintainer decision or maintainer task as a GitHub issue through a tool that refuses an incomplete request, uploads its pictures into place and blocks the tickets it holds up, then reads, records and waits for the maintainer's answer in their own words. Use wherever a coordinator or stand-alone session would otherwise stop or hold work for the maintainer; a writer under a coordinator asks its coordinator instead.
 ---
 
 # Ask the maintainer
@@ -43,6 +43,7 @@ node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<
 node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<pictures-folder>]
 node .agents/skills/ask-maintainer/maintainer-request.mjs tag <ticket> <task.json> [<pictures-folder>]
 node .agents/skills/ask-maintainer/maintainer-request.mjs list
+node .agents/skills/ask-maintainer/maintainer-request.mjs identity
 ```
 
 The dry run validates the request, checks for an open request asking the same question about the same ticket, and prints the body without filing. Correct every refusal it lists and run it again.
@@ -51,8 +52,20 @@ The dry run validates the request, checks for an open request asking the same qu
 
 `tag` gives an existing ticket the `maintainer: task` label, the assignee and one comment with the task's fields, blocks each ticket the task names on it, and creates no issue; when a step fails it deletes the comment and removes what it added. It refuses a ticket that already has a task comment; when that ticket's tag was removed on purpose, delete the old comment and tag again. `list` prints the open requests in three groups (decisions, tasks, went ahead without you) with links, ages and fallback times; `list --json` prints the same data for a report.
 
-Until the tool has its own identity, it files through the maintainer's account and says so at the end of every request.
+## Who the tool acts as
+
+The tool acts as its own GitHub App where the App's key is on the machine; elsewhere it files through the maintainer's account and says so on each request. Read [identity](references/identity.md) before setting up the App or deciding whose a comment is.
 
 ## After filing
 
-Give the request's number and address wherever you would have raised the question, and carry on with the work it does not hold up. The answer is given on the request: closing it with a comment is the decision in the maintainer's words, closing it with no comment accepts the recommendation, and a comment without closing is a question to answer with a reply on the request. Recording the answer, waiting for it and taking the fallback are not part of this tool yet; until they are, read the request yourself at each check-in.
+Give the request's number and address wherever you would have raised the question, and carry on with the work it does not hold up. Never comment on, edit, close or reopen a request yourself; the tool marks its own comments so they are never taken for the maintainer's.
+
+Closing is the answer: with a comment, the maintainer's words decide; with none, the recommendation is accepted; a comment without closing is a question, answered with `revise`. `record` the answer before acting on it, and never write that the maintainer decided anything it has not recorded. Read [answers](references/answers.md) before reading, recording, revising, withdrawing or waiting for a request, or relaying a chat answer.
+
+```sh
+node .agents/skills/ask-maintainer/maintainer-request.mjs read <request>
+node .agents/skills/ask-maintainer/maintainer-request.mjs record <request>
+node .agents/skills/ask-maintainer/maintainer-request.mjs wait <request> [<request> ...]
+```
+
+Run `wait` in the background in Claude Code, which wakes the session when it returns, and in the foreground in Codex, which a finished background command does not wake.

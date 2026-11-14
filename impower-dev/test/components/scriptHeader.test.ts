@@ -1,8 +1,52 @@
 import type { Layout } from "@impower/impower-ui/layout";
 import { signal } from "@preact/signals";
+import { compile, optimize } from "@tailwindcss/node";
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const IMPOWER_UI_SRC = resolve("../packages/impower-ui/src");
+
+const flattenRules = (rules: CSSRuleList, out: CSSStyleRule[] = []) => {
+  for (const rule of Array.from(rules)) {
+    if (rule instanceof CSSStyleRule) {
+      out.push(rule);
+    } else if ("cssRules" in rule) {
+      flattenRules((rule as CSSGroupingRule).cssRules, out);
+    }
+  }
+  return out;
+};
+
+const compiledRules = async (elements: Element[]) => {
+  const compiler = await compile(
+    readFileSync(join(IMPOWER_UI_SRC, "style.css"), "utf8"),
+    { base: IMPOWER_UI_SRC, onDependency: () => {} },
+  );
+  const classes = elements.flatMap((element) =>
+    Array.from(element.classList),
+  );
+  const style = document.createElement("style");
+  style.textContent = optimize(compiler.build(classes), { minify: false }).code;
+  document.head.append(style);
+  const rules = flattenRules(style.sheet!.cssRules);
+  style.remove();
+  return rules;
+};
+
+const applied = (rules: CSSStyleRule[], element: Element, property: string) =>
+  rules
+    .filter((rule) => {
+      try {
+        return element.matches(rule.selectorText);
+      } catch {
+        return false;
+      }
+    })
+    .map((rule) => rule.style.getPropertyValue(property))
+    .filter(Boolean);
 
 const calls = vi.hoisted(() => ({
   renames: [] as [string, string][],
@@ -37,7 +81,7 @@ const { default: workspaceSettings, PREFERENCES_STORAGE_KEY, WorkspaceSettings }
   await import("../../src/modules/spark-editor/workspace/settings/WorkspaceSettings");
 const { default: problems } =
   await import("../../src/modules/spark-editor/workspace/problems/ProblemsStore");
-const { default: ScriptHeader } =
+const { default: ScriptHeader, FoldedScriptHeader } =
   await import("../../src/modules/spark-editor/components/script-header/ScriptHeader");
 
 let host: HTMLDivElement | undefined;
@@ -47,9 +91,12 @@ const settle = () =>
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
-const mount = async (props: Record<string, unknown>) => {
+const mount = async (
+  props: Record<string, unknown>,
+  component: typeof ScriptHeader = ScriptHeader,
+) => {
   host = document.body.appendChild(document.createElement("div"));
-  await act(async () => render(h(ScriptHeader, props), host!));
+  await act(async () => render(h(component, props), host!));
   return host;
 };
 
@@ -160,6 +207,40 @@ describe("ScriptHeader name field", () => {
   it("names the script's folder beneath it", async () => {
     await mount({ filename: "scripts/act1/intro.sd" });
     expect(host!.querySelector("[data-script-folder]")!.textContent).toBe("scripts/act1");
+  });
+
+  it.each([
+    ["the phone's folded title bar header", "phone", FoldedScriptHeader],
+    ["a phone's script header", "phone", ScriptHeader],
+    ["the desktop script header", "desktop", ScriptHeader],
+  ] as const)(
+    "in %s, fades a long name and its folder at the edge instead of cutting them to an ellipsis, and leaves a focused name uncut",
+    async (_where, value, component) => {
+      layout.value = value;
+      workspace.layout.value = layout.value as Layout;
+      await mount(
+        { filename: "Scripts/Extras/Untitled script 4.sd" },
+        component as typeof ScriptHeader,
+      );
+      const folder = host!.querySelector<HTMLElement>("[data-script-folder]")!;
+      const rules = await compiledRules([field(), folder]);
+      expect(applied(rules, folder, "mask-image")).not.toEqual([]);
+      expect(applied(rules, folder, "text-overflow")).not.toContain("ellipsis");
+      expect(applied(rules, field(), "mask-image")).not.toEqual([]);
+      expect(applied(rules, field(), "text-overflow")).not.toContain("ellipsis");
+      await act(async () => field().focus());
+      expect(document.activeElement).toBe(field());
+      expect(applied(rules, field(), "mask-image")).toEqual([]);
+      expect(applied(rules, field(), "text-overflow")).not.toContain("ellipsis");
+    },
+  );
+
+  it("fades Main's name without an ellipsis", async () => {
+    await mount({ filename: "main.sd" });
+    const name = host!.querySelector<HTMLElement>("[data-script-name]")!;
+    const rules = await compiledRules([name]);
+    expect(applied(rules, name, "mask-image")).not.toEqual([]);
+    expect(applied(rules, name, "text-overflow")).not.toContain("ellipsis");
   });
 
   it("on a phone, swaps Browse scripts for Done while the name is focused", async () => {

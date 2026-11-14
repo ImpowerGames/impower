@@ -215,7 +215,8 @@ text.source.sparkdown [0..456]
  │   ├─ keyword.operator.expression.begin.image.sd [422..424]: "[["
  │   ├─ variable.other.constant.asset.file.sd [424..433]: "mia@night"
  │   ├─ punctuation.whitespace.required.sd [433..434]: " "
- │   ├─ variable.other.property.add.sd [434..436]: "+ "
+ │   ├─ variable.other.property.add.sd [434..435]: "+"
+ │   ├─ punctuation.whitespace.required.sd [435..436]: " "
  │   ├─ variable.other.constant.asset.file.sd [436..449]
  │   │   ├─ variable.other.constant.asset.file.sd [436..445]: "mia@party"
  │   │   ├─ variable.other.property.filter.sd [445..446]: ":"

@@ -1,11 +1,22 @@
 <!doctype html>
-<html lang="en" style="background-color: var(--panel)">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <style id="first-paint">
+      html {
+        background-color: var(--panel);
+      }
+      html[data-backdrop="game"] {
+        background-color: #000;
+      }
+    </style>
     <script id="theme-pre-paint">
       (() => {
-        const theme = new URLSearchParams(location.hash.slice(1)).get("theme");
+        const params = new URLSearchParams(location.hash.slice(1));
+        const theme = params.get("theme");
         if (theme) document.documentElement.dataset.theme = theme;
+        const backdrop = params.get("backdrop");
+        if (backdrop) document.documentElement.dataset.backdrop = backdrop;
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
