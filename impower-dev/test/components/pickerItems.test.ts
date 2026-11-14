@@ -130,7 +130,6 @@ describe("the pickers' cards", () => {
       file("assets/Images/plaza.png"),
       file("assets/Portraits/beach.png"),
       file("assets/Images/harbor@storm.png"),
-      file("assets/Images/mia~hat.on.png"),
       file("assets/Backdrops/rain.png"),
       file("assets/Sounds/rain.wav", "audio"),
       file("assets/Music/door.mp3", "audio"),
@@ -138,7 +137,7 @@ describe("the pickers' cards", () => {
     const references = (kind: AddMenuKind) =>
       pickerItems(kind, shared, FOLDERS).map((item) => item.reference);
     expect(references("backdrop")).toEqual(["beach@dusk", "beach@night", "rain", "Sea"]);
-    expect(references("portrait")).toEqual(["imani", "kai"]);
+    expect(references("portrait")).toEqual(["imani", "kai", "mia"]);
     expect(references("sound")).toEqual(["rain", "click"]);
     expect(references("music")).toEqual(["theme"]);
   });
@@ -297,6 +296,28 @@ describe("what the pickers insert", () => {
       ),
     );
     expect(wrong).toEqual([]);
+  });
+
+  it("draws a picture with its layers wherever they are kept, as the compiler groups them across folders", () => {
+    const files = [file("assets/Portraits/mia.png"), file("assets/Images/mia~hat.on~default.png")];
+    const items = pickerItems("portrait", files, FOLDERS);
+    expect(items.map((item) => [item.reference, item.path, item.variant])).toEqual([
+      ["mia", "assets/Portraits/mia.png", { image: "mia", attributes: [] }],
+    ]);
+    expect(pickerLeftOut("portrait", files, FOLDERS)).toBe(0);
+    expect(
+      outcome("portrait", "mia", files, "assets/Portraits/mia.png", [
+        "assets/Portraits/mia.png",
+        "assets/Images/mia~hat.on~default.png",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("offers a picture whose resting look shows none of its layers, which the compiler draws as nothing", () => {
+    const files = [file("assets/Portraits/kai~hat.on.png")];
+    const items = pickerItems("portrait", files, FOLDERS);
+    expect(items.map((item) => [item.reference, item.variant])).toEqual([["kai", { image: "kai", attributes: [] }]]);
+    expect(outcome("portrait", "kai", files, items[0]!.path, [])).toEqual([]);
   });
 
   it("leaves out a name two files share, which the compiler warns about on each file", () => {

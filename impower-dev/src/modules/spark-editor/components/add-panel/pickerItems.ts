@@ -6,9 +6,13 @@ import {
   type AddMenuKind,
   ADD_MENU_FILE_TYPES,
 } from "../../utils/addMenuFolders";
-import { stemOf } from "@impower/sparkdown/src/attributes/imageFileName";
-import { AS_IS, imageStacks, type ImageStack } from "../../utils/imageStacks";
-import { ALTERNATE, variantOf, type ImageVariant } from "../../utils/imageVariants";
+import {
+  imageThingsOf,
+  stemOf,
+  type ImagePicture,
+} from "@impower/sparkdown/src/attributes/imageFileName";
+import { imageStacks } from "../../utils/imageStacks";
+import type { ImageVariant } from "../../utils/imageVariants";
 
 export interface PickerFile {
   readonly path: string;
@@ -72,25 +76,60 @@ const sharedNames = (names: readonly string[]) => {
   );
 };
 
-const pictureCandidates = (stack: ImageStack): Candidate[] =>
-  stack.pictures.map((picture) => {
-    const variant = variantOf(stack, { [ALTERNATE]: picture.alternate ?? AS_IS });
-    return {
-      reference: variant.image,
-      name: stack.name,
-      alternate: picture.alternate,
-      path: picture.path ?? picture.layers[0]!,
-      ...(picture.layers.length ? { variant } : {}),
-    };
-  });
+const restingLook = (image: string): ImageVariant => ({ image, attributes: [] });
 
-const pictureNames = (stack: ImageStack): string[] =>
-  pictureCandidates(stack).flatMap(({ reference, alternate }) => {
-    const files = stack.members.filter(
-      (member) => member.layer === undefined && member.alternate === alternate,
-    ).length;
-    return Array<string>(Math.max(files, 1)).fill(reference);
-  });
+const pictureFiles = (picture: ImagePicture): string[] => [
+  ...(picture.path === undefined ? [] : [picture.path]),
+  ...picture.duplicates,
+  ...picture.layers.map((layer) => layer.path),
+];
+
+const pictureCandidate = (
+  picture: ImagePicture,
+  name: string,
+  offered: ReadonlySet<string>,
+): Candidate | null => {
+  const files = pictureFiles(picture).filter((path) => offered.has(path));
+  if (!files.length) return null;
+  return {
+    reference: picture.name,
+    name,
+    alternate: picture.alternate,
+    path: picture.path !== undefined && offered.has(picture.path) ? picture.path : files[0]!,
+    ...(picture.layers.length ? { variant: restingLook(picture.name) } : {}),
+  };
+};
+
+const imageCandidates = (own: readonly string[], offered: ReadonlySet<string>) => {
+  const things = imageThingsOf(own);
+  const folders = imageStacks(own).filter((stack) => stack.kind === "folder");
+  const shared = sharedNames([
+    ...things.flatMap((thing) =>
+      thing.pictures.flatMap((picture) =>
+        Array<string>(picture.duplicates.length + 1).fill(picture.name),
+      ),
+    ),
+    ...folders.map((stack) => stack.name),
+  ]);
+  const candidates = [
+    ...things.flatMap((thing) =>
+      thing.pictures.flatMap((picture) => pictureCandidate(picture, thing.name, offered) ?? []),
+    ),
+    ...folders
+      .filter((stack) => stack.paths.some((path) => offered.has(path)))
+      .map((stack): Candidate => ({
+        reference: stack.name,
+        name: stack.name,
+        alternate: null,
+        path: stack.cover,
+        variant: restingLook(stack.name),
+      })),
+  ];
+  return candidates.map((candidate) => ({
+    candidate,
+    writable: writableName(candidate.reference) && !shared.has(candidate.reference),
+  }));
+};
 
 const candidatesOf = (
   kind: AddMenuKind,
@@ -108,14 +147,7 @@ const candidatesOf = (
       return { candidate, writable: writableName(name) && !shared.has(name) };
     });
   }
-  const shared = sharedNames(imageStacks(own).flatMap(pictureNames));
-  return imageStacks(paths)
-    .flatMap(pictureCandidates)
-    .map((candidate) => ({
-      candidate,
-      writable:
-        writableName(candidate.reference) && !shared.has(candidate.reference),
-    }));
+  return imageCandidates(own, new Set(paths));
 };
 
 export const pickerItems = (

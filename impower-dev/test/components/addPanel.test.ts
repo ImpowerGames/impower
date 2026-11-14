@@ -53,7 +53,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
           listener: (src: string | null) => void,
         ) => {
           calls.pictures.push([path, variant, size]);
-          listener(`data:image/png;drawn,${variant.image}`);
+          listener(variant.image === "kai" ? "" : `data:image/png;drawn,${variant.image}`);
           return () => {};
         },
         measureDurations: async () => {
@@ -403,6 +403,14 @@ describe("the pickers on desktop", () => {
     expect(thumbnail.querySelector("img")!.getAttribute("src")).toBe("data:image/png;drawn,imani");
     expect(thumbnail.dataset["visiblePercent"]).toBe("75");
     workspaceSettings.resetPreferences(["portraitCrop"]);
+    listAssets([...FILES, "assets/Portraits/kai~hat.on.png"]);
+    await act(async () => button("Portrait", "Back to add options").click());
+    await act(async () => row("portrait").click());
+    await settle();
+    expect(cards("Portrait").map((card) => card.dataset["pickerItem"])).toEqual(["imani", "kai"]);
+    expect(cards("Portrait")[1]!.querySelector("img")).toBeNull();
+    listAssets(FILES);
+    calls.auditions.length = 0;
     await act(async () => button("Portrait", "Back to add options").click());
     await act(async () => row("sound").click());
     await settle();

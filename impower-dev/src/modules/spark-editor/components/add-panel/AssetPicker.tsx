@@ -143,7 +143,7 @@ function usePictureSrc(item: PickerItem): string | undefined {
       dispose?.();
     };
   }, [item.path, variantKey]);
-  return drawn || item.src;
+  return item.variant ? (drawn ?? undefined) : item.src;
 }
 
 function Picture({
