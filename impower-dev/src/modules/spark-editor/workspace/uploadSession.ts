@@ -131,7 +131,7 @@ export const uploadHeading = (rows: readonly UploadRow[], found: number | null =
   const done = rows.filter((row) => !unfinished(row)).length;
   const failed = rows.filter((row) => row.state === "failed").length;
   if (done < rows.length) {
-    return `Uploading ${done + 1} of ${rows.length}`;
+    return `Adding ${done + 1} of ${rows.length}`;
   }
   return failed
     ? `${plural(rows.length - failed, "file")} added, ${failed} not added`

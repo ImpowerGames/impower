@@ -209,7 +209,7 @@ describe("asset usage for the whole project in one request (#1033)", () => {
     ]);
   });
 
-  test("labels a use on a define's own lines as Define, the character a picture links to included", () => {
+  test("labels a use on a define's own lines as Define, and never counts the define line of the character a picture links to (#2191)", () => {
     const { workspace, program } = setup(
       {
         [MAIN]: lines(
@@ -228,10 +228,7 @@ describe("asset usage for the whole project in one request (#1033)", () => {
       [HARBOR, IMANI],
     );
     const usage = provider.getAssetUsage(workspace, program, MAIN)!;
-    expect(summary(usage.uses[IMANI])).toEqual([
-      ["main.sd", 0, "define", "define imani as character with"],
-      ["main.sd", 8, "portrait", "[[imani]]"],
-    ]);
+    expect(summary(usage.uses[IMANI])).toEqual([["main.sd", 8, "portrait", "[[imani]]"]]);
     expect(summary(usage.uses[HARBOR])).toEqual([
       ["main.sd", 4, "define", "assets = { image.harbor }"],
       ["main.sd", 7, "backdrop", "[[show backdrop harbor]]"],

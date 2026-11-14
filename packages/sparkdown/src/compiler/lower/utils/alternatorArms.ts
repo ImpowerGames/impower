@@ -21,7 +21,6 @@ import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tu
 import { Tag as RuntimeTag } from "../../../runtime/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
 import {
-  insideChoice,
   readStyledSource,
   trimEndBeforeSpanEnds,
 } from "./displaySpans";
@@ -539,7 +538,6 @@ function lowerArmContent(
   inString = false,
 ): void {
   let textBuf = "";
-  const styled = !insideChoice(armContent);
   const flushText = (trim: boolean): void => {
     let text = textBuf;
     // value-level: buffered display text, trimming its trailing whitespace
@@ -570,9 +568,7 @@ function lowerArmContent(
       forwardBlockDiagnostics(block, ctx);
       out.push(...unwrapBlockContent(block));
     } else {
-      textBuf += styled
-        ? readStyledSource(child, child.from, child.to, ctx)
-        : ctx.read(child.from, child.to);
+      textBuf += readStyledSource(child, child.from, child.to, ctx);
     }
     child = child.nextSibling;
   }

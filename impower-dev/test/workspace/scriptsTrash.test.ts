@@ -174,6 +174,23 @@ it("undoes a creation again from where its redo restored it, never the script th
   expect(await h.read("Scripts/new.sd")).toBe("other script");
 });
 
+it("undoes a new script by moving it to the bin, and redoes it where it was", async () => {
+  const h = await harness();
+  await h.scripts.load();
+  const path = await h.scripts.createScript("");
+  expect(path).toBe("Scripts/Untitled script.sd");
+  expect(h.history.nextUndoLabel.value).toBe("Create Untitled script.sd");
+  expect(await h.history.undo()).toBe(true);
+  expect(Object.keys(await h.fs.getFiles("local"))).not.toContain(h.uri(path));
+  expect((await h.fs.listTrash("local")).flatMap((batch) => batch.entries.map((e) => e.originalUri))).toEqual([
+    h.uri(path),
+  ]);
+  expect(await h.history.redo()).toBe(true);
+  await vi.waitFor(async () => expect(Object.keys(await h.fs.getFiles("local"))).toContain(h.uri(path)));
+  expect(await h.read(path)).toBe("");
+  expect(await h.fs.listTrash("local")).toEqual([]);
+});
+
 it("redo leaves an empty folder that appeared inside a restored folder after Undo", async () => {
   const h = await harness();
   await h.write("Scripts/Drafts/old.sd", "deleted version");

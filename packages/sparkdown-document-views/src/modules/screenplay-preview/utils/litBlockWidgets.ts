@@ -4,23 +4,31 @@ export const LIT_CLASS = "sp-lit";
 
 const BLOCK_WIDGETS = ":scope > div:not(.cm-line):not(.cm-gap)";
 
-const light = (view: EditorView) => {
+const readLit = (view: EditorView) => {
   const head = view.state.selection.main.head;
-  view.contentDOM
-    .querySelectorAll<HTMLElement>(BLOCK_WIDGETS)
-    .forEach((element) => {
+  return Array.from(
+    view.contentDOM.querySelectorAll<HTMLElement>(BLOCK_WIDGETS),
+    (element) => {
       const block = view.lineBlockAt(view.posAtDOM(element));
-      const lit = head >= block.from && head <= block.to;
-      if (element.classList.contains(LIT_CLASS) !== lit) {
-        element.classList.toggle(LIT_CLASS, lit);
-      }
-    });
+      return { element, lit: head >= block.from && head <= block.to };
+    },
+  );
+};
+
+const writeLit = (widgets: { element: HTMLElement; lit: boolean }[]) => {
+  widgets.forEach(({ element, lit }) => {
+    if (element.classList.contains(LIT_CLASS) !== lit) {
+      element.classList.toggle(LIT_CLASS, lit);
+    }
+  });
 };
 
 export const litBlockWidgets = ViewPlugin.fromClass(
   class {
+    readonly measure = { key: this, read: readLit, write: writeLit };
+
     constructor(view: EditorView) {
-      light(view);
+      view.requestMeasure(this.measure);
     }
 
     update(update: ViewUpdate) {
@@ -30,7 +38,7 @@ export const litBlockWidgets = ViewPlugin.fromClass(
         update.viewportChanged ||
         update.geometryChanged
       ) {
-        light(update.view);
+        update.view.requestMeasure(this.measure);
       }
     }
   },

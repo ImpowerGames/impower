@@ -1,19 +1,31 @@
 import { HighlightStyle, syntaxTree } from "@codemirror/language";
-import type { EditorState, Text } from "@codemirror/state";
+import type { EditorState, Line, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
-import { SyntaxNodeRef } from "@lezer/common";
+import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
+import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
+import type { FormattedText } from "../../../../../sparkdown-screenplay/src/types/FormattedText";
+import type { PrintedInsert } from "../../../../../sparkdown-screenplay/src/types/PrintedInsert";
+import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/gluedAlternatorLayout";
+import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
+import { SHOWN_AS_SOURCE } from "../../../../../sparkdown-screenplay/src/utils/readStyled";
+import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styleText";
+import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
+import { screenplayPageLayout } from "../../../../../sparkdown-screenplay/src/utils/screenplayPageLayout";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
+import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
+import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
+import { escapeHtml } from "./getFormattedHTML";
 import TitlePageWidget, {
   TitlePageSpec,
 } from "../classes/widgets/TitlePageWidget";
@@ -243,6 +255,63 @@ const createDecorations = (
 
 export const SCREENPLAY_LANGUAGE_SUPPORT = LANGUAGE_SUPPORT;
 
+const PRINTED_NAME_SETTINGS = [
+  "screenplay_print_scene_identifiers",
+  "screenplay_print_branch_identifiers",
+  "screenplay_print_function_identifiers",
+  "screenplay_print_knot_identifiers",
+  "screenplay_print_stitch_identifiers",
+] as const;
+
+interface CachedPageLayout {
+  settings: string;
+  blankPositions: Set<number>;
+  printed: number[];
+  actionStarts: number[];
+  inserts: PrintedInsert[];
+  printedLines: { at: number; lines: FormattedText[][] }[];
+}
+
+const printedHtml = (lines: FormattedText[][]) =>
+  lines
+    .map((line) =>
+      line
+        .map((piece) => {
+          const style = [
+            piece.bold ? "font-weight: bold;" : "",
+            piece.italic ? "font-style: italic;" : "",
+            piece.underline || piece.strike
+              ? `text-decoration:${piece.underline ? " underline" : ""}${piece.strike ? " line-through" : ""};`
+              : "",
+          ].join("");
+          const source = piece.color === SOURCE_COLOR ? ' class="sp-source"' : "";
+          return `<span${source}${style ? ` style="${style}"` : ""}>${escapeHtml(piece.text)}</span>`;
+        })
+        .join(""),
+    )
+    .join("<br>");
+
+const pageLayoutCache = new WeakMap<Tree, CachedPageLayout>();
+
+const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
+  const settings = PRINTED_NAME_SETTINGS.map((key) => (config?.[key] ? "1" : "0")).join("");
+  const cached = pageLayoutCache.get(tree);
+  if (cached && cached.settings === settings) {
+    return cached;
+  }
+  const layout = screenplayPageLayout(tree, doc.toString(), config);
+  const result = {
+    settings,
+    blankPositions: new Set(layout.blankLines),
+    printed: layout.printed,
+    actionStarts: layout.actionStarts,
+    inserts: layout.inserts,
+    printedLines: layout.printedLines,
+  };
+  pageLayoutCache.set(tree, result);
+  return result;
+};
+
 export const decorate = (
   state: EditorState,
   from: number = 0,
@@ -270,15 +339,6 @@ export const decorate = (
     doc.sliceString(nodeRef.from, nodeRef.to).endsWith("\n")
       ? nodeRef.to - 1
       : nodeRef.to;
-
-  const isOnlyHiddenDirectives = (text: string): boolean => {
-    const stripped = text
-      .replace(/\[\[[^\]]*\]\]/g, "")
-      .replace(/\(\([^)]*\)\)/g, "")
-      .replace(/<[^>]*>/g, "")
-      .trim();
-    return stripped.length === 0 && text.trim().length > 0;
-  };
 
   const findBlockContentEnd = (from: number, to: number): number => {
     let lastContentChar = -1;
@@ -329,65 +389,202 @@ export const decorate = (
   };
 
   const isLuauFlowBlockContainer = (name: string) =>
-    /^LuauSparkdown[A-Za-z]*(Block|Clause)$/.test(name);
+    /^LuauSparkdown[A-Za-z]*(Block|Clause|Loop)$/.test(name);
 
-  const isHiddenFlowLogic = (name: string) =>
-    name === "Divert" ||
-    name === "Label" ||
-    name === "LuauSparkdownExplicitStatement" ||
-    name === "LuauSparkdownExplicitBlockStatement" ||
-    name === "LuauIfBlockCondition" ||
-    name === "LuauElseifBlockCondition" ||
-    name === "LuauSparkdownExplicitIfCondition";
+  const isBlankLine = (nodeRef: SyntaxNodeRef) =>
+    printsAsBlankLine(nodeRef.name, nodeRef.node.parent?.name);
 
-  const isBlockHidden = (nodeRef: SyntaxNodeRef) => {
-    const name = nodeRef.name as SparkdownNodeName;
-    if (nodeRef.node.parent?.name === "sparkdown") {
-      return (
-        name !== "FrontMatter" &&
-        name !== "Scene" &&
-        name !== "BlockTitle" &&
-        name !== "InlineTitle" &&
-        name !== "BlockHeading" &&
-        name !== "InlineHeading" &&
-        name !== "BlockTransitional" &&
-        name !== "InlineTransitional" &&
-        name !== "BlockWrite" &&
-        name !== "InlineWrite" &&
-        name !== "BlockDialogue" &&
-        name !== "InlineDialogue" &&
-        name !== "BlockAction" &&
-        name !== "InlineAction" &&
-        name !== "ImplicitAction" &&
-        name !== "Choice" &&
-        name !== "Newline" &&
-        name !== "Whitespace" &&
-        !isLuauFlowBlockContainer(name)
-      );
-    }
-    return false;
-  };
+  const opensOwnLine = (nodeRef: SyntaxNodeRef) =>
+    doc.lineAt(nodeRef.from).to < blockEnd(nodeRef);
 
   const isInlineHidden = (nodeRef: SyntaxNodeRef) => {
     const result = getStyleTags(nodeRef);
     return result?.tags.some((t) => INLINE_HIDDEN_TAGS.includes(t));
   };
 
-  const hideBlockRange = (nodeRef: SyntaxNodeRef) => {
-    const from = nodeRef.from;
-    const to = nodeRef.to;
-    const text = doc.sliceString(from, to);
-    const hiddenNodeEndsWithNewline = text.endsWith("\n");
-    const hideFrom = from;
-    const hideTo = hiddenNodeEndsWithNewline ? to - 1 : to;
-    decorations.push(
-      ...createDecorations(doc, {
-        type: "collapse",
-        from: hideFrom,
-        to: hideTo,
-      }),
-    );
-    lineStart = nodeRef.to;
+  const tree = treeOverride ?? syntaxTree(state);
+
+  const { blankPositions, printed, actionStarts, inserts, printedLines } = cachedPageLayout(tree, doc, config);
+
+  const exportedLinesFrom = (from: number, to: number) => {
+    let low = 0;
+    let high = printedLines.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (printedLines[middle]!.at < from) low = middle + 1;
+      else high = middle;
+    }
+    const found = printedLines[low];
+    return found && found.at < to ? found.lines : undefined;
+  };
+
+  const printedBefore = (from: number, to: number) => {
+    let low = 0;
+    let high = printed.length / 2;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (printed[middle * 2 + 1]! <= from) low = middle + 1;
+      else high = middle;
+    }
+    return low * 2 < printed.length && printed[low * 2]! < to;
+  };
+
+  for (const start of actionStarts) {
+    if (start >= from && (to === undefined || start <= to) && printedBefore(doc.lineAt(start).from, start)) {
+      decorations.push(Decoration.widget({ widget: new LineBreakWidget(), side: 1 }).range(start));
+    }
+  }
+
+  for (const insert of inserts) {
+    if (insert.at >= from && (to === undefined || insert.at <= to)) {
+      const widget = insert.text === "\n" ? new LineBreakWidget() : new InsertedTextWidget(insert.text);
+      decorations.push(Decoration.widget({ widget, side: 1 }).range(insert.at));
+    }
+  }
+
+  let printedIndex = 0;
+  const holdsPrintedText = (from: number, to: number) => {
+    while (printedIndex < printed.length && printed[printedIndex + 1]! <= from) {
+      printedIndex += 2;
+    }
+    return printedIndex < printed.length && printed[printedIndex]! < to;
+  };
+
+  const isUnprinted = (nodeRef: SyntaxNodeRef) => {
+    const { from, to } = nodeRef;
+    if (inFrontMatter || to <= from || nodeRef.name === "Newline" || holdsPrintedText(from, to)) {
+      return false;
+    }
+    const line = doc.lineAt(from);
+    const printable = /\S/.test(doc.sliceString(from, to));
+    if (line.to >= to - 1) return printable || /\S/.test(line.text);
+    return !nodeRef.node.firstChild && printable;
+  };
+
+  const blankLines = new Set(
+    [...blankPositions].map((position) => doc.lineAt(Math.min(position, doc.length)).number),
+  );
+
+  const handledLines = new Set<number>();
+
+  const blankRow = (line: Line) =>
+    line.text.trim()
+      ? createDecorations(doc, { type: "collapse", from: line.from, to: line.to })
+      : createDecorations(doc, {
+          type: "collapse",
+          from: line.from,
+          to: line.to,
+          separator: true,
+        });
+
+  const printsText = (node: SyntaxNode) =>
+    node.name !== "Newline" &&
+    node.name !== "Whitespace" &&
+    !printsAsBlankLine(node.name, node.parent?.name);
+
+  const functionNameOf = (node: SyntaxNode) =>
+    config?.screenplay_print_function_identifiers
+      ? rootFunctionName(node, (from, to) => doc.sliceString(from, to))
+      : "";
+
+  const lineParts = (line: Line, node: SyntaxNode) => {
+    let first = node;
+    while (first.prevSibling && first.prevSibling.to > line.from) {
+      first = first.prevSibling;
+    }
+    const parts: SyntaxNode[] = [];
+    for (let part: SyntaxNode | null = first; part && part.from < line.to; part = part.nextSibling) {
+      parts.push(part);
+    }
+    return parts;
+  };
+
+  const splitSharedLine = (line: Line, node: SyntaxNode) => {
+    const parts = lineParts(line, node);
+    const firstText = parts.findIndex(printsText);
+    const hiddenParts = parts.filter((part) => printsAsBlankLine(part.name, part.parent?.name));
+    if (firstText < 0 && hiddenParts.length < 2) return false;
+    handledLines.add(line.number);
+    if (firstText < 0) {
+      decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
+      if (line.length > 0) {
+        decorations.push(Decoration.replace({}).range(line.from, line.to));
+      }
+    }
+    const textIndex = firstText < 0 ? parts.length : firstText;
+    const above: (CollapseWidget | NameWidget)[] = [];
+    const below: (CollapseWidget | NameWidget)[] = [];
+    parts.forEach((part, index) => {
+      if (!printsAsBlankLine(part.name, part.parent?.name)) return;
+      const from = Math.max(part.from, line.from);
+      const to = Math.min(blockEnd(part), line.to);
+      if (firstText >= 0 && to > from) {
+        decorations.push(Decoration.replace({}).range(from, to));
+      }
+      if (part.from < line.from) return;
+      const rows = index < textIndex ? above : below;
+      if (blankPositions.has(part.from)) {
+        rows.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from }));
+      }
+      const name = functionNameOf(part);
+      if (name) {
+        rows.push(new NameWidget({ type: "name", from: part.from, to: part.from, name, pageBreak: false }));
+      }
+    });
+    above.forEach((widget, index) => {
+      decorations.push(
+        Decoration.widget({ widget, block: true, side: index - above.length }).range(line.from),
+      );
+    });
+    below.forEach((widget, index) => {
+      decorations.push(Decoration.widget({ widget, block: true, side: index + 1 }).range(line.to));
+    });
+    return true;
+  };
+
+  const hideLines = (
+    fromPosition: number,
+    toPosition: number,
+    name = "",
+    node?: SyntaxNode,
+  ) => {
+    const first = doc.lineAt(fromPosition).number;
+    const last = doc.lineAt(toPosition).number;
+    for (let number = first; number <= last; number++) {
+      if (handledLines.has(number)) continue;
+      const line = doc.line(number);
+      if (node && (number === first || number === last) && splitSharedLine(line, node)) {
+        continue;
+      }
+      handledLines.add(number);
+      if (number === first && name) {
+        if (blankLines.has(number)) {
+          decorations.push(
+            Decoration.widget({
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              block: true,
+              side: -1,
+            }).range(line.from),
+          );
+        }
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "name",
+            from: line.from,
+            to: line.to,
+            name,
+            pageBreak: false,
+          }),
+        );
+      } else if (blankLines.has(number)) {
+        decorations.push(...blankRow(line));
+      } else {
+        decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
+        if (line.length > 0) {
+          decorations.push(Decoration.replace({}).range(line.from, line.to));
+        }
+      }
+    }
   };
 
   const hideInlineRange = (nodeRef: SyntaxNodeRef) => {
@@ -427,14 +624,7 @@ export const decorate = (
   let lineStart = from;
   const processNewline = (newlineFrom: number, newlineTo: number) => {
     if (isWhitespaceOnly(lineStart, newlineFrom)) {
-      decorations.push(
-        ...createDecorations(doc, {
-          type: "collapse",
-          from: lineStart,
-          to: newlineFrom,
-          separator: true,
-        }),
-      );
+      hideLines(lineStart, lineStart);
     }
     lineStart = newlineTo;
   };
@@ -445,8 +635,8 @@ export const decorate = (
   let frontMatterPositionContent: Record<string, MarkupContent[]> = {};
   let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
   let frontMatterKeyword = "";
-
-  const tree = treeOverride ?? syntaxTree(state);
+  let inFrontMatter = false;
+  const shownAsSource: number[] = [];
 
   tree.iterate({
     from,
@@ -460,6 +650,7 @@ export const decorate = (
       }
       if (name === "FrontMatter") {
         frontMatterPositionContent = {};
+        inFrontMatter = true;
       } else if (name === "FrontMatterField") {
         frontMatterFieldCaptureBlocks = [];
         frontMatterKeyword = "";
@@ -468,74 +659,94 @@ export const decorate = (
         frontMatterKeyword = value;
         return false;
       } else if (name === "FrontMatterString") {
-        const value = doc.sliceString(from, to).trim();
-        frontMatterFieldCaptureBlocks.push({
-          type: frontMatterKeyword.toLowerCase(),
-          from,
-          to,
-          value,
-          markdown: true,
-          attributes: {
-            style: "min-height: 1em",
-          },
-        });
+        const exported = exportedLinesFrom(from, to);
+        if (exported) {
+          frontMatterFieldCaptureBlocks.push({
+            type: frontMatterKeyword.toLowerCase(),
+            from,
+            to,
+            value: printedHtml(exported),
+            markdown: false,
+            attributes: {
+              style: "min-height: 1em",
+            },
+          });
+        }
         return false;
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         inDialogue = true;
         dialoguePosition = 0;
         dialogueContent = [];
       } else if (name === "DialogueCharacter") {
-        const value = doc.sliceString(from, to).trim();
+        const exported = exportedLinesFrom(from, to);
         dialogueContent.push({
           type: "character",
           from,
           to,
-          value: value + ": ",
-          markdown: true,
+          value: exported ? printedHtml(exported) : doc.sliceString(from, to).trim() + ": ",
+          markdown: !exported,
           attributes: {
             style: getDialogueLineStyle("character"),
           },
         });
-      } else if (name === "DialogueCharacterPositionContent") {
-        const value = doc.sliceString(from, to).trim();
-        if (value) {
-          inDualDialogue = true;
-          if (value === "<" || value === "left" || value === "l") {
-            dialoguePosition = 1;
-          }
-          if (value === ">" || value === "right" || value === "r") {
-            dialoguePosition = 2;
-          }
-        } else {
-          inDualDialogue = false;
-          dialoguePosition = 0;
-        }
-      } else if (name === "TextChunk") {
-        if (inDialogue) {
-          const value = doc.sliceString(from, to).trimEnd();
-          const directiveOnly = isOnlyHiddenDirectives(value);
+        const side = declarationName(nodeRef, "DialogueCharacterPositionContent");
+        inDualDialogue = side !== "";
+        dialoguePosition =
+          side === "<" || side === "left" || side === "l"
+            ? 1
+            : side === ">" || side === "right" || side === "r"
+              ? 2
+              : 0;
+      } else if (inDialogue && GLUED_ALTERNATOR_BLOCKS.has(name)) {
+        const exported = exportedLinesFrom(from, to);
+        const last = dialogueContent.at(-1);
+        if (exported) {
           dialogueContent.push({
             type: "dialogue",
             from,
             to,
-            value,
-            markdown: true,
-            attributes: {
-              style: directiveOnly
-                ? "display: none;"
-                : getDialogueLineStyle("dialogue"),
-            },
+            value: printedHtml(exported),
+            markdown: false,
+            attributes: { style: getDialogueLineStyle("dialogue") },
           });
+        } else if (last?.type === "dialogue") {
+          last.to = to;
+        }
+      } else if (name === "TextChunk") {
+        if (inDialogue) {
+          const exported = exportedLinesFrom(from, to);
+          const last = dialogueContent.at(-1);
+          if (exported) {
+            dialogueContent.push({
+              type: "dialogue",
+              from,
+              to,
+              value: printedHtml(exported),
+              markdown: false,
+              attributes: { style: getDialogueLineStyle("dialogue") },
+            });
+          } else if (holdsPrintedText(from, to) && last?.type === "dialogue") {
+            last.to = to;
+          } else {
+            dialogueContent.push({
+              type: "dialogue",
+              from,
+              to,
+              value: "",
+              markdown: false,
+              attributes: { style: "display: none;" },
+            });
+          }
         }
       } else if (name === "ParentheticalLineContent") {
         if (inDialogue) {
-          const value = doc.sliceString(from, to).trim();
+          const exported = exportedLinesFrom(from, to);
           dialogueContent.push({
             type: "parenthetical",
             from,
             to,
-            value,
-            markdown: true,
+            value: exported ? printedHtml(exported) : doc.sliceString(from, to).trim(),
+            markdown: !exported,
             attributes: {
               style: getDialogueLineStyle("parenthetical"),
             },
@@ -569,6 +780,7 @@ export const decorate = (
             pageBreak: false,
           }),
         );
+        handledLines.add(doc.lineAt(from).number);
         lineStart = nodeRef.to;
         return false;
       } else if (isLeadingIndent(name, from, to)) {
@@ -584,15 +796,59 @@ export const decorate = (
       } else if (name === "ColonSeparator") {
         hideInlineRange(nodeRef);
         return false;
-      } else if (isHiddenFlowLogic(name)) {
-        hideInlineRange(nodeRef);
+      } else if (
+        isBlankLine(nodeRef) &&
+        isLuauFlowBlockContainer(name) &&
+        opensOwnLine(nodeRef)
+      ) {
+        hideLines(from, from);
+        return true;
+      } else if (isBlankLine(nodeRef) && holdsPrintedText(from, to)) {
+        const line = doc.lineAt(from);
+        if (!handledLines.has(line.number) && blankLines.has(line.number)) {
+          decorations.push(
+            Decoration.widget({
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              block: true,
+              side: -1,
+            }).range(line.from),
+          );
+        }
+        handledLines.add(line.number);
+        return true;
+      } else if (isBlankLine(nodeRef)) {
+        const functionName = config?.screenplay_print_function_identifiers
+          ? rootFunctionName(nodeRef.node, (from, to) => doc.sliceString(from, to))
+          : "";
+        hideLines(from, blockEnd(nodeRef), functionName, nodeRef.node);
+        lineStart = nodeRef.to;
         return false;
+      } else if (name === "BlockWrite" || name === "InlineWrite") {
+        hideLines(from, blockEnd(nodeRef));
+        lineStart = nodeRef.to;
+        return false;
+      } else if (isUnprinted(nodeRef)) {
+        hideInlineRange(nodeRef);
+        const line = doc.lineAt(from);
+        if (
+          to <= line.to &&
+          !blankLines.has(line.number) &&
+          !/\S/.test(line.text.slice(0, from - line.from)) &&
+          !/\S/.test(line.text.slice(to - line.from))
+        ) {
+          decorations.push(Decoration.line({ attributes: { style: "display: none;" } }).range(line.from));
+        }
+        return false;
+      } else if (SHOWN_AS_SOURCE.has(name)) {
+        shownAsSource.push(from, to);
+        decorations.push(Decoration.mark({ class: "sp-source" }).range(from, to));
+        return false;
+      } else if (name === "LuauSparkdownAlternatorArm") {
+        decorations.push(...createDecorations(doc, { type: "reveal", from, to }));
+        return true;
       } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
         return true;
-      } else if (isBlockHidden(nodeRef)) {
-        hideBlockRange(nodeRef);
-        return false;
       } else if (isInlineHidden(nodeRef)) {
         hideInlineRange(nodeRef);
       }
@@ -603,8 +859,10 @@ export const decorate = (
       const from = nodeRef.from;
       const to = nodeRef.to;
       if (name === "FrontMatter") {
+        inFrontMatter = false;
         if (config?.screenplay_print_title_page === false) {
-          hideBlockRange(nodeRef);
+          hideLines(from, blockEnd(nodeRef));
+          lineStart = nodeRef.to;
           return;
         }
         decorations.push(
@@ -777,12 +1035,23 @@ export const decorate = (
     },
   });
 
+  let sourceIndex = 0;
+  const insideShownSource = (from: number, to: number) => {
+    while (sourceIndex < shownAsSource.length && shownAsSource[sourceIndex + 1]! <= from) {
+      sourceIndex += 2;
+    }
+    return sourceIndex < shownAsSource.length && shownAsSource[sourceIndex]! <= from && to <= shownAsSource[sourceIndex + 1]!;
+  };
+
   highlightTree(
     tree,
     [LANGUAGE_HIGHLIGHTS],
     (from, to, style) => {
       const line = doc.lineAt(from);
       if (line.from === from && isWhitespaceOnly(line.from, line.to)) {
+        return;
+      }
+      if (insideShownSource(from, to)) {
         return;
       }
       decorations.push(Decoration.mark({ class: style }).range(from, to));

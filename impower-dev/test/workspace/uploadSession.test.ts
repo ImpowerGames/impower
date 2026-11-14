@@ -69,10 +69,10 @@ afterEach(() => {
 describe("the upload panel's heading", () => {
   it("counts up while files are being added, then says how many were and were not added", () => {
     const [a, b, c] = session.startUploads(["a.png", "b.png", "c.png"]);
-    expect(session.uploadHeading(workspace.uploads.value)).toBe("Uploading 1 of 3");
+    expect(session.uploadHeading(workspace.uploads.value)).toBe("Adding 1 of 3");
     session.updateUpload(a!, { state: "added", path: "Assets/Images/a.png" });
     session.updateUpload(b!, { state: "working" });
-    expect(session.uploadHeading(workspace.uploads.value)).toBe("Uploading 2 of 3");
+    expect(session.uploadHeading(workspace.uploads.value)).toBe("Adding 2 of 3");
     session.updateUpload(b!, { state: "added", path: "Assets/Images/b.png" });
     session.updateUpload(c!, { state: "added", path: "Assets/Images/c.png" });
     expect(session.uploadHeading(workspace.uploads.value)).toBe("3 files added");
@@ -126,7 +126,7 @@ describe("adding files through the one upload path", () => {
     expect(mocks.upload).toHaveBeenCalledTimes(1);
   });
 
-  it("unpacks a zip with no main script picked through Upload files into the folder in view, as a dropped one is", async () => {
+  it("unpacks a zip with no main script picked through Add files from this device into the folder in view, as a dropped one is", async () => {
     estimate(1_000_000, 0);
     const landed = await addAssetFiles([zipped("art.zip", { "Cast/hero.png": strToU8("hero"), "Thumbs.db": strToU8("x") })], "Assets/Images");
     expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "Cast/hero.png", size: 4 })], "Assets/Images");

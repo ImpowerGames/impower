@@ -34,6 +34,7 @@ const COMPONENT_VARIABLES = [
   "--media-badge",
   "--media-badge-ink",
   "--status-badge-error-edge",
+  "--preview-strip",
 ];
 
 const TOKEN_HEADINGS: Record<Theme, string> = {

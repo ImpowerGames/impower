@@ -67,7 +67,11 @@ const groupsOf = (names: readonly string[]): StackGroup[] => {
     const resting = defaults[name]?.[0];
     return {
       name,
-      options: [...group.options],
+      options: group.switch
+        ? ["off", "on"]
+        : [...group.options].sort((a, b) =>
+            a === resting ? -1 : b === resting ? 1 : compare(a, b),
+          ),
       switch: group.switch,
       ...(resting === undefined ? {} : { default: resting }),
     };

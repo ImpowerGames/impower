@@ -6,6 +6,7 @@ import {
   type Cell,
   VALUES,
   renderedBeat,
+  renderedChoiceBeats,
   script,
   show,
 } from "./harness/displayStyleHarness";
@@ -30,7 +31,13 @@ const KNOWN_PRODUCER_SITES: Record<string, { sites: number; carries: string[] }>
   },
   "compiler/lower/lowerers/lowerChoice.ts": {
     sites: 3,
-    carries: [`${NO_VALUE}choice text and its echo, read whole by the player until #2144`],
+    carries: [
+      "a value in a choice's start text, in the menu",
+      "a value in a choice's suppressed text, in the menu",
+      "a value in a choice's start text, in the output",
+      "a value in a choice's inner text, in the output",
+      "a value in the output of a tagged choice",
+    ],
   },
   "compiler/lower/lowerers/lowerDisplay.ts": {
     sites: 5,
@@ -116,7 +123,10 @@ interface Producer {
   target: string;
   body: string;
   declarations?: string;
+  chosen?: boolean;
 }
+
+const choice = (line: string) => `choose\n    + ${line}\n      Done.\n  end`;
 
 const PRODUCERS: Producer[] = [
   { name: "an interpolation in a display line", target: "action", body: "*s {v} t* u" },
@@ -139,6 +149,11 @@ const PRODUCERS: Producer[] = [
     declarations: `function f()\n  print(v)\n  return ""\nend\n`,
   },
   { name: "a script's own display() table", target: "action", body: `& display({ target = "action", text = v })` },
+  { name: "a value in a choice's start text, in the menu", target: "choice 0", body: choice("*s {v} t* u") },
+  { name: "a value in a choice's suppressed text, in the menu", target: "choice 0", body: choice("x [*s {v} t* u] w") },
+  { name: "a value in a choice's start text, in the output", target: "action", body: choice("*s {v} t* u"), chosen: true },
+  { name: "a value in a choice's inner text, in the output", target: "action", body: choice("x [w] *s {v} t* u"), chosen: true },
+  { name: "a value in the output of a tagged choice", target: "action", body: choice("*s {v} t* u # tag"), chosen: true },
   {
     name: "a defined character's name",
     target: "character_name",
@@ -166,15 +181,16 @@ const isCodeCharacter = (char: string) => {
   return point >= 0xe000 && point <= 0xf8ff;
 };
 
-const renderProducer = async (producer: Producer, value: string) =>
-  (
-    await renderedBeat(
-      script(
-        producer.body,
-        `${VALUES}store v = "${value}"\n${producer.declarations ?? ""}`,
-      ),
-    )
-  )(producer.target);
+const renderProducer = async (producer: Producer, value: string) => {
+  const source = script(
+    producer.body,
+    `${VALUES}store v = "${value}"\n${producer.declarations ?? ""}`,
+  );
+  if (producer.chosen) {
+    return (await renderedChoiceBeats(source)).echo(producer.target);
+  }
+  return (await renderedBeat(source))(producer.target);
+};
 
 const plainRenders = new Map<string, Promise<Cell[]>>();
 

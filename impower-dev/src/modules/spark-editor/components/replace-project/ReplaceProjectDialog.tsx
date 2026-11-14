@@ -58,7 +58,7 @@ export default function ReplaceProjectDialog() {
             ? "Wait for the project being replaced to finish, then replace it again."
             : adding > 0
               ? `Wait for the ${plural(adding, "file")} still being added, then replace the project.`
-              : "Wait for the upload to finish, then replace the project."}
+              : "Wait for the files to finish being added, then replace the project."}
         </p>
       )}
       <DialogActions class="mt-6 flex-wrap">

@@ -14,6 +14,7 @@ import WorkspaceConfiguration from "./WorkspaceConfiguration";
 import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import WorkspaceOutline from "./WorkspaceOutline";
+import WorkspacePreviewLine from "./WorkspacePreviewLine";
 import WorkspacePrint from "./WorkspacePrint";
 import WorkspaceAssets from "./WorkspaceAssets";
 import WorkspaceAudition from "./WorkspaceAudition";
@@ -62,6 +63,18 @@ export namespace Workspace {
     },
     getDocumentSymbols: (uri) => ls.getDocumentSymbols(uri),
     getFileText: (uri) => fs.getFileText(uri),
+    onPublishedDiagnostics: (listener) => ls.onPublishedDiagnostics(listener),
+  });
+  export const previewLine = new WorkspacePreviewLine({
+    caret: () => {
+      void workspace.state.value;
+      const editor = window.getActiveEditorForPane("logic");
+      return editor
+        ? { uri: editor.uri, line: editor.selectedRange?.start?.line ?? 0 }
+        : undefined;
+    },
+    shownBeat: () => workspace.previewShownBeat.value,
+    getPreviewLine: (uri, line, shownBeat) => ls.getPreviewLine(uri, line, shownBeat),
     onPublishedDiagnostics: (listener) => ls.onPublishedDiagnostics(listener),
   });
 }

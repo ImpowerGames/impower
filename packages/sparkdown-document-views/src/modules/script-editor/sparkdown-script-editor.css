@@ -74,7 +74,8 @@ sparkdown-script-editor {
   .sparkdown-script-editor-root .cm-toolbar-icon,
   .sparkdown-script-editor-root .cm-menu-back-icon,
   .sparkdown-script-editor-root .cm-menu-more-icon,
-  .sparkdown-script-editor-root .cm-fold-arrow {
+  .sparkdown-script-editor-root .cm-gutter-button-glyph::before,
+  .sparkdown-script-editor-root .cm-choice-icon {
     forced-color-adjust: none;
     background-color: CanvasText !important;
   }

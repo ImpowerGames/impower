@@ -44,8 +44,8 @@ import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/cla
 import { GameFinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameFinishedMessage";
 import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
+import { GamePlayedBeatMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePlayedBeatMessage";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
-import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import {
   GameResizedMessage,
   type GameResizedParams,
@@ -67,6 +67,8 @@ import {
   type GameAspectRatio,
   type GameFit,
 } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
+import { PlayBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/PlayBeatMessage";
+import { SetAutoPlayBeatsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetAutoPlayBeatsMessage";
 import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
 import {
   clearPlayerBarExecution,
@@ -100,7 +102,6 @@ import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
-import type { Delivery } from "@impower/spark-engine/src/game/core/utils/beatDrawing";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
@@ -116,7 +117,7 @@ import type { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/cla
 import { toResponseError } from "@impower/jsonrpc/src/common/utils/toResponseError";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { ConnectPlayMessage } from "./main/workers/messages/ConnectPlayMessage";
-import { PlayMessage } from "./main/workers/messages/PlayMessage";
+import { NO_BEAT_REFUSAL, PlayMessage } from "./main/workers/messages/PlayMessage";
 import { StartPlayMessage } from "./main/workers/messages/StartPlayMessage";
 import { StopPlayMessage } from "./main/workers/messages/StopPlayMessage";
 import { LastRunMessage } from "./main/workers/messages/LastRunMessage";
@@ -216,6 +217,8 @@ export interface ShownCompletion {
 }
 
 const COMPLETION_PREPARING_STATUS_DELAY = 150;
+
+const AUTO_PLAY_SETTLE_MS = 200;
 
 export const completionKey = (
   params: Pick<
@@ -322,6 +325,8 @@ export class GamePlayerController {
   private _mounted = false;
   private _disposed = false;
   private _previewPosition: GameState["position"] = null;
+
+  private _displayedBeat: GameState["shownBeat"] = null;
   private _selectionVersion = 0;
   private _launchState: GameState["launchState"] = null;
   protected _routeState: RouteViewState = {
@@ -556,6 +561,7 @@ export class GamePlayerController {
     this._disposed = true;
     window.clearTimeout(this._completionStatusTimer);
     this._completionStatusTimer = undefined;
+    this.cancelLanding();
     this._stops += 1;
     window.removeEventListener("pointerdown", this.handleSavesPointerDown, true);
     window.removeEventListener("keydown", this.handleSavesKeyDown, true);
@@ -564,6 +570,7 @@ export class GamePlayerController {
     this._saves.dispose();
     ColorSchemeHost.release(this.refs.gameUI);
     this._previewPosition = null;
+    this._displayedBeat = null;
     this._selectionVersion++;
     this._launchState = null;
     this.publishGameState();
@@ -673,11 +680,16 @@ export class GamePlayerController {
       stepping: this._stepping,
       run: this._workerPlay?.run ?? null,
       position: this._previewPosition,
+      shownBeat: this._displayedBeat,
       completion: this._completionStatus
         ? { request: this._completionRequest, status: this._completionStatus }
         : null,
       ending: this._ending,
       statuses: this.statuses(),
+      beat: {
+        playing: this._beatPlay != null,
+        refusal: this._beatRefusal,
+      },
     };
   }
 
@@ -1483,6 +1495,12 @@ export class GamePlayerController {
     p.onRequest(StartGameMessage.type, this.handleStartGame, this.host);
     p.onRequest(StopGameMessage.type, this.handleStopGame, this.host);
     p.onRequest(RestartGameMessage.type, this.handleRestartGame, this.host);
+    p.onRequest(PlayBeatMessage.type, this.handlePlayBeat, this.host);
+    p.onRequest(
+      SetAutoPlayBeatsMessage.type,
+      this.handleSetAutoPlayBeats,
+      this.host,
+    );
     p.onRequest(
       SetAnimatePortraitsMessage.type,
       this.handleSetAnimatePortraits,
@@ -1591,9 +1609,11 @@ export class GamePlayerController {
   protected handleSelectedCompilerDocument = async (
     message: SelectedCompilerDocumentMessage.Notification,
   ) => {
-    const { textDocument, selectedRange, userEvent, programOutdated } =
+    const { textDocument, selectedRange, userEvent, docChanged, programOutdated } =
       message.params;
     if (userEvent) {
+      const pending = this.cancelLanding();
+      const landing = ++this._landings;
       if (
         this._completionSession &&
         this._completionSession.uri !== textDocument.uri
@@ -1618,6 +1638,13 @@ export class GamePlayerController {
             this._program,
             startFrom.file,
             startFrom.line,
+            docChanged ? undefined : { landing: { pending, id: landing } },
+          );
+        } else if (programOutdated && docChanged && this._beatPlay) {
+          await this.updatePreview(
+            this._program,
+            this._beatPlay.file,
+            this._beatPlay.line,
           );
         }
       }
@@ -1634,6 +1661,7 @@ export class GamePlayerController {
     }
     if (this._previewPosition?.uri === textDocument.uri || !this._options.startFrom) {
       this._previewPosition = null;
+      this._displayedBeat = null;
       this._selectionVersion++;
       this.publishGameState();
     }
@@ -2137,6 +2165,103 @@ export class GamePlayerController {
     this.morphs?.setEnabled(message.params.enabled);
     return SetAnimatePortraitsMessage.type.response(message.id, {});
   };
+
+  protected _autoPlayBeats = false;
+
+  protected autoPlaySettleMS = AUTO_PLAY_SETTLE_MS;
+
+  protected _landingTimer: ReturnType<typeof setTimeout> | undefined;
+
+  protected _shownBeat: number | null = null;
+
+  protected _landings = 0;
+
+  protected handleSetAutoPlayBeats = async (
+    message: SetAutoPlayBeatsMessage.Request,
+  ) => {
+    this._autoPlayBeats = message.params.enabled;
+    if (!this._autoPlayBeats) {
+      this.cancelLanding();
+    }
+    return SetAutoPlayBeatsMessage.type.response(message.id, {});
+  };
+
+  protected cancelLanding(): boolean {
+    const pending = this._landingTimer != null;
+    clearTimeout(this._landingTimer);
+    this._landingTimer = undefined;
+    return pending;
+  }
+
+  protected noteShownBeat(
+    beat: number | null,
+    update: number,
+    landing: { pending: boolean; id: number } | undefined,
+  ) {
+    const landed =
+      landing != null &&
+      landing.id === this._landings &&
+      beat != null &&
+      (beat !== this._shownBeat || landing.pending);
+    this._shownBeat = beat;
+    this.cancelLanding();
+    if (!landed || !this._autoPlayBeats) {
+      return;
+    }
+    this._landingTimer = setTimeout(() => {
+      this._landingTimer = undefined;
+      if (update === this._previewUpdates && this._autoPlayBeats) {
+        void this.playBeat();
+      }
+    }, this.autoPlaySettleMS);
+  }
+
+  protected _beatPlays = 0;
+
+  protected _beatPlay: { id: number; file: string; line: number } | null =
+    null;
+
+  protected _beatRefusal: string | null = NO_BEAT_REFUSAL;
+
+  protected handlePlayBeat = async (message: PlayBeatMessage.Request) => {
+    const playing = await this.playBeat();
+    return PlayBeatMessage.type.response(message.id, { playing });
+  };
+
+  protected async playBeat(): Promise<boolean> {
+    const startFrom = this._options?.startFrom;
+    if (
+      this.playing ||
+      !this._program ||
+      !startFrom ||
+      this.completionPreviewHoldsScreen()
+    ) {
+      return false;
+    }
+    const id = ++this._beatPlays;
+    this._beatPlay = { id, file: startFrom.file, line: startFrom.line };
+    this.morphs?.setPlaying(true);
+    this.publishGameState();
+    const shown = await this.updatePreview(
+      this._program,
+      startFrom.file,
+      startFrom.line,
+      { playId: id },
+    );
+    if (!shown) {
+      this.endBeatPlay(id);
+    }
+    return this._beatPlay?.id === id;
+  }
+
+  protected endBeatPlay(id: number) {
+    if (this._beatPlay?.id !== id) {
+      return;
+    }
+    this._beatPlay = null;
+    this.morphs?.setPlaying(false);
+    this.publishGameState();
+  }
 
   protected handleSetSimulatedColorScheme = async (
     message: SetSimulatedColorSchemeMessage.Request,
@@ -2671,9 +2796,7 @@ export class GamePlayerController {
           ?.programHeld(programIdentity(program)!)
           .catch((e) => reportUnlessRestarted(e));
       }
-      if (this.playing) {
-        this.scheduleRestartGame();
-      } else {
+      if (!this.playing) {
         this._options ??= {};
         this._options.startFrom ??= program.startFrom;
         this._options.workspace ??= program.workspace;
@@ -2728,7 +2851,6 @@ export class GamePlayerController {
   protected async startPlay(
     restarted?: boolean,
     startFrom?: { file: string; line: number },
-    delivery?: Delivery,
   ): Promise<PlayOutcome> {
     if (this._disposed) {
       return { started: false };
@@ -2781,7 +2903,6 @@ export class GamePlayerController {
       restarted,
       refused,
       startFrom,
-      delivery,
     );
     if (refused.refusal) {
       if (plays === this._plays) {
@@ -2812,7 +2933,6 @@ export class GamePlayerController {
     refused?: { refusal?: string },
     startFrom: { file: string; line: number } | undefined = this._options
       ?.startFrom ?? undefined,
-    delivery?: Delivery,
   ): Promise<boolean> {
     const save = this._playSave;
     this._playSave = undefined;
@@ -2853,7 +2973,6 @@ export class GamePlayerController {
         program: programIdentity(program)!,
         startFrom,
         restarted,
-        ...(delivery ? { delivery } : {}),
         ...(save !== undefined ? { save } : {}),
       });
       play.run = built.run;
@@ -3016,7 +3135,6 @@ export class GamePlayerController {
   }
 
   protected async releaseGames() {
-    this.cancelScheduledRestart();
     const plays = this._plays;
     const ending = this.endWorkerPlay();
     const detaching = this.detachWorkerPreview();
@@ -3038,6 +3156,13 @@ export class GamePlayerController {
 
   async detachWorkerPreview() {
     this._workerDetaches += 1;
+    if (this._displayedBeat) {
+      this._displayedBeat = null;
+      this.publishGameState();
+    }
+    if (this._beatPlay) {
+      this.endBeatPlay(this._beatPlay.id);
+    }
     for (const ended of [...this._displayWaiters]) {
       ended();
     }
@@ -3225,10 +3350,7 @@ export class GamePlayerController {
     return (await this.restartPlay(fromRunStart)).started;
   }
 
-  protected async restartPlay(
-    fromRunStart = false,
-    delivery?: Delivery,
-  ): Promise<PlayOutcome> {
+  protected async restartPlay(fromRunStart = false): Promise<PlayOutcome> {
     const stops = this._stops;
     const plays = this._plays;
     const startFrom = fromRunStart ? this._workerPlay?.startFrom : undefined;
@@ -3241,7 +3363,7 @@ export class GamePlayerController {
     }
     this._playSave = save;
     const restarted = plays + 1;
-    const outcome = await this.startPlay(true, startFrom, delivery);
+    const outcome = await this.startPlay(true, startFrom);
     if (
       stops === this._stops &&
       restarted === this._plays &&
@@ -3278,31 +3400,6 @@ export class GamePlayerController {
       });
     }
     return { started: false, refusal: outcome.refusal };
-  }
-
-  protected _restartGameTimeout?: ReturnType<typeof setTimeout>;
-
-  protected cancelScheduledRestart() {
-    if (this._restartGameTimeout != null) {
-      clearTimeout(this._restartGameTimeout);
-      this._restartGameTimeout = undefined;
-    }
-  }
-
-  protected scheduleRestartGame() {
-    this.cancelScheduledRestart();
-    this._restartGameTimeout = setTimeout(async () => {
-      this._restartGameTimeout = undefined;
-      if (
-        this.playing &&
-        (await this.restartPlay(false, "redelivery")).started
-      ) {
-        sendProtocolMessage(
-          GameReloadedMessage.type.notification({}),
-          this.host,
-        );
-      }
-    }, 1000);
   }
 
   async buildWorkerApp(link: WorkerGameLink, owned?: () => boolean) {
@@ -3460,6 +3557,11 @@ export class GamePlayerController {
         );
       }
     });
+    game.connection.outgoing.addListener(GamePlayedBeatMessage.method, (msg) => {
+      if (GamePlayedBeatMessage.type.isNotification(msg)) {
+        this.endBeatPlay(msg.params.playId);
+      }
+    });
     game.connection.outgoing.addListener(GameSteppedMessage.method, (msg) => {
       if (GameSteppedMessage.type.isNotification(msg)) {
         this.updateBar(reducePlayerBar(this._bar, msg, this.runOf(owner) ?? null));
@@ -3611,6 +3713,8 @@ export class GamePlayerController {
     options?: {
       speculative?: boolean;
       current?: () => boolean;
+      playId?: number;
+      landing?: { pending: boolean; id: number };
     },
   ): Promise<boolean> => {
     const link = workspace?.gameLink;
@@ -3684,6 +3788,10 @@ export class GamePlayerController {
           path?: string;
           refused?: string;
           ending?: GameEnding;
+          playing?: boolean;
+          beatRefusal?: string;
+          shownBeat?: GameState["shownBeat"];
+          shownAddress?: number;
         }
       | undefined;
     let ended!: () => void;
@@ -3701,6 +3809,7 @@ export class GamePlayerController {
           keep: shown ? programIdentity(shown.program) : undefined,
           real: programIdentity(this._program),
           fresh: this._workerAppFresh,
+          ...(options?.playId != null ? { playId: options.playId } : {}),
         }),
         ending,
       ]);
@@ -3718,8 +3827,15 @@ export class GamePlayerController {
     if (result.displayed && detaches === this._workerDetaches) {
       this._workerAppFresh = false;
     }
+    if (options?.playId != null && !result.playing) {
+      this.endBeatPlay(options.playId);
+    }
     if (overtaken() || !result.displayed) {
       return false;
+    }
+    if (!options?.speculative) {
+      this._beatRefusal = result.beatRefusal ?? null;
+      this.noteShownBeat(result.shownAddress ?? null, update, options?.landing);
     }
     this.setEndingStatus(result.ending ?? null);
     if (!options?.speculative) {
@@ -3727,6 +3843,7 @@ export class GamePlayerController {
     }
     if (selectionVersion === this._selectionVersion) {
       this._previewPosition = { uri: file, line };
+      this._displayedBeat = result.shownBeat ?? null;
       this.publishGameState();
     }
     return true;

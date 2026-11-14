@@ -73,6 +73,62 @@ describe("the player's document before its stylesheet and script run", () => {
     expect(a).toBe(1);
     expect((0.2126 * r! + 0.7152 * g! + 0.0722 * b!) / 255).toBeLessThan(0.2);
   });
+
+  for (const theme of ["charcoal", "chalk"]) {
+    it(`paints the game's black on its root when the host asks for the game backdrop in ${theme}`, async () => {
+      const dom = new JSDOM(await servedPlayerHtml(), {
+        url: `http://localhost/#theme=${theme}&backdrop=game`,
+        runScripts: "dangerously",
+      });
+      const win = dom.window as unknown as Window;
+      const root = win.document.documentElement;
+      expect(root.dataset["backdrop"]).toBe("game");
+      const background = substituteVariable(
+        win.getComputedStyle(root).backgroundColor,
+        root,
+        win,
+      );
+      const { r, g, b, a } = rgba(background, win);
+      expect([r, g, b, a]).toEqual([0, 0, 0, 1]);
+    });
+
+    it(`paints the theme's panel on its root when the host names no backdrop in ${theme}`, async () => {
+      const dom = new JSDOM(await servedPlayerHtml(), {
+        url: `http://localhost/#theme=${theme}`,
+        runScripts: "dangerously",
+      });
+      const win = dom.window as unknown as Window;
+      const root = win.document.documentElement;
+      expect(root.dataset["backdrop"]).toBeUndefined();
+      expect(win.getComputedStyle(root).backgroundColor).toBe("var(--panel)");
+    });
+  }
+});
+
+describe("the player's viewport before the game paints", () => {
+  const CSS = [
+    readFileSync(resolve("../packages/spark-web-player/src/spark-web-player.css"), "utf8"),
+    readFileSync(resolve("../sparkdown-player-app/src/style.css"), "utf8"),
+  ].join("\n");
+
+  const viewportBackground = (backdrop: string | undefined) => {
+    const attribute = backdrop ? ` data-backdrop="${backdrop}"` : "";
+    const dom = new JSDOM(
+      `<!doctype html><html${attribute}><head><style>${CSS}</style></head><body><spark-web-player><div id="viewport"></div></spark-web-player></body></html>`,
+    );
+    const viewport = dom.window.document.getElementById("viewport")!;
+    return dom.window.getComputedStyle(viewport).backgroundColor;
+  };
+
+  it("shows the game's background under the game backdrop", () => {
+    expect(viewportBackground("game")).toBe(
+      "var(--swp-game-background-color)",
+    );
+  });
+
+  it("shows the player's background otherwise", () => {
+    expect(viewportBackground(undefined)).toBe("var(--swp-background-color)");
+  });
 });
 
 describe("the player's theme", () => {

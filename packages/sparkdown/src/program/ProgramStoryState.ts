@@ -7,6 +7,7 @@ import { PushPopType } from "../runtime/PushPop";
 import { SimpleJson } from "../runtime/SimpleJson";
 import { StringBuilder } from "../runtime/StringBuilder";
 import { scannedTable, writtenText } from "../runtime/displayStyle";
+import { codeWrittenTags, codeWrittenTagsInTable } from "../runtime/storyTags";
 import { Tag } from "../runtime/Tag";
 import {
   MultiValue,
@@ -173,6 +174,7 @@ export interface ThreadCopy {
 
 export interface ChoiceCopy {
   readonly text: string;
+  readonly styledText: string;
   readonly tags: readonly string[] | null;
   readonly index: number;
   readonly sourcePath: string;
@@ -324,9 +326,13 @@ export interface SuspendedLineEnd {
   joined: boolean;
 }
 
-function readOutput(json: any[], styleCodes: boolean): InkObject[] {
+function readOutput(json: any[], styleCodes: boolean, tagCodes: boolean): InkObject[] {
   const output = JsonSerialisation.JArrayToRuntimeObjList(json);
-  return styleCodes ? output : output.map((obj) => scannedTable(obj));
+  return !styleCodes
+    ? output.map((obj) => scannedTable(obj))
+    : tagCodes
+      ? output
+      : output.map((obj) => codeWrittenTagsInTable(obj));
 }
 
 export class ProgramStoryState {
@@ -1111,6 +1117,7 @@ export class ProgramStoryState {
       JsonSerialisation.WriteListRuntimeObjs(w, this.outputStream),
     );
     writer.WriteProperty("styleCodes", true);
+    writer.WriteProperty("tagCodes", true);
     if (this.carried) {
       const carried = this.carried;
       writer.WriteProperty("carried", (w) =>
@@ -1163,6 +1170,7 @@ export class ProgramStoryState {
         for (const choice of this.generatedChoices) {
           w.WriteObjectStart();
           w.WriteProperty("text", choice.text);
+          w.WriteProperty("styled", choice.styledText);
           w.WriteProperty("tags", (tw) => {
             tw.WriteArrayStart();
             for (const tag of choice.tags ?? []) {
@@ -1349,6 +1357,7 @@ export class ProgramStoryState {
       threadCounter: this.callStack._threadCounter,
       choices: this.generatedChoices.map((choice) => ({
         text: choice.text,
+        styledText: choice.styledText,
         tags: choice.tags ? choice.tags.slice() : null,
         index: choice.index,
         sourcePath: choice.sourcePath,
@@ -1513,6 +1522,7 @@ export class ProgramStoryState {
         remap(saved.previousFlow),
       );
       choice.text = saved.text;
+      choice.styledText = saved.styledText;
       choice.tags = saved.tags ? saved.tags.slice() : null;
       choice.index = saved.index;
       choice.sourcePath = placedChoice.sourcePath ?? saved.sourcePath;
@@ -1694,12 +1704,13 @@ export class ProgramStoryState {
       obj["evalStack"],
     );
     const styleCodes = obj["styleCodes"] === true;
-    this.outputStream = readOutput(obj["output"], styleCodes);
+    const tagCodes = obj["tagCodes"] === true;
+    this.outputStream = readOutput(obj["output"], styleCodes, tagCodes);
     this.ForgetOpenStrings();
     this._openStringIndex = -1;
     this.carried = obj["carried"]
       ? {
-          output: readOutput(obj["carried"], styleCodes),
+          output: readOutput(obj["carried"], styleCodes, tagCodes),
           lineEndPending: obj["carriedLineEndPending"] === true,
           addresses: codec.readAddresses(obj["carriedAddresses"]),
         }
@@ -1778,6 +1789,10 @@ export class ProgramStoryState {
         this.readPreviousFlow(saved),
       );
       choice.text = String(saved["text"] ?? "");
+      const styled =
+        typeof saved["styled"] === "string" ? saved["styled"] : choice.text;
+      choice.styledText =
+        obj["tagCodes"] === true ? styled : codeWrittenTags(styled);
       choice.tags = Array.isArray(saved["tags"])
         ? saved["tags"].map(String)
         : [];

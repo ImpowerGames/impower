@@ -1,4 +1,3 @@
-import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
@@ -45,8 +44,6 @@ const settlesWithin = async (work: Promise<unknown>, ms: number) =>
     new Promise((resolve) => setTimeout(() => resolve("waiting"), ms)),
   ]);
 
-const reloaded = (h: { toEditor: any[] }) =>
-  h.toEditor.some((m) => m.method === GameReloadedMessage.method);
 
 const holdAnswer = (h: any, method: string) => {
   const answered = gate();
@@ -166,7 +163,7 @@ describe("STOP while PLAY in the worker is starting", () => {
 });
 
 describe("PLAY while a preview is still being displayed", () => {
-  it("takes the next program and restarts on an edit", async () => {
+  it("takes the next program and plays an edit on Restart", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
@@ -195,10 +192,7 @@ describe("PLAY while a preview is still being displayed", () => {
       ]);
       expect(await settlesWithin(h.compile(), 5000)).toBe("settled");
       expect(await settlesWithin(waiting.previewed, 5000)).toBe("settled");
-      for (let i = 0; i < 200 && !reloaded(h); i++) {
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-      expect(reloaded(h)).toBe(true);
+      expect(await settlesWithin(h.controller.restartGame(), 5000)).toBe("settled");
       for (let i = 0; i < 100 && !/picture, edited\./.test(h.overlay.textContent ?? ""); i++) {
         await new Promise((resolve) => setTimeout(resolve, 30));
       }
@@ -211,7 +205,7 @@ describe("PLAY while a preview is still being displayed", () => {
   }, 120_000);
 });
 
-describe("an edit's restart under way when the author presses STOP", () => {
+describe("a restart under way when the author presses STOP", () => {
   it("does not start the game again", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: SOURCE }],
@@ -490,8 +484,8 @@ describe("a debugger step the worker fails", () => {
   }, 120_000);
 });
 
-describe("STOP during the new start of an edit's restart", () => {
-  it("answers that nothing restarted, so the editor hears no reload", async () => {
+describe("STOP during the new start of a restart", () => {
+  it("answers that nothing restarted", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
@@ -641,7 +635,7 @@ describe("the PLAY button pressed before the first program, then STOP", () => {
   }, 120_000);
 });
 
-describe("PLAY pressed during an edit's restart", () => {
+describe("PLAY pressed during a restart", () => {
   it("keeps the new PLAY when it comes while the old run stops", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: SOURCE }],
@@ -881,7 +875,7 @@ describe("game/start from the editor while the controller goes", () => {
 });
 
 const outgoing = {
-  "an edit's restart stops the old run": {
+  "a restart stops the old run": {
     hold: StopPlayMessage.method,
     begin: (h: any) => h.controller.restartGame(),
     follows: true,

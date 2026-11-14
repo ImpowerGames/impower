@@ -29,6 +29,7 @@ export class MorphTimeline {
   protected gap?: { min: number; max: number };
   protected starts: number[] = [];
   protected spans: [number, number][] = [];
+  protected beeps?: number[];
   protected ready = -Infinity;
 
   constructor(
@@ -78,13 +79,20 @@ export class MorphTimeline {
     return clamp01(this.easing(this.directed(play, p)));
   }
 
-  speak(spans: readonly (readonly [number, number])[], now: number) {
+  speak(spans: readonly (readonly [number, number])[], now: number, beeps?: readonly number[]) {
     if (this.timing.trigger !== "speech") return;
     this.at(now);
     this.spans = spans
       .filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start)
       .map(([start, end]): [number, number] => [start, end])
       .sort((a, b) => a[0] - b[0]);
+    this.beeps = this.timing.sync === "beep" && beeps ? beeps.filter(Number.isFinite).sort((a, b) => a - b) : undefined;
+  }
+
+  protected nextStart(from: number, last: number | undefined): number | undefined {
+    if (this.beeps) return this.beeps.find((beep) => beep >= from - 1e-9 && (last === undefined || beep > last));
+    const span = this.spans.find(([, end]) => end > from);
+    return span && Math.max(from, span[0]);
   }
 
   protected spoken(t: number): MorphPlayhead {
@@ -92,13 +100,10 @@ export class MorphTimeline {
     for (;;) {
       const last = this.starts[this.starts.length - 1];
       if (last !== undefined && last + this.duration > t) break;
-      const from = last === undefined ? -Infinity : this.ready;
-      const span = this.spans.find(([, end]) => end > from);
-      if (!span) break;
-      const next = Math.max(from, span[0]);
-      if (next > t) break;
+      const next = this.nextStart(last === undefined ? -Infinity : this.ready, last);
+      if (next === undefined || next > t || (last !== undefined && !(next > last))) break;
       this.starts.push(next);
-      this.ready = next + this.duration + this.gapAfter();
+      this.ready = next + this.duration + (this.beeps ? 0 : this.gapAfter());
     }
     const play = this.starts.length - 1;
     if (play < 0) return { phase: "off" };

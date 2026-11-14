@@ -16,7 +16,7 @@ export const NAMED_STEPS = {
   "asset-inspector": { does: "open the asset inspector", waitsFor: { what: "the asset inspector", selector: SURFACE_SELECTORS.assetInspector } },
   "add-menu": { does: "open the Add menu", waitsFor: { what: "the Add to script panel", selector: SURFACE_SELECTORS.addPanel } },
   "preview-settings": { does: "open the preview's settings menu", reveals: "preview", waitsFor: { what: "the preview's settings menu", selector: SURFACE_SELECTORS.menu } },
-  play: { does: "press Play", reveals: "preview", waitsFor: { what: "the game", selector: "#game" } },
+  play: { does: "press Play", reveals: "preview", revealsItself: true, waitsFor: { what: "the game", selector: "#game" } },
   problems: { does: "open the Problems panel", reveals: "preview", waitsFor: { what: "the Problems panel or the Problems to fix dialog", selector: '#problems-panel, [role="dialog"]' } },
   settings: { does: "open Settings and a named section", argument: "section", waitsFor: { what: "the Settings section", selector: "[data-settings-section]" } },
   "focus-project-name": { does: "focus the project name", waitsFor: { what: "the project name field", selector: SURFACE_SELECTORS.projectName } },

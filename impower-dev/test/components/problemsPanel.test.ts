@@ -877,6 +877,10 @@ describe("the Problems panel", () => {
   it("opens the whole story's Problems to fix dialog from the toggle on a phone", async () => {
     phone = true;
     await act(async () => mediaListeners.forEach((listener) => listener()));
+    workspace.current = {
+      ...workspace.current,
+      preview: { ...workspace.current.preview, revealed: true },
+    };
     await mount();
     expect(toggle().getAttribute("aria-haspopup")).toBe("dialog");
     expect(toggle().hasAttribute("aria-expanded")).toBe(false);

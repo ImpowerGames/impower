@@ -183,6 +183,14 @@ describe("Add menu", () => {
     expect(input("add-folder-backdrop").value).toBe("Backdrops");
   });
 
+  it("counts a stacked picture once, as the picker offers it", async () => {
+    for (const name of ["ava.png", "ava@night.png", "ava~face.happy.png", "ava~face.sad.png", "bo.png", "cy.png"]) {
+      file(`assets/Images/Portraits/${name}`, "image");
+    }
+    await mountAddMenu();
+    expect(detail("add-folder-portrait")).toBe("Contains 3 portrait files");
+  });
+
   it("keeps a name while it is typed, saves it on commit and counts the renamed folder", async () => {
     await mountAddMenu();
     await type("add-folder-backdrop", "Pla");

@@ -49,11 +49,11 @@ export default function UploadPanel({
   heading,
   rows,
   onClose,
-  closeLabel = "Close uploads",
+  closeLabel = "Close added files",
   class: className,
 }: UploadPanelProps) {
   return (
-    <section aria-label="Uploads" class={cn(uploadPanelVariants(), className)} data-upload-panel>
+    <section aria-label="Added files" class={cn(uploadPanelVariants(), className)} data-upload-panel>
       <div class="flex items-center justify-between gap-2">
         <strong role="status" class="text-[13px] font-semibold">
           {heading}

@@ -262,7 +262,7 @@ export async function recordResolvedUpload(
   let added = newUris;
   let replaced = trashedOldUris;
   pushUndo({
-    label: `Import ${label}`,
+    label: `Add ${label}`,
     undo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
       const t = Date.now();
@@ -294,7 +294,7 @@ export async function recordResolvedUpload(
     message:
       newUris.length > 0
         ? `Added ${label}`
-        : `Import failed — replaced files moved to recycle bin`,
+        : `Not added — replaced files moved to recycle bin`,
     actionLabel: "Undo",
     onAction: () => void undo(),
   });

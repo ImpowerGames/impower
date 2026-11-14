@@ -163,7 +163,7 @@ export const choiceSentence = (
   if (decision.kind === "pinned") {
     return "The preview takes your pinned option here.";
   }
-  return `No pin. The preview chose this option to reach line ${line}.`;
+  return `The preview chose this option to reach line ${line}. It is not pinned; pin it to make the preview take it every time.`;
 };
 
 export const unresolvedPinText = (pin: RoutePin, nameOf: ScriptName) =>

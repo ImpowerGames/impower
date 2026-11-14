@@ -97,7 +97,10 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
+    "2@4:21-4:23 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "c8eae8db"
   },
   {
@@ -385,7 +388,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "21d6a9e0"
   },
   {
@@ -395,7 +400,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:5-4:7 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "ebbef1e6"
   },
   {
@@ -547,7 +554,8 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:21-4:24 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string, expected expression inside `{}`\"}"
+    "1@4:21-4:24 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string, expected expression inside `{}`\"}",
+    "2@4:17-4:19 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
    ],
    "scopes": "02148070"
   },
@@ -733,7 +741,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:15-4:17 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "30d96ddc"
   },
   {
@@ -1002,17 +1012,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * \\[ -{\"[\"}Go@ \\]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "-[Go@"
+    "[ -[Go@ ]"
    ],
    "runs": [
     {
-     "out": "\nBody.\n",
+     "out": "[ -[Go@ ]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "bf4a8e87"
+   "scopes": "1b19e983"
   },
   {
    "id": "plain-choice-61",
@@ -1046,7 +1056,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "fb6ea9ef"
   },
   {
@@ -1595,7 +1607,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:13-4:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "bfc3b1ab"
   },
   {
@@ -1612,7 +1626,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "fca554a8"
   },
   {
@@ -1693,7 +1709,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:5-4:7 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5e93a6ba"
   },
   {
@@ -1758,7 +1776,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:19-4:21 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "cfea1d1e"
   },
   {
@@ -1828,7 +1848,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:17-4:19 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "16830af8"
   },
   {
@@ -1868,7 +1890,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "ea29c84d"
   },
   {
@@ -1964,7 +1988,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:13-4:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "96b44c70"
   },
   {
@@ -1982,17 +2008,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * * -\\[ <- [[x]]\\[ {t[1]}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "- <- [[x"
+    "-[ <- [x"
    ],
    "runs": [
     {
-     "out": "-][ a\nBody.\n",
+     "out": "-[ <- ][ a\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a58e141b"
+   "scopes": "e1351734"
   },
   {
    "id": "plain-choice-121",
@@ -2042,7 +2068,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "90a92394"
   },
   {
@@ -2059,7 +2087,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:17 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<- Go<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "83e63136"
   },
   {
@@ -2233,7 +2263,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:17-4:19 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "88b1483f"
   },
   {
@@ -2421,7 +2453,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:5-4:7 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5e64fc54"
   },
   {
@@ -2490,7 +2524,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:23-4:25 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "69dd2043"
   },
   {
@@ -2739,11 +2775,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * \\[|[[x]] #tag {\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "|[[x"
+    "[|[x"
    ],
    "runs": [
     {
-     "out": "] #tag\nBody.\n",
+     "out": "[|] #tag\nBody.\n",
      "errs": []
     }
    ],
@@ -2751,7 +2787,7 @@
    "diags": [
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
    ],
-   "scopes": "a7387f57"
+   "scopes": "cbfd19ba"
   },
   {
    "id": "plain-choice-167",
@@ -3247,7 +3283,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:11-4:13 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "acca4134"
   },
   {
@@ -3518,7 +3556,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:24-4:26 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "accabbe8"
   },
   {
@@ -3778,7 +3818,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "3a2dfebb"
   },
   {
@@ -3829,7 +3871,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "da60c0ad"
   },
   {
@@ -3846,7 +3890,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "a0cbca91"
   },
   {
@@ -3943,7 +3989,8 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:22-4:27 {\"kind\":\"markdown\",\"value\":\"target not found: `-> nexta`\"}"
+    "1@4:22-4:27 {\"kind\":\"markdown\",\"value\":\"target not found: `-> nexta`\"}",
+    "2@4:16-4:18 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
    ],
    "scopes": "dbb66a27"
   },
@@ -4087,7 +4134,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "8462c375"
   },
   {
@@ -4480,17 +4529,19 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + {\"->\"} <>}\\[.. ]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "-> <>}.."
+    "-> <>}[.. ]"
    ],
    "runs": [
     {
-     "out": "-> <>}\nBody.\n",
+     "out": "-> <>}[.. ]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
-   "diags": [],
-   "scopes": "4497a3a6"
+   "diags": [
+    "2@4:13-4:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
+   "scopes": "00ce3399"
   },
   {
    "id": "plain-choice-273",
@@ -5256,7 +5307,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "f0a7a52e"
   },
   {
@@ -5338,7 +5391,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:22-4:24 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "0609b238"
   },
   {
@@ -5355,7 +5410,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:13-4:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "f086ce93"
   },
   {
@@ -5740,7 +5797,10 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
+    "2@4:25-4:27 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "94e1d631"
   },
   {
@@ -5852,7 +5912,10 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:19-4:21 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
+    "2@4:27-4:29 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "275a7be4"
   },
   {
@@ -6111,17 +6174,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + if x \\[ {\"[\"} ] [a]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "["
+    "[ [ ] a"
    ],
    "runs": [
     {
-     "out": "[a]\nBody.\n",
+     "out": "[ [ ]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "7260df38"
+   "scopes": "aa6d2ba3"
   },
   {
    "id": "plain-choice-378",
@@ -6357,7 +6420,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "fc7842d4"
   },
   {
@@ -6374,7 +6439,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "eae49e32"
   },
   {
@@ -6382,17 +6449,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    +  [ \\]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    ""
+    "[ ]"
    ],
    "runs": [
     {
-     "out": "Body.\n",
+     "out": "[ ]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "33a38804"
+   "scopes": "508f09ad"
   },
   {
    "id": "plain-choice-394",
@@ -6503,7 +6570,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5d0cbbd9"
   },
   {
@@ -6698,7 +6767,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:5-4:7 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "58199ef0"
   },
   {
@@ -6829,7 +6900,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:7-4:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "20c2c734"
   },
   {
@@ -7135,7 +7208,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:19-4:21 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "803a0995"
   },
   {
@@ -7742,7 +7817,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:9-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<- <>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "81fec230"
   },
   {
@@ -7794,7 +7871,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "46a3fe20"
   },
   {
@@ -8140,7 +8219,8 @@
    ],
    "rt": [],
    "diags": [
-    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"target not found: `-> _u_`\"}"
+    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"target not found: `-> _u_`\"}",
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
    ],
    "scopes": "cfbe895f"
   },
@@ -8405,7 +8485,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:16-4:18 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "c1559bfb"
   },
   {
@@ -8561,17 +8643,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * * \\[ [ ' \\]Go\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "[ '"
+    "[ [ ' ]Go"
    ],
    "runs": [
     {
-     "out": "Go\nBody.\n",
+     "out": "[ [ ' ]Go\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "22b60250"
+   "scopes": "a1f01306"
   },
   {
    "id": "plain-choice-530",
@@ -8779,7 +8861,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "9813e57e"
+   "scopes": "ef7fe8d7"
   },
   {
    "id": "plain-choice-543",
@@ -9521,7 +9603,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:13-4:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "0ace9ff0"
   },
   {
@@ -9580,17 +9664,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + (lbl) if x #tag@ {\"->\"} \\[ =]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "#tag@ -> ="
+    "#tag@ -> [ =]"
    ],
    "runs": [
     {
-     "out": "#tag@ ->\nBody.\n",
+     "out": "#tag@ -> [ =]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "eceae685"
+   "scopes": "58fda380"
   },
   {
    "id": "plain-choice-593",
@@ -9652,7 +9736,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "3122428d"
+   "scopes": "460086e4"
   },
   {
    "id": "plain-choice-597",
@@ -9721,17 +9805,19 @@
    "class": "A",
    "first": "",
    "choices": [
-    "<> a ["
+    "<> [ a"
    ],
    "runs": [
     {
-     "out": "<> \\] [\nBody.\n",
+     "out": "<> [ a ] [\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
-   "diags": [],
-   "scopes": "a3cd9de7"
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
+   "scopes": "332fccb6"
   },
   {
    "id": "plain-choice-616",
@@ -10427,7 +10513,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "8008cf21"
+   "scopes": "ff5efc66"
   },
   {
    "id": "plain-choice-863",
@@ -10511,7 +10597,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:6-4:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "4dee183f"
   },
   {
@@ -10693,7 +10781,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:11-4:13 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "1fdc6925"
   },
   {
@@ -10962,7 +11052,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "97fa3f65"
+   "scopes": "f9f6573a"
   },
   {
    "id": "plain-choice-1031",
@@ -11006,17 +11096,17 @@
    "class": "A",
    "first": "",
    "choices": [
-    "a| a"
+    "a| [ a ]"
    ],
    "runs": [
     {
-     "out": "a|\nBody.\n",
+     "out": "a| [ a ]\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "c92c0984"
+   "scopes": "25c2fe94"
   },
   {
    "id": "plain-choice-1052",
@@ -11173,6 +11263,7 @@
    "runs": [],
    "rt": [],
    "diags": [
+    "2@4:22-4:24 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
     "2@4:4-4:24 {\"kind\":\"markdown\",\"value\":\"Blank choice - if you intended a default fallback choice, use the `* ->` syntax\"}"
    ],
    "scopes": "96a77541"
@@ -11301,7 +11392,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:23-4:25 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "de20ed40"
   },
   {
@@ -11495,7 +11588,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e4ce5b8e"
+   "scopes": "66c6081f"
   },
   {
    "id": "plain-choice-1172",
@@ -11588,7 +11681,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "559aa39f"
+   "scopes": "31ea907e"
   },
   {
    "id": "plain-choice-1223",
@@ -11940,7 +12033,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "04064e53"
+   "scopes": "221d793e"
   },
   {
    "id": "plain-choice-1324",
@@ -12332,7 +12425,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "3dd40bdf"
+   "scopes": "197d2f2e"
   },
   {
    "id": "plain-choice-1439",
@@ -12606,7 +12699,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:12-4:14 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "86368b30"
   },
   {
@@ -12894,7 +12989,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5e5e94f4"
   },
   {
@@ -12904,7 +13001,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "487c8f1b"
   },
   {
@@ -13140,7 +13239,9 @@
    "rt": [
     "RUNTIME ERROR: 'main' line 4: Found tunnel onwards statement (->->), when expected end of flow (-> END or choice)"
    ],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "47cbf152"
   },
   {
@@ -13152,7 +13253,9 @@
    "rt": [
     "RUNTIME ERROR: 'main' line 4: Found tunnel onwards statement (->->), when expected end of flow (-> END or choice)"
    ],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "a9f0de09"
   },
   {
@@ -13350,7 +13453,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:13-3:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5f95498d"
   },
   {
@@ -13360,7 +13465,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:13-3:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "ba0cf304"
   },
   {
@@ -13390,7 +13497,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:10-3:12 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "b1bd83d3"
   },
   {
@@ -13400,7 +13509,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:10-3:12 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "babf5ace"
   },
   {
@@ -13569,7 +13680,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:14-3:16 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "15087db3"
   },
   {
@@ -13579,7 +13692,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:14-3:16 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "df03d66e"
   },
   {
@@ -14015,7 +14130,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "489eba4e"
   },
   {
@@ -14025,7 +14142,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5737f7e1"
   },
   {
@@ -14076,6 +14195,7 @@
    "runs": [],
    "rt": [],
    "diags": [
+    "2@3:19-3:21 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
     "2@3:2-3:16 {\"value\":\"Cannot find character named `Lead -> nextGo`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "86d9075f"
@@ -14088,6 +14208,7 @@
    "runs": [],
    "rt": [],
    "diags": [
+    "2@3:19-3:21 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}",
     "2@3:2-3:16 {\"value\":\"Cannot find character named `Lead -> nextGo`\",\"kind\":\"markdown\"}"
    ],
    "scopes": "4b439c7b"
@@ -14119,7 +14240,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "502af434"
   },
   {
@@ -14129,7 +14252,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "cbf8d4db"
   },
   {
@@ -14569,7 +14694,9 @@
    "rt": [
     "RUNTIME ERROR: 'main' line 4: Found tunnel onwards statement (->->), when expected end of flow (-> END or choice)"
    ],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "216a6ea9"
   },
   {
@@ -14581,7 +14708,9 @@
    "rt": [
     "RUNTIME ERROR: 'main' line 4: Found tunnel onwards statement (->->), when expected end of flow (-> END or choice)"
    ],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "f183ed6e"
   },
   {
@@ -14734,7 +14863,8 @@
    "runs": [],
    "rt": [],
    "diags": [
-    "2@3:12-3:13 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}"
+    "2@3:12-3:13 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}",
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
    ],
    "scopes": "1d3cb116"
   },
@@ -14787,7 +14917,9 @@
    "choices": [],
    "runs": [],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@3:7-3:9 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "5e5e94f4"
   },
   {
@@ -16072,7 +16204,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@5:6-5:8 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "abd0834a"
   },
   {
@@ -16310,7 +16444,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@5:15-5:17 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "d7ccb78a"
   },
   {
@@ -16471,7 +16607,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@5:13-5:15 {\"kind\":\"markdown\",\"value\":\"Unknown tag `<>`; the player removes it from the text and does nothing else\"}"
+   ],
    "scopes": "53bf9a26"
   },
   {
@@ -23864,11 +24002,12 @@
    ],
    "rt": [],
    "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
     "2@4:27-4:28 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "755c6c65"
+   "scopes": "189de895"
   },
   {
    "id": "plain-command-46",
@@ -24176,7 +24315,7 @@
     "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
     "2@4:33-4:34 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "0b8920bf"
+   "scopes": "3d9acd93"
   },
   {
    "id": "plain-command-62",
@@ -24423,7 +24562,7 @@
     "1@4:30-4:31 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "a92263b0"
+   "scopes": "680a282c"
   },
   {
    "id": "plain-command-74",
@@ -25041,11 +25180,15 @@
    ],
    "rt": [],
    "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
     "2@4:24-4:25 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "479ac38a"
+   "scopes": "d39fce6b"
   },
   {
    "id": "plain-command-106",
@@ -26337,17 +26480,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {[[a]]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away` now"
+    "Go `far {[[a]]} away` now"
    ],
    "runs": [
     {
-     "out": "Go `far a away` now\nBody.\n",
+     "out": "Go `far {[[a]]} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "2bb2e8b2"
+   "scopes": "9ba9d3b7"
   },
   {
    "id": "plain-raw-13",
@@ -26371,7 +26514,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {[[a]]} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away`"
+    "Go `far {[[a]]} away`"
    ],
    "runs": [
     {
@@ -26381,41 +26524,41 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a11a2ade"
+   "scopes": "2cbf5a9f"
   },
   {
    "id": "plain-raw-15",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {[[a]]} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a `far a away` b* now"
+    "Go *a `far {[[a]]} away` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a `far a away` b* now\nBody.\n",
+     "out": "Go *a `far {[[a]]} away` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "83d66e76"
+   "scopes": "15aa5409"
   },
   {
    "id": "plain-raw-16",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {[[a]]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away`` now"
+    "Go ``far {[[a]]} away`` now"
    ],
    "runs": [
     {
-     "out": "Go ``far a away`` now\nBody.\n",
+     "out": "Go ``far {[[a]]} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "43411eda"
+   "scopes": "3f4b111b"
   },
   {
    "id": "plain-raw-17",
@@ -26439,7 +26582,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {[[a]]} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away``"
+    "Go ``far {[[a]]} away``"
    ],
    "runs": [
     {
@@ -26449,24 +26592,24 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "716d4436"
+   "scopes": "a8c4ec83"
   },
   {
    "id": "plain-raw-19",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {[[a]]} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a ``far a away`` b* now"
+    "Go *a ``far {[[a]]} away`` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a ``far a away`` b* now\nBody.\n",
+     "out": "Go *a ``far {[[a]]} away`` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "26248e06"
+   "scopes": "364bf1a9"
   },
   {
    "id": "plain-raw-20",
@@ -26541,17 +26684,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {[=[a]=]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away` now"
+    "Go `far {[=[a]=]} away` now"
    ],
    "runs": [
     {
-     "out": "Go `far a away` now\nBody.\n",
+     "out": "Go `far {[=[a]=]} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "5608c27e"
+   "scopes": "784103b1"
   },
   {
    "id": "plain-raw-25",
@@ -26575,7 +26718,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {[=[a]=]} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away`"
+    "Go `far {[=[a]=]} away`"
    ],
    "runs": [
     {
@@ -26585,41 +26728,41 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "4523b412"
+   "scopes": "c3df2c8d"
   },
   {
    "id": "plain-raw-27",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {[=[a]=]} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a `far a away` b* now"
+    "Go *a `far {[=[a]=]} away` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a `far a away` b* now\nBody.\n",
+     "out": "Go *a `far {[=[a]=]} away` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e92b561a"
+   "scopes": "81b8a963"
   },
   {
    "id": "plain-raw-28",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {[=[a]=]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away`` now"
+    "Go ``far {[=[a]=]} away`` now"
    ],
    "runs": [
     {
-     "out": "Go ``far a away`` now\nBody.\n",
+     "out": "Go ``far {[=[a]=]} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "6c471236"
+   "scopes": "178e9c45"
   },
   {
    "id": "plain-raw-29",
@@ -26643,7 +26786,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {[=[a]=]} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away``"
+    "Go ``far {[=[a]=]} away``"
    ],
    "runs": [
     {
@@ -26653,24 +26796,24 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "eb4899ca"
+   "scopes": "1f97f4b9"
   },
   {
    "id": "plain-raw-31",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {[=[a]=]} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a ``far a away`` b* now"
+    "Go *a ``far {[=[a]=]} away`` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a ``far a away`` b* now\nBody.\n",
+     "out": "Go *a ``far {[=[a]=]} away`` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "eddce0d6"
+   "scopes": "1fe895a7"
   },
   {
    "id": "plain-raw-32",
@@ -26745,17 +26888,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {1 --[[c]] + 1} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far 2 away` now"
+    "Go `far {1 --[[c]] + 1} away` now"
    ],
    "runs": [
     {
-     "out": "Go `far 2 away` now\nBody.\n",
+     "out": "Go `far {1 --[[c]] + 1} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a20fb6af"
+   "scopes": "16479ac3"
   },
   {
    "id": "plain-raw-37",
@@ -26779,7 +26922,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {1 --[[c]] + 1} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far 2 away`"
+    "Go `far {1 --[[c]] + 1} away`"
    ],
    "runs": [
     {
@@ -26789,41 +26932,41 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "fa1cb523"
+   "scopes": "73f2c0db"
   },
   {
    "id": "plain-raw-39",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {1 --[[c]] + 1} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a `far 2 away` b* now"
+    "Go *a `far {1 --[[c]] + 1} away` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a `far 2 away` b* now\nBody.\n",
+     "out": "Go *a `far {1 --[[c]] + 1} away` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "b9f86cff"
+   "scopes": "3d1b367d"
   },
   {
    "id": "plain-raw-40",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {1 --[[c]] + 1} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far 2 away`` now"
+    "Go ``far {1 --[[c]] + 1} away`` now"
    ],
    "runs": [
     {
-     "out": "Go ``far 2 away`` now\nBody.\n",
+     "out": "Go ``far {1 --[[c]] + 1} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "0aa3bcd3"
+   "scopes": "13c5e2cb"
   },
   {
    "id": "plain-raw-41",
@@ -26847,7 +26990,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {1 --[[c]] + 1} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far 2 away``"
+    "Go ``far {1 --[[c]] + 1} away``"
    ],
    "runs": [
     {
@@ -26857,24 +27000,24 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "da5296a7"
+   "scopes": "7a22cc73"
   },
   {
    "id": "plain-raw-43",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {1 --[[c]] + 1} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a ``far 2 away`` b* now"
+    "Go *a ``far {1 --[[c]] + 1} away`` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a ``far 2 away`` b* now\nBody.\n",
+     "out": "Go *a ``far {1 --[[c]] + 1} away`` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "25fc3b47"
+   "scopes": "3e11363d"
   },
   {
    "id": "plain-raw-44",
@@ -26949,17 +27092,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {\"->\"} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far -> away` now"
+    "Go `far {\"->\"} away` now"
    ],
    "runs": [
     {
-     "out": "Go `far -> away` now\nBody.\n",
+     "out": "Go `far {\"->\"} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "cb6747f4"
+   "scopes": "0c0f98ac"
   },
   {
    "id": "plain-raw-49",
@@ -26970,13 +27113,13 @@
    ],
    "runs": [
     {
-     "out": "Go `far -> away` now\nBody.\n",
+     "out": "Go `far {\"->\"} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "81214723"
+   "scopes": "ade24f53"
   },
   {
    "id": "plain-raw-50",
@@ -26984,7 +27127,7 @@
    "class": "D",
    "first": "",
    "choices": [
-    "Go `far -> away`"
+    "Go `far {\"->\"} away`"
    ],
    "runs": [
     {
@@ -26994,41 +27137,41 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "1c4678e0"
+   "scopes": "17f6e1ec"
   },
   {
    "id": "plain-raw-51",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {\"->\"} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a `far -> away` b* now"
+    "Go *a `far {\"->\"} away` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a `far -> away` b* now\nBody.\n",
+     "out": "Go *a `far {\"->\"} away` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "71e84ef7"
+   "scopes": "68d4af35"
   },
   {
    "id": "plain-raw-52",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {\"->\"} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far -> away`` now"
+    "Go ``far {\"->\"} away`` now"
    ],
    "runs": [
     {
-     "out": "Go ``far -> away`` now\nBody.\n",
+     "out": "Go ``far {\"->\"} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "735f9334"
+   "scopes": "273fa3c0"
   },
   {
    "id": "plain-raw-53",
@@ -27039,13 +27182,13 @@
    ],
    "runs": [
     {
-     "out": "Go ``far -> away`` now\nBody.\n",
+     "out": "Go ``far {\"->\"} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e40ab721"
+   "scopes": "08c91093"
   },
   {
    "id": "plain-raw-54",
@@ -27053,7 +27196,7 @@
    "class": "D",
    "first": "",
    "choices": [
-    "Go ``far -> away``"
+    "Go ``far {\"->\"} away``"
    ],
    "runs": [
     {
@@ -27063,24 +27206,24 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "d1f5cec0"
+   "scopes": "16f2d850"
   },
   {
    "id": "plain-raw-55",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {\"->\"} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a ``far -> away`` b* now"
+    "Go *a ``far {\"->\"} away`` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a ``far -> away`` b* now\nBody.\n",
+     "out": "Go *a ``far {\"->\"} away`` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "65fc5141"
+   "scopes": "c4675d75"
   },
   {
    "id": "plain-raw-56",
@@ -27156,17 +27299,17 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {t[1]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away` now"
+    "Go `far {t[1]} away` now"
    ],
    "runs": [
     {
-     "out": "Go `far a away` now\nBody.\n",
+     "out": "Go `far {t[1]} away` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "60d9be35"
+   "scopes": "b2479d26"
   },
   {
    "id": "plain-raw-61",
@@ -27190,7 +27333,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {t[1]} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go `far a away`"
+    "Go `far {t[1]} away`"
    ],
    "runs": [
     {
@@ -27200,41 +27343,41 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "55488545"
+   "scopes": "120f2b92"
   },
   {
    "id": "plain-raw-63",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {t[1]} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a `far a away` b* now"
+    "Go *a `far {t[1]} away` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a `far a away` b* now\nBody.\n",
+     "out": "Go *a `far {t[1]} away` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "1a919c50"
+   "scopes": "789b0757"
   },
   {
    "id": "plain-raw-64",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {t[1]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away`` now"
+    "Go ``far {t[1]} away`` now"
    ],
    "runs": [
     {
-     "out": "Go ``far a away`` now\nBody.\n",
+     "out": "Go ``far {t[1]} away`` now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "6c5c2d6d"
+   "scopes": "07283ab2"
   },
   {
    "id": "plain-raw-65",
@@ -27258,7 +27401,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {t[1]} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ``far a away``"
+    "Go ``far {t[1]} away``"
    ],
    "runs": [
     {
@@ -27268,24 +27411,24 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "2f5c960d"
+   "scopes": "fc8f1b96"
   },
   {
    "id": "plain-raw-67",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {t[1]} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *a ``far a away`` b* now"
+    "Go *a ``far {t[1]} away`` b* now"
    ],
    "runs": [
     {
-     "out": "Go *a ``far a away`` b* now\nBody.\n",
+     "out": "Go *a ``far {t[1]} away`` b* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "6cd15b10"
+   "scopes": "7df6af8b"
   },
   {
    "id": "plain-raw-68",
@@ -29177,11 +29320,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* c */ b| now"
+    "Go a /* c */ b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* c */ b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29194,11 +29337,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* c */ b .. x"
+    "Go a /* c */ b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* c */ b .. x\nBody.\n",
+     "out": "Go a /* c */ b x\nBody.\n",
      "errs": []
     }
    ],
@@ -29312,11 +29455,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* -> next */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /*"
+    "Go a /*"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* Next.\n",
+     "out": "Go a /* Next.\n",
      "errs": []
     }
    ],
@@ -29329,11 +29472,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* -> next */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /*"
+    "Go a /*"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* Next.\n",
+     "out": "Go a /* Next.\n",
      "errs": []
     }
    ],
@@ -29427,11 +29570,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* ] */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* ] */ b| now"
+    "Go a /* ] */ b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* ] */ b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29444,11 +29587,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* ] */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* ] */ b .. x"
+    "Go a /* ] */ b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* ] */ b .. x\nBody.\n",
+     "out": "Go a /* ] */ b x\nBody.\n",
      "errs": []
     }
    ],
@@ -29561,11 +29704,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* c b| now"
+    "Go a /* c b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* c b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29578,11 +29721,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* c b .. x"
+    "Go a /* c b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* c b .. x\nBody.\n",
+     "out": "Go a /* c b x\nBody.\n",
      "errs": []
     }
    ],
@@ -29695,11 +29838,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\// c b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a // c b| now"
+    "Go a // c b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a // c b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29712,11 +29855,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\// c b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a // c b .. x"
+    "Go a // c b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a // c b .. x\nBody.\n",
+     "out": "Go a // c b x\nBody.\n",
      "errs": []
     }
    ],
@@ -29829,11 +29972,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/*\\/* c */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /*/* c */ b| now"
+    "Go a /*/* c */ b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /*/* c */ b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29846,11 +29989,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/*\\/* c */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /*/* c */ b .. x"
+    "Go a /*/* c */ b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /*/* c */ b .. x\nBody.\n",
+     "out": "Go a /*/* c */ b x\nBody.\n",
      "errs": []
     }
    ],
@@ -29963,11 +30106,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* > */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* > */ b| now"
+    "Go a /* > */ b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* > */ b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -29980,11 +30123,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* > */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* > */ b .. x"
+    "Go a /* > */ b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* > */ b .. x\nBody.\n",
+     "out": "Go a /* > */ b x\nBody.\n",
      "errs": []
     }
    ],
@@ -30078,11 +30221,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* )) */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* )) */ b| now"
+    "Go a /* )) */ b"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* )) */ b| now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
@@ -30095,11 +30238,11 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* )) */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go .. cycle |a /* )) */ b .. x"
+    "Go a /* )) */ b x"
    ],
    "runs": [
     {
-     "out": "Go .. cycle |a /* )) */ b .. x\nBody.\n",
+     "out": "Go a /* )) */ b x\nBody.\n",
      "errs": []
     }
    ],

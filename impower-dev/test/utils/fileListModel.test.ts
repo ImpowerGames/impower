@@ -4,6 +4,7 @@ import {
   availableName,
   bytesLabel,
   copyName,
+  defaultName,
   holdingsLabel,
   NAME_MESSAGES,
   parseSort,
@@ -15,6 +16,7 @@ import {
   storyOrder,
   storyPositions,
   UNREACHED,
+  UNTITLED_SCRIPT,
   validName,
   type ListEntry,
   type Reference,
@@ -62,6 +64,55 @@ describe("sort model", () => {
     ["story-desc", ["main.sd", "zeta", "eta", "beta.sd", "gamma.sd", "alpha.sd"]],
   ])("%s keeps Main first, folders next, and orders by its label", (sort, expected) => {
     expect(order(sort)).toEqual(expected);
+  });
+
+  it("orders files by name without their ending and numbers naturally, folders keeping their whole name", () => {
+    const entry = (kind: "file" | "folder", name: string): ListEntry => ({
+      kind, path: `Scripts/${name}`, name, modified: 1, size: 1, uses: 0, position: 0,
+    });
+    const names = [
+      entry("file", "Untitled script 10.sd"),
+      entry("file", "Untitled script 2.sd"),
+      entry("file", "intro copy 2.sd"),
+      entry("file", "Untitled script.sd"),
+      entry("file", "intro copy.sd"),
+      entry("file", "intro.sd"),
+      entry("folder", "v1.10"),
+      entry("folder", "v1.2"),
+    ];
+    expect(sortEntries(names, "name-asc").map((e) => e.name)).toEqual([
+      "v1.2",
+      "v1.10",
+      "intro.sd",
+      "intro copy.sd",
+      "intro copy 2.sd",
+      "Untitled script.sd",
+      "Untitled script 2.sd",
+      "Untitled script 10.sd",
+    ]);
+    expect(sortEntries(names, "name-desc").map((e) => e.name).slice(2, 5)).toEqual([
+      "Untitled script 10.sd",
+      "Untitled script 2.sd",
+      "Untitled script.sd",
+    ]);
+  });
+
+  it("keeps a shown name whole when it does not end with its file's ending, as an asset or a folder stack shows", () => {
+    const row = (name: string, path: string): ListEntry => ({
+      kind: "file", path, name, modified: 1, size: 1, uses: 0, position: 0,
+    });
+    const rows = [
+      row("z.1", "Assets/Images/z.1/90_body.png"),
+      row("z 2", "Assets/Images/z 2.png"),
+      row("Main", "main.sd"),
+    ];
+    expect(sortEntries(rows, "name-asc").map((e) => e.name)).toEqual(["Main", "z 2", "z.1"]);
+    const stacks = [
+      row("z.png", "Assets/Images/z.png/90_body.png"),
+      row("z.webp", "Assets/Images/z.webp/90_body.webp"),
+      row("z 2", "Assets/Images/z 2.png"),
+    ];
+    expect(sortEntries(stacks, "name-asc").map((e) => e.name)).toEqual(["z 2", "z.png", "z.webp"]);
   });
 
   it("reads the legacy keys asc, desc and story", () => {
@@ -129,6 +180,31 @@ describe("name rules", () => {
   it("names a duplicate '<name> copy', then numbers it", () => {
     expect(copyName("intro", ["intro.sd"], ".sd")).toBe("intro copy.sd");
     expect(copyName("intro", ["intro.sd", "intro copy.sd"], ".sd")).toBe("intro copy 2.sd");
+  });
+
+  describe("a new script's default name", () => {
+    const named = (siblings: string[]) => defaultName(UNTITLED_SCRIPT, siblings, ".sd");
+
+    it("is 'Untitled script' in an empty folder", () => {
+      expect(named([])).toBe("Untitled script.sd");
+    });
+
+    it("numbers past every taken name, starting at 2", () => {
+      expect(named(["Untitled script.sd"])).toBe("Untitled script 2.sd");
+      expect(named(["Untitled script.sd", "Untitled script 2.sd"])).toBe("Untitled script 3.sd");
+    });
+
+    it("treats a name taken in another case as taken", () => {
+      expect(named(["untitled SCRIPT.sd"])).toBe("Untitled script 2.sd");
+    });
+
+    it("takes 'Untitled script' when only 'Untitled script 2' is taken", () => {
+      expect(named(["Untitled script 2.sd"])).toBe("Untitled script.sd");
+    });
+
+    it("compares whole names with the ending, as a rename does", () => {
+      expect(named(["Untitled script"])).toBe("Untitled script.sd");
+    });
   });
 });
 

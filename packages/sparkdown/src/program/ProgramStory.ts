@@ -151,7 +151,7 @@ import {
   type ProgramChunk,
 } from "./ProgramChunk";
 import type { DebugFrame, StoryEngine, StoryErrorHandler } from "./StoryEngine";
-import { scanned, stripStyleCodes } from "../runtime/displayStyle";
+import { scanned, stripStyleCodes, writtenText } from "../runtime/displayStyle";
 
 const OPERATOR_NATIVES = new Set([
   NativeFunctionCall.Add,
@@ -2084,7 +2084,8 @@ export class ProgramStory implements StoryEngine {
     choice.isInvisibleDefault = (flags & CHOICE_INVISIBLE_DEFAULT) !== 0;
     choice.threadAtGeneration = state.ForkChoiceThread();
     choice.tags = tags.reverse();
-    choice.text = this.CleanOutputWhitespace(start + choiceOnly);
+    choice.styledText = this.CleanOutputWhitespace(start + choiceOnly);
+    choice.text = writtenText(choice.styledText);
     state.generatedChoices.push(choice);
   }
 

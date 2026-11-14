@@ -10,7 +10,6 @@ import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/class
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
-import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
 import type {
   PreviewRoute,
   RoutePin,
@@ -53,6 +52,7 @@ import {
 import { PreviewHintMessage } from "./messages/PreviewHintMessage";
 import { ConnectPlayMessage } from "./messages/ConnectPlayMessage";
 import {
+  NO_BEAT_REFUSAL,
   OUTSIDE_EVERY_SCENE_REFUSAL,
   PlayMessage,
   type PlayParams,
@@ -569,7 +569,7 @@ export function installPlayerWorker(connection: MessageConnection) {
           sendToPage,
           () => display !== displays || gameState.game !== game,
         );
-        return { displayed };
+        return { displayed, beatRefusal: OUTSIDE_EVERY_SCENE_REFUSAL, shownBeat: null };
       }
       const route = routeTo(game, entry, shown.point, shown.beat);
       displayedId = entry.id;
@@ -600,6 +600,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         ending: route.ending,
         runFrom: route.shownAddress,
         beatOnly,
+        playId: params.playId,
         onPath: (taken) => {
           path = taken;
         },
@@ -637,6 +638,13 @@ export function installPlayerWorker(connection: MessageConnection) {
             displayed,
             errors: [...(route.simulationErrors ?? []), ...stepErrors],
             ...(game.previewEnding ? { ending: game.previewEnding } : {}),
+            ...(params.playId != null ? { playing: game.playingBeat } : {}),
+            ...(game.previewShowsBeat
+              ? game.previewedAddress != null
+                ? { shownAddress: game.previewedAddress }
+                : {}
+              : { beatRefusal: NO_BEAT_REFUSAL }),
+            shownBeat: game.previewShownLocation,
             ...(taken
               ? taken.beatOnly
                 ? { path: "beat" as const }
@@ -659,7 +667,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     | undefined;
   let runs = 0;
   let lastRun: RunMenu[] = [];
-  let onScreenAtStop: Instructions | undefined;
 
   const sendFromPlay =
     (running: Game, channel: BroadcastChannel) => (message: Message) => {
@@ -685,8 +692,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       return { built: false };
     }
     stopPlay({});
-    const onScreen = onScreenAtStop;
-    onScreenAtStop = undefined;
+    game.stopBeatPlay();
     const program = entry.program;
     if (game.program !== entry.program) {
       updateGameProgram(game, entry.program);
@@ -714,7 +720,6 @@ export function installPlayerWorker(connection: MessageConnection) {
       program,
       startFrom: params.startFrom,
       restarted: params.restarted,
-      redelivers: params.delivery === "redelivery" ? onScreen : undefined,
       ...PLAY_SAVES,
     });
     running.setRoutePins(routePins);
@@ -852,7 +857,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     const locator = programLocator(program);
     const ends = program.flowEnds?.[point.file] ?? [];
     const closed = ends.find(([, end]) => end === point.line);
-    if (!closed && locator.addressAt(point.file, point.line) != null) {
+    if (!closed && locator.addressAt(point.file, point.line, { beat }) != null) {
       return { point, beat };
     }
     const lineAbove = (
@@ -909,7 +914,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     const location = ending.game.getLastExecutedDocumentLocation();
     lastRun = ending.game.runMenus(ending.prefix);
-    onScreenAtStop = ending.game.shownBeatOnScreen;
     current = undefined;
     gameState.running = undefined;
     ending.game.destroy();

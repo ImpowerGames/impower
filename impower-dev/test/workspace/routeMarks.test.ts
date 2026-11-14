@@ -67,11 +67,11 @@ describe("the marks a route puts on the script", () => {
     ]);
   });
 
-  it("marks an unpinned choice with the options list and says the preview chose it", () => {
+  it("marks an unpinned choice with the hollow pin and says the preview chose it and nothing is pinned", () => {
     const [mark] = routeMarks(view(false)).choices;
     expect(mark!.icon).toBe("auto");
     expect(mark!.unpin).toBe(false);
-    expect(mark!.text).toBe("No pin. The preview chose this option to reach line 21.");
+    expect(mark!.text).toBe("The preview chose this option to reach line 21. It is not pinned; pin it to make the preview take it every time.");
   });
 
   it("dashes the lines that ran only because a branch was forced", () => {

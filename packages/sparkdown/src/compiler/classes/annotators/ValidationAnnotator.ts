@@ -26,6 +26,7 @@ import {
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
 import { FIELD_COLON } from "../../lower/utils/fieldColon";
+import { readStoryTag } from "../../../runtime/storyTags";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements } from "../../typecheck/readLuauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
@@ -1560,6 +1561,23 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         nodeRef.to,
       );
       return annotations;
+    }
+    if (nodeRef.name === "TextCommand") {
+      const content = this.read(nodeRef.from + 1, nodeRef.to - 1);
+      if (!readStoryTag(content).known) {
+        const [, before, after] = /^([^=]*)=(.*)$/s.exec(content) ?? [];
+        const colonForm =
+          before !== undefined && readStoryTag(`${before}:${after}`).known
+            ? `\n> A tag's value follows a colon: \`<${before}:${after}>\``
+            : "";
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message: `Unknown tag \`<${content}>\`; the player removes it from the text and does nothing else${colonForm}`,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
     }
     if (nodeRef.name === "SparkleRichTextTagUnknown") {
       const raw = this.read(nodeRef.from, nodeRef.to).trim();

@@ -13,8 +13,8 @@ impower-dev is two things stacked together:
    process; in dev it has Vite mounted as middleware.
 2. **A Preact single-page app** (`src/pages/index.ts` → `src/modules/spark-editor`)
    that *is* the editor. It runs in the browser, talks to several **workers**
-   and **iframes**, and is pre-rendered to static HTML at build time (SSG) so
-   the page is visible before its JavaScript loads.
+   and **iframes**. Its page shell is built to static HTML (SSG) with the
+   editor's CSS inlined; the editor itself renders on the client.
 
 ```
                          ┌─────────────────────────────────────────────┐
@@ -192,11 +192,13 @@ lifecycle/sync methods gain test coverage.
 
 ## Pre-rendering (SSG)
 
-The page is server-side-rendered to static HTML at build time so it's styled
-and visible before JS loads. `staticallyRenderPage` renders the root Preact
-component (`spark-editor/preact-registry.ts`) into `<div id="root">`, and the
-build inlines the editor's CSS (normalize + theme + compiled Tailwind) into a
-`<style id="ssg-css">` block. The same root component then mounts on the client.
+The page shell is built to static HTML so it's styled before JS loads:
+`staticallyRenderPage` fills the document template, leaving `<div id="root">`
+empty, and the build inlines the editor's CSS (normalize + theme + compiled
+Tailwind) into a `<style id="ssg-css">` block. The root component
+(`spark-editor/preact-registry.ts`) renders on the client, so every control
+appears with its handlers attached; the dev server serves the same empty root.
+Server-render tests load the root through `preact-registry.ts` directly.
 Details in [`build-pipeline.md`](./build-pipeline.md).
 
 ## Same-origin game preview (dev-only)

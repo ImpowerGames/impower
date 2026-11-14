@@ -15,12 +15,21 @@ const read = (file) => normalize(readFileSync(file, "utf8"));
 const repos = readRepos();
 
 const TYPES = { "bug_report.md": "Bug", "feature_request.md": "Feature", "task.md": "Task" };
+const MAINTAINER = { "maintainer_decision.md": repos.maintainer.labels.decision, "maintainer_task.md": repos.maintainer.labels.task };
 
-assert.deepEqual(readdirSync(internalDir).sort(), Object.keys(TYPES).sort(), "the internal templates are the Bug, Feature and Task forms");
+assert.deepEqual(readdirSync(internalDir).sort(), [...Object.keys(TYPES), ...Object.keys(MAINTAINER)].sort(), "the internal templates are the Bug, Feature and Task forms and the two maintainer request forms");
 for (const [name, type] of Object.entries(TYPES)) {
   const front = /^---\n([\s\S]*?)\n---\n/.exec(read(internalDir + name));
   assert.ok(front, `${name} starts with front matter`);
   assert.match(front[1], new RegExp(`^type: ${type}$`, "m"), `${name} names the ${type} type`);
+}
+for (const [name, label] of Object.entries(MAINTAINER)) {
+  const text = read(internalDir + name);
+  const front = /^---\n([\s\S]*?)\n---\n/.exec(text);
+  assert.ok(front, `${name} starts with front matter`);
+  assert.match(front[1], /^type: Task$/m, `${name} names the Task type: every maintainer request is typed Task`);
+  assert.ok(front[1].split("\n").includes(`labels: "${label}"`), `${name} carries the ${label} label named in .agents/repos.json`);
+  assert.match(text, /maintainer-request\.mjs file/, `${name} says the ask-maintainer tool files it`);
 }
 const PUBLIC = ["bug_report.md", "config.yml", "feature_request.md"];
 const PULL_REQUEST = "PULL_REQUEST_TEMPLATE.md";

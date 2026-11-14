@@ -19,6 +19,10 @@ import {
   FindTextMessage,
   type FindTextParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/FindTextMessage";
+import {
+  PreviewLineMessage,
+  type PreviewLineParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewLineMessage";
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
 import { createImageCompositeOptions } from "./utils/providers/imagePreviewOptions";
 import { getVariantPicture, type ImageVariant } from "./utils/providers/getVariantPicture";
@@ -45,6 +49,7 @@ import { getFileRenameEdits } from "./utils/providers/getFileRenameEdits";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
 import { getOffsetSourceLocation } from "./utils/providers/getOffsetSourceLocation";
+import { answerPreviewLine } from "./utils/providers/answerPreviewLine";
 import { getReferences } from "./utils/providers/getReferences";
 import { getRenameEdits } from "./utils/providers/getRenameEdits";
 import {
@@ -449,6 +454,15 @@ try {
         params.offset,
       );
     },
+  );
+  connection.onRequest(PreviewLineMessage.method, (params: PreviewLineParams) =>
+    answerPreviewLine(
+      {
+        document: (uri) => workspace.document(uri),
+        tree: (uri) => workspace.tree(uri),
+      },
+      params,
+    ),
   );
   connection.onRequest(
     "sparkdown/addressAt",

@@ -28,22 +28,26 @@ export interface ChoiceTextMarker {
   node: SyntaxNode;
 }
 
+export function choiceTextMarkerKind(node: SyntaxNode): ChoiceTextMarker["kind"] | null {
+  if (isExplicitRuleName(node.name, "SparkdownInlineComment") || isExplicitRuleName(node.name, "SparkdownBlockComment")) {
+    return "comment";
+  }
+  if (isExplicitRuleName(node.name, "Tag")) return "tag";
+  if (
+    isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
+    isExplicitRuleName(node.name, "LuauFunctionCallShorthand")
+  ) {
+    return "expr";
+  }
+  return null;
+}
+
 export function choiceTextMarkers(captureNode: SyntaxNode, to: number = captureNode.to): ChoiceTextMarker[] {
   const markers: ChoiceTextMarker[] = [];
   const walk = (node: SyntaxNode): void => {
-    if (isExplicitRuleName(node.name, "SparkdownInlineComment") || isExplicitRuleName(node.name, "SparkdownBlockComment")) {
-      markers.push({ kind: "comment", node });
-      return;
-    }
-    if (isExplicitRuleName(node.name, "Tag")) {
-      markers.push({ kind: "tag", node });
-      return;
-    }
-    if (
-      isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
-      isExplicitRuleName(node.name, "LuauFunctionCallShorthand")
-    ) {
-      markers.push({ kind: "expr", node });
+    const kind = choiceTextMarkerKind(node);
+    if (kind) {
+      markers.push({ kind, node });
       return;
     }
     let child = node.firstChild;

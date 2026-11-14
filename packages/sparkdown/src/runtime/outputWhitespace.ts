@@ -3,6 +3,35 @@ import { throwNullException } from "./NullException";
 import type { InkObject } from "./Object";
 import { StringBuilder } from "./StringBuilder";
 import { StringValue } from "./Value";
+import {
+  isStyleCode,
+  isTagCodeCharacter,
+  readTagCode,
+  tagCode,
+} from "./displayStyle";
+
+function withoutEscapes(str: string): string {
+  let sb = new StringBuilder();
+  let escaped = false;
+  for (let i = 0; i < str.length; i++) {
+    let c = str.charAt(i);
+    const tag = escaped ? undefined : readTagCode(str, i);
+    if (tag) {
+      sb.Append(tagCode(withoutEscapes(tag.content)));
+      i = tag.next - 1;
+    } else if (escaped) {
+      sb.Append(c);
+      escaped = false;
+    } else {
+      const isEscape = c == "\\";
+      if (!isEscape) {
+        sb.Append(c);
+      }
+      escaped = isEscape;
+    }
+  }
+  return sb.toString();
+}
 
 export function cleanOutputWhitespace(
   str: string,
@@ -10,29 +39,21 @@ export function cleanOutputWhitespace(
   collapseWhitespace: boolean,
 ): string {
   if (processEscapes) {
-    let sb = new StringBuilder();
-    let escaped = false;
-    for (let i = 0; i < str.length; i++) {
-      let c = str.charAt(i);
-      if (escaped) {
-        sb.Append(c);
-        escaped = false;
-      } else {
-        const isEscape = c == "\\";
-        if (!isEscape) {
-          sb.Append(c);
-        }
-        escaped = isEscape;
-      }
-    }
-    str = sb.toString();
+    str = withoutEscapes(str);
   }
   if (collapseWhitespace) {
     let sb = new StringBuilder();
     let currentWhitespaceStart = -1;
     let startOfLine = 0;
+    let heldCodes = "";
     for (let i = 0; i < str.length; i++) {
       let c = str.charAt(i);
+      if (isStyleCode(c) && !isTagCodeCharacter(c)) {
+        if (i == startOfLine) startOfLine = i + 1;
+        if (currentWhitespaceStart == -1) sb.Append(c);
+        else heldCodes += c;
+        continue;
+      }
       let isInlineWhitespace = c == " " || c == "\t";
       if (isInlineWhitespace && currentWhitespaceStart == -1)
         currentWhitespaceStart = i;
@@ -44,11 +65,14 @@ export function cleanOutputWhitespace(
         ) {
           sb.Append(" ");
         }
+        sb.Append(heldCodes);
+        heldCodes = "";
         currentWhitespaceStart = -1;
       }
       if (c == "\n") startOfLine = i + 1;
       if (!isInlineWhitespace) sb.Append(c);
     }
+    sb.Append(heldCodes);
     return sb.toString();
   } else {
     return str;

@@ -97,7 +97,7 @@ function AllScripts() {
   const [query, setQuery] = useTabQuery(ALL_TAB);
   const scroller = useSavedScroll(ALL_TAB);
   const newButton = useRef<HTMLButtonElement>(null);
-  const [creating, setCreating] = useState<"script" | "folder" | null>(null);
+  const [creatingFolder, setCreatingFolder] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const focusRenamed = useRowFocusReturn(
     (path) =>
@@ -261,6 +261,14 @@ function AllScripts() {
     );
   };
 
+  const newScript = () => {
+    setQuery("");
+    void run(async () => {
+      const { scripts, window } = await intents();
+      await window.writeScript(await scripts.createScript(folder));
+    });
+  };
+
   const searching = !!query.trim();
   return (
     <LibraryPage
@@ -272,11 +280,11 @@ function AllScripts() {
       newLabel="New"
       newMenu={
         <>
-          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating("script"); }}>
+          <DropdownItem returnFocus={false} onSelect={newScript}>
             <FileIcon class="text-muted" />
             Script
           </DropdownItem>
-          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating("folder"); }}>
+          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreatingFolder(true); }}>
             <FolderIcon class="text-muted" />
             Folder
           </DropdownItem>
@@ -320,19 +328,16 @@ function AllScripts() {
         )
       }
       creating={
-        creating && (
+        creatingFolder && (
           <NameRow
-            icon={creating === "script" ? <FileIcon /> : <FolderIcon />}
-            label={creating === "script" ? "New script name" : "New folder name"}
+            icon={<FolderIcon />}
+            label="New folder name"
             returnFocus={() => newButton.current}
-            suffix={creating === "script" ? ".sd" : undefined}
-            onCancel={() => setCreating(null)}
+            onCancel={() => setCreatingFolder(false)}
             onCommit={async (name) => {
-              const { scripts, window } = await intents();
-              const path = await scripts.create(creating, folder, name);
-              setCreating(null);
-              if (creating === "folder") openFolder(path);
-              else window.openScript(path);
+              const path = await (await intents()).scripts.createFolder(folder, name);
+              setCreatingFolder(false);
+              openFolder(path);
             }}
           />
         )
@@ -356,7 +361,7 @@ function AllScripts() {
             icon={<FolderIcon />}
             title="This folder is empty"
             action={
-              <Button onClick={() => setCreating("script")}>
+              <Button onClick={newScript}>
                 <PlusIcon />
                 New script
               </Button>
@@ -387,7 +392,7 @@ function AllScripts() {
           selection.end();
         }}
         onCreateFolder={(parent, name) =>
-          intents().then((Workspace) => Workspace.scripts.create("folder", parent, name))
+          intents().then((Workspace) => Workspace.scripts.createFolder(parent, name))
         }
       />
       <DeleteDialog

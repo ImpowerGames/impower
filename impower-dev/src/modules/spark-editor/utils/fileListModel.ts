@@ -98,11 +98,20 @@ export interface ListEntry {
   pinned?: boolean;
 }
 
+const stemOf = ({ kind, name, path }: ListEntry) => {
+  const dot = name.lastIndexOf(".");
+  return kind === "file" && dot > 0 && name === path.slice(path.lastIndexOf("/") + 1)
+    ? name.slice(0, dot)
+    : name;
+};
+
 export const compareEntries = (value: unknown) => {
   const { field, direction } = parseSort(value);
   const sign = direction === "desc" ? -1 : 1;
   const byName = (a: ListEntry, b: ListEntry) =>
-    compareNames(a.name, b.name) || compareNames(a.path, b.path);
+    compareNames(stemOf(a), stemOf(b)) ||
+    compareNames(a.name, b.name) ||
+    compareNames(a.path, b.path);
   return (a: ListEntry, b: ListEntry): number => {
     if (!!a.pinned !== !!b.pinned) {
       return a.pinned ? -1 : 1;
@@ -177,19 +186,27 @@ export const availableName = (
   return leaf;
 };
 
-export const copyName = (
-  stem: string,
+export const UNTITLED_SCRIPT = "Untitled script";
+
+export const defaultName = (
+  base: string,
   siblings: readonly string[],
   extension = "",
 ): string => {
   const taken = new Set(siblings.map((name) => name.toLowerCase()));
   for (let n = 1; ; n += 1) {
-    const leaf = `${stem} copy${n === 1 ? "" : ` ${n}`}${extension}`;
+    const leaf = `${base}${n === 1 ? "" : ` ${n}`}${extension}`;
     if (!taken.has(leaf.toLowerCase())) {
       return leaf;
     }
   }
 };
+
+export const copyName = (
+  stem: string,
+  siblings: readonly string[],
+  extension = "",
+): string => defaultName(`${stem} copy`, siblings, extension);
 
 export const ago = (
   when: number | undefined,

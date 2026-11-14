@@ -16,6 +16,13 @@ export const APP_SHORTCUT_ROWS = [
     keys: "",
   },
   {
+    id: "replayBeat",
+    group: "story",
+    name: "Replay beat",
+    detail: "Play the beat the stopped preview shows, once, and end on its still.",
+    keys: "Mod+Alt+Enter",
+  },
+  {
     id: "stepOver",
     group: "story",
     name: "Step over",

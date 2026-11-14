@@ -151,9 +151,9 @@ describe("the save status caption map", () => {
     );
   });
 
-  it("shows import progress over any status, and nothing before the first status", () => {
+  it("shows adding progress over any status, and nothing before the first status", () => {
     expect(saveStatusOf("cached", true, { loaded: 2, total: 5 })?.text).toBe(
-      "Importing 2 of 5…",
+      "Adding 2 of 5…",
     );
     expect(saveStatusOf(undefined, true)).toBeNull();
   });

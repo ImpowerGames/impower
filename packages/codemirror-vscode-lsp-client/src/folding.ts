@@ -257,7 +257,13 @@ export async function updateDocumentFoldingRanges(
   });
 }
 
-export function serverFolding(): LSPClientExtension {
+export interface ServerFoldingOptions {
+  markerDOM?: (open: boolean) => HTMLElement;
+}
+
+export function serverFolding(
+  options: ServerFoldingOptions = {},
+): LSPClientExtension {
   return {
     clientCapabilities: {
       textDocument: {
@@ -310,7 +316,7 @@ export function serverFolding(): LSPClientExtension {
         placeholderDOM: foldingPlaceholderDOM,
       }),
       foldGutter({
-        markerDOM: foldingMarkerDOM,
+        markerDOM: options.markerDOM ?? foldingMarkerDOM,
         foldingChanged,
       }),
     ],

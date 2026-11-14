@@ -121,15 +121,15 @@ describe("the player's start and restart gate while the story has no start scene
     return h;
   };
 
-  it("ends the running game and tells the host when the story's automatic restart is refused", async () => {
+  it("keeps the running game when an edit leaves the story with no start scene", async () => {
     const h = await playing();
     try {
       await h.edit([{ text: NO_START }]);
       const result = await h.compile();
       expect(result.program.playRefusal).toBe(NO_START_SCENE_MESSAGE);
-      await vi.waitFor(() => expect(exits(h)).toHaveLength(1), { timeout: 15000 });
-      expect(exits(h)[0]?.params.reason).toBe("invalidated");
-      expect(h.controller.playing).toBe(false);
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      expect(exits(h)).toEqual([]);
+      expect(h.controller.playing).toBe(true);
     } finally {
       h.dispose();
     }
@@ -138,7 +138,6 @@ describe("the player's start and restart gate while the story has no start scene
   it("answers RestartGame with the refusal and tells the host the game ended", async () => {
     const h = await playing();
     try {
-      h.controller.scheduleRestartGame = () => {};
       await h.edit([{ text: NO_START }]);
       await h.compile();
       expect(
@@ -272,7 +271,6 @@ describe("the start's own check of the refusal", { timeout: 120000 }, () => {
     try {
       await h.compile();
       expect(await h.controller.startGameAndApp()).toBe(true);
-      h.controller.scheduleRestartGame = () => {};
       const { release } = holdFirstInit(h);
       const first = h.controller.restartGame();
       await settle(40);

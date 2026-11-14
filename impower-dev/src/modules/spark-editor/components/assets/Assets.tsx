@@ -31,6 +31,7 @@ import {
   Thumbnail,
   Tile,
   TILE_GAP,
+  TILE_MEDIA_FIT,
   TILE_MIN_WIDTH,
   tileHeight,
   type TileShape,
@@ -158,12 +159,12 @@ const TYPE_NOUNS: Record<AssetType, string> = {
 };
 
 const EMPTY_TYPES: Record<AssetType, readonly [string, string]> = {
-  image: ["No images yet", "Upload portraits and backgrounds with the Add button."],
-  audio: ["No audio yet", "Upload sounds and music with the Add button."],
-  video: ["No video yet", "Upload a video with the Add button."],
-  text: ["No text yet", "Upload notes with the Add button."],
-  font: ["No fonts yet", "Upload a font with the Add button."],
-  other: ["Nothing yet", "Files of any other type land here when you upload them."],
+  image: ["No images yet", "Add portraits and backgrounds with the Add button."],
+  audio: ["No audio yet", "Add sounds and music with the Add button."],
+  video: ["No video yet", "Add a video with the Add button."],
+  text: ["No text yet", "Add notes with the Add button."],
+  font: ["No fonts yet", "Add a font with the Add button."],
+  other: ["Nothing yet", "Files of any other type land here when you add them."],
 };
 
 type Heading = { kind: "heading"; type: AssetType; title: string };
@@ -250,7 +251,7 @@ const followed = (path: string, moves: readonly FileMove[]) => {
 
 function RowGlyph({ row, listing }: { row: AssetRow; listing: AssetListing }) {
   if (row.kind === "folder") return <FolderIcon />;
-  if (row.type === "image" && !row.link) return <Thumbnail src={srcOf(listing, row.path)} />;
+  if (row.type === "image" && !row.link) return <Thumbnail fit="contain" src={srcOf(listing, row.path)} />;
   const Glyph = row.link && row.type === "other" ? LinkIcon : TYPE_ICONS[row.type];
   return <Glyph />;
 }
@@ -695,9 +696,12 @@ function AssetsBrowser() {
         kind={folder ? "folder" : "file"}
         media={
           folder ? (
-            <FolderCover sources={(row.covers ?? []).map((path) => srcOf(listing, path))} />
+            <FolderCover
+              fit={TILE_MEDIA_FIT[shape]}
+              sources={(row.covers ?? []).map((path) => srcOf(listing, path))}
+            />
           ) : (
-            <Thumbnail size="fill" src={srcOf(listing, row.path)} />
+            <Thumbnail size="fill" fit={TILE_MEDIA_FIT[shape]} src={srcOf(listing, row.path)} />
           )
         }
         badge={row.variantCount ? <VariantsBadge count={row.variantCount} /> : undefined}
@@ -831,7 +835,7 @@ function AssetsBrowser() {
   const uploadAction = (
     <Button disabled={busy} onClick={() => upload.current?.click()}>
       <UploadIcon />
-      Upload files
+      Add files from this device
     </Button>
   );
 
@@ -862,7 +866,7 @@ function AssetsBrowser() {
         <>
           <DropdownItem disabled={busy} onSelect={() => upload.current?.click()}>
             <UploadIcon class="text-muted" />
-            Upload files
+            Add files from this device
           </DropdownItem>
           <DropdownItem disabled={busy} onSelect={() => setLinking(true)}>
             <LinkIcon class="text-muted" />
@@ -1016,7 +1020,7 @@ function AssetsBrowser() {
           <EmptyState
             icon={<FolderIcon />}
             title="This folder is empty"
-            body="Upload into it with the Add button."
+            body="Add files to it with the Add button, or drop files on it from its parent folder."
           />
         )
       }

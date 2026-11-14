@@ -11,12 +11,19 @@ export interface GameState {
   stepping: boolean;
   run?: number | null;
   position: { uri: string; line: number } | null;
+  shownBeat: Location | null;
   completion: {
     request: number;
     status: CompletionPreviewStatus;
   } | null;
   ending: GameStateEnding | null;
   statuses?: GameStatuses;
+  beat?: GameStateBeat;
+}
+
+export interface GameStateBeat {
+  playing: boolean;
+  refusal: string | null;
 }
 
 export interface GameStatuses {

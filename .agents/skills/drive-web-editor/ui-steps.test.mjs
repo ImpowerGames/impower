@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, STRIP_PLAY_DISABLED, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 import { NAMED_STEPS } from "./steps.mjs";
 
@@ -643,9 +643,51 @@ await asyncCheck("play reports the launch state it reached, and a click whose st
   assert.equal(failed.clicked, true);
   assert.equal(failed.reached, false);
   assert.match(failed.reason, /did not start/);
+  clock = 0;
+  let polls = 0;
+  const early = playPage((sel) => sel.includes(polls > 3 ? "Stop" : "Play From Here"));
+  const newRunFirst = async () => {
+    if (!early.clicks.length) return { launchState: "preview", run: 1 };
+    return ++polls > 3 ? { launchState: "play", run: 2 } : { launchState: "preview", run: 2 };
+  };
+  const settled = await playPreview(early.page, "start", { ...opts, request: newRunFirst });
+  assert.equal(settled.reached, true);
+  assert.equal(settled.launchState, "play");
+  assert.equal(settled.running, true);
+  assert.deepEqual(settled.passedThrough, ["preview", "play"]);
+  clock = 0;
+  const never = playPage((sel) => sel.includes("Play From Here"));
+  const unstarted = await playPreview(never.page, "start", { ...opts, timeout: 30_000, request: async () => ({ launchState: "preview", run: never.clicks.length ? 2 : 1 }) });
+  assert.equal(unstarted.reached, true);
+  assert.equal(unstarted.running, false);
+  assert.ok(clock < 30_000, `a new run that never plays is reported after the settle wait, not the whole budget (${clock} ms)`);
   const none = await playPreview(playPage(() => false).page, "stop", opts);
   assert.equal(none.clicked, false);
   assert.match(none.reason, /Stop control is not on screen/);
+});
+
+await asyncCheck("on a phone, play presses the preview strip's Play from this line once, claims the pane it reveals and reports it for hiding", async () => {
+  let launchState = "preview";
+  const storage = {};
+  const { page, clicks } = playPage((sel) => (launchState === "play" ? sel.includes("Stop") : sel === SHOW_PREVIEW_SELECTOR));
+  page.evaluate = async (_fn, [key, op]) => {
+    if (op === "claim") storage[key] = "1";
+    return storage[key] === "1";
+  };
+  let clock = 0;
+  const request = async () => { if (clicks.length) launchState = "play"; return { launchState }; };
+  const started = await playPreview(page, "start", { request, notifications: silent, now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 });
+  assert.deepEqual(clicks, [SHOW_PREVIEW_SELECTOR]);
+  assert.equal(started.reached, true);
+  assert.equal(started.revealed, "preview");
+  assert.equal(storage[DRIVER_PREVIEW_KEY], "1");
+  assert.equal(NAMED_STEPS.play.revealsItself, true);
+  const idle = playPage((sel) => sel === SHOW_PREVIEW_SELECTOR);
+  idle.page.locator = ((locator) => (selector) => ({ first: () => ({ ...locator(selector).first(), isDisabled: async () => selector === SHOW_PREVIEW_SELECTOR }) }))(idle.page.locator);
+  const refused = await playPreview(idle.page, "start", { request: async () => ({ launchState: "preview" }), notifications: silent, now: () => 0, pause: async () => {}, timeout: 1000 });
+  assert.equal(refused.clicked, false);
+  assert.deepEqual(idle.clicks, []);
+  assert.equal(refused.reason, STRIP_PLAY_DISABLED);
 });
 
 check("advance takes an optional positive click count", () => {
@@ -793,7 +835,7 @@ await asyncCheck("play waits for the player to load the story before pressing, a
   assert.match(refused.reason, /the player had not loaded the story within 1s \(launch state null\), so Play was not pressed/);
 });
 
-function previewPage({ paneShown = false, showButton = true, paneShowsOnPress = true } = {}) {
+function previewPage({ paneShown = false, showButton = true, paneShowsOnPress = true, showDisabled = false } = {}) {
   const state = { paneShown, pressed: [], claimedBeforePress: null, storage: {} };
   const page = {
     evaluate: async (_fn, [key, op]) => {
@@ -802,6 +844,7 @@ function previewPage({ paneShown = false, showButton = true, paneShowsOnPress = 
     },
     locator: (selector) => ({
       first: () => ({
+        isDisabled: async () => selector === SHOW_PREVIEW_SELECTOR && showDisabled,
         isVisible: async () => (selector === PREVIEW_PANE_SELECTOR ? state.paneShown : selector === SHOW_PREVIEW_SELECTOR ? showButton : false),
         click: async () => {
           state.pressed.push(selector);
@@ -817,7 +860,8 @@ function previewPage({ paneShown = false, showButton = true, paneShowsOnPress = 
   return { page, state };
 }
 
-await asyncCheck("the preview is revealed the way an author does, by the title bar's Show the preview button, and each missing piece is named", async () => {
+await asyncCheck("the preview is revealed the way an author does, by the preview strip's Play from this line, and each missing piece is named", async () => {
+  assert.equal(SHOW_PREVIEW_SELECTOR, 'button[aria-label="Play from this line"]');
   const hidden = previewPage();
   assert.deepEqual(await revealPreview(hidden.page), { revealed: true });
   assert.deepEqual(hidden.state.pressed, [SHOW_PREVIEW_SELECTOR]);
@@ -829,11 +873,15 @@ await asyncCheck("the preview is revealed the way an author does, by the title b
   const noButton = previewPage({ showButton: false });
   const missing = await revealPreview(noButton.page);
   assert.equal(missing.revealed, false);
-  assert.match(missing.reason, /the preview pane is not on screen and the title bar's Show the preview button is not either/);
+  assert.match(missing.reason, /the preview pane is not on screen and the preview strip's Play from this line is not either/);
   const stuck = previewPage({ paneShowsOnPress: false });
   const noPane = await revealPreview(stuck.page, { timeout: 10 });
   assert.equal(noPane.revealed, true, "a press that showed nothing still leaves the claim for the run to hide and release");
-  assert.match(noPane.reason, /the preview pane did not show within 0\.01 s of pressing Show the preview/);
+  assert.match(noPane.reason, /the preview pane did not show within 0\.01 s of pressing the strip's Play from this line/);
+  const disabled = previewPage({ showDisabled: true });
+  assert.deepEqual(await revealPreview(disabled.page), { revealed: false, reason: STRIP_PLAY_DISABLED });
+  assert.deepEqual(disabled.state.pressed, []);
+  assert.deepEqual(disabled.state.storage, {}, "nothing is claimed when the strip's Play cannot be pressed");
 });
 
 check("the saved-hidden check reads only the loaded project's workspace, so another project's saved preview cannot hold a run", () => {

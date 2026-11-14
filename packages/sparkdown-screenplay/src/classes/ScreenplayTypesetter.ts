@@ -48,7 +48,9 @@ export default class ScreenplayTypesetter {
     const metadataTags = Object.keys(PAGE_POSITIONS);
     let sceneIndex = 0;
 
-    for (const t of tokens) {
+    for (const token of tokens) {
+      const t =
+        token.styled != null ? { ...token, text: token.styled } : token;
       if (metadataTags.includes(t.tag)) {
         const position = PAGE_POSITIONS[t.tag as MetadataTokenType];
         const align = PAGE_ALIGNMENTS[position];
@@ -58,6 +60,7 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           { align },
+          { source: t.source },
         );
       } else if (t.tag === "page_break") {
         const prevSpan = spans.at(-1);
@@ -67,7 +70,7 @@ export default class ScreenplayTypesetter {
       } else if (t.tag === "separator") {
         const prevSpan = spans.at(-1);
         if (prevSpan && prevSpan.tag !== "separator") {
-          spans.push({ tag: t.tag });
+          spans.push({ tag: t.tag, from: t.from });
         }
       } else if (t.tag === "function") {
         if (isHiddenIdentifier(t.tag, config)) {
@@ -154,6 +157,7 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           undefined,
+          { source: t.source, inserts: t.inserts },
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -168,8 +172,11 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           style,
+          { source: t.source, inserts: t.inserts },
         );
-        if (lines.length > 0) {
+        if (lines.length > 0 && t.continued) {
+          spans.push({ tag: t.tag, lines });
+        } else if (lines.length > 0) {
           const scene = t.scene ?? sceneIndex + 1;
           lines[0]!.scene = scene;
           spans.push({ tag: t.tag, lines });
@@ -183,6 +190,7 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           style,
+          { source: t.source, inserts: t.inserts },
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -196,6 +204,7 @@ export default class ScreenplayTypesetter {
           undefined,
           {
             canSplitAfter: 3,
+            source: t.source, inserts: t.inserts,
           },
         );
         if (lines.length > 0) {
@@ -207,8 +216,9 @@ export default class ScreenplayTypesetter {
         t.tag === "dialogue_content"
       ) {
         const lineOptions: LineOptions | undefined = t.position
-          ? { position: t.position }
+          ? { position: t.position, source: t.source, inserts: t.inserts }
           : {
+              source: t.source, inserts: t.inserts,
               canSplitAfter:
                 t.tag === "dialogue_content" &&
                 config?.screenplay_print_dialogue_split_across_pages
@@ -260,15 +270,24 @@ export default class ScreenplayTypesetter {
               const prevSpan = spans.at(-1);
               if (prevSpan?.tag === "dialogue") {
                 prevSpan.lines.push(...lines);
+              } else if (
+                prevSpan?.tag === "separator" &&
+                spans.at(-2)?.tag === "dialogue"
+              ) {
+                spans.push({ tag: "dialogue", lines });
               }
             }
           }
         }
       } else if (t.tag === "choice") {
-        const lines = this.format(t.tag, t.text, profile, {
-          prefix: t.prefix,
-          suffix: t.suffix,
-        });
+        const lines = this.format(
+          t.tag,
+          t.text,
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          undefined,
+          { source: t.source, inserts: t.inserts },
+        );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
         }
@@ -326,10 +345,10 @@ export default class ScreenplayTypesetter {
   ): PageLine[] {
     let affixedText = text;
     if (affixOptions.prefix) {
-      affixedText = "`" + affixOptions.prefix + "`" + affixedText;
+      affixedText = affixOptions.prefix + affixedText;
     }
     if (affixOptions.suffix) {
-      affixedText += "`" + affixOptions.suffix + "`";
+      affixedText += affixOptions.suffix;
     }
     const textLines = affixedText.split(/\r\n|\r|\n/);
     const pageLines: PageLine[] = [];

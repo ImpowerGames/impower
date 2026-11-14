@@ -31,12 +31,16 @@ const styleRules = (rules: CSSRuleList, out: CSSStyleRule[] = []): CSSStyleRule[
   return out;
 };
 
-const compileFor = async (classes: string[]): Promise<CSSStyleRule[]> => {
+const compileText = async (classes: string[]): Promise<string> => {
   const compiler = await compile(
     '@import "tailwindcss/theme";\n@import "tailwindcss/utilities";',
     { base: process.cwd(), onDependency: () => {} },
   );
-  const css = optimize(compiler.build(classes), { minify: false }).code;
+  return optimize(compiler.build(classes), { minify: false }).code;
+};
+
+const compileFor = async (classes: string[]): Promise<CSSStyleRule[]> => {
+  const css = await compileText(classes);
   const style = document.createElement("style");
   style.textContent = css;
   document.head.append(style);
@@ -47,19 +51,49 @@ const compileFor = async (classes: string[]): Promise<CSSStyleRule[]> => {
 
 export type HitArea = { width: number; height: number };
 
-export const hitArea = async (element: Element): Promise<HitArea> => {
+export type BlockExtent = { height: number; marginTop: number; marginBottom: number };
+
+const resolveMargin = (value: string | undefined): number => {
+  const text = (value ?? "").trim();
+  const negated = /^calc\((.+?)\s*\*\s*-1\)$/.exec(text);
+  if (negated) {
+    return -(resolveLength(negated[1]!) ?? 0);
+  }
+  if (text.startsWith("-")) {
+    return -(resolveLength(text.slice(1)) ?? 0);
+  }
+  return resolveLength(text) ?? 0;
+};
+
+export const blockExtent = async (element: Element): Promise<BlockExtent> => {
   const classes = Array.from(element.classList);
-  const rules = (await compileFor(classes)).filter((rule) => {
-    if (/:|\[/.test(rule.selectorText.replace(/\\./g, ""))) {
-      return false;
+  const own = new Set(classes.map((name) => `.${name}`));
+  const declared = new Map<string, string>();
+  for (const [, selector, body] of (await compileText(classes)).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!own.has(selector!.trim().replace(/\\/g, ""))) {
+      continue;
     }
-    try {
-      return element.matches(rule.selectorText);
-    } catch {
-      return false;
+    for (const declaration of body!.split(";")) {
+      const colon = declaration.indexOf(":");
+      if (colon > 0) {
+        declared.set(declaration.slice(0, colon).trim(), declaration.slice(colon + 1).trim());
+      }
     }
-  });
-  const cascaded = (property: string): string | undefined => {
+  }
+  const cascaded = (property: string) => declared.get(property);
+  const block = cascaded("margin-block");
+  const height = resolveLength(cascaded("height") ?? "") ?? 0;
+  const min = resolveLength(cascaded("min-height") ?? "") ?? 0;
+  return {
+    height: Math.max(height, min),
+    marginTop: resolveMargin(cascaded("margin-top") ?? block),
+    marginBottom: resolveMargin(cascaded("margin-bottom") ?? block),
+  };
+};
+
+const cascadeOf =
+  (rules: CSSStyleRule[]) =>
+  (property: string): string | undefined => {
     let value: string | undefined;
     for (const rule of rules) {
       const declared = rule.style.getPropertyValue(property);
@@ -69,6 +103,21 @@ export const hitArea = async (element: Element): Promise<HitArea> => {
     }
     return value;
   };
+
+const matchingRules = async (element: Element): Promise<CSSStyleRule[]> =>
+  (await compileFor(Array.from(element.classList))).filter((rule) => {
+    if (/:|\[/.test(rule.selectorText.replace(/\\./g, ""))) {
+      return false;
+    }
+    try {
+      return element.matches(rule.selectorText);
+    } catch {
+      return false;
+    }
+  });
+
+export const hitArea = async (element: Element): Promise<HitArea> => {
+  const cascaded = cascadeOf(await matchingRules(element));
   const used = (axis: "width" | "height"): number => {
     const size = resolveLength(cascaded(axis) ?? "") ?? 0;
     const min = resolveLength(cascaded(`min-${axis}`) ?? "") ?? 0;

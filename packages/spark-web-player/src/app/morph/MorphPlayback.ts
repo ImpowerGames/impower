@@ -146,7 +146,7 @@ export class MorphPlayback {
 
   protected layers = new Set<MorphLayer>();
   protected occurrences = new Map<string, Occurrence>();
-  protected speech?: { character?: string; spans: [number, number][] };
+  protected speech?: { character?: string; spans: [number, number][]; beeps?: number[] };
   protected resizeObserver?: ResizeObserver;
 
   constructor(
@@ -208,7 +208,31 @@ export class MorphPlayback {
   }
 
   get animating(): boolean {
-    return this.enabled;
+    return this.enabled || this.playing;
+  }
+
+  protected playing = false;
+
+  setPlaying(playing: boolean) {
+    if (this.playing === playing) return;
+    const was = this.animating;
+    this.playing = playing;
+    if (!playing) {
+      this.speech = undefined;
+      for (const occurrence of this.occurrences.values()) {
+        if (occurrence.timing.trigger === "speech") this.restart(occurrence);
+      }
+      this.render();
+    }
+    this.animatingChanged(was);
+  }
+
+  protected animatingChanged(was: boolean) {
+    if (this.animating === was) return;
+    this.restartAll();
+    for (const layer of this.layers) layer.showStill();
+    this.render();
+    this.schedule();
   }
 
   attachClock(owner: object) {
@@ -223,10 +247,11 @@ export class MorphPlayback {
     this.schedule();
   }
 
-  speak(character: string | undefined, spans: readonly (readonly [number, number])[]) {
+  speak(character: string | undefined, spans: readonly (readonly [number, number])[], beeps?: readonly number[]) {
     this.speech = {
       ...(character ? { character } : {}),
       spans: spans.map(([start, end]): [number, number] => [this.time + start, this.time + end]),
+      ...(beeps ? { beeps: beeps.map((beep) => this.time + beep) } : {}),
     };
     for (const occurrence of this.occurrences.values()) this.hear(occurrence);
     this.render();
@@ -235,11 +260,12 @@ export class MorphPlayback {
   protected hear(occurrence: Occurrence) {
     if (occurrence.timing.trigger !== "speech") return;
     const speech = this.speech;
-    const spans =
-      speech && occurrence.owner && occurrence.owner === speech.character
-        ? speech.spans.map(([start, end]): [number, number] => [start - occurrence.start, end - occurrence.start])
-        : [];
-    occurrence.timeline.speak(spans, this.time - occurrence.start);
+    const heard = speech && occurrence.owner && occurrence.owner === speech.character ? speech : undefined;
+    occurrence.timeline.speak(
+      heard?.spans.map(([start, end]): [number, number] => [start - occurrence.start, end - occurrence.start]) ?? [],
+      this.time - occurrence.start,
+      heard?.beeps?.map((beep) => beep - occurrence.start),
+    );
   }
 
   advance(seconds: number) {
@@ -258,11 +284,9 @@ export class MorphPlayback {
 
   setEnabled(enabled: boolean) {
     if (this.enabled === enabled) return;
+    const was = this.animating;
     this.enabled = enabled;
-    this.restartAll();
-    for (const layer of this.layers) layer.showStill();
-    this.render();
-    this.schedule();
+    this.animatingChanged(was);
   }
 
   setSession(session: string) {
@@ -287,7 +311,7 @@ export class MorphPlayback {
 
   protected schedule() {
     if (this.frame !== undefined) return;
-    if (this.clockOwner || this.paused || !this.enabled || ![...this.layers].some((layer) => layer.live)) {
+    if (this.clockOwner || this.paused || !this.animating || ![...this.layers].some((layer) => layer.live)) {
       this.frameTime = undefined;
       return;
     }
@@ -370,7 +394,7 @@ export class MorphPlayback {
   }
 
   playhead(occurrence: Occurrence) {
-    if (!this.enabled || occurrence.preempted) return { phase: "off" as const };
+    if (!this.animating || occurrence.preempted) return { phase: "off" as const };
     return occurrence.timeline.at(this.time - occurrence.start);
   }
 

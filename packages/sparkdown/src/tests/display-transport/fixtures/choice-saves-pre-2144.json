@@ -1,0 +1,59 @@
+{
+  "styled": {
+    "source": "store name = \"Nova\"\nscene start\n  The gate.\n  choose\n    + *Pay* the **toll**, {name}.\n      Paid.\n      done\n    + Climb _over_ [~~the~~ wall] ^now^\n      Climbed.\n      done\n  end\nend\n",
+    "text": "",
+    "choices": [
+      "*Pay* the **toll**, Nova.",
+      "Climb _over_ ~~the~~ wall"
+    ],
+    "chosen": 1,
+    "remaining": [
+      "Climb _over_ ^now^\n",
+      "Climbed.\n",
+      ""
+    ],
+    "save": "{\"engine\":\"program\",\"format\":3,\"engineVersion\":\"2\",\"gameVersion\":\"\",\"beats\":[{\"flags\":0,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\",\"params\":[]}]},\"a\":\"start\"},\"evalStack\":[],\"output\":[],\"styleCodes\":true,\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":99,\"previousRandom\":0,\"didSafeExit\":false,\"variablesState\":{\"name\":\"^Nova\"},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[]},{\"flags\":1,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":1,\"flow\":\"start\",\"params\":[]}]},\"a\":\"start\"},\"evalStack\":[],\"output\":[{\"objid\":1,\"obj\":{\"target\":\"^action\",\"text\":\"^The gate.\"}},\"\\n\"],\"styleCodes\":true,\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":99,\"previousRandom\":0,\"previousFlow\":\"start\",\"didSafeExit\":false,\"globals\":{},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[[{\"n\":\"start\"},1,-1]],\"tables\":[],\"cells\":[]}],\"listings\":[{\"n\":3,\"windows\":[[0,\"8319bd4c102095c7\",\"f7bb28c6f6ffc77c\",\"616b642c5365a04f\"]]}],\"parts\":[]}"
+  },
+  "tagged": {
+    "source": "scene start\n  The gate.\n  choose\n    + *Go* now # tag\n      Gone.\n      done\n  end\nend\n",
+    "text": "",
+    "choices": [
+      "*Go* now"
+    ],
+    "chosen": 0,
+    "remaining": [
+      "*Go* now\n",
+      "Gone.\n",
+      ""
+    ],
+    "save": "{\"engine\":\"program\",\"format\":3,\"engineVersion\":\"2\",\"gameVersion\":\"\",\"beats\":[{\"flags\":0,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\",\"params\":[]}]},\"a\":\"start\"},\"evalStack\":[],\"output\":[],\"styleCodes\":true,\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":94,\"previousRandom\":0,\"didSafeExit\":false,\"variablesState\":{},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[]},{\"flags\":1,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":1,\"flow\":\"start\",\"params\":[]}]},\"a\":\"start\"},\"evalStack\":[],\"output\":[{\"objid\":1,\"obj\":{\"target\":\"^action\",\"text\":\"^The gate.\"}},\"\\n\"],\"styleCodes\":true,\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":94,\"previousRandom\":0,\"previousFlow\":\"start\",\"didSafeExit\":false,\"globals\":{},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[[{\"n\":\"start\"},1,-1]],\"tables\":[],\"cells\":[]}],\"listings\":[{\"n\":3,\"windows\":[[0,\"8319bd4c102095c7\",\"bbf5937c8d63cfd7\",\"616b642c5365a04f\"]]}],\"parts\":[]}"
+  },
+  "marksAcrossBrackets": {
+    "source": "scene start\n  The gate.\n  choose\n    + Cross *far [away] now* x\n      Crossed.\n      done\n  end\nend\n",
+    "text": "",
+    "choices": [
+      "Cross *far away"
+    ],
+    "chosen": 0,
+    "remaining": [
+      "Cross *far now* x\n",
+      "Crossed.\n",
+      ""
+    ],
+    "save": "{\"engine\":\"program\",\"format\":3,\"engineVersion\":\"2\",\"gameVersion\":\"\",\"beats\":[{\"flags\":0,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\",\"params\":[]}]},\"a\":\"start\"},\"evalStack\":[],\"output\":[],\"styleCodes\":true,\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":32,\"previousRandom\":0,\"didSafeExit\":false,\"variablesState\":{},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[]},{\"flags\":1,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":1,\"flow\":\"start\",\"params\":[]}]},\"a\":\"start\"},\"evalStack\":[],\"output\":[{\"objid\":1,\"obj\":{\"target\":\"^action\",\"text\":\"^The gate.\"}},\"\\n\"],\"styleCodes\":true,\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":32,\"previousRandom\":0,\"previousFlow\":\"start\",\"didSafeExit\":false,\"globals\":{},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[[{\"n\":\"start\"},1,-1]],\"tables\":[],\"cells\":[]}],\"listings\":[{\"n\":3,\"windows\":[[0,\"8319bd4c102095c7\",\"11711b64ff282146\",\"616b642c5365a04f\"]]}],\"parts\":[]}"
+  },
+  "rawWithBraces": {
+    "source": "store x = \"plain\"\nscene start\n  The gate.\n  choose\n    + Go `far {x} away` now\n      Gone.\n      done\n  end\nend\n",
+    "text": "",
+    "choices": [
+      "Go `far {x} away` now"
+    ],
+    "chosen": 0,
+    "remaining": [
+      "Go `far {x} away` now\n",
+      "Gone.\n",
+      ""
+    ],
+    "save": "{\"engine\":\"program\",\"format\":3,\"engineVersion\":\"2\",\"gameVersion\":\"\",\"beats\":[{\"flags\":0,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":0,\"flow\":\"start\",\"params\":[]}]},\"a\":\"start\"},\"evalStack\":[],\"output\":[],\"styleCodes\":true,\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":43,\"previousRandom\":0,\"didSafeExit\":false,\"variablesState\":{\"x\":\"^plain\"},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[]},{\"flags\":1,\"decisions\":[],\"position\":{\"st\":{\"levels\":[{\"s\":0,\"at\":1,\"flow\":\"start\",\"params\":[]}]},\"a\":\"start\"},\"evalStack\":[],\"output\":[{\"objid\":1,\"obj\":{\"target\":\"^action\",\"text\":\"^The gate.\"}},\"\\n\"],\"styleCodes\":true,\"lineEndPending\":false,\"lineJoinable\":false,\"turnIdx\":-1,\"storySeed\":43,\"previousRandom\":0,\"previousFlow\":\"start\",\"didSafeExit\":false,\"globals\":{},\"frames\":[{\"type\":0,\"start\":0,\"height\":0,\"temps\":[{},{}]}],\"counts\":[[{\"n\":\"start\"},1,-1]],\"tables\":[],\"cells\":[]}],\"listings\":[{\"n\":3,\"windows\":[[0,\"8319bd4c102095c7\",\"c0062db4e6e83664\",\"616b642c5365a04f\"]]}],\"parts\":[]}"
+  }
+}

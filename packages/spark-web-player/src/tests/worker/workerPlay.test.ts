@@ -1,6 +1,5 @@
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
-import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { describe, expect, it } from "vitest";
@@ -63,16 +62,6 @@ const recordGameBuilds = () => {
   };
 };
 
-const reloaded = async (h: { toEditor: any[] }) => {
-  for (let i = 0; i < 200; i++) {
-    if (h.toEditor.some((m) => m.method === GameReloadedMessage.method)) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  throw new Error("The game never restarted");
-};
-
 const session = async () => {
   const gameBuilds = recordGameBuilds();
   const h = await createPlayerHarness({
@@ -95,7 +84,8 @@ const session = async () => {
 
     await h.edit(editThird("The third line, edited."));
     await h.compile();
-    await reloaded(h);
+    expect(h.playing()?.program).toBe(playedProgram);
+    expect(await h.controller.restartGame()).toBe(true);
     await settle(40);
     await h.tick(1000 / 60, 120);
     const restartedProgram = h.playing()?.program;
@@ -126,7 +116,7 @@ const session = async () => {
 };
 
 describe("PLAY", () => {
-  it("builds no game on the page, restarts on an edit and returns on STOP", async () => {
+  it("builds no game on the page, plays an edit on Restart and returns on STOP", async () => {
     const on = await session();
 
     expect(on.builds.filter((b) => b.page)).toEqual([]);

@@ -329,8 +329,18 @@ export {
   default as PlayButton,
   playButtonVariants,
   type PlayButtonProps,
+  type PlayButtonRing,
   type PlayButtonSize,
 } from "./play-button/PlayButton";
+export {
+  default as PreviewStrip,
+  previewStripVariants,
+  previewStripStatusVariants,
+  type PreviewStripProps,
+  type PreviewStripStatus,
+  type PreviewStripSymbol,
+  type PreviewStripTone,
+} from "./preview-strip/PreviewStrip";
 export {
   default as AudioPlayer,
   audioPlayerVariants,
@@ -408,6 +418,7 @@ export {
   tileLabelVariants,
   tileHeight,
   TILE_GAP,
+  TILE_MEDIA_FIT,
   TILE_MIN_WIDTH,
   type TileProps,
   type TileShape,

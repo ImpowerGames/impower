@@ -1,213 +1,24 @@
 import { describe, expect, test } from "vitest";
-import MARK_PAIRING from "@impower/sparkdown/src/tests/compiler/fixtures/mark-pairing-corpus.json";
-import { parseSource } from "@impower/sparkdown/src/tests/compiler/grammarSnapshot";
-import {
-  treeScopeStackAt,
-  vscodeScopeStacksPerChar,
-} from "@impower/sparkdown/src/tests/compiler/scopeEquality";
 import {
   type Cell,
-  VALUES,
   renderedBeat,
   renderedBeats,
+  renderedChoiceBeats,
   script,
   show,
+  VALUES,
 } from "./harness/displayStyleHarness";
-
-interface Part {
-  target: string;
-  sources: string[];
-  aligned?: boolean;
-}
-
-interface Case {
-  label: string;
-  body: string;
-  parts?: Part[];
-}
-
-const action = (body: string): Case => ({
-  label: body,
-  body,
-  parts: [{ target: "action", sources: [body] }],
-});
-
-const MARKS: Record<string, string> = {
-  bold: "**",
-  italic: "*",
-  underline: "_",
-  centered: "^",
-  wavy: "~~",
-  shaky: "::",
-};
-
-const PAIRS: Case[] = Object.values(MARKS).flatMap((outer) => [
-  ...Object.values(MARKS)
-    .filter((inner) => inner !== outer)
-    .map((inner) => action(`A ${outer}a ${inner}b${inner} c${outer} D`)),
-  action(`A ${outer}a \`b\` c${outer} D`),
-]);
-
-const ANIMATIONS_INSIDE: Case[] = ["**", "*", "_", "^"].flatMap((outer) => [
-  action(`A ${outer}a ~~b ::c:: d~~ e${outer} F`),
-  action(`A ${outer}a ::b ~~c~~ d:: e${outer} F`),
-]);
-
-const CORPUS: Case[] = [
-  ...PAIRS,
-  ...ANIMATIONS_INSIDE,
-  action("The room is quiet."),
-  action("A *word* here."),
-  action("A **word** here."),
-  action("A ***word*** here."),
-  action("A _word_ here."),
-  action("A __word__ here."),
-  action("A ^word^ here."),
-  action("A ~~wavy~~ word."),
-  action("A ~~~slow~~~ word."),
-  action("A ::shaky:: word."),
-  action("Nested *_both_* end."),
-  action("A **a *b* c** d"),
-  action("A *a **b** c* d"),
-  action("A ~~a **b** c~~ d"),
-  action("A __a_ b__ c"),
-  action("A ^^a^ b^^ c"),
-  action("A ***a* b** c"),
-  action("A ***a** b* c"),
-  action("A **a*b** c"),
-  action("A x*y*z here"),
-  action("A 2^3^4 here"),
-  action("A *rest of line"),
-  action("A **rest of line"),
-  action("A _rest of line"),
-  action("A ~~rest of line"),
-  action("*far {x} away* now"),
-  action("A **{x}** b"),
-  action("A *a {x}"),
-  action("A ***bi {x} c*** d"),
-  action("A ***a* {x}** end"),
-  action("Esc \\*literal\\* end."),
-  action("A *b\\* c* d"),
-  action("A \\\\*b* c"),
-  action("A `raw *x*` b"),
-  action("A *`b`* c"),
-  action("A `b"),
-  action("A *b `c* d` e"),
-  action(`A ${"_".repeat(40)}long${"_".repeat(40)} B`),
-  action("**bold /* c */ more** end"),
-  action("*a /* c */ b* c"),
-  {
-    label: "a dialogue line with a span around an interpolation",
-    body: "NOVA: Hi *there {x}* now",
-    parts: [
-      { target: "character_name", sources: ["NOVA"] },
-      { target: "dialogue", sources: ["Hi *there {x}* now"] },
-    ],
-  },
-  {
-    label: "a styled character name",
-    body: "*NOVA*: Hey",
-    parts: [
-      { target: "character_name", sources: ["*NOVA*"] },
-      { target: "dialogue", sources: ["Hey"] },
-    ],
-  },
-  {
-    label: "a styled cue parenthetical",
-    body: "NOVA (*sad*): Hey",
-    parts: [
-      { target: "character_name", sources: ["NOVA"] },
-      { target: "character_parenthetical", sources: ["(*sad*)"], aligned: true },
-      { target: "dialogue", sources: ["Hey"] },
-    ],
-  },
-  {
-    label: "a block dialogue with a styled parenthetical and an unclosed span on each line",
-    body: "NOVA:\n    (*softly*)\n    Line *one\n    Line two* x",
-    parts: [
-      { target: "character_name", sources: ["NOVA"] },
-      {
-        target: "dialogue",
-        sources: ["(*softly*)", "Line *one", "Line two* x"],
-        aligned: true,
-      },
-    ],
-  },
-];
-
-const SCOPE_STYLES: [scope: string, style: string][] = [
-  ["markup.other.bold.sd", "bold"],
-  ["markup.other.italic.sd", "italic"],
-  ["markup.other.underline.sd", "underline"],
-  ["constant.character.escape.centered.sd", "centered"],
-  ["markup.emphasis.tilde.sd", "wavy"],
-  ["markup.emphasis.colon.sd", "shaky"],
-];
-
-const stylesOfScopes = (scopes: string[]): string => {
-  const styles = SCOPE_STYLES.filter(([scope]) => scopes.includes(scope)).map(
-    ([, style]) => style,
-  );
-  if (scopes.filter((scope) => scope.startsWith("markup.raw.")).length >= 2) {
-    styles.push("raw");
-  }
-  return styles.sort().join(" ");
-};
-
-async function grammarCells(source: string, from: number, to: number) {
-  return cellsBetween(await grammarReading(source), source, from, to);
-}
-
-async function grammarReading(source: string) {
-  const tree = parseSource(source);
-  const vscode = await vscodeScopeStacksPerChar(source);
-  const hidden = new Set<number>();
-  const values = new Map<number, number>();
-  const cursor = tree.cursor();
-  do {
-    const name = cursor.name;
-    if (
-      /^Span(Open|Close)Mark$/.test(name) ||
-      /^Escape_c[135]$/.test(name) ||
-      /^SparkdownBlockComment(OnLine)?$/.test(name)
-    ) {
-      for (let i = cursor.from; i < cursor.to; i++) hidden.add(i);
-    }
-    if (name === "LuauInterpolatedStringExpression") {
-      values.set(cursor.from, cursor.to);
-    }
-  } while (cursor.next());
-  return { tree, vscode, hidden, values };
-}
-
-function cellsBetween(
-  { tree, vscode, hidden, values }: Awaited<ReturnType<typeof grammarReading>>,
-  source: string,
-  from: number,
-  to: number,
-) {
-  const tree_: Cell[] = [];
-  const vsc: Cell[] = [];
-  for (let i = from; i < to; ) {
-    const valueEnd = values.get(i);
-    const treeStyle = stylesOfScopes(treeScopeStackAt(tree, i));
-    const vscStyle = stylesOfScopes(vscode[i] ?? []);
-    if (valueEnd != null) {
-      for (const char of "plain") {
-        tree_.push({ char, style: treeStyle });
-        vsc.push({ char, style: vscStyle });
-      }
-      i = valueEnd;
-      continue;
-    }
-    if (!hidden.has(i)) {
-      tree_.push({ char: source[i]!, style: treeStyle });
-      vsc.push({ char: source[i]!, style: vscStyle });
-    }
-    i++;
-  }
-  return { tree: tree_, vscode: vsc };
-}
+import {
+  CHOICE_CORPUS,
+  CORPUS,
+  PAIRING_LINES,
+  SUPPRESSION_CLOSE,
+  SUPPRESSION_OPEN,
+  cellsBetween,
+  grammarCells,
+  grammarReading,
+} from "./harness/displayStylingCorpus";
+import { treeScopeStackAt } from "@impower/sparkdown/src/tests/compiler/scopeEquality";
 
 const withoutCentering = (cells: Cell[]): Cell[] =>
   cells.map(({ char, style }) => ({
@@ -247,9 +58,6 @@ describe("the player renders display lines styled as the grammar reads them", ()
   });
 });
 
-const PAIRING_LINES = (MARK_PAIRING as { lines: { line: string }[] }).lines
-  .map(({ line }) => line)
-  .filter((line) => !/[<>]|\[\[|\(\(/.test(line));
 const PAIRING_CHUNK = 40;
 const PAIRING_CHUNKS = Array.from({ length: Math.ceil(PAIRING_LINES.length / PAIRING_CHUNK) }, (_, i) =>
   PAIRING_LINES.slice(i * PAIRING_CHUNK, (i + 1) * PAIRING_CHUNK),
@@ -303,25 +111,132 @@ describe("the player renders marks paired by CommonMark's rules", () => {
   });
 });
 
-describe("choice text until #2144 stops the player scanning it for marks", () => {
-  const LINE = "Choice snake_case_name *open `raw {1+1}";
-  const readings = async () => {
+describe("the player reads choice text as a display line reads the same text", () => {
+  test("marks the grammar leaves literal stay literal in the menu", async () => {
+    const LINE = "Choice snake_case_name *open `raw {1+1}";
     const body = `${LINE}\n\n  choose\n    + ${LINE}\n      Done.\n  end`;
     const [display, choice] = await renderedBeats(script(body), 2);
     const line = (cells: Cell[]) => show(cells.filter(({ char }) => char !== "\n"));
-    return { display: line(display!("action")), choice: line(choice!("choice 0")) };
+    expect(line(choice!("choice 0"))).toBe(line(display!("action")));
+    expect(line(choice!("choice 0"))).toBe("Choice snake_case_name *open `raw 2");
+  });
+});
+
+
+interface ChoiceReading {
+  menu: Cell[];
+  echo: Cell[];
+}
+
+async function choiceGrammarReading(source: string, text: string): Promise<{ tree: ChoiceReading; vscode: ChoiceReading }> {
+  const from = source.indexOf(`+ ${text}`) + 2;
+  const to = from + text.length;
+  const reading = await grammarReading(source);
+  let open = -1;
+  let close = -1;
+  for (let i = from; i < to; i++) {
+    const scopes = treeScopeStackAt(reading.tree, i);
+    if (open < 0 && scopes.includes(SUPPRESSION_OPEN)) open = i;
+    else if (open >= 0 && close < 0 && scopes.includes(SUPPRESSION_CLOSE)) close = i;
+  }
+  const between = (a: number, b: number) => cellsBetween(reading, source, a, b);
+  const join = (parts: { tree: Cell[]; vscode: Cell[] }[]) => ({
+    tree: parts.flatMap((p) => p.tree),
+    vscode: parts.flatMap((p) => p.vscode),
+  });
+  const menu =
+    open < 0 ? between(from, to) : close < 0 ? join([between(from, open), between(open + 1, to)]) : join([between(from, open), between(open + 1, close)]);
+  const echo =
+    open < 0 ? between(from, to) : close < 0 ? between(from, open) : join([between(from, open), between(close + 1, to)]);
+  return {
+    tree: { menu: menu.tree, echo: echo.tree },
+    vscode: { menu: menu.vscode, echo: echo.vscode },
+  };
+}
+
+async function renderedChoice(source: string): Promise<ChoiceReading> {
+  const { menu, echo } = await renderedChoiceBeats(source);
+  return { menu: menu("choice 0"), echo: echo("action") };
+}
+
+const visible = (cells: Cell[]): string => show(cells.filter(({ char }) => !/\s/.test(char)));
+
+describe("the player renders choice lines styled as the grammar reads them", () => {
+  test.each(CHOICE_CORPUS)("%s", async (text) => {
+    const source = script(`choose\n    + ${text}\n      Done.\n  end`);
+    const grammar = await choiceGrammarReading(source, text);
+    expect(show(grammar.vscode.menu)).toBe(show(grammar.tree.menu));
+    expect(show(grammar.vscode.echo)).toBe(show(grammar.tree.echo));
+    const rendered = await renderedChoice(source);
+    expect({ menu: visible(rendered.menu), echo: visible(rendered.echo) }).toEqual({
+      menu: visible(grammar.tree.menu),
+      echo: visible(grammar.tree.echo),
+    });
+  });
+});
+
+describe("marks never cross a choice bracket", () => {
+  const rendered = async (text: string) => {
+    const reading = await renderedChoice(script(`choose\n    + ${text}\n      Done.\n  end`));
+    const line = (cells: Cell[]) => show(cells.filter(({ char }) => char !== "\n"));
+    return { menu: line(reading.menu), echo: line(reading.echo) };
   };
 
-  test("the player's choice scanner still pairs marks by the old rules, which #2144 replaces", async () => {
-    expect(await readings()).toEqual({
-      display: "Choice snake_case_name *open `raw 2",
-      choice: "Choice snake[underline: case]name [italic: open ][italic raw: raw 2]",
+  test("marks in the start text and the inner text stay text in both renditions", async () => {
+    expect(await rendered("Cross *far [away] now* x")).toEqual({
+      menu: "Cross *far away",
+      echo: "Cross *far now* x",
     });
   });
 
-  test.fails("the player renders choice text as the grammar reads it, which #2144 makes pass", async () => {
-    const { display, choice } = await readings();
-    expect(choice).toBe(display);
+  test("marks in the start text and the suppressed text stay text in both renditions", async () => {
+    expect(await rendered("Go *far [away* now] x")).toEqual({
+      menu: "Go *far away* now",
+      echo: "Go *far x",
+    });
+  });
+
+  test("marks in the suppressed text and the inner text stay text in both renditions", async () => {
+    expect(await rendered("Go [far *away] now* x")).toEqual({
+      menu: "Go far *away",
+      echo: "Go now* x",
+    });
+  });
+
+  test("a span closed inside one part is styled beside a stray mark in another", async () => {
+    expect(await rendered("Go *a* [b *c] d")).toEqual({
+      menu: "Go [italic: a] b *c",
+      echo: "Go [italic: a] d",
+    });
+  });
+});
+
+describe("the output joins the text on either side of a suppression with one space", () => {
+  test.each([
+    ["Go a [b] c", "Go a c"],
+    ["Go [a] b", "Go b"],
+    ["Cross *far [away] now* x", "Cross *far now* x"],
+    ["Go *a* [b] *c* d", "Go a c d"],
+    ["Go a [b] c #tag", "Go a c #tag"],
+    ["Go a[b] c", "Go a c"],
+  ])("%s", async (text, output) => {
+    const { echo } = await renderedChoiceBeats(script(`choose\n    + ${text}\n      Done.\n  end`));
+    expect(
+      echo("action")
+        .map(({ char }) => char)
+        .join(""),
+    ).toBe(output);
+  });
+
+  test.each([
+    ["Go a [b]` c ` d", "Go a ` c ` d"],
+    ["Go `x `[b] c", "Go `x ` c"],
+    ["Go `x ` [b] c", "Go `x ` c"],
+    ["Go {x} [b] c", "Go {x} c"],
+  ])("%s keeps the spaces inside a raw span or a value, as the display line %s does", async (text, display) => {
+    const { echo } = await renderedChoiceBeats(script(`choose\n    + ${text}\n      Done.\n  end`));
+    const line = await renderedBeat(script(display));
+    expect(show(echo("action"))).toBe(show(line("action")));
   });
 });
 

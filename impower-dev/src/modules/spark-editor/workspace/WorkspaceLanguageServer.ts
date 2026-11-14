@@ -24,6 +24,11 @@ import type {
 } from "vscode-languageserver-protocol";
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
+  PreviewLineMessage,
+  type PreviewLineParams,
+  type PreviewLineResult,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewLineMessage";
+import {
   PublishDiagnosticsMessage,
   type PublishDiagnosticsParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
@@ -527,6 +532,18 @@ export default class WorkspaceLanguageServer {
     return this._connection.sendRequest<{ file: string; line: number } | null>(
       "sparkdown/offsetSourceLocation",
       { uri, line, offset },
+    );
+  }
+
+  async getPreviewLine(
+    uri: string,
+    line: number,
+    shownBeat: PreviewLineParams["shownBeat"],
+  ): Promise<PreviewLineResult> {
+    await this.initialization();
+    return this._connection.sendRequest<PreviewLineResult>(
+      PreviewLineMessage.method,
+      { textDocument: { uri }, line, shownBeat },
     );
   }
 

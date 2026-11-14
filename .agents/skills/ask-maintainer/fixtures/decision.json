@@ -1,0 +1,59 @@
+{
+  "kind": "decision",
+  "question": "What should mark a choice the preview picked by itself?",
+  "tickets": [2271],
+  "askedBy": "the Folio redesign run (ticket 977)",
+  "owner": "orchestrate-issues #977",
+  "parked": "#2271, the gutter button, before its review",
+  "meanwhile": "#2215, #2250, #2270 and #2207",
+  "shortVersion": "When the preview works out how the story reaches the line you're on, it has to pick an option at every choice you haven't pinned. The script's left edge shows a small mark on each option it picked. This asks what the mark should be, or whether there should be one at all.",
+  "background": [
+    { "file": "phone.png", "alt": "Phone screenshot of the script with a bulleted-list icon in the left edge", "width": 300 },
+    "- **The route.** The thin coloured strip down the left edge is the path the preview took.\n- **The mark.** The option the preview took gets a mark."
+  ],
+  "showsOnScreen": true,
+  "options": [
+    {
+      "name": "Keep the bulleted-list icon",
+      "pictures": [{ "file": "a.png", "alt": "A filled pin on the first option and a bulleted-list icon on the second", "width": 420 }],
+      "pros": "already built, and a different shape from a pin.",
+      "cons": "reads as \"a menu\", not \"the preview chose this\".",
+      "undo": "nothing to undo."
+    },
+    {
+      "name": "A hollow pin",
+      "pictures": [
+        { "file": "b.png", "alt": "A filled pin on the first option and an outlined pin on the second", "width": 420 },
+        { "file": "b-list.png", "alt": "Route list with an outlined pin on the Auto row", "width": 640 }
+      ],
+      "pros": "one shape in two states, like an empty and a ticked box.",
+      "cons": "an outline could be read as \"pinned but switched off\".",
+      "undo": "swap one icon in one component"
+    },
+    {
+      "name": "A small dot on the strip",
+      "pictures": [{ "file": "c.png", "alt": "A filled pin on the first option and a small dot on the second", "width": 420 }],
+      "pros": "the quietest mark.",
+      "cons": "nothing says you can press it to pin.",
+      "undo": "swap one icon in one component."
+    },
+    {
+      "name": "A branching-arrow icon",
+      "pictures": [{ "file": "d.png", "alt": "A filled pin on the first option and a branching arrow on the second", "width": 420 }],
+      "example": "The arrow is the one the route list already uses for a detour.",
+      "pros": "accurate: a fork was taken here.",
+      "cons": "a third icon family beside the pin and the detour arrow.",
+      "undo": "swap one icon in one component."
+    },
+    {
+      "name": "No mark, the strip alone",
+      "pictures": [{ "file": "e.png", "alt": "A filled pin on the first option and no mark on the second", "width": 420 }],
+      "pros": "only pins and breakpoints in the left edge.",
+      "cons": "you could no longer pin a choice from the script line.",
+      "undo": "restore the mark and its pop-up, about a day of work."
+    }
+  ],
+  "comparison": "| Option | Says the preview chose | Shows you can pin | No new icon |\n| --- | --- | --- | --- |\n| A | No | No | Yes |\n| **B** | Yes | Yes | Yes |\n| C | Partly | No | Yes |\n| D | Yes | No | No |\n| E | No | No | Yes |",
+  "recommendation": { "option": "B", "reason": "It is the only option that explains itself and needs no new icon." },
+  "fallback": { "option": "B" }
+}

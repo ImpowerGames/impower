@@ -20,6 +20,7 @@ import {
   addMenuFolders,
   type AddMenuKind,
 } from "../../utils/addMenuFolders";
+import { pickerItems } from "../add-panel";
 import { useProjectFiles } from "./useProjectFiles";
 import type { SettingsSectionInfo } from "./sections";
 import { useSectionReset } from "./useSectionReset";
@@ -101,7 +102,7 @@ export default function AddMenuSection({ section }: { section: SettingsSectionIn
       <SettingsGroup legend="Folders">
         <SettingsList>
           {ADD_MENU_KINDS.map((kind) => (
-            <FolderRow key={kind} kind={kind} count={addMenuFiles(files, kind, folders).length} />
+            <FolderRow key={kind} kind={kind} count={pickerItems(kind, files, folders).length} />
           ))}
         </SettingsList>
       </SettingsGroup>

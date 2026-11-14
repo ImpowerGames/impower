@@ -17,7 +17,7 @@ export default function ImportProgressBar(_p: ImportProgressBarProps) {
     <div
       class="absolute inset-x-0 bottom-0 z-[3] h-0.5 overflow-hidden bg-primary/20"
       role="progressbar"
-      aria-label="Importing files"
+      aria-label="Adding files"
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={pct}

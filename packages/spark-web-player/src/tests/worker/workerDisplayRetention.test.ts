@@ -201,7 +201,6 @@ describe("the programs the worker keeps", () => {
       await h.compile();
       await h.select(LINE);
       expect(await h.controller.startGameAndApp()).toBe(true);
-      h.controller.scheduleRestartGame = () => {};
       const edit = actionEditor(h);
       for (let n = 0; n < 6; n++) {
         await edit(n);
@@ -267,7 +266,6 @@ describe("the programs the worker keeps", () => {
     const started = h.controller.startGameAndApp();
     const newer: CompiledProgramParams = await compiled;
     expect(await started).toBe(true);
-    h.controller.scheduleRestartGame = () => {};
     newer.program.version = 1000;
     await h.controller.loadProgram(
       newer.program,

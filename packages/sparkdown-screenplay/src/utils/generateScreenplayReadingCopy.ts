@@ -1,180 +1,9 @@
+import { writtenText } from "../../../sparkdown/src/runtime/displayStyle";
 import { ScreenplayToken } from "../types/ScreenplayToken";
-
-const MARKERS = ["^", "*", "_", "~~", "::"];
 
 const INDENT = "  ";
 
-const stripProductionTags = (raw: string): string => {
-  let out = "";
-  let i = 0;
-  let escaped = false;
-  let rawMode = false;
-  while (i < raw.length) {
-    const char = raw[i] ?? "";
-    const nextChar = raw[i + 1] ?? "";
-    if (escaped) {
-      out += char;
-      i += 1;
-      escaped = false;
-      continue;
-    }
-    if (char === "`") {
-      out += char;
-      rawMode = !rawMode;
-      i += 1;
-      continue;
-    }
-    if (rawMode) {
-      out += char;
-      i += 1;
-      continue;
-    }
-    if (char === "\\") {
-      escaped = true;
-      i += 1;
-      continue;
-    }
-    if (char === "[" && nextChar === "[") {
-      const startIndex = i;
-      i += 2;
-      let closed = false;
-      while (i < raw.length) {
-        if (raw[i] === "]" && raw[i + 1] === "]") {
-          closed = true;
-          i += 2;
-          while (i < raw.length && (raw[i] === " " || raw[i] === "\t")) i += 1;
-          break;
-        }
-        i += 1;
-      }
-      if (!closed) {
-        out += raw[startIndex] ?? "";
-        i = startIndex + 1;
-      }
-      continue;
-    }
-    if (char === "(" && nextChar === "(") {
-      const startIndex = i;
-      i += 2;
-      let closed = false;
-      while (i < raw.length) {
-        if (raw[i] === ")" && raw[i + 1] === ")") {
-          closed = true;
-          i += 2;
-          while (i < raw.length && (raw[i] === " " || raw[i] === "\t")) i += 1;
-          break;
-        }
-        i += 1;
-      }
-      if (!closed) {
-        out += raw[startIndex] ?? "";
-        i = startIndex + 1;
-      }
-      continue;
-    }
-    if (char === "<") {
-      const after = raw[i + 1] ?? "";
-      const isWS = after === " " || after === "\t" || after === "\n" || after === "\r" || after === "";
-      if (!isWS) {
-        const startIndex = i;
-        i += 1;
-        while (i < raw.length && raw[i] !== ">" && raw[i] !== ":") i += 1;
-        if (raw[i] === ":") {
-          i += 1;
-          while (i < raw.length && raw[i] !== ">") i += 1;
-        }
-        if (raw[i] === ">") {
-          i += 1;
-          while (i < raw.length && (raw[i] === " " || raw[i] === "\t")) i += 1;
-          continue;
-        }
-        out += raw[startIndex] ?? "";
-        i = startIndex + 1;
-        continue;
-      }
-    }
-    const styleMarker = MARKERS.find((m) => raw.slice(i, i + m.length) === m);
-    if (styleMarker) {
-      while (raw[i] === char) {
-        out += raw[i];
-        i += 1;
-      }
-      continue;
-    }
-    out += char;
-    i += 1;
-  }
-  return out;
-};
-
-const collapseEmphasisRuns = (s: string): string =>
-  s.replace(/_{2,}/g, "_").replace(/\*{4,}/g, "***").replace(/\^{2,}/g, "^");
-
-const EMPHASIS_MARKERS_LONG_FIRST = ["***", "**", "~~", "::", "*", "_", "^"];
-const trimInsideEmphasis = (line: string): string => {
-  let out = "";
-  let i = 0;
-  let escaped = false;
-  let rawMode = false;
-  const stack: string[] = [];
-  while (i < line.length) {
-    const c = line[i] ?? "";
-    if (escaped) {
-      out += c;
-      i += 1;
-      escaped = false;
-      continue;
-    }
-    if (c === "`") {
-      out += c;
-      rawMode = !rawMode;
-      i += 1;
-      continue;
-    }
-    if (rawMode) {
-      out += c;
-      i += 1;
-      continue;
-    }
-    if (c === "\\") {
-      out += c;
-      escaped = true;
-      i += 1;
-      continue;
-    }
-    let matched: string | undefined;
-    for (const m of EMPHASIS_MARKERS_LONG_FIRST) {
-      if (line.slice(i, i + m.length) === m) {
-        matched = m;
-        break;
-      }
-    }
-    if (matched) {
-      const idx = stack.lastIndexOf(matched);
-      if (idx !== -1) {
-        out = out.replace(/[ \t]+$/, "");
-        out += matched;
-        stack.length = idx;
-      } else {
-        out += matched;
-        stack.push(matched);
-        i += matched.length;
-        while (i < line.length && (line[i] === " " || line[i] === "\t")) {
-          i += 1;
-        }
-        continue;
-      }
-      i += matched.length;
-      continue;
-    }
-    out += c;
-    i += 1;
-  }
-  return out;
-};
-
-const cleanLine = (line: string): string =>
-  trimInsideEmphasis(collapseEmphasisRuns(stripProductionTags(line)));
+const cleanLine = (line: string): string => writtenText(line);
 
 const cleanMultiline = (raw: string): string[] => {
   const lines = raw.split("\n").map(cleanLine);
@@ -187,7 +16,7 @@ const cleanInline = (raw: string): string =>
   cleanLine(raw.replace(/\n+/g, " "));
 
 const formatMeta = (key: string, rawValue: string): string[] => {
-  const lines = stripProductionTags(rawValue)
+  const lines = writtenText(rawValue)
     .split("\n")
     .map((l) => l.replace(/^[ \t]+|[ \t]+$/g, ""));
   while (lines.length > 0 && lines[0] === "") lines.shift();
@@ -221,7 +50,7 @@ export const generateScreenplayReadingCopy = (tokens: ScreenplayToken[]): string
   for (const t of tokens) {
     if (typeof t.tag === "string" && t.tag.startsWith("meta:")) {
       const key = t.tag.slice("meta:".length);
-      metaLines.push(...formatMeta(key, t.text ?? ""));
+      metaLines.push(...formatMeta(key, t.styled ?? t.text ?? ""));
       continue;
     }
 
@@ -239,45 +68,45 @@ export const generateScreenplayReadingCopy = (tokens: ScreenplayToken[]): string
       case "stitch":
         break;
       case "title": {
-        const lines = cleanMultiline(t.text ?? "");
+        const lines = cleanMultiline(t.styled ?? t.text ?? "");
         if (lines.length === 0) out.push("^:");
         else if (lines.length === 1) out.push(`^: ${lines[0]}`);
         else out.push("^:", ...lines.map((l) => `${INDENT}${l}`));
         break;
       }
       case "heading": {
-        const lines = cleanMultiline(t.text ?? "").filter((l) => l.length > 0);
+        const lines = cleanMultiline(t.styled ?? t.text ?? "").filter((l) => l.length > 0);
         out.push(lines.length === 0 ? "$:" : `$: ${lines.join(" ")}`);
         break;
       }
       case "transitional": {
-        const lines = cleanMultiline(t.text ?? "").filter((l) => l.length > 0);
+        const lines = cleanMultiline(t.styled ?? t.text ?? "").filter((l) => l.length > 0);
         out.push(lines.length === 0 ? "%:" : `%: ${lines.join(" ")}`);
         break;
       }
       case "action": {
-        const lines = cleanMultiline(t.text ?? "");
+        const lines = cleanMultiline(t.styled ?? t.text ?? "");
         if (lines.length > 0) out.push(...lines);
         break;
       }
       case "dialogue_character": {
-        const name = cleanInline(t.text ?? "");
+        const name = cleanInline(t.styled ?? t.text ?? "");
         const pos = positionMarker(t.position);
         out.push(pos ? `${name} ${pos}:` : `${name}:`);
         break;
       }
       case "dialogue_parenthetical": {
-        const text = cleanInline(t.text ?? "");
+        const text = cleanInline(t.styled ?? t.text ?? "");
         if (text.length > 0) out.push(`${INDENT}${text}`);
         break;
       }
       case "dialogue_content": {
-        const lines = cleanMultiline(t.text ?? "");
+        const lines = cleanMultiline(t.styled ?? t.text ?? "");
         if (lines.length > 0) out.push(...lines.map((l) => `${INDENT}${l}`));
         break;
       }
       case "choice": {
-        const inner = cleanInline(t.text ?? "");
+        const inner = cleanInline(t.styled ?? t.text ?? "");
         if (inner.length === 0) break;
         const wrapped =
           inner.startsWith("[") && inner.endsWith("]") ? inner : `[${inner}]`;

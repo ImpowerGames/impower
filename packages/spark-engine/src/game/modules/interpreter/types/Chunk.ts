@@ -21,6 +21,7 @@ export interface Chunk {
 
   voicedSyllable?: boolean;
   punctuatedSyllable?: boolean;
+  timingContinues?: boolean;
   pitch?: number;
 
   speed: number;
@@ -39,4 +40,6 @@ export interface Chunk {
   underlined?: number;
   wavy?: number;
   shaky?: number;
+
+  look?: Record<string, string>;
 }

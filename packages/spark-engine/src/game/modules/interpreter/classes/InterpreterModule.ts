@@ -8,11 +8,19 @@ import {
   SPAN_END,
   isStyleCode,
   readSpanOpen,
+  readTagCode,
   scanned,
   stripStyleCodes,
+  stripTagCodes,
   writtenText,
   trimStyled,
 } from "@impower/sparkdown/src/runtime/displayStyle";
+import {
+  LOOK_TAGS,
+  readStoryTag,
+  readTextCommandAt,
+} from "@impower/sparkdown/src/runtime/storyTags";
+import { FLAG_TAGS, VALUE_TAGS } from "../../ui/utils/parseRichText";
 import { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { Module } from "../../../core/classes/Module";
 import type {
@@ -69,40 +77,32 @@ export interface InterpreterMessageMap extends Record<string, any> {}
 
 const VOICING_CONTROLS: ReadonlySet<string> = new Set(["play", "start", "queue"]);
 
+const lookStyle = (name: string, argument = ""): Record<string, string> =>
+  name === "align"
+    ? { text_align: argument }
+    : name === "alpha"
+      ? { filter: `opacity(${VALUE_TAGS["alpha"]!(argument)["opacity"]})` }
+      : name === "sub" || name === "sup"
+        ? { "vertical-align": name === "sub" ? "sub" : "super" }
+        : (VALUE_TAGS[name]?.(argument) ?? FLAG_TAGS[name] ?? {});
+
+const sameLook = (
+  a: Record<string, string> | undefined,
+  b: Record<string, string> | undefined,
+): boolean => {
+  const aKeys = Object.keys(a ?? {});
+  return (
+    aKeys.length === Object.keys(b ?? {}).length &&
+    aKeys.every((key) => a![key] === b?.[key])
+  );
+};
+
 export class InterpreterModule extends Module<
   InterpreterState,
   InterpreterMessageMap,
   InterpreterBuiltins
 > {
   MARKERS = SCANNED_MARKS;
-
-  CONTROL_TAGS = ["speed", "pitch", "p", "wait", "w", "!", "/!"];
-
-  RICH_TEXT_TAGS = [
-    "b",
-    "i",
-    "u",
-    "s",
-    "uppercase",
-    "allcaps",
-    "lowercase",
-    "smallcaps",
-    "nobr",
-    "color",
-    "mark",
-    "size",
-    "align",
-    "alpha",
-    "font-weight",
-    "line-height",
-    "cspace",
-    "voffset",
-    "indent",
-    "sub",
-    "sup",
-    "br",
-    "noparse",
-  ];
 
   CHAR_REGEX =
     /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
@@ -311,7 +311,7 @@ export class InterpreterModule extends Module<
       if (!stripStyleCodes(line).trim() || this.ASSET_LINE_REGEX.test(line)) {
         continue;
       }
-      const match = line.match(this.PARENTHETICAL_REGEX);
+      const match = stripTagCodes(line).match(this.PARENTHETICAL_REGEX);
       if (!match) {
         return null;
       }
@@ -549,7 +549,10 @@ export class InterpreterModule extends Module<
       if (!lastTextbox.text) {
         this.describeBeat(lastTextbox, "choice", undefined, source);
       }
-      lastTextbox.options = [...(lastTextbox.options ?? []), ...choices];
+      lastTextbox.options = [
+        ...(lastTextbox.options ?? []),
+        ...choices.map((choice) => this.plainText(choice)),
+      ];
       for (let i = 0; i < choices.length; i += 1) {
         const choice = choices[i]!;
         const choiceInstructions = this.parse(choice, `choice ${i}`, {
@@ -979,6 +982,14 @@ export class InterpreterModule extends Module<
     return clauses;
   }
 
+  plainText(content: string): string {
+    const target = "plain";
+    const instructions = this.parse(content, target, { choice: true });
+    return (instructions.text?.[target] ?? [])
+      .map((event) => event.text ?? "")
+      .join("");
+  }
+
   parse(
     content: string,
     target: string,
@@ -1003,7 +1014,6 @@ export class InterpreterModule extends Module<
 
     const activeMarks: [string][] = [];
     const spanMarks: [string][] = [];
-    const scansAll = Boolean(options?.choice);
     let scanDepth = 0;
     let spanRaw = false;
     const lastMark = (test: (mark: string) => boolean) =>
@@ -1012,6 +1022,8 @@ export class InterpreterModule extends Module<
     let alignModifier = "";
     let speedModifier = 1;
     let pitchModifier: number | undefined = undefined;
+    const looks: { name: string; style: Record<string, string> }[] = [];
+    let look: Record<string, string> | undefined = undefined;
     const wavyIndexMap = new Map<[string], number>();
     const shakyIndexMap = new Map<[string], number>();
 
@@ -1062,11 +1074,74 @@ export class InterpreterModule extends Module<
       escaped = false;
       hidden = false;
 
+      const lookOf = () =>
+        looks.length
+          ? Object.assign({}, ...looks.map((entry) => entry.style))
+          : undefined;
+
+      const actOnTag = (content: string) => {
+        const tag = readStoryTag(content);
+        if (!tag.known) return;
+        if (tag.closes) {
+          const index = looks.findLastIndex((entry) => entry.name === tag.name);
+          if (index >= 0) {
+            looks.splice(index, 1);
+            look = lookOf();
+          }
+        } else if (tag.name === "speed") {
+          speedModifier = getNumberValue(tag.argument, 1);
+        } else if (tag.name === "pitch" || tag.name === "p") {
+          pitchModifier = getNumberValue(tag.argument, 0);
+        } else if (tag.name === "wait" || tag.name === "w") {
+          const waitChunk: Chunk = {
+            duration: getNumberValue(tag.argument, 0),
+            speed: 1,
+          };
+          if (!tag.argument) {
+            waitChunk.text = "";
+          }
+          const phrase = { target: textTarget, chunks: [waitChunk] };
+          linePhrases.push(phrase);
+          allPhrases.push(phrase);
+          startNewPhrase();
+        } else if (tag.name === "!") {
+          hidden = true;
+        } else if (tag.name === "/!") {
+          hidden = false;
+        } else if (tag.name === "br") {
+          if (hidden) return;
+          const currentPhrase = linePhrases.at(-1);
+          if (currentPhrase?.text) {
+            currentPhrase.text += "\n";
+            currentPhrase.chunks ??= [];
+            currentPhrase.chunks.push({ text: "\n", duration: 0, speed: 1 });
+          } else {
+            const phrase = {
+              target: textTarget,
+              text: "\n",
+              chunks: [{ text: "\n", duration: 0, speed: 1 }],
+            };
+            linePhrases.push(phrase);
+            allPhrases.push(phrase);
+          }
+          currChunk = undefined;
+        } else if (LOOK_TAGS.includes(tag.name)) {
+          looks.push({ name: tag.name, style: lookStyle(tag.name, tag.argument) });
+          look = lookOf();
+        }
+      };
+
       const chars = textLine.match(this.CHAR_REGEX);
       if (chars) {
         for (let i = 0; i < chars.length; ) {
           const char = chars[i] ?? "";
           const nextChar = chars[i + 1] ?? "";
+          const tagCode = readTagCode(chars, i);
+          if (tagCode) {
+            i = tagCode.next;
+            actOnTag(tagCode.content);
+            continue;
+          }
           if (isStyleCode(char)) {
             const opened = readSpanOpen(chars, i);
             i = opened ? opened.next : i + 1;
@@ -1083,7 +1158,7 @@ export class InterpreterModule extends Module<
             spanRaw = spanMarks.some(([m]) => m.startsWith("`"));
             continue;
           }
-          const scanning = scansAll || scanDepth > 0;
+          const scanning = scanDepth > 0;
           if (!escaped) {
             if (scanning && char === "`") {
               i += 1;
@@ -1172,68 +1247,26 @@ export class InterpreterModule extends Module<
                 }
                 continue;
               }
-              if (char === "<" && !this.isWhitespace(chars[i + 1])) {
-                let control = "";
-                let arg = "";
-                const startIndex = i;
-                i += 1;
+              if (scanning && char === "<") {
+                let valueEnd = i;
                 while (
-                  chars[i] &&
-                  chars[i] !== ">" &&
-                  chars[i] !== ":" &&
-                  chars[i] !== "="
+                  valueEnd < chars.length &&
+                  chars[valueEnd] !== SCAN_OPEN &&
+                  chars[valueEnd] !== SCAN_CLOSE
                 ) {
-                  control += chars[i];
-                  i += 1;
+                  valueEnd += 1;
                 }
-                if (chars[i] === ":" || chars[i] === "=") {
-                  i += 1;
-                  while (chars[i] && chars[i] !== ">") {
-                    arg += chars[i];
-                    i += 1;
+                const tag = readTextCommandAt(
+                  chars.slice(i, valueEnd).join(""),
+                  0,
+                );
+                if (tag) {
+                  for (let read = 0; read < tag.next; i += 1) {
+                    read += chars[i]!.length;
                   }
+                  actOnTag(tag.content);
+                  continue;
                 }
-                control = control.trimEnd();
-                arg = arg.trim();
-                const closed = chars[i] === ">";
-                const name = (control.split(/\s/)[0] ?? "").replace(/^\//, "");
-                const known =
-                  this.CONTROL_TAGS.includes(name) ||
-                  this.RICH_TEXT_TAGS.includes(name.toLowerCase());
-                if (closed && known) {
-                  i += 1;
-                  if (control) {
-                    if (control === "speed") {
-                      speedModifier = getNumberValue(arg, 1);
-                    } else if (control === "pitch" || control === "p") {
-                      pitchModifier = getNumberValue(arg, 0);
-                    } else if (control === "wait" || control === "w") {
-                      const waitModifier = getNumberValue(arg, 0);
-                      const waitChunk: Chunk = {
-                        duration: waitModifier,
-                        speed: 1,
-                      };
-                      if (!arg) {
-                        waitChunk.text = "";
-                      }
-                      const phrase = {
-                        target: textTarget,
-                        chunks: [waitChunk],
-                      };
-                      linePhrases.push(phrase);
-                      allPhrases.push(phrase);
-                      startNewPhrase();
-                    } else if (control === "!") {
-                      hidden = true;
-                    } else if (control === "/!") {
-                      hidden = false;
-                    }
-                  }
-                } else {
-                  i = startIndex;
-                  escaped = true;
-                }
-                continue;
               }
               const styleMarker = scanning
                 ? this.MARKERS.find(
@@ -1427,6 +1460,7 @@ export class InterpreterModule extends Module<
               shaky,
               tilde,
               pitch,
+              ...(look ? { look } : {}),
             };
             const phrase = {
               target: textTarget,
@@ -1440,7 +1474,7 @@ export class InterpreterModule extends Module<
             if (currentPhrase) {
               currentPhrase.text ??= "";
               currentPhrase.text += char;
-              if (
+              const timingContinues: boolean = Boolean(
                 currChunk &&
                 !currChunk.duration &&
                 !this.isWhitespace(char) &&
@@ -1450,15 +1484,24 @@ export class InterpreterModule extends Module<
                 underlined === currChunk.underlined &&
                 wavy === currChunk.wavy &&
                 shaky === currChunk.shaky &&
-                speed === currChunk.speed
+                speed === currChunk.speed,
+              );
+              if (
+                currChunk &&
+                timingContinues &&
+                (raw || spanRaw) === currChunk.raw &&
+                centered === currChunk.centered &&
+                tilde === currChunk.tilde &&
+                sameLook(look, currChunk.look)
               ) {
                 currChunk.text += char;
               } else {
                 currChunk = {
                   text: char,
-                  duration,
+                  duration: timingContinues ? 0 : duration,
                   speed,
-                  voicedSyllable,
+                  voicedSyllable: timingContinues ? false : voicedSyllable,
+                  timingContinues: timingContinues || undefined,
                   voiced,
                   yelled,
                   raw: raw || spanRaw,
@@ -1470,6 +1513,7 @@ export class InterpreterModule extends Module<
                   shaky,
                   tilde,
                   pitch,
+                  ...(look ? { look } : {}),
                 };
                 currentPhrase.chunks ??= [];
                 currentPhrase.chunks.push(currChunk);
@@ -1485,7 +1529,7 @@ export class InterpreterModule extends Module<
     const lines = trimStyled(content ?? "").split("\n");
     for (let l = 0; l < lines.length; l += 1) {
       const line = trimStyled(lines[l]!, { end: false });
-      if (line.match(this.PARENTHETICAL_REGEX)) {
+      if (stripTagCodes(line).match(this.PARENTHETICAL_REGEX)) {
         alignModifier = "center";
         speedModifier = 0;
         processLine(line, textTarget);
@@ -1550,7 +1594,7 @@ export class InterpreterModule extends Module<
             const minSynthDuration = this.getMinSynthDuration(typewriterSynth);
             for (let c = 0; c < phrase.chunks.length; c += 1) {
               const chunk = phrase.chunks[c]!;
-              if (chunk.text && !this.isWhitespace(chunk.text)) {
+              if (chunk.text && !this.isWhitespace(chunk.text) && !chunk.timingContinues) {
                 chunk.punctuatedSyllable = true;
                 chunk.duration = Math.max(
                   minSynthDuration,
@@ -1586,6 +1630,7 @@ export class InterpreterModule extends Module<
       { time?: number; speed?: number; bend?: number }[]
     > = {};
     const spans: [number, number][] = [];
+    const beeps: number[] = [];
     const speaker = options?.spoken ? character : undefined;
     let voiced = false;
     for (const phrase of allPhrases) {
@@ -1623,6 +1668,9 @@ export class InterpreterModule extends Module<
             if (c.raw) {
               event.style ??= {};
               event.style["white_space"] = "pre";
+            }
+            if (c.look) {
+              event.style = { ...event.style, ...c.look };
             }
 
             const animations = (
@@ -1878,6 +1926,9 @@ export class InterpreterModule extends Module<
                 speed: c.speed ?? 1,
                 bend: c.pitch ?? 0,
               });
+              if (speaker) {
+                beeps.push(time);
+              }
             }
           }
 
@@ -1902,7 +1953,7 @@ export class InterpreterModule extends Module<
     }
 
     if (speaker && (spans.length > 0 || voiced)) {
-      result.speech = { character: speaker, spans, ...(voiced ? { voiced } : {}) };
+      result.speech = { character: speaker, spans, ...(beeps.length > 0 ? { beeps } : {}), ...(voiced ? { voiced } : {}) };
     }
 
     result.end = time;

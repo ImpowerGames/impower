@@ -22,10 +22,9 @@ export type WheelOption = {
 
 export const wheelPickerVariants = cva(
   [
-    "relative overflow-y-auto overscroll-contain outline-none [scrollbar-width:none]",
-    "snap-y snap-mandatory perspective-[600px]",
-    "bg-[linear-gradient(transparent_88px,var(--tint)_88px,var(--tint)_132px,transparent_132px)]",
-    "focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-accent focus-visible:outline-solid",
+    "peer relative overflow-y-auto overscroll-contain outline-none [scrollbar-width:none]",
+    "snap-y snap-mandatory perspective-[520px]",
+    "[mask-image:linear-gradient(transparent,#000_28%,#000_72%,transparent)]",
   ],
   {
     variants: {
@@ -40,9 +39,15 @@ export const wheelPickerVariants = cva(
 export type WheelPickerSize = NonNullable<VariantProps<typeof wheelPickerVariants>["size"]>;
 
 const wheelRow = [
-  "wheel-row-tilt flex h-11 snap-center items-center justify-center gap-2 px-4",
-  "text-[17px]/[1.2] text-muted select-none cursor-pointer",
-  "aria-selected:font-semibold aria-selected:text-ink",
+  "wheel-row-tilt flex h-11 snap-center items-center justify-center gap-2 px-6",
+  "text-[16px]/[1.2] text-ink select-none cursor-pointer",
+];
+
+const wheelBand = [
+  "pointer-events-none absolute inset-x-3 top-1/2 h-11 -translate-y-1/2 rounded-[10px]",
+  "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]",
+  "outline-1 -outline-offset-1 outline-solid outline-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
+  "peer-focus-visible:outline-accent forced-colors:peer-focus-visible:outline-2 forced-colors:peer-focus-visible:outline-[Highlight]",
 ];
 
 export type WheelPickerProps = VariantProps<typeof wheelPickerVariants> & {
@@ -130,39 +135,42 @@ export function WheelPicker({
   };
 
   return (
-    <div
-      ref={(element: HTMLDivElement | null) => {
-        wheel.current = element;
-        if (listRef) {
-          listRef.current = element;
-        }
-      }}
-      role="listbox"
-      tabIndex={0}
-      aria-label={label}
-      aria-activedescendant={`${id}-${at}`}
-      class={cn(wheelPickerVariants({ size }), className)}
-      data-wheel-picker
-      onScroll={() => {
-        frame.current ||= requestAnimationFrame(settle);
-      }}
-      onKeyDown={onKeyDown}
-    >
-      {options.map((option, index) => (
-        <div
-          key={option.value}
-          id={`${id}-${index}`}
-          role="option"
-          aria-selected={index === at}
-          class={cn(wheelRow)}
-          data-wheel-index={index}
-          onClick={() => (index === centred.current ? onChoose(option.value) : turnTo(index, true))}
-        >
-          <span>{option.label}</span>
-          {option.hint ? <small class="text-[12px] font-normal text-muted">{option.hint}</small> : null}
-          {option.value === value ? <CheckIcon aria-hidden="true" class="size-4 text-accent" /> : null}
-        </div>
-      ))}
+    <div class="relative" data-wheel-frame>
+      <div
+        ref={(element: HTMLDivElement | null) => {
+          wheel.current = element;
+          if (listRef) {
+            listRef.current = element;
+          }
+        }}
+        role="listbox"
+        tabIndex={0}
+        aria-label={label}
+        aria-activedescendant={`${id}-${at}`}
+        class={cn(wheelPickerVariants({ size }), className)}
+        data-wheel-picker
+        onScroll={() => {
+          frame.current ||= requestAnimationFrame(settle);
+        }}
+        onKeyDown={onKeyDown}
+      >
+        {options.map((option, index) => (
+          <div
+            key={option.value}
+            id={`${id}-${index}`}
+            role="option"
+            aria-selected={index === at}
+            class={cn(wheelRow)}
+            data-wheel-index={index}
+            onClick={() => (index === centred.current ? onChoose(option.value) : turnTo(index, true))}
+          >
+            <span>{option.label}</span>
+            {option.hint ? <small class="text-[11px] text-muted">{option.hint}</small> : null}
+            {option.value === value ? <CheckIcon aria-hidden="true" class="size-[15px] text-accent" /> : null}
+          </div>
+        ))}
+      </div>
+      <div aria-hidden="true" class={cn(wheelBand)} data-wheel-band />
     </div>
   );
 }

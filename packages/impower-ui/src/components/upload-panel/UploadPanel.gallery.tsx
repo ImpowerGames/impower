@@ -16,9 +16,9 @@ const ROWS: UploadPanelRow[] = [
 function UploadPanelDemo() {
   return (
     <div class="space-y-4">
-      <GalleryRow label="uploading, with each row state">
+      <GalleryRow label="adding, with each row state">
         <div class="w-[420px]">
-          <UploadPanel heading="Uploading 3 of 4" rows={ROWS} onClose={() => {}} />
+          <UploadPanel heading="Adding 3 of 4" rows={ROWS} onClose={() => {}} />
         </div>
       </GalleryRow>
       <GalleryRow label="finished with one not added, at a narrow width">

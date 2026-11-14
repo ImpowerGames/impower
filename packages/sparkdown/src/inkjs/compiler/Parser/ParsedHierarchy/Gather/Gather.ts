@@ -23,6 +23,8 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
   // on out of it, so it is never a loose end.
   public endsChooseBlock = false;
 
+  public endLinesAfterBody = 0;
+
   constructor(
     identifier: Identifier | null,
     public readonly indentationDepth: number,

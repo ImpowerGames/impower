@@ -228,6 +228,21 @@ const popoverAt = (
   return diagnostics.length ? { ...target, diagnostics } : null;
 };
 
+export const showLineProblems = (view: EditorView): boolean => {
+  const line = view.state.doc.lineAt(view.state.selection.main.from);
+  const target = { pos: line.from, line: true };
+  if (!popoverAt(view.state, target)) {
+    return false;
+  }
+  view.dispatch({
+    effects: [
+      setProblemPopover.of(target),
+      EditorView.scrollIntoView(line.from, { y: "nearest" }),
+    ],
+  });
+  return true;
+};
+
 const renderPopover = (
   view: EditorView,
   popover: PopoverState,

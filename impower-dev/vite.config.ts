@@ -5,7 +5,7 @@ import fs from "fs";
 import { createRequire } from "module";
 import path from "path";
 import glob from "tiny-glob";
-import { build, defineConfig, Plugin } from "vite";
+import { build, defineConfig, Plugin, type ViteDevServer } from "vite";
 import { filterSVG } from "../packages/sparkdown/src/compiler/utils/filterSVG";
 import {
   parseImageFilterParam,
@@ -198,6 +198,72 @@ const readEditorGlobalCss = (): string =>
   EDITOR_GLOBAL_CSS_FILES.map((f) =>
     fs.readFileSync(path.resolve(process.cwd(), f), "utf-8"),
   ).join("\n");
+
+const renderDevPage = async (
+  server: ViteDevServer,
+  url: string,
+  requestUrl: string = url,
+): Promise<string | undefined> => {
+  const route =
+    url === "/" ? "index" : url.replace(/^\//, "").replace(".html", "");
+  const possibleHtmlPath = path.join(
+    process.cwd(),
+    "src",
+    "pages",
+    `${route}.html`,
+  );
+
+  if (!fs.existsSync(possibleHtmlPath)) return undefined;
+
+  let impowerUiTailwindCss = "";
+  try {
+    const tw = await server.transformRequest(
+      "/@fs/" + impowerUiStyleCss.replace(/\\/g, "/") + "?direct",
+    );
+    if (tw?.code) impowerUiTailwindCss = tw.code;
+  } catch (err) {
+    console.warn(
+      "[ssg] Failed to inline impower-ui Tailwind CSS:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  const cssPath = fs.existsSync(
+    path.join(process.cwd(), `${pagesInDir}/${route}.css`),
+  )
+    ? `/${pagesInDir}/${route}.css`
+    : "";
+
+  const mjsPath = fs.existsSync(
+    path.join(process.cwd(), `${pagesInDir}/${route}.ts`),
+  )
+    ? `/${pagesInDir}/${route}.ts`
+    : fs.existsSync(path.join(process.cwd(), `${pagesInDir}/${route}.js`))
+      ? `/${pagesInDir}/${route}.js`
+      : "";
+
+  const documentHtml = withThemeColor(
+    fs.readFileSync(
+      path.join(process.cwd(), "src", "public", "document.html"),
+      "utf-8",
+    ),
+    readThemeColors(),
+  );
+
+  const html = await fs.promises
+    .readFile(possibleHtmlPath, "utf-8")
+    .catch(() => "");
+
+  const renderedHtml = await server.transformIndexHtml(
+    requestUrl,
+    staticallyRenderPage(documentHtml, { html, cssPath, mjsPath }),
+  );
+
+  return staticallyStylePage(
+    renderedHtml,
+    [readEditorGlobalCss(), impowerUiTailwindCss].filter(Boolean).join("\n"),
+  );
+};
 
 const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
   name: "vite-statically-rendered-pages",
@@ -649,75 +715,8 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
 
         if (url.includes(".")) return next();
 
-        const route =
-          url === "/" ? "index" : url.replace(/^\//, "").replace(".html", "");
-        const possibleHtmlPath = path.join(
-          process.cwd(),
-          "src",
-          "pages",
-          `${route}.html`,
-        );
-
-        if (!fs.existsSync(possibleHtmlPath)) return next();
-
-        const preactRegistryModule = await server.ssrLoadModule(
-          `/src/modules/spark-editor/preact-registry.ts`,
-        );
-        const rootComponent = preactRegistryModule.rootComponent;
-
-        let impowerUiTailwindCss = "";
-        try {
-          const tw = await server.transformRequest(
-            "/@fs/" + impowerUiStyleCss.replace(/\\/g, "/") + "?direct",
-          );
-          if (tw?.code) impowerUiTailwindCss = tw.code;
-        } catch (err) {
-          console.warn(
-            "[ssg] Failed to inline impower-ui Tailwind CSS:",
-            err instanceof Error ? err.message : err,
-          );
-        }
-
-        const cssPath = fs.existsSync(
-          path.join(process.cwd(), `${pagesInDir}/${route}.css`),
-        )
-          ? `/${pagesInDir}/${route}.css`
-          : "";
-
-        const mjsPath = fs.existsSync(
-          path.join(process.cwd(), `${pagesInDir}/${route}.ts`),
-        )
-          ? `/${pagesInDir}/${route}.ts`
-          : fs.existsSync(path.join(process.cwd(), `${pagesInDir}/${route}.js`))
-            ? `/${pagesInDir}/${route}.js`
-            : "";
-
-        const documentHtml = withThemeColor(
-          fs.readFileSync(
-            path.join(process.cwd(), "src", "public", "document.html"),
-            "utf-8",
-          ),
-          readThemeColors(),
-        );
-
-        const html = await fs.promises
-          .readFile(possibleHtmlPath, "utf-8")
-          .catch(() => "");
-
-        let renderedHtml = staticallyRenderPage(
-          documentHtml,
-          { html, cssPath, mjsPath },
-          rootComponent,
-        );
-
-        renderedHtml = await server.transformIndexHtml(req.url, renderedHtml);
-
-        const styledHtml = staticallyStylePage(
-          renderedHtml,
-          [readEditorGlobalCss(), impowerUiTailwindCss]
-            .filter(Boolean)
-            .join("\n"),
-        );
+        const styledHtml = await renderDevPage(server, url, req.url);
+        if (styledHtml === undefined) return next();
 
         res.setHeader("Content-Type", "text/html");
         res.end(styledHtml);
@@ -754,6 +753,7 @@ export {
   readEditorGlobalCss,
   readThemeColors,
   readManifestColor,
+  renderDevPage,
   viteStaticallyRenderedPagesPlugin,
 };
 

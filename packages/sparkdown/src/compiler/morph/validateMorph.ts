@@ -3,6 +3,7 @@ import type {
   StructSource,
 } from "../lower/lowerers/lowerStructBodyTyped";
 import {
+  MORPH_BEEP_EXCLUDED_TIMING,
   MORPH_BLENDS,
   MORPH_CLIP_FIELDS,
   MORPH_CLIP_LIST_FIELDS,
@@ -18,6 +19,7 @@ import {
   MORPH_ROOT_FIELDS,
   MORPH_SPEECH_EXCLUDED_TIMING,
   MORPH_SPREAD_PROBLEM,
+  MORPH_SYNCS,
   MORPH_TIMING_FIELDS,
   MORPH_TRIGGERS,
   easingProblem,
@@ -795,15 +797,23 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         `\`iteration_delay_max\` (${max}) must be at least \`iteration_delay_min\` (${min}).`,
       );
     }
-    if (effectiveTiming["trigger"] === "speech") {
-      for (const [field, reason] of Object.entries(MORPH_SPEECH_EXCLUDED_TIMING)) {
+    const named = (field: string, at: Span) => (at === decl.parent ? `\`${field}\`, inherited,` : `\`${field}\``);
+    const exclude = (fields: Record<string, string>, kind: string, other: string) => {
+      for (const [field, reason] of Object.entries(fields)) {
         if (!decl.timingWritten.has(field)) continue;
         const at = spanOf(field);
-        push(
-          at,
-          `${at === decl.parent ? `\`${field}\`, inherited,` : `\`${field}\``} does not apply to a speech morph: ${reason}. Remove it, or use \`trigger = appear\`.`,
-        );
+        push(at, `${named(field, at)} does not apply to ${kind}: ${reason}. Remove it, or use \`${other}\`.`);
       }
+    };
+    if (effectiveTiming["trigger"] === "speech") {
+      exclude(MORPH_SPEECH_EXCLUDED_TIMING, "a speech morph", "trigger = appear");
+      if (effectiveTiming["sync"] === "beep") exclude(MORPH_BEEP_EXCLUDED_TIMING, "a morph with `sync = beep`", "sync = none");
+    } else if (decl.timingWritten.has("sync")) {
+      const at = spanOf("sync");
+      push(
+        at,
+        `${named("sync", at)} applies only to a speech morph, and this morph is not one. Remove it, or use \`trigger = speech\`.`,
+      );
     }
   }
   if (Object.hasOwn(own, "default")) {
@@ -853,6 +863,11 @@ function checkTiming(
             field,
             `${describeValue(value)} is not a \`trigger\`. Use ${quoteList(MORPH_TRIGGERS)}.`,
           );
+        }
+        break;
+      case "sync":
+        if (!has(MORPH_SYNCS, value)) {
+          report(field, `${describeValue(value)} is not a \`sync\`. Use ${quoteList(MORPH_SYNCS)}.`);
         }
         break;
       case "duration":

@@ -101,6 +101,20 @@ describe("a project folder", () => {
     expect(shown.beats.map((beat) => beat.text)).toEqual(["First.\n", "Second.\n"]);
   });
 
+  it("still resolves a divert into a script after that script's file is renamed, since nothing names a script by its file", () => {
+    const texts = (file: string) => ({
+      [MAIN]: lines("scene start", "  -> harbor", "end"),
+      [`${ROOT}Scripts/${file}`]: lines("scene harbor", "  The harbor.", "  done", "end"),
+    });
+    for (const file of ["Untitled script.sd", "Harbor.sd"]) {
+      const program = compileProject(texts(file), MAIN, { uriPathsAsWritten: true });
+      expect(errorsOf(program)).toEqual([]);
+      expect(Object.keys(program.scripts)).toEqual([MAIN, `${ROOT}Scripts/${file}`]);
+      const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
+      expect(shown.beats.map((beat) => beat.text)).toEqual(["The harbor.\n"]);
+    }
+  });
+
   it("reads only .sd files as its scripts, whatever else a host registers as one", () => {
     const program = compileProject({
       [MAIN]: lines('run "helper"', "scene start", "  Main {x}.", "end"),

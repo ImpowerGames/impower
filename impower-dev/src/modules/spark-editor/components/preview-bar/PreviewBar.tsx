@@ -1,11 +1,12 @@
 import {
   Button,
+  CloseIcon,
   DetourIcon,
   DropdownContent,
   DropdownRoot,
   DropdownTrigger,
   ExpandIcon,
-  PinIcon,
+  PinFillIcon,
   ScissorsIcon,
   SettingsIcon,
   ShrinkIcon,
@@ -36,6 +37,7 @@ import {
 export interface PreviewBarProps {
   fullscreen: boolean;
   onToggleFullscreen: () => void;
+  onClose?: () => void;
 }
 
 const BAR_TEXT = "text-[11px]/[1.4] font-semibold tabular-nums";
@@ -43,6 +45,7 @@ const BAR_TEXT = "text-[11px]/[1.4] font-semibold tabular-nums";
 export default function PreviewBar({
   fullscreen,
   onToggleFullscreen,
+  onClose,
 }: PreviewBarProps) {
   const layout = useLayout();
   const size = sizeControl(workspaceSettings.preferences.value.previewMode);
@@ -59,16 +62,29 @@ export default function PreviewBar({
       ) : layout === "phone" ? null : (
         <AspectRatioMenu pageFillsPane={size === "pageFillsPane"} />
       )}
-      <Button
-        variant="quiet"
-        size="icon"
-        aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen preview"}
-        title={fullscreen ? "Exit fullscreen" : "Fullscreen preview"}
-        class="text-muted"
-        onClick={onToggleFullscreen}
-      >
-        {fullscreen ? <ShrinkIcon /> : <ExpandIcon />}
-      </Button>
+      {onClose ? (
+        <Button
+          variant="quiet"
+          size="icon"
+          aria-label="Close the preview"
+          title="Close the preview"
+          class="text-muted"
+          onClick={onClose}
+        >
+          <CloseIcon />
+        </Button>
+      ) : (
+        <Button
+          variant="quiet"
+          size="icon"
+          aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen preview"}
+          title={fullscreen ? "Exit fullscreen" : "Fullscreen preview"}
+          class="text-muted"
+          onClick={onToggleFullscreen}
+        >
+          {fullscreen ? <ShrinkIcon /> : <ExpandIcon />}
+        </Button>
+      )}
     </div>
   );
 }
@@ -76,7 +92,7 @@ export default function PreviewBar({
 const READOUT_ICONS = {
   forced: <DetourIcon data-icon="detour" class="text-warning" />,
   clipped: <ScissorsIcon data-icon="scissors" class="text-warning" />,
-  pinned: <PinIcon data-icon="pin" class="text-accent" />,
+  pinned: <PinFillIcon data-icon="pin-fill" class="text-accent" />,
   failure: <WarningIcon data-icon="warning" class="text-error" />,
   stopped: <StopSignIcon data-icon="stop-sign" class="text-warning" />,
 };

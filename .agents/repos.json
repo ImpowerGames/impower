@@ -3,5 +3,18 @@
   "internal": "ImpowerGames/impower-internal",
   "autolinkPrefix": "I-",
   "cutover": true,
-  "feedbackInbox": 355
+  "feedbackInbox": 355,
+  "maintainer": {
+    "login": "lovelle-cardoso",
+    "labels": {
+      "decision": "maintainer: decision",
+      "task": "maintainer: task",
+      "decidedWithoutYou": "maintainer: decided without you"
+    },
+    "app": {
+      "slug": null,
+      "id": null,
+      "installationId": null
+    }
+  }
 }

@@ -14,6 +14,7 @@ import {
   PROBLEM_POPOVER_GRACE,
   problemMarks,
   setProblemPopover,
+  showLineProblems,
 } from "../src/cm-problem-marks/problemMarks";
 import {
   applyEditorFix,
@@ -321,5 +322,24 @@ describe("the problem popover", () => {
     popover(view)!.dispatchEvent(new Event("pointerenter"));
     vi.advanceTimersByTime(PROBLEM_POPOVER_GRACE);
     expect(popover(view)).not.toBeNull();
+  });
+
+  it("opens for the caret's line when asked from outside the editor, with its fixes, and not on a line with none", () => {
+    const view = editor(`Rain.${String.fromCharCode(10)}show alcie`, [
+      history(),
+      problemMarks(),
+    ]);
+    view.dispatch(
+      setDiagnostics(view.state, [{ ...diagnostic(), from: 11, to: 16 }]),
+    );
+    view.dispatch({ selection: { anchor: 0 } });
+    expect(showLineProblems(view)).toBe(false);
+    expect(popover(view)).toBeNull();
+    view.dispatch({ selection: { anchor: 8 } });
+    expect(showLineProblems(view)).toBe(true);
+    expect(popover(view)?.textContent).toContain("Cannot find alcie");
+    expect(popover(view)!.querySelector("button")!.textContent).toBe(
+      "Use alice instead",
+    );
   });
 });

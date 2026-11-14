@@ -53,7 +53,11 @@ describe("Application.setAudioContext identity guard (#394)", () => {
   test("the clock's next delta stays positive after a same-context call", () => {
     const source = { currentTime: 0 };
     let tickCount = 0;
-    const clock = new Clock(source, () => 0);
+    let nextFrame: (() => void) | undefined;
+    const clock = new Clock(source, (frame) => {
+      nextFrame = frame;
+      return 0;
+    });
     clock.add(() => { tickCount += 1; });
     clock.start();
 
@@ -67,7 +71,7 @@ describe("Application.setAudioContext identity guard (#394)", () => {
     setAudioContext.call(app, ctx);
 
     tickCount = 0;
-    (clock as any).loop();
+    nextFrame?.();
     expect(tickCount).toBeGreaterThan(0);
   });
 
