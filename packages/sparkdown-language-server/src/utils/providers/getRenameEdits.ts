@@ -1,11 +1,14 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { type Reference } from "@impower/sparkdown/src/compiler/classes/annotators/ReferenceAnnotator";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { CHARACTER_ALIAS_ID } from "@impower/sparkdown/src/compiler/utils/characterAliasOwners";
 import { runOperandNameSpan } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { type Tree } from "@lezer/common";
 import {
   AnnotatedTextEdit,
   ErrorCodes,
   ResponseError,
+  type Location,
   type CreateFile,
   type DeleteFile,
   type Position,
@@ -26,6 +29,45 @@ import { getSymbol } from "./getSymbol";
 
 const RUN_FILE_NAME =
   /^[^\s./\\"'\p{C}\p{Zl}\p{Zp}](?:[^./\\"'\p{C}\p{Zl}\p{Zp}]*[^\s./\\"'\p{C}\p{Zl}\p{Zp}])?$/u;
+
+const isCharacterNameText = (reference: Reference): boolean =>
+  reference.declaration === "character_name" ||
+  !!reference.symbolIds?.some((id) => id.startsWith(CHARACTER_ALIAS_ID));
+
+const characterNameQuotes = (
+  workspace: SparkdownLanguageServerWorkspace,
+  references: readonly Location[] | undefined,
+): Set<string> | undefined => {
+  if (!references?.length) {
+    return undefined;
+  }
+  const quotes = new Set<string>();
+  for (const { uri, range } of references) {
+    const document = workspace.document(uri);
+    if (!document) {
+      return undefined;
+    }
+    const from = document.offsetAt(range.start);
+    const to = document.offsetAt(range.end);
+    let found = false;
+    const r = workspace.annotations(uri)?.references.iter(from);
+    while (r?.value && r.from <= from) {
+      if (r.from === from && r.to === to && isCharacterNameText(r.value.type)) {
+        found = true;
+        break;
+      }
+      r.next();
+    }
+    if (!found) {
+      return undefined;
+    }
+    const before = document.read(from - 1, from);
+    if (before === `"` || before === "'") {
+      quotes.add(before);
+    }
+  }
+  return quotes;
+};
 
 export const getRenameEdits = (
   settings: SparkdownConfiguration | undefined,
@@ -81,6 +123,7 @@ export const getRenameEdits = (
       currentName,
       newName,
       resolvedSymbolIds,
+      characterNameQuotes(workspace, references),
     );
     if (refusal) {
       throw new ResponseError(ErrorCodes.InvalidRequest, refusal);
