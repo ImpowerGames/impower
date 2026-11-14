@@ -2,6 +2,7 @@ import { codeFolding, foldGutter, foldService } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
+import { iconMasks } from "@impower/impower-ui/icon-masks";
 import { setBreakpointStates } from "../../src/cm-breakpoints/breakpoints";
 import {
   setChoiceMarkers,
@@ -43,6 +44,7 @@ const foldChoose = foldService.of((state, from) => {
 
 const mount = (pointerCoarse: boolean) => {
   const parent = document.body.appendChild(document.createElement("section"));
+  parent.className = "sparkdown-script-editor-root";
   parent.dataset["pointer"] = pointerCoarse ? "coarse" : "fine";
   const view = new EditorView({
     state: EditorState.create({
@@ -74,5 +76,21 @@ const setPinned = (pinned: boolean) =>
   setChoiceMarkers(view, [choice(3, false), choice(5, pinned)]);
 
 setPinned(false);
+
+const routeIcons = document.body.appendChild(document.createElement("spark-web-player"));
+routeIcons.className = "route-icon-samples";
+routeIcons.style.cssText = "position: fixed; right: 0; bottom: 0; display: flex; gap: 8px;";
+for (const [kind, mask] of [
+  ["auto", iconMasks["pin"]],
+  ["pinned", iconMasks["pin-fill"]],
+] as const) {
+  const entry = routeIcons.appendChild(document.createElement("div"));
+  entry.className = "route-entry";
+  entry.dataset["kind"] = kind;
+  const icon = entry.appendChild(document.createElement("span"));
+  icon.className = "route-icon route-icon-mask";
+  icon.dataset["icon"] = kind;
+  icon.style.setProperty("--route-icon-mask", mask);
+}
 
 Object.assign(window, { gutterMarks: { view, setPinned, coarse } });

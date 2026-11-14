@@ -160,3 +160,33 @@ describe("a press where a fold marker's touch target reaches into the breakpoint
     await page.context().close();
   });
 });
+
+describe("the gutter marks and route pins under forced colours", () => {
+  it("paint every masked glyph in CanvasText, so none turns into Canvas on Canvas", async () => {
+    const context = await browser.newContext({ viewport: { width: 430, height: 600 }, forcedColors: "active" });
+    const page = await context.newPage();
+    await page.goto(pageUrl);
+    await page.waitForFunction(() => "gutterMarks" in window);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const paints = await page.evaluate(() => {
+      const probe = document.body.appendChild(document.createElement("span"));
+      probe.style.color = "CanvasText";
+      const canvasText = getComputedStyle(probe).color;
+      const glyphs = [...document.querySelectorAll(".cm-breakpoint, .cm-fold-marker, .cm-choice-marker")].map((mark) => [
+        mark.className.replace("cm-gutter-button ", ""),
+        getComputedStyle(mark.querySelector(".cm-gutter-button-glyph")!, "::before").backgroundColor,
+      ]);
+      const route = [...document.querySelectorAll(".route-icon-mask")].map((icon) => [
+        `route ${(icon as HTMLElement).dataset["icon"]}`,
+        getComputedStyle(icon).backgroundColor,
+      ]);
+      return { canvasText, marks: [...glyphs, ...route] };
+    });
+    expect(paints.marks.some(([kind]) => kind === "route auto")).toBe(true);
+    expect(paints.marks.some(([kind]) => kind === "route pinned")).toBe(true);
+    for (const [kind, paint] of paints.marks) {
+      expect([kind, paint]).toEqual([kind, paints.canvasText]);
+    }
+    await context.close();
+  });
+});

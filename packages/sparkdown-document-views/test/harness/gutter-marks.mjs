@@ -8,7 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PAGE_STYLE = `
 :root { color-scheme: dark; --ink: #e6e6e6; --muted: #8a8f98; --accent: #4ea1ff; --editor-breakpoint: #e5484d; --radius-sm: 4px; }
 body { margin: 0; padding: 16px; background: #1e1f22; color: var(--ink); font: 16px/1.5 monospace; }
-section { width: 360px; margin-bottom: 24px; }
+section { width: 360px; height: 320px; margin-bottom: 24px; }
 `;
 
 export const buildGutterMarksPage = async (outDir) => {
@@ -28,10 +28,18 @@ export const buildGutterMarksPage = async (outDir) => {
     resolve(here, "../../../impower-ui/src/style.css"),
     "utf8",
   );
+  const editorCss = readFileSync(
+    resolve(here, "../../src/modules/script-editor/sparkdown-script-editor.css"),
+    "utf8",
+  );
+  const routeCss = readFileSync(
+    resolve(here, "../../../spark-web-player/src/route/route-list.css"),
+    "utf8",
+  );
   const page = join(outDir, "gutter-marks.html");
   writeFileSync(
     page,
-    `<!doctype html><meta charset="utf-8"><title>Gutter marks</title><style>${impowerUi}</style><style>${PAGE_STYLE}</style><body><script src="gutter-marks.js"></script></body>`,
+    `<!doctype html><meta charset="utf-8"><title>Gutter marks</title><style>${impowerUi}</style><style>${editorCss}</style><style>${routeCss}</style><style>${PAGE_STYLE}</style><body><script src="gutter-marks.js"></script></body>`,
   );
   return pathToFileURL(page).href;
 };
