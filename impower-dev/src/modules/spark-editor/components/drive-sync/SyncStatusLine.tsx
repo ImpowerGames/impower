@@ -1,6 +1,6 @@
 import { ErrorIcon, WarningIcon } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
-import type { SaveAction } from "../../workspace/saveStatus";
+import { saveStatusOf, type SaveAction } from "../../workspace/saveStatus";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
 import LocalStorageStatus from "./LocalStorageStatus";
@@ -11,6 +11,8 @@ const ACTION_TITLE: Record<SaveAction, string> = {
   settings: "Open Save & sync",
   conflict: "Resolve the sync conflict",
 };
+
+const SETTLED_TEXT = saveStatusOf("cached", true)?.text;
 
 const STATUS_BUTTON =
   "inline-flex cursor-pointer items-center gap-1 rounded-sm px-0 text-[12px]/[18px] text-muted outline-none hover:underline focus-visible:underline data-[tone=saved]:text-success data-[tone=pending]:text-primary data-[tone=warning]:text-warning data-[tone=error]:text-danger [&_svg]:size-3.5";
@@ -36,7 +38,7 @@ export default function SyncStatusLine() {
   if (!status) {
     return (
       <span class="skeleton-sheen block h-[18px] w-20 rounded-full text-transparent">
-        Draft saved
+        {SETTLED_TEXT}
       </span>
     );
   }
