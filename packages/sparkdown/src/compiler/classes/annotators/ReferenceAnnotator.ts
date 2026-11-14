@@ -36,6 +36,7 @@ import {
   type SourceDirective,
 } from "../../utils/readDirective";
 import { distinctRanges } from "../../utils/distinctRanges";
+import { CHARACTER_ALIAS_ID } from "../../utils/characterAliasOwners";
 
 export interface Reference {
   usage?: "divert" | "handler";
@@ -51,7 +52,8 @@ export interface Reference {
     | "define_variable_name"
     | "param"
     | "property"
-    | "character_name";
+    | "character_name"
+    | "character_alias";
   kind?: "write" | "read";
   symbolIds?: string[];
   interdependentIds?: string[];
@@ -278,6 +280,69 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     this.oopHasParent = false;
     this.pendingOOPName = null;
     this.divertPathParts = [];
+  }
+
+  private characterAliasReferences(
+    property: SyntaxNode,
+  ): Range<SparkdownAnnotation<Reference>>[] {
+    const assigned: SparkDeclaration = {
+      modifier: "define",
+      type: "character",
+      name: this.defineName,
+      property: "aliases",
+    };
+    const operation = getDescendent("LuauAssignmentOperation_content", property);
+    const values: SyntaxNode[] = [];
+    for (let child = operation?.firstChild; child; child = child.nextSibling) {
+      if (child.name !== "LuauAssignmentOperator" && !isTrivia(child)) {
+        values.push(child);
+      }
+    }
+    const table = values.length === 1 && values[0]!.name === "LuauTable" ? values[0]! : null;
+    if (!table) {
+      return values.length === 0
+        ? []
+        : [
+            SparkdownAnnotation.mark<Reference>({
+              declaration: "character_alias",
+              assigned,
+            }).range(values[0]!.from, values.at(-1)!.to),
+          ];
+    }
+    const entries: SyntaxNode[][] = [];
+    let entry: SyntaxNode[] = [];
+    const tableContent = findChildByName(table, "LuauTable_content");
+    for (let child = tableContent?.firstChild; child; child = child.nextSibling) {
+      if (child.name.endsWith("Separator")) {
+        entries.push(entry);
+        entry = [];
+      } else if (!isTrivia(child) && child.name !== "Newline") {
+        entry.push(child);
+      }
+    }
+    entries.push(entry);
+    const references: Range<SparkdownAnnotation<Reference>>[] = [];
+    for (const entry of entries) {
+      if (entry.length === 0) continue;
+      const string =
+        entry.length === 1 && STRING_INDEX.has(entry[0]!.name) ? entry[0]! : null;
+      const content = string ? findChildByName(string, `${string.name}_content`) : null;
+      const node = content ?? string;
+      references.push(
+        SparkdownAnnotation.mark<Reference>(
+          node
+            ? {
+                declaration: "character_alias",
+                symbolIds: [
+                  CHARACTER_ALIAS_ID + (content ? this.read(content.from, content.to) : ""),
+                ],
+                assigned,
+              }
+            : { declaration: "character_alias", assigned },
+        ).range(node?.from ?? entry[0]!.from, node?.to ?? entry.at(-1)!.to),
+      );
+    }
+    return references;
   }
 
   private resetDefineState() {
@@ -736,6 +801,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             );
           }
         }
+        if (this.defineType === "character" && propName === "aliases") {
+          annotations.push(...this.characterAliasReferences(nodeRef.node));
+        }
       }
       return annotations;
     }
@@ -887,10 +955,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const name = this.read(nodeRef.from, nodeRef.to);
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
-          symbolIds: ["character." + name, "character.?.name=" + name],
+          symbolIds: [
+            "character." + name,
+            "character.?.name=" + name,
+            CHARACTER_ALIAS_ID + name,
+          ],
           selectors: [
             { types: ["character"], name },
             { types: ["character"], property: "name", value: name },
+            { types: ["character"], property: "aliases", value: name },
           ],
           kind: "read",
           linkable: true,
