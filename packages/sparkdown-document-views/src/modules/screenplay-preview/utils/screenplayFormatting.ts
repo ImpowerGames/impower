@@ -826,6 +826,15 @@ export const decorate = (
         return false;
       } else if (isUnprinted(nodeRef)) {
         hideInlineRange(nodeRef);
+        const line = doc.lineAt(from);
+        if (
+          to <= line.to &&
+          !blankLines.has(line.number) &&
+          !/\S/.test(line.text.slice(0, from - line.from)) &&
+          !/\S/.test(line.text.slice(to - line.from))
+        ) {
+          decorations.push(Decoration.line({ attributes: { style: "display: none;" } }).range(line.from));
+        }
         return false;
       } else if (SHOWN_AS_SOURCE.has(name)) {
         shownAsSource.push(from, to);
