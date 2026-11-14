@@ -125,12 +125,14 @@ describe("the inspector's details rows", () => {
 });
 
 describe("the inspector's head", () => {
-  it("reads the type, its ending and the variants", () => {
-    expect(titleLine(asset("Assets/Images/harbor.png", "image"))).toBe("Image · PNG");
-    expect(titleLine(asset("Assets/Images/Portraits/imani.png", "image", { variantCount: 3 }))).toBe(
-      "Image · PNG · 3 variants",
-    );
-    expect(titleLine(asset("Assets/Images/one.png", "image", { variantCount: 1 }))).toBe("Image · PNG");
+  it("reads the kind and the variants, without the file type", () => {
+    expect(titleLine(asset("Assets/Images/harbor.png", "image"))).toBe("Image");
+    expect(titleLine(asset("Assets/Images/Portraits/imani.png", "image", { variantCount: 3 }))).toBe("Image · 3 variants");
+    expect(titleLine(asset("Assets/Images/one.png", "image", { variantCount: 1 }))).toBe("Image");
+    expect(titleLine(asset("Assets/Audio/rain.mp3", "audio"))).toBe("Audio");
+    expect(titleLine(asset("Assets/Fonts/serif.ttf", "font"))).toBe("Font");
+    expect(titleLine(asset("Assets/notes.csv", "other"))).toBe("File");
+    expect(titleLine(asset("Assets/Images/sky.url", "image", { link: true, address: "https://example.com/sky.png" }))).toBe("Link");
   });
 
   it("has a note for each type with no uses", () => {

@@ -28,6 +28,7 @@ import {
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { MORPH_CLAUSE_DOC } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
+import { ASSET_TYPES } from "@impower/sparkdown/src/compiler/constants/assetTypes";
 import { resolveImageReference, typedImageTypes } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
@@ -170,6 +171,8 @@ const getDefineContext = (
   }
   return null;
 };
+
+const DEFINE_VALUE_ASSET_TYPES: ReadonlySet<string> = new Set(ASSET_TYPES);
 
 const KEYFRAME_POSITION_KEYWORDS = ["from", "to"];
 
@@ -2284,6 +2287,17 @@ const completionsAt = (
         valueCursorOffset,
       );
     } else {
+      if (
+        DEFINE_VALUE_ASSET_TYPES.has(valueText.split(".")[0] ?? "") &&
+        getDefineContext(leftStack, read)
+      ) {
+        addStructAccessPathCompletions(
+          completions,
+          program,
+          valueText,
+          valueCursorOffset,
+        );
+      }
       const scopes = getDeclarationScopes(scripts, cursor);
       const scopePath = getParentSectionPath(leftStack, read).join(".");
       addMutableAccessPathCompletions(

@@ -2,6 +2,7 @@ import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { cn } from "../../utils/cn";
+import "../../utils/uniqueIds";
 
 export const popoverVariants = cva(
   [

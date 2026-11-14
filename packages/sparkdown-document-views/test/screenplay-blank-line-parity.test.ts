@@ -1,7 +1,16 @@
+import { syntaxTree } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { afterAll, describe, expect, it } from "vitest";
+import { insertedAt } from "../../sparkdown-screenplay/src/utils/printedPosition";
+import {
+  type PrintedPlaces,
+  placePrintedLine,
+  screenplayPageLayout,
+} from "../../sparkdown-screenplay/src/utils/screenplayPageLayout";
 import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
+import type { PageLine } from "../../sparkdown-screenplay/src/types/DocumentSpan";
 import { isHiddenIdentifier } from "../../sparkdown-screenplay/src/utils/isHiddenIdentifier";
+import { SOURCE_COLOR } from "../../sparkdown-screenplay/src/utils/styleText";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import { generateScreenplayPrintData } from "../../sparkdown-screenplay/src/utils/generateScreenplayPrintData";
 import createEditorView from "../src/modules/screenplay-preview/utils/createEditorView";
@@ -116,6 +125,23 @@ const KINDS: Record<string, string[]> = {
   ChoiceHtml: ["  * [Pick <i>this</i> &amp; \"that\" </script>]"],
   InlineDialogueHtml: ["  GUIDE: Say <b>hi</b> &amp; \"bye\" </script>."],
   InlineDialogueHtmlInterpolation: ["  GUIDE: Say {\"<b>hi</b> &amp; </script>\"} now."],
+  ImplicitActionMarkup: ["  A *cat* and **dog** and _owl_ \\*star\\*."],
+  InlineActionMarkup: ["  : A ***loud*** _low_ line."],
+  BlockActionMarkup: ["  :", "    A *soft* \\_escaped\\_ line."],
+  InlineHeadingMarkup: ["  $: INT. *ROOM* - DAY"],
+  BlockHeadingMarkup: ["  $:", "    INT. _HALL_ - NIGHT"],
+  InlineTitleMarkup: ["  ^: THE *END*"],
+  BlockTitleMarkup: ["  ^:", "    THE _LAST_ END"],
+  InlineTransitionalMarkup: ["  %: *CUT* TO:"],
+  BlockTransitionalMarkup: ["  %:", "    _FADE_ OUT."],
+  InlineDialogueMarkup: ["  GUIDE: A *cat* \\*here\\*."],
+  BlockDialogueMarkup: ["  GUIDE:", "    (*softly*)", "    A _quiet_ word."],
+  ChoiceMarkup: ["  * [A *cat ..* tail.]"],
+  InlineDialogueCentredMarkup: ["  GUIDE: ^Hello there.^"],
+  BlockDialogueThenCentredAction: ["  GUIDE:", "    ^Hello there.^"],
+  GluedTwiceOneLine: ["  They see .. queue | a cat | a dog .. and .. queue | a cow | a hen .. now."],
+  GluedBesideSameText: ["  They see a / .. queue | a cat | a dog .. / outside."],
+  ChoiceEscape: ["  * [Pick \\*one\\* _now_.]"],
   LuauSparkdownVariableDefinition: ["  local z = 3"],
   LuauSparkdownWhileLoop: ["  while false do", "    It hails.", "  end"],
   LuauStrayUntilStatement: ["  until true"],
@@ -143,6 +169,7 @@ const GLUED_LAYOUTS: Record<string, string[]> = {
 
 const PRINTED: Record<string, string[]> = {
   ...GLUED_LAYOUTS,
+  ChoiceMarkup: ["* [A cat .. tail.]"],
   ImplicitActionInterpolation: ["Hello {person} there."],
   InlineDialogueInterpolation: ["GUIDE", "Hi {person} again."],
   ChoiceInterpolation: ["* [Greet {person} warmly.]"],
@@ -347,6 +374,132 @@ const difference = (screen: string[], printed: string[]) => {
   return `page "${around(page)}" export "${around(pdf)}" (${BLANK} is a blank line)`;
 };
 
+interface CharacterStyle {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  align?: string;
+  source?: boolean;
+}
+
+const flagsOf = (style: CharacterStyle) =>
+  [
+    style.bold ? "b" : "",
+    style.italic ? "i" : "",
+    style.underline ? "u" : "",
+    style.align === "center" ? "c" : style.align === "right" ? "r" : "",
+    style.source ? "s" : "",
+  ].join("");
+
+const signed = (character: string, style: CharacterStyle) => {
+  const flags = flagsOf(style);
+  return flags && /\S/.test(character) ? `${character}(${flags})` : "";
+};
+
+const NAME_TAGS = new Set(["scene", "function", "knot", "stitch", "branch"]);
+
+const exportStyle = (configName: string, source: string): string => {
+  const spans = generateScreenplayPrintData(new ScreenplayParser().parse(source), CONFIGS[configName]).spans;
+  const lines: PageLine[] = spans.flatMap((span) =>
+    span.tag === "meta" || span.tag === "page_break" || span.tag === "separator"
+      ? []
+      : span.tag === "dual"
+        ? [...(span.positions.l ?? []), ...(span.positions.r ?? [])]
+        : span.lines,
+  );
+  return lines
+    .filter((line) => !NAME_TAGS.has(line.tag))
+    .map((line) => {
+      const text = line.content.map((piece) => piece.text).join("");
+      const scene = line.scene !== undefined ? `#${line.scene}${line.sceneBold ? "b" : ""}[${compact(text)}]` : "";
+      return (
+        scene +
+        line.content
+          .map((piece) =>
+            Array.from(piece.text, (character) =>
+              signed(character, { ...piece, source: piece.color === SOURCE_COLOR }),
+            ).join(""),
+          )
+          .join("")
+      );
+    })
+    .join("");
+};
+
+const pageStyleOf = (element: Element, row: Element, cache: Map<Element, CharacterStyle>): CharacterStyle => {
+  const known = cache.get(element);
+  if (known) return known;
+  const inherited = element === row || !element.parentElement ? {} : pageStyleOf(element.parentElement, row, cache);
+  const style = getComputedStyle(element);
+  const weight = style.fontWeight;
+  const block = style.display === "block" || element.tagName === "DIV";
+  const align = style.textAlign === "center" || style.textAlign === "right" ? style.textAlign : "";
+  const result: CharacterStyle = {
+    bold: inherited.bold || weight === "bold" || Number(weight) >= 600,
+    italic: inherited.italic || style.fontStyle === "italic",
+    underline: inherited.underline || /underline/.test(`${style.textDecoration} ${style.textDecorationLine}`),
+    align: (block && align) || inherited.align,
+    source: inherited.source || element.classList.contains("sp-source"),
+  };
+  cache.set(element, result);
+  return result;
+};
+
+const numberIsBold = (row: Element) =>
+  Array.from(row.ownerDocument.styleSheets).some((sheet) =>
+    Array.from(sheet.cssRules).some(
+      (rule) =>
+        rule instanceof CSSStyleRule &&
+        (rule.style.getPropertyValue("font-weight") === "bold" || Number(rule.style.getPropertyValue("font-weight")) >= 600) &&
+        rule.selectorText.split(",").some((selector) => {
+          const pseudo = selector.trim().match(/^(.*)::(before|after)$/);
+          return !!pseudo && row.matches(pseudo[1]!);
+        }),
+    ),
+  );
+
+const pageStyle = (view: EditorView): string => {
+  const cache = new Map<Element, CharacterStyle>();
+  let out = "";
+  const visit = (element: Element, row: Element) => {
+    element.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const style = pageStyleOf(element, row, cache);
+        out += Array.from(node.textContent ?? "", (character) => signed(character, style)).join("");
+      } else if (
+        node.nodeType === Node.ELEMENT_NODE &&
+        !(node as Element).classList.contains("sp-name") &&
+        !isHidden(node as Element, true)
+      ) {
+        visit(node as Element, row);
+      }
+    });
+  };
+  for (const row of Array.from(view.contentDOM.children)) {
+    if (isHidden(row, false)) continue;
+    const shown = getComputedStyle(row).opacity !== "0";
+    const number = (row as HTMLElement).dataset["sceneNumber"];
+    if (row.classList.contains("sp-heading") && number !== undefined) {
+      out += `#${number}${numberIsBold(row) ? "b" : ""}[${shown ? compact(visibleText(row)) : ""}]`;
+    }
+    if (shown) visit(row, row);
+  }
+  return out;
+};
+
+const unplacedText = (configName: string, source: string) =>
+  screenplayPageLayout(syntaxTree(views.get(configName)!.state), source, CONFIGS[configName]).unplaced;
+
+const styleDifference = (configName: string, source: string) => {
+  const page = pageStyle(views.get(configName)!);
+  const pdf = exportStyle(configName, source);
+  if (page === pdf) return "";
+  let at = 0;
+  while (at < page.length && page[at] === pdf[at]) at++;
+  const around = (text: string) => text.slice(Math.max(0, at - 40), at + 40);
+  return `styles: page "${around(page)}" export "${around(pdf)}" (b bold, i italic, u underline, c centred, r right, s source, #n[row] scene number)`;
+};
+
 describe("screenplay page and export agree on blank lines", () => {
   it.each(Object.keys(CONFIGS))(
     "for every element sequence with %s settings",
@@ -360,6 +513,14 @@ describe("screenplay page and export agree on blank lines", () => {
         const found = difference(screen, printed);
         if (found) {
           failures.push(`sequence ${index}: ${found}; kinds ${kinds.join(" > ")}`);
+        }
+        const styles = styleDifference(configName, source);
+        if (styles) {
+          failures.push(`sequence ${index}: ${styles}; kinds ${kinds.join(" > ")}`);
+        }
+        const unplaced = unplacedText(configName, source);
+        if (unplaced.length) {
+          failures.push(`sequence ${index}: the export printed text the page has no place for ${JSON.stringify(unplaced)}; kinds ${kinds.join(" > ")}`);
         }
         const missing = missingText(screen, kinds.flatMap((kind) => PRINTED[kind] ?? []));
         if (missing.length) {
@@ -427,6 +588,14 @@ describe("screenplay page and export agree on text inside blocks", () => {
         const found = difference(screen, exportRows(configName, source));
         if (found) {
           failures.push(`sequence ${index}: ${found}; kinds ${kinds.join(" > ")}`);
+        }
+        const styles = styleDifference(configName, source);
+        if (styles) {
+          failures.push(`sequence ${index}: ${styles}; kinds ${kinds.join(" > ")}`);
+        }
+        const unplaced = unplacedText(configName, source);
+        if (unplaced.length) {
+          failures.push(`sequence ${index}: the export printed text the page has no place for ${JSON.stringify(unplaced)}; kinds ${kinds.join(" > ")}`);
         }
         const expected = [...CONTAINERS[container]!.prints, ...kinds.flatMap((kind) => PRINTED[kind] ?? [])];
         const missing = missingText(screen, expected);
@@ -678,5 +847,140 @@ describe("the ticket's script", () => {
     const screen = screenRows("default", source);
     const index = screen.indexOf("More than you would like.");
     expect(screen.slice(index, index + 3)).toEqual(["More than you would like.", "", "* [Climb.]"]);
+  });
+});
+
+const MARKUP_KINDS = Object.keys(KINDS).filter((kind) => kind.endsWith("Markup") || kind.endsWith("Escape"));
+
+describe("a block heading", () => {
+  const config: ScreenplayConfig = { ...BASE, screenplay_print_headings_bold: true, screenplay_print_scene_numbers: "left" };
+  CONFIGS["bold headings"] = config;
+
+  it.each([
+    ["the bug's script", ["scene street", "  $: EXT. STREET - NIGHT", "  The rain stops.", "  $:", "    INT. HALL - NIGHT", "  The lights come up.", "end", ""].join("\n")],
+    ["a blank line inside it", sourceOf(["InlineHeading", "BlockHeadingInnerBlank"])],
+    ["markup on every line kind", sourceOf(MARKUP_KINDS)],
+  ])("is bold and numbered on its text's row, on the page as in the export, for %s", (_name, source) => {
+    const screen = screenRows("bold headings", source);
+    expect(difference(screen, exportRows("bold headings", source))).toBe("");
+    expect(styleDifference("bold headings", source)).toBe("");
+  });
+
+  it("numbers the row holding the heading text", () => {
+    const source = ["scene street", "  $:", "    INT. HALL - NIGHT", "  The lights come up.", "end", ""].join("\n");
+    screenRows("bold headings", source);
+    const headings = Array.from(views.get("bold headings")!.contentDOM.querySelectorAll<HTMLElement>(".sp-heading"));
+    expect(headings.map((heading) => [heading.dataset["sceneNumber"], visibleText(heading).trim()])).toEqual([["1", "INT. HALL - NIGHT"]]);
+    expect(headings.map(numberIsBold)).toEqual([true]);
+  });
+
+  it("prints the scene number in regular weight when headings are not bold", () => {
+    CONFIGS["plain headings"] = { ...config, screenplay_print_headings_bold: false };
+    const source = ["scene street", "  $:", "    INT. HALL - NIGHT", "end", ""].join("\n");
+    screenRows("plain headings", source);
+    const headings = Array.from(views.get("plain headings")!.contentDOM.querySelectorAll<HTMLElement>(".sp-heading"));
+    expect(headings.map(numberIsBold)).toEqual([false]);
+    expect(styleDifference("plain headings", source)).toBe("");
+  });
+});
+
+describe("a tab in printed text", () => {
+  it("shows the spaces the export prints, character for character", () => {
+    const source = ["scene s", "  : A\tB", "  : A    B", "end", ""].join("\n");
+    const printed = exportRows("default", source);
+    expect(printed).toEqual(["A    B", "A    B"]);
+    screenRows("default", source);
+    const rows = Array.from(views.get("default")!.contentDOM.children)
+      .map((row) => visibleText(row))
+      .filter((text) => text.trim());
+    expect(rows).toEqual(printed);
+  });
+
+  it.each([
+    ["a tab inside underlined text", "  : _A\tB_ end.", "    ", "u"],
+    ["a tab inside an emphasised interpolation", "  : *{a\tb}* tail.", "    ", "is"],
+    ["a glued alternative's join inside underlined text", "  _They see .. queue | a cat | a dog .. outside._", " / ", ""],
+  ])("styles the export's text drawn in place of the source for %s", (_name, line, drawn, flags) => {
+    const source = ["scene s", line, "end", ""].join("\n");
+    const spans = generateScreenplayPrintData(new ScreenplayParser().parse(source), CONFIGS["default"]).spans;
+    const pieces = spans.flatMap((span) => ("lines" in span ? span.lines.flatMap((printedLine) => printedLine.content) : []));
+    const exported = pieces.find((piece) => piece.text.includes(drawn))!;
+    expect(exported, `the export prints ${JSON.stringify(drawn)}`).toBeDefined();
+    screenRows("default", source);
+    const inserted = Array.from(views.get("default")!.contentDOM.querySelectorAll(".sp-inserted")).find(
+      (element) => element.textContent === drawn,
+    )!;
+    expect(inserted, `the page draws ${JSON.stringify(drawn)} in place of the source`).toBeDefined();
+    const row = inserted.closest(".cm-line")!;
+    expect(flagsOf(pageStyleOf(inserted, row, new Map()))).toBe(
+      flagsOf({ ...exported, align: undefined, source: exported.color === SOURCE_COLOR }),
+    );
+    expect(flagsOf({ ...exported, align: undefined, source: exported.color === SOURCE_COLOR })).toBe(flags);
+  });
+});
+
+const pageRowTexts = (configName: string) =>
+  Array.from(views.get(configName)!.contentDOM.children)
+    .filter((row) => !isHidden(row, false) && getComputedStyle(row).opacity !== "0")
+    .map((row) => visibleText(row).trim())
+    .filter((text) => text);
+
+describe("a speaker line followed by a line the grammar reads as action", () => {
+  it("keeps each on its own row, as the export prints them", () => {
+    const source = sourceOf(["BlockDialogueThenCentredAction"]);
+    const printed = exportRows("default", source).filter((row) => row);
+    expect(printed).toEqual(["Before.", "GUIDE", "Hello there.", "After."]);
+    screenRows("default", source);
+    expect(pageRowTexts("default")).toEqual(printed);
+  });
+});
+
+describe("text the export inserts", () => {
+  it.each([
+    ["two alternatives on one line, each joined by the same text", "GluedTwiceOneLine"],
+    ["an alternative beside source text equal to its join", "GluedBesideSameText"],
+    ["an alternative in dialogue", "GluedDialogueAlternator"],
+    ["an alternative in a choice", "GluedChoiceAlternator"],
+  ])("is drawn where the export places it, for %s", (_name, kind) => {
+    const source = sourceOf([kind]);
+    const printed = exportRows("default", source).filter((row) => row);
+    screenRows("default", source);
+    expect(pageRowTexts("default").join("")).toBe(printed.join(""));
+    expect(unplacedText("default", source)).toEqual([]);
+  });
+
+  it("places each insert at its own anchor and reports text with no place", () => {
+    const places: PrintedPlaces = { runs: [], inserts: [], unplaced: [] };
+    const style = { text: "", italic: true };
+    placePrintedLine(
+      {
+        tag: "action",
+        content: [
+          {
+            ...style,
+            text: "a / b / c?",
+            at: [0, insertedAt(1), insertedAt(1), insertedAt(1), 1, insertedAt(2), insertedAt(2), insertedAt(2), 2, -1],
+          },
+        ],
+      },
+      "abc",
+      places,
+    );
+    expect(places.runs.map(({ from, to }) => [from, to])).toEqual([[0, 1], [1, 2], [2, 3]]);
+    expect(places.inserts.map(({ at, text, style }) => [at, text, style.italic])).toEqual([
+      [1, " / ", true],
+      [2, " / ", true],
+    ]);
+    expect(places.unplaced).toEqual(["?"]);
+  });
+
+  it.each([
+    ["a piece with no positions", [{ text: "lost" }], ["lost"]],
+    ["a piece with fewer positions than characters", [{ text: "ab", at: [0] }], ["b"]],
+    ["an unmapped space between mapped characters", [{ text: "a b", at: [0, -1, 1] }], [" "]],
+  ])("reports %s as text with no place", (_name, content, unplaced) => {
+    const places: PrintedPlaces = { runs: [], inserts: [], unplaced: [] };
+    placePrintedLine({ tag: "action", source: [0, 2], content }, "ab", places);
+    expect(places.unplaced).toEqual(unplaced);
   });
 });

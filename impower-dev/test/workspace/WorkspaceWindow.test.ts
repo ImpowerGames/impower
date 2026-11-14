@@ -3250,14 +3250,17 @@ describe("The preview's top bar", () => {
     expect(names()).toEqual([
       ["Game preview follows cursor", "true"],
       ["Auto-play beats", "false"],
+      ["Play audio", "false"],
       ["Show idle animations", "true"],
       ["Color typing pauses", "false"],
     ]);
     rows("menuitemcheckbox")[2]!.click();
     rows("menuitemcheckbox")[3]!.click();
+    rows("menuitemcheckbox")[4]!.click();
     rows("menuitemcheckbox")[0]!.click();
     expect(workspaceSettings.preferences.value).toMatchObject({
       previewFollowsCursor: false,
+      previewPlayAudio: true,
       previewIdleAnimations: false,
       previewTypingPauses: true,
     });
@@ -3265,6 +3268,7 @@ describe("The preview's top bar", () => {
     expect(names()).toEqual([
       ["Game preview follows cursor", "false"],
       ["Auto-play beats", "false"],
+      ["Play audio", "true"],
       ["Show idle animations", "false"],
       ["Color typing pauses", "true"],
     ]);
@@ -3273,6 +3277,7 @@ describe("The preview's top bar", () => {
     expect(names()).toEqual([
       ["Game preview follows cursor", "false"],
       ["Auto-play beats", "false"],
+      ["Play audio", "true"],
     ]);
     workspaceSettings.setPreference("previewMode", "screenplay");
     render(h(PreviewTopBar, {}), container);

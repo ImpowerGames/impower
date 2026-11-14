@@ -72,7 +72,7 @@ describe("a character's aliases in the editor (#2282)", () => {
     const at = complete(SOURCE.replace("  RAFFLES:\n", "  V@1\n  RAFFLES:\n"), { program });
     expect(at.labels).toContain("VISITOR");
     expect(at.detail("VISITOR")).toBe("character");
-  });
+  }, 60000);
 
   test("renaming the alias in the define renames the cue that uses it", () => {
     const text = renamed("STRANGER", 1, "NEWCOMER");

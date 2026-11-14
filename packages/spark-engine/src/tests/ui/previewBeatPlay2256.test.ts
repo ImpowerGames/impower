@@ -322,7 +322,7 @@ end
       .map((instruction: any) => instruction?.content?.video)
       .filter(Boolean);
 
-  test("a played cutscene plays muted, and the still after it shows its first frame", async () => {
+  test("a played cutscene plays with its own sound left to the page, and the still after it shows its first frame", async () => {
     const h = createHarness(MOVIES);
     await h.ready;
     h.reset();
@@ -330,14 +330,14 @@ end
     await advance(h, BEAT_LEAD_MS + 100);
     const played = cutscenes(h).filter((m) => !m.params.preview);
     expect(played.length).toBeGreaterThan(0);
-    expect(played.every((m) => m.params.muted === true)).toBe(true);
+    expect(played.every((m) => m.params.muted === false)).toBe(true);
     await h.game.onReceive(pointerDown);
     await flushMicrotasks(10);
     expect(h.game.playingBeat).toBe(false);
     expect(cutscenes(h).at(-1)?.params.preview).toBe(true);
   });
 
-  test("a played movie on a layer plays muted, and the still after it shows its first frame", async () => {
+  test("a played movie on a layer plays with its own sound left to the page, and the still after it shows its first frame", async () => {
     const h = createHarness(MOVIES);
     await h.ready;
     h.reset();
@@ -345,7 +345,7 @@ end
     await advance(h, BEAT_LEAD_MS + 100);
     const played = portraitVideos(h);
     expect(played.length).toBeGreaterThan(0);
-    expect(played.every((video: any) => !video.preview && video.muted)).toBe(true);
+    expect(played.every((video: any) => !video.preview && !video.muted)).toBe(true);
     await h.game.onReceive(pointerDown);
     await flushMicrotasks(10);
     expect(portraitVideos(h).at(-1)?.preview).toBe(true);

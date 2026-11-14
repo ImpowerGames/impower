@@ -19,6 +19,7 @@ type PreviewSwitchKey =
   | "screenplayPaperTexture"
   | "previewFollowsCursor"
   | "previewAutoPlayBeats"
+  | "previewPlayAudio"
   | "previewIdleAnimations"
   | "previewTypingPauses"
   | "previewScreenplaySync";
@@ -35,6 +36,11 @@ const PREVIEW_SWITCHES: readonly { key: PreviewSwitchKey; name: string; detail: 
     key: "previewAutoPlayBeats",
     name: "Auto-play beats",
     detail: "When the caret lands on a line, its beat plays once, as it would in the game.",
+  },
+  {
+    key: "previewPlayAudio",
+    name: "Play audio",
+    detail: "Beats played in the preview play their sound, as Play From Here would.",
   },
   {
     key: "previewIdleAnimations",
