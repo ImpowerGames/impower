@@ -154,7 +154,7 @@ export class InterpreterModule extends Module<
     const characters = Object.entries(this.context.character || {});
     for (const [k, v] of characters) {
       const aliases = v.aliases;
-      if (Array.isArray(aliases)) {
+      if (!k.startsWith("$") && Array.isArray(aliases)) {
         for (const alias of aliases) {
           if (typeof alias === "string" && alias) {
             const owner = Object.hasOwn(this._characterNameMap, alias)
