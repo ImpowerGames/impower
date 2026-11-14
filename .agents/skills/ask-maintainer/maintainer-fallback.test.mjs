@@ -313,6 +313,19 @@ try {
     assert.equal(fetchAnswer(REQUEST, { tracker: revisedFirst, repos }).wentAhead, undefined, "a fallback note for a fallback time the request no longer states does not commit, even when its label follows");
     console.log("ok: a revision during publication cancels the fallback, whether or not the run finished");
 
+    const reopened = tracker();
+    reopened.closeAs("not_planned", "2026-11-13T16:00:00Z");
+    assert.equal(fetchAnswer(REQUEST, { tracker: reopened, repos }).state, "unclear");
+    const again = "2026-11-13T18:10:00.000Z";
+    reopened.issues.get(REQUEST).body = decisionBody.replace(dataLine(readDataLine(decisionBody)), dataLine({ ...readDataLine(decisionBody), fallback: { option: "B", at: again } }));
+    reopened.say(toolNote("Revised by the ask-maintainer tool, and reopened because the answer was unclear.", { kind: "revised", fallback: again }), "2026-11-13T16:10:00Z");
+    Object.assign(reopened.issues.get(REQUEST), { state: "open", state_reason: "reopened", closed_at: null, closed_by: null });
+    reopened.items.push({ event: "reopened", issue: REQUEST, created_at: "2026-11-13T16:10:01Z", actor: { login: M }, seq: reopened.seq++ });
+    assert.equal(fetchAnswer(REQUEST, { tracker: reopened, repos }).state, "waiting");
+    fallbackRequest(REQUEST, OWNER, doing, { tracker: reopened, repos, now: at("2026-11-13T18:11:00Z") });
+    assert.equal(fetchAnswer(REQUEST, { tracker: reopened, repos }).state, "went-ahead", "the reopen that revise makes before the fallback does not interrupt it");
+    console.log("ok: a fallback after revise reopened an unclear request commits");
+
     const ambiguous = tracker();
     leftovers(ambiguous);
     ambiguous.closeAs("completed", "2026-11-13T17:45:00Z");

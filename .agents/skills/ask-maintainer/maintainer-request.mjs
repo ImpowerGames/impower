@@ -917,8 +917,9 @@ function fallbackOf(issue, items, notes, data, tagged, who, label) {
   const at = candidate.comment.pos;
   const committed = labelNames(issue).includes(label) ? items.find((item) => item.pos > at && item.event === "labeled" && item.label?.name === label) : null;
   const from = notes.filter((entry) => entry.note.kind === "revised" && entry.comment.pos < at).at(-1)?.comment.pos ?? tagged?.pos ?? -1;
-  const interrupted = (item) => item.pos !== at && (["closed", "reopened"].includes(item.event) || (item.event === "commented" && (commentAuthor(item, who) === "maintainer" || readNote(item.body)?.kind === "revised")));
-  const valid = committed && candidate.note.fallbackAt === data.fallback?.at && !items.some((item) => item.pos > from && item.pos < committed.pos && interrupted(item));
+  const asked = (item) => item.event === "commented" && commentAuthor(item, who) === "maintainer";
+  const changed = (item) => ["closed", "reopened"].includes(item.event) || (item.event === "commented" && readNote(item.body)?.kind === "revised");
+  const valid = committed && candidate.note.fallbackAt === data.fallback?.at && !items.some((item) => item.pos < committed.pos && ((item.pos > from && asked(item)) || (item.pos > at && changed(item))));
   return valid ? { fellBack: candidate, unfinished: null } : { fellBack: null, unfinished: candidate };
 }
 
