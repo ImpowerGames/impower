@@ -33,6 +33,7 @@ import {
 import { useLayout } from "@impower/impower-ui/layout";
 import { useSettings } from "../../workspace/settings/useSettings";
 import {
+  lockedPreviewSwitch,
   playsGame,
   PREVIEW_COLOR_SCHEMES,
   PREVIEW_MODES,
@@ -63,6 +64,7 @@ export type PreviewTopBarProps = Partial<typeof propDefaults>;
 type PreviewToggleKey = Extract<
   PreferenceKey,
   | "previewFollowsCursor"
+  | "previewAutoPlayBeats"
   | "previewIdleAnimations"
   | "previewTypingPauses"
   | "previewScreenplaySync"
@@ -99,6 +101,10 @@ export const PREVIEW_TOGGLES: Record<
     name: "Game preview follows cursor",
     detail: "The game shows the line the caret is on.",
   },
+  previewAutoPlayBeats: {
+    name: "Auto-play beats",
+    detail: "When the caret lands on a line, its beat plays once, as it would in the game.",
+  },
   previewIdleAnimations: {
     name: "Show idle animations",
     detail:
@@ -125,8 +131,13 @@ export const PREVIEW_TOGGLES: Record<
 };
 
 export const QUICK_TOGGLES: Record<PreviewMode, PreviewToggleKey[]> = {
-  game: ["previewFollowsCursor", "previewIdleAnimations", "previewTypingPauses"],
-  textstream: ["previewFollowsCursor"],
+  game: [
+    "previewFollowsCursor",
+    "previewAutoPlayBeats",
+    "previewIdleAnimations",
+    "previewTypingPauses",
+  ],
+  textstream: ["previewFollowsCursor", "previewAutoPlayBeats"],
   screenplay: [
     "previewScreenplaySync",
     "screenplayPaper",
@@ -410,7 +421,7 @@ function ColorSchemeSettings() {
 function SettingsMenu({ mode }: { mode: PreviewMode }) {
   const phone = useLayout() === "phone";
   const menuWidth = useMenuWidth();
-  const { preferences, setPreference } = useSettings();
+  const { preferences, reducedMotion, setPreference } = useSettings();
   return (
     <DropdownRoot>
       <DropdownTrigger asChild>
@@ -430,11 +441,13 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
       >
         {QUICK_TOGGLES[mode].map((key) => {
           const { name, detail } = PREVIEW_TOGGLES[key];
-          const checked = isToggleOn(preferences, key);
+          const locked = lockedPreviewSwitch(preferences, reducedMotion, key);
+          const checked = locked ?? isToggleOn(preferences, key);
           return (
             <DropdownCheckboxItem
               key={key}
               checked={checked}
+              disabled={locked != null}
               onCheckedChange={(next) =>
                 key === "screenplayPaper"
                   ? setPreference(key, next ? "theme" : "paper")

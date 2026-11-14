@@ -69,6 +69,7 @@ import {
   type GameFit,
 } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
 import { PlayBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/PlayBeatMessage";
+import { SetAutoPlayBeatsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetAutoPlayBeatsMessage";
 import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
 import {
   clearPlayerBarExecution,
@@ -218,6 +219,8 @@ export interface ShownCompletion {
 }
 
 const COMPLETION_PREPARING_STATUS_DELAY = 150;
+
+const AUTO_PLAY_SETTLE_MS = 200;
 
 export const completionKey = (
   params: Pick<
@@ -558,6 +561,7 @@ export class GamePlayerController {
     this._disposed = true;
     window.clearTimeout(this._completionStatusTimer);
     this._completionStatusTimer = undefined;
+    this.cancelLanding();
     this._stops += 1;
     window.removeEventListener("pointerdown", this.handleSavesPointerDown, true);
     window.removeEventListener("keydown", this.handleSavesKeyDown, true);
@@ -1491,6 +1495,11 @@ export class GamePlayerController {
     p.onRequest(RestartGameMessage.type, this.handleRestartGame, this.host);
     p.onRequest(PlayBeatMessage.type, this.handlePlayBeat, this.host);
     p.onRequest(
+      SetAutoPlayBeatsMessage.type,
+      this.handleSetAutoPlayBeats,
+      this.host,
+    );
+    p.onRequest(
       SetAnimatePortraitsMessage.type,
       this.handleSetAnimatePortraits,
       this.host,
@@ -1598,9 +1607,10 @@ export class GamePlayerController {
   protected handleSelectedCompilerDocument = async (
     message: SelectedCompilerDocumentMessage.Notification,
   ) => {
-    const { textDocument, selectedRange, userEvent, programOutdated } =
+    const { textDocument, selectedRange, userEvent, docChanged, programOutdated } =
       message.params;
     if (userEvent) {
+      const pending = this.cancelLanding();
       if (
         this._completionSession &&
         this._completionSession.uri !== textDocument.uri
@@ -1625,6 +1635,7 @@ export class GamePlayerController {
             this._program,
             startFrom.file,
             startFrom.line,
+            docChanged ? undefined : { landing: { pending } },
           );
         }
       }
@@ -2144,6 +2155,53 @@ export class GamePlayerController {
     this.morphs?.setEnabled(message.params.enabled);
     return SetAnimatePortraitsMessage.type.response(message.id, {});
   };
+
+  protected _autoPlayBeats = false;
+
+  protected autoPlaySettleMS = AUTO_PLAY_SETTLE_MS;
+
+  protected _landingTimer: ReturnType<typeof setTimeout> | undefined;
+
+  protected _shownBeat: number | null = null;
+
+  protected handleSetAutoPlayBeats = async (
+    message: SetAutoPlayBeatsMessage.Request,
+  ) => {
+    this._autoPlayBeats = message.params.enabled;
+    if (!this._autoPlayBeats) {
+      this.cancelLanding();
+    }
+    return SetAutoPlayBeatsMessage.type.response(message.id, {});
+  };
+
+  protected cancelLanding(): boolean {
+    const pending = this._landingTimer != null;
+    clearTimeout(this._landingTimer);
+    this._landingTimer = undefined;
+    return pending;
+  }
+
+  protected noteShownBeat(
+    beat: number | null,
+    update: number,
+    landing: { pending: boolean } | undefined,
+  ) {
+    const landed =
+      landing != null &&
+      beat != null &&
+      (beat !== this._shownBeat || landing.pending);
+    this._shownBeat = beat;
+    this.cancelLanding();
+    if (!landed || !this._autoPlayBeats) {
+      return;
+    }
+    this._landingTimer = setTimeout(() => {
+      this._landingTimer = undefined;
+      if (update === this._previewUpdates && this._autoPlayBeats) {
+        void this.playBeat();
+      }
+    }, this.autoPlaySettleMS);
+  }
 
   protected _beatPlays = 0;
 
@@ -3673,6 +3731,7 @@ export class GamePlayerController {
       speculative?: boolean;
       current?: () => boolean;
       playId?: number;
+      landing?: { pending: boolean };
     },
   ): Promise<boolean> => {
     const link = workspace?.gameLink;
@@ -3748,6 +3807,7 @@ export class GamePlayerController {
           ending?: GameEnding;
           playing?: boolean;
           beatRefusal?: string;
+          shownAddress?: number;
         }
       | undefined;
     let ended!: () => void;
@@ -3791,6 +3851,7 @@ export class GamePlayerController {
     }
     if (!options?.speculative) {
       this._beatRefusal = result.beatRefusal ?? null;
+      this.noteShownBeat(result.shownAddress ?? null, update, options?.landing);
     }
     this.setEndingStatus(result.ending ?? null);
     if (!options?.speculative) {

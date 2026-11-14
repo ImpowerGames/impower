@@ -640,7 +640,11 @@ export function installPlayerWorker(connection: MessageConnection) {
             errors: [...(route.simulationErrors ?? []), ...stepErrors],
             ...(game.previewEnding ? { ending: game.previewEnding } : {}),
             ...(params.playId != null ? { playing: game.playingBeat } : {}),
-            ...(game.previewShowsBeat ? {} : { beatRefusal: NO_BEAT_REFUSAL }),
+            ...(game.previewShowsBeat
+              ? game.previewedAddress != null
+                ? { shownAddress: game.previewedAddress }
+                : {}
+              : { beatRefusal: NO_BEAT_REFUSAL }),
             ...(taken
               ? taken.beatOnly
                 ? { path: "beat" as const }
