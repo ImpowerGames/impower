@@ -43,7 +43,33 @@ const GATED = `scene start
 end
 `;
 
+const PREAMBLE = `scene start
+  choose
+    if true then
+      Intro.
+    end
+    * [One]
+    * [Two]
+  end
+  After.
+end
+`;
+
+const PREAMBLE_DIALOGUE = `scene start
+  choose
+    if true then
+      ALICE:
+        Question?
+      * [One]
+      * [Two]
+    end
+  end
+  After.
+end
+`;
+
 const MENU = ["Will you help?", "Yes."];
+const PLAIN_MENU = ["One", "Two"];
 const GATED_MENU = ["Where now?", "North.", "South."];
 const SPEAKER = ["Listen carefully."];
 const COMPASS = ["North.", "South."];
@@ -60,7 +86,12 @@ describe("the preview at a choose block's structural lines", () => {
     ["the speaker's line", CAPTION, 3, SPEAKER, ["Will you help?"]],
     ["the choose line of a block whose options sit inside an if", GATED, 1, GATED_MENU, ["Listen carefully.", "After."]],
     ["the end of a block whose options sit inside an if", GATED, 9, GATED_MENU, ["Listen carefully.", "After."]],
-    ["the end of a block whose options sit inside a do", GATED.replace("if true then", "do"), 9, GATED_MENU, ["Listen carefully.", "After."]],  ] as const)(
+    ["the end of a block whose options sit inside a do", GATED.replace("if true then", "do"), 9, GATED_MENU, ["Listen carefully.", "After."]],
+    ["the choose line of a block with a beat in an if before its options", PREAMBLE, 1, PLAIN_MENU, ["Intro.", "After."]],
+    ["the end of a block with a beat in an if before its options", PREAMBLE, 7, PLAIN_MENU, ["Intro.", "After."]],
+    ["that beat's own line", PREAMBLE, 3, ["Intro."], ["One", "Two"]],
+    ["the choose line of a block with dialogue and options in an if", PREAMBLE_DIALOGUE, 1, PLAIN_MENU, ["After."]],
+    ["the end of a block with dialogue and options in an if", PREAMBLE_DIALOGUE, 8, PLAIN_MENU, ["After."]],  ] as const)(
     "at %s, shows what the game shows there",
     async (_name, source, line, shown, hidden) => {
       const text = await previewAt(source, line);

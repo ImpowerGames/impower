@@ -773,7 +773,9 @@ export class ProgramRoot {
     const id = chunkId(chunk);
     const firstChoice = firstOpIn(chunk, Op.Choice, 0, offer);
     const question = firstChoice < 0 ? offer : firstChoice;
-    let menu = 0;
+    const captionKey = this.table.stringIds.get("caption");
+    let caption = -1;
+    let optionStart = -1;
     let next = -1;
     let nextLine = Infinity;
     let beatOnLine = -1;
@@ -791,9 +793,14 @@ export class ProgramRoot {
           ? Math.min(chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!, offer)
           : offer;
       const range = this.rowRange(sequence, entry, r);
+      if (from <= firstChoice && firstChoice < to) {
+        optionStart = from;
+      }
       const beatAt = firstOpIn(chunk, Op.LineStart, from, to);
       if (beatAt >= 0 && beatAt < question) {
-        menu = Math.max(menu, beatAt);
+        if (captionKey !== undefined && holdsFlag(chunk, beatAt, to, captionKey)) {
+          caption = Math.max(caption, beatAt);
+        }
         if (range.startLine > line && range.startLine < nextLine) {
           next = beatAt;
           nextLine = range.startLine;
@@ -814,6 +821,7 @@ export class ProgramRoot {
         partLines = lines;
       }
     }
+    const menu = caption >= 0 ? caption : Math.max(optionStart, 0);
     const offset =
       line === top
         ? menu
@@ -986,6 +994,24 @@ const firstOpIn = (
     }
   }
   return -1;
+};
+
+const holdsFlag = (
+  chunk: ProgramChunk,
+  from: number,
+  to: number,
+  key: number,
+): boolean => {
+  for (let offset = from; offset + 2 < to; offset += 2) {
+    if (
+      opOf(chunk[HEADER_WORDS + offset]!) === Op.Str &&
+      chunk[HEADER_WORDS + offset + 1] === key &&
+      opOf(chunk[HEADER_WORDS + offset + 2]!) === Op.Const
+    ) {
+      return true;
+    }
+  }
+  return false;
 };
 
 const menuEndGapAt = (chunk: ProgramChunk, offer: number): number =>
