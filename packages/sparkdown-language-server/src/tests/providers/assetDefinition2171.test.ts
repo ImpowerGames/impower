@@ -2,8 +2,46 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { describe, expect, test, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
+
+const server = vi.hoisted(() => ({
+  workspace: null as unknown,
+  handlers: {} as Record<string, (...args: unknown[]) => unknown>,
+}));
+
+vi.mock("vscode-languageserver/browser", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  const recorder = (path: string): unknown =>
+    new Proxy(() => {}, {
+      get: (_target, key) => recorder(`${path}.${String(key)}`),
+      apply: (_target, _self, args) => {
+        if (typeof args[0] === "function") {
+          server.handlers[path] = args[0] as (...a: unknown[]) => unknown;
+        }
+        return recorder(`${path}()`);
+      },
+    });
+  return {
+    ...actual,
+    BrowserMessageReader: class {},
+    BrowserMessageWriter: class {},
+    createConnection: () => recorder("connection"),
+  };
+});
+
+vi.mock("../../classes/SparkdownLanguageServerWorkspace", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../classes/SparkdownLanguageServerWorkspace")>();
+  class ServedWorkspace extends actual.SparkdownLanguageServerWorkspace {
+    constructor(...args: ConstructorParameters<typeof actual.SparkdownLanguageServerWorkspace>) {
+      if (server.workspace) {
+        return server.workspace as ServedWorkspace;
+      }
+      super(...args);
+    }
+  }
+  return { ...actual, SparkdownLanguageServerWorkspace: ServedWorkspace };
+});
+
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
-import { getDefinition } from "../../utils/providers/getDefinition";
 
 const ROOT = "file:///proj/";
 const MAIN = `${ROOT}main.sd`;
@@ -62,24 +100,35 @@ const setup = () => {
   }
 };
 
-const definitionAt = (line: number, word: string) => {
+const serve = async () => {
   const { workspace, program } = setup();
+  workspace.program = () => program;
+  workspace.listen = () => {};
+  server.workspace = workspace;
+  vi.stubGlobal("self", globalThis);
+  await import("../../sparkdown-language-server");
+  return server.handlers["connection.onDefinition"]!;
+};
+
+const definitionAt = async (line: number, word: string) => {
+  const onDefinition = await serve();
   const character = SOURCE.split(NEWLINE)[line]!.indexOf(word) + 1;
-  return (
-    getDefinition(workspace.document(MAIN), workspace.tree(MAIN), program, workspace, { line, character }) ?? []
-  ).map(({ uri, range }) => [uri, range.start.line]);
+  const answer = (await onDefinition({ textDocument: { uri: MAIN }, position: { line, character } })) as
+    | { uri: string; range: { start: { line: number } } }[]
+    | undefined;
+  return (answer ?? []).map(({ uri, range }) => [uri, range.start.line]);
 };
 
 describe("go to definition on an asset name answers its file (#2171)", () => {
-  test("a picture name answers the picture's file", () => {
-    expect(definitionAt(8, "mara_smile")).toEqual([[SMILE, 0]]);
+  test("a picture name answers the picture's file", async () => {
+    expect(await definitionAt(8, "mara_smile")).toEqual([[SMILE, 0]]);
   });
 
-  test("a sound name answers the sound's file", () => {
-    expect(definitionAt(9, "theme")).toEqual([[THEME, 0]]);
+  test("a sound name answers the sound's file", async () => {
+    expect(await definitionAt(9, "theme")).toEqual([[THEME, 0]]);
   });
 
-  test("a scene name still answers the scene's line", () => {
-    expect(definitionAt(12, "start")).toEqual([[MAIN, 6]]);
+  test("a scene name still answers the scene's line", async () => {
+    expect(await definitionAt(12, "start")).toEqual([[MAIN, 6]]);
   });
 });
