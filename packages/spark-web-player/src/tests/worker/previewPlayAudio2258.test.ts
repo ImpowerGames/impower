@@ -233,6 +233,39 @@ describe("Play audio in the stopped preview (#2258)", () => {
     expect(theme!.sounding).toBe(true);
   }, 120_000);
 
+  it("keeps a loop that finishes loading after the page hides paused until the page is shown", async () => {
+    const audio = createStandInAudio();
+    const attach = audio.attach.bind(audio);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let waiting = 0;
+    audio.attach = (app, emit) => {
+      const manager = attach(app, emit);
+      const load = (manager as any).onLoadAudioPlayer.bind(manager);
+      (manager as any).onLoadAudioPlayer = async (params: unknown) => {
+        waiting += 1;
+        await gate;
+        return load(params);
+      };
+      return manager;
+    };
+    const h = await previewAt(FIRST, audio);
+    await setPlayAudio(h, true);
+    expect(waiting).toBeGreaterThan(0);
+    const doc = h.overlay.ownerDocument;
+    Object.defineProperty(doc, "visibilityState", { value: "hidden", configurable: true });
+    h.controller.handleVisibilityChange();
+    release();
+    await settle(60);
+    const [theme] = audio.sourcesOf(THEME);
+    expect(theme!.startedAt).toBeTypeOf("number");
+    expect(audio.sounding()).toEqual([]);
+    Object.defineProperty(doc, "visibilityState", { value: "visible", configurable: true });
+    h.controller.handleVisibilityChange();
+    await settle(5);
+    expect(audio.sounding()).toEqual([THEME]);
+  }, 120_000);
+
   it("stops looping sound when the preference is switched off and plays it again when switched back on", async () => {
     const audio = createStandInAudio();
     const h = await previewAt(FIRST, audio);

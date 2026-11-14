@@ -330,6 +330,9 @@ export default class AudioManager extends Manager {
     }
     if (update.control === "start") {
       const instance = audioPlayer.start(when, over, gain, at);
+      if (this._playersPaused) {
+        audioPlayer.pause(currentTime);
+      }
       this.clipStarted(channel, instance);
       if (channel && key) {
         this.pruneWhenDone(channel, key, audioPlayer);
@@ -487,7 +490,10 @@ export default class AudioManager extends Manager {
     this.unpausePlayers();
   }
 
+  protected _playersPaused = false;
+
   pausePlayers(): void {
+    this._playersPaused = true;
     if (this.app.audioContext) {
       const scheduledTime = this.app.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {
@@ -499,6 +505,7 @@ export default class AudioManager extends Manager {
   }
 
   unpausePlayers(): void {
+    this._playersPaused = false;
     if (this.app.audioContext) {
       const scheduledTime = this.app.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {

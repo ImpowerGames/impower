@@ -3456,6 +3456,9 @@ export class GamePlayerController {
     await this.ensureAudioContext();
     profile("start", "app/create");
     const app = this.createApp(game, previewing);
+    if (previewing && document.visibilityState === "hidden") {
+      app.audio?.pausePlayers();
+    }
     if (owned()) {
       this._app = app;
       this._appPlay = play;
