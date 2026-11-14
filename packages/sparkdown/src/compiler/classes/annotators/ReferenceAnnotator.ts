@@ -163,6 +163,8 @@ const FILTERED_NAME = /^([^:~]+)((?:[:~][^:~\s]+)+)$/u;
 
 const PROPERTY_DEFINITION = nodeNameSet(["LuauPropertyDefinition"]);
 
+const DIALOGUE_CHARACTER = nodeNameSet(["DialogueCharacter"]);
+
 const EVENT_ATTR_CONTENT = nodeNameSet([
   "LuauEventAttribute_content",
   "LuauSparkleEventHandler",
@@ -953,7 +955,23 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       annotations.push(...distinctRanges(directives.flatMap((directive) => this.directiveReferences(directive))));
       return annotations;
     }
+    if (nodeRef.name === "DialogueCharacterSpeaker") {
+      const name = this.read(nodeRef.from, nodeRef.to);
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          symbolIds: ["character." + name],
+          selectors: [{ types: ["character"], name }],
+          kind: "read",
+          linkable: true,
+        }).range(nodeRef.from, nodeRef.to),
+      );
+      return annotations;
+    }
     if (nodeRef.name === "DialogueCharacterName") {
+      const cue = ancestorMatching(nodeRef.node, DIALOGUE_CHARACTER);
+      if (cue && getDescendent("DialogueCharacterSpeaker", cue)) {
+        return annotations;
+      }
       const name = this.read(nodeRef.from, nodeRef.to);
       annotations.push(
         SparkdownAnnotation.mark<Reference>({

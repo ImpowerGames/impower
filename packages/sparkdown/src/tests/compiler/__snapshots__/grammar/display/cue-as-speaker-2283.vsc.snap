@@ -1,0 +1,158 @@
+text.source.sparkdown [0..243]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ string.display.dialogue.block.sd [12..29]
+ │   ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [14..17]
+ │   │   ├─ markup.raw.punctuation.sd [14..15]: "?"
+ │   │   ├─ markup.raw.punctuation.sd [15..16]: "?"
+ │   │   └─ markup.raw.punctuation.sd [16..17]: "?"
+ │   ├─ punctuation.whitespace.sd [17..18]: " "
+ │   ├─ keyword.control.as.sd [18..20]: "as"
+ │   ├─ punctuation.whitespace.sd [20..21]: " "
+ │   ├─ variable.other.character.speaker.sd [21..28]: "raffles"
+ │   └─ meta.template.expression.operator.colon.sd [28..29]: ":"
+ ├─ Newline [29..30]: "\n"
+ ├─ string.display.dialogue.block.sd [30..56]
+ │   ├─ punctuation.whitespace.optional.sd [30..34]: "    "
+ │   └─ string.display.text.chunk.sd [34..56]
+ │       ├─ markup.raw.text.sd [34..37]: "You"
+ │       ├─ markup.raw.space.sd [37..38]: " "
+ │       ├─ markup.raw.text.sd [38..41]: "don"
+ │       ├─ markup.raw.punctuation.sd [41..42]: "'"
+ │       ├─ markup.raw.text.sd [42..43]: "t"
+ │       ├─ markup.raw.space.sd [43..44]: " "
+ │       ├─ markup.raw.text.sd [44..52]: "remember"
+ │       ├─ markup.raw.space.sd [52..53]: " "
+ │       ├─ markup.raw.text.sd [53..55]: "me"
+ │       └─ markup.raw.punctuation.sd [55..56]: "?"
+ ├─ Newline [56..57]: "\n"
+ ├─ string.display.dialogue.block.sd [57..85]
+ │   ├─ punctuation.whitespace.optional.sd [57..59]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [59..62]
+ │   │   ├─ markup.raw.punctuation.sd [59..60]: "?"
+ │   │   ├─ markup.raw.punctuation.sd [60..61]: "?"
+ │   │   └─ markup.raw.punctuation.sd [61..62]: "?"
+ │   ├─ punctuation.whitespace.sd [62..63]: " "
+ │   ├─ keyword.control.as.sd [63..65]: "as"
+ │   ├─ punctuation.whitespace.sd [65..66]: " "
+ │   ├─ variable.other.character.speaker.sd [66..73]: "raffles"
+ │   ├─ constant.character.escape.dialogue.character.parenthetical.sd [73..80]
+ │   │   ├─ punctuation.whitespace.sd [73..74]: " "
+ │   │   ├─ meta.brace.round.open.sd [74..75]: "("
+ │   │   ├─ markup.raw.text.sd [75..76]: "O"
+ │   │   ├─ markup.raw.punctuation.sd [76..77]: "."
+ │   │   ├─ markup.raw.text.sd [77..78]: "S"
+ │   │   ├─ markup.raw.punctuation.sd [78..79]: "."
+ │   │   └─ meta.brace.round.close.sd [79..80]: ")"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [80..82]
+ │   │   ├─ punctuation.whitespace.sd [80..81]: " "
+ │   │   └─ punctuation.definition.position.sd [81..82]: "["
+ │   ├─ constant.character.escape.dialogue.character.position.sd [82..83]: "<"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [83..84]
+ │   │   └─ punctuation.definition.position.sd [83..84]: "]"
+ │   └─ meta.template.expression.operator.colon.sd [84..85]: ":"
+ ├─ Newline [85..86]: "\n"
+ ├─ string.display.dialogue.block.sd [86..102]
+ │   ├─ punctuation.whitespace.optional.sd [86..90]: "    "
+ │   └─ string.display.text.chunk.sd [90..102]
+ │       ├─ markup.raw.text.sd [90..92]: "It"
+ │       ├─ markup.raw.space.sd [92..93]: " "
+ │       ├─ markup.raw.text.sd [93..96]: "can"
+ │       ├─ markup.raw.punctuation.sd [96..97]: "'"
+ │       ├─ markup.raw.text.sd [97..98]: "t"
+ │       ├─ markup.raw.space.sd [98..99]: " "
+ │       ├─ markup.raw.text.sd [99..101]: "be"
+ │       └─ markup.raw.punctuation.sd [101..102]: "."
+ ├─ Newline [102..103]: "\n"
+ ├─ string.display.dialogue.inline.sd [103..126]
+ │   ├─ punctuation.whitespace.optional.sd [103..105]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [105..108]
+ │   │   ├─ markup.raw.punctuation.sd [105..106]: "?"
+ │   │   ├─ markup.raw.punctuation.sd [106..107]: "?"
+ │   │   └─ markup.raw.punctuation.sd [107..108]: "?"
+ │   ├─ punctuation.whitespace.sd [108..109]: " "
+ │   ├─ keyword.control.as.sd [109..111]: "as"
+ │   ├─ punctuation.whitespace.sd [111..112]: " "
+ │   ├─ variable.other.character.speaker.sd [112..119]: "raffles"
+ │   ├─ meta.template.expression.operator.colon.sd [119..120]: ":"
+ │   ├─ punctuation.whitespace.required.sd [120..121]: " "
+ │   └─ string.display.text.chunk.sd [121..126]
+ │       └─ markup.raw.text.sd [121..126]: "Hello"
+ ├─ Newline [126..127]: "\n"
+ ├─ string.display.dialogue.block.sd [127..147]
+ │   ├─ punctuation.whitespace.optional.sd [127..129]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [129..146]
+ │   │   ├─ markup.raw.text.sd [129..136]: "Dressed"
+ │   │   ├─ markup.raw.space.sd [136..137]: " "
+ │   │   ├─ constant.character.escape.sd [137..138]: "\\"
+ │   │   ├─ markup.raw.text.sd [138..139]: "a"
+ │   │   ├─ markup.raw.text.sd [139..140]: "s"
+ │   │   ├─ markup.raw.space.sd [140..141]: " "
+ │   │   └─ markup.raw.text.sd [141..146]: "santa"
+ │   └─ meta.template.expression.operator.colon.sd [146..147]: ":"
+ ├─ Newline [147..148]: "\n"
+ ├─ string.display.dialogue.block.sd [148..161]
+ │   ├─ punctuation.whitespace.optional.sd [148..152]: "    "
+ │   └─ string.display.text.chunk.sd [152..161]
+ │       ├─ markup.raw.text.sd [152..154]: "Ho"
+ │       ├─ markup.raw.space.sd [154..155]: " "
+ │       ├─ markup.raw.text.sd [155..157]: "ho"
+ │       ├─ markup.raw.space.sd [157..158]: " "
+ │       ├─ markup.raw.text.sd [158..160]: "ho"
+ │       └─ markup.raw.punctuation.sd [160..161]: "."
+ ├─ Newline [161..162]: "\n"
+ ├─ string.display.dialogue.block.sd [162..181]
+ │   ├─ punctuation.whitespace.optional.sd [162..164]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [164..169]
+ │   │   └─ markup.raw.text.sd [164..169]: "BUNNY"
+ │   ├─ punctuation.whitespace.sd [169..170]: " "
+ │   ├─ keyword.control.as.sd [170..172]: "as"
+ │   ├─ punctuation.whitespace.sd [172..173]: " "
+ │   ├─ variable.other.character.speaker.sd [173..180]: "raffles"
+ │   └─ meta.template.expression.operator.colon.sd [180..181]: ":"
+ ├─ Newline [181..182]: "\n"
+ ├─ string.display.dialogue.block.sd [182..205]
+ │   ├─ punctuation.whitespace.optional.sd [182..186]: "    "
+ │   └─ string.display.text.chunk.sd [186..205]
+ │       ├─ markup.raw.text.sd [186..187]: "I"
+ │       ├─ markup.raw.space.sd [187..188]: " "
+ │       ├─ markup.raw.text.sd [188..191]: "can"
+ │       ├─ markup.raw.space.sd [191..192]: " "
+ │       ├─ markup.raw.text.sd [192..194]: "do"
+ │       ├─ markup.raw.space.sd [194..195]: " "
+ │       ├─ markup.raw.text.sd [195..198]: "his"
+ │       ├─ markup.raw.space.sd [198..199]: " "
+ │       ├─ markup.raw.text.sd [199..204]: "voice"
+ │       └─ markup.raw.punctuation.sd [204..205]: "."
+ ├─ Newline [205..206]: "\n"
+ ├─ string.display.dialogue.block.sd [206..227]
+ │   ├─ punctuation.whitespace.optional.sd [206..208]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [208..215]
+ │   │   └─ markup.raw.text.sd [208..215]: "RAFFLES"
+ │   ├─ constant.character.escape.dialogue.character.parenthetical.sd [215..222]
+ │   │   ├─ punctuation.whitespace.sd [215..216]: " "
+ │   │   ├─ meta.brace.round.open.sd [216..217]: "("
+ │   │   ├─ markup.raw.text.sd [217..218]: "V"
+ │   │   ├─ markup.raw.punctuation.sd [218..219]: "."
+ │   │   ├─ markup.raw.text.sd [219..220]: "O"
+ │   │   ├─ markup.raw.punctuation.sd [220..221]: "."
+ │   │   └─ meta.brace.round.close.sd [221..222]: ")"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [222..224]
+ │   │   ├─ punctuation.whitespace.sd [222..223]: " "
+ │   │   └─ punctuation.definition.position.sd [223..224]: "["
+ │   ├─ constant.character.escape.dialogue.character.position.sd [224..225]: ">"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [225..226]
+ │   │   └─ punctuation.definition.position.sd [225..226]: "]"
+ │   └─ meta.template.expression.operator.colon.sd [226..227]: ":"
+ ├─ Newline [227..228]: "\n"
+ ├─ string.display.dialogue.block.sd [228..238]
+ │   ├─ punctuation.whitespace.optional.sd [228..232]: "    "
+ │   └─ string.display.text.chunk.sd [232..238]
+ │       ├─ markup.raw.text.sd [232..237]: "Plain"
+ │       └─ markup.raw.punctuation.sd [237..238]: "."
+ ├─ Newline [238..239]: "\n"
+ ├─ keyword.control.end.luau [239..242]: "end"
+ └─ Newline [242..243]: "\n"

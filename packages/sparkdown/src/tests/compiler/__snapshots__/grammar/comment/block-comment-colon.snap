@@ -93,7 +93,11 @@ sparkdown [0..116]
  │   │   │       ├─ DialogueCharacter_c4 80
  │   │   │       ├─ DialogueCharacter_c5 80
  │   │   │       ├─ DialogueCharacter_c6 80
- │   │   │       └─ DialogueCharacter_c7 80
+ │   │   │       ├─ DialogueCharacter_c7 80
+ │   │   │       ├─ DialogueCharacter_c8 80
+ │   │   │       ├─ DialogueCharacter_c9 80
+ │   │   │       ├─ DialogueCharacter_c10 80
+ │   │   │       └─ DialogueCharacter_c11 80
  │   │   ├─ InlineDialogue_begin_c3 [80..81]
  │   │   │   └─ ColonSeparator [80..81]: ":"
  │   │   ├─ InlineDialogue_begin_c4 [81..82]

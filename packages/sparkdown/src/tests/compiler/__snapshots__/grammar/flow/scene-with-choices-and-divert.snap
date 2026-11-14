@@ -29,7 +29,11 @@ sparkdown [0..116]
  │   │   │       ├─ DialogueCharacter_c4 17
  │   │   │       ├─ DialogueCharacter_c5 17
  │   │   │       ├─ DialogueCharacter_c6 17
- │   │   │       └─ DialogueCharacter_c7 17
+ │   │   │       ├─ DialogueCharacter_c7 17
+ │   │   │       ├─ DialogueCharacter_c8 17
+ │   │   │       ├─ DialogueCharacter_c9 17
+ │   │   │       ├─ DialogueCharacter_c10 17
+ │   │   │       └─ DialogueCharacter_c11 17
  │   │   ├─ InlineDialogue_begin_c3 [17..18]
  │   │   │   └─ ColonSeparator [17..18]: ":"
  │   │   ├─ InlineDialogue_begin_c4 [18..19]

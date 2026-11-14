@@ -5665,12 +5665,18 @@ export class SparkdownCompiler {
           }
         } else if (aliasOwners.length === 1) {
         } else if (aliasOwners.length > 1) {
+          const cue = aliasSelector!.value;
+          const either = (items: string[], last: string) =>
+            `${items.slice(0, -1).join(", ")} ${last} ${items.at(-1)}`;
           report(
             DiagnosticSeverity.Warning,
-            `\`${aliasSelector!.value}\` is an alias of ${aliasOwners
-              .map((owner) => `\`${owner}\``)
-              .join(", ")
-              .replace(/, ([^,]*)$/, " and $1")}, so this line names none of them`,
+            `\`${cue}\` is an alias of ${either(
+              aliasOwners.map((owner) => `\`${owner}\``),
+              "and",
+            )}, so this line names none of them: write ${either(
+              aliasOwners.map((owner) => `\`${cue} as ${owner}\``),
+              "or",
+            )} to say who speaks`,
           );
         } else if (readsLayout(reads) && namesLayoutElement(selector)) {
         } else if (

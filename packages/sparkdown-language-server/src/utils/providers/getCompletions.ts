@@ -435,6 +435,39 @@ const addCharacterCompletions = (
   }
 };
 
+const SPEAKER_BEING_TYPED = /\S[ \t]+as[ \t]+[a-zA-Z0-9_]*$/;
+
+const shownBeforeSpeaker = (text: string) => {
+  const match = SPEAKER_BEING_TYPED.exec(text);
+  return match ? text.slice(0, match.index + 1) : undefined;
+};
+
+const addSpeakerCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  insertTextSuffix = "",
+) => {
+  for (const name of Object.keys(program?.context?.["character"] || {})) {
+    if (name.startsWith("$") || completions.has(name)) continue;
+    completions.set(name, {
+      label: name,
+      insertText: name + insertTextSuffix,
+      labelDetails: { description: "character" },
+      kind: CompletionItemKind.Constant,
+    });
+  }
+};
+
+const knownCue = (text: string | undefined, program: SparkProgram | undefined) =>
+  text !== undefined &&
+  Object.entries<any>(program?.context?.["character"] || {}).some(
+    ([name, character]) =>
+      !name.startsWith("$") &&
+      (name === text ||
+        character?.name === text ||
+        (Array.isArray(character?.aliases) && character.aliases.includes(text))),
+  );
+
 const addTriggeredKeywordCompletions = (
   completions: Map<string, CompletionItem>,
   description: string | undefined,
@@ -1681,7 +1714,14 @@ const completionsAt = (
         "InlineDialogue_begin",
         leftStack,
       );
-    if (isCursorAfterNodeText(dialogueCharacterNode)) {
+    if (
+      dialogueCharacterNode &&
+      SPEAKER_BEING_TYPED.test(
+        read(dialogueCharacterNode.from, documentCursorOffset),
+      )
+    ) {
+      addSpeakerCompletions(completions, program);
+    } else if (isCursorAfterNodeText(dialogueCharacterNode)) {
       addCharacterCompletions(
         completions,
         scripts,
@@ -2565,6 +2605,8 @@ const completionsAt = (
           addSnippet(completions, "heading", "$:", ": ");
         } else if (text === "%") {
           addSnippet(completions, "transitional", "%:", ": ");
+        } else if (knownCue(shownBeforeSpeaker(text), program)) {
+          addSpeakerCompletions(completions, program, ": ");
         } else {
           addCharacterCompletions(
             completions,

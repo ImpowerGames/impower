@@ -99,6 +99,7 @@ export const getSymbol = (
         n.name === "LuauVariableName" ||
         n.name === "TypeName" ||
         n.name === "DialogueCharacterName" ||
+        n.name === "DialogueCharacterSpeaker" ||
         n.name === "AssetCommandFileName" ||
         n.name === "AssetCommandTarget" ||
         n.name === "NameValue" ||

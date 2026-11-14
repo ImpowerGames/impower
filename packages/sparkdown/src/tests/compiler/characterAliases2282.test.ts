@@ -133,7 +133,9 @@ describe("`aliases` on a character (#2282)", () => {
     expect(clash).toEqual(cold(current));
     edit(`name = "STRANGER"`, `name = "BUNNY"\n  aliases = { "STRANGER" }`, 3);
     const shared = messages();
-    expect(shared).toEqual(["11:2 `STRANGER` is an alias of `raffles` and `bunny`, so this line names none of them"]);
+    expect(shared).toEqual([
+      "11:2 `STRANGER` is an alias of `raffles` and `bunny`, so this line names none of them: write `STRANGER as raffles` or `STRANGER as bunny` to say who speaks",
+    ]);
     expect(shared).toEqual(cold(current));
     edit(`\n  aliases = { "STRANGER" }\nend\n\nscene`, `\nend\n\nscene`, 4);
     expect(messages()).toEqual([]);
@@ -154,7 +156,8 @@ end
     );
     expect(diagnostics).toEqual([
       {
-        message: "`???` is an alias of `raffles` and `bunny`, so this line names none of them",
+        message:
+          "`???` is an alias of `raffles` and `bunny`, so this line names none of them: write `??? as raffles` or `??? as bunny` to say who speaks",
         severity: 2,
         text: "???",
       },
