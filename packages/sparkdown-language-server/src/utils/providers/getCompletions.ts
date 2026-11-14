@@ -458,15 +458,17 @@ const addSpeakerCompletions = (
   }
 };
 
-const knownCue = (text: string | undefined, program: SparkProgram | undefined) =>
+const cueBeingTyped = (text: string | undefined, program: SparkProgram | undefined) =>
   text !== undefined &&
-  Object.entries<any>(program?.context?.["character"] || {}).some(
-    ([name, character]) =>
-      !name.startsWith("$") &&
-      (name === text ||
-        character?.name === text ||
-        (Array.isArray(character?.aliases) && character.aliases.includes(text))),
-  );
+  (!/\p{Ll}/u.test(text) ||
+    Object.entries<any>(program?.context?.["character"] || {}).some(
+      ([name, character]) =>
+        !name.startsWith("$") &&
+        (name === text ||
+          character?.name === text ||
+          (Array.isArray(character?.aliases) &&
+            character.aliases.includes(text))),
+    ));
 
 const addTriggeredKeywordCompletions = (
   completions: Map<string, CompletionItem>,
@@ -2605,7 +2607,7 @@ const completionsAt = (
           addSnippet(completions, "heading", "$:", ": ");
         } else if (text === "%") {
           addSnippet(completions, "transitional", "%:", ": ");
-        } else if (knownCue(shownBeforeSpeaker(text), program)) {
+        } else if (cueBeingTyped(shownBeforeSpeaker(text), program)) {
           addSpeakerCompletions(completions, program, ": ");
         } else {
           addCharacterCompletions(

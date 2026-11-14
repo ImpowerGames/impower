@@ -91,6 +91,18 @@ describe("the speaker a cue names with `as` in the editor (#2283)", () => {
     expect(characterLabels(at.labels)).toEqual(["bunny", "raffles"]);
   });
 
+  test("completion after `as` on a cue being typed under a new shown name offers the character define names", () => {
+    const program = compileProject(SOURCE);
+    const at = complete(SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  MASKED MAN as r@1\n"), { program });
+    expect(characterLabels(at.labels)).toEqual(["bunny", "raffles"]);
+  });
+
+  test("a line of prose ending in `as` and a word is offered no character define names", () => {
+    const program = compileProject(SOURCE);
+    const at = complete(SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  He looked as r@1\n"), { program });
+    expect(characterLabels(at.labels)).toEqual([]);
+  });
+
   test("go to definition on the word after `as` lands on the character's define", () => {
     const { documents, workspace } = workspaceOf(SOURCE);
     const { references } = getReferences(
