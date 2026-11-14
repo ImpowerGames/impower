@@ -191,18 +191,20 @@ export default function AssetInspector({
   const [previewing, setPreviewing] = useState<VariantSelection | null>(null);
   const [chosenForm, setChosenForm] = useState<VariantForm | null>(null);
   const [picture, setPicture] = useState<string | null | undefined>(undefined);
+  const [drawn, setDrawn] = useState<readonly (string | null)[] | null>(null);
   const [soloPath, setSoloPath] = useState<string | null>(null);
   const soloFile = stack ? (asset.files.find((file) => file.path === soloPath) ?? null) : null;
-  const sizeOf = (file: { src?: string }) => (file.src ? workspace.assetSizes.value[file.src] : null);
-  const fileSizes = asset.files.map(sizeOf);
-  const measured = fileSizes.flatMap((size) => (size ? [size] : []));
-  const canvas =
-    fileSizes.every((size) => size !== undefined) && measured.length
-      ? {
-          width: Math.max(...measured.map((size) => size.width)),
-          height: Math.max(...measured.map((size) => size.height)),
-        }
-      : null;
+  const framed = soloFile && drawn ? [soloFile.path, ...drawn] : [];
+  const framedSizes = framed.map((path) => {
+    const src = path ? workspace.assetListing.value?.files[path]?.src : undefined;
+    return src ? workspace.assetSizes.value[src] : null;
+  });
+  const canvas = framedSizes.length && framedSizes.every((size) => !!size)
+    ? {
+        width: Math.max(...framedSizes.map((size) => size!.width)),
+        height: Math.max(...framedSizes.map((size) => size!.height)),
+      }
+    : null;
   const [frameEdge, setFrameEdge] = useState(0);
   const [fullEdge, setFullEdge] = useState(0);
   const pictureSize = Math.max(frameEdge, fullEdge);
@@ -247,15 +249,17 @@ export default function AssetInspector({
     setPreviewing(null);
     setChosenForm(null);
     setPicture(undefined);
+    setDrawn(null);
     setFullEdge(0);
     setSoloPath(null);
   }, [asset.path]);
 
   useEffect(() => {
-    if (soloFile && fileSizes.includes(undefined)) {
-      void intents().then((Workspace) => Workspace.assets.measureImages(asset.files.map((file) => file.path)));
+    if (framedSizes.includes(undefined)) {
+      const paths = framed.flatMap((path) => (path ? [path] : []));
+      void intents().then((Workspace) => Workspace.assets.measureImages(paths));
     }
-  }, [soloFile?.path, filesKey]);
+  }, [framed.join("\n")]);
 
   useEffect(() => {
     const frame = stack ? body.current?.querySelector<HTMLElement>("[data-zoom-frame]") : null;
@@ -280,7 +284,10 @@ export default function AssetInspector({
     let alive = true;
     void intents().then((Workspace) => {
       if (alive) {
-        dispose = Workspace.assets.watchPicture(stack!.cover, variant, pictureSize, setPicture);
+        dispose = Workspace.assets.watchPicture(stack!.cover, variant, pictureSize, (src, layers) => {
+          setPicture(src);
+          setDrawn(layers);
+        });
       }
     });
     return () => {
@@ -424,7 +431,7 @@ export default function AssetInspector({
       key={`${asset.path}\n${asset.src ?? ""}`}
       asset={asset}
       picture={stack ? picture : undefined}
-      solo={soloFile && { name: nameOf(soloFile.path), src: soloFile.src, pixels: sizeOf(soloFile), canvas }}
+      solo={soloFile && { name: nameOf(soloFile.path), src: soloFile.src, pixels: framedSizes[0], canvas }}
       pixels={pixels}
       read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
       onSeconds={setVideoSeconds}

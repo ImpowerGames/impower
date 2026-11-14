@@ -433,10 +433,10 @@ export default class WorkspaceLanguageServer {
     uri: string,
     variant: { image: string; attributes: readonly string[] },
     size: number,
-  ): Promise<string | null> {
+  ): Promise<{ src: string; layers: (string | null)[] } | null> {
     await this.initialization();
     return (
-      (await this._connection.sendRequest<string | null>(
+      (await this._connection.sendRequest<{ src: string; layers: (string | null)[] } | null>(
         "sparkdown/variantPicture",
         { uri, variant, size },
       )) ?? null

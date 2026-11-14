@@ -1093,8 +1093,11 @@ describe("the Variants tester and the Files section", () => {
     });
   });
 
+  const drawsVariantName = assets.watchPicture.getMockImplementation()!;
+
   afterEach(() => {
     restoreFrame.splice(0).reverse().forEach((restore) => restore());
+    assets.watchPicture.mockImplementation(drawsVariantName);
   });
 
   it("asks for the picture at the frame's size in device pixels, and again when the frame grows", async () => {
@@ -1677,12 +1680,22 @@ describe("the Variants tester and the Files section", () => {
     return { left, top, width, height, fills: box.className.split(" ").includes("inset-0") };
   };
 
-  it("places a smaller file where the composition draws it, measuring the stack's files when soloed", async () => {
+  const drawing = (layers: (variant: { image: string; attributes: string[] }) => string[]) =>
+    assets.watchPicture.mockImplementation(
+      (_path: string, variant: { image: string; attributes: string[] }, _size: number, listener: (src: string | null, layers?: string[]) => void) => {
+        listener(`/picture/${[variant.image, ...variant.attributes].join("~")}`, layers(variant).map((leaf) => `${P}/${leaf}`));
+        return () => {};
+      },
+    );
+  const RESTING = ["imani.png", "imani~mouth.closed~default.png"];
+
+  it("places a smaller file where the composition draws it, measuring the files it frames when soloed", async () => {
+    drawing(() => RESTING);
     workspace.assetSizes.value = { [srcOf(`${P}/imani.png`)!]: { width: 400, height: 200 } };
     await mount();
     await open("imani");
     await click(soloButton("imani~face.happy.png"));
-    expect(assets.measureImages).toHaveBeenCalledWith(expect.arrayContaining(IMANI));
+    expect(assets.measureImages).toHaveBeenCalledWith([`${P}/imani~face.happy.png`, ...RESTING.map((leaf) => `${P}/${leaf}`)]);
     expect(placed().fills).toBe(true);
     await act(async () => {
       workspace.assetSizes.value = sized({ "imani~face.happy.png": { width: 200, height: 50 } }, { width: 400, height: 200 });
@@ -1691,7 +1704,28 @@ describe("the Variants tester and the Files section", () => {
     expect(placed()).toEqual({ left: "0%", top: "0%", width: "50%", height: "25%", fills: false });
   });
 
-  it("frames a stack whose largest file is not the base by that file's canvas, letterboxed, so nothing is clipped", async () => {
+  it("frames a soloed file by the files the shown variant draws, so a larger file it does not draw changes nothing", async () => {
+    drawing(() => RESTING);
+    workspace.assetSizes.value = sized({ "imani@night.png": { width: 800, height: 400 } });
+    await mount();
+    await open("imani");
+    await click(soloButton("imani.png"));
+    expect(placed()).toEqual({ left: "0%", top: "0%", width: "100%", height: "100%", fills: false });
+    await click(soloButton("imani~mouth.closed~default.png"));
+    expect(placed()).toEqual({ left: "0%", top: "0%", width: "100%", height: "100%", fills: false });
+  });
+
+  it("widens the frame to a soloed file the variant does not draw, letterboxed, so nothing is clipped", async () => {
+    drawing(() => RESTING);
+    workspace.assetSizes.value = sized({ "imani@night.png": { width: 800, height: 400 } });
+    await mount();
+    await open("imani");
+    await click(soloButton("imani@night.png"));
+    expect(placed()).toEqual({ left: "0%", top: "25%", width: "100%", height: "50%", fills: false });
+  });
+
+  it("frames by a larger file the variant draws, the base in its corner as the composition draws it", async () => {
+    drawing((variant) => (variant.image === "imani@night" ? ["imani@night.png"] : ["imani.png", "imani~mouth.open.png"]));
     workspace.assetSizes.value = sized({ "imani~mouth.open.png": { width: 800, height: 400 } });
     await mount();
     await open("imani");
