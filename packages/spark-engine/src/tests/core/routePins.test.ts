@@ -508,3 +508,71 @@ describe("the preview's route keeps the author's pins", () => {
     expect(route.unresolvedPins).toEqual([pin(6)]);
   }, 120_000);
 });
+
+const lieLoop = [
+  "store trust = 0",
+  "store clues = 0",
+  "store noise = 0",
+  "",
+  "scene start",
+  "  choose",
+  "    * [Tell the truth.]",
+  "      trust += 2",
+  "    * [Lie.]",
+  "      for j = 1, 2000 do",
+  "        noise += 1",
+  "      end",
+  "      trust -= 1",
+  "  end",
+  "  if trust > 3 then",
+  "    for i = 1, 40000 do",
+  "      clues += 1",
+  "    end",
+  "    You found {clues} clues.",
+  "  end",
+  "end",
+  "",
+];
+
+const withoutKinds = (route: PreviewRoute) =>
+  route.decisions.map((d) => [
+    d.location.range.start.line + 1,
+    d.text,
+    d.verdict,
+    d.passes,
+  ]);
+
+describe("pinning the option the route already takes changes only its kind", () => {
+  test("the example of #1655 at line 21 through Tell the truth. clips its loop after the same passes", () => {
+    const auto = preview(example, 21, [], "clues");
+    const pinned = preview(example, 21, [pin(8)], "clues");
+    expect(kindsAndLines(auto.route)).toEqual([
+      ["auto", 8],
+      ["forced", 15],
+      ["clipped", 18],
+    ]);
+    expect(kindsAndLines(pinned.route)).toEqual([
+      ["pinned", 8],
+      ["forced", 15],
+      ["clipped", 18],
+    ]);
+    expect(withoutKinds(auto.route)).toEqual(withoutKinds(pinned.route));
+    expect(auto.count).toBe(pinned.count);
+    expect(auto.route.decisions[2]!.passes).toBe(auto.count);
+  }, 120_000);
+
+  test("an option whose sibling runs a long loop clips the route's loop after the same passes", () => {
+    const auto = preview(lieLoop, 19, [], "clues");
+    const taken = auto.route.decisions[0]!;
+    expect(taken.kind).toBe("auto");
+    const pinned = preview(
+      lieLoop,
+      19,
+      [pin(taken.location.range.start.line + 1)],
+      "clues",
+    );
+    expect(pinned.route.decisions[0]!.kind).toBe("pinned");
+    expect(withoutKinds(auto.route)).toEqual(withoutKinds(pinned.route));
+    expect(auto.count).toBe(pinned.count);
+  }, 120_000);
+});

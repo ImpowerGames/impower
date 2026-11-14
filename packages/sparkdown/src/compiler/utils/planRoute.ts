@@ -20,6 +20,7 @@ import {
   pinnedOfferCounts,
   pinnedOfferKey,
   pinsNextOffer,
+  pinTakenOptions,
   type PinnedOptions,
 } from "./routePins";
 
@@ -1107,6 +1108,31 @@ export const planRoute = (
 };
 
 const searchRoute = (
+  story: Story,
+  from: string,
+  to: ProgramAddress,
+  options?: SearchOptions,
+): RoutePlan | null => {
+  const route = searchRouteOnce(story, from, to, options);
+  const pins =
+    route?.decisions.some((d) => d.kind === "condition" && d.departs) &&
+    pinTakenOptions(
+      route.choices,
+      options?.pins ?? NO_PINS,
+      options?.resumeFrom?.choices.length,
+    );
+  if (!pins) {
+    return route;
+  }
+  const stats = { ...lastSearchStats, errors: [...lastSearchStats.errors] };
+  const pinned = searchRouteOnce(story, from, to, { ...options, pins });
+  if (!pinned) {
+    Object.assign(lastSearchStats, stats);
+  }
+  return pinned ?? route;
+};
+
+const searchRouteOnce = (
   story: Story,
   from: string,
   to: ProgramAddress,
