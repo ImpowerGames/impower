@@ -164,7 +164,7 @@ describe("a tab's level", () => {
     const root = assetLevel({ listing: old, type: "audio", sort: "name-asc", endings: ENDINGS });
     expect(root.root).toBe("assets/Audio");
     expect(paths(root.rows)).toEqual(["assets/music", "assets/rain.wav"]);
-    expect(root.rows.map((row) => row.location)).toEqual(["assets", "assets"]);
+    expect(root.rows.map((row) => [row.location, row.holdings])).toEqual([[undefined, "1 sound"], ["assets", undefined]]);
     const inside = assetLevel({ listing: old, type: "audio", folder: "assets/music", sort: "name-asc", endings: ENDINGS });
     expect(inside.folder).toBe("assets/music");
     expect(paths(inside.rows)).toEqual(["assets/music/theme.wav"]);
@@ -197,7 +197,7 @@ describe("a tab's level", () => {
     const audio = assetLevel({ listing: both, type: "audio", sort: "name-asc", endings: ENDINGS });
     expect(audio.root).toBe("Assets/Audio");
     expect(audio.rows.map((row) => [row.path, row.location])).toEqual([
-      ["assets/Audio", "assets"],
+      ["assets/Audio", undefined],
       ["assets/rain.wav", "assets"],
     ]);
     expect(audio.files).toBe(2);
@@ -454,5 +454,39 @@ describe("a folder stack in the Assets page", () => {
   it("covers the folder's row in its parent with the picture's bottom layer", () => {
     const level = assetLevel({ listing: project, type: "image", folder: "Assets/Images/Portraits", sort: "name-asc", endings: ENDINGS });
     expect(level.rows.find((row) => row.path === MIA)?.covers).toEqual([`${MIA}/90_body.png`, `${MIA}/notes.png`]);
+  });
+});
+
+describe("a folder's count line", () => {
+  const project = listing(
+    {
+      "Assets/Images/Portraits/ava.png": 10,
+      "Assets/Images/Portraits/ava@night.png": 10,
+      "Assets/Images/Portraits/ava~face.happy.png": 10,
+      "Assets/Images/Portraits/ava~face.sad.png": 10,
+      "Assets/Images/Portraits/bo.png": 10,
+      "Assets/Images/Portraits/cy.png": 10,
+      "Assets/Images/Backdrops/Town/street.png": 10,
+      "Assets/Images/Backdrops/Town/street@night.png": 10,
+      "Assets/Images/Backdrops/Coast/beach.png": 10,
+      "Assets/Images/Portraits/mia/90_body.png": 10,
+      "Assets/Images/Portraits/mia/30_face.happy.png": 10,
+    },
+    ["Assets", "Assets/Images", "Assets/Images/Empty", "Assets/Images/Shelf", "Assets/Images/Shelf/Empty"],
+  );
+  const holdings = () =>
+    Object.fromEntries(
+      assetLevel({ listing: project, type: "image", sort: "name-asc", endings: ENDINGS }).rows.map((row) => [
+        row.name,
+        row.holdings,
+      ]),
+    );
+
+  it("counts pictures as the page draws them, one per stack, through every folder inside", () => {
+    expect(holdings()).toMatchObject({ Portraits: "4 images", Backdrops: "2 images" });
+  });
+
+  it("counts a folder's folders only when no picture is inside it", () => {
+    expect(holdings()).toMatchObject({ Shelf: "1 folder", Empty: "Empty" });
   });
 });
