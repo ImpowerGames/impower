@@ -1,3 +1,6 @@
+import { compile, optimize } from "@tailwindcss/node";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -5,6 +8,12 @@ import SplitPane, {
   type SplitPanePinned,
   type SplitPaneProps,
 } from "./SplitPane";
+
+const packageCss = async (classes: string[]): Promise<string> => {
+  const source = readFileSync(resolve("src/style.css"), "utf8");
+  const compiler = await compile(source, { base: resolve("src"), onDependency: () => {} });
+  return optimize(compiler.build(classes), { minify: false }).code;
+};
 
 beforeAll(() => {
   HTMLElement.prototype.setPointerCapture ??= () => {};
@@ -101,6 +110,25 @@ describe("SplitPane", () => {
       expect(strip(none)).toEqual([]);
       expect(none.contains(orientation === "horizontal" ? "before:left-[3px]" : "before:top-[3px]")).toBe(true);
     }
+  });
+
+  it("compiles each between-surfaces strip to the neighbours' surfaces around a clear 1px gap at 3px, and the line to 1px at 3px", async () => {
+    const cases = [
+      { orientation: "horizontal", reverse: false, axis: "to right", first: "start", second: "end", line: "left: 3px" },
+      { orientation: "horizontal", reverse: true, axis: "to right", first: "end", second: "start", line: "left: 3px" },
+      { orientation: "vertical", reverse: false, axis: "to bottom", first: "start", second: "end", line: "top: 3px" },
+      { orientation: "vertical", reverse: true, axis: "to bottom", first: "end", second: "start", line: "top: 3px" },
+    ] as const;
+    for (const c of cases) {
+      const { separator } = await mount({ orientation: c.orientation, reverse: c.reverse });
+      const css = await packageCss(Array.from(separator.classList));
+      expect(css).toContain(
+        `background-image: linear-gradient(${c.axis},var(--split-${c.first}-surface, transparent) 3px,transparent 3px 4px,var(--split-${c.second}-surface, transparent) 4px);`,
+      );
+      expect(css).toMatch(new RegExp(`:?:before[^{]*\\{[^}]*${c.line};`));
+    }
+    const none = (await mount({ line: "none" })).separator;
+    expect(await packageCss(Array.from(none.classList))).not.toContain("background-image");
   });
 
   it("clips both panels unless one is named to overflow", async () => {
