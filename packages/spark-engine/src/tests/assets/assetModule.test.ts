@@ -463,6 +463,19 @@ style deck {
   font_family = "'Plain, Display', serif"
 }
 
+style card {
+  font_family = "'O\\\\'Connor', serif"
+}
+
+define OConnor as font with
+  src = "OConnor.ttf"
+  font_family = "O'Connor"
+end
+
+layout card {
+  text "Card"
+}
+
 layout hud {
   text "Score"
 }
@@ -476,13 +489,15 @@ scene A
 end
 `;
     const h = createHarness(source, 0, {
-      assets: [...ASSETS, asset("font", "Plain", "ttf")],
+      assets: [...ASSETS, asset("font", "Plain", "ttf"), asset("font", "OConnor", "ttf")],
       beforeConnect: playing,
       autoOpenAll: false,
     });
     await h.ready;
     expect(h.game.module.ui.getFontNamesForLayout("hud")).toEqual(["Fancy"]);
     expect(h.game.module.ui.getFontNamesForLayout("deck")).toEqual(["Plain"]);
+    expect((h.game.context as any).style?.card?.font_family).toBe("'O\\'Connor', serif");
+    expect(h.game.module.ui.getFontNamesForLayout("card")).toEqual(["OConnor"]);
     const items = h.game.module.assets.resolveFontItems(["hud", "deck"]) as { family?: string }[];
     expect(items.map((item) => item.family).sort()).toEqual(["1st my.font~x", "Plain, Display"]);
   });

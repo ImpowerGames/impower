@@ -87,6 +87,13 @@ import type { PageEntry, PageRecord, PageState } from "../types/PageState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
+import {
+  parseComponentValues,
+  significant,
+  splitAt,
+  tokenOf,
+  TokenType,
+} from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "../utils/getImageOwner";
 import { getVarName } from "../utils/getVarName";
@@ -1660,8 +1667,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return;
         }
         if (value.includes(",") && key.includes("font")) {
-          for (const match of value.matchAll(/\s*(?:"([^"]*)"|'([^']*)'|([^,]*))\s*(?:,|$)/g)) {
-            const family = (match[1] ?? match[2] ?? match[3] ?? "").trim();
+          for (const part of splitAt(parseComponentValues(value), TokenType.Comma)) {
+            const nodes = significant(part);
+            const only = nodes.length === 1 ? tokenOf(nodes[0]!) : undefined;
+            const family =
+              only?.[0] === TokenType.String
+                ? (only[4] as { value: string }).value
+                : part.map(String).join("").trim();
             if (fonts[family] && !family.startsWith("$")) {
               referenced.add(family);
             }
