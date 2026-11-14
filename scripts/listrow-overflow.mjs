@@ -114,7 +114,7 @@ export function analyse(files) {
       if (found) return false;
       if ((isClassAttribute(n) || isClassCall(n)) && hasClipString(n)) found = true;
       else if (tagName(n) && /^[A-Z]/.test(tagName(n)) && tagClips(file, tagName(n))) found = true;
-      else if (ts.isIdentifier(n) && !seen.has(n.text) && ts.isJsxExpression(n.parent)) {
+      else if (ts.isIdentifier(n) && !seen.has(n.text) && (n === node || ts.isJsxExpression(n.parent))) {
         seen.add(n.text);
         found = (modules.get(file).bindings.get(n.text) ?? []).some((init) => clips(file, init, seen));
       }
@@ -137,12 +137,49 @@ export function analyse(files) {
 
 export const selfClippingComponents = (files) => new Set([...analyse(files).clipping].map((key) => key.slice(key.indexOf("#") + 1)));
 
-const attribute = (element, name) => {
-  const attrs = (ts.isJsxElement(element) ? element.openingElement : element).attributes.properties;
-  return attrs.find((a) => ts.isJsxAttribute(a) && a.name.getText() === name);
-};
-
 const unwrap = (node) => (node && ts.isJsxExpression(node) ? node.expression : node);
+
+function spreadObject(node, bindings, seen = new Set()) {
+  node = stripParens(node);
+  if (node && ts.isObjectLiteralExpression(node)) return node;
+  if (node && ts.isIdentifier(node) && !seen.has(node.text)) {
+    seen.add(node.text);
+    const objects = (bindings.get(node.text) ?? []).map((init) => spreadObject(init, bindings, seen)).filter(Boolean);
+    return objects.length === 1 ? objects[0] : undefined;
+  }
+  return undefined;
+}
+
+function props(element, bindings) {
+  const found = new Map();
+  const set = (name, value) => {
+    if (name === "label" || name === "overflow") found.set(name, value);
+  };
+  const objectProps = (object) => {
+    for (const p of object.properties) {
+      if (ts.isPropertyAssignment(p) && (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name))) set(p.name.text, p.initializer);
+      else if (ts.isShorthandPropertyAssignment(p)) set(p.name.text, p.name);
+      else if (ts.isSpreadAssignment(p)) {
+        const inner = spreadObject(p.expression, bindings);
+        if (inner) objectProps(inner);
+      }
+    }
+  };
+  for (const a of (ts.isJsxElement(element) ? element.openingElement : element).attributes.properties) {
+    if (ts.isJsxAttribute(a)) set(a.name.getText(), unwrap(a.initializer));
+    else {
+      const object = spreadObject(a.expression, bindings);
+      if (object) objectProps(object);
+    }
+  }
+  return found;
+}
+
+const listRowTags = (module) => {
+  const tags = new Set(module.components.has("ListRow") ? [] : ["ListRow"]);
+  for (const [local, { name }] of module.imports) if (name === "ListRow") tags.add(local);
+  return tags;
+};
 
 const stripParens = (node) => {
   while (node && (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression?.(node))) node = node.expression;
@@ -169,11 +206,13 @@ export function violations(file, analysis) {
   const module = modules.get(file.path);
   if (!module) return [];
   const found = [];
+  const tags = listRowTags(module);
   walk(module.sourceFile, (n) => {
-    if (tagName(n) !== "ListRow") return;
-    const label = stripParens(unwrap(attribute(n, "label")?.initializer));
+    if (!tags.has(tagName(n))) return;
+    const given = props(n, module.bindings);
+    const label = stripParens(given.get("label"));
     if (!label) return;
-    const overflow = stripParens(unwrap(attribute(n, "overflow")?.initializer));
+    const overflow = stripParens(given.get("overflow"));
     const pairs =
       overflow && ts.isConditionalExpression(overflow) && ts.isConditionalExpression(label) && overflow.condition.getText() === label.condition.getText()
         ? [[overflow.whenTrue, label.whenTrue], [overflow.whenFalse, label.whenFalse]]

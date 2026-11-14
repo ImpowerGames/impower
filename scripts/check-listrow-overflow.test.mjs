@@ -50,6 +50,10 @@ test("a self-clipping label without overflow self or wrap fails", () => {
   assert.deepEqual(run(`<ListRow overflow={overflow} label={<Snippet text="a" />} />`, { head: `import { Snippet } from "./Snippet";\nconst overflow = "fade";\n` }), ["fade"]);
   assert.deepEqual(run(`<ListRow {...props} label={<Snippet text="a" />} />`), ["fade"]);
   assert.deepEqual(run(`<ListRow label={item} />`, { head: `import { Snippet } from "./Snippet";\nconst item = <Snippet text="a" />;\n` }), ["fade"]);
+  assert.deepEqual(run(`<MenuRow label={<span class="truncate">a</span>} />`, { head: `import { ListRow as MenuRow } from "@impower/impower-ui/components";\n` }), ["fade"]);
+  assert.deepEqual(run(`<ListRow {...props} />`, { head: `const props = { label: <span class="fade-edge">a</span> };\n` }), ["fade"]);
+  assert.deepEqual(run(`<ListRow {...props} />`, { head: `const label = <span class="fade-edge">a</span>;\nconst props = { label, overflow: "clamp" };\n` }), ["clamp"]);
+  assert.deepEqual(run(`<ListRow {...{ label: <span class="truncate">a</span> }} overflow="fade" />`), ["fade"]);
 });
 
 test("a self-clipping label with overflow self or wrap passes, as do labels that do not clip", () => {
@@ -58,6 +62,8 @@ test("a self-clipping label with overflow self or wrap passes, as do labels that
   assert.deepEqual(run(`<ListRow overflow={ok ? "self" : "wrap"} label={<Snippet text="a" />} />`), []);
   assert.deepEqual(run(`<ListRow overflow={overflow} label={<Snippet text="a" />} />`, { head: `import { Snippet } from "./Snippet";\nconst overflow = "self";\n` }), []);
   assert.deepEqual(run(`<ListRow overflow={ok ? "self" : undefined} label={ok ? <span class="truncate">a</span> : "a"} />`), []);
+  assert.deepEqual(run(`<ListRow {...props} />`, { head: `const props = { label: <span class="fade-edge">a</span>, overflow: "self" };\n` }), []);
+  assert.deepEqual(run(`<ListRow {...props} overflow="self" />`, { head: `const props = { label: <span class="fade-edge">a</span> };\n` }), []);
   assert.deepEqual(run(`<ListRow label="A string" />`), []);
   assert.deepEqual(run(`<ListRow label={<Plain />} />`), []);
   assert.deepEqual(run(`<ListRow label={<span data-testid="truncate" aria-label="fade-edge">a line-clamp-2</span>} />`), []);
