@@ -249,6 +249,63 @@ try {
     console.log("ok: the read-back check fails on a relative picture path and on an appended picture, as gh left them when the sample request was filed");
   }
 
+  {
+    const issues = new Map();
+    const uploads = [];
+    const blockers = [];
+    const hosted = (name) => `https://github.com/user-attachments/assets/${Buffer.from(name).toString("hex")}`;
+    const refuse = (stderr) => {
+      throw Object.assign(new Error(`Command failed: gh\n${stderr}`), { status: 1, stdout: "", stderr });
+    };
+    const fakeGitHub = (args, options = {}) => {
+      const asApp = Boolean(options.env?.GH_TOKEN);
+      const flag = (name) => args[args.indexOf(name) + 1];
+      if (args[0] === "issue" && args[1] === "create") {
+        const attached = args.flatMap((arg, i) => (args[i - 1] === "--attach" ? [arg] : []));
+        if (attached.length && asApp) refuse(`could not upload ${attached[0]}: attaching files requires write access to the repository`);
+        let body = readFileSync(flag("--body-file"), "utf8");
+        for (const file of attached) body = body.split(`](${file})`).join(`](${hosted(file)})`);
+        const number = 77;
+        issues.set(number, { number, id: 770, title: flag("--title"), body, type: { name: flag("--type") }, labels: [{ name: flag("--label") }], assignees: [{ login: flag("--assignee") }], milestone: null, state: "open", html_url: `https://github.com/acme/tickets/issues/${number}` });
+        return `https://github.com/acme/tickets/issues/${number}\n`;
+      }
+      const target = args.find((arg) => /^(https:\/\/uploads\.github\.com\/|repos\/)/.test(arg));
+      if (target.startsWith("https://uploads.github.com/")) {
+        const name = new URL(target).searchParams.get("name");
+        uploads.push({ name, asApp });
+        if (asApp) refuse("gh: Not Found (HTTP 404)");
+        return JSON.stringify({ url: hosted(`./${name}`) });
+      }
+      if (target === "repos/acme/tickets") return JSON.stringify({ id: 4242 });
+      if (/\/parent$/.test(target)) refuse("gh: No parent issue found (HTTP 404)");
+      if (/\/dependencies\/blocked_by$/.test(target)) {
+        if (args.includes("POST")) blockers.push(Number(flag("-F").slice("issue_id=".length)));
+        return args.includes("POST") ? "{}" : JSON.stringify([[...issues.values()].filter((issue) => blockers.includes(issue.id))]);
+      }
+      const issueMatch = /^repos\/acme\/tickets\/issues\/(\d+)$/.exec(target);
+      if (issueMatch) {
+        const issue = issues.get(Number(issueMatch[1]));
+        if (args.includes("PATCH")) issue.body = readFileSync(flag("-F").slice("body=@".length), "utf8");
+        return JSON.stringify(issue);
+      }
+      if (target === "repos/acme/tickets/issues") return "[[]]";
+      return "null";
+    };
+    const asApp = Object.freeze({ mode: "app", token: "ghs_fixtureInstallationToken", login: "impower-ask-maintainer[bot]" });
+    let result;
+    try {
+      result = fileRequest(decision(), { pictures, tracker: ghTracker("acme/tickets", fakeGitHub, asApp), repos, now, timeZone, identity: asApp });
+    } catch (error) {
+      assert.fail(`a request with pictures could not be filed as the App: ${error.message.replace(/^Command failed: gh\n/, "")}`);
+    }
+    const filed = issues.get(result.number);
+    assert.equal(result.pictures, 7);
+    assert.doesNotMatch(filed.body, /src="\.\//);
+    assert.equal((filed.body.match(/<img src="https:\/\/github\.com\/user-attachments\/assets\//g) ?? []).length, 7);
+    assert.ok(uploads.length && uploads.every((upload) => !upload.asApp), "every picture is uploaded with the maintainer's own login");
+    console.log("ok: filed as the App against a GitHub whose attachment host refuses App tokens, a request still gets all 7 pictures hosted and in place");
+  }
+
   function fakeTracker({ open = {}, failUpload = null, appendOnWrite = false, existing = {}, type = "Task", fail = {}, competitor = null, rivalTag = false, existingComments = [] } = {}) {
     const issues = new Map(Object.entries(existing).map(([n, issue]) => [Number(n), { labels: [], assignees: [], state: "open", id: Number(n) * 10, ...issue, number: Number(n) }]));
     const comments = new Map(existingComments.map((comment) => [comment.id, structuredClone(comment)]));
