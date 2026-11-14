@@ -1,4 +1,7 @@
 import "../style.css";
+import { repairVNodeParents } from "../utils/vnodeParents";
+
+repairVNodeParents();
 
 export {
   default as ActionSheet,
