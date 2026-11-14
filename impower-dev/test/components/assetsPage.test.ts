@@ -471,6 +471,16 @@ describe("image folders as tiles", () => {
     ]);
   });
 
+  it("fits a portrait tile's picture to the tile's height, centred", async () => {
+    const classes = (tile: HTMLElement) => tile.querySelector("img")!.className.split(" ");
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
+    await mount();
+    const portrait = classes(tiles()[0]!);
+    expect(portrait).toEqual(expect.arrayContaining(["h-full", "w-auto", "max-w-none", "left-1/2", "-translate-x-1/2"]));
+    expect(portrait).not.toContain("object-cover");
+    expect(portrait).not.toContain("size-full");
+  });
+
   it("draws landscape tiles under Backdrops and folder tiles covered by the pictures inside", async () => {
     await mount();
     expect(rowLabels()).toEqual(["Open folder Backdrops, 1 image", "Open folder Portraits, 4 images"]);
@@ -478,6 +488,7 @@ describe("image folders as tiles", () => {
     expect(portraits.querySelector("[data-folder-cover]")!.getAttribute("data-folder-cover")).toBe("1");
     await click(all<HTMLElement>('button[aria-label^="Open folder Backdrops"]')[0]);
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["landscape"]);
+    expect(tiles()[0]!.querySelector("img")!.className.split(" ")).toEqual(expect.arrayContaining(["size-full", "object-cover"]));
   });
 
   it("offers the folder's layouts from a menu showing the current one's icon, and keeps a choice for that folder only, with the chip beside the name", async () => {

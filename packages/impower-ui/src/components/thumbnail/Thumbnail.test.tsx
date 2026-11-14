@@ -31,6 +31,14 @@ describe("Thumbnail", () => {
     expect(host!.querySelector("img")!.className).toContain("object-contain");
   });
 
+  it("fits a picture to the box's height, centred, letting a wide picture's sides overflow", async () => {
+    const image = (await mount(<Thumbnail src="/a.png" size="fill" fit="height" />)).querySelector("img")!;
+    const classes = image.className.split(" ");
+    expect(classes).toEqual(expect.arrayContaining(["inset-y-0", "left-1/2", "h-full", "w-auto", "max-w-none", "-translate-x-1/2"]));
+    expect(classes).not.toContain("size-full");
+    expect(classes).not.toContain("inset-0");
+  });
+
   it("shows the image glyph when the picture fails to decode or has no address, and tries a new address again", async () => {
     const frame = await mount(<Thumbnail src="/broken.png" alt="bunny" />);
     await act(async () => {

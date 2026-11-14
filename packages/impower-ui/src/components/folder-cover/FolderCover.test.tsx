@@ -33,6 +33,17 @@ describe("FolderCover", () => {
     expect(cover.querySelector("svg")!.parentElement!.className).toContain("bg-media-badge");
   });
 
+  it("draws a single cover with the given fit and keeps several covers cropped to their tops", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(<FolderCover fit="height" sources={["/1.png"]} />, host!));
+    expect(host.querySelector("img")!.className.split(" ")).toEqual(expect.arrayContaining(["h-full", "w-auto", "-translate-x-1/2"]));
+    await act(async () => render(<FolderCover fit="height" sources={["/1.png", "/2.png"]} />, host!));
+    for (const image of Array.from(host.querySelectorAll("img"))) {
+      expect(image.className.split(" ")).toEqual(expect.arrayContaining(["object-cover", "object-top"]));
+    }
+    expect((await mount(["/1.png"])).querySelector("img")!.className).toContain("object-cover");
+  });
+
   it("shows the folder glyph alone when the folder holds no pictures", async () => {
     const cover = await mount([]);
     expect(cover.getAttribute("data-folder-cover")).toBe("0");
