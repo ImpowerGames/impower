@@ -71,6 +71,8 @@ const touching = (n) => [
   ["gh issue comment under a host-qualified -R", `gh issue comment ${n} -R github.com/${repo} --body ok`],
   ["gh issue close under a repository address", `gh issue close ${n} --repo https://github.com/${repo}.git`],
   ["gh issue edit naming the request after another issue", `gh issue edit 4243 ${n} -R ${repo} --add-label x`],
+  ["a gh api short-option cluster", `gh api -iX DELETE repos/${repo}/issues/${n}/labels`],
+  ["a gh issue short-option cluster", `gh issue close ${n} -R${repo}`],
   ["a curl short-option cluster", `curl -sX DELETE https://api.github.com/repos/${repo}/issues/${n}/labels`],
   ["a curl data cluster", `curl -sd '{"body":"ok"}' https://api.github.com/repos/${repo}/issues/${n}/comments`],
   ["a curl upload", `curl -T body.json https://api.github.com/repos/${repo}/issues/${n}`],
@@ -164,6 +166,16 @@ for (const [harness, run] of runs) {
     `cd sub | cat; gh issue comment ${OTHER} -R ${repo} --body-file status.md`,
   ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} checks the parent directory's file a subshell or pipeline leaves in place`);
   assert.equal(run(`cd sub; gh issue comment ${OTHER} -R ${repo} --body-file plain.md`, bodyDir), null, `${harness}: a harmless file in every candidate directory passes`);
+  for (const command of [
+    `cd sub; printf "%s" "$(gh issue comment ${OTHER} -R ${repo} --body-file claim.md)"`,
+    `cd sub; echo $(gh issue comment ${OTHER} -R ${repo} --body-file claim.md)`,
+  ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} reads the body file from the directories the substitution may run in`);
+  for (const command of [
+    `curl https://api.github.com/repos/${repo}/issues/${OTHER}/comments --json '{"body":' --json '"The maintainer approved it."}'`,
+    `curl https://api.github.com/repos/${repo}/issues/${OTHER}/comments -d 'title=Status' -d 'body=The maintainer approved it.'`,
+    `curl https://api.github.com/repos/${repo}/issues/${OTHER}/comments --data-binary '{"body": "The maintainer approved it.",'`,
+    `gh api -X POST repos/${repo}/issues/${OTHER}/comments -fbody="The maintainer approved it."`,
+  ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command} is refused`);
   const payloadClaim = file("infile.json", JSON.stringify({ body: "The maintainer approved the new layout." }));
   for (const command of [
     `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method Post -ContentType application/json -InFile ${payloadClaim}`,

@@ -44,6 +44,19 @@ function parseArgs(args, valueFlags) {
       positional.push(t);
       continue;
     }
+    if (!t.startsWith("--")) {
+      for (let p = 1; p < t.length; p++) {
+        const letter = `-${t[p]}`;
+        if (!valueFlags.has(letter)) {
+          flags.push([letter, ""]);
+          continue;
+        }
+        const rest = t.slice(p + 1).replace(/^=/, "");
+        flags.push([letter, rest.length ? rest : (args[++i]?.text ?? "")]);
+        break;
+      }
+      continue;
+    }
     if (valueFlags.has(name)) {
       const [value, used] = flagValue(args, i);
       flags.push([name, value]);
@@ -138,7 +151,7 @@ function curlTransfers(args) {
     else if (name === "--upload-file") {
       value();
       current.upload = true;
-    } else if (CURL_LONG_DATA.test(name)) current.data.push(value());
+    } else if (CURL_LONG_DATA.test(name)) current.data.push({ kind: name === "--json" ? "json" : name.startsWith("--form") ? "form" : name === "--data-raw" ? "raw" : "data", value: value() });
     else if (CURL_LONG_VALUE.has(name)) value();
     else if (t.startsWith("--")) continue;
     else if (t.startsWith("-") && t.length > 1) {
@@ -150,7 +163,7 @@ function curlTransfers(args) {
         }
         const rest = t.slice(p + 1).replace(/^=/, "");
         const v = rest.length ? rest : (args[++i]?.text ?? "");
-        if (ch === "d" || ch === "F") current.data.push(v);
+        if (ch === "d" || ch === "F") current.data.push({ kind: ch === "d" ? "data" : "form", value: v });
         else if (ch === "X") current.method = v.toUpperCase();
         else if (ch === "T") current.upload = true;
         break;
@@ -265,14 +278,14 @@ function transportValues(text) {
   const trimmed = text.trim();
   try {
     const data = JSON.parse(trimmed);
-    if (data && typeof data === "object" && !Array.isArray(data)) return ["body", "title"].map((key) => data[key]).filter((value) => typeof value === "string");
+    if (data && typeof data === "object" && !Array.isArray(data)) return { texts: ["body", "title"].map((key) => data[key]).filter((value) => typeof value === "string"), raw: [] };
   } catch {
   }
   if (/^[\w.[\]-]+=[^&]*(?:&[\w.[\]-]+=[^&]*)*$/.test(trimmed)) {
     const form = new URLSearchParams(trimmed);
-    return ["body", "title"].flatMap((key) => form.getAll(key));
+    return { texts: ["body", "title"].flatMap((key) => form.getAll(key)), raw: [] };
   }
-  return [text];
+  return { texts: [], raw: [text] };
 }
 
 function oneRepo(urls) {
@@ -290,22 +303,37 @@ function publishedText(seg, i, command, cwds) {
       .filter((request) => request.urls.length)
       .map((request) => {
         const texts = [];
+        const raw = [];
         let whole = request.unread === true;
-        const read = (name) => {
+        const scan = (payload) => {
+          const values = transportValues(payload);
+          texts.push(...values.texts);
+          raw.push(...values.raw);
+        };
+        const contents = (name) => {
           const found = readBodyFiles(name, cwds);
           if (!found.length) whole = true;
-          for (const text of found) texts.push(...transportValues(text));
+          return found;
         };
-        for (const value of request.data) {
-          if (base !== "curl" || !value.startsWith("@")) texts.push(...transportValues(value));
-          else if (value === "@-") whole = true;
-          else read(value.slice(1));
+        const pieces = { json: [], data: [] };
+        for (const entry of request.data) {
+          const { kind, value } = typeof entry === "string" ? { kind: "body", value: entry } : entry;
+          const file = base === "curl" && kind !== "raw" && value.startsWith("@") && !(kind === "form");
+          if (file && value === "@-") whole = true;
+          const found = file ? (value === "@-" ? [] : contents(value.slice(1))) : [value];
+          if (kind === "json" || kind === "data" || kind === "raw") {
+            pieces[kind === "json" ? "json" : "data"].push(found[0] ?? "");
+            for (const other of found.slice(1)) scan(other);
+          } else for (const text of found) scan(text);
         }
-        for (const name of request.files ?? []) read(name);
-        return { texts, raw: whole ? [command] : [], destination: oneRepo(request.urls) };
+        if (pieces.json.length) scan(pieces.json.join(""));
+        if (pieces.data.length) scan(pieces.data.join("&"));
+        for (const name of request.files ?? []) for (const text of contents(name)) scan(text);
+        return { texts, raw: [...raw, ...(whole ? [command] : [])], destination: oneRepo(request.urls) };
       });
   }
   const texts = [];
+  const raw = [];
   let whole = false;
   let destination = null;
   const file = (name, decode) => {
@@ -315,7 +343,14 @@ function publishedText(seg, i, command, cwds) {
     }
     const found = readBodyFiles(name.replace(/^@/, ""), cwds);
     if (!found.length) whole = true;
-    for (const text of found) texts.push(...(decode ? transportValues(text) : [text]));
+    for (const text of found) {
+      if (!decode) texts.push(text);
+      else {
+        const values = transportValues(text);
+        texts.push(...values.texts);
+        raw.push(...values.raw);
+      }
+    }
   };
   if (base === "gh") {
     const parsed = ghParse(args);
@@ -337,7 +372,7 @@ function publishedText(seg, i, command, cwds) {
       }
     } else return [];
   } else return [];
-  return [{ texts, raw: whole ? [command] : [], destination }];
+  return [{ texts, raw: [...raw, ...(whole ? [command] : [])], destination }];
 }
 
 function unquoted(text, quotes) {
@@ -412,11 +447,17 @@ function decideAt(command, shell, depth, context) {
   if (typeof command !== "string" || command.length === 0 || depth > 3) return null;
   if (shell !== "powershell" && shell !== "bash") return decideAt(command, "bash", depth, context) ?? decideAt(command, "powershell", depth, context);
   const { segments, subs } = readCommand(command, shell);
+  const start = context.place ?? { cwds: [context.cwd === undefined ? process.cwd() : context.cwd], stack: [] };
+  let visited = start.cwds;
+  for (let walk = start, k = 0; k < segments.length; k++) {
+    walk = nextDirectory(segments[k].tokens, segments[k].positions, walk);
+    visited = union(visited, walk.cwds);
+  }
   for (const sub of subs) {
-    const inner = decideAt(sub, shell, depth + 1, context);
+    const inner = decideAt(sub, shell, depth + 1, { ...context, place: { cwds: visited, stack: [] } });
     if (inner) return inner;
   }
-  let place = context.place ?? { cwds: [context.cwd === undefined ? process.cwd() : context.cwd], stack: [] };
+  let place = start;
   for (const { tokens: seg, positions } of segments) {
     place = nextDirectory(seg, positions, place);
     const cwds = place.cwds;
