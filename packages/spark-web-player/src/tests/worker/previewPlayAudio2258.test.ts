@@ -308,7 +308,7 @@ end
     expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
   }, 120_000);
 
-  it("keeps a loop that finishes loading after the page hides silent until the page is shown", async () => {
+  it("keeps a loop that finishes loading after the page hides silent and paused until the page is shown", async () => {
     const audio = createStandInAudio();
     const held = holdAudioLoads(audio);
     const h = await previewAt(FIRST, audio);
@@ -322,10 +322,40 @@ end
     await settle(60);
     const [theme] = audio.sourcesOf(THEME);
     expect(theme!.startedAt).toBeTypeOf("number");
+    expect(theme!.playbackRate.value).toBe(0);
     expect(audio.sounding()).toEqual([]);
     Object.defineProperty(doc, "visibilityState", { value: "visible", configurable: true });
     h.controller.handleVisibilityChange();
     await settle(5);
+    expect(theme!.playbackRate.value).toBe(1);
+    expect(audio.sourcesOf(THEME)).toEqual([theme]);
+    expect(audio.sounding()).toEqual([THEME]);
+  }, 120_000);
+
+  it("keeps a preview page built while the page is hidden silent and paused until the page is shown", async () => {
+    const audio = createStandInAudio();
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: FIRST },
+      manualClock: true,
+      audio,
+    });
+    harness = h;
+    const win = h.overlay.ownerDocument.defaultView as any;
+    win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+    const doc = h.overlay.ownerDocument;
+    Object.defineProperty(doc, "visibilityState", { value: "hidden", configurable: true });
+    await setPlayAudio(h, true);
+    await h.compile();
+    await select(h, FIRST);
+    const [theme] = audio.sourcesOf(THEME);
+    expect(theme!.startedAt).toBeTypeOf("number");
+    expect(theme!.playbackRate.value).toBe(0);
+    expect(audio.sounding()).toEqual([]);
+    Object.defineProperty(doc, "visibilityState", { value: "visible", configurable: true });
+    h.controller.handleVisibilityChange();
+    await settle(5);
+    expect(theme!.playbackRate.value).toBe(1);
     expect(audio.sounding()).toEqual([THEME]);
   }, 120_000);
 

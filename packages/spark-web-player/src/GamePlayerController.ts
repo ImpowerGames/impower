@@ -3465,6 +3465,9 @@ export class GamePlayerController {
     profile("start", "app/create");
     const app = this.createApp(game, previewing);
     if (previewing) {
+      if (document.visibilityState === "hidden") {
+        app.audio?.pausePlayers();
+      }
       this.openPreviewOutput(app);
     }
     if (owned()) {
