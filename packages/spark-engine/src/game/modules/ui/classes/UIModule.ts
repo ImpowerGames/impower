@@ -4192,7 +4192,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const params: PlayCutsceneParams = {
       src,
       loop: Boolean(cutscene.loop),
-      muted: Boolean(cutscene.mute) || this._beatPlaying,
+      muted: Boolean(cutscene.mute),
       ...this.getMovieMixer(),
     };
     if (cutscene.with) {
@@ -5013,7 +5013,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               content.video = {
                 src: videoSrc,
                 loop: !e.once,
-                muted: Boolean(e.mute) || $._beatPlaying,
+                muted: Boolean(e.mute),
                 ...$.getMovieMixer(),
                 ...($.showsMovieStill() ? { preview: true } : {}),
               };
