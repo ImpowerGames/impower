@@ -508,6 +508,45 @@ try {
     const asked = waitCase({ fallbackAt: "2026-11-13T16:00:30.000Z", timeline: (ms) => (ms >= 120000 ? { issue: issue({ body, ...closedBy("completed", "2026-11-13T16:01:50Z") }), comments: [comment(142, "Is C dark?", "2026-11-13T15:50:00Z")] } : { issue: issue({ body }), comments: [comment(142, "Is C dark?", "2026-11-13T15:50:00Z")] }) });
     assert.deepEqual([asked.result.why, asked.result.state], ["closed", "answered"], "an open question stops the fallback clock, and an old comment is not news");
     assert.throws(() => waitCase({ interval: 30, timeline: () => null }), /at least 60/);
+    const several = ({ fallbacks, failing = () => false, slow = () => 0, closeAt = {} }) => {
+      const start = Date.parse("2026-11-13T16:00:00.000Z");
+      let now = start;
+      const log = [];
+      const state = (n) => {
+        const fallback = decisionBody.replace(/"at":"[^"]+"/, `"at":"${new Date(start + fallbacks[n] * 1000).toISOString()}"`);
+        const closed = closeAt[n] !== undefined && now - start >= closeAt[n] * 1000;
+        return { ...issue({ number: n, body: fallback }), ...(closed ? closedBy("completed", new Date(start + closeAt[n] * 1000).toISOString().replace(".000Z", "Z")) : {}) };
+      };
+      const tracker = {
+        poll: (n, etag) => {
+          const at = (now - start) / 1000;
+          log.push({ n, kind: "poll", at });
+          now += slow(n, at) * 1000;
+          if (etag && failing(n, at)) throw new Error("HTTP 503");
+          const current = state(n);
+          const tag = `W/"${current.state}"`;
+          return etag === tag ? { status: 304, etag } : { status: 200, etag: tag, issue: current };
+        },
+        comments: (n) => {
+          log.push({ n, kind: "comments", at: (now - start) / 1000 });
+          return [];
+        },
+        events: (n) => {
+          log.push({ n, kind: "events", at: (now - start) / 1000 });
+          return [];
+        },
+      };
+      const out = waitForRequests([1, 2], { tracker, repos, clock: () => new Date(now), sleep: (ms) => (now += ms), warn: () => {} });
+      for (const n of [1, 2]) for (const kind of ["poll", "comments", "events"]) {
+        const times = log.filter((entry) => entry.n === n && entry.kind === kind).map((entry) => entry.at);
+        for (let i = 1; i < times.length; i++) assert.ok(times[i] - times[i - 1] >= 60, `#${n} ${kind} requests at ${times[i - 1]} s and ${times[i]} s are less than a minute apart`);
+      }
+      return { out, at: (now - start) / 1000 };
+    };
+    const starved = several({ fallbacks: { 1: 60, 2: 120 }, failing: (n) => n === 1 });
+    assert.deepEqual([starved.out.number, starved.out.why, starved.at], [2, "fallback", 120], "an unreadable request does not hold back another request's confirmed fallback");
+    const slowRead = several({ fallbacks: { 1: 3600, 2: 3600 }, slow: (n, at) => (n === 1 && at >= 60 && at < 61 ? 50 : 0), closeAt: { 2: 200 } });
+    assert.deepEqual([slowRead.out.number, slowRead.out.why], [2, "closed"], "a slow read of one request never brings another request's next read closer than a minute");
     console.log("ok: wait returns for a close, a new maintainer comment and a reached fallback time, polls conditionally once a minute, and never makes an unconditional request more often than once a minute");
   }
 

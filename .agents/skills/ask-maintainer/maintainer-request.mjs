@@ -1145,40 +1145,47 @@ export function waitForRequests(numbers, { tracker, repos = readRepos(), clock =
     if (why === "fallback") out.fallbackAt = entry.answer.fallback.at;
     return out;
   };
+  const settled = (entry) => entry.answer.state !== "waiting" && entry.answer.state !== "question";
+  const fallbackAt = (entry) => (entry.answer.state === "waiting" && entry.answer.fallback?.at ? Date.parse(entry.answer.fallback.at) : Infinity);
   const watched = numbers.map((number) => {
+    const readAt = clock().getTime();
     const polled = tracker.poll(number, null);
     const comments = tracker.comments(number);
-    return { number, etag: polled.etag, readAt: clock().getTime(), answer: readAnswer(polled.issue, comments, repos, tracker.events(number)), seen: maintainerIds(comments) };
+    const answer = readAnswer(polled.issue, comments, repos, tracker.events(number));
+    return { number, etag: polled.etag, readAt, nextRead: clock().getTime() + interval, answer, seen: maintainerIds(comments), fresh: false };
   });
-  let nextPoll = clock().getTime() + interval;
   for (;;) {
-    const closed = watched.find((entry) => entry.answer.state !== "waiting" && entry.answer.state !== "question");
+    const closed = watched.find(settled);
     if (closed) return result(closed, "closed");
     const now = clock().getTime();
-    const due = watched.filter((entry) => entry.answer.state === "waiting" && entry.answer.fallback?.at).sort((a, b) => Date.parse(a.answer.fallback.at) - Date.parse(b.answer.fallback.at))[0];
-    const fallbackAt = due ? Date.parse(due.answer.fallback.at) : Infinity;
-    if (fallbackAt <= now && due.readAt >= fallbackAt) return result(due, "fallback");
-    if (now < nextPoll) {
-      sleep(nextPoll - now);
+    const confirmed = watched.filter((entry) => fallbackAt(entry) <= now && entry.readAt >= fallbackAt(entry)).sort((x, y) => fallbackAt(x) - fallbackAt(y))[0];
+    if (confirmed) return result(confirmed, "fallback");
+    const next = Math.min(...watched.map((entry) => entry.nextRead));
+    if (now < next) {
+      sleep(next - now);
       continue;
     }
-    nextPoll = now + interval;
     for (const entry of watched) {
+      const readAt = clock().getTime();
+      if (readAt < entry.nextRead) continue;
       let polled;
       try {
         polled = tracker.poll(entry.number, entry.etag);
       } catch (error) {
+        entry.nextRead = clock().getTime() + interval;
         warn(`Reading #${entry.number} failed (${error.message.split("\n")[0]}); trying again in ${intervalSeconds} seconds.`);
         continue;
       }
-      entry.readAt = now;
-      if (polled.status === 304) continue;
-      const comments = tracker.comments(entry.number);
-      entry.etag = polled.etag;
-      entry.answer = readAnswer(polled.issue, comments, repos, tracker.events(entry.number));
-      const fresh = [...maintainerIds(comments)].filter((id) => !entry.seen.has(id));
-      if (entry.answer.state !== "waiting" && entry.answer.state !== "question") return result(entry, "closed");
-      if (fresh.length) return result(entry, "comment");
+      if (polled.status !== 304) {
+        const comments = tracker.comments(entry.number);
+        entry.etag = polled.etag;
+        entry.answer = readAnswer(polled.issue, comments, repos, tracker.events(entry.number));
+        entry.fresh = [...maintainerIds(comments)].some((id) => !entry.seen.has(id));
+      }
+      entry.readAt = readAt;
+      entry.nextRead = clock().getTime() + interval;
+      if (settled(entry)) return result(entry, "closed");
+      if (entry.fresh) return result(entry, "comment");
     }
   }
 }
