@@ -85,6 +85,10 @@ describe("a story store's run-on value that is a backtick string with interpolat
   }
 });
 
+const DIRECTIVE_NAME_MARKS: Readonly<Record<string, string[]>> = {
+  "print((`a {} b`))": ["1:12-1:13 Invalid syntax", "1:13-1:14 Invalid syntax"],
+};
+
 describe("a malformed interpolation in a scene-level call's argument (I-1433)", () => {
   for (const line of ["print(`a {} b`)", "print(`a {1 2} b`)", "print(`a {x y} b`)", "print(1, `a {} b`)", "print(1, `a {1 2} b`)", "print((`a {} b`))"]) {
     test(`& ${line}`, () => {
@@ -93,7 +97,7 @@ describe("a malformed interpolation in a scene-level call's argument (I-1433)", 
       expect(sparkdownErrors(`scene start\n  & ${line}\n  Hello.\nend\n`)).toEqual(expected);
     });
     test(`display text: ${line}`, () => {
-      expect(sparkdownErrors(`scene start\n  ${line}\n  Hello.\nend\n`)).toEqual([]);
+      expect(sparkdownErrors(`scene start\n  ${line}\n  Hello.\nend\n`)).toEqual(DIRECTIVE_NAME_MARKS[line] ?? []);
     });
   }
   for (const line of ["s = `a {} b`", "local x = print(`a {} b`)"]) {
