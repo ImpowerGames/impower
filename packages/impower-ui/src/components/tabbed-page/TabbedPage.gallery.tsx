@@ -28,7 +28,7 @@ function Demo({ showTabs }: { showTabs: boolean }) {
 function TabbedPageDemo() {
   return (
     <div class="space-y-6">
-      <GalleryRow label="Phone: header with its back action, the page tab row and the chosen tab's body">
+      <GalleryRow label="Phone: the 56px header band with its ink title and back action, the page tab row and the chosen tab's body">
         <Demo showTabs />
       </GalleryRow>
       <GalleryRow label="Without tabs: the first tab's body under the header">
