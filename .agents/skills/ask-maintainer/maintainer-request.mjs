@@ -15,10 +15,11 @@ export const TEMPLATE_FILES = Object.freeze({
 });
 const HEADING_COUNT = { decision: 5, task: 5 };
 const LETTERS = "ABCDE";
-export const ALWAYS_WAITS = Object.freeze({
+export const WAIT_REASONS = Object.freeze({
   "deletes-work": "it deletes or overwrites work that cannot be restored",
   "leaves-repository": "it publishes, sends or spends something outside the repository",
   "waives-check": "it waives a failed check",
+  "confirms-built": "it asks you to confirm something already built",
 });
 export const WAIT_MINUTES = Object.freeze({ min: 30, max: 1440, unstated: 120 });
 const PICTURE_TYPES = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
@@ -32,7 +33,7 @@ const AS_MAINTAINER = Object.freeze({ mode: "maintainer", reason: "no App identi
 const signature = (identity, line) => (identity.mode === "app" ? [TOOL_MARK, ""] : [`_${line}_`, "", TOOL_MARK, ""]);
 export const markComment = (text, identity) => `${text.trimEnd()}\n\n${signature(identity, POSTED_AS).join("\n").trimEnd()}\n`;
 const KEYS = {
-  decision: ["kind", "question", "tickets", "askedBy", "owner", "parked", "meanwhile", "shortVersion", "background", "showsOnScreen", "options", "comparison", "recommendation", "fallback", "waits", "alwaysWaits"],
+  decision: ["kind", "question", "tickets", "askedBy", "owner", "parked", "meanwhile", "shortVersion", "background", "showsOnScreen", "options", "comparison", "recommendation", "fallback", "waits"],
   task: ["kind", "action", "tickets", "askedBy", "owner", "why", "steps", "expect", "details", "parked"],
   option: ["name", "pictures", "example", "pros", "cons", "undo"],
   picture: ["file", "alt", "width"],
@@ -252,11 +253,13 @@ function checkDecision(request, refuse, lookup) {
 
   let fallback = null;
   let waits = null;
-  if (request.alwaysWaits !== undefined && !Object.hasOwn(ALWAYS_WAITS, request.alwaysWaits)) refuse(`"alwaysWaits" must be one of ${Object.keys(ALWAYS_WAITS).join(", ")}`);
-  const alwaysWaits = Object.hasOwn(ALWAYS_WAITS, request.alwaysWaits ?? "") ? request.alwaysWaits : null;
-  if (request.fallback !== undefined && request.waits !== undefined) refuse('Name a fallback or a reason the request waits, not both');
+  if (request.waits !== undefined) {
+    if (Object.hasOwn(WAIT_REASONS, request.waits)) waits = request.waits;
+    else refuse(`"waits" must name one of the four reasons a request waits: ${Object.entries(WAIT_REASONS).map(([key, why]) => `${key} (${why.replace(/^it /, "")})`).join(", ")}`);
+  }
   if (request.fallback !== undefined) {
-    if (alwaysWaits) refuse(`The request names a fallback, but ${ALWAYS_WAITS[alwaysWaits]}, one of the three kinds of choice that always wait; give "waits" instead`);
+    if (waits) refuse(`The request names a fallback, but it waits because ${WAIT_REASONS[waits]}, one of the four reasons a request never falls back; drop "fallback"`);
+    else if (request.waits !== undefined) refuse('Name a fallback or a reason the request waits, not both');
     if (!isObject(request.fallback)) refuse('"fallback" must be { "option", "waitMinutes" }');
     else {
       unknownKeys(request.fallback, KEYS.fallback, "The fallback", refuse);
@@ -265,13 +268,8 @@ function checkDecision(request, refuse, lookup) {
       if (!Number.isSafeInteger(minutes) || minutes < WAIT_MINUTES.min || minutes > WAIT_MINUTES.max) refuse(`The fallback's wait must be ${WAIT_MINUTES.min} minutes to 24 hours (${WAIT_MINUTES.max} minutes), not ${request.fallback.waitMinutes}`);
       fallback = { option: request.fallback.option, waitMinutes: minutes };
     }
-  } else if (request.waits !== undefined) {
-    if (checkText(request.waits, '"waits"', refuse, { line: true })) waits = request.waits.trim();
-    else refuse('"waits", the reason the request waits, is empty');
-  } else if (alwaysWaits) {
-    waits = `${ALWAYS_WAITS[alwaysWaits].replace(/^it /, "the choice ")}, so it never goes ahead without you`;
-  } else {
-    refuse('The request names neither a fallback ("fallback": an option and a wait of 30 minutes to 24 hours) nor a reason it waits ("waits")');
+  } else if (request.waits === undefined) {
+    refuse(`The request names neither a fallback ("fallback": an option and a wait of 30 minutes to 24 hours) nor a reason it waits ("waits": one of ${Object.keys(WAIT_REASONS).join(", ")})`);
   }
   return {
     kind: "decision",
@@ -289,7 +287,6 @@ function checkDecision(request, refuse, lookup) {
     reason: request.recommendation?.reason?.trim(),
     fallback,
     waits,
-    alwaysWaits,
   };
 }
 
@@ -408,20 +405,23 @@ export function readDataLine(body) {
   }
 }
 
-function decisionBody(checked, { now, timeZone, template, identity }) {
+function decisionBody(checked, { now, timeZone, template, identity, wentAhead }) {
   const [shortHeading, backgroundHeading, optionsHeading, sideHeading, whyHeading] = template.headings;
   const name = (letter) => `${letter} · ${checked.options.find((option) => option.letter === letter).name}`;
   const data = { kind: "decision", options: checked.options.map((option) => option.letter), recommended: checked.recommended };
   const lines = [];
-  if (checked.fallback) {
+  if (wentAhead) {
+    data.fallback = { option: wentAhead.option, at: wentAhead.fallbackAt };
+    data.wentAhead = markerOf(wentAhead);
+    lines.push("> [!IMPORTANT]", wentAheadLine(wentAhead));
+  } else if (checked.fallback) {
     const at = new Date(now.getTime() + checked.fallback.waitMinutes * 60 * 1000);
     data.fallback = { option: checked.fallback.option, at: at.toISOString() };
     const undo = checked.options.find((option) => option.letter === checked.fallback.option).undo;
     lines.push("> [!IMPORTANT]", `> **If you don't answer by ${describeTime(at, now, timeZone)}, I'll go ahead with ${name(checked.fallback.option)},** and move this to "decided without you". Undoing it later: ${asSentence(undo)}`);
   } else {
     data.waits = checked.waits;
-    if (checked.alwaysWaits) data.alwaysWaits = checked.alwaysWaits;
-    lines.push("> [!IMPORTANT]", `> **This one waits for you,** however long it takes: ${asSentence(checked.waits)}`);
+    lines.push("> [!IMPORTANT]", `> **This one waits for you,** however long it takes, because ${asSentence(WAIT_REASONS[checked.waits])}`);
   }
   data.blocks = checked.tickets;
   data.owner = checked.owner;
@@ -455,9 +455,9 @@ function taskBody(checked, { template, tag, identity }) {
   return { body: lines.join("\n"), data };
 }
 
-export function buildRequest(checked, { now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates = {}, tag = false, identity = AS_MAINTAINER } = {}) {
+export function buildRequest(checked, { now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates = {}, tag = false, identity = AS_MAINTAINER, wentAhead = null } = {}) {
   const template = templates[checked.kind] ?? readTemplate(checked.kind);
-  const built = checked.kind === "decision" ? decisionBody(checked, { now, timeZone, template, identity }) : taskBody(checked, { template, tag, identity });
+  const built = checked.kind === "decision" ? decisionBody(checked, { now, timeZone, template, identity, wentAhead }) : taskBody(checked, { template, tag, identity });
   return { title: requestTitle(checked), ...built, pictures: picturesOf(checked) };
 }
 
@@ -612,6 +612,7 @@ export function ghTracker(repo = ticketsRepo(), runGh = (args, options = {}) => 
     addBlockedBy: dependencies.add,
     removeBlockedBy: (n, id) => json(["api", "-X", "DELETE", `repos/${repo}/issues/${n}/dependencies/blocked_by/${id}`]),
     editTitle: (n, title) => json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-f", `title=${title}`]),
+    setBodyAndLabels: (n, bodyFile, labels) => json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-F", `body=@${bodyFile}`, ...labels.flatMap((name) => ["-f", `labels[]=${name}`])]),
     reopen: (n) => json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-f", "state=open"]),
     poll: (n, etag) => {
       const args = ["api", "-i", `repos/${repo}/issues/${n}`];
@@ -878,7 +879,8 @@ export function formatList(groups, { now = new Date(), timeZone = Intl.DateTimeF
 
 export function listRequests(tracker, repos = readRepos()) {
   const { decision, task, decidedWithoutYou } = repos.maintainer.labels;
-  return groupRequests({ decisions: tracker.open(decision), tasks: tracker.open(task), decidedWithoutYou: tracker.open(decidedWithoutYou) });
+  const wentAhead = tracker.open(decidedWithoutYou).filter((issue) => fallbackCommitted(issue, tracker.timeline(issue.number), repos));
+  return groupRequests({ decisions: tracker.open(decision), tasks: tracker.open(task), decidedWithoutYou: wentAhead });
 }
 
 const lf = (text) => (text ?? "").replace(/\r\n/g, "\n");
@@ -896,6 +898,51 @@ function requestData(issue, comments, who) {
   throw new RequestRefused([`#${issue.number} is not a maintainer request: neither its body nor a task comment holds the request's data line`]);
 }
 
+const labelNames = (issue) => (issue.labels ?? []).map((label) => (typeof label === "string" ? label : label?.name));
+const MARKER_FIELDS = ["option", "name", "owner", "at", "fallbackAt", "doing", "undo", "unanswered", "since", "revised", "was"];
+const markerOf = (value) => Object.fromEntries(MARKER_FIELDS.filter((key) => value[key] !== undefined).map((key) => [key, value[key]]));
+const IMPORTANT_LINE = /^> \*\*(?:If you don't answer by|I went ahead with|This one waits for you)[^\n]*$/m;
+const WENT_AHEAD_LINE = /^> \*\*I went ahead with[^\n]*$/m;
+
+export function wentAheadLine(marker) {
+  return `> **I went ahead with ${optionLabel(marker)} on ${stamp(marker.at)} without you,** and moved this to "decided without you". Close this issue with no comment to keep it, or with a comment to change it. Undoing it later: ${marker.undo ?? "the request states no undo cost for this option."}`;
+}
+
+export function withMarker(body, marker) {
+  const text = lf(body);
+  const line = IMPORTANT_LINE.exec(text)?.[0] ?? null;
+  const committed = { ...marker, was: line };
+  const shown = line ? text.replace(IMPORTANT_LINE, () => wentAheadLine(committed)) : text;
+  return { body: shown.replace(DATA_LINE, () => dataLine({ ...readDataLine(text), wentAhead: committed })), marker: committed };
+}
+
+export function withoutMarker(body) {
+  const text = lf(body);
+  const { wentAhead, ...data } = readDataLine(text) ?? {};
+  const shown = wentAhead?.was ? text.replace(WENT_AHEAD_LINE, () => wentAhead.was) : text;
+  return wentAhead ? shown.replace(DATA_LINE, () => dataLine(data)) : text;
+}
+
+function fallbackOf(issue, items, notes, data, tagged, who, label) {
+  const marker = data.kind === "decision" ? data.wentAhead ?? null : null;
+  if (!marker) return { fellBack: null, stale: null };
+  const commit = labelNames(issue).includes(label) ? items.filter((item) => item.event === "labeled" && item.label?.name === label).at(-1) : null;
+  if (!commit) return { fellBack: null, stale: { marker, pos: -1 } };
+  const at = commit.pos;
+  const closedAtCommit = items.filter((item) => item.pos < at && ["closed", "reopened"].includes(item.event)).at(-1)?.event === "closed";
+  const revision = notes.filter((entry) => entry.note.kind === "revised" && entry.comment.pos < at).at(-1) ?? null;
+  const from = revision?.comment.pos ?? tagged?.pos ?? -1;
+  const asked = items.some((item) => item.pos > from && item.pos < at && item.event === "commented" && commentAuthor(item, who) === "maintainer");
+  const overwritten = Boolean(revision) && Object.hasOwn(revision.note, "fallback") && revision.note.fallback !== marker.fallbackAt;
+  const valid = !closedAtCommit && !asked && !overwritten && marker.fallbackAt === data.fallback?.at;
+  return valid ? { fellBack: { marker, pos: at }, stale: null } : { fellBack: null, stale: { marker, pos: at } };
+}
+
+export function fallbackCommitted(issue, timeline, repos = readRepos()) {
+  if (issue.state !== "open" || !labelNames(issue).includes(repos.maintainer.labels.decidedWithoutYou) || !readDataLine(issue.body)) return false;
+  return Boolean(readAnswer(issue, timeline, repos).wentAhead);
+}
+
 export function readAnswer(issue, timeline, repos = readRepos()) {
   const who = whoOf(repos);
   const items = timeline.map((item, pos) => ({ ...item, pos }));
@@ -903,6 +950,7 @@ export function readAnswer(issue, timeline, repos = readRepos()) {
   const { data, body, floor: tagged } = requestData(issue, comments, who);
   const notes = comments.filter((comment) => commentAuthor(comment, who) === "tool").map((comment) => ({ comment, note: readNote(comment.body) })).filter((entry) => entry.note);
   const revision = notes.filter((entry) => entry.note.kind === "revised").at(-1)?.comment ?? null;
+  const { fellBack, stale } = fallbackOf(issue, items, notes, data, tagged, who, repos.maintainer.labels.decidedWithoutYou);
   const floorPos = (revision ?? tagged)?.pos ?? -1;
   const lastPos = (event) => items.filter((item) => item.event === event).at(-1)?.pos ?? -1;
   const closedPos = issue.state === "closed" ? lastPos("closed") : Infinity;
@@ -911,8 +959,12 @@ export function readAnswer(issue, timeline, repos = readRepos()) {
   const words = maintainerWords.map((comment) => ({ id: comment.id, url: comment.html_url, at: comment.created_at, body: lf(comment.body) }));
   const closing = notes.filter((entry) => ["withdrawn", "relayed"].includes(entry.note.kind) && entry.comment.pos > Math.max(floorPos, reopenedPos) && entry.comment.pos < closedPos && !maintainerWords.some((comment) => comment.pos > entry.comment.pos)).at(-1) ?? null;
   const shown = { at: revision?.created_at ?? tagged?.created_at ?? issue.created_at, revised: Boolean(revision), options: data.options?.length ?? 0, pictures: imageReferences(body).length };
-  const base = { number: issue.number, url: issue.html_url, title: issue.title, kind: data.kind, tagged: Boolean(data.tagged), question: data.tagged ? issue.title : questionOf(issue.title), tickets: data.blocks ?? [], data, shown, recommended: data.recommended ? { letter: data.recommended, name: optionName(body, data.recommended) } : null };
-  if (issue.state !== "closed") return words.length ? { ...base, state: "question", words } : { ...base, state: "waiting", fallback: data.fallback ?? null, words: [] };
+  const wentAhead = fellBack ? { ...fellBack.marker, url: notes.find((entry) => entry.note.kind === "fallback" && entry.note.at === fellBack.marker.at)?.comment.html_url ?? issue.html_url } : null;
+  const base = { number: issue.number, url: issue.html_url, title: issue.title, kind: data.kind, tagged: Boolean(data.tagged), question: data.tagged ? issue.title : questionOf(issue.title), tickets: data.blocks ?? [], data, shown, recommended: data.recommended ? { letter: data.recommended, name: optionName(body, data.recommended) } : null, ...(wentAhead && { wentAhead }) };
+  if (issue.state !== "closed") {
+    if (words.length) return { ...base, state: "question", words };
+    return wentAhead ? { ...base, state: "went-ahead", words: [] } : { ...base, state: "waiting", fallback: data.fallback ?? null, words: [] };
+  }
   const closeEvent = items[closedPos] ?? null;
   const closed = { at: issue.closed_at, by: closeEvent?.actor?.login ?? issue.closed_by?.login ?? null, reason: issue.state_reason ?? null };
   if (!closeEvent) return { ...base, state: "unclear", closed, why: "the request is closed but its timeline holds no close, so the order of its answer cannot be read", words: [] };
@@ -925,7 +977,9 @@ export function readAnswer(issue, timeline, repos = readRepos()) {
   const said = relay ? [{ id: relay.comment.id, url: relay.comment.html_url, at: relay.note.at, body: relay.note.words, relayed: { session: relay.note.session, runner: relay.note.runner, postedAt: relay.comment.created_at } }] : words;
   const notPlanned = closed.reason === "not_planned" || closed.reason === "duplicate";
   if (data.kind === "task") return { ...base, state: notPlanned ? "will-not-do" : "done", closed, words: said };
-  if (said.length) return { ...base, state: "answered", closed, words: said };
+  if (said.length) return { ...base, state: wentAhead ? "changed" : "answered", closed, words: said };
+  if (wentAhead && !notPlanned) return { ...base, state: "kept", closed, words: [] };
+  if (stale && closedPos > stale.pos) return { ...base, state: "unclear", closed, why: `closed with no comment after a fallback to ${stale.marker.option} was written into the request without counting, so it cannot say whether the maintainer kept that fallback or accepted the recommendation`, words: [] };
   if (notPlanned) return { ...base, state: "unclear", closed, why: "a decision closed as not planned with no comment", words: [] };
   return { ...base, state: "accepted", closed, words: [] };
 }
@@ -941,7 +995,9 @@ export function fetchAnswer(number, { tracker, repos = readRepos() }) {
 }
 
 const RUNNERS = { "claude-code": "Claude Code", codex: "Codex" };
-const ANSWERED = ["answered", "accepted", "done", "will-not-do"];
+const ANSWERED = ["answered", "accepted", "done", "will-not-do", "kept", "changed"];
+const OPEN = ["waiting", "question", "went-ahead"];
+const optionLabel = (option) => `${option.option}${option.name ? ` · ${option.name}` : ""}`;
 
 export function answerKey(answer) {
   if (!answer.words.length) return `${answer.state}:closed:${answer.closed.at}`;
@@ -961,8 +1017,11 @@ function wordsLines(answer) {
 export function recordBody(answer, identity = AS_MAINTAINER) {
   const what = answer.kind === "decision" ? "decision" : "task";
   const by = `at ${stamp(answer.closed.at)}`;
+  const fallback = answer.wentAhead ? `the fallback ${optionLabel(answer.wentAhead)}, taken at ${stamp(answer.wentAhead.at)}` : "";
   const outcome = {
     answered: "in the maintainer's words, quoted below.",
+    kept: `kept ${fallback}, by closing without comment ${by}.`,
+    changed: `changed ${fallback}, in the maintainer's words quoted below; the session undoes the fallback and acts on them.`,
     accepted: `accepted the recommendation by closing without comment ${by}.`,
     done: `done: closed as completed by the maintainer ${by}${answer.words.length ? ", with the words quoted below" : ""}.`,
     "will-not-do": `will not be done: closed as not planned by the maintainer ${by}${answer.words.length ? ", with the words quoted below" : ""}.`,
@@ -971,7 +1030,7 @@ export function recordBody(answer, identity = AS_MAINTAINER) {
     ? `the task comment as posted at ${stamp(answer.shown.at)}, with ${answer.shown.pictures} picture(s)`
     : `the request as ${answer.shown.revised ? "last revised" : "filed"} at ${stamp(answer.shown.at)}, with ${answer.kind === "decision" ? `${answer.shown.options} options and ` : ""}${answer.shown.pictures} picture(s); GitHub's edit history keeps that version`;
   const lines = [
-    `**Maintainer ${what} recorded** from [#${answer.number}](${answer.url}).`,
+    answer.state === "kept" ? `**Kept by the maintainer**, from [#${answer.number}](${answer.url}).` : `**Maintainer ${what} recorded** from [#${answer.number}](${answer.url}).`,
     "",
     `- **${answer.kind === "decision" ? "Question" : "Task"}:** ${answer.question}`,
     `- **Answer:** ${outcome}`,
@@ -995,13 +1054,14 @@ function postNote(tracker, number, text, scratch, name, posted = () => {}) {
 export function recordAnswer(number, { tracker, repos = readRepos(), identity = AS_MAINTAINER }) {
   const answer = fetchAnswer(number, { tracker, repos });
   if (!ANSWERED.includes(answer.state)) {
-    const next = { waiting: "wait for the answer", question: "answer the question with revise", withdrawn: "nothing waits on it", unclear: `${answer.why}; reopen it with a question through revise` }[answer.state];
+    const next = { waiting: "wait for the answer", question: "answer the question with revise", "went-ahead": `it went ahead with ${answer.wentAhead ? optionLabel(answer.wentAhead) : "its fallback"} and waits for the maintainer to keep or change it`, withdrawn: "nothing waits on it", unclear: `${answer.why}; reopen it with a question through revise` }[answer.state];
     throw new RequestRefused([`#${number} has no answer to record: it is ${answer.state} (${next})`]);
   }
   const who = whoOf(repos);
   const key = answerKey(answer);
   const mine = (comment, kind) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === kind && readNote(comment.body)?.request === number && readNote(comment.body)?.answer === key;
   return withScratch((scratch) => {
+    const history = answer.wentAhead ? ensureHistory(tracker, answer, { repos, identity, scratch }) : null;
     const body = recordBody(answer, identity);
     const records = answer.tickets.map((ticket) => {
       const standing = tracker.comments(ticket).find((comment) => mine(comment, "record"));
@@ -1012,7 +1072,7 @@ export function recordAnswer(number, { tracker, repos = readRepos(), identity = 
     const confirmation = confirmed
       ? { id: confirmed.id, url: confirmed.html_url, reused: true }
       : { ...postNote(tracker, number, toolText(`Recorded by the ask-maintainer tool${records.length ? ` on ${records.map((r) => `#${r.ticket} ([record](${r.url}))`).join(", ")}` : "; no other ticket waits on this request, so there was nothing to record elsewhere"}.`, { kind: "recorded", request: number, answer: key, records: records.map((r) => ({ ticket: r.ticket, comment: r.id })) }, identity), scratch, "recorded"), reused: false };
-    return { answer, records, confirmation };
+    return { answer, records, confirmation, history };
   });
 }
 
@@ -1037,10 +1097,10 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
   if (checked.kind !== answer.kind) problems.push(`#${number} is a ${answer.kind} request; a revision cannot make it a ${checked.kind}`);
   if (!sameTickets(checked.tickets, answer.tickets)) problems.push(`#${number} holds up ${ticketList(answer.tickets)}; a revision keeps the same tickets (file a new request for others)`);
   if (problems.length) throw new RequestRefused(problems);
-  const built = buildRequest(checked, { now, timeZone, templates, identity });
+  const built = buildRequest(checked, { now, timeZone, templates, identity, wentAhead: answer.wentAhead ?? null });
   const fallback = built.data.fallback;
-  const clock = checked.kind === "task" ? "" : fallback ? `\n\nThe clock starts again: if you don't answer by ${describeTime(new Date(fallback.at), now, timeZone)}, I'll go ahead with ${fallback.option}.` : "\n\nIt still waits for you, with no fallback.";
-  const note = toolText(`Revised by the ask-maintainer tool${issue.state === "closed" ? ", and reopened because the answer was unclear" : ""}; GitHub's edit history keeps the earlier version.\n\n**What changed:** ${changed}${clock}`, { kind: "revised", ...(fallback && { fallback: fallback.at }) }, identity);
+  const clock = checked.kind === "task" ? "" : answer.wentAhead ? `\n\nIt has already gone ahead with ${optionLabel(answer.wentAhead)}: close this issue with no comment to keep that, or with a comment to change it.` : fallback ? `\n\nThe clock starts again: if you don't answer by ${describeTime(new Date(fallback.at), now, timeZone)}, I'll go ahead with ${fallback.option}.` : "\n\nIt still waits for you, with no fallback.";
+  const note = toolText(`Revised by the ask-maintainer tool${issue.state === "closed" ? ", and reopened because the answer was unclear" : ""}; GitHub's edit history keeps the earlier version.\n\n**What changed:** ${changed}${clock}`, { kind: "revised", ...(!answer.wentAhead && checked.kind === "decision" && { fallback: fallback?.at ?? null }) }, identity);
   return withScratch((scratch) => {
     const done = { reopened: false, body: false, title: false, note: null };
     try {
@@ -1085,7 +1145,7 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
         tracker.reopen(number);
         done.reopened = true;
       }
-      return { number, url: back.html_url, title: built.title, data: built.data, note: comment, reopened: done.reopened };
+      return { number, url: back.html_url, title: built.title, data: built.data, note: comment, reopened: done.reopened, wentAhead: answer.wentAhead ?? null };
     } catch (error) {
       const steps = [];
       if (done.note !== null) steps.push([`deleted the revision note ${done.note}`, () => tracker.deleteComment(done.note)]);
@@ -1110,9 +1170,13 @@ function writeNote(scratch, text) {
 export function withdrawRequest(number, reason, { tracker, repos = readRepos(), identity = AS_MAINTAINER }) {
   const answer = fetchAnswer(number, { tracker, repos });
   if (answer.tagged) throw new RequestRefused([`#${number} is a tagged ticket; remove its ${repos.maintainer.labels.task} label instead of closing the ticket`]);
+  if (answer.wentAhead) throw new RequestRefused([`#${number} already went ahead with ${optionLabel(answer.wentAhead)}; only the maintainer closes it, keeping or changing that`]);
   if (answer.state !== "waiting" && answer.state !== "question") throw new RequestRefused([`#${number} is already closed (${answer.state})`]);
   const why = checkNoteText(reason, "The reason");
   if (/[\r\n]/.test(why)) throw new RequestRefused(["The reason must be one line"]);
+  const label = repos.maintainer.labels.decidedWithoutYou;
+  const issue = tracker.issue(number);
+  if (answer.kind === "decision" && (answer.data.wentAhead || labelNames(issue).includes(label))) withScratch((scratch) => uncommit(tracker, issue, label, scratch));
   return withScratch((scratch) => {
     tracker.close(number, "not_planned", writeNote(scratch, toolText(`Withdrawn by the ask-maintainer tool: ${asSentence(why)} Nothing waits on this request any more.`, { kind: "withdrawn", reason: why }, identity)));
     return fetchAnswer(number, { tracker, repos });
@@ -1121,13 +1185,156 @@ export function withdrawRequest(number, reason, { tracker, repos = readRepos(), 
 
 export function answerFromChat(number, words, transcript, { tracker, repos = readRepos(), notPlanned = false, read, identity = AS_MAINTAINER }) {
   const answer = fetchAnswer(number, { tracker, repos });
-  if (answer.state !== "waiting" && answer.state !== "question") throw new RequestRefused([`#${number} is already closed (${answer.state}); there is nothing to answer`]);
+  if (!OPEN.includes(answer.state)) throw new RequestRefused([`#${number} is already closed (${answer.state}); there is nothing to answer`]);
   const found = findTypedWords(words, transcript, read ? { read } : {});
   if (!found.ok) throw new RequestRefused([`The words are refused: ${found.reason}`]);
   if (/<!--|-->/.test(found.words)) throw new RequestRefused(["The words hold an HTML comment marker, which would hide them on GitHub"]);
   const text = `Relayed from chat by the ask-maintainer tool: the maintainer typed these words in ${RUNNERS[found.runner]} session ${found.session} at ${stamp(found.at)}, and the tool found them as one unbroken run in a message the maintainer typed in that session's transcript.\n\n${quote(found.words)}`;
   withScratch((scratch) => tracker.close(number, notPlanned ? "not_planned" : "completed", writeNote(scratch, toolText(text, { kind: "relayed", words: found.words, session: found.session, at: found.at, runner: found.runner }, identity))));
   return recordAnswer(number, { tracker, repos, identity });
+}
+
+function optionUndo(body, letter) {
+  const at = new RegExp(`^### ${letter} · .*$`, "m").exec(body);
+  if (!at) return null;
+  const rest = body.slice(at.index + at[0].length);
+  const section = rest.slice(0, rest.search(/^#{2,3} /m) === -1 ? rest.length : rest.search(/^#{2,3} /m));
+  return /^- \*\*To undo later:\*\* (.+)$/m.exec(section)?.[1].trim() ?? null;
+}
+
+const duration = (ms) => {
+  const minutes = Math.max(0, Math.floor(ms / 60000));
+  const hours = Math.floor(minutes / 60);
+  return hours ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
+};
+
+export function fallbackComment(going) {
+  const lines = [
+    `**Went ahead without you.** The wait ended at ${stamp(going.fallbackAt)} with no answer and no open question, so ${going.owner} is going ahead with **${optionLabel(going)}**, the option this request named as its fallback, and has moved it to "decided without you".`,
+    "",
+    `- **What it is doing:** ${going.doing}`,
+    `- **To undo later:** ${going.undo ?? "the request states no undo cost for this option."}`,
+    `- **Unanswered for:** ${going.unanswered}, since it was ${going.revised ? "last revised" : "filed"} at ${stamp(going.clockFrom)}.`,
+    "",
+    "**To keep it:** close this issue with no comment. **To change it:** close it with a comment, a letter or your own words, which are recorded word for word, and the fallback is undone. Comment without closing to ask a question.",
+  ];
+  return lines.join("\n");
+}
+
+export function fallbackRecordBody(going) {
+  const lines = [
+    `**Decided by fallback, not reviewed by the maintainer**, on [#${going.number}](${going.url}).`,
+    "",
+    `- **Question:** ${going.question}`,
+    `- **Went ahead with:** ${optionLabel(going)}, the request's stated fallback, taken by ${going.owner} at ${stamp(going.at)}.`,
+    `- **Unanswered for:** ${going.unanswered}, from the request being ${going.revised ? "last revised" : "filed"} at ${stamp(going.clockFrom)} to the fallback, with no answer and no open question.`,
+    `- **What the session is doing:** ${going.doing}`,
+    `- **To undo later:** ${going.undo ?? "the request states no undo cost for this option."}`,
+  ];
+  if (going.recommended) lines.push(`- **Recommended:** ${going.recommended}`);
+  lines.push(`- **Next:** the request stays open under "decided without you" until the maintainer closes it, with no comment to keep this or with a comment to change it; either adds a second record here.`);
+  return lines.join("\n");
+}
+
+const goingOf = (answer, marker) => ({
+  ...marker,
+  number: answer.number,
+  url: answer.url,
+  question: answer.question,
+  clockFrom: marker.since,
+  recommended: answer.recommended ? optionLabel({ option: answer.recommended.letter, name: answer.recommended.name }) : null,
+});
+
+function ensureHistory(tracker, answer, { repos, identity, scratch }) {
+  const who = whoOf(repos);
+  const marker = answer.wentAhead;
+  const going = goingOf(answer, marker);
+  const ours = (comment, kind) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === kind && readNote(comment.body)?.at === marker.at && (kind === "fallback" || readNote(comment.body)?.request === answer.number);
+  const posted = [];
+  const standingNote = tracker.comments(answer.number).find((comment) => ours(comment, "fallback"));
+  const note = standingNote ? { id: standingNote.id, url: standingNote.html_url } : postNote(tracker, answer.number, toolText(fallbackComment(going), { kind: "fallback", option: marker.option, at: marker.at }, identity), scratch, "fallback");
+  if (!standingNote) posted.push(`the note on #${answer.number}`);
+  const recordText = toolText(fallbackRecordBody(going), { kind: "fallback-record", request: answer.number, option: marker.option, at: marker.at }, identity);
+  const records = answer.tickets.map((ticket) => {
+    const standing = tracker.comments(ticket).find((comment) => ours(comment, "fallback-record"));
+    if (standing) return { ticket, id: standing.id, url: standing.html_url };
+    posted.push(`the record on #${ticket}`);
+    return { ticket, ...postNote(tracker, ticket, recordText, scratch, `fallback-record-${ticket}`) };
+  });
+  return { note, records, posted };
+}
+
+function uncommit(tracker, issue, label, scratch, restore = null) {
+  const current = lf(issue.body);
+  const file = path.join(scratch, `uncommit-${Date.now()}.md`);
+  writeFileSync(file, restore && current === restore.committed ? restore.original : withoutMarker(current));
+  tracker.setBodyAndLabels(issue.number, file, labelNames(issue).filter((name) => name !== label));
+}
+
+export function fallbackRequest(number, owner, doing, { tracker, repos = readRepos(), now = new Date(), identity = AS_MAINTAINER }) {
+  const issue = tracker.issue(number);
+  const answer = readAnswer(issue, tracker.timeline(number), repos);
+  const data = answer.data;
+  const label = repos.maintainer.labels.decidedWithoutYou;
+  const owns = answer.kind === "decision" && filled(owner) && owner.trim() === data.owner;
+  if (answer.wentAhead && owns && OPEN.includes(answer.state)) {
+    const history = withScratch((scratch) => ensureHistory(tracker, answer, { repos, identity, scratch }));
+    if (history.posted.length) return { number, url: answer.url, option: answer.wentAhead.option, name: answer.wentAhead.name, note: history.note, records: history.records, label, state: answer.state, completed: history.posted };
+  }
+  const reasons = [];
+  if (answer.kind !== "decision") reasons.push(`#${number} is a task; a task has no fallback and no clock`);
+  else if (answer.wentAhead) reasons.push(`#${number} already went ahead with ${optionLabel(answer.wentAhead)} at ${stamp(answer.wentAhead.at)} (${answer.wentAhead.url})`);
+  else if (!OPEN.includes(answer.state)) reasons.push(`#${number} is closed (${answer.state}); read and record its answer instead`);
+  else if (!data.fallback) reasons.push(`#${number} waits for the maintainer because ${WAIT_REASONS[data.waits] ?? data.waits ?? "it names no fallback"}; a request that waits never falls back`);
+  else {
+    if (!owns) reasons.push(`#${number} belongs to ${data.owner}, not ${filled(owner) ? owner.trim() : "an unnamed owner"}; only the run or session that asked takes its fallback`);
+    if (answer.state === "question") reasons.push(`a maintainer question is open on #${number} (${answer.words.at(-1).url}); the clock is stopped until it is answered with revise`);
+    else if (now.getTime() < Date.parse(data.fallback.at)) reasons.push(`#${number} falls back at ${stamp(data.fallback.at)}, ${duration(Date.parse(data.fallback.at) - now.getTime() + 59999)} from now; the wait has not passed`);
+  }
+  const text = reasons.length ? null : checkNoteText(doing, "What the session is doing");
+  const leftover = owns && !answer.wentAhead && OPEN.includes(answer.state) && (data.wentAhead || labelNames(issue).includes(label));
+  if (leftover) withScratch((scratch) => uncommit(tracker, issue, label, scratch));
+  const cleared = leftover ? [`removed a fallback that did not count${data.wentAhead ? ` (${data.wentAhead.option} at ${stamp(data.wentAhead.at)})` : ""} and the label ${label}`] : [];
+  if (reasons.length) throw new RequestRefused([...reasons, ...cleared]);
+  const fresh = leftover ? tracker.issue(number) : issue;
+  const body = lf(fresh.body);
+  const undoText = optionUndo(body, data.fallback.option);
+  const { body: committed, marker } = withMarker(body, {
+    option: data.fallback.option,
+    name: optionName(body, data.fallback.option),
+    owner: data.owner,
+    at: now.toISOString(),
+    fallbackAt: data.fallback.at,
+    doing: text.replace(/\s*\n\s*/g, " "),
+    undo: undoText ? asSentence(undoText) : null,
+    unanswered: duration(now.getTime() - Date.parse(answer.shown.at)),
+    since: answer.shown.at,
+    revised: answer.shown.revised,
+  });
+  return withScratch((scratch) => {
+    const file = path.join(scratch, "commit.md");
+    writeFileSync(file, committed);
+    let failure = null;
+    try {
+      tracker.setBodyAndLabels(number, file, [...labelNames(fresh).filter((name) => name !== label), label]);
+    } catch (error) {
+      failure = error;
+    }
+    const back = tracker.issue(number);
+    const after = readAnswer(back, tracker.timeline(number), repos);
+    if (after.wentAhead?.at === marker.at) {
+      const history = ensureHistory(tracker, after, { repos, identity, scratch });
+      return { number, url: back.html_url, option: marker.option, name: marker.name, note: history.note, records: history.records, label, cleared, state: after.state };
+    }
+    if (failure && readDataLine(back.body)?.wentAhead?.at !== marker.at) throw failure;
+    const problem = `#${number} changed while going ahead: it now reads ${after.state}${after.words.length ? `, with the maintainer's comment ${after.words.at(-1).url}` : ""}; read it again before acting`;
+    try {
+      uncommit(tracker, back, label, scratch, { committed, original: body });
+    } catch (error) {
+      throw new Error(`Going ahead on ${tracker.repo}#${number} failed:\n- ${problem}\nTaking the fallback back out failed (${error.message.split("\n")[0]}); it does not count, and the owner's next fallback removes it.`);
+    }
+    throw new Error(`Going ahead on ${tracker.repo}#${number} failed:\n- ${problem}\nRolled back: took the fallback marker and the label ${label} back out of #${number} in one edit; nothing was posted.\nCorrect the cause and run fallback again.`);
+  });
 }
 
 export const WAIT_INTERVAL_SECONDS = 60;
@@ -1146,7 +1353,7 @@ export async function waitForRequests(numbers, { tracker, refresh, repos = readR
     if (why === "fallback") out.fallbackAt = entry.answer.fallback.at;
     return out;
   };
-  const settled = (entry) => entry.answer.state !== "waiting" && entry.answer.state !== "question";
+  const settled = (entry) => !OPEN.includes(entry.answer.state);
   const fallbackAt = (entry) => (entry.answer.state === "waiting" && entry.answer.fallback?.at ? Date.parse(entry.answer.fallback.at) : Infinity);
   const watched = numbers.map((number) => {
     const readAt = clock().getTime();
@@ -1205,6 +1412,9 @@ export function formatAnswer(answer) {
     waiting: `waiting for the maintainer${answer.fallback ? `; falls back to ${answer.fallback.option} at ${answer.fallback.at}` : answer.kind === "decision" ? "; no fallback" : ""}`,
     question: "a question: the maintainer commented without closing; reply with revise",
     answered: `answered in the maintainer's words; ${closed}`,
+    "went-ahead": `went ahead without the maintainer with ${answer.wentAhead ? `${optionLabel(answer.wentAhead)} at ${stamp(answer.wentAhead.at)}` : "its fallback"}; waits for them to keep it (close with no comment) or change it (close with a comment)`,
+    kept: `the maintainer kept the fallback ${answer.wentAhead ? optionLabel(answer.wentAhead) : ""} by closing without comment; ${closed}`,
+    changed: `the maintainer changed the fallback ${answer.wentAhead ? optionLabel(answer.wentAhead) : ""} in their words; undo it and act on them; ${closed}`,
     accepted: `accepted the recommendation (${answer.recommended?.letter ?? "?"}) by closing without comment; ${closed}`,
     done: `done; ${closed}`,
     "will-not-do": `will not be done; ${closed}`,
@@ -1227,6 +1437,7 @@ const USAGE = `Usage:
   node .agents/skills/ask-maintainer/maintainer-request.mjs withdraw <request> <reason>
   node .agents/skills/ask-maintainer/maintainer-request.mjs answer-from-chat <request> <words-file> <transcript.jsonl> [--not-planned]
   node .agents/skills/ask-maintainer/maintainer-request.mjs wait <request> [<request> ...] [--interval=<seconds>]
+  node .agents/skills/ask-maintainer/maintainer-request.mjs fallback <request> <owner> <what-it-is-doing.md>
 The pictures folder defaults to the request file's folder.`;
 
 const ISSUE_NUMBER = /^#?[1-9]\d*$/;
@@ -1255,7 +1466,7 @@ function answerCommands(command, args, flags, { tracker, repos, out, now, identi
   if (command === "revise" && number && args.length >= 3 && args.length <= 4 && !flags.length) {
     const file = path.resolve(args[1]);
     const result = reviseRequest(number, readRequest(file), readText(path.resolve(args[2]), "what-changed"), { pictures: path.resolve(args[3] ?? path.dirname(file)), tracker, repos, now, identity });
-    const clock = result.data.fallback ? `falls back at ${result.data.fallback.at} to ${result.data.fallback.option}` : result.data.kind === "task" ? "a task, with no clock" : "waits for the maintainer, with no fallback";
+    const clock = result.wentAhead ? `already went ahead with ${result.wentAhead.option} at ${result.wentAhead.at}` : result.data.fallback ? `falls back at ${result.data.fallback.at} to ${result.data.fallback.option}` : result.data.kind === "task" ? "a task, with no clock" : "waits for the maintainer, with no fallback";
     out(`Revised #${number}${result.reopened ? " and reopened it" : ""}: ${result.url}\n${clock}; what changed is posted at ${result.note.url}.`);
     return 0;
   }
@@ -1267,6 +1478,15 @@ function answerCommands(command, args, flags, { tracker, repos, out, now, identi
   if (command === "answer-from-chat" && number && args.length === 3 && flags.every((flag) => flag === "--not-planned")) {
     const { answer, records, confirmation } = answerFromChat(number, readText(path.resolve(args[1]), "words"), path.resolve(args[2]), { tracker, repos, notPlanned: flags.includes("--not-planned"), identity });
     out(`${formatAnswer(answer)}\nRecorded: ${records.length ? records.map((r) => `#${r.ticket} ${r.url}`).join("; ") : "no other ticket waits on this request"}.\nConfirmed on #${number}: ${confirmation.url}`);
+    return 0;
+  }
+  if (command === "fallback" && number && args.length === 3 && !flags.length) {
+    const result = fallbackRequest(number, args[1], readText(path.resolve(args[2]), "what-it-is-doing"), { tracker, repos, now, identity });
+    if (result.completed) {
+      out(`#${number} had already gone ahead with ${optionLabel(result)}; posted what was missing: ${result.completed.join(", ")}.`);
+      return 0;
+    }
+    out(`Went ahead on #${number} with ${optionLabel(result)}: ${result.note.url}\nLabelled "${result.label}"; ${result.state === "went-ahead" ? "the request stays open for the maintainer to keep or change" : `the maintainer has already answered it (${result.state}); read and record it`}.\nRecorded: ${result.records.length ? result.records.map((r) => `#${r.ticket} ${r.url}`).join("; ") : "no other ticket waits on this request"}.`);
     return 0;
   }
   const interval = flags.find((flag) => flag.startsWith("--interval="));

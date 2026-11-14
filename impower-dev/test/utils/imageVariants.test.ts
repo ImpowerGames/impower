@@ -40,7 +40,7 @@ describe("the tester's groups", () => {
     expect(summary(IMANI)).toEqual([
       [ALTERNATE, [AS_IS, "night"], AS_IS],
       ["face", [AS_IS, "happy", "sad"], AS_IS],
-      ["mouth", ["closed", "open"], "open"],
+      ["mouth", ["open", "closed"], "open"],
     ]);
   });
 
@@ -54,7 +54,7 @@ describe("the tester's groups", () => {
 
   it("offers a switch off then on, and rests it off unless its on layer is the default", () => {
     expect(summary(MIA_FOLDER)).toEqual([
-      ["face", ["happy", "neutral"], "neutral"],
+      ["face", ["neutral", "happy"], "neutral"],
       ["hat", ["off", "on"], "off"],
     ]);
   });

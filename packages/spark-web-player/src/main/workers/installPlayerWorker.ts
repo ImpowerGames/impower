@@ -576,7 +576,7 @@ export function installPlayerWorker(connection: MessageConnection) {
           sendToPage,
           () => display !== displays || gameState.game !== game,
         );
-        return { displayed, beatRefusal: OUTSIDE_EVERY_SCENE_REFUSAL };
+        return { displayed, beatRefusal: OUTSIDE_EVERY_SCENE_REFUSAL, shownBeat: null };
       }
       const route = routeTo(game, entry, shown.point, shown.beat);
       displayedId = entry.id;
@@ -651,6 +651,7 @@ export function installPlayerWorker(connection: MessageConnection) {
                 ? { shownAddress: game.previewedAddress }
                 : {}
               : { beatRefusal: NO_BEAT_REFUSAL }),
+            shownBeat: game.previewShownLocation,
             ...(taken
               ? taken.beatOnly
                 ? { path: "beat" as const }
@@ -863,7 +864,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     const locator = programLocator(program);
     const ends = program.flowEnds?.[point.file] ?? [];
     const closed = ends.find(([, end]) => end === point.line);
-    if (!closed && locator.addressAt(point.file, point.line) != null) {
+    if (!closed && locator.addressAt(point.file, point.line, { beat }) != null) {
       return { point, beat };
     }
     const lineAbove = (

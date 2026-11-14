@@ -106,9 +106,10 @@ describe("completion and hover for the `morph` clause (I-2112)", () => {
   });
 
   test("clause values are offered only where the game reads that clause", () => {
-    expect(labels("  [[bunny wait x.with |]]")).toEqual([]);
-    expect(labels("  [[bunny wait x.ease |]]")).toEqual([]);
-    expect(labels("  ((play music theme wait x.with |))")).toEqual([]);
+    const afterStrayImageWord = labels("  [[bunny wait garbage |]]");
+    expect(labels("  [[bunny wait x.with |]]")).toEqual(afterStrayImageWord);
+    expect(labels("  [[bunny wait x.ease |]]")).toEqual(afterStrayImageWord);
+    expect(labels("  ((play music theme wait x.with |))")).toEqual(labels("  ((play music theme wait garbage |))"));
   });
 
   test("hover explains `morph` only where the game reads a `morph` clause", async () => {

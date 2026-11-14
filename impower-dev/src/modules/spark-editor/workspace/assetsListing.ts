@@ -7,15 +7,16 @@ import {
   type AssetType,
 } from "../utils/assetTypes";
 import {
-  holdingsLabel,
+  compareNames,
   parseSort,
+  plural,
   sortEntries,
   sortKey,
   UNREACHED,
   type ListEntry,
   type SortField,
 } from "../utils/fileListModel";
-import { imageStacks, isStacked } from "../utils/imageStacks";
+import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import { storyPlace, usesOf, type AssetUsage } from "./assetUsage";
 import { INTO_ITSELF, isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
 
@@ -234,6 +235,21 @@ const stackedRows = (
 
 export const FOLDER_COVERS = 4;
 
+const isDirect = (stack: ImageStack, folder: string): boolean =>
+  stack.folder === folder || (stack.kind === "folder" && parentOf(stack.folder) === folder);
+
+const byStackName = (a: ImageStack, b: ImageStack): number =>
+  compareNames(a.name, b.name) || compareNames(a.cover, b.cover);
+
+const folderCovers = (folder: string, stacks: readonly ImageStack[]): string[] => {
+  const direct = stacks.filter((stack) => isDirect(stack, folder)).sort(byStackName);
+  const deeper = stacks.filter((stack) => !isDirect(stack, folder)).sort(byStackName);
+  return [...direct, ...deeper].slice(0, FOLDER_COVERS).map((stack) => stack.cover);
+};
+
+const byFolderName = (a: string, b: string): number =>
+  compareNames(nameOf(a), nameOf(b)) || compareNames(a, b);
+
 const placeOf = (root: string, path: string, type: AssetType): string => {
   const folder = parentOf(path);
   if (folder === root) {
@@ -276,8 +292,16 @@ export const assetLevel = ({
   const at = folder && folder !== root && reachable(folder) ? folder : root;
   const atRoot = at === root;
 
-  const folderRow = (path: string, location?: string): AssetRow => {
+  const folderRow = (path: string): AssetRow => {
     const inside = ofType.filter((p) => isInside(p, path));
+    const stacks = type === "image" ? imageStacks(inside) : [];
+    const things = type === "image" ? stacks.length : inside.length;
+    const subfolders = folders.filter(
+      (f) =>
+        parentOf(f) === path &&
+        shown(f) &&
+        !stacks.some((stack) => stack.kind === "folder" && stack.folder === f),
+    ).length;
     return {
       kind: "folder",
       path,
@@ -287,30 +311,28 @@ export const assetLevel = ({
       uses: 0,
       position: UNREACHED,
       type,
-      holdings: holdingsLabel(
-        folders.filter((f) => parentOf(f) === path && shown(f)).length,
-        ofType.filter((p) => parentOf(p) === path).length,
-        assetTypeSpec(type).unit,
-      ),
-      location,
+      holdings: things
+        ? plural(things, assetTypeSpec(type).unit)
+        : subfolders
+          ? plural(subfolders, "folder")
+          : "Empty",
       ...(type === "image"
-        ? { covers: imageStacks(inside).slice(0, FOLDER_COVERS).map((stack) => stack.cover) }
+        ? { covers: folderCovers(path, stacks) }
         : {}),
     };
   };
 
-  const childFolders = folders.filter((f) => parentOf(f) === at && shown(f));
+  const childFolders = folders.filter((f) => parentOf(f) === at && shown(f)).sort(byFolderName);
   const strays = atRoot
     ? folders.filter(
         (f) =>
           homes.includes(parentOf(f)) &&
           !typeRoots.includes(f) &&
           (holds(f) || (type === "other" && empty(f))),
-      )
+      ).sort(byFolderName)
     : [];
-  const rows: AssetRow[] = [
-    ...childFolders.map((f) => folderRow(f)),
-    ...strays.map((f) => folderRow(f, parentOf(f))),
+  const folderRows = withUsage(listing, [...childFolders, ...strays].map(folderRow), usage);
+  const fileRows: AssetRow[] = [
     ...stackedRows(
       listing,
       ofType.filter((path) => parentOf(path) === at),
@@ -334,9 +356,9 @@ export const assetLevel = ({
     type,
     root,
     folder: at,
-    rows: sortEntries(withUsage(listing, rows, usage), sortOf(sort, usage)),
+    rows: [...folderRows, ...sortEntries(withUsage(listing, fileRows, usage), sortOf(sort, usage))],
     files: ofType.length,
-    empty: rows.length === 0,
+    empty: folderRows.length + fileRows.length === 0,
     none: files.length === 0,
   };
 };

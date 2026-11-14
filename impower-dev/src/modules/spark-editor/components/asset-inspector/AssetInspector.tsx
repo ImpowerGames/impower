@@ -562,15 +562,13 @@ export default function AssetInspector({
               Where it is used could not be looked up. Edit a script to try again.
             </p>
           ) : lines ? (
-            <div class="-mx-2">
-              <UsesList
-                layout="lines"
-                groups={uses}
-                onOpen={(use) =>
-                  void intents().then((Workspace) => Workspace.window.revealDocument(use.uri, use.range))
-                }
-              />
-            </div>
+            <UsesList
+              layout="lines"
+              groups={uses}
+              onOpen={(use) =>
+                void intents().then((Workspace) => Workspace.window.revealDocument(use.uri, use.range))
+              }
+            />
           ) : (
             <p class="m-0 text-[12px]/[1.5] text-muted">{NOT_USED_NOTES[asset.type]}</p>
           )}

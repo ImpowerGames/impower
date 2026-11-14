@@ -16,13 +16,14 @@ File a request at any point where you would otherwise stop, hold work, or ask th
 
 ## Fallback or wait
 
-The maintainer prefers that work keeps moving: a decision names a fallback, the option you go ahead with if no answer comes, and a wait of 30 minutes to 24 hours (two hours when unstated). A decision waits instead, with `waits` giving the reason, when it confirms something already built or when a fallback would decide something the maintainer must see first. Three kinds of choice always wait, and the tool refuses a fallback on them; mark one with `alwaysWaits`:
+The maintainer prefers that work keeps moving: a decision names a fallback, the option you go ahead with if no answer comes, and a wait of 30 minutes to 24 hours (two hours when unstated). It waits instead, and never falls back, only for one of four reasons, named in `waits`:
 
 - `deletes-work`: deleting or overwriting work that cannot be restored;
-- `leaves-repository`: anything that leaves the repository (publishing, sending, spending);
-- `waives-check`: waiving a failed check, such as merging despite a review flag.
+- `leaves-repository`: publishing, sending or spending outside the repository;
+- `waives-check`: waiving a failed check, such as a review flag;
+- `confirms-built`: confirming something already built.
 
-A task has no fallback and no clock.
+A task has no fallback and no clock. The wait counts from filing, stops during a maintainer question, and restarts at `revise`. Then only the request's owner goes ahead, through `fallback`; read [fallback](references/fallback.md) first.
 
 ## Write the request
 

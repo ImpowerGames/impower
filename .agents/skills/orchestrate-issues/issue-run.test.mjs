@@ -1632,6 +1632,11 @@ try {
     assert.equal(held.action, "wait-dependency", "an open maintainer request holds the ticket");
     assert.deepEqual(held.waitingFor, [2290]);
     assert.match(held.reason, /waiting for #2290 \(an open maintainer request\)/);
+    const wentAhead = snapshotOf(300, [...snap.tickets, { ...ticket(1107), parent: 300, blockers: [{ number: 2290, state: "open", delivered: false, request: true, wentAhead: true }] }]);
+    assert.equal(actions(planOf(f, wentAhead, { preflights: pre }))[1107], "dispatch", "an open request that went ahead without the maintainer no longer holds the ticket");
+    const alsoOpen = snapshotOf(300, [...snap.tickets, { ...ticket(1107), parent: 300, blockers: [{ number: 2290, state: "open", delivered: false, request: true, wentAhead: true }, { number: 2291, state: "open", delivered: false, request: true }] }]);
+    const stillHeld = planOf(f, alsoOpen, { preflights: pre }).tickets.find((t) => t.number === 1107);
+    assert.deepEqual([stillHeld.action, stillHeld.waitingFor], ["wait-dependency", [2291]], "a request still waiting beside one that went ahead holds the ticket, naming only the waiting one");
     {
       const maintainer = readRepos().maintainer;
       const isRequest = run.maintainerRequest(maintainer);
@@ -1640,9 +1645,20 @@ try {
       const read = run.takeSnapshot({ repository: "acme/widgets", issue: 300 }, requestClient).tickets.find((t) => t.number === 1107);
       assert.deepEqual(read.blockers, [{ number: 2290, state: "closed", delivered: false, request: true }, { number: 2299, state: "closed", delivered: false }], "the snapshot marks a blocker labelled as a maintainer request");
       assert.deepEqual([labelled("decision"), labelled("task"), labelled("decidedWithoutYou"), labelled("plain")].map(isRequest), [true, true, false, false], "a decision or task label marks a request; the decided-without-you label alone does not");
+      const fallbackAt = "2026-11-13T17:37:00.000Z";
+      const requestBody = `Body\n<!-- maintainer-request ${JSON.stringify({ kind: "decision", options: ["A", "B"], recommended: "A", fallback: { option: "B", at: fallbackAt }, blocks: [1107], owner: "orchestrate-issues #300", wentAhead: { option: "B", name: "Two", owner: "orchestrate-issues #300", at: "2026-11-13T17:40:00.000Z", fallbackAt } })} -->\n`;
+      const labeled = { event: "labeled", label: { name: maintainer.labels.decidedWithoutYou }, created_at: "2026-11-13T17:40:02Z", actor: { login: maintainer.login } };
+      const asked = { event: "commented", id: 2, created_at: "2026-11-13T17:40:01Z", user: { login: maintainer.login, type: "User" }, html_url: "https://github.com/acme/tickets/issues/2290#issuecomment-2", body: "Wait. Can I see A first?" };
+      const timelines = { 2290: [labeled], 2292: [asked, labeled] };
+      const labelledRequest = (number) => ({ number, state: "open", body: requestBody, html_url: `https://github.com/acme/tickets/issues/${number}`, title: "Which? (#1107)", labels: [{ name: maintainer.labels.decision }, { name: maintainer.labels.decidedWithoutYou }] });
+      const aheadClient = { ...requestClient, timeline: (n) => timelines[n] ?? [], blockedBy: () => [labelledRequest(2290), { number: 2291, state: "open", labels: [{ name: maintainer.labels.decision }] }, labelledRequest(2292)] };
+      const ahead = run.takeSnapshot({ repository: "acme/widgets", issue: 300 }, aheadClient).tickets.find((t) => t.number === 1107);
+      assert.deepEqual(ahead.blockers, [{ number: 2290, state: "open", delivered: false, request: true, wentAhead: true }, { number: 2291, state: "open", delivered: false, request: true }, { number: 2292, state: "open", delivered: false, request: true }], "the snapshot marks an open labelled request as gone ahead only when its timeline shows the fallback committed; a commit edit that landed after a maintainer question does not count");
+      assert.equal(actions(planOf(f, snapshotOf(300, [...snap.tickets, { ...ahead, parent: 300 }]), { preflights: pre }))[1107], "wait-dependency", "the uncommitted fallback and the waiting request still hold the ticket");
+      assert.deepEqual([{ request: true, state: "open", wentAhead: true }, { request: true, state: "open" }, { request: true, state: "closed" }, { state: "open", wentAhead: true }].map(run.requestMet), [true, false, true, false], "a request is met once closed or once it went ahead; the flag alone on a non-request is not");
       assert.equal(actions(planOf(f, snapshotOf(300, [...snap.tickets, { ...read, parent: 300 }]), { preflights: pre }))[1107], "wait-dependency", "the closed plain blocker without a deliverable still holds beside the met request");
     }
-    console.log("ok: a ticket blocked by a closed maintainer request is no longer waiting, and one blocked by an open request waits naming it");
+    console.log("ok: a ticket blocked by a closed maintainer request, or by an open one that went ahead without the maintainer, is no longer waiting, and one blocked by an open request waits naming it");
     const umbrella = snapshotOf(300, [
       { ...ticket(1108), parent: 300, type: "Task" },
       closed(1109, { type: "Bug", parent: 1108, deliveredBy: { ticket: 1108, via: "sub-issue", pr: null, merged: false }, blockers: [{ number: 900, state: "closed", delivered: false }] }),

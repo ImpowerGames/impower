@@ -49,7 +49,7 @@ import { getFileRenameEdits } from "./utils/providers/getFileRenameEdits";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
 import { getOffsetSourceLocation } from "./utils/providers/getOffsetSourceLocation";
-import { getPreviewLine } from "./utils/providers/getPreviewLine";
+import { answerPreviewLine } from "./utils/providers/answerPreviewLine";
 import { getReferences } from "./utils/providers/getReferences";
 import { getRenameEdits } from "./utils/providers/getRenameEdits";
 import {
@@ -455,12 +455,15 @@ try {
       );
     },
   );
-  connection.onRequest(PreviewLineMessage.method, (params: PreviewLineParams) => {
-    const uri = params.textDocument.uri;
-    const document = workspace.document(uri);
-    const tree = workspace.tree(uri);
-    return document && tree ? getPreviewLine(document, tree, params.line) : null;
-  });
+  connection.onRequest(PreviewLineMessage.method, (params: PreviewLineParams) =>
+    answerPreviewLine(
+      {
+        document: (uri) => workspace.document(uri),
+        tree: (uri) => workspace.tree(uri),
+      },
+      params,
+    ),
+  );
   connection.onRequest(
     "sparkdown/addressAt",
     async (params: { uri: string; line: number; query?: AddressQuery }) => {

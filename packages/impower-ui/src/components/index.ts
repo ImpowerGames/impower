@@ -418,6 +418,7 @@ export {
   tileLabelVariants,
   tileHeight,
   TILE_GAP,
+  TILE_MEDIA_FIT,
   TILE_MIN_WIDTH,
   type TileProps,
   type TileShape,

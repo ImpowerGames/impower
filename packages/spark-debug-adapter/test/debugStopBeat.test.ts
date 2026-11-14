@@ -21,6 +21,7 @@ const playing = DidChangeGameStateMessage.type.notification({
   ending: null,
   run: 1,
   position: null,
+  shownBeat: null,
   completion: null,
 });
 

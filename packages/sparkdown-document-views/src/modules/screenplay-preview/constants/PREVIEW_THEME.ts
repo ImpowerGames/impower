@@ -59,6 +59,9 @@ const PREVIEW_THEME: {
   "& .sp-option": {
     color: "var(--sp-muted)",
   },
+  "& .sp-source": {
+    color: "var(--sp-muted)",
+  },
   "& .sp-option.sp-chosen": {
     color: "var(--sp-accent)",
     fontWeight: "bold",

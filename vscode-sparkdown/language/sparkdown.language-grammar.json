@@ -80,11 +80,20 @@
       "navigate",
       "clear"
     ],
+    "NAVIGATE_CONTROL_KEYWORDS": [
+      "navigate"
+    ],
+    "NAVIGATE_DESTINATION_KEYWORDS": [
+      "to"
+    ],
     "LOAD_CONTROL_KEYWORDS": [
       "load"
     ],
     "MOVIE_CONTROL_KEYWORDS": [
       "play"
+    ],
+    "WRITE_CONTROL_KEYWORDS": [
+      "write"
     ],
     "FLOW_BEAT_KEYWORDS": [
       "scene",
@@ -111,11 +120,25 @@
     "STORY_NAME_START": "(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])",
     "IDENTIFIER": "(?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}{{IDENTIFIER_AT_PART}}*(?<![-]))",
     "TAG_START": "(?:[#]+(?=$|{{WS}}))",
-    "ASSET_CLAUSE_START": "(?<={{WS}}|\\[\\[|[(][(])",
-    "ASSET_TARGET_CONTROL": "(?:{{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}}|(?!navigate){{LAYOUT_CONTROL_KEYWORDS}})",
-    "ASSET_WORD": "(?:[#]*[^\\s#]\\S*)",
-    "ASSET_CONTROL_AND_TARGET": "(?:{{ASSET_TARGET_CONTROL}}{{WS}}+{{ASSET_WORD}})",
-    "ASSET_CLAUSES_START": "(?:{{TAG_START}}|{{ASSET_CLAUSE_START}}(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}))",
+    "DIRECTIVE_SPACE": "(?:[ \\t])",
+    "DIRECTIVE_SEPARATOR": "(?:{{DIRECTIVE_SPACE}}+)",
+    "DIRECTIVE_WORD": "(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*)",
+    "DIRECTIVE_NEXT_WORD": "(?:{{DIRECTIVE_SEPARATOR}}{{DIRECTIVE_WORD}})",
+    "DIRECTIVE_NAMES": "(?:{{DIRECTIVE_NEXT_WORD}}*?)",
+    "DIRECTIVE_CLAUSE_WORD": "(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})",
+    "DIRECTIVE_FIRST_CLAUSES": "(?:{{DIRECTIVE_CLAUSE_WORD}}{{DIRECTIVE_NEXT_WORD}}*)",
+    "DIRECTIVE_LATER_CLAUSES": "(?:{{DIRECTIVE_SEPARATOR}}{{DIRECTIVE_FIRST_CLAUSES}})",
+    "DIRECTIVE_DESTINATION": "(?:{{NAVIGATE_DESTINATION_KEYWORDS}}{{DIRECTIVE_NEXT_WORD}}?)",
+    "DIRECTIVE_TAG": "(?:[#]+(?:{{DIRECTIVE_SEPARATOR}}.*?)?)",
+    "DIRECTIVE_CONTROL": "(?:{{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}}|{{WRITE_CONTROL_KEYWORDS}})",
+    "IMAGE_DIRECTIVE_CONTROL": "(?:{{DIRECTIVE_CONTROL}}|{{LAYOUT_CONTROL_KEYWORDS}})",
+    "DIRECTIVE_NAME_TEXT": "(?:[^ \\t\\r\\n+]+)",
+    "ASSET_FILTERS": "(?:(?:[:~][^:~+\\s]+)+)",
+    "_DIRECTIVE_END_": "({{DIRECTIVE_SPACE}}*)$",
+    "_DIRECTIVE_TAG_AND_END_": "(?:({{DIRECTIVE_SEPARATOR}}{{DIRECTIVE_TAG}}))?{{_DIRECTIVE_END_}}",
+    "_DIRECTIVE_NAVIGATE_TO_": "({{DIRECTIVE_SEPARATOR}})({{DIRECTIVE_DESTINATION}})({{DIRECTIVE_NEXT_WORD}}*)",
+    "_DIRECTIVE_NAVIGATE_SCREEN_": "({{DIRECTIVE_SEPARATOR}})({{DIRECTIVE_WORD}})(?:({{DIRECTIVE_SEPARATOR}})({{DIRECTIVE_DESTINATION}}))?({{DIRECTIVE_NEXT_WORD}}*)",
+    "_DIRECTIVE_CONTROLLED_WORDS_": "(?:({{DIRECTIVE_SEPARATOR}})({{DIRECTIVE_WORD}}))?({{DIRECTIVE_NAMES}})({{DIRECTIVE_LATER_CLAUSES}}?){{_DIRECTIVE_TAG_AND_END_}}",
     "NOT_TAG_HASH": "(?:[#]+[^#\\s])",
     "NOT_TAG_HASH_AFTER_TEXT": "(?<=[^\\s.]|[^\\s.][.]|[^\\s.][.][.])(?={{NOT_TAG_HASH}})",
     "COMMENT_START": "(?:[-][-])",
@@ -5814,7 +5837,7 @@
       "tag": "macroName",
       "name": "meta.image.sd",
       "brackets": true,
-      "begin": "(\\[\\[)((?:[^\\S\\n\\r])*)",
+      "begin": "(\\[\\[)((?:[ \\t])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5836,7 +5859,7 @@
           "include": "#ImageCommandContent"
         }
       ],
-      "end": "$|((?:[^\\S\\n\\r])*)(\\]\\])((?:[^\\S\\n\\r])*)",
+      "end": "$|((?:[ \\t])*)(\\]\\])((?:[^\\S\\n\\r])*)",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5863,12 +5886,168 @@
       }
     },
     "ImageCommandContent": {
-      "match": "((?:\\\\.|[^\\]\\r\\n])*?)(?=$|(?:[^\\S\\n\\r])*\\]\\])",
+      "match": "((?:[^\\]\\r\\n]|\\](?!\\]))+)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#AssetCommandContent"
+              "include": "#ImageCommandWords"
+            }
+          ]
+        }
+      }
+    },
+    "ImageCommandWords": {
+      "patterns": [
+        {
+          "include": "#ImageCommandNavigation"
+        },
+        {
+          "include": "#ImageCommandControlled"
+        },
+        {
+          "include": "#AssetCommandUncontrolled"
+        }
+      ]
+    },
+    "ImageCommandNavigation": {
+      "match": "((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:navigate)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?:((?:(?:[ \\t])+))((?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:to)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))?))((?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))*)|((?:(?:(?:[ \\t])+)(?:(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))*)))|((?:(?:[ \\t])+))((?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))(?:((?:(?:[ \\t])+))((?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:to)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))?)))?((?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))*))?(?:((?:(?:[ \\t])+)(?:[#]+(?:(?:(?:[ \\t])+).*?)?)))?((?:[ \\t])*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandControl"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauses"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauses"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauses"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#AssetCommandTarget"
+            }
+          ]
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
+        },
+        "9": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauses"
+            }
+          ]
+        },
+        "10": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauses"
+            }
+          ]
+        },
+        "11": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            }
+          ]
+        },
+        "12": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "ImageCommandControlled": {
+      "match": "((?:(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:show|hide|animate)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:play|stop|fade|queue|await)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:load)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:play)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:write)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:open|close|navigate|clear)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])))(?:((?:(?:[ \\t])+))((?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*)))?((?:(?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))*?))((?:(?:(?:[ \\t])+)(?:(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))*))?)(?:((?:(?:[ \\t])+)(?:[#]+(?:(?:(?:[ \\t])+).*?)?)))?((?:[ \\t])*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandControl"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssetCommandTarget"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#AssetCommandNames"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauses"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -5878,7 +6057,7 @@
       "tag": "macroName",
       "name": "meta.audio.sd",
       "brackets": true,
-      "begin": "([(][(])((?:[^\\S\\n\\r])*)",
+      "begin": "([(][(])((?:[ \\t])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5900,7 +6079,7 @@
           "include": "#AudioCommandContent"
         }
       ],
-      "end": "$|((?:[^\\S\\n\\r])*)([)][)])((?:[^\\S\\n\\r])*)",
+      "end": "$|((?:[ \\t])*)([)][)])((?:[^\\S\\n\\r])*)",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5927,106 +6106,29 @@
       }
     },
     "AudioCommandContent": {
-      "match": "((?:\\\\.|[^)\\r\\n])*?)(?=$|(?:[^\\S\\n\\r])*[)][)])",
+      "match": "((?:[^)\\r\\n]|[)](?![)]))+)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#AssetCommandContent"
+              "include": "#AudioCommandWords"
             }
           ]
         }
       }
     },
-    "AssetCommandContent": {
-      "match": "((?:(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:show|hide|animate)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:play|stop|fade|queue|await)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:load)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:play)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?!navigate)(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:open|close|navigate|clear)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?:[^\\S\\n\\r])+(?:[#]*[^\\s#]\\S*))?.*?)($|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?<=(?:[^\\S\\n\\r])|\\[\\[|[(][(])(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?=$|(?:[^\\S\\n\\r]))).*)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#RequiredWhitespace"
-            },
-            {
-              "include": "#AssetCommandInstruction"
-            }
-          ]
+    "AudioCommandWords": {
+      "patterns": [
+        {
+          "include": "#AudioCommandControlled"
         },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Annotation"
-            },
-            {
-              "include": "#RequiredWhitespace"
-            },
-            {
-              "include": "#AssetCommandValueClause"
-            },
-            {
-              "include": "#AssetCommandClauseKeyword"
-            },
-            {
-              "include": "#TimeValue"
-            },
-            {
-              "include": "#NumberValue"
-            },
-            {
-              "include": "#NameValue"
-            }
-          ]
+        {
+          "include": "#AssetCommandUncontrolled"
         }
-      }
+      ]
     },
-    "AssetCommandValueClause": {
-      "match": "((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:after|over|to|with|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))((?:[^\\S\\n\\r])+)((?:[#]*[^\\s#]\\S*))",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#AssetCommandClauseKeyword"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#RequiredWhitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#AssetCommandClauseValue"
-            }
-          ]
-        }
-      }
-    },
-    "AssetCommandClauseValue": {
-      "match": "(.+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#TimeValue"
-            },
-            {
-              "include": "#NumberValue"
-            },
-            {
-              "include": "#NameValue"
-            },
-            {
-              "include": "#IllegalChar"
-            }
-          ]
-        }
-      }
-    },
-    "AssetCommandInstruction": {
-      "match": "(?:((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:show|hide|animate)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:play|stop|fade|queue|await)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:open|close|navigate|clear)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:load)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:play)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))((?:[^\\S\\n\\r])*)($|\\S+)((?:[^\\S\\n\\r])*))?(.*)",
+    "AudioCommandControlled": {
+      "match": "((?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:show|hide|animate)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:play|stop|fade|queue|await)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:load)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:play)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:write)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])))(?:((?:(?:[ \\t])+))((?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*)))?((?:(?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))*?))((?:(?:(?:[ \\t])+)(?:(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))*))?)(?:((?:(?:[ \\t])+)(?:[#]+(?:(?:(?:[ \\t])+).*?)?)))?((?:[ \\t])*)$",
       "captures": {
         "1": {
           "patterns": [
@@ -6052,20 +6154,226 @@
         "4": {
           "patterns": [
             {
-              "include": "#RequiredWhitespace"
+              "include": "#AssetCommandNames"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#AssetCommandAddOperator"
-            },
+              "include": "#AssetCommandClauses"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
             {
-              "include": "#AssetCommandName"
-            },
+              "include": "#Annotation"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "AssetCommandUncontrolled": {
+      "patterns": [
+        {
+          "include": "#AssetCommandClausesFirst"
+        },
+        {
+          "include": "#AssetCommandTagFirst"
+        },
+        {
+          "include": "#AssetCommandNamesFirst"
+        }
+      ]
+    },
+    "AssetCommandClausesFirst": {
+      "match": "((?:(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))*))(?:((?:(?:[ \\t])+)(?:[#]+(?:(?:(?:[ \\t])+).*?)?)))?((?:[ \\t])*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauses"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "AssetCommandTagFirst": {
+      "match": "((?:[#]+(?:(?:(?:[ \\t])+).*?)?))((?:[ \\t])*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "AssetCommandNamesFirst": {
+      "match": "((?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*)(?:(?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))*?))((?:(?:(?:[ \\t])+)(?:(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?:(?:(?:[ \\t])+)(?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))*))?)(?:((?:(?:[ \\t])+)(?:[#]+(?:(?:(?:[ \\t])+).*?)?)))?((?:[ \\t])*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandNames"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauses"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "AssetCommandNames": {
+      "patterns": [
+        {
+          "include": "#AssetCommandSeparator"
+        },
+        {
+          "include": "#AssetCommandAddOperator"
+        },
+        {
+          "include": "#AssetCommandNoneName"
+        },
+        {
+          "include": "#AssetCommandName"
+        }
+      ]
+    },
+    "AssetCommandClauses": {
+      "patterns": [
+        {
+          "include": "#AssetCommandSeparator"
+        },
+        {
+          "include": "#AssetCommandValueClause"
+        },
+        {
+          "include": "#AssetCommandBareClause"
+        },
+        {
+          "include": "#AssetCommandClauseValue"
+        }
+      ]
+    },
+    "AssetCommandSeparator": {
+      "match": "((?:(?:[ \\t])+))",
+      "captures": {
+        "1": {
+          "patterns": [
             {
               "include": "#RequiredWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "AssetCommandValueClause": {
+      "match": "((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:after|over|to|with|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))((?:(?:[ \\t])+))((?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauseKeyword"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauseValue"
+            }
+          ]
+        }
+      }
+    },
+    "AssetCommandBareClause": {
+      "match": "((?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])))((?:(?:[ \\t])+)|$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauseKeyword"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "AssetCommandClauseValue": {
+      "match": "((?:[#]*[^ \\t\\r\\n#][^ \\t\\r\\n]*))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#TimeValue"
+            },
+            {
+              "include": "#NumberValue"
+            },
+            {
+              "include": "#NameValue"
             },
             {
               "include": "#IllegalChar"
@@ -6110,18 +6418,12 @@
       "match": "((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))"
     },
     "AssetCommandName": {
-      "match": "(.+?)(?=$|[+])",
+      "match": "((?:[^ \\t\\r\\n+]+))",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#RequiredWhitespace"
-            },
-            {
               "include": "#LuauString"
-            },
-            {
-              "include": "#AssetCommandKeywordNone"
             },
             {
               "include": "#AssetCommandFilteredFileName"
@@ -6139,6 +6441,39 @@
         }
       }
     },
+    "AssetCommandNoneName": {
+      "match": "(none)((?:(?:[:~][^:~+\\s]+)+)?)(?:([+])|((?:(?:[ \\t])+))|$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandKeywordNone"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#AssetCommandFilter"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssetCommandAddOperator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
+        }
+      }
+    },
     "AssetCommandKeywordNone": {
       "tag": "keyword",
       "name": "keyword.asset.keyword.none.sd",
@@ -6147,7 +6482,7 @@
     "AssetCommandFilteredFileName": {
       "tag": "constant(variableName)",
       "name": "variable.other.constant.asset.file.sd",
-      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*(?:[@][0-9_\\p{L}][0-9_\\p{L}-]*)*(?<![-])))((?:[:~][^:~\\s]+)+)",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*(?:[@][0-9_\\p{L}][0-9_\\p{L}-]*)*(?<![-])))((?:(?:[:~][^:~+\\s]+)+))",
       "captures": {
         "1": {
           "patterns": [
@@ -6173,7 +6508,7 @@
     "AssetCommandAddOperator": {
       "tag": "propertyName",
       "name": "variable.other.property.add.sd",
-      "match": "((?:[^\\S\\n\\r])*[+](?:[^\\S\\n\\r])*)"
+      "match": "([+])"
     },
     "AssetCommandFilter": {
       "match": "([:~])($|[^:~\\s]+)?",

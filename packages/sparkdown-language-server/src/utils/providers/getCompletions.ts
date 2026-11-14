@@ -1407,9 +1407,14 @@ const completionsAt = (
     return written;
   };
 
-  const isNameAfterName = (node: SyntaxNode | undefined) =>
-    node?.name === "AssetCommandFileName" &&
-    node.prevSibling?.name === "RequiredWhitespace";
+  const isNameAfterName = (node: SyntaxNode | undefined) => {
+    if (node?.name !== "AssetCommandFileName" || node.prevSibling) return false;
+    let name = node.parent;
+    while (name && name.name !== "AssetCommandName") name = name.parent;
+    const gap = name?.prevSibling;
+    if (gap?.name === "AssetCommandNoneName") return /[ \t]$/.test(read(gap.from, gap.to));
+    return gap?.name === "AssetCommandSeparator" && gap.prevSibling?.name === "AssetCommandName";
+  };
 
   const isClauseStart = (node: SyntaxNode | undefined) => {
     if (node?.name !== "NameValue") {
