@@ -1,7 +1,6 @@
 import type { ElementContent } from "../../../spark-engine/src/game/modules/ui/types/ElementContent";
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getAnimationContent } from "./getAnimationContent";
-import { getFontContent } from "./getFontContent";
 import { getStyleContent } from "./getStyleContent";
 
 export const getElementContent = (
@@ -20,9 +19,6 @@ export const getElementContent = (
   }
   if ("styles" in content) {
     return getStyleContent(content.styles, options);
-  }
-  if ("fonts" in content) {
-    return getFontContent(content.fonts);
   }
   if ("animations" in content) {
     return getAnimationContent(content.animations, options.theme);
