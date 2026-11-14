@@ -93,12 +93,34 @@ export const savedLocally = (
   local: boolean,
 ): boolean => !(local && status && LOCAL_SAVE_ERRORS.includes(status));
 
+const SETTLED_LOCAL_TITLE = "Saved in this browser. Open Save & sync.";
+
 export const saveStatusOf = (
   status: SyncStatus | undefined,
   local: boolean,
   importProgress?: { loaded: number; total: number } | null,
   syncedAt?: number | null,
   now: number = Date.now(),
+): SaveStatus | null => {
+  const caption = captionOf(status, local, importProgress, syncedAt, now);
+  if (!caption || !local || caption.action !== "menu") {
+    return caption;
+  }
+  return {
+    ...caption,
+    title:
+      status === "cached" && !importProgress
+        ? SETTLED_LOCAL_TITLE
+        : DEVICE_STORAGE_COPY.statusTitle,
+  };
+};
+
+const captionOf = (
+  status: SyncStatus | undefined,
+  local: boolean,
+  importProgress: { loaded: number; total: number } | null | undefined,
+  syncedAt: number | null | undefined,
+  now: number,
 ): SaveStatus | null => {
   if (importProgress) {
     return {
@@ -111,14 +133,7 @@ export const saveStatusOf = (
     return null;
   }
   if (status === "cached") {
-    return local
-      ? {
-          text: "Draft saved",
-          title: "Saved in this browser. Open Save & sync.",
-          tone: "saved",
-          action: "menu",
-        }
-      : { text: "Draft saved", tone: "saved", action: "menu" };
+    return { text: "Draft saved", tone: "saved", action: "menu" };
   }
   if (!savedLocally(status, local)) {
     return {

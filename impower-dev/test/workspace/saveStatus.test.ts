@@ -116,6 +116,16 @@ describe("the save status caption map", () => {
     });
   });
 
+  it("keeps the storage tooltip on a local project's other menu states", () => {
+    expect(saveStatusOf("cached", true, { loaded: 2, total: 5 })?.title).toBe(
+      "Where this project is stored",
+    );
+    expect(saveStatusOf("loading", true)?.title).toBe(
+      "Where this project is stored",
+    );
+    expect(saveStatusOf("load_error", true)?.title).toBeUndefined();
+  });
+
   it.each(["load_error", "import_error"] as const)(
     "reads a local project's %s as a draft that is not saved, linking to Save & sync",
     (status) => {
