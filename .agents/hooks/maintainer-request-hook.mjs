@@ -96,27 +96,26 @@ function touches(seg, i, repo) {
   const args = seg.slice(i + 1);
   if (base === "gh") {
     const parsed = ghParse(args);
-    const [group, action, selector] = parsed.positional.map((p, k) => (k < 2 ? p.toLowerCase() : p));
+    const [group, action, ...selectors] = parsed.positional.map((p, k) => (k < 2 ? p.toLowerCase() : p));
     if (group === "issue" && MUTATING_ISSUE_ACTIONS.has(action)) {
-      const target = requestNumber(selector, repo);
-      if (!target) return null;
-      const named = target.repo ?? parsed.values("-R", "--repo").at(-1) ?? envRepo(seg, i);
-      return sameRepo(named, repo) ? { number: target.number, action } : null;
+      const named = parsed.values("-R", "--repo").at(-1) ?? envRepo(seg, i);
+      const targets = selectors.map((selector) => requestNumber(selector, repo)).filter((target) => target && sameRepo(target.repo ?? named, repo));
+      return targets.length ? { numbers: targets.map((target) => target.number), action } : null;
     }
     if (group === "api") {
       const number = apiTarget(parsed.positional[1] ?? "", repo);
       if (number === null) return null;
       const method = (parsed.values("-X", "--method").at(-1) ?? (parsed.values(...GH_API_FIELD_FLAGS, "--input").length ? "POST" : "GET")).toUpperCase();
-      return method === "GET" || method === "HEAD" ? null : { number, action: "api" };
+      return method === "GET" || method === "HEAD" ? null : { numbers: [number], action: "api" };
     }
     return null;
   }
   if (base === "curl") {
     const parsed = parseArgs(args, new Set([...CURL_VALUE, "-d", "--data", "--data-ascii", "--data-raw", "--data-binary", "--data-urlencode", "--json", "-F", "--form", "--form-string", "--url"]));
-    const number = [...parsed.values("--url"), ...parsed.positional].filter(githubUrl).map((url) => apiTarget(url, repo)).find((n) => n !== null) ?? null;
-    if (number === null) return null;
+    const numbers = [...parsed.values("--url"), ...parsed.positional].filter(githubUrl).map((url) => apiTarget(url, repo)).filter((n) => n !== null);
+    if (!numbers.length) return null;
     const changing = parsed.values("-X", "--request").some((m) => !["GET", "HEAD"].includes(m.toUpperCase())) || parsed.flags.some(([n]) => CURL_DATA.test(n));
-    return changing ? { number, action: "api" } : null;
+    return changing ? { numbers, action: "api" } : null;
   }
   if (["invoke-restmethod", "irm", "invoke-webrequest", "iwr"].includes(base)) {
     let url = null;
@@ -132,7 +131,7 @@ function touches(seg, i, repo) {
     const number = url ? apiTarget(url, repo) : null;
     if (number === null) return null;
     const verb = method ?? (body ? "POST" : "GET");
-    return verb === "GET" || verb === "HEAD" ? null : { number, action: "api" };
+    return verb === "GET" || verb === "HEAD" ? null : { numbers: [number], action: "api" };
   }
   return null;
 }
@@ -366,7 +365,9 @@ function decideAt(command, shell, depth, context) {
       const touched = touches(seg, i, context.repo);
       if (touched) {
         try {
-          if (openRequestIndex(context.repo, context.env).entry(touched.number)) return touchReason(touched, context.repo);
+          const index = openRequestIndex(context.repo, context.env);
+          const number = touched.numbers.find((n) => index.entry(n));
+          if (number !== undefined) return touchReason({ number, action: touched.action }, context.repo);
         } catch (error) {
           if (error instanceof RequestIndexUnreadable) return indexFailure(error.message);
           throw error;

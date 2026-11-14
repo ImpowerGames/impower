@@ -67,6 +67,7 @@ const touching = (n) => [
   ["gh issue close by address under another -R", `gh issue close https://github.com/${repo}/issues/${n} -R acme/other`],
   ["gh issue comment under a host-qualified -R", `gh issue comment ${n} -R github.com/${repo} --body ok`],
   ["gh issue close under a repository address", `gh issue close ${n} --repo https://github.com/${repo}.git`],
+  ["gh issue edit naming the request after another issue", `gh issue edit 4243 ${n} -R ${repo} --add-label x`],
   ["a curl batch whose later transfer changes the request", `curl https://api.github.com/repos/acme/other/issues/1 --next -X PATCH https://api.github.com/repos/${repo}/issues/${n} -d '{"state":"closed"}'`],
 ];
 
