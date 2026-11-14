@@ -3648,7 +3648,9 @@ export class Game<T extends M = {}> {
         if (this._holdingFlush) {
           this._held = {
             instructions: instructions ?? null,
-            location: this.getLastExecutedDocumentLocation(),
+            location: instructions?.source
+              ? this.getDocumentLocation(instructions.source)
+              : this.getLastExecutedDocumentLocation(),
           };
           return true;
         }

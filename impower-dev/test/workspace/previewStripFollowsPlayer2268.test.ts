@@ -112,6 +112,7 @@ const ROWS: Row[] = [
   { shape: "a divert to a label in another scene", lines: ["Before.", "-> other.inner"], tail: ["scene other", "  Outer.", "  branch inner", "    Inner.", "  end", "end"], caret: 2, shows: action("Inner.") },
   { shape: "a tunnel to a label in another scene", lines: ["Before.", "-> other.inner ->", "After."], tail: ["scene other", "  Outer.", "  branch inner", "    Inner.", "    ->->", "  end", "end"], caret: 2, shows: action("Inner.") },
   { shape: "a divert stored in a variable", head: ["store target = -> elsewhere"], lines: ["Before.", "-> target"], tail: ["scene elsewhere", "  Arrived.", "end"], caret: 3, shows: action("Arrived.") },
+  { shape: "a scene's closing end after a nested branch", lines: ["Outer.", "branch nested", "  Inner.", "end", "x = 1", "", "After."], caret: 8, shows: action("Outer.") },
   { shape: "a condition that reads a variable set earlier on the route", head: ["store x = 0"], lines: ["x = 1", "Before.", "if x == 1 then", "  Set.", "else", "  Unset.", "end"], caret: 4, shows: action("Set.") },
 ];
 
@@ -132,18 +133,19 @@ describe("the strip names the beat the player displays for the caret's line", ()
 
 describe("the strip shows no beat's words when the picture shows none", () => {
   test.each([
-    { shape: "a scene with no beat", text: "scene start\nend\n", caret: 0, shows: { kind: "empty" } },
+    { shape: "a scene with no beat", text: "scene start\nend\n", caret: 0, shows: { kind: "empty" }, ending: "out" },
     { shape: "a line outside every scene", text: "Loose words.\n\nscene start\n  Hello.\nend\n", caret: 0, shows: { kind: "empty" } },
     { shape: "a definition", text: "define harbor with\n  color = \"blue\"\nend\n\nscene start\n  Hello.\nend\n", caret: 1, shows: { kind: "setup" } },
-    { shape: "an error ending", text: "scene start\n  error(\"boom\")\n  After.\nend\n", caret: 1, shows: { kind: "empty" }, ending: "error" },
+    { shape: "an error ending", text: "scene start\n  {error(\"boom\")} After.\nend\n", caret: 1, shows: { kind: "empty" }, ending: "error" },
   ])(
     "$shape",
     async ({ text, caret, shows, ending = null }) => {
-      const preview = await previewAt(text, caret);
-      expect(preview.ending).toBe(ending);
-      expect(preview.shownBeat).toBeNull();
-      expect(preview.picture).toBe("");
-      expect(preview.strip).toEqual(shows);
+      expect(await previewAt(text, caret)).toEqual({
+        ending,
+        shownBeat: null,
+        picture: "",
+        strip: shows,
+      });
     },
     120_000,
   );
