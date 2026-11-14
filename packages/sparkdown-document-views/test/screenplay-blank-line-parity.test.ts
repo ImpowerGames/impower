@@ -953,7 +953,7 @@ describe("text the export inserts", () => {
   });
 
   it.each([
-    ["an empty alternative", "GluedEmptyArm", "They see {a dog} outside."],
+    ["an empty alternative, dropped as a known gap (I-2389)", "GluedEmptyArm", "They see {a dog} outside."],
     ["an alternative holding a quoted bar", "GluedQuotedBarArm", "They see {{\"a|b\"}|a dog} outside."],
     ["an alternative holding a quoted brace", "GluedQuotedBraceArm", "They see {{\"{a}\"}|a dog} outside."],
     ["source braces beside an alternative", "GluedBesideSameText", "They see a } {a cat|a dog} } outside."],
