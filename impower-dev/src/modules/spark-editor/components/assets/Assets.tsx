@@ -714,6 +714,7 @@ function AssetsBrowser() {
         actions={
           <AssetRowMenu
             name={row.name}
+            glyph="sm"
             kept={row.folderStack ? folderStackReason(row.name) : undefined}
             onAction={(action) => onAction(row, action)}
           />
@@ -817,6 +818,7 @@ function AssetsBrowser() {
           name={row.name}
           kept={row.folderStack ? folderStackReason(row.name) : undefined}
           actions={INSPECTOR_ACTIONS}
+          glyph="lg"
           onAction={(action) => onInspectorAction(row, action)}
         />
       }

@@ -125,4 +125,19 @@ describe("Tile", () => {
     expect(menu("Options for a")).not.toContain("opacity-0");
     expect(menu("Options for b")).toContain("opacity-0");
   });
+
+  it("sets its name and meta lines at 1.4 and backs its menu with the page colour at 78%", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <Tile media={null} label="imani" description="Modified Sep 29" aria-label="Open imani" actions={<button aria-label="Options for imani" />} onClick={() => {}} />,
+        host!,
+      ),
+    );
+    const open = host.querySelector('button[aria-label="Open imani"]')!;
+    const name = [...open.querySelectorAll("span")].find((span) => span.textContent === "imani")!;
+    expect(name.className.split(" ")).toContain("text-[13px]/[1.4]");
+    expect(open.querySelector("small")!.className.split(" ")).toContain("text-[11px]/[1.4]");
+    expect(host.querySelector('[aria-label="Options for imani"]')!.parentElement!.className.split(" ")).toContain("bg-bg/78");
+  });
 });
