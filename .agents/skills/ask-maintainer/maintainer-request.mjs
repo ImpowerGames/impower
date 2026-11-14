@@ -8,7 +8,7 @@ import { readRepos, ticketsRepo } from "../../repos.mjs";
 import { ghClient as dependencyClient } from "../references/record-blockers.mjs";
 import { findTypedWords } from "./chat-transcript.mjs";
 import { TOOL_MARK, actorOf, commentAuthor, resolveIdentity, tokenEnv } from "./github-app.mjs";
-import { ANSWERED_STATES as ANSWERED, noteRequests } from "./request-index.mjs";
+import { ANSWERED_STATES as ANSWERED, forgetUntagged, noteRequests } from "./request-index.mjs";
 
 export const TEMPLATE_FILES = Object.freeze({
   decision: fileURLToPath(new URL("../../templates/issues/maintainer_decision.md", import.meta.url)),
@@ -885,6 +885,7 @@ export function listRequests(tracker, repos = readRepos()) {
   const decisions = tracker.all(decision);
   const tasks = tracker.all(task);
   noteRequests(tracker.repo, [...decisions.map((issue) => [issue, "decision"]), ...tasks.map((issue) => [issue, "task"])].map(([issue, kind]) => ({ number: issue.number, kind, state: issue.state === "open" ? "open" : "closed" })));
+  forgetUntagged(tracker.repo, new Set(tasks.map((issue) => issue.number)));
   const open = (list) => list.filter((issue) => issue.state === "open");
   return groupRequests({ decisions: open(decisions), tasks: open(tasks), decidedWithoutYou: tracker.open(decidedWithoutYou) });
 }

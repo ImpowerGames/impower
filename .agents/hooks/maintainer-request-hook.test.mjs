@@ -300,9 +300,10 @@ for (const [harness, run] of runs) {
     const index = openRequestIndex("acme/tickets");
     assert.deepEqual([10, 11, 12].map((n) => index.entry(n)?.state), ["open", "closed", "open"], "list indexes open and closed requests");
     assert.deepEqual(readdirSync(requestIndexDir("acme/tickets")).sort(), ["10.json", "11.json", "12.json"]);
-    noteRequests("acme/tickets", [{ number: 11, kind: "decision", state: "answered" }]);
+    noteRequests("acme/tickets", [{ number: 11, kind: "decision", state: "answered" }, { number: 12, kind: "task", tagged: true, state: "waiting" }, { number: 14, kind: "task", tagged: true, state: "waiting" }]);
     listRequests(tracker, repos);
     assert.equal(openRequestIndex("acme/tickets").entry(11).state, "answered", "a later list keeps a recorded answer");
+    assert.deepEqual([openRequestIndex("acme/tickets").entry(12)?.tagged, openRequestIndex("acme/tickets").entry(14)], [true, null], "list forgets a tagged ticket whose task label was removed and keeps one still labelled");
     const body = readFileSync(path.join(root, ".agents/skills/ask-maintainer/fixtures/decision-body.md"), "utf8");
     const issue = { number: 20, title: "What should mark it? (#2271)", body, state: "closed", state_reason: "completed", closed_at: "2026-11-13T16:10:00Z", closed_by: { login: repos.maintainer.login }, html_url: "u20" };
     const answerTracker = { repo: "acme/tickets", issue: () => issue, timeline: () => [{ event: "closed", created_at: issue.closed_at, actor: { login: repos.maintainer.login } }] };

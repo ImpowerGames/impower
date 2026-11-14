@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -63,6 +63,16 @@ function settle(previous, state) {
   if (state === "open" && OPEN_STATES.has(previous.state)) return previous.state;
   if (state === "closed" && CLOSED_STATES.has(previous.state)) return previous.state;
   return state;
+}
+
+export function forgetUntagged(repo, tagged, { env = process.env } = {}) {
+  const dir = requestIndexDir(repo, env);
+  for (const name of readdirSync(dir)) {
+    const number = Number(/^([1-9]\d*)\.json$/.exec(name)?.[1]);
+    if (!number) continue;
+    const entry = readEntry(dir, number);
+    if (entry?.tagged && !tagged.has(number)) rmSync(entryFile(dir, number), { force: true });
+  }
 }
 
 export function noteRequests(repo, entries, { env = process.env, now = new Date() } = {}) {
