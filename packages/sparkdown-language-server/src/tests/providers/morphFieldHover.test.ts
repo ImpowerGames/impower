@@ -88,7 +88,7 @@ describe("morph field hover", () => {
 
   it("documents the morph's other fields", async () => {
     expect((await hoverAt(MORPH, "method ="))?.value).toContain("How matched shapes morph");
-    expect((await hoverAt(MORPH, "duration ="))?.value).toContain("Seconds one play lasts");
+    expect((await hoverAt(MORPH, "duration ="))?.value).toContain("Seconds one play lasts, at least 0.001 (one millisecond)");
     expect((await hoverAt(MORPH, "layers {"))?.value).toContain("Per-label overrides");
     expect(await hoverAt(MORPH, "partner =")).toEqual({ value: expect.stringContaining("priority order"), marked: "partner" });
   });

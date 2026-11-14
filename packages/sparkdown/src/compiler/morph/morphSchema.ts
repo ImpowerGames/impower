@@ -138,6 +138,10 @@ export const MORPH_CLIP_FIELDS = [...MORPH_CLIP_LIST_FIELDS, "spread"] as const;
 
 export const MORPH_CLIP_SPREAD_DEFAULT = 1;
 
+export const MORPH_MIN_DURATION = 0.001;
+
+export const MORPH_DURATION_MINIMUM_PROBLEM = `\`duration\` must be at least ${MORPH_MIN_DURATION} (one millisecond).`;
+
 export const MORPH_SPREAD_PROBLEM = "`spread` is a length in `px` or `0`, such as `spread = 1px` or `spread = -0.5px`.";
 
 export function parseMorphSpread(value: unknown): number | undefined {
@@ -197,7 +201,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
     "What starts the morph: `appear` (default) plays it on its own schedule from the moment its portrait appears; `speech` marks it as a speech morph, which never plays on its own schedule: in the preview, in play and in its still it shows its rest. A speech morph takes no `delay` or `iterations`.",
   sync:
     "When a speech morph's plays start: `none` (default) plays it again and again while its character speaks; `beep` starts a play on each of its character's voice beeps that finds no play in progress, so a beep that arrives during a play is skipped. A line spoken by a clip on the `voice` channel has no beeps, and its plays follow one another. Only a `trigger = speech` morph takes it. A morph with `sync = beep` takes no `iteration_delay_min` or `iteration_delay_max`.",
-  duration: "Seconds one play lasts. Default 0.25.",
+  duration: `Seconds one play lasts, at least ${MORPH_MIN_DURATION} (one millisecond). Default 0.25.`,
   delay: "Seconds before the first play. Default 0. Not allowed with `trigger = speech`.",
   easing:
     "The timing curve over a whole play: a CSS name (`ease-out` by default), `cubic-bezier(…)`, `steps(…)` or `linear(…)`.",
