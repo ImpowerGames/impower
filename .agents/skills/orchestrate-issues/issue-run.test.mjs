@@ -524,13 +524,13 @@ try {
   assert.match(huge.reason, /^Effort Huge has no writer effort; the maintainer has no request for it yet: file a maintainer decision request with \.agents\/skills\/ask-maintainer\/maintainer-request\.mjs file, naming #107 in its tickets and "orchestrate-issues #100" as its owner .*, then record it with issue-run\.mjs asked --plan <this plan> --ticket 107 --maintainer-request <its number>, and the plan names it here$/, "a decision that is the maintainer's call tells the coordinator to file a request and record it");
   {
     const key = huge.maintainerRequest.key;
-    const waiting = (r, waits) => ({ ...r, tickets: { ...r.tickets, 107: { owner: null, pending: null, history: [], results: [], waits } } });
+    const waiting = (r, waits) => ({ ...r, tickets: { ...r.tickets, 107: { owner: null, pending: null, history: [], results: [], waits: structuredClone(waits) } } });
     const entry107 = (blockers, waits = []) => plan({ record: waiting(settled105(run.readRecord(record)), waits), snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge", blockers } : t)) } }).tickets.find((t) => t.number === 107);
     const request = (number, state, more = {}) => ({ number, state, delivered: false, request: true, ...more });
     const on9101 = [{ key, action: "decision-needed", request: { number: 9101 } }];
     assert.deepEqual(entry107([request(9101, "open")]).maintainerRequest, { file: "decision", key }, "an open request the record does not tie to this entry is not its request");
     const open = entry107([request(9101, "open")], on9101);
-    assert.deepEqual([open.action, open.maintainerRequest], ["decision-needed", { filed: { number: 9101, state: "open" } }]);
+    assert.deepEqual([open.action, open.maintainerRequest], ["decision-needed", { filed: { number: 9101, state: "open" }, key }]);
     assert.match(open.reason, /^Effort Huge has no writer effort; maintainer request #9101 is open: the maintainer has not answered$/, "once recorded, the plan names the request and stops asking for one");
     assert.match(entry107([request(9101, "open", { wentAhead: true })], on9101).reason, /; maintainer request #9101 went ahead without the maintainer: act on its fallback/);
     const unlinked = entry107([request(9102, "open")], on9101);
@@ -538,7 +538,7 @@ try {
     assert.match(unlinked.reason, /; its maintainer request #9101 no longer blocks it on GitHub, so it holds nothing: file a maintainer decision request/);
     assert.deepEqual(entry107([request(9101, "open")], [{ key: "reason:0000000000000000", action: "decision-needed", request: { number: 9101 } }]).maintainerRequest, { file: "decision", key }, "a request recorded for another wait on the ticket is not this entry's");
     const closedEntry = entry107([request(9101, "closed")], on9101);
-    assert.deepEqual(closedEntry.maintainerRequest, { filed: { number: 9101, state: "closed" } }, "a recorded request that closed is named, whatever GitHub's close reason, since only reading it says whether it holds an answer");
+    assert.deepEqual(closedEntry.maintainerRequest, { filed: { number: 9101, state: "closed" }, key }, "a recorded request that closed is named, whatever GitHub's close reason, since only reading it says whether it holds an answer");
     assert.match(closedEntry.reason, /; maintainer request #9101 is closed: read it, then record its answer and act on it; only when read reports it withdrawn, unclear or will not be done, reopen an unclear one with revise or file a maintainer decision request .*, which reads it again before replacing it$/);
     {
       const blockers107 = [request(9101, "closed"), request(9102, "open")];
@@ -551,13 +551,22 @@ try {
       for (const state of ["withdrawn", "unclear"]) {
         const replacing = waiting(settled105(run.readRecord(record)), on9101);
         run.asked(replacing, { plan: closedPlan, ticket: 107, maintainerRequest: next, previousRequest: old(state) });
-        assert.deepEqual(plan({ record: replacing, snapshot: snap107 }).tickets.find((t) => t.number === 107).maintainerRequest, { filed: { number: 9102, state: "open" } }, `asked records the replacement for a ${state} request, and the plan names it`);
+        assert.deepEqual(plan({ record: replacing, snapshot: snap107 }).tickets.find((t) => t.number === 107).maintainerRequest, { filed: { number: 9102, state: "open" }, key }, `asked records the replacement for a ${state} request, and the plan names it`);
       }
+      const otherKey = "reason:0000000000000000";
+      const reused = [{ key, action: "decision-needed", request: { number: 9101 } }, { key: otherKey, action: "decision-needed", request: { number: 9101 } }];
+      const reusedPlan = write("reused-plan.json", plan({ record: waiting(settled105(run.readRecord(record)), reused), snapshot: snap107 }));
+      const moved = waiting(settled105(run.readRecord(record)), reused);
+      run.asked(moved, { plan: reusedPlan, ticket: 107, maintainerRequest: next, previousRequest: old("unclear") });
+      assert.deepEqual(moved.tickets[107].waits.at(-1).key, key, "a request tied to two waits is replaced under the active entry's key, not the last wait that shares its number");
+      assert.deepEqual(plan({ record: moved, snapshot: snap107 }).tickets.find((t) => t.number === 107).maintainerRequest, { filed: { number: 9102, state: "open" }, key }, "the active entry names the replacement");
+      const staleKeyPlan = write("stale-key-plan.json", { ...JSON.parse(fs.readFileSync(reusedPlan, "utf8")), tickets: JSON.parse(fs.readFileSync(reusedPlan, "utf8")).tickets.map((t) => (t.number === 107 ? { ...t, maintainerRequest: { ...t.maintainerRequest, key: otherKey, filed: { number: 9103, state: "closed" } } } : t)) });
+      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), reused), { plan: staleKeyPlan, ticket: 107, maintainerRequest: next, previousRequest: { ...old("unclear"), number: 9103 } }), /The plan entry's wait for #107 is not tied to maintainer request #9103 in the record; plan again/, "a plan whose closed request is not the one tied to its key is refused");
     }
     const readyPr = (blockers, waits = []) => plan({ record: { ...settled105(run.readRecord(record)), tickets: { ...settled105(run.readRecord(record)).tickets, 105: { ...settled105(run.readRecord(record)).tickets[105], waits } } }, snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 105 ? { ...t, blockers } : t)) } }).tickets.find((t) => t.number === 105);
     assert.deepEqual(readyPr([request(9001, "closed")]).maintainerRequest, { file: "task", key: "pr:505", pr: 505 }, "an answered design decision on the ticket does not stand in for the task to merge its ready PR");
     assert.deepEqual(readyPr([request(9003, "open")]).maintainerRequest, { file: "task", key: "pr:505", pr: 505 }, "an open task asking for something else, such as a phone test, does not stand in for the merge");
-    assert.deepEqual(readyPr([request(9003, "open"), request(9004, "open")], [{ key: "pr:505", action: "await-maintainer", pr: 505, request: { number: 9004 } }]).maintainerRequest, { filed: { number: 9004, state: "open" } }, "the merge task recorded for this PR is named");
+    assert.deepEqual(readyPr([request(9003, "open"), request(9004, "open")], [{ key: "pr:505", action: "await-maintainer", pr: 505, request: { number: 9004 } }]).maintainerRequest, { filed: { number: 9004, state: "open" }, key: "pr:505" }, "the merge task recorded for this PR is named");
   }
   const adopted = p1.tickets.find((t) => t.number === 104);
   assert.deepEqual([adopted.pr, adopted.rounds], [504, 2], "an adopted PR keeps its started review rounds");
@@ -578,7 +587,7 @@ try {
     run.asked(after, { plan: planFile, ticket: 107, maintainerRequest: facts() });
     assert.deepEqual(after.tickets[107].waits.map((w) => [w.key, w.action, w.request.number]), [[JSON.parse(fs.readFileSync(planFile, "utf8")).tickets.find((t) => t.number === 107).maintainerRequest.key, "decision-needed", 9201]], "asked records the request against the entry's key");
     const named = run.planDispatch({ record: settled105(after), snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge", blockers: [{ number: 9201, state: "open", delivered: false, request: true }] } : t)) }, preflights: [available("claude-cli", "claude-opus-5-5", all)], freeBytes: 100 * GB, defaults, census: () => [] }).tickets.find((t) => t.number === 107);
-    assert.deepEqual(named.maintainerRequest, { filed: { number: 9201, state: "open" } }, "the next plan names the recorded request");
+    assert.deepEqual(named.maintainerRequest, { filed: { number: 9201, state: "open" }, key: JSON.parse(fs.readFileSync(planFile, "utf8")).tickets.find((t) => t.number === 107).maintainerRequest.key }, "the next plan names the recorded request");
     const namedPlan = write("asked-plan-2.json", { ...JSON.parse(fs.readFileSync(planFile, "utf8")), tickets: [named] });
     assert.throws(() => run.asked(structuredClone(after), { plan: namedPlan, ticket: 107, maintainerRequest: facts({ number: 9202 }) }), /The plan does not ask for a maintainer request for #107: it already waits on #9201/);
   }

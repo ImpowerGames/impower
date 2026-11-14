@@ -1101,7 +1101,7 @@ function askMaintainer(record, snapshot, tickets) {
       continue;
     }
     const state = blocker.state === "closed" ? `is closed: read it, then record its answer and act on it; only when read reports it withdrawn, unclear or will not be done, reopen an unclear one with revise or ${fileIt.replace(", and the plan names it here", ", which reads it again before replacing it")}` : blocker.wentAhead ? "went ahead without the maintainer: act on its fallback, and record their answer once they keep or change it" : "is open: the maintainer has not answered";
-    entry.maintainerRequest = { filed: { number: asked.number, state: blocker.state, ...(blocker.wentAhead && { wentAhead: true }) } };
+    entry.maintainerRequest = { filed: { number: asked.number, state: blocker.state, ...(blocker.wentAhead && { wentAhead: true }) }, ...(!triage && { key }) };
     entry.reason += `; maintainer request #${asked.number} ${state}`;
   }
 }
@@ -1111,8 +1111,8 @@ function askedWait(record, number, entry) {
   if (asking.file) return { kind: asking.file, key: asking.key, pr: asking.pr };
   const closed = asking.filed?.state === "closed" ? asking.filed.number : null;
   if (closed === null) throw new Error(`The plan does not ask for a maintainer request for #${number}${asking.filed ? `: it already waits on #${asking.filed.number}` : ""}`);
-  const tied = (record.tickets?.[number]?.waits ?? []).filter((w) => w.request.number === closed).at(-1);
-  if (!tied) throw new Error(`The record ties no wait of #${number} to maintainer request #${closed}; plan again`);
+  const tied = (record.tickets?.[number]?.waits ?? []).filter((w) => w.key === asking.key).at(-1);
+  if (!asking.key || tied?.request.number !== closed) throw new Error(`The plan entry's wait for #${number} is not tied to maintainer request #${closed} in the record; plan again`);
   return { kind: tied.request.kind ?? (entry.action === "await-maintainer" ? "task" : "decision"), key: tied.key, pr: tied.pr, closed };
 }
 
