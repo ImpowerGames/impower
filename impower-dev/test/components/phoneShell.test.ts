@@ -540,6 +540,36 @@ describe("the phone's preview strip", () => {
     expect(button("Play from this line")!.disabled).toBe(false);
   });
 
+  it("reads as story setup with Play disabled while the player refuses a start at the caret's line, over the beat the preview keeps", async () => {
+    const refusal =
+      "This line is outside every scene. Put the cursor in a scene to play from there.";
+    const game = async (state: Record<string, unknown>) => {
+      await act(async () => {
+        workspace.current = {
+          ...workspace.current,
+          preview: {
+            ...workspace.current.preview,
+            modes: { ...workspace.current.preview.modes, game: state },
+          },
+        };
+      });
+      await settle();
+    };
+    await mount();
+    await caretOn({ kind: "action", words: "The lamps come on one by one." }, 0);
+    await game({ startRefusal: refusal });
+    expect([label(), words()]).toEqual(["STORY SETUP", "This line sets up your story."]);
+    expect(strip().querySelector("[data-preview-strip-symbol]")!.getAttribute("data-preview-strip-symbol")).toBe("file");
+    expect(button("Play from this line")!.disabled).toBe(true);
+    await act(async () => button("Play from this line")!.click());
+    await settle();
+    expect(calls.played).toBe(0);
+
+    await game({});
+    expect([label(), words()]).toEqual(["ACTION", "The lamps come on one by one."]);
+    expect(button("Play from this line")!.disabled).toBe(false);
+  });
+
   it("names the caret line's worst problem and opens its popover in the editor", async () => {
     const { default: problems } = await import(
       "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
