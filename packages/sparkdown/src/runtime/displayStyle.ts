@@ -6,22 +6,60 @@ const SCAN_OPEN_POINT = 0xe000;
 const SCAN_CLOSE_POINT = 0xe001;
 const SPAN_CLOSE_POINT = 0xe002;
 const SPAN_END_POINT = 0xe003;
+const TAG_POINT = 0xe004;
 const SPAN_KIND_BASE = 0xe010;
 const LENGTH_DIGIT_BASE = 0xe020;
 const LENGTH_DIGITS = 32;
+const TAG_BYTE_BASE = 0xe100;
+const TAG_BYTES = 256;
 
 export const SCAN_OPEN = String.fromCharCode(SCAN_OPEN_POINT);
 export const SCAN_CLOSE = String.fromCharCode(SCAN_CLOSE_POINT);
 export const SPAN_CLOSE = String.fromCharCode(SPAN_CLOSE_POINT);
 export const SPAN_END = String.fromCharCode(SPAN_END_POINT);
+export const TAG = String.fromCharCode(TAG_POINT);
 
 const SPAN_MARK_CHARACTERS = ["*", "_", "^", "~", ":", "`"];
 
 const range = (from: number, count: number) =>
   `${String.fromCharCode(from)}-${String.fromCharCode(from + count - 1)}`;
-const STYLE_CODE_CLASS = `[${range(SCAN_OPEN_POINT, 4)}${range(SPAN_KIND_BASE, SPAN_MARK_CHARACTERS.length)}${range(LENGTH_DIGIT_BASE, LENGTH_DIGITS)}]`;
+const STYLE_CODE_CLASS = `[${range(SCAN_OPEN_POINT, 5)}${range(SPAN_KIND_BASE, SPAN_MARK_CHARACTERS.length)}${range(LENGTH_DIGIT_BASE, LENGTH_DIGITS)}${range(TAG_BYTE_BASE, TAG_BYTES)}]`;
 const STYLE_CODE = new RegExp(STYLE_CODE_CLASS);
 const STYLE_CODES = new RegExp(STYLE_CODE_CLASS, "g");
+const TAG_CODE = new RegExp(`${TAG}[${range(TAG_BYTE_BASE, TAG_BYTES)}]*`, "g");
+
+export function tagCode(content: string): string {
+  let code = TAG;
+  for (const byte of new TextEncoder().encode(content)) {
+    code += String.fromCharCode(TAG_BYTE_BASE + byte);
+  }
+  return code;
+}
+
+const tagByte = (character: string | undefined): number => {
+  const point = character?.charCodeAt(0) ?? -1;
+  return point >= TAG_BYTE_BASE && point < TAG_BYTE_BASE + TAG_BYTES
+    ? point - TAG_BYTE_BASE
+    : -1;
+};
+
+export function readTagCode(
+  characters: ArrayLike<string>,
+  index: number,
+): { content: string; next: number } | undefined {
+  if (characters[index] !== TAG) return undefined;
+  const bytes: number[] = [];
+  let next = index + 1;
+  for (let byte = tagByte(characters[next]); byte >= 0; byte = tagByte(characters[next])) {
+    bytes.push(byte);
+    next++;
+  }
+  return { content: new TextDecoder().decode(Uint8Array.from(bytes)), next };
+}
+
+export function stripTagCodes(text: string): string {
+  return text.includes(TAG) ? text.replace(TAG_CODE, "") : text;
+}
 
 export function spanOpen(mark: string): string {
   const kind = SPAN_MARK_CHARACTERS.indexOf(mark[0] ?? "");
@@ -114,6 +152,12 @@ export function writtenText(
   let out = "";
   for (let i = 0; i < text.length; ) {
     const c = text[i]!;
+    const tag = readTagCode(text, i);
+    if (tag) {
+      out += `<${tag.content}>`;
+      i = tag.next;
+      continue;
+    }
     const opened = readSpanOpen(text, i, longest);
     if (opened) {
       open.push(opened.mark);
@@ -142,7 +186,12 @@ export function trimStyled(
   }
   const chars = [...text];
   const visible = (c: string) =>
-    c !== SCAN_OPEN && c !== SCAN_CLOSE && c !== SPAN_END && !/\s/.test(c);
+    c !== SCAN_OPEN &&
+    c !== SCAN_CLOSE &&
+    c !== SPAN_END &&
+    c !== TAG &&
+    tagByte(c) < 0 &&
+    !/\s/.test(c);
   let from = 0;
   let to = chars.length;
   if (start) {

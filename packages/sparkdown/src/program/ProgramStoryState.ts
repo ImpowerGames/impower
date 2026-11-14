@@ -7,6 +7,7 @@ import { PushPopType } from "../runtime/PushPop";
 import { SimpleJson } from "../runtime/SimpleJson";
 import { StringBuilder } from "../runtime/StringBuilder";
 import { scannedTable, writtenText } from "../runtime/displayStyle";
+import { codeWrittenTags, codeWrittenTagsInTable } from "../runtime/storyTags";
 import { Tag } from "../runtime/Tag";
 import {
   MultiValue,
@@ -325,9 +326,13 @@ export interface SuspendedLineEnd {
   joined: boolean;
 }
 
-function readOutput(json: any[], styleCodes: boolean): InkObject[] {
+function readOutput(json: any[], styleCodes: boolean, tagCodes: boolean): InkObject[] {
   const output = JsonSerialisation.JArrayToRuntimeObjList(json);
-  return styleCodes ? output : output.map((obj) => scannedTable(obj));
+  return !styleCodes
+    ? output.map((obj) => scannedTable(obj))
+    : tagCodes
+      ? output
+      : output.map((obj) => codeWrittenTagsInTable(obj));
 }
 
 export class ProgramStoryState {
@@ -1112,6 +1117,7 @@ export class ProgramStoryState {
       JsonSerialisation.WriteListRuntimeObjs(w, this.outputStream),
     );
     writer.WriteProperty("styleCodes", true);
+    writer.WriteProperty("tagCodes", true);
     if (this.carried) {
       const carried = this.carried;
       writer.WriteProperty("carried", (w) =>
@@ -1698,12 +1704,13 @@ export class ProgramStoryState {
       obj["evalStack"],
     );
     const styleCodes = obj["styleCodes"] === true;
-    this.outputStream = readOutput(obj["output"], styleCodes);
+    const tagCodes = obj["tagCodes"] === true;
+    this.outputStream = readOutput(obj["output"], styleCodes, tagCodes);
     this.ForgetOpenStrings();
     this._openStringIndex = -1;
     this.carried = obj["carried"]
       ? {
-          output: readOutput(obj["carried"], styleCodes),
+          output: readOutput(obj["carried"], styleCodes, tagCodes),
           lineEndPending: obj["carriedLineEndPending"] === true,
           addresses: codec.readAddresses(obj["carriedAddresses"]),
         }
@@ -1782,8 +1789,10 @@ export class ProgramStoryState {
         this.readPreviousFlow(saved),
       );
       choice.text = String(saved["text"] ?? "");
-      choice.styledText =
+      const styled =
         typeof saved["styled"] === "string" ? saved["styled"] : choice.text;
+      choice.styledText =
+        obj["tagCodes"] === true ? styled : codeWrittenTags(styled);
       choice.tags = Array.isArray(saved["tags"])
         ? saved["tags"].map(String)
         : [];

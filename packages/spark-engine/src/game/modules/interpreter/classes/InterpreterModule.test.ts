@@ -7,16 +7,18 @@ import {
   SPAN_END,
   scanned,
   spanOpen,
+  tagCode,
 } from "@impower/sparkdown/src/runtime/displayStyle";
 
 const TARGET = "textbox";
 
 const PRELUDE = preludeContext() as Record<string, any>;
 
-const createModule = () => {
+const createModule = (overlay: Record<string, unknown> = {}) => {
   const game = {
     context: {
       ...PRELUDE,
+      ...overlay,
       system: {},
       character: {},
       config: {
@@ -64,6 +66,25 @@ const render = (source: string) => {
     spans,
     emphasized: spans.filter((s) => s.emphasis.length > 0),
   };
+};
+
+const typedTimes = (source: string) =>
+  createModule({ typewriter: { $default: { letter_pause: 0.05 } } })
+    .parse(source, TARGET)
+    .text?.[TARGET]?.map((event) => event.after ?? 0) ?? [];
+
+const looks = (source: string) => {
+  const runs: { text: string; style?: Record<string, unknown> }[] = [];
+  for (const event of createModule().parse(source, TARGET).text?.[TARGET] ?? []) {
+    const style = event.style && Object.keys(event.style).length ? event.style : undefined;
+    const previous = runs.at(-1);
+    if (previous && JSON.stringify(previous.style) === JSON.stringify(style)) {
+      previous.text += event.text;
+    } else {
+      runs.push(style ? { text: event.text, style } : { text: event.text });
+    }
+  }
+  return runs;
 };
 
 const assets = (source: string) => {
@@ -231,39 +252,70 @@ describe("InterpreterModule text tags", () => {
     });
   });
 
-  describe("control tags", () => {
+  describe("tags the compiler read from the grammar", () => {
     it("removes a wait tag from the visible text", () => {
-      expect(render("Wait<wait> here.").text).toBe("Wait here.");
+      expect(render(`Wait${tagCode("wait")} here.`).text).toBe("Wait here.");
     });
 
     it("removes a wait tag with a duration", () => {
-      expect(render("Wait<wait:2> here.").text).toBe("Wait here.");
+      expect(render(`Wait${tagCode("wait:2")} here.`).text).toBe("Wait here.");
     });
 
     it("removes a speed tag", () => {
-      expect(render("Speed<speed:2> up.").text).toBe("Speed up.");
+      expect(render(`Speed${tagCode("speed:2")} up.`).text).toBe("Speed up.");
     });
 
     it("removes a pitch tag", () => {
-      expect(render("Pitch<pitch:2> up.").text).toBe("Pitch up.");
+      expect(render(`Pitch${tagCode("pitch:2")} up.`).text).toBe("Pitch up.");
     });
 
     it("handles a tag at the very end of a line", () => {
-      expect(render("Trailing<wait>").text).toBe("Trailing");
+      expect(render(`Trailing${tagCode("wait")}`).text).toBe("Trailing");
     });
 
     it("removes the pitch and wait shorthands", () => {
-      expect(render("Short<p:2> pitch<w> and<w:1> wait.").text).toBe(
-        "Short pitch and wait.",
+      expect(
+        render(`Short${tagCode("p:2")} pitch${tagCode("w")} and${tagCode("w:1")} wait.`).text,
+      ).toBe("Short pitch and wait.");
+    });
+
+    it("removes an unknown tag", () => {
+      expect(render(`Un${tagCode("bogus")} here.`).text).toBe("Un here.");
+    });
+
+    it("removes an empty tag", () => {
+      expect(render(`Un${tagCode("")} here.`).text).toBe("Un here.");
+    });
+
+    it("removes an unknown tag whose value follows an equals sign", () => {
+      expect(render(`Un${tagCode("bogus=2")} here.`).text).toBe("Un here.");
+      expect(render(`Un${tagCode("speed=2")} here.`).text).toBe("Un here.");
+    });
+
+    it("removes an unknown tag with words after its name", () => {
+      expect(render(`Un${tagCode("not a tag")} here.`).text).toBe("Un here.");
+    });
+
+    it("removes a control tag's closing form and one with more after its name", () => {
+      expect(render(`Speed${tagCode("speed:2")} up${tagCode("/speed")}.`).text).toBe("Speed up.");
+      expect(render(`Wait${tagCode("wait x")} here${tagCode("/wait")}.`).text).toBe("Wait here.");
+      expect(render(`Pitch${tagCode("p:1")} up${tagCode("/p")}.`).text).toBe("Pitch up.");
+    });
+
+    it("changes the typing speed from the tag on", () => {
+      const durations = typedTimes(`ab${tagCode("speed:0.5")}cd`);
+      const plain = typedTimes("abcd");
+      expect(durations.slice(0, 3)).toEqual(plain.slice(0, 3));
+      expect(durations[3]! - durations[2]!).toBeCloseTo(2 * (plain[3]! - plain[2]!));
+    });
+  });
+
+  describe("script text is not scanned for tags", () => {
+    it("shows a tag written in script text as itself", () => {
+      expect(render("Un<speed:0> here <b>x</b> <b2>.").text).toBe(
+        "Un<speed:0> here <b>x</b> <b2>.",
       );
-    });
-
-    it("keeps an unrecognised tag as literal text", () => {
-      expect(render("Un<bogus> here.").text).toBe("Un<bogus> here.");
-    });
-
-    it("keeps an empty tag as literal text", () => {
-      expect(render("Un<> here.").text).toBe("Un<> here.");
+      expect(looks("A <b>word</b> here.")).toEqual([{ text: "A <b>word</b> here." }]);
     });
 
     it("keeps a function value's anonymous label", () => {
@@ -271,92 +323,143 @@ describe("InterpreterModule text tags", () => {
         "Value function: make.<anonymous>.",
       );
     });
+  });
 
-    it("keeps an unknown word a string interpolated into the line", () => {
-      expect(render("Str a <b2> c end.").text).toBe("Str a <b2> c end.");
+  describe("look tags", () => {
+    const flags: [tag: string, style: Record<string, string>][] = [
+      ["b", { "text-weight": "700" }],
+      ["i", { "text-style": "italic" }],
+      ["u", { "text-decoration-line": "underline" }],
+      ["s", { "text-decoration-line": "line-through" }],
+      ["uppercase", { "text-case": "uppercase" }],
+      ["allcaps", { "text-case": "uppercase" }],
+      ["lowercase", { "text-case": "lowercase" }],
+      ["smallcaps", { "font-variant": "small-caps" }],
+      ["nobr", { "text-whitespace": "nowrap" }],
+      ["sub", { "vertical-align": "sub" }],
+      ["sup", { "vertical-align": "super" }],
+    ];
+    for (const [tag, style] of flags) {
+      it(`styles the text between <${tag}> and </${tag}>`, () => {
+        expect(looks(`A ${tagCode(tag)}word${tagCode(`/${tag}`)} here.`)).toEqual([
+          { text: "A " },
+          { text: "word", style },
+          { text: " here." },
+        ]);
+      });
+    }
+    const values: [tag: string, value: string, style: Record<string, string>][] = [
+      ["color", "red", { "text-color": "red" }],
+      ["mark", "amber_60", { "background-color": "amber_60" }],
+      ["size", "2rem", { "text-size": "2rem" }],
+      ["align", "center", { text_align: "center" }],
+      ["alpha", "#80", { filter: `opacity(${0x80 / 255})` }],
+      ["font-weight", "300", { "text-weight": "300" }],
+      ["line-height", "2", { "text-leading": "2" }],
+      ["cspace", "1em", { "text-tracking": "1em" }],
+      ["voffset", "1em", { "vertical-align": "1em" }],
+      ["indent", "4px", { "padding-left": "4px" }],
+    ];
+    for (const [tag, value, style] of values) {
+      it(`styles the text between <${tag}:${value}> and </${tag}>`, () => {
+        expect(looks(`A ${tagCode(`${tag}:${value}`)}word${tagCode(`/${tag}`)} here.`)).toEqual([
+          { text: "A " },
+          { text: "word", style },
+          { text: " here." },
+        ]);
+      });
+    }
+
+    it("breaks the line at <br>", () => {
+      expect(render(`A${tagCode("br")} here.`).text).toBe("A\n here.");
     });
 
-    it("keeps an unknown tag with a value as literal text", () => {
-      expect(render("Un<bogus=2> here.").text).toBe("Un<bogus=2> here.");
+    it("matches a look tag's name without case", () => {
+      expect(looks(`A ${tagCode("B")}word${tagCode("/B")} here.`)[1]).toEqual({
+        text: "word",
+        style: { "text-weight": "700" },
+      });
     });
 
-    it("keeps an unknown tag with words after its name as literal text", () => {
-      expect(render("Un<not a tag> here.").text).toBe("Un<not a tag> here.");
+    it("reads a look tag with more after its name", () => {
+      expect(looks(`A ${tagCode("b x")}word${tagCode("/b")} here.`)[1]).toEqual({
+        text: "word",
+        style: { "text-weight": "700" },
+      });
     });
 
-    it("removes a control tag's closing form and one with more after its name", () => {
-      expect(render("Speed<speed:2> up</speed>.").text).toBe("Speed up.");
-      expect(render("Wait<wait x> here</wait>.").text).toBe("Wait here.");
-      expect(render("Pitch<p:1> up</p>.").text).toBe("Pitch up.");
+    it("combines nested look tags and closes the latest of a name", () => {
+      expect(
+        looks(`${tagCode("b")}a${tagCode("i")}b${tagCode("/b")}c${tagCode("/i")}d`),
+      ).toEqual([
+        { text: "a", style: { "text-weight": "700" } },
+        { text: "b", style: { "text-weight": "700", "text-style": "italic" } },
+        { text: "c", style: { "text-style": "italic" } },
+        { text: "d" },
+      ]);
     });
 
-    it("keeps an unterminated tag as literal text", () => {
-      expect(render("Un<speed here.").text).toBe("Un<speed here.");
+    it("styles to the end of the text when never closed", () => {
+      expect(looks(`A ${tagCode("b")}word here.`)).toEqual([
+        { text: "A " },
+        { text: "word here.", style: { "text-weight": "700" } },
+      ]);
+    });
+
+    it("leaves marks' styles as they are", () => {
+      const result = render(`A ${tagCode("b")}${spanOpen("*")}word${SPAN_CLOSE}${tagCode("/b")} here.`);
+      expect(result.emphasized).toEqual([{ text: "word", emphasis: ["italic"] }]);
     });
   });
 
-  describe("rich-text tags", () => {
-    const flags = [
-      "b",
-      "i",
-      "u",
-      "s",
-      "uppercase",
-      "allcaps",
-      "lowercase",
-      "smallcaps",
-      "nobr",
-      "sub",
-      "sup",
-      "noparse",
-    ];
-    for (const tag of flags) {
-      it(`removes <${tag}> and </${tag}>`, () => {
-        expect(render(`A <${tag}>word</${tag}> here.`).text).toBe(
-          "A word here.",
-        );
-      });
-    }
-    const values = [
-      "color",
-      "mark",
-      "size",
-      "align",
-      "alpha",
-      "font-weight",
-      "line-height",
-      "cspace",
-      "voffset",
-      "indent",
-    ];
-    for (const tag of values) {
-      it(`removes <${tag}=...> and </${tag}>`, () => {
-        expect(render(`A <${tag}=1>word</${tag}> here.`).text).toBe(
-          "A word here.",
-        );
-      });
-    }
-    it("removes <br>", () => {
-      expect(render("A<br> here.").text).toBe("A here.");
+  describe("tags inside an inserted value", () => {
+    it("act from where the value lands to the end of the line", () => {
+      expect(looks(`Everyone calls you ${scanned("<b>Ace")} around here.`)).toEqual([
+        { text: "Everyone calls you " },
+        { text: "Ace around here.", style: { "text-weight": "700" } },
+      ]);
     });
-    it("matches rich-text tag names without case", () => {
-      expect(render("A <B>word</B> here.").text).toBe("A word here.");
+
+    it("change the typing speed to the end of the line", () => {
+      const slowed = typedTimes(`${scanned("<speed:0.5>")}Come closer`);
+      const plain = typedTimes("Come closer");
+      expect(slowed.length).toBe(plain.length);
+      expect(slowed.at(-1)).toBeCloseTo(2 * plain.at(-1)!);
     });
-    it("removes a rich-text tag with more after its name", () => {
-      expect(render("A <b x>word</b> here.").text).toBe("A word here.");
-      expect(render("A <color:red>word</color> here.").text).toBe(
-        "A word here.",
-      );
+
+    it("can close a tag the script opened", () => {
+      expect(looks(`${tagCode("b")}a ${scanned("b</b>")} c`)).toEqual([
+        { text: "a b", style: { "text-weight": "700" } },
+        { text: " c" },
+      ]);
+    });
+
+    it("are removed when unknown", () => {
+      expect(render(`Str a ${scanned("<b2>")} c end.`).text).toBe("Str a  c end.");
+    });
+
+    it("are read in the grammar's form", () => {
+      expect(render(scanned("a <speed=2>b")).text).toBe("a b");
+      expect(render(scanned("x <wait\\> y")).text).toBe("x  y");
+      expect(render(scanned("x <wait\\> y < c")).text).toBe("x  y < c");
+      expect(render(scanned("x < c> <d")).text).toBe("x < c> <d");
+      expect(render(scanned("x<b:a\\>b>y")).text).toBe("xy");
+    });
+
+    it("end with the value", () => {
+      expect(render(`${scanned("<b")}old> x`).text).toBe("<bold> x");
     });
   });
 
   describe("hidden text", () => {
     it("omits text between the hide and show tags", () => {
-      expect(render("Hidden<!>secret</!> shown.").text).toBe("Hidden shown.");
+      expect(render(`Hidden${tagCode("!")}secret${tagCode("/!")} shown.`).text).toBe(
+        "Hidden shown.",
+      );
     });
 
     it("hides through the end of the line when never reopened", () => {
-      expect(render("Hidden<!>rest of line").text).toBe("Hidden");
+      expect(render(`Hidden${tagCode("!")}rest of line`).text).toBe("Hidden");
     });
   });
 
@@ -412,17 +515,31 @@ describe("a style boundary inside zero-delay text", () => {
     return { end: instructions.end, audio: JSON.stringify(instructions.audio ?? {}) };
   };
 
+  const zero = tagCode("speed:0");
+
   it.each([
-    ["a raw span", `<speed=0>... a${spanOpen("`")}b${SPAN_CLOSE}c`],
-    ["a centred span", `<speed=0>... a${spanOpen("^")}b${SPAN_CLOSE}c`],
+    ["a raw span", `${zero}... a${spanOpen("`")}b${SPAN_CLOSE}c`],
+    ["a centred span", `${zero}... a${spanOpen("^")}b${SPAN_CLOSE}c`],
+    ["a look tag", `${zero}... a${tagCode("b")}b${tagCode("/b")}c`],
+    ["a look tag with a value", `${zero}... a${tagCode("color:red")}b${tagCode("/color")}c`],
+    ["an unknown tag", `${zero}... a${tagCode("b2")}b${tagCode("/b2")}c`],
+    ["a look tag in a value", `${zero}... a${scanned("<b>b</b>")}c`],
   ])("glued to its neighbours, %s adds no time and no tone", (_what, styled) => {
-    expect(timing(styled)).toEqual(timing("<speed=0>... abc"));
+    expect(timing(styled)).toEqual(timing(`${zero}... abc`));
   });
 
   it("keeps the raw span's style", () => {
-    const instructions = createModule().parse(`<speed=0>a${spanOpen("`")}b${SPAN_CLOSE}c`, TARGET).text?.[TARGET] ?? [];
+    const instructions = createModule().parse(`${zero}a${spanOpen("`")}b${SPAN_CLOSE}c`, TARGET).text?.[TARGET] ?? [];
     expect(instructions.map((i) => i.text).join("")).toBe("abc");
     expect(instructions.length).toBeGreaterThan(1);
+  });
+
+  it("keeps the look tag's style", () => {
+    expect(looks(`${zero}a${tagCode("b")}b${tagCode("/b")}c`)).toEqual([
+      { text: "a" },
+      { text: "b", style: { "text-weight": "700" } },
+      { text: "c" },
+    ]);
   });
 });
 

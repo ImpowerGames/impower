@@ -331,6 +331,11 @@
     "RAW_CHARACTER": "(?:(?![`]|{{SPAN_END}})[^\\r\\n])",
     "RAW_CONTENT": "(?:(?:{{RAW_CHARACTER}}|{{RAW_OTHER_RUN}})+)",
     "SPAN_ESCAPE": "(?:[\\\\][^\\r\\n])",
+    "TEXT_COMMAND_UNIT": "(?:[\\\\][^\\r\\n]|[^>\\\\\\r\\n])",
+    "TEXT_COMMAND_CLOSES": "(?<![-])(?=[>])",
+    "TEXT_COMMAND_ESCAPED_CLOSES": "(?![>]{{TEXT_COMMAND_ESCAPED_LATER}})(?=[>])",
+    "TEXT_COMMAND_ESCAPED_LATER": "(?:(?:[\\\\][^>\\r\\n]|[^>\\\\\\r\\n])*[\\\\][>])",
+    "TEXT_COMMAND_CONTENT": "(?:{{TEXT_COMMAND_UNIT}}*?{{TEXT_COMMAND_CLOSES}}|{{TEXT_COMMAND_UNIT}}*?[\\\\]{{TEXT_COMMAND_ESCAPED_CLOSES}})",
     "SPAN_LONG_BRACKET": "(?:{{SPAN_DOUBLE_BRACKET}}|{{SPAN_LONG_BRACKET_1}}|{{SPAN_LONG_BRACKET_2}})",
     "SPAN_DOUBLE_BRACKET_TEXT": "(?:[^\\]\\r\\n]|\\](?!\\]))",
     "SPAN_DOUBLE_BRACKET": "(?:\\[\\[{{SPAN_DOUBLE_BRACKET_TEXT}}*\\]\\])",
@@ -6567,7 +6572,7 @@
     "TextCommand": {
       "tag": "macroName",
       "name": "meta.text.sd",
-      "match": "([<](?!(?:[^\\S\\n\\r])))((?:\\\\.|[^>\\r\\n])*?)((?<![-])[>])",
+      "match": "([<](?!(?:[^\\S\\n\\r])))((?:(?:[\\\\][^\\r\\n]|[^>\\\\\\r\\n])*?(?<![-])(?=[>])|(?:[\\\\][^\\r\\n]|[^>\\\\\\r\\n])*?[\\\\](?![>](?:(?:[\\\\][^>\\r\\n]|[^>\\\\\\r\\n])*[\\\\][>]))(?=[>])))([>])",
       "captures": {
         "1": {
           "tag": "keyword",
