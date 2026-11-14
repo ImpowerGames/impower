@@ -320,6 +320,24 @@ describe("what the pickers insert", () => {
     expect(outcome("portrait", "kai", files, items[0]!.path, [])).toEqual([]);
   });
 
+  it.each([
+    ["a numbered-layer folder beside a picture of its name", ["assets/Portraits/mia.png", "assets/Portraits/mia/10_body.png", "assets/Portraits/mia/20_face.happy~default.png"]],
+    ["a picture whose plain file and layer sit in different folders of the menu", ["assets/Portraits/a/zoe.png", "assets/Portraits/b/zoe~face.sad~default.png"]],
+    ["a picture with a plain file in two folders", ["assets/Portraits/a/zoe.png", "assets/Images/zoe.png"]],
+  ] as const)("offers %s exactly when inserting it compiles clean", (_case, paths) => {
+    const files = paths.map((path) => file(path));
+    const offered = new Map(pickerItems("portrait", files, FOLDERS).map((item) => [item.reference, item.path]));
+    const names = [...new Set(paths.map((path) => (path.includes("/mia/") ? "mia" : assetNameOf(path, "image"))))];
+    const wrong = names.flatMap((name) => {
+      const own = offered.get(name) ?? paths.find((path) => path.includes(name))!;
+      const problems = outcome("portrait", name, files, own, drawnFiles(compiled(SCRIPT, files).context, name));
+      if (offered.has(name) && problems.length) return [`${name} is offered but: ${problems.join("; ")}`];
+      if (!offered.has(name) && !problems.length) return [`${name} is left out but inserts cleanly`];
+      return [];
+    });
+    expect(wrong).toEqual([]);
+  });
+
   it("leaves out a name two files share, which the compiler warns about on each file", () => {
     const files = [
       file("assets/Backdrops/sea.png"),
