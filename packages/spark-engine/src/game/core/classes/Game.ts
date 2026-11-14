@@ -5264,7 +5264,7 @@ export class Game<T extends M = {}> {
     send: (message: Message, transfer?: ArrayBuffer[]) => void,
     superseded: () => boolean,
   ): Promise<boolean> {
-    if (this._previewAudio || this.module.audio.hearsAnything) {
+    if (this._previewAudio) {
       this.module.audio.silence();
     }
     this.reset();
@@ -5387,7 +5387,10 @@ export class Game<T extends M = {}> {
     }
     if (!enabled) {
       this.module.audio.silence();
-    } else if (!this._beatPlay) {
+      return;
+    }
+    this.module.audio.forgetHeard();
+    if (!this._beatPlay) {
       this.module.audio.settlePreview();
     }
   }

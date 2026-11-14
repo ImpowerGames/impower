@@ -72,12 +72,6 @@ export class AudioModule extends Module<
     }
   }
 
-  get hearsAnything(): boolean {
-    return [...this._audible.values(), ...this._sounding.values()].some(
-      (keys) => keys.size > 0,
-    );
-  }
-
   forgetHeard(): void {
     this._audible = new Map();
     this._sounding = new Map();

@@ -2212,6 +2212,7 @@ export class GamePlayerController {
   }
 
   protected openPreviewOutput(app: Application | undefined) {
+    app?.audio?.setPlaysAudio(this._playAudio);
     app?.audio?.setOutputOpen(
       this._playAudio && document.visibilityState !== "hidden",
     );

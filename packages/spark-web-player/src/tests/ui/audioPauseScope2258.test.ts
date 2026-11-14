@@ -36,6 +36,7 @@ describe("a sound that starts while the page's players are paused (#2258)", () =
 
   test("in a preview page it starts paused and resumes when the players are resumed", async () => {
     const { audio, manager } = pageOf(true);
+    manager.setPlaysAudio(true);
     manager.setOutputOpen(true);
     manager.pausePlayers();
     await startMusic(manager);
@@ -44,5 +45,18 @@ describe("a sound that starts while the page's players are paused (#2258)", () =
     manager.unpausePlayers();
     expect(theme!.playbackRate.value).toBe(1);
     expect(theme!.sounding).toBe(true);
+  });
+
+  test("in a preview page with Play audio off no player starts at all", async () => {
+    const { audio, manager } = pageOf(true);
+    await startMusic(manager);
+    expect(audio.sources).toEqual([]);
+  });
+
+  test("in a game's page a player starts whatever the preview flag says", async () => {
+    const { audio, manager } = pageOf(false);
+    manager.setPlaysAudio(false);
+    await startMusic(manager);
+    expect(audio.sourcesOf("audio.theme")).toHaveLength(1);
   });
 });

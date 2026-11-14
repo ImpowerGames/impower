@@ -204,6 +204,12 @@ export default class AudioManager extends Manager {
 
   protected _outputOpen = !this.app.previewing;
 
+  protected _playsAudio = false;
+
+  setPlaysAudio(plays: boolean): void {
+    this._playsAudio = plays;
+  }
+
   setOutputOpen(open: boolean): void {
     this._outputOpen = open;
     if (this._output) {
@@ -352,6 +358,9 @@ export default class AudioManager extends Manager {
       audioPlayer.loop = update.loop;
     }
     if (update.control === "start") {
+      if (this.app.previewing && !this._playsAudio) {
+        return;
+      }
       const instance = audioPlayer.start(when, over, gain, at);
       if (this._playersPaused && this.app.previewing) {
         audioPlayer.pause(currentTime);

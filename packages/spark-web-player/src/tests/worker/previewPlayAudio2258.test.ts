@@ -317,7 +317,7 @@ end
     return held;
   };
 
-  it("keeps a loop that finishes loading after Play audio is switched off silent", async () => {
+  it("starts no player for a loop that finishes loading after Play audio is switched off, and starts it once when switched back on", async () => {
     const audio = createStandInAudio();
     const held = holdAudioLoads(audio);
     const h = await previewAt(FIRST, audio);
@@ -326,13 +326,14 @@ end
     await setPlayAudio(h, false);
     held.release();
     await settle(60);
-    expect(audio.sounding()).toEqual([]);
+    expect(audio.sources).toEqual([]);
     await setPlayAudio(h, true);
+    expect(audio.sourcesOf(THEME)).toHaveLength(1);
+    expect(audio.sources).toHaveLength(1);
     expect(audio.sounding()).toEqual([THEME]);
-    expect(audio.sourcesOf(THEME).filter((s) => s.sounding)).toHaveLength(1);
   }, 120_000);
 
-  it("stops a loop that finished loading while Play audio was off when the caret leaves every scene, so switching on brings nothing back", async () => {
+  it("brings back no discarded scene's loop when switched on outside every scene", async () => {
     const audio = createStandInAudio();
     const held = holdAudioLoads(audio);
     const h = await previewAt(FIRST, audio);
@@ -341,13 +342,28 @@ end
     await setPlayAudio(h, false);
     held.release();
     await settle(60);
-    const [theme] = audio.sourcesOf(THEME);
-    expect(theme!.startedAt).toBeTypeOf("number");
-    expect(audio.sounding()).toEqual([]);
     await select(h, 0);
     expect(h.workerState.gameState.game!.previewShowsBeat).toBe(false);
     await setPlayAudio(h, true);
     expect(audio.sounding()).toEqual([]);
+    expect(audio.sources).toEqual([]);
+  }, 120_000);
+
+  it("starts the shown beat's loop exactly once on switching on after the caret left every scene and came back", async () => {
+    const audio = createStandInAudio();
+    const held = holdAudioLoads(audio);
+    const h = await previewAt(FIRST, audio);
+    await setPlayAudio(h, true);
+    await setPlayAudio(h, false);
+    held.release();
+    await settle(60);
+    await select(h, 0);
+    await select(h, SECOND);
+    expect(audio.sources).toEqual([]);
+    await setPlayAudio(h, true);
+    expect(audio.sourcesOf(THEME)).toHaveLength(1);
+    expect(audio.sources).toHaveLength(1);
+    expect(audio.sounding()).toEqual([THEME]);
   }, 120_000);
 
   it("keeps a loop that finishes loading after the page hides silent and paused until the page is shown", async () => {
