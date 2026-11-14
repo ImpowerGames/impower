@@ -1,20 +1,5 @@
-import type { BeatSpeech, Instructions } from "../../types/Instructions";
+import type { Instructions } from "../../types/Instructions";
 import type { Game } from "../Game";
-import { silentVoice, voiceSpans } from "./voice";
-
-function speechOf(
-  game: Game,
-  instructions: Instructions,
-  instant?: boolean,
-): BeatSpeech | undefined {
-  const speech = instructions.speech;
-  const voice = silentVoice(game, instructions, instant);
-  if (!speech || !voice) {
-    return speech;
-  }
-  const spans = voiceSpans(voice, (clip) => game.module.audio.clipLength(clip));
-  return spans.length > 0 ? { character: speech.character, spans } : speech;
-}
 
 export function clearStage(
   game: Game,
@@ -57,7 +42,7 @@ export function writeStage(
     );
   }
 
-  game.module.ui.speak(speechOf(game, instructions, instant), instant, time);
+  game.module.ui.speak(instructions.speech, instant, time);
 
   if (!layoutsApplied) {
     applyLayoutDirectives(game, instructions, instant);

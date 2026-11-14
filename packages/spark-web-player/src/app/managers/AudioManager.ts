@@ -5,7 +5,6 @@ import AudioProbe from "./AudioProbe";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
 import { ConfigureAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
 import { LoadAudioPlayerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
-import { MeasureAudioMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/MeasureAudioMessage";
 import { UpdateAudioPlayersMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/UpdateAudioPlayersMessage";
 import type { AudioPlayerUpdate } from "../../../../spark-engine/src/game/modules/audio/types/AudioPlayerUpdate";
 import type { ConfigureAudioMixerParams } from "../../../../spark-engine/src/game/modules/audio/types/ConfigureAudioMixerParams";
@@ -117,17 +116,6 @@ export default class AudioManager extends Manager {
 
   decodeAudioBuffer(params: LoadAudioPlayerParams): Promise<AudioBuffer> {
     return this.loadAudioBuffer(params);
-  }
-
-  protected async clipDuration(
-    params: LoadAudioPlayerParams,
-  ): Promise<number | undefined> {
-    try {
-      return (await this.getAudioBuffer(params)).duration;
-    } catch (e) {
-      console.warn(`Could not measure the voice clip ${params.key}`, e);
-      return undefined;
-    }
   }
 
   playingKeys(): string[] {
@@ -547,14 +535,6 @@ export default class AudioManager extends Manager {
     if (UpdateAudioPlayersMessage.type.isRequest(msg)) {
       await this.onUpdateAudioPlayers(msg.params);
       return UpdateAudioPlayersMessage.type.result(msg.params);
-    }
-    if (MeasureAudioMessage.type.isRequest(msg)) {
-      const durations = await Promise.all(
-        msg.params.clips.map((clip) => this.clipDuration(clip)),
-      );
-      return MeasureAudioMessage.type.result({
-        durations: durations.map((duration) => duration ?? null),
-      });
     }
     return undefined;
   }

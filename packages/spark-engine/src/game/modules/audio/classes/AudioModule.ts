@@ -19,10 +19,6 @@ import {
   type LoadAudioPlayerMessageMap,
 } from "./messages/LoadAudioPlayerMessage";
 import {
-  MeasureAudioMessage,
-  type MeasureAudioMessageMap,
-} from "./messages/MeasureAudioMessage";
-import {
   UpdateAudioPlayersMessage,
   type UpdateAudioPlayersMessageMap,
 } from "./messages/UpdateAudioPlayersMessage";
@@ -36,8 +32,6 @@ export interface AudioConfig {}
 
 const BEAT_SCOPED_CHANNELS = new Set(["sound", "voice"]);
 
-const CLIP_MEASURE_TIMEOUT_MS = 5000;
-
 export interface AudibleLoop {
   to: number | undefined;
   looping: boolean;
@@ -48,8 +42,7 @@ export interface AudioState {
 }
 
 export type AudioMessageMap = LoadAudioPlayerMessageMap &
-  UpdateAudioPlayersMessageMap &
-  MeasureAudioMessageMap;
+  UpdateAudioPlayersMessageMap;
 
 export class AudioModule extends Module<
   AudioState,
@@ -578,19 +571,19 @@ export class AudioModule extends Module<
     channel: string,
     update: AudioPlayerUpdate,
     data?: LoadAudioPlayerParams,
-    channels = this._channelsCurrentlyPlaying,
   ) {
     if (update.control === "stop") {
       if (data?.key) {
-        const playing = channels.get(channel);
+        const playing = this._channelsCurrentlyPlaying.get(channel);
         playing?.delete(data.key);
       } else {
-        channels.delete(channel);
+        this._channelsCurrentlyPlaying.delete(channel);
       }
     } else {
       if (data?.key) {
-        const playing = channels.get(channel) ?? new Map();
-        channels.set(channel, playing);
+        const playing =
+          this._channelsCurrentlyPlaying.get(channel) ?? new Map();
+        this._channelsCurrentlyPlaying.set(channel, playing);
         playing.set(data.key, data);
       }
     }
@@ -677,56 +670,6 @@ export class AudioModule extends Module<
             ...(update.key != null ? { key: update.key } : {}),
           }
         : null;
-    const { updates, audioToLoad } = this.planUpdates(
-      channel,
-      sequence,
-      this._channelsCurrentlyPlaying,
-      (update, data) => this.saveChannelState(channel, update, data),
-      retired,
-    );
-    const id = this.nextTriggerId();
-    if (this.context.system.simulating) {
-      this.enableTrigger(id);
-      return id;
-    }
-    const trigger = (time?: number) => {
-      this.update(channel, updates, time);
-    };
-    const epoch = this._game.connection.epoch;
-    this.loadAllAudio(Array.from(audioToLoad)).then(() => {
-      this.enableTrigger(id, trigger);
-      if (autoTrigger && !this.superseded(epoch)) {
-        trigger();
-      }
-    });
-    return id;
-  }
-
-  planVoice(sequence: AudioInstruction[]): {
-    updates: AudioPlayerUpdate[];
-    clips: LoadAudioPlayerParams[];
-  } {
-    const { updates, audioToLoad } = this.planUpdates(
-      "voice",
-      sequence,
-      new Map(),
-      () => {},
-      () => null,
-    );
-    return { updates, clips: [...audioToLoad] };
-  }
-
-  protected planUpdates(
-    channel: string,
-    sequence: AudioInstruction[],
-    channels: Map<string, Map<string, LoadAudioPlayerParams>>,
-    save: (update: AudioPlayerUpdate, data?: LoadAudioPlayerParams) => void,
-    retired: (update: AudioPlayerUpdate) => AudioPlayerUpdate | null,
-  ): { updates: AudioPlayerUpdate[]; audioToLoad: Set<LoadAudioPlayerParams> } {
-    const track = (update: AudioPlayerUpdate, data?: LoadAudioPlayerParams) => {
-      this.setCurrentlyPlaying(channel, update, data, channels);
-      save(update, data);
-    };
     const audioToLoad = new Set<LoadAudioPlayerParams>();
     const updates: AudioPlayerUpdate[] = [];
     for (const e of sequence) {
@@ -739,7 +682,8 @@ export class AudioModule extends Module<
           loop: false,
           now: event.now,
         };
-        track(awaitUpdate);
+        this.setCurrentlyPlaying(channel, awaitUpdate);
+        this.saveChannelState(channel, awaitUpdate);
         updates.push(awaitUpdate);
         event.control = "start";
       }
@@ -754,10 +698,11 @@ export class AudioModule extends Module<
             over: event.over,
             now: event.now,
           };
-          const playing = channels.get(channel);
+          const playing = this._channelsCurrentlyPlaying.get(channel);
           if (playing) {
             for (const d of playing.values()) {
-              track(stopUpdate, d);
+              this.setCurrentlyPlaying(channel, stopUpdate, d);
+              this.saveChannelState(channel, stopUpdate, d);
               updates.push(stopUpdate);
             }
           }
@@ -771,71 +716,37 @@ export class AudioModule extends Module<
           if (update === processed) {
             audioToLoad.add(d);
           }
-          track(update, d);
+          this.setCurrentlyPlaying(channel, update, d);
+          this.saveChannelState(channel, update, d);
           updates.push(update);
         }
       } else {
         const processed = this.process(channel, event);
         const update = retired(processed) ?? processed;
-        const playing = channels.get(channel);
+        const playing = this._channelsCurrentlyPlaying.get(channel);
         if (playing) {
           for (const d of playing.values()) {
-            track(update, d);
+            this.setCurrentlyPlaying(channel, update, d);
+            this.saveChannelState(channel, update, d);
             updates.push(update);
           }
         }
       }
     }
-    return { updates, audioToLoad };
-  }
-
-  protected _clipLengths = new Map<string, number>();
-
-  protected _clipLengthsVersion = 0;
-
-  protected clipIdentity(clip: LoadAudioPlayerParams): string {
-    return JSON.stringify([clip.key, clip.src ?? null]);
-  }
-
-  clipLength(clip: LoadAudioPlayerParams): number | undefined {
-    return this._clipLengths.get(this.clipIdentity(clip));
-  }
-
-  override onProgramUpdate() {
-    this._clipLengths.clear();
-    this._clipLengthsVersion += 1;
-  }
-
-  measureClips(clips: LoadAudioPlayerParams[]): number {
     const id = this.nextTriggerId();
-    const unmeasured = clips.filter(
-      (clip) => !this._clipLengths.has(this.clipIdentity(clip)),
-    );
-    if (unmeasured.length === 0 || this.context.system.simulating) {
+    if (this.context.system.simulating) {
       this.enableTrigger(id);
       return id;
     }
-    let measured = false;
-    const finish = () => {
-      if (!measured) {
-        measured = true;
-        this.enableTrigger(id);
-      }
+    const trigger = (time?: number) => {
+      this.update(channel, updates, time);
     };
-    this.context.system.setTimeout?.(finish, CLIP_MEASURE_TIMEOUT_MS);
-    const version = this._clipLengthsVersion;
-    void this.emitSettled(
-      MeasureAudioMessage.type.request({ clips: unmeasured }),
-    ).then((result) => {
-      if (version === this._clipLengthsVersion) {
-        result?.durations?.forEach((duration, index) => {
-          const clip = unmeasured[index];
-          if (clip && duration != null && duration > 0) {
-            this._clipLengths.set(this.clipIdentity(clip), duration);
-          }
-        });
+    const epoch = this._game.connection.epoch;
+    this.loadAllAudio(Array.from(audioToLoad)).then(() => {
+      this.enableTrigger(id, trigger);
+      if (autoTrigger && !this.superseded(epoch)) {
+        trigger();
       }
-      finish();
     });
     return id;
   }

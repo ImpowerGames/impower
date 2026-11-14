@@ -100,8 +100,6 @@ function resultForMethod(method: string, params?: any): unknown {
       return params;
     case "audio/update":
       return [];
-    case "audio/measure":
-      return { durations: (params?.clips ?? []).map(() => 2.5) };
     case "assets/load": {
       const keys = ((params?.items ?? []) as AssetItem[]).map(assetItemKey);
       return { loaded: keys, failed: [], pinned: keys };

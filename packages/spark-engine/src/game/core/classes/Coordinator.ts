@@ -21,7 +21,6 @@ import {
   UNSHOWN_TEXT_MESSAGE,
 } from "./presenters/textLayouts";
 import { VisualNovelPresenter } from "./presenters/VisualNovelPresenter";
-import { silentVoice, voiceSpans } from "./presenters/voice";
 
 export { writeBeatText } from "./presenters/VisualNovelPresenter";
 
@@ -432,11 +431,7 @@ export class Coordinator<G extends Game> {
     let elapsedMS = 0;
     let ready = false;
     let finished = false;
-    let totalDurationMS = (instructions.end ?? 0) * 1000;
-    const voice = silentVoice(game, instructions, instant);
-    const measureTriggerId = voice
-      ? game.module.audio.measureClips(voice.clips)
-      : null;
+    const totalDurationMS = (instructions.end ?? 0) * 1000;
     const handleTick = (deltaMS: number): void => {
       if (!ready) {
         const audioReady = audioTriggerIds.every((n) =>
@@ -445,20 +440,8 @@ export class Coordinator<G extends Game> {
         const assetsReady =
           assetTriggerId == null || assets.isReady(assetTriggerId);
         const loadReady = loadTriggerId == null || assets.isReady(loadTriggerId);
-        const voiceReady =
-          measureTriggerId == null || game.module.audio.isReady(measureTriggerId);
-        if (audioReady && assetsReady && loadReady && voiceReady) {
+        if (audioReady && assetsReady && loadReady) {
           ready = true;
-          if (voice && measureTriggerId != null) {
-            game.module.audio.trigger(measureTriggerId);
-            const spans = voiceSpans(voice, (clip) =>
-              game.module.audio.clipLength(clip),
-            );
-            totalDurationMS = Math.max(
-              totalDurationMS,
-              ...spans.map(([, end]) => end * 1000),
-            );
-          }
           this._startedExecution = true;
           const time = game.context.system.now() + BEAT_LEAD_MS;
           game.module.audio.triggerAll(audioTriggerIds, time);

@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
 import type { Clock } from "../../game/core/classes/Clock";
-import { silentVoice, voiceSpans } from "../../game/core/classes/presenters/voice";
 import { BEAT_LEAD_MS } from "../../game/core/utils/sharedClock";
 import {
   createHarness,
@@ -70,7 +69,7 @@ async function stillOf(line: number) {
   return JSON.parse(JSON.stringify(h.game.module.ui.state));
 }
 
-async function waitingBeat() {
+async function beatContaining(text: string) {
   const h = await harness();
   h.jumpToFlow("start");
   await flushMicrotasks(10);
@@ -80,11 +79,15 @@ async function waitingBeat() {
       .flat()
       .map((event) => event?.text ?? "")
       .join("");
-    if (shown.includes("there")) {
+    if (shown.includes(text)) {
       return beat!;
     }
   }
-  throw new Error("the waiting beat was never reached");
+  throw new Error(`no beat shows ${text}`);
+}
+
+async function waitingBeat() {
+  return beatContaining("there");
 }
 
 const uiState = (h: UIHarness) =>
@@ -213,291 +216,50 @@ describe("playing the previewed beat once (#2256)", () => {
     expect(uiState(h)).toEqual(still);
   });
 
-  test("a voiced line measures its clip, plays silently for the clip's length, then rests on the still", async () => {
+  test("a played voiced line's mouth moves for the typed spans with no measurement or sound, then rests at the end", async () => {
+    const voiced = await beatContaining("again");
+    const typed = voiced.speech!.spans;
+    expect(typed.length).toBeGreaterThan(0);
     const h = await harness();
     await play(h, VOICED_LINE);
     await advance(h, 100);
-    const measured = flattenMessages(h.messages).filter(
-      (m) => m?.method === "audio/measure",
-    );
-    expect(measured).toHaveLength(1);
-    expect(measured[0].params.clips).toEqual([
-      expect.objectContaining({ src: "https://example.com/mia_hello.wav" }),
-    ]);
-    const sounded = flattenMessages(h.messages)
-      .filter((m) => m?.method === "audio/update")
-      .flatMap((m) => m.params?.updates ?? [])
-      .filter((update: any) => update.control === "start");
-    expect(sounded).toEqual([]);
     const spoken = speech(h).find((m) => m.params.spans.length > 0);
-    expect(spoken.params.voiced).toBeUndefined();
-    expect(spoken.params.spans).toEqual([[0, 2.5]]);
-    await advance(h, BEAT_LEAD_MS + 2300);
+    expect(spoken.params.spans).toEqual(typed);
+    expect(spoken.params.time).toBeTypeOf("number");
+    const audio = flattenMessages(h.messages).filter((m) =>
+      String(m?.method ?? "").startsWith("audio/"),
+    );
+    expect(audio.filter((m) => m.method === "audio/measure")).toEqual([]);
+    expect(
+      audio
+        .filter((m) => m.method === "audio/update")
+        .flatMap((m) => m.params?.updates ?? [])
+        .filter((update: any) => update.control === "start"),
+    ).toEqual([]);
+    const endMS = voiced.end! * 1000;
+    expect(endMS).toBeGreaterThan(200);
+    await advance(h, BEAT_LEAD_MS + endMS - 200);
     expect(h.game.playingBeat).toBe(true);
-    await advance(h, 400);
+    await advance(h, 300);
     expect(h.game.playingBeat).toBe(false);
-    const still = speech(h).at(-1).params;
-    expect(still.spans).toEqual([]);
-    expect(still.voiced).toBeUndefined();
+    expect(speech(h).at(-1).params.spans).toEqual([]);
+    expect(
+      flattenMessages(h.messages).some((m) => m?.method === "audio/measure"),
+    ).toBe(false);
   });
 
   test("a click finishes a voiced line at once and rests its mouth", async () => {
     const clicked = await harness();
     await play(clicked, VOICED_LINE);
     await advance(clicked, BEAT_LEAD_MS + 100);
+    expect(clicked.game.playingBeat).toBe(true);
     await clicked.game.onReceive(pointerDown);
     await flushMicrotasks(10);
     expect(clicked.game.playingBeat).toBe(false);
-    const rest = speech(clicked).at(-1).params;
-    expect(rest.spans).toEqual([]);
-    expect(rest.voiced).toBeUndefined();
-    expect(rest.revealed).toBeUndefined();
-  });
-
-  test("a page that never answers the measurement delays the beat only until the bound, then the typed speech plays", async () => {
-    const h = await harness();
-    const audio = h.game.module.audio as any;
-    const emitSettled = audio.emitSettled.bind(audio);
-    audio.emitSettled = (msg: any) =>
-      msg.method === "audio/measure" ? new Promise(() => {}) : emitSettled(msg);
-    await play(h, VOICED_LINE);
-    await advance(h, 1000);
-    expect(h.game.playingBeat).toBe(true);
-    expect(speech(h).some((m) => m.params.spans.length > 0)).toBe(false);
-    expect(h.timerDelays()).toContain(5000);
-    h.flushTimers();
-    await advance(h, 100);
-    const typed = speech(h).find((m) => m.params.spans.length > 0);
-    expect(typed.params.voiced).toBe(true);
-    await advance(h, 4000);
-    expect(h.game.playingBeat).toBe(false);
-  });
-
-  test("a measurement answered after its play was cancelled only fills the cache the next play uses", async () => {
-    const h = await harness();
-    const audio = h.game.module.audio as any;
-    const emitSettled = audio.emitSettled.bind(audio);
-    let answer!: (result: unknown) => void;
-    audio.emitSettled = (msg: any) =>
-      msg.method === "audio/measure"
-        ? new Promise((resolve) => {
-            answer = resolve;
-          })
-        : emitSettled(msg);
-    await play(h, VOICED_LINE);
-    await advance(h, 100);
-    await h.preview(WAITING_LINE);
-    await flushMicrotasks(10);
-    expect(h.game.playingBeat).toBe(false);
-    h.reset();
-    answer({ durations: [4] });
-    await advance(h, 1000);
-    expect(speech(h)).toEqual([]);
-    expect(audio.clipLength(audio.resolveLoadParams("voice", ["mia_hello"])[0])).toBe(4);
-
-    const again = await harness();
-    const againAudio = again.game.module.audio as any;
-    againAudio._clipLengths = audio._clipLengths;
-    await play(again, VOICED_LINE);
-    await advance(again, 100);
+    expect(speech(clicked).at(-1).params.spans).toEqual([]);
     expect(
-      flattenMessages(again.messages).filter((m) => m?.method === "audio/measure"),
-    ).toEqual([]);
-    expect(speech(again).find((m) => m.params.spans.length > 0).params.spans).toEqual([[0, 4]]);
-  });
-});
-
-describe("measuring the voice of a played beat again (#2256)", () => {
-  const measures = (h: UIHarness) =>
-    flattenMessages(h.messages).filter((m) => m?.method === "audio/measure");
-
-  test("a program update forgets measured lengths, and an answer asked before it is not kept", async () => {
-    const h = await harness();
-    const audio = h.game.module.audio as any;
-    const emitSettled = audio.emitSettled.bind(audio);
-    let answer!: (result: unknown) => void;
-    audio.emitSettled = (msg: any) =>
-      msg.method === "audio/measure"
-        ? new Promise((resolve) => {
-            answer = resolve;
-          })
-        : emitSettled(msg);
-    await play(h, VOICED_LINE);
-    await advance(h, 100);
-    h.game.updateProgram(h.game.program);
-    answer({ durations: [4] });
-    await flushMicrotasks(10);
-    const load = audio.resolveLoadParams("voice", ["mia_hello"])[0];
-    expect(audio.clipLength(load)).toBeUndefined();
-    audio.emitSettled = emitSettled;
-    await h.reconnect();
-    h.reset();
-    await play(h, VOICED_LINE);
-    await advance(h, 100);
-    expect(measures(h)).toHaveLength(1);
-    expect(audio.clipLength(load)).toBe(2.5);
-    h.game.updateProgram(h.game.program);
-    expect(audio.clipLength(load)).toBeUndefined();
-  });
-
-  test("a clip that could not be measured is asked for again on the next play", async () => {
-    const h = await harness();
-    const audio = h.game.module.audio as any;
-    const emitSettled = audio.emitSettled.bind(audio);
-    let failing = true;
-    let asked = 0;
-    audio.emitSettled = (msg: any) => {
-      if (msg.method === "audio/measure") {
-        asked += 1;
-        if (failing) {
-          return Promise.resolve({ durations: [null] });
-        }
-      }
-      return emitSettled(msg);
-    };
-    await play(h, VOICED_LINE);
-    await advance(h, 100);
-    expect(asked).toBe(1);
-    await h.game.onReceive(pointerDown);
-    failing = false;
-    h.reset();
-    await play(h, VOICED_LINE);
-    await advance(h, 100);
-    expect(asked).toBe(2);
-    expect(speech(h).find((m) => m.params.spans.length > 0).params.spans).toEqual([[0, 2.5]]);
-  });
-});
-
-describe("the voice timeline of a silently played beat (#2256)", () => {
-  const VOICES = `define mia as character with
-  name = "MIA"
-end
-
-define long as audio with
-  src = "long.wav"
-end
-
-define first as audio with
-  src = "first.wav"
-end
-
-define second as audio with
-  src = "second.wav"
-end
-
-define third as audio with
-  src = "third.wav"
-end
-
-define fourth as audio with
-  src = "fourth.wav"
-end
-
-scene start
-  MIA: Hi.
-end
-`;
-  const lengths: Record<string, number> = {
-    long: 10,
-    first: 2,
-    second: 3,
-    third: 1,
-    fourth: 4,
-  };
-  const timelineOf = async (sequence: any[], known: Record<string, number> = lengths) => {
-    const h = createHarness(VOICES);
-    await h.ready;
-    expect(h.errors).toEqual([]);
-    h.game.markPreviewing(1);
-    const voice = silentVoice(h.game, {
-      speech: { character: "mia", spans: [] },
-      audio: { voice: sequence },
-    } as any);
-    expect(voice).toBeDefined();
-    return voiceSpans(voice!, (clip) => known[clip.key.split(".").pop()!]);
-  };
-
-  test("a played clip replaces the clips before it, and a queue waits for what is left", async () => {
-    expect(
-      await timelineOf([
-        { control: "play", assets: ["long"], after: 0 },
-        { control: "play", assets: ["third"], after: 1, over: 0 },
-        { control: "queue", assets: ["third"], after: 0 },
-      ]),
-    ).toEqual([
-      [0, 1],
-      [1, 2],
-      [2, 3],
-    ]);
-  });
-
-  test("a stopped clip is heard until its fade ends, and a queue waits for the fade", async () => {
-    expect(
-      await timelineOf([
-        { control: "start", assets: ["long"], after: 0 },
-        { control: "stop", assets: ["long"], after: 1, over: 1 },
-        { control: "queue", assets: ["third"], after: 0 },
-      ]),
-    ).toEqual([
-      [0, 2],
-      [2, 3],
-    ]);
-  });
-
-  test("a clip stopped before it starts is never heard, and a queue waits only for the stop", async () => {
-    expect(
-      await timelineOf([
-        { control: "start", assets: ["long"], after: 5 },
-        { control: "stop", assets: ["long"], after: 1, over: 1 },
-        { control: "queue", assets: ["third"], after: 0 },
-      ]),
-    ).toEqual([[2, 3]]);
-  });
-
-  test("a stop with no fade given takes the player's default fade", async () => {
-    const spans = await timelineOf([
-      { control: "start", assets: ["first"], after: 0 },
-      { control: "stop", assets: ["first"], after: 1 },
-    ]);
-    expect(spans).toHaveLength(1);
-    expect(spans[0]![0]).toBe(0);
-    expect(spans[0]![1]).toBeCloseTo(1.016, 9);
-  });
-
-  test("a queued event starts its after when the clips before it end, and its clips start together", async () => {
-    expect(
-      await timelineOf([
-        { control: "play", assets: ["first"], after: 0 },
-        { control: "queue", assets: ["second", "third"], after: 1 },
-      ]),
-    ).toEqual([
-      [0, 2],
-      [3, 6],
-      [3, 4],
-    ]);
-  });
-
-  test("an event after a queue keeps the time the queue waited until as its origin", async () => {
-    expect(
-      await timelineOf([
-        { control: "start", assets: ["first"], after: 0 },
-        { control: "queue", assets: ["third"], after: 1 },
-        { control: "start", assets: ["fourth"], after: 0.5 },
-      ]),
-    ).toEqual([
-      [0, 2],
-      [3, 4],
-      [2.5, 6.5],
-    ]);
-  });
-
-  test("a clip with no measured length is left out", async () => {
-    expect(
-      await timelineOf(
-        [{ control: "start", assets: ["first", "second"], after: 0.5 }],
-        { first: 2 },
-      ),
-    ).toEqual([[0.5, 2.5]]);
+      flattenMessages(clicked.messages).some((m) => m?.method === "audio/measure"),
+    ).toBe(false);
   });
 });
 
