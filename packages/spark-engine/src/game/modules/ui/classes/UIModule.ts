@@ -1818,6 +1818,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return previewing != null && previewing !== false && !this._beatPlaying;
   }
 
+  protected mutesPlayedMovies(): boolean {
+    return this._beatPlaying && !this._game.previewAudio;
+  }
+
   speak(speech: BeatSpeech | undefined, instant = false, time?: number) {
     if (this.context?.system?.simulating) {
       return;
@@ -4165,7 +4169,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const params: PlayCutsceneParams = {
       src,
       loop: Boolean(cutscene.loop),
-      muted: Boolean(cutscene.mute) || this._beatPlaying,
+      muted: Boolean(cutscene.mute) || this.mutesPlayedMovies(),
       ...this.getMovieMixer(),
     };
     if (cutscene.with) {
@@ -4986,7 +4990,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               content.video = {
                 src: videoSrc,
                 loop: !e.once,
-                muted: Boolean(e.mute) || $._beatPlaying,
+                muted: Boolean(e.mute) || $.mutesPlayedMovies(),
                 ...$.getMovieMixer(),
                 ...($.showsMovieStill() ? { preview: true } : {}),
               };
