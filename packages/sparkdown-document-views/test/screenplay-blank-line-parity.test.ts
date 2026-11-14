@@ -107,6 +107,60 @@ const KINDS: Record<string, string[]> = {
   Whitespace: ["    "],
 };
 
+const PRINTED: Record<string, string[]> = {
+  BlockAction: ["The door creaks."],
+  BlockActionInnerBlank: ["First.", "Second."],
+  BlockActionLeadingBlank: ["First."],
+  BlockDialogue: ["GUIDE", "(softly)", "Hello there."],
+  BlockDialogueInnerBlank: ["GUIDE", "First line.", "Second line."],
+  BlockHeading: ["INT. ROOM - DAY"],
+  BlockHeadingInnerBlank: ["INT. A", "INT. B"],
+  BlockTitle: ["THE END"],
+  BlockTitleInnerBlank: ["ONE", "TWO"],
+  BlockTransitional: ["CUT TO:"],
+  BlockTransitionalInnerBlank: ["CUT", "TO:"],
+  Branch: ["Inside."],
+  Choice: ["* [Stray.]"],
+  ChoiceDivert: ["* [Onward.]"],
+  ImplicitActionDivert: ["They leave."],
+  InlineDialogueDivert: ["GUIDE", "Bye."],
+  ImplicitActionTag: ["They go."],
+  ChoiceTag: ["* [Go.]"],
+  InlineDialogueTag: ["GUIDE", "Hi."],
+  ImplicitActionImageMidLine: ["They go.", "on."],
+  ChoiceLineComment: ["* [Go.]"],
+  ImplicitActionGlue: ["They go", "on."],
+  DualDialogue: ["GUIDE", "Left.", "VISITOR", "Right."],
+  ImplicitAction: ["The door creaks."],
+  InlineAction: ["The door creaks."],
+  InlineDialogue: ["GUIDE", "Hello."],
+  InlineHeading: ["INT. ROOM - DAY"],
+  InlineTitle: ["THE END"],
+  InlineTransitional: ["CUT TO:"],
+  LuauFunctionDefinitionSharedLine: ["Same line."],
+  LuauFunctionDefinitionThenCommentSharedLine: ["Shared."],
+  SparkdownBlockCommentThenFunctionSharedLine: ["Shared."],
+  LuauFunctionDefinitionPairSharedLine: ["Shared."],
+  LuauSparkdownChooseBlock: ["* [Go.]", "They go."],
+  LuauSparkdownConditionalAlternatorBlock: ["Small.", "Big."],
+  LuauSparkdownDoBlock: ["It snows."],
+  LuauSparkdownElseBlock: ["Yes."],
+  LuauSparkdownElseifBlock: ["Maybe."],
+  LuauSparkdownForLoop: ["Again."],
+  LuauSparkdownIfBlock: ["It rains."],
+  LuauSparkdownIfElseBlock: ["No.", "Yes."],
+  LuauSparkdownRepeatLoop: ["It drizzles."],
+  LuauSparkdownSequentialAlternatorBlock: ["First time.", "Second time."],
+  LuauSparkdownWhileLoop: ["It hails."],
+};
+
+const compact = (text: string) => text.replace(/\s+/g, "");
+
+const missingText = (rows: string[], expected: readonly string[]) => {
+  const page = compact(rows.join(""));
+  return expected.filter((text) => !page.includes(compact(text)));
+};
+
 const BASE: ScreenplayConfig = { screenplay_print_title_page: false };
 
 const CONFIGS: Record<string, ScreenplayConfig> = {
@@ -247,6 +301,10 @@ describe("screenplay page and export agree on blank lines", () => {
         if (found) {
           failures.push(`sequence ${index}: ${found}; kinds ${kinds.join(" > ")}`);
         }
+        const missing = missingText(screen, kinds.flatMap((kind) => PRINTED[kind] ?? []));
+        if (missing.length) {
+          failures.push(`sequence ${index}: page lacks ${JSON.stringify(missing)}; kinds ${kinds.join(" > ")}`);
+        }
       }
       expect(failures).toEqual([]);
     },
@@ -254,18 +312,23 @@ describe("screenplay page and export agree on blank lines", () => {
   );
 });
 
-const CONTAINERS: Record<string, { open: string[]; close: string[]; indent: string }> = {
-  if: { open: ["  if true then"], close: ["  end"], indent: "  " },
-  elseif: { open: ["  if false then", "    No.", "  elseif true then"], close: ["  end"], indent: "  " },
-  else: { open: ["  if false then", "    No.", "  else"], close: ["  end"], indent: "  " },
-  while: { open: ["  while true do"], close: ["  end"], indent: "  " },
-  for: { open: ["  for i = 1, 2 do"], close: ["  end"], indent: "  " },
-  repeat: { open: ["  repeat"], close: ["  until true"], indent: "  " },
-  do: { open: ["  do"], close: ["  end"], indent: "  " },
-  branch: { open: ["  branch b"], close: ["  end"], indent: "  " },
-  choice: { open: ["  choose", "    * [Go.]"], close: ["  end"], indent: "    " },
-  queueBranch: { open: ["  queue", "    | First one | Second one", "    | Third line"], close: ["  end"], indent: "    " },
-  matchBranch: { open: ["  match x", "    | Small."], close: ["  end"], indent: "    " },
+const CONTAINERS: Record<string, { open: string[]; close: string[]; indent: string; prints: string[] }> = {
+  if: { open: ["  if true then"], close: ["  end"], indent: "  ", prints: [] },
+  elseif: { open: ["  if false then", "    No.", "  elseif true then"], close: ["  end"], indent: "  ", prints: ["No."] },
+  else: { open: ["  if false then", "    No.", "  else"], close: ["  end"], indent: "  ", prints: ["No."] },
+  while: { open: ["  while true do"], close: ["  end"], indent: "  ", prints: [] },
+  for: { open: ["  for i = 1, 2 do"], close: ["  end"], indent: "  ", prints: [] },
+  repeat: { open: ["  repeat"], close: ["  until true"], indent: "  ", prints: [] },
+  do: { open: ["  do"], close: ["  end"], indent: "  ", prints: [] },
+  branch: { open: ["  branch b"], close: ["  end"], indent: "  ", prints: [] },
+  choice: { open: ["  choose", "    * [Go.]"], close: ["  end"], indent: "    ", prints: ["* [Go.]"] },
+  queueBranch: {
+    open: ["  queue", "    | First one | Second one", "    | Third line"],
+    close: ["  end"],
+    indent: "    ",
+    prints: ["First one | Second one", "Third line"],
+  },
+  matchBranch: { open: ["  match x", "    | Small."], close: ["  end"], indent: "    ", prints: ["Small."] },
 };
 
 const NOT_NESTABLE = new Set([
@@ -300,9 +363,15 @@ describe("screenplay page and export agree on text inside blocks", () => {
       for (const [index, kinds] of NESTED_CHUNKS.entries()) {
         await new Promise((resolve) => setTimeout(resolve, 0));
         const source = nestedSourceOf(container, kinds);
-        const found = difference(screenRows(configName, source), exportRows(configName, source));
+        const screen = screenRows(configName, source);
+        const found = difference(screen, exportRows(configName, source));
         if (found) {
           failures.push(`sequence ${index}: ${found}; kinds ${kinds.join(" > ")}`);
+        }
+        const expected = [...CONTAINERS[container]!.prints, ...kinds.flatMap((kind) => PRINTED[kind] ?? [])];
+        const missing = missingText(screen, expected);
+        if (missing.length) {
+          failures.push(`sequence ${index}: page lacks ${JSON.stringify(missing)}; kinds ${kinds.join(" > ")}`);
         }
       }
       expect(failures).toEqual([]);
@@ -332,8 +401,10 @@ describe("the ticket's nested loop and alternator", () => {
       "end",
       "",
     ].join("\n");
+    const expected = ["INT. ROOM - DAY", "", "Hero", "Again.", "Hero", "Hi.", "", "First one | Second one", "Third line", "Hero", "Multi."];
     const screen = screenRows("default", source);
-    expect(difference(screen, exportRows("default", source))).toBe("");
+    expect(layout(screen)).toBe(layout(expected));
+    expect(layout(exportRows("default", source))).toBe(layout(expected));
     expect(screen.join("\n")).not.toMatch(/x\s*<\s*3|x\s*\+=\s*1|^\|/m);
   });
 });
