@@ -1,3 +1,4 @@
+import { iconMasks } from "@impower/impower-ui/icon-masks";
 import { afterEach, describe, expect, test } from "vitest";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { SetRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
@@ -179,15 +180,12 @@ describe("the route list", () => {
     route.decisions.push({ kind: "pinned", location: at(10), text: "Lie.", meeting: 1 });
     p.report({ route });
     p.button()!.click();
-    const glyph = (selector: string) => {
-      const svg = p.routeList.querySelector(`${selector} .route-icon`)!;
-      return [svg.getAttribute("viewBox"), svg.innerHTML];
-    };
-    const hollow = ["0 0 24 24", '<path d="M8 3h8M9 3v6l-3 3v2h12v-2l-3-3V3M12 14v7"></path>'];
-    const filled = [
-      "0 0 24 24",
-      '<path d="M9 3v6l-3 3v2h12v-2l-3-3V3z" fill="currentColor"></path><path d="M8 3h8M9 3v6l-3 3v2h12v-2l-3-3V3M12 14v7"></path>',
-    ];
+    const glyph = (selector: string) =>
+      p.routeList
+        .querySelector<HTMLElement>(`${selector} .route-icon`)!
+        .style.getPropertyValue("--route-icon-mask");
+    const hollow = iconMasks["pin"];
+    const filled = iconMasks["pin-fill"];
     expect(glyph(".route-entry[data-kind='auto']")).toEqual(hollow);
     expect(glyph(".route-toggle[data-kind='auto']")).toEqual(hollow);
     expect(glyph(".route-entry[data-kind='pinned']")).toEqual(filled);

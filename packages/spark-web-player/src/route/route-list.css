@@ -78,6 +78,13 @@
   height: var(--swp-toolbar-icon-size);
 }
 
+:is(spark-web-player, swp-route-view) .route-icon-mask {
+  display: inline-block;
+  background-color: currentColor;
+  mask: var(--route-icon-mask) center / contain no-repeat;
+  -webkit-mask: var(--route-icon-mask) center / contain no-repeat;
+}
+
 :is(spark-web-player, swp-route-view) .route-button .route-icon[data-icon="forced"],
 :is(spark-web-player, swp-route-view) .route-button .route-icon[data-icon="clipped"],
 :is(spark-web-player, swp-route-view) .route-entry[data-kind="forced"] .route-icon,
