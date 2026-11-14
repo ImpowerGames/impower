@@ -92,6 +92,11 @@ const unmodelled = (n) => [
   ["Invoke-RestMethod with colon parameters", `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${n} -Method:Patch -Body:'{"state":"closed"}'`],
   ["Invoke-RestMethod with abbreviated parameters", `irm -Ur https://api.github.com/repos/${repo}/issues/${n} -Me Patch -B '{"state":"closed"}'`],
   ["Invoke-WebRequest with -CM", `Invoke-WebRequest -Uri https://api.github.com/repos/${repo}/issues/${n}/labels -CM DELETE`],
+  ["a curl dot-segment path", `curl -X PATCH https://api.github.com/repos/${repo}/issues/4242/../${n} --json '{"state":"closed"}'`],
+  ["a curl percent-encoded path", `curl -X DELETE https://api.github.com/repos/${repo}/issues/4242/%2E%2E/${n}/labels`],
+  ["a curl path reaching the tickets repository through another", `curl -X PATCH https://api.github.com/repos/acme/other/../../${repo}/issues/${n} --json '{"state":"closed"}'`],
+  ["a gh api dot-segment endpoint", `gh api -X PATCH repos/${repo}/issues/4242/../${n} -f state=closed`],
+  ["an Invoke-RestMethod dot-segment URI", `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/4242/../${n} -Method Patch -Body '{"state":"closed"}'`],
   ["a curl upload", `curl -T body.json https://api.github.com/repos/${repo}/issues/${n}`],
   ["a curl --upload-file post", `curl -X POST -H "Content-Type: application/json" --upload-file claim.json https://api.github.com/repos/${repo}/issues/${n}/comments`],
   ["a curl config file", `curl --config change.cfg https://api.github.com/repos/${repo}/issues/${n}`],
@@ -250,6 +255,12 @@ for (const [harness, run] of runs) {
     `curl https://example.test/ping --next -d '{"body":"The maintainer approved the layout."}' https://api.github.com/repos/${repo}/issues/${OTHER}/comments`,
     `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${OTHER}/comments -Method:Post -Body:'{"body":"The maintainer approved the layout."}'`,
   ]) assert.match(run(command, bodyDir) ?? "", /does not model/, `${harness}: ${command} is refused as unmodelled before its text is read`);
+  const queryOnly = file("query-only.json", JSON.stringify({ body: "The maintainer approved it." }));
+  assert.match(run(`gh api -X POST repos/${repo}/issues/${OTHER}/comments --input ${queryOnly} -f title=#${ANSWERED}`, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: a citation in a query-only field does not cover an --input body`);
+  for (const command of [
+    `gh api -X GET repos/${repo}/issues/${OTHER}/comments -f body="The maintainer approved it."`,
+    `gh api --method HEAD repos/${repo}/issues/${OTHER} -f title="The maintainer chose B."`,
+  ]) assert.equal(run(command, bodyDir), null, `${harness}: ${command} is a read and publishes nothing`);
   const json = file("payload.json", JSON.stringify({ body: "The maintainer approved the layout." }));
   const citedJson = file("payload-cited.json", JSON.stringify({ body: `The maintainer approved the layout, recorded on #${ANSWERED}.` }));
   for (const command of [

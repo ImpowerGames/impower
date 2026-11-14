@@ -80,7 +80,25 @@ function envRepo(seg, at) {
   return null;
 }
 
-const endpointOf = (raw) => raw.replace(/^https?:\/\/[^/]+\//i, "").split(/[?#]/)[0].replace(/^\/+/, "");
+function endpointOf(raw) {
+  let path = raw.replace(/^(?:https?:\/\/)?(?:[^@/\s"']*@)?(?:api\.)?github\.com(?::\d+)?\//i, "").replace(/^https?:\/\/[^/]+\//i, "").split(/[?#]/)[0];
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+  }
+  const parts = [];
+  for (const part of path.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") parts.pop();
+    else parts.push(part);
+  }
+  return parts.join("/");
+}
+
+const noncanonical = (raw) => {
+  const path = raw.replace(/^(?:https?:\/\/)?[^/]*/, "").split(/[?#]/)[0];
+  return /%|\/\/|(^|\/)\.\.?(\/|$)/.test(path);
+};
 const endpointRepo = (raw) => /^repos\/([^/]+\/[^/]+)(?:\/|$)/i.exec(endpointOf(raw))?.[1] ?? null;
 const githubUrl = (value) => /^(?:https?:\/\/)?(?:[^@/\s"']*@)?(?:api\.github\.com|(?:www\.)?github\.com)(?::\d+)?\//i.test(value ?? "");
 
@@ -191,7 +209,7 @@ function unmodelled(seg, i, repo) {
   const plain = (why, example) => `This command changes or publishes to ${repo} in a form the maintainer request guard does not model: ${why}. Only plain forms are accepted there, so the guard can tell what the command sends. Use the plain form, for example: ${example}`;
   if (base === "gh") {
     const named = new RegExp(`(?:^|^-[A-Za-z]+|[^\\w.-])${slug}(?:\\.git)?(?:$|[/#?])`, "i");
-    if (!args.some((a) => !/\s/.test(a.text) && named.test(a.text)) && !sameRepo(envRepo(seg, i), repo)) return null;
+    if (!args.some((a) => !/\s/.test(a.text) && (named.test(a.text) || sameRepo(endpointRepo(a.text), repo))) && !sameRepo(envRepo(seg, i), repo)) return null;
     const at = args.findIndex((a) => ["issue", "pr", "api"].includes(a.text.toLowerCase()));
     if (at < 0) return null;
     const group = args[at].text.toLowerCase();
@@ -204,6 +222,8 @@ function unmodelled(seg, i, repo) {
       const maybe = scanned.clusters.find((t) => /[XfF]/.test(t.slice(1)));
       if (maybe) return plain(`\`${maybe}\` runs short options together or attaches a value to a short option; give each flag and its value separately`, example);
       if (!(methods.some((m) => !READ_METHODS.has(m.toUpperCase())) || (!methods.length && sends))) return null;
+      const odd = scanned.positional.find(noncanonical);
+      if (odd) return plain(`\`${odd}\` has dot segments, doubled slashes or percent-encoding in its path; give the canonical endpoint`, example);
       return refusedForm(scanned, methods, plain, example, "-X or --method");
     }
     const action = args.slice(at + 1).find((a) => !a.text.startsWith("-"))?.text.toLowerCase();
@@ -212,7 +232,8 @@ function unmodelled(seg, i, repo) {
   }
   if (base !== "curl" && !WEB_REQUEST.has(base)) return null;
   const addressed = new RegExp(`github\\.com/(?:repos/)?${slug}(?:$|[/#?])`, "i");
-  if (!args.some((a) => addressed.test(a.text))) return null;
+  if (!args.some((a) => addressed.test(a.text) || (githubUrl(a.text.replace(/^-\w+:/, "")) && sameRepo(endpointRepo(a.text.replace(/^-\w+:/, "")), repo)))) return null;
+  const crooked = args.map((a) => a.text.replace(/^(-\w+:|--url=)/i, "")).find((t) => githubUrl(t) && noncanonical(t));
   if (base === "curl") {
     const scanned = scanOptions(args, CURL_OPTIONS);
     const example = `curl -X POST https://api.github.com/repos/${repo}/issues/<N>/comments -H "Authorization: Bearer <token>" --data @body.json`;
@@ -223,6 +244,7 @@ function unmodelled(seg, i, repo) {
     if (!(methods.some((m) => !READ_METHODS.has(m.toUpperCase())) || (!methods.length && sends && !scanned.has("-G", "--get")))) return null;
     const urls = [...scanned.positional, ...scanned.values("--url")];
     if (urls.length > 1) return plain("it names more than one URL, which curl sends as several transfers; make one curl call per request", example);
+    if (crooked) return plain(`\`${crooked}\` has dot segments, doubled slashes or percent-encoding in its path; give the canonical URL`, example);
     return refusedForm(scanned, methods, plain, example, "-X or --request");
   }
   const parameters = args.map((a, k) => [a.text, /^-([A-Za-z]+)(:[\s\S]*)?$/.exec(a.text), args[k + 1]?.text ?? ""]).filter(([, m]) => m);
@@ -237,6 +259,7 @@ function unmodelled(seg, i, repo) {
   const odd = parameters.find(([, m]) => m[2] !== undefined || !WEB_OPTIONS.has(m[1].toLowerCase()));
   if (odd) return plain(`\`${odd[0]}\` is not among the parameters the guard reads on a changing request, by full name with a separate value; use -Uri, -Method, -Body or -InFile, -Headers and -ContentType`, example);
   if (methods.length > 1) return plain("it names the method more than once; give one -Method or -CustomMethod", example);
+  if (crooked) return plain(`\`${crooked}\` has dot segments, doubled slashes or percent-encoding in its path; give the canonical URL`, example);
   return null;
 }
 
@@ -443,9 +466,12 @@ function publishedText(seg, i, command, cwds) {
       texts.push(...parsed.values(...TEXT_FLAGS));
       for (const name of parsed.values(...FILE_FLAGS)) file(name, false);
     } else if (group === "api") {
+      const methods = parsed.values("-X", "--method");
+      if (methods.length && methods.every((m) => READ_METHODS.has(m.toUpperCase()))) return [];
       destination = endpointRepo(parsed.positional[1] ?? "");
+      const input = parsed.values("--input").length > 0;
       for (const [name, value] of parsed.flags) {
-        if (GH_API_FIELD_FLAGS.has(name)) {
+        if (GH_API_FIELD_FLAGS.has(name) && !input) {
           const m = /^(body|title)=([\s\S]*)$/.exec(value);
           if (!m) continue;
           if (name !== "-f" && name !== "--raw-field" && m[2].startsWith("@")) file(m[2], false);
