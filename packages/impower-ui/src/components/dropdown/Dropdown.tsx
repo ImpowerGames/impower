@@ -22,7 +22,7 @@ import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 import { registerFocusReturn } from "../../utils/focusReturn";
-import { type KeepClear, useClearLine } from "../../utils/keepClear";
+import { KEEP_CLEAR_MARGIN, type KeepClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
@@ -240,18 +240,23 @@ const clearOf = (
   sideOffset: number,
 ) => {
   const top = Math.max(EDGE_GAP, line);
-  const padding = { top, bottom: EDGE_GAP, left: EDGE_GAP, right: EDGE_GAP };
+  const placed = (bottom: number, offset: number) => ({
+    padding: { top, bottom, left: EDGE_GAP, right: EDGE_GAP },
+    offset,
+  });
   if (!trigger) {
-    return padding;
+    return placed(EDGE_GAP, sideOffset);
   }
   const least = leastHeight(menu);
   const at = trigger.getBoundingClientRect();
-  const below = window.innerHeight - EDGE_GAP - at.bottom - sideOffset;
-  const above = at.top - sideOffset - top;
-  if (Math.max(below, above) >= least) {
-    return padding;
+  const under = window.innerHeight - at.bottom - least;
+  if (under - sideOffset >= EDGE_GAP || at.top - sideOffset - top >= least) {
+    return placed(EDGE_GAP, sideOffset);
   }
-  return { ...padding, top: Math.max(EDGE_GAP, at.top - sideOffset - least) };
+  if (under - sideOffset >= KEEP_CLEAR_MARGIN) {
+    return placed(under - sideOffset, sideOffset);
+  }
+  return placed(KEEP_CLEAR_MARGIN, Math.min(sideOffset, Math.max(KEEP_CLEAR_MARGIN, under - KEEP_CLEAR_MARGIN)));
 };
 
 function SheetMenu({
@@ -349,9 +354,9 @@ export function DropdownContent({
     <DropdownMenuPrimitive.Portal container={portalContainer()}>
       <DropdownMenuPrimitive.Content
         ref={owner}
-        sideOffset={sideOffset}
+        sideOffset={clear?.offset ?? sideOffset}
         align={align}
-        {...(clear ? { collisionPadding: clear } : {})}
+        {...(clear ? { collisionPadding: clear.padding } : {})}
         class={cn(
           dropdownContentVariants({ fit: keepClear ? "room" : "free" }),
           className,

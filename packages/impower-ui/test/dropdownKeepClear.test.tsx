@@ -70,14 +70,18 @@ describe.skipIf(!browserAvailable)("a DropdownContent kept clear of a picture, o
     expect(placed.row.bottom).toBeLessThanOrEqual(placed.menu.bottom);
   });
 
-  test.each([
-    [560, "hinted"],
-    [528, "plain"],
-  ] as const)("at %ipx with a %s first row and no room for it on either side, it keeps that whole row in the menu and the window", async (height, kind) => {
-    const placed = await open(height, kind);
+  test("at 560px with the hinted first row, it gives up its margins to hold that whole row below its trigger, covering none of the picture", async () => {
+    const placed = await open(560, "hinted");
+    expect(placed.menu.top).toBeGreaterThanOrEqual(PICTURE_BOTTOM);
     expect(placed.row.top).toBeGreaterThanOrEqual(placed.menu.top);
     expect(placed.row.bottom).toBeLessThanOrEqual(placed.menu.bottom);
-    expect(placed.menu.top).toBeGreaterThanOrEqual(0);
-    expect(placed.menu.bottom).toBeLessThanOrEqual(height);
+    expect(placed.menu.bottom).toBeLessThanOrEqual(560 - 4);
+  });
+
+  test("at 528px, where even the smallest margins leave no room for a whole row, it keeps to the room it has rather than flipping over the picture", async () => {
+    const placed = await open(528, "plain");
+    expect(placed.menu.top).toBeGreaterThanOrEqual(PICTURE_BOTTOM);
+    expect(placed.menu.bottom).toBeLessThanOrEqual(528 - 4);
+    expect(placed.menu.bottom).toBeGreaterThan(placed.menu.top);
   });
 });

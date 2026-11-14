@@ -5,8 +5,10 @@ export type KeepClear = RefObject<HTMLElement | null>;
 
 export const KEEP_CLEAR_GAP = 6;
 
+export const KEEP_CLEAR_MARGIN = 4;
+
 export const KEEP_CLEAR_RULE =
-  "keepClear: the part stays below the bottom of the kept-clear element, 6px clear, and follows it while open. It shrinks to fit the room left, down to a minimum that still shows its header, if it has one, and one whole row; with less room than that it keeps that minimum and rises over the element rather than vanishing.";
+  "keepClear: the part stays below the bottom of the kept-clear element, 6px clear, and follows it while open. It shrinks to fit the room left, down to a minimum that still shows its header, if it has one, and one whole row. Short of that minimum it gives things up in this order: first its margins on the side it opens, from the window's edge and then from what opened it, each down to 4px; then, only where it can rise by the shortfall alone without moving to the other side of what opened it, it rises over the element by that much. Where it cannot, it keeps to the room it has and scrolls within itself rather than covering more of the element.";
 
 export const clearLine = (keepClear: KeepClear | undefined): number | undefined => {
   const element = keepClear?.current;
