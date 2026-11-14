@@ -444,6 +444,61 @@ end
     expect(h.game.module.ui.getFontNamesForLayout("menu")).toEqual([]);
   });
 
+  it("ignores a non-font property whose value equals a font name or family (#2370)", async () => {
+    const source = `define Plain as font with
+  src = "Plain.ttf"
+  font_family = "Plain Display"
+end
+
+style hud {
+  animation_name = "Fancy"
+}
+
+style deck {
+  content = "Plain Display"
+}
+
+style card {
+  font_family = "Plain Display"
+}
+
+layout hud {
+  text "Score"
+}
+
+layout deck {
+  text "Cards"
+}
+
+layout card {
+  text "Card"
+}
+
+layout banner {
+  text "Banner" #animation_name="Fancy"
+}
+
+layout plaque {
+  text "Plaque" #font_family="Fancy"
+}
+
+scene A
+  Hello.
+end
+`;
+    const h = createHarness(source, 0, {
+      assets: [...ASSETS, asset("font", "Plain", "ttf")],
+      beforeConnect: playing,
+      autoOpenAll: false,
+    });
+    await h.ready;
+    expect(h.game.module.ui.getFontNamesForLayout("hud")).toEqual([]);
+    expect(h.game.module.ui.getFontNamesForLayout("deck")).toEqual([]);
+    expect(h.game.module.ui.getFontNamesForLayout("banner")).toEqual([]);
+    expect(h.game.module.ui.getFontNamesForLayout("card")).toEqual(["Plain"]);
+    expect(h.game.module.ui.getFontNamesForLayout("plaque")).toEqual(["Fancy"]);
+  });
+
   it("loads a font by its declared family inside a font list, including a quoted family holding a comma (#2235)", async () => {
     const source = `define Fancy as font with
   src = "Fancy.ttf"
