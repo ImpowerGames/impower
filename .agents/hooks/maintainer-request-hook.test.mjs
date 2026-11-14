@@ -71,7 +71,6 @@ const touching = (n) => [
   ["gh issue comment under a host-qualified -R", `gh issue comment ${n} -R github.com/${repo} --body ok`],
   ["gh issue close under a repository address", `gh issue close ${n} --repo https://github.com/${repo}.git`],
   ["gh issue edit naming the request after another issue", `gh issue edit 4243 ${n} -R ${repo} --add-label x`],
-  ["a curl upload", `curl -T body.json https://api.github.com/repos/${repo}/issues/${n}`],
   ["a curl data call with --request", `curl --request PATCH --data '{"state":"closed"}' https://api.github.com/repos/${repo}/issues/${n}`],
   ["Invoke-RestMethod with an -InFile body", `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${n}/comments -Method Post -InFile body.json`],
   ["Invoke-RestMethod by position with a body", `Invoke-RestMethod https://api.github.com/repos/${repo}/issues/${n}/comments -Method Post -Body '{"body":"ok"}'`],
@@ -93,6 +92,17 @@ const unmodelled = (n) => [
   ["Invoke-RestMethod with colon parameters", `Invoke-RestMethod -Uri:https://api.github.com/repos/${repo}/issues/${n} -Method:Patch -Body:'{"state":"closed"}'`],
   ["Invoke-RestMethod with abbreviated parameters", `irm -Ur https://api.github.com/repos/${repo}/issues/${n} -Me Patch -B '{"state":"closed"}'`],
   ["Invoke-WebRequest with -CM", `Invoke-WebRequest -Uri https://api.github.com/repos/${repo}/issues/${n}/labels -CM DELETE`],
+  ["a curl upload", `curl -T body.json https://api.github.com/repos/${repo}/issues/${n}`],
+  ["a curl --upload-file post", `curl -X POST -H "Content-Type: application/json" --upload-file claim.json https://api.github.com/repos/${repo}/issues/${n}/comments`],
+  ["a curl config file", `curl --config change.cfg https://api.github.com/repos/${repo}/issues/${n}`],
+  ["a curl short config", `curl -K change.cfg https://api.github.com/repos/${repo}/issues/${n}`],
+  ["a curl request target override", `curl -X DELETE --request-target /repos/${repo}/issues/${n}/labels https://api.github.com/repos/${repo}/issues/1/labels`],
+  ["a curl form", `curl -X POST -F "body=@claim.md" https://api.github.com/repos/${repo}/issues/${n}/comments`],
+  ["a curl variable expansion", `curl -X PATCH --variable s=closed --expand-data '{"state":"{{s}}"}' https://api.github.com/repos/${repo}/issues/${n}`],
+  ["a changing curl call with an unknown option", `curl -X PATCH --retry-all-errors https://api.github.com/repos/${repo}/issues/${n} -d '{"state":"closed"}'`],
+  ["a changing gh api call with an unknown option", `gh api -X PATCH --method-override repos/${repo}/issues/${n} -f state=closed`],
+  ["Invoke-RestMethod with a form", `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${n}/comments -Method Post -Form $f`],
+  ["a changing Invoke-RestMethod with an unread parameter", `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${n} -Method Patch -WebSession $s -Body '{"state":"closed"}'`],
   ["Invoke-WebRequest with a colon InFile", `Invoke-WebRequest -Uri https://api.github.com/repos/${repo}/issues/${n}/comments -Method Post -InFile:body.json`],
 ];
 
@@ -124,6 +134,10 @@ for (const [harness, run] of runs) {
     `gh api -X GET repos/${repo}/issues -f state=open -f per_page=100`,
     `curl -sS -H "Authorization: Bearer x" https://api.github.com/repos/${repo}/issues/${REQUEST}`,
     `curl -s -G https://api.github.com/repos/${repo}/issues/${REQUEST}/comments -d per_page=100`,
+    `curl -sS -X GET https://api.github.com/repos/${repo}/issues/${REQUEST}/comments`,
+    `curl --retry-delay 2 -X HEAD https://api.github.com/repos/${repo}/issues/${REQUEST}`,
+    `gh api -X GET -i repos/${repo}/issues/${REQUEST}/comments -f per_page=100`,
+    `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${REQUEST} -Method Get -WebSession $s`,
     `irm -Ur https://api.github.com/repos/${repo}/issues/${REQUEST}`,
     `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/${REQUEST}/comments -Body @{per_page=1}`,
     `gh pr create --draft -dt "Guards" -b ok`,
@@ -331,6 +345,16 @@ for (const [harness, run] of runs) {
     listRequests(tracker, repos);
     assert.equal(openRequestIndex("acme/tickets").entry(11).state, "answered", "a later list keeps a recorded answer");
     assert.deepEqual([openRequestIndex("acme/tickets").entry(12)?.tagged, openRequestIndex("acme/tickets").entry(14)], [true, null], "list forgets a tagged ticket whose task label was removed and keeps one still labelled");
+    process.env.IMPOWER_MAINTAINER_REQUEST_INDEX = path.join(scratch, "cold-index");
+    const filedTask = { number: 15, title: "Draw (#3)", state: "open", body: readFileSync(path.join(root, ".agents/skills/ask-maintainer/fixtures/task-body.md"), "utf8"), created_at: "2026-11-13T11:00:00Z", html_url: "u15" };
+    const taggedTicket = { number: 16, title: "Draw the title art", state: "open", body: "An ordinary ticket body.", created_at: "2026-11-13T11:00:00Z", html_url: "u16" };
+    let labelled = [filedTask, taggedTicket];
+    const cold = { repo: "acme/tickets", all: (label) => (label === labels.task ? labelled : []), open: () => [] };
+    listRequests(cold, repos);
+    assert.deepEqual([15, 16].map((n) => openRequestIndex("acme/tickets").entry(n)?.tagged), [false, true], "a list on an empty index tells a filed task request from a tagged ticket by its body");
+    labelled = [filedTask];
+    listRequests(cold, repos);
+    assert.deepEqual([openRequestIndex("acme/tickets").entry(15)?.state, openRequestIndex("acme/tickets").entry(16)], ["open", null], "after a rebuild, removing a ticket's task label still releases it");
     const body = readFileSync(path.join(root, ".agents/skills/ask-maintainer/fixtures/decision-body.md"), "utf8");
     const issue = { number: 20, title: "What should mark it? (#2271)", body, state: "closed", state_reason: "completed", closed_at: "2026-11-13T16:10:00Z", closed_by: { login: repos.maintainer.login }, html_url: "u20" };
     const answerTracker = { repo: "acme/tickets", issue: () => issue, timeline: () => [{ event: "closed", created_at: issue.closed_at, actor: { login: repos.maintainer.login } }] };

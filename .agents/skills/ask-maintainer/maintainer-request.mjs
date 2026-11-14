@@ -884,7 +884,11 @@ export function listRequests(tracker, repos = readRepos()) {
   const { decision, task, decidedWithoutYou } = repos.maintainer.labels;
   const decisions = tracker.all(decision);
   const tasks = tracker.all(task);
-  noteRequests(tracker.repo, [...decisions.map((issue) => [issue, "decision"]), ...tasks.map((issue) => [issue, "task"])].map(([issue, kind]) => ({ number: issue.number, kind, state: issue.state === "open" ? "open" : "closed" })));
+  const filed = (issue) => {
+    const data = readDataLine(issue.body ?? "");
+    return Boolean(data) && !data.tagged;
+  };
+  noteRequests(tracker.repo, [...decisions.map((issue) => [issue, "decision"]), ...tasks.map((issue) => [issue, "task"])].map(([issue, kind]) => ({ number: issue.number, kind, tagged: kind === "task" && !filed(issue), state: issue.state === "open" ? "open" : "closed" })));
   forgetUntagged(tracker.repo, new Set(tasks.map((issue) => issue.number)));
   const open = (list) => list.filter((issue) => issue.state === "open");
   return groupRequests({ decisions: open(decisions), tasks: open(tasks), decidedWithoutYou: tracker.open(decidedWithoutYou) });

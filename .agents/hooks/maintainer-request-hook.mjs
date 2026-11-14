@@ -180,15 +180,6 @@ const GH_CHANGING = {
   issue: new Set([...MUTATING_ISSUE_ACTIONS, "create", "new", "develop"]),
   pr: new Set(["create", "new", "comment", "edit", "review", "close", "merge", "reopen", "ready", "lock", "unlock"]),
 };
-const WEB_PARAMETER_NAMES = new Set([
-  "uri", "method", "custommethod", "body", "infile", "form", "headers", "contenttype", "authentication", "token", "credential", "usedefaultcredentials",
-  "usebasicparsing", "outfile", "passthru", "skipcertificatecheck", "skiphttperrorcheck", "skipheadervalidation", "timeoutsec", "operationtimeoutseconds",
-  "connectiontimeoutseconds", "maximumredirection", "maximumretrycount", "retryintervalsec", "useragent", "websession", "sessionvariable",
-  "statuscodevariable", "responseheadersvariable", "noproxy", "proxy", "proxycredential", "proxyusedefaultcredentials", "allowunencryptedauthentication",
-  "allowinsecureredirect", "sslprotocol", "httpversion", "resume", "preserveauthorizationonredirect", "preservehttpmethodonredirect", "disablekeepalive",
-  "transferencoding", "followrellink", "maximumfollowrellink", "certificate", "certificatethumbprint", "unixsocket", "erroraction", "errorvariable",
-  "warningaction", "warningvariable", "informationaction", "informationvariable", "verbose", "debug", "outvariable", "outbuffer", "pipelinevariable",
-]);
 const WEB_CHANGING_PARAMETERS = ["method", "custommethod", "body", "infile", "form"];
 const shortCluster = (token) => /^-[A-Za-z]./.test(token.text);
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -206,14 +197,14 @@ function unmodelled(seg, i, repo) {
     const group = args[at].text.toLowerCase();
     const cluster = args.find(shortCluster);
     if (group === "api") {
-      const texts = args.map((a) => a.text);
-      const changing = texts.some((t) => /^(-X|--method|-f|-F|--field|--raw-field|--input)(=|$)/.test(t)) || args.some((a) => shortCluster(a) && /[XfF]/.test(a.text.slice(1)));
-      if (!changing) return null;
-      const methods = texts.filter((t) => /^(-X|--method)(=|$)/.test(t)).length;
+      const scanned = scanOptions(args.slice(at + 1), GH_API_OPTIONS);
+      const methods = scanned.values("-X", "--method");
+      const sends = scanned.has("-f", "-F", "--field", "--raw-field", "--input");
       const example = `gh api -X PATCH repos/${repo}/issues/<N> -f state=closed`;
-      if (cluster) return plain(`\`${cluster.text}\` runs short options together or attaches a value to a short option; give each flag and its value separately`, example);
-      if (methods > 1) return plain("it names the method more than once; give one -X or --method", example);
-      return null;
+      const maybe = scanned.clusters.find((t) => /[XfF]/.test(t.slice(1)));
+      if (maybe) return plain(`\`${maybe}\` runs short options together or attaches a value to a short option; give each flag and its value separately`, example);
+      if (!(methods.some((m) => !READ_METHODS.has(m.toUpperCase())) || (!methods.length && sends))) return null;
+      return refusedForm(scanned, methods, plain, example, "-X or --method");
     }
     const action = args.slice(at + 1).find((a) => !a.text.startsWith("-"))?.text.toLowerCase();
     if (!GH_CHANGING[group].has(action) || !cluster) return null;
@@ -223,23 +214,73 @@ function unmodelled(seg, i, repo) {
   const addressed = new RegExp(`github\\.com/(?:repos/)?${slug}(?:$|[/#?])`, "i");
   if (!args.some((a) => addressed.test(a.text))) return null;
   if (base === "curl") {
-    const texts = args.map((a) => a.text);
-    const changing = texts.some((t) => /^(-X|--request|-d|--data[\w-]*|--json|-F|--form[\w-]*|-T|--upload-file)(=|$)/.test(t)) || args.some((a) => shortCluster(a) && /[XdFT]/.test(a.text.slice(1)));
-    if (!changing) return null;
+    const scanned = scanOptions(args, CURL_OPTIONS);
     const example = `curl -X POST https://api.github.com/repos/${repo}/issues/<N>/comments -H "Authorization: Bearer <token>" --data @body.json`;
-    const cluster = args.find(shortCluster);
-    if (cluster) return plain(`\`${cluster.text}\` runs short options together or attaches a value to a short option; give each flag and its value separately`, example);
-    if (texts.some((t) => t === "--next" || t === "-:")) return plain("it batches several transfers (`--next`); make one curl call per request", example);
-    const urls = args.filter((a) => /^(?:--url=)?(?:https?:\/\/|[\w.-]+\.[a-z]{2,}(?::\d+)?\/)/i.test(a.text) && !/^\s*[{[]/.test(a.text));
+    const risky = scanned.unknown.find((t) => CURL_RISKY.test(t)) ?? scanned.clusters.find((t) => /[XdFTK]/.test(t.slice(1)));
+    if (risky) return plain(`\`${risky}\` can set the request's method, body or destination in a way the guard does not read; send the body with --data or --json and the method with -X`, example);
+    const methods = scanned.values("-X", "--request");
+    const sends = scanned.has("-d", "--data", "--data-raw", "--data-binary", "--data-ascii", "--data-urlencode", "--json");
+    if (!(methods.some((m) => !READ_METHODS.has(m.toUpperCase())) || (!methods.length && sends && !scanned.has("-G", "--get")))) return null;
+    const urls = [...scanned.positional, ...scanned.values("--url")];
     if (urls.length > 1) return plain("it names more than one URL, which curl sends as several transfers; make one curl call per request", example);
-    return null;
+    return refusedForm(scanned, methods, plain, example, "-X or --request");
   }
-  const parameters = args.map((a) => /^-([A-Za-z]+)(:[\s\S]*)?$/.exec(a.text)).filter(Boolean);
-  const changing = parameters.some(([, name]) => name.toLowerCase() === "cm" || WEB_CHANGING_PARAMETERS.some((full) => full.startsWith(name.toLowerCase())));
-  if (!changing) return null;
-  const odd = parameters.find(([, name, attached]) => attached !== undefined || !WEB_PARAMETER_NAMES.has(name.toLowerCase()));
-  if (!odd) return null;
-  return plain(`\`${odd[0]}\` is ${odd[2] !== undefined ? "a parameter with its value attached by a colon" : "not a full parameter name"}; give each parameter by its full name with its value separately`, `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/<N>/comments -Method Post -Body <json>`);
+  const parameters = args.map((a, k) => [a.text, /^-([A-Za-z]+)(:[\s\S]*)?$/.exec(a.text), args[k + 1]?.text ?? ""]).filter(([, m]) => m);
+  const example = `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/<N>/comments -Method Post -Body <json>`;
+  const form = parameters.find(([, m]) => m[1].length >= 2 && "form".startsWith(m[1].toLowerCase()));
+  if (form) return plain(`\`${form[0]}\` sends a multipart form the guard does not read; send a JSON -Body or -InFile`, example);
+  const changingName = (name) => name === "cm" || WEB_CHANGING_PARAMETERS.some((full) => full.startsWith(name));
+  const ambiguous = parameters.find(([, m]) => changingName(m[1].toLowerCase()) && (m[2] !== undefined || !WEB_OPTIONS.has(m[1].toLowerCase())));
+  if (ambiguous) return plain(`\`${ambiguous[0]}\` is ${ambiguous[1][2] !== undefined ? "a parameter with its value attached by a colon" : "not a full parameter name"}; give each parameter by its full name with its value separately`, example);
+  const methods = parameters.filter(([, m]) => ["method", "custommethod"].includes(m[1].toLowerCase())).map(([, , value]) => value);
+  if (!methods.some((m) => !READ_METHODS.has(m.toUpperCase()))) return null;
+  const odd = parameters.find(([, m]) => m[2] !== undefined || !WEB_OPTIONS.has(m[1].toLowerCase()));
+  if (odd) return plain(`\`${odd[0]}\` is not among the parameters the guard reads on a changing request, by full name with a separate value; use -Uri, -Method, -Body or -InFile, -Headers and -ContentType`, example);
+  if (methods.length > 1) return plain("it names the method more than once; give one -Method or -CustomMethod", example);
+  return null;
+}
+
+const READ_METHODS = new Set(["GET", "HEAD"]);
+const GH_API_OPTIONS = { values: new Set(["-X", "--method", "-f", "-F", "--field", "--raw-field", "--input", "-H", "--header", "-q", "--jq", "-t", "--template", "-p", "--preview", "--cache", "--hostname"]), flags: new Set(["-i", "--include", "--paginate", "--slurp", "--silent", "--verbose"]) };
+const CURL_OPTIONS = {
+  values: new Set(["-X", "--request", "-H", "--header", "-d", "--data", "--data-raw", "--data-binary", "--data-ascii", "--data-urlencode", "--json", "--url", "-o", "--output", "-w", "--write-out", "-m", "--max-time", "--retry", "--connect-timeout", "-A", "--user-agent", "-u", "--user", "--oauth2-bearer"]),
+  flags: new Set(["-s", "--silent", "-S", "--show-error", "-f", "--fail", "--fail-with-body", "-i", "--include", "-v", "--verbose", "--compressed", "-G", "--get"]),
+};
+const CURL_RISKY = /^(-K|--config|--request-target|-T|--upload-file|-F|--form|--form-string|--next|-:|--variable|--expand-[\w-]+|--url-query|--globoff|-g|-x|--proxy)(=|$)/;
+const WEB_OPTIONS = new Set(["uri", "method", "custommethod", "body", "infile", "headers", "contenttype", "authentication", "token", "usebasicparsing", "erroraction", "statuscodevariable", "responseheadersvariable", "skiphttperrorcheck", "timeoutsec", "useragent", "outfile", "passthru"]);
+
+function scanOptions(args, spec) {
+  const options = [];
+  const unknown = [];
+  const clusters = [];
+  const positional = [];
+  for (let k = 0; k < args.length; k++) {
+    const text = args[k].text;
+    if (text === "--") {
+      positional.push(...args.slice(k + 1).map((a) => a.text));
+      break;
+    }
+    if (!text.startsWith("-") || text === "-") {
+      positional.push(text);
+      continue;
+    }
+    const eq = text.startsWith("--") ? text.indexOf("=") : -1;
+    const name = eq > 0 ? text.slice(0, eq) : text;
+    if (spec.values.has(name)) options.push([name, eq > 0 ? text.slice(eq + 1) : (args[++k]?.text ?? "")]);
+    else if (spec.flags.has(name) && eq < 0) options.push([name, ""]);
+    else if (/^-[A-Za-z]./.test(text)) clusters.push(text);
+    else unknown.push(text);
+  }
+  return { options, unknown, clusters, positional, values: (...names) => options.filter(([n]) => names.includes(n)).map(([, v]) => v), has: (...names) => options.some(([n]) => names.includes(n)) };
+}
+
+function refusedForm(scanned, methods, plain, example, methodFlag) {
+  const cluster = scanned.clusters[0];
+  if (cluster) return plain(`\`${cluster}\` runs short options together or attaches a value to a short option; give each flag and its value separately`, example);
+  const odd = scanned.unknown[0];
+  if (odd) return plain(`\`${odd}\` is not among the options the guard reads on a changing request`, example);
+  if (methods.length > 1) return plain(`it names the method more than once; give one ${methodFlag}`, example);
+  return null;
 }
 
 function changes(request) {
