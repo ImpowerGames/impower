@@ -190,6 +190,10 @@ import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { resolveSelector } from "../utils/resolveSelector";
+import {
+  CHARACTER_ALIAS_ID,
+  characterAliasOwners,
+} from "../utils/characterAliasOwners";
 import { getContextEntry } from "../utils/getContextEntry";
 import { getTypedImageEntry, typedImageTypes } from "../utils/resolveImageReference";
 import { setContextEntry } from "../utils/setContextEntry";
@@ -5523,6 +5527,51 @@ export class SparkdownCompiler {
         }
         return;
       }
+      if (reference.declaration === "character_alias") {
+        readType(reads, "character");
+        const id = reference.symbolIds?.[0];
+        if (id === undefined) {
+          report(
+            DiagnosticSeverity.Error,
+            `An alias is a quoted name in a list: \`aliases = { "STRANGER" }\``,
+          );
+          return;
+        }
+        const alias = id.slice(CHARACTER_ALIAS_ID.length);
+        const owner = reference.assigned?.name ?? "";
+        const characters = program.context?.["character"] ?? {};
+        const own = characters[owner];
+        if (!alias) {
+          report(DiagnosticSeverity.Error, `An alias cannot be empty`);
+        } else if (alias === owner || alias === own?.name) {
+          report(
+            DiagnosticSeverity.Error,
+            `\`${alias}\` already names this character, so it cannot be one of its aliases`,
+          );
+        } else if (
+          Array.isArray(own?.aliases) &&
+          own.aliases.indexOf(alias) !== own.aliases.lastIndexOf(alias)
+        ) {
+          report(
+            DiagnosticSeverity.Error,
+            `\`${alias}\` is listed more than once in these aliases`,
+          );
+        } else {
+          const other = Object.keys(characters).find(
+            (name) =>
+              name !== owner &&
+              !name.startsWith("$") &&
+              (name === alias || characters[name]?.name === alias),
+          );
+          if (other) {
+            report(
+              DiagnosticSeverity.Error,
+              `\`${alias}\` names the character \`${other}\`, so it cannot be an alias of \`${owner}\``,
+            );
+          }
+        }
+        return;
+      }
       if (reference.asset) {
         const { types, name, typed } = reference.asset;
         const declared = types.some((type) => {
@@ -5572,6 +5621,12 @@ export class SparkdownCompiler {
             found = resolved;
           }
         }
+        const aliasSelector = found
+          ? undefined
+          : reference.selectors.find((s) => s.property === "aliases");
+        const aliasOwners = aliasSelector?.value
+          ? characterAliasOwners(program.context, aliasSelector.value)
+          : [];
         if (
           reference.stylingStringIdentifier &&
           selector?.name &&
@@ -5608,6 +5663,15 @@ export class SparkdownCompiler {
               `\`${name}\` is defined as both an image and a video, so \`[[show]]\` and \`[[animate]]\` cannot tell which to display: rename one of them`,
             );
           }
+        } else if (aliasOwners.length === 1) {
+        } else if (aliasOwners.length > 1) {
+          report(
+            DiagnosticSeverity.Warning,
+            `\`${aliasSelector!.value}\` is an alias of ${aliasOwners
+              .map((owner) => `\`${owner}\``)
+              .join(", ")
+              .replace(/, ([^,]*)$/, " and $1")}, so this line names none of them`,
+          );
         } else if (readsLayout(reads) && namesLayoutElement(selector)) {
         } else if (
           reference.declaration === "define_type_name" &&

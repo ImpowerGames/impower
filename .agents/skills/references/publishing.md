@@ -69,7 +69,14 @@ The parent read-back answers `No parent issue found (HTTP 404)` when the attach 
 
 A maintainer request (label `maintainer: decision` or `maintainer: task`, filed by [ask-maintainer](../ask-maintainer/SKILL.md)) is the stated exception: it takes no parent, no milestone and no project entry, because a sub-issue would be planned as work to hand to a writer. Its tool links it to each ticket it holds up with a `blocked_by` dependency instead, and that link is its placement.
 
-A root Feature filed by `file-feature` has no parent: it needs a milestone, set with the same PATCH call and read back, and the maintainer adds it to the project board because the `gh` token cannot. Project membership follows the parent link, so a sub-issue never has a project field written for it.
+A root Feature filed by `file-feature` has no parent: it needs a milestone, set with the same PATCH call and read back, and the filing agent adds it to the project board itself. Any agent may add any ticket to a project. Project membership follows the parent link, so a sub-issue is normally on its parent's board already; when its timeline shows no `added_to_project_v2` event, add it the same way as a root ticket.
+
+```sh
+gh project list --owner ImpowerGames                                                      # find the project number
+gh project item-add <project-number> --owner ImpowerGames --url https://github.com/<tickets-owner>/<tickets-repo>/issues/<N>
+```
+
+These calls need the `project` scope. When `gh` answers that the scope is missing, run `gh auth refresh --hostname github.com --scopes project` once and complete the browser authorization (an interactive step: stop and ask the maintainer to do it, then continue); never report the board step as impossible or leave it to the maintainer.
 
 ## Multi-line bodies for `gh` and `git` (silent-corruption footgun)
 

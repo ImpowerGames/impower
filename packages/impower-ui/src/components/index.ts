@@ -41,6 +41,8 @@ export {
   DropdownTrigger,
   DropdownSeparator,
   DropdownContent,
+  dropdownContentVariants,
+  type DropdownContentFit,
   DropdownItem,
   DropdownItemText,
   DropdownCheckboxItem,
@@ -401,6 +403,7 @@ export {
   type WheelPickerSize,
   type WheelSheetProps,
   type WheelSheetSize,
+  type WheelSheetFit,
 } from "./wheel-picker/WheelPicker";
 export {
   default as VariantsBadge,

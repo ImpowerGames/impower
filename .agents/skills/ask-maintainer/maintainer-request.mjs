@@ -881,7 +881,7 @@ export function formatList(groups, { now = new Date(), timeZone = Intl.DateTimeF
   return lines.join("\n").trimEnd();
 }
 
-export function listRequests(tracker, repos = readRepos()) {
+export function listRequests(tracker, repos = readRepos(), { owner = null } = {}) {
   const { decision, task, decidedWithoutYou } = repos.maintainer.labels;
   const decisions = tracker.all(decision);
   const tasks = tracker.all(task);
@@ -891,8 +891,10 @@ export function listRequests(tracker, repos = readRepos()) {
   };
   noteRequests(tracker.repo, [...decisions.map((issue) => [issue, "decision"]), ...tasks.map((issue) => [issue, "task"])].map(([issue, kind]) => ({ number: issue.number, kind, tagged: kind === "task" && !filed(issue), state: issue.state === "open" ? "open" : "closed" })));
   forgetUntagged(tracker.repo, new Set(tasks.map((issue) => issue.number)));
-  const open = (list) => list.filter((issue) => issue.state === "open");
-  const wentAhead = tracker.open(decidedWithoutYou).filter((issue) => fallbackCommitted(issue, tracker.timeline(issue.number), repos));
+  const ownerOf = (issue) => findRequestData(issue, () => tracker.comments(issue.number), whoOf(repos))?.data.owner ?? null;
+  const owned = (list) => (owner === null ? list : list.filter((issue) => ownerOf(issue) === owner));
+  const open = (list) => owned(list.filter((issue) => issue.state === "open"));
+  const wentAhead = owned(tracker.open(decidedWithoutYou)).filter((issue) => fallbackCommitted(issue, tracker.timeline(issue.number), repos));
   return groupRequests({ decisions: open(decisions), tasks: open(tasks), decidedWithoutYou: wentAhead });
 }
 
@@ -902,12 +904,17 @@ export const stamp = (iso) => `${new Date(iso).toISOString().slice(0, 16).replac
 export const quote = (text) => lf(text).split("\n").map((line) => (line ? `> ${line}` : ">")).join("\n");
 export const unquote = (text) => lf(text).split("\n").map((line) => (line === ">" ? "" : line.replace(/^> /, ""))).join("\n");
 
-function requestData(issue, comments, who) {
-  if (issue.pull_request) throw new RequestRefused([`#${issue.number} is a pull request, not a maintainer request`]);
+function findRequestData(issue, comments, who) {
   const own = readDataLine(issue.body);
   if (own && !own.tagged) return { data: own, body: lf(issue.body), floor: null };
-  const tag = comments.find((comment) => commentAuthor(comment, who) !== "other" && readDataLine(comment.body)?.tagged);
-  if (tag) return { data: readDataLine(tag.body), body: lf(tag.body), floor: tag };
+  const tag = comments().find((comment) => commentAuthor(comment, who) !== "other" && readDataLine(comment.body)?.tagged);
+  return tag ? { data: readDataLine(tag.body), body: lf(tag.body), floor: tag } : null;
+}
+
+function requestData(issue, comments, who) {
+  if (issue.pull_request) throw new RequestRefused([`#${issue.number} is a pull request, not a maintainer request`]);
+  const found = findRequestData(issue, () => comments, who);
+  if (found) return found;
   throw new RequestRefused([`#${issue.number} is not a maintainer request: neither its body nor a task comment holds the request's data line`]);
 }
 
@@ -1091,6 +1098,33 @@ export function recordAnswer(number, { tracker, repos = readRepos(), identity = 
       : { ...postNote(tracker, number, toolText(`Recorded by the ask-maintainer tool${records.length ? ` on ${records.map((r) => `#${r.ticket} ([record](${r.url}))`).join(", ")}` : "; no other ticket waits on this request, so there was nothing to record elsewhere"}.`, { kind: "recorded", request: number, answer: key, records: records.map((r) => ({ ticket: r.ticket, comment: r.id })) }, identity), scratch, "recorded"), reused: false };
     return { answer, records, confirmation, history };
   });
+}
+
+export function requestFacts(number, { tracker, repos = readRepos(), holding = null }) {
+  const answer = fetchAnswer(number, { tracker, repos });
+  const holds = holding === null ? null : tracker.blockedBy(holding).some((issue) => issue.number === number);
+  const answered = ANSWERED.includes(answer.state);
+  const key = answered ? answerKey(answer) : null;
+  const who = whoOf(repos);
+  const recorded = answered && tracker.comments(number).some((comment) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === "recorded" && readNote(comment.body)?.request === number && readNote(comment.body)?.answer === key);
+  return { number, url: answer.url, title: answer.title, kind: answer.kind, question: answer.question, owner: answer.data.owner ?? null, tickets: answer.tickets, ...(holding !== null && { holding, holds }), state: answer.state, answered, recorded, recommended: answer.recommended, wentAhead: answer.wentAhead ?? null, closed: answer.closed ?? null, words: answer.words.map(({ url, at, body, relayed }) => ({ url, at, body, ...(relayed && { relayed: true }) })) };
+}
+
+export function answerText(facts) {
+  const fallback = facts.wentAhead ? `the fallback ${optionLabel(facts.wentAhead)}` : "the fallback";
+  const closedAt = facts.closed ? stamp(facts.closed.at) : "an unrecorded time";
+  const words = facts.words.length ? ", in the words quoted below" : "";
+  const answer = {
+    done: `the maintainer did it, closing the task as completed at ${closedAt}${words}`,
+    "will-not-do": `the maintainer will not do it, closing the task as not planned at ${closedAt}${words}`,
+    answered: "the maintainer answered in the words quoted below",
+    changed: `the maintainer changed ${fallback} in the words quoted below`,
+    kept: `the maintainer kept ${fallback} by closing without comment at ${closedAt}`,
+    accepted: `the maintainer accepted the recommendation${facts.recommended ? `, ${facts.recommended.letter}${facts.recommended.name ? ` · ${facts.recommended.name}` : ""},` : ""} by closing without comment at ${closedAt}`,
+  }[facts.state];
+  if (!answer) throw new RequestRefused([`#${facts.number} holds no answer: it is ${facts.state}`]);
+  const quoted = facts.words.map((word) => `\n${word.relayed ? "Typed in chat and relayed on the request" : "Their comment"} at ${stamp(word.at)} (${word.url}):\n${quote(lf(word.body).trimEnd())}`);
+  return [`Maintainer request #${facts.number} (${facts.url}) asked "${facts.question}"; ${answer}.`, ...quoted].join("\n");
 }
 
 function checkNoteText(value, what) {
@@ -1446,7 +1480,7 @@ export function formatAnswer(answer) {
 const USAGE = `Usage:
   node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<pictures-folder>] [--dry-run]
   node .agents/skills/ask-maintainer/maintainer-request.mjs tag <ticket> <task.json> [<pictures-folder>]
-  node .agents/skills/ask-maintainer/maintainer-request.mjs list [--json]
+  node .agents/skills/ask-maintainer/maintainer-request.mjs list [--owner=<owner>] [--json]
   node .agents/skills/ask-maintainer/maintainer-request.mjs identity
   node .agents/skills/ask-maintainer/maintainer-request.mjs read <request> [--json]
   node .agents/skills/ask-maintainer/maintainer-request.mjs record <request>
@@ -1551,12 +1585,14 @@ export function main(argv, { repos = readRepos(), identity = AS_MAINTAINER, trac
     out(`Tagged #${result.number} as a maintainer task: ${result.url} (comment ${result.comment}, ${result.pictures} picture(s)); blocks ${result.blocked.length ? result.blocked.map((n) => `#${n}`).join(", ") : "no other ticket"}; no issue was created.\nTagged ${filedBy(identity)}`);
     return 0;
   }
-  if (command === "list" && !args.length && flags.every((flag) => flag === "--json")) {
-    const groups = listRequests(tracker, repos);
+  const ownerFlags = flags.filter((flag) => flag.startsWith("--owner="));
+  if (command === "list" && !args.length && ownerFlags.length <= 1 && flags.every((flag) => flag === "--json" || (flag.startsWith("--owner=") && flag.length > "--owner=".length))) {
+    const owner = ownerFlags.length ? ownerFlags[0].slice("--owner=".length) : null;
+    const groups = listRequests(tracker, repos, { owner });
     if (flags.includes("--json")) {
       const pick = (issue) => ({ number: issue.number, title: issue.title, url: issue.html_url, created: issue.created_at, data: readDataLine(issue.body) });
-      out(JSON.stringify({ decisions: groups.decisions.map(pick), tasks: groups.tasks.map(pick), decidedWithoutYou: groups.decidedWithoutYou.map(pick) }, null, 2));
-    } else out(formatList(groups, { now }));
+      out(JSON.stringify({ ...(owner !== null && { owner }), decisions: groups.decisions.map(pick), tasks: groups.tasks.map(pick), decidedWithoutYou: groups.decidedWithoutYou.map(pick) }, null, 2));
+    } else out(`${owner === null ? "" : `Open maintainer requests owned by ${owner}\n\n`}${formatList(groups, { now })}`);
     return 0;
   }
   if (command === "identity" && !rest.length) {

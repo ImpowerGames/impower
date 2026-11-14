@@ -402,13 +402,23 @@ const addCharacterCompletions = (
   strict = false,
   program?: SparkProgram,
 ) => {
+  const characters = program?.context?.["character"] || {};
   const mostRecentTexts = rankMostRecentTexts(
     "characters",
     scripts,
     uri,
     contentNode,
     strict,
-    Object.keys(program?.context?.["character"] || {}),
+    [
+      ...Object.keys(characters),
+      ...Object.values(characters).flatMap((character: any) =>
+        Array.isArray(character?.aliases)
+          ? character.aliases.filter(
+              (alias: unknown): alias is string => typeof alias === "string",
+            )
+          : [],
+      ),
+    ],
   );
   for (const text of mostRecentTexts) {
     const labelDetails = { description: "character" };

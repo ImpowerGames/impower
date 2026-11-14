@@ -12,9 +12,9 @@
       "decidedWithoutYou": "maintainer: decided without you"
     },
     "app": {
-      "slug": null,
-      "id": null,
-      "installationId": null
+      "slug": "impower-ask-maintainer",
+      "id": 5759320,
+      "installationId": 181939255
     }
   }
 }
