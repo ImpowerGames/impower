@@ -509,31 +509,6 @@ describe("the preview's route keeps the author's pins", () => {
   }, 120_000);
 });
 
-const lieLoop = [
-  "store trust = 0",
-  "store clues = 0",
-  "store noise = 0",
-  "",
-  "scene start",
-  "  choose",
-  "    * [Tell the truth.]",
-  "      trust += 2",
-  "    * [Lie.]",
-  "      for j = 1, 2000 do",
-  "        noise += 1",
-  "      end",
-  "      trust -= 1",
-  "  end",
-  "  if trust > 3 then",
-  "    for i = 1, 40000 do",
-  "      clues += 1",
-  "    end",
-  "    You found {clues} clues.",
-  "  end",
-  "end",
-  "",
-];
-
 const withoutKinds = (route: PreviewRoute) =>
   route.decisions.map((d) => [
     d.location.range.start.line + 1,
@@ -542,80 +517,138 @@ const withoutKinds = (route: PreviewRoute) =>
     d.passes,
   ]);
 
-describe("pinning the option the route already takes changes only its kind", () => {
-  test("the example of #1655 at line 21 through Tell the truth. clips its loop after the same passes", () => {
-    const auto = preview(example, 21, [], "clues");
-    const pinned = preview(example, 21, [pin(8)], "clues");
-    expect(kindsAndLines(auto.route)).toEqual([
-      ["auto", 8],
-      ["forced", 15],
-      ["clipped", 18],
-    ]);
-    expect(kindsAndLines(pinned.route)).toEqual([
-      ["pinned", 8],
-      ["forced", 15],
-      ["clipped", 18],
-    ]);
-    expect(withoutKinds(auto.route)).toEqual(withoutKinds(pinned.route));
-    expect(auto.count).toBe(pinned.count);
-    expect(auto.route.decisions[2]!.passes).toBe(auto.count);
-  }, 120_000);
-
-  test("an option whose sibling runs a long loop clips the route's loop after the same passes", () => {
-    const auto = preview(lieLoop, 19, [], "clues");
-    const taken = auto.route.decisions[0]!;
-    expect(taken.kind).toBe("auto");
-    const pinned = preview(
-      lieLoop,
-      19,
-      [pin(taken.location.range.start.line + 1)],
-      "clues",
+const pinningEachTakenOptionChangesOnlyItsKind = (
+  lines: string[],
+  line: number,
+) => {
+  const auto = preview(lines, line, [], "clues");
+  const taken = auto.route.decisions.filter((d) => d.kind === "auto");
+  expect(taken.length).toBeGreaterThan(0);
+  for (const choice of taken) {
+    const at = choice.location.range.start.line + 1;
+    const pinned = preview(lines, line, [pin(at, choice.meeting)], "clues");
+    expect(
+      pinned.route.decisions.map((d) =>
+        d.location.range.start.line + 1 === at ? "pinned" : d.kind,
+      ),
+    ).toEqual(
+      auto.route.decisions.map((d) =>
+        d.location.range.start.line + 1 === at ? "pinned" : d.kind,
+      ),
     );
-    expect(pinned.route.decisions[0]!.kind).toBe("pinned");
-    expect(withoutKinds(auto.route)).toEqual(withoutKinds(pinned.route));
-    expect(auto.count).toBe(pinned.count);
+    expect(withoutKinds(pinned.route)).toEqual(withoutKinds(auto.route));
+    expect(pinned.count).toBe(auto.count);
+  }
+  return auto;
+};
+
+describe("pinning an option the route already takes changes only its kind", () => {
+  test("the example of #1655 at line 21", () => {
+    const { route, count } = pinningEachTakenOptionChangesOnlyItsKind(
+      example,
+      21,
+    );
+    const loop = route.decisions.at(-1)!;
+    expect(loop.kind).toBe("clipped");
+    expect(loop.passes).toBe(count);
   }, 120_000);
 
-  test("pinning the first option leaves the later menu's option the route takes", () => {
-    const lines = [
-      "store trust = 0",
-      "store clues = 0",
-      "scene start",
-      "  choose",
-      "    * [Tell the truth.]",
-      "      trust = 2",
-      "    * [Show the photograph.]",
-      "      for i = 1, 40000 do",
-      "        clues += 1",
-      "      end",
-      "  end",
-      "  choose",
-      "    * [Keep the story.]",
-      "      trust += 0",
-      "    * [Improve the story.]",
-      "      trust = 5",
-      "      for j = 1, 3000 do",
-      "        clues += 1",
-      "      end",
-      "  end",
-      "  if trust > 3 then",
-      "    You found {clues} clues.",
-      "  end",
-      "end",
-      "",
-    ];
-    const auto = preview(lines, 22, [], "clues");
-    const pinned = preview(lines, 22, [pin(5)], "clues");
-    expect(kindsAndLines(auto.route)).toEqual([
-      ["auto", 5],
-      ["auto", 15],
-    ]);
-    expect(kindsAndLines(pinned.route)).toEqual([
-      ["pinned", 5],
-      ["auto", 15],
-    ]);
-    expect(withoutKinds(auto.route)).toEqual(withoutKinds(pinned.route));
-    expect(auto.count).toBe(3000);
-    expect(pinned.count).toBe(3000);
+  test("an option whose sibling runs a long loop", () => {
+    pinningEachTakenOptionChangesOnlyItsKind(
+      [
+        "store trust = 0",
+        "store clues = 0",
+        "store noise = 0",
+        "",
+        "scene start",
+        "  choose",
+        "    * [Tell the truth.]",
+        "      trust += 2",
+        "    * [Lie.]",
+        "      for j = 1, 2000 do",
+        "        noise += 1",
+        "      end",
+        "      trust -= 1",
+        "  end",
+        "  if trust > 3 then",
+        "    for i = 1, 40000 do",
+        "      clues += 1",
+        "    end",
+        "    You found {clues} clues.",
+        "  end",
+        "end",
+        "",
+      ],
+      19,
+    );
+  }, 120_000);
+
+  test("two menus where a later option avoids the forced verdict", () => {
+    pinningEachTakenOptionChangesOnlyItsKind(
+      [
+        "store trust = 0",
+        "store clues = 0",
+        "scene start",
+        "  choose",
+        "    * [Tell the truth.]",
+        "      trust = 2",
+        "    * [Show the photograph.]",
+        "      for i = 1, 40000 do",
+        "        clues += 1",
+        "      end",
+        "  end",
+        "  choose",
+        "    * [Keep the story.]",
+        "      trust += 0",
+        "    * [Improve the story.]",
+        "      trust = 5",
+        "      for j = 1, 3000 do",
+        "        clues += 1",
+        "      end",
+        "  end",
+        "  if trust > 3 then",
+        "    You found {clues} clues.",
+        "  end",
+        "end",
+        "",
+      ],
+      22,
+    );
+  }, 120_000);
+
+  test("two menus whose options tie on forced verdicts", () => {
+    pinningEachTakenOptionChangesOnlyItsKind(
+      [
+        "store trust = 0",
+        "store clues = 0",
+        "scene start",
+        "  choose",
+        "    * [Tell the truth.]",
+        "      trust = 2",
+        "    * [Lie.]",
+        "      trust = -1",
+        "      for i = 1, 2000 do",
+        "        clues += 1",
+        "      end",
+        "  end",
+        "  choose",
+        "    * [Keep the story.]",
+        "      trust += 0",
+        "    * [Investigate more.]",
+        "      for j = 1, 2000 do",
+        "        clues += 1",
+        "      end",
+        "  end",
+        "  if trust > 3 then",
+        "    for k = 1, 40000 do",
+        "      clues += 1",
+        "    end",
+        "    You found {clues} clues.",
+        "  end",
+        "end",
+        "",
+      ],
+      25,
+    );
   }, 120_000);
 });

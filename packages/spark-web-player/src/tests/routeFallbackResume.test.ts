@@ -116,7 +116,7 @@ describe("a scrub after a route origin/main's search found", () => {
     const main = scrubTwice("Skipped line", "Target total");
     expect(main).toMatchObject({ before: 0, firstFellBack: true, after: 0 });
 
-    faithfulBudget.nodes = 4;
+    faithfulBudget.nodes = 1;
     const resumed = scrubTwice("Skipped line", "Target total");
     expect(resumed).toEqual({
       before: 0,
@@ -130,7 +130,7 @@ describe("a scrub after a route origin/main's search found", () => {
   }, 120_000);
 
   test("replays its route again for the same line", () => {
-    faithfulBudget.nodes = 4;
+    faithfulBudget.nodes = 1;
     expect(scrubTwice("Skipped line", "Skipped line")).toMatchObject({
       before: 0,
       resumed: true,
@@ -140,7 +140,7 @@ describe("a scrub after a route origin/main's search found", () => {
   }, 120_000);
 
   test("searches from the top when an edit comes before every checkpoint of the route", () => {
-    faithfulBudget.nodes = 4;
+    faithfulBudget.nodes = 1;
     const compiler = configure(TEXT);
     const game = gameOf(compile(compiler));
     expect(scrub(game, TEXT, "Skipped line")).toBe(0);
@@ -173,8 +173,8 @@ describe("a scrub after a route origin/main's search found", () => {
 
 describe("a scrub resumed from a route the program's own search found", () => {
   test.each([
-    [9, 6, false],
-    [8, 0, true],
+    [2, 6, false],
+    [1, 0, true],
   ])(
     "at a budget of %i nodes shows what a search from the top shows",
     (nodes, value, fellBack) => {

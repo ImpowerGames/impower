@@ -512,10 +512,15 @@ describe("a search whose level spends its bound", () => {
     expect(route.conditions).toHaveLength(4001);
   }, 120_000);
 
-  test("a loop with no beat in it longer than the search's budget shows origin/main's value", () => {
+  test("a loop with no beat in it longer than a route's allowance is clipped after the passes the allowance ran", () => {
     const lines = longLoop(25000);
-    expect(previewedStore(lines.join("\n"), 6, "total")).toBe(0);
-    expect(routeTo(lines, "Target total").fallback).toBe(true);
+    const total = previewedStore(lines.join("\n"), 6, "total") as number;
+    expect(total).toBeGreaterThan(0);
+    expect(total).toBeLessThan(25000);
+    const route = routeTo(lines, "Target total");
+    expect(route.fallback).toBeUndefined();
+    expect(route.decisions.filter((d: any) => d.departs)).toHaveLength(1);
+    expect(route.conditions.filter((c) => c.selected)).toHaveLength(total);
   }, 120_000);
 
   test("a branch the program skips before a loop that outlasts the search's budget is still reached", () => {
@@ -535,6 +540,6 @@ describe("a search whose level spends its bound", () => {
     ];
     const route = routeTo(lines, "Inside the branch");
     expect(route.conditions.map((c) => c.selected)).toEqual([true]);
-    expect(route.fallback).toBe(true);
+    expect(route.fallback).toBeUndefined();
   }, 120_000);
 });
