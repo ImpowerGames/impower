@@ -2,6 +2,8 @@ import {
   MessageProtocol,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
+import { ExecuteEditorCommandMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ToggleEditorBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ToggleEditorBreakpointMessage";
 import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
@@ -725,6 +727,37 @@ describe("WorkspaceWindow store transitions", () => {
       expect(window.location.hash).toBe("#write");
       expect(workspace.current.panes.logic.view).toBe("list");
       expect(workspace.current.panes.logic.panel).toBe("main");
+    });
+
+    it("opens a new script on write in Edit mode and focuses its editor once the editor has loaded it", async () => {
+      const projectId = workspace.current.project.id;
+      const uri = `file://${projectId}/Scripts/Untitled script.sd`;
+      const commands: unknown[] = [];
+      const hear = (e: Event) => {
+        const message = (e as CustomEvent).detail;
+        if (ExecuteEditorCommandMessage.type.isRequest(message)) commands.push(message.params);
+      };
+      window.addEventListener(MessageProtocol.event, hear);
+      try {
+        workspace.scriptMode.value = "reading";
+        win.navigateTo("scripts");
+        const writing = win.writeScript("Scripts/Untitled script.sd");
+        expect(window.location.hash).toBe("#write");
+        expect(workspace.current.panes.logic.panels.scripts?.activeEditor).toMatchObject({
+          open: true,
+          filename: "Scripts/Untitled script.sd",
+        });
+        expect(commands).toEqual([]);
+        sendProtocolMessage(
+          DidLoadEditorMessage.type.notification({ textDocument: { uri, version: 1 } }),
+        );
+        await writing;
+        expect(workspace.scriptMode.value).toBe("editing");
+        expect(commands).toEqual([{ textDocument: { uri }, command: "focus" }]);
+      } finally {
+        window.removeEventListener(MessageProtocol.event, hear);
+        workspace.scriptMode.value = "reading";
+      }
     });
 
     it("browses the scripts from either editor; a script's Back returns to the Scripts page and Back to story to that script", () => {

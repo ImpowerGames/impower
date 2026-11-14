@@ -52,12 +52,8 @@ import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/R
 import { unzipSync, zipSync } from "fflate";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { buildZippable, parseUnzipEntries } from "./utils/assetArchive";
-import {
-  allocateCommit,
-  readCommitSequence,
-  withLock,
-  withSharedLock,
-} from "./utils/commitSequence";
+import { allocateCommit, readCommitSequence } from "./utils/commitSequence";
+import { withLock, withSharedLock } from "./utils/locks";
 import debounce from "./utils/debounce";
 import {
   createDirectory,
