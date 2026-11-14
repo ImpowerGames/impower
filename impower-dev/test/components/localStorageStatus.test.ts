@@ -96,13 +96,16 @@ afterEach(async () => {
 
 describe("the local project's storage status", () => {
   it("says where the work lives, with a marker while the browser has not agreed to keep it", async () => {
-    expect(trigger()?.textContent?.trim()).toBe("Saved on this device");
+    expect(trigger()?.textContent?.trim()).toBe("Draft saved");
+    expect(trigger()?.getAttribute("title")).toBe(
+      "Saved in this browser. Open Save & sync.",
+    );
     expect(trigger()?.querySelector("[data-storage-marker]")).not.toBeNull();
   });
 
   it("drops the marker once storage is persistent", async () => {
     await setDevice(true, "granted");
-    expect(trigger()?.textContent?.trim()).toBe("Saved on this device");
+    expect(trigger()?.textContent?.trim()).toBe("Draft saved");
     expect(trigger()?.querySelector("[data-storage-marker]")).toBeNull();
   });
 

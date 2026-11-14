@@ -8,13 +8,13 @@ export type SaveAction = "menu" | "settings" | "conflict";
 
 export type SaveStatus = {
   text: string;
+  title?: string;
   tone: SaveTone;
   glyph?: SaveGlyph;
   action: SaveAction;
 };
 
 export const DEVICE_STORAGE_COPY = {
-  status: "Saved on this device",
   statusTitle: "Where this project is stored",
   marker: "This browser may clear it when space runs low",
   where: "Stored in this browser only.",
@@ -111,11 +111,14 @@ export const saveStatusOf = (
     return null;
   }
   if (status === "cached") {
-    return {
-      text: local ? DEVICE_STORAGE_COPY.status : "Draft saved",
-      tone: "saved",
-      action: "menu",
-    };
+    return local
+      ? {
+          text: "Draft saved",
+          title: "Saved in this browser. Open Save & sync.",
+          tone: "saved",
+          action: "menu",
+        }
+      : { text: "Draft saved", tone: "saved", action: "menu" };
   }
   if (!savedLocally(status, local)) {
     return {

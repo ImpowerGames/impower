@@ -107,9 +107,10 @@ describe("the save status caption map", () => {
     );
   });
 
-  it("says a saved local project lives on this device", () => {
+  it("reads a saved local project as a saved draft, with the prototype's tooltip", () => {
     expect(saveStatusOf("cached", true)).toEqual({
-      text: "Saved on this device",
+      text: "Draft saved",
+      title: "Saved in this browser. Open Save & sync.",
       tone: "saved",
       action: "menu",
     });

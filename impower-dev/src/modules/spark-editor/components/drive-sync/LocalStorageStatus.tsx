@@ -84,7 +84,7 @@ export default function LocalStorageStatus({
           data-local-storage-status
           data-tone={status.tone}
           class={buttonClass}
-          title={COPY.statusTitle}
+          title={status.title}
         >
           {status.text}
           {marked && (
