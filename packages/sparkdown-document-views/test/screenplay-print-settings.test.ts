@@ -152,6 +152,15 @@ describe("screenplay preview follows the print settings", () => {
     expect(headingTextWeights(render({ screenplay_print_headings_bold: false }))).toEqual(["normal", "normal"]);
   });
 
+  it("re-weights the heading text when the setting changes on a page already on screen", () => {
+    const view = render({ screenplay_print_headings_bold: false });
+    expect(headingTextWeights(view)).toEqual(["normal", "normal"]);
+    view.dispatch({ effects: setScreenplayConfig.of({ screenplay_print_title_page: false, screenplay_print_headings_bold: true }) });
+    expect(headingTextWeights(view)).toEqual(["bold", "bold"]);
+    view.dispatch({ effects: setScreenplayConfig.of({ screenplay_print_title_page: false, screenplay_print_headings_bold: false }) });
+    expect(headingTextWeights(view)).toEqual(["normal", "normal"]);
+  });
+
   it("lays the page out at the paper size's proportions", () => {
     const letter = render({ screenplay_print_paper_size: "usletter" }).dom;
     const a4 = render({ screenplay_print_paper_size: "a4" }).dom;

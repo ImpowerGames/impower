@@ -203,14 +203,6 @@ const createDecorations = (
 
 export const SCREENPLAY_LANGUAGE_SUPPORT = LANGUAGE_SUPPORT;
 
-const PRINTED_NAME_SETTINGS = [
-  "screenplay_print_scene_identifiers",
-  "screenplay_print_branch_identifiers",
-  "screenplay_print_function_identifiers",
-  "screenplay_print_knot_identifiers",
-  "screenplay_print_stitch_identifiers",
-] as const;
-
 interface CachedPageLayout {
   settings: string;
   blankPositions: Set<number>;
@@ -248,7 +240,7 @@ const printedHtml = (lines: FormattedText[][]) =>
 const pageLayoutCache = new WeakMap<Tree, CachedPageLayout>();
 
 const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
-  const settings = PRINTED_NAME_SETTINGS.map((key) => (config?.[key] ? "1" : "0")).join("");
+  const settings = JSON.stringify(config ?? {});
   const cached = pageLayoutCache.get(tree);
   if (cached && cached.settings === settings) {
     return cached;
