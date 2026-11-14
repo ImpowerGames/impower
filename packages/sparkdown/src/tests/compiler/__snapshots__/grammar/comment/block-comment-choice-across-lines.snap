@@ -84,7 +84,7 @@ sparkdown [0..215]
  │   │   │   │   └─ ChoiceSuppression [77..129]
  │   │   │   │       ├─ ChoiceSuppression_begin [77..78]
  │   │   │   │       │   ├─ ChoiceSuppression_begin_c1 [77..78]: "["
- │   │   │   │       │   └─ ChoiceSuppression_begin_c2 78
+ │   │   │   │       │   └─ ChoiceSuppression_begin_c6 78
  │   │   │   │       ├─ ChoiceSuppression_content [78..129]
  │   │   │   │       │   ├─ ChoiceOnlyText [78..101]
  │   │   │   │       │   │   ├─ ChoiceOnlyText_begin 78

@@ -29,7 +29,7 @@ sparkdown [0..186]
  │   │   └─ ChoiceSuppression [16..44]
  │   │       ├─ ChoiceSuppression_begin [16..17]
  │   │       │   ├─ ChoiceSuppression_begin_c1 [16..17]: "["
- │   │       │   └─ ChoiceSuppression_begin_c2 17
+ │   │       │   └─ ChoiceSuppression_begin_c6 17
  │   │       ├─ ChoiceSuppression_content [17..44]
  │   │       │   ├─ ChoiceOnlyText [17..27]
  │   │       │   │   ├─ ChoiceOnlyText_begin 17
