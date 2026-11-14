@@ -62,7 +62,7 @@ src/
   pages/      Client entry points (index.ts → the editor) + HTML shells
   modules/
     spark-editor/
-      preact-registry.ts   The root Preact component the SSG + client both mount
+      preact-registry.ts   The root Preact component, for the server-render tests
       components/          The editor UI (Preact + Tailwind, shadcn-style)
       workspace/           Controllers + the reactive store (see architecture.md)
   workers/    Service worker

@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { readRepos, ticketsRepo } from "../../repos.mjs";
 import { ghClient as dependencyClient } from "../references/record-blockers.mjs";
 import { findTypedWords } from "./chat-transcript.mjs";
+import { TOOL_MARK, actorOf, commentAuthor, resolveIdentity, tokenEnv } from "./github-app.mjs";
 
 export const TEMPLATE_FILES = Object.freeze({
   decision: fileURLToPath(new URL("../../templates/issues/maintainer_decision.md", import.meta.url)),
@@ -25,8 +26,11 @@ const DATA_MARK = "maintainer-request";
 const DATA_LINE = /^<!-- maintainer-request (\{.*\}) -->$/m;
 const NOTE_MARK = "maintainer-request-note";
 const NOTE_LINE = /^<!-- maintainer-request-note (\{.*\}) -->$/m;
-export const TOOL_MARK = "<!-- ask-maintainer: posted by the tool -->";
-const FILED_AS = "Filed by an agent through your GitHub account, so GitHub shows you as the author of this request; an agent wrote it.";
+const FILED_AS = "Filed by an agent through your GitHub account, because the tool's GitHub App could not be used on this machine: GitHub shows you as the author and sends you no alert for it.";
+const POSTED_AS = "Posted by the ask-maintainer tool through your GitHub account, not by you.";
+const AS_MAINTAINER = Object.freeze({ mode: "maintainer", reason: "no App identity was resolved" });
+const signature = (identity, line) => (identity.mode === "app" ? [TOOL_MARK, ""] : [`_${line}_`, "", TOOL_MARK, ""]);
+export const markComment = (text, identity) => `${text.trimEnd()}\n\n${signature(identity, POSTED_AS).join("\n").trimEnd()}\n`;
 const KEYS = {
   decision: ["kind", "question", "tickets", "askedBy", "owner", "parked", "meanwhile", "shortVersion", "background", "showsOnScreen", "options", "comparison", "recommendation", "fallback", "waits", "alwaysWaits"],
   task: ["kind", "action", "tickets", "askedBy", "owner", "why", "steps", "expect", "details", "parked"],
@@ -390,15 +394,8 @@ export function readNote(body) {
   }
 }
 
-export function toolText(text, note) {
-  return `${text.replace(/(?:\r?\n)+$/, "")}\n\n${TOOL_MARK}\n${noteLine(note)}\n`;
-}
-
-export function commentAuthor(comment, { maintainerLogin }) {
-  if (comment?.user?.login !== maintainerLogin) return "other";
-  const body = (comment.body ?? "").replace(/\r\n/g, "\n");
-  if (body.split("\n").some((line) => line.trim() === TOOL_MARK) || NOTE_LINE.test(body) || DATA_LINE.test(body)) return "tool";
-  return "maintainer";
+export function toolText(text, note, identity = AS_MAINTAINER) {
+  return `${text.replace(/(?:\r?\n)+$/, "")}\n\n${signature(identity, POSTED_AS).join("\n").trimEnd()}\n${noteLine(note)}\n`;
 }
 
 export function readDataLine(body) {
@@ -411,7 +408,7 @@ export function readDataLine(body) {
   }
 }
 
-function decisionBody(checked, { now, timeZone, template }) {
+function decisionBody(checked, { now, timeZone, template, identity }) {
   const [shortHeading, backgroundHeading, optionsHeading, sideHeading, whyHeading] = template.headings;
   const name = (letter) => `${letter} · ${checked.options.find((option) => option.letter === letter).name}`;
   const data = { kind: "decision", options: checked.options.map((option) => option.letter), recommended: checked.recommended };
@@ -440,11 +437,11 @@ function decisionBody(checked, { now, timeZone, template }) {
   }
   lines.push("", `## ${sideHeading}`, "", checked.comparison);
   lines.push("", `## ${whyHeading.replace("<letter>", checked.recommended)}`, "", checked.reason);
-  lines.push("", "---", "", template.answer.replace(/<letter>/g, checked.recommended), "", `_${FILED_AS}_`, "", dataLine(data), "");
+  lines.push("", "---", "", template.answer.replace(/<letter>/g, checked.recommended), "", ...signature(identity, FILED_AS), dataLine(data), "");
   return { body: lines.join("\n"), data };
 }
 
-function taskBody(checked, { template, tag }) {
+function taskBody(checked, { template, tag, identity }) {
   const [doHeading, whyHeading, stepsHeading, expectHeading, holdsHeading] = template.headings;
   const data = { kind: "task", ...(tag ? { tagged: true } : {}), blocks: checked.tickets, owner: checked.owner };
   const parked = checked.parked ?? (checked.tickets.length ? ticketList(checked.tickets) : "Nothing beyond this ticket.");
@@ -454,13 +451,13 @@ function taskBody(checked, { template, tag }) {
   lines.push("", `## ${stepsHeading}`, "", ...checked.steps.map((step, index) => `${index + 1}. ${step}`));
   lines.push("", `## ${expectHeading}`, "", checked.expect.length ? renderContent(checked.expect) : "Nothing to check beyond the steps.");
   lines.push("", `## ${holdsHeading}`, "", `- **Parked until it's done:** ${parked}`, `- **Asked by:** ${checked.askedBy}`);
-  lines.push("", "---", "", template.answer, "", `_${FILED_AS}_`, "", dataLine(data), "");
+  lines.push("", "---", "", template.answer, "", ...signature(identity, tag ? POSTED_AS : FILED_AS), dataLine(data), "");
   return { body: lines.join("\n"), data };
 }
 
-export function buildRequest(checked, { now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates = {}, tag = false } = {}) {
+export function buildRequest(checked, { now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates = {}, tag = false, identity = AS_MAINTAINER } = {}) {
   const template = templates[checked.kind] ?? readTemplate(checked.kind);
-  const built = checked.kind === "decision" ? decisionBody(checked, { now, timeZone, template }) : taskBody(checked, { template, tag });
+  const built = checked.kind === "decision" ? decisionBody(checked, { now, timeZone, template, identity }) : taskBody(checked, { template, tag, identity });
   return { title: requestTitle(checked), ...built, pictures: picturesOf(checked) };
 }
 
@@ -540,7 +537,9 @@ export function findDuplicate(checked, openIssues, { before = Infinity } = {}) {
   return earliest;
 }
 
-export function ghTracker(repo = ticketsRepo(), run = (args, options = {}) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 50 * 1024 * 1024, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], ...options })) {
+export function ghTracker(repo = ticketsRepo(), runGh = (args, options = {}) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 50 * 1024 * 1024, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], ...options }), identity = AS_MAINTAINER) {
+  const env = tokenEnv(identity);
+  const run = env ? (args, options = {}) => runGh(args, { ...options, env }) : runGh;
   const json = (args) => JSON.parse(run(args) || "null");
   const dependencies = dependencyClient(repo, (args) => run(args));
   return {
@@ -734,16 +733,16 @@ function unlinkSteps(tracker, attempted, blocker) {
   return attempted.map((ticket) => [`removed the dependency of #${ticket} on #${blocker.number}`, () => tracker.removeBlockedBy(ticket, blocker.id)]);
 }
 
-function withdraw(tracker, { number, id, attempted }, problems, scratch, hint = "Correct the cause and file the request again.") {
+function withdraw(tracker, { number, id, attempted }, problems, scratch, hint = "Correct the cause and file the request again.", identity = AS_MAINTAINER) {
   const file = path.join(scratch, "withdraw.md");
-  writeFileSync(file, toolText(`Withdrawn by the ask-maintainer tool: filing did not finish, so this request is incomplete and nothing waits on it.\n\n${bullets(problems)}`, { kind: "withdrawn", reason: "filing did not finish" }));
+  writeFileSync(file, toolText(`Withdrawn by the ask-maintainer tool: filing did not finish, so this request is incomplete and nothing waits on it.\n\n${bullets(problems)}`, { kind: "withdrawn", reason: "filing did not finish" }, identity));
   const result = undo([...unlinkSteps(tracker, attempted, { number, id }), [`closed #${number} as not planned`, () => tracker.close(number, "not_planned", file)]]);
   return new Error(`Filing ${tracker.repo}#${number} failed:\n${bullets(problems)}\nRolled back: ${result.done.length ? result.done.join("; ") : "nothing"}.${result.failed.length ? `\n${bullets(result.failed)}` : ""}\n${hint}`);
 }
 
-export function fileRequest(request, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone, templates, dryRun = false }) {
+export function fileRequest(request, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone, templates, dryRun = false, identity = AS_MAINTAINER }) {
   const checked = validateRequest(request, { pictures: folderPictures(folder) });
-  const built = buildRequest(checked, { now, timeZone, templates });
+  const built = buildRequest(checked, { now, timeZone, templates, identity });
   const label = checked.kind === "decision" ? repos.maintainer.labels.decision : repos.maintainer.labels.task;
   const duplicate = findDuplicate(checked, tracker.open(label));
   if (duplicate) throw new RequestRefused([`An open request already asks this about the same ticket: #${duplicate.number} ${duplicate.title} (${duplicate.html_url})`]);
@@ -777,14 +776,14 @@ export function fileRequest(request, { pictures: folder, tracker, repos = readRe
       return { number: filed.number, url: verified.issue.html_url, title: built.title, data: built.data, blocked: checked.tickets, pictures: placed.urls.length };
     } catch (error) {
       if (filed.number === null) throw error;
-      throw withdraw(tracker, filed, problemsOf(error), scratch, error.hint);
+      throw withdraw(tracker, filed, problemsOf(error), scratch, error.hint, identity);
     }
   });
 }
 
-export function tagTicket(number, request, { pictures: folder, tracker, repos = readRepos(), templates }) {
+export function tagTicket(number, request, { pictures: folder, tracker, repos = readRepos(), templates, identity = AS_MAINTAINER }) {
   const checked = validateRequest(request, { pictures: folderPictures(folder), tag: true });
-  const built = buildRequest(checked, { templates, tag: true });
+  const built = buildRequest(checked, { templates, tag: true, identity });
   const label = repos.maintainer.labels.task;
   const login = repos.maintainer.login;
   const ticket = tracker.issue(number);
@@ -883,7 +882,7 @@ export function listRequests(tracker, repos = readRepos()) {
 }
 
 const lf = (text) => (text ?? "").replace(/\r\n/g, "\n");
-const identity = (repos) => ({ maintainerLogin: repos.maintainer.login });
+const whoOf = (repos) => ({ maintainerLogin: repos.maintainer.login, app: repos.maintainer.app });
 export const stamp = (iso) => `${new Date(iso).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 export const quote = (text) => lf(text).split("\n").map((line) => (line ? `> ${line}` : ">")).join("\n");
 export const unquote = (text) => lf(text).split("\n").map((line) => (line === ">" ? "" : line.replace(/^> /, ""))).join("\n");
@@ -892,13 +891,13 @@ function requestData(issue, comments, who) {
   if (issue.pull_request) throw new RequestRefused([`#${issue.number} is a pull request, not a maintainer request`]);
   const own = readDataLine(issue.body);
   if (own && !own.tagged) return { data: own, body: lf(issue.body), floor: null };
-  const tag = comments.find((comment) => commentAuthor(comment, who) === "tool" && readDataLine(comment.body)?.tagged);
+  const tag = comments.find((comment) => commentAuthor(comment, who) !== "other" && readDataLine(comment.body)?.tagged);
   if (tag) return { data: readDataLine(tag.body), body: lf(tag.body), floor: tag };
   throw new RequestRefused([`#${issue.number} is not a maintainer request: neither its body nor a task comment holds the request's data line`]);
 }
 
 export function readAnswer(issue, comments, repos = readRepos(), events = []) {
-  const who = identity(repos);
+  const who = whoOf(repos);
   const { data, body, floor: tagged } = requestData(issue, comments, who);
   const notes = comments.filter((comment) => commentAuthor(comment, who) === "tool").map((comment) => ({ comment, note: readNote(comment.body) })).filter((entry) => entry.note);
   const revision = notes.filter((entry) => entry.note.kind === "revised").at(-1)?.comment ?? null;
@@ -919,8 +918,10 @@ export function readAnswer(issue, comments, repos = readRepos(), events = []) {
   if (!closing && tiedWithReopen) return { ...base, state: "unclear", closed, why: "a withdrawal or relay note and a reopen share one second, so which came first is unknown", words: [] };
   if (closing?.note.kind === "withdrawn") return { ...base, state: "withdrawn", closed, reason: closing.note.reason ?? null, words: [] };
   if (revision && Date.parse(revision.created_at) >= closedAt) return { ...base, state: "unclear", closed, why: "closed before its latest revision, or in the same second, so the close does not answer it", words: [] };
-  if (closed.by !== who.maintainerLogin) return { ...base, state: "unclear", closed, why: `closed by ${closed.by ?? "an account GitHub did not name"}, not by the maintainer`, words };
   const relay = closing?.note.kind === "relayed" ? closing : null;
+  const closer = actorOf(issue.closed_by, who);
+  if (closer === "other") return { ...base, state: "unclear", closed, why: `closed by ${closed.by ?? "an account GitHub did not name"}, not by the maintainer`, words };
+  if (closer === "tool" && !relay) return { ...base, state: "unclear", closed, why: "closed by the tool with no withdrawal or relayed answer to explain it", words };
   const said = relay ? [{ id: relay.comment.id, url: relay.comment.html_url, at: relay.note.at, body: relay.note.words, relayed: { session: relay.note.session, runner: relay.note.runner, postedAt: relay.comment.created_at } }] : words;
   const notPlanned = closed.reason === "not_planned" || closed.reason === "duplicate";
   if (data.kind === "task") return { ...base, state: notPlanned ? "will-not-do" : "done", closed, words: said };
@@ -957,7 +958,7 @@ function wordsLines(answer) {
   });
 }
 
-export function recordBody(answer) {
+export function recordBody(answer, identity = AS_MAINTAINER) {
   const what = answer.kind === "decision" ? "decision" : "task";
   const by = `at ${stamp(answer.closed.at)}`;
   const outcome = {
@@ -978,7 +979,7 @@ export function recordBody(answer) {
   ];
   if (answer.recommended) lines.push(`- **Recommended:** ${answer.recommended.letter}${answer.recommended.name ? ` · ${answer.recommended.name}` : ""}`);
   lines.push(...wordsLines(answer));
-  return toolText(lines.join("\n"), { kind: "record", request: answer.number, answer: answerKey(answer) });
+  return toolText(lines.join("\n"), { kind: "record", request: answer.number, answer: answerKey(answer) }, identity);
 }
 
 function postNote(tracker, number, text, scratch, name, posted = () => {}) {
@@ -991,17 +992,17 @@ function postNote(tracker, number, text, scratch, name, posted = () => {}) {
   return { id, url: back.html_url };
 }
 
-export function recordAnswer(number, { tracker, repos = readRepos() }) {
+export function recordAnswer(number, { tracker, repos = readRepos(), identity = AS_MAINTAINER }) {
   const answer = fetchAnswer(number, { tracker, repos });
   if (!ANSWERED.includes(answer.state)) {
     const next = { waiting: "wait for the answer", question: "answer the question with revise", withdrawn: "nothing waits on it", unclear: `${answer.why}; reopen it with a question through revise` }[answer.state];
     throw new RequestRefused([`#${number} has no answer to record: it is ${answer.state} (${next})`]);
   }
-  const who = identity(repos);
+  const who = whoOf(repos);
   const key = answerKey(answer);
   const mine = (comment, kind) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === kind && readNote(comment.body)?.request === number && readNote(comment.body)?.answer === key;
   return withScratch((scratch) => {
-    const body = recordBody(answer);
+    const body = recordBody(answer, identity);
     const records = answer.tickets.map((ticket) => {
       const standing = tracker.comments(ticket).find((comment) => mine(comment, "record"));
       if (standing) return { ticket, id: standing.id, url: standing.html_url, reused: true };
@@ -1010,7 +1011,7 @@ export function recordAnswer(number, { tracker, repos = readRepos() }) {
     const confirmed = tracker.comments(number).find((comment) => mine(comment, "recorded"));
     const confirmation = confirmed
       ? { id: confirmed.id, url: confirmed.html_url, reused: true }
-      : { ...postNote(tracker, number, toolText(`Recorded by the ask-maintainer tool${records.length ? ` on ${records.map((r) => `#${r.ticket} ([record](${r.url}))`).join(", ")}` : "; no other ticket waits on this request, so there was nothing to record elsewhere"}.`, { kind: "recorded", request: number, answer: key, records: records.map((r) => ({ ticket: r.ticket, comment: r.id })) }), scratch, "recorded"), reused: false };
+      : { ...postNote(tracker, number, toolText(`Recorded by the ask-maintainer tool${records.length ? ` on ${records.map((r) => `#${r.ticket} ([record](${r.url}))`).join(", ")}` : "; no other ticket waits on this request, so there was nothing to record elsewhere"}.`, { kind: "recorded", request: number, answer: key, records: records.map((r) => ({ ticket: r.ticket, comment: r.id })) }, identity), scratch, "recorded"), reused: false };
     return { answer, records, confirmation };
   });
 }
@@ -1025,7 +1026,7 @@ function checkNoteText(value, what) {
 
 const sameTickets = (a, b) => JSON.stringify([...a].sort((x, y) => x - y)) === JSON.stringify([...b].sort((x, y) => x - y));
 
-export function reviseRequest(number, request, changes, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates }) {
+export function reviseRequest(number, request, changes, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates, identity = AS_MAINTAINER }) {
   const issue = tracker.issue(number);
   const answer = readAnswer(issue, tracker.comments(number), repos, tracker.events(number));
   if (answer.tagged) throw new RequestRefused([`#${number} is a tagged ticket, not a filed request; it has no request body to revise`]);
@@ -1036,10 +1037,10 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
   if (checked.kind !== answer.kind) problems.push(`#${number} is a ${answer.kind} request; a revision cannot make it a ${checked.kind}`);
   if (!sameTickets(checked.tickets, answer.tickets)) problems.push(`#${number} holds up ${ticketList(answer.tickets)}; a revision keeps the same tickets (file a new request for others)`);
   if (problems.length) throw new RequestRefused(problems);
-  const built = buildRequest(checked, { now, timeZone, templates });
+  const built = buildRequest(checked, { now, timeZone, templates, identity });
   const fallback = built.data.fallback;
   const clock = checked.kind === "task" ? "" : fallback ? `\n\nThe clock starts again: if you don't answer by ${describeTime(new Date(fallback.at), now, timeZone)}, I'll go ahead with ${fallback.option}.` : "\n\nIt still waits for you, with no fallback.";
-  const note = toolText(`Revised by the ask-maintainer tool${issue.state === "closed" ? ", and reopened because the answer was unclear" : ""}; GitHub's edit history keeps the earlier version.\n\n**What changed:** ${changed}${clock}`, { kind: "revised", ...(fallback && { fallback: fallback.at }) });
+  const note = toolText(`Revised by the ask-maintainer tool${issue.state === "closed" ? ", and reopened because the answer was unclear" : ""}; GitHub's edit history keeps the earlier version.\n\n**What changed:** ${changed}${clock}`, { kind: "revised", ...(fallback && { fallback: fallback.at }) }, identity);
   return withScratch((scratch) => {
     const done = { reopened: false, body: false, title: false, note: null };
     try {
@@ -1106,36 +1107,36 @@ function writeNote(scratch, text) {
   return file;
 }
 
-export function withdrawRequest(number, reason, { tracker, repos = readRepos() }) {
+export function withdrawRequest(number, reason, { tracker, repos = readRepos(), identity = AS_MAINTAINER }) {
   const answer = fetchAnswer(number, { tracker, repos });
   if (answer.tagged) throw new RequestRefused([`#${number} is a tagged ticket; remove its ${repos.maintainer.labels.task} label instead of closing the ticket`]);
   if (answer.state !== "waiting" && answer.state !== "question") throw new RequestRefused([`#${number} is already closed (${answer.state})`]);
   const why = checkNoteText(reason, "The reason");
   if (/[\r\n]/.test(why)) throw new RequestRefused(["The reason must be one line"]);
   return withScratch((scratch) => {
-    tracker.close(number, "not_planned", writeNote(scratch, toolText(`Withdrawn by the ask-maintainer tool: ${asSentence(why)} Nothing waits on this request any more.`, { kind: "withdrawn", reason: why })));
+    tracker.close(number, "not_planned", writeNote(scratch, toolText(`Withdrawn by the ask-maintainer tool: ${asSentence(why)} Nothing waits on this request any more.`, { kind: "withdrawn", reason: why }, identity)));
     return fetchAnswer(number, { tracker, repos });
   });
 }
 
-export function answerFromChat(number, words, transcript, { tracker, repos = readRepos(), notPlanned = false, read }) {
+export function answerFromChat(number, words, transcript, { tracker, repos = readRepos(), notPlanned = false, read, identity = AS_MAINTAINER }) {
   const answer = fetchAnswer(number, { tracker, repos });
   if (answer.state !== "waiting" && answer.state !== "question") throw new RequestRefused([`#${number} is already closed (${answer.state}); there is nothing to answer`]);
   const found = findTypedWords(words, transcript, read ? { read } : {});
   if (!found.ok) throw new RequestRefused([`The words are refused: ${found.reason}`]);
   if (/<!--|-->/.test(found.words)) throw new RequestRefused(["The words hold an HTML comment marker, which would hide them on GitHub"]);
   const text = `Relayed from chat by the ask-maintainer tool: the maintainer typed these words in ${RUNNERS[found.runner]} session ${found.session} at ${stamp(found.at)}, and the tool found them as one unbroken run in a message the maintainer typed in that session's transcript.\n\n${quote(found.words)}`;
-  withScratch((scratch) => tracker.close(number, notPlanned ? "not_planned" : "completed", writeNote(scratch, toolText(text, { kind: "relayed", words: found.words, session: found.session, at: found.at, runner: found.runner }))));
-  return recordAnswer(number, { tracker, repos });
+  withScratch((scratch) => tracker.close(number, notPlanned ? "not_planned" : "completed", writeNote(scratch, toolText(text, { kind: "relayed", words: found.words, session: found.session, at: found.at, runner: found.runner }, identity))));
+  return recordAnswer(number, { tracker, repos, identity });
 }
 
 export const WAIT_INTERVAL_SECONDS = 60;
-const sleepFor = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.max(0, ms));
+const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
 
-export function waitForRequests(numbers, { tracker, repos = readRepos(), clock = () => new Date(), sleep = sleepFor, intervalSeconds = WAIT_INTERVAL_SECONDS, warn = (message) => console.error(message) }) {
+export async function waitForRequests(numbers, { tracker, refresh, repos = readRepos(), clock = () => new Date(), sleep = sleepFor, intervalSeconds = WAIT_INTERVAL_SECONDS, warn = (message) => console.error(message) }) {
   if (!numbers.length) throw new RequestRefused(["Name at least one request to wait for"]);
   if (!Number.isSafeInteger(intervalSeconds) || intervalSeconds < WAIT_INTERVAL_SECONDS) throw new RequestRefused([`The interval must be a whole number of seconds, at least ${WAIT_INTERVAL_SECONDS}`]);
-  const who = identity(repos);
+  const who = whoOf(repos);
   const interval = intervalSeconds * 1000;
   const maintainerIds = (comments) => new Set(comments.filter((comment) => commentAuthor(comment, who) === "maintainer").map((comment) => comment.id));
   const result = (entry, why) => {
@@ -1162,8 +1163,15 @@ export function waitForRequests(numbers, { tracker, repos = readRepos(), clock =
     if (confirmed) return result(confirmed, "fallback");
     const next = Math.min(...watched.map((entry) => entry.nextRead));
     if (now < next) {
-      sleep(next - now);
+      await sleep(next - now);
       continue;
+    }
+    if (refresh) {
+      try {
+        tracker = await refresh();
+      } catch (error) {
+        warn(`Resolving the tool's GitHub identity failed (${error.message.split("\n")[0]}); reading with the previous one.`);
+      }
     }
     for (const entry of watched) {
       const readAt = clock().getTime();
@@ -1212,6 +1220,7 @@ const USAGE = `Usage:
   node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<pictures-folder>] [--dry-run]
   node .agents/skills/ask-maintainer/maintainer-request.mjs tag <ticket> <task.json> [<pictures-folder>]
   node .agents/skills/ask-maintainer/maintainer-request.mjs list [--json]
+  node .agents/skills/ask-maintainer/maintainer-request.mjs identity
   node .agents/skills/ask-maintainer/maintainer-request.mjs read <request> [--json]
   node .agents/skills/ask-maintainer/maintainer-request.mjs record <request>
   node .agents/skills/ask-maintainer/maintainer-request.mjs revise <request> <request.json> <what-changed.md> [<pictures-folder>]
@@ -1231,7 +1240,7 @@ function readText(file, what) {
   }
 }
 
-function answerCommands(command, args, flags, { tracker, repos, out, now }) {
+function answerCommands(command, args, flags, { tracker, repos, out, now, identity, resolve }) {
   const number = ISSUE_NUMBER.test(args[0] ?? "") ? issueNumber(args[0]) : null;
   if (command === "read" && number && args.length === 1 && flags.every((flag) => flag === "--json")) {
     const answer = fetchAnswer(number, { tracker, repos });
@@ -1239,33 +1248,35 @@ function answerCommands(command, args, flags, { tracker, repos, out, now }) {
     return 0;
   }
   if (command === "record" && number && args.length === 1 && !flags.length) {
-    const { answer, records, confirmation } = recordAnswer(number, { tracker, repos });
+    const { answer, records, confirmation } = recordAnswer(number, { tracker, repos, identity });
     out(`${formatAnswer(answer)}\nRecorded: ${records.length ? records.map((r) => `#${r.ticket} ${r.url}${r.reused ? " (already there)" : ""}`).join("; ") : "no other ticket waits on this request"}.\nConfirmed on #${number}: ${confirmation.url}${confirmation.reused ? " (already there)" : ""}`);
     return 0;
   }
   if (command === "revise" && number && args.length >= 3 && args.length <= 4 && !flags.length) {
     const file = path.resolve(args[1]);
-    const result = reviseRequest(number, readRequest(file), readText(path.resolve(args[2]), "what-changed"), { pictures: path.resolve(args[3] ?? path.dirname(file)), tracker, repos, now });
+    const result = reviseRequest(number, readRequest(file), readText(path.resolve(args[2]), "what-changed"), { pictures: path.resolve(args[3] ?? path.dirname(file)), tracker, repos, now, identity });
     const clock = result.data.fallback ? `falls back at ${result.data.fallback.at} to ${result.data.fallback.option}` : result.data.kind === "task" ? "a task, with no clock" : "waits for the maintainer, with no fallback";
     out(`Revised #${number}${result.reopened ? " and reopened it" : ""}: ${result.url}\n${clock}; what changed is posted at ${result.note.url}.`);
     return 0;
   }
   if (command === "withdraw" && number && args.length === 2 && !flags.length) {
-    const answer = withdrawRequest(number, args[1], { tracker, repos });
+    const answer = withdrawRequest(number, args[1], { tracker, repos, identity });
     out(formatAnswer(answer));
     return 0;
   }
   if (command === "answer-from-chat" && number && args.length === 3 && flags.every((flag) => flag === "--not-planned")) {
-    const { answer, records, confirmation } = answerFromChat(number, readText(path.resolve(args[1]), "words"), path.resolve(args[2]), { tracker, repos, notPlanned: flags.includes("--not-planned") });
+    const { answer, records, confirmation } = answerFromChat(number, readText(path.resolve(args[1]), "words"), path.resolve(args[2]), { tracker, repos, notPlanned: flags.includes("--not-planned"), identity });
     out(`${formatAnswer(answer)}\nRecorded: ${records.length ? records.map((r) => `#${r.ticket} ${r.url}`).join("; ") : "no other ticket waits on this request"}.\nConfirmed on #${number}: ${confirmation.url}`);
     return 0;
   }
   const interval = flags.find((flag) => flag.startsWith("--interval="));
   if (command === "wait" && args.length && args.every((arg) => ISSUE_NUMBER.test(arg)) && flags.every((flag) => /^--interval=\d+$/.test(flag)) && flags.length <= 1) {
-    const result = waitForRequests([...new Set(args.map(issueNumber))], { tracker, repos, intervalSeconds: interval ? Number(interval.slice("--interval=".length)) : WAIT_INTERVAL_SECONDS });
-    const why = { closed: "was closed", comment: "has a new maintainer comment", fallback: "reached its fallback time" }[result.why];
+    const refresh = resolve ? async () => ghTracker(ticketsRepo(repos), undefined, await resolve()) : undefined;
+    return waitForRequests([...new Set(args.map(issueNumber))], { tracker, refresh, repos, intervalSeconds: interval ? Number(interval.slice("--interval=".length)) : WAIT_INTERVAL_SECONDS }).then((result) => {
+      const why = { closed: "was closed", comment: "has a new maintainer comment", fallback: "reached its fallback time" }[result.why];
     out(`#${result.number} ${why} (returned at ${result.returnedAt}${result.secondsSinceClose === undefined ? "" : `, ${result.secondsSinceClose} seconds after the close`}${result.fallbackAt ? `, fallback time ${result.fallbackAt}` : ""}).\n${formatAnswer(result.answer)}`);
-    return 0;
+      return 0;
+    });
   }
   return null;
 }
@@ -1278,25 +1289,29 @@ function readRequest(file) {
   }
 }
 
-export function main(argv, { tracker = ghTracker(), repos = readRepos(), out = console.log, now = new Date() } = {}) {
+function filedBy(identity) {
+  return identity.mode === "app" ? `as the GitHub App ${identity.login}.` : `through the maintainer's own account, so GitHub sends them no alert: ${identity.reason}.`;
+}
+
+export function main(argv, { repos = readRepos(), identity = AS_MAINTAINER, tracker = ghTracker(ticketsRepo(repos), undefined, identity), out = console.log, now = new Date(), resolve } = {}) {
   const [command, ...rest] = argv;
   const flags = rest.filter((arg) => arg.startsWith("--"));
   const args = rest.filter((arg) => !arg.startsWith("--"));
   if (command === "file" && args.length >= 1 && args.length <= 2 && flags.every((flag) => flag === "--dry-run")) {
     const file = path.resolve(args[0]);
-    const result = fileRequest(readRequest(file), { pictures: path.resolve(args[1] ?? path.dirname(file)), tracker, repos, now, dryRun: flags.includes("--dry-run") });
+    const result = fileRequest(readRequest(file), { pictures: path.resolve(args[1] ?? path.dirname(file)), tracker, repos, now, dryRun: flags.includes("--dry-run"), identity });
     if (result.dryRun) {
       out(`Dry run: the request is complete and no open request duplicates it. Title:\n${result.title}\n\n${result.body}`);
       return 0;
     }
     const fallback = result.data.fallback ? `falls back at ${describeTime(new Date(result.data.fallback.at), now, Intl.DateTimeFormat().resolvedOptions().timeZone)} (${result.data.fallback.at}) to ${result.data.fallback.option}` : result.data.waits ? "waits for the maintainer, with no fallback" : "a task, with no clock";
-    out(`Filed #${result.number}: ${result.url}\n${fallback}; blocks ${result.blocked.map((n) => `#${n}`).join(", ")}; ${result.pictures} picture(s) hosted and in place.\nFiled through the maintainer's own account until the helper identity exists.`);
+    out(`Filed #${result.number}: ${result.url}\n${fallback}; blocks ${result.blocked.map((n) => `#${n}`).join(", ")}; ${result.pictures} picture(s) hosted and in place.\nFiled ${filedBy(identity)}`);
     return 0;
   }
   if (command === "tag" && args.length >= 2 && args.length <= 3 && !flags.length && /^#?[1-9]\d*$/.test(args[0])) {
     const file = path.resolve(args[1]);
-    const result = tagTicket(Number(args[0].replace(/^#/, "")), readRequest(file), { pictures: path.resolve(args[2] ?? path.dirname(file)), tracker, repos });
-    out(`Tagged #${result.number} as a maintainer task: ${result.url} (comment ${result.comment}, ${result.pictures} picture(s)); blocks ${result.blocked.length ? result.blocked.map((n) => `#${n}`).join(", ") : "no other ticket"}; no issue was created.`);
+    const result = tagTicket(Number(args[0].replace(/^#/, "")), readRequest(file), { pictures: path.resolve(args[2] ?? path.dirname(file)), tracker, repos, identity });
+    out(`Tagged #${result.number} as a maintainer task: ${result.url} (comment ${result.comment}, ${result.pictures} picture(s)); blocks ${result.blocked.length ? result.blocked.map((n) => `#${n}`).join(", ") : "no other ticket"}; no issue was created.\nTagged ${filedBy(identity)}`);
     return 0;
   }
   if (command === "list" && !args.length && flags.every((flag) => flag === "--json")) {
@@ -1307,7 +1322,11 @@ export function main(argv, { tracker = ghTracker(), repos = readRepos(), out = c
     } else out(formatList(groups, { now }));
     return 0;
   }
-  const answered = answerCommands(command, args, flags, { tracker, repos, out, now });
+  if (command === "identity" && !rest.length) {
+    out(`Acting ${filedBy(identity)}`);
+    return 0;
+  }
+  const answered = answerCommands(command, args, flags, { tracker, repos, out, now, identity, resolve });
   if (answered !== null) return answered;
   console.error(USAGE);
   return 2;
@@ -1315,7 +1334,10 @@ export function main(argv, { tracker = ghTracker(), repos = readRepos(), out = c
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   try {
-    process.exitCode = main(process.argv.slice(2));
+    const repos = readRepos();
+    const resolve = () => resolveIdentity({ repo: ticketsRepo(repos), app: repos.maintainer.app });
+    const identity = await resolve();
+    process.exitCode = await main(process.argv.slice(2), { repos, identity, resolve });
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

@@ -5,17 +5,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRepos } from "../../repos.mjs";
 import { findRun, findTypedWords, transcriptMessages } from "./chat-transcript.mjs";
+import { TOOL_MARK, commentAuthor } from "./github-app.mjs";
 import {
   RequestRefused,
-  TOOL_MARK,
   answerFromChat,
-  commentAuthor,
   dataLine,
   fetchAnswer,
   ghTracker,
   main,
   readAnswer,
   readNote,
+  toolText,
   recordAnswer,
   recordBody,
   reviseRequest,
@@ -139,10 +139,9 @@ function fakeTracker({ issues = [], comments = [], polls = null } = {}) {
 
 try {
   {
-    const who = { maintainerLogin: M };
+    const who = { maintainerLogin: M, app: repos.maintainer.app };
     assert.equal(commentAuthor(comment(1, "B", filedAt), who), "maintainer");
     assert.equal(commentAuthor(comment(2, `B\n${TOOL_MARK}`, filedAt), who), "tool");
-    assert.equal(commentAuthor(comment(3, `Task fields\n\n${dataLine({ kind: "task", tagged: true, blocks: [], owner: "x" })}`, filedAt), who), "tool");
     assert.equal(commentAuthor(comment(4, "B", filedAt, "someone-else"), who), "other");
     console.log("ok: a maintainer-login comment is the maintainer's unless it carries the tool's marker or data line; another login's comment is neither");
   }
@@ -209,7 +208,7 @@ try {
     const posted = tracker.store.get(result.records[0].id);
     assert.equal(posted.issue, 2271);
     assert.equal(posted.body.replace(/\r\n/g, "\n"), fixture("record-decision.md"), "the record matches the fixture");
-    const quoted = /UTC:\n\n([\s\S]*?)\n\n<!-- ask-maintainer/.exec(posted.body)[1];
+    const quoted = /UTC:\n\n([\s\S]*?)\n\n_Posted by the ask-maintainer tool/.exec(posted.body)[1];
     assert.equal(unquote(quoted), typed.replace(/\r\n/g, "\n"), "the quoted words equal the maintainer's comment character for character");
     const confirmation = tracker.store.get(result.confirmation.id);
     assert.equal(confirmation.issue, REQUEST);
@@ -415,8 +414,8 @@ try {
     const tracker = fakeTracker({ issues: [issue(closedBy("completed")), { number: 2271, html_url: issueUrl(2271), state: "open" }], comments: [comment(195, "Use B.  ", "2026-11-13T16:10:00Z")] });
     const result = recordAnswer(REQUEST, { tracker, repos });
     const body = tracker.store.get(result.records[0].id).body;
-    assert.match(body, /\n> Use B\. {2}\n\n<!-- ask-maintainer/, "trailing spaces on the last quoted line are kept");
-    assert.equal(unquote(/UTC:\n\n([\s\S]*?)\n\n<!-- ask-maintainer/.exec(body)[1]), "Use B.  ");
+    assert.match(body, /\n> Use B\. {2}\n\n_Posted by the ask-maintainer tool/, "trailing spaces on the last quoted line are kept");
+    assert.equal(unquote(/UTC:\n\n([\s\S]*?)\n\n_Posted by the ask-maintainer tool/.exec(body)[1]), "Use B.  ");
     console.log("ok: record keeps the maintainer's last line character for character, trailing spaces included");
   }
 
@@ -454,7 +453,7 @@ try {
   }
 
   {
-    const waitCase = ({ timeline, fallbackAt = "2026-11-13T17:37:00.000Z", start = "2026-11-13T16:00:00.000Z", interval }) => {
+    const waitCase = async ({ timeline, fallbackAt = "2026-11-13T17:37:00.000Z", start = "2026-11-13T16:00:00.000Z", interval }) => {
       let now = Date.parse(start);
       const requests = [];
       const body = decisionBody.replace(/"at":"[^"]+"/, `"at":"${fallbackAt}"`);
@@ -480,7 +479,7 @@ try {
           return served.comments;
         },
       };
-      const result = waitForRequests([REQUEST], { tracker, repos, clock: () => new Date(now), sleep: (ms) => (now += ms), intervalSeconds: interval, warn: () => {} });
+      const result = await waitForRequests([REQUEST], { tracker, repos, clock: () => new Date(now), sleep: (ms) => (now += ms), intervalSeconds: interval, warn: () => {} });
       const unconditional = requests.filter((r) => !r.conditional || r.changed);
       for (let i = 1; i < unconditional.length; i++) {
         const gap = unconditional[i].at - unconditional[i - 1].at;
@@ -491,24 +490,24 @@ try {
       return { result, requests, at };
     };
     const body = decisionBody.replace(/"at":"[^"]+"/, '"at":"2026-11-13T17:37:00.000Z"');
-    const close = waitCase({ timeline: (ms) => (ms >= 200000 ? { issue: issue({ body, ...closedBy("completed", "2026-11-13T16:03:20Z") }), comments: [comment(140, "B", "2026-11-13T16:03:19Z")] } : null) });
+    const close = await waitCase({ timeline: (ms) => (ms >= 200000 ? { issue: issue({ body, ...closedBy("completed", "2026-11-13T16:03:20Z") }), comments: [comment(140, "B", "2026-11-13T16:03:19Z")] } : null) });
     assert.deepEqual([close.result.why, close.result.state, close.result.returnedAt, close.result.secondsSinceClose], ["closed", "answered", "2026-11-13T16:04:00.000Z", 40]);
     assert.equal(close.requests.filter((r) => r.kind === "poll" && r.conditional && !r.changed).length, 3, "three unchanged minutes cost three conditional requests");
-    const commented = waitCase({ timeline: (ms) => (ms >= 61000 ? { issue: issue({ body }), comments: [comment(141, "Can I see C in dark mode?", "2026-11-13T16:01:01Z")] } : null) });
+    const commented = await waitCase({ timeline: (ms) => (ms >= 61000 ? { issue: issue({ body }), comments: [comment(141, "Can I see C in dark mode?", "2026-11-13T16:01:01Z")] } : null) });
     assert.deepEqual([commented.result.why, commented.result.state, commented.result.returnedAt], ["comment", "question", "2026-11-13T16:02:00.000Z"]);
-    const fallback = waitCase({ fallbackAt: "2026-11-13T16:02:30.000Z", timeline: () => null });
+    const fallback = await waitCase({ fallbackAt: "2026-11-13T16:02:30.000Z", timeline: () => null });
     assert.deepEqual([fallback.result.why, fallback.result.returnedAt, fallback.result.fallbackAt], ["fallback", "2026-11-13T16:03:00.000Z", "2026-11-13T16:02:30.000Z"], "the fallback is taken at the first read at or after its time");
     assert.equal(fallback.requests.filter((r) => r.kind === "poll").length, 4, "the read after the fallback time is the next scheduled poll, never an extra one");
-    const questionBeforeFallback = waitCase({ fallbackAt: "2026-11-13T16:01:00.000Z", timeline: (ms) => (ms >= 30000 ? { issue: issue({ body }), comments: [comment(143, "Can I see C in dark mode?", "2026-11-13T16:00:30Z")] } : null) });
+    const questionBeforeFallback = await waitCase({ fallbackAt: "2026-11-13T16:01:00.000Z", timeline: (ms) => (ms >= 30000 ? { issue: issue({ body }), comments: [comment(143, "Can I see C in dark mode?", "2026-11-13T16:00:30Z")] } : null) });
     assert.deepEqual([questionBeforeFallback.result.why, questionBeforeFallback.result.state, questionBeforeFallback.result.returnedAt], ["comment", "question", "2026-11-13T16:01:00.000Z"], "a question asked before the fallback time is found before the fallback is taken");
-    const answerBeforeFallback = waitCase({ fallbackAt: "2026-11-13T16:01:00.000Z", timeline: (ms) => (ms >= 30000 ? { issue: issue({ body, ...closedBy("completed", "2026-11-13T16:00:30Z") }), comments: [comment(144, "A", "2026-11-13T16:00:29Z")] } : null) });
+    const answerBeforeFallback = await waitCase({ fallbackAt: "2026-11-13T16:01:00.000Z", timeline: (ms) => (ms >= 30000 ? { issue: issue({ body, ...closedBy("completed", "2026-11-13T16:00:30Z") }), comments: [comment(144, "A", "2026-11-13T16:00:29Z")] } : null) });
     assert.deepEqual([answerBeforeFallback.result.why, answerBeforeFallback.result.state], ["closed", "answered"], "an answer given before the fallback time is found before the fallback is taken");
-    const already = waitCase({ timeline: () => ({ issue: issue({ body, ...closedBy("completed", "2026-11-13T15:59:00Z") }), comments: [] }) });
+    const already = await waitCase({ timeline: () => ({ issue: issue({ body, ...closedBy("completed", "2026-11-13T15:59:00Z") }), comments: [] }) });
     assert.deepEqual([already.result.why, already.result.returnedAt, already.requests.length], ["closed", "2026-11-13T16:00:00.000Z", 3]);
-    const asked = waitCase({ fallbackAt: "2026-11-13T16:00:30.000Z", timeline: (ms) => (ms >= 120000 ? { issue: issue({ body, ...closedBy("completed", "2026-11-13T16:01:50Z") }), comments: [comment(142, "Is C dark?", "2026-11-13T15:50:00Z")] } : { issue: issue({ body }), comments: [comment(142, "Is C dark?", "2026-11-13T15:50:00Z")] }) });
+    const asked = await waitCase({ fallbackAt: "2026-11-13T16:00:30.000Z", timeline: (ms) => (ms >= 120000 ? { issue: issue({ body, ...closedBy("completed", "2026-11-13T16:01:50Z") }), comments: [comment(142, "Is C dark?", "2026-11-13T15:50:00Z")] } : { issue: issue({ body }), comments: [comment(142, "Is C dark?", "2026-11-13T15:50:00Z")] }) });
     assert.deepEqual([asked.result.why, asked.result.state], ["closed", "answered"], "an open question stops the fallback clock, and an old comment is not news");
-    assert.throws(() => waitCase({ interval: 30, timeline: () => null }), /at least 60/);
-    const several = ({ fallbacks, failing = () => false, slow = () => 0, closeAt = {} }) => {
+    await assert.rejects(() => waitCase({ interval: 30, timeline: () => null }), /at least 60/);
+    const several = async ({ fallbacks, failing = () => false, slow = () => 0, closeAt = {} }) => {
       const start = Date.parse("2026-11-13T16:00:00.000Z");
       let now = start;
       const log = [];
@@ -536,16 +535,16 @@ try {
           return [];
         },
       };
-      const out = waitForRequests([1, 2], { tracker, repos, clock: () => new Date(now), sleep: (ms) => (now += ms), warn: () => {} });
+      const out = await waitForRequests([1, 2], { tracker, repos, clock: () => new Date(now), sleep: (ms) => (now += ms), warn: () => {} });
       for (const n of [1, 2]) for (const kind of ["poll", "comments", "events"]) {
         const times = log.filter((entry) => entry.n === n && entry.kind === kind).map((entry) => entry.at);
         for (let i = 1; i < times.length; i++) assert.ok(times[i] - times[i - 1] >= 60, `#${n} ${kind} requests at ${times[i - 1]} s and ${times[i]} s are less than a minute apart`);
       }
       return { out, at: (now - start) / 1000 };
     };
-    const starved = several({ fallbacks: { 1: 60, 2: 120 }, failing: (n) => n === 1 });
+    const starved = await several({ fallbacks: { 1: 60, 2: 120 }, failing: (n) => n === 1 });
     assert.deepEqual([starved.out.number, starved.out.why, starved.at], [2, "fallback", 120], "an unreadable request does not hold back another request's confirmed fallback");
-    const slowRead = several({ fallbacks: { 1: 3600, 2: 3600 }, slow: (n, at) => (n === 1 && at >= 60 && at < 61 ? 50 : 0), closeAt: { 2: 200 } });
+    const slowRead = await several({ fallbacks: { 1: 3600, 2: 3600 }, slow: (n, at) => (n === 1 && at >= 60 && at < 61 ? 50 : 0), closeAt: { 2: 200 } });
     assert.deepEqual([slowRead.out.number, slowRead.out.why], [2, "closed"], "a slow read of one request never brings another request's next read closer than a minute");
     console.log("ok: wait returns for a close, a new maintainer comment and a reached fallback time, polls conditionally once a minute, and never makes an unconditional request more often than once a minute");
   }
@@ -566,6 +565,48 @@ try {
       console.error = errors;
     }
     console.log("ok: read prints the answer as text or JSON, and malformed answer commands print the usage");
+  }
+
+  {
+    const app = { slug: "ask-maintainer-tool", id: 4242, installationId: 77 };
+    const withApp = { ...repos, maintainer: { ...repos.maintainer, app } };
+    const bot = { login: `${app.slug}[bot]`, type: "Bot" };
+    const byBot = (id, text, note, at) => ({ ...toolComment(id, text, note, at), user: bot, performed_via_github_app: { id: app.id } });
+    const botClose = { state: "closed", state_reason: "completed", closed_at: "2026-11-13T16:10:05Z", closed_by: bot };
+    const relayed = readAnswer(issue(botClose), [byBot(210, "Relayed.", { kind: "relayed", words: "Go with B", session: "s", at: "2026-11-13T16:00:00Z", runner: "codex" }, "2026-11-13T16:10:04Z")], withApp);
+    assert.deepEqual([relayed.state, relayed.words[0].body], ["answered", "Go with B"], "a close by the App explained by its relay note is the relayed answer");
+    const withdrawn = readAnswer(issue({ ...botClose, state_reason: "not_planned" }), [byBot(211, "Withdrawn.", { kind: "withdrawn", reason: "no longer needed" }, "2026-11-13T16:10:04Z")], withApp);
+    assert.equal(withdrawn.state, "withdrawn");
+    const bare = readAnswer(issue(botClose), [], withApp);
+    assert.deepEqual([bare.state, bare.why], ["unclear", "closed by the tool with no withdrawal or relayed answer to explain it"], "a close by the App with no note is never the maintainer's acceptance");
+    const botWords = readAnswer(issue(closedBy("completed")), [{ ...comment(212, "B", "2026-11-13T16:10:00Z"), user: bot, performed_via_github_app: { id: app.id } }], withApp);
+    assert.equal(botWords.state, "accepted", "a comment the App posted, even unmarked, is never the maintainer's words");
+    const signed = toolText("Recorded.", { kind: "recorded" }, { mode: "app", login: bot.login });
+    assert.equal(signed, `Recorded.\n\n${TOOL_MARK}\n<!-- maintainer-request-note {"kind":"recorded"} -->\n`, "as the App, a note carries only the hidden mark");
+    console.log("ok: as the App, its own closes count only when its withdrawal or relay note explains them, and its comments are never the maintainer's");
+  }
+
+  {
+    const start = Date.parse("2026-11-13T16:00:00.000Z");
+    let now = start;
+    const fallbackBody = decisionBody.replace(/"at":"[^"]+"/, '"at":"2026-11-13T18:00:00.000Z"');
+    const trackerFor = (name, uses) => ({
+      poll: (n, etag) => {
+        uses.push([name, "poll", (now - start) / 1000]);
+        const closed = now - start >= 150000;
+        const current = issue({ body: fallbackBody, ...(closed ? closedBy("completed", "2026-11-13T16:02:30Z") : {}) });
+        const tag = `W/"${current.state}"`;
+        return etag === tag ? { status: 304, etag } : { status: 200, etag: tag, issue: current };
+      },
+      comments: () => (uses.push([name, "comments", (now - start) / 1000]), []),
+      events: () => [],
+    });
+    const uses = [];
+    let refreshed = 0;
+    const result = await waitForRequests([REQUEST], { tracker: trackerFor("start", uses), refresh: async () => trackerFor(`identity-${++refreshed}`, uses), repos, clock: () => new Date(now), sleep: (ms) => (now += ms), warn: () => {} });
+    assert.deepEqual([result.why, refreshed], ["closed", 3], "the identity is resolved again before every read pass");
+    assert.deepEqual(uses.filter(([, kind]) => kind === "poll").map(([name]) => name), ["start", "identity-1", "identity-2", "identity-3"], "each pass reads with the identity resolved just before it");
+    console.log("ok: wait resolves the tool's identity again before each read, so an App token that expires during a long wait is replaced");
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true });

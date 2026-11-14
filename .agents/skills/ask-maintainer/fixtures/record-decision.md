@@ -12,5 +12,7 @@ The maintainer's words, from [their comment](https://github.com/acme/tickets/iss
 >
 > Thanks!
 
+_Posted by the ask-maintainer tool through your GitHub account, not by you._
+
 <!-- ask-maintainer: posted by the tool -->
 <!-- maintainer-request-note {"kind":"record","request":9001,"answer":"answered:comments:101:1df727bf29881c01"} -->

@@ -4,7 +4,7 @@ All commands run from the repository root.
 
 ## The answer
 
-Closing is the answer, and only the maintainer closes. The maintainer's words are their comments on the request since its last revision, up to the close; a comment the tool posted is never the maintainer's, even though it carries the maintainer's login.
+Closing is the answer, and only the maintainer closes. The maintainer's words are their comments on the request since its last revision, up to the close; a comment the tool posted is never the maintainer's, whether it posted as its GitHub App or through the maintainer's login ([identity](identity.md) gives the rule). A close by the App counts only when the tool's own withdrawal or relay note explains it; any other close by the App is unclear.
 
 - **Closed with a comment:** answered, in the maintainer's words. An answer that fits no option is acted on as written.
 - **Closed with no comment:** the recommendation is accepted.
@@ -42,7 +42,7 @@ GitHub does not notify a session. `wait` returns when any request it names is cl
 node .agents/skills/ask-maintainer/maintainer-request.mjs wait <request> [<request> ...] [--interval=<seconds>]
 ```
 
-It reads each request once a minute (`--interval` may lengthen that, never shorten it) with a conditional request, which costs nothing while the request is unchanged, and prints the seconds between a close and its return. It reports a fallback only after a read at or after the fallback time still finds no answer and no question, so it returns up to a minute after that time.
+It reads each request once a minute (`--interval` may lengthen that, never shorten it) with a conditional request, which costs nothing while the request is unchanged, and prints the seconds between a close and its return. Before each round of reads it resolves the tool's identity again, so an App token that expires during a long wait is replaced. It reports a fallback only after a read at or after the fallback time still finds no answer and no question, so it returns up to a minute after that time.
 
 How a session is woken:
 
