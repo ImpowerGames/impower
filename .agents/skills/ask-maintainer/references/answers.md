@@ -10,8 +10,10 @@ Closing is the answer, and only the maintainer closes. The maintainer's words ar
 - **Closed with no comment:** the recommendation is accepted.
 - **A comment without closing:** a question, or a statement of what is missing. The fallback clock stops; answer it with `revise`, which restarts the clock.
 - **A task:** closed as completed means done; closed as not planned means the maintainer will not do it, so carry on without it and say what that leaves undone.
-- **Unclear:** a decision closed as not planned with no comment, closed by another account, or closed before or in the same second as its latest revision; or a request whose withdrawal or relay note shares a second with a reopen, since GitHub's one-second times cannot order them. Reopen it with a question through `revise`.
+- **Unclear:** a decision closed as not planned with no comment, closed by another account, or closed before its latest revision; or a closed request whose timeline shows no close. Reopen it with a question through `revise`.
 - **An answer typed in chat** counts only through `answer-from-chat`, which accepts the quoted words only when they appear as one unbroken run in a message the maintainer typed in that session's transcript (below). A paraphrase, words an agent wrote, tool output and relayed or injected messages are refused.
+
+The tool reads the order of comments, the tool's notes, reopens and closes from the issue's timeline, one ordered list, never by comparing their times, which GitHub gives only to the second.
 
 Never write that the maintainer decided anything unless `record` has recorded it.
 

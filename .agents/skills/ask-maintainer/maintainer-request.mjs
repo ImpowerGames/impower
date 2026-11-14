@@ -590,7 +590,7 @@ export function ghTracker(repo = ticketsRepo(), runGh = (args, options = {}) => 
     },
     readComment: (id) => json(["api", `repos/${repo}/issues/comments/${id}`]),
     comments: (n) => json(["api", `repos/${repo}/issues/${n}/comments`, "--paginate", "--slurp"]).flat(),
-    events: (n) => json(["api", `repos/${repo}/issues/${n}/events`, "--paginate", "--slurp"]).flat(),
+    timeline: (n) => json(["api", `repos/${repo}/issues/${n}/timeline`, "--paginate", "--slurp"]).flat(),
     editComment: (id, bodyFile) => json(["api", "-X", "PATCH", `repos/${repo}/issues/comments/${id}`, "-F", `body=@${bodyFile}`]),
     close: (n, reason, bodyFile) => {
       const note = json(["api", "-X", "POST", `repos/${repo}/issues/${n}/comments`, "-F", `body=@${bodyFile}`]);
@@ -896,30 +896,30 @@ function requestData(issue, comments, who) {
   throw new RequestRefused([`#${issue.number} is not a maintainer request: neither its body nor a task comment holds the request's data line`]);
 }
 
-export function readAnswer(issue, comments, repos = readRepos(), events = []) {
+export function readAnswer(issue, timeline, repos = readRepos()) {
   const who = whoOf(repos);
+  const items = timeline.map((item, pos) => ({ ...item, pos }));
+  const comments = items.filter((item) => item.event === "commented");
   const { data, body, floor: tagged } = requestData(issue, comments, who);
   const notes = comments.filter((comment) => commentAuthor(comment, who) === "tool").map((comment) => ({ comment, note: readNote(comment.body) })).filter((entry) => entry.note);
   const revision = notes.filter((entry) => entry.note.kind === "revised").at(-1)?.comment ?? null;
-  const floor = revision ?? tagged;
-  const later = (comment) => !floor || comment.id > floor.id;
-  const closedAt = issue.state === "closed" && issue.closed_at ? Date.parse(issue.closed_at) : Infinity;
-  const words = comments
-    .filter((comment) => later(comment) && commentAuthor(comment, who) === "maintainer" && Date.parse(comment.created_at) <= closedAt)
-    .map((comment) => ({ id: comment.id, url: comment.html_url, at: comment.created_at, body: lf(comment.body) }));
-  const reopenedAt = Math.max(-Infinity, ...events.filter((event) => event.event === "reopened").map((event) => Date.parse(event.created_at)));
-  const closingNotes = notes.filter((entry) => ["withdrawn", "relayed"].includes(entry.note.kind) && later(entry.comment) && Date.parse(entry.comment.created_at) <= closedAt && !words.some((word) => word.id > entry.comment.id));
-  const closing = closingNotes.filter((entry) => Date.parse(entry.comment.created_at) > reopenedAt).at(-1) ?? null;
-  const tiedWithReopen = closingNotes.some((entry) => Date.parse(entry.comment.created_at) === reopenedAt);
+  const floorPos = (revision ?? tagged)?.pos ?? -1;
+  const lastPos = (event) => items.filter((item) => item.event === event).at(-1)?.pos ?? -1;
+  const closedPos = issue.state === "closed" ? lastPos("closed") : Infinity;
+  const reopenedPos = lastPos("reopened");
+  const maintainerWords = comments.filter((comment) => comment.pos > floorPos && comment.pos < closedPos && commentAuthor(comment, who) === "maintainer");
+  const words = maintainerWords.map((comment) => ({ id: comment.id, url: comment.html_url, at: comment.created_at, body: lf(comment.body) }));
+  const closing = notes.filter((entry) => ["withdrawn", "relayed"].includes(entry.note.kind) && entry.comment.pos > Math.max(floorPos, reopenedPos) && entry.comment.pos < closedPos && !maintainerWords.some((comment) => comment.pos > entry.comment.pos)).at(-1) ?? null;
   const shown = { at: revision?.created_at ?? tagged?.created_at ?? issue.created_at, revised: Boolean(revision), options: data.options?.length ?? 0, pictures: imageReferences(body).length };
   const base = { number: issue.number, url: issue.html_url, title: issue.title, kind: data.kind, tagged: Boolean(data.tagged), question: data.tagged ? issue.title : questionOf(issue.title), tickets: data.blocks ?? [], data, shown, recommended: data.recommended ? { letter: data.recommended, name: optionName(body, data.recommended) } : null };
   if (issue.state !== "closed") return words.length ? { ...base, state: "question", words } : { ...base, state: "waiting", fallback: data.fallback ?? null, words: [] };
-  const closed = { at: issue.closed_at, by: issue.closed_by?.login ?? null, reason: issue.state_reason ?? null };
-  if (!closing && tiedWithReopen) return { ...base, state: "unclear", closed, why: "a withdrawal or relay note and a reopen share one second, so which came first is unknown", words: [] };
+  const closeEvent = items[closedPos] ?? null;
+  const closed = { at: issue.closed_at, by: closeEvent?.actor?.login ?? issue.closed_by?.login ?? null, reason: issue.state_reason ?? null };
+  if (!closeEvent) return { ...base, state: "unclear", closed, why: "the request is closed but its timeline holds no close, so the order of its answer cannot be read", words: [] };
   if (closing?.note.kind === "withdrawn") return { ...base, state: "withdrawn", closed, reason: closing.note.reason ?? null, words: [] };
-  if (revision && Date.parse(revision.created_at) >= closedAt) return { ...base, state: "unclear", closed, why: "closed before its latest revision, or in the same second, so the close does not answer it", words: [] };
+  if (revision && floorPos > closedPos) return { ...base, state: "unclear", closed, why: "closed before its latest revision, so the close does not answer it", words: [] };
   const relay = closing?.note.kind === "relayed" ? closing : null;
-  const closer = actorOf(issue.closed_by, who);
+  const closer = actorOf(closeEvent.actor ?? issue.closed_by, who);
   if (closer === "other") return { ...base, state: "unclear", closed, why: `closed by ${closed.by ?? "an account GitHub did not name"}, not by the maintainer`, words };
   if (closer === "tool" && !relay) return { ...base, state: "unclear", closed, why: "closed by the tool with no withdrawal or relayed answer to explain it", words };
   const said = relay ? [{ id: relay.comment.id, url: relay.comment.html_url, at: relay.note.at, body: relay.note.words, relayed: { session: relay.note.session, runner: relay.note.runner, postedAt: relay.comment.created_at } }] : words;
@@ -937,7 +937,7 @@ function optionName(body, letter) {
 }
 
 export function fetchAnswer(number, { tracker, repos = readRepos() }) {
-  return readAnswer(tracker.issue(number), tracker.comments(number), repos, tracker.events(number));
+  return readAnswer(tracker.issue(number), tracker.timeline(number), repos);
 }
 
 const RUNNERS = { "claude-code": "Claude Code", codex: "Codex" };
@@ -1028,7 +1028,7 @@ const sameTickets = (a, b) => JSON.stringify([...a].sort((x, y) => x - y)) === J
 
 export function reviseRequest(number, request, changes, { pictures: folder, tracker, repos = readRepos(), now = new Date(), timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone, templates, identity = AS_MAINTAINER }) {
   const issue = tracker.issue(number);
-  const answer = readAnswer(issue, tracker.comments(number), repos, tracker.events(number));
+  const answer = readAnswer(issue, tracker.timeline(number), repos);
   if (answer.tagged) throw new RequestRefused([`#${number} is a tagged ticket, not a filed request; it has no request body to revise`]);
   if (issue.state === "closed" && answer.state !== "unclear") throw new RequestRefused([`#${number} is closed (${answer.state}); revise reopens only a request whose answer is unclear`]);
   const changed = checkNoteText(changes, "What changed");
@@ -1138,7 +1138,7 @@ export async function waitForRequests(numbers, { tracker, refresh, repos = readR
   if (!Number.isSafeInteger(intervalSeconds) || intervalSeconds < WAIT_INTERVAL_SECONDS) throw new RequestRefused([`The interval must be a whole number of seconds, at least ${WAIT_INTERVAL_SECONDS}`]);
   const who = whoOf(repos);
   const interval = intervalSeconds * 1000;
-  const maintainerIds = (comments) => new Set(comments.filter((comment) => commentAuthor(comment, who) === "maintainer").map((comment) => comment.id));
+  const maintainerIds = (timeline) => new Set(timeline.filter((item) => item.event === "commented" && commentAuthor(item, who) === "maintainer").map((item) => item.id));
   const result = (entry, why) => {
     const returnedAt = clock();
     const out = { number: entry.number, why, state: entry.answer.state, returnedAt: returnedAt.toISOString(), answer: entry.answer };
@@ -1151,9 +1151,9 @@ export async function waitForRequests(numbers, { tracker, refresh, repos = readR
   const watched = numbers.map((number) => {
     const readAt = clock().getTime();
     const polled = tracker.poll(number, null);
-    const comments = tracker.comments(number);
-    const answer = readAnswer(polled.issue, comments, repos, tracker.events(number));
-    return { number, etag: polled.etag, readAt, nextRead: clock().getTime() + interval, answer, seen: maintainerIds(comments), fresh: false };
+    const timeline = tracker.timeline(number);
+    const answer = readAnswer(polled.issue, timeline, repos);
+    return { number, etag: polled.etag, readAt, nextRead: clock().getTime() + interval, answer, seen: maintainerIds(timeline), fresh: false };
   });
   for (;;) {
     const closed = watched.find(settled);
@@ -1185,10 +1185,10 @@ export async function waitForRequests(numbers, { tracker, refresh, repos = readR
         continue;
       }
       if (polled.status !== 304) {
-        const comments = tracker.comments(entry.number);
+        const timeline = tracker.timeline(entry.number);
         entry.etag = polled.etag;
-        entry.answer = readAnswer(polled.issue, comments, repos, tracker.events(entry.number));
-        entry.fresh = [...maintainerIds(comments)].some((id) => !entry.seen.has(id));
+        entry.answer = readAnswer(polled.issue, timeline, repos);
+        entry.fresh = [...maintainerIds(timeline)].some((id) => !entry.seen.has(id));
       }
       entry.readAt = readAt;
       entry.nextRead = clock().getTime() + interval;
