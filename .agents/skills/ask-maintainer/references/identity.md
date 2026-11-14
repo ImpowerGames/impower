@@ -1,6 +1,8 @@
 # Who the ask-maintainer tool acts as
 
-The tool acts on GitHub as its own GitHub App, so GitHub alerts the maintainer when a request is assigned and their answers can be told apart from the tool's. Every command signs a short-lived token for the App's installation and uses it for every call it makes: filing, editing, labels, assignment, dependencies and comments. The token covers read and write access to issues on the tickets repository and nothing else. The App's slug, App id and installation id are `maintainer.app` in `.agents/repos.json`, all `null` until the App exists. Its private key stays outside every repository; the environment variable `ASK_MAINTAINER_APP_KEY` holds the key file's absolute path.
+The tool acts on GitHub as its own GitHub App, so GitHub alerts the maintainer when a request is assigned and their answers can be told apart from the tool's. Every command signs a short-lived token for the App's installation and uses it for every call it makes on the tickets repository: filing, editing, labels, assignment, dependencies and comments. The token covers read and write access to issues on the tickets repository and nothing else.
+
+Picture uploads are the one exception: they go through the maintainer's own `gh` login. GitHub's attachment host (`uploads.github.com/user-attachments/assets`) accepts only a user's token and answers an App installation token with 404. The tool uploads each picture before it posts anything, then files or comments as the App with the hosted addresses already in the body. An upload adds no event to the issue and sends no notification, so the request, its comments, its assignment and the alert are still the App's. The App's slug, App id and installation id are `maintainer.app` in `.agents/repos.json`, all `null` until the App exists. Its private key stays outside every repository; the environment variable `ASK_MAINTAINER_APP_KEY` holds the key file's absolute path.
 
 ## The key
 
