@@ -197,12 +197,13 @@ export default function WritingTools({
         : null;
     void withWindow((win) => {
       win.closeWritingTools();
-      if (asset) {
-        void win.showDocument(asset);
-      } else if (action === "definition") {
+      if (action === "definition" && !asset) {
         win.executeEditorCommand(filename, action);
       }
     });
+    if (asset) {
+      withSearch((search) => search.openAsset(asset));
+    }
     if (name && action !== "definition") {
       withSearch((search) =>
         action === "rename" ? search.openRename(name) : search.openReferences(name),

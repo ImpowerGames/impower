@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const calls = vi.hoisted(() => ({
   commands: [] as [string, string][],
   documents: [] as string[],
+  assets: [] as string[],
   name: null as unknown,
   keys: null as unknown,
   names: [] as [string, unknown][],
@@ -36,6 +37,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
         openRename: (name: unknown) => calls.names.push(["rename", name]),
         openReferences: (name: unknown) =>
           calls.names.push(["references", name]),
+        openAsset: async (uri: string) => {
+          calls.assets.push(uri);
+        },
         openFindFromSelection: () => {
           calls.finds += 1;
         },
@@ -129,6 +133,7 @@ const imani = {
 beforeEach(() => {
   calls.commands.length = 0;
   calls.documents.length = 0;
+  calls.assets.length = 0;
   calls.name = null;
   calls.keys = null;
   calls.names.length = 0;
@@ -237,15 +242,16 @@ describe("Writing tools menu", () => {
     expect(row("Select all")?.getAttribute("aria-disabled")).toBeNull();
   });
 
-  it("goes to a picture's definition by showing its file", async () => {
+  it("goes to a picture's definition by opening its file in the Assets inspector", async () => {
     calls.name = { name: "sky", kind: "picture", definition: { uri: "file://local/sky.png", range: imani.definition.range } };
     await mount();
     await open();
     await until(() => row("Go to definition for sky"));
     expect(row("Go to definition for sky")?.textContent).toContain("Show all linked assets.");
     await act(async () => row("Go to definition for sky")!.click());
-    await until(() => calls.documents.length);
-    expect(calls.documents).toEqual(["file://local/sky.png"]);
+    await until(() => calls.assets.length);
+    expect(calls.assets).toEqual(["file://local/sky.png"]);
+    expect(calls.documents).toEqual([]);
     expect(calls.commands).toEqual([]);
   });
 
