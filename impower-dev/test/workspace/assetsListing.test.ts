@@ -507,6 +507,23 @@ describe("a folder stack in the Assets page", () => {
     const level = assetLevel({ listing: project, type: "image", folder: "Assets/Images/Portraits", sort: "name-asc", endings: ENDINGS });
     expect(level.rows.find((row) => row.path === MIA)?.covers).toEqual([`${MIA}/90_body.png`, `${MIA}/notes.png`]);
   });
+
+  it("counts the folder's picture as one of its parent's own pictures on the parent's cover", () => {
+    const level = assetLevel({
+      listing: {
+        ...project,
+        files: { ...project.files, "Assets/Images/Portraits/Extras/kai.png": { modified: NOW - DAY, size: 5 } },
+      },
+      type: "image",
+      sort: "name-asc",
+      endings: ENDINGS,
+    });
+    expect(level.rows.find((row) => row.name === "Portraits")?.covers).toEqual([
+      `${MIA}/90_body.png`,
+      "Assets/Images/Portraits/Extras/kai.png",
+      `${MIA}/notes.png`,
+    ]);
+  });
 });
 
 describe("a folder's count line", () => {
