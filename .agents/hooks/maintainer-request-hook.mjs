@@ -107,6 +107,11 @@ function apiTarget(raw, repo) {
   return m && sameRepo(m[1], repo) ? Number(m[2]) : null;
 }
 
+function commentTarget(raw, repo) {
+  const m = /^repos\/([^/]+\/[^/]+)\/issues\/comments\/([1-9]\d*)(?:\/|$)/i.exec(endpointOf(raw));
+  return m && sameRepo(m[1], repo) ? Number(m[2]) : null;
+}
+
 function touches(seg, i, repo) {
   const base = baseName(seg[i]);
   const args = seg.slice(i + 1);
@@ -119,16 +124,27 @@ function touches(seg, i, repo) {
       return targets.length ? { numbers: targets.map((target) => target.number), action } : null;
     }
     if (group === "api") {
-      const number = apiTarget(parsed.positional[1] ?? "", repo);
-      if (number === null) return null;
+      const endpoint = parsed.positional[1] ?? "";
       const method = (parsed.values("-X", "--method").at(-1) ?? (parsed.values(...GH_API_FIELD_FLAGS, "--input").length ? "POST" : "GET")).toUpperCase();
-      return method === "GET" || method === "HEAD" ? null : { numbers: [number], action: "api" };
+      if (method === "GET" || method === "HEAD") return null;
+      const comment = commentTarget(endpoint, repo);
+      if (comment !== null) return { numbers: [], comment, action: "comment-id" };
+      const number = apiTarget(endpoint, repo);
+      return number === null ? null : { numbers: [number], action: "api" };
     }
     return null;
   }
   const request = base === "curl" ? curlRequest(args) : WEB_REQUEST.has(base) ? webRequest(args) : null;
-  const numbers = request && changes(request) ? request.urls.filter(githubUrl).map((url) => apiTarget(url, repo)).filter((n) => n !== null) : [];
+  if (!request || !changes(request)) return null;
+  const urls = request.urls.filter(githubUrl);
+  const comment = urls.map((url) => commentTarget(url, repo)).find((n) => n !== null);
+  if (comment !== undefined) return { numbers: [], comment, action: "comment-id" };
+  const numbers = urls.map((url) => apiTarget(url, repo)).filter((n) => n !== null);
   return numbers.length ? { numbers, action: "api" } : null;
+}
+
+function commentReason(comment, repo) {
+  return `This command changes ${repo} issue comment ${comment} by its comment id, and the maintainer request guard cannot tell from the command which issue that comment belongs to, so it cannot rule out a maintainer request. Edit your last comment on an issue you name instead: \`gh issue comment <N> -R ${repo} --edit-last --body-file <file>\`; on a maintainer request, use the ask-maintainer tool (\`${TOOL} revise|withdraw <N>\`).`;
 }
 
 const WEB_REQUEST = new Set(["invoke-restmethod", "irm", "invoke-webrequest", "iwr"]);
@@ -505,16 +521,20 @@ export function decisionClaim(text, login, { quotes = true } = {}) {
   const active = new RegExp(`\\b${who}(?:['’]s)?\\b((?:[ \\t]+[\\w'’-]+){0,3}?)[ \\t]+(?:${VERBS})\\b`, "gi");
   for (const m of plain.matchAll(active)) if (!HEDGE.test(m[1])) return m[0].trim();
   const fixed = [
-    new RegExp(`\\b(?:${VERBS})\\b(?:[ \\t]+[\\w'’-]+){0,2}?[ \\t]+(?:by|with)[ \\t]+(?:the[ \\t]+)?${who}\\b`, "i"),
-    new RegExp(`\\bper[ \\t]+(?:the[ \\t]+)?${who}\\b`, "i"),
-    new RegExp(`\\b${who}['’]s[ \\t]+(?:decision|choice|approval|ruling|sign-off|instruction)\\b`, "i"),
+    new RegExp(`\\b(?:${VERBS})\\b(?:[ \\t]+[\\w'’-]+){0,2}?[ \\t]+(?:by|with)[ \\t]+(?:the[ \\t]+)?${who}\\b`, "gi"),
+    new RegExp(`\\bper[ \\t]+(?:the[ \\t]+)?${who}\\b`, "gi"),
+    new RegExp(`\\b${who}['’]s[ \\t]+(?:decision|choice|approval|ruling|sign-off|instruction)\\b`, "gi"),
   ];
   for (const pattern of fixed) {
-    const m = pattern.exec(plain);
-    if (m) return m[0].trim();
+    for (const m of plain.matchAll(pattern)) {
+      const sentence = plain.slice(0, m.index).split(/[.!?\n]/).at(-1);
+      if (!PENDING.test(sentence.trim().split(/\s+/).slice(-4).join(" "))) return m[0].trim();
+    }
   }
   return null;
 }
+
+const PENDING = new RegExp(`${HEDGE.source}|\\b(waiting|awaiting|pending|without|needs?|asks?|asking|requires?)\\b`, "i");
 
 export function citedRequests(text, repos = readRepos(), destination = ticketsRepo(repos)) {
   const repo = ticketsRepo(repos);
@@ -581,6 +601,7 @@ function decideAt(command, shell, depth, context) {
       const refused = unmodelled(seg, i, context.repo);
       if (refused) return refused;
       const touched = touches(seg, i, context.repo);
+      if (touched?.comment !== undefined) return commentReason(touched.comment, context.repo);
       if (touched) {
         try {
           const index = openRequestIndex(context.repo, context.env);

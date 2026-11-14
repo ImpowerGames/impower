@@ -118,6 +118,13 @@ for (const [harness, run] of runs) {
     assert.match(reason, /maintainer-request\.mjs (revise|withdraw|read)/, `${harness}: ${label}'s refusal names the tool command`);
   }
   for (const [label, command] of touching(OTHER)) assert.equal(run(command, scratch), null, `${harness}: ${label} on an issue that is not a request passes`);
+  for (const command of [
+    `gh api -X PATCH repos/${repo}/issues/comments/6869166920 -f body="Here is the screenshot you asked for."`,
+    `gh api -X DELETE repos/${repo}/issues/comments/6869166920`,
+    `curl -X PATCH https://api.github.com/repos/${repo}/issues/comments/6869166920 --data '{"body":"ok"}'`,
+    `Invoke-RestMethod -Uri https://api.github.com/repos/${repo}/issues/comments/6869166920 -Method Patch -Body '{"body":"ok"}'`,
+  ]) assert.match(run(command, scratch) ?? "", /by its comment id, and the maintainer request guard cannot tell .* --edit-last/, `${harness}: ${command} is refused because its issue cannot be told`);
+  assert.equal(run(`gh api repos/${repo}/issues/comments/6869166920 --jq .issue_url`, scratch), null, `${harness}: reading a comment by id passes`);
   for (const n of [REQUEST, OTHER]) for (const [label, command] of unmodelled(n)) {
     const reason = run(command, scratch);
     assert.match(reason ?? "", new RegExp(`changes or publishes to ${repo} in a form the maintainer request guard does not model`), `${harness}: ${label} on #${n} is refused as unmodelled`);
@@ -289,6 +296,10 @@ for (const [harness, run] of runs) {
     "Ask the maintainer whether they approved the earlier layout.",
     "Accepted: finding F1 is real and fixed in abc1234.",
     "Filed a maintainer decision request for the gutter mark.",
+    `Still waiting for the maintainer's decision on #${REQUEST}.`,
+    "This has not been approved by the maintainer.",
+    "This will be approved by the maintainer after the request is answered.",
+    "The plan needs the maintainer's approval before it lands.",
   ]) assert.equal(run(`gh issue comment ${OTHER} -R ${repo} --body "${text}"`, bodyDir), null, `${harness}: "${text}" passes`);
   console.log(`ok: ${harness} refuses each decision phrase inline and in a body file without an answered request, and passes it when cited, quoted or hedged`);
 }
