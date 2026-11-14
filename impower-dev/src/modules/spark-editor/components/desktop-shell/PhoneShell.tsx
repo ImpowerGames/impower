@@ -1,4 +1,3 @@
-import { BackIcon, Button } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
@@ -10,39 +9,6 @@ import BottomNavigation from "./BottomNavigation";
 import { useNaming } from "./naming";
 import PhoneTitleBar from "./PhoneTitleBar";
 import { withWindow, workspaceWindow } from "./workspaceWindow";
-
-function BackToStory({ onBack }: { onBack: () => void }) {
-  return (
-    <Button
-      asChild
-      variant="quiet"
-      class="-ml-2 justify-start gap-2 px-2 font-normal text-accent"
-    >
-      <a
-        href="#write"
-        onClick={(e) => {
-          e.preventDefault();
-          onBack();
-        }}
-      >
-        <BackIcon />
-        Back to story
-      </a>
-    </Button>
-  );
-}
-
-export function PhonePreviewBack() {
-  return (
-    <div class="flex h-12 flex-none items-center border-b border-edge bg-bg px-4">
-      <BackToStory
-        onBack={() =>
-          void workspaceWindow().then((win) => win.collapsePreviewPane())
-        }
-      />
-    </div>
-  );
-}
 
 const takesEditingAway = (target: EventTarget | null) => {
   if (!(target instanceof Element) || target.closest("[data-keyboard-panel]")) {
@@ -59,8 +25,10 @@ const takesEditingAway = (target: EventTarget | null) => {
 };
 
 export default function PhoneShell({
+  strip,
   children,
 }: {
+  strip?: ComponentChildren;
   children: ComponentChildren;
 }) {
   const route = useComputed(() => routeOfState(workspace.state.value)).value;
@@ -100,11 +68,13 @@ export default function PhoneShell({
     return () => document.removeEventListener("focusin", onFocusIn);
   }, [editing]);
 
+  const onStory = writing && route === "write";
+
   useEffect(() => {
-    if (previewRevealed && !writing) {
+    if (previewRevealed && !onStory) {
       void workspaceWindow().then((win) => win.collapsePreviewPane());
     }
-  }, [previewRevealed, writing]);
+  }, [previewRevealed, onStory]);
 
   return (
     <div
@@ -114,6 +84,13 @@ export default function PhoneShell({
       class="flex h-full min-h-0 w-full flex-col"
     >
       <PhoneTitleBar scrolled={!writing && scrolled} />
+      <div
+        data-phone-strip=""
+        hidden={!onStory}
+        class="flex-none"
+      >
+        {strip}
+      </div>
       <div
         class="relative flex min-h-0 flex-1"
         onScrollCapture={(e) => {

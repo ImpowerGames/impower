@@ -204,7 +204,6 @@ interface Retirement {
 
 interface Composition {
   kind: "display" | "beat";
-  held?: boolean;
   messages: IMessage[];
   realizing: { done: boolean }[];
   afterSent: (() => void)[];
@@ -622,11 +621,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   sweepReconcile() {
     const standing = this.standingScreen();
-    if (this._compose?.held) {
-      this._compose.standing = standing;
-      this._compose.sweep = true;
-      return;
-    }
     if (this._compose) {
       this._compose.standing = standing;
       void this.endCompose({ sweep: true });
@@ -899,8 +893,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const previewing = this.context?.system?.previewing;
     if (previewing != null && previewing !== false) {
       this.beginCompose("display");
-    } else if (this._game.redelivering && this.beginCompose("display")) {
-      this._compose!.held = true;
     }
     this.flushUIBatch();
     this.emit(BeginReconcileMessage.type.notification({}));
@@ -1110,11 +1102,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return false;
     }
     const open = this._compose;
-    if (open?.held && kind === "beat") {
-      open.held = false;
-      open.kind = "beat";
-      return true;
-    }
     if (open && (open.kind === "display" || !open.ending)) {
       return false;
     }
@@ -1172,20 +1159,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     c.ending = true;
     c.time = options.time;
-    c.sweep = options.sweep ?? c.sweep;
+    c.sweep = options.sweep;
     await this.realized(c);
     if (this._compose !== c) {
       return;
     }
     this.sendCompose(c);
-  }
-
-  releaseHeldConnect(): void {
-    const c = this._compose;
-    if (c?.held) {
-      c.held = false;
-      void this.endCompose();
-    }
   }
 
   protected sendCompose(c: Composition) {
@@ -1827,6 +1806,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _speaking = false;
 
   protected _voicedSpeech?: BeatSpeech;
+
+  protected _beatPlaying = false;
+
+  setBeatPlaying(playing: boolean) {
+    this._beatPlaying = playing;
+  }
+
+  protected showsMovieStill(): boolean {
+    const previewing = this.context?.system?.previewing;
+    return previewing != null && previewing !== false && !this._beatPlaying;
+  }
 
   speak(speech: BeatSpeech | undefined, instant = false, time?: number) {
     if (this.context?.system?.simulating) {
@@ -4169,15 +4159,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.enableTrigger(id);
       return id;
     }
+    const still = this.showsMovieStill();
     const params: PlayCutsceneParams = {
       src,
       loop: Boolean(cutscene.loop),
-      muted: Boolean(cutscene.mute),
+      muted: Boolean(cutscene.mute) || this._beatPlaying,
       ...this.getMovieMixer(),
     };
     if (cutscene.with) {
       params.with = cutscene.with;
-      if (!previewing) {
+      if (!still) {
         const clauses = { with: cutscene.with };
         const enter = this.resolveLayoutAnimation("enter", clauses, false);
         const exit = this.resolveLayoutAnimation("exit", clauses, false);
@@ -4189,7 +4180,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
-    if (previewing) {
+    if (still) {
       params.preview = true;
     }
     void this.emitSettled(PlayCutsceneMessage.type.request(params)).then(() =>
@@ -4990,15 +4981,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
             const videoSrc = videoSrcs[0];
             if (videoSrc) {
-              const previewing = $.context?.system?.previewing;
               content.video = {
                 src: videoSrc,
                 loop: !e.once,
-                muted: Boolean(e.mute),
+                muted: Boolean(e.mute) || $._beatPlaying,
                 ...$.getMovieMixer(),
-                ...(previewing != null && previewing !== false
-                  ? { preview: true }
-                  : {}),
+                ...($.showsMovieStill() ? { preview: true } : {}),
               };
             }
             const morph = $.getMorphContent(imageAssets, e.morph);

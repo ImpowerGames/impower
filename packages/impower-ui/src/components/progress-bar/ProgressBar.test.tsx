@@ -28,6 +28,20 @@ describe("ProgressBar", () => {
     expect((bar.firstElementChild as HTMLElement).style.width).toBe("33%");
   });
 
+  it("eases a partial share toward its width", async () => {
+    const bar = await mount(<ProgressBar value={0.5} label="half" />);
+    expect((bar.firstElementChild as HTMLElement).className).toContain("motion-safe:transition-[width]");
+  });
+
+  it("draws a finished share full at once, even straight from the unknown sweep", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(<ProgressBar label="rain.ogg" />, host!));
+    await act(async () => render(<ProgressBar value={1} label="rain.ogg" />, host!));
+    const fill = host.querySelector<HTMLElement>('[role="progressbar"] > span')!;
+    expect(fill.style.width).toBe("100%");
+    expect(fill.className).not.toContain("transition");
+  });
+
   it("clamps a share outside 0 to 1", async () => {
     const bar = await mount(<ProgressBar value={1.5} label="full" />);
     expect(bar.getAttribute("aria-valuenow")).toBe("100");

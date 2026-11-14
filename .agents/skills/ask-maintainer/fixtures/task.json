@@ -1,0 +1,17 @@
+{
+  "kind": "task",
+  "action": "Test the route strip on your phone",
+  "tickets": [2271, 2272],
+  "askedBy": "the preview route run (ticket 1655)",
+  "owner": "orchestrate-issues #1655",
+  "why": "The strip's touch target can only be judged on a real phone in your hand; the emulator's pointer is not a finger.",
+  "steps": [
+    "Open the editor on your phone and load the sample project.",
+    "Tap the strip beside line 18.",
+    "Comment on this issue if the pop-up was hard to hit, then close it."
+  ],
+  "expect": [
+    "The pin pop-up opens beside the line:",
+    { "file": "popup.png", "alt": "Phone screenshot of the pin pop-up open beside line 18", "width": 300 }
+  ]
+}

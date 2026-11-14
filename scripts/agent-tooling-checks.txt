@@ -1,5 +1,6 @@
 .agents/hooks/policy.test.mjs
 .agents/hooks/session-title.test.mjs
+.agents/skills/ask-maintainer/maintainer-request.test.mjs
 .agents/skills/clean-worktrees/clean-worktrees.test.mjs
 .agents/skills/clean-worktrees/job-protection.test.mjs
 .agents/skills/context-loading.test.mjs

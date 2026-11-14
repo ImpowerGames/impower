@@ -10,6 +10,7 @@ import {
   VALUES,
   renderedBeat,
   renderedBeats,
+  renderedChoiceBeats,
   script,
   show,
 } from "./harness/displayStyleHarness";
@@ -93,6 +94,8 @@ const CORPUS: Case[] = [
   action("A *`b`* c"),
   action("A `b"),
   action("A *b `c* d` e"),
+  action("A *a `far {x} away` b* c"),
+  action("A *a `far {x -- c} away` b* c"),
   action(`A ${"_".repeat(40)}long${"_".repeat(40)} B`),
   action("**bold /* c */ more** end"),
   action("*a /* c */ b* c"),
@@ -303,25 +306,195 @@ describe("the player renders marks paired by CommonMark's rules", () => {
   });
 });
 
-describe("choice text until #2144 stops the player scanning it for marks", () => {
-  const LINE = "Choice snake_case_name *open `raw {1+1}";
-  const readings = async () => {
+describe("the player reads choice text as a display line reads the same text", () => {
+  test("marks the grammar leaves literal stay literal in the menu", async () => {
+    const LINE = "Choice snake_case_name *open `raw {1+1}";
     const body = `${LINE}\n\n  choose\n    + ${LINE}\n      Done.\n  end`;
     const [display, choice] = await renderedBeats(script(body), 2);
     const line = (cells: Cell[]) => show(cells.filter(({ char }) => char !== "\n"));
-    return { display: line(display!("action")), choice: line(choice!("choice 0")) };
+    expect(line(choice!("choice 0"))).toBe(line(display!("action")));
+    expect(line(choice!("choice 0"))).toBe("Choice snake_case_name *open `raw 2");
+  });
+});
+
+const SUPPRESSION_OPEN = "punctuation.definition.template-expression.begin.choice.suppression.sd";
+const SUPPRESSION_CLOSE = "punctuation.definition.template-expression.end.choice.suppression.sd";
+
+const CHOICE_CORPUS: string[] = [
+  "Go *far* now",
+  "Go [*far*] now",
+  "Go [far] *now*",
+  "Go **a** [_b_] ^c^ d",
+  "Go ~~a~~ [::b::] `c` d",
+  "Go *far {x} away* now",
+  "Go [*far {x}*] now",
+  "Go [a] *b {x} c* d",
+  "Go *far away",
+  "Go [*far] away",
+  "Go [far] *away",
+  "Go *a* [b] c",
+  "Go [a *b] c* d",
+  "Cross *far [away] now* x",
+  "Go *far [away* now] x",
+  "Go [far *away] now* x",
+  "Go _a [b] c_ d",
+  "Go **a [b** c] d",
+  "Go [a ~~b] c~~ d",
+  "Go ^a [b] c^ d",
+  "Go ::a [b] c:: d",
+  "Go `a [b] c` d",
+  "Go *a [b]*",
+  "Go [*a] b*",
+  "Go *{x} [b] {x}* end",
+  "Go *a **b [c** d] e* f",
+  "Go *a `far {x -- c} away` b* now",
+  "Go *a `far {[[a]]} away` b* now",
+  "Go `far {\"->\"} away` now",
+  "Go [`far {t[1]} away`] now",
+  "Go `far {[[a [[ b]]} away` now",
+  "Go `far {\"}->\"} away` now",
+  "Go `far [a] away` now",
+  "Go `far -> next` now",
+  "Go [`far ] away`] now",
+  "Go `far [away` now] then",
+  "Go [far `away] now` then",
+  "Go `far { ({ { {x} } })[1] } away` now",
+  "Go `far {[[a } -> next} away` now",
+  "Go `far [away] now",
+  "Go [a] `b -> next` now",
+  "Go [```a -> next ] b```] now",
+  "Go [```a ] b``` now",
+  "Go x`a` now",
+  "Go (`a` now",
+  "Go [`a` now",
+  "Go x^a^ y",
+  "Go x~~a~~ y",
+  "Go \\[a] [b] c",
+  "Go [a\\] b] c",
+  "Go *a* [b *c] d",
+  "Go *x [*b*] c",
+  "Go [a *b] *c* d",
+  ...["*", "**", "_", "^", "~~", "::", "`"].flatMap((mark) => [
+    `Go ${mark}a [b${mark} c] d`,
+    `Go ${mark}a [b] c${mark} d`,
+    `Go [a ${mark}b] c${mark} d`,
+  ]),
+];
+
+interface ChoiceReading {
+  menu: Cell[];
+  echo: Cell[];
+}
+
+async function choiceGrammarReading(source: string, text: string): Promise<{ tree: ChoiceReading; vscode: ChoiceReading }> {
+  const from = source.indexOf(`+ ${text}`) + 2;
+  const to = from + text.length;
+  const reading = await grammarReading(source);
+  let open = -1;
+  let close = -1;
+  for (let i = from; i < to; i++) {
+    const scopes = treeScopeStackAt(reading.tree, i);
+    if (open < 0 && scopes.includes(SUPPRESSION_OPEN)) open = i;
+    else if (open >= 0 && close < 0 && scopes.includes(SUPPRESSION_CLOSE)) close = i;
+  }
+  const between = (a: number, b: number) => cellsBetween(reading, source, a, b);
+  const join = (parts: { tree: Cell[]; vscode: Cell[] }[]) => ({
+    tree: parts.flatMap((p) => p.tree),
+    vscode: parts.flatMap((p) => p.vscode),
+  });
+  const menu =
+    open < 0 ? between(from, to) : close < 0 ? join([between(from, open), between(open + 1, to)]) : join([between(from, open), between(open + 1, close)]);
+  const echo =
+    open < 0 ? between(from, to) : close < 0 ? between(from, open) : join([between(from, open), between(close + 1, to)]);
+  return {
+    tree: { menu: menu.tree, echo: echo.tree },
+    vscode: { menu: menu.vscode, echo: echo.vscode },
+  };
+}
+
+async function renderedChoice(source: string): Promise<ChoiceReading> {
+  const { menu, echo } = await renderedChoiceBeats(source);
+  return { menu: menu("choice 0"), echo: echo("action") };
+}
+
+const visible = (cells: Cell[]): string => show(cells.filter(({ char }) => !/\s/.test(char)));
+
+describe("the player renders choice lines styled as the grammar reads them", () => {
+  test.each(CHOICE_CORPUS)("%s", async (text) => {
+    const source = script(`choose\n    + ${text}\n      Done.\n  end`);
+    const grammar = await choiceGrammarReading(source, text);
+    expect(show(grammar.vscode.menu)).toBe(show(grammar.tree.menu));
+    expect(show(grammar.vscode.echo)).toBe(show(grammar.tree.echo));
+    const rendered = await renderedChoice(source);
+    expect({ menu: visible(rendered.menu), echo: visible(rendered.echo) }).toEqual({
+      menu: visible(grammar.tree.menu),
+      echo: visible(grammar.tree.echo),
+    });
+  });
+});
+
+describe("marks never cross a choice bracket", () => {
+  const rendered = async (text: string) => {
+    const reading = await renderedChoice(script(`choose\n    + ${text}\n      Done.\n  end`));
+    const line = (cells: Cell[]) => show(cells.filter(({ char }) => char !== "\n"));
+    return { menu: line(reading.menu), echo: line(reading.echo) };
   };
 
-  test("the player's choice scanner still pairs marks by the old rules, which #2144 replaces", async () => {
-    expect(await readings()).toEqual({
-      display: "Choice snake_case_name *open `raw 2",
-      choice: "Choice snake[underline: case]name [italic: open ][italic raw: raw 2]",
+  test("marks in the start text and the inner text stay text in both renditions", async () => {
+    expect(await rendered("Cross *far [away] now* x")).toEqual({
+      menu: "Cross *far away",
+      echo: "Cross *far now* x",
     });
   });
 
-  test.fails("the player renders choice text as the grammar reads it, which #2144 makes pass", async () => {
-    const { display, choice } = await readings();
-    expect(choice).toBe(display);
+  test("marks in the start text and the suppressed text stay text in both renditions", async () => {
+    expect(await rendered("Go *far [away* now] x")).toEqual({
+      menu: "Go *far away* now",
+      echo: "Go *far x",
+    });
+  });
+
+  test("marks in the suppressed text and the inner text stay text in both renditions", async () => {
+    expect(await rendered("Go [far *away] now* x")).toEqual({
+      menu: "Go far *away",
+      echo: "Go now* x",
+    });
+  });
+
+  test("a span closed inside one part is styled beside a stray mark in another", async () => {
+    expect(await rendered("Go *a* [b *c] d")).toEqual({
+      menu: "Go [italic: a] b *c",
+      echo: "Go [italic: a] d",
+    });
+  });
+});
+
+describe("the output joins the text on either side of a suppression with one space", () => {
+  test.each([
+    ["Go a [b] c", "Go a c"],
+    ["Go [a] b", "Go b"],
+    ["Cross *far [away] now* x", "Cross *far now* x"],
+    ["Go *a* [b] *c* d", "Go a c d"],
+    ["Go a [b] c #tag", "Go a c #tag"],
+    ["Go a[b] c", "Go a c"],
+  ])("%s", async (text, output) => {
+    const { echo } = await renderedChoiceBeats(script(`choose\n    + ${text}\n      Done.\n  end`));
+    expect(
+      echo("action")
+        .map(({ char }) => char)
+        .join(""),
+    ).toBe(output);
+  });
+
+  test.each([
+    ["Go a [b]` c ` d", "Go a ` c ` d"],
+    ["Go `x `[b] c", "Go `x ` c"],
+    ["Go `x ` [b] c", "Go `x ` c"],
+    ["Go {x} [b] c", "Go {x} c"],
+  ])("%s keeps the spaces inside a raw span or a value, as the display line %s does", async (text, display) => {
+    const { echo } = await renderedChoiceBeats(script(`choose\n    + ${text}\n      Done.\n  end`));
+    const line = await renderedBeat(script(display));
+    expect(show(echo("action"))).toBe(show(line("action")));
   });
 });
 

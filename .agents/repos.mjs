@@ -3,6 +3,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const REPOS_FILE = fileURLToPath(new URL("./repos.json", import.meta.url));
 
+const MAINTAINER_LABELS = ["decision", "task", "decidedWithoutYou"];
 const SLUG = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
 
 export function readRepos(file = REPOS_FILE) {
@@ -21,7 +22,21 @@ export function readRepos(file = REPOS_FILE) {
   if (typeof data.autolinkPrefix !== "string" || !/^[A-Za-z][A-Za-z0-9]*-$/.test(data.autolinkPrefix)) fail("autolinkPrefix", "letters or digits ending in a dash");
   if (typeof data.cutover !== "boolean") fail("cutover", "true or false");
   if (!Number.isSafeInteger(data.feedbackInbox) || data.feedbackInbox < 1) fail("feedbackInbox", "a positive issue number");
-  return Object.freeze({ code: data.code, internal: data.internal, autolinkPrefix: data.autolinkPrefix, cutover: data.cutover, feedbackInbox: data.feedbackInbox });
+  const maintainer = data.maintainer;
+  if (!maintainer || typeof maintainer !== "object" || Array.isArray(maintainer)) fail("maintainer", "an object naming the maintainer's login and the maintainer request labels");
+  if (typeof maintainer.login !== "string" || !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(maintainer.login)) fail("maintainer.login", "a GitHub login");
+  const labels = maintainer.labels;
+  if (!labels || typeof labels !== "object" || Array.isArray(labels)) fail("maintainer.labels", "an object with decision, task and decidedWithoutYou");
+  for (const key of MAINTAINER_LABELS) if (typeof labels[key] !== "string" || !labels[key].trim() || labels[key] !== labels[key].trim()) fail(`maintainer.labels.${key}`, "a label name");
+  if (new Set(MAINTAINER_LABELS.map((key) => labels[key].toLowerCase())).size !== MAINTAINER_LABELS.length) fail("maintainer.labels", "three different label names");
+  return Object.freeze({
+    code: data.code,
+    internal: data.internal,
+    autolinkPrefix: data.autolinkPrefix,
+    cutover: data.cutover,
+    feedbackInbox: data.feedbackInbox,
+    maintainer: Object.freeze({ login: maintainer.login, labels: Object.freeze(Object.fromEntries(MAINTAINER_LABELS.map((key) => [key, labels[key]]))) }),
+  });
 }
 
 export function ticketsRepo(repos = readRepos()) {

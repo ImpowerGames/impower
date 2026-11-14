@@ -6,11 +6,12 @@ import {
 } from "../../../runtime/displayStyle";
 import { findChildByName } from "../../utils/findChildByName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { LowerContext } from "../context";
 
 type SourceReader = Pick<LowerContext, "read">;
 
-const SPAN_NODES: ReadonlySet<string> = nodeNameSet([
+const SPAN_NAMES = [
   "Bold",
   "Italic",
   "Underline",
@@ -18,7 +19,16 @@ const SPAN_NODES: ReadonlySet<string> = nodeNameSet([
   "EmphasisTilde",
   "EmphasisColon",
   "Raw",
-]);
+] as const;
+
+const SPAN_NODES: ReadonlySet<string> = nodeNameSet(
+  SPAN_NAMES.flatMap((span) => [
+    span,
+    `ChoiceStart${span}`,
+    `ChoiceOnly${span}`,
+    `ChoiceInner${span}`,
+  ]) as SparkdownNodeName[],
+);
 
 export interface SpanCode {
   at: number;
@@ -113,37 +123,53 @@ export function collectDisplaySpans(
   return { codes, marks };
 }
 
-export function readStyledSource(
-  root: SyntaxNode,
+export interface StyledCursor {
+  code: number;
+  mark: number;
+}
+
+export function writeStyledRange(
+  { codes, marks }: DisplaySpans,
   from: number,
   to: number,
   ctx: SourceReader,
+  cursor: StyledCursor = { code: 0, mark: 0 },
 ): string {
-  const { codes, marks } = collectDisplaySpans(root, from, to, ctx);
   let out = "";
-  let code = 0;
-  let mark = 0;
   let pos = from;
   while (pos < to) {
-    while (code < codes.length && codes[code]!.at <= pos) {
-      out += codes[code++]!.code;
+    while (cursor.code < codes.length && codes[cursor.code]!.at <= pos) {
+      out += codes[cursor.code++]!.code;
     }
-    while (mark < marks.length && marks[mark]!.to <= pos) mark++;
-    const hidden = marks[mark];
+    while (cursor.mark < marks.length && marks[cursor.mark]!.to <= pos) {
+      cursor.mark++;
+    }
+    const hidden = marks[cursor.mark];
     if (hidden && hidden.from <= pos) {
       pos = hidden.to;
       continue;
     }
     const next = Math.min(
       to,
-      codes[code]?.at ?? to,
+      codes[cursor.code]?.at ?? to,
       hidden?.from ?? to,
     );
     out += ctx.read(pos, next);
     pos = next;
   }
-  while (code < codes.length) out += codes[code++]!.code;
+  while (cursor.code < codes.length && codes[cursor.code]!.at <= to) {
+    out += codes[cursor.code++]!.code;
+  }
   return out;
+}
+
+export function readStyledSource(
+  root: SyntaxNode,
+  from: number,
+  to: number,
+  ctx: SourceReader,
+): string {
+  return writeStyledRange(collectDisplaySpans(root, from, to, ctx), from, to, ctx);
 }
 
 export function trimEndBeforeSpanEnds(raw: string): string {
@@ -160,11 +186,4 @@ export function trimEndBeforeSpanEnds(raw: string): string {
     end--;
   }
   return raw.slice(0, end) + ends;
-}
-
-export function insideChoice(node: SyntaxNode): boolean {
-  for (let n: SyntaxNode | null = node.parent; n; n = n.parent) {
-    if (n.name === "Choice") return true;
-  }
-  return false;
 }
