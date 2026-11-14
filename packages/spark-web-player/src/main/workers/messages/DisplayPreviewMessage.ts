@@ -13,6 +13,7 @@ export interface DisplayPreviewParams {
   keep?: string;
   real?: string;
   fresh?: boolean;
+  playId?: number;
 }
 
 export interface DisplayPreviewResult {
@@ -22,6 +23,8 @@ export interface DisplayPreviewResult {
   path?: "beat" | "full" | "repeat";
   refused?: string;
   ending?: GameEnding;
+  playing?: boolean;
+  beatRefusal?: string;
 }
 
 export class DisplayPreviewMessage {

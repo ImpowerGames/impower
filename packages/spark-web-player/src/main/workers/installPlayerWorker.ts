@@ -53,6 +53,7 @@ import {
 import { PreviewHintMessage } from "./messages/PreviewHintMessage";
 import { ConnectPlayMessage } from "./messages/ConnectPlayMessage";
 import {
+  NO_BEAT_REFUSAL,
   OUTSIDE_EVERY_SCENE_REFUSAL,
   PlayMessage,
   type PlayParams,
@@ -569,7 +570,7 @@ export function installPlayerWorker(connection: MessageConnection) {
           sendToPage,
           () => display !== displays || gameState.game !== game,
         );
-        return { displayed };
+        return { displayed, beatRefusal: OUTSIDE_EVERY_SCENE_REFUSAL };
       }
       const route = routeTo(game, entry, shown.point, shown.beat);
       displayedId = entry.id;
@@ -600,6 +601,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         ending: route.ending,
         runFrom: route.shownAddress,
         beatOnly,
+        playId: params.playId,
         onPath: (taken) => {
           path = taken;
         },
@@ -637,6 +639,8 @@ export function installPlayerWorker(connection: MessageConnection) {
             displayed,
             errors: [...(route.simulationErrors ?? []), ...stepErrors],
             ...(game.previewEnding ? { ending: game.previewEnding } : {}),
+            ...(params.playId != null ? { playing: game.playingBeat } : {}),
+            ...(game.previewShowsBeat ? {} : { beatRefusal: NO_BEAT_REFUSAL }),
             ...(taken
               ? taken.beatOnly
                 ? { path: "beat" as const }
@@ -685,6 +689,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       return { built: false };
     }
     stopPlay({});
+    game.stopBeatPlay();
     const onScreen = onScreenAtStop;
     onScreenAtStop = undefined;
     const program = entry.program;

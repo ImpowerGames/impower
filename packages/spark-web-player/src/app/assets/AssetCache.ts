@@ -73,6 +73,9 @@ const SVG_BYTES = 1 * MIB;
 
 type EntryState = "queued" | "loading" | "resident" | "failed";
 
+const audioSourceOf = (item: AssetItem): string | undefined =>
+  item.kind === "audio" ? item.params.src : undefined;
+
 interface Entry {
   key: string;
   item: AssetItem;
@@ -273,8 +276,11 @@ export class AssetCache {
     return [...(this._entries.get(key)?.pins ?? [])];
   }
 
-  getAudio(key: string): AudioBuffer | undefined {
+  getAudio(key: string, src?: string): AudioBuffer | undefined {
     const e = this._entries.get(key);
+    if (src !== undefined && e && audioSourceOf(e.item) !== src) {
+      return undefined;
+    }
     return e?.state === "resident" ? e.audio : undefined;
   }
 
@@ -540,6 +546,16 @@ export class AssetCache {
       return null;
     }
     let entry = this._entries.get(key);
+    if (entry && audioSourceOf(entry.item) !== audioSourceOf(item)) {
+      if (entry.state === "queued") {
+        this.dequeue(entry);
+      }
+      this.remove(entry);
+      for (const w of entry.waiters.splice(0)) {
+        w();
+      }
+      entry = undefined;
+    }
     if (entry) {
       entry.lastUsed = this._tick;
       if (entry.state === "queued" && priority < entry.priority) {

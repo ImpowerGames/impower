@@ -44,6 +44,7 @@ import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/cla
 import { GameFinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameFinishedMessage";
 import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
+import { GamePlayedBeatMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePlayedBeatMessage";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import {
@@ -67,6 +68,7 @@ import {
   type GameAspectRatio,
   type GameFit,
 } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
+import { PlayBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/PlayBeatMessage";
 import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
 import {
   clearPlayerBarExecution,
@@ -116,7 +118,7 @@ import type { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/cla
 import { toResponseError } from "@impower/jsonrpc/src/common/utils/toResponseError";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { ConnectPlayMessage } from "./main/workers/messages/ConnectPlayMessage";
-import { PlayMessage } from "./main/workers/messages/PlayMessage";
+import { NO_BEAT_REFUSAL, PlayMessage } from "./main/workers/messages/PlayMessage";
 import { StartPlayMessage } from "./main/workers/messages/StartPlayMessage";
 import { StopPlayMessage } from "./main/workers/messages/StopPlayMessage";
 import { LastRunMessage } from "./main/workers/messages/LastRunMessage";
@@ -678,6 +680,10 @@ export class GamePlayerController {
         : null,
       ending: this._ending,
       statuses: this.statuses(),
+      beat: {
+        playing: this._beatPlay != null,
+        refusal: this._beatRefusal,
+      },
     };
   }
 
@@ -1483,6 +1489,7 @@ export class GamePlayerController {
     p.onRequest(StartGameMessage.type, this.handleStartGame, this.host);
     p.onRequest(StopGameMessage.type, this.handleStopGame, this.host);
     p.onRequest(RestartGameMessage.type, this.handleRestartGame, this.host);
+    p.onRequest(PlayBeatMessage.type, this.handlePlayBeat, this.host);
     p.onRequest(
       SetAnimatePortraitsMessage.type,
       this.handleSetAnimatePortraits,
@@ -2137,6 +2144,52 @@ export class GamePlayerController {
     this.morphs?.setEnabled(message.params.enabled);
     return SetAnimatePortraitsMessage.type.response(message.id, {});
   };
+
+  protected _beatPlays = 0;
+
+  protected _beatPlay: { id: number } | null = null;
+
+  protected _beatRefusal: string | null = NO_BEAT_REFUSAL;
+
+  protected handlePlayBeat = async (message: PlayBeatMessage.Request) => {
+    const playing = await this.playBeat();
+    return PlayBeatMessage.type.response(message.id, { playing });
+  };
+
+  protected async playBeat(): Promise<boolean> {
+    const startFrom = this._options?.startFrom;
+    if (
+      this.playing ||
+      !this._program ||
+      !startFrom ||
+      this.completionPreviewHoldsScreen()
+    ) {
+      return false;
+    }
+    const id = ++this._beatPlays;
+    this._beatPlay = { id };
+    this.morphs?.setPlaying(true);
+    this.publishGameState();
+    const shown = await this.updatePreview(
+      this._program,
+      startFrom.file,
+      startFrom.line,
+      { playId: id },
+    );
+    if (!shown) {
+      this.endBeatPlay(id);
+    }
+    return this._beatPlay?.id === id;
+  }
+
+  protected endBeatPlay(id: number) {
+    if (this._beatPlay?.id !== id) {
+      return;
+    }
+    this._beatPlay = null;
+    this.morphs?.setPlaying(false);
+    this.publishGameState();
+  }
 
   protected handleSetSimulatedColorScheme = async (
     message: SetSimulatedColorSchemeMessage.Request,
@@ -3038,6 +3091,9 @@ export class GamePlayerController {
 
   async detachWorkerPreview() {
     this._workerDetaches += 1;
+    if (this._beatPlay) {
+      this.endBeatPlay(this._beatPlay.id);
+    }
     for (const ended of [...this._displayWaiters]) {
       ended();
     }
@@ -3460,6 +3516,11 @@ export class GamePlayerController {
         );
       }
     });
+    game.connection.outgoing.addListener(GamePlayedBeatMessage.method, (msg) => {
+      if (GamePlayedBeatMessage.type.isNotification(msg)) {
+        this.endBeatPlay(msg.params.playId);
+      }
+    });
     game.connection.outgoing.addListener(GameSteppedMessage.method, (msg) => {
       if (GameSteppedMessage.type.isNotification(msg)) {
         this.updateBar(reducePlayerBar(this._bar, msg, this.runOf(owner) ?? null));
@@ -3611,6 +3672,7 @@ export class GamePlayerController {
     options?: {
       speculative?: boolean;
       current?: () => boolean;
+      playId?: number;
     },
   ): Promise<boolean> => {
     const link = workspace?.gameLink;
@@ -3684,6 +3746,8 @@ export class GamePlayerController {
           path?: string;
           refused?: string;
           ending?: GameEnding;
+          playing?: boolean;
+          beatRefusal?: string;
         }
       | undefined;
     let ended!: () => void;
@@ -3701,6 +3765,7 @@ export class GamePlayerController {
           keep: shown ? programIdentity(shown.program) : undefined,
           real: programIdentity(this._program),
           fresh: this._workerAppFresh,
+          ...(options?.playId != null ? { playId: options.playId } : {}),
         }),
         ending,
       ]);
@@ -3718,8 +3783,14 @@ export class GamePlayerController {
     if (result.displayed && detaches === this._workerDetaches) {
       this._workerAppFresh = false;
     }
+    if (options?.playId != null && !result.playing) {
+      this.endBeatPlay(options.playId);
+    }
     if (overtaken() || !result.displayed) {
       return false;
+    }
+    if (!options?.speculative) {
+      this._beatRefusal = result.beatRefusal ?? null;
     }
     this.setEndingStatus(result.ending ?? null);
     if (!options?.speculative) {

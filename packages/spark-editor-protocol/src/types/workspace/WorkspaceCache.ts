@@ -58,6 +58,8 @@ export interface GameState {
   picks?: Record<string, number[]>;
   compiling?: boolean;
   playRefusal?: string;
+  beatPlaying?: boolean;
+  beatRefusal?: string;
 }
 
 export interface ScreenplayState {

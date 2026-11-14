@@ -16,6 +16,7 @@ import {
   NextIcon,
   PauseIcon,
   PlayIcon,
+  PlayOutlineIcon,
   PreviousIcon,
   RestartIcon,
   ResumeIcon,
@@ -49,6 +50,7 @@ import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { useRef } from "preact/hooks";
 import {
   skipRefusal,
+  STEP_REASONS,
   STEP_SHORTCUTS,
   stepRefusals,
   type SkipDirection,
@@ -204,6 +206,8 @@ const step = (traversal: StepTraversal) =>
   void withWindow((window) => window.stepGame(traversal));
 
 const TOGGLE_BREAKPOINT = "Toggle breakpoint";
+
+const REPLAY_BEAT = "Replay beat";
 
 const NO_CARET_REASON =
   "Put the caret on a script line to toggle its breakpoint.";
@@ -514,6 +518,21 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
             onClick={() => void withWindow((window) => window.replayGame())}
           />
         ) : null}
+        {running || !playsGame(mode) ? null : (
+          <ControlButton
+            label={REPLAY_BEAT}
+            icon={PlayOutlineIcon}
+            reason={
+              live
+                ? STEP_REASONS.starting
+                : (refusal ?? game?.beatRefusal ?? undefined)
+            }
+            title={workspaceShortcuts.title("replayBeat", REPLAY_BEAT)}
+            pressed={!!game?.beatPlaying}
+            disabled={loading}
+            onClick={() => void withWindow((window) => window.playBeat())}
+          />
+        )}
       </div>
       <div class="flex items-center justify-center gap-1 @max-[340px]:gap-0 group-data-[running]/bar:@max-[480px]:gap-0">
         {steps && phone ? (
