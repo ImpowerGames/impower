@@ -72,6 +72,50 @@ describe("a cue that names its speaker with `as` (#2283)", () => {
     ]);
   });
 
+  test("typing, changing and deleting `as` on a cue revalidates it as a cold compile does", () => {
+    const configure = (compiler: SparkdownCompiler, source: string) =>
+      compiler.configure({
+        files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }],
+      } as any);
+    const messagesOf = (compiler: SparkdownCompiler) =>
+      (compiler.compile({ textDocument: { uri: URI } }).program.diagnostics?.[URI] ?? []).map(
+        (d) => `${d.range.start.line}:${d.range.start.character} ${typeof d.message === "string" ? d.message : d.message.value}`,
+      );
+    const cold = (source: string) => {
+      const fresh = new SparkdownCompiler();
+      configure(fresh, source);
+      return messagesOf(fresh);
+    };
+    let current = scene(`  ???:\n    You don't remember me?\n`);
+    const compiler = new SparkdownCompiler();
+    configure(compiler, current);
+    const edit = (find: string, replace: string, version: number) => {
+      const offset = current.indexOf(find);
+      const at = (o: number) => {
+        const lines = current.slice(0, o).split("\n");
+        return { line: lines.length - 1, character: lines.at(-1)!.length };
+      };
+      compiler.updateDocument({
+        textDocument: { uri: URI, version },
+        contentChanges: [{ range: { start: at(offset), end: at(offset + find.length) }, text: replace }],
+      } as any);
+      current = current.slice(0, offset) + replace + current.slice(offset + find.length);
+    };
+
+    expect(messagesOf(compiler)).toEqual([expect.stringMatching(/^11:2 `\?\?\?` is an alias of/)]);
+    edit("???:", "??? as raffles:", 2);
+    expect(messagesOf(compiler)).toEqual([]);
+    expect(cold(current)).toEqual([]);
+    edit("as raffles:", "as stranger:", 3);
+    const unknown = messagesOf(compiler);
+    expect(unknown).toEqual(["11:9 Cannot find character named `stranger`"]);
+    expect(unknown).toEqual(cold(current));
+    edit("??? as stranger:", "???:", 4);
+    const shared = messagesOf(compiler);
+    expect(shared).toEqual([expect.stringMatching(/^11:2 `\?\?\?` is an alias of/)]);
+    expect(shared).toEqual(cold(current));
+  });
+
   test("the shared-alias warning hints at naming the speaker with `as`", () => {
     expect(diagnosticsOf(scene(`  ???:\n    You don't remember me?\n`))).toEqual([
       expect.objectContaining({
