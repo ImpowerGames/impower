@@ -171,9 +171,14 @@ function checkTickets(value, refuse, { required }) {
 export function tableColumns(markdown) {
   let widest = 0;
   for (const line of markdown.split(/\r?\n/)) {
-    const row = line.replace(/^(?:\s*(?:>|[-*+](?=\s)|\d{1,9}[.)](?=\s)))+/, "").trim();
-    if (!row.includes("|") || !/^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?$/.test(row)) continue;
-    widest = Math.max(widest, row.replace(/^\|/, "").replace(/\|$/, "").split("|").length);
+    let rest = line;
+    for (;;) {
+      const row = rest.trim();
+      if (row.includes("|") && /^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?$/.test(row)) widest = Math.max(widest, row.replace(/^\|/, "").replace(/\|$/, "").split("|").length);
+      const next = rest.replace(/^\s*(?:>|[-*+](?=\s)|\d{1,9}[.)](?=\s))/, "");
+      if (next === rest) break;
+      rest = next;
+    }
   }
   return widest;
 }

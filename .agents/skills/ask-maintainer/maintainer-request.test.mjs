@@ -188,6 +188,10 @@ try {
   assert.equal(tableColumns("> > | a | b |\n> > |---|---|"), 2);
   assert.equal(tableColumns("- item\n  - a | b | c | d | e\n    --- | --- | --- | --- | ---"), 5);
   assert.equal(tableColumns("> ---\n> quoted thematic break"), 0);
+  refusedFor("a five-column table whose delimiter cells are single dashes", edit(decision(), (r) => (r.comparison = "Option | Shape | Pinning | Phone | Cost\n- | - | - | - | -\nA | list | no | yes | none")), /table of 5 columns/);
+  assert.equal(tableColumns("> a | b | c | d | e\n> - | - | - | - | -"), 5);
+  assert.equal(tableColumns("- a | b | c\n  - | - | -"), 3);
+  assert.equal(tableColumns("- a list item\n- another"), 0);
   refusedFor("picture markup typed into text", edit(decision(), (r) => (r.shortVersion = 'See <img src="./a.png">.')), /holds picture markup/);
   refusedFor("an HTML comment marker in text", edit(decision(), (r) => (r.meanwhile = "nothing -->")), /HTML comment marker/);
   refusedFor("a picture missing from the folder", edit(decision(), (r) => (r.options[0].pictures[0].file = "missing.png")), /missing\.png is not a file in the pictures folder/);
