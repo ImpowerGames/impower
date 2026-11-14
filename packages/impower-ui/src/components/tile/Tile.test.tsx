@@ -143,7 +143,7 @@ describe("Tile", () => {
       ),
     );
     const open = host.querySelector('button[aria-label="Open imani"]')!;
-    const name = [...open.querySelectorAll("span")].find((span) => span.textContent === "imani")!;
+    const name = Array.from(open.querySelectorAll("span")).find((span) => span.textContent === "imani")!;
     expect(name.className.split(" ")).toContain("text-[13px]/[1.4]");
     expect(open.querySelector("small")!.className.split(" ")).toContain("text-[11px]/[1.4]");
     expect(host.querySelector('[aria-label="Options for imani"]')!.parentElement!.className.split(" ")).toContain("bg-bg/78");
