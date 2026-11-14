@@ -746,6 +746,66 @@ describe("a played beat's movie in the stopped preview (#2258, #2327)", () => {
     expect(audio.movieSounding(video)).toBe(false);
   }, 120_000);
 
+  async function switchOnDuring(
+    h: Harness,
+    audio: StandInAudio,
+    video: HTMLVideoElement,
+    meanwhile: () => void = () => {},
+  ) {
+    const manager = (h.controller as any)._app.audio;
+    const setOutputOpen = manager.setOutputOpen.bind(manager);
+    const opened: { playing: boolean; paused: boolean }[] = [];
+    manager.setOutputOpen = (open: boolean) => {
+      setOutputOpen(open);
+      if (open) {
+        opened.push({ playing: playing(h), paused: video.paused });
+      }
+    };
+    let done = false;
+    const switching = h.controller
+      .handleSetPlayAudio({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "preview/setPlayAudio",
+        params: { enabled: true },
+      })
+      .then(() => {
+        done = true;
+      });
+    meanwhile();
+    const heard = [audio.movieSounding(video)];
+    while (!done) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      heard.push(audio.movieSounding(video));
+    }
+    await switching;
+    await settle(40);
+    return { heard, opened };
+  }
+
+  it("keeps the output closed when switched on during a played beat's movie until the beat has ended on its still", async () => {
+    const audio = createStandInAudio();
+    const h = await movieAt(audio);
+    const video = await playMovie(h);
+    const { heard, opened } = await switchOnDuring(h, audio, video);
+    expect(heard).toEqual(heard.map(() => false));
+    expect(opened.length).toBeGreaterThan(0);
+    expect(opened[0]).toEqual({ playing: false, paused: true });
+    expect(playing(h)).toBe(false);
+    expect(audio.movieSounding(video)).toBe(false);
+  }, 120_000);
+
+  it("keeps the output closed through a visibility change while switching on during a played beat's movie", async () => {
+    const audio = createStandInAudio();
+    const h = await movieAt(audio);
+    const video = await playMovie(h);
+    const { heard, opened } = await switchOnDuring(h, audio, video, () =>
+      setVisibility(h, "visible"),
+    );
+    expect(heard).toEqual(heard.map(() => false));
+    expect(opened[0]).toEqual({ playing: false, paused: true });
+  }, 120_000);
+
   it("falls silent, still playing, while the page is hidden, and is heard again when shown", async () => {
     const audio = createStandInAudio();
     const h = await movieAt(audio);

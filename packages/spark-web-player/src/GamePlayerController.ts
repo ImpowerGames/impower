@@ -2196,14 +2196,22 @@ export class GamePlayerController {
 
   protected _playAudio = false;
 
+  protected _switchingOn?: object;
+
   protected handleSetPlayAudio = async (
     message: SetPlayAudioMessage.Request,
   ) => {
     this._playAudio = message.params.enabled;
+    const switching = this._playAudio ? {} : undefined;
+    this._switchingOn = switching;
     this.openPreviewOutput(this.previewApp);
     await workspace?.gameLink
       ?.request(SetPreviewAudioMessage.type, { enabled: this._playAudio })
       .catch((e) => reportUnlessRestarted(e));
+    if (switching && this._switchingOn === switching) {
+      this._switchingOn = undefined;
+      this.openPreviewOutput(this.previewApp);
+    }
     return SetPlayAudioMessage.type.response(message.id, {});
   };
 
@@ -2214,7 +2222,9 @@ export class GamePlayerController {
   protected openPreviewOutput(app: Application | undefined) {
     app?.audio?.setPlaysAudio(this._playAudio);
     app?.audio?.setOutputOpen(
-      this._playAudio && document.visibilityState !== "hidden",
+      this._playAudio &&
+        !this._switchingOn &&
+        document.visibilityState !== "hidden",
     );
   }
 
