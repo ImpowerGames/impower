@@ -196,6 +196,16 @@ describe("the strip follows the picture where the syntax says otherwise", () => 
     });
   }, 120_000);
 
+  test("a speaker's name reads as the picture writes it, its text commands carried out", async () => {
+    const { described, picture, strip } = await previewAt(
+      'define KING as character with\n  name = "King <wait 1s>Arthur"\nend\n\nscene start\n  KING: Hail!\nend\n',
+      5,
+    );
+    expect(picture).toContain("King Arthur");
+    expect(described).toEqual({ kind: "dialogue", speaker: "King Arthur", words: "Hail!" });
+    expect({ label: strip.label, words: strip.words }).toEqual({ label: "KING ARTHUR", words: "Hail!" });
+  }, 120_000);
+
   test("a menu without a caption lists only the options a condition lets through", async () => {
     const { described, picture, strip } = await previewAt(
       "scene start\n  choose\n    if false then\n      * [Hidden]\n    end\n    * [Shown]\n  end\nend\n",
