@@ -107,6 +107,12 @@ describe("sort model", () => {
       row("Main", "main.sd"),
     ];
     expect(sortEntries(rows, "name-asc").map((e) => e.name)).toEqual(["Main", "z 2", "z.1"]);
+    const stacks = [
+      row("z.png", "Assets/Images/z.png/90_body.png"),
+      row("z.webp", "Assets/Images/z.webp/90_body.webp"),
+      row("z 2", "Assets/Images/z 2.png"),
+    ];
+    expect(sortEntries(stacks, "name-asc").map((e) => e.name)).toEqual(["z 2", "z.png", "z.webp"]);
   });
 
   it("reads the legacy keys asc, desc and story", () => {

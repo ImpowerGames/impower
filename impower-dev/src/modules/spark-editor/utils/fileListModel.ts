@@ -99,11 +99,9 @@ export interface ListEntry {
 }
 
 const stemOf = ({ kind, name, path }: ListEntry) => {
-  const leaf = path.slice(path.lastIndexOf("/") + 1);
-  const dot = leaf.lastIndexOf(".");
-  const ending = kind === "file" && dot > 0 ? leaf.slice(dot).toLowerCase() : "";
-  return ending && name.length > ending.length && name.toLowerCase().endsWith(ending)
-    ? name.slice(0, -ending.length)
+  const dot = name.lastIndexOf(".");
+  return kind === "file" && dot > 0 && name === path.slice(path.lastIndexOf("/") + 1)
+    ? name.slice(0, dot)
     : name;
 };
 
