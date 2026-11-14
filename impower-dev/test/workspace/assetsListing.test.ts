@@ -366,14 +366,35 @@ describe("stacked pictures on the Assets page", () => {
     expect(level.files).toBe(7);
   });
 
-  it("covers a folder tile with up to four pictures from inside it", () => {
+  it("covers a folder tile with its own pictures by name, then its folders' pictures by name, up to four", () => {
     const level = assetLevel({ listing: stacked, type: "image", sort: "name-asc", endings: ENDINGS });
     const portraits = level.rows.find((row) => row.name === "Portraits")!;
     expect(portraits.covers).toEqual([
-      "Assets/Images/Portraits/Extras/kai.png",
-      "Assets/Images/Portraits/Extras/zed.png",
       "Assets/Images/Portraits/bunny.png",
       "Assets/Images/Portraits/imani.png",
+      "Assets/Images/Portraits/Extras/kai.png",
+      "Assets/Images/Portraits/Extras/zed.png",
+    ]);
+  });
+
+  it("orders a cover's folder pictures by name across folders, not folder by folder", () => {
+    const level = assetLevel({
+      listing: listing({
+        "Assets/Images/Backdrops/ext_bistro.png": 1,
+        "Assets/Images/Backdrops/Bistro/bar.png": 1,
+        "Assets/Images/Backdrops/Bistro/booth.png": 1,
+        "Assets/Images/Backdrops/Countryside/apple.png": 1,
+        "Assets/Images/Backdrops/Countryside/barn.png": 1,
+      }),
+      type: "image",
+      sort: "name-asc",
+      endings: ENDINGS,
+    });
+    expect(level.rows.find((row) => row.name === "Backdrops")!.covers).toEqual([
+      "Assets/Images/Backdrops/ext_bistro.png",
+      "Assets/Images/Backdrops/Countryside/apple.png",
+      "Assets/Images/Backdrops/Bistro/bar.png",
+      "Assets/Images/Backdrops/Countryside/barn.png",
     ]);
   });
 
@@ -387,6 +408,37 @@ describe("stacked pictures on the Assets page", () => {
     const [images] = assetSearch({ listing: stacked, query: "imani", sort: "name-asc", endings: ENDINGS });
     expect(images!.rows.map((row) => [row.name, row.variantCount, row.location])).toEqual([["imani", 4, "Portraits"]]);
   });
+});
+
+describe("the folder tiles' order", () => {
+  const project: AssetListing = {
+    files: {
+      "Assets/Images/Backdrops/a.png": { modified: 5, size: 1 },
+      "Assets/Images/Effects/b.png": { modified: 1, size: 9 },
+      "Assets/Images/Interface/c.png": { modified: 4, size: 2 },
+      "Assets/Images/Lineups/d.png": { modified: 2, size: 8 },
+      "Assets/Images/Portraits/e.png": { modified: 3, size: 3 },
+      "Assets/Links/impower_logo.url": { modified: 9, size: 7, address: "https://example.com/logo.png" },
+      "Assets/Images/z.png": { modified: 1, size: 1 },
+    },
+    folders: [],
+  };
+
+  it.each(["name-asc", "name-desc", "modified-asc", "modified-desc", "size-asc", "size-desc", "uses-asc", "uses-desc", "story-asc", "story-desc"])(
+    "lists the type folder's own folders by name, then the folders outside it, under %s",
+    (sort) => {
+      const level = assetLevel({ listing: project, type: "image", sort, endings: ENDINGS });
+      expect(level.rows.map((row) => row.name)).toEqual([
+        "Backdrops",
+        "Effects",
+        "Interface",
+        "Lineups",
+        "Portraits",
+        "Links",
+        "z",
+      ]);
+    },
+  );
 });
 
 describe("a stack of one file", () => {
@@ -454,6 +506,23 @@ describe("a folder stack in the Assets page", () => {
   it("covers the folder's row in its parent with the picture's bottom layer", () => {
     const level = assetLevel({ listing: project, type: "image", folder: "Assets/Images/Portraits", sort: "name-asc", endings: ENDINGS });
     expect(level.rows.find((row) => row.path === MIA)?.covers).toEqual([`${MIA}/90_body.png`, `${MIA}/notes.png`]);
+  });
+
+  it("counts the folder's picture as one of its parent's own pictures on the parent's cover", () => {
+    const level = assetLevel({
+      listing: {
+        ...project,
+        files: { ...project.files, "Assets/Images/Portraits/Extras/kai.png": { modified: NOW - DAY, size: 5 } },
+      },
+      type: "image",
+      sort: "name-asc",
+      endings: ENDINGS,
+    });
+    expect(level.rows.find((row) => row.name === "Portraits")?.covers).toEqual([
+      `${MIA}/90_body.png`,
+      "Assets/Images/Portraits/Extras/kai.png",
+      `${MIA}/notes.png`,
+    ]);
   });
 });
 
