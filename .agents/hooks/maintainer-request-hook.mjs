@@ -76,9 +76,12 @@ function envRepo(seg, at) {
   return null;
 }
 
+const endpointOf = (raw) => raw.replace(/^https?:\/\/[^/]+\//i, "").split(/[?#]/)[0].replace(/^\/+/, "");
+const endpointRepo = (raw) => /^repos\/([^/]+\/[^/]+)(?:\/|$)/i.exec(endpointOf(raw))?.[1] ?? null;
+const githubUrl = (value) => /^(?:https?:\/\/)?(?:[^@/\s"']*@)?(?:api\.github\.com|(?:www\.)?github\.com)(?::\d+)?\//i.test(value ?? "");
+
 function apiTarget(raw, repo) {
-  const endpoint = raw.replace(/^https?:\/\/[^/]+\//i, "").split(/[?#]/)[0].replace(/^\/+/, "");
-  const m = /^repos\/([^/]+\/[^/]+)\/issues\/([1-9]\d*)(?:\/|$)/i.exec(endpoint);
+  const m = /^repos\/([^/]+\/[^/]+)\/issues\/([1-9]\d*)(?:\/|$)/i.exec(endpointOf(raw));
   return m && sameRepo(m[1], repo) ? Number(m[2]) : null;
 }
 
@@ -91,7 +94,7 @@ function touches(seg, i, repo) {
     if (group === "issue" && MUTATING_ISSUE_ACTIONS.has(action)) {
       const target = requestNumber(selector, repo);
       if (!target) return null;
-      const named = parsed.values("-R", "--repo").at(-1) ?? target.repo ?? envRepo(seg, i);
+      const named = target.repo ?? parsed.values("-R", "--repo").at(-1) ?? envRepo(seg, i);
       return sameRepo(named, repo) ? { number: target.number, action } : null;
     }
     if (group === "api") {
@@ -153,63 +156,104 @@ function readBodyFile(file, cwd) {
   }
 }
 
+function transportValues(text) {
+  const trimmed = text.trim();
+  try {
+    const data = JSON.parse(trimmed);
+    if (data && typeof data === "object" && !Array.isArray(data)) return ["body", "title"].map((key) => data[key]).filter((value) => typeof value === "string");
+  } catch {
+  }
+  if (/^[\w.[\]-]+=[^&]*(?:&[\w.[\]-]+=[^&]*)*$/.test(trimmed)) {
+    const form = new URLSearchParams(trimmed);
+    return ["body", "title"].flatMap((key) => form.getAll(key));
+  }
+  return [text];
+}
+
+function curlUrl(args) {
+  for (let k = 0; k < args.length; k++) {
+    const t = args[k].text;
+    if (t === "--url") return args[k + 1]?.text ?? null;
+    if (t.startsWith("--url=")) return t.slice(6);
+    if (!t.startsWith("-") && /^(?:https?:\/\/)?[\w.-]+\.[a-z]{2,}(?::\d+)?\//i.test(t)) return t;
+  }
+  return null;
+}
+
 function publishedText(seg, i, command, cwd) {
   const base = baseName(seg[i]);
   const args = seg.slice(i + 1);
   const texts = [];
   let whole = false;
-  const file = (name) => {
+  let destination = null;
+  const file = (name, decode) => {
     if (name === "-" || name === "@-" || name === "") {
       whole = true;
       return;
     }
     const text = readBodyFile(name.replace(/^@/, ""), cwd);
     if (text === null) whole = true;
-    else texts.push(text);
+    else texts.push(...(decode ? transportValues(text) : [text]));
   };
   if (base === "gh") {
     const parsed = ghParse(args);
-    const [group, action] = parsed.positional.map((p) => p.toLowerCase());
+    const [group, action, selector] = parsed.positional.map((p, k) => (k < 2 ? p.toLowerCase() : p));
     if (PUBLISHING[group]?.has(action)) {
+      const url = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/\s]+\/[^/\s]+)\/(?:issues|pull)\/\d+/i.exec(selector ?? "");
+      destination = url?.[1] ?? parsed.values("-R", "--repo").at(-1) ?? envRepo(seg, i);
       texts.push(...parsed.values(...TEXT_FLAGS));
-      for (const name of parsed.values(...FILE_FLAGS)) file(name);
+      for (const name of parsed.values(...FILE_FLAGS)) file(name, false);
     } else if (group === "api") {
+      destination = endpointRepo(parsed.positional[1] ?? "");
       for (const [name, value] of parsed.flags) {
         if (GH_API_FIELD_FLAGS.has(name)) {
           const m = /^(body|title)=([\s\S]*)$/.exec(value);
           if (!m) continue;
-          if (name !== "-f" && name !== "--raw-field" && m[2].startsWith("@")) file(m[2]);
+          if (name !== "-f" && name !== "--raw-field" && m[2].startsWith("@")) file(m[2], false);
           else texts.push(m[2]);
-        } else if (name === "--input") file(value);
+        } else if (name === "--input") file(value, true);
       }
-    }
+    } else return null;
   } else if (base === "curl") {
+    const url = curlUrl(args);
+    if (!githubUrl(url)) return null;
+    destination = endpointRepo(url);
     for (let k = 0; k < args.length; k++) {
       const name = flagName(args[k].text);
       if (name === null || !CURL_DATA.test(name)) continue;
       const [value, used] = flagValue(args, k);
       k += used - 1;
-      if (value.startsWith("@")) file(value);
-      else texts.push(value);
+      if (value.startsWith("@")) file(value, true);
+      else texts.push(...transportValues(value));
     }
   } else if (["invoke-restmethod", "irm", "invoke-webrequest", "iwr"].includes(base)) {
-    for (let k = 0; k < args.length; k++) if (args[k].text.toLowerCase() === "-body") {
-      const value = args[k + 1];
-      if (value?.quoted) texts.push(value.text);
+    let url = null;
+    const bodies = [];
+    for (let k = 0; k < args.length; k++) {
+      const t = args[k].text.toLowerCase();
+      if (t === "-uri" || t === "-url") url = args[++k]?.text ?? null;
+      else if (t === "-body") bodies.push(args[++k]);
+      else if (!t.startsWith("-") && url === null && githubUrl(args[k].text)) url = args[k].text;
+    }
+    if (!githubUrl(url)) return null;
+    destination = endpointRepo(url);
+    for (const value of bodies) {
+      if (value?.quoted) texts.push(...transportValues(value.text));
       else whole = true;
     }
-  }
-  if (whole) texts.push(command);
-  return texts;
+  } else return null;
+  return { texts, raw: whole ? [command] : [], destination };
 }
 
-function unquoted(text) {
-  return text
+function unquoted(text, quotes) {
+  const prose = text
     .replace(/^ {0,3}(```|~~~)[\s\S]*?^ {0,3}\1[^\n]*$/gm, " ")
     .replace(/`[^`\n]*`/g, " ")
     .split(/\r?\n/)
     .filter((line) => !/^\s*>/.test(line))
-    .join("\n")
+    .join("\n");
+  if (!quotes) return prose;
+  return prose
     .replace(/"[^"\n]*"/g, " ")
     .replace(/“[^”\n]*”/g, " ");
 }
@@ -217,9 +261,9 @@ function unquoted(text) {
 const VERBS = "decided|decides|approved|approves|agreed|agrees|chose|chosen|chooses|accepted|accepts|confirmed|confirms|signed\\s+off|okayed";
 const HEDGE = /\b(not|never|no|yet|whether|if|to|should|would|will|may|might|can|could|must|once|until|unless|before)\b|n['’]t\b/i;
 
-export function decisionClaim(text, login) {
+export function decisionClaim(text, login, { quotes = true } = {}) {
   const who = `(?:maintainer|${login.replace(/[-]/g, "\\-")})`;
-  const plain = unquoted(text);
+  const plain = unquoted(text, quotes);
   const active = new RegExp(`\\b${who}(?:['’]s)?\\b((?:[ \\t]+[\\w'’-]+){0,3}?)[ \\t]+(?:${VERBS})\\b`, "gi");
   for (const m of plain.matchAll(active)) if (!HEDGE.test(m[1])) return m[0].trim();
   const fixed = [
@@ -234,29 +278,25 @@ export function decisionClaim(text, login) {
   return null;
 }
 
-export function citedRequests(text, repos = readRepos()) {
+export function citedRequests(text, repos = readRepos(), destination = ticketsRepo(repos)) {
   const repo = ticketsRepo(repos);
   const [owner, name] = repo.split("/").map((part) => part.replace(/[.-]/g, (c) => `\\${c}`));
   const prefix = repos.autolinkPrefix.replace(/-/g, "\\-");
   const patterns = [
-    /(?<![\w/&])#([1-9]\d*)\b/g,
-    new RegExp(`\\b${prefix}([1-9]\\d*)\\b`, "g"),
-    new RegExp(`\\b${owner}/${name}#([1-9]\\d*)\\b`, "gi"),
-    new RegExp(`(?<![\\w-])${name}#([1-9]\\d*)\\b`, "gi"),
-    new RegExp(`github\\.com/${owner}/${name}/issues/([1-9]\\d*)\\b`, "gi"),
+    new RegExp(`(?<![\\w./-])${prefix}([1-9]\\d*)\\b`, "g"),
+    new RegExp(`(?<![\\w./-])${owner}/${name}#([1-9]\\d*)\\b`, "gi"),
+    new RegExp(`(?<![\\w.-])(?:https?://)?(?:www\\.)?github\\.com/${owner}/${name}/issues/([1-9]\\d*)\\b`, "gi"),
   ];
+  if (sameRepo(destination, repo)) patterns.push(/(?<![\w/&.-])#([1-9]\d*)\b/g);
   return [...new Set(patterns.flatMap((pattern) => [...text.matchAll(pattern)].map((m) => Number(m[1]))))];
 }
 
-function claimReason(texts, repos, env) {
+function claimReason(published, repos, env) {
+  if (!published) return null;
   const login = repos.maintainer.login;
-  let claim = null;
-  for (const text of texts) {
-    claim = decisionClaim(text, login);
-    if (claim) break;
-  }
+  const claim = [...published.texts.map((text) => decisionClaim(text, login)), ...published.raw.map((text) => decisionClaim(text, login, { quotes: false }))].find(Boolean);
   if (!claim) return null;
-  const cited = [...new Set(texts.flatMap((text) => citedRequests(text, repos)))];
+  const cited = [...new Set([...published.texts, ...published.raw].flatMap((text) => citedRequests(text, repos, published.destination)))];
   const repo = ticketsRepo(repos);
   const advice = `A decision is the maintainer's only when they answered a maintainer request: cite that request (after \`${TOOL} record <N>\` has read its answer), file one with \`${TOOL} file\`, or write "decided by fallback" when an agent went ahead because no answer came. Quoting an existing record in a blockquote or in quotation marks passes.`;
   if (!cited.length) return `This text claims a maintainer decision ("${claim}") and cites no answered maintainer request in ${repo}. ${advice}`;

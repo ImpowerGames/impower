@@ -64,6 +64,7 @@ const touching = (n) => [
   ["the REST label call", `gh api --method POST repos/${repo}/issues/${n}/labels -f "labels[]=maintainer: task"`],
   ["a curl update", `curl -X PATCH -H "Authorization: Bearer x" https://api.github.com/repos/${repo}/issues/${n} -d '{"state":"closed"}'`],
   ["a nested shell", `bash -c "gh issue comment ${n} -R ${repo} --body ok"`],
+  ["gh issue close by address under another -R", `gh issue close https://github.com/${repo}/issues/${n} -R acme/other`],
 ];
 
 for (const [harness, run] of runs) {
@@ -128,6 +129,25 @@ for (const [harness, run] of runs) {
     `gh issue create -R ${repo} --type Task --title "Follow-up" --body "The maintainer decided this."`,
     `gh issue comment ${OTHER} -R ${repo} --body-file - <<'EOF'\nThe maintainer accepted the fallback.\nEOF`,
   ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command.split("\n")[0]} is refused`);
+  const json = file("payload.json", JSON.stringify({ body: "The maintainer approved the layout." }));
+  const citedJson = file("payload-cited.json", JSON.stringify({ body: `The maintainer approved the layout, recorded on #${ANSWERED}.` }));
+  for (const command of [
+    `gh api -X POST repos/${repo}/issues/${OTHER}/comments --input ${json}`,
+    `curl -X POST https://api.github.com/repos/${repo}/issues/${OTHER}/comments --json @${json}`,
+    `curl -X POST https://api.github.com/repos/${repo}/issues/${OTHER}/comments -d '{"body":"The maintainer approved the layout."}'`,
+    `gh api -X POST repos/${repo}/issues/${OTHER}/comments --input - <<'EOF'\n{"body":"The maintainer approved the layout."}\nEOF`,
+    `gh pr edit 2746 -R ImpowerGames/impower --body "The maintainer chose B. See #${ANSWERED}."`,
+    `gh issue comment ${OTHER} -R ${repo} --body "The maintainer chose B. See someone-else/impower-internal#${ANSWERED}."`,
+    `gh issue comment ${OTHER} -R ${repo} --body "The maintainer chose B. See impower-internal#${ANSWERED}."`,
+  ]) assert.match(run(command, bodyDir) ?? "", /claims a maintainer decision/, `${harness}: ${command.split("\n")[0]} is refused`);
+  for (const command of [
+    `gh api -X POST repos/${repo}/issues/${OTHER}/comments --input ${citedJson}`,
+    `gh pr edit 2746 -R ImpowerGames/impower --body "The maintainer chose B. See ${repo}#${ANSWERED}."`,
+    `gh pr edit 2746 -R ImpowerGames/impower --body "The maintainer chose B (I-${ANSWERED})."`,
+    `gh pr edit 2746 -R ImpowerGames/impower --body "The maintainer chose B: https://github.com/${repo}/issues/${ANSWERED}"`,
+    `curl -X POST https://example.test/telemetry --data-raw 'The maintainer approved the layout.'`,
+    `curl -X POST https://api.github.com/repos/${repo}/issues/${OTHER}/comments -d '{"body":"Status update.","note":"the maintainer approved"}'`,
+  ]) assert.equal(run(command, bodyDir), null, `${harness}: ${command} passes`);
   for (const text of [
     "The maintainer has not decided yet; the request is open.",
     "Decided by fallback, not reviewed by the maintainer: B went ahead at 17:37.",
@@ -180,6 +200,7 @@ for (const [harness, run] of runs) {
   assert.equal(decisionClaim("```\nthe maintainer approved\n```", "someone"), null);
   assert.equal(decisionClaim("`the maintainer approved`", "someone"), null);
   assert.deepEqual(citedRequests(`See #12, I-34, ${repo}#56 and https://github.com/${repo}/issues/78; not &#90;.`, repos).sort((a, b) => a - b), [12, 34, 56, 78]);
+  assert.deepEqual(citedRequests(`See #12, I-34, other/${repo}#56 and acme/${repo.split("/")[1]}#57.`, repos, "ImpowerGames/impower"), [34], "in another repository a bare number and foreign references cite nothing");
   console.log("ok: claims ignore code and hedges, and citations read #N, the autolink prefix, owner/name#N and issue addresses");
 }
 
