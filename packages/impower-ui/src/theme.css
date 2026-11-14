@@ -610,6 +610,18 @@
   --stage: var(--stage-full, rgb(0 0 0));
 }
 
+:root[data-layout="desktop"] {
+  --toast-top: 152px;
+}
+
+:root[data-layout="compact"] {
+  --toast-top: 114px;
+}
+
+:root[data-layout="phone"] {
+  --toast-top: 201px;
+}
+
 [data-theme="chalk"],
 [data-theme="paper"] {
   --preview-frame-shadow: 0 10px 30px rgb(0 0 0 / 0.16);

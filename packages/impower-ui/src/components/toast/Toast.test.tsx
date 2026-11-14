@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { render } from "preact";
 import { useState } from "preact/hooks";
 import { act } from "preact/test-utils";
@@ -5,6 +8,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { hitArea } from "../../../test/hitArea";
 import { DIALOG_TRANSITION_MS, Dialog, DialogTitle, Sheet } from "../dialog/Dialog";
 import Toast, { TOAST_SWIPE_DISMISS_PX, TOAST_TRANSITION_MS, toastVariants } from "./Toast";
+
+const themeCss = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../theme.css"), "utf8");
 
 let coarse = false;
 const mediaListeners = new Set<() => void>();
@@ -84,6 +89,16 @@ describe("Toast", () => {
     expect(region.className).toContain("fixed");
     expect(region.className).toContain("top-[var(--toast-top)]");
     expect(region.className).not.toMatch(/(^|\s)bottom-/);
+  });
+
+  it.each([
+    ["desktop", 76 + 68],
+    ["compact", 54 + 52],
+    ["phone", 54 + 91 + 48],
+  ])("hangs below the %s layout's toolbar rows, clear of their controls", (layout, rowsBottom) => {
+    const rule = themeCss.match(new RegExp(`:root\\[data-layout="${layout}"\\]\\s*\\{[^}]*--toast-top:\\s*(\\d+)px`));
+    expect(rule).not.toBeNull();
+    expect(Number(rule![1])).toBeGreaterThanOrEqual(rowsBottom);
   });
 
   it("fires its action's callback once from the action button, then leaves after its exit", async () => {
