@@ -94,6 +94,11 @@
   color: var(--swp-route-warning-color);
 }
 
+:is(spark-web-player, swp-route-view) .route-entry[data-kind="auto"] .route-icon,
+:is(spark-web-player, swp-route-view) .route-toggle[data-kind="auto"] .route-icon {
+  color: var(--swp-route-muted-color);
+}
+
 :is(spark-web-player, swp-route-view) .route-button .route-icon[data-icon="pinned"],
 :is(spark-web-player, swp-route-view) .route-entry[data-kind="pinned"] .route-icon,
 :is(spark-web-player, swp-route-view) .route-toggle[data-kind="pinned"] .route-icon {
