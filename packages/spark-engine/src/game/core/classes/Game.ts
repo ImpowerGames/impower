@@ -5181,6 +5181,8 @@ export class Game<T extends M = {}> {
       this.settleBeatPlay();
       if (this._pendingPreview) {
         this._pendingPreview.playId = undefined;
+      } else if (this._previewAudio) {
+        this.module.audio.restartPending();
       }
       return this._pendingPreview?.promise ?? previewAddress;
     }

@@ -209,6 +209,47 @@ describe("Play audio in the stopped preview (#2258)", () => {
     expect(audio.sounding()).toEqual([THEME]);
   }, 120_000);
 
+  it("brings the shown beat's loop back after the audio context runs on a preview update within the same beat", async () => {
+    const source = `define theme as audio with
+  src = "https://example.com/theme.mp3"
+end
+
+scene start
+  ((play music theme))
+  MIA:
+    First sentence in the beat.
+    Second sentence in the same beat.
+  MIA: Another beat.
+end
+`;
+    const audio = createStandInAudio({ running: false });
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: source }],
+      startFrom: { file: MAIN_URI, line: 7 },
+      manualClock: true,
+      audio,
+    });
+    harness = h;
+    const win = h.overlay.ownerDocument.defaultView as any;
+    win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+    await h.compile();
+    await select(h, 7);
+    await setPlayAudio(h, true);
+    const game = h.workerState.gameState.game!;
+    const beat = game.previewedAddress;
+    expect(beat).toBeTypeOf("number");
+    expect(audio.sources).toEqual([]);
+    audio.start();
+    await settle(40);
+    const displays = () =>
+      h.toPage.filter((m: any) => m.method === "player/displayPreview").length;
+    const before = displays();
+    await select(h, 8);
+    expect(displays()).toBeGreaterThan(before);
+    expect(game.previewedAddress).toBe(beat);
+    expect(audio.sounding()).toEqual([THEME]);
+  }, 120_000);
+
   it("pauses looping sound while the page is hidden and resumes it when shown", async () => {
     const audio = createStandInAudio();
     const h = await previewAt(FIRST, audio);
