@@ -28,6 +28,7 @@ import {
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { MORPH_CLAUSE_DOC } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
+import { ASSET_TYPES } from "@impower/sparkdown/src/compiler/constants/assetTypes";
 import { resolveImageReference, typedImageTypes } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
@@ -171,14 +172,7 @@ const getDefineContext = (
   return null;
 };
 
-const DEFINE_VALUE_ASSET_TYPES = new Set([
-  "image",
-  "layered_image",
-  "filtered_image",
-  "audio",
-  "font",
-  "video",
-]);
+const DEFINE_VALUE_ASSET_TYPES: ReadonlySet<string> = new Set(ASSET_TYPES);
 
 const KEYFRAME_POSITION_KEYWORDS = ["from", "to"];
 

@@ -12,6 +12,7 @@ const compile = (text: string) => {
       { uri: `${ROOT}/main.sd`, name: "main", type: "script", ext: "sd", text, languageId: "sparkdown", version: 1 },
       { uri: `${ROOT}/assets/Images/office.png`, type: "image", name: "office", ext: "png", src: `${ROOT}/assets/Images/office.png`, version: 1 },
       { uri: `${ROOT}/assets/Images/mia/90_body.png`, type: "image", name: "mia", ext: "png", src: `${ROOT}/assets/Images/mia/90_body.png`, version: 1 },
+      { uri: `${ROOT}/assets/Fonts/serif.ttf`, type: "font", name: "serif", ext: "ttf", src: `${ROOT}/assets/Fonts/serif.ttf`, version: 1 },
       { uri: `${ROOT}/assets/Audio/rain.mp3`, type: "audio", name: "rain", ext: "mp3", src: `${ROOT}/assets/Audio/rain.mp3`, version: 1 },
     ] as never,
   });
@@ -30,6 +31,10 @@ describe("a typed asset accessor in a define property value lists asset names (#
 
   it("offers audio names after audio. in a define value", () => {
     expect(labels("define cue as synth with\n  sound = audio.@1\nend\n")).toContain("rain");
+  });
+
+  it("offers font names after font. in a define value", () => {
+    expect(labels("define body as typography with\n  font = font.@1\nend\n")).toContain("serif");
   });
 
   it("keeps Luau variable completion for a non-asset root", () => {
