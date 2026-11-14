@@ -138,6 +138,10 @@ export const MORPH_CLIP_FIELDS = [...MORPH_CLIP_LIST_FIELDS, "spread"] as const;
 
 export const MORPH_CLIP_SPREAD_DEFAULT = 1;
 
+export const MORPH_MIN_DURATION = 0.001;
+
+export const MORPH_DURATION_MINIMUM_PROBLEM = `\`duration\` must be at least ${MORPH_MIN_DURATION} (one millisecond).`;
+
 export const MORPH_SPREAD_PROBLEM = "`spread` is a length in `px` or `0`, such as `spread = 1px` or `spread = -0.5px`.";
 
 export function parseMorphSpread(value: unknown): number | undefined {

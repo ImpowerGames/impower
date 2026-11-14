@@ -561,6 +561,35 @@ ${CHILD_KEYFRAMES}}
     ]);
   });
 
+  test("a duration below one millisecond is reported on the field, and one at the minimum compiles", () => {
+    const below = morphDiagnostics(withBraceKeyframes(TWO_POSES_BRACED, "  timing { duration = 0.0000001 }\n")).filter(
+      (d) => d.message.includes("at least 0.001"),
+    );
+    expect(below).toEqual([expect.objectContaining({ severity: 1, text: "0.0000001" })]);
+    expect(
+      morphDiagnostics(withBraceKeyframes(TWO_POSES_BRACED, "  timing { duration = 0.001 }\n")).filter((d) =>
+        d.message.includes("duration"),
+      ),
+    ).toEqual([]);
+  });
+
+  test("an inherited duration below the minimum is reported where the parent writes it and on the `as` that brings it in", () => {
+    const text = `morph base {
+  method = bend
+  timing { duration = 0.0000001 }
+}
+
+morph child as base {
+${CHILD_KEYFRAMES}}
+`;
+    const found = morphDiagnostics(text).filter((d) => d.message.includes("at least 0.001"));
+    expect(found).toEqual([
+      expect.objectContaining({ line: 2, text: "0.0000001" }),
+      expect.objectContaining({ line: 5, text: "base" }),
+    ]);
+    expect(found[1]!.message).toContain("`duration`, inherited");
+  });
+
   test("a parent morph's invalid value is reported once, where it is written", () => {
     const text = `morph base {
   method = bogus
