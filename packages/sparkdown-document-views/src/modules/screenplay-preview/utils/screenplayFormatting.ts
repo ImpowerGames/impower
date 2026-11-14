@@ -366,10 +366,10 @@ export const decorate = (
 
   for (const insert of inserts) {
     if (insert.at >= from && (to === undefined || insert.at <= to)) {
-      const printed = insert.style ? printedStyle(insert.style) : { style: "", source: false };
-      const widget =
-        insert.text === "\n" ? new LineBreakWidget() : new InsertedTextWidget(insert.text, printed.style, printed.source);
-      decorations.push(Decoration.widget({ widget, side: 1 }).range(insert.at));
+      const { style, source } = printedStyle(insert.style);
+      decorations.push(
+        Decoration.widget({ widget: new InsertedTextWidget(insert.text, style, source), side: 1 }).range(insert.at),
+      );
     }
   }
 
@@ -748,13 +748,15 @@ export const decorate = (
         lineStart = nodeRef.to;
         return false;
       } else if (isUnprinted(nodeRef)) {
-        hideInlineRange(nodeRef);
         const line = doc.lineAt(from);
+        const end = to === line.to + 1 ? line.to : to;
+        if (end > from) decorations.push(Decoration.replace({}).range(from, end));
         if (
-          to <= line.to &&
+          end <= line.to &&
+          end > from &&
           !blankLines.has(line.number) &&
           !/\S/.test(line.text.slice(0, from - line.from)) &&
-          !/\S/.test(line.text.slice(to - line.from))
+          !/\S/.test(line.text.slice(end - line.from))
         ) {
           decorations.push(Decoration.line({ attributes: { style: "display: none;" } }).range(line.from));
         }

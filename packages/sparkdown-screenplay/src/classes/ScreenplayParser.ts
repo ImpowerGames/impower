@@ -4,10 +4,10 @@ import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/Sp
 import { readSkipping } from "../../../sparkdown/src/compiler/utils/readSkipping";
 import { isStyleCode, trimStyled, trimStyledBounds } from "../../../sparkdown/src/runtime/displayStyle";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
-import type { PrintedInsert } from "../types/PrintedInsert";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
 import { GLUED_ALTERNATOR_BLOCKS, gluedAlternatorJoin } from "../utils/gluedAlternatorLayout";
+import { insertedAt, UNPLACED } from "../utils/printedPosition";
 import { printsAsBlankLine } from "../utils/printsAsBlankLine";
 import { readStyled } from "../utils/readStyled";
 import { isRootFunctionName } from "../utils/rootFunctionName";
@@ -71,7 +71,7 @@ const withoutLast = (positions: Positions): Positions => {
 };
 
 const placedOf = (reading: { styled: string; at?: Positions }): Positions =>
-  reading.at ?? new Array<number>(reading.styled.length).fill(-1);
+  reading.at ?? new Array<number>(reading.styled.length).fill(UNPLACED);
 
 const join = (...parts: Reading[]): Reading => {
   const text = parts.map((part) => part.text).join("");
@@ -155,8 +155,6 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
     let textSource: number[] = [];
     let characterSource: number[] = [];
     let choiceSource: number[] = [];
-    let textInserts: PrintedInsert[] = [];
-    let choiceInserts: PrintedInsert[] = [];
     let lineStart = 0;
     const read = (from: number, to: number) => script.slice(from, to);
     let sink: number[] = [];
@@ -227,7 +225,9 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         ranges: trimmed,
       };
     };
-    const readGlued = (block: SyntaxNode, source: number[], inserts: PrintedInsert[]): Reading => {
+    const inserted = (text: string, anchor: number): Reading =>
+      positions ? { text, styled: text, at: new Array<number>(text.length).fill(insertedAt(anchor)) } : plain(text);
+    const readGlued = (block: SyntaxNode, source: number[]): Reading => {
       const arms: { reading: Reading; ranges: number[] }[] = [];
       const cursor = block.cursor();
       while (cursor.next() && cursor.from < block.to) {
@@ -236,20 +236,13 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         if (arm) arms.push(arm);
       }
       if (arms.length === 0) return NO_TEXT;
-      const parts: Reading[] = [plain(gluedAlternatorJoin("before"))];
-      inserts.push({ at: arms[0]!.ranges[0]!, text: gluedAlternatorJoin("before") });
+      const parts: Reading[] = [inserted(gluedAlternatorJoin("before"), arms[0]!.ranges[0]!)];
       arms.forEach((arm, index) => {
-        if (index > 0) {
-          parts.push(plain(gluedAlternatorJoin("between")));
-          inserts.push({ at: arm.ranges[0]!, text: gluedAlternatorJoin("between") });
-        }
+        if (index > 0) parts.push(inserted(gluedAlternatorJoin("between"), arm.ranges[0]!));
         parts.push(arm.reading);
       });
       const after = gluedAlternatorJoin("after");
-      if (after) {
-        parts.push(plain(after));
-        inserts.push({ at: arms.at(-1)!.ranges.at(-1)!, text: after });
-      }
+      if (after) parts.push(inserted(after, arms.at(-1)!.ranges.at(-1)!));
       return join(...parts);
     };
     const readChoiceText = (node: SyntaxNode): Reading => {
@@ -258,7 +251,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         if (!GLUED_ALTERNATOR_BLOCKS.has(child.name)) return undefined;
         let reading = glued.get(child.from);
         if (!reading) {
-          reading = readGlued(child, choiceSource, choiceInserts);
+          reading = readGlued(child, choiceSource);
           glued.set(child.from, reading);
         }
         return reading;
@@ -276,7 +269,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
       token.text = `${token.text ?? ""}${reading.text}`;
       token.styled = `${before}${reading.styled}`;
       if (token.at || reading.at) {
-        const at = token.at ?? new Array<number>(before.length).fill(-1);
+        const at = token.at ?? new Array<number>(before.length).fill(UNPLACED);
         for (const position of flatten(placedOf(reading))) at.push(position);
         token.at = at;
       }
@@ -286,27 +279,25 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
     const flushText = () => {
       const source = textSource;
       textSource = [];
-      const inserts = textInserts.length > 0 ? { inserts: textInserts } : {};
-      textInserts = [];
       if (title.text) {
-        tokens.push({ tag: "title", ...flatReading(title), source, ...inserts });
+        tokens.push({ tag: "title", ...flatReading(title), source });
         title = NO_TEXT;
       }
       if (heading.text) {
         tokens.push(
           headingContinues
-            ? { tag: "heading", ...flatReading(heading), continued: true, source, ...inserts }
-            : { tag: "heading", ...flatReading(heading), source, ...inserts },
+            ? { tag: "heading", ...flatReading(heading), continued: true, source }
+            : { tag: "heading", ...flatReading(heading), source },
         );
         heading = NO_TEXT;
         headingContinues = true;
       }
       if (transitional.text) {
-        tokens.push({ tag: "transitional", ...flatReading(transitional), source, ...inserts });
+        tokens.push({ tag: "transitional", ...flatReading(transitional), source });
         transitional = NO_TEXT;
       }
       if (action.text) {
-        tokens.push({ tag: "action", ...flatReading(action), source, ...inserts });
+        tokens.push({ tag: "action", ...flatReading(action), source });
         action = NO_TEXT;
       }
     };
@@ -392,11 +383,10 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           if (stack.includes("BlockDialogue_content") || stack.includes("InlineDialogue_content")) {
             const last = tokens.at(-1);
             if (continuesBeforeGlued(nodeRef.node) && last?.tag === "dialogue_content") {
-              appendReading(last, readGlued(nodeRef.node, (last.source ??= []), (last.inserts ??= [])));
+              appendReading(last, readGlued(nodeRef.node, (last.source ??= [])));
             } else {
               const source: number[] = [];
-              const inserts: PrintedInsert[] = [];
-              const glued = readGlued(nodeRef.node, source, inserts);
+              const glued = readGlued(nodeRef.node, source);
               if (glued.text) {
                 tokens.push({
                   tag: "dialogue_content",
@@ -404,12 +394,11 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
                   ...trimReading(glued, { end: false }),
                   position,
                   source,
-                  inserts,
                 });
               }
             }
           } else {
-            const glued = readGlued(nodeRef.node, textSource, textInserts);
+            const glued = readGlued(nodeRef.node, textSource);
             if (glued.text) {
               if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
                 title = appendGlued(title, nodeRef.node, glued);
@@ -591,7 +580,6 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
             prefix: choice_prefix,
             suffix: choice_suffix,
             source: choiceSource,
-            ...(choiceInserts.length > 0 ? { inserts: choiceInserts } : {}),
             ...(positions ? { at: [...choicePrefixAt, ...flatten(placedOf(choice))] } : {}),
           });
           choice = NO_TEXT;
@@ -599,7 +587,6 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           choicePrefixAt = [];
           choice_suffix = "";
           choiceSource = [];
-          choiceInserts = [];
         }
 
         if (TOKENS_ON_LEAVE.has(name)) {

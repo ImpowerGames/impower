@@ -158,7 +158,7 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           undefined,
-          { source: t.source, inserts: t.inserts },
+          { source: t.source },
           t.at,
         );
         if (lines.length > 0) {
@@ -174,7 +174,7 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           style,
-          { source: t.source, inserts: t.inserts },
+          { source: t.source },
           t.at,
         );
         if (lines.length > 0 && t.continued) {
@@ -194,7 +194,7 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           style,
-          { source: t.source, inserts: t.inserts },
+          { source: t.source },
           t.at,
         );
         if (lines.length > 0) {
@@ -209,7 +209,7 @@ export default class ScreenplayTypesetter {
           undefined,
           {
             canSplitAfter: 3,
-            source: t.source, inserts: t.inserts,
+            source: t.source,
           },
           t.at,
         );
@@ -222,9 +222,9 @@ export default class ScreenplayTypesetter {
         t.tag === "dialogue_content"
       ) {
         const lineOptions: LineOptions | undefined = t.position
-          ? { position: t.position, source: t.source, inserts: t.inserts }
+          ? { position: t.position, source: t.source }
           : {
-              source: t.source, inserts: t.inserts,
+              source: t.source,
               canSplitAfter:
                 t.tag === "dialogue_content" &&
                 config?.screenplay_print_dialogue_split_across_pages
@@ -293,7 +293,7 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           undefined,
-          { source: t.source, inserts: t.inserts },
+          { source: t.source },
           t.at,
         );
         if (lines.length > 0) {

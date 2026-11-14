@@ -4,8 +4,8 @@ import ScreenplayTypesetter from "../classes/ScreenplayTypesetter";
 import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
 import type { PageLine } from "../types/DocumentSpan";
 import type { FormattedText } from "../types/FormattedText";
-import type { PrintedInsert } from "../types/PrintedInsert";
 import type { ScreenplayConfig } from "../types/ScreenplayConfig";
+import { insertAnchor } from "./printedPosition";
 
 export interface PrintedRun {
   from: number;
@@ -14,8 +14,10 @@ export interface PrintedRun {
   text?: string;
 }
 
-export interface PageInsert extends PrintedInsert {
-  style?: FormattedText;
+export interface PageInsert {
+  at: number;
+  text: string;
+  style: FormattedText;
 }
 
 export interface PrintedScene {
@@ -24,23 +26,27 @@ export interface PrintedScene {
   bold: boolean;
 }
 
-export interface ScreenplayPageLayout {
+export interface PrintedPlaces {
+  runs: PrintedRun[];
+  inserts: PageInsert[];
+  unplaced: string[];
+}
+
+export interface ScreenplayPageLayout extends PrintedPlaces {
   blankLines: number[];
   printed: number[];
   actionStarts: number[];
-  inserts: PageInsert[];
   printedLines: { at: number; lines: FormattedText[][] }[];
-  runs: PrintedRun[];
   scenes: PrintedScene[];
 }
 
-const addRuns = (line: PageLine, runs: PrintedRun[], script: string) => {
+export const placePrintedLine = (line: PageLine, script: string, places: PrintedPlaces) => {
   for (const piece of line.content) {
     const at = piece.at ?? [];
     let start = -1;
     let previous = -1;
     const close = () => {
-      if (start >= 0) runs.push({ from: start, to: previous + 1, style: piece });
+      if (start >= 0) places.runs.push({ from: start, to: previous + 1, style: piece });
       start = -1;
     };
     for (let index = 0; index < at.length; ) {
@@ -48,11 +54,16 @@ const addRuns = (line: PageLine, runs: PrintedRun[], script: string) => {
       let end = index + 1;
       while (end < at.length && at[end] === position) end++;
       const printed = piece.text.slice(index, end);
-      if (position < 0) {
+      const anchor = insertAnchor(position);
+      if (anchor !== undefined) {
         close();
+        places.inserts.push({ at: anchor, text: printed, style: piece });
+      } else if (position < 0) {
+        close();
+        places.unplaced.push(printed);
       } else if (printed !== script[position]) {
         close();
-        runs.push({ from: position, to: position + 1, style: piece, text: printed });
+        places.runs.push({ from: position, to: position + 1, style: piece, text: printed });
       } else if (start >= 0 && position === previous + 1) {
         previous = position;
       } else {
@@ -113,43 +124,13 @@ export const screenplayPageLayout = (
   const blankLines: number[] = [];
   const printed: number[] = [];
   const actionStarts: number[] = [];
-  const inserts: PageInsert[] = [];
   const printedLines: { at: number; lines: FormattedText[][] }[] = [];
-  const runs: PrintedRun[] = [];
+  const places: PrintedPlaces = { runs: [], inserts: [], unplaced: [] };
   const scenes: PrintedScene[] = [];
-  const insertedPieces = new Map<number[], { text: string; style: FormattedText }[]>();
-  const insertOwners: { source: number[]; inserts: PrintedInsert[] }[] = [];
   let lastSource: number[] | undefined;
-  const collectInserted = (line: PageLine) => {
-    if (!line.source) return;
-    const collected = insertedPieces.get(line.source) ?? [];
-    insertedPieces.set(line.source, collected);
-    for (const piece of line.content) {
-      const at = piece.at ?? [];
-      for (let index = 0; index < at.length; index++) {
-        if (at[index]! >= 0) continue;
-        let end = index;
-        while (end < at.length && at[end]! < 0) end++;
-        collected.push({ text: piece.text.slice(index, end), style: piece });
-        index = end;
-      }
-    }
-  };
-  const styledInserts = (source: number[], owned: PrintedInsert[]): PageInsert[] => {
-    const pieces = insertedPieces.get(source) ?? [];
-    let next = 0;
-    return owned.map((insert) => {
-      if (insert.text === "\n") return insert;
-      let text = "";
-      const first = pieces[next];
-      while (next < pieces.length && text.length < insert.text.length) text += pieces[next++]!.text;
-      return first && text === insert.text ? { ...insert, style: first.style } : insert;
-    });
-  };
   const addPrinted = (lines: PageLine[] | undefined) => {
     for (const line of lines ?? []) {
-      addRuns(line, runs, script);
-      collectInserted(line);
+      placePrintedLine(line, script, places);
       const sceneAt = line.scene !== undefined ? firstPlaced(line) : undefined;
       if (sceneAt !== undefined) scenes.push({ at: sceneAt, scene: line.scene!, bold: !!line.sceneBold });
       if (line.source && line.source === lastSource) {
@@ -159,7 +140,6 @@ export const screenplayPageLayout = (
         printed.push(...line.source);
         lastSource = line.source;
         if (line.source[0] !== undefined) printedLines.push({ at: line.source[0], lines: [line.content] });
-        if (line.inserts) insertOwners.push({ source: line.source, inserts: line.inserts });
         if (line.tag === "action" && line.source[0] !== undefined) actionStarts.push(line.source[0]);
       }
     }
@@ -176,10 +156,14 @@ export const screenplayPageLayout = (
       addPrinted(span.lines);
     }
   }
-  for (const owner of insertOwners) inserts.push(...styledInserts(owner.source, owner.inserts));
-  return { blankLines, printed: mergeRanges(printed), actionStarts, inserts: inserts.sort((a, b) => a.at - b.at),
+  return {
+    blankLines,
+    printed: mergeRanges(printed),
+    actionStarts,
     printedLines: printedLines.sort((a, b) => a.at - b.at),
-    runs: runs.sort((a, b) => a.from - b.from),
+    runs: places.runs.sort((a, b) => a.from - b.from),
+    inserts: places.inserts.sort((a, b) => a.at - b.at),
+    unplaced: places.unplaced,
     scenes,
   };
 };

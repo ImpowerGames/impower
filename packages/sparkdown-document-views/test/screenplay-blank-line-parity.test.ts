@@ -1,5 +1,12 @@
+import { syntaxTree } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { afterAll, describe, expect, it } from "vitest";
+import { insertedAt } from "../../sparkdown-screenplay/src/utils/printedPosition";
+import {
+  type PrintedPlaces,
+  placePrintedLine,
+  screenplayPageLayout,
+} from "../../sparkdown-screenplay/src/utils/screenplayPageLayout";
 import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import type { PageLine } from "../../sparkdown-screenplay/src/types/DocumentSpan";
 import { isHiddenIdentifier } from "../../sparkdown-screenplay/src/utils/isHiddenIdentifier";
@@ -131,6 +138,9 @@ const KINDS: Record<string, string[]> = {
   BlockDialogueMarkup: ["  GUIDE:", "    (*softly*)", "    A _quiet_ word."],
   ChoiceMarkup: ["  * [A *cat ..* tail.]"],
   InlineDialogueCentredMarkup: ["  GUIDE: ^Hello there.^"],
+  BlockDialogueThenCentredAction: ["  GUIDE:", "    ^Hello there.^"],
+  GluedTwiceOneLine: ["  They see .. queue | a cat | a dog .. and .. queue | a cow | a hen .. now."],
+  GluedBesideSameText: ["  They see a / .. queue | a cat | a dog .. / outside."],
   ChoiceEscape: ["  * [Pick \\*one\\* _now_.]"],
   LuauSparkdownVariableDefinition: ["  local z = 3"],
   LuauSparkdownWhileLoop: ["  while false do", "    It hails.", "  end"],
@@ -477,6 +487,9 @@ const pageStyle = (view: EditorView): string => {
   return out;
 };
 
+const unplacedText = (configName: string, source: string) =>
+  screenplayPageLayout(syntaxTree(views.get(configName)!.state), source, CONFIGS[configName]).unplaced;
+
 const styleDifference = (configName: string, source: string) => {
   const page = pageStyle(views.get(configName)!);
   const pdf = exportStyle(configName, source);
@@ -504,6 +517,10 @@ describe("screenplay page and export agree on blank lines", () => {
         const styles = styleDifference(configName, source);
         if (styles) {
           failures.push(`sequence ${index}: ${styles}; kinds ${kinds.join(" > ")}`);
+        }
+        const unplaced = unplacedText(configName, source);
+        if (unplaced.length) {
+          failures.push(`sequence ${index}: the export printed text the page has no place for ${JSON.stringify(unplaced)}; kinds ${kinds.join(" > ")}`);
         }
         const missing = missingText(screen, kinds.flatMap((kind) => PRINTED[kind] ?? []));
         if (missing.length) {
@@ -575,6 +592,10 @@ describe("screenplay page and export agree on text inside blocks", () => {
         const styles = styleDifference(configName, source);
         if (styles) {
           failures.push(`sequence ${index}: ${styles}; kinds ${kinds.join(" > ")}`);
+        }
+        const unplaced = unplacedText(configName, source);
+        if (unplaced.length) {
+          failures.push(`sequence ${index}: the export printed text the page has no place for ${JSON.stringify(unplaced)}; kinds ${kinds.join(" > ")}`);
         }
         const expected = [...CONTAINERS[container]!.prints, ...kinds.flatMap((kind) => PRINTED[kind] ?? [])];
         const missing = missingText(screen, expected);
@@ -895,5 +916,61 @@ describe("a tab in printed text", () => {
       flagsOf({ ...exported, align: undefined, source: exported.color === SOURCE_COLOR }),
     );
     expect(flagsOf({ ...exported, align: undefined, source: exported.color === SOURCE_COLOR })).toBe(flags);
+  });
+});
+
+const pageRowTexts = (configName: string) =>
+  Array.from(views.get(configName)!.contentDOM.children)
+    .filter((row) => !isHidden(row, false) && getComputedStyle(row).opacity !== "0")
+    .map((row) => visibleText(row).trim())
+    .filter((text) => text);
+
+describe("a speaker line followed by a line the grammar reads as action", () => {
+  it("keeps each on its own row, as the export prints them", () => {
+    const source = sourceOf(["BlockDialogueThenCentredAction"]);
+    const printed = exportRows("default", source).filter((row) => row);
+    expect(printed).toEqual(["Before.", "GUIDE", "Hello there.", "After."]);
+    screenRows("default", source);
+    expect(pageRowTexts("default")).toEqual(printed);
+  });
+});
+
+describe("text the export inserts", () => {
+  it.each([
+    ["two alternatives on one line, each joined by the same text", "GluedTwiceOneLine"],
+    ["an alternative beside source text equal to its join", "GluedBesideSameText"],
+    ["an alternative in dialogue", "GluedDialogueAlternator"],
+    ["an alternative in a choice", "GluedChoiceAlternator"],
+  ])("is drawn where the export places it, for %s", (_name, kind) => {
+    const source = sourceOf([kind]);
+    const printed = exportRows("default", source).filter((row) => row);
+    screenRows("default", source);
+    expect(pageRowTexts("default").join("")).toBe(printed.join(""));
+    expect(unplacedText("default", source)).toEqual([]);
+  });
+
+  it("places each insert at its own anchor and reports text with no place", () => {
+    const places: PrintedPlaces = { runs: [], inserts: [], unplaced: [] };
+    const style = { text: "", italic: true };
+    placePrintedLine(
+      {
+        tag: "action",
+        content: [
+          {
+            ...style,
+            text: "a / b / c?",
+            at: [0, insertedAt(1), insertedAt(1), insertedAt(1), 1, insertedAt(2), insertedAt(2), insertedAt(2), 2, -1],
+          },
+        ],
+      },
+      "abc",
+      places,
+    );
+    expect(places.runs.map(({ from, to }) => [from, to])).toEqual([[0, 1], [1, 2], [2, 3]]);
+    expect(places.inserts.map(({ at, text, style }) => [at, text, style.italic])).toEqual([
+      [1, " / ", true],
+      [2, " / ", true],
+    ]);
+    expect(places.unplaced).toEqual(["?"]);
   });
 });
