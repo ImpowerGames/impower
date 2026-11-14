@@ -116,11 +116,7 @@ export interface StandInAudio {
 }
 
 export function createStandInAudio(
-  options: {
-    running?: boolean;
-    timed?: boolean;
-    durations?: Record<string, number>;
-  } = {},
+  options: { running?: boolean; timed?: boolean } = {},
 ): StandInAudio {
   let clockNow: (() => number) | undefined;
   const sources: StandInSource[] = [];
@@ -205,11 +201,10 @@ export function createStandInAudio(
         protected override async loadAudioBuffer(
           params: LoadAudioPlayerParams,
         ): Promise<AudioBuffer> {
-          const duration = options.durations?.[params.key.split("~")[0]!] ?? 4;
           return {
             key: params.key,
-            duration,
-            length: duration * 48000,
+            duration: 4,
+            length: 4 * 48000,
           } as unknown as AudioBuffer;
         }
       })(app);

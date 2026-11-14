@@ -89,12 +89,6 @@ export class Coordinator<G extends Game> {
 
   protected _played?: () => void;
 
-  protected _audioTriggerIds: number[] = [];
-
-  protected _audioTime?: number;
-
-  protected _resumedTriggerIds?: number[];
-
   constructor(
     game: G,
     instructions: Instructions,
@@ -136,32 +130,9 @@ export class Coordinator<G extends Game> {
     }
     this._played = undefined;
     this._onTick = undefined;
-    const resumePending = this._resumedTriggerIds != null;
-    this._resumedTriggerIds = undefined;
     this._game.module.ui.setBeatPlaying(false);
     this.display({ instant: true, preview: true });
-    if (resumePending) {
-      this._game.module.audio.settlePreview();
-    }
     played();
-  }
-
-  resumeAudio(): void {
-    if (!this._played || !this._instructions.audio) {
-      return;
-    }
-    const triggerIds = this.scheduleAudio();
-    if (this._audioTime == null) {
-      this._audioTriggerIds = triggerIds;
-    } else {
-      this._resumedTriggerIds = triggerIds;
-    }
-  }
-
-  protected scheduleAudio(): number[] {
-    return Object.entries(this._instructions.audio ?? {}).map(
-      ([target, events]) => this._game.module.audio.schedule(target, events),
-    );
   }
 
   onSettle(restored: boolean) {
@@ -413,10 +384,12 @@ export class Coordinator<G extends Game> {
       game.module.audio.stopChannel("typewriter");
     }
 
-    this._audioTriggerIds =
+    const audioTriggerIds =
       instant || silent || !instructions.audio
         ? []
-        : this.scheduleAudio();
+        : Object.entries(instructions.audio).map(([target, events]) =>
+            game.module.audio.schedule(target, events),
+          );
 
     const assets = game.module.assets;
     const simulating = Boolean(game.context.system.simulating);
@@ -455,13 +428,8 @@ export class Coordinator<G extends Game> {
     let finished = false;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
     const handleTick = (deltaMS: number): void => {
-      const resumed = this._resumedTriggerIds;
-      if (resumed?.every((n) => game.module.audio.isReady(n))) {
-        this._resumedTriggerIds = undefined;
-        game.module.audio.triggerAll(resumed, this._audioTime);
-      }
       if (!ready) {
-        const audioReady = this._audioTriggerIds.every((n) =>
+        const audioReady = audioTriggerIds.every((n) =>
           game.module.audio.isReady(n),
         );
         const assetsReady =
@@ -471,8 +439,7 @@ export class Coordinator<G extends Game> {
           ready = true;
           this._startedExecution = true;
           const time = game.context.system.now() + BEAT_LEAD_MS;
-          this._audioTime = time;
-          game.module.audio.triggerAll(this._audioTriggerIds, time);
+          game.module.audio.triggerAll(audioTriggerIds, time);
           if (assetTriggerId != null) {
             assets.trigger(assetTriggerId);
           }

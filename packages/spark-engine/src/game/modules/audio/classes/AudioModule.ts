@@ -107,15 +107,6 @@ export class AudioModule extends Module<
     this._channelsCurrentlyPlaying = this.playingFromState();
   }
 
-  heldChannels(): Record<string, ChannelState> {
-    return structuredClone(this._state.channels ?? {});
-  }
-
-  restoreHeldChannels(channels: Record<string, ChannelState>): void {
-    this._state.channels = structuredClone(channels);
-    this._channelsCurrentlyPlaying = this.playingFromState();
-  }
-
   override getStored() {
     return [];
   }

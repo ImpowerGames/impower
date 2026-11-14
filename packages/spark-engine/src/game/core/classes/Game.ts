@@ -115,7 +115,6 @@ import type {
 } from "@impower/sparkdown/src/runtime/VariablesState";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { beatIndexIn } from "../../modules/assets/utils/previewWindow";
-import type { ChannelState } from "../../modules/audio/types/ChannelState";
 import type { UIState } from "../../modules/ui/classes/UIModule";
 import type { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { ErrorType } from "../enums/ErrorType";
@@ -286,7 +285,6 @@ const drawsSettled = (beat: Instructions): boolean =>
 interface BeatPlay<G extends Game> {
   id: number;
   coordinator: Coordinator<G>;
-  heldBefore: Record<string, ChannelState>;
 }
 
 interface Stage {
@@ -5387,17 +5385,13 @@ export class Game<T extends M = {}> {
     if (!this._context.system.previewing || this._state === "running") {
       return;
     }
+    this.settleBeatPlay();
     if (!enabled) {
       this.module.audio.silence();
       return;
     }
-    const play = this._beatPlay;
     this.module.audio.forgetHeard();
-    if (play) {
-      this.module.audio.restoreHeldChannels(play.heldBefore);
-    }
     this.module.audio.settlePreview();
-    play?.coordinator.resumeAudio();
   }
 
   protected _previewShowsBeat = false;
@@ -5450,7 +5444,6 @@ export class Game<T extends M = {}> {
     playId?: number,
   ) {
     const audio = this.module.audio;
-    const heldBefore = audio.heldChannels();
     if (playId != null) {
       audio.settlePreview();
     }
@@ -5462,11 +5455,7 @@ export class Game<T extends M = {}> {
         playId != null ? { played: () => this.beatPlayed() } : undefined,
       );
       if (playId != null) {
-        this._beatPlay = {
-          id: playId,
-          coordinator: this._coordinator,
-          heldBefore,
-        };
+        this._beatPlay = { id: playId, coordinator: this._coordinator };
       }
       this.noteShownChoices(instructions);
       if (
