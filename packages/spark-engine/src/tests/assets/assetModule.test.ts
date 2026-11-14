@@ -430,6 +430,49 @@ end
     expect(h.game.module.ui.getFontNamesForLayout("badge")).toEqual(["Fancy"]);
   });
 
+  it("loads a font by its declared family inside a font list, including a quoted family holding a comma (#2235)", async () => {
+    const source = `define Fancy as font with
+  src = "Fancy.ttf"
+  font_family = "1st my.font~x"
+end
+
+define Plain as font with
+  src = "Plain.ttf"
+  font_family = "Plain, Display"
+end
+
+style hud {
+  font_family = "1st my.font~x, serif"
+}
+
+style deck {
+  font_family = "'Plain, Display', serif"
+}
+
+layout hud {
+  text "Score"
+}
+
+layout deck {
+  text "Cards"
+}
+
+scene A
+  Hello.
+end
+`;
+    const h = createHarness(source, 0, {
+      assets: [...ASSETS, asset("font", "Plain", "ttf")],
+      beforeConnect: playing,
+      autoOpenAll: false,
+    });
+    await h.ready;
+    expect(h.game.module.ui.getFontNamesForLayout("hud")).toEqual(["Fancy"]);
+    expect(h.game.module.ui.getFontNamesForLayout("deck")).toEqual(["Plain"]);
+    const items = h.game.module.assets.resolveFontItems(["hud", "deck"]) as { family?: string }[];
+    expect(items.map((item) => item.family).sort()).toEqual(["1st my.font~x", "Plain, Display"]);
+  });
+
   it("loads a family's @ style files with the family a style names (#2202)", async () => {
     const source = `style hud {
   font_family = "Plain"

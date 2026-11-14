@@ -1660,8 +1660,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return;
         }
         if (value.includes(",")) {
-          for (const entry of value.split(",")) {
-            const family = entry.trim().replace(/^(["'])(.*)\1$/, "$2");
+          for (const match of value.matchAll(/\s*(?:"([^"]*)"|'([^']*)'|([^,]*))\s*(?:,|$)/g)) {
+            const family = (match[1] ?? match[2] ?? match[3] ?? "").trim();
             if (fonts[family] && !family.startsWith("$")) {
               referenced.add(family);
             }
