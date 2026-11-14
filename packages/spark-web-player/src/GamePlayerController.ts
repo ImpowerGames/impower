@@ -1578,7 +1578,6 @@ export class GamePlayerController {
       if (m.params.userEvent) {
         this._selectionVersion++;
         this._previewPosition = null;
-        this._shownBeat = null;
         this.publishGameState();
       }
     });
@@ -1617,7 +1616,6 @@ export class GamePlayerController {
       this._options ??= {};
       this._options.startFrom = startFrom;
       this._previewPosition = null;
-      this._shownBeat = null;
       this.publishGameState();
       if (this._program && !this.playing) {
         if (!(startFrom.file in this._program.scripts)) {
