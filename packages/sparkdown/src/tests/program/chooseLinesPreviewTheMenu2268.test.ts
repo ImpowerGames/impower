@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { chunkOfAddress, offsetOfAddress } from "../../program/ProgramChunk";
-import { MAIN_URI, compileScript } from "./programHarness";
+import { MAIN_URI, compileScript, programSession } from "./programHarness";
 
 const quiet = <T>(run: () => T): T => {
   const { warn, error, log } = console;
@@ -103,15 +103,20 @@ describe("the preview address of a choose block's structural lines", () => {
   });
 });
 
-describe("the preview address of a choose block whose options sit inside an if block", () => {
-  const root = rootOf(GATED);
+describe.each([
+  ["an if block", GATED],
+  ["a do block", GATED.replace("if true then", "do")],
+])("the preview address of a choose block whose options sit inside %s", (_name, text) => {
+  const root = rootOf(text);
   const menu = shown(root, 4);
   const speaker = shown(root, 3);
 
-  it("gives the choose line the menu", () => {
+  it("gives the choose line, the inner block's end and the block's end the menu", () => {
     expect(menu).toBeDefined();
     expect(menu).not.toBe(speaker);
     expect(shown(root, 1)).toBe(menu);
+    expect(shown(root, 8)).toBe(menu);
+    expect(shown(root, 9)).toBe(menu);
   });
 
   it("gives the caption's speaker line the speaker's line", () => {
@@ -120,6 +125,19 @@ describe("the preview address of a choose block whose options sit inside an if b
 
   it("leaves the line after the block its own beat", () => {
     expect(shown(root, 10)).toBe(started(root, 10));
+  });
+});
+
+describe("the preview address of a block's end after an edit", () => {
+  it("follows the block's end when lines are added above and inside it", () => {
+    const session = programSession(GATED.replace("  After.", "\n  After."));
+    expect(shown(session.root, 9)).toBe(shown(session.root, 4));
+    expect(shown(session.root, 10)).not.toBe(shown(session.root, 4));
+    const moved = session.edit("scene start\n", "scene start\n  Before.\n");
+    expect(shown(moved, 10)).toBe(shown(moved, 5));
+    const grown = session.edit("      * [South.]\n", "      * [South.]\n      * [West.]\n");
+    expect(shown(grown, 11)).toBe(shown(grown, 5));
+    expect(shown(grown, 12)).not.toBe(shown(grown, 5));
   });
 });
 

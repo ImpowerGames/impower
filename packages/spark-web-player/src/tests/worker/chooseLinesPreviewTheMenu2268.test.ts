@@ -58,7 +58,9 @@ describe("the preview at a choose block's structural lines", () => {
     ["a bare option line", CAPTION, 6, MENU, ["Thank you."]],
     ["the question line", CAPTION, 5, MENU, ["Thank you."]],
     ["the speaker's line", CAPTION, 3, SPEAKER, ["Will you help?"]],
-    ["the choose line of a block whose options sit inside an if", GATED, 1, GATED_MENU, ["Listen carefully.", "After."]],  ] as const)(
+    ["the choose line of a block whose options sit inside an if", GATED, 1, GATED_MENU, ["Listen carefully.", "After."]],
+    ["the end of a block whose options sit inside an if", GATED, 9, GATED_MENU, ["Listen carefully.", "After."]],
+    ["the end of a block whose options sit inside a do", GATED.replace("if true then", "do"), 9, GATED_MENU, ["Listen carefully.", "After."]],  ] as const)(
     "at %s, shows what the game shows there",
     async (_name, source, line, shown, hidden) => {
       const text = await previewAt(source, line);

@@ -721,7 +721,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._choose = presentation;
     this.emitObjects(content.slice(0, -1));
     this._choose = null;
-    this.emit(Op.Done, 0, 0, DONE_HOLD);
+    this.emit(Op.Done, this.closingLineOffset(), 0, DONE_HOLD);
     this.jumpBack(Op.Jump, end);
     const depth = this._scopes;
     const depthAt = (join: ProgramLabel | null) =>
@@ -752,6 +752,15 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.alignScopes(depth);
     this.bind(end);
     this.emitThenClause(gather);
+  }
+
+  protected closingLineOffset(): number {
+    const source = this._source.trimEnd();
+    let lines = 0;
+    for (let at = source.indexOf("\n"); at >= 0; at = source.indexOf("\n", at + 1)) {
+      lines += 1;
+    }
+    return lines;
   }
 
   protected emitThenClause(gather: Gather): void {

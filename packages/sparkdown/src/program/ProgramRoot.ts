@@ -13,8 +13,8 @@ import {
 import { DONE_HOLD, Op, flagsOf, opOf } from "./ProgramInstructions";
 import {
   ANCHOR_STATEMENT,
-  BLOCK_CHOICE,
   BLOCK_FUNCTION,
+  BLOCK_THEN,
   B_HEAD_LINES,
   B_SEQUENCE,
   HEADER_WORDS,
@@ -752,20 +752,19 @@ export class ProgramRoot {
   ): number | undefined {
     const chunk = sequence.arrays.chunks[entry]!;
     const offer = menuOfferIn(chunk);
-    const blocks = blockCount(chunk);
-    let lastChoice = -1;
-    for (let k = 0; k < blocks; k += 1) {
-      if (blockFlags(chunk, k) & BLOCK_CHOICE) {
-        lastChoice = k;
-      }
-    }
-    if (offer < 0 || lastChoice < 0) {
+    if (offer < 0) {
       return undefined;
     }
     const top = this.lineOf(sequence, entry);
-    const options = this.blockEndLine(sequence, entry, lastChoice);
-    const end = this.blockEndLine(sequence, entry, blocks - 1);
-    if (line < top || line > end || (line >= options && line < end)) {
+    const end = top + chunk[HEADER_WORDS + offer + 1]!;
+    let then = end;
+    for (let k = 0; k < blockCount(chunk); k += 1) {
+      const body = this.body(chunk, k);
+      if (body && blockFlags(chunk, k) & BLOCK_THEN) {
+        then = Math.min(then, this.firstLineOf(body) - blockField(chunk, k, B_HEAD_LINES));
+      }
+    }
+    if (line < top || line > end || (line >= then && line < end)) {
       return undefined;
     }
     const id = chunkId(chunk);
@@ -774,32 +773,57 @@ export class ProgramRoot {
     let menu = 0;
     let next = -1;
     let nextLine = Infinity;
+    let beatOnLine = -1;
+    let beatOver = -1;
+    let part = -1;
+    let partLines = Infinity;
     const rows = chunk[H_LINE_ROWS]!;
     for (let r = 0; r < rows; r += 1) {
       const from = chunk[lineTableStart(chunk) + r * LINE_ROW_WORDS]!;
-      const to =
-        r + 1 < rows
-          ? chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!
-          : question;
-      const beatAt = firstOpIn(chunk, Op.LineStart, from, Math.min(to, question));
-      if (beatAt < 0) {
+      if (from >= offer) {
         continue;
       }
-      menu = Math.max(menu, beatAt);
-      const startLine = this.rowRange(sequence, entry, r).startLine;
-      if (startLine > line && startLine < nextLine) {
-        next = beatAt;
-        nextLine = startLine;
+      const to =
+        r + 1 < rows
+          ? Math.min(chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!, offer)
+          : offer;
+      const range = this.rowRange(sequence, entry, r);
+      const beatAt = firstOpIn(chunk, Op.LineStart, from, to);
+      if (beatAt >= 0 && beatAt < question) {
+        menu = Math.max(menu, beatAt);
+        if (range.startLine > line && range.startLine < nextLine) {
+          next = beatAt;
+          nextLine = range.startLine;
+        }
+      }
+      if (range.startLine === top || range.startLine > line || range.endLine < line) {
+        continue;
+      }
+      if (beatAt >= 0) {
+        if (range.startLine === line) {
+          beatOnLine = Math.max(beatOnLine, beatAt);
+        }
+        beatOver = beatOver < 0 ? beatAt : Math.min(beatOver, beatAt);
+      }
+      const lines = range.endLine - range.startLine;
+      if (lines < partLines || (lines === partLines && from < part)) {
+        part = from;
+        partLines = lines;
       }
     }
-    if (line === top) {
-      return addressOf(id, menu);
-    }
-    const own = this.addressIn(sequence, entry, line, "last", offer);
-    if (own !== undefined) {
-      return own;
-    }
-    return addressOf(id, next >= 0 ? next : menu);
+    const offset =
+      line === top
+        ? menu
+        : beatOnLine >= 0
+          ? beatOnLine
+          : beatOver >= 0
+            ? beatOver
+            : part >= 0
+              ? part
+              : next >= 0
+                ? next
+                : menu;
+    return addressOf(id, offset);
   }
 
   protected entryOn(sequence: SequenceRow, line: number): ChunkPosition | undefined {
@@ -812,26 +836,23 @@ export class ProgramRoot {
     entry: number,
     line: number,
     beat: "first" | "last",
-    words: number = codeWords(sequence.arrays.chunks[entry]!),
   ): number | undefined {
     const chunk = sequence.arrays.chunks[entry]!;
     const rows = chunk[H_LINE_ROWS]!;
+    const words = codeWords(chunk);
     let firstBeat = -1;
     let lastBeatOnLine = -1;
     let part = -1;
     let partLines = Infinity;
     for (let r = 0; r < rows; r += 1) {
-      const from = chunk[lineTableStart(chunk) + r * LINE_ROW_WORDS]!;
-      if (from >= words) {
-        continue;
-      }
       const range = this.rowRange(sequence, entry, r);
       if (range.startLine > line || range.endLine < line) {
         continue;
       }
+      const from = chunk[lineTableStart(chunk) + r * LINE_ROW_WORDS]!;
       const to =
         r + 1 < rows
-          ? Math.min(chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!, words)
+          ? chunk[lineTableStart(chunk) + (r + 1) * LINE_ROW_WORDS]!
           : words;
       const beatAt = firstOpIn(chunk, Op.LineStart, from, to);
       if (beatAt >= 0) {
