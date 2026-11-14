@@ -29,7 +29,7 @@ A task has no fallback and no clock. The wait counts from filing, stops during a
 
 Write a JSON request file and put its pictures in one folder (by default the request file's folder). Start from `fixtures/decision.json` or `fixtures/task.json` beside the tool, which show every field.
 
-- **Decision fields:** `question` (one sentence), `tickets`, `askedBy` (the run or session, in words), `owner` (the run or session identifier), `parked` (what waits on the answer), `meanwhile` (what carries on), `shortVersion` (one paragraph), optional `background`, `showsOnScreen`, `options` (each with `name`, `pictures` or `example`, `pros`, `cons`, `undo`), `comparison` (a list or a table of at most four columns), `recommendation` (`option` and `reason`), and `fallback` (`option`, optional `waitMinutes`) or `waits`.
+- **Decision fields:** `question` (one sentence), `tickets`, `askedBy` (the run or session, in words), `owner` (`orchestrate-issues #<parent>` or `resolve-issue #<ticket>`), `parked` (what waits on the answer), `meanwhile` (what carries on), `shortVersion` (one paragraph), optional `background`, `showsOnScreen`, `options` (each with `name`, `pictures` or `example`, `pros`, `cons`, `undo`), `comparison` (a list or a table of at most four columns), `recommendation` (`option` and `reason`), and `fallback` (`option`, optional `waitMinutes`) or `waits`.
 - **Task fields:** `action` (one sentence), `tickets` (optional for `tag`), `askedBy`, `owner`, `why` (why only the maintainer can do it), `steps`, optional `expect`, `details` and `parked`.
 - **Pictures:** each picture is a block `{ "file", "alt", "width" }`, its file named with letters, digits, `.`, `_`, `-` and `/` only. `background`, `expect` and `details` take a string or a list of strings and picture blocks. Never type picture markup into text; the tool refuses it, since only a block can be uploaded and put in place.
 
@@ -43,7 +43,7 @@ Pictures decide most requests. Capture each option at the same width and in the 
 node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<pictures-folder>] --dry-run
 node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<pictures-folder>]
 node .agents/skills/ask-maintainer/maintainer-request.mjs tag <ticket> <task.json> [<pictures-folder>]
-node .agents/skills/ask-maintainer/maintainer-request.mjs list
+node .agents/skills/ask-maintainer/maintainer-request.mjs list [--owner=<owner>]
 node .agents/skills/ask-maintainer/maintainer-request.mjs identity
 ```
 
@@ -51,7 +51,7 @@ The dry run validates the request, checks for an open request asking the same qu
 
 `file` creates the issue in one typed call with its label and assignee, uploads the pictures and writes each hosted address where the request places it, reads the body back, checks type, label, assignee, no parent and no milestone, then blocks every named ticket on the request. It prints the request's number, address and fallback time. When anything fails after the issue exists, the tool rolls back: it removes the dependencies it added and closes the issue as not planned with the reason, so the same request can be filed again once the cause is corrected. When two sessions file the same request at once, the earliest issue stands and the later one withdraws itself and names it.
 
-`tag` gives an existing ticket the `maintainer: task` label, the assignee and one comment with the task's fields, blocks each ticket the task names on it, and creates no issue; when a step fails it deletes the comment and removes what it added. It refuses a ticket that already has a task comment; when that ticket's tag was removed on purpose, delete the old comment and tag again. `list` prints the open requests in three groups (decisions, tasks, went ahead without you) with links, ages and fallback times; `list --json` prints the same data for a report.
+`tag` gives an existing ticket the `maintainer: task` label, the assignee and one comment with the task's fields, blocks each ticket the task names on it, and creates no issue; when a step fails it deletes the comment and removes what it added. It refuses a ticket that already has a task comment; when that ticket's tag was removed on purpose, delete the old comment and tag again. `list` prints the open requests in three groups (decisions, tasks, went ahead without you) with links, ages and fallback times; `--owner` keeps one owner's, `--json` prints the same data.
 
 ## Who the tool acts as
 

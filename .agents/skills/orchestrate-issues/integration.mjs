@@ -143,7 +143,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
     if (!requiresDependencies(record, x, number)) continue;
     for (const b of x.blockers ?? []) {
       if (b.delivered || requestMet(b) || historic.has(b.number) || (x.number !== number && carried.has(b.number))) continue;
-      blockers.push(`#${x.number} is blocked by #${b.number} (${b.state}); its deliverable must be on origin/${TARGET} before PR #${pr} merges`);
+      blockers.push(b.request ? `#${x.number} is held by maintainer request #${b.number}, which is open; PR #${pr} merges once the maintainer closes it or it goes ahead without them` : `#${x.number} is blocked by #${b.number} (${b.state}); its deliverable must be on origin/${TARGET} before PR #${pr} merges`);
     }
     if (x.number === number) continue;
     if (!(pull.closes ?? []).includes(x.number)) blockers.push(`PR #${pr} delivers #${x.number} but does not close it`);
@@ -152,7 +152,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   }
   for (const e of completingTickets(record, number)) {
     const fref = names.split ? `${names.tickets}#${e.number}` : `#${e.number}`;
-    if (e.outcome.kind === "maintainer") { blockers.push(`${fref}, filed during the run, waits on the maintainer's answer to "${e.outcome.question}", and the PR holds until it is recorded (triage, or interim for an accepted narrow fix)`); continue; }
+    if (e.outcome.kind === "maintainer") { const asked = e.outcome.maintainerRequest; blockers.push(`${fref}, filed during the run, waits on the maintainer's answer to "${e.outcome.question}"${asked ? ` in maintainer request ${names.split ? `${names.tickets}#${asked.number}` : `#${asked.number}`} (${asked.url})` : ""}, and the PR holds until it is recorded (triage, or interim for an accepted narrow fix)`); continue; }
     const seen = facts.filed?.[e.number] ?? "unread";
     if (seen === "closed" || (pull.closes ?? []).includes(e.number)) continue;
     blockers.push(`${fref}, filed during the run, completes #${number}'s fix (${e.outcome.reason}) and is ${seen}, but PR #${pr} does not close it; send the PR back to its writer for the proper fix with Closes ${fref}, or record the maintainer's interim decision with issue-run.mjs interim`);
@@ -176,7 +176,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
     }
   }
   const latest = decisions.filter((d) => d.effective).at(-1);
-  if (latest && ["maintainer", "repair"].includes(latest.kind)) blockers.push(`decision ${latest.id} (${latest.kind} after round ${latest.round}) is in force; ${latest.kind === "maintainer" ? "the ticket waits for the maintainer's answer" : "the repair is decided again once it is verified"}, and a later checkpoint decision replaces it`);
+  if (latest && ["maintainer", "repair"].includes(latest.kind)) blockers.push(`decision ${latest.id} (${latest.kind} after round ${latest.round}) is in force; ${latest.kind === "maintainer" ? `the ticket waits for the maintainer's answer${latest.maintainerRequest ? ` in maintainer request #${latest.maintainerRequest.number} (${latest.maintainerRequest.url})` : ""}` : "the repair is decided again once it is verified"}, and a later checkpoint decision replaces it`);
   else if (e.completedRound >= FIRST_CHECKPOINT_ROUND && !(latest && latest.verified && latest.round === e.completedRound && ["finish", "accept-unreviewed"].includes(latest.kind))) blockers.push(`round ${e.completedRound}'s checkpoint has no published finish or acceptance decided at it${latest ? ` (the decision in force is ${latest.id}, ${latest.kind} after round ${latest.round}${latest.verified ? "" : ", not verified by this record"})` : ""}; decide it with review-checkpoint.mjs before the merge`);
   if (disposition === "reviewed") {
     const report = [...(own?.results ?? [])].reverse().find((r) => Number(r.report?.pr) === pr)?.report;

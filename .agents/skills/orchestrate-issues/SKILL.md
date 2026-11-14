@@ -23,13 +23,13 @@ Before `init`, read [starting a run](references/start.md).
 
 ## 1. Read the parent
 
-Read the parent in full: its body, as its template structures it, is the design of record, and its status comments record later decisions. Then run `snapshot --record <file> --out <file>`, which reads every sub-issue with its Effort, blockers, PRs and worktrees. Surface contradictory or missing decisions to the user with a recommendation, and keep planning the tickets they do not affect.
+Read the parent in full: its body, as its template structures it, is the design of record, and its status comments record later decisions. Then run `snapshot --record <file> --out <file>`. File a maintainer request for each contradictory or missing decision, and keep planning the tickets it does not affect.
 
 ## 2. Group loose Bugs into slices
 
 Two or more open Bugs directly under the parent, or under a container in its tree, with no PR, worktree, writer or pending start, are grouped into Task slices as [slicing](references/slicing.md) describes; an already sliced parent skips this step. Group only on a mechanism or file set the code behind each Bug shows they share, never on titles. File each slice through the [filing routes](../references/runner-filing.md), re-parent its Bugs, give it its hardest Bug's Effort and make it `blocked_by` the tail of its file set's serial chain outside its own Bugs, then rerun `snapshot`.
 
-A slice is one reviewable PR of Bugs only, since only an all-Bug slice delivers. Never wrap a lone Bug in a Task, re-parent a Bug with a PR, worktree, writer or pending start, or add a Bug to a dispatched slice; a Bug arriving mid-run gets a new slice, or stays its own ticket when alone.
+A slice is one reviewable PR of Bugs only. Never re-parent a Bug with a PR, worktree, writer or pending start, or add a Bug to a dispatched slice; a Bug arriving mid-run gets a new slice, or stays its own ticket when alone.
 
 ## 3. Plan
 
@@ -46,7 +46,7 @@ The plan's `remaining` list and `complete` flag belong in every report, with its
 For each `dispatch` ticket, in the order you judge best, one at a time:
 
 1. `claim --plan <file> --ticket N --worktree <path> --branch <type>/<N>-<slug> --artifact-parent <dir>` records the intent before anything starts. The worktree follows resolve-issue's layout and must not exist yet. Plan again after each claim.
-2. `brief --record --plan --ticket N [--decision "<settled decision>" ...]` prints the writer's whole contract.
+2. `brief --record --plan --ticket N [--maintainer-request R ...]` prints the writer's whole contract.
 3. Start the writer on the claimed route as the writing routes describe, with the brief as its prompt: a detached CLI writer through `launch`; any other route confirmed with `launched`.
 4. Record the writer's acknowledgement with `acknowledged --model --effort --permission-mode --evidence`, and the preflight's observed verdict with `verify --preflight <file>`. A mismatch marks the ticket `stop-writer`; never relaunch it on another model, effort or mode.
 
@@ -68,4 +68,4 @@ Before any merge or verification, read [integration](references/integration.md).
 
 ## 8. Report
 
-Report at each meaningful change and on stopping: each ticket's action and reason, merges, PRs left to the maintainer, blockers with recommendations, disk recoveries, the `remaining` list and the next action. At completion, or when you need the maintainer, send the optional [notify-user](../notify-user/SKILL.md) alert. `recover-lock` removes only a record lock left by an exited helper process. File what the run turns up through the [filing routes](../references/runner-filing.md), never a session proposal, and triage it too.
+Wherever the run waits on the maintainer, file a request through [ask-maintainer](../ask-maintainer/SKILL.md) as [writer reports](references/writer-reports.md#maintainer-requests) describes, and send the optional [notify-user](../notify-user/SKILL.md) alert on filing and at completion. Report at each meaningful change and on stopping: each ticket's action and reason, merges, blockers with recommendations, disk recoveries, the `remaining` list and the next action. End every report with the unedited output of `node .agents/skills/ask-maintainer/maintainer-request.mjs list --owner="orchestrate-issues #<parent>"`. `recover-lock` removes only a record lock left by an exited helper process. File what the run turns up through the [filing routes](../references/runner-filing.md), never a session proposal, and triage it too.
