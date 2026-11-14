@@ -252,9 +252,12 @@ interface WorkerDecoder {
   abandon: (reason: unknown) => void;
   queue: Promise<unknown>;
   used: boolean;
+  pending: number;
+  idle?: ReturnType<typeof setTimeout>;
 }
 
 const WORKER_ANSWER_DEADLINE_MS = 15_000;
+const WORKER_IDLE_RETIREMENT_MS = 30_000;
 
 const workerDecoders = new Map<string, WorkerDecoder>();
 let workersUnavailable = false;
@@ -292,14 +295,15 @@ const createWorkerDecoder = (
   worker.addEventListener("messageerror", () =>
     abandon(new Error("Opus decoder worker could not read a message")),
   );
-  return { worker, abandoned, abandon, queue: Promise.resolve(), used: false };
+  return { worker, abandoned, abandon, queue: Promise.resolve(), used: false, pending: 0 };
 };
 
 const abandonWorkers = (reason: unknown) => {
   workersUnavailable = true;
   const abandoned = [...workerDecoders.values()];
   workerDecoders.clear();
-  for (const { worker, abandon } of abandoned) {
+  for (const { worker, abandon, idle } of abandoned) {
+    clearTimeout(idle);
     abandon(reason);
     worker.terminate();
   }
@@ -316,6 +320,19 @@ const answeredInTime = <T>(work: Promise<T>): Promise<T> => {
   return Promise.race([work, deadline]).finally(() => clearTimeout(timer));
 };
 
+const retireWhenIdle = (key: string, decoder: WorkerDecoder) => {
+  clearTimeout(decoder.idle);
+  if (decoder.pending > 0 || workerDecoders.get(key) !== decoder) {
+    return;
+  }
+  decoder.idle = setTimeout(() => {
+    if (decoder.pending === 0 && workerDecoders.get(key) === decoder) {
+      workerDecoders.delete(key);
+      decoder.worker.terminate();
+    }
+  }, WORKER_IDLE_RETIREMENT_MS);
+};
+
 const decodeInWorker = async (link: OggOpusLink): Promise<DecodedFrames> => {
   const options = decoderOptions(link);
   const key = JSON.stringify(options);
@@ -323,6 +340,8 @@ const decodeInWorker = async (link: OggOpusLink): Promise<DecodedFrames> => {
     const decoder =
       workerDecoders.get(key) ??
       workerDecoders.set(key, createWorkerDecoder(options)).get(key)!;
+    decoder.pending++;
+    clearTimeout(decoder.idle);
     const packets = link.packets.map((packet) => packet.slice());
     const turn = decoder.queue.then(() =>
       answeredInTime(
@@ -338,7 +357,12 @@ const decodeInWorker = async (link: OggOpusLink): Promise<DecodedFrames> => {
       ),
     );
     decoder.queue = turn.catch(() => undefined);
-    return await Promise.race([turn, decoder.abandoned]);
+    try {
+      return await Promise.race([turn, decoder.abandoned]);
+    } finally {
+      decoder.pending--;
+      retireWhenIdle(key, decoder);
+    }
   } catch (error) {
     abandonWorkers(error);
     throw error;

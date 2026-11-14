@@ -25,7 +25,15 @@ vi.mock("opus-decoder", async (importOriginal) => {
     decoders.workers++;
     const mode = decoders.mode(options.preSkip);
     if (mode === "real") {
-      return new original.OpusDecoderWebWorker(options);
+      const worker = new original.OpusDecoderWebWorker(options) as InstanceType<typeof original.OpusDecoderWebWorker> & {
+        terminate: () => void;
+      };
+      const terminate = worker.terminate.bind(worker);
+      worker.terminate = () => {
+        decoders.terminated++;
+        terminate();
+      };
+      return worker;
     }
     const never = () => new Promise<never>(() => undefined);
     const worker = Object.assign(new EventTarget(), {
@@ -136,6 +144,31 @@ describe("Opus clips the browser cannot decode (#2279)", () => {
     const buffers = await Promise.all([decode(TONE), decode(TONE), decode(TONE), decode(TONE)]);
     buffers.forEach((buffer) => expectTone(buffer));
     expect(decoders.workers).toBe(1);
+    expect(decoders.mainThread).toBe(0);
+  });
+
+  test("give every clip that reuses a worker the same samples as the first", async () => {
+    const decode = await freshAudio();
+    const first = await decode(TONE);
+    const later = [await decode(TONE), ...(await Promise.all([decode(TONE), decode(TONE)]))];
+    expect(decoders.workers).toBe(1);
+    for (const buffer of later) {
+      buffer.channels.forEach((channel, i) => expect(channel).toEqual(first.channels[i]));
+    }
+  });
+
+  test("retire a worker once its layout has been idle", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const decode = await freshAudio();
+    for (const preSkip of [312, 313, 314]) {
+      await decode(withPreSkip(preSkip));
+    }
+    expect(decoders.workers).toBe(3);
+    expect(decoders.terminated).toBe(0);
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(decoders.terminated).toBe(3);
+    expectTone(await decode(TONE));
+    expect(decoders.workers).toBe(4);
     expect(decoders.mainThread).toBe(0);
   });
 
