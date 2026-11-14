@@ -852,7 +852,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     const locator = programLocator(program);
     const ends = program.flowEnds?.[point.file] ?? [];
     const closed = ends.find(([, end]) => end === point.line);
-    if (!closed && locator.addressAt(point.file, point.line) != null) {
+    if (!closed && locator.addressAt(point.file, point.line, { beat }) != null) {
       return { point, beat };
     }
     const lineAbove = (
