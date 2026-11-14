@@ -33,6 +33,7 @@ import {
   coveredPaths,
   folderStackReason,
   landingFolder,
+  listsAsset,
   sameNamedPictures,
   thingNames,
   thingsLabel,
@@ -216,8 +217,7 @@ export default class WorkspaceAssets {
     const homes = assetHomes({ files: Object.fromEntries(byPath), folders });
     const files: AssetListing["files"] = {};
     for (const [path, file] of byPath) {
-      const inHome = homes.some((home) => isInside(path, home) && path !== home);
-      if (!inHome || nameOf(path).startsWith(".") || isScriptPath(path)) {
+      if (!listsAsset(path, homes)) {
         continue;
       }
       files[path] = {

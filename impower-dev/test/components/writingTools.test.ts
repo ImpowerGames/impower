@@ -255,6 +255,20 @@ describe("Writing tools menu", () => {
     expect(calls.commands).toEqual([]);
   });
 
+  it("keeps go to definition greyed out, saying why, for a picture outside the assets folder", async () => {
+    calls.name = { name: "sky", kind: "picture", definition: { uri: "file://local/images/sky.png", range: imani.definition.range }, outsideAssets: true };
+    await mount();
+    await open();
+    await until(() => row("Go to definition for sky"));
+    const goTo = row("Go to definition for sky")!;
+    expect(goTo.getAttribute("aria-disabled")).toBe("true");
+    expect(goTo.textContent).toContain("This file is outside the assets folder.");
+    await act(async () => goTo.click());
+    await settle(50);
+    expect(calls.assets).toEqual([]);
+    expect(calls.commands).toEqual([]);
+  });
+
   it("lists every editor command row on a coarse pointer and runs each", async () => {
     layout.coarse = true;
     layout.value = "phone";

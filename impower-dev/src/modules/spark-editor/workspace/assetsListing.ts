@@ -16,6 +16,7 @@ import {
   type ListEntry,
   type SortField,
 } from "../utils/fileListModel";
+import { isScriptPath } from "../utils/scriptFiles";
 import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import { storyPlace, usesOf, type AssetUsage } from "./assetUsage";
 import { INTO_ITSELF, isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
@@ -119,6 +120,14 @@ export const assetHomes = (listing: AssetPaths): string[] => {
     .sort();
   return found.length ? found : [DEFAULT_ASSETS_HOME];
 };
+
+export const listsAsset = (path: string, homes: readonly string[]): boolean =>
+  homes.some((home) => isInside(path, home) && path !== home) &&
+  !nameOf(path).startsWith(".") &&
+  !isScriptPath(path);
+
+export const assetsPageLists = (path: string, folders: readonly string[]): boolean =>
+  listsAsset(path, assetHomes({ files: { [path]: true }, folders }));
 
 export const assetsHome = (listing: AssetPaths): string => assetHomes(listing)[0]!;
 

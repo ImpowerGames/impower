@@ -155,6 +155,7 @@ import {
   type HighlightLike,
   type NameAtCaret,
 } from "./nameAtCaret";
+import { assetsPageLists } from "./assetsListing";
 import workspace, {
   cacheableWorkspaceState,
   loadedProjectId,
@@ -1819,7 +1820,17 @@ export default class WorkspaceWindow {
         lineOf(definitionText, definition.range.start.line),
       ),
       definition,
+      ...(isScriptUri(definition.uri) || this.listsAssetUri(definition.uri)
+        ? {}
+        : { outsideAssets: true }),
     };
+  }
+
+  private listsAssetUri(uri: string) {
+    return assetsPageLists(
+      this.relativePathOf(uri),
+      workspace.assetListing.peek()?.folders ?? [],
+    );
   }
 
   executeEditorCommand(filename: string, command: EditorCommand) {
