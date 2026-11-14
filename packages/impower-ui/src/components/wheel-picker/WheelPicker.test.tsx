@@ -171,6 +171,60 @@ describe("WheelSheet", () => {
     expect(chosen).toEqual(["happy"]);
   });
 
+  it("stops below the bottom of its keepClear element in a short region, and no shorter than its own header and one row", async () => {
+    const { frame, container } = panelHost();
+    const picture = frame.appendChild(document.createElement("div"));
+    const bottoms = new Map<Element, number>([[frame, 430]]);
+    const CHROME = 57;
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const bottom = bottoms.get(this) ?? 0;
+      const height = this.hasAttribute("data-wheel-sheet") ? CHROME + 220 : this.hasAttribute("data-wheel-room") ? 220 : bottom;
+      return { top: 0, left: 0, right: 0, bottom, x: 0, y: 0, width: 0, height, toJSON: () => ({}) } as DOMRect;
+    });
+    const sheet = (keepClear?: { current: HTMLElement | null }) => (
+      <WheelSheet container={container} keepClear={keepClear} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={() => {}} />
+    );
+    const room = () => {
+      const dialog = document.querySelector<HTMLElement>("[data-wheel-sheet]")!;
+      return {
+        room: getComputedStyle(dialog).getPropertyValue("--wheel-sheet-room"),
+        capped: dialog.className.split(" ").includes("max-h-[min(100%,var(--wheel-sheet-room))]"),
+      };
+    };
+    bottoms.set(picture, 249);
+    await mount(sheet({ current: picture }));
+    expect(room()).toEqual({ room: `${430 - 249 - 6}px`, capped: true });
+    bottoms.set(picture, 300);
+    await act(async () => render(sheet({ current: picture }), host!));
+    expect(room()).toEqual({ room: `${430 - 300 - 6}px`, capped: true });
+    bottoms.set(picture, 380);
+    await act(async () => render(sheet({ current: picture }), host!));
+    expect(room()).toEqual({ room: `${CHROME + WHEEL_ROW}px`, capped: true });
+    await act(async () => render(sheet(), host!));
+    expect(room()).toEqual({ room: "", capped: false });
+    vi.restoreAllMocks();
+  });
+
+  it("keeps clear of its keepClear element when its panel shrinks while it is open", async () => {
+    const { frame, container } = panelHost();
+    const picture = frame.appendChild(document.createElement("div"));
+    const bottoms = new Map<Element, number>([[frame, 560], [picture, 249]]);
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const bottom = bottoms.get(this) ?? 0;
+      return { top: 0, left: 0, right: 0, bottom, x: 0, y: 0, width: 0, height: bottom, toJSON: () => ({}) } as DOMRect;
+    });
+    const keepClear = { current: picture };
+    await mount(<WheelSheet container={container} keepClear={keepClear} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={() => {}} />);
+    const dialog = document.querySelector<HTMLElement>("[data-wheel-sheet]")!;
+    expect(dialog.style.getPropertyValue("--wheel-sheet-room")).toBe(`${560 - 249 - 6}px`);
+    bottoms.set(frame, 430);
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(dialog.style.getPropertyValue("--wheel-sheet-room")).toBe(`${430 - 249 - 6}px`);
+    vi.restoreAllMocks();
+  });
+
   it("cancels with Cancel, Escape or a tap outside it, but not a tap on the picture's zoom frame", async () => {
     const { zoom, container } = panelHost();
     const cancelled = vi.fn();

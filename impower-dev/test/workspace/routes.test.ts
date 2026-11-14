@@ -146,8 +146,8 @@ describe("transitionRoute", () => {
       matches: query.includes("reduce") ? reduce : false,
     })) as typeof window.matchMedia;
     const start = vi.fn((update: () => Promise<void>) => {
-      void update();
-      return { ready: Promise.resolve() };
+      const updateCallbackDone = update();
+      return { ready: Promise.resolve(), updateCallbackDone };
     });
     (document as { startViewTransition?: unknown }).startViewTransition = start;
     return start;
@@ -158,6 +158,32 @@ describe("transitionRoute", () => {
     const apply = vi.fn();
     transitionRoute(apply);
     expect(start).toHaveBeenCalledTimes(1);
+    expect(apply).toHaveBeenCalledTimes(1);
+  });
+
+  it("settles only once a deferred view transition has applied the route", async () => {
+    window.matchMedia = (() => ({
+      matches: false,
+    })) as unknown as typeof window.matchMedia;
+    let begin: () => void = () => {};
+    (document as { startViewTransition?: unknown }).startViewTransition = (
+      update: () => Promise<void>,
+    ) => {
+      const updateCallbackDone = new Promise<void>((resolve) => {
+        begin = () => void update().then(resolve);
+      });
+      return { ready: Promise.resolve(), updateCallbackDone };
+    };
+    const apply = vi.fn();
+    let settled = false;
+    const done = transitionRoute(apply).then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(apply).not.toHaveBeenCalled();
+    expect(settled).toBe(false);
+    begin();
+    await done;
     expect(apply).toHaveBeenCalledTimes(1);
   });
 

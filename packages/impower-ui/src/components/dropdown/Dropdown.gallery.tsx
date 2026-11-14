@@ -1,7 +1,8 @@
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import { layoutMinWidths } from "../../layout/breakpoints";
 import { useLayout } from "../../hooks/useLayout";
+import { KEEP_CLEAR_RULE } from "../../utils/keepClear";
 import Button from "../button/Button";
 import {
   MoreVerticalIcon,
@@ -114,6 +115,28 @@ const INDICATORS: Record<DropdownRadioItemIndicator, string> = {
   end: "Radio items with the check at the end (the viewing-mode menu)",
 };
 
+function KeepClearDemo() {
+  const picture = useRef<HTMLDivElement | null>(null);
+  return (
+    <div class="grid w-[280px] gap-3">
+      <div
+        ref={picture}
+        class="grid h-40 place-items-center rounded-card bg-stage text-xs text-muted"
+      >
+        Kept clear
+      </div>
+      <DropdownRoot>
+        <DropdownTrigger asChild>
+          <Button>Choose a face</Button>
+        </DropdownTrigger>
+        <DropdownContent align="start" keepClear={picture} class="min-w-[180px]">
+          <HintedItems size="small" />
+        </DropdownContent>
+      </DropdownRoot>
+    </div>
+  );
+}
+
 function DropdownDemo() {
   const layout = useLayout();
   const [pinned, setPinned] = useState(() => layout !== "phone");
@@ -176,6 +199,9 @@ function DropdownDemo() {
             <HintedItems size="small" />
           </DropdownContent>
         </DropdownRoot>
+      </GalleryRow>
+      <GalleryRow label={`${KEEP_CLEAR_RULE} The menu opens on whichever side of its trigger has more room and scrolls within itself.`}>
+        <KeepClearDemo />
       </GalleryRow>
       <GalleryRow label="Disabled radio items (the aspect-ratio group in Interactive Fiction)">
         <DropdownRoot>

@@ -14,6 +14,8 @@ import {
   useEditorHistory,
   useScriptMode,
 } from "../../workspace/useActiveEditor";
+import { routeOfState } from "../../workspace/routes";
+import workspace from "../../workspace/WorkspaceStore";
 import { SyncButton, SyncStatusLine } from "../drive-sync";
 import { openFind } from "../find-references-rename";
 import { FoldedScriptHeader } from "../script-header";
@@ -24,10 +26,16 @@ import ProjectNameField from "./ProjectNameField";
 import StoryProblemCount from "./StoryProblemCount";
 import { withWindow } from "./workspaceWindow";
 
+const searchStory = () =>
+  void withWindow((win) => win.navigateTo("write")).then(openFind);
+
 export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
   const namingField = useNaming();
   const script = useComputed(() => storyScriptOf()).value;
   const story = script !== undefined;
+  const writing = useComputed(
+    () => routeOfState(workspace.state.value) === "write",
+  ).value;
   const editing = useScriptMode() === "editing" && story;
   const naming =
     namingField === "project" || (namingField === "script" && editing);
@@ -75,18 +83,16 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
       ) : (
         <div class="flex flex-none items-center">
           {!editing && <SyncButton />}
-          {story && (
-            <Button
-              variant="quiet"
-              size="icon"
-              aria-label="Search"
-              title="Search"
-              class="text-muted"
-              onClick={openFind}
-            >
-              <SearchIcon />
-            </Button>
-          )}
+          <Button
+            variant="quiet"
+            size="icon"
+            aria-label="Search"
+            title="Search"
+            class="text-muted"
+            onClick={writing ? openFind : searchStory}
+          >
+            <SearchIcon />
+          </Button>
           {editing && (
             <div role="group" aria-label="Edit history" class="flex">
               <Button

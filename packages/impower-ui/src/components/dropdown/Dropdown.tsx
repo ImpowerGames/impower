@@ -14,6 +14,7 @@ import {
   type MutableRef,
   useCallback,
   useContext,
+  useMemo,
   useRef,
   useState,
 } from "preact/hooks";
@@ -21,6 +22,7 @@ import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 import { registerFocusReturn } from "../../utils/focusReturn";
+import { KEEP_CLEAR_MARGIN, type KeepClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
@@ -146,10 +148,7 @@ export function DropdownRoot({
       <DropdownMenuPrimitive.Root
         open={openProp}
         defaultOpen={defaultOpen}
-        onOpenChange={(next: boolean) => {
-          opening(next);
-          onOpenChange?.(next);
-        }}
+        onOpenChange={setOpen}
         modal={modal}
       >
         {children}
@@ -196,12 +195,69 @@ export function DropdownTrigger({
   );
 }
 
-const dropdownContent = cva([
-  "z-50 min-w-[120px] overflow-y-auto overscroll-contain rounded-card",
-  "bg-popup p-1.5 text-ink shadow-float ring-1 ring-edge",
-  "origin-[--radix-dropdown-menu-content-transform-origin]",
-  "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
-]);
+export const dropdownContentVariants = cva(
+  [
+    "z-50 min-w-[120px] overflow-y-auto overscroll-contain rounded-card",
+    "bg-popup p-1.5 text-ink shadow-float ring-1 ring-edge",
+    "origin-[--radix-dropdown-menu-content-transform-origin]",
+    "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
+  ],
+  {
+    variants: {
+      fit: {
+        free: "",
+        room: "max-h-[var(--radix-dropdown-menu-content-available-height)]",
+      },
+    },
+    defaultVariants: { fit: "free" },
+  },
+);
+
+export type DropdownContentFit = NonNullable<
+  VariantProps<typeof dropdownContentVariants>["fit"]
+>;
+
+const EDGE_GAP = 12;
+const ROW = 44;
+
+const leastHeight = (menu: HTMLElement | null) => {
+  if (!menu) {
+    return ROW + 12;
+  }
+  const style = getComputedStyle(menu);
+  const chrome = ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"].reduce(
+    (sum, side) => sum + (parseFloat(style[side as keyof CSSStyleDeclaration] as string) || 0),
+    0,
+  );
+  const row = menu.querySelector('[role^="menuitem"]')?.getBoundingClientRect().height || ROW;
+  return chrome + row;
+};
+
+const clearOf = (
+  line: number,
+  trigger: HTMLElement | null,
+  menu: HTMLElement | null,
+  sideOffset: number,
+) => {
+  const top = Math.max(EDGE_GAP, line);
+  const placed = (bottom: number, offset: number) => ({
+    padding: { top, bottom, left: EDGE_GAP, right: EDGE_GAP },
+    offset,
+  });
+  if (!trigger) {
+    return placed(EDGE_GAP, sideOffset);
+  }
+  const least = leastHeight(menu);
+  const at = trigger.getBoundingClientRect();
+  const under = window.innerHeight - at.bottom - least;
+  if (under - sideOffset >= EDGE_GAP || at.top - sideOffset - top >= least) {
+    return placed(EDGE_GAP, sideOffset);
+  }
+  if (under - sideOffset >= KEEP_CLEAR_MARGIN) {
+    return placed(under - sideOffset, sideOffset);
+  }
+  return placed(KEEP_CLEAR_MARGIN, Math.min(sideOffset, Math.max(KEEP_CLEAR_MARGIN, under - KEEP_CLEAR_MARGIN)));
+};
 
 function SheetMenu({
   open,
@@ -247,6 +303,7 @@ export function DropdownContent({
   class: className,
   sideOffset = 8,
   align = "end",
+  keepClear,
   onCloseAutoFocus,
   children,
   ...rest
@@ -255,15 +312,27 @@ export function DropdownContent({
   sideOffset?: number;
   align?: "start" | "center" | "end";
   side?: "top" | "right" | "bottom" | "left";
+  keepClear?: KeepClear;
   onCloseAutoFocus?: (event: Event) => void;
   children?: ComponentChildren;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">) {
   const ctx = useMenuCtx();
+  const [menu, setMenu] = useState<HTMLElement | null>(null);
+  const menuRef = useMemo(() => ({ current: menu }), [menu]);
   const owner = (element: HTMLElement | null) => {
     if (element) {
       registerFocusReturn(element, () => ctx.trigger.current);
+      if (keepClear && element !== menu) {
+        setMenu(element);
+      }
     }
   };
+  const clear = useClearLine(
+    keepClear,
+    ctx.mode === "menu" && ctx.open,
+    (line) => clearOf(line, ctx.trigger.current, menu, sideOffset),
+    menuRef,
+  );
   if (ctx.handingOff) {
     return null;
   }
@@ -285,9 +354,13 @@ export function DropdownContent({
     <DropdownMenuPrimitive.Portal container={portalContainer()}>
       <DropdownMenuPrimitive.Content
         ref={owner}
-        sideOffset={sideOffset}
+        sideOffset={clear?.offset ?? sideOffset}
         align={align}
-        class={cn(dropdownContent(), className)}
+        {...(clear ? { collisionPadding: clear.padding } : {})}
+        class={cn(
+          dropdownContentVariants({ fit: keepClear ? "room" : "free" }),
+          className,
+        )}
         onCloseAutoFocus={(event: Event) => {
           if (!ctx.returnsFocus.current) {
             event.preventDefault();

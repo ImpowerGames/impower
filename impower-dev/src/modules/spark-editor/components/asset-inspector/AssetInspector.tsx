@@ -174,6 +174,7 @@ export default function AssetInspector({
   const lastFocused = useRef<HTMLElement | null>(null);
   const body = useRef<HTMLDivElement | null>(null);
   const region = useRef<HTMLElement | null>(null);
+  const pinned = useRef<HTMLDivElement | null>(null);
   const picker = useRef<HTMLInputElement | null>(null);
   const [facts, setFacts] = useState<InspectorFacts | null>(null);
   const [videoSeconds, setVideoSeconds] = useState<number | null>(null);
@@ -498,7 +499,7 @@ export default function AssetInspector({
       >
         {stack ? (
           <div class="grid gap-5 bg-inherit" data-variant-bench>
-            <div class="sticky top-0 z-10 -mb-2.5 bg-inherit pb-2.5 before:absolute before:inset-x-0 before:bottom-full before:h-3.5 before:bg-inherit before:content-['']">
+            <div ref={pinned} class="sticky top-0 z-10 -mb-2.5 bg-inherit pb-2.5 before:absolute before:inset-x-0 before:bottom-full before:h-3.5 before:bg-inherit before:content-['']">
               {frame}
             </div>
             <VariantsSection
@@ -515,6 +516,7 @@ export default function AssetInspector({
                   : undefined
               }
               sheetContainer={region}
+              keepClear={pinned}
             />
           </div>
         ) : (

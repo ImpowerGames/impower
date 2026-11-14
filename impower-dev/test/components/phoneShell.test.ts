@@ -388,7 +388,7 @@ describe("the phone shell", () => {
     expect(calls.commands).toEqual([["scripts/intro.sd", "undo"]]);
   });
 
-  it("shows Search and the edit history only on the Story route, disabled until the script can undo or redo", async () => {
+  it("shows the edit history only on the Story route, disabled until the script can undo or redo, and Search on every route", async () => {
     await mount();
     await act(async () => {
       workspace.scriptMode.value = "editing";
@@ -409,9 +409,13 @@ describe("the phone shell", () => {
     expect(calls.commands).toEqual([["main.sd", "undo"]]);
     expect(calls.finds).toBe(1);
     await go("collection");
-    expect(button("Search")).toBeNull();
     expect(button("Undo edit")).toBeNull();
     expect(button("App menu")).not.toBeNull();
+    calls.routes.length = 0;
+    await act(async () => button("Search")!.click());
+    await settle();
+    expect(calls.routes).toEqual(["write"]);
+    expect(calls.finds).toBe(2);
   });
 
   it("opens Settings in place of the route with no tab current, returns to Story from its tab, and closes the full view on Escape", async () => {

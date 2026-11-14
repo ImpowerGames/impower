@@ -451,3 +451,117 @@ describe("DropdownItemText", () => {
     expect(sad!.textContent).toBe("Sad");
   });
 });
+
+describe("DropdownContent keepClear", () => {
+  const PICTURE = { top: 158, bottom: 414, left: 892, right: 1414 };
+  const SHORT_PICTURE = { top: 158, bottom: 200, left: 892, right: 1414 };
+  const TRIGGER = { top: 438, bottom: 482, left: 892, right: 1058 };
+  const MENU = { width: 180, height: 158 };
+  const box = (r: { top: number; bottom: number; left: number; right: number }) =>
+    ({ ...r, x: r.left, y: r.top, width: r.right - r.left, height: r.bottom - r.top, toJSON: () => r }) as DOMRect;
+
+  const floating = (element: Element) =>
+    element.hasAttribute("data-radix-popper-content-wrapper") || element.getAttribute("role") === "menu";
+
+  const stubGeometry = (height: number, picture = PICTURE) => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1440 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: height });
+    Object.defineProperty(document.documentElement, "clientWidth", { configurable: true, value: 1440 });
+    Object.defineProperty(document.documentElement, "clientHeight", { configurable: true, value: height });
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      if (this.hasAttribute("data-picture")) return box(picture);
+      if (this.hasAttribute("data-face")) return box(TRIGGER);
+      if (floating(this)) return box({ top: 0, left: 0, bottom: MENU.height, right: MENU.width });
+      return box({ top: 0, left: 0, bottom: 0, right: 0 });
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+      return floating(this) ? MENU.width : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return floating(this) ? MENU.height : 0;
+    });
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    for (const target of [window, document.documentElement]) {
+      for (const name of ["innerWidth", "innerHeight", "clientWidth", "clientHeight"]) {
+        delete (target as unknown as Record<string, unknown>)[name];
+      }
+    }
+  });
+
+  const mountFaceMenu = async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const picture = { current: null as HTMLDivElement | null };
+    await act(async () =>
+      render(
+        <>
+          <div data-picture ref={(element) => { picture.current = element; }} />
+          <DropdownRoot>
+            <DropdownTrigger asChild>
+              <button type="button" data-face>Happy</button>
+            </DropdownTrigger>
+            <DropdownContent align="end" keepClear={picture} style={{ width: `${MENU.width}px`, height: `${MENU.height}px` }}>
+              <DropdownRadioGroup value="happy" label="Face">
+                <DropdownRadioItem value="happy">Happy</DropdownRadioItem>
+                <DropdownRadioItem value="angry">Angry</DropdownRadioItem>
+                <DropdownRadioItem value="sad">Sad</DropdownRadioItem>
+              </DropdownRadioGroup>
+            </DropdownContent>
+          </DropdownRoot>
+        </>,
+        host!,
+      ),
+    );
+    const trigger = host.querySelector<HTMLButtonElement>("[data-face]")!;
+    trigger.focus();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    return placement();
+  };
+
+  const placement = () => {
+    const wrapper = menu()!.closest<HTMLElement>("[data-radix-popper-content-wrapper]")!;
+    const [, y] = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(wrapper.style.transform)!.slice(1).map(Number);
+    return { side: menu()!.dataset.side, top: y, room: wrapper.style.getPropertyValue("--radix-popper-available-height") };
+  };
+
+  it("moves below its trigger when the kept-clear element grows while the menu is open", async () => {
+    const picture = { ...SHORT_PICTURE };
+    stubGeometry(560, picture);
+    expect((await mountFaceMenu()).side).toBe("top");
+    picture.bottom = PICTURE.bottom;
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    await settle(50);
+    const placed = placement();
+    expect(placed.side).toBe("bottom");
+    expect(placed.top).toBeGreaterThanOrEqual(PICTURE.bottom);
+  });
+
+  it("opens below its trigger in the room under the kept-clear element when the room above is under that element", async () => {
+    stubGeometry(560);
+    const placed = await mountFaceMenu();
+    expect(placed.side).toBe("bottom");
+    expect(placed.top).toBeGreaterThanOrEqual(PICTURE.bottom);
+    expect(placed.room).toBe(`${560 - 12 - TRIGGER.bottom - 8}px`);
+    expect(menu()!.className.split(" ")).toContain("max-h-[var(--radix-dropdown-menu-content-available-height)]");
+  });
+
+  it("opens above its trigger, still under the kept-clear element, when the room there is larger", async () => {
+    stubGeometry(560, SHORT_PICTURE);
+    const placed = await mountFaceMenu();
+    expect(placed.side).toBe("top");
+    expect(placed.top).toBeGreaterThanOrEqual(SHORT_PICTURE.bottom);
+    expect(placed.room).toBe(`${TRIGGER.top - 8 - SHORT_PICTURE.bottom - 6}px`);
+  });
+
+  it("still opens below its trigger when everything fits there", async () => {
+    stubGeometry(900);
+    const placed = await mountFaceMenu();
+    expect(placed.side).toBe("bottom");
+    expect(placed.top).toBe(TRIGGER.bottom + 8);
+  });
+});
