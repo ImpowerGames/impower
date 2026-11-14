@@ -82,8 +82,23 @@ try {
     const gif = Buffer.from("GIF89a\x48\x03\x90\x01", "latin1");
     write("anim.gif", gif);
     assert.equal(pictureWidth(path.join(pictures, "anim.gif")), 840);
+    const webp = (chunk, fill) => {
+      const bytes = Buffer.alloc(40);
+      bytes.write("RIFF", 0, "latin1");
+      bytes.write("WEBP", 8, "latin1");
+      bytes.write(chunk, 12, "latin1");
+      fill(bytes);
+      return bytes;
+    };
+    write("extended.webp", webp("VP8X", (b) => b.writeUIntLE(839, 24, 3)));
+    write("lossless.webp", webp("VP8L", (b) => {
+      b[20] = 0x2f;
+      b.writeUInt16LE(839 | 0xc000, 21);
+    }));
+    write("lossy.webp", webp("VP8 ", (b) => b.writeUInt16LE(840 | 0xc000, 26)));
+    for (const file of ["extended.webp", "lossless.webp", "lossy.webp"]) assert.equal(pictureWidth(path.join(pictures, file)), 840, file);
   }
-  console.log("ok: reads the pixel width of PNG, JPEG and GIF pictures and refuses a file that is none of them");
+  console.log("ok: reads the pixel width of PNG, JPEG, GIF and WebP (extended, lossless and lossy) pictures and refuses a file that is none of them");
 
   {
     const template = readTemplate("decision");
