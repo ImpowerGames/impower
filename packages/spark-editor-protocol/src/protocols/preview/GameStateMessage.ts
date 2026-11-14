@@ -11,7 +11,7 @@ export interface GameState {
   stepping: boolean;
   run?: number | null;
   position: { uri: string; line: number } | null;
-  shownBeat: Location | null;
+  shownBeatDescription: ShownBeatDescription | null;
   completion: {
     request: number;
     status: CompletionPreviewStatus;
@@ -20,6 +20,21 @@ export interface GameState {
   statuses?: GameStatuses;
   beat?: GameStateBeat;
   startRefusal?: string | null;
+}
+
+export type ShownBeatKind =
+  | "title"
+  | "heading"
+  | "transition"
+  | "action"
+  | "dialogue"
+  | "choice";
+
+export interface ShownBeatDescription {
+  kind: ShownBeatKind | null;
+  speaker?: string;
+  words: string;
+  options?: string[];
 }
 
 export interface GameStateBeat {

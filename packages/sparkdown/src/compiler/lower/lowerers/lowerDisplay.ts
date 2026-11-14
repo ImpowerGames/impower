@@ -306,7 +306,7 @@ function splitBodyRangeAtBreaks(
     : [{ from: bodyStart, to: bodyEnd, pause: false, leads: false }];
 }
 
-export interface BeatRange {
+interface BeatRange {
   from: number;
   to: number;
   pause: boolean;
@@ -1366,7 +1366,7 @@ function findFirstDirectChild(
   return null;
 }
 
-export function displayBeatRanges(
+function displayBeatRanges(
   node: SyntaxNode,
   ctx: SourceReader,
 ): BeatRange[] | undefined {

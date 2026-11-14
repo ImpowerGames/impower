@@ -118,7 +118,7 @@ const playerReports = (startRefusal: string | null) =>
       stepping: false,
       run: null,
       position: null,
-      shownBeat: null,
+      shownBeatDescription: null,
       completion: null,
       ending: null,
       startRefusal,

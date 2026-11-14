@@ -523,7 +523,11 @@ describe("the phone's preview strip", () => {
       [{ kind: "transition", words: "CUT TO:" }, ["TRANSITIONAL", "CUT TO:"]],
       [{ kind: "action", words: "Rain falls." }, ["ACTION", "Rain falls."]],
       [{ kind: "dialogue", words: "Hello.", speaker: "Imani" }, ["IMANI", "Hello."]],
-      [{ kind: "choice", words: "Where now?" }, ["CHOOSE", "Where now?"]],
+      [
+        { kind: "dialogue", words: "Where now?", speaker: "Imani", options: ["North.", "South."] },
+        ["CHOOSE", "Where now?"],
+      ],
+      [{ kind: "choice", words: "", options: ["North.", "South."] }, ["CHOOSE", "North. · South."]],
       [{ kind: "setup" }, ["STORY SETUP", "This line sets up your story."]],
       [{ kind: "empty" }, ["YOUR GAME", "Write a line and it appears here."]],
     ] as const) {

@@ -252,6 +252,11 @@ interface ShownAudition {
   contentChanges: TextDocumentContentChangeEvent[];
 }
 
+const chosenFixKey = (
+  uri: string,
+  changes: unknown,
+) => `${uri}|${JSON.stringify(changes)}`;
+
 export class ScriptEditorController {
   protected host: HTMLElement;
   protected refs: ScriptEditorRefs;
@@ -1187,8 +1192,11 @@ export class ScriptEditorController {
     });
   }
 
+  protected _chosenFixes = new Set<string>();
+
   protected handleFix = ({ uri, version, range, action }: DiagnosticFix) => {
     const { name, done, expect, kind, changes } = action;
+    this._chosenFixes.add(chosenFixKey(uri, changes));
     sendProtocolMessage(
       ChoseEditorFixMessage.type.notification({
         fix: { uri, version, range, changes, expect, kind },
@@ -1255,7 +1263,10 @@ export class ScriptEditorController {
         this.host,
       );
       if (fix) {
-        const revert = applyEditorFix(view, fix, message.id);
+        const chosen = this._chosenFixes.delete(
+          chosenFixKey(fix.uri, fix.changes),
+        );
+        const revert = applyEditorFix(view, fix, message.id, chosen);
         return ApplyEditorEditMessage.type.response(
           message.id,
           revert ? { applied: [uri], revert } : { applied: [], refused: [uri] },
