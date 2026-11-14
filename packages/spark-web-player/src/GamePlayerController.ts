@@ -1609,6 +1609,7 @@ export class GamePlayerController {
       message.params;
     if (userEvent) {
       const pending = this.cancelLanding();
+      const landing = ++this._landings;
       if (
         this._completionSession &&
         this._completionSession.uri !== textDocument.uri
@@ -1633,7 +1634,7 @@ export class GamePlayerController {
             this._program,
             startFrom.file,
             startFrom.line,
-            docChanged ? undefined : { landing: { pending } },
+            docChanged ? undefined : { landing: { pending, id: landing } },
           );
         }
       }
@@ -2162,6 +2163,8 @@ export class GamePlayerController {
 
   protected _shownBeat: number | null = null;
 
+  protected _landings = 0;
+
   protected handleSetAutoPlayBeats = async (
     message: SetAutoPlayBeatsMessage.Request,
   ) => {
@@ -2182,10 +2185,11 @@ export class GamePlayerController {
   protected noteShownBeat(
     beat: number | null,
     update: number,
-    landing: { pending: boolean } | undefined,
+    landing: { pending: boolean; id: number } | undefined,
   ) {
     const landed =
       landing != null &&
+      landing.id === this._landings &&
       beat != null &&
       (beat !== this._shownBeat || landing.pending);
     this._shownBeat = beat;
@@ -3694,7 +3698,7 @@ export class GamePlayerController {
       speculative?: boolean;
       current?: () => boolean;
       playId?: number;
-      landing?: { pending: boolean };
+      landing?: { pending: boolean; id: number };
     },
   ): Promise<boolean> => {
     const link = workspace?.gameLink;

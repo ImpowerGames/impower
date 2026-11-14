@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
+import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `define mia as character with
@@ -211,6 +212,49 @@ describe("Auto-play beats in the stopped preview (#2257)", () => {
     expect(plays(h)).toBe(0);
     await h.select(WAITING);
     await rest(h);
+    expect(plays(h)).toBe(0);
+  }, 120_000);
+
+  it("plays nothing when typing starts while the landing's preview is still being drawn", async () => {
+    const h = await previewAt(FIRST);
+    const request = h.link.request.bind(h.link);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let arrived!: () => void;
+    const answered = new Promise<void>((resolve) => (arrived = resolve));
+    let hold = true;
+    (h.link as any).request = async (type: unknown, params: unknown) => {
+      const result = await request(type as any, params as any);
+      if (hold && type === DisplayPreviewMessage.type) {
+        hold = false;
+        arrived();
+        await held;
+      }
+      return result;
+    };
+    const landing = await h.selectWithoutWaiting(THIRD);
+    await answered;
+    await h.edit([
+      {
+        range: { start: { line: THIRD, character: 18 }, end: { line: THIRD, character: 18 } },
+        text: "X",
+      },
+    ]);
+    const edited = await h.page.sendRequest(SelectCompilerDocumentMessage.type, {
+      textDocument: { uri: MAIN_URI },
+      selectedRange: {
+        start: { line: THIRD, character: 19 },
+        end: { line: THIRD, character: 19 },
+      },
+      docChanged: true,
+      userEvent: true,
+    });
+    expect(edited.programOutdated).toBe(true);
+    await h.controller.handleSelectedCompilerDocument({ params: edited });
+    release();
+    await landing.previewed;
+    await rest(h);
+    expect(playing(h)).toBe(false);
     expect(plays(h)).toBe(0);
   }, 120_000);
 
