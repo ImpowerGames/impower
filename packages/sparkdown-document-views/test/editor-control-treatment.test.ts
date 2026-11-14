@@ -118,6 +118,7 @@ describe("the code editor's icons under forced colours", () => {
     ".cm-menu-more-icon",
     ".cm-gutter-button-glyph::before",
     ".cm-choice-icon",
+    ".cm-problem-line::after",
   ])("keeps the masked icon %s painted in CanvasText", (selector) => {
     expect(block).toContain(`.sparkdown-script-editor-root ${selector}`);
     expect(block).toMatch(/forced-color-adjust: none;\s*background-color: CanvasText !important;/);
