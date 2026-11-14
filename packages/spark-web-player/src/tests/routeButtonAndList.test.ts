@@ -1,3 +1,6 @@
+import { iconMasks } from "@impower/impower-ui/icon-masks";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { SetRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
@@ -171,6 +174,38 @@ describe("the route list", () => {
       "18 | Loop clipped after 12,480 passes | Clipped",
       "21 | Target line | ",
     ]);
+  });
+
+  test("draws Auto as the hollow pin and Pinned as the filled pin, in the entries and the toggles", () => {
+    const p = player();
+    const route = exampleRoute();
+    route.decisions.push({ kind: "pinned", location: at(10), text: "Lie.", meeting: 1 });
+    p.report({ route });
+    p.button()!.click();
+    const glyph = (selector: string) =>
+      p.routeList
+        .querySelector<HTMLElement>(`${selector} .route-icon`)!
+        .style.getPropertyValue("--route-icon-mask");
+    const hollow = iconMasks["pin"];
+    const filled = iconMasks["pin-fill"];
+    expect(glyph(".route-entry[data-kind='auto']")).toEqual(hollow);
+    expect(glyph(".route-toggle[data-kind='auto']")).toEqual(hollow);
+    expect(glyph(".route-entry[data-kind='pinned']")).toEqual(filled);
+    expect(glyph(".route-toggle[data-kind='pinned']")).toEqual(filled);
+  });
+
+  test("paints the Auto pin muted and the Pinned pin in the accent, in the entries and the toggles", () => {
+    const css = readFileSync(resolve(__dirname, "../route/route-list.css"), "utf8");
+    const colourOf = (selector: string) => {
+      const rule = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].find(([, selectors]) =>
+        selectors!.split(/,(?![^(]*\))/).map((s) => s.trim()).includes(`:is(spark-web-player, swp-route-view) ${selector}`),
+      );
+      return rule?.[2]!.match(/color:\s*([^;]+);/)?.[1];
+    };
+    expect(colourOf('.route-entry[data-kind="auto"] .route-icon')).toBe("var(--swp-route-muted-color)");
+    expect(colourOf('.route-toggle[data-kind="auto"] .route-icon')).toBe("var(--swp-route-muted-color)");
+    expect(colourOf('.route-entry[data-kind="pinned"] .route-icon')).toBe("var(--swp-route-accent-color)");
+    expect(colourOf('.route-toggle[data-kind="pinned"] .route-icon')).toBe("var(--swp-route-accent-color)");
   });
 
   test("each toggle shows its kind's count, and a toggle hides its kind and the foot counts it", () => {

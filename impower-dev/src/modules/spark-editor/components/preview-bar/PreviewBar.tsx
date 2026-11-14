@@ -6,7 +6,7 @@ import {
   DropdownRoot,
   DropdownTrigger,
   ExpandIcon,
-  PinIcon,
+  PinFillIcon,
   ScissorsIcon,
   SettingsIcon,
   ShrinkIcon,
@@ -92,7 +92,7 @@ export default function PreviewBar({
 const READOUT_ICONS = {
   forced: <DetourIcon data-icon="detour" class="text-warning" />,
   clipped: <ScissorsIcon data-icon="scissors" class="text-warning" />,
-  pinned: <PinIcon data-icon="pin" class="text-accent" />,
+  pinned: <PinFillIcon data-icon="pin-fill" class="text-accent" />,
   failure: <WarningIcon data-icon="warning" class="text-error" />,
   stopped: <StopSignIcon data-icon="stop-sign" class="text-warning" />,
 };

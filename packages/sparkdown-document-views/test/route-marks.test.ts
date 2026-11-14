@@ -1,5 +1,6 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { iconMasks } from "@impower/impower-ui/icon-masks";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   choiceMarkerActions,
@@ -79,7 +80,7 @@ const choice = (line: number, icon: ChoiceMarker["icon"]): ChoiceMarker => ({
   text:
     icon === "pinned"
       ? "The preview takes your pinned option here."
-      : "No pin. The preview chose this option to reach line 10.",
+      : "The preview chose this option to reach line 10. It is not pinned; pin it to make the preview take it every time.",
   options: [
     { text: "Tell the truth.", taken: line === 3, pinned: icon === "pinned" },
     { text: "Lie.", taken: line === 5, pinned: false },
@@ -157,7 +158,7 @@ describe("the route rule's gaps and dashes", () => {
 });
 
 describe("choice markers", () => {
-  it("draw a pin or an options mark at each line they are given", async () => {
+  it("draw a filled accent pin when pinned and a hollow muted pin when the preview chose, at each line they are given", async () => {
     mount();
     setChoiceMarkers(view!, [choice(3, "pinned"), choice(5, "auto")]);
     expect(getChoiceMarkers(view!.state)).toEqual([
@@ -169,6 +170,16 @@ describe("choice markers", () => {
     expect(marks.map((mark) => [mark.dataset["line"], mark.dataset["icon"]])).toEqual([
       ["3", "pinned"],
       ["5", "auto"],
+    ]);
+    expect(
+      marks.map((mark) => [
+        mark.style.getPropertyValue("--gutter-button-icon"),
+        mark.style.getPropertyValue("--gutter-button-color"),
+        mark.getAttribute("aria-label"),
+      ]),
+    ).toEqual([
+      [iconMasks["pin-fill"], "var(--accent)", "Pinned choice on line 3"],
+      [iconMasks["pin"], "var(--muted)", "Choice the preview made on line 5"],
     ]);
   });
 

@@ -247,7 +247,7 @@ import { serverColorDecorations } from "./color";
 import { serverCompletions } from "./completion";
 import { serverDefinitions } from "./definition";
 import { serverDiagnostics } from "./diagnostics";
-import { serverFolding } from "./folding";
+import { serverFolding, type ServerFoldingOptions } from "./folding";
 import { serverFormatting } from "./formatting";
 import { serverDocumentHighlights } from "./highlights";
 import { serverHovers } from "./hover";
@@ -260,13 +260,19 @@ import { serverSignatureHelp } from "./signature";
 import { serverDocumentSymbols } from "./symbols";
 import { serverAutoSync } from "./sync";
 
-export function languageServerExtensions(): readonly (
+export interface LanguageServerOptions {
+  folding?: ServerFoldingOptions;
+}
+
+export function languageServerExtensions(
+  options: LanguageServerOptions = {},
+): readonly (
   | Extension
   | LSPClientExtension
 )[] {
   return [
     serverCompletions(),
-    serverFolding(),
+    serverFolding(options.folding),
     serverColorDecorations(),
     serverDocumentLinks(),
     serverCodeLenses(),

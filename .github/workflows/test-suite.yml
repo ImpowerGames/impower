@@ -73,6 +73,10 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
+      - name: Install Chromium for the real-browser editor tests
+        if: matrix.package == 'packages/sparkdown-document-views'
+        run: npx playwright install --with-deps --only-shell chromium
+
       - name: Verify generated definition ASTs
         if: matrix.package == 'packages/sparkdown' && matrix.shard == 1
         run: node packages/sparkdown/scripts/buildDefinitionAst.mjs --check
