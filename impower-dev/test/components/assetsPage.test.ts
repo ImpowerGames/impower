@@ -5,9 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const layout = vi.hoisted(() => ({
   value: "desktop" as "phone" | "compact" | "desktop",
 }));
+const scrollbar = vi.hoisted(() => ({ used: vi.fn() }));
 vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@impower/impower-ui/layout")>()),
   useLayout: () => layout.value,
+  useScrollbarSize: scrollbar.used,
 }));
 
 const assets = vi.hoisted(() => ({
@@ -466,6 +468,7 @@ describe("image folders as tiles", () => {
   });
 
   it("draws one portrait tile per thing, with the variants badge in its thumbnail's corner", async () => {
+    scrollbar.used.mockClear();
     workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
     await mount();
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
@@ -474,6 +477,7 @@ describe("image folders as tiles", () => {
     expect(host!.querySelector('[aria-label="Assets and folders"]')!.parentElement!.className.split(" ")).toEqual(
       expect.arrayContaining(["-mr-4", "pr-gutter-4"]),
     );
+    expect(scrollbar.used).toHaveBeenCalled();
     const badge = tiles()[0]!.querySelector('[data-variants-badge]')!;
     expect(badge.getAttribute("aria-label")).toBe("4 variants");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");
