@@ -10,16 +10,6 @@ const DUAL_DIALOGUE_BLOCK_WIDTH = "100%";
 const NEWLINES_REGEX = /$/gm;
 const DEFAULT_LINE_HEIGHT = 22.390625;
 
-const escapeDialogueLines = (block: MarkupContent[]) => {
-  return block.map((c, i) =>
-    i === 0 || !c.markdown
-      ?
-        c
-      :
-        { ...c, value: "<>" + c.value },
-  );
-};
-
 export interface DialogueSpec extends DecorationSpec {
   type: "dialogue";
   blocks: MarkupContent[][];
@@ -41,22 +31,14 @@ export default class DialogueWidget extends BlockWidget<DialogueSpec> {
       this.spec.blocks.forEach((block) => {
         const blockEl = document.createElement("div");
         blockEl.style.width = DUAL_DIALOGUE_BLOCK_WIDTH;
-        blockEl.innerHTML = getFormattedHTML(
-          escapeDialogueLines(block),
-          this.spec.language,
-          this.spec.highlighter,
-        );
+        blockEl.innerHTML = getFormattedHTML(block);
         container.appendChild(blockEl);
       });
     } else {
       const standaloneBlock = this.spec.blocks[0];
       if (standaloneBlock) {
         container.style.width = DIALOGUE_CONTAINER_WIDTH;
-        container.innerHTML = getFormattedHTML(
-          escapeDialogueLines(standaloneBlock),
-          this.spec.language,
-          this.spec.highlighter,
-        );
+        container.innerHTML = getFormattedHTML(standaloneBlock);
       }
     }
   }
