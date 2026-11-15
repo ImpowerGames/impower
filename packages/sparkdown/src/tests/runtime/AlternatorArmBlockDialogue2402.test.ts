@@ -98,3 +98,36 @@ end
     expect(beats[1]?.routing).not.toBe("dialogue:GUIDE");
   });
 });
+
+describe("an action block opened right after an alternator arm's bar", () => {
+  test("plays its lines as one beat, as the same block in an if branch does", () => {
+    const branch = makeRuntimeStoryFromSource(
+      `scene start
+  if true then
+    :
+      First line.
+      Second line.
+  else
+    Other line.
+  end
+end
+`,
+    );
+    expect(branch.errorMessages).toEqual([]);
+    const expected = continueBeats(branch.story);
+    expect(expected.map((beat) => beat.text)).toEqual(["First line.\nSecond line.\n"]);
+    const ctx = makeRuntimeStoryFromSource(
+      `scene start
+  queue
+    | :
+        First line.
+        Second line.
+    | Other line.
+  end
+end
+`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(continueBeats(ctx.story)).toEqual(expected);
+  });
+});
