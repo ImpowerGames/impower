@@ -264,6 +264,8 @@ describe("a debugger stop leaves a beat the settled drawing cannot finish to run
 
   const shown = (game: Game) => (game as any)._shownBeatOnScreen;
 
+  const tick = (game: Game) => game.update({ deltaMS: 0 } as never);
+
   const stepUntil = (game: Game, reached: () => boolean) => {
     for (let i = 0; i < 80 && !reached() && !game.ending; i += 1) {
       game.step("over");
@@ -283,12 +285,81 @@ describe("a debugger stop leaves a beat the settled drawing cannot finish to run
     game.pause();
     stepUntil(game, () => Boolean(shown(game)?.load));
     expect(settling).not.toHaveBeenCalled();
+    expect(load).not.toHaveBeenCalled();
     game.resume();
+    tick(game);
+    tick(game);
     expect(load).toHaveBeenCalledOnce();
     expect(load).toHaveBeenCalledWith([{ name: "other" }]);
   });
 
-  it("holds a cutscene a Step reaches in its playing drawing, and Resume plays it rather than passing it", () => {
+  it("opens no loading screen for a load a Step stops on until Resume", () => {
+    const source = [
+      "store visits = 0",
+      "scene start",
+      "  Before.",
+      "  visits = visits + 10",
+      "  -> load other",
+      "end",
+      "scene other",
+      "  Loaded.",
+      "end",
+      "",
+    ].join("\n");
+    const game = make(source, CUTSCENE_ASSETS);
+    const at = (text: string) =>
+      source.split("\n").findIndex((line) => line.trim() === text);
+    let stop: number | undefined;
+    game.connection.outgoing.addListener("*", (message) => {
+      const { method, params } = message as unknown as {
+        method: string;
+        params: any;
+      };
+      if (method === "game/hitBreakpoint" || method === "game/stepped") {
+        stop = params?.location?.range?.start?.line;
+      }
+    });
+    game.setBreakpoints([{ file: MAIN, line: at("visits = visits + 10") }]);
+    game.start();
+    for (let i = 0; i < 4 && stop === undefined; i += 1) {
+      game.continue();
+    }
+    expect(stop).toBe(at("visits = visits + 10"));
+    const loading = vi.spyOn(game.module.ui, "beginLoading");
+    for (let i = 0; i < 4 && !shown(game)?.load; i += 1) {
+      game.step("over");
+    }
+    expect(shown(game)?.load).toEqual([{ name: "other" }]);
+    expect(stop).toBe(at("-> load other"));
+    expect(game.paused).toBe(true);
+    expect(loading).not.toHaveBeenCalled();
+    game.resume();
+    tick(game);
+    expect(loading).toHaveBeenCalledOnce();
+  });
+
+  it("starts no cutscene whose assets are ready at a Step's stop until Resume, then plays it once", () => {
+    const game = make(
+      "scene start\n  Before.\n  [[play intro]]\n  After.\nend\n",
+      CUTSCENE_ASSETS,
+    );
+    vi.spyOn(game.module.assets, "prepareBeat").mockReturnValue(null as never);
+    const cutscene = vi.spyOn(game.module.ui, "runCutscene").mockReturnValue(0);
+    game.start();
+    game.pause();
+    stepUntil(game, () => Boolean(shown(game)?.cutscene));
+    expect(game.paused).toBe(true);
+    expect(cutscene).not.toHaveBeenCalled();
+    const coordinator = (game as any)._coordinator;
+    expect(game.resume()).toBe(false);
+    tick(game);
+    tick(game);
+    expect((game as any)._coordinator).toBe(coordinator);
+    expect(cutscene).toHaveBeenCalledOnce();
+    expect(cutscene).toHaveBeenCalledWith({ name: "intro" });
+  });
+
+  it("holds a cutscene a Step reaches until Resume, and Resume plays it rather than passing it", () => {
     const game = make(
       "scene start\n  Before.\n  [[play intro]]\n  After.\nend\n",
       CUTSCENE_ASSETS,
@@ -301,13 +372,15 @@ describe("a debugger stop leaves a beat the settled drawing cannot finish to run
     stepUntil(game, () => Boolean(shown(game)?.cutscene));
     const coordinator = (game as any)._coordinator;
     expect(coordinator._instructions.cutscene).toEqual([{ name: "intro" }]);
-    expect(playing.mock.contexts).toContain(coordinator);
+    expect(playing.mock.contexts).not.toContain(coordinator);
     expect(settling).not.toHaveBeenCalled();
     expect(game.paused).toBe(true);
     const beats = (game as any)._run.beats.length;
     expect(game.resume()).toBe(false);
     expect(game.paused).toBe(false);
+    tick(game);
     expect((game as any)._coordinator).toBe(coordinator);
+    expect(playing.mock.contexts).toContain(coordinator);
     expect((game as any)._run.beats.length).toBe(beats);
   });
 
@@ -332,6 +405,9 @@ describe("a debugger stop leaves a beat the settled drawing cannot finish to run
     game.pause();
     stepUntil(game, () => Boolean(shown(game)?.audio?.music?.length));
     expect(settling).not.toHaveBeenCalled();
+    expect(schedule).not.toHaveBeenCalledWith("music", expect.anything());
+    game.resume();
+    tick(game);
     expect(schedule).toHaveBeenCalledWith("music", expect.anything());
   });
 

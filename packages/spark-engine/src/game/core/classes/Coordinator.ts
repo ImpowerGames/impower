@@ -93,10 +93,16 @@ export class Coordinator<G extends Game> {
 
   protected _reportedFinished = false;
 
+  protected _held = false;
+
   constructor(
     game: G,
     instructions: Instructions,
-    options?: { settled?: "restored" | "presented"; played?: () => void },
+    options?: {
+      settled?: "restored" | "presented";
+      played?: () => void;
+      held?: boolean;
+    },
   ) {
     this._game = game;
     this._instructions = instructions;
@@ -113,6 +119,8 @@ export class Coordinator<G extends Game> {
       this.onPlay(options.played);
     } else if (game.context.system.previewing) {
       this.onPreview();
+    } else if (options?.held) {
+      this._held = true;
     } else {
       this.onExecute();
     }
@@ -159,6 +167,10 @@ export class Coordinator<G extends Game> {
   }
 
   onUpdate(time: Clock) {
+    if (this._held) {
+      this._held = false;
+      this.onExecute();
+    }
     if (this._onTick) {
       this._onTick(time.deltaMS);
       this._elapsedMS += time.deltaMS;
