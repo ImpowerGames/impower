@@ -57,8 +57,8 @@ async function harness(extra: Record<string, string> = {}) {
     listeners: ((event: { data: unknown }) => void)[] = [];
     constructor() { workers.push(this); }
     addEventListener(_type: string, listener: (event: { data: unknown }) => void) { this.listeners.push(listener); }
-    postMessage(message: unknown) {
-      const data = structuredClone(message);
+    postMessage(message: unknown, transfer?: Transferable[]) {
+      const data = structuredClone(message, { transfer });
       setTimeout(() => void (globalThis as any).onmessage({ data }), 0);
     }
     deliver(message: unknown) {
@@ -206,6 +206,59 @@ it("puts back a folder that held files when the import that replaced it with a f
   expect(h.stored()).toEqual(before);
   expect(h.text("cover.png/notes.sd")).toBe("folder contents");
   expect(error?.rollback?.complete).toBe(true);
+}, 15_000);
+
+it("replaces a file with a backup folder of the same path", async () => {
+  const h = await harness({ "cover.png": "old image" });
+  const { error } = await h.importBackup(
+    backup({ ".layout": "1", "main.sd": "the backup's main", "cover.png/new.png": "NEW" }),
+  );
+  expect(error).toBeUndefined();
+  expect(h.stored()).toEqual(["cover.png/", "cover.png/new.png", "main.sd"]);
+}, 15_000);
+
+it("puts back a file that the import replaced with a folder holding files when a later write fails", async () => {
+  const h = await harness({ "cover.png": "old image" });
+  const before = h.stored();
+  h.failCreatingFolder("images");
+  const { error } = await h.importBackup(
+    backup({ ".layout": "1", "main.sd": "the backup's main", "cover.png/new.png": "NEW", "images/a.png": "PNG" }),
+  );
+  expect(error?.reason).toBe("storage");
+  expect(h.stored()).toEqual(before);
+  expect(h.text("cover.png")).toBe("old image");
+  expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
+  expect(error?.rollback?.complete).toBe(true);
+}, 15_000);
+
+it("puts back a file that the import replaced with an empty folder when a later folder fails", async () => {
+  const h = await harness({ "cover.png": "old image" });
+  const before = h.stored();
+  h.failCreatingFolder("zzz");
+  const { error } = await h.importBackup(backup(BACKUP, ["cover.png", "zzz"]));
+  expect(error?.reason).toBe("storage");
+  expect(h.stored()).toEqual(before);
+  expect(h.text("cover.png")).toBe("old image");
+  expect(error?.rollback?.complete).toBe(true);
+}, 15_000);
+
+it("keeps a file another tab saves into a folder the failing import had removed", async () => {
+  const h = await harness();
+  const get = h.project.getDirectoryHandle.bind(h.project);
+  h.project.getDirectoryHandle = async (entry, options = {}) => {
+    if (entry === "images" && options.create) {
+      await h.fs.createFiles({
+        files: [{ uri: h.fs.getFileUri("local", "old/extra.sd"), data: bytes("saved meanwhile").buffer }],
+      });
+      throw new DOMException("images cannot be created", "QuotaExceededError");
+    }
+    return get(entry, options);
+  };
+  const { error } = await h.importBackup(backup(BACKUP));
+  expect(error?.reason).toBe("storage");
+  expect(h.text("old/extra.sd")).toBe("saved meanwhile");
+  expect(h.text("old/notes.sd")).toBe(PROJECT["old/notes.sd"]);
+  expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
 }, 15_000);
 
 it("reports the rollback incomplete when a folder the import removed cannot be put back", async () => {

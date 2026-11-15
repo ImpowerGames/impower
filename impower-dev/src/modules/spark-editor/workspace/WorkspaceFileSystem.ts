@@ -1520,9 +1520,9 @@ export default class WorkspaceFileSystem {
     try {
       return await this.post<ApplyWorkspaceEditResult>(
         request,
-        edit.documentChanges
-          ?.filter((c) => "kind" in c && c.kind === "create")
-          .map((c) => c.data) as Transferable[],
+        edit.documentChanges?.flatMap((c) =>
+          "kind" in c && c.kind === "create" && c.data ? [c.data] : [],
+        ),
       );
     } finally {
       this._confirmations.delete(request.id);

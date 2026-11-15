@@ -1302,6 +1302,9 @@ class UndoLog {
           : [change.uri];
     for (const uri of uris) {
       if (this.prior.has(uri)) {
+        if (isFolderChange(change) && !(await isStoredDirectory(uri))) {
+          this.directories.add(uri);
+        }
         continue;
       }
       if (isFolderChange(change)) {
@@ -1525,10 +1528,19 @@ class UndoLog {
     }
     const creates: Restoring[] = [];
     const overwrites: Restoring[] = [];
-    const removals: Restoring[] = [];
+    let removals: Restoring[] = [];
+    const replacedByFolder: PriorEntry[] = [];
     for (const entry of entries.filter((e) => !e.directory && !e.folder)) {
       try {
         await drainWrites(entry.uri);
+        if (entry.bytes && (await isStoredDirectory(entry.uri))) {
+          if (this.movedOn(entry)) {
+            kept.push(entry.uri);
+          } else {
+            replacedByFolder.push(entry);
+          }
+          continue;
+        }
         const local = State.localVersions.get(entry.uri);
         const current = await storedBytes(entry.uri);
         if (this.movedOn(entry)) {
@@ -1544,6 +1556,31 @@ class UndoLog {
           overwrites.push(target);
         } else {
           removals.push(target);
+        }
+      } catch (err) {
+        console.error(err);
+        unknown.push(entry.uri);
+      }
+    }
+    for (const entry of replacedByFolder) {
+      const inside = (uri: string) =>
+        uri === entry.uri || uri.startsWith(`${entry.uri}/`);
+      try {
+        for (const target of removals.filter((t) => inside(t.entry.uri))) {
+          await destroy(target);
+        }
+        removals = removals.filter((t) => !inside(t.entry.uri));
+        for (const uri of await deleteEmptyDirectories(
+          [...this.directories].filter(inside),
+          log,
+        )) {
+          this.commit(State.localVersions.get(uri)!);
+          effects.foldersDeleted.push(uri);
+        }
+        if (await isStoredDirectory(entry.uri)) {
+          unknown.push(entry.uri);
+        } else {
+          creates.push({ entry, local: State.localVersions.get(entry.uri) });
         }
       } catch (err) {
         console.error(err);
