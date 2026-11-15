@@ -557,8 +557,17 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         {steps && phone ? (
           <StepMenu refusals={refusals} caretScript={caretScript} />
         ) : null}
-        {steps && !phone ? stepButton("over") : null}
-        {steps && !phone ? stepButton("in") : null}
+        {steps && !phone ? (
+          <span class="contents @min-[740px]:hidden">
+            <StepMenu refusals={refusals} caretScript={caretScript} />
+          </span>
+        ) : null}
+        {steps && !phone ? (
+          <span class="contents @max-[740px]:hidden">
+            {stepButton("over")}
+            {stepButton("in")}
+          </span>
+        ) : null}
         <SkipButton direction={-1} reason={skipRefusal(game, session, -1)} />
         <Button
           variant="primary"
@@ -576,14 +585,16 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           {live ? <StopIcon /> : <PlayIcon />}
         </Button>
         <SkipButton direction={1} reason={skipRefusal(game, session, 1)} />
-        {steps && !phone ? stepButton("out") : null}
         {steps && !phone ? (
-          <ControlButton
-            label={TOGGLE_BREAKPOINT}
-            icon={BreakpointIcon}
-            reason={caretScript ? undefined : NO_CARET_REASON}
-            onClick={() => toggleBreakpoint(caretScript!)}
-          />
+          <span class="contents @max-[740px]:hidden">
+            {stepButton("out")}
+            <ControlButton
+              label={TOGGLE_BREAKPOINT}
+              icon={BreakpointIcon}
+              reason={caretScript ? undefined : NO_CARET_REASON}
+              onClick={() => toggleBreakpoint(caretScript!)}
+            />
+          </span>
         ) : null}
       </div>
       <div class="flex items-center gap-1 justify-self-end group-data-[running]/bar:@max-[480px]:gap-0">
