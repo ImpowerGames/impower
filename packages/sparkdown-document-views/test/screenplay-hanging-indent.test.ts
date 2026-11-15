@@ -212,6 +212,18 @@ describe("a wrapped row of an alternative", () => {
     near(block.others["{"], block.lineLeft, "second block's opening brace", 1);
   }, 120_000);
 
+  it("leaves an unmarked row sharing a hanging line to wrap from the line's edge, on the page as in the PDF", async () => {
+    const found = (await pageRows())["unmarked text wrapping after a block"]!;
+    expect(found.rows.length).toBeGreaterThan(1);
+    for (const left of found.rows) expect(Math.abs(left - found.lineLeft), "page row").toBeLessThan(1);
+    expect(found.others["One."]! - found.lineLeft, "the alternative still hangs").toBeGreaterThan(5);
+    const draws = await pdfDraws(["scene s", `  queue | One. | Two. end : ${LONG}`, "end", ""].join("\n"));
+    const brace = draws.find((draw) => draw.text.trim() === "{")!;
+    const rows = pdfRows(draws);
+    expect(rows.length).toBeGreaterThan(1);
+    for (const x of rows) expect(Math.abs(x - brace.x), "PDF row").toBeLessThan(0.01);
+  }, 120_000);
+
   it("keeps its hanging indent across a PDF page break", async () => {
     const words = Array.from({ length: 300 }, (_, index) => `Word${index}`).join(" ");
     const script = [

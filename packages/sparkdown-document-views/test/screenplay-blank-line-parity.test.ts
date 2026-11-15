@@ -848,10 +848,17 @@ const visibleLines = (element: Element): string[] => {
     parent.childNodes.forEach((node) => {
       if (node.nodeType === Node.TEXT_NODE) lines[lines.length - 1] += node.textContent ?? "";
       else if (node.nodeType === Node.ELEMENT_NODE && (node as Element).classList.contains("sp-break")) lines.push("");
-      else if (node.nodeType === Node.ELEMENT_NODE && !isHidden(node as Element, true)) walk(node as Element);
+      else if (node.nodeType === Node.ELEMENT_NODE && !isHidden(node as Element, true)) {
+        const style = (node as HTMLElement).style;
+        const block = style?.display === "block" && style.marginLeft.startsWith("-");
+        if (block && lines[lines.length - 1]) lines.push("");
+        walk(node as Element);
+        if (block && lines[lines.length - 1]) lines.push("");
+      }
     });
   };
   walk(element);
+  while (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
   return lines;
 };
 

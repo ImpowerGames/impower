@@ -368,12 +368,6 @@ export const decorate = (
     return low * 2 < printed.length && printed[low * 2]! < to;
   };
 
-  for (const start of actionStarts) {
-    if (start >= from && (to === undefined || start <= to) && printedBefore(doc.lineAt(start).from, start)) {
-      decorations.push(Decoration.widget({ widget: new LineBreakWidget(), side: 1 }).range(start));
-    }
-  }
-
   const actionStartSet = new Set(actionStarts);
   const drawnPositions = [...runs.map((run) => run.from), ...inserts.map((insert) => insert.at)].sort((a, b) => a - b);
   const drawnIn = (from: number, to: number) => {
@@ -415,20 +409,33 @@ export const decorate = (
     }
     return drawnPositions[low];
   };
+  const unhungStarts = new Set<number>();
   for (const [number, width] of hangingLines) {
     const line = doc.line(number);
     const anchors = hangsByLine.get(number)!.anchors;
     const first = firstDrawnFrom(line.from);
     const starts = actionStarts.filter((start) => start > line.from && start <= line.to);
-    const rowStarts = new Set([...(first !== undefined && first <= line.to ? [first] : []), ...starts]);
+    const rowStarts = [...new Set([...(first !== undefined && first <= line.to ? [first] : []), ...starts])];
+    const inlineRows = rows.filter((row) => sharesLine(row) && rowLine(row).number === number).map((row) => row.at);
+    const boundaries = [...new Set([...anchors, ...rowStarts, ...inlineRows])].sort((a, b) => a - b);
     if (line.from >= from && (to === undefined || line.from <= to)) {
       decorations.push(Decoration.line({ attributes: { style: hangingLineStyle(width) } }).range(line.from));
     }
     for (const start of rowStarts) {
       if (anchors.has(start) || start < from || (to !== undefined && start > to)) continue;
+      const end = boundaries.find((boundary) => boundary > start) ?? line.to;
+      if (end <= start) continue;
+      unhungStarts.add(start);
       decorations.push(
-        Decoration.widget({ widget: new InsertedTextWidget("", `display: inline-block; ${hangingMarkStyle(width)}`), side: 1 }).range(start),
+        Decoration.mark({ attributes: { style: `display: block; margin-left: -${width}ch;` } }).range(start, end),
       );
+    }
+  }
+
+  for (const start of actionStarts) {
+    if (unhungStarts.has(start)) continue;
+    if (start >= from && (to === undefined || start <= to) && printedBefore(doc.lineAt(start).from, start)) {
+      decorations.push(Decoration.widget({ widget: new LineBreakWidget(), side: 1 }).range(start));
     }
   }
 
