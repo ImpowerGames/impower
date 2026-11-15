@@ -255,6 +255,48 @@ describe("pinning an option the route already takes changes only its kind", () =
     expect(pinned.count).toBe(auto.count);
   }, 120_000);
 
+  test("an option found before slower siblings stays the route's option when pinned after an earlier pin diverts the route", async () => {
+    const lines = [
+      "store total = 0",
+      "scene start",
+      "  choose",
+      "    * [Bypass.]",
+      "      total = -2",
+      "    * [Investigate.]",
+      "      choose",
+      "        * [Winner.]",
+      "          for i = 1, 4000 do",
+      "            total += 1",
+      "          end",
+      "        * [Quick.]",
+      "          total = -1",
+    ];
+    for (let n = 0; n < 8; n += 1) {
+      lines.push(
+        `        * [Noise ${n}.]`,
+        "          for j = 1, 40000 do",
+        "            total += 1",
+        "          end",
+      );
+    }
+    lines.push("      end", "  end", "  Target total {total}.", "end", "");
+    const line = lines.indexOf("  Target total {total}.") + 1;
+    const diverted = preview(lines, line, [pin(6)], "total");
+    expect(diverted.route.decisions.map((d) => [d.kind, d.text])).toEqual([
+      ["pinned", "Investigate."],
+      ["auto", "Winner."],
+    ]);
+    expect(diverted.count).toBe(4000);
+    await nextJob();
+    const pinned = preview(lines, line, [pin(6), pin(8)], "total");
+    expect(pinned.route.decisions.map((d) => [d.kind, d.text])).toEqual([
+      ["pinned", "Investigate."],
+      ["pinned", "Winner."],
+    ]);
+    expect(withoutKinds(pinned.route)).toEqual(withoutKinds(diverted.route));
+    expect(pinned.count).toBe(diverted.count);
+  }, 120_000);
+
   test("a pinned option is followed after a search without the pin reaches its step cap", () => {
     const lines = ["store total = 0", "scene start", "  choose"];
     for (let n = 0; n < 5; n += 1) {

@@ -856,6 +856,8 @@ const planRouteFaithful = (
     let found: Candidate[] = [];
     const candidates: Candidate[] = [];
     let pinAware = false;
+    let tier = 0;
+    const waiting = new Map<number, SearchNode[]>();
     while (!stopped) {
       while (head < queue.length) {
         if (searchBudgetExhausted(budget)) {
@@ -877,6 +879,15 @@ const planRouteFaithful = (
             pinAware ? prunes(c, node) : beatenBy(node, c.plan),
           )
         ) {
+          continue;
+        }
+        if (pinAware && node.left > tier) {
+          const bucket = waiting.get(node.left);
+          if (bucket) {
+            bucket.push(node);
+          } else {
+            waiting.set(node.left, [node]);
+          }
           continue;
         }
         budget.nodesRemaining -= 1;
@@ -924,6 +935,15 @@ const planRouteFaithful = (
           nodeErrored = true;
         }
       }
+      if (!budget.cut && waiting.size > 0) {
+        tier = Math.min(...waiting.keys());
+        queue = waiting.get(tier)!;
+        waiting.delete(tier);
+        head = 0;
+        continue;
+      }
+      tier = 0;
+      waiting.clear();
       if (!pinAware && candidates.length > 0) {
         const followed = fewest(candidates.filter(full));
         if (followed) {
