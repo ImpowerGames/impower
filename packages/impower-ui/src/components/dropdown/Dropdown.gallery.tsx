@@ -203,8 +203,8 @@ function DropdownDemo() {
       <GalleryRow label={`${KEEP_CLEAR_RULE} The menu opens on whichever side of its trigger has more room and scrolls within itself; in the phone layout's sheet, the sheet and its backdrop stay below the line.`}>
         <KeepClearDemo />
       </GalleryRow>
-      <GalleryRow label="Chosen by pointer (sheetBy pointer): a menu under a fine pointer at any width and a bottom sheet under a coarse one (the asset inspector's variant menus)">
-        <DropdownRoot sheetBy="pointer">
+      <GalleryRow label="Never a sheet (sheet false): a menu at every width, for a caller that offers its own control under a coarse pointer (the asset inspector's variant menus, which open a wheel sheet on touch)">
+        <DropdownRoot sheet={false}>
           <DropdownTrigger asChild>
             <Button>Choose a face</Button>
           </DropdownTrigger>

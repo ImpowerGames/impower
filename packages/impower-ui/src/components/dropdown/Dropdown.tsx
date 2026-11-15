@@ -18,7 +18,6 @@ import {
   useRef,
   useState,
 } from "preact/hooks";
-import { useCoarsePointer } from "../../hooks/useCoarsePointer";
 import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
@@ -94,14 +93,12 @@ export function DropdownLabel({
   );
 }
 
-type DropdownSheetBy = "layout" | "pointer";
-
 type RootProps = {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   modal?: boolean;
-  sheetBy?: DropdownSheetBy;
+  sheet?: boolean;
   children?: ComponentChildren;
 };
 
@@ -110,12 +107,11 @@ export function DropdownRoot({
   defaultOpen = false,
   onOpenChange,
   modal,
-  sheetBy = "layout",
+  sheet = true,
   children,
 }: RootProps) {
   const phone = useLayout() === "phone";
-  const coarse = useCoarsePointer();
-  const mobile = sheetBy === "pointer" ? coarse : phone;
+  const mobile = sheet && phone;
   const trigger = useRef<HTMLElement>(null);
   const returnsFocus = useRef(true);
   const [handingOff, setHandingOff] = useState(false);

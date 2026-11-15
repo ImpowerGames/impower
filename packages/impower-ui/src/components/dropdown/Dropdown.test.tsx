@@ -469,12 +469,12 @@ describe("Dropdown rows in the menu and in the phone layout's sheet", () => {
     expect(document.activeElement).toBe(elsewhere);
   });
 
-  it("opens as a menu, not a sheet, in the phone layout with a fine pointer when it chooses by pointer", async () => {
+  it("opens as a menu, not a sheet, in the phone layout when it is told never to be a sheet", async () => {
     await setPhone(true);
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>
       render(
-        <DropdownRoot sheetBy="pointer">
+        <DropdownRoot sheet={false}>
           <DropdownTrigger asChild>
             <button type="button">Face</button>
           </DropdownTrigger>
