@@ -32,7 +32,7 @@ import { parseScreenshotArgs, parseUiSteps, ui, verify } from "./driver.mjs";
 
 const { LAUNCH_SECONDS, SHELL_SECONDS, launchTab, pageVerdict, planReverse } = await import("./android.mjs");
 const { shotGate, shotWaitsFor } = await import("./steps.mjs");
-const { surfacePainted } = await import("./driver.mjs");
+const { surfacePainted, surfaceSettled } = await import("./driver.mjs");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DRIVER = path.join(HERE, "driver.mjs");
@@ -703,6 +703,19 @@ await check("the paint wait looks in every frame, so Play's game inside the play
   const playerDocument = { querySelectorAll: (selector) => (selector === "#game" ? [shown] : []), getAnimations: () => [] };
   const page = { frames: () => [fakeFrame(editorDocument), fakeFrame(playerDocument)], waitForTimeout: async () => {} };
   assert.equal(await surfacePainted(page, NAMED_STEPS.play.waitsFor), true);
+});
+
+await check("the paint wait's animation-frame wait is bounded and caught, so a detached frame or a tab that never paints returns a cause instead of throwing or hanging", async () => {
+  const waitsFor = NAMED_STEPS.play.waitsFor;
+  const pageWith = (frameWait) => ({ frames: () => [{ evaluate: async (fn) => (fn === surfaceSettled ? true : frameWait()) }], waitForTimeout: async () => {} });
+  const detached = await surfacePainted(pageWith(async () => { throw new Error("Frame was detached"); }), waitsFor);
+  assert.match(String(detached), /Frame was detached/);
+  const started = Date.now();
+  const unbounded = Symbol("unbounded");
+  const stalled = await Promise.race([surfacePainted(pageWith(() => new Promise(() => {})), waitsFor), new Promise((resolve) => setTimeout(resolve, 4_000, unbounded))]);
+  assert.notEqual(stalled, unbounded);
+  assert.match(String(stalled), /no animation frame/);
+  assert.ok(Date.now() - started < 4_000);
 });
 
 await check("on a device, --shot after a named step waits until that step's surface has finished animating, and fails when it never settles", async () => {
