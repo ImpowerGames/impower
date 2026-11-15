@@ -110,6 +110,9 @@ describe("a speech morph acts only on its character's lines (I-2390)", () => {
     ["a directive line right above the cue", "  [[show portrait mia:mouth.teeth]]\n  MIA:\n    Here is Mia."],
     ["a directive line above the cue, after a blank line", "  [[show portrait mia:mouth.teeth]]\n\n  MIA:\n    Here is Mia."],
     ["a directive line with a comment, right above the cue", "  [[show portrait mia:mouth.teeth]] // Mia looks up\n  MIA:\n    Here is Mia."],
+    ["a directive line and a variable statement above the cue", "  [[show portrait mia:mouth.teeth]]\n  local n = 1\n  MIA:\n    Here is Mia."],
+    ["a block whose last line is the directive, before another cue", "  MIA:\n    Here is Mia.\n    [[show portrait mia:mouth.teeth]]\n  BOB:\n    Goodbye."],
+    ["a styled directive line above the cue", "  **[[show portrait mia:mouth.teeth]]**\n  MIA:\n    Here is Mia."],
   ])("under a cue naming the character by %s the speech morph plays and rests the mouth", async (_, body) => {
     const content = await written(scene(body));
     expect(played(content)).toEqual(["blink", "talk"]);

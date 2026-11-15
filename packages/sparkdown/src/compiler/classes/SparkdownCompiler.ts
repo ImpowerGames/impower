@@ -4851,7 +4851,7 @@ export class SparkdownCompiler {
       }
       const pickAt = (at: number, struct: any) =>
         scriptTree
-          ? directiveLinePick(program.context!, scriptTree, (from, to) => doc.read(from, to), at, struct?.$name ?? "", names, directives)
+          ? directiveLinePick(program.context!, scriptTree, { read: (from, to) => doc.read(from, to), characterNumber: (pos) => doc.positionAt(pos).character }, at, struct?.$name ?? "", names, directives)
           : undefined;
       let coveredTo = -1;
       const shownImages: typeof images = [];

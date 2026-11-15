@@ -1537,7 +1537,7 @@ const completionsAt = (
       const image = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
       const vocabulary = resolveImageAttributes(program.context, image, { visibility: false }).vocabulary;
       if (vocabulary) {
-        const pick = directiveLinePick(program.context, tree, read, start, name);
+        const pick = directiveLinePick(program.context, tree, { read, characterNumber: (pos) => document.positionAt(pos).character }, start, name);
         for (const choice of attributeCompletionChoices(vocabulary, current, [...before, ...after])) {
           completions.set(choice.label, attributeCompletionItem(
             choice,

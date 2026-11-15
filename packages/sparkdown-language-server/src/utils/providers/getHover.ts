@@ -304,7 +304,7 @@ export const getHover = async (
       ? directiveLinePick(
           program.context,
           tree,
-          (from, to) => document.read(from, to),
+          { read: (from, to) => document.read(from, to), characterNumber: (pos) => document.positionAt(pos).character },
           document.offsetAt(range.start),
           struct.$name ?? "",
         )

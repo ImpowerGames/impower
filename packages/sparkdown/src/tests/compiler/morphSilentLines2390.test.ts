@@ -123,6 +123,9 @@ describe("the choice warning follows the line's speaker (I-2390)", () => {
     ["the cue below a directive line", "  [[bunny:mouth.teeth]]\n  BUNNY:\n    Let go of that!"],
     ["the cue below a directive line and a blank line", "  [[bunny:mouth.teeth]]\n\n  BUNNY:\n    Let go of that!"],
     ["the cue below a directive line with a comment", "  [[bunny:mouth.teeth]] // Bunny looks up\n  BUNNY:\n    Let go of that!"],
+    ["the cue below a directive line and a variable statement", "  [[bunny:mouth.teeth]]\n  local n = 1\n  BUNNY:\n    Let go of that!"],
+    ["the cue over a block whose last line is the directive", "  BUNNY:\n    Let go of that!\n    [[bunny:mouth.teeth]]\n  RAFFLES:\n    Look at him."],
+    ["the cue below a styled directive line", "  **[[bunny:mouth.teeth]]**\n  BUNNY:\n    Let go of that!"],
   ])("a directive shown on the character's line, named by %s, is warned", (_, lines) => {
     const found = warnings(story(lines));
     expect(found).toHaveLength(1);

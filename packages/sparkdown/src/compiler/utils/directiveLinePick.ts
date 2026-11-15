@@ -1,116 +1,98 @@
-import type { Tree } from "@lezer/common";
-import { DISPLAY_LINE_TYPES, readCueSource } from "../lower/lowerers/lowerDisplay";
-import { ASSET_LINE_REGEX } from "./assetLine";
+import type { SyntaxNode, Tree } from "@lezer/common";
+import { stripStyleCodes } from "../../runtime/displayStyle";
+import { readStyledSource } from "../lower/utils/displaySpans";
+import { DISPLAY_LINE_TYPES, displayBeatRanges, readCueSource } from "../lower/lowerers/lowerDisplay";
 import { characterNames, cueCharacter, type CharacterNames } from "./cueCharacter";
 import { linePick } from "./linePick";
 import { readSourceDirectives, type SourceDirective } from "./readDirective";
 
-const CHUNK = 512;
+type Read = (from: number, to: number) => string;
 
-function* linesFrom(
-  read: (from: number, to: number) => string,
-  length: number,
-  at: number,
-): Generator<{ from: number; text: string }> {
-  let from = at;
-  while (from > 0) {
-    const before = read(Math.max(0, from - CHUNK), from);
-    const newline = before.lastIndexOf("\n");
-    if (newline >= 0) {
-      from = from - before.length + newline + 1;
-      break;
-    }
-    from -= before.length;
-  }
-  while (from <= length) {
-    let to = from;
-    let text = "";
-    for (;;) {
-      const chunk = read(to, Math.min(length, to + CHUNK));
-      const newline = chunk.indexOf("\n");
-      if (newline >= 0) {
-        text += chunk.slice(0, newline);
-        to += newline;
-        break;
-      }
-      text += chunk;
-      to += chunk.length;
-      if (to >= length) break;
-    }
-    yield { from, text: text.replace(/\r$/, "") };
-    from = to + 1;
-  }
+interface DirectiveSource {
+  read: Read;
+  characterNumber: (pos: number) => number;
 }
 
-const displayLineAt = (tree: Tree, at: number) => {
-  let line = tree.resolveInner(at, 1) as ReturnType<Tree["resolveInner"]> | null;
-  while (line && !Object.hasOwn(DISPLAY_LINE_TYPES, line.name)) {
-    line = line.parent;
+const ASSET_LINES = new Set(["ImageLine", "AudioLine", "ImageAndAudioLine", "AssetLine"]);
+
+const DIRECTIVE = /\[\[.*?\]\]|\(\(.*?\)\)/gs;
+
+const isDisplay = (node: SyntaxNode) => Object.hasOwn(DISPLAY_LINE_TYPES, node.name);
+
+const passesThrough = (node: SyntaxNode) =>
+  ASSET_LINES.has(node.name) ||
+  node.name === "Newline" ||
+  node.name.endsWith("Whitespace") ||
+  node.name.includes("Comment") ||
+  node.name.startsWith("LuauSparkdownVariable");
+
+const constructAt = (tree: Tree, at: number): SyntaxNode | null => {
+  let node: SyntaxNode | null = tree.resolveInner(at, 1);
+  while (node && !isDisplay(node) && !ASSET_LINES.has(node.name)) {
+    node = node.parent;
   }
-  return line;
+  return node;
+};
+
+const writesText = (node: SyntaxNode, range: { from: number; to: number }, read: Read) => {
+  let text = stripStyleCodes(readStyledSource(node, range.from, range.to, { read }));
+  const removeComments = (parent: SyntaxNode) => {
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (child.to <= range.from || child.from >= range.to) continue;
+      if (child.name.includes("Comment")) {
+        text = text.replace(read(child.from, child.to), "");
+      } else {
+        removeComments(child);
+      }
+    }
+  };
+  removeComments(node);
+  return text.replace(DIRECTIVE, "").trim().length > 0;
 };
 
 const speakerOf = (
   context: Record<string, any> | undefined,
   names: CharacterNames,
-  line: ReturnType<typeof displayLineAt>,
-  read: (from: number, to: number) => string,
+  node: SyntaxNode,
+  read: Read,
 ): string | undefined => {
-  const cue = line && DISPLAY_LINE_TYPES[line.name] === "dialogue" ? readCueSource(line, { read }) : null;
+  const cue = DISPLAY_LINE_TYPES[node.name] === "dialogue" ? readCueSource(node, { read }) : null;
   return cue ? cueCharacter(context, names, cue) : undefined;
-};
-
-const NOT_TEXT = new Set(["DialogueCharacter", "ColonSeparator"]);
-
-const writesNoText = (tree: Tree, line: { from: number; text: string }) => {
-  let text = line.text;
-  const to = line.from + text.length;
-  tree.iterate({
-    from: line.from,
-    to,
-    enter: (node) => {
-      if (node.to <= line.from || node.from >= to) return false;
-      if (!NOT_TEXT.has(node.name) && !node.name.includes("Comment")) return undefined;
-      const start = Math.max(node.from, line.from) - line.from;
-      const end = Math.min(node.to, to) - line.from;
-      text = text.slice(0, start) + " ".repeat(end - start) + text.slice(end);
-      return false;
-    },
-  });
-  return !text.trim() || ASSET_LINE_REGEX.test(text);
 };
 
 const lineSpeaker = (
   context: Record<string, any> | undefined,
   names: CharacterNames,
   tree: Tree,
-  read: (from: number, to: number) => string,
+  source: DirectiveSource,
   at: number,
 ): string | undefined => {
-  const own = speakerOf(context, names, displayLineAt(tree, at), read);
-  const lines = linesFrom(read, tree.length, at);
-  const first = lines.next().value;
-  if (!first || !writesNoText(tree, first)) {
-    return own;
+  const { read } = source;
+  const own = constructAt(tree, at);
+  if (!own) return undefined;
+  const ownSpeaker = isDisplay(own) ? speakerOf(context, names, own, read) : undefined;
+  const ownBeats = isDisplay(own) ? (displayBeatRanges(own, source) ?? []).filter((range) => range.to >= at) : [];
+  if (ownBeats.some((range) => writesText(own, range, read))) {
+    return ownSpeaker;
   }
-  for (const line of lines) {
-    if (writesNoText(tree, line)) {
-      continue;
+  for (let next = own.nextSibling; next; next = next.nextSibling) {
+    if (passesThrough(next)) continue;
+    if (!isDisplay(next)) break;
+    if ((displayBeatRanges(next, source) ?? []).some((range) => writesText(next, range, read))) {
+      return speakerOf(context, names, next, read);
     }
-    const next = displayLineAt(tree, line.from + line.text.length - line.text.trimStart().length);
-    return next ? speakerOf(context, names, next, read) : own;
   }
-  return own;
+  return ownSpeaker;
 };
 
 export const directiveLinePick = (
   context: Record<string, any>,
   tree: Tree,
-  read: (from: number, to: number) => string,
+  source: DirectiveSource,
   at: number,
   imageName: string,
   names: CharacterNames = characterNames(context),
-  directives: readonly SourceDirective[] = readSourceDirectives(tree, read),
+  directives: readonly SourceDirective[] = readSourceDirectives(tree, source.read),
 ): string | undefined => {
   const directive = directives.find(
     (directive) => directive.contentFrom <= at && at < directive.contentTo,
@@ -120,6 +102,6 @@ export const directiveLinePick = (
     context,
     [imageName],
     typeof pick === "string" ? pick : undefined,
-    lineSpeaker(context, names, tree, read, at),
+    lineSpeaker(context, names, tree, source, at),
   );
 };

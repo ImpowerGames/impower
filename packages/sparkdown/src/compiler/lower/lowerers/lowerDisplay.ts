@@ -1376,7 +1376,7 @@ function findFirstDirectChild(
   return null;
 }
 
-function displayBeatRanges(
+export function displayBeatRanges(
   node: SyntaxNode,
   ctx: SourceReader,
 ): BeatRange[] | undefined {

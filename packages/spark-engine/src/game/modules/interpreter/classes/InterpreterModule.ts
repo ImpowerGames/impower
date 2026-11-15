@@ -59,7 +59,6 @@ import {
   characterNames,
   cueCharacter,
 } from "@impower/sparkdown/src/compiler/utils/cueCharacter";
-import { ASSET_LINE_REGEX } from "@impower/sparkdown/src/compiler/utils/assetLine";
 
 export interface InterpreterConfig {}
 
@@ -120,6 +119,8 @@ export class InterpreterModule extends Module<
     /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)$/;
 
   WHITESPACE_REGEX = /[ \t\r\n]+/;
+
+  ASSET_LINE_REGEX = /^[ \t]*(?:(?:\[\[.*?\]\]|\(\(.*?\)\))[ \t]*)+$/;
 
   protected _targetPrefixMap: Record<string, string> = {};
 
@@ -319,7 +320,7 @@ export class InterpreterModule extends Module<
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i]!;
-      if (!stripStyleCodes(line).trim() || ASSET_LINE_REGEX.test(line)) {
+      if (!stripStyleCodes(line).trim() || this.ASSET_LINE_REGEX.test(line)) {
         continue;
       }
       const match = stripTagCodes(line).match(this.PARENTHETICAL_REGEX);
