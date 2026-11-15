@@ -119,13 +119,56 @@ describe("a speech morph acts only on its character's lines (I-2390)", () => {
     expect(drawn(content)).toContain("data-name='mouth.closed'");
   });
 
-  test("the portrait's saved state keeps the look its line gave it, for a restore on a later beat", async () => {
-    const source = scene("  [[show portrait mia morph talk_gritted]]\n  Here is Mia.");
-    const harness = createHarness(source, 0, { assets: ARTS });
-    await harness.ready;
-    await harness.preview(source.split("\n").findIndex((text) => text.includes("[[show portrait")));
-    const saved = (harness.game as any).module.ui._state.image?.portrait;
-    expect(saved?.map((event: any) => event.morph)).toEqual(["none"]);
+  describe("a kept portrait restores with the look its line gave it", () => {
+    const restored = async (body: string, saved?: (state: any[]) => any[]) => {
+      const source = scene(body);
+      const harness = createHarness(source, 0, { assets: ARTS });
+      await harness.ready;
+      await harness.preview(source.split("\n").findIndex((text) => text.includes("[[show portrait")));
+      const ui = (harness.game as any).module.ui;
+      if (saved) ui._state.image.portrait = saved(ui._state.image.portrait);
+      const before = harness.messages.length;
+      await ui.image.restore("portrait");
+      return harness.messages
+        .slice(before)
+        .flatMap((message) => (message?.method === "ui/batch" ? message.params.messages : [message]))
+        .filter((message) => message?.method === "ui/write-image" && message.params.target === "portrait" && message.params.instructions.length)
+        .map((message) => message.params.instructions[0].content)
+        .at(-1);
+    };
+
+    test("shown on narration, it carries no speech morph when restored", async () => {
+      const content = await restored("  [[show portrait mia:mouth.teeth morph talk_gritted]]\n  Here is Mia.");
+      expect(played(content)).toEqual(["blink"]);
+      expect(drawn(content)).toContain("data-name='mouth.teeth'");
+    });
+
+    test("shown on its character's line, it carries the speech morph when restored", async () => {
+      const content = await restored("  MIA:\n    [[show portrait mia:mouth.teeth morph talk_gritted]]\n    Here is Mia.");
+      expect(played(content)).toEqual(["blink", "talk_gritted"]);
+    });
+
+    test("a save written before the speaker was kept restores as it did then", async () => {
+      const content = await restored("  [[show portrait mia:mouth.teeth]]\n  Here is Mia.", (state) =>
+        state.map(({ speaker, ...event }: any) => event),
+      );
+      expect(played(content)).toEqual(["blink", "talk"]);
+      expect(drawn(content)).toContain("data-name='mouth.closed'");
+    });
+  });
+
+  test("a named layered image decides each layer by its own character", async () => {
+    const source = (body: string) =>
+      scene(`${body}`).replace("scene start", "define pair as layered_image with\n  assets = { image.mia, image.bob }\nend\n\nscene start");
+    const plays = async (body: string) => {
+      const content = await written(source(body));
+      const by = (owner: string) =>
+        (content.morph?.plays ?? []).filter((play: any) => play.owner === owner).map((play: any) => play.morph);
+      return { mia: by("mia"), bob: by("bob") };
+    };
+    expect(await plays("  MIA:\n    [[show portrait pair:mouth.teeth]]\n    Here is Mia.")).toEqual({ mia: ["blink", "talk"], bob: ["blink"] });
+    expect(await plays("  BOB:\n    [[show portrait pair:mouth.teeth]]\n    Here is Bob.")).toEqual({ mia: ["blink"], bob: ["blink", "talk"] });
+    expect(await plays("  [[show portrait pair:mouth.teeth]]\n  Here they are.")).toEqual({ mia: ["blink"], bob: ["blink"] });
   });
 
   test("in a composition each portrait follows its own character, and an image that belongs to no character keeps its pick", async () => {

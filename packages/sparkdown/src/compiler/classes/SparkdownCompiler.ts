@@ -19,7 +19,7 @@ import {
   type DirectiveWord,
   type SourceDirective,
 } from "../utils/readDirective";
-import { resolveImageLayers } from "../utils/resolveImageLayers";
+import { resolveImageLayers, type ImageLayer } from "../utils/resolveImageLayers";
 import type { MorphProgramChannel } from "../../morph/types";
 import {
   collectLuauLints,
@@ -197,7 +197,7 @@ import {
 } from "../utils/characterAliasOwners";
 import { getContextEntry } from "../utils/getContextEntry";
 import { characterNames } from "../utils/cueCharacter";
-import { directiveLinePick } from "../utils/directiveLinePick";
+import { directiveLine, linePickOf } from "../utils/directiveLinePick";
 import { getTypedImageEntry, typedImageTypes } from "../utils/resolveImageReference";
 import { setContextEntry } from "../utils/setContextEntry";
 import type { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
@@ -4791,10 +4791,21 @@ export class SparkdownCompiler {
       const emitted = new Set<string>();
       const scriptTree = this.documents.tree(uri);
       const directives = scriptTree ? readSourceDirectives(scriptTree, (from, to) => doc.read(from, to)) : [];
-      const emit = (struct: any, from: number, to: number, written: readonly string[], pick?: string) => {
-        const look = shownLook(program.context, program.morphs, struct, undefined, pick);
+      const emit = (struct: any, from: number, to: number, written: readonly string[], pickOf?: (layer: ImageLayer) => string | undefined) => {
+        const layers = resolveImageLayers(program.context, struct);
+        const look = shownLook(program.context, program.morphs, struct, undefined, pickOf?.(layers[0] ?? { src: "", struct }));
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
-        if (look && written.length > 0) {
+        const looks =
+          layers.length > 1
+            ? layers.flatMap((layer) => {
+                const layerLook = layer.struct ? shownLook(program.context, program.morphs, layer.struct, undefined, pickOf?.(layer)) : undefined;
+                return layerLook ? [layerLook] : [];
+              })
+            : look
+              ? [look]
+              : [];
+        const warned = new Set<string>();
+        for (const look of written.length > 0 ? looks : []) {
           const chosen = resolveAttributes(look.vocabulary, written).selection;
           const text = doc.read(from, to);
           for (const { name, pose } of look.morphs) {
@@ -4805,6 +4816,9 @@ export class SparkdownCompiler {
               const at = token === undefined ? -1 : tokenOffset(text, token);
               const start = at >= 0 ? from + at : from;
               const end = at >= 0 ? start + token!.length : to;
+              const key = JSON.stringify([start, end, name, group, rest, choice]);
+              if (warned.has(key)) continue;
+              warned.add(key);
               (program.diagnostics ??= {})[uri] ??= [];
               program.diagnostics[uri]!.push({
                 range: doc.range(start, end),
@@ -4851,7 +4865,7 @@ export class SparkdownCompiler {
       }
       const pickAt = (at: number, struct: any) =>
         scriptTree
-          ? directiveLinePick(program.context!, scriptTree, { read: (from, to) => doc.read(from, to), characterNumber: (pos) => doc.positionAt(pos).character }, at, struct?.$name ?? "", names, directives)
+          ? linePickOf(program.context!, struct?.$name ?? "", directiveLine(program.context!, scriptTree, { read: (from, to) => doc.read(from, to), characterNumber: (pos) => doc.positionAt(pos).character }, at, names, directives))
           : undefined;
       let coveredTo = -1;
       const shownImages: typeof images = [];

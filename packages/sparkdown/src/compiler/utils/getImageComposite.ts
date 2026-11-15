@@ -14,10 +14,14 @@ import { resolveImageLayers, type ImageLayer } from "./resolveImageLayers";
 
 export type ReadFileBytes = (uri: string) => Promise<string | undefined>;
 
+export type ImagePick = string | ((layer: ImageLayer) => string | undefined);
+
+const layerPick = (pick: ImagePick | undefined, layer: ImageLayer) => (typeof pick === "function" ? pick(layer) : pick);
+
 export interface ImageCompositeOptions {
   readFileBytes?: ReadFileBytes;
   size?: number;
-  pick?: string;
+  pick?: ImagePick;
   morphRest?: (
     context: { [type: string]: { [name: string]: any } } | undefined,
     struct: any,
@@ -26,7 +30,7 @@ export interface ImageCompositeOptions {
   shownLayers?: (
     context: { [type: string]: { [name: string]: any } } | undefined,
     struct: any,
-    pick?: string,
+    pick?: ImagePick,
   ) => (ImageLayer & { shown?: true })[];
 }
 
@@ -132,7 +136,7 @@ export const resolvePreviewLayers = async (
   if (!morphRest) return layers;
   return Promise.all(
     layers.map(async (layer) => {
-      const rest = layer.struct ? await morphRest(context, layer.struct, options?.pick) : undefined;
+      const rest = layer.struct ? await morphRest(context, layer.struct, layerPick(options?.pick, layer)) : undefined;
       return rest ? { src: `data:image/svg+xml,${encodeURIComponent(rest)}`, rest: true as const } : layer;
     }),
   );
@@ -211,7 +215,7 @@ export const getImagePreviewComposited = async (
   struct: any,
   options?: ImageCompositeOptions,
 ): Promise<{ src: string; composited: boolean } | undefined> => {
-  const rest = await options?.morphRest?.(context, struct, options?.pick);
+  const rest = await options?.morphRest?.(context, struct, layerPick(options?.pick, resolveImageLayers(context, struct)[0] ?? { src: "", struct }));
   if (rest) {
     return { src: `data:image/svg+xml,${encodeURIComponent(rest)}`, composited: false };
   }

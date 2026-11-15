@@ -1,5 +1,5 @@
 import { readSourceDirectiveTexts } from "@impower/sparkdown/src/compiler/utils/readDirective";
-import { directiveLinePick } from "@impower/sparkdown/src/compiler/utils/directiveLinePick";
+import { directiveLine, linePickOf } from "@impower/sparkdown/src/compiler/utils/directiveLinePick";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
@@ -301,12 +301,15 @@ export const getHover = async (
   const { struct, range } = match as { struct: any; range: Range };
   const pick =
     tree && program.context
-      ? directiveLinePick(
+      ? linePickOf(
           program.context,
-          tree,
-          { read: (from, to) => document.read(from, to), characterNumber: (pos) => document.positionAt(pos).character },
-          document.offsetAt(range.start),
           struct.$name ?? "",
+          directiveLine(
+            program.context,
+            tree,
+            { read: (from, to) => document.read(from, to), characterNumber: (pos) => document.positionAt(pos).character },
+            document.offsetAt(range.start),
+          ),
         )
       : undefined;
   const preview = await getImagePreviewMarkupComposited(

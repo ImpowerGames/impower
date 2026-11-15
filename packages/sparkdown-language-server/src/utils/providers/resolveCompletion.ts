@@ -4,13 +4,14 @@ import {
   type ImageCompositeOptions,
 } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { MarkupKind, type CompletionItem } from "vscode-languageserver";
+import { linePickOf, type DirectiveLine } from "@impower/sparkdown/src/compiler/utils/directiveLinePick";
 
 export interface CompletionItemResolveData {
   uri: string;
   type: string;
   name: string;
   filtered?: { image: string; attributes: string[] };
-  pick?: string;
+  line?: DirectiveLine;
 }
 
 const synthesizeFilteredImage = (
@@ -68,7 +69,7 @@ export const resolveCompletion = async (
   const preview = await getImagePreviewMarkupComposited(
     context,
     struct,
-    data.pick === undefined ? options : { ...options, pick: data.pick },
+    data.line && context ? { ...options, pick: linePickOf(context, struct.$name ?? "", data.line) } : options,
   );
   if (!preview) {
     return item;

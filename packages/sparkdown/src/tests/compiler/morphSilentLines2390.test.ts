@@ -146,6 +146,13 @@ describe("the choice warning follows the line's speaker (I-2390)", () => {
     expect(found[0]!.at).toBeLessThan("    [[bunny:mouth.teeth + ".length);
   });
 
+  test("a named layered image is warned only for the layer of the character who speaks", () => {
+    const PAIR = "define pair as layered_image with\n  assets = { image.bunny, image.raffles }\nend\n";
+    expect(warnings(story("  BUNNY:\n    [[pair:mouth.teeth]]\n    Let go of that!", PAIR))).toHaveLength(1);
+    expect(warnings(story("  RAFFLES:\n    [[pair:mouth.teeth]]\n    Look at him.", PAIR))).toHaveLength(1);
+    expect(warnings(story("  [[pair:mouth.teeth]]\n  There they are.", PAIR))).toEqual([]);
+  });
+
   test("a named look's own warning is unchanged", () => {
     const text = story(
       "  [[bunny_shut]]",

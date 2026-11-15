@@ -4,6 +4,7 @@ import { readStyledSource } from "../lower/utils/displaySpans";
 import { DISPLAY_LINE_TYPES, displayBeatRanges, readCueSource } from "../lower/lowerers/lowerDisplay";
 import { characterNames, cueCharacter, type CharacterNames } from "./cueCharacter";
 import { linePick } from "./linePick";
+import type { ImageLayer } from "./resolveImageLayers";
 import { readSourceDirectives, type SourceDirective } from "./readDirective";
 
 type Read = (from: number, to: number) => string;
@@ -85,23 +86,31 @@ const lineSpeaker = (
   return ownSpeaker;
 };
 
-export const directiveLinePick = (
+export interface DirectiveLine {
+  pick?: string;
+  speaker?: string;
+}
+
+export const directiveLine = (
   context: Record<string, any>,
   tree: Tree,
   source: DirectiveSource,
   at: number,
-  imageName: string,
   names: CharacterNames = characterNames(context),
   directives: readonly SourceDirective[] = readSourceDirectives(tree, source.read),
-): string | undefined => {
+): DirectiveLine => {
   const directive = directives.find(
     (directive) => directive.contentFrom <= at && at < directive.contentTo,
   );
-  const pick = directive?.kind === "image" ? directive.values["morph"] : undefined;
-  return linePick(
-    context,
-    [imageName],
-    typeof pick === "string" ? pick : undefined,
-    lineSpeaker(context, names, tree, source, at),
-  );
+  const written = directive?.kind === "image" ? directive.values["morph"] : undefined;
+  const speaker = lineSpeaker(context, names, tree, source, at);
+  return {
+    ...(typeof written === "string" ? { pick: written } : {}),
+    ...(speaker !== undefined ? { speaker } : {}),
+  };
 };
+
+export const linePickOf =
+  (context: Record<string, any>, imageName: string, line: DirectiveLine) =>
+  (layer: ImageLayer): string | undefined =>
+    linePick(context, imageName, layer, line.pick, line.speaker);

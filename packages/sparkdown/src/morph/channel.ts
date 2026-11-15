@@ -334,12 +334,13 @@ export function shownImageLayers(
   channel: MorphProgramChannel | undefined,
   struct: any,
   poseOf: (recipe: MorphRecipe) => Record<string, string> = morphRestPose,
-  pick?: string,
+  pick?: string | ((layer: ImageLayer) => string | undefined),
 ): (ImageLayer & { shown?: true })[] {
   const layers = resolveImageLayers(context, struct);
   if (!context || !channel) return layers;
   return layers.map((layer) => {
-    const look = layer.struct ? shownLook(context, channel, layer.struct, poseOf, pick) : undefined;
+    const layerPick = typeof pick === "function" ? pick(layer) : pick;
+    const look = layer.struct ? shownLook(context, channel, layer.struct, poseOf, layerPick) : undefined;
     if (!look?.attributes.length) return layer;
     const src = filterImage(context, shownLookStruct(layer.struct, look.attributes)).src;
     return src ? { ...layer, src, shown: true as const } : layer;

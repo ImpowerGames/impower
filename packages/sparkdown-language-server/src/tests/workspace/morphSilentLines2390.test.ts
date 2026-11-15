@@ -3,6 +3,7 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/class
 import { describe, expect, test, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
+import type { ImagePick } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { getHover } from "../../utils/providers/getHover";
 import { resolveCompletion } from "../../utils/providers/resolveCompletion";
 import { completeAt } from "../providers/braceCompletionHarness";
@@ -77,7 +78,7 @@ function workspaceFor(program: any) {
   });
   workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
   return {
-    shownLayers: (context: any, struct: any, pick?: string) => workspace.morphShownLayers(context, struct, pick),
+    shownLayers: (context: any, struct: any, pick?: ImagePick) => workspace.morphShownLayers(context, struct, pick),
   };
 }
 
