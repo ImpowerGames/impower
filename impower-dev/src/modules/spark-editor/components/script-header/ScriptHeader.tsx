@@ -117,7 +117,7 @@ export default function ScriptHeader({
     <header
       data-script-header
       class={cn(
-        "relative z-10 flex h-[var(--script-header-height)] min-h-[var(--script-header-height)] flex-none items-center gap-2.5 bg-workspace in-data-editing:hidden",
+        "relative z-10 flex h-[var(--script-header-height)] min-h-[var(--script-header-height)] flex-none items-center gap-2.5 bg-workspace in-data-editing:hidden in-data-script-only:hidden",
         desktop ? "py-2 pr-[22px] pl-3" : "pr-4 pl-1.5",
         "motion-safe:transition-shadow motion-safe:duration-150",
         scrolled && "shadow-[0_7px_10px_-4px_var(--editor-sticky-shadow)]",

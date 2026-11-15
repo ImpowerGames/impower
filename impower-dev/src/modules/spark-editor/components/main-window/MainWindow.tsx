@@ -6,6 +6,7 @@ import {
 } from "@impower/impower-ui/layout";
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
+import { useScriptFocus } from "../../utils/useScriptFocus";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
 import { InspectorDock, InspectorDockProvider } from "../asset-inspector";
@@ -36,7 +37,12 @@ export default function MainWindow(_props: MainWindowProps) {
   useWorkspaceSession();
   useFocusRule();
   useFindShortcut();
-  useKeyboardFit(useCoarsePointer());
+  const keyboard = useKeyboardFit(useCoarsePointer());
+  const writing = useScriptFocus();
+  const scriptOnly =
+    writing &&
+    keyboard.open &&
+    keyboard.visibleHeight < STRIP_HEIGHT.reserve;
   const layout = useLayout();
   const isSSR = typeof window === "undefined";
   const desktop = !isSSR && layout === "desktop";
@@ -62,13 +68,18 @@ export default function MainWindow(_props: MainWindowProps) {
   );
 
   return (
-    <WorkspaceShell phone={phone} strip={phone && <PhonePreviewStrip />}>
+    <WorkspaceShell
+      phone={phone}
+      strip={phone && <PhonePreviewStrip />}
+      scriptOnly={scriptOnly}
+    >
       <div class="relative flex h-full min-h-0 flex-1">
         {!isSSR && (
           <InspectorDockProvider>
             <SplitPane
               orientation={strip ? "vertical" : "horizontal"}
               reverse={strip}
+              solo={scriptOnly}
               label={strip ? "Resize preview" : undefined}
               class="[--split-start-surface:var(--color-workspace)] [--split-end-surface:var(--color-preview-mat)]"
               pinned={
