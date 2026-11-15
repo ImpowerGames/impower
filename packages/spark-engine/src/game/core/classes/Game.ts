@@ -495,6 +495,11 @@ export class Game<T extends M = {}> {
   protected _errorEnding: { message: string; location: DocumentLocation } | null =
     null;
 
+  protected _savedErrorEnding: {
+    message: string;
+    location: DocumentLocation;
+  } | null = null;
+
   protected _stepping = false;
 
   protected _nextObjectVariableRef = 2000;
@@ -2982,6 +2987,13 @@ export class Game<T extends M = {}> {
     if (ending) {
       saveData.ending = ending;
     }
+    const endingError =
+      ending === "error"
+        ? (this._ending?.error ?? this._errorEnding ?? this._savedErrorEnding)
+        : null;
+    if (endingError) {
+      saveData.endingError = endingError;
+    }
     const beatStart =
       this.programStory.state.beatImage === null
         ? null
@@ -3299,6 +3311,7 @@ export class Game<T extends M = {}> {
     this._runtimeState = runtime;
     this._awaiting = this.lastExecutedScriptLocation();
     this._story.ending = Game.savedEnding(saveData);
+    this._savedErrorEnding = Game.savedErrorEnding(saveData);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
       this.simulateFlow = saveData.simulatedFrom;
@@ -3312,6 +3325,15 @@ export class Game<T extends M = {}> {
       saveData.ending === "out" ||
       saveData.ending === "error"
       ? saveData.ending
+      : null;
+  }
+
+  protected static savedErrorEnding(
+    saveData: SaveData,
+  ): { message: string; location: DocumentLocation } | null {
+    const error = saveData.ending === "error" ? saveData.endingError : null;
+    return error && typeof error.message === "string" && error.location
+      ? { message: error.message, location: error.location }
       : null;
   }
 
@@ -3401,6 +3423,7 @@ export class Game<T extends M = {}> {
     }
     this._runtimeState = RuntimeState.of(entry.runtime);
     story.ending = Game.savedEnding(saveData);
+    this._savedErrorEnding = Game.savedErrorEnding(saveData);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
       this.simulateFlow = saveData.simulatedFrom;
@@ -3446,6 +3469,7 @@ export class Game<T extends M = {}> {
     this.cancelPreview();
     this._ending = null;
     this._errorEnding = null;
+    this._savedErrorEnding = null;
     this.rewindStory();
     this._sceneTracker.reset();
     for (const k of this._moduleNames) {
@@ -4083,7 +4107,8 @@ export class Game<T extends M = {}> {
   }
 
   protected endStory(kind: StoryEnding) {
-    const error = kind === "error" ? this._errorEnding : null;
+    const error =
+      kind === "error" ? (this._errorEnding ?? this._savedErrorEnding) : null;
     this._ending = {
       kind,
       location:

@@ -750,6 +750,12 @@ end
         expect(loaded.page()).toEqual(entries);
         expect(finished).toEqual([expect.objectContaining({ kind })]);
         if (kind === "error") {
+          expect(h.game.ending?.error?.message).toBeTruthy();
+          expect(loaded.game.ending?.error).toEqual(h.game.ending?.error);
+          expect(loaded.game.ending?.location).toEqual(
+            h.game.ending?.location,
+          );
+        } else {
           expect(loaded.game.ending?.error).toBeUndefined();
         }
         loaded.game.clickedToContinue();
@@ -757,6 +763,21 @@ end
         expect(finished).toHaveLength(1);
       },
     );
+
+    test(`${mode}: an error-ending save without its detail loads ended with none`, () => {
+      const h = play(ending("error", prelude));
+      playToEnd(h);
+      const saved = h.game.saveHere();
+      const data = JSON.parse(saved!.data);
+      expect(data.ending).toBe("error");
+      expect(data.endingError).toBeDefined();
+      delete data.endingError;
+      const loaded = play(ending("error", prelude));
+      expect(loaded.game.loadToResume(JSON.stringify(data))).toBe(true);
+      loaded.game.start();
+      expect(loaded.game.ending?.kind).toBe("error");
+      expect(loaded.game.ending?.error).toBeUndefined();
+    });
   }
 
   test("a save taken before the ending loads where it was, not ended", () => {
