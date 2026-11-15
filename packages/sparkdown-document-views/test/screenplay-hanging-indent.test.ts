@@ -224,6 +224,21 @@ describe("a wrapped row of an alternative", () => {
     for (const x of rows) expect(Math.abs(x - brace.x), "PDF row").toBeLessThan(0.01);
   }, 120_000);
 
+  it("hangs each row by its own depth when one source line holds rows of two depths, on the page as in the PDF", async () => {
+    const script = ["scene s", "  if flag then", `    queue | ${LONG} | Short. end : Outer tail.`, "  end", "end", ""].join("\n");
+    const found = (await pageRows())["mixed depths on one line"]!;
+    expect(found.rows.length).toBeGreaterThan(1);
+    expect(found.markLeft).toBeLessThan(found.rows[0]!);
+    for (const left of found.rows) expect(Math.abs(left - found.rows[0]!), "page row").toBeLessThan(0.5);
+    expect(Math.abs(found.others["Short."]! - found.rows[0]!), "Short.").toBeLessThan(0.5);
+    const cell = (found.rows[0]! - found.markLeft) / 4;
+    expect(Math.abs(found.others["Outer tail."]! - (found.markLeft + 2 * cell)), "Outer tail.").toBeLessThan(1);
+    const draws = await pdfDraws(script);
+    const rows = pdfRows(draws);
+    expect(rows.length).toBeGreaterThan(1);
+    for (const x of rows) expect(Math.abs(x - rows[0]!), "PDF row").toBeLessThan(0.01);
+  }, 120_000);
+
   it("keeps its hanging indent across a PDF page break", async () => {
     const words = Array.from({ length: 300 }, (_, index) => `Word${index}`).join(" ");
     const script = [

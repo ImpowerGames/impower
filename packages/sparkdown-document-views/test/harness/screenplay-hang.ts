@@ -21,7 +21,8 @@ const FIXTURES: Record<string, string> = {
   "depth 8": nested(8),
   "shared with text": ["scene s", `  queue | ${LONG} | Short. end : Afterwards.`, "end", ""].join("\n"),
   "unmarked text wrapping after a block": ["scene s", `  queue | One. | Two. end : ${LONG}`, "end", ""].join("\n"),
-  "shared with a block":["scene s", `  queue | One. | Two. end queue | ${LONG} | Short. end`, "end", ""].join("\n"),
+  "mixed depths on one line": ["scene s", "  if flag then", `    queue | ${LONG} | Short. end : Outer tail.`, "  end", "end", ""].join("\n"),
+  "shared with a block": ["scene s", `  queue | One. | Two. end queue | ${LONG} | Short. end`, "end", ""].join("\n"),
 };
 
 for (const [name, text] of Object.entries(FIXTURES)) {

@@ -9,6 +9,7 @@ export interface InsertedRowPiece {
 export interface InsertedRowBreaks {
   before: boolean;
   after: boolean;
+  block?: boolean;
 }
 
 const DEFAULT_LINE_HEIGHT = 22.390625;
@@ -34,6 +35,10 @@ export default class InsertedRowWidget extends WidgetType {
       row.classList.add("cm-line");
       row.style.opacity = "1";
     }
+    if (this.inline?.block) {
+      row.style.display = "block";
+      row.style.textIndent = "0";
+    }
     if (this.inline?.before) row.append(lineBreak());
     for (const piece of this.pieces) {
       const span = document.createElement("span");
@@ -51,6 +56,7 @@ export default class InsertedRowWidget extends WidgetType {
     return (
       other.inline?.before === this.inline?.before &&
       other.inline?.after === this.inline?.after &&
+      other.inline?.block === this.inline?.block &&
       other.pieces.length === this.pieces.length &&
       other.pieces.every(
         (piece, index) =>
