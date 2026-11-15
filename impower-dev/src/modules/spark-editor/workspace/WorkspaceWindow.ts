@@ -3007,15 +3007,20 @@ export default class WorkspaceWindow {
       console.error(err);
       const failure =
         err instanceof ProjectImportError
-          ? { reason: err.reason, folders: err.folders }
+          ? {
+              reason: err.reason,
+              folders: err.folders,
+              ...(err.rollback && { rollback: err.rollback }),
+            }
           : { reason: "unknown" as const };
+      const unchanged =
+        REFUSED_BEFORE_CHANGE.has(failure.reason) ||
+        ("rollback" in failure && failure.rollback?.complete);
       this.update({
         ...this.store,
         sync: {
           ...this.store.sync,
-          status: REFUSED_BEFORE_CHANGE.has(failure.reason)
-            ? statusBefore
-            : "import_error",
+          status: unchanged ? statusBefore : "import_error",
           importOutcome: { status: "failed", fileName, ...failure },
         },
       });

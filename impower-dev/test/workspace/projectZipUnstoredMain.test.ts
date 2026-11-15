@@ -57,6 +57,7 @@ const starterProject = (stored: Record<string, string | undefined> = {}) => {
     foldersOutside: proto.foldersOutside,
     replaceFolders: proto.replaceFolders,
     clearFoldersAt: proto.clearFoldersAt,
+    folderPlan: proto.folderPlan,
     _scheme: "file://",
     _unstoredUris: new Set<string>([MAIN_URI]),
     getFiles: async () => files,
@@ -87,15 +88,15 @@ const starterProject = (stored: Record<string, string | undefined> = {}) => {
       }
     },
     applyWorkspaceEdit: async (edit: {
-      documentChanges: { kind: string; uri: string; data?: ArrayBuffer }[];
+      documentChanges: { kind: string; uri: string; data?: ArrayBuffer; folder?: boolean }[];
     }) => {
       const changes = edit.documentChanges;
       await fs.deleteFiles({
-        files: changes.filter((c) => c.kind === "delete").map(({ uri }) => ({ uri })),
+        files: changes.filter((c) => c.kind === "delete" && !c.folder).map(({ uri }) => ({ uri })),
       });
       await fs.createFiles({
         files: changes
-          .filter((c) => c.kind === "create" && !c.uri.endsWith("/.folders"))
+          .filter((c) => c.kind === "create" && !c.folder && !c.uri.endsWith("/.folders"))
           .map(({ uri, data }) => ({ uri, data: data! })),
       });
       return { applied: true };

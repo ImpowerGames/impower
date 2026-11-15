@@ -700,21 +700,31 @@ export default class WorkspaceFileSystem {
     );
   }
 
+  protected async folderPlan(
+    projectId: string,
+    unzipped: { filename: string }[],
+  ) {
+    const existing = await this.listFolders(projectId);
+    const listed = unzipped
+      .filter(({ filename }) => filename.endsWith("/"))
+      .map(({ filename }) => filename.replace(/\/+$/, ""));
+    return {
+      existing,
+      listed,
+      stale: foldersWithoutFiles(
+        unzipped.map(({ filename }) => filename),
+        existing,
+        listed,
+      ),
+    };
+  }
+
   protected async replaceFolders(
     projectId: string,
     unzipped: { filename: string }[],
   ) {
-    const listed = unzipped
-      .filter(({ filename }) => filename.endsWith("/"))
-      .map(({ filename }) => filename.replace(/\/+$/, ""));
-    await this.deleteFolders(
-      projectId,
-      foldersWithoutFiles(
-        unzipped.map(({ filename }) => filename),
-        await this.listFolders(projectId),
-        listed,
-      ),
-    );
+    const { listed, stale } = await this.folderPlan(projectId, unzipped);
+    await this.deleteFolders(projectId, stale);
     await this.createFolders(projectId, listed);
   }
 
@@ -722,7 +732,7 @@ export default class WorkspaceFileSystem {
     const incoming = new Set(
       fileUris.map((uri) => this.getRelativePath(projectId, uri)),
     );
-    return this.deleteFolders(
+    await this.deleteFolders(
       projectId,
       (await this.listFolders(projectId)).filter((p) => incoming.has(p)),
     );
@@ -796,13 +806,10 @@ export default class WorkspaceFileSystem {
       uri: this.getFileUri(projectId, ".folders"),
       data: new TextEncoder().encode("1").buffer as ArrayBuffer,
     };
-    let cleared: string[] = [];
+    const depth = (path: string) => path.split("/").length;
     let result: ApplyWorkspaceEditResult;
     try {
-      cleared = await this.clearFoldersAt(
-        projectId,
-        zipFilesToWrite.map(({ uri }) => uri),
-      );
+      const folders = await this.folderPlan(projectId, unzipped);
       result = await this.applyWorkspaceEdit(
         {
           documentChanges: [
@@ -810,22 +817,34 @@ export default class WorkspaceFileSystem {
               kind: "delete" as const,
               uri,
             })),
+            ...[...folders.stale]
+              .sort((a, b) => depth(b) - depth(a))
+              .map((path) => ({
+                kind: "delete" as const,
+                uri: this.getFileUri(projectId, path),
+                folder: true,
+              })),
             ...[...zipFilesToWrite, foldersMarker].map(({ uri, data }) => ({
               kind: "create" as const,
               uri,
               data,
               options: { overwrite: true },
             })),
+            ...folders.listed
+              .filter((path) => !folders.existing.includes(path))
+              .map((path) => ({
+                kind: "create" as const,
+                uri: this.getFileUri(projectId, path),
+                folder: true,
+              })),
           ],
         },
         "Import project",
       );
     } catch (cause) {
-      await this.createFolders(projectId, cleared).catch(console.error);
       throw new ProjectImportError({ reason: "storage" }, { cause });
     }
     if (!result.applied) {
-      await this.createFolders(projectId, cleared).catch(console.error);
       const relative = (uris: string[] | undefined) =>
         (uris ?? []).map((uri) => this.getRelativePath(projectId, uri));
       throw new ProjectImportError(
@@ -844,11 +863,6 @@ export default class WorkspaceFileSystem {
         },
         { cause: new Error(result.failureReason) },
       );
-    }
-    try {
-      await this.replaceFolders(projectId, unzipped);
-    } catch (cause) {
-      throw new ProjectImportError({ reason: "storage" }, { cause });
     }
     return {
       settingsJson: settingsEntry

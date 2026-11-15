@@ -62,7 +62,7 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
     writeProjectMetadata: async () => {},
     foldersOutside: (WorkspaceFileSystem.prototype as any).foldersOutside,
     replaceFolders: (WorkspaceFileSystem.prototype as any).replaceFolders,
-    clearFoldersAt: (WorkspaceFileSystem.prototype as any).clearFoldersAt,
+    folderPlan: (WorkspaceFileSystem.prototype as any).folderPlan,
     isStored: (WorkspaceFileSystem.prototype as any).isStored,
     storedFiles: (WorkspaceFileSystem.prototype as any).storedFiles,
 
@@ -104,15 +104,15 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
       }
     },
     applyWorkspaceEdit: async (edit: {
-      documentChanges: { kind: string; uri: string; data?: ArrayBuffer }[];
+      documentChanges: { kind: string; uri: string; data?: ArrayBuffer; folder?: boolean }[];
     }) => {
       const changes = edit.documentChanges;
       await fs.deleteFiles({
-        files: changes.filter((c) => c.kind === "delete").map(({ uri }) => ({ uri })),
+        files: changes.filter((c) => c.kind === "delete" && !c.folder).map(({ uri }) => ({ uri })),
       });
       await fs.createFiles({
         files: changes
-          .filter((c) => c.kind === "create" && !c.uri.endsWith("/.folders"))
+          .filter((c) => c.kind === "create" && !c.folder && !c.uri.endsWith("/.folders"))
           .map(({ uri, data }) => ({ uri, data: data! })),
       });
       return { applied: true };

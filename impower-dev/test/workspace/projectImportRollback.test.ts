@@ -39,10 +39,10 @@ const backup = (entries: Record<string, string>, folders: string[] = []) =>
     { level: 0 },
   ).buffer as ArrayBuffer;
 
-async function harness() {
+async function harness(extra: Record<string, string> = {}) {
   vi.resetModules();
   const root = memoryRoot();
-  for (const [path, text] of Object.entries({ ...MIGRATED, ...PROJECT })) {
+  for (const [path, text] of Object.entries({ ...MIGRATED, ...PROJECT, ...extra })) {
     writeMemoryFile(root, `local/${path}`, bytes(text));
   }
   Object.defineProperty(navigator, "storage", { configurable: true, value: { getDirectory: async () => root } });
@@ -118,6 +118,15 @@ async function harness() {
       };
     };
   };
+  const failRemoving = (name: string) => {
+    const remove = project.removeEntry.bind(project);
+    project.removeEntry = async (entry, options) => {
+      if (entry === name) {
+        throw new DOMException(`${name} cannot be removed`, "NoModificationAllowedError");
+      }
+      return remove(entry, options);
+    };
+  };
   const importBackup = async (content: ArrayBuffer) => {
     try {
       return { result: await fs.writeProjectZip("local", content) };
@@ -125,7 +134,7 @@ async function harness() {
       return { error: error as InstanceType<typeof ProjectImportError> };
     }
   };
-  return { fs, root, project, stored, text, failCreatingFolder, failWrites, importBackup, ProjectImportError };
+  return { fs, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, ProjectImportError };
 }
 
 const BACKUP = { ".layout": "1", "main.sd": "the backup's main", "images/a.png": "PNG" };
@@ -153,6 +162,62 @@ it("puts back an empty folder cleared for a file of the same path when the impor
   expect(error?.reason).toBe("storage");
   expect(h.stored()).toEqual(before);
   expect(await h.fs.getFolders("local")).toContain("cover.png");
+}, 15_000);
+
+it("leaves the project as it was when creating a folder the backup lists fails", async () => {
+  const h = await harness();
+  const before = h.stored();
+  h.failCreatingFolder("empty");
+  const { error } = await h.importBackup(backup(BACKUP, ["empty"]));
+  expect(error?.reason).toBe("storage");
+  expect(h.stored()).toEqual(before);
+  expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
+  expect(h.text("old/notes.sd")).toBe(PROJECT["old/notes.sd"]);
+  expect(error?.rollback?.complete).toBe(true);
+}, 15_000);
+
+it("leaves the project as it was when removing a folder the backup lacks fails", async () => {
+  const h = await harness();
+  const before = h.stored();
+  h.failRemoving("old");
+  const { error } = await h.importBackup(backup(BACKUP));
+  expect(error?.reason).toBe("storage");
+  expect(h.stored()).toEqual(before);
+  expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
+  expect(h.text("old/notes.sd")).toBe(PROJECT["old/notes.sd"]);
+  expect(error?.rollback?.complete).toBe(true);
+}, 15_000);
+
+it("replaces a folder that holds files with a backup file of the same path", async () => {
+  const h = await harness({ "cover.png/notes.sd": "folder contents" });
+  const { error } = await h.importBackup(backup({ ...BACKUP, "cover.png": "PNG" }));
+  expect(error).toBeUndefined();
+  expect(h.stored()).toEqual(["cover.png", "images/", "images/a.png", "main.sd"]);
+  expect(h.text("cover.png")).toBe("PNG");
+  expect(await h.fs.getFolders("local")).toEqual(["images"]);
+}, 15_000);
+
+it("puts back a folder that held files when the import that replaced it with a file fails", async () => {
+  const h = await harness({ "cover.png/notes.sd": "folder contents" });
+  const before = h.stored();
+  h.failCreatingFolder("images");
+  const { error } = await h.importBackup(backup({ ...BACKUP, "cover.png": "PNG" }));
+  expect(error?.reason).toBe("storage");
+  expect(h.stored()).toEqual(before);
+  expect(h.text("cover.png/notes.sd")).toBe("folder contents");
+  expect(error?.rollback?.complete).toBe(true);
+}, 15_000);
+
+it("reports the rollback incomplete when a folder the import removed cannot be put back", async () => {
+  const h = await harness();
+  await h.fs.createFolder("local", "cover.png");
+  h.failCreatingFolder("images");
+  h.failCreatingFolder("cover.png");
+  const { error } = await h.importBackup(backup({ ...BACKUP, "cover.png": "PNG" }));
+  expect(error?.reason).toBe("storage");
+  expect(h.text("old/notes.sd")).toBe(PROJECT["old/notes.sd"]);
+  expect(error?.rollback?.complete).toBe(false);
+  expect(error?.rollback?.failed).toEqual(expect.arrayContaining(["cover.png", "main.sd"]));
 }, 15_000);
 
 it("carries the rollback's outcome in the import error when the rollback is partial", async () => {

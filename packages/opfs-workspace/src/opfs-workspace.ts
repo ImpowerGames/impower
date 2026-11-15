@@ -61,6 +61,7 @@ import debounce from "./utils/debounce";
 import {
   createDirectory,
   deleteEmptyDirectory,
+  entriesOf,
   findDirectory,
   getAllDirectoriesRecursive,
   getAllFilePathsRecursive,
@@ -462,6 +463,18 @@ const broadcastDeletes = (log: CommitLog, results: DeleteResult[]) => {
       DidDeleteFilesMessage.type.notification({
         files,
         commits: log.stamp(files.map((f) => f.uri)),
+      }),
+    );
+  }
+};
+const broadcastFolders = (log: CommitLog, created: string[], deleted: string[]) => {
+  const current = (uris: string[]) => [...new Set(uris)].filter((uri) => log.isCurrent(uri));
+  const fresh = { created: current(created), deleted: current(deleted) };
+  if (fresh.created.length + fresh.deleted.length > 0) {
+    broadcast(
+      DidChangeDirectoriesMessage.type.notification({
+        ...fresh,
+        commits: log.stamp([...fresh.created, ...fresh.deleted]),
       }),
     );
   }
@@ -1151,6 +1164,7 @@ onmessage = async (e) => {
       confirm: confirm ? () => confirmEdit(message.id) : undefined,
     });
 
+    broadcastFolders(log, effects.foldersCreated, effects.foldersDeleted);
     broadcastCreates(log, effects.created);
     broadcastDeletes(log, effects.deleted);
     broadcastRenames(log, effects.renamed);
@@ -1185,12 +1199,15 @@ interface EditEffects {
   deleted: DeleteResult[];
   renamed: RenameOutcome[];
   fileEvents: FileEvent[];
+  foldersCreated: string[];
+  foldersDeleted: string[];
 }
 
 interface PriorEntry {
   uri: string;
   bytes?: ArrayBuffer;
   directory: boolean;
+  folder?: boolean;
   version?: number;
   document?: TextDocument;
 }
@@ -1200,7 +1217,17 @@ const noEffects = (): EditEffects => ({
   deleted: [],
   renamed: [],
   fileEvents: [],
+  foldersCreated: [],
+  foldersDeleted: [],
 });
+
+const isFolderChange = (
+  change: WorkspaceEditChange,
+): change is WorkspaceEditChange & {
+  kind: "create" | "delete";
+  uri: string;
+  folder: true;
+} => "folder" in change && change.folder === true;
 
 interface Unchanged {
   bytes?: ArrayBuffer;
@@ -1275,6 +1302,18 @@ class UndoLog {
           : [change.uri];
     for (const uri of uris) {
       if (this.prior.has(uri)) {
+        continue;
+      }
+      if (isFolderChange(change)) {
+        this.seen.set(uri, new Set());
+        const directory = await isStoredDirectory(uri);
+        this.prior.set(uri, { uri, directory, folder: true });
+        for (const missing of [
+          ...(directory ? [] : [uri]),
+          ...(await missingDirectories(uri)),
+        ]) {
+          this.directories.add(missing);
+        }
         continue;
       }
       await drainWrites(uri);
@@ -1431,14 +1470,54 @@ class UndoLog {
     const kept: string[] = [];
     const restored: string[] = [];
     const entries = [...this.prior.values()].reverse();
+    const settle = async (target: Restoring) => {
+      try {
+        const done = await this.put(target, log, effects);
+        (done ? restored : kept).push(target.entry.uri);
+        return done ? "restored" : "refused";
+      } catch (err) {
+        console.error(err);
+        unknown.push(target.entry.uri);
+        return "failed";
+      }
+    };
+    const destroy = async (target: Restoring) => {
+      let copy: TrashCopy;
+      try {
+        copy = await this.copyToTrash(target);
+      } catch (err) {
+        console.error(err);
+        unknown.push(target.entry.uri);
+        return;
+      }
+      if ((await settle(target)) === "refused") {
+        await this.discardCopy(copy);
+      }
+    };
     for (const entry of entries.filter((e) => e.directory)) {
       try {
         if (this.movedOn(entry)) {
           kept.push(entry.uri);
-        } else if (!(await isStoredDirectory(entry.uri))) {
-          await createDirectories([entry.uri], log);
-          this.commit(State.localVersions.get(entry.uri)!);
+          continue;
         }
+        if (await isStoredDirectory(entry.uri)) {
+          continue;
+        }
+        await drainWrites(entry.uri);
+        const current = await storedBytes(entry.uri);
+        if (current) {
+          await destroy({
+            entry: { uri: entry.uri, directory: false },
+            current,
+            local: State.localVersions.get(entry.uri),
+          });
+          if (await storedBytes(entry.uri)) {
+            continue;
+          }
+        }
+        await createDirectories([entry.uri], log);
+        this.commit(State.localVersions.get(entry.uri)!);
+        effects.foldersCreated.push(entry.uri);
       } catch (err) {
         console.error(err);
         unknown.push(entry.uri);
@@ -1447,7 +1526,7 @@ class UndoLog {
     const creates: Restoring[] = [];
     const overwrites: Restoring[] = [];
     const removals: Restoring[] = [];
-    for (const entry of entries.filter((e) => !e.directory)) {
+    for (const entry of entries.filter((e) => !e.directory && !e.folder)) {
       try {
         await drainWrites(entry.uri);
         const local = State.localVersions.get(entry.uri);
@@ -1471,33 +1550,9 @@ class UndoLog {
         unknown.push(entry.uri);
       }
     }
-    const settle = async (target: Restoring) => {
-      try {
-        const done = await this.put(target, log, effects);
-        (done ? restored : kept).push(target.entry.uri);
-        return done ? "restored" : "refused";
-      } catch (err) {
-        console.error(err);
-        unknown.push(target.entry.uri);
-        return "failed";
-      }
-    };
     for (const target of creates) {
       await settle(target);
     }
-    const destroy = async (target: Restoring) => {
-      let copy: TrashCopy;
-      try {
-        copy = await this.copyToTrash(target);
-      } catch (err) {
-        console.error(err);
-        unknown.push(target.entry.uri);
-        return;
-      }
-      if ((await settle(target)) === "refused") {
-        await this.discardCopy(copy);
-      }
-    };
     if (unknown.length > 0) {
       unknown.push(...overwrites.map((t) => t.entry.uri));
     } else {
@@ -1529,7 +1584,9 @@ class UndoLog {
       return unknown.length === 0 && kept.length === 0;
     };
     try {
-      await deleteEmptyDirectories([...this.directories], log);
+      effects.foldersDeleted.push(
+        ...(await deleteEmptyDirectories([...this.directories], log)),
+      );
     } catch (err) {
       console.error(err);
       unknown.push(...this.directories);
@@ -1575,7 +1632,22 @@ const applyChange = async (
       type: result.created ? FileChangeType.Created : FileChangeType.Changed,
     });
   };
-  if ("textDocument" in change) {
+  if (isFolderChange(change) && change.kind === "create") {
+    await createDirectories([change.uri], log);
+    undo.commit(State.localVersions.get(change.uri)!);
+    effects.foldersCreated.push(change.uri);
+  } else if (isFolderChange(change)) {
+    const directory = await findDirectory(
+      await navigator.storage.getDirectory(),
+      getPathFromUri(change.uri),
+    );
+    if (directory && (await entriesOf(directory)).length === 0) {
+      for (const uri of await deleteEmptyDirectories([change.uri], log)) {
+        undo.commit(State.localVersions.get(uri)!);
+        effects.foldersDeleted.push(uri);
+      }
+    }
+  } else if ("textDocument" in change) {
     const [written] = await editTextFiles([change], expectedTexts);
     if (written) {
       wrote(written);
