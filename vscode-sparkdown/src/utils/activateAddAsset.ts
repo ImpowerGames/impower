@@ -4,16 +4,12 @@ import {
   type FileAssetType,
   type MissingAsset,
 } from "@impower/sparkdown/src/compiler/utils/missingAsset";
+import {
+  ASSETS_HOME,
+  FILE_TYPE_FOLDERS,
+} from "@impower/spark-editor-protocol/src/utils/assetFolders";
+import { endings } from "@impower/spark-editor-protocol/src/utils/fileEndings";
 import * as vscode from "vscode";
-
-const ASSETS_FOLDER = "assets";
-
-const TYPE_FOLDERS: Record<FileAssetType, string> = {
-  image: "Images",
-  audio: "Audio",
-  video: "Video",
-  font: "Fonts",
-};
 
 const PATTERN_SETTINGS: Record<FileAssetType, string> = {
   image: "imageFiles",
@@ -21,16 +17,6 @@ const PATTERN_SETTINGS: Record<FileAssetType, string> = {
   video: "videoFiles",
   font: "fontFiles",
 };
-
-export const patternEndings = (pattern: string): string[] => [
-  ...new Set(
-    pattern
-      .toLowerCase()
-      .split(/[\s,;{}]+/)
-      .map((ending) => ending.replace(/^[*.]+/, ""))
-      .filter((ending) => /^[a-z0-9]+$/.test(ending)),
-  ),
-];
 
 const childFolder = async (parent: vscode.Uri, name: string) => {
   const entries = await Promise.resolve(
@@ -73,14 +59,14 @@ export const addAsset = async ({ name, type }: MissingAsset) => {
       canSelectMany: false,
       openLabel: `Add as ${name}`,
       title: `Add ${name} to assets`,
-      filters: { [TYPE_FOLDERS[type]]: patternEndings(pattern) },
+      filters: { [FILE_TYPE_FOLDERS[type]]: endings(pattern) },
     })) ?? [];
   if (!picked) {
     return false;
   }
   const folder = await childFolder(
-    await childFolder(root, ASSETS_FOLDER),
-    TYPE_FOLDERS[type],
+    await childFolder(root, ASSETS_HOME),
+    FILE_TYPE_FOLDERS[type],
   );
   const target = vscode.Uri.joinPath(folder, name + extensionOf(picked));
   try {

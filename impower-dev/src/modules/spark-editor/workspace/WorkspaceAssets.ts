@@ -322,13 +322,18 @@ export default class WorkspaceAssets {
     return path;
   }
 
-  async upload(files: readonly DroppedFile[], folder: string): Promise<string[]> {
+  async upload(
+    files: readonly DroppedFile[],
+    folder: string,
+    { keepNames = false }: { keepNames?: boolean } = {},
+  ): Promise<string[]> {
     const listing = this.listing;
     const endings = assetEndings.peek();
     const scripts = scriptsHome(listing);
     return this.importAt(files, (file) => {
       const folders = storageSegments(file.name);
-      const name = getValidFileName(folders.pop() ?? "");
+      const leaf = folders.pop() ?? "";
+      const name = keepNames ? leaf : getValidFileName(leaf);
       const home = isScriptPath(name) ? scripts : landingFolder(listing, assetTypeOf(name, endings), folder);
       return [home, ...folders, name].filter(Boolean).join("/");
     });

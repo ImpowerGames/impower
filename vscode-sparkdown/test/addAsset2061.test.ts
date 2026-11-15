@@ -101,17 +101,17 @@ describe("sparkdown.addAsset", () => {
       }),
     ]);
     expect(state.copies).toEqual([
-      { from: "/downloads/Explosion 2.WAV", to: "/proj/assets/Audio/boom.WAV", overwrite: false },
+      { from: "/downloads/Explosion 2.WAV", to: "/proj/Assets/Audio/boom.WAV", overwrite: false },
     ]);
-    expect(state.infos).toEqual(["Added assets/Audio/boom.WAV."]);
+    expect(state.infos).toEqual(["Added Assets/Audio/boom.WAV."]);
   });
 
   test("keeps the project's own spelling of the assets and type folders", async () => {
-    state.folders.set("/proj", [["Assets", 2], ["main.sd", 1]]);
-    state.folders.set("/proj/Assets", [["images", 2], ["audio.txt", 1]]);
+    state.folders.set("/proj", [["assets", 2], ["main.sd", 1]]);
+    state.folders.set("/proj/assets", [["images", 2], ["audio.txt", 1]]);
     state.picked = { path: "/downloads/a.png" };
     await run({ name: "alice", type: "image" });
-    expect(state.copies.map((copy) => copy.to)).toEqual(["/proj/Assets/images/alice.png"]);
+    expect(state.copies.map((copy) => copy.to)).toEqual(["/proj/assets/images/alice.png"]);
   });
 
   test("adds nothing when the picker is cancelled", async () => {
@@ -121,10 +121,10 @@ describe("sparkdown.addAsset", () => {
   });
 
   test("says so rather than replacing a file of that name", async () => {
-    state.existing.add("/proj/assets/Audio/boom.wav");
+    state.existing.add("/proj/Assets/Audio/boom.wav");
     state.picked = { path: "/downloads/boom.wav" };
     expect(await run({ name: "boom", type: "audio" })).toBe(false);
-    expect(state.errors).toEqual(["assets/Audio/boom.wav already exists."]);
+    expect(state.errors).toEqual(["Assets/Audio/boom.wav already exists."]);
   });
 
   test.each([undefined, { name: "x", type: "layered_image" }, { name: "", type: "audio" }])(

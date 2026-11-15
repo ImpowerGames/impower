@@ -16,6 +16,7 @@ import {
   type ListEntry,
   type SortField,
 } from "../utils/fileListModel";
+import { ASSETS_HOME } from "@impower/spark-editor-protocol/src/utils/assetFolders";
 import { isScriptPath } from "../utils/scriptFiles";
 import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import { storyPlace, usesOf, type AssetUsage } from "./assetUsage";
@@ -69,7 +70,7 @@ export interface AssetGroup {
   rows: AssetRow[];
 }
 
-export const DEFAULT_ASSETS_HOME = "Assets";
+export const DEFAULT_ASSETS_HOME = ASSETS_HOME;
 
 export const ASSET_SORT_FIELDS: readonly SortField[] = ["name", "modified", "size", "uses", "story"];
 

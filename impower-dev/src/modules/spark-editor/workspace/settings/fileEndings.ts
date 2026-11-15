@@ -1,12 +1,6 @@
-export const endings = (typed: string): string[] => [
-  ...new Set(
-    typed
-      .toLowerCase()
-      .split(/[\s,;{}]+/)
-      .map((ending) => ending.replace(/^[*.]+/, ""))
-      .filter((ending) => /^[a-z0-9]+$/.test(ending)),
-  ),
-];
+import { endings } from "@impower/spark-editor-protocol/src/utils/fileEndings";
+
+export { endings };
 
 export const endingsPattern = (list: readonly string[]): string => `*.{${list.join(",")}}`;
 
