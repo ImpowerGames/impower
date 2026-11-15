@@ -6,6 +6,7 @@ import { SparkdownPreviewSavesManager } from "./managers/SparkdownPreviewSavesMa
 import { SparkdownRoutePinsManager } from "./managers/SparkdownRoutePinsManager";
 import { SparkdownStartingValuesManager } from "./managers/SparkdownStartingValuesManager";
 import { fileSystemWatcherState } from "./state/fileSystemWatcherState";
+import { activateAddAsset } from "./utils/activateAddAsset";
 import { activateAutoFormatting } from "./utils/activateAutoFormatting";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
 import { activateCommandView } from "./utils/activateCommandView";
@@ -50,6 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
   activateVirtualDeclarations(context);
   activateInspector(context);
   activatePortraitNormalization(context);
+  activateAddAsset(context);
 }
 
 export function deactivate() {

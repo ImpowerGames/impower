@@ -107,7 +107,8 @@ import {
   useTabQuery,
   type SelectionAction,
 } from "../library-page";
-import { addAssetFiles, landedView } from "../../workspace/addAssetFiles";
+import { addAssetFiles, addNamedAssetFile, landedView } from "../../workspace/addAssetFiles";
+import type { MissingAsset } from "@impower/sparkdown/src/compiler/utils/missingAsset";
 import { folderTitle } from "../../workspace/uploadSession";
 import AddUrlDialog from "./AddUrlDialog";
 import AssetRowMenu, { INSPECTOR_ACTIONS, type AssetRowAction } from "./AssetRowMenu";
@@ -284,6 +285,7 @@ function AssetsBrowser() {
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const [deleting, setDeleting] = useState<{ paths: readonly string[]; groups: SearchGroup[] | null } | null>(null);
   const upload = useRef<HTMLInputElement | null>(null);
+  const [naming, setNaming] = useState<MissingAsset | null>(null);
   const newButton = useRef<HTMLButtonElement>(null);
   const selecting = selection.active.value;
   const picked = selection.selected.value;
@@ -589,11 +591,39 @@ function AssetsBrowser() {
 
   const add = (items: DropItem[], folder: string) => void run(async () => show(await addAssetFiles(items, folder)));
 
+  const pickFiles = () => {
+    setNaming(null);
+    upload.current?.click();
+  };
+
+  const adding = workspace.assetsAdd.value;
+  useEffect(() => {
+    if (adding && loaded) {
+      workspace.assetsAdd.value = null;
+      setNaming(adding);
+    }
+  }, [adding, loaded]);
+
+  useEffect(() => {
+    if (naming) {
+      upload.current?.click();
+    }
+  }, [naming]);
+
   const onUpload = (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
     const chosen = Array.from(input.files ?? []);
     input.value = "";
+    const named = naming;
+    setNaming(null);
     if (!chosen.length) return;
+    if (named) {
+      const [file] = chosen;
+      void run(async () =>
+        show(await addNamedAssetFile({ name: file!.name, size: file!.size, getBuffer: () => file!.arrayBuffer() }, named)),
+      );
+      return;
+    }
     add(
       chosen.map((file) => ({ name: file.name, size: file.size, getBuffer: () => file.arrayBuffer() })),
       level.folder,
@@ -845,7 +875,7 @@ function AssetsBrowser() {
   const atRoot = level.folder === level.root;
   const [emptyTitle, emptyBody] = EMPTY_TYPES[type];
   const uploadAction = (
-    <Button disabled={busy} onClick={() => upload.current?.click()}>
+    <Button disabled={busy} onClick={pickFiles}>
       <UploadIcon />
       Add files from this device
     </Button>
@@ -876,7 +906,7 @@ function AssetsBrowser() {
       newLabel="Add"
       newMenu={
         <>
-          <DropdownItem disabled={busy} onSelect={() => upload.current?.click()}>
+          <DropdownItem disabled={busy} onSelect={pickFiles}>
             <UploadIcon class="text-muted" />
             Add files from this device
           </DropdownItem>
@@ -1039,7 +1069,15 @@ function AssetsBrowser() {
         )
       }
     >
-      <input ref={upload} type="file" multiple class="hidden" onChange={onUpload} />
+      <input
+        ref={upload}
+        type="file"
+        multiple={!naming}
+        accept={naming ? endings[naming.type].map((ending) => "." + ending).join(",") : undefined}
+        class="hidden"
+        onChange={onUpload}
+        onCancel={() => setNaming(null)}
+      />
       <AddUrlDialog
         open={linking}
         onClose={() => setLinking(false)}

@@ -460,6 +460,12 @@
       ]
     },
     "menus": {
+      "commandPalette": [
+        {
+          "command": "sparkdown.addAsset",
+          "when": "false"
+        }
+      ],
       "view/title": [
         {
           "command": "sparkdown.previewGame",
@@ -523,6 +529,11 @@
       ]
     },
     "commands": [
+      {
+        "command": "sparkdown.addAsset",
+        "title": "Add to Assets",
+        "category": "Sparkdown"
+      },
       {
         "command": "sparkdown.normalizePortraitLayerNames",
         "title": "Normalize Portrait Layer Names",

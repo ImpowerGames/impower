@@ -76,7 +76,7 @@ const applied = (text: string, action: CodeAction) =>
 
 const summary = (text: string, diagnostics: Diagnostic[]) => {
   const document = TextDocument.create(MAIN, "sparkdown", 1, text);
-  return getCodeActions(document, diagnostics).map((action) => ({
+  return getCodeActions(document, diagnostics).filter((action) => action.edit).map((action) => ({
     title: action.title,
     done: (action.data as { done?: string } | undefined)?.done,
     text: applied(text, action),
@@ -122,11 +122,11 @@ describe("the close-match quick fix", () => {
   test.each([
     ["no declared name is close", "zed", ["alice", "bob"]],
     ["two declared names are equally close", "bob", ["bab", "bub"]],
-  ])("offers nothing when %s", (_, name, images) => {
+  ])("offers no rename when %s", (_, name, images) => {
     const text = show(name);
     const diagnostics = cannotFind(compile(text, images));
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0]!.data).toBeUndefined();
+    expect(diagnostics[0]!.data).toEqual({ missingAsset: { name, type: "image" } });
     expect(summary(text, diagnostics)).toEqual([]);
   });
 
@@ -144,7 +144,9 @@ describe("the close-match quick fix", () => {
     const text = show("alcie");
     compiler.configure({ files: [script(text, 1), image("bob")] as never });
     const first = compiler.compile({ textDocument: { uri: MAIN } }).program;
-    expect(cannotFind(first)[0]?.data).toBeUndefined();
+    expect(cannotFind(first)[0]?.data).toEqual({
+      missingAsset: { name: "alcie", type: "image" },
+    });
     compiler.addFile({ file: image("alice") as never });
     const second = compiler.compile({ textDocument: { uri: MAIN } }).program;
     expect(summary(text, cannotFind(second)).map((a) => a.title)).toEqual([
@@ -318,7 +320,10 @@ describe("quick fix notes", () => {
     const document = TextDocument.create(MAIN, "sparkdown", 1, text);
 
     const fromProvider = vscode.map((diagnostic) =>
-      getCodeActions(document, [diagnostic as Diagnostic]).map((action) => ({
+      getCodeActions(document, [diagnostic as Diagnostic]).map((action) => action.command ? {
+        name: action.title,
+        command: { command: action.command.command, arguments: action.command.arguments },
+      } : {
         name: action.title,
         done: (action.data as { done: string }).done,
         ...((action.data as { expect?: string }).expect !== undefined
@@ -332,14 +337,15 @@ describe("quick fix notes", () => {
           to: document.offsetAt(edit.range.end),
           insert: edit.newText,
         })),
-      })),
+      }),
     );
     const fromData = webEditor.map((diagnostic) => diagnostic.data ?? []);
     expect(fromData).toEqual(fromProvider);
 
     const all = fromData.flat();
-    expect(all.map((action) => [action.name, action.done]).sort()).toEqual(
+    expect(all.map((action) => [action.name, "done" in action ? action.done : undefined]).sort()).toEqual(
       [
+        ["Add alcie to assets", undefined],
         ["Change to an assignment", "Changed to an assignment."],
         ["Delete this line", "Line deleted."],
         ["Remove the note", "Note removed."],
@@ -347,7 +353,7 @@ describe("quick fix notes", () => {
         ["Use alice instead", "Changed to alice."],
       ].sort(),
     );
-    expect(all.filter((action) => action.expect !== undefined).map((a) => a.expect).sort()).toEqual(
+    expect(all.flatMap((action) => ("expect" in action && action.expect !== undefined ? [action.expect] : [])).sort()).toEqual(
       ["// TODO: tidy", "// todo later", "alcie"].sort(),
     );
   });

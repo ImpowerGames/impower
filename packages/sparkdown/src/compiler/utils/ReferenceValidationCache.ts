@@ -1,5 +1,6 @@
 import type { DiagnosticSeverity } from "../types/SparkDiagnostic";
 import type { CloseMatchData } from "./closeMatch";
+import type { MissingAssetData } from "./missingAsset";
 
 export interface ReferenceOutcome {
   from: number;
@@ -7,7 +8,7 @@ export interface ReferenceOutcome {
   diagnostic?: {
     severity: DiagnosticSeverity;
     message: string;
-    data?: CloseMatchData;
+    data?: Partial<CloseMatchData & MissingAssetData>;
   };
   color?: boolean;
   declared?: string;

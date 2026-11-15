@@ -6,6 +6,11 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/closeMatch";
 import { INCLUDE_LINE_MESSAGE } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerInclude";
 import {
+  ADD_ASSET_COMMAND,
+  missingAssetOf,
+  type MissingAsset,
+} from "@impower/sparkdown/src/compiler/utils/missingAsset";
+import {
   TOP_LEVEL_STATEMENT_MESSAGE,
   runnableTopLevelRuns,
 } from "@impower/sparkdown/src/compiler/utils/declarationOnly";
@@ -34,7 +39,7 @@ export type ActionableDiagnostic = Omit<Diagnostic, "message"> & {
   message: string | MarkupContent;
 };
 
-export interface DiagnosticAction {
+export interface DiagnosticEditAction {
   name: string;
   done: string;
   expect?: string;
@@ -42,7 +47,14 @@ export interface DiagnosticAction {
   changes: { from: number; to: number; insert: string }[];
 }
 
-type QuickFixData = Pick<DiagnosticAction, "done" | "expect" | "kind">;
+export interface DiagnosticCommandAction {
+  name: string;
+  command: { command: string; arguments?: unknown[] };
+}
+
+export type DiagnosticAction = DiagnosticEditAction | DiagnosticCommandAction;
+
+type QuickFixData = Pick<DiagnosticEditAction, "done" | "expect" | "kind">;
 
 const QUICK_FIXES = new Map<
   string,
@@ -132,15 +144,21 @@ export const getCodeActions = (
       ];
     }
     const close = closeMatchOf(diagnostic.data);
-    if (close) {
+    const missing = missingAssetOf(diagnostic.data);
+    if (close || missing) {
       return [
-        quickFix(
-          `Use ${close.match} instead`,
-          `Changed to ${close.match}.`,
-          document,
-          diagnostic,
-          [{ range: diagnostic.range, newText: close.match }],
-        ),
+        ...(close
+          ? [
+              quickFix(
+                `Use ${close.match} instead`,
+                `Changed to ${close.match}.`,
+                document,
+                diagnostic,
+                [{ range: diagnostic.range, newText: close.match }],
+              ),
+            ]
+          : []),
+        ...(missing ? [addAssetFix(diagnostic, missing)] : []),
       ];
     }
     return runQuickFixes(document, diagnostic);
@@ -152,15 +170,39 @@ export const getDiagnosticActions = (
   diagnostic: ActionableDiagnostic,
   startSceneMissingIn?: SyntaxNode,
 ): DiagnosticAction[] =>
-  getCodeActions(document, [diagnostic], startSceneMissingIn).map((action) => ({
-    name: action.title,
-    ...(action.data as QuickFixData),
-    changes: (action.edit?.changes?.[document.uri] ?? []).map((edit) => ({
-      from: document.offsetAt(edit.range.start),
-      to: document.offsetAt(edit.range.end),
-      insert: edit.newText,
-    })),
-  }));
+  getCodeActions(document, [diagnostic], startSceneMissingIn).map((action) =>
+    action.command
+      ? {
+          name: action.title,
+          command: {
+            command: action.command.command,
+            arguments: action.command.arguments,
+          },
+        }
+      : {
+          name: action.title,
+          ...(action.data as QuickFixData),
+          changes: (action.edit?.changes?.[document.uri] ?? []).map((edit) => ({
+            from: document.offsetAt(edit.range.start),
+            to: document.offsetAt(edit.range.end),
+            insert: edit.newText,
+          })),
+        },
+  );
+
+const addAssetFix = (
+  diagnostic: ActionableDiagnostic,
+  { name, type }: MissingAsset,
+): CodeAction => {
+  const title = `Add ${name} to assets`;
+  return {
+    title,
+    kind: CodeActionKind.QuickFix,
+    diagnostics: [diagnostic as Diagnostic],
+    isPreferred: false,
+    command: { title, command: ADD_ASSET_COMMAND, arguments: [{ name, type }] },
+  };
+};
 
 const fixKindOf = (diagnostic: ActionableDiagnostic): FixKind | undefined =>
   diagnostic.source === TODO_NOTE_SOURCE

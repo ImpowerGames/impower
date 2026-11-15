@@ -1,9 +1,12 @@
+import { isCommandAction } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
 import { fixKey } from "../../workspace/problems/applyFix";
 import type { Problem } from "../../workspace/problems/problemEntries";
 
 export const isFixing = (problem: Problem, fixing: ReadonlySet<string>) =>
-  problem.actions.some((action) =>
-    fixing.has(fixKey({ uri: problem.uri, changes: action.changes })),
+  problem.actions.some(
+    (action) =>
+      !isCommandAction(action) &&
+      fixing.has(fixKey({ uri: problem.uri, changes: action.changes })),
   );
 
 export const FIX_FOCUS_WAIT_MS = 10_000;

@@ -2,7 +2,8 @@ import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { assetEndings, assetTypeOf } from "../utils/assetTypes";
 import { inflateZipEntry, listZip, zipInflates } from "../utils/zipEntries";
 import { findProjectRoot, isArchiveDropping } from "./projectImport";
-import { landingFolder } from "./assetsListing";
+import type { MissingAsset } from "@impower/sparkdown/src/compiler/utils/missingAsset";
+import { landingFolder, typeFolder } from "./assetsListing";
 import { isInside, joinPath, parentOf } from "./scriptsListing";
 import { isDroppedFolder, walkDrop, type DropItem, type WalkedDrop } from "../utils/fileDrops";
 import { storageLeft } from "../utils/storageLeft";
@@ -123,6 +124,15 @@ export const addAssetFiles = async (
     endUploadBatch();
   }
 };
+
+export const namedAs = <T extends { name: string }>(file: T, name: string): T => {
+  const leaf = leafOf(file.name);
+  const dot = leaf.lastIndexOf(".");
+  return { ...file, name: dot > 0 ? name + leaf.slice(dot) : name };
+};
+
+export const addNamedAssetFile = (file: AddedFile, { name, type }: MissingAsset): Promise<string[]> =>
+  addAssetFiles([namedAs(file, name)], typeFolder(workspace.assetListing.peek() ?? { files: {}, folders: [] }, type));
 
 const rowIn = (path: string, folder: string): string =>
   joinPath(folder, path.slice(folder ? folder.length + 1 : 0).split("/")[0]!);

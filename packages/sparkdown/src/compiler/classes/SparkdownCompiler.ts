@@ -190,6 +190,7 @@ import { getImageThing } from "../utils/getImageThing";
 import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatchData, type CloseMatchData } from "../utils/closeMatch";
+import { missingAssetData, type MissingAssetData } from "../utils/missingAsset";
 import { resolveSelector } from "../utils/resolveSelector";
 import {
   CHARACTER_ALIAS_ID,
@@ -5501,7 +5502,7 @@ export class SparkdownCompiler {
       const report = (
         severity: DiagnosticSeverity,
         message: string,
-        data?: CloseMatchData,
+        data?: Partial<CloseMatchData & MissingAssetData>,
       ) => {
         outcomes.push({
           from: from - offset,
@@ -5520,6 +5521,17 @@ export class SparkdownCompiler {
           }
         }
         return closeMatchData(name, names);
+      };
+      const missingAmong = (
+        name: string,
+        type: string | undefined,
+        types: readonly string[],
+      ) => {
+        const data = {
+          ...closeMatchAmong(name, types),
+          ...missingAssetData(name, type),
+        };
+        return Object.keys(data).length > 0 ? data : undefined;
       };
       if (reference.usage === "handler") {
         const name = reference.symbolIds?.[0];
@@ -5588,7 +5600,7 @@ export class SparkdownCompiler {
           report(
             DiagnosticSeverity.Warning,
             `Cannot find ${types[0]} named \`${name}\``,
-            closeMatchAmong(name, types),
+            missingAmong(name, types[0], types),
           );
         }
       }
@@ -5726,7 +5738,7 @@ export class SparkdownCompiler {
             !invalidStylingStringIdentifier &&
               selector?.name &&
               !selector.name.includes(".")
-              ? closeMatchAmong(selector.name, searched)
+              ? missingAmong(selector.name, type, searched)
               : undefined,
           );
         }
