@@ -114,6 +114,7 @@ export const getCodeActions = (
   document: TextDocument | undefined,
   diagnostics: readonly ActionableDiagnostic[],
   startSceneMissingIn?: SyntaxNode,
+  projectRoot?: string,
 ): CodeAction[] => {
   if (!document) {
     return [];
@@ -158,7 +159,7 @@ export const getCodeActions = (
               ),
             ]
           : []),
-        ...(missing ? [addAssetFix(diagnostic, missing)] : []),
+        ...(missing ? [addAssetFix(diagnostic, missing, projectRoot)] : []),
       ];
     }
     return runQuickFixes(document, diagnostic);
@@ -169,8 +170,9 @@ export const getDiagnosticActions = (
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
   startSceneMissingIn?: SyntaxNode,
+  projectRoot?: string,
 ): DiagnosticAction[] =>
-  getCodeActions(document, [diagnostic], startSceneMissingIn).map((action) =>
+  getCodeActions(document, [diagnostic], startSceneMissingIn, projectRoot).map((action) =>
     action.command
       ? {
           name: action.title,
@@ -193,14 +195,16 @@ export const getDiagnosticActions = (
 const addAssetFix = (
   diagnostic: ActionableDiagnostic,
   { name, type }: MissingAsset,
+  root?: string,
 ): CodeAction => {
   const title = `Add ${name} to assets`;
+  const asset: MissingAsset = root ? { name, type, root } : { name, type };
   return {
     title,
     kind: CodeActionKind.QuickFix,
     diagnostics: [diagnostic as Diagnostic],
     isPreferred: false,
-    command: { title, command: ADD_ASSET_COMMAND, arguments: [{ name, type }] },
+    command: { title, command: ADD_ASSET_COMMAND, arguments: [asset] },
   };
 };
 

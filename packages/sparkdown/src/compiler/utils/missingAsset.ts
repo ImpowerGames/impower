@@ -7,6 +7,7 @@ export type FileAssetType = (typeof FILE_ASSET_TYPES)[number];
 export interface MissingAsset {
   name: string;
   type: FileAssetType;
+  root?: string;
 }
 
 export interface MissingAssetData {
@@ -24,9 +25,12 @@ export const missingAssetData = (
 
 export const missingAssetArgument = (value: unknown): MissingAsset | undefined => {
   const found = value as Partial<MissingAsset> | null | undefined;
-  return typeof found?.name === "string" && found.name && isFileAssetType(found.type)
-    ? { name: found.name, type: found.type }
-    : undefined;
+  if (typeof found?.name !== "string" || !found.name || !isFileAssetType(found.type)) {
+    return undefined;
+  }
+  return typeof found.root === "string" && found.root
+    ? { name: found.name, type: found.type, root: found.root }
+    : { name: found.name, type: found.type };
 };
 
 export const missingAssetOf = (data: unknown): MissingAsset | undefined =>

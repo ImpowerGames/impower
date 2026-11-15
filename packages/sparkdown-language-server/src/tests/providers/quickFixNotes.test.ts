@@ -320,7 +320,7 @@ describe("quick fix notes", () => {
     const document = TextDocument.create(MAIN, "sparkdown", 1, text);
 
     const fromProvider = vscode.map((diagnostic) =>
-      getCodeActions(document, [diagnostic as Diagnostic]).map((action) => action.command ? {
+      getCodeActions(document, [diagnostic as Diagnostic], undefined, workspace.projectRootOf(MAIN, program)).map((action) => action.command ? {
         name: action.title,
         command: { command: action.command.command, arguments: action.command.arguments },
       } : {

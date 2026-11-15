@@ -4,6 +4,7 @@ import { describe, expect, test, vi } from "vitest";
 import type { Diagnostic } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
+import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import {
   getCodeActions,
   getDiagnosticActions,
@@ -136,6 +137,34 @@ describe("the Add to assets quick fix", () => {
         command: { command: "sparkdown.addAsset", arguments: [{ name: "boom", type: "audio" }] },
       },
     ]);
+  });
+
+  test("carries the root of the project that reported the problem", () => {
+    const text = play("boom");
+    const document = TextDocument.create(MAIN, "sparkdown", 1, text);
+    const [diagnostic] = cannotFind(compile(text));
+    expect(getCodeActions(document, [diagnostic!], undefined, "file:///proj/")[0]!.command).toEqual({
+      title: "Add boom to assets",
+      command: "sparkdown.addAsset",
+      arguments: [{ name: "boom", type: "audio", root: "file:///proj/" }],
+    });
+    expect(getDiagnosticActions(document, diagnostic!, undefined, "file:///proj/")).toEqual([
+      {
+        name: "Add boom to assets",
+        command: {
+          command: "sparkdown.addAsset",
+          arguments: [{ name: "boom", type: "audio", root: "file:///proj/" }],
+        },
+      },
+    ]);
+  });
+
+  test("takes that root from the entry of the program the script was compiled in", () => {
+    const workspace = Object.create(SparkdownLanguageServerWorkspace.prototype) as SparkdownLanguageServerWorkspace;
+    const scene = "file:///proj/Game/scenes/intro.sd";
+    const draft = "file:///proj/.drafts/draft.sd";
+    expect(workspace.projectRootOf(scene, { uri: "file:///proj/Game/main.sd" } as SparkProgram)).toBe("file:///proj/Game/");
+    expect(workspace.projectRootOf(draft, { uri: draft } as SparkProgram)).toBe("file:///proj/.drafts/");
   });
 
   test("is not offered for a Cannot find that names no asset", () => {
