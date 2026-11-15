@@ -101,19 +101,24 @@ describe("the choice warning follows the line's speaker (I-2390)", () => {
     ["an inline narration line", "  [[bunny:mouth.teeth]] This is Bunny."],
     ["another character's line", "  RAFFLES:\n    [[bunny:mouth.teeth]]\n    Look at him."],
     ["another character's inline line", "  RAFFLES: [[bunny:mouth.teeth]] Look at him."],
-    ["a directive before the cue", "  [[bunny:mouth.teeth]]\n\n  BUNNY:\n    Let go of that!"],
+    ["a directive line above narration, after a blank line", "  [[bunny:mouth.teeth]]\n\n  This is Bunny."],
+    ["a directive line above another character's cue", "  [[bunny:mouth.teeth]]\n  RAFFLES:\n    Look at him."],
+    ["a directive line above another character's cue, after a blank line", "  [[bunny:mouth.teeth]]\n\n  RAFFLES:\n    Look at him."],
+    ["a directive line with no display line after it", "  [[bunny:mouth.teeth]]"],
   ])("a directive on %s is not warned", (_, lines) => {
     expect(warnings(story(lines))).toEqual([]);
   });
 
   test.each([
-    ["its define name", "  bunny:\n    [[bunny:mouth.teeth]]\n    Let go of that!"],
-    ["its name", "  BUNNY:\n    [[bunny:mouth.teeth]]\n    Let go of that!"],
-    ["an alias", "  STRANGER:\n    [[bunny:mouth.teeth]]\n    Let go of that!"],
-    ["the as form", "  WHO as bunny:\n    [[bunny:mouth.teeth]]\n    Let go of that!"],
-    ["an inline line", "  BUNNY: [[bunny:mouth.teeth]] Let go of that!"],
-    ["a silent line", "  BUNNY:\n    [[bunny:mouth.teeth]]\n    . . ."],
-  ])("a directive under a cue naming the character by %s is warned", (_, lines) => {
+    ["the cue's define name", "  bunny:\n    [[bunny:mouth.teeth]]\n    Let go of that!"],
+    ["the cue's name", "  BUNNY:\n    [[bunny:mouth.teeth]]\n    Let go of that!"],
+    ["an alias on the cue", "  STRANGER:\n    [[bunny:mouth.teeth]]\n    Let go of that!"],
+    ["the cue's as form", "  WHO as bunny:\n    [[bunny:mouth.teeth]]\n    Let go of that!"],
+    ["an inline cue", "  BUNNY: [[bunny:mouth.teeth]] Let go of that!"],
+    ["a cue over a silent line", "  BUNNY:\n    [[bunny:mouth.teeth]]\n    . . ."],
+    ["the cue below a directive line", "  [[bunny:mouth.teeth]]\n  BUNNY:\n    Let go of that!"],
+    ["the cue below a directive line and a blank line", "  [[bunny:mouth.teeth]]\n\n  BUNNY:\n    Let go of that!"],
+  ])("a directive shown on the character's line, named by %s, is warned", (_, lines) => {
     const found = warnings(story(lines));
     expect(found).toHaveLength(1);
     expect(found[0]!.message).toContain("`talk` plays on this look");

@@ -80,6 +80,10 @@ describe("a speech morph acts only on its character's lines (I-2390)", () => {
     ["narration with a pick", "  [[show portrait mia:mouth.teeth morph talk_gritted]]\n  Here is Mia."],
     ["another character's line", "  BOB:\n    [[show portrait mia:mouth.teeth]]\n    Here is Mia."],
     ["another character's inline line", "  BOB: [[show portrait mia:mouth.teeth]] Here is Mia."],
+    ["a directive line above narration, after a blank line", "  [[show portrait mia:mouth.teeth]]\n\n  Here is Mia."],
+    ["a directive line above another character's cue", "  [[show portrait mia:mouth.teeth]]\n  BOB:\n    Here is Mia."],
+    ["a directive line above another character's cue, after a blank line", "  [[show portrait mia:mouth.teeth]]\n\n  BOB:\n    Here is Mia."],
+    ["a directive line with no display line after it", "  [[show portrait mia:mouth.teeth]]"],
   ])("on %s the portrait carries no speech morph and shows the directive's mouth", async (_, body) => {
     const content = await written(scene(body));
     expect(played(content)).toEqual(["blink"]);
@@ -100,6 +104,8 @@ describe("a speech morph acts only on its character's lines (I-2390)", () => {
     ["an alias", "  STRANGER:\n    [[show portrait mia:mouth.teeth]]\n    Here is Mia."],
     ["the as form", "  WHO as mia:\n    [[show portrait mia:mouth.teeth]]\n    Here is Mia."],
     ["an inline line", "  MIA: [[show portrait mia:mouth.teeth]] Here is Mia."],
+    ["a directive line right above the cue", "  [[show portrait mia:mouth.teeth]]\n  MIA:\n    Here is Mia."],
+    ["a directive line above the cue, after a blank line", "  [[show portrait mia:mouth.teeth]]\n\n  MIA:\n    Here is Mia."],
   ])("under a cue naming the character by %s the speech morph plays and rests the mouth", async (_, body) => {
     const content = await written(scene(body));
     expect(played(content)).toEqual(["blink", "talk"]);
