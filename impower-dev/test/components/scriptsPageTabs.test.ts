@@ -292,6 +292,17 @@ describe("the In this script tab's rows", () => {
     dialogHost.remove();
   });
 
+  it("places each row 50px below the last, a 48px row and a 2px gap as the prototype's tab does", async () => {
+    workspace.outline.value = { uri: URI, symbols: SYMBOLS, diagnostics: [STORM_ERROR], firstContentLine: 0 };
+    await mount();
+    const slots = rowButtons().map((button) => button.closest<HTMLElement>('[role="listitem"]')!);
+    expect(slots.length).toBeGreaterThan(1);
+    slots.forEach((slot, index) => {
+      expect(slot.style.height).toBe("50px");
+      expect(slot.style.top).toBe(`${index * 50}px`);
+    });
+  });
+
   it("marks the row holding the caret as current, and its scene as containing it", async () => {
     setCaret(2);
     await mount();
