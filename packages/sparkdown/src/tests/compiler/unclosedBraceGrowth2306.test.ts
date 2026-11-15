@@ -204,9 +204,13 @@ const READINGS: [string, string, string, string][] = [
 describe("a long line keeps its reading (#2306)", () => {
   test.each(READINGS)("%s keeps its scope in VS Code's highlighter", async (_what, source, text, scope) => {
     const lines = await tokenize(source);
-    const tokens = lines.flatMap((l) => l.tokens).filter((t) => text.includes(t.text) && t.text.trim());
-    const at = tokens.findLast((t) => t.scopes.includes(scope));
-    expect(at, JSON.stringify(lines.map((l) => l.tokens.map((t) => [t.text, t.scopes.at(-1)])))).toBeDefined();
+    const line = lines.findLast((l) => l.lineText.includes(text) && l.lineText.trim() !== "end")!;
+    const from = line.lineText.lastIndexOf(text);
+    const covering = line.tokens.filter((t) => t.endIndex > from && t.startIndex < from + text.length);
+    expect(covering.length, line.lineText).toBeGreaterThan(0);
+    for (const t of covering) {
+      expect(t.scopes, `${JSON.stringify(t.text)} in ${JSON.stringify(line.lineText)}`).toContain(scope);
+    }
   });
 });
 
