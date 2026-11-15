@@ -743,6 +743,26 @@ await check("on a device, --shot after a named step waits until that step's surf
   }
 });
 
+await check("on a device, --shot after a named step fails naming the surface and the cause when its frame detaches or the tab fires no animation frame", async () => {
+  for (const [label, frameWait, cause] of [
+    ["detached", async () => { throw new Error("Frame was detached"); }, /the Add to script panel settled but its frame failed while waiting for paint: Frame was detached/],
+    ["not painting", () => new Promise(() => {}), /the Add to script panel settled but no animation frame fired within 1s, so the tab is not painting/],
+  ]) {
+    const { page } = addSheetPage({ animationPolls: 0 });
+    const frames = page.frames.bind(page);
+    page.frames = () => frames().map((frame) => ({ ...frame, evaluate: (fn, ...args) => (String(fn).includes("requestAnimationFrame") ? frameWait() : frame.evaluate(fn, ...args)) }));
+    const dev = stubDevice();
+    dev.screenshot = async () => {};
+    const result = await ui(["--step", "add-menu", "--shot", path.join(scratch, `add-${label}.png`)], { device, ...uiDeps(page, dev).deps });
+    const shotStep = result.steps[1];
+    assert.equal(shotStep.waitedFor, "the Add to script panel", label);
+    assert.match(shotStep.reason ?? "", cause, label);
+    assert.deepEqual(result.failed, [shotStep.reason], label);
+    assert.equal(process.exitCode, 1, label);
+    process.exitCode = 0;
+  }
+});
+
 const OWNED_PREVIEW = "impower-driver/revealed-preview";
 
 function phonePreviewPage({ paneShown = false, owned = false, saveStuck = false, closeMissing = false } = {}) {
