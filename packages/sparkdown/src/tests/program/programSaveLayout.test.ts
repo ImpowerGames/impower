@@ -598,7 +598,7 @@ describe("a save inside a scene entered by a divert", () => {
     return story.toSave();
   };
 
-  it("inside the first branch of a scene whose parameters changed restarts the scene, which enters the branch again", () => {
+  it("inside the branch a scene diverts to, when the scene's parameters changed, restarts the scene, which diverts to the branch again", () => {
     const OUTER = (params: string) =>
       [
         "scene start",
@@ -606,6 +606,7 @@ describe("a save inside a scene entered by a divert", () => {
         "end",
         "",
         `scene outer(${params})`,
+        "  -> inner",
         "  branch inner",
         "    First {a} {b}.",
         "    Second {a} {b}.",
@@ -758,6 +759,7 @@ describe("a save inside a scene entered by a divert", () => {
       "end",
       "",
       `scene ${header}`,
+      "  -> inner",
       "  branch inner",
       "    First.",
       "    Second.",
@@ -766,7 +768,7 @@ describe("a save inside a scene entered by a divert", () => {
       "",
     ].join("\n");
 
-  it("inside the first branch of a scene that lost its last parameter restarts the scene at that branch", () => {
+  it("inside the branch a scene diverts to, when the scene lost its last parameter, restarts the scene, which diverts to that branch again", () => {
     const save = saveAt(STARTS("outer(a)", "outer(10)"), "First.");
     const loaded = engine(rootOf(STARTS("outer", "outer(10)").replace("-> outer(10)", "-> outer")));
     loaded.loadSave(save);
@@ -787,7 +789,7 @@ describe("a save inside a scene entered by a divert", () => {
 
   it("inside a branch of a scene whose parameters did not change loads in place when its branches were reordered", () => {
     const BRANCHES = (first: string, second: string) =>
-      ["scene start", "  -> outer(10)", "end", "", "scene outer(a)", first, second, "end", ""].join("\n");
+      ["scene start", "  -> outer(10)", "end", "", "scene outer(a)", "  -> one", first, second, "end", ""].join("\n");
     const ONE = ["  branch one", "    One {a}.", "    -> two", "  end"].join("\n");
     const TWO = ["  branch two", "    First {a}.", "    Second {a}.", "  end"].join("\n");
     const save = saveAt(BRANCHES(ONE, TWO), "First 10.");

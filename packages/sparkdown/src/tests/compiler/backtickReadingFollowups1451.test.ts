@@ -86,7 +86,7 @@ describe("a story store's run-on value that is a backtick string with interpolat
 });
 
 const DIRECTIVE_NAME_MARKS: Readonly<Record<string, string[]>> = {
-  "print((`a {} b`))": ["1:12-1:13 Invalid syntax", "1:13-1:14 Invalid syntax"],
+  "print((`a {} b`))": ["1:12-1:13 Invalid syntax", "1:13-1:14 Invalid syntax", "1:16-1:17 Invalid syntax", "1:9-1:10 Invalid syntax"],
 };
 
 describe("a malformed interpolation in a scene-level call's argument (I-1433)", () => {

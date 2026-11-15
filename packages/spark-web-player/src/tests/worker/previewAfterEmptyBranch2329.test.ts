@@ -21,14 +21,25 @@ end
 describe("the preview in a scene that opens on an empty branch", () => {
   it.each([
     ["the scene's header", 10],
-    ["the empty branch's header", 11],
-    ["the empty branch's end", 12],
     ["the beat after the empty branch", 13],
   ] as const)(
     "at %s, shows that scene's beat",
     async (_name, line) => {
       const text = await previewAt(SCRIPT, line);
       expect(text).toContain("Outer again.");
+      expect(text).not.toContain("Outer.");
+    },
+    120_000,
+  );
+
+  it.each([
+    ["the empty branch's header", 11],
+    ["the empty branch's end", 12],
+  ] as const)(
+    "at %s, shows no beat, since the scene's lines do not run in the branch",
+    async (_name, line) => {
+      const text = await previewAt(SCRIPT, line);
+      expect(text).not.toContain("Outer again.");
       expect(text).not.toContain("Outer.");
     },
     120_000,

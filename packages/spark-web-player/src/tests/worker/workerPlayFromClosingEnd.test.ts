@@ -26,6 +26,7 @@ end
 `;
 
 const BRANCHES_ONLY = `scene start
+  -> first
   branch first
     First.
     done
@@ -44,6 +45,7 @@ const PARAMETER_SCENE_BRANCHES = `scene start
   -> main(7)
 end
 scene main(a)
+  -> first
   branch first
     First.
     done
@@ -59,6 +61,7 @@ end
 `;
 
 const EMPTY_PARAMETER_LIST = `scene start
+  -> first
   branch first()
     First.
     done
@@ -76,10 +79,10 @@ end
 const CASES = [
   ["a scene's end", SCENES, 3, "First.", ["Other."], undefined],
   ["a scene's end below a branch it holds", SCENE_WITH_BRANCH, 7, "Main.", ["Unused.", "Other."], undefined],
-  ["the end of a scene that enters its first branch", BRANCHES_ONLY, 9, "First.", ["Unused.", "Other."], undefined],
-  ["the end of a scene that binds a parameter and enters its first branch", PARAMETER_SCENE_BRANCHES, 12, "First.", ["Unused.", "Other."], undefined],
-  ["the end of a scene whose first branch has an empty parameter list", EMPTY_PARAMETER_LIST, 9, "First.", ["Unused.", "Other."], undefined],
-  ["the end of a scene whose first branch has a long empty parameter list", EMPTY_PARAMETER_LIST.replace("first()", `first(${" ".repeat(100)})`), 9, "First.", ["Unused.", "Other."], undefined],
+  ["the end of a scene that diverts to its first branch", BRANCHES_ONLY, 10, "First.", ["Unused.", "Other."], undefined],
+  ["the end of a scene that binds a parameter and diverts to its first branch", PARAMETER_SCENE_BRANCHES, 13, "First.", ["Unused.", "Other."], undefined],
+  ["the end of a scene that diverts to a first branch with an empty parameter list", EMPTY_PARAMETER_LIST, 10, "First.", ["Unused.", "Other."], undefined],
+  ["the end of a scene that diverts to a first branch with a long empty parameter list", EMPTY_PARAMETER_LIST.replace("first()", `first(${" ".repeat(100)})`), 10, "First.", ["Unused.", "Other."], undefined],
   ["the end of a branch that diverts out", BRANCHES, 10, "Second 4 b.", ["Visit"], { "outer.inner": { [paramKey("a")]: "1" } }],
   ["the end of a branch below a done no run reaches", BRANCHES, 24, "Never shown.", ["Leave"], undefined],
 ] as const;
@@ -145,7 +148,7 @@ end
 const EMPTY_CASES = [
   ["an empty scene's header", EMPTY_SCENE, 0],
   ["an empty scene's end", EMPTY_SCENE, 1],
-  ["the header of a scene that enters an empty branch", EMPTY_BRANCH, 0],
+  ["the header of a scene that opens on an empty branch", EMPTY_BRANCH, 0],
   ["an empty branch's header", EMPTY_BRANCH, 1],
   ["an empty branch's end", EMPTY_BRANCH, 2],
 ] as const;

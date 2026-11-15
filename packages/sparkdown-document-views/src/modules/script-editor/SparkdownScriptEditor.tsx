@@ -154,7 +154,6 @@ export default function SparkdownScriptEditor({
       controllerRef.current?.dispose();
       controllerRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollMargin, top, bottom, hostsColorView]);
 
   useEffect(() => {

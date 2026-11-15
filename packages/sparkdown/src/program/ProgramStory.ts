@@ -1116,9 +1116,6 @@ export class ProgramStory implements StoryEngine {
     );
     this.countEntered(target.position.sequence, left);
     this.countLabelsAbove(target.position);
-    if (target.symbol !== undefined) {
-      this.enterStart(target.symbol, target.position.sequence);
-    }
     this._state.didSafeExit = false;
   }
 
@@ -1903,7 +1900,6 @@ export class ProgramStory implements StoryEngine {
       state.VisitCount(this.countId(start.symbol)) === 0
     ) {
       this.countEntered(at.sequence, -1);
-      this.enterStart(start.symbol, at.sequence);
     }
     const position = state.position;
     if (!position) {
@@ -2557,17 +2553,13 @@ export class ProgramStory implements StoryEngine {
     if (flow?.kind !== SymbolKind.Scene) {
       return null;
     }
-    const start = this.root.startOf(symbol);
-    const branch =
-      start >= 0 && flow.arrays.chunks.length === 0
-        ? this.root.place(start)
-        : undefined;
     const first = flow.arrays.chunks[0];
-    const { bindings, variadic } =
-      branch || !first ? { bindings: 0, variadic: false } : entryBindings(first, 0);
+    const { bindings, variadic } = !first
+      ? { bindings: 0, variadic: false }
+      : entryBindings(first, 0);
     return new SymbolTarget(
       symbol,
-      branch ?? { sequence: flow, entry: 0, offset: 0 },
+      { sequence: flow, entry: 0, offset: 0 },
       variadic,
       bindings,
     );
@@ -2825,7 +2817,6 @@ export class ProgramStory implements StoryEngine {
     );
     this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
-    this.enterStart(symbol, place.sequence);
   }
 
   protected keptFlowScopes(
@@ -2950,18 +2941,6 @@ export class ProgramStory implements StoryEngine {
     }
   }
 
-  protected enterStart(symbol: number, at: SequenceRow): void {
-    const start = this.root.startOf(symbol);
-    if (start < 0 || at.arrays.chunks.length > 0) {
-      return;
-    }
-    const branch = this.root.place(start);
-    if (branch) {
-      this.land(branch, this._state.blockStack, flowScopesOf(this.root, at));
-      this.countEntered(branch.sequence, at.flow);
-    }
-  }
-
   protected countEntered(target: SequenceRow, left: number): void {
     const was = this.flowsOf(left);
     for (const flow of this.flowsOf(target.flow)) {
@@ -3014,7 +2993,6 @@ export class ProgramStory implements StoryEngine {
     }
     this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
-    this.enterStart(symbol, place.sequence);
   }
 
   protected tunnelReturn(): void {

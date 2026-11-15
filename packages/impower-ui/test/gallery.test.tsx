@@ -1,12 +1,19 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { App, galleryEntries } from "../src/App";
 import { collectingTypes, componentNames, exportedValue } from "./exports";
 
 let host: HTMLDivElement | undefined;
 
+const portalDialog = () =>
+  Array.from(document.body.children)
+    .filter((el) => el !== host)
+    .map((el) => (el.matches('[role="dialog"]') ? el : el.querySelector('[role="dialog"]')))
+    .find((el) => el !== null) ?? null;
+
 afterEach(async () => {
+  vi.useRealTimers();
   if (host) {
     await act(async () => render(null, host!));
     host.remove();
@@ -23,6 +30,7 @@ it("lists every exported component in exactly one gallery entry", () => {
 });
 
 it("mounts the gallery with every exported component on the page", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   host = document.body.appendChild(document.createElement("div"));
   const { types } = await collectingTypes(async () => {
     await act(async () => {
@@ -33,15 +41,16 @@ it("mounts the gallery with every exported component on the page", async () => {
     expect(triggers.length).toBeGreaterThan(0);
     for (const trigger of triggers) {
       await act(async () => trigger.click());
-      const dialog = document.querySelector('[role="dialog"]');
+      const dialog = portalDialog() ?? host!.querySelector('[role="dialog"]');
       expect(dialog).not.toBeNull();
       const cancel = Array.from(dialog!.querySelectorAll("button")).find((b) => /^(Cancel|Close)$/.test(b.textContent || (b.getAttribute("aria-label") ?? "")));
       await act(async () => cancel!.click());
       await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        vi.runOnlyPendingTimers();
       });
-      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      expect(dialog!.isConnected).toBe(false);
+      expect(portalDialog()).toBeNull();
     }
   });
   expect(componentNames.filter((name) => !types.has(exportedValue(name)))).toEqual([]);
-}, 20000);
+});

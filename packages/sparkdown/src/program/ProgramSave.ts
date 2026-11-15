@@ -346,16 +346,12 @@ const positionBindings = (
 };
 
 const restartPosition = (
-  root: ProgramRoot,
-  symbol: number,
   flow: SequenceRow,
   bindings: number,
 ): ProgramPosition => {
   const chunks = flow.arrays.chunks;
   if (chunks.length === 0) {
-    const start = root.startOf(symbol);
-    const branch = start >= 0 ? root.place(start) : undefined;
-    return branch ?? { sequence: flow, entry: 0, offset: 0 };
+    return { sequence: flow, entry: 0, offset: 0 };
   }
   const entry = chunks[0]!;
   return bindings > 0 && bindings * 2 >= codeWords(entry)
@@ -389,7 +385,7 @@ const restartOf = (
   }
   return {
     flow: root.table.symbols[symbol]!,
-    position: restartPosition(root, symbol, flow, params.length),
+    position: restartPosition(flow, params.length),
     params,
     saved: savedNames,
   };
