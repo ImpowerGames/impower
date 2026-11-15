@@ -2714,11 +2714,8 @@ const moveFile = async (move: RenameOutcome) => {
       );
     }
     const renamed = await renameStoredFile(move.oldUri, move.newUri);
-    if (
-      renamed &&
-      !renamed.overtaken &&
-      !(await withCommitLock(move.oldUri, () => findFileHandle(move.oldUri)))
-    ) {
+    if (renamed) {
+      await enrichUrlAssetType(move.newUri);
       move.write = renamed.write;
       move.file = renamed.write.file;
       move.deleted = renamed.deleted;
@@ -2739,9 +2736,7 @@ const hasQueuedWrites = (uri: string) => {
 const renameStoredFile = async (
   sourceUri: string,
   destinationUri: string,
-): Promise<
-  { write: WriteResult; deleted: DeleteResult; overtaken: boolean } | undefined
-> => {
+): Promise<{ write: WriteResult; deleted: DeleteResult } | undefined> => {
   await drainWrites(sourceUri);
   return withCommitLocks([sourceUri, destinationUri], async () => {
     const source: FileSystemFileHandle & {
@@ -2750,9 +2745,15 @@ const renameStoredFile = async (
     if (!source.move || (await findFileHandle(destinationUri))) {
       return undefined;
     }
+    const storage = await navigator.storage.getDirectory();
+    const sourcePath = getPathFromUri(sourceUri);
     const destinationPath = getPathFromUri(destinationUri);
+    const sourceDirectory = await getDirectoryHandleFromPath(
+      storage,
+      getParentPath(sourcePath),
+    );
     const directory = await getDirectoryHandleFromPath(
-      await navigator.storage.getDirectory(),
+      storage,
       getParentPath(destinationPath),
     );
     const stored = await source.getFile();
@@ -2762,19 +2763,32 @@ const renameStoredFile = async (
     const root = await commitSequenceRoot();
     const allocate = () =>
       allocateCommit(root, State.writer, State.clock).catch(() => undefined);
+    const [writeCommit, removeCommit] = await Promise.all([
+      allocate(),
+      allocate(),
+    ]);
     if (hasQueuedWrites(sourceUri)) {
       return undefined;
     }
     await source.move(directory, getFileName(destinationPath));
+    if (hasQueuedWrites(sourceUri)) {
+      try {
+        await source.move(sourceDirectory, getFileName(sourcePath));
+        return undefined;
+      } catch (err) {
+        console.warn(
+          "opfs-workspace: could not undo a move a save was waiting on",
+          err,
+        );
+      }
+    }
     const written = withAncestors(destinationUri);
-    const writeCommit = await allocate();
     if (writeCommit) {
       for (const uri of written) {
         acceptCommit(uri, writeCommit);
       }
     }
     const writeLocal = touch(written);
-    const removeCommit = await allocate();
     if (removeCommit) {
       acceptCommit(sourceUri, removeCommit);
     }
@@ -2785,10 +2799,9 @@ const renameStoredFile = async (
     const file = buffer
       ? updateFileCache(destinationUri, buffer, true, 0, stored.lastModified)
       : updateFileMetaCache(destinationUri, stored.size, stored.lastModified, 0);
-    await enrichUrlAssetType(destinationUri);
     return {
       write: {
-        file: State.files.get(destinationUri) ?? file,
+        file,
         created: true,
         local: writeLocal,
         commit: writeCommit,
@@ -2799,7 +2812,6 @@ const renameStoredFile = async (
         local: removeLocal,
         commit: removeCommit,
       },
-      overtaken: hasQueuedWrites(sourceUri),
     };
   });
 };

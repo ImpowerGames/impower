@@ -1702,7 +1702,7 @@ describe("renaming many files in one request (I-2242)", () => {
     await h.enumerate();
     const locks = (navigator as any).locks;
     const request = locks.request.bind(locks);
-    let refusals = 2;
+    let refusals = 1;
     locks.request = (name: string, ...rest: unknown[]) =>
       name === "opfs-workspace:sequence" && refusals-- > 0
         ? Promise.reject(new DOMException("The lock request was aborted", "AbortError"))
@@ -1771,7 +1771,55 @@ describe("renaming many files in one request (I-2242)", () => {
     });
   }
 
-  it("carries another tab's write that waits on the source's lock during the move to the destination", async () => {
+  it("reports a waited-on move whose copy then fails by what storage holds", async () => {
+    const root = seed({ "Crowd/p0.png": [0, 1, 2, 3] }, ["Cast"]);
+    const source = fileAt(root, "Crowd/p0.png")!;
+    const cast = (root.entries.get("local") as MemoryDirectory).entries.get("Cast") as MemoryDirectory;
+    const h = await worker(root);
+    await h.enumerate();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const move = source.move.bind(source);
+    source.move = async (...args: Parameters<typeof move>) => {
+      source.move = move;
+      await gate;
+      return move(...args);
+    };
+    const create = cast.getFileHandle.bind(cast);
+    let creations = 0;
+    cast.getFileHandle = async (name, options = {}) => {
+      if (options.create && !cast.entries.has(name) && ++creations === 2) {
+        throw new DOMException(`${name} cannot be created`, "QuotaExceededError");
+      }
+      return create(name, options);
+    };
+    h.start("rename", "workspace/willRenameFiles", {
+      files: [{ oldUri: uriOf("Crowd/p0.png"), newUri: uriOf("Cast/p0.png") }],
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    const from = h.messages.length;
+    h.start("save", "workspace/willWriteFiles", {
+      files: [{ uri: uriOf("Crowd/p0.png"), version: 2, data: new Uint8Array([9, 8, 7, 6]).buffer }],
+      origin: "editor",
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("rename").error.message).toContain("cannot be created");
+    expect(h.response("save")).toHaveProperty("result");
+    expect(listMemory(root, "local")).toEqual(["Cast/", "Crowd/", "Crowd/p0.png"]);
+    expect([...fileAt(root, "Crowd/p0.png")!.bytes]).toEqual([9, 8, 7, 6]);
+    const announced = h.messages.slice(from);
+    expect(announced.flatMap((m: any) => (m.params?.files ?? []).map((f: any) => f.uri ?? f.newUri))).not.toContain(
+      uriOf("Cast/p0.png"),
+    );
+    expect(await h.cached("Cast/p0.png")).toBeUndefined();
+    expect(await h.cached("Crowd/p0.png")).toMatchObject({ size: 4 });
+  });
+
+  it("keeps a save that lands during a workspace edit's undone move, and counts only the save as changed elsewhere", async () => {
     const root = seed({ "Crowd/p0.png": [0, 1, 2, 3] }, ["Cast"]);
     const source = fileAt(root, "Crowd/p0.png")!;
     const h = await worker(root);
@@ -1782,24 +1830,30 @@ describe("renaming many files in one request (I-2242)", () => {
     });
     const move = source.move.bind(source);
     source.move = async (...args: Parameters<typeof move>) => {
+      source.move = move;
       await gate;
       return move(...args);
     };
-    h.start("rename", "workspace/willRenameFiles", {
-      files: [{ oldUri: uriOf("Crowd/p0.png"), newUri: uriOf("Cast/p0.png") }],
+    h.start("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("Crowd/p0.png"), newUri: uriOf("Cast/p0.png") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
     });
     await vi.advanceTimersByTimeAsync(0);
-    const otherTabWrote = (navigator as any).locks.request(
-      `opfs-workspace:commit:${uriOf("Crowd/p0.png")}`,
-      async () => {
-        writeMemoryFile(root, "local/Crowd/p0.png", new Uint8Array([9, 8, 7, 6]));
-      },
-    );
+    h.start("save", "workspace/willWriteFiles", {
+      files: [{ uri: uriOf("Crowd/p0.png"), version: 2, data: new Uint8Array([9, 8, 7, 6]).buffer }],
+      origin: "editor",
+    });
+    await vi.advanceTimersByTimeAsync(250);
     release();
-    await otherTabWrote;
     await vi.advanceTimersByTimeAsync(500);
-    expect(h.response("rename")).toHaveProperty("result");
-    expect(listMemory(root, "local")).toEqual(["Cast/", "Cast/p0.png", "Crowd/"]);
+    const result = h.response("edit").result;
+    expect(h.response("save")).toHaveProperty("result");
+    expect(result.applied).toBe(false);
+    expect(result.rollback.kept).toEqual([uriOf("Crowd/p0.png")]);
     expect([...fileAt(root, "Cast/p0.png")!.bytes]).toEqual([9, 8, 7, 6]);
   });
 
