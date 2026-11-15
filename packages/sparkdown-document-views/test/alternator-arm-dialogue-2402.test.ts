@@ -49,6 +49,16 @@ describe("a block dialogue opened right after an alternator arm's bar", () => {
     ]);
   });
 
+  it("ends the dialogue at the next arm's bar even when that bar is indented deeper", () => {
+    const deeperArm = ARM_DIALOGUE.replace("    | Other line.", "      | Other line.");
+    expect(dialogueLines(extractPdfText(deeperArm))).toEqual([
+      "<character> GUIDE (softly)",
+      "<dialogue> Welcome back.",
+      "<dialogue> It has been a while.",
+      "<action> Other line.",
+    ]);
+  });
+
   it("reads the lines as dialogue at one level under the bar's line, as the formatter writes them", () => {
     expect(dialogueLines(extractPdfText(ARM_DIALOGUE.replaceAll("        ", "      ")))).toEqual([
       "<character> GUIDE (softly)",

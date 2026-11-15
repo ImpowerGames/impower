@@ -57,6 +57,8 @@ const TICKET_INPUTS: Record<string, string[]> = {
     "scene s\n  match x\n    | GUIDE:\n        Welcome back.\n    | Other line.\n  end\nend\n",
     "scene s\n  queue\n    | x = GUIDE:\n        Welcome back.\n  end\nend\n",
     "scene s\n  queue | GUIDE:\n    Welcome back.\n  end\nend\n",
+    "scene s\n  queue\n    | GUIDE:\n        Hello.\n      | Goodbye.\n  end\nend\n",
+    "scene s\n  GUIDE:\n    Hello.\n    | Not an arm.\nend\n",
   ],
 };
 

@@ -3311,20 +3311,20 @@ repository:
   BlockDialogue:
     tag: definition(string)
     name: string.display.dialogue.block.sd
-    # lookaround: `LuauAlternatorSeparator` takes the `|` that opens an arm, so a cue after it begins mid-line; the lookbehind keeps that bar line's indent for the end's `\1\2`, behind a one-character lookbehind that keeps vscode-textmate from scanning to the line start at every position.
-    begin: (?:^|(?<=[|]|{{WS}}))(?<=^({{WS}}*)(?:[|]{{WS}}*)?)({{WS}}*)((?=\S){{DIALOGUE_CHARACTER_NAME_CHARACTER}}+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    # lookaround: `LuauAlternatorSeparator` takes the `|` that opens an arm, so a cue after it begins mid-line. No order of `patterns:` reaches that cue at a line start, a separate rule would lose the `BlockDialogue` node name every reader keys on, taking the bar here would take `LuauAlternatorSeparator` from the alternator whose arm readers need it as a direct child, and neither a parent's `end:` nor a tighter variable can recover the bar line's indent. So the begin's lookbehind captures that indent (`\1`) and the bar (`\2`), behind a one-character lookbehind that keeps vscode-textmate from scanning to the line start at every position. In the end, `\2(?<=[|])` matches only when the cue followed a bar, so that dialogue stops at the next line that opens an arm, whatever its indent.
+    begin: (?:^|(?<=[|]|{{WS}}))(?<=^({{WS}}*)(?:([|]){{WS}}*)?)({{WS}}*)((?=\S){{DIALOGUE_CHARACTER_NAME_CHARACTER}}+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
-      2:
+      3:
         patterns:
           - { include: "#OptionalWhitespace" }
-      3:
+      4:
         patterns:
           - { include: "#Annotation" }
           - { include: "#DialogueCharacter" }
-      4:
+      5:
         patterns:
           - { include: "#ColonSeparator" }
-      5:
+      6:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
@@ -3334,7 +3334,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1\2{{WS}}))|(?=^{{WS}}*(?:[*+]{{EOK}}|->|[&%$^]|scene{{LUAU_NAME_END}}|branch{{LUAU_NAME_END}}|function{{LUAU_NAME_END}}|define{{LUAU_NAME_END}}|const{{LUAU_NAME_END}}|store{{LUAU_NAME_END}}|local{{LUAU_NAME_END}}))
+    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1\3{{WS}}))|(?=^{{WS}}*\2(?<=[|]))|(?=^{{WS}}*(?:[*+]{{EOK}}|->|[&%$^]|scene{{LUAU_NAME_END}}|branch{{LUAU_NAME_END}}|function{{LUAU_NAME_END}}|define{{LUAU_NAME_END}}|const{{LUAU_NAME_END}}|store{{LUAU_NAME_END}}|local{{LUAU_NAME_END}}))
   InlineDialogue:
     tag: definition(string)
     name: string.display.dialogue.inline.sd

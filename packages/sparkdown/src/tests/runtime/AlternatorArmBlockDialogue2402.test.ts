@@ -59,6 +59,26 @@ end
     expect(continueBeats(ctx.story)).toEqual(expected);
   });
 
+  test("ends at the next arm's bar even when that bar is indented deeper than the first", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `scene start
+  for i = 1, 2 do
+    queue
+      | GUIDE:
+          Hello.
+        | Goodbye.
+    end
+  end
+end
+`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    const beats = continueBeats(ctx.story);
+    expect(beats[0]).toEqual({ text: "Hello.\n", routing: "dialogue:GUIDE" });
+    expect(beats[1]?.text).toBe("Goodbye.\n");
+    expect(beats[1]?.routing).not.toBe("dialogue:GUIDE");
+  });
+
   test("ends at a line back at the bar's indentation, which plays in the same arm", () => {
     const ctx = makeRuntimeStoryFromSource(
       `scene start

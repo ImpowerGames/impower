@@ -1,6 +1,8 @@
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 
-const CUE_INDENT = String.raw`\1\2`;
+const CUE_INDENT = String.raw`\1\3`;
+
+const CUE_BAR = String.raw`\2`;
 
 export const DIALOGUE_BLOCK_END: string =
   GRAMMAR_DEFINITION.repository.BlockDialogue.end;
@@ -13,7 +15,9 @@ const endPatternFor = (cueIndent: string): RegExp => {
     if (!/^[ \t]*$/.test(cueIndent)) {
       throw new Error(`A cue indent is spaces and tabs, not ${JSON.stringify(cueIndent)}`);
     }
-    pattern = new RegExp(DIALOGUE_BLOCK_END.split(CUE_INDENT).join(cueIndent));
+    pattern = new RegExp(
+      DIALOGUE_BLOCK_END.split(CUE_INDENT).join(cueIndent).split(CUE_BAR).join(""),
+    );
     endPatterns.set(cueIndent, pattern);
   }
   return pattern;
