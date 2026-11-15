@@ -156,6 +156,21 @@ describe("the choice warning follows the line's speaker (I-2390)", () => {
     expect(warnings(story("  [[solo:mouth.teeth]]\n  There he is.", SOLO))).toEqual([]);
   });
 
+  test("where only some paths reach the character's line, the warning says so", () => {
+    const found = warnings(story("  [[bunny:mouth.teeth]]\n  if ready then\n    BUNNY:\n      Let go of that!\n  else\n    Bunny waits.\n  end"));
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain("plays on this look where `bunny`'s line follows");
+    expect(found[0]!.message).toContain("does not show on that line");
+    const every = warnings(story("  [[bunny:mouth.teeth]]\n  if ready then\n    BUNNY:\n      Let go of that!\n  else\n    BUNNY:\n      Now!\n  end"));
+    expect(every).toHaveLength(1);
+    expect(every[0]!.message).toContain("`talk` plays on this look and rests");
+  });
+
+  test("a divert cycle after a directive line ends the walk and names nobody", () => {
+    const text = story("  [[bunny:mouth.teeth]]\n  -> a\nend\n\nscene a\n  -> b\nend\n\nscene b\n  -> a");
+    expect(warnings(text)).toEqual([]);
+  });
+
   test("a named look's own warning is unchanged", () => {
     const text = story(
       "  [[bunny_shut]]",

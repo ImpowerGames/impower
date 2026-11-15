@@ -5,6 +5,7 @@ vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import type { ImagePick } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { getHover } from "../../utils/providers/getHover";
+import { createImageCompositeOptions } from "../../utils/providers/imagePreviewOptions";
 import { resolveCompletion } from "../../utils/providers/resolveCompletion";
 import { completeAt } from "../providers/braceCompletionHarness";
 
@@ -79,7 +80,33 @@ function workspaceFor(program: any) {
   workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
   return {
     shownLayers: (context: any, struct: any, pick?: ImagePick) => workspace.morphShownLayers(context, struct, pick),
+    workspace,
   };
+}
+
+const DRAWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<g data-name="mouth.open:default"><path data-name="lip" d="M20 50 Q50 90 80 50 Z" fill="#a33"/></g>
+<g data-name="mouth.closed"><path data-name="lip" d="M20 60 L80 60 L80 64 L20 64 Z" fill="#a33"/></g>
+<g data-name="mouth.teeth"><path data-name="lip" d="M20 50 L80 50 L80 70 L20 70 Z" fill="#fff"/></g>
+</svg>`;
+
+async function bakedHover(lines: string) {
+  const script = story(lines);
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      { uri: main, type: "script", name: "main", ext: "sd", text: script, version: 1, languageId: "sparkdown" },
+      { uri: asset, type: "image", name: "bunny", ext: "svg", data: DRAWN },
+    ],
+  } as any);
+  const program = compiler.compile({ textDocument: { uri: main } }).program;
+  const { workspace } = workspaceFor(program);
+  const documents = new SparkdownDocumentRegistry(["references"]);
+  documents.set({ textDocument: { uri: main, text: script, version: 1, languageId: "sparkdown" } });
+  const document = documents.get(main)!;
+  const position = document.positionAt(script.indexOf("[[bunny") + 5);
+  const hover = await getHover(document, documents.tree(main), documents.annotations(main), program, undefined, position, createImageCompositeOptions(workspace));
+  return previewImage((hover?.contents as any)?.value);
 }
 
 const previewImage = (markup: string | undefined) =>
@@ -124,6 +151,15 @@ describe("the hover and the suggestion preview show the look the line shows (I-2
     const head = 'define teeth as filtered_image with\n  image = image.bunny\n  attributes = { "mouth.teeth" }\nend\n\n';
     const src = await hovered("  This is Bunny.", "image = image.bunny", head);
     expect(src).toContain("closed");
+  });
+
+  test("the baked rest render, read from the server's own copy of the art, follows the line: none on narration, the speech morph's rest under the cue", async () => {
+    const narration = await bakedHover("  [[bunny:mouth.teeth]]\n  This is Bunny.");
+    const spoken = await bakedHover("  BUNNY:\n    [[bunny:mouth.teeth]]\n    Let go of that!");
+    expect(narration).toContain("data-name='mouth.teeth'");
+    expect(narration).not.toContain("mouth.closed");
+    expect(spoken).toContain("id='m-closed'");
+    expect(spoken).not.toContain("teeth");
   });
 
   test("a mouth suggestion on narration previews that mouth", async () => {
