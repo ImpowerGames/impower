@@ -197,7 +197,7 @@ import {
 } from "../utils/characterAliasOwners";
 import { getContextEntry } from "../utils/getContextEntry";
 import { characterNames } from "../utils/cueCharacter";
-import { directiveLine, linePicksOf } from "../utils/directiveLinePick";
+import { directiveLine, linePickOf } from "../utils/directiveLinePick";
 import { getTypedImageEntry, typedImageTypes } from "../utils/resolveImageReference";
 import { setContextEntry } from "../utils/setContextEntry";
 import type { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
@@ -4791,61 +4791,47 @@ export class SparkdownCompiler {
       const emitted = new Set<string>();
       const scriptTree = this.documents.tree(uri);
       const directives = scriptTree ? readSourceDirectives(scriptTree, (from, to) => doc.read(from, to)) : [];
-      const emit = (
-        struct: any,
-        from: number,
-        to: number,
-        written: readonly string[],
-        paths: readonly { speaker: string | undefined; pickOf?: (layer: ImageLayer) => string | undefined }[] = [{ speaker: undefined }],
-      ) => {
+      const emit = (struct: any, from: number, to: number, written: readonly string[], pickOf?: (layer: ImageLayer) => string | undefined) => {
         const layers = resolveImageLayers(program.context, struct);
-        const layered = resolveImageAttributes(program.context!, struct).image?.$type === "layered_image";
-        const looksOf = (pickOf?: (layer: ImageLayer) => string | undefined) =>
-          (layered ? layers : [layers[0] ?? { src: "", struct }]).flatMap((layer) => {
-            const target = layered ? layer.struct : struct;
-            const layerLook = target ? shownLook(program.context, program.morphs, target, undefined, pickOf?.(layer)) : undefined;
-            return layerLook ? [layerLook] : [];
-          });
-        const look = layered ? undefined : looksOf(paths[0]?.pickOf)[0];
+        const look = shownLook(program.context, program.morphs, struct, undefined, pickOf?.(layers[0] ?? { src: "", struct }));
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
-        const text = doc.read(from, to);
-        const found = new Map<string, { start: number; end: number; name: string; group: string; rest: string; choice: string; speakers: Set<string | undefined> }>();
-        for (const path of written.length > 0 ? paths : []) {
-          for (const look of looksOf(path.pickOf)) {
-            const chosen = resolveAttributes(look.vocabulary, written).selection;
-            for (const { name, pose } of look.morphs) {
-              for (const [group, rest] of Object.entries(pose)) {
-                const choice = Object.hasOwn(chosen, group) ? chosen[group]! : undefined;
-                if (choice === undefined || look.shown[group] !== rest || choice === rest) continue;
-                const token = written.find((attribute) => resolveAttributes(look.vocabulary, [attribute]).selection[group] === choice);
-                const at = token === undefined ? -1 : tokenOffset(text, token);
-                const start = at >= 0 ? from + at : from;
-                const end = at >= 0 ? start + token!.length : to;
-                const key = JSON.stringify([start, end, name, group, rest, choice]);
-                const entry = found.get(key) ?? { start, end, name, group, rest, choice, speakers: new Set<string | undefined>() };
-                entry.speakers.add(path.speaker);
-                found.set(key, entry);
-              }
+        const layered = resolveImageAttributes(program.context!, struct).image?.$type === "layered_image";
+        const looks =
+          layered
+            ? layers.flatMap((layer) => {
+                const layerLook = layer.struct ? shownLook(program.context, program.morphs, layer.struct, undefined, pickOf?.(layer)) : undefined;
+                return layerLook ? [layerLook] : [];
+              })
+            : look
+              ? [look]
+              : [];
+        const warned = new Set<string>();
+        for (const look of written.length > 0 ? looks : []) {
+          const chosen = resolveAttributes(look.vocabulary, written).selection;
+          const text = doc.read(from, to);
+          for (const { name, pose } of look.morphs) {
+            for (const [group, rest] of Object.entries(pose)) {
+              const choice = Object.hasOwn(chosen, group) ? chosen[group]! : undefined;
+              if (choice === undefined || look.shown[group] !== rest || choice === rest) continue;
+              const token = written.find((attribute) => resolveAttributes(look.vocabulary, [attribute]).selection[group] === choice);
+              const at = token === undefined ? -1 : tokenOffset(text, token);
+              const start = at >= 0 ? from + at : from;
+              const end = at >= 0 ? start + token!.length : to;
+              const key = JSON.stringify([start, end, name, group, rest, choice]);
+              if (warned.has(key)) continue;
+              warned.add(key);
+              (program.diagnostics ??= {})[uri] ??= [];
+              program.diagnostics[uri]!.push({
+                range: doc.range(start, end),
+                severity: DiagnosticSeverity.Warning,
+                message: {
+                  kind: "markdown",
+                  value: `\`${name}\` plays on this look and rests its \`${group}\` on \`${rest}\`, so \`${group}.${choice}\` does not show. Add \`${group}.${choice}\` to \`${name}\`'s \`unless\` to keep \`${name}\` off looks that choose it, or route those looks to a morph that rests on it with that morph's \`when\`.`,
+                },
+                source: LANGUAGE_NAME,
+              });
             }
           }
-        }
-        for (const { start, end, name, group, rest, choice, speakers } of found.values()) {
-          const where =
-            speakers.size === paths.length
-              ? ""
-              : ` where ${[...speakers].map((speaker) => (speaker ? `\`${speaker}\`'s line` : "a line nobody speaks")).join(" or ")} follows`;
-          (program.diagnostics ??= {})[uri] ??= [];
-          program.diagnostics[uri]!.push({
-            range: doc.range(start, end),
-            severity: DiagnosticSeverity.Warning,
-            message: {
-              kind: "markdown",
-              value: where
-                ? `\`${name}\` plays on this look${where}, and rests its \`${group}\` on \`${rest}\` there, so \`${group}.${choice}\` does not show on that line. Add \`${group}.${choice}\` to \`${name}\`'s \`unless\` to keep \`${name}\` off looks that choose it, or route those looks to a morph that rests on it with that morph's \`when\`.`
-                : `\`${name}\` plays on this look and rests its \`${group}\` on \`${rest}\`, so \`${group}.${choice}\` does not show. Add \`${group}.${choice}\` to \`${name}\`'s \`unless\` to keep \`${name}\` off looks that choose it, or route those looks to a morph that rests on it with that morph's \`when\`.`,
-            },
-            source: LANGUAGE_NAME,
-          });
         }
         for (const diagnostic of resolved.diagnostics) {
           if (resolved.vocabulary?.diagnostics.includes(diagnostic)) continue;
@@ -4880,7 +4866,7 @@ export class SparkdownCompiler {
       }
       const pickAt = (at: number, struct: any) =>
         scriptTree
-          ? linePicksOf(program.context!, struct?.$name ?? "", directiveLine(program.context!, scriptTree, { read: (from, to) => doc.read(from, to), characterNumber: (pos) => doc.positionAt(pos).character }, at, names, directives))
+          ? linePickOf(program.context!, struct?.$name ?? "", directiveLine(program.context!, scriptTree, { read: (from, to) => doc.read(from, to), characterNumber: (pos) => doc.positionAt(pos).character }, at, names, directives))
           : undefined;
       let coveredTo = -1;
       const shownImages: typeof images = [];

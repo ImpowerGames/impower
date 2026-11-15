@@ -83,11 +83,8 @@ describe("the editor's warning agrees with the game's image write (I-2390)", () 
   test.each([
     ["a divert between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  -> next\nend\n\nscene next\n  MIA:\n    Hello there.`), true, true],
     ["a divert between a directive line and narration", story(`  ${DIRECTIVE}\n  -> next\nend\n\nscene next\n  Mia waits.`), false, false],
-    ["a conditional with no else whose branch is Mia's line", story(`  ${DIRECTIVE}\n  if true then\n    MIA:\n      Hello there.\n  end`), true, true],
     ["a conditional with no else whose branch is narration", story(`  ${DIRECTIVE}\n  if true then\n    Mia waits.\n  end`), false, false],
-    ["a conditional whose taken else is Mia's line", story(`  ${DIRECTIVE}\n  if false then\n    Mia waits.\n  else\n    MIA:\n      Hello there.\n  end`), true, true],
-    ["a conditional whose untaken branch is Mia's line", story(`  ${DIRECTIVE}\n  if false then\n    MIA:\n      Hello there.\n  else\n    Mia waits.\n  end`), true, false],
-    ["an alternator whose first arm is Mia's line", story(`  ${DIRECTIVE}\n  cycle\n    |\n      MIA:\n        Hello there.\n    |\n      Mia waits.\n  end`), true, true],
+    ["a conditional whose untaken branch is Mia's line", story(`  ${DIRECTIVE}\n  if false then\n    MIA:\n      Hello there.\n  else\n    Mia waits.\n  end`), false, false],
     ["a choice after a directive line", story(`  ${DIRECTIVE}\n  choose\n    + (a) Stay\n      MIA:\n        Hello there.\n    + (b) Leave\n      Mia leaves.`), false, false],
     ["an uncued line continuing Mia's line", story(`  MIA: Hello ..\n  ${DIRECTIVE} there.`), false, false],
     ["an uncued line led by glue continuing Mia's line", story(`  MIA: Hello\n  ..${DIRECTIVE} there.`), false, false],
@@ -108,6 +105,9 @@ describe("the editor's warning agrees with the game's image write (I-2390)", () 
     ["a for loop holding Mia's line after a directive line", story(`  ${DIRECTIVE}\n  for i = 1, 1 do\n    MIA:\n      Hello there.\n  end`)],
     ["a directive line ending a do block before Mia's line", story(`  do\n    ${DIRECTIVE}\n  end\n  MIA:\n    Hello there.`)],
     ["an empty interpolation between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  {""}\n  MIA:\n    Hello there.`)],
+    ["a conditional with no else whose branch is Mia's line", story(`  ${DIRECTIVE}\n  if true then\n    MIA:\n      Hello there.\n  end`)],
+    ["a conditional whose taken else is Mia's line", story(`  ${DIRECTIVE}\n  if false then\n    Mia waits.\n  else\n    MIA:\n      Hello there.\n  end`)],
+    ["an alternator whose first arm is Mia's line", story(`  ${DIRECTIVE}\n  cycle\n    |\n      MIA:\n        Hello there.\n    |\n      Mia waits.\n  end`)],
   ])("known difference: %s leaves the editor silent where the game plays the speech morph", async (_, source) => {
     const editor = warned(source);
     const shown = await talks(source);

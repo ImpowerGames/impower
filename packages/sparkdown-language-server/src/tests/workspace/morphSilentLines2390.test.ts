@@ -147,6 +147,12 @@ describe("the hover and the suggestion preview show the look the line shows (I-2
     expect(src).not.toContain("teeth");
   });
 
+  test("hovering a directive line followed by a conditional shows the directive's own look", async () => {
+    const src = await hovered("  [[bunny:mouth.teeth]]\n  if ready then\n    BUNNY:\n      Let go of that!\n  end");
+    expect(src).toContain("teeth");
+    expect(src).not.toContain("closed");
+  });
+
   test("hovering an image named outside any directive keeps the preview a named look gets", async () => {
     const head = 'define teeth as filtered_image with\n  image = image.bunny\n  attributes = { "mouth.teeth" }\nend\n\n';
     const src = await hovered("  This is Bunny.", "image = image.bunny", head);

@@ -62,155 +62,47 @@ const speakerOf = (
   return cue ? cueCharacter(context, names, cue) : undefined;
 };
 
-const lineSpeakers = (
+const CHOICES = new Set(["LuauSparkdownChooseBlock", "Choice"]);
+
+const lineSpeaker = (
   context: Record<string, any> | undefined,
   names: CharacterNames,
   tree: Tree,
   source: DirectiveSource,
   at: number,
-): (string | undefined)[] => {
+): string | undefined => {
   const { read } = source;
   const own = constructAt(tree, at);
-  if (!own) return [undefined];
+  if (!own) return undefined;
   const ownSpeaker = isDisplay(own) ? speakerOf(context, names, own, read) : undefined;
   const ownBeats = isDisplay(own) ? (displayBeatRanges(own, source) ?? []).filter((range) => range.to >= at) : [];
   if (ownBeats.some((range) => writesText(own, range, read))) {
-    return [ownSpeaker];
+    return ownSpeaker;
   }
-  const speakers: (string | undefined)[] = [];
-  const add = (speaker: string | undefined) => {
-    if (!speakers.includes(speaker)) speakers.push(speaker);
-  };
   const followed = new Set<string>();
-  let steps = 0;
-  const visit = (start: SyntaxNode | null, stop: Stop | undefined, rest: readonly Frame[]): void => {
-    let node = start;
-    let until = stop;
-    let resume = rest;
-    for (;;) {
-      if (++steps > MAX_STEPS) return;
-      if (!node || until?.(node)) {
-        const frame = resume[resume.length - 1];
-        if (!frame) {
-          add(ownSpeaker);
-          return;
-        }
-        resume = resume.slice(0, -1);
-        node = frame.node;
-        until = frame.stop;
-        continue;
-      }
-      if (passesThrough(node)) {
-        node = node.nextSibling;
-        continue;
-      }
-      if (node.name === "Divert") {
-        const name = divertTarget(node, read);
-        const scene = followed.has(name) ? null : sceneNamed(tree, read, name);
-        if (!scene) return;
-        followed.add(name);
-        node = scene.nextSibling;
-        until = undefined;
-        resume = [];
-        continue;
-      }
-      if (CHOICES.has(node.name)) {
-        add(undefined);
-        return;
-      }
-      const branching = branchesOf(node);
-      if (branching) {
-        const after = [...resume, { node: node.nextSibling, stop: until }];
-        for (const branch of branching.branches) visit(branch.start, branch.stop, after);
-        if (!branching.skippable) return;
-        node = node.nextSibling;
-        continue;
-      }
-      if (!isDisplay(node)) {
-        add(ownSpeaker);
-        return;
-      }
-      const display = node;
-      if ((displayBeatRanges(display, source) ?? []).some((range) => writesText(display, range, read))) {
-        add(speakerOf(context, names, display, read));
-        return;
-      }
+  let node = own.nextSibling;
+  while (node) {
+    if (passesThrough(node)) {
       node = node.nextSibling;
+      continue;
     }
-  };
-  const enclosing = enclosingFrames(own);
-  visit(own.nextSibling, enclosing.stop, enclosing.frames);
-  return speakers.length > 0 ? speakers : [ownSpeaker];
-};
-
-const MAX_STEPS = 256;
-
-type Stop = (node: SyntaxNode) => boolean;
-
-interface Frame {
-  node: SyntaxNode | null;
-  stop: Stop | undefined;
-}
-
-interface Branch {
-  start: SyntaxNode | null;
-  stop: Stop | undefined;
-}
-
-const CHOICES = new Set(["LuauSparkdownChooseBlock", "Choice"]);
-
-const IF_BLOCKS = new Set(["LuauSparkdownIfBlock"]);
-
-const ALTERNATOR_BLOCKS = new Set(["LuauSparkdownSequentialAlternatorBlock", "LuauSparkdownConditionalAlternatorBlock"]);
-
-const IF_BRANCHES = new Set(["LuauSparkdownElseifBlock", "LuauSparkdownElseBlock"]);
-
-const endsIfBranch: Stop = (node) => IF_BRANCHES.has(node.name);
-
-const endsAlternatorBranch: Stop = (node) => node.name === "LuauAlternatorSeparator";
-
-const afterCondition = (content: SyntaxNode | null) => {
-  let node = content?.firstChild ?? null;
-  while (node && (node.name.includes("Condition") || node.name.endsWith("Whitespace"))) node = node.nextSibling;
-  return node;
-};
-
-const branchesOf = (node: SyntaxNode): { branches: Branch[]; skippable: boolean } | undefined => {
-  if (IF_BLOCKS.has(node.name)) {
-    const content = node.getChild(`${node.name}_content`);
-    const branches: Branch[] = [{ start: afterCondition(content), stop: endsIfBranch }];
-    let skippable = true;
-    for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
-      if (!IF_BRANCHES.has(child.name)) continue;
-      if (child.name === "LuauSparkdownElseBlock") skippable = false;
-      branches.push({ start: afterCondition(child.getChild(`${child.name}_content`)), stop: undefined });
+    if (node.name === "Divert") {
+      const name = divertTarget(node, read);
+      const scene = followed.has(name) ? null : sceneNamed(tree, read, name);
+      if (!scene) return ownSpeaker;
+      followed.add(name);
+      node = scene.nextSibling;
+      continue;
     }
-    return { branches, skippable };
-  }
-  if (ALTERNATOR_BLOCKS.has(node.name)) {
-    const content = node.getChild(`${node.name}_content`);
-    const branches: Branch[] = [];
-    for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
-      if (child.name === "LuauAlternatorSeparator") branches.push({ start: child.nextSibling, stop: endsAlternatorBranch });
+    if (CHOICES.has(node.name)) return undefined;
+    if (!isDisplay(node)) return ownSpeaker;
+    const display = node;
+    if ((displayBeatRanges(display, source) ?? []).some((range) => writesText(display, range, read))) {
+      return speakerOf(context, names, display, read);
     }
-    return { branches, skippable: true };
+    node = node.nextSibling;
   }
-  return undefined;
-};
-
-const enclosingFrames = (own: SyntaxNode): { stop: Stop | undefined; frames: Frame[] } => {
-  const levels: { stop: Stop | undefined; block: SyntaxNode | null }[] = [];
-  for (let parent = own.parent; parent?.parent; parent = parent.parent) {
-    const block = parent.parent;
-    if (parent.name !== `${block.name}_content`) continue;
-    if (IF_BLOCKS.has(block.name)) levels.push({ stop: endsIfBranch, block });
-    else if (IF_BRANCHES.has(block.name)) levels.push({ stop: undefined, block: block.parent?.parent ?? null });
-    else if (ALTERNATOR_BLOCKS.has(block.name)) levels.push({ stop: endsAlternatorBranch, block });
-  }
-  const frames = levels
-    .map((level, i) => ({ node: level.block?.nextSibling ?? null, stop: levels[i + 1]?.stop }))
-    .reverse();
-  return { stop: levels[0]?.stop, frames };
+  return ownSpeaker;
 };
 
 const divertTarget = (divert: SyntaxNode, read: Read) => {
@@ -231,7 +123,7 @@ const sceneNamed = (tree: Tree, read: Read, name: string): SyntaxNode | null => 
 
 export interface DirectiveLine {
   pick?: string;
-  speakers: (string | null)[];
+  speaker?: string;
 }
 
 export const directiveLine = (
@@ -247,24 +139,16 @@ export const directiveLine = (
   );
   if (directive?.kind !== "image") return undefined;
   const written = directive.values["morph"];
+  const speaker = lineSpeaker(context, names, tree, source, at);
   return {
     ...(typeof written === "string" ? { pick: written } : {}),
-    speakers: lineSpeakers(context, names, tree, source, at).map((speaker) => speaker ?? null),
+    ...(speaker !== undefined ? { speaker } : {}),
   };
 };
-
-export const linePicksOf = (
-  context: Record<string, any>,
-  imageName: string,
-  line: DirectiveLine | undefined,
-): { speaker: string | undefined; pickOf: (layer: ImageLayer) => string | undefined }[] | undefined =>
-  line?.speakers.map((entry) => {
-    const speaker = entry ?? undefined;
-    return { speaker, pickOf: (layer: ImageLayer) => linePick(context, imageName, layer, line.pick, speaker) };
-  });
 
 export const linePickOf = (
   context: Record<string, any>,
   imageName: string,
   line: DirectiveLine | undefined,
-): ((layer: ImageLayer) => string | undefined) | undefined => linePicksOf(context, imageName, line)?.[0]?.pickOf;
+): ((layer: ImageLayer) => string | undefined) | undefined =>
+  line ? (layer) => linePick(context, imageName, layer, line.pick, line.speaker) : undefined;
