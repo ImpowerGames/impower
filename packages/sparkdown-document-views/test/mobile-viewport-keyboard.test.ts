@@ -5,6 +5,7 @@ import {
   isKeyboardToolbarOpen,
   keyboardToolbar,
 } from "../src/modules/script-editor/utils/extensions/keyboardToolbar";
+import { CARET_SCROLL_MARGIN_TOP } from "../src/modules/script-editor/utils/extensions/caretScrollMargin";
 import { mobileViewportManager } from "../src/modules/script-editor/utils/extensions/mobileViewportManager";
 
 const KEYBOARD_HEIGHT = 300;
@@ -91,6 +92,26 @@ describe("mobile viewport manager keyboard state", () => {
     );
     expect(isKeyboardToolbarOpen(view!.state)).toBe(true);
     expect(view!.dom.classList.contains("keyboard-open")).toBe(true);
+  });
+
+  it("scrolls the caret into view with the caret margin when the keyboard opens", async () => {
+    const dispatch = vi.spyOn(view!, "dispatch");
+
+    await focusEditor(view!);
+    await nextFrame();
+
+    const margins = dispatch.mock.calls.flatMap(([spec]) =>
+      [(spec as { effects?: unknown }).effects]
+        .flat()
+        .map(
+          (effect) =>
+            (effect as { value?: { y?: string; yMargin?: number } } | undefined)
+              ?.value,
+        )
+        .filter((value) => value?.y === "nearest")
+        .map((value) => value!.yMargin),
+    );
+    expect(margins).toContain(CARET_SCROLL_MARGIN_TOP);
   });
 
   it("keeps the root fitted when focus moves from the editor to a field outside it with the keyboard open", async () => {
