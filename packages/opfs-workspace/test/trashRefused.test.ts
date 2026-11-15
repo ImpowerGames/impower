@@ -93,6 +93,24 @@ it("leaves no empty batch in the bin when storage refuses every file", async () 
   expect((await h.request("workspace/trashFiles", { projectId: "p", action: "list" })).result.batches).toEqual([]);
 });
 
+it("does not name a file that is already gone as one still in place", async () => {
+  const h = await worker();
+  writeMemoryFile(h.root, "p/Scripts/b.sd", new TextEncoder().encode("B"));
+  const response = await trashDelete(h);
+  expect(response.error).toBeUndefined();
+  expect(response.result.map((f: any) => f.uri)).toEqual(["file://p/Scripts/b.sd"]);
+  expect(listMemory(h.root, "p")).not.toContain("Scripts/b.sd");
+});
+
+it("leaves no empty batch in the bin when every file is already gone", async () => {
+  const h = await worker();
+  writeMemoryFile(h.root, "p/Scripts/c.sd", new TextEncoder().encode("C"));
+  const response = await trashDelete(h);
+  expect(response.error).toBeUndefined();
+  expect(response.result).toEqual([]);
+  expect((await h.request("workspace/trashFiles", { projectId: "p", action: "list" })).result.batches).toEqual([]);
+});
+
 it("answers with the moved files when storage refuses none", async () => {
   const h = await worker();
   seed(h.root);

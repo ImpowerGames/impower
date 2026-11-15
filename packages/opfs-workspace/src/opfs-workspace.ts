@@ -2353,7 +2353,9 @@ const moveFilesToTrash = async (
       entries.push({ relPath, originalUri: file.uri, type });
     } catch (e) {
       console.error(`moveFilesToTrash: skipping ${file.uri}`, e);
-      skipped.push(file.uri);
+      if (await findFileHandle(file.uri).then(Boolean, () => true)) {
+        skipped.push(file.uri);
+      }
       if (copied) {
         await removeFile(trashUri).catch((cleanupError) => {
           console.error(`moveFilesToTrash: cannot remove ${trashUri}`, cleanupError);
@@ -2361,7 +2363,7 @@ const moveFilesToTrash = async (
       }
     }
   }
-  if (entries.length === 0 && skipped.length > 0) {
+  if (entries.length === 0 && (skipped.length > 0 || folderPaths.length === 0)) {
     await removeTrashBatch(projectId, batchId);
     return { deleted, skipped };
   }
