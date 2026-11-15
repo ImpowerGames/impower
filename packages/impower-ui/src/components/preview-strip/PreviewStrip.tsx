@@ -7,7 +7,7 @@ import { FileIcon, PencilIcon } from "../icon/icons.generated";
 import PlayButton from "../play-button/PlayButton";
 
 export const previewStripVariants = cva(
-  "@container relative flex h-[91px] w-full flex-none border-b border-edge bg-preview-strip text-ink",
+  "@container relative flex h-[var(--preview-strip-height)] w-full flex-none border-b border-edge bg-preview-strip text-ink",
 );
 
 export const previewStripStatusVariants = cva(
