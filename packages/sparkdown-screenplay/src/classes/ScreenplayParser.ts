@@ -6,7 +6,15 @@ import { isStyleCode, trimStyled, trimStyledBounds } from "../../../sparkdown/sr
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
-import { GLUED_ALTERNATOR_BLOCKS, gluedAlternatorJoin } from "../utils/gluedAlternatorLayout";
+import {
+  ALTERNATOR_BLOCKS,
+  ALTERNATOR_SEPARATOR,
+  GLUED_ALTERNATOR_BLOCKS,
+  gluedAlternatorJoin,
+  IF_BLOCK,
+  IF_BRANCHES,
+  markAlternatives,
+} from "../utils/alternativeMarks";
 import { insertedAt, UNPLACED } from "../utils/printedPosition";
 import { printsAsBlankLine } from "../utils/printsAsBlankLine";
 import { readStyled } from "../utils/readStyled";
@@ -306,6 +314,9 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
       }
     };
 
+    const alternatives: { name: string; from: number; arms: number[] }[] = [];
+    const isAlternativesBlock = (name: string) => ALTERNATOR_BLOCKS.has(name) || name === IF_BLOCK;
+
     let pendingTokens = 0;
     let heldSeparator: number | undefined = undefined;
     const addSeparator = (from: number) => {
@@ -381,6 +392,19 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
             textSource = [];
           }
           return false;
+        }
+
+        if (isAlternativesBlock(name)) {
+          flushText();
+          alternatives.push({ name, from, arms: name === IF_BLOCK ? [tokens.length] : [] });
+        }
+        if (name === ALTERNATOR_SEPARATOR || IF_BRANCHES.has(name)) {
+          const block = nodeRef.node.parent?.parent;
+          const open = alternatives.at(-1);
+          if (open && block?.name === open.name && block.from === open.from) {
+            flushText();
+            open.arms.push(tokens.length);
+          }
         }
 
         if (GLUED_ALTERNATOR_BLOCKS.has(name) && !stack.includes("Choice")) {
@@ -540,6 +564,10 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
       },
       leave: (nodeRef) => {
         const name = nodeRef.name as SparkdownNodeName;
+        if (isAlternativesBlock(name)) {
+          flushText();
+          markAlternatives(tokens, alternatives.pop()!.arms, positions);
+        }
         if (name === "FrontMatterField" && !COMPILER_FIELDS.has(frontMatterKey)) {
           tokens.push({
             tag: ("meta:" + frontMatterKey) as MetadataTokenType,
