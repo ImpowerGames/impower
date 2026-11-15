@@ -6,6 +6,9 @@ const state = vi.hoisted(() => ({
   saved: [] as any[],
   restored: undefined as unknown,
   receive: (_message: unknown) => {},
+  posted: [] as unknown[],
+  reducesMotion: false,
+  motionListeners: [] as (() => void)[],
 }));
 
 vi.mock("@impower/jsonrpc/src/browser/classes/WindowMessageConnection", () => ({
@@ -80,8 +83,19 @@ const load = async () => {
   vi.resetModules();
   const saves: unknown[] = [];
   state.saved = saves;
+  state.posted = [];
+  state.motionListeners = [];
+  window.matchMedia = ((media: string) => ({
+    media,
+    get matches() {
+      return state.reducesMotion;
+    },
+    addEventListener: (_type: string, listener: () => void) => {
+      state.motionListeners.push(listener);
+    },
+  })) as unknown as typeof window.matchMedia;
   (globalThis as any).acquireVsCodeApi = () => ({
-    postMessage: () => {},
+    postMessage: (message: unknown) => state.posted.push(message),
     getState: () => state.restored,
     setState: (saved: unknown) => saves.push(JSON.parse(JSON.stringify(saved))),
   });
@@ -91,6 +105,7 @@ const load = async () => {
 beforeEach(() => {
   state.saved = [];
   state.restored = undefined;
+  state.reducesMotion = false;
 });
 
 describe("saving the Game Preview's script", () => {
@@ -186,5 +201,47 @@ describe("restoring the Game Preview's saved state", () => {
       textDocument: { uri: "file:///project/main.sd" },
       canvasHeight: 300,
     });
+  });
+});
+
+describe("the Game Preview webview's host reports", () => {
+  const motionReports = () =>
+    state.posted.filter(
+      (m): m is { systemReducesMotion: boolean } =>
+        typeof (m as any)?.systemReducesMotion === "boolean",
+    );
+
+  it("tells the extension whether the system reduces motion when it loads", async () => {
+    state.reducesMotion = true;
+    await load();
+    expect(motionReports()).toEqual([{ systemReducesMotion: true }]);
+  });
+
+  it("tells the extension again when the system's motion setting changes", async () => {
+    await load();
+    state.reducesMotion = true;
+    state.motionListeners.forEach((listener) => listener());
+    state.reducesMotion = false;
+    state.motionListeners.forEach((listener) => listener());
+    expect(motionReports()).toEqual([
+      { systemReducesMotion: false },
+      { systemReducesMotion: true },
+      { systemReducesMotion: false },
+    ]);
+  });
+
+  it("labels the Replay beat control with its shortcut", async () => {
+    const player = document.createElement("spark-web-player");
+    document.body.append(player);
+    try {
+      await load();
+      expect(player.getAttribute("replay-shortcut")).toBe(
+        /Mac|iPhone|iPad/.test(navigator.userAgent)
+          ? "⌥⌘Enter"
+          : "Ctrl+Alt+Enter",
+      );
+    } finally {
+      player.remove();
+    }
   });
 });
