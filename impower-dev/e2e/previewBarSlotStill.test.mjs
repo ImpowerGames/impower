@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { launchEditorBrowser, openEditorPage, waitForEditor, withEditor, writeMainSd } from "../../.agents/skills/drive-web-editor/driver.mjs";
 import { VIEWPORT_PRESETS } from "../../.agents/skills/drive-web-editor/viewport.mjs";
 
-const WIDTHS = [620, 560, 500, 481, 480, 470, 420, 360, 340];
+const WIDTHS = [641, 640, 639, 620, 560, 500, 481, 480, 470, 420, 360, 340];
 const SCRIPT = "scene start\n  The lamps come on one by one.\n  The street goes quiet.\n  done\nend\n";
 const BAR = '[role="group"][aria-label="Playback controls"]';
 
