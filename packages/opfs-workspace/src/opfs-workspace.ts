@@ -2354,6 +2354,7 @@ const moveFilesToTrash = async (
   const batchId = `${deletedAt}__${crypto.randomUUID()}`;
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   const entries: { relPath: string; originalUri: string; type: string }[] = [];
+  const leftovers: string[] = [];
   for (const file of uniqueFiles) {
     const relPath = getPathFromUri(file.uri).slice(projectId.length + 1);
     const trashUri = getUriFromPath(`${trashPrefix}/${relPath}`);
@@ -2373,20 +2374,23 @@ const moveFilesToTrash = async (
       }
       const leftover =
         copied || (await findFileHandle(trashUri).then(Boolean, () => true));
-      if (leftover && !(await removeTrashCopy(trashUri)) && copied) {
-        entries.push({ relPath, originalUri: file.uri, type });
+      if (leftover && !(await removeTrashCopy(trashUri))) {
+        leftovers.push(relPath);
       }
     }
   }
   if (entries.length === 0 && (skipped.length > 0 || folderPaths.length === 0)) {
     await removeTrashBatch(projectId, batchId);
-    return { deleted, skipped };
+    if (!(await trashBatchExists(projectId, batchId))) {
+      return { deleted, skipped };
+    }
   }
-  const manifest = JSON.stringify(
-    folderPaths.length && skipped.length === 0
-      ? { deletedAt, entries, folders: folderPaths }
-      : { deletedAt, entries },
-  );
+  const manifest = JSON.stringify({
+    deletedAt,
+    entries,
+    ...(folderPaths.length && skipped.length === 0 ? { folders: folderPaths } : {}),
+    ...(leftovers.length ? { leftovers } : {}),
+  });
   const manifestUri = getUriFromPath(`${trashPrefix}/${TRASH_MANIFEST}`);
   await createFiles([
     {
@@ -2402,6 +2406,16 @@ const getTrashDirHandle = async (projectId: string) =>
     await navigator.storage.getDirectory(),
     `${projectId}/${TRASH_DIR}`,
   );
+
+const trashBatchExists = async (projectId: string, batchId: string) => {
+  const trash = await getTrashDirHandle(projectId);
+  return trash
+    ? trash.getDirectoryHandle(batchId).then(
+        () => true,
+        (err) => !isMissingEntry(err),
+      )
+    : false;
+};
 
 const evictTrashCache = (uriPrefix: string) => {
   for (const uri of [...State.files.keys()]) {
@@ -2426,6 +2440,9 @@ const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
       const dir = handle as FileSystemDirectoryHandle;
       const file = await (await dir.getFileHandle(TRASH_MANIFEST)).getFile();
       const m = JSON.parse(await file.text()) as Omit<TrashBatch, "batchId">;
+      if (m.entries.length === 0 && !m.folders?.length && !m.reason) {
+        continue;
+      }
       batches.push({
         batchId: handle.name,
         deletedAt: m.deletedAt,

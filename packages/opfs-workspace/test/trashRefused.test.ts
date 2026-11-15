@@ -119,21 +119,105 @@ it("removes the refused file's copy from the bin when the first removal of the c
   ]);
 });
 
-it("lists the refused file's copy in the bin when its copy cannot be removed at all", async () => {
+const manifestOf = (root: any, batchId: string) =>
+  JSON.parse(
+    new TextDecoder().decode(
+      root.entries.get("p").entries.get(".trash").entries.get(batchId).entries.get("__manifest.json").bytes,
+    ),
+  );
+
+const binFiles = (root: any) => listMemory(root, "p").filter((p) => p.startsWith(".trash/") && !p.endsWith("/"));
+
+const trashBatchIds = (root: any) => [...(root.entries.get("p").entries.get(".trash")?.entries.keys() ?? [])];
+
+it("records the refused file's copy as a leftover, never a restore entry, when the copy cannot be removed at all", async () => {
   const h = await worker();
   seed(h.root);
   refuseRemoving(h.root, ["a.sd"]);
   refuseCopyRemoval(h.root, Infinity);
   const response = await trashDelete(h);
   expect(response.error.data.skipped).toEqual(["file://p/Scripts/a.sd"]);
-  expect(listMemory(h.root, "p")).toContain("Scripts/a.sd");
-  const copies = listMemory(h.root, "p").filter((p) => p.startsWith(".trash/") && p.endsWith(".sd"));
   const batches = (await h.request("workspace/trashFiles", { projectId: "p", action: "list" })).result.batches;
   expect(batches).toHaveLength(1);
-  expect(copies.map((p) => p.slice(`.trash/${batches[0].batchId}/`.length)).sort()).toEqual(
-    batches[0].entries.map((e: any) => e.relPath).sort(),
+  expect(batches[0].entries.map((e: any) => e.relPath)).toEqual(["Scripts/b.sd"]);
+  expect(manifestOf(h.root, batches[0].batchId).leftovers).toEqual(["Scripts/a.sd"]);
+  expect(binFiles(h.root).filter((p) => p.endsWith(".sd")).sort()).toEqual(
+    [`.trash/${batches[0].batchId}/Scripts/a.sd`, `.trash/${batches[0].batchId}/Scripts/b.sd`],
   );
-  expect(batches[0].entries.map((e: any) => e.relPath).sort()).toEqual(["Scripts/a.sd", "Scripts/b.sd"]);
+});
+
+it("records a part-written copy that cannot be removed at all as a leftover too", async () => {
+  const h = await worker();
+  seed(h.root);
+  const scripts = h.root.entries.get("p")!.entries.get("Scripts") as MemoryDirectory;
+  const realAccess = MemoryFile.prototype.createSyncAccessHandle;
+  vi.spyOn(MemoryFile.prototype, "createSyncAccessHandle").mockImplementation(async function (this: MemoryFile) {
+    const handle = await realAccess.call(this);
+    if (this.name !== "a.sd" || scripts.entries.get("a.sd") === this) return handle;
+    const write = handle.write;
+    return { ...handle, write: (data: DataView | Uint8Array) => write(new Uint8Array(data.buffer, data.byteOffset, 0)) };
+  });
+  refuseRemoving(h.root, ["a.sd"]);
+  refuseCopyRemoval(h.root, Infinity);
+  const response = await trashDelete(h);
+  const batchId = response.error.data.batchId;
+  expect(manifestOf(h.root, batchId).entries.map((e: any) => e.relPath)).toEqual(["Scripts/b.sd"]);
+  expect(manifestOf(h.root, batchId).leftovers).toEqual(["Scripts/a.sd"]);
+});
+
+it("restores only the moved files of a batch with a leftover and deletes the leftover with the batch", async () => {
+  const h = await worker();
+  seed(h.root);
+  refuseRemoving(h.root, ["a.sd"]);
+  refuseCopyRemoval(h.root, Infinity);
+  const batchId = (await trashDelete(h)).error.data.batchId;
+  const restored = await h.request("workspace/trashFiles", { projectId: "p", action: "restore", batchId });
+  expect(restored.result.restored.map((f: any) => f.uri)).toEqual(["file://p/Scripts/b.sd"]);
+  expect(listMemory(h.root, "p").filter((p) => !p.startsWith(".trash"))).toEqual(["Scripts/", "Scripts/a.sd", "Scripts/b.sd"]);
+  expect(binFiles(h.root)).toEqual([]);
+});
+
+it("deletes a batch's leftover when the bin is emptied", async () => {
+  const h = await worker();
+  seed(h.root);
+  refuseRemoving(h.root, ["a.sd"]);
+  refuseCopyRemoval(h.root, Infinity);
+  await trashDelete(h);
+  await h.request("workspace/trashFiles", { projectId: "p", action: "empty" });
+  expect(binFiles(h.root)).toEqual([]);
+  expect(listMemory(h.root, "p")).toContain("Scripts/a.sd");
+});
+
+it("deletes a batch's leftover when the batch expires", async () => {
+  const h = await worker();
+  seed(h.root);
+  refuseRemoving(h.root, ["a.sd"]);
+  refuseCopyRemoval(h.root, Infinity);
+  await trashDelete(h);
+  const now = Date.now();
+  vi.spyOn(Date, "now").mockImplementation(() => now + 10_000);
+  await h.request("workspace/trashFiles", { projectId: "p", action: "purge", retentionMs: 1_000 });
+  expect(binFiles(h.root)).toEqual([]);
+});
+
+it("keeps a record of a leftover, out of the bin list, when every file was refused and its batch cannot be removed", async () => {
+  const h = await worker();
+  seed(h.root);
+  refuseRemoving(h.root, ["a.sd", "b.sd"]);
+  const trash = () => h.root.entries.get("p")!.entries.get(".trash");
+  const realRemove = MemoryDirectory.prototype.removeEntry;
+  vi.spyOn(MemoryDirectory.prototype, "removeEntry").mockImplementation(async function (this: any, name, options) {
+    if (this === trash() || (this !== h.root.entries.get("p")!.entries.get("Scripts") && name.endsWith(".sd"))) {
+      throw new DOMException("refused", "NoModificationAllowedError");
+    }
+    return realRemove.call(this, name, options);
+  });
+  const response = await trashDelete(h);
+  expect(response.error.data.skipped).toEqual(["file://p/Scripts/a.sd", "file://p/Scripts/b.sd"]);
+  const [batchId] = trashBatchIds(h.root);
+  expect(manifestOf(h.root, batchId).entries).toEqual([]);
+  expect(manifestOf(h.root, batchId).leftovers).toEqual(["Scripts/a.sd", "Scripts/b.sd"]);
+  expect((await h.request("workspace/trashFiles", { projectId: "p", action: "list" })).result.batches).toEqual([]);
 });
 
 it("removes a part-written copy of the refused file from the bin when its first removal is refused too", async () => {
