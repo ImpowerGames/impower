@@ -113,7 +113,7 @@ export const sheetVariants = cva(
         room: "",
       },
       flush: {
-        true: ["flex flex-col overflow-hidden", sheetFoot],
+        true: "flex flex-col overflow-hidden",
         false: "p-5",
       },
       visible: {
@@ -122,6 +122,7 @@ export const sheetVariants = cva(
       },
     },
     compoundVariants: [
+      { size: "auto", flush: true, class: sheetFoot },
       { size: "auto", fit: "free", class: "max-h-[80%]" },
       { size: "auto", fit: "room", class: "max-h-full" },
     ],
