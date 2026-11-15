@@ -149,7 +149,7 @@ export function settledText(read, text) {
   let last = null;
   return async () => {
     const state = await read();
-    const shown = state?.visible && state.text?.includes(text) ? state.text : null;
+    const shown = state?.visible && !state.animating && state.text?.includes(text) ? state.text : null;
     const steady = shown !== null && shown === last;
     last = shown;
     return steady ? state : null;
@@ -181,7 +181,13 @@ export function previewRead(step) {
   const box = element?.getBoundingClientRect();
   const game = d.querySelector("#game")?.getBoundingClientRect();
   const hit = game ? d.elementFromPoint(game.x + game.width / 2, game.y + game.height / 2) : null;
+  const stage = d.querySelector("#game");
+  const animating = !!stage && d.getAnimations().some(a => {
+    const target = a.effect?.target;
+    return a.playState !== "finished" && a.playState !== "paused" && a.playState !== "idle" && !!target && stage.contains(target) && Number.isFinite(a.effect.getComputedTiming().endTime);
+  });
   return {
+    animating,
     center: hit ? { id: hit.id, tag: hit.tagName.toLowerCase(), inPlayer: !!hit.closest("#game-view, #game-ui") } : null,
     visible: visible(d.querySelector("spark-web-player")), text: leafText,
     playing: d.querySelector("#run-button")?.textContent === "Stop",
