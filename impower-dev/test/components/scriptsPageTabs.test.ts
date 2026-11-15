@@ -6,10 +6,12 @@ import type { DocumentSymbol } from "vscode-languageserver-protocol";
 
 const layout = vi.hoisted(() => ({
   value: "phone" as "phone" | "compact" | "desktop",
+  railDefault: "icons" as "icons" | "full",
 }));
 vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@impower/impower-ui/layout")>()),
   useLayout: () => layout.value,
+  useRailDefault: () => layout.railDefault,
 }));
 
 const calls = vi.hoisted(() => [] as string[]);
@@ -303,11 +305,42 @@ describe("the In this script tab's rows", () => {
 });
 
 describe("the Scripts page off the phone", () => {
-  it("has no tabs and shows All scripts", async () => {
-    layout.value = "compact";
-    workspace.layout.value = layout.value as Layout;
-    workspace.current = { ...workspace.current, lists: { scriptsTab: "outline" } };
+  const at = async (
+    next: "compact" | "desktop",
+    railDefault: "icons" | "full",
+    shell: { railWidth?: number; railCompactWidth?: number },
+  ) => {
+    layout.value = next;
+    layout.railDefault = railDefault;
+    workspace.layout.value = next as Layout;
+    workspace.current = { ...workspace.current, shell, lists: { scriptsTab: "outline" } };
     await mount();
+  };
+
+  afterEach(() => {
+    layout.railDefault = "icons";
+    workspace.current = { ...workspace.current, shell: {} };
+  });
+
+  it.each([
+    ["compact", "icons", {}],
+    ["compact", "full", { railCompactWidth: 76 }],
+    ["desktop", "full", { railWidth: 76 }],
+  ] as const)("shows the tabs at %s when the rail shows icons only (default %s, %o)", async (next, railDefault, shell) => {
+    await at(next, railDefault, shell);
+    expect(tabs()).toHaveLength(2);
+    expect(tabNamed("All scripts")).toBeTruthy();
+    expect(tabNamed("In this script").getAttribute("aria-selected")).toBe("true");
+    expect(search("Search this script")).not.toBeNull();
+  });
+
+  it.each([
+    ["compact", "full", {}],
+    ["compact", "icons", { railCompactWidth: 190 }],
+    ["desktop", "full", {}],
+    ["desktop", "full", { railWidth: 300 }],
+  ] as const)("has no tabs and shows All scripts at %s when the rail shows labels (default %s, %o)", async (next, railDefault, shell) => {
+    await at(next, railDefault, shell);
     expect(host!.querySelector('[role="tablist"]')).toBeNull();
     expect(search("Search scripts")).not.toBeNull();
     expect(search("Search this script")).toBeNull();

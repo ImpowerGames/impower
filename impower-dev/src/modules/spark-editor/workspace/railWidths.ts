@@ -19,15 +19,13 @@ export type RailReveal =
   | { railWidth: number | undefined }
   | { railCompactWidth: number };
 
-export const railReveal = (
+export const railIconsOnly = (
   shell: ShellState | undefined,
   layout: Layout,
   railDefault: RailDefault,
-): RailReveal | null => {
+): boolean => {
   if (layout === "desktop") {
-    return shell?.railWidth === RAIL_WIDTH.collapsed
-      ? { railWidth: undefined }
-      : null;
+    return shell?.railWidth === RAIL_WIDTH.collapsed;
   }
   if (layout === "compact") {
     const width =
@@ -35,9 +33,20 @@ export const railReveal = (
       (railDefault === "full"
         ? RAIL_COMPACT_WIDTH.full
         : RAIL_COMPACT_WIDTH.collapsed);
-    return width === RAIL_COMPACT_WIDTH.collapsed
-      ? { railCompactWidth: RAIL_COMPACT_WIDTH.full }
-      : null;
+    return width === RAIL_COMPACT_WIDTH.collapsed;
   }
-  return null;
+  return false;
+};
+
+export const railReveal = (
+  shell: ShellState | undefined,
+  layout: Layout,
+  railDefault: RailDefault,
+): RailReveal | null => {
+  if (!railIconsOnly(shell, layout, railDefault)) {
+    return null;
+  }
+  return layout === "desktop"
+    ? { railWidth: undefined }
+    : { railCompactWidth: RAIL_COMPACT_WIDTH.full };
 };

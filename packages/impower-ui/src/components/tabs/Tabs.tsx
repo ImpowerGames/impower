@@ -34,7 +34,7 @@ const tabsList = cva("flex w-full", {
       default: "",
       rail: "",
       bar: "items-center justify-evenly",
-      page: "gap-[22px]",
+      page: "gap-5 phone:gap-[22px] compact:gap-[22px]",
       inline: "min-w-0 gap-[18px] phone:gap-2",
     },
     scroll: {
@@ -73,8 +73,8 @@ const tabTrigger = cva(
         ],
         bar: "flex-none flex-col gap-1 size-16 min-h-16 p-0 rounded-control text-[12px]/[1.4] font-normal",
         page: [
-          "flex-none min-h-12 min-w-11 rounded-none px-1 text-[14px] font-normal",
-          "phone:min-h-[46px] phone:text-[13px] compact:min-h-[46px] compact:text-[13px]",
+          "flex-none min-h-12 min-w-11 rounded-none px-1 text-[13px] font-normal",
+          "phone:min-h-[46px] compact:min-h-[46px]",
         ],
         inline: "flex-none min-h-[50px] min-w-11 px-1 text-[13px] font-normal phone:px-px",
       },

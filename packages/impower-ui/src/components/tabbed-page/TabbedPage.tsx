@@ -72,7 +72,7 @@ export default function TabbedPage({
           iconLayout="beside"
           value={current?.value ?? null}
           onChange={onValueChange}
-          class="mx-4 w-auto flex-none border-b border-edge"
+          class="mx-[18px] w-auto flex-none border-b border-edge phone:mx-4 compact:mx-4"
         >
           {tabs.map((tab) => (
             <Tab key={tab.value} value={tab.value}>

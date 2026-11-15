@@ -103,12 +103,12 @@ const mountAt = async (layout: "phone" | "compact" | "desktop") => {
 
 describe("Tabs page variant", () => {
   it.each([
-    ["phone", 46, 13],
-    ["compact", 46, 13],
-    ["desktop", 48, 14],
-  ] as const)("at the %s layout gives each tab a %ipx row with %ipx text, 4px padding and a 22px gap", async (layout, height, size) => {
+    ["phone", 46, 13, 22],
+    ["compact", 46, 13, 22],
+    ["desktop", 48, 13, 20],
+  ] as const)("at the %s layout gives each tab a %ipx row with %ipx text and 4px padding, %ipx apart", async (layout, height, size, gap) => {
     const { list, tabs, rules } = await mountAt(layout);
-    expect(cascaded(rules, list, "gap")).toBe(22);
+    expect(cascaded(rules, list, "gap")).toBe(gap);
     for (const tab of tabs) {
       expect(cascaded(rules, tab, "min-height")).toBe(height);
       expect(cascaded(rules, tab, "font-size")).toBe(size);
@@ -123,7 +123,11 @@ describe("Tabs page variant", () => {
 });
 
 describe("TabbedPage tab row", () => {
-  it.each(["phone", "compact"] as const)("insets the row 16px from the page edges at the %s layout", async (layout) => {
+  it.each([
+    ["phone", 16],
+    ["compact", 16],
+    ["desktop", 18],
+  ] as const)("at the %s layout insets the row %ipx from the page edges", async (layout, inset) => {
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -151,6 +155,6 @@ describe("TabbedPage tab row", () => {
     const list = host.querySelector<HTMLElement>('[role="tablist"]')!;
     const row = list.parentElement!;
     const rules = await compiled(Array.from(row.classList));
-    expect(cascaded(rules, row, "margin-inline")).toBe(16);
+    expect(cascaded(rules, row, "margin-inline")).toBe(inset);
   });
 });
