@@ -264,6 +264,8 @@ describe("a debugger stop leaves a beat the settled drawing cannot finish to run
 
   const shown = (game: Game) => (game as any)._shownBeatOnScreen;
 
+  const tick = (game: Game) => game.update({ deltaMS: 0 } as never);
+
   const stepUntil = (game: Game, reached: () => boolean) => {
     for (let i = 0; i < 80 && !reached() && !game.ending; i += 1) {
       game.step("over");
@@ -283,35 +285,145 @@ describe("a debugger stop leaves a beat the settled drawing cannot finish to run
     game.pause();
     stepUntil(game, () => Boolean(shown(game)?.load));
     expect(settling).not.toHaveBeenCalled();
+    expect(load).not.toHaveBeenCalled();
     game.resume();
+    tick(game);
+    tick(game);
     expect(load).toHaveBeenCalledOnce();
     expect(load).toHaveBeenCalledWith([{ name: "other" }]);
   });
 
-  it("holds a cutscene a Step reaches in its playing drawing, and Resume plays it rather than passing it", () => {
+  it("opens no loading screen for a load a Step stops on until Resume", () => {
+    const source = [
+      "store visits = 0",
+      "scene start",
+      "  Before.",
+      "  visits = visits + 10",
+      "  -> load other",
+      "end",
+      "scene other",
+      "  Loaded.",
+      "end",
+      "",
+    ].join("\n");
+    const game = make(source, CUTSCENE_ASSETS);
+    const at = (text: string) =>
+      source.split("\n").findIndex((line) => line.trim() === text);
+    let stop: number | undefined;
+    game.connection.outgoing.addListener("*", (message) => {
+      const { method, params } = message as unknown as {
+        method: string;
+        params: any;
+      };
+      if (method === "game/hitBreakpoint" || method === "game/stepped") {
+        stop = params?.location?.range?.start?.line;
+      }
+    });
+    game.setBreakpoints([{ file: MAIN, line: at("visits = visits + 10") }]);
+    game.start();
+    for (let i = 0; i < 4 && stop === undefined; i += 1) {
+      game.continue();
+    }
+    expect(stop).toBe(at("visits = visits + 10"));
+    const loading = vi.spyOn(game.module.ui, "beginLoading");
+    for (let i = 0; i < 4 && !shown(game)?.load; i += 1) {
+      game.step("over");
+    }
+    expect(shown(game)?.load).toEqual([{ name: "other" }]);
+    expect(stop).toBe(at("-> load other"));
+    expect(game.paused).toBe(true);
+    expect(loading).not.toHaveBeenCalled();
+    game.resume();
+    tick(game);
+    expect(loading).toHaveBeenCalledOnce();
+  });
+
+  it("starts no cutscene whose assets are ready at a Step's stop until Resume, then plays it once", () => {
+    const game = make(
+      "scene start\n  Before.\n  [[play intro]]\n  After.\nend\n",
+      CUTSCENE_ASSETS,
+    );
+    vi.spyOn(game.module.assets, "prepareBeat").mockReturnValue(null as never);
+    const cutscene = vi.spyOn(game.module.ui, "runCutscene").mockReturnValue(0);
+    game.start();
+    game.pause();
+    stepUntil(game, () => Boolean(shown(game)?.cutscene));
+    expect(game.paused).toBe(true);
+    expect(cutscene).not.toHaveBeenCalled();
+    const coordinator = (game as any)._coordinator;
+    expect(game.resume()).toBe(false);
+    tick(game);
+    tick(game);
+    expect((game as any)._coordinator).toBe(coordinator);
+    expect(cutscene).toHaveBeenCalledOnce();
+    expect(cutscene).toHaveBeenCalledWith({ name: "intro" });
+  });
+
+  it("holds a cutscene a Step reaches until Resume, and Resume plays it rather than passing it", () => {
     const game = make(
       "scene start\n  Before.\n  [[play intro]]\n  After.\nend\n",
       CUTSCENE_ASSETS,
     );
     const settling = vi.spyOn(Coordinator.prototype, "onSettle");
     const playing = vi.spyOn(Coordinator.prototype, "onExecute");
+    const holding = vi.spyOn(Coordinator.prototype, "onHold");
     vi.spyOn(game.module.ui, "runCutscene").mockReturnValue(0);
     game.start();
     game.pause();
     stepUntil(game, () => Boolean(shown(game)?.cutscene));
     const coordinator = (game as any)._coordinator;
     expect(coordinator._instructions.cutscene).toEqual([{ name: "intro" }]);
-    expect(playing.mock.contexts).toContain(coordinator);
+    expect(holding.mock.contexts).toContain(coordinator);
+    expect(playing.mock.contexts).not.toContain(coordinator);
     expect(settling).not.toHaveBeenCalled();
     expect(game.paused).toBe(true);
     const beats = (game as any)._run.beats.length;
     expect(game.resume()).toBe(false);
     expect(game.paused).toBe(false);
+    tick(game);
     expect((game as any)._coordinator).toBe(coordinator);
     expect((game as any)._run.beats.length).toBe(beats);
   });
 
-  it("schedules the music a Step reaches", () => {
+  it("keeps a held music beat's loop when history returns to it after Resume", async () => {
+    const game = make(
+      [
+        "define theme as audio with",
+        '  src = "https://example.com/theme.wav"',
+        "  loop = true",
+        "end",
+        "scene start",
+        "  Before.",
+        "  ((play music theme)) With music.",
+        "  Later.",
+        "end",
+        "",
+      ].join("\n"),
+      CUTSCENE_ASSETS,
+    );
+    vi.spyOn(game.module.assets, "prepareBeat").mockReturnValue(null as never);
+    vi.spyOn(game.module.audio as any, "loadAllAudio").mockResolvedValue(
+      undefined,
+    );
+    game.start();
+    game.pause();
+    stepUntil(game, () => Boolean(shown(game)?.audio?.music?.length));
+    expect(game.module.audio.loopsPlaying().get("music")?.size ?? 0).toBe(0);
+    game.resume();
+    tick(game);
+    await Promise.resolve();
+    await Promise.resolve();
+    game.update({ deltaMS: 100 } as never);
+    expect(game.module.audio.loopsPlaying().get("music")?.size).toBe(1);
+    game.clickedToContinue();
+    expect(game.story.currentText?.trim()).toBe("Later.");
+    expect((await game.rollBack("beat")).moved).toBe(true);
+    expect(game.story.currentText).toContain("With music.");
+    expect(game.module.audio.loopsHeld().get("music")?.size ?? 0).toBe(1);
+    expect(game.module.audio.loopsPlaying().get("music")?.size ?? 0).toBe(1);
+  });
+
+  it("schedules the music a Step reaches and starts it only on Resume", async () => {
     const game = make(
       [
         "define theme as audio with",
@@ -327,12 +439,25 @@ describe("a debugger stop leaves a beat the settled drawing cannot finish to run
       ].join("\n"),
     );
     const settling = vi.spyOn(Coordinator.prototype, "onSettle");
+    vi.spyOn(game.module.assets, "prepareBeat").mockReturnValue(null as never);
+    vi.spyOn(game.module.audio as any, "loadAllAudio").mockResolvedValue(
+      undefined,
+    );
     const schedule = vi.spyOn(game.module.audio, "schedule");
+    const start = vi.spyOn(game.module.audio, "triggerAll");
+    const started = () =>
+      start.mock.calls.filter(([ids]) => ids.length > 0).length;
     game.start();
     game.pause();
     stepUntil(game, () => Boolean(shown(game)?.audio?.music?.length));
     expect(settling).not.toHaveBeenCalled();
     expect(schedule).toHaveBeenCalledWith("music", expect.anything());
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(started()).toBe(0);
+    game.resume();
+    tick(game);
+    expect(started()).toBe(1);
   });
 
   it("keeps a held roll on the beat it restored when a beat is still queued there", async () => {
