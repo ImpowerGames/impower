@@ -16,6 +16,17 @@ const search = vi.hoisted(() => ({
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: { window: intents, search },
 }));
+const scrollbarSize = vi.hoisted(() => ({ connected: 0 }));
+vi.mock("@impower/impower-ui/layout", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@impower/impower-ui/layout")>();
+  return {
+    ...original,
+    useScrollbarSize: () => {
+      scrollbarSize.connected += 1;
+      original.useScrollbarSize();
+    },
+  };
+});
 
 const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
@@ -172,6 +183,12 @@ afterEach(async () => {
 });
 
 describe("the Outline rail", () => {
+  it("publishes the scrollbar's size, which its list's gutter reads", async () => {
+    scrollbarSize.connected = 0;
+    await mount([]);
+    expect(scrollbarSize.connected).toBeGreaterThan(0);
+  });
+
   it("lists scenes with their choice menus and branches nested beneath, named for a reader", async () => {
     await mount([]);
     expect(rowButtons().map((b) => b.getAttribute("aria-label"))).toEqual([

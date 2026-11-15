@@ -7,10 +7,18 @@ import type { DocumentSymbol } from "vscode-languageserver-protocol";
 const layout = vi.hoisted(() => ({
   value: "phone" as "phone" | "compact" | "desktop",
 }));
-vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@impower/impower-ui/layout")>()),
-  useLayout: () => layout.value,
-}));
+const scrollbarSize = vi.hoisted(() => ({ connected: 0 }));
+vi.mock("@impower/impower-ui/layout", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@impower/impower-ui/layout")>();
+  return {
+    ...original,
+    useLayout: () => layout.value,
+    useScrollbarSize: () => {
+      scrollbarSize.connected += 1;
+      original.useScrollbarSize();
+    },
+  };
+});
 
 const calls = vi.hoisted(() => [] as string[]);
 const scripts = vi.hoisted(() => ({ watch: vi.fn(() => () => {}) }));
@@ -164,6 +172,7 @@ beforeEach(() => {
   layout.value = "phone";
   workspace.layout.value = layout.value as Layout;
   calls.length = 0;
+  scrollbarSize.connected = 0;
   vi.clearAllMocks();
   window.setListState.mockImplementation((lists) => {
     workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, ...lists } };
@@ -186,6 +195,14 @@ describe("the phone Scripts page", () => {
     expect(tabNamed("All scripts")).toBeTruthy();
     expect(tabNamed("In this script")).toBeTruthy();
     expect(search("Search scripts")).not.toBeNull();
+  });
+
+  it("publishes the scrollbar's size from the In this script tab, which its list's gutter reads", async () => {
+    workspace.current = { ...workspace.current, lists: { scriptsTab: "outline" } };
+    await mount();
+    expect(search("Search scripts")).toBeNull();
+    expect(search("Search this script")).not.toBeNull();
+    expect(scrollbarSize.connected).toBeGreaterThan(0);
   });
 
   it("keeps the chosen tab in the page's state", async () => {
