@@ -777,20 +777,25 @@ export default class WorkspaceAssets {
     path: string,
     variant: ImageVariant,
     size: number,
-    listener: (src: string | null) => void,
+    listener: (src: string | null, layers: readonly (string | null)[] | null) => void,
   ): () => void {
     const projectId = this.projectId;
     let alive = true;
     let request = 0;
     const draw = async () => {
       const mine = ++request;
-      const src = projectId
+      const answer = projectId
         ? await this._workspace.ls
             .getVariantPicture(this._workspace.fs.getFileUri(projectId, path), variant, size)
             .catch(() => null)
         : null;
       if (alive && mine === request) {
-        listener(src);
+        listener(
+          answer?.src ?? null,
+          answer && projectId
+            ? answer.layers.map((uri) => (uri ? this._workspace.fs.getRelativePath(projectId, uri) : null))
+            : null,
+        );
       }
     };
     const detach = onProtocolMessage(CompiledProgramMessage.type, () => void draw());
