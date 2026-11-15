@@ -73,7 +73,7 @@ export default function Outline() {
             {model.rows.length && uri ? (
               <VirtualList
                 key={uri}
-                class="flex-1 pr-gutter-[14px] pb-3 pl-[26px] in-data-[layout=compact]:pr-gutter-2.5"
+                class="flex-1 pr-[14px] pb-3 pl-[26px]"
                 label={`Scene outline in ${scriptName(uri)}`}
                 size="compact"
                 items={model.rows}
