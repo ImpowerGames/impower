@@ -73,7 +73,6 @@ export const NOT_COMPONENTS: readonly string[] = [
   "railState",
   "sheetVariants",
   "lightboxVariants",
-  "SidebarCollapsedContext",
   "sidebarLayoutVariants",
   "toastVariants",
   "treeToggleVariants",

@@ -8,7 +8,7 @@ import {
   type CollapsibleLimits,
 } from "../../utils/collapsibleSize";
 
-export const SidebarCollapsedContext = createContext(false);
+const SidebarCollapsedContext = createContext(false);
 
 export const useSidebarCollapsed = (): boolean => useContext(SidebarCollapsedContext);
 

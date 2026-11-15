@@ -122,6 +122,57 @@ describe("Tabs page variant", () => {
   });
 });
 
+describe("Tabs page variant underline", () => {
+  const TABS = { all: { x: 16, w: 66 }, outline: { x: 104, w: 82 } } as const;
+
+  const mountMeasured = async (value: keyof typeof TABS) => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const rect = (x: number, w: number) => ({ x, y: 0, left: x, top: 0, width: w, height: 46, right: x + w, bottom: 46, toJSON() {} }) as DOMRect;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.getAttribute("role") !== "tab") return rect(16, 398);
+      const tab = TABS[this.textContent!.includes("All scripts") ? "all" : "outline"];
+      return rect(tab.x, tab.w);
+    });
+    const original = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element: Element) => {
+      const style = original(element);
+      if (element.getAttribute("role") !== "tab") return style;
+      return new Proxy(style, {
+        get: (target, key) => (key === "paddingLeft" || key === "paddingRight" ? "4px" : Reflect.get(target, key)),
+      });
+    });
+    host = document.body.appendChild(document.createElement("div"));
+    host.dataset.layout = "phone";
+    await act(async () =>
+      render(
+        <Tabs variant="page" iconLayout="beside" value={value} onChange={() => {}}>
+          <Tab value="all">All scripts</Tab>
+          <Tab value="outline">In this script</Tab>
+        </Tabs>,
+        host!,
+      ),
+    );
+    return host.querySelector<HTMLElement>('[role="tablist"] > [aria-hidden="true"]')!;
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each(["all", "outline"] as const)("spans only the label of the current %s tab, inside its 4px padding", async (value) => {
+    const indicator = await mountMeasured(value);
+    const tab = TABS[value];
+    expect(indicator.style.transform).toBe(`translateX(${tab.x - 16 + 4}px)`);
+    expect(indicator.style.width).toBe(`${tab.w - 8}px`);
+  });
+});
+
 describe("TabbedPage tab row", () => {
   it.each([
     ["phone", 16],

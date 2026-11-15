@@ -35,7 +35,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   disconnect() {}
 };
 
-const { SidebarCollapsedContext } = await import("@impower/impower-ui/components");
+const { SidebarLayout } = await import("@impower/impower-ui/components");
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: ScriptsPage } = await import("../../src/modules/spark-editor/components/scripts-page");
 const { ProblemsDialog } = await import("../../src/modules/spark-editor/components/problems");
@@ -75,7 +75,26 @@ const settle = () =>
 const mount = async (railCollapsed = false) => {
   host ??= document.body.appendChild(document.createElement("div"));
   await act(async () =>
-    render(h(SidebarCollapsedContext.Provider, { value: railCollapsed }, h(ScriptsPage, {})), host!),
+    render(
+      layout.value === "phone"
+        ? h(ScriptsPage, {})
+        : h(
+            SidebarLayout,
+            {
+              width: railCollapsed ? 76 : 232,
+              defaultWidth: 232,
+              minWidth: 180,
+              maxWidth: 420,
+              collapsedWidth: 76,
+              onWidthChange: () => {},
+              resizeLabel: "Resize sidebar",
+              header: null,
+              sidebar: null,
+            },
+            h(ScriptsPage, {}),
+          ),
+      host!,
+    ),
   );
   await settle();
 };

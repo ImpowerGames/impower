@@ -161,7 +161,6 @@ export {
 } from "./color-chips/ColorChips";
 export {
   default as SidebarLayout,
-  SidebarCollapsedContext,
   sidebarLayoutVariants,
   useSidebarCollapsed,
   type SidebarLayoutProps,
