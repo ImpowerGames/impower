@@ -104,6 +104,37 @@ const KINDS: Record<string, string[]> = {
   LuauSparkdownReassignment: ["  x = 2"],
   LuauSparkdownRepeatLoop: ["  repeat", "    It drizzles.", "  until true"],
   LuauSparkdownSequentialAlternatorBlock: ["  queue", "    | First time.", "    | Second time.", "  end"],
+  CycleAlternatorBlock: ["  cycle", "    | Cycle first.", "    | Cycle second.", "  end"],
+  ShuffleAlternatorBlock: ["  shuffle", "    | Shuffle first.", "    | Shuffle second.", "  end"],
+  ShuffleCycleAlternatorBlock: ["  shuffle cycle", "    | Mixed first.", "    | Mixed second.", "  end"],
+  ChainAlternatorBlock: ["  chain", "    | Chain first.", "    | Chain second.", "  end"],
+  PluralAlternatorBlock: ["  plural n", "    | One apple.", "    | Many apples.", "  end"],
+  IfElseifBlock: ["  if a then", "    It rains.", "  elseif b then", "    It snows.", "  end"],
+  IfElseifElseBlock: ["  if a then", "    It pours.", "  elseif b then", "    It drizzles.", "  else", "    It stops.", "  end"],
+  AlternatorDialogueBodies: ["  queue", "    | GUIDE: Hi.", "    | GUIDE (softly): Bye.", "  end"],
+  AlternatorChoiceBodies: ["  queue", "    | * [Left.]", "    | * [Right.]", "  end"],
+  AlternatorHeadingBodies: ["  queue", "    | $: INT. ATTIC", "    | $: INT. CELLAR", "  end"],
+  AlternatorTitleBodies: ["  queue", "    | ^: THE END", "    | ^: THE START", "  end"],
+  AlternatorSeveralLineBody: ["  queue", "    | Line one.", "      Line two.", "    | Other line.", "  end"],
+  AlternatorBlockActionBody: ["  queue", "    | :", "        Block one.", "        Block two.", "    | Plain arm.", "  end"],
+  IfElseDialogueBodies: ["  if a then", "    GUIDE:", "      Yes.", "  else", "    GUIDE:", "      No.", "  end"],
+  NestedAlternators: [
+    "  queue",
+    "    | Outer one.",
+    "    | queue",
+    "        | Inner one.",
+    "        | queue",
+    "            | Deep one.",
+    "            | Deep two.",
+    "          end",
+    "      end",
+    "  end",
+  ],
+  AlternatorInsideIf: ["  if a then", "    queue", "      | Inside one.", "      | Inside two.", "    end", "  else", "    Outside.", "  end"],
+  IfElseEmptyElse: ["  if a then", "    Only this.", "  else", "  end"],
+  IfElseifEmptyBodies: ["  if a then", "  elseif b then", "  else", "  end"],
+  IfElseCommandOnlyBody: ["  if a then", "    Printed.", "  else", "    & x = 1", "  end"],
+  AlternatorEmptyArm: ["  queue", "    |", "    | Kept arm.", "  end"],
   LuauSparkdownSingleLineConditionalAlternatorBlock: ["  match(x) | Small arm | Big arm end"],
   LuauSparkdownSingleLineSequentialAlternatorBlock: ["  queue | Arm one # t | Arm two end"],
   SingleLineCycleAlternator: ["  cycle | Cycle one. | Cycle two. end"],
@@ -176,8 +207,40 @@ const GLUED_LAYOUTS: Record<string, string[]> = {
   GluedMarkupAlternator: ["They spot {a big owl|a hawk} above."],
 };
 
+const ALTERNATIVE_LAYOUTS: Record<string, string[]> = {
+  LuauSparkdownSequentialAlternatorBlock: ["{", "| First time.", "| Second time.", "}"],
+  LuauSparkdownConditionalAlternatorBlock: ["{", "| Small.", "| Big.", "}"],
+  CycleAlternatorBlock: ["{", "| Cycle first.", "| Cycle second.", "}"],
+  ShuffleAlternatorBlock: ["{", "| Shuffle first.", "| Shuffle second.", "}"],
+  ShuffleCycleAlternatorBlock: ["{", "| Mixed first.", "| Mixed second.", "}"],
+  ChainAlternatorBlock: ["{", "| Chain first.", "| Chain second.", "}"],
+  PluralAlternatorBlock: ["{", "| One apple.", "| Many apples.", "}"],
+  LuauSparkdownIfElseBlock: ["{", "| No.", "| Yes.", "}"],
+  IfElseifBlock: ["{", "| It rains.", "| It snows.", "}"],
+  IfElseifElseBlock: ["{", "| It pours.", "| It drizzles.", "| It stops.", "}"],
+  AlternatorDialogueBodies: ["{", "| GUIDE", "  Hi.", "| GUIDE (softly)", "  Bye.", "}"],
+  AlternatorChoiceBodies: ["{", "| * [Left.]", "| * [Right.]", "}"],
+  AlternatorHeadingBodies: ["{", "| INT. ATTIC", "| INT. CELLAR", "}"],
+  AlternatorTitleBodies: ["{", "| THE END", "| THE START", "}"],
+  AlternatorSeveralLineBody: ["{", "| Line one.", "  Line two.", "| Other line.", "}"],
+  AlternatorBlockActionBody: ["{", "| Block one.", "  Block two.", "| Plain arm.", "}"],
+  IfElseDialogueBodies: ["{", "| GUIDE", "  Yes.", "| GUIDE", "  No.", "}"],
+  NestedAlternators: ["{", "| Outer one.", "| {", "  | Inner one.", "  | {", "    | Deep one.", "    | Deep two.", "    }", "  }", "}"],
+  AlternatorInsideIf: ["{", "| {", "  | Inside one.", "  | Inside two.", "  }", "| Outside.", "}"],
+};
+
+const PENDING_LAYOUTS: Record<string, [string, string[]]> = {
+  LuauSparkdownIfBlock: ["a lone if, optional text", ["It rains."]],
+  IfElseEmptyElse: ["an else with an empty body", ["Only this."]],
+  IfElseifEmptyBodies: ["an if, elseif and else whose bodies are all empty", []],
+  IfElseCommandOnlyBody: ["a body whose only content is a command", ["Printed."]],
+  AlternatorEmptyArm: ["an empty alternative in a block", ["Kept arm."]],
+  LuauSparkdownSingleLineSequentialAlternatorBlock: ["an alternator block written on one line", ["Arm one", "Arm two"]],
+};
+
 const PRINTED: Record<string, string[]> = {
   ...GLUED_LAYOUTS,
+  ...ALTERNATIVE_LAYOUTS,
   ChoiceMarkup: ["* [A cat .. tail.]"],
   ImplicitActionInterpolation: ["Hello {person} there."],
   InlineDialogueInterpolation: ["GUIDE", "Hi {person} again."],
@@ -235,15 +298,12 @@ const PRINTED: Record<string, string[]> = {
   SparkdownBlockCommentThenFunctionSharedLine: ["Shared."],
   LuauFunctionDefinitionPairSharedLine: ["Shared."],
   LuauSparkdownChooseBlock: ["* [Go.]", "They go."],
-  LuauSparkdownConditionalAlternatorBlock: ["Small.", "Big."],
   LuauSparkdownDoBlock: ["It snows."],
   LuauSparkdownElseBlock: ["Yes."],
   LuauSparkdownElseifBlock: ["Maybe."],
   LuauSparkdownForLoop: ["Again."],
   LuauSparkdownIfBlock: ["It rains."],
-  LuauSparkdownIfElseBlock: ["No.", "Yes."],
   LuauSparkdownRepeatLoop: ["It drizzles."],
-  LuauSparkdownSequentialAlternatorBlock: ["First time.", "Second time."],
   LuauSparkdownSingleLineConditionalAlternatorBlock: ["Small arm", "Big arm"],
   LuauSparkdownSingleLineSequentialAlternatorBlock: ["Arm one", "Arm two"],
   SingleLineCycleAlternator: ["Cycle one.", "Cycle two."],
@@ -645,11 +705,11 @@ describe("the ticket's nested loop and alternator", () => {
       "end",
       "",
     ].join("\n");
-    const expected = ["INT. ROOM - DAY", "", "Hero", "Again.", "Hero", "Hi.", "", "First one | Second one", "Third line", "Hero", "Multi."];
+    const expected = ["INT. ROOM - DAY", "", "Hero", "Again.", "Hero", "Hi.", "", "{", "| First one | Second one", "| Third line", "  Hero", "  Multi.", "}"];
     const screen = screenRows("default", source);
     expect(layout(screen)).toBe(layout(expected));
     expect(layout(exportRows("default", source))).toBe(layout(expected));
-    expect(screen.join("\n")).not.toMatch(/x\s*<\s*3|x\s*\+=\s*1|^\|/m);
+    expect(screen.join("\n")).not.toMatch(/x\s*<\s*3|x\s*\+=\s*1|queue|end/m);
   });
 });
 
@@ -756,6 +816,80 @@ describe("an alternative written inside a sentence", () => {
     const printed = exportRows("default", source);
     expect(printed.filter((row) => row && row !== "Before." && row !== "After.")).toEqual(rows);
     expect(layout(screenRows("default", source))).toBe(layout(printed));
+  });
+});
+
+const exportLines = (configName: string, source: string): string[] => {
+  const config = CONFIGS[configName];
+  return trimBlankRows(
+    extractPdfText(source, config)
+      .split("\n")
+      .filter((row) => !isHiddenIdentifier(row.match(/^<(\w+)>/)?.[1], config))
+      .map((row) => row.replace(/^<[^>]*> ?/, "").trimEnd()),
+  );
+};
+
+const pageLines = (configName: string, source: string): string[] => {
+  const view = show(configName, source);
+  const lines: string[] = [];
+  for (const row of Array.from(view.contentDOM.children)) {
+    if (isHidden(row, false)) continue;
+    const shown = getComputedStyle(row).opacity !== "0";
+    const inner = Array.from(row.querySelectorAll("div")).filter((div) => !div.querySelector("div"));
+    if (inner.length > 0) {
+      for (const div of inner) {
+        const text = visibleText(div);
+        if (shown && text.trim()) lines.push(text.trimEnd());
+      }
+      continue;
+    }
+    const text = visibleText(row);
+    if (shown && text.trim()) lines.push(text.trimEnd());
+    else if (!text.trim() && (text.length > 0 || row.querySelector("br"))) lines.push("");
+  }
+  return trimBlankRows(lines);
+};
+
+const besideBody = (rows: string[]) => rows.filter((row) => row && row !== "Before." && row !== "After.");
+
+describe("a block of alternatives", () => {
+  it.each(Object.entries(ALTERNATIVE_LAYOUTS))(
+    "prints %s with its braces and bars, indentation included, on the page as in the export",
+    (kind, rows) => {
+      const source = sourceOf([kind]);
+      const printed = exportLines("default", source);
+      expect(besideBody(printed)).toEqual(rows);
+      expect(pageLines("default", source)).toEqual(printed);
+      expect(unplacedText("default", source)).toEqual([]);
+    },
+  );
+
+  it.each(Object.entries(PENDING_LAYOUTS))(
+    "prints %s as before, with no marks, pending a decision on %s",
+    (kind, [_shape, rows]) => {
+      const source = sourceOf([kind]);
+      const printed = exportRows("default", source);
+      expect(besideBody(printed)).toEqual(rows);
+      expect(difference(screenRows("default", source), printed)).toBe("");
+    },
+  );
+
+  it.each([
+    ["first in its scene", ["scene s", ...KINDS["IfElseifElseBlock"]!, "  After.", "end", ""]],
+    ["last in its scene", ["scene s", "  Before.", ...KINDS["LuauSparkdownSequentialAlternatorBlock"]!, "end", ""]],
+    ["alone in its scene, before another scene", ["scene s", ...KINDS["NestedAlternators"]!, "end", "scene t", "  Next.", "end", ""]],
+    ["right after dialogue", ["scene s", "  GUIDE: Hello.", ...KINDS["AlternatorDialogueBodies"]!, "  After.", "end", ""]],
+    ["inside a choice's body", ["scene s", "  choose", "    * [Go.]", ...KINDS["IfElseDialogueBodies"]!.map((line) => `    ${line}`), "  end", "end", ""]],
+    ["after a blank line and before one", ["scene s", "  Before.", "", ...KINDS["CycleAlternatorBlock"]!, "", "  After.", "end", ""]],
+    ["with a blank line between its alternatives", ["scene s", "  Before.", "  queue", "    | One.", "", "    | Two.", "  end", "end", ""]],
+  ])("draws its rows where the export prints them, %s", (_where, lines) => {
+    const source = lines.join("\n");
+    for (const configName of ["default", "scene identifiers", "branch identifiers", "function identifiers"]) {
+      const printed = exportLines(configName, source);
+      expect(printed.filter((row) => /^ *[{}]$/.test(row)).length, configName).toBeGreaterThanOrEqual(2);
+      expect(pageLines(configName, source), configName).toEqual(printed);
+      expect(unplacedText(configName, source), configName).toEqual([]);
+    }
   });
 });
 

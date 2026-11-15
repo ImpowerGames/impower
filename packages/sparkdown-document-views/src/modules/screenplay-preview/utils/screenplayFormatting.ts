@@ -8,7 +8,7 @@ import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import type { FormattedText } from "../../../../../sparkdown-screenplay/src/types/FormattedText";
-import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/gluedAlternatorLayout";
+import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/alternativeMarks";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styleText";
 import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
@@ -931,13 +931,20 @@ export const decorate = (
   };
   let printedLine: Line | undefined;
   let printedUpTo = 0;
+  const insertAligns = new Map<number, string>();
+  for (const insert of inserts) {
+    if (!insertAligns.has(insert.at)) insertAligns.set(insert.at, insert.style.align ?? "");
+  }
   let align = "";
   let alignFrom = 0;
   let alignTo = 0;
   const closeAlign = () => {
     if (align) {
       decorations.push(
-        Decoration.mark({ attributes: { style: alignedStyle(align) } }).range(alignFrom, alignTo),
+        Decoration.mark({
+          attributes: { style: alignedStyle(align) },
+          inclusiveStart: insertAligns.get(alignFrom) === align,
+        }).range(alignFrom, alignTo),
       );
     }
     align = "";
