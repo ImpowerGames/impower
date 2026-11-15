@@ -1379,7 +1379,7 @@ class UndoLog {
     if (written === null || written === "folder" || written === undefined) {
       return !!current;
     }
-    return !!current && !sameStored(current, written);
+    return !current || !sameStored(current, written);
   }
 
   async removeOwnFolders(uris: string[], log: CommitLog) {
@@ -1737,7 +1737,11 @@ const applyChange = async (
         : [change.uri],
   );
   if (isFolderChange(change) && change.kind === "create") {
-    await createDirectories([change.uri], log);
+    await createDirectories([change.uri], log, (uri, directory) => {
+      if (directory && undo.directories.has(uri)) {
+        undo.folderHandles.set(uri, directory);
+      }
+    });
     undo.commit(State.localVersions.get(change.uri)!);
     undo.expect(change.uri, "folder");
     effects.foldersCreated.push(change.uri);
@@ -1765,6 +1769,8 @@ const applyChange = async (
       stored.byteLength === data.byteLength && stored.buffer === data
         ? data
         : (stored.buffer.slice(stored.byteOffset, stored.byteOffset + stored.byteLength) as ArrayBuffer);
+    const before = undo.prior.get(change.uri);
+    undo.expect(change.uri, before?.bytes ?? null);
     (await createFiles([change])).forEach(wrote);
     undo.expect(change.uri, expected);
   } else if (change.kind === "delete") {
@@ -2028,14 +2034,21 @@ const listDirectories = async (directoryUri: string) => {
   return paths.map(getUriFromPath);
 };
 
-const createDirectories = async (uris: string[], log: CommitLog) => {
+const createDirectories = async (
+  uris: string[],
+  log: CommitLog,
+  onCreated?: (uri: string, directory: FileSystemDirectoryHandle | undefined) => void,
+) => {
   const root = await navigator.storage.getDirectory();
   const created: string[] = [];
   for (const uri of new Set(uris)) {
     console.log(MAGENTA, "MKDIR", uri);
     const { commit, local } = await commitChange(
       uri,
-      () => createDirectory(root, getPathFromUri(uri)),
+      async () => {
+        await createDirectory(root, getPathFromUri(uri));
+        onCreated?.(uri, await findDirectory(root, getPathFromUri(uri)));
+      },
       () => withAncestors(uri),
     );
     log.record(uri, local, commit, true);

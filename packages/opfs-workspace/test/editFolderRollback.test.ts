@@ -341,3 +341,85 @@ it("reports a complete rollback when a failed write already left the file as it 
   expect(h.text("main.sd")).toBe("ORIGINAL");
   expect(result.rollback).toMatchObject({ complete: true, failed: [], kept: [] });
 });
+
+it("keeps another tab's save made after a failed write recovered, before its broadcast arrives", async () => {
+  const h = await harness({ "main.sd": "ORIGINAL" });
+  const file = h.entry("main.sd") as MemoryFile;
+  const access = file.createSyncAccessHandle.bind(file);
+  let writes = 0;
+  let failed = false;
+  let saved = false;
+  file.createSyncAccessHandle = async () => {
+    const handle = await access();
+    return {
+      ...handle,
+      write: (data: DataView | Uint8Array) => {
+        writes += 1;
+        if (writes === 1) {
+          failed = true;
+          throw new DOMException("disk full", "QuotaExceededError");
+        }
+        return handle.write(data);
+      },
+    };
+  };
+  const request = h.locks.request.bind(h.locks);
+  (navigator as any).locks = {
+    request: async (name: string, options: any, callback?: any) => {
+      try {
+        return await request(name, options, callback);
+      } catch (error) {
+        if (name === lockName("main.sd") && failed && !saved) {
+          saved = true;
+          await otherTabAt(h, "main.sd", async () => {
+            writeMemoryFile(h.root, "local/main.sd", enc.encode("OTHER TAB SAVE"));
+          });
+        }
+        throw error;
+      }
+    },
+  };
+  const result = await h.edit([create("main.sd", "IMPORTED")]);
+  expect(saved).toBe(true);
+  expect(h.text("main.sd")).toBe("OTHER TAB SAVE");
+  expect(result.rollback.kept).toContain(uri("main.sd"));
+});
+
+it("keeps another tab's folder that replaced one the edit created right after the edit's lock released", async () => {
+  const h = await harness();
+  const project = h.root.entries.get("local") as MemoryDirectory;
+  const request = h.locks.request.bind(h.locks);
+  let saved = false;
+  let foreign: MemoryDirectory | undefined;
+  (navigator as any).locks = {
+    request: async (name: string, options: any, callback?: any) => {
+      const result = await request(name, options, callback);
+      if (name === lockName("generated") && project.entries.has("generated") && !saved) {
+        saved = true;
+        await otherTabAt(h, "generated", async () => {
+          await project.removeEntry("generated");
+          foreign = await project.getDirectoryHandle("generated", { create: true });
+        });
+      }
+      return result;
+    },
+  };
+  h.failAt();
+  const result = await h.edit([folder("create", "generated"), create("fail/new.sd", "NEW")]);
+  expect(saved).toBe(true);
+  expect(h.entry("generated")).toBe(foreign);
+  expect(result.rollback.kept).toContain(uri("generated"));
+});
+
+it("keeps another tab's deletion of a file the edit wrote, before its broadcast arrives", async () => {
+  const h = await harness({ "main.sd": "ORIGINAL" });
+  const project = h.root.entries.get("local") as MemoryDirectory;
+  h.failAt(() =>
+    otherTabAt(h, "main.sd", async () => {
+      await project.removeEntry("main.sd");
+    }),
+  );
+  const result = await h.edit([create("main.sd", "IMPORTED"), create("fail/new.sd", "NEW")]);
+  expect(h.text("main.sd")).toBeUndefined();
+  expect(result.rollback.kept).toContain(uri("main.sd"));
+});
