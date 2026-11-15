@@ -584,7 +584,7 @@ describe("the current block's guide", () => {
 });
 
 describe("folded blocks", () => {
-  it("show a chip with the hidden line count that unfolds on press", () => {
+  it("show a chip titled with the hidden line count that unfolds on press", () => {
     const doc = ["scene a", "  one", "  two", "  three", "end"].join("\n");
     mount(ALL_OFF_APPEARANCE, doc, [serverFolding().editorExtension!]);
     const state = view!.state;
@@ -596,7 +596,8 @@ describe("folded blocks", () => {
     });
     const chip = view!.dom.querySelector<HTMLElement>(".cm-foldPlaceholder");
     expect(chip).toBeTruthy();
-    expect(chip!.textContent).toBe("3");
+    expect(chip!.textContent).toBe("");
+    expect(chip!.title).toBe("3 lines");
     expect(chip!.getAttribute("aria-label")).toContain("3 lines");
     chip!.click();
     expect(foldedRanges(view!.state).size).toBe(0);

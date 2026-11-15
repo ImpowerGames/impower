@@ -187,7 +187,7 @@ const gotoLinePanelTheme = EditorView.baseTheme({
     padding: "2px 6px 4px",
     "& label": { fontSize: "80%" },
   },
-  "[contenteditable]:empty::after, [contenteditable][data-empty]::after": {
+  "[contenteditable][data-placeholder]:empty::after, [contenteditable][data-placeholder][data-empty]::after": {
     content: "attr(data-placeholder)",
     color: "var(--editor-placeholder)",
     cursor: "text",
