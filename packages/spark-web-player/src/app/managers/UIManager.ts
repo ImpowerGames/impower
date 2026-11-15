@@ -1363,18 +1363,24 @@ export default class UIManager extends Manager {
       const params = msg.params;
       const player = new AnimationPlayer(this._theme, this._hold);
       const validEffects: number[] = [];
+      const played: ReturnType<AnimationPlayer["add"]> = [];
       for (let i = 0; i < params.effects.length; i += 1) {
         const effect = params.effects[i];
         if (effect) {
           const element = this.getElement(effect.element);
           const animations = effect.animations;
           if (element) {
-            player.add({ element, animations });
+            played.push(...player.add({ element, animations }));
             validEffects.push(i);
           }
         }
       }
       await player.play();
+      if (this.app.previewing === true) {
+        for (const animation of played) {
+          this.dropSettledAnimation(animation);
+        }
+      }
       return AnimateElementsMessage.type.result(validEffects);
     }
     if (PlayCutsceneMessage.type.isRequest(msg)) {
@@ -1865,6 +1871,41 @@ export default class UIManager extends Manager {
       await player.play(startTime);
     }
     await showing;
+  }
+
+  protected dropSettledAnimation(
+    animation: ReturnType<AnimationPlayer["add"]>[number],
+  ) {
+    const effect = animation.effect;
+    if (animation.playState !== "finished" || !(effect instanceof KeyframeEffect)) {
+      return;
+    }
+    const target = effect.target;
+    if (!target) {
+      return;
+    }
+    const props = new Set<string>();
+    for (const keyframe of effect.getKeyframes()) {
+      for (const prop of Object.keys(keyframe)) {
+        if (!["offset", "computedOffset", "easing", "composite"].includes(prop)) {
+          props.add(prop);
+        }
+      }
+    }
+    const read = () => {
+      const style = getComputedStyle(target);
+      return Array.from(props, (prop) =>
+        prop.startsWith("--")
+          ? style.getPropertyValue(prop)
+          : String((style as unknown as Record<string, unknown>)[prop] ?? ""),
+      );
+    };
+    const settled = read();
+    animation.cancel();
+    const without = read();
+    if (settled.some((value, i) => value !== without[i])) {
+      animation.finish();
+    }
   }
 
   protected revealAtOnce(targetEl: HTMLElement) {

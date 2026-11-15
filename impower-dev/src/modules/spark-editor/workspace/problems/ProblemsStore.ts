@@ -22,6 +22,7 @@ import {
   isChoiceEntry,
   PLAYED_LIMIT,
   plural,
+  projectPath,
   toProblems,
   type CardName,
   type ConsoleSeverity,
@@ -109,6 +110,14 @@ export class ProblemsStore {
   });
 
   readonly counts = computed(() => countProblems(this.summary.value));
+
+  readonly byPath = computed(() => {
+    const byPath: Record<string, readonly Diagnostic[]> = {};
+    for (const [uri, list] of Object.entries(this.diagnostics.value)) {
+      byPath[projectPath(uri)] = list;
+    }
+    return byPath;
+  });
 
   readonly panelOpen = computed(
     () =>

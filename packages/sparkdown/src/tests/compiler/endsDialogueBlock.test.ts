@@ -46,6 +46,7 @@ const CASES: [cueIndent: string, line: string, ends: boolean][] = [
   ["  ", "    store x = 1", true],
   ["  ", "    local x = 1", true],
   ["  ", "    scenery is lovely", false],
+  ["  ", "    | Not an arm.", false],
   ["  ", "// a note", false],
   ["\t", "\t\tDeeper narration.", false],
   ["\t", "\t\t& x = 1", true],

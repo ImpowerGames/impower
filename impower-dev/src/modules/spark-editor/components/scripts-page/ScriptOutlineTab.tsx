@@ -6,6 +6,8 @@ import { LibraryToolbar, SearchBox } from "../library-page";
 
 export const OUTLINE_TAB = "outline";
 
+export const SCRIPT_OUTLINE_ROW = { size: "outline", badgePlacement: "trailing" } as const;
+
 const reveal = (uri: string, row: OutlineRow) =>
   void import("../../workspace/Workspace").then(({ Workspace }) => {
     Workspace.window.finishEditing();
@@ -29,10 +31,11 @@ export default function ScriptOutlineTab() {
           listRef={scroller}
           label={searching ? "Search results" : "Scenes and choices"}
           class="-mr-4 flex-1 pt-2 pr-4 pb-5"
+          size={SCRIPT_OUTLINE_ROW.size}
           items={rows}
           getKey={(row) => row.key}
           renderItem={(row) => (
-            <OutlineListRow uri={uri} row={row} collapsible={!searching} onOpen={(row) => reveal(uri, row)} />
+            <OutlineListRow uri={uri} row={row} {...SCRIPT_OUTLINE_ROW} collapsible={!searching} onOpen={(row) => reveal(uri, row)} />
           )}
         />
       ) : (

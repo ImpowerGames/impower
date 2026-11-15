@@ -166,7 +166,7 @@ describe("ListRow", () => {
           <ListRowBadge
             size="compact"
             label="2 errors in the_rumour"
-            icon={<span data-glyph />}
+            severity="error"
             onClick={onBadge}
           />
         }
@@ -246,7 +246,7 @@ describe("ListRow", () => {
 
   it("sizes a block row's badge to the block row's glyph", async () => {
     const root = await mount(
-      <ListRowBadge size="block" label="Scene" icon={<span />} onClick={() => {}} />,
+      <ListRowBadge size="block" label="Scene" severity="warning" onClick={() => {}} />,
     );
     const badge = root.querySelector<HTMLButtonElement>("[data-list-row-badge]")!;
     expect(badge.className).toContain("[&>svg]:size-[22px]");

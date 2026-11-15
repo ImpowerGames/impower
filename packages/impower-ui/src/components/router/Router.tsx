@@ -52,7 +52,6 @@ export default function Router({
     if (newIdx < 0) return;
     const dir: 1 | -1 = newIdx > oldIdx ? 1 : -1;
     setPhase({ kind: "exit", target: active, dir });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   useEffect(() => {
@@ -160,7 +159,6 @@ export default function Router({
     }
 
     return;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   const child = kids.find((c) => String(c.key ?? "") === renderedKey);
