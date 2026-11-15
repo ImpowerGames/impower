@@ -56,12 +56,10 @@ import {
   type SourceDirective,
 } from "../../utils/readDirective";
 
-const UNCLOSED_DIRECTIVE_CLOSERS: Readonly<Record<string, string>> = { "[": "]]", "(": "))" };
+const UNCLOSED_DIRECTIVE_CLOSERS: Readonly<Record<string, string>> = { "[[": "]]", "((": "))" };
 
 const unclosedDirectiveMessage = (opener: string, closer: string) =>
   `This \`${opener}\` opens no directive, because no \`${closer}\` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.`;
-
-const RAW_SPAN_NODES = nodeNameSet(["Raw", "ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw"]);
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -1089,19 +1087,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
   }
 
-  private unclosedDirectiveIssue(annotations: Range<SparkdownAnnotation<Diagnostic>>[], node: SyntaxNode): void {
-    const opener = this.read(node.from, node.to);
+  private unclosedDirectiveIssue(annotations: Range<SparkdownAnnotation<Diagnostic>>[], from: number, to: number): void {
+    const opener = this.read(from, to);
     if (!Object.hasOwn(UNCLOSED_DIRECTIVE_CLOSERS, opener)) return;
-    const next = node.nextSibling;
-    if (next?.name !== "Punctuation" || next.from !== node.to || this.read(next.from, next.to) !== opener) return;
-    const previous = node.prevSibling;
-    if (previous?.name === "Punctuation" && previous.to === node.from && this.read(previous.from, previous.to) === opener) return;
-    if (ancestorMatching(node, RAW_SPAN_NODES)) return;
     annotations.push(
       SparkdownAnnotation.mark<Diagnostic>({
-        message: unclosedDirectiveMessage(opener + opener, UNCLOSED_DIRECTIVE_CLOSERS[opener]!),
+        message: unclosedDirectiveMessage(opener, UNCLOSED_DIRECTIVE_CLOSERS[opener]!),
         severity: "warning",
-      }).range(node.from, next.to),
+      }).range(from, to),
     );
   }
 
@@ -1485,7 +1478,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
       }
     }
-    if (nodeRef.name === "Punctuation") this.unclosedDirectiveIssue(annotations, nodeRef.node);
+    if (nodeRef.name === "LiteralDirectiveOpener") this.unclosedDirectiveIssue(annotations, nodeRef.from, nodeRef.to);
     if (Object.hasOwn(DIRECTIVE_NODE_BRACKETS, nodeRef.name)) {
       const directive = readSourceDirective(nodeRef, (from, to) => this.read(from, to));
       if (directive) this.directiveIssues(annotations, directive);

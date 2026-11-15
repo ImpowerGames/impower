@@ -347,17 +347,15 @@ function withLiteralOpeners(
 }
 
 function literalOpenerPositions(text: ChoiceText, ctx: LowerContext): ReadonlySet<number> {
-  const startEnd = text.start.at(-1)?.to;
-  const joined = [text.only?.from, text.inner ? text.inner.from + 1 : undefined];
   const positions = new Set<number>();
   const walk = (node: SyntaxNode): void => {
     if (isChoiceTextOpaque(node) || RAW_SPANS.has(node.name)) return;
-    if (node.name === "Punctuation" && node.to === node.from + 1) {
-      const c = ctx.read(node.from, node.to);
-      const follows = (at: number | undefined) => at !== undefined && ctx.read(at, at + 1) === c;
-      if (OPENER_CHARACTERS.includes(c) && (follows(node.to) || (node.to === startEnd && joined.some(follows)))) {
-        positions.add(node.from);
-      }
+    if (node.name === "LiteralDirectiveOpener") {
+      for (let at = node.from; at < node.to; at += 1) positions.add(at);
+      return;
+    }
+    if (node.name === "Punctuation") {
+      if (OPENER_CHARACTERS.includes(ctx.read(node.from, node.to))) positions.add(node.from);
       return;
     }
     for (let child = node.firstChild; child; child = child.nextSibling) walk(child);

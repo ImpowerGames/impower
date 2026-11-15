@@ -4353,7 +4353,13 @@ repository:
       - { include: "#LuauSparkdownInlineGluedConditionalAlternatorBlock" }
       - { include: "#AudioCommand" }
       - { include: "#ImageCommand" }
+      - { include: "#LiteralDirectiveOpener" }
       - { include: "#InlineText" }
+
+  LiteralDirectiveOpener:
+    tag: content
+    name: markup.raw.punctuation.sd
+    match: (\[\[|[(][(])
 
   InlineText:
     patterns:
