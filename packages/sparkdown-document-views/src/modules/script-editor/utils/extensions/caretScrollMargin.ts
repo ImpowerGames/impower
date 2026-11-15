@@ -18,6 +18,9 @@ export const caretScrollMargin = (hostMargin?: {
     ...hostMargin,
     bottom: (hostMargin?.bottom ?? 0) + caretBottomInset,
   })),
+  EditorView.theme({
+    "& .cm-content": { paddingBottom: `${CARET_SCROLL_MARGIN_BOTTOM}px` },
+  }),
 ];
 
 export const scrollCaretIntoView = (view: EditorView) =>

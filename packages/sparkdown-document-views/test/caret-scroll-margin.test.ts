@@ -41,6 +41,17 @@ describe("script editor caret scroll margin", () => {
     expect(caretClearance(view)).toEqual({ above: 8, below: 12 });
   });
 
+  it("leaves room below the last line to scroll the caret clear of the bottom edge", () => {
+    view = new EditorView({
+      state: EditorState.create({
+        doc: "a\nb",
+        extensions: [caretScrollMargin()],
+      }),
+      parent: document.body,
+    });
+    expect(getComputedStyle(view.contentDOM).paddingBottom).toBe("12px");
+  });
+
   it("adds the caret margin on top of the host's bottom inset", () => {
     view = new EditorView({
       state: EditorState.create({
