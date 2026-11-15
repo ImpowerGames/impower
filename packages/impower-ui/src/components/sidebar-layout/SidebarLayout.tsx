@@ -11,7 +11,7 @@ import {
 export const sidebarLayoutVariants = cva(
   [
     "group/sidebar relative grid h-full w-full min-h-0 min-w-0",
-    "grid-cols-[var(--sidebar-width)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)]",
+    "grid-cols-[var(--sidebar-width)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]",
   ],
   {
     variants: {
@@ -39,6 +39,8 @@ export type SidebarLayoutVariantProps = VariantProps<
 export type SidebarLayoutProps = {
   header?: ComponentChildren;
   sidebar: ComponentChildren;
+  sidebarHidden?: boolean;
+  footer?: ComponentChildren;
   children: ComponentChildren;
   width?: number;
   defaultWidth: number;
@@ -54,6 +56,8 @@ export type SidebarLayoutProps = {
 export default function SidebarLayout({
   header,
   sidebar,
+  sidebarHidden = false,
+  footer,
   children,
   width,
   defaultWidth,
@@ -157,7 +161,7 @@ export default function SidebarLayout({
   };
 
   const style = {
-    "--sidebar-width": `${current}px`,
+    "--sidebar-width": sidebarHidden ? "0px" : `${current}px`,
   } as JSX.CSSProperties;
 
   return (
@@ -165,14 +169,21 @@ export default function SidebarLayout({
       ref={root}
       class={cn(sidebarLayoutVariants({ resizing }), className)}
       style={style}
-      data-sidebar={collapsed ? "collapsed" : "expanded"}
+      data-sidebar={
+        sidebarHidden ? undefined : collapsed ? "collapsed" : "expanded"
+      }
     >
       <div class="col-span-2 row-start-1 min-w-0">{header}</div>
-      <div class="col-start-1 row-start-2 min-h-0 min-w-0 overflow-hidden">
+      <div
+        hidden={sidebarHidden}
+        class="col-start-1 row-start-2 min-h-0 min-w-0 overflow-hidden"
+      >
         {sidebar}
       </div>
       <div class="col-start-2 row-start-2 min-h-0 min-w-0">{children}</div>
+      <div class="col-span-2 row-start-3 min-w-0">{footer}</div>
       <div
+        hidden={sidebarHidden}
         role="separator"
         tabIndex={0}
         aria-label={resizeLabel}
