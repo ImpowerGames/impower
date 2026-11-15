@@ -1,6 +1,7 @@
 import { signal } from "@preact/signals";
 import { assetClaimOf } from "./assetClaim";
 import getUniqueFileName from "./getUniqueFileName";
+import { trashSkipped } from "./trashSkipped";
 
 export type ConflictAction = "replace" | "keepboth" | "skip";
 
@@ -74,6 +75,7 @@ export interface ResolvedUpload<T> {
   survivors: { uri: string; payload: T }[];
   trashedOldUris: string[];
   since: number;
+  refused: T[];
 }
 
 export function resolveUploadConflicts<T, R>(
@@ -116,6 +118,7 @@ async function resolveLocked<T>(
   let remaining = items.filter((it) => existingOf(it) !== undefined).length;
 
   const survivors: { uri: string; payload: T }[] = [];
+  const replacing = new Map<{ uri: string; payload: T }, string>();
   const trashedRels: string[] = [];
   let applyAll: ConflictResolution | null = null;
   const land = (rel: string, item: UploadItem<T>) => {
@@ -159,21 +162,36 @@ async function resolveLocked<T>(
       replaced.add(existingRel);
       trashedRels.push(existingRel);
       land(lc(existingRel) === lc(item.rel) ? existingRel : item.rel, item);
+      replacing.set(survivors[survivors.length - 1]!, Workspace.fs.getFileUri(projectId, existingRel));
     } else {
       land(uniqueRel(item.rel, item.address, taken, claimed), item);
     }
   }
 
   let since = 0;
-  const trashedOldUris = [
+  const oldUris = [
     ...new Set(trashedRels.map((r) => Workspace.fs.getFileUri(projectId, r))),
   ];
-  if (trashedOldUris.length > 0) {
-    since = Date.now();
-    await Workspace.fs.deleteFiles({
-      files: trashedOldUris.map((uri) => ({ uri })),
-      mode: "trash",
-    });
+  if (oldUris.length === 0) {
+    return { survivors, trashedOldUris: oldUris, since, refused: [] };
   }
-  return { survivors, trashedOldUris, since };
+  since = Date.now();
+  const skipped = new Set(
+    await trashSkipped(
+      Workspace.fs.deleteFiles({
+        files: oldUris.map((uri) => ({ uri })),
+        mode: "trash",
+      }),
+    ),
+  );
+  const refused = survivors.filter((s) => {
+    const old = replacing.get(s);
+    return old !== undefined && skipped.has(old);
+  });
+  return {
+    survivors: survivors.filter((s) => !refused.includes(s)),
+    trashedOldUris: oldUris.filter((uri) => !skipped.has(uri)),
+    since,
+    refused: refused.map((s) => s.payload),
+  };
 }

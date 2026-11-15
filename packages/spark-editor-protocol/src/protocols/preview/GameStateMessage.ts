@@ -12,6 +12,7 @@ export interface GameState {
   run?: number | null;
   position: { uri: string; line: number } | null;
   shownBeatDescription: ShownBeatDescription | null;
+  shownBeatFinished?: boolean;
   completion: {
     request: number;
     status: CompletionPreviewStatus;

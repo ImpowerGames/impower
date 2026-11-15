@@ -3,10 +3,13 @@ import type * as lsp from "vscode-languageserver-protocol";
 export interface ProblemCounts {
   errors: number;
   warnings: number;
+  notes: number;
 }
 
 const ERROR = 1;
 const WARNING = 2;
+const INFORMATION = 3;
+const HINT = 4;
 const CLASS = 5;
 const ENUM = 10;
 const INTERFACE = 11;
@@ -31,10 +34,21 @@ export const countProblems = (
 ): ProblemCounts => ({
   errors: diagnostics.filter((d) => (d.severity ?? ERROR) === ERROR).length,
   warnings: diagnostics.filter((d) => d.severity === WARNING).length,
+  notes: diagnostics.filter(
+    (d) => d.severity === INFORMATION || d.severity === HINT,
+  ).length,
 });
 
-export const hasProblems = (counts: ProblemCounts) =>
-  counts.errors > 0 || counts.warnings > 0;
+export const worstProblem = (
+  counts: ProblemCounts,
+): "error" | "warning" | "note" | null =>
+  counts.errors > 0
+    ? "error"
+    : counts.warnings > 0
+      ? "warning"
+      : counts.notes > 0
+        ? "note"
+        : null;
 
 export interface SymbolDiagnostics {
   total: readonly lsp.Diagnostic[];

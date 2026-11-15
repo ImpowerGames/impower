@@ -82,6 +82,8 @@ const createGame = (previewing?: boolean) => {
   const chosen: number[] = [];
   const advanced = { clicked: 0, auto: 0 };
   const game = {
+    replaying: false,
+    shownBeat: () => {},
     context: {
       system: {
         previewing,

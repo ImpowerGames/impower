@@ -1,26 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-  continueShowedSomething,
-  displayRouting,
-  makeRuntimeStoryFromSource,
-} from "./runtimeTestHarness";
-import type { TestStory } from "../engineUnderTest";
-
-function continueBeats(
-  story: TestStory,
-): { text: string; routing: string | null }[] {
-  const beats: { text: string; routing: string | null }[] = [];
-  while (story.canContinue) {
-    const text = story.Continue() ?? "";
-    if (!continueShowedSomething(story)) continue;
-    const routed = displayRouting(story).find((r) => r.target);
-    beats.push({
-      text,
-      routing: routed ? `${routed.target}:${routed.character ?? ""}` : null,
-    });
-  }
-  return beats;
-}
+import { continueBeats, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 describe("chained dialogue `>` break", () => {
   test("a mid-line break splits dialogue into two separate beats, each re-cued", () => {

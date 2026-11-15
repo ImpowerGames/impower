@@ -51,7 +51,8 @@ describe("a preview reaches every line origin/main's preview reaches", () => {
 
   test.each(CASES)(
     "%s",
-    (name, lines, label, store, shows) => {
+    async (name, lines, label, store, shows) => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
       const main = MAIN[name]!;
       const head = preview(compileSrc(lines.join("\n")), lines, label, store);
       if (main.reached) {

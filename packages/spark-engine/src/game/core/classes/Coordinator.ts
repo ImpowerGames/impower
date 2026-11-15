@@ -89,19 +89,36 @@ export class Coordinator<G extends Game> {
 
   protected _played?: () => void;
 
+  protected _reportsShown = false;
+
+  protected _reportedFinished = false;
+
   constructor(
     game: G,
     instructions: Instructions,
-    options?: { settled?: "restored" | "presented"; played?: () => void },
+    options?: {
+      settled?: "restored" | "presented";
+      played?: () => void;
+      held?: boolean;
+    },
   ) {
     this._game = game;
     this._instructions = instructions;
+    this._reportsShown =
+      !game.context.system.previewing &&
+      !game.context.system.simulating &&
+      !game.replaying;
+    if (this._reportsShown) {
+      game.shownBeat(false);
+    }
     if (options?.settled) {
       this.onSettle(options.settled === "restored");
     } else if (game.context.system.previewing && options?.played) {
       this.onPlay(options.played);
     } else if (game.context.system.previewing) {
       this.onPreview();
+    } else if (options?.held) {
+      this.onHold();
     } else {
       this.onExecute();
     }
@@ -140,6 +157,10 @@ export class Coordinator<G extends Game> {
     this.display({ instant: true, presented: !restored });
     this._startedExecution = true;
     this._onTick = () => {};
+  }
+
+  onHold() {
+    this._onTick = this.display();
   }
 
   onExecute() {
@@ -329,10 +350,18 @@ export class Coordinator<G extends Game> {
       }
       if (this._startedExecution && !waitingForChoice) {
         this.display({ instant: true });
-        this._finishedExecution = true;
+        this.finishExecution();
       }
     }
     return 0;
+  }
+
+  protected finishExecution(): void {
+    this._finishedExecution = true;
+    if (this._reportsShown && !this._reportedFinished) {
+      this._reportedFinished = true;
+      this._game.shownBeat(true);
+    }
   }
 
   protected display(options?: {
@@ -400,19 +429,17 @@ export class Coordinator<G extends Game> {
     const assetTriggerId =
       instant || simulating ? null : assets.prepareBeat(instructions);
     let loadTriggerId: number | null = null;
-    if (instructions.load && !simulating) {
-      if (!instant) {
-        loadTriggerId = assets.runLoad(instructions.load);
-      } else if (previewing) {
-        assets.runLoad(instructions.load);
-      }
+    let pendingLoad =
+      instructions.load && !simulating && !instant ? instructions.load : null;
+    if (instructions.load && !simulating && instant && previewing) {
+      assets.runLoad(instructions.load);
     }
     const cutscene = instructions.cutscene?.[0];
     let cutsceneTriggerId: number | null = null;
 
     const handleFinished = (): void => {
       presenter.finish();
-      this._finishedExecution = true;
+      this.finishExecution();
     };
 
     if (instant || game.context.system.simulating) {
@@ -432,6 +459,10 @@ export class Coordinator<G extends Game> {
     let finished = false;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
     const handleTick = (deltaMS: number): void => {
+      if (pendingLoad) {
+        loadTriggerId = assets.runLoad(pendingLoad);
+        pendingLoad = null;
+      }
       if (!ready) {
         const audioReady = audioTriggerIds.every((n) =>
           game.module.audio.isReady(n),

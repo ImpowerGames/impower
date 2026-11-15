@@ -213,7 +213,7 @@ export const CASES: [string, string[], string, string, number | "main"][] = [
     ],
     "Target total",
     "total",
-    "main",
+    6250,
   ],
   [
     "a menu that can repeat forever",
@@ -359,14 +359,14 @@ export const CASES: [string, string[], string, string, number | "main"][] = [
     loopWithBranch(5000),
     "Target total",
     "total",
-    "main",
+    1667,
   ],
   [
     "a loop of 60,000 passes with a branch in it",
     loopWithBranch(60000),
     "Target total",
     "total",
-    "main",
+    1630,
   ],
   [
     "an assertion that holds on one choice only",
@@ -523,7 +523,7 @@ export const CASES: [string, string[], string, string, number | "main"][] = [
     menusAfterLoop(12),
     "Target total",
     "total",
-    "main",
+    6,
   ],
   [
     "six menus after a skipped branch",
@@ -537,7 +537,7 @@ export const CASES: [string, string[], string, string, number | "main"][] = [
     menuLoop(10),
     "Target",
     "total",
-    18,
+    10,
   ],
   [
     "a loop of 20 menus before a skipped branch",

@@ -6,9 +6,7 @@ import type {
 import type {
   ChunkPosition,
   ProgramRoot,
-  SequenceRow,
 } from "@impower/sparkdown/src/program/ProgramRoot";
-import { SymbolKind } from "@impower/sparkdown/src/program/ProgramSymbols";
 import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
 
 export const validAddressPrefixLength = (
@@ -62,12 +60,6 @@ export const validAddressPrefixLength = (
         return i;
       }
     }
-    if (
-      place.was.entry === 0 &&
-      sceneStart(before, place.was.sequence) !== sceneStart(after, place.now.sequence)
-    ) {
-      return i;
-    }
     if (previous >= 0) {
       let to = held.get(previous);
       if (!to) {
@@ -112,12 +104,6 @@ export const levelZeroHolds = (
     if (!place.was || !place.now) {
       return false;
     }
-    if (
-      place.was.entry === 0 &&
-      sceneStart(before, place.was.sequence) !== sceneStart(after, place.now.sequence)
-    ) {
-      return false;
-    }
   }
   if (work.first != null) {
     const place = placeOf(work.first);
@@ -156,17 +142,6 @@ export const levelZeroHolds = (
     }
   }
   return true;
-};
-
-const sceneStart = (root: ProgramRoot, row: SequenceRow): number => {
-  if (row.owner >= 0 || row.kind !== SymbolKind.Branch) {
-    return -2;
-  }
-  const scene = root.parentOf(row.flow);
-  const sceneRow = scene < 0 ? undefined : root.flow(scene);
-  return sceneRow && sceneRow.arrays.chunks.length === 0
-    ? root.startOf(scene)
-    : -1;
 };
 
 const sameMove = (

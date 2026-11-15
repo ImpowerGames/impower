@@ -428,12 +428,13 @@ end
     expect(collisionsOf(program)).toEqual([]);
   });
 
-  test("a parameter of an enclosing scene used from the branch it falls into is a warning, and the story runs", () => {
+  test("a parameter of an enclosing scene used from a branch it diverts to is a warning, and the story runs", () => {
     const ctx = makeRuntimeStoryFromSource(`scene start
   -> go(-> there)
 
 end
 scene go(game)
+  -> inner
   branch inner
     -> game
   end

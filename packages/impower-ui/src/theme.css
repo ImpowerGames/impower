@@ -615,6 +615,7 @@
   --preview-strip-height: 91px;
   --toast-gap: 8px;
   --toast-top: calc(var(--title-bar-height) + var(--script-header-height) + var(--toast-gap));
+  --sheet-gesture-clearance: 8px;
 }
 
 :root[data-layout="compact"] {

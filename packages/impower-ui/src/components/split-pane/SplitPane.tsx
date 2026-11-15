@@ -26,6 +26,7 @@ export type SplitPaneProps = {
   defaultSizes?: [number, number];
   minSize?: MinSize | readonly [MinSize, MinSize];
   activePanel?: "start" | "end";
+  solo?: boolean;
   reverse?: boolean;
   pinned?: SplitPanePinned;
   label?: string;
@@ -134,6 +135,7 @@ export default function SplitPane({
   defaultSizes = [50, 50],
   minSize = 15,
   activePanel = "start",
+  solo = false,
   reverse = false,
   pinned,
   label,
@@ -141,7 +143,7 @@ export default function SplitPane({
   line = "edge",
   class: className,
 }: SplitPaneProps) {
-  const collapsed = useLayout() === "phone";
+  const collapsed = useLayout() === "phone" || solo;
   const startHidden = collapsed && activePanel === "end";
   const endHidden = collapsed && activePanel === "start";
   const horizontal = orientation === "horizontal";

@@ -1,21 +1,17 @@
 import {
   BranchIcon,
   ChooseIcon,
-  ErrorIcon,
   FileIcon,
   ListRow,
   ListRowBadge,
   SceneIcon,
   TreeToggle,
-  WarningIcon,
   type ListRowSize,
   type ListRowTone,
 } from "@impower/impower-ui/components";
+import { worstProblem } from "@impower/codemirror-vscode-lsp-client/src/symbolProblems";
 import { computed } from "@preact/signals";
-import {
-  problemSummary as scopeSummary,
-  severityOf,
-} from "../../workspace/problems/problemEntries";
+import { problemsIn } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 import workspace from "../../workspace/WorkspaceStore";
 import { outlineRows, type OutlineKind, type OutlineRow } from "./outlineRows";
@@ -66,23 +62,15 @@ function RowBadge({
   row: OutlineRow;
   size?: ListRowSize;
 }) {
-  const summary = scopeSummary(
-    row.diagnostics.map((d) => ({ severity: severityOf(d) })),
-  );
-  const label = `${row.kind === "scene" ? "Scene total: " : ""}${summary} in ${rowName(row)}`;
+  const severity = worstProblem(row.problems)!;
+  const label = `${row.kind === "scene" ? "Scene total: " : ""}${problemsIn(row.diagnostics, rowName(row))}`;
   return (
     <ListRowBadge
       size={size}
       label={label}
       title={row.kind === "scene" ? `${label}. Includes choices and branches.` : label}
       aria-haspopup="dialog"
-      icon={
-        row.problems.errors ? (
-          <ErrorIcon class="text-error" />
-        ) : (
-          <WarningIcon class="text-warning" />
-        )
-      }
+      severity={severity}
       onClick={(event) =>
         openScope(uri, row, event.currentTarget as HTMLElement)
       }
@@ -110,7 +98,7 @@ export default function OutlineListRow({
   collapsible?: boolean;
   onOpen: (row: OutlineRow) => void;
 }) {
-  const badged = !!(row.problems.errors || row.problems.warnings);
+  const badged = worstProblem(row.problems) !== null;
   const opensScope = row.kind === "setup" && row.diagnostics.length > 0;
   return (
     <ListRow

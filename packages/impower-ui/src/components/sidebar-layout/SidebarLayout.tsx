@@ -1,12 +1,16 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ComponentChildren, JSX } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { createContext, type ComponentChildren, type JSX } from "preact";
+import { useContext, useEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import {
   collapsibleSize,
   collapsibleSizeAfterKey,
   type CollapsibleLimits,
 } from "../../utils/collapsibleSize";
+
+const SidebarCollapsedContext = createContext(false);
+
+export const useSidebarCollapsed = (): boolean => useContext(SidebarCollapsedContext);
 
 export const sidebarLayoutVariants = cva(
   [
@@ -180,7 +184,9 @@ export default function SidebarLayout({
       >
         {sidebar}
       </div>
-      <div class="col-start-2 row-start-2 min-h-0 min-w-0">{children}</div>
+      <div class="col-start-2 row-start-2 min-h-0 min-w-0">
+        <SidebarCollapsedContext.Provider value={!sidebarHidden && collapsed}>{children}</SidebarCollapsedContext.Provider>
+      </div>
       <div class="col-span-2 row-start-3 min-w-0">{footer}</div>
       <div
         hidden={sidebarHidden}

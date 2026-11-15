@@ -207,6 +207,12 @@ export function problemSummary(items: readonly { severity: ConsoleSeverity }[]) 
     .join(", ");
 }
 
+export const problemsIn = (
+  diagnostics: readonly { severity?: number }[],
+  name: string,
+) =>
+  `${problemSummary(diagnostics.map((d) => ({ severity: severityOf(d) })))} in ${name}`;
+
 export function filterChip(
   severity: ConsoleSeverity,
   count: number,

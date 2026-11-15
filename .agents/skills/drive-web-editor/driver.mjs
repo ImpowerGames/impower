@@ -2893,15 +2893,28 @@ export function surfaceSettled(selector) {
 }
 
 const SURFACE_POLL_MS = 100;
+const FRAME_WAIT_MS = 1_000;
+
+async function twoFramesPainted(frame) {
+  let timer;
+  const stalled = new Promise((resolve) => {
+    timer = setTimeout(resolve, FRAME_WAIT_MS, `no animation frame fired within ${seconds(FRAME_WAIT_MS)}, so the tab is not painting`);
+  });
+  const painted = frame
+    .evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+    .then(() => true, (err) => `its frame failed while waiting for paint: ${String(err?.message || err).split("\n")[0]}`);
+  try {
+    return await Promise.race([painted, stalled]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export async function surfacePainted(page, waitsFor) {
   const deadline = Date.now() + PAINT_BUDGET_MS;
   for (;;) {
     for (const frame of page.frames()) {
-      if (await frame.evaluate(surfaceSettled, waitsFor.selector).catch(() => false)) {
-        await frame.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        return true;
-      }
+      if (await frame.evaluate(surfaceSettled, waitsFor.selector).catch(() => false)) return twoFramesPainted(frame);
     }
     if (Date.now() >= deadline) return false;
     await page.waitForTimeout(SURFACE_POLL_MS);
@@ -4008,8 +4021,9 @@ async function ui(args, deps = liveDeps) {
             } else taken = await shotOf(page, step.shotOf, step.out);
             if (waitsFor) {
               taken.waitedFor = waitsFor.what;
-              if (!painted) {
-                const missed = `${waitsFor.what} had not painted within ${seconds(PAINT_BUDGET_MS)} of the screenshot, so the picture may not show it`;
+              if (painted !== true) {
+                const cause = typeof painted === "string" ? `settled but ${painted}` : `had not painted within ${seconds(PAINT_BUDGET_MS)} of the screenshot`;
+                const missed = `${waitsFor.what} ${cause}, so the picture may not show it`;
                 taken.reason = taken.reason ? `${taken.reason}; also ${missed}` : missed;
               }
             }

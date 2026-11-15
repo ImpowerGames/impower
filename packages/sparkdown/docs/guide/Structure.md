@@ -60,6 +60,23 @@ function quit_game() end
 
 The keywords that declare configuration, `layout`, `component`, `screen`, `style`, `animation`, `theme` and `morph`, all take a brace body: `layout main { … }`. A `define` (`define hero as character with … end`) and the story's `scene` and `branch` close with `end`, and a Luau block inside a function or a handler keeps Luau's own openers, such as `then` and `do`, and closes with `end`.
 
+The story never falls into a scene or a branch, or out of one. A scene runs its own lines from top to bottom and skips every `branch` written in it, including what the branch holds up to its `end`; the scene's lines after that `end` run next. A branch runs only when the story goes to it, and reaching its `end` does not return to the scene. A scene that starts with a branch does not enter it, so write `-> name` where the branch should run:
+
+```sparkdown
+scene start
+  You reach the gate.
+  -> knock
+  branch knock
+    You knock twice.
+  end
+  This line never runs: the story went to the branch, which ends at its end.
+end
+```
+
+Without `-> knock`, the scene shows "You reach the gate." and then the last line, and the branch never runs.
+
+What a scene's or a branch's `end` does depends on how the story got there. Reached by a divert (`-> name`), it ends the story. Reached by a tunnel (`-> name ->`), it also ends the story: a tunnel returns to the line after it only through `->->`, so end every flow a tunnel goes to with `->->`. Reached by a thread (`<- name`), it ends the thread, and the story goes on after the `<-`.
+
 > Layouts belong to _screens_ (navigation groups). You rarely need to think about screens until you have more than one full-screen view — [Screens & Navigation](./Screens.md) covers that.
 
 ---
