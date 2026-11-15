@@ -11,6 +11,7 @@ import {
   EditorView,
   WidgetType,
 } from "@codemirror/view";
+import { foldingPlaceholderDOM } from "@impower/codemirror-vscode-lsp-client/src";
 
 const foldExtension = codeFolding();
 
@@ -43,44 +44,30 @@ export const isAllFolded = (state: EditorState): boolean => {
   return true;
 };
 
-export const defaultFoldConfig = {
-  placeholderText: "…",
-};
-
-export const foldWidget = Decoration.replace({
-  widget: new (class extends WidgetType {
-    toDOM(view: EditorView): HTMLElement {
-      const { state } = view;
-      const conf: {
-        placeholderDOM?: (
-          view: EditorView,
-          callback: (e: Event) => void,
-        ) => HTMLElement;
-        placeholderText: string;
-      } = defaultFoldConfig;
-      const onclick = (event: Event): void => {
-        const line = view.lineBlockAt(
-          view.posAtDOM(event.target as HTMLElement),
-        );
-        const folded = getFolded(view.state, line.from, line.to);
-        if (folded) {
-          view.dispatch({ effects: unfoldEffect.of(folded) });
-        }
-        event.preventDefault();
-      };
-      if (conf.placeholderDOM) {
-        return conf.placeholderDOM(view, onclick);
+class RestoredFoldWidget extends WidgetType {
+  toDOM(view: EditorView): HTMLElement {
+    let hiddenLines = 0;
+    view.state.field(foldedField).between(0, view.state.doc.length, (from, to, value) => {
+      if (value.spec.widget === this) {
+        hiddenLines =
+          view.state.doc.lineAt(to).number - view.state.doc.lineAt(from).number;
+        return false;
       }
-      const element = document.createElement("span");
-      element.textContent = conf.placeholderText;
-      element.setAttribute("aria-label", state.phrase("folded code"));
-      element.title = state.phrase("unfold");
-      element.className = "cm-foldPlaceholder";
-      element.onclick = onclick;
-      return element;
-    }
-  })(),
-});
+      return undefined;
+    });
+    const onclick = (event: Event): void => {
+      const line = view.lineBlockAt(
+        view.posAtDOM(event.target as HTMLElement),
+      );
+      const folded = getFolded(view.state, line.from, line.to);
+      if (folded) {
+        view.dispatch({ effects: unfoldEffect.of(folded) });
+      }
+      event.preventDefault();
+    };
+    return foldingPlaceholderDOM(view, onclick, hiddenLines);
+  }
+}
 
 const toJSON = (value: DecorationSet): { from: number; to: number }[] => {
   const folded: { from: number; to: number }[] = [];
@@ -98,7 +85,7 @@ const fromJSON = (json: { from: number; to: number }[]): DecorationSet => {
   if (json) {
     return Decoration.set(
       json.map(({ from, to }) => {
-        return { from, to, value: foldWidget };
+        return Decoration.replace({ widget: new RestoredFoldWidget() }).range(from, to);
       }),
       true,
     );

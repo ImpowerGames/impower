@@ -37,6 +37,7 @@ import {
   lineBands,
   ROUTE_CLASS_NAME,
 } from "../src/cm-line-bands/lineBands";
+import { foldedField } from "../src/cm-folded/foldedField";
 import { problemMarks } from "../src/cm-problem-marks/problemMarks";
 import {
   scriptAppearance,
@@ -594,6 +595,25 @@ describe("folded blocks", () => {
         to: state.doc.line(4).to,
       }),
     });
+    const chip = view!.dom.querySelector<HTMLElement>(".cm-foldPlaceholder");
+    expect(chip).toBeTruthy();
+    expect(chip!.textContent).toBe("");
+    expect(chip!.title).toBe("3 lines");
+    expect(chip!.getAttribute("aria-label")).toContain("3 lines");
+    chip!.click();
+    expect(foldedRanges(view!.state).size).toBe(0);
+  });
+
+  it("show the same chip for a fold restored from saved state", () => {
+    const doc = ["scene a", "  one", "  two", "  three", "end"].join("\n");
+    const lines = EditorState.create({ doc }).doc;
+    const restored = foldedField.spec.fromJSON([
+      { from: lines.line(1).to, to: lines.line(4).to },
+    ]);
+    mount(ALL_OFF_APPEARANCE, doc, [
+      foldedField.init(() => restored),
+      serverFolding().editorExtension!,
+    ]);
     const chip = view!.dom.querySelector<HTMLElement>(".cm-foldPlaceholder");
     expect(chip).toBeTruthy();
     expect(chip!.textContent).toBe("");
