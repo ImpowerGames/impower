@@ -230,25 +230,31 @@ const printedStyle = (piece: FormattedText) => ({
 
 const alignedStyle = (align: string) => `display: block; text-align: ${align};`;
 
-const printedPieceHtml = (piece: FormattedText) => {
+const hangingLineStyle = (width: number) => `border-left: ${width}ch solid transparent; box-sizing: border-box;`;
+
+const hangingMarkStyle = (width: number) => `margin-left: -${width}ch; white-space: pre;`;
+
+const printedPieceHtml = (piece: FormattedText, hang?: number) => {
   const { source, style } = printedStyle(piece);
-  return `<span${source ? ' class="sp-source"' : ""}${style ? ` style="${style}"` : ""}>${escapeHtml(piece.text)}</span>`;
+  const shown = `${style}${hang ? hangingMarkStyle(hang) : ""}`;
+  return `<span${source ? ' class="sp-source"' : ""}${shown ? ` style="${shown}"` : ""}>${escapeHtml(piece.text)}</span>`;
 };
 
 const printedLineHtml = (line: FormattedText[]) => {
+  const hang = line[0]?.hang;
   let html = "";
   for (let start = 0; start < line.length; ) {
     const align = line[start]!.align ?? "";
     let end = start;
     let pieces = "";
     while (end < line.length && (line[end]!.align ?? "") === align) {
-      pieces += printedPieceHtml(line[end]!);
+      pieces += printedPieceHtml(line[end]!, line[end]!.hang);
       end++;
     }
     html += align ? `<span style="${alignedStyle(align)}">${pieces}</span>` : pieces;
     start = end;
   }
-  return `<div>${html}</div>`;
+  return hang ? `<div style="${hangingLineStyle(hang)}">${html}</div>` : `<div>${html}</div>`;
 };
 
 const printedHtml = (lines: FormattedText[][]) => lines.map(printedLineHtml).join("");
@@ -415,11 +421,43 @@ export const decorate = (
     );
   }
 
+  const inlineRowLines = new Set(rows.filter(sharesLine).map((row) => rowLine(row).number));
+  const hangsByLine = new Map<number, { width: number; anchors: Set<number> }>();
+  for (const insert of inserts) {
+    if (!insert.style.hang) continue;
+    const number = doc.lineAt(insert.at).number;
+    const entry = hangsByLine.get(number) ?? { width: insert.style.hang, anchors: new Set<number>() };
+    if (entry.width !== insert.style.hang) entry.width = 0;
+    entry.anchors.add(insert.at);
+    hangsByLine.set(number, entry);
+  }
+  const startsByLine = new Map<number, number[]>();
+  for (const start of actionStarts) {
+    const number = doc.lineAt(start).number;
+    startsByLine.set(number, [...(startsByLine.get(number) ?? []), start]);
+  }
+  const hangingLines = new Map<number, number>();
+  for (const [number, { width, anchors }] of hangsByLine) {
+    const line = doc.line(number);
+    const first = Math.min(...anchors);
+    const rowsMarked = (startsByLine.get(number) ?? []).every((start) => start <= first || anchors.has(start));
+    if (width > 0 && rowsMarked && !inlineRowLines.has(number) && !drawnIn(line.from, first)) {
+      hangingLines.set(number, width);
+      if (line.from >= from && (to === undefined || line.from <= to)) {
+        decorations.push(Decoration.line({ attributes: { style: hangingLineStyle(width) } }).range(line.from));
+      }
+    }
+  }
+
   for (const insert of inserts) {
     if (insert.at >= from && (to === undefined || insert.at <= to)) {
       const { style, source } = printedStyle(insert.style);
+      const hang = insert.style.hang && hangingLines.get(doc.lineAt(insert.at).number);
       decorations.push(
-        Decoration.widget({ widget: new InsertedTextWidget(insert.text, style, source), side: 1 }).range(insert.at),
+        Decoration.widget({
+          widget: new InsertedTextWidget(insert.text, `${style}${hang ? hangingMarkStyle(hang) : ""}`, source),
+          side: 1,
+        }).range(insert.at),
       );
     }
   }

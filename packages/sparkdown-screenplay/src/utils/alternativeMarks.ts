@@ -139,6 +139,8 @@ export const markAlternatives = (tokens: ScreenplayToken[], arms: readonly numbe
   tokens.splice(firstIndex, 0, markRow("open", openAnchor, "above", positions));
 };
 
+export const HANG_LIMIT = 16;
+
 const groupAnchor = (pieces: readonly FormattedText[]): number | undefined => {
   for (const piece of pieces) {
     for (let index = 0; index < piece.text.length; index++) {
@@ -157,6 +159,7 @@ export const markAlternativeRows = (
   let row = 0;
   for (const line of lines) {
     const positions = line.content.some((piece) => piece.at);
+    const hangs = line.content.every((piece) => !piece.align || piece.align === "left");
     const content: FormattedText[] = [];
     for (let start = 0; start < line.content.length; ) {
       const align = line.content[start]!.align ?? "";
@@ -169,6 +172,7 @@ export const markAlternativeRows = (
         content.push({
           ...style,
           ...(align ? { align } : {}),
+          ...(hangs && text.length <= HANG_LIMIT ? { hang: text.length } : {}),
           text,
           ...(positions ? { at: insertedRun(text.length, groupAnchor(group)) } : {}),
         });

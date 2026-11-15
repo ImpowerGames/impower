@@ -4,6 +4,7 @@ import {
   PageLine,
 } from "@impower/sparkdown-screenplay/src/types/DocumentSpan";
 import { PrintProfile } from "@impower/sparkdown-screenplay/src/types/PrintProfile";
+import type { FormattedText as PrintedText } from "@impower/sparkdown-screenplay/src/types/FormattedText";
 import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/types/ScreenplayConfig";
 import { ScreenplayPrintData } from "@impower/sparkdown-screenplay/src/types/ScreenplayPrintData";
 import { ScreenplayTokenType } from "@impower/sparkdown-screenplay/src/types/ScreenplayTokenType";
@@ -421,11 +422,13 @@ export default class ScreenplayPrinter {
       }
 
       if (content.length > 0) {
+        const { lead, rest, indent } = this.getHangingGroup(content);
+        if (lead) this.printText([lead], feed, this._state.y, textOptions);
         const height = this.printText(
-          content,
-          feed,
+          rest,
+          feed + indent,
           this._state.y,
-          textOptions,
+          { ...textOptions, width: maxWidth - indent },
         );
         this._state.y += height;
         printedHeight += height;
@@ -597,15 +600,21 @@ export default class ScreenplayPrinter {
     if (span.content) {
       const maxWidth = this.getLineMaxWidth(span);
       for (const group of this.getAlignedGroups(span)) {
-        let content = group.content;
+        const { rest, indent } = this.getHangingGroup(group.content);
         const textOptions: TextOptions = {
-          width: maxWidth,
+          width: maxWidth - indent,
           align: group.align,
         };
-        height += this.getHeightOfText(content, maxWidth, textOptions);
+        height += this.getHeightOfText(rest, maxWidth - indent, textOptions);
       }
     }
     return height;
+  }
+
+  getHangingGroup(content: FormattedText[]): { lead?: FormattedText; rest: FormattedText[]; indent: number } {
+    const lead: PrintedText | undefined = content[0];
+    if (!lead?.hang || content.length < 2) return { rest: content, indent: 0 };
+    return { lead, rest: content.slice(1), indent: lead.hang * this._state.fontWidth };
   }
 
   getIndentation(text: string): string {
