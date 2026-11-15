@@ -26,6 +26,8 @@ const REACHABLE_AGAIN_AT: ReadonlySet<string> = nodeNameSet([
   "Scene",
   "Branch",
   "LabelAnchor",
+  "Choice",
+  "LuauAlternatorSeparator",
   "LuauSparkdownElseifBlock",
   "LuauSparkdownElseBlock",
   "LuauSparkdownExplicitElseifBlock",

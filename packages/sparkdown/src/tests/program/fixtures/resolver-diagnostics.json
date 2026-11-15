@@ -124,9 +124,7 @@
  },
  "choices/choice-count-with-threads.sd": {
   "fallback": null,
-  "diagnostics": [
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":9,\"line\":11},\"start\":{\"character\":0,\"line\":10}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":9,\"line\":11},\"start\":{\"character\":0,\"line\":10}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
-  ]
+  "diagnostics": []
  },
  "choices/choice-diverts-to-done.sd": {
   "fallback": null,
@@ -154,9 +152,7 @@
  },
  "choices/fallback-choice-on-thread.sd": {
   "fallback": null,
-  "diagnostics": [
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":18,\"line\":12},\"start\":{\"character\":0,\"line\":12}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":18,\"line\":12},\"start\":{\"character\":0,\"line\":12}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
-  ]
+  "diagnostics": []
  },
  "choices/has-read-on-choice.sd": {
   "fallback": null,

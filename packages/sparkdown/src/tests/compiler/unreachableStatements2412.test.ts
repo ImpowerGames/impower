@@ -202,6 +202,35 @@ end
     ).toEqual([`${HINT} 5:0-7:11`]);
   });
 
+  test.each([
+    ["an action line", "  Hello -> s"],
+    ["a dialogue line", "  HERO: Hello -> s"],
+    ["a dialogue block", "  HERO:\n    Hello -> s"],
+  ])("are a faded hint after a divert that ends %s", (_kind, line) => {
+    const source = `scene start
+${line}
+  Never.
+end
+scene s
+end
+`;
+    const never = source.split("\n").indexOf("  Never.");
+    expect(hintsIn(source)).toEqual([`${HINT} ${never}:0-${never}:8`]);
+  });
+
+  test("are not a hint after a display line that tunnels and returns", () => {
+    expect(
+      hintsIn(`scene start
+  Hello -> s ->
+  Reached.
+end
+scene s
+  ->->
+end
+`),
+    ).toEqual([]);
+  });
+
   test("are a faded hint up to the end of the body that holds the divert", () => {
     expect(
       hintsIn(`store x = true
@@ -272,6 +301,24 @@ scene s
 end
 `),
     ).toEqual([`${HINT} 4:0-4:10`]);
+  });
+
+  test.each([
+    ["the next choice after `-> s`", "  choose\n    * [A]\n      -> s\n      Never.\n    * [B]\n      Bee.\n  end"],
+    ["the next choice after `fin`", "  choose\n    * [A]\n      fin\n      Never.\n    * [B]\n      Bee.\n  end"],
+    ["the next match arm", "  match x\n  | 1\n    -> s\n    Never.\n  | 2\n    Two.\n  end"],
+    ["the next queue arm after a divert on the arm's line", "  queue\n  | A -> s\n    Never.\n  | B\n  end"],
+  ])("stop at %s", (_kind, body) => {
+    const source = `store x = 1
+scene start
+${body}
+end
+scene s
+end
+`;
+    const lines = source.split("\n");
+    const never = lines.findIndex((line) => line.trim() === "Never.");
+    expect(hintsIn(source)).toEqual([`${HINT} ${never}:0-${never}:${lines[never]!.length}`]);
   });
 
   test("are not a hint after a thread", () => {

@@ -48,10 +48,11 @@ import {
   lowerInlineTransitional,
   lowerInlineWrite,
 } from "./lowerers/lowerDisplay";
-import { lowerDivert } from "./lowerers/lowerDivert";
+import { endsOnLeavingDivert, lowerDivert } from "./lowerers/lowerDivert";
 import {
   lowerDoneStatement,
   lowerFinStatement,
+  unreachableAfter,
 } from "./lowerers/lowerDoneOrFin";
 import { lowerGlue } from "./lowerers/lowerGlue";
 import { lowerLabelAnchor } from "./lowerers/lowerLabelAnchor";
@@ -99,6 +100,22 @@ const BLOCK_STATEMENTS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
   "LuauSparkdownSequentialAlternatorBlock",
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
+]);
+
+const DISPLAY_LINES: ReadonlySet<string> = nodeNameSet([
+  "InlineDialogue",
+  "ImplicitAction",
+  "InlineAction",
+  "InlineHeading",
+  "InlineTitle",
+  "InlineTransitional",
+  "InlineWrite",
+  "BlockDialogue",
+  "BlockAction",
+  "BlockHeading",
+  "BlockTitle",
+  "BlockTransitional",
+  "BlockWrite",
 ]);
 
 export function lower(
@@ -150,7 +167,14 @@ function lowerInner(
     const block = lowerNode(nodeRef, ctx);
     return block && { diagnostics: block.diagnostics };
   }
-  return lowerNode(nodeRef, ctx);
+  const block = lowerNode(nodeRef, ctx);
+  if (block && DISPLAY_LINES.has(nodeRef.name) && endsOnLeavingDivert(nodeRef.node, ctx.read)) {
+    const unreachable = unreachableAfter(nodeRef, ctx);
+    if (unreachable) {
+      block.diagnostics = [...(block.diagnostics ?? []), unreachable];
+    }
+  }
+  return block;
 }
 
 function lowerNode(

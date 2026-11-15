@@ -57,6 +57,20 @@ export function lowerDivert(
   return block;
 }
 
+export function endsOnLeavingDivert(
+  line: SyntaxNode,
+  read: (from: number, to: number) => string,
+): boolean {
+  let last: SyntaxNode | null = null;
+  const cursor = line.cursor();
+  while (cursor.next() && cursor.from < line.to) {
+    if (cursor.name === "Divert") {
+      last = cursor.node;
+    }
+  }
+  return !!last && read(last.to, line.to).trim() === "" && leavesFlow(last);
+}
+
 function leavesFlow(divert: SyntaxNode): boolean {
   const begin = divert.getChild("Divert_begin");
   if (begin && getDescendent("TunnelMark", begin)) {
