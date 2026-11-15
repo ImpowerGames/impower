@@ -415,12 +415,20 @@ export const decorate = (
     return drawnPositions[low];
   };
   const unhungStarts = new Set<number>();
+  const inlineRowsByLine = new Map<number, number[]>();
+  for (const row of rows) {
+    const number = rowLine(row).number;
+    if (!hangsByLine.has(number) || !sharesLine(row)) continue;
+    const found = inlineRowsByLine.get(number);
+    if (found) found.push(row.at);
+    else inlineRowsByLine.set(number, [row.at]);
+  }
   const lineRows = (number: number, anchors: Map<number, number>) => {
     const line = doc.line(number);
     const first = firstDrawnFrom(line.from);
     const starts = actionStarts.filter((start) => start > line.from && start <= line.to);
     const rowStarts = [...new Set([...(first !== undefined && first <= line.to ? [first] : []), ...starts])];
-    const inlineRows = rows.filter((row) => sharesLine(row) && rowLine(row).number === number).map((row) => row.at);
+    const inlineRows = inlineRowsByLine.get(number) ?? [];
     const boundaries = [...new Set([...anchors.keys(), ...rowStarts, ...inlineRows])].sort((a, b) => a - b);
     const endOf = (start: number) => boundaries.find((boundary) => boundary > start) ?? line.to;
     return { line, rowStarts, endOf };

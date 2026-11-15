@@ -56,7 +56,8 @@ const pageRows = async (): Promise<Record<string, PageRows>> => {
   const found = await page.evaluate((long) => {
     const result: Record<string, PageRows> = {};
     for (const section of Array.from(document.querySelectorAll<HTMLElement>("section"))) {
-      const line = Array.from(section.querySelectorAll(".cm-line")).find((row) => row.textContent?.includes("The reader sees"))!;
+      const line = Array.from(section.querySelectorAll(".cm-line")).find((row) => row.textContent?.includes("The reader sees"));
+      if (!line) continue;
       const texts: Text[] = [];
       const others: Text[] = [];
       const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
@@ -237,6 +238,36 @@ describe("a wrapped row of an alternative", () => {
     const rows = pdfRows(draws);
     expect(rows.length).toBeGreaterThan(1);
     for (const x of rows) expect(Math.abs(x - rows[0]!), "PDF row").toBeLessThan(0.01);
+  }, 120_000);
+
+  it("gives the blank line between two blocks on one source line a row's height, on the page as in the PDF", async () => {
+    const page = await browser.newPage({ viewport: { width: 520, height: 6000 } });
+    await page.goto(pageUrl);
+    await page.waitForFunction(() => "screenplayHang" in window);
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const onPage = await page.evaluate(() => {
+      const section = document.querySelector<HTMLElement>('section[data-fixture="two blocks with a blank between"]')!;
+      const tops: Record<string, number[]> = {};
+      const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const text = node.textContent?.trim() ?? "";
+        if (!["{", "}", "One A.", "One B."].includes(text)) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        (tops[text] ??= []).push(range.getBoundingClientRect().top);
+      }
+      return tops;
+    });
+    await page.close();
+    const pageRow = onPage["One B."]![0]! - onPage["One A."]![0]!;
+    expect(pageRow).toBeGreaterThan(0);
+    const draws = await pdfDraws(["scene s", "  Before.", "  queue | One A. | One B. end queue | Two A. | Two B. end", "  After.", "end", ""].join("\n"));
+    const pdfY = (text: string, nth = 0) => draws.filter((draw) => draw.text.trim().endsWith(text))[nth]!.y;
+    const pdfRow = pdfY("One B.") - pdfY("One A.");
+    const pdfGap = (pdfY("{", 1) - pdfY("}")) / pdfRow;
+    expect(pdfGap).toBeCloseTo(2, 2);
+    expect((onPage["{"]![1]! - onPage["}"]![0]!) / pageRow).toBeCloseTo(pdfGap, 2);
   }, 120_000);
 
   it("keeps its hanging indent across a PDF page break", async () => {
