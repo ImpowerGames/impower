@@ -102,6 +102,18 @@ describe("the editor's warning agrees with the game's image write (I-2390)", () 
     expect(!shown.talk || editor).toBe(true);
   });
 
+  test.each([
+    ["an assignment between a directive line and Mia's line", story(`  local n = 0\n  ${DIRECTIVE}\n  n = 1\n  MIA:\n    Hello there.`)],
+    ["a do block holding Mia's line after a directive line", story(`  ${DIRECTIVE}\n  do\n    MIA:\n      Hello there.\n  end`)],
+    ["a for loop holding Mia's line after a directive line", story(`  ${DIRECTIVE}\n  for i = 1, 1 do\n    MIA:\n      Hello there.\n  end`)],
+    ["a directive line ending a do block before Mia's line", story(`  do\n    ${DIRECTIVE}\n  end\n  MIA:\n    Hello there.`)],
+    ["an empty interpolation between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  {""}\n  MIA:\n    Hello there.`)],
+  ])("known difference: %s leaves the editor silent where the game plays the speech morph", async (_, source) => {
+    const editor = warned(source);
+    const shown = await talks(source);
+    expect({ editor, written: shown.written, game: shown.talk }).toEqual({ editor: false, written: true, game: true });
+  });
+
   test("known difference: a divert into a scene of another script is not followed, so the editor stays silent where the game plays the speech morph", async () => {
     const source = story(`  ${DIRECTIVE}\n  -> elsewhere`);
     const scripts = { "inmemory:///other.sd": "scene elsewhere\n  MIA:\n    Hello there.\nend\n" };
