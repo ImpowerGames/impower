@@ -903,13 +903,6 @@ export function installPlayerWorker(connection: MessageConnection) {
       if (own) {
         return own;
       }
-      const first = nested.reduce<(typeof nested)[number] | undefined>(
-        (earliest, flow) => (!earliest || flow[0] < earliest[0] ? flow : earliest),
-        undefined,
-      );
-      if (first && program.chunks?.bindsParameters(point.file, first[0]) === false) {
-        return startPointInScene(program, { file: point.file, line: first[1] }, beat);
-      }
     }
     const scene = (program.sceneSpans?.[point.file] ?? []).find(
       ([header, last]) => header <= point.line && point.line <= last,

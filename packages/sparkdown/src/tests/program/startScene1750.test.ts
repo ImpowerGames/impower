@@ -61,7 +61,7 @@ describe("the start of the story", () => {
     expect(beatsOf(story, "start")).toEqual(["Visits 1, turns 0.\n"]);
   });
 
-  it("enters the first branch of a start scene that opens with one", () => {
+  it("does not enter the first branch of a start scene that opens with one", () => {
     const story = storyOf({
       [MAIN]: lines(
         "scene start",
@@ -71,7 +71,7 @@ describe("the start of the story", () => {
         "end",
       ),
     });
-    expect(beatsOf(story)).toEqual(["The opening, 1.\n"]);
+    expect(beatsOf(story)).toEqual([]);
   });
 
   it("gives start's locals the scene's scope", () => {
@@ -94,6 +94,7 @@ describe("the start of the story", () => {
     [MAIN]: lines(
       "function helper() return 7 end",
       "scene start",
+      "  -> opening",
       "  branch opening",
       "    The opening, {count.visits(-> start)}.",
       "  end",

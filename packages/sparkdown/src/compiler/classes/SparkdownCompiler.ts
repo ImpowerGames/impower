@@ -262,6 +262,7 @@ import {
 import { debugFileName } from "../utils/debugFileName";
 import {
   TOP_LEVEL_STATEMENT_MESSAGE,
+  sceneStatementsAfterBranches,
   topLevelStatements,
 } from "../utils/declarationOnly";
 import {
@@ -2240,6 +2241,11 @@ export class SparkdownCompiler {
         (declares === true && !onlyDeclares(rec.block.content))
       );
     };
+    const flowTree = hasLuauExtension(uri) ? undefined : this.documents.tree(uri);
+    const sceneResumes = new Set(
+      flowTree ? sceneStatementsAfterBranches(flowTree.topNode) : [],
+    );
+    const resumesScene = (from: number): boolean => sceneResumes.has(from);
     const misplacedLocals = new Set<number>();
     const placementTree =
       this._injectingPrelude || hasLuauExtension(uri)
@@ -2593,13 +2599,6 @@ export class SparkdownCompiler {
                 if (stitch.identifier?.name) {
                   last.subFlowsByName.set(stitch.identifier?.name, stitch);
                 }
-                if (
-                  last.content.length === 1 &&
-                  last.content[0] instanceof Weave &&
-                  last.content[0].content.length === 0
-                ) {
-                  last.content.pop();
-                }
                 last.AddContent(stitch);
                 continueRun(last, compiledBlock);
               } else {
@@ -2637,9 +2636,14 @@ export class SparkdownCompiler {
               for (const placed of flowContent) {
                 this._placedBy.set(placed, compiledBlock);
               }
+              const scene = lastStoryEntry(topLevelContent);
               const closestWeave = hoisted
                 ? undefined
-                : getClosestWeave(topLevelContent);
+                : scene instanceof Knot &&
+                    scene._weave &&
+                    resumesScene(rec.from)
+                  ? getClosestWeave([scene._weave])
+                  : getClosestWeave(topLevelContent);
               if (closestWeave) {
                 const lastContent = closestWeave.content.at(-1);
                 if (

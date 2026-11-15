@@ -163,13 +163,14 @@ describe("a flow's parameters on the program engine", () => {
     ]);
   });
 
-  it("binds a branch's parameters, and a scene's before it enters its first branch", () => {
+  it("binds a branch's parameters, and a scene's that a branch it diverts to reads", () => {
     const { actual } = runOf(
       [
         "scene start",
         "  -> outer(1)",
         "end",
         "scene outer(a)",
+        "  -> inner",
         "  branch inner",
         "    Inner {a}.",
         "    -> second(a + 1, \"b\")",

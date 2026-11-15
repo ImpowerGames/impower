@@ -807,7 +807,7 @@ describe("on the program engine", () => {
   });
 
   for (const where of ["the scene's start", "a tunnel into the scene"]) {
-    test(`a branch inserted above a scene's first branch keeps none of a route that entered it (${where})`, () => {
+    test(`a scene that now diverts to a branch inserted above the one it diverted to keeps none of a route that entered it (${where})`, () => {
       const tunnel = where === "a tunnel into the scene";
       const lines = [
         "store score = 0",
@@ -825,6 +825,7 @@ describe("on the program engine", () => {
             ]
           : []),
         "scene MAIN",
+        "  -> first",
         "  branch first",
         ...Array.from({ length: 30 }, (_, i) => `    Beat ${i} of the branch, score {score}.`),
         ...(tunnel ? ["    ->->"] : []),
@@ -854,8 +855,8 @@ describe("on the program engine", () => {
       }
 
       session.edit(
-        "  branch first",
-        "  branch prologue\n    & score = score + 1\n    -> MAIN.first\n  end\n  branch first",
+        "  -> first\n  branch first",
+        "  -> prologue\n  branch prologue\n    & score = score + 1\n    -> MAIN.first\n  end\n  branch first",
       );
       const after = session.compile(tunnel ? target : target + 4);
 

@@ -447,7 +447,7 @@ describe("flows on the program engine", () => {
       expect(texts(actual)).toEqual(["Here 1.", "Here 2."]);
     });
 
-    it("count a branch and its scene, a scene that starts with a branch, and turns since, read through the language", () => {
+    it("count a branch and its scene, a scene that diverts to its branch, and turns since, read through the language", () => {
       const { actual, root } = programBeats(
         [
           "store spot = -> hall.lobby",
@@ -460,6 +460,7 @@ describe("flows on the program engine", () => {
           "end",
           "",
           "scene hall",
+          "  -> lobby",
           "  branch lobby",
           "    In the lobby.",
           "    ->->",
@@ -751,9 +752,10 @@ describe("flows on the program engine", () => {
     ]);
   });
 
-  it("counts the first branch a host's evaluation of its scene runs", () => {
+  it("counts the branch a host's evaluation of its scene diverts to", () => {
     const text = [
       "scene hall",
+      "  -> lobby",
       "  branch lobby",
       "    Lobby {hall.lobby} {hall}.",
       "    ->->",

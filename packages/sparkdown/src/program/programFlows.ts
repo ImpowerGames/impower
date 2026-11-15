@@ -87,6 +87,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     out.unsupportedCounts[construct] = (out.unsupportedCounts[construct] ?? 0) + 1;
   };
   const headerLines: { uri: string; line: number }[] = [];
+  const closes = new Map<FlowSource, number>();
   const functionFlows: FlowSource[] = [];
   const writes: DeclarationSource[] = [];
 
@@ -226,14 +227,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       return;
     }
     headerLines.push({ uri: record.uri, line: record.line });
-    const first = flow.content?.[0];
-    const start =
-      flow instanceof Knot &&
-      first instanceof FlowBase &&
-      !first.isFunction &&
-      !first.hasParameters
-        ? `${name}.${first.identifier?.name ?? ""}`
-        : undefined;
     const statements = statementsOf(
       flow._weave?.content ?? [],
       record.uri,
@@ -241,29 +234,15 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     );
     const runsOwn = statements.length > 0;
     if (flow.hasParameters) {
-      statements.unshift(
-        flowEntry(
-          flow,
-          name,
-          header!,
-          record,
-          start === undefined ? undefined : { flow: first as FlowBase, name: start },
-        ),
-      );
+      statements.unshift(flowEntry(flow, name, header!, record));
     }
-    const startsWith = flow.hasParameters ? undefined : start;
-    if (start === undefined) {
-      const opensBranch = first instanceof FlowBase && !first.isFunction;
-      const end = input.flowEndLine?.(record.uri, record.line);
-      statements.push(
-        runsOwn
-          ? flowEnd(header!, end ?? lineAfter(statements, record.line), false)
-          : opensBranch
-            ? flowEnd(header!, end ?? record.line, false)
-            : flowEnd(header!, end ?? record.line + 1, true),
-      );
-    }
-    flows.push({
+    const end = input.flowEndLine?.(record.uri, record.line);
+    statements.push(
+      runsOwn
+        ? flowEnd(header!, end ?? lineAfter(statements, record.line), false)
+        : flowEnd(header!, end ?? record.line + 1, true),
+    );
+    const source: FlowSource = {
       name,
       kind: flow instanceof Stitch ? SymbolKind.Branch : SymbolKind.Scene,
       uri: record.uri,
@@ -271,8 +250,11 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       span: 0,
       statements,
       params: parameterKinds(flow.args),
-      ...(startsWith === undefined ? {} : { startsWith }),
-    });
+    };
+    flows.push(source);
+    if (end !== undefined) {
+      closes.set(source, end);
+    }
     for (const sub of flow.subFlowsByName.values()) {
       visitFlow(sub, `${name}.`);
     }
@@ -286,11 +268,17 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   }
 
   for (const flow of flows) {
+    const close = closes.get(flow);
+    if (close !== undefined && flow.kind === SymbolKind.Branch) {
+      flow.span = Math.max(0, close + 1 - flow.firstLine);
+      continue;
+    }
+    const after = close === undefined ? flow.firstLine : close + 1;
     let end = input.lineCount(flow.uri);
     for (const header of headerLines) {
       if (
         header.uri === flow.uri &&
-        header.line >= flow.firstLine &&
+        header.line >= after &&
         header.line < end
       ) {
         end = header.line;
@@ -408,10 +396,7 @@ const withinBody = (body: BodySource, owned: ReadonlySet<ParsedObject>): BodySou
 };
 
 export class FlowEntry extends ParsedObject {
-  constructor(
-    readonly flow: FlowBase,
-    readonly start?: { flow: FlowBase; name: string },
-  ) {
+  constructor(readonly flow: FlowBase) {
     super();
   }
 
@@ -431,11 +416,6 @@ export class FlowEntry extends ParsedObject {
         rootSlot: arg.rootSlot,
       })),
     );
-    if (this.start) {
-      const symbol = emitter.targetSymbol(this.start.flow, this.start.name);
-      emitter.referenceTarget(symbol);
-      emitter.emit(Op.JumpSym, symbol);
-    }
   }
 }
 
@@ -446,7 +426,6 @@ const flowEntry = (
   name: string,
   header: object,
   record: StatementRecord,
-  start?: { flow: FlowBase; name: string },
 ): StatementSource => {
   const params = (flow.args ?? [])
     .map(
@@ -454,7 +433,7 @@ const flowEntry = (
         `${arg.isByReference ? "ref " : ""}${arg.identifier?.name ?? ""}${arg.isVararg ? "..." : ""}`,
     )
     .join(",");
-  const source = `${name}(${params})${start ? ` -> ${start.name}` : ""}`;
+  const source = `${name}(${params})`;
   const syntax = `FlowEntry\u0000${source}`;
   let keys = entryKeys.get(header);
   if (!keys) {
@@ -468,7 +447,7 @@ const flowEntry = (
   }
   return {
     block,
-    objects: [new FlowEntry(flow, start)],
+    objects: [new FlowEntry(flow)],
     range: null,
     firstLine: record.line,
     source: () => source,
