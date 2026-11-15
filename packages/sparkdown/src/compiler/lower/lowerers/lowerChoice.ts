@@ -5,6 +5,7 @@ import {
   choiceTextMarkerKind,
   choiceTextMarkers,
   readChoiceText,
+  type ChoiceText,
 } from "../../utils/readChoiceText";
 import { trimStyled, writesNothing } from "../../../runtime/displayStyle";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -39,7 +40,12 @@ import {
   buildOrderedDisplayCall,
   displayText,
 } from "../utils/displayCall";
-import { collectDisplaySpans, writeStyledRange } from "../utils/displaySpans";
+import {
+  collectDisplaySpans,
+  writeStyledRange,
+  type DisplaySpans,
+  type SpanCode,
+} from "../utils/displaySpans";
 import {
   inlineGluedAlternatorFrom,
   isInlineGluedAlternator,
@@ -87,16 +93,17 @@ export function lowerChoice(
 
   const text = readChoiceText(nodeRef.node);
   const hasWeaveStyleInlineBrackets = text.inner !== null;
+  const literalOpeners = literalOpenerPositions(text, ctx);
   const appendStart = (list: ContentList): void => {
     for (const part of text.start) {
-      appendNodeContent(part.node, ctx, list, true, part.node.from, part.to);
+      appendNodeContent(part.node, ctx, list, true, part.node.from, part.to, literalOpeners);
     }
   };
 
   appendStart(startContent);
   if (text.inner) {
-    if (text.only) appendNodeContent(text.only, ctx, choiceOnlyContent);
-    appendNodeContent(text.inner, ctx, innerContent, false, text.inner.from + 1);
+    if (text.only) appendNodeContent(text.only, ctx, choiceOnlyContent, false, text.only.from, text.only.to, literalOpeners);
+    appendNodeContent(text.inner, ctx, innerContent, false, text.inner.from + 1, text.inner.to, literalOpeners);
   }
 
   const divertNode = getDescendent("Divert", nodeRef.node);
@@ -322,6 +329,45 @@ function isChoiceTextOpaque(node: SyntaxNode): boolean {
   return choiceTextMarkerKind(node) !== null || isInlineGluedAlternator(node);
 }
 
+const OPENER_CHARACTERS = ["(", "["];
+
+const RAW_SPANS: ReadonlySet<string> = nodeNameSet(["ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw", "Raw"]);
+
+function withLiteralOpeners(
+  spans: DisplaySpans,
+  literalOpeners: ReadonlySet<number>,
+  from: number,
+  to: number,
+): DisplaySpans {
+  const escapes = [...literalOpeners]
+    .filter((at) => from <= at && at < to)
+    .map((at): SpanCode => ({ at, code: "\\", closes: false, depth: 0 }));
+  if (escapes.length === 0) return spans;
+  return { ...spans, codes: [...spans.codes, ...escapes].sort((a, b) => a.at - b.at) };
+}
+
+function literalOpenerPositions(text: ChoiceText, ctx: LowerContext): ReadonlySet<number> {
+  const startEnd = text.start.at(-1)?.to;
+  const joined = [text.only?.from, text.inner ? text.inner.from + 1 : undefined];
+  const positions = new Set<number>();
+  const walk = (node: SyntaxNode): void => {
+    if (isChoiceTextOpaque(node) || RAW_SPANS.has(node.name)) return;
+    if (node.name === "Punctuation" && node.to === node.from + 1) {
+      const c = ctx.read(node.from, node.to);
+      const follows = (at: number | undefined) => at !== undefined && ctx.read(at, at + 1) === c;
+      if (OPENER_CHARACTERS.includes(c) && (follows(node.to) || (node.to === startEnd && joined.some(follows)))) {
+        positions.add(node.from);
+      }
+      return;
+    }
+    for (let child = node.firstChild; child; child = child.nextSibling) walk(child);
+  };
+  for (const part of [...text.start.map((p) => p.node), text.only, text.inner]) {
+    if (part) walk(part);
+  }
+  return positions;
+}
+
 function appendNodeContent(
   captureNode: SyntaxNode,
   ctx: LowerContext,
@@ -329,8 +375,14 @@ function appendNodeContent(
   trimStart = false,
   from = captureNode.from,
   to = captureNode.to,
+  literalOpeners: ReadonlySet<number> = new Set(),
 ): boolean {
-  const spans = collectDisplaySpans(captureNode, from, to, ctx, isChoiceTextOpaque);
+  const spans = withLiteralOpeners(
+    collectDisplaySpans(captureNode, from, to, ctx, isChoiceTextOpaque),
+    literalOpeners,
+    from,
+    to,
+  );
   const spanCursor = { code: 0, mark: 0 };
   const alternators: SyntaxNode[] = [];
   const findAlternators = (node: SyntaxNode): void => {

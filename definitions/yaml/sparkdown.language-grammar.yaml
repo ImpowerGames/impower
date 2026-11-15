@@ -967,7 +967,7 @@ variables:
   # lookaround: AudioCommand's end, as for CHOICE_START_AUDIO_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_START_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_START_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_START_REGION_CHARACTER}}))
-  CHOICE_START_AUDIO_COMMAND: (?:[(][(]{{CHOICE_START_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_AUDIO_REST}}*)?)
+  CHOICE_START_AUDIO_COMMAND: (?:[(][(]{{CHOICE_START_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_AUDIO_REST}}*)?(?={{WS}}*[)][)]))
   # lookaround: ImageCommand's end and ChoiceStartText's end, CHOICE_START_TEXT_END. ImageCommand
   # reads a backslash with the character after it (IMAGE_COMMAND_CHAR) but still
   # ends at its closer, so a backslash takes the next character unless the
@@ -980,7 +980,7 @@ variables:
   # lookaround: ImageCommand's end, as for CHOICE_START_IMAGE_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_START_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_START_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_START_REGION_CHARACTER}}))
-  CHOICE_START_IMAGE_COMMAND: (?:\[\[{{CHOICE_START_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_IMAGE_REST}}*)?)
+  CHOICE_START_IMAGE_COMMAND: (?:\[\[{{CHOICE_START_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_IMAGE_REST}}*)?(?={{WS}}*\]\]))
   # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
   # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
   # marks, so ChoiceStartTextContent takes the block whole.
@@ -1076,7 +1076,7 @@ variables:
   # lookaround: AudioCommand's end, as for CHOICE_ONLY_AUDIO_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_ONLY_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_ONLY_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_ONLY_REGION_CHARACTER}}))
-  CHOICE_ONLY_AUDIO_COMMAND: (?:[(][(]{{CHOICE_ONLY_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_AUDIO_REST}}*)?)
+  CHOICE_ONLY_AUDIO_COMMAND: (?:[(][(]{{CHOICE_ONLY_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_AUDIO_REST}}*)?(?={{WS}}*[)][)]))
   # lookaround: ImageCommand's end and ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END. ImageCommand
   # reads a backslash with the character after it (IMAGE_COMMAND_CHAR) but still
   # ends at its closer, so a backslash takes the next character unless the
@@ -1089,7 +1089,7 @@ variables:
   # lookaround: ImageCommand's end, as for CHOICE_ONLY_IMAGE_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_ONLY_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_ONLY_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_ONLY_REGION_CHARACTER}}))
-  CHOICE_ONLY_IMAGE_COMMAND: (?:\[\[{{CHOICE_ONLY_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_IMAGE_REST}}*)?)
+  CHOICE_ONLY_IMAGE_COMMAND: (?:\[\[{{CHOICE_ONLY_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_IMAGE_REST}}*)?(?={{WS}}*\]\]))
   # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
   # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
   # marks, so ChoiceOnlyTextContent takes the block whole.
@@ -1185,7 +1185,7 @@ variables:
   # lookaround: AudioCommand's end, as for CHOICE_INNER_AUDIO_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_INNER_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_INNER_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_INNER_REGION_CHARACTER}}))
-  CHOICE_INNER_AUDIO_COMMAND: (?:[(][(]{{CHOICE_INNER_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_AUDIO_REST}}*)?)
+  CHOICE_INNER_AUDIO_COMMAND: (?:[(][(]{{CHOICE_INNER_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_AUDIO_REST}}*)?(?={{WS}}*[)][)]))
   # lookaround: ImageCommand's end and ChoiceInnerText's end, CHOICE_INNER_TEXT_END. ImageCommand
   # reads a backslash with the character after it (IMAGE_COMMAND_CHAR) but still
   # ends at its closer, so a backslash takes the next character unless the
@@ -1198,7 +1198,7 @@ variables:
   # lookaround: ImageCommand's end, as for CHOICE_INNER_IMAGE_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_INNER_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_INNER_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_INNER_REGION_CHARACTER}}))
-  CHOICE_INNER_IMAGE_COMMAND: (?:\[\[{{CHOICE_INNER_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_IMAGE_REST}}*)?)
+  CHOICE_INNER_IMAGE_COMMAND: (?:\[\[{{CHOICE_INNER_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_IMAGE_REST}}*)?(?={{WS}}*\]\]))
   # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
   # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
   # marks, so ChoiceInnerTextContent takes the block whole.
@@ -3873,7 +3873,7 @@ repository:
     tag: macroName
     name: meta.image.sd
     brackets: true
-    begin: (\[\[)({{DIRECTIVE_SPACE}}*)
+    begin: (\[\[)(?={{SPAN_DOUBLE_BRACKET_TEXT}}*\]\])({{DIRECTIVE_SPACE}}*)
     beginCaptures:
       1:
         patterns:
@@ -3978,7 +3978,7 @@ repository:
     tag: macroName
     name: meta.audio.sd
     brackets: true
-    begin: ([(][(])({{DIRECTIVE_SPACE}}*)
+    begin: ([(][(])(?={{SPAN_DOUBLE_PAREN_TEXT}}*[)][)])({{DIRECTIVE_SPACE}}*)
     beginCaptures:
       1:
         patterns:

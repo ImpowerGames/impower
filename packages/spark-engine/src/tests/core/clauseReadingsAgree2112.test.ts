@@ -374,9 +374,29 @@ const CHOICE_DIRECTIVES: readonly (readonly [label: string, text: string])[] = [
   ["a directive closed inside the choice brackets", "Go ((a [b)) c] d"],
   ["a directive closed both inside and after the choice brackets", "Go ((a [x)) y] z)) now"],
   ["a closer inside a tag after the choice brackets", "Go ((a [x] # note)) now"],
+  ["an opener split by the choice brackets", "Go ([x](b)) now"],
+  ["a directive left open inside the choice brackets", "Go [((play music theme] now"],
+  ["an image directive left open at the line's end", "Go [x] [[mia with fade"],
+  ["an audio directive left open at the line's end", "Go [x] ((play music theme loop"],
+  ["a directive left open at the line's end without choice brackets", "Go [[mia with fade"],
 ];
 
-const UNREAD_CHOICE_DIRECTIVES = ["a closer inside a tag after the choice brackets"];
+const UNREAD_CHOICE_DIRECTIVES = [
+  "choice brackets",
+  "a long-string bracket",
+  "a levelled long-string bracket",
+  "a long comment bracket",
+  "a comment after the choice brackets",
+  "clauses after the choice brackets",
+  "a directive closed inside the choice brackets",
+  "a directive closed both inside and after the choice brackets",
+  "a closer inside a tag after the choice brackets",
+  "an opener split by the choice brackets",
+  "a directive left open inside the choice brackets",
+  "an image directive left open at the line's end",
+  "an audio directive left open at the line's end",
+  "a directive left open at the line's end without choice brackets",
+];
 
 const CHOICE_ROWS: (readonly [label: string, text: string])[] = CHOICE_DIRECTIVES.flatMap(([label, text]) => [
   [label, text] as const,
@@ -537,7 +557,7 @@ describe("every editor reader of a directive agrees with the interpreter's chunk
 });
 
 describe("every editor reader of a directive in a choice line agrees with the chunk the story hands the interpreter (I-2225)", () => {
-  test("the interpreter reads a directive on every row but those whose closer the story sends as a tag", () => {
+  test("the interpreter reads a directive on every row but those whose opener has no closer in its part of the line (I-2337)", () => {
     const unread = CHOICE_ROWS.filter(([label]) => !choiceInterpreterReadings.has(label)).map(([label]) => label);
     expect(unread).toEqual(UNREAD_CHOICE_DIRECTIVES.flatMap((label) => [label, `${label}, with a divert`]));
   });
@@ -546,20 +566,6 @@ describe("every editor reader of a directive in a choice line agrees with the ch
     expect(choiceCompilerReadings.get(label) ?? empty()).toStrictEqual(choiceInterpreterReadings.get(label) ?? empty());
   });
 });
-
-const CROSS_BRACKET_CHOICE_DIRECTIVES = [
-  "choice brackets",
-  "choice brackets inside braces",
-  "a long-string bracket",
-  "a levelled long-string bracket",
-  "a long comment bracket",
-  "an indexing bracket",
-  "a comment after the choice brackets",
-  "clauses after the choice brackets",
-  "a directive closed inside the choice brackets",
-  "a directive closed both inside and after the choice brackets",
-  "a closer inside a tag after the choice brackets",
-];
 
 const COLOURED_ROLES: Readonly<Record<string, string>> = {
   AssetCommandControl: "control",
@@ -684,9 +690,30 @@ describe("the grammar colours every directive word as the game reads it (I-2224)
     const divertAt = rowSource.indexOf(" -> ");
     const lineTo = divertAt >= 0 ? divertAt : rowSource.indexOf("\n", lineFrom);
     const { grammar, games } = colouringOf(rowSource, lineFrom, lineTo);
-    const agrees = games.length === 0 ? grammar.length === 0 : games.some((game) => JSON.stringify(game) === JSON.stringify(grammar));
-    const crossesBracket = CROSS_BRACKET_CHOICE_DIRECTIVES.some((shape) => label === shape || label === `${shape}, with a divert`);
-    expect({ grammar, games, agrees }).toEqual({ grammar, games, agrees: !crossesBracket });
+    const unread = UNREAD_CHOICE_DIRECTIVES.some((shape) => label === shape || label === `${shape}, with a divert`);
+    expect({ grammar, games }).toEqual(unread ? { grammar: [], games: [] } : { grammar, games: [grammar] });
     expect(await compareEngines(rowSource)).toEqual([]);
+  });
+
+  const UNCLOSED_LINES = [
+    "[[mia with fade",
+    "((play music theme loop",
+    "Hello [[mia with fade",
+    "Hello ((play music theme",
+    "Hello [[mia]] and [[bunny with fade",
+  ];
+
+  test.each(UNCLOSED_LINES)("a directive left open at a display line's end is coloured and read as text (I-2337): `%s`", async (text) => {
+    const rowSource = ["scene start", `  ${text}`, "  done", "end", ""].join("\n");
+    const lineFrom = rowSource.indexOf(text);
+    const { grammar, games } = colouringOf(rowSource, lineFrom, lineFrom + text.length);
+    const closed = text.includes("]]") ? [["name mia"]] : [];
+    expect({ grammar, games }).toEqual({ grammar: closed.flat(), games: closed });
+    expect(await compareEngines(rowSource)).toEqual([]);
+    const harness = createHarness(rowSource);
+    await harness.ready;
+    const seen = spyOnChunks(harness);
+    await harness.preview(1);
+    expect(seen.map(({ content }) => content)).toEqual(closed.length > 0 ? ["mia"] : []);
   });
 });
