@@ -1,3 +1,5 @@
+import type { PageLine } from "../types/DocumentSpan";
+import type { FormattedText } from "../types/FormattedText";
 import type { PrintedRowSide } from "../types/LineOptions";
 import type { ScreenplayToken } from "../types/ScreenplayToken";
 import { isStyleCode } from "../../../sparkdown/src/runtime/displayStyle";
@@ -47,20 +49,10 @@ export const gluedAlternatorJoin = (join: GluedAlternatorJoin): string => {
   }
 };
 
-type AlternativeLine = "open" | "first" | "rest" | "close";
-
-const alternativeLine = (line: AlternativeLine): string => {
-  switch (line) {
-    case "open":
-      return alternativeMark("open");
-    case "first":
-      return `${alternativeMark("bar")} `;
-    case "rest":
-      return " ".repeat(alternativeMark("bar").length + 1);
-    case "close":
-      return alternativeMark("close");
-  }
-};
+const rowMark = (levels: readonly boolean[], firstRow: boolean): string =>
+  levels
+    .map((first) => (first && firstRow ? `${alternativeMark("bar")} ` : " ".repeat(alternativeMark("bar").length + 1)))
+    .join("");
 
 const PRINTED_TAGS: ReadonlySet<string> = new Set([
   "title",
@@ -76,17 +68,6 @@ const PRINTED_TAGS: ReadonlySet<string> = new Set([
 const placedAnchor = (position: number): number | undefined =>
   position >= 0 ? position : insertAnchor(position);
 
-const anchorAt = (at: readonly number[], from: number, step: 1 | -1): number | undefined => {
-  for (let index = from; index >= 0 && index < at.length; index += step) {
-    const anchor = placedAnchor(at[index]!);
-    if (anchor !== undefined) return anchor;
-  }
-  return undefined;
-};
-
-const insertedRun = (length: number, anchor: number | undefined): number[] =>
-  new Array<number>(length).fill(anchor === undefined ? UNPLACED : insertedAt(anchor));
-
 const anchorAfter = (at: readonly number[]): number | undefined => {
   for (let index = at.length - 1; index >= 0; index--) {
     const position = at[index]!;
@@ -97,54 +78,23 @@ const anchorAfter = (at: readonly number[]): number | undefined => {
   return undefined;
 };
 
+const insertedRun = (length: number, anchor: number | undefined): number[] =>
+  new Array<number>(length).fill(anchor === undefined ? UNPLACED : insertedAt(anchor));
+
 const printedValue = (token: ScreenplayToken) => (token.prefix ?? "") + (token.styled ?? token.text ?? "");
 
-const lineHasText = (value: string, from: number) => {
-  for (let index = from; index < value.length && value[index] !== "\n"; index++) {
-    if (!isStyleCode(value[index]!)) return true;
-  }
-  return false;
-};
+const isPrinted = (character: string) => !isStyleCode(character) && /\S/.test(character);
 
-const printsText = (token: ScreenplayToken) =>
-  [...printedValue(token)].some((character) => !isStyleCode(character) && /\S/.test(character));
+const printsText = (token: ScreenplayToken) => [...printedValue(token)].some(isPrinted);
 
-const markLines = (
-  value: string,
-  at: readonly number[] | undefined,
-  markOf: (line: number) => string,
-): { value: string; at?: number[]; anchor?: number } => {
-  let marked = "";
-  const placed: number[] | undefined = at ? [] : undefined;
-  let firstAnchor: number | undefined;
-  let line = 0;
-  let from = 0;
+const firstPrintedAnchor = (token: ScreenplayToken): number | undefined => {
+  if (!token.at) return undefined;
+  const value = printedValue(token);
   for (let index = 0; index < value.length; index++) {
-    if (value[index] === "\n" || (index > 0 && value[index - 1] !== "\n") || !lineHasText(value, index)) continue;
-    const mark = markOf(line++);
-    marked += value.slice(from, index) + mark;
-    if (placed) {
-      const anchor = anchorAt(at!, index, 1);
-      if (line === 1) firstAnchor = anchor;
-      for (let kept = from; kept < index; kept++) placed.push(at![kept]!);
-      placed.push(...insertedRun(mark.length, anchor));
-    }
-    from = index;
+    const anchor = isPrinted(value[index]!) ? placedAnchor(token.at[index] ?? UNPLACED) : undefined;
+    if (anchor !== undefined) return anchor;
   }
-  marked += value.slice(from);
-  if (placed) for (let kept = from; kept < value.length; kept++) placed.push(at![kept]!);
-  return placed ? { value: marked, at: placed, anchor: firstAnchor } : { value: marked };
-};
-
-const markBody = (token: ScreenplayToken, first: boolean): number | undefined => {
-  const affix = token.prefix ?? "";
-  const markOf = (line: number) => alternativeLine(first && line === 0 ? "first" : "rest");
-  const styled = markLines(printedValue(token), token.at, markOf);
-  const prefixLength = affix ? markOf(0).length + affix.length : 0;
-  if (affix) token.prefix = styled.value.slice(0, prefixLength);
-  token.styled = styled.value.slice(prefixLength);
-  if (styled.at) token.at = styled.at;
-  return styled.anchor;
+  return undefined;
 };
 
 const markRow = (
@@ -153,7 +103,7 @@ const markRow = (
   row: PrintedRowSide,
   positions: boolean,
 ): ScreenplayToken => {
-  const text = alternativeLine(line);
+  const text = alternativeMark(line);
   return {
     tag: "action",
     text,
@@ -175,16 +125,58 @@ export const markAlternatives = (tokens: ScreenplayToken[], arms: readonly numbe
     if (body.length > 0) bodies.push(body);
   });
   if (bodies.length === 0) return;
-  let openAnchor: number | undefined;
-  bodies.forEach((body, bodyIndex) =>
-    body.forEach((token, index) => {
-      const anchor = markBody(tokens[token]!, index === 0);
-      if (bodyIndex === 0 && index === 0) openAnchor = anchor;
-    }),
-  );
+  for (const body of bodies) {
+    body.forEach((index, position) => {
+      const token = tokens[index]!;
+      token.alternative = [position === 0, ...(token.alternative ?? [])];
+    });
+  }
+  const firstIndex = bodies[0]![0]!;
   const lastIndex = bodies.at(-1)!.at(-1)!;
-  const last = tokens[lastIndex]!;
-  const closeAnchor = last.at && anchorAfter(last.at);
+  const openAnchor = firstPrintedAnchor(tokens[firstIndex]!);
+  const closeAnchor = tokens[lastIndex]!.at && anchorAfter(tokens[lastIndex]!.at!);
   tokens.splice(lastIndex + 1, 0, markRow("close", closeAnchor, "below", positions));
-  tokens.splice(bodies[0]![0]!, 0, markRow("open", openAnchor, "above", positions));
+  tokens.splice(firstIndex, 0, markRow("open", openAnchor, "above", positions));
+};
+
+const groupAnchor = (pieces: readonly FormattedText[]): number | undefined => {
+  for (const piece of pieces) {
+    for (let index = 0; index < piece.text.length; index++) {
+      const anchor = isPrinted(piece.text[index]!) ? placedAnchor(piece.at?.[index] ?? UNPLACED) : undefined;
+      if (anchor !== undefined) return anchor;
+    }
+  }
+  return undefined;
+};
+
+export const markAlternativeRows = (
+  lines: PageLine[],
+  levels: readonly boolean[],
+  markStyle: FormattedText,
+) => {
+  let row = 0;
+  for (const line of lines) {
+    const positions = line.content.some((piece) => piece.at);
+    const content: FormattedText[] = [];
+    for (let start = 0; start < line.content.length; ) {
+      const align = line.content[start]!.align ?? "";
+      let end = start;
+      while (end < line.content.length && (line.content[end]!.align ?? "") === align) end++;
+      const group = line.content.slice(start, end);
+      if (group.some((piece) => [...piece.text].some(isPrinted))) {
+        const text = rowMark(levels, row === 0);
+        const { at: _at, text: _text, align: _align, ...style } = markStyle;
+        content.push({
+          ...style,
+          ...(align ? { align } : {}),
+          text,
+          ...(positions ? { at: insertedRun(text.length, groupAnchor(group)) } : {}),
+        });
+        row++;
+      }
+      content.push(...group);
+      start = end;
+    }
+    line.content = content;
+  }
 };

@@ -15,4 +15,5 @@ export interface ScreenplayToken {
   source?: number[];
   at?: number[];
   row?: PrintedRowSide;
+  alternative?: boolean[];
 }
