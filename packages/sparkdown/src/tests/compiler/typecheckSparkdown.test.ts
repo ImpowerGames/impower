@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";
+import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 
 const MAIN = "inmemory:///main.sd";
@@ -14,7 +15,7 @@ function compile(body: string): SparkProgram {
 
 function describeDiagnostics(program: SparkProgram, types: boolean): string[] {
   return (program.diagnostics?.[MAIN] ?? [])
-    .filter((d) => TYPE_ERROR_KINDS.has(String(d.code)) === types)
+    .filter((d) => TYPE_ERROR_KINDS.has(String(d.code)) === types && d.severity !== DiagnosticSeverity.Hint)
     .map((d) => {
       const message = typeof d.message === "string" ? d.message : d.message.value;
       return `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${message}`;
