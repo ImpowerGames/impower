@@ -1,7 +1,7 @@
 import createEditorView from "../../src/modules/screenplay-preview/utils/createEditorView";
 import { settleParse } from "../helpers/parseSettle";
 
-const LONG = "The reader sees these words and keeps on reading them all the way to the far end of a long line that must wrap.";
+const LONG = "The reader sees these words and keeps on reading them all the way to the far edge of a long line that must wrap.";
 
 const nested = (depth: number) => {
   const lines: string[] = [];
@@ -19,6 +19,8 @@ const FIXTURES: Record<string, string> = {
   "depth 2": nested(2),
   "depth 7": nested(7),
   "depth 8": nested(8),
+  "shared with text": ["scene s", `  queue | ${LONG} | Short. end : Afterwards.`, "end", ""].join("\n"),
+  "shared with a block": ["scene s", `  queue | One. | Two. end queue | ${LONG} | Short. end`, "end", ""].join("\n"),
 };
 
 for (const [name, text] of Object.entries(FIXTURES)) {

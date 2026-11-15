@@ -8,7 +8,7 @@ import { chromium, type Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildScreenplayHangPage } from "./harness/screenplay-hang.mjs";
 
-const LONG = "The reader sees these words and keeps on reading them all the way to the far end of a long line that must wrap.";
+const LONG = "The reader sees these words and keeps on reading them all the way to the far edge of a long line that must wrap.";
 
 const nested = (depth: number) => {
   const lines: string[] = [];
@@ -25,9 +25,11 @@ const HANGING = ["depth 0", "depth 1", "depth 2", "depth 7"];
 interface PageRows {
   markLeft: number;
   rows: number[];
+  lineLeft: number;
   lineRight: number;
   rightmost: number;
   overflow: number;
+  others: Record<string, number>;
 }
 
 let browser: Browser;
@@ -51,16 +53,32 @@ const pageRows = async (): Promise<Record<string, PageRows>> => {
   await page.waitForFunction(() => "screenplayHang" in window);
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-  const found = await page.evaluate(() => {
+  const found = await page.evaluate((long) => {
     const result: Record<string, PageRows> = {};
     for (const section of Array.from(document.querySelectorAll<HTMLElement>("section"))) {
       const line = Array.from(section.querySelectorAll(".cm-line")).find((row) => row.textContent?.includes("The reader sees"))!;
-      const mark = line.querySelector(".sp-inserted")!;
       const texts: Text[] = [];
+      const others: Text[] = [];
       const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-        if (!node.parentElement?.closest(".sp-inserted") && node.textContent?.trim()) texts.push(node as Text);
+        const text = node.textContent?.trim() ?? "";
+        if (!text) continue;
+        if (node.parentElement?.closest(".sp-inserted-row")) others.push(node as Text);
+        else if (node.parentElement?.closest(".sp-inserted")) continue;
+        else if (long.includes(text)) texts.push(node as Text);
+        else others.push(node as Text);
       }
+      const marks = Array.from(line.querySelectorAll(".sp-inserted")).filter(
+        (element) => /^[| ]+$/.test(element.textContent ?? "") && !element.closest(".sp-inserted-row"),
+      );
+      const mark = marks.filter((element) => element.compareDocumentPosition(texts[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).at(-1)!;
+      const edge = (node: Text) => {
+        const start = node.data.search(/\S/);
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, start + 1);
+        return range.getBoundingClientRect().left;
+      };
       const range = document.createRange();
       range.setStart(texts[0]!, 0);
       range.setEnd(texts.at(-1)!, texts.at(-1)!.length);
@@ -83,13 +101,15 @@ const pageRows = async (): Promise<Record<string, PageRows>> => {
       result[section.dataset["fixture"]!] = {
         markLeft: mark.getBoundingClientRect().left,
         rows: [...byTop.entries()].sort(([a], [b]) => a - b).map(([, left]) => left),
+        lineLeft: line.getBoundingClientRect().left,
         lineRight: line.getBoundingClientRect().right,
         rightmost,
         overflow: line.scrollWidth - line.clientWidth,
+        others: Object.fromEntries(others.map((node) => [node.data.trim(), edge(node)])),
       };
     }
     return result;
-  });
+  }, LONG);
   await page.close();
   return found;
 };
@@ -169,6 +189,47 @@ describe("a wrapped row of an alternative", () => {
     expect(rows.length).toBeGreaterThan(1);
     for (const x of rows) expect(Math.abs(x - rows[0]!)).toBeLessThan(0.01);
     for (const draw of draws) expect(draw.x + draw.width).toBeLessThanOrEqual(612);
+  });
+
+  it("continues under its text on a source line shared with other printed rows, which keep their own edge, on the page", async () => {
+    const rows = await pageRows();
+    const near = (a: number | undefined, b: number, label: string, within = 0.5) => expect(Math.abs(a! - b), label).toBeLessThan(within);
+    for (const fixture of ["shared with text", "shared with a block"]) {
+      const found = rows[fixture]!;
+      expect(found.rows.length, fixture).toBeGreaterThan(1);
+      expect(found.markLeft, fixture).toBeLessThan(found.rows[0]!);
+      for (const left of found.rows) near(left, found.rows[0]!, fixture);
+      near(found.markLeft, found.lineLeft, `${fixture} bar`, 1);
+    }
+    const text = rows["shared with text"]!;
+    near(text.others["Short."], text.rows[0]!, "Short.");
+    near(text.others["}"], text.lineLeft, "closing brace", 1);
+    near(text.others["Afterwards."], text.lineLeft, "Afterwards.", 1);
+    const block = rows["shared with a block"]!;
+    near(block.others["One."], block.rows[0]!, "One.");
+    near(block.others["Two."], block.rows[0]!, "Two.");
+    near(block.others["}"], block.lineLeft, "first block's closing brace", 1);
+    near(block.others["{"], block.lineLeft, "second block's opening brace", 1);
+  }, 120_000);
+
+  it("keeps its hanging indent across a PDF page break", async () => {
+    const words = Array.from({ length: 300 }, (_, index) => `Word${index}`).join(" ");
+    const script = [
+      "scene s",
+      ...Array.from({ length: 40 }, () => "  Lead."),
+      "  queue",
+      `    | ${words}`,
+      "    | Short.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const draws = (await pdfDraws(script)).filter((draw) => /^Word\d+/.test(draw.text.trim()));
+    const rowLefts = new Map<number, number>();
+    for (const draw of draws) rowLefts.set(draw.y, Math.min(rowLefts.get(draw.y) ?? Infinity, draw.x));
+    const first = draws.find((draw) => draw.text.includes("Word0"))!;
+    expect(draws.some((draw) => draw.y < first.y), "the alternative continues on the next page").toBe(true);
+    expect([...new Set([...rowLefts.values()].map((x) => x.toFixed(3)))]).toEqual([first.x.toFixed(3)]);
   });
 
   it("wraps from the line's left in the PDF past the deepest hanging depth, inside the page", async () => {

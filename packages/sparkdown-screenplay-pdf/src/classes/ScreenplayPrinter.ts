@@ -461,9 +461,10 @@ export default class ScreenplayPrinter {
       return [[], []];
     }
     const width = this.getLineMaxWidth(line);
-    const wrappedLines = this.wrapText(line.content, width).map((l) => ({
+    const { lead, rest, indent } = this.getHangingGroup(line.content);
+    const wrappedLines = this.wrapText(rest, width - indent).map((l, index) => ({
       tag: line.tag,
-      content: l.texts,
+      content: lead ? [index === 0 ? lead : { ...lead, text: " ".repeat(lead.text.length) }, ...l.texts] : l.texts,
     }));
 
     if (minLineCount) {

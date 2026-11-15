@@ -391,6 +391,47 @@ export const decorate = (
     const line = rowLine(row);
     return row.side === "above" ? drawnIn(line.from, row.at) : drawnIn(row.at, line.to + 1);
   };
+  const hangsByLine = new Map<number, { width: number; anchors: Set<number> }>();
+  for (const insert of inserts) {
+    if (!insert.style.hang) continue;
+    const number = doc.lineAt(insert.at).number;
+    const entry = hangsByLine.get(number) ?? { width: insert.style.hang, anchors: new Set<number>() };
+    if (entry.width !== insert.style.hang) entry.width = 0;
+    entry.anchors.add(insert.at);
+    hangsByLine.set(number, entry);
+  }
+  const hangingLines = new Map<number, number>();
+  for (const [number, { width }] of hangsByLine) {
+    if (width > 0) hangingLines.set(number, width);
+  }
+  const hangOf = (position: number) => hangingLines.get(doc.lineAt(Math.min(position, doc.length)).number);
+  const firstDrawnFrom = (position: number) => {
+    let low = 0;
+    let high = drawnPositions.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (drawnPositions[middle]! < position) low = middle + 1;
+      else high = middle;
+    }
+    return drawnPositions[low];
+  };
+  for (const [number, width] of hangingLines) {
+    const line = doc.line(number);
+    const anchors = hangsByLine.get(number)!.anchors;
+    const first = firstDrawnFrom(line.from);
+    const starts = actionStarts.filter((start) => start > line.from && start <= line.to);
+    const rowStarts = new Set([...(first !== undefined && first <= line.to ? [first] : []), ...starts]);
+    if (line.from >= from && (to === undefined || line.from <= to)) {
+      decorations.push(Decoration.line({ attributes: { style: hangingLineStyle(width) } }).range(line.from));
+    }
+    for (const start of rowStarts) {
+      if (anchors.has(start) || start < from || (to !== undefined && start > to)) continue;
+      decorations.push(
+        Decoration.widget({ widget: new InsertedTextWidget("", `display: inline-block; ${hangingMarkStyle(width)}`), side: 1 }).range(start),
+      );
+    }
+  }
+
   const rowGroups = new Map<string, number>();
   const rowGroupOf = (row: PageRow) => `${row.side}:${rowLine(row).number}`;
   for (const row of rows) {
@@ -407,7 +448,11 @@ export const decorate = (
     const pieces = row.pieces.map((piece) => ({ text: piece.text, ...printedStyle(piece.style) }));
     const above = row.side === "above";
     if (inline) {
-      const widget = new InsertedRowWidget(pieces, { before: !above || !actionStartSet.has(row.at), after: above });
+      const pull = hangOf(row.at);
+      const pulled = pull
+        ? pieces.map((piece, index) => (index === 0 ? { ...piece, style: `${piece.style}${hangingMarkStyle(pull)}` } : piece))
+        : pieces;
+      const widget = new InsertedRowWidget(pulled, { before: !above || !actionStartSet.has(row.at), after: above });
       (above ? decorations : rowsBelow).push(Decoration.widget({ widget, side: 1 }).range(row.at));
       continue;
     }
@@ -421,38 +466,10 @@ export const decorate = (
     );
   }
 
-  const inlineRowLines = new Set(rows.filter(sharesLine).map((row) => rowLine(row).number));
-  const hangsByLine = new Map<number, { width: number; anchors: Set<number> }>();
-  for (const insert of inserts) {
-    if (!insert.style.hang) continue;
-    const number = doc.lineAt(insert.at).number;
-    const entry = hangsByLine.get(number) ?? { width: insert.style.hang, anchors: new Set<number>() };
-    if (entry.width !== insert.style.hang) entry.width = 0;
-    entry.anchors.add(insert.at);
-    hangsByLine.set(number, entry);
-  }
-  const startsByLine = new Map<number, number[]>();
-  for (const start of actionStarts) {
-    const number = doc.lineAt(start).number;
-    startsByLine.set(number, [...(startsByLine.get(number) ?? []), start]);
-  }
-  const hangingLines = new Map<number, number>();
-  for (const [number, { width, anchors }] of hangsByLine) {
-    const line = doc.line(number);
-    const first = Math.min(...anchors);
-    const rowsMarked = (startsByLine.get(number) ?? []).every((start) => start <= first || anchors.has(start));
-    if (width > 0 && rowsMarked && !inlineRowLines.has(number) && !drawnIn(line.from, first)) {
-      hangingLines.set(number, width);
-      if (line.from >= from && (to === undefined || line.from <= to)) {
-        decorations.push(Decoration.line({ attributes: { style: hangingLineStyle(width) } }).range(line.from));
-      }
-    }
-  }
-
   for (const insert of inserts) {
     if (insert.at >= from && (to === undefined || insert.at <= to)) {
       const { style, source } = printedStyle(insert.style);
-      const hang = insert.style.hang && hangingLines.get(doc.lineAt(insert.at).number);
+      const hang = insert.style.hang && hangOf(insert.at);
       decorations.push(
         Decoration.widget({
           widget: new InsertedTextWidget(insert.text, `${style}${hang ? hangingMarkStyle(hang) : ""}`, source),
