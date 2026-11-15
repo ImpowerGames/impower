@@ -10,6 +10,8 @@ export const GLUED_ALTERNATOR_BLOCKS: ReadonlySet<string> = new Set([
 export const ALTERNATOR_BLOCKS: ReadonlySet<string> = new Set([
   "LuauSparkdownSequentialAlternatorBlock",
   "LuauSparkdownConditionalAlternatorBlock",
+  "LuauSparkdownSingleLineSequentialAlternatorBlock",
+  "LuauSparkdownSingleLineConditionalAlternatorBlock",
 ]);
 
 export const IF_BLOCK = "LuauSparkdownIfBlock";
@@ -148,7 +150,7 @@ export const markAlternatives = (tokens: ScreenplayToken[], arms: readonly numbe
     }
     if (body.length > 0) bodies.push(body);
   });
-  if (bodies.length < 2) return;
+  if (bodies.length === 0) return;
   for (const body of bodies) body.forEach((token, index) => markBody(tokens[token]!, index === 0));
   const first = tokens[bodies[0]![0]!]!;
   const lastIndex = bodies.at(-1)!.at(-1)!;
