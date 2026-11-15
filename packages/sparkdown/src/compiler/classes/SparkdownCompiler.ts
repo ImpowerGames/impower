@@ -1596,11 +1596,18 @@ export class SparkdownCompiler {
       if (stale.length > 0) {
         throw new StatementMemoRetry(stale, "a name its resolution read is declared otherwise");
       }
+      const reachability = story ? unreachableBranches(parsedStory) : null;
+      if (reachability && reachability.unsure.length > 0) {
+        throw new StatementMemoRetry(
+          reachability.unsure,
+          "a name its resolution read is a branch nothing else reaches",
+        );
+      }
       this._namesRolledBack = [];
       watchStatements(restoreWatch ?? null);
       restoreWatch = undefined;
-      if (story) {
-        this.reportUnreachableBranches(parsedStory, onDiagnostic);
+      if (reachability) {
+        this.reportUnreachableBranches(reachability.unreached, onDiagnostic);
       }
       if (
         this._config.useBuiltinsPrelude !== false &&
@@ -3727,7 +3734,7 @@ export class SparkdownCompiler {
   }
 
   protected reportUnreachableBranches(
-    parsedStory: Story,
+    unreached: readonly FlowBase[],
     onDiagnostic: (
       message: string,
       type: ErrorType,
@@ -3736,7 +3743,7 @@ export class SparkdownCompiler {
     ) => void,
   ) {
     const endsByUri = new Map<string, Map<number, number>>();
-    for (const branch of unreachableBranches(parsedStory)) {
+    for (const branch of unreached) {
       const metadata = branch.identifier?.debugMetadata;
       const uri = metadata?.filePath;
       const doc = uri ? this.documents.get(uri) : undefined;

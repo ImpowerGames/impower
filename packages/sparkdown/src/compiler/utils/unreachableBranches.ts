@@ -38,20 +38,18 @@ const memoReads = (memo: StatementMemoEntry): string[] => [
   ...(memo.owner?.descendants ?? []).flatMap((entry) => entry.resolution?.reads ?? []),
 ];
 
-export function unreachableBranches(story: Story): FlowBase[] {
+export interface BranchReachability {
+  readonly unreached: FlowBase[];
+  readonly unsure: StatementMemoEntry[];
+}
+
+export function unreachableBranches(story: Story): BranchReachability {
   if (!holdsBranch(story)) {
-    return [];
+    return { unreached: [], unsure: [] };
   }
   const branches: FlowBase[] = [];
+  const memos = new Set<StatementMemoEntry>();
   const reaches = new Map<FlowBase | null, Set<FlowBase>>();
-  const reachesNamed = new Map<FlowBase | null, Set<string>>();
-  const addTo = <T>(map: Map<FlowBase | null, Set<T>>, owner: FlowBase | null, value: T) => {
-    let set = map.get(owner);
-    if (!set) {
-      map.set(owner, (set = new Set()));
-    }
-    set.add(value);
-  };
   const visit = (obj: ParsedObject, owner: FlowBase | null) => {
     if (isBranch(obj)) {
       branches.push(obj);
@@ -59,14 +57,16 @@ export function unreachableBranches(story: Story): FlowBase[] {
     }
     const memo = memoOf(obj) as StatementMemoEntry | undefined;
     if (memo) {
-      for (const name of memoReads(memo)) {
-        addTo(reachesNamed, owner, name);
-      }
+      memos.add(memo);
     }
     if (obj instanceof Divert) {
       const reached = branchOf(obj.targetContent);
       if (reached && reached !== owner) {
-        addTo(reaches, owner, reached);
+        let set = reaches.get(owner);
+        if (!set) {
+          reaches.set(owner, (set = new Set()));
+        }
+        set.add(reached);
       }
     }
     for (const child of parsedChildren(obj)) {
@@ -74,13 +74,6 @@ export function unreachableBranches(story: Story): FlowBase[] {
     }
   };
   visit(story, null);
-  for (const [owner, names] of reachesNamed) {
-    for (const branch of branches) {
-      if (branch !== owner && names.has(branch.identifier?.name ?? "")) {
-        addTo(reaches, owner, branch);
-      }
-    }
-  }
   const reached = new Set<FlowBase>();
   const pending = [...(reaches.get(null) ?? [])];
   while (pending.length > 0) {
@@ -91,5 +84,8 @@ export function unreachableBranches(story: Story): FlowBase[] {
     reached.add(branch);
     pending.push(...(reaches.get(branch) ?? []));
   }
-  return branches.filter((branch) => !reached.has(branch));
+  const unreached = branches.filter((branch) => !reached.has(branch));
+  const unreachedNames = new Set(unreached.map((branch) => branch.identifier?.name ?? ""));
+  const unsure = [...memos].filter((memo) => memoReads(memo).some((name) => unreachedNames.has(name)));
+  return { unreached, unsure };
 }

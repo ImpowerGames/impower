@@ -36,6 +36,7 @@ import {
 import { lowerBranch } from "./lowerers/lowerBranch";
 import { lowerChoice } from "./lowerers/lowerChoice";
 import {
+  DISPLAY_LINE_TYPES,
   lowerBlockAction,
   lowerBlockDialogue,
   lowerBlockHeading,
@@ -104,22 +105,8 @@ const BLOCK_STATEMENTS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
 ]);
 
-const LEAVING_STATEMENTS: ReadonlySet<string> = nodeNameSet([
-  "Divert",
-  "InlineDialogue",
-  "ImplicitAction",
-  "InlineAction",
-  "InlineHeading",
-  "InlineTitle",
-  "InlineTransitional",
-  "InlineWrite",
-  "BlockDialogue",
-  "BlockAction",
-  "BlockHeading",
-  "BlockTitle",
-  "BlockTransitional",
-  "BlockWrite",
-]);
+const canLeaveFlow = (name: string): boolean =>
+  name === "Divert" || Object.hasOwn(DISPLAY_LINE_TYPES, name);
 
 function leavesFlow(block: CompiledBlock): boolean {
   return (block.content ?? []).some((obj) =>
@@ -181,7 +168,7 @@ function lowerInner(
     return block && { diagnostics: block.diagnostics };
   }
   const block = lowerNode(nodeRef, ctx);
-  if (block && LEAVING_STATEMENTS.has(nodeRef.name) && leavesFlow(block)) {
+  if (block && canLeaveFlow(nodeRef.name) && leavesFlow(block)) {
     const unreachable = unreachableAfter(nodeRef, ctx);
     if (unreachable) {
       block.diagnostics = [...(block.diagnostics ?? []), unreachable];

@@ -452,6 +452,43 @@ end
     expect(incremental).toEqual([`${HINT} ${line}:0-${line}:10`]);
   });
 
+  test("keep a same-named branch in another scene marked when a statement served from its memo reaches its own", () => {
+    const pad = Array.from({ length: 8 }, (_, n) => `scene pad${n}\n  Pad ${n}.\nend\n`).join("");
+    const text = `scene other
+  branch b
+    Elsewhere.
+  end
+end
+${pad}store flag = true
+scene start
+  if flag then
+    local dest = -> b
+    -> dest
+    Touch.
+  end
+  branch b
+    In b.
+  end
+end
+`;
+    const session = programCompiler({ [MAIN_URI]: text });
+    session.compile();
+    const at = text.indexOf("Touch.");
+    const before = text.slice(0, at);
+    const line = before.split("\n").length - 1;
+    const character = at - (before.lastIndexOf("\n") + 1);
+    session.compiler.updateDocument({
+      textDocument: { uri: MAIN_URI, version: 2 },
+      contentChanges: [
+        { range: { start: { line, character }, end: { line, character: character + 6 } }, text: "Other." },
+      ],
+    });
+    const edited = text.replace("Touch.", "Other.");
+    const incremental = unreachable(session.compile().program);
+    expect(incremental).toEqual(unreachable(compile({ [MAIN_URI]: edited })));
+    expect(incremental).toEqual([`${HINT} 1:0-3:5`, `${HINT} ${line}:0-${line}:10`]);
+  });
+
   test("follow a divert added to the branch in another script", () => {
     const session = programCompiler({
       [MAIN_URI]: START,
