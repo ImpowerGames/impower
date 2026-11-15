@@ -1731,6 +1731,78 @@ describe("renaming many files in one request (I-2242)", () => {
     expect(await h.cached("Cast/a.png")).toMatchObject({ size: 3 });
   });
 
+  for (const [step, method] of [
+    ["is read for the move", "getFile"],
+    ["is moved", "move"],
+  ] as const) {
+    it(`carries a save that arrives while the source ${step} to the destination`, async () => {
+      const root = seed({ "Crowd/p0.png": [0, 1, 2, 3] }, ["Cast"]);
+      const source = fileAt(root, "Crowd/p0.png")!;
+      const h = await worker(root);
+      await h.enumerate();
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let reached = false;
+      const original = (source as any)[method].bind(source);
+      (source as any)[method] = async (...args: unknown[]) => {
+        (source as any)[method] = original;
+        reached = true;
+        await gate;
+        return original(...args);
+      };
+      h.start("rename", "workspace/willRenameFiles", {
+        files: [{ oldUri: uriOf("Crowd/p0.png"), newUri: uriOf("Cast/p0.png") }],
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(reached).toBe(true);
+      h.start("save", "workspace/willWriteFiles", {
+        files: [{ uri: uriOf("Crowd/p0.png"), version: 2, data: new Uint8Array([9, 8, 7, 6]).buffer }],
+        origin: "editor",
+      });
+      await vi.advanceTimersByTimeAsync(250);
+      release();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(h.response("rename")).toHaveProperty("result");
+      expect(h.response("save")).toHaveProperty("result");
+      expect(listMemory(root, "local")).toEqual(["Cast/", "Cast/p0.png", "Crowd/"]);
+      expect([...fileAt(root, "Cast/p0.png")!.bytes]).toEqual([9, 8, 7, 6]);
+    });
+  }
+
+  it("carries another tab's write that waits on the source's lock during the move to the destination", async () => {
+    const root = seed({ "Crowd/p0.png": [0, 1, 2, 3] }, ["Cast"]);
+    const source = fileAt(root, "Crowd/p0.png")!;
+    const h = await worker(root);
+    await h.enumerate();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const move = source.move.bind(source);
+    source.move = async (...args: Parameters<typeof move>) => {
+      await gate;
+      return move(...args);
+    };
+    h.start("rename", "workspace/willRenameFiles", {
+      files: [{ oldUri: uriOf("Crowd/p0.png"), newUri: uriOf("Cast/p0.png") }],
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    const otherTabWrote = (navigator as any).locks.request(
+      `opfs-workspace:commit:${uriOf("Crowd/p0.png")}`,
+      async () => {
+        writeMemoryFile(root, "local/Crowd/p0.png", new Uint8Array([9, 8, 7, 6]));
+      },
+    );
+    release();
+    await otherTabWrote;
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("rename")).toHaveProperty("result");
+    expect(listMemory(root, "local")).toEqual(["Cast/", "Cast/p0.png", "Crowd/"]);
+    expect([...fileAt(root, "Cast/p0.png")!.bytes]).toEqual([9, 8, 7, 6]);
+  });
+
   it("leaves nothing at the destination when storage refuses to move a locked file", async () => {
     const root = seed({ "Crowd/a.png": [1, 2, 3] }, ["Cast"]);
     const crowd = (root.entries.get("local") as MemoryDirectory).entries.get("Crowd") as MemoryDirectory;

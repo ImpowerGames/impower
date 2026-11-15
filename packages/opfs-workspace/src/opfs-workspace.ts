@@ -2714,7 +2714,11 @@ const moveFile = async (move: RenameOutcome) => {
       );
     }
     const renamed = await renameStoredFile(move.oldUri, move.newUri);
-    if (renamed) {
+    if (
+      renamed &&
+      !renamed.overtaken &&
+      !(await withCommitLock(move.oldUri, () => findFileHandle(move.oldUri)))
+    ) {
       move.write = renamed.write;
       move.file = renamed.write.file;
       move.deleted = renamed.deleted;
@@ -2727,10 +2731,17 @@ const moveFile = async (move: RenameOutcome) => {
   });
 };
 
+const hasQueuedWrites = (uri: string) => {
+  const entry = State.writeQueue.get(uri);
+  return !!entry && (entry.writing !== undefined || entry.batches.length > 0);
+};
+
 const renameStoredFile = async (
   sourceUri: string,
   destinationUri: string,
-): Promise<{ write: WriteResult; deleted: DeleteResult } | undefined> => {
+): Promise<
+  { write: WriteResult; deleted: DeleteResult; overtaken: boolean } | undefined
+> => {
   await drainWrites(sourceUri);
   return withCommitLocks([sourceUri, destinationUri], async () => {
     const source: FileSystemFileHandle & {
@@ -2751,6 +2762,9 @@ const renameStoredFile = async (
     const root = await commitSequenceRoot();
     const allocate = () =>
       allocateCommit(root, State.writer, State.clock).catch(() => undefined);
+    if (hasQueuedWrites(sourceUri)) {
+      return undefined;
+    }
     await source.move(directory, getFileName(destinationPath));
     const written = withAncestors(destinationUri);
     const writeCommit = await allocate();
@@ -2785,6 +2799,7 @@ const renameStoredFile = async (
         local: removeLocal,
         commit: removeCommit,
       },
+      overtaken: hasQueuedWrites(sourceUri),
     };
   });
 };
