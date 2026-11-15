@@ -57,6 +57,7 @@ export function collectDisplaySpans(
   to: number,
   ctx: SourceReader,
   isOpaque: (node: SyntaxNode) => boolean = () => false,
+  escapeLiteralOpeners = true,
 ): DisplaySpans {
   const codes: SpanCode[] = [];
   const marks: { from: number; to: number }[] = [];
@@ -68,6 +69,7 @@ export function collectDisplaySpans(
     if (node.to <= from || node.from >= to) return;
     if (node !== root && isOpaque(node)) return;
     if (node.name === "LiteralDirectiveOpener") {
+      if (!escapeLiteralOpeners) return;
       for (let at = Math.max(node.from, from); at < Math.min(node.to, to); at += 1) {
         codes.push({ at, code: "\\", closes: false, depth });
       }
@@ -191,8 +193,9 @@ export function readStyledSource(
   from: number,
   to: number,
   ctx: SourceReader,
+  escapeLiteralOpeners = true,
 ): string {
-  return writeStyledRange(collectDisplaySpans(root, from, to, ctx), from, to, ctx);
+  return writeStyledRange(collectDisplaySpans(root, from, to, ctx, undefined, escapeLiteralOpeners), from, to, ctx);
 }
 
 export function trimEndBeforeSpanEnds(raw: string): string {
