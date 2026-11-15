@@ -1,4 +1,5 @@
 import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
+import type { DocumentLocation } from "./DocumentLocation";
 import type { Instructions } from "./Instructions";
 
 export interface SaveData {
@@ -17,4 +18,5 @@ export interface SaveData {
    *  such a breakpoint is set. */
   watchedCells?: { dataId: string; cell: number; tag: string }[];
   ending?: StoryEnding;
+  endingError?: { message: string; location: DocumentLocation };
 }
