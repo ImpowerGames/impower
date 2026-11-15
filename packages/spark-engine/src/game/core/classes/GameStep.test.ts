@@ -75,6 +75,7 @@ describe("Game flow on the program engine", () => {
       game.start();
       expect(gameMethods()).toEqual([
         "game/started",
+        "game/shownBeat",
         "game/awaitingInteraction",
         "game/executed",
       ]);
@@ -125,6 +126,7 @@ describe("Game flow on the program engine", () => {
       game.clickedToContinue();
       expect(gameMethods()).toEqual([
         "game/clickedToContinue",
+        "game/shownBeat",
         "game/awaitingInteraction",
         "game/executed",
       ]);
