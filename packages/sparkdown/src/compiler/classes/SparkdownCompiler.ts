@@ -196,6 +196,8 @@ import {
   characterAliasOwners,
 } from "../utils/characterAliasOwners";
 import { getContextEntry } from "../utils/getContextEntry";
+import { characterNames } from "../utils/cueCharacter";
+import { directiveLinePick } from "../utils/directiveLinePick";
 import { getTypedImageEntry, typedImageTypes } from "../utils/resolveImageReference";
 import { setContextEntry } from "../utils/setContextEntry";
 import type { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
@@ -4762,6 +4764,7 @@ export class SparkdownCompiler {
       }
       return image?.uri;
     };
+    const names = characterNames(program.context);
     const artworkEmitted = new Set<string>();
     const assetRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
     const lookDeclarations = new Map<any, { uri: string; order: number; from: number; to: number }>();
@@ -4846,11 +4849,10 @@ export class SparkdownCompiler {
         }
         references.next();
       }
-      const pickAt = (at: number) => {
-        const directive = directives.find((directive) => directive.contentFrom <= at && at < directive.contentTo);
-        const pick = directive?.kind === "image" ? directive.values["morph"] : undefined;
-        return typeof pick === "string" ? pick : undefined;
-      };
+      const pickAt = (at: number, struct: any) =>
+        scriptTree
+          ? directiveLinePick(program.context!, scriptTree, (from, to) => doc.read(from, to), at, struct?.$name ?? "", names, directives)
+          : undefined;
       let coveredTo = -1;
       const shownImages: typeof images = [];
       for (const image of images.sort((a, b) => a.from - b.from || b.to - a.to)) {
@@ -4861,7 +4863,7 @@ export class SparkdownCompiler {
             image.from,
             image.to,
             doc.read(image.from, image.to).split(/[:~]/).slice(1).map((part) => part.trim()).filter(Boolean),
-            pickAt(image.from),
+            pickAt(image.from, image.struct),
           );
           coveredTo = image.to;
         }

@@ -269,7 +269,7 @@ export function createHarness(
       if (instructions.image) {
         await Promise.all(
           Object.entries(instructions.image).map(([target, events]) =>
-            ui.image.write(target, events as any, instant, time),
+            ui.image.write(target, events as any, instant, time, instructions.speaker?.character),
           ),
         );
       }

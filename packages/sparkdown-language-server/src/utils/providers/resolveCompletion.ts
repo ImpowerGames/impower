@@ -10,6 +10,7 @@ export interface CompletionItemResolveData {
   type: string;
   name: string;
   filtered?: { image: string; attributes: string[] };
+  pick?: string;
 }
 
 const synthesizeFilteredImage = (
@@ -67,7 +68,7 @@ export const resolveCompletion = async (
   const preview = await getImagePreviewMarkupComposited(
     context,
     struct,
-    options,
+    data.pick === undefined ? options : { ...options, pick: data.pick },
   );
   if (!preview) {
     return item;

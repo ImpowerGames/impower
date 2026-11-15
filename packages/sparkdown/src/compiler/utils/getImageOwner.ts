@@ -1,4 +1,4 @@
-import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
+import { getContextEntry } from "./getContextEntry";
 
 export const getImageOwner = (
   context: { [type: string]: { [name: string]: any } } | undefined,

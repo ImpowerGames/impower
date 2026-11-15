@@ -543,14 +543,14 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
   }
 
-  morphShownLayers(context: SparkProgram["context"], struct: any) {
-    return shownImageLayers(context, this.programOfContext(context)?.morphs, struct);
+  morphShownLayers(context: SparkProgram["context"], struct: any, pick?: string) {
+    return shownImageLayers(context, this.programOfContext(context)?.morphs, struct, undefined, pick);
   }
 
-  async morphRestRender(context: SparkProgram["context"], struct: any): Promise<string | undefined> {
+  async morphRestRender(context: SparkProgram["context"], struct: any, pick?: string): Promise<string | undefined> {
     if (!context) return undefined;
     const program = this.programOfContext(context);
-    const refs = program ? morphRefsForStruct(context, program.morphs, struct) : [];
+    const refs = program ? morphRefsForStruct(context, program.morphs, struct, pick) : [];
     const ref = refs.length === 1 ? refs[0] : undefined;
     if (!program || !ref) return undefined;
     const wait = new Promise<undefined>((resolve) =>

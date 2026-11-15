@@ -38,7 +38,13 @@ export function writeStage(
 ): void {
   if (instructions.image) {
     Object.entries(instructions.image).forEach(([target, events]) =>
-      game.module.ui.image.write(target, events, instant, time),
+      game.module.ui.image.write(
+        target,
+        events,
+        instant,
+        time,
+        instructions.speaker?.character,
+      ),
     );
   }
 

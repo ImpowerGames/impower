@@ -901,7 +901,7 @@ function lexicalRouting(
     if (lineType === "dialogue") {
       return {
         target: "dialogue",
-        character: readCue(sib, ctx) || undefined,
+        character: readCueSource(sib, ctx) || undefined,
       };
     }
     if (lineType === "write") {
@@ -990,7 +990,10 @@ const CUE_PARTS: readonly SparkdownNodeName[] = [
   "DialogueCharacterName",
 ];
 
-function readCue(node: SyntaxNode, ctx: LowerContext): string | null {
+export function readCueSource(
+  node: SyntaxNode,
+  ctx: Pick<LowerContext, "read">,
+): string | null {
   const cue = getDescendent("DialogueCharacter", node);
   const name = cue && getDescendent("DialogueCharacterName", cue);
   if (!cue || !name) return null;
@@ -1004,7 +1007,7 @@ export function lowerInlineDialogue(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  const character = readCue(nodeRef.node, ctx);
+  const character = readCueSource(nodeRef.node, ctx);
   const { from, to } = extractInlineBodyRange(nodeRef);
   return wrapInWeave(
     buildDisplayCalls(
@@ -1105,7 +1108,7 @@ export function lowerBlockDialogue(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  const character = readCue(nodeRef.node, ctx);
+  const character = readCueSource(nodeRef.node, ctx);
   const { from, to } = extractBlockBodyRange(nodeRef, ctx);
   return wrapInWeave(
     buildDisplayCalls(

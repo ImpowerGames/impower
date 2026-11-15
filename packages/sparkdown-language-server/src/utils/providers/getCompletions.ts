@@ -36,6 +36,7 @@ import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
 import { DIRECTIVE_CLOSERS, readDirective, type DirectiveReading } from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { readSpeakerBeingWritten } from "@impower/sparkdown/src/compiler/utils/readCue";
+import { directiveLinePick } from "@impower/sparkdown/src/compiler/utils/directiveLinePick";
 import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -1536,13 +1537,15 @@ const completionsAt = (
       const image = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
       const vocabulary = resolveImageAttributes(program.context, image, { visibility: false }).vocabulary;
       if (vocabulary) {
+        const pick = directiveLinePick(program.context, tree, read, start, name);
         for (const choice of attributeCompletionChoices(vocabulary, current, [...before, ...after])) {
           completions.set(choice.label, attributeCompletionItem(
             choice,
             `${name} attribute`,
             document.range(start + choice.offset, attributeNode?.to ?? documentCursorOffset),
             (attribute) => ({ type: "filtered_image", name,
-              filtered: { image: name, attributes: [...before, attribute, ...after] } }),
+              filtered: { image: name, attributes: [...before, attribute, ...after] },
+              ...(pick === undefined ? {} : { pick }) }),
           ));
         }
       }

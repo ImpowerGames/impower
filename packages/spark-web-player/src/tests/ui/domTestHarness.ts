@@ -368,7 +368,7 @@ export function createDOMHarness(
       if (instructions.image) {
         await Promise.all(
           Object.entries(instructions.image).map(([target, events]) =>
-            uiMod.image.write(target, events as any, instant),
+            uiMod.image.write(target, events as any, instant, undefined, instructions.speaker?.character),
           ),
         );
       }

@@ -25,6 +25,7 @@ import {
 import { MorphNeedMessage } from "./messages/MorphNeedMessage";
 import { hashText } from "@impower/sparkdown/src/morph/hash";
 import type { MorphRecipe, MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
+import { linePick } from "@impower/sparkdown/src/compiler/utils/linePick";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
@@ -96,7 +97,7 @@ import {
   TokenType,
 } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
-import { getImageOwner } from "../utils/getImageOwner";
+import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
 import { getVarName } from "../utils/getVarName";
 import {
   isPlainRun,
@@ -5186,10 +5187,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       async write(
         target: string,
-        sequence: ImageInstruction[],
+        events: ImageInstruction[],
         instant = false,
         time?: number,
+        speaker?: string,
       ) {
+        const sequence = events.map((event) => {
+          const morph =
+            event.assets && $.context
+              ? linePick(
+                  $.context,
+                  event.assets
+                    .filter((asset) => !(asset.at(0) === '"' && asset.at(-1) === '"'))
+                    .map(sortFilteredName),
+                  event.morph,
+                  speaker,
+                )
+              : event.morph;
+          return morph === event.morph ? event : { ...event, morph };
+        });
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, sequence, instant, time);
