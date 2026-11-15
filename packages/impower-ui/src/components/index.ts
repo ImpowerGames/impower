@@ -162,6 +162,7 @@ export {
 export {
   default as SidebarLayout,
   sidebarLayoutVariants,
+  useSidebarCollapsed,
   type SidebarLayoutProps,
   type SidebarLayoutVariantProps,
 } from "./sidebar-layout/SidebarLayout";

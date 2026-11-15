@@ -11,6 +11,7 @@ import {
   RootIcon,
   SearchIcon,
   TabbedPage,
+  useSidebarCollapsed,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
@@ -416,14 +417,15 @@ function AllScripts() {
 }
 
 export default function ScriptsPage() {
-  const phone = useLayout() === "phone";
+  const railCollapsed = useSidebarCollapsed();
+  const showTabs = useLayout() === "phone" || railCollapsed;
   const tab = useComputed(() => workspace.state.value.lists?.scriptsTab).value;
   return (
     <TabbedPage
       title="Scripts"
       icon={<BookIcon class="size-5 flex-none text-accent" />}
       onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("write"))}
-      showTabs={phone}
+      showTabs={showTabs}
       value={tab === OUTLINE_TAB ? OUTLINE_TAB : ALL_TAB}
       onValueChange={(next) =>
         void intents().then((Workspace) => Workspace.window.setListState({ scriptsTab: next }))
