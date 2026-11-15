@@ -80,7 +80,7 @@ function GroupMenu({
       aria-label={`${name}: ${optionLabel(value)}`}
       data-variant-group={group.key}
       data-changed={value === group.default ? undefined : ""}
-      {...(coarse ? { "aria-haspopup": "dialog" as const, onClick: () => setOpen(true) } : {})}
+      {...(coarse ? { "aria-haspopup": "dialog" as const, "aria-expanded": open, onClick: () => setOpen(true) } : {})}
     >
       <span class="truncate">{optionLabel(value)}</span>
       <ChevronDownIcon />

@@ -183,6 +183,9 @@ export function DropdownTrigger({
   if (ctx.mode === "sheet") {
     if (child && typeof child === "object" && "props" in child) {
       return cloneElement(child, {
+        "aria-haspopup": "dialog",
+        "aria-expanded": ctx.open,
+        "data-state": ctx.open ? "open" : "closed",
         onClick: (e: MouseEvent) => {
           child.props.onClick?.(e);
           ctx.setOpen(true);

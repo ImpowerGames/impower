@@ -422,6 +422,24 @@ describe("Dropdown rows in the menu and in the phone layout's sheet", () => {
     expect(entered).toEqual(["happy", "checkbox", "item", "sad"]);
   });
 
+  it.each([
+    ["menu", false, "menu"],
+    ["phone layout's sheet", true, "dialog"],
+  ])("marks its trigger expanded while the %s is open, and collapsed after", async (_mode, sheet, popup) => {
+    await setPhone(sheet);
+    const trigger = await mountRows({ onFocus: () => {}, onPointerEnter: () => {} });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.getAttribute("aria-haspopup")).toBe(popup);
+    await openRows(trigger, sheet);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.getAttribute("data-state")).toBe("open");
+    await act(async () => document.querySelector<HTMLElement>('[data-row="item"]')!.click());
+    await settle(400);
+    await settle(10);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.getAttribute("data-state")).toBe("closed");
+  });
+
   it("opens the phone layout's sheet with focus on the chosen option, so no other option previews", async () => {
     await setPhone(true);
     const focused: string[] = [];
