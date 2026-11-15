@@ -1,7 +1,7 @@
 import { willDeleteFilesRefusal } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
 import { NameError } from "../utils/fileListModel";
 import { recordTrashDeletion } from "../utils/fileUndo";
-import { trashSkipped } from "../utils/trashSkipped";
+import { keptMessage, trashSkipped } from "../utils/trashSkipped";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 
 export type TrashFileSystem = Pick<
@@ -13,8 +13,6 @@ export interface TrashItem {
   path: string;
   folder: boolean;
 }
-
-const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
 export async function moveToTrash(
   fs: TrashFileSystem,
@@ -33,7 +31,7 @@ export async function moveToTrash(
       ),
     );
     files.forEach((item, index) => {
-      if (skipped.has(uris[index]!)) kept.push(leafOf(item.path));
+      if (skipped.has(uris[index]!)) kept.push(item.path);
     });
     uris = uris.filter((uri) => !skipped.has(uri));
   }
@@ -47,15 +45,13 @@ export async function moveToTrash(
       const refusal = willDeleteFilesRefusal(error);
       if (!refusal) throw error;
       uris.push(...refusal.files.map((d) => d.uri));
-      kept.push(...refusal.skipped.map(leafOf));
+      kept.push(...refusal.skipped);
     }
   }
   if (uris.length || deletedFolders.length) {
     await recordTrashDeletion(projectId, uris, label, since, deletedFolders);
   }
   if (kept.length) {
-    throw new NameError(
-      `Couldn't move ${kept.join(", ")} to the bin. ${kept.length === 1 ? "It is" : "They are"} still where ${kept.length === 1 ? "it was" : "they were"}.`,
-    );
+    throw new NameError(keptMessage(kept));
   }
 }

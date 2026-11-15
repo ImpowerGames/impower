@@ -3,7 +3,7 @@ import store from "../workspace/WorkspaceStore";
 import { moveAll, reasonOf, reversed, type FileMove, type MovingFileSystem, type RenameOutcome } from "./fileMoves";
 import { renameOrReport } from "./renameOrReport";
 import { showSnackbar } from "./snackbar";
-import { trashAttempts } from "./trashSkipped";
+import { keptMessage, trashAttempts } from "./trashSkipped";
 import { pushUndo, undo } from "./undoManager";
 
 async function findBatchesForUris(
@@ -47,6 +47,8 @@ async function markProjectDirty() {
   await Workspace.window.recordAssetChange();
 }
 
+const reportKept = (skipped: string[]) => showSnackbar({ message: keptMessage(skipped) });
+
 export async function recordTrashDeletion(
   projectId: string,
   deletedUris: string[],
@@ -60,7 +62,7 @@ export async function recordTrashDeletion(
   }
   let uris = deletedUris;
   let folders = deletedFolders;
-  const trashing = trashAttempts();
+  const trashing = trashAttempts(reportKept);
   pushUndo({
     label: `Delete ${label}`,
     undo: async () => {
@@ -203,7 +205,7 @@ export function recordCreate(
 ) {
   let batchIds: string[] = [];
   let uris = createdUris;
-  const trashing = trashAttempts();
+  const trashing = trashAttempts(reportKept);
   pushUndo({
     label: `Create ${label}`,
     undo: async () => {
@@ -266,8 +268,8 @@ export async function recordResolvedUpload(
   let newBatchIds: string[] = [];
   let added = newUris;
   let replaced = trashedOldUris;
-  const trashingAdded = trashAttempts();
-  const trashingReplaced = trashAttempts();
+  const trashingAdded = trashAttempts(reportKept);
+  const trashingReplaced = trashAttempts(reportKept);
   pushUndo({
     label: `Add ${label}`,
     undo: async () => {

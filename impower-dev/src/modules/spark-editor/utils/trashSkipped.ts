@@ -1,5 +1,13 @@
 import { willDeleteFilesRefusal } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
 
+const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+
+export const keptMessage = (paths: readonly string[]) => {
+  const names = paths.map(leafOf);
+  const one = names.length === 1;
+  return `Couldn't move ${names.join(", ")} to the bin. ${one ? "It is" : "They are"} still where ${one ? "it was" : "they were"}.`;
+};
+
 export async function trashSkipped(deletion: Promise<unknown>): Promise<string[]> {
   try {
     await deletion;
@@ -11,11 +19,17 @@ export async function trashSkipped(deletion: Promise<unknown>): Promise<string[]
   }
 }
 
-export function trashAttempts() {
+export function trashAttempts(refused: (skipped: string[]) => void) {
   let pendingSince: number | undefined;
   return async (trash: () => Promise<unknown>): Promise<number> => {
     const since = (pendingSince ??= Date.now());
-    await trash();
+    try {
+      await trash();
+    } catch (error) {
+      const refusal = willDeleteFilesRefusal(error);
+      if (refusal) refused(refusal.skipped);
+      throw error;
+    }
     pendingSince = undefined;
     return since;
   };

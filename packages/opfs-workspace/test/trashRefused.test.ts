@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { listMemory, memoryLocks, memoryRoot, writeMemoryFile } from "./memoryOpfs";
+import { listMemory, memoryLocks, memoryRoot, MemoryDirectory, writeMemoryFile } from "./memoryOpfs";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -91,6 +91,49 @@ it("leaves no empty batch in the bin when storage refuses every file", async () 
   expect(h.deletes()).toEqual([]);
   expect(listMemory(h.root, "p").filter((p) => p.startsWith(".trash/") && p !== ".trash/")).toEqual([]);
   expect((await h.request("workspace/trashFiles", { projectId: "p", action: "list" })).result.batches).toEqual([]);
+});
+
+const refuseCopyRemoval = (root: any, times: number) => {
+  const scripts = root.entries.get("p").entries.get("Scripts");
+  const realRemove = MemoryDirectory.prototype.removeEntry;
+  let refusals = 0;
+  vi.spyOn(MemoryDirectory.prototype, "removeEntry").mockImplementation(async function (this: any, name, options) {
+    if (this !== scripts && name === "a.sd" && refusals < times) {
+      refusals++;
+      throw new DOMException("refused", "NoModificationAllowedError");
+    }
+    return realRemove.call(this, name, options);
+  });
+};
+
+it("removes the refused file's copy from the bin when the first removal of the copy is refused too", async () => {
+  const h = await worker();
+  seed(h.root);
+  refuseRemoving(h.root, ["a.sd"]);
+  refuseCopyRemoval(h.root, 1);
+  const response = await trashDelete(h);
+  expect(response.error.data.skipped).toEqual(["file://p/Scripts/a.sd"]);
+  const tree = listMemory(h.root, "p");
+  expect(tree.filter((p) => p.startsWith(".trash/") && p.endsWith(".sd"))).toEqual([
+    expect.stringMatching(/^\.trash\/[^/]+\/Scripts\/b\.sd$/),
+  ]);
+});
+
+it("lists the refused file's copy in the bin when its copy cannot be removed at all", async () => {
+  const h = await worker();
+  seed(h.root);
+  refuseRemoving(h.root, ["a.sd"]);
+  refuseCopyRemoval(h.root, Infinity);
+  const response = await trashDelete(h);
+  expect(response.error.data.skipped).toEqual(["file://p/Scripts/a.sd"]);
+  expect(listMemory(h.root, "p")).toContain("Scripts/a.sd");
+  const copies = listMemory(h.root, "p").filter((p) => p.startsWith(".trash/") && p.endsWith(".sd"));
+  const batches = (await h.request("workspace/trashFiles", { projectId: "p", action: "list" })).result.batches;
+  expect(batches).toHaveLength(1);
+  expect(copies.map((p) => p.slice(`.trash/${batches[0].batchId}/`.length)).sort()).toEqual(
+    batches[0].entries.map((e: any) => e.relPath).sort(),
+  );
+  expect(batches[0].entries.map((e: any) => e.relPath).sort()).toEqual(["Scripts/a.sd", "Scripts/b.sd"]);
 });
 
 it("does not name a file that is already gone as one still in place", async () => {

@@ -2311,6 +2311,18 @@ const createFiles = async (files: (FileCreate & { data?: ArrayBuffer })[]) => {
   return result;
 };
 
+const removeTrashCopy = async (trashUri: string) => {
+  for (let attempt = 1; attempt <= MOVE_ATTEMPTS; attempt += 1) {
+    try {
+      await removeFile(trashUri);
+      return true;
+    } catch (e) {
+      console.error(`moveFilesToTrash: cannot remove ${trashUri}`, e);
+    }
+  }
+  return false;
+};
+
 const moveFilesToTrash = async (
   files: { uri: string }[],
   folders: { uri: string }[] = [],
@@ -2341,10 +2353,9 @@ const moveFilesToTrash = async (
   for (const file of uniqueFiles) {
     const relPath = getPathFromUri(file.uri).slice(projectId.length + 1);
     const trashUri = getUriFromPath(`${trashPrefix}/${relPath}`);
+    const type = State.files.get(file.uri)?.type ?? getFileType(file.uri);
     let copied = false;
     try {
-      const existing = State.files.get(file.uri);
-      const type = existing?.type ?? getFileType(file.uri);
       deleted.push(
         await copyThenRemove(file.uri, trashUri, () => {
           copied = true;
@@ -2356,10 +2367,8 @@ const moveFilesToTrash = async (
       if (await findFileHandle(file.uri).then(Boolean, () => true)) {
         skipped.push(file.uri);
       }
-      if (copied) {
-        await removeFile(trashUri).catch((cleanupError) => {
-          console.error(`moveFilesToTrash: cannot remove ${trashUri}`, cleanupError);
-        });
+      if (copied && !(await removeTrashCopy(trashUri))) {
+        entries.push({ relPath, originalUri: file.uri, type });
       }
     }
   }

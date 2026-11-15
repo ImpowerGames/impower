@@ -55,7 +55,8 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   },
 }));
 vi.mock("../../src/modules/spark-editor/workspace/WorkspaceStore", () => ({ default: {} }));
-vi.mock("../../src/modules/spark-editor/utils/snackbar", () => ({ showSnackbar: vi.fn() }));
+const showSnackbar = vi.hoisted(() => vi.fn());
+vi.mock("../../src/modules/spark-editor/utils/snackbar", () => ({ showSnackbar }));
 
 const history = await import("../../src/modules/spark-editor/utils/undoManager");
 const { recordCreate, recordTrashDeletion, recordResolvedUpload } = await import(
@@ -65,8 +66,10 @@ const { recordCreate, recordTrashDeletion, recordResolvedUpload } = await import
 const a = "file:///p/Scripts/a.sd";
 const b = "file:///p/Scripts/b.sd";
 const files = () => [...bin.live].sort();
+const keptNotice = { message: "Couldn't move a.sd to the bin. It is still where it was." };
 
 beforeEach(() => {
+  showSnackbar.mockClear();
   let clock = 1_000;
   vi.spyOn(Date, "now").mockImplementation(() => clock++);
   history.clearUndoHistory();
@@ -78,6 +81,7 @@ it("brings back every created file when a partly refused Undo is retried and the
   bin.refused.add(a);
   expect(await history.undo()).toBe(false);
   expect(files()).toEqual([a]);
+  expect(showSnackbar).toHaveBeenLastCalledWith(keptNotice);
   bin.refused.clear();
   expect(await history.undo()).toBe(true);
   expect(files()).toEqual([]);
@@ -93,6 +97,7 @@ it("brings back every deleted file when a partly refused Redo is retried and the
   bin.refused.add(a);
   expect(await history.redo()).toBe(false);
   expect(files()).toEqual([a]);
+  expect(showSnackbar).toHaveBeenLastCalledWith(keptNotice);
   bin.refused.clear();
   expect(await history.redo()).toBe(true);
   expect(files()).toEqual([]);
@@ -104,6 +109,7 @@ it("brings back every added file when a partly refused Undo of an upload is retr
   await recordResolvedUpload("p", [a, b], [], 0, "2 files");
   bin.refused.add(a);
   expect(await history.undo()).toBe(false);
+  expect(showSnackbar).toHaveBeenLastCalledWith(keptNotice);
   bin.refused.clear();
   expect(await history.undo()).toBe(true);
   expect(files()).toEqual([]);
