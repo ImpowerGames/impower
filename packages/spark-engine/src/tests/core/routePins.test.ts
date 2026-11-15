@@ -673,6 +673,39 @@ describe("pinning an option the route already takes changes only its kind", () =
     expect(pinned.count).toBe(auto.count);
   }, 120_000);
 
+  test("a pinned option is followed after a search without the pin reaches its step cap", () => {
+    const lines = ["store total = 0", "scene start", "  choose"];
+    for (let n = 0; n < 5; n += 1) {
+      lines.push(
+        `    * [Slow ${n}.]`,
+        "      for i = 1, 40000 do",
+        "        total += 1",
+        "      end",
+      );
+    }
+    lines.push(
+      "    * [Quick first.]",
+      "      total = 1",
+      "    * [Quick pinned.]",
+      "      total = 2",
+      "  end",
+      "  Target total {total}.",
+      "end",
+      "",
+    );
+    const line = lines.indexOf("  Target total {total}.") + 1;
+    const pinned = preview(
+      lines,
+      line,
+      [pin(lines.indexOf("    * [Quick pinned.]") + 1)],
+      "total",
+    );
+    expect(pinned.route.decisions.map((d) => [d.kind, d.text])).toEqual([
+      ["pinned", "Quick pinned."],
+    ]);
+    expect(pinned.count).toBe(2);
+  }, 120_000);
+
   test("a pin the target cannot be reached through adds no forced verdict to the route that avoids it", () => {
     const lines = [
       "store clues = 0",

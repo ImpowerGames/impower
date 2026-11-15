@@ -926,11 +926,12 @@ const planRouteFaithful = (
       }
       if (!pinAware && candidates.length > 0) {
         const followed = fewest(candidates.filter(full));
-        if (followed || budget.cut) {
-          routePlan = (followed ?? pick(candidates))!.plan;
+        if (followed) {
+          routePlan = followed.plan;
           break;
         }
         pinAware = true;
+        budget.cut = null;
         budget.stepsRemaining = maxSteps - prefixSteps;
         budget.nodesRemaining = maxNodes - prefixNodes;
         budget.decided = charge?.decided ?? 0;
