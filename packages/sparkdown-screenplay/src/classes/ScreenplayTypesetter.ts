@@ -210,6 +210,7 @@ export default class ScreenplayTypesetter {
           {
             canSplitAfter: 3,
             source: t.source,
+            ...(t.row ? { row: t.row } : {}),
           },
           t.at,
         );

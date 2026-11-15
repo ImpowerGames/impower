@@ -979,7 +979,7 @@ describe("text the export inserts", () => {
   });
 
   it("places each insert at its own anchor and reports text with no place", () => {
-    const places: PrintedPlaces = { runs: [], inserts: [], unplaced: [] };
+    const places: PrintedPlaces = { runs: [], inserts: [], rows: [], unplaced: [] };
     const style = { text: "", italic: true };
     placePrintedLine(
       {
@@ -1003,12 +1003,40 @@ describe("text the export inserts", () => {
     expect(places.unplaced).toEqual(["?"]);
   });
 
+  it("places a row of inserted text at its anchor, on its side, and reports text in it with no place", () => {
+    const places: PrintedPlaces = { runs: [], inserts: [], rows: [], unplaced: [] };
+    const brace = (text: string, anchor: number) => Array.from(text, () => insertedAt(anchor));
+    placePrintedLine({ tag: "action", row: "above", source: [], content: [{ text: "| {", at: brace("| {", 4) }] }, "abcdef", places);
+    placePrintedLine(
+      {
+        tag: "action",
+        row: "below",
+        source: [],
+        content: [
+          { text: "  ", at: brace("  ", 5) },
+          { text: "}", bold: true, at: [insertedAt(5)] },
+          { text: "xy", at: [2, insertedAt(1)] },
+          { text: "z" },
+        ],
+      },
+      "abcdef",
+      places,
+    );
+    expect(places.rows.map(({ at, side, pieces }) => [at, side, pieces.map((piece) => [piece.text, !!piece.style.bold])])).toEqual([
+      [4, "above", [["| {", false]]],
+      [5, "below", [["  ", false], ["}", true]]],
+    ]);
+    expect(places.runs).toEqual([]);
+    expect(places.inserts).toEqual([]);
+    expect(places.unplaced).toEqual(["x", "y", "z"]);
+  });
+
   it.each([
     ["a piece with no positions", [{ text: "lost" }], ["lost"]],
     ["a piece with fewer positions than characters", [{ text: "ab", at: [0] }], ["b"]],
     ["an unmapped space between mapped characters", [{ text: "a b", at: [0, -1, 1] }], [" "]],
   ])("reports %s as text with no place", (_name, content, unplaced) => {
-    const places: PrintedPlaces = { runs: [], inserts: [], unplaced: [] };
+    const places: PrintedPlaces = { runs: [], inserts: [], rows: [], unplaced: [] };
     placePrintedLine({ tag: "action", source: [0, 2], content }, "ab", places);
     expect(places.unplaced).toEqual(unplaced);
   });

@@ -1,5 +1,7 @@
 import { PagePosition } from "./PagePosition";
 
+export type PrintedRowSide = "above" | "below";
+
 export interface LineOptions {
   level?: number;
   scene?: string | number;
@@ -8,4 +10,5 @@ export interface LineOptions {
   repeatAfterSplit?: boolean;
   canSplitAfter?: number;
   source?: number[];
+  row?: PrintedRowSide;
 }

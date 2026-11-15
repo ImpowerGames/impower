@@ -14,6 +14,7 @@ import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styl
 import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
 import {
   type PageInsert,
+  type PageRow,
   type PrintedRun,
   type PrintedScene,
   screenplayPageLayout,
@@ -23,6 +24,7 @@ import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
+import InsertedRowWidget from "../classes/widgets/InsertedRowWidget";
 import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
@@ -209,6 +211,7 @@ interface CachedPageLayout {
   printed: number[];
   actionStarts: number[];
   inserts: PageInsert[];
+  rows: PageRow[];
   printedLines: { at: number; lines: FormattedText[][] }[];
   runs: PrintedRun[];
   scenes: PrintedScene[];
@@ -265,6 +268,7 @@ const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
     printed: layout.printed,
     actionStarts: layout.actionStarts,
     inserts: layout.inserts,
+    rows: layout.rows,
     printedLines: layout.printedLines,
     runs: layout.runs,
     scenes: layout.scenes,
@@ -329,7 +333,7 @@ export const decorate = (
 
   const tree = treeOverride ?? syntaxTree(state);
 
-  const { blankPositions, printed, actionStarts, inserts, printedLines, runs, scenes } = cachedPageLayout(
+  const { blankPositions, printed, actionStarts, inserts, rows, printedLines, runs, scenes } = cachedPageLayout(
     tree,
     doc,
     config,
@@ -371,6 +375,27 @@ export const decorate = (
         Decoration.widget({ widget: new InsertedTextWidget(insert.text, style, source), side: 1 }).range(insert.at),
       );
     }
+  }
+
+  const rowGroups = new Map<string, number>();
+  const rowGroupOf = (row: PageRow) => `${row.side}:${doc.lineAt(Math.min(row.at, doc.length)).number}`;
+  for (const row of rows) rowGroups.set(rowGroupOf(row), (rowGroups.get(rowGroupOf(row)) ?? 0) + 1);
+  const rowsPlaced = new Map<string, number>();
+  for (const row of rows) {
+    const group = rowGroupOf(row);
+    const index = rowsPlaced.get(group) ?? 0;
+    rowsPlaced.set(group, index + 1);
+    if (row.at < from || (to !== undefined && row.at > to)) continue;
+    const count = rowGroups.get(group)!;
+    const line = doc.lineAt(Math.min(row.at, doc.length));
+    const widget = new InsertedRowWidget(
+      row.pieces.map((piece) => ({ text: piece.text, ...printedStyle(piece.style) })),
+    );
+    decorations.push(
+      row.side === "above"
+        ? Decoration.widget({ widget, block: true, side: -(count - index) / (count + 1) }).range(line.from)
+        : Decoration.widget({ widget, block: true, side: (index + 1) / (count + 1) }).range(line.to),
+    );
   }
 
   let printedIndex = 0;
