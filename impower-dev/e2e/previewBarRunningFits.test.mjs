@@ -18,14 +18,21 @@ const sizePane = (page, width) =>
     { bar: BAR, width },
   );
 
-const problems = (page) =>
-  page.evaluate((bar) => {
+const STEP_ITEMS = ["Step Over", "Step Into", "Step Out", "Toggle breakpoint"];
+
+const problems = (page, width) =>
+  page.evaluate(({ bar, width, stepItems }) => {
     const group = document.querySelector(bar);
     const box = group.getBoundingClientRect();
     const buttons = [...group.querySelectorAll("button")]
       .map((b) => ({ label: b.getAttribute("aria-label") ?? b.textContent.trim(), r: b.getBoundingClientRect() }))
       .filter(({ r }) => r.width > 0 && r.height > 0);
     const found = [];
+    const shown = new Set(buttons.map(({ label }) => label));
+    const required = ["Pause", "Skip back", "Stop", "Skip forward", "Saves", "Preview settings"];
+    if (width >= 360) required.push("Viewing mode");
+    for (const label of required) if (!shown.has(label)) found.push(`${label} missing`);
+    if (!shown.has("Step") && !stepItems.every((label) => shown.has(label))) found.push("step controls missing");
     for (const { label, r } of buttons) {
       if (r.left < box.left - 0.5 || r.right > box.right + 0.5) found.push(`${label} outside the bar`);
     }
@@ -37,7 +44,7 @@ const problems = (page) =>
       }
     }
     return found;
-  }, BAR);
+  }, { bar: BAR, width, stepItems: STEP_ITEMS });
 
 test("every running-bar button keeps its own slot inside the bar, at every pane width", { timeout: 300_000 }, async () => {
   await withEditor(
@@ -54,9 +61,14 @@ test("every running-bar button keeps its own slot inside the bar, at every pane 
       for (const width of WIDTHS) {
         await sizePane(page, width);
         await page.waitForTimeout(300);
-        for (const problem of await problems(page)) failures.push(`${width} px: ${problem}`);
+        for (const problem of await problems(page, width)) failures.push(`${width} px: ${problem}`);
       }
       assert.deepEqual(failures, []);
+      await sizePane(page, 360);
+      await page.waitForTimeout(300);
+      await page.locator(BAR).getByRole("button", { name: "Step", exact: true }).click();
+      const items = await page.getByRole("menuitem").allInnerTexts();
+      for (const label of STEP_ITEMS) assert.ok(items.some((text) => text.startsWith(label)), `Step menu lacks ${label}: ${items.join(" | ")}`);
     },
     { device: null, launch: ({ headless }) => launchEditorBrowser({ headless, display: { viewport: { name: "desktop", ...VIEWPORT_PRESETS.desktop } } }) },
   );
