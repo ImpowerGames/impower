@@ -151,6 +151,9 @@ describe("the choice warning follows the line's speaker (I-2390)", () => {
     expect(warnings(story("  BUNNY:\n    [[pair:mouth.teeth]]\n    Let go of that!", PAIR))).toHaveLength(1);
     expect(warnings(story("  RAFFLES:\n    [[pair:mouth.teeth]]\n    Look at him.", PAIR))).toHaveLength(1);
     expect(warnings(story("  [[pair:mouth.teeth]]\n  There they are.", PAIR))).toEqual([]);
+    const SOLO = "define solo as layered_image with\n  assets = { image.bunny }\nend\n";
+    expect(warnings(story("  BUNNY:\n    [[solo:mouth.teeth]]\n    Let go of that!", SOLO))).toHaveLength(1);
+    expect(warnings(story("  [[solo:mouth.teeth]]\n  There he is.", SOLO))).toEqual([]);
   });
 
   test("a named look's own warning is unchanged", () => {

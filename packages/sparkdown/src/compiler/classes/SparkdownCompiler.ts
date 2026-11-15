@@ -4795,8 +4795,9 @@ export class SparkdownCompiler {
         const layers = resolveImageLayers(program.context, struct);
         const look = shownLook(program.context, program.morphs, struct, undefined, pickOf?.(layers[0] ?? { src: "", struct }));
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
+        const layered = resolveImageAttributes(program.context!, struct).image?.$type === "layered_image";
         const looks =
-          layers.length > 1
+          layered
             ? layers.flatMap((layer) => {
                 const layerLook = layer.struct ? shownLook(program.context, program.morphs, layer.struct, undefined, pickOf?.(layer)) : undefined;
                 return layerLook ? [layerLook] : [];

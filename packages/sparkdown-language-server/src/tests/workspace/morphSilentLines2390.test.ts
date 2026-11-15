@@ -85,14 +85,14 @@ function workspaceFor(program: any) {
 const previewImage = (markup: string | undefined) =>
   decodeURIComponent(/<img src="([^"]*)"/.exec(markup ?? "")?.[1] ?? "");
 
-async function hovered(lines: string) {
-  const script = story(lines);
+async function hovered(lines: string, needle = "[[bunny", head = "") {
+  const script = `${head}${story(lines)}`;
   const program = compiled(script);
   const options = workspaceFor(program);
   const documents = new SparkdownDocumentRegistry(["references"]);
   documents.set({ textDocument: { uri: main, text: script, version: 1, languageId: "sparkdown" } });
   const document = documents.get(main)!;
-  const position = document.positionAt(script.indexOf("[[bunny") + 4);
+  const position = document.positionAt(script.indexOf(needle) + needle.length - 2);
   const hover = await getHover(document, documents.tree(main), documents.annotations(main), program, undefined, position, options);
   return previewImage((hover?.contents as any)?.value);
 }
@@ -118,6 +118,12 @@ describe("the hover and the suggestion preview show the look the line shows (I-2
     const src = await hovered("  BUNNY:\n    [[bunny:mouth.teeth]]\n    Let go of that!");
     expect(src).toContain("closed");
     expect(src).not.toContain("teeth");
+  });
+
+  test("hovering an image named outside any directive keeps the preview a named look gets", async () => {
+    const head = 'define teeth as filtered_image with\n  image = image.bunny\n  attributes = { "mouth.teeth" }\nend\n\n';
+    const src = await hovered("  This is Bunny.", "image = image.bunny", head);
+    expect(src).toContain("closed");
   });
 
   test("a mouth suggestion on narration previews that mouth", async () => {

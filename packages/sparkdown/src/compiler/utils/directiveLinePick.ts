@@ -98,11 +98,12 @@ export const directiveLine = (
   at: number,
   names: CharacterNames = characterNames(context),
   directives: readonly SourceDirective[] = readSourceDirectives(tree, source.read),
-): DirectiveLine => {
+): DirectiveLine | undefined => {
   const directive = directives.find(
     (directive) => directive.contentFrom <= at && at < directive.contentTo,
   );
-  const written = directive?.kind === "image" ? directive.values["morph"] : undefined;
+  if (directive?.kind !== "image") return undefined;
+  const written = directive.values["morph"];
   const speaker = lineSpeaker(context, names, tree, source, at);
   return {
     ...(typeof written === "string" ? { pick: written } : {}),
@@ -110,7 +111,9 @@ export const directiveLine = (
   };
 };
 
-export const linePickOf =
-  (context: Record<string, any>, imageName: string, line: DirectiveLine) =>
-  (layer: ImageLayer): string | undefined =>
-    linePick(context, imageName, layer, line.pick, line.speaker);
+export const linePickOf = (
+  context: Record<string, any>,
+  imageName: string,
+  line: DirectiveLine | undefined,
+): ((layer: ImageLayer) => string | undefined) | undefined =>
+  line ? (layer) => linePick(context, imageName, layer, line.pick, line.speaker) : undefined;
