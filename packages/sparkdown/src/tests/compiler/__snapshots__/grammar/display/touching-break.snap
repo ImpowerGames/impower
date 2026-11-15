@@ -965,9 +965,9 @@ sparkdown [0..1131]
  ├─ Newline [373..374]: "\n"
  ├─ BlockDialogue [374..405]
  │   ├─ BlockDialogue_begin [374..396]
- │   │   ├─ BlockDialogue_begin_c1 [374..376]
+ │   │   ├─ BlockDialogue_begin_c2 [374..376]
  │   │   │   └─ OptionalWhitespace [374..376]: "  "
- │   │   ├─ BlockDialogue_begin_c2 [376..395]
+ │   │   ├─ BlockDialogue_begin_c3 [376..395]
  │   │   │   └─ DialogueCharacter [376..395]
  │   │   │       ├─ DialogueCharacter_c1 376
  │   │   │       ├─ DialogueCharacter_c2 [376..380]
@@ -1002,9 +1002,9 @@ sparkdown [0..1131]
  │   │   │       │       ├─ DialogueCharacterPosition_c5 394
  │   │   │       │       └─ DialogueCharacterPosition_c6 [394..395]: "]"
  │   │   │       └─ DialogueCharacter_c11 395
- │   │   ├─ BlockDialogue_begin_c3 [395..396]
+ │   │   ├─ BlockDialogue_begin_c4 [395..396]
  │   │   │   └─ ColonSeparator [395..396]: ":"
- │   │   └─ BlockDialogue_begin_c4 396
+ │   │   └─ BlockDialogue_begin_c5 396
  │   ├─ BlockDialogue_content [396..405]
  │   │   ├─ Newline [396..397]: "\n"
  │   │   ├─ BlockLineContinue [397..404]
@@ -1552,9 +1552,9 @@ sparkdown [0..1131]
  │   └─ BlockTitle_end 576
  ├─ BlockDialogue [576..600]
  │   ├─ BlockDialogue_begin [576..583]
- │   │   ├─ BlockDialogue_begin_c1 [576..578]
+ │   │   ├─ BlockDialogue_begin_c2 [576..578]
  │   │   │   └─ OptionalWhitespace [576..578]: "  "
- │   │   ├─ BlockDialogue_begin_c2 [578..582]
+ │   │   ├─ BlockDialogue_begin_c3 [578..582]
  │   │   │   └─ DialogueCharacter [578..582]
  │   │   │       ├─ DialogueCharacter_c1 578
  │   │   │       ├─ DialogueCharacter_c2 [578..582]
@@ -1570,9 +1570,9 @@ sparkdown [0..1131]
  │   │   │       ├─ DialogueCharacter_c9 582
  │   │   │       ├─ DialogueCharacter_c10 582
  │   │   │       └─ DialogueCharacter_c11 582
- │   │   ├─ BlockDialogue_begin_c3 [582..583]
+ │   │   ├─ BlockDialogue_begin_c4 [582..583]
  │   │   │   └─ ColonSeparator [582..583]: ":"
- │   │   └─ BlockDialogue_begin_c4 583
+ │   │   └─ BlockDialogue_begin_c5 583
  │   ├─ BlockDialogue_content [583..600]
  │   │   ├─ Newline [583..584]: "\n"
  │   │   ├─ BlockLineContinue [584..592]
@@ -1668,9 +1668,9 @@ sparkdown [0..1131]
  ├─ Newline [616..617]: "\n"
  ├─ BlockDialogue [617..881]
  │   ├─ BlockDialogue_begin [617..624]
- │   │   ├─ BlockDialogue_begin_c1 [617..619]
+ │   │   ├─ BlockDialogue_begin_c2 [617..619]
  │   │   │   └─ OptionalWhitespace [617..619]: "  "
- │   │   ├─ BlockDialogue_begin_c2 [619..623]
+ │   │   ├─ BlockDialogue_begin_c3 [619..623]
  │   │   │   └─ DialogueCharacter [619..623]
  │   │   │       ├─ DialogueCharacter_c1 619
  │   │   │       ├─ DialogueCharacter_c2 [619..623]
@@ -1686,9 +1686,9 @@ sparkdown [0..1131]
  │   │   │       ├─ DialogueCharacter_c9 623
  │   │   │       ├─ DialogueCharacter_c10 623
  │   │   │       └─ DialogueCharacter_c11 623
- │   │   ├─ BlockDialogue_begin_c3 [623..624]
+ │   │   ├─ BlockDialogue_begin_c4 [623..624]
  │   │   │   └─ ColonSeparator [623..624]: ":"
- │   │   └─ BlockDialogue_begin_c4 624
+ │   │   └─ BlockDialogue_begin_c5 624
  │   ├─ BlockDialogue_content [624..881]
  │   │   ├─ Newline [624..625]: "\n"
  │   │   ├─ BlockLineContinue [625..634]

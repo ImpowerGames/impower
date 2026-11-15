@@ -3311,19 +3311,20 @@ repository:
   BlockDialogue:
     tag: definition(string)
     name: string.display.dialogue.block.sd
-    begin: ^({{WS}}*)((?=\S){{DIALOGUE_CHARACTER_NAME_CHARACTER}}+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    # lookaround: `LuauAlternatorSeparator` takes the `|` that opens an arm, so a cue after it begins mid-line; the lookbehind keeps that bar line's indent for the end's `\1\2`, behind a one-character lookbehind that keeps vscode-textmate from scanning to the line start at every position.
+    begin: (?:^|(?<=[|]|{{WS}}))(?<=^({{WS}}*)(?:[|]{{WS}}*)?)({{WS}}*)((?=\S){{DIALOGUE_CHARACTER_NAME_CHARACTER}}+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
-      1:
+      2:
         patterns:
           - { include: "#OptionalWhitespace" }
-      2:
+      3:
         patterns:
           - { include: "#Annotation" }
           - { include: "#DialogueCharacter" }
-      3:
+      4:
         patterns:
           - { include: "#ColonSeparator" }
-      4:
+      5:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
@@ -3333,7 +3334,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))|(?=^{{WS}}*(?:[*+]{{EOK}}|->|[&%$^]|scene{{LUAU_NAME_END}}|branch{{LUAU_NAME_END}}|function{{LUAU_NAME_END}}|define{{LUAU_NAME_END}}|const{{LUAU_NAME_END}}|store{{LUAU_NAME_END}}|local{{LUAU_NAME_END}}))
+    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1\2{{WS}}))|(?=^{{WS}}*(?:[*+]{{EOK}}|->|[&%$^]|scene{{LUAU_NAME_END}}|branch{{LUAU_NAME_END}}|function{{LUAU_NAME_END}}|define{{LUAU_NAME_END}}|const{{LUAU_NAME_END}}|store{{LUAU_NAME_END}}|local{{LUAU_NAME_END}}))
   InlineDialogue:
     tag: definition(string)
     name: string.display.dialogue.inline.sd

@@ -51,6 +51,13 @@ const TICKET_INPUTS: Record<string, string[]> = {
     "scene start\n  Hello. \\",
     "scene start\n  HERO: Hi. \\\nend\n",
   ],
+  "alternator-arm-block-dialogue-2402": [
+    "scene s\n  queue\n    | GUIDE (softly):\n        Welcome back.\n        It has been a while.\n    | Other line.\n  end\nend\n",
+    "scene s\n  cycle\n    | GUIDE:\n        Welcome back.\n    Narration after.\n    |GUIDE:\n      Hi.\n  end\nend\n",
+    "scene s\n  match x\n    | GUIDE:\n        Welcome back.\n    | Other line.\n  end\nend\n",
+    "scene s\n  queue\n    | x = GUIDE:\n        Welcome back.\n  end\nend\n",
+    "scene s\n  queue | GUIDE:\n    Welcome back.\n  end\nend\n",
+  ],
 };
 
 const TARGETED: Record<string, string> = {

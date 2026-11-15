@@ -1,6 +1,6 @@
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 
-const CUE_INDENT = String.raw`\1`;
+const CUE_INDENT = String.raw`\1\2`;
 
 export const DIALOGUE_BLOCK_END: string =
   GRAMMAR_DEFINITION.repository.BlockDialogue.end;
