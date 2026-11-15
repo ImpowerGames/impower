@@ -485,8 +485,14 @@ describe("image folders as tiles", () => {
     expect(badge.getAttribute("aria-label")).toBe("4 variants");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("loading")).toBe("lazy");
+    const tileOptions = tiles()[0]!.querySelector<HTMLElement>('button[aria-label="Options for imani"]')!.className.split(" ");
+    expect(tileOptions).toContain("text-ink");
+    expect(tileOptions).not.toContain("text-muted");
     await click(all<HTMLElement>('button[aria-label^="Open image imani"]')[0]);
     const inspector = document.querySelector('section[aria-label="Asset details"]')!;
+    const head = inspector.querySelector<HTMLElement>("[data-panel-head]")!;
+    expect(head.className.split(" ")).toContain("gap-1.5");
+    expect(head.querySelector("h2")!.parentElement!.className.split(" ")).not.toContain("mx-1");
     expect(inspector.querySelector("header h2")!.textContent).toBe("imani");
     expect(inspector.querySelector("header small")!.textContent).toBe("Image · 4 variants");
     expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/100");

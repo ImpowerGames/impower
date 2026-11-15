@@ -113,6 +113,7 @@ describe("the rail's heading", () => {
     }
     const title = header.querySelector("h2")!;
     expect(title.textContent).toBe("Search");
+    expect(title.parentElement!.classList.contains("mx-1")).toBe(false);
     expect(title.className).toContain("text-[14px]/[1.4]");
     const close = header.querySelector<HTMLButtonElement>('button[name="close"]')!;
     expect(close.getAttribute("aria-label")).toBe("Back to outline");
