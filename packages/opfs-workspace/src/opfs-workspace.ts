@@ -1348,8 +1348,8 @@ class UndoLog {
     return [...(this.seen.get(uri) ?? [])].some((local) => !this.own.has(local));
   }
 
-  async wrote(uri: string) {
-    this.written.set(uri, await storedBytes(uri));
+  expect(uri: string, bytes?: ArrayBuffer) {
+    this.written.set(uri, bytes);
   }
 
   rewrote(uris: string[]) {
@@ -1359,28 +1359,31 @@ class UndoLog {
   }
 
   replacedElsewhere(uri: string, current?: ArrayBuffer) {
+    if (!this.written.has(uri)) {
+      return false;
+    }
     const written = this.written.get(uri);
-    return this.written.has(uri) && !!current && !sameStored(current, written);
+    return written ? !!current && !sameStored(current, written) : !!current;
   }
 
   async removeOwnFolders(uris: string[], log: CommitLog) {
-    const root = await navigator.storage.getDirectory();
     const depth = (uri: string) => uri.split("/").length;
     const removed: string[] = [];
+    const left: string[] = [];
     for (const uri of [...new Set(uris)].sort((a, b) => depth(b) - depth(a))) {
-      if (this.changedElsewhere(uri)) {
-        continue;
-      }
-      const directory = await findDirectory(root, getPathFromUri(uri));
-      if (!directory || (await entriesOf(directory)).length > 0) {
-        continue;
-      }
-      for (const gone of await deleteEmptyDirectories([uri], log)) {
-        this.commit(State.localVersions.get(gone)!);
-        removed.push(gone);
+      const local = await removeEmptyFolder(
+        uri,
+        log,
+        () => !this.changedElsewhere(uri),
+      );
+      if (local !== undefined) {
+        this.commit(local);
+        removed.push(uri);
+      } else if (await isStoredDirectory(uri)) {
+        left.push(uri);
       }
     }
-    return removed;
+    return { removed, left };
   }
 
   async copyToTrash(target: Restoring) {
@@ -1611,7 +1614,7 @@ class UndoLog {
         }
         removals = removals.filter((t) => !inside(t.entry.uri));
         effects.foldersDeleted.push(
-          ...(await this.removeOwnFolders([...this.directories].filter(inside), log)),
+          ...(await this.removeOwnFolders([...this.directories].filter(inside), log)).removed,
         );
         if (await isStoredDirectory(entry.uri)) {
           unknown.push(entry.uri);
@@ -1657,9 +1660,9 @@ class UndoLog {
       return unknown.length === 0 && kept.length === 0;
     };
     try {
-      effects.foldersDeleted.push(
-        ...(await this.removeOwnFolders([...this.directories], log)),
-      );
+      const { removed, left } = await this.removeOwnFolders([...this.directories], log);
+      effects.foldersDeleted.push(...removed);
+      kept.push(...left.filter((uri) => !kept.includes(uri) && !unknown.includes(uri)));
     } catch (err) {
       console.error(err);
       unknown.push(...this.directories);
@@ -1717,15 +1720,10 @@ const applyChange = async (
     undo.commit(State.localVersions.get(change.uri)!);
     effects.foldersCreated.push(change.uri);
   } else if (isFolderChange(change)) {
-    const directory = await findDirectory(
-      await navigator.storage.getDirectory(),
-      getPathFromUri(change.uri),
-    );
-    if (directory && (await entriesOf(directory)).length === 0) {
-      for (const uri of await deleteEmptyDirectories([change.uri], log)) {
-        undo.commit(State.localVersions.get(uri)!);
-        effects.foldersDeleted.push(uri);
-      }
+    const local = await removeEmptyFolder(change.uri, log);
+    if (local !== undefined) {
+      undo.commit(local);
+      effects.foldersDeleted.push(change.uri);
     }
   } else if ("textDocument" in change) {
     const [written] = await editTextFiles([change], expectedTexts);
@@ -1738,10 +1736,18 @@ const applyChange = async (
       });
     }
   } else if (change.kind === "create") {
+    const data = change.data ?? new ArrayBuffer(0);
+    const stored = storedForm(change.uri, new Uint8Array(data));
+    undo.expect(
+      change.uri,
+      stored.byteLength === data.byteLength && stored.buffer === data
+        ? data
+        : (stored.buffer.slice(stored.byteOffset, stored.byteOffset + stored.byteLength) as ArrayBuffer),
+    );
     (await createFiles([change])).forEach(wrote);
-    await undo.wrote(change.uri);
   } else if (change.kind === "delete") {
     const [result] = await deleteFiles([change]);
+    undo.expect(change.uri, undefined);
     if (result) {
       undo.commit(result.local);
       log.record(result.uri, result.local, result.commit);
@@ -2039,6 +2045,48 @@ const deleteEmptyDirectories = async (uris: string[], log: CommitLog) => {
   return removed.map(getUriFromPath);
 };
 
+const removeEmptyFolder = async (
+  uri: string,
+  log: CommitLog,
+  mayRemove: () => boolean = () => true,
+) => {
+  const root = await navigator.storage.getDirectory();
+  const path = getPathFromUri(uri);
+  console.log(MAGENTA, "RMDIR", path);
+  const { result, commit, local } = await commitChange(
+    uri,
+    async () => {
+      if (!mayRemove()) {
+        return false;
+      }
+      const parent = await findDirectory(root, getParentPath(path));
+      const directory = parent && (await findDirectory(parent, getFileName(path)));
+      if (!parent || !directory || (await entriesOf(directory)).length > 0) {
+        return false;
+      }
+      try {
+        await parent.removeEntry(getFileName(path));
+      } catch (err) {
+        const name = (err as DOMException).name;
+        if (name === "InvalidModificationError" || name === "NotFoundError") {
+          return false;
+        }
+        throw err;
+      }
+      return true;
+    },
+    (removed) => (removed ? [uri] : []),
+  );
+  if (!result) {
+    return undefined;
+  }
+  log.record(uri, local, commit, true);
+  if (commit) {
+    removeDirectoryTree(uri, commit);
+  }
+  return local;
+};
+
 const needsTextAtEnumeration = (fileUri: string) => {
   const ext = getFileExtension(fileUri);
   const type = getFileType(fileUri);
@@ -2223,6 +2271,15 @@ const writeQueueEntry = (fileUri: string) => {
   return entry;
 };
 
+const storedForm = (fileUri: string, buffer: DataView | Uint8Array) => {
+  if (/\.svg$/i.test(fileUri)) {
+    const source = new TextDecoder().decode(buffer);
+    const normalized = normalizeSVGAttributeNames(source);
+    if (normalized !== source) return new TextEncoder().encode(normalized);
+  }
+  return buffer;
+};
+
 const enqueueWrite = async (
   fileUri: string,
   version: number,
@@ -2230,11 +2287,7 @@ const enqueueWrite = async (
   immediate = false,
   origin?: string,
 ) => {
-  if (/\.svg$/i.test(fileUri)) {
-    const source = new TextDecoder().decode(buffer);
-    const normalized = normalizeSVGAttributeNames(source);
-    if (normalized !== source) buffer = new TextEncoder().encode(normalized);
-  }
+  buffer = storedForm(fileUri, buffer);
   return new Promise<WriteResult>((resolve, reject) => {
     const entry = writeQueueEntry(fileUri);
     const last = entry.batches[entry.batches.length - 1];

@@ -15,6 +15,7 @@ const uri = (path: string) => `file://local/${path}`;
 const create = (path: string, text: string) => ({ kind: "create", uri: uri(path), data: enc.encode(text).buffer });
 const folder = (kind: "create" | "delete", path: string) => ({ kind, uri: uri(path), folder: true });
 const del = (path: string) => ({ kind: "delete", uri: uri(path) });
+const lockName = (path: string) => `opfs-workspace:commit:${uri(path)}`;
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -29,7 +30,8 @@ async function harness(files: Record<string, string> = {}) {
   const project = root.entries.get("local") as MemoryDirectory;
   let channel: { onmessage: ((event: { data: unknown }) => void) | null } | undefined;
   const messages: any[] = [];
-  vi.stubGlobal("navigator", { storage: { getDirectory: async () => root }, locks: memoryLocks() });
+  const locks = memoryLocks();
+  vi.stubGlobal("navigator", { storage: { getDirectory: async () => root }, locks });
   vi.stubGlobal("BroadcastChannel", class {
     onmessage = null;
     constructor() {
@@ -78,7 +80,7 @@ async function harness(files: Record<string, string> = {}) {
   };
   const otherTabCommit = () => allocateCommit(root as unknown as FileSystemDirectoryHandle, "other-tab", 0);
   const paths = () => listMemory(root, "local").filter((path) => !path.startsWith(".trash"));
-  return { root, request, edit, remote, entry, text, failAt, otherTabCommit, paths };
+  return { root, locks, request, edit, remote, entry, text, failAt, otherTabCommit, paths };
 }
 
 it("restores a file the edit replaced with a folder holding a file", async () => {
@@ -196,4 +198,76 @@ it("reports a folder it cannot clear before restoring a file, and keeps the edit
   expect(result.rollback.failed).toContain(uri("cover.png"));
   expect(result.rollback.trashed).toContain(uri("cover.png/new.png"));
   expect(h.text("cover.png/new.png")).toBe("NEW IMAGE");
+});
+
+it("keeps another tab's save made between the edit's write and its next change", async () => {
+  const h = await harness({ "cover.png/notes.sd": "OLD NOTES" });
+  const request = h.locks.request.bind(h.locks);
+  let saved = false;
+  (navigator as any).locks = {
+    request: async (name: string, options: any, callback?: any) => {
+      const result = await request(name, options, callback);
+      if (!saved && name === lockName("cover.png") && h.text("cover.png") === "IMPORTED") {
+        saved = true;
+        await request(name, async () => {
+          (h.entry("cover.png") as MemoryFile).bytes = enc.encode("OTHER TAB SAVE");
+          await h.otherTabCommit();
+        });
+      }
+      return result;
+    },
+  };
+  h.failAt();
+  const result = await h.edit([
+    del("cover.png/notes.sd"),
+    folder("delete", "cover.png"),
+    create("cover.png", "IMPORTED"),
+    create("fail/new.sd", "NEW"),
+  ]);
+  expect(saved).toBe(true);
+  expect(h.text("cover.png")).toBe("OTHER TAB SAVE");
+  expect(result.rollback).toMatchObject({ complete: false, kept: [uri("cover.png")] });
+});
+
+it("keeps another tab's save at a path the edit deleted, even before its broadcast arrives", async () => {
+  const h = await harness({ "old/notes.sd": "OLD NOTES" });
+  h.failAt(async () => {
+    await h.locks.request(lockName("old"), { mode: "shared" }, () =>
+      h.locks.request(lockName("old/notes.sd"), async () => {
+        writeMemoryFile(h.root, "local/old/notes.sd", enc.encode("OTHER TAB SAVE"));
+        await h.otherTabCommit();
+      }),
+    );
+  });
+  const result = await h.edit([del("old/notes.sd"), folder("delete", "old"), create("fail/new.sd", "NEW")]);
+  expect(h.text("old/notes.sd")).toBe("OTHER TAB SAVE");
+  expect(result.rollback.complete).toBe(false);
+});
+
+it("keeps another tab's folder created inside an edit-created folder while the rollback reaches it", async () => {
+  const h = await harness();
+  const request = h.locks.request.bind(h.locks);
+  let armed = false;
+  let saved = false;
+  (navigator as any).locks = {
+    request: async (name: string, options: any, callback?: any) => {
+      if (armed && !saved && name === lockName("generated")) {
+        saved = true;
+        await request(name, { mode: "shared" }, () =>
+          request(lockName("generated/personal"), async () => {
+            makeMemoryDirectory(h.root, "local/generated/personal");
+            await h.otherTabCommit();
+          }),
+        );
+      }
+      return request(name, options, callback);
+    },
+  };
+  h.failAt(async () => {
+    armed = true;
+  });
+  const result = await h.edit([folder("create", "generated"), create("fail/new.sd", "NEW")]);
+  expect(saved).toBe(true);
+  expect(h.paths()).toContain("generated/personal/");
+  expect(result.rollback.complete).toBe(false);
 });
