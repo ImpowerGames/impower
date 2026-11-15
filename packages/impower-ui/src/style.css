@@ -333,6 +333,20 @@
   white-space: nowrap;
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
+  @supports (animation-timeline: scroll()) {
+    overflow: hidden;
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation: s-fade-edge linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+@keyframes s-fade-edge {
+  from, to {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
+  }
 }
 
 @keyframes s-sheen {

@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { edgeTreatment } from "../../../test/fadeEdge";
 import Tile, { tileGrid, tileHeight } from "./Tile";
 
 let host: HTMLDivElement | undefined;
@@ -147,5 +148,20 @@ describe("Tile", () => {
     expect(name.className.split(" ")).toContain("text-[13px]/[1.4]");
     expect(open.querySelector("small")!.className.split(" ")).toContain("text-[11px]/[1.4]");
     expect(host.querySelector('[aria-label="Options for imani"]')!.parentElement!.className.split(" ")).toEqual(expect.arrayContaining(["bg-bg/78", "rounded-full", "[&>button]:rounded-full"]));
+  });
+});
+
+describe("Tile edge", () => {
+  it("fades a long label and description at their edge with no ellipsis under the mask", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(<Tile shape="landscape" media={<img alt="" src="/harbor.png" />} label="a very long backdrop name that runs off" description="backdrops/harbor/night" />, host!),
+    );
+    const label = Array.from(host.querySelectorAll("span")).find((span) => span.textContent === "a very long backdrop name that runs off")!;
+    const description = host.querySelector("small")!;
+    expect(await edgeTreatment([label, description])).toEqual([
+      { text: label.textContent, masked: true, ellipsis: false },
+      { text: description.textContent, masked: true, ellipsis: false },
+    ]);
   });
 });

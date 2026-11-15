@@ -294,7 +294,7 @@ export function WheelSheet({
         <Button variant="quiet" class="justify-self-start border-0 px-3 text-muted" onClick={onCancel}>
           Cancel
         </Button>
-        <h2 id={titleId} class="m-0 min-w-0 truncate text-[14px]/[1.4] font-semibold">
+        <h2 id={titleId} class="m-0 min-w-0 [--fade:20px] fade-edge text-[14px]/[1.4] font-semibold">
           {title}
         </h2>
         <Button variant="quiet" class="justify-self-end border-0 px-3 text-accent" onClick={() => onChoose(centred.current)}>

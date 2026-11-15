@@ -82,6 +82,9 @@ const measure = async (markup: string, width: number) => {
     await page.setContent(
       `<!doctype html><html data-theme="charcoal" data-layout="phone"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head><body style="margin:0">${markup}</body></html>`,
     );
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
     return await page.evaluate(() => {
       const bar = document.querySelector("[data-phone-title-bar]")!;
       const box = (selector: string) =>

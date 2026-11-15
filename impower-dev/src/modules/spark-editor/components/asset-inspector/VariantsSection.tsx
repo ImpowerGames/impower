@@ -82,7 +82,7 @@ function GroupMenu({
       data-changed={value === group.default ? undefined : ""}
       {...(coarse ? { "aria-haspopup": "dialog" as const, onClick: () => setOpen(true) } : {})}
     >
-      <span class="truncate">{optionLabel(value)}</span>
+      <span class="[--fade:20px] fade-edge">{optionLabel(value)}</span>
       <ChevronDownIcon />
     </Button>
   );
@@ -179,7 +179,7 @@ export default function VariantsSection({
           <div class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-3 gap-y-2.5">
             {groups.map((group) => (
               <div key={group.key} class="grid min-w-0 gap-1" data-variant-cell>
-                <span class="truncate text-[11px] text-muted">{groupLabel(group)}</span>
+                <span class="[--fade:20px] fade-edge text-[11px] text-muted">{groupLabel(group)}</span>
                 {group.switch ? (
                   <Switch
                     class="my-2.5"

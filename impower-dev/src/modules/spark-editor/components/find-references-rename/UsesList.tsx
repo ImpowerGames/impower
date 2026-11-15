@@ -79,7 +79,7 @@ export default function UsesList({
       {groups.map((group) => (
         <section key={group.uri} aria-label={scriptTitle(group.uri)}>
           <h3 class="m-0 mt-2.5 mb-0.5 flex items-baseline justify-between gap-2 px-2 text-[12px]/[1.4] font-semibold text-ink">
-            <span class="min-w-0 truncate">{scriptTitle(group.uri)}</span>
+            <span class="min-w-0 [--fade:20px] fade-edge">{scriptTitle(group.uri)}</span>
             <small class="flex-none text-[12px] font-normal text-muted">
               ({group.uses.length})
             </small>

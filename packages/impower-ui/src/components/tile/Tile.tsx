@@ -74,7 +74,7 @@ export const tileMediaVariants = cva(
   },
 );
 
-export const tileLabelVariants = cva("min-w-0 truncate text-[13px]/[1.4] text-ink [--fade:20px] fade-edge", {
+export const tileLabelVariants = cva("min-w-0 text-[13px]/[1.4] text-ink [--fade:20px] fade-edge", {
   variants: {
     kind: {
       file: "",
@@ -194,7 +194,7 @@ export default function Tile({
         <span class="flex min-w-0 flex-col gap-0.5 px-0.5">
           <span class={tileLabelVariants({ kind })}>{label}</span>
           {description && (
-            <small class="min-w-0 truncate text-[11px]/[1.4] text-muted [--fade:20px] fade-edge">
+            <small class="min-w-0 text-[11px]/[1.4] text-muted [--fade:20px] fade-edge">
               {description}
             </small>
           )}

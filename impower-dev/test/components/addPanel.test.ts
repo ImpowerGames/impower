@@ -2,6 +2,7 @@ import type { Layout } from "@impower/impower-ui/layout";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
 
 const calls = vi.hoisted(() => ({
   commands: [] as [string, string][],
@@ -465,6 +466,21 @@ describe("the pickers on desktop", () => {
 });
 
 describe("the pickers on a phone", () => {
+  it("fade each card's name and caption at their edge instead of cutting them to an ellipsis", async () => {
+    layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
+    await mount();
+    await setOpen(true);
+    await act(async () => row("backdrop").click());
+    await settle();
+    const card = cards("Backdrop")[2]!;
+    const lines = [card.querySelector("strong")!, card.querySelector("small")!];
+    expect(await edgeTreatment(lines)).toEqual([
+      { text: "plaza", masked: true, ellipsis: false },
+      { text: lines[1]!.textContent, masked: true, ellipsis: false },
+    ]);
+  });
+
   it("show a carousel with its position, where one tap inserts without a preview", async () => {
     layout.value = "phone";
     workspace.layout.value = layout.value as Layout;
