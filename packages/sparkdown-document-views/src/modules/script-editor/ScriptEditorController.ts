@@ -1,4 +1,4 @@
-import { caretScrollMarginY } from "./utils/extensions/caretScrollMargin";
+import { scrollCaretIntoView } from "./utils/extensions/caretScrollMargin";
 import {
   copyLineDown,
   indentLess,
@@ -443,12 +443,7 @@ export class ScriptEditorController {
     const view = this._view;
     if (!view) return;
     view.focus();
-    view.dispatch({
-      effects: EditorView.scrollIntoView(view.state.selection.main, {
-        y: "nearest",
-        yMargin: caretScrollMarginY,
-      }),
-    });
+    scrollCaretIntoView(view);
   }
 
   setCoarsePointer(coarse: boolean): void {

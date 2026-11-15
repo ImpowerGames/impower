@@ -19,3 +19,11 @@ export const caretScrollMargin = (hostMargin?: {
     bottom: (hostMargin?.bottom ?? 0) + caretBottomInset,
   })),
 ];
+
+export const scrollCaretIntoView = (view: EditorView) =>
+  view.dispatch({
+    effects: EditorView.scrollIntoView(view.state.selection.main, {
+      y: "nearest",
+      yMargin: caretScrollMarginY,
+    }),
+  });

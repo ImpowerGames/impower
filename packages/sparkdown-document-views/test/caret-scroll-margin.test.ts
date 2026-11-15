@@ -1,7 +1,10 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { afterEach, describe, expect, it } from "vitest";
-import { caretScrollMargin } from "../src/modules/script-editor/utils/extensions/caretScrollMargin";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  caretScrollMargin,
+  scrollCaretIntoView,
+} from "../src/modules/script-editor/utils/extensions/caretScrollMargin";
 
 const scrollMarginsOf = (view: EditorView) => {
   const margins = { top: 0, bottom: 0 };
@@ -47,5 +50,30 @@ describe("script editor caret scroll margin", () => {
       parent: document.body,
     });
     expect(caretClearance(view)).toEqual({ above: 8, below: 72 });
+  });
+
+  it("scrolls the caret into view with the same top and bottom clearance", () => {
+    view = new EditorView({
+      state: EditorState.create({
+        doc: "a\nb",
+        extensions: [caretScrollMargin()],
+      }),
+      parent: document.body,
+    });
+    const dispatch = vi.spyOn(view, "dispatch");
+
+    scrollCaretIntoView(view);
+
+    const target = (
+      dispatch.mock.calls[0]![0] as {
+        effects: { value: { y: string; yMargin: number } };
+      }
+    ).effects.value;
+    const insets = scrollMarginsOf(view);
+    expect(target.y).toBe("nearest");
+    expect({
+      above: insets.top + target.yMargin,
+      below: insets.bottom + target.yMargin,
+    }).toEqual({ above: 8, below: 12 });
   });
 });

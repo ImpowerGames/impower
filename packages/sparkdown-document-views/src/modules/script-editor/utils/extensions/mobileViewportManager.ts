@@ -6,7 +6,7 @@ import {
   hasScriptMode,
   openKeyboardToolbar,
 } from "./keyboardToolbar";
-import { caretScrollMarginY } from "./caretScrollMargin";
+import { scrollCaretIntoView } from "./caretScrollMargin";
 
 const viewportTheme = EditorView.baseTheme({
   "&": {
@@ -104,12 +104,7 @@ const viewportPlugin = ViewPlugin.fromClass(
 
       if (isKeyboardVisible && this.view.hasFocus) {
         requestAnimationFrame(() => {
-          this.view.dispatch({
-            effects: EditorView.scrollIntoView(this.view.state.selection.main, {
-              y: "nearest",
-              yMargin: caretScrollMarginY,
-            }),
-          });
+          scrollCaretIntoView(this.view);
         });
       }
     };
