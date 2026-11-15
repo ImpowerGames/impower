@@ -1,3 +1,4 @@
+import { caretScrollMarginY } from "./utils/extensions/caretScrollMargin";
 import {
   copyLineDown,
   indentLess,
@@ -445,6 +446,7 @@ export class ScriptEditorController {
     view.dispatch({
       effects: EditorView.scrollIntoView(view.state.selection.main, {
         y: "nearest",
+        yMargin: caretScrollMarginY,
       }),
     });
   }

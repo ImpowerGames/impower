@@ -6,6 +6,7 @@ import {
   hasScriptMode,
   openKeyboardToolbar,
 } from "./keyboardToolbar";
+import { caretScrollMarginY } from "./caretScrollMargin";
 
 const viewportTheme = EditorView.baseTheme({
   "&": {
@@ -106,6 +107,7 @@ const viewportPlugin = ViewPlugin.fromClass(
           this.view.dispatch({
             effects: EditorView.scrollIntoView(this.view.state.selection.main, {
               y: "nearest",
+              yMargin: caretScrollMarginY,
             }),
           });
         });
