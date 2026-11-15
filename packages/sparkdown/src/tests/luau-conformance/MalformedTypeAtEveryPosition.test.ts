@@ -171,7 +171,7 @@ describe("the reported layouts", () => {
     ["scene s(a :: number)\nend", ["0:10-0:12 Expected ')' (to close '(' at column 8), got '::'"]],
     ["scene s(a --[[c]] :: number)\nend", ["0:18-0:20 Expected ')' (to close '(' at column 8), got '::'"]],
     ['scene s\n  local marker = "--[["\n  local x --[[c]] :: number\nend', ["2:18-2:20 Expected identifier when parsing expression, got '::'", "2:21-2:27 Incomplete statement: expected assignment or a function call"]],
-    ["scene s\n  -- --[[\n  local x --[[real]] :: number\nend", ["2:21-2:23 Expected identifier when parsing expression, got '::'", "2:24-2:30 Incomplete statement: expected assignment or a function call"]],
+    ["scene s\n  -- --[[\n  local x --[[real]] :: number\nend", ["1:7-1:9 This `[[` opens no directive, because no `]]` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.", "2:21-2:23 Expected identifier when parsing expression, got '::'", "2:24-2:30 Incomplete statement: expected assignment or a function call"]],
     ["store x: --[[ unfinished\nlocal y = 1", ["0:9-2:0 Expected identifier when parsing expression, got unfinished comment"]],
     ["scene s(a: 123)\nend", ["0:10-0:14 Expected type, got '123'"]],
     ["scene s(a: ..)\nend", ["0:10-0:13 Expected type, got '..'"]],
