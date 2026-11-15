@@ -59,6 +59,12 @@ const singleCharacters = (body: string): Set<string> | undefined => {
   return chars;
 };
 
+const repeatedCharacters = (body: string): Set<string> | undefined => {
+  const quantifier = body.at(-1);
+  if (quantifier !== "*" && quantifier !== "+") return undefined;
+  return singleCharacters(body.slice(0, -1));
+};
+
 const BLIND_TO_LINE_END = new Set(["negative-lookahead", "lookbehind", "negative-lookbehind"]);
 
 const withoutLookarounds = (re: string, truncated = true) => {
@@ -77,7 +83,7 @@ const coversWholeCapture = (group: string, leafMatch: string) => {
     return SPACE_OR_TAB_ONLY.test(withoutZeroWidth(groupBody));
   }
   if (leafMatch === "(.+)" || leafMatch === "(.*)") {
-    return !LINE_BREAK_CAPABLE.test(group);
+    return !LINE_BREAK_CAPABLE.test(withoutZeroWidth(group));
   }
   const keyword = leafMatch.endsWith(NAME_END) ? leafMatch.slice(0, -NAME_END.length) : leafMatch;
   if (!keyword.startsWith("(") || !isWholeGroup(keyword)) return false;
@@ -86,24 +92,43 @@ const coversWholeCapture = (group: string, leafMatch: string) => {
     const core = withoutLookarounds(groupBody, false) ?? "";
     return core === leafBody || core === `(?:${leafBody})`;
   }
+  const groupCore = withoutLookarounds(groupBody, false) ?? "";
   const leafChars = singleCharacters(leafBody);
   if (leafChars) {
-    const groupChars = singleCharacters(withoutLookarounds(groupBody, false) ?? "");
+    const groupChars = singleCharacters(groupCore);
     return !!groupChars && [...groupChars].every((c) => leafChars.has(c));
+  }
+  const leafRun = repeatedCharacters(leafBody);
+  if (leafRun) {
+    const groupRun = repeatedCharacters(groupCore) ?? singleCharacters(groupCore);
+    return !!groupRun && [...groupRun].every((c) => leafRun.has(c));
   }
   if (group !== leafMatch) return false;
   const rest = withoutLookarounds(leafBody);
   return rest !== undefined && !/[|$]|\\[GzZA]|[*+?]\?|\(\?=/.test(rest);
 };
 
+const asLeaf = (rule: Rule | undefined): { match: string; name: string } | undefined => {
+  if (!rule || typeof rule["match"] !== "string" || rule["patterns"] || rule["begin"]) return undefined;
+  const captures = rule["captures"] as Captures | undefined;
+  if (!captures) {
+    const name = rule["name"];
+    return typeof name === "string" && !name.includes("$") ? { match: rule["match"], name } : undefined;
+  }
+  const whole = captures["1"];
+  const onlyWholeNamed =
+    rule["match"] === "(.+)" && !rule["name"] && Object.keys(captures).length === 1 && whole && !whole.patterns && !whole.contentName;
+  return onlyWholeNamed && typeof whole.name === "string" && !whole.name.includes("$")
+    ? { match: "(.+)", name: whole.name }
+    : undefined;
+};
+
 const directScope = (group: string | undefined, capture: Capture, repository: Record<string, Rule>) => {
   if (group === undefined || capture.contentName || capture.patterns?.length !== 1) return undefined;
   const include = capture.patterns[0]?.include;
   if (!include?.startsWith("#")) return undefined;
-  const leaf = repository[include.slice(1)];
-  if (!leaf || typeof leaf["match"] !== "string" || typeof leaf["name"] !== "string") return undefined;
-  if (leaf["captures"] || leaf["patterns"] || leaf["begin"] || leaf["name"].includes("$")) return undefined;
-  if (capture.name?.includes("$")) return undefined;
+  const leaf = asLeaf(repository[include.slice(1)]);
+  if (!leaf || capture.name?.includes("$")) return undefined;
   if (!coversWholeCapture(group, leaf["match"])) return undefined;
   return capture.name ? `${capture.name} ${leaf["name"]}` : leaf["name"];
 };
@@ -125,7 +150,13 @@ const rewriteRule = (rule: Rule, repository: Record<string, Rule>) => {
       return !rule[`${field}Captures`];
     });
     if (sources.length === 0) continue;
-    const groups = sources.map((field) => capturingGroups(rule[field] as string));
+    const beginGroups = typeof rule["begin"] === "string" ? capturingGroups(rule["begin"]) : [];
+    const groups = sources.map((field) =>
+      capturingGroups(rule[field] as string).map((g) => {
+        const backReference = field === "end" || field === "while" ? /^\(\\(\d)\)$/.exec(g ?? "") : null;
+        return backReference ? beginGroups[Number(backReference[1])] : g;
+      }),
+    );
     for (const [index, capture] of Object.entries(captures)) {
       const scopes = groups.map((g) => directScope(g[Number(index)], capture, repository));
       const scope = scopes[0];

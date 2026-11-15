@@ -8,6 +8,7 @@ import { parseSource } from "./grammarSnapshot";
 import { tokenize } from "./vscodeGrammarSnapshot";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const stickyAnchor = (source: string) => source.replace(/^\\G/, "");
 const GRAMMAR_PATH = join(
   __dirname,
   "../../../language/sparkdown.language-grammar.json",
@@ -57,7 +58,7 @@ describe("grammar regex safety (#280)", () => {
   test("ParentheticalLine fails fast on a deeply indented non-matching line", () => {
     const source = grammar.repository?.ParentheticalLine?.match;
     expect(source, "ParentheticalLine.match exists").toBeTruthy();
-    const re = new RegExp(source, "muy");
+    const re = new RegExp(stickyAnchor(source), "muy");
     const line = " ".repeat(28) + "[Seen 7:21 PM]";
     re.lastIndex = 0;
     const t0 = performance.now();
@@ -78,7 +79,7 @@ describe("grammar regex safety (#280)", () => {
     for (const { where, source } of collectPatterns()) {
       let re: RegExp;
       try {
-        re = new RegExp(source, "muy");
+        re = new RegExp(stickyAnchor(source), "muy");
       } catch {
         continue;
       }
