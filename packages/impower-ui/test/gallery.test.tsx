@@ -6,6 +6,12 @@ import { collectingTypes, componentNames, exportedValue } from "./exports";
 
 let host: HTMLDivElement | undefined;
 
+const portalDialog = () =>
+  Array.from(document.body.children)
+    .filter((el) => el !== host)
+    .map((el) => (el.matches('[role="dialog"]') ? el : el.querySelector('[role="dialog"]')))
+    .find((el) => el !== null) ?? null;
+
 afterEach(async () => {
   vi.useRealTimers();
   if (host) {
@@ -35,14 +41,15 @@ it("mounts the gallery with every exported component on the page", async () => {
     expect(triggers.length).toBeGreaterThan(0);
     for (const trigger of triggers) {
       await act(async () => trigger.click());
-      const dialog = document.querySelector('[role="dialog"]');
+      const dialog = portalDialog() ?? host!.querySelector('[role="dialog"]');
       expect(dialog).not.toBeNull();
       const cancel = Array.from(dialog!.querySelectorAll("button")).find((b) => /^(Cancel|Close)$/.test(b.textContent || (b.getAttribute("aria-label") ?? "")));
       await act(async () => cancel!.click());
       await act(async () => {
         vi.runOnlyPendingTimers();
       });
-      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      expect(dialog!.isConnected).toBe(false);
+      expect(portalDialog()).toBeNull();
     }
   });
   expect(componentNames.filter((name) => !types.has(exportedValue(name)))).toEqual([]);
