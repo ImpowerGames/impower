@@ -373,3 +373,135 @@ it("settles two overlapping edits that touch the same paths in opposite orders",
   expect((settled as { applied: boolean }[]).map((r) => r.applied)).toEqual([true, true]);
   expect([h.text("a.sd"), h.text("b.sd")]).toEqual(["SECOND A", "SECOND B"]);
 });
+
+const deferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const save = (h: Harness, path: string, text: string) =>
+  h.request("workspace/willCreateFiles", { files: [create(path, text)] });
+
+it("lets this tab's save to a path an edit is still acquiring wait for the edit, without deadlock", async () => {
+  const h = await harness({ "a.sd": "A", "b.sd": "B" });
+  const releaseB = deferred();
+  const bHeld = deferred();
+  const other = h.locks.request(lockName("b.sd"), async () => {
+    bHeld.resolve();
+    await releaseB.promise;
+  });
+  await bHeld.promise;
+  const edit = h.edit([create("a.sd", "EDIT A"), create("b.sd", "EDIT B")]);
+  await delay(20);
+  const saved = save(h, "a.sd", "SAME WORKER SAVE");
+  await delay(20);
+  releaseB.resolve();
+  await other;
+  const outcome = await Promise.race([
+    Promise.all([edit, saved]).then(() => "settled"),
+    delay(2000).then(() => "deadlock"),
+  ]);
+  expect(outcome).toBe("settled");
+  expect(h.text("b.sd")).toBe("EDIT B");
+  expect(["EDIT A", "SAME WORKER SAVE"]).toContain(h.text("a.sd"));
+});
+
+it("rolls back before a later step rewrites a path this tab saved during the edit, and keeps the save", async () => {
+  const h = await harness({ "a.sd": "ORIGINAL" });
+  h.failAt();
+  const get = h.project.getDirectoryHandle.bind(h.project);
+  let saved = false;
+  h.project.getDirectoryHandle = async (name, options = {}) => {
+    if (name === "gate" && options.create && !saved) {
+      saved = true;
+      const response = await save(h, "a.sd", "SAME WORKER SAVE");
+      expect(response.error).toBeUndefined();
+    }
+    return get(name, options);
+  };
+  const result = await h.edit([
+    create("a.sd", "FIRST EDIT"),
+    folder("create", "gate"),
+    create("a.sd", "SECOND EDIT"),
+    create("fail/new.sd", "FAIL"),
+  ]);
+  expect(saved).toBe(true);
+  expect(result.applied).toBe(false);
+  expect(h.text("a.sd")).toBe("SAME WORKER SAVE");
+  expect(result.rollback.kept).toContain(uri("a.sd"));
+});
+
+it("refuses a folder change at a path that holds a file, leaving the file as it was", async () => {
+  const h = await harness({ "cover.png": "ORIGINAL" });
+  h.failAt();
+  const result = await h.edit([folder("delete", "cover.png"), create("cover.png", "IMPORTED"), create("fail/new.sd", "FAIL")]);
+  expect(result.applied).toBe(false);
+  expect(result.failureReason).toMatch(/cover\.png is a file, not a folder/);
+  expect(h.text("cover.png")).toBe("ORIGINAL");
+  expect(result.rollback).toMatchObject({ complete: true, failed: [], kept: [] });
+});
+
+it("keeps this tab's deletion of a folder the edit holds shared waiting for the exclusive lock", async () => {
+  const h = await harness({ "seed.sd": "S" });
+  makeMemoryDirectory(h.root, "local/parent");
+  const get = h.project.getDirectoryHandle.bind(h.project);
+  let deletion: Promise<unknown> | undefined;
+  let foreignHeld = false;
+  let deletedWhileForeignHeld = false;
+  const releaseParent = deferred();
+  let foreign: Promise<void> | undefined;
+  h.project.getDirectoryHandle = async (name, options = {}) => {
+    if (name === "gate" && options.create && !deletion) {
+      const parentHeld = deferred();
+      foreign = h.locks.request(lockName("parent"), { mode: "shared" }, async () => {
+        foreignHeld = true;
+        parentHeld.resolve();
+        await releaseParent.promise;
+        foreignHeld = false;
+      });
+      await parentHeld.promise;
+      const remove = h.project.removeEntry.bind(h.project);
+      h.project.removeEntry = async (entry, opts) => {
+        if (entry === "parent") deletedWhileForeignHeld = foreignHeld;
+        return remove(entry, opts);
+      };
+      deletion = h.request("workspace/directories", { action: "delete", uris: [uri("parent")] });
+    }
+    return get(name, options);
+  };
+  const result = await h.edit([folder("create", "gate"), create("parent/new.sd", "EDIT")]);
+  await delay(20);
+  releaseParent.resolve();
+  await foreign;
+  await deletion;
+  expect(result.applied).toBe(true);
+  expect(deletedWhileForeignHeld).toBe(false);
+});
+
+it("does not deadlock when a rollback writes its Trash copy while another edit waits on the Trash folder", async () => {
+  const h = await harness({ "a.sd": "ORIGINAL" });
+  const get = h.project.getDirectoryHandle.bind(h.project);
+  let other: Promise<unknown> | undefined;
+  h.project.getDirectoryHandle = async (name, options = {}) => {
+    if (name === "fail" && options.create) {
+      other = h.edit([create(".trash/backup.sd", "BACKUP TRASH"), create("a.sd", "OTHER EDIT")]);
+      await delay(20);
+      throw new DOMException("later quota failure", "QuotaExceededError");
+    }
+    return get(name, options);
+  };
+  const first = h.edit([create("a.sd", "IMPORTED"), create("fail/new.sd", "FAIL")]);
+  const outcome = await Promise.race([
+    first.then(async (result) => [result, await other]),
+    delay(3000).then(() => "deadlock"),
+  ]);
+  expect(outcome).not.toBe("deadlock");
+  const [firstResult, otherResult] = outcome as { applied: boolean; rollback?: { complete: boolean } }[];
+  expect(firstResult!.applied).toBe(false);
+  expect(firstResult!.rollback?.complete).toBe(true);
+  expect(otherResult!.applied).toBe(true);
+  expect(h.text("a.sd")).toBe("OTHER EDIT");
+});

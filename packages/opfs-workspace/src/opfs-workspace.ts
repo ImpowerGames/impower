@@ -253,8 +253,56 @@ const withAncestors = (uri: string) => {
 
 const commitLockName = (uri: string) => `opfs-workspace:commit:${uri}`;
 
-const editHeld = new Map<string, { exclusive: boolean; count: number }>();
+interface EditHold {
+  locks: Map<string, boolean>;
+  acquired: boolean;
+  ready: Promise<void>;
+}
+
+const editHolds: EditHold[] = [];
 const editTails = new Map<string, Promise<void>>();
+const inFlight = new Map<string, number>();
+const inFlightWaiters = new Set<() => void>();
+
+const holdOf = (name: string) =>
+  editHolds.find((hold) => hold.acquired && hold.locks.has(name));
+
+const reservedBy = (names: string[]) =>
+  names.flatMap((name) =>
+    holdOf(name)
+      ? []
+      : editHolds.filter((hold) => !hold.acquired && hold.locks.has(name)),
+  );
+
+const enterFlight = (names: string[]) => {
+  for (const name of names) {
+    inFlight.set(name, (inFlight.get(name) ?? 0) + 1);
+  }
+};
+
+const leaveFlight = (names: string[]) => {
+  for (const name of names) {
+    const count = (inFlight.get(name) ?? 1) - 1;
+    if (count > 0) {
+      inFlight.set(name, count);
+    } else {
+      inFlight.delete(name);
+    }
+  }
+  inFlightWaiters.forEach((wake) => wake());
+};
+
+const flightSettled = async (names: string[]) => {
+  while (names.some((name) => inFlight.has(name))) {
+    await new Promise<void>((resolve) => {
+      const wake = () => {
+        inFlightWaiters.delete(wake);
+        resolve();
+      };
+      inFlightWaiters.add(wake);
+    });
+  }
+};
 
 const withEditHeldLock = <T>(name: string, task: () => Promise<T>) => {
   const run = (editTails.get(name) ?? Promise.resolve()).then(task);
@@ -271,50 +319,66 @@ const withEditHeldLock = <T>(name: string, task: () => Promise<T>) => {
   return run;
 };
 
-const withCommitLock = <T>(uri: string, task: () => Promise<T>) => {
-  const parents = withAncestors(uri).slice(1).reverse();
+const withCommitLock = async <T>(uri: string, task: () => Promise<T>) => {
+  const names = withAncestors(uri).reverse().map(commitLockName);
+  for (;;) {
+    const waiting = reservedBy(names);
+    if (waiting.length === 0) {
+      break;
+    }
+    await Promise.all(waiting.map((hold) => hold.ready));
+  }
+  enterFlight(names);
   const lockFrom = (index: number): Promise<T> => {
-    if (index < parents.length) {
-      const name = commitLockName(parents[index]!);
-      return editHeld.has(name)
+    const name = names[index]!;
+    const hold = holdOf(name);
+    if (index < names.length - 1) {
+      return hold
         ? lockFrom(index + 1)
         : withSharedLock(name, () => lockFrom(index + 1));
     }
-    const name = commitLockName(uri);
-    return editHeld.has(name)
+    return hold?.locks.get(name)
       ? withEditHeldLock(name, task)
       : withLock(name, task);
   };
-  return lockFrom(0);
+  try {
+    return await lockFrom(0);
+  } finally {
+    leaveFlight(names);
+  }
 };
 
-const holdEditLocks = <T>(locks: Map<string, boolean>, task: () => Promise<T>) => {
-  const names = [...locks.keys()].sort();
-  const take = (index: number): Promise<T> => {
-    if (index < names.length) {
-      const name = names[index]!;
-      const next = () => take(index + 1);
-      return locks.get(name) ? withLock(name, next) : withSharedLock(name, next);
-    }
-    for (const name of names) {
-      const held = editHeld.get(name);
-      editHeld.set(name, {
-        exclusive: (held?.exclusive ?? false) || !!locks.get(name),
-        count: (held?.count ?? 0) + 1,
-      });
-    }
-    return task().finally(() => {
-      for (const name of names) {
-        const held = editHeld.get(name)!;
-        if (held.count > 1) {
-          editHeld.set(name, { ...held, count: held.count - 1 });
-        } else {
-          editHeld.delete(name);
-        }
-      }
-    });
+const holdEditLocks = async <T>(
+  locks: Map<string, boolean>,
+  task: () => Promise<T>,
+) => {
+  let release!: () => void;
+  const hold: EditHold = {
+    locks,
+    acquired: false,
+    ready: new Promise<void>((resolve) => {
+      release = resolve;
+    }),
   };
-  return take(0);
+  editHolds.push(hold);
+  const names = [...locks.keys()].sort();
+  try {
+    await flightSettled(names);
+    const take = (index: number): Promise<T> => {
+      if (index < names.length) {
+        const name = names[index]!;
+        const next = () => take(index + 1);
+        return locks.get(name) ? withLock(name, next) : withSharedLock(name, next);
+      }
+      hold.acquired = true;
+      release();
+      return task();
+    };
+    return await take(0);
+  } finally {
+    editHolds.splice(editHolds.indexOf(hold), 1);
+    release();
+  }
 };
 
 const commitChange = <T>(
@@ -1363,6 +1427,9 @@ class UndoLog {
         continue;
       }
       if (isFolderChange(change)) {
+        if (await findFileHandle(uri)) {
+          throw new Error(`${getFileName(getPathFromUri(uri))} is a file, not a folder`);
+        }
         this.seen.set(uri, new Set());
         const directory = await isStoredDirectory(uri);
         this.prior.set(uri, { uri, directory, folder: true });
@@ -1815,20 +1882,24 @@ const applyWorkspaceEdit = async (
   );
 };
 
-const editLocks = async (changes: WorkspaceEditChange[]) => {
-  const locks = new Map<string, boolean>();
-  const touched = changes.flatMap((change) =>
+const touchedBy = (changes: WorkspaceEditChange[]) =>
+  changes.flatMap((change) =>
     "textDocument" in change
       ? [change.textDocument.uri]
       : change.kind === "rename"
         ? [change.oldUri, change.newUri]
         : [change.uri],
   );
+
+const editLocks = async (changes: WorkspaceEditChange[]) => {
+  const locks = new Map<string, boolean>();
+  const touched = touchedBy(changes);
   for (const uri of touched) {
     locks.set(commitLockName(uri), true);
   }
   for (const uri of touched) {
-    for (const parent of withAncestors(uri).slice(1)) {
+    const trash = getUriFromPath(`${getPathFromUri(uri).split("/")[0]}/${TRASH_DIR}`);
+    for (const parent of [...withAncestors(uri).slice(1), trash]) {
       const name = commitLockName(parent);
       if (!locks.has(name)) {
         locks.set(name, !(await isStoredDirectory(parent)));
@@ -1911,8 +1982,18 @@ const applyHeldWorkspaceEdit = async (
     };
   };
   commitWatchers.add(undo.watch);
+  const savedMeanwhile = (change: WorkspaceEditChange) => {
+    const uri = touchedBy([change]).find(
+      (uri) => undo.prior.has(uri) && undo.changedElsewhere(uri),
+    );
+    return uri && `${getFileName(getPathFromUri(uri))} was saved while the edit ran`;
+  };
   try {
     for (const [index, change] of changes.entries()) {
+      const saved = savedMeanwhile(change);
+      if (saved) {
+        return await rollBack(index, saved);
+      }
       try {
         await undo.record(change);
         await applyChange(change, log, effects, undo, expectedTexts);
