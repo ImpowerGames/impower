@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import vm from "node:vm";
 import { pathToFileURL } from "node:url";
-import { diagnosticFailures, lspHealth, validateScenario, previewRead, classifyRuntimeErrors, hostCrashes, pollUntil, scriptProvenance, stopDesktop, ensurePreviewVisible } from "./desktop.mjs";
+import { diagnosticFailures, lspHealth, validateScenario, previewRead, settledText, classifyRuntimeErrors, hostCrashes, pollUntil, scriptProvenance, stopDesktop, ensurePreviewVisible } from "./desktop.mjs";
 import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs";
 import { partitionConsole } from "../drive-web-editor/driver.mjs";
 import {
@@ -1783,6 +1783,49 @@ await check("desktop preview reads per-character story spans without inventing s
     assert.deepEqual(hits, [[5, 5]]);
   }
   finally { if (saved === undefined) delete globalThis.document; else globalThis.document = saved; }
+});
+
+await check("a desktop text button is the first copy a pointer reaches, never one an open layout covers", () => {
+  const saved = globalThis.document;
+  const element = (id, text, x, y) => ({ id, tagName: "DIV", textContent: text, getBoundingClientRect: () => ({ x, y, width: 20, height: 10 }), querySelector: () => null, closest: () => ({}), contains: other => other === element.all[id] || other?.parent === element.all[id] });
+  element.all = {};
+  const make = (...args) => (element.all[args[0]] = element(...args));
+  const player = make("player", "", 0, 0);
+  const page = make("page", "", 0, 0);
+  const boxChoice = make("box-choice", "Go on", 0, 100);
+  const pageOption = make("page-option", "Go on", 200, 300);
+  const pageLabel = { id: "", tagName: "SPAN", parent: pageOption };
+  const atPoint = { "10,105": page, "210,305": pageLabel };
+  const buttons = [boxChoice, pageOption];
+  const d = { defaultView: { getComputedStyle: () => ({ opacity: "1" }) }, querySelector: () => player, querySelectorAll: selector => selector === ".choice, button, [role=button]" ? buttons : [], elementFromPoint: (x, y) => atPoint[`${x},${y}`] ?? null, images: [], body: { innerText: "", className: "ready" } };
+  globalThis.document = { getElementById: () => ({ contentDocument: d }) };
+  try {
+    assert.deepEqual(previewRead({ textButton: "Go on" }).target, { x: 210, y: 305 }, "the page's own option, not the dialogue box's covered copy");
+    buttons.pop();
+    assert.equal(previewRead({ textButton: "Go on" }).target, null, "a covered copy alone is no control to click");
+  }
+  finally { if (saved === undefined) delete globalThis.document; else globalThis.document = saved; }
+});
+
+await check("a desktop step's text counts only once two readings in a row show it unchanged, so the next click never lands while a line is still typing", async () => {
+  const readings = [
+    { visible: true, text: "Go onGo on" },
+    { visible: true, text: "Go onGo onThe line" },
+    { visible: true, text: "Go onGo onThe line types out." },
+    { visible: true, text: "Go onGo onThe line types out." },
+  ];
+  let i = 0;
+  const shown = settledText(async () => readings[i++], "Go on");
+  assert.equal(await shown(), null, "a first reading has nothing to compare with");
+  assert.equal(await shown(), null, "the beat after the pick is still typing");
+  assert.equal(await shown(), null);
+  assert.equal(await shown(), readings[3]);
+  let hidden = 0;
+  const never = settledText(async () => (hidden++ % 2 ? { visible: false, text: "Go on" } : { visible: true, text: "Go on" }), "Go on");
+  for (let n = 0; n < 4; n++) assert.equal(await never(), null, "a hidden preview breaks the run of matching readings");
+  const missing = settledText(async () => ({ visible: true, text: "Elsewhere" }), "Go on");
+  assert.equal(await missing(), null);
+  assert.equal(await missing(), null, "a steady screen without the text is not the step's result");
 });
 
 await check("desktop polling fails on host exit or a request that never completes, and captures crashes", async () => {
