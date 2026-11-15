@@ -49,6 +49,7 @@ import { AspectRatioSettings } from "../preview-bar";
 import { SavesMenuButton } from "../preview-saves";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { useRef } from "preact/hooks";
+import { REPLAY_BEAT } from "@impower/spark-web-player/src/components/PlayerBar/replayBeat";
 import {
   skipRefusal,
   STEP_REASONS,
@@ -223,8 +224,6 @@ const step = (traversal: StepTraversal) =>
   void withWindow((window) => window.stepGame(traversal));
 
 const TOGGLE_BREAKPOINT = "Toggle breakpoint";
-
-const REPLAY_BEAT = "Replay beat";
 
 const NO_CARET_REASON =
   "Put the caret on a script line to toggle its breakpoint.";
