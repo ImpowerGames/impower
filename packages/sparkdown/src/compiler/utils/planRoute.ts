@@ -30,7 +30,6 @@ export interface RoutePlan {
   decisions: RouteOverride[];
   conditions: { selected: boolean }[];
   choices: RouteChoice[];
-  levelZero?: LevelZeroBound;
   fallback?: true;
   pins?: string;
 }
@@ -39,12 +38,6 @@ export interface RouteChoice {
   options: string[];
   selected: number;
   sources?: string[];
-}
-
-export interface LevelZeroBound {
-  startSteps: number;
-  steps: number;
-  nodes: number;
 }
 
 export type SearchState = string | ProgramImage;
@@ -94,6 +87,7 @@ export interface SearchNode {
   left: number;
   metPins: readonly string[];
   route: number;
+  work: number;
 }
 
 let lastRoute = 0;
@@ -102,12 +96,9 @@ const newRoute = (): number => (lastRoute += 1);
 export const faithfulBudget = {
   nodes: 4_096,
   steps: 150_000,
+  total: 600_000,
   timeoutMs: 20_000,
 };
-
-export const LEVEL_SHARE = 0.25;
-
-export const PIN_SHARE = 0.5;
 
 export const RUN_TURN_STEPS = 16_384;
 
@@ -150,12 +141,15 @@ export interface RouteStep {
   checkpoint?: number;
   spentSteps?: number;
   spentNodes?: number;
+  spentWork?: number;
+  spentDecided?: number;
 }
 
 export interface RouteCharge {
   steps: number;
   nodes: number;
-  levelZero?: LevelZeroBound;
+  work: number;
+  decided: number;
 }
 
 export interface RouteResumePoint {
@@ -174,18 +168,17 @@ export const routeChargeAt = (
   const step = route.steps[at];
   if (
     step?.spentSteps == null ||
-    step.spentNodes == null
+    step.spentNodes == null ||
+    step.spentWork == null ||
+    step.spentDecided == null
   ) {
     return null;
   }
-  const levelZero =
-    route.levelZero && route.levelZero.startSteps < step.spentSteps
-      ? route.levelZero
-      : undefined;
   return {
     steps: step.spentSteps,
     nodes: step.spentNodes,
-    ...(levelZero ? { levelZero } : {}),
+    work: step.spentWork,
+    decided: step.spentDecided,
   };
 };
 
@@ -330,17 +323,14 @@ export interface LevelZeroWork {
   readonly ends: ReadonlySet<number>;
   readonly pins: string;
   readonly queue: readonly (SearchNode | (() => SearchNode | null))[];
-  readonly departures: Tiers;
-  readonly tierBound: TierBound | null;
   readonly pinsMet: readonly string[];
   readonly cut: SearchCutReason | null;
   readonly stepsRemaining: number;
   readonly nodesRemaining: number;
+  readonly decided: number;
   readonly spentSteps: number;
-  readonly faithfulEnd: number | null;
   readonly msRemaining: number;
   readonly visited: ReadonlySet<string>;
-  readonly levelZero: LevelZeroBound | null;
   readonly nodesExpanded: number;
   readonly forkSitesSkipped: number;
   readonly errors: readonly SearchError[];
@@ -369,10 +359,9 @@ const levelZeroKey = (
     maxSteps,
     maxNodes,
     faithfulBudget.steps,
-    LEVEL_SHARE,
+    faithfulBudget.total,
     startPlanKey(options?.start),
     options?.pins?.key ?? "",
-    PIN_SHARE,
   ]);
 
 const traceStep = (trace: LevelZeroTrace, address: ProgramAddress) => {
@@ -500,6 +489,7 @@ export interface RunResult {
   choices: RouteChoice[];
   terminal: boolean;
   metPins?: readonly string[];
+  left: number;
 }
 
 export const DEFAULT_MAX_STEPS = 2_000_000;
@@ -524,14 +514,14 @@ interface SearchBudget {
   deadlineTime: number;
   cut: SearchCutReason | null;
   visited: Set<string>;
-  faithfulEnd: number | null;
+  decided: number;
   trace?: LevelZeroTrace;
 }
 
 const stepBudgetExhausted = (budget: SearchBudget): boolean => {
   if (
     budget.stepsRemaining <= 0 ||
-    (budget.faithfulEnd !== null && spentSteps(budget) >= budget.faithfulEnd)
+    budget.decided >= faithfulBudget.total
   ) {
     budget.cut ??= "max-steps";
     return true;
@@ -562,148 +552,85 @@ const notTakenKey = (notTaken: NotTaken): string =>
 
 interface Level {
   index: number;
-  bound: { startSteps: number; steps: number; nodes: number } | null;
   notTaken: Map<string, NotTaken>;
-  cutAt: SearchNode | null;
-  spent: boolean;
 }
 
 const newLevel = (index: number): Level => ({
   index,
-  bound: null,
   notTaken: new Map(),
-  cutAt: null,
-  spent: false,
 });
 
-type Tiers = Map<number, Map<number, QueueEntry[]>>;
-
-interface TierBound {
-  steps: number;
-  nodes: number;
+interface Candidate {
+  plan: RoutePlan;
+  left: number;
+  forced: number;
+  met: readonly string[];
 }
 
-const addDeparture = (
-  tiers: Tiers,
-  left: number,
-  forced: number,
-  entry: QueueEntry,
-): void => {
-  let tier = tiers.get(left);
-  if (!tier) {
-    tier = new Map();
-    tiers.set(left, tier);
+const nextLevelQueue = (level: Level): QueueEntry[] =>
+  [...level.notTaken.values()].reverse().map((notTaken) => notTaken.node);
+
+const decisionRank = (
+  decision: RouteOverride,
+  menu: RouteChoice | undefined,
+): number => {
+  if (decision.kind === "condition") {
+    return (decision.departs ? 2 : 0) + (decision.value ? 0 : 1);
   }
-  let queue = tier.get(forced);
-  if (!queue) {
-    queue = [];
-    tier.set(forced, queue);
-  }
-  queue.push(entry);
+  const index = menu?.sources?.indexOf(decision.value) ?? -1;
+  return index >= 0 ? index : (menu?.selected ?? 0);
 };
 
-const copyTiers = (tiers: Tiers): Tiers =>
-  new Map(
-    [...tiers].map(([left, tier]) => [
-      left,
-      new Map([...tier].map(([forced, queue]) => [forced, [...queue]])),
-    ]),
-  );
-
-const takeDepartures = (
-  tiers: Tiers,
-  left: number,
-  forced: number,
-): QueueEntry[] => {
-  const tier = tiers.get(left);
-  const queue = tier?.get(forced) ?? [];
-  tier?.delete(forced);
-  return queue;
-};
-
-const fewestForced = (tiers: Tiers, left: number): number | undefined => {
-  let fewest: number | undefined;
-  for (const forced of tiers.get(left)?.keys() ?? []) {
-    if (fewest === undefined || forced < fewest) {
-      fewest = forced;
+const firstDifference = (
+  a: readonly RouteOverride[],
+  aMenus: readonly RouteChoice[],
+  b: readonly RouteOverride[],
+  bMenus: readonly RouteChoice[],
+): number => {
+  let menus = 0;
+  const length = Math.min(a.length, b.length);
+  for (let i = 0; i < length; i += 1) {
+    const x = a[i]!;
+    const y = b[i]!;
+    if (x.site !== y.site) {
+      return x.site - y.site;
+    }
+    if (x.kind !== y.kind) {
+      return x.kind === "choice" ? -1 : 1;
+    }
+    const rank =
+      decisionRank(x, x.kind === "choice" ? aMenus[menus] : undefined) -
+      decisionRank(y, y.kind === "choice" ? bMenus[menus] : undefined);
+    if (rank !== 0) {
+      return rank;
+    }
+    if (x.value !== y.value) {
+      return String(x.value) < String(y.value) ? -1 : 1;
+    }
+    if (x.kind === "choice") {
+      menus += 1;
     }
   }
-  return fewest;
+  return 0;
 };
 
-const bindTier = (budget: SearchBudget): TierBound => {
-  const steps =
-    budget.faithfulEnd === null
-      ? Math.min(budget.stepsRemaining, faithfulBudget.steps)
-      : Math.min(
-          budget.stepsRemaining,
-          Math.max(0, budget.faithfulEnd - spentSteps(budget)),
-        );
-  return {
-    steps: spentSteps(budget) + Math.max(1, Math.floor(steps * PIN_SHARE)),
-    nodes:
-      spentNodes(budget) +
-      Math.max(1, Math.floor(budget.nodesRemaining * PIN_SHARE)),
-  };
-};
+const compareRoutes = (a: RoutePlan, b: RoutePlan): number =>
+  a.choices.length - b.choices.length ||
+  firstDifference(a.decisions, a.choices, b.decisions, b.choices) ||
+  a.decisions.length - b.decisions.length;
 
-const tierSpent = (bound: TierBound | null, budget: SearchBudget): boolean =>
-  bound !== null &&
-  (spentSteps(budget) >= bound.steps || spentNodes(budget) >= bound.nodes);
-
-const bindLevel = (level: Level, budget: SearchBudget): void => {
-  const stepsRemaining =
-    budget.faithfulEnd === null
-      ? budget.stepsRemaining
-      : Math.min(
-          budget.stepsRemaining,
-          Math.max(0, budget.faithfulEnd - spentSteps(budget)),
-        );
-  level.bound ??= {
-    startSteps: spentSteps(budget),
-    steps:
-      spentSteps(budget) +
-      Math.max(1, Math.floor(stepsRemaining * LEVEL_SHARE)),
-    nodes:
-      spentNodes(budget) +
-      Math.max(1, Math.floor(budget.nodesRemaining * LEVEL_SHARE)),
-  };
-};
-
-const bindLevelZero = (level: Level, budget: SearchBudget): void => {
-  if (level.bound) {
-    return;
-  }
-  if (budget.faithfulEnd == null) {
-    startFaithfulBudget(budget, spentSteps(budget));
-  }
-  bindLevel(level, budget);
-  const bound = level.bound!;
-  const faithfulEnd = budget.faithfulEnd!;
-  if (faithfulEnd <= spentSteps(budget) + budget.stepsRemaining) {
-    bound.steps = Math.max(bound.steps, faithfulEnd);
-  }
-};
-
-const nextLevelQueue = (
-  level: Level,
-  unexpanded: QueueEntry[],
-): QueueEntry[] => [
-  ...[...level.notTaken.values()].reverse().map((notTaken) => notTaken.node),
-  ...unexpanded,
-  ...(level.cutAt ? [level.cutAt] : []),
-];
-
-const levelSpent = (level: Level, budget: SearchBudget): boolean => {
-  if (
-    level.bound &&
-    (spentSteps(budget) >= level.bound.steps ||
-      spentNodes(budget) >= level.bound.nodes)
-  ) {
-    level.spent = true;
-    return true;
-  }
-  return false;
+const beatenBy = (node: SearchNode, best: RoutePlan): boolean => {
+  const menus = trailLength(node.choices);
+  return (
+    menus > best.choices.length ||
+    (menus === best.choices.length &&
+      firstDifference(
+        flattenTrail(node.decisions),
+        flattenTrail(node.choices),
+        best.decisions,
+        best.choices,
+      ) > 0)
+  );
 };
 
 const searchBudgetExhausted = (budget: SearchBudget): boolean => {
@@ -749,14 +676,6 @@ export interface SearchError {
   address: ProgramAddress | null;
 }
 
-const startFaithfulBudget = (budget: SearchBudget, startSteps: number) => {
-  budget.faithfulEnd = startSteps + faithfulBudget.steps;
-  budget.deadlineTime = Math.min(
-    budget.deadlineTime,
-    now() + faithfulBudget.timeoutMs,
-  );
-};
-
 const planRouteFaithful = (
   story: Story,
   from: string,
@@ -786,14 +705,11 @@ const planRouteFaithful = (
     nodesRemaining: maxNodes - prefixNodes,
     maxSteps,
     maxNodes,
-    deadlineTime: startTime + searchTimeout,
+    deadlineTime: startTime + Math.min(searchTimeout, faithfulBudget.timeoutMs),
     cut: null,
     visited: new Set(),
-    faithfulEnd: null,
+    decided: charge?.decided ?? 0,
   };
-  if (charge?.levelZero) {
-    startFaithfulBudget(budget, charge.levelZero.startSteps);
-  }
   const pinned = options?.pins ?? NO_PINS;
   const fromKnotName = from.split(".")[0] || undefined;
   const positions = storyPositions(story);
@@ -859,45 +775,65 @@ const planRouteFaithful = (
     story.onEvaluateCondition = NOOP;
 
     let level = newLevel(0);
-    if (charge?.levelZero) {
-      level.bound = { ...charge.levelZero };
-    }
     const levelZero = level;
     let queue: (QueueEntry | undefined)[] = start ? [start] : [];
     let head = 0;
-    let tier = 0;
-    let tiers: Tiers = new Map();
-    let tierBound: TierBound | null = null;
-    let tierCut = false;
     const pinsMet = new Set<string>(reuse?.pinsMet);
-    const meetPin = (key: string) => {
-      if (tier === 0) {
+    const meetPin = (key: string, left: number) => {
+      if (left === 0) {
         pinsMet.add(key);
       }
     };
-    let held: { plan: RoutePlan; forced: number } | null = null;
-    const depart = (left: number, forced: number, entry: QueueEntry) => {
-      tierBound ??= bindTier(budget);
-      addDeparture(tiers, left, forced, entry);
+    const pinKeys = [...pinned.offers].flatMap(([source, offers]) =>
+      [...offers].map((offer) => pinnedOfferKey(source, offer)),
+    );
+    const missed = (c: Candidate): number =>
+      [...pinsMet].filter((key) => !c.met.includes(key)).length;
+    const full = (c: Candidate): boolean => c.left === 0 && missed(c) === 0;
+    const complete = (c: Candidate): boolean =>
+      c.left === 0 && pinKeys.every((key) => c.met.includes(key));
+    const prunes = (c: Candidate, node: SearchNode): boolean =>
+      complete(c)
+        ? node.left > 0 || beatenBy(node, c.plan)
+        : node.left > 0 &&
+          (c.left === 0
+            ? node.forced >= c.forced
+            : c.left < node.left ||
+              (c.left === node.left && c.forced < node.forced));
+    const fewest = (list: Candidate[]): Candidate | null =>
+      list.reduce<Candidate | null>(
+        (min, c) =>
+          !min ||
+          (c.forced - min.forced || compareRoutes(c.plan, min.plan)) < 0
+            ? c
+            : min,
+        null,
+      );
+    const pick = (list: Candidate[]): Candidate | null => {
+      const followed = list.filter(full);
+      if (followed.length > 0) {
+        return fewest(followed);
+      }
+      const held = fewest(list.filter((c) => c.left === 0));
+      const departed = list.filter((c) => c.left > 0);
+      const tier = Math.min(...departed.map((c) => c.left));
+      const first = fewest(departed.filter((c) => c.left === tier));
+      return held && (!first || held.forced <= first.forced) ? held : first;
     };
     let stopped = false;
     if (reuse) {
       budget.stepsRemaining = reuse.stepsRemaining;
       budget.nodesRemaining = reuse.nodesRemaining;
-      budget.faithfulEnd = reuse.faithfulEnd;
+      budget.decided = reuse.decided;
       budget.deadlineTime = now() + reuse.msRemaining;
       budget.visited = new Set(reuse.visited);
       budget.cut = reuse.cut;
-      levelZero.bound = reuse.levelZero && { ...reuse.levelZero };
       lastSearchStats.nodesExpanded = reuse.nodesExpanded;
       lastSearchStats.forkSitesSkipped = reuse.forkSitesSkipped;
       lastSearchStats.errors = [...reuse.errors];
-      tiers = copyTiers(reuse.departures);
-      tierBound = reuse.tierBound && { ...reuse.tierBound };
       stopped = reuse.cut !== null;
       if (!stopped) {
         level = newLevel(1);
-        bindLevel(level, budget);
         queue = [...reuse.queue];
       }
     }
@@ -917,13 +853,12 @@ const planRouteFaithful = (
         return latest?.visit === visit ? latest.notTaken.node() : null;
       });
     };
+    let found: Candidate[] = [];
+    const candidates: Candidate[] = [];
+    let pinAware = false;
     while (!stopped) {
       while (head < queue.length) {
-        if (
-          searchBudgetExhausted(budget) ||
-          levelSpent(level, budget) ||
-          tierSpent(tierBound, budget)
-        ) {
+        if (searchBudgetExhausted(budget)) {
           break;
         }
 
@@ -936,7 +871,12 @@ const planRouteFaithful = (
           entry = queue.pop();
         }
         const node = typeof entry === "function" ? entry() : entry;
-        if (!node) {
+        if (
+          !node ||
+          candidates.some((c) =>
+            pinAware ? prunes(c, node) : beatenBy(node, c.plan),
+          )
+        ) {
           continue;
         }
         budget.nodesRemaining -= 1;
@@ -955,31 +895,26 @@ const planRouteFaithful = (
             level,
             defer,
             pinned,
-            depart,
-            () => tierBound,
             meetPin,
           );
 
           if (result.hitTarget) {
-            const found: RoutePlan = {
-              from,
-              to,
-              steps: result.steps,
-              decisions: result.decisions,
-              conditions: result.conditions,
-              choices: result.choices,
-              ...(levelZero.bound ? { levelZero: { ...levelZero.bound } } : {}),
+            const candidate: Candidate = {
+              plan: {
+                from,
+                to,
+                steps: result.steps,
+                decisions: result.decisions,
+                conditions: result.conditions,
+                choices: result.choices,
+              },
+              left: result.left,
+              forced: node.forced,
+              met: result.metPins ?? [],
             };
-            const met = result.metPins ?? [];
-            if (tier === 0 && [...pinsMet].some((key) => !met.includes(key))) {
-              held ??= { plan: found, forced: node.forced };
-              continue;
-            }
-            routePlan =
-              held && tier > 0 && held.forced <= node.forced
-                ? held.plan
-                : found;
-            break;
+            found.push(candidate);
+            candidates.push(candidate);
+            continue;
           }
 
           for (const b of result.branches) {
@@ -989,21 +924,40 @@ const planRouteFaithful = (
           nodeErrored = true;
         }
       }
-      if (routePlan) {
+      if (!pinAware && candidates.length > 0) {
+        const followed = fewest(candidates.filter(full));
+        if (followed) {
+          routePlan = followed.plan;
+          break;
+        }
+        pinAware = true;
+        budget.cut = null;
+        budget.stepsRemaining = maxSteps - prefixSteps;
+        budget.nodesRemaining = maxNodes - prefixNodes;
+        budget.decided = charge?.decided ?? 0;
+        budget.deadlineTime =
+          now() + Math.min(searchTimeout, faithfulBudget.timeoutMs);
+        budget.visited = new Set();
+        budget.trace = undefined;
+        pinsMet.clear();
+        joining.clear();
+        candidates.length = 0;
+        found = [];
+        level = newLevel(0);
+        queue = [
+          options?.resumeFrom
+            ? makeResumeNode(options.resumeFrom)
+            : makeStartNode(story, from, port, options?.start),
+        ];
+        head = 0;
+        continue;
+      }
+      if (found.some(full) || (budget.cut && candidates.length > 0)) {
+        routePlan = pick(candidates)!.plan;
         break;
       }
-      if (charge && level === levelZero && level.spent) {
-        break;
-      }
-      const spentTier = tierSpent(tierBound, budget);
-      const next =
-        budget.cut || spentTier
-          ? []
-          : nextLevelQueue(
-              level,
-              queue.slice(head).filter((n): n is QueueEntry => !!n),
-            );
-      if (store && budget.trace && level === levelZero && !held) {
+      const next = budget.cut ? [] : nextLevelQueue(level);
+      if (store && budget.trace && level === levelZero && !found.length) {
         const trace = budget.trace;
         budget.trace = undefined;
         store.keep({
@@ -1015,65 +969,35 @@ const planRouteFaithful = (
           ends: trace.ends,
           pins: pinned.key,
           queue: [...next],
-          departures: copyTiers(tiers),
-          tierBound: tierBound && { ...tierBound },
           pinsMet: [...pinsMet],
           cut: budget.cut,
           stepsRemaining: budget.stepsRemaining,
           nodesRemaining: budget.nodesRemaining,
+          decided: budget.decided,
           spentSteps: spentSteps(budget),
-          faithfulEnd: budget.faithfulEnd,
           msRemaining: budget.deadlineTime - now(),
           visited: new Set(budget.visited),
-          levelZero: levelZero.bound && { ...levelZero.bound },
           nodesExpanded: lastSearchStats.nodesExpanded,
           forkSitesSkipped: lastSearchStats.forkSitesSkipped,
           errors: [...lastSearchStats.errors],
           nodeErrored,
         });
       }
-      if (budget.cut) {
+      if (budget.cut || !next.length) {
         break;
       }
-      let index = level.index + 1;
-      let queued = spentTier
-        ? []
-        : [...next, ...takeDepartures(tiers, tier, index)];
-      const fewest = spentTier ? undefined : fewestForced(tiers, tier);
-      if (!queued.length && fewest !== undefined) {
-        index = fewest;
-        queued = takeDepartures(tiers, tier, fewest);
-      }
-      if (!queued.length) {
-        tierCut ||= spentTier;
-        tiers.delete(tier);
-        tier += 1;
-        tierBound = null;
-        const first = fewestForced(tiers, tier);
-        if (first === undefined) {
-          break;
-        }
-        index = first;
-        queued = takeDepartures(tiers, tier, first);
-      }
-      if (held && tier > 0 && index >= held.forced) {
-        break;
-      }
-      level = newLevel(index);
-      if (index > 0) {
-        bindLevel(level, budget);
-      }
-      queue = queued;
+      level = newLevel(level.index + 1);
+      queue = next;
       head = 0;
+      found = [];
     }
-    routePlan ??= held?.plan ?? null;
+    routePlan ??= pick(candidates)?.plan ?? null;
 
     lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
-    lastSearchStats.exhaustedBudget = budget.cut !== null || tierCut;
+    lastSearchStats.exhaustedBudget = budget.cut !== null;
     lastSearchStats.endReason = routePlan
       ? "found"
-      : (budget.cut ??
-        (tierCut ? "max-steps" : nodeErrored ? "errored" : "exhausted"));
+      : (budget.cut ?? (nodeErrored ? "errored" : "exhausted"));
   } finally {
     try {
       if (!routePlan || !options?.callerResetsStory) {
@@ -1137,9 +1061,7 @@ const runUntilDecisionOrBranch = (
   level: Level,
   defer: (forced: number, notTaken: NotTaken) => void,
   pinned: PinnedOptions,
-  depart: (left: number, forced: number, entry: QueueEntry) => void,
-  tierBound: () => TierBound | null,
-  meetPin: (key: string) => void,
+  meetPin: (key: string, left: number) => void,
 ): RunResult => {
   port.restore(node.state);
   story.state.ResetErrors();
@@ -1163,22 +1085,36 @@ const runUntilDecisionOrBranch = (
   let seq = node.seq;
   const stepsEncountered: RouteStep[] = [];
 
+  let work = node.work;
   const charge = (steps: number) => {
     budget.stepsRemaining -= steps;
+    if (work >= 0) {
+      work += steps;
+      budget.decided += steps;
+    }
+  };
+  const decide = () => {
+    if (work < 0) {
+      work = 0;
+      turnEnd = RUN_TURN_STEPS;
+    }
   };
 
   type Mark = {
     steps: number;
     decisions: number;
     conditions: number;
+    work: number;
   };
   const mark = (): Mark => ({
     steps: stepsEncountered.length,
     decisions: runDecisions.length,
     conditions: runConditions.length,
+    work,
   });
 
   let metPins = node.metPins;
+  let left = node.left;
 
   const nodeAt = (
     state: SearchState,
@@ -1186,7 +1122,7 @@ const runUntilDecisionOrBranch = (
     overrides: RouteOverride[],
     add?: RouteOverride,
     choice?: RouteChoice,
-    left = node.left,
+    leftAt = left,
     met = metPins,
   ): SearchNode => {
     let decisions = extendTrail(node.decisions, runDecisions, at.decisions);
@@ -1210,9 +1146,10 @@ const runUntilDecisionOrBranch = (
       choices,
       overrides,
       forced: node.forced + (add?.kind === "condition" && add.departs ? 1 : 0),
-      left,
+      left: leftAt,
       metPins: met,
       route: add ? newRoute() : node.route,
+      work: add?.kind === "condition" && add.departs ? 0 : at.work,
     };
   };
   let pending = node.overrides;
@@ -1220,26 +1157,18 @@ const runUntilDecisionOrBranch = (
   if (budget.trace) {
     budget.trace.last = -1;
   }
-  const turnEnd =
-    (Math.floor(spentSteps(budget) / RUN_TURN_STEPS) + 1) * RUN_TURN_STEPS;
-  let lastFork = { state: node.state, at: mark(), overrides: node.overrides };
+  let turnEnd =
+    work < 0
+      ? Infinity
+      : (Math.floor(work / RUN_TURN_STEPS) + 1) * RUN_TURN_STEPS;
 
   try {
     while (true) {
-      if (stepBudgetExhausted(budget)) {
+      if (stepBudgetExhausted(budget) || work >= faithfulBudget.steps) {
         terminal = true;
         break;
       }
-      if (levelSpent(level, budget)) {
-        level.cutAt = nodeAt(port.fork().state, mark(), pending);
-        terminal = true;
-        break;
-      }
-      if (tierSpent(tierBound(), budget)) {
-        terminal = true;
-        break;
-      }
-      if (spentSteps(budget) >= turnEnd) {
+      if (work >= turnEnd) {
         branches.push(nodeAt(port.fork().state, mark(), pending));
         terminal = true;
         break;
@@ -1266,6 +1195,8 @@ const runUntilDecisionOrBranch = (
                   seq,
                   spentSteps: again?.spentSteps ?? spentSteps(budget),
                   spentNodes: again?.spentNodes ?? spentNodes(budget),
+                  spentWork: again?.spentWork ?? work,
+                  spentDecided: again?.spentDecided ?? budget.decided,
                 }
               : { decision: decisionCount() - 1, address: previous, seq },
           );
@@ -1291,6 +1222,7 @@ const runUntilDecisionOrBranch = (
           }
         } else {
           stepsEncountered.pop();
+          decide();
           const fork = port.fork();
           const forkState = fork.state;
           if (!claimForkSite(budget, site, fork.key)) {
@@ -1302,7 +1234,7 @@ const runUntilDecisionOrBranch = (
           const at = mark();
           const forkChoice = (
             selected: number,
-            left = node.left,
+            leftAt = left,
             met = metPins,
           ) => {
             const ov: ChoiceOverride = {
@@ -1316,7 +1248,7 @@ const runUntilDecisionOrBranch = (
               [ov],
               ov,
               { options, selected, sources },
-              left,
+              leftAt,
               met,
             );
           };
@@ -1331,17 +1263,11 @@ const runUntilDecisionOrBranch = (
             const taken = pinnedHere[0]!;
             const source = sources[taken]!;
             const meeting = pinnedOfferKey(source, (counts!.get(source) ?? 0) + 1);
-            meetPin(meeting);
+            meetPin(meeting, left);
             const met = [...metPins, meeting];
-            branches.push(forkChoice(taken, node.left, met));
             for (let i = 0; i < sources.length; i++) {
-              if (i !== taken) {
-                depart(node.left + 1, node.forced, () =>
-                  forkChoice(i, node.left + 1, met),
-                );
-              }
+              branches.push(forkChoice(i, i === taken ? left : left + 1, met));
             }
-            terminal = true;
             break;
           }
           for (let i = 0; i < story.currentChoices.length; i++) {
@@ -1367,19 +1293,16 @@ const runUntilDecisionOrBranch = (
       story.pauseBeforeEvaluatingConditions = true;
 
       const stepsBefore = story.stepCount;
-      let allowed = level.bound
-        ? Math.max(0, level.bound.steps - spentSteps(budget))
-        : budget.stepsRemaining;
-      if (budget.faithfulEnd !== null) {
-        allowed = Math.min(
-          allowed,
-          Math.max(0, budget.faithfulEnd - spentSteps(budget)),
-        );
-      }
-      const tier = tierBound();
-      if (tier) {
-        allowed = Math.min(allowed, Math.max(0, tier.steps - spentSteps(budget)));
-      }
+      const allowed = Math.max(
+        0,
+        work < 0
+          ? budget.stepsRemaining
+          : Math.min(
+              budget.stepsRemaining,
+              faithfulBudget.steps - work,
+              faithfulBudget.total - budget.decided,
+            ),
+      );
       story.stepLimit = stepsBefore + 1 + allowed;
       let stopped = false;
       try {
@@ -1394,16 +1317,13 @@ const runUntilDecisionOrBranch = (
         charge(Math.max(0, story.stepCount - stepsBefore - 1));
       }
       if (stopped) {
-        if (stepBudgetExhausted(budget)) {
-        } else if (levelSpent(level, budget)) {
-          level.cutAt = nodeAt(lastFork.state, lastFork.at, lastFork.overrides);
-        }
         terminal = true;
         break;
       }
       pending = [];
 
       if (story.pausedBeforeCondition !== null) {
+        decide();
         const site = story.pausedBeforeCondition;
         const natural = story.pausedConditionValue;
         putBack = stepsEncountered.pop();
@@ -1428,63 +1348,11 @@ const runUntilDecisionOrBranch = (
             )
           ) {
             gate = pinnedOfferKey(String(site), count + 1);
-            meetPin(gate);
+            meetPin(gate, left);
           }
         }
         const gateMet = gate ? [...metPins, gate] : metPins;
-        if (gate && natural !== true) {
-          if (level.index === 0) {
-            bindLevelZero(level, budget);
-          }
-          const at = mark();
-          const keep: ConditionOverride =
-            natural === false
-              ? { kind: "condition", site, value: true, departs: true }
-              : { kind: "condition", site, value: true };
-          if (natural === false) {
-            defer(node.forced + 1, {
-              site,
-              route: node.route,
-              node: () =>
-                nodeAt(
-                  fork.state,
-                  at,
-                  [keep],
-                  keep,
-                  undefined,
-                  node.left,
-                  gateMet,
-                ),
-            });
-          } else {
-            branches.push(
-              nodeAt(fork.state, at, [keep], keep, undefined, node.left, gateMet),
-            );
-          }
-          const leave: ConditionOverride = {
-            kind: "condition",
-            site,
-            value: false,
-          };
-          depart(node.left + 1, node.forced, () =>
-            nodeAt(
-              fork.state,
-              at,
-              [leave],
-              leave,
-              undefined,
-              node.left + 1,
-              gateMet,
-            ),
-          );
-          terminal = true;
-          break;
-        }
-
         if (natural !== null) {
-          if (level.index === 0) {
-            bindLevelZero(level, budget);
-          }
           const at = mark();
           const other: ConditionOverride = {
             kind: "condition",
@@ -1492,28 +1360,13 @@ const runUntilDecisionOrBranch = (
             value: !natural,
             departs: true,
           };
-          if (gate) {
-            depart(node.left + 1, node.forced + 1, () =>
-              nodeAt(
-                fork.state,
-                at,
-                [other],
-                other,
-                undefined,
-                node.left + 1,
-                gateMet,
-              ),
-            );
-            metPins = gateMet;
-          } else {
-            const met = metPins;
-            defer(node.forced + 1, {
-              site,
-              route: node.route,
-              node: () =>
-                nodeAt(fork.state, at, [other], other, undefined, node.left, met),
-            });
-          }
+          const otherLeft = gate && natural ? left + 1 : left;
+          defer(node.forced + 1, {
+            site,
+            route: node.route,
+            node: () =>
+              nodeAt(fork.state, at, [other], other, undefined, otherLeft, gateMet),
+          });
           const ov: ConditionOverride = {
             kind: "condition",
             site,
@@ -1523,14 +1376,19 @@ const runUntilDecisionOrBranch = (
           runConditions.push({ selected: natural });
           simulator.add(ov);
           pending = [ov];
-          lastFork = { state: fork.state, at: mark(), overrides: pending };
+          metPins = gateMet;
+          if (gate && !natural) {
+            left += 1;
+          }
           continue;
         }
 
         const at = mark();
         for (const value of [true, false]) {
           const ov: ConditionOverride = { kind: "condition", site, value, open: true };
-          branches.push(nodeAt(fork.state, at, [ov], ov));
+          branches.push(
+            nodeAt(fork.state, at, [ov], ov, undefined, gate && !value ? left + 1 : left, gateMet),
+          );
         }
         break;
       }
@@ -1558,6 +1416,7 @@ const runUntilDecisionOrBranch = (
       : { steps: [], decisions: [], conditions: [], choices: [] }),
     terminal,
     metPins,
+    left,
   };
 };
 
@@ -1584,6 +1443,7 @@ const makeStartNode = (
     left: 0,
     metPins: [],
     route: newRoute(),
+    work: -1,
   };
 };
 
@@ -1616,6 +1476,10 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => {
     left: 0,
     metPins: [],
     route: newRoute(),
+    work:
+      resumeFrom.charge === undefined || resumeFrom.charge.work < 0
+        ? -1
+        : Math.max(0, resumeFrom.charge.work - 1),
   };
 };
 

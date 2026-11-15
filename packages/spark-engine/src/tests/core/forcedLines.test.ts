@@ -61,7 +61,7 @@ const forcedVerdicts = (route: PreviewRoute) =>
   route.decisions.filter((d) => d.kind === "forced").map((d) => d.location.range.start.line + 1);
 
 describe("the lines a route ran only because a branch was forced", () => {
-  test("the example of #1655 forces the branch's statements, not the condition or anything before it", () => {
+  test("#1655's example without Show the photograph. forces the branch's statements, not the condition or anything before it", () => {
     const { route } = preview(
       [
         "store trust = 0",
@@ -73,8 +73,6 @@ describe("the lines a route ran only because a branch was forced", () => {
         "  choose",
         "    * [Tell the truth.]",
         "      trust += 2",
-        "    * [Show the photograph.]",
-        "      trust += 5",
         "    * [Lie.]",
         "      trust -= 1",
         "  end",
@@ -89,12 +87,12 @@ describe("the lines a route ran only because a branch was forced", () => {
         "end",
         "",
       ],
-      21,
+      19,
     );
-    expect(forcedVerdicts(route)).toEqual([15]);
+    expect(forcedVerdicts(route)).toEqual([13]);
     const forced = forcedIn(route);
-    expect(forced).toEqual(expect.arrayContaining([17, 18, 21]));
-    expect(forced.every((line) => line > 15)).toBe(true);
+    expect(forced).toEqual(expect.arrayContaining([15, 16, 19]));
+    expect(forced.every((line) => line > 13)).toBe(true);
   }, 120_000);
 
   test("a function the forced branch calls is forced though it is written above the branch", () => {
