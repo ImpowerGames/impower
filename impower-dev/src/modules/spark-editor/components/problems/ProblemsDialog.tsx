@@ -7,6 +7,7 @@ import {
   MessageEntry,
   VirtualList,
 } from "@impower/impower-ui/components";
+import { isCommandAction } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
 import { useComputed } from "@preact/signals";
 import { useMemo, useRef } from "preact/hooks";
 import {
@@ -97,7 +98,7 @@ export default function ProblemsDialog() {
 
   const chooseFix = (problem: Problem, action: DiagnosticFixAction) => {
     const root = list.current;
-    if (root) {
+    if (root && !isCommandAction(action)) {
       keepFocusAfterFix(
         root,
         problem,
