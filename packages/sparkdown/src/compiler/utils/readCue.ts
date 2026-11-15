@@ -22,9 +22,13 @@ const DEFINE_NAME = `(?!${LUAU_KEYWORD})[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]+)
 
 const END_OF_CUE = `(?:$|${WS}*$|${WS}*[#]+(?=$|${WS}).*$)`;
 
+const CUE_TAIL = `(${WS}*)(${WS}[(][^()\\r\\n]*?[)])?($|${WS}*)(${WS}\\[.*?\\])?`;
+
 const CUE = new RegExp(
-  `^(${WS}*)(.*?)(?:(${WS}+)(as)(${WS}+)(${DEFINE_NAME}))?(${WS}*)(${WS}[(][^()\\r\\n]*?[)])?($|${WS}*)(${WS}\\[.*?\\])?(${END_OF_CUE})$`,
+  `^(${WS}*)(.*?)(?:(${WS}+)(as)(${WS}+)(${DEFINE_NAME}))?${CUE_TAIL}(${END_OF_CUE})$`,
 );
+
+const ONLY_CUE_TAIL = new RegExp(`^${CUE_TAIL}${WS}*$`);
 
 const PARENTHETICAL = new RegExp(`^(${WS})([(]${WS}*[^()\\r\\n]*?${WS}*[)])`);
 
@@ -41,10 +45,12 @@ const part = (text: string, from: number): CuePart => ({ text, from, to: from + 
 export function readSpeakerBeingWritten(
   before: string,
   after: string,
-): { name: string; typed: string; rest: string } | undefined {
+): { name: string; typed: string; rest: string; tail: string; endsCue: boolean } | undefined {
   const match = SPEAKER_BEING_WRITTEN.exec(before);
   if (!match) return undefined;
-  return { name: match[1]!, typed: match[2]!, rest: SPEAKER_REST.exec(after)![0] };
+  const rest = SPEAKER_REST.exec(after)![0];
+  const tail = after.slice(rest.length);
+  return { name: match[1]!, typed: match[2]!, rest, tail, endsCue: ONLY_CUE_TAIL.test(tail) };
 }
 
 export function readCue(cue: string): CueReading {

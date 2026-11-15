@@ -118,6 +118,9 @@ describe("the speaker a cue names with `as` in the editor (#2283)", () => {
   test.each([
     ["a speaker ending in `@`", "  ??? as raffles@@1\n", "@", "raffles@shy", "  ??? as raffles@shy: "],
     ["the cursor inside the speaker", "  ??? as r@1affles\n", undefined, "raffles", "  ??? as raffles: "],
+    ["a parenthetical after the speaker", "  ??? as r@1affles (O.S.)\n", undefined, "raffles", "  ??? as raffles (O.S.): "],
+    ["a position after the speaker", "  ??? as r@1affles [<]\n", undefined, "raffles", "  ??? as raffles [<]: "],
+    ["a parenthetical and a position after the speaker", "  ??? as r@1affles (O.S.) [<] \n", undefined, "raffles", "  ??? as raffles (O.S.) [<]: "],
   ])("completion on a cue being typed with %s replaces the whole speaker and adds the colon", (_label, cue, trigger, label, accepted) => {
     const source = `define raffles@shy as character with\nend\n\n${SOURCE}`;
     const marked = source.replace("  ??? as raffles:\n    You don't remember me?\n", cue);
@@ -128,6 +131,11 @@ describe("the speaker a cue names with `as` in the editor (#2283)", () => {
     const written = marked.split("\n")[line]!.replace("@1", "");
     const { start, end } = item.textEdit.range;
     expect(written.slice(0, start.character) + item.textEdit.newText + written.slice(end.character)).toBe(accepted);
+  });
+
+  test("a cue being typed with text after the speaker that is no parenthetical or position is offered no character define names", () => {
+    const at = complete(SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  ??? as r@1affles today\n"), { program });
+    expect(characterLabels(at.labels)).toEqual([]);
   });
 
   test("a line of prose with the cursor inside a word after `as` is offered no character define names", () => {

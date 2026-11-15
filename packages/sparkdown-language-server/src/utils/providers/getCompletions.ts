@@ -2599,13 +2599,11 @@ const completionsAt = (
           read(contentNode.from, documentCursorOffset).trimStart(),
           read(documentCursorOffset, contentNode.to),
         );
-      const speakerEndsLine =
-        contentNode &&
-        written &&
-        !read(documentCursorOffset + written.rest.length, contentNode.to).trim()
+      const speakerEndsCue =
+        written && written.endsCue
           ? cueBeingTyped(written.name, program)
           : false;
-      if (speakerEndsLine || isCursorAfterNodeText(contentNode)) {
+      if (speakerEndsCue || isCursorAfterNodeText(contentNode)) {
         if (text === "@") {
           addScreenElementReferenceCompletions(
             completions,
@@ -2620,15 +2618,15 @@ const completionsAt = (
           addSnippet(completions, "heading", "$:", ": ");
         } else if (text === "%") {
           addSnippet(completions, "transitional", "%:", ": ");
-        } else if (written && speakerEndsLine) {
+        } else if (written && speakerEndsCue) {
           addSpeakerCompletions(
             completions,
             program,
             document.range(
               documentCursorOffset - written.typed.length,
-              documentCursorOffset + written.rest.length,
+              documentCursorOffset + written.rest.length + written.tail.length,
             ),
-            ": ",
+            `${written.tail.trimEnd()}: `,
           );
         } else {
           addCharacterCompletions(
