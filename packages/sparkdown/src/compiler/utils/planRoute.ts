@@ -855,6 +855,7 @@ const planRouteFaithful = (
     };
     let found: Candidate[] = [];
     const candidates: Candidate[] = [];
+    let unaware: Candidate[] = [];
     let pinAware = false;
     let tier = 0;
     const waiting = new Map<number, SearchNode[]>();
@@ -961,7 +962,7 @@ const planRouteFaithful = (
         budget.trace = undefined;
         pinsMet.clear();
         joining.clear();
-        candidates.length = 0;
+        unaware = candidates.splice(0);
         found = [];
         level = newLevel(0);
         queue = [
@@ -1011,7 +1012,7 @@ const planRouteFaithful = (
       head = 0;
       found = [];
     }
-    routePlan ??= pick(candidates)?.plan ?? null;
+    routePlan ??= pick(candidates)?.plan ?? pick(unaware)?.plan ?? null;
 
     lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
     lastSearchStats.exhaustedBudget = budget.cut !== null;
