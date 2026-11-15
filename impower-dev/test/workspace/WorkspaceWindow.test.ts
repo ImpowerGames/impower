@@ -21,6 +21,7 @@ import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/startScene";
+import { OUTSIDE_EVERY_SCENE_REFUSAL } from "@impower/spark-web-player/src/main/workers/messages/PlayMessage";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { programSummary } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1814,6 +1815,23 @@ describe("PLAY for a story with no start scene", () => {
     expect(game().running).toBeFalsy();
 
     compiled(STORY);
+    expect(play()?.getAttribute("aria-disabled")).toBeNull();
+    expect(play()?.getAttribute("title")).toBe("Play From Here");
+  });
+
+  it("disables PLAY with the player's reason while the caret's line is outside every scene", async () => {
+    compiled(STORY);
+    win.connectPlayer();
+    win.syncStartRefusal(OUTSIDE_EVERY_SCENE_REFUSAL);
+    expect(play()?.getAttribute("aria-disabled")).toBe("true");
+    expect(play()?.getAttribute("title")).toBe(OUTSIDE_EVERY_SCENE_REFUSAL);
+    play()!.click();
+    win.toggleGameRunning();
+    await Promise.resolve();
+    expect(started).toEqual([]);
+    expect(game().starting).toBeFalsy();
+
+    win.syncStartRefusal(null);
     expect(play()?.getAttribute("aria-disabled")).toBeNull();
     expect(play()?.getAttribute("title")).toBe("Play From Here");
   });

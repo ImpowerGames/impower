@@ -29,7 +29,10 @@ const withWorkspace = async (
 
 export default function PhonePreviewStrip() {
   const snapshot = workspace.previewLine.value;
-  const copy = stripCopy(snapshot?.preview);
+  const game = workspace.state.value.preview?.modes?.game;
+  const startRefused =
+    !game?.running && !game?.starting && !!game?.startRefusal;
+  const copy = stripCopy(snapshot?.preview, startRefused);
   const expanded = !!workspace.state.value.preview?.revealed;
   const problem = snapshot
     ? worstProblemOn(problems.problems.value, snapshot.uri, snapshot.line)

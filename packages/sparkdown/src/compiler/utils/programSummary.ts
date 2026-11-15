@@ -15,6 +15,7 @@ export const programSummary = (
   summary: true,
   runnable,
   playRefusal: playRefusalOf(program),
+  sceneSpans: program.sceneSpans,
   frontMatter: program.frontMatter,
 });
 
