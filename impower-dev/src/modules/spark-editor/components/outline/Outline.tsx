@@ -1,11 +1,13 @@
 import {
   Button,
   ErrorIcon,
+  InfoIcon,
   SearchIcon,
   VirtualList,
   WarningIcon,
 } from "@impower/impower-ui/components";
 import type { ComponentChildren } from "preact";
+import { worstProblem } from "@impower/codemirror-vscode-lsp-client/src/symbolProblems";
 import { projectPath } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 import workspace from "../../workspace/WorkspaceStore";
@@ -111,10 +113,12 @@ export default function Outline() {
               problems.showProblems(() => trigger, projectPath(uri));
             }}
           >
-            {model.problems.errors ? (
+            {worstProblem(model.problems) === "error" ? (
               <ErrorIcon class="text-error" />
-            ) : (
+            ) : worstProblem(model.problems) === "warning" ? (
               <WarningIcon class="text-warning" />
+            ) : (
+              <InfoIcon class="text-muted" />
             )}
           </Button>
         </div>
