@@ -1679,6 +1679,58 @@ describe("renaming many files in one request (I-2242)", () => {
     expect(sequenceWrites(root) - before).toBeLessThan(40);
   });
 
+  it("leaves the file where it was when reading it for the move fails", async () => {
+    const root = seed({ "Crowd/a.png": [1, 2, 3] }, ["Cast"]);
+    const source = fileAt(root, "Crowd/a.png")!;
+    const h = await worker(root);
+    await h.enumerate();
+    source.getFile = async () => {
+      throw new DOMException("a.png could not be read", "NotReadableError");
+    };
+    const from = h.messages.length;
+    const response = await h.request("rename", "workspace/willRenameFiles", {
+      files: [{ oldUri: uriOf("Crowd/a.png"), newUri: uriOf("Cast/a.png") }],
+    });
+    expect(response.error.message).toContain("a.png could not be read");
+    expect(listMemory(root, "local")).toEqual(["Cast/", "Crowd/", "Crowd/a.png"]);
+    expect(h.notifications("workspace/didRenameFiles", from)).toEqual([]);
+  });
+
+  it("announces a stored move when the shared sequence refuses to number it", async () => {
+    const root = seed({ "Crowd/a.png": [1, 2, 3] }, ["Cast"]);
+    const h = await worker(root);
+    await h.enumerate();
+    const locks = (navigator as any).locks;
+    const request = locks.request.bind(locks);
+    let refusals = 2;
+    locks.request = (name: string, ...rest: unknown[]) =>
+      name === "opfs-workspace:sequence" && refusals-- > 0
+        ? Promise.reject(new DOMException("The lock request was aborted", "AbortError"))
+        : request(name, ...rest);
+    const from = h.messages.length;
+    const response = await h.request("rename", "workspace/willRenameFiles", {
+      files: [{ oldUri: uriOf("Crowd/a.png"), newUri: uriOf("Cast/a.png") }],
+    });
+    expect(refusals).toBeLessThan(1);
+    expect(response.result).toMatchObject([{ uri: uriOf("Cast/a.png"), size: 3 }]);
+    expect(listMemory(root, "local")).toEqual(["Cast/", "Cast/a.png", "Crowd/"]);
+    const announced = h.messages.slice(from);
+    const gone = announced.flatMap((m: any) =>
+      m.method === "workspace/didDeleteFiles"
+        ? m.params.files.map((f: any) => f.uri)
+        : m.method === "workspace/didRenameFiles"
+          ? m.params.files.map((f: any) => f.oldUri)
+          : [],
+    );
+    const written = announced.flatMap((m: any) =>
+      m.method === "workspace/didWriteFiles" ? m.params.files.map((f: any) => f.uri) : [],
+    );
+    expect(gone).toContain(uriOf("Crowd/a.png"));
+    expect(written).toContain(uriOf("Cast/a.png"));
+    expect(await h.cached("Crowd/a.png")).toBeUndefined();
+    expect(await h.cached("Cast/a.png")).toMatchObject({ size: 3 });
+  });
+
   it("leaves nothing at the destination when storage refuses to move a locked file", async () => {
     const root = seed({ "Crowd/a.png": [1, 2, 3] }, ["Cast"]);
     const crowd = (root.entries.get("local") as MemoryDirectory).entries.get("Crowd") as MemoryDirectory;

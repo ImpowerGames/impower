@@ -2744,21 +2744,23 @@ const renameStoredFile = async (
       await navigator.storage.getDirectory(),
       getParentPath(destinationPath),
     );
-    await source.move(directory, getFileName(destinationPath));
     const stored = await source.getFile();
     const buffer = needsTextAtEnumeration(destinationUri)
       ? await stored.arrayBuffer()
       : undefined;
     const root = await commitSequenceRoot();
+    const allocate = () =>
+      allocateCommit(root, State.writer, State.clock).catch(() => undefined);
+    await source.move(directory, getFileName(destinationPath));
     const written = withAncestors(destinationUri);
-    const writeCommit = await allocateCommit(root, State.writer, State.clock);
+    const writeCommit = await allocate();
     if (writeCommit) {
       for (const uri of written) {
         acceptCommit(uri, writeCommit);
       }
     }
     const writeLocal = touch(written);
-    const removeCommit = await allocateCommit(root, State.writer, State.clock);
+    const removeCommit = await allocate();
     if (removeCommit) {
       acceptCommit(sourceUri, removeCommit);
     }

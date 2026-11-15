@@ -41,7 +41,17 @@ export abstract class MessageConnection {
     const handlers = this._awaiting.get(message.id);
     if (handlers) {
       for (const handler of [...handlers]) {
-        handler(e);
+        try {
+          handler(e);
+        } catch (error) {
+          if (typeof globalThis.reportError === "function") {
+            globalThis.reportError(error);
+          } else {
+            queueMicrotask(() => {
+              throw error;
+            });
+          }
+        }
       }
     }
   };

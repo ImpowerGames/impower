@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MessageConnection } from "../src/browser/classes/MessageConnection";
 import type { RequestMessage } from "../src/common/types/RequestMessage";
 
@@ -50,6 +50,29 @@ describe("waiting on many requests at once (I-2242)", () => {
 
     expect(await Promise.all(pending)).toEqual(messages.map((message) => message.method));
     expect(connection.listenerCount).toBe(0);
+  });
+
+  it("still delivers a reply to every request waiting on its id when one of their handlers throws, and reports the error", async () => {
+    const reported: unknown[] = [];
+    vi.stubGlobal("reportError", (error: unknown) => reported.push(error));
+    try {
+      const connection = new SilentConnection();
+      const message = requestMessage("test/shared-id");
+      const thrown = new Error("progress handler failed");
+      const progress: unknown[] = [];
+      const first = connection.request(message, undefined, () => {
+        throw thrown;
+      });
+      const second = connection.request(message, undefined, (value) => progress.push(value));
+      connection.receive({ jsonrpc: "2.0", method: `${message.method}/progress`, id: message.id, value: { percentage: 50 } });
+      expect(progress).toEqual([{ percentage: 50 }]);
+      expect(reported).toEqual([thrown]);
+      connection.receive({ jsonrpc: "2.0", method: message.method, id: message.id, result: "done" });
+      expect(await first).toBe("done");
+      expect(await second).toBe("done");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("leaves a request waiting when another request's answer arrives", async () => {
