@@ -213,6 +213,27 @@ describe("Assets page parts against the Folio prototype (I-2415)", () => {
   });
 
   it.each([
+    ["inset", "the writing tools head", { size: "default", titleSize: "md" }, true, 62],
+    ["open", "the inspector head", { size: "tall", titleSize: "sm", class: "px-2 py-0" }, true, 58],
+    ["flush", "the search rail head", { size: "compact", edge: false, titleSize: "sm", class: "pr-1 pl-3.5" }, false, 14],
+  ] as const)("N7: PanelHead spacing %s puts %s's title where the prototype's is", async (spacing, _head, props, start, titleX) => {
+    const measured = await inChromium(
+      h(ui.PanelHead, {
+        ...props,
+        spacing,
+        title: "Search",
+        start: start ? h(ui.Button, { variant: "quiet", size: "icon", "aria-label": "Close" }, h(ui.CloseIcon, {})) : undefined,
+      }),
+      { width: 1440 },
+      () => {
+        const head = document.querySelector("[data-panel-head]")!.getBoundingClientRect();
+        return document.querySelector("[data-panel-head] h2")!.getBoundingClientRect().x - head.x;
+      },
+    );
+    expect(measured).toBe(titleX);
+  });
+
+  it.each([
     ["mouse", false, 7, 33, 40],
     ["touch", true, 13.5, 46, 48],
   ] as const)("7: under a %s the trail's root glyph and summary sit where the rule puts them", async (_pointer, touch, glyph, summary, text) => {

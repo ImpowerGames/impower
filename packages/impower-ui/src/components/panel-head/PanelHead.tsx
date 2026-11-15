@@ -2,8 +2,13 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren } from "preact";
 import { cn } from "../../utils/cn";
 
-export const panelHeadVariants = cva("flex flex-none items-center gap-1 px-2.5", {
+export const panelHeadVariants = cva("flex flex-none items-center px-2.5", {
   variants: {
+    spacing: {
+      inset: "gap-1",
+      open: "gap-1.5",
+      flush: "gap-0",
+    },
     size: {
       compact: "h-11",
       default: "min-h-[52px] py-1",
@@ -14,8 +19,21 @@ export const panelHeadVariants = cva("flex flex-none items-center gap-1 px-2.5",
       false: "",
     },
   },
-  defaultVariants: { size: "default", edge: true },
+  defaultVariants: { spacing: "inset", size: "default", edge: true },
 });
+
+const panelHeadTitleColumnVariants = cva("flex min-w-0 flex-1 flex-col gap-px", {
+  variants: {
+    spacing: {
+      inset: "mx-1",
+      open: "",
+      flush: "",
+    },
+  },
+  defaultVariants: { spacing: "inset" },
+});
+
+export type PanelHeadSpacing = NonNullable<VariantProps<typeof panelHeadVariants>["spacing"]>;
 
 export const panelHeadTitleVariants = cva("m-0 min-w-0 [--fade:20px] fade-edge font-semibold text-ink", {
   variants: {
@@ -44,15 +62,16 @@ export default function PanelHead({
   subtitle,
   start,
   end,
+  spacing,
   size,
   edge,
   titleSize,
   class: className,
 }: PanelHeadProps) {
   return (
-    <header class={cn(panelHeadVariants({ size, edge }), className)} data-panel-head>
+    <header class={cn(panelHeadVariants({ spacing, size, edge }), className)} data-panel-head>
       {start}
-      <div class="mx-1 flex min-w-0 flex-1 flex-col gap-px">
+      <div class={panelHeadTitleColumnVariants({ spacing })}>
         {typeof title === "string" ? <h2 class={panelHeadTitleVariants({ titleSize })}>{title}</h2> : title}
         {subtitle ? <small class="[--fade:20px] fade-edge text-[11px]/[1.6] text-muted">{subtitle}</small> : null}
       </div>
