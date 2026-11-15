@@ -1656,18 +1656,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return;
       }
       if (typeof value === "string") {
-        if (fonts[value] && !value.startsWith("$")) {
+        const fontKey = key.includes("font");
+        if (fontKey && fonts[value] && !value.startsWith("$")) {
           referenced.add(value);
           return;
         }
-        const named = byFamily.get(value);
+        const named = fontKey ? byFamily.get(value) : undefined;
         if (named) {
           for (const fontName of named) {
             referenced.add(fontName);
           }
           return;
         }
-        if (value.includes(",") && key.includes("font")) {
+        if (fontKey && value.includes(",")) {
           for (const part of splitAt(parseComponentValues(value), TokenType.Comma)) {
             const nodes = significant(part);
             const only = nodes.length === 1 ? tokenOf(nodes[0]!) : undefined;
@@ -1702,7 +1703,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return;
       }
       for (const [innerKey, inner] of Object.entries(v)) {
-        scan(inner, depth + 1, innerKey);
+        scan(inner, depth + 1, Array.isArray(v) ? key : innerKey);
       }
     };
     const styles = this.context?.style ?? {};
@@ -4192,7 +4193,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const params: PlayCutsceneParams = {
       src,
       loop: Boolean(cutscene.loop),
-      muted: Boolean(cutscene.mute) || this._beatPlaying,
+      muted: Boolean(cutscene.mute),
       ...this.getMovieMixer(),
     };
     if (cutscene.with) {
@@ -5013,7 +5014,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               content.video = {
                 src: videoSrc,
                 loop: !e.once,
-                muted: Boolean(e.mute) || $._beatPlaying,
+                muted: Boolean(e.mute),
                 ...$.getMovieMixer(),
                 ...($.showsMovieStill() ? { preview: true } : {}),
               };

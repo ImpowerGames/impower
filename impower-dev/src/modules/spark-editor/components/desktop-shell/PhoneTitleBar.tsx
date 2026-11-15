@@ -48,7 +48,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
     <header
       data-phone-title-bar
       class={cn(
-        "hit-bound relative z-20 flex h-[54px] flex-none items-center border-b border-edge bg-bg",
+        "hit-bound relative z-20 flex h-[var(--title-bar-height)] flex-none items-center border-b border-edge bg-bg",
         writing ? "pr-1 pl-2" : "gap-[7px] px-2.5",
         "motion-safe:transition-shadow motion-safe:duration-150",
         scrolled && "shadow-[0_7px_10px_-4px_var(--editor-sticky-shadow)]",

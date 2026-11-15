@@ -21,6 +21,7 @@ import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/startScene";
+import { OUTSIDE_EVERY_SCENE_REFUSAL } from "@impower/spark-web-player/src/main/workers/messages/PlayMessage";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { programSummary } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1818,6 +1819,23 @@ describe("PLAY for a story with no start scene", () => {
     expect(play()?.getAttribute("title")).toBe("Play From Here");
   });
 
+  it("disables PLAY with the player's reason while the caret's line is outside every scene", async () => {
+    compiled(STORY);
+    win.connectPlayer();
+    win.syncStartRefusal(OUTSIDE_EVERY_SCENE_REFUSAL);
+    expect(play()?.getAttribute("aria-disabled")).toBe("true");
+    expect(play()?.getAttribute("title")).toBe(OUTSIDE_EVERY_SCENE_REFUSAL);
+    play()!.click();
+    win.toggleGameRunning();
+    await Promise.resolve();
+    expect(started).toEqual([]);
+    expect(game().starting).toBeFalsy();
+
+    win.syncStartRefusal(null);
+    expect(play()?.getAttribute("aria-disabled")).toBeNull();
+    expect(play()?.getAttribute("title")).toBe("Play From Here");
+  });
+
   it("keeps the story's refusal when a script the story does not include compiles on its own", () => {
     compiled(STORY);
     compiled("file://proj/elsewhere/stray.sd", NO_START_SCENE_MESSAGE);
@@ -3232,14 +3250,17 @@ describe("The preview's top bar", () => {
     expect(names()).toEqual([
       ["Game preview follows cursor", "true"],
       ["Auto-play beats", "false"],
+      ["Play audio", "false"],
       ["Show idle animations", "true"],
       ["Color typing pauses", "false"],
     ]);
     rows("menuitemcheckbox")[2]!.click();
     rows("menuitemcheckbox")[3]!.click();
+    rows("menuitemcheckbox")[4]!.click();
     rows("menuitemcheckbox")[0]!.click();
     expect(workspaceSettings.preferences.value).toMatchObject({
       previewFollowsCursor: false,
+      previewPlayAudio: true,
       previewIdleAnimations: false,
       previewTypingPauses: true,
     });
@@ -3247,6 +3268,7 @@ describe("The preview's top bar", () => {
     expect(names()).toEqual([
       ["Game preview follows cursor", "false"],
       ["Auto-play beats", "false"],
+      ["Play audio", "true"],
       ["Show idle animations", "false"],
       ["Color typing pauses", "true"],
     ]);
@@ -3255,6 +3277,7 @@ describe("The preview's top bar", () => {
     expect(names()).toEqual([
       ["Game preview follows cursor", "false"],
       ["Auto-play beats", "false"],
+      ["Play audio", "true"],
     ]);
     workspaceSettings.setPreference("previewMode", "screenplay");
     render(h(PreviewTopBar, {}), container);
@@ -3631,5 +3654,48 @@ describe("The preview's top bar in a narrow pane", () => {
     expect(classes).toContain("min-h-11");
     expect(classes).not.toContain("min-w-0");
     render(null, probe);
+  });
+});
+
+describe("readNameAtCaret on an asset's definition (#2171)", () => {
+  const TEXT = "scene start\n  [[show portrait mara_smile]]\nend\n";
+  const nameRange = { start: { line: 1, character: 18 }, end: { line: 1, character: 28 } };
+  const fileStart = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+
+  const nameFor = async (assetPath: string) => {
+    const projectId = workspace.current.project.id;
+    const assetUri = `file://${projectId}/${assetPath}`;
+    const ls = {
+      initialization: async () => {},
+      connection: {
+        sendRequest: async (method: string) =>
+          method === "textDocument/documentHighlight"
+            ? [{ range: nameRange, kind: 2 }]
+            : [{ uri: assetUri, range: fileStart }],
+      },
+    };
+    const win = new WorkspaceWindow({ ...Workspace, ls } as unknown as typeof Workspace);
+    const reader = win as unknown as { requestEditor: () => Promise<unknown> };
+    reader.requestEditor = async () => ({
+      textDocument: { uri: `file://${projectId}/main.sd`, text: TEXT, version: 1 },
+      caret: { line: 1, character: 22 },
+    });
+    try {
+      return await win.readNameAtCaret("main.sd");
+    } finally {
+      win.dispose();
+    }
+  };
+
+  it("leaves a picture inside the assets folder open to go to", async () => {
+    const name = await nameFor("assets/images/mara_smile.png");
+    expect(name).toMatchObject({ name: "mara_smile", kind: "picture" });
+    expect(name?.definition).not.toBeNull();
+    expect(name?.outsideAssets).toBeUndefined();
+  });
+
+  it("marks a picture outside the assets folder, which the Assets page does not list", async () => {
+    const name = await nameFor("images/mara_smile.png");
+    expect(name).toMatchObject({ name: "mara_smile", kind: "picture", outsideAssets: true });
   });
 });

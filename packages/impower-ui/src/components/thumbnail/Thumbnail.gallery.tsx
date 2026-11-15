@@ -2,6 +2,14 @@ import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import { VolumeIcon } from "../icon/icons.generated";
 import Thumbnail, { type ThumbnailFit, type ThumbnailSize } from "./Thumbnail";
 
+const LAYER =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">' +
+      '<circle cx="100" cy="80" r="40" fill="#f2c26b"/>' +
+      "</svg>",
+  );
+
 export const SAMPLE_PICTURE =
   "data:image/svg+xml," +
   encodeURIComponent(
@@ -38,6 +46,12 @@ function ThumbnailDemo() {
           </div>
         </GalleryRow>
       ))}
+      <GalleryRow label="Row on the stage surface (a layer file in the asset inspector): a transparent layer shows the stage behind it, then one that fails to decode">
+        <div class="flex items-center gap-4">
+          <Thumbnail surface="stage" fit="contain" src={LAYER} alt="Layer" />
+          <Thumbnail surface="stage" fit="contain" src="data:image/png;base64,AAAA" alt="Broken layer" />
+        </div>
+      </GalleryRow>
     </div>
   );
 }

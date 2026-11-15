@@ -84,18 +84,10 @@ function fakeTracker({ issues = [], comments = [], polls = null } = {}) {
     t.now = new Date(t.now.getTime() + 1000);
     return t.now.toISOString().replace(".000Z", "Z");
   };
-  const host = (body, attach) => {
-    let text = body;
-    for (const file of attach) {
-      const url = `https://github.com/user-attachments/assets/${Buffer.from(file).toString("hex")}`;
-      text = text.split(`](${file})`).join(`](${url})`);
-    }
-    return text;
-  };
-  const post = (number, body, attach = []) => {
+  const post = (number, body) => {
     const id = t.next++;
     const at = tick();
-    t.store.set(id, { id, issue: number, html_url: `${issueUrl(number)}#issuecomment-${id}`, created_at: at, updated_at: at, user: { login: M, type: "User" }, body: host(body, attach), seq: t.seq++ });
+    t.store.set(id, { id, issue: number, html_url: `${issueUrl(number)}#issuecomment-${id}`, created_at: at, updated_at: at, user: { login: M, type: "User" }, body, seq: t.seq++ });
     return id;
   };
   const issueOf = (n) => {
@@ -113,9 +105,14 @@ function fakeTracker({ issues = [], comments = [], polls = null } = {}) {
       t.calls.push(["comments", n]);
       return structuredClone([...t.store.values()].filter((c) => c.issue === n).sort((a, b) => a.id - b.id));
     },
-    comment: ({ number, bodyFile, attach }) => {
-      t.calls.push(["comment", number, attach]);
-      return { id: post(number, readFileSync(bodyFile, "utf8"), attach) };
+    upload: (file) => {
+      const name = `./${path.basename(file)}`;
+      t.calls.push(["upload", name]);
+      return `https://github.com/user-attachments/assets/${Buffer.from(name).toString("hex")}`;
+    },
+    comment: ({ number, bodyFile }) => {
+      t.calls.push(["comment", number]);
+      return { id: post(number, readFileSync(bodyFile, "utf8")) };
     },
     readComment: (id) => structuredClone(t.store.get(id)),
     editComment: (id, bodyFile) => {
@@ -371,7 +368,7 @@ try {
       throw new Error("network down");
     };
     const original = failing.issues.get(REQUEST).body;
-    assert.throws(() => reviseRequest(REQUEST, request, "x", { pictures, tracker: failing, repos, now }), /Rolled back: deleted the revision note \d+; restored the earlier body/);
+    assert.throws(() => reviseRequest(REQUEST, request, "x", { pictures, tracker: failing, repos, now }), /Rolled back: restored the earlier body\./);
     assert.equal(failing.issues.get(REQUEST).body, original);
     assert.equal([...failing.store.values()].length, 0);
     for (const broken of ["editTitle", "reopen"]) {

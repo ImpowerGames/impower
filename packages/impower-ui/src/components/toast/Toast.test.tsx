@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { render } from "preact";
 import { useState } from "preact/hooks";
 import { act } from "preact/test-utils";
@@ -5,6 +8,41 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { hitArea } from "../../../test/hitArea";
 import { DIALOG_TRANSITION_MS, Dialog, DialogTitle, Sheet } from "../dialog/Dialog";
 import Toast, { TOAST_SWIPE_DISMISS_PX, TOAST_TRANSITION_MS, toastVariants } from "./Toast";
+
+const themeCss = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../theme.css"), "utf8");
+
+const layoutTokens = (layout: string) => {
+  const tokens = new Map<string, string>();
+  for (const block of themeCss.split("}")) {
+    const [selector, body] = block.split("{");
+    if (body === undefined || ![":root", `:root[data-layout="${layout}"]`].includes(selector!.trim())) {
+      continue;
+    }
+    for (const declaration of body.split(";")) {
+      const colon = declaration.indexOf(":");
+      const name = declaration.slice(0, colon).trim();
+      if (name.startsWith("--")) {
+        tokens.set(name, declaration.slice(colon + 1).trim());
+      }
+    }
+  }
+  return tokens;
+};
+
+const resolvePx = (tokens: Map<string, string>, name: string): number => {
+  const value = tokens.get(name);
+  if (value === undefined) {
+    return Number.NaN;
+  }
+  const expression = value.replace(/^calc\((.*)\)$/, "$1");
+  return expression
+    .split("+")
+    .map((term) => term.trim())
+    .reduce((sum, term) => {
+      const reference = term.match(/^var\((--[a-z-]+)\)$/);
+      return sum + (reference ? resolvePx(tokens, reference[1]!) : Number.parseFloat(term));
+    }, 0);
+};
 
 let coarse = false;
 const mediaListeners = new Set<() => void>();
@@ -84,6 +122,17 @@ describe("Toast", () => {
     expect(region.className).toContain("fixed");
     expect(region.className).toContain("top-[var(--toast-top)]");
     expect(region.className).not.toMatch(/(^|\s)bottom-/);
+  });
+
+  it.each([
+    ["desktop", ["--title-bar-height", "--script-header-height"]],
+    ["compact", ["--title-bar-height", "--preview-top-bar-height"]],
+    ["phone", ["--title-bar-height", "--preview-strip-height", "--script-header-height"]],
+  ])("hangs below the %s layout's toolbar rows, clear of their controls", (layout, rows) => {
+    const tokens = layoutTokens(layout);
+    const rowsBottom = rows.reduce((sum, row) => sum + resolvePx(tokens, row), 0);
+    expect(rowsBottom).toBeGreaterThan(0);
+    expect(resolvePx(tokens, "--toast-top")).toBeGreaterThanOrEqual(rowsBottom);
   });
 
   it("fires its action's callback once from the action button, then leaves after its exit", async () => {

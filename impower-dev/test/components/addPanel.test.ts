@@ -265,6 +265,21 @@ describe("the Add panel on desktop", () => {
     );
   });
 
+  it("says why above the first dimmed row, where it shows when the panel opens", async () => {
+    calls.context = { inScene: false };
+    await mount();
+    await setOpen(true);
+    const order = Array.from(
+      panel()!.querySelectorAll<HTMLElement>("[data-add-construct], p"),
+    ).map((element) => element.dataset["addConstruct"] ?? element.textContent);
+    expect(order.slice(0, 4)).toEqual([
+      "character",
+      "scene",
+      "Add a scene or move into one to use story blocks.",
+      "branch",
+    ]);
+  });
+
   it("inserts the pressed construct in its script and closes", async () => {
     await mount();
     await setOpen(true);

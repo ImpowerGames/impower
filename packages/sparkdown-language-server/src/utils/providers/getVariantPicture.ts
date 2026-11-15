@@ -1,8 +1,9 @@
 import {
-  getImagePreviewSrcComposited,
+  getImagePreviewComposited,
   type ImageCompositeOptions,
 } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
-import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
+import { resolveImageRoot } from "@impower/sparkdown/src/compiler/utils/filterImage";
+import { resolveImageLayers, type ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 
 export type ImageContext = { [type: string]: { [name: string]: any } };
 
@@ -11,11 +12,16 @@ export interface ImageVariant {
   attributes: string[];
 }
 
+export interface VariantPicture {
+  src: string;
+  layers: (string | null)[];
+}
+
 export const getVariantPicture = async (
   context: ImageContext | undefined,
   variant: ImageVariant,
   options?: ImageCompositeOptions,
-): Promise<string | null> => {
+): Promise<VariantPicture | null> => {
   if (!context) {
     return null;
   }
@@ -26,7 +32,17 @@ export const getVariantPicture = async (
     attributes: [...variant.attributes],
   };
   if (!resolveImageLayers(context, struct).length) {
-    return "";
+    return { src: "", layers: [] };
   }
-  return (await getImagePreviewSrcComposited(context, struct, options)) ?? null;
+  const shown = options?.shownLayers ? options.shownLayers(context, struct) : resolveImageLayers(context, struct);
+  const preview = await getImagePreviewComposited(context, struct, options);
+  if (!preview) {
+    return null;
+  }
+  const fileOf = (layer: ImageLayer) => layer.uri ?? resolveImageRoot(context, layer.struct)?.uri ?? null;
+  if (preview.composited) {
+    return { src: preview.src, layers: shown.map(fileOf) };
+  }
+  const single = shown.find((layer) => layer.src === preview.src);
+  return { src: preview.src, layers: [single ? fileOf(single) : null] };
 };

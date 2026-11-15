@@ -65,9 +65,10 @@ const picture = (paths: readonly string[], variant: ImageVariant, text = "") =>
 describe("the tester's picture", () => {
   it("draws a folder stack's combination as the engine stacks it, bottom first", async () => {
     stubComposition();
-    const src = await picture(MIA, { image: "mia", attributes: ["happy", "hat"] });
-    expect(src).toMatch(/^data:image\/webp;base64,/);
+    const answer = await picture(MIA, { image: "mia", attributes: ["happy", "hat"] });
+    expect(answer!.src).toMatch(/^data:image\/webp;base64,/);
     expect(drawn).toEqual([`/src/${P}/mia/90_body.png`, `/src/${P}/mia/30_face.happy.png`, `/src/${P}/mia/10_hat.on.png`]);
+    expect(answer!.layers).toEqual([`${ROOT}/${P}/mia/90_body.png`, `${ROOT}/${P}/mia/30_face.happy.png`, `${ROOT}/${P}/mia/10_hat.on.png`]);
   });
 
   it("draws the resting combination with the default layer", async () => {
@@ -80,13 +81,16 @@ describe("the tester's picture", () => {
     stubComposition();
     const paths = [...MIA, `${P}/still.png`];
     const redefined = `define mia as layered_image with\n  assets = { still }\nend\n`;
-    expect(await picture(paths, { image: "mia", attributes: ["happy"] }, redefined)).toBe(`/src/${P}/still.png`);
+    expect(await picture(paths, { image: "mia", attributes: ["happy"] }, redefined)).toEqual({
+      src: `/src/${P}/still.png`,
+      layers: [`${ROOT}/${P}/still.png`],
+    });
   });
 
   it("draws a picture with layer files beside it as the engine composes it, its own file at the bottom (#2201)", async () => {
     stubComposition();
     const paths = [`${P}/imani.png`, `${P}/imani~20_face.happy.png`, `${P}/imani~20_face.sad.png`, `${P}/imani~10_hat.on.png`, `${P}/imani~30_scarf.png`];
-    expect(await picture(paths, { image: "imani", attributes: ["happy"] })).toMatch(/^data:image\/webp;base64,/);
+    expect((await picture(paths, { image: "imani", attributes: ["happy"] }))!.src).toMatch(/^data:image\/webp;base64,/);
     expect(drawn).toEqual([`/src/${P}/imani.png`, `/src/${P}/imani~30_scarf.png`, `/src/${P}/imani~20_face.happy.png`]);
   });
 
@@ -100,13 +104,16 @@ describe("the tester's picture", () => {
   it("draws an alternate's own file", async () => {
     stubComposition();
     const paths = [`${P}/imani.png`, `${P}/imani@night.png`];
-    expect(await picture(paths, { image: "imani@night", attributes: [] })).toBe(`/src/${P}/imani@night.png`);
+    expect(await picture(paths, { image: "imani@night", attributes: [] })).toEqual({
+      src: `/src/${P}/imani@night.png`,
+      layers: [`${ROOT}/${P}/imani@night.png`],
+    });
   });
 
   it("answers an empty picture, not a failure, for a combination that shows no layer", async () => {
     stubComposition();
     const switches = [`${P}/mia/90_hat.on.png`, `${P}/mia/30_glasses.on.png`];
-    expect(await picture(switches, { image: "mia", attributes: [] })).toBe("");
+    expect(await picture(switches, { image: "mia", attributes: [] })).toEqual({ src: "", layers: [] });
     expect(drawn).toEqual([]);
   });
 
@@ -137,6 +144,21 @@ describe("the tester's picture", () => {
     await getVariantPicture(context, variant, { size: 240 });
     await getVariantPicture(context, variant);
     expect(canvases).toEqual(["300x400", "180x240", "270x360"]);
+  });
+
+  it("answers only the file a fallback picture shows when composing fails", async () => {
+    stubComposition();
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        getContext() {
+          return null;
+        }
+      },
+    );
+    const answer = await getVariantPicture(compile(MIA), { image: "mia", attributes: ["happy", "hat"] }, { size: 500 });
+    expect(answer!.src).toBe(`/src/${P}/mia/90_body.png`);
+    expect(answer!.layers).toEqual([`${ROOT}/${P}/mia/90_body.png`]);
   });
 
   it("draws nothing without a program", async () => {

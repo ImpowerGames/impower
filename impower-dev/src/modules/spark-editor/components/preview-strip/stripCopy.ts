@@ -23,14 +23,25 @@ export const EMPTY_WORDS = "Write a line and it appears here.";
 
 export const FORCED_TEXT = "Forced to reach this line";
 
+const SETUP_COPY: StripCopy = {
+  label: "STORY SETUP",
+  words: SETUP_WORDS,
+  symbol: "file",
+  playable: false,
+};
+
 export const stripCopy = (
   preview: PreviewLineSnapshot["preview"] | undefined,
+  startRefused = false,
 ): StripCopy => {
+  if (startRefused) {
+    return SETUP_COPY;
+  }
   if (!preview) {
     return { label: "", words: "", playable: true };
   }
   if (preview.kind === "setup") {
-    return { label: "STORY SETUP", words: SETUP_WORDS, symbol: "file", playable: false };
+    return SETUP_COPY;
   }
   if (preview.kind === "empty") {
     return { label: "YOUR GAME", words: EMPTY_WORDS, symbol: "pencil", playable: false };

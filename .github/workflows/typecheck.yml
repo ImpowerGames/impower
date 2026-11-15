@@ -60,6 +60,12 @@ jobs:
       - name: Verify installed test-suite runner
         run: node scripts/test-suite.test.mjs
 
+      - name: Test the ListRow overflow scanner
+        run: node --test scripts/check-listrow-overflow.test.mjs
+
+      - name: Check ListRow labels that clip themselves
+        run: npm run check:listrow-overflow
+
       - name: Test the node-name scanner
         run: node --test scripts/check-node-names.test.mjs
 

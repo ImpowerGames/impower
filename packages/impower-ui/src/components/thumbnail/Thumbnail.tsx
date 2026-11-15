@@ -5,7 +5,7 @@ import { cn } from "../../utils/cn";
 import { ImageIcon } from "../icon/icons.generated";
 
 export const thumbnailVariants = cva(
-  "relative flex flex-none items-center justify-center overflow-hidden bg-muted/12 text-muted",
+  "relative flex flex-none items-center justify-center overflow-hidden text-muted",
   {
     variants: {
       size: {
@@ -13,8 +13,12 @@ export const thumbnailVariants = cva(
         card: "h-[52px] w-16 rounded-[5px] [&>svg]:size-[22px]",
         fill: "size-full [&>svg]:size-7",
       },
+      surface: {
+        muted: "bg-muted/12",
+        stage: "bg-stage",
+      },
     },
-    defaultVariants: { size: "row" },
+    defaultVariants: { size: "row", surface: "muted" },
   },
 );
 
@@ -31,6 +35,7 @@ export const thumbnailImageVariants = cva("absolute", {
 });
 
 export type ThumbnailSize = NonNullable<VariantProps<typeof thumbnailVariants>["size"]>;
+export type ThumbnailSurface = NonNullable<VariantProps<typeof thumbnailVariants>["surface"]>;
 export type ThumbnailFit = NonNullable<VariantProps<typeof thumbnailImageVariants>["fit"]>;
 
 export type ThumbnailProps = VariantProps<typeof thumbnailVariants> &
@@ -41,12 +46,12 @@ export type ThumbnailProps = VariantProps<typeof thumbnailVariants> &
     class?: string;
   };
 
-export default function Thumbnail({ src, alt = "", size, fit, glyph, class: className }: ThumbnailProps) {
+export default function Thumbnail({ src, alt = "", size, surface, fit, glyph, class: className }: ThumbnailProps) {
   const [failed, setFailed] = useState<string | undefined>(undefined);
   const broken = !src || failed === src;
   return (
     <span
-      class={cn(thumbnailVariants({ size }), className)}
+      class={cn(thumbnailVariants({ size, surface }), className)}
       data-thumbnail
       data-thumbnail-failed={src && broken ? "" : undefined}
       role={alt ? "img" : undefined}

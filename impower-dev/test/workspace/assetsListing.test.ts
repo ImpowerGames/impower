@@ -10,6 +10,7 @@ import {
   assetSearch,
   assetSort,
   assetsHome,
+  assetsPageLists,
   assetTrail,
   landingFolder,
   typeFolder,
@@ -557,5 +558,19 @@ describe("a folder's count line", () => {
 
   it("counts a folder's folders only when no picture is inside it", () => {
     expect(holdings()).toMatchObject({ Shelf: "1 folder", Empty: "Empty" });
+  });
+});
+
+describe("whether the Assets page lists a file (#2171)", () => {
+  it("lists a picture inside the top-level assets folder, whatever its case", () => {
+    expect(assetsPageLists("assets/images/mara_smile.png", [])).toBe(true);
+    expect(assetsPageLists("Assets/Images/mara_smile.png", ["Assets"])).toBe(true);
+  });
+
+  it("does not list a picture outside the assets folder, a hidden file or a script", () => {
+    expect(assetsPageLists("images/mara_smile.png", ["images"])).toBe(false);
+    expect(assetsPageLists("images/mara_smile.png", ["Assets", "images"])).toBe(false);
+    expect(assetsPageLists("Assets/.hidden.png", ["Assets"])).toBe(false);
+    expect(assetsPageLists("Assets/notes.sd", ["Assets"])).toBe(false);
   });
 });

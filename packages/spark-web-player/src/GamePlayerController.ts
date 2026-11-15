@@ -3,6 +3,7 @@ import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene"
 import { getSharedAssetCache } from "./main/assets/sharedAssetCache";
 import { compiledElsewhere } from "./utils/compiledElsewhere";
 import { DisplayPreviewMessage } from "./main/workers/messages/DisplayPreviewMessage";
+import { SetPreviewAudioMessage } from "./main/workers/messages/SetPreviewAudioMessage";
 import type {
   WorkerDisplayWorkspace,
   WorkerHang,
@@ -69,6 +70,7 @@ import {
 } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
 import { PlayBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/PlayBeatMessage";
 import { SetAutoPlayBeatsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetAutoPlayBeatsMessage";
+import { SetPlayAudioMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPlayAudioMessage";
 import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
 import {
   clearPlayerBarExecution,
@@ -118,6 +120,7 @@ import { toResponseError } from "@impower/jsonrpc/src/common/utils/toResponseErr
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { ConnectPlayMessage } from "./main/workers/messages/ConnectPlayMessage";
 import { NO_BEAT_REFUSAL, PlayMessage } from "./main/workers/messages/PlayMessage";
+import { startRefusalAt } from "./main/utils/startRefusal";
 import { StartPlayMessage } from "./main/workers/messages/StartPlayMessage";
 import { StopPlayMessage } from "./main/workers/messages/StopPlayMessage";
 import { LastRunMessage } from "./main/workers/messages/LastRunMessage";
@@ -527,6 +530,7 @@ export class GamePlayerController {
     window.addEventListener("resize", this.handleResize);
     window.addEventListener("pointerdown", this.handleUserInteraction, true);
     window.addEventListener("keydown", this.handleUserInteraction, true);
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
     if (this._resizable) {
       this.refs.toolbar?.addEventListener(
         "pointerdown",
@@ -583,6 +587,10 @@ export class GamePlayerController {
     window.removeEventListener("resize", this.handleResize);
     window.removeEventListener("pointerdown", this.handleUserInteraction, true);
     window.removeEventListener("keydown", this.handleUserInteraction, true);
+    document.removeEventListener(
+      "visibilitychange",
+      this.handleVisibilityChange,
+    );
     this.refs.toolbar?.removeEventListener(
       "pointerdown",
       this.handlePointerDownToolbar,
@@ -646,7 +654,13 @@ export class GamePlayerController {
     if (refusal) {
       this._resolveLoadingInitialProgram();
     }
-    this.updateBarView({ runRefusal: refusal });
+    this.syncRunRefusal();
+  }
+
+  protected syncRunRefusal() {
+    this.updateBarView({
+      runRefusal: this._playRefusal ?? this.startRefusal() ?? undefined,
+    });
   }
 
   getRelativeFilePath(path: string | undefined) {
@@ -690,7 +704,15 @@ export class GamePlayerController {
         playing: this._beatPlay != null,
         refusal: this._beatRefusal,
       },
+      startRefusal: this.startRefusal(),
     };
+  }
+
+  protected startRefusal(): string | null {
+    const startFrom = this._options?.startFrom;
+    return this._program && startFrom
+      ? startRefusalAt(this._program, startFrom)
+      : null;
   }
 
   private publishGameState() {
@@ -698,6 +720,7 @@ export class GamePlayerController {
       this.getGameState(),
     );
     this.updateBar(reducePlayerBar(this._bar, notification));
+    this.syncRunRefusal();
     sendProtocolMessage(notification, this.host);
   }
 
@@ -1501,6 +1524,7 @@ export class GamePlayerController {
       this.handleSetAutoPlayBeats,
       this.host,
     );
+    p.onRequest(SetPlayAudioMessage.type, this.handleSetPlayAudio, this.host);
     p.onRequest(
       SetAnimatePortraitsMessage.type,
       this.handleSetAnimatePortraits,
@@ -2184,6 +2208,50 @@ export class GamePlayerController {
       this.cancelLanding();
     }
     return SetAutoPlayBeatsMessage.type.response(message.id, {});
+  };
+
+  protected _playAudio = false;
+
+  protected _switchingOn?: object;
+
+  protected handleSetPlayAudio = async (
+    message: SetPlayAudioMessage.Request,
+  ) => {
+    this._playAudio = message.params.enabled;
+    const switching = this._playAudio ? {} : undefined;
+    this._switchingOn = switching;
+    this.openPreviewOutput(this.previewApp);
+    await workspace?.gameLink
+      ?.request(SetPreviewAudioMessage.type, { enabled: this._playAudio })
+      .catch((e) => reportUnlessRestarted(e));
+    if (switching && this._switchingOn === switching) {
+      this._switchingOn = undefined;
+      this.openPreviewOutput(this.previewApp);
+    }
+    return SetPlayAudioMessage.type.response(message.id, {});
+  };
+
+  protected get previewApp(): Application | undefined {
+    return this._workerPlay || this._startingPlay ? undefined : this._app;
+  }
+
+  protected openPreviewOutput(app: Application | undefined) {
+    app?.audio?.setPlaysAudio(this._playAudio);
+    app?.audio?.setOutputOpen(
+      this._playAudio &&
+        !this._switchingOn &&
+        document.visibilityState !== "hidden",
+    );
+  }
+
+  protected handleVisibilityChange = () => {
+    const app = this.previewApp;
+    if (document.visibilityState === "hidden") {
+      app?.audio?.pausePlayers();
+    } else {
+      app?.audio?.unpausePlayers();
+    }
+    this.openPreviewOutput(app);
   };
 
   protected cancelLanding(): boolean {
@@ -3432,6 +3500,12 @@ export class GamePlayerController {
     await this.ensureAudioContext();
     profile("start", "app/create");
     const app = this.createApp(game, previewing);
+    if (previewing) {
+      if (document.visibilityState === "hidden") {
+        app.audio?.pausePlayers();
+      }
+      this.openPreviewOutput(app);
+    }
     if (owned()) {
       this._app = app;
       this._appPlay = play;
@@ -3851,7 +3925,9 @@ export class GamePlayerController {
 
   protected restoreWorkerDebugger(link: WorkerGameLink) {
     const options = this._options;
-    const sent: Promise<unknown>[] = [];
+    const sent: Promise<unknown>[] = [
+      link.request(SetPreviewAudioMessage.type, { enabled: this._playAudio }),
+    ];
     if (options?.startingValues) {
       sent.push(
         link.request(SetGameStartingValuesMessage.type, {

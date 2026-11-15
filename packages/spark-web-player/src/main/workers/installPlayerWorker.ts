@@ -59,6 +59,7 @@ import {
   type PlayResult,
 } from "./messages/PlayMessage";
 import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
+import { SetPreviewAudioMessage } from "./messages/SetPreviewAudioMessage";
 import { StartPlayMessage } from "./messages/StartPlayMessage";
 import { WorkerBusyMessage } from "./messages/WorkerBusyMessage";
 import {
@@ -74,6 +75,7 @@ import { PlayableSaveMessage } from "./messages/PlayableSaveMessage";
 import { SaveListingMessage } from "./messages/SaveListingMessage";
 import { SaveStartingValuesMessage } from "./messages/SaveStartingValuesMessage";
 import { putAtStartPoint } from "./putAtStartPoint";
+import { spansHold, startRefusalAt } from "../utils/startRefusal";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import {
   RouteSearchLog,
@@ -204,6 +206,8 @@ export function installPlayerWorker(connection: MessageConnection) {
     profile("end", compiler.profilerId + " " + "game/update");
   };
 
+  let previewAudio = false;
+
   const createOrUpdateGame = (program: SparkProgram) => {
     const profilerId = compiler.profilerId;
     if (!gameState.hasStartingValues() && compiler.config.startingValues) {
@@ -213,6 +217,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       profile("start", profilerId + " " + "game/create");
       gameState.game = gameState.createGame({ program });
       gameState.game.setRoutePins(routePins);
+      gameState.game.setPreviewAudio(previewAudio);
       profile("end", profilerId + " " + "game/create");
     } else if (gameState.game.program !== program) {
       updateGameProgram(gameState.game, program);
@@ -550,6 +555,9 @@ export function installPlayerWorker(connection: MessageConnection) {
       if (!entry || !game) {
         return { displayed: false, missing: true };
       }
+      if (params.fresh) {
+        game.module.audio.forgetHeard();
+      }
       const programChanged =
         fresh || displayedId !== entry.id || game.program !== entry.program;
       if (game.program !== entry.program) {
@@ -704,16 +712,19 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (params.save !== undefined) {
       return playSave(game, program, params.save);
     }
-    const start = params.startFrom
-      ? startPoint(program, params.startFrom, "first")
-      : undefined;
-    if (params.startFrom && !start) {
+    const refusal = params.startFrom
+      ? startRefusalAt(program, params.startFrom)
+      : null;
+    if (refusal) {
       return {
         built: true,
         compiled: isRunnableProgram(program),
-        refusal: OUTSIDE_EVERY_SCENE_REFUSAL,
+        refusal,
       };
     }
+    const start = params.startFrom
+      ? startPoint(program, params.startFrom, "first")
+      : undefined;
     const route: RouteReport = start
       ? routeTo(game, entry, start.point, start.beat)
       : {};
@@ -795,14 +806,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     spansHold(program.sceneSpans, point)
       ? startPointInScene(program, point, beat)
       : undefined;
-
-  const spansHold = (
-    spans: { [uri: string]: [number, number][] } | undefined,
-    point: StartPoint,
-  ) =>
-    (spans?.[point.file] ?? []).some(
-      ([first, last]) => first <= point.line && point.line <= last,
-    );
 
   let lastScenePoint: { scene: string; offset: number } | undefined;
 
@@ -978,6 +981,14 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (PlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => play(message.params));
+      return;
+    }
+    if (SetPreviewAudioMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        previewAudio = message.params.enabled;
+        gameState.game?.setPreviewAudio(previewAudio);
+        return {};
+      });
       return;
     }
     if (ConnectPlayMessage.type.isRequest(message)) {

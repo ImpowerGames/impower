@@ -47,6 +47,13 @@ function ZoomFrameDemo() {
           </ZoomFrame>
         </Lightbox>
       </GalleryRow>
+      <GalleryRow label="Stage, zoomable, with a caption naming what it shows (the asset inspector soloing one layer file)">
+        <div class="w-80">
+          <ZoomFrame label="Wide picture" zoomable ratio={320 / 200} caption="Showing harbor~lamps.on.png alone">
+            <img src={SAMPLE_PICTURE} alt="" draggable={false} class="absolute inset-0 size-full object-contain" />
+          </ZoomFrame>
+        </div>
+      </GalleryRow>
       <GalleryRow label="Sheet, a frame for text without zoom">
         <div class="w-80">
           <ZoomFrame label="Notes" surface="sheet">

@@ -15,7 +15,7 @@ for (const file of ["scripts/check-agent-tooling.mjs", "scripts/link-agent-skill
   fs.copyFileSync(path.join(root, file), path.join(scratch, file));
 }
 const put = (name, content) => { fs.mkdirSync(path.dirname(path.join(scratch, name)), { recursive: true }); fs.writeFileSync(path.join(scratch, name), content); };
-const inventory = () => spawnSync("git", ["ls-files", "-z"], { cwd: scratch, encoding: "utf8", windowsHide: true }).stdout.split("\0").filter((f) => /\.test\.(?:mjs|sh)$/.test(f) && !f.startsWith("scripts/agent-notification-alerts/") && !["scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs"].includes(f)).sort();
+const inventory = () => spawnSync("git", ["ls-files", "-z"], { cwd: scratch, encoding: "utf8", windowsHide: true }).stdout.split("\0").filter((f) => /\.test\.(?:mjs|sh)$/.test(f) && !f.startsWith("scripts/agent-notification-alerts/") && !["scripts/check-listrow-overflow.test.mjs", "scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs"].includes(f)).sort();
 const manifest = (entries = inventory()) => put("scripts/agent-tooling-checks.txt", entries.join("\n") + "\n");
 put(".gitignore", ".claude/skills\n.codex/skills\n.github/skills\n");
 const summaryPath = path.join(scratch, "summary.md");
@@ -63,9 +63,9 @@ assert.match(run().stderr, /Invalid tooling check manifest/, "duplicate paths re
 manifest([...originalInventory].reverse());
 assert.match(run().stderr, /Invalid tooling check manifest/, "unsorted paths refuse");
 manifest();
-for (const file of ["scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs", "scripts/agent-notification-alerts/notifier.test.mjs"]) put(file, "process.exitCode = 1;");
+for (const file of ["scripts/check-listrow-overflow.test.mjs", "scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs", "scripts/agent-notification-alerts/notifier.test.mjs"]) put(file, "process.exitCode = 1;");
 assert.equal(run({}, ["--only", "link-agent-skills.test"]).status, 0, "full-tree and notifier checks stay excluded even when untracked");
-spawnSync("git", ["add", "scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs", "scripts/agent-notification-alerts/notifier.test.mjs"], { cwd: scratch, windowsHide: true });
+spawnSync("git", ["add", "scripts/check-listrow-overflow.test.mjs", "scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs", "scripts/agent-notification-alerts/notifier.test.mjs"], { cwd: scratch, windowsHide: true });
 for (const anchor of [".agents/", ".claude/hooks/", "scripts/link-agent-skills.test.mjs"]) {
   const removed = originalInventory.filter((f) => f.startsWith(anchor));
   for (const file of removed) spawnSync("git", ["rm", "-f", file], { cwd: scratch, windowsHide: true });

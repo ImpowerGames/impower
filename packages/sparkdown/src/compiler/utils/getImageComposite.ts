@@ -203,17 +203,28 @@ export const getImageCompositeSrc = async (
   return value || undefined;
 };
 
+export const getImagePreviewComposited = async (
+  context: { [type: string]: { [name: string]: any } } | undefined,
+  struct: any,
+  options?: ImageCompositeOptions,
+): Promise<{ src: string; composited: boolean } | undefined> => {
+  const rest = await options?.morphRest?.(context, struct);
+  if (rest) {
+    return { src: `data:image/svg+xml,${encodeURIComponent(rest)}`, composited: false };
+  }
+  const composite = await getImageCompositeSrc(context, struct, options);
+  if (composite !== undefined) {
+    return { src: composite, composited: true };
+  }
+  const single = getImagePreviewSrc(context, struct);
+  return single === undefined ? undefined : { src: single, composited: false };
+};
+
 export const getImagePreviewSrcComposited = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
   options?: ImageCompositeOptions,
-): Promise<string | undefined> => {
-  const rest = await options?.morphRest?.(context, struct);
-  if (rest) {
-    return `data:image/svg+xml,${encodeURIComponent(rest)}`;
-  }
-  return (await getImageCompositeSrc(context, struct, options)) ?? getImagePreviewSrc(context, struct);
-};
+): Promise<string | undefined> => (await getImagePreviewComposited(context, struct, options))?.src;
 
 export const getImagePreviewMarkupComposited = async (
   context: { [type: string]: { [name: string]: any } } | undefined,

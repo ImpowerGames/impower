@@ -20,6 +20,7 @@ import type { WritingToolsView } from "@impower/spark-editor-protocol/src/types"
 import type { ComponentChildren } from "preact";
 import {
   definitionHint,
+  OUTSIDE_ASSETS_HINT,
   type NameAtCaret,
 } from "../../workspace/nameAtCaret";
 
@@ -126,8 +127,8 @@ export default function WritingToolsMenu({
           <Row
             icon={<TargetIcon />}
             label={`Go to definition for ${name.name}`}
-            description={definitionHint(name.kind)}
-            disabled={!name.definition}
+            description={name.outsideAssets ? OUTSIDE_ASSETS_HINT : definitionHint(name.kind)}
+            disabled={!name.definition || name.outsideAssets}
             onClick={() => onName("definition")}
           />
           <Divider />

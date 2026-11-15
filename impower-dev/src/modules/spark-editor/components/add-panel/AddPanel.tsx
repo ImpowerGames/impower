@@ -11,6 +11,7 @@ import type {
   InsertContext,
 } from "@impower/codemirror-vscode-lsp-client/src/insert";
 import { useComputed } from "@preact/signals";
+import { Fragment } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { useCaretPosition } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
@@ -107,32 +108,38 @@ function AddRows({
 }) {
   return (
     <div class="p-1.5" data-add-rows>
-      {ADD_ROWS.map((row) => {
+      {ADD_ROWS.map((row, index) => {
         const disabled = rowDisabled(row, inScene);
+        const firstDisabled =
+          disabled &&
+          !ADD_ROWS.slice(0, index).some((earlier) =>
+            rowDisabled(earlier, inScene),
+          );
         return (
-          <ListRow
-            key={row.construct}
-            size="block"
-            class="has-[button[aria-disabled=true]]:opacity-40 [&_svg:first-child]:text-accent!"
-            icon={<row.Icon />}
-            label={<strong class="block font-semibold">{row.label}</strong>}
-            description={row.help}
-            trailing={isPickerRow(row) ? <ArrowIcon /> : undefined}
-            aria-disabled={disabled ? "true" : undefined}
-            data-add-construct={row.construct}
-            onClick={() => {
-              if (disabled) return;
-              if (isPickerRow(row)) onPick(row);
-              else onAdd(row.construct);
-            }}
-          />
+          <Fragment key={row.construct}>
+            {firstDisabled && inScene === false && (
+              <p class="px-2.5 py-1.5 text-[12px]/[1.5] text-muted">
+                Add a scene or move into one to use story blocks.
+              </p>
+            )}
+            <ListRow
+              size="block"
+              class="has-[button[aria-disabled=true]]:opacity-40 [&_svg:first-child]:text-accent!"
+              icon={<row.Icon />}
+              label={<strong class="block font-semibold">{row.label}</strong>}
+              description={row.help}
+              trailing={isPickerRow(row) ? <ArrowIcon /> : undefined}
+              aria-disabled={disabled ? "true" : undefined}
+              data-add-construct={row.construct}
+              onClick={() => {
+                if (disabled) return;
+                if (isPickerRow(row)) onPick(row);
+                else onAdd(row.construct);
+              }}
+            />
+          </Fragment>
         );
       })}
-      {inScene === false && (
-        <p class="px-2.5 py-1.5 text-[12px]/[1.5] text-muted">
-          Add a scene or move into one to use story blocks.
-        </p>
-      )}
     </div>
   );
 }
