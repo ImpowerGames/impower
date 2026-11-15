@@ -11,6 +11,7 @@ export const virtualListVariants = cva(
 export const VIRTUAL_LIST_ROW_HEIGHT = {
   default: 63,
   compact: 44,
+  outline: 50,
 } as const;
 
 export const virtualListSlotVariants = cva("absolute", {
@@ -18,6 +19,7 @@ export const virtualListSlotVariants = cva("absolute", {
     size: {
       default: "inset-x-0 pb-[3px]",
       compact: "inset-x-0",
+      outline: "inset-x-0 pb-[2px]",
       cell: "",
     },
   },
