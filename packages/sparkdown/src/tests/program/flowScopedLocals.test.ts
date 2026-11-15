@@ -185,6 +185,7 @@ describe("a branch its own scene enters", () => {
         "  -> S(4)",
         "end",
         "scene S(x)",
+        "  -> A",
         "  branch A",
         "    local y = 2",
         "    -> S.C",
@@ -230,10 +231,10 @@ describe("a scene a host evaluates", () => {
   });
 });
 
-describe("a branch the scene falls into", () => {
+describe("a branch the scene diverts to before any line of its own", () => {
   test("reads the scene's parameter, a local of the scene's scope", () => {
     expect(
-      run(["scene start", "  -> S(5)", "end", "scene S(x)", "  branch B", "    In B {tostring(x)}.", "  end", "end"]),
+      run(["scene start", "  -> S(5)", "end", "scene S(x)", "  -> B", "  branch B", "    In B {tostring(x)}.", "  end", "end"]),
     ).toEqual(got("In B 5."));
   });
 });
@@ -638,6 +639,7 @@ describe("a save", () => {
         "  -> S(2)",
         "end",
         "scene S(x)",
+        "  -> B",
         "  branch B",
         "    local b = x * 10",
         "    First {x} {b}.",

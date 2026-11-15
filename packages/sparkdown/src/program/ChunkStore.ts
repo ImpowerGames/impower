@@ -134,7 +134,6 @@ export interface FlowSource {
   firstLine: number;
   span: number;
   statements: readonly StatementSource[];
-  startsWith?: string;
   params?: string;
 }
 
@@ -993,7 +992,6 @@ export class ChunkStore {
       if (symbol >= 0 && symbol < defs.kind.length && !flowKinds.has(symbol)) {
         defs.sequence[symbol] = -1;
         defs.parent[symbol] = -1;
-        defs.start[symbol] = -1;
         if (defs.chunk[symbol]! < 0) {
           defs.kind[symbol] = UNDEFINED_KIND;
         }
@@ -1011,7 +1009,6 @@ export class ChunkStore {
         defs.kind[symbol] = flow.kind;
       }
       defs.parent[symbol] = -1;
-      defs.start[symbol] = -1;
     });
     flows.forEach((flow, f) => {
       const symbol = symbols[f]!;
@@ -1021,12 +1018,6 @@ export class ChunkStore {
         );
         if (scene !== undefined && flowKinds.get(scene) === SymbolKind.Scene) {
           defs.parent[symbol] = scene;
-        }
-      }
-      if (flow.startsWith !== undefined) {
-        const start = this.table.symbolIds.get(flow.startsWith);
-        if (start !== undefined && flowKinds.get(start) === SymbolKind.Branch) {
-          defs.start[symbol] = start;
         }
       }
     });
@@ -2443,12 +2434,6 @@ export class ChunkStore {
           defs.parent[symbol] = scene;
         }
       }
-      if (flow.startsWith !== undefined) {
-        const start = this.table.symbolIds.get(flow.startsWith);
-        if (start !== undefined && flowKinds.get(start) === SymbolKind.Branch) {
-          defs.start[symbol] = start;
-        }
-      }
     });
     for (const row of root.sequences()) {
       for (const chunk of row.arrays.chunks) {
@@ -2477,7 +2462,7 @@ export class ChunkStore {
       }
     }
     const built = root.definitionArrays;
-    for (const key of ["chunk", "offset", "sequence", "kind", "parent", "start"] as const) {
+    for (const key of ["chunk", "offset", "sequence", "kind", "parent"] as const) {
       const want = defs[key];
       const got = built[key];
       for (let s = 0; s < want.length; s += 1) {
@@ -3409,7 +3394,6 @@ const copyDefinitions = (
     );
     out.kind.set(defs.kind.subarray(0, Math.min(size, defs.kind.length)));
     out.parent.set(defs.parent.subarray(0, Math.min(size, defs.parent.length)));
-    out.start.set(defs.start.subarray(0, Math.min(size, defs.start.length)));
   }
   return out;
 };
