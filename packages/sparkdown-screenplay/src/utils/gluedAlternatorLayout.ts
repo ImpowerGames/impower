@@ -8,10 +8,10 @@ export type GluedAlternatorJoin = "before" | "between" | "after";
 export const gluedAlternatorJoin = (join: GluedAlternatorJoin): string => {
   switch (join) {
     case "before":
-      return " ";
+      return " {";
     case "between":
-      return " / ";
+      return "|";
     case "after":
-      return "";
+      return "}";
   }
 };

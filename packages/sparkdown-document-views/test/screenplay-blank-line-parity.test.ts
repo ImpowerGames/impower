@@ -146,7 +146,10 @@ const KINDS: Record<string, string[]> = {
   InlineDialogueCentredMarkup: ["  GUIDE: ^Hello there.^"],
   BlockDialogueThenCentredAction: ["  GUIDE:", "    ^Hello there.^"],
   GluedTwiceOneLine: ["  They see .. queue | a cat | a dog .. and .. queue | a cow | a hen .. now."],
-  GluedBesideSameText: ["  They see a / .. queue | a cat | a dog .. / outside."],
+  GluedBesideSameText: ["  They see a } .. queue | a cat | a dog .. } outside."],
+  GluedEmptyArm: ["  They see .. queue | | a dog .. outside."],
+  GluedQuotedBarArm: ["  They see .. queue | {\"a|b\"} | a dog .. outside."],
+  GluedQuotedBraceArm: ["  They see .. queue | {\"{a}\"} | a dog .. outside."],
   ChoiceEscape: ["  * [Pick \\*one\\* _now_.]"],
   LuauSparkdownVariableDefinition: ["  local z = 3"],
   LuauSparkdownWhileLoop: ["  while false do", "    It hails.", "  end"],
@@ -165,12 +168,12 @@ const KINDS: Record<string, string[]> = {
 };
 
 const GLUED_LAYOUTS: Record<string, string[]> = {
-  GluedActionAlternator: ["They see a cat / a dog outside."],
-  GluedDialogueAlternator: ["HERO", "I want tea / coffee now."],
-  GluedChoiceAlternator: ["* [Pick red / blue]"],
-  GluedConditionalAlternator: ["It is cold / warm today."],
-  GluedInterpolatedAlternator: ["They see {animal} / a dog outside."],
-  GluedMarkupAlternator: ["They spot a big owl / a hawk above."],
+  GluedActionAlternator: ["They see {a cat|a dog} outside."],
+  GluedDialogueAlternator: ["HERO", "I want {tea|coffee} now."],
+  GluedChoiceAlternator: ["* [Pick {red|blue}]"],
+  GluedConditionalAlternator: ["It is {cold|warm} today."],
+  GluedInterpolatedAlternator: ["They see {{animal}|a dog} outside."],
+  GluedMarkupAlternator: ["They spot {a big owl|a hawk} above."],
 };
 
 const PRINTED: Record<string, string[]> = {
@@ -183,8 +186,8 @@ const PRINTED: Record<string, string[]> = {
   SingleLineAlternatorMarkup: ["A bold arm.", "A plain arm."],
   ImplicitActionMarkupBesideInterpolation: ["Meet {person} and {guest} now."],
   DialogueNameMarkup: ["GUIDE", "Hello."],
-  InlineDialogueLeadingGlued: ["GUIDE", "cat / dog outside."],
-  InlineDialogueOnlyGlued: ["GUIDE", "owl / hawk"],
+  InlineDialogueLeadingGlued: ["GUIDE", "{cat|dog} outside."],
+  InlineDialogueOnlyGlued: ["GUIDE", "{owl|hawk}"],
   DialogueNameParentheticalMarkup: ["GUIDE (V.O.)", "Hello."],
   BlockDialogueNameMarkup: ["GUIDE (quietly)", "Hello there."],
   DialogueNameInterpolation: ["GUIDE {person}: Hi."],
@@ -775,7 +778,7 @@ const WIDGET_CASES: [string, string, string][] = [
   ["title", "queue | A *cat* | A _dog_ end", "queue | A cat | A dog end"],
   ["title", "A {person .. '*bold*'} beside _word_.", "A {person .. 'bold'} beside word."],
   ["title", 'A {"&amp;"} beside *word*.', 'A {"&amp;"} beside word.'],
-  ["dialogue", "A *bold .. queue | cat | dog .. bold* beside {person}.", "A *bold cat / dog bold* beside {person}."],
+  ["dialogue", "A *bold .. queue | cat | dog .. bold* beside {person}.", "A *bold {cat|dog} bold* beside {person}."],
   ["dialogue", 'A {"<b>owl</b>"} beside *word*.', 'A {"<b>owl</b>"} beside word.'],
   ["title", 'A <b>x</b> &amp; "q" </script> end', 'A x &amp; "q"  end'],
 ];
@@ -911,7 +914,7 @@ describe("a tab in printed text", () => {
   it.each([
     ["a tab inside underlined text", "  : _A\tB_ end.", "    ", "u"],
     ["a tab inside an emphasised interpolation", "  : *{a\tb}* tail.", "    ", "is"],
-    ["a glued alternative's join inside underlined text", "  _They see .. queue | a cat | a dog .. outside._", " / ", ""],
+    ["a glued alternative's join inside underlined text", "  _They see .. queue | a cat | a dog .. outside._", "|", ""],
   ])("styles the export's text drawn in place of the source for %s", (_name, line, drawn, flags) => {
     const source = ["scene s", line, "end", ""].join("\n");
     const spans = generateScreenplayPrintData(new ScreenplayParser().parse(source), CONFIGS["default"]).spans;
@@ -958,6 +961,20 @@ describe("text the export inserts", () => {
     const printed = exportRows("default", source).filter((row) => row);
     screenRows("default", source);
     expect(pageRowTexts("default").join("")).toBe(printed.join(""));
+    expect(unplacedText("default", source)).toEqual([]);
+  });
+
+  it.each([
+    ["an empty alternative, dropped as a known gap (I-2389)", "GluedEmptyArm", "They see {a dog} outside."],
+    ["an alternative holding a quoted bar", "GluedQuotedBarArm", "They see {{\"a|b\"}|a dog} outside."],
+    ["an alternative holding a quoted brace", "GluedQuotedBraceArm", "They see {{\"{a}\"}|a dog} outside."],
+    ["source braces beside an alternative", "GluedBesideSameText", "They see a } {a cat|a dog} } outside."],
+  ])("prints the author's text unaltered inside the braces, for %s", (_name, kind, expected) => {
+    const source = sourceOf([kind]);
+    const printed = exportRows("default", source).filter((row) => row);
+    expect(printed, JSON.stringify(printed)).toEqual(["Before.", expected, "After."]);
+    screenRows("default", source);
+    expect(pageRowTexts("default")).toEqual(printed);
     expect(unplacedText("default", source)).toEqual([]);
   });
 
