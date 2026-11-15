@@ -355,6 +355,7 @@ function literalOpenerPositions(text: ChoiceText, ctx: LowerContext): ReadonlySe
       return;
     }
     if (node.name === "Punctuation") {
+      // value-level: the one character a Punctuation node holds.
       if (OPENER_CHARACTERS.includes(ctx.read(node.from, node.to))) positions.add(node.from);
       return;
     }
