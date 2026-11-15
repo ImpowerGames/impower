@@ -5,7 +5,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hook
 import { cn } from "../../utils/cn";
 import "../../utils/uniqueIds";
 import { useEscapeWithin } from "../../utils/escapeWithin";
-import { type KeepClear, useClearLine } from "../../utils/keepClear";
+import { type KeepClear, keepsClear, useClearLine } from "../../utils/keepClear";
 import Button from "../button/Button";
 import { CheckIcon } from "../icon/icons.generated";
 
@@ -235,6 +235,8 @@ export function WheelSheet({
   cancel.current = onCancel;
   const focusBack = useRef(returnFocus);
   focusBack.current = returnFocus;
+  const clearOf = useRef(keepClear);
+  clearOf.current = keepClear;
 
   useEscapeWithin(panel, open, onCancel);
 
@@ -249,8 +251,8 @@ export function WheelSheet({
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     list.current?.focus({ preventScroll: true });
     const outside = (event: PointerEvent) => {
-      const target = event.target as Element | null;
-      if (!panel.current?.contains(target) && !target?.closest?.("[data-zoom-frame]")) {
+      const target = event.target as Node | null;
+      if (!panel.current?.contains(target) && !keepsClear(clearOf.current, target)) {
         cancel.current();
       }
     };

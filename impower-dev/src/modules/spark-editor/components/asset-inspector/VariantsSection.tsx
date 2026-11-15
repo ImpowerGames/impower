@@ -85,7 +85,7 @@ function GroupMenu({
       data-variant-group={group.key}
       data-changed={value === group.default ? undefined : ""}
       disabled={disabled}
-      {...(coarse ? { "aria-haspopup": "dialog" as const, onClick: () => setOpen(true) } : {})}
+      {...(coarse ? { "aria-haspopup": "dialog" as const, "aria-expanded": open, onClick: () => setOpen(true) } : {})}
     >
       <span class="truncate">{optionLabel(value)}</span>
       <ChevronDownIcon />
@@ -121,7 +121,7 @@ function GroupMenu({
     );
   }
   return (
-    <DropdownRoot onOpenChange={(next) => !next && onPreview(null)}>
+    <DropdownRoot sheet={false} onOpenChange={(next) => !next && onPreview(null)}>
       <DropdownTrigger asChild>{trigger}</DropdownTrigger>
       <DropdownContent align="end" sideOffset={6} keepClear={keepClear} class="min-w-[196px]">
         <DropdownRadioGroup value={value} onValueChange={onPick} label={name}>

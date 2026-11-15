@@ -1576,6 +1576,7 @@ describe("the Variants tester and the Files section", () => {
       await click(group("face"));
       const wheel = document.querySelector<HTMLElement>('[role="dialog"] [role="listbox"]')!;
       expect(wheel.getAttribute("aria-label")).toBe("Face");
+      expect(group("face").getAttribute("aria-expanded")).toBe("true");
       await key(wheel, "ArrowDown");
       await vi.waitFor(() =>
         expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, 1280, expect.any(Function)),
@@ -1583,6 +1584,7 @@ describe("the Variants tester and the Files section", () => {
       expect(reference()).toBe("[[imani]]");
       await click(all<HTMLElement>('[role="dialog"] button').find((button) => button.textContent === "Done"));
       expect(reference()).toBe("[[imani:happy]]");
+      expect(group("face").getAttribute("aria-expanded")).toBe("false");
     } finally {
       Object.defineProperty(Element.prototype, "scrollTop", scrollTop);
     }

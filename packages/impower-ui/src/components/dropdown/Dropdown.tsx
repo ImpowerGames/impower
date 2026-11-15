@@ -98,6 +98,7 @@ type RootProps = {
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   modal?: boolean;
+  sheet?: boolean;
   children?: ComponentChildren;
 };
 
@@ -106,9 +107,11 @@ export function DropdownRoot({
   defaultOpen = false,
   onOpenChange,
   modal,
+  sheet = true,
   children,
 }: RootProps) {
-  const mobile = useLayout() === "phone";
+  const phone = useLayout() === "phone";
+  const mobile = sheet && phone;
   const trigger = useRef<HTMLElement>(null);
   const returnsFocus = useRef(true);
   const [handingOff, setHandingOff] = useState(false);
@@ -180,6 +183,9 @@ export function DropdownTrigger({
   if (ctx.mode === "sheet") {
     if (child && typeof child === "object" && "props" in child) {
       return cloneElement(child, {
+        "aria-haspopup": "dialog",
+        "aria-expanded": ctx.open,
+        "data-state": ctx.open ? "open" : "closed",
         onClick: (e: MouseEvent) => {
           child.props.onClick?.(e);
           ctx.setOpen(true);
@@ -260,28 +266,47 @@ const clearOf = (
   return placed(KEEP_CLEAR_MARGIN, Math.min(sideOffset, Math.max(KEEP_CLEAR_MARGIN, under - KEEP_CLEAR_MARGIN)));
 };
 
+type MenuAttributes = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">;
+
 function SheetMenu({
   open,
   setOpen,
   trigger,
   returnsFocus,
   owner,
+  keepClear,
+  onCloseAutoFocus,
   class: className,
   children,
+  ...rest
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
   trigger: RefObject<HTMLElement>;
   returnsFocus: MutableRef<boolean>;
   owner: (element: HTMLElement | null) => void;
+  keepClear?: KeepClear;
+  onCloseAutoFocus?: (event: Event) => void;
   class?: string;
   children?: ComponentChildren;
-}) {
+} & MenuAttributes) {
+  const menu = useRef<HTMLElement | null>(null);
+  const chosen = useMemo(
+    () => ({
+      get current() {
+        return menu.current?.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]') ?? null;
+      },
+    }),
+    [],
+  );
   return (
     <Sheet
       open={open}
       onOpenChange={setOpen}
       flush
+      keepClear={keepClear}
+      initialFocus={chosen}
+      onCloseAutoFocus={onCloseAutoFocus}
       returnFocus={() =>
         returnsFocus.current
           ? trigger.current
@@ -290,7 +315,11 @@ function SheetMenu({
     >
       <DialogTitle class="sr-only">Menu</DialogTitle>
       <div
-        ref={owner}
+        {...rest}
+        ref={(element: HTMLDivElement | null) => {
+          menu.current = element;
+          owner(element);
+        }}
         role="menu"
         class={cn("overflow-y-auto overscroll-contain p-1.5", className)}
       >
@@ -304,6 +333,7 @@ export function DropdownContent({
   class: className,
   sideOffset = 8,
   align = "end",
+  side,
   keepClear,
   onCloseAutoFocus,
   children,
@@ -316,7 +346,7 @@ export function DropdownContent({
   keepClear?: KeepClear;
   onCloseAutoFocus?: (event: Event) => void;
   children?: ComponentChildren;
-} & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">) {
+} & MenuAttributes) {
   const ctx = useMenuCtx();
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const menuRef = useMemo(() => ({ current: menu }), [menu]);
@@ -345,7 +375,10 @@ export function DropdownContent({
         trigger={ctx.trigger}
         returnsFocus={ctx.returnsFocus}
         owner={owner}
+        keepClear={keepClear}
+        onCloseAutoFocus={onCloseAutoFocus}
         class={className}
+        {...rest}
       >
         {children}
       </SheetMenu>
@@ -357,6 +390,7 @@ export function DropdownContent({
         ref={owner}
         sideOffset={clear?.offset ?? sideOffset}
         align={align}
+        side={side}
         {...(clear ? { collisionPadding: clear.padding } : {})}
         class={cn(
           dropdownContentVariants({ fit: keepClear ? "room" : "free" }),
@@ -384,6 +418,59 @@ const dropdownItem = cva([
   "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
 ]);
 
+type ItemAttributes = Omit<
+  JSX.HTMLAttributes<HTMLElement>,
+  "class" | "ref" | "value" | "checked" | "disabled" | "onChange" | "onSelect"
+>;
+
+type SharedItemProps = ItemAttributes & {
+  class: string;
+  disabled?: boolean;
+};
+
+function SheetRow({
+  role,
+  checked,
+  returnFocus = true,
+  onSelect,
+  onClick,
+  children,
+  ...shared
+}: SharedItemProps & {
+  role: "menuitem" | "menuitemcheckbox" | "menuitemradio";
+  checked?: boolean;
+  returnFocus?: boolean;
+  onSelect: (event: Event) => void;
+  children?: ComponentChildren;
+}) {
+  const ctx = useMenuCtx();
+  return (
+    <button
+      {...shared}
+      type="button"
+      role={role}
+      aria-checked={checked}
+      data-state={checked === undefined ? undefined : checked ? "checked" : "unchecked"}
+      onClick={(event) => {
+        onClick?.(event);
+        if (event.defaultPrevented) {
+          return;
+        }
+        const select = new Event("select", { cancelable: true });
+        if (!returnFocus) {
+          flushSync(ctx.handOff);
+        }
+        onSelect(select);
+        if (!select.defaultPrevented) {
+          ctx.setOpen(false);
+        }
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function DropdownItem({
   class: className,
   children,
@@ -398,38 +485,25 @@ export function DropdownItem({
   returnFocus?: boolean;
   // workaround(preact): preact's DOM `onSelect` (text selection) typing conflicts with Radix's item onSelect, so the prop is redeclared (seen with preact 10.29.2)
   onSelect?: (event: Event) => void;
-} & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "onSelect">) {
+} & ItemAttributes) {
   const ctx = useMenuCtx();
+  const shared: SharedItemProps = { class: cn(dropdownItem(), className), disabled, ...rest };
   if (ctx.mode === "sheet") {
     return (
-      <button
-        type="button"
-        role="menuitem"
-        disabled={disabled}
-        class={cn(dropdownItem(), className)}
-        onClick={() => {
-          if (!returnFocus) {
-            flushSync(ctx.handOff);
-          }
-          onSelect?.(new Event("select"));
-          ctx.setOpen(false);
-        }}
-      >
+      <SheetRow {...shared} role="menuitem" returnFocus={returnFocus} onSelect={(event) => onSelect?.(event)}>
         {children}
-      </button>
+      </SheetRow>
     );
   }
   return (
     <DropdownMenuPrimitive.Item
-      class={cn(dropdownItem(), className)}
-      disabled={disabled}
+      {...shared}
       onSelect={(event: Event) => {
         if (!returnFocus) {
           ctx.handOff();
         }
         onSelect?.(event);
       }}
-      {...rest}
     >
       {children}
     </DropdownMenuPrimitive.Item>
@@ -441,6 +515,7 @@ export function DropdownCheckboxItem({
   checked,
   disabled,
   onCheckedChange,
+  onSelect,
   children,
   ...rest
 }: {
@@ -450,32 +525,30 @@ export function DropdownCheckboxItem({
   onCheckedChange?: (checked: boolean) => void;
   onSelect?: (event: Event) => void;
   children?: ComponentChildren;
-} & Omit<
-  JSX.HTMLAttributes<HTMLDivElement>,
-  "class" | "checked" | "disabled" | "onChange" | "onSelect"
->) {
+} & ItemAttributes) {
   const ctx = useMenuCtx();
+  const shared: SharedItemProps = { class: cn(dropdownItem(), className), disabled, ...rest };
   if (ctx.mode === "sheet") {
     return (
-      <button
-        type="button"
+      <SheetRow
+        {...shared}
         role="menuitemcheckbox"
-        aria-checked={checked}
-        disabled={disabled}
-        class={cn(dropdownItem(), className)}
-        onClick={() => onCheckedChange?.(!checked)}
+        checked={!!checked}
+        onSelect={(event) => {
+          onSelect?.(event);
+          onCheckedChange?.(!checked);
+        }}
       >
         {children}
-      </button>
+      </SheetRow>
     );
   }
   return (
     <DropdownMenuPrimitive.CheckboxItem
+      {...shared}
       checked={checked}
-      disabled={disabled}
       onCheckedChange={onCheckedChange}
-      class={cn(dropdownItem(), className)}
-      {...rest}
+      onSelect={onSelect}
     >
       {children}
     </DropdownMenuPrimitive.CheckboxItem>
@@ -589,44 +662,29 @@ export function DropdownRadioItem({
   disabled?: boolean;
   class?: string;
   children?: ComponentChildren;
-} & Omit<
-  JSX.HTMLAttributes<HTMLDivElement>,
-  "class" | "value" | "disabled" | "onChange" | "onSelect"
->) {
+} & ItemAttributes) {
   const ctx = useMenuCtx();
   const radio = useContext(RadioContext);
-  const classes = cn(
-    dropdownItem(),
-    dropdownRadioItemVariants({ indicator, size }),
-    className,
-  );
+  const shared: SharedItemProps = {
+    class: cn(dropdownItem(), dropdownRadioItemVariants({ indicator, size }), className),
+    disabled,
+    ...rest,
+  };
   if (ctx.mode === "sheet") {
-    const checked = radio.value === value;
     return (
-      <button
-        type="button"
+      <SheetRow
+        {...shared}
         role="menuitemradio"
-        aria-checked={checked}
-        data-state={checked ? "checked" : "unchecked"}
-        disabled={disabled}
-        class={classes}
-        onClick={() => {
-          radio.onValueChange?.(value);
-          ctx.setOpen(false);
-        }}
+        checked={radio.value === value}
+        onSelect={() => radio.onValueChange?.(value)}
       >
         <RadioIndicator />
         {children}
-      </button>
+      </SheetRow>
     );
   }
   return (
-    <DropdownMenuPrimitive.RadioItem
-      value={value}
-      disabled={disabled}
-      class={classes}
-      {...rest}
-    >
+    <DropdownMenuPrimitive.RadioItem {...shared} value={value}>
       <RadioIndicator />
       {children}
     </DropdownMenuPrimitive.RadioItem>
