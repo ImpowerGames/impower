@@ -93,8 +93,6 @@ export class Coordinator<G extends Game> {
 
   protected _reportedFinished = false;
 
-  protected _held = false;
-
   constructor(
     game: G,
     instructions: Instructions,
@@ -120,7 +118,7 @@ export class Coordinator<G extends Game> {
     } else if (game.context.system.previewing) {
       this.onPreview();
     } else if (options?.held) {
-      this._held = true;
+      this.onHold();
     } else {
       this.onExecute();
     }
@@ -161,16 +159,16 @@ export class Coordinator<G extends Game> {
     this._onTick = () => {};
   }
 
+  onHold() {
+    this._onTick = this.display();
+  }
+
   onExecute() {
     this._onTick = this.display();
     this._onTick?.(0);
   }
 
   onUpdate(time: Clock) {
-    if (this._held) {
-      this._held = false;
-      this.onExecute();
-    }
     if (this._onTick) {
       this._onTick(time.deltaMS);
       this._elapsedMS += time.deltaMS;
@@ -431,12 +429,10 @@ export class Coordinator<G extends Game> {
     const assetTriggerId =
       instant || simulating ? null : assets.prepareBeat(instructions);
     let loadTriggerId: number | null = null;
-    if (instructions.load && !simulating) {
-      if (!instant) {
-        loadTriggerId = assets.runLoad(instructions.load);
-      } else if (previewing) {
-        assets.runLoad(instructions.load);
-      }
+    let pendingLoad =
+      instructions.load && !simulating && !instant ? instructions.load : null;
+    if (instructions.load && !simulating && instant && previewing) {
+      assets.runLoad(instructions.load);
     }
     const cutscene = instructions.cutscene?.[0];
     let cutsceneTriggerId: number | null = null;
@@ -463,6 +459,10 @@ export class Coordinator<G extends Game> {
     let finished = false;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
     const handleTick = (deltaMS: number): void => {
+      if (pendingLoad) {
+        loadTriggerId = assets.runLoad(pendingLoad);
+        pendingLoad = null;
+      }
       if (!ready) {
         const audioReady = audioTriggerIds.every((n) =>
           game.module.audio.isReady(n),
