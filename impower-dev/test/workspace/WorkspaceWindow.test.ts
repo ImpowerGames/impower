@@ -2897,6 +2897,7 @@ describe("The preview's top bar", () => {
       expect(labels()).toEqual([
         "Viewing mode",
         "Pause",
+        "Step",
         "Step Over",
         "Step Into",
         "Skip back",
@@ -2995,6 +2996,7 @@ describe("The preview's top bar", () => {
     expect(labels()).toEqual([
       "Viewing mode",
       "Play Again",
+      "Step",
       "Step Over",
       "Step Into",
       "Skip back",
@@ -3229,6 +3231,7 @@ describe("The preview's top bar", () => {
     expect(labels()).toEqual([
       "Viewing mode",
       "Pause",
+      "Step",
       "Step Over",
       "Step Into",
       "Skip back",

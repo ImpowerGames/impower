@@ -232,3 +232,19 @@ export function displayRouting(
     return routing;
   });
 }
+
+export function continueBeats(
+  story: TestStory,
+): { text: string; routing: string | null }[] {
+  const beats: { text: string; routing: string | null }[] = [];
+  while (story.canContinue) {
+    const text = story.Continue() ?? "";
+    if (!continueShowedSomething(story)) continue;
+    const routed = displayRouting(story).find((r) => r.target);
+    beats.push({
+      text,
+      routing: routed ? `${routed.target}:${routed.character ?? ""}` : null,
+    });
+  }
+  return beats;
+}

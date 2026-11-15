@@ -48,6 +48,9 @@ export const generateScreenplayReadingCopy = (tokens: ScreenplayToken[]): string
   };
 
   for (const t of tokens) {
+    if (t.row) {
+      continue;
+    }
     if (typeof t.tag === "string" && t.tag.startsWith("meta:")) {
       const key = t.tag.slice("meta:".length);
       metaLines.push(...formatMeta(key, t.styled ?? t.text ?? ""));

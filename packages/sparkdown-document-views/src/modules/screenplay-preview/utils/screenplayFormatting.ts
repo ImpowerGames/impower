@@ -8,12 +8,13 @@ import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import type { FormattedText } from "../../../../../sparkdown-screenplay/src/types/FormattedText";
-import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/gluedAlternatorLayout";
+import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/alternativeMarks";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styleText";
 import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
 import {
   type PageInsert,
+  type PageRow,
   type PrintedRun,
   type PrintedScene,
   screenplayPageLayout,
@@ -23,6 +24,7 @@ import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
+import InsertedRowWidget from "../classes/widgets/InsertedRowWidget";
 import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
@@ -209,6 +211,7 @@ interface CachedPageLayout {
   printed: number[];
   actionStarts: number[];
   inserts: PageInsert[];
+  rows: PageRow[];
   printedLines: { at: number; lines: FormattedText[][] }[];
   runs: PrintedRun[];
   scenes: PrintedScene[];
@@ -227,25 +230,31 @@ const printedStyle = (piece: FormattedText) => ({
 
 const alignedStyle = (align: string) => `display: block; text-align: ${align};`;
 
-const printedPieceHtml = (piece: FormattedText) => {
+const hangingLineStyle = (width: number) => `border-left: ${width}ch solid transparent; box-sizing: border-box;`;
+
+const hangingMarkStyle = (width: number) => `margin-left: -${width}ch; white-space: pre;`;
+
+const printedPieceHtml = (piece: FormattedText, hang?: number) => {
   const { source, style } = printedStyle(piece);
-  return `<span${source ? ' class="sp-source"' : ""}${style ? ` style="${style}"` : ""}>${escapeHtml(piece.text)}</span>`;
+  const shown = `${style}${hang ? hangingMarkStyle(hang) : ""}`;
+  return `<span${source ? ' class="sp-source"' : ""}${shown ? ` style="${shown}"` : ""}>${escapeHtml(piece.text)}</span>`;
 };
 
 const printedLineHtml = (line: FormattedText[]) => {
+  const hang = line[0]?.hang;
   let html = "";
   for (let start = 0; start < line.length; ) {
     const align = line[start]!.align ?? "";
     let end = start;
     let pieces = "";
     while (end < line.length && (line[end]!.align ?? "") === align) {
-      pieces += printedPieceHtml(line[end]!);
+      pieces += printedPieceHtml(line[end]!, line[end]!.hang);
       end++;
     }
     html += align ? `<span style="${alignedStyle(align)}">${pieces}</span>` : pieces;
     start = end;
   }
-  return `<div>${html}</div>`;
+  return hang ? `<div style="${hangingLineStyle(hang)}">${html}</div>` : `<div>${html}</div>`;
 };
 
 const printedHtml = (lines: FormattedText[][]) => lines.map(printedLineHtml).join("");
@@ -265,6 +274,7 @@ const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
     printed: layout.printed,
     actionStarts: layout.actionStarts,
     inserts: layout.inserts,
+    rows: layout.rows,
     printedLines: layout.printedLines,
     runs: layout.runs,
     scenes: layout.scenes,
@@ -329,7 +339,7 @@ export const decorate = (
 
   const tree = treeOverride ?? syntaxTree(state);
 
-  const { blankPositions, printed, actionStarts, inserts, printedLines, runs, scenes } = cachedPageLayout(
+  const { blankPositions, printed, actionStarts, inserts, rows, printedLines, runs, scenes } = cachedPageLayout(
     tree,
     doc,
     config,
@@ -358,20 +368,153 @@ export const decorate = (
     return low * 2 < printed.length && printed[low * 2]! < to;
   };
 
+  const actionStartSet = new Set(actionStarts);
+  const drawnPositions = [...runs.map((run) => run.from), ...inserts.map((insert) => insert.at)].sort((a, b) => a - b);
+  const drawnIn = (from: number, to: number) => {
+    let low = 0;
+    let high = drawnPositions.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (drawnPositions[middle]! < from) low = middle + 1;
+      else high = middle;
+    }
+    return low < drawnPositions.length && drawnPositions[low]! < to;
+  };
+  const rowLine = (row: PageRow) => doc.lineAt(Math.min(row.at, doc.length));
+  const sharesLine = (row: PageRow) => {
+    const line = rowLine(row);
+    return row.side === "above" ? drawnIn(line.from, row.at) : drawnIn(row.at, line.to + 1);
+  };
+  const hangsByLine = new Map<number, { width: number; anchors: Map<number, number> }>();
+  for (const insert of inserts) {
+    if (!insert.style.hang) continue;
+    const number = doc.lineAt(insert.at).number;
+    const entry = hangsByLine.get(number) ?? { width: insert.style.hang, anchors: new Map<number, number>() };
+    if (entry.width !== insert.style.hang) entry.width = 0;
+    entry.anchors.set(insert.at, insert.style.hang);
+    hangsByLine.set(number, entry);
+  }
+  const hangingLines = new Map<number, number>();
+  const mixedLines = new Map<number, Map<number, number>>();
+  for (const [number, { width, anchors }] of hangsByLine) {
+    if (width > 0) hangingLines.set(number, width);
+    else mixedLines.set(number, anchors);
+  }
+  const mixedHangAt = (position: number) =>
+    mixedLines.get(doc.lineAt(Math.min(position, doc.length)).number)?.get(position);
+  const isMixedLine = (position: number) => mixedLines.has(doc.lineAt(Math.min(position, doc.length)).number);
+  const hangOf = (position: number) => hangingLines.get(doc.lineAt(Math.min(position, doc.length)).number);
+  const firstDrawnFrom = (position: number) => {
+    let low = 0;
+    let high = drawnPositions.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (drawnPositions[middle]! < position) low = middle + 1;
+      else high = middle;
+    }
+    return drawnPositions[low];
+  };
+  const unhungStarts = new Set<number>();
+  const lineRows = (number: number, anchors: Map<number, number>) => {
+    const line = doc.line(number);
+    const first = firstDrawnFrom(line.from);
+    const starts = actionStarts.filter((start) => start > line.from && start <= line.to);
+    const rowStarts = [...new Set([...(first !== undefined && first <= line.to ? [first] : []), ...starts])];
+    const inlineRows = rows.filter((row) => sharesLine(row) && rowLine(row).number === number).map((row) => row.at);
+    const boundaries = [...new Set([...anchors.keys(), ...rowStarts, ...inlineRows])].sort((a, b) => a - b);
+    const endOf = (start: number) => boundaries.find((boundary) => boundary > start) ?? line.to;
+    return { line, rowStarts, endOf };
+  };
+  const inView = (position: number) => position >= from && (to === undefined || position <= to);
+  for (const [number, width] of hangingLines) {
+    const anchors = hangsByLine.get(number)!.anchors;
+    const { line, rowStarts, endOf } = lineRows(number, anchors);
+    if (inView(line.from)) {
+      decorations.push(Decoration.line({ attributes: { style: hangingLineStyle(width) } }).range(line.from));
+    }
+    for (const start of rowStarts) {
+      const end = endOf(start);
+      if (anchors.has(start) || !inView(start) || end <= start) continue;
+      unhungStarts.add(start);
+      decorations.push(
+        Decoration.mark({ attributes: { style: `display: block; margin-left: -${width}ch;` } }).range(start, end),
+      );
+    }
+  }
+  for (const [number, anchors] of mixedLines) {
+    const { rowStarts, endOf } = lineRows(number, anchors);
+    for (const start of new Set([...anchors.keys(), ...rowStarts])) {
+      const end = endOf(start);
+      if (!inView(start) || end <= start) continue;
+      const hang = anchors.get(start);
+      unhungStarts.add(start);
+      decorations.push(
+        Decoration.mark({
+          attributes: { style: hang ? `display: block; padding-left: ${hang}ch; text-indent: -${hang}ch;` : "display: block;" },
+          inclusiveStart: true,
+        }).range(start, end),
+      );
+    }
+  }
+
   for (const start of actionStarts) {
+    if (unhungStarts.has(start)) continue;
     if (start >= from && (to === undefined || start <= to) && printedBefore(doc.lineAt(start).from, start)) {
       decorations.push(Decoration.widget({ widget: new LineBreakWidget(), side: 1 }).range(start));
     }
   }
 
+  const rowGroups = new Map<string, number>();
+  const rowGroupOf = (row: PageRow) => `${row.side}:${rowLine(row).number}`;
+  for (const row of rows) {
+    if (!sharesLine(row)) rowGroups.set(rowGroupOf(row), (rowGroups.get(rowGroupOf(row)) ?? 0) + 1);
+  }
+  const rowsPlaced = new Map<string, number>();
+  const rowsBelow: Range<Decoration>[] = [];
+  for (const row of rows) {
+    const inline = sharesLine(row);
+    const group = rowGroupOf(row);
+    const index = inline ? 0 : (rowsPlaced.get(group) ?? 0);
+    if (!inline) rowsPlaced.set(group, index + 1);
+    if (row.at < from || (to !== undefined && row.at > to)) continue;
+    const pieces = row.pieces.map((piece) => ({ text: piece.text, ...printedStyle(piece.style) }));
+    const above = row.side === "above";
+    if (inline) {
+      const mixed = isMixedLine(row.at);
+      const pull = mixed ? (above ? mixedHangAt(row.at) : undefined) : hangOf(row.at);
+      const pulled = pull
+        ? pieces.map((piece, index) => (index === 0 ? { ...piece, style: `${piece.style}${hangingMarkStyle(pull)}` } : piece))
+        : pieces;
+      const widget = new InsertedRowWidget(
+        pulled,
+        mixed ? { before: false, after: false, block: true } : { before: !above || !actionStartSet.has(row.at), after: above },
+      );
+      (above ? decorations : rowsBelow).push(Decoration.widget({ widget, side: 1 }).range(row.at));
+      continue;
+    }
+    const count = rowGroups.get(group)!;
+    const line = rowLine(row);
+    const widget = new InsertedRowWidget(pieces);
+    (above ? decorations : rowsBelow).push(
+      above
+        ? Decoration.widget({ widget, block: true, side: -(count - index) / (count + 1) }).range(line.from)
+        : Decoration.widget({ widget, block: true, side: (index + 1) / (count + 1) }).range(line.to),
+    );
+  }
+
   for (const insert of inserts) {
     if (insert.at >= from && (to === undefined || insert.at <= to)) {
       const { style, source } = printedStyle(insert.style);
+      const hang = insert.style.hang && hangOf(insert.at);
       decorations.push(
-        Decoration.widget({ widget: new InsertedTextWidget(insert.text, style, source), side: 1 }).range(insert.at),
+        Decoration.widget({
+          widget: new InsertedTextWidget(insert.text, `${style}${hang ? hangingMarkStyle(hang) : ""}`, source),
+          side: 1,
+        }).range(insert.at),
       );
     }
   }
+  decorations.push(...rowsBelow);
 
   let printedIndex = 0;
   const holdsPrintedText = (from: number, to: number) => {
@@ -906,13 +1049,20 @@ export const decorate = (
   };
   let printedLine: Line | undefined;
   let printedUpTo = 0;
+  const insertAligns = new Map<number, string>();
+  for (const insert of inserts) {
+    if (!insertAligns.has(insert.at)) insertAligns.set(insert.at, insert.style.align ?? "");
+  }
   let align = "";
   let alignFrom = 0;
   let alignTo = 0;
   const closeAlign = () => {
     if (align) {
       decorations.push(
-        Decoration.mark({ attributes: { style: alignedStyle(align) } }).range(alignFrom, alignTo),
+        Decoration.mark({
+          attributes: { style: alignedStyle(align) },
+          inclusiveStart: insertAligns.get(alignFrom) === align,
+        }).range(alignFrom, alignTo),
       );
     }
     align = "";
