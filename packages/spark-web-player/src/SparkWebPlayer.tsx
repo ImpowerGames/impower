@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { PlayBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/PlayBeatMessage";
 import type {
   GamePlayerController as GamePlayerControllerType,
   PlayerBarView,
 } from "./GamePlayerController";
 import PlayerBar from "./components/PlayerBar/PlayerBar";
+import { requestReplayBeat } from "./components/PlayerBar/replayBeat";
 import {
   initialPlayerBarState,
   type PlayerBarState,
@@ -151,9 +150,7 @@ export default function SparkWebPlayer({
           replayShortcut={replayShortcut || undefined}
           onRun={() => void controllerRef.current?.run()}
           onStop={() => void controllerRef.current?.stop()}
-          onReplayBeat={() =>
-            sendProtocolMessage(PlayBeatMessage.type.request({}))
-          }
+          onReplayBeat={requestReplayBeat}
           onSkip={(direction) => void controllerRef.current?.skipBeat(direction)}
           onPause={() => void controllerRef.current?.pauseGame()}
           onResume={() => void controllerRef.current?.resumeGame()}

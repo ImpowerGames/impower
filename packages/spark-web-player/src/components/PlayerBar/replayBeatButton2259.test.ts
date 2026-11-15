@@ -5,13 +5,33 @@ import {
   DidChangeGameStateMessage,
   type GameState,
 } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
-import { NO_BEAT_REFUSAL } from "../../main/workers/messages/PlayMessage";
+import {
+  NO_BEAT_REFUSAL,
+  OUTSIDE_EVERY_SCENE_REFUSAL,
+} from "../../main/workers/messages/PlayMessage";
+import SparkWebPlayer from "../../SparkWebPlayer";
 import PlayerBar, { type PlayerBarProps } from "./PlayerBar";
 import {
   initialPlayerBarState,
   reducePlayerBar,
   type PlayerBarState,
 } from "./playerBarState";
+
+const controllerBar = vi.hoisted(() => ({
+  state: null as PlayerBarState | null,
+}));
+
+vi.mock("../../GamePlayerController", () => ({
+  GamePlayerController: class {
+    subscribeBar(listener: (state: PlayerBarState, view: object) => void) {
+      listener(controllerBar.state!, { routeShown: false, snapping: false, starting: false });
+      return () => {};
+    }
+    setup() {}
+    dispose() {}
+  },
+  setWorkspace() {},
+}));
 
 const gameState = (overrides: Partial<GameState> = {}) =>
   reducePlayerBar(
@@ -130,5 +150,63 @@ describe("the player bar's Replay beat control", () => {
   it("leaves the bar while the game runs and after it ends", () => {
     expect(mount({ state: gameState({ run: 1, launchState: "play" }) }).button()).toBeNull();
     expect(mount({ state: gameState({ run: 1, launchState: "ended" }) }).button()).toBeNull();
+  });
+});
+
+describe("the spark-web-player element's Replay beat control", () => {
+  const mountElement = async (state: PlayerBarState, title: string) => {
+    controllerBar.state = state;
+    const element = document.createElement("spark-web-player");
+    container.append(element);
+    await act(async () => {
+      render(
+        h(SparkWebPlayer, { toolbar: true, runButton: true, replayButton: true }),
+        element,
+      );
+    });
+    await vi.waitFor(() => {
+      expect(
+        element.querySelector<HTMLElement>("#replay-beat-button")?.title,
+      ).toBe(title);
+    });
+    const requests: unknown[] = [];
+    const listen = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (message?.method === "preview/playBeat") {
+        requests.push(message);
+      }
+    };
+    window.addEventListener("jsonrpc", listen);
+    const click = () =>
+      act(() => element.querySelector<HTMLElement>("#replay-beat-button")!.click());
+    return {
+      requests,
+      click,
+      done: () => {
+        window.removeEventListener("jsonrpc", listen);
+        render(null, element);
+      },
+    };
+  };
+
+  it("asks the player to play the shown beat on each click", async () => {
+    const player = await mountElement(gameState(), "Replay beat");
+    player.click();
+    player.click();
+    expect(player.requests).toEqual([
+      { jsonrpc: "2.0", method: "preview/playBeat", id: expect.anything(), params: {} },
+      { jsonrpc: "2.0", method: "preview/playBeat", id: expect.anything(), params: {} },
+    ]);
+    player.done();
+  });
+
+  it("asks nothing while the shown line has no beat to play", async () => {
+    const player = await mountElement(
+      gameState({ beat: { playing: false, refusal: OUTSIDE_EVERY_SCENE_REFUSAL } }),
+      OUTSIDE_EVERY_SCENE_REFUSAL,
+    );
+    player.click();
+    expect(player.requests).toEqual([]);
+    player.done();
   });
 });
