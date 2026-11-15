@@ -22,7 +22,10 @@ import { ReadDirectoryFilesMessage } from "@impower/spark-editor-protocol/src/pr
 import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage";
 import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage";
 import { WillCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage";
-import { WillDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
+import {
+  WillDeleteFilesMessage,
+  type WillDeleteFilesRefusal,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
 import { WillRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage";
 import {
   TrashFilesMessage,
@@ -999,9 +1002,10 @@ onmessage = async (e) => {
     try {
       const { files, mode, folders } = message.params;
       let deleted: DeleteResult[];
+      let skipped: string[] = [];
       let failure: PromiseRejectedResult | undefined;
       if (mode === "trash") {
-        deleted = await moveFilesToTrash(files, folders);
+        ({ deleted, skipped } = await moveFilesToTrash(files, folders));
       } else {
         const outcomes = await Promise.allSettled(files.map(file => deleteFiles([file])));
         deleted = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
@@ -1013,7 +1017,19 @@ onmessage = async (e) => {
       broadcastWatchedChanges(log, deleted.map(d => ({ uri: d.uri, type: FileChangeType.Deleted })));
       await announceUnordered(log);
       if (failure) throw failure.reason;
-      respond(WillDeleteFilesMessage.type.response(message.id, deleted.flatMap((d) => d.file ? [d.file] : [])));
+      const deletedFiles = deleted.flatMap((d) => d.file ? [d.file] : []);
+      if (skipped.length > 0) {
+        const refusal: WillDeleteFilesRefusal = { files: deletedFiles, skipped };
+        respond(
+          WillDeleteFilesMessage.type.error(message.id, {
+            code: ErrorCodes.InternalError,
+            message: `Cannot move ${skipped.join(", ")} to the bin`,
+            data: refusal,
+          }),
+        );
+      } else {
+        respond(WillDeleteFilesMessage.type.response(message.id, deletedFiles));
+      }
     } catch (err: any) {
       console.error(err, err.stack);
       const response = WillDeleteFilesMessage.type.error(message.id, {
@@ -2300,9 +2316,10 @@ const moveFilesToTrash = async (
   folders: { uri: string }[] = [],
 ) => {
   const deleted: DeleteResult[] = [];
+  const skipped: string[] = [];
   const first = files[0] ?? folders[0];
   if (!first) {
-    return deleted;
+    return { deleted, skipped };
   }
   const seen = new Set<string>();
   const uniqueFiles = files.filter((f) =>
@@ -2315,26 +2332,41 @@ const moveFilesToTrash = async (
     ),
   ].filter(Boolean);
   if (uniqueFiles.length === 0 && folderPaths.length === 0) {
-    return deleted;
+    return { deleted, skipped };
   }
   const deletedAt = Date.now();
   const batchId = `${deletedAt}__${crypto.randomUUID()}`;
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   const entries: { relPath: string; originalUri: string; type: string }[] = [];
   for (const file of uniqueFiles) {
+    const relPath = getPathFromUri(file.uri).slice(projectId.length + 1);
+    const trashUri = getUriFromPath(`${trashPrefix}/${relPath}`);
+    let copied = false;
     try {
-      const relPath = getPathFromUri(file.uri).slice(projectId.length + 1);
       const existing = State.files.get(file.uri);
       const type = existing?.type ?? getFileType(file.uri);
-      const trashUri = getUriFromPath(`${trashPrefix}/${relPath}`);
-      deleted.push(await copyThenRemove(file.uri, trashUri));
+      deleted.push(
+        await copyThenRemove(file.uri, trashUri, () => {
+          copied = true;
+        }),
+      );
       entries.push({ relPath, originalUri: file.uri, type });
     } catch (e) {
       console.error(`moveFilesToTrash: skipping ${file.uri}`, e);
+      skipped.push(file.uri);
+      if (copied) {
+        await removeFile(trashUri).catch((cleanupError) => {
+          console.error(`moveFilesToTrash: cannot remove ${trashUri}`, cleanupError);
+        });
+      }
     }
   }
+  if (entries.length === 0 && skipped.length > 0) {
+    await removeTrashBatch(projectId, batchId);
+    return { deleted, skipped };
+  }
   const manifest = JSON.stringify(
-    folderPaths.length
+    folderPaths.length && skipped.length === 0
       ? { deletedAt, entries, folders: folderPaths }
       : { deletedAt, entries },
   );
@@ -2345,7 +2377,7 @@ const moveFilesToTrash = async (
       data: new TextEncoder().encode(manifest).buffer as ArrayBuffer,
     },
   ]);
-  return deleted;
+  return { deleted, skipped };
 };
 
 const getTrashDirHandle = async (projectId: string) =>

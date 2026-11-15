@@ -8,6 +8,21 @@ export interface WillDeleteFilesParams extends DeleteFilesParams {
   folders?: { uri: string }[];
 }
 
+export interface WillDeleteFilesRefusal {
+  files: FileData[];
+  skipped: string[];
+}
+
+export const willDeleteFilesRefusal = (
+  error: unknown,
+): WillDeleteFilesRefusal | undefined => {
+  const data = (error as { data?: Partial<WillDeleteFilesRefusal> } | null)
+    ?.data;
+  return Array.isArray(data?.skipped) && Array.isArray(data?.files)
+    ? { files: data.files, skipped: data.skipped }
+    : undefined;
+};
+
 export class WillDeleteFilesMessage {
   static readonly method = "workspace/willDeleteFiles";
   static readonly type = new MessageProtocolRequestType<
