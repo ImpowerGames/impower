@@ -46,18 +46,24 @@ export const listRowVariants = cva(
         content: "",
         row: "ml-[calc(var(--list-row-depth)_*_18px)] border-l-2 border-transparent before:left-0.5 before:inset-y-2",
       },
+      highlight: {
+        ink: "",
+        accent: "",
+      },
     },
     compoundVariants: [
       { state: "current", nested: true, class: "before:opacity-0" },
       { state: "none", tone: "muted", class: "text-muted" },
       { indent: "row", nested: true, class: "rounded-l-none [&>button]:rounded-l-none" },
       { indent: "row", nested: true, state: "current", class: "border-l-accent" },
+      { state: "current", highlight: "accent", class: "text-accent" },
     ],
     defaultVariants: {
       state: "none",
       nested: false,
       tone: "ink",
       indent: "content",
+      highlight: "ink",
       selection: "none",
       selected: false,
       dropTarget: false,
@@ -68,7 +74,7 @@ export const listRowVariants = cva(
 export const listRowBodyVariants = cva(
   [
     "relative flex h-full min-w-0 flex-1 items-center rounded-control text-left",
-    "[&>svg]:flex-none [&>svg]:text-muted",
+    "[&>svg]:flex-none",
     "[&>svg:last-child:not(:first-child)]:ml-auto [&>svg:last-child:not(:first-child)]:size-4",
   ],
   {
@@ -109,11 +115,15 @@ export const listRowBodyVariants = cva(
         true: "pl-[13px]",
         false: "",
       },
+      glyph: {
+        muted: "[&>svg]:text-muted",
+        inherit: "",
+      },
     },
     compoundVariants: [
       { size: "library", control: true, class: "pl-2 [:root[data-layout=desktop]_&]:pl-3" },
     ],
-    defaultVariants: { size: "default", interactive: true, selection: "none", leading: false, control: false },
+    defaultVariants: { size: "default", interactive: true, selection: "none", leading: false, control: false, glyph: "muted" },
   },
 );
 
@@ -245,6 +255,10 @@ export type ListRowSelection = NonNullable<
 export type ListRowIndent = NonNullable<
   VariantProps<typeof listRowVariants>["indent"]
 >;
+export type ListRowHighlight = NonNullable<
+  VariantProps<typeof listRowVariants>["highlight"]
+>;
+export type ListRowAfter = { depth: number; space: number };
 
 export const LIST_ROW_INDENT = 18;
 
@@ -278,6 +292,8 @@ export type ListRowProps = (ListRowLeadingProps | ListRowSelectionProps) & {
   containsCurrent?: boolean;
   depth?: number;
   indent?: ListRowIndent;
+  after?: ListRowAfter;
+  highlight?: ListRowHighlight;
   size?: ListRowSize;
   overflow?: ListRowLabelOverflow;
   tone?: ListRowTone;
@@ -313,18 +329,38 @@ function Guides({ depth, current }: { depth: number; current: boolean }) {
   );
 }
 
-function RowGuides({ depth, current }: { depth: number; current: boolean }) {
+function RowGuides({
+  depth,
+  current,
+  after,
+}: {
+  depth: number;
+  current: boolean;
+  after?: ListRowAfter;
+}) {
   return (
     <>
-      {depth > 1 && (
-        <span
-          aria-hidden="true"
-          class="pointer-events-none absolute inset-y-0 left-[calc(-2px_-_(var(--list-row-depth)_-_1)_*_18px)] w-[calc((var(--list-row-depth)_-_1)_*_18px)] bg-[repeating-linear-gradient(to_right,var(--edge)_0_1px,transparent_1px_18px)]"
-        />
-      )}
-      {!current && (
-        <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 -left-0.5 w-px bg-edge" />
-      )}
+      {Array.from({ length: depth }, (_, step) => {
+        const level = depth - step;
+        const tail = after && after.depth >= level ? after.space : 0;
+        const own = step === 0 && current;
+        if (own && !tail) {
+          return null;
+        }
+        return (
+          <span
+            key={level}
+            aria-hidden="true"
+            data-list-row-guide={level}
+            class="pointer-events-none absolute w-px bg-edge"
+            style={{
+              left: `${-2 - step * LIST_ROW_INDENT}px`,
+              top: own ? "100%" : "0",
+              bottom: `${-tail}px`,
+            }}
+          />
+        );
+      })}
     </>
   );
 }
@@ -344,6 +380,8 @@ export default function ListRow({
   containsCurrent = false,
   depth = 0,
   indent = "content",
+  after,
+  highlight = "ink",
   size,
   overflow,
   tone,
@@ -382,6 +420,10 @@ export default function ListRow({
     selection,
     leading: !!leading,
     control: !!control,
+    glyph:
+      highlight === "accent" && (state === "current" || state === "contains-current")
+        ? "inherit"
+        : "muted",
   }));
   return (
     <div
@@ -394,6 +436,7 @@ export default function ListRow({
           selected,
           dropTarget,
           indent,
+          highlight,
         }),
         className,
       )}
@@ -403,7 +446,7 @@ export default function ListRow({
       {gutter}
       {depth > 0 &&
         (indent === "row" ? (
-          <RowGuides depth={depth} current={!!current} />
+          <RowGuides depth={depth} current={!!current} after={after} />
         ) : (
           <Guides depth={depth} current={!!current} />
         ))}

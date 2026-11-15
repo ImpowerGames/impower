@@ -6,6 +6,7 @@ import {
   ListRowBadge,
   SceneIcon,
   TreeToggle,
+  type ListRowAfter,
   type ListRowBadgeProps,
   type ListRowIndent,
   type ListRowSize,
@@ -93,6 +94,7 @@ export default function OutlineListRow({
   size,
   tone,
   indent,
+  after,
   badgePlacement,
   collapsible = true,
   onOpen,
@@ -102,6 +104,7 @@ export default function OutlineListRow({
   size?: ListRowSize;
   tone?: ListRowTone;
   indent?: ListRowIndent;
+  after?: ListRowAfter;
   badgePlacement: ListRowBadgePlacement;
   collapsible?: boolean;
   onOpen: (row: OutlineRow) => void;
@@ -131,6 +134,8 @@ export default function OutlineListRow({
       tone={tone}
       depth={row.depth}
       indent={indent}
+      after={after}
+      highlight="accent"
       current={row.current === "self" ? "location" : false}
       containsCurrent={row.current === "ancestor"}
       overflow={row.kind === "choose" ? "clamp" : "fade"}

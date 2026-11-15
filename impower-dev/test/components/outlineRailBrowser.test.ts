@@ -174,6 +174,9 @@ const measure = async (
             guides,
             current: open.getAttribute("aria-current"),
             borderLeft: getComputedStyle(row).borderLeftColor,
+            background: getComputedStyle(row).backgroundColor,
+            labelColor: getComputedStyle(label).color,
+            glyphColor: open.querySelector(":scope > svg") ? getComputedStyle(open.querySelector(":scope > svg")!).color : null,
             badgeFirst: badge ? !!(badge.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING) : null,
           };
         }),
@@ -244,7 +247,6 @@ describe("the docked Outline rail's rows, in Chromium at 1440", () => {
         expect(r.row.left, name).toBe(26 + depth * 18);
         expect(r.row.right, name).toBe(RAIL_WIDTH - 14);
         expect(r.row.height, name).toBe(44);
-        expect(r.slot.height, name).toBe(44);
         expect(r.glyph!.left - r.row.left, name).toBe(11);
         expect(r.glyph!.width, name).toBe(17);
         expect(r.glyph!.height, name).toBe(18);
@@ -258,11 +260,49 @@ describe("the docked Outline rail's rows, in Chromium at 1440", () => {
         );
         expect(guideLefts.sort((a, b) => a - b), name).toEqual(expected.sort((a, b) => a - b));
       }
+      const first = rows.harbor!.row.top;
+      expect(Object.keys(DEPTHS).map((name) => rows[name]!.row.top - first)).toEqual([0, 46, 92, 144, 196, 242, 288]);
+      const levelOne = [rows.storm!, rows[LONG]!, rows["Where now?"]!]
+        .flatMap((r) => r.guides)
+        .filter((g) => g.left === rows.storm!.row.left)
+        .sort((a, b) => a.top - b.top);
+      let reach = rows.storm!.row.top;
+      for (const g of levelOne) {
+        expect(g.top).toBeLessThanOrEqual(reach);
+        reach = Math.max(reach, g.bottom);
+      }
+      expect(reach).toBe(rows["Where now?"]!.row.top);
+      const levelTwo = rows[LONG]!.guides.filter((g) => g.left === rows[LONG]!.row.left);
+      expect(levelTwo.map((g) => [g.top, g.bottom])).toEqual([[rows[LONG]!.row.top, rows[LONG]!.row.bottom]]);
       expect(rows.harbor!.toggle!.right).toBe(RAIL_WIDTH - 14);
       expect(rows.harbor!.toggle!.width).toBe(44);
       const current = rows["Where now?"]!;
       expect(current.current).toBe("location");
       expect(current.borderLeft).toBe(m.accentColor);
+    }, 60_000);
+
+    it(`colour the current row's label and glyph in the accent, as its scene's, and every other glyph like its label, in ${theme}`, async () => {
+      const m = await measure(markups.badged!, theme);
+      const rows = byName(m);
+      for (const name of ["Where now?", "harbor"]) {
+        expect(rows[name]!.labelColor, name).toBe(m.accentColor);
+        expect(rows[name]!.glyphColor, name).toBe(m.accentColor);
+      }
+      for (const name of ["storm", LONG, "dock", "market", "quiet"]) {
+        expect(rows[name]!.labelColor, name).not.toBe(m.accentColor);
+        expect(rows[name]!.glyphColor, name).toBe(rows[name]!.labelColor);
+      }
+      const rgb = (color: string) => color.match(/[\d.]+/g)!.slice(0, 3).map(Number);
+      const luminance = (color: string) => {
+        const [r, g, b] = rgb(color).map((c) => {
+          const v = c / 255;
+          return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+      };
+      const ink = luminance(m.accentColor);
+      const tint = luminance(rows["Where now?"]!.background);
+      expect((Math.max(ink, tint) + 0.05) / (Math.min(ink, tint) + 0.05)).toBeGreaterThanOrEqual(4.5);
     }, 60_000);
 
     it(`clamp only a choose row to two lines inside the 44px pitch, in ${theme}`, async () => {

@@ -8,17 +8,17 @@ import {
 } from "@impower/impower-ui/components";
 import { useScrollbarSize } from "@impower/impower-ui/layout";
 import type { ComponentChildren } from "preact";
+import { useCallback } from "preact/hooks";
 import { worstProblem } from "@impower/codemirror-vscode-lsp-client/src/symbolProblems";
 import { projectPath } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 import workspace from "../../workspace/WorkspaceStore";
 import { openFind, SearchRail } from "../find-references-rename";
 import OutlineListRow from "./OutlineListRow";
-import { problemSummary } from "./outlineRows";
+import { problemSummary, type OutlineRow } from "./outlineRows";
+import { OUTLINE_RAIL_ROW, railRowAfter, railRowExtent } from "./railLayout";
 import useOutlineModel from "./useOutlineModel";
 import { withWindow } from "./withWindow";
-
-export const OUTLINE_RAIL_ROW = { size: "rail", indent: "row", tone: "muted", badgePlacement: "gutter" } as const;
 
 const scriptName = (uri: string) => {
   const fileName = uri.split("/").pop() ?? "";
@@ -45,6 +45,11 @@ export default function Outline() {
   const { uri, model } = useOutlineModel();
   const searching = workspace.search.value.open;
   useScrollbarSize();
+  const rows = model.rows;
+  const extent = useCallback(
+    (_row: OutlineRow, index: number) => railRowExtent(rows, index),
+    [rows],
+  );
 
   const summary = problemSummary(model.problems);
 
@@ -79,15 +84,17 @@ export default function Outline() {
                 key={uri}
                 class="flex-1 pr-gutter-3.5 pb-3 pl-[26px] [:root[data-pointer=coarse]_&]:pl-11"
                 label={`Scene outline in ${scriptName(uri)}`}
-                size="compact"
-                items={model.rows}
+                size={OUTLINE_RAIL_ROW.size}
+                items={rows}
+                itemHeight={extent}
                 getKey={(row) => row.key}
                 revealIndex={model.currentIndex}
-                renderItem={(row) => (
+                renderItem={(row, index) => (
                   <OutlineListRow
                     uri={uri}
                     row={row}
                     {...OUTLINE_RAIL_ROW}
+                    after={railRowAfter(row, rows[index + 1])}
                     onOpen={(row) =>
                       withWindow((win) =>
                         win.openOutlineLocation(uri, row.selection),

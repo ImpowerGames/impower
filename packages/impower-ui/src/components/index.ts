@@ -72,6 +72,8 @@ export {
   type ListRowTone,
   type ListRowLabelOverflow,
   type ListRowIndent,
+  type ListRowHighlight,
+  type ListRowAfter,
 } from "./list-row/ListRow";
 export {
   default as FilterChip,

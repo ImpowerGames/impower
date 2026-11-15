@@ -74,12 +74,12 @@ function ListRowDemo() {
           <ListRow size="compact" tone="muted" depth={2} icon={<FileIcon />} label="snacks" onClick={() => {}} />
         </div>
       </GalleryRow>
-      <GalleryRow label="Indented as a whole row (the Outline rail): rail rows at depths 0, 1 and 2, each nested row moved 18px with a 1px guide at its left edge; the current nested row's guide segment in the accent">
-        <div class="w-[231px] pr-3.5 pl-[26px]">
-          <ListRow size="rail" indent="row" tone="muted" containsCurrent icon={<SceneIcon />} label="the_rumour" onClick={() => {}} />
-          <ListRow size="rail" indent="row" tone="muted" depth={1} containsCurrent icon={<FileIcon />} label="What should Imani bring?" onClick={() => {}} />
-          <ListRow size="rail" indent="row" tone="muted" depth={2} current="location" icon={<FileIcon />} label="notebook" onClick={() => {}} />
-          <ListRow size="rail" indent="row" tone="muted" depth={2} icon={<FileIcon />} label="snacks" onClick={() => {}} />
+      <GalleryRow label="Indented as a whole row (the Outline rail): rail rows at depths 0, 1 and 2 with the accent highlight, each nested row moved 18px with a 1px guide at its left edge that crosses the 2px gap to the next row of its group; the current nested row's border in the accent, its label and glyph and those of the rows containing it in the accent">
+        <div class="flex w-[231px] flex-col gap-0.5 pr-3.5 pl-[26px] *:h-11">
+          <ListRow size="rail" indent="row" tone="muted" highlight="accent" containsCurrent after={{ depth: 1, space: 2 }} icon={<SceneIcon />} label="the_rumour" onClick={() => {}} />
+          <ListRow size="rail" indent="row" tone="muted" highlight="accent" depth={1} containsCurrent after={{ depth: 2, space: 2 }} icon={<FileIcon />} label="What should Imani bring?" onClick={() => {}} />
+          <ListRow size="rail" indent="row" tone="muted" highlight="accent" depth={2} current="location" after={{ depth: 2, space: 2 }} icon={<FileIcon />} label="notebook" onClick={() => {}} />
+          <ListRow size="rail" indent="row" tone="muted" highlight="accent" depth={2} icon={<FileIcon />} label="snacks" onClick={() => {}} />
         </div>
       </GalleryRow>
       <GalleryRow label="A gutter badge left of the rows (the Outline rail's problem badge): one 26px column whatever the depth with a 14px mark, 44px wide under a coarse pointer; an error, a warning and a note beside a row without one, every glyph and label in its place">

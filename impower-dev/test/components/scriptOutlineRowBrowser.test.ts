@@ -107,6 +107,10 @@ const measure = async (viewport: (typeof VIEWPORTS)[number], theme: "charcoal" |
       `<!doctype html><html data-theme="${theme}" data-layout="${viewport.layout}" data-pointer="${viewport.pointer}"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body style="margin:0">${markup}</body></html>`,
     );
     return await page.evaluate(() => {
+      const swatch = document.body.appendChild(document.createElement("span"));
+      swatch.style.color = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+      const accent = getComputedStyle(swatch).color;
+      swatch.remove();
       const box = (el: Element | null) => {
         if (!el) return null;
         const r = el.getBoundingClientRect();
@@ -129,6 +133,9 @@ const measure = async (viewport: (typeof VIEWPORTS)[number], theme: "charcoal" |
           lineHeight: getComputedStyle(label).lineHeight,
           pitch: box(host)!.height,
           current: open.getAttribute("aria-current"),
+          accent,
+          labelColor: getComputedStyle(label).color,
+          glyphColor: open.querySelector(":scope > svg") ? getComputedStyle(open.querySelector(":scope > svg")!).color : null,
           badge: box(badge),
           badgeLabel: badge?.getAttribute("aria-label") ?? null,
           mark: box(badge?.querySelector("svg") ?? null),
@@ -192,5 +199,19 @@ describe("the In this script tab's outline rows, in Chromium", () => {
         expect(byId.long!.labelScroll).toBeGreaterThan(byId.long!.label.width);
       }, 60_000);
     }
+  }
+
+  for (const theme of ["charcoal", "chalk"] as const) {
+    it(`colour the current row's label and glyph in the accent, as its scene's, in ${theme}`, async () => {
+      const m = await measure(VIEWPORTS[2], theme);
+      const byId = Object.fromEntries(m.map((r) => [r.id, r]));
+      for (const id of ["quiet", "dock"]) {
+        expect(byId[id]!.labelColor, id).toBe(byId[id]!.accent);
+        expect(byId[id]!.glyphColor, id).toBe(byId[id]!.accent);
+      }
+      for (const id of ["harbor", "storm", "long"]) {
+        expect(byId[id]!.glyphColor, id).not.toBe(byId[id]!.accent);
+      }
+    }, 60_000);
   }
 });
