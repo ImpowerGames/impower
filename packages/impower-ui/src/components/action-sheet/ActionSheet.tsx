@@ -39,7 +39,7 @@ export function ActionSheet({
         role="menu"
         aria-label={title}
         data-action-sheet
-        class="flex flex-col p-2 pb-[max(8px,env(safe-area-inset-bottom))]"
+        class="flex flex-col p-2 pointer-coarse:pb-0"
       >
         {shown.map((item, index) =>
           "type" in item ? (

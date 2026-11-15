@@ -3,6 +3,7 @@ import type { RefObject } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
+import { sheetFoot } from "../../utils/sheetFoot";
 import "../../utils/uniqueIds";
 import { useEscapeWithin } from "../../utils/escapeWithin";
 import { type KeepClear, keepsClear, useClearLine } from "../../utils/keepClear";
@@ -181,7 +182,7 @@ export const wheelSheetVariants = cva(
   [
     "absolute inset-x-0 bottom-0 z-20 flex flex-col overflow-hidden",
     "rounded-t-card border border-b-0 border-edge bg-panel text-ink shadow-float",
-    "pb-[env(safe-area-inset-bottom)] pointer-coarse:pb-[max(env(safe-area-inset-bottom),var(--sheet-gesture-clearance))]",
+    sheetFoot,
     "motion-safe:anim-sheet-in",
   ],
   {
