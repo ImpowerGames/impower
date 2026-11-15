@@ -2,13 +2,11 @@ import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
 import {
   ChevronIcon,
-  ErrorIcon,
   FileIcon,
   FolderIcon,
   MoreVerticalIcon,
   PinIcon,
   SceneIcon,
-  WarningIcon,
 } from "../icon/icons.generated";
 import { useState } from "preact/hooks";
 import PlayButton from "../play-button/PlayButton";
@@ -84,7 +82,7 @@ function ListRowDemo() {
                 <ListRowBadge
                   size={size}
                   label="2 errors in the_rumour"
-                  icon={<ErrorIcon class="text-error" />}
+                  severity="error"
                   onClick={() => {}}
                 />
               }
@@ -99,7 +97,7 @@ function ListRowDemo() {
               <ListRowBadge
                 size="compact"
                 label="1 warning in notebook"
-                icon={<WarningIcon class="text-warning" />}
+                severity="warning"
                 onClick={() => {}}
               />
             }
@@ -107,6 +105,32 @@ function ListRowDemo() {
             onClick={() => {}}
           />
           <ListRow size="compact" tone="muted" icon={<SceneIcon />} label="meet_downtown" onClick={() => {}} />
+        </div>
+      </GalleryRow>
+      <GalleryRow label="A trailing badge before the row's menu (the Scripts page's problem badge): a 44px target with a 14px mark, an error and a warning, beside a row without one; the label and the menu keep their places">
+        <div class="w-[360px] space-y-1">
+          {(["error", "warning"] as const).map((severity) => (
+            <ListRow
+              key={severity}
+              size="library"
+              icon={<FileIcon />}
+              label={severity === "error" ? "chapter_2.sd" : "chapter_1_with_a_long_name_that_truncates.sd"}
+              description="Modified just now · 48 B"
+              actions={
+                <>
+                  <ListRowBadge
+                    placement="trailing"
+                    severity={severity}
+                    label={`1 ${severity} in chapter`}
+                    onClick={() => {}}
+                  />
+                  {menu}
+                </>
+              }
+              onClick={() => {}}
+            />
+          ))}
+          <ListRow size="library" icon={<FileIcon />} label="main.sd" description="Modified just now · 48 B" actions={menu} onClick={() => {}} />
         </div>
       </GalleryRow>
       <GalleryRow label="A long label clamped to two lines instead of fading">

@@ -1,7 +1,7 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { cn } from "../../utils/cn";
-import { CheckIcon } from "../icon/icons.generated";
+import { CheckIcon, ErrorIcon, WarningIcon } from "../icon/icons.generated";
 
 export const listRowVariants = cva(
   [
@@ -402,16 +402,32 @@ export const listRowBadgeVariants = cva(
         dense: "w-[46px] pl-2.5 [&>svg]:size-[18px]",
         file: "w-[44px] pl-[11px] [&>svg]:size-[18px]",
       },
+      placement: {
+        leading: "",
+        trailing: "",
+      },
     },
-    defaultVariants: { size: "default" },
+    compoundVariants: [
+      {
+        placement: "trailing",
+        class:
+          "h-11 w-11 self-center justify-center pl-0 [:root[data-layout=desktop]_&]:pl-0 [&>svg]:size-[14px]",
+      },
+    ],
+    defaultVariants: { size: "default", placement: "leading" },
   },
 );
+
+export type ListRowBadgeVariantProps = VariantProps<typeof listRowBadgeVariants>;
+
+export type ListRowBadgeSeverity = "error" | "warning";
 
 export type ListRowBadgeProps = {
   label: string;
   title?: string;
-  icon: ComponentChildren;
+  severity: ListRowBadgeSeverity;
   size?: ListRowSize;
+  placement?: "leading" | "trailing";
   onClick: (event: MouseEvent) => void;
   class?: string;
 } & Omit<
@@ -422,8 +438,9 @@ export type ListRowBadgeProps = {
 export function ListRowBadge({
   label,
   title,
-  icon,
+  severity,
   size,
+  placement,
   onClick,
   class: className,
   ...rest
@@ -432,13 +449,18 @@ export function ListRowBadge({
     <button
       type="button"
       data-list-row-badge
+      data-severity={severity}
       aria-label={label}
       title={title ?? label}
-      class={cn(listRowBadgeVariants({ size }), className)}
+      class={cn(listRowBadgeVariants({ size, placement }), className)}
       onClick={onClick}
       {...rest}
     >
-      {icon}
+      {severity === "error" ? (
+        <ErrorIcon class="text-error" />
+      ) : (
+        <WarningIcon class="text-warning" />
+      )}
     </button>
   );
 }

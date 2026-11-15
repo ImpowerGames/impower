@@ -36,6 +36,11 @@ export const countProblems = (
 export const hasProblems = (counts: ProblemCounts) =>
   counts.errors > 0 || counts.warnings > 0;
 
+export const worstProblem = (
+  counts: ProblemCounts,
+): "error" | "warning" | null =>
+  counts.errors > 0 ? "error" : counts.warnings > 0 ? "warning" : null;
+
 export interface SymbolDiagnostics {
   total: readonly lsp.Diagnostic[];
   direct: readonly lsp.Diagnostic[];

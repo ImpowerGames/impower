@@ -65,6 +65,7 @@ export {
   LIST_ROW_INDENT,
   type ListRowProps,
   type ListRowBadgeProps,
+  type ListRowBadgeVariantProps,
   type ListRowSize,
   type ListRowDescriptionFit,
   type ListRowState,
