@@ -23205,17 +23205,32 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {#{{{{1}}}}} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go [[a 1 b"
+    "Go [[a {#{{{{1}}}}} b]]"
    ],
    "runs": [
     {
-     "out": "Go ]] now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
-   "diags": [],
-   "scopes": "f44e4f46"
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:27-4:28 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "703ef1d1"
   },
   {
    "id": "plain-command-7",
@@ -23574,21 +23589,22 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {[[a]]} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go [[a"
+    "Go [[a {[[a]]} b"
    ],
    "runs": [
     {
-     "out": "Go ]} b]]] now\nBody.\n",
+     "out": "Go ]] now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "1@4:14-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
-    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
-    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "3a222195"
+   "scopes": "24d9fd8a"
   },
   {
    "id": "plain-command-27",
@@ -23971,7 +23987,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"This `[[` opens no directive, because no `]]` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+   ],
    "scopes": "b1b84659"
   },
   {
@@ -24345,20 +24363,25 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {1 --[[c]] + 1} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go [[a 1"
+    "Go [[a {1 --[[c]] + 1} b"
    ],
    "runs": [
     {
-     "out": "Go ] + 1} b]]] now\nBody.\n",
+     "out": "Go ]] now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "1@4:14-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
-    "1@4:17-4:22 {\"kind\":\"markdown\",\"value\":\"Expected identifier when parsing expression, got unfinished comment\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "5c0314f5"
+   "scopes": "8723c045"
   },
   {
    "id": "plain-command-67",
@@ -24759,7 +24782,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"This `[[` opens no directive, because no `]]` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+   ],
    "scopes": "639cb573"
   },
   {
@@ -25155,7 +25180,9 @@
     }
    ],
    "rt": [],
-   "diags": [],
+   "diags": [
+    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"This `[[` opens no directive, because no `]]` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+   ],
    "scopes": "d0ea61e8"
   },
   {
@@ -25526,17 +25553,22 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {x} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go [[a true b"
+    "Go [[a {x} b]]"
    ],
    "runs": [
     {
-     "out": "Go ]] now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
-   "diags": [],
-   "scopes": "270df4f6"
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "12c5f69a"
   },
   {
    "id": "plain-command-127",
@@ -25915,19 +25947,24 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {x -- c} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go [[a true"
+    "Go [[a {x -- c} b]]"
    ],
    "runs": [
     {
-     "out": "Go ]] now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "1@4:14-4:24 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:23-4:24 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "344a1ef6"
+   "scopes": "292124ab"
   },
   {
    "id": "plain-command-147",

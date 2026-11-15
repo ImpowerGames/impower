@@ -35,6 +35,8 @@ describe("an opener with no closer in its part of the line is text, and warns th
     ["at a choice line's end after the brackets", "    + Go [x] [[mia with fade", ["warning:13:[["]],
     ["at a divert", "    + Go [x] [[mia with fade -> next", ["warning:13:[["]],
     ["in a run of openers", "    + Go (((a [x] b)) now", ["warning:9:(("]],
+    ["right after a choice's opening bracket", "    + Go [[[a b] now", ["warning:10:[["]],
+    ["right after an escaped bracket", "  Go \\[[[a", ["warning:7:[["]],
   ])("%s: `%s`", (_label, line, expected) => {
     const text = line.trimStart().startsWith("+") ? script(line) : displayScript(line);
     expect(unclosed(text)).toEqual(expected);

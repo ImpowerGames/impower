@@ -375,6 +375,7 @@ const CHOICE_DIRECTIVES: readonly (readonly [label: string, text: string])[] = [
   ["a directive closed both inside and after the choice brackets", "Go ((a [x)) y] z)) now"],
   ["a closer inside a tag after the choice brackets", "Go ((a [x] # note)) now"],
   ["an opener split by the choice brackets", "Go ([x](b)) now"],
+  ["a directive closed right inside the choice brackets", "Go [[[mia with fade]]] now"],
   ["a directive left open inside the choice brackets", "Go [((play music theme] now"],
   ["an image directive left open at the line's end", "Go [x] [[mia with fade"],
   ["an audio directive left open at the line's end", "Go [x] ((play music theme loop"],

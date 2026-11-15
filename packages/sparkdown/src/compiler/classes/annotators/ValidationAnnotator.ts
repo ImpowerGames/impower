@@ -1094,7 +1094,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (!Object.hasOwn(UNCLOSED_DIRECTIVE_CLOSERS, opener)) return;
     const next = node.nextSibling;
     if (next?.name !== "Punctuation" || next.from !== node.to || this.read(next.from, next.to) !== opener) return;
-    if (node.from > 0 && this.read(node.from - 1, node.from) === opener) return;
+    const previous = node.prevSibling;
+    if (previous?.name === "Punctuation" && previous.to === node.from && this.read(previous.from, previous.to) === opener) return;
     if (ancestorMatching(node, RAW_SPAN_NODES)) return;
     annotations.push(
       SparkdownAnnotation.mark<Diagnostic>({
