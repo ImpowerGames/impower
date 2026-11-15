@@ -33,30 +33,22 @@ const dialogueLines = (output: string): string[] =>
         line.includes("Other line."),
     );
 
+const BARRED_DIALOGUE = [
+  "<character> | GUIDE (softly)",
+  "<dialogue>   Welcome back.",
+  "<dialogue>   It has been a while.",
+  "<action> | Other line.",
+];
+
 describe("a block dialogue opened right after an alternator arm's bar", () => {
   it("prints its lines as dialogue, as the same dialogue in an if branch does", () => {
-    expect(dialogueLines(extractPdfText(BRANCH_DIALOGUE))).toEqual([
-      "<character> GUIDE (softly)",
-      "<dialogue> Welcome back.",
-      "<dialogue> It has been a while.",
-      "<action> Other line.",
-    ]);
-    expect(dialogueLines(extractPdfText(ARM_DIALOGUE))).toEqual([
-      "<character> GUIDE (softly)",
-      "<dialogue> Welcome back.",
-      "<dialogue> It has been a while.",
-      "<action> Other line.",
-    ]);
+    expect(dialogueLines(extractPdfText(BRANCH_DIALOGUE))).toEqual(BARRED_DIALOGUE);
+    expect(dialogueLines(extractPdfText(ARM_DIALOGUE))).toEqual(BARRED_DIALOGUE);
   });
 
   it("ends the dialogue at the next arm's bar even when that bar is indented deeper", () => {
     const deeperArm = ARM_DIALOGUE.replace("    | Other line.", "      | Other line.");
-    expect(dialogueLines(extractPdfText(deeperArm))).toEqual([
-      "<character> GUIDE (softly)",
-      "<dialogue> Welcome back.",
-      "<dialogue> It has been a while.",
-      "<action> Other line.",
-    ]);
+    expect(dialogueLines(extractPdfText(deeperArm))).toEqual(BARRED_DIALOGUE);
   });
 
   it.each(["@hud:", "$:", "^:", "%:", ":"])(
@@ -69,11 +61,6 @@ describe("a block dialogue opened right after an alternator arm's bar", () => {
   );
 
   it("reads the lines as dialogue at one level under the bar's line, as the formatter writes them", () => {
-    expect(dialogueLines(extractPdfText(ARM_DIALOGUE.replaceAll("        ", "      ")))).toEqual([
-      "<character> GUIDE (softly)",
-      "<dialogue> Welcome back.",
-      "<dialogue> It has been a while.",
-      "<action> Other line.",
-    ]);
+    expect(dialogueLines(extractPdfText(ARM_DIALOGUE.replaceAll("        ", "      ")))).toEqual(BARRED_DIALOGUE);
   });
 });
