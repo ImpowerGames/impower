@@ -649,6 +649,30 @@ describe("pinning an option the route already takes changes only its kind", () =
     );
   }, 120_000);
 
+  test("an option found before slower siblings stays the route's option when pinned", async () => {
+    const lines = ["store total = 0", "scene start", "  choose"];
+    lines.push("    * [Winner.]", "      for i = 1, 4000 do", "        total += 1", "      end");
+    lines.push("    * [Quick.]", "      total = -1");
+    for (let n = 0; n < 8; n += 1) {
+      lines.push(
+        `    * [Noise ${n}.]`,
+        "      for j = 1, 40000 do",
+        "        total += 1",
+        "      end",
+      );
+    }
+    lines.push("  end", "  Target {total}.", "end", "");
+    const line = lines.indexOf("  Target {total}.") + 1;
+    const auto = preview(lines, line, [], "total");
+    expect(auto.route.decisions.map((d) => d.text)).toEqual(["Winner."]);
+    await nextJob();
+    const pinned = preview(lines, line, [pin(4)], "total");
+    expect(pinned.route.decisions.map((d) => [d.kind, d.text])).toEqual([
+      ["pinned", "Winner."],
+    ]);
+    expect(pinned.count).toBe(auto.count);
+  }, 120_000);
+
   test("a pin the target cannot be reached through adds no forced verdict to the route that avoids it", () => {
     const lines = [
       "store clues = 0",

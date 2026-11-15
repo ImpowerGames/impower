@@ -141,11 +141,15 @@ export interface RouteStep {
   checkpoint?: number;
   spentSteps?: number;
   spentNodes?: number;
+  spentWork?: number;
+  spentDecided?: number;
 }
 
 export interface RouteCharge {
   steps: number;
   nodes: number;
+  work: number;
+  decided: number;
 }
 
 export interface RouteResumePoint {
@@ -164,11 +168,18 @@ export const routeChargeAt = (
   const step = route.steps[at];
   if (
     step?.spentSteps == null ||
-    step.spentNodes == null
+    step.spentNodes == null ||
+    step.spentWork == null ||
+    step.spentDecided == null
   ) {
     return null;
   }
-  return { steps: step.spentSteps, nodes: step.spentNodes };
+  return {
+    steps: step.spentSteps,
+    nodes: step.spentNodes,
+    work: step.spentWork,
+    decided: step.spentDecided,
+  };
 };
 
 export interface ConditionOverride {
@@ -316,6 +327,7 @@ export interface LevelZeroWork {
   readonly cut: SearchCutReason | null;
   readonly stepsRemaining: number;
   readonly nodesRemaining: number;
+  readonly decided: number;
   readonly spentSteps: number;
   readonly msRemaining: number;
   readonly visited: ReadonlySet<string>;
@@ -347,6 +359,7 @@ const levelZeroKey = (
     maxSteps,
     maxNodes,
     faithfulBudget.steps,
+    faithfulBudget.total,
     startPlanKey(options?.start),
     options?.pins?.key ?? "",
   ]);
@@ -501,11 +514,15 @@ interface SearchBudget {
   deadlineTime: number;
   cut: SearchCutReason | null;
   visited: Set<string>;
+  decided: number;
   trace?: LevelZeroTrace;
 }
 
 const stepBudgetExhausted = (budget: SearchBudget): boolean => {
-  if (budget.stepsRemaining <= 0) {
+  if (
+    budget.stepsRemaining <= 0 ||
+    budget.decided >= faithfulBudget.total
+  ) {
     budget.cut ??= "max-steps";
     return true;
   }
@@ -675,24 +692,23 @@ const planRouteFaithful = (
   const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
   const startTime = now();
   const searchTimeout = options?.searchTimeout ?? DEFAULT_SEARCH_TIMEOUT;
-  const maxSteps = Math.min(
-    options?.maxSteps ?? DEFAULT_MAX_STEPS,
-    faithfulBudget.total,
-  );
+  const maxSteps = options?.maxSteps ?? DEFAULT_MAX_STEPS;
   const maxNodes = Math.min(
     options?.maxNodes ?? DEFAULT_MAX_NODES,
     faithfulBudget.nodes,
   );
   const charge = options?.resumeFrom?.charge;
+  const prefixSteps = charge ? Math.max(0, charge.steps - 1) : 0;
   const prefixNodes = charge ? Math.max(0, charge.nodes - 1) : 0;
   const budget: SearchBudget = {
-    stepsRemaining: maxSteps,
+    stepsRemaining: maxSteps - prefixSteps,
     nodesRemaining: maxNodes - prefixNodes,
     maxSteps,
     maxNodes,
     deadlineTime: startTime + Math.min(searchTimeout, faithfulBudget.timeoutMs),
     cut: null,
     visited: new Set(),
+    decided: charge?.decided ?? 0,
   };
   const pinned = options?.pins ?? NO_PINS;
   const fromKnotName = from.split(".")[0] || undefined;
@@ -808,6 +824,7 @@ const planRouteFaithful = (
     if (reuse) {
       budget.stepsRemaining = reuse.stepsRemaining;
       budget.nodesRemaining = reuse.nodesRemaining;
+      budget.decided = reuse.decided;
       budget.deadlineTime = now() + reuse.msRemaining;
       budget.visited = new Set(reuse.visited);
       budget.cut = reuse.cut;
@@ -838,6 +855,7 @@ const planRouteFaithful = (
     };
     let found: Candidate[] = [];
     const candidates: Candidate[] = [];
+    let pinAware = false;
     while (!stopped) {
       while (head < queue.length) {
         if (searchBudgetExhausted(budget)) {
@@ -853,7 +871,12 @@ const planRouteFaithful = (
           entry = queue.pop();
         }
         const node = typeof entry === "function" ? entry() : entry;
-        if (!node || candidates.some((c) => prunes(c, node))) {
+        if (
+          !node ||
+          candidates.some((c) =>
+            pinAware ? prunes(c, node) : beatenBy(node, c.plan),
+          )
+        ) {
           continue;
         }
         budget.nodesRemaining -= 1;
@@ -901,6 +924,33 @@ const planRouteFaithful = (
           nodeErrored = true;
         }
       }
+      if (!pinAware && candidates.length > 0) {
+        const followed = fewest(candidates.filter(full));
+        if (followed || budget.cut) {
+          routePlan = (followed ?? pick(candidates))!.plan;
+          break;
+        }
+        pinAware = true;
+        budget.stepsRemaining = maxSteps - prefixSteps;
+        budget.nodesRemaining = maxNodes - prefixNodes;
+        budget.decided = charge?.decided ?? 0;
+        budget.deadlineTime =
+          now() + Math.min(searchTimeout, faithfulBudget.timeoutMs);
+        budget.visited = new Set();
+        budget.trace = undefined;
+        pinsMet.clear();
+        joining.clear();
+        candidates.length = 0;
+        found = [];
+        level = newLevel(0);
+        queue = [
+          options?.resumeFrom
+            ? makeResumeNode(options.resumeFrom)
+            : makeStartNode(story, from, port, options?.start),
+        ];
+        head = 0;
+        continue;
+      }
       if (found.some(full) || (budget.cut && candidates.length > 0)) {
         routePlan = pick(candidates)!.plan;
         break;
@@ -922,6 +972,7 @@ const planRouteFaithful = (
           cut: budget.cut,
           stepsRemaining: budget.stepsRemaining,
           nodesRemaining: budget.nodesRemaining,
+          decided: budget.decided,
           spentSteps: spentSteps(budget),
           msRemaining: budget.deadlineTime - now(),
           visited: new Set(budget.visited),
@@ -1036,7 +1087,16 @@ const runUntilDecisionOrBranch = (
   let work = node.work;
   const charge = (steps: number) => {
     budget.stepsRemaining -= steps;
-    work += steps;
+    if (work >= 0) {
+      work += steps;
+      budget.decided += steps;
+    }
+  };
+  const decide = () => {
+    if (work < 0) {
+      work = 0;
+      turnEnd = RUN_TURN_STEPS;
+    }
   };
 
   type Mark = {
@@ -1096,8 +1156,10 @@ const runUntilDecisionOrBranch = (
   if (budget.trace) {
     budget.trace.last = -1;
   }
-  const turnEnd =
-    (Math.floor(work / RUN_TURN_STEPS) + 1) * RUN_TURN_STEPS;
+  let turnEnd =
+    work < 0
+      ? Infinity
+      : (Math.floor(work / RUN_TURN_STEPS) + 1) * RUN_TURN_STEPS;
 
   try {
     while (true) {
@@ -1130,8 +1192,10 @@ const runUntilDecisionOrBranch = (
                   decision: decisionCount() - 1,
                   address: previous,
                   seq,
-                  spentSteps: again?.spentSteps ?? work,
+                  spentSteps: again?.spentSteps ?? spentSteps(budget),
                   spentNodes: again?.spentNodes ?? spentNodes(budget),
+                  spentWork: again?.spentWork ?? work,
+                  spentDecided: again?.spentDecided ?? budget.decided,
                 }
               : { decision: decisionCount() - 1, address: previous, seq },
           );
@@ -1157,6 +1221,7 @@ const runUntilDecisionOrBranch = (
           }
         } else {
           stepsEncountered.pop();
+          decide();
           const fork = port.fork();
           const forkState = fork.state;
           if (!claimForkSite(budget, site, fork.key)) {
@@ -1229,7 +1294,13 @@ const runUntilDecisionOrBranch = (
       const stepsBefore = story.stepCount;
       const allowed = Math.max(
         0,
-        Math.min(budget.stepsRemaining, faithfulBudget.steps - work),
+        work < 0
+          ? budget.stepsRemaining
+          : Math.min(
+              budget.stepsRemaining,
+              faithfulBudget.steps - work,
+              faithfulBudget.total - budget.decided,
+            ),
       );
       story.stepLimit = stepsBefore + 1 + allowed;
       let stopped = false;
@@ -1251,6 +1322,7 @@ const runUntilDecisionOrBranch = (
       pending = [];
 
       if (story.pausedBeforeCondition !== null) {
+        decide();
         const site = story.pausedBeforeCondition;
         const natural = story.pausedConditionValue;
         putBack = stepsEncountered.pop();
@@ -1370,7 +1442,7 @@ const makeStartNode = (
     left: 0,
     metPins: [],
     route: newRoute(),
-    work: 0,
+    work: -1,
   };
 };
 
@@ -1403,7 +1475,10 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => {
     left: 0,
     metPins: [],
     route: newRoute(),
-    work: Math.max(0, (resumeFrom.charge?.steps ?? 1) - 1),
+    work:
+      resumeFrom.charge === undefined || resumeFrom.charge.work < 0
+        ? -1
+        : Math.max(0, resumeFrom.charge.work - 1),
   };
 };
 
