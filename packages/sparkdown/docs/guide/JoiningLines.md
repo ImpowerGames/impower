@@ -62,7 +62,7 @@ scene Doorway
 end
 ```
 
-The joined line keeps the first line's speaker. A line that begins with `..` and names no speaker takes the speaker of the line it joins. Inside a dialogue block, the lines join the same way:
+The joined line keeps the first line's speaker. A line that begins with `..` and names no speaker takes the speaker of the line it joins. The speaker is the whole cue: the name the box shows, the character an `as` names after it ([Who is speaking](./PortraitMorphs.md#who-is-speaking)), the parenthetical and the position, so after `??? as raffles (O.S.): I thought ..` a `.. you had gone.` is still Raffles speaking under `???`. Inside a dialogue block, the lines join the same way:
 
 ```sparkdown
 scene Doorway

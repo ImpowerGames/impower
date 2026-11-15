@@ -53,6 +53,7 @@ import {
   type DirectiveClause,
   type DirectiveKind,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import { readCue } from "@impower/sparkdown/src/compiler/utils/readCue";
 
 export interface InterpreterConfig {}
 
@@ -108,9 +109,6 @@ export class InterpreterModule extends Module<
 
   CHAR_REGEX =
     /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
-
-  CHARACTER_REGEX =
-    /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(?:(\[)([ \t]*)(.*?)([ \t]*)(\]))?([ \t]*)$/;
 
   PARENTHETICAL_REGEX =
     /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)$/;
@@ -291,23 +289,28 @@ export class InterpreterModule extends Module<
   }
 
   protected resolveCue(characterDeclaration: string): Cue {
-    const match = characterDeclaration.match(this.CHARACTER_REGEX);
-    const characterNameMatch = match?.[1] || "";
-    const characterParentheticalMatch = match?.[3] || "";
-    const characterPositionMatch = match?.[7] || "";
+    const cue = readCue(characterDeclaration);
+    const characterNameMatch = cue.name.text;
+    const characterPositionMatch = cue.position?.text ?? "";
     const characterMap = this.context?.["character"] as any;
+    const ownCharacter = (key: string) =>
+      characterMap && Object.hasOwn(characterMap, key)
+        ? characterMap[key]
+        : undefined;
     const writtenName = writtenText(characterNameMatch);
-    const characterId = this._characterNameMap[writtenName] || "";
-    const characterObj =
-      (characterMap && Object.hasOwn(characterMap, writtenName)
-        ? characterMap[writtenName]
-        : undefined) || characterMap?.[characterId];
+    const characterObj = cue.speaker
+      ? ownCharacter(cue.speaker.text)
+      : ownCharacter(writtenName) ||
+        characterMap?.[this._characterNameMap[writtenName] || ""];
     const namedByAlias =
       characterObj &&
       writtenName !== characterObj.$name &&
       writtenName !== characterObj.name;
     const characterName =
-      !namedByAlias && typeof characterObj?.name === "string" && characterObj.name
+      !cue.speaker &&
+      !namedByAlias &&
+      typeof characterObj?.name === "string" &&
+      characterObj.name
         ? scanned(characterObj.name)
         : characterNameMatch;
     const position =
@@ -318,7 +321,7 @@ export class InterpreterModule extends Module<
           : characterPositionMatch;
     return {
       name: characterName,
-      parenthetical: characterParentheticalMatch,
+      parenthetical: cue.parenthetical?.text ?? "",
       position,
       character: characterObj?.$name,
     };

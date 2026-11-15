@@ -1,0 +1,365 @@
+sparkdown [0..243]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ BlockDialogue [12..57]
+ │   ├─ BlockDialogue_begin [12..29]
+ │   │   ├─ BlockDialogue_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ BlockDialogue_begin_c2 [14..28]
+ │   │   │   └─ DialogueCharacter [14..28]
+ │   │   │       ├─ DialogueCharacter_c1 14
+ │   │   │       ├─ DialogueCharacter_c2 [14..17]
+ │   │   │       │   └─ DialogueCharacterName [14..17]
+ │   │   │       │       └─ DialogueCharacterName_c1 [14..17]
+ │   │   │       │           ├─ Punctuation [14..15]: "?"
+ │   │   │       │           ├─ Punctuation [15..16]: "?"
+ │   │   │       │           └─ Punctuation [16..17]: "?"
+ │   │   │       ├─ DialogueCharacter_c3 [17..18]
+ │   │   │       │   └─ Whitespace [17..18]: " "
+ │   │   │       ├─ DialogueCharacter_c4 [18..20]
+ │   │   │       │   └─ DialogueCharacterAsKeyword [18..20]: "as"
+ │   │   │       ├─ DialogueCharacter_c5 [20..21]
+ │   │   │       │   └─ Whitespace [20..21]: " "
+ │   │   │       ├─ DialogueCharacter_c6 [21..28]
+ │   │   │       │   └─ DialogueCharacterSpeaker [21..28]: "raffles"
+ │   │   │       ├─ DialogueCharacter_c7 28
+ │   │   │       ├─ DialogueCharacter_c8 28
+ │   │   │       ├─ DialogueCharacter_c9 28
+ │   │   │       ├─ DialogueCharacter_c10 28
+ │   │   │       └─ DialogueCharacter_c11 28
+ │   │   ├─ BlockDialogue_begin_c3 [28..29]
+ │   │   │   └─ ColonSeparator [28..29]: ":"
+ │   │   └─ BlockDialogue_begin_c4 29
+ │   ├─ BlockDialogue_content [29..57]
+ │   │   ├─ Newline [29..30]: "\n"
+ │   │   ├─ BlockLineContinue [30..56]
+ │   │   │   ├─ BlockLineContinue_begin [30..34]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [30..34]
+ │   │   │   │   │   └─ OptionalWhitespace [30..34]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 34
+ │   │   │   ├─ BlockLineContinue_content [34..56]
+ │   │   │   │   └─ TextChunk [34..56]
+ │   │   │   │       ├─ TextChunk_begin 34
+ │   │   │   │       ├─ TextChunk_content [34..56]
+ │   │   │   │       │   ├─ Word [34..37]: "You"
+ │   │   │   │       │   ├─ Space [37..38]: " "
+ │   │   │   │       │   ├─ Word [38..41]: "don"
+ │   │   │   │       │   ├─ Punctuation [41..42]: "'"
+ │   │   │   │       │   ├─ Word [42..43]: "t"
+ │   │   │   │       │   ├─ Space [43..44]: " "
+ │   │   │   │       │   ├─ Word [44..52]: "remember"
+ │   │   │   │       │   ├─ Space [52..53]: " "
+ │   │   │   │       │   ├─ Word [53..55]: "me"
+ │   │   │   │       │   └─ Punctuation [55..56]: "?"
+ │   │   │   │       └─ TextChunk_end 56
+ │   │   │   └─ BlockLineContinue_end 56
+ │   │   │       └─ BlockLineContinue_end_c1 56
+ │   │   └─ Newline [56..57]: "\n"
+ │   └─ BlockDialogue_end 57
+ ├─ BlockDialogue [57..103]
+ │   ├─ BlockDialogue_begin [57..85]
+ │   │   ├─ BlockDialogue_begin_c1 [57..59]
+ │   │   │   └─ OptionalWhitespace [57..59]: "  "
+ │   │   ├─ BlockDialogue_begin_c2 [59..84]
+ │   │   │   └─ DialogueCharacter [59..84]
+ │   │   │       ├─ DialogueCharacter_c1 59
+ │   │   │       ├─ DialogueCharacter_c2 [59..62]
+ │   │   │       │   └─ DialogueCharacterName [59..62]
+ │   │   │       │       └─ DialogueCharacterName_c1 [59..62]
+ │   │   │       │           ├─ Punctuation [59..60]: "?"
+ │   │   │       │           ├─ Punctuation [60..61]: "?"
+ │   │   │       │           └─ Punctuation [61..62]: "?"
+ │   │   │       ├─ DialogueCharacter_c3 [62..63]
+ │   │   │       │   └─ Whitespace [62..63]: " "
+ │   │   │       ├─ DialogueCharacter_c4 [63..65]
+ │   │   │       │   └─ DialogueCharacterAsKeyword [63..65]: "as"
+ │   │   │       ├─ DialogueCharacter_c5 [65..66]
+ │   │   │       │   └─ Whitespace [65..66]: " "
+ │   │   │       ├─ DialogueCharacter_c6 [66..73]
+ │   │   │       │   └─ DialogueCharacterSpeaker [66..73]: "raffles"
+ │   │   │       ├─ DialogueCharacter_c7 73
+ │   │   │       ├─ DialogueCharacter_c8 [73..80]
+ │   │   │       │   └─ DialogueCharacterParenthetical [73..80]
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c1 [73..74]
+ │   │   │       │       │   └─ Whitespace [73..74]: " "
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c2 [74..75]: "("
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c3 75
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c4 [75..79]
+ │   │   │       │       │   ├─ Word [75..76]: "O"
+ │   │   │       │       │   ├─ Punctuation [76..77]: "."
+ │   │   │       │       │   ├─ Word [77..78]: "S"
+ │   │   │       │       │   └─ Punctuation [78..79]: "."
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c5 79
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c6 [79..80]: ")"
+ │   │   │       │       └─ DialogueCharacterParenthetical_c7 80
+ │   │   │       ├─ DialogueCharacter_c9 80
+ │   │   │       ├─ DialogueCharacter_c10 [80..84]
+ │   │   │       │   └─ DialogueCharacterPosition [80..84]
+ │   │   │       │       ├─ DialogueCharacterPosition_c1 [80..81]
+ │   │   │       │       │   └─ Whitespace [80..81]: " "
+ │   │   │       │       ├─ DialogueCharacterPosition_c2 [81..82]: "["
+ │   │   │       │       ├─ DialogueCharacterPosition_c3 82
+ │   │   │       │       ├─ DialogueCharacterPosition_c4 [82..83]
+ │   │   │       │       │   └─ DialogueCharacterPositionContent [82..83]: "<"
+ │   │   │       │       ├─ DialogueCharacterPosition_c5 83
+ │   │   │       │       └─ DialogueCharacterPosition_c6 [83..84]: "]"
+ │   │   │       └─ DialogueCharacter_c11 84
+ │   │   ├─ BlockDialogue_begin_c3 [84..85]
+ │   │   │   └─ ColonSeparator [84..85]: ":"
+ │   │   └─ BlockDialogue_begin_c4 85
+ │   ├─ BlockDialogue_content [85..103]
+ │   │   ├─ Newline [85..86]: "\n"
+ │   │   ├─ BlockLineContinue [86..102]
+ │   │   │   ├─ BlockLineContinue_begin [86..90]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [86..90]
+ │   │   │   │   │   └─ OptionalWhitespace [86..90]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 90
+ │   │   │   ├─ BlockLineContinue_content [90..102]
+ │   │   │   │   └─ TextChunk [90..102]
+ │   │   │   │       ├─ TextChunk_begin 90
+ │   │   │   │       ├─ TextChunk_content [90..102]
+ │   │   │   │       │   ├─ Word [90..92]: "It"
+ │   │   │   │       │   ├─ Space [92..93]: " "
+ │   │   │   │       │   ├─ Word [93..96]: "can"
+ │   │   │   │       │   ├─ Punctuation [96..97]: "'"
+ │   │   │   │       │   ├─ Word [97..98]: "t"
+ │   │   │   │       │   ├─ Space [98..99]: " "
+ │   │   │   │       │   ├─ Word [99..101]: "be"
+ │   │   │   │       │   └─ Punctuation [101..102]: "."
+ │   │   │   │       └─ TextChunk_end 102
+ │   │   │   └─ BlockLineContinue_end 102
+ │   │   │       └─ BlockLineContinue_end_c1 102
+ │   │   └─ Newline [102..103]: "\n"
+ │   └─ BlockDialogue_end 103
+ ├─ InlineDialogue [103..126]
+ │   ├─ InlineDialogue_begin [103..121]
+ │   │   ├─ InlineDialogue_begin_c1 [103..105]
+ │   │   │   └─ OptionalWhitespace [103..105]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [105..119]
+ │   │   │   └─ DialogueCharacter [105..119]
+ │   │   │       ├─ DialogueCharacter_c1 105
+ │   │   │       ├─ DialogueCharacter_c2 [105..108]
+ │   │   │       │   └─ DialogueCharacterName [105..108]
+ │   │   │       │       └─ DialogueCharacterName_c1 [105..108]
+ │   │   │       │           ├─ Punctuation [105..106]: "?"
+ │   │   │       │           ├─ Punctuation [106..107]: "?"
+ │   │   │       │           └─ Punctuation [107..108]: "?"
+ │   │   │       ├─ DialogueCharacter_c3 [108..109]
+ │   │   │       │   └─ Whitespace [108..109]: " "
+ │   │   │       ├─ DialogueCharacter_c4 [109..111]
+ │   │   │       │   └─ DialogueCharacterAsKeyword [109..111]: "as"
+ │   │   │       ├─ DialogueCharacter_c5 [111..112]
+ │   │   │       │   └─ Whitespace [111..112]: " "
+ │   │   │       ├─ DialogueCharacter_c6 [112..119]
+ │   │   │       │   └─ DialogueCharacterSpeaker [112..119]: "raffles"
+ │   │   │       ├─ DialogueCharacter_c7 119
+ │   │   │       ├─ DialogueCharacter_c8 119
+ │   │   │       ├─ DialogueCharacter_c9 119
+ │   │   │       ├─ DialogueCharacter_c10 119
+ │   │   │       └─ DialogueCharacter_c11 119
+ │   │   ├─ InlineDialogue_begin_c3 [119..120]
+ │   │   │   └─ ColonSeparator [119..120]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [120..121]
+ │   │   │   └─ RequiredWhitespace [120..121]: " "
+ │   │   └─ InlineDialogue_begin_c5 121
+ │   ├─ InlineDialogue_content [121..126]
+ │   │   └─ LineEnd [121..126]
+ │   │       ├─ LineEnd_begin 121
+ │   │       │   └─ LineEnd_begin_c1 121
+ │   │       │       └─ OptionalWhitespace 121
+ │   │       ├─ LineEnd_content [121..126]
+ │   │       │   └─ TextChunk [121..126]
+ │   │       │       ├─ TextChunk_begin 121
+ │   │       │       ├─ TextChunk_content [121..126]
+ │   │       │       │   └─ Word [121..126]: "Hello"
+ │   │       │       └─ TextChunk_end 126
+ │   │       └─ LineEnd_end 126
+ │   └─ InlineDialogue_end 126
+ ├─ Newline [126..127]: "\n"
+ ├─ BlockDialogue [127..162]
+ │   ├─ BlockDialogue_begin [127..147]
+ │   │   ├─ BlockDialogue_begin_c1 [127..129]
+ │   │   │   └─ OptionalWhitespace [127..129]: "  "
+ │   │   ├─ BlockDialogue_begin_c2 [129..146]
+ │   │   │   └─ DialogueCharacter [129..146]
+ │   │   │       ├─ DialogueCharacter_c1 129
+ │   │   │       ├─ DialogueCharacter_c2 [129..146]
+ │   │   │       │   └─ DialogueCharacterName [129..146]
+ │   │   │       │       └─ DialogueCharacterName_c1 [129..146]
+ │   │   │       │           ├─ Word [129..136]: "Dressed"
+ │   │   │       │           ├─ Space [136..137]: " "
+ │   │   │       │           ├─ Escape [137..139]
+ │   │   │       │           │   ├─ Escape_c1 137
+ │   │   │       │           │   ├─ Escape_c2 137
+ │   │   │       │           │   ├─ Escape_c3 137
+ │   │   │       │           │   ├─ Escape_c4 137
+ │   │   │       │           │   ├─ Escape_c5 [137..138]: "\\"
+ │   │   │       │           │   └─ Escape_c6 [138..139]: "a"
+ │   │   │       │           ├─ Word [139..140]: "s"
+ │   │   │       │           ├─ Space [140..141]: " "
+ │   │   │       │           └─ Word [141..146]: "santa"
+ │   │   │       ├─ DialogueCharacter_c3 146
+ │   │   │       ├─ DialogueCharacter_c4 146
+ │   │   │       ├─ DialogueCharacter_c5 146
+ │   │   │       ├─ DialogueCharacter_c6 146
+ │   │   │       ├─ DialogueCharacter_c7 146
+ │   │   │       ├─ DialogueCharacter_c8 146
+ │   │   │       ├─ DialogueCharacter_c9 146
+ │   │   │       ├─ DialogueCharacter_c10 146
+ │   │   │       └─ DialogueCharacter_c11 146
+ │   │   ├─ BlockDialogue_begin_c3 [146..147]
+ │   │   │   └─ ColonSeparator [146..147]: ":"
+ │   │   └─ BlockDialogue_begin_c4 147
+ │   ├─ BlockDialogue_content [147..162]
+ │   │   ├─ Newline [147..148]: "\n"
+ │   │   ├─ BlockLineContinue [148..161]
+ │   │   │   ├─ BlockLineContinue_begin [148..152]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [148..152]
+ │   │   │   │   │   └─ OptionalWhitespace [148..152]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 152
+ │   │   │   ├─ BlockLineContinue_content [152..161]
+ │   │   │   │   └─ TextChunk [152..161]
+ │   │   │   │       ├─ TextChunk_begin 152
+ │   │   │   │       ├─ TextChunk_content [152..161]
+ │   │   │   │       │   ├─ Word [152..154]: "Ho"
+ │   │   │   │       │   ├─ Space [154..155]: " "
+ │   │   │   │       │   ├─ Word [155..157]: "ho"
+ │   │   │   │       │   ├─ Space [157..158]: " "
+ │   │   │   │       │   ├─ Word [158..160]: "ho"
+ │   │   │   │       │   └─ Punctuation [160..161]: "."
+ │   │   │   │       └─ TextChunk_end 161
+ │   │   │   └─ BlockLineContinue_end 161
+ │   │   │       └─ BlockLineContinue_end_c1 161
+ │   │   └─ Newline [161..162]: "\n"
+ │   └─ BlockDialogue_end 162
+ ├─ BlockDialogue [162..206]
+ │   ├─ BlockDialogue_begin [162..181]
+ │   │   ├─ BlockDialogue_begin_c1 [162..164]
+ │   │   │   └─ OptionalWhitespace [162..164]: "  "
+ │   │   ├─ BlockDialogue_begin_c2 [164..180]
+ │   │   │   └─ DialogueCharacter [164..180]
+ │   │   │       ├─ DialogueCharacter_c1 164
+ │   │   │       ├─ DialogueCharacter_c2 [164..169]
+ │   │   │       │   └─ DialogueCharacterName [164..169]
+ │   │   │       │       └─ DialogueCharacterName_c1 [164..169]
+ │   │   │       │           └─ Word [164..169]: "BUNNY"
+ │   │   │       ├─ DialogueCharacter_c3 [169..170]
+ │   │   │       │   └─ Whitespace [169..170]: " "
+ │   │   │       ├─ DialogueCharacter_c4 [170..172]
+ │   │   │       │   └─ DialogueCharacterAsKeyword [170..172]: "as"
+ │   │   │       ├─ DialogueCharacter_c5 [172..173]
+ │   │   │       │   └─ Whitespace [172..173]: " "
+ │   │   │       ├─ DialogueCharacter_c6 [173..180]
+ │   │   │       │   └─ DialogueCharacterSpeaker [173..180]: "raffles"
+ │   │   │       ├─ DialogueCharacter_c7 180
+ │   │   │       ├─ DialogueCharacter_c8 180
+ │   │   │       ├─ DialogueCharacter_c9 180
+ │   │   │       ├─ DialogueCharacter_c10 180
+ │   │   │       └─ DialogueCharacter_c11 180
+ │   │   ├─ BlockDialogue_begin_c3 [180..181]
+ │   │   │   └─ ColonSeparator [180..181]: ":"
+ │   │   └─ BlockDialogue_begin_c4 181
+ │   ├─ BlockDialogue_content [181..206]
+ │   │   ├─ Newline [181..182]: "\n"
+ │   │   ├─ BlockLineContinue [182..205]
+ │   │   │   ├─ BlockLineContinue_begin [182..186]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [182..186]
+ │   │   │   │   │   └─ OptionalWhitespace [182..186]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 186
+ │   │   │   ├─ BlockLineContinue_content [186..205]
+ │   │   │   │   └─ TextChunk [186..205]
+ │   │   │   │       ├─ TextChunk_begin 186
+ │   │   │   │       ├─ TextChunk_content [186..205]
+ │   │   │   │       │   ├─ Word [186..187]: "I"
+ │   │   │   │       │   ├─ Space [187..188]: " "
+ │   │   │   │       │   ├─ Word [188..191]: "can"
+ │   │   │   │       │   ├─ Space [191..192]: " "
+ │   │   │   │       │   ├─ Word [192..194]: "do"
+ │   │   │   │       │   ├─ Space [194..195]: " "
+ │   │   │   │       │   ├─ Word [195..198]: "his"
+ │   │   │   │       │   ├─ Space [198..199]: " "
+ │   │   │   │       │   ├─ Word [199..204]: "voice"
+ │   │   │   │       │   └─ Punctuation [204..205]: "."
+ │   │   │   │       └─ TextChunk_end 205
+ │   │   │   └─ BlockLineContinue_end 205
+ │   │   │       └─ BlockLineContinue_end_c1 205
+ │   │   └─ Newline [205..206]: "\n"
+ │   └─ BlockDialogue_end 206
+ ├─ BlockDialogue [206..239]
+ │   ├─ BlockDialogue_begin [206..227]
+ │   │   ├─ BlockDialogue_begin_c1 [206..208]
+ │   │   │   └─ OptionalWhitespace [206..208]: "  "
+ │   │   ├─ BlockDialogue_begin_c2 [208..226]
+ │   │   │   └─ DialogueCharacter [208..226]
+ │   │   │       ├─ DialogueCharacter_c1 208
+ │   │   │       ├─ DialogueCharacter_c2 [208..215]
+ │   │   │       │   └─ DialogueCharacterName [208..215]
+ │   │   │       │       └─ DialogueCharacterName_c1 [208..215]
+ │   │   │       │           └─ Word [208..215]: "RAFFLES"
+ │   │   │       ├─ DialogueCharacter_c3 215
+ │   │   │       ├─ DialogueCharacter_c4 215
+ │   │   │       ├─ DialogueCharacter_c5 215
+ │   │   │       ├─ DialogueCharacter_c6 215
+ │   │   │       ├─ DialogueCharacter_c7 215
+ │   │   │       ├─ DialogueCharacter_c8 [215..222]
+ │   │   │       │   └─ DialogueCharacterParenthetical [215..222]
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c1 [215..216]
+ │   │   │       │       │   └─ Whitespace [215..216]: " "
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c2 [216..217]: "("
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c3 217
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c4 [217..221]
+ │   │   │       │       │   ├─ Word [217..218]: "V"
+ │   │   │       │       │   ├─ Punctuation [218..219]: "."
+ │   │   │       │       │   ├─ Word [219..220]: "O"
+ │   │   │       │       │   └─ Punctuation [220..221]: "."
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c5 221
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c6 [221..222]: ")"
+ │   │   │       │       └─ DialogueCharacterParenthetical_c7 222
+ │   │   │       ├─ DialogueCharacter_c9 222
+ │   │   │       ├─ DialogueCharacter_c10 [222..226]
+ │   │   │       │   └─ DialogueCharacterPosition [222..226]
+ │   │   │       │       ├─ DialogueCharacterPosition_c1 [222..223]
+ │   │   │       │       │   └─ Whitespace [222..223]: " "
+ │   │   │       │       ├─ DialogueCharacterPosition_c2 [223..224]: "["
+ │   │   │       │       ├─ DialogueCharacterPosition_c3 224
+ │   │   │       │       ├─ DialogueCharacterPosition_c4 [224..225]
+ │   │   │       │       │   └─ DialogueCharacterPositionContent [224..225]: ">"
+ │   │   │       │       ├─ DialogueCharacterPosition_c5 225
+ │   │   │       │       └─ DialogueCharacterPosition_c6 [225..226]: "]"
+ │   │   │       └─ DialogueCharacter_c11 226
+ │   │   ├─ BlockDialogue_begin_c3 [226..227]
+ │   │   │   └─ ColonSeparator [226..227]: ":"
+ │   │   └─ BlockDialogue_begin_c4 227
+ │   ├─ BlockDialogue_content [227..239]
+ │   │   ├─ Newline [227..228]: "\n"
+ │   │   ├─ BlockLineContinue [228..238]
+ │   │   │   ├─ BlockLineContinue_begin [228..232]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [228..232]
+ │   │   │   │   │   └─ OptionalWhitespace [228..232]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 232
+ │   │   │   ├─ BlockLineContinue_content [232..238]
+ │   │   │   │   └─ TextChunk [232..238]
+ │   │   │   │       ├─ TextChunk_begin 232
+ │   │   │   │       ├─ TextChunk_content [232..238]
+ │   │   │   │       │   ├─ Word [232..237]: "Plain"
+ │   │   │   │       │   └─ Punctuation [237..238]: "."
+ │   │   │   │       └─ TextChunk_end 238
+ │   │   │   └─ BlockLineContinue_end 238
+ │   │   │       └─ BlockLineContinue_end_c1 238
+ │   │   └─ Newline [238..239]: "\n"
+ │   └─ BlockDialogue_end 239
+ ├─ LuauEndKeyword [239..242]: "end"
+ └─ Newline [242..243]: "\n"

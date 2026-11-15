@@ -1,0 +1,242 @@
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { beforeAll, describe, expect, test } from "vitest";
+import { canRename } from "../../utils/providers/canRename";
+import { getReferences } from "../../utils/providers/getReferences";
+import { getRenameEdits } from "../../utils/providers/getRenameEdits";
+import { compileProject, complete } from "./completionHarness";
+
+const URI = "file:///provider.sd";
+
+const DEFS = `define raffles as character with
+  name = "RAFFLES"
+  aliases = { "???" }
+end
+
+define bunny as character with
+  name = "BUNNY"
+  aliases = { "???" }
+end
+`;
+
+const SOURCE = `${DEFS}
+scene start
+  ??? as raffles:
+    You don't remember me?
+  BUNNY as raffles (O.S.):
+    I can do his voice, you know.
+end
+`;
+
+function workspaceOf(source: string) {
+  const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
+  documents.set({ textDocument: { uri: URI, text: source, version: 1, languageId: "sparkdown" } });
+  const workspace = {
+    annotations: (uri: string) => documents.annotations(uri),
+    document: (uri: string) => documents.get(uri),
+    tree: (uri: string) => documents.tree(uri),
+    uris: () => [...documents.keys()],
+    compilerConfig: undefined,
+    findFiles: () => [],
+  } as any;
+  return { documents, workspace };
+}
+
+function positionOf(source: string, needle: string, occurrence: number) {
+  let index = -1;
+  for (let n = 0; n < occurrence; n += 1) index = source.indexOf(needle, index + 1);
+  const offset = index + 1;
+  const before = source.slice(0, offset);
+  return { line: before.split("\n").length - 1, character: offset - (before.lastIndexOf("\n") + 1) };
+}
+
+function renamed(source: string, needle: string, occurrence: number, newName: string) {
+  const { documents, workspace } = workspaceOf(source);
+  const edits = getRenameEdits(
+    undefined,
+    documents.get(URI),
+    documents.tree(URI),
+    undefined,
+    workspace,
+    newName,
+    positionOf(source, needle, occurrence),
+  );
+  let text = source;
+  const document = documents.get(URI)!;
+  const changes = [...(edits?.changes?.[URI] ?? [])].sort(
+    (a, b) => document.offsetAt(b.range.start) - document.offsetAt(a.range.start),
+  );
+  for (const change of changes) {
+    text =
+      text.slice(0, document.offsetAt(change.range.start)) +
+      change.newText +
+      text.slice(document.offsetAt(change.range.end));
+  }
+  return text;
+}
+
+const characterLabels = (labels: string[]) =>
+  labels.filter((label) => ["raffles", "bunny", "RAFFLES", "BUNNY", "???"].includes(label)).sort();
+
+describe("the speaker a cue names with `as` in the editor (#2283)", () => {
+  let program: SparkProgram;
+
+  beforeAll(() => {
+    program = compileProject(SOURCE);
+  });
+
+  test("completion after `as` on a cue offers the character define names only", () => {
+    const at = complete(SOURCE.replace("  ??? as raffles:\n", "  ??? as @1:\n"), { program });
+    expect(characterLabels(at.labels)).toEqual(["bunny", "raffles"]);
+    expect(at.detail("raffles")).toBe("character");
+  });
+
+  test("completion after `as` on a cue being typed offers the character define names only", () => {
+    const at = complete(SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  ??? as r@1\n"), { program });
+    expect(characterLabels(at.labels)).toEqual(["bunny", "raffles"]);
+  });
+
+  test("completion after `as` on a cue being typed under a new shown name offers the character define names", () => {
+    const at = complete(SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  MASKED MAN as r@1\n"), { program });
+    expect(characterLabels(at.labels)).toEqual(["bunny", "raffles"]);
+  });
+
+  test.each([
+    ["a cue", "  ??? as r@1affles:\n", "  ??? as raffles:"],
+    ["a cue with a parenthetical and a position", "  ??? as r@1affles (O.S.) [<]:\n", "  ??? as raffles (O.S.) [<]:"],
+  ])("completion inside the speaker of %s replaces the whole speaker", (_label, cue, accepted) => {
+    const marked = SOURCE.replace("  ??? as raffles:\n", cue);
+    const at = complete(marked, { program });
+    const item = at.items.find((i) => i.label === "raffles") as any;
+    const line = marked.split("\n").findIndex((l) => l.includes("@1"));
+    const written = marked.split("\n")[line]!.replace("@1", "");
+    const { start, end } = item.textEdit.range;
+    expect(start.line === line && end.line === line).toBe(true);
+    expect(written.slice(0, start.character) + item.textEdit.newText + written.slice(end.character)).toBe(accepted);
+  });
+
+  test.each([
+    ["a speaker ending in `@`", "  ??? as raffles@@1\n", "@", "raffles@shy", "  ??? as raffles@shy: "],
+    ["the cursor inside the speaker", "  ??? as r@1affles\n", undefined, "raffles", "  ??? as raffles: "],
+    ["a parenthetical after the speaker", "  ??? as r@1affles (O.S.)\n", undefined, "raffles", "  ??? as raffles (O.S.): "],
+    ["a position after the speaker", "  ??? as r@1affles [<]\n", undefined, "raffles", "  ??? as raffles [<]: "],
+    ["a parenthetical and a position after the speaker", "  ??? as r@1affles (O.S.) [<] \n", undefined, "raffles", "  ??? as raffles (O.S.) [<]: "],
+  ])("completion on a cue being typed with %s replaces the whole speaker and adds the colon", (_label, cue, trigger, label, accepted) => {
+    const source = `define raffles@shy as character with\nend\n\n${SOURCE}`;
+    const marked = source.replace("  ??? as raffles:\n    You don't remember me?\n", cue);
+    const at = complete(marked, { program: compileProject(source), trigger });
+    const item = at.items.find((i) => i.label === label) as any;
+    expect(item).toBeDefined();
+    const line = marked.split("\n").findIndex((l) => l.includes("@1"));
+    const written = marked.split("\n")[line]!.replace("@1", "");
+    const { start, end } = item.textEdit.range;
+    expect(written.slice(0, start.character) + item.textEdit.newText + written.slice(end.character)).toBe(accepted);
+  });
+
+  test("a cue being typed with text after the speaker that is no parenthetical or position is offered no character define names", () => {
+    const at = complete(SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  ??? as r@1affles today\n"), { program });
+    expect(characterLabels(at.labels)).toEqual([]);
+  });
+
+  test("a line of prose with the cursor inside a word after `as` is offered no character define names", () => {
+    const at = complete(SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  He looked as r@1affles\n"), { program });
+    expect(characterLabels(at.labels)).toEqual([]);
+  });
+
+  test("completion at the end of a cue being typed replaces the typed part of the speaker and adds the colon", () => {
+    const marked = SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  ??? as raf@1\n");
+    const at = complete(marked, { program });
+    const item = at.items.find((i) => i.label === "raffles") as any;
+    const line = marked.split("\n").findIndex((l) => l.includes("@1"));
+    const written = marked.split("\n")[line]!.replace("@1", "");
+    const { start, end } = item.textEdit.range;
+    expect(written.slice(0, start.character) + item.textEdit.newText + written.slice(end.character)).toBe("  ??? as raffles: ");
+  });
+
+  const AT_PART_SOURCE = `define raffles@shy as character with\nend\n\n${SOURCE}`;
+
+  test.each([
+    ["a speaker with an `@` part", "  ??? as raffles@s@1:\n", "  ??? as raffles@s"],
+    ["a speaker ending in `@`", "  ??? as raffles@@1:\n", "  ??? as raffles@"],
+  ])("completion after `as` on a cue offers a define name with an `@` part for %s and replaces the whole word", (_label, cue, typed) => {
+    const marked = AT_PART_SOURCE.replace("  ??? as raffles:\n", cue);
+    const at = complete(marked, { program: compileProject(AT_PART_SOURCE) });
+    const item = at.items.find((i) => i.label === "raffles@shy") as any;
+    expect(item?.textEdit?.newText).toBe("raffles@shy");
+    const line = marked.split("\n").findIndex((l) => l.includes("@1"));
+    expect(item.textEdit.range).toEqual({
+      start: { line, character: "  ??? as ".length },
+      end: { line, character: typed.length },
+    });
+  });
+
+  test.each([
+    ["`@`", "  ??? as raffles@@1:\n", "@"],
+    ["`@s`", "  ??? as raffles@s@1:\n", undefined],
+  ])("completion after typing %s onto a cue's speaker offers the define name and replaces the whole word", (_label, cue, trigger) => {
+    const marked = AT_PART_SOURCE.replace("  ??? as raffles:\n", cue);
+    const at = complete(marked, { program: compileProject(AT_PART_SOURCE), editedFrom: AT_PART_SOURCE, trigger });
+    const item = at.items.find((i) => i.label === "raffles@shy") as any;
+    expect(item?.textEdit?.newText).toBe("raffles@shy");
+    expect(item.textEdit.range.start.character).toBe("  ??? as ".length);
+  });
+
+  test("completion after `as` on a cue being typed offers a define name with an `@` part", () => {
+    const at = complete(AT_PART_SOURCE.replace("  ??? as raffles:\n", "  ??? as raffles@s@1\n"), {
+      program: compileProject(AT_PART_SOURCE),
+    });
+    expect(at.labels).toContain("raffles@shy");
+  });
+
+  test("completion after `as` on a cue offers the define names when the cue's spaces are not plain spaces", () => {
+    const at = complete(SOURCE.replace("  ??? as raffles:\n", "  ??? as r@1:\n"), { program });
+    expect(characterLabels(at.labels)).toEqual(["bunny", "raffles"]);
+  });
+
+  test("a line of prose ending in `as` and a word is offered no character define names", () => {
+    const at = complete(SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  He looked as r@1\n"), { program });
+    expect(characterLabels(at.labels)).toEqual([]);
+  });
+
+  test("go to definition on the word after `as` lands on the character's define", () => {
+    const { documents, workspace } = workspaceOf(SOURCE);
+    const { references } = getReferences(
+      documents.get(URI),
+      documents.tree(URI),
+      undefined,
+      workspace,
+      positionOf(SOURCE, "raffles:", 1),
+      {
+        searchOtherFiles: true,
+        includeDeclaration: true,
+        excludeUses: true,
+        includeInterdependent: false,
+        includeLinks: false,
+      },
+    );
+    expect(references).toBeDefined();
+    expect(
+      (references ?? []).map((r) => ({ text: documents.get(URI)!.getText(r.range), line: r.range.start.line })),
+    ).toEqual([{ text: "raffles", line: 0 }]);
+  });
+
+  test("renaming the define renames the word after `as`, and leaves the shown names", () => {
+    const text = renamed(SOURCE, "raffles", 1, "arthur");
+    expect(text).toContain("define arthur as character with");
+    expect(text).toContain("  ??? as arthur:\n");
+    expect(text).toContain("  BUNNY as arthur (O.S.):\n");
+  });
+
+  test("a rename can start on the word after `as`, and covers that word", () => {
+    const { documents } = workspaceOf(SOURCE);
+    const range = canRename(documents.get(URI), documents.tree(URI), positionOf(SOURCE, "raffles (O.S.)", 1)) as any;
+    expect(range && documents.get(URI)!.getText(range)).toBe("raffles");
+  });
+
+  test("renaming from the word after `as` renames the define", () => {
+    const text = renamed(SOURCE, "raffles (O.S.)", 1, "arthur");
+    expect(text).toContain("define arthur as character with");
+    expect(text).toContain("  ??? as arthur:\n");
+    expect(text).toContain("  BUNNY as arthur (O.S.):\n");
+  });
+});

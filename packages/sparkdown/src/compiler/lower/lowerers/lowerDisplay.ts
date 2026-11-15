@@ -983,14 +983,21 @@ function readIdentifier(
   return ctx.read(node.from, node.to).trim();
 }
 
+const CUE_PARTS: readonly SparkdownNodeName[] = [
+  "DialogueCharacterPosition",
+  "DialogueCharacterParenthetical",
+  "DialogueCharacterSpeaker",
+  "DialogueCharacterName",
+];
+
 function readCue(node: SyntaxNode, ctx: LowerContext): string | null {
-  const name = getDescendent("DialogueCharacterName", node);
-  if (!name) return null;
-  const cue = readStyledSource(name, name.from, name.to, ctx).trim();
-  const parenthetical = getDescendent("DialogueCharacterParenthetical", node);
-  return parenthetical
-    ? `${cue} ${readStyledSource(parenthetical, parenthetical.from, parenthetical.to, ctx).trim()}`
-    : cue;
+  const cue = getDescendent("DialogueCharacter", node);
+  const name = cue && getDescendent("DialogueCharacterName", cue);
+  if (!cue || !name) return null;
+  const to = Math.max(
+    ...CUE_PARTS.map((part) => getDescendent(part, cue)?.to ?? name.to),
+  );
+  return readStyledSource(cue, name.from, to, ctx).trim();
 }
 
 export function lowerInlineDialogue(

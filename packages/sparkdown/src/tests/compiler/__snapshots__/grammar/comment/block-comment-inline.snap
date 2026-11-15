@@ -173,7 +173,11 @@ sparkdown [0..338]
  │   │   │       ├─ DialogueCharacter_c4 132
  │   │   │       ├─ DialogueCharacter_c5 132
  │   │   │       ├─ DialogueCharacter_c6 132
- │   │   │       └─ DialogueCharacter_c7 132
+ │   │   │       ├─ DialogueCharacter_c7 132
+ │   │   │       ├─ DialogueCharacter_c8 132
+ │   │   │       ├─ DialogueCharacter_c9 132
+ │   │   │       ├─ DialogueCharacter_c10 132
+ │   │   │       └─ DialogueCharacter_c11 132
  │   │   ├─ InlineDialogue_begin_c3 [132..133]
  │   │   │   └─ ColonSeparator [132..133]: ":"
  │   │   ├─ InlineDialogue_begin_c4 [133..134]

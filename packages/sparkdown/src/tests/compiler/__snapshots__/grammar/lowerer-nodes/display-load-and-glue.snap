@@ -189,7 +189,11 @@ sparkdown [0..193]
  │   │   │       ├─ DialogueCharacter_c4 97
  │   │   │       ├─ DialogueCharacter_c5 97
  │   │   │       ├─ DialogueCharacter_c6 97
- │   │   │       └─ DialogueCharacter_c7 97
+ │   │   │       ├─ DialogueCharacter_c7 97
+ │   │   │       ├─ DialogueCharacter_c8 97
+ │   │   │       ├─ DialogueCharacter_c9 97
+ │   │   │       ├─ DialogueCharacter_c10 97
+ │   │   │       └─ DialogueCharacter_c11 97
  │   │   ├─ InlineDialogue_begin_c3 [97..98]
  │   │   │   └─ ColonSeparator [97..98]: ":"
  │   │   ├─ InlineDialogue_begin_c4 [98..99]
