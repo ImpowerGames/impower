@@ -8,7 +8,7 @@ import { parseSource } from "./grammarSnapshot";
 import { tokenize } from "./vscodeGrammarSnapshot";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const stickyAnchor = (source: string) => source.replace(/^\\G/, "");
+const stickyAnchor = (source: string) => source.replace(/(?<!\\)\\G/g, "(?:)");
 const GRAMMAR_PATH = join(
   __dirname,
   "../../../language/sparkdown.language-grammar.json",

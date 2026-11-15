@@ -44,6 +44,8 @@ variables:
   DISPLAY_CHAIN_COMMENT_AHEAD: (?={{WS}}+(?:{{SPARKDOWN_BLOCK_COMMENT_START}}|{{LINE_COMMENT_MARK}}))
   # lookaround: SparkdownBlockComment owns a comment that closes on the line, and a chain tail continues after it; elsewhere the tail begins where its line's text begins (`\G`), since a search for the chain mark from every later position would read to the line's end each time (GRAMMAR.md §16.5).
   DISPLAY_CHAIN_TAIL_START: (?:\G|(?<=[*][/]))
+  # lookaround: SparkdownBlockComment owns a comment and the text commands own `<…>`, and a parenthetical line continues after either; elsewhere it begins where its line's text begins (`\G`), since its commands, tried from every later position, would each be read again to the line's end (GRAMMAR.md §16.5).
+  PARENTHETICAL_LINE_START: (?:\G|(?<=[*][/]{{WS}}{0,32})|(?<=[>]{{WS}}{0,32})(?={{WS}}*[(]))
   DISPLAY_CHAIN_MARK: (?:{{CHAIN}}(?:{{DISPLAY_CHAIN_COMMENT_AHEAD}}|{{DISPLAY_CHAIN_SEPARATOR}}))
   BLOCK_COMMENT_CLOSED: (?:{{SPARKDOWN_BLOCK_COMMENT_START}}{{BLOCK_COMMENT_CHARACTER}}*[*][/])
   BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{BLOCK_COMMENT_CLOSED}})
@@ -3616,7 +3618,7 @@ repository:
           - { include: "#DisplayLoadKeyword" }
 
   ParentheticalLine:
-    match: \G({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)({{WS}}*)([(][^()\r\n]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)($|{{EOL}}|(?={{BREAK}})|{{CHAIN}}(?:{{WS}}))
+    match: '{{PARENTHETICAL_LINE_START}}({{WS}}*)((?:[=][^=\r\n]*[=]|[<][^>\r\n]*[>]|{{WS}}+(?!{{WS}}))*)({{WS}}*)([(][^()\r\n]*?[)])({{WS}}*)((?:[=][^=\r\n]*[=]|[<][^>\r\n]*[>]|{{WS}}+(?!{{WS}}))*)($|{{EOL}}|(?={{BREAK}})|{{CHAIN}}(?:{{WS}}))'
     captures:
       1:
         patterns:

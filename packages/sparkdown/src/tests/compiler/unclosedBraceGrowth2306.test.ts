@@ -40,7 +40,7 @@ const LONG_LINES: [string, (items: number) => string][] = [
   ["call arguments with longer names", (n) => `  A {f(${"value, ".repeat(n)}value)}`],
   ["call arguments after two spaces", (n) => `  A {f(${"b,  ".repeat(n)}b)}`],
   ["a dotted path with spaces", (n) => `  A {${"b.  ".repeat(n)}b}`],
-  ["call arguments after gaps wider than the bound", (n) => `  A {f(${`b,${" ".repeat(33)}`.repeat(n)}b)}`],
+  ["display commands before text that is no parenthetical", (n) => `  ${"=x=".repeat(n)}(x) no`],
   ["bracket strings", (n) => `  A {f(${"[=[x]=], ".repeat(n)}[=[x]=])}`],
   ["block comments between arguments", (n) => `  A {f(${"b --[[c]], ".repeat(n)}b)}`],
   ["a local's call with comments", (n) => `  local x = f(${"b --[[c]], ".repeat(n)}b)`],
@@ -191,6 +191,22 @@ describe("a line of unclosed braces is read in time linear in its length (#2306)
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+const READINGS: [string, string, string, string][] = [
+  ["a parenthetical after a block comment", "scene start\n  NARRATOR: /* c */ (quietly)\nend\n", "(quietly)", "constant.character.escape.sd"],
+  ["a parenthetical after a display command", "scene start\n  A <b: text> (quietly)\nend\n", "(quietly)", "constant.character.escape.sd"],
+  ["a reassignment whose targets are 33 spaces apart", `scene start\n  local a, b = 0, 0\n  a,${" ".repeat(33)}b = 1, 2\nend\n`, "b", "variable.other.readwrite.luau"],
+  ["a reassignment indented by 40 spaces", `scene start\n${" ".repeat(40)}x = 1\nend\n`, "x", "variable.other.readwrite.luau"],
+];
+
+describe("a long line keeps its reading (#2306)", () => {
+  test.each(READINGS)("%s keeps its scope in VS Code's highlighter", async (_what, source, text, scope) => {
+    const lines = await tokenize(source);
+    const tokens = lines.flatMap((l) => l.tokens).filter((t) => text.includes(t.text) && t.text.trim());
+    const at = tokens.findLast((t) => t.scopes.includes(scope));
+    expect(at, JSON.stringify(lines.map((l) => l.tokens.map((t) => [t.text, t.scopes.at(-1)])))).toBeDefined();
   });
 });
 
