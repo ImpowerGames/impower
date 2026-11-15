@@ -156,7 +156,7 @@ const ROWS: Row[] = [
   { shape: "a divert to a label in another scene", lines: ["Before.", "-> other.inner"], tail: ["scene other", "  Outer.", "  branch inner", "    Inner.", "  end", "end"], caret: 2, shows: action("Inner.") },
   { shape: "a tunnel to a label in another scene", lines: ["Before.", "-> other.inner ->", "After."], tail: ["scene other", "  Outer.", "  branch inner", "    Inner.", "    ->->", "  end", "end"], caret: 2, shows: action("Inner.") },
   { shape: "a divert stored in a variable", head: ["store target = -> elsewhere"], lines: ["Before.", "-> target"], tail: ["scene elsewhere", "  Arrived.", "end"], caret: 3, shows: action("Arrived.") },
-  { shape: "a scene's closing end after a nested branch", lines: ["Outer.", "branch nested", "  Inner.", "end", "x = 1", "", "After."], caret: 8, shows: action("Outer.") },
+  { shape: "a scene's closing end after a nested branch", lines: ["Outer.", "branch nested", "  Inner.", "end", "x = 1", "", "After."], caret: 8, shows: action("After.") },
   { shape: "a condition that reads a variable set earlier on the route", head: ["store x = 0"], lines: ["x = 1", "Before.", "if x == 1 then", "  Set.", "else", "  Unset.", "end"], caret: 4, shows: action("Set.") },
 ];
 

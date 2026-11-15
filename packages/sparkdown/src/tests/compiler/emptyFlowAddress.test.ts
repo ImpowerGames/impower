@@ -115,8 +115,8 @@ end
     expect(locator.sceneAt(address)).toBe("start");
   });
 
-  it("leaves the header falling through to the line below it that has an address", () => {
-    expect(resolved(text, [1])).toEqual([[3, "start"]]);
+  it("resolves the header to the scene's own end, not into the branch it does not enter", () => {
+    expect(resolved(text, [1])).toEqual([[6, "start"]]);
   });
 });
 
