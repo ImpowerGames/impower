@@ -723,4 +723,27 @@ describe("the grammar colours every directive word as the game reads it (I-2224)
     await harness.preview(1);
     expect(seen.map(({ content }) => content)).toEqual(closed.length > 0 ? ["mia"] : []);
   });
+
+  test.each([
+    ["))", "  Hello ((play music theme {closer}"],
+    ["]]", "  Hello [[mia {closer}"],
+    ["))", "  BOB: Hello ((play music theme {closer}"],
+    ["))", "    + Go [x] ((play music theme {closer}"],
+    ["]]", "    + Go [[mia {closer} [x] now"],
+  ])("an opener left open is text even where a value supplies its closer (I-2337): `%s` `%s`", async (closer, text) => {
+    const body = text.trimStart().startsWith("+") ? ["  choose", text, "      done", "  end"] : [text, "  done"];
+    const rowSource = [`store closer = "${closer}"`, "scene start", ...body, "end", ""].join("\n");
+    const lineFrom = rowSource.indexOf(text);
+    const { grammar, games } = colouringOf(rowSource, lineFrom, lineFrom + text.length);
+    expect({ grammar, games }).toEqual({ grammar: [], games: [] });
+    const harness = createHarness(rowSource);
+    await harness.ready;
+    const seen = spyOnChunks(harness);
+    await harness.preview(2);
+    if (harness.game.story.currentChoices.length === 1) {
+      harness.game.story.ChooseChoiceIndex(0);
+      harness.nextBeat();
+    }
+    expect(seen.map(({ content }) => content)).toEqual([]);
+  });
 });

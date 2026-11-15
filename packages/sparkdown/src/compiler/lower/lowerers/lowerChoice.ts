@@ -93,17 +93,17 @@ export function lowerChoice(
 
   const text = readChoiceText(nodeRef.node);
   const hasWeaveStyleInlineBrackets = text.inner !== null;
-  const literalOpeners = literalOpenerPositions(text, ctx);
+  const literalBrackets = literalBracketPositions(text, ctx);
   const appendStart = (list: ContentList): void => {
     for (const part of text.start) {
-      appendNodeContent(part.node, ctx, list, true, part.node.from, part.to, literalOpeners);
+      appendNodeContent(part.node, ctx, list, true, part.node.from, part.to, literalBrackets);
     }
   };
 
   appendStart(startContent);
   if (text.inner) {
-    if (text.only) appendNodeContent(text.only, ctx, choiceOnlyContent, false, text.only.from, text.only.to, literalOpeners);
-    appendNodeContent(text.inner, ctx, innerContent, false, text.inner.from + 1, text.inner.to, literalOpeners);
+    if (text.only) appendNodeContent(text.only, ctx, choiceOnlyContent, false, text.only.from, text.only.to, literalBrackets);
+    appendNodeContent(text.inner, ctx, innerContent, false, text.inner.from + 1, text.inner.to, literalBrackets);
   }
 
   const divertNode = getDescendent("Divert", nodeRef.node);
@@ -329,34 +329,30 @@ function isChoiceTextOpaque(node: SyntaxNode): boolean {
   return choiceTextMarkerKind(node) !== null || isInlineGluedAlternator(node);
 }
 
-const OPENER_CHARACTERS = ["(", "["];
+const BRACKET_CHARACTERS = ["(", "["];
 
 const RAW_SPANS: ReadonlySet<string> = nodeNameSet(["ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw", "Raw"]);
 
-function withLiteralOpeners(
+function withLiteralBrackets(
   spans: DisplaySpans,
-  literalOpeners: ReadonlySet<number>,
+  literalBrackets: ReadonlySet<number>,
   from: number,
   to: number,
 ): DisplaySpans {
-  const escapes = [...literalOpeners]
+  const escapes = [...literalBrackets]
     .filter((at) => from <= at && at < to)
     .map((at): SpanCode => ({ at, code: "\\", closes: false, depth: 0 }));
   if (escapes.length === 0) return spans;
   return { ...spans, codes: [...spans.codes, ...escapes].sort((a, b) => a.at - b.at) };
 }
 
-function literalOpenerPositions(text: ChoiceText, ctx: LowerContext): ReadonlySet<number> {
+function literalBracketPositions(text: ChoiceText, ctx: LowerContext): ReadonlySet<number> {
   const positions = new Set<number>();
   const walk = (node: SyntaxNode): void => {
     if (isChoiceTextOpaque(node) || RAW_SPANS.has(node.name)) return;
-    if (node.name === "LiteralDirectiveOpener") {
-      for (let at = node.from; at < node.to; at += 1) positions.add(at);
-      return;
-    }
     if (node.name === "Punctuation") {
       // value-level: the one character a Punctuation node holds.
-      if (OPENER_CHARACTERS.includes(ctx.read(node.from, node.to))) positions.add(node.from);
+      if (BRACKET_CHARACTERS.includes(ctx.read(node.from, node.to))) positions.add(node.from);
       return;
     }
     for (let child = node.firstChild; child; child = child.nextSibling) walk(child);
@@ -374,11 +370,11 @@ function appendNodeContent(
   trimStart = false,
   from = captureNode.from,
   to = captureNode.to,
-  literalOpeners: ReadonlySet<number> = new Set(),
+  literalBrackets: ReadonlySet<number> = new Set(),
 ): boolean {
-  const spans = withLiteralOpeners(
+  const spans = withLiteralBrackets(
     collectDisplaySpans(captureNode, from, to, ctx, isChoiceTextOpaque),
-    literalOpeners,
+    literalBrackets,
     from,
     to,
   );

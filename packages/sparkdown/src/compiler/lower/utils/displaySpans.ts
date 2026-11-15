@@ -67,6 +67,12 @@ export function collectDisplaySpans(
   const visit = (node: SyntaxNode, depth: number): void => {
     if (node.to <= from || node.from >= to) return;
     if (node !== root && isOpaque(node)) return;
+    if (node.name === "LiteralDirectiveOpener") {
+      for (let at = Math.max(node.from, from); at < Math.min(node.to, to); at += 1) {
+        codes.push({ at, code: "\\", closes: false, depth });
+      }
+      return;
+    }
     if (node.name === "TextCommand" && node.from >= from && node.to <= to) {
       hide(node.from, node.to);
       codes.push({
