@@ -296,7 +296,9 @@
  },
  "diverts/multi-target-tunnel.sd": {
   "fallback": null,
-  "diagnostics": []
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":6,\"line\":6},\"start\":{\"character\":0,\"line\":5}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":6},\"start\":{\"character\":0,\"line\":5}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
  },
  "diverts/path-to-self.sd": {
   "fallback": null,
@@ -421,6 +423,7 @@
  "functions/function-call-restrictions.sd": {
   "fallback": "Divert",
   "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":6,\"line\":4},\"start\":{\"character\":0,\"line\":4}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":4},\"start\":{\"character\":0,\"line\":4}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}",
    "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"aKnot hasn't been marked as a function, but it's being called as one. Do you need to declare the knot as '== function aKnot =='?\"},\"range\":{\"end\":{\"character\":11,\"line\":2},\"start\":{\"character\":0,\"line\":2}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":11,\"line\":2},\"start\":{\"character\":0,\"line\":2}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}"
   ]
  },
@@ -701,7 +704,9 @@
  },
  "tags/knot-stitch-tags.sd": {
   "fallback": null,
-  "diagnostics": []
+  "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":5,\"line\":18},\"start\":{\"character\":0,\"line\":13}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":5,\"line\":18},\"start\":{\"character\":0,\"line\":13}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}"
+  ]
  },
  "tags/tags-in-sequence.sd": {
   "fallback": null,
@@ -914,6 +919,9 @@
  "display screenplay": {
   "fallback": null,
   "diagnostics": [
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":5,\"line\":23},\"start\":{\"character\":0,\"line\":21}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":5,\"line\":23},\"start\":{\"character\":0,\"line\":21}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":5,\"line\":64},\"start\":{\"character\":0,\"line\":62}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":5,\"line\":64},\"start\":{\"character\":0,\"line\":62}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}",
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Unreachable statement detected.\"},\"range\":{\"end\":{\"character\":5,\"line\":105},\"start\":{\"character\":0,\"line\":103}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":5,\"line\":105},\"start\":{\"character\":0,\"line\":103}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":4,\"source\":\"sparkdown\",\"tags\":[1]}",
    "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `HERO`\"},\"range\":{\"end\":{\"character\":6,\"line\":8},\"start\":{\"character\":2,\"line\":8}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":6,\"line\":8},\"start\":{\"character\":2,\"line\":8}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
    "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find image named `hero_calm`\"},\"range\":{\"end\":{\"character\":15,\"line\":9},\"start\":{\"character\":6,\"line\":9}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":15,\"line\":9},\"start\":{\"character\":6,\"line\":9}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",
    "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Cannot find character named `RIVAL`\"},\"range\":{\"end\":{\"character\":7,\"line\":13},\"start\":{\"character\":2,\"line\":13}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":7,\"line\":13},\"start\":{\"character\":2,\"line\":13}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":2,\"source\":\"sparkdown\"}",

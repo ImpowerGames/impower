@@ -1,4 +1,5 @@
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import type { SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type {
   CompiledBlock,
@@ -12,6 +13,7 @@ import {
   withDivertLoad,
 } from "../utils/buildDivert";
 import { statementSource } from "../utils/statementSource";
+import { unreachableAfter } from "./lowerDoneOrFin";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 export function emptyDivertDiagnostic(
@@ -46,5 +48,31 @@ export function lowerDivert(
       { message: loadProblem, severity: ErrorType.Warning, source },
     ];
   }
+  if (nodeRef.name === "Divert" && leavesFlow(nodeRef.node)) {
+    const unreachable = unreachableAfter(nodeRef, ctx);
+    if (unreachable) {
+      block.diagnostics = [...(block.diagnostics ?? []), unreachable];
+    }
+  }
   return block;
+}
+
+function leavesFlow(divert: SyntaxNode): boolean {
+  const begin = divert.getChild("Divert_begin");
+  if (begin && getDescendent("TunnelMark", begin)) {
+    return true;
+  }
+  const content = divert.getChild("Divert_content");
+  if (!content?.getChild("DivertTarget")) {
+    return false;
+  }
+  let tunnel = content.getChild("Tunnel");
+  while (tunnel) {
+    const inner = tunnel.getChild("Tunnel_content");
+    if (!inner?.getChild("DivertTarget")) {
+      return false;
+    }
+    tunnel = inner.getChild("Tunnel");
+  }
+  return true;
 }

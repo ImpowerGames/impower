@@ -77,6 +77,8 @@ Without `-> knock`, the scene shows "You reach the gate." and then the last line
 
 What a scene's or a branch's `end` does depends on how the story got there. Reached by a divert (`-> name`), it ends the story. Reached by a tunnel (`-> name ->`), it also ends the story: a tunnel returns to the line after it only through `->->`, so end every flow a tunnel goes to with `->->`. Reached by a thread (`<- name`), it ends the thread, and the story goes on after the `<-`.
 
+The editor marks lines the story can never run with the hint "Unreachable statement detected.", which VS Code draws faded and the web editor underlines with dots. It marks a branch that no divert, tunnel, thread or choice goes to, from its `branch` line to its `end`, and the lines after a `done`, a `fin` or a divert that leaves (`-> name`, `-> a -> b`, `->->`), up to the next `label`, `branch`, `else`, `elseif` or `end` of the body that holds them. A tunnel that returns (`-> name ->`) and a thread (`<- name`) leave nothing marked. The mark is a hint: the script still compiles and plays. A scene is where a story can start, so a scene nothing goes to is never marked.
+
 > Layouts belong to _screens_ (navigation groups). You rarely need to think about screens until you have more than one full-screen view — [Screens & Navigation](./Screens.md) covers that.
 
 ---

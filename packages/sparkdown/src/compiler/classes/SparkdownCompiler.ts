@@ -167,6 +167,8 @@ import { type SceneAssetCapture, type SceneAssets } from "../types/SceneAssets";
 import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
 import type { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, DiagnosticTag, type MarkupContent, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
+import { UNREACHABLE_STATEMENT_MESSAGE } from "../lower/lowerers/lowerDoneOrFin";
+import { unreachableBranches } from "../utils/unreachableBranches";
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
@@ -1597,6 +1599,9 @@ export class SparkdownCompiler {
       this._namesRolledBack = [];
       watchStatements(restoreWatch ?? null);
       restoreWatch = undefined;
+      if (story) {
+        this.reportUnreachableBranches(parsedStory, onDiagnostic);
+      }
       if (
         this._config.useBuiltinsPrelude !== false &&
         !this._config.seedBuiltinsIntoStory
@@ -3719,6 +3724,52 @@ export class SparkdownCompiler {
       cur.next();
     }
     return ends;
+  }
+
+  protected reportUnreachableBranches(
+    parsedStory: Story,
+    onDiagnostic: (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null,
+      tags?: number[],
+    ) => void,
+  ) {
+    const endsByUri = new Map<string, Map<number, number>>();
+    for (const branch of unreachableBranches(parsedStory)) {
+      const metadata = branch.identifier?.debugMetadata;
+      const uri = metadata?.filePath;
+      const doc = uri ? this.documents.get(uri) : undefined;
+      if (!metadata || !uri || !doc) {
+        continue;
+      }
+      const header = metadata.startLineNumber - 1;
+      if (!/^\s*branch\b/.test(doc.getLineText(header) ?? "")) {
+        continue;
+      }
+      let ends = endsByUri.get(uri);
+      if (!ends) {
+        endsByUri.set(uri, (ends = new Map(this.flowEndsOf(uri))));
+      }
+      const end = ends.get(header);
+      if (end === undefined) {
+        continue;
+      }
+      const endText = (doc.getLineText(end) ?? "").trimEnd();
+      onDiagnostic(
+        UNREACHABLE_STATEMENT_MESSAGE,
+        ErrorType.Hint,
+        {
+          fileName: null,
+          filePath: uri,
+          startLineNumber: header + 1,
+          endLineNumber: end + 1,
+          startCharacterNumber: 1,
+          endCharacterNumber: endText.length + 1,
+        },
+        [DiagnosticTag.Unnecessary],
+      );
+    }
   }
 
   sceneSpansOf(
