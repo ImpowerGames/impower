@@ -266,14 +266,16 @@ describe("the Assets page", () => {
     expect(trail.textContent).toContain("Music");
   });
 
-  it("draws the trail and sort at the prototype's sizes: 17px glyphs, a 36px root, ink names, 11px text below desktop", async () => {
+  it("draws the trail and sort at the prototype's sizes: 17px glyphs, a 31px root symbol with its summary 7px in (2px under touch), ink names, 11px text below desktop", async () => {
     await mount();
     await showTab("Audio");
     const classes = (element: Element | null) => element!.className.split(" ");
     const root = host!.querySelector('nav[aria-label="Folder path"]')!;
     expect(classes(root)).toEqual(expect.arrayContaining(["text-[11px]", "[:root[data-layout=desktop]_&]:text-[12px]"]));
-    expect(classes(root.querySelector("button"))).toEqual(expect.arrayContaining(["w-9", "[&_svg]:size-[17px]"]));
-    expect(classes(root.querySelector('[aria-current="location"]'))).toContain("text-ink");
+    expect(classes(root.querySelector("button"))).toEqual(expect.arrayContaining(["w-[31px]", "[&_svg]:size-[17px]"]));
+    expect(classes(root.querySelector('[aria-current="location"]'))).toEqual(
+      expect.arrayContaining(["text-ink", "pl-[7px]", "pointer-coarse:pl-0.5"]),
+    );
     await click(all<HTMLElement>('button[aria-label^="Open folder Music"]')[0]);
     const trail = host!.querySelector('nav[aria-label="Folder path"]')!;
     expect(classes(trail.querySelector('button[aria-label="Parent folder"]'))).toEqual(expect.arrayContaining(["size-11", "[&_svg]:size-[17px]"]));
