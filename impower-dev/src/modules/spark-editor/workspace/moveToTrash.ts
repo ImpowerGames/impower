@@ -1,6 +1,7 @@
 import { willDeleteFilesRefusal } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
 import { NameError } from "../utils/fileListModel";
 import { recordTrashDeletion } from "../utils/fileUndo";
+import { trashSkipped } from "../utils/trashSkipped";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 
 export type TrashFileSystem = Pick<
@@ -15,17 +16,6 @@ export interface TrashItem {
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-const skippedBy = async (deletion: Promise<unknown>): Promise<string[]> => {
-  try {
-    await deletion;
-    return [];
-  } catch (error) {
-    const refusal = willDeleteFilesRefusal(error);
-    if (!refusal) throw error;
-    return refusal.skipped;
-  }
-};
-
 export async function moveToTrash(
   fs: TrashFileSystem,
   projectId: string,
@@ -38,7 +28,7 @@ export async function moveToTrash(
   const kept: string[] = [];
   if (uris.length) {
     const skipped = new Set(
-      await skippedBy(
+      await trashSkipped(
         fs.deleteFiles({ files: uris.map((uri) => ({ uri })), mode: "trash" }),
       ),
     );

@@ -3,6 +3,7 @@ import store from "../workspace/WorkspaceStore";
 import { moveAll, reasonOf, reversed, type FileMove, type MovingFileSystem, type RenameOutcome } from "./fileMoves";
 import { renameOrReport } from "./renameOrReport";
 import { showSnackbar } from "./snackbar";
+import { trashAttempts } from "./trashSkipped";
 import { pushUndo, undo } from "./undoManager";
 
 async function findBatchesForUris(
@@ -59,6 +60,7 @@ export async function recordTrashDeletion(
   }
   let uris = deletedUris;
   let folders = deletedFolders;
+  const trashing = trashAttempts();
   pushUndo({
     label: `Delete ${label}`,
     undo: async () => {
@@ -73,17 +75,18 @@ export async function recordTrashDeletion(
       await markProjectDirty();
     },
     redo: async () => {
-      const redoSince = Date.now();
       const { Workspace } = await import("../workspace/Workspace");
-      if (uris.length > 0 || folders.length > 0) {
-        await Workspace.fs.deleteFiles({
-          files: uris.map((uri) => ({ uri })),
-          folders: folders.map((f) => ({
-            uri: Workspace.fs.getFileUri(projectId, f),
-          })),
-          mode: "trash",
-        });
-      }
+      const redoSince = await trashing(async () => {
+        if (uris.length > 0 || folders.length > 0) {
+          await Workspace.fs.deleteFiles({
+            files: uris.map((uri) => ({ uri })),
+            folders: folders.map((f) => ({
+              uri: Workspace.fs.getFileUri(projectId, f),
+            })),
+            mode: "trash",
+          });
+        }
+      });
       const recorded = new Set(folders);
       const unrecorded = (await Workspace.fs.getFolders(projectId)).filter(
         (f) => !recorded.has(f) && folders.some((r) => f.startsWith(`${r}/`)),
@@ -200,15 +203,17 @@ export function recordCreate(
 ) {
   let batchIds: string[] = [];
   let uris = createdUris;
+  const trashing = trashAttempts();
   pushUndo({
     label: `Create ${label}`,
     undo: async () => {
-      const since = Date.now();
       const { Workspace } = await import("../workspace/Workspace");
-      await Workspace.fs.deleteFiles({
-        files: uris.map((uri) => ({ uri })),
-        mode: "trash",
-      });
+      const since = await trashing(() =>
+        Workspace.fs.deleteFiles({
+          files: uris.map((uri) => ({ uri })),
+          mode: "trash",
+        }),
+      );
       batchIds = await findBatchesForUris(projectId, uris, since);
       await markProjectDirty();
     },
@@ -261,16 +266,19 @@ export async function recordResolvedUpload(
   let newBatchIds: string[] = [];
   let added = newUris;
   let replaced = trashedOldUris;
+  const trashingAdded = trashAttempts();
+  const trashingReplaced = trashAttempts();
   pushUndo({
     label: `Add ${label}`,
     undo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
-      const t = Date.now();
       if (added.length > 0) {
-        await Workspace.fs.deleteFiles({
-          files: added.map((uri) => ({ uri })),
-          mode: "trash",
-        });
+        const t = await trashingAdded(() =>
+          Workspace.fs.deleteFiles({
+            files: added.map((uri) => ({ uri })),
+            mode: "trash",
+          }),
+        );
         newBatchIds = await findBatchesForUris(projectId, added, t);
       }
       replaced = (await restoreBatches(projectId, replacedBatchIds)).uris;
@@ -278,12 +286,13 @@ export async function recordResolvedUpload(
     },
     redo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
-      const t = Date.now();
       if (replaced.length > 0) {
-        await Workspace.fs.deleteFiles({
-          files: replaced.map((uri) => ({ uri })),
-          mode: "trash",
-        });
+        const t = await trashingReplaced(() =>
+          Workspace.fs.deleteFiles({
+            files: replaced.map((uri) => ({ uri })),
+            mode: "trash",
+          }),
+        );
         replacedBatchIds = await findBatchesForUris(projectId, replaced, t);
       }
       added = (await restoreBatches(projectId, newBatchIds)).uris;

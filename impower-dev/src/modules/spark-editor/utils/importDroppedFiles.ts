@@ -55,10 +55,13 @@ export async function importFiles(projectId: string, items: DroppedItem[]): Prom
       await resolveUploadConflicts(
         projectId,
         items.map((item, index) => ({ rel: item.rel, address: item.address, payload: { item, index } })),
-        async ({ survivors, trashedOldUris, since }) => {
+        async ({ survivors, trashedOldUris, since, refused }) => {
           const surviving = new Set(survivors.map((s) => s.payload.index));
+          const kept = new Set(refused.map((r) => r.index));
           items.forEach((_, index) => {
-            if (!surviving.has(index)) {
+            if (kept.has(index)) {
+              fail(index, { kind: "replace_refused" });
+            } else if (!surviving.has(index)) {
               fail(index, { kind: "skipped" });
             }
           });
