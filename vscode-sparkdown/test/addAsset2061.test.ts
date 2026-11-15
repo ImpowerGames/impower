@@ -133,12 +133,12 @@ describe("sparkdown.addAsset", () => {
     expect(state.copies.map((copy) => copy.to)).toEqual(["/proj/Game/Assets/Audio/boom.wav"]);
   });
 
-  test("adds to the workspace folder when no main script is above the open script", async () => {
+  test("adds to the open script's own folder when no main script is above it", async () => {
     state.files = new Set(["/proj/notes/draft.sd"]);
     state.active = "/proj/notes/draft.sd";
     state.picked = { path: "/downloads/boom.wav" };
     await run({ name: "boom", type: "audio" });
-    expect(state.copies.map((copy) => copy.to)).toEqual(["/proj/Assets/Audio/boom.wav"]);
+    expect(state.copies.map((copy) => copy.to)).toEqual(["/proj/notes/Assets/Audio/boom.wav"]);
   });
 
   test("adds nothing when the picker is cancelled", async () => {

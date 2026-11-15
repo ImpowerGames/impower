@@ -31,9 +31,9 @@ const childFolder = async (parent: vscode.Uri, name: string) => {
   return vscode.Uri.joinPath(parent, found?.[0] ?? name);
 };
 
-const exists = (uri: vscode.Uri) =>
+const isFile = (uri: vscode.Uri) =>
   Promise.resolve(vscode.workspace.fs.stat(uri)).then(
-    () => true,
+    (stat) => (stat.type & vscode.FileType.File) !== 0,
     () => false,
   );
 
@@ -41,26 +41,28 @@ const trimmed = (path: string) => path.replace(/\/+$/, "");
 
 const projectRoot = async (): Promise<vscode.Uri | undefined> => {
   const active = vscode.window.activeTextEditor?.document.uri;
-  const folder =
-    (active && vscode.workspace.getWorkspaceFolder(active)?.uri) ??
-    vscode.workspace.workspaceFolders?.[0]?.uri;
-  if (!active || !folder) {
-    return folder;
+  if (!active) {
+    return vscode.workspace.workspaceFolders?.[0]?.uri;
+  }
+  const own = vscode.Uri.joinPath(active, "..");
+  const folder = vscode.workspace.getWorkspaceFolder(active)?.uri;
+  if (!folder) {
+    return own;
   }
   const top = trimmed(folder.path);
   for (
-    let dir = vscode.Uri.joinPath(active, "..");
+    let dir = own;
     trimmed(dir.path) === top || trimmed(dir.path).startsWith(`${top}/`);
     dir = vscode.Uri.joinPath(dir, "..")
   ) {
-    if (await exists(vscode.Uri.joinPath(dir, DEFAULT_MAIN_SCRIPT_FILENAME))) {
+    if (await isFile(vscode.Uri.joinPath(dir, DEFAULT_MAIN_SCRIPT_FILENAME))) {
       return dir;
     }
     if (trimmed(dir.path) === top) {
       break;
     }
   }
-  return folder;
+  return own;
 };
 
 const extensionOf = (uri: vscode.Uri) => {
