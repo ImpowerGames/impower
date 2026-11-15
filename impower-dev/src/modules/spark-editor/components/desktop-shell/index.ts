@@ -1,5 +1,4 @@
-export { default as DesktopShell } from "./DesktopShell";
-export { default as PhoneShell } from "./PhoneShell";
+export { default as WorkspaceShell } from "./WorkspaceShell";
 export {
   closeWatcher,
   finishNaming,

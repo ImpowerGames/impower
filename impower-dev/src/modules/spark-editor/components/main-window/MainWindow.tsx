@@ -10,7 +10,7 @@ import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
 import { InspectorDock, InspectorDockProvider } from "../asset-inspector";
 import Assets from "../assets";
-import { DesktopShell, PhoneShell, useFocusRule } from "../desktop-shell";
+import { useFocusRule, WorkspaceShell } from "../desktop-shell";
 import FileDropzone from "../file-dropzone/FileDropzone";
 import { useFindShortcut } from "../find-references-rename";
 import Logic from "../logic/Logic";
@@ -61,26 +61,10 @@ export default function MainWindow(_props: MainWindowProps) {
     </div>
   );
 
-  if (phone) {
-    return (
-      <PhoneShell strip={<PhonePreviewStrip />}>
-        <div class="relative flex h-full min-h-0 flex-1">
-          {!isSSR && (
-            <InspectorDockProvider>
-              {content}
-              <FileDropzone />
-              <LiveRegion />
-            </InspectorDockProvider>
-          )}
-        </div>
-      </PhoneShell>
-    );
-  }
-
   return (
-    <div class="flex h-full w-full min-h-0 flex-col">
-      <DesktopShell>
-        <div class="relative flex h-full min-h-0 flex-1">
+    <WorkspaceShell phone={phone} strip={phone && <PhonePreviewStrip />}>
+      <div class="relative flex h-full min-h-0 flex-1">
+        {!isSSR && (
           <InspectorDockProvider>
             <SplitPane
               orientation={strip ? "vertical" : "horizontal"}
@@ -104,17 +88,19 @@ export default function MainWindow(_props: MainWindowProps) {
               minSize={desktop ? ["280px", "336px"] : "320px"}
               start={content}
               end={
-                <div class="relative flex h-full w-full flex-col bg-stage">
-                  <Preview />
-                  <InspectorDock />
-                </div>
+                !phone && (
+                  <div class="relative flex h-full w-full flex-col bg-stage">
+                    <Preview />
+                    <InspectorDock />
+                  </div>
+                )
               }
             />
             <FileDropzone />
             <LiveRegion />
           </InspectorDockProvider>
-        </div>
-      </DesktopShell>
-    </div>
+        )}
+      </div>
+    </WorkspaceShell>
   );
 }
