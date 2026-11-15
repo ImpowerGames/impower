@@ -186,15 +186,9 @@ sparkdown [0..520]
  │   │       │               │   ├─ AssetCommandName [100..110]
  │   │       │               │   │   └─ AssetCommandName_c1 [100..110]
  │   │       │               │   │       ├─ AssetCommandFileName [100..103]: "mia"
- │   │       │               │   │       └─ LuauMultilineString [103..110]
- │   │       │               │   │           ├─ LuauMultilineString_begin [103..105]
- │   │       │               │   │           │   ├─ LuauMultilineString_begin_c1 [103..104]
- │   │       │               │   │           │   │   └─ PunctuationStringBracketQuoteOpen [103..104]: "["
- │   │       │               │   │           │   ├─ LuauMultilineString_begin_c2 104
- │   │       │               │   │           │   └─ LuauMultilineString_begin_c3 [104..105]
- │   │       │               │   │           │       └─ PunctuationStringBracketQuoteOpen [104..105]: "["
- │   │       │               │   │           └─ LuauMultilineString_content [105..110]
- │   │       │               │   │               └─ Word [105..110]: "morph"
+ │   │       │               │   │       ├─ IllegalChar [103..104]: "["
+ │   │       │               │   │       ├─ IllegalChar [104..105]: "["
+ │   │       │               │   │       └─ AssetCommandFileName [105..110]: "morph"
  │   │       │               │   ├─ AssetCommandSeparator [110..111]
  │   │       │               │   │   └─ AssetCommandSeparator_c1 [110..111]
  │   │       │               │   │       └─ RequiredWhitespace [110..111]: " "

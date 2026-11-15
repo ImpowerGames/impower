@@ -103,6 +103,14 @@ const DELIMITER_ROWS: Row[] = [
   ["no-break space in an audio directive", "audio", "play music theme loop"],
   ["tab between words", "image", "mia\tmorph\ttalk"],
   ["several spaces between words", "image", "mia  morph   talk "],
+  ["quoted name", "image", `"mia"`],
+  ["quoted target after a control", "image", `show "mia"`],
+  ["quoted name after a target", "image", `show backdrop "mia"`],
+  ["quoted name before a clause", "image", `"mia" morph talk`],
+  ["quoted name with a doubled image opener", "image", `"mia[[morph"`],
+  ["single-quoted name", "image", `'mia'`],
+  ["quoted sound name", "audio", `play music "theme"`],
+  ["quoted sound name before a flag", "audio", `play music "theme" loop`],
 ];
 
 const OPENING_ROWS: Row[] = [
@@ -604,7 +612,15 @@ function colouringOf(text: string, from: number, to: number) {
   const games = readSourceDirectives(tree, (a, b) => text.slice(a, b))
     .filter((directive) => directive.from >= from && directive.from < to)
     .map(gameColouring);
-  return { grammar: inOrder(words), games };
+  const strings: string[] = [];
+  tree.iterate({
+    from,
+    to,
+    enter: (node) => {
+      if (/^Luau\w*String$/.test(node.name) && node.from < to && node.to > from) strings.push(text.slice(node.from, node.to));
+    },
+  });
+  return { grammar: inOrder(words), games, strings };
 }
 
 const lineStarts = lines.map((_, i) => lines.slice(0, i).reduce((at, line) => at + line.length + 1, 0));
@@ -612,8 +628,8 @@ const lineStarts = lines.map((_, i) => lines.slice(0, i).reduce((at, line) => at
 describe("the grammar colours every directive word as the game reads it (I-2224)", () => {
   test.each(ROWS.map(([label, bracket, text], i) => [label, directive(bracket, text), i] as const))("%s: `%s`", (_label, _text, i) => {
     const line = lineOf(i);
-    const { grammar, games } = colouringOf(source, lineStarts[line]!, lineStarts[line]! + lines[line]!.length);
-    expect(grammar).toEqual(games.flat());
+    const { grammar, games, strings } = colouringOf(source, lineStarts[line]!, lineStarts[line]! + lines[line]!.length);
+    expect({ grammar, strings }).toEqual({ grammar: games.flat(), strings: [] });
   });
 
   test("`none` is the keyword only where it is a whole name", () => {
@@ -637,6 +653,25 @@ describe("the grammar colours every directive word as the game reads it (I-2224)
       },
     });
     expect(keywords).toEqual(noneLines.slice(0, 4));
+  });
+
+  test("each quote in a directive's name is marked invalid, and an unquoted name is not", () => {
+    const markLines = [`[[show backdrop "mia"]]`, `[["mia"]]`, `[["mia" morph talk]]`, `[['mia']]`, `((play music "theme"))`, `[[show mia]]`, `((play music theme))`];
+    const markSource = ["scene start", ...markLines.flatMap((line, i) => [`  ${line}`, `  Line ${i + 1}.`]), "end", ""].join("\n");
+    const documents = new SparkdownDocumentRegistry([]);
+    documents.set({ textDocument: { uri: MAIN_URI, text: markSource, version: 1, languageId: "sparkdown" } });
+    const doc = documents.get(MAIN_URI)!;
+    const { program } = compileUI(markSource);
+    const marked = markLines.map((): string[] => []);
+    for (const diagnostic of (program.diagnostics?.[MAIN_URI] ?? []) as any[]) {
+      const message: string = typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value;
+      if (message !== "Invalid syntax") continue;
+      const from = doc.offsetAt(diagnostic.range.start);
+      const line = diagnostic.range.start.line;
+      marked[(line - 1) / 2]!.push(`${diagnostic.range.start.character - 2}:${doc.read(from, doc.offsetAt(diagnostic.range.end))}`);
+    }
+    const quotes = (line: string) => [...line].flatMap((c, i) => (c === `"` || c === `'` ? [`${i}:${c}`] : []));
+    expect(marked).toEqual(markLines.map(quotes));
   });
 
   test("the VS Code grammar colours the table as the editor's tree does", async () => {

@@ -23541,11 +23541,15 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
     "2@4:25-4:26 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "8bf96751"
+   "scopes": "f651582f"
   },
   {
    "id": "plain-command-22",
@@ -23563,9 +23567,10 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "7333447d"
+   "scopes": "a65a1abf"
   },
   {
    "id": "plain-command-23",
@@ -23622,10 +23627,11 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:18-4:21 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "badefe7b"
+   "scopes": "470a28bd"
   },
   {
    "id": "plain-command-26",
@@ -23643,9 +23649,10 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "206c560f"
+   "scopes": "743324cb"
   },
   {
    "id": "plain-command-27",
@@ -23771,9 +23778,13 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "c8779bea"
+   "scopes": "ed98a280"
   },
   {
    "id": "plain-command-34",
@@ -23791,9 +23802,10 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "4799b212"
+   "scopes": "cc12d610"
   },
   {
    "id": "plain-command-35",
@@ -23922,11 +23934,17 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
     "2@4:27-4:28 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "58431d3d"
+   "scopes": "1953a325"
   },
   {
    "id": "plain-command-42",
@@ -23944,9 +23962,11 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "73290b0e"
+   "scopes": "20ecc956"
   },
   {
    "id": "plain-command-43",
@@ -24003,11 +24023,17 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
     "2@4:27-4:28 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "189de895"
+   "scopes": "8aea832b"
   },
   {
    "id": "plain-command-46",
@@ -24025,9 +24051,11 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "87d5d533"
+   "scopes": "6cf3b7c7"
   },
   {
    "id": "plain-command-47",
@@ -24153,9 +24181,15 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "6c7ddfee"
+   "scopes": "ce29a6b6"
   },
   {
    "id": "plain-command-54",
@@ -24173,9 +24207,11 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "fc72ccf3"
+   "scopes": "949d3dbb"
   },
   {
    "id": "plain-command-55",
@@ -24310,12 +24346,16 @@
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:30-4:31 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
     "2@4:33-4:34 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "3d9acd93"
+   "scopes": "67fd51d1"
   },
   {
    "id": "plain-command-62",
@@ -24336,9 +24376,10 @@
     "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "30aacb62"
+   "scopes": "89bb1ca8"
   },
   {
    "id": "plain-command-63",
@@ -24401,10 +24442,11 @@
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:22-4:25 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "ffcf6dae"
+   "scopes": "80952ac8"
   },
   {
    "id": "plain-command-66",
@@ -24425,9 +24467,10 @@
     "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "70e7817a"
+   "scopes": "915c0f1e"
   },
   {
    "id": "plain-command-67",
@@ -24559,10 +24602,14 @@
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:30-4:31 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "680a282c"
+   "scopes": "10708a6a"
   },
   {
    "id": "plain-command-74",
@@ -24583,9 +24630,10 @@
     "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "b5bbecff"
+   "scopes": "1c7d0f59"
   },
   {
    "id": "plain-command-75",
@@ -24696,9 +24744,9 @@
    "rt": [],
    "diags": [
     "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "16798e47"
+   "scopes": "251b0dcc"
   },
   {
    "id": "plain-command-81",
@@ -24716,9 +24764,9 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "d251524b"
+   "scopes": "6076a438"
   },
   {
    "id": "plain-command-82",
@@ -24737,9 +24785,9 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "c3dde853"
+   "scopes": "a0ee882c"
   },
   {
    "id": "plain-command-83",
@@ -24757,9 +24805,9 @@
    "rt": [],
    "diags": [
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "4a8abe56"
+   "scopes": "0ff73499"
   },
   {
    "id": "plain-command-84",
@@ -24794,9 +24842,9 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "e891177f"
+   "scopes": "e7654194"
   },
   {
    "id": "plain-command-86",
@@ -24815,9 +24863,9 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "5fd47f33"
+   "scopes": "2d320d0c"
   },
   {
    "id": "plain-command-87",
@@ -24923,9 +24971,9 @@
    "rt": [],
    "diags": [
     "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "d7ff86ff"
+   "scopes": "82218f64"
   },
   {
    "id": "plain-command-93",
@@ -24943,9 +24991,9 @@
    "rt": [],
    "diags": [
     "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "411da603"
+   "scopes": "455a5c30"
   },
   {
    "id": "plain-command-94",
@@ -24964,9 +25012,9 @@
    "rt": [],
    "diags": [
     "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "6fc011cb"
+   "scopes": "9998a4c4"
   },
   {
    "id": "plain-command-95",
@@ -24984,9 +25032,9 @@
    "rt": [],
    "diags": [
     "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}"
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}"
    ],
-   "scopes": "42b99f5e"
+   "scopes": "4999e0a1"
   },
   {
    "id": "plain-command-96",

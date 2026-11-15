@@ -4171,7 +4171,6 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#LuauString" }
           - { include: "#AssetCommandFilteredFileName" }
           - { include: "#AssetCommandFileName" }
           - { include: "#AssetCommandFilter" }
