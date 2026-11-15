@@ -5,6 +5,7 @@ const bin = vi.hoisted(() => {
   const refused = new Set<string>();
   let batches: { batchId: string; deletedAt: number; entries: { originalUri: string }[] }[] = [];
   let next = 0;
+  const hooks: { beforeRefusal?: () => Promise<void> } = {};
   const fs = {
     getFileUri: (projectId: string, path: string) => `file:///${projectId}/${path}`,
     deleteFiles: async ({ files }: { files: { uri: string }[] }) => {
@@ -19,12 +20,17 @@ const bin = vi.hoisted(() => {
           moved.push(uri);
         }
       }
+      let batchId: string | undefined;
       if (moved.length) {
-        batches.push({ batchId: `b${next++}`, deletedAt: Date.now(), entries: moved.map((originalUri) => ({ originalUri })) });
+        batchId = `b${next++}`;
+        batches.push({ batchId, deletedAt: Date.now(), entries: moved.map((originalUri) => ({ originalUri })) });
       }
       const deleted = moved.map((uri) => ({ uri }));
       if (skipped.length) {
-        throw { code: -32603, message: `Cannot move ${skipped.join(", ")} to the bin`, data: { files: deleted, skipped } };
+        const before = hooks.beforeRefusal;
+        hooks.beforeRefusal = undefined;
+        await before?.();
+        throw { code: -32603, message: `Cannot move ${skipped.join(", ")} to the bin`, data: { files: deleted, skipped, batchId } };
       }
       return deleted;
     },
@@ -43,9 +49,10 @@ const bin = vi.hoisted(() => {
     live.clear();
     refused.clear();
     batches = [];
+    hooks.beforeRefusal = undefined;
     uris.forEach((u) => live.add(u));
   };
-  return { live, refused, fs, reset };
+  return { live, refused, fs, reset, hooks };
 });
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
@@ -100,6 +107,24 @@ it("leaves a file another action moved to the bin between a refused Undo and its
   expect(await history.undo()).toBe(true);
   expect(await history.redo()).toBe(true);
   expect(files()).toEqual([b]);
+  expect(await bin.fs.listTrash()).toEqual(otherBatches);
+});
+
+it("leaves a file another action moved to the bin while a refused Undo was answering to that action", async () => {
+  recordCreate("p", [a, b], "2 scripts");
+  bin.refused.add(a);
+  let otherBatches: Awaited<ReturnType<typeof bin.fs.listTrash>> = [];
+  bin.hooks.beforeRefusal = async () => {
+    bin.live.add(b);
+    await bin.fs.deleteFiles({ files: [{ uri: b }] });
+    otherBatches = (await bin.fs.listTrash()).slice(-1);
+  };
+  expect(await history.undo()).toBe(false);
+  expect(otherBatches).toHaveLength(1);
+  bin.refused.clear();
+  expect(await history.undo()).toBe(true);
+  expect(await history.redo()).toBe(true);
+  expect(files()).toEqual([a, b]);
   expect(await bin.fs.listTrash()).toEqual(otherBatches);
 });
 

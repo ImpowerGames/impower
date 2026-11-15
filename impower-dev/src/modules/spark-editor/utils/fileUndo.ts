@@ -50,14 +50,9 @@ async function markProjectDirty() {
 const reportKept = (skipped: string[]) => showSnackbar({ message: keptMessage(skipped) });
 
 const movedIn =
-  (projectId: string, uris: readonly string[], folders: string[] = []) =>
-  (since: number, skipped: ReadonlySet<string>) =>
-    findBatchesForUris(
-      projectId,
-      uris.filter((uri) => !skipped.has(uri)),
-      since,
-      skipped.size > 0 ? [] : folders,
-    );
+  (projectId: string, uris: string[], folders: string[] = []) =>
+  (since: number) =>
+    findBatchesForUris(projectId, uris, since, folders);
 
 export async function recordTrashDeletion(
   projectId: string,

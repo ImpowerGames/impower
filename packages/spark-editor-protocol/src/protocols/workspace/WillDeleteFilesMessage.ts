@@ -11,6 +11,7 @@ export interface WillDeleteFilesParams extends DeleteFilesParams {
 export interface WillDeleteFilesRefusal {
   files: FileData[];
   skipped: string[];
+  batchId?: string;
 }
 
 export const willDeleteFilesRefusal = (
@@ -18,9 +19,12 @@ export const willDeleteFilesRefusal = (
 ): WillDeleteFilesRefusal | undefined => {
   const data = (error as { data?: Partial<WillDeleteFilesRefusal> } | null)
     ?.data;
-  return Array.isArray(data?.skipped) && Array.isArray(data?.files)
-    ? { files: data.files, skipped: data.skipped }
-    : undefined;
+  if (!Array.isArray(data?.skipped) || !Array.isArray(data?.files)) {
+    return undefined;
+  }
+  return typeof data.batchId === "string"
+    ? { files: data.files, skipped: data.skipped, batchId: data.batchId }
+    : { files: data.files, skipped: data.skipped };
 };
 
 export class WillDeleteFilesMessage {

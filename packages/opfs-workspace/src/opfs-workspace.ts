@@ -1003,9 +1003,10 @@ onmessage = async (e) => {
       const { files, mode, folders } = message.params;
       let deleted: DeleteResult[];
       let skipped: string[] = [];
+      let batchId: string | undefined;
       let failure: PromiseRejectedResult | undefined;
       if (mode === "trash") {
-        ({ deleted, skipped } = await moveFilesToTrash(files, folders));
+        ({ deleted, skipped, batchId } = await moveFilesToTrash(files, folders));
       } else {
         const outcomes = await Promise.allSettled(files.map(file => deleteFiles([file])));
         deleted = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
@@ -1019,7 +1020,9 @@ onmessage = async (e) => {
       if (failure) throw failure.reason;
       const deletedFiles = deleted.flatMap((d) => d.file ? [d.file] : []);
       if (skipped.length > 0) {
-        const refusal: WillDeleteFilesRefusal = { files: deletedFiles, skipped };
+        const refusal: WillDeleteFilesRefusal = batchId
+          ? { files: deletedFiles, skipped, batchId }
+          : { files: deletedFiles, skipped };
         respond(
           WillDeleteFilesMessage.type.error(message.id, {
             code: ErrorCodes.InternalError,
@@ -2317,6 +2320,7 @@ const removeTrashCopy = async (trashUri: string) => {
       await removeFile(trashUri);
       return true;
     } catch (e) {
+      if (isMissingEntry(e)) return true;
       console.error(`moveFilesToTrash: cannot remove ${trashUri}`, e);
     }
   }
@@ -2326,7 +2330,7 @@ const removeTrashCopy = async (trashUri: string) => {
 const moveFilesToTrash = async (
   files: { uri: string }[],
   folders: { uri: string }[] = [],
-) => {
+): Promise<{ deleted: DeleteResult[]; skipped: string[]; batchId?: string }> => {
   const deleted: DeleteResult[] = [];
   const skipped: string[] = [];
   const first = files[0] ?? folders[0];
@@ -2367,7 +2371,9 @@ const moveFilesToTrash = async (
       if (await findFileHandle(file.uri).then(Boolean, () => true)) {
         skipped.push(file.uri);
       }
-      if (copied && !(await removeTrashCopy(trashUri))) {
+      const leftover =
+        copied || (await findFileHandle(trashUri).then(Boolean, () => true));
+      if (leftover && !(await removeTrashCopy(trashUri)) && copied) {
         entries.push({ relPath, originalUri: file.uri, type });
       }
     }
@@ -2388,7 +2394,7 @@ const moveFilesToTrash = async (
       data: new TextEncoder().encode(manifest).buffer as ArrayBuffer,
     },
   ]);
-  return { deleted, skipped };
+  return { deleted, skipped, batchId };
 };
 
 const getTrashDirHandle = async (projectId: string) =>
