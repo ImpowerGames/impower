@@ -22,6 +22,7 @@ import {
   gutterButtons,
   linesClaimedBefore,
   MARK_COLUMN_RANK,
+  markColumnTargetLeft,
   type GutterButtonMark,
   updateGutterButton,
 } from "../cm-gutter-button/gutterButton";
@@ -265,8 +266,6 @@ const choiceTooltip = ({ from, marker }: PlacedMarker): Tooltip => ({
   },
 });
 
-const MARKER_LEFT = 2;
-
 const CHOICE_MARKS: Record<ChoiceMarkerIcon, (line: number) => GutterButtonMark> = {
   auto: (line) => ({
     icon: iconMasks["pin"],
@@ -333,6 +332,7 @@ const markerElements = (view: EditorView): ChoiceMarkerElement[] => {
   const open = view.state.field(openChoiceField);
   const { from, to } = view.viewport;
   const claimed = linesClaimedBefore(view.state, MARK_COLUMN_RANK.choice);
+  const left = markColumnTargetLeft(view);
   return view.state
     .field(choiceMarkersField)
     .filter(
@@ -347,7 +347,7 @@ const markerElements = (view: EditorView): ChoiceMarkerElement[] => {
         placed.marker.icon,
         view.state.doc.lineAt(placed.from).number,
         placed.from === open,
-        scroller.scrollLeft + MARKER_LEFT,
+        left,
         offsetTop + block.top + block.height / 2,
       );
     });
@@ -564,6 +564,8 @@ export const choiceMarkers = () => [
       update.docChanged ||
       update.viewportChanged ||
       update.geometryChanged ||
+      update.startState.facet(coarsePointer) !==
+        update.state.facet(coarsePointer) ||
       update.startState.field(choiceMarkersField) !==
         update.state.field(choiceMarkersField) ||
       update.startState.field(openChoiceField) !==

@@ -210,13 +210,6 @@ describe("the script editor's breakpoint gutter", () => {
     expect(hollow[0]!.getAttribute("title")).toBe("Breakpoint not placed.");
   });
 
-  it("shows its column while the script holds a breakpoint, even with line numbers off", () => {
-    const { view } = mount();
-    expect(view.dom.classList.contains("cm-has-breakpoints")).toBe(false);
-    pressGutterAt(view, 3);
-    expect(view.dom.classList.contains("cm-has-breakpoints")).toBe(true);
-  });
-
   it("offers a fine pointer its column before any breakpoint, with line numbers off", () => {
     const { view, changes } = mount();
     expect(view.dom.classList.contains("cm-line-numbers")).toBe(false);
@@ -228,20 +221,14 @@ describe("the script editor's breakpoint gutter", () => {
     expect(getComputedStyle(gutter).width).toBe("14px");
   });
 
-  it("keeps a touch editor's column hidden until the script has a breakpoint", () => {
+  it("keeps a touch editor's column at the touch target's width before and after its first breakpoint, with line numbers off", () => {
     const { view } = mount({ coarse: true, mode: "editing" });
+    expect(view.dom.classList.contains("cm-line-numbers")).toBe(false);
     const gutter = view.dom.querySelector(".cm-breakpoint-gutter")!;
-    expect(getComputedStyle(gutter).width).toBe("0px");
-    pressGutterAt(view, 3);
     expect(getComputedStyle(gutter).width).toBe("44px");
-  });
-
-  it("widens its target for a coarse pointer", () => {
-    expect(mount({ coarse: true }).view.dom.classList).toContain(
-      "cm-breakpoints-coarse",
-    );
-    view?.destroy();
-    expect(mount().view.dom.classList).not.toContain("cm-breakpoints-coarse");
+    pressGutterAt(view, 3);
+    expect(markers(view)).toHaveLength(1);
+    expect(getComputedStyle(gutter).width).toBe("44px");
   });
 
   it("clears a breakpoint when its own button is pressed", () => {
@@ -286,7 +273,7 @@ describe("the script editor's breakpoint gutter", () => {
       .map((rule) => (rule as CSSStyleRule).selectorText ?? "")
       .filter((selector) => selector.includes(".cm-breakpoint-gutter") && selector.includes(":hover::after"));
     expect(ghost).toHaveLength(1);
-    expect(ghost[0]).toContain(":not(.cm-breakpoints-coarse)");
+    expect(ghost[0]).toContain(":not(.cm-gutter-coarse)");
     expect(ghost[0]).toContain(":not(:has(.cm-breakpoint))");
   });
 

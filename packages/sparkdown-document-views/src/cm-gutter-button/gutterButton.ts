@@ -5,6 +5,26 @@ import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
 export const GUTTER_GLYPH_SIZE = 16;
 export const GUTTER_TOUCH_SIZE = 44;
 const FINE_TARGET_OUTSET = 4;
+const MARK_COLUMN_FINE_WIDTH = 14;
+
+export const MARK_COLUMN_CLASS = "cm-breakpoint-gutter";
+
+const gutterTargetSize = (state: EditorState): number =>
+  state.facet(coarsePointer) ? GUTTER_TOUCH_SIZE : GUTTER_GLYPH_SIZE;
+
+export const markColumnTargetLeft = (view: EditorView): number => {
+  const column = view.dom.querySelector(`.${MARK_COLUMN_CLASS}`);
+  if (!column) {
+    return view.scrollDOM.scrollLeft;
+  }
+  const box = column.getBoundingClientRect();
+  const scroller = view.scrollDOM.getBoundingClientRect();
+  return (
+    view.scrollDOM.scrollLeft +
+    (box.left - scroller.left + (box.width - gutterTargetSize(view.state) * view.scaleX) / 2) /
+      view.scaleX
+  );
+};
 
 export const MARK_COLUMN_RANK = {
   breakpoint: 0,
@@ -80,6 +100,18 @@ const gutterPointerAttributes = EditorView.editorAttributes.compute(
 );
 
 const gutterButtonTheme = EditorView.baseTheme({
+  [`.${MARK_COLUMN_CLASS}`]: {
+    position: "relative",
+    zIndex: "1",
+    width: `${MARK_COLUMN_FINE_WIDTH}px`,
+    overflow: "hidden",
+  },
+  [`&.cm-gutter-coarse .${MARK_COLUMN_CLASS}`]: {
+    width: `${GUTTER_TOUCH_SIZE}px`,
+  },
+  "&.cm-gutter-coarse:not(.cm-line-numbers) .cm-lineNumbers": {
+    display: "none !important",
+  },
   ".cm-gutter-button": {
     position: "relative",
     display: "inline-grid",

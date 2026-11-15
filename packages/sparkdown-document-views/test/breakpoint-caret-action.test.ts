@@ -159,7 +159,6 @@ describe("the caret line's breakpoint action on a phone", () => {
     expect(action.calls).toEqual([view]);
     expect(reported).toEqual([[2]]);
     expect(markers(view)).toHaveLength(1);
-    expect(view.dom.classList.contains("cm-has-breakpoints")).toBe(true);
 
     const second = openMenu();
     expect(entry(second, "Add breakpoint")).toBeUndefined();
