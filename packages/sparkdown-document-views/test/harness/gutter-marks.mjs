@@ -40,7 +40,7 @@ export const buildGutterMarksPage = async (outDir) => {
   const page = join(outDir, "gutter-marks.html");
   writeFileSync(
     page,
-    `<!doctype html><meta charset="utf-8"><title>Gutter marks</title><style>${impowerUi}</style><style>${editorCss}</style><style>${routeCss}</style><style>${PAGE_STYLE}</style><body><script src="gutter-marks.js"></script></body>`,
+    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Gutter marks</title><style>${impowerUi}</style><style>${editorCss}</style><style>${routeCss}</style><style>${PAGE_STYLE}</style><body><script src="gutter-marks.js"></script></body>`,
   );
   return pathToFileURL(page).href;
 };

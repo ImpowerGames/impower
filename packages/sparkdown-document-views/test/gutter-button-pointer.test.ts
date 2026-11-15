@@ -48,6 +48,9 @@ const open = async (coarse: boolean): Promise<Page> => {
   const page = await context.newPage();
   await page.goto(pageUrl);
   await page.waitForFunction(() => "gutterMarks" in window);
+  expect(
+    await page.evaluate(() => [innerWidth, matchMedia("(pointer: coarse)").matches]),
+  ).toEqual([430, coarse]);
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   return page;
 };
@@ -247,6 +250,9 @@ const openGutter = async (width: number, coarse: boolean): Promise<Page> => {
   await page.goto(pageUrl);
   await page.waitForFunction(() => "gutterMarks" in window);
   await page.addStyleTag({ content: "section { width: auto; }" });
+  expect(
+    await page.evaluate(() => [innerWidth, matchMedia("(pointer: coarse)").matches]),
+  ).toEqual([width, coarse]);
   await act(page, (h) => {
     h.setLineNumbers(false);
     h.setBreakpoints([]);
