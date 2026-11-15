@@ -373,7 +373,7 @@ function appendNodeContent(
   literalBrackets: ReadonlySet<number> = new Set(),
 ): boolean {
   const spans = withLiteralBrackets(
-    collectDisplaySpans(captureNode, from, to, ctx, isChoiceTextOpaque),
+    collectDisplaySpans(captureNode, from, to, ctx, isChoiceTextOpaque, true),
     literalBrackets,
     from,
     to,

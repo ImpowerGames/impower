@@ -1,6 +1,39 @@
 import { describe, expect, test } from "vitest";
+import ScreenplayParser from "../../../../sparkdown-screenplay/src/classes/ScreenplayParser";
+import ScreenplayTypesetter from "../../../../sparkdown-screenplay/src/classes/ScreenplayTypesetter";
+import { generateScreenplayReadingCopy } from "../../../../sparkdown-screenplay/src/utils/generateScreenplayReadingCopy";
 import type { Instructions } from "../../game/core/types/Instructions";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
+
+const SCREENPLAY_CASES = [
+  ["action", "  Hello ((theme", "Hello ((theme"],
+  ["action", "  Hello [[mia", "Hello [[mia"],
+  ["dialogue_character", "  NOVA ((:\n    Hey.", "NOVA (("],
+  ["dialogue_character", "  NOVA [[:\n    Hey.", "NOVA [["],
+] as const;
+
+const printedLines = (source: string, tag: string): string => {
+  const tokens = new ScreenplayParser().parse(source);
+  return new ScreenplayTypesetter()
+    .compose(tokens)
+    .flatMap((span) => ("lines" in span ? span.lines : span.tag === "dual" ? [...(span.positions.l ?? []), ...(span.positions.r ?? [])] : []))
+    .filter((line) => line.tag === tag)
+    .map((line) => line.content.map((run) => run.text).join(""))
+    .join("\n")
+    .trim();
+};
+
+describe("a literal directive opener prints as written in the screenplay (I-2337)", () => {
+  test.each(SCREENPLAY_CASES)("%s line `%s` prints `%s`", (tag, line, expected) => {
+    expect(printedLines(`scene start\n${line}\nend\n`, tag)).toBe(expected);
+  });
+
+  test.each(SCREENPLAY_CASES)("%s line `%s` reads `%s` in the reading copy", (_tag, line, expected) => {
+    const copy = generateScreenplayReadingCopy(new ScreenplayParser().parse(`scene start\n${line}\nend\n`));
+    expect(copy).toContain(expected);
+    expect(copy).not.toContain("\\");
+  });
+});
 
 const LAYOUT = `layout main {
   textbox {

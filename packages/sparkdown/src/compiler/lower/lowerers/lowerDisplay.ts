@@ -501,6 +501,7 @@ function collectBodySegments(
     bodyEnd,
     ctx,
     isBodyInjection,
+    true,
   );
   const codes = spans.codes.map((code) => {
     const chain = code.closes
@@ -997,7 +998,7 @@ function readCue(node: SyntaxNode, ctx: LowerContext): string | null {
   const to = Math.max(
     ...CUE_PARTS.map((part) => getDescendent(part, cue)?.to ?? name.to),
   );
-  return readStyledSource(cue, name.from, to, ctx, false).trim();
+  return readStyledSource(cue, name.from, to, ctx).trim();
 }
 
 export function lowerInlineDialogue(

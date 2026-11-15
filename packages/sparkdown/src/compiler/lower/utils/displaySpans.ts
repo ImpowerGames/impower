@@ -57,7 +57,7 @@ export function collectDisplaySpans(
   to: number,
   ctx: SourceReader,
   isOpaque: (node: SyntaxNode) => boolean = () => false,
-  escapeLiteralOpeners = true,
+  escapeLiteralOpeners = false,
 ): DisplaySpans {
   const codes: SpanCode[] = [];
   const marks: { from: number; to: number }[] = [];
@@ -193,7 +193,7 @@ export function readStyledSource(
   from: number,
   to: number,
   ctx: SourceReader,
-  escapeLiteralOpeners = true,
+  escapeLiteralOpeners = false,
 ): string {
   return writeStyledRange(collectDisplaySpans(root, from, to, ctx, undefined, escapeLiteralOpeners), from, to, ctx);
 }
