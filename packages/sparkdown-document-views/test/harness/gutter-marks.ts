@@ -1,7 +1,7 @@
 import { codeFolding, foldable, foldEffect, foldGutter, foldService } from "@codemirror/language";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
+import { coarsePointer, foldingPlaceholderDOM } from "@impower/codemirror-vscode-lsp-client/src";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
 import { setBreakpointStates } from "../../src/cm-breakpoints/breakpoints";
 import {
@@ -11,6 +11,7 @@ import {
 } from "../../src/cm-choice-markers/choiceMarkers";
 import { foldMarkerDOM } from "../../src/cm-fold-marks/foldMarks";
 import EDITOR_EXTENSIONS from "../../src/modules/script-editor/constants/EDITOR_EXTENSIONS";
+import { customGotoLinePanel } from "../../src/modules/script-editor/utils/extensions/gotoLinePanel";
 import EDITOR_THEME from "../../src/modules/script-editor/constants/EDITOR_THEME";
 
 const SCRIPT = [
@@ -36,7 +37,7 @@ const choice = (line: number, pinned: boolean): ChoiceMarker => ({
 
 const foldChoose = foldService.of((state, from) => {
   const line = state.doc.lineAt(from);
-  if (line.text.trim() !== "choose") {
+  if (!line.text.trim().startsWith("choose") || line.number + 5 > state.doc.lines) {
     return null;
   }
   const end = state.doc.line(line.number + 5);
@@ -60,7 +61,12 @@ const mount = (pointerCoarse: boolean) => {
         EDITOR_EXTENSIONS,
         EditorView.theme(EDITOR_THEME, { dark: true }),
         lineNumbersClass.of(lineNumbersOn(true)),
-        codeFolding(),
+        codeFolding({
+          preparePlaceholder: (state, range) =>
+            state.doc.lineAt(range.to).number - state.doc.lineAt(range.from).number,
+          placeholderDOM: foldingPlaceholderDOM,
+        }),
+        customGotoLinePanel(),
         foldChoose,
         foldGutter({ markerDOM: foldMarkerDOM }),
       ],
@@ -121,8 +127,12 @@ const fold = (line: number) => {
   }
 };
 
+const setDoc = (text: string) =>
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+
 Object.assign(window, {
   gutterMarks: {
+    setDoc,
     view,
     setPinned,
     openChoice,

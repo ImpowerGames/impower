@@ -276,6 +276,7 @@ const EDITOR_THEME: {
     font: '500 11px/1 var(--font-ui, "Segoe UI", sans-serif)',
     letterSpacing: "0",
     verticalAlign: "0.15em",
+    textIndent: "0",
     whiteSpace: "nowrap",
     cursor: "pointer",
     userSelect: "none",
