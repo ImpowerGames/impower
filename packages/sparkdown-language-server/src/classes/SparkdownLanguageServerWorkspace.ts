@@ -669,7 +669,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
 
   projectRootOf(
     uri: string,
-    program: SparkProgram | undefined = this.compiledProgram(uri),
+    program: SparkProgram | undefined = this.program(uri),
   ) {
     return projectRootUri(program?.uri ?? uri);
   }
