@@ -11,9 +11,12 @@ const state = vi.hoisted(() => ({
   infos: [] as string[],
   commands: new Map<string, (...args: unknown[]) => unknown>(),
   settings: { audioFiles: "*.{mid,wav,mp3}", imageFiles: "*.{png,jpg}" } as Record<string, string>,
+  files: new Set<string>(["/proj/main.sd"]),
+  active: "/proj/main.sd",
 }));
 
-vi.mock("vscode", () => {
+vi.mock("vscode", async () => {
+  const { posix } = await import("node:path");
   const uri = (path: string) => ({ path, toString: () => "file://" + path });
   class FileSystemError extends Error {
     constructor(readonly code: string) {
@@ -25,7 +28,7 @@ vi.mock("vscode", () => {
     FileSystemError,
     Uri: {
       joinPath: (base: { path: string }, ...parts: string[]) =>
-        uri([base.path, ...parts].join("/")),
+        uri(posix.join(base.path, ...parts)),
     },
     commands: {
       registerCommand: (name: string, run: (...args: unknown[]) => unknown) => {
@@ -34,7 +37,9 @@ vi.mock("vscode", () => {
       },
     },
     window: {
-      activeTextEditor: { document: { uri: uri("/proj/main.sd") } },
+      get activeTextEditor() {
+        return { document: { uri: uri(state.active) } };
+      },
       showOpenDialog: async (options: unknown) => {
         state.dialogs.push(options);
         return state.picked ? [uri(state.picked.path)] : undefined;
@@ -58,6 +63,10 @@ vi.mock("vscode", () => {
           const entries = state.folders.get(folder.path);
           if (!entries) throw new FileSystemError("FileNotFound");
           return entries;
+        },
+        stat: async (file: { path: string }) => {
+          if (!state.files.has(file.path)) throw new FileSystemError("FileNotFound");
+          return { type: 1 };
         },
         createDirectory: async (folder: { path: string }) => {
           state.created.push(folder.path);
@@ -87,6 +96,8 @@ beforeEach(() => {
   state.created = [];
   state.errors = [];
   state.infos = [];
+  state.files = new Set(["/proj/main.sd"]);
+  state.active = "/proj/main.sd";
 });
 
 describe("sparkdown.addAsset", () => {
@@ -112,6 +123,22 @@ describe("sparkdown.addAsset", () => {
     state.picked = { path: "/downloads/a.png" };
     await run({ name: "alice", type: "image" });
     expect(state.copies.map((copy) => copy.to)).toEqual(["/proj/assets/images/alice.png"]);
+  });
+
+  test("adds to the game the open script belongs to when it sits in a folder of the workspace", async () => {
+    state.files = new Set(["/proj/Game/main.sd", "/proj/Game/scenes/intro.sd"]);
+    state.active = "/proj/Game/scenes/intro.sd";
+    state.picked = { path: "/downloads/boom.wav" };
+    await run({ name: "boom", type: "audio" });
+    expect(state.copies.map((copy) => copy.to)).toEqual(["/proj/Game/Assets/Audio/boom.wav"]);
+  });
+
+  test("adds to the workspace folder when no main script is above the open script", async () => {
+    state.files = new Set(["/proj/notes/draft.sd"]);
+    state.active = "/proj/notes/draft.sd";
+    state.picked = { path: "/downloads/boom.wav" };
+    await run({ name: "boom", type: "audio" });
+    expect(state.copies.map((copy) => copy.to)).toEqual(["/proj/Assets/Audio/boom.wav"]);
   });
 
   test("adds nothing when the picker is cancelled", async () => {

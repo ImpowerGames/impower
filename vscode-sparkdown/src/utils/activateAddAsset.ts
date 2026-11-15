@@ -4,6 +4,7 @@ import {
   type FileAssetType,
   type MissingAsset,
 } from "@impower/sparkdown/src/compiler/utils/missingAsset";
+import { DEFAULT_MAIN_SCRIPT_FILENAME } from "@impower/sparkdown/src/compiler/utils/projectMembership";
 import {
   ASSETS_HOME,
   FILE_TYPE_FOLDERS,
@@ -30,12 +31,36 @@ const childFolder = async (parent: vscode.Uri, name: string) => {
   return vscode.Uri.joinPath(parent, found?.[0] ?? name);
 };
 
-const projectRoot = (): vscode.Uri | undefined => {
-  const active = vscode.window.activeTextEditor?.document.uri;
-  return (
-    (active && vscode.workspace.getWorkspaceFolder(active)?.uri) ??
-    vscode.workspace.workspaceFolders?.[0]?.uri
+const exists = (uri: vscode.Uri) =>
+  Promise.resolve(vscode.workspace.fs.stat(uri)).then(
+    () => true,
+    () => false,
   );
+
+const trimmed = (path: string) => path.replace(/\/+$/, "");
+
+const projectRoot = async (): Promise<vscode.Uri | undefined> => {
+  const active = vscode.window.activeTextEditor?.document.uri;
+  const folder =
+    (active && vscode.workspace.getWorkspaceFolder(active)?.uri) ??
+    vscode.workspace.workspaceFolders?.[0]?.uri;
+  if (!active || !folder) {
+    return folder;
+  }
+  const top = trimmed(folder.path);
+  for (
+    let dir = vscode.Uri.joinPath(active, "..");
+    trimmed(dir.path) === top || trimmed(dir.path).startsWith(`${top}/`);
+    dir = vscode.Uri.joinPath(dir, "..")
+  ) {
+    if (await exists(vscode.Uri.joinPath(dir, DEFAULT_MAIN_SCRIPT_FILENAME))) {
+      return dir;
+    }
+    if (trimmed(dir.path) === top) {
+      break;
+    }
+  }
+  return folder;
 };
 
 const extensionOf = (uri: vscode.Uri) => {
@@ -45,7 +70,7 @@ const extensionOf = (uri: vscode.Uri) => {
 };
 
 export const addAsset = async ({ name, type }: MissingAsset) => {
-  const root = projectRoot();
+  const root = await projectRoot();
   if (!root) {
     return false;
   }
