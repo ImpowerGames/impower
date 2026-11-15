@@ -242,7 +242,7 @@ it("puts back a file that the import replaced with an empty folder when a later 
   expect(error?.rollback?.complete).toBe(true);
 }, 15_000);
 
-it("keeps a file another tab saves into a folder the failing import had removed", async () => {
+it("keeps a file saved through the same worker into a folder the failing import had removed", async () => {
   const h = await harness();
   const get = h.project.getDirectoryHandle.bind(h.project);
   h.project.getDirectoryHandle = async (entry, options = {}) => {

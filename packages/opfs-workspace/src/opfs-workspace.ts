@@ -1282,6 +1282,7 @@ class UndoLog {
   own = new Set<number>();
   seen = new Map<string, Set<number>>();
   copies: TrashCopy[] = [];
+  written = new Map<string, ArrayBuffer | undefined>();
   trashDirectories = new Set<string>();
   trashBatch?: { projectId: string; deletedAt: number; id: string };
 
@@ -1345,6 +1346,41 @@ class UndoLog {
 
   changedElsewhere(uri: string) {
     return [...(this.seen.get(uri) ?? [])].some((local) => !this.own.has(local));
+  }
+
+  async wrote(uri: string) {
+    this.written.set(uri, await storedBytes(uri));
+  }
+
+  rewrote(uris: string[]) {
+    for (const uri of uris) {
+      this.written.delete(uri);
+    }
+  }
+
+  replacedElsewhere(uri: string, current?: ArrayBuffer) {
+    const written = this.written.get(uri);
+    return this.written.has(uri) && !!current && !sameStored(current, written);
+  }
+
+  async removeOwnFolders(uris: string[], log: CommitLog) {
+    const root = await navigator.storage.getDirectory();
+    const depth = (uri: string) => uri.split("/").length;
+    const removed: string[] = [];
+    for (const uri of [...new Set(uris)].sort((a, b) => depth(b) - depth(a))) {
+      if (this.changedElsewhere(uri)) {
+        continue;
+      }
+      const directory = await findDirectory(root, getPathFromUri(uri));
+      if (!directory || (await entriesOf(directory)).length > 0) {
+        continue;
+      }
+      for (const gone of await deleteEmptyDirectories([uri], log)) {
+        this.commit(State.localVersions.get(gone)!);
+        removed.push(gone);
+      }
+    }
+    return removed;
   }
 
   async copyToTrash(target: Restoring) {
@@ -1509,6 +1545,10 @@ class UndoLog {
         await drainWrites(entry.uri);
         const current = await storedBytes(entry.uri);
         if (current) {
+          if (this.replacedElsewhere(entry.uri, current)) {
+            kept.push(entry.uri);
+            continue;
+          }
           await destroy({
             entry: { uri: entry.uri, directory: false },
             current,
@@ -1543,7 +1583,7 @@ class UndoLog {
         }
         const local = State.localVersions.get(entry.uri);
         const current = await storedBytes(entry.uri);
-        if (this.movedOn(entry)) {
+        if (this.movedOn(entry) || this.replacedElsewhere(entry.uri, current)) {
           kept.push(entry.uri);
           continue;
         }
@@ -1570,13 +1610,9 @@ class UndoLog {
           await destroy(target);
         }
         removals = removals.filter((t) => !inside(t.entry.uri));
-        for (const uri of await deleteEmptyDirectories(
-          [...this.directories].filter(inside),
-          log,
-        )) {
-          this.commit(State.localVersions.get(uri)!);
-          effects.foldersDeleted.push(uri);
-        }
+        effects.foldersDeleted.push(
+          ...(await this.removeOwnFolders([...this.directories].filter(inside), log)),
+        );
         if (await isStoredDirectory(entry.uri)) {
           unknown.push(entry.uri);
         } else {
@@ -1622,7 +1658,7 @@ class UndoLog {
     };
     try {
       effects.foldersDeleted.push(
-        ...(await deleteEmptyDirectories([...this.directories], log)),
+        ...(await this.removeOwnFolders([...this.directories], log)),
       );
     } catch (err) {
       console.error(err);
@@ -1669,6 +1705,13 @@ const applyChange = async (
       type: result.created ? FileChangeType.Created : FileChangeType.Changed,
     });
   };
+  undo.rewrote(
+    "textDocument" in change
+      ? [change.textDocument.uri]
+      : change.kind === "rename"
+        ? [change.oldUri, change.newUri]
+        : [change.uri],
+  );
   if (isFolderChange(change) && change.kind === "create") {
     await createDirectories([change.uri], log);
     undo.commit(State.localVersions.get(change.uri)!);
@@ -1696,6 +1739,7 @@ const applyChange = async (
     }
   } else if (change.kind === "create") {
     (await createFiles([change])).forEach(wrote);
+    await undo.wrote(change.uri);
   } else if (change.kind === "delete") {
     const [result] = await deleteFiles([change]);
     if (result) {
