@@ -218,6 +218,26 @@ end
     expect(hintsIn(source)).toEqual([`${HINT} ${never}:0-${never}:8`]);
   });
 
+  test.each([
+    ["a tunnel followed by a tunnel onwards", "  -> s -> ->"],
+    ["a display line ending on a tunnel followed by a tunnel onwards", "  Hello -> s -> ->"],
+  ])("are a faded hint after %s", (_kind, line) => {
+    expect(
+      hintsIn(`scene start
+  -> t ->
+  Back.
+end
+scene t
+${line}
+  Never.
+end
+scene s
+  ->->
+end
+`),
+    ).toEqual([`${HINT} 6:0-6:8`]);
+  });
+
   test("are not a hint after a display line that tunnels and returns", () => {
     expect(
       hintsIn(`scene start
@@ -398,6 +418,38 @@ end
     };
     apply(find, replace);
     apply("Hello.", "Hello there.");
+  });
+
+  test("keep a branch reached through a value held by a statement served from its memo", () => {
+    const pad = Array.from({ length: 8 }, (_, n) => `scene pad${n}\n  Pad ${n}.\nend\n`).join("");
+    const text = `${pad}store flag = true
+scene start
+  if flag then
+    local dest = -> b
+    -> dest
+    Touch.
+  end
+  branch b
+    In b.
+  end
+end
+`;
+    const session = programCompiler({ [MAIN_URI]: text });
+    session.compile();
+    const at = text.indexOf("Touch.");
+    const before = text.slice(0, at);
+    const line = before.split("\n").length - 1;
+    const character = at - (before.lastIndexOf("\n") + 1);
+    session.compiler.updateDocument({
+      textDocument: { uri: MAIN_URI, version: 2 },
+      contentChanges: [
+        { range: { start: { line, character }, end: { line, character: character + 6 } }, text: "Other." },
+      ],
+    });
+    const edited = text.replace("Touch.", "Other.");
+    const incremental = unreachable(session.compile().program);
+    expect(incremental).toEqual(unreachable(compile({ [MAIN_URI]: edited })));
+    expect(incremental).toEqual([`${HINT} ${line}:0-${line}:10`]);
   });
 
   test("follow a divert added to the branch in another script", () => {

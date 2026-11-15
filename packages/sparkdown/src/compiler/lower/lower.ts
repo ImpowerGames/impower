@@ -1,6 +1,8 @@
 import { nodeNameSet } from "../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
+import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
+import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { memoOf } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
@@ -48,7 +50,7 @@ import {
   lowerInlineTransitional,
   lowerInlineWrite,
 } from "./lowerers/lowerDisplay";
-import { endsOnLeavingDivert, lowerDivert } from "./lowerers/lowerDivert";
+import { lowerDivert } from "./lowerers/lowerDivert";
 import {
   lowerDoneStatement,
   lowerFinStatement,
@@ -102,7 +104,8 @@ const BLOCK_STATEMENTS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
 ]);
 
-const DISPLAY_LINES: ReadonlySet<string> = nodeNameSet([
+const LEAVING_STATEMENTS: ReadonlySet<string> = nodeNameSet([
+  "Divert",
   "InlineDialogue",
   "ImplicitAction",
   "InlineAction",
@@ -117,6 +120,16 @@ const DISPLAY_LINES: ReadonlySet<string> = nodeNameSet([
   "BlockTransitional",
   "BlockWrite",
 ]);
+
+function leavesFlow(block: CompiledBlock): boolean {
+  return (block.content ?? []).some((obj) =>
+    (obj instanceof Weave ? obj.content : [obj]).some(
+      (part) =>
+        part instanceof TunnelOnwards ||
+        (part instanceof Divert && !part.isTunnel && !part.isThread),
+    ),
+  );
+}
 
 export function lower(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -168,7 +181,7 @@ function lowerInner(
     return block && { diagnostics: block.diagnostics };
   }
   const block = lowerNode(nodeRef, ctx);
-  if (block && DISPLAY_LINES.has(nodeRef.name) && endsOnLeavingDivert(nodeRef.node, ctx.read)) {
+  if (block && LEAVING_STATEMENTS.has(nodeRef.name) && leavesFlow(block)) {
     const unreachable = unreachableAfter(nodeRef, ctx);
     if (unreachable) {
       block.diagnostics = [...(block.diagnostics ?? []), unreachable];
