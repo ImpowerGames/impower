@@ -690,7 +690,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
 
   protected todoNotesFor(uri: string) {
     const document = this.document(uri);
-    if (!document || isLuauFile(uri)) return [];
+    if (!document || isLuauFile(uri) || !/todo/i.test(document.getText())) return [];
     return getTodoNotes(document, this.tree(uri));
   }
 
@@ -735,11 +735,15 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     const morphUris = this.morphRefs(params.program)
       .filter(({ ref, uri }) => uri && this.morphDiagnostics.get(ref.key)?.length)
       .map(({ uri }) => uri!);
+    const noteUris = Object.keys(params.program.scripts ?? {}).filter(
+      (uri) => this.isScriptDocument(uri) && this.todoNotesFor(uri).length > 0,
+    );
     const uris = new Set([
       ...this._documentVersions.keys(),
       ...Object.keys(params.program.diagnostics ?? {}),
       ...this._lastPublishedDiagnostics.keys(),
       ...morphUris,
+      ...noteUris,
     ]);
     for (const uri of uris) {
       const last = this._lastPublishedDiagnostics.get(uri);
