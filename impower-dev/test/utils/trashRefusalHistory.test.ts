@@ -89,6 +89,20 @@ it("brings back every created file when a partly refused Undo is retried and the
   expect(files()).toEqual([a, b]);
 });
 
+it("leaves a file another action moved to the bin between a refused Undo and its retry to that action", async () => {
+  recordCreate("p", [a, b], "2 scripts");
+  bin.refused.add(a);
+  expect(await history.undo()).toBe(false);
+  bin.refused.clear();
+  await bin.fs.deleteFiles({ files: [{ uri: a }] });
+  const otherBatches = (await bin.fs.listTrash()).filter((batch) => batch.entries.some((e) => e.originalUri === a));
+  expect(otherBatches).toHaveLength(1);
+  expect(await history.undo()).toBe(true);
+  expect(await history.redo()).toBe(true);
+  expect(files()).toEqual([b]);
+  expect(await bin.fs.listTrash()).toEqual(otherBatches);
+});
+
 it("brings back every deleted file when a partly refused Redo is retried and then undone", async () => {
   const since = Date.now();
   await bin.fs.deleteFiles({ files: [{ uri: a }, { uri: b }] });

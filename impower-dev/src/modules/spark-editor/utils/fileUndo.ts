@@ -49,6 +49,16 @@ async function markProjectDirty() {
 
 const reportKept = (skipped: string[]) => showSnackbar({ message: keptMessage(skipped) });
 
+const movedIn =
+  (projectId: string, uris: readonly string[], folders: string[] = []) =>
+  (since: number, skipped: ReadonlySet<string>) =>
+    findBatchesForUris(
+      projectId,
+      uris.filter((uri) => !skipped.has(uri)),
+      since,
+      skipped.size > 0 ? [] : folders,
+    );
+
 export async function recordTrashDeletion(
   projectId: string,
   deletedUris: string[],
@@ -78,7 +88,7 @@ export async function recordTrashDeletion(
     },
     redo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
-      const redoSince = await trashing(async () => {
+      const trashed = await trashing(async () => {
         if (uris.length > 0 || folders.length > 0) {
           await Workspace.fs.deleteFiles({
             files: uris.map((uri) => ({ uri })),
@@ -88,7 +98,7 @@ export async function recordTrashDeletion(
             mode: "trash",
           });
         }
-      });
+      }, movedIn(projectId, uris, folders));
       const recorded = new Set(folders);
       const unrecorded = (await Workspace.fs.getFolders(projectId)).filter(
         (f) => !recorded.has(f) && folders.some((r) => f.startsWith(`${r}/`)),
@@ -97,7 +107,7 @@ export async function recordTrashDeletion(
         projectId,
         folders.filter((r) => !unrecorded.some((f) => f.startsWith(`${r}/`))),
       );
-      batchIds = await findBatchesForUris(projectId, uris, redoSince, folders);
+      batchIds = trashed;
       await markProjectDirty();
     },
   });
@@ -210,13 +220,14 @@ export function recordCreate(
     label: `Create ${label}`,
     undo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
-      const since = await trashing(() =>
-        Workspace.fs.deleteFiles({
-          files: uris.map((uri) => ({ uri })),
-          mode: "trash",
-        }),
+      batchIds = await trashing(
+        () =>
+          Workspace.fs.deleteFiles({
+            files: uris.map((uri) => ({ uri })),
+            mode: "trash",
+          }),
+        movedIn(projectId, uris),
       );
-      batchIds = await findBatchesForUris(projectId, uris, since);
       await markProjectDirty();
     },
     redo: async () => {
@@ -275,13 +286,14 @@ export async function recordResolvedUpload(
     undo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
       if (added.length > 0) {
-        const t = await trashingAdded(() =>
-          Workspace.fs.deleteFiles({
-            files: added.map((uri) => ({ uri })),
-            mode: "trash",
-          }),
+        newBatchIds = await trashingAdded(
+          () =>
+            Workspace.fs.deleteFiles({
+              files: added.map((uri) => ({ uri })),
+              mode: "trash",
+            }),
+          movedIn(projectId, added),
         );
-        newBatchIds = await findBatchesForUris(projectId, added, t);
       }
       replaced = (await restoreBatches(projectId, replacedBatchIds)).uris;
       await markProjectDirty();
@@ -289,13 +301,14 @@ export async function recordResolvedUpload(
     redo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
       if (replaced.length > 0) {
-        const t = await trashingReplaced(() =>
-          Workspace.fs.deleteFiles({
-            files: replaced.map((uri) => ({ uri })),
-            mode: "trash",
-          }),
+        replacedBatchIds = await trashingReplaced(
+          () =>
+            Workspace.fs.deleteFiles({
+              files: replaced.map((uri) => ({ uri })),
+              mode: "trash",
+            }),
+          movedIn(projectId, replaced),
         );
-        replacedBatchIds = await findBatchesForUris(projectId, replaced, t);
       }
       added = (await restoreBatches(projectId, newBatchIds)).uris;
       await markProjectDirty();

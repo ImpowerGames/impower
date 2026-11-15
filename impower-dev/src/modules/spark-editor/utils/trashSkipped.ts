@@ -20,17 +20,24 @@ export async function trashSkipped(deletion: Promise<unknown>): Promise<string[]
 }
 
 export function trashAttempts(refused: (skipped: string[]) => void) {
-  let pendingSince: number | undefined;
-  return async (trash: () => Promise<unknown>): Promise<number> => {
-    const since = (pendingSince ??= Date.now());
+  let earlier: string[] = [];
+  return async (
+    trash: () => Promise<unknown>,
+    find: (since: number, skipped: ReadonlySet<string>) => Promise<string[]>,
+  ): Promise<string[]> => {
+    const since = Date.now();
     try {
       await trash();
     } catch (error) {
       const refusal = willDeleteFilesRefusal(error);
-      if (refusal) refused(refusal.skipped);
+      if (refusal) {
+        earlier = [...earlier, ...(await find(since, new Set(refusal.skipped)))];
+        refused(refusal.skipped);
+      }
       throw error;
     }
-    pendingSince = undefined;
-    return since;
+    const batches = [...new Set([...earlier, ...(await find(since, new Set()))])];
+    earlier = [];
+    return batches;
   };
 }
