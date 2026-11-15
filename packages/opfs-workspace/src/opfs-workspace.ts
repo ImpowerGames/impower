@@ -252,14 +252,34 @@ const withAncestors = (uri: string) => {
 
 const commitLockName = (uri: string) => `opfs-workspace:commit:${uri}`;
 
-const withCommitLock = <T>(uri: string, task: () => Promise<T>) => {
-  const parents = withAncestors(uri).slice(1).reverse();
-  const lockFrom = (index: number): Promise<T> =>
-    index < parents.length
-      ? withSharedLock(commitLockName(parents[index]!), () => lockFrom(index + 1))
-      : withLock(commitLockName(uri), task);
+const withCommitLocks = <T>(uris: readonly string[], task: () => Promise<T>) => {
+  const exclusive = new Set(uris);
+  const names = [
+    ...new Set(uris.flatMap((uri) => withAncestors(uri))),
+  ].sort();
+  const lockFrom = (index: number): Promise<T> => {
+    const uri = names[index];
+    if (uri === undefined) {
+      return task();
+    }
+    const next = () => lockFrom(index + 1);
+    return exclusive.has(uri)
+      ? withLock(commitLockName(uri), next)
+      : withSharedLock(commitLockName(uri), next);
+  };
   return lockFrom(0);
 };
+
+const withCommitLock = <T>(uri: string, task: () => Promise<T>) =>
+  withCommitLocks([uri], task);
+
+let sequenceRoot: Promise<FileSystemDirectoryHandle> | undefined;
+
+const commitSequenceRoot = () =>
+  (sequenceRoot ??= navigator.storage.getDirectory().catch((err) => {
+    sequenceRoot = undefined;
+    throw err;
+  }));
 
 const commitChange = <T>(
   lockUri: string,
@@ -273,7 +293,7 @@ const commitChange = <T>(
       return { result, commit: undefined, local: undefined };
     }
     const commit = await allocateCommit(
-      await navigator.storage.getDirectory(),
+      await commitSequenceRoot(),
       State.writer,
       State.clock,
     );
@@ -2693,10 +2713,77 @@ const moveFile = async (move: RenameOutcome) => {
         `Cannot rename ${move.oldUri} to ${move.newUri}: ${move.newUri} already exists`,
       );
     }
+    const renamed = await renameStoredFile(move.oldUri, move.newUri);
+    if (renamed) {
+      move.write = renamed.write;
+      move.file = renamed.write.file;
+      move.deleted = renamed.deleted;
+      return;
+    }
   }
   move.deleted = await copyThenRemove(move.oldUri, move.newUri, (write) => {
     move.write = write;
     move.file = write?.file;
+  });
+};
+
+const renameStoredFile = async (
+  sourceUri: string,
+  destinationUri: string,
+): Promise<{ write: WriteResult; deleted: DeleteResult } | undefined> => {
+  await drainWrites(sourceUri);
+  return withCommitLocks([sourceUri, destinationUri], async () => {
+    const source: FileSystemFileHandle & {
+      move?: (parent: FileSystemDirectoryHandle, name: string) => Promise<void>;
+    } = await storedFileHandle(sourceUri);
+    if (!source.move || (await findFileHandle(destinationUri))) {
+      return undefined;
+    }
+    const destinationPath = getPathFromUri(destinationUri);
+    const directory = await getDirectoryHandleFromPath(
+      await navigator.storage.getDirectory(),
+      getParentPath(destinationPath),
+    );
+    await source.move(directory, getFileName(destinationPath));
+    const stored = await source.getFile();
+    const buffer = needsTextAtEnumeration(destinationUri)
+      ? await stored.arrayBuffer()
+      : undefined;
+    const root = await commitSequenceRoot();
+    const written = withAncestors(destinationUri);
+    const writeCommit = await allocateCommit(root, State.writer, State.clock);
+    if (writeCommit) {
+      for (const uri of written) {
+        acceptCommit(uri, writeCommit);
+      }
+    }
+    const writeLocal = touch(written);
+    const removeCommit = await allocateCommit(root, State.writer, State.clock);
+    if (removeCommit) {
+      acceptCommit(sourceUri, removeCommit);
+    }
+    const removeLocal = touch([sourceUri]);
+    const sourceFile = State.files.get(sourceUri);
+    evictFile(sourceUri);
+    evictFile(destinationUri);
+    const file = buffer
+      ? updateFileCache(destinationUri, buffer, true, 0, stored.lastModified)
+      : updateFileMetaCache(destinationUri, stored.size, stored.lastModified, 0);
+    await enrichUrlAssetType(destinationUri);
+    return {
+      write: {
+        file: State.files.get(destinationUri) ?? file,
+        created: true,
+        local: writeLocal,
+        commit: writeCommit,
+      },
+      deleted: {
+        uri: sourceUri,
+        file: sourceFile,
+        local: removeLocal,
+        commit: removeCommit,
+      },
+    };
   });
 };
 

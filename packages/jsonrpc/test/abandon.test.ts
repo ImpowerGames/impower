@@ -37,12 +37,42 @@ const requestMessage = (method: string): RequestMessage<string, {}, any> =>
     params: {},
   }) as RequestMessage<string, {}, any>;
 
+describe("waiting on many requests at once (I-2242)", () => {
+  it("listens once however many requests wait, and answers each by its id", async () => {
+    const connection = new SilentConnection();
+    const messages = Array.from({ length: 500 }, (_, i) => requestMessage(`test/many-${i}`));
+    const pending = messages.map((message) => connection.request(message));
+    expect(connection.listenerCount).toBe(1);
+
+    for (const message of [...messages].reverse()) {
+      connection.receive({ jsonrpc: "2.0", method: message.method, id: message.id, result: message.method });
+    }
+
+    expect(await Promise.all(pending)).toEqual(messages.map((message) => message.method));
+    expect(connection.listenerCount).toBe(0);
+  });
+
+  it("leaves a request waiting when another request's answer arrives", async () => {
+    const connection = new SilentConnection();
+    const first = requestMessage("test/first-of-two");
+    const second = requestMessage("test/second-of-two");
+    const answered = connection.request(first);
+    const waiting = connection.request(second);
+    connection.receive({ jsonrpc: "2.0", method: first.method, id: first.id, result: "one" });
+    expect(await answered).toBe("one");
+    expect(connection.listenerCount).toBe(1);
+    connection.receive({ jsonrpc: "2.0", method: second.method, id: second.id, result: "two" });
+    expect(await waiting).toBe("two");
+    expect(connection.listenerCount).toBe(0);
+  });
+});
+
 describe("abandoning a connection's requests", () => {
   it("settles every request still waiting with the error it is given", async () => {
     const connection = new SilentConnection();
     const first = connection.request(requestMessage("test/first"));
     const second = connection.request(requestMessage("test/second"));
-    expect(connection.listenerCount).toBe(2);
+    expect(connection.listenerCount).toBe(1);
 
     const error = new Error("gone");
     connection.abandon(error);

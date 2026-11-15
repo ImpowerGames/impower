@@ -9,6 +9,7 @@ import {
   memoryRoot,
   writeMemoryFile,
   memoryLocks,
+  copyingRenames,
 } from "./memoryOpfs";
 
 const enc = new TextEncoder();
@@ -1605,6 +1606,97 @@ describe("renaming files (I-1910)", () => {
   });
 });
 
+describe("renaming many files in one request (I-2242)", () => {
+  const pictures = (folder: string, count: number) =>
+    Object.fromEntries(
+      Array.from({ length: count }, (_, i) => [`${folder}/p${i}.png`, [i, 1, 2, 3]]),
+    );
+  const movesOf = (from: string, to: string, count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      oldUri: uriOf(`${from}/p${i}.png`),
+      newUri: uriOf(`${to}/p${i}.png`),
+    }));
+  const sequenceWrites = (root: MemoryDirectory) =>
+    (root.entries.get(".opfs-workspace-sequence") as MemoryFile).history.length;
+
+  it("moves each stored file in place, without writing its bytes again", async () => {
+    const root = seed(pictures("Crowd", 5), ["Cast"]);
+    const before = Array.from({ length: 5 }, (_, i) => fileAt(root, `Crowd/p${i}.png`)!);
+    const h = await worker(root);
+    const response = await h.request("rename", "workspace/willRenameFiles", {
+      files: movesOf("Crowd", "Cast", 5),
+    });
+    expect(response.result).toHaveLength(5);
+    expect(listMemory(root, "local/Cast")).toEqual(
+      Array.from({ length: 5 }, (_, i) => `p${i}.png`),
+    );
+    expect(listMemory(root, "local/Crowd")).toEqual([]);
+    before.forEach((file, i) => {
+      expect(fileAt(root, `Cast/p${i}.png`)).toBe(file);
+      expect(file.history).toEqual([]);
+      expect([...file.bytes]).toEqual([i, 1, 2, 3]);
+    });
+  });
+
+  it("announces a stored move as a write of the new file numbered before the removal of the old one", async () => {
+    const root = seed(pictures("Crowd", 3), ["Cast"]);
+    const h = await worker(root);
+    const from = h.messages.length;
+    await h.request("rename", "workspace/willRenameFiles", { files: movesOf("Crowd", "Cast", 3) });
+    const [written] = h.notifications("workspace/didWriteFiles", from);
+    const [renamed] = h.notifications("workspace/didRenameFiles", from);
+    expect(written.params.files.map((f: any) => f.uri).sort()).toEqual(
+      movesOf("Crowd", "Cast", 3).map((m) => m.newUri),
+    );
+    expect(written.params.files.map((f: any) => f.size)).toEqual([4, 4, 4]);
+    expect(renamed.params.files).toEqual(movesOf("Crowd", "Cast", 3));
+    for (const { oldUri, newUri } of movesOf("Crowd", "Cast", 3)) {
+      expect(written.params.commits[newUri].sequence).toBeLessThan(
+        renamed.params.commits[oldUri].sequence,
+      );
+    }
+    const sequences = movesOf("Crowd", "Cast", 3).flatMap(({ oldUri, newUri }) => [
+      written.params.commits[newUri].sequence,
+      renamed.params.commits[oldUri].sequence,
+    ]);
+    expect(new Set(sequences).size).toBe(sequences.length);
+    expect(await h.cached("Crowd/p0.png")).toBeUndefined();
+    expect(await h.cached("Cast/p0.png")).toMatchObject({ size: 4 });
+  });
+
+  it("writes the shared sequence fewer times than it numbers the files of one rename", async () => {
+    const root = seed(pictures("Crowd", 40), ["Cast"]);
+    const h = await worker(root);
+    await h.enumerate();
+    const before = sequenceWrites(root);
+    const response = await h.request(
+      "rename",
+      "workspace/willRenameFiles",
+      { files: movesOf("Crowd", "Cast", 40) },
+      1000,
+    );
+    expect(response.result).toHaveLength(40);
+    expect(sequenceWrites(root) - before).toBeLessThan(40);
+  });
+
+  it("leaves nothing at the destination when storage refuses to move a locked file", async () => {
+    const root = seed({ "Crowd/a.png": [1, 2, 3] }, ["Cast"]);
+    const crowd = (root.entries.get("local") as MemoryDirectory).entries.get("Crowd") as MemoryDirectory;
+    crowd.removeEntry = async (name) => {
+      throw new DOMException(`${name} is locked`, "NoModificationAllowedError");
+    };
+    const h = await worker(root);
+    const from = h.messages.length;
+    const response = await h.request("rename", "workspace/willRenameFiles", {
+      files: [{ oldUri: uriOf("Crowd/a.png"), newUri: uriOf("Cast/a.png") }],
+    });
+    expect(response.error.message).toContain("a.png is locked");
+    expect(listMemory(root, "local")).toEqual(["Cast/", "Crowd/", "Crowd/a.png"]);
+    expect(h.notifications("workspace/didRenameFiles", from)).toEqual([]);
+    expect(h.notifications("workspace/didWriteFiles", from).flatMap((m) => m.params.files)).toEqual([]);
+  });
+});
+
 describe("applying a workspace edit whole or not at all (I-2070)", () => {
   const projectDirectory = (root: MemoryDirectory) =>
     root.entries.get("local") as MemoryDirectory;
@@ -1701,6 +1793,7 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
 
   it("names the files left changed when restoring an earlier change fails", async () => {
     const root = seed({ "main.sd": "see a", "a.sd": "A" });
+    copyingRenames(root);
     failRemoving(projectDirectory(root), "a.sd");
     failWrite(fileAt(root, "main.sd")!, 2);
     const h = await worker(root);
@@ -2069,6 +2162,7 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
 
   it("keeps the other half of a swap when a save lands on one half during the rollback", async () => {
     const root = seed({ "main.sd": "M", "a.sd": "ORIGINAL-A", "b.sd": "ORIGINAL-B" });
+    copyingRenames(root);
     const original = fileAt(root, "b.sd")!;
     const project = projectDirectory(root);
     const h = await worker(root);
@@ -2148,6 +2242,7 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
 
   it("keeps the rollback's copies when one of them is written while the rollback runs", async () => {
     const root = seed({ "main.sd": "M", "a.sd": "A", "b.sd": "B" });
+    copyingRenames(root);
     const project = projectDirectory(root);
     const h = await worker(root);
     await h.enumerate();

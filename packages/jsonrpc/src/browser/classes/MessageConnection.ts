@@ -31,6 +31,43 @@ export abstract class MessageConnection {
 
   protected _pending = new Set<(error: Error) => void>();
 
+  protected _awaiting = new Map<unknown, Set<(e: MessageEvent) => void>>();
+
+  protected _dispatchResponse = (e: MessageEvent) => {
+    const message = e.data;
+    if (typeof message !== "object" || message === null) {
+      return;
+    }
+    const handlers = this._awaiting.get(message.id);
+    if (handlers) {
+      for (const handler of [...handlers]) {
+        handler(e);
+      }
+    }
+  };
+
+  protected awaitResponse(id: unknown, handler: (e: MessageEvent) => void) {
+    if (this._awaiting.size === 0) {
+      this.addEventListener("message", this._dispatchResponse);
+    }
+    const handlers = this._awaiting.get(id) ?? new Set();
+    handlers.add(handler);
+    this._awaiting.set(id, handlers);
+  }
+
+  protected stopAwaiting(id: unknown, handler: (e: MessageEvent) => void) {
+    const handlers = this._awaiting.get(id);
+    if (!handlers?.delete(handler)) {
+      return;
+    }
+    if (handlers.size === 0) {
+      this._awaiting.delete(id);
+    }
+    if (this._awaiting.size === 0) {
+      this.removeEventListener("message", this._dispatchResponse);
+    }
+  }
+
   constructor(postMessage: (message: any, transfer?: Transferable[]) => void) {
     this._postMessage = postMessage;
   }
@@ -88,7 +125,7 @@ export abstract class MessageConnection {
     return new Promise<R>((resolveRequest, rejectRequest) => {
       const settle = () => {
         this._pending.delete(abandon);
-        this.removeEventListener("message", onResponse);
+        this.stopAwaiting(request.id, onResponse);
       };
       const resolve = (value: R) => {
         settle();
@@ -164,7 +201,7 @@ export abstract class MessageConnection {
           }
         }
       };
-      this.addEventListener("message", onResponse);
+      this.awaitResponse(request.id, onResponse);
       profile("start", this._profilerId, "request " + request.method);
       profile("start", this._profilerId, "send request " + request.method);
       this.postMessage(request, transfer);
