@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import SidebarLayout from "./SidebarLayout";
+import SidebarLayout, { useSidebarCollapsed } from "./SidebarLayout";
 
 let host: HTMLDivElement | undefined;
 
@@ -15,6 +15,10 @@ afterEach(async () => {
 });
 
 const changes: (number | undefined)[] = [];
+
+function Content() {
+  return <main data-rail-collapsed={String(useSidebarCollapsed())} />;
+}
 
 function Harness({
   initial,
@@ -42,7 +46,7 @@ function Harness({
       header={<div data-testid="header" />}
       sidebar={<nav data-testid="rail" />}
     >
-      <main />
+      <Content />
     </SidebarLayout>
   );
 }
@@ -66,6 +70,7 @@ describe("SidebarLayout", () => {
     const { root, separator } = await mount();
     expect(root.style.getPropertyValue("--sidebar-width")).toBe("232px");
     expect(root.dataset["sidebar"]).toBe("expanded");
+    expect(host!.querySelector("main")!.dataset["railCollapsed"]).toBe("false");
     expect(separator.getAttribute("aria-valuenow")).toBe("232");
     expect(separator.getAttribute("aria-label")).toBe("Resize sidebar");
   });
@@ -79,6 +84,7 @@ describe("SidebarLayout", () => {
       separator.dispatchEvent(pointer("pointermove", 150));
     });
     expect(root.style.getPropertyValue("--sidebar-width")).toBe("76px");
+    expect(host!.querySelector("main")!.dataset["railCollapsed"]).toBe("true");
     expect(changes).toEqual([]);
     await act(async () => {
       separator.dispatchEvent(pointer("pointerup", 150));

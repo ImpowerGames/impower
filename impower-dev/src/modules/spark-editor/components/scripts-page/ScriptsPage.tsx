@@ -11,8 +11,9 @@ import {
   RootIcon,
   SearchIcon,
   TabbedPage,
+  useSidebarCollapsed,
 } from "@impower/impower-ui/components";
-import { useLayout, useRailDefault } from "@impower/impower-ui/layout";
+import { useLayout } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { plural, referencedByLabel, rowLine } from "../../utils/fileListModel";
@@ -32,7 +33,6 @@ import {
   type ScriptListing,
   type ScriptRow,
 } from "../../workspace/scriptsListing";
-import { railIconsOnly } from "../../workspace/railWidths";
 import selection from "../../workspace/scriptsSelection";
 import workspace from "../../workspace/WorkspaceStore";
 import {
@@ -417,10 +417,8 @@ function AllScripts() {
 }
 
 export default function ScriptsPage() {
-  const layout = useLayout();
-  const railDefault = useRailDefault();
-  const shell = useComputed(() => workspace.state.value.shell).value;
-  const showTabs = layout === "phone" || railIconsOnly(shell, layout, railDefault);
+  const railCollapsed = useSidebarCollapsed();
+  const showTabs = useLayout() === "phone" || railCollapsed;
   const tab = useComputed(() => workspace.state.value.lists?.scriptsTab).value;
   return (
     <TabbedPage

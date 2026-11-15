@@ -6,12 +6,10 @@ import type { DocumentSymbol } from "vscode-languageserver-protocol";
 
 const layout = vi.hoisted(() => ({
   value: "phone" as "phone" | "compact" | "desktop",
-  railDefault: "icons" as "icons" | "full",
 }));
 vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@impower/impower-ui/layout")>()),
   useLayout: () => layout.value,
-  useRailDefault: () => layout.railDefault,
 }));
 
 const calls = vi.hoisted(() => [] as string[]);
@@ -37,6 +35,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   disconnect() {}
 };
 
+const { SidebarCollapsedContext } = await import("@impower/impower-ui/components");
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: ScriptsPage } = await import("../../src/modules/spark-editor/components/scripts-page");
 const { ProblemsDialog } = await import("../../src/modules/spark-editor/components/problems");
@@ -73,9 +72,11 @@ const settle = () =>
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
-const mount = async () => {
+const mount = async (railCollapsed = false) => {
   host ??= document.body.appendChild(document.createElement("div"));
-  await act(async () => render(h(ScriptsPage, {}), host!));
+  await act(async () =>
+    render(h(SidebarCollapsedContext.Provider, { value: railCollapsed }, h(ScriptsPage, {})), host!),
+  );
   await settle();
 };
 
@@ -305,42 +306,23 @@ describe("the In this script tab's rows", () => {
 });
 
 describe("the Scripts page off the phone", () => {
-  const at = async (
-    next: "compact" | "desktop",
-    railDefault: "icons" | "full",
-    shell: { railWidth?: number; railCompactWidth?: number },
-  ) => {
+  const at = async (next: "compact" | "desktop", railCollapsed: boolean) => {
     layout.value = next;
-    layout.railDefault = railDefault;
     workspace.layout.value = next as Layout;
-    workspace.current = { ...workspace.current, shell, lists: { scriptsTab: "outline" } };
-    await mount();
+    workspace.current = { ...workspace.current, lists: { scriptsTab: "outline" } };
+    await mount(railCollapsed);
   };
 
-  afterEach(() => {
-    layout.railDefault = "icons";
-    workspace.current = { ...workspace.current, shell: {} };
-  });
-
-  it.each([
-    ["compact", "icons", {}],
-    ["compact", "full", { railCompactWidth: 76 }],
-    ["desktop", "full", { railWidth: 76 }],
-  ] as const)("shows the tabs at %s when the rail shows icons only (default %s, %o)", async (next, railDefault, shell) => {
-    await at(next, railDefault, shell);
+  it.each(["compact", "desktop"] as const)("shows the tabs at %s while the rail shows icons only", async (next) => {
+    await at(next, true);
     expect(tabs()).toHaveLength(2);
     expect(tabNamed("All scripts")).toBeTruthy();
     expect(tabNamed("In this script").getAttribute("aria-selected")).toBe("true");
     expect(search("Search this script")).not.toBeNull();
   });
 
-  it.each([
-    ["compact", "full", {}],
-    ["compact", "icons", { railCompactWidth: 190 }],
-    ["desktop", "full", {}],
-    ["desktop", "full", { railWidth: 300 }],
-  ] as const)("has no tabs and shows All scripts at %s when the rail shows labels (default %s, %o)", async (next, railDefault, shell) => {
-    await at(next, railDefault, shell);
+  it.each(["compact", "desktop"] as const)("has no tabs and shows All scripts at %s while the rail shows labels", async (next) => {
+    await at(next, false);
     expect(host!.querySelector('[role="tablist"]')).toBeNull();
     expect(search("Search scripts")).not.toBeNull();
     expect(search("Search this script")).toBeNull();
