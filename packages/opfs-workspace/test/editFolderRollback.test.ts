@@ -505,3 +505,79 @@ it("does not deadlock when a rollback writes its Trash copy while another edit w
   expect(otherResult!.applied).toBe(true);
   expect(h.text("a.sd")).toBe("OTHER EDIT");
 });
+
+it("removes a file the edit wrote at a folder path that was missing when it began", async () => {
+  const h = await harness();
+  h.failAt();
+  const result = await h.edit([folder("create", "p"), folder("delete", "p"), create("p", "LEFTOVER"), create("fail/x.sd", "FAIL")]);
+  expect(result.applied).toBe(false);
+  expect(result.rollback.complete).toBe(true);
+  expect(h.entry("p")).toBeUndefined();
+});
+
+it("keeps the edit's locks until this tab's save that borrowed one has finished", async () => {
+  const h = await harness({ "a.sd": "ORIGINAL" });
+  const file = h.entry("a.sd") as MemoryFile;
+  const entered = deferred();
+  const release = deferred();
+  const access = file.createSyncAccessHandle.bind(file);
+  let accesses = 0;
+  file.createSyncAccessHandle = async () => {
+    accesses += 1;
+    if (accesses === 2) {
+      entered.resolve();
+      await release.promise;
+    }
+    return access();
+  };
+  let saved: Promise<unknown> | undefined;
+  const get = h.project.getDirectoryHandle.bind(h.project);
+  h.project.getDirectoryHandle = async (name, options = {}) => {
+    if (name === "gate" && options.create && !saved) {
+      saved = save(h, "a.sd", "SAME TAB");
+      await entered.promise;
+    }
+    return get(name, options);
+  };
+  const edit = h.edit([create("a.sd", "EDIT"), folder("create", "gate")]);
+  await entered.promise;
+  let foreignEntered = false;
+  const foreign = h.otherTab("a.sd", () => {
+    foreignEntered = true;
+    writeMemoryFile(h.root, "local/a.sd", enc.encode("OTHER TAB"));
+  });
+  await Promise.race([edit, delay(500)]);
+  await delay(30);
+  const enteredBeforeSaveFinished = foreignEntered;
+  release.resolve();
+  await Promise.all([edit, saved, foreign]);
+  expect(enteredBeforeSaveFinished).toBe(false);
+  expect(h.text("a.sd")).toBe("OTHER TAB");
+});
+
+it("takes a parent another tab removed while the edit was planning its locks as exclusive, and rolls back", async () => {
+  const h = await harness();
+  makeMemoryDirectory(h.root, "local/parent");
+  h.failAt();
+  const held = deferred();
+  const planned = deferred();
+  const request = h.locks.request.bind(h.locks);
+  const other = request(lockName("parent"), async () => {
+    held.resolve();
+    await planned.promise;
+    await h.project.removeEntry("parent");
+  });
+  await held.promise;
+  (navigator as any).locks = {
+    request: (name: string, options: any, callback?: any) => {
+      if (name === lockName("parent") && options?.mode === "shared") planned.resolve();
+      return request(name, options, callback);
+    },
+  };
+  const editing = h.edit([create("parent/new.sd", "EDIT"), create("fail/x.sd", "FAIL")]);
+  await other;
+  const result = await Promise.race([editing, delay(2000).then(() => "deadlock" as const)]);
+  expect(result).not.toBe("deadlock");
+  expect((result as { rollback: { complete: boolean } }).rollback.complete).toBe(true);
+  expect(h.entry("parent")).toBeUndefined();
+});

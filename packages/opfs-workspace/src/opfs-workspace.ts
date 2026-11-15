@@ -257,6 +257,8 @@ interface EditHold {
   locks: Map<string, boolean>;
   acquired: boolean;
   ready: Promise<void>;
+  borrowers: number;
+  idle: Set<() => void>;
 }
 
 const editHolds: EditHold[] = [];
@@ -337,9 +339,14 @@ const withCommitLock = async <T>(uri: string, task: () => Promise<T>) => {
         ? lockFrom(index + 1)
         : withSharedLock(name, () => lockFrom(index + 1));
     }
-    return hold?.locks.get(name)
-      ? withEditHeldLock(name, task)
-      : withLock(name, task);
+    if (!hold?.locks.get(name)) {
+      return withLock(name, task);
+    }
+    hold.borrowers += 1;
+    return withEditHeldLock(name, task).finally(() => {
+      hold.borrowers -= 1;
+      hold.idle.forEach((wake) => wake());
+    });
   };
   try {
     return await lockFrom(0);
@@ -359,6 +366,19 @@ const holdEditLocks = async <T>(
     ready: new Promise<void>((resolve) => {
       release = resolve;
     }),
+    borrowers: 0,
+    idle: new Set(),
+  };
+  const borrowersSettled = async () => {
+    while (hold.borrowers > 0) {
+      await new Promise<void>((resolve) => {
+        const wake = () => {
+          hold.idle.delete(wake);
+          resolve();
+        };
+        hold.idle.add(wake);
+      });
+    }
   };
   editHolds.push(hold);
   const names = [...locks.keys()].sort();
@@ -372,7 +392,7 @@ const holdEditLocks = async <T>(
       }
       hold.acquired = true;
       release();
-      return task();
+      return task().finally(borrowersSettled);
     };
     return await take(0);
   } finally {
@@ -1672,8 +1692,11 @@ class UndoLog {
     const overwrites: Restoring[] = [];
     let removals: Restoring[] = [];
     const replacedByFolder: PriorEntry[] = [];
-    for (const entry of entries.filter((e) => !e.directory && !e.folder)) {
+    for (const entry of entries.filter((e) => !e.directory)) {
       try {
+        if (entry.folder && !(await findFileHandle(entry.uri))) {
+          continue;
+        }
         await drainWrites(entry.uri);
         if (entry.bytes && (await isStoredDirectory(entry.uri))) {
           if (this.movedOn(entry)) {
@@ -1877,9 +1900,26 @@ const applyWorkspaceEdit = async (
       textDocument: { uri, version: State.files.get(uri)?.version ?? 0 },
       edits,
     }));
-  return holdEditLocks(await editLocks(changes), () =>
-    applyHeldWorkspaceEdit(changes, log, { expectedTexts, action, confirm }),
-  );
+  for (;;) {
+    const locks = await editLocks(changes);
+    const outcome = await holdEditLocks(locks, async () =>
+      (await sharedParentGone(locks))
+        ? undefined
+        : applyHeldWorkspaceEdit(changes, log, { expectedTexts, action, confirm }),
+    );
+    if (outcome) {
+      return outcome;
+    }
+  }
+};
+
+const sharedParentGone = async (locks: Map<string, boolean>) => {
+  for (const [name, exclusive] of locks) {
+    if (!exclusive && !(await isStoredDirectory(name.slice(commitLockName("").length)))) {
+      return true;
+    }
+  }
+  return false;
 };
 
 const touchedBy = (changes: WorkspaceEditChange[]) =>
