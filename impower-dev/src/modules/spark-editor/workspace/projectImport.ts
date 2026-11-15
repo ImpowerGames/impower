@@ -1,3 +1,4 @@
+import type { WorkspaceEditRollback } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import type {
   ImportFailureReason,
   ImportOutcome,
@@ -102,14 +103,20 @@ export const REFUSED_BEFORE_CHANGE: ReadonlySet<ImportFailureReason> = new Set([
 export class ProjectImportError extends Error {
   readonly reason: ImportFailureReason;
   readonly folders?: string[];
+  readonly rollback?: WorkspaceEditRollback;
 
   constructor(
-    failure: { reason: ImportFailureReason; folders?: string[] },
+    failure: {
+      reason: ImportFailureReason;
+      folders?: string[];
+      rollback?: WorkspaceEditRollback;
+    },
     options?: { cause?: unknown },
   ) {
     super(failure.reason, options);
     this.reason = failure.reason;
     this.folders = failure.folders;
+    this.rollback = failure.rollback;
   }
 }
 

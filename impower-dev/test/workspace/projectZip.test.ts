@@ -62,6 +62,7 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
     writeProjectMetadata: async () => {},
     foldersOutside: (WorkspaceFileSystem.prototype as any).foldersOutside,
     replaceFolders: (WorkspaceFileSystem.prototype as any).replaceFolders,
+    clearFoldersAt: (WorkspaceFileSystem.prototype as any).clearFoldersAt,
     isStored: (WorkspaceFileSystem.prototype as any).isStored,
     storedFiles: (WorkspaceFileSystem.prototype as any).storedFiles,
 
@@ -101,6 +102,20 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
         opfs.delete(uri);
         delete files[uri];
       }
+    },
+    applyWorkspaceEdit: async (edit: {
+      documentChanges: { kind: string; uri: string; data?: ArrayBuffer }[];
+    }) => {
+      const changes = edit.documentChanges;
+      await fs.deleteFiles({
+        files: changes.filter((c) => c.kind === "delete").map(({ uri }) => ({ uri })),
+      });
+      await fs.createFiles({
+        files: changes
+          .filter((c) => c.kind === "create" && !c.uri.endsWith("/.folders"))
+          .map(({ uri, data }) => ({ uri, data: data! })),
+      });
+      return { applied: true };
     },
   } as unknown as WorkspaceFileSystem;
 

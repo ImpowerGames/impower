@@ -722,7 +722,7 @@ export default class WorkspaceFileSystem {
     const incoming = new Set(
       fileUris.map((uri) => this.getRelativePath(projectId, uri)),
     );
-    await this.deleteFolders(
+    return this.deleteFolders(
       projectId,
       (await this.listFolders(projectId)).filter((p) => incoming.has(p)),
     );
@@ -792,13 +792,61 @@ export default class WorkspaceFileSystem {
     if (free !== null && needed > free) {
       throw new ProjectImportError({ reason: "no_room" });
     }
+    const foldersMarker = {
+      uri: this.getFileUri(projectId, ".folders"),
+      data: new TextEncoder().encode("1").buffer as ArrayBuffer,
+    };
+    let cleared: string[] = [];
+    let result: ApplyWorkspaceEditResult;
     try {
-      if (zipFilesToDelete.length > 0) {
-        await this.deleteFiles({ files: zipFilesToDelete });
-      }
+      cleared = await this.clearFoldersAt(
+        projectId,
+        zipFilesToWrite.map(({ uri }) => uri),
+      );
+      result = await this.applyWorkspaceEdit(
+        {
+          documentChanges: [
+            ...zipFilesToDelete.map(({ uri }) => ({
+              kind: "delete" as const,
+              uri,
+            })),
+            ...[...zipFilesToWrite, foldersMarker].map(({ uri, data }) => ({
+              kind: "create" as const,
+              uri,
+              data,
+              options: { overwrite: true },
+            })),
+          ],
+        },
+        "Import project",
+      );
+    } catch (cause) {
+      await this.createFolders(projectId, cleared).catch(console.error);
+      throw new ProjectImportError({ reason: "storage" }, { cause });
+    }
+    if (!result.applied) {
+      await this.createFolders(projectId, cleared).catch(console.error);
+      const relative = (uris: string[] | undefined) =>
+        (uris ?? []).map((uri) => this.getRelativePath(projectId, uri));
+      throw new ProjectImportError(
+        {
+          reason: "storage",
+          ...(result.rollback && {
+            rollback: {
+              complete: result.rollback.complete,
+              failed: relative(result.rollback.failed),
+              kept: relative(result.rollback.kept),
+              ...(result.rollback.trashed && {
+                trashed: relative(result.rollback.trashed),
+              }),
+            },
+          }),
+        },
+        { cause: new Error(result.failureReason) },
+      );
+    }
+    try {
       await this.replaceFolders(projectId, unzipped);
-      await this.createFiles({ files: zipFilesToWrite });
-      await this.writeProjectMetadata(projectId, "folders", "1");
     } catch (cause) {
       throw new ProjectImportError({ reason: "storage" }, { cause });
     }

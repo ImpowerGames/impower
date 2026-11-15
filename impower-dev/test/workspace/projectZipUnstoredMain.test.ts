@@ -86,6 +86,20 @@ const starterProject = (stored: Record<string, string | undefined> = {}) => {
         delete files[uri];
       }
     },
+    applyWorkspaceEdit: async (edit: {
+      documentChanges: { kind: string; uri: string; data?: ArrayBuffer }[];
+    }) => {
+      const changes = edit.documentChanges;
+      await fs.deleteFiles({
+        files: changes.filter((c) => c.kind === "delete").map(({ uri }) => ({ uri })),
+      });
+      await fs.createFiles({
+        files: changes
+          .filter((c) => c.kind === "create" && !c.uri.endsWith("/.folders"))
+          .map(({ uri, data }) => ({ uri, data: data! })),
+      });
+      return { applied: true };
+    },
   } as unknown as InstanceType<typeof WorkspaceFileSystem>;
   return { fs, onDisk };
 };
