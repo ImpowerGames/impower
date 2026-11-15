@@ -92,6 +92,20 @@ test("no tracked script file is ignored by the lint", async () => {
   assert.deepEqual(ignored, []);
 });
 
+test("no directive in the React trees names a rule the root config does not define", async () => {
+  const results = await new ESLint({ cwd: ROOT }).lintFiles([
+    "impower-dev/src/modules/spark-editor/components",
+    "packages/impower-ui/src/components/router",
+    "packages/sparkdown-document-views/src/modules/script-editor",
+  ]);
+  const undefinedRules = results.flatMap((result) =>
+    result.messages
+      .filter((m) => /^Definition for rule '.+' was not found/.test(m.message))
+      .map((m) => `${path.relative(ROOT, result.filePath)}:${m.line}: ${m.message}`),
+  );
+  assert.deepEqual(undefinedRules, []);
+});
+
 const ADAPTER_PROBE = "packages/spark-debug-adapter/src/probe.ts";
 
 const assertHostRefused = async (code, ruleId) => {
