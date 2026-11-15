@@ -338,27 +338,26 @@ export default class ScreenplayPrinter {
   printLine(span: PageLine) {
     let feed = this.getLineLeftMargin(span);
     const maxWidth = this.getLineMaxWidth(span);
-    for (const group of this.getAlignedGroups(span)) {
-      let content = group.content;
+    const hidden =
+      span.level != null && isHiddenIdentifier(span.tag, this._config);
+    let printedHeight = 0;
+    for (const [index, group] of this.getAlignedGroups(span).entries()) {
+      const content = hidden ? [] : group.content;
 
       const textOptions: TextOptions = {
         width: maxWidth,
         align: group.align,
       };
 
-      if (span.level != null) {
+      if (index === 0 && span.level != null) {
         let headingText = span.content?.map((c) => c.text).join("") || "";
         const levelIndent = span.tag
           ? (this._profile?.settings?.[span.tag]?.level_indent ?? 0)
           : 0;
         feed += span.level * levelIndent;
-        const invisible = isHiddenIdentifier(span.tag, this._config);
-        if (invisible) {
-          content = [];
-        }
         if (
           this._config?.screenplay_print_bookmarks &&
-          (!invisible ||
+          (!hidden ||
             this._config?.screenplay_print_bookmarks_for_invisible_headings)
         ) {
           if (this._doc.outline) {
@@ -375,7 +374,7 @@ export default class ScreenplayPrinter {
         this._state.outlineDepth = span.level;
       }
 
-      if (span.scene != null) {
+      if (index === 0 && span.scene != null) {
         if (this._config?.screenplay_print_bookmarks) {
           if (this._doc.outline) {
             this.getOutlineChild(
@@ -429,10 +428,10 @@ export default class ScreenplayPrinter {
           textOptions,
         );
         this._state.y += height;
-        return height;
+        printedHeight += height;
       }
     }
-    return 0;
+    return printedHeight;
   }
 
   getHeightOfLines(lines: PageLine[]) {
