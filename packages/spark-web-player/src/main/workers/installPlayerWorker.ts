@@ -911,7 +911,10 @@ export function installPlayerWorker(connection: MessageConnection) {
         return startPointInScene(program, { file: point.file, line: first[1] }, beat);
       }
     }
-    return lineAbove(point.line - 1, -1, []) ?? { point, beat };
+    const scene = (program.sceneSpans?.[point.file] ?? []).find(
+      ([header, last]) => header <= point.line && point.line <= last,
+    );
+    return lineAbove(point.line - 1, scene ? scene[0] - 1 : -1, []) ?? { point, beat };
   };
 
   const stopPlay = (params: StopPlayParams): StopPlayResult => {

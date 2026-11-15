@@ -132,6 +132,24 @@ const entryIndex = (arrays: SequenceArrays): Map<number, number> => {
   return index;
 };
 
+const lineOrders = new WeakMap<SequenceArrays, readonly number[] | null>();
+
+const lineOrder = (arrays: SequenceArrays): readonly number[] | null => {
+  let order = lineOrders.get(arrays);
+  if (order === undefined) {
+    const starts = arrays.lineStarts;
+    let sorted = true;
+    for (let entry = 1; sorted && entry < starts.length; entry += 1) {
+      sorted = starts[entry - 1]! <= starts[entry]!;
+    }
+    order = sorted
+      ? null
+      : starts.map((_, entry) => entry).sort((a, b) => starts[a]! - starts[b]! || a - b);
+    lineOrders.set(arrays, order);
+  }
+  return order;
+};
+
 export const holdsChunk = (
   arrays: SequenceArrays,
   chunk: ProgramChunk,
@@ -517,21 +535,23 @@ export class ProgramRoot {
     if (starts.length === 0) {
       return undefined;
     }
+    const order = lineOrder(sequence.arrays);
+    const entryOf = (rank: number) => (order ? order[rank]! : rank);
     const relative = line - this.firstLineOf(sequence);
-    if (starts[0]! > relative) {
-      return { sequence, entry: 0 };
+    if (starts[entryOf(0)]! > relative) {
+      return { sequence, entry: entryOf(0) };
     }
     let lo = 0;
     let hi = starts.length - 1;
     while (lo < hi) {
       const mid = (lo + hi + 1) >>> 1;
-      if (starts[mid]! <= relative) {
+      if (starts[entryOf(mid)]! <= relative) {
         lo = mid;
       } else {
         hi = mid - 1;
       }
     }
-    return { sequence, entry: lo };
+    return { sequence, entry: entryOf(lo) };
   }
 
   lineOf(sequence: SequenceRow, entry: number): number {
