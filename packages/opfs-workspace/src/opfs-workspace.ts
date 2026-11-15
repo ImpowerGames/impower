@@ -1900,7 +1900,7 @@ const applyWorkspaceEdit = async (
       textDocument: { uri, version: State.files.get(uri)?.version ?? 0 },
       edits,
     }));
-  for (;;) {
+  for (let attempt = 1; attempt <= EDIT_LOCK_ATTEMPTS; attempt += 1) {
     const locks = await editLocks(changes);
     const outcome = await holdEditLocks(locks, async () =>
       (await sharedParentGone(locks))
@@ -1911,7 +1911,17 @@ const applyWorkspaceEdit = async (
       return outcome;
     }
   }
+  return {
+    effects: noEffects(),
+    failure: {
+      change: 0,
+      reason: "folders the edit needs kept being removed while it was preparing, so nothing was changed",
+      rollback: { complete: true, failed: [], kept: [] },
+    },
+  };
 };
+
+const EDIT_LOCK_ATTEMPTS = 3;
 
 const sharedParentGone = async (locks: Map<string, boolean>) => {
   for (const [name, exclusive] of locks) {

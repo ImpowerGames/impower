@@ -581,3 +581,36 @@ it("takes a parent another tab removed while the edit was planning its locks as 
   expect((result as { rollback: { complete: boolean } }).rollback.complete).toBe(true);
   expect(h.entry("parent")).toBeUndefined();
 });
+
+it("stops replanning after a few attempts when another tab keeps removing a parent, and changes nothing", async () => {
+  const h = await harness({ "main.sd": "ORIGINAL" });
+  makeMemoryDirectory(h.root, "local/parent");
+  const request = h.locks.request.bind(h.locks);
+  let sharedHolds = 0;
+  (navigator as any).locks = {
+    request: (name: string, options: any, callback?: any) => {
+      if (name === lockName("parent") && options?.mode === "shared") {
+        sharedHolds += 1;
+        return request(name, options, async () => {
+          await h.project.removeEntry("parent");
+          try {
+            return await callback();
+          } finally {
+            makeMemoryDirectory(h.root, "local/parent");
+          }
+        });
+      }
+      return request(name, options, callback);
+    },
+  };
+  const result = await Promise.race([
+    h.edit([create("main.sd", "EDITED"), create("parent/new.sd", "NEW")]),
+    delay(3000).then(() => "spinning" as const),
+  ]);
+  expect(result).not.toBe("spinning");
+  expect((result as { applied: boolean }).applied).toBe(false);
+  expect((result as { rollback: { complete: boolean } }).rollback.complete).toBe(true);
+  expect(sharedHolds).toBe(3);
+  expect(h.text("main.sd")).toBe("ORIGINAL");
+  expect(h.entry("parent/new.sd")).toBeUndefined();
+});
