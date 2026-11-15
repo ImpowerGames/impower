@@ -10,7 +10,7 @@ import RowMenu from "../../src/modules/spark-editor/components/scripts-page/RowM
 
 const SRC = resolve("../packages/impower-ui/src");
 
-const row = (id: string, name: string, severity?: "error" | "warning") =>
+const row = (id: string, name: string, severity?: "error" | "warning" | "note") =>
   renderToString(
     h(
       "div",
@@ -42,6 +42,7 @@ const markup =
   row("plain", "main.sd") +
   row("warning", "chapter_1.sd", "warning") +
   row("error", "chapter_2.sd", "error") +
+  row("note", "epilogue.sd", "note") +
   row("long", LONG, "warning");
 
 const VIEWPORTS = [
@@ -115,9 +116,11 @@ const measure = async (
         plain: read("plain"),
         warning: read("warning"),
         error: read("error"),
+        note: read("note"),
         long: read("long"),
         warningColor: probe("var(--warning)"),
         errorColor: probe("var(--error)"),
+        noteColor: probe("var(--muted)"),
       };
     });
   } finally {
@@ -131,7 +134,7 @@ describe("Scripts row problem badge, in Chromium", () => {
       it(`sits before the menu as a 44px target with a 14px mark at ${viewport.width} in ${theme}, moving nothing`, async () => {
         const m = await measure(viewport, theme);
         expect(m.plain.row.width).toBe(viewport.width);
-        for (const kind of ["warning", "error", "long"] as const) {
+        for (const kind of ["warning", "error", "note", "long"] as const) {
           const r = m[kind];
           expect(r.badge, kind).not.toBeNull();
           expect(r.row.height).toBe(m.plain.row.height);
@@ -151,6 +154,7 @@ describe("Scripts row problem badge, in Chromium", () => {
         expect(m.plain.badge).toBeNull();
         expect(m.warning.markColor).toBe(m.warningColor);
         expect(m.error.markColor).toBe(m.errorColor);
+        expect(m.note.markColor).toBe(m.noteColor);
         expect(m.long.labelScroll).toBeGreaterThan(m.long.label.width);
       }, 60_000);
     }

@@ -1,7 +1,12 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { cn } from "../../utils/cn";
-import { CheckIcon, ErrorIcon, WarningIcon } from "../icon/icons.generated";
+import {
+  CheckIcon,
+  ErrorIcon,
+  InfoIcon,
+  WarningIcon,
+} from "../icon/icons.generated";
 
 export const listRowVariants = cva(
   [
@@ -420,7 +425,7 @@ export const listRowBadgeVariants = cva(
 
 export type ListRowBadgeVariantProps = VariantProps<typeof listRowBadgeVariants>;
 
-export type ListRowBadgeSeverity = "error" | "warning";
+export type ListRowBadgeSeverity = "error" | "warning" | "note";
 
 export type ListRowBadgeProps = {
   label: string;
@@ -458,8 +463,10 @@ export function ListRowBadge({
     >
       {severity === "error" ? (
         <ErrorIcon class="text-error" />
-      ) : (
+      ) : severity === "warning" ? (
         <WarningIcon class="text-warning" />
+      ) : (
+        <InfoIcon class="text-muted" />
       )}
     </button>
   );

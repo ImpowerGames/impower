@@ -151,7 +151,9 @@ const badge = (button: HTMLElement) => {
     ? "error"
     : lead.querySelector('svg[class*="text-warning"]')
       ? "warning"
-      : "none";
+      : lead.querySelector('svg[class*="text-muted"]')
+        ? "note"
+        : "none";
 };
 
 beforeEach(() => {
@@ -446,11 +448,12 @@ describe("an Outline badge", () => {
     dialogHost.remove();
   });
 
-  it("opens Script setup's problems from its row, notes included", async () => {
+  it("badges Script setup for a note alone and opens its problems from its row", async () => {
     const note: Diagnostic = { ...problem(0, 1), severity: 3, message: "To do: tidy" };
     const dialogHost = await mountWithDialog([note], `VAR = 1\n${SCRIPT}`);
     const setup = row("Script setup");
-    expect(badgeOf(setup)).toBeNull();
+    expect(badgeOf(setup)?.getAttribute("aria-label")).toBe("1 note in Script setup");
+    expect(badge(setup)).toBe("note");
     expect(setup.getAttribute("aria-haspopup")).toBe("dialog");
     await act(async () => setup.click());
     expect(context()).toBe("Script setup · 1 note");

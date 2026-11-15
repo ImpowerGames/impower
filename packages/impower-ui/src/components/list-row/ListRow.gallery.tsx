@@ -107,14 +107,14 @@ function ListRowDemo() {
           <ListRow size="compact" tone="muted" icon={<SceneIcon />} label="meet_downtown" onClick={() => {}} />
         </div>
       </GalleryRow>
-      <GalleryRow label="A trailing badge before the row's menu (the Scripts page's problem badge): a 44px target with a 14px mark, an error and a warning, beside a row without one; the label and the menu keep their places">
+      <GalleryRow label="A trailing badge before the row's menu (the Scripts page's problem badge): a 44px target with a 14px mark, an error, a warning and a note, beside a row without one; the label and the menu keep their places">
         <div class="w-[360px] space-y-1">
-          {(["error", "warning"] as const).map((severity) => (
+          {(["error", "warning", "note"] as const).map((severity) => (
             <ListRow
               key={severity}
               size="library"
               icon={<FileIcon />}
-              label={severity === "error" ? "chapter_2.sd" : "chapter_1_with_a_long_name_that_truncates.sd"}
+              label={severity === "error" ? "chapter_2.sd" : severity === "note" ? "epilogue.sd" : "chapter_1_with_a_long_name_that_truncates.sd"}
               description="Modified just now · 48 B"
               actions={
                 <>

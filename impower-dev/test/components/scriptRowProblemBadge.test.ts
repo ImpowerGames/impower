@@ -99,13 +99,12 @@ afterEach(async () => {
 });
 
 describe("a script's problem badge on the Scripts page", () => {
-  it("marks a script with only warnings with a warning and leaves clean scripts, notes and folders unmarked", async () => {
+  it("marks a script with only warnings with a warning and leaves clean scripts and folders unmarked", async () => {
     await mount();
     const badge = badgeOf("Scripts/intro.sd");
     expect(badge?.getAttribute("data-severity")).toBe("warning");
     expect(badge?.getAttribute("aria-label")).toBe("2 warnings in intro.sd");
     expect(badgeOf("Scripts/outro.sd")).toBeNull();
-    expect(badgeOf("Scripts/noted.sd")).toBeNull();
     expect(badgeOf("main.sd")).toBeNull();
     expect(badgeOf("Scripts/Drafts")).toBeNull();
     expect(rowOf("Scripts/Drafts")).not.toBeNull();
@@ -124,6 +123,15 @@ describe("a script's problem badge on the Scripts page", () => {
     const badge = badgeOf("Scripts/Drafts/old.sd");
     expect(badge?.getAttribute("data-severity")).toBe("error");
     expect(badge?.getAttribute("aria-label")).toBe("1 error, 1 warning in old.sd");
+  });
+
+  it("marks a script whose only problems are notes with a note", async () => {
+    await mount();
+    const badge = badgeOf("Scripts/noted.sd");
+    expect(badge?.getAttribute("data-severity")).toBe("note");
+    expect(badge?.getAttribute("aria-label")).toBe("1 note in noted.sd");
+    await publish({ ...problems.diagnostics.value, "file://local/Scripts/noted.sd": [{ ...note(), severity: 4 }] });
+    expect(badgeOf("Scripts/noted.sd")?.getAttribute("data-severity")).toBe("note");
   });
 
   it("marks the pinned entry row by its shown name", async () => {

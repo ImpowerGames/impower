@@ -64,10 +64,11 @@ const PREFIX: Record<OutlineKind, string> = {
 const plural = (count: number, word: string) =>
   `${count} ${word}${count === 1 ? "" : "s"}`;
 
-export const problemSummary = ({ errors, warnings }: ProblemCounts) =>
+export const problemSummary = ({ errors, warnings, notes }: ProblemCounts) =>
   [
     errors ? plural(errors, "error") : "",
     warnings ? plural(warnings, "warning") : "",
+    notes ? plural(notes, "note") : "",
   ]
     .filter(Boolean)
     .join(", ");
