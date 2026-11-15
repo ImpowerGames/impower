@@ -16,6 +16,7 @@ export type UploadReason =
   | { kind: "project_changed" }
   | { kind: "failed"; message: string }
   | { kind: "replace_failed"; cause: "storage" | "failed"; message?: string }
+  | { kind: "replace_refused" }
   | { kind: "replacing" }
   | { kind: "zip"; reason: ImportFailureReason; folders?: string[] };
 
@@ -154,6 +155,8 @@ const REASON_SENTENCES: {
   failed: ({ message }) => `Not added: it could not be saved (${message}).`,
   replace_failed: ({ cause, message }) =>
     `Not added: ${cause === "storage" ? "this browser ran out of room for it" : `it could not be saved (${message})`}. ${REPLACED_NOTE}`,
+  replace_refused: () =>
+    "Not added: the file already there could not be moved to the recycle bin, so it was kept as it was.",
   replacing: () => "Not added: the project was being replaced, so add it again once that has finished.",
   zip: ({ reason, folders }, name) =>
     importOutcomeSentence({ status: "failed", fileName: name, reason, folders }) ?? "Not added.",

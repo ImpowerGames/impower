@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type Resolved = { survivors: { uri: string; payload: unknown }[]; trashedOldUris: string[]; since: number };
+type Resolved = { survivors: { uri: string; payload: unknown }[]; trashedOldUris: string[]; since: number; refused: unknown[] };
 
 const mocks = vi.hoisted(() => ({
   disk: new Map<string, ArrayBuffer>(),
@@ -24,6 +24,7 @@ vi.mock("../../src/modules/spark-editor/utils/uploadConflicts", () => ({
         survivors: items.map((it) => ({ uri: `file://${projectId}/${it.rel}`, payload: it.payload })),
         trashedOldUris: [],
         since: 0,
+        refused: [],
       },
     ),
 }));
@@ -142,9 +143,22 @@ describe("importFiles outcomes per file", () => {
       survivors: items.slice(1).map((it) => ({ uri: `file://p/${it.rel}`, payload: it.payload })),
       trashedOldUris: [],
       since: 0,
+      refused: [],
     });
     await importFiles("p", [dropped("Assets/Images/hero.png"), dropped("Assets/Images/ada.png")]);
     expect(rows()).toEqual(["hero.png: skipped", "ada.png: added Assets/Images/ada.png"]);
+    expect(writtenUris()).toEqual(["file://p/Assets/Images/ada.png"]);
+  });
+
+  it("lists a file whose replace storage refused as not added, keeping the earlier file, and writes nothing for it", async () => {
+    mocks.resolve = (items) => ({
+      survivors: items.slice(1).map((it) => ({ uri: `file://p/${it.rel}`, payload: it.payload })),
+      trashedOldUris: [],
+      since: 0,
+      refused: items.slice(0, 1).map((it) => it.payload),
+    });
+    await importFiles("p", [dropped("Assets/Images/hero.png"), dropped("Assets/Images/ada.png")]);
+    expect(rows()).toEqual(["hero.png: replace_refused", "ada.png: added Assets/Images/ada.png"]);
     expect(writtenUris()).toEqual(["file://p/Assets/Images/ada.png"]);
   });
 
@@ -153,6 +167,7 @@ describe("importFiles outcomes per file", () => {
       survivors: items.map((it) => ({ uri: `file://p/${it.rel}`, payload: it.payload })),
       trashedOldUris: ["file://p/Assets/Images/hero.png"],
       since: 5,
+      refused: [],
     });
     mocks.createFiles.mockImplementation(async ({ files }) => {
       if (files.some((file) => file.uri.endsWith("hero.png"))) {
@@ -249,7 +264,7 @@ describe("importFiles outcomes per file", () => {
     await expect(importFiles("p", [dropped("Assets/Audio/a.wav")])).rejects.toThrow("the conflict check failed");
     expect(workspace.uploadBatches.value).toBe(0);
     expect(rows()).toEqual(["a.wav: failed"]);
-    mocks.resolve = () => ({ survivors: [], trashedOldUris: [], since: 0 });
+    mocks.resolve = () => ({ survivors: [], trashedOldUris: [], since: 0, refused: [] });
     await importFiles("p", [dropped("Assets/Audio/b.wav")]);
     expect(workspace.uploadBatches.value).toBe(0);
     expect(rows()).toEqual(["b.wav: skipped"]);

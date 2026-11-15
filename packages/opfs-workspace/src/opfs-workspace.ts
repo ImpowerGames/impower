@@ -22,7 +22,10 @@ import { ReadDirectoryFilesMessage } from "@impower/spark-editor-protocol/src/pr
 import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage";
 import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage";
 import { WillCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage";
-import { WillDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
+import {
+  WillDeleteFilesMessage,
+  type WillDeleteFilesRefusal,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
 import { WillRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage";
 import {
   TrashFilesMessage,
@@ -999,9 +1002,11 @@ onmessage = async (e) => {
     try {
       const { files, mode, folders } = message.params;
       let deleted: DeleteResult[];
+      let skipped: string[] = [];
+      let batchId: string | undefined;
       let failure: PromiseRejectedResult | undefined;
       if (mode === "trash") {
-        deleted = await moveFilesToTrash(files, folders);
+        ({ deleted, skipped, batchId } = await moveFilesToTrash(files, folders));
       } else {
         const outcomes = await Promise.allSettled(files.map(file => deleteFiles([file])));
         deleted = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
@@ -1013,7 +1018,21 @@ onmessage = async (e) => {
       broadcastWatchedChanges(log, deleted.map(d => ({ uri: d.uri, type: FileChangeType.Deleted })));
       await announceUnordered(log);
       if (failure) throw failure.reason;
-      respond(WillDeleteFilesMessage.type.response(message.id, deleted.flatMap((d) => d.file ? [d.file] : [])));
+      const deletedFiles = deleted.flatMap((d) => d.file ? [d.file] : []);
+      if (skipped.length > 0) {
+        const refusal: WillDeleteFilesRefusal = batchId
+          ? { files: deletedFiles, skipped, batchId }
+          : { files: deletedFiles, skipped };
+        respond(
+          WillDeleteFilesMessage.type.error(message.id, {
+            code: ErrorCodes.InternalError,
+            message: `Cannot move ${skipped.join(", ")} to the bin`,
+            data: refusal,
+          }),
+        );
+      } else {
+        respond(WillDeleteFilesMessage.type.response(message.id, deletedFiles));
+      }
     } catch (err: any) {
       console.error(err, err.stack);
       const response = WillDeleteFilesMessage.type.error(message.id, {
@@ -2295,14 +2314,28 @@ const createFiles = async (files: (FileCreate & { data?: ArrayBuffer })[]) => {
   return result;
 };
 
+const removeTrashCopy = async (trashUri: string) => {
+  for (let attempt = 1; attempt <= MOVE_ATTEMPTS; attempt += 1) {
+    try {
+      await removeFile(trashUri);
+      return true;
+    } catch (e) {
+      if (isMissingEntry(e)) return true;
+      console.error(`moveFilesToTrash: cannot remove ${trashUri}`, e);
+    }
+  }
+  return false;
+};
+
 const moveFilesToTrash = async (
   files: { uri: string }[],
   folders: { uri: string }[] = [],
-) => {
+): Promise<{ deleted: DeleteResult[]; skipped: string[]; batchId?: string }> => {
   const deleted: DeleteResult[] = [];
+  const skipped: string[] = [];
   const first = files[0] ?? folders[0];
   if (!first) {
-    return deleted;
+    return { deleted, skipped };
   }
   const seen = new Set<string>();
   const uniqueFiles = files.filter((f) =>
@@ -2315,29 +2348,49 @@ const moveFilesToTrash = async (
     ),
   ].filter(Boolean);
   if (uniqueFiles.length === 0 && folderPaths.length === 0) {
-    return deleted;
+    return { deleted, skipped };
   }
   const deletedAt = Date.now();
   const batchId = `${deletedAt}__${crypto.randomUUID()}`;
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   const entries: { relPath: string; originalUri: string; type: string }[] = [];
+  const leftovers: string[] = [];
   for (const file of uniqueFiles) {
+    const relPath = getPathFromUri(file.uri).slice(projectId.length + 1);
+    const trashUri = getUriFromPath(`${trashPrefix}/${relPath}`);
+    const type = State.files.get(file.uri)?.type ?? getFileType(file.uri);
+    let copied = false;
     try {
-      const relPath = getPathFromUri(file.uri).slice(projectId.length + 1);
-      const existing = State.files.get(file.uri);
-      const type = existing?.type ?? getFileType(file.uri);
-      const trashUri = getUriFromPath(`${trashPrefix}/${relPath}`);
-      deleted.push(await copyThenRemove(file.uri, trashUri));
+      deleted.push(
+        await copyThenRemove(file.uri, trashUri, () => {
+          copied = true;
+        }),
+      );
       entries.push({ relPath, originalUri: file.uri, type });
     } catch (e) {
       console.error(`moveFilesToTrash: skipping ${file.uri}`, e);
+      if (await findFileHandle(file.uri).then(Boolean, () => true)) {
+        skipped.push(file.uri);
+      }
+      const leftover =
+        copied || (await findFileHandle(trashUri).then(Boolean, () => true));
+      if (leftover && !(await removeTrashCopy(trashUri))) {
+        leftovers.push(relPath);
+      }
     }
   }
-  const manifest = JSON.stringify(
-    folderPaths.length
-      ? { deletedAt, entries, folders: folderPaths }
-      : { deletedAt, entries },
-  );
+  if (entries.length === 0 && (skipped.length > 0 || folderPaths.length === 0)) {
+    await removeTrashBatch(projectId, batchId);
+    if (!(await trashBatchExists(projectId, batchId))) {
+      return { deleted, skipped };
+    }
+  }
+  const manifest = JSON.stringify({
+    deletedAt,
+    entries,
+    ...(folderPaths.length && skipped.length === 0 ? { folders: folderPaths } : {}),
+    ...(leftovers.length ? { leftovers } : {}),
+  });
   const manifestUri = getUriFromPath(`${trashPrefix}/${TRASH_MANIFEST}`);
   await createFiles([
     {
@@ -2345,7 +2398,7 @@ const moveFilesToTrash = async (
       data: new TextEncoder().encode(manifest).buffer as ArrayBuffer,
     },
   ]);
-  return deleted;
+  return { deleted, skipped, batchId };
 };
 
 const getTrashDirHandle = async (projectId: string) =>
@@ -2353,6 +2406,16 @@ const getTrashDirHandle = async (projectId: string) =>
     await navigator.storage.getDirectory(),
     `${projectId}/${TRASH_DIR}`,
   );
+
+const trashBatchExists = async (projectId: string, batchId: string) => {
+  const trash = await getTrashDirHandle(projectId);
+  return trash
+    ? trash.getDirectoryHandle(batchId).then(
+        () => true,
+        (err) => !isMissingEntry(err),
+      )
+    : false;
+};
 
 const evictTrashCache = (uriPrefix: string) => {
   for (const uri of [...State.files.keys()]) {
@@ -2377,6 +2440,9 @@ const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
       const dir = handle as FileSystemDirectoryHandle;
       const file = await (await dir.getFileHandle(TRASH_MANIFEST)).getFile();
       const m = JSON.parse(await file.text()) as Omit<TrashBatch, "batchId">;
+      if (m.entries.length === 0 && !m.folders?.length && !m.reason) {
+        continue;
+      }
       batches.push({
         batchId: handle.name,
         deletedAt: m.deletedAt,
