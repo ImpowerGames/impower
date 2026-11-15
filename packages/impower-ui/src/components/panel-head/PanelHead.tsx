@@ -54,7 +54,7 @@ export default function PanelHead({
       {start}
       <div class="mx-1 flex min-w-0 flex-1 flex-col gap-px">
         {typeof title === "string" ? <h2 class={panelHeadTitleVariants({ titleSize })}>{title}</h2> : title}
-        {subtitle ? <small class="[--fade:20px] fade-edge text-[11px]/[1.4] text-muted">{subtitle}</small> : null}
+        {subtitle ? <small class="[--fade:20px] fade-edge text-[11px]/[1.6] text-muted">{subtitle}</small> : null}
       </div>
       {end}
     </header>

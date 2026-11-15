@@ -2,7 +2,6 @@ import {
   Button,
   CheckIcon,
   RedoIcon,
-  SearchIcon,
   SparkLogo,
   UndoIcon,
 } from "@impower/impower-ui/components";
@@ -17,17 +16,14 @@ import {
 import { routeOfState } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";
 import { SyncButton, SyncStatusLine } from "../drive-sync";
-import { openFind } from "../find-references-rename";
 import { FoldedScriptHeader } from "../script-header";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import AppMenu from "./AppMenu";
 import { finishNaming, useNaming } from "./naming";
 import ProjectNameField from "./ProjectNameField";
 import StoryProblemCount from "./StoryProblemCount";
+import TitleBarSearch from "./TitleBarSearch";
 import { withWindow } from "./workspaceWindow";
-
-const searchStory = () =>
-  void withWindow((win) => win.navigateTo("write")).then(openFind);
 
 export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
   const namingField = useNaming();
@@ -91,16 +87,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
           class={cn("flex flex-none items-center", !writing && "gap-[7px]")}
         >
           {!editing && <SyncButton />}
-          <Button
-            variant="quiet"
-            size="icon"
-            aria-label="Search"
-            title="Search"
-            class="text-muted"
-            onClick={writing ? openFind : searchStory}
-          >
-            <SearchIcon />
-          </Button>
+          <TitleBarSearch />
           {editing && (
             <div role="group" aria-label="Edit history" class="mr-1 flex">
               <Button

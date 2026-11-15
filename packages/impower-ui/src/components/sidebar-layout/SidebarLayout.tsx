@@ -177,7 +177,9 @@ export default function SidebarLayout({
         sidebarHidden ? undefined : collapsed ? "collapsed" : "expanded"
       }
     >
-      <div class="col-span-2 row-start-1 min-w-0">{header}</div>
+      <div class="col-span-2 row-start-1 min-w-0">
+        <SidebarCollapsedContext.Provider value={!sidebarHidden && collapsed}>{header}</SidebarCollapsedContext.Provider>
+      </div>
       <div
         hidden={sidebarHidden}
         class="col-start-1 row-start-2 min-h-0 min-w-0 overflow-hidden"

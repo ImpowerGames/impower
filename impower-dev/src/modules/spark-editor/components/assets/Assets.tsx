@@ -723,6 +723,7 @@ function AssetsBrowser() {
           <AssetRowMenu
             name={row.name}
             glyph="sm"
+            tone="ink"
             kept={row.folderStack ? folderStackReason(row.name) : undefined}
             onAction={(action) => onAction(row, action)}
           />
