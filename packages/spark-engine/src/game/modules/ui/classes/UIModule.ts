@@ -1772,7 +1772,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  getMorphContent(assets: string[], pick?: string): MorphImageContent | undefined {
+  getMorphContent(assets: string[], pickOf: (asset: string) => string | undefined): MorphImageContent | undefined {
     const channel = this._game.program?.morphs;
     if (!channel || !this.context) {
       return undefined;
@@ -1795,7 +1795,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const owner = getImageOwner(this.context, imageName);
       for (const [offset, layer] of resolved.entries()) {
         const index = first + offset;
-        const refs = morphRefsForStruct(this.context, channel, layer.struct, pick);
+        const refs = morphRefsForStruct(this.context, channel, layer.struct, pickOf(asset));
         const layerOwner = owner ?? getImageOwner(this.context, layer.struct?.$name);
         if (refs.length > 1) {
           this.reportMorphConflict(layer.struct?.$name ?? asset, refs);
@@ -1825,8 +1825,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     const content: MorphImageContent = { plays, epoch: this._morphEpoch };
-    const still = assets.map((asset) => this.getBackgroundImageFromString(asset, this.morphStartPose, pick)).reverse().join(", ");
-    if (still !== assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pick)).reverse().join(", ")) {
+    const still = assets.map((asset) => this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset))).reverse().join(", ");
+    if (still !== assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset))).reverse().join(", ")) {
       content.still = still;
     }
     return content;
@@ -4982,17 +4982,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const imageAssets = e.assets.filter(
               (a) => !$.getVideoSrcByName(a),
             );
+            const morphs = e.morph;
+            const pickOf = (a: string) =>
+              Array.isArray(morphs)
+                ? (morphs[e.assets!.indexOf(a)] ?? undefined)
+                : morphs;
             const background =
               imageAssets.length > 0
                 ? imageAssets
-                    .map((a) => $.getBackgroundImageFromString(a, undefined, e.morph))
+                    .map((a) => $.getBackgroundImageFromString(a, undefined, pickOf(a)))
                     .reverse()
                     .join(", ")
                 : "none";
             const srcsOf = (a: string) =>
-              e.morph === undefined
+              pickOf(a) === undefined
                 ? $.getImageSrcsFromValue(a)
-                : $.getImageAssets("", a, undefined, e.morph).map((asset) => asset.src);
+                : $.getImageAssets("", a, undefined, pickOf(a)).map((asset) => asset.src);
             const src = imageAssets.flatMap((a) => srcsOf(a))[0];
             const srcs = [
               ...new Set([
@@ -5020,7 +5025,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 ...($.showsMovieStill() ? { preview: true } : {}),
               };
             }
-            const morph = $.getMorphContent(imageAssets, e.morph);
+            const morph = $.getMorphContent(imageAssets, pickOf);
             if (morph) {
               content.morph = morph;
             }
@@ -5193,18 +5198,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         speaker?: string,
       ) {
         const sequence = events.map((event) => {
-          const morph =
-            event.assets && $.context
-              ? linePick(
-                  $.context,
-                  event.assets
-                    .filter((asset) => !(asset.at(0) === '"' && asset.at(-1) === '"'))
-                    .map(sortFilteredName),
-                  event.morph,
-                  speaker,
-                )
-              : event.morph;
-          return morph === event.morph ? event : { ...event, morph };
+          const context = $.context;
+          const written = event.morph;
+          if (!event.assets?.length || !context || Array.isArray(written)) {
+            return event;
+          }
+          const picks = event.assets.map((asset) =>
+            asset.at(0) === '"' && asset.at(-1) === '"'
+              ? written
+              : linePick(context, [sortFilteredName(asset)], written, speaker),
+          );
+          const morph = picks.every((pick) => pick === picks[0])
+            ? picks[0]
+            : picks.map((pick) => pick ?? null);
+          return morph === written ? event : { ...event, morph };
         });
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {

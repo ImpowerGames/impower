@@ -13,6 +13,8 @@ const ART = {
   ),
 } as any;
 
+const ARTS = [ART, { ...ART, uri: "inmemory:///bob.svg", name: "bob" }, { ...ART, uri: "inmemory:///statue.svg", name: "statue" }];
+
 const speech = (name: string, peak: string, extra = "", head = `morph ${name} {`) => `${head}
   blend = cut
 ${extra}  keyframes {
@@ -61,7 +63,7 @@ end
 `;
 
 async function written(source: string) {
-  const harness = createHarness(source, 0, { assets: [ART] });
+  const harness = createHarness(source, 0, { assets: ARTS });
   await harness.ready;
   await harness.preview(source.split("\n").findIndex((text) => text.includes("[[show portrait")));
   return harness.messages
@@ -84,6 +86,7 @@ describe("a speech morph acts only on its character's lines (I-2390)", () => {
     ["a directive line above another character's cue", "  [[show portrait mia:mouth.teeth]]\n  BOB:\n    Here is Mia."],
     ["a directive line above another character's cue, after a blank line", "  [[show portrait mia:mouth.teeth]]\n\n  BOB:\n    Here is Mia."],
     ["a directive line with no display line after it", "  [[show portrait mia:mouth.teeth]]"],
+    ["an inline cue holding only the directive, above narration", "  MIA: [[show portrait mia:mouth.teeth]]\n  Here is Mia."],
   ])("on %s the portrait carries no speech morph and shows the directive's mouth", async (_, body) => {
     const content = await written(scene(body));
     expect(played(content)).toEqual(["blink"]);
@@ -106,6 +109,7 @@ describe("a speech morph acts only on its character's lines (I-2390)", () => {
     ["an inline line", "  MIA: [[show portrait mia:mouth.teeth]] Here is Mia."],
     ["a directive line right above the cue", "  [[show portrait mia:mouth.teeth]]\n  MIA:\n    Here is Mia."],
     ["a directive line above the cue, after a blank line", "  [[show portrait mia:mouth.teeth]]\n\n  MIA:\n    Here is Mia."],
+    ["a directive line with a comment, right above the cue", "  [[show portrait mia:mouth.teeth]] // Mia looks up\n  MIA:\n    Here is Mia."],
   ])("under a cue naming the character by %s the speech morph plays and rests the mouth", async (_, body) => {
     const content = await written(scene(body));
     expect(played(content)).toEqual(["blink", "talk"]);
@@ -114,11 +118,30 @@ describe("a speech morph acts only on its character's lines (I-2390)", () => {
 
   test("the portrait's saved state keeps the look its line gave it, for a restore on a later beat", async () => {
     const source = scene("  [[show portrait mia morph talk_gritted]]\n  Here is Mia.");
-    const harness = createHarness(source, 0, { assets: [ART] });
+    const harness = createHarness(source, 0, { assets: ARTS });
     await harness.ready;
     await harness.preview(source.split("\n").findIndex((text) => text.includes("[[show portrait")));
     const saved = (harness.game as any).module.ui._state.image?.portrait;
     expect(saved?.map((event: any) => event.morph)).toEqual(["none"]);
+  });
+
+  test("in a composition each portrait follows its own character, and an image that belongs to no character keeps its pick", async () => {
+    const plays = async (body: string) => {
+      const content = await written(scene(body));
+      const by = (owner: string | undefined) =>
+        (content.morph?.plays ?? []).filter((play: any) => play.owner === owner).map((play: any) => play.morph);
+      return { mia: by("mia"), bob: by("bob"), statue: by(undefined) };
+    };
+    expect(await plays("  MIA:\n    [[show portrait mia:mouth.teeth + bob:mouth.teeth]]\n    Here is Mia.")).toEqual({
+      mia: ["blink", "talk"],
+      bob: ["blink"],
+      statue: [],
+    });
+    expect(await plays("  [[show portrait statue + mia:mouth.teeth]]\n  Here is Mia.")).toEqual({
+      mia: ["blink"],
+      bob: [],
+      statue: ["blink", "talk"],
+    });
   });
 
   test("a pick on the character's own line still chooses the speech morph", async () => {

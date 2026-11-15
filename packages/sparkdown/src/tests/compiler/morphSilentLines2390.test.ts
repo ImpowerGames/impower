@@ -83,6 +83,7 @@ function warnings(text: string) {
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
       { uri: "file:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: FACE },
+      { uri: "file:///raffles.svg", type: "image", name: "raffles", ext: "svg", data: FACE },
     ],
   } as any);
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
@@ -91,6 +92,8 @@ function warnings(text: string) {
     .map((d) => ({
       message: typeof d.message === "string" ? d.message : d.message.value,
       line: lines[d.range.start.line]!,
+      at: d.range.start.character,
+      range: lines[d.range.start.line]!.slice(d.range.start.character, d.range.end.character),
     }))
     .filter((d) => d.message.includes("plays on this look"));
 }
@@ -105,6 +108,7 @@ describe("the choice warning follows the line's speaker (I-2390)", () => {
     ["a directive line above another character's cue", "  [[bunny:mouth.teeth]]\n  RAFFLES:\n    Look at him."],
     ["a directive line above another character's cue, after a blank line", "  [[bunny:mouth.teeth]]\n\n  RAFFLES:\n    Look at him."],
     ["a directive line with no display line after it", "  [[bunny:mouth.teeth]]"],
+    ["an inline cue holding only the directive, above narration", "  BUNNY: [[bunny:mouth.teeth]]\n  Bunny waits silently."],
   ])("a directive on %s is not warned", (_, lines) => {
     expect(warnings(story(lines))).toEqual([]);
   });
@@ -118,6 +122,7 @@ describe("the choice warning follows the line's speaker (I-2390)", () => {
     ["a cue over a silent line", "  BUNNY:\n    [[bunny:mouth.teeth]]\n    . . ."],
     ["the cue below a directive line", "  [[bunny:mouth.teeth]]\n  BUNNY:\n    Let go of that!"],
     ["the cue below a directive line and a blank line", "  [[bunny:mouth.teeth]]\n\n  BUNNY:\n    Let go of that!"],
+    ["the cue below a directive line with a comment", "  [[bunny:mouth.teeth]] // Bunny looks up\n  BUNNY:\n    Let go of that!"],
   ])("a directive shown on the character's line, named by %s, is warned", (_, lines) => {
     const found = warnings(story(lines));
     expect(found).toHaveLength(1);
@@ -129,6 +134,13 @@ describe("the choice warning follows the line's speaker (I-2390)", () => {
     const found = warnings(story("  [[bunny:eyes.closed]]\n  This is Bunny."));
     expect(found).toHaveLength(1);
     expect(found[0]!.message).toContain("`blink` plays on this look");
+  });
+
+  test("in a composition only the speaking character's portrait is warned", () => {
+    const found = warnings(story("  BUNNY:\n    [[bunny:mouth.teeth + raffles:mouth.teeth]]\n    Let go of that!"));
+    expect(found).toHaveLength(1);
+    expect(found[0]!.range).toEqual("mouth.teeth");
+    expect(found[0]!.at).toBeLessThan("    [[bunny:mouth.teeth + ".length);
   });
 
   test("a named look's own warning is unchanged", () => {

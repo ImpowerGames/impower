@@ -60,6 +60,26 @@ const speakerOf = (
   return cue ? cueCharacter(context, names, cue) : undefined;
 };
 
+const NOT_TEXT = new Set(["DialogueCharacter", "ColonSeparator"]);
+
+const writesNoText = (tree: Tree, line: { from: number; text: string }) => {
+  let text = line.text;
+  const to = line.from + text.length;
+  tree.iterate({
+    from: line.from,
+    to,
+    enter: (node) => {
+      if (node.to <= line.from || node.from >= to) return false;
+      if (!NOT_TEXT.has(node.name) && !node.name.includes("Comment")) return undefined;
+      const start = Math.max(node.from, line.from) - line.from;
+      const end = Math.min(node.to, to) - line.from;
+      text = text.slice(0, start) + " ".repeat(end - start) + text.slice(end);
+      return false;
+    },
+  });
+  return !text.trim() || ASSET_LINE_REGEX.test(text);
+};
+
 const lineSpeaker = (
   context: Record<string, any> | undefined,
   names: CharacterNames,
@@ -70,12 +90,11 @@ const lineSpeaker = (
   const own = speakerOf(context, names, displayLineAt(tree, at), read);
   const lines = linesFrom(read, tree.length, at);
   const first = lines.next().value;
-  if (!first || !ASSET_LINE_REGEX.test(first.text)) {
+  if (!first || !writesNoText(tree, first)) {
     return own;
   }
   for (const line of lines) {
-    const trimmed = line.text.trim();
-    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("--") || ASSET_LINE_REGEX.test(line.text)) {
+    if (writesNoText(tree, line)) {
       continue;
     }
     const next = displayLineAt(tree, line.from + line.text.length - line.text.trimStart().length);
