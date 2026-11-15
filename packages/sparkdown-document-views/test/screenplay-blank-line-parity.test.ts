@@ -140,6 +140,8 @@ const KINDS: Record<string, string[]> = {
   SingleLineAlternatorThenDialogue: ["  queue | Alpha. | Beta. end GUIDE: After them."],
   MarkupOnlyThenWordsBranch: ["  if a then", "    : <b></b>", "    Real words.", "  end"],
   MarkupOnlyBranch: ["  if a then", "    : <b></b>", "  end"],
+  CentredStartBranch: ["  if a then", "    ^Up^ they go.", "  end"],
+  CentredMiddleAlternatives: ["  queue", "    | They ^go^ on.", "    | Stay.", "  end"],
   LuauSparkdownSingleLineConditionalAlternatorBlock: ["  match(x) | Small arm | Big arm end"],
   LuauSparkdownSingleLineSequentialAlternatorBlock: ["  queue | Arm one # t | Arm two end"],
   SingleLineCycleAlternator: ["  cycle | Cycle one. | Cycle two. end"],
@@ -243,6 +245,8 @@ const ALTERNATIVE_LAYOUTS: Record<string, string[]> = {
   SingleLineAlternatorThenDialogue: ["{", "| Alpha.", "| Beta.", "}", "GUIDE", "After them."],
   MarkupOnlyThenWordsBranch: ["{", "| Real words.", "}"],
   MarkupOnlyBranch: [],
+  CentredStartBranch: ["{", "| Up   they go.", "}"],
+  CentredMiddleAlternatives: ["{", "| They   go   on.", "| Stay.", "}"],
 };
 
 const ONE_BRANCH_LAYOUTS: Record<string, string[]> = {

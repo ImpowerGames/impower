@@ -369,10 +369,21 @@ export const decorate = (
   }
 
   const actionStartSet = new Set(actionStarts);
+  const drawnPositions = [...runs.map((run) => run.from), ...inserts.map((insert) => insert.at)].sort((a, b) => a - b);
+  const drawnIn = (from: number, to: number) => {
+    let low = 0;
+    let high = drawnPositions.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (drawnPositions[middle]! < from) low = middle + 1;
+      else high = middle;
+    }
+    return low < drawnPositions.length && drawnPositions[low]! < to;
+  };
   const rowLine = (row: PageRow) => doc.lineAt(Math.min(row.at, doc.length));
   const sharesLine = (row: PageRow) => {
     const line = rowLine(row);
-    return row.side === "above" ? printedBefore(line.from, row.at) : printedBefore(row.at, line.to);
+    return row.side === "above" ? drawnIn(line.from, row.at) : drawnIn(row.at, line.to + 1);
   };
   const rowGroups = new Map<string, number>();
   const rowGroupOf = (row: PageRow) => `${row.side}:${rowLine(row).number}`;
