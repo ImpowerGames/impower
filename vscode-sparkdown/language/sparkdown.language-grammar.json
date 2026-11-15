@@ -6464,9 +6464,6 @@
         "1": {
           "patterns": [
             {
-              "include": "#LuauString"
-            },
-            {
               "include": "#AssetCommandFilteredFileName"
             },
             {
