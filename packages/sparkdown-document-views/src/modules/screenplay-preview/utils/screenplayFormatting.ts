@@ -368,6 +368,42 @@ export const decorate = (
     }
   }
 
+  const actionStartSet = new Set(actionStarts);
+  const rowLine = (row: PageRow) => doc.lineAt(Math.min(row.at, doc.length));
+  const sharesLine = (row: PageRow) => {
+    const line = rowLine(row);
+    return row.side === "above" ? printedBefore(line.from, row.at) : printedBefore(row.at, line.to);
+  };
+  const rowGroups = new Map<string, number>();
+  const rowGroupOf = (row: PageRow) => `${row.side}:${rowLine(row).number}`;
+  for (const row of rows) {
+    if (!sharesLine(row)) rowGroups.set(rowGroupOf(row), (rowGroups.get(rowGroupOf(row)) ?? 0) + 1);
+  }
+  const rowsPlaced = new Map<string, number>();
+  const rowsBelow: Range<Decoration>[] = [];
+  for (const row of rows) {
+    const inline = sharesLine(row);
+    const group = rowGroupOf(row);
+    const index = inline ? 0 : (rowsPlaced.get(group) ?? 0);
+    if (!inline) rowsPlaced.set(group, index + 1);
+    if (row.at < from || (to !== undefined && row.at > to)) continue;
+    const pieces = row.pieces.map((piece) => ({ text: piece.text, ...printedStyle(piece.style) }));
+    const above = row.side === "above";
+    if (inline) {
+      const widget = new InsertedRowWidget(pieces, { before: !above || !actionStartSet.has(row.at), after: above });
+      (above ? decorations : rowsBelow).push(Decoration.widget({ widget, side: 1 }).range(row.at));
+      continue;
+    }
+    const count = rowGroups.get(group)!;
+    const line = rowLine(row);
+    const widget = new InsertedRowWidget(pieces);
+    (above ? decorations : rowsBelow).push(
+      above
+        ? Decoration.widget({ widget, block: true, side: -(count - index) / (count + 1) }).range(line.from)
+        : Decoration.widget({ widget, block: true, side: (index + 1) / (count + 1) }).range(line.to),
+    );
+  }
+
   for (const insert of inserts) {
     if (insert.at >= from && (to === undefined || insert.at <= to)) {
       const { style, source } = printedStyle(insert.style);
@@ -376,27 +412,7 @@ export const decorate = (
       );
     }
   }
-
-  const rowGroups = new Map<string, number>();
-  const rowGroupOf = (row: PageRow) => `${row.side}:${doc.lineAt(Math.min(row.at, doc.length)).number}`;
-  for (const row of rows) rowGroups.set(rowGroupOf(row), (rowGroups.get(rowGroupOf(row)) ?? 0) + 1);
-  const rowsPlaced = new Map<string, number>();
-  for (const row of rows) {
-    const group = rowGroupOf(row);
-    const index = rowsPlaced.get(group) ?? 0;
-    rowsPlaced.set(group, index + 1);
-    if (row.at < from || (to !== undefined && row.at > to)) continue;
-    const count = rowGroups.get(group)!;
-    const line = doc.lineAt(Math.min(row.at, doc.length));
-    const widget = new InsertedRowWidget(
-      row.pieces.map((piece) => ({ text: piece.text, ...printedStyle(piece.style) })),
-    );
-    decorations.push(
-      row.side === "above"
-        ? Decoration.widget({ widget, block: true, side: -(count - index) / (count + 1) }).range(line.from)
-        : Decoration.widget({ widget, block: true, side: (index + 1) / (count + 1) }).range(line.to),
-    );
-  }
+  decorations.push(...rowsBelow);
 
   let printedIndex = 0;
   const holdsPrintedText = (from: number, to: number) => {

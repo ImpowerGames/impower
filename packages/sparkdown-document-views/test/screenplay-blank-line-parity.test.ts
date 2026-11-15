@@ -12,6 +12,7 @@ import type { PageLine } from "../../sparkdown-screenplay/src/types/DocumentSpan
 import { isHiddenIdentifier } from "../../sparkdown-screenplay/src/utils/isHiddenIdentifier";
 import { SOURCE_COLOR } from "../../sparkdown-screenplay/src/utils/styleText";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
+import { generateScreenplayCsvData } from "../../sparkdown-screenplay/src/utils/generateScreenplayCsvData";
 import { generateScreenplayPrintData } from "../../sparkdown-screenplay/src/utils/generateScreenplayPrintData";
 import createEditorView from "../src/modules/screenplay-preview/utils/createEditorView";
 import { setScreenplayConfig } from "../src/modules/screenplay-preview/utils/screenplaySettings";
@@ -135,6 +136,10 @@ const KINDS: Record<string, string[]> = {
   IfElseifEmptyBodies: ["  if a then", "  elseif b then", "  else", "  end"],
   IfElseCommandOnlyBody: ["  if a then", "    Printed.", "  else", "    & x = 1", "  end"],
   AlternatorEmptyArm: ["  queue", "    |", "    | Kept arm.", "  end"],
+  SingleLineAlternatorThenAction: ["  queue | Alpha. | Beta. end : After them."],
+  SingleLineAlternatorThenDialogue: ["  queue | Alpha. | Beta. end GUIDE: After them."],
+  MarkupOnlyThenWordsBranch: ["  if a then", "    : <b></b>", "    Real words.", "  end"],
+  MarkupOnlyBranch: ["  if a then", "    : <b></b>", "  end"],
   LuauSparkdownSingleLineConditionalAlternatorBlock: ["  match(x) | Small arm | Big arm end"],
   LuauSparkdownSingleLineSequentialAlternatorBlock: ["  queue | Arm one # t | Arm two end"],
   SingleLineCycleAlternator: ["  cycle | Cycle one. | Cycle two. end"],
@@ -234,6 +239,10 @@ const ALTERNATIVE_LAYOUTS: Record<string, string[]> = {
   SingleLineAlternatorArmDivert: ["{", "| Leave now.", "| Stay here.", "}"],
   SingleLineAlternatorInterpolation: ["{", "| Wave at {person}.", "| Nod.", "}"],
   SingleLineAlternatorMarkup: ["{", "| A bold arm.", "| A plain arm.", "}"],
+  SingleLineAlternatorThenAction: ["{", "| Alpha.", "| Beta.", "}", "After them."],
+  SingleLineAlternatorThenDialogue: ["{", "| Alpha.", "| Beta.", "}", "GUIDE", "After them."],
+  MarkupOnlyThenWordsBranch: ["{", "| Real words.", "}"],
+  MarkupOnlyBranch: [],
 };
 
 const ONE_BRANCH_LAYOUTS: Record<string, string[]> = {
@@ -904,6 +913,34 @@ describe("a block of alternatives", () => {
       expect(pageLines(configName, source), configName).toEqual(printed);
       expect(unplacedText(configName, source), configName).toEqual([]);
     }
+  });
+});
+
+describe("two blocks of alternatives on one source line", () => {
+  it("keep each block's braces around its own alternatives, on the page as in the export", () => {
+    const source = ["scene s", "  Before.", "  queue | One A. | One B. end queue | Two A. | Two B. end", "  After.", "end", ""].join("\n");
+    const rows = ["{", "| One A.", "| One B.", "}", "{", "| Two A.", "| Two B.", "}"];
+    expect(besideBody(exportLines("default", source))).toEqual(rows);
+    expect(besideBody(pageLines("default", source))).toEqual(rows);
+    expect(unplacedText("default", source)).toEqual([]);
+  });
+});
+
+describe("the translation strings of a block of alternatives", () => {
+  it("are the author's own text, with no braces, bars or indentation", () => {
+    const source = sourceOf(["IfElseDialogueBodies", "AlternatorChoiceBodies", "LuauSparkdownIfElseBlock", "SingleLineAlternatorThenAction"]);
+    const rows = generateScreenplayCsvData(new ScreenplayParser().parse(source)).slice(1);
+    expect(rows.map(([, context, text]) => `${context} ${text!.trimEnd()}`)).toEqual([
+      "A Before.",
+      "D Yes.",
+      "D No.",
+      "A No.",
+      "A Yes.",
+      "A Alpha.",
+      "A Beta.",
+      "A After them.",
+      "A After.",
+    ]);
   });
 });
 

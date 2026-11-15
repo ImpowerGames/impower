@@ -6,17 +6,35 @@ export interface InsertedRowPiece {
   source: boolean;
 }
 
+export interface InsertedRowBreaks {
+  before: boolean;
+  after: boolean;
+}
+
 const DEFAULT_LINE_HEIGHT = 22.390625;
 
+const lineBreak = () => {
+  const br = document.createElement("br");
+  br.classList.add("sp-break");
+  return br;
+};
+
 export default class InsertedRowWidget extends WidgetType {
-  constructor(readonly pieces: readonly InsertedRowPiece[]) {
+  constructor(
+    readonly pieces: readonly InsertedRowPiece[],
+    readonly inline?: InsertedRowBreaks,
+  ) {
     super();
   }
 
   override toDOM() {
-    const row = document.createElement("div");
-    row.classList.add("cm-line", "sp-inserted-row");
-    row.style.opacity = "1";
+    const row = document.createElement(this.inline ? "span" : "div");
+    row.classList.add("sp-inserted-row");
+    if (!this.inline) {
+      row.classList.add("cm-line");
+      row.style.opacity = "1";
+    }
+    if (this.inline?.before) row.append(lineBreak());
     for (const piece of this.pieces) {
       const span = document.createElement("span");
       span.classList.add("sp-inserted");
@@ -25,11 +43,14 @@ export default class InsertedRowWidget extends WidgetType {
       span.textContent = piece.text;
       row.append(span);
     }
+    if (this.inline?.after) row.append(lineBreak());
     return row;
   }
 
   override eq(other: InsertedRowWidget) {
     return (
+      other.inline?.before === this.inline?.before &&
+      other.inline?.after === this.inline?.after &&
       other.pieces.length === this.pieces.length &&
       other.pieces.every(
         (piece, index) =>
@@ -41,6 +62,6 @@ export default class InsertedRowWidget extends WidgetType {
   }
 
   override get estimatedHeight() {
-    return DEFAULT_LINE_HEIGHT;
+    return this.inline ? -1 : DEFAULT_LINE_HEIGHT;
   }
 }
