@@ -42,15 +42,22 @@ export const listRowVariants = cva(
         true: "bg-tint ring-2 ring-inset ring-accent",
         false: "",
       },
+      indent: {
+        content: "",
+        row: "ml-[calc(var(--list-row-depth)_*_18px)] border-l-2 border-transparent before:left-0.5 before:inset-y-2",
+      },
     },
     compoundVariants: [
       { state: "current", nested: true, class: "before:opacity-0" },
       { state: "none", tone: "muted", class: "text-muted" },
+      { indent: "row", nested: true, class: "rounded-l-none [&>button]:rounded-l-none" },
+      { indent: "row", nested: true, state: "current", class: "border-l-accent" },
     ],
     defaultVariants: {
       state: "none",
       nested: false,
       tone: "ink",
+      indent: "content",
       selection: "none",
       selected: false,
       dropTarget: false,
@@ -81,6 +88,8 @@ export const listRowBodyVariants = cva(
           "min-h-[52px] gap-2.5 py-1 pr-0 pl-1.5 text-[13px]/[1.5] [&>svg:first-child]:mx-[5px] [&>svg:first-child]:size-[18px]",
         outline:
           "min-h-12 gap-2 py-1 pr-2 pl-2.5 text-[13px]/[1.6] [&>svg:first-child]:ml-[3px] [&>svg:first-child]:h-[18px] [&>svg:first-child]:w-[17px] [:root[data-layout=desktop]_&]:text-[14px]",
+        rail:
+          "min-h-11 gap-2 py-1 pr-2 pl-1.5 text-[12px]/[1.6] [&>svg:first-child]:ml-[3px] [&>svg:first-child]:h-[18px] [&>svg:first-child]:w-[17px]",
       },
       interactive: {
         true: "control-overlay cursor-pointer focus-inset",
@@ -126,6 +135,7 @@ export const listRowMarkVariants = cva(
         dense: "left-2.5 [&>span]:size-[18px] [&_svg]:size-3",
         file: "left-[11px] [&>span]:size-[18px] [&_svg]:size-3",
         outline: "left-[13px] [&>span]:size-[18px] [&_svg]:size-3",
+        rail: "left-[9px] [&>span]:size-[18px] [&_svg]:size-3",
       },
       selection: {
         available:
@@ -158,6 +168,7 @@ export const listRowControlVariants = cva("relative flex flex-none items-center"
       dense: "pl-2",
       file: "pl-1",
       outline: "pl-1",
+      rail: "pl-1",
     },
     selection: {
       none: "",
@@ -178,6 +189,7 @@ export const listRowDescriptionVariants = cva("text-muted", {
       dense: "text-[11px]/[1.4]",
       file: "text-[11px]/[1.4]",
       outline: "text-[11px]/[1.4]",
+      rail: "text-[11px]/[1.4]",
     },
     fit: {
       line: "[--fade:24px] fade-edge",
@@ -195,8 +207,21 @@ export const listRowLabelVariants = cva("min-w-0", {
       wrap: "whitespace-normal break-words",
       self: "",
     },
+    size: {
+      default: "",
+      library: "",
+      compact: "",
+      block: "",
+      dense: "",
+      file: "",
+      outline: "",
+      rail: "",
+    },
   },
-  defaultVariants: { overflow: "fade" },
+  compoundVariants: [
+    { size: "rail", overflow: "clamp", class: "leading-4 [overflow-wrap:anywhere]" },
+  ],
+  defaultVariants: { overflow: "fade", size: "default" },
 });
 
 export type ListRowSize = NonNullable<
@@ -216,6 +241,9 @@ export type ListRowDescriptionFit = NonNullable<
 >;
 export type ListRowSelection = NonNullable<
   VariantProps<typeof listRowVariants>["selection"]
+>;
+export type ListRowIndent = NonNullable<
+  VariantProps<typeof listRowVariants>["indent"]
 >;
 
 export const LIST_ROW_INDENT = 18;
@@ -237,6 +265,7 @@ type ListRowSelectionProps = {
 };
 
 export type ListRowProps = (ListRowLeadingProps | ListRowSelectionProps) & {
+  gutter?: ComponentChildren;
   icon?: ComponentChildren;
   control?: ComponentChildren;
   label: ComponentChildren;
@@ -248,6 +277,7 @@ export type ListRowProps = (ListRowLeadingProps | ListRowSelectionProps) & {
   pressed?: boolean;
   containsCurrent?: boolean;
   depth?: number;
+  indent?: ListRowIndent;
   size?: ListRowSize;
   overflow?: ListRowLabelOverflow;
   tone?: ListRowTone;
@@ -283,7 +313,24 @@ function Guides({ depth, current }: { depth: number; current: boolean }) {
   );
 }
 
+function RowGuides({ depth, current }: { depth: number; current: boolean }) {
+  return (
+    <>
+      {depth > 1 && (
+        <span
+          aria-hidden="true"
+          class="pointer-events-none absolute inset-y-0 left-[calc(-2px_-_(var(--list-row-depth)_-_1)_*_18px)] w-[calc((var(--list-row-depth)_-_1)_*_18px)] bg-[repeating-linear-gradient(to_right,var(--edge)_0_1px,transparent_1px_18px)]"
+        />
+      )}
+      {!current && (
+        <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 -left-0.5 w-px bg-edge" />
+      )}
+    </>
+  );
+}
+
 export default function ListRow({
+  gutter,
   leading,
   icon,
   control,
@@ -296,6 +343,7 @@ export default function ListRow({
   pressed,
   containsCurrent = false,
   depth = 0,
+  indent = "content",
   size,
   overflow,
   tone,
@@ -317,7 +365,7 @@ export default function ListRow({
       : "none";
   const copy = (
     <span class="flex min-w-0 flex-1 flex-col gap-[3px]">
-      <span class={listRowLabelVariants({ overflow })}>
+      <span class={listRowLabelVariants({ overflow, size })}>
         {label}
       </span>
       {description && (
@@ -345,12 +393,20 @@ export default function ListRow({
           selection,
           selected,
           dropTarget,
+          indent,
         }),
         className,
       )}
+      style={indent === "row" ? { "--list-row-depth": depth } : undefined}
       data-drop-target={dropTarget || undefined}
     >
-      {depth > 0 && <Guides depth={depth} current={!!current} />}
+      {gutter}
+      {depth > 0 &&
+        (indent === "row" ? (
+          <RowGuides depth={depth} current={!!current} />
+        ) : (
+          <Guides depth={depth} current={!!current} />
+        ))}
       {leading}
       {selection !== "none" && (
         <label class={cn(listRowMarkVariants({ size, selection, control: !!control }))}>
@@ -401,31 +457,16 @@ export default function ListRow({
 }
 
 export const listRowBadgeVariants = cva(
-  "relative control-overlay flex h-full flex-none cursor-pointer items-center rounded-control focus-inset [&>svg]:flex-none",
+  "relative control-overlay flex flex-none cursor-pointer items-center justify-center rounded-control focus-inset [&>svg]:size-[14px] [&>svg]:flex-none",
   {
     variants: {
-      size: {
-        default: "w-[46px] pl-3 [&>svg]:size-[21px]",
-        library: "w-[46px] pl-2 [&>svg]:size-[21px] [:root[data-layout=desktop]_&]:pl-3",
-        compact: "w-9 pl-2 [&>svg]:size-[18px]",
-        block: "w-[46px] pl-2.5 [&>svg]:size-[22px]",
-        dense: "w-[46px] pl-2.5 [&>svg]:size-[18px]",
-        file: "w-[44px] pl-[11px] [&>svg]:size-[18px]",
-        outline: "w-[44px] pl-[13px] [&>svg]:size-[18px]",
-      },
       placement: {
-        leading: "",
-        trailing: "",
+        trailing: "h-11 w-11 self-center",
+        gutter:
+          "absolute inset-y-0 left-[calc(-26px_-_var(--list-row-depth,0)_*_18px)] w-[26px] pl-1 [:root[data-pointer=coarse]_&]:left-[calc(-44px_-_var(--list-row-depth,0)_*_18px)] [:root[data-pointer=coarse]_&]:w-11",
       },
     },
-    compoundVariants: [
-      {
-        placement: "trailing",
-        class:
-          "h-11 w-11 self-center justify-center pl-0 [:root[data-layout=desktop]_&]:pl-0 [&>svg]:size-[14px]",
-      },
-    ],
-    defaultVariants: { size: "default", placement: "leading" },
+    defaultVariants: { placement: "trailing" },
   },
 );
 
@@ -437,8 +478,7 @@ export type ListRowBadgeProps = {
   label: string;
   title?: string;
   severity: ListRowBadgeSeverity;
-  size?: ListRowSize;
-  placement?: "leading" | "trailing";
+  placement?: NonNullable<ListRowBadgeVariantProps["placement"]>;
   onClick: (event: MouseEvent) => void;
   class?: string;
 } & Omit<
@@ -450,7 +490,6 @@ export function ListRowBadge({
   label,
   title,
   severity,
-  size,
   placement,
   onClick,
   class: className,
@@ -463,7 +502,7 @@ export function ListRowBadge({
       data-severity={severity}
       aria-label={label}
       title={title ?? label}
-      class={cn(listRowBadgeVariants({ size, placement }), className)}
+      class={cn(listRowBadgeVariants({ placement }), className)}
       onClick={onClick}
       {...rest}
     >

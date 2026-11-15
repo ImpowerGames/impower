@@ -6,6 +6,7 @@ import {
   VirtualList,
   WarningIcon,
 } from "@impower/impower-ui/components";
+import { useScrollbarSize } from "@impower/impower-ui/layout";
 import type { ComponentChildren } from "preact";
 import { worstProblem } from "@impower/codemirror-vscode-lsp-client/src/symbolProblems";
 import { projectPath } from "../../workspace/problems/problemEntries";
@@ -16,6 +17,8 @@ import OutlineListRow from "./OutlineListRow";
 import { problemSummary } from "./outlineRows";
 import useOutlineModel from "./useOutlineModel";
 import { withWindow } from "./withWindow";
+
+export const OUTLINE_RAIL_ROW = { size: "rail", indent: "row", tone: "muted", badgePlacement: "gutter" } as const;
 
 const scriptName = (uri: string) => {
   const fileName = uri.split("/").pop() ?? "";
@@ -41,6 +44,7 @@ function Heading({
 export default function Outline() {
   const { uri, model } = useOutlineModel();
   const searching = workspace.search.value.open;
+  useScrollbarSize();
 
   const summary = problemSummary(model.problems);
 
@@ -73,7 +77,7 @@ export default function Outline() {
             {model.rows.length && uri ? (
               <VirtualList
                 key={uri}
-                class="flex-1 pr-[14px] pb-3 pl-[26px]"
+                class="flex-1 pr-gutter-3.5 pb-3 pl-[26px] [:root[data-pointer=coarse]_&]:pl-11"
                 label={`Scene outline in ${scriptName(uri)}`}
                 size="compact"
                 items={model.rows}
@@ -83,8 +87,7 @@ export default function Outline() {
                   <OutlineListRow
                     uri={uri}
                     row={row}
-                    size="compact"
-                    tone="muted"
+                    {...OUTLINE_RAIL_ROW}
                     onOpen={(row) =>
                       withWindow((win) =>
                         win.openOutlineLocation(uri, row.selection),

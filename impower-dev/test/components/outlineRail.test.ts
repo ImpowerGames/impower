@@ -191,8 +191,9 @@ describe("the Outline rail", () => {
     ).toBe("Scene outline in main");
   });
 
-  it("puts a problem's icon in place of the glyph: a scene's total, a branch's or menu's own", async () => {
+  it("puts a problem's icon in the gutter beside the glyph: a scene's total, a branch's or menu's own", async () => {
     await mount([STORM_ERROR, DOCK_WARNING]);
+    expect(rowButtons().map((b) => !!b.querySelector(":scope > svg"))).toEqual([true, true, true, true]);
     expect(
       rowButtons().map((b) => [b.getAttribute("aria-label"), badge(b)]),
     ).toEqual([
