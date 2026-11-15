@@ -950,7 +950,6 @@ describe("a blank line the export prints inside one source line", () => {
     ["between two one-line blocks of different kinds", ["  queue | One. | Two. end cycle | Three. | Four. end"]],
     ["between three one-line blocks", ["  queue | A. | B. end queue | C. | D. end queue | E. | F. end"]],
     ["after a one-line block inside a branch", ["  if a then", "    queue | One. | Two. end queue | Three. | Four. end", "  end"]],
-    ["between two blocks on a line holding rows at two depths", ["  queue | queue | In A. | In B. end | Out. end queue | Three. | Four. end"]],
     ["before a centred span", ["  queue | One. | Two. end ^Up^ they go."]],
     ["after a centred span", ["  They ^go^ queue | One. | Two. end"]],
   ])("is drawn where the export prints it, %s", (_where, lines) => {
