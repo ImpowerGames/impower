@@ -1774,7 +1774,7 @@ await check("desktop preview reads per-character story spans without inventing s
   const spans = [..."Story text"].map(c => element(c));
   spans.push(element("hidden", "0"));
   const hits = [];
-  const d = { defaultView: { getComputedStyle: el => ({ opacity: el.opacity }) }, querySelector: () => player, querySelectorAll: () => spans, elementFromPoint: (x, y) => (hits.push([x, y]), spans[0]), getAnimations: () => [], images: [], body: { innerText: "Story text", className: "ready" } };
+  const d = { defaultView: { getComputedStyle: el => ({ opacity: el.opacity }), addEventListener: () => {} }, querySelector: () => player, querySelectorAll: () => spans, elementFromPoint: (x, y) => (hits.push([x, y]), spans[0]), images: [], body: { innerText: "Story text", className: "ready" } };
   globalThis.document = { getElementById: () => ({ contentDocument: d }) };
   try {
     const read = previewRead();
@@ -1797,7 +1797,7 @@ await check("a desktop text button is the first copy a pointer reaches, never on
   const pageLabel = { id: "", tagName: "SPAN", parent: pageOption };
   const atPoint = { "10,105": page, "210,305": pageLabel };
   const buttons = [boxChoice, pageOption];
-  const d = { defaultView: { getComputedStyle: () => ({ opacity: "1" }) }, querySelector: () => player, querySelectorAll: selector => selector === ".choice, button, [role=button]" ? buttons : [], elementFromPoint: (x, y) => atPoint[`${x},${y}`] ?? null, getAnimations: () => [], images: [], body: { innerText: "", className: "ready" } };
+  const d = { defaultView: { getComputedStyle: () => ({ opacity: "1" }), addEventListener: () => {} }, querySelector: () => player, querySelectorAll: selector => selector === ".choice, button, [role=button]" ? buttons : [], elementFromPoint: (x, y) => atPoint[`${x},${y}`] ?? null, images: [], body: { innerText: "", className: "ready" } };
   globalThis.document = { getElementById: () => ({ contentDocument: d }) };
   try {
     assert.deepEqual(previewRead({ textButton: "Go on" }).target, { x: 210, y: 305 }, "the page's own option, not the dialogue box's covered copy");
@@ -1807,7 +1807,7 @@ await check("a desktop text button is the first copy a pointer reaches, never on
   finally { if (saved === undefined) delete globalThis.document; else globalThis.document = saved; }
 });
 
-await check("a desktop step's text counts only once two readings in a row show it unchanged, so the next click never lands while a line is still typing", async () => {
+await check("a desktop step's text counts only once two readings in a row show it unchanged and, while playing, the player reports the shown beat finished", async () => {
   const readings = [
     { visible: true, text: "Go onGo on" },
     { visible: true, text: "Go onGo onThe line" },
@@ -1826,34 +1826,40 @@ await check("a desktop step's text counts only once two readings in a row show i
   const missing = settledText(async () => ({ visible: true, text: "Elsewhere" }), "Go on");
   assert.equal(await missing(), null);
   assert.equal(await missing(), null, "a steady screen without the text is not the step's result");
-  const slow = [
-    { visible: true, animating: true, text: "Go onG" },
-    { visible: true, animating: true, text: "Go onG" },
-    { visible: true, animating: true, text: "Go onG" },
-    { visible: true, animating: false, text: "Go onGo" },
-    { visible: true, animating: false, text: "Go onGo" },
+  const playing = [
+    { visible: true, playing: true, beatFinished: false, text: "Go onGo" },
+    { visible: true, playing: true, beatFinished: false, text: "Go onGo" },
+    { visible: true, playing: true, beatFinished: false, text: "Go onGo" },
+    { visible: true, playing: true, beatFinished: true, text: "Go onGo" },
+    { visible: true, playing: true, beatFinished: true, text: "Go onGo" },
   ];
-  let s = 0;
-  const paused = settledText(async () => slow[s++], "Go on");
-  for (let n = 0; n < 3; n++) assert.equal(await paused(), null, "a letter pause longer than the poll leaves the text unchanged while the beat still types");
-  assert.equal(await paused(), null);
-  assert.equal(await paused(), slow[4]);
+  let p = 0;
+  const lastPause = settledText(async () => playing[p++], "Go on");
+  for (let n = 0; n < 3; n++) assert.equal(await lastPause(), null, "a complete line whose beat is still in its last letter's pause has not finished");
+  assert.equal(await lastPause(), null);
+  assert.equal(await lastPause(), playing[4]);
 });
 
-await check("a desktop preview reading is animating while a finite animation inside the game has yet to finish", () => {
+await check("a desktop preview reading reports the shown beat finished from the player's latest game state", () => {
   const saved = globalThis.document;
-  const inside = { id: "", tagName: "SPAN" };
-  const outside = { id: "", tagName: "DIV" };
-  const stage = { id: "game", tagName: "DIV", textContent: "", getBoundingClientRect: () => ({ x: 0, y: 0, width: 10, height: 10 }), querySelector: () => null, closest: () => ({}), contains: el => el === inside };
-  const animation = (playState, target, endTime) => ({ playState, effect: { target, getComputedTiming: () => ({ endTime }) } });
-  let animations = [];
-  const d = { defaultView: { getComputedStyle: () => ({ opacity: "1" }) }, querySelector: () => stage, querySelectorAll: () => [], elementFromPoint: () => null, getAnimations: () => animations, images: [], body: { innerText: "", className: "ready" } };
+  const listeners = [];
+  const player = { id: "", tagName: "DIV", textContent: "", getBoundingClientRect: () => ({ x: 0, y: 0, width: 10, height: 10 }), querySelector: () => null, closest: () => ({}) };
+  const w = { getComputedStyle: () => ({ opacity: "1" }), addEventListener: (type, listener) => listeners.push({ type, listener }) };
+  const d = { defaultView: w, querySelector: () => player, querySelectorAll: () => [], elementFromPoint: () => null, images: [], body: { innerText: "", className: "ready" } };
   globalThis.document = { getElementById: () => ({ contentDocument: d }) };
+  const publish = (method, params) => { for (const { listener } of listeners) listener({ detail: { jsonrpc: "2.0", method, params } }); };
   try {
-    animations = [animation("running", inside, 1200)];
-    assert.equal(previewRead().animating, true, "a letter waiting out its delay");
-    animations = [animation("finished", inside, 1200), animation("running", inside, Infinity), animation("paused", inside, 1200), animation("idle", inside, 1200), animation("running", outside, 1200), animation("running", null, 1200)];
-    assert.equal(previewRead().animating, false, "finished, endless, paused, idle, outside and targetless animations leave the beat settled");
+    assert.equal(previewRead().beatFinished, false, "no game state heard yet");
+    previewRead();
+    assert.deepEqual(listeners.map(l => l.type), ["jsonrpc"], "one watcher, installed on the first reading");
+    publish("preview/didChangeGameState", { shownBeatFinished: true });
+    assert.equal(previewRead().beatFinished, true);
+    publish("game/awaitingInteraction", { shownBeatFinished: false });
+    assert.equal(previewRead().beatFinished, true, "other messages leave it");
+    publish("preview/didChangeGameState", { shownBeatFinished: false });
+    assert.equal(previewRead().beatFinished, false);
+    publish("preview/didChangeGameState", {});
+    assert.equal(previewRead().beatFinished, false, "a state without the field is not finished");
   }
   finally { if (saved === undefined) delete globalThis.document; else globalThis.document = saved; }
 });

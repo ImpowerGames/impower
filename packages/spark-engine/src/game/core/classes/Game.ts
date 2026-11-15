@@ -197,6 +197,7 @@ import { GameRolledMessage } from "./messages/GameRolledMessage";
 import { GameSavedSceneEntryMessage } from "./messages/GameSavedSceneEntryMessage";
 import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
+import { GameShownBeatMessage } from "./messages/GameShownBeatMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
 import { RecencySet, type RecencyEntry } from "./RecencySet";
@@ -3997,6 +3998,10 @@ export class Game<T extends M = {}> {
         choices,
       }),
     );
+  }
+
+  shownBeat(finished: boolean) {
+    this.connection.emit(GameShownBeatMessage.type.notification({ finished }));
   }
 
   protected notifyAutoAdvancedToContinue() {

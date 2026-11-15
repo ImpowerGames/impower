@@ -89,6 +89,10 @@ export class Coordinator<G extends Game> {
 
   protected _played?: () => void;
 
+  protected _reportsShown = false;
+
+  protected _reportedFinished = false;
+
   constructor(
     game: G,
     instructions: Instructions,
@@ -96,6 +100,13 @@ export class Coordinator<G extends Game> {
   ) {
     this._game = game;
     this._instructions = instructions;
+    this._reportsShown =
+      !game.context.system.previewing &&
+      !game.context.system.simulating &&
+      !game.replaying;
+    if (this._reportsShown) {
+      game.shownBeat(false);
+    }
     if (options?.settled) {
       this.onSettle(options.settled === "restored");
     } else if (game.context.system.previewing && options?.played) {
@@ -329,10 +340,18 @@ export class Coordinator<G extends Game> {
       }
       if (this._startedExecution && !waitingForChoice) {
         this.display({ instant: true });
-        this._finishedExecution = true;
+        this.finishExecution();
       }
     }
     return 0;
+  }
+
+  protected finishExecution(): void {
+    this._finishedExecution = true;
+    if (this._reportsShown && !this._reportedFinished) {
+      this._reportedFinished = true;
+      this._game.shownBeat(true);
+    }
   }
 
   protected display(options?: {
@@ -412,7 +431,7 @@ export class Coordinator<G extends Game> {
 
     const handleFinished = (): void => {
       presenter.finish();
-      this._finishedExecution = true;
+      this.finishExecution();
     };
 
     if (instant || game.context.system.simulating) {

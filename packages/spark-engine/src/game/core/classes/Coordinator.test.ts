@@ -41,6 +41,8 @@ const createGame = (
     skippedCutscenes: 0,
   };
   const game = {
+    replaying: false,
+    shownBeat: () => {},
     context: {
       system: {
         previewing: overrides.previewing,
