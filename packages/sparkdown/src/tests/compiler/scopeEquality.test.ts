@@ -59,6 +59,9 @@ const TICKET_INPUTS: Record<string, string[]> = {
     "scene s\n  queue | GUIDE:\n    Welcome back.\n  end\nend\n",
     "scene s\n  queue\n    | GUIDE:\n        Hello.\n      | Goodbye.\n  end\nend\n",
     "scene s\n  GUIDE:\n    Hello.\n    | Not an arm.\nend\n",
+    ...["@hud:", "$:", "^:", "%:", ":"].map(
+      (head) => `scene s\n  queue\n    | ${head}\n        First line.\n      | Other line.\n  end\n  ${head}\n    Line.\n    | Not an arm.\nend\n`,
+    ),
   ],
 };
 

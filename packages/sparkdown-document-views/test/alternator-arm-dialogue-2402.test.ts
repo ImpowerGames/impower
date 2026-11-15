@@ -59,6 +59,15 @@ describe("a block dialogue opened right after an alternator arm's bar", () => {
     ]);
   });
 
+  it.each(["@hud:", "$:", "^:", "%:", ":"])(
+    "prints a %s block opened right after an arm's bar as the same block in an if branch prints",
+    (head) => {
+      const inArm = `scene s\n  queue\n    | ${head}\n        First line.\n        Second line.\n    | Other line.\n  end\nend\n`;
+      const inBranch = `scene s\n  if true then\n    ${head}\n      First line.\n      Second line.\n  else\n    Other line.\n  end\nend\n`;
+      expect(extractPdfText(inArm)).toBe(extractPdfText(inBranch));
+    },
+  );
+
   it("reads the lines as dialogue at one level under the bar's line, as the formatter writes them", () => {
     expect(dialogueLines(extractPdfText(ARM_DIALOGUE.replaceAll("        ", "      ")))).toEqual([
       "<character> GUIDE (softly)",

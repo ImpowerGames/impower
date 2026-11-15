@@ -1519,13 +1519,13 @@ sparkdown [0..1131]
  ├─ Newline [562..563]: "\n"
  ├─ BlockTitle [563..576]
  │   ├─ BlockTitle_begin [563..567]
- │   │   ├─ BlockTitle_begin_c1 [563..565]
+ │   │   ├─ BlockTitle_begin_c3 [563..565]
  │   │   │   └─ OptionalWhitespace [563..565]: "  "
- │   │   ├─ BlockTitle_begin_c2 [565..566]
+ │   │   ├─ BlockTitle_begin_c4 [565..566]
  │   │   │   └─ TitleMark [565..566]: "^"
- │   │   ├─ BlockTitle_begin_c3 [566..567]
+ │   │   ├─ BlockTitle_begin_c5 [566..567]
  │   │   │   └─ ColonSeparator [566..567]: ":"
- │   │   └─ BlockTitle_begin_c4 567
+ │   │   └─ BlockTitle_begin_c6 567
  │   ├─ BlockTitle_content [567..576]
  │   │   ├─ Newline [567..568]: "\n"
  │   │   ├─ BlockLineContinue [568..575]
