@@ -13,6 +13,10 @@ import {
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
 import { previewedDocumentUri } from "./previewedDocumentUri";
 import { revealsPreview } from "./revealsPreview";
+import {
+  replayBeatShortcut,
+  systemMotionReport,
+} from "../../src/utils/gamePreviewWebview";
 
 console.log("running game-webview");
 
@@ -73,9 +77,18 @@ window.addEventListener(MessageProtocol.event, (e) => {
   }
 });
 
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const reportMotion = () =>
+  vscode.postMessage(systemMotionReport(reducedMotion.matches));
+reducedMotion.addEventListener("change", reportMotion);
+
 const load = async () => {
   setWorkspace(workspaceState.workspace);
+  document
+    .querySelector("spark-web-player")
+    ?.setAttribute("replay-shortcut", replayBeatShortcut(navigator.userAgent));
   vscode.postMessage({});
+  reportMotion();
   await Promise.allSettled([SparkWebPlayerElement.register()]);
 };
 

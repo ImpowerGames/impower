@@ -249,6 +249,63 @@ try {
     console.log("ok: the read-back check fails on a relative picture path and on an appended picture, as gh left them when the sample request was filed");
   }
 
+  {
+    const issues = new Map();
+    const uploads = [];
+    const blockers = [];
+    const hosted = (name) => `https://github.com/user-attachments/assets/${Buffer.from(name).toString("hex")}`;
+    const refuse = (stderr) => {
+      throw Object.assign(new Error(`Command failed: gh\n${stderr}`), { status: 1, stdout: "", stderr });
+    };
+    const fakeGitHub = (args, options = {}) => {
+      const asApp = Boolean(options.env?.GH_TOKEN);
+      const flag = (name) => args[args.indexOf(name) + 1];
+      if (args[0] === "issue" && args[1] === "create") {
+        const attached = args.flatMap((arg, i) => (args[i - 1] === "--attach" ? [arg] : []));
+        if (attached.length && asApp) refuse(`could not upload ${attached[0]}: attaching files requires write access to the repository`);
+        let body = readFileSync(flag("--body-file"), "utf8");
+        for (const file of attached) body = body.split(`](${file})`).join(`](${hosted(file)})`);
+        const number = 77;
+        issues.set(number, { number, id: 770, title: flag("--title"), body, type: { name: flag("--type") }, labels: [{ name: flag("--label") }], assignees: [{ login: flag("--assignee") }], milestone: null, state: "open", html_url: `https://github.com/acme/tickets/issues/${number}` });
+        return `https://github.com/acme/tickets/issues/${number}\n`;
+      }
+      const target = args.find((arg) => /^(https:\/\/uploads\.github\.com\/|repos\/)/.test(arg));
+      if (target.startsWith("https://uploads.github.com/")) {
+        const name = new URL(target).searchParams.get("name");
+        uploads.push({ name, asApp });
+        if (asApp) refuse("gh: Not Found (HTTP 404)");
+        return JSON.stringify({ url: hosted(`./${name}`) });
+      }
+      if (target === "repos/acme/tickets") return JSON.stringify({ id: 4242 });
+      if (/\/parent$/.test(target)) refuse("gh: No parent issue found (HTTP 404)");
+      if (/\/dependencies\/blocked_by$/.test(target)) {
+        if (args.includes("POST")) blockers.push(Number(flag("-F").slice("issue_id=".length)));
+        return args.includes("POST") ? "{}" : JSON.stringify([[...issues.values()].filter((issue) => blockers.includes(issue.id))]);
+      }
+      const issueMatch = /^repos\/acme\/tickets\/issues\/(\d+)$/.exec(target);
+      if (issueMatch) {
+        const issue = issues.get(Number(issueMatch[1]));
+        if (args.includes("PATCH")) issue.body = readFileSync(flag("-F").slice("body=@".length), "utf8");
+        return JSON.stringify(issue);
+      }
+      if (target === "repos/acme/tickets/issues") return "[[]]";
+      return "null";
+    };
+    const asApp = Object.freeze({ mode: "app", token: "ghs_fixtureInstallationToken", login: "impower-ask-maintainer[bot]" });
+    let result;
+    try {
+      result = fileRequest(decision(), { pictures, tracker: ghTracker("acme/tickets", fakeGitHub, asApp), repos, now, timeZone, identity: asApp });
+    } catch (error) {
+      assert.fail(`a request with pictures could not be filed as the App: ${error.message.replace(/^Command failed: gh\n/, "")}`);
+    }
+    const filed = issues.get(result.number);
+    assert.equal(result.pictures, 7);
+    assert.doesNotMatch(filed.body, /src="\.\//);
+    assert.equal((filed.body.match(/<img src="https:\/\/github\.com\/user-attachments\/assets\//g) ?? []).length, 7);
+    assert.ok(uploads.length && uploads.every((upload) => !upload.asApp), "every picture is uploaded with the maintainer's own login");
+    console.log("ok: filed as the App against a GitHub whose attachment host refuses App tokens, a request still gets all 7 pictures hosted and in place");
+  }
+
   function fakeTracker({ open = {}, failUpload = null, appendOnWrite = false, existing = {}, type = "Task", fail = {}, competitor = null, rivalTag = false, existingComments = [] } = {}) {
     const issues = new Map(Object.entries(existing).map(([n, issue]) => [Number(n), { labels: [], assignees: [], state: "open", id: Number(n) * 10, ...issue, number: Number(n) }]));
     const comments = new Map(existingComments.map((comment) => [comment.id, structuredClone(comment)]));
@@ -256,18 +313,14 @@ try {
     const calls = [];
     const counts = {};
     let next = 9000;
-    const host = (body, attach) => {
-      let text = body;
-      for (const file of attach) {
-        if (file === failUpload) continue;
-        const url = `https://github.com/user-attachments/assets/${Buffer.from(file).toString("hex")}`;
-        const reference = new RegExp(`(!\\[[^\\]]*\\]\\()${file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\))`, "g");
-        if (reference.test(text)) text = text.replace(reference, `$1${url}$2`);
-        else text += `\n\n![${file}](${url})`;
-      }
-      return text;
-    };
+    const late = appendOnWrite ? "\n![late.png](https://github.com/user-attachments/assets/late)\n" : "";
     const methods = {
+      upload: (file) => {
+        const name = `./${path.basename(file)}`;
+        calls.push(["upload", name]);
+        if (name === failUpload) throw new Error(`upload of ${name} failed`);
+        return `https://github.com/user-attachments/assets/${Buffer.from(name).toString("hex")}`;
+      },
       open: (label) => {
         calls.push(["open", label]);
         const filed = [...issues.values()].filter((issue) => issue.state === "open" && issue.labels.some((l) => l.name === label));
@@ -279,22 +332,22 @@ try {
         return structuredClone(issue);
       },
       parent: () => null,
-      create: ({ title, bodyFile, labels: names, assignee, attach }) => {
-        calls.push(["create", title, names, assignee, attach]);
+      create: ({ title, bodyFile, labels: names, assignee }) => {
+        calls.push(["create", title, names, assignee]);
         const add = (body) => {
           const number = next++;
           issues.set(number, { number, id: number * 10, title, body, type: type === null ? null : { name: type }, labels: names.map((name) => ({ name })), assignees: [{ login: assignee }], milestone: null, state: "open", html_url: `https://github.com/acme/tickets/issues/${number}` });
           return number;
         };
-        const body = host(readFileSync(bodyFile, "utf8"), attach);
+        const body = readFileSync(bodyFile, "utf8") + late;
         if (competitor === "before") add(body);
         const number = add(body);
         if (competitor === "after") add(body);
-        return failUpload ? { number, uploadError: `upload of ${failUpload} failed` } : { number };
+        return { number };
       },
       editBody: (n, bodyFile) => {
         calls.push(["editBody", n]);
-        issues.get(n).body = readFileSync(bodyFile, "utf8") + (appendOnWrite ? "\n![late.png](https://github.com/user-attachments/assets/late)\n" : "");
+        issues.get(n).body = readFileSync(bodyFile, "utf8");
       },
       close: (n, reason) => {
         calls.push(["close", n, reason]);
@@ -316,15 +369,15 @@ try {
         calls.push(["removeAssignee", n, login]);
         issues.get(n).assignees = issues.get(n).assignees.filter((a) => a.login !== login);
       },
-      comment: ({ number, bodyFile, attach }) => {
-        calls.push(["comment", number, attach]);
+      comment: ({ number, bodyFile }) => {
+        calls.push(["comment", number]);
         if (rivalTag) {
           const rival = 7000 + comments.size;
           comments.set(rival, { id: rival, issue: number, body: `rival\n\n${dataLine({ kind: "task", tagged: true, blocks: [], owner: "rival" })}\n` });
           if (rivalTag === "finished") issues.get(number).labels.push({ name: labels.task });
         }
         const id = 7000 + comments.size;
-        comments.set(id, { id, issue: number, body: host(readFileSync(bodyFile, "utf8"), attach) });
+        comments.set(id, { id, issue: number, body: readFileSync(bodyFile, "utf8") });
         return { id };
       },
       readComment: (id) => structuredClone(comments.get(id)),
@@ -366,7 +419,10 @@ try {
     const result = fileRequest(decision(), { pictures, tracker, repos, now, timeZone });
     const issue = tracker.issues.get(result.number);
     const create = tracker.calls.find((call) => call[0] === "create");
-    assert.deepEqual(create.slice(2), [[labels.decision], repos.maintainer.login, ["./phone.png", "./a.png", "./b.png", "./b-list.png", "./c.png", "./d.png", "./e.png"]]);
+    assert.deepEqual(create.slice(2), [[labels.decision], repos.maintainer.login]);
+    assert.deepEqual(tracker.calls.filter((call) => call[0] === "upload").map((call) => call[1]), ["./phone.png", "./a.png", "./b.png", "./b-list.png", "./c.png", "./d.png", "./e.png"]);
+    assert.ok(tracker.calls.findIndex((call) => call[0] === "upload") < tracker.calls.findIndex((call) => call[0] === "create"), "every picture is uploaded before the issue exists");
+    assert.ok(!tracker.calls.some((call) => call[0] === "editBody"), "the body is posted once, with its pictures already in place");
     assert.equal(issue.type.name, "Task");
     assert.equal(issue.milestone, null);
     assert.equal(result.pictures, 7);
@@ -385,8 +441,7 @@ try {
     const repeated = edit(decision(), (r) => (r.options[1].pictures[1].file = "a.png"));
     const result = fileRequest(repeated, { pictures, tracker, repos, now, timeZone });
     const issue = tracker.issues.get(result.number);
-    const create = tracker.calls.find((call) => call[0] === "create");
-    assert.deepEqual(create[4], ["./phone.png", "./a.png", "./b.png", "./c.png", "./d.png", "./e.png"]);
+    assert.deepEqual(tracker.calls.filter((call) => call[0] === "upload").map((call) => call[1]), ["./phone.png", "./a.png", "./b.png", "./c.png", "./d.png", "./e.png"]);
     const hostedA = `https://github.com/user-attachments/assets/${Buffer.from("./a.png").toString("hex")}`;
     assert.equal(issue.body.split(`<img src="${hostedA}"`).length - 1, 2);
     assert.doesNotMatch(issue.body, /src="\.\//);
@@ -403,17 +458,17 @@ try {
 
   {
     const tracker = fakeTracker({ failUpload: "./c.png" });
-    assert.throws(() => fileRequest(decision(), { pictures, tracker, repos, now, timeZone }), (error) => /\.\/c\.png was not uploaded: the body still holds its relative path/.test(error.message) && /closed #9000 as not planned/.test(error.message));
-    assert.ok(tracker.calls.some((call) => call[0] === "close" && call[2] === "not_planned"));
-    assert.ok(!tracker.calls.some((call) => call[0] === "addBlockedBy"));
-    console.log("ok: filing fails, withdraws the request and links nothing when a picture's relative path is left after upload");
+    assert.throws(() => fileRequest(decision(), { pictures, tracker, repos, now, timeZone }), /upload of \.\/c\.png failed/);
+    assert.ok(!tracker.calls.some((call) => ["create", "close", "addBlockedBy"].includes(call[0])), JSON.stringify(tracker.calls));
+    assert.equal(tracker.issues.size, 0);
+    console.log("ok: a failed picture upload stops filing before any issue exists, so nothing is left to withdraw");
   }
 
   {
     const tracker = fakeTracker({ appendOnWrite: true });
     assert.throws(() => fileRequest(decision(), { pictures, tracker, repos, now, timeZone }), /a picture the request did not place was appended: https:\/\/github\.com\/user-attachments\/assets\/late/);
     assert.ok(tracker.calls.some((call) => call[0] === "close"));
-    console.log("ok: filing fails and withdraws the request when an appended picture is left in the body");
+    console.log("ok: filing fails and withdraws the request when a picture the request did not place is in the body read back");
   }
 
   for (const [label, type] of [["Bug", "Bug"], ["no type", null]]) {
@@ -424,7 +479,7 @@ try {
     console.log(`ok: an issue read back with ${label} instead of the Task type fails the filing and is withdrawn`);
   }
 
-  for (const [method, call] of [["issue", 1], ["editBody", 1], ["parent", 1], ["issue", 3]]) {
+  for (const [method, call] of [["issue", 1], ["parent", 1], ["issue", 2]]) {
     const tracker = fakeTracker({ fail: { [method]: call } });
     assert.throws(() => fileRequest(decision(), { pictures, tracker, repos, now, timeZone }), (error) => new RegExp(`${method}: network down`).test(error.message) && /closed #9000 as not planned/.test(error.message) && /file the request again/.test(error.message));
     assert.equal(tracker.issues.get(9000).state, "closed", `${method} call ${call}`);
@@ -475,19 +530,14 @@ try {
       return "null";
     };
     const gh = ghTracker("acme/tickets", run);
-    assert.deepEqual(gh.create({ title: "Q? (#1)", bodyFile: "/x/staged.md", labels: [labels.decision], assignee: repos.maintainer.login, attach: ["./a.png", "./b.png"], cwd: "/pictures" }), { number: 77 });
-    assert.deepEqual(runs[0].args, ["issue", "create", "-R", "acme/tickets", "--title", "Q? (#1)", "--body-file", "/x/staged.md", "--type", "Task", "--assignee", repos.maintainer.login, "--label", labels.decision, "--attach", "./a.png", "--attach", "./b.png"]);
-    assert.equal(runs[0].cwd, "/pictures");
+    assert.deepEqual(gh.create({ title: "Q? (#1)", bodyFile: "/x/body.md", labels: [labels.decision], assignee: repos.maintainer.login }), { number: 77 });
+    assert.deepEqual(runs[0].args, ["issue", "create", "-R", "acme/tickets", "--title", "Q? (#1)", "--body-file", "/x/body.md", "--type", "Task", "--assignee", repos.maintainer.login, "--label", labels.decision]);
     assert.equal(gh.parent(5), null);
-    const partial = ghTracker("acme/tickets", () => {
-      throw Object.assign(new Error("Command failed"), { stdout: "https://github.com/acme/tickets/issues/78\n", stderr: "upload of b.png failed" });
-    });
-    assert.deepEqual(partial.create({ title: "t", bodyFile: "f", labels: ["l"], assignee: "a", attach: ["./b.png"], cwd: "." }), { number: 78, uploadError: "upload of b.png failed" });
     gh.removeLabel(5, labels.task);
     assert.deepEqual(runs.at(-1).args, ["api", "-X", "DELETE", "repos/acme/tickets/issues/5/labels/maintainer%3A%20task"]);
     gh.removeBlockedBy(5, 990);
     assert.deepEqual(runs.at(-1).args, ["api", "-X", "DELETE", "repos/acme/tickets/issues/5/dependencies/blocked_by/990"]);
-    console.log("ok: the gh adapter creates the issue in one typed call with its label, assignee and attachments from the pictures folder, and reads a missing parent as none");
+    console.log("ok: the gh adapter creates the issue in one typed call with its label and assignee, and reads a missing parent as none");
   }
 
   {
@@ -584,6 +634,24 @@ try {
     assert.match(text, /Went ahead without you \(1\)\n  #3 Went ahead\? \(#7\)\n    .* · open 30h 0m · went ahead with A/);
     assert.match(formatList(groupRequests({ decisions: [], tasks: [], decidedWithoutYou: [] }), { now, timeZone }), /^Decisions \(0\)\n  None/);
     console.log("ok: list prints decisions, tasks and went-ahead-without-you requests in their groups, oldest first, with links, ages and fallback times");
+  }
+
+  {
+    const at = new Date(now.getTime() - 3600 * 1000).toISOString();
+    const issue = (number, owner, label) => ({ number, state: "open", title: `Q${number}? (#5)`, created_at: at, html_url: `https://github.com/acme/tickets/issues/${number}`, body: owner === undefined ? "A ticket tagged as a task." : `b\n\n${dataLine({ kind: label === labels.task ? "task" : "decision", waits: "w", owner })}\n`, labels: [{ name: label }] });
+    const tagComment = (owner) => ({ id: 1, user: { login: repos.maintainer.login, type: "User" }, body: `Task.\n\n${dataLine({ kind: "task", tagged: true, owner })}\n` });
+    const open = { [labels.decision]: [issue(11, "orchestrate-issues #977", labels.decision), issue(12, "resolve-issue #2271", labels.decision)], [labels.task]: [issue(13, "orchestrate-issues #977", labels.task), issue(14, undefined, labels.task), issue(15, undefined, labels.task)], [labels.decidedWithoutYou]: [] };
+    const tracker = { repo: "acme/tickets", open: (label) => open[label], all: (label) => open[label], comments: (n) => (n === 14 ? [tagComment("orchestrate-issues #977")] : n === 15 ? [tagComment("orchestrate-issues #2107")] : []), timeline: () => [] };
+    const lines = [];
+    assert.equal(main(["list", "--owner=orchestrate-issues #977"], { repos, tracker, out: (line) => lines.push(line), now }), 0);
+    assert.match(lines[0], /^Open maintainer requests owned by orchestrate-issues #977\n\nDecisions \(1\)\n  #11 Q11\? \(#5\)\n[^\n]*\n\nTasks \(2\)\n  #13 Q13\? \(#5\)\n[^\n]*\n  #14 Q14\? \(#5\)\n/, "list --owner keeps only the run's requests, including a tagged ticket whose task comment names it");
+    assert.ok(!/#12 |#15 /.test(lines[0]), "another owner's requests are left out");
+    lines.length = 0;
+    assert.equal(main(["list", "--owner=orchestrate-issues #977", "--json"], { repos, tracker, out: (line) => lines.push(line), now }), 0);
+    const listed = JSON.parse(lines[0]);
+    assert.deepEqual([listed.owner, listed.decisions.map((i) => i.number), listed.tasks.map((i) => i.number)], ["orchestrate-issues #977", [11], [13, 14]]);
+    for (const args of [["list", "--owner="], ["list", "--owner=a", "--owner=b"]]) assert.equal(main(args, { repos, tracker, out: () => {}, now }), 2, `${args.join(" ")} is refused`);
+    console.log("ok: list --owner prints only the requests one run or session owns");
   }
 
   {

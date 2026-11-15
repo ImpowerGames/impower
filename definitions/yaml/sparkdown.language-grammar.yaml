@@ -3368,7 +3368,7 @@ repository:
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
   DialogueCharacter:
-    match: ({{WS}}*)(.*?)({{WS}}*)({{WS}}[(][^()\r\n]*?[)])?($|{{WS}}*)({{WS}}\[.*?\])?({{EOL}})
+    match: ({{WS}}*)(.*?)(?:({{WS}}+)(as)({{WS}}+)({{LUAU_IDENTIFIER}}))?({{WS}}*)({{WS}}[(][^()\r\n]*?[)])?($|{{WS}}*)({{WS}}\[.*?\])?({{EOL}})
     captures:
       1:
         patterns:
@@ -3378,19 +3378,41 @@ repository:
           - { include: "#DialogueCharacterName" }
       3:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#Whitespace" }
       4:
         patterns:
-          - { include: "#DialogueCharacterParenthetical" }
+          - { include: "#DialogueCharacterAsKeyword" }
       5:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#Whitespace" }
       6:
         patterns:
-          - { include: "#DialogueCharacterPosition" }
+          - { include: "#DialogueCharacterSpeaker" }
       7:
         patterns:
+          - { include: "#ExtraWhitespace" }
+      8:
+        patterns:
+          - { include: "#DialogueCharacterParenthetical" }
+      9:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      10:
+        patterns:
+          - { include: "#DialogueCharacterPosition" }
+      11:
+        patterns:
           - { include: "#EndOfLine" }
+
+  DialogueCharacterAsKeyword:
+    tag: controlKeyword
+    name: keyword.control.as.sd
+    match: (as)
+
+  DialogueCharacterSpeaker:
+    tag: variableName
+    name: variable.other.character.speaker.sd
+    match: (.+)
 
   DialogueCharacterName:
     tag: typeName

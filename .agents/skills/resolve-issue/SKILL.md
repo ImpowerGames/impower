@@ -21,7 +21,7 @@ Read the full body, labels and type with `gh issue view N -R <tickets> --json nu
 
 ## 2. Create the worktree
 
-Follow [worktree setup](references/worktree.md): never work on main or reuse another issue's worktree. The session title is derived from the branch (`fix/302-filterimage-layers` becomes `FIX #302: filterimage layers`); after worktree creation, a repository hook names the exact title and rename call, and refuses shell commands until the session is renamed. Install dependencies only when required, with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, then repeat preflight. All later work runs in the new worktree.
+Follow [worktree setup](references/worktree.md), failed removals included: never work on main or reuse another issue's worktree. After worktree creation, a repository hook names the session title derived from the branch and the rename call, and refuses shell commands until the session is renamed. All later work runs in the new worktree.
 
 ## 3. Reproduce before you fix
 
@@ -58,6 +58,10 @@ Check CI for the current head. For cancelled/timed-out runs, read [CI evidence](
 
 Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity and effort read from the runner. The launcher resolves a missing reviewer route from the reviewer defaults; an explicit cross-vendor route from the user or caller overrides it. It owns reviewer counts, risk selection, correction rounds and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count. The default review cap is three rounds; only an explicit user request (a named bounded limit or a delegated choice) may extend it.
 
+## Waiting on the maintainer
+
+A stand-alone session that would stop for the maintainer's decision or action files a request through [ask-maintainer](../ask-maintainer/SKILL.md) instead, owned by `resolve-issue #<N>` and holding up the ticket, sends the notify-user alert once on filing, continues what the request does not hold, and reads the answer or takes the fallback as that skill describes. A coordinated writer asks its coordinator.
+
 ## The completion gate
 
 Implementation is ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR carries its closing reference and verification; and review has satisfied its gates and marked it ready.
@@ -66,12 +70,6 @@ Report the last independently reviewed commit, rounds used, outstanding findings
 
 After review's last correction is adjudicated, just before marking the PR ready or asking the user to authorize more rounds, read [outstanding work](references/follow-ups.md) once: fix what this PR can carry and ticket only the rest.
 
-Before a completion or incomplete draft handoff, read [feedback reporting](../references/feedback-reporting.md) and post to the inbox any friction from this session that meets its bar. Most sessions post nothing.
+Before a completion or incomplete draft handoff, read [feedback reporting](../references/feedback-reporting.md) and post to the inbox any friction from this session that meets its bar.
 
 At completion, or when yielding for input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion alert identifying the work and next action. Use `done` when no action is needed, `user_input_needed` for a question or review/merge request, or `blocked` when progress requires help. Preserve this workflow's gates and include evidence, links and missing information in chat.
-
-## Troubleshooting
-
-| Symptom | Action |
-| --- | --- |
-| `git worktree remove` reports `Directory not empty` | Use clean-worktrees `--remove <path>` (unmerged too; keeps the branch), which refuses external targets. Never bypass refusal with recursive deletion. |

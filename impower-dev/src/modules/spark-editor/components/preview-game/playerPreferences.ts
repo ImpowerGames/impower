@@ -19,6 +19,7 @@ import {
   type StartingDisplayMode,
 } from "@impower/spark-engine/src/game/core/classes/messages/SetStartingDisplayModeMessage";
 import { SetAutoPlayBeatsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetAutoPlayBeatsMessage";
+import { SetPlayAudioMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPlayAudioMessage";
 import { SetPreviewThemeMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPreviewThemeMessage";
 import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
 import { effect, type ReadonlySignal } from "@preact/signals";
@@ -74,6 +75,8 @@ export const createPlayerPreferenceSync = (
     motion.peek().autoPlayBeats && preferences.peek().previewFollowsCursor;
   const sendAutoPlayBeats = (enabled: boolean) =>
     post(SetAutoPlayBeatsMessage.type.request({ enabled }));
+  const sendPlayAudio = (enabled: boolean) =>
+    post(SetPlayAudioMessage.type.request({ enabled }));
   const sendTypingPauses = (enabled: boolean) =>
     post(
       enabled
@@ -93,6 +96,7 @@ export const createPlayerPreferenceSync = (
     sendTheme(theme.peek());
     sendIdleAnimations(motion.peek().idleAnimations);
     sendAutoPlayBeats(autoPlayBeatsOf());
+    sendPlayAudio(preferences.peek().previewPlayAudio);
     sendTypingPauses(preferences.peek().previewTypingPauses);
     sendDisplayMode(startingDisplayModeOf(preferences.peek().previewMode));
     sendColorScheme(currentColorScheme());
@@ -119,6 +123,7 @@ export const createPlayerPreferenceSync = (
   });
   let idleAnimations = motion.peek().idleAnimations;
   let autoPlayBeats = autoPlayBeatsOf();
+  let playAudio = preferences.peek().previewPlayAudio;
   let typingPauses = preferences.peek().previewTypingPauses;
   let displayMode = startingDisplayModeOf(preferences.peek().previewMode);
   const disposePreferences = effect(() => {
@@ -138,6 +143,10 @@ export const createPlayerPreferenceSync = (
     if (nextAutoPlayBeats !== autoPlayBeats) {
       autoPlayBeats = nextAutoPlayBeats;
       sendAutoPlayBeats(autoPlayBeats);
+    }
+    if (value.previewPlayAudio !== playAudio) {
+      playAudio = value.previewPlayAudio;
+      sendPlayAudio(playAudio);
     }
     if (value.previewTypingPauses !== typingPauses) {
       typingPauses = value.previewTypingPauses;

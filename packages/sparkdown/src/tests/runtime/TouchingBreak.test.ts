@@ -296,7 +296,7 @@ describe("a `>` break that touches the words around it", () => {
   test("a cue's `[>]` is a character position, not a break", () => {
     const { steps: shown } = run(`HERO [>]:\n  Hi.\n`);
     expect(shown).toEqual([
-      { text: "Hi.\n", target: "dialogue", character: "HERO" },
+      { text: "Hi.\n", target: "dialogue", character: "HERO [>]" },
     ]);
   });
 });

@@ -1,6 +1,6 @@
 import type { PreviewStripSymbol } from "@impower/impower-ui/components";
-import type { PreviewLine } from "@impower/spark-editor-protocol/src/protocols/textDocument/PreviewLineMessage";
 import type { Problem } from "../../workspace/problems/problemEntries";
+import type { PreviewLineSnapshot } from "../../workspace/WorkspaceStore";
 
 export interface StripCopy {
   label: string;
@@ -23,24 +23,48 @@ export const EMPTY_WORDS = "Write a line and it appears here.";
 
 export const FORCED_TEXT = "Forced to reach this line";
 
-export const stripCopy = (preview: PreviewLine | undefined): StripCopy => {
+const SETUP_COPY: StripCopy = {
+  label: "STORY SETUP",
+  words: SETUP_WORDS,
+  symbol: "file",
+  playable: false,
+};
+
+export const stripCopy = (
+  preview: PreviewLineSnapshot["preview"] | undefined,
+  startRefused = false,
+): StripCopy => {
+  if (startRefused) {
+    return SETUP_COPY;
+  }
   if (!preview) {
     return { label: "", words: "", playable: true };
   }
-  switch (preview.kind) {
-    case "setup":
-      return { label: "STORY SETUP", words: SETUP_WORDS, symbol: "file", playable: false };
-    case "empty":
-      return { label: "YOUR GAME", words: EMPTY_WORDS, symbol: "pencil", playable: false };
-    case "dialogue":
-      return {
-        label: (preview.speaker ?? "").toUpperCase(),
-        words: preview.words,
-        playable: true,
-      };
-    default:
-      return { label: KIND_LABELS[preview.kind], words: preview.words, playable: true };
+  if (preview.kind === "setup") {
+    return SETUP_COPY;
   }
+  if (preview.kind === "empty") {
+    return { label: "YOUR GAME", words: EMPTY_WORDS, symbol: "pencil", playable: false };
+  }
+  if (preview.options?.length) {
+    return {
+      label: KIND_LABELS.choice,
+      words: preview.words || preview.options.join(" · "),
+      playable: true,
+    };
+  }
+  if (preview.kind === "dialogue") {
+    return {
+      label: (preview.speaker ?? "").toUpperCase(),
+      words: preview.words,
+      playable: true,
+    };
+  }
+  return {
+    label: preview.kind ? KIND_LABELS[preview.kind] : "",
+    words: preview.words,
+    playable: true,
+  };
 };
 
 const SEVERITY_RANK: Record<string, number> = { error: 0, warning: 1, info: 2 };

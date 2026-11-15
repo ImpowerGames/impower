@@ -23,7 +23,8 @@ export const WAIT_REASONS = Object.freeze({
   "confirms-built": "it asks you to confirm something already built",
 });
 export const WAIT_MINUTES = Object.freeze({ min: 30, max: 1440, unstated: 120 });
-const PICTURE_TYPES = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+const CONTENT_TYPES = Object.freeze({ ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" });
+const PICTURE_TYPES = Object.keys(CONTENT_TYPES);
 const DATA_MARK = "maintainer-request";
 const DATA_LINE = /^<!-- maintainer-request (\{.*\}) -->$/m;
 const NOTE_MARK = "maintainer-request-note";
@@ -489,27 +490,13 @@ export function checkPlacedBody(body, placed) {
   return problems;
 }
 
-export function stagingBody(body) {
-  const pictures = [];
-  const staged = body.replace(/<img src="(\.\/[^"]+)"[^>]*>/g, (_, src) => {
-    if (pictures.some((picture) => picture.src === src)) return "";
-    const token = `picture-${pictures.length + 1}`;
-    pictures.push({ token, src });
-    return `![${token}](${src})`;
-  });
-  return { staged, pictures };
-}
-
-export function hostedAddresses(stagedBack, pictures) {
-  const problems = [];
+export function uploadPictures(pictures, folder, upload) {
   const urls = {};
-  for (const { token, src } of pictures) {
-    const match = new RegExp(`!\\[${token}\\]\\(([^)\\s]+)\\)`).exec(stagedBack);
-    if (!match) problems.push(`the reference for ${src} is gone from the uploaded body`);
-    else if (!/^https:\/\//.test(match[1])) problems.push(`${src} was not uploaded: the body still holds its relative path`);
-    else urls[src] = match[1];
+  for (const picture of pictures) {
+    const src = `./${path.relative(folder, picture.path).split(path.sep).join("/")}`;
+    if (!Object.hasOwn(urls, src)) urls[src] = upload(picture.path);
   }
-  return { urls, problems };
+  return urls;
 }
 
 export function placeAddresses(body, urls) {
@@ -543,6 +530,7 @@ export function ghTracker(repo = ticketsRepo(), runGh = (args, options = {}) => 
   const run = env ? (args, options = {}) => runGh(args, { ...options, env }) : runGh;
   const json = (args) => JSON.parse(run(args) || "null");
   const dependencies = dependencyClient(repo, (args) => run(args));
+  let repositoryId = null;
   return {
     repo,
     open: (label) => json(["api", "-X", "GET", `repos/${repo}/issues`, "-f", "state=open", "-f", `labels=${label}`, "-f", "per_page=100", "--paginate", "--slurp"]).flat().filter((issue) => !issue.pull_request),
@@ -556,19 +544,18 @@ export function ghTracker(repo = ticketsRepo(), runGh = (args, options = {}) => 
         throw error;
       }
     },
-    create: ({ title, bodyFile, labels, assignee, attach, cwd }) => {
+    upload: (file) => {
+      repositoryId ??= JSON.parse(runGh(["api", `repos/${repo}`])).id;
+      const type = CONTENT_TYPES[path.extname(file).toLowerCase()];
+      const query = new URLSearchParams({ content_type: type, name: path.basename(file), repository_id: String(repositoryId) });
+      const url = JSON.parse(runGh(["api", "-X", "POST", `https://uploads.github.com/user-attachments/assets?${query}`, "-H", `Content-Type: ${type}`, "--input", file]) || "null")?.url;
+      if (typeof url !== "string" || !/^https:\/\//.test(url)) throw new Error(`the upload of ${path.basename(file)} returned no hosted address`);
+      return url;
+    },
+    create: ({ title, bodyFile, labels, assignee }) => {
       const args = ["issue", "create", "-R", repo, "--title", title, "--body-file", bodyFile, "--type", "Task", "--assignee", assignee];
       for (const label of labels) args.push("--label", label);
-      for (const file of attach) args.push("--attach", file);
-      let out;
-      try {
-        out = run(args, { cwd });
-      } catch (error) {
-        out = `${error.stdout ?? ""}`;
-        const number = /\/issues\/(\d+)\s*$/m.exec(out)?.[1];
-        if (!number) throw error;
-        return { number: Number(number), uploadError: `${error.stderr ?? error.message}`.trim() };
-      }
+      const out = run(args);
       const number = /\/issues\/(\d+)\s*$/m.exec(out)?.[1];
       if (!number) throw new Error(`gh issue create printed no issue address: ${out}`);
       return { number: Number(number) };
@@ -576,20 +563,7 @@ export function ghTracker(repo = ticketsRepo(), runGh = (args, options = {}) => 
     editBody: (n, bodyFile) => json(["api", "-X", "PATCH", `repos/${repo}/issues/${n}`, "-F", `body=@${bodyFile}`]),
     addLabel: (n, label) => json(["api", "-X", "POST", `repos/${repo}/issues/${n}/labels`, "-f", `labels[]=${label}`]),
     addAssignee: (n, login) => json(["api", "-X", "POST", `repos/${repo}/issues/${n}/assignees`, "-f", `assignees[]=${login}`]),
-    comment: ({ number, bodyFile, attach, cwd }) => {
-      if (!attach.length) return { id: json(["api", "-X", "POST", `repos/${repo}/issues/${number}/comments`, "-F", `body=@${bodyFile}`]).id };
-      let out;
-      let uploadError;
-      try {
-        out = run(["issue", "comment", String(number), "-R", repo, "--body-file", bodyFile, ...attach.flatMap((file) => ["--attach", file])], { cwd });
-      } catch (error) {
-        out = `${error.stdout ?? ""}`;
-        uploadError = `${error.stderr ?? error.message}`.trim();
-      }
-      const id = /#issuecomment-(\d+)/.exec(out)?.[1];
-      if (!id) throw new Error(`gh issue comment printed no comment address: ${out} ${uploadError ?? ""}`);
-      return { id: Number(id), uploadError };
-    },
+    comment: ({ number, bodyFile }) => ({ id: json(["api", "-X", "POST", `repos/${repo}/issues/${number}/comments`, "-F", `body=@${bodyFile}`]).id }),
     readComment: (id) => json(["api", `repos/${repo}/issues/comments/${id}`]),
     comments: (n) => json(["api", `repos/${repo}/issues/${n}/comments`, "--paginate", "--slurp"]).flat(),
     timeline: (n) => json(["api", `repos/${repo}/issues/${n}/timeline`, "--paginate", "--slurp"]).flat(),
@@ -647,39 +621,16 @@ function withScratch(work) {
   }
 }
 
-function attachments(pictures, folder) {
-  const files = [];
-  for (const picture of pictures) {
-    const relative = `./${path.relative(folder, picture.path).split(path.sep).join("/")}`;
-    if (!files.includes(relative)) files.push(relative);
-  }
-  return files;
-}
-
-function placeInto({ built, folder, scratch, post, read, write }) {
-  const { staged, pictures } = stagingBody(built.body);
-  const stagedFile = path.join(scratch, "staged.md");
-  writeFileSync(stagedFile, staged);
-  const target = post(stagedFile, attachments(built.pictures, folder));
-  const problems = target.uploadError ? [`an upload failed: ${target.uploadError}`] : [];
-  let addresses = {};
-  if (pictures.length) {
-    const hosted = hostedAddresses(read(target).replace(/\r\n/g, "\n"), pictures);
-    problems.push(...hosted.problems);
-    addresses = hosted.urls;
-    if (!hosted.problems.length) {
-      const finalFile = path.join(scratch, "final.md");
-      writeFileSync(finalFile, placeAddresses(built.body, addresses));
-      write(target, finalFile);
-    }
-  }
-  const urls = Object.values(addresses);
+function placeInto({ built, folder, scratch, upload, post, read }) {
+  const addresses = uploadPictures(built.pictures, folder, upload);
+  const urls = [...new Set(Object.values(addresses))];
+  const body = placeAddresses(built.body, addresses);
+  const file = path.join(scratch, "body.md");
+  writeFileSync(file, body);
+  const target = post(file);
   const back = read(target).replace(/\r\n/g, "\n");
-  if (!problems.length) {
-    problems.push(...checkPlacedBody(back, urls));
-    const expected = placeAddresses(built.body, addresses);
-    if (!problems.length && back.trimEnd() !== expected.trimEnd()) problems.push("the body read back differs from the body the tool wrote");
-  }
+  const problems = checkPlacedBody(back, urls);
+  if (!problems.length && back.trimEnd() !== body.trimEnd()) problems.push("the body read back differs from the body the tool wrote");
   return { target, problems, urls };
 }
 
@@ -757,14 +708,14 @@ export function fileRequest(request, { pictures: folder, tracker, repos = readRe
         built,
         folder,
         scratch,
-        post: (file, attach) => {
-          const target = tracker.create({ title: built.title, bodyFile: file, labels: [label], assignee: repos.maintainer.login, attach, cwd: folder });
+        upload: tracker.upload,
+        post: (file) => {
+          const target = tracker.create({ title: built.title, bodyFile: file, labels: [label], assignee: repos.maintainer.login });
           filed.number = target.number;
           noteRequests(tracker.repo, [{ number: target.number, kind: checked.kind, state: "waiting" }]);
           return target;
         },
         read: (target) => tracker.issue(target.number).body ?? "",
-        write: (target, file) => tracker.editBody(target.number, file),
       });
       if (placed.problems.length) throw new FilingProblems(placed.problems);
       const verified = verifyFiled(tracker, filed.number, { label, login: repos.maintainer.login });
@@ -805,13 +756,13 @@ export function tagTicket(number, request, { pictures: folder, tracker, repos = 
         built,
         folder,
         scratch,
-        post: (file, attach) => {
-          const target = tracker.comment({ number, bodyFile: file, attach, cwd: folder });
+        upload: tracker.upload,
+        post: (file) => {
+          const target = tracker.comment({ number, bodyFile: file });
           done.comment = target.id;
           return target;
         },
         read: (target) => tracker.readComment(target.id).body ?? "",
-        write: (target, file) => tracker.editComment(target.id, file),
       });
       if (placed.problems.length) throw new FilingProblems(placed.problems);
       const earlier = tracker.comments(number).find((comment) => comment.id < done.comment && readDataLine(comment.body)?.tagged);
@@ -881,7 +832,7 @@ export function formatList(groups, { now = new Date(), timeZone = Intl.DateTimeF
   return lines.join("\n").trimEnd();
 }
 
-export function listRequests(tracker, repos = readRepos()) {
+export function listRequests(tracker, repos = readRepos(), { owner = null } = {}) {
   const { decision, task, decidedWithoutYou } = repos.maintainer.labels;
   const decisions = tracker.all(decision);
   const tasks = tracker.all(task);
@@ -891,8 +842,10 @@ export function listRequests(tracker, repos = readRepos()) {
   };
   noteRequests(tracker.repo, [...decisions.map((issue) => [issue, "decision"]), ...tasks.map((issue) => [issue, "task"])].map(([issue, kind]) => ({ number: issue.number, kind, tagged: kind === "task" && !filed(issue), state: issue.state === "open" ? "open" : "closed" })));
   forgetUntagged(tracker.repo, new Set(tasks.map((issue) => issue.number)));
-  const open = (list) => list.filter((issue) => issue.state === "open");
-  const wentAhead = tracker.open(decidedWithoutYou).filter((issue) => fallbackCommitted(issue, tracker.timeline(issue.number), repos));
+  const ownerOf = (issue) => findRequestData(issue, () => tracker.comments(issue.number), whoOf(repos))?.data.owner ?? null;
+  const owned = (list) => (owner === null ? list : list.filter((issue) => ownerOf(issue) === owner));
+  const open = (list) => owned(list.filter((issue) => issue.state === "open"));
+  const wentAhead = owned(tracker.open(decidedWithoutYou)).filter((issue) => fallbackCommitted(issue, tracker.timeline(issue.number), repos));
   return groupRequests({ decisions: open(decisions), tasks: open(tasks), decidedWithoutYou: wentAhead });
 }
 
@@ -902,12 +855,17 @@ export const stamp = (iso) => `${new Date(iso).toISOString().slice(0, 16).replac
 export const quote = (text) => lf(text).split("\n").map((line) => (line ? `> ${line}` : ">")).join("\n");
 export const unquote = (text) => lf(text).split("\n").map((line) => (line === ">" ? "" : line.replace(/^> /, ""))).join("\n");
 
-function requestData(issue, comments, who) {
-  if (issue.pull_request) throw new RequestRefused([`#${issue.number} is a pull request, not a maintainer request`]);
+function findRequestData(issue, comments, who) {
   const own = readDataLine(issue.body);
   if (own && !own.tagged) return { data: own, body: lf(issue.body), floor: null };
-  const tag = comments.find((comment) => commentAuthor(comment, who) !== "other" && readDataLine(comment.body)?.tagged);
-  if (tag) return { data: readDataLine(tag.body), body: lf(tag.body), floor: tag };
+  const tag = comments().find((comment) => commentAuthor(comment, who) !== "other" && readDataLine(comment.body)?.tagged);
+  return tag ? { data: readDataLine(tag.body), body: lf(tag.body), floor: tag } : null;
+}
+
+function requestData(issue, comments, who) {
+  if (issue.pull_request) throw new RequestRefused([`#${issue.number} is a pull request, not a maintainer request`]);
+  const found = findRequestData(issue, () => comments, who);
+  if (found) return found;
   throw new RequestRefused([`#${issue.number} is not a maintainer request: neither its body nor a task comment holds the request's data line`]);
 }
 
@@ -1061,7 +1019,7 @@ export function recordBody(answer, identity = AS_MAINTAINER) {
 function postNote(tracker, number, text, scratch, name, posted = () => {}) {
   const file = path.join(scratch, `${name}.md`);
   writeFileSync(file, text);
-  const { id } = tracker.comment({ number, bodyFile: file, attach: [] });
+  const { id } = tracker.comment({ number, bodyFile: file });
   posted(id);
   const back = tracker.readComment(id);
   if (lf(back.body).trimEnd() !== lf(text).trimEnd()) throw new Error(`comment ${id} on #${number} reads back differently from the text the tool posted`);
@@ -1093,6 +1051,33 @@ export function recordAnswer(number, { tracker, repos = readRepos(), identity = 
   });
 }
 
+export function requestFacts(number, { tracker, repos = readRepos(), holding = null }) {
+  const answer = fetchAnswer(number, { tracker, repos });
+  const holds = holding === null ? null : tracker.blockedBy(holding).some((issue) => issue.number === number);
+  const answered = ANSWERED.includes(answer.state);
+  const key = answered ? answerKey(answer) : null;
+  const who = whoOf(repos);
+  const recorded = answered && tracker.comments(number).some((comment) => commentAuthor(comment, who) === "tool" && readNote(comment.body)?.kind === "recorded" && readNote(comment.body)?.request === number && readNote(comment.body)?.answer === key);
+  return { number, url: answer.url, title: answer.title, kind: answer.kind, question: answer.question, owner: answer.data.owner ?? null, tickets: answer.tickets, ...(holding !== null && { holding, holds }), state: answer.state, answered, recorded, recommended: answer.recommended, wentAhead: answer.wentAhead ?? null, closed: answer.closed ?? null, words: answer.words.map(({ url, at, body, relayed }) => ({ url, at, body, ...(relayed && { relayed: true }) })) };
+}
+
+export function answerText(facts) {
+  const fallback = facts.wentAhead ? `the fallback ${optionLabel(facts.wentAhead)}` : "the fallback";
+  const closedAt = facts.closed ? stamp(facts.closed.at) : "an unrecorded time";
+  const words = facts.words.length ? ", in the words quoted below" : "";
+  const answer = {
+    done: `the maintainer did it, closing the task as completed at ${closedAt}${words}`,
+    "will-not-do": `the maintainer will not do it, closing the task as not planned at ${closedAt}${words}`,
+    answered: "the maintainer answered in the words quoted below",
+    changed: `the maintainer changed ${fallback} in the words quoted below`,
+    kept: `the maintainer kept ${fallback} by closing without comment at ${closedAt}`,
+    accepted: `the maintainer accepted the recommendation${facts.recommended ? `, ${facts.recommended.letter}${facts.recommended.name ? ` · ${facts.recommended.name}` : ""},` : ""} by closing without comment at ${closedAt}`,
+  }[facts.state];
+  if (!answer) throw new RequestRefused([`#${facts.number} holds no answer: it is ${facts.state}`]);
+  const quoted = facts.words.map((word) => `\n${word.relayed ? "Typed in chat and relayed on the request" : "Their comment"} at ${stamp(word.at)} (${word.url}):\n${quote(lf(word.body).trimEnd())}`);
+  return [`Maintainer request #${facts.number} (${facts.url}) asked "${facts.question}"; ${answer}.`, ...quoted].join("\n");
+}
+
 function checkNoteText(value, what) {
   const reasons = [];
   if (!filled(value)) reasons.push(`${what} is empty`);
@@ -1121,18 +1106,7 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
   return withScratch((scratch) => {
     const done = { reopened: false, body: false, title: false, note: null };
     try {
-      const { staged, pictures: staging } = stagingBody(built.body);
-      let urls = {};
-      if (staging.length) {
-        const stagedFile = path.join(scratch, "staged.md");
-        writeFileSync(stagedFile, `${staged}\n\n${note}`);
-        const posted = tracker.comment({ number, bodyFile: stagedFile, attach: attachments(built.pictures, folder), cwd: folder });
-        done.note = posted.id;
-        if (posted.uploadError) throw new FilingProblems([`an upload failed: ${posted.uploadError}`]);
-        const hosted = hostedAddresses(lf(tracker.readComment(posted.id).body), staging);
-        if (hosted.problems.length) throw new FilingProblems(hosted.problems);
-        urls = hosted.urls;
-      }
+      const urls = uploadPictures(built.pictures, folder, tracker.upload);
       const finalBody = placeAddresses(built.body, urls);
       const bodyFile = path.join(scratch, "body.md");
       writeFileSync(bodyFile, finalBody);
@@ -1143,21 +1117,11 @@ export function reviseRequest(number, request, changes, { pictures: folder, trac
         tracker.editTitle(number, built.title);
       }
       const back = tracker.issue(number);
-      const placed = checkPlacedBody(lf(back.body), Object.values(urls));
+      const placed = checkPlacedBody(lf(back.body), [...new Set(Object.values(urls))]);
       if (!placed.length && lf(back.body).trimEnd() !== finalBody.trimEnd()) placed.push("the body read back differs from the body the tool wrote");
       if (back.title !== built.title) placed.push(`the title reads back as "${back.title}"`);
       if (placed.length) throw new FilingProblems(placed);
-      let comment;
-      if (done.note !== null) {
-        const noteFile = path.join(scratch, "note.md");
-        writeFileSync(noteFile, note);
-        tracker.editComment(done.note, noteFile);
-        const noted = tracker.readComment(done.note);
-        if (lf(noted.body).trimEnd() !== lf(note).trimEnd()) throw new FilingProblems([`the revision note ${done.note} reads back differently`]);
-        comment = { id: done.note, url: noted.html_url };
-      } else {
-        comment = postNote(tracker, number, note, scratch, "note", (id) => (done.note = id));
-      }
+      const comment = postNote(tracker, number, note, scratch, "note", (id) => (done.note = id));
       if (issue.state === "closed") {
         tracker.reopen(number);
         done.reopened = true;
@@ -1446,7 +1410,7 @@ export function formatAnswer(answer) {
 const USAGE = `Usage:
   node .agents/skills/ask-maintainer/maintainer-request.mjs file <request.json> [<pictures-folder>] [--dry-run]
   node .agents/skills/ask-maintainer/maintainer-request.mjs tag <ticket> <task.json> [<pictures-folder>]
-  node .agents/skills/ask-maintainer/maintainer-request.mjs list [--json]
+  node .agents/skills/ask-maintainer/maintainer-request.mjs list [--owner=<owner>] [--json]
   node .agents/skills/ask-maintainer/maintainer-request.mjs identity
   node .agents/skills/ask-maintainer/maintainer-request.mjs read <request> [--json]
   node .agents/skills/ask-maintainer/maintainer-request.mjs record <request>
@@ -1551,12 +1515,14 @@ export function main(argv, { repos = readRepos(), identity = AS_MAINTAINER, trac
     out(`Tagged #${result.number} as a maintainer task: ${result.url} (comment ${result.comment}, ${result.pictures} picture(s)); blocks ${result.blocked.length ? result.blocked.map((n) => `#${n}`).join(", ") : "no other ticket"}; no issue was created.\nTagged ${filedBy(identity)}`);
     return 0;
   }
-  if (command === "list" && !args.length && flags.every((flag) => flag === "--json")) {
-    const groups = listRequests(tracker, repos);
+  const ownerFlags = flags.filter((flag) => flag.startsWith("--owner="));
+  if (command === "list" && !args.length && ownerFlags.length <= 1 && flags.every((flag) => flag === "--json" || (flag.startsWith("--owner=") && flag.length > "--owner=".length))) {
+    const owner = ownerFlags.length ? ownerFlags[0].slice("--owner=".length) : null;
+    const groups = listRequests(tracker, repos, { owner });
     if (flags.includes("--json")) {
       const pick = (issue) => ({ number: issue.number, title: issue.title, url: issue.html_url, created: issue.created_at, data: readDataLine(issue.body) });
-      out(JSON.stringify({ decisions: groups.decisions.map(pick), tasks: groups.tasks.map(pick), decidedWithoutYou: groups.decidedWithoutYou.map(pick) }, null, 2));
-    } else out(formatList(groups, { now }));
+      out(JSON.stringify({ ...(owner !== null && { owner }), decisions: groups.decisions.map(pick), tasks: groups.tasks.map(pick), decidedWithoutYou: groups.decidedWithoutYou.map(pick) }, null, 2));
+    } else out(`${owner === null ? "" : `Open maintainer requests owned by ${owner}\n\n`}${formatList(groups, { now })}`);
     return 0;
   }
   if (command === "identity" && !rest.length) {

@@ -62,4 +62,18 @@ describe("Thumbnail", () => {
     expect(frame.querySelector("[data-sound-glyph]")).not.toBeNull();
     expect(frame.hasAttribute("data-thumbnail-failed")).toBe(false);
   });
+
+  it("sits on the stage surface when asked, keeping its box when the picture fails", async () => {
+    const plain = await mount(<Thumbnail src="/a.png" />);
+    expect(plain.className.split(" ")).toContain("bg-muted/12");
+    expect(plain.className.split(" ")).not.toContain("bg-stage");
+    const staged = await mount(<Thumbnail src="/layer.png" surface="stage" fit="contain" />);
+    expect(staged.className.split(" ")).toEqual(expect.arrayContaining(["bg-stage", "size-11"]));
+    expect(staged.className.split(" ")).not.toContain("bg-muted/12");
+    await act(async () => {
+      staged.querySelector("img")!.dispatchEvent(new Event("error"));
+    });
+    expect(staged.hasAttribute("data-thumbnail-failed")).toBe(true);
+    expect(staged.className.split(" ")).toEqual(expect.arrayContaining(["bg-stage", "size-11"]));
+  });
 });

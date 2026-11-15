@@ -269,6 +269,44 @@ describe("ListRow", () => {
     expect(root.querySelector("small")!.className).toContain("text-[11px]/[1.4]");
   });
 
+  it("closes a dense row's gap to 10px below desktop", async () => {
+    const root = await mount(<ListRow size="dense" icon={<svg />} label="main · line 47" onClick={() => {}} />);
+    const classes = root.querySelector("button")!.className.split(" ");
+    expect(classes).toEqual(expect.arrayContaining(["gap-2.5", "[:root[data-layout=desktop]_&]:gap-[13px]"]));
+  });
+
+  it("draws a library row 62px tall with an 8px inset and 10px gap below desktop, 60px with 12px and 13px on desktop", async () => {
+    const root = await mount(<ListRow size="library" icon={<svg />} label="Music" onClick={() => {}} />);
+    const classes = root.querySelector("button")!.className.split(" ");
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        "min-h-[62px]",
+        "gap-2.5",
+        "px-2",
+        "[:root[data-layout=desktop]_&]:min-h-[60px]",
+        "[:root[data-layout=desktop]_&]:gap-[13px]",
+        "[:root[data-layout=desktop]_&]:px-3",
+        "[&>svg:first-child]:size-[21px]",
+      ]),
+    );
+  });
+
+  it("starts a library row's text after its control at the row's own inset, not the control inset", async () => {
+    const root = await mount(<ListRow size="library" label="door" control={<button type="button">Play door</button>} onClick={() => {}} />);
+    const classes = root.querySelectorAll("button")[1]!.className.split(" ");
+    expect(classes).toEqual(expect.arrayContaining(["pl-2", "[:root[data-layout=desktop]_&]:pl-3"]));
+    expect(classes).not.toContain("pl-[13px]");
+  });
+
+  it("draws a file row 52px tall with an 18px glyph centred in a 28px column after a 6px inset, and 13px names", async () => {
+    const root = await mount(<ListRow size="file" icon={<svg />} label="imani.png" description="Base · 570 kb" onClick={() => {}} />);
+    const classes = root.querySelector("button")!.className.split(" ");
+    expect(classes).toEqual(
+      expect.arrayContaining(["min-h-[52px]", "gap-2.5", "pl-1.5", "pr-0", "text-[13px]/[1.5]", "[&>svg:first-child]:size-[18px]", "[&>svg:first-child]:mx-[5px]"]),
+    );
+    expect(root.querySelector("small")!.className).toContain("text-[11px]/[1.4]");
+  });
+
   it("rejects a leading slot together with a selection mark at compile time", () => {
     const both = () => (
       // @ts-expect-error
@@ -323,5 +361,20 @@ describe("ListRow control", () => {
       <ListRow label="door" control={control} selection="active" selectLabel="Select door" onClick={() => undefined} />,
     );
     expect(active.querySelector("[data-list-row-control]")!.className).toContain("invisible");
+  });
+
+  it("is a toggle button when pressed is given, tinted with the accent rule while pressed", async () => {
+    const off = await mount(<ListRow label="ava.png" pressed={false} onClick={() => undefined} />);
+    expect(off.querySelector("button")!.getAttribute("aria-pressed")).toBe("false");
+    expect(off.firstElementChild!.className.split(" ")).not.toContain("bg-tint");
+    await act(async () => render(null, host!));
+    host!.remove();
+    const on = await mount(<ListRow label="ava.png" pressed onClick={() => undefined} />);
+    expect(on.querySelector("button")!.getAttribute("aria-pressed")).toBe("true");
+    expect(on.firstElementChild!.className.split(" ")).toEqual(expect.arrayContaining(["bg-tint", "before:opacity-100"]));
+    await act(async () => render(null, host!));
+    host!.remove();
+    const plain = await mount(<ListRow label="ava.png" onClick={() => undefined} />);
+    expect(plain.querySelector("button")!.hasAttribute("aria-pressed")).toBe(false);
   });
 });

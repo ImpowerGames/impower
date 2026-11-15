@@ -975,7 +975,11 @@ sparkdown [0..1131]
  │   │   │       │       └─ DialogueCharacterName_c1 [376..380]
  │   │   │       │           └─ Word [376..380]: "HERO"
  │   │   │       ├─ DialogueCharacter_c3 380
- │   │   │       ├─ DialogueCharacter_c4 [380..391]
+ │   │   │       ├─ DialogueCharacter_c4 380
+ │   │   │       ├─ DialogueCharacter_c5 380
+ │   │   │       ├─ DialogueCharacter_c6 380
+ │   │   │       ├─ DialogueCharacter_c7 380
+ │   │   │       ├─ DialogueCharacter_c8 [380..391]
  │   │   │       │   └─ DialogueCharacterParenthetical [380..391]
  │   │   │       │       ├─ DialogueCharacterParenthetical_c1 [380..381]
  │   │   │       │       │   └─ Whitespace [380..381]: " "
@@ -986,8 +990,8 @@ sparkdown [0..1131]
  │   │   │       │       ├─ DialogueCharacterParenthetical_c5 390
  │   │   │       │       ├─ DialogueCharacterParenthetical_c6 [390..391]: ")"
  │   │   │       │       └─ DialogueCharacterParenthetical_c7 391
- │   │   │       ├─ DialogueCharacter_c5 391
- │   │   │       ├─ DialogueCharacter_c6 [391..395]
+ │   │   │       ├─ DialogueCharacter_c9 391
+ │   │   │       ├─ DialogueCharacter_c10 [391..395]
  │   │   │       │   └─ DialogueCharacterPosition [391..395]
  │   │   │       │       ├─ DialogueCharacterPosition_c1 [391..392]
  │   │   │       │       │   └─ Whitespace [391..392]: " "
@@ -997,7 +1001,7 @@ sparkdown [0..1131]
  │   │   │       │       │   └─ DialogueCharacterPositionContent [393..394]: ">"
  │   │   │       │       ├─ DialogueCharacterPosition_c5 394
  │   │   │       │       └─ DialogueCharacterPosition_c6 [394..395]: "]"
- │   │   │       └─ DialogueCharacter_c7 395
+ │   │   │       └─ DialogueCharacter_c11 395
  │   │   ├─ BlockDialogue_begin_c3 [395..396]
  │   │   │   └─ ColonSeparator [395..396]: ":"
  │   │   └─ BlockDialogue_begin_c4 396
@@ -1034,7 +1038,11 @@ sparkdown [0..1131]
  │   │   │       ├─ DialogueCharacter_c4 411
  │   │   │       ├─ DialogueCharacter_c5 411
  │   │   │       ├─ DialogueCharacter_c6 411
- │   │   │       └─ DialogueCharacter_c7 411
+ │   │   │       ├─ DialogueCharacter_c7 411
+ │   │   │       ├─ DialogueCharacter_c8 411
+ │   │   │       ├─ DialogueCharacter_c9 411
+ │   │   │       ├─ DialogueCharacter_c10 411
+ │   │   │       └─ DialogueCharacter_c11 411
  │   │   ├─ InlineDialogue_begin_c3 [411..412]
  │   │   │   └─ ColonSeparator [411..412]: ":"
  │   │   ├─ InlineDialogue_begin_c4 [412..413]
@@ -1195,7 +1203,11 @@ sparkdown [0..1131]
  │   │   │       ├─ DialogueCharacter_c4 460
  │   │   │       ├─ DialogueCharacter_c5 460
  │   │   │       ├─ DialogueCharacter_c6 460
- │   │   │       └─ DialogueCharacter_c7 460
+ │   │   │       ├─ DialogueCharacter_c7 460
+ │   │   │       ├─ DialogueCharacter_c8 460
+ │   │   │       ├─ DialogueCharacter_c9 460
+ │   │   │       ├─ DialogueCharacter_c10 460
+ │   │   │       └─ DialogueCharacter_c11 460
  │   │   ├─ InlineDialogue_begin_c3 [460..461]
  │   │   │   └─ ColonSeparator [460..461]: ":"
  │   │   ├─ InlineDialogue_begin_c4 [461..462]
@@ -1336,7 +1348,11 @@ sparkdown [0..1131]
  │   │   │       ├─ DialogueCharacter_c4 501
  │   │   │       ├─ DialogueCharacter_c5 501
  │   │   │       ├─ DialogueCharacter_c6 501
- │   │   │       └─ DialogueCharacter_c7 501
+ │   │   │       ├─ DialogueCharacter_c7 501
+ │   │   │       ├─ DialogueCharacter_c8 501
+ │   │   │       ├─ DialogueCharacter_c9 501
+ │   │   │       ├─ DialogueCharacter_c10 501
+ │   │   │       └─ DialogueCharacter_c11 501
  │   │   ├─ InlineDialogue_begin_c3 [501..502]
  │   │   │   └─ ColonSeparator [501..502]: ":"
  │   │   ├─ InlineDialogue_begin_c4 [502..503]
@@ -1549,7 +1565,11 @@ sparkdown [0..1131]
  │   │   │       ├─ DialogueCharacter_c4 582
  │   │   │       ├─ DialogueCharacter_c5 582
  │   │   │       ├─ DialogueCharacter_c6 582
- │   │   │       └─ DialogueCharacter_c7 582
+ │   │   │       ├─ DialogueCharacter_c7 582
+ │   │   │       ├─ DialogueCharacter_c8 582
+ │   │   │       ├─ DialogueCharacter_c9 582
+ │   │   │       ├─ DialogueCharacter_c10 582
+ │   │   │       └─ DialogueCharacter_c11 582
  │   │   ├─ BlockDialogue_begin_c3 [582..583]
  │   │   │   └─ ColonSeparator [582..583]: ":"
  │   │   └─ BlockDialogue_begin_c4 583
@@ -1602,7 +1622,11 @@ sparkdown [0..1131]
  │   │   │       ├─ DialogueCharacter_c4 606
  │   │   │       ├─ DialogueCharacter_c5 606
  │   │   │       ├─ DialogueCharacter_c6 606
- │   │   │       └─ DialogueCharacter_c7 606
+ │   │   │       ├─ DialogueCharacter_c7 606
+ │   │   │       ├─ DialogueCharacter_c8 606
+ │   │   │       ├─ DialogueCharacter_c9 606
+ │   │   │       ├─ DialogueCharacter_c10 606
+ │   │   │       └─ DialogueCharacter_c11 606
  │   │   ├─ InlineDialogue_begin_c3 [606..607]
  │   │   │   └─ ColonSeparator [606..607]: ":"
  │   │   ├─ InlineDialogue_begin_c4 [607..608]
@@ -1657,7 +1681,11 @@ sparkdown [0..1131]
  │   │   │       ├─ DialogueCharacter_c4 623
  │   │   │       ├─ DialogueCharacter_c5 623
  │   │   │       ├─ DialogueCharacter_c6 623
- │   │   │       └─ DialogueCharacter_c7 623
+ │   │   │       ├─ DialogueCharacter_c7 623
+ │   │   │       ├─ DialogueCharacter_c8 623
+ │   │   │       ├─ DialogueCharacter_c9 623
+ │   │   │       ├─ DialogueCharacter_c10 623
+ │   │   │       └─ DialogueCharacter_c11 623
  │   │   ├─ BlockDialogue_begin_c3 [623..624]
  │   │   │   └─ ColonSeparator [623..624]: ":"
  │   │   └─ BlockDialogue_begin_c4 624

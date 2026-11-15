@@ -107,6 +107,7 @@ import {
 } from "./extensions/scriptMode";
 import { selectionClassManager } from "./extensions/selectionClassManager";
 import { sparkdownLanguageExtension } from "./extensions/sparkdownLanguageExtension";
+import { caretScrollMargin } from "./extensions/caretScrollMargin";
 import { statusPanel } from "./extensions/statusPanel";
 import { touchAffordances } from "./extensions/touchAffordances";
 import { evaluatableExpressionRange } from "@impower/sparkdown/src/compiler/utils/evaluatableExpressionRange";
@@ -531,12 +532,7 @@ const createEditorView = (
             }
           }
         }),
-        scrollMarginsConfig.of(
-          EditorView.scrollMargins.of(() => ({
-            ...scrollMargin,
-            bottom: scrollMargin?.bottom,
-          })),
-        ),
+        scrollMarginsConfig.of(caretScrollMargin(scrollMargin)),
         selectionClassManager(),
         touchAffordances(config.coarsePointer),
         breakpointMenu(),

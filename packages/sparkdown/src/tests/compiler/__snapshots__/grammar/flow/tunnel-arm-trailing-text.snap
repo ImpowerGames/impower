@@ -1423,7 +1423,11 @@ sparkdown [0..556]
  │   │   │       ├─ DialogueCharacter_c4 487
  │   │   │       ├─ DialogueCharacter_c5 487
  │   │   │       ├─ DialogueCharacter_c6 487
- │   │   │       └─ DialogueCharacter_c7 487
+ │   │   │       ├─ DialogueCharacter_c7 487
+ │   │   │       ├─ DialogueCharacter_c8 487
+ │   │   │       ├─ DialogueCharacter_c9 487
+ │   │   │       ├─ DialogueCharacter_c10 487
+ │   │   │       └─ DialogueCharacter_c11 487
  │   │   ├─ InlineDialogue_begin_c3 [487..488]
  │   │   │   └─ ColonSeparator [487..488]: ":"
  │   │   ├─ InlineDialogue_begin_c4 [488..489]

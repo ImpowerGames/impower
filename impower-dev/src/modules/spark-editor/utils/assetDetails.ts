@@ -59,7 +59,10 @@ export const typeLine = (asset: Pick<InspectedAsset, "path" | "type" | "link" | 
 };
 
 export const titleLine = (asset: InspectedAsset): string =>
-  [typeLine(asset), (asset.variantCount ?? 0) > 1 ? plural(asset.variantCount!, "variant") : null]
+  [
+    asset.link ? "Link" : TYPE_LABELS[asset.type],
+    (asset.variantCount ?? 0) > 1 ? plural(asset.variantCount!, "variant") : null,
+  ]
     .filter(Boolean)
     .join(" · ");
 

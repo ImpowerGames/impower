@@ -15,19 +15,11 @@ export const answerPreviewLine = (
   source: PreviewLineSource,
   params: PreviewLineParams,
 ): PreviewLineResult => {
-  const shown = params.shownBeat ?? null;
-  const uri = shown?.uri ?? params.textDocument.uri;
+  const uri = params.textDocument.uri;
   const document = source.document(uri);
   const tree = source.tree(uri);
   if (!document || !tree) {
     return null;
   }
-  return getPreviewLine(
-    document,
-    tree,
-    params.line,
-    shown
-      ? { line: shown.range.start.line, character: shown.range.start.character }
-      : null,
-  );
+  return getPreviewLine(document, tree, params.line);
 };

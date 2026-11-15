@@ -26,11 +26,15 @@ const setup = () => {
   const getDocumentSymbols = vi.fn(async (uri: string) => [
     scene(uri === MAIN ? "harbor" : "dock"),
   ]);
+  const files = new Set([MAIN, OTHER]);
+  const getFileText = vi.fn(async (uri: string) =>
+    uri === MAIN ? "\n// note\nscene harbor\n" : "scene dock\n",
+  );
   const outline = new WorkspaceOutline({
     openedUri: () => opened.value,
+    hasFile: (uri) => files.has(uri),
     getDocumentSymbols,
-    getFileText: async (uri) =>
-      uri === MAIN ? "\n// note\nscene harbor\n" : "scene dock\n",
+    getFileText,
     onPublishedDiagnostics: (listener) => {
       publish = listener;
       return () => {};
@@ -41,6 +45,8 @@ const setup = () => {
     opened,
     publish: (p: PublishDiagnosticsParams) => publish(p),
     getDocumentSymbols,
+    getFileText,
+    files,
   };
 };
 
@@ -98,6 +104,21 @@ describe("the outline's symbol source", () => {
     expect(workspace.outline.value!.diagnostics).toEqual([warning]);
     opened.value = undefined;
     await vi.waitFor(() => expect(workspace.outline.value).toBeNull());
+  });
+
+  it("does not read the opened script again once it no longer exists", async () => {
+    const { outline, publish, getDocumentSymbols, getFileText, files } =
+      setup();
+    current = outline;
+    await vi.waitFor(() => expect(workspace.outline.value?.uri).toBe(MAIN));
+    getDocumentSymbols.mockClear();
+    getFileText.mockClear();
+    files.delete(MAIN);
+    publish({ uri: MAIN, diagnostics: [] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(getFileText).not.toHaveBeenCalled();
+    expect(getDocumentSymbols).not.toHaveBeenCalled();
+    expect(workspace.outline.value?.uri).toBe(MAIN);
   });
 
   it("finds the first line with content, skipping blank and comment lines", () => {

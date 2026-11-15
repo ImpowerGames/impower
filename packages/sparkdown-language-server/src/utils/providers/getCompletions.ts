@@ -28,12 +28,14 @@ import {
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { MORPH_CLAUSE_DOC } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
+import { ASSET_TYPES } from "@impower/sparkdown/src/compiler/constants/assetTypes";
 import { resolveImageReference, typedImageTypes } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
 import { DIRECTIVE_CLOSERS, readDirective, type DirectiveReading } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import { readSpeakerBeingWritten } from "@impower/sparkdown/src/compiler/utils/readCue";
 import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -115,7 +117,6 @@ const MOVIE_CLAUSE_KEYWORDS = ["loop", "once", "mute"];
 const VALUE_CLAUSE_KEYWORDS: readonly string[] = ASSET_VALUE_CLAUSE_WORDS;
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
 const VIDEO_TYPES = ["video"];
-const LOGIC_KEYWORDS = ["temp", "return"];
 const FLOW_KEYWORDS = ["DONE", "END"];
 
 const INSERT_TEXT_CURSOR_REGEX = /[$]\d+/g;
@@ -170,6 +171,8 @@ const getDefineContext = (
   }
   return null;
 };
+
+const DEFINE_VALUE_ASSET_TYPES: ReadonlySet<string> = new Set(ASSET_TYPES);
 
 const KEYFRAME_POSITION_KEYWORDS = ["from", "to"];
 
@@ -402,13 +405,23 @@ const addCharacterCompletions = (
   strict = false,
   program?: SparkProgram,
 ) => {
+  const characters = program?.context?.["character"] || {};
   const mostRecentTexts = rankMostRecentTexts(
     "characters",
     scripts,
     uri,
     contentNode,
     strict,
-    Object.keys(program?.context?.["character"] || {}),
+    [
+      ...Object.keys(characters),
+      ...Object.values(characters).flatMap((character: any) =>
+        Array.isArray(character?.aliases)
+          ? character.aliases.filter(
+              (alias: unknown): alias is string => typeof alias === "string",
+            )
+          : [],
+      ),
+    ],
   );
   for (const text of mostRecentTexts) {
     const labelDetails = { description: "character" };
@@ -424,6 +437,34 @@ const addCharacterCompletions = (
     }
   }
 };
+
+const addSpeakerCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  range: Range,
+  insertTextSuffix = "",
+) => {
+  for (const name of Object.keys(program?.context?.["character"] || {})) {
+    if (name.startsWith("$") || completions.has(name)) continue;
+    completions.set(name, {
+      label: name,
+      textEdit: { range, newText: name + insertTextSuffix },
+      labelDetails: { description: "character" },
+      kind: CompletionItemKind.Constant,
+    });
+  }
+};
+
+const cueBeingTyped = (text: string, program: SparkProgram | undefined) =>
+  !/\p{Ll}/u.test(text) ||
+  Object.entries<any>(program?.context?.["character"] || {}).some(
+    ([name, character]) =>
+      !name.startsWith("$") &&
+      (name === text ||
+        character?.name === text ||
+        (Array.isArray(character?.aliases) &&
+          character.aliases.includes(text))),
+  );
 
 const addTriggeredKeywordCompletions = (
   completions: Map<string, CompletionItem>,
@@ -1671,7 +1712,22 @@ const completionsAt = (
         "InlineDialogue_begin",
         leftStack,
       );
-    if (isCursorAfterNodeText(dialogueCharacterNode)) {
+    const written =
+      dialogueCharacterNode &&
+      readSpeakerBeingWritten(
+        read(dialogueCharacterNode.from, documentCursorOffset),
+        read(documentCursorOffset, dialogueCharacterNode.to),
+      );
+    if (written) {
+      addSpeakerCompletions(
+        completions,
+        program,
+        document.range(
+          documentCursorOffset - written.typed.length,
+          documentCursorOffset + written.rest.length,
+        ),
+      );
+    } else if (isCursorAfterNodeText(dialogueCharacterNode)) {
       addCharacterCompletions(
         completions,
         scripts,
@@ -2274,6 +2330,17 @@ const completionsAt = (
         valueCursorOffset,
       );
     } else {
+      if (
+        DEFINE_VALUE_ASSET_TYPES.has(valueText.split(".")[0] ?? "") &&
+        getDefineContext(leftStack, read)
+      ) {
+        addStructAccessPathCompletions(
+          completions,
+          program,
+          valueText,
+          valueCursorOffset,
+        );
+      }
       const scopes = getDeclarationScopes(scripts, cursor);
       const scopePath = getParentSectionPath(leftStack, read).join(".");
       addMutableAccessPathCompletions(
@@ -2540,7 +2607,17 @@ const completionsAt = (
     ) {
       const contentNode = leftStack.find((n) => n.name === "ImplicitAction");
       const text = getNodeText(contentNode).trimStart();
-      if (isCursorAfterNodeText(contentNode)) {
+      const written =
+        contentNode &&
+        readSpeakerBeingWritten(
+          read(contentNode.from, documentCursorOffset).trimStart(),
+          read(documentCursorOffset, contentNode.to),
+        );
+      const speakerEndsCue =
+        written && written.endsCue
+          ? cueBeingTyped(written.name, program)
+          : false;
+      if (speakerEndsCue || isCursorAfterNodeText(contentNode)) {
         if (text === "@") {
           addScreenElementReferenceCompletions(
             completions,
@@ -2555,6 +2632,16 @@ const completionsAt = (
           addSnippet(completions, "heading", "$:", ": ");
         } else if (text === "%") {
           addSnippet(completions, "transitional", "%:", ": ");
+        } else if (written && speakerEndsCue) {
+          addSpeakerCompletions(
+            completions,
+            program,
+            document.range(
+              documentCursorOffset - written.typed.length,
+              documentCursorOffset + written.rest.length + written.tail.length,
+            ),
+            `${written.tail.trimEnd()}: `,
+          );
         } else {
           addCharacterCompletions(
             completions,

@@ -1,4 +1,5 @@
 import { useState } from "preact/hooks";
+import { useScrollbarSize } from "../../hooks/useScrollbarSize";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
 import { FileIcon } from "../icon/icons.generated";
@@ -15,6 +16,7 @@ const SIZES: Record<VirtualListSize, string> = {
 function VirtualListDemo() {
   const [reveal, setReveal] = useState<number | undefined>(undefined);
   const [request, setRequest] = useState(0);
+  useScrollbarSize();
   return (
     <div class="max-w-xl space-y-6">
       <GalleryRow label="revealIndex scrolls a row into view, and each new revealRequest scrolls to it again: press to reveal row 500, scroll away and press again">
@@ -39,6 +41,21 @@ function VirtualListDemo() {
               <ListRow size="compact" current={index === reveal ? "location" : false} icon={<FileIcon />} label={item} onClick={() => {}} />
             )}
           />
+        </div>
+      </GalleryRow>
+      <GalleryRow label="pr-gutter-4: the list's 16px right padding gives up the stable scrollbar gutter, so its rows end 16px from the edge whether or not it scrolls, the scrollbar inside that 16px">
+        <div class="grid grid-cols-2 gap-3">
+          {[ITEMS, ITEMS.slice(0, 3)].map((items) => (
+            <VirtualList
+              key={items.length}
+              size="compact"
+              label={`${items.length} rows`}
+              class="h-40 rounded-card border border-edge pr-gutter-4"
+              items={items}
+              getKey={(item) => item}
+              renderItem={(item) => <ListRow size="compact" icon={<FileIcon />} label={item} onClick={() => {}} />}
+            />
+          ))}
         </div>
       </GalleryRow>
       {(Object.keys(SIZES) as VirtualListSize[]).map((size) => (

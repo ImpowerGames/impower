@@ -4212,7 +4212,7 @@
       "end": "(?=^(?:[^\\S\\n\\r])*$)|(?=\\r\\n|\\r|\\n)"
     },
     "DialogueCharacter": {
-      "match": "((?:[^\\S\\n\\r])*)(.*?)((?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])[(][^()\\r\\n]*?[)])?($|(?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])\\[.*?\\])?((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "match": "((?:[^\\S\\n\\r])*)(.*?)(?:((?:[^\\S\\n\\r])+)(as)((?:[^\\S\\n\\r])+)((?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))(?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]+)*(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))))?((?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])[(][^()\\r\\n]*?[)])?($|(?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])\\[.*?\\])?((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "captures": {
         "1": {
           "name": "punctuation.whitespace.extra.sd"
@@ -4225,26 +4225,38 @@
           ]
         },
         "3": {
-          "name": "punctuation.whitespace.extra.sd"
+          "name": "punctuation.whitespace.sd"
         },
         "4": {
+          "name": "keyword.control.as.sd"
+        },
+        "5": {
+          "name": "punctuation.whitespace.sd"
+        },
+        "6": {
+          "name": "variable.other.character.speaker.sd"
+        },
+        "7": {
+          "name": "punctuation.whitespace.extra.sd"
+        },
+        "8": {
           "patterns": [
             {
               "include": "#DialogueCharacterParenthetical"
             }
           ]
         },
-        "5": {
+        "9": {
           "name": "punctuation.whitespace.extra.sd"
         },
-        "6": {
+        "10": {
           "patterns": [
             {
               "include": "#DialogueCharacterPosition"
             }
           ]
         },
-        "7": {
+        "11": {
           "patterns": [
             {
               "include": "#EndOfLine"
@@ -4252,6 +4264,16 @@
           ]
         }
       }
+    },
+    "DialogueCharacterAsKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.as.sd",
+      "match": "(as)"
+    },
+    "DialogueCharacterSpeaker": {
+      "tag": "variableName",
+      "name": "variable.other.character.speaker.sd",
+      "match": "(.+)"
     },
     "DialogueCharacterName": {
       "tag": "typeName",

@@ -8,6 +8,7 @@ import workspace from "./WorkspaceStore";
 
 export interface OutlineSources {
   openedUri: () => string | undefined;
+  hasFile: (uri: string) => boolean;
   getDocumentSymbols: (uri: string) => Promise<DocumentSymbol[]>;
   getFileText: (uri: string) => Promise<string>;
   onPublishedDiagnostics: (
@@ -56,7 +57,7 @@ export default class WorkspaceOutline {
     this._disposers = [
       sources.onPublishedDiagnostics(({ uri, diagnostics }) => {
         this._diagnostics.set(uri, diagnostics);
-        if (uri === this._uri) {
+        if (uri === this._uri && sources.hasFile(uri)) {
           void this.refresh();
         }
       }),

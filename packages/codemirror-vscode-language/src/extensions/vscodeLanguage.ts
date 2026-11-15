@@ -11,6 +11,7 @@ import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
 import { type VSCodeSnippetsDefinition } from "../types/VSCodeSnippetDefinition";
 import { convertConfigToLanguageData } from "../utils/convertConfigToLanguageData";
 import { convertGrammarToLanguageData } from "../utils/convertGrammarToLanguageData";
+import { vscodeBlockSelection } from "./vscodeBlockSelection";
 import { vscodeBracketMatching } from "./vscodeBracketMatching";
 import { vscodeCloseBrackets } from "./vscodeCloseBrackets";
 import { vscodeCommentTokens } from "./vscodeCommentTokens";
@@ -76,6 +77,7 @@ export const vscodeLanguage = (options: VSCodeLanguageFeaturesConfig) => {
         vscodeCommentTokens(reader, language, configs),
         vscodeSnippets(reader, language, snippets),
         vscodeBracketMatching(config),
+        vscodeBlockSelection(reader, language, configs),
         vscodeSurroundBrackets(reader, language, configs),
         vscodeCloseBrackets(reader, language, configs),
         vscodeOnEnterRules(reader, language, configs),

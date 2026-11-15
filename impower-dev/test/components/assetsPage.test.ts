@@ -1,13 +1,16 @@
 import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
 
 const layout = vi.hoisted(() => ({
   value: "desktop" as "phone" | "compact" | "desktop",
 }));
+const scrollbar = vi.hoisted(() => ({ used: vi.fn() }));
 vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@impower/impower-ui/layout")>()),
   useLayout: () => layout.value,
+  useScrollbarSize: scrollbar.used,
 }));
 
 const assets = vi.hoisted(() => ({
@@ -263,6 +266,23 @@ describe("the Assets page", () => {
     expect(trail.textContent).toContain("Music");
   });
 
+  it("draws the trail and sort at the prototype's sizes: 17px glyphs, a 36px root, ink names, 11px text below desktop", async () => {
+    await mount();
+    await showTab("Audio");
+    const classes = (element: Element | null) => element!.className.split(" ");
+    const root = host!.querySelector('nav[aria-label="Folder path"]')!;
+    expect(classes(root)).toEqual(expect.arrayContaining(["text-[11px]", "[:root[data-layout=desktop]_&]:text-[12px]"]));
+    expect(classes(root.querySelector("button"))).toEqual(expect.arrayContaining(["w-9", "[&_svg]:size-[17px]"]));
+    expect(classes(root.querySelector('[aria-current="location"]'))).toContain("text-ink");
+    await click(all<HTMLElement>('button[aria-label^="Open folder Music"]')[0]);
+    const trail = host!.querySelector('nav[aria-label="Folder path"]')!;
+    expect(classes(trail.querySelector('button[aria-label="Parent folder"]'))).toEqual(expect.arrayContaining(["size-11", "[&_svg]:size-[17px]"]));
+    expect(classes(trail.querySelector('button[aria-label="Audio"]'))).toEqual(expect.arrayContaining(["w-9", "ml-0.5", "[&_svg]:size-[17px]"]));
+    expect(classes(trail.querySelector('[aria-current="location"]'))).toEqual(expect.arrayContaining(["text-ink", "pl-[7px]"]));
+    const sort = classes(all<HTMLElement>('button[aria-label^="Sort by"]')[0]!);
+    expect(sort).toEqual(expect.arrayContaining(["text-[11px]", "px-[7px]", "[:root:not([data-layout=desktop])_&]:[&>span]:hidden"]));
+  });
+
   it("lists a file kept outside its type folder at its real path", async () => {
     setListing({ "assets/music/theme.wav": facts(2048), "assets/bunny.png": facts(600) });
     workspace.current = { ...workspace.current, lists: { assetsType: "audio" } };
@@ -449,11 +469,16 @@ describe("image folders as tiles", () => {
   });
 
   it("draws one portrait tile per thing, with the variants badge in its thumbnail's corner", async () => {
+    scrollbar.used.mockClear();
     workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
     await mount();
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
     expect(rowLabels()).toEqual(["Open image imani, 4 variants, modified 2d · 330 b"]);
     expect(host!.querySelector('[aria-label="Assets and folders"]')!.parentElement!.className.split(" ")).toContain("pt-4");
+    expect(host!.querySelector('[aria-label="Assets and folders"]')!.parentElement!.className.split(" ")).toEqual(
+      expect.arrayContaining(["-mr-4", "pr-gutter-4"]),
+    );
+    expect(scrollbar.used).toHaveBeenCalled();
     const badge = tiles()[0]!.querySelector('[data-variants-badge]')!;
     expect(badge.getAttribute("aria-label")).toBe("4 variants");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");
@@ -461,7 +486,7 @@ describe("image folders as tiles", () => {
     await click(all<HTMLElement>('button[aria-label^="Open image imani"]')[0]);
     const inspector = document.querySelector('section[aria-label="Asset details"]')!;
     expect(inspector.querySelector("header h2")!.textContent).toBe("imani");
-    expect(inspector.querySelector("header small")!.textContent).toBe("Image · PNG · 4 variants");
+    expect(inspector.querySelector("header small")!.textContent).toBe("Image · 4 variants");
     expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/100");
     expect(assets.watchFacts.mock.calls.at(-1)![0]).toEqual([
       "Assets/Images/Portraits/imani.png",
@@ -515,6 +540,16 @@ describe("image folders as tiles", () => {
     await click(all<HTMLElement>('button[aria-label^="Open folder Backdrops"]')[0]);
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["landscape"]);
     expect(tiles()[0]!.querySelector("img")!.className.split(" ")).toEqual(expect.arrayContaining(["size-full", "object-contain"]));
+  });
+
+  it("fades a stack's name beside its variants chip at the edge instead of cutting it to an ellipsis", async () => {
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images/Portraits" }, assetsLayouts: { "Assets/Images/Portraits": "rows" } },
+    };
+    await mount();
+    const name = host!.querySelector("[data-variants-chip]")!.previousElementSibling!;
+    expect(await edgeTreatment([name])).toEqual([{ text: "imani", masked: true, ellipsis: false }]);
   });
 
   it("offers the folder's layouts from a menu showing the current one's icon, and keeps a choice for that folder only, with the chip beside the name", async () => {
@@ -1614,6 +1649,19 @@ describe("adding files dragged in from the desktop", () => {
     expect(rowLabels()).toContain("Open audio rain, modified 2d · 300 b");
   });
 
+  it("opens the inspector for a file another surface asks to show, on that file's tab", async () => {
+    await mount();
+    setListing({ [`${P}/imani.png`]: facts(7001), "Assets/Audio/rain.ogg": facts(300) }, [`${P}/Cast`]);
+    await act(async () => {
+      workspace.assetsInspect.value = "Assets/Audio/rain.ogg";
+    });
+    await settle();
+    expect(workspace.assetsInspect.value).toBeNull();
+    expect(workspace.current.lists?.assetsType).toBe("audio");
+    const inspector = document.querySelector<HTMLElement>('section[aria-label="Asset details"]');
+    expect(inspector?.textContent).toContain("rain");
+  });
+
   it("shows the added-files panel at the page's foot with each file's note, until closed", async () => {
     await mount();
     workspace.uploads.value = [
@@ -1814,7 +1862,7 @@ describe("the inspector of an asset that moves", () => {
 
   const expectStackAtCast = () => {
     expect(title()).toBe("ava");
-    expect(inspector()!.querySelector("header small")!.textContent).toBe("Image · PNG · 3 variants");
+    expect(inspector()!.querySelector("header small")!.textContent).toBe("Image · 3 variants");
     expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
     expect(watchedFiles()).toEqual([`${P}/Cast/ava.png`, `${P}/Cast/ava@night.png`, `${P}/Cast/ava~face.happy.png`]);
     expect(workspace.current.lists?.assetsFolders?.image).toBe(`${P}/Cast`);

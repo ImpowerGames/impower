@@ -72,14 +72,9 @@ export function foldingPlaceholderDOM(
 ) {
   const dom = document.createElement("span");
   dom.className = "cm-foldPlaceholder";
-  dom.textContent = String(hiddenLines);
-  dom.title = view.state.phrase("unfold");
-  dom.setAttribute(
-    "aria-label",
-    `${view.state.phrase("unfold")}: ${hiddenLines} ${
-      hiddenLines === 1 ? "line" : "lines"
-    }`,
-  );
+  const count = `${hiddenLines} ${hiddenLines === 1 ? "line" : "lines"}`;
+  dom.title = count;
+  dom.setAttribute("aria-label", `${view.state.phrase("unfold")}: ${count}`);
   dom.onclick = onclick;
   return dom;
 }

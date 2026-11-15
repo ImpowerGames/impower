@@ -187,6 +187,21 @@ describe("ZoomFrame", () => {
     expect(expanded).toBe(1);
   });
 
+  it("draws View full size 44px round on the picture's button tint, 8px from its corner", async () => {
+    const frame = await mount(<ZoomFrame label="harbor" zoomable onExpand={() => {}} />);
+    const classes = frame.querySelector("[data-zoom-expand]")!.className.split(" ");
+    expect(classes).toEqual(expect.arrayContaining(["size-11", "right-2", "bottom-2", "rounded-full", "bg-media-button"]));
+    expect(classes).not.toContain("border-2");
+  });
+
+  it("keeps its zoom steps 32px on a coarse pointer, their 44px target drawn by the halo around them", async () => {
+    const frame = await mount(<ZoomFrame label="harbor" zoomable />);
+    const [out, level] = Array.from(frame.querySelectorAll<HTMLButtonElement>("[data-zoom-controls] button"));
+    expect(out!.className.split(" ")).toEqual(expect.arrayContaining(["size-8", "before:-inset-1.5", "pointer-coarse:min-h-0", "pointer-coarse:min-w-0"]));
+    expect(level!.className.split(" ")).toContain("min-w-11");
+    expect(level!.className.split(" ")).not.toContain("pointer-coarse:min-w-0");
+  });
+
   it("fits a pane by width and the screen by both edges, square edged", async () => {
     const pane = await mount(<ZoomFrame label="harbor" ratio={2} />);
     expect(pane.className).toContain("w-full");
@@ -205,5 +220,18 @@ describe("ZoomFrame", () => {
     });
     expect(readout().textContent).toBe("100%");
     expect(frame.hasAttribute("data-zoomed")).toBe(false);
+  });
+
+  it("names what it shows in a caption over the picture that leaves the picture to drag", async () => {
+    const frame = await mount(
+      <ZoomFrame label="ava" zoomable caption="Showing ava~hat.on.png alone">
+        <p>picture</p>
+      </ZoomFrame>,
+    );
+    const caption = frame.querySelector<HTMLElement>("[data-zoom-caption]")!;
+    expect(caption.textContent).toBe("Showing ava~hat.on.png alone");
+    expect(caption.getAttribute("role")).toBe("status");
+    expect(caption.className.split(" ")).toContain("pointer-events-none");
+    expect((await mount(<ZoomFrame label="ava" zoomable />)).querySelector("[data-zoom-caption]")).toBeNull();
   });
 });

@@ -10,6 +10,7 @@ import {
   readSpanOpen,
   readTagCode,
   scanned,
+  spanStyle,
   stripStyleCodes,
   stripTagCodes,
   writtenText,
@@ -36,6 +37,7 @@ import type {
   Instructions,
 } from "../../../core/types/Instructions";
 import type { ScriptLocation } from "../../../core/types/ScriptLocation";
+import { beatKindOfTarget } from "../../../core/constants/BEAT_KIND_OF_TARGET";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { InterpreterBuiltins } from "../types/InterpreterBuiltins";
@@ -51,6 +53,7 @@ import {
   type DirectiveClause,
   type DirectiveKind,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import { readCue } from "@impower/sparkdown/src/compiler/utils/readCue";
 
 export interface InterpreterConfig {}
 
@@ -107,9 +110,6 @@ export class InterpreterModule extends Module<
   CHAR_REGEX =
     /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
 
-  CHARACTER_REGEX =
-    /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(?:(\[)([ \t]*)(.*?)([ \t]*)(\]))?([ \t]*)$/;
-
   PARENTHETICAL_REGEX =
     /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)$/;
 
@@ -150,8 +150,22 @@ export class InterpreterModule extends Module<
   }
 
   setup() {
-    this._characterNameMap = {};
-    for (const [k, v] of Object.entries(this.context.character || {})) {
+    this._characterNameMap = Object.create(null);
+    const characters = Object.entries(this.context.character || {});
+    for (const [k, v] of characters) {
+      const aliases = v.aliases;
+      if (!k.startsWith("$") && Array.isArray(aliases)) {
+        for (const alias of aliases) {
+          if (typeof alias === "string" && alias) {
+            const owner = Object.hasOwn(this._characterNameMap, alias)
+              ? this._characterNameMap[alias]
+              : k;
+            this._characterNameMap[alias] = owner === k ? k : "";
+          }
+        }
+      }
+    }
+    for (const [k, v] of characters) {
       const name = v.name;
       if (typeof name === "string" && name) {
         this._characterNameMap[name] = k;
@@ -275,17 +289,28 @@ export class InterpreterModule extends Module<
   }
 
   protected resolveCue(characterDeclaration: string): Cue {
-    const match = characterDeclaration.match(this.CHARACTER_REGEX);
-    const characterNameMatch = match?.[1] || "";
-    const characterParentheticalMatch = match?.[3] || "";
-    const characterPositionMatch = match?.[7] || "";
+    const cue = readCue(characterDeclaration);
+    const characterNameMatch = cue.name.text;
+    const characterPositionMatch = cue.position?.text ?? "";
     const characterMap = this.context?.["character"] as any;
+    const ownCharacter = (key: string) =>
+      characterMap && Object.hasOwn(characterMap, key)
+        ? characterMap[key]
+        : undefined;
     const writtenName = writtenText(characterNameMatch);
-    const characterId = this._characterNameMap[writtenName] || "";
-    const characterObj =
-      characterMap?.[writtenName] || characterMap?.[characterId];
+    const characterObj = cue.speaker
+      ? ownCharacter(cue.speaker.text)
+      : ownCharacter(writtenName) ||
+        characterMap?.[this._characterNameMap[writtenName] || ""];
+    const namedByAlias =
+      characterObj &&
+      writtenName !== characterObj.$name &&
+      writtenName !== characterObj.name;
     const characterName =
-      typeof characterObj?.name === "string" && characterObj.name
+      !cue.speaker &&
+      !namedByAlias &&
+      typeof characterObj?.name === "string" &&
+      characterObj.name
         ? scanned(characterObj.name)
         : characterNameMatch;
     const position =
@@ -296,7 +321,7 @@ export class InterpreterModule extends Module<
           : characterPositionMatch;
     return {
       name: characterName,
-      parenthetical: characterParentheticalMatch,
+      parenthetical: cue.parenthetical?.text ?? "",
       position,
       character: characterObj?.$name,
     };
@@ -319,20 +344,6 @@ export class InterpreterModule extends Module<
       return { parenthetical: match[4] || "", rest: lines.join("\n") };
     }
     return null;
-  }
-
-  protected beatKind(target: string): BeatKind | undefined {
-    switch (target) {
-      case "action":
-      case "dialogue":
-      case "title":
-      case "heading":
-        return target;
-      case "transitional":
-        return "transition";
-      default:
-        return undefined;
-    }
   }
 
   protected describeBeat(
@@ -501,14 +512,14 @@ export class InterpreterModule extends Module<
           }
           this.describeBeat(
             lastTextbox,
-            this.beatKind(textTarget),
+            beatKindOfTarget(textTarget),
             cue,
             source,
           );
         } else {
           this.describeBeat(
             contentInstructions,
-            this.beatKind(textTarget),
+            beatKindOfTarget(textTarget),
             cue,
             source,
           );
@@ -1314,19 +1325,19 @@ export class InterpreterModule extends Module<
             continue;
           }
 
-          const activeCenteredMark = lastMark((m) => m.startsWith("^"));
-          const activeUnderlineMark = lastMark((m) => m.startsWith("_"));
-          const activeBoldItalicMark = lastMark((m) => m.startsWith("***"));
-          const activeBoldMark = lastMark((m) => m === "**");
-          const activeItalicMark = lastMark((m) => m === "*");
-          const activeWavyMark = lastMark((m) => m.startsWith("~~"));
-          const activeShakyMark = lastMark((m) => m.startsWith("::"));
-          const isCentered = Boolean(activeCenteredMark);
-          const isUnderlined = Boolean(activeUnderlineMark);
-          const isItalicized =
-            Boolean(activeBoldItalicMark) || Boolean(activeItalicMark);
-          const isBolded =
-            Boolean(activeBoldItalicMark) || Boolean(activeBoldMark);
+          const style = spanStyle(
+            [...activeMarks, ...spanMarks].map(([m]) => m),
+          );
+          const activeWavyMark = style.wavy
+            ? lastMark((m) => spanStyle([m]).wavy)
+            : undefined;
+          const activeShakyMark = style.shaky
+            ? lastMark((m) => spanStyle([m]).shaky)
+            : undefined;
+          const isCentered = style.centered;
+          const isUnderlined = style.underline;
+          const isItalicized = style.italic;
+          const isBolded = style.bold;
           const voiced = Boolean(voicedMatcher?.test(char));
 
           if (activeWavyMark) {
@@ -1394,24 +1405,12 @@ export class InterpreterModule extends Module<
           const centered =
             alignModifier === "center"
               ? 1
-              : isCentered && activeCenteredMark
-                ? activeCenteredMark.length
-                : isCentered
-                  ? 1
-                  : 0;
-          const italicized = isItalicized ? 1 : 0;
-          const bolded =
-            isBolded && activeBoldItalicMark
-              ? activeBoldItalicMark.length
-              : isBolded
-                ? 2
-                : 0;
-          const underlined =
-            isUnderlined && activeUnderlineMark
-              ? activeUnderlineMark.length
-              : isUnderlined
+              : isCentered
                 ? 1
                 : 0;
+          const italicized = isItalicized ? 1 : 0;
+          const bolded = isBolded ? 2 : 0;
+          const underlined = isUnderlined ? 1 : 0;
           const pitch = pitchModifier;
 
           const charIndex = phraseUnpauseLength - 1;

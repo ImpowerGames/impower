@@ -1,6 +1,11 @@
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
+import { OUTSIDE_EVERY_SCENE_REFUSAL } from "@impower/spark-web-player/src/main/workers/messages/PlayMessage";
+import {
+  SETUP_WORDS,
+  stripCopy,
+} from "../../src/modules/spark-editor/components/preview-strip/stripCopy";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const layout = vi.hoisted(() => ({ value: "phone" }));
@@ -120,6 +125,32 @@ describe("the phone's full view", () => {
     w.syncGameStarted();
     w.collapsePreviewPane();
     expect(sent.stopped).toBe(0);
+  });
+
+  it("disables the strip's Play and starts nothing while the player refuses a start at the caret's line", () => {
+    const shown = { kind: "action", words: "The lamps come on one by one." } as const;
+    const w = mount();
+    w.connectPlayer();
+    w.syncStartRefusal(OUTSIDE_EVERY_SCENE_REFUSAL);
+    expect(workspace.current.preview.modes.game.startRefusal).toBe(
+      OUTSIDE_EVERY_SCENE_REFUSAL,
+    );
+    expect(stripCopy(shown, true)).toEqual({
+      label: "STORY SETUP",
+      words: SETUP_WORDS,
+      symbol: "file",
+      playable: false,
+    });
+    w.playInFullView();
+    w.toggleGameRunning();
+    expect(sent.started).toBe(0);
+    expect(workspace.current.preview.modes.game.starting).toBeFalsy();
+
+    w.syncStartRefusal(null);
+    expect(workspace.current.preview.modes.game.startRefusal).toBeUndefined();
+    expect(stripCopy(shown, false).playable).toBe(true);
+    w.playInFullView();
+    expect(sent.started).toBe(1);
   });
 
   it("never saves the full view as open, so a reload returns to writing", () => {

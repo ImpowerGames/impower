@@ -2,12 +2,14 @@ import type { Layout } from "@impower/impower-ui/layout";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
 
 const calls = vi.hoisted(() => ({
   commands: [] as [string, string][],
   inserted: [] as [string, string, string?][],
   auditions: [] as string[],
   navigated: [] as unknown[][],
+  pictures: [] as [string, { image: string; attributes: string[] }, number][],
   opened: 0,
   closed: 0,
   searchClosed: 0,
@@ -45,6 +47,16 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
       },
       assets: {
         watch: () => () => {},
+        watchPicture: (
+          path: string,
+          variant: { image: string; attributes: string[] },
+          size: number,
+          listener: (src: string | null) => void,
+        ) => {
+          calls.pictures.push([path, variant, size]);
+          listener(variant.image === "kai" ? "" : `data:image/png;drawn,${variant.image}`);
+          return () => {};
+        },
         measureDurations: async () => {
           store.assetDurations.value = { "blob:door": 2.4, "blob:click": 65 };
         },
@@ -91,6 +103,8 @@ const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { assetEndings } =
   await import("../../src/modules/spark-editor/utils/assetTypes");
+const { default: workspaceSettings } =
+  await import("../../src/modules/spark-editor/workspace/settings/WorkspaceSettings");
 const { default: WriterBar } =
   await import("../../src/modules/spark-editor/components/writer-bar/WriterBar");
 
@@ -155,6 +169,7 @@ beforeEach(() => {
   calls.inserted.length = 0;
   calls.auditions.length = 0;
   calls.navigated.length = 0;
+  calls.pictures.length = 0;
   assetEndings.value = { image: ["png"], audio: ["wav"], video: [], font: [] };
   workspace.assetDurations.value = {};
   listAssets(FILES);
@@ -251,6 +266,21 @@ describe("the Add panel on desktop", () => {
     );
   });
 
+  it("says why above the first dimmed row, where it shows when the panel opens", async () => {
+    calls.context = { inScene: false };
+    await mount();
+    await setOpen(true);
+    const order = Array.from(
+      panel()!.querySelectorAll<HTMLElement>("[data-add-construct], p"),
+    ).map((element) => element.dataset["addConstruct"] ?? element.textContent);
+    expect(order.slice(0, 4)).toEqual([
+      "character",
+      "scene",
+      "Add a scene or move into one to use story blocks.",
+      "branch",
+    ]);
+  });
+
   it("inserts the pressed construct in its script and closes", async () => {
     await mount();
     await setOpen(true);
@@ -338,11 +368,12 @@ const openPicker = async (construct: string, title: string) => {
 };
 
 describe("the pickers on desktop", () => {
-  it("open from their row, headed by their kind with Back, listing each picture by its base name with its subfolder", async () => {
+  it("open from their row, headed by their kind with Back, listing each picture and each of its alternates with its subfolder", async () => {
     const picker = await openPicker("backdrop", "Backdrop");
     expect(picker.querySelector("h2")?.textContent).toBe("Backdrop");
     expect(cards("Backdrop").map((card) => [card.dataset["pickerItem"], card.getAttribute("aria-label")])).toEqual([
       ["beach", "Preview beach"],
+      ["beach@night", "Preview beach, night"],
       ["plaza", "Preview plaza, city"],
     ]);
     expect(document.activeElement).toBe(cards("Backdrop")[0]);
@@ -352,10 +383,10 @@ describe("the pickers on desktop", () => {
 
   it("preview a pressed picture, then Use writes its name through the insert path and closes", async () => {
     await openPicker("backdrop", "Backdrop");
-    await act(async () => cards("Backdrop")[1]!.click());
+    await act(async () => cards("Backdrop")[2]!.click());
     await settle();
     expect(calls.auditions).toEqual(["show plaza"]);
-    expect(cards("Backdrop")[1]!.getAttribute("aria-pressed")).toBe("true");
+    expect(cards("Backdrop")[2]!.getAttribute("aria-pressed")).toBe("true");
     expect(pickerPanel("Backdrop")!.querySelector("[data-picker-status]")!.textContent).toBe("Previewing");
     await act(async () => button("Backdrop", "Use backdrop").click());
     await settle();
@@ -379,9 +410,23 @@ describe("the pickers on desktop", () => {
     expect(calls.auditions).toEqual(["show beach", "revert", "show imani", "revert"]);
   });
 
-  it("offer a portrait by its base name and a sound with its length, playing a pressed sound", async () => {
+  it("offer a portrait once, drawn with its default layers under the portrait crop, and a sound with its length", async () => {
+    workspaceSettings.setPreference("portraitCrop", 75);
     await openPicker("portrait", "Portrait");
     expect(cards("Portrait").map((card) => card.dataset["pickerItem"])).toEqual(["imani"]);
+    expect(calls.pictures).toEqual([["assets/Portraits/imani.png", { image: "imani", attributes: [] }, 512]]);
+    const thumbnail = cards("Portrait")[0]!.querySelector<HTMLElement>("[data-portrait-thumbnail]")!;
+    expect(thumbnail.querySelector("img")!.getAttribute("src")).toBe("data:image/png;drawn,imani");
+    expect(thumbnail.dataset["visiblePercent"]).toBe("75");
+    workspaceSettings.resetPreferences(["portraitCrop"]);
+    listAssets([...FILES, "assets/Portraits/kai~hat.on.png"]);
+    await act(async () => button("Portrait", "Back to add options").click());
+    await act(async () => row("portrait").click());
+    await settle();
+    expect(cards("Portrait").map((card) => card.dataset["pickerItem"])).toEqual(["imani", "kai"]);
+    expect(cards("Portrait")[1]!.querySelector("img")).toBeNull();
+    listAssets(FILES);
+    calls.auditions.length = 0;
     await act(async () => button("Portrait", "Back to add options").click());
     await act(async () => row("sound").click());
     await settle();
@@ -421,6 +466,21 @@ describe("the pickers on desktop", () => {
 });
 
 describe("the pickers on a phone", () => {
+  it("fade each card's name and caption at their edge instead of cutting them to an ellipsis", async () => {
+    layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
+    await mount();
+    await setOpen(true);
+    await act(async () => row("backdrop").click());
+    await settle();
+    const card = cards("Backdrop")[2]!;
+    const lines = [card.querySelector("strong")!, card.querySelector("small")!];
+    expect(await edgeTreatment(lines)).toEqual([
+      { text: "plaza", masked: true, ellipsis: false },
+      { text: lines[1]!.textContent, masked: true, ellipsis: false },
+    ]);
+  });
+
   it("show a carousel with its position, where one tap inserts without a preview", async () => {
     layout.value = "phone";
     workspace.layout.value = layout.value as Layout;
@@ -430,13 +490,13 @@ describe("the pickers on a phone", () => {
     await settle();
     const picker = pickerPanel("Backdrop")!;
     expect(picker.querySelector("h2")?.textContent).toBe("Backdrop");
-    expect(picker.querySelector("[aria-live]")!.textContent).toContain("1 / 2");
+    expect(picker.querySelector("[aria-live]")!.textContent).toContain("1 / 3");
     await act(async () => button("Backdrop", "Next backdrops").click());
-    expect(picker.querySelector("[aria-live]")!.textContent).toContain("2 / 2");
-    expect(cards("Backdrop")[1]!.getAttribute("aria-label")).toBe("Add plaza, city");
+    expect(picker.querySelector("[aria-live]")!.textContent).toContain("2 / 3");
+    expect(cards("Backdrop")[1]!.getAttribute("aria-label")).toBe("Add beach, night");
     await act(async () => cards("Backdrop")[1]!.click());
     await settle();
-    expect(calls.inserted).toEqual([["main.sd", "backdrop", "plaza"]]);
+    expect(calls.inserted).toEqual([["main.sd", "backdrop", "beach@night"]]);
     expect(calls.auditions.filter((entry) => entry.startsWith("show"))).toEqual([]);
   });
 

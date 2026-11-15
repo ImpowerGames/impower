@@ -4,6 +4,7 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { portalContainer } from "../../utils/portalContainer";
 import { topToastLayer } from "../../utils/toastLayer";
+import { applied, compiledRules, edgeTreatment } from "../../../test/fadeEdge";
 import { blockExtent, hitArea } from "../../../test/hitArea";
 import PreviewStrip, { type PreviewStripStatus } from "./PreviewStrip";
 
@@ -67,10 +68,14 @@ describe("PreviewStrip", () => {
     expect(onPlay).toHaveBeenCalledTimes(1);
   });
 
-  it("server-renders Play disabled, so no tap lands before its handler is attached", () => {
-    const html = renderToString(<PreviewStrip label="ACTION" words="Rain." onPlay={() => {}} />);
-    const button = /<button[^>]*aria-label="Play from this line"[^>]*>/.exec(html)![0];
-    expect(button).toContain("disabled");
+  it("server-renders Play disabled only when asked, as on a setup line", () => {
+    const play = (html: string) => {
+      const markup = document.createElement("div");
+      markup.innerHTML = html;
+      return markup.querySelector<HTMLButtonElement>('button[aria-label="Play from this line"]')!;
+    };
+    expect(play(renderToString(<PreviewStrip label="ACTION" words="Rain." onPlay={() => {}} />)).disabled).toBe(false);
+    expect(play(renderToString(<PreviewStrip label="STORY SETUP" words="Setup." playDisabled />)).disabled).toBe(true);
   });
 
   it("keeps Play disabled when asked, as on a setup line", async () => {
@@ -81,7 +86,7 @@ describe("PreviewStrip", () => {
   it("keeps the shorter form at every size and clamps the words to two lines, one beside two status rows", async () => {
     await mount(<PreviewStrip label="ACTION" words="Rain." />);
     const strip = host!.querySelector("section")!.className;
-    expect(strip).toContain("h-[91px]");
+    expect(strip).toContain("h-[var(--preview-strip-height)]");
     expect(strip).not.toContain("104px");
     expect(host!.querySelector("[data-preview-strip-picture]")!.className).toContain("h-[72px]");
     expect(words().className).toContain("line-clamp-2");
@@ -168,5 +173,15 @@ describe("PreviewStrip", () => {
     expect(dialog().style.display).toBe("");
     expect(document.activeElement).toBe(play());
     expect(portalContainer()).toBeUndefined();
+  });
+});
+
+describe("PreviewStrip edge", () => {
+  it("fades a long label at its edge, and keeps the words' clamp to set lines", async () => {
+    await mount(<PreviewStrip label="A VERY LONG CHARACTER NAME (V.O.) (CONT'D)" words="We need a mystery." />);
+    const label = host!.querySelector("b")!;
+    expect(await edgeTreatment([label])).toEqual([{ text: label.textContent, masked: true, ellipsis: false }]);
+    const rules = await compiledRules([words()]);
+    expect(applied(rules, words(), "-webkit-line-clamp")).toEqual(["2"]);
   });
 });

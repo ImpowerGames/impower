@@ -8,7 +8,8 @@ import { readJson } from "../../../scripts/review-job-store.mjs";
 import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
 import { readRepos } from "../../repos.mjs";
-import { branchTicket, launchDirOf, postedReviewRounds, readRecord, repositoriesOf, startRepositories, updateRecord } from "./issue-run.mjs";
+import { requestFacts } from "../ask-maintainer/maintainer-request.mjs";
+import { branchTicket, heldRequest, releaseRaised, launchDirOf, postedReviewRounds, readRecord, repositoriesOf, requestsTracker, startRepositories, updateRecord } from "./issue-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
@@ -213,9 +214,15 @@ export function checkpointEvidence({ pr, state, pull, comments, git, trusted, re
     reviewedHead: state.reviewedHead, plannedReviewers: state.plannedReviewers, range, checks, reports,
     lastExit: state.launches.map((l) => l.exitedAt).filter(Boolean).sort().at(-1) ?? null, lastAdjudication: reports.map((r) => r.adjudicatedAt).filter(Boolean).sort().at(-1) ?? null,
     decisions: decisions.map(({ id, kind, round, head, comment, trusted: t, malformed }) => ({ id, kind, round, head, comment, trusted: t, ...(malformed && { malformed }) })),
+    inForce: inForceOf(decisions),
     audit: violations, blockers: floor ? [...blockers, floor] : blockers, due: !floor && !blockers.length && !violations.length, acceptanceDue: !blockers.length && !violations.length,
   };
 }
+
+const inForceOf = (decisions) => {
+  const d = decisions.filter((x) => x.effective).at(-1);
+  return d ? { id: d.id, kind: d.kind, ...(d.maintainerRequest && { maintainerRequest: d.maintainerRequest }) } : null;
+};
 
 const present = (value) => typeof value === "string" && value.trim().length > 0;
 const line = (text) => String(text).replace(/\s*\r?\n\s*/g, " ").trim();
@@ -225,7 +232,7 @@ function checkAssessment(kind, a, evidence) {
   const missing = ASSESSMENT_FIELDS.filter((f) => !present(a[f]));
   if (missing.length) throw new Error(`The assessment lacks ${missing.join(", ")}; every checkpoint answers each one from the PR's whole review history`);
   if (!["preserved", "changed"].includes(a.agreedBehavior) || !["unchanged", "major-change"].includes(a.architecture)) throw new Error("The assessment must say whether the parent issue's agreed behavior is preserved or changed, and whether the architecture is unchanged or takes a major change");
-  if ((a.agreedBehavior === "changed" || a.architecture === "major-change") && kind !== "maintainer") throw new Error("A change to the parent issue's agreed behavior or a major architectural commitment is the maintainer's decision; record kind maintainer with the question");
+  if ((a.agreedBehavior === "changed" || a.architecture === "major-change") && kind !== "maintainer") throw new Error("A change to the parent issue's agreed behavior or a major architectural commitment is the maintainer's decision; record kind maintainer with the question and the number of the maintainer request that asks it");
   if (!Array.isArray(a.findings) || a.findings.some((f) => !Number.isSafeInteger(f?.comment) || !DISPOSITIONS.includes(f.disposition) || !present(f.finding ?? (f.disposition === "none" ? "no findings" : "")))) throw new Error(`The assessment's findings must list every finding as { comment, finding, disposition } with a disposition among ${DISPOSITIONS.join(", ")}`);
   if (kind !== "maintainer") {
     const listed = new Set(a.findings.map((f) => f.comment));
@@ -236,11 +243,15 @@ function checkAssessment(kind, a, evidence) {
   if (open.length && (kind === "finish" || kind === "accept-unreviewed")) throw new Error(`Finding${open.length > 1 ? "s" : ""} ${open.map((f) => `${f.comment} (${line(f.finding)})`).join(", ")} ${open.length > 1 ? "are" : "is"} still open; a known defect is resolved before ${kind}`);
 }
 
-export function decide(record, { ticket: number, kind, assessment: a, inspected, evidence: e, now = new Date() }) {
+export function decide(record, { ticket: number, kind, assessment: a, inspected, evidence: e, maintainerRequest, now = new Date() }) {
   if (!KINDS.includes(kind)) throw new Error(`--kind must be one of ${KINDS.join(", ")}`);
   const ticket = record.tickets[number];
   if (!ticket) throw new Error(`#${number} is not in the run record`);
   if (writersOf(ticket, number).includes(record.coordinator.session)) throw new Error(`${record.coordinator.session} wrote for #${number}, and is now its coordinator; a writer never decides its own review checkpoint`);
+  const prior = e.inForce !== undefined ? e.inForce : (ticket.checkpoints ?? []).filter((d) => d.state !== "abandoned").at(-1);
+  const held = prior?.kind === "maintainer" ? prior.maintainerRequest ?? null : null;
+  if (held && kind === "maintainer" && Number.isSafeInteger(maintainerRequest?.number) && maintainerRequest.number !== held.number) throw new Error(`Decision ${prior.id} waits on the maintainer's answer in request #${held.number}; a new decision of kind maintainer keeps that request, and another question waits until a decision of another kind has released it with its recorded answer or withdrawal`);
+  if (kind !== "maintainer" && !held && maintainerRequest !== undefined) throw new Error("--maintainer-request belongs to a decision of kind maintainer, or to the decision after one, which names that decision's request");
   const accepting = kind === "accept-unreviewed";
   if (e.completedRound < (accepting ? 1 : FIRST_CHECKPOINT_ROUND)) throw new Error(accepting ? `No review round is complete on PR #${e.pr}; an acceptance follows a completed round` : `No formal checkpoint before round ${FIRST_CHECKPOINT_ROUND}: round ${e.completedRound} is the last complete round, and the writer's ordinary review continues; only an acceptance of verified final corrections may be decided before it`);
   const due = e.due || (accepting && e.acceptanceDue);
@@ -249,6 +260,7 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
   const unsettled = earlier.find((d) => d.state === "intent");
   if (unsettled) throw new Error(`Decision ${unsettled.id} is not published; publish it and record published, or record abandon with evidence that it was never posted`);
   const previous = earlier.filter((d) => d.state !== "abandoned").at(-1);
+  const released = kind !== "maintainer" && held ? releaseRaised(held, maintainerRequest, number, `decide ${kind}`) : null;
   if (previous && previous.round > e.completedRound) throw new Error(`Decision ${previous.id} was made after round ${previous.round}, but the journals now show round ${e.completedRound}; a count never goes back`);
   checkAssessment(kind, a, e);
   const extra = {};
@@ -261,6 +273,8 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
   }
   if (kind === "repair" && (!present(a.scope) || !present(a.verificationChange))) throw new Error("A root-cause repair records the scope it widens in scope and how verification changes in verificationChange");
   if (kind === "maintainer" && !present(a.question)) throw new Error("A maintainer decision records the question in question");
+  if (kind === "maintainer") extra.maintainerRequest = heldRequest(record, maintainerRequest, number, { what: "A checkpoint decision of kind maintainer", kinds: ["decision"] });
+  if (released) extra.released = { request: released.request, state: released.state };
   if (kind === "accept-unreviewed") {
     if (!e.range || e.head === e.reviewedHead || !e.range.commits.length) throw new Error(`Nothing after ${e.reviewedHead} is unreviewed; finish through ordinary readiness instead`);
     if (!present(record.invocation?.text)) throw new Error("The run record holds no invocation to authorize an acceptance");
@@ -315,7 +329,7 @@ export function renderDecision(d, e) {
     ...(d.kind === "extend" ? [`- Round ${d.round + 1} may launch with \`reviewRoundLimit\` ${d.limit} and \`extendedReviewAuthorization\` set to the invocation quoted above, verbatim. Limit reason: ${d.limitReason} The next checkpoint follows round ${d.round + 1}'s verified fixes, and the count never resets.`] : []),
     ...(d.kind === "repair" ? [`- Repair scope: ${line(a.scope)} Verification change: ${line(a.verificationChange)} The round count stays at ${d.round}; the coordinator reassesses the changed risk once the repair is verified, before choosing the next action.`] : []),
     ...(d.kind === "accept-unreviewed" ? [`- Verification on the head: ${a.verification.map(line).join("; ")}.`, `- This is the coordinator's exception for an orchestrated parent issue: not ordinary readiness and not an independent review. Reviewed code ends at \`${d.reviewedHead}\`; the range above is accepted unreviewed. It applies to head \`${d.head}\` only: any later push invalidates it and needs a new checkpoint.`] : []),
-    ...(d.kind === "maintainer" ? [`- Question for the maintainer: ${line(a.question)} This ticket waits for the answer; independent tickets continue.`] : []),
+    ...(d.kind === "maintainer" ? [`- Question for the maintainer: ${line(a.question)} ${d.maintainerRequest ? `Filed as maintainer request #${d.maintainerRequest.number} (${d.maintainerRequest.url}); this ticket waits for its answer` : "This ticket waits for the answer"}; independent tickets continue.`] : []),
     ...(d.kind === "finish" ? ["- Ordinary review-pr readiness decides the PR; this decision grants nothing beyond it."] : []),
     "",
     `<!-- ${MARK}`,
@@ -459,7 +473,7 @@ export function postCommand(record, pr, ticket, file) {
   return names.split ? `gh issue comment ${thread.number} -R ${thread.repo} --body-file ${file}` : `gh pr comment ${pr} --body-file ${file}`;
 }
 
-export function main(argv, { clientFor = checkpointClient, gitFor = localGit, repos } = {}) {
+export function main(argv, { clientFor = checkpointClient, gitFor = localGit, repos, requestsFor = requestsTracker } = {}) {
   const { command, o } = parse(argv);
   const withRecord = () => { const file = abs(o.record, "record"), record = readRecord(file); return { file, record, client: clientFor(record, record.checkout), git: gitFor(record.checkout) }; };
   const mutate = (file, fn) => { const { record, output } = updateRecord(file, { expectRevision: Number(o.expectRevision), coordinator: o.coordinator }, fn); return { revision: record.revision, ...output }; };
@@ -475,7 +489,8 @@ export function main(argv, { clientFor = checkpointClient, gitFor = localGit, re
       const evidence = gatherEvidence({ record, ticket: int(o.ticket, "ticket"), pr: int(o.pr, "pr"), client, git });
       const assessment = readJson(abs(o.assessment, "assessment"));
       const out = abs(o.out, "out");
-      const done = mutate(file, (r) => decide(r, { ticket: int(o.ticket, "ticket"), kind: o.kind, assessment, inspected: o.inspected, evidence }));
+      const maintainerRequest = o.maintainerRequest === undefined ? undefined : requestFacts(int(String(o.maintainerRequest).replace(/^#/, ""), "maintainer-request"), { tracker: requestsFor(record), holding: int(o.ticket, "ticket") });
+      const done = mutate(file, (r) => decide(r, { ticket: int(o.ticket, "ticket"), kind: o.kind, assessment, inspected: o.inspected, evidence, maintainerRequest }));
       fs.writeFileSync(out, done.body + "\n");
       return { revision: done.revision, id: done.id, body: out, next: `post it with ${postCommand(record, evidence.pr, int(o.ticket, "ticket"), out)}, read the comment back to a file, then record published` };
     }

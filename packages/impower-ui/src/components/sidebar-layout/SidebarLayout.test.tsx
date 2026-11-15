@@ -148,4 +148,40 @@ describe("SidebarLayout", () => {
     );
     expect(root.style.getPropertyValue("--sidebar-width")).toBe("190px");
   });
+
+  it("hides the sidebar and its handle without replacing the content when the sidebar is hidden", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const frame = (sidebarHidden: boolean) => (
+      <SidebarLayout
+        defaultWidth={232}
+        minWidth={180}
+        maxWidth={420}
+        collapsedWidth={76}
+        onWidthChange={() => {}}
+        resizeLabel="Resize sidebar"
+        sidebar={<nav data-testid="rail" />}
+        sidebarHidden={sidebarHidden}
+        footer={sidebarHidden && <footer data-testid="footer" />}
+      >
+        <main />
+      </SidebarLayout>
+    );
+    await act(async () => render(frame(false), host!));
+    const root = host.firstElementChild as HTMLElement;
+    const main = host.querySelector("main");
+    const separator = host.querySelector<HTMLElement>('[role="separator"]')!;
+    expect(root.dataset["sidebar"]).toBe("expanded");
+    expect(separator.hidden).toBe(false);
+    expect(host.querySelector('[data-testid="footer"]')).toBeNull();
+
+    await act(async () => render(frame(true), host!));
+    expect(root.dataset["sidebar"]).toBeUndefined();
+    expect(root.style.getPropertyValue("--sidebar-width")).toBe("0px");
+    expect(separator.hidden).toBe(true);
+    expect(
+      host.querySelector('[data-testid="rail"]')!.parentElement!.hidden,
+    ).toBe(true);
+    expect(host.querySelector('[data-testid="footer"]')).not.toBeNull();
+    expect(host.querySelector("main")).toBe(main);
+  });
 });

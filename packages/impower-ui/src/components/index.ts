@@ -11,6 +11,7 @@ export {
   type ButtonProps,
   type ButtonVariant,
   type ButtonSize,
+  type ButtonGlyph,
 } from "./button/Button";
 export {
   default as Dialog,
@@ -375,6 +376,7 @@ export {
   type ThumbnailProps,
   type ThumbnailSize,
   type ThumbnailFit,
+  type ThumbnailSurface,
 } from "./thumbnail/Thumbnail";
 export {
   default as FolderCover,
@@ -420,9 +422,9 @@ export {
   tileMediaVariants,
   tileLabelVariants,
   tileHeight,
-  TILE_GAP,
+  tileGrid,
   TILE_MEDIA_FIT,
-  TILE_MIN_WIDTH,
+  type TileGrid,
   type TileProps,
   type TileShape,
   type TileKind,

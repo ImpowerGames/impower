@@ -62,21 +62,37 @@ try {
       if (args[0] === "issue" && args[1] === "create") return "https://github.com/acme/tickets/issues/77\n";
       return "[]";
     }, identity);
-    gh.create({ title: "t", bodyFile: "f", labels: ["l"], assignee: login, attach: [], cwd: "/pictures" });
+    gh.create({ title: "t", bodyFile: "f", labels: ["l"], assignee: login });
     gh.addAssignee(77, login);
     gh.blockedBy(5);
-    gh.comment({ number: 77, bodyFile: "f", attach: [] });
+    gh.comment({ number: 77, bodyFile: "f" });
     assert.equal(runs.length, 4);
     for (const run of runs) {
       assert.equal(run.env?.GH_TOKEN, token, `${run.args.slice(0, 3).join(" ")} runs with the App's token`);
       assert.equal(run.env.GITHUB_TOKEN, undefined, "an ambient GITHUB_TOKEN is not passed on");
     }
-    assert.equal(runs[0].cwd, "/pictures");
+    const uploads = [];
+    const uploader = ghTracker("acme/tickets", (args, options = {}) => {
+      uploads.push({ args, env: options.env });
+      if (args[1] === "repos/acme/tickets") return JSON.stringify({ id: 4242 });
+      return JSON.stringify({ url: "https://github.com/user-attachments/assets/abc" });
+    }, identity);
+    const picture = path.join(scratch, "pictures", "teal.png");
+    assert.equal(uploader.upload(picture), "https://github.com/user-attachments/assets/abc");
+    uploader.upload(path.join(scratch, "pictures", "photo.JPG"));
+    assert.equal(uploads.filter((run) => run.args[1] === "repos/acme/tickets").length, 1, "the repository id is read once");
+    const [, first, second] = uploads;
+    assert.deepEqual(first.args, ["api", "-X", "POST", "https://uploads.github.com/user-attachments/assets?content_type=image%2Fpng&name=teal.png&repository_id=4242", "-H", "Content-Type: image/png", "--input", picture]);
+    assert.match(second.args[3], /content_type=image%2Fjpeg&name=photo\.JPG/);
+    for (const run of uploads) assert.equal(run.env, undefined, "a picture upload runs with the maintainer's own login, which GitHub's attachment host accepts and the App's token does not");
+    const empty = ghTracker("acme/tickets", (args) => (args[1] === "repos/acme/tickets" ? JSON.stringify({ id: 1 }) : "{}"), identity);
+    assert.throws(() => empty.upload(picture), /the upload of teal\.png returned no hosted address/);
+    console.log("ok: a picture is uploaded to GitHub's attachment host through the maintainer's own login, even when the App files the request");
     const plain = [];
     ghTracker("acme/tickets", (args, options = {}) => (plain.push(options), "[]")).blockedBy(5);
     assert.equal(plain[0].env, undefined, "without the App, gh runs with the maintainer's own login");
     assert.equal(tokenEnv({ mode: "maintainer", reason: "r" }), undefined);
-    console.log("ok: with the App's token, every gh call the tool makes, the dependency calls included, runs as the App");
+    console.log("ok: with the App's token, every gh call the tool makes except a picture upload, the dependency calls included, runs as the App");
 
     const checked = validateRequest(JSON.parse(readFileSync(path.join(here, "fixtures", "task.json"), "utf8")), { pictures: () => ({ path: path.join(scratch, "x.png"), width: 840 }) });
     const asApp = buildRequest(checked, { now, timeZone: "UTC", identity });

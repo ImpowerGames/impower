@@ -61,6 +61,7 @@ export namespace Workspace {
       void workspace.state.value;
       return window.getActiveEditorForPane("logic")?.uri;
     },
+    hasFile: (uri) => fs.hasFile(uri),
     getDocumentSymbols: (uri) => ls.getDocumentSymbols(uri),
     getFileText: (uri) => fs.getFileText(uri),
     onPublishedDiagnostics: (listener) => ls.onPublishedDiagnostics(listener),
@@ -73,8 +74,8 @@ export namespace Workspace {
         ? { uri: editor.uri, line: editor.selectedRange?.start?.line ?? 0 }
         : undefined;
     },
-    shownBeat: () => workspace.previewShownBeat.value,
-    getPreviewLine: (uri, line, shownBeat) => ls.getPreviewLine(uri, line, shownBeat),
+    shownBeatDescription: () => workspace.previewShownBeatDescription.value,
+    getPreviewLine: (uri, line) => ls.getPreviewLine(uri, line),
     onPublishedDiagnostics: (listener) => ls.onPublishedDiagnostics(listener),
   });
 }

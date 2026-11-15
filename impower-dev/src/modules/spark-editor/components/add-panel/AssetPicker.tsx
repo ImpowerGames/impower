@@ -121,6 +121,31 @@ function useLengths(row: PickerRow, items: PickerItem[] | null) {
   };
 }
 
+const PICTURE_SIZE = 512;
+
+function usePictureSrc(item: PickerItem): string | undefined {
+  const [drawn, setDrawn] = useState<string | null>(null);
+  const variantKey = item.variant ? JSON.stringify(item.variant) : "";
+  useEffect(() => {
+    setDrawn(null);
+    if (!item.variant) {
+      return;
+    }
+    let dispose: (() => void) | undefined;
+    let alive = true;
+    void intents().then((Workspace) => {
+      if (alive) {
+        dispose = Workspace.assets.watchPicture(item.path, item.variant!, PICTURE_SIZE, setDrawn);
+      }
+    });
+    return () => {
+      alive = false;
+      dispose?.();
+    };
+  }, [item.path, variantKey]);
+  return item.variant ? (drawn ?? undefined) : item.src;
+}
+
 function Picture({
   row,
   item,
@@ -131,6 +156,7 @@ function Picture({
   fill: boolean;
 }) {
   const { preferences } = useSettings();
+  const src = usePictureSrc(item);
   const place = fill ? "h-0 min-h-0 flex-1" : undefined;
   if (row.picker.audition === "sound") {
     return (
@@ -146,13 +172,13 @@ function Picture({
       <PortraitThumbnail
         size={fill ? "fill" : "tile"}
         class={place}
-        src={item.src}
+        src={src}
         crop={preferences.portraitCrop}
       />
     );
   }
   return (
-    <Thumbnail size={fill ? "fill" : "card"} class={place} src={item.src} />
+    <Thumbnail size={fill ? "fill" : "card"} class={place} src={src} />
   );
 }
 
@@ -340,11 +366,11 @@ function Cards({
             >
               <Picture row={row} item={item} fill />
               <span class="flex-none px-2.5 py-1.75">
-                <strong class="block truncate text-[13px]/[1.4] font-semibold">
+                <strong class="block [--fade:20px] fade-edge text-[13px]/[1.4] font-semibold">
                   {item.name}
                 </strong>
                 {captionOf(item) && (
-                  <small class="block truncate text-[12px]/[1.4] text-muted">
+                  <small class="block [--fade:20px] fade-edge text-[12px]/[1.4] text-muted">
                     {captionOf(item)}
                   </small>
                 )}

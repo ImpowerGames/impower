@@ -15,6 +15,7 @@ import {
   customGotoLinePanel,
   openCustomGotoLinePanel,
 } from "../src/modules/script-editor/utils/extensions/gotoLinePanel";
+import { CARET_SCROLL_MARGIN_TOP } from "../src/modules/script-editor/utils/extensions/caretScrollMargin";
 import { getScrollableParent } from "../src/utils/getScrollableParent";
 import { ALL_ON_APPEARANCE } from "./fixtures/scriptAppearance";
 
@@ -588,6 +589,26 @@ describe("ScriptEditorController load handover", () => {
       controller.dispose();
       host.remove();
     }
+  });
+
+  it("scrolls the caret into view with the caret margin when it takes focus at the caret", async () => {
+    const { controller, view } = await loadedEditor();
+    const dispatch = vi.spyOn(view, "dispatch");
+
+    controller["focusAtCaret"]();
+
+    const margins = dispatch.mock.calls.flatMap(([spec]) =>
+      [(spec as { effects?: unknown }).effects]
+        .flat()
+        .map(
+          (effect) =>
+            (effect as { value?: { y?: string; yMargin?: number } } | undefined)
+              ?.value,
+        )
+        .filter((value) => value?.y === "nearest")
+        .map((value) => value!.yMargin),
+    );
+    expect(margins).toEqual([CARET_SCROLL_MARGIN_TOP]);
   });
 
   it("still scrolls to the visible range it loaded with when nothing moved", async () => {

@@ -9,12 +9,15 @@ import { TOOL_MARK, commentAuthor } from "./github-app.mjs";
 import {
   RequestRefused,
   answerFromChat,
+  answerText,
   dataLine,
   fetchAnswer,
   ghTracker,
   main,
   readAnswer,
+  quote,
   readNote,
+  requestFacts,
   toolText,
   recordAnswer,
   recordBody,
@@ -81,18 +84,10 @@ function fakeTracker({ issues = [], comments = [], polls = null } = {}) {
     t.now = new Date(t.now.getTime() + 1000);
     return t.now.toISOString().replace(".000Z", "Z");
   };
-  const host = (body, attach) => {
-    let text = body;
-    for (const file of attach) {
-      const url = `https://github.com/user-attachments/assets/${Buffer.from(file).toString("hex")}`;
-      text = text.split(`](${file})`).join(`](${url})`);
-    }
-    return text;
-  };
-  const post = (number, body, attach = []) => {
+  const post = (number, body) => {
     const id = t.next++;
     const at = tick();
-    t.store.set(id, { id, issue: number, html_url: `${issueUrl(number)}#issuecomment-${id}`, created_at: at, updated_at: at, user: { login: M, type: "User" }, body: host(body, attach), seq: t.seq++ });
+    t.store.set(id, { id, issue: number, html_url: `${issueUrl(number)}#issuecomment-${id}`, created_at: at, updated_at: at, user: { login: M, type: "User" }, body, seq: t.seq++ });
     return id;
   };
   const issueOf = (n) => {
@@ -110,9 +105,14 @@ function fakeTracker({ issues = [], comments = [], polls = null } = {}) {
       t.calls.push(["comments", n]);
       return structuredClone([...t.store.values()].filter((c) => c.issue === n).sort((a, b) => a.id - b.id));
     },
-    comment: ({ number, bodyFile, attach }) => {
-      t.calls.push(["comment", number, attach]);
-      return { id: post(number, readFileSync(bodyFile, "utf8"), attach) };
+    upload: (file) => {
+      const name = `./${path.basename(file)}`;
+      t.calls.push(["upload", name]);
+      return `https://github.com/user-attachments/assets/${Buffer.from(name).toString("hex")}`;
+    },
+    comment: ({ number, bodyFile }) => {
+      t.calls.push(["comment", number]);
+      return { id: post(number, readFileSync(bodyFile, "utf8")) };
     },
     readComment: (id) => structuredClone(t.store.get(id)),
     editComment: (id, bodyFile) => {
@@ -239,6 +239,30 @@ try {
   }
 
   {
+    const tracker = fakeTracker({ issues: [issue(closedBy("completed")), { number: 2271, title: "Route gutter", html_url: issueUrl(2271), state: "open" }], comments: [answerComment] });
+    const before = requestFacts(REQUEST, { tracker, repos });
+    assert.deepEqual([before.kind, before.state, before.answered, before.recorded, before.owner, before.tickets, before.question], ["decision", "answered", true, false, "orchestrate-issues #977", [2271], "What should mark a choice the preview picked by itself?"], "the facts a coordinator command checks come from the request");
+    recordAnswer(REQUEST, { tracker, repos });
+    const after = requestFacts(REQUEST, { tracker, repos });
+    assert.equal(after.recorded, true, "a recorded answer reads as recorded");
+    assert.equal("holds" in after, false, "facts read without a ticket say nothing about a live dependency");
+    tracker.blockedBy = (n) => (n === 2271 ? [{ number: REQUEST }] : []);
+    assert.deepEqual([requestFacts(REQUEST, { tracker, repos, holding: 2271 }).holds, requestFacts(REQUEST, { tracker, repos, holding: 2272 }).holds], [true, false], "with a ticket, the facts say whether GitHub blocks that ticket on the request");
+    tracker.blockedBy = () => [];
+    assert.equal(requestFacts(REQUEST, { tracker, repos, holding: 2271 }).holds, false, "a removed dependency reads as not holding, whatever the request's own list says");
+    const text = answerText(after);
+    assert.equal(text, `Maintainer request #${REQUEST} (${issueUrl(REQUEST)}) asked "What should mark a choice the preview picked by itself?"; the maintainer answered in the words quoted below.\n\nTheir comment at 2026-11-13 16:10 UTC (${answerComment.html_url}):\n${quote(typed.replace(/\r\n/g, "\n").trimEnd())}`);
+    assert.equal(unquote(text.split("):\n").at(-1)), typed.replace(/\r\n/g, "\n").trimEnd(), "the text carries the maintainer's words character for character");
+    const accepted = requestFacts(REQUEST, { tracker: fakeTracker({ issues: [issue(closedBy("completed"))] }), repos });
+    assert.match(answerText(accepted), /; the maintainer accepted the recommendation, B · A hollow pin, by closing without comment at 2026-11-13 16:10 UTC\.$/);
+    assert.equal(accepted.recorded, false);
+    const waiting = requestFacts(REQUEST, { tracker: fakeTracker({ issues: [issue()] }), repos });
+    assert.deepEqual([waiting.state, waiting.answered, waiting.recorded], ["waiting", false, false]);
+    assert.throws(() => answerText(waiting), /holds no answer: it is waiting/);
+    console.log("ok: requestFacts reports a request's owner, tickets, answer and whether it is recorded, and answerText quotes the recorded words");
+  }
+
+  {
     const accepted = recordBody(answerOf(issue(closedBy("completed"))));
     assert.match(accepted, /- \*\*Answer:\*\* accepted the recommendation by closing without comment at 2026-11-13 16:10 UTC\./);
     const task = recordBody(answerOf(issue({ title: "Test the route strip on your phone (#2271, #2272)", body: taskBody, labels: [{ name: labels.task }], ...closedBy("not_planned") })));
@@ -344,7 +368,7 @@ try {
       throw new Error("network down");
     };
     const original = failing.issues.get(REQUEST).body;
-    assert.throws(() => reviseRequest(REQUEST, request, "x", { pictures, tracker: failing, repos, now }), /Rolled back: deleted the revision note \d+; restored the earlier body/);
+    assert.throws(() => reviseRequest(REQUEST, request, "x", { pictures, tracker: failing, repos, now }), /Rolled back: restored the earlier body\./);
     assert.equal(failing.issues.get(REQUEST).body, original);
     assert.equal([...failing.store.values()].length, 0);
     for (const broken of ["editTitle", "reopen"]) {

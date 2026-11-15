@@ -57,12 +57,12 @@ export interface OutlineSnapshot {
   firstContentLine: number | undefined;
 }
 
-export type ShownBeat = PreviewGameState["shownBeat"];
+export type ShownBeatDescription = PreviewGameState["shownBeatDescription"];
 
 export interface PreviewLineSnapshot {
   uri: string;
   line: number;
-  preview: PreviewLine;
+  preview: PreviewLine | NonNullable<ShownBeatDescription>;
 }
 
 export interface DebugSessionState {
@@ -219,6 +219,8 @@ class WorkspaceStore {
 
   readonly assetsReveal = signal<readonly string[] | null>(null);
 
+  readonly assetsInspect = signal<string | null>(null);
+
   readonly movesReplayed = signal<{ moves: readonly FileMove[]; settled: boolean } | null>(null);
 
   readonly uploadBatches = signal(0);
@@ -285,7 +287,7 @@ class WorkspaceStore {
 
   readonly previewLine = signal<PreviewLineSnapshot | null>(null);
 
-  readonly previewShownBeat = signal<ShownBeat>(null);
+  readonly previewShownBeatDescription = signal<ShownBeatDescription>(null);
 
   readonly syncConflictOpen = signal<boolean>(false);
 

@@ -4,16 +4,86 @@ import ScreenplayTypesetter from "../classes/ScreenplayTypesetter";
 import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
 import type { PageLine } from "../types/DocumentSpan";
 import type { FormattedText } from "../types/FormattedText";
-import type { PrintedInsert } from "../types/PrintedInsert";
 import type { ScreenplayConfig } from "../types/ScreenplayConfig";
+import { insertAnchor, UNPLACED } from "./printedPosition";
 
-export interface ScreenplayPageLayout {
+export interface PrintedRun {
+  from: number;
+  to: number;
+  style: FormattedText;
+  text?: string;
+}
+
+export interface PageInsert {
+  at: number;
+  text: string;
+  style: FormattedText;
+}
+
+export interface PrintedScene {
+  at: number;
+  scene: string | number;
+  bold: boolean;
+}
+
+export interface PrintedPlaces {
+  runs: PrintedRun[];
+  inserts: PageInsert[];
+  unplaced: string[];
+}
+
+export interface ScreenplayPageLayout extends PrintedPlaces {
   blankLines: number[];
   printed: number[];
   actionStarts: number[];
-  inserts: PrintedInsert[];
   printedLines: { at: number; lines: FormattedText[][] }[];
+  scenes: PrintedScene[];
 }
+
+export const placePrintedLine = (line: PageLine, script: string, places: PrintedPlaces) => {
+  for (const piece of line.content) {
+    const positionOf = (index: number) => piece.at?.[index] ?? UNPLACED;
+    let start = -1;
+    let previous = -1;
+    const close = () => {
+      if (start >= 0) places.runs.push({ from: start, to: previous + 1, style: piece });
+      start = -1;
+    };
+    for (let index = 0; index < piece.text.length; ) {
+      const position = positionOf(index);
+      let end = index + 1;
+      while (end < piece.text.length && positionOf(end) === position) end++;
+      const printed = piece.text.slice(index, end);
+      const anchor = insertAnchor(position);
+      if (anchor !== undefined) {
+        close();
+        places.inserts.push({ at: anchor, text: printed, style: piece });
+      } else if (position < 0) {
+        close();
+        places.unplaced.push(printed);
+      } else if (printed !== script[position]) {
+        close();
+        places.runs.push({ from: position, to: position + 1, style: piece, text: printed });
+      } else if (start >= 0 && position === previous + 1) {
+        previous = position;
+      } else {
+        close();
+        start = position;
+        previous = position;
+      }
+      index = end;
+    }
+    close();
+  }
+};
+
+const firstPlaced = (line: PageLine) => {
+  for (const piece of line.content) {
+    const found = piece.at?.find((position) => position >= 0);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+};
 
 const mergeRanges = (ranges: number[]): number[] => {
   let sorted = true;
@@ -47,18 +117,22 @@ export const screenplayPageLayout = (
     PRINT_PROFILES[config?.screenplay_print_paper_size || ""] ||
     PRINT_PROFILES.usletter;
   const spans = new ScreenplayTypesetter().compose(
-    screenplayTokens(tree, script),
+    screenplayTokens(tree, script, true),
     config,
     profile,
   );
   const blankLines: number[] = [];
   const printed: number[] = [];
   const actionStarts: number[] = [];
-  const inserts: PrintedInsert[] = [];
   const printedLines: { at: number; lines: FormattedText[][] }[] = [];
+  const places: PrintedPlaces = { runs: [], inserts: [], unplaced: [] };
+  const scenes: PrintedScene[] = [];
   let lastSource: number[] | undefined;
   const addPrinted = (lines: PageLine[] | undefined) => {
     for (const line of lines ?? []) {
+      if (line.source) placePrintedLine(line, script, places);
+      const sceneAt = line.scene !== undefined ? firstPlaced(line) : undefined;
+      if (sceneAt !== undefined) scenes.push({ at: sceneAt, scene: line.scene!, bold: !!line.sceneBold });
       if (line.source && line.source === lastSource) {
         printedLines.at(-1)?.lines.push(line.content);
       }
@@ -66,7 +140,6 @@ export const screenplayPageLayout = (
         printed.push(...line.source);
         lastSource = line.source;
         if (line.source[0] !== undefined) printedLines.push({ at: line.source[0], lines: [line.content] });
-        if (line.inserts) inserts.push(...line.inserts);
         if (line.tag === "action" && line.source[0] !== undefined) actionStarts.push(line.source[0]);
       }
     }
@@ -83,7 +156,14 @@ export const screenplayPageLayout = (
       addPrinted(span.lines);
     }
   }
-  return { blankLines, printed: mergeRanges(printed), actionStarts, inserts: inserts.sort((a, b) => a.at - b.at),
+  return {
+    blankLines,
+    printed: mergeRanges(printed),
+    actionStarts,
     printedLines: printedLines.sort((a, b) => a.at - b.at),
+    runs: places.runs.sort((a, b) => a.from - b.from),
+    inserts: places.inserts.sort((a, b) => a.at - b.at),
+    unplaced: places.unplaced,
+    scenes,
   };
 };

@@ -87,6 +87,14 @@ import type { PageEntry, PageRecord, PageState } from "../types/PageState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
+import {
+  identName,
+  parseComponentValues,
+  significant,
+  splitAt,
+  tokenOf,
+  TokenType,
+} from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "../utils/getImageOwner";
 import { getVarName } from "../utils/getVarName";
@@ -1592,7 +1600,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const layout = this._game.program?.sparkle?.layouts?.[layoutName];
     const components = this._game.program?.sparkle?.components ?? {};
     const classes = new Set<string>(["layouts", "main", layoutName]);
-    const propValues: string[] = [];
+    const propValues: [string, string][] = [];
     const expanded = new Set<string>();
     const visit = (nodes: unknown[] | undefined) => {
       for (const node of nodes ?? []) {
@@ -1616,10 +1624,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             classes.add(cls);
           }
         }
-        for (const prop of Object.values(n["props"] ?? {})) {
+        for (const [key, prop] of Object.entries(n["props"] ?? {})) {
           const value = (prop as Record<string, unknown>)?.["value"];
           if (typeof value === "string") {
-            propValues.push(value);
+            propValues.push([key, value]);
           }
         }
         visit(n["children"]);
@@ -1643,21 +1651,41 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     const referenced = new Set<string>();
-    const scan = (value: unknown, depth: number) => {
+    const scan = (value: unknown, depth: number, key: string) => {
       if (depth > 8 || value == null) {
         return;
       }
       if (typeof value === "string") {
-        if (fonts[value] && !value.startsWith("$")) {
+        const fontKey = key.includes("font");
+        if (fontKey && fonts[value] && !value.startsWith("$")) {
           referenced.add(value);
           return;
         }
-        const named = byFamily.get(value);
+        const named = fontKey ? byFamily.get(value) : undefined;
         if (named) {
           for (const fontName of named) {
             referenced.add(fontName);
           }
           return;
+        }
+        if (fontKey && value.includes(",")) {
+          for (const part of splitAt(parseComponentValues(value), TokenType.Comma)) {
+            const nodes = significant(part);
+            const only = nodes.length === 1 ? tokenOf(nodes[0]!) : undefined;
+            const idents = nodes.map(identName);
+            const family =
+              only?.[0] === TokenType.String
+                ? (only[4] as { value: string }).value
+                : nodes.length > 0 && idents.every((name) => name !== undefined)
+                  ? idents.join(" ")
+                  : part.map(String).join("").trim();
+            if (fonts[family] && !family.startsWith("$")) {
+              referenced.add(family);
+            }
+            for (const fontName of byFamily.get(family) ?? []) {
+              referenced.add(fontName);
+            }
+          }
         }
         for (const fontName of fontNames) {
           if (value.includes(`--font-${fontName}`)) {
@@ -1674,19 +1702,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         referenced.add(v["$name"]);
         return;
       }
-      for (const inner of Object.values(v)) {
-        scan(inner, depth + 1);
+      for (const [innerKey, inner] of Object.entries(v)) {
+        scan(inner, depth + 1, Array.isArray(v) ? key : innerKey);
       }
     };
     const styles = this.context?.style ?? {};
     for (const cls of classes) {
       const style = (styles as Record<string, unknown>)[cls];
       if (style) {
-        scan(style, 0);
+        scan(style, 0, "");
       }
     }
-    for (const value of propValues) {
-      scan(value, 0);
+    for (const [key, value] of propValues) {
+      scan(value, 0, key);
     }
     for (const fontName of [...referenced]) {
       for (const sibling of byFamily.get(fonts[fontName]?.font_family ?? "") ?? []) {
@@ -4165,7 +4193,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const params: PlayCutsceneParams = {
       src,
       loop: Boolean(cutscene.loop),
-      muted: Boolean(cutscene.mute) || this._beatPlaying,
+      muted: Boolean(cutscene.mute),
       ...this.getMovieMixer(),
     };
     if (cutscene.with) {
@@ -4986,7 +5014,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               content.video = {
                 src: videoSrc,
                 loop: !e.once,
-                muted: Boolean(e.mute) || $._beatPlaying,
+                muted: Boolean(e.mute),
                 ...$.getMovieMixer(),
                 ...($.showsMovieStill() ? { preview: true } : {}),
               };

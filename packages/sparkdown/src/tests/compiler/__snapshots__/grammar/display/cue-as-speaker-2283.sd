@@ -1,0 +1,13 @@
+scene start
+  ??? as raffles:
+    You don't remember me?
+  ??? as raffles (O.S.) [<]:
+    It can't be.
+  ??? as raffles: Hello
+  Dressed \as santa:
+    Ho ho ho.
+  BUNNY as raffles:
+    I can do his voice.
+  RAFFLES (V.O.) [>]:
+    Plain.
+end

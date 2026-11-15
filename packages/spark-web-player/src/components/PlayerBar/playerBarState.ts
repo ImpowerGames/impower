@@ -2,6 +2,7 @@ import {
   DidChangeGameStateMessage,
   type CompletionPreviewStatus,
   type GameState,
+  type GameStateBeat,
   type GameStateEnding,
   type GameStatuses,
 } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
@@ -19,6 +20,8 @@ import { HISTORY_REASONS } from "@impower/spark-engine/src/game/core/constants/H
 import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import { endingStatusText } from "@impower/spark-engine/src/game/core/utils/endingStatusText";
 import { describeSimulationFailure } from "../../utils/describeSimulationFailure";
+import { NO_BEAT_REFUSAL } from "../../main/workers/messages/PlayMessage";
+import { GAME_STARTING_REASON } from "./replayBeat";
 
 export interface PlayerBarState {
   launchState: GameState["launchState"];
@@ -29,6 +32,7 @@ export interface PlayerBarState {
   executed: GameExecutedParams | null;
   size: GameResizedParams | null;
   runHistory: RunHistoryState;
+  beat: GameStateBeat | null;
 }
 
 export interface RunHistoryState {
@@ -79,6 +83,7 @@ export const initialPlayerBarState: PlayerBarState = {
   executed: null,
   size: null,
   runHistory: initialRunHistory,
+  beat: null,
 };
 
 export type RunButtonState = "run" | "stop" | "run-again";
@@ -89,6 +94,24 @@ export const runButtonState = (state: PlayerBarState): RunButtonState =>
     : state.playing
       ? "stop"
       : "run";
+
+export interface ReplayBeatState {
+  shown: boolean;
+  pressed: boolean;
+  reason?: string;
+}
+
+export const replayBeatState = (
+  state: PlayerBarState,
+  view: { starting?: boolean; runRefusal?: string },
+): ReplayBeatState => ({
+  shown: !state.playing && state.launchState !== "ended",
+  pressed: !!state.beat?.playing,
+  reason: view.starting
+    ? GAME_STARTING_REASON
+    : (view.runRefusal ??
+      (state.beat ? (state.beat.refusal ?? undefined) : NO_BEAT_REFUSAL)),
+});
 
 export const skipRefusal = (
   history: GameHistory | null | undefined,
@@ -119,6 +142,7 @@ export const reducePlayerBar = (
       stepping: game.stepping,
       playing: game.run != null,
       statuses: game.statuses ?? NO_STATUSES,
+      beat: game.beat ?? null,
     };
   }
   if (

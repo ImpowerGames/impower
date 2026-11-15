@@ -5,6 +5,7 @@ import { useContext, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { createContext } from "preact";
 import type { IconComponent } from "../icon/icons.generated";
 import { cn } from "../../utils/cn";
+import "../../utils/uniqueIds";
 
 const tabsContainer = cva("relative flex w-full", {
   variants: {

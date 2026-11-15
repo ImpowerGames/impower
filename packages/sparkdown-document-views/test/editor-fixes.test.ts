@@ -117,6 +117,26 @@ describe("a fix applied in the open editor", () => {
     expect(view.state.doc.toString()).toBe("show alcie");
   });
 
+  it("returns focus to the script with the caret after the change when the writer chose it there", () => {
+    const view = editor("show alcie, then wait");
+    view.contentDOM.blur();
+    expect(
+      applyEditorFix(
+        view,
+        fixFor("show alcie, then wait", 5, 10, "alice", {
+          expect: "alcie",
+          kind: "name",
+        }),
+        1,
+        true,
+      ),
+    ).not.toBeNull();
+    expect(view.hasFocus).toBe(true);
+    expect(view.state.selection.main.head).toBe(10);
+    undo(view);
+    expect(view.state.doc.toString()).toBe("show alcie, then wait");
+  });
+
   const useAlice = (view: EditorView, id: number) =>
     applyEditorFix(
       view,

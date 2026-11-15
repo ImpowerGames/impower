@@ -22,7 +22,7 @@ The helper refuses a missing field, a report the findings omit, and an open find
 
 ## Decide
 
-`decide --record --coordinator --expect-revision --ticket N --pr P --kind <kind> --assessment <file> --out <body.md>` takes the evidence again, refuses a decision whose conditions fail, records it and writes the comment to post. The kinds:
+`decide --record --coordinator --expect-revision --ticket N --pr P --kind <kind> --assessment <file> --out <body.md> [--maintainer-request R]` takes the evidence again, refuses a decision whose conditions fail, records it and writes the comment to post. The kinds:
 
 | Kind | When | What it records |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ The helper refuses a missing field, a report the findings omit, and an open find
 | `repair` | Findings share a mechanism that a broader or simpler repair addresses while keeping the parent issue's agreed behavior. | `scope` (what widens, across components if needed) and `verificationChange`. The round count stays; once the repair is verified, decide again on the changed risk. |
 | `extend` | Another round is expected to establish something concrete. | `limit` (above the completed round, at most ten) and `limitReason`. The writer's next launcher plan sets `reviewRoundLimit` to it and `extendedReviewAuthorization` to the invocation the decision quotes, verbatim. |
 | `accept-unreviewed` | Root causes were addressed and further review has diminishing benefit. | See below. |
-| `maintainer` | A material concern, a change to the agreed behavior or a major architectural commitment. | `question`. The ticket waits for the answer; independent tickets continue. It may be recorded while other conditions fail, and then names each one instead of the passed gates. |
+| `maintainer` | A material concern, a change to the agreed behavior or a major architectural commitment. | `question`, and `--maintainer-request R`, a decision request that holds up the ticket and that this run owns, filed as [maintainer requests](writer-reports.md#maintainer-requests) describes; `decide` refuses without it and records its number in the decision. The ticket waits for the answer; independent tickets continue. The next decision for the ticket while it is in force, a predecessor's included, of any other kind, takes `--maintainer-request R` and is refused until R's answer is recorded or R is withdrawn; it records which request released it. A further `maintainer` decision keeps R. It may be recorded while other conditions fail, and then names each one instead of the passed gates. |
 
 When one mechanism keeps producing findings round after round, another round reviewing its instances is not converging: choose a `repair` that removes the mechanism's second implementation or the mechanism itself, then a bounded round on the repair. Do this even when the repair widens the PR, provided the agreed behavior holds. Prefer a simplification that drops a claim when that mechanism's failure mode is false assurance, such as a recovery it cannot prove; an honest limitation beats a narrower claim. Accept unreviewed corrections only once the defect classes have stopped recurring and what remains unreviewed is small and verified. The check's recorded scenarios include both shapes from this parent issue's own run.
 

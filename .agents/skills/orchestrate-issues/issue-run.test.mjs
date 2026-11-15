@@ -14,6 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const script = path.join(here, "issue-run.mjs");
 const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "issue-run-")));
 console.log(`scratch: ${tmp}`);
+process.env.IMPOWER_MAINTAINER_REQUEST_INDEX = path.join(tmp, "request-index");
 const defaults = run.readWriterDefaults();
 const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -21,6 +22,8 @@ const waitFor = (test, what, ms = 30000) => { const end = Date.now() + ms; while
 const readJsonFile = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const write = (name, value) => { const file = path.join(tmp, name); fs.writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value)); return file; };
 const started = [];
+const requestOf = (over = {}) => ({ number: 9001, url: "https://github.com/acme/widgets/issues/9001", title: "Should branches stack? (#101)", kind: "decision", question: "Should branches stack?", owner: "orchestrate-issues #100", tickets: [101], state: "answered", answered: true, recorded: true, recommended: { letter: "A", name: "No stacking" }, wentAhead: null, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: "https://github.com/acme/widgets/issues/9001#issuecomment-1", at: "2026-11-13T16:09:00Z", body: "No stacked branches." }], ...over });
+const waitingRequest = (over = {}) => requestOf({ state: "waiting", answered: false, recorded: false, closed: null, words: [], ...over });
 
 function writerAccountingChecks() {
   const checkout = path.join(tmp, "accounting-checkout");
@@ -515,9 +518,79 @@ try {
     assert.deepEqual(dependents(ranked(behind)), { 301: ["dispatch", 3], 302: ["adopt-pr", 2], 310: ["dispatch", 3] }, "a slice held by its Bug's blocker counts toward that blocker with its Bug and what waits on them");
   }
   const unknownEffort = plan({ snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => t.number === 107 ? { ...t, effort: "Huge" } : t) } });
-  assert.deepEqual([actions(unknownEffort)[107], unknownEffort.tickets.find((t) => t.number === 107).reason], ["decision-needed", "Effort Huge has no writer effort"], "the coordinator assigns a missing Effort but never reinterprets an existing one");
+  const huge = unknownEffort.tickets.find((t) => t.number === 107);
+  assert.deepEqual([actions(unknownEffort)[107], huge.decides, huge.maintainerRequest.file], ["decision-needed", "maintainer", "decision"], "the coordinator assigns a missing Effort but never reinterprets an existing one, which is the maintainer's call");
+  assert.match(huge.maintainerRequest.key, /^reason:[0-9a-f]{16}$/, "a decision entry's wait is keyed by its reason");
+  assert.match(huge.reason, /^Effort Huge has no writer effort; the maintainer has no request for it yet: file a maintainer decision request with \.agents\/skills\/ask-maintainer\/maintainer-request\.mjs file, naming #107 in its tickets and "orchestrate-issues #100" as its owner .*, then record it with issue-run\.mjs asked --plan <this plan> --ticket 107 --maintainer-request <its number>, and the plan names it here$/, "a decision that is the maintainer's call tells the coordinator to file a request and record it");
+  {
+    const key = huge.maintainerRequest.key;
+    const waiting = (r, waits) => ({ ...r, tickets: { ...r.tickets, 107: { owner: null, pending: null, history: [], results: [], waits: structuredClone(waits) } } });
+    const entry107 = (blockers, waits = []) => plan({ record: waiting(settled105(run.readRecord(record)), waits), snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge", blockers } : t)) } }).tickets.find((t) => t.number === 107);
+    const request = (number, state, more = {}) => ({ number, state, delivered: false, request: true, ...more });
+    const on9101 = [{ key, action: "decision-needed", request: { number: 9101 } }];
+    assert.deepEqual(entry107([request(9101, "open")]).maintainerRequest, { file: "decision", key }, "an open request the record does not tie to this entry is not its request");
+    const open = entry107([request(9101, "open")], on9101);
+    assert.deepEqual([open.action, open.maintainerRequest], ["decision-needed", { filed: { number: 9101, state: "open" }, key }]);
+    assert.match(open.reason, /^Effort Huge has no writer effort; maintainer request #9101 is open: the maintainer has not answered$/, "once recorded, the plan names the request and stops asking for one");
+    assert.match(entry107([request(9101, "open", { wentAhead: true })], on9101).reason, /; maintainer request #9101 went ahead without the maintainer: act on its fallback/);
+    const unlinked = entry107([request(9102, "open")], on9101);
+    assert.deepEqual(unlinked.maintainerRequest, { file: "decision", key, unlinked: 9101 }, "a recorded request GitHub no longer blocks the ticket on holds nothing, and another open request does not replace it");
+    assert.match(unlinked.reason, /; its maintainer request #9101 no longer blocks it on GitHub, so it holds nothing: file a maintainer decision request/);
+    assert.deepEqual(entry107([request(9101, "open")], [{ key: "reason:0000000000000000", action: "decision-needed", request: { number: 9101 } }]).maintainerRequest, { file: "decision", key }, "a request recorded for another wait on the ticket is not this entry's");
+    const closedEntry = entry107([request(9101, "closed")], on9101);
+    assert.deepEqual(closedEntry.maintainerRequest, { filed: { number: 9101, state: "closed" }, key }, "a recorded request that closed is named, whatever GitHub's close reason, since only reading it says whether it holds an answer");
+    assert.match(closedEntry.reason, /; maintainer request #9101 is closed: read it, then record its answer and act on it; only when read reports it withdrawn, unclear or will not be done, reopen an unclear one with revise or file a maintainer decision request .*, which reads it again before replacing it$/);
+    {
+      const blockers107 = [request(9101, "closed"), request(9102, "open")];
+      const snap107 = { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge", blockers: blockers107 } : t)) };
+      const closedPlan = write("closed-plan.json", plan({ record: waiting(settled105(run.readRecord(record)), on9101), snapshot: snap107 }));
+      const next = { number: 9102, url: "u", title: "t", kind: "decision", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state: "waiting" };
+      const old = (state) => ({ number: 9101, url: "u", title: "t", kind: "decision", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state });
+      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), on9101), { plan: closedPlan, ticket: 107, maintainerRequest: next, previousRequest: old("answered") }), /#107 waits on maintainer request #9101, which is answered; record its answer and act on it: only a request read as withdrawn, unclear or will not be done, or one GitHub no longer blocks the ticket on, is replaced/, "an answered request, even one closed as not planned, is never set aside");
+      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), on9101), { plan: closedPlan, ticket: 107, maintainerRequest: next }), /which is closed; record its answer/, "a closed request is read before it is replaced");
+      for (const state of ["withdrawn", "unclear"]) {
+        const replacing = waiting(settled105(run.readRecord(record)), on9101);
+        run.asked(replacing, { plan: closedPlan, ticket: 107, maintainerRequest: next, previousRequest: old(state) });
+        assert.deepEqual(plan({ record: replacing, snapshot: snap107 }).tickets.find((t) => t.number === 107).maintainerRequest, { filed: { number: 9102, state: "open" }, key }, `asked records the replacement for a ${state} request, and the plan names it`);
+      }
+      const otherKey = "reason:0000000000000000";
+      const reused = [{ key, action: "decision-needed", request: { number: 9101 } }, { key: otherKey, action: "decision-needed", request: { number: 9101 } }];
+      const reusedPlan = write("reused-plan.json", plan({ record: waiting(settled105(run.readRecord(record)), reused), snapshot: snap107 }));
+      const moved = waiting(settled105(run.readRecord(record)), reused);
+      run.asked(moved, { plan: reusedPlan, ticket: 107, maintainerRequest: next, previousRequest: old("unclear") });
+      assert.deepEqual(moved.tickets[107].waits.at(-1).key, key, "a request tied to two waits is replaced under the active entry's key, not the last wait that shares its number");
+      assert.deepEqual(plan({ record: moved, snapshot: snap107 }).tickets.find((t) => t.number === 107).maintainerRequest, { filed: { number: 9102, state: "open" }, key }, "the active entry names the replacement");
+      const staleKeyPlan = write("stale-key-plan.json", { ...JSON.parse(fs.readFileSync(reusedPlan, "utf8")), tickets: JSON.parse(fs.readFileSync(reusedPlan, "utf8")).tickets.map((t) => (t.number === 107 ? { ...t, maintainerRequest: { ...t.maintainerRequest, key: otherKey, filed: { number: 9103, state: "closed" } } } : t)) });
+      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), reused), { plan: staleKeyPlan, ticket: 107, maintainerRequest: next, previousRequest: { ...old("unclear"), number: 9103 } }), /The plan entry's wait for #107 is not tied to maintainer request #9103 in the record; plan again/, "a plan whose closed request is not the one tied to its key is refused");
+    }
+    const readyPr = (blockers, waits = []) => plan({ record: { ...settled105(run.readRecord(record)), tickets: { ...settled105(run.readRecord(record)).tickets, 105: { ...settled105(run.readRecord(record)).tickets[105], waits } } }, snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 105 ? { ...t, blockers } : t)) } }).tickets.find((t) => t.number === 105);
+    assert.deepEqual(readyPr([request(9001, "closed")]).maintainerRequest, { file: "task", key: "pr:505", pr: 505 }, "an answered design decision on the ticket does not stand in for the task to merge its ready PR");
+    assert.deepEqual(readyPr([request(9003, "open")]).maintainerRequest, { file: "task", key: "pr:505", pr: 505 }, "an open task asking for something else, such as a phone test, does not stand in for the merge");
+    assert.deepEqual(readyPr([request(9003, "open"), request(9004, "open")], [{ key: "pr:505", action: "await-maintainer", pr: 505, request: { number: 9004 } }]).maintainerRequest, { filed: { number: 9004, state: "open" }, key: "pr:505" }, "the merge task recorded for this PR is named");
+  }
   const adopted = p1.tickets.find((t) => t.number === 104);
   assert.deepEqual([adopted.pr, adopted.rounds], [504, 2], "an adopted PR keeps its started review rounds");
+  const ready = p1.tickets.find((t) => t.number === 105);
+  assert.deepEqual([ready.action, ready.maintainerRequest], ["await-maintainer", { file: "task", key: `pr:${ready.pr}`, pr: ready.pr }]);
+  assert.match(ready.reason, new RegExp(String.raw`the maintainer merges it; the maintainer has no request for it yet: file a maintainer task request with .*, naming #105 in its tickets and "orchestrate-issues #100" as its owner \(a maintainer task request asking the maintainer to merge PR #${ready.pr}\), then record it with issue-run\.mjs asked --plan <this plan> --ticket 105 --maintainer-request <its number>, and the plan names it here$`), "a ready PR the maintainer merges tells the coordinator to file a task");
+  {
+    const planFile = write("asked-plan.json", plan({ snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge" } : t)) } }));
+    const facts = (over = {}) => ({ number: 9201, url: "https://github.com/acme/widgets/issues/9201", title: "Which Effort fits #107? (#107)", kind: "decision", question: "Which Effort fits #107?", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state: "waiting", answered: false, recorded: false, words: [], ...over });
+    const before = run.readRecord(record);
+    const tryAsked = (over, ticket = 107) => run.asked(structuredClone(before), { plan: planFile, ticket, maintainerRequest: over === null ? undefined : facts(over) });
+    assert.throws(() => tryAsked(null), /waits on the maintainer only through a filed request/, "asked refuses without a request");
+    assert.throws(() => tryAsked({ kind: "task" }), /#9201 is a maintainer task request; .* needs a decision request/, "asked refuses a request of the wrong kind");
+    assert.throws(() => tryAsked({ holds: false }), /GitHub does not block #107 on maintainer request #9201/);
+    assert.throws(() => tryAsked({ owner: "resolve-issue #107" }), /owned by "resolve-issue #107"/);
+    assert.throws(() => tryAsked({}, 101), /The plan's action for #101 is dispatch/, "asked refuses a ticket the plan does not wait on the maintainer for");
+    const after = structuredClone(before);
+    run.asked(after, { plan: planFile, ticket: 107, maintainerRequest: facts() });
+    assert.deepEqual(after.tickets[107].waits.map((w) => [w.key, w.action, w.request.number]), [[JSON.parse(fs.readFileSync(planFile, "utf8")).tickets.find((t) => t.number === 107).maintainerRequest.key, "decision-needed", 9201]], "asked records the request against the entry's key");
+    const named = run.planDispatch({ record: settled105(after), snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge", blockers: [{ number: 9201, state: "open", delivered: false, request: true }] } : t)) }, preflights: [available("claude-cli", "claude-opus-5-5", all)], freeBytes: 100 * GB, defaults, census: () => [] }).tickets.find((t) => t.number === 107);
+    assert.deepEqual(named.maintainerRequest, { filed: { number: 9201, state: "open" }, key: JSON.parse(fs.readFileSync(planFile, "utf8")).tickets.find((t) => t.number === 107).maintainerRequest.key }, "the next plan names the recorded request");
+    const namedPlan = write("asked-plan-2.json", { ...JSON.parse(fs.readFileSync(planFile, "utf8")), tickets: [named] });
+    assert.throws(() => run.asked(structuredClone(after), { plan: namedPlan, ticket: 107, maintainerRequest: facts({ number: 9202 }) }), /The plan does not ask for a maintainer request for #107: it already waits on #9201/);
+  }
   assert.match(p1.tickets.find((t) => t.number === 106).reason, /#91 \(closed, but no merged deliverable is on origin\/main\)/);
   assert.equal(p1.complete, false);
   assert.ok(p1.remaining.some((line) => /maintainer to merge/.test(line)), "a run that recorded no coordinator merge leaves it to the maintainer");
@@ -644,8 +717,16 @@ try {
 
   const p6File = write("plan6.json", plan());
   rev = mutate(rev, (r) => run.claim(r, { plan: p6File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts }));
-  const text = run.brief(run.readRecord(record), p6File, 101, ["No stacked branches."], defaults);
-  for (const needle of ["#101", "a sub-issue of issue #100", "The design of record is the body of issue #100, as its template structures it", "coordinator session local_a", "claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions", defaults.routes.claude[0].selfCheck, "never substitute", "resolve-issue", wt101, "fix/101-thing", artifacts, "- No stacked branches.", "three-round cap", "checkpoint report", "machine-wide reviewer and test reservations", "Never merge", ...run.REPORT_FIELDS]) assert.ok(text.includes(needle), `brief names ${needle}`);
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, ["No stacked branches."], defaults), /brief takes the number of an answered maintainer request with --maintainer-request, never typed decision text/, "a brief refuses typed decision text");
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, [waitingRequest()], defaults), /Maintainer request #9001 has no answer yet: it is waiting/, "a brief refuses an unanswered request");
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, [requestOf({ state: "went-ahead", answered: false, recorded: false })], defaults), /has no answer yet: it is went-ahead/, "a fallback is not the maintainer's decision");
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, [requestOf({ recorded: false })], defaults), /answer is not recorded; run .*maintainer-request\.mjs record 9001/, "a brief refuses an answer not yet recorded");
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, [requestOf({ tickets: [102] })], defaults), /does not hold up #101 \(it blocks #102\)/);
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, [requestOf({ kind: "task", state: "done" })], defaults), /#9001 is a maintainer task request; brief needs a decision request/);
+  const text = run.brief(run.readRecord(record), p6File, 101, [requestOf()], defaults);
+  assert.ok(text.includes('- Maintainer request #9001 (https://github.com/acme/widgets/issues/9001) asked "Should branches stack?"; the maintainer answered in the words quoted below.\n\nTheir comment at 2026-11-13 16:09 UTC (https://github.com/acme/widgets/issues/9001#issuecomment-1):\n> No stacked branches.\n'), "the brief carries the maintainer's recorded words and links them");
+  assert.ok(run.brief(run.readRecord(record), p6File, 101, [requestOf({ state: "accepted", words: [] })], defaults).includes('asked "Should branches stack?"; the maintainer accepted the recommendation, A · No stacking, by closing without comment at 2026-11-13 16:10 UTC.'), "a close without comment carries the accepted recommendation");
+  for (const needle of ["#101", "a sub-issue of issue #100", "The design of record is the body of issue #100, as its template structures it", "coordinator session local_a", "claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions", defaults.routes.claude[0].selfCheck, "never substitute", "resolve-issue", wt101, "fix/101-thing", artifacts, "three-round cap", "checkpoint report", "machine-wide reviewer and test reservations", "Never merge", ...run.REPORT_FIELDS]) assert.ok(text.includes(needle), `brief names ${needle}`);
 
   const p7File = write("plan7.json", plan());
   rev = mutate(rev, (r) => run.adopt(r, { plan: p7File, ticket: 104, handleKind: "session", handle: "local_w104", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(tmp, "wt-104") }));
@@ -662,12 +743,38 @@ try {
   const requestId = asked.output.id;
   const plan104 = () => plan({ observations: idle104 }).tickets.find((t) => t.number === 104);
   assert.deepEqual([plan104().action, plan104().requests.map((q) => q.text)], ["answer-request", ["authorize round 4?"]]);
-  rev = mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "the maintainer" }));
-  assert.match(plan104().reason, /relayed to the maintainer at .*; once they decide, record answer/, "a relayed request stays open");
+  const asking = waitingRequest({ number: 9002, url: "https://github.com/acme/widgets/issues/9002", tickets: [104], holding: 104, holds: true });
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, maintainerRequest: { ...asking, holds: false } })), /GitHub does not block #104 on maintainer request #9002, although the request names it, so the request holds nothing/, "relay refuses a request whose live dependency on the ticket is gone");
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, maintainerRequest: { ...asking, holding: undefined, holds: undefined } })), /GitHub does not block #104/, "relay refuses facts read without the live dependency");
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "the maintainer" })), /Relaying request \w+ to the maintainer waits on the maintainer only through a filed request: file a maintainer decision or task request with .*, naming #104 in its tickets and "orchestrate-issues #100" as its owner, then pass its number with --maintainer-request/, "relay refuses without a filed request");
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "the maintainer", maintainerRequest: { ...asking, tickets: [101] } })), /Maintainer request #9002 does not hold up #104/);
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "the maintainer", maintainerRequest: { ...asking, owner: "resolve-issue #104" } })), /is owned by "resolve-issue #104", not by this run \("orchestrate-issues #100"\)/);
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "the maintainer", maintainerRequest: { ...asking, state: "withdrawn" } })), /#9002 was withdrawn/);
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "another coordinator", maintainerRequest: asking })), /only the maintainer decides/);
+  rev = mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, maintainerRequest: asking }));
+  assert.deepEqual(run.readRecord(record).tickets[104].requests[0].relayed.maintainerRequest, { number: 9002, url: "https://github.com/acme/widgets/issues/9002", title: "Should branches stack? (#101)", kind: "decision" }, "the record stores the request number beside the question");
+  assert.equal(run.readRecord(record).tickets[104].requests[0].text, "authorize round 4?");
+  {
+    const next = { ...asking, number: 9003, url: "https://github.com/acme/widgets/issues/9003" };
+    const rerelay = (relayedBefore) => run.relay(run.readRecord(record), { ticket: 104, request: requestId, maintainerRequest: next, relayedBefore });
+    assert.throws(() => rerelay(undefined), /is relayed as maintainer request #9002; relaying it as #9003 needs #9002's state/, "moving a relayed question to another request reads the first one");
+    assert.throws(() => rerelay(asking), /which is waiting; it moves to another request only once #9002 is withdrawn, closed as not planned or no longer blocks #104/, "an open question is never set aside");
+    assert.throws(() => rerelay({ ...asking, state: "answered" }), /which is answered/, "nor is an answer");
+    const moved = run.readRecord(record);
+    run.relay(moved, { ticket: 104, request: requestId, maintainerRequest: next, relayedBefore: { ...asking, state: "withdrawn" } });
+    assert.deepEqual([moved.tickets[104].requests[0].relayed.maintainerRequest.number, moved.tickets[104].requests[0].relayed.replaced.map((x) => x.number)], [9003, [9002]], "a withdrawn request is replaced, and kept as history");
+    const unlinkedMove = run.readRecord(record);
+    run.relay(unlinkedMove, { ticket: 104, request: requestId, maintainerRequest: next, relayedBefore: { ...asking, holds: false } });
+    assert.equal(unlinkedMove.tickets[104].requests[0].relayed.maintainerRequest.number, 9003, "so is one GitHub no longer blocks the ticket on");
+  }
+  assert.match(plan104().reason, /relayed to the maintainer at .* as maintainer request #9002 \(https:\/\/github\.com\/acme\/widgets\/issues\/9002\); once .*maintainer-request\.mjs read shows it answered, record it there, then record answer with the recorded words and send it/, "a relayed request stays open and names its maintainer request");
+  assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 104, request: requestId, text: "round 4 is authorized" })), /relayed as maintainer request #9002; answer it with --maintainer-request 9002/, "a relayed request's answer is not typed");
+  assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 104, request: requestId, maintainerRequest: asking })), /#9002 has no answer yet: it is waiting/);
+  const answeredRequest = requestOf({ number: 9002, url: "https://github.com/acme/widgets/issues/9002", question: "May #104 take a fourth review round?", tickets: [104], words: [{ url: "https://github.com/acme/widgets/issues/9002#issuecomment-2", at: "2026-11-13T16:09:00Z", body: "Yes, one more round." }] });
   assert.throws(() => mutate(rev, (r) => run.answered(r, { ticket: 104, request: requestId })), /record answer before sending it/);
-  const answering = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.answer(r, { ticket: 104, request: requestId, text: "round 4 is authorized" }));
+  const answering = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.answer(r, { ticket: 104, request: requestId, text: "round 4 is authorized", maintainerRequest: answeredRequest }));
   rev = answering.record.revision;
-  assert.match(answering.output.message, new RegExp(`^Answer to your request ${requestId}, which asked: "authorize round 4\\?" \\(delivery \\w+\\):\\nround 4 is authorized\\nIf you already received an answer to request ${requestId}, ignore this copy\\.`), "the answer quotes the question it answers");
+  assert.match(answering.output.message, new RegExp(`^Answer to your request ${requestId}, which asked: "authorize round 4\\?" \\(delivery \\w+\\):\\nMaintainer request #9002 \\(https://github\\.com/acme/widgets/issues/9002\\) asked "May #104 take a fourth review round\\?"; the maintainer answered in the words quoted below\\.\\n\\nTheir comment at 2026-11-13 16:09 UTC \\(https://github\\.com/acme/widgets/issues/9002#issuecomment-2\\):\\n> Yes, one more round\\.\\nThe coordinator adds: round 4 is authorized\\nIf you already received an answer to request ${requestId}, ignore this copy\\.`), "the answer quotes the question it answers");
   assert.equal(plan104().action, "answer-request", "an answer recorded but not confirmed sent keeps the request open");
   assert.match(plan104().reason, /may still be queued; .* answer --retry/);
   assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 104, request: requestId, text: "again" })), /--retry/);
@@ -1738,16 +1845,72 @@ try {
     assert.equal(actions(run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: needed(false), preflights: pre, freeBytes: 100 * GB, defaults }))[3003], "wait-dependency", "it waits behind the chain's tail");
     assert.equal(actions(run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: needed(true), preflights: pre, freeBytes: 100 * GB, defaults }))[3003], "dispatch", "a ticket attached mid-run is admitted once its blocker is delivered");
     f.change((r) => run.filed(r, { filed: 3005, ticket: 3001, pr: 3901, source: "review-pr's deferral Task" }));
-    f.change((r) => run.triage(r, { filed: 3005, outcome: "maintainer", question: "Should the cache key change?", slice: 3001 }));
-    assert.equal(actions(planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300 }])))[3005], "decision-needed");
+    const cacheKey = (over = {}) => waitingRequest({ number: 9305, url: "https://github.com/acme/widgets/issues/9305", title: "Should the cache key change? (#3005)", question: "Should the cache key change?", owner: "orchestrate-issues #300", tickets: [3005], holding: 3005, holds: true, ...over });
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3005, outcome: "maintainer", question: "Should the cache key change?", slice: 3001 })), /Raising #3005 with the maintainer waits on the maintainer only through a filed request: file a maintainer decision request with .*, naming #3005 in its tickets and "orchestrate-issues #300" as its owner/, "triage --outcome maintainer refuses without a request number");
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3005, outcome: "maintainer", question: "Should the cache key change?", slice: 3001, maintainerRequest: cacheKey({ kind: "task" }) })), /#9305 is a maintainer task request; Raising #3005 with the maintainer needs a decision request/);
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3005, outcome: "maintainer", question: "Should the cache key change?", slice: 3001, maintainerRequest: cacheKey({ tickets: [3001] }) })), /does not hold up #3005/);
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3005, outcome: "needed", under: 300, reason: "x", maintainerRequest: cacheKey() })), /--maintainer-request belongs to --outcome maintainer/);
+    f.change((r) => run.triage(r, { filed: 3005, outcome: "maintainer", question: "Should the cache key change?", slice: 3001, maintainerRequest: cacheKey() }));
+    assert.deepEqual(run.readRecord(f.file).filed[3005].outcome.maintainerRequest, { number: 9305, url: "https://github.com/acme/widgets/issues/9305", title: "Should the cache key change? (#3005)", kind: "decision" }, "the record stores the request number beside the question");
+    const raised = planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9305, state: "open", delivered: false, request: true }] }])).tickets.find((t) => t.number === 3005);
+    assert.deepEqual([raised.action, raised.decides, raised.maintainerRequest], ["decision-needed", "maintainer", { filed: { number: 9305, state: "open" } }], "triage's recorded request is the entry's request");
+    const unlinkedTriage = planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9002, state: "open", delivered: false, request: true }] }])).tickets.find((t) => t.number === 3005);
+    assert.equal(unlinkedTriage.maintainerRequest.unlinked, 9305, "with triage's request no longer blocking the ticket, another open request does not stand in for it");
+    assert.equal(unlinkedTriage.maintainerRequest.triage, true);
+    {
+      const unlinkedPlan = write("triage-unlinked-plan.json", planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9306, state: "open", delivered: false, request: true }] }])));
+      const replaced = run.readRecord(f.file);
+      assert.throws(() => run.asked(run.readRecord(f.file), { plan: unlinkedPlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }) }), /#3005 was raised with the maintainer in request #9305, which is unread/, "the raised request is read before it is replaced");
+      run.asked(replaced, { plan: unlinkedPlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ holds: false }) });
+      assert.deepEqual([replaced.filed[3005].outcome.maintainerRequest.number, replaced.filed[3005].outcome.replaced.map((r) => r.number), replaced.tickets[3005]?.waits], [9306, [9305], undefined], "asked on a triage entry replaces triage's request, keeping the old one as history");
+      const after = run.planDispatch({ record: replaced, snapshot: snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9306, state: "open", delivered: false, request: true }] }]), freeBytes: 100 * GB, defaults }).tickets.find((t) => t.number === 3005);
+      assert.deepEqual(after.maintainerRequest, { filed: { number: 9306, state: "open" } }, "the next plan names the replacement, so the recovery path converges");
+      const closedTriagePlan = write("triage-closed-plan.json", planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9305, state: "closed", delivered: false, request: true }, { number: 9306, state: "open", delivered: false, request: true }] }])));
+      assert.throws(() => run.asked(run.readRecord(f.file), { plan: closedTriagePlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "answered" }) }), /#3005 was raised with the maintainer in request #9305, which is answered; record its answer and act on it/, "a raised ticket's answered request, whatever its close reason, is not replaced");
+      const afterWithdrawal = run.readRecord(f.file);
+      run.asked(afterWithdrawal, { plan: closedTriagePlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "withdrawn" }) });
+      assert.equal(afterWithdrawal.filed[3005].outcome.maintainerRequest.number, 9306, "a withdrawn one is");
+      const outside = run.readRecord(f.file);
+      run.asked(outside, { ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "withdrawn" }) });
+      assert.deepEqual([outside.filed[3005].outcome.maintainerRequest.number, outside.filed[3005].outcome.slice], [9306, 3001], "a raised ticket's request is replaced from the record alone, with no plan entry (a ticket outside the run's tree has none), and its slice hold stays");
+      assert.throws(() => run.asked(run.readRecord(f.file), { ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey() }), /which is waiting; record its answer/, "an open raised request is not replaced");
+      assert.throws(() => run.asked(run.readRecord(f.file), { ticket: 107, maintainerRequest: cacheKey({ number: 9306 }) }), /--plan must name the plan/, "any other wait needs its plan entry");
+    }
+    {
+      const answered = (number, over = {}) => cacheKey({ number, state: "answered", answered: true, recorded: true, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: `https://github.com/acme/widgets/issues/${number}#issuecomment-9`, at: "2026-11-13T16:09:00Z", body: "Use the blue label." }], ...over });
+      const retriage = (maintainerRequest) => run.triage(run.readRecord(f.file), { filed: 3005, outcome: "needed", under: 300, reason: "the parent needs it", maintainerRequest });
+      assert.throws(() => retriage(undefined), /#3005 waits on the maintainer's answer in request #9305; triage it as needed only once that answer is recorded or the request is withdrawn, passing --maintainer-request 9305$/, "re-triage refuses to release a pending maintainer question silently");
+      assert.throws(() => retriage(answered(9400)), /passing --maintainer-request 9305, not #9400$/, "an unrelated answer on the same ticket does not release it");
+      assert.throws(() => retriage(cacheKey()), /#9305 has no answer yet: it is waiting/, "nor does the question itself before its answer");
+      assert.throws(() => retriage(answered(9305, { recorded: false })), /answer is not recorded/);
+      const settled = run.readRecord(f.file);
+      run.triage(settled, { filed: 3005, outcome: "needed", under: 300, reason: "the parent needs it", maintainerRequest: answered(9305) });
+      assert.deepEqual([settled.filed[3005].outcome.kind, settled.filed[3005].outcome.released], ["needed", { request: 9305, state: "answered" }], "the recorded answer releases it, and the record says which request did");
+      const withdrawn = run.readRecord(f.file);
+      run.triage(withdrawn, { filed: 3005, outcome: "needed", under: 300, reason: "the parent needs it", maintainerRequest: cacheKey({ state: "withdrawn" }) });
+      assert.deepEqual(withdrawn.filed[3005].outcome.released, { request: 9305, state: "withdrawn" }, "a withdrawn request releases it too");
+      const reraise = (over) => run.triage(run.readRecord(f.file), { filed: 3005, outcome: "maintainer", question: "May the narrow fix merge?", slice: 3001, maintainerRequest: cacheKey(), ...over });
+      assert.throws(() => reraise({ slice: undefined }), /#3005 waits on the maintainer's answer in request #9305, holding #3001's PR; raising it again keeps that request and --slice 3001/, "raising it again without its slice would drop the slice's hold");
+      assert.throws(() => reraise({ slice: 3002 }), /keeps that request and --slice 3001/, "moving the hold to another slice is refused too");
+      assert.throws(() => reraise({ maintainerRequest: cacheKey({ number: 9307 }) }), /raising it again keeps that request.*Replace the request with asked/, "a new request goes through asked, which keeps the slice");
+      const reworded = run.readRecord(f.file);
+      run.triage(reworded, { filed: 3005, outcome: "maintainer", question: "May the narrow fix merge?", slice: 3001, maintainerRequest: cacheKey() });
+      assert.deepEqual([reworded.filed[3005].outcome.question, reworded.filed[3005].outcome.slice, reworded.filed[3005].outcome.maintainerRequest.number], ["May the narrow fix merge?", 3001, 9305], "rewording the question keeps the request and the hold");
+    }
+    assert.match(raised.reason, /raised with the maintainer: "Should the cache key change\?".*; maintainer request #9305 is open: the maintainer has not answered$/, "the plan names the filed request");
     assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002, 3005]);
-    assert.throws(() => f.change((r) => run.interim(r, { filed: 3003, decision: "ok", evidence: "chat" })), /not triaged as completing/);
-    f.change((r) => run.interim(r, { filed: 3005, decision: "Keep the narrow fix for now", evidence: "the maintainer's reply on the parent" }));
+    const keepNarrow = cacheKey({ state: "answered", answered: true, recorded: true, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: "https://github.com/acme/widgets/issues/9305#issuecomment-5", at: "2026-11-13T16:09:00Z", body: "Keep the narrow fix for now." }] });
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3003, maintainerRequest: keepNarrow })), /not triaged as completing/);
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, decision: "Keep the narrow fix for now", evidence: "the maintainer's reply on the parent" })), /interim takes the number of an answered maintainer request with --maintainer-request, never typed decision text/, "interim refuses typed decision text");
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: cacheKey() })), /#9305 has no answer yet: it is waiting/, "interim refuses an unanswered request");
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: { ...keepNarrow, number: 9400, url: "https://github.com/acme/widgets/issues/9400" } })), /#3005 was raised with the maintainer in request #9305; only that request's recorded answer accepts the narrow fix as an interim, not #9400/, "an unrelated recorded answer on the same ticket does not release the slice's hold");
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: { ...keepNarrow, recorded: false } })), /answer is not recorded/);
+    f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: keepNarrow }));
     const after = run.readRecord(f.file).filed[3005].outcome;
-    assert.deepEqual([after.kind, after.slice, after.interim.decision], ["completes", 3001, "Keep the narrow fix for now"]);
+    assert.deepEqual([after.kind, after.slice, after.interim.request, after.interim.decision], ["completes", 3001, 9305, 'Maintainer request #9305 (https://github.com/acme/widgets/issues/9305) asked "Should the cache key change?"; the maintainer answered in the words quoted below.\n\nTheir comment at 2026-11-13 16:09 UTC (https://github.com/acme/widgets/issues/9305#issuecomment-5):\n> Keep the narrow fix for now.'],"the interim carries the maintainer's recorded words");
     assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002], "an interim releases the slice's PR");
     f.change((r) => run.filed(r, { filed: 3006, ticket: 3001, pr: 3901, source: "ticket #3006's provenance line" }));
-    f.change((r) => run.triage(r, { filed: 3006, outcome: "maintainer", question: "Does the cache key change?" }));
+    f.change((r) => run.triage(r, { filed: 3006, outcome: "maintainer", question: "Does the cache key change?", maintainerRequest: cacheKey({ number: 9306, tickets: [3006], holding: 3006 }) }));
     const draft = (n) => ({ number: 3900 + n, state: "OPEN", isDraft: true, branch: `fix/${n}-thing`, head: "h", rounds: 1 });
     const continuing = run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: snapshotOf(300, [{ ...ticket(3001), parent: 300 }, { ...ticket(3006), parent: 300, prs: [{ ...draft(3006), number: 3966 }] }, { ...ticket(3002), parent: 300, worktrees: [{ path: path.join(f.dir, "wt-3002"), branch: "fix/3002-thing", head: "h" }] }]), preflights: [available("claude-cli", "claude-opus-5-5", [3001, 3002, 3006])], freeBytes: 100 * GB, defaults });
     const entryOf = (p, n) => p.tickets.find((t) => t.number === n);
@@ -1766,6 +1929,40 @@ try {
     f.change((r) => run.dismiss(r, { filed: 3007, ticket: 3001, evidence: "#3007 is a mistyped number: PR #3901's report lists #3006, and #3007 is an unrelated pull request" }));
     assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), {}, "a dismissed number holds nothing");
     assert.throws(() => f.change((r) => run.filed(r, { filed: 3007, source: "x" })), /was dismissed at .* as no ticket a writer filed or reused/);
+    const legacyRequest = "1e9acy00";
+    f.change((r) => {
+      r.filed[3006].outcome = { kind: "maintainer", question: "Does the cache key change?", time: "2026-11-01T00:00:00.000Z" };
+      r.filed[3005].outcome.interim = { decision: "Keep the narrow fix for now", evidence: "the maintainer's reply on the parent", time: "2026-11-01T00:00:00.000Z" };
+      (r.tickets[3001].requests ??= []).push({ id: legacyRequest, owner: r.tickets[3001].owner.launchId ?? r.tickets[3001].owner.handle.id, time: "2026-11-01T00:00:00.000Z", text: "may the cache key change?", source: "transcript", relayed: { time: "2026-11-01T00:00:00.000Z", to: "the maintainer" }, answer: null });
+    });
+    const legacy = run.readRecord(f.file);
+    assert.equal(legacy.filed[3006].outcome.maintainerRequest, undefined, "a record written before requests keeps its maintainer question with no request number");
+    const legacyPlan = run.planDispatch({ record: legacy, snapshot: snapshotOf(300, [{ ...ticket(3001), parent: 300 }, { ...ticket(3006), parent: 300 }]), preflights: [available("claude-cli", "claude-opus-5-5", [3001, 3006])], freeBytes: 100 * GB, defaults, observations: { sessions: { local_w3001: { state: "idle" } } } });
+    assert.deepEqual([entryOf(legacyPlan, 3006).action, entryOf(legacyPlan, 3006).maintainerRequest.file], ["decision-needed", "decision"], "an old maintainer question still plans, and the plan asks for a request");
+    assert.match(entryOf(legacyPlan, 3001).reason, new RegExp(`request ${legacyRequest} "may the cache key change\\?" was relayed to the maintainer at 2026-11-01T00:00:00.000Z; once they decide, record answer and send it`), "an old relayed request still plans");
+    assert.deepEqual(run.completingTickets(legacy, 3001).map((e) => e.number), [3002], "an old interim still releases the slice's PR");
+    const legacyAnswer = run.updateRecord(f.file, { expectRevision: legacy.revision, coordinator: legacy.coordinator.session }, (r) => run.answer(r, { ticket: 3001, request: legacyRequest, text: "Yes" }));
+    assert.match(legacyAnswer.output.message, /:\nYes\nIf you already received/, "an old relayed request is answered as before");
+    const coordinator = legacy.coordinator.session;
+    const cli = (args, options = {}) => run.main([...args, "--record", f.file, "--coordinator", coordinator, "--expect-revision", String(run.readRecord(f.file).revision)], { defaults, ...options });
+    assert.throws(() => cli(["interim", "--filed", "3005", "--decision", "Keep the narrow fix", "--evidence", "chat"]), /^Error: interim takes no typed decision text: file the question with ask-maintainer, record its answer with maintainer-request\.mjs record, and pass the request's number with --maintainer-request/);
+    assert.throws(() => run.main(["brief", "--record", f.file, "--plan", write("cli-plan.json", legacyPlan), "--ticket", "3006", "--decision", "No stacked branches."], { defaults }), /^Error: brief takes no typed decision text/);
+    const body = fs.readFileSync(path.join(here, "..", "ask-maintainer", "fixtures", "decision-body.md"), "utf8").replace('"blocks":[2271],"owner":"orchestrate-issues #977"', '"blocks":[3001],"owner":"orchestrate-issues #300"');
+    const reads = [];
+    const tracker = { repo: "acme/widgets", issue: (n) => { reads.push(n); return { number: n, title: "May the cache key change? (#3001)", html_url: `https://github.com/acme/widgets/issues/${n}`, state: "open", state_reason: null, created_at: "2026-11-13T15:37:00Z", closed_at: null, closed_by: null, labels: [{ name: readRepos().maintainer.labels.decision }], body }; }, timeline: () => [], comments: () => [], blockedBy: (n) => (n === 3001 ? [{ number: 9310 }] : []) };
+    const asks = run.updateRecord(f.file, { expectRevision: run.readRecord(f.file).revision, coordinator }, (r) => run.request(r, { ticket: 3001, text: "may the cache key change now?", source: "transcript" })).output.id;
+    assert.throws(() => cli(["relay", "--ticket", "3001", "--request", asks, "--to", "the maintainer"], { requestsFor: () => tracker }), /waits on the maintainer only through a filed request/, "the command refuses a relay without a request number");
+    assert.throws(() => cli(["relay", "--ticket", "3001", "--request", asks, "--maintainer-request", "9310"], { requestsFor: () => ({ ...tracker, blockedBy: () => [] }) }), /GitHub does not block #3001 on maintainer request #9310/, "the command reads the live dependency, not only the request's own list");
+    reads.length = 0;
+    cli(["relay", "--ticket", "3001", "--request", asks, "--maintainer-request", "#9310"], { requestsFor: () => tracker });
+    assert.deepEqual([reads, run.readRecord(f.file).tickets[3001].requests.find((q) => q.id === asks).relayed.maintainerRequest.number], [[9310], 9310], "the command reads the filed request from GitHub and stores its number");
+    {
+      const raisedBody = body.replace('"blocks":[3001]', '"blocks":[3006]');
+      const raisedTracker = { ...tracker, issue: (n) => ({ ...tracker.issue(n), title: "Does the cache key change? (#3006)", body: raisedBody }), blockedBy: (n) => (n === 3006 ? [{ number: 9311 }] : []) };
+      cli(["asked", "--ticket", "3006", "--maintainer-request", "9311"], { requestsFor: () => raisedTracker });
+      assert.equal(run.readRecord(f.file).filed[3006].outcome.maintainerRequest.number, 9311, "asked on a raised ticket runs from the record with no --plan, and stores the request read from GitHub");
+      assert.throws(() => cli(["asked", "--ticket", "3006", "--maintainer-request", "9312"], { requestsFor: () => raisedTracker }), /#3006 was raised with the maintainer in request #9311, which is waiting; record its answer and act on it/, "the command reads the raised request before replacing it");
+    }
   }
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");

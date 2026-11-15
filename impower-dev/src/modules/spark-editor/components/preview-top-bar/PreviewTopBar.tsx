@@ -49,6 +49,7 @@ import { AspectRatioSettings } from "../preview-bar";
 import { SavesMenuButton } from "../preview-saves";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { useRef } from "preact/hooks";
+import { REPLAY_BEAT } from "@impower/spark-web-player/src/components/PlayerBar/replayBeat";
 import {
   skipRefusal,
   STEP_REASONS,
@@ -65,6 +66,7 @@ type PreviewToggleKey = Extract<
   PreferenceKey,
   | "previewFollowsCursor"
   | "previewAutoPlayBeats"
+  | "previewPlayAudio"
   | "previewIdleAnimations"
   | "previewTypingPauses"
   | "previewScreenplaySync"
@@ -105,6 +107,10 @@ export const PREVIEW_TOGGLES: Record<
     name: "Auto-play beats",
     detail: "When the caret lands on a line, its beat plays once, as it would in the game.",
   },
+  previewPlayAudio: {
+    name: "Play audio",
+    detail: "Beats played in the preview play their sound, as Play From Here would.",
+  },
   previewIdleAnimations: {
     name: "Show idle animations",
     detail:
@@ -134,10 +140,11 @@ export const QUICK_TOGGLES: Record<PreviewMode, PreviewToggleKey[]> = {
   game: [
     "previewFollowsCursor",
     "previewAutoPlayBeats",
+    "previewPlayAudio",
     "previewIdleAnimations",
     "previewTypingPauses",
   ],
-  textstream: ["previewFollowsCursor", "previewAutoPlayBeats"],
+  textstream: ["previewFollowsCursor", "previewAutoPlayBeats", "previewPlayAudio"],
   screenplay: [
     "previewScreenplaySync",
     "screenplayPaper",
@@ -217,8 +224,6 @@ const step = (traversal: StepTraversal) =>
   void withWindow((window) => window.stepGame(traversal));
 
 const TOGGLE_BREAKPOINT = "Toggle breakpoint";
-
-const REPLAY_BEAT = "Replay beat";
 
 const NO_CARET_REASON =
   "Put the caret on a script line to toggle its breakpoint.";
@@ -485,6 +490,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const paused = playing && !!game?.paused;
   const loading = !!game?.loading;
   const refusal = live ? undefined : game?.playRefusal;
+  const pressRefusal = live ? undefined : (refusal ?? game?.startRefusal);
   const session = workspace.debugSession.value;
   const refusals = stepRefusals(game, session);
   const caretScript = useCaretScript();
@@ -507,7 +513,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
       role="group"
       aria-label="Playback controls"
       data-running={running ? "" : undefined}
-      class="group/bar relative z-[1] grid h-[52px] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1 data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto] data-[running]:@max-[480px]:gap-0 data-[running]:@max-[480px]:px-1"
+      class="group/bar relative z-[1] grid h-[var(--preview-top-bar-height)] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1 data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto] data-[running]:@max-[480px]:gap-0 data-[running]:@max-[480px]:px-1"
     >
       <div class="flex min-w-0 max-w-full items-center gap-1 justify-self-start group-data-[running]/bar:@max-[480px]:gap-0">
         <ModeMenu mode={mode} />
@@ -558,10 +564,10 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           variant="primary"
           size="icon"
           aria-label={live ? "Stop" : "Play From Here"}
-          title={refusal ?? (live ? "Stop" : "Play From Here")}
-          aria-disabled={refusal || loading ? true : undefined}
+          title={pressRefusal ?? (live ? "Stop" : "Play From Here")}
+          aria-disabled={pressRefusal || loading ? true : undefined}
           onClick={
-            refusal || loading
+            pressRefusal || loading
               ? undefined
               : () => void withWindow((window) => window.toggleGameRunning())
           }

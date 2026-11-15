@@ -400,6 +400,10 @@ export default class WorkspaceFileSystem {
     return text;
   }
 
+  hasFile(uri: string) {
+    return Boolean(this._files?.[uri]);
+  }
+
   async getFileSrc(uri: string) {
     return this._files?.[uri]?.src;
   }

@@ -207,6 +207,7 @@ function AllScripts() {
         row.kind === "file" ? stemAndExtension(row.name) : [row.name, ""];
       return (
         <NameRow
+          size="library"
           icon={<RowIcon row={row} />}
           label={`Rename ${row.name}`}
           initial={stem}
@@ -233,6 +234,7 @@ function AllScripts() {
     const main = !!row.pinned;
     return (
       <ListRow
+        size="library"
         current={row.kind === "file" && row.path === openScript}
         data-script-path={row.path}
         icon={<RowIcon row={row} />}
@@ -308,7 +310,6 @@ function AllScripts() {
               <Trail
                 label="Scripts"
                 icon={<RootIcon />}
-                glyph="small"
                 summary={plural(Object.keys(listing.files).length, "script")}
                 crumbs={folder ? crumbsOf(folder, home) : []}
                 root=""
@@ -330,6 +331,7 @@ function AllScripts() {
       creating={
         creatingFolder && (
           <NameRow
+            size="library"
             icon={<FolderIcon />}
             label="New folder name"
             returnFocus={() => newButton.current}

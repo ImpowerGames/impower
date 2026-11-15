@@ -96,14 +96,14 @@ export const zoomFrameContentVariants = cva("relative mx-auto h-full max-w-full 
 
 const zoomButtonVariants = cva(
   [
-    "relative grid size-8 cursor-pointer place-items-center rounded-full text-inherit",
+    "relative grid size-8 cursor-pointer place-items-center rounded-full text-inherit pointer-coarse:min-h-0",
     "before:absolute before:-inset-1.5 before:content-[''] before:pointer-events-auto",
     "control-overlay disabled:cursor-default disabled:opacity-35 [&>svg]:size-[15px]",
   ],
   {
     variants: {
       kind: {
-        step: "",
+        step: "pointer-coarse:min-w-0",
         level: "w-auto min-w-11 px-1 text-[12px] tabular-nums",
       },
     },
@@ -111,9 +111,14 @@ const zoomButtonVariants = cva(
   },
 );
 
+const zoomCaptionVariants = cva([
+  "pointer-events-none absolute top-2 left-2 z-[1] m-0 flex max-w-[calc(100%-1rem)] rounded-full",
+  "bg-media-badge py-1.5 pl-3 text-[12px]/[1.4] text-media-badge-ink",
+]);
+
 const zoomExpandVariants = cva([
-  "absolute right-1.5 bottom-1.5 z-[1] grid size-11 cursor-pointer place-items-center rounded-full",
-  "border-2 border-transparent bg-media-badge bg-clip-padding text-media-badge-ink control-overlay [&>svg]:size-[18px]",
+  "absolute right-2 bottom-2 z-[1] grid size-11 cursor-pointer place-items-center rounded-full",
+  "bg-media-button text-media-badge-ink control-overlay [&>svg]:size-[18px]",
 ]);
 
 export type ZoomFrameFit = NonNullable<VariantProps<typeof zoomFrameVariants>["fit"]>;
@@ -127,6 +132,7 @@ export type ZoomFrameProps = {
   zoomable?: boolean;
   expandLabel?: string;
   onExpand?: () => void;
+  caption?: ComponentChildren;
   class?: string;
   children?: ComponentChildren;
 };
@@ -143,6 +149,7 @@ export default function ZoomFrame({
   zoomable = false,
   expandLabel = "View full size",
   onExpand,
+  caption,
   class: className,
   children,
 }: ZoomFrameProps) {
@@ -387,6 +394,11 @@ export default function ZoomFrame({
       >
         <div class={zoomFrameContentVariants()}>{children}</div>
       </div>
+      {caption && (
+        <p role="status" class={zoomCaptionVariants()} data-zoom-caption>
+          <span class="min-w-0 pr-3 [--fade:12px] fade-edge">{caption}</span>
+        </p>
+      )}
       {zoomable && (
         <div
           role="group"

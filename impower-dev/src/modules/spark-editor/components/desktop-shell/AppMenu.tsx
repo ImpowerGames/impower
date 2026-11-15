@@ -74,7 +74,7 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
             <span class="flex size-7 flex-none items-center justify-center rounded-control border border-edge [&_svg]:size-4">
               <ComputerIcon />
             </span>
-            <span class="truncate group-data-[sidebar=collapsed]/sidebar:sr-only">
+            <span class="[--fade:20px] fade-edge group-data-[sidebar=collapsed]/sidebar:sr-only">
               {label}
             </span>
           </Button>
@@ -93,7 +93,7 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
         class="w-[280px] in-data-[layout=phone]:w-auto"
       >
         <DropdownLabel class="flex flex-row items-center gap-1 py-0 pr-0">
-          <span class="min-w-0 flex-1 truncate text-[15px]/[1.3] font-semibold">
+          <span class="min-w-0 flex-1 [--fade:20px] fade-edge text-[15px]/[1.3] font-semibold">
             {label}
           </span>
           <Button
@@ -120,10 +120,10 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
                 )}
               </span>
               <span class="flex min-w-0 flex-1 flex-col">
-                <span class="truncate text-[13px]/[1.4] font-semibold">
+                <span class="[--fade:20px] fade-edge text-[13px]/[1.4] font-semibold">
                   {account.displayName || account.email}
                 </span>
-                <span class="truncate text-[12px]/[1.5] text-muted">
+                <span class="[--fade:20px] fade-edge text-[12px]/[1.5] text-muted">
                   {onDrive && driveStatus ? driveStatus.text : account.email}
                 </span>
               </span>
