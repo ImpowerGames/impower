@@ -525,7 +525,7 @@ While a morph plays on a look it owns the groups it drives:
 - During a play they show its keyframes.
 - In a gap between plays, and after the last of a set number of plays, they hold the pose the last play ended on.
 - Before the first play, while its `delay` runs, they show the pose that play starts from, so a morph that plays once does not show its end state first.
-- When playback is off, with `Animate portraits` off or `iterations = 0`, they show the morph's rest.
+- When playback is off, with "Show idle animations" off or `iterations = 0`, they show the morph's rest.
 
 Each driven group's rest is the state the morph's `rest` gives it, or else the state of the last pose that names the group. `rest` is a block of group containers, each with a `state`, written like a keyframe's pose:
 
@@ -824,7 +824,7 @@ In the editor, the Game Preview plays morphs as soon as it shows a portrait.
 - Moved layers follow the same clock as the shapes: they freeze when the story pauses, return to where they are drawn when playback is off, and are let go with the portrait.
 - The image shown when hovering over a portrait, and a portrait used as a mask, show the look at rest with its clips applied ([The look a portrait shows](#the-look-a-portrait-shows)). They do not move.
 
-The `Animate portraits` button in the Game Preview's toolbar turns playback off and on. Off returns every morph to its rest and holds it there; on starts each one on a fresh cycle. The choice is kept in this browser for the editor, not saved with the project, and it does not change what players of the game see.
+The "Show idle animations" switch in the Game Preview's settings menu, and in the Preview section of Settings, turns playback off and on. Off returns every morph to its rest and holds it there; on starts each one on a fresh cycle. The choice is yours, not saved with the project, and it does not change what players of the game see. While "Auto-play beats" is on, the switch is checked and cannot be changed ([Playing a beat](PreviewingALine.md#playing-a-beat)).
 
 A portrait shows a still image until its morph is ready: the pose its moving drawing will show first, or the rest while playback is off. It shows the rest for good if the morph cannot be prepared.
 
