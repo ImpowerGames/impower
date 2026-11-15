@@ -16,7 +16,7 @@ import {
   TextField,
   useEscapeWithin,
 } from "@impower/impower-ui/components";
-import { useLayout, useScrollbarSize } from "@impower/impower-ui/layout";
+import { useLayout } from "@impower/impower-ui/layout";
 import type { ComponentChildren, Ref } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
@@ -165,7 +165,6 @@ export default function AssetInspector({
   menu,
 }: AssetInspectorProps) {
   const desktop = useLayout() === "desktop";
-  useScrollbarSize();
   const sheet = host === "sheet";
   const close = useRef<HTMLButtonElement | null>(null);
   const stepButtons = useRef<Record<"previous" | "next", HTMLButtonElement | null>>({

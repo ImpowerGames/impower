@@ -388,7 +388,7 @@ function Cards({
       <div
         role="group"
         aria-label={`${row.label} options`}
-        class="min-h-0 flex-1 overflow-y-auto p-1.5"
+        class="min-h-0 flex-1 overflow-y-auto p-1.5 pr-gutter-1.5"
         data-picker-list
       >
         {items.map((item) => (

@@ -107,7 +107,7 @@ function AddRows({
   onPick: (row: PickerRow) => void;
 }) {
   return (
-    <div class="p-1.5" data-add-rows>
+    <div class="p-1.5 pr-gutter-1.5" data-add-rows>
       {ADD_ROWS.map((row, index) => {
         const disabled = rowDisabled(row, inScene);
         const firstDisabled =

@@ -39,6 +39,13 @@ describe("the scrollbar gutter", () => {
     expect(css).toContain("padding-right: max(0px, calc(var(--spacing) * 4 - var(--scrollbar-size, 0px)));");
   });
 
+  it("gives an arbitrary or fractional pr-gutter the padding less the gutter, as the rail's 14px and a compact 10px need", async () => {
+    const css = await packageCss(["pr-gutter-[14px]", "pr-gutter-2.5", "phone:pr-gutter-[19px]"]);
+    expect(css).toContain("padding-right: max(0px, calc(14px - var(--scrollbar-size, 0px)));");
+    expect(css).toContain("padding-right: max(0px, calc(var(--spacing) * 2.5 - var(--scrollbar-size, 0px)));");
+    expect(css).toContain("padding-right: max(0px, calc(19px - var(--scrollbar-size, 0px)));");
+  });
+
   it("keeps the stable gutter on every scroller, so nothing shifts when a list grows past the fold", async () => {
     const css = readFileSync(resolve("src/style.css"), "utf8");
     expect(css).toMatch(/:where\(\.overflow-auto, \.overflow-y-auto, \.overflow-scroll, \.overflow-y-scroll\) \{\s*scrollbar-gutter: stable/);

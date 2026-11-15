@@ -119,7 +119,7 @@ export default function FindView() {
           </p>
         )}
       </form>
-      <div class="min-h-0 flex-1 overflow-y-auto border-t border-edge px-[14px] pt-1.5 pb-3 in-data-[layout=compact]:px-2.5">
+      <div class="min-h-0 flex-1 overflow-y-auto border-t border-edge pt-1.5 pr-gutter-[14px] pb-3 pl-[14px] in-data-[layout=compact]:pr-gutter-2.5 in-data-[layout=compact]:pl-2.5">
         {summary && (
           <p
             data-find-summary
