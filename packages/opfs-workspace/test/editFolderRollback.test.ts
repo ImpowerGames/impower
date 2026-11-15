@@ -271,3 +271,73 @@ it("keeps another tab's folder created inside an edit-created folder while the r
   expect(h.paths()).toContain("generated/personal/");
   expect(result.rollback.complete).toBe(false);
 });
+
+const otherTabAt = (h: Awaited<ReturnType<typeof harness>>, path: string, action: () => Promise<void>) =>
+  h.locks.request(lockName(""), { mode: "shared" }, () =>
+    h.locks.request(lockName(path), async () => {
+      await action();
+      await h.otherTabCommit();
+    }),
+  );
+
+it("keeps another tab's file saved where the edit removed a folder, before its broadcast arrives", async () => {
+  const h = await harness({ "old/notes.sd": "ORIGINAL" });
+  h.failAt(() =>
+    otherTabAt(h, "old", async () => {
+      writeMemoryFile(h.root, "local/old", enc.encode("OTHER TAB SAVE"));
+    }),
+  );
+  const result = await h.edit([del("old/notes.sd"), folder("delete", "old"), create("fail/new.sd", "NEW")]);
+  expect(h.text("old")).toBe("OTHER TAB SAVE");
+  expect(result.rollback.complete).toBe(false);
+});
+
+it("keeps another tab's empty folder that replaced one the edit created, before its broadcast arrives", async () => {
+  const h = await harness();
+  const project = h.root.entries.get("local") as MemoryDirectory;
+  let foreign: MemoryDirectory | undefined;
+  h.failAt(() =>
+    otherTabAt(h, "generated", async () => {
+      await project.removeEntry("generated");
+      foreign = await project.getDirectoryHandle("generated", { create: true });
+    }),
+  );
+  const result = await h.edit([folder("create", "generated"), create("fail/new.sd", "NEW")]);
+  expect(h.entry("generated")).toBe(foreign);
+  expect(result.rollback.complete).toBe(false);
+});
+
+it("keeps another tab's file saved where the edit made a folder in place of a file", async () => {
+  const h = await harness({ "cover.png": "ORIGINAL" });
+  const project = h.root.entries.get("local") as MemoryDirectory;
+  h.failAt(() =>
+    otherTabAt(h, "cover.png", async () => {
+      await project.removeEntry("cover.png");
+      writeMemoryFile(h.root, "local/cover.png", enc.encode("OTHER TAB SAVE"));
+    }),
+  );
+  const result = await h.edit([del("cover.png"), folder("create", "cover.png"), create("fail/new.sd", "NEW")]);
+  expect(h.text("cover.png")).toBe("OTHER TAB SAVE");
+  expect(result.rollback.complete).toBe(false);
+});
+
+it("reports a complete rollback when a failed write already left the file as it was", async () => {
+  const h = await harness({ "main.sd": "ORIGINAL" });
+  const file = h.entry("main.sd") as MemoryFile;
+  const access = file.createSyncAccessHandle.bind(file);
+  let calls = 0;
+  file.createSyncAccessHandle = async () => {
+    const handle = await access();
+    return {
+      ...handle,
+      write: (data: DataView | Uint8Array) => {
+        calls += 1;
+        if (calls === 1) throw new DOMException("disk full", "QuotaExceededError");
+        return handle.write(data);
+      },
+    };
+  };
+  const result = await h.edit([create("main.sd", "IMPORTED")]);
+  expect(h.text("main.sd")).toBe("ORIGINAL");
+  expect(result.rollback).toMatchObject({ complete: true, failed: [], kept: [] });
+});

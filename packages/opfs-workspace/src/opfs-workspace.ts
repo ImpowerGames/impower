@@ -1282,7 +1282,8 @@ class UndoLog {
   own = new Set<number>();
   seen = new Map<string, Set<number>>();
   copies: TrashCopy[] = [];
-  written = new Map<string, ArrayBuffer | undefined>();
+  written = new Map<string, ArrayBuffer | null | "folder">();
+  folderHandles = new Map<string, FileSystemDirectoryHandle>();
   trashDirectories = new Set<string>();
   trashBatch?: { projectId: string; deletedAt: number; id: string };
 
@@ -1348,8 +1349,20 @@ class UndoLog {
     return [...(this.seen.get(uri) ?? [])].some((local) => !this.own.has(local));
   }
 
-  expect(uri: string, bytes?: ArrayBuffer) {
-    this.written.set(uri, bytes);
+  expect(uri: string, state: ArrayBuffer | null | "folder") {
+    this.written.set(uri, state);
+  }
+
+  async holdFolders() {
+    const root = await navigator.storage.getDirectory();
+    for (const uri of this.directories) {
+      if (!this.folderHandles.has(uri)) {
+        const handle = await findDirectory(root, getPathFromUri(uri));
+        if (handle) {
+          this.folderHandles.set(uri, handle);
+        }
+      }
+    }
   }
 
   rewrote(uris: string[]) {
@@ -1363,7 +1376,10 @@ class UndoLog {
       return false;
     }
     const written = this.written.get(uri);
-    return written ? !!current && !sameStored(current, written) : !!current;
+    if (written === null || written === "folder" || written === undefined) {
+      return !!current;
+    }
+    return !!current && !sameStored(current, written);
   }
 
   async removeOwnFolders(uris: string[], log: CommitLog) {
@@ -1371,10 +1387,13 @@ class UndoLog {
     const removed: string[] = [];
     const left: string[] = [];
     for (const uri of [...new Set(uris)].sort((a, b) => depth(b) - depth(a))) {
+      const held = this.folderHandles.get(uri);
       const local = await removeEmptyFolder(
         uri,
         log,
-        () => !this.changedElsewhere(uri),
+        async (directory) =>
+          !this.changedElsewhere(uri) &&
+          (!held || (await held.isSameEntry(directory))),
       );
       if (local !== undefined) {
         this.commit(local);
@@ -1586,13 +1605,15 @@ class UndoLog {
         }
         const local = State.localVersions.get(entry.uri);
         const current = await storedBytes(entry.uri);
-        if (this.movedOn(entry) || this.replacedElsewhere(entry.uri, current)) {
+        if (this.movedOn(entry)) {
           kept.push(entry.uri);
           continue;
         }
         const target = { entry, current, local };
         if (sameStored(current, entry.bytes)) {
           restored.push(entry.uri);
+        } else if (this.replacedElsewhere(entry.uri, current)) {
+          kept.push(entry.uri);
         } else if (!current) {
           creates.push(target);
         } else if (entry.bytes) {
@@ -1718,9 +1739,11 @@ const applyChange = async (
   if (isFolderChange(change) && change.kind === "create") {
     await createDirectories([change.uri], log);
     undo.commit(State.localVersions.get(change.uri)!);
+    undo.expect(change.uri, "folder");
     effects.foldersCreated.push(change.uri);
   } else if (isFolderChange(change)) {
     const local = await removeEmptyFolder(change.uri, log);
+    undo.expect(change.uri, null);
     if (local !== undefined) {
       undo.commit(local);
       effects.foldersDeleted.push(change.uri);
@@ -1738,16 +1761,15 @@ const applyChange = async (
   } else if (change.kind === "create") {
     const data = change.data ?? new ArrayBuffer(0);
     const stored = storedForm(change.uri, new Uint8Array(data));
-    undo.expect(
-      change.uri,
+    const expected =
       stored.byteLength === data.byteLength && stored.buffer === data
         ? data
-        : (stored.buffer.slice(stored.byteOffset, stored.byteOffset + stored.byteLength) as ArrayBuffer),
-    );
+        : (stored.buffer.slice(stored.byteOffset, stored.byteOffset + stored.byteLength) as ArrayBuffer);
     (await createFiles([change])).forEach(wrote);
+    undo.expect(change.uri, expected);
   } else if (change.kind === "delete") {
     const [result] = await deleteFiles([change]);
-    undo.expect(change.uri, undefined);
+    undo.expect(change.uri, null);
     if (result) {
       undo.commit(result.local);
       log.record(result.uri, result.local, result.commit);
@@ -1859,6 +1881,7 @@ const applyWorkspaceEdit = async (
       try {
         await undo.record(change);
         await applyChange(change, log, effects, undo, expectedTexts);
+        await undo.holdFolders();
       } catch (err: any) {
         console.error(err, err?.stack);
         return await rollBack(index, err?.message ?? String(err));
@@ -2048,7 +2071,7 @@ const deleteEmptyDirectories = async (uris: string[], log: CommitLog) => {
 const removeEmptyFolder = async (
   uri: string,
   log: CommitLog,
-  mayRemove: () => boolean = () => true,
+  mayRemove: (directory: FileSystemDirectoryHandle) => boolean | Promise<boolean> = () => true,
 ) => {
   const root = await navigator.storage.getDirectory();
   const path = getPathFromUri(uri);
@@ -2056,12 +2079,14 @@ const removeEmptyFolder = async (
   const { result, commit, local } = await commitChange(
     uri,
     async () => {
-      if (!mayRemove()) {
-        return false;
-      }
       const parent = await findDirectory(root, getParentPath(path));
       const directory = parent && (await findDirectory(parent, getFileName(path)));
-      if (!parent || !directory || (await entriesOf(directory)).length > 0) {
+      if (
+        !parent ||
+        !directory ||
+        !(await mayRemove(directory)) ||
+        (await entriesOf(directory)).length > 0
+      ) {
         return false;
       }
       try {
