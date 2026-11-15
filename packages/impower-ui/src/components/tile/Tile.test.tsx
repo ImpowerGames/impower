@@ -45,7 +45,7 @@ describe("Tile", () => {
           actions={<button aria-label="Options for imani" />}
           onClick={onClick}
         />,
-        host,
+        host!,
       ),
     );
     const open = host.querySelector<HTMLButtonElement>('button[aria-label="Open image imani"]')!;
@@ -75,7 +75,7 @@ describe("Tile", () => {
             onClick={() => {}}
           />
         </>,
-        host,
+        host!,
       ),
     );
     expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(1);
@@ -96,7 +96,7 @@ describe("Tile", () => {
           <Tile media={null} label="b" aria-label="Open b" selection="active" selectLabel="Select b" onClick={() => {}} />
           <Tile media={null} kind="folder" label="Cast" aria-label="Open Cast" dropTarget onClick={() => {}} />
         </>,
-        host,
+        host!,
       ),
     );
     const a = host.querySelector<HTMLButtonElement>('button[aria-label="Open a"]')!;
@@ -120,7 +120,7 @@ describe("Tile", () => {
           <Tile media={null} label="a" aria-label="Open a" current actions={<button aria-label="Options for a" />} onClick={() => {}} />
           <Tile media={null} label="b" aria-label="Open b" actions={<button aria-label="Options for b" />} onClick={() => {}} />
         </>,
-        host,
+        host!,
       ),
     );
     const classes = (label: string) => host!.querySelector<HTMLElement>(`button[aria-label="${label}"]`)!.className.split(" ");
