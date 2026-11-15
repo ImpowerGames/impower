@@ -1,5 +1,5 @@
-import { codeFolding, foldGutter, foldService } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import { codeFolding, foldable, foldEffect, foldGutter, foldService } from "@codemirror/language";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
@@ -43,6 +43,11 @@ const foldChoose = foldService.of((state, from) => {
   return { from: line.to, to: end.to };
 });
 
+const lineNumbersClass = new Compartment();
+
+const lineNumbersOn = (on: boolean) =>
+  EditorView.editorAttributes.of(on ? { class: "cm-line-numbers" } : {});
+
 const mount = (pointerCoarse: boolean) => {
   const parent = document.body.appendChild(document.createElement("section"));
   parent.className = "sparkdown-script-editor-root";
@@ -54,7 +59,7 @@ const mount = (pointerCoarse: boolean) => {
         coarsePointer.of(pointerCoarse),
         EDITOR_EXTENSIONS,
         EditorView.theme(EDITOR_THEME, { dark: true }),
-        EditorView.editorAttributes.of({ class: "cm-line-numbers" }),
+        lineNumbersClass.of(lineNumbersOn(true)),
         codeFolding(),
         foldChoose,
         foldGutter({ markerDOM: foldMarkerDOM }),
@@ -96,4 +101,36 @@ for (const [kind, mask] of [
 
 const openChoice = (line: number | null) => openChoicePopover(view, line);
 
-Object.assign(window, { gutterMarks: { view, setPinned, openChoice, coarse } });
+const setLineNumbers = (on: boolean) =>
+  view.dispatch({ effects: lineNumbersClass.reconfigure(lineNumbersOn(on)) });
+
+const setBreakpoints = (lines: number[]) =>
+  setBreakpointStates(view, lines.map((line) => ({ line, verified: true })));
+
+const setChoices = (choices: { line: number; pinned: boolean }[]) =>
+  setChoiceMarkers(view, choices.map(({ line, pinned }) => choice(line, pinned)));
+
+const setCaret = (line: number) =>
+  view.dispatch({ selection: { anchor: view.state.doc.line(line).to } });
+
+const fold = (line: number) => {
+  const at = view.state.doc.line(line);
+  const range = foldable(view.state, at.from, at.to);
+  if (range) {
+    view.dispatch({ effects: foldEffect.of(range) });
+  }
+};
+
+Object.assign(window, {
+  gutterMarks: {
+    view,
+    setPinned,
+    openChoice,
+    coarse,
+    setLineNumbers,
+    setBreakpoints,
+    setChoices,
+    setCaret,
+    fold,
+  },
+});

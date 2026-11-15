@@ -9,6 +9,7 @@ const PAGE_STYLE = `
 :root { color-scheme: dark; --ink: #e6e6e6; --muted: #8a8f98; --accent: #4ea1ff; --editor-breakpoint: #e5484d; --radius-sm: 4px; }
 body { margin: 0; padding: 16px; background: #1e1f22; color: var(--ink); font: 16px/1.5 monospace; }
 section { width: 360px; height: 320px; margin-bottom: 24px; }
+.cm-foldGutter { width: 16px; }
 `;
 
 export const buildGutterMarksPage = async (outDir) => {
