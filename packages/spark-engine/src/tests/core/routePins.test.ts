@@ -517,7 +517,9 @@ const withoutKinds = (route: PreviewRoute) =>
     d.passes,
   ]);
 
-const pinningEachTakenOptionChangesOnlyItsKind = (
+const nextJob = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const pinningEachTakenOptionChangesOnlyItsKind = async (
   lines: string[],
   line: number,
 ) => {
@@ -526,15 +528,10 @@ const pinningEachTakenOptionChangesOnlyItsKind = (
   expect(taken.length).toBeGreaterThan(0);
   for (const choice of taken) {
     const at = choice.location.range.start.line + 1;
+    await nextJob();
     const pinned = preview(lines, line, [pin(at, choice.meeting)], "clues");
-    expect(
-      pinned.route.decisions.map((d) =>
-        d.location.range.start.line + 1 === at ? "pinned" : d.kind,
-      ),
-    ).toEqual(
-      auto.route.decisions.map((d) =>
-        d.location.range.start.line + 1 === at ? "pinned" : d.kind,
-      ),
+    expect(pinned.route.decisions.map((d) => d.kind)).toEqual(
+      auto.route.decisions.map((d) => (d === choice ? "pinned" : d.kind)),
     );
     expect(withoutKinds(pinned.route)).toEqual(withoutKinds(auto.route));
     expect(pinned.count).toBe(auto.count);
@@ -543,8 +540,8 @@ const pinningEachTakenOptionChangesOnlyItsKind = (
 };
 
 describe("pinning an option the route already takes changes only its kind", () => {
-  test("the example of #1655 at line 21", () => {
-    const { route, count } = pinningEachTakenOptionChangesOnlyItsKind(
+  test("the example of #1655 at line 21", async () => {
+    const { route, count } = await pinningEachTakenOptionChangesOnlyItsKind(
       example,
       21,
     );
@@ -553,8 +550,8 @@ describe("pinning an option the route already takes changes only its kind", () =
     expect(loop.passes).toBe(count);
   }, 120_000);
 
-  test("an option whose sibling runs a long loop", () => {
-    pinningEachTakenOptionChangesOnlyItsKind(
+  test("an option whose sibling runs a long loop", async () => {
+    await pinningEachTakenOptionChangesOnlyItsKind(
       [
         "store trust = 0",
         "store clues = 0",
@@ -583,8 +580,8 @@ describe("pinning an option the route already takes changes only its kind", () =
     );
   }, 120_000);
 
-  test("two menus where a later option avoids the forced verdict", () => {
-    pinningEachTakenOptionChangesOnlyItsKind(
+  test("two menus where a later option avoids the forced verdict", async () => {
+    await pinningEachTakenOptionChangesOnlyItsKind(
       [
         "store trust = 0",
         "store clues = 0",
@@ -616,8 +613,8 @@ describe("pinning an option the route already takes changes only its kind", () =
     );
   }, 120_000);
 
-  test("two menus whose options tie on forced verdicts", () => {
-    pinningEachTakenOptionChangesOnlyItsKind(
+  test("two menus whose options tie on forced verdicts", async () => {
+    await pinningEachTakenOptionChangesOnlyItsKind(
       [
         "store trust = 0",
         "store clues = 0",
@@ -650,5 +647,81 @@ describe("pinning an option the route already takes changes only its kind", () =
       ],
       25,
     );
+  }, 120_000);
+
+  test("a pin the target cannot be reached through adds no forced verdict to the route that avoids it", () => {
+    const lines = [
+      "store clues = 0",
+      "store gate = true",
+      "scene start",
+      "  choose",
+      "    + [Bypass.]",
+      "      clues = 1",
+      "    + [Pinned branch.]",
+      "      choose",
+      "        + [Dead end.]",
+      "          -> gone",
+      "      end",
+      "  end",
+      "  if gate then",
+      "    choose",
+      "      + [Continue.]",
+      "        clues += 1",
+      "    end",
+      "  end",
+      "  Target.",
+      "end",
+      "scene gone",
+      "  Gone.",
+      "end",
+      "",
+    ];
+    const pinned = preview(lines, 19, [pin(9)], "clues");
+    expect(pinned.route.decisions.map((d) => d.kind)).not.toContain("forced");
+    expect(pinned.count).toBe(2);
+  }, 120_000);
+
+  test("a search that reaches its step ceiling takes the same route with the taken option pinned", async () => {
+    const lines = ["store trust = 0", "store clues = 0", "scene start", "  choose"];
+    for (let i = 0; i < 7; i += 1) {
+      lines.push(
+        `    * [Option ${i}.]`,
+        "      for i = 1, 40000 do",
+        "        clues += 1",
+        "      end",
+      );
+    }
+    lines.push(
+      "  end",
+      "  if trust > 3 then",
+      "    for k = 1, 40000 do",
+      "      clues += 1",
+      "    end",
+      "    You found {clues} clues.",
+      "  end",
+      "end",
+      "",
+    );
+    const target = lines.indexOf("    You found {clues} clues.");
+    const { program } = compileSrc(lines.join("\n"));
+    const plan = (pins: { uri: string; line: number; offer: number }[]) => {
+      const game: any = newGame(program);
+      game.setRoutePins(pins);
+      game.setStartFrom({ file: URI, line: target });
+      const to = game.startAddress;
+      return Game.planRoute(game.story, game.program, game.routeStartOf(to), to, {
+        maxSteps: 400_000,
+        pins: game.pinnedOptions,
+      })!;
+    };
+    const auto = plan([]);
+    const taken = auto.choices[0]!;
+    const line = lines.indexOf(`    * [${taken.options[taken.selected]}]`) + 1;
+    expect(line).toBeGreaterThan(0);
+    await nextJob();
+    const pinned = plan([pin(line)]);
+    expect(pinned.fallback).toBe(auto.fallback);
+    expect(pinned.decisions).toEqual(auto.decisions);
+    expect(pinned.choices).toEqual(auto.choices);
   }, 120_000);
 });
