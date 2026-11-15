@@ -2593,8 +2593,19 @@ const completionsAt = (
     ) {
       const contentNode = leftStack.find((n) => n.name === "ImplicitAction");
       const text = getNodeText(contentNode).trimStart();
-      const written = readSpeakerBeingWritten(text, "");
-      if (isCursorAfterNodeText(contentNode)) {
+      const written =
+        contentNode &&
+        readSpeakerBeingWritten(
+          read(contentNode.from, documentCursorOffset).trimStart(),
+          read(documentCursorOffset, contentNode.to),
+        );
+      const speakerEndsLine =
+        contentNode &&
+        written &&
+        !read(documentCursorOffset + written.rest.length, contentNode.to).trim()
+          ? cueBeingTyped(written.name, program)
+          : false;
+      if (speakerEndsLine || isCursorAfterNodeText(contentNode)) {
         if (text === "@") {
           addScreenElementReferenceCompletions(
             completions,
@@ -2609,13 +2620,13 @@ const completionsAt = (
           addSnippet(completions, "heading", "$:", ": ");
         } else if (text === "%") {
           addSnippet(completions, "transitional", "%:", ": ");
-        } else if (written && cueBeingTyped(written.name, program)) {
+        } else if (written && speakerEndsLine) {
           addSpeakerCompletions(
             completions,
             program,
             document.range(
               documentCursorOffset - written.typed.length,
-              documentCursorOffset,
+              documentCursorOffset + written.rest.length,
             ),
             ": ",
           );

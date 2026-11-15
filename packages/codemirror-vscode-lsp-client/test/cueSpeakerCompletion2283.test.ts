@@ -59,6 +59,8 @@ describe("accepting a speaker completion after `as` in the editor (#2283)", () =
     ["inside an existing speaker", "??? as r@1affles:", "raffles", "  ??? as raffles:"],
     ["inside a speaker before its parenthetical and position", "??? as r@1affles (O.S.) [<]:", "raffles", "  ??? as raffles (O.S.) [<]:"],
     ["after a typed `@` part", "??? as raffles@s@1:", "raffles@shy", "  ??? as raffles@shy:"],
+    ["after a trailing `@` on a cue being typed", "??? as raffles@@1", "raffles@shy", "  ??? as raffles@shy: "],
+    ["inside a speaker on a cue being typed", "??? as r@1affles", "raffles", "  ??? as raffles: "],
   ])("%s replaces the whole speaker", async (_label, cue, label, accepted) => {
     expect(await accept(cue, label)).toBe(accepted);
   });
