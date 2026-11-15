@@ -61,6 +61,7 @@ export namespace Workspace {
       void workspace.state.value;
       return window.getActiveEditorForPane("logic")?.uri;
     },
+    hasFile: (uri) => fs.hasFile(uri),
     getDocumentSymbols: (uri) => ls.getDocumentSymbols(uri),
     getFileText: (uri) => fs.getFileText(uri),
     onPublishedDiagnostics: (listener) => ls.onPublishedDiagnostics(listener),

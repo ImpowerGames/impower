@@ -539,6 +539,21 @@ spark-web-player .transport-icon[data-icon="run-again"] {
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M12.75 8a4.5 4.5 0 0 1-8.61 1.834l-1.391.565A6.001 6.001 0 0 0 14.25 8 6 6 0 0 0 3.5 4.334V2.5H2v4l.75.75h3.5v-1.5H4.352A4.5 4.5 0 0 1 12.75 8z"/></svg>');
 }
 
+spark-web-player #replay-beat-button {
+  flex: none;
+}
+
+spark-web-player #replay-beat-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.4;
+  background-color: transparent;
+}
+
+spark-web-player .transport-icon[data-icon="replay-beat"] {
+  color: var(--swp-run-color);
+  mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm0 1.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zM6.5 5.2l.75-.4 4 2.6v.9l-4 2.6-.75-.4V5.2z"/></svg>');
+}
+
 spark-web-player .transport-icon {
   background-color: currentColor;
   width: var(--swp-toolbar-icon-size);

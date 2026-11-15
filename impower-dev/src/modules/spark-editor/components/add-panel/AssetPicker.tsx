@@ -366,11 +366,11 @@ function Cards({
             >
               <Picture row={row} item={item} fill />
               <span class="flex-none px-2.5 py-1.75">
-                <strong class="block truncate text-[13px]/[1.4] font-semibold">
+                <strong class="block [--fade:20px] fade-edge text-[13px]/[1.4] font-semibold">
                   {item.name}
                 </strong>
                 {captionOf(item) && (
-                  <small class="block truncate text-[12px]/[1.4] text-muted">
+                  <small class="block [--fade:20px] fade-edge text-[12px]/[1.4] text-muted">
                     {captionOf(item)}
                   </small>
                 )}

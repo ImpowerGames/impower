@@ -34,6 +34,7 @@ import { showSnackbar } from "../../utils/snackbar";
 import { assetsHome } from "../../workspace/assetsListing";
 import { usedAs, usesOf } from "../../workspace/assetUsage";
 import { usageGroups } from "../../workspace/WorkspaceSearch";
+import { nameOf } from "../../workspace/scriptsListing";
 import type { Workspace as WorkspaceIntents } from "../../workspace/Workspace";
 import type { InspectorFacts } from "../../workspace/WorkspaceAssets";
 import { useSettings } from "../../workspace/settings/useSettings";
@@ -191,6 +192,18 @@ export default function AssetInspector({
   const [previewing, setPreviewing] = useState<VariantSelection | null>(null);
   const [chosenForm, setChosenForm] = useState<VariantForm | null>(null);
   const [picture, setPicture] = useState<string | null | undefined>(undefined);
+  const [drawn, setDrawn] = useState<readonly (string | null)[] | null>(null);
+  const [soloPath, setSoloPath] = useState<string | null>(null);
+  const soloFile = stack ? (asset.files.find((file) => file.path === soloPath) ?? null) : null;
+  const framed = soloFile && drawn ? [soloFile.path, ...drawn] : [];
+  const framedSources = framed.map((path) => (path ? workspace.assetListing.value?.files[path]?.src : undefined));
+  const framedSizes = framedSources.map((src) => (src ? workspace.assetSizes.value[src] : null));
+  const canvas = framedSizes.length && framedSizes.every((size) => !!size)
+    ? {
+        width: Math.max(...framedSizes.map((size) => size!.width)),
+        height: Math.max(...framedSizes.map((size) => size!.height)),
+      }
+    : null;
   const [frameEdge, setFrameEdge] = useState(0);
   const [fullEdge, setFullEdge] = useState(0);
   const pictureSize = Math.max(frameEdge, fullEdge);
@@ -202,6 +215,7 @@ export default function AssetInspector({
   const sounding =
     !!playback && playback.owner !== AUDITION_OWNER && (playback.status === "playing" || playback.status === "loading");
   useEscapeWithin(region, sounding, () => audioSession.stop());
+  useEscapeWithin(region, !sounding && !!soloFile, () => setSoloPath(null), "input, textarea, [contenteditable]");
 
   useEffect(() => {
     close.current?.focus({ preventScroll: true });
@@ -234,8 +248,17 @@ export default function AssetInspector({
     setPreviewing(null);
     setChosenForm(null);
     setPicture(undefined);
+    setDrawn(null);
     setFullEdge(0);
+    setSoloPath(null);
   }, [asset.path]);
+
+  useEffect(() => {
+    if (framedSizes.includes(undefined)) {
+      const paths = framed.flatMap((path) => (path ? [path] : []));
+      void intents().then((Workspace) => Workspace.assets.measureImages(paths));
+    }
+  }, [framed.map((path, index) => `${path ?? ""} ${framedSources[index] ?? ""}`).join("\n")]);
 
   useEffect(() => {
     const frame = stack ? body.current?.querySelector<HTMLElement>("[data-zoom-frame]") : null;
@@ -260,7 +283,10 @@ export default function AssetInspector({
     let alive = true;
     void intents().then((Workspace) => {
       if (alive) {
-        dispose = Workspace.assets.watchPicture(stack!.cover, variant, pictureSize, setPicture);
+        dispose = Workspace.assets.watchPicture(stack!.cover, variant, pictureSize, (src, layers) => {
+          setPicture(src);
+          setDrawn(layers);
+        });
       }
     });
     return () => {
@@ -399,11 +425,37 @@ export default function AssetInspector({
   const lines = uses?.reduce((sum, group) => sum + group.uses.length, 0) ?? 0;
   const problems = facts ? facts.problems : [];
 
+  const problemsSection =
+    problems === null ? (
+      <Section title="Problems" label="Problems">
+        <p class="m-0 text-[12px]/[1.5] text-muted" data-problems-failed>
+          Its problems could not be checked. Edit a script to try again.
+        </p>
+      </Section>
+    ) : (
+      problems.length > 0 && (
+        <Section title="Problems" aside={String(problems.length)} label="Problems">
+          <div>
+            {problems.map((problem, index) => (
+              <MessageEntry key={index} severity={severityOf(problem.severity)} title={messageOf(problem)} />
+            ))}
+          </div>
+        </Section>
+      )
+    );
+
+  const detailsSection = (
+    <Section title="Details" label="Details">
+      <DetailList rows={rows} />
+    </Section>
+  );
+
   const frame = (
     <AssetFrame
       key={`${asset.path}\n${asset.src ?? ""}`}
       asset={asset}
       picture={stack ? picture : undefined}
+      solo={soloFile && { name: nameOf(soloFile.path), src: soloFile.src, pixels: framedSizes[0], canvas }}
       pixels={pixels}
       read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
       onSeconds={setVideoSeconds}
@@ -518,44 +570,30 @@ export default function AssetInspector({
                       void intents().then((Workspace) => Workspace.window.insertReference(insertScript, form, reference))
                   : undefined
               }
+              soloed={!!soloFile}
               sheetContainer={region}
               keepClear={pinned}
             />
+            {problemsSection}
+            {detailsSection}
+            {stack.paths.length > 1 && (
+              <FilesSection
+                stack={stack}
+                sizes={Object.fromEntries(asset.files.map((file) => [file.path, file.size]))}
+                sources={Object.fromEntries(asset.files.map((file) => [file.path, file.src]))}
+                soloed={soloFile?.path ?? null}
+                onSolo={setSoloPath}
+                intents={intents}
+                relocate={relocate}
+              />
+            )}
           </div>
         ) : (
           frame
         )}
         {asset.link && <LinkAddress key={`${asset.path}\n${asset.address ?? ""}`} asset={asset} intents={intents} />}
-        {problems === null ? (
-          <Section title="Problems" label="Problems">
-            <p class="m-0 text-[12px]/[1.5] text-muted" data-problems-failed>
-              Its problems could not be checked. Edit a script to try again.
-            </p>
-          </Section>
-        ) : problems.length > 0 && (
-          <Section title="Problems" aside={String(problems.length)} label="Problems">
-            <div>
-              {problems.map((problem, index) => (
-                <MessageEntry
-                  key={index}
-                  severity={severityOf(problem.severity)}
-                  title={messageOf(problem)}
-                />
-              ))}
-            </div>
-          </Section>
-        )}
-        <Section title="Details" label="Details">
-          <DetailList rows={rows} />
-        </Section>
-        {stack && stack.paths.length > 1 && (
-          <FilesSection
-            stack={stack}
-            sizes={Object.fromEntries(asset.files.map((file) => [file.path, file.size]))}
-            intents={intents}
-            relocate={relocate}
-          />
-        )}
+        {!stack && problemsSection}
+        {!stack && detailsSection}
         <Section
           title={!uses ? "Uses" : lines ? `Used in ${plural(lines, "line")}` : "Not used yet"}
           label="Uses"

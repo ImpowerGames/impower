@@ -5,7 +5,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hook
 import { cn } from "../../utils/cn";
 import "../../utils/uniqueIds";
 import { useEscapeWithin } from "../../utils/escapeWithin";
-import { type KeepClear, useClearLine } from "../../utils/keepClear";
+import { type KeepClear, keepsClear, useClearLine } from "../../utils/keepClear";
 import Button from "../button/Button";
 import { CheckIcon } from "../icon/icons.generated";
 
@@ -235,6 +235,8 @@ export function WheelSheet({
   cancel.current = onCancel;
   const focusBack = useRef(returnFocus);
   focusBack.current = returnFocus;
+  const clearOf = useRef(keepClear);
+  clearOf.current = keepClear;
 
   useEscapeWithin(panel, open, onCancel);
 
@@ -249,8 +251,8 @@ export function WheelSheet({
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     list.current?.focus({ preventScroll: true });
     const outside = (event: PointerEvent) => {
-      const target = event.target as Element | null;
-      if (!panel.current?.contains(target) && !target?.closest?.("[data-zoom-frame]")) {
+      const target = event.target as Node | null;
+      if (!panel.current?.contains(target) && !keepsClear(clearOf.current, target)) {
         cancel.current();
       }
     };
@@ -294,7 +296,7 @@ export function WheelSheet({
         <Button variant="quiet" class="justify-self-start border-0 px-3 text-muted" onClick={onCancel}>
           Cancel
         </Button>
-        <h2 id={titleId} class="m-0 min-w-0 truncate text-[14px]/[1.4] font-semibold">
+        <h2 id={titleId} class="m-0 min-w-0 [--fade:20px] fade-edge text-[14px]/[1.4] font-semibold">
           {title}
         </h2>
         <Button variant="quiet" class="justify-self-end border-0 px-3 text-accent" onClick={() => onChoose(centred.current)}>

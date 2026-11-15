@@ -17,6 +17,7 @@ export type NameAtCaret = {
   name: string;
   kind: NameKind;
   definition: { uri: string; range: Range } | null;
+  outsideAssets?: boolean;
 };
 
 export type HighlightLike = {
@@ -100,6 +101,8 @@ const KIND_LABELS: Record<NameKind, string> = {
   file: "Show all linked assets.",
   name: "Show where it is defined.",
 };
+
+export const OUTSIDE_ASSETS_HINT = "This file is outside the assets folder.";
 
 export const definitionHint = (kind: NameKind) => KIND_LABELS[kind];
 

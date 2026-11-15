@@ -51,7 +51,7 @@ export default function DropZone({ title, detail, scope, class: className }: Dro
         ) : (
           <>
             <UploadIcon />
-            <span class="min-w-0 truncate">{title}</span>
+            <span class="min-w-0 [--fade:20px] fade-edge">{title}</span>
           </>
         )}
       </span>

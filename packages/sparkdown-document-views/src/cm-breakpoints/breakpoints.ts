@@ -18,6 +18,7 @@ import { scriptModeField } from "../modules/script-editor/utils/extensions/scrip
 import {
   createGutterButton,
   gutterButtons,
+  MARK_COLUMN_CLASS,
   MARK_COLUMN_RANK,
   markColumnClaims,
 } from "../cm-gutter-button/gutterButton";
@@ -230,41 +231,14 @@ const breakpointClaim = markColumnClaims.of({
   lines: breakpointLines,
 });
 
-const breakpointAttributes = EditorView.editorAttributes.compute(
-  [breakpointsField, coarsePointer],
-  (state) => {
-    const classes: string[] = [];
-    if (state.field(breakpointsField).size > 0) {
-      classes.push("cm-has-breakpoints");
-    }
-    if (state.facet(coarsePointer)) {
-      classes.push("cm-breakpoints-coarse");
-    }
-    return { class: classes.join(" ") };
-  },
-);
-
 const breakpointTheme = EditorView.baseTheme({
-  ".cm-breakpoint-gutter": {
-    position: "relative",
-    zIndex: "1",
-    width: "14px",
-    overflow: "hidden",
-  },
-  "&.cm-breakpoints-coarse .cm-breakpoint-gutter": {
-    width: "0",
-  },
-  "&.cm-breakpoints-coarse.cm-line-numbers .cm-breakpoint-gutter, &.cm-breakpoints-coarse.cm-has-breakpoints .cm-breakpoint-gutter":
-    {
-      width: "44px",
-    },
   ".cm-breakpoint-gutter .cm-gutterElement": {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
   },
-  "&:not(.cm-breakpoints-coarse) .cm-breakpoint-gutter .cm-gutterElement:not(:has(.cm-breakpoint)):hover::after":
+  "&:not(.cm-gutter-coarse) .cm-breakpoint-gutter .cm-gutterElement:not(:has(.cm-breakpoint)):hover::after":
     {
       content: '""',
       display: "block",
@@ -278,12 +252,11 @@ const breakpointTheme = EditorView.baseTheme({
 
 export const breakpoints = () => [
   breakpointsField,
-  breakpointAttributes,
   breakpointTheme,
   breakpointClaim,
   gutterButtons(),
   gutter({
-    class: "cm-breakpoint-gutter",
+    class: MARK_COLUMN_CLASS,
     markers: (v) => v.state.field(breakpointsField),
     renderEmptyElements: true,
     domEventHandlers: {

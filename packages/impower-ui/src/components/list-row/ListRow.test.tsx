@@ -362,4 +362,19 @@ describe("ListRow control", () => {
     );
     expect(active.querySelector("[data-list-row-control]")!.className).toContain("invisible");
   });
+
+  it("is a toggle button when pressed is given, tinted with the accent rule while pressed", async () => {
+    const off = await mount(<ListRow label="ava.png" pressed={false} onClick={() => undefined} />);
+    expect(off.querySelector("button")!.getAttribute("aria-pressed")).toBe("false");
+    expect(off.firstElementChild!.className.split(" ")).not.toContain("bg-tint");
+    await act(async () => render(null, host!));
+    host!.remove();
+    const on = await mount(<ListRow label="ava.png" pressed onClick={() => undefined} />);
+    expect(on.querySelector("button")!.getAttribute("aria-pressed")).toBe("true");
+    expect(on.firstElementChild!.className.split(" ")).toEqual(expect.arrayContaining(["bg-tint", "before:opacity-100"]));
+    await act(async () => render(null, host!));
+    host!.remove();
+    const plain = await mount(<ListRow label="ava.png" onClick={() => undefined} />);
+    expect(plain.querySelector("button")!.hasAttribute("aria-pressed")).toBe(false);
+  });
 });

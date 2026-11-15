@@ -8,6 +8,7 @@ import { holdSheetOpen } from "../../hooks/useSheetOpen";
 import { cn } from "../../utils/cn";
 import "../../utils/uniqueIds";
 import { focusReturnTarget } from "../../utils/focusReturn";
+import { type KeepClear, keepsClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
 import { useToastLayer } from "../../utils/toastLayer";
 import Button from "../button/Button";
@@ -31,9 +32,34 @@ const backdropVariants = cva(
         true: "opacity-100 ease-[ease-out]",
         false: "opacity-0 ease-[ease-in]",
       },
+      fit: {
+        free: "",
+        room: "top-[var(--keep-clear-top)]",
+      },
     },
+    defaultVariants: { fit: "free" },
   },
 );
+
+const SHEET_ROW = '[role^="menuitem"], [role="option"]';
+
+const leastSheet = (card: HTMLElement | null) => {
+  if (!card) {
+    return 0;
+  }
+  const row = card.querySelector(SHEET_ROW);
+  if (!row) {
+    return card.scrollHeight;
+  }
+  let foot = 0;
+  let scrolled = 0;
+  for (let at = row.parentElement; at; at = at === card ? null : at.parentElement) {
+    const style = getComputedStyle(at);
+    foot += (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0);
+    scrolled += at.scrollTop;
+  }
+  return row.getBoundingClientRect().bottom + scrolled - card.getBoundingClientRect().top + foot;
+};
 
 const surface =
   "w-full select-none border border-edge bg-panel text-ink outline-none";
@@ -78,8 +104,12 @@ export const sheetVariants = cva(
   {
     variants: {
       size: {
-        auto: "max-h-[80%] rounded-t-card border-b-0",
+        auto: "rounded-t-card border-b-0",
         full: "h-full max-h-none rounded-none border-0 pb-[env(safe-area-inset-bottom)]",
+      },
+      fit: {
+        free: "",
+        room: "",
       },
       flush: {
         true: "flex flex-col overflow-hidden",
@@ -90,7 +120,11 @@ export const sheetVariants = cva(
         false: "translate-y-full ease-[ease-in]",
       },
     },
-    defaultVariants: { size: "auto", flush: false, visible: true },
+    compoundVariants: [
+      { size: "auto", fit: "free", class: "max-h-[80%]" },
+      { size: "auto", fit: "room", class: "max-h-full" },
+    ],
+    defaultVariants: { size: "auto", fit: "free", flush: false, visible: true },
   },
 );
 
@@ -124,11 +158,12 @@ type ModalProps = {
   initialFocus?: RefObject<HTMLElement>;
   returnFocus?: () => HTMLElement | null;
   onEscapeKeyDown?: (event: KeyboardEvent) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   class?: string;
   children?: ComponentChildren;
 };
 
-export type SheetProps = ModalProps & { size?: SheetSize };
+export type SheetProps = ModalProps & { size?: SheetSize; keepClear?: KeepClear };
 
 export type DialogProps = ModalProps & {
   size?: DialogSize;
@@ -142,19 +177,30 @@ function Modal({
   initialFocus,
   returnFocus: returnTo,
   onEscapeKeyDown,
+  onCloseAutoFocus,
+  keepClear,
   placement,
   card,
   children,
 }: Omit<ModalProps, "flush" | "class"> & {
+  keepClear?: KeepClear;
   placement: "center" | "bottom" | "fill";
-  card: (visible: boolean) => string;
+  card: (visible: boolean, fit: "free" | "room") => string;
 }) {
   const { mounted, visible } = useMountTransition(open, DIALOG_TRANSITION_MS);
+  const kept = !!keepClear && placement === "bottom";
   useEffect(
     () => (open && placement === "bottom" ? holdSheetOpen() : undefined),
     [open, placement],
   );
   const content = useRef<HTMLDivElement | null>(null);
+  const top = useClearLine(
+    kept ? keepClear : undefined,
+    mounted,
+    (line) => Math.max(0, Math.min(line, window.innerHeight - leastSheet(content.current))),
+    content,
+  );
+  const fit = top === undefined ? "free" : "room";
   const toastLayer = useToastLayer(open);
   const returnFocus = useRef<() => HTMLElement | null>(() => null);
   const wasOpen = useRef(false);
@@ -175,19 +221,38 @@ function Modal({
       event.preventDefault();
     }
   };
+  const refuseOutside = (event: Event) => {
+    if (keepsClear(kept ? keepClear : undefined, event.target)) {
+      event.preventDefault();
+    }
+    refuse(event);
+  };
+
+  const backdropClass = backdropVariants({ placement, visible, fit });
+  const backdrop = (inner: ComponentChildren) =>
+    kept ? (
+      <div
+        class={backdropClass}
+        style={top === undefined ? undefined : { "--keep-clear-top": `${top}px` }}
+        data-keep-clear-backdrop
+      >
+        {inner}
+      </div>
+    ) : (
+      <DialogPrimitive.Overlay forceMount class={backdropClass}>
+        {inner}
+      </DialogPrimitive.Overlay>
+    );
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={!kept}>
       <DialogPrimitive.Portal forceMount container={portalContainer()}>
-        <DialogPrimitive.Overlay
-          forceMount
-          class={backdropVariants({ placement, visible })}
-        >
+        {backdrop(
           <DialogPrimitive.Content
             ref={content}
             forceMount
-            aria-modal="true"
-            class={card(visible)}
+            aria-modal={kept ? "false" : "true"}
+            class={card(visible, fit)}
             onOpenAutoFocus={(event: Event) => {
               const target = initialFocus?.current;
               if (target) {
@@ -196,7 +261,15 @@ function Modal({
               }
             }}
             onCloseAutoFocus={(event: Event) => {
+              onCloseAutoFocus?.(event);
+              if (event.defaultPrevented) {
+                return;
+              }
               event.preventDefault();
+              const active = document.activeElement;
+              if (kept && active && active !== document.body && !content.current?.contains(active)) {
+                return;
+              }
               const target = returnTo?.() ?? returnFocus.current();
               if (target?.isConnected) {
                 target.focus();
@@ -206,13 +279,13 @@ function Modal({
               onEscapeKeyDown?.(event);
               refuse(event);
             }}
-            onPointerDownOutside={refuse}
-            onInteractOutside={refuse}
+            onPointerDownOutside={refuseOutside}
+            onInteractOutside={refuseOutside}
           >
             {children}
             <div ref={toastLayer} data-toast-layer class="contents" />
-          </DialogPrimitive.Content>
-        </DialogPrimitive.Overlay>
+          </DialogPrimitive.Content>,
+        )}
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );
@@ -223,7 +296,7 @@ export function Sheet({ size, flush, class: className, ...rest }: SheetProps) {
     <Modal
       {...rest}
       placement="bottom"
-      card={(visible) => cn(sheetVariants({ size, flush, visible }), className)}
+      card={(visible, fit) => cn(sheetVariants({ size, flush, visible, fit }), className)}
     />
   );
 }

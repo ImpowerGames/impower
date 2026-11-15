@@ -1,7 +1,7 @@
-import { codeFolding, foldGutter, foldService } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import { codeFolding, foldable, foldEffect, foldGutter, foldService } from "@codemirror/language";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
+import { coarsePointer, foldingPlaceholderDOM } from "@impower/codemirror-vscode-lsp-client/src";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
 import { setBreakpointStates } from "../../src/cm-breakpoints/breakpoints";
 import {
@@ -11,6 +11,7 @@ import {
 } from "../../src/cm-choice-markers/choiceMarkers";
 import { foldMarkerDOM } from "../../src/cm-fold-marks/foldMarks";
 import EDITOR_EXTENSIONS from "../../src/modules/script-editor/constants/EDITOR_EXTENSIONS";
+import { customGotoLinePanel } from "../../src/modules/script-editor/utils/extensions/gotoLinePanel";
 import EDITOR_THEME from "../../src/modules/script-editor/constants/EDITOR_THEME";
 
 const SCRIPT = [
@@ -36,12 +37,17 @@ const choice = (line: number, pinned: boolean): ChoiceMarker => ({
 
 const foldChoose = foldService.of((state, from) => {
   const line = state.doc.lineAt(from);
-  if (line.text.trim() !== "choose") {
+  if (!line.text.trim().startsWith("choose") || line.number + 5 > state.doc.lines) {
     return null;
   }
   const end = state.doc.line(line.number + 5);
   return { from: line.to, to: end.to };
 });
+
+const lineNumbersClass = new Compartment();
+
+const lineNumbersOn = (on: boolean) =>
+  EditorView.editorAttributes.of(on ? { class: "cm-line-numbers" } : {});
 
 const mount = (pointerCoarse: boolean) => {
   const parent = document.body.appendChild(document.createElement("section"));
@@ -54,8 +60,13 @@ const mount = (pointerCoarse: boolean) => {
         coarsePointer.of(pointerCoarse),
         EDITOR_EXTENSIONS,
         EditorView.theme(EDITOR_THEME, { dark: true }),
-        EditorView.editorAttributes.of({ class: "cm-line-numbers" }),
-        codeFolding(),
+        lineNumbersClass.of(lineNumbersOn(true)),
+        codeFolding({
+          preparePlaceholder: (state, range) =>
+            state.doc.lineAt(range.to).number - state.doc.lineAt(range.from).number,
+          placeholderDOM: foldingPlaceholderDOM,
+        }),
+        customGotoLinePanel(),
         foldChoose,
         foldGutter({ markerDOM: foldMarkerDOM }),
       ],
@@ -96,4 +107,40 @@ for (const [kind, mask] of [
 
 const openChoice = (line: number | null) => openChoicePopover(view, line);
 
-Object.assign(window, { gutterMarks: { view, setPinned, openChoice, coarse } });
+const setLineNumbers = (on: boolean) =>
+  view.dispatch({ effects: lineNumbersClass.reconfigure(lineNumbersOn(on)) });
+
+const setBreakpoints = (lines: number[]) =>
+  setBreakpointStates(view, lines.map((line) => ({ line, verified: true })));
+
+const setChoices = (choices: { line: number; pinned: boolean }[]) =>
+  setChoiceMarkers(view, choices.map(({ line, pinned }) => choice(line, pinned)));
+
+const setCaret = (line: number) =>
+  view.dispatch({ selection: { anchor: view.state.doc.line(line).to } });
+
+const fold = (line: number) => {
+  const at = view.state.doc.line(line);
+  const range = foldable(view.state, at.from, at.to);
+  if (range) {
+    view.dispatch({ effects: foldEffect.of(range) });
+  }
+};
+
+const setDoc = (text: string) =>
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+
+Object.assign(window, {
+  gutterMarks: {
+    setDoc,
+    view,
+    setPinned,
+    openChoice,
+    coarse,
+    setLineNumbers,
+    setBreakpoints,
+    setChoices,
+    setCaret,
+    fold,
+  },
+});

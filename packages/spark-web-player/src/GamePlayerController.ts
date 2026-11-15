@@ -120,6 +120,7 @@ import { toResponseError } from "@impower/jsonrpc/src/common/utils/toResponseErr
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { ConnectPlayMessage } from "./main/workers/messages/ConnectPlayMessage";
 import { NO_BEAT_REFUSAL, PlayMessage } from "./main/workers/messages/PlayMessage";
+import { startRefusalAt } from "./main/utils/startRefusal";
 import { StartPlayMessage } from "./main/workers/messages/StartPlayMessage";
 import { StopPlayMessage } from "./main/workers/messages/StopPlayMessage";
 import { LastRunMessage } from "./main/workers/messages/LastRunMessage";
@@ -653,7 +654,13 @@ export class GamePlayerController {
     if (refusal) {
       this._resolveLoadingInitialProgram();
     }
-    this.updateBarView({ runRefusal: refusal });
+    this.syncRunRefusal();
+  }
+
+  protected syncRunRefusal() {
+    this.updateBarView({
+      runRefusal: this._playRefusal ?? this.startRefusal() ?? undefined,
+    });
   }
 
   getRelativeFilePath(path: string | undefined) {
@@ -697,7 +704,15 @@ export class GamePlayerController {
         playing: this._beatPlay != null,
         refusal: this._beatRefusal,
       },
+      startRefusal: this.startRefusal(),
     };
+  }
+
+  protected startRefusal(): string | null {
+    const startFrom = this._options?.startFrom;
+    return this._program && startFrom
+      ? startRefusalAt(this._program, startFrom)
+      : null;
   }
 
   private publishGameState() {
@@ -705,6 +720,7 @@ export class GamePlayerController {
       this.getGameState(),
     );
     this.updateBar(reducePlayerBar(this._bar, notification));
+    this.syncRunRefusal();
     sendProtocolMessage(notification, this.host);
   }
 

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
+import { edgeTreatment } from "../../../test/fadeEdge";
 import { WHEEL_ROW, WheelPicker, WheelSheet, wheelIndexAt, type WheelOption } from "./WheelPicker";
 
 const OPTIONS: WheelOption[] = [
@@ -138,9 +139,8 @@ describe("WheelPicker", () => {
 describe("WheelSheet", () => {
   const panelHost = () => {
     const frame = document.body.appendChild(document.createElement("div"));
-    const zoom = frame.appendChild(document.createElement("div"));
-    zoom.setAttribute("data-zoom-frame", "");
-    return { frame, zoom, container: { current: frame } };
+    const pinned = frame.appendChild(document.createElement("div"));
+    return { frame, pinned, container: { current: frame } };
   };
 
   it("opens across the foot of its container on its wheel, previews while spinning, and chooses with Done", async () => {
@@ -238,10 +238,13 @@ describe("WheelSheet", () => {
     expect(sheet.querySelector("[data-wheel-room]")!.className.split(" ")).toEqual(expect.arrayContaining(["pt-1.5", "pb-2.5"]));
   });
 
-  it("cancels with Cancel, Escape or a tap outside it, but not a tap on the picture's zoom frame", async () => {
-    const { zoom, container } = panelHost();
+  it("cancels with Cancel, Escape or a tap outside it, but not a tap inside its keepClear element", async () => {
+    const { pinned, container } = panelHost();
+    const zoom = pinned.appendChild(document.createElement("button"));
     const cancelled = vi.fn();
-    await mount(<WheelSheet container={container} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={cancelled} />);
+    await mount(
+      <WheelSheet container={container} keepClear={{ current: pinned }} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={cancelled} />,
+    );
     const cancel = Array.from(document.querySelectorAll("button")).find((button) => button.textContent === "Cancel")!;
     await act(async () => cancel.click());
     await act(async () => {
@@ -306,5 +309,17 @@ describe("WheelSheet", () => {
     expect(document.activeElement?.getAttribute("role")).toBe("listbox");
     await act(async () => render(sheet(false), host!));
     expect(document.activeElement).toBe(opener);
+  });
+});
+
+describe("WheelSheet edge", () => {
+  it("fades a long title at its edge instead of cutting it to an ellipsis", async () => {
+    const frame = document.body.appendChild(document.createElement("div"));
+    frame.appendChild(document.createElement("div")).setAttribute("data-zoom-frame", "");
+    const container = { current: frame };
+    await mount(<WheelSheet container={container} open title="A very long attribute group name" options={OPTIONS} value="" onChoose={() => {}} onCancel={() => {}} />);
+    const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
+    const title = document.getElementById(dialog.getAttribute("aria-labelledby")!)!;
+    expect(await edgeTreatment([title])).toEqual([{ text: title.textContent, masked: true, ellipsis: false }]);
   });
 });

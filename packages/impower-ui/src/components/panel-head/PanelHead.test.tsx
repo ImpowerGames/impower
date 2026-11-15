@@ -1,6 +1,7 @@
 import { render, type ComponentChild } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
+import { edgeTreatment } from "../../../test/fadeEdge";
 import PanelHead, { panelHeadTitleVariants } from "./PanelHead";
 
 let host: HTMLDivElement | undefined;
@@ -66,4 +67,16 @@ describe("PanelHead", () => {
       expect(shared).toContain("text-ink");
     },
   );
+});
+
+describe("PanelHead edge", () => {
+  it("fades a long title and subtitle at their edge instead of cutting them to an ellipsis", async () => {
+    const head = await mount(<PanelHead title="a very long backdrop name that runs off" subtitle="Image · PNG · backdrops/harbor/night" />);
+    const title = head.querySelector("h2")!;
+    const subtitle = head.querySelector("small")!;
+    expect(await edgeTreatment([title, subtitle])).toEqual([
+      { text: title.textContent, masked: true, ellipsis: false },
+      { text: subtitle.textContent, masked: true, ellipsis: false },
+    ]);
+  });
 });

@@ -75,6 +75,7 @@ import { PlayableSaveMessage } from "./messages/PlayableSaveMessage";
 import { SaveListingMessage } from "./messages/SaveListingMessage";
 import { SaveStartingValuesMessage } from "./messages/SaveStartingValuesMessage";
 import { putAtStartPoint } from "./putAtStartPoint";
+import { spansHold, startRefusalAt } from "../utils/startRefusal";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import {
   RouteSearchLog,
@@ -711,16 +712,19 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (params.save !== undefined) {
       return playSave(game, program, params.save);
     }
-    const start = params.startFrom
-      ? startPoint(program, params.startFrom, "first")
-      : undefined;
-    if (params.startFrom && !start) {
+    const refusal = params.startFrom
+      ? startRefusalAt(program, params.startFrom)
+      : null;
+    if (refusal) {
       return {
         built: true,
         compiled: isRunnableProgram(program),
-        refusal: OUTSIDE_EVERY_SCENE_REFUSAL,
+        refusal,
       };
     }
+    const start = params.startFrom
+      ? startPoint(program, params.startFrom, "first")
+      : undefined;
     const route: RouteReport = start
       ? routeTo(game, entry, start.point, start.beat)
       : {};
@@ -802,14 +806,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     spansHold(program.sceneSpans, point)
       ? startPointInScene(program, point, beat)
       : undefined;
-
-  const spansHold = (
-    spans: { [uri: string]: [number, number][] } | undefined,
-    point: StartPoint,
-  ) =>
-    (spans?.[point.file] ?? []).some(
-      ([first, last]) => first <= point.line && point.line <= last,
-    );
 
   let lastScenePoint: { scene: string; offset: number } | undefined;
 
@@ -915,7 +911,10 @@ export function installPlayerWorker(connection: MessageConnection) {
         return startPointInScene(program, { file: point.file, line: first[1] }, beat);
       }
     }
-    return lineAbove(point.line - 1, -1, []) ?? { point, beat };
+    const scene = (program.sceneSpans?.[point.file] ?? []).find(
+      ([header, last]) => header <= point.line && point.line <= last,
+    );
+    return lineAbove(point.line - 1, scene ? scene[0] - 1 : -1, []) ?? { point, beat };
   };
 
   const stopPlay = (params: StopPlayParams): StopPlayResult => {
