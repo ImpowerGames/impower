@@ -97,6 +97,30 @@ describe("the speaker a cue names with `as` in the editor (#2283)", () => {
     expect(characterLabels(at.labels)).toEqual(["bunny", "raffles"]);
   });
 
+  test.each([
+    ["a cue", "  ??? as r@1affles:\n", "  ??? as raffles:"],
+    ["a cue with a parenthetical and a position", "  ??? as r@1affles (O.S.) [<]:\n", "  ??? as raffles (O.S.) [<]:"],
+  ])("completion inside the speaker of %s replaces the whole speaker", (_label, cue, accepted) => {
+    const marked = SOURCE.replace("  ??? as raffles:\n", cue);
+    const at = complete(marked, { program: compileProject(SOURCE) });
+    const item = at.items.find((i) => i.label === "raffles") as any;
+    const line = marked.split("\n").findIndex((l) => l.includes("@1"));
+    const written = marked.split("\n")[line]!.replace("@1", "");
+    const { start, end } = item.textEdit.range;
+    expect(start.line === line && end.line === line).toBe(true);
+    expect(written.slice(0, start.character) + item.textEdit.newText + written.slice(end.character)).toBe(accepted);
+  });
+
+  test("completion at the end of a cue being typed replaces the typed part of the speaker and adds the colon", () => {
+    const marked = SOURCE.replace("  ??? as raffles:\n    You don't remember me?\n", "  ??? as raf@1\n");
+    const at = complete(marked, { program: compileProject(SOURCE) });
+    const item = at.items.find((i) => i.label === "raffles") as any;
+    const line = marked.split("\n").findIndex((l) => l.includes("@1"));
+    const written = marked.split("\n")[line]!.replace("@1", "");
+    const { start, end } = item.textEdit.range;
+    expect(written.slice(0, start.character) + item.textEdit.newText + written.slice(end.character)).toBe("  ??? as raffles: ");
+  });
+
   const AT_PART_SOURCE = `define raffles@shy as character with\nend\n\n${SOURCE}`;
 
   test.each([

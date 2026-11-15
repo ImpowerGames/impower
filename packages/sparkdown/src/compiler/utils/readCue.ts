@@ -31,13 +31,20 @@ const PARENTHETICAL = new RegExp(`^(${WS})([(]${WS}*[^()\\r\\n]*?${WS}*[)])`);
 const POSITION = new RegExp(`^(${WS}\\[${WS}*)(.*?)${WS}*\\]`);
 
 const SPEAKER_BEING_WRITTEN = new RegExp(
-  `^(.*[^\\s])${WS}+as${WS}+(?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]*)*)?$`,
+  `^(.*[^\\s])${WS}+as${WS}+((?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]*)*)?)$`,
 );
+
+const SPEAKER_REST = /^[a-zA-Z0-9_@]*/;
 
 const part = (text: string, from: number): CuePart => ({ text, from, to: from + text.length });
 
-export function shownNameBeforeSpeaker(cue: string): string | undefined {
-  return SPEAKER_BEING_WRITTEN.exec(cue)?.[1];
+export function readSpeakerBeingWritten(
+  before: string,
+  after: string,
+): { name: string; typed: string; rest: string } | undefined {
+  const match = SPEAKER_BEING_WRITTEN.exec(before);
+  if (!match) return undefined;
+  return { name: match[1]!, typed: match[2]!, rest: SPEAKER_REST.exec(after)![0] };
 }
 
 export function readCue(cue: string): CueReading {

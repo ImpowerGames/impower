@@ -34,7 +34,7 @@ import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
 import { DIRECTIVE_CLOSERS, readDirective, type DirectiveReading } from "@impower/sparkdown/src/compiler/utils/readDirective";
-import { shownNameBeforeSpeaker } from "@impower/sparkdown/src/compiler/utils/readCue";
+import { readSpeakerBeingWritten } from "@impower/sparkdown/src/compiler/utils/readCue";
 import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -116,7 +116,6 @@ const MOVIE_CLAUSE_KEYWORDS = ["loop", "once", "mute"];
 const VALUE_CLAUSE_KEYWORDS: readonly string[] = ASSET_VALUE_CLAUSE_WORDS;
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
 const VIDEO_TYPES = ["video"];
-const LOGIC_KEYWORDS = ["temp", "return"];
 const FLOW_KEYWORDS = ["DONE", "END"];
 
 const INSERT_TEXT_CURSOR_REGEX = /[$]\d+/g;
@@ -439,13 +438,14 @@ const addCharacterCompletions = (
 const addSpeakerCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
+  range: Range,
   insertTextSuffix = "",
 ) => {
   for (const name of Object.keys(program?.context?.["character"] || {})) {
     if (name.startsWith("$") || completions.has(name)) continue;
     completions.set(name, {
       label: name,
-      insertText: name + insertTextSuffix,
+      textEdit: { range, newText: name + insertTextSuffix },
       labelDetails: { description: "character" },
       kind: CompletionItemKind.Constant,
     });
@@ -1709,13 +1709,21 @@ const completionsAt = (
         "InlineDialogue_begin",
         leftStack,
       );
-    if (
+    const written =
       dialogueCharacterNode &&
-      shownNameBeforeSpeaker(
+      readSpeakerBeingWritten(
         read(dialogueCharacterNode.from, documentCursorOffset),
-      ) !== undefined
-    ) {
-      addSpeakerCompletions(completions, program);
+        read(documentCursorOffset, dialogueCharacterNode.to),
+      );
+    if (written) {
+      addSpeakerCompletions(
+        completions,
+        program,
+        document.range(
+          documentCursorOffset - written.typed.length,
+          documentCursorOffset + written.rest.length,
+        ),
+      );
     } else if (isCursorAfterNodeText(dialogueCharacterNode)) {
       addCharacterCompletions(
         completions,
@@ -2585,7 +2593,7 @@ const completionsAt = (
     ) {
       const contentNode = leftStack.find((n) => n.name === "ImplicitAction");
       const text = getNodeText(contentNode).trimStart();
-      const shown = shownNameBeforeSpeaker(text);
+      const written = readSpeakerBeingWritten(text, "");
       if (isCursorAfterNodeText(contentNode)) {
         if (text === "@") {
           addScreenElementReferenceCompletions(
@@ -2601,8 +2609,16 @@ const completionsAt = (
           addSnippet(completions, "heading", "$:", ": ");
         } else if (text === "%") {
           addSnippet(completions, "transitional", "%:", ": ");
-        } else if (shown !== undefined && cueBeingTyped(shown, program)) {
-          addSpeakerCompletions(completions, program, ": ");
+        } else if (written && cueBeingTyped(written.name, program)) {
+          addSpeakerCompletions(
+            completions,
+            program,
+            document.range(
+              documentCursorOffset - written.typed.length,
+              documentCursorOffset,
+            ),
+            ": ",
+          );
         } else {
           addCharacterCompletions(
             completions,
