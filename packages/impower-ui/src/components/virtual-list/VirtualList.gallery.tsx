@@ -11,6 +11,7 @@ const ITEMS = Array.from({ length: 1000 }, (_, i) => `script_${i + 1}.sd`);
 const SIZES: Record<VirtualListSize, string> = {
   default: "Default rows, 1000 items: only the rows in view are mounted",
   compact: "Compact rows, 1000 items",
+  outline: "Outline rows, 1000 items: 48px rows 2px apart",
 };
 
 function VirtualListDemo() {
