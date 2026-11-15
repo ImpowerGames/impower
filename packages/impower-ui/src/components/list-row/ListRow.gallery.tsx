@@ -21,6 +21,7 @@ const SIZES: Record<ListRowSize, string> = {
   block: "Block: 64px with a 12px help line, the Add panel's rows",
   dense: "Dense: 52px with an 18px glyph, the asset inspector's uses list, its gap 10px below desktop",
   file: "File: 52px with an 18px glyph in a 28px column and 13px names, the asset inspector's Files list",
+  outline: "Outline: 48px with a 17px glyph and 13px labels below desktop, 14px on desktop, the Scripts page's In this script rows",
 };
 
 const menu = (
