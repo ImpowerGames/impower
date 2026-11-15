@@ -1,26 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-  continueShowedSomething,
-  displayRouting,
-  makeRuntimeStoryFromSource,
-} from "./runtimeTestHarness";
-import type { TestStory } from "../engineUnderTest";
-
-function continueBeats(
-  story: TestStory,
-): { text: string; routing: string | null }[] {
-  const beats: { text: string; routing: string | null }[] = [];
-  while (story.canContinue) {
-    const text = story.Continue() ?? "";
-    if (!continueShowedSomething(story)) continue;
-    const routed = displayRouting(story).find((r) => r.target);
-    beats.push({
-      text,
-      routing: routed ? `${routed.target}:${routed.character ?? ""}` : null,
-    });
-  }
-  return beats;
-}
+import { continueBeats, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 describe("a block dialogue opened right after an alternator arm's bar", () => {
   test("plays its lines as the speaker's dialogue, as the same dialogue in an if branch does", () => {
