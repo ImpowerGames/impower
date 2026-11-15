@@ -1,6 +1,7 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, expect, it, vi } from "vitest";
+import { edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
 
 const batches = vi.hoisted(() => ({ value: [] as unknown[] }));
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
@@ -38,4 +39,16 @@ it("names a deleted stacked picture once, not by the count of its files", async 
   const text = document.querySelector('[role="dialog"]')!.textContent ?? "";
   expect(text).not.toContain("3 items");
   expect(text.match(/2 items/g)).toHaveLength(2);
+});
+
+it("fades its title at the edge instead of cutting it to an ellipsis", async () => {
+  batches.value = [{ batchId: "1", deletedAt: Date.now(), entries: [entry("Assets/Images/Portraits/imani.png")] }];
+  workspace.current = { ...workspace.current, project: { ...workspace.current.project, id: "p" } };
+  workspace.trashOpen.value = true;
+  host = document.body.appendChild(document.createElement("div"));
+  await act(async () => render(h(TrashPanel, {}), host!));
+  await vi.waitFor(() => expect(document.body.textContent).toContain("imani"));
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+  const title = document.getElementById(dialog.getAttribute("aria-labelledby")!)!;
+  expect(await edgeTreatment([title])).toEqual([{ text: title.textContent, masked: true, ellipsis: false }]);
 });

@@ -1,6 +1,7 @@
 import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
 
 const layout = vi.hoisted(() => ({
   value: "desktop" as "phone" | "compact" | "desktop",
@@ -539,6 +540,16 @@ describe("image folders as tiles", () => {
     await click(all<HTMLElement>('button[aria-label^="Open folder Backdrops"]')[0]);
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["landscape"]);
     expect(tiles()[0]!.querySelector("img")!.className.split(" ")).toEqual(expect.arrayContaining(["size-full", "object-contain"]));
+  });
+
+  it("fades a stack's name beside its variants chip at the edge instead of cutting it to an ellipsis", async () => {
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images/Portraits" }, assetsLayouts: { "Assets/Images/Portraits": "rows" } },
+    };
+    await mount();
+    const name = host!.querySelector("[data-variants-chip]")!.previousElementSibling!;
+    expect(await edgeTreatment([name])).toEqual([{ text: "imani", masked: true, ellipsis: false }]);
   });
 
   it("offers the folder's layouts from a menu showing the current one's icon, and keeps a choice for that folder only, with the chip beside the name", async () => {

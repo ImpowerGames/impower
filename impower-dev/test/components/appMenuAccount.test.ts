@@ -1,6 +1,7 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { byText, edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
 
 const actions = vi.hoisted(() => ({
   signInToGoogleDrive: vi.fn(),
@@ -128,5 +129,23 @@ describe("the app menu's Google Drive items", () => {
     await mountOpen("drive-file", "synced", "Sign out");
     await select("Sign out");
     await waitForCall("signOutOfGoogleDrive", actions.signOutOfGoogleDrive);
+  });
+});
+
+describe("the app menu's edge", () => {
+  it("fades the project name, the account name and its status at their edge instead of cutting them to an ellipsis", async () => {
+    workspace.account.value = account;
+    await mountOpen("drive-file", "synced", "Open a project from Drive");
+    await waitFor("account row", () => byText(document.body, "Ada Writer"));
+    const lines = [
+      host!.querySelector<HTMLElement>("button > span:nth-child(2)")!,
+      document.querySelector<HTMLElement>('[aria-label="Close app menu"]')!.previousElementSibling!,
+      byText(document.body, "Ada Writer")!,
+      byText(document.body, "Saved to Google Drive just now")!,
+    ];
+    expect(lines.every(Boolean)).toBe(true);
+    expect(await edgeTreatment(lines)).toEqual(
+      lines.map((line) => ({ text: line.textContent, masked: true, ellipsis: false })),
+    );
   });
 });

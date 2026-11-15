@@ -219,7 +219,7 @@ export default function TrashPanel() {
     >
       <div class="flex flex-none flex-row items-center gap-2 px-4 py-3">
         <TrashIcon class="size-5 flex-none text-foreground/70" />
-        <DialogTitle class="min-w-0 flex-1 truncate">
+        <DialogTitle class="min-w-0 flex-1 [--fade:20px] fade-edge">
           Recycle bin{count > 0 ? ` (${count})` : ""}
         </DialogTitle>
         {count > 0 && (

@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import { useToastLayer } from "../../utils/toastLayer";
 import { FileIcon, PencilIcon } from "../icon/icons.generated";
@@ -85,10 +85,7 @@ export default function PreviewStrip({
   collapseRef.current = onCollapse;
   const expandedRef = useRef(expanded);
   expandedRef.current = expanded;
-  const [live, setLive] = useState(false);
   const toastLayer = useToastLayer(expanded);
-
-  useEffect(() => setLive(true), []);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -183,7 +180,7 @@ export default function PreviewStrip({
         >
           <b
             class={cn(
-              "block w-full truncate text-[10px]/[1.4] font-bold tracking-[0.06em] text-ink",
+              "block w-full [--fade:20px] fade-edge text-[10px]/[1.4] font-bold tracking-[0.06em] text-ink",
               shown.length > 1 ? "mb-0" : "mb-[2px]",
             )}
           >
@@ -220,7 +217,7 @@ export default function PreviewStrip({
           name="from this line"
           size="strip"
           ring="accent"
-          disabled={playDisabled || !live}
+          disabled={playDisabled}
           onClick={onPlay}
         />
       </div>

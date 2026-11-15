@@ -1,6 +1,7 @@
 import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
 
 const layout = vi.hoisted(() => ({
   value: "desktop" as "phone" | "compact" | "desktop",
@@ -1168,6 +1169,18 @@ describe("the Variants tester and the Files section", () => {
     expect(reference()).toBe("[[imani@night:happy]]");
     await click(region()!.querySelector<HTMLElement>("[data-variant-reset]"));
     expect(reference()).toBe("[[imani]]");
+  });
+
+  it("fades each group's name and its chosen option at their edge instead of cutting them to an ellipsis", async () => {
+    await mount();
+    await open("imani");
+    const cell = region()!.querySelectorAll<HTMLElement>("[data-variant-cell]")[1]!;
+    const name = cell.firstElementChild!;
+    const option = group("face").querySelector("span")!;
+    expect(await edgeTreatment([name, option])).toEqual([
+      { text: "Face", masked: true, ellipsis: false },
+      { text: option.textContent, masked: true, ellipsis: false },
+    ]);
   });
 
   it("puts each group's name above its menu, and shows the count in the header until a choice, then Reset", async () => {

@@ -785,7 +785,7 @@ function AssetsBrowser() {
         label={
           row.variantCount ? (
             <span class="flex min-w-0 items-center gap-[7px]">
-              <span class="min-w-0 truncate">{row.name}</span>
+              <span class="min-w-0 [--fade:20px] fade-edge">{row.name}</span>
               <VariantsChip count={row.variantCount} />
             </span>
           ) : (

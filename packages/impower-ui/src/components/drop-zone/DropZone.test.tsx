@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
+import { byText, edgeTreatment } from "../../../test/fadeEdge";
 import DropZone from "./DropZone";
 
 let host: HTMLDivElement | undefined;
@@ -37,5 +38,14 @@ describe("DropZone", () => {
     expect(zone.querySelector("strong")!.textContent).toBe("Drop to add to Assets");
     expect(zone.querySelector("strong + span")!.textContent).toBe("Each file goes to the folder of its type.");
     expect(zone.querySelector("svg")).toBeNull();
+  });
+});
+
+describe("DropZone edge", () => {
+  it("fades a long pane title at its edge instead of cutting it to an ellipsis", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(<DropZone title="Drop to add to A Very Long Folder Name That Runs Off" />, host!));
+    const title = byText(host, "Drop to add to A Very Long Folder Name That Runs Off")!;
+    expect(await edgeTreatment([title])).toEqual([{ text: title.textContent, masked: true, ellipsis: false }]);
   });
 });

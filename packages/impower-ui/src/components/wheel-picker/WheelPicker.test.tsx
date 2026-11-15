@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
+import { edgeTreatment } from "../../../test/fadeEdge";
 import { WHEEL_ROW, WheelPicker, WheelSheet, wheelIndexAt, type WheelOption } from "./WheelPicker";
 
 const OPTIONS: WheelOption[] = [
@@ -308,5 +309,17 @@ describe("WheelSheet", () => {
     expect(document.activeElement?.getAttribute("role")).toBe("listbox");
     await act(async () => render(sheet(false), host!));
     expect(document.activeElement).toBe(opener);
+  });
+});
+
+describe("WheelSheet edge", () => {
+  it("fades a long title at its edge instead of cutting it to an ellipsis", async () => {
+    const frame = document.body.appendChild(document.createElement("div"));
+    frame.appendChild(document.createElement("div")).setAttribute("data-zoom-frame", "");
+    const container = { current: frame };
+    await mount(<WheelSheet container={container} open title="A very long attribute group name" options={OPTIONS} value="" onChoose={() => {}} onCancel={() => {}} />);
+    const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
+    const title = document.getElementById(dialog.getAttribute("aria-labelledby")!)!;
+    expect(await edgeTreatment([title])).toEqual([{ text: title.textContent, masked: true, ellipsis: false }]);
   });
 });
