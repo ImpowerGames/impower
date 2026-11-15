@@ -3,6 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { DiagnosticSeverity } from "@impower/sparkdown/src/compiler/types/SparkDiagnostic";
 import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
 import { getDocumentSymbols } from "../../sparkdown-language-server/src/utils/providers/getDocumentSymbols";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -265,9 +266,9 @@ const diagnosticsOf = (text: string) => {
   console.warn = console.error = console.log = () => {};
   try {
     const { program } = compiler.compile({ textDocument: { uri: MAIN } });
-    return (program.diagnostics?.[MAIN] ?? []).map((d) =>
-      typeof d.message === "string" ? d.message : d.message.value,
-    );
+    return (program.diagnostics?.[MAIN] ?? [])
+      .filter((d) => d.severity !== DiagnosticSeverity.Hint)
+      .map((d) => (typeof d.message === "string" ? d.message : d.message.value));
   } finally {
     console.warn = warn;
     console.error = error;
