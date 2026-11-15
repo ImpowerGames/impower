@@ -32,10 +32,12 @@ const takesEditingAway = (target: EventTarget | null) => {
 export default function WorkspaceShell({
   phone,
   strip,
+  scriptOnly = false,
   children,
 }: {
   phone: boolean;
   strip?: ComponentChildren;
+  scriptOnly?: boolean;
   children: ComponentChildren;
 }) {
   const compact = useLayout() === "compact";
@@ -114,6 +116,7 @@ export default function WorkspaceShell({
       data-phone-shell={phone ? "" : undefined}
       data-naming={phone ? (naming ?? undefined) : undefined}
       data-editing={phone && editing ? "" : undefined}
+      data-script-only={scriptOnly ? "" : undefined}
       class="flex h-full w-full min-h-0 flex-col"
     >
       <SidebarLayout
@@ -126,16 +129,18 @@ export default function WorkspaceShell({
         onWidthChange={onWidthChange}
         resizeLabel="Resize sidebar"
         header={
-          phone ? (
-            <>
-              <PhoneTitleBar scrolled={!writing && scrolled} />
-              <div data-phone-strip="" hidden={!onStory} class="flex-none">
-                {strip}
-              </div>
-            </>
-          ) : (
-            <TopBar />
-          )
+          <div hidden={scriptOnly}>
+            {phone ? (
+              <>
+                <PhoneTitleBar scrolled={!writing && scrolled} />
+                <div data-phone-strip="" hidden={!onStory} class="flex-none">
+                  {strip}
+                </div>
+              </>
+            ) : (
+              <TopBar />
+            )}
+          </div>
         }
         sidebar={phone ? null : <ShellRail />}
         sidebarHidden={phone}
