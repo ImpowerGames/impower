@@ -16,7 +16,12 @@ vi.mock("../../src/modules/spark-editor/components/logic/Logic", () => ({
         scripts.unmounted += 1;
       };
     }, []);
-    return h("div", { "data-route": "logic" });
+    return h("div", { "data-route": "logic" }, [
+      h("input", { "data-name-field": "script", value: "Main" }),
+      h("div", { class: "cm-editor" }, [
+        h("div", { class: "cm-content", contentEditable: true, tabIndex: 0 }),
+      ]),
+    ]);
   },
 }));
 vi.mock("../../src/modules/spark-editor/components/assets/Assets", () => ({
@@ -156,6 +161,13 @@ const shown = (element: Element | null) => {
   return !!element;
 };
 
+const focus = async (selector: string) => {
+  await act(async () => {
+    host!.querySelector<HTMLElement>(selector)!.focus();
+  });
+  await settle();
+};
+
 const room = () => ({
   scriptOnly: host!.querySelector("[data-script-only]") !== null,
   topBar: shown(host!.querySelector("header")),
@@ -179,6 +191,7 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
       script: true,
     });
 
+    await focus(".cm-content");
     await showKeyboard(85);
     expect(room()).toEqual({
       scriptOnly: true,
@@ -203,6 +216,7 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
 
   it("keeps the top bar and strip when the page above the keyboard holds the strip's reserve", async () => {
     await mount();
+    await focus(".cm-content");
     await showKeyboard(240);
     expect(room()).toEqual({
       scriptOnly: false,
@@ -211,5 +225,24 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
       resizer: true,
       script: true,
     });
+  });
+
+  it("keeps the header rows while the keyboard is typing into a name field instead of the script", async () => {
+    await mount();
+    await focus("[data-name-field]");
+    await showKeyboard(85);
+    expect(room()).toEqual({
+      scriptOnly: false,
+      topBar: true,
+      strip: true,
+      resizer: true,
+      script: true,
+    });
+
+    await focus(".cm-content");
+    expect(room().scriptOnly).toBe(true);
+
+    await focus("[data-name-field]");
+    expect(room().scriptOnly).toBe(false);
   });
 });

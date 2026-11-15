@@ -6,6 +6,7 @@ import {
 } from "@impower/impower-ui/layout";
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
+import { useScriptFocus } from "../../utils/useScriptFocus";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
 import { InspectorDock, InspectorDockProvider } from "../asset-inspector";
@@ -37,8 +38,11 @@ export default function MainWindow(_props: MainWindowProps) {
   useFocusRule();
   useFindShortcut();
   const keyboard = useKeyboardFit(useCoarsePointer());
+  const writing = useScriptFocus();
   const scriptOnly =
-    keyboard.open && keyboard.visibleHeight < STRIP_HEIGHT.reserve;
+    writing &&
+    keyboard.open &&
+    keyboard.visibleHeight < STRIP_HEIGHT.reserve;
   const layout = useLayout();
   const isSSR = typeof window === "undefined";
   const desktop = !isSSR && layout === "desktop";
