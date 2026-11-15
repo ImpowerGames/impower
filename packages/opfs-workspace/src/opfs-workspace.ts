@@ -2745,15 +2745,9 @@ const renameStoredFile = async (
     if (!source.move || (await findFileHandle(destinationUri))) {
       return undefined;
     }
-    const storage = await navigator.storage.getDirectory();
-    const sourcePath = getPathFromUri(sourceUri);
     const destinationPath = getPathFromUri(destinationUri);
-    const sourceDirectory = await getDirectoryHandleFromPath(
-      storage,
-      getParentPath(sourcePath),
-    );
     const directory = await getDirectoryHandleFromPath(
-      storage,
+      await navigator.storage.getDirectory(),
       getParentPath(destinationPath),
     );
     const stored = await source.getFile();
@@ -2771,17 +2765,6 @@ const renameStoredFile = async (
       return undefined;
     }
     await source.move(directory, getFileName(destinationPath));
-    if (hasQueuedWrites(sourceUri)) {
-      try {
-        await source.move(sourceDirectory, getFileName(sourcePath));
-        return undefined;
-      } catch (err) {
-        console.warn(
-          "opfs-workspace: could not undo a move a save was waiting on",
-          err,
-        );
-      }
-    }
     const written = withAncestors(destinationUri);
     if (writeCommit) {
       for (const uri of written) {
