@@ -46,6 +46,12 @@ import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protoc
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { startingDisplayModeRequest } from "../utils/previewStartingMode";
 import { simulatedColorSchemeRequest } from "../utils/previewColorScheme";
+import {
+  autoPlayBeatsRequest,
+  playAudioRequest,
+  playBeatRequest,
+} from "../utils/previewBeatPlayback";
+import { isSystemMotionReport } from "../utils/gamePreviewWebview";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
@@ -191,6 +197,32 @@ export class SparkdownPreviewGamePanelManager {
     this._panel?.webview.postMessage(simulatedColorSchemeRequest());
   }
 
+  protected _systemReducesMotion = false;
+
+  protected _beatPlaybackSent: { autoPlayBeats?: boolean; playAudio?: boolean } =
+    {};
+
+  notifyChangedMotion() {
+    const request = autoPlayBeatsRequest(this._systemReducesMotion);
+    if (request.params.enabled !== this._beatPlaybackSent.autoPlayBeats) {
+      this._beatPlaybackSent.autoPlayBeats = request.params.enabled;
+      this._panel?.webview.postMessage(request);
+    }
+  }
+
+  protected sendBeatPlayback() {
+    this.notifyChangedMotion();
+    const request = playAudioRequest();
+    if (request.params.enabled !== this._beatPlaybackSent.playAudio) {
+      this._beatPlaybackSent.playAudio = request.params.enabled;
+      this._panel?.webview.postMessage(request);
+    }
+  }
+
+  replayBeat() {
+    this._panel?.webview.postMessage(playBeatRequest());
+  }
+
   protected async answerRequest<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     id: string | number,
@@ -272,6 +304,11 @@ export class SparkdownPreviewGamePanelManager {
         this._initializations += 1;
         panel.webview.postMessage({});
       }
+      if (isSystemMotionReport(message)) {
+        this._systemReducesMotion = message.systemReducesMotion;
+        this.notifyChangedMotion();
+        return;
+      }
       if (
         ConnectedPreviewMessage.type.isNotification(message) &&
         message.params.type === "game"
@@ -290,6 +327,8 @@ export class SparkdownPreviewGamePanelManager {
         this.sendRoutePins(SparkdownRoutePinsManager.instance.pins);
         this.sendStartingDisplayMode();
         this.notifyChangedColorTheme();
+        this._beatPlaybackSent = {};
+        this.sendBeatPlayback();
         try {
           await this.connectAndInitializeWebview(document, canvasHeight);
         } catch (e) {
@@ -690,6 +729,7 @@ export class SparkdownPreviewGamePanelManager {
       settings,
     });
     this.sendStartingDisplayMode();
+    this.sendBeatPlayback();
   }
 
   async notifySelectedEditor(
@@ -938,7 +978,7 @@ export class SparkdownPreviewGamePanelManager {
         </head>
         <body>
           <div class="loading" role="progressbar" aria-busy="true" aria-label="Loading Game Preview"></div>
-          <spark-web-player toolbar run-button></spark-web-player>
+          <spark-web-player toolbar run-button replay-button></spark-web-player>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
       </html>

@@ -558,6 +558,12 @@
         "category": "Sparkdown"
       },
       {
+        "command": "sparkdown.game.replayBeat",
+        "title": "Replay Beat",
+        "category": "Sparkdown",
+        "icon": "$(play-circle)"
+      },
+      {
         "command": "sparkdown.previewScreen",
         "when": "editorLangId == screen",
         "title": "Preview Screen",
@@ -633,6 +639,12 @@
         "when": "editorLangId == sparkdown",
         "key": "f5",
         "mac": "f5"
+      },
+      {
+        "command": "sparkdown.game.replayBeat",
+        "when": "(editorTextFocus && editorLangId == sparkdown && !findWidgetVisible) || activeWebviewPanelId == 'sparkdown-preview-game'",
+        "key": "ctrl+alt+enter",
+        "mac": "cmd+alt+enter"
       },
       {
         "command": "sparkdown.exportpdf",
@@ -774,6 +786,16 @@
             "type": "boolean",
             "default": true,
             "description": "Synchronize game preview with editor's cursor position"
+          },
+          "sparkdown.game.previewAutoPlayBeats": {
+            "type": "boolean",
+            "default": false,
+            "description": "When the caret lands on a line, its beat plays once, as it would in the game. Needs the game preview to follow the cursor, and stays off while VS Code reduces motion."
+          },
+          "sparkdown.game.previewPlayAudio": {
+            "type": "boolean",
+            "default": false,
+            "description": "Beats played in the preview play their sound, as Play From Here would. The Game Preview can stay silent until you first click or press a key in it."
           },
           "sparkdown.game.previewStartingMode": {
             "type": "string",

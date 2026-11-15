@@ -6,6 +6,7 @@ import { SparkdownStartingValuesManager } from "../managers/SparkdownStartingVal
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
+import { REPLAY_BEAT_COMMAND } from "./previewBeatPlayback";
 import { setPreviewStartingMode } from "./previewStartingMode";
 
 export const activatePreviewGamePanel = async (
@@ -29,11 +30,16 @@ export const activatePreviewGamePanel = async (
       "sparkdown.game.playAsInteractiveFiction",
       () => setPreviewStartingMode("interactiveFiction"),
     ),
+    vscode.commands.registerCommand(REPLAY_BEAT_COMMAND, () =>
+      SparkdownPreviewGamePanelManager.instance.replayBeat(),
+    ),
   );
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((change) => {
       if (change.affectsConfiguration("sparkdown")) {
         SparkdownPreviewGamePanelManager.instance.notifyConfiguredWorkspace();
+      } else if (change.affectsConfiguration("workbench.reduceMotion")) {
+        SparkdownPreviewGamePanelManager.instance.notifyChangedMotion();
       }
     }),
   );

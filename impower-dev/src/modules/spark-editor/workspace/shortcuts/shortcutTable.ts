@@ -6,6 +6,7 @@ import {
   type EditorShortcutRowId,
   type ShortcutRow,
 } from "@impower/codemirror-vscode-lsp-client/src/shortcutTable";
+import { REPLAY_BEAT } from "@impower/spark-web-player/src/components/PlayerBar/replayBeat";
 
 export const APP_SHORTCUT_ROWS = [
   {
@@ -18,7 +19,7 @@ export const APP_SHORTCUT_ROWS = [
   {
     id: "replayBeat",
     group: "story",
-    name: "Replay beat",
+    name: REPLAY_BEAT,
     detail: "Play the beat the stopped preview shows, once, and end on its still.",
     keys: "Mod+Alt+Enter",
   },
