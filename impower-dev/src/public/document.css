@@ -180,7 +180,7 @@ html {
   --navbar-display: none;
 }
 
-[data-script-only] .cm-editor .cm-status {
+[data-script-only] .sparkdown-script-editor-root .cm-status {
   display: none;
 }
 

@@ -3,7 +3,7 @@ import { focusedElement } from "./focusedElement";
 
 const scriptFocused = (): boolean =>
   typeof document !== "undefined" &&
-  !!focusedElement()?.closest?.(".cm-content");
+  !!focusedElement()?.closest?.(".sparkdown-script-editor-root .cm-content");
 
 export function useScriptFocus(): boolean {
   const [focused, setFocused] = useState(scriptFocused);

@@ -6,7 +6,17 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 const scripts = vi.hoisted(() => ({ mounted: 0, unmounted: 0 }));
 
 vi.mock("../../src/modules/spark-editor/components/preview/Preview", () => ({
-  default: () => h("div", { "data-player": "" }),
+  default: () =>
+    h("div", { "data-player": "" }, [
+      h("div", { class: "cm-editor" }, [
+        h("div", {
+          class: "cm-content",
+          "data-screenplay": "",
+          contentEditable: true,
+          tabIndex: 0,
+        }),
+      ]),
+    ]),
 }));
 vi.mock("../../src/modules/spark-editor/components/logic/Logic", () => ({
   default: function Logic() {
@@ -18,8 +28,15 @@ vi.mock("../../src/modules/spark-editor/components/logic/Logic", () => ({
     }, []);
     return h("div", { "data-route": "logic" }, [
       h("input", { "data-name-field": "script", value: "Main" }),
-      h("div", { class: "cm-editor" }, [
-        h("div", { class: "cm-content", contentEditable: true, tabIndex: 0 }),
+      h("div", { class: "sparkdown-script-editor-root" }, [
+        h("div", { class: "cm-editor" }, [
+          h("div", {
+            class: "cm-content",
+            "data-script": "",
+            contentEditable: true,
+            tabIndex: 0,
+          }),
+        ]),
       ]),
     ]);
   },
@@ -191,7 +208,7 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
       script: true,
     });
 
-    await focus(".cm-content");
+    await focus("[data-script]");
     await showKeyboard(85);
     expect(room()).toEqual({
       scriptOnly: true,
@@ -216,7 +233,7 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
 
   it("keeps the top bar and strip when the page above the keyboard holds the strip's reserve", async () => {
     await mount();
-    await focus(".cm-content");
+    await focus("[data-script]");
     await showKeyboard(240);
     expect(room()).toEqual({
       scriptOnly: false,
@@ -239,10 +256,23 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
       script: true,
     });
 
-    await focus(".cm-content");
+    await focus("[data-script]");
     expect(room().scriptOnly).toBe(true);
 
     await focus("[data-name-field]");
     expect(room().scriptOnly).toBe(false);
+  });
+
+  it("keeps the preview in view while the keyboard is open over the focused screenplay", async () => {
+    await mount();
+    await focus("[data-screenplay]");
+    await showKeyboard(85);
+    expect(room()).toEqual({
+      scriptOnly: false,
+      topBar: true,
+      strip: true,
+      resizer: true,
+      script: true,
+    });
   });
 });
