@@ -35,7 +35,7 @@ function RailIndexDemo() {
       </GalleryRow>
       <GalleryRow label="The index's 14px right padding gives up the stable scrollbar gutter, so its rows end 14px from the edge whether or not it scrolls: a short rail that scrolls beside a tall one that does not">
         <div class="flex gap-3">
-          {["h-48", "h-80"].map((height) => (
+          {["h-48", "h-[400px]"].map((height) => (
             <div key={height} class={`flex ${height} w-[232px] flex-col border border-solid border-edge bg-bg`}>
               <RailIndex title="Settings" label={`Settings sections, ${height}`} groups={GROUPS} current={current} onJump={setCurrent} />
             </div>
