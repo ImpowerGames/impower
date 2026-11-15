@@ -817,7 +817,7 @@ A speech morph plays beside the face's other morphs, each on its own clock, unde
 
 In the editor, the Game Preview plays morphs as soon as it shows a portrait.
 
-- While the preview is stopped, morphs play on their own clock; nothing in the story advances. Nothing types there, so a speech morph shows its rest.
+- While the preview is stopped, morphs play on their own clock; nothing in the story advances. Nothing types there, so a speech morph shows its rest, except while the preview plays a beat ([Playing a beat](PreviewingALine.md#playing-a-beat)): then the mouth flaps as the beat's letters type and rests when the beat ends.
 - During PLAY a speech morph flaps while its character speaks and rests between lines. After a load, a rewind or a restart the mouth rests until the next line speaks.
 - During PLAY they follow the story's clock: pausing the story freezes each morph on its frame, and stepping moves it.
 - Changing the expression of a character who is already on screen keeps the morph's place in its cycle. A different character, an edited morph, a restart or previewing another line starts it again from rest.
