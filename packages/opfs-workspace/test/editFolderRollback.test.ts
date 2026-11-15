@@ -302,6 +302,20 @@ it("makes another tab's save at a renamed path wait, then lands after the rollba
   expect(h.text("b.sd")).toBe("OTHER TAB SAVE");
 });
 
+it("makes another tab's save at a rename's old path wait, then lands after the rollback", async () => {
+  const { h, result, during } = await waitsForTheEdit(
+    { "a.sd": "ORIGINAL" },
+    [rename("a.sd", "b.sd")],
+    "a.sd",
+    (h) => writeMemoryFile(h.root, "local/a.sd", enc.encode("OTHER TAB SAVE")),
+    (h) => [h.text("a.sd"), h.text("b.sd")],
+  );
+  expect(during).toEqual(["ORIGINAL", undefined]);
+  expect(result.rollback).toMatchObject({ complete: true, failed: [], kept: [] });
+  expect(h.text("a.sd")).toBe("OTHER TAB SAVE");
+  expect(h.text("b.sd")).toBeUndefined();
+});
+
 it("makes another tab's save at a text-edited path wait, then lands after the rollback", async () => {
   const { h, result, during } = await waitsForTheEdit(
     { "main.sd": "ORIGINAL" },
