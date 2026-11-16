@@ -976,18 +976,21 @@ variables:
   # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
   # its own closer ends.
   CHOICE_START_TEXT_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_START_TEXT_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_START_TEXT_INTERPOLATION_STOP}})|(?![>])\]\]))
-  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_0.
-  CHOICE_START_TEXT_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_START_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_0; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_START_TEXT_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]|[{]){{CHOICE_START_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
   # its own closer ends.
   CHOICE_START_TEXT_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_START_TEXT_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_START_TEXT_INTERPOLATION_STOP}})|(?![>])\]=\]))
-  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_1.
-  CHOICE_START_TEXT_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_START_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_1; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_START_TEXT_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]|[{]){{CHOICE_START_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
   # its own closer ends.
   CHOICE_START_TEXT_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_START_TEXT_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_START_TEXT_INTERPOLATION_STOP}})|(?![>])\]==\]))
-  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_2.
-  CHOICE_START_TEXT_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_START_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_2; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_START_TEXT_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]|[{]){{CHOICE_START_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_TEXT_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_START_TEXT_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_START_TEXT_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_START_TEXT_INTERPOLATION_STOP}})))
@@ -1023,18 +1026,21 @@ variables:
   # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
   # its own closer ends.
   CHOICE_START_AUDIO_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_START_AUDIO_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_START_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]\]))
-  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_0.
-  CHOICE_START_AUDIO_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_0; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_START_AUDIO_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]|[{]){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
   # its own closer ends.
   CHOICE_START_AUDIO_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_START_AUDIO_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_START_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]=\]))
-  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_1.
-  CHOICE_START_AUDIO_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_1; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_START_AUDIO_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]|[{]){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
   # its own closer ends.
   CHOICE_START_AUDIO_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_START_AUDIO_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_START_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]==\]))
-  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_2.
-  CHOICE_START_AUDIO_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_2; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_START_AUDIO_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]|[{]){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_START_AUDIO_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_START_AUDIO_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_START_AUDIO_INTERPOLATION_STOP}})))
@@ -1070,18 +1076,21 @@ variables:
   # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
   # its own closer ends.
   CHOICE_START_IMAGE_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_START_IMAGE_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_START_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]\]))
-  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_0.
-  CHOICE_START_IMAGE_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_0; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_START_IMAGE_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]|[{]){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
   # its own closer ends.
   CHOICE_START_IMAGE_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_START_IMAGE_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_START_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]=\]))
-  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_1.
-  CHOICE_START_IMAGE_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_1; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_START_IMAGE_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]|[{]){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
   # its own closer ends.
   CHOICE_START_IMAGE_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_START_IMAGE_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_START_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]==\]))
-  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_2.
-  CHOICE_START_IMAGE_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_2; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_START_IMAGE_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]|[{]){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_START_IMAGE_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_START_IMAGE_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_START_IMAGE_INTERPOLATION_STOP}})))
@@ -1226,18 +1235,21 @@ variables:
   # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
   # its own closer ends.
   CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_ONLY_TEXT_INTERPOLATION_STOP}})|(?![>])\]\]))
-  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0.
-  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]|[{]){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
   # its own closer ends.
   CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_ONLY_TEXT_INTERPOLATION_STOP}})|(?![>])\]=\]))
-  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1.
-  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]|[{]){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
   # its own closer ends.
   CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_ONLY_TEXT_INTERPOLATION_STOP}})|(?![>])\]==\]))
-  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2.
-  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]|[{]){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_ONLY_TEXT_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_ONLY_TEXT_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_ONLY_TEXT_INTERPOLATION_STOP}})))
@@ -1273,18 +1285,21 @@ variables:
   # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
   # its own closer ends.
   CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_ONLY_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]\]))
-  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0.
-  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]|[{]){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
   # its own closer ends.
   CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_ONLY_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]=\]))
-  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1.
-  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]|[{]){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
   # its own closer ends.
   CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_ONLY_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]==\]))
-  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2.
-  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]|[{]){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_ONLY_AUDIO_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_ONLY_AUDIO_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_ONLY_AUDIO_INTERPOLATION_STOP}})))
@@ -1320,18 +1335,21 @@ variables:
   # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
   # its own closer ends.
   CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_ONLY_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]\]))
-  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0.
-  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]|[{]){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
   # its own closer ends.
   CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_ONLY_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]=\]))
-  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1.
-  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]|[{]){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
   # its own closer ends.
   CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_ONLY_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]==\]))
-  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2.
-  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]|[{]){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_ONLY_IMAGE_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_ONLY_IMAGE_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_ONLY_IMAGE_INTERPOLATION_STOP}})))
@@ -1476,18 +1494,21 @@ variables:
   # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
   # its own closer ends.
   CHOICE_INNER_TEXT_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_INNER_TEXT_INTERPOLATION_STOP}})|(?![>])\]\]))
-  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_0.
-  CHOICE_INNER_TEXT_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_0; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_INNER_TEXT_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]|[{]){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
   # its own closer ends.
   CHOICE_INNER_TEXT_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_INNER_TEXT_INTERPOLATION_STOP}})|(?![>])\]=\]))
-  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_1.
-  CHOICE_INNER_TEXT_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_1; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_INNER_TEXT_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]|[{]){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
   # its own closer ends.
   CHOICE_INNER_TEXT_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_INNER_TEXT_INTERPOLATION_STOP}})|(?![>])\]==\]))
-  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_2.
-  CHOICE_INNER_TEXT_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_2; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_INNER_TEXT_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]|[{]){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_INNER_TEXT_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_INNER_TEXT_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_INNER_TEXT_INTERPOLATION_STOP}})))
@@ -1523,18 +1544,21 @@ variables:
   # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
   # its own closer ends.
   CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_INNER_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]\]))
-  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0.
-  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]|[{]){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
   # its own closer ends.
   CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_INNER_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]=\]))
-  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1.
-  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]|[{]){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
   # its own closer ends.
   CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_INNER_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]==\]))
-  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2.
-  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]|[{]){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_INNER_AUDIO_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_INNER_AUDIO_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_INNER_AUDIO_INTERPOLATION_STOP}})))
@@ -1570,18 +1594,21 @@ variables:
   # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
   # its own closer ends.
   CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_INNER_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]\]))
-  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0.
-  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]|[{]){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
   # its own closer ends.
   CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_INNER_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]=\]))
-  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1.
-  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]|[{]){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
   # its own closer ends.
   CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_INNER_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]==\]))
-  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2.
-  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2; a `{` stops it, so a scan never reads past
+  # the next brace and a line of many openers is read in linear time.
+  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]|[{]){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_INNER_IMAGE_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_INNER_IMAGE_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_INNER_IMAGE_INTERPOLATION_STOP}})))

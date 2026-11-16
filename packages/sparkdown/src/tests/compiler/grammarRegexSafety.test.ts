@@ -129,6 +129,10 @@ const CHOICE_CLOSE_SEARCHES: [string, string, "begin" | "match", string][] = [
   ["bracketed interpolations in an audio command with no closer", "ChoiceStartTextContent", "match", "Go ((a" + " {t[1]}".repeat(40) + " [y] z"],
   ["interpolations in an audio command with no closer, in a suppression", "ChoiceOnlyTextContent", "match", "Go ((a" + " {x}".repeat(40) + " ] z"],
   ["interpolations in an audio command with no closer, before an arrow", "ChoiceInnerTextContent", "match", "Go ((a" + " {x}".repeat(40) + " -> z"],
+  ["long-bracket openers after braces in a closed audio command in inner text", "ChoiceInnerTextContent", "match", "Go ((a" + " {[[".repeat(4000) + " )) z"],
+  ["long-bracket openers after braces in a closed audio command in a suppression", "ChoiceOnlyTextContent", "match", "Go ((a" + " {[=[".repeat(4000) + " )) z"],
+  ["quotes after braces in a closed audio command", "ChoiceStartTextContent", "match", "Go ((a" + ' {"'.repeat(4000) + " )) z"],
+  ["backticks after braces in a closed text command", "ChoiceStartTextContent", "match", "Go <a" + " {`".repeat(4000) + " > z"],
 ];
 
 const SPAN_RULES = ["Raw", "Bold", "Italic", "Underline", "Centered", "EmphasisTilde", "EmphasisColon"].flatMap(
