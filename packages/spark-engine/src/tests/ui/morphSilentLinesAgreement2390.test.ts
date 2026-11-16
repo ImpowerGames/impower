@@ -62,7 +62,7 @@ const OTHER_SCRIPT = { "inmemory:///other.sd": "scene elsewhere\n  MIA:\n    Hel
 
 const INTRO = 'define intro as video with\n  src = "https://example.invalid/intro.webm"\nend\n\nscene start';
 
-const GREET = 'function greet()\n  return "Hi."\nend\n\nscene start';
+const GREET = 'function greet()\n  return "Hi."\nend\n\nfunction nothing()\n  return ""\nend\n\nscene start';
 
 const warned = (source: string, scripts?: Record<string, string>) => {
   const { program } = compileUI(source, { assets: [ART], scripts });
@@ -128,6 +128,13 @@ describe("the editor's warning agrees with the game's image write (I-2390, I-244
     ["Mia's cue holding the directive, an empty interpolation and raw bracket text, before narration", story(`  MIA: ${DIRECTIVE} {""} \`[[nothing]]\`\n  Mia waits.`), undefined, true],
     ["a directive line before Mia's line showing escaped brackets", story(`  ${DIRECTIVE}\n  MIA: \\[[nothing]]\n  Mia waits.`), undefined, true],
     ["a tagged line showing nothing between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  {""} # mood\n  MIA: Hello.`), undefined, true],
+    ["a directive line before Mia's line whose only interpolation is an escaped newline", story(`  ${DIRECTIVE}\n  MIA: {"\\n"}\n  Mia waits.`), undefined, false],
+    ["a directive line before Mia's line whose interpolation holds a loading directive", story(`  ${DIRECTIVE}\n  MIA: {"[[load gallery]]"}\n  MIA: Hello.\nend\n\nscene gallery\n  Pictures.`), undefined, false],
+    ["a directive line before Mia's line holding only hidden text", story(`  ${DIRECTIVE}\n  MIA: <!>hidden</!>\n  Mia waits.`), undefined, false],
+    ["a wait command line between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  <w>\n  MIA: Hello.`), undefined, false],
+    ["Mia's cue holding the directive and a call shorthand that shows nothing, before narration", story(`  MIA: ${DIRECTIVE} {{nothing}}\n  Mia waits.`).replace("scene start", GREET), undefined, false],
+    ["a directive line before Mia's line holding a call shorthand and text", story(`  ${DIRECTIVE}\n  MIA: {{greet}} Hello.\n  Mia waits.`).replace("scene start", GREET), undefined, true],
+    ["a directive line before Mia's line in a bold command", story(`  ${DIRECTIVE}\n  MIA: <b>Hello.</b>\n  Mia waits.`), undefined, true],
   ])("%s", async (_, source, scripts, plays) => {
     const editor = warned(source, scripts);
     const shown = await talks(source, scripts);

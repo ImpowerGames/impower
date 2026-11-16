@@ -637,7 +637,7 @@ const CHAIN_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
   "tag",
 ]);
 
-function injectionKind(
+export function injectionKind(
   node: SyntaxNode,
 ): BodyInjection["kind"] | "opaque" | null {
   if (node.name === "DisplayLoadKeyword") return "load";
