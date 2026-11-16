@@ -51,11 +51,12 @@ const seed = (root: any) => {
   writeMemoryFile(root, "p/Scripts/b.sd", new TextEncoder().encode("B"));
 };
 
-const trashDelete = (h: Awaited<ReturnType<typeof worker>>) =>
+const trashDelete = (h: Awaited<ReturnType<typeof worker>>, params: { batchKey?: string } = {}) =>
   h.request("workspace/willDeleteFiles", {
     files: [{ uri: "file://p/Scripts/a.sd" }, { uri: "file://p/Scripts/b.sd" }],
     folders: [],
     mode: "trash",
+    ...params,
   });
 
 it("names the file storage refused to move and leaves no copy of it in the bin", async () => {
@@ -273,4 +274,55 @@ it("answers with the moved files when storage refuses none", async () => {
   const response = await trashDelete(h);
   expect(response.error).toBeUndefined();
   expect(response.result.map((f: any) => f.uri)).toEqual(["file://p/Scripts/a.sd", "file://p/Scripts/b.sd"]);
+});
+
+const listBatches = async (h: Awaited<ReturnType<typeof worker>>) =>
+  (await h.request("workspace/trashFiles", { projectId: "p", action: "list" })).result.batches;
+
+it("names the bin batch after the caller's key and still purges it by its date", async () => {
+  const h = await worker();
+  seed(h.root);
+  const deletedAt = Date.now();
+  vi.spyOn(Date, "now").mockImplementation(() => deletedAt);
+  const response = await trashDelete(h, { batchKey: "caller-key-1" });
+  expect(response.result.map((f: any) => f.uri)).toEqual(["file://p/Scripts/a.sd", "file://p/Scripts/b.sd"]);
+  expect((await listBatches(h)).map((b: any) => b.batchId)).toEqual([`${deletedAt}__caller-key-1`]);
+  vi.spyOn(Date, "now").mockImplementation(() => deletedAt + 500);
+  await h.request("workspace/trashFiles", { projectId: "p", action: "purge", retentionMs: 1_000 });
+  expect(await listBatches(h)).toHaveLength(1);
+  vi.spyOn(Date, "now").mockImplementation(() => deletedAt + 10_000);
+  await h.request("workspace/trashFiles", { projectId: "p", action: "purge", retentionMs: 1_000 });
+  expect(await listBatches(h)).toEqual([]);
+});
+
+it("names a partly refused delete's batch after the caller's key", async () => {
+  const h = await worker();
+  seed(h.root);
+  refuseRemoving(h.root, ["a.sd"]);
+  const response = await trashDelete(h, { batchKey: "caller-key-2" });
+  expect(response.error.data.batchId).toMatch(/^\d+__caller-key-2$/);
+  expect((await listBatches(h)).map((b: any) => b.batchId)).toEqual([response.error.data.batchId]);
+});
+
+it("refuses a key that is not a plain name, moving nothing", async () => {
+  const h = await worker();
+  seed(h.root);
+  for (const batchKey of ["../Scripts", "a/b", "a__b", ""]) {
+    const response = await trashDelete(h, { batchKey });
+    expect(response.error.message).toContain("Invalid bin batch key");
+  }
+  expect(listMemory(h.root, "p")).toEqual(expect.arrayContaining(["Scripts/a.sd", "Scripts/b.sd"]));
+  expect(await listBatches(h)).toEqual([]);
+});
+
+it("refuses to add to a batch that already holds the same name, moving nothing", async () => {
+  const h = await worker();
+  seed(h.root);
+  writeMemoryFile(h.root, "p/Scripts/c.sd", new TextEncoder().encode("C"));
+  vi.spyOn(Date, "now").mockImplementation(() => 5_000);
+  await h.request("workspace/willDeleteFiles", { files: [{ uri: "file://p/Scripts/c.sd" }], mode: "trash", batchKey: "same" });
+  const response = await trashDelete(h, { batchKey: "same" });
+  expect(response.error.message).toContain("5000__same");
+  expect(listMemory(h.root, "p")).toEqual(expect.arrayContaining(["Scripts/a.sd", "Scripts/b.sd"]));
+  expect((await listBatches(h)).map((b: any) => b.entries.map((e: any) => e.relPath))).toEqual([["Scripts/c.sd"]]);
 });

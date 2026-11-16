@@ -1458,6 +1458,7 @@ export default class WorkspaceFileSystem {
     projectId: string,
     folderPath: string,
     mode?: "trash" | "permanent",
+    batchKey?: string,
   ): Promise<{ files: FileData[]; folders: string[] }> {
     const files = await this.getFiles(projectId);
     const folder = folderPath.replace(/\/+$/, "");
@@ -1476,7 +1477,7 @@ export default class WorkspaceFileSystem {
     const deleted =
       toDelete.length === 0 && trashed.length === 0
         ? []
-        : await this.deleteFiles({ files: toDelete, folders: trashed, mode });
+        : await this.deleteFiles({ files: toDelete, folders: trashed, mode, batchKey });
     const removed = new Set(await this.deleteFolders(projectId, [folder]));
     return {
       files: deleted,

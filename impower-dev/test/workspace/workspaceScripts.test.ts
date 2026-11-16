@@ -313,7 +313,7 @@ describe("Scripts through the workspace", () => {
     const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
     await scripts.remove(["Scripts/outro.sd"]);
-    expect(fs.deleteFiles).toHaveBeenCalledWith({ files: [{ uri: uri("Scripts/outro.sd") }], mode: "trash" });
+    expect(fs.deleteFiles).toHaveBeenCalledWith({ files: [{ uri: uri("Scripts/outro.sd") }], mode: "trash", batchKey: expect.any(String) });
     await expect(scripts.remove(["main.sd"])).rejects.toThrow("Main stays");
   });
 });

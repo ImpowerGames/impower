@@ -1,7 +1,7 @@
 import { signal } from "@preact/signals";
 import { assetClaimOf } from "./assetClaim";
 import getUniqueFileName from "./getUniqueFileName";
-import { trashSkipped } from "./trashSkipped";
+import { newTrashBatchKey, trashSkipped } from "./trashSkipped";
 
 export type ConflictAction = "replace" | "keepboth" | "skip";
 
@@ -74,7 +74,7 @@ export interface UploadItem<T> {
 export interface ResolvedUpload<T> {
   survivors: { uri: string; payload: T }[];
   trashedOldUris: string[];
-  since: number;
+  batchKey: string;
   refused: T[];
 }
 
@@ -168,19 +168,19 @@ async function resolveLocked<T>(
     }
   }
 
-  let since = 0;
+  const batchKey = newTrashBatchKey();
   const oldUris = [
     ...new Set(trashedRels.map((r) => Workspace.fs.getFileUri(projectId, r))),
   ];
   if (oldUris.length === 0) {
-    return { survivors, trashedOldUris: oldUris, since, refused: [] };
+    return { survivors, trashedOldUris: oldUris, batchKey, refused: [] };
   }
-  since = Date.now();
   const skipped = new Set(
     await trashSkipped(
       Workspace.fs.deleteFiles({
         files: oldUris.map((uri) => ({ uri })),
         mode: "trash",
+        batchKey,
       }),
     ),
   );
@@ -191,7 +191,7 @@ async function resolveLocked<T>(
   return {
     survivors: survivors.filter((s) => !refused.includes(s)),
     trashedOldUris: oldUris.filter((uri) => !skipped.has(uri)),
-    since,
+    batchKey,
     refused: refused.map((s) => s.payload),
   };
 }
