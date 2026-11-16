@@ -90,7 +90,7 @@ end
           : value && typeof value === "object"
             ? Object.fromEntries(
                 Object.entries(value)
-                  .filter(([key]) => key !== "styleCodes")
+                  .filter(([key]) => !["styleCodes", "tagCodes", "tagEquals"].includes(key))
                   .map(([key, item]) => [key, legacy(item)]),
               )
             : value;
@@ -112,6 +112,17 @@ end
     );
     expect(storyD.currentStyledText?.trim()).toBe(
       `${SCAN_OPEN}A <speed=0.5>*word* <speed = 2>here <b2:x>.${SCAN_CLOSE}`,
+    );
+
+    const storyE = testStory(compiled);
+    storyE.state.LoadJson(
+      JSON.stringify(legacy(current)).replace(
+        "A *word* here.",
+        "A `<color:red>` word \\\\<speed:0.5> [[x <p:2>]] <p:1>.",
+      ),
+    );
+    expect(storyE.currentStyledText?.trim()).toBe(
+      `${SCAN_OPEN}A \`<color:red>\` word <speed:0.5> [[x <p:2>]] <p=1>.${SCAN_CLOSE}`,
     );
 
     storyB.Continue();
@@ -214,7 +225,7 @@ describe("a save written before tag codes (#2145)", () => {
 describe("a save whose tag codes hold a value after a colon (#2391)", () => {
   const colonCodes = (value: unknown): unknown =>
     typeof value === "string"
-      ? value.split(tagCode("speed=0.5")).join(tagCode("speed:0.5"))
+      ? value.split(tagCode("speed=0.5")).join(tagCode("speed:0.5")).split("<speed=0.5>").join("<speed:0.5>")
       : Array.isArray(value)
         ? value.map(colonCodes)
         : value && typeof value === "object"
@@ -236,6 +247,23 @@ describe("a save whose tag codes hold a value after a colon (#2391)", () => {
     const storyB = testStory(compiled);
     storyB.state.LoadJson(json);
     expect(storyB.currentStyledText).toBe(storyA.currentStyledText);
+  });
+
+  test("reads a known tag written with a colon in an inserted value with an equals sign", () => {
+    const compiled = compile(
+      `store whisper = "<speed=0.5>"\nscene start\n  A {whisper}word \`<speed:0.5>\`.\n  done\nend\n`,
+    );
+    const storyA = testStory(compiled);
+    storyA.Continue();
+    const styled = storyA.currentStyledText ?? "";
+    expect(styled).toContain(`${SCAN_OPEN}<speed=0.5>${SCAN_CLOSE}`);
+    const current = storyA.state.ToJson() as string;
+    const json = JSON.stringify(colonCodes(JSON.parse(current)));
+    const colons = (text: string) => text.split("<speed:0.5>").length;
+    expect(colons(json)).toBeGreaterThan(colons(current));
+    const storyB = testStory(compiled);
+    storyB.state.LoadJson(json);
+    expect(storyB.currentStyledText).toBe(styled);
   });
 
   test("reads a known tag's code in a waiting choice's styled text", () => {

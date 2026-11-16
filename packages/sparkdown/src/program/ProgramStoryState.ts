@@ -10,9 +10,8 @@ import { scannedTable, writtenText } from "../runtime/displayStyle";
 import {
   codeWrittenTags,
   codeWrittenTagsInTable,
-  equalsInColonTagCodes,
-  equalsInColonTagCodesInTable,
-  equalsInWrittenColonTagsInTable,
+  equalsInColonTags,
+  equalsInColonTagsInTable,
 } from "../runtime/storyTags";
 import { Tag } from "../runtime/Tag";
 import {
@@ -338,14 +337,10 @@ function readOutput(
   tagCodes: boolean,
   tagEquals: boolean,
 ): InkObject[] {
-  const output = JsonSerialisation.JArrayToRuntimeObjList(json);
-  return !styleCodes
-    ? output.map((obj) => scannedTable(equalsInWrittenColonTagsInTable(obj)))
-    : !tagCodes
-      ? output.map((obj) => codeWrittenTagsInTable(obj))
-      : tagEquals
-        ? output
-        : output.map((obj) => equalsInColonTagCodesInTable(obj));
+  const output = JsonSerialisation.JArrayToRuntimeObjList(json).map((obj) =>
+    !styleCodes ? scannedTable(obj) : !tagCodes ? codeWrittenTagsInTable(obj) : obj,
+  );
+  return tagEquals ? output : output.map((obj) => equalsInColonTagsInTable(obj));
 }
 
 export class ProgramStoryState {
@@ -1806,12 +1801,9 @@ export class ProgramStoryState {
       choice.text = String(saved["text"] ?? "");
       const styled =
         typeof saved["styled"] === "string" ? saved["styled"] : choice.text;
+      const coded = obj["tagCodes"] === true ? styled : codeWrittenTags(styled);
       choice.styledText =
-        obj["tagCodes"] !== true
-          ? codeWrittenTags(styled)
-          : obj["tagEquals"] === true
-            ? styled
-            : equalsInColonTagCodes(styled);
+        obj["tagEquals"] === true ? coded : equalsInColonTags(coded);
       choice.tags = Array.isArray(saved["tags"])
         ? saved["tags"].map(String)
         : [];
