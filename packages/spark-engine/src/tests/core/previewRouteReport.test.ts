@@ -126,6 +126,11 @@ describe("the route the preview reports", () => {
     ]);
   }, 120_000);
 
+  test("the executed lines in the first and the last option's body light only that option", () => {
+    expect(executedLinesAt(interrogation, 9)).toEqual([6, 7, 8, 9, 15, 23]);
+    expect(executedLinesAt(interrogation, 13)).toEqual([6, 7, 12, 13, 15, 23]);
+  }, 120_000);
+
   test("the executed lines leave out an option its condition hid and keep the option the route took", () => {
     const lines = [
       "store key = false",
