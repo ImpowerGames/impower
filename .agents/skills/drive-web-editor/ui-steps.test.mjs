@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, STRIP_PLAY_DISABLED, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAddMenu, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, STRIP_PLAY_DISABLED, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 import { NAMED_STEPS } from "./steps.mjs";
 
@@ -1110,6 +1110,58 @@ await asyncCheck("--step app-menu presses the title bar's App menu or the rail's
   assert.deepEqual(await openAppMenu(appMenuPage({ sheet: false })), { step: "app-menu", ran: true, opened: "popover" });
   assert.match((await openAppMenu(appMenuPage({ opens: false }), { timeout: 1000 })).reason, /the app menu did not open within 1 s/);
   assert.match((await openAppMenu(appMenuPage({ buttons: 0 }))).reason, /no app menu button on the page/);
+});
+
+await asyncCheck("the app-menu, settings, add-menu and preview-settings steps settle while a scroll-driven or endless animation keeps running, and the app menu waits on a finite one", async () => {
+  const never = new Promise(() => {});
+  const scrollDriven = { playState: "running", finished: never, effect: { getComputedTiming: () => ({ endTime: { value: 100, unit: "percent" } }) } };
+  const endless = { playState: "running", finished: never, effect: { getComputedTiming: () => ({ endTime: Infinity }) } };
+  const opening = { playState: "running", finished: never, effect: { getComputedTiming: () => ({ endTime: 250 }) } };
+  const ended = { playState: "finished", finished: Promise.resolve(), effect: { getComputedTiming: () => ({ endTime: 250 }) } };
+  const heading = {};
+  const stepsWith = async (animations, run) => {
+    const root = { getAnimations: () => animations };
+    const menu = { closest: () => null, parentElement: root, getAnimations: () => animations, querySelector: () => ({}), querySelectorAll: () => [], getBoundingClientRect: () => ({ height: 1 }), getAttribute: () => null };
+    const fakeDocument = {
+      querySelector: () => menu,
+      querySelectorAll: (selector) => (selector === '[role="menu"]' ? [menu] : []),
+      getAnimations: () => animations,
+      getElementById: () => heading,
+      activeElement: heading,
+    };
+    const page = {
+      locator: () => ({ first: () => ({ count: async () => 1, isVisible: async () => true, click: async () => {}, waitFor: async () => {} }) }),
+      evaluate: async (fn, arg) => fn(arg),
+      waitForFunction: async (fn, arg, { timeout }) => {
+        const deadline = Date.now() + timeout;
+        while (!fn(arg)) {
+          if (Date.now() > deadline) throw new Error("timeout");
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      },
+    };
+    const saved = { getComputedStyle: globalThis.getComputedStyle, window: globalThis.window, location: globalThis.location };
+    globalThis.getComputedStyle = () => ({ opacity: "1" });
+    globalThis.location = { hash: "#project?section=save-settings" };
+    globalThis.window = { innerHeight: 900, location: globalThis.location };
+    try {
+      return await inFakeDocument(fakeDocument, () =>
+        Promise.race([run(page), new Promise((resolve) => setTimeout(() => resolve("still waiting after 2 s"), 2000))]),
+      );
+    } finally {
+      globalThis.getComputedStyle = saved.getComputedStyle;
+      globalThis.window = saved.window;
+      globalThis.location = saved.location;
+    }
+  };
+  const lasting = [scrollDriven, endless, ended];
+  assert.deepEqual(await stepsWith(lasting, (page) => openAppMenu(page, { timeout: 1000 })), { step: "app-menu", ran: true, opened: "popover" });
+  assert.equal((await stepsWith(lasting, (page) => openAddMenu(page, { timeout: 1000 }))).ran, true);
+  assert.equal((await stepsWith(lasting, (page) => openPreviewSettings(page, { timeout: 1000 }))).ran, true);
+  const started = Date.now();
+  assert.equal((await stepsWith(lasting, (page) => openSettings(page, "save-settings", { timeout: 1000 }))).ran, true);
+  assert.ok(Date.now() - started < 1000, `settings waited ${Date.now() - started} ms on animations that never end`);
+  assert.match((await stepsWith([scrollDriven, opening], (page) => openAppMenu(page, { timeout: 300 }))).reason, /the app menu did not open within 0.3 s/);
 });
 
 await asyncCheck("--step drawer opens the app menu on a phone, which has neither a rail nor a drawer", async () => {
