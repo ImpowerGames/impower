@@ -227,7 +227,6 @@ export interface ScriptEditorOptions {
   coarsePointer?: boolean;
   scriptMode?: ScriptModeValue | null;
   keyboardHold?: KeyboardToolbarHold;
-  onReadingDoubleTap?: () => void;
   onToolbarTool?: (tool: KeyboardToolbarTool) => void;
   appearance: ScriptAppearance;
   shortcuts?: ShortcutCombos;
@@ -1475,7 +1474,6 @@ export class ScriptEditorController {
           readonly: this.options.readonly,
           scriptMode: this.options.scriptMode,
           keyboardHold: this.options.keyboardHold,
-          onReadingDoubleTap: this.options.onReadingDoubleTap,
           onToolbarTool: this.options.onToolbarTool,
           appearance: this.options.appearance,
           shortcuts: this.options.shortcuts,

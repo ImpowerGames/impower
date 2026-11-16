@@ -311,6 +311,32 @@ describe("building a parser compiles no pattern before it is used (#2196)", () =
   });
 });
 
+describe("a span over many unclosed doubled openers reads each with one scan of the line (I-2444)", () => {
+  test.each(
+    ["Italic", "ChoiceStartItalic", "ChoiceOnlyItalic", "ChoiceInnerItalic"].flatMap((rule) =>
+      [
+        ["image openers", "[[x "],
+        ["audio openers", "((x "],
+      ].map(([what, unit]) => [rule, what, unit] as const),
+    ),
+  )("%s over 4,000 %s", (rule, _what, unit) => {
+    const re = new RegExp(rulePattern(rule), "muy");
+    const line = "*a " + unit!.repeat(4000) + "z*";
+    re.lastIndex = 0;
+    re.exec("*warm*");
+    let ms = Infinity;
+    let matched = "";
+    for (let pass = 0; pass < 3; pass++) {
+      re.lastIndex = 0;
+      const t0 = performance.now();
+      matched = re.exec(line)?.[0] ?? "";
+      ms = Math.min(ms, performance.now() - t0);
+    }
+    expect(matched).toBe(line);
+    expect(ms, `${rule}.match took ${ms.toFixed(1)}ms at best of three passes`).toBeLessThan(150);
+  });
+});
+
 describe("a choice line that never meets a close is read at once (#2083)", () => {
   test.each(CHOICE_CLOSE_SEARCHES)("%s", (_what, rule, key, line) => {
     const source = grammar.repository?.[rule]?.[key];

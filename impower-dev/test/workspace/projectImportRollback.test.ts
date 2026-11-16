@@ -39,10 +39,10 @@ const backup = (entries: Record<string, string>, folders: string[] = []) =>
     { level: 0 },
   ).buffer as ArrayBuffer;
 
-async function harness(extra: Record<string, string> = {}) {
+async function harness(extra: Record<string, string> = {}, saved: Record<string, string> = PROJECT) {
   vi.resetModules();
   const root = memoryRoot();
-  for (const [path, text] of Object.entries({ ...MIGRATED, ...PROJECT, ...extra })) {
+  for (const [path, text] of Object.entries({ ...MIGRATED, ...saved, ...extra })) {
     writeMemoryFile(root, `local/${path}`, bytes(text));
   }
   Object.defineProperty(navigator, "storage", { configurable: true, value: { getDirectory: async () => root } });
@@ -134,8 +134,22 @@ async function harness(extra: Record<string, string> = {}) {
       return { error: error as InstanceType<typeof ProjectImportError> };
     }
   };
-  return { fs, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, ProjectImportError };
+  const applyBundle = async (apply: () => Promise<unknown>) => {
+    try {
+      await apply();
+      return {};
+    } catch (error) {
+      return { error };
+    }
+  };
+  const applyScripts = (content: string) =>
+    applyBundle(() => fs.writeProjectScriptBundle("local", content));
+  const applyAssets = (content: ArrayBuffer) =>
+    applyBundle(() => fs.writeProjectAssetBundle("local", content));
+  return { fs, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
 }
+
+const ASSETS = { "art/old.png": "OLD" };
 
 const BACKUP = { ".layout": "1", "main.sd": "the backup's main", "images/a.png": "PNG" };
 
@@ -321,4 +335,98 @@ it("replaces the project's files and folders with the backup's when every write 
   expect(h.text("images/a.png")).toBe("PNG");
   expect(h.text(".folders")).toBe("1");
   expect(await h.fs.getFolders("local")).toEqual(["empty", "images"]);
+}, 15_000);
+
+const SCRIPTS = "the bundle's main\n\n//// chapters/one.sd ////\nchapter one";
+
+it("leaves the project as it was when writing a script bundle fails partway", async () => {
+  const h = await harness(ASSETS);
+  const before = h.stored();
+  h.failWrites("main.sd", 1);
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeDefined();
+  expect(h.stored()).toEqual(before);
+  expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
+  expect(h.text("old/notes.sd")).toBe(PROJECT["old/notes.sd"]);
+  expect(h.text("art/old.png")).toBe("OLD");
+}, 15_000);
+
+it("replaces the project's scripts with the script bundle's and keeps its assets", async () => {
+  const h = await harness(ASSETS);
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeUndefined();
+  expect(h.stored()).toEqual(["art/", "art/old.png", "chapters/", "chapters/one.sd", "main.sd", "old/"]);
+  expect(h.text("main.sd")).toBe("the bundle's main");
+  expect(h.text("chapters/one.sd")).toBe("chapter one");
+}, 15_000);
+
+it("leaves the project as it was when writing an asset bundle fails partway", async () => {
+  const h = await harness(ASSETS);
+  const before = h.stored();
+  h.failCreatingFolder("images");
+  const { error } = await h.applyAssets(backup({ "images/a.png": "PNG" }));
+  expect(error).toBeDefined();
+  expect(h.stored()).toEqual(before);
+  expect(h.text("art/old.png")).toBe("OLD");
+  expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
+  expect(h.text("old/notes.sd")).toBe(PROJECT["old/notes.sd"]);
+}, 15_000);
+
+it("leaves the project as it was when creating a folder the asset bundle lists fails", async () => {
+  const h = await harness(ASSETS);
+  const before = h.stored();
+  h.failCreatingFolder("empty");
+  const { error } = await h.applyAssets(backup({ "images/a.png": "PNG" }, ["empty"]));
+  expect(error).toBeDefined();
+  expect(h.stored()).toEqual(before);
+  expect(h.text("art/old.png")).toBe("OLD");
+}, 15_000);
+
+it("replaces the project's assets and folders with the asset bundle's and keeps its scripts", async () => {
+  const h = await harness(ASSETS);
+  const { error } = await h.applyAssets(backup({ "images/a.png": "PNG" }, ["empty"]));
+  expect(error).toBeUndefined();
+  expect(h.stored()).toEqual(["empty/", "images/", "images/a.png", "main.sd", "old/", "old/notes.sd"]);
+  expect(h.text("images/a.png")).toBe("PNG");
+  expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
+  expect(await h.fs.getFolders("local")).toEqual(["empty", "images", "old"]);
+}, 15_000);
+
+it("replaces a folder holding only empty folders with a script bundle file of the same path", async () => {
+  const h = await harness(ASSETS);
+  const chapters = await h.project.getDirectoryHandle("chapters", { create: true });
+  const clash = await chapters.getDirectoryHandle("one.sd", { create: true });
+  await (await clash.getDirectoryHandle("empty", { create: true })).getDirectoryHandle("deeper", { create: true });
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeUndefined();
+  expect(h.text("chapters/one.sd")).toBe("chapter one");
+  expect(h.stored().filter((path) => path.startsWith("chapters/one.sd/"))).toEqual([]);
+}, 15_000);
+
+const STARTER_URI = "file://local/main.sd";
+
+const starterText = async (h: Awaited<ReturnType<typeof harness>>) =>
+  (await h.fs.getFiles("local"))[STARTER_URI]?.text;
+
+it("keeps the unsaved starter main in the editor when a script bundle fails after writing main", async () => {
+  const h = await harness(ASSETS, {});
+  const before = await starterText(h);
+  expect(before).toBeDefined();
+  expect(h.text("main.sd")).toBeUndefined();
+  h.failCreatingFolder("chapters");
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeDefined();
+  expect(h.text("main.sd")).toBeUndefined();
+  expect(await starterText(h)).toBe(before);
+}, 15_000);
+
+it("keeps the unsaved starter main in the editor when a backup import fails after writing main", async () => {
+  const h = await harness({}, {});
+  const before = await starterText(h);
+  expect(before).toBeDefined();
+  h.failCreatingFolder("images");
+  const { error } = await h.importBackup(backup(BACKUP));
+  expect(error?.reason).toBe("storage");
+  expect(h.text("main.sd")).toBeUndefined();
+  expect(await starterText(h)).toBe(before);
 }, 15_000);

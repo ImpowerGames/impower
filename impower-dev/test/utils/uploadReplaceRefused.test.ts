@@ -41,7 +41,9 @@ it("keeps an upload from replacing a file storage refused to move to the bin, an
   expect(deleteFiles).toHaveBeenCalledWith({
     files: [{ uri: "file:///p/a.png" }, { uri: "file:///p/b.png" }],
     mode: "trash",
+    batchKey: resolved.batchKey,
   });
+  expect(resolved.batchKey).toMatch(/^[0-9a-f]{32}$/);
   expect(resolved.survivors).toEqual([{ uri: "file:///p/b.png", payload: "new b" }]);
   expect(resolved.trashedOldUris).toEqual(["file:///p/b.png"]);
   expect(resolved.refused).toEqual(["new a"]);

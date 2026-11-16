@@ -5,10 +5,10 @@ const bin = vi.hoisted(() => {
   const refused = new Set<string>();
   let batches: { batchId: string; deletedAt: number; entries: { originalUri: string }[] }[] = [];
   let next = 0;
-  const hooks: { beforeRefusal?: () => Promise<void> } = {};
+  const hooks: { beforeRefusal?: () => Promise<void>; duringMove?: () => Promise<void> } = {};
   const fs = {
     getFileUri: (projectId: string, path: string) => `file:///${projectId}/${path}`,
-    deleteFiles: async ({ files }: { files: { uri: string }[] }) => {
+    deleteFiles: async ({ files, batchKey }: { files: { uri: string }[]; batchKey?: string }) => {
       const moved: string[] = [];
       const skipped: string[] = [];
       for (const { uri } of files) {
@@ -22,9 +22,13 @@ const bin = vi.hoisted(() => {
       }
       let batchId: string | undefined;
       if (moved.length) {
-        batchId = `b${next++}`;
-        batches.push({ batchId, deletedAt: Date.now(), entries: moved.map((originalUri) => ({ originalUri })) });
+        const deletedAt = Date.now();
+        batchId = `${deletedAt}__${batchKey ?? `b${next++}`}`;
+        batches.push({ batchId, deletedAt, entries: moved.map((originalUri) => ({ originalUri })) });
       }
+      const during = hooks.duringMove;
+      hooks.duringMove = undefined;
+      await during?.();
       const deleted = moved.map((uri) => ({ uri }));
       if (skipped.length) {
         const before = hooks.beforeRefusal;
@@ -50,6 +54,7 @@ const bin = vi.hoisted(() => {
     refused.clear();
     batches = [];
     hooks.beforeRefusal = undefined;
+    hooks.duringMove = undefined;
     uris.forEach((u) => live.add(u));
   };
   return { live, refused, fs, reset, hooks };
@@ -69,6 +74,7 @@ const history = await import("../../src/modules/spark-editor/utils/undoManager")
 const { recordCreate, recordTrashDeletion, recordResolvedUpload } = await import(
   "../../src/modules/spark-editor/utils/fileUndo"
 );
+const { moveToTrash } = await import("../../src/modules/spark-editor/workspace/moveToTrash");
 
 const a = "file:///p/Scripts/a.sd";
 const b = "file:///p/Scripts/b.sd";
@@ -129,9 +135,8 @@ it("leaves a file another action moved to the bin while a refused Undo was answe
 });
 
 it("brings back every deleted file when a partly refused Redo is retried and then undone", async () => {
-  const since = Date.now();
-  await bin.fs.deleteFiles({ files: [{ uri: a }, { uri: b }] });
-  await recordTrashDeletion("p", [a, b], "2 scripts", since);
+  await bin.fs.deleteFiles({ files: [{ uri: a }, { uri: b }], batchKey: "delete" });
+  await recordTrashDeletion("p", [a, b], "2 scripts", ["delete"]);
   expect(await history.undo()).toBe(true);
   bin.refused.add(a);
   expect(await history.redo()).toBe(false);
@@ -145,7 +150,7 @@ it("brings back every deleted file when a partly refused Redo is retried and the
 });
 
 it("brings back every added file when a partly refused Undo of an upload is retried and then redone", async () => {
-  await recordResolvedUpload("p", [a, b], [], 0, "2 files");
+  await recordResolvedUpload("p", [a, b], [], "upload", "2 files");
   bin.refused.add(a);
   expect(await history.undo()).toBe(false);
   expect(showSnackbar).toHaveBeenLastCalledWith(keptNotice);
@@ -154,4 +159,71 @@ it("brings back every added file when a partly refused Undo of an upload is retr
   expect(files()).toEqual([]);
   expect(await history.redo()).toBe(true);
   expect(files()).toEqual([a, b]);
+});
+
+type Batch = Awaited<ReturnType<typeof bin.fs.listTrash>>[number];
+
+const otherTabBins = (uri: string, other: Batch[]) => {
+  bin.hooks.duringMove = async () => {
+    bin.live.add(uri);
+    await bin.fs.deleteFiles({ files: [{ uri }] });
+    other.push((await bin.fs.listTrash()).at(-1)!);
+  };
+};
+
+it("restores only its own batch when another tab bins the same file while Delete and its Redo run", async () => {
+  const other: Batch[] = [];
+  otherTabBins(a, other);
+  const items = [{ path: "Scripts/a.sd", folder: false }, { path: "Scripts/b.sd", folder: false }];
+  await moveToTrash(bin.fs as never, "p", items, "2 scripts");
+  expect(other).toHaveLength(1);
+  expect(await history.undo()).toBe(true);
+  expect(files()).toEqual([a, b]);
+  expect(await bin.fs.listTrash()).toEqual(other);
+  otherTabBins(a, other);
+  expect(await history.redo()).toBe(true);
+  expect(other).toHaveLength(2);
+  expect(await history.undo()).toBe(true);
+  expect(files()).toEqual([a, b]);
+  expect(await bin.fs.listTrash()).toEqual(other);
+});
+
+it("restores only its own batch when another tab bins the same file while Undo of a create runs", async () => {
+  recordCreate("p", [a, b], "2 scripts");
+  const other: Batch[] = [];
+  otherTabBins(a, other);
+  expect(await history.undo()).toBe(true);
+  expect(await history.redo()).toBe(true);
+  expect(files()).toEqual([a, b]);
+  expect(await bin.fs.listTrash()).toEqual(other);
+});
+
+it("restores only its own batch when another tab bins the same file while Undo of an upload runs", async () => {
+  await recordResolvedUpload("p", [a, b], [], "upload", "2 files");
+  const other: Batch[] = [];
+  otherTabBins(a, other);
+  expect(await history.undo()).toBe(true);
+  expect(await history.redo()).toBe(true);
+  expect(files()).toEqual([a, b]);
+  expect(await bin.fs.listTrash()).toEqual(other);
+});
+
+it("restores only the replaced file's batch when another tab bins it while the replace and its Redo run", async () => {
+  bin.live.delete(a);
+  const other: Batch[] = [];
+  otherTabBins(b, other);
+  await bin.fs.deleteFiles({ files: [{ uri: b }], batchKey: "replace" });
+  bin.live.add(a);
+  await recordResolvedUpload("p", [a], [b], "replace", "a.sd");
+  const holding = async (uri: string) =>
+    (await bin.fs.listTrash()).filter((batch) => batch.entries.some((e) => e.originalUri === uri));
+  expect(await history.undo()).toBe(true);
+  expect(files()).toEqual([b]);
+  expect(await holding(b)).toEqual(other);
+  otherTabBins(b, other);
+  expect(await history.redo()).toBe(true);
+  expect(files()).toEqual([a]);
+  expect(await history.undo()).toBe(true);
+  expect(files()).toEqual([b]);
+  expect(await holding(b)).toEqual(other);
 });

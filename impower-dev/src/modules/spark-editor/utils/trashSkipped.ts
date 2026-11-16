@@ -8,6 +8,11 @@ export const keptMessage = (paths: readonly string[]) => {
   return `Couldn't move ${names.join(", ")} to the bin. ${one ? "It is" : "They are"} still where ${one ? "it was" : "they were"}.`;
 };
 
+export const newTrashBatchKey = () =>
+  Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+
 export async function trashSkipped(deletion: Promise<unknown>): Promise<string[]> {
   try {
     await deletion;
@@ -22,12 +27,12 @@ export async function trashSkipped(deletion: Promise<unknown>): Promise<string[]
 export function trashAttempts(refused: (skipped: string[]) => void) {
   let earlier: string[] = [];
   return async (
-    trash: () => Promise<unknown>,
-    find: (since: number) => Promise<string[]>,
+    trash: (batchKey: string) => Promise<unknown>,
+    find: (batchKeys: string[]) => Promise<string[]>,
   ): Promise<string[]> => {
-    const since = Date.now();
+    const batchKey = newTrashBatchKey();
     try {
-      await trash();
+      await trash(batchKey);
     } catch (error) {
       const refusal = willDeleteFilesRefusal(error);
       if (refusal) {
@@ -36,7 +41,7 @@ export function trashAttempts(refused: (skipped: string[]) => void) {
       }
       throw error;
     }
-    const batches = [...new Set([...earlier, ...(await find(since))])];
+    const batches = [...new Set([...earlier, ...(await find([batchKey]))])];
     earlier = [];
     return batches;
   };

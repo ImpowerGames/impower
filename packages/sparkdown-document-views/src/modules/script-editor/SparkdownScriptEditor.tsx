@@ -35,7 +35,6 @@ export type SparkdownScriptEditorProps = Partial<typeof propDefaults> & {
   onPasteRefused?: () => void;
   scriptMode?: ScriptModeValue | null;
   keyboardHold?: KeyboardToolbarHold;
-  onReadingDoubleTap?: () => void;
   onToolbarTool?: (tool: KeyboardToolbarTool) => void;
   onChangeColor?: (range: Range, value: string, color: Color) => void;
 };
@@ -64,15 +63,12 @@ export default function SparkdownScriptEditor({
   onPasteRefused,
   scriptMode = null,
   keyboardHold,
-  onReadingDoubleTap,
   onToolbarTool,
   onChangeColor,
 }: SparkdownScriptEditorProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuModel | null>(null);
   const onPasteRefusedRef = useRef(onPasteRefused);
   onPasteRefusedRef.current = onPasteRefused;
-  const onReadingDoubleTapRef = useRef(onReadingDoubleTap);
-  onReadingDoubleTapRef.current = onReadingDoubleTap;
   const onToolbarToolRef = useRef(onToolbarTool);
   onToolbarToolRef.current = onToolbarTool;
   const readonlyRef = useRef(!!readonly);
@@ -128,7 +124,6 @@ export default function SparkdownScriptEditor({
           coarsePointer: coarsePointerRef.current,
           scriptMode: scriptModeRef.current,
           keyboardHold: keyboardHoldRef.current,
-          onReadingDoubleTap: () => onReadingDoubleTapRef.current?.(),
           onToolbarTool: (tool) => onToolbarToolRef.current?.(tool),
           appearance: appearanceRef.current,
           shortcuts: shortcutsRef.current,

@@ -183,8 +183,7 @@ const withWindow = async (act: (window: WorkspaceWindow) => unknown) => {
 
 const controlClass = "text-muted";
 
-const useMenuWidth = () =>
-  useLayout() === "phone" ? undefined : "w-[340px] max-w-[calc(100cqi-20px)]";
+const MENU_WIDTH = "w-[340px] max-w-[calc(100cqi-24px)]";
 
 function ControlButton({
   label,
@@ -333,7 +332,6 @@ function SkipButton({
 }
 
 function ModeMenu({ mode }: { mode: PreviewMode }) {
-  const menuWidth = useMenuWidth();
   const current = VIEWING_MODES[mode];
   const Icon = current.icon;
   return (
@@ -354,7 +352,7 @@ function ModeMenu({ mode }: { mode: PreviewMode }) {
       </DropdownTrigger>
       <DropdownContent
         align="start"
-        class={menuWidth}
+        class={MENU_WIDTH}
       >
         <DropdownRadioGroup
           value={mode}
@@ -425,7 +423,6 @@ function ColorSchemeSettings() {
 
 function SettingsMenu({ mode }: { mode: PreviewMode }) {
   const phone = useLayout() === "phone";
-  const menuWidth = useMenuWidth();
   const { preferences, reducedMotion, setPreference } = useSettings();
   return (
     <DropdownRoot>
@@ -442,7 +439,7 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
       </DropdownTrigger>
       <DropdownContent
         align="end"
-        class={menuWidth}
+        class={MENU_WIDTH}
       >
         {QUICK_TOGGLES[mode].map((key) => {
           const { name, detail } = PREVIEW_TOGGLES[key];

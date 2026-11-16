@@ -51,7 +51,9 @@ jobs:
           - { package: packages/sparkdown, shard: 2, shards: 4 }
           - { package: packages/sparkdown, shard: 3, shards: 4 }
           - { package: packages/sparkdown, shard: 4, shards: 4 }
-          - { package: packages/sparkdown-document-views, shard: 1, shards: 1 }
+          - { package: packages/sparkdown-document-views, shard: 1, shards: 3 }
+          - { package: packages/sparkdown-document-views, shard: 2, shards: 3 }
+          - { package: packages/sparkdown-document-views, shard: 3, shards: 3 }
           - { package: packages/sparkdown-language-server, shard: 1, shards: 1 }
           - { package: packages/sparkle-screen-renderer, shard: 1, shards: 1 }
           - { package: vscode-sparkdown, shard: 1, shards: 1 }

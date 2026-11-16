@@ -2,25 +2,20 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  onReadingDoubleTap,
   scriptMode,
+  scriptModeField,
   setScriptMode,
 } from "../src/modules/script-editor/utils/extensions/scriptMode";
 
 let view: EditorView | undefined;
 let parent: HTMLElement | undefined;
-const doubleTaps = { count: 0 };
 
 const mount = (mode: "reading" | "editing" | null, editable = true) => {
   parent = document.body.appendChild(document.createElement("div"));
   view = new EditorView({
     state: EditorState.create({
       doc: "one\ntwo\nthree",
-      extensions: [
-        scriptMode(mode),
-        onReadingDoubleTap.of(() => doubleTaps.count++),
-        EditorView.editable.of(editable),
-      ],
+      extensions: [scriptMode(mode), EditorView.editable.of(editable)],
     }),
     parent,
   });
@@ -34,10 +29,10 @@ const dispatch = (v: EditorView, type: string, pointerType?: string) => {
     Object.defineProperty(event, "pointerType", { value: pointerType });
   }
   v.contentDOM.dispatchEvent(event);
+  return event;
 };
 
 beforeEach(() => {
-  doubleTaps.count = 0;
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
   Range.prototype.getBoundingClientRect = () => new DOMRect();
 });
@@ -67,18 +62,16 @@ describe("the script mode extension", () => {
     expect(v.state.selection.main.head).toBe(0);
   });
 
-  it("asks to start editing from a double tap, at the tapped position", () => {
-    const v = mount("reading", false);
-    dispatch(v, "dblclick");
-    expect(doubleTaps.count).toBe(1);
-    expect(v.state.selection.main.head).toBe(5);
-  });
-
-  it("ignores a double tap while editing", () => {
-    const v = mount("editing");
-    dispatch(v, "dblclick");
-    expect(doubleTaps.count).toBe(0);
-  });
+  it.each(["touch", "mouse", undefined])(
+    "stays in reading mode on a %s double tap",
+    (pointerType) => {
+      const v = mount("reading", false);
+      const event = dispatch(v, "dblclick", pointerType);
+      expect(event.defaultPrevented).toBe(false);
+      expect(v.state.selection.main.head).toBe(0);
+      expect(v.state.field(scriptModeField)).toBe("reading");
+    },
+  );
 
   it("marks the editor while editing so its status line gives way to the toolbar", () => {
     const v = mount("reading", false);

@@ -1,9 +1,10 @@
+import { assetNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import path from "path";
 import * as vscode from "vscode";
 
 export const getWorkspaceImageFile = async (fileUri: vscode.Uri) => {
   const uri = fileUri.toString();
-  const name = path.parse(uri).name;
+  const name = assetNameOf(uri, "image");
   const ext = path.extname(uri).slice(1);
   if (ext === "svg") {
     const buffer = await vscode.workspace.fs.readFile(fileUri);

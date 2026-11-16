@@ -194,14 +194,20 @@ export const wheelSheetVariants = cva(
         free: "",
         room: "max-h-[min(100%,var(--wheel-sheet-room))]",
       },
+      width: {
+        full: "",
+        menu: "mx-auto max-w-[560px]",
+      },
     },
-    defaultVariants: { size: "default", fit: "free" },
+    defaultVariants: { size: "default", fit: "free", width: "full" },
   },
 );
 
 export type WheelSheetSize = NonNullable<VariantProps<typeof wheelSheetVariants>["size"]>;
 
 export type WheelSheetFit = NonNullable<VariantProps<typeof wheelSheetVariants>["fit"]>;
+
+export type WheelSheetWidth = NonNullable<VariantProps<typeof wheelSheetVariants>["width"]>;
 
 export type WheelSheetProps = Omit<VariantProps<typeof wheelSheetVariants>, "fit"> & {
   container: RefObject<HTMLElement>;
@@ -227,6 +233,7 @@ export function WheelSheet({
   onCancel,
   returnFocus,
   size,
+  width,
   keepClear,
 }: WheelSheetProps) {
   const titleId = useId();
@@ -290,7 +297,7 @@ export function WheelSheet({
       role="dialog"
       aria-modal="false"
       aria-labelledby={titleId}
-      class={cn(wheelSheetVariants({ size, fit: room === undefined ? "free" : "room" }))}
+      class={cn(wheelSheetVariants({ size, width, fit: room === undefined ? "free" : "room" }))}
       style={room === undefined ? undefined : { "--wheel-sheet-room": `${room}px` }}
       data-wheel-sheet
     >

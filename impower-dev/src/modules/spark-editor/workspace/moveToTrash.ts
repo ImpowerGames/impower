@@ -1,7 +1,7 @@
 import { willDeleteFilesRefusal } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
 import { NameError } from "../utils/fileListModel";
 import { recordTrashDeletion } from "../utils/fileUndo";
-import { keptMessage, trashSkipped } from "../utils/trashSkipped";
+import { keptMessage, newTrashBatchKey, trashSkipped } from "../utils/trashSkipped";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 
 export type TrashFileSystem = Pick<
@@ -20,14 +20,19 @@ export async function moveToTrash(
   items: readonly TrashItem[],
   label: string,
 ): Promise<void> {
-  const since = Date.now();
+  const batchKeys: string[] = [];
+  const nextBatchKey = () => {
+    const batchKey = newTrashBatchKey();
+    batchKeys.push(batchKey);
+    return batchKey;
+  };
   const files = items.filter((item) => !item.folder);
   let uris = files.map((item) => fs.getFileUri(projectId, item.path));
   const kept: string[] = [];
   if (uris.length) {
     const skipped = new Set(
       await trashSkipped(
-        fs.deleteFiles({ files: uris.map((uri) => ({ uri })), mode: "trash" }),
+        fs.deleteFiles({ files: uris.map((uri) => ({ uri })), mode: "trash", batchKey: nextBatchKey() }),
       ),
     );
     files.forEach((item, index) => {
@@ -38,7 +43,7 @@ export async function moveToTrash(
   const deletedFolders: string[] = [];
   for (const item of items.filter((entry) => entry.folder)) {
     try {
-      const deleted = await fs.deleteFolder(projectId, item.path, "trash");
+      const deleted = await fs.deleteFolder(projectId, item.path, "trash", nextBatchKey());
       uris.push(...deleted.files.map((d) => d.uri));
       deletedFolders.push(...deleted.folders);
     } catch (error) {
@@ -49,7 +54,7 @@ export async function moveToTrash(
     }
   }
   if (uris.length || deletedFolders.length) {
-    await recordTrashDeletion(projectId, uris, label, since, deletedFolders);
+    await recordTrashDeletion(projectId, uris, label, batchKeys, deletedFolders);
   }
   if (kept.length) {
     throw new NameError(keptMessage(kept));

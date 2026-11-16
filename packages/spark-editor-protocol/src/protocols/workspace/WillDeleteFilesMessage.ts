@@ -6,7 +6,13 @@ export type WillDeleteFilesMethod = typeof WillDeleteFilesMessage.method;
 export interface WillDeleteFilesParams extends DeleteFilesParams {
   mode?: "trash" | "permanent";
   folders?: { uri: string }[];
+  batchKey?: string;
 }
+
+export const TRASH_BATCH_KEY = /^[A-Za-z0-9-]{1,64}$/;
+
+export const isTrashBatchOf = (batchId: string, batchKey: string) =>
+  batchId.endsWith(`__${batchKey}`);
 
 export interface WillDeleteFilesRefusal {
   files: FileData[];

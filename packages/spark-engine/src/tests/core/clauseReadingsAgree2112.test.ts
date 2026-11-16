@@ -383,6 +383,8 @@ const CHOICE_DIRECTIVES: readonly (readonly [label: string, text: string])[] = [
   ["an image directive left open at the line's end", "Go [x] [[mia with fade"],
   ["an audio directive left open at the line's end", "Go [x] ((play music theme loop"],
   ["a directive left open at the line's end without choice brackets", "Go [[mia with fade"],
+  ["an image opener left open inside a styled span", "Go *a [[mia with fade* now"],
+  ["an audio opener left open inside a styled span", "Go *a ((play music theme* now"],
 ];
 
 const UNREAD_CHOICE_DIRECTIVES = [
@@ -403,6 +405,8 @@ const UNREAD_CHOICE_DIRECTIVES = [
   "an image directive left open at the line's end",
   "an audio directive left open at the line's end",
   "a directive left open at the line's end without choice brackets",
+  "an image opener left open inside a styled span",
+  "an audio opener left open inside a styled span",
 ];
 
 const CHOICE_ROWS: (readonly [label: string, text: string])[] = CHOICE_DIRECTIVES.flatMap(([label, text]) => [
@@ -708,6 +712,8 @@ describe("the grammar colours every directive word as the game reads it (I-2224)
     "Hello [[mia with fade",
     "Hello ((play music theme",
     "Hello [[mia]] and [[bunny with fade",
+    "*Hello [[mia with fade* now",
+    "*Hello ((play music theme* now",
   ];
 
   test.each(UNCLOSED_LINES)("a directive left open at a display line's end is coloured and read as text (I-2337): `%s`", async (text) => {

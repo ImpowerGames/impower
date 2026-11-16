@@ -10,7 +10,7 @@ const rows =
 function Page() {
   return (
     <div class="relative w-full">
-      <DropdownRoot sheet={kind !== "menu"}>
+      <DropdownRoot>
         <DropdownTrigger asChild>
           <button type="button" data-trigger class="m-4 h-11 w-[180px]">
             Menu

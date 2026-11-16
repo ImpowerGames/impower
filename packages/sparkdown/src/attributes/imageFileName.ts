@@ -68,8 +68,15 @@ export const imageFileNameOf = (path: string): ImageFileName => {
 export const encodedAssetNameOf = (path: string, type: string): string =>
   type === "image" ? imageFileNameOf(path).name : leafOf(path).split(".")[0]!;
 
-export const assetNameOf = (path: string, type: string): string =>
-  encodedAssetNameOf(path, type).replaceAll("%40", "@");
+const decodedNameOf = (encoded: string): string => {
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return encoded.replaceAll("%40", "@");
+  }
+};
+
+export const assetNameOf = (path: string, type: string): string => decodedNameOf(encodedAssetNameOf(path, type));
 
 export const imageMemberOf = (file: ImageFileName): string =>
   file.layer === undefined

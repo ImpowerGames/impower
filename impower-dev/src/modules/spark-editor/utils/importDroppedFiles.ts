@@ -55,7 +55,7 @@ export async function importFiles(projectId: string, items: DroppedItem[]): Prom
       await resolveUploadConflicts(
         projectId,
         items.map((item, index) => ({ rel: item.rel, address: item.address, payload: { item, index } })),
-        async ({ survivors, trashedOldUris, since, refused }) => {
+        async ({ survivors, trashedOldUris, batchKey, refused }) => {
           const surviving = new Set(survivors.map((s) => s.payload.index));
           const kept = new Set(refused.map((r) => r.index));
           items.forEach((_, index) => {
@@ -105,7 +105,7 @@ export async function importFiles(projectId: string, items: DroppedItem[]): Prom
             }
             written.push(...landed.map((uri) => fs.getRelativePath(projectId, uri)));
             const label = landed.length === 1 ? (landed[0]!.split("/").pop() ?? "file") : `${landed.length} files`;
-            await recordResolvedUpload(projectId, landed, trashedOldUris, since, label);
+            await recordResolvedUpload(projectId, landed, trashedOldUris, batchKey, label);
           }
         },
       );

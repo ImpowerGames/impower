@@ -7,7 +7,7 @@ import PDFDocument from "pdfkit";
 import { chromium, type Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
-import { KINDS } from "./fixtures/screenplayKinds";
+import { KINDS } from "./helpers/screenplayParity";
 import { buildScreenplayGeometryPage, EMOJI_FONT_URL } from "./harness/screenplay-geometry.mjs";
 
 const FIXTURE_DIR = resolve(__dirname, "fixtures/demo-screenplay");

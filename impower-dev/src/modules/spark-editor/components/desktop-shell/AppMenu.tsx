@@ -81,16 +81,16 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
         )}
       </DropdownTrigger>
       <DropdownContent
-        side="top"
-        align="start"
-        sideOffset={20}
+        side={trigger === "bar" ? "bottom" : "top"}
+        align={trigger === "bar" ? "end" : "start"}
+        sideOffset={trigger === "bar" ? 6 : 20}
         onCloseAutoFocus={(event) => {
           if (openingGuide.current) {
             openingGuide.current = false;
             event.preventDefault();
           }
         }}
-        class="w-[280px] in-data-[layout=phone]:w-auto"
+        class="w-[280px]"
       >
         <DropdownLabel class="flex flex-row items-center gap-1 py-0 pr-0">
           <span class="min-w-0 flex-1 [--fade:20px] fade-edge text-[15px]/[1.3] font-semibold">
