@@ -753,6 +753,12 @@ describe("Real menus and sheets at their elevations (I-2448)", () => {
     expect(await inChromium(markup, { width: 430, theme, touch: true, layout: "phone" }, dialogLook)).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
   });
 
+  it.each(THEMES)("G3: at 430 in %s the editor's context menu, an action sheet, has the sheet's corners and shadow", async (theme) => {
+    const sheet = h(ui.ActionSheet, { open: true, onOpenChange: () => {}, title: "Edit", items: [{ label: "Copy", onSelect: () => {} }] });
+    const { markup } = await opened(sheet, true);
+    expect(await inChromium(markup, { width: 430, theme, touch: true, layout: "phone" }, dialogLook)).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
+  });
+
   it.each(THEMES)("G3: at 430 in %s a responsive dialog shown as a sheet keeps the card's corners and no shadow", async (theme) => {
     const dialog = h(ui.Dialog, { responsive: true, open: true, onOpenChange: () => {} }, h(ui.DialogTitle, {}, "Keep which copy?"), h("p", {}, "Both copies changed."));
     const { markup } = await opened(dialog, true);

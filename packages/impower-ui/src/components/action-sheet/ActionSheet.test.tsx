@@ -107,6 +107,13 @@ describe("ActionSheet under preact/compat", () => {
     expect(card.className).toContain("translate-none");
   });
 
+  it("rises as a menu sheet, with the sheet's corners and shadow", async () => {
+    await mount([{ label: "Copy", onSelect: vi.fn() }]);
+    const classes = sheet()!.className.split(" ");
+    expect(classes).toEqual(expect.arrayContaining(["rounded-t-sheet", "shadow-sheet"]));
+    expect(classes).not.toContain("rounded-t-card");
+  });
+
   it("runs an item when it is chosen", async () => {
     const onSelect = vi.fn();
     await mount([{ label: "Copy", onSelect }]);
