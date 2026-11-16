@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import YAML from "yaml";
 import { withDirectCaptureScopes } from "./directCaptureScopes";
+import { withVscodeReassignmentGuard } from "./vscodeReassignmentGuard";
 
 const outPaths = process.argv.slice(2).filter((path) => !path.startsWith("--"));
 const WATCH = process.argv.includes("--watch");
@@ -578,7 +579,9 @@ const buildGrammarJson = async (outJsonPath: string) => {
     await readGrammarSource(),
     [IN_GRAMMAR_PATH, IN_LUAU_GRAMMAR_PATH],
     outJsonPath,
-    isVsCodeExtensionOutput(outJsonPath) ? withDirectCaptureScopes : undefined,
+    isVsCodeExtensionOutput(outJsonPath)
+      ? (grammar) => withVscodeReassignmentGuard(withDirectCaptureScopes(grammar))
+      : undefined,
   );
 };
 

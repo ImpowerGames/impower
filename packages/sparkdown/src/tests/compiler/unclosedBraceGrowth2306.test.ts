@@ -204,6 +204,31 @@ const READINGS: [string, string, string, string][] = [
   ["a reassignment indented by 40 spaces", `scene start\n${" ".repeat(40)}x = 1\nend\n`, "x", "variable.other.readwrite.luau"],
 ];
 
+const MALFORMED_REASSIGNMENTS: [string, string][] = [
+  [",x = 1", "x = 1"],
+  [", x = 1", "x = 1"],
+  [",x,y = 1,2", "x,y = 1,2"],
+  [".x,y = 1,2", "y = 1,2"],
+  [": x,y = 1,2", "y = 1,2"],
+  ["1x = 1", "x = 1"],
+  ["1abc = 2", "abc = 2"],
+  ["a:x,y = 1,2", "y = 1,2"],
+];
+
+describe("a reassignment after a stray separator or digit is parsed as on main (#2306)", () => {
+  test.each(MALFORMED_REASSIGNMENTS)("%s keeps its reassignment in the tree parser", (body, reassigned) => {
+    const source = `function f()\n  ${body}\nend\n`;
+    const from = source.indexOf(reassigned);
+    const found: string[] = [];
+    parseSource(source).iterate({
+      enter: (node) => {
+        if (node.name === "LuauReassignment") found.push(`${node.from}-${node.to}`);
+      },
+    });
+    expect(found, source).toContainEqual(`${from}-${from + reassigned.length}`);
+  });
+});
+
 describe("a long line keeps its reading (#2306)", () => {
   test.each(READINGS)("%s keeps its scope in VS Code's highlighter", async (_what, source, text, scope) => {
     const lines = await tokenize(source);
