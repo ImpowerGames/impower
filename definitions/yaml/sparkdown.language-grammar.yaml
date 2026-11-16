@@ -968,12 +968,26 @@ variables:
   # is the string's text. A block comment closed on the line is taken whole, as
   # the command's own run takes it, and one left open stops the scan.
   CHOICE_START_TEXT_INTERPOLATION_SCAN: (?:(?![{}"'`]|\[=*\[|{{SPARKDOWN_BLOCK_COMMENT_START}}){{CHOICE_START_TEXT_INTERPOLATION_TEXT}}|{{CHOICE_START_TEXT_INTERPOLATION_DOUBLE_QUOTED}}|{{CHOICE_START_TEXT_INTERPOLATION_SINGLE_QUOTED}}|{{CHOICE_START_TEXT_INTERPOLATION_BACKTICK_QUOTED}}|{{CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED}}|{{BLOCK_COMMENT_CLOSED}})
-  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_SCAN, inside a Luau long bracket, whose opener is
-  # text only where the region's end does not start at it, and which the
-  # region's end may also stop.
-  CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_START_TEXT_END}})\[=*\[{{CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED_TEXT}}*(?:(?={{CHOICE_START_TEXT_INTERPOLATION_STOP}})|(?![>])\]=*\]))
-  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED; a long bracket's closer ends it.
-  CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED_TEXT: (?:(?!\]=*\]){{CHOICE_START_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_SCAN, inside a Luau long bracket of level 0 to 2, as
+  # SPAN_LONG_BRACKET reads one, whose opener is text only where the region's end
+  # does not start at it, and which the region's end may also stop. A long
+  # bracket of level 3 or more stops the scan.
+  CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_START_TEXT_END}})(?:{{CHOICE_START_TEXT_INTERPOLATION_LONG_0}}|{{CHOICE_START_TEXT_INTERPOLATION_LONG_1}}|{{CHOICE_START_TEXT_INTERPOLATION_LONG_2}}))
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
+  # its own closer ends.
+  CHOICE_START_TEXT_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_START_TEXT_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_START_TEXT_INTERPOLATION_STOP}})|(?![>])\]\]))
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_0.
+  CHOICE_START_TEXT_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_START_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
+  # its own closer ends.
+  CHOICE_START_TEXT_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_START_TEXT_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_START_TEXT_INTERPOLATION_STOP}})|(?![>])\]=\]))
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_1.
+  CHOICE_START_TEXT_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_START_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
+  # its own closer ends.
+  CHOICE_START_TEXT_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_START_TEXT_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_START_TEXT_INTERPOLATION_STOP}})|(?![>])\]==\]))
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION_LONG_2.
+  CHOICE_START_TEXT_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_START_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_TEXT_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_START_TEXT_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_START_TEXT_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_START_TEXT_INTERPOLATION_STOP}})))
@@ -1001,12 +1015,26 @@ variables:
   # is the string's text. A block comment closed on the line is taken whole, as
   # the command's own run takes it, and one left open stops the scan.
   CHOICE_START_AUDIO_INTERPOLATION_SCAN: (?:(?![{}"'`]|\[=*\[|{{SPARKDOWN_BLOCK_COMMENT_START}}){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}}|{{CHOICE_START_AUDIO_INTERPOLATION_DOUBLE_QUOTED}}|{{CHOICE_START_AUDIO_INTERPOLATION_SINGLE_QUOTED}}|{{CHOICE_START_AUDIO_INTERPOLATION_BACKTICK_QUOTED}}|{{CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED}}|{{BLOCK_COMMENT_CLOSED}})
-  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_SCAN, inside a Luau long bracket, whose opener is
-  # text only where the region's end does not start at it, and which the
-  # region's end may also stop.
-  CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_START_TEXT_END}})\[=*\[{{CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED_TEXT}}*(?:(?={{CHOICE_START_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]=*\]))
-  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED; a long bracket's closer ends it.
-  CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED_TEXT: (?:(?!\]=*\]){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_SCAN, inside a Luau long bracket of level 0 to 2, as
+  # SPAN_LONG_BRACKET reads one, whose opener is text only where the region's end
+  # does not start at it, and which the region's end may also stop. A long
+  # bracket of level 3 or more stops the scan.
+  CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_START_TEXT_END}})(?:{{CHOICE_START_AUDIO_INTERPOLATION_LONG_0}}|{{CHOICE_START_AUDIO_INTERPOLATION_LONG_1}}|{{CHOICE_START_AUDIO_INTERPOLATION_LONG_2}}))
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
+  # its own closer ends.
+  CHOICE_START_AUDIO_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_START_AUDIO_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_START_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]\]))
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_0.
+  CHOICE_START_AUDIO_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
+  # its own closer ends.
+  CHOICE_START_AUDIO_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_START_AUDIO_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_START_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]=\]))
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_1.
+  CHOICE_START_AUDIO_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
+  # its own closer ends.
+  CHOICE_START_AUDIO_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_START_AUDIO_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_START_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]==\]))
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_LONG_2.
+  CHOICE_START_AUDIO_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_START_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_AUDIO_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_START_AUDIO_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_START_AUDIO_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_START_AUDIO_INTERPOLATION_STOP}})))
@@ -1034,12 +1062,26 @@ variables:
   # is the string's text. A block comment closed on the line is taken whole, as
   # the command's own run takes it, and one left open stops the scan.
   CHOICE_START_IMAGE_INTERPOLATION_SCAN: (?:(?![{}"'`]|\[=*\[|{{SPARKDOWN_BLOCK_COMMENT_START}}){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}}|{{CHOICE_START_IMAGE_INTERPOLATION_DOUBLE_QUOTED}}|{{CHOICE_START_IMAGE_INTERPOLATION_SINGLE_QUOTED}}|{{CHOICE_START_IMAGE_INTERPOLATION_BACKTICK_QUOTED}}|{{CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED}}|{{BLOCK_COMMENT_CLOSED}})
-  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_SCAN, inside a Luau long bracket, whose opener is
-  # text only where the region's end does not start at it, and which the
-  # region's end may also stop.
-  CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_START_TEXT_END}})\[=*\[{{CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED_TEXT}}*(?:(?={{CHOICE_START_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]=*\]))
-  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED; a long bracket's closer ends it.
-  CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED_TEXT: (?:(?!\]=*\]){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_SCAN, inside a Luau long bracket of level 0 to 2, as
+  # SPAN_LONG_BRACKET reads one, whose opener is text only where the region's end
+  # does not start at it, and which the region's end may also stop. A long
+  # bracket of level 3 or more stops the scan.
+  CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_START_TEXT_END}})(?:{{CHOICE_START_IMAGE_INTERPOLATION_LONG_0}}|{{CHOICE_START_IMAGE_INTERPOLATION_LONG_1}}|{{CHOICE_START_IMAGE_INTERPOLATION_LONG_2}}))
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
+  # its own closer ends.
+  CHOICE_START_IMAGE_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_START_IMAGE_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_START_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]\]))
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_0.
+  CHOICE_START_IMAGE_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
+  # its own closer ends.
+  CHOICE_START_IMAGE_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_START_IMAGE_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_START_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]=\]))
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_1.
+  CHOICE_START_IMAGE_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
+  # its own closer ends.
+  CHOICE_START_IMAGE_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_START_IMAGE_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_START_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]==\]))
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_LONG_2.
+  CHOICE_START_IMAGE_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_START_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_START_IMAGE_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_START_IMAGE_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_START_IMAGE_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_START_IMAGE_INTERPOLATION_STOP}})))
@@ -1176,12 +1218,26 @@ variables:
   # is the string's text. A block comment closed on the line is taken whole, as
   # the command's own run takes it, and one left open stops the scan.
   CHOICE_ONLY_TEXT_INTERPOLATION_SCAN: (?:(?![{}"'`]|\[=*\[|{{SPARKDOWN_BLOCK_COMMENT_START}}){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}}|{{CHOICE_ONLY_TEXT_INTERPOLATION_DOUBLE_QUOTED}}|{{CHOICE_ONLY_TEXT_INTERPOLATION_SINGLE_QUOTED}}|{{CHOICE_ONLY_TEXT_INTERPOLATION_BACKTICK_QUOTED}}|{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED}}|{{BLOCK_COMMENT_CLOSED}})
-  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_SCAN, inside a Luau long bracket, whose opener is
-  # text only where the region's end does not start at it, and which the
-  # region's end may also stop.
-  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_ONLY_TEXT_END}})\[=*\[{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED_TEXT}}*(?:(?={{CHOICE_ONLY_TEXT_INTERPOLATION_STOP}})|(?![>])\]=*\]))
-  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED; a long bracket's closer ends it.
-  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED_TEXT: (?:(?!\]=*\]){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_SCAN, inside a Luau long bracket of level 0 to 2, as
+  # SPAN_LONG_BRACKET reads one, whose opener is text only where the region's end
+  # does not start at it, and which the region's end may also stop. A long
+  # bracket of level 3 or more stops the scan.
+  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_ONLY_TEXT_END}})(?:{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0}}|{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1}}|{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2}}))
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
+  # its own closer ends.
+  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_ONLY_TEXT_INTERPOLATION_STOP}})|(?![>])\]\]))
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0.
+  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
+  # its own closer ends.
+  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_ONLY_TEXT_INTERPOLATION_STOP}})|(?![>])\]=\]))
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1.
+  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
+  # its own closer ends.
+  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_ONLY_TEXT_INTERPOLATION_STOP}})|(?![>])\]==\]))
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2.
+  CHOICE_ONLY_TEXT_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_ONLY_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_ONLY_TEXT_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_ONLY_TEXT_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_ONLY_TEXT_INTERPOLATION_STOP}})))
@@ -1209,12 +1265,26 @@ variables:
   # is the string's text. A block comment closed on the line is taken whole, as
   # the command's own run takes it, and one left open stops the scan.
   CHOICE_ONLY_AUDIO_INTERPOLATION_SCAN: (?:(?![{}"'`]|\[=*\[|{{SPARKDOWN_BLOCK_COMMENT_START}}){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}}|{{CHOICE_ONLY_AUDIO_INTERPOLATION_DOUBLE_QUOTED}}|{{CHOICE_ONLY_AUDIO_INTERPOLATION_SINGLE_QUOTED}}|{{CHOICE_ONLY_AUDIO_INTERPOLATION_BACKTICK_QUOTED}}|{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED}}|{{BLOCK_COMMENT_CLOSED}})
-  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_SCAN, inside a Luau long bracket, whose opener is
-  # text only where the region's end does not start at it, and which the
-  # region's end may also stop.
-  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_ONLY_TEXT_END}})\[=*\[{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED_TEXT}}*(?:(?={{CHOICE_ONLY_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]=*\]))
-  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED; a long bracket's closer ends it.
-  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED_TEXT: (?:(?!\]=*\]){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_SCAN, inside a Luau long bracket of level 0 to 2, as
+  # SPAN_LONG_BRACKET reads one, whose opener is text only where the region's end
+  # does not start at it, and which the region's end may also stop. A long
+  # bracket of level 3 or more stops the scan.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_ONLY_TEXT_END}})(?:{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0}}|{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1}}|{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2}}))
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
+  # its own closer ends.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_ONLY_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]\]))
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
+  # its own closer ends.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_ONLY_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]=\]))
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
+  # its own closer ends.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_ONLY_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]==\]))
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_ONLY_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_ONLY_AUDIO_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_ONLY_AUDIO_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_ONLY_AUDIO_INTERPOLATION_STOP}})))
@@ -1242,12 +1312,26 @@ variables:
   # is the string's text. A block comment closed on the line is taken whole, as
   # the command's own run takes it, and one left open stops the scan.
   CHOICE_ONLY_IMAGE_INTERPOLATION_SCAN: (?:(?![{}"'`]|\[=*\[|{{SPARKDOWN_BLOCK_COMMENT_START}}){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}}|{{CHOICE_ONLY_IMAGE_INTERPOLATION_DOUBLE_QUOTED}}|{{CHOICE_ONLY_IMAGE_INTERPOLATION_SINGLE_QUOTED}}|{{CHOICE_ONLY_IMAGE_INTERPOLATION_BACKTICK_QUOTED}}|{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED}}|{{BLOCK_COMMENT_CLOSED}})
-  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_SCAN, inside a Luau long bracket, whose opener is
-  # text only where the region's end does not start at it, and which the
-  # region's end may also stop.
-  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_ONLY_TEXT_END}})\[=*\[{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED_TEXT}}*(?:(?={{CHOICE_ONLY_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]=*\]))
-  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED; a long bracket's closer ends it.
-  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED_TEXT: (?:(?!\]=*\]){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_SCAN, inside a Luau long bracket of level 0 to 2, as
+  # SPAN_LONG_BRACKET reads one, whose opener is text only where the region's end
+  # does not start at it, and which the region's end may also stop. A long
+  # bracket of level 3 or more stops the scan.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_ONLY_TEXT_END}})(?:{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0}}|{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1}}|{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2}}))
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
+  # its own closer ends.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_ONLY_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]\]))
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
+  # its own closer ends.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_ONLY_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]=\]))
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
+  # its own closer ends.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_ONLY_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]==\]))
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_ONLY_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_ONLY_IMAGE_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_ONLY_IMAGE_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_ONLY_IMAGE_INTERPOLATION_STOP}})))
@@ -1384,12 +1468,26 @@ variables:
   # is the string's text. A block comment closed on the line is taken whole, as
   # the command's own run takes it, and one left open stops the scan.
   CHOICE_INNER_TEXT_INTERPOLATION_SCAN: (?:(?![{}"'`]|\[=*\[|{{SPARKDOWN_BLOCK_COMMENT_START}}){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}}|{{CHOICE_INNER_TEXT_INTERPOLATION_DOUBLE_QUOTED}}|{{CHOICE_INNER_TEXT_INTERPOLATION_SINGLE_QUOTED}}|{{CHOICE_INNER_TEXT_INTERPOLATION_BACKTICK_QUOTED}}|{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED}}|{{BLOCK_COMMENT_CLOSED}})
-  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_SCAN, inside a Luau long bracket, whose opener is
-  # text only where the region's end does not start at it, and which the
-  # region's end may also stop.
-  CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_INNER_TEXT_END}})\[=*\[{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED_TEXT}}*(?:(?={{CHOICE_INNER_TEXT_INTERPOLATION_STOP}})|(?![>])\]=*\]))
-  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED; a long bracket's closer ends it.
-  CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED_TEXT: (?:(?!\]=*\]){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_SCAN, inside a Luau long bracket of level 0 to 2, as
+  # SPAN_LONG_BRACKET reads one, whose opener is text only where the region's end
+  # does not start at it, and which the region's end may also stop. A long
+  # bracket of level 3 or more stops the scan.
+  CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_INNER_TEXT_END}})(?:{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_0}}|{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_1}}|{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_2}}))
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
+  # its own closer ends.
+  CHOICE_INNER_TEXT_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_INNER_TEXT_INTERPOLATION_STOP}})|(?![>])\]\]))
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_0.
+  CHOICE_INNER_TEXT_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
+  # its own closer ends.
+  CHOICE_INNER_TEXT_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_INNER_TEXT_INTERPOLATION_STOP}})|(?![>])\]=\]))
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_1.
+  CHOICE_INNER_TEXT_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
+  # its own closer ends.
+  CHOICE_INNER_TEXT_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_INNER_TEXT_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_INNER_TEXT_INTERPOLATION_STOP}})|(?![>])\]==\]))
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_LONG_2.
+  CHOICE_INNER_TEXT_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_INNER_TEXT_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_INNER_TEXT_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_INNER_TEXT_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_INNER_TEXT_INTERPOLATION_STOP}})))
@@ -1417,12 +1515,26 @@ variables:
   # is the string's text. A block comment closed on the line is taken whole, as
   # the command's own run takes it, and one left open stops the scan.
   CHOICE_INNER_AUDIO_INTERPOLATION_SCAN: (?:(?![{}"'`]|\[=*\[|{{SPARKDOWN_BLOCK_COMMENT_START}}){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}}|{{CHOICE_INNER_AUDIO_INTERPOLATION_DOUBLE_QUOTED}}|{{CHOICE_INNER_AUDIO_INTERPOLATION_SINGLE_QUOTED}}|{{CHOICE_INNER_AUDIO_INTERPOLATION_BACKTICK_QUOTED}}|{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED}}|{{BLOCK_COMMENT_CLOSED}})
-  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_SCAN, inside a Luau long bracket, whose opener is
-  # text only where the region's end does not start at it, and which the
-  # region's end may also stop.
-  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_INNER_TEXT_END}})\[=*\[{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED_TEXT}}*(?:(?={{CHOICE_INNER_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]=*\]))
-  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED; a long bracket's closer ends it.
-  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED_TEXT: (?:(?!\]=*\]){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_SCAN, inside a Luau long bracket of level 0 to 2, as
+  # SPAN_LONG_BRACKET reads one, whose opener is text only where the region's end
+  # does not start at it, and which the region's end may also stop. A long
+  # bracket of level 3 or more stops the scan.
+  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_INNER_TEXT_END}})(?:{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0}}|{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1}}|{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2}}))
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
+  # its own closer ends.
+  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_INNER_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]\]))
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0.
+  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
+  # its own closer ends.
+  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_INNER_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]=\]))
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1.
+  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
+  # its own closer ends.
+  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_INNER_AUDIO_INTERPOLATION_STOP}})|(?![)][)])\]==\]))
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2.
+  CHOICE_INNER_AUDIO_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_INNER_AUDIO_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_INNER_AUDIO_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_INNER_AUDIO_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_INNER_AUDIO_INTERPOLATION_STOP}})))
@@ -1450,12 +1562,26 @@ variables:
   # is the string's text. A block comment closed on the line is taken whole, as
   # the command's own run takes it, and one left open stops the scan.
   CHOICE_INNER_IMAGE_INTERPOLATION_SCAN: (?:(?![{}"'`]|\[=*\[|{{SPARKDOWN_BLOCK_COMMENT_START}}){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}}|{{CHOICE_INNER_IMAGE_INTERPOLATION_DOUBLE_QUOTED}}|{{CHOICE_INNER_IMAGE_INTERPOLATION_SINGLE_QUOTED}}|{{CHOICE_INNER_IMAGE_INTERPOLATION_BACKTICK_QUOTED}}|{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED}}|{{BLOCK_COMMENT_CLOSED}})
-  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_SCAN, inside a Luau long bracket, whose opener is
-  # text only where the region's end does not start at it, and which the
-  # region's end may also stop.
-  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_INNER_TEXT_END}})\[=*\[{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED_TEXT}}*(?:(?={{CHOICE_INNER_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]=*\]))
-  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED; a long bracket's closer ends it.
-  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED_TEXT: (?:(?!\]=*\]){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_SCAN, inside a Luau long bracket of level 0 to 2, as
+  # SPAN_LONG_BRACKET reads one, whose opener is text only where the region's end
+  # does not start at it, and which the region's end may also stop. A long
+  # bracket of level 3 or more stops the scan.
+  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED: (?:(?!{{CHOICE_INNER_TEXT_END}})(?:{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0}}|{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1}}|{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2}}))
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 0, which only
+  # its own closer ends.
+  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0: (?:\[\[{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0_TEXT}}*(?:(?={{CHOICE_INNER_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]\]))
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0.
+  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_0_TEXT: (?:(?!\]\]){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 1, which only
+  # its own closer ends.
+  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1: (?:\[=\[{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1_TEXT}}*(?:(?={{CHOICE_INNER_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]=\]))
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1.
+  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_1_TEXT: (?:(?!\]=\]){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}})
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_QUOTED, for a long bracket of level 2, which only
+  # its own closer ends.
+  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2: (?:\[==\[{{CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2_TEXT}}*(?:(?={{CHOICE_INNER_IMAGE_INTERPOLATION_STOP}})|(?!\]\])\]==\]))
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2.
+  CHOICE_INNER_IMAGE_INTERPOLATION_LONG_2_TEXT: (?:(?!\]==\]){{CHOICE_INNER_IMAGE_INTERPOLATION_TEXT}})
   # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION_SCAN, inside a double-quoted string, which the region's
   # end may also stop.
   CHOICE_INNER_IMAGE_INTERPOLATION_DOUBLE_QUOTED: (?:["]{{CHOICE_INNER_IMAGE_INTERPOLATION_DOUBLE_QUOTED_TEXT}}*(?:["]|(?={{CHOICE_INNER_IMAGE_INTERPOLATION_STOP}})))
