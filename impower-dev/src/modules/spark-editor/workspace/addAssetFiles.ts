@@ -2,9 +2,11 @@ import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { assetEndings, assetTypeOf } from "../utils/assetTypes";
 import { inflateZipEntry, listZip, zipInflates } from "../utils/zipEntries";
 import { findProjectRoot, isArchiveDropping } from "./projectImport";
-import { landingFolder } from "./assetsListing";
+import type { MissingAsset } from "@impower/sparkdown/src/compiler/utils/missingAsset";
+import { landingFolder, typeFolder } from "./assetsListing";
 import { isInside, joinPath, parentOf } from "./scriptsListing";
 import { isDroppedFolder, walkDrop, type DropItem, type WalkedDrop } from "../utils/fileDrops";
+import getValidFileName from "../utils/getValidFileName";
 import { storageLeft } from "../utils/storageLeft";
 import { beginUploadBatch, endUploadBatch, findingUploads, refuseUploads, withUploadGroup } from "./uploadSession";
 import type { DroppedFile } from "./WorkspaceAssets";
@@ -58,10 +60,10 @@ const addWalked = async (
   projectId: string,
   { files, refused }: WalkedDrop,
   folder: string,
-  { showUploads, fromFolders }: { showUploads?: () => void; fromFolders: boolean },
+  { showUploads, fromFolders, keepNames }: { showUploads?: () => void; fromFolders: boolean; keepNames?: boolean },
 ): Promise<string[]> => {
   const group = <T>(run: () => Promise<T>) => withUploadGroup(run, { keepFinished: fromFolders });
-  const opened = !fromFolders && isZip(files) ? await openZip(files[0]!) : { files };
+  const opened = !fromFolders && !keepNames && isZip(files) ? await openZip(files[0]!) : { files };
   if (!opened) {
     return [];
   }
@@ -98,21 +100,23 @@ const addWalked = async (
       refuseUploads(names, { kind: "project_changed" });
       return [];
     }
-    return Workspace.assets.upload(opened.files, folder);
+    return keepNames
+      ? Workspace.assets.upload(opened.files, folder, { keepNames })
+      : Workspace.assets.upload(opened.files, folder);
   });
 };
 
 export const addAssetFiles = async (
   items: readonly DropItem[],
   folder: string,
-  { showUploads }: { showUploads?: () => void } = {},
+  { showUploads, keepNames }: { showUploads?: () => void; keepNames?: boolean } = {},
 ): Promise<string[]> => {
   const projectId = workspace.signals.projectId.peek();
   if (!items.length || !projectId) {
     return [];
   }
   if (!items.some(isDroppedFolder)) {
-    return addWalked(projectId, { files: items as AddedFile[], refused: [] }, folder, { showUploads, fromFolders: false });
+    return addWalked(projectId, { files: items as AddedFile[], refused: [] }, folder, { showUploads, fromFolders: false, keepNames });
   }
   showUploads?.();
   beginUploadBatch();
@@ -123,6 +127,17 @@ export const addAssetFiles = async (
     endUploadBatch();
   }
 };
+
+export const namedAs = <T extends { name: string }>(file: T, name: string): T => {
+  const leaf = leafOf(file.name);
+  const dot = leaf.lastIndexOf(".");
+  return { ...file, name: dot > 0 ? name + getValidFileName(leaf.slice(dot)) : name };
+};
+
+export const addNamedAssetFile = (file: AddedFile, { name, type }: MissingAsset): Promise<string[]> =>
+  addAssetFiles([namedAs(file, name)], typeFolder(workspace.assetListing.peek() ?? { files: {}, folders: [] }, type), {
+    keepNames: true,
+  });
 
 const rowIn = (path: string, folder: string): string =>
   joinPath(folder, path.slice(folder ? folder.length + 1 : 0).split("/")[0]!);

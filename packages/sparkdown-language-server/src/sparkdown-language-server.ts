@@ -636,6 +636,7 @@ try {
         document,
         params.context.diagnostics,
         workspace.startSceneMissingIn(uri),
+        workspace.projectRootOf(uri),
       ),
     );
     return result;

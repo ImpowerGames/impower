@@ -1,4 +1,4 @@
-import { fixActionsOf } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
+import { editActionsOf } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
 import type {
   EditorFix,
   EditorFixChange,
@@ -38,7 +38,7 @@ export const findSameFix = (
   fix.expect === undefined
     ? undefined
     : diagnostics.find((diagnostic) =>
-        fixActionsOf(diagnostic.data).some(
+        editActionsOf(diagnostic.data).some(
           (action) =>
             action.expect === fix.expect &&
             action.kind === fix.kind &&

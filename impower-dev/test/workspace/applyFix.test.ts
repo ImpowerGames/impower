@@ -100,6 +100,7 @@ const deps = (overrides: Partial<FixDeps> = {}): FixDeps => ({
   openScript: vi.fn(async () => false),
   refreshDiagnostics: vi.fn(async () => {}),
   recordScriptChange: vi.fn(async () => {}),
+  runCommand: vi.fn(async () => false),
   ...overrides,
 });
 

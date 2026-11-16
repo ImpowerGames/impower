@@ -8,8 +8,10 @@ import {
 } from "@impower/spark-web-player/src/components/PlayerConsole/consoleEntries";
 import {
   fixActionsOf,
+  isCommandAction,
   type DiagnosticFixAction,
 } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
+import type { ChoseEditorFixParams as FixChoice } from "@impower/spark-editor-protocol/src/protocols/editor/ChoseEditorFixMessage";
 import { FIX_SNAPSHOT_PROOFS } from "@impower/spark-editor-protocol/src/utils/fixSnapshots";
 import type { ReadonlySignal } from "@preact/signals";
 import type { Diagnostic, Range } from "vscode-languageserver-protocol";
@@ -225,7 +227,10 @@ export function filterChip(
 
 export const lineLink = (line: number) => `Line ${line}`;
 
-export function fixChoiceOf(problem: Problem, action: DiagnosticFixAction) {
+export function fixChoiceOf(problem: Problem, action: DiagnosticFixAction): FixChoice {
+  if (isCommandAction(action)) {
+    return { name: action.name, command: action.command };
+  }
   const { name, done, expect, kind, changes } = action;
   return {
     fix: {

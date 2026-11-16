@@ -168,6 +168,18 @@ describe("the Assets page's file intents", () => {
     ]);
   });
 
+  it("keeps a named upload's name exactly as the script wrote it, where an ordinary upload cleans it", async () => {
+    const { assets } = fakeWorkspace({ "Assets/Audio/rain.ogg": "ogg" });
+    await assets.load();
+    mocks.importFiles.mockClear();
+    await assets.upload([dropped("door-bell.wav"), dropped("café.ogg")], "Assets/Audio", { keepNames: true });
+    await assets.upload([dropped("door-bell.wav"), dropped("café.ogg")], "Assets/Audio");
+    expect(mocks.importFiles.mock.calls.map((call) => call[1].map((item: { rel: string }) => item.rel))).toEqual([
+      ["Assets/Audio/door-bell.wav", "Assets/Audio/café.ogg"],
+      ["Assets/Audio/door_bell.wav", "Assets/Audio/caf_.ogg"],
+    ]);
+  });
+
   it("keeps the @ and ~ of an uploaded or dropped alternate or layer file, and cleans other characters", async () => {
     const { assets } = fakeWorkspace({ "Assets/Images/imani.png": "png" });
     await assets.load();
