@@ -21,6 +21,21 @@ const IGNORABLE_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
+const REACHABLE_AGAIN_AT: ReadonlySet<string> = nodeNameSet([
+  "LuauEndKeyword",
+  "Scene",
+  "Branch",
+  "LabelAnchor",
+  "Choice",
+  "LuauAlternatorSeparator",
+  "LuauSparkdownElseifBlock",
+  "LuauSparkdownElseBlock",
+  "LuauSparkdownExplicitElseifBlock",
+  "LuauSparkdownExplicitElseBlock",
+  "LuauElseifBlock",
+  "LuauElseBlock",
+]);
+
 function findUnreachableRange(
   decl: SyntaxNode,
 ): { from: SyntaxNode; to: SyntaxNode } | null {
@@ -28,8 +43,7 @@ function findUnreachableRange(
   let first: SyntaxNode | null = null;
   let last: SyntaxNode | null = null;
   while (cur) {
-    if (cur.name === "LuauEndKeyword") break;
-    if (cur.name === "Scene" || cur.name === "Branch") break;
+    if (REACHABLE_AGAIN_AT.has(cur.name)) break;
     if (!IGNORABLE_SIBLINGS.has(cur.name)) {
       if (!first) first = cur;
       last = cur;
@@ -58,14 +72,12 @@ export function unreachableRead(
   return readOf(node, findUnreachableRange(node), ctx);
 }
 
-function lower(
+export const UNREACHABLE_STATEMENT_MESSAGE = "Unreachable statement detected.";
+
+export function unreachableAfter(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
-  target: "DONE" | "END",
-): CompiledBlock {
-  const divert = new Divert([new Identifier(target)], []);
-  const block = wrapInWeave([divert]);
-
+): InkDiagnostic | undefined {
   const unreachable = findUnreachableRange(nodeRef.node);
   ctx.recordRead?.({
     kind: "unreachable",
@@ -73,20 +85,33 @@ function lower(
     node: nodeRef.node.name,
     from: nodeRef.node.from,
   });
-  if (unreachable) {
-    const diagnostic: InkDiagnostic = {
-      message: "Unreachable statement detected.",
-      severity: ErrorType.Hint,
-      source: {
-        fileName: null,
-        filePath: ctx.filePath ?? null,
-        startLineNumber: ctx.lineNumber(unreachable.from.from) + 1,
-        endLineNumber: ctx.lineNumber(unreachable.to.to) + 1,
-        startCharacterNumber: ctx.characterNumber(unreachable.from.from) + 1,
-        endCharacterNumber: ctx.characterNumber(unreachable.to.to) + 1,
-      },
-      tags: [UNNECESSARY_TAG],
-    };
+  if (!unreachable) {
+    return undefined;
+  }
+  return {
+    message: UNREACHABLE_STATEMENT_MESSAGE,
+    severity: ErrorType.Hint,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(unreachable.from.from) + 1,
+      endLineNumber: ctx.lineNumber(unreachable.to.to) + 1,
+      startCharacterNumber: ctx.characterNumber(unreachable.from.from) + 1,
+      endCharacterNumber: ctx.characterNumber(unreachable.to.to) + 1,
+    },
+    tags: [UNNECESSARY_TAG],
+  };
+}
+
+function lower(
+  nodeRef: SparkdownSyntaxNodeRef,
+  ctx: LowerContext,
+  target: "DONE" | "END",
+): CompiledBlock {
+  const divert = new Divert([new Identifier(target)], []);
+  const block = wrapInWeave([divert]);
+  const diagnostic = unreachableAfter(nodeRef, ctx);
+  if (diagnostic) {
     block.diagnostics = [diagnostic];
   }
   return block;

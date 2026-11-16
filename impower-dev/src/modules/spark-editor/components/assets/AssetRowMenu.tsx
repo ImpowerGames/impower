@@ -20,7 +20,15 @@ export const ROW_ACTIONS: readonly AssetRowAction[] = ["select", "rename", "move
 
 export const INSPECTOR_ACTIONS: readonly AssetRowAction[] = ["rename", "move", "download", "delete"];
 
+export type AssetRowMenuTone = "muted" | "ink";
+
+const TRIGGER_TONE: Record<AssetRowMenuTone, string> = {
+  muted: "flex-none text-muted",
+  ink: "flex-none text-ink",
+};
+
 export type AssetRowMenuProps = {
+  tone?: AssetRowMenuTone;
   name: string;
   kept?: string;
   actions?: readonly AssetRowAction[];
@@ -39,12 +47,12 @@ function Kept({ label, reason }: { label: string; reason?: string }) {
   );
 }
 
-export default function AssetRowMenu({ name, kept, actions = ROW_ACTIONS, glyph = "md", onAction }: AssetRowMenuProps) {
+export default function AssetRowMenu({ name, kept, actions = ROW_ACTIONS, glyph = "md", tone = "muted", onAction }: AssetRowMenuProps) {
   const offers = (action: AssetRowAction) => actions.includes(action);
   return (
     <DropdownRoot>
       <DropdownTrigger asChild>
-        <Button variant="quiet" size="icon" glyph={glyph} aria-label={`Options for ${name}`} class="flex-none text-muted">
+        <Button variant="quiet" size="icon" glyph={glyph} aria-label={`Options for ${name}`} class={TRIGGER_TONE[tone]}>
           <MoreVerticalIcon />
         </Button>
       </DropdownTrigger>

@@ -251,7 +251,7 @@ describe("other diagnostics from statements inside alternator arms and choose bl
     expect(diagnosticLines(scene(body) + TARGETS, fragment)).toEqual([line]);
   });
 
-  test.fails("the unreachable range after fin in a queue arm ends before the next arm", () => {
+  test("the unreachable range after fin in a queue arm ends before the next arm", () => {
     expect(diagnosticRanges(scene("  queue\n  | A\n    fin\n    Never.\n  | B\n  end"), UNREACHABLE)).toEqual([
       [5, 5],
     ]);

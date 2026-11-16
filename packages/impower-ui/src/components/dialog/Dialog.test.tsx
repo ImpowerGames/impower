@@ -716,3 +716,16 @@ describe("Dialog form size", () => {
     expect(dialogVariants({ size: "form", flush: true }).split(/\s+/)).not.toContain("p-[26px]");
   });
 });
+
+describe("a padded dialog or sheet body", () => {
+  it("gives the stable scrollbar gutter back from its right padding, so its content ends as far from each edge", async () => {
+    const { dialogVariants, sheetVariants } = await import("./Dialog");
+    expect(dialogVariants().split(/\s+/)).toEqual(expect.arrayContaining(["p-5", "pr-gutter-5"]));
+    expect(dialogVariants({ size: "form" }).split(/\s+/)).toEqual(
+      expect.arrayContaining(["p-[26px]", "pr-gutter-[26px]", "phone:p-[19px]", "phone:pr-gutter-[19px]"]),
+    );
+    expect(sheetVariants().split(/\s+/)).toEqual(expect.arrayContaining(["p-5", "pr-gutter-5"]));
+    expect(dialogVariants({ flush: true }).split(/\s+/)).not.toContain("pr-gutter-5");
+    expect(sheetVariants({ flush: true }).split(/\s+/)).not.toContain("pr-gutter-5");
+  });
+});

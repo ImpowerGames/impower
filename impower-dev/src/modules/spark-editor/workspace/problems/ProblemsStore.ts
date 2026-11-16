@@ -14,7 +14,8 @@ import { WorkspaceConstants } from "../WorkspaceConstants";
 import workspace from "../WorkspaceStore";
 import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/PlayerConsole";
 import { showSnackbar } from "../../utils/snackbar";
-import { applyFix, fixKey, type FixChoice } from "./applyFix";
+import { applyFix, choiceKey, isCommandChoice, type FixChoice } from "./applyFix";
+import { runEditorCommand } from "./runEditorCommand";
 import { openForFix, openScript, type OpenForFixDeps } from "./openForFix";
 import {
   CONSOLE_SEVERITIES,
@@ -359,10 +360,18 @@ export class ProblemsStore {
   }
 
   applyFix(choice: FixChoice): Promise<boolean> {
-    const key = fixKey(choice.fix);
+    const key = choiceKey(choice);
     const joined = this._fixes.get(key);
     if (joined) {
       return joined;
+    }
+    if (isCommandChoice(choice)) {
+      this.closeDialog();
+      const run = this.runFix(choice);
+      this._fixes.set(key, run);
+      const settle = () => this._fixes.delete(key);
+      void run.then(settle, settle);
+      return run;
     }
     const before = this._fixingScripts.get(choice.fix.uri);
     const run = (async () => {
@@ -402,6 +411,7 @@ export class ProblemsStore {
         openForFix: (fix) => openForFix(opening, fix),
         openScript: async (fix) => (await openScript(opening, fix)) !== null,
         recordScriptChange: () => Workspace.window.recordScriptChange(),
+        runCommand: runEditorCommand,
         refreshDiagnostics: async (uri) => {
           const pulled = await Workspace.ls.pullDiagnostics(uri);
           if (pulled) {

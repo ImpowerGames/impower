@@ -23,6 +23,7 @@ const FIXTURES: Record<string, string> = {
   "unmarked text wrapping after a block": ["scene s", `  queue | One. | Two. end : ${LONG}`, "end", ""].join("\n"),
   "mixed depths on one line": ["scene s", "  if flag then", `    queue | ${LONG} | Short. end : Outer tail.`, "  end", "end", ""].join("\n"),
   "shared with a block": ["scene s", `  queue | One. | Two. end queue | ${LONG} | Short. end`, "end", ""].join("\n"),
+  "two blocks with a blank between": ["scene s", "  Before.", "  queue | One A. | One B. end queue | Two A. | Two B. end", "  After.", "end", ""].join("\n"),
 };
 
 for (const [name, text] of Object.entries(FIXTURES)) {

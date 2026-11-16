@@ -1,7 +1,5 @@
 import { ASSET_VALUE_CLAUSE_WORDS } from "../../../language/sparkdown.clause-words";
 import { LayoutVerb, isLayoutVerb } from "../../../language/sparkdown.layout-verbs";
-import { type SyntaxNode } from "@lezer/common";
-import { choiceTextRanges, type TextRange } from "./readChoiceText";
 
 export const DIRECTIVE_CONTROL_WORDS: readonly string[] = [
   "show",
@@ -167,93 +165,18 @@ export const DIRECTIVE_NODE_BRACKETS: Readonly<Record<string, DirectiveBracket>>
   AudioCommand: "audio",
 };
 
-export interface DirectiveNodeRef {
-  name: string;
-  from: number;
-  to: number;
-  node?: SyntaxNode;
-}
-
-function rangesFrom(at: number, ranges: readonly TextRange[]): TextRange[] | undefined {
-  const index = ranges.findIndex((range) => range.from <= at && at < range.to);
-  return index < 0 ? undefined : [{ from: at, to: ranges[index]!.to }, ...ranges.slice(index + 1)];
-}
-
-interface DirectiveText {
-  ranges: TextRange[];
-  values: TextRange[];
-}
-
-function directiveTexts(node: DirectiveNodeRef): DirectiveText[] {
-  let choice = node.node?.parent ?? null;
-  while (choice && choice.name !== "Choice") choice = choice.parent;
-  const game = choice ? choiceTextRanges(choice) : undefined;
-  const texts = game
-    ? [game.chosen, game.offered].flatMap(({ ranges, values }) => {
-        const from = rangesFrom(node.from, ranges);
-        return from ? [{ ranges: from, values }] : [];
-      })
-    : [];
-  return texts.length > 0 ? texts : [{ ranges: [{ from: node.from, to: node.to }], values: [] }];
-}
-
-function composeText(ranges: TextRange[], read: (from: number, to: number) => string) {
-  const starts: number[] = [];
-  let text = "";
-  for (const range of ranges) {
-    starts.push(text.length);
-    text += read(range.from, range.to);
-  }
-  const sourceAt = (index: number): number => {
-    let i = ranges.length - 1;
-    while (i > 0 && starts[i]! > index) i -= 1;
-    return ranges[i]!.from + index - starts[i]!;
-  };
-  return { text, sourceAt };
-}
-
-export interface SourceDirectiveTexts {
-  directives: SourceDirective[];
-  filledValues: TextRange[];
-}
-
-export function readSourceDirectiveTexts(
-  node: DirectiveNodeRef,
+export function readSourceDirective(
+  node: { name: string; from: number; to: number },
   read: (from: number, to: number) => string,
-): SourceDirectiveTexts {
-  const found: SourceDirectiveTexts = { directives: [], filledValues: [] };
+): SourceDirective | undefined {
   const bracket = Object.hasOwn(DIRECTIVE_NODE_BRACKETS, node.name) ? DIRECTIVE_NODE_BRACKETS[node.name] : undefined;
-  if (!bracket) return found;
-  const seen = new Set<string>();
-  for (const { ranges, values } of directiveTexts(node)) {
-    const { text, sourceAt } = composeText(ranges, read);
-    const closeAt = text.indexOf(DIRECTIVE_CLOSERS[bracket], 2);
-    if (closeAt < 0) continue;
-    const end = sourceAt(closeAt);
-    const value = values.find((range) => range.from < end && node.from < range.to);
-    const key = value ? `value:${value.from}:${value.to}` : `${end}:${text.slice(0, closeAt)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    if (value) found.filledValues.push(value);
-    else found.directives.push(sourceDirective(node, bracket, text, closeAt, sourceAt));
-  }
-  return found;
-}
-
-function sourceDirective(
-  node: DirectiveNodeRef,
-  bracket: DirectiveBracket,
-  text: string,
-  closeAt: number,
-  sourceAt: (index: number) => number,
-): SourceDirective {
-  const reading = readDirective(bracket, text.slice(2, closeAt));
-  const shift = (word: DirectiveWord): DirectiveWord => ({
-    text: word.text,
-    from: sourceAt(word.from + 2),
-    to: sourceAt(word.to + 1) + 1,
-  });
+  if (!bracket) return undefined;
+  const text = read(node.from, node.to);
+  const closeAt = text.indexOf(DIRECTIVE_CLOSERS[bracket], 2);
+  if (closeAt < 0) return undefined;
   const contentFrom = node.from + 2;
+  const reading = readDirective(bracket, text.slice(2, closeAt));
+  const shift = (word: DirectiveWord): DirectiveWord => ({ text: word.text, from: word.from + contentFrom, to: word.to + contentFrom });
   return {
     bracket,
     kind: reading.kind,
@@ -269,21 +192,22 @@ function sourceDirective(
     })),
     values: reading.values,
     from: node.from,
-    to: Math.max(node.to, sourceAt(closeAt + 1) + 1),
+    to: node.to,
     contentFrom,
-    contentTo: sourceAt(closeAt),
+    contentTo: node.from + closeAt,
   };
 }
 
 export function readSourceDirectives(
-  tree: { iterate(spec: { enter(node: DirectiveNodeRef): boolean | void }): void },
+  tree: { iterate(spec: { enter(node: { name: string; from: number; to: number }): boolean | void }): void },
   read: (from: number, to: number) => string,
 ): SourceDirective[] {
   const directives: SourceDirective[] = [];
   tree.iterate({
     enter: (node) => {
       if (!Object.hasOwn(DIRECTIVE_NODE_BRACKETS, node.name)) return undefined;
-      directives.push(...readSourceDirectiveTexts(node, read).directives);
+      const directive = readSourceDirective(node, read);
+      if (directive) directives.push(directive);
       return false;
     },
   });

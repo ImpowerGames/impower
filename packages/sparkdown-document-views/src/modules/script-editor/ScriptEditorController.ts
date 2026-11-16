@@ -31,6 +31,7 @@ import {
   formatDocument,
   getDocumentVersion,
   insertConstruct,
+  isCommandAction,
   isInsertConstruct,
   jumpToDefinition,
   planConstruct,
@@ -1192,6 +1193,16 @@ export class ScriptEditorController {
   protected _chosenFixes = new Set<string>();
 
   protected handleFix = ({ uri, version, range, action }: DiagnosticFix) => {
+    if (isCommandAction(action)) {
+      sendProtocolMessage(
+        ChoseEditorFixMessage.type.notification({
+          name: action.name,
+          command: action.command,
+        }),
+        this.host,
+      );
+      return;
+    }
     const { name, done, expect, kind, changes } = action;
     this._chosenFixes.add(chosenFixKey(uri, changes));
     sendProtocolMessage(

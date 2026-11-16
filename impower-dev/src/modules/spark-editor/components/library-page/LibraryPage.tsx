@@ -8,7 +8,7 @@ import {
   VirtualList,
   type VirtualListGrid,
 } from "@impower/impower-ui/components";
-import { useLayout, useScrollbarSize } from "@impower/impower-ui/layout";
+import { useLayout } from "@impower/impower-ui/layout";
 import type { Layout } from "@impower/impower-ui/layout";
 import type { ComponentChildren, JSX, Ref, RefObject } from "preact";
 import LibraryToolbar from "./LibraryToolbar";
@@ -66,7 +66,6 @@ export default function LibraryPage<T>({
   children,
 }: LibraryPageProps<T>) {
   const rowHeight = libraryRowHeight(useLayout());
-  useScrollbarSize();
   return (
     <div class="flex min-h-0 flex-1 flex-col" {...area}>
       <div class="@container flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">

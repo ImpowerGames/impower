@@ -128,6 +128,29 @@ describe("the Problems to fix dialog", () => {
     expect(accessibleName()).toBe("Problems and playback messages");
   });
 
+  it("lets its list reach past the 8px row bleed into the dialog's padding by the list's own gutter, never beyond that padding", async () => {
+    for (const scope of [{ kind: "story" }, { kind: "script", path: "scripts/chapter_1.sd" }] as const) {
+      await open(scope);
+      const list = dialog()!.querySelector<HTMLElement>("[class*=overflow-y-auto]:not([role=dialog])")!;
+      const classes = list.className.split(/\s+/);
+      expect(classes).toContain("-ml-2");
+      expect(classes).toContain(
+        "mr-[calc(-1*min(0.5rem+var(--scrollbar-size,0px),var(--spacing)*5-var(--scrollbar-size,0px)))]",
+      );
+      expect(classes).not.toContain("-mx-2");
+      await act(async () => problems.closeDialog());
+      await transition();
+    }
+  });
+
+  it("lets the whole story's cards reach into the dialog's padding by their list's own gutter, so they end as far from each edge", async () => {
+    await open({ kind: "story" });
+    const cards = dialog()!.querySelector<HTMLElement>('[aria-label="While playing, variables, watches and call stack"]')!.parentElement!;
+    expect(cards.className.split(/\s+/)).toContain(
+      "mr-[calc(-1*min(var(--scrollbar-size,0px),var(--spacing)*5-var(--scrollbar-size,0px)))]",
+    );
+  });
+
   it("names one script's dialog for the problems it lists, visibly and to assistive technology", async () => {
     await open({ kind: "script", path: "scripts/chapter_1.sd" });
     expect(dialog()!.querySelector("h2")!.textContent).toBe("Problems to fix");

@@ -15,6 +15,7 @@ import type { PreviewLine } from "@impower/spark-editor-protocol/src/protocols/t
 import type { DebugVariableNode } from "@impower/spark-web-player/src/components/DebugVariables/DebugVariables";
 import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
+import type { MissingAsset } from "@impower/sparkdown/src/compiler/utils/missingAsset";
 import type { SparkStoppedEventBody } from "@impower/spark-debug-adapter/src/SparkDebugSession";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import type {
@@ -220,6 +221,8 @@ class WorkspaceStore {
   readonly assetsReveal = signal<readonly string[] | null>(null);
 
   readonly assetsInspect = signal<string | null>(null);
+
+  readonly assetsAdd = signal<MissingAsset | null>(null);
 
   readonly movesReplayed = signal<{ moves: readonly FileMove[]; settled: boolean } | null>(null);
 

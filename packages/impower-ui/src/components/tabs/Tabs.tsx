@@ -7,6 +7,8 @@ import type { IconComponent } from "../icon/icons.generated";
 import { cn } from "../../utils/cn";
 import "../../utils/uniqueIds";
 
+const UNDERLINE_INSET = 4;
+
 const tabsContainer = cva("relative flex w-full", {
   variants: {
     orientation: {
@@ -159,15 +161,11 @@ export default function Tabs({
       }
       const lr = list.getBoundingClientRect();
       const ar = active.getBoundingClientRect();
-      const style = getComputedStyle(active);
-      const inset =
-        variant === "inline" || variant === "page"
-          ? { left: parseFloat(style.paddingLeft) || 0, right: parseFloat(style.paddingRight) || 0 }
-          : { left: 0, right: 0 };
+      const inset = variant === "inline" || variant === "page" ? UNDERLINE_INSET : 0;
       setIndicatorRect({
-        x: ar.left - lr.left + list.scrollLeft + inset.left,
+        x: ar.left - lr.left + list.scrollLeft + inset,
         y: ar.top - lr.top + list.scrollTop,
-        w: ar.width - inset.left - inset.right,
+        w: ar.width - inset * 2,
         h: ar.height,
       });
     };

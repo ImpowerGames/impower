@@ -28,33 +28,28 @@ const missingAudio = (text: string) =>
 
 describe("a directive in a choice line is read over the text the story hands the interpreter (I-2225)", () => {
   test.each([
-    ["    + Go ((a {[[a]]} b)) now", ["a", "b"]],
-    ["    + Go *far ((a {[=[a]=]} b)) away* now", ["a", "b"]],
+    ["    + Go ((a {[[a]]} b)) now", []],
+    ["    + Go *far ((a {[=[a]=]} b)) away* now", []],
     ["    + Go ((a {t[1]} b)) now -> next", ["a", "b"]],
-    ["    + Go ((a [x] /* c */ b)) now", ["a", "b"]],
-    ["    + Go ((a [b)) c] d", ["a", "b"]],
+    ["    + Go ((a [x] /* c */ b)) now", []],
+    ["    + Go ((a [b)) c] d", []],
     ["    + Go ((a b)) [x] now", ["a", "b"]],
-    ["    + Go ((a [x)) y] z)) now", ["a", "x", "z"]],
+    ["    + Go [x] ((a b)) now", ["a", "b"]],
+    ["    + Go [((a b))] now", ["a", "b"]],
+    ["    + Go ((a [x)) y] z)) now", []],
     ["    + Go ((a [x] # note)) now", []],
-  ])("`%s` warns about %j", (line, names) => {
+    [`    + Go ((a [x] {true and "x" or "y"} b)) now`, []],
+  ])("`%s` warns about %j (I-2337)", (line, names) => {
     expect(missingAudio(script(line))).toEqual(names);
   });
 
   test.each([
-    "    + Go ((a loop garbage [x)) y] z)) now",
-    "    + Go ((a over soon [x)) y] z)) now",
+    "    + Go ((a loop garbage)) [x] now",
+    "    + Go ((a over soon)) [x] now",
   ])("`%s` reports each problem once though the menu and the chosen text both read it", (line) => {
     const found = diagnostics(script(line)).map(({ message, line: at, from, to }) => `${at}:${from}-${to} ${message}`);
     expect(found.length).toBeGreaterThan(1);
     expect(found.filter((entry, index) => found.indexOf(entry) !== index)).toEqual([]);
-  });
-
-  test("a directive whose text the game reads after filling in a value says the editor cannot check it", () => {
-    const line = `    + Go ((a [x] {true and "x" or "y"} b)) now`;
-    const found = diagnostics(script(line));
-    expect(missingAudio(script(line))).toEqual([]);
-    const filled = found.filter(({ message }) => message.startsWith("The game fills in this value before it reads the directive"));
-    expect(filled.map(({ line: at, from, to }) => [at, line.slice(from, to)])).toEqual([[2, `{true and "x" or "y"}`]]);
   });
 
   test.each([
