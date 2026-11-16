@@ -8,6 +8,7 @@ import {
   InfoIcon,
   MESSAGE_ENTRY_ROW_HEIGHT,
   MessageEntry,
+  type MessageEntryFit,
   PANEL_CARD_HEIGHT,
   PanelCardAction,
   PanelCardHead,
@@ -19,7 +20,7 @@ import {
 } from "@impower/impower-ui/components";
 import { isCommandAction } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
 import { useComputed } from "@preact/signals";
-import { useEffect, useMemo } from "preact/hooks";
+import { useEffect, useMemo, useRef } from "preact/hooks";
 import {
   CARD_TITLE,
   CONSOLE_SEVERITIES,
@@ -53,6 +54,8 @@ import {
 export const PROBLEMS_PANEL_ID = "problems-panel";
 
 const SCRIPT_CARD_HEAD = `button[aria-expanded][aria-label^="${CARD_TITLE.script}"]`;
+
+const CLOSE_DIALOG = '[aria-label="Close dialog"]';
 
 export const PANEL_LABEL = "Problems and playback messages";
 
@@ -115,25 +118,32 @@ const playedTime = (time: number) => ({
   dateTime: new Date(time).toISOString(),
 });
 
-function chooseFix(problem: Problem, action: DiagnosticFixAction) {
-  const panel = document.getElementById(PROBLEMS_PANEL_ID);
-  if (panel && !isCommandAction(action)) {
-    keepFocusAfterFix(panel, problem, () =>
-      panel.querySelector<HTMLElement>(SCRIPT_CARD_HEAD),
+function chooseFix(
+  row: HTMLElement | null,
+  problem: Problem,
+  action: DiagnosticFixAction,
+) {
+  const panel = row?.closest<HTMLElement>(`#${PROBLEMS_PANEL_ID}`);
+  const root = panel ?? row?.closest<HTMLElement>('[role="dialog"]');
+  if (root && !isCommandAction(action)) {
+    keepFocusAfterFix(root, problem, () =>
+      root.querySelector<HTMLElement>(panel ? SCRIPT_CARD_HEAD : CLOSE_DIALOG),
     );
   }
   void problems.applyFix(fixChoiceOf(problem, action));
 }
 
-function ProblemRow({ problem }: { problem: Problem }) {
+function ProblemRow({ problem, fit }: { problem: Problem; fit: MessageEntryFit }) {
+  const ref = useRef<HTMLDivElement>(null);
   return (
     <div
+      ref={ref}
       data-problem-entry={problemSignature(problem)}
       data-problem-key={problem.key}
       class="contents"
     >
       <MessageEntry
-        fit="row"
+        fit={fit}
         severity={problem.severity}
         prefix={SCRIPT_PREFIX[problem.severity]}
         title={problem.title}
@@ -154,7 +164,7 @@ function ProblemRow({ problem }: { problem: Problem }) {
               size="compact"
               class="min-h-8 pointer-coarse:min-h-11"
               actions={problem.actions}
-              onChoose={(action) => chooseFix(problem, action)}
+              onChoose={(action) => chooseFix(ref.current, problem, action)}
             />
           ) : undefined
         }
@@ -168,9 +178,11 @@ const GO_BACK_LABEL = "Go back to this choice";
 function PlayedRow({
   entry,
   played,
+  fit,
 }: {
   entry: PlayedEntry;
   played: readonly PlayedEntry[];
+  fit: MessageEntryFit;
 }) {
   const location = consoleLocation(entry);
   const run = useComputed(() => problems.run.value).value;
@@ -181,7 +193,7 @@ function PlayedRow({
       : undefined;
   return (
     <MessageEntry
-      fit="row"
+      fit={fit}
       severity={entry.severity}
       prefix={PLAYED_PREFIX[entry.severity]}
       title={entry.title ?? entry.message}
@@ -241,7 +253,17 @@ function PlayedActions() {
   );
 }
 
-export function PanelItemView({ row, all, played }: { row: PanelItem; all: readonly Problem[]; played: readonly PlayedEntry[] }) {
+export function PanelItemView({
+  row,
+  all,
+  played,
+  fit = "row",
+}: {
+  row: PanelItem;
+  all: readonly Problem[];
+  played: readonly PlayedEntry[];
+  fit?: MessageEntryFit;
+}) {
   const open = problems.cards.value;
   switch (row.kind) {
     case "debug":
@@ -258,29 +280,31 @@ export function PanelItemView({ row, all, played }: { row: PanelItem; all: reado
       );
     case "end":
       return <PanelCardRow part="end" />;
-    case "heading":
-      return (
-        <PanelCardRow part="body">
-          <h3 class="m-0 flex items-baseline gap-2 px-2 pt-3 pb-1 text-[12px]/[1.4] font-semibold text-ink">
-            <span class="flex-none">{row.script}</span>
-            <small class="min-w-0 flex-1 text-[11px] font-normal text-muted [--fade:24px] fade-edge">
-              {row.path}
-            </small>
-          </h3>
-        </PanelCardRow>
+    case "heading": {
+      const heading = (
+        <h3 class="m-0 flex items-baseline gap-2 px-2 pt-3 pb-1 text-[12px]/[1.4] font-semibold text-ink">
+          <span class="flex-none">{row.script}</span>
+          <small class="min-w-0 flex-1 text-[11px] font-normal text-muted [--fade:24px] fade-edge">
+            {row.path}
+          </small>
+        </h3>
       );
+      return row.card ? <PanelCardRow part="body">{heading}</PanelCardRow> : heading;
+    }
     case "empty":
       return <PanelCardNote>{row.text}</PanelCardNote>;
     case "problem":
-      return (
+      return row.card ? (
         <PanelCardRow part="body">
-          <ProblemRow problem={row.problem} />
+          <ProblemRow problem={row.problem} fit={fit} />
         </PanelCardRow>
+      ) : (
+        <ProblemRow problem={row.problem} fit={fit} />
       );
     case "played":
       return (
         <PanelCardRow part="body">
-          <PlayedRow entry={row.entry} played={played} />
+          <PlayedRow entry={row.entry} played={played} fit={fit} />
         </PanelCardRow>
       );
   }

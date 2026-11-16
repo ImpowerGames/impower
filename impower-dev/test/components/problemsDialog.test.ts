@@ -128,27 +128,17 @@ describe("the Problems to fix dialog", () => {
     expect(accessibleName()).toBe("Problems and playback messages");
   });
 
-  it("lets its list reach past the 8px row bleed into the dialog's padding by the list's own gutter, never beyond that padding", async () => {
+  it("lays out its rows as one list that takes the room below the heading, with the scrollbar in the list's own gutter", async () => {
     for (const scope of [{ kind: "story" }, { kind: "script", path: "scripts/chapter_1.sd" }] as const) {
       await open(scope);
-      const list = dialog()!.querySelector<HTMLElement>("[class*=overflow-y-auto]:not([role=dialog])")!;
-      const classes = list.className.split(/\s+/);
-      expect(classes).toContain("-ml-2");
-      expect(classes).toContain(
-        "mr-[calc(-1*min(0.5rem+var(--scrollbar-size,0px),var(--spacing)*5-var(--scrollbar-size,0px)))]",
-      );
-      expect(classes).not.toContain("-mx-2");
+      const lists = dialog()!.querySelectorAll<HTMLElement>('[role="list"]');
+      expect(lists).toHaveLength(1);
+      const classes = lists[0]!.parentElement!.className.split(/\s+/);
+      expect(classes).toEqual(expect.arrayContaining(["min-h-0", "flex-1", "pl-3", "pr-gutter-3"]));
+      expect(dialog()!.className.split(/\s+/)).not.toContain("overflow-y-auto");
       await act(async () => problems.closeDialog());
       await transition();
     }
-  });
-
-  it("lets the whole story's cards reach into the dialog's padding by their list's own gutter, so they end as far from each edge", async () => {
-    await open({ kind: "story" });
-    const cards = dialog()!.querySelector<HTMLElement>('[aria-label="While playing, variables, watches and call stack"]')!.parentElement!;
-    expect(cards.className.split(/\s+/)).toContain(
-      "mr-[calc(-1*min(var(--scrollbar-size,0px),var(--spacing)*5-var(--scrollbar-size,0px)))]",
-    );
   });
 
   it("names one script's dialog for the problems it lists, visibly and to assistive technology", async () => {
@@ -191,7 +181,7 @@ describe("the Problems to fix dialog", () => {
       "Remove the note",
     ]);
     expect(fixes[0]!.getAttribute("aria-haspopup")).toBe("menu");
-    expect(fixes.every((button) => button.classList.contains("min-h-11"))).toBe(true);
+    expect(fixes.every((button) => button.classList.contains("pointer-coarse:min-h-11"))).toBe(true);
     await act(async () => fixes[1]!.click());
     expect(applyFix).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -394,10 +384,12 @@ describe("the Problems to fix dialog", () => {
 
     const cards = () =>
       dialog()!.querySelector<HTMLElement>(
-        '[aria-label="While playing, variables, watches and call stack"]',
+        '[role="list"][aria-label="Problems and playback messages"]',
       );
     const playedRows = () =>
-      Array.from(cards()!.querySelectorAll<HTMLElement>("[data-message-entry]"));
+      Array.from(cards()!.querySelectorAll<HTMLElement>("[data-message-entry]")).filter(
+        (row) => !row.closest("[data-problem-entry]"),
+      );
 
     beforeEach(() => {
       vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(2000);
@@ -413,10 +405,12 @@ describe("the Problems to fix dialog", () => {
 
     it("after the problems and before the debugging cards, without counting the choices as problems", async () => {
       await open({ kind: "story" });
-      const list = dialog()!.querySelector("[data-problem-entry]")!;
+      const problemEntries = dialog()!.querySelectorAll("[data-problem-entry]");
+      const lastProblem = problemEntries[problemEntries.length - 1]!;
       expect(cards()).not.toBeNull();
+      const playedHead = cards()!.querySelector('button[aria-expanded][aria-label^="While playing"]')!;
       expect(
-        list.compareDocumentPosition(cards()!) & Node.DOCUMENT_POSITION_FOLLOWING,
+        lastProblem.compareDocumentPosition(playedHead) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
       const heads = Array.from(
         cards()!.querySelectorAll<HTMLButtonElement>("button[aria-expanded]"),
