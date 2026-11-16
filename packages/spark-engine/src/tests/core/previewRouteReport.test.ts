@@ -314,6 +314,31 @@ describe("the route the preview reports", () => {
     expect(route.decisions.map((d) => d.meeting)).toEqual([1, 2]);
   }, 120_000);
 
+  test("the executed lines of a hub menu met twice light each option a meeting took and no other", () => {
+    const hub = (bullet: string) => [
+      "store asked = 0",
+      "",
+      "scene start",
+      "  while asked < 2 do",
+      "    choose",
+      `    ${bullet} [Ask about the key.]`,
+      "      & asked += 1",
+      `    ${bullet} [Ask about the letter.]`,
+      "      & asked += 1",
+      "    end",
+      "  end",
+      "  Done asking.",
+      "end",
+      "",
+    ];
+    const sticky = executedLinesAt(hub("+"), 12);
+    expect(sticky).toEqual(expect.arrayContaining([5, 6, 7, 12]));
+    expect(sticky).not.toContain(8);
+    expect(sticky).not.toContain(9);
+    const once = executedLinesAt(hub("*"), 12);
+    expect(once).toEqual(expect.arrayContaining([5, 6, 7, 8, 9, 12]));
+  }, 120_000);
+
   test("a line the program reaches on its own reports no forced or clipped decision", () => {
     const lines = [
       "store total = 0",
