@@ -1,6 +1,7 @@
 import { Fragment, render } from "preact";
 import { useRef } from "preact/hooks";
 import { DropdownContent, DropdownItem, DropdownRoot, DropdownSeparator, DropdownTrigger } from "../../src/components/dropdown/Dropdown";
+import { DialogTitle, Sheet } from "../../src/components/dialog/Dialog";
 import type { KeepClear } from "../../src/utils/keepClear";
 
 const options = new Set(location.hash.slice(1).split(","));
@@ -44,6 +45,14 @@ function Page() {
     </div>
   );
   const bottom = options.has("bottom");
+  if (options.has("plain")) {
+    return (
+      <Sheet open flush onOpenChange={() => {}}>
+        <DialogTitle class="p-4">Inspector</DialogTitle>
+        <div data-plain-sheet class="p-4">A sheet that is not a menu</div>
+      </Sheet>
+    );
+  }
   return (
     <div class="flex h-dvh w-full flex-col">
       {options.has("clear") ? <div ref={picture} data-picture class="h-[300px] w-full shrink-0 bg-accent" /> : null}

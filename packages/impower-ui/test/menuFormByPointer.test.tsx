@@ -133,14 +133,44 @@ describe.skipIf(!browserAvailable)("a menu's form follows the pointer that opens
     }, { touchScreen });
   });
 
-  test("at 1440px wide, the sheet a finger opens spans the window's width along its foot", async () => {
-    await withPage(1440, [], async (page) => {
+  test.each([
+    [1440, 440, 560],
+    [820, 130, 560],
+    [430, 0, 430],
+  ])("at %ipx wide, the sheet a finger opens sits at x %i, %ipx wide, on the window's foot, with its backdrop over the whole window, and a tap outside closes it", async (width, left, sheetWidth) => {
+    await withPage(width, [], async (page) => {
       await openWith(page, "tap");
       const placed = await boxes(page);
       expect(placed.form).toBe("sheet");
-      expect(placed.sheet!.left).toBe(0);
-      expect(placed.sheet!.width).toBe(1440);
+      expect(placed.sheet!.left).toBe(left);
+      expect(placed.sheet!.width).toBe(sheetWidth);
       expect(placed.sheet!.bottom).toBe(HEIGHT);
+      const backdrop = await page.evaluate(() => {
+        const rect = document.querySelector('[role="dialog"]')!.parentElement!.getBoundingClientRect();
+        return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      });
+      expect(backdrop).toEqual({ left: 0, top: 0, width, height: HEIGHT });
+      const corners = await page.evaluate(() => {
+        const style = getComputedStyle(document.querySelector('[role="dialog"]')!);
+        return [style.borderTopLeftRadius, style.borderTopRightRadius];
+      });
+      expect(corners[0]).toBe(corners[1]);
+      expect(parseFloat(corners[0]!)).toBeGreaterThan(0);
+      await page.touchscreen.tap(8, 8);
+      await page.waitForTimeout(400);
+      expect((await boxes(page)).form).toBe("closed");
+    }, { touchScreen: true });
+  });
+
+  test("at 820px wide, a sheet that is not a menu still spans the window's width along its foot", async () => {
+    await withPage(820, ["plain"], async (page) => {
+      await page.locator("[data-plain-sheet]").waitFor();
+      await page.waitForTimeout(300);
+      const sheet = await page.evaluate(() => {
+        const rect = document.querySelector('[role="dialog"]')!.getBoundingClientRect();
+        return { left: rect.left, width: rect.width, bottom: rect.bottom };
+      });
+      expect(sheet).toEqual({ left: 0, width: 820, bottom: HEIGHT });
     }, { touchScreen: true });
   });
 

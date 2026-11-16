@@ -1583,6 +1583,7 @@ describe("the Variants tester and the Files section", () => {
     await open("imani");
     await tap(group("face"));
     expect(document.querySelector("[data-wheel-sheet] [role=listbox]")).not.toBeNull();
+    expect(document.querySelector("[data-wheel-sheet]")!.className.split(" ")).toEqual(expect.arrayContaining(["mx-auto", "max-w-[560px]"]));
     expect(all('[role="menuitemradio"]')).toEqual([]);
   });
 

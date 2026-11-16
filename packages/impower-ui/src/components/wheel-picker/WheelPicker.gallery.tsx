@@ -26,6 +26,8 @@ function WheelPickerDemo() {
   const [shortOpen, setShortOpen] = useState(false);
   const shortFrame = useRef<HTMLDivElement>(null);
   const shortPicture = useRef<HTMLDivElement | null>(null);
+  const [wideOpen, setWideOpen] = useState(false);
+  const wideFrame = useRef<HTMLDivElement>(null);
   const label = (picked: string) => FACES.find((face) => face.value === picked)?.label ?? picked;
   return (
     <div class="space-y-4">
@@ -101,6 +103,26 @@ function WheelPickerDemo() {
             setShortOpen(false);
           }}
           onCancel={() => setShortOpen(false)}
+        />
+      </GalleryRow>
+      <GalleryRow label={`width="menu", the form a Dropdown's finger-opened picker takes: in a panel wider than 560px the sheet keeps to 560px, centred on the panel's foot; in a narrower panel it spans the panel as before; chosen: ${label(value)}`}>
+        <div ref={wideFrame} class="relative flex h-[360px] w-full max-w-[900px] items-start justify-center rounded-card border border-edge bg-bg p-4">
+          <Button aria-haspopup="dialog" onClick={() => setWideOpen(true)}>
+            Face: {label(value)}
+          </Button>
+        </div>
+        <WheelSheet
+          width="menu"
+          container={wideFrame}
+          open={wideOpen}
+          title="Face"
+          options={FACES}
+          value={value}
+          onChoose={(next) => {
+            setValue(next);
+            setWideOpen(false);
+          }}
+          onCancel={() => setWideOpen(false)}
         />
       </GalleryRow>
     </div>
