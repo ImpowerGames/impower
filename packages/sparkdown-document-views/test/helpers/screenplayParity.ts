@@ -339,9 +339,9 @@ export const CONFIGS: Record<string, ScreenplayConfig> = {
   "function identifiers": { ...BASE, screenplay_print_function_identifiers: true },
 };
 
-export const CHUNK = 24;
+const CHUNK = 24;
 
-export const circuit = (() => {
+const circuit = (() => {
   const names = Object.keys(KINDS);
   const remaining = new Map(names.map((name) => [name, [...names]]));
   const stack = [names[0]!];
@@ -389,7 +389,7 @@ export const show = (configName: string, source: string): EditorView => {
   return view;
 };
 
-export const hiddenByClass = new Map<string, boolean>();
+const hiddenByClass = new Map<string, boolean>();
 
 export const isHidden = (element: Element, cache: boolean) => {
   const key = `${element.tagName}|${element.className}|${element.getAttribute("style") ?? ""}`;
@@ -443,7 +443,7 @@ export const exportRows = (configName: string, source: string): string[] => {
   );
 };
 
-export const BLANK = "¶";
+const BLANK = "¶";
 
 export const layout = (rows: string[]) =>
   rows
@@ -461,7 +461,7 @@ export const difference = (screen: string[], printed: string[]) => {
   return `page "${around(page)}" export "${around(pdf)}" (${BLANK} is a blank line)`;
 };
 
-export interface CharacterStyle {
+interface CharacterStyle {
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
@@ -478,14 +478,14 @@ export const flagsOf = (style: CharacterStyle) =>
     style.source ? "s" : "",
   ].join("");
 
-export const signed = (character: string, style: CharacterStyle) => {
+const signed = (character: string, style: CharacterStyle) => {
   const flags = flagsOf(style);
   return flags && /\S/.test(character) ? `${character}(${flags})` : "";
 };
 
-export const NAME_TAGS = new Set(["scene", "function", "knot", "stitch", "branch"]);
+const NAME_TAGS = new Set(["scene", "function", "knot", "stitch", "branch"]);
 
-export const exportStyle = (configName: string, source: string): string => {
+const exportStyle = (configName: string, source: string): string => {
   const spans = generateScreenplayPrintData(new ScreenplayParser().parse(source), CONFIGS[configName]).spans;
   const lines: PageLine[] = spans.flatMap((span) =>
     span.tag === "meta" || span.tag === "page_break" || span.tag === "separator"
@@ -545,7 +545,7 @@ export const numberIsBold = (row: Element) =>
     ),
   );
 
-export const pageStyle = (view: EditorView): string => {
+const pageStyle = (view: EditorView): string => {
   const cache = new Map<Element, CharacterStyle>();
   let out = "";
   const visit = (element: Element, row: Element) => {
