@@ -167,7 +167,7 @@ let outDir: string;
 beforeAll(async () => {
   outDir = mkdtempSync(join(tmpdir(), "screenplay-geometry-"));
   pageUrl = await buildScreenplayGeometryPage(outDir);
-  browser = await chromium.launch();
+  browser = await chromium.launch({ args: ["--font-render-hinting=none"] });
 }, 120_000);
 
 afterAll(async () => {
