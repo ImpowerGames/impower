@@ -4307,7 +4307,7 @@ repository:
         name: keyword.operator.expression.end.tag.sd
 
   TextCommandContent:
-    match: ({{WS}}*)([^ =\r\n]+)({{WS}}*)(?:([=])({{WS}}*)(.*))?
+    match: ({{WS}}*)([^ =\r\n]+)({{WS}}*)(?:([=])({{WS}}*)(.*)|(.+))?
     captures:
       1:
         patterns:
@@ -4327,6 +4327,22 @@ repository:
       6:
         patterns:
           - { include: "#TextCommandArguments" }
+      7:
+        patterns:
+          - { include: "#TextCommandWords" }
+
+  TextCommandWords:
+    match: ({{WS}}*)([^ \r\n]+)({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#TextCommandControl" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   TextCommandControl:
     captures:

@@ -333,10 +333,7 @@ export interface SuspendedLineEnd {
 }
 
 export function equalsInSavedValues(obj: Record<string, any>): void {
-  if (obj["tagEquals"] === true) return;
-  for (const key of ["variablesState", "globals", "evalStack", "frames", "threads"]) {
-    if (key in obj) obj[key] = equalsInColonTagsInSavedStrings(obj[key]);
-  }
+  if (obj["tagEquals"] !== true) equalsInColonTagsInSavedStrings(obj, ["output", "carried"]);
 }
 
 function readOutput(

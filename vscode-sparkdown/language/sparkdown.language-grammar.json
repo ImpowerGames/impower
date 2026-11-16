@@ -6643,7 +6643,7 @@
       }
     },
     "TextCommandContent": {
-      "match": "((?:[^\\S\\n\\r])*)([^ =\\r\\n]+)((?:[^\\S\\n\\r])*)(?:([=])((?:[^\\S\\n\\r])*)(.*))?",
+      "match": "((?:[^\\S\\n\\r])*)([^ =\\r\\n]+)((?:[^\\S\\n\\r])*)(?:([=])((?:[^\\S\\n\\r])*)(.*)|(.+))?",
       "captures": {
         "1": {
           "patterns": [
@@ -6684,6 +6684,39 @@
           "patterns": [
             {
               "include": "#TextCommandArguments"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#TextCommandWords"
+            }
+          ]
+        }
+      }
+    },
+    "TextCommandWords": {
+      "match": "((?:[^\\S\\n\\r])*)([^ \\r\\n]+)((?:[^\\S\\n\\r])*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#TextCommandControl"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
             }
           ]
         }

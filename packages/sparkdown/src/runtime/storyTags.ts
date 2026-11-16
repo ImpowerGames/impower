@@ -70,7 +70,7 @@ const knownName = (name: string): string | undefined =>
 export function readStoryTag(content: string): StoryTag {
   const match = TAG_CONTENT.exec(content);
   const written = match?.[2] ?? "";
-  const unread = match ? content.slice(match.index + match[0].length) : "";
+  const unread = match ? (match[7] ?? "") + content.slice(match.index + match[0].length) : "";
   if (/^\s*:/.test(unread)) return { name: written, known: false, closes: false };
   const argument = match?.[4] ? { argument: (match[6] ?? "").trim() } : {};
   const name = knownName(written);
@@ -215,19 +215,26 @@ export function equalsInColonTagsInTable<T>(payload: T): T | ObjectValue {
   return mapTableText(payload, equalsInColonTags, ["text", "character"]);
 }
 
-export function equalsInColonTagsInSavedStrings(token: unknown): unknown {
-  if (typeof token === "string") {
-    if (!token.startsWith("^") || !token.includes("<")) return token;
-    const value = equalsInColonTags(SCAN_OPEN + token.slice(1) + SCAN_CLOSE);
-    return "^" + value.slice(1, -1);
+const equalsInSavedString = (token: string): string => {
+  if (!token.startsWith("^") || (!token.includes("<") && !token.includes(TAG))) return token;
+  const value = equalsInColonTags(SCAN_OPEN + token.slice(1) + SCAN_CLOSE);
+  return "^" + value.slice(1, -1);
+};
+
+export function equalsInColonTagsInSavedStrings(
+  container: Record<string, unknown> | unknown[],
+  skip: readonly string[] = [],
+): void {
+  for (const key of Object.keys(container)) {
+    if (skip.includes(key)) continue;
+    const item = (container as Record<string, unknown>)[key];
+    if (typeof item === "string") {
+      const migrated = equalsInSavedString(item);
+      if (migrated !== item) (container as Record<string, unknown>)[key] = migrated;
+    } else if (item && typeof item === "object") {
+      equalsInColonTagsInSavedStrings(item as Record<string, unknown>);
+    }
   }
-  if (Array.isArray(token)) return token.map(equalsInColonTagsInSavedStrings);
-  if (token && typeof token === "object") {
-    return Object.fromEntries(
-      Object.entries(token).map(([key, item]) => [key, equalsInColonTagsInSavedStrings(item)]),
-    );
-  }
-  return token;
 }
 
 export function codeWrittenTagsInTable<T>(payload: T): T | ObjectValue {
