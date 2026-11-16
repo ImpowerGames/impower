@@ -6,6 +6,7 @@ import {
   lineMaxWidth,
   type PlacedLine,
   printProfileOf,
+  rowHeight,
   SCENE_NUMBER_LEFT_GAP,
   SCENE_NUMBER_RIGHT_GAP,
 } from "../../../../../sparkdown-screenplay/src/utils/printGeometry";
@@ -32,6 +33,7 @@ export const printedPageStyle = (config: ScreenplayConfig | undefined) => {
     `--sp-text-width: ${ems(profile, textWidth)}`,
     `--sp-margin-left: ${ems(profile, profile.left_margin)}`,
     `--sp-margin-right: ${ems(profile, profile.right_margin)}`,
+    `--sp-row: ${ems(profile, rowHeight(profile))}`,
     `--sp-scene-number-left-gap: ${SCENE_NUMBER_LEFT_GAP}ch`,
     `--sp-scene-number-right-gap: ${SCENE_NUMBER_RIGHT_GAP}ch`,
   ].join("; ");

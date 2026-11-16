@@ -18,6 +18,7 @@ const PREVIEW_THEME: {
     fontFamily:
       '"Courier Prime", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", monospace',
     fontSize: "clamp(10.5px, 2.3cqi, 14.7px)",
+    lineHeight: "var(--sp-row)",
     overflow: "visible",
     position: "relative",
   },

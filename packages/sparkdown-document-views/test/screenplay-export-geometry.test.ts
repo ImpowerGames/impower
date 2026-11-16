@@ -94,6 +94,7 @@ interface Printed {
   rows: Row[];
   numbers: Numbers;
   rowHeight: number;
+  rowInches: number;
 }
 
 const spaced = (pieces: { text: string; x: number; width: number }[], cell: number) => {
@@ -152,7 +153,8 @@ const printed = async (script: string, config: ScreenplayConfig): Promise<Printe
     .filter((row) => row.text)
     .sort((a, b) => a.page - b.page || a.top - b.top);
   const steps = rows.slice(1).map((row, index) => row.top - rows[index]!.top).filter((step) => step > 0.5);
-  return { rows, numbers, rowHeight: Math.min(...steps) };
+  const rowHeight = Math.min(...steps);
+  return { rows, numbers, rowHeight, rowInches: rowHeight / 72 };
 };
 
 let browser: Browser;
@@ -174,6 +176,9 @@ const drawn = async (script: string, config: ScreenplayConfig, width: number, sc
   const page = await browser.newPage({ viewport: { width: width + 40, height: 6000 } });
   await page.goto(pageUrl);
   await page.waitForFunction(() => "renderScreenplay" in window);
+  await page.evaluate(() =>
+    Promise.all(["normal", "bold", "italic", "bold italic"].map((face) => document.fonts.load(`${face} 12px "Courier Prime"`))),
+  );
   await page.evaluate(
     ([text, settings, before, w]) =>
       (window as unknown as { renderScreenplay: (...args: unknown[]) => void }).renderScreenplay("fixture", text, settings, before, w),
@@ -188,7 +193,9 @@ const drawn = async (script: string, config: ScreenplayConfig, width: number, sc
     probe.style.whiteSpace = "pre";
     probe.textContent = "0".repeat(100);
     const cell = probe.getBoundingClientRect().width / 100;
+    const fontSize = parseFloat(getComputedStyle(probe).fontSize);
     probe.remove();
+    if (Math.abs(cell / fontSize - 1228 / 2048) > 0.001) throw new Error(`the page is not drawn in Courier Prime: a character is ${cell / fontSize} em`);
     const origin = content.getBoundingClientRect().left;
     const shown = (element: Element | null): boolean => {
       for (let node = element; node && node !== content; node = node.parentElement) {
@@ -247,7 +254,8 @@ const drawn = async (script: string, config: ScreenplayConfig, width: number, sc
       }
     }
     const line = content.querySelector<HTMLElement>(".cm-line")!;
-    return { rows, numbers, rowHeight: parseFloat(getComputedStyle(line).lineHeight) || line.getBoundingClientRect().height };
+    const rowHeight = parseFloat(getComputedStyle(line).lineHeight) || line.getBoundingClientRect().height;
+    return { rows, numbers, rowHeight, rowInches: rowHeight / (cell / (((1228 / 2048) * 12) / 72)) };
   });
   await page.close();
   return result;
@@ -257,6 +265,9 @@ const near = (a: number, b: number) => Math.abs(a - b) < 0.06;
 
 const compare = (page: Printed, pdf: Printed) => {
   const differences: string[] = [];
+  if (Math.abs(page.rowInches - pdf.rowInches) > 0.002) {
+    differences.push(`row pitch: page ${page.rowInches.toFixed(4)} in, PDF ${pdf.rowInches.toFixed(4)} in`);
+  }
   const count = Math.max(page.rows.length, pdf.rows.length);
   for (let index = 0; index < count; index++) {
     const shown = page.rows[index];

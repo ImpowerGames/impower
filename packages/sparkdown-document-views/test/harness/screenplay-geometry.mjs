@@ -33,8 +33,8 @@ export const buildScreenplayGeometryPage = async (outDir) => {
     "utf8",
   );
   const fontFaces = FACES.map(([file, weight, style]) => {
-    const url = pathToFileURL(resolve(here, "../../../../impower-dev/src/public/fonts", file)).href;
-    return `@font-face { font-family: "Courier Prime"; src: url("${url}"); font-weight: ${weight}; font-style: ${style}; }`;
+    const data = readFileSync(resolve(here, "../../../../impower-dev/src/public/fonts", file)).toString("base64");
+    return `@font-face { font-family: "Courier Prime"; src: url("data:font/ttf;base64,${data}") format("truetype"); font-weight: ${weight}; font-style: ${style}; }`;
   }).join("\n");
   const page = join(outDir, "screenplay-geometry.html");
   writeFileSync(
