@@ -22,6 +22,7 @@ const SIZES: Record<ListRowSize, string> = {
   dense: "Dense: 52px with an 18px glyph, the asset inspector's uses list, its gap 10px below desktop",
   file: "File: 52px with an 18px glyph in a 28px column and 13px names, the asset inspector's Files list",
   outline: "Outline: 48px with a 17px glyph and 13px labels below desktop, 14px on desktop, the Scripts page's In this script rows",
+  rail: "Rail: 44px with a 17px glyph and 12px labels, the docked Outline rail's rows",
 };
 
 const menu = (
@@ -73,39 +74,37 @@ function ListRowDemo() {
           <ListRow size="compact" tone="muted" depth={2} icon={<FileIcon />} label="snacks" onClick={() => {}} />
         </div>
       </GalleryRow>
-      <GalleryRow label="A badge in the glyph's place, its own button (the Outline's problem badge), in each size, beside a row with its glyph">
-        <div class="w-[300px] space-y-1">
-          {(Object.keys(SIZES) as ListRowSize[]).map((size) => (
+      <GalleryRow label="Indented as a whole row (the Outline rail): rail rows at depths 0, 1 and 2 with the accent highlight, each nested row moved 18px with a 1px guide at its left edge that crosses the 2px gap to the next row of its group; the current nested row's border in the accent, its label and glyph and those of the rows containing it in the accent">
+        <div class="flex w-[231px] flex-col gap-0.5 pr-3.5 pl-[26px] *:h-11">
+          <ListRow size="rail" indent="row" tone="muted" highlight="accent" containsCurrent after={{ depth: 1, space: 2 }} icon={<SceneIcon />} label="the_rumour" onClick={() => {}} />
+          <ListRow size="rail" indent="row" tone="muted" highlight="accent" depth={1} containsCurrent after={{ depth: 2, space: 2 }} icon={<FileIcon />} label="What should Imani bring?" onClick={() => {}} />
+          <ListRow size="rail" indent="row" tone="muted" highlight="accent" depth={2} current="location" after={{ depth: 2, space: 2 }} icon={<FileIcon />} label="notebook" onClick={() => {}} />
+          <ListRow size="rail" indent="row" tone="muted" highlight="accent" depth={2} icon={<FileIcon />} label="snacks" onClick={() => {}} />
+        </div>
+      </GalleryRow>
+      <GalleryRow label="A gutter badge left of the rows (the Outline rail's problem badge): one 26px column whatever the depth with a 14px mark, 44px wide under a coarse pointer; an error, a warning and a note beside a row without one, every glyph and label in its place">
+        <div class="w-[231px] pr-3.5 pl-[26px] [:root[data-pointer=coarse]_&]:pl-11">
+          {(["error", "warning", "note"] as const).map((severity, depth) => (
             <ListRow
-              key={size}
-              size={size}
-              leading={
+              key={severity}
+              size="rail"
+              indent="row"
+              tone="muted"
+              depth={depth}
+              gutter={
                 <ListRowBadge
-                  size={size}
-                  label="2 errors in the_rumour"
-                  severity="error"
+                  placement="gutter"
+                  label={`1 ${severity} in the_rumour`}
+                  severity={severity}
                   onClick={() => {}}
                 />
               }
+              icon={<SceneIcon />}
               label="the_rumour"
               onClick={() => {}}
             />
           ))}
-          <ListRow
-            size="compact"
-            tone="muted"
-            leading={
-              <ListRowBadge
-                size="compact"
-                label="1 warning in notebook"
-                severity="warning"
-                onClick={() => {}}
-              />
-            }
-            label="notebook"
-            onClick={() => {}}
-          />
-          <ListRow size="compact" tone="muted" icon={<SceneIcon />} label="meet_downtown" onClick={() => {}} />
+          <ListRow size="rail" indent="row" tone="muted" depth={1} icon={<FileIcon />} label="meet_downtown" onClick={() => {}} />
         </div>
       </GalleryRow>
       <GalleryRow label="A trailing badge before the row's menu (the Scripts page's problem badge): a 44px target with a 14px mark, an error, a warning and a note, beside a row without one; the label and the menu keep their places">

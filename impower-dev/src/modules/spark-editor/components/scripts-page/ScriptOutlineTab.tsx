@@ -22,33 +22,35 @@ export default function ScriptOutlineTab() {
   const rows = useMemo(() => filterOutlineRows(model.rows, query), [model.rows, query]);
 
   return (
-    <div class="flex min-h-0 flex-1 flex-col px-4">
-      <LibraryToolbar>
-        <SearchBox label="Search this script" value={query} onChange={setQuery} />
-      </LibraryToolbar>
-      {uri && rows.length ? (
-        <VirtualList
-          listRef={scroller}
-          label={searching ? "Search results" : "Scenes and choices"}
-          class="-mr-4 flex-1 pt-2 pr-4 pb-5"
-          size={SCRIPT_OUTLINE_ROW.size}
-          items={rows}
-          getKey={(row) => row.key}
-          renderItem={(row) => (
-            <OutlineListRow uri={uri} row={row} {...SCRIPT_OUTLINE_ROW} collapsible={!searching} onOpen={(row) => reveal(uri, row)} />
-          )}
-        />
-      ) : (
-        <div class="flex flex-col items-center gap-3 px-5 py-14 text-center text-muted">
-          {searching && <SearchIcon class="size-8" />}
-          <h2 class="text-[16px] font-medium text-ink">
-            {searching ? "No scenes match." : "Scenes will appear here as you write them."}
-          </h2>
-          {searching && (
-            <Button variant="quiet" onClick={() => setQuery("")}>Clear search</Button>
-          )}
-        </div>
-      )}
+    <div class="flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">
+      <div class="mx-auto flex min-h-0 w-full max-w-[960px] flex-1 flex-col">
+        <LibraryToolbar>
+          <SearchBox label="Search this script" value={query} onChange={setQuery} />
+        </LibraryToolbar>
+        {uri && rows.length ? (
+          <VirtualList
+            listRef={scroller}
+            label={searching ? "Search results" : "Scenes and choices"}
+            class="-mr-4 flex-1 pt-2 pr-gutter-4 pb-5"
+            size={SCRIPT_OUTLINE_ROW.size}
+            items={rows}
+            getKey={(row) => row.key}
+            renderItem={(row) => (
+              <OutlineListRow uri={uri} row={row} {...SCRIPT_OUTLINE_ROW} collapsible={!searching} onOpen={(row) => reveal(uri, row)} />
+            )}
+          />
+        ) : (
+          <div class="flex flex-col items-center gap-3 px-5 py-14 text-center text-muted">
+            {searching && <SearchIcon class="size-8" />}
+            <h2 class="text-[16px] font-medium text-ink">
+              {searching ? "No scenes match." : "Scenes will appear here as you write them."}
+            </h2>
+            {searching && (
+              <Button variant="quiet" onClick={() => setQuery("")}>Clear search</Button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

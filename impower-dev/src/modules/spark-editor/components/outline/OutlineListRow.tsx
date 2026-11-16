@@ -6,7 +6,9 @@ import {
   ListRowBadge,
   SceneIcon,
   TreeToggle,
+  type ListRowAfter,
   type ListRowBadgeProps,
+  type ListRowIndent,
   type ListRowSize,
   type ListRowTone,
 } from "@impower/impower-ui/components";
@@ -59,19 +61,16 @@ const openScope = (uri: string, row: OutlineRow, trigger: HTMLElement) =>
 function RowBadge({
   uri,
   row,
-  size,
   placement,
 }: {
   uri: string;
   row: OutlineRow;
-  size?: ListRowSize;
   placement: ListRowBadgePlacement;
 }) {
   const severity = worstProblem(row.problems)!;
   const label = `${row.kind === "scene" ? "Scene total: " : ""}${problemsIn(row.diagnostics, rowName(row))}`;
   return (
     <ListRowBadge
-      size={size}
       placement={placement}
       label={label}
       title={row.kind === "scene" ? `${label}. Includes choices and branches.` : label}
@@ -94,7 +93,9 @@ export default function OutlineListRow({
   row,
   size,
   tone,
-  badgePlacement = "leading",
+  indent,
+  after,
+  badgePlacement,
   collapsible = true,
   onOpen,
 }: {
@@ -102,15 +103,17 @@ export default function OutlineListRow({
   row: OutlineRow;
   size?: ListRowSize;
   tone?: ListRowTone;
-  badgePlacement?: ListRowBadgePlacement;
+  indent?: ListRowIndent;
+  after?: ListRowAfter;
+  badgePlacement: ListRowBadgePlacement;
   collapsible?: boolean;
   onOpen: (row: OutlineRow) => void;
 }) {
   const badge =
     worstProblem(row.problems) !== null ? (
-      <RowBadge uri={uri} row={row} size={size} placement={badgePlacement} />
+      <RowBadge uri={uri} row={row} placement={badgePlacement} />
     ) : undefined;
-  const leading = badgePlacement === "leading" ? badge : undefined;
+  const gutter = badgePlacement === "gutter" ? badge : undefined;
   const trailing = badgePlacement === "trailing" ? badge : undefined;
   const toggle =
     collapsible && row.expanded !== undefined ? (
@@ -130,11 +133,14 @@ export default function OutlineListRow({
       size={size}
       tone={tone}
       depth={row.depth}
+      indent={indent}
+      after={after}
+      highlight="accent"
       current={row.current === "self" ? "location" : false}
       containsCurrent={row.current === "ancestor"}
       overflow={row.kind === "choose" ? "clamp" : "fade"}
-      leading={leading}
-      icon={leading ? undefined : <RowIcon row={row} />}
+      gutter={gutter}
+      icon={<RowIcon row={row} />}
       label={row.label}
       aria-label={row.accessibleName}
       title={row.accessibleName}

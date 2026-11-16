@@ -172,6 +172,16 @@ afterEach(async () => {
 });
 
 describe("the Outline rail", () => {
+  it("ends its rows 14px from the rail's edge, 10px in the compact rail, whether or not it scrolls, giving the stable gutter back from that padding", async () => {
+    await mount([]);
+    const list = host!.querySelector<HTMLElement>('[aria-label="Scene outline in main"]')!;
+    const scroller = list.closest<HTMLElement>("[class*=overflow-y-auto]")!;
+    const classes = scroller.className.split(/\s+/);
+    expect(classes).toContain("pr-gutter-[14px]");
+    expect(classes).toContain("in-data-[layout=compact]:pr-gutter-2.5");
+    expect(classes).not.toContain("pr-[14px]");
+  });
+
   it("lists scenes with their choice menus and branches nested beneath, named for a reader", async () => {
     await mount([]);
     expect(rowButtons().map((b) => b.getAttribute("aria-label"))).toEqual([
@@ -191,8 +201,9 @@ describe("the Outline rail", () => {
     ).toBe("Scene outline in main");
   });
 
-  it("puts a problem's icon in place of the glyph: a scene's total, a branch's or menu's own", async () => {
+  it("puts a problem's icon in the gutter beside the glyph: a scene's total, a branch's or menu's own", async () => {
     await mount([STORM_ERROR, DOCK_WARNING]);
+    expect(rowButtons().map((b) => !!b.querySelector(":scope > svg"))).toEqual([true, true, true, true]);
     expect(
       rowButtons().map((b) => [b.getAttribute("aria-label"), badge(b)]),
     ).toEqual([

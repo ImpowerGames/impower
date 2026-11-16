@@ -12,6 +12,7 @@ const SIZES: Record<VirtualListSize, string> = {
   default: "Default rows, 1000 items: only the rows in view are mounted",
   compact: "Compact rows, 1000 items",
   outline: "Outline rows, 1000 items: 48px rows 2px apart",
+  rail: "Rail rows, 1000 items: 44px rows 2px apart, the Outline rail's list",
 };
 
 function VirtualListDemo() {

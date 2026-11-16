@@ -7,13 +7,15 @@ import {
   WarningIcon,
 } from "@impower/impower-ui/components";
 import type { ComponentChildren } from "preact";
+import { useCallback } from "preact/hooks";
 import { worstProblem } from "@impower/codemirror-vscode-lsp-client/src/symbolProblems";
 import { projectPath } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 import workspace from "../../workspace/WorkspaceStore";
 import { openFind, SearchRail } from "../find-references-rename";
 import OutlineListRow from "./OutlineListRow";
-import { problemSummary } from "./outlineRows";
+import { problemSummary, type OutlineRow } from "./outlineRows";
+import { OUTLINE_RAIL_ROW, railRowAfter, railRowExtent } from "./railLayout";
 import useOutlineModel from "./useOutlineModel";
 import { withWindow } from "./withWindow";
 
@@ -41,6 +43,11 @@ function Heading({
 export default function Outline() {
   const { uri, model } = useOutlineModel();
   const searching = workspace.search.value.open;
+  const rows = model.rows;
+  const extent = useCallback(
+    (_row: OutlineRow, index: number) => railRowExtent(rows, index),
+    [rows],
+  );
 
   const summary = problemSummary(model.problems);
 
@@ -73,18 +80,19 @@ export default function Outline() {
             {model.rows.length && uri ? (
               <VirtualList
                 key={uri}
-                class="flex-1 pr-[14px] pb-3 pl-[26px]"
+                class="flex-1 pr-gutter-[14px] pb-3 pl-[26px] in-data-[layout=compact]:pr-gutter-2.5 [:root[data-pointer=coarse]_&]:pl-11"
                 label={`Scene outline in ${scriptName(uri)}`}
-                size="compact"
-                items={model.rows}
+                size={OUTLINE_RAIL_ROW.size}
+                items={rows}
+                itemHeight={extent}
                 getKey={(row) => row.key}
                 revealIndex={model.currentIndex}
-                renderItem={(row) => (
+                renderItem={(row, index) => (
                   <OutlineListRow
                     uri={uri}
                     row={row}
-                    size="compact"
-                    tone="muted"
+                    {...OUTLINE_RAIL_ROW}
+                    after={railRowAfter(row, rows[index + 1])}
                     onOpen={(row) =>
                       withWindow((win) =>
                         win.openOutlineLocation(uri, row.selection),

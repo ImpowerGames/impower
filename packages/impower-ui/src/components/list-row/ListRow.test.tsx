@@ -156,20 +156,23 @@ describe("ListRow", () => {
     expect(row.className.split(/\s+/)).toEqual(expect.arrayContaining(["ring-2", "ring-accent"]));
   });
 
-  it("puts a leading badge before the row's button as a button of its own, in the glyph's column", async () => {
+  it("puts a gutter badge before the row's button as a button of its own, keeping the row's glyph and inset", async () => {
     const onBadge = vi.fn();
     const onRow = vi.fn();
     const root = await mount(
       <ListRow
-        size="compact"
-        leading={
+        size="rail"
+        indent="row"
+        depth={2}
+        gutter={
           <ListRowBadge
-            size="compact"
+            placement="gutter"
             label="2 errors in the_rumour"
             severity="error"
             onClick={onBadge}
           />
         }
+        icon={<svg data-glyph />}
         label="the_rumour"
         onClick={onRow}
       />,
@@ -178,8 +181,10 @@ describe("ListRow", () => {
     expect(badge!.getAttribute("aria-label")).toBe("2 errors in the_rumour");
     expect(badge!.getAttribute("title")).toBe("2 errors in the_rumour");
     expect(badge!.contains(row!)).toBe(false);
-    expect(badge!.className).toContain("w-9");
-    expect(row!.className).toContain("pl-0");
+    expect(badge!.className.split(" ")).toEqual(expect.arrayContaining(["absolute", "w-[26px]", "[:root[data-pointer=coarse]_&]:w-11"]));
+    expect(row!.querySelector("[data-glyph]")).not.toBeNull();
+    expect(row!.className).toContain("pl-1.5");
+    expect(row!.parentElement!.style.getPropertyValue("--list-row-depth")).toBe("2");
     await act(async () => badge!.click());
     expect(onBadge).toHaveBeenCalledTimes(1);
     expect(onRow).not.toHaveBeenCalled();
@@ -244,13 +249,13 @@ describe("ListRow", () => {
     expect(root.querySelector("small")!.className).toContain("text-[11px]/[1.4]");
   });
 
-  it("sizes a block row's badge to the block row's glyph", async () => {
+  it("draws a badge as a 44px trailing target with a 14px mark unless placed in the gutter", async () => {
     const root = await mount(
-      <ListRowBadge size="block" label="Scene" severity="warning" onClick={() => {}} />,
+      <ListRowBadge label="Scene" severity="warning" onClick={() => {}} />,
     );
-    const badge = root.querySelector<HTMLButtonElement>("[data-list-row-badge]")!;
-    expect(badge.className).toContain("[&>svg]:size-[22px]");
-    expect(badge.className).toContain("pl-2.5");
+    const badge = root.querySelector<HTMLButtonElement>("[data-list-row-badge]")!.className.split(" ");
+    expect(badge).toEqual(expect.arrayContaining(["h-11", "w-11", "[&>svg]:size-[14px]"]));
+    expect(badge).not.toContain("absolute");
   });
 
   it("sizes a block row's selection mark to the block row's glyph", async () => {
