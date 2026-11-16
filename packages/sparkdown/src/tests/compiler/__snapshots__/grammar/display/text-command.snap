@@ -424,7 +424,7 @@ sparkdown [0..285]
  │   │       │       │   │   │       │           └─ TextCommandControlKeyword [164..169]: "speed"
  │   │       │       │   │   │       ├─ TextCommandContent_c3 169
  │   │       │       │   │   │       ├─ TextCommandContent_c4 [169..170]
- │   │       │       │   │   │       │   └─ ColonOperator [169..170]: ":"
+ │   │       │       │   │   │       │   └─ EqualOperator [169..170]: "="
  │   │       │       │   │   │       ├─ TextCommandContent_c5 [170..171]
  │   │       │       │   │   │       │   └─ ExtraWhitespace [170..171]: " "
  │   │       │       │   │   │       └─ TextCommandContent_c6 [171..174]
@@ -631,7 +631,7 @@ sparkdown [0..285]
  │   │   │   │       │   │   │       │           └─ TextCommandControlKeyword [264..269]: "speed"
  │   │   │   │       │   │   │       ├─ TextCommandContent_c3 269
  │   │   │   │       │   │   │       ├─ TextCommandContent_c4 [269..270]
- │   │   │   │       │   │   │       │   └─ ColonOperator [269..270]: ":"
+ │   │   │   │       │   │   │       │   └─ EqualOperator [269..270]: "="
  │   │   │   │       │   │   │       ├─ TextCommandContent_c5 [270..271]
  │   │   │   │       │   │   │       │   └─ ExtraWhitespace [270..271]: " "
  │   │   │   │       │   │   │       └─ TextCommandContent_c6 [271..274]

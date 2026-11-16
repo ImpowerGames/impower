@@ -6643,7 +6643,7 @@
       }
     },
     "TextCommandContent": {
-      "match": "((?:[^\\S\\n\\r])*)([^ :\\r\\n]+)((?:[^\\S\\n\\r])*)(?:([:])((?:[^\\S\\n\\r])*)(.*))?",
+      "match": "((?:[^\\S\\n\\r])*)([^ =\\r\\n]+)((?:[^\\S\\n\\r])*)(?:([=])((?:[^\\S\\n\\r])*)(.*))?",
       "captures": {
         "1": {
           "patterns": [
@@ -6669,7 +6669,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#ColonOperator"
+              "include": "#EqualOperator"
             }
           ]
         },

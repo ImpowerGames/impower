@@ -45,7 +45,7 @@ async function spokenBeat(line: string): Promise<Instructions> {
   return beat!;
 }
 
-const VALUES = `store whisper = "<speed:0.6>"\nstore nickname = "<b>Ace"\nstore x = "plain"\n`;
+const VALUES = `store whisper = "<speed=0.6>"\nstore nickname = "<b>Ace"\nstore x = "plain"\n`;
 
 describe("a known look tag styles the text it encloses (#2145, #1491)", () => {
   test("A <b>word</b> here. shows word in bold", async () => {
@@ -84,7 +84,7 @@ describe("a known look tag styles the text it encloses (#2145, #1491)", () => {
 describe("a tag before a continuation's parenthetical (#2145)", () => {
   test("the parenthetical still moves into the cue", async () => {
     const [, second] = await renderedBeats(
-      script("HERO:\n    Quiet .. >\n    .. <p:2>(louder)\n    now!"),
+      script("HERO:\n    Quiet .. >\n    .. <p=2>(louder)\n    now!"),
       2,
     );
     const text = (target: string) => second!(target).map((cell) => cell.char).join("");
@@ -104,7 +104,7 @@ describe("an unknown tag is removed from the player's text (#2145)", () => {
 });
 
 describe("a tag inside an inserted value acts where the value lands (#2145)", () => {
-  test("{whisper}Come closer. with whisper = <speed:0.6> types the line slower to its end", async () => {
+  test("{whisper}Come closer. with whisper = <speed=0.6> types the line slower to its end", async () => {
     const after = (beat: Instructions) =>
       (beat.text?.["dialogue"] ?? []).map((event) => event.after ?? 0);
     const slowed = after(await spokenBeatWith("{whisper}Come closer"));
@@ -141,12 +141,12 @@ describe("a tag's style split inside zero-delay text adds no pause, tone or beep
   });
 
   test.each([
-    ["a look tag", "<speed:0>Hello <b>there</b> my friend"],
-    ["a look tag with a value", "<speed:0>Hello <color:red>there</color> my friend"],
-    ["an unknown tag", "<speed:0>Hello <b2>there</b2> my friend"],
+    ["a look tag", "<speed=0>Hello <b>there</b> my friend"],
+    ["a look tag with a value", "<speed=0>Hello <color=red>there</color> my friend"],
+    ["an unknown tag", "<speed=0>Hello <b2>there</b2> my friend"],
   ])("%s on a spoken line shown at once", async (_label, tagged) => {
     expect(timing(await spokenBeat(tagged))).toEqual(
-      timing(await spokenBeat("<speed:0>Hello there my friend")),
+      timing(await spokenBeat("<speed=0>Hello there my friend")),
     );
   });
 

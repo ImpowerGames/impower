@@ -1568,14 +1568,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "TextCommand") {
       const content = this.read(nodeRef.from + 1, nodeRef.to - 1);
       if (!readStoryTag(content).known) {
-        const [, before, after] = /^([^=]*)=(.*)$/s.exec(content) ?? [];
-        const colonForm =
-          before !== undefined && readStoryTag(`${before}:${after}`).known
-            ? `\n> A tag's value follows a colon: \`<${before}:${after}>\``
+        const [, before, after] = /^([^:]*):(.*)$/s.exec(content) ?? [];
+        const equalsForm =
+          before !== undefined && readStoryTag(`${before}=${after}`).known
+            ? `\n> A tag's value follows an equals sign: \`<${before}=${after}>\``
             : "";
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
-            message: `Unknown tag \`<${content}>\`; the player removes it from the text and does nothing else${colonForm}`,
+            message: `Unknown tag \`<${content}>\`; the player removes it from the text and does nothing else${equalsForm}`,
             severity: "warning",
           }).range(nodeRef.from, nodeRef.to),
         );

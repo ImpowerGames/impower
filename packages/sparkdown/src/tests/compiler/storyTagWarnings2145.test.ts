@@ -45,19 +45,28 @@ describe("an unknown tag gets a warning that names it (#2145, #193 decision 11)"
     ]);
   });
 
-  test("a tag written with an equals sign is told the colon form", () => {
-    expect(tagWarnings("A <speed=0.5>word here.").map((w) => w.message)).toEqual([
-      "Unknown tag `<speed=0.5>`; the player removes it from the text and does nothing else\n> A tag's value follows a colon: `<speed:0.5>`",
+  test("a tag written with a colon is told the equals form (#2391)", () => {
+    expect(tagWarnings("A <speed:0.5>word here.").map((w) => w.message)).toEqual([
+      "Unknown tag `<speed:0.5>`; the player removes it from the text and does nothing else\n> A tag's value follows an equals sign: `<speed=0.5>`",
+    ]);
+    expect(tagWarnings("A <color:red>word</color>.").map((w) => w.message)).toEqual([
+      "Unknown tag `<color:red>`; the player removes it from the text and does nothing else\n> A tag's value follows an equals sign: `<color=red>`",
+    ]);
+  });
+
+  test("an unknown tag written with a colon gets no equals hint (#2391)", () => {
+    expect(tagWarnings("A <b2:x>word here.").map((w) => w.message)).toEqual([
+      "Unknown tag `<b2:x>`; the player removes it from the text and does nothing else",
     ]);
   });
 
   test.each([
     "A <b>word</b> here.",
     "A <B>word</B> here.",
-    "A <color:red>word</color> here.",
-    "Go <speed:0.5>slow<wait:1> <p:2>high<w> <!>hidden</!> now.",
+    "A <color=red>word</color> here.",
+    "Go <speed=0.5>slow<wait=1> <p=2>high<w> <!>hidden</!> now.",
     "A<br> b <sub>c</sub> <sup>d</sup>",
-    "Speed<speed:2> up</speed>.",
+    "Speed<speed=2> up</speed>.",
   ])("no warning for the known tags in %s", (body) => {
     expect(tagWarnings(body)).toEqual([]);
   });

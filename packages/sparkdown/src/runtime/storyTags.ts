@@ -3,7 +3,9 @@ import {
   SCAN_OPEN,
   SPAN_CLOSE,
   SPAN_END,
+  TAG,
   readSpanOpen,
+  readTagCode,
   tagCode,
 } from "./displayStyle";
 import { ObjectValue, StringValue } from "./Value";
@@ -122,7 +124,7 @@ export function codeWrittenTags(text: string): string {
           LOOKS_BEFORE_TAG_CODES.includes(name.toLowerCase()))
       ) {
         const argument = tag[2]?.trim();
-        out += tagCode(argument === undefined ? control : `${control}:${argument}`);
+        out += tagCode(argument === undefined ? control : `${control}=${argument}`);
         i += tag[0].length;
         continue;
       }
@@ -133,11 +135,36 @@ export function codeWrittenTags(text: string): string {
   return out;
 }
 
+export function equalsInColonTagCodes(text: string): string {
+  if (!text.includes(TAG)) return text;
+  let out = "";
+  for (let i = 0; i < text.length; ) {
+    const code = readTagCode(text, i);
+    if (!code) {
+      out += text[i++];
+      continue;
+    }
+    const colon = /^([^:=]*):(.*)$/s.exec(code.content);
+    const equals = colon ? `${colon[1]}=${colon[2]}` : "";
+    out += colon && readStoryTag(equals).known ? tagCode(equals) : text.slice(i, code.next);
+    i = code.next;
+  }
+  return out;
+}
+
 export function codeWrittenTagsInTable<T>(payload: T): T | ObjectValue {
+  return mapTableText(payload, codeWrittenTags);
+}
+
+export function equalsInColonTagCodesInTable<T>(payload: T): T | ObjectValue {
+  return mapTableText(payload, equalsInColonTagCodes);
+}
+
+function mapTableText<T>(payload: T, map: (text: string) => string): T | ObjectValue {
   const text =
     payload instanceof ObjectValue ? payload.value?.get("text") : undefined;
   if (!(text instanceof StringValue) || !text.value) return payload;
-  const coded = codeWrittenTags(text.value);
+  const coded = map(text.value);
   if (coded === text.value) return payload;
   return new ObjectValue(
     new Map((payload as ObjectValue).value).set("text", new StringValue(coded)),

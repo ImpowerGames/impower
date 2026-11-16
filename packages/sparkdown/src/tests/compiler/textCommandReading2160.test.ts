@@ -79,7 +79,7 @@ describe("TextCommand reads a tag with disjoint alternatives (#2160)", () => {
 describe("a tag never changes the colouring of the text around it (#2145, #193 decision 9)", () => {
   test.each([
     "A <b>word</b> here.",
-    "A <color:red>word</color> here.",
+    "A <color=red>word</color> here.",
     "A <b2>word</b2> here.",
     "NOVA: A <i>word</i> here.",
   ])("%s", async (line) => {
