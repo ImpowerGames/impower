@@ -54,6 +54,7 @@ export interface ImageInstruction extends IInstruction {
   assets?: string[];
   with?: string;
   morph?: string;
+  speaker?: string;
   /** `loop`, `once` and `mute` as written: they apply to a video name, which
    *  loops unless `once` is written. */
   loop?: boolean;

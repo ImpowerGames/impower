@@ -8,7 +8,7 @@ import {
   LayoutVerb,
   isLayoutVerb,
 } from "@impower/sparkdown/language/sparkdown.layout-verbs";
-import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
+import { resolveImageLayers, type ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { morphRefsForStruct, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
@@ -25,6 +25,7 @@ import {
 import { MorphNeedMessage } from "./messages/MorphNeedMessage";
 import { hashText } from "@impower/sparkdown/src/morph/hash";
 import type { MorphRecipe, MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
+import { linePick } from "@impower/sparkdown/src/compiler/utils/linePick";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
@@ -96,7 +97,7 @@ import {
   TokenType,
 } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
-import { getImageOwner } from "../utils/getImageOwner";
+import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
 import { getVarName } from "../utils/getVarName";
 import {
   isPlainRun,
@@ -203,6 +204,8 @@ function sameValue(a: unknown, b: unknown): boolean {
     keys.every((k) => k in y && sameValue(x[k], y[k]))
   );
 }
+
+type ImagePick = string | ((layer: ImageLayer) => string | undefined);
 
 interface Retirement {
   element: Element;
@@ -1571,7 +1574,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${ease.function}(${ease.parameters.join(",")})`;
   }
 
-  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: string): Image[] {
+  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick): Image[] {
     const imageName = sortFilteredName(name);
     const image = resolveImageReference(this.context, { $type: type, $name: imageName });
     return shownImageLayers(this.context, this._game.program?.morphs, image, poseOf, pick).map((layer) => ({
@@ -1771,7 +1774,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  getMorphContent(assets: string[], pick?: string): MorphImageContent | undefined {
+  imagePick(event: ImageInstruction, asset: string): ImagePick | undefined {
+    const context = this.context;
+    if (event.speaker === undefined || !context || (asset.at(0) === '"' && asset.at(-1) === '"')) {
+      return event.morph;
+    }
+    const imageName = sortFilteredName(asset);
+    const speaker = event.speaker || undefined;
+    const decide = (layer: ImageLayer) => linePick(context, imageName, layer, event.morph, speaker);
+    const picks = resolveImageLayers(context, resolveImageReference(context, { $type: "", $name: imageName })).map(decide);
+    if (picks.every((pick) => pick === event.morph)) {
+      return event.morph;
+    }
+    return picks.every((pick) => pick === picks[0]) ? picks[0] : decide;
+  }
+
+  getMorphContent(assets: string[], pickOf: (asset: string) => ImagePick | undefined): MorphImageContent | undefined {
     const channel = this._game.program?.morphs;
     if (!channel || !this.context) {
       return undefined;
@@ -1794,7 +1812,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const owner = getImageOwner(this.context, imageName);
       for (const [offset, layer] of resolved.entries()) {
         const index = first + offset;
-        const refs = morphRefsForStruct(this.context, channel, layer.struct, pick);
+        const pick = pickOf(asset);
+        const refs = morphRefsForStruct(this.context, channel, layer.struct, typeof pick === "function" ? pick(layer) : pick);
         const layerOwner = owner ?? getImageOwner(this.context, layer.struct?.$name);
         if (refs.length > 1) {
           this.reportMorphConflict(layer.struct?.$name ?? asset, refs);
@@ -1824,8 +1843,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     const content: MorphImageContent = { plays, epoch: this._morphEpoch };
-    const still = assets.map((asset) => this.getBackgroundImageFromString(asset, this.morphStartPose, pick)).reverse().join(", ");
-    if (still !== assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pick)).reverse().join(", ")) {
+    const still = assets.map((asset) => this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset))).reverse().join(", ");
+    if (still !== assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset))).reverse().join(", ")) {
       content.still = still;
     }
     return content;
@@ -1943,7 +1962,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `linear-gradient(${value})`;
   }
 
-  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: string) {
+  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick) {
     if (value.at(0) === '"' && value.at(-1) === '"') {
       const literalStringValue = value.slice(1, -1);
       return this.getBackgroundImageFromLiteral(literalStringValue);
@@ -4818,6 +4837,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 assets: event.assets,
                 over: 0,
                 ...(event.morph ? { morph: event.morph } : {}),
+                ...(event.speaker !== undefined ? { speaker: event.speaker } : {}),
                 ...(event.loop ? { loop: true } : {}),
                 ...(event.once ? { once: true } : {}),
                 ...(event.mute ? { mute: true } : {}),
@@ -4981,17 +5001,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const imageAssets = e.assets.filter(
               (a) => !$.getVideoSrcByName(a),
             );
+            const pickOf = (a: string) => $.imagePick(e, a);
             const background =
               imageAssets.length > 0
                 ? imageAssets
-                    .map((a) => $.getBackgroundImageFromString(a, undefined, e.morph))
+                    .map((a) => $.getBackgroundImageFromString(a, undefined, pickOf(a)))
                     .reverse()
                     .join(", ")
                 : "none";
             const srcsOf = (a: string) =>
-              e.morph === undefined
+              pickOf(a) === undefined
                 ? $.getImageSrcsFromValue(a)
-                : $.getImageAssets("", a, undefined, e.morph).map((asset) => asset.src);
+                : $.getImageAssets("", a, undefined, pickOf(a)).map((asset) => asset.src);
             const src = imageAssets.flatMap((a) => srcsOf(a))[0];
             const srcs = [
               ...new Set([
@@ -5019,7 +5040,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 ...($.showsMovieStill() ? { preview: true } : {}),
               };
             }
-            const morph = $.getMorphContent(imageAssets, e.morph);
+            const morph = $.getMorphContent(imageAssets, pickOf);
             if (morph) {
               content.morph = morph;
             }
@@ -5186,10 +5207,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       async write(
         target: string,
-        sequence: ImageInstruction[],
+        events: ImageInstruction[],
         instant = false,
         time?: number,
+        speaker?: string,
       ) {
+        const sequence = events.map((event) =>
+          event.assets?.length ? { ...event, speaker: speaker ?? "" } : event,
+        );
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, sequence, instant, time);

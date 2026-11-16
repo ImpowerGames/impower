@@ -14,16 +14,23 @@ import { resolveImageLayers, type ImageLayer } from "./resolveImageLayers";
 
 export type ReadFileBytes = (uri: string) => Promise<string | undefined>;
 
+export type ImagePick = string | ((layer: ImageLayer) => string | undefined);
+
+const layerPick = (pick: ImagePick | undefined, layer: ImageLayer) => (typeof pick === "function" ? pick(layer) : pick);
+
 export interface ImageCompositeOptions {
   readFileBytes?: ReadFileBytes;
   size?: number;
+  pick?: ImagePick;
   morphRest?: (
     context: { [type: string]: { [name: string]: any } } | undefined,
     struct: any,
+    pick?: string,
   ) => Promise<string | undefined>;
   shownLayers?: (
     context: { [type: string]: { [name: string]: any } } | undefined,
     struct: any,
+    pick?: ImagePick,
   ) => (ImageLayer & { shown?: true })[];
 }
 
@@ -124,12 +131,12 @@ export const resolvePreviewLayers = async (
   struct: any,
   options?: ImageCompositeOptions,
 ): Promise<(ImageLayer & { rest?: true; shown?: true })[]> => {
-  const layers = options?.shownLayers ? options.shownLayers(context, struct) : resolveImageLayers(context, struct);
+  const layers = options?.shownLayers ? options.shownLayers(context, struct, options.pick) : resolveImageLayers(context, struct);
   const morphRest = options?.morphRest;
   if (!morphRest) return layers;
   return Promise.all(
     layers.map(async (layer) => {
-      const rest = layer.struct ? await morphRest(context, layer.struct) : undefined;
+      const rest = layer.struct ? await morphRest(context, layer.struct, layerPick(options?.pick, layer)) : undefined;
       return rest ? { src: `data:image/svg+xml,${encodeURIComponent(rest)}`, rest: true as const } : layer;
     }),
   );
@@ -208,7 +215,7 @@ export const getImagePreviewComposited = async (
   struct: any,
   options?: ImageCompositeOptions,
 ): Promise<{ src: string; composited: boolean } | undefined> => {
-  const rest = await options?.morphRest?.(context, struct);
+  const rest = await options?.morphRest?.(context, struct, layerPick(options?.pick, resolveImageLayers(context, struct)[0] ?? { src: "", struct }));
   if (rest) {
     return { src: `data:image/svg+xml,${encodeURIComponent(rest)}`, composited: false };
   }

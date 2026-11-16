@@ -555,9 +555,9 @@ This morph plays only on looks whose mouth shows its teeth, flaps between `close
 
 ### The look a portrait shows
 
-The look a portrait shows is the script's and the art's choices, except in the groups a playing morph drives, where the morph's rest replaces them. The image shown when hovering over a portrait or its suggestion, a portrait used as a mask and the morph's prepared still all show this look. While the morph is being prepared, the portrait shows the pose its moving drawing will show first.
+The look a portrait shows is the script's and the art's choices, except in the groups a playing morph drives, where the morph's rest replaces them. A speech morph plays only on its character's lines, so on any other line its groups show the script's and the art's choices ([Where the mouth rests](#where-the-mouth-rests)). The image shown when hovering over a portrait directive or one of its suggestions shows the look that line shows, and a portrait used as a mask and the morph's prepared still show this look too. While the morph is being prepared, the portrait shows the pose its moving drawing will show first.
 
-A script line or named look that chooses a state in a group a playing morph drives, other than the morph's rest, therefore does not show that state. The choice gets a warning naming the morph, the group and the rest shown instead:
+A script line or named look that chooses a state in a group a playing morph drives, other than the morph's rest, therefore does not show that state. The choice gets a warning naming the morph, the group and the rest shown instead; for a speech morph, a script line is warned about only under a cue naming the portrait's character, and a named look as before:
 
 ```sparkdown
 scene nap
@@ -683,10 +683,13 @@ scene start
   RAFFLES (V.O.):
     [[raffles@confident:mouth.closed morph none]]
     He was not fine.
+
+  [[raffles@confident:mouth.open]]
+  Raffles stared at the door, mouth open.
 end
 ```
 
-The first line flaps between `open` and `closed` and rests closed. The second flaps between `teeth` and `closed` and rests closed. On the third the mouth shows its teeth, so `talk` keeps off the look and `talk_smile` flaps between `open` and `closed` for as long as the laugh plays, then rests on the teeth. The fourth plays no speech morph, so the line's own closed mouth shows. The blink plays on every line, since it drives `eyes` and the talking drives `mouth`.
+The first line flaps between `open` and `closed` and rests closed. The second flaps between `teeth` and `closed` and rests closed. On the third the mouth shows its teeth, so `talk` keeps off the look and `talk_smile` flaps between `open` and `closed` for as long as the laugh plays, then rests on the teeth. The fourth plays no speech morph, so the line's own closed mouth shows. The fifth is narration, which Raffles does not speak, so no speech morph plays on his portrait and the open mouth it chooses shows. The blink plays on every line, since it drives `eyes` and the talking drives `mouth`.
 
 ### Marking a speech morph
 
@@ -748,7 +751,11 @@ The text before `as` is the name the box shows, and the word after it is the cha
 
 An image is a character's portrait when its name, up to its first `@`, is the character's define name: `raffles`, `raffles@confident` and `raffles@happy` are all Raffles. A project that keeps one file per expression names its files that way ([Character Portraits](./Portraits.md)). A named look whose own name names no character belongs to the character of the image it is built on.
 
-When a character speaks, every portrait of theirs on screen flaps, wherever it was shown. A portrait of someone else stays at rest, so a listener's mouth stays shut while another character talks.
+A line is a character's when its cue names that character, whether or not the line has voiced characters or a `voice` clip, so `RAFFLES:` with `. . .` is still his line. A speech morph acts on a portrait only on a line its character speaks: there it plays, flaps while the character speaks and rests between, wherever the portrait was shown. On every other line, narration or another character's line, no speech morph plays on the portrait shown there, so a listener's portrait shows the look its directive and its art give while another character talks. Morphs that are not speech morphs, such as a blink, play on every line.
+
+A directive on a line of its own, with no text beside it, belongs to the next line the story shows. Blank lines, comments, lines holding only tags and `local` statements between them are passed over, a divert to a scene in the same script is followed, and a choice menu is itself the next line shown, which nobody speaks. Inside a dialogue block, every directive belongs to that character's line. Where the next line depends on the path the story takes at run time, after an `if` or an alternator such as `cycle`, the editor reads the directive as a line of its own that nobody speaks: it gives no warning, and the hover and the suggestion preview show the directive's own look. Write the portrait line inside each branch to have the editor read it with that branch's line. So `[[raffles@confident]]` written just above `RAFFLES:` is shown on Raffles's line and flaps, the same directive above a narration line or another character's cue is not, and one with no line after it names nobody. A comment beside the directive does not count as text, and neither does a cue holding nothing but a directive, so the directive in `RAFFLES: [[raffles@confident]]` belongs to the line after it. In a composition such as `[[raffles@confident + bunny@yanking]]`, or a layered image built from both their portraits, each portrait follows its own character, so on Raffles's line only his portrait flaps.
+
+A portrait is cleared every beat unless the beat shows one. Where the portrait layer persists, a kept portrait keeps the look it was given on the line that showed it; to have it flap, show the portrait again on the line its character speaks.
 
 ### When the mouth flaps
 
@@ -798,7 +805,9 @@ A project can keep both kinds and pick one per line: a `morph talk_beep as talk`
 
 A speech morph rests like any morph: each group it drives rests on the state its `rest` gives, or else the state of its last keyframe. `talk` rests on `closed`, its last keyframe, and `talk_smile` rests on the `teeth` its `rest` names.
 
-While a speech morph plays on a look, it owns the mouth even when nobody is speaking, so a line that chooses a mouth state the morph does not rest on shows the morph's rest instead, with a warning on the choice ([The look a portrait shows](#the-look-a-portrait-shows)). To keep a choice, route it to a morph that honours it, as `talk_smile`'s `when = mouth.teeth` and `talk`'s `unless = mouth.teeth` route the smile, or pick `morph none` on the line.
+On a line its character speaks, a speech morph owns the mouth between plays too, so a directive under that cue that chooses a mouth state the morph does not rest on shows the morph's rest instead, with a warning on the choice ([The look a portrait shows](#the-look-a-portrait-shows)). To keep a choice there, route it to a morph that honours it, as `talk_smile`'s `when = mouth.teeth` and `talk`'s `unless = mouth.teeth` route the smile, or pick `morph none` on the line.
+
+On a line its character does not speak, the portrait shows its look as if the line had written `morph none`: the mouth state the directive chooses shows, with no warning, and a mouth the directive leaves unset shows the art's own default state, not the morph's rest. A `morph` clause on such a line changes nothing, since no speech morph plays there.
 
 `when` and `unless` route other looks the same way. A portrait whose mask covers the mouth can keep the flap off itself with a condition on its mask group:
 
@@ -831,6 +840,7 @@ Several speech morphs can fit one face, as `talk` and `talk_gritted` both fit Ra
 - `[[raffles@confident:mouth.closed morph none]]` plays no speech morph on the line's images, so the line's and the art's own choices show in the mouth.
 - Without a clause, the morph marked `default = true` plays. A speech morph that is the only one fitting the look needs no mark.
 - In a `+` composition, the clause applies to every image in the line that the morph plays on.
+- On a line the portrait's character does not speak, no speech morph plays whatever the clause names ([Where the mouth rests](#where-the-mouth-rests)).
 
 `default` is written at the morph's root and is not passed on through `as`, so `talk_gritted` above is not a default although its parent is. A named look cannot carry a `morph` clause; the line that shows it can.
 
@@ -884,7 +894,9 @@ For a speech morph:
 - A `morph` clause naming no morph, or a morph that is not a speech morph, is an error on the clause. One naming a speech morph that plays on none of the line's images, because it does not fit them or its `when` or `unless` keeps it off their looks, is a warning.
 - A warning on the morphs that they play on one image and drive the same group: none of them plays there until a line picks one or exactly one is marked `default = true`.
 - A mouth that never moves: check that the cue names a `define … as character` by its define name, its `name` or one of its `aliases`, that the portrait's name up to its first `@` is that define's name, and that the line has voiced characters or a `voice` clip.
-- A mouth that shows the morph's rest instead of the line's choice: the choice gets a warning naming the morph. Route the look with `when` or `unless`, or add `morph none` to the line.
+- A mouth that shows the morph's rest instead of the line's choice, on a line the character speaks: the choice gets a warning naming the morph. Route the look with `when` or `unless`, or add `morph none` to the line. On narration or another character's line, including a directive on its own line just above either, no speech morph plays, so the choice shows and is not warned about ([Where the mouth rests](#where-the-mouth-rests)).
+- No warning, yet the mouth rests during play: a directive on a line of its own followed by something the editor does not read through to the next line shown. That is an `if` or an alternator such as `cycle` whose branch the game takes into the character's line, a divert into another script or through a variable, an assignment such as `n = 1`, a `do` block, a `for`, `while` or `repeat` loop, a `branch` declaration, or an interpolation that shows nothing, such as `{""}`. It is also a directive that is the last line inside a `do` block, an `if` branch or an alternator's arm, with the character's line after the block. The game shows the directive on the next line it reaches, which can be the character's. Write the portrait line inside each branch, or on the character's line itself.
+- A warning, yet the choice shows during play: the editor read the directive with a later line of the character's that the game does not join it to. That happens when a `[[load ...]]` or a cutscene such as `[[play intro]]` stands between the directive line and the character's line, because the game shows those as beats of their own. It also happens when a cue holds nothing but the directive, such as `RAFFLES: [[raffles@confident]]`, and an `if` or an alternator follows it. Write the portrait line on the line where it should show.
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
 

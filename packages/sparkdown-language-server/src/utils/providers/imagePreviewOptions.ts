@@ -1,12 +1,12 @@
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import type { ImageCompositeOptions } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
+import type { ImageCompositeOptions, ImagePick } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 
 export const createImageCompositeOptions = (workspace: {
   getFileBytes(uri: string): Promise<string | undefined>;
-  morphRestRender(context: SparkProgram["context"], struct: any): Promise<string | undefined>;
-  morphShownLayers(context: SparkProgram["context"], struct: any): ReturnType<NonNullable<ImageCompositeOptions["shownLayers"]>>;
+  morphRestRender(context: SparkProgram["context"], struct: any, pick?: string): Promise<string | undefined>;
+  morphShownLayers(context: SparkProgram["context"], struct: any, pick?: ImagePick): ReturnType<NonNullable<ImageCompositeOptions["shownLayers"]>>;
 }): ImageCompositeOptions => ({
   readFileBytes: (uri) => workspace.getFileBytes(uri),
-  morphRest: (context, struct) => workspace.morphRestRender(context, struct),
-  shownLayers: (context, struct) => workspace.morphShownLayers(context, struct),
+  morphRest: (context, struct, pick) => workspace.morphRestRender(context, struct, pick),
+  shownLayers: (context, struct, pick) => workspace.morphShownLayers(context, struct, pick),
 });

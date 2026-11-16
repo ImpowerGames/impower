@@ -1256,7 +1256,8 @@ end
     await h.ready;
     await h.preview(lineOf(source, "First line."));
     await flushMicrotasks(10);
-    await until(() => playback.stats.live === 2, "both portraits' artifacts");
+    const speakers = backdrop.startsWith("mia") ? 2 : 1;
+    await until(() => playback.stats.live === speakers, "the speaker's portraits' artifacts");
     const heads = () =>
       new Map(
         [...(playback as any).layers].flatMap((layer: any) =>
@@ -1335,7 +1336,7 @@ end
     }
   });
 
-  test("every portrait of the speaker flaps, and another character's portrait stays at rest", async () => {
+  test("every portrait of the speaker flaps, and another character's portrait carries no speech morph", async () => {
     const two = await speaking("mia@night");
     two.playback.speak("mia", [[0, 2]]);
     two.playback.advance(0.05);
@@ -1345,7 +1346,7 @@ end
     other.playback.speak("mia", [[0, 2]]);
     other.playback.advance(0.05);
     expect(other.head("mia")).toEqual(playing(0.5));
-    expect(other.head("bunny")).toEqual({ phase: "off" });
+    expect(other.head("bunny")).toBeUndefined();
   });
 
   test("the page times the speech from the beat's start, as the text reveal is", async () => {
@@ -1504,7 +1505,7 @@ end
       const layers = () => [...(playback as any).layers] as any[];
       const outgoing = layers()[0];
       playback.speak("mia", [[0, 4]]);
-      void h.game.module.ui.image.write("portrait", [{ control: "show", assets: ["mia@day"], with: "fade", after }], false);
+      void h.game.module.ui.image.write("portrait", [{ control: "show", assets: ["mia@day"], with: "fade", after }], false, undefined, "mia");
       await until(() => layers().some((layer) => layer.images[0].plays[0].play.ref.image === "mia@day"), "the incoming look");
       await flushMicrotasks(10);
       return { h, playback, outgoing, layers, timeline, finish: () => finishers.forEach((finish) => finish()) };

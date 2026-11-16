@@ -54,6 +54,11 @@ import {
   type DirectiveKind,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { readCue } from "@impower/sparkdown/src/compiler/utils/readCue";
+import {
+  type CharacterNames,
+  characterNames,
+  cueCharacter,
+} from "@impower/sparkdown/src/compiler/utils/cueCharacter";
 
 export interface InterpreterConfig {}
 
@@ -119,7 +124,7 @@ export class InterpreterModule extends Module<
 
   protected _targetPrefixMap: Record<string, string> = {};
 
-  protected _characterNameMap: Record<string, string> = {};
+  protected _characterNames: CharacterNames = Object.create(null);
 
   protected _matcherCache = new Map<string, Matcher>();
 
@@ -150,27 +155,7 @@ export class InterpreterModule extends Module<
   }
 
   setup() {
-    this._characterNameMap = Object.create(null);
-    const characters = Object.entries(this.context.character || {});
-    for (const [k, v] of characters) {
-      const aliases = v.aliases;
-      if (!k.startsWith("$") && Array.isArray(aliases)) {
-        for (const alias of aliases) {
-          if (typeof alias === "string" && alias) {
-            const owner = Object.hasOwn(this._characterNameMap, alias)
-              ? this._characterNameMap[alias]
-              : k;
-            this._characterNameMap[alias] = owner === k ? k : "";
-          }
-        }
-      }
-    }
-    for (const [k, v] of characters) {
-      const name = v.name;
-      if (typeof name === "string" && name) {
-        this._characterNameMap[name] = k;
-      }
-    }
+    this._characterNames = characterNames(this.context);
     this._targetPrefixMap = {};
     for (const [k, v] of Object.entries(
       this.context.config?.interpreter.directives || {},
@@ -298,10 +283,12 @@ export class InterpreterModule extends Module<
         ? characterMap[key]
         : undefined;
     const writtenName = writtenText(characterNameMatch);
-    const characterObj = cue.speaker
-      ? ownCharacter(cue.speaker.text)
-      : ownCharacter(writtenName) ||
-        characterMap?.[this._characterNameMap[writtenName] || ""];
+    const character = cueCharacter(
+      this.context,
+      this._characterNames,
+      characterDeclaration,
+    );
+    const characterObj = character ? ownCharacter(character) : undefined;
     const namedByAlias =
       characterObj &&
       writtenName !== characterObj.$name &&

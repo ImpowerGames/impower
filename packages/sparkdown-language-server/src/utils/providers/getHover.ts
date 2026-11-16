@@ -1,4 +1,5 @@
 import { readSourceDirective } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import { directiveLine, linePickOf } from "@impower/sparkdown/src/compiler/utils/directiveLinePick";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
@@ -296,10 +297,23 @@ export const getHover = async (
     return null;
   }
   const { struct, range } = match as { struct: any; range: Range };
+  const pick =
+    tree && program.context
+      ? linePickOf(
+          program.context,
+          struct.$name ?? "",
+          directiveLine(
+            program.context,
+            tree,
+            { read: (from, to) => document.read(from, to), characterNumber: (pos) => document.positionAt(pos).character },
+            document.offsetAt(range.start),
+          ),
+        )
+      : undefined;
   const preview = await getImagePreviewMarkupComposited(
     program.context,
     struct,
-    options,
+    pick === undefined ? options : { ...options, pick },
   );
   const files = getPictureFiles(program.context, struct);
   const sections = [

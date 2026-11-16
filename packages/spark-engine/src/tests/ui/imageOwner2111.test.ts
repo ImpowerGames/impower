@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { blinkScript, talkingPortrait, talkScript } from "@impower/sparkdown/src/tests/morph/fixtures";
-import { getImageOwner } from "../../game/modules/ui/utils/getImageOwner";
+import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
 import { createHarness } from "./harness/uiTestHarness";
 
 const art = (name: string) =>
