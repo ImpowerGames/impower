@@ -165,18 +165,22 @@ describe("the choice warning follows the line's speaker (I-2390)", () => {
     expect(warnings(text)).toEqual([]);
   });
 
-  test("a directive line read past a statement keeps its warning after an edit elsewhere recompiles (I-2442)", () => {
+  test.each([
+    ["in another scene", "Elsewhere", "Somewhere else"],
+    ["on the character's line", "Let go of that", "Let go"],
+    ["in the statement between them", "local n = 1", "local n = 2"],
+  ])("a directive line read past a statement keeps its warning after an edit %s recompiles (I-2442)", (_, from, to) => {
     const text = `${story("  [[bunny:mouth.teeth]]\n  local n = 1\n  BUNNY:\n    Let go of that!")}\nscene other\n  Elsewhere.\nend\n`;
     const compiler = compilerFor(text);
     expect(warnings(text, compiler)).toHaveLength(1);
-    const offset = text.indexOf("Elsewhere.");
+    const offset = text.indexOf(from);
     const before = text.slice(0, offset).split("\n");
     const at = { line: before.length - 1, character: before.at(-1)!.length };
     compiler.updateDocument({
       textDocument: { uri: URI, version: 2 },
-      contentChanges: [{ range: { start: at, end: { line: at.line, character: at.character + "Elsewhere".length } }, text: "Somewhere else" }],
+      contentChanges: [{ range: { start: at, end: { line: at.line, character: at.character + from.length } }, text: to }],
     } as never);
-    const edited = text.replace("Elsewhere.", "Somewhere else.");
+    const edited = text.replace(from, to);
     const found = warnings(edited, compiler);
     expect(found).toHaveLength(1);
     expect(found[0]!.line).toContain("[[bunny:mouth.teeth]]");
