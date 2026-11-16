@@ -49,6 +49,7 @@ export default class InsertedRowWidget extends WidgetType {
       row.append(span);
     }
     if (this.inline?.after) row.append(lineBreak());
+    if ((!this.inline || this.inline.block) && this.pieces.length === 0) row.append(document.createElement("br"));
     return row;
   }
 
