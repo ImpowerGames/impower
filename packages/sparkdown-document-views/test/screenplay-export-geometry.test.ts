@@ -381,3 +381,52 @@ describe("the parity matrix's rows sit and wrap where the PDF prints them", () =
     expect(failures).toEqual([]);
   }, 600_000);
 });
+
+const TITLE_PAGE = [
+  "---",
+  "title:",
+  "  **The Midnight Jukebox**",
+  "  A Sparkdown demo story",
+  "credit: Written by",
+  "author: The Lantern Street Writers",
+  "source: An original story made for the editor redesign",
+  "notes:",
+  "  *Chapter 1 references a missing sound and chapter 2 has a typo, on purpose, so the editor has problems to show.*",
+  "date: September 23, 2026",
+  "contact:",
+  "  Impower Games",
+  "revision: Draft 1",
+  "---",
+  "",
+  "scene s",
+  "  Hello.",
+  "end",
+  "",
+].join("\n");
+
+const TITLE_STEPS: [string, string][] = [
+  ["The Midnight Jukebox", "A Sparkdown demo story"],
+  ["A Sparkdown demo story", "Written by"],
+  ["Written by", "The Lantern Street Writers"],
+  ["The Lantern Street Writers", "An original story"],
+  ["September 23, 2026", "Chapter 1 references"],
+  ["Chapter 1 references", "Impower Games"],
+  ["Impower Games", "Draft 1"],
+];
+
+describe("the title page", () => {
+  it("spaces its fields by the rows the PDF prints between them", async () => {
+    const config = { ...BASE, screenplay_print_title_page: true };
+    const pdf = await printed(TITLE_PAGE, config);
+    const page = await drawn(TITLE_PAGE, config, 760);
+    const step = (found: Printed, [from, to]: [string, string]) => {
+      const first = found.rows.find((row) => row.text.includes(from));
+      const second = found.rows.find((row) => row.text.includes(to));
+      return first && second ? Math.round((second.top - first.top) / found.rowHeight) : undefined;
+    };
+    const differences = TITLE_STEPS.map((pair) => ({ pair, page: step(page, pair), pdf: step(pdf, pair) })).filter(
+      (found) => found.pdf === undefined || found.page !== found.pdf,
+    );
+    expect(differences).toEqual([]);
+  }, 120_000);
+});
