@@ -212,22 +212,44 @@ export function equalsInColonTags(text: string): string {
 }
 
 export function equalsInColonTagsInTable<T>(payload: T): T | ObjectValue {
-  return mapTableText(payload, equalsInColonTags);
+  return mapTableText(payload, equalsInColonTags, ["text", "character"]);
+}
+
+export function equalsInColonTagsInSavedStrings(token: unknown): unknown {
+  if (typeof token === "string") {
+    if (!token.startsWith("^") || !token.includes("<")) return token;
+    const value = equalsInColonTags(SCAN_OPEN + token.slice(1) + SCAN_CLOSE);
+    return "^" + value.slice(1, -1);
+  }
+  if (Array.isArray(token)) return token.map(equalsInColonTagsInSavedStrings);
+  if (token && typeof token === "object") {
+    return Object.fromEntries(
+      Object.entries(token).map(([key, item]) => [key, equalsInColonTagsInSavedStrings(item)]),
+    );
+  }
+  return token;
 }
 
 export function codeWrittenTagsInTable<T>(payload: T): T | ObjectValue {
   return mapTableText(payload, codeWrittenTags);
 }
 
-function mapTableText<T>(payload: T, map: (text: string) => string): T | ObjectValue {
-  const text =
-    payload instanceof ObjectValue ? payload.value?.get("text") : undefined;
-  if (!(text instanceof StringValue) || !text.value) return payload;
-  const coded = map(text.value);
-  if (coded === text.value) return payload;
-  return new ObjectValue(
-    new Map((payload as ObjectValue).value).set("text", new StringValue(coded)),
-  );
+function mapTableText<T>(
+  payload: T,
+  map: (text: string) => string,
+  fields: readonly string[] = ["text"],
+): T | ObjectValue {
+  if (!(payload instanceof ObjectValue) || !payload.value) return payload;
+  let entries: Map<any, any> | undefined;
+  for (const field of fields) {
+    const text = payload.value.get(field);
+    if (!(text instanceof StringValue) || !text.value) continue;
+    const coded = map(text.value);
+    if (coded === text.value) continue;
+    entries ??= new Map(payload.value);
+    entries.set(field, new StringValue(coded));
+  }
+  return entries ? new ObjectValue(entries) : payload;
 }
 
 export function readTextCommandAt(

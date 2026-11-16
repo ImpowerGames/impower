@@ -504,6 +504,42 @@ describe("a save at the end", () => {
   });
 });
 
+describe("a save whose strings hold a tag written with a colon (#2391)", () => {
+  const withoutTagEquals = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(withoutTagEquals)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.entries(value)
+              .filter(([key]) => key !== "tagEquals")
+              .map(([key, item]) => [key, withoutTagEquals(item)]),
+          )
+        : value;
+
+  it("reads a known tag in a string a later beat changed with an equals sign", () => {
+    const text = [
+      'store whisper = ""',
+      "scene start",
+      "  Ready.",
+      '  & whisper = "<speed=0.5>"',
+      "  Set.",
+      "  {whisper}Come closer.",
+      "end",
+      "",
+    ].join("\n");
+    const story = engine(rootOf(text)!, undefined, 5);
+    expect(nextBeat(story)).toBe("Ready.");
+    expect(nextBeat(story)).toBe("Set.");
+    const saved = JSON.parse(story.toSave());
+    expect(saved.beats.length).toBeGreaterThan(1);
+    const colon = JSON.stringify(withoutTagEquals(saved)).split("<speed=0.5>").join("<speed:0.5>");
+    expect(colon).toContain("<speed:0.5>");
+    const loaded = engine(rootOf(text)!, undefined, 5);
+    loaded.loadSave(colon);
+    expect(String((loaded.variablesState.GetVariableWithName("whisper") as { value?: unknown } | null)?.value)).toBe("<speed=0.5>");
+  });
+});
+
 describe("a save's header", () => {
   const TEXT = "scene start\n  One.\n  Two.\nend\n";
 

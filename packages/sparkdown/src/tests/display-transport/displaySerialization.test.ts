@@ -225,7 +225,13 @@ describe("a save written before tag codes (#2145)", () => {
 describe("a save whose tag codes hold a value after a colon (#2391)", () => {
   const colonCodes = (value: unknown): unknown =>
     typeof value === "string"
-      ? value.split(tagCode("speed=0.5")).join(tagCode("speed:0.5")).split("<speed=0.5>").join("<speed:0.5>")
+      ? ["speed=0.5", "color=red"].reduce(
+          (text, equals) => {
+            const colon = equals.replace("=", ":");
+            return text.split(tagCode(equals)).join(tagCode(colon)).split(`<${equals}>`).join(`<${colon}>`);
+          },
+          value,
+        )
       : Array.isArray(value)
         ? value.map(colonCodes)
         : value && typeof value === "object"
@@ -247,6 +253,38 @@ describe("a save whose tag codes hold a value after a colon (#2391)", () => {
     const storyB = testStory(compiled);
     storyB.state.LoadJson(json);
     expect(storyB.currentStyledText).toBe(storyA.currentStyledText);
+  });
+
+  test("reads a known tag's code in a dialogue cue with an equals sign", () => {
+    const compiled = compile(
+      `define mia as character with\n  name = "MIA"\nend\nscene start\n  MIA (<color=red>soft</color>): Hello.\n  done\nend\n`,
+    );
+    const storyA = testStory(compiled);
+    storyA.Continue();
+    const cue = String(field(storyA.currentDisplayInstructions[0]!, "character"));
+    expect(cue).toContain(tagCode("color=red"));
+    const json = JSON.stringify(colonCodes(JSON.parse(storyA.state.ToJson() as string)));
+    expect(json).toContain(tagCode("color:red"));
+    const storyB = testStory(compiled);
+    storyB.state.LoadJson(json);
+    expect(String(field(storyB.currentDisplayInstructions[0]!, "character"))).toBe(cue);
+  });
+
+  test("reads a known tag written with a colon in a saved string with an equals sign", () => {
+    const compiled = compile(
+      `store whisper = ""\nstore code = ""\nscene start\n  & whisper = "<speed=0.5>"\n  & code = "\`<speed=0.5>\`"\n  Ready.\n  {whisper}Come closer.\n  done\nend\n`,
+    );
+    const storyA = testStory(compiled);
+    storyA.Continue();
+    expect(storyA.currentText?.trim()).toBe("Ready.");
+    const json = JSON.stringify(colonCodes(JSON.parse(storyA.state.ToJson() as string))).split("`<speed=0.5>`").join("`<speed:0.5>`");
+    expect(json).toContain("^<speed:0.5>");
+    const storyB = testStory(compiled);
+    storyB.state.LoadJson(json);
+    expect(String((storyB.state.variablesState.GetVariableWithName("whisper") as { value?: unknown } | null)?.value)).toBe("<speed=0.5>");
+    expect(String((storyB.state.variablesState.GetVariableWithName("code") as { value?: unknown } | null)?.value)).toBe("`<speed:0.5>`");
+    storyB.Continue();
+    expect(storyB.currentStyledText).toContain(`${SCAN_OPEN}<speed=0.5>${SCAN_CLOSE}`);
   });
 
   test("reads a known tag written with a colon in an inserted value with an equals sign", () => {

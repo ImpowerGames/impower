@@ -11,6 +11,7 @@ import {
   codeWrittenTags,
   codeWrittenTagsInTable,
   equalsInColonTags,
+  equalsInColonTagsInSavedStrings,
   equalsInColonTagsInTable,
 } from "../runtime/storyTags";
 import { Tag } from "../runtime/Tag";
@@ -329,6 +330,13 @@ export interface SuspendedLineEnd {
   carried: CarriedStep | null;
   holdsInherited: boolean;
   joined: boolean;
+}
+
+export function equalsInSavedValues(obj: Record<string, any>): void {
+  if (obj["tagEquals"] === true) return;
+  for (const key of ["variablesState", "globals", "evalStack", "frames", "threads"]) {
+    if (key in obj) obj[key] = equalsInColonTagsInSavedStrings(obj[key]);
+  }
 }
 
 function readOutput(
@@ -1660,6 +1668,7 @@ export class ProgramStoryState {
 
   readState(obj: Record<string, any>, codec: StateCodec): void {
     codec.check?.(obj);
+    equalsInSavedValues(obj);
     this.beginLoad();
     codec.beginRead?.();
     try {
