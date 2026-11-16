@@ -423,3 +423,21 @@ it("keeps another tab's deletion of a file the edit wrote, before its broadcast 
   expect(h.text("main.sd")).toBeUndefined();
   expect(result.rollback.kept).toContain(uri("main.sd"));
 });
+
+it("rolls back a rename made through the stored move when a later change fails", async () => {
+  const h = await harness();
+  const project = h.root.entries.get("local") as MemoryDirectory;
+  const file = (await project.getFileHandle("a.sd", { create: true })) as MemoryFile;
+  file.bytes = enc.encode("ORIGINAL");
+  const move = vi.spyOn(MemoryFile.prototype, "move");
+  h.failAt();
+  const result = await h.edit([
+    { kind: "rename", oldUri: uri("a.sd"), newUri: uri("b.sd") },
+    create("fail/x.sd", "FAIL"),
+  ]);
+  expect(move).toHaveBeenCalled();
+  expect(result.applied).toBe(false);
+  expect(result.rollback).toMatchObject({ complete: true, failed: [], kept: [] });
+  expect(h.text("a.sd")).toBe("ORIGINAL");
+  expect(h.text("b.sd")).toBeUndefined();
+});
