@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { chromium } from "playwright";
 import { h, render, type VNode } from "preact";
 import { act } from "preact/test-utils";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 let mediaMatches: (query: string) => boolean = () => false;
 const mediaListeners = new Set<() => void>();
@@ -71,11 +71,11 @@ const stylesFor = async (markup: string) => {
 };
 
 const inChromium = async <T>(
-  node: VNode,
+  node: VNode | string,
   { width, theme = "charcoal", layout = "desktop", touch = false }: { width: number; theme?: Theme; layout?: Layout; touch?: boolean },
   read: () => T,
 ): Promise<T> => {
-  const markup = await markupOf(node);
+  const markup = typeof node === "string" ? node : await markupOf(node);
   const css = await stylesFor(markup);
   const browser = await chromium.launch();
   try {
@@ -508,7 +508,7 @@ describe("Shared parts the Assets page shows against the Folio prototype (I-2441
 
 describe("The Assets page's and app frame's last differences from the Folio prototype (I-2448)", () => {
 
-  const menuBelow = (elevation?: "menu") =>
+  const menuBelow = (elevation?: "library") =>
     h(
       "div",
       { style: "padding:100px 400px" },
@@ -522,8 +522,8 @@ describe("The Assets page's and app frame's last differences from the Folio prot
 
   const menuShadow = () => getComputedStyle(document.querySelector('[role="menu"]')!).boxShadow.split(", rgba").pop();
 
-  it.each(THEMES)("G1: in %s a library menu casts the prototype's 0 8px 24px shadow at 0.267", async (theme) => {
-    expect(await inChromium(menuBelow("menu"), { width: 1440, theme }, menuShadow)).toBe("(0, 0, 0, 0.267) 0px 8px 24px 0px");
+  it.each(THEMES)("G1: in %s a dropdown at the library elevation casts the prototype's 0 8px 24px shadow at 0.267", async (theme) => {
+    expect(await inChromium(menuBelow("library"), { width: 1440, theme }, menuShadow)).toBe("(0, 0, 0, 0.267) 0px 8px 24px 0px");
   });
 
   it.each(THEMES)("G1: in %s a dropdown that is not a library menu, such as the app menu, keeps the floating shadow", async (theme) => {
@@ -652,5 +652,110 @@ describe("The Assets page's and app frame's last differences from the Folio prot
       return { size: glyph.getBoundingClientRect().width, fill: style.fill === style.color, stroke: style.stroke };
     });
     expect(measured).toEqual({ size: 18, fill: true, stroke: "none" });
+  });
+});
+
+describe("Real menus and sheets at their elevations (I-2448)", () => {
+  const TRIGGER = { top: 300, bottom: 344, left: 600, right: 644 };
+  const MENU = { top: 0, left: 0, bottom: 150, right: 180 };
+  const DESKTOP = (query: string) => query.includes("701px") || query.includes("1101px");
+
+  const opened = async (node: VNode, phone: boolean) => {
+    await setMedia(phone ? () => false : DESKTOP);
+    const host = document.body.appendChild(document.createElement("div"));
+    for (const [target, name, value] of [[window, "innerWidth", 1440], [window, "innerHeight", 900], [document.documentElement, "clientWidth", 1440], [document.documentElement, "clientHeight", 900]] as const) {
+      Object.defineProperty(target, name, { configurable: true, value });
+    }
+    const floats = (element: Element) => element.getAttribute("role") === "menu" || element.hasAttribute("data-radix-popper-content-wrapper");
+    const width = vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+      return floats(this) ? MENU.right : 0;
+    });
+    const height = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return floats(this) ? MENU.bottom : 0;
+    });
+    const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const floating = this.getAttribute("role") === "menu" || this.hasAttribute("data-radix-popper-content-wrapper");
+      const r = this.hasAttribute("aria-haspopup") ? TRIGGER : floating ? MENU : { top: 0, left: 0, bottom: 0, right: 0 };
+      return { ...r, x: r.left, y: r.top, width: r.right - r.left, height: r.bottom - r.top, toJSON: () => r } as DOMRect;
+    });
+    try {
+      await act(async () => render(node, host));
+      const trigger = host.querySelector<HTMLElement>("[aria-haspopup]");
+      if (trigger && phone) {
+        await act(async () => trigger.click());
+      } else if (trigger) {
+        trigger.focus();
+        await act(async () => {
+          trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+        });
+      }
+      await act(async () => {
+        await new Promise((done) => setTimeout(done, 300));
+      });
+      const wrapper = document.querySelector<HTMLElement>("[data-radix-popper-content-wrapper]");
+      if (trigger && !phone && !wrapper) throw new Error("no menu opened from " + trigger.outerHTML.slice(0, 160));
+      const y = wrapper ? Number(/translate\([-\d.]+px, ([-\d.]+)px\)/.exec(wrapper.style.transform)?.[1]) : NaN;
+      return { y, markup: document.body.innerHTML };
+    } finally {
+      await act(async () => render(null, host));
+      host.remove();
+      document.body.innerHTML = "";
+      spy.mockRestore();
+      width.mockRestore();
+      height.mockRestore();
+      for (const [target, name] of [[window, "innerWidth"], [window, "innerHeight"], [document.documentElement, "clientWidth"], [document.documentElement, "clientHeight"]] as const) {
+        delete (target as unknown as Record<string, unknown>)[name];
+      }
+      await setMedia(() => false);
+    }
+  };
+
+  const menuLook = () => {
+    const style = getComputedStyle(document.querySelector("[role=menu]")!);
+    return { radius: style.borderRadius, shadow: style.boxShadow.split(", rgba").pop() };
+  };
+
+  const dialogLook = () => {
+    const style = getComputedStyle(document.querySelector("[role=dialog]")!);
+    return { radius: style.borderRadius, shadow: style.boxShadow.split(", rgba").pop() };
+  };
+
+  const addMenu = h(
+    "div",
+    { style: "width:1000px;height:600px;display:flex" },
+    h(LibraryPage, { searchLabel: "Search images", query: "", onQueryChange: () => {}, newLabel: "Add", newMenu: h(ui.DropdownItem, {}, "Upload files"), bar: null, list: null }),
+  );
+  const rowMenu = h(AssetRowMenu, { name: "imani", onAction: () => {} });
+
+  it.each([
+    ["the Assets Add menu", addMenu],
+    ["an asset row's menu", rowMenu],
+  ] as const)("G1, G2: %s opens 6px below its trigger at the library elevation", async (_name, node) => {
+    const { y, markup } = await opened(node, false);
+    expect(y - TRIGGER.bottom).toBe(6);
+    expect(await inChromium(markup, { width: 1440 }, menuLook)).toEqual({ radius: "12px", shadow: "(0, 0, 0, 0.267) 0px 8px 24px 0px" });
+  });
+
+  it("G1: the app menu keeps its 20px offset above its trigger and the floating shadow", async () => {
+    const before = workspace.state.value;
+    workspace.state.value = { ...before, screen: { ...before.screen, appMenuOpen: true } } as WorkspaceCache;
+    try {
+      const { y, markup } = await opened(h("div", { style: "width:203px" }, h(AppMenu, {})), false);
+      expect(TRIGGER.top - (y + MENU.bottom)).toBe(20);
+      expect(await inChromium(markup, { width: 1440 }, menuLook)).toEqual({ radius: "12px", shadow: "(0, 0, 0, 0.4) 0px 12px 40px 0px" });
+    } finally {
+      workspace.state.value = before;
+    }
+  });
+
+  it.each(THEMES)("G3: at 430 in %s an asset row's menu opens as a sheet with the sheet's corners and shadow", async (theme) => {
+    const { markup } = await opened(rowMenu, true);
+    expect(await inChromium(markup, { width: 430, theme, touch: true, layout: "phone" }, dialogLook)).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
+  });
+
+  it.each(THEMES)("G3: at 430 in %s a responsive dialog shown as a sheet keeps the card's corners and no shadow", async (theme) => {
+    const dialog = h(ui.Dialog, { responsive: true, open: true, onOpenChange: () => {} }, h(ui.DialogTitle, {}, "Keep which copy?"), h("p", {}, "Both copies changed."));
+    const { markup } = await opened(dialog, true);
+    expect(await inChromium(markup, { width: 430, theme, touch: true, layout: "phone" }, dialogLook)).toEqual({ radius: "12px 12px 0px 0px", shadow: "none" });
   });
 });

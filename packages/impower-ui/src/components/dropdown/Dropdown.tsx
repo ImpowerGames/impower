@@ -216,11 +216,11 @@ export const dropdownContentVariants = cva(
         room: "max-h-[var(--radix-dropdown-menu-content-available-height)]",
       },
       elevation: {
-        float: "shadow-float",
-        menu: "shadow-menu",
+        floating: "shadow-float",
+        library: "shadow-menu",
       },
     },
-    defaultVariants: { fit: "free", elevation: "float" },
+    defaultVariants: { fit: "free", elevation: "floating" },
   },
 );
 

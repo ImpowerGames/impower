@@ -166,12 +166,12 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
-      <GalleryRow label="Menu elevation: the library pages' lighter menu shadow">
+      <GalleryRow label="Library elevation: the Assets and Scripts pages' lighter menu shadow (the default floating elevation is every other row)">
         <DropdownRoot>
           <DropdownTrigger asChild>
             <Button>Sort</Button>
           </DropdownTrigger>
-          <DropdownContent elevation="menu" align="start">
+          <DropdownContent elevation="library" align="start">
             <MenuItems />
           </DropdownContent>
         </DropdownRoot>

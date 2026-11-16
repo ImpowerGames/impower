@@ -56,7 +56,7 @@ export default function AssetRowMenu({ name, kept, actions = ROW_ACTIONS, glyph 
           <MoreVerticalIcon />
         </Button>
       </DropdownTrigger>
-      <DropdownContent elevation="menu" align="end" class="min-w-[196px]">
+      <DropdownContent elevation="library" align="end" class="min-w-[196px]">
         {offers("select") && (
           <DropdownItem onSelect={() => onAction("select")}>
             <CheckIcon class="text-muted" />
