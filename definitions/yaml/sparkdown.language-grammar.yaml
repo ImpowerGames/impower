@@ -946,16 +946,44 @@ variables:
   # A closed comment is always taken whole and a character never starts one. A
   # comment opener left open on the line means none later closes, so the run
   # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_START_REGION_CHARACTER,
-  # which never asks again. Where the region's end would stop the run inside an
-  # interpolation, the run takes the interpolation whole, as
-  # LuauInterpolatedStringExpression reads it in the text around the command, so
-  # a bracket inside it ends nothing and the command reads as on a display line.
-  CHOICE_START_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_START_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n]|{{SPAN_INTERPOLATION}})
+  # which never asks again.
+  CHOICE_START_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_START_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
+  # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END, which
+  # LuauInterpolatedStringExpression shields in the text around a command, and
+  # TextCommand's closer, its first `>`. Where the region's end comes inside an interpolation
+  # before the command's closer, a nested brace or a `}`, a command's run would
+  # stop there, so the run takes the interpolation whole and a bracket or an
+  # arrow inside it ends nothing. Anywhere else the run reads the interpolation
+  # a character at a time and ends at the command's first closer, as on a
+  # display line. A character never starts an interpolation the run would take
+  # whole (CHOICE_START_TEXT_INTERPOLATION_START), so the run splits a line in
+  # one way: where that interpolation does not close, its region's end stops the
+  # run anyway.
+  CHOICE_START_TEXT_INTERPOLATION: (?:(?={{CHOICE_START_TEXT_INTERPOLATION_START}}){{SPAN_INTERPOLATION}})
+  CHOICE_START_TEXT_INTERPOLATION_START: (?:[{]{{CHOICE_START_TEXT_INTERPOLATION_SCAN}}*{{CHOICE_START_TEXT_INTERPOLATION_STOP}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION; the scan stops at the region's end or the closer.
+  CHOICE_START_TEXT_INTERPOLATION_SCAN: (?:(?!{{CHOICE_START_TEXT_END}}|[>])[^{}\r\n])
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION; at the closer the command ends first.
+  CHOICE_START_TEXT_INTERPOLATION_STOP: (?:(?![>]){{CHOICE_START_TEXT_END}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION, for ChoiceStartText's end and AudioCommand's closer, its first `))`.
+  CHOICE_START_AUDIO_INTERPOLATION: (?:(?={{CHOICE_START_AUDIO_INTERPOLATION_START}}){{SPAN_INTERPOLATION}})
+  CHOICE_START_AUDIO_INTERPOLATION_START: (?:[{]{{CHOICE_START_AUDIO_INTERPOLATION_SCAN}}*{{CHOICE_START_AUDIO_INTERPOLATION_STOP}})
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION; the scan stops at the region's end or the closer.
+  CHOICE_START_AUDIO_INTERPOLATION_SCAN: (?:(?!{{CHOICE_START_TEXT_END}}|[)][)])[^{}\r\n])
+  # lookaround: as CHOICE_START_AUDIO_INTERPOLATION; at the closer the command ends first.
+  CHOICE_START_AUDIO_INTERPOLATION_STOP: (?:(?![)][)]){{CHOICE_START_TEXT_END}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION, for ChoiceStartText's end and ImageCommand's closer, its first `]]`.
+  CHOICE_START_IMAGE_INTERPOLATION: (?:(?={{CHOICE_START_IMAGE_INTERPOLATION_START}}){{SPAN_INTERPOLATION}})
+  CHOICE_START_IMAGE_INTERPOLATION_START: (?:[{]{{CHOICE_START_IMAGE_INTERPOLATION_SCAN}}*{{CHOICE_START_IMAGE_INTERPOLATION_STOP}})
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION; the scan stops at the region's end or the closer.
+  CHOICE_START_IMAGE_INTERPOLATION_SCAN: (?:(?!{{CHOICE_START_TEXT_END}}|\]\])[^{}\r\n])
+  # lookaround: as CHOICE_START_IMAGE_INTERPOLATION; at the closer the command ends first.
+  CHOICE_START_IMAGE_INTERPOLATION_STOP: (?:(?!\]\]){{CHOICE_START_TEXT_END}})
   CHOICE_START_COMMAND_ESCAPE: (?:[\\]{{CHOICE_START_REGION_CHARACTER}})
   # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
   # of the command's text must leave to it; a run started earlier cannot be
   # interrupted by order.
-  CHOICE_START_TEXT_COMMAND_UNIT: (?:{{CHOICE_START_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_START_COMMAND_CHARACTER}})
+  CHOICE_START_TEXT_COMMAND_UNIT: (?:{{CHOICE_START_COMMAND_ESCAPE}}|{{CHOICE_START_TEXT_INTERPOLATION}}|(?![\\>]|{{CHOICE_START_TEXT_INTERPOLATION_START}}){{CHOICE_START_COMMAND_CHARACTER}})
   # lookaround: as for CHOICE_START_TEXT_COMMAND_UNIT, past a comment opener that no
   # `*/` closes on the line.
   CHOICE_START_TEXT_COMMAND_REST: (?:{{CHOICE_START_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_START_REGION_CHARACTER}})
@@ -967,7 +995,7 @@ variables:
   # backslash leaves unpaired so it can end the command; elsewhere a backslash
   # takes the character after it, as in CHOICE_START_TEXT_COMMAND_UNIT, and the
   # region's end stops it.
-  CHOICE_START_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_START_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_START_TEXT_END}})|(?![\\]){{CHOICE_START_COMMAND_CHARACTER}})
+  CHOICE_START_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_START_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_START_TEXT_END}})|{{CHOICE_START_TEXT_INTERPOLATION}}|(?![\\]|{{CHOICE_START_TEXT_INTERPOLATION_START}}){{CHOICE_START_COMMAND_CHARACTER}})
   # lookaround: TextCommand's end when only escaped `>`s follow: TextCommand then
   # gives the last of them back as its end. The backslash before that `>` is
   # the only sign of it.
@@ -984,7 +1012,7 @@ variables:
   CHOICE_START_AUDIO_ESCAPE: (?:[\\](?![)][)]){{CHOICE_START_REGION_CHARACTER}}|[\\](?=[)][)]|{{CHOICE_START_TEXT_END}}))
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceStartTextContent takes the command whole.
-  CHOICE_START_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_START_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_START_COMMAND_CHARACTER}}))
+  CHOICE_START_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_START_AUDIO_ESCAPE}}|{{CHOICE_START_AUDIO_INTERPOLATION}}|(?![\\]|{{CHOICE_START_AUDIO_INTERPOLATION_START}}){{CHOICE_START_COMMAND_CHARACTER}}))
   # lookaround: AudioCommand's end, as for CHOICE_START_AUDIO_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_START_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_START_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_START_REGION_CHARACTER}}))
@@ -997,7 +1025,7 @@ variables:
   CHOICE_START_IMAGE_ESCAPE: (?:[\\](?!\]\]){{CHOICE_START_REGION_CHARACTER}}|[\\](?=\]\]|{{CHOICE_START_TEXT_END}}))
   # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
   # image command as its text, so ChoiceStartTextContent takes the command whole.
-  CHOICE_START_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_START_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_START_COMMAND_CHARACTER}}))
+  CHOICE_START_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_START_IMAGE_ESCAPE}}|{{CHOICE_START_IMAGE_INTERPOLATION}}|(?![\\]|{{CHOICE_START_IMAGE_INTERPOLATION_START}}){{CHOICE_START_COMMAND_CHARACTER}}))
   # lookaround: ImageCommand's end, as for CHOICE_START_IMAGE_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_START_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_START_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_START_REGION_CHARACTER}}))
@@ -1058,16 +1086,34 @@ variables:
   # A closed comment is always taken whole and a character never starts one. A
   # comment opener left open on the line means none later closes, so the run
   # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_ONLY_REGION_CHARACTER,
-  # which never asks again. Where the region's end would stop the run inside an
-  # interpolation, the run takes the interpolation whole, as
-  # LuauInterpolatedStringExpression reads it in the text around the command, so
-  # a bracket inside it ends nothing and the command reads as on a display line.
-  CHOICE_ONLY_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n]|{{SPAN_INTERPOLATION}})
+  # which never asks again.
+  CHOICE_ONLY_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION, for ChoiceOnlyText's end and TextCommand's closer, its first `>`.
+  CHOICE_ONLY_TEXT_INTERPOLATION: (?:(?={{CHOICE_ONLY_TEXT_INTERPOLATION_START}}){{SPAN_INTERPOLATION}})
+  CHOICE_ONLY_TEXT_INTERPOLATION_START: (?:[{]{{CHOICE_ONLY_TEXT_INTERPOLATION_SCAN}}*{{CHOICE_ONLY_TEXT_INTERPOLATION_STOP}})
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION; the scan stops at the region's end or the closer.
+  CHOICE_ONLY_TEXT_INTERPOLATION_SCAN: (?:(?!{{CHOICE_ONLY_TEXT_END}}|[>])[^{}\r\n])
+  # lookaround: as CHOICE_ONLY_TEXT_INTERPOLATION; at the closer the command ends first.
+  CHOICE_ONLY_TEXT_INTERPOLATION_STOP: (?:(?![>]){{CHOICE_ONLY_TEXT_END}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION, for ChoiceOnlyText's end and AudioCommand's closer, its first `))`.
+  CHOICE_ONLY_AUDIO_INTERPOLATION: (?:(?={{CHOICE_ONLY_AUDIO_INTERPOLATION_START}}){{SPAN_INTERPOLATION}})
+  CHOICE_ONLY_AUDIO_INTERPOLATION_START: (?:[{]{{CHOICE_ONLY_AUDIO_INTERPOLATION_SCAN}}*{{CHOICE_ONLY_AUDIO_INTERPOLATION_STOP}})
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION; the scan stops at the region's end or the closer.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_SCAN: (?:(?!{{CHOICE_ONLY_TEXT_END}}|[)][)])[^{}\r\n])
+  # lookaround: as CHOICE_ONLY_AUDIO_INTERPOLATION; at the closer the command ends first.
+  CHOICE_ONLY_AUDIO_INTERPOLATION_STOP: (?:(?![)][)]){{CHOICE_ONLY_TEXT_END}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION, for ChoiceOnlyText's end and ImageCommand's closer, its first `]]`.
+  CHOICE_ONLY_IMAGE_INTERPOLATION: (?:(?={{CHOICE_ONLY_IMAGE_INTERPOLATION_START}}){{SPAN_INTERPOLATION}})
+  CHOICE_ONLY_IMAGE_INTERPOLATION_START: (?:[{]{{CHOICE_ONLY_IMAGE_INTERPOLATION_SCAN}}*{{CHOICE_ONLY_IMAGE_INTERPOLATION_STOP}})
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION; the scan stops at the region's end or the closer.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_SCAN: (?:(?!{{CHOICE_ONLY_TEXT_END}}|\]\])[^{}\r\n])
+  # lookaround: as CHOICE_ONLY_IMAGE_INTERPOLATION; at the closer the command ends first.
+  CHOICE_ONLY_IMAGE_INTERPOLATION_STOP: (?:(?!\]\]){{CHOICE_ONLY_TEXT_END}})
   CHOICE_ONLY_COMMAND_ESCAPE: (?:[\\]{{CHOICE_ONLY_REGION_CHARACTER}})
   # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
   # of the command's text must leave to it; a run started earlier cannot be
   # interrupted by order.
-  CHOICE_ONLY_TEXT_COMMAND_UNIT: (?:{{CHOICE_ONLY_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_ONLY_COMMAND_CHARACTER}})
+  CHOICE_ONLY_TEXT_COMMAND_UNIT: (?:{{CHOICE_ONLY_COMMAND_ESCAPE}}|{{CHOICE_ONLY_TEXT_INTERPOLATION}}|(?![\\>]|{{CHOICE_ONLY_TEXT_INTERPOLATION_START}}){{CHOICE_ONLY_COMMAND_CHARACTER}})
   # lookaround: as for CHOICE_ONLY_TEXT_COMMAND_UNIT, past a comment opener that no
   # `*/` closes on the line.
   CHOICE_ONLY_TEXT_COMMAND_REST: (?:{{CHOICE_ONLY_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_ONLY_REGION_CHARACTER}})
@@ -1079,7 +1125,7 @@ variables:
   # backslash leaves unpaired so it can end the command; elsewhere a backslash
   # takes the character after it, as in CHOICE_ONLY_TEXT_COMMAND_UNIT, and the
   # region's end stops it.
-  CHOICE_ONLY_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_ONLY_TEXT_END}})|(?![\\]){{CHOICE_ONLY_COMMAND_CHARACTER}})
+  CHOICE_ONLY_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_ONLY_TEXT_END}})|{{CHOICE_ONLY_TEXT_INTERPOLATION}}|(?![\\]|{{CHOICE_ONLY_TEXT_INTERPOLATION_START}}){{CHOICE_ONLY_COMMAND_CHARACTER}})
   # lookaround: TextCommand's end when only escaped `>`s follow: TextCommand then
   # gives the last of them back as its end. The backslash before that `>` is
   # the only sign of it.
@@ -1096,7 +1142,7 @@ variables:
   CHOICE_ONLY_AUDIO_ESCAPE: (?:[\\](?![)][)]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?=[)][)]|{{CHOICE_ONLY_TEXT_END}}))
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceOnlyTextContent takes the command whole.
-  CHOICE_ONLY_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_ONLY_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_ONLY_COMMAND_CHARACTER}}))
+  CHOICE_ONLY_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_ONLY_AUDIO_ESCAPE}}|{{CHOICE_ONLY_AUDIO_INTERPOLATION}}|(?![\\]|{{CHOICE_ONLY_AUDIO_INTERPOLATION_START}}){{CHOICE_ONLY_COMMAND_CHARACTER}}))
   # lookaround: AudioCommand's end, as for CHOICE_ONLY_AUDIO_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_ONLY_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_ONLY_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_ONLY_REGION_CHARACTER}}))
@@ -1109,7 +1155,7 @@ variables:
   CHOICE_ONLY_IMAGE_ESCAPE: (?:[\\](?!\]\]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?=\]\]|{{CHOICE_ONLY_TEXT_END}}))
   # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
   # image command as its text, so ChoiceOnlyTextContent takes the command whole.
-  CHOICE_ONLY_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_ONLY_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_ONLY_COMMAND_CHARACTER}}))
+  CHOICE_ONLY_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_ONLY_IMAGE_ESCAPE}}|{{CHOICE_ONLY_IMAGE_INTERPOLATION}}|(?![\\]|{{CHOICE_ONLY_IMAGE_INTERPOLATION_START}}){{CHOICE_ONLY_COMMAND_CHARACTER}}))
   # lookaround: ImageCommand's end, as for CHOICE_ONLY_IMAGE_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_ONLY_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_ONLY_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_ONLY_REGION_CHARACTER}}))
@@ -1170,16 +1216,34 @@ variables:
   # A closed comment is always taken whole and a character never starts one. A
   # comment opener left open on the line means none later closes, so the run
   # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_INNER_REGION_CHARACTER,
-  # which never asks again. Where the region's end would stop the run inside an
-  # interpolation, the run takes the interpolation whole, as
-  # LuauInterpolatedStringExpression reads it in the text around the command, so
-  # a bracket inside it ends nothing and the command reads as on a display line.
-  CHOICE_INNER_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_INNER_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n]|{{SPAN_INTERPOLATION}})
+  # which never asks again.
+  CHOICE_INNER_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_INNER_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION, for ChoiceInnerText's end and TextCommand's closer, its first `>`.
+  CHOICE_INNER_TEXT_INTERPOLATION: (?:(?={{CHOICE_INNER_TEXT_INTERPOLATION_START}}){{SPAN_INTERPOLATION}})
+  CHOICE_INNER_TEXT_INTERPOLATION_START: (?:[{]{{CHOICE_INNER_TEXT_INTERPOLATION_SCAN}}*{{CHOICE_INNER_TEXT_INTERPOLATION_STOP}})
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION; the scan stops at the region's end or the closer.
+  CHOICE_INNER_TEXT_INTERPOLATION_SCAN: (?:(?!{{CHOICE_INNER_TEXT_END}}|[>])[^{}\r\n])
+  # lookaround: as CHOICE_INNER_TEXT_INTERPOLATION; at the closer the command ends first.
+  CHOICE_INNER_TEXT_INTERPOLATION_STOP: (?:(?![>]){{CHOICE_INNER_TEXT_END}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION, for ChoiceInnerText's end and AudioCommand's closer, its first `))`.
+  CHOICE_INNER_AUDIO_INTERPOLATION: (?:(?={{CHOICE_INNER_AUDIO_INTERPOLATION_START}}){{SPAN_INTERPOLATION}})
+  CHOICE_INNER_AUDIO_INTERPOLATION_START: (?:[{]{{CHOICE_INNER_AUDIO_INTERPOLATION_SCAN}}*{{CHOICE_INNER_AUDIO_INTERPOLATION_STOP}})
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION; the scan stops at the region's end or the closer.
+  CHOICE_INNER_AUDIO_INTERPOLATION_SCAN: (?:(?!{{CHOICE_INNER_TEXT_END}}|[)][)])[^{}\r\n])
+  # lookaround: as CHOICE_INNER_AUDIO_INTERPOLATION; at the closer the command ends first.
+  CHOICE_INNER_AUDIO_INTERPOLATION_STOP: (?:(?![)][)]){{CHOICE_INNER_TEXT_END}})
+  # lookaround: as CHOICE_START_TEXT_INTERPOLATION, for ChoiceInnerText's end and ImageCommand's closer, its first `]]`.
+  CHOICE_INNER_IMAGE_INTERPOLATION: (?:(?={{CHOICE_INNER_IMAGE_INTERPOLATION_START}}){{SPAN_INTERPOLATION}})
+  CHOICE_INNER_IMAGE_INTERPOLATION_START: (?:[{]{{CHOICE_INNER_IMAGE_INTERPOLATION_SCAN}}*{{CHOICE_INNER_IMAGE_INTERPOLATION_STOP}})
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION; the scan stops at the region's end or the closer.
+  CHOICE_INNER_IMAGE_INTERPOLATION_SCAN: (?:(?!{{CHOICE_INNER_TEXT_END}}|\]\])[^{}\r\n])
+  # lookaround: as CHOICE_INNER_IMAGE_INTERPOLATION; at the closer the command ends first.
+  CHOICE_INNER_IMAGE_INTERPOLATION_STOP: (?:(?!\]\]){{CHOICE_INNER_TEXT_END}})
   CHOICE_INNER_COMMAND_ESCAPE: (?:[\\]{{CHOICE_INNER_REGION_CHARACTER}})
   # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
   # of the command's text must leave to it; a run started earlier cannot be
   # interrupted by order.
-  CHOICE_INNER_TEXT_COMMAND_UNIT: (?:{{CHOICE_INNER_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_INNER_COMMAND_CHARACTER}})
+  CHOICE_INNER_TEXT_COMMAND_UNIT: (?:{{CHOICE_INNER_COMMAND_ESCAPE}}|{{CHOICE_INNER_TEXT_INTERPOLATION}}|(?![\\>]|{{CHOICE_INNER_TEXT_INTERPOLATION_START}}){{CHOICE_INNER_COMMAND_CHARACTER}})
   # lookaround: as for CHOICE_INNER_TEXT_COMMAND_UNIT, past a comment opener that no
   # `*/` closes on the line.
   CHOICE_INNER_TEXT_COMMAND_REST: (?:{{CHOICE_INNER_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_INNER_REGION_CHARACTER}})
@@ -1191,7 +1255,7 @@ variables:
   # backslash leaves unpaired so it can end the command; elsewhere a backslash
   # takes the character after it, as in CHOICE_INNER_TEXT_COMMAND_UNIT, and the
   # region's end stops it.
-  CHOICE_INNER_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_INNER_TEXT_END}})|(?![\\]){{CHOICE_INNER_COMMAND_CHARACTER}})
+  CHOICE_INNER_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_INNER_TEXT_END}})|{{CHOICE_INNER_TEXT_INTERPOLATION}}|(?![\\]|{{CHOICE_INNER_TEXT_INTERPOLATION_START}}){{CHOICE_INNER_COMMAND_CHARACTER}})
   # lookaround: TextCommand's end when only escaped `>`s follow: TextCommand then
   # gives the last of them back as its end. The backslash before that `>` is
   # the only sign of it.
@@ -1208,7 +1272,7 @@ variables:
   CHOICE_INNER_AUDIO_ESCAPE: (?:[\\](?![)][)]){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?=[)][)]|{{CHOICE_INNER_TEXT_END}}))
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceInnerTextContent takes the command whole.
-  CHOICE_INNER_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_INNER_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_INNER_COMMAND_CHARACTER}}))
+  CHOICE_INNER_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_INNER_AUDIO_ESCAPE}}|{{CHOICE_INNER_AUDIO_INTERPOLATION}}|(?![\\]|{{CHOICE_INNER_AUDIO_INTERPOLATION_START}}){{CHOICE_INNER_COMMAND_CHARACTER}}))
   # lookaround: AudioCommand's end, as for CHOICE_INNER_AUDIO_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_INNER_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_INNER_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_INNER_REGION_CHARACTER}}))
@@ -1221,7 +1285,7 @@ variables:
   CHOICE_INNER_IMAGE_ESCAPE: (?:[\\](?!\]\]){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?=\]\]|{{CHOICE_INNER_TEXT_END}}))
   # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
   # image command as its text, so ChoiceInnerTextContent takes the command whole.
-  CHOICE_INNER_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_INNER_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_INNER_COMMAND_CHARACTER}}))
+  CHOICE_INNER_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_INNER_IMAGE_ESCAPE}}|{{CHOICE_INNER_IMAGE_INTERPOLATION}}|(?![\\]|{{CHOICE_INNER_IMAGE_INTERPOLATION_START}}){{CHOICE_INNER_COMMAND_CHARACTER}}))
   # lookaround: ImageCommand's end, as for CHOICE_INNER_IMAGE_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
   CHOICE_INNER_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_INNER_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_INNER_REGION_CHARACTER}}))

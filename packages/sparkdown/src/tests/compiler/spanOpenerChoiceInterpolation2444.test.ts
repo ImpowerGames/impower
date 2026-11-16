@@ -83,6 +83,19 @@ describe("a directive holding an interpolation reads the same on a display line 
     expect(nodesOver(choiceScript(`Go ${line} now`), "AudioCommand")).toEqual(["((a {f(g(x))"]);
   });
 
+  test.each([
+    ["Go <wait {[[x> [y] ]]} > now", "Go <wait {t[1]> [y] ]} > now"],
+    ["Go ((a {[[x)) [y] ]]} b)) now", "Go ((a {t[1])) [y] ]} b)) now"],
+  ])("a command's closer and a bracket inside a long-string interpolation read as inside an indexing one: `+ %s`", (text, twin) => {
+    const choicesOf = (line: string) => {
+      const story = compileStory(choiceScript(line));
+      story.ContinueMaximally();
+      return story.currentChoices.map((choice: { text: string }) => choice.text);
+    };
+    expect(choicesOf(twin)).toEqual([twin]);
+    expect(choicesOf(text)).toEqual([text]);
+  });
+
   test.each(["Go ((a {[[a]]} b)) now", "Go ((a {[=[a]=]} b)) now", "Go ((a {1 --[[c]] + 1} b)) now", "Go ((a {t[1]} b)) now"])(
     "the choice shows the directive's text unevaluated: `+ %s`",
     (text) => {

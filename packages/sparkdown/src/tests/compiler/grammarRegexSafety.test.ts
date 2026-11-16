@@ -124,6 +124,11 @@ const CHOICE_CLOSE_SEARCHES: [string, string, "begin" | "match", string][] = [
   ["unclosed braces in a suppression's text", "ChoiceOnlyTextContent", "match", "Go" + " {".repeat(40000) + " now"],
   ["unclosed braces in choice inner text", "ChoiceInnerTextContent", "match", "Go" + " {".repeat(40000) + " now"],
   ["unclosed braces in a styled span", "ChoiceStartSpanText", "match", "Go" + " {".repeat(40000) + " now"],
+  ["interpolations in an audio command with no closer, before a bracket", "ChoiceStartTextContent", "match", "Go ((a" + " {x}".repeat(40) + " [y] z"],
+  ["interpolations in a text command with no closer, before a bracket", "ChoiceStartTextContent", "match", "Go <a" + " {x}".repeat(40) + " [y] z"],
+  ["bracketed interpolations in an audio command with no closer", "ChoiceStartTextContent", "match", "Go ((a" + " {t[1]}".repeat(40) + " [y] z"],
+  ["interpolations in an audio command with no closer, in a suppression", "ChoiceOnlyTextContent", "match", "Go ((a" + " {x}".repeat(40) + " ] z"],
+  ["interpolations in an audio command with no closer, before an arrow", "ChoiceInnerTextContent", "match", "Go ((a" + " {x}".repeat(40) + " -> z"],
 ];
 
 const SPAN_RULES = ["Raw", "Bold", "Italic", "Underline", "Centered", "EmphasisTilde", "EmphasisColon"].flatMap(
