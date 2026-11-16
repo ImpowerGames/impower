@@ -1,18 +1,40 @@
-import type { Tree } from "@lezer/common";
-import { isCommentOnlyLine } from "./isCommentOnlyLine";
+import type { SyntaxNode, Tree } from "@lezer/common";
 import { nodeNameSet } from "./nodeNameSet";
 
 const DIALOGUE_CUE = /^[^:]+:$/;
 
 const END_KEYWORDS = nodeNameSet(["LuauEndKeyword"]);
 
-const isBlockEndLine = (tree: Tree, lineFrom: number, lineText: string) => {
-  const keyword = tree.resolveInner(lineFrom + lineText.search(/\S/), 1);
-  if (!END_KEYWORDS.has(keyword.name)) {
-    return false;
+const COMMENTS = nodeNameSet([
+  "SparkdownLineComment",
+  "SparkdownInlineComment",
+  "SparkdownBlockComment",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
+]);
+
+const commentEndAt = (tree: Tree, pos: number): number | null => {
+  for (let n: SyntaxNode | null = tree.resolveInner(pos, 1); n; n = n.parent) {
+    if (COMMENTS.has(n.name) && n.from <= pos && pos < n.to) return n.to;
   }
-  const rest = lineText.slice(keyword.to - lineFrom);
-  return !rest.trim() || isCommentOnlyLine(tree, keyword.to, rest);
+  return null;
+};
+
+const holdsOnlyComments = (
+  tree: Tree,
+  lineFrom: number,
+  lineText: string,
+  from: number,
+): boolean => {
+  let i = from;
+  for (;;) {
+    while (i < lineText.length && /\s/.test(lineText[i]!)) i++;
+    if (i >= lineText.length) return true;
+    const end = commentEndAt(tree, lineFrom + i);
+    if (end === null) return false;
+    i = end - lineFrom;
+  }
 };
 
 export const isExecutionGapLine = (
@@ -25,9 +47,11 @@ export const isExecutionGapLine = (
     return true;
   }
   const parsed = tree();
-  return (
-    !!parsed &&
-    (isCommentOnlyLine(parsed, lineFrom, lineText) ||
-      isBlockEndLine(parsed, lineFrom, lineText))
-  );
+  if (!parsed) {
+    return false;
+  }
+  const start = lineText.search(/\S/);
+  const first = parsed.resolveInner(lineFrom + start, 1);
+  const rest = END_KEYWORDS.has(first.name) ? first.to - lineFrom : start;
+  return holdsOnlyComments(parsed, lineFrom, lineText, rest);
 };

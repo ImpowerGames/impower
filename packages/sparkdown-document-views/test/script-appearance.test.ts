@@ -461,6 +461,24 @@ describe("the route rule", () => {
     ]);
   });
 
+  it("bridges a block's end line that carries a Luau comment", () => {
+    const doc = [
+      "scene start",
+      "  for i = 1, 2 do",
+      "    Before.",
+      "  end -- closed",
+      "  After.",
+      "  if true then",
+      "    Inside.",
+      "  end --[[ closed ]]",
+      "  Last.",
+      "end",
+    ].join("\n");
+    mount(ALL_OFF_APPEARANCE, doc);
+    setHighlights(view!, [2, 3, 5, 6, 7, 9]);
+    expect(getRouteLineRuns(view!.state)).toEqual([[2, 9]]);
+  });
+
   it("is hidden in an empty script", () => {
     mount(ALL_OFF_APPEARANCE, "");
     setHighlights(view!, [1]);
