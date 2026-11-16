@@ -298,3 +298,65 @@ describe("a wrapped row of an alternative", () => {
     for (const draw of draws) expect(draw.x + draw.width).toBeLessThanOrEqual(612);
   });
 });
+
+const SHARED_LINE_ROWS: [string, string, string[]][] = [
+  [
+    "a function then a block",
+    ["scene s", "  Before.", "  function f() end queue | One. | Two. end", "  After.", "end", ""].join("\n"),
+    ["Before.", "{", "One.", "Two.", "}", "After."],
+  ],
+  [
+    "a block then a function",
+    ["scene s", "  Before.", "  queue | One. | Two. end function f() end", "  After.", "end", ""].join("\n"),
+    ["Before.", "{", "One.", "Two.", "}", "After."],
+  ],
+];
+
+describe("a source line shared by printed rows and rows that print nothing", () => {
+  it.each(SHARED_LINE_ROWS.flatMap(([name, source, texts]) => [430, 1440].map((width) => [name, width, source, texts] as const)))(
+    "puts each row of %s where the PDF puts it, a blank line one row high, at %ipx",
+    async (name, width, source, texts) => {
+      const page = await browser.newPage({ viewport: { width: width + 40, height: 6000 } });
+      await page.goto(pageUrl);
+      await page.waitForFunction(() => "screenplayHang" in window);
+      await page.evaluate((w) => {
+        for (const section of Array.from(document.querySelectorAll<HTMLElement>("section"))) section.style.width = `${w}px`;
+      }, width);
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      const tops = await page.evaluate(
+        ([fixture, wanted]) => {
+          const section = document.querySelector<HTMLElement>(`section[data-fixture="${fixture}"]`)!;
+          const found: number[] = [];
+          const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            const text = node.textContent?.trim() ?? "";
+            if (text !== wanted[found.length]) continue;
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            const rect = range.getBoundingClientRect();
+            if (rect.height > 0) found.push(rect.top);
+          }
+          return found;
+        },
+        [name, texts] as const,
+      );
+      await page.close();
+      expect(tops.length, "every printed row is drawn").toBe(texts.length);
+      const draws = await pdfDraws(source);
+      const pdfTops: number[] = [];
+      for (const draw of draws) {
+        if (pdfTops.length < texts.length && draw.text.trim().endsWith(texts[pdfTops.length]!)) pdfTops.push(draw.y);
+      }
+      expect(pdfTops.length).toBe(texts.length);
+      const pageRow = tops[3]! - tops[2]!;
+      const pdfRow = pdfTops[3]! - pdfTops[2]!;
+      expect(pageRow).toBeGreaterThan(0);
+      const pdfSteps = pdfTops.slice(1).map((top, index) => (top - pdfTops[index]!) / pdfRow);
+      tops.slice(1).forEach((top, index) => {
+        expect((top - tops[index]!) / pageRow, `rows from ${texts[index]} to ${texts[index + 1]}`).toBeCloseTo(pdfSteps[index]!, 1);
+      });
+    },
+    120_000,
+  );
+});

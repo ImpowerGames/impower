@@ -961,6 +961,58 @@ describe("a blank line the export prints inside one source line", () => {
   });
 });
 
+const UNPRINTED_ON_ONE_LINE: Record<string, string> = {
+  "a function definition": "function f() end",
+  "a variable definition": "local z = 3",
+  "a reassignment": "x = 2",
+  "an explicit statement": "& x = 1",
+  "a block comment": "/* note */",
+  "an include directive": "include other",
+};
+
+const PRINTED_ON_ONE_LINE: Record<string, string> = {
+  "a one-line alternator": "queue | One. | Two. end",
+  "a one-line cycle": "cycle | One. | Two. end",
+  "a one-line match": "match(x) | Small. | Big. end",
+  "dialogue": "GUIDE: Hi.",
+  "action": ": They go.",
+  "a choice": "* [Go.]",
+};
+
+const SHARED_LINE_ORDERS = Object.entries(UNPRINTED_ON_ONE_LINE).flatMap(([unprintedName, unprinted]) =>
+  Object.entries(PRINTED_ON_ONE_LINE).flatMap(([printedName, printed]) => [
+    [`${unprintedName} before ${printedName}`, `${unprinted} ${printed}`],
+    [`${printedName} before ${unprintedName}`, `${printed} ${unprinted}`],
+  ]),
+)
+  .concat(Object.entries(PRINTED_ON_ONE_LINE).map(([printedName, printed]) => [`${printedName} before a line comment`, `${printed} // note`]))
+  .concat(
+    Object.entries(UNPRINTED_ON_ONE_LINE).flatMap(([unprintedName, unprinted]) => [
+      [`${unprintedName} between two one-line blocks`, `queue | One. | Two. end ${unprinted} cycle | Three. | Four. end`],
+      [`a one-line block between two of ${unprintedName}`, `${unprinted} queue | One. | Two. end ${unprinted}`],
+    ]),
+  );
+
+describe("a line shared by a construct that prints nothing and one that prints", () => {
+  it("draws the arms of a one-line alternator after a one-line function definition, on the page as in the export", () => {
+    const source = ["scene s", "  Before.", "  function f() end queue | One. | Two. end", "  After.", "end", ""].join("\n");
+    const printed = exportLines("default", source);
+    expect(printed).toEqual(["Before.", "", "{", "| One.", "| Two.", "}", "After."]);
+    expect(pageLines("default", source)).toEqual(printed);
+  });
+
+  it.each(SHARED_LINE_ORDERS)(
+    "draws what the export prints for %s",
+    (_name, line) => {
+      const source = ["scene s", "  Before.", `  ${line}`, "  After.", "end", ""].join("\n");
+      for (const configName of Object.keys(CONFIGS)) {
+        expect(pageLines(configName, source), configName).toEqual(exportLines(configName, source));
+        expect(unplacedText(configName, source), configName).toEqual([]);
+      }
+    },
+  );
+});
+
 describe("the translation strings of a block of alternatives", () => {
   it("are the author's own text, with no braces, bars or indentation", () => {
     const source = sourceOf(["IfElseDialogueBodies", "AlternatorChoiceBodies", "LuauSparkdownIfElseBlock", "SingleLineAlternatorThenAction"]);

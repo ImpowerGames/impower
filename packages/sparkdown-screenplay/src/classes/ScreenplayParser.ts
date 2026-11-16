@@ -452,7 +452,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           isRootFunctionName(nodeRef.node, read)
         ) {
           const text = read(from, to);
-          tokens.push({ tag: "function", text });
+          tokens.push({ tag: "function", text, from });
         }
 
         if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
