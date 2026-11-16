@@ -134,8 +134,22 @@ async function harness(extra: Record<string, string> = {}) {
       return { error: error as InstanceType<typeof ProjectImportError> };
     }
   };
-  return { fs, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, ProjectImportError };
+  const applyBundle = async (apply: () => Promise<unknown>) => {
+    try {
+      await apply();
+      return {};
+    } catch (error) {
+      return { error };
+    }
+  };
+  const applyScripts = (content: string) =>
+    applyBundle(() => fs.writeProjectScriptBundle("local", content));
+  const applyAssets = (content: ArrayBuffer) =>
+    applyBundle(() => fs.writeProjectAssetBundle("local", content));
+  return { fs, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
 }
+
+const ASSETS = { "art/old.png": "OLD" };
 
 const BACKUP = { ".layout": "1", "main.sd": "the backup's main", "images/a.png": "PNG" };
 
@@ -321,4 +335,59 @@ it("replaces the project's files and folders with the backup's when every write 
   expect(h.text("images/a.png")).toBe("PNG");
   expect(h.text(".folders")).toBe("1");
   expect(await h.fs.getFolders("local")).toEqual(["empty", "images"]);
+}, 15_000);
+
+const SCRIPTS = "the bundle's main\n\n//// chapters/one.sd ////\nchapter one";
+
+it("leaves the project as it was when writing a script bundle fails partway", async () => {
+  const h = await harness(ASSETS);
+  const before = h.stored();
+  h.failWrites("main.sd", 1);
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeDefined();
+  expect(h.stored()).toEqual(before);
+  expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
+  expect(h.text("old/notes.sd")).toBe(PROJECT["old/notes.sd"]);
+  expect(h.text("art/old.png")).toBe("OLD");
+}, 15_000);
+
+it("replaces the project's scripts with the script bundle's and keeps its assets", async () => {
+  const h = await harness(ASSETS);
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeUndefined();
+  expect(h.stored()).toEqual(["art/", "art/old.png", "chapters/", "chapters/one.sd", "main.sd", "old/"]);
+  expect(h.text("main.sd")).toBe("the bundle's main");
+  expect(h.text("chapters/one.sd")).toBe("chapter one");
+}, 15_000);
+
+it("leaves the project as it was when writing an asset bundle fails partway", async () => {
+  const h = await harness(ASSETS);
+  const before = h.stored();
+  h.failCreatingFolder("images");
+  const { error } = await h.applyAssets(backup({ "images/a.png": "PNG" }));
+  expect(error).toBeDefined();
+  expect(h.stored()).toEqual(before);
+  expect(h.text("art/old.png")).toBe("OLD");
+  expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
+  expect(h.text("old/notes.sd")).toBe(PROJECT["old/notes.sd"]);
+}, 15_000);
+
+it("leaves the project as it was when creating a folder the asset bundle lists fails", async () => {
+  const h = await harness(ASSETS);
+  const before = h.stored();
+  h.failCreatingFolder("empty");
+  const { error } = await h.applyAssets(backup({ "images/a.png": "PNG" }, ["empty"]));
+  expect(error).toBeDefined();
+  expect(h.stored()).toEqual(before);
+  expect(h.text("art/old.png")).toBe("OLD");
+}, 15_000);
+
+it("replaces the project's assets and folders with the asset bundle's and keeps its scripts", async () => {
+  const h = await harness(ASSETS);
+  const { error } = await h.applyAssets(backup({ "images/a.png": "PNG" }, ["empty"]));
+  expect(error).toBeUndefined();
+  expect(h.stored()).toEqual(["empty/", "images/", "images/a.png", "main.sd", "old/", "old/notes.sd"]);
+  expect(h.text("images/a.png")).toBe("PNG");
+  expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
+  expect(await h.fs.getFolders("local")).toEqual(["empty", "images", "old"]);
 }, 15_000);
