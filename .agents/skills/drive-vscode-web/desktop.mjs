@@ -145,11 +145,28 @@ export async function ensurePreviewVisible(page, reveal = () => command(page, "S
   return await tab.getAttribute("aria-selected") === "true" && await frame.isVisible();
 }
 
+export function settledText(read, text) {
+  let last = null;
+  return async () => {
+    const state = await read();
+    const shown = state?.visible && (!state.playing || state.beatFinished) && state.text?.includes(text) ? state.text : null;
+    const steady = shown !== null && shown === last;
+    last = shown;
+    return steady ? state : null;
+  };
+}
+
 export function previewRead(step) {
   const frame = document.getElementById("active-frame");
   const d = frame?.contentDocument;
   if (!d?.querySelector("spark-web-player")) return null;
   const w = d.defaultView;
+  if (!w.__impowerDesktopDriver) {
+    const watch = w.__impowerDesktopDriver = { gameState: null };
+    w.addEventListener("jsonrpc", e => {
+      if (e.detail?.method === "preview/didChangeGameState") watch.gameState = e.detail.params;
+    });
+  }
   const visible = el => {
     if (!el || !el.getBoundingClientRect().width || !el.getBoundingClientRect().height) return false;
     for (let p = el; p; p = p.parentElement) {
@@ -158,14 +175,20 @@ export function previewRead(step) {
     }
     return true;
   };
+  const reachable = el => {
+    const box = el.getBoundingClientRect();
+    const top = d.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return !!top && el.contains(top);
+  };
   const leafText = [...d.querySelectorAll("#game span, #game .text")].filter(el => visible(el) && !el.querySelector("span, .text")).map(el => el.textContent).join("");
   let element;
   if (step?.selector) element = d.querySelector(step.selector);
-  if (step?.textButton) element = [...d.querySelectorAll(".choice, button, [role=button]")].find(el => visible(el) && el.textContent.trim() === step.textButton);
+  if (step?.textButton) element = [...d.querySelectorAll(".choice, button, [role=button]")].find(el => visible(el) && el.textContent.trim() === step.textButton && reachable(el));
   const box = element?.getBoundingClientRect();
   const game = d.querySelector("#game")?.getBoundingClientRect();
   const hit = game ? d.elementFromPoint(game.x + game.width / 2, game.y + game.height / 2) : null;
   return {
+    beatFinished: w.__impowerDesktopDriver.gameState?.shownBeatFinished === true,
     center: hit ? { id: hit.id, tag: hit.tagName.toLowerCase(), inPlayer: !!hit.closest("#game-view, #game-ui") } : null,
     visible: visible(d.querySelector("spark-web-player")), text: leafText,
     playing: d.querySelector("#run-button")?.textContent === "Stop",
@@ -295,12 +318,12 @@ export async function desktop(args) {
       return result.result.value;
     };
     report.preview = { steps: [] };
-    const textVisible = async text => {
+    const textVisible = text => settledText(async () => {
       const state = await readPreview();
       report.preview.last = state;
-      return state?.visible && state.text?.includes(text) ? state : null;
-    };
-    await wait(() => textVisible(spec.preview.text), `Game Preview never displayed expected text: ${spec.preview.text}`);
+      return state;
+    }, text);
+    await wait(textVisible(spec.preview.text), `Game Preview never displayed expected text: ${spec.preview.text}`);
     await page.screenshot({ path: path.join(evidence, "preview.png") });
     report.preview.center = (await readPreview())?.center ?? null;
     for (const step of spec.preview.steps) {
@@ -313,7 +336,7 @@ export async function desktop(args) {
       await page.mouse.click(outer.x + state.target.x, outer.y + state.target.y);
       if (step.selector === "#run-button") await wait(async () => (await readPreview())?.playing, "RUN never entered playback");
       if (step.textButton) await wait(async () => !(await readPreview(step))?.target, "Choice did not advance");
-      const after = await wait(() => textVisible(step.text), `Preview interaction never displayed: ${step.text}`);
+      const after = await wait(textVisible(step.text), `Preview interaction never displayed: ${step.text}`);
       report.preview.steps.push({ action: step.selector ?? step.textButton, after });
       await page.screenshot({ path: path.join(evidence, `preview-step-${report.preview.steps.length}.png`) });
     }

@@ -35,6 +35,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   disconnect() {}
 };
 
+const { SidebarLayout } = await import("@impower/impower-ui/components");
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: ScriptsPage } = await import("../../src/modules/spark-editor/components/scripts-page");
 const { ProblemsDialog } = await import("../../src/modules/spark-editor/components/problems");
@@ -71,9 +72,30 @@ const settle = () =>
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
-const mount = async () => {
+const mount = async (railCollapsed = false) => {
   host ??= document.body.appendChild(document.createElement("div"));
-  await act(async () => render(h(ScriptsPage, {}), host!));
+  await act(async () =>
+    render(
+      layout.value === "phone"
+        ? h(ScriptsPage, {})
+        : h(
+            SidebarLayout,
+            {
+              width: railCollapsed ? 76 : 232,
+              defaultWidth: 232,
+              minWidth: 180,
+              maxWidth: 420,
+              collapsedWidth: 76,
+              onWidthChange: () => {},
+              resizeLabel: "Resize sidebar",
+              header: null,
+              sidebar: null,
+            },
+            h(ScriptsPage, {}),
+          ),
+      host!,
+    ),
+  );
   await settle();
 };
 
@@ -270,6 +292,20 @@ describe("the In this script tab's rows", () => {
     dialogHost.remove();
   });
 
+  it("places each row 50px below the last, a 48px row and a 2px gap as the prototype's tab does", async () => {
+    workspace.outline.value = { uri: URI, symbols: SYMBOLS, diagnostics: [STORM_ERROR], firstContentLine: 0 };
+    await mount();
+    const slots = rowButtons().map((button) => button.closest<HTMLElement>('[role="listitem"]')!);
+    expect(slots.length).toBeGreaterThan(1);
+    slots.forEach((slot, index) => {
+      expect(slot.style.height).toBe("50px");
+      expect(slot.style.top).toBe(`${index * 50}px`);
+    });
+    const storm = row("Branch: storm");
+    expect(storm.querySelector(":scope > svg")).not.toBeNull();
+    expect(storm.compareDocumentPosition(badgeOf(storm)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("marks the row holding the caret as current, and its scene as containing it", async () => {
     setCaret(2);
     await mount();
@@ -303,11 +339,23 @@ describe("the In this script tab's rows", () => {
 });
 
 describe("the Scripts page off the phone", () => {
-  it("has no tabs and shows All scripts", async () => {
-    layout.value = "compact";
-    workspace.layout.value = layout.value as Layout;
+  const at = async (next: "compact" | "desktop", railCollapsed: boolean) => {
+    layout.value = next;
+    workspace.layout.value = next as Layout;
     workspace.current = { ...workspace.current, lists: { scriptsTab: "outline" } };
-    await mount();
+    await mount(railCollapsed);
+  };
+
+  it.each(["compact", "desktop"] as const)("shows the tabs at %s while the rail shows icons only", async (next) => {
+    await at(next, true);
+    expect(tabs()).toHaveLength(2);
+    expect(tabNamed("All scripts")).toBeTruthy();
+    expect(tabNamed("In this script").getAttribute("aria-selected")).toBe("true");
+    expect(search("Search this script")).not.toBeNull();
+  });
+
+  it.each(["compact", "desktop"] as const)("has no tabs and shows All scripts at %s while the rail shows labels", async (next) => {
+    await at(next, false);
     expect(host!.querySelector('[role="tablist"]')).toBeNull();
     expect(search("Search scripts")).not.toBeNull();
     expect(search("Search this script")).toBeNull();

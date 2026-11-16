@@ -86,7 +86,11 @@ describe("fitting the root to the on-screen keyboard", () => {
     expect(document.body.style.getPropertyValue("--keyboard-height")).toBe(
       `${KEYBOARD_HEIGHT}px`,
     );
-    expect(keyboard()).toEqual({ open: true, height: KEYBOARD_HEIGHT });
+    expect(keyboard()).toEqual({
+      open: true,
+      height: KEYBOARD_HEIGHT,
+      visibleHeight: window.innerHeight - KEYBOARD_HEIGHT,
+    });
 
     field.blur();
     emit("resize");
@@ -134,7 +138,11 @@ describe("fitting the root to the on-screen keyboard", () => {
     vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT);
     emit("resize");
 
-    expect(keyboard()).toEqual({ open: true, height: KEYBOARD_HEIGHT });
+    expect(keyboard()).toEqual({
+      open: true,
+      height: KEYBOARD_HEIGHT,
+      visibleHeight: full - KEYBOARD_HEIGHT,
+    });
     expect(document.body.style.height).toBe(`${full - KEYBOARD_HEIGHT}px`);
     expect(document.documentElement.classList.contains("keyboard-open")).toBe(
       true,
@@ -145,10 +153,18 @@ describe("fitting the root to the on-screen keyboard", () => {
     expect(keyboard().open).toBe(true);
     vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT + 48);
     emit("resize");
-    expect(keyboard()).toEqual({ open: true, height: KEYBOARD_HEIGHT - 48 });
+    expect(keyboard()).toEqual({
+      open: true,
+      height: KEYBOARD_HEIGHT - 48,
+      visibleHeight: full - KEYBOARD_HEIGHT + 48,
+    });
     vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT - 48);
     emit("resize");
-    expect(keyboard()).toEqual({ open: true, height: KEYBOARD_HEIGHT + 48 });
+    expect(keyboard()).toEqual({
+      open: true,
+      height: KEYBOARD_HEIGHT + 48,
+      visibleHeight: full - KEYBOARD_HEIGHT - 48,
+    });
 
     vi.stubGlobal("innerHeight", full);
     emit("resize");
@@ -219,6 +235,29 @@ describe("fitting the root to the on-screen keyboard", () => {
       `true:${KEYBOARD_HEIGHT}`,
       `true:${KEYBOARD_HEIGHT + 48}`,
       "false:0",
+    ]);
+    release();
+  });
+
+  it("tells each holder the height left above the keyboard, also when only that changes", () => {
+    const portrait = { width: window.innerWidth, height: window.innerHeight };
+    const seen: (number | undefined)[] = [];
+    const release = hold((next) =>
+      seen.push(next.open ? next.visibleHeight : undefined),
+    );
+
+    setKeyboard(true);
+    vi.stubGlobal("innerWidth", portrait.height);
+    vi.stubGlobal("innerHeight", portrait.width);
+    emit("resize");
+    vi.stubGlobal("innerWidth", portrait.width);
+    vi.stubGlobal("innerHeight", portrait.height);
+    emit("resize");
+
+    expect(seen).toEqual([
+      portrait.height - KEYBOARD_HEIGHT,
+      portrait.width - KEYBOARD_HEIGHT,
+      portrait.height - KEYBOARD_HEIGHT,
     ]);
     release();
   });

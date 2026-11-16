@@ -78,11 +78,16 @@ const stylesFor = async (markup: string) => {
   return compiler.build(candidates);
 };
 
-const measure = async (markup: string) => {
+const measure = async (markup: string, coarse = false) => {
   const css = await stylesFor(markup);
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage({ viewport: { width: PANEL_WIDTH, height: PANEL_HEIGHT }, reducedMotion: "reduce" });
+    const page = await browser.newPage({
+      viewport: { width: PANEL_WIDTH, height: PANEL_HEIGHT },
+      reducedMotion: "reduce",
+      hasTouch: coarse,
+      isMobile: coarse,
+    });
     await page.setContent(
       `<!doctype html><html data-theme="charcoal"><head><style>${css}</style></head><body style="margin:0">${markup}</body></html>`,
     );
@@ -95,9 +100,12 @@ const measure = async (markup: string) => {
       const range = document.createRange();
       range.selectNodeContents(label);
       return {
+        coarse: matchMedia("(pointer: coarse)").matches,
+        clearance: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sheet-gesture-clearance")),
         picture: box(document.querySelector("[data-picture]")!),
         sheet: box(document.querySelector("[data-wheel-sheet]")!),
         room: box(document.querySelector("[data-wheel-room]")!),
+        row: box(label.closest('[role="option"]')!),
         label: box(range),
         text: label.textContent,
       };
@@ -133,5 +141,50 @@ describe.skipIf(!browserAvailable)("a WheelSheet kept clear of a picture, render
     expect(measured.room.height).toBeCloseTo(WHEEL_ROW, 0);
     expect(measured.label.top).toBeGreaterThanOrEqual(measured.room.top);
     expect(measured.label.bottom).toBeLessThanOrEqual(measured.room.bottom);
+  });
+});
+
+describe.skipIf(!browserAvailable)("a WheelSheet under a coarse pointer, rendered in a browser", () => {
+  const chromeOf = async (coarse: boolean) => {
+    const free = await measure(await markupOf(null), coarse);
+    return free.sheet.height - free.room.height;
+  };
+
+  test("keeps its centred row above the panel's foot by the gesture clearance when it has all the room it wants", async () => {
+    const measured = await measure(await markupOf(null), true);
+    expect(measured.coarse).toBe(true);
+    expect(measured.clearance).toBeGreaterThan(0);
+    expect(measured.text).toBe("Happy");
+    expect(measured.row.bottom).toBeLessThanOrEqual(PANEL_HEIGHT - measured.clearance);
+  });
+
+  test("with room just above its header, one row and the clearance, stays under the picture and keeps the row clear of the foot", async () => {
+    const chrome = await chromeOf(true);
+    const minimum = chrome + WHEEL_ROW;
+    const measured = await measure(await markupOf(PANEL_HEIGHT - 6 - minimum - 1, chrome), true);
+    expect(measured.sheet.top).toBeGreaterThanOrEqual(measured.picture.bottom + 6);
+    expect(measured.row.top).toBeGreaterThanOrEqual(measured.room.top - 2);
+    expect(measured.row.bottom).toBeLessThanOrEqual(PANEL_HEIGHT - measured.clearance);
+  });
+
+  test.each([1, 8])(
+    "with %ipx less room than its header, one row and the clearance, rises over the picture by that much and keeps the row clear of the foot",
+    async (shortfall) => {
+      const chrome = await chromeOf(true);
+      const minimum = chrome + WHEEL_ROW;
+      const measured = await measure(await markupOf(PANEL_HEIGHT - 6 - minimum + shortfall, chrome), true);
+      expect(measured.text).toBe("Happy");
+      expect(measured.sheet.height).toBeCloseTo(minimum, 0);
+      expect(measured.sheet.top).toBeCloseTo(measured.picture.bottom + 6 - shortfall, 0);
+      expect(measured.row.bottom).toBeLessThanOrEqual(PANEL_HEIGHT - measured.clearance);
+      expect(measured.label.top).toBeGreaterThanOrEqual(measured.room.top);
+    },
+  );
+
+  test("adds the clearance under a coarse pointer only", async () => {
+    expect((await chromeOf(true)) - (await chromeOf(false))).toBeCloseTo(
+      (await measure(await markupOf(null), true)).clearance,
+      0,
+    );
   });
 });

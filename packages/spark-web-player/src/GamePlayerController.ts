@@ -28,6 +28,7 @@ import { EnterGameFullscreenModeMessage } from "@impower/spark-engine/src/game/c
 import { ExitGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage";
 import { GameAutoAdvancedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage";
+import { GameShownBeatMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameShownBeatMessage";
 import { GameChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage";
 import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
@@ -330,6 +331,8 @@ export class GamePlayerController {
   private _previewPosition: GameState["position"] = null;
 
   private _displayedBeatDescription: GameState["shownBeatDescription"] = null;
+
+  private _shownBeatFinished = false;
   private _selectionVersion = 0;
   private _launchState: GameState["launchState"] = null;
   protected _routeState: RouteViewState = {
@@ -695,6 +698,7 @@ export class GamePlayerController {
       run: this._workerPlay?.run ?? null,
       position: this._previewPosition,
       shownBeatDescription: this._displayedBeatDescription,
+      shownBeatFinished: this._shownBeatFinished,
       completion: this._completionStatus
         ? { request: this._completionRequest, status: this._completionStatus }
         : null,
@@ -3689,6 +3693,15 @@ export class GamePlayerController {
         }
       },
     );
+    game.connection.outgoing.addListener(GameShownBeatMessage.method, (msg) => {
+      if (
+        GameShownBeatMessage.type.isNotification(msg) &&
+        msg.params.finished !== this._shownBeatFinished
+      ) {
+        this._shownBeatFinished = msg.params.finished;
+        this.publishGameState();
+      }
+    });
     game.connection.outgoing.addListener(
       GameAutoAdvancedToContinueMessage.method,
       (msg) => {

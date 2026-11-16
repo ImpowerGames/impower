@@ -48,10 +48,9 @@ text.source.sparkdown [0..520]
  ├─ meta.image.sd [98..117]
  │   ├─ keyword.operator.expression.begin.image.sd [98..100]: "[["
  │   ├─ variable.other.constant.asset.file.sd [100..103]: "mia"
- │   ├─ string.other.multiline.luau [103..110]
- │   │   ├─ punctuation.definition.string.bracket.begin.sd [103..104]: "["
- │   │   ├─ punctuation.definition.string.bracket.begin.sd [104..105]: "["
- │   │   └─ markup.raw.text.sd [105..110]: "morph"
+ │   ├─ invalid.illegal.illegal-char.sd [103..104]: "["
+ │   ├─ invalid.illegal.illegal-char.sd [104..105]: "["
+ │   ├─ variable.other.constant.asset.file.sd [105..110]: "morph"
  │   ├─ punctuation.whitespace.required.sd [110..111]: " "
  │   ├─ variable.other.constant.asset.file.sd [111..115]: "talk"
  │   └─ keyword.operator.expression.end.image.sd [115..117]: "]]"

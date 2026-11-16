@@ -55,6 +55,30 @@ export function topLevelStatements(
   return found;
 }
 
+export function sceneStatementsAfterBranches(top: SyntaxNode): number[] {
+  const found: number[] = [];
+  let depth = 0;
+  let afterBranch = false;
+  for (let node = top.firstChild; node; node = node.nextSibling) {
+    if (node.name === "Scene") {
+      if (depth === 0) {
+        afterBranch = false;
+      }
+      depth += 1;
+    } else if (node.name === "Branch") {
+      if (depth === 1) {
+        afterBranch = true;
+      }
+      depth += 1;
+    } else if (node.name === "LuauEndKeyword") {
+      depth = Math.max(0, depth - 1);
+    } else if (depth === 1 && afterBranch) {
+      found.push(node.from);
+    }
+  }
+  return found;
+}
+
 export function runnableTopLevelRuns(
   top: SyntaxNode,
   read: (from: number, to: number) => string,

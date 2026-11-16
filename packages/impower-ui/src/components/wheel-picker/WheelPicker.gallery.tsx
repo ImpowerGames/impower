@@ -23,6 +23,9 @@ function WheelPickerDemo() {
   const frame = useRef<HTMLDivElement>(null);
   const clearFrame = useRef<HTMLDivElement>(null);
   const picture = useRef<HTMLDivElement | null>(null);
+  const [shortOpen, setShortOpen] = useState(false);
+  const shortFrame = useRef<HTMLDivElement>(null);
+  const shortPicture = useRef<HTMLDivElement | null>(null);
   const label = (picked: string) => FACES.find((face) => face.value === picked)?.label ?? picked;
   return (
     <div class="space-y-4">
@@ -73,6 +76,31 @@ function WheelPickerDemo() {
             setClearOpen(false);
           }}
           onCancel={() => setClearOpen(false)}
+        />
+      </GalleryRow>
+      <GalleryRow
+        label={`Under a coarse pointer the sheet keeps --sheet-gesture-clearance between its centred row and its foot, outside the phone's system-gesture strip, and that clearance is part of its minimum: with less room than its header, one row and the clearance it rises over the kept-clear element by the shortfall. A mouse adds no clearance; chosen: ${label(value)}`}
+      >
+        <div ref={shortFrame} class="relative grid h-[260px] w-72 content-start gap-3 rounded-card border border-edge bg-bg p-4">
+          <div ref={shortPicture} class="grid h-40 place-items-center rounded-card bg-stage text-xs text-muted">
+            Kept clear
+          </div>
+          <Button aria-haspopup="dialog" onClick={() => setShortOpen(true)}>
+            Face: {label(value)}
+          </Button>
+        </div>
+        <WheelSheet
+          container={shortFrame}
+          keepClear={shortPicture}
+          open={shortOpen}
+          title="Face"
+          options={FACES}
+          value={value}
+          onChoose={(next) => {
+            setValue(next);
+            setShortOpen(false);
+          }}
+          onCancel={() => setShortOpen(false)}
         />
       </GalleryRow>
     </div>

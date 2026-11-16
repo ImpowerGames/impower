@@ -1,4 +1,6 @@
-export type Keyboard = { open: boolean; height: number };
+export type Keyboard =
+  | { open: false; height: 0 }
+  | { open: true; height: number; visibleHeight: number };
 
 const OPEN_CLASS = "keyboard-open";
 
@@ -65,7 +67,9 @@ export function keyboard(): Keyboard {
     measureFullHeight();
   }
   const height = Math.max(0, fullHeight - viewport.height);
-  return height > KEYBOARD_MIN_HEIGHT ? { open: true, height } : CLOSED;
+  return height > KEYBOARD_MIN_HEIGHT
+    ? { open: true, height, visibleHeight: viewport.height }
+    : CLOSED;
 }
 
 const release = () => {
@@ -90,7 +94,11 @@ const fit = () => {
   if (window.scrollY !== 0 || viewport.offsetTop > 0) {
     window.scrollTo(0, 0);
   }
-  if (next.open !== last.open || next.height !== last.height) {
+  if (
+    next.open !== last.open ||
+    next.height !== last.height ||
+    (next.open && last.open && next.visibleHeight !== last.visibleHeight)
+  ) {
     last = next;
     listeners.forEach((listener) => listener(next));
   }

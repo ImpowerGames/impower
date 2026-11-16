@@ -138,7 +138,6 @@ export default function TrashPanel() {
       setConfirm(null);
       void refresh();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const restore = async (batch: TrashBatch) => {

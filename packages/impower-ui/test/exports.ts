@@ -83,6 +83,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "useRailDefault",
   "useScrollbarSize",
   "useSheetOpen",
+  "useSidebarCollapsed",
   "useMountTransition",
   "VIRTUAL_LIST_ROW_HEIGHT",
   "virtualListColumns",

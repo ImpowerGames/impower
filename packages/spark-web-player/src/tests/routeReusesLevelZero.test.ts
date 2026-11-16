@@ -194,7 +194,7 @@ describe("a route search after an earlier one's level zero", () => {
     const after = [...lines.slice(0, end), "  -> start", ...lines.slice(end)];
     const searched = scrub(game, after, "Second target");
     expect(searched).toEqual(fresh(program, after, "Second target"));
-    expect(searched.fallback).toBe(true);
+    expect(searched.fallback).toBe(false);
   }, 120_000);
 
   test("runs level zero again after a statement is added to an empty body it entered", () => {
@@ -237,7 +237,7 @@ describe("a route search after an earlier one's level zero", () => {
     const after = [...lines.slice(0, body), "    -> start", ...lines.slice(body)];
     const searched = scrub(game, after, "Second target");
     expect(searched).toEqual(fresh(program, after, "Second target"));
-    expect(searched.fallback).toBe(true);
+    expect(searched.fallback).toBe(false);
   }, 120_000);
 
   test("runs level zero again after an edit to a line it ran", () => {
@@ -262,7 +262,6 @@ describe("a route search after an earlier one's level zero", () => {
   }, 120_000);
 
   test("falls back as a search from the top does when the budget ended level zero", () => {
-    faithfulBudget.steps = 5_000;
     const program = compile(configure(SOURCE));
     const store = keepingStore();
     const kept = gameOf(program);
@@ -280,7 +279,7 @@ describe("a route search after an earlier one's level zero", () => {
         game.program,
         game.routeStartOf(target),
         target,
-        { levelZeroStore },
+        { levelZeroStore, maxSteps: 5_000 },
       );
       return { route, steps: game.story.stepCount - before };
     };

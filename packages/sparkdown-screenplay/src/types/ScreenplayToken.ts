@@ -1,3 +1,4 @@
+import type { PrintedRowSide } from "./LineOptions";
 import { ScreenplayTokenType } from "./ScreenplayTokenType";
 
 export interface ScreenplayToken {
@@ -13,4 +14,6 @@ export interface ScreenplayToken {
   continued?: boolean;
   source?: number[];
   at?: number[];
+  row?: PrintedRowSide;
+  alternative?: boolean[];
 }

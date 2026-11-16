@@ -180,6 +180,10 @@ html {
   --navbar-display: none;
 }
 
+[data-script-only] .sparkdown-script-editor-root .cm-status {
+  display: none;
+}
+
 main {
   position: absolute;
   top: 0;

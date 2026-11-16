@@ -130,11 +130,11 @@ describe("a pinned route resumed for a line inside the if it forced", () => {
       await setPins(h, []);
       expect(shown(h)).toEqual({
         decisions: [
-          ["auto", "Lie."],
+          ["auto", "Tell the truth."],
           ["forced", "trust > 3"],
         ],
         failure: undefined,
-        trust: -1,
+        trust: 2,
       });
       expect(writtenText(h.toRouter.slice(sentBefore))).toContain(
         "I believe you.",

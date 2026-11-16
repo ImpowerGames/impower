@@ -6,6 +6,7 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { compilerFor } from "./typecheck-compiler.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -31,8 +32,6 @@ const IGNORED = new Map([
     "the parent project already includes these files under stricter settings",
   ],
 ]);
-
-const TSC = path.join(ROOT, "node_modules", "typescript", "bin", "tsc");
 
 function trackedProjects() {
   const out = execFileSync("git", ["ls-files", "--", "*tsconfig*.json"], {
@@ -72,7 +71,7 @@ function parseArgs(argv) {
 function check(project) {
   return new Promise((resolve) => {
     const started = Date.now();
-    const child = spawn(process.execPath, [TSC, "--noEmit", "-p", project], {
+    const child = spawn(process.execPath, [compilerFor(project, ROOT), "--noEmit", "-p", project], {
       cwd: ROOT,
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
@@ -132,9 +131,10 @@ async function main() {
     return;
   }
 
-  if (!existsSync(TSC)) {
+  const missing = projects.map((p) => compilerFor(p, ROOT)).find((tsc) => !existsSync(tsc));
+  if (missing) {
     console.error(
-      `TypeScript is not installed at ${TSC}. Run \`npm install\` at the repo root.`
+      `TypeScript is not installed at ${missing}. Run \`npm install\` at the repo root.`
     );
     process.exitCode = 1;
     return;

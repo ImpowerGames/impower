@@ -110,6 +110,22 @@ describe("a centred span in the PDF export", () => {
     expect(rows[1]!.y).toBeLessThan(rows[2]!.y);
   });
 
+  it.each([
+    ["a branch starting with a centred span", ["  if a then", "    ^Up^ they go.", "  end"], ["{", "| Up", "they go.", "}"]],
+    ["alternatives with a centred span inside", ["  queue", "    | They ^go^ on.", "    | Stay.", "  end"], ["{", "| They", "go", "on.", "| Stay.", "}"]],
+  ])("prints the bar on the first printed row of %s and marks every later row", async (_name, lines, expected) => {
+    const { printed } = await printPdf(scene(...lines), BODY);
+    const rows = new Map<number, string>();
+    for (const { runs, y } of printed) rows.set(y, (rows.get(y) ?? "") + runs.map((r) => r.text).join(""));
+    const body = [...rows.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([, text]) => text.replace(/\s+/g, " ").trim())
+      .filter((text) => text !== "Before." && text !== "After." && text !== "");
+    expect(body).toEqual(expected);
+    const centred = printed.flatMap((p) => p.runs.filter((r) => r.align === "center").map((r) => r.text));
+    expect(centred.join("")).toMatch(/^(\| |  )/);
+  });
+
   it("prints a centred span in a title page field", async () => {
     const script = ["---", "title: The ^Big^ Heist", "---", "", scene("  They go.")].join("\n");
     const { printed } = await printPdf(script, { screenplay_print_title_page: true });

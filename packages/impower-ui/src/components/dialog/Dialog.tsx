@@ -10,6 +10,7 @@ import "../../utils/uniqueIds";
 import { focusReturnTarget } from "../../utils/focusReturn";
 import { type KeepClear, keepsClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
+import { sheetFoot } from "../../utils/sheetFoot";
 import { useToastLayer } from "../../utils/toastLayer";
 import Button from "../button/Button";
 import { CloseIcon } from "../icon/icons.generated";
@@ -105,7 +106,7 @@ export const sheetVariants = cva(
     variants: {
       size: {
         auto: "rounded-t-card border-b-0",
-        full: "h-full max-h-none rounded-none border-0 pb-[env(safe-area-inset-bottom)]",
+        full: "h-full max-h-none rounded-none border-0",
       },
       fit: {
         free: "",
@@ -121,6 +122,7 @@ export const sheetVariants = cva(
       },
     },
     compoundVariants: [
+      { size: "auto", flush: true, class: sheetFoot },
       { size: "auto", fit: "free", class: "max-h-[80%]" },
       { size: "auto", fit: "room", class: "max-h-full" },
     ],

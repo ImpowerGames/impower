@@ -104,7 +104,7 @@ Movies follow the game clock. Pausing the game pauses every movie on screen, and
 
 The engine loads a video before the line that shows or plays it, the way it loads images and sounds ([Loading & Preloading](./Loading.md)), and keeps the file while the movie is on screen.
 
-In the editor's Game Preview, a movie shows its first frame and does not play, and only the start of the file is read to find that frame. A cutscene in the preview shows its first frame over the scene. Press PLAY to see a movie move.
+In the editor's Game Preview, a movie shows its first frame and does not play unless the preview plays its beat, and only the start of the file is read to find that frame. A cutscene in the preview shows its first frame over the scene. Press PLAY, or play the beat in the preview ([Playing a beat](PreviewingALine.md#playing-a-beat)), to see a movie move; with "Play audio" on, a movie in a played beat has its sound.
 
 ## 14.5 Formats
 

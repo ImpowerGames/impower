@@ -117,11 +117,50 @@ describe("a search resumed inside an earlier route", () => {
     });
   }, 120_000);
 
-  test("shows origin/main's value past the budget, as a search from the top does", () => {
-    expect(resumedAndFresh(longLoop(25000), "Second beat", "Target total")).toEqual({
-      resumed: 0,
-      fresh: 0,
-    });
+  test("clips a loop longer than a route's allowance after the passes a search from the top runs", () => {
+    const { resumed, fresh } = resumedAndFresh(
+      longLoop(25000),
+      "Second beat",
+      "Target total",
+    );
+    expect(resumed).toBe(fresh);
+    expect(fresh).toBeGreaterThan(0);
+    expect(fresh).toBeLessThan(25000);
+  }, 120_000);
+
+  test("is charged the search's work before it, so it reaches the step cap where a search from the top does", () => {
+    const text = [
+      "store total = 0",
+      "",
+      "scene start",
+      "  for i = 1, 5000 do",
+      "    total += 1",
+      "  end",
+      "  Opening beat.",
+      "  Second beat.",
+      "  choose",
+      "    * [First.]",
+      "      for j = 1, 40000 do",
+      "        total += 1",
+      "      end",
+      "    * [Second.]",
+      "      for j = 1, 40000 do",
+      "        total += 1",
+      "      end",
+      "    * [Third.]",
+      "      for j = 1, 40000 do",
+      "        total += 1",
+      "      end",
+      "  end",
+      "  for k = 1, 40000 do",
+      "    total += 1",
+      "  end",
+      "  Target total {total}.",
+      "end",
+      "",
+    ].join("\n");
+    const { resumed, fresh } = resumedAndFresh(text, "Second beat", "Target total");
+    expect(resumed).toBe(fresh);
   }, 120_000);
 
   test("is charged the work of a long call before it, as a search from the top is", () => {

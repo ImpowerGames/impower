@@ -197,6 +197,7 @@ import { GameRolledMessage } from "./messages/GameRolledMessage";
 import { GameSavedSceneEntryMessage } from "./messages/GameSavedSceneEntryMessage";
 import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
+import { GameShownBeatMessage } from "./messages/GameShownBeatMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
 import { RecencySet, type RecencyEntry } from "./RecencySet";
@@ -3666,7 +3667,7 @@ export class Game<T extends M = {}> {
             this.insideSteppedFrame(traversal, initialCallstackDepth)
           ) {
             this.module.interpreter.flush();
-            this.showBeat(next, true, true);
+            this.showBeat(next, "settled", true);
             this.pause();
             continue;
           }
@@ -3678,7 +3679,7 @@ export class Game<T extends M = {}> {
           this._held = { instructions: instructions ?? null };
           return true;
         }
-        this.showBeat(instructions ?? null, false);
+        this.showBeat(instructions ?? null, "playing");
         if (this._simulation === "simulating") {
           if (!this._story.canContinue) {
             return true;
@@ -3838,13 +3839,14 @@ export class Game<T extends M = {}> {
 
   protected showBeat(
     instructions: Instructions | null,
-    settled: boolean,
+    drawing: "settled" | "held" | "playing",
     passing = false,
   ) {
     const ending = this.storyEnding(instructions);
     if (instructions) {
       this._coordinator = new Coordinator(this, instructions, {
-        settled: settled ? "presented" : undefined,
+        settled: drawing === "settled" ? "presented" : undefined,
+        held: drawing === "held",
       });
       if (this._simulation !== "simulating") {
         this.noteShownChoices(instructions);
@@ -3901,7 +3903,7 @@ export class Game<T extends M = {}> {
     }
     const beat = this.module.interpreter.flush()!;
     const settled = drawsSettled(beat);
-    this.showBeat(beat, settled);
+    this.showBeat(beat, settled ? "settled" : "held");
     this.pause();
     return settled ? "shown" : "held";
   }
@@ -4027,6 +4029,10 @@ export class Game<T extends M = {}> {
         choices,
       }),
     );
+  }
+
+  shownBeat(finished: boolean) {
+    this.connection.emit(GameShownBeatMessage.type.notification({ finished }));
   }
 
   protected notifyAutoAdvancedToContinue() {

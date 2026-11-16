@@ -6,13 +6,19 @@ import {
   FileIcon,
   FolderIcon,
   ListRow,
+  ListRowBadge,
   PinIcon,
   PlusIcon,
   RootIcon,
   SearchIcon,
   TabbedPage,
+  useSidebarCollapsed,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
+import {
+  countProblems,
+  worstProblem,
+} from "@impower/codemirror-vscode-lsp-client/src/symbolProblems";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { plural, referencedByLabel, rowLine } from "../../utils/fileListModel";
@@ -32,6 +38,8 @@ import {
   type ScriptListing,
   type ScriptRow,
 } from "../../workspace/scriptsListing";
+import { problemsIn } from "../../workspace/problems/problemEntries";
+import problems from "../../workspace/problems/ProblemsStore";
 import selection from "../../workspace/scriptsSelection";
 import workspace from "../../workspace/WorkspaceStore";
 import {
@@ -76,6 +84,24 @@ function RowIcon({ row }: { row: ScriptRow }) {
   if (row.kind === "folder") return <FolderIcon />;
   if (row.pinned) return <PinIcon />;
   return <FileIcon />;
+}
+
+function ScriptProblemBadge({ path, name }: { path: string; name: string }) {
+  const diagnostics = problems.byPath.value[path] ?? [];
+  const severity = worstProblem(countProblems(diagnostics));
+  if (!severity) return null;
+  return (
+    <ListRowBadge
+      placement="trailing"
+      severity={severity}
+      label={problemsIn(diagnostics, name)}
+      aria-haspopup="dialog"
+      onClick={(event) => {
+        const trigger = event.currentTarget as HTMLElement;
+        problems.openDialog({ kind: "script", path }, () => trigger);
+      }}
+    />
+  );
 }
 
 const ALL_TAB = "all";
@@ -252,11 +278,16 @@ function AllScripts() {
         {...(main ? {} : drag.source(row.path))}
         {...(row.kind === "folder" ? { [DROP_FOLDER]: row.path } : {})}
         actions={
-          <RowMenu
-            name={row.name}
-            main={main}
-            onAction={(action) => onAction(row, action)}
-          />
+          <>
+            {row.kind === "file" && (
+              <ScriptProblemBadge path={row.path} name={row.name} />
+            )}
+            <RowMenu
+              name={row.name}
+              main={main}
+              onAction={(action) => onAction(row, action)}
+            />
+          </>
         }
         onClick={() => activate(row)}
       />
@@ -416,14 +447,15 @@ function AllScripts() {
 }
 
 export default function ScriptsPage() {
-  const phone = useLayout() === "phone";
+  const railCollapsed = useSidebarCollapsed();
+  const showTabs = useLayout() === "phone" || railCollapsed;
   const tab = useComputed(() => workspace.state.value.lists?.scriptsTab).value;
   return (
     <TabbedPage
       title="Scripts"
       icon={<BookIcon class="size-5 flex-none text-accent" />}
       onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("write"))}
-      showTabs={phone}
+      showTabs={showTabs}
       value={tab === OUTLINE_TAB ? OUTLINE_TAB : ALL_TAB}
       onValueChange={(next) =>
         void intents().then((Workspace) => Workspace.window.setListState({ scriptsTab: next }))
