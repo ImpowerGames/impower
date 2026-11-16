@@ -135,12 +135,24 @@ variables:
   GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}|{{BREAK_MARK}}))
   # lookaround: SparkdownInlineComment owns a `//` followed by whitespace or
   # the line end, and SparkdownBlockComment a `/*`. BlockDialogue and
-  # InlineDialogue begin at the line's first character and the comment after
-  # the display text, so the dialogue begin matches first under every order
-  # of DisplayStatements, and a begin that reads to a colon cannot be stopped
-  # by any rule's `end:`. The name's character is the variable to tighten: a
-  # slash is a name character unless it opens one of those comments.
+  # InlineDialogue begin at the line's first character, or right after an
+  # arm's bar, and the comment after the display text, so the dialogue begin
+  # matches first under every order of DisplayStatements, and a begin that
+  # reads to a colon cannot be stopped by any rule's `end:`. The name's
+  # character is the variable to tighten: a slash is a name character unless
+  # it opens one of those comments.
   DIALOGUE_CHARACTER_NAME_CHARACTER: (?:\\.|[/](?![/](?:$|{{WS}})|[*])|[^{}:/\\\r\n])
+  # lookaround: `LuauAlternatorSeparator` takes the `|` that opens an arm, so a block display line written after it (BlockDialogue, BlockWrite, BlockTitle, BlockHeading, BlockTransitional, BlockAction) begins mid-line. No order of `patterns:` reaches it at a line start, a separate rule would lose the node name every reader keys on, taking the bar would take `LuauAlternatorSeparator` from the alternator whose arm readers need it as a direct child, and neither a parent's `end:` nor a tighter variable can recover the bar line's indent. So the lookbehind captures that indent (`\1`) and the bar (`\2`), behind a one-character lookbehind that keeps vscode-textmate from scanning to the line start at every position; `\3` is the whitespace the begin consumes.
+  _BLOCK_DISPLAY_START_: (?:^|(?<=[|]|{{WS}}))(?<=^({{WS}}*)(?:([|]){{WS}}*)?)({{WS}}*)
+  # lookaround: a block keeps a line that is blank, a comment, or indented past `\1\3`, the indent of the line its `_BLOCK_DISPLAY_START_` opened on; BLOCK_DISPLAY_INDENT_END reads it.
+  BLOCK_DISPLAY_LINE_OUTSIDE: (?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1\3{{WS}})
+  # lookaround: a block ends at a line BLOCK_DISPLAY_LINE_OUTSIDE does not keep, leaving the line to its parent.
+  BLOCK_DISPLAY_INDENT_END: (?=^{{BLOCK_DISPLAY_LINE_OUTSIDE}})
+  # lookaround: holds after a bar only, which `\2` supplies only when `_BLOCK_DISPLAY_START_` captured one; BLOCK_DISPLAY_ARM_END reads it.
+  BLOCK_DISPLAY_BAR_BEHIND: (?<=[|])
+  # lookaround: a block opened after an arm's bar also ends, leaving the line to `LuauAlternatorSeparator`, at the next line that opens an arm, whatever its indent; a block opened at a line start has an empty `\2`, so BLOCK_DISPLAY_BAR_BEHIND fails and it never ends this way.
+  BLOCK_DISPLAY_ARM_END: (?=^{{WS}}*\2{{BLOCK_DISPLAY_BAR_BEHIND}})
+  BLOCK_DISPLAY_END: (?:{{BLOCK_DISPLAY_INDENT_END}}|{{BLOCK_DISPLAY_ARM_END}})
   LEADING_GLUE: "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})"
   # lookaround: `(?!{{INLINE_GLUED_ALTERNATOR_START}})` leaves an opening `..` to LuauSparkdownInlineGluedSequentialAlternatorBlock and LuauSparkdownInlineGluedConditionalAlternatorBlock; GRAMMAR.md §10.1 gives why neither ordering nor `\G` replaces it.
   INLINE_LEADING_GLUE: (?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})
@@ -3042,18 +3054,18 @@ repository:
   BlockTitle:
     tag: monospace
     name: string.display.title.block.sd
-    begin: ^({{WS}}*)(\^)([:])({{WS}}*)(?={{EOL}})
+    begin: "{{_BLOCK_DISPLAY_START_}}(\\^)([:])({{WS}}*)(?={{EOL}})"
     beginCaptures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#TitleMark" }
       3:
         patterns:
-          - { include: "#ColonSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
+        patterns:
+          - { include: "#TitleMark" }
+      5:
+        patterns:
+          - { include: "#ColonSeparator" }
+      6:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
@@ -3063,7 +3075,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))
+    end: "{{BLOCK_DISPLAY_END}}"
   InlineTitle:
     tag: monospace
     name: string.display.title.inline.sd
@@ -3105,18 +3117,18 @@ repository:
   BlockHeading:
     tag: regexp
     name: string.display.heading.block.sd
-    begin: ^({{WS}}*)([$])([:])({{WS}}*)(?={{EOL}})
+    begin: "{{_BLOCK_DISPLAY_START_}}([$])([:])({{WS}}*)(?={{EOL}})"
     beginCaptures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#HeadingMark" }
       3:
         patterns:
-          - { include: "#ColonSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
+        patterns:
+          - { include: "#HeadingMark" }
+      5:
+        patterns:
+          - { include: "#ColonSeparator" }
+      6:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
@@ -3126,7 +3138,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))
+    end: "{{BLOCK_DISPLAY_END}}"
   InlineHeading:
     tag: regexp
     name: string.display.heading.inline.sd
@@ -3168,18 +3180,18 @@ repository:
   BlockTransitional:
     tag: labelName
     name: string.display.transitional.block.sd
-    begin: ^({{WS}}*)([%])([:])({{WS}}*)(?={{EOL}})
+    begin: "{{_BLOCK_DISPLAY_START_}}([%])([:])({{WS}}*)(?={{EOL}})"
     beginCaptures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#TransitionalMark" }
       3:
         patterns:
-          - { include: "#ColonSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
+        patterns:
+          - { include: "#TransitionalMark" }
+      5:
+        patterns:
+          - { include: "#ColonSeparator" }
+      6:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
@@ -3189,7 +3201,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))
+    end: "{{BLOCK_DISPLAY_END}}"
   InlineTransitional:
     tag: labelName
     name: string.display.transitional.inline.sd
@@ -3231,25 +3243,25 @@ repository:
   BlockWrite:
     tag: definition(string)
     name: string.display.write.block.sd
-    begin: ^({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    begin: "{{_BLOCK_DISPLAY_START_}}([@])({{WS}}*)((?:\\\\.|[^:\\r\\n])*)((?<!\\\\)[:])({{WS}}*)(?={{EOL}})"
     beginCaptures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#WriteMark" }
       3:
-        emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       4:
         patterns:
-          - { include: "#WriteTarget" }
+          - { include: "#WriteMark" }
       5:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      6:
+        patterns:
+          - { include: "#WriteTarget" }
+      7:
         patterns:
           - { include: "#ColonSeparator" }
-      6:
+      8:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
@@ -3259,7 +3271,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))
+    end: "{{BLOCK_DISPLAY_END}}"
   InlineWrite:
     tag: definition(string)
     name: string.display.write.inline.sd
@@ -3311,19 +3323,19 @@ repository:
   BlockDialogue:
     tag: definition(string)
     name: string.display.dialogue.block.sd
-    begin: ^({{WS}}*)((?=\S){{DIALOGUE_CHARACTER_NAME_CHARACTER}}+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    begin: '{{_BLOCK_DISPLAY_START_}}((?=\S){{DIALOGUE_CHARACTER_NAME_CHARACTER}}+)((?<!\\)[:])({{WS}}*)(?={{EOL}})'
     beginCaptures:
-      1:
+      3:
         patterns:
           - { include: "#OptionalWhitespace" }
-      2:
+      4:
         patterns:
           - { include: "#Annotation" }
           - { include: "#DialogueCharacter" }
-      3:
+      5:
         patterns:
           - { include: "#ColonSeparator" }
-      4:
+      6:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
@@ -3333,7 +3345,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))|(?=^{{WS}}*(?:[*+]{{EOK}}|->|[&%$^]|scene{{LUAU_NAME_END}}|branch{{LUAU_NAME_END}}|function{{LUAU_NAME_END}}|define{{LUAU_NAME_END}}|const{{LUAU_NAME_END}}|store{{LUAU_NAME_END}}|local{{LUAU_NAME_END}}))
+    end: '{{BLOCK_DISPLAY_END}}|(?=^{{WS}}*(?:[*+]{{EOK}}|->|[&%$^]|scene{{LUAU_NAME_END}}|branch{{LUAU_NAME_END}}|function{{LUAU_NAME_END}}|define{{LUAU_NAME_END}}|const{{LUAU_NAME_END}}|store{{LUAU_NAME_END}}|local{{LUAU_NAME_END}}))'
   InlineDialogue:
     tag: definition(string)
     name: string.display.dialogue.inline.sd
@@ -3480,15 +3492,15 @@ repository:
       - { include: "#ImplicitAction" }
 
   BlockAction:
-    begin: ^({{WS}}*)([:])({{WS}}*)(?={{EOL}})
+    begin: "{{_BLOCK_DISPLAY_START_}}([:])({{WS}}*)(?={{EOL}})"
     beginCaptures:
-      1:
+      3:
         patterns:
           - { include: "#OptionalWhitespace" }
-      2:
+      4:
         patterns:
           - { include: "#ColonSeparator" }
-      3:
+      5:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
@@ -3498,7 +3510,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockActionLineContinue" }
-    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))
+    end: "{{BLOCK_DISPLAY_END}}"
   InlineAction:
     begin: (?<![}])({{WS}}*)(?:({{LEADING_GLUE}})|([:])($|{{WS}}+))
     beginCaptures:

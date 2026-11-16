@@ -32,7 +32,7 @@ import { parseScreenshotArgs, parseUiSteps, ui, verify } from "./driver.mjs";
 
 const { LAUNCH_SECONDS, SHELL_SECONDS, launchTab, pageVerdict, planReverse } = await import("./android.mjs");
 const { shotGate, shotWaitsFor } = await import("./steps.mjs");
-const { surfacePainted } = await import("./driver.mjs");
+const { surfacePainted, surfaceSettled } = await import("./driver.mjs");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DRIVER = path.join(HERE, "driver.mjs");
@@ -705,6 +705,19 @@ await check("the paint wait looks in every frame, so Play's game inside the play
   assert.equal(await surfacePainted(page, NAMED_STEPS.play.waitsFor), true);
 });
 
+await check("the paint wait's animation-frame wait is bounded and caught, so a detached frame or a tab that never paints returns a cause instead of throwing or hanging", async () => {
+  const waitsFor = NAMED_STEPS.play.waitsFor;
+  const pageWith = (frameWait) => ({ frames: () => [{ evaluate: async (fn) => (fn === surfaceSettled ? true : frameWait()) }], waitForTimeout: async () => {} });
+  const detached = await surfacePainted(pageWith(async () => { throw new Error("Frame was detached"); }), waitsFor);
+  assert.match(String(detached), /Frame was detached/);
+  const started = Date.now();
+  const unbounded = Symbol("unbounded");
+  const stalled = await Promise.race([surfacePainted(pageWith(() => new Promise(() => {})), waitsFor), new Promise((resolve) => setTimeout(resolve, 4_000, unbounded))]);
+  assert.notEqual(stalled, unbounded);
+  assert.match(String(stalled), /no animation frame/);
+  assert.ok(Date.now() - started < 4_000);
+});
+
 await check("on a device, --shot after a named step waits until that step's surface has finished animating, and fails when it never settles", async () => {
   for (const [label, options, settles] of [["settles", { animationPolls: 3 }, true], ["never settles", { animationPolls: Infinity }, false], ["stays hidden", { animationPolls: 0, hidden: true }, false]]) {
     const { page, animating } = addSheetPage(options);
@@ -726,6 +739,26 @@ await check("on a device, --shot after a named step waits until that step's surf
       assert.deepEqual(result.failed, [shotStep.reason], label);
       assert.equal(process.exitCode, 1, label);
     }
+    process.exitCode = 0;
+  }
+});
+
+await check("on a device, --shot after a named step fails naming the surface and the cause when its frame detaches or the tab fires no animation frame", async () => {
+  for (const [label, frameWait, cause] of [
+    ["detached", async () => { throw new Error("Frame was detached"); }, /the Add to script panel settled but its frame failed while waiting for paint: Frame was detached/],
+    ["not painting", () => new Promise(() => {}), /the Add to script panel settled but no animation frame fired within 1s, so the tab is not painting/],
+  ]) {
+    const { page } = addSheetPage({ animationPolls: 0 });
+    const frames = page.frames.bind(page);
+    page.frames = () => frames().map((frame) => ({ ...frame, evaluate: (fn, ...args) => (String(fn).includes("requestAnimationFrame") ? frameWait() : frame.evaluate(fn, ...args)) }));
+    const dev = stubDevice();
+    dev.screenshot = async () => {};
+    const result = await ui(["--step", "add-menu", "--shot", path.join(scratch, `add-${label}.png`)], { device, ...uiDeps(page, dev).deps });
+    const shotStep = result.steps[1];
+    assert.equal(shotStep.waitedFor, "the Add to script panel", label);
+    assert.match(shotStep.reason ?? "", cause, label);
+    assert.deepEqual(result.failed, [shotStep.reason], label);
+    assert.equal(process.exitCode, 1, label);
     process.exitCode = 0;
   }
 });

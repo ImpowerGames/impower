@@ -150,6 +150,12 @@
     "GLUE": "(?:(?<![.])[.][.]{{GLUE_END}})",
     "GLUE_END": "(?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}|{{BREAK_MARK}}))",
     "DIALOGUE_CHARACTER_NAME_CHARACTER": "(?:\\\\.|[/](?![/](?:$|{{WS}})|[*])|[^{}:/\\\\\\r\\n])",
+    "_BLOCK_DISPLAY_START_": "(?:^|(?<=[|]|{{WS}}))(?<=^({{WS}}*)(?:([|]){{WS}}*)?)({{WS}}*)",
+    "BLOCK_DISPLAY_LINE_OUTSIDE": "(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\\1\\3{{WS}})",
+    "BLOCK_DISPLAY_INDENT_END": "(?=^{{BLOCK_DISPLAY_LINE_OUTSIDE}})",
+    "BLOCK_DISPLAY_BAR_BEHIND": "(?<=[|])",
+    "BLOCK_DISPLAY_ARM_END": "(?=^{{WS}}*\\2{{BLOCK_DISPLAY_BAR_BEHIND}})",
+    "BLOCK_DISPLAY_END": "(?:{{BLOCK_DISPLAY_INDENT_END}}|{{BLOCK_DISPLAY_ARM_END}})",
     "LEADING_GLUE": "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})",
     "INLINE_LEADING_GLUE": "(?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})",
     "ALTERNATOR_GLUE": "(?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))",
@@ -4157,30 +4163,30 @@
     "BlockTitle": {
       "tag": "monospace",
       "name": "string.display.title.block.sd",
-      "begin": "^((?:[^\\S\\n\\r])*)(\\^)([:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "begin": "(?:^|(?<=[|]|(?:[^\\S\\n\\r])))(?<=^((?:[^\\S\\n\\r])*)(?:([|])(?:[^\\S\\n\\r])*)?)((?:[^\\S\\n\\r])*)(\\^)([:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "beginCaptures": {
-        "1": {
+        "3": {
           "patterns": [
             {
               "include": "#OptionalWhitespace"
             }
           ]
         },
-        "2": {
+        "4": {
           "patterns": [
             {
               "include": "#TitleMark"
             }
           ]
         },
-        "3": {
+        "5": {
           "patterns": [
             {
               "include": "#ColonSeparator"
             }
           ]
         },
-        "4": {
+        "6": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -4208,7 +4214,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?:(?=^(?!$|//|(?:[/][*])|\\1\\3(?:[^\\S\\n\\r])))|(?=^(?:[^\\S\\n\\r])*\\2(?<=[|])))"
     },
     "InlineTitle": {
       "tag": "monospace",
@@ -4294,30 +4300,30 @@
     "BlockHeading": {
       "tag": "regexp",
       "name": "string.display.heading.block.sd",
-      "begin": "^((?:[^\\S\\n\\r])*)([$])([:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "begin": "(?:^|(?<=[|]|(?:[^\\S\\n\\r])))(?<=^((?:[^\\S\\n\\r])*)(?:([|])(?:[^\\S\\n\\r])*)?)((?:[^\\S\\n\\r])*)([$])([:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "beginCaptures": {
-        "1": {
+        "3": {
           "patterns": [
             {
               "include": "#OptionalWhitespace"
             }
           ]
         },
-        "2": {
+        "4": {
           "patterns": [
             {
               "include": "#HeadingMark"
             }
           ]
         },
-        "3": {
+        "5": {
           "patterns": [
             {
               "include": "#ColonSeparator"
             }
           ]
         },
-        "4": {
+        "6": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -4345,7 +4351,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?:(?=^(?!$|//|(?:[/][*])|\\1\\3(?:[^\\S\\n\\r])))|(?=^(?:[^\\S\\n\\r])*\\2(?<=[|])))"
     },
     "InlineHeading": {
       "tag": "regexp",
@@ -4431,30 +4437,30 @@
     "BlockTransitional": {
       "tag": "labelName",
       "name": "string.display.transitional.block.sd",
-      "begin": "^((?:[^\\S\\n\\r])*)([%])([:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "begin": "(?:^|(?<=[|]|(?:[^\\S\\n\\r])))(?<=^((?:[^\\S\\n\\r])*)(?:([|])(?:[^\\S\\n\\r])*)?)((?:[^\\S\\n\\r])*)([%])([:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "beginCaptures": {
-        "1": {
+        "3": {
           "patterns": [
             {
               "include": "#OptionalWhitespace"
             }
           ]
         },
-        "2": {
+        "4": {
           "patterns": [
             {
               "include": "#TransitionalMark"
             }
           ]
         },
-        "3": {
+        "5": {
           "patterns": [
             {
               "include": "#ColonSeparator"
             }
           ]
         },
-        "4": {
+        "6": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -4482,7 +4488,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?:(?=^(?!$|//|(?:[/][*])|\\1\\3(?:[^\\S\\n\\r])))|(?=^(?:[^\\S\\n\\r])*\\2(?<=[|])))"
     },
     "InlineTransitional": {
       "tag": "labelName",
@@ -4568,24 +4574,9 @@
     "BlockWrite": {
       "tag": "definition(string)",
       "name": "string.display.write.block.sd",
-      "begin": "^((?:[^\\S\\n\\r])*)([@])((?:[^\\S\\n\\r])*)((?:\\\\.|[^:\\r\\n])*)((?<!\\\\)[:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "begin": "(?:^|(?<=[|]|(?:[^\\S\\n\\r])))(?<=^((?:[^\\S\\n\\r])*)(?:([|])(?:[^\\S\\n\\r])*)?)((?:[^\\S\\n\\r])*)([@])((?:[^\\S\\n\\r])*)((?:\\\\.|[^:\\r\\n])*)((?<!\\\\)[:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#WriteMark"
-            }
-          ]
-        },
         "3": {
-          "emit": true,
           "patterns": [
             {
               "include": "#OptionalWhitespace"
@@ -4595,18 +4586,33 @@
         "4": {
           "patterns": [
             {
-              "include": "#WriteTarget"
+              "include": "#WriteMark"
             }
           ]
         },
         "5": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#WriteTarget"
+            }
+          ]
+        },
+        "7": {
           "patterns": [
             {
               "include": "#ColonSeparator"
             }
           ]
         },
-        "6": {
+        "8": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -4634,7 +4640,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?:(?=^(?!$|//|(?:[/][*])|\\1\\3(?:[^\\S\\n\\r])))|(?=^(?:[^\\S\\n\\r])*\\2(?<=[|])))"
     },
     "InlineWrite": {
       "tag": "definition(string)",
@@ -4737,16 +4743,16 @@
     "BlockDialogue": {
       "tag": "definition(string)",
       "name": "string.display.dialogue.block.sd",
-      "begin": "^((?:[^\\S\\n\\r])*)((?=\\S)(?:\\\\.|[/](?![/](?:$|(?:[^\\S\\n\\r]))|[*])|[^{}:/\\\\\\r\\n])+)((?<!\\\\)[:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "begin": "(?:^|(?<=[|]|(?:[^\\S\\n\\r])))(?<=^((?:[^\\S\\n\\r])*)(?:([|])(?:[^\\S\\n\\r])*)?)((?:[^\\S\\n\\r])*)((?=\\S)(?:\\\\.|[/](?![/](?:$|(?:[^\\S\\n\\r]))|[*])|[^{}:/\\\\\\r\\n])+)((?<!\\\\)[:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "beginCaptures": {
-        "1": {
+        "3": {
           "patterns": [
             {
               "include": "#OptionalWhitespace"
             }
           ]
         },
-        "2": {
+        "4": {
           "patterns": [
             {
               "include": "#Annotation"
@@ -4756,14 +4762,14 @@
             }
           ]
         },
-        "3": {
+        "5": {
           "patterns": [
             {
               "include": "#ColonSeparator"
             }
           ]
         },
-        "4": {
+        "6": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -4791,7 +4797,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))|(?=^(?:[^\\S\\n\\r])*(?:[*+](?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))|->|[&%$^]|scene(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|branch(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|function(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|define(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|const(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|store(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|local(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))"
+      "end": "(?:(?=^(?!$|//|(?:[/][*])|\\1\\3(?:[^\\S\\n\\r])))|(?=^(?:[^\\S\\n\\r])*\\2(?<=[|])))|(?=^(?:[^\\S\\n\\r])*(?:[*+](?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))|->|[&%$^]|scene(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|branch(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|function(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|define(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|const(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|store(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|local(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))"
     },
     "InlineDialogue": {
       "tag": "definition(string)",
@@ -5075,23 +5081,23 @@
       ]
     },
     "BlockAction": {
-      "begin": "^((?:[^\\S\\n\\r])*)([:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "begin": "(?:^|(?<=[|]|(?:[^\\S\\n\\r])))(?<=^((?:[^\\S\\n\\r])*)(?:([|])(?:[^\\S\\n\\r])*)?)((?:[^\\S\\n\\r])*)([:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "beginCaptures": {
-        "1": {
+        "3": {
           "patterns": [
             {
               "include": "#OptionalWhitespace"
             }
           ]
         },
-        "2": {
+        "4": {
           "patterns": [
             {
               "include": "#ColonSeparator"
             }
           ]
         },
-        "3": {
+        "5": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -5119,7 +5125,7 @@
           "include": "#BlockActionLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?:(?=^(?!$|//|(?:[/][*])|\\1\\3(?:[^\\S\\n\\r])))|(?=^(?:[^\\S\\n\\r])*\\2(?<=[|])))"
     },
     "InlineAction": {
       "begin": "(?<![}])((?:[^\\S\\n\\r])*)(?:((?:[.][.](?![.])))|([:])($|(?:[^\\S\\n\\r])+))",
