@@ -4169,7 +4169,33 @@ export class Game<T extends M = {}> {
     const lines = new Map<string, Set<number>>();
     const lastLines = new Map<string, number>();
     const root = this._story.root;
-    this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
+    const executed = this._runtimeState.pathsExecutedThisFrame;
+    const untaken = new Map<string, Set<number>>();
+    if (detailed) {
+      executed.forEach((p) => {
+        if (typeof p !== "number") {
+          return;
+        }
+        const entry = root.optionEntryOf(p);
+        if (entry === undefined || executed.has(entry)) {
+          return;
+        }
+        const l = this.scriptLocationOf(p);
+        if (!l) {
+          return;
+        }
+        const uri = this.scriptUri(l[0]);
+        let set = untaken.get(uri);
+        if (!set) {
+          set = new Set();
+          untaken.set(uri, set);
+        }
+        for (let line = l[1]; line <= l[3]; line++) {
+          set.add(line);
+        }
+      });
+    }
+    executed.forEach((p) => {
       if (typeof p !== "number") {
         return;
       }
@@ -4180,14 +4206,18 @@ export class Game<T extends M = {}> {
       }
       first ??= l;
       last = l;
-      if (detailed && !root.isOptionOffer(p)) {
+      if (detailed && root.optionEntryOf(p) === undefined) {
         const uri = this.scriptUri(l[0]);
-        let set = lines.get(uri);
-        if (!set) {
-          set = new Set();
-          lines.set(uri, set);
-        }
+        const skipped = untaken.get(uri);
         for (let line = l[1]; line <= l[3]; line++) {
+          if (skipped?.has(line)) {
+            continue;
+          }
+          let set = lines.get(uri);
+          if (!set) {
+            set = new Set();
+            lines.set(uri, set);
+          }
           if (!set.has(line)) {
             set.add(line);
             lastLines.set(uri, line);

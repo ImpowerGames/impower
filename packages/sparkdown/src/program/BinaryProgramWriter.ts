@@ -714,24 +714,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     if (this._choose || !(gather instanceof Gather)) {
       this.unsupported("a choose block in another's preamble");
     }
-    this.withRange(this.headerRangeOf(this._ranges[this._ranges.length - 1] ?? null), () =>
-      this.emitChooseBlock(content, gather),
-    );
-  }
-
-  protected headerRangeOf(range: DebugMetadata | null): DebugMetadata | null {
-    if (!range || range.endLineNumber <= range.startLineNumber) {
-      return range;
-    }
-    return {
-      startLineNumber: range.startLineNumber,
-      startCharacterNumber: range.startCharacterNumber,
-      endLineNumber: range.startLineNumber,
-      endCharacterNumber: (this._lineEnd?.(range.startLineNumber - 1) ?? 0) + 1,
-    } as DebugMetadata;
-  }
-
-  protected emitChooseBlock(content: ParsedObject[], gather: Gather): void {
     const end: ProgramLabel = { offset: -1 };
     const presentation: ChooseState = {
       entries: [],

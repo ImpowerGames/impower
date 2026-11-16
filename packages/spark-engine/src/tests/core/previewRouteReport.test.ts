@@ -314,6 +314,32 @@ describe("the route the preview reports", () => {
     expect(route.decisions.map((d) => d.meeting)).toEqual([1, 2]);
   }, 120_000);
 
+  test("the executed lines leave out an untaken option written inside a block of the menu's preamble", () => {
+    const lines = [
+      "scene start",
+      "  choose",
+      "    if true then",
+      "      do",
+      "        local x = 1",
+      "        * Inner {x}",
+      "          Chose inner {x}.",
+      "      end",
+      "    end",
+      "    * Outer",
+      "      Chose outer.",
+      "  end",
+      "  After.",
+      "end",
+      "",
+    ];
+    const outer = executedLinesAt(lines, 11);
+    expect(outer).toEqual(expect.arrayContaining([2, 3, 4, 5, 10, 11]));
+    expect(outer).not.toContain(6);
+    const inner = executedLinesAt(lines, 7);
+    expect(inner).toEqual(expect.arrayContaining([2, 3, 4, 5, 6, 7]));
+    expect(inner).not.toContain(10);
+  }, 120_000);
+
   test("the executed lines of a hub menu met twice light each option a meeting took and no other", () => {
     const hub = (bullet: string) => [
       "store asked = 0",

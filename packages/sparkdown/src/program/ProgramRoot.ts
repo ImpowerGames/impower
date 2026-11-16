@@ -644,28 +644,30 @@ export class ProgramRoot {
     return undefined;
   }
 
-  protected _optionOffers = new WeakMap<ProgramChunk, Uint8Array | null>();
+  protected _optionOffers = new WeakMap<ProgramChunk, Int32Array | null>();
 
-  isOptionOffer(address: number): boolean {
+  optionEntryOf(address: number): number | undefined {
     if (!Number.isInteger(address) || address < 0) {
-      return false;
+      return undefined;
     }
-    const at = this.position(chunkOfAddress(address));
+    const id = chunkOfAddress(address);
+    const at = this.position(id);
     const chunk = at?.sequence.arrays.chunks[at.entry];
     if (!chunk) {
-      return false;
+      return undefined;
     }
     let offers = this._optionOffers.get(chunk);
     if (offers === undefined) {
-      offers = this.optionOffersOf(chunkId(chunk), chunk);
+      offers = this.optionOffersOf(id, chunk);
       this._optionOffers.set(chunk, offers);
     }
-    return offers !== null && offers[offsetOfAddress(address) >> 1] === 1;
+    const entry = offers?.[offsetOfAddress(address) >> 1] ?? 0;
+    return entry > 0 ? addressOf(id, entry - 1) : undefined;
   }
 
-  protected optionOffersOf(id: number, chunk: ProgramChunk): Uint8Array | null {
+  protected optionOffersOf(id: number, chunk: ProgramChunk): Int32Array | null {
     const words = codeWords(chunk);
-    let offers: Uint8Array | null = null;
+    let offers: Int32Array | null = null;
     for (let offset = 0; offset < words; offset += 2) {
       if (opOf(chunk[HEADER_WORDS + offset]!) !== Op.Choice) {
         continue;
@@ -674,7 +676,8 @@ export class ProgramRoot {
       if (!option) {
         continue;
       }
-      offers ??= new Uint8Array(words >> 1);
+      const entry = offset + 2 + chunk[HEADER_WORDS + offset + 1]!;
+      offers ??= new Int32Array(words >> 1);
       for (let o = offset; o >= 0; o -= 2) {
         const location = this.locationOf(addressOf(id, o));
         if (
@@ -685,7 +688,7 @@ export class ProgramRoot {
         ) {
           break;
         }
-        offers[o >> 1] = 1;
+        offers[o >> 1] = entry + 1;
       }
     }
     return offers;
