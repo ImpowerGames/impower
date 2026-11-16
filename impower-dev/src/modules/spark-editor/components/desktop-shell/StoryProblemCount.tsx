@@ -13,17 +13,17 @@ export default function StoryProblemCount() {
   }
 
   return (
-    <span class="flex flex-none items-center text-[12px]/[18px] in-data-[layout=phone]:text-[11px]/[1.4]">
+    <span class="flex flex-none items-center text-[12px]/[18px] in-data-[layout=phone]:text-[11px]/[1.4] in-data-[layout=compact]:text-[11px]/[1.4]">
       <span aria-hidden="true" class="px-1 text-muted">
         ·
       </span>
-      <label class="inline-hit-down h-[18px] in-data-[layout=phone]:h-[1lh]">
+      <label class="inline-hit-down h-[18px] in-data-[layout=phone]:h-[1lh] in-data-[layout=compact]:h-[1lh]">
         <Button
           ref={ref}
           variant="quiet"
           data-tone={count.errors ? "error" : "warning"}
           title="Show problems"
-          class="min-h-0 min-w-0 px-1 py-0 text-[12px]/[18px] font-normal in-data-[layout=phone]:text-[11px]/[1.4] data-[tone=error]:text-error-strong data-[tone=warning]:text-warning-strong"
+          class="min-h-0 min-w-0 px-1 py-0 text-[12px]/[18px] font-normal in-data-[layout=phone]:text-[11px]/[1.4] in-data-[layout=compact]:text-[11px]/[1.4] data-[tone=error]:text-error-strong data-[tone=warning]:text-warning-strong"
           onClick={() => problems.showProblems(() => ref.current)}
         >
           {plural(count.problems, "problem")}

@@ -1,12 +1,18 @@
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
 import { BackIcon, ChevronIcon, ChevronLeftIcon, CloseIcon } from "../icon/icons.generated";
-import PanelHead, { panelHeadTitleVariants, type PanelHeadSize, type PanelHeadTitleSize } from "./PanelHead";
+import PanelHead, { panelHeadTitleVariants, type PanelHeadSize, type PanelHeadSpacing, type PanelHeadTitleSize } from "./PanelHead";
 
 const SIZES: Record<PanelHeadSize, string> = {
   compact: "Compact, 44px",
   default: "Default, 52px",
   tall: "Tall, 68px",
+};
+
+const SPACINGS: Record<PanelHeadSpacing, string> = {
+  inset: "4px gap, title inset 4px",
+  open: "6px gap, title flush",
+  flush: "no gap, title flush",
 };
 
 const TITLE_SIZES: Record<PanelHeadTitleSize, string> = { sm: "14px title", md: "15px title" };
@@ -40,6 +46,13 @@ function PanelHeadDemo() {
           </GalleryRow>
         )),
       )}
+      {(Object.keys(SPACINGS) as PanelHeadSpacing[]).map((spacing) => (
+        <GalleryRow key={spacing} label={`Spacing ${spacing}: ${SPACINGS[spacing]}`}>
+          <div class="bg-panel">
+            <PanelHead spacing={spacing} size="tall" titleSize="sm" title="harbor" subtitle="Image · PNG" start={close} end={steps} />
+          </div>
+        </GalleryRow>
+      ))}
       <GalleryRow label="Without an edge, Back at the start and no subtitle">
         <div class="bg-panel">
           <PanelHead

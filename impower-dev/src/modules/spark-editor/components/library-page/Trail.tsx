@@ -49,7 +49,7 @@ export default function Trail({
       <nav aria-label="Folder path" class="flex min-w-0 items-center gap-0.5 text-[11px] [:root[data-layout=desktop]_&]:text-[12px]">
         <DropdownRoot>
           <DropdownTrigger asChild>
-            <Button variant="quiet" size="narrow" glyph="md" aria-label={`${label} options`} class="flex-none text-muted">
+            <Button variant="quiet" size="narrow" glyph="md" aria-label={`${label} options`} class="w-[31px] flex-none text-muted">
               {icon}
             </Button>
           </DropdownTrigger>
@@ -60,7 +60,7 @@ export default function Trail({
             </DropdownItem>
           </DropdownContent>
         </DropdownRoot>
-        <span aria-current="location" class="min-w-0 pr-3.5 pl-0.5 font-medium text-ink [--fade:14px] fade-edge">
+        <span aria-current="location" class="min-w-0 pr-3.5 pl-[7px] pointer-coarse:pl-0.5 font-medium text-ink [--fade:14px] fade-edge">
           {summary}
         </span>
       </nav>

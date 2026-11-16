@@ -23,7 +23,8 @@ export default function SearchRail() {
         size="compact"
         edge={false}
         titleSize="sm"
-        class="gap-0 pr-1 pl-[10px] in-data-[layout=compact]:pl-1.5 in-data-[view=references]:pl-5"
+        spacing="flush"
+        class="pr-1 pl-3.5 in-data-[layout=compact]:pl-2.5 in-data-[view=references]:pl-6"
         title={title}
         end={
           <Button

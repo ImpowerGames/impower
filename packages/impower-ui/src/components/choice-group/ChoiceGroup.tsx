@@ -6,7 +6,7 @@ import { CheckIcon } from "../icon/icons.generated";
 export const choiceGroupVariants = cva("", {
   variants: {
     variant: {
-      segmented: "inline-flex shrink-0 rounded-control border border-solid border-edge bg-bg",
+      segmented: "inline-flex shrink-0 rounded-control border border-solid border-edge",
       tiles: "grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-2.5 phone:grid-cols-1 phone:gap-2",
     },
     size: {
@@ -15,8 +15,8 @@ export const choiceGroupVariants = cva("", {
     },
   },
   compoundVariants: [
-    { variant: "segmented", size: "default", class: "gap-0.5 p-0.5" },
-    { variant: "segmented", size: "small", class: "gap-0.5 rounded-[10px] p-0.5" },
+    { variant: "segmented", size: "default", class: "gap-0.5 bg-bg p-0.5" },
+    { variant: "segmented", size: "small", class: "rounded-[10px] p-0.5" },
   ],
   defaultVariants: {
     variant: "segmented",

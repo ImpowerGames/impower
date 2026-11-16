@@ -343,6 +343,13 @@
   }
 }
 
+@utility fade-edge-always {
+  overflow: clip;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
+}
+
 @keyframes s-fade-edge {
   from, to {
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);

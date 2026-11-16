@@ -505,6 +505,7 @@ export default function AssetInspector({
       <PanelHead
         size={desktop && !sheet ? "tall" : "default"}
         titleSize="sm"
+        spacing="open"
         class="px-2 py-0"
         title={
           sheet ? (

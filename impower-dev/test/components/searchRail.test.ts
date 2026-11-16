@@ -105,14 +105,15 @@ describe("the rail's heading", () => {
     for (const token of [
       "gap-0",
       "pr-1",
-      "pl-[10px]",
-      "in-data-[layout=compact]:pl-1.5",
-      "in-data-[view=references]:pl-5",
+      "pl-3.5",
+      "in-data-[layout=compact]:pl-2.5",
+      "in-data-[view=references]:pl-6",
     ]) {
       expect(header.classList.contains(token), token).toBe(true);
     }
     const title = header.querySelector("h2")!;
     expect(title.textContent).toBe("Search");
+    expect(title.parentElement!.classList.contains("mx-1")).toBe(false);
     expect(title.className).toContain("text-[14px]/[1.4]");
     const close = header.querySelector<HTMLButtonElement>('button[name="close"]')!;
     expect(close.getAttribute("aria-label")).toBe("Back to outline");

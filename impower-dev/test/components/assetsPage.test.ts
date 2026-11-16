@@ -264,14 +264,16 @@ describe("the Assets page", () => {
     expect(trail.textContent).toContain("Music");
   });
 
-  it("draws the trail and sort at the prototype's sizes: 17px glyphs, a 36px root, ink names, 11px text below desktop", async () => {
+  it("draws the trail and sort at the prototype's sizes: 17px glyphs, a 31px root symbol with its summary 7px in (2px under touch), ink names, 11px text below desktop", async () => {
     await mount();
     await showTab("Audio");
     const classes = (element: Element | null) => element!.className.split(" ");
     const root = host!.querySelector('nav[aria-label="Folder path"]')!;
     expect(classes(root)).toEqual(expect.arrayContaining(["text-[11px]", "[:root[data-layout=desktop]_&]:text-[12px]"]));
-    expect(classes(root.querySelector("button"))).toEqual(expect.arrayContaining(["w-9", "[&_svg]:size-[17px]"]));
-    expect(classes(root.querySelector('[aria-current="location"]'))).toContain("text-ink");
+    expect(classes(root.querySelector("button"))).toEqual(expect.arrayContaining(["w-[31px]", "[&_svg]:size-[17px]"]));
+    expect(classes(root.querySelector('[aria-current="location"]'))).toEqual(
+      expect.arrayContaining(["text-ink", "pl-[7px]", "pointer-coarse:pl-0.5"]),
+    );
     await click(all<HTMLElement>('button[aria-label^="Open folder Music"]')[0]);
     const trail = host!.querySelector('nav[aria-label="Folder path"]')!;
     expect(classes(trail.querySelector('button[aria-label="Parent folder"]'))).toEqual(expect.arrayContaining(["size-11", "[&_svg]:size-[17px]"]));
@@ -479,8 +481,14 @@ describe("image folders as tiles", () => {
     expect(badge.getAttribute("aria-label")).toBe("4 variants");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("loading")).toBe("lazy");
+    const tileOptions = tiles()[0]!.querySelector<HTMLElement>('button[aria-label="Options for imani"]')!.className.split(" ");
+    expect(tileOptions).toContain("text-ink");
+    expect(tileOptions).not.toContain("text-muted");
     await click(all<HTMLElement>('button[aria-label^="Open image imani"]')[0]);
     const inspector = document.querySelector('section[aria-label="Asset details"]')!;
+    const head = inspector.querySelector<HTMLElement>("[data-panel-head]")!;
+    expect(head.className.split(" ")).toContain("gap-1.5");
+    expect(head.querySelector("h2")!.parentElement!.className.split(" ")).not.toContain("mx-1");
     expect(inspector.querySelector("header h2")!.textContent).toBe("imani");
     expect(inspector.querySelector("header small")!.textContent).toBe("Image · 4 variants");
     expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/100");
