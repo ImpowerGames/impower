@@ -100,16 +100,14 @@ export const displayTextFacts = (
   };
   visit(root);
   if (hiddenFrom !== undefined) blanks.push({ from: hiddenFrom, to });
-  const read = (start: number, end: number) => {
-    let text = source.read(start, end);
-    for (const blank of blanks) {
-      const a = Math.max(start, blank.from);
-      const b = Math.min(end, blank.to);
-      if (a < b) text = text.slice(0, a - start) + " ".repeat(b - a) + text.slice(b - start);
-    }
-    return text;
-  };
-  const literal = stripStyleCodes(readStyledSource(root, from, to, { read })).trim();
-  const writes: DisplayWrites = literal || shown ? "text" : dynamic ? "dynamic" : "none";
+  blanks.sort((a, b) => a.from - b.from);
+  let literal = "";
+  let at = from;
+  for (const blank of [...blanks, { from: to, to }]) {
+    const end = Math.min(blank.from, to);
+    if (end > at) literal += stripStyleCodes(readStyledSource(root, at, end, { read: source.read }));
+    at = Math.max(at, blank.to);
+  }
+  const writes: DisplayWrites = literal.trim() || shown ? "text" : dynamic ? "dynamic" : "none";
   return { writes, directives };
 };
