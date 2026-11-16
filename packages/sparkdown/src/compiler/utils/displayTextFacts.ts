@@ -62,14 +62,14 @@ export const displayTextFacts = (
     const content = descendant(node, "TextCommandContent");
     const tag = readStoryTag(content ? source.read(content.from, content.to) : "");
     if (!tag.known || tag.closes) return;
-    if (tag.name === "!") {
+    if (tag.name === "!") { // not a node name
       hiddenFrom ??= node.to;
-    } else if (tag.name === "/!") {
+    } else if (tag.name === "/!") { // not a node name
       if (hiddenFrom !== undefined) blanks.push({ from: hiddenFrom, to: node.from });
       hiddenFrom = undefined;
-    } else if ((tag.name === "wait" || tag.name === "w") && !tag.argument) {
+    } else if ((tag.name === "wait" || tag.name === "w") && !tag.argument) { // not a node name
       shown = true;
-    } else if (tag.name === "br" && hiddenFrom === undefined) {
+    } else if (tag.name === "br" && hiddenFrom === undefined) { // not a node name
       shown = true;
     }
   };
