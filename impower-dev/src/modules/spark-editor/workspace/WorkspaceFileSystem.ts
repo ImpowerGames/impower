@@ -137,6 +137,13 @@ interface ReferenceEdits {
   scripts: Map<string, string>;
 }
 
+interface FileReplacement {
+  files: { uri: string; data: ArrayBuffer }[];
+  deletedFiles: string[];
+  deletedFolders: string[];
+  createdFolders: string[];
+}
+
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
 const symbolOf = (path: string) => assetNameOf(path, assetTypeOf(path, assetEndings.peek()));
@@ -719,23 +726,75 @@ export default class WorkspaceFileSystem {
     };
   }
 
-  protected async replaceFolders(
+  protected async replaceFiles(
     projectId: string,
-    unzipped: { filename: string }[],
-  ) {
-    const { listed, stale } = await this.folderPlan(projectId, unzipped);
-    await this.deleteFolders(projectId, stale);
-    await this.createFolders(projectId, listed);
+    replacement: FileReplacement,
+    label: string,
+  ): Promise<ApplyWorkspaceEditResult> {
+    const depth = (path: string) => path.split("/").length;
+    const unstored = [...this._unstoredUris].flatMap((uri) => {
+      const file = this._files?.[uri];
+      return file ? [file] : [];
+    });
+    const result = await this.applyWorkspaceEdit(
+      {
+        documentChanges: [
+          ...replacement.deletedFiles.map((uri) => ({
+            kind: "delete" as const,
+            uri,
+          })),
+          ...[...replacement.deletedFolders]
+            .sort((a, b) => depth(b) - depth(a))
+            .map((path) => ({
+              kind: "delete" as const,
+              uri: this.getFileUri(projectId, path),
+              folder: true,
+            })),
+          ...replacement.files.map(({ uri, data }) => ({
+            kind: "create" as const,
+            uri,
+            data,
+            options: { overwrite: true },
+          })),
+          ...replacement.createdFolders.map((path) => ({
+            kind: "create" as const,
+            uri: this.getFileUri(projectId, path),
+            folder: true,
+          })),
+        ],
+      },
+      label,
+    );
+    const lost = result.applied
+      ? []
+      : unstored.filter((file) => this._files && !this._files[file.uri]);
+    if (lost.length > 0) {
+      lost.forEach((file) => {
+        this._files![file.uri] = file;
+        this._unstoredUris.add(file.uri);
+      });
+      sendProtocolMessage(
+        DidWriteFilesMessage.type.notification({
+          files: lost,
+          remote: false,
+          restored: lost.map((file) => file.uri),
+        }),
+      );
+    }
+    return result;
   }
 
-  protected async clearFoldersAt(projectId: string, fileUris: string[]) {
-    const incoming = new Set(
-      fileUris.map((uri) => this.getRelativePath(projectId, uri)),
-    );
-    await this.deleteFolders(
-      projectId,
-      (await this.listFolders(projectId)).filter((p) => incoming.has(p)),
-    );
+  protected async replaceBundle(
+    projectId: string,
+    replacement: FileReplacement,
+    label: string,
+  ) {
+    const result = await this.replaceFiles(projectId, replacement, label);
+    if (!result.applied) {
+      throw new Error(`${label} failed: ${result.failureReason}`, {
+        cause: result,
+      });
+    }
   }
 
   async writeProjectZip(
@@ -806,38 +865,18 @@ export default class WorkspaceFileSystem {
       uri: this.getFileUri(projectId, ".folders"),
       data: new TextEncoder().encode("1").buffer as ArrayBuffer,
     };
-    const depth = (path: string) => path.split("/").length;
     let result: ApplyWorkspaceEditResult;
     try {
       const folders = await this.folderPlan(projectId, unzipped);
-      result = await this.applyWorkspaceEdit(
+      result = await this.replaceFiles(
+        projectId,
         {
-          documentChanges: [
-            ...zipFilesToDelete.map(({ uri }) => ({
-              kind: "delete" as const,
-              uri,
-            })),
-            ...[...folders.stale]
-              .sort((a, b) => depth(b) - depth(a))
-              .map((path) => ({
-                kind: "delete" as const,
-                uri: this.getFileUri(projectId, path),
-                folder: true,
-              })),
-            ...[...zipFilesToWrite, foldersMarker].map(({ uri, data }) => ({
-              kind: "create" as const,
-              uri,
-              data,
-              options: { overwrite: true },
-            })),
-            ...folders.listed
-              .filter((path) => !folders.existing.includes(path))
-              .map((path) => ({
-                kind: "create" as const,
-                uri: this.getFileUri(projectId, path),
-                folder: true,
-              })),
-          ],
+          files: [...zipFilesToWrite, foldersMarker],
+          deletedFiles: zipFilesToDelete.map(({ uri }) => uri),
+          deletedFolders: folders.stale,
+          createdFolders: folders.listed.filter(
+            (path) => !folders.existing.includes(path),
+          ),
         },
         "Import project",
       );
@@ -920,15 +959,24 @@ export default class WorkspaceFileSystem {
           fileData.text != null &&
           !textFilesToWrite.some((file) => file.uri === uri),
       )
-      .map(([uri]) => ({ uri }));
-    if (textFilesToDelete.length > 0) {
-      await this.deleteFiles({ files: textFilesToDelete });
-    }
-    await this.clearFoldersAt(
-      projectId,
-      textFilesToWrite.map((file) => file.uri),
+      .map(([uri]) => uri);
+    const incoming = new Set(
+      textFilesToWrite.map(({ uri }) => this.getRelativePath(projectId, uri)),
     );
-    await this.createFiles({ files: textFilesToWrite });
+    await this.replaceBundle(
+      projectId,
+      {
+        files: textFilesToWrite,
+        deletedFiles: textFilesToDelete,
+        deletedFolders: (await this.listFolders(projectId)).filter((path) =>
+          path
+            .split("/")
+            .some((_, i, parts) => incoming.has(parts.slice(0, i + 1).join("/"))),
+        ),
+        createdFolders: [],
+      },
+      "Apply script bundle",
+    );
   }
 
   async writeProjectAssetBundle(projectId: string, content: ArrayBuffer) {
@@ -947,12 +995,20 @@ export default class WorkspaceFileSystem {
           fileData.text == null &&
           !zipFilesToWrite.some((file) => file.uri === uri),
       )
-      .map(([uri]) => ({ uri }));
-    if (zipFilesToDelete.length > 0) {
-      await this.deleteFiles({ files: zipFilesToDelete });
-    }
-    await this.replaceFolders(projectId, unzipped);
-    await this.createFiles({ files: zipFilesToWrite });
+      .map(([uri]) => uri);
+    const folders = await this.folderPlan(projectId, unzipped);
+    await this.replaceBundle(
+      projectId,
+      {
+        files: zipFilesToWrite,
+        deletedFiles: zipFilesToDelete,
+        deletedFolders: folders.stale,
+        createdFolders: folders.listed.filter(
+          (path) => !folders.existing.includes(path),
+        ),
+      },
+      "Apply asset bundle",
+    );
   }
 
   splitProjectTextContent(
