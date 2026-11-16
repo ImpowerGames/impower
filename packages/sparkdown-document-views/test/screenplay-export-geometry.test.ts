@@ -8,7 +8,7 @@ import { chromium, type Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { KINDS } from "./fixtures/screenplayKinds";
-import { buildScreenplayGeometryPage } from "./harness/screenplay-geometry.mjs";
+import { buildScreenplayGeometryPage, EMOJI_FONT_URL } from "./harness/screenplay-geometry.mjs";
 
 const FIXTURE_DIR = resolve(__dirname, "fixtures/demo-screenplay");
 
@@ -99,18 +99,20 @@ interface Printed {
 
 const spaced = (pieces: { text: string; x: number; width: number }[], cell: number) => {
   const sorted = [...pieces].sort((a, b) => a.x - b.x);
-  let text = "";
-  let end: number | undefined;
+  const inked = sorted.find((piece) => piece.text.trim())!;
+  const lead = inked.text.length - inked.text.trimStart().length;
+  const left = inked.x + lead * cell;
+  const columns: string[] = [];
   for (const piece of sorted) {
-    if (end !== undefined) text += " ".repeat(Math.max(0, Math.round((piece.x - end) / cell)));
-    text += piece.text;
-    end = piece.x + piece.width;
+    const start = Math.round((piece.x - left) / cell);
+    Array.from(piece.text).forEach((character, index) => {
+      if (character.trim() && start + index >= 0) columns[start + index] = character;
+    });
   }
-  const lead = text.length - text.trimStart().length;
-  return { text: text.trim(), left: sorted[0]!.x + lead * cell };
+  return { text: Array.from(columns, (character) => character ?? " ").join("").trim(), left };
 };
 
-const printed = async (script: string, config: ScreenplayConfig): Promise<Printed> => {
+const printed = async (script: string, config: ScreenplayConfig, fonts: Record<string, ArrayBuffer> = FONTS): Promise<Printed> => {
   const { buildPDF } = await import(pathToFileURL(resolve(__dirname, "../../sparkdown-screenplay-pdf/src/buildPDF.ts")).href);
   const paper = PAPER[config.screenplay_print_paper_size ?? "usletter"]!;
   const draws: { text: string; x: number; y: number; width: number; page: number }[] = [];
@@ -127,7 +129,7 @@ const printed = async (script: string, config: ScreenplayConfig): Promise<Printe
     return text.apply(this, args);
   });
   try {
-    await buildPDF([script], config, FONTS);
+    await buildPDF([script], config, fonts);
   } finally {
     spy.mockRestore();
   }
@@ -174,6 +176,9 @@ afterAll(async () => {
 
 const drawn = async (script: string, config: ScreenplayConfig, width: number, scenesBefore = 0): Promise<Printed> => {
   const page = await browser.newPage({ viewport: { width: width + 40, height: 6000 } });
+  await page.route(EMOJI_FONT_URL, (route) =>
+    route.fulfill({ body: readFileSync(resolve(FONT_DIR, "noto-color-emoji.ttf")), contentType: "font/ttf", headers: { "Access-Control-Allow-Origin": "*" } }),
+  );
   await page.goto(pageUrl);
   await page.waitForFunction(() => "renderScreenplay" in window);
   await page.evaluate(() =>
@@ -211,7 +216,7 @@ const drawn = async (script: string, config: ScreenplayConfig, width: number, sc
       if (!shown(node.parentElement)) continue;
       for (let index = 0; index < node.length; index++) {
         const character = node.data[index]!;
-        if (!character.trim()) continue;
+        if (!character.trim() || /[\uD800-\uDFFF‍︀-️]/.test(character)) continue;
         range.setStart(node, index);
         range.setEnd(node, index + 1);
         const rect = Array.from(range.getClientRects()).find((box) => box.width > 0);
@@ -224,13 +229,9 @@ const drawn = async (script: string, config: ScreenplayConfig, width: number, sc
       .sort(([a], [b]) => a - b)
       .map(([top, row]) => {
         row.sort((a, b) => a.left - b.left);
-        let text = "";
-        let end: number | undefined;
-        for (const glyph of row) {
-          if (end !== undefined) text += " ".repeat(Math.max(0, Math.round((glyph.left - end) / cell)));
-          text += glyph.character;
-          end = glyph.right;
-        }
+        const columns: string[] = [];
+        for (const glyph of row) columns[Math.round((glyph.left - row[0]!.left) / cell)] = glyph.character;
+        const text = Array.from(columns, (character) => character ?? " ").join("");
         return { text, left: (row[0]!.left - origin) / cell, top, page: 0 };
       });
     const numbers: { left: string[]; right: string[] } = { left: [], right: [] };
@@ -293,7 +294,7 @@ const compare = (page: Printed, pdf: Printed) => {
   return differences;
 };
 
-const WIDTHS = [430, 560, 760];
+const WIDTHS = [320, 430, 560, 760];
 
 describe("the Screenplay page draws every row where the PDF prints it", () => {
   it.each(DEMO.flatMap((name) => ["usletter", "a4"].map((paper) => [name, paper] as const)))(
@@ -428,5 +429,28 @@ describe("the title page", () => {
       (found) => found.pdf === undefined || found.page !== found.pdf,
     );
     expect(differences).toEqual([]);
+  }, 120_000);
+});
+
+const EMOJI_SCRIPT = [
+  "scene emoji",
+  "  GUIDE:",
+  `    ${"a ".repeat(15)}${"\u{1F642} ".repeat(6)}tail finish.`,
+  `  Then ${"\u{1F44D}\u{1F3FD} ".repeat(8)}they all wave goodbye to the train as it leaves the station.`,
+  "end",
+  "",
+].join("\n");
+
+const LONG_BRANCH = ["scene long_branch", "  Before.", "end", "", `branch ${"identifier".repeat(8)}`, "  Inside.", "end", ""].join("\n");
+
+describe("rows the reviewer found wrapping differently", () => {
+  it("wraps rows holding emoji where the PDF wraps them", async () => {
+    const pdf = await printed(EMOJI_SCRIPT, BASE, { ...FONTS, emoji: readFont("noto-color-emoji.ttf") });
+    expect(compare(await drawn(EMOJI_SCRIPT, BASE, 560), pdf)).toEqual([]);
+  }, 120_000);
+
+  it("wraps a long branch name where the PDF wraps it", async () => {
+    const pdf = await printed(LONG_BRANCH, NAMED);
+    expect(compare(await drawn(LONG_BRANCH, NAMED, 760), pdf)).toEqual([]);
   }, 120_000);
 });

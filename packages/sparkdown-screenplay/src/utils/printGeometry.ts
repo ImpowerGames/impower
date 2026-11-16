@@ -7,6 +7,8 @@ import type { ScreenplayTokenType } from "../types/ScreenplayTokenType";
 
 export const SCRIPT_FONT_ADVANCE = 1228 / 2048;
 
+export const EMOJI_FONT_ADVANCE = 1275 / 1024;
+
 export const PRINTED_LINE_HEIGHT = 1;
 
 export const SCENE_NUMBER_LEFT_GAP = 4;
@@ -25,6 +27,8 @@ export const cellWidth = (profile: PrintProfile) =>
   (SCRIPT_FONT_ADVANCE * (profile.font_size ?? 12)) / 72;
 
 export const rowHeight = (profile: PrintProfile) => (PRINTED_LINE_HEIGHT * (profile.font_size ?? 12)) / 72;
+
+export const emojiWidth = (profile: PrintProfile) => (EMOJI_FONT_ADVANCE * (profile.font_size ?? 12)) / 72;
 
 export const lineLeftMargin = (profile: PrintProfile, line: PlacedLine) => {
   const settings = tagSettings(profile, line.tag);

@@ -490,7 +490,7 @@ export const decorate = (
       row.name
         ? {
             text: piece.text,
-            style: `${index === 0 ? printedNameStyle(config, row.name, row.name.level) : ""}${printedStyle(piece.style).style}`,
+            style: `${index === 0 ? `display: inline-block; ${printedNameStyle(config, row.name, row.name.level)}` : ""}${printedStyle(piece.style).style}`,
             source: false,
             name: true,
           }

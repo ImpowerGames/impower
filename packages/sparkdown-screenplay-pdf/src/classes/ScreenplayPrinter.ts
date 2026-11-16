@@ -23,7 +23,7 @@ import { getHeightOfTextbox } from "../textbox-for-pdfkit/src/utils/getHeightOfT
 import { getWidthOfTextbox } from "../textbox-for-pdfkit/src/utils/getWidthOfTextbox";
 import { printTextbox } from "../textbox-for-pdfkit/src/utils/printTextbox";
 import { wrapTextbox } from "../textbox-for-pdfkit/src/utils/wrapTextbox";
-import { splitEmojiRuns } from "../emoji/emojiText";
+import { splitEmojiRuns } from "@impower/sparkdown-screenplay/src/utils/emojiRuns";
 
 const PDF_POINTS_PER_INCH = 72;
 

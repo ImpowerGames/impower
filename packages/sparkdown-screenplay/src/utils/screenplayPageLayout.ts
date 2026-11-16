@@ -8,7 +8,8 @@ import type { PrintProfile } from "../types/PrintProfile";
 import type { ScreenplayConfig } from "../types/ScreenplayConfig";
 import type { ScreenplayTokenType } from "../types/ScreenplayTokenType";
 import { isHiddenIdentifier } from "./isHiddenIdentifier";
-import { cellWidth, hangingGroup, lineMaxWidth, printProfileOf } from "./printGeometry";
+import { splitEmojiRuns } from "./emojiRuns";
+import { cellWidth, emojiWidth, hangingGroup, lineMaxWidth, printProfileOf } from "./printGeometry";
 import { insertAnchor, UNPLACED } from "./printedPosition";
 import { getCharChunks, wrapParagraph } from "./wrapRows";
 
@@ -134,14 +135,16 @@ const cellsOf = (text: string) => (SINGLE_CELL_TEXT.test(text) ? text.length : g
 
 export const printedRowOffsets = (line: PageLine, profile: PrintProfile): number[] => {
   const cell = cellWidth(profile);
+  const emoji = emojiWidth(profile);
+  const measure = (piece: { text: string; isEmoji: boolean }) => cellsOf(piece.text) * (piece.isEmoji ? emoji : cell);
   const width = lineMaxWidth(profile, line);
   const offsets: number[] = [];
   let groupStart = 0;
   let group: FormattedText[] = [];
   const wrapGroup = () => {
     const { lead, rest, hang } = hangingGroup(group);
-    const pieces = rest.map((piece) => ({ text: piece.text, width: cellsOf(piece.text) * cell }));
-    const rows = wrapParagraph(pieces, width - hang * cell, (fragment) => cellsOf(fragment.text) * cell);
+    const pieces = rest.flatMap((piece) => splitEmojiRuns(piece.text)).map((run) => ({ ...run, width: measure(run) }));
+    const rows = wrapParagraph(pieces, width - hang * cell, measure);
     let offset = groupStart + (lead?.text.length ?? 0);
     for (const row of rows.slice(0, -1)) {
       offset += row.reduce((sum, part) => sum + part.text.length, 0);
@@ -291,7 +294,7 @@ export const screenplayPageLayout = (
           at: span.from,
           tag: line.tag,
           level: line.level ?? 0,
-          pieces: line.content.map((piece) => ({ text: piece.text, style: piece })),
+          pieces: breakRows(line.content, printedRowOffsets(line, profile)).map((piece) => ({ text: piece.text, style: piece })),
         };
         if (span.tag === "function" && followsPrintedOnLine(span.from)) {
           places.rows.push({ at: printedEnd, side: "below", pieces: name.pieces, name });

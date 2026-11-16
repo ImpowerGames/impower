@@ -2,40 +2,6 @@ import type PDFKit from "pdfkit";
 import SVGtoPDF from "svg-to-pdfkit";
 import EmojiSvgProvider from "./EmojiSvgProvider";
 
-let EMOJI_REGEX: RegExp | null = null;
-try {
-  EMOJI_REGEX = /\p{RGI_Emoji}/gv;
-} catch {
-  EMOJI_REGEX = null;
-}
-
-export interface EmojiTextRun {
-  text: string;
-  isEmoji: boolean;
-}
-
-export const splitEmojiRuns = (text: string): EmojiTextRun[] => {
-  if (!EMOJI_REGEX || !text) {
-    return [{ text, isEmoji: false }];
-  }
-  const runs: EmojiTextRun[] = [];
-  let last = 0;
-  EMOJI_REGEX.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  // eslint-disable-next-line no-cond-assign
-  while ((m = EMOJI_REGEX.exec(text))) {
-    if (m.index > last) {
-      runs.push({ text: text.slice(last, m.index), isEmoji: false });
-    }
-    runs.push({ text: m[0], isEmoji: true });
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) {
-    runs.push({ text: text.slice(last), isEmoji: false });
-  }
-  return runs.length ? runs : [{ text, isEmoji: false }];
-};
-
 export const getEmojiProvider = (
   doc: PDFKit.PDFDocument,
 ): EmojiSvgProvider | undefined =>

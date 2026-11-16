@@ -23,7 +23,7 @@ export const printedLineStyle = (config: ScreenplayConfig | undefined, line: Pla
 
 export const printedNameStyle = (config: ScreenplayConfig | undefined, line: PlacedLine, level: number) => {
   const profile = printProfileOf(config);
-  return `margin-left: ${ems(profile, lineLeftMargin(profile, line) + levelIndent(profile, line.tag, level) - profile.left_margin)};`;
+  return `margin-left: ${ems(profile, lineLeftMargin(profile, line) + levelIndent(profile, line.tag, level) - profile.left_margin)}; width: ${ems(profile, lineMaxWidth(profile, line))};`;
 };
 
 export const printedPageStyle = (config: ScreenplayConfig | undefined) => {
