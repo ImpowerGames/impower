@@ -84,6 +84,11 @@ describe("a directive holding an interpolation reads the same on a display line 
     "((a {[=[x]]} -> y]=]} b))",
     "((a {[[x]=]} -> y]]} b))",
     "((a {[==[x]=]} -> y]==]} b))",
+    "((a {[[{}]]} b))",
+    "((a {[=[{x}]=]} b))",
+    "((a {[==[{x}]==]} b))",
+    "((a {1 --[[{}]] + 1} b))",
+    "((a {[[{}]] .. '->'} b))",
   ])(
     "`%s`",
     (directive) => {
