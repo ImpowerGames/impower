@@ -1,0 +1,30 @@
+scene zz_verify_screenplay
+  $: INT. VERIFY ROOM - NIGHT
+
+  ZADIE:
+    [[zadie]]
+    A line of dialogue for the screenplay check.
+
+  choose
+    Which way?
+    * [Go left.]
+      -> zz_verify_left
+    * [Go right.]
+      -> zz_verify_left
+  end
+
+  branch zz_verify_left
+    Imani waits by the door.
+    queue | One short arm. | Another short arm. end
+    queue
+      | The first long arm.
+      | The second long arm.
+    end
+    if told_rosa then
+      Rosa waves.
+    else
+      Nobody waves.
+    end
+    ^: THE CENTRED LINE
+  end
+end

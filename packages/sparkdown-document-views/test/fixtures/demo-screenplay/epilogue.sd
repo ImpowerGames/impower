@@ -1,0 +1,35 @@
+scene grandmas_cottage
+  [[show backdrop ext_countryside_field with screenfade]]
+  $: EXT. THE OLD VALLEY - MORNING
+
+  The train stops at a platform with no name. A path leads down to a white cottage.
+
+  [[show backdrop ext_countryside_cottage with fade over 1]]
+  An old radio plays in the window. The song is *Moonlight on the Rails*.
+
+  GRANDMA:
+    (smiling)
+    Rosa's friends, I expect. Every night I send that song down the line, so my granddaughter knows I'm still listening.
+
+  ZADIE:
+    [[zadie:sad]]
+    She thinks her jukebox is haunted.
+
+  GRANDMA:
+    Then it's time I visited.
+
+  // TODO: let the friends invite Grandma to the diner.
+
+  if told_rosa then
+    [[show backdrop ext_countryside_cottage_path with fade over 1]]
+    Rosa steps off the next train, still in her apron.
+  else
+    IMANI:
+      [[imani:happy]]
+      I'll write Rosa your address. On a napkin, obviously.
+  end
+
+  [[show backdrop sky_sunset with fade over 2]]
+  ^: THE END
+  fin
+end

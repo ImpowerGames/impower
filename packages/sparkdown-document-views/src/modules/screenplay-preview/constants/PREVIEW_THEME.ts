@@ -42,19 +42,18 @@ const PREVIEW_THEME: {
       content: "attr(data-scene-number)",
       position: "absolute",
       top: 0,
-      right: "calc(100% + 1.2em)",
+      right: "calc(100% + var(--sp-scene-number-left-gap))",
     },
   "&[data-scene-numbers=right] .sp-heading::after, &[data-scene-numbers=both] .sp-heading::after":
     {
       content: "attr(data-scene-number)",
       position: "absolute",
       top: 0,
-      left: "calc(100% + 1.2em)",
+      left: "calc(100% + var(--sp-scene-number-right-gap))",
     },
   "& .sp-name": {
     margin: "0",
-    fontWeight: "bold",
-    textDecoration: "underline",
+    color: "var(--sp-muted)",
   },
   "& .sp-option": {
     color: "var(--sp-muted)",

@@ -15,6 +15,7 @@ export default class NameWidget extends BlockWidget<NameSpec> {
     const name = document.createElement("p");
     name.classList.add("sp-name");
     name.textContent = this.spec.name;
+    if (this.spec.style) name.setAttribute("style", this.spec.style);
     container.append(name);
     return container;
   }
