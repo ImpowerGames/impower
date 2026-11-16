@@ -67,7 +67,15 @@ describe("a styled span holding an unclosed doubled opener is read as a span (I-
 });
 
 describe("a directive holding an interpolation reads the same on a display line and on a choice line (I-2425)", () => {
-  test.each(["((a {[[a]]} b))", "((a {[=[a]=]} b))", "((a {1 --[[c]] + 1} b))", "((a {t[1]} b))"])(
+  test.each([
+    "((a {[[a]]} b))",
+    "((a {[=[a]=]} b))",
+    "((a {1 --[[c]] + 1} b))",
+    "((a {t[1]} b))",
+    `((a {"}" .. [[a]]} b))`,
+    `((a {'{' .. [[a]]} b))`,
+    `((a {"[x]" .. [[a]]} b))`,
+  ])(
     "`%s`",
     (directive) => {
       expect(nodesOver(displayScript(directive), "AudioCommand")).toEqual([directive]);
