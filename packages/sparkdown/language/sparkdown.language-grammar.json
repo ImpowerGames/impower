@@ -4211,6 +4211,9 @@
           "include": "#BlockLineBlank"
         },
         {
+          "include": "#AssetLine"
+        },
+        {
           "include": "#BlockLineContinue"
         }
       ],
@@ -4348,6 +4351,9 @@
           "include": "#BlockLineBlank"
         },
         {
+          "include": "#AssetLine"
+        },
+        {
           "include": "#BlockLineContinue"
         }
       ],
@@ -4483,6 +4489,9 @@
         },
         {
           "include": "#BlockLineBlank"
+        },
+        {
+          "include": "#AssetLine"
         },
         {
           "include": "#BlockLineContinue"
@@ -4635,6 +4644,9 @@
         },
         {
           "include": "#BlockLineBlank"
+        },
+        {
+          "include": "#AssetLine"
         },
         {
           "include": "#BlockLineContinue"
@@ -4792,6 +4804,9 @@
         },
         {
           "include": "#BlockLineBlank"
+        },
+        {
+          "include": "#AssetLine"
         },
         {
           "include": "#BlockLineContinue"
@@ -5122,6 +5137,9 @@
           "include": "#BlockLineBlank"
         },
         {
+          "include": "#AssetLine"
+        },
+        {
           "include": "#BlockActionLineContinue"
         }
       ],
@@ -5239,9 +5257,6 @@
         }
       },
       "patterns": [
-        {
-          "include": "#AssetLine"
-        },
         {
           "include": "#ParentheticalLine"
         },
@@ -5531,9 +5546,6 @@
         }
       },
       "patterns": [
-        {
-          "include": "#AssetLine"
-        },
         {
           "include": "#ParentheticalLine"
         },
