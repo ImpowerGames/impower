@@ -33,6 +33,9 @@ const constructAt = (tree: Tree, at: number): SyntaxNode | null => {
   while (node && !isDisplay(node) && !ASSET_LINES.has(node.name)) {
     node = node.parent;
   }
+  for (let outer = node?.parent ?? null; outer; outer = outer.parent) {
+    if (isDisplay(outer)) return outer;
+  }
   return node;
 };
 
