@@ -117,6 +117,8 @@ describe("the editor's warning agrees with the game's image write (I-2390, I-244
     ["Mia's cue holding the directive and an empty interpolation, before narration", story(`  MIA: ${DIRECTIVE} {""}\n  Mia waits.`), undefined, false],
     ["Mia's cue holding the directive and an interpolation that shows text, before narration", story(`  MIA: ${DIRECTIVE} {"Hi."}\n  Mia waits.`), undefined, true],
     ["Mia's cue holding the directive and an empty interpolation, before Mia's line", story(`  MIA: ${DIRECTIVE} {""}\n  MIA: Hello.`), undefined, true],
+    ["a directive line before Mia's line whose interpolation holds a nested string", story(`  ${DIRECTIVE}\n  MIA: {\`{1}\`} Hello.`), undefined, true],
+    ["Mia's cue holding the directive and a conditional interpolation that shows nothing, before narration", story(`  MIA: ${DIRECTIVE} {if true then "" else "Hi"}\n  Mia waits.`), undefined, false],
     ["a directive line before Mia's line that interpolates a function call", story(`  ${DIRECTIVE}\n  MIA: {greet()} Hello.`).replace("scene start", GREET), undefined, true],
     ["a function call statement between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  local said = greet()\n  MIA:\n    Hello there.`).replace("scene start", GREET), undefined, true],
     ["a directive line before Mia's line that starts with a library call's interpolation", story(`  ${DIRECTIVE}\n  MIA: {string.upper("x")} Hello.`), undefined, true],

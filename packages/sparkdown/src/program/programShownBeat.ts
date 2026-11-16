@@ -90,22 +90,33 @@ const readCall = (root: ProgramRoot, chunk: ProgramChunk, call: number): Display
       at += 2;
     } else if (op === Op.BeginString) {
       at += 2;
-      while (at < call && opOf(word(chunk, at)) !== Op.EndString) {
+      let depth = 1;
+      let expressionStart = true;
+      while (at < call && depth > 0) {
         const inner = opOf(word(chunk, at));
         const value = word(chunk, at + 1);
-        if (inner === Op.Text) {
-          if (key === "text") read.text.push(strings[value] ?? "");
+        if (inner === Op.EndString) {
+          depth -= 1;
+          expressionStart = false;
           at += 2;
-        } else if (inner === Op.Str && opOf(word(chunk, at + 2)) === Op.Out) {
+        } else if (inner === Op.BeginString) {
+          depth += 1;
+          read.dynamic = true;
+          at += 2;
+        } else if (depth === 1 && inner === Op.Text) {
+          if (key === "text") read.text.push(strings[value] ?? "");
+          expressionStart = true;
+          at += 2;
+        } else if (depth === 1 && expressionStart && inner === Op.Str && opOf(word(chunk, at + 2)) === Op.Out) {
           if (key === "text") read.text.push(strings[value] ?? "");
           at += 4;
         } else {
-          if (key === "text" || key === "character") read.dynamic = true;
+          read.dynamic = true;
           if (key === "load") read.load = true;
+          expressionStart = depth === 1 && inner === Op.Out;
           at += 2;
         }
       }
-      at += 2;
     } else {
       read.dynamic = true;
       if (key === "load") read.load = true;
