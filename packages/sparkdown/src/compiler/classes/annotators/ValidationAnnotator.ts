@@ -52,13 +52,14 @@ import {
   DIRECTIVE_NODE_BRACKETS,
   directiveClauseWords,
   directiveValueKind,
-  readSourceDirectiveTexts,
+  readSourceDirective,
   type SourceDirective,
 } from "../../utils/readDirective";
-import { distinctRanges } from "../../utils/distinctRanges";
 
-const FILLED_DIRECTIVE_VALUE_MESSAGE =
-  "The game fills in this value before it reads the directive it sits in, because the directive runs past the choice's brackets, so the editor cannot check that directive's names and clauses. Close the directive before the brackets, or move the value out of it.";
+const UNCLOSED_DIRECTIVE_CLOSERS: Readonly<Record<string, string>> = { "[[": "]]", "((": "))" };
+
+const unclosedDirectiveMessage = (opener: string, closer: string) =>
+  `This \`${opener}\` opens no directive, because no \`${closer}\` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.`;
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -1086,6 +1087,17 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
   }
 
+  private unclosedDirectiveIssue(annotations: Range<SparkdownAnnotation<Diagnostic>>[], from: number, to: number): void {
+    const opener = this.read(from, to);
+    if (!Object.hasOwn(UNCLOSED_DIRECTIVE_CLOSERS, opener)) return;
+    annotations.push(
+      SparkdownAnnotation.mark<Diagnostic>({
+        message: unclosedDirectiveMessage(opener, UNCLOSED_DIRECTIVE_CLOSERS[opener]!),
+        severity: "warning",
+      }).range(from, to),
+    );
+  }
+
   override enter(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
@@ -1466,19 +1478,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
       }
     }
+    if (nodeRef.name === "LiteralDirectiveOpener") this.unclosedDirectiveIssue(annotations, nodeRef.from, nodeRef.to);
     if (Object.hasOwn(DIRECTIVE_NODE_BRACKETS, nodeRef.name)) {
-      const { directives, filledValues } = readSourceDirectiveTexts(nodeRef, (from, to) => this.read(from, to));
-      const issues: Range<SparkdownAnnotation<Diagnostic>>[] = [];
-      for (const directive of directives) this.directiveIssues(issues, directive);
-      annotations.push(...distinctRanges(issues));
-      for (const value of filledValues) {
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({
-            message: FILLED_DIRECTIVE_VALUE_MESSAGE,
-            severity: "warning",
-          }).range(value.from, value.to),
-        );
-      }
+      const directive = readSourceDirective(nodeRef, (from, to) => this.read(from, to));
+      if (directive) this.directiveIssues(annotations, directive);
     }
     if (nodeRef.name === "EventAttributeName") {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
@@ -1665,8 +1668,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "IllegalChar") {
       const context = getContextNames(nodeRef.node);
       const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
-      const directives = command ? readSourceDirectiveTexts(command, (from, to) => this.read(from, to)).directives : [];
-      if (directives.some((directive) => directiveClauseWords(directive).some((word) => word.from <= nodeRef.from && nodeRef.to <= word.to))) {
+      const directive = command ? readSourceDirective(command, (from, to) => this.read(from, to)) : undefined;
+      if (directive && directiveClauseWords(directive).some((word) => word.from <= nodeRef.from && nodeRef.to <= word.to)) {
         return annotations;
       }
       if (context.includes("ImageCommand")) {

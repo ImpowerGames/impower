@@ -131,15 +131,17 @@ const warmed = (misspelled: string) => {
   return { compiler, text };
 };
 
+const missing = (name: string) => ({ missingAsset: { name, type: "image" } });
+
 describe("close match after an edit", () => {
   test("follows names a define in another chunk adds and removes, as a cold compile does", () => {
     let { compiler, text } = warmed("alcie");
-    const match = { closeMatch: { name: "alcie", match: "alice" }, expect: "alcie" };
+    const match = { closeMatch: { name: "alcie", match: "alice" }, expect: "alcie", ...missing("alcie") };
     const steps: [string, string, unknown][] = [
       ["define pace", define("alice") + "define pace", match],
-      ["define pace", define("alcid") + "define pace", undefined],
+      ["define pace", define("alcid") + "define pace", missing("alcie")],
       [define("alcid"), "", match],
-      [define("alice"), "", undefined],
+      [define("alice"), "", missing("alcie")],
     ];
     for (const [index, [find, replace, data]] of steps.entries()) {
       text = edit(compiler, text, find, replace, index + 3);
@@ -152,7 +154,7 @@ describe("close match after an edit", () => {
 
   test("re-checks a kept chunk when a directive in another chunk adds or removes a close name", () => {
     let { compiler, text } = warmed("miawink");
-    expect(misspelling(compiler, "miawink")?.data).toBeUndefined();
+    expect(misspelling(compiler, "miawink")?.data).toEqual(missing("miawink"));
 
     text = edit(compiler, text, scene(4, "mia"), scene(4, "mia", "wink"), 3);
     const added = misspelling(compiler, "miawink");
@@ -160,12 +162,13 @@ describe("close match after an edit", () => {
     expect(added?.data).toEqual({
       closeMatch: { name: "miawink", match: "mia~wink" },
       expect: "miawink",
+      ...missing("miawink"),
     });
     expect(added?.data).toEqual(misspelling(compilerFor(text), "miawink")?.data);
 
     text = edit(compiler, text, scene(4, "mia", "wink"), scene(4, "mia"), 4);
     const removed = misspelling(compiler, "miawink");
     expect(compiler.referenceValidationStats.chunksServed).toBeGreaterThan(0);
-    expect(removed?.data).toBeUndefined();
+    expect(removed?.data).toEqual(missing("miawink"));
   });
 });

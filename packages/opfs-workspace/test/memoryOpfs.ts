@@ -6,9 +6,28 @@ export class MemoryFile {
   lastModified = 1;
   history: Uint8Array[] = [];
   gate?: Promise<void>;
+  parent?: MemoryDirectory;
   constructor(public name: string) {}
   async isSameEntry(other: unknown) {
     return other === this;
+  }
+  async move(directory: MemoryDirectory, name: string) {
+    if (this.parent?.entries.get(this.name) !== this) {
+      throw fail("NotFoundError", `${this.name} not found`);
+    }
+    if (directory.entries.has(name)) {
+      throw fail("InvalidModificationError", `${name} already exists`);
+    }
+    await directory.getFileHandle(name, { create: true });
+    try {
+      await this.parent.removeEntry(this.name);
+    } catch (err) {
+      directory.entries.delete(name);
+      throw err;
+    }
+    this.name = name;
+    directory.entries.set(name, this);
+    this.parent = directory;
   }
   async getFile() {
     const bytes = this.bytes.slice();
@@ -67,10 +86,14 @@ export class MemoryDirectory {
   }
   async getFileHandle(name: string, options: { create?: boolean } = {}) {
     const entry = this.entries.get(name);
-    if (entry instanceof MemoryFile) return entry;
+    if (entry instanceof MemoryFile) {
+      entry.parent = this;
+      return entry;
+    }
     if (entry) throw fail("TypeMismatchError", `${name} is a directory`);
     if (!options.create) throw fail("NotFoundError", `${name} not found`);
     const created = new MemoryFile(name);
+    created.parent = this;
     this.entries.set(name, created);
     return created;
   }
@@ -92,6 +115,16 @@ export class MemoryDirectory {
 }
 
 export const memoryRoot = () => new MemoryDirectory("");
+
+export const copyingRenames = (directory: MemoryDirectory) => {
+  for (const entry of directory.entries.values()) {
+    if (entry instanceof MemoryDirectory) {
+      copyingRenames(entry);
+    } else {
+      Object.assign(entry, { move: undefined });
+    }
+  }
+};
 
 export const writeMemoryFile = (
   root: MemoryDirectory,

@@ -1,3 +1,4 @@
+import { FILE_TYPE_FOLDERS } from "@impower/spark-editor-protocol/src/utils/assetFolders";
 import { signal } from "@preact/signals";
 import { patternEndings } from "../workspace/settings/fileEndings";
 
@@ -22,11 +23,11 @@ export interface AssetTypeSpec {
 }
 
 export const ASSET_TYPES: readonly AssetTypeSpec[] = [
-  { type: "image", title: "Images", folder: "Images", unit: "image" },
-  { type: "audio", title: "Audio", folder: "Audio", unit: "sound" },
-  { type: "video", title: "Video", folder: "Video", unit: "video" },
+  { type: "image", title: "Images", folder: FILE_TYPE_FOLDERS.image, unit: "image" },
+  { type: "audio", title: "Audio", folder: FILE_TYPE_FOLDERS.audio, unit: "sound" },
+  { type: "video", title: "Video", folder: FILE_TYPE_FOLDERS.video, unit: "video" },
   { type: "text", title: "Text", folder: "Text", unit: "note" },
-  { type: "font", title: "Fonts", folder: "Fonts", unit: "font" },
+  { type: "font", title: "Fonts", folder: FILE_TYPE_FOLDERS.font, unit: "font" },
   { type: "other", title: "Other", folder: "Other", unit: "file" },
 ];
 

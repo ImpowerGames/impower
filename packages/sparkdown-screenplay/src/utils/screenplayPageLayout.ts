@@ -159,9 +159,20 @@ export const screenplayPageLayout = (
   const places: PrintedPlaces = { runs: [], inserts: [], rows: [], unplaced: [] };
   const scenes: PrintedScene[] = [];
   let lastSource: number[] | undefined;
+  let printedEnd = -1;
   const addPrinted = (lines: PageLine[] | undefined) => {
     for (const line of lines ?? []) {
-      if (line.source || line.row) placePrintedLine(line, script, places);
+      if (line.source || line.row) {
+        const runs = places.runs.length;
+        const inserts = places.inserts.length;
+        const rows = places.rows.length;
+        placePrintedLine(line, script, places);
+        let placed = -1;
+        for (let index = runs; index < places.runs.length; index++) placed = Math.max(placed, places.runs[index]!.to);
+        for (let index = inserts; index < places.inserts.length; index++) placed = Math.max(placed, places.inserts[index]!.at);
+        for (let index = rows; index < places.rows.length; index++) placed = Math.max(placed, places.rows[index]!.at);
+        if (placed >= 0) printedEnd = placed;
+      }
       const sceneAt = line.scene !== undefined ? firstPlaced(line) : undefined;
       if (sceneAt !== undefined) scenes.push({ at: sceneAt, scene: line.scene!, bold: !!line.sceneBold });
       if (line.source && line.source === lastSource) {
@@ -179,7 +190,12 @@ export const screenplayPageLayout = (
     if (span.tag === "meta") {
       for (const lines of Object.values(span.positions)) addPrinted(lines);
     } else if (span.tag === "separator") {
-      if (span.from !== undefined) blankLines.push(span.from);
+      if (span.from === undefined) continue;
+      if (printedEnd > script.lastIndexOf("\n", span.from - 1) && printedEnd <= span.from) {
+        places.rows.push({ at: printedEnd, side: "below", pieces: [] });
+      } else {
+        blankLines.push(span.from);
+      }
     } else if (span.tag === "dual") {
       addPrinted(span.positions.l);
       addPrinted(span.positions.r);

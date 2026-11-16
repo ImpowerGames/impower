@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { pairCells, pairInOrder } from "../../program/ChunkStore";
 import {
@@ -414,7 +415,7 @@ describe("a name two definitions share (#1934)", () => {
     expect(incremental.diagnostics).toEqual(cold.diagnostics);
   };
   const expectSameDuplicate = ({ incremental, cold }: ReturnType<typeof editOnce>) => {
-    expect(cold.diagnostics).toHaveLength(1);
+    expect(cold.diagnostics.filter((d) => !d.startsWith(`${DiagnosticSeverity.Hint} `))).toHaveLength(1);
     expect(incremental.diagnostics).toEqual(cold.diagnostics);
   };
 

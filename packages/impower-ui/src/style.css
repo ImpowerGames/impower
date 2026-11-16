@@ -325,7 +325,8 @@
 }
 
 @utility pr-gutter-* {
-  padding-right: max(0px, calc(var(--spacing) * --value(integer) - var(--scrollbar-size, 0px)));
+  padding-right: max(0px, calc(var(--spacing) * --value(number) - var(--scrollbar-size, 0px)));
+  padding-right: max(0px, calc(--value([length]) - var(--scrollbar-size, 0px)));
 }
 
 @utility fade-edge {
@@ -340,6 +341,13 @@
     animation: s-fade-edge linear both;
     animation-timeline: scroll(self inline);
   }
+}
+
+@utility fade-edge-always {
+  overflow: clip;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
 }
 
 @keyframes s-fade-edge {

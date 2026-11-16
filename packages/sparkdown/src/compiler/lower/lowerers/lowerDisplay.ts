@@ -501,6 +501,7 @@ function collectBodySegments(
     bodyEnd,
     ctx,
     isBodyInjection,
+    true,
   );
   const codes = spans.codes.map((code) => {
     const chain = code.closes

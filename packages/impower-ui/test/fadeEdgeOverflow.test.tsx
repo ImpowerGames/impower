@@ -34,3 +34,15 @@ describe("fade-edge", () => {
     expect(frames).toContain(mask);
   });
 });
+
+describe("fade-edge-always", () => {
+  it("masks its last --fade of width whether or not its text overflows", async () => {
+    const compiler = await compile(readFileSync(join(SRC, "style.css"), "utf8"), { base: SRC, onDependency: () => {} });
+    const css = optimize(compiler.build(["fade-edge-always"]), { minify: true }).code;
+    const rule = block(css, ".fade-edge-always{");
+    const mask = rule.split(";").find((declaration) => declaration.startsWith("mask-image:"))!;
+    expect(mask).toContain("linear-gradient");
+    expect(mask).toContain("var(--fade)");
+    expect(css).not.toContain("animation-timeline");
+  });
+});

@@ -14,6 +14,7 @@ import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkPr
 import { isLuauFile } from "@impower/sparkdown/src/compiler/typecheck/LuauUnitNodes";
 import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSource";
 import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
+import { projectRootUri } from "@impower/sparkdown/src/compiler/utils/projectMembership";
 import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
 import {
   hasLuauExtension,
@@ -666,6 +667,13 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       : undefined;
   }
 
+  projectRootOf(
+    uri: string,
+    program: SparkProgram | undefined = this.program(uri),
+  ) {
+    return projectRootUri(program?.uri ?? uri);
+  }
+
   protected withDiagnosticActions<
     T extends ReturnType<SparkdownWorkspace["getDiagnostics"]>[number],
   >(diagnostics: T[], uri: string, program: SparkProgram): T[] {
@@ -674,11 +682,13 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       return diagnostics;
     }
     const startSceneMissingIn = this.startSceneMissingIn(uri, program);
+    const projectRoot = this.projectRootOf(uri, program);
     return diagnostics.map((diagnostic) => {
       const actions = getDiagnosticActions(
         document,
         diagnostic,
         startSceneMissingIn,
+        projectRoot,
       );
       if (actions.length > 0) {
         return { ...diagnostic, data: actions };
@@ -690,7 +700,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
 
   protected todoNotesFor(uri: string) {
     const document = this.document(uri);
-    if (!document || isLuauFile(uri)) return [];
+    if (!document || isLuauFile(uri) || !/todo/i.test(document.getText())) return [];
     return getTodoNotes(document, this.tree(uri));
   }
 
@@ -735,11 +745,15 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     const morphUris = this.morphRefs(params.program)
       .filter(({ ref, uri }) => uri && this.morphDiagnostics.get(ref.key)?.length)
       .map(({ uri }) => uri!);
+    const noteUris = Object.keys(params.program.scripts ?? {}).filter(
+      (uri) => this.isScriptDocument(uri) && this.todoNotesFor(uri).length > 0,
+    );
     const uris = new Set([
       ...this._documentVersions.keys(),
       ...Object.keys(params.program.diagnostics ?? {}),
       ...this._lastPublishedDiagnostics.keys(),
       ...morphUris,
+      ...noteUris,
     ]);
     for (const uri of uris) {
       const last = this._lastPublishedDiagnostics.get(uri);

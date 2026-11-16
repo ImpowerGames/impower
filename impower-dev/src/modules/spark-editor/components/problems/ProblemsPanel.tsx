@@ -17,6 +17,7 @@ import {
   VirtualList,
   WarningIcon,
 } from "@impower/impower-ui/components";
+import { isCommandAction } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
 import { useComputed } from "@preact/signals";
 import { useEffect, useMemo } from "preact/hooks";
 import {
@@ -116,7 +117,7 @@ const playedTime = (time: number) => ({
 
 function chooseFix(problem: Problem, action: DiagnosticFixAction) {
   const panel = document.getElementById(PROBLEMS_PANEL_ID);
-  if (panel) {
+  if (panel && !isCommandAction(action)) {
     keepFocusAfterFix(panel, problem, () =>
       panel.querySelector<HTMLElement>(SCRIPT_CARD_HEAD),
     );
@@ -359,7 +360,7 @@ export default function ProblemsPanel() {
       <VirtualList
         size="compact"
         label={PANEL_LABEL}
-        class="min-h-0 flex-1 px-2.5"
+        class="min-h-0 flex-1 pr-gutter-2.5 pl-2.5"
         items={rows}
         getKey={panelItemKey}
         itemHeight={panelItemHeight}

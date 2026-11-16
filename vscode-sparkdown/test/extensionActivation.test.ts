@@ -72,6 +72,9 @@ vi.mock("../src/utils/activateVirtualDeclarations", () => ({
   activateVirtualDeclarations: () =>
     state.activated.push("activateVirtualDeclarations"),
 }));
+vi.mock("../src/utils/activateAddAsset", () => ({
+  activateAddAsset: () => state.activated.push("activateAddAsset"),
+}));
 vi.mock("../src/utils/activatePortraitNormalization", () => ({
   activatePortraitNormalization: () =>
     state.activated.push("activatePortraitNormalization"),

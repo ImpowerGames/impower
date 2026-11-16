@@ -6,13 +6,39 @@ import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 
-export interface DiagnosticFixAction {
+export interface DiagnosticEditAction {
   name: string;
   done: string;
   expect?: string;
   kind?: "name" | "note";
   changes: { from: number; to: number; insert: string }[];
 }
+
+export interface DiagnosticCommand {
+  command: string;
+  arguments?: unknown[];
+}
+
+export interface DiagnosticCommandAction {
+  name: string;
+  command: DiagnosticCommand;
+}
+
+export type DiagnosticFixAction = DiagnosticEditAction | DiagnosticCommandAction;
+
+export const isCommandAction = (
+  action: DiagnosticFixAction,
+): action is DiagnosticCommandAction => "command" in action;
+
+const isEditAction = (action: Partial<DiagnosticEditAction> | null) =>
+  typeof action?.done === "string" &&
+  Array.isArray(action.changes) &&
+  action.changes.length > 0;
+
+const isCommand = (action: Partial<DiagnosticCommandAction> | null) =>
+  typeof action?.command?.command === "string" &&
+  (action.command.arguments === undefined ||
+    Array.isArray(action.command.arguments));
 
 export interface DiagnosticFix {
   uri: string;
@@ -35,11 +61,14 @@ export const fixActionsOf = (data: unknown): DiagnosticFixAction[] =>
     ? data.filter(
         (action): action is DiagnosticFixAction =>
           typeof action?.name === "string" &&
-          typeof action?.done === "string" &&
-          Array.isArray(action?.changes) &&
-          action.changes.length > 0,
+          (isEditAction(action) || isCommand(action)),
       )
     : [];
+
+export const editActionsOf = (data: unknown): DiagnosticEditAction[] =>
+  fixActionsOf(data).filter(
+    (action): action is DiagnosticEditAction => !isCommandAction(action),
+  );
 
 export function convertFromDiagnosticDataToActions(
   plugin: LSPPlugin,

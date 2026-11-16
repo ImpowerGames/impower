@@ -1,5 +1,10 @@
 import type { EditorFix } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
-import type { ChoseEditorFixParams } from "@impower/spark-editor-protocol/src/protocols/editor/ChoseEditorFixMessage";
+import type {
+  ChoseEditorCommandFixParams,
+  ChoseEditorEditFixParams,
+  ChoseEditorFixParams,
+  EditorFixCommand,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ChoseEditorFixMessage";
 import { showSnackbar } from "../../utils/snackbar";
 import { applyEditorFix, type EditorFixResult } from "../applyEditorEdit";
 
@@ -9,14 +14,27 @@ export const FIX_UNDO_LABEL = "Undo";
 
 export type FixChoice = ChoseEditorFixParams;
 
+export type EditFixChoice = ChoseEditorEditFixParams;
+
+export const isCommandChoice = (
+  choice: FixChoice,
+): choice is ChoseEditorCommandFixParams => "command" in choice;
+
 export const fixKey = (fix: Pick<EditorFix, "uri" | "changes">) =>
   [fix.uri, JSON.stringify(fix.changes)].join("|");
+
+export const commandKey = (command: EditorFixCommand) =>
+  ["command", JSON.stringify(command)].join("|");
+
+export const choiceKey = (choice: FixChoice) =>
+  isCommandChoice(choice) ? commandKey(choice.command) : fixKey(choice.fix);
 
 export interface FixDeps {
   openForFix: (fix: EditorFix) => Promise<EditorFix | null>;
   openScript: (fix: EditorFix) => Promise<boolean>;
   refreshDiagnostics: (uri: string) => Promise<void>;
   recordScriptChange: () => Promise<void>;
+  runCommand: (command: EditorFixCommand) => Promise<boolean>;
 }
 
 const refuse = (deps: FixDeps, uri: string) => {
@@ -26,7 +44,7 @@ const refuse = (deps: FixDeps, uri: string) => {
 
 const applyInEditor = async (
   deps: FixDeps,
-  choice: FixChoice,
+  choice: EditFixChoice,
 ): Promise<EditorFixResult | null> => {
   const first = await applyEditorFix(choice.fix, choice.name);
   if (first.outcome !== "unclaimed") {
@@ -42,7 +60,7 @@ const applyInEditor = async (
 
 const undoInEditor = async (
   deps: FixDeps,
-  choice: FixChoice,
+  choice: EditFixChoice,
   result: EditorFixResult,
 ) => {
   const first = await result.undo();
@@ -53,6 +71,9 @@ const undoInEditor = async (
 };
 
 export async function applyFix(deps: FixDeps, choice: FixChoice) {
+  if (isCommandChoice(choice)) {
+    return deps.runCommand(choice.command);
+  }
   const { uri } = choice.fix;
   const result = await applyInEditor(deps, choice);
   if (!result) {

@@ -7,6 +7,7 @@ import {
   MessageEntry,
   VirtualList,
 } from "@impower/impower-ui/components";
+import { isCommandAction } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
 import { useComputed } from "@preact/signals";
 import { useMemo, useRef } from "preact/hooks";
 import {
@@ -60,7 +61,7 @@ function StoryCards() {
     <VirtualList
       size="compact"
       label={STORY_CARDS_LABEL}
-      class="h-[40vh] flex-none"
+      class="mr-[calc(-1*min(var(--scrollbar-size,0px),var(--spacing)*5-var(--scrollbar-size,0px)))] h-[40vh] flex-none"
       items={rows}
       getKey={panelItemKey}
       itemHeight={panelItemHeight}
@@ -97,7 +98,7 @@ export default function ProblemsDialog() {
 
   const chooseFix = (problem: Problem, action: DiagnosticFixAction) => {
     const root = list.current;
-    if (root) {
+    if (root && !isCommandAction(action)) {
       keepFocusAfterFix(
         root,
         problem,
@@ -148,8 +149,8 @@ export default function ProblemsDialog() {
         ref={list}
         class={
           state?.scope.kind === "story"
-            ? "-mx-2 max-h-[20vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]"
-            : "-mx-2 max-h-[60vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]"
+            ? "-ml-2 mr-[calc(-1*min(0.5rem+var(--scrollbar-size,0px),var(--spacing)*5-var(--scrollbar-size,0px)))] max-h-[20vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]"
+            : "-ml-2 mr-[calc(-1*min(0.5rem+var(--scrollbar-size,0px),var(--spacing)*5-var(--scrollbar-size,0px)))] max-h-[60vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]"
         }
       >
         {groups.map((group) => (

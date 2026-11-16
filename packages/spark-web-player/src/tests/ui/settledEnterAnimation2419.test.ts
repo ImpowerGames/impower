@@ -131,9 +131,21 @@ describe("a layout's enter animation once a played preview beat settles (#2419)"
     expect(page.box.style.opacity).toBe("0");
   });
 
-  test("leaves PLAY's finished enter animation in place", async () => {
+});
+
+describe("a layout's enter animation once PLAY's beat settles (#2420)", () => {
+  test("leaves no finished animation on a layout it brought to the state the still mounts it in", async () => {
     const page = makePage(false);
     await page.animate([{ opacity: 1 }]);
+    expect(played).toHaveLength(1);
+    expect(played[0]!.playState).toBe("idle");
+    expect(page.box.style.opacity).toBe("");
+  });
+
+  test("keeps an animation whose end differs from the layout's own style", async () => {
+    const page = makePage(false);
+    await page.animate([{ opacity: 0 }]);
     expect(played[0]!.playState).toBe("finished");
+    expect(page.box.style.opacity).toBe("0");
   });
 });
