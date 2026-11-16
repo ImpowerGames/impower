@@ -181,7 +181,7 @@ describe("ListRow", () => {
     expect(badge!.getAttribute("aria-label")).toBe("2 errors in the_rumour");
     expect(badge!.getAttribute("title")).toBe("2 errors in the_rumour");
     expect(badge!.contains(row!)).toBe(false);
-    expect(badge!.className.split(" ")).toEqual(expect.arrayContaining(["absolute", "w-[26px]", "[:root[data-pointer=coarse]_&]:w-11"]));
+    expect(badge!.className.split(" ")).toEqual(expect.arrayContaining(["absolute", "w-(--list-row-gutter)", "[:root[data-pointer=coarse]_&]:w-11"]));
     expect(row!.querySelector("[data-glyph]")).not.toBeNull();
     expect(row!.className).toContain("pl-1.5");
     expect(row!.parentElement!.style.getPropertyValue("--list-row-depth")).toBe("2");
