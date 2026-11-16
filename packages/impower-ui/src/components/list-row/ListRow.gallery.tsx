@@ -82,8 +82,8 @@ function ListRowDemo() {
           <ListRow size="rail" indent="row" tone="muted" highlight="accent" depth={2} icon={<FileIcon />} label="snacks" onClick={() => {}} />
         </div>
       </GalleryRow>
-      <GalleryRow label="A gutter badge left of the rows (the Outline rail's problem badge): one 26px column whatever the depth with a 14px mark, 44px wide under a coarse pointer; an error, a warning and a note beside a row without one, every glyph and label in its place">
-        <div class="w-[231px] pr-3.5 pl-[26px] [:root[data-pointer=coarse]_&]:pl-11">
+      <GalleryRow label="A gutter badge left of the rows (the Outline rail's problem badge): one column whatever the depth, 26px or 22px in the compact layout, with a 14px mark, 44px wide under a coarse pointer; an error, a warning and a note beside a row without one, every glyph and label in its place">
+        <div class="w-[231px] pr-3.5 pl-(--list-row-gutter) [:root[data-pointer=coarse]_&]:pl-11">
           {(["error", "warning", "note"] as const).map((severity, depth) => (
             <ListRow
               key={severity}

@@ -616,10 +616,12 @@
   --toast-gap: 8px;
   --toast-top: calc(var(--title-bar-height) + var(--script-header-height) + var(--toast-gap));
   --sheet-gesture-clearance: 8px;
+  --list-row-gutter: 26px;
 }
 
 :root[data-layout="compact"] {
   --title-bar-height: 54px;
+  --list-row-gutter: 22px;
   --script-header-height: 48px;
   --toast-top: calc(var(--title-bar-height) + var(--preview-top-bar-height) + var(--toast-gap));
 }

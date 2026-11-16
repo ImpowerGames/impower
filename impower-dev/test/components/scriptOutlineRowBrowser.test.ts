@@ -214,4 +214,21 @@ describe("the In this script tab's outline rows, in Chromium", () => {
       }
     }, 60_000);
   }
+
+  const MUTED = { charcoal: "rgb(185, 185, 189)", chalk: "rgb(98, 99, 106)" } as const;
+  for (const viewport of VIEWPORTS) {
+    for (const theme of ["charcoal", "chalk"] as const) {
+      it(`draw every row but the current one in the muted colour, label and glyph, at ${viewport.width} in ${theme}`, async () => {
+        const m = await measure(viewport, theme);
+        const byId = Object.fromEntries(m.map((r) => [r.id, r]));
+        for (const id of ["harbor", "Where-now", "storm", "long", "calm"]) {
+          expect(byId[id]!.labelColor, id).toBe(MUTED[theme]);
+          expect(byId[id]!.glyphColor, id).toBe(MUTED[theme]);
+        }
+        for (const id of ["quiet", "dock"]) {
+          expect(byId[id]!.labelColor, id).toBe(byId[id]!.accent);
+        }
+      }, 60_000);
+    }
+  }
 });
