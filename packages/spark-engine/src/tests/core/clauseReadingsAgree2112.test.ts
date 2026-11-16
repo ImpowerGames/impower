@@ -111,9 +111,6 @@ const DELIMITER_ROWS: Row[] = [
   ["single-quoted name", "image", `'mia'`],
   ["quoted sound name", "audio", `play music "theme"`],
   ["quoted sound name before a flag", "audio", `play music "theme" loop`],
-  ["long-string interpolation in an audio name", "audio", "a {[[a]]} b"],
-  ["levelled long-string interpolation in an audio name", "audio", "a {[=[a]=]} b"],
-  ["long comment interpolation in an audio name", "audio", "a {1 --[[c]] + 1} b"],
 ];
 
 const OPENING_ROWS: Row[] = [
@@ -392,6 +389,9 @@ const CHOICE_DIRECTIVES: readonly (readonly [label: string, text: string])[] = [
 
 const UNREAD_CHOICE_DIRECTIVES = [
   "choice brackets",
+  "a long-string bracket",
+  "a levelled long-string bracket",
+  "a long comment bracket",
   "a comment after the choice brackets",
   "clauses after the choice brackets",
   "a directive closed inside the choice brackets",

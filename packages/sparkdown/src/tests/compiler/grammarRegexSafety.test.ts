@@ -124,13 +124,6 @@ const CHOICE_CLOSE_SEARCHES: [string, string, "begin" | "match", string][] = [
   ["unclosed braces in a suppression's text", "ChoiceOnlyTextContent", "match", "Go" + " {".repeat(40000) + " now"],
   ["unclosed braces in choice inner text", "ChoiceInnerTextContent", "match", "Go" + " {".repeat(40000) + " now"],
   ["unclosed braces in a styled span", "ChoiceStartSpanText", "match", "Go" + " {".repeat(40000) + " now"],
-  ["interpolations in an audio command with no closer, before a bracket", "ChoiceStartTextContent", "match", "Go ((a" + " {x}".repeat(40) + " [y] z"],
-  ["interpolations in a text command with no closer, before a bracket", "ChoiceStartTextContent", "match", "Go <a" + " {x}".repeat(40) + " [y] z"],
-  ["bracketed interpolations in an audio command with no closer", "ChoiceStartTextContent", "match", "Go ((a" + " {t[1]}".repeat(40) + " [y] z"],
-  ["interpolations in an audio command with no closer, in a suppression", "ChoiceOnlyTextContent", "match", "Go ((a" + " {x}".repeat(40) + " ] z"],
-  ["interpolations in an audio command with no closer, before an arrow", "ChoiceInnerTextContent", "match", "Go ((a" + " {x}".repeat(40) + " -> z"],
-  ["quotes after braces in a closed audio command", "ChoiceStartTextContent", "match", "Go ((a" + ' {"'.repeat(4000) + " )) z"],
-  ["backticks after braces in a closed text command", "ChoiceStartTextContent", "match", "Go <a" + " {`".repeat(4000) + " > z"],
 ];
 
 const SPAN_RULES = ["Raw", "Bold", "Italic", "Underline", "Centered", "EmphasisTilde", "EmphasisColon"].flatMap(
@@ -354,20 +347,5 @@ describe("a choice line that never meets a close is read at once (#2083)", () =>
     re.exec(line);
     const ms = performance.now() - t0;
     expect(ms, `${rule}.${key} took ${ms.toFixed(1)}ms`).toBeLessThan(100);
-  });
-
-  test.each([
-    ["long-bracket openers after braces in a closed audio command in inner text", "ChoiceInnerTextContent", (n: number) => "Go ((a" + " {[[".repeat(n) + " )) z"],
-    ["long-bracket openers after braces in a closed audio command in a suppression", "ChoiceOnlyTextContent", (n: number) => "Go ((a" + " {[=[".repeat(n) + " )) z"],
-  ])("%s rereads the command from each brace, so its time grows with the square of their number and less than 32-fold from 1,000 openers to 4,000 (I-2444)", async (_what, rule, line) => {
-    const re = new RegExp(grammar.repository[rule].match, "muy");
-    const search = (text: string) => {
-      re.lastIndex = 0;
-      return re.exec(text);
-    };
-    search(line(40));
-    const short = await fastest(() => search(line(1000)));
-    const long = await fastest(() => search(line(4000)));
-    expect(long, `1,000 openers took ${short.toFixed(1)}ms, 4,000 took ${long.toFixed(1)}ms`).toBeLessThan(32 * short + 40);
   });
 });

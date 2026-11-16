@@ -28,8 +28,8 @@ const missingAudio = (text: string) =>
 
 describe("a directive in a choice line is read over the text the story hands the interpreter (I-2225)", () => {
   test.each([
-    ["    + Go ((a {[[a]]} b)) now", ["a", "b"]],
-    ["    + Go *far ((a {[=[a]=]} b)) away* now", ["a", "b"]],
+    ["    + Go ((a {[[a]]} b)) now", []],
+    ["    + Go *far ((a {[=[a]=]} b)) away* now", []],
     ["    + Go ((a {t[1]} b)) now -> next", ["a", "b"]],
     ["    + Go ((a [x] /* c */ b)) now", []],
     ["    + Go ((a [b)) c] d", []],
