@@ -6,6 +6,7 @@ const program = {
     image: {
       forest: { $type: "image", $name: "forest" },
       "bunny-idle_2": { $type: "image", $name: "bunny-idle_2" },
+      "raffles@night": { $type: "image", $name: "raffles@night" },
     },
     audio: { theme: { $type: "audio", $name: "theme" } },
   },
@@ -48,8 +49,14 @@ describe("an opener with no closer yet still offers directive completion (I-2423
     expect(labels(source)).not.toContain("play");
   });
 
-  it("a name typed with an at sign offers what a closed pair offers there", () => {
-    expect(labels(display("  Hello [[raffles@|"))).toEqual(labels(display("  Hello [[raffles@|]]")));
+  it.each([
+    ["a trailing at sign", "raffles@"],
+    ["a completed at part", "raffles@night"],
+    ["a partly typed at part", "raffles@ni"],
+  ])("a name with %s offers what a closed pair offers there", (_label, name) => {
+    const unclosed = labels(display(`  Hello [[${name}|`));
+    expect(unclosed).toContain("raffles@night");
+    expect(unclosed).toEqual(labels(display(`  Hello [[${name}|]]`)));
   });
 
   it("a closed pair still offers its completions", () => {
