@@ -106,6 +106,9 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       import(
         "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage"
       ),
+      import(
+        "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage"
+      ),
     ]).then(
       async ([
         { onProtocolMessage },
@@ -113,6 +116,7 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
         { DidOpenTextDocumentMessage },
         { DidWriteFilesMessage },
         { DidDeleteFilesMessage },
+        { DidRenameFilesMessage },
       ]) => {
         if (cancelled) return;
         const { Workspace } = await import("../../workspace/Workspace");
@@ -138,6 +142,9 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
             if (m.params.files.find((f) => f.uri === editor?.uri)) {
               loadFile();
             }
+          }),
+          onProtocolMessage(DidRenameFilesMessage.type, () => {
+            void refreshScenesBefore();
           }),
           onProtocolMessage(ConnectedPreviewMessage.type, () => {
             lastUri.current = undefined;

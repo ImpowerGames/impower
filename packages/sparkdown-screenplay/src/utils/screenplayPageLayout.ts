@@ -9,7 +9,9 @@ import type { ScreenplayConfig } from "../types/ScreenplayConfig";
 import type { ScreenplayTokenType } from "../types/ScreenplayTokenType";
 import { isHiddenIdentifier } from "./isHiddenIdentifier";
 import { splitEmojiRuns } from "./emojiRuns";
-import { cellWidth, emojiWidth, hangingGroup, lineMaxWidth, printProfileOf } from "./printGeometry";
+import { PAGE_POSITIONS } from "../constants/PAGE_POSITIONS";
+import type { MetadataTokenType } from "../types/ScreenplayTokenType";
+import { cellWidth, emojiWidth, hangingGroup, lineMaxWidth, printProfileOf, titleRegionWidth } from "./printGeometry";
 import { insertAnchor, UNPLACED } from "./printedPosition";
 import { getCharChunks, wrapParagraph } from "./wrapRows";
 
@@ -133,11 +135,11 @@ const SINGLE_CELL_TEXT = /^[ -~]*$/;
 
 const cellsOf = (text: string) => (SINGLE_CELL_TEXT.test(text) ? text.length : getCharChunks(text).length);
 
-export const printedRowOffsets = (line: PageLine, profile: PrintProfile): number[] => {
+export const printedRowOffsets = (line: PageLine, profile: PrintProfile, regionWidth?: number): number[] => {
   const cell = cellWidth(profile);
   const emoji = emojiWidth(profile);
   const measure = (piece: { text: string; isEmoji: boolean }) => cellsOf(piece.text) * (piece.isEmoji ? emoji : cell);
-  const width = lineMaxWidth(profile, line);
+  const width = regionWidth ?? lineMaxWidth(profile, line);
   const offsets: number[] = [];
   let groupStart = 0;
   let group: FormattedText[] = [];
@@ -238,9 +240,10 @@ export const screenplayPageLayout = (
   const names: PrintedName[] = [];
   let lastSource: number[] | undefined;
   let printedEnd = -1;
-  const addPrinted = (lines: PageLine[] | undefined, wrap = true) => {
+  const addPrinted = (lines: PageLine[] | undefined, titlePage = false) => {
     for (const line of lines ?? []) {
-      const offsets = wrap && line.source ? printedRowOffsets(line, profile) : [];
+      const regionWidth = titlePage ? titleRegionWidth(profile, PAGE_POSITIONS[line.tag as MetadataTokenType]) : undefined;
+      const offsets = line.source && (!titlePage || regionWidth !== undefined) ? printedRowOffsets(line, profile, regionWidth) : [];
       const positions = offsets.length ? positionsOf(line.content) : [];
       const text = offsets.length ? line.content.map((piece) => piece.text).join("") : "";
       for (const offset of offsets) {
@@ -279,7 +282,7 @@ export const screenplayPageLayout = (
   const followsPrintedOnLine = (from: number) => printedEnd > script.lastIndexOf("\n", from - 1) && printedEnd <= from;
   for (const span of spans) {
     if (span.tag === "meta") {
-      for (const lines of Object.values(span.positions)) addPrinted(lines, false);
+      for (const lines of Object.values(span.positions)) addPrinted(lines, true);
     } else if (span.tag === "separator") {
       if (span.from === undefined) continue;
       if (followsPrintedOnLine(span.from)) {

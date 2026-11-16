@@ -16,6 +16,7 @@ import {
   lineRightMargin,
   SCENE_NUMBER_LEFT_GAP,
   SCENE_NUMBER_RIGHT_GAP,
+  titleRegionWidth,
 } from "@impower/sparkdown-screenplay/src/utils/printGeometry";
 import { FormattedText } from "../textbox-for-pdfkit/src/types/FormattedText";
 import { TextOptions } from "../textbox-for-pdfkit/src/types/TextOptions";
@@ -168,8 +169,8 @@ export default class ScreenplayPrinter {
       this._profile.page_height -
       this._profile.top_margin -
       this._profile.bottom_margin;
-    const innerWidthThird = innerWidth / 3;
-    const innerWidthHalf = innerWidth / 2;
+    const innerWidthThird = titleRegionWidth(this._profile, "tc")!;
+    const innerWidthHalf = titleRegionWidth(this._profile, "bl")!;
 
     if (this._config?.screenplay_print_title_page && span.positions) {
       const tlText = this.getCombinedContent(span?.positions?.["tl"]);

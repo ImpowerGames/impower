@@ -466,3 +466,26 @@ describe("rows the reviewer found wrapping differently", () => {
     expect(compare(await drawn(LONG_BRANCH, NAMED, 760), pdf)).toEqual([]);
   }, 120_000);
 });
+
+const TITLE_MARKUP = ["---", "title: long title about a mysterious trip to the city called **night**fall", "---", "", "scene s", "  Hello.", "end", ""].join("\n");
+
+describe("the title page's rows", () => {
+  it.each([
+    ["the demo title page", TITLE_PAGE],
+    ["a title whose emphasis ends inside a word", TITLE_MARKUP],
+  ])("break and sit where the PDF prints them for %s", async (_name, script) => {
+    const config = { ...BASE, screenplay_print_title_page: true };
+    const pdf = await printed(script, config);
+    const differences: string[] = [];
+    for (const width of [320, 560, 760]) {
+      const page = await drawn(script, config, width);
+      for (const row of pdf.rows.filter((found) => found.page === 0)) {
+        const shown = page.rows.find((found) => found.text === row.text);
+        if (!shown || !near(shown.left, row.left)) {
+          differences.push(`${width}px: PDF ${JSON.stringify(row.text)} at ${row.left.toFixed(2)}, page ${shown ? shown.left.toFixed(2) : "none"}`);
+        }
+      }
+    }
+    expect(differences).toEqual([]);
+  }, 120_000);
+});

@@ -1,6 +1,7 @@
 import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
 import type { PageLine } from "../types/DocumentSpan";
 import type { FormattedText } from "../types/FormattedText";
+import type { PagePosition } from "../types/PagePosition";
 import type { PrintProfile } from "../types/PrintProfile";
 import type { ScreenplayConfig } from "../types/ScreenplayConfig";
 import type { ScreenplayTokenType } from "../types/ScreenplayTokenType";
@@ -54,6 +55,14 @@ export const lineRightMargin = (profile: PrintProfile, line: PlacedLine) => {
 
 export const lineMaxWidth = (profile: PrintProfile, line: PlacedLine) =>
   profile.page_width - lineLeftMargin(profile, line) - lineRightMargin(profile, line);
+
+export const titleRegionWidth = (profile: PrintProfile, position: PagePosition | undefined) => {
+  const innerWidth = profile.page_width - profile.left_margin - profile.right_margin;
+  if (position === "tl" || position === "tc" || position === "tr") return innerWidth / 3;
+  if (position === "bl" || position === "br") return innerWidth / 2;
+  if (position === "cc") return innerWidth;
+  return undefined;
+};
 
 export const levelIndent = (profile: PrintProfile, tag: string | undefined, level: number) =>
   level * ((tag ? tagSettings(profile, tag)?.level_indent : undefined) ?? 0);
