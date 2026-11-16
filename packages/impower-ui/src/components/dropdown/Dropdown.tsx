@@ -174,7 +174,7 @@ export function DropdownTrigger({
       aria-expanded={ctx.open}
       data-state={ctx.open ? "open" : "closed"}
       onPointerDown={(event: PointerEvent) => {
-        ctx.opener.current = ctx.open ? undefined : event.pointerType;
+        ctx.opener.current = !ctx.open && event.button === 0 ? event.pointerType : undefined;
         if (menuFormFor(ctx.opener.current) === "sheet") {
           event.preventDefault();
         }
@@ -186,7 +186,13 @@ export function DropdownTrigger({
         ctx.opener.current = undefined;
       }}
       onClick={(event: MouseEvent) => {
-        if (!ctx.open && (event.detail === 0 || menuFormFor(ctx.opener.current) === "sheet")) {
+        if (ctx.open) {
+          return;
+        }
+        if (event.detail === 0) {
+          ctx.opener.current = undefined;
+          ctx.setOpen(true);
+        } else if (menuFormFor(ctx.opener.current) === "sheet") {
           ctx.setOpen(true);
         }
       }}

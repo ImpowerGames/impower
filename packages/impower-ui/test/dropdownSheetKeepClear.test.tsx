@@ -63,7 +63,7 @@ const withSheet = async (
 const open = async (page: Page) => {
   const trigger = page.locator("[data-face]");
   await trigger.dispatchEvent("pointerdown", { pointerType: "touch", button: 0, bubbles: true, cancelable: true });
-  await trigger.dispatchEvent("click");
+  await trigger.dispatchEvent("click", { detail: 1 });
   await page.locator('[role="menu"]').waitFor();
   await page.waitForTimeout(300);
 };

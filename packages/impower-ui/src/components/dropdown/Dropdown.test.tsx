@@ -613,6 +613,24 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
   });
 
+  it.each([
+    ["a pen's secondary button pressed and released", "pen", 2, true],
+    ["a finger press that never became a click", "touch", 0, false],
+  ])("opens as a menu from a click no pointer made after %s on the trigger", async (_press, pointerType, button, released) => {
+    const { trigger } = await mount();
+    await act(async () => {
+      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType, button }));
+      if (released) {
+        trigger.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, pointerType, button }));
+      }
+    });
+    await settle(50);
+    expect(formOf()).toBe("closed");
+    await act(async () => trigger.click());
+    await settle(300);
+    expect(formOf()).toBe("menu");
+  });
+
   it("closes a menu that is not modal when a mouse presses its trigger, and does not reopen it on that press's click", async () => {
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>

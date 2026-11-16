@@ -875,7 +875,7 @@ describe("the app menu on a phone", () => {
     await act(async () => {
       const trigger = button("App menu")!;
       trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
-      trigger.click();
+      trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
     });
     await settle(250);
     const sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;

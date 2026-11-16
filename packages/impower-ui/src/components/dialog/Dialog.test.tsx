@@ -70,7 +70,7 @@ const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
 const tap = (target: Element) =>
   act(async () => {
     target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
-    (target as HTMLElement).click();
+    target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
   });
 const backdrop = () => dialog()?.parentElement ?? null;
 

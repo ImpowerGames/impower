@@ -684,7 +684,7 @@ describe("Real menus and sheets at their elevations (I-2448)", () => {
       if (trigger && phone) {
         await act(async () => {
           trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
-          trigger.click();
+          trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
         });
       } else if (trigger) {
         trigger.focus();

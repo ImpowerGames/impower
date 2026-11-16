@@ -74,7 +74,7 @@ const openWith = async (page: Page, opening: Opening) => {
     await trigger.tap();
   } else if (opening === "touch") {
     await trigger.dispatchEvent("pointerdown", { pointerType: "touch", button: 0, bubbles: true, cancelable: true });
-    await trigger.dispatchEvent("click");
+    await trigger.dispatchEvent("click", { detail: 1 });
   } else if (opening === "mouse") {
     await trigger.click();
   } else {

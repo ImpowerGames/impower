@@ -95,7 +95,7 @@ const opened = async (
       await trigger.tap();
     } else if (opening === "touch") {
       await trigger.dispatchEvent("pointerdown", { pointerType: "touch", button: 0, bubbles: true, cancelable: true });
-      await trigger.dispatchEvent("click");
+      await trigger.dispatchEvent("click", { detail: 1 });
     } else {
       await trigger.click();
     }

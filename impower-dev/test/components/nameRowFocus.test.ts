@@ -86,7 +86,7 @@ const openMenu = async (trigger: HTMLElement | undefined) => {
       trigger!.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }),
       );
-      trigger!.click();
+      trigger!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
     } else {
       trigger!.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse" }),
