@@ -606,6 +606,8 @@
   --preview-stage-gap: 8px;
   --preview-frame-shadow: none;
   --float-shadow: 0 12px 40px rgb(0 0 0 / 0.4);
+  --sheet-radius: 16px;
+  --sheet-shadow: 0 -8px 24px rgb(0 0 0 / 0.333);
   --fade: 20px;
   --scrollbar-track: transparent;
   --stage: var(--stage-full, rgb(0 0 0));

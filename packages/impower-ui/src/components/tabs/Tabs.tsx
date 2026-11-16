@@ -69,9 +69,9 @@ const tabTrigger = cva(
       variant: {
         default: "",
         rail: [
-          "flex-none justify-start gap-3 min-h-[46px] px-[13px] py-2.5 rounded-control text-sm font-normal",
+          "flex-none justify-start gap-[11px] min-h-[46px] px-[13px] py-2.5 rounded-control text-sm font-normal",
           "data-[state=active]:bg-tint data-[state=active]:font-semibold",
-          "@max-[140px]:flex-col @max-[140px]:justify-center @max-[140px]:gap-1 @max-[140px]:min-h-[66px] @max-[140px]:px-0 @max-[140px]:text-[11px]/[1.35]",
+          "@max-[140px]:flex-col @max-[140px]:justify-center @max-[140px]:gap-1.5 @max-[140px]:min-h-[66px] @max-[140px]:px-0 @max-[140px]:text-[11px]/[1.35]",
         ],
         bar: "flex-none flex-col gap-1 size-16 min-h-16 p-0 rounded-control text-[12px]/[1.4] font-normal",
         page: [
@@ -135,7 +135,7 @@ export default function Tabs({
 }: TabsProps) {
   const iconSize =
     variant === "rail"
-      ? 18
+      ? 20
       : variant === "bar"
         ? 19
         : iconLayout === "above"
@@ -229,7 +229,9 @@ export default function Tabs({
                     variant === "page" || variant === "inline" ? "bg-accent" : "bg-tab-ink",
                     vertical
                       ? "left-auto right-0 w-0.5"
-                      : "top-auto bottom-0 h-0.5",
+                      : variant === "page" || variant === "inline"
+                        ? "top-auto -bottom-px h-0.5"
+                        : "top-auto bottom-0 h-0.5",
                   )}
                   style={
                     vertical
@@ -338,7 +340,8 @@ export function Tab({
         )}
         <span
           class={cn(
-            "relative inline-block leading-none motion-safe:transition-transform motion-safe:duration-100",
+            "relative inline-block motion-safe:transition-transform motion-safe:duration-100",
+            ctx.variant !== "rail" && ctx.variant !== "bar" && "leading-none",
             ctx.iconLayout === "above" &&
               ctx.variant === "default" &&
               "scale-80 group-data-[state=active]:scale-90",

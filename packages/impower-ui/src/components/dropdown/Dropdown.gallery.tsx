@@ -180,7 +180,7 @@ function DropdownDemo() {
           </GalleryRow>
         ),
       )}
-      <GalleryRow label="Two-line items: a hint beneath the label (the variant menus' Default)">
+      <GalleryRow label="Two-line items: an 11px hint beneath the 13px label, as every item sits 12px after its glyph inside 10px 12px padding (the variant menus' Default)">
         <DropdownRoot>
           <DropdownTrigger asChild>
             <Button>Choose a face</Button>
@@ -190,7 +190,7 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
-      <GalleryRow label="Small radio items: 13px at weight 400, the chosen one included (the asset inspector's variant menus)">
+      <GalleryRow label="Small radio items: weight 400, the chosen one included (the asset inspector's variant menus)">
         <DropdownRoot>
           <DropdownTrigger asChild>
             <Button>Choose a face</Button>

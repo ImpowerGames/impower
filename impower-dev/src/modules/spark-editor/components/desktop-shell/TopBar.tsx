@@ -47,7 +47,7 @@ export default function TopBar() {
       </div>
       <div class="flex min-w-0 flex-col items-start gap-[1px] pl-[1px] -ml-[7px]">
         <ProjectNameField />
-        <div class="flex items-center pl-[7px]">
+        <div class="flex items-center pl-1.5">
           <SyncStatusLine />
         </div>
       </div>

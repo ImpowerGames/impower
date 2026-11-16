@@ -181,7 +181,7 @@ export function WheelPicker({
 export const wheelSheetVariants = cva(
   [
     "absolute inset-x-0 bottom-0 z-20 flex flex-col overflow-hidden",
-    "rounded-t-card border border-b-0 border-edge bg-panel text-ink shadow-float",
+    "rounded-t-sheet border border-b-0 border-edge bg-panel text-ink shadow-sheet",
     sheetFoot,
     "motion-safe:anim-sheet-in",
   ],
