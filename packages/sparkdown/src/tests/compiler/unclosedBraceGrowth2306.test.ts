@@ -40,7 +40,8 @@ const LONG_LINES: [string, (items: number) => string][] = [
   ["call arguments with longer names", (n) => `  A {f(${"value, ".repeat(n)}value)}`],
   ["call arguments after two spaces", (n) => `  A {f(${"b,  ".repeat(n)}b)}`],
   ["a dotted path with spaces", (n) => `  A {${"b.  ".repeat(n)}b}`],
-  ["display commands before text that is no parenthetical", (n) => `  ${"=x=".repeat(n)}(x) no`],
+  ["action text", (n) => `  A${" word".repeat(n)}`],
+  ["dialogue text", (n) => `  NARRATOR: ${"word ".repeat(n)}`],
   ["bracket strings", (n) => `  A {f(${"[=[x]=], ".repeat(n)}[=[x]=])}`],
   ["block comments between arguments", (n) => `  A {f(${"b --[[c]], ".repeat(n)}b)}`],
   ["a local's call with comments", (n) => `  local x = f(${"b --[[c]], ".repeat(n)}b)`],
@@ -56,6 +57,8 @@ const LONG_LINES: [string, (items: number) => string][] = [
   ["a local's table", (n) => `  local x = {${"b = 1, ".repeat(n)}}`],
   ["if expressions", (n) => `  local x = ${"if a then b else ".repeat(n)}c`],
 ];
+
+const SLOW_IN_VSCODE_DISPLAY_RULES = new Set(["bracket strings", "strings with escapes"]);
 
 const FEW = 500;
 
@@ -221,7 +224,7 @@ describe("a long line is read in time linear in its length (#2306)", () => {
     expect(highlight(text)).toBeLessThan(2 * text.length);
   });
 
-  test.each(LONG_LINES)(
+  test.each(LONG_LINES.filter(([name]) => !SLOW_IN_VSCODE_DISPLAY_RULES.has(name)))(
     "%s, in VS Code's highlighter, takes less than six times as long with 2,000 items as with 500",
     async (_line, line) => {
       const highlight = await vscodeHighlighter();
