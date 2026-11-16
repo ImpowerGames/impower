@@ -38,6 +38,7 @@ const ui = await import("@impower/impower-ui/components");
 const { default: Trail } = await import("../../src/modules/spark-editor/components/library-page/Trail");
 const { default: AssetRowMenu } = await import("../../src/modules/spark-editor/components/assets/AssetRowMenu");
 const { default: TopBar } = await import("../../src/modules/spark-editor/components/desktop-shell/TopBar");
+const { default: AppMenu } = await import("../../src/modules/spark-editor/components/desktop-shell/AppMenu");
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { stateForRoute } = await import("../../src/modules/spark-editor/workspace/routes");
 
@@ -336,6 +337,16 @@ describe("Assets page parts against the Folio prototype (I-2415)", () => {
     }
   });
 
+  it.each(THEMES)("A6: at 1440 in %s the status starts 6px after the project name's box, as the prototype's project-status padding", async (theme) => {
+    await setMedia((query) => query.includes("701px") || query.includes("1101px"));
+    try {
+      const desktop = await inChromium(await topBarAt(false), { width: 1440, theme, layout: "desktop" }, readTopBar);
+      expect(desktop.status - desktop.name).toBe(6);
+    } finally {
+      await setMedia(() => false);
+    }
+  });
+
   it("N10: at 1440 the desktop title bar has no Search and keeps its 14px name", async () => {
     await setMedia((query) => query.includes("701px") || query.includes("1101px"));
     try {
@@ -345,5 +356,150 @@ describe("Assets page parts against the Folio prototype (I-2415)", () => {
     } finally {
       await setMedia(() => false);
     }
+  });
+});
+
+describe("Shared parts the Assets page shows against the Folio prototype (I-2441)", () => {
+  const tabRow = (variant: "inline" | "page") =>
+    h(
+      "div",
+      { style: "border-bottom:1px solid #d3d3d7;width:398px" },
+      h(ui.Tabs, { variant, iconLayout: "beside", scroll: variant === "inline", value: "images", onChange: () => {} }, [
+        h(ui.Tab, { key: "images", value: "images" }, "Images"),
+        h(ui.Tab, { key: "audio", value: "audio" }, "Audio"),
+      ]),
+    );
+
+  const underline = () => {
+    const list = document.querySelector('[role="tablist"]')!.getBoundingClientRect();
+    const bar = document.querySelector('[role="tablist"] > [aria-hidden="true"]')!.getBoundingClientRect();
+    return { height: bar.height, belowList: +(bar.bottom - list.bottom).toFixed(2) };
+  };
+
+  it.each([
+    ["inline", 430, "chalk", true],
+    ["inline", 1440, "charcoal", false],
+    ["page", 430, "charcoal", true],
+    ["page", 1440, "chalk", false],
+  ] as const)("N9: the %s row's underline at %i in %s is 2px and sits 1px below the row, over its divider", async (variant, width, theme, touch) => {
+    const measured = await inChromium(tabRow(variant), { width, theme, touch, layout: touch ? "phone" : "desktop" }, underline);
+    expect(measured).toEqual({ height: 2, belowList: 1 });
+  });
+
+  const addMenu = () =>
+    h(
+      ui.DropdownRoot,
+      { open: true, onOpenChange: () => {}, sheet: false },
+      h(ui.DropdownTrigger, { asChild: true }, h("button", { type: "button" }, "Add")),
+      h(
+        ui.DropdownContent,
+        { align: "end" },
+        h(ui.DropdownItem, {}, h(ui.UploadIcon, {}), h(ui.DropdownItemText, { hint: "Into Images" }, "Upload files")),
+        h(ui.DropdownItem, {}, h(ui.PencilIcon, {}), "Rename"),
+      ),
+    );
+
+  it.each(THEMES)("A1(d): in %s a menu item is 13px text 12px after its 18px glyph, padded 10px 12px, with an 11px hint", async (theme) => {
+    const measured = await inChromium(addMenu(), { width: 1440, theme }, () => {
+      const [hinted, plain] = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+      const style = getComputedStyle(hinted!);
+      const glyph = hinted!.querySelector("svg")!.getBoundingClientRect();
+      const label = hinted!.querySelector("[data-dropdown-item-text]")!.getBoundingClientRect();
+      return {
+        size: style.fontSize,
+        padding: style.padding,
+        glyph: glyph.width,
+        gap: label.x - glyph.right,
+        hint: getComputedStyle(hinted!.querySelector("small")!).fontSize,
+        plainHeight: plain!.getBoundingClientRect().height,
+      };
+    });
+    expect(measured).toEqual({ size: "13px", padding: "10px 12px", glyph: 18, gap: 12, hint: "11px", plainHeight: 44 });
+  });
+
+  it.each(THEMES)("A2: at 430 under touch in %s the wheel sheet has 16px top corners and the prototype's shadow above it", async (theme) => {
+    const measured = await inChromium(h("div", { class: ui.wheelSheetVariants({}) }, "Face"), { width: 430, theme, touch: true, layout: "phone" }, () => {
+      const style = getComputedStyle([...document.querySelectorAll("div")].pop()!);
+      return { radius: style.borderRadius, shadow: style.boxShadow.split(", rgba").pop() };
+    });
+    expect(measured).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
+  });
+
+  const navItems = (variant: "rail" | "bar", width: string) =>
+    h(
+      "div",
+      { style: `width:${width}` },
+      h(ui.Tabs, { variant, vertical: variant === "rail", iconLayout: variant === "rail" ? "beside" : "above", indicator: "none", value: "logic", onChange: () => {} }, [
+        h(ui.Tab, { key: "logic", value: "logic", icon: ui.BookIcon }, "Story"),
+        h(ui.Tab, { key: "assets", value: "assets", icon: ui.ArtIcon }, "Assets"),
+      ]),
+    );
+
+  const navOffsets = () => {
+    const tab = document.querySelector('[role="tab"]')!;
+    const box = tab.getBoundingClientRect();
+    const glyph = tab.querySelector("svg")!.getBoundingClientRect();
+    const label = tab.querySelector(":scope > span:last-child")!.getBoundingClientRect();
+    return { glyphTop: +(glyph.y - box.y).toFixed(2), glyph: glyph.width, labelTop: +(label.y - box.y).toFixed(2), labelLeft: +(label.x - box.x).toFixed(2) };
+  };
+
+  it.each(THEMES)("A3: at 768 in %s the compact rail centres a 20px glyph, 6px gap and 1.35 label as the prototype's", async (theme) => {
+    const measured = await inChromium(navItems("rail", "65px"), { width: 768, theme, layout: "compact" }, navOffsets);
+    expect({ glyphTop: measured.glyphTop, glyph: measured.glyph, labelTop: measured.labelTop }).toEqual({ glyphTop: 12.58, glyph: 20, labelTop: 38.58 });
+  });
+
+  it.each(THEMES)("A3: at 1440 in %s the rail's 20px glyph sits 13px in and its label 11px after it", async (theme) => {
+    const measured = await inChromium(navItems("rail", "203px"), { width: 1440, theme }, navOffsets);
+    expect({ glyph: measured.glyph, labelLeft: measured.labelLeft }).toEqual({ glyph: 20, labelLeft: 44 });
+  });
+
+  it.each(THEMES)("A4: at 430 under touch in %s the bottom navigation centres a 19px glyph over a 1.4 label as the prototype's", async (theme) => {
+    const measured = await inChromium(navItems("bar", "430px"), { width: 430, theme, touch: true, layout: "phone" }, navOffsets);
+    expect({ glyphTop: measured.glyphTop, glyph: measured.glyph, labelTop: measured.labelTop }).toEqual({ glyphTop: 12.09, glyph: 19, labelTop: 35.09 });
+  });
+
+  const page = () =>
+    h(ui.TabbedPage, {
+      title: "Assets",
+      icon: h(ui.ArtIcon, { class: "flex-none text-accent" }),
+      tabs: [{ value: "images", label: "Images", content: h("div", {}) }],
+      value: "images",
+      onValueChange: () => {},
+      onBack: () => {},
+    });
+
+  const titleBox = () => {
+    const header = document.querySelector("header")!;
+    const title = header.querySelector("h1")!;
+    return {
+      lineHeight: getComputedStyle(title).lineHeight,
+      glyph: header.querySelector(":scope > svg")!.getBoundingClientRect().width,
+      titleLeft: title.getBoundingClientRect().x - header.getBoundingClientRect().x,
+    };
+  };
+
+  it.each([
+    [1440, "desktop", "charcoal", { lineHeight: "22.1px", glyph: 20, titleLeft: 54 }],
+    [1440, "desktop", "chalk", { lineHeight: "22.1px", glyph: 20, titleLeft: 54 }],
+    [768, "compact", "charcoal", { lineHeight: "18.9px", glyph: 19, titleLeft: 45 }],
+    [430, "phone", "chalk", { lineHeight: "18.9px", glyph: 19, titleLeft: 45 }],
+  ] as const)("A5: at %i (%s, %s) the page title stands on the prototype's line beside its glyph", async (width, layout, theme, expected) => {
+    const measured = await inChromium(page(), { width, theme, layout, touch: layout === "phone" }, titleBox);
+    expect(measured).toEqual(expected);
+  });
+
+  it.each(THEMES)("A6: at 1440 in %s the rail's Saved locally starts 45px into its trigger, as the prototype's account trigger", async (theme) => {
+    const measured = await inChromium(h("div", { style: "width:203px" }, h(AppMenu, {})), { width: 1440, theme }, () => {
+      const trigger = document.querySelector("button")!;
+      const walker = document.createTreeWalker(trigger, NodeFilter.SHOW_TEXT);
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        if (node.textContent?.trim()) break;
+      }
+      const range = document.createRange();
+      range.selectNodeContents(node!);
+      return range.getBoundingClientRect().x - trigger.getBoundingClientRect().x;
+    });
+    expect(measured).toBe(45);
   });
 });

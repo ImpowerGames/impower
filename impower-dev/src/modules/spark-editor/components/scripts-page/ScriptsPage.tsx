@@ -453,7 +453,7 @@ export default function ScriptsPage() {
   return (
     <TabbedPage
       title="Scripts"
-      icon={<BookIcon class="size-5 flex-none text-accent" />}
+      icon={<BookIcon class="flex-none text-accent" />}
       onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("write"))}
       showTabs={showTabs}
       value={tab === OUTLINE_TAB ? OUTLINE_TAB : ALL_TAB}
