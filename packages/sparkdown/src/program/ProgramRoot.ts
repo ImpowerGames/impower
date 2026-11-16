@@ -644,54 +644,50 @@ export class ProgramRoot {
     return undefined;
   }
 
-  protected _optionOffers = new WeakMap<ProgramChunk, Int32Array | null>();
+  protected _optionLines = new Map<string, Map<number, number[]>>();
 
-  optionEntryOf(address: number): number | undefined {
-    if (!Number.isInteger(address) || address < 0) {
-      return undefined;
+  optionEntriesOn(uri: string, line: number): readonly number[] | undefined {
+    let lines = this._optionLines.get(uri);
+    if (!lines) {
+      lines = this.optionLinesOf(uri);
+      this._optionLines.set(uri, lines);
     }
-    const id = chunkOfAddress(address);
-    const at = this.position(id);
-    const chunk = at?.sequence.arrays.chunks[at.entry];
-    if (!chunk) {
-      return undefined;
-    }
-    let offers = this._optionOffers.get(chunk);
-    if (offers === undefined) {
-      offers = this.optionOffersOf(id, chunk);
-      this._optionOffers.set(chunk, offers);
-    }
-    const entry = offers?.[offsetOfAddress(address) >> 1] ?? 0;
-    return entry > 0 ? addressOf(id, entry - 1) : undefined;
+    return lines.get(line);
   }
 
-  protected optionOffersOf(id: number, chunk: ProgramChunk): Int32Array | null {
-    const words = codeWords(chunk);
-    let offers: Int32Array | null = null;
-    for (let offset = 0; offset < words; offset += 2) {
-      if (opOf(chunk[HEADER_WORDS + offset]!) !== Op.Choice) {
+  protected optionLinesOf(uri: string): Map<number, number[]> {
+    const lines = new Map<number, number[]>();
+    for (const sequence of this.sequences()) {
+      if (sequence.uri !== uri) {
         continue;
       }
-      const option = this.locationOf(addressOf(id, offset));
-      if (!option) {
-        continue;
-      }
-      const entry = offset + 2 + chunk[HEADER_WORDS + offset + 1]!;
-      offers ??= new Int32Array(words >> 1);
-      for (let o = offset; o >= 0; o -= 2) {
-        const location = this.locationOf(addressOf(id, o));
-        if (
-          !location ||
-          location.uri !== option.uri ||
-          location.startLine < option.startLine ||
-          location.endLine > option.endLine
-        ) {
-          break;
+      for (const chunk of sequence.arrays.chunks) {
+        const id = chunkId(chunk);
+        const words = codeWords(chunk);
+        for (let offset = 0; offset < words; offset += 2) {
+          if (opOf(chunk[HEADER_WORDS + offset]!) !== Op.Choice) {
+            continue;
+          }
+          const option = this.locationOf(addressOf(id, offset));
+          if (!option || option.uri !== uri) {
+            continue;
+          }
+          const entry = addressOf(
+            id,
+            offset + 2 + chunk[HEADER_WORDS + offset + 1]!,
+          );
+          for (let l = option.startLine; l <= option.endLine; l += 1) {
+            let entries = lines.get(l);
+            if (!entries) {
+              entries = [];
+              lines.set(l, entries);
+            }
+            entries.push(entry);
+          }
         }
-        offers[o >> 1] = entry + 1;
       }
     }
-    return offers;
+    return lines;
   }
 
   protected scriptEnd(uri: string): number {

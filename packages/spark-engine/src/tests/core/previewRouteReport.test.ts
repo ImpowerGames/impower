@@ -340,6 +340,29 @@ describe("the route the preview reports", () => {
     expect(inner).not.toContain(10);
   }, 120_000);
 
+  test("the executed lines leave out an option whose preamble branch never ran", () => {
+    const lines = [
+      "scene start",
+      "  choose",
+      "    do",
+      "      local x = 1",
+      "      if false then",
+      "        * Hidden",
+      "          Hidden body.",
+      "      end",
+      "    end",
+      "    * Visible",
+      "      Visible body.",
+      "  end",
+      "  After.",
+      "end",
+      "",
+    ];
+    const reached = executedLinesAt(lines, 11);
+    expect(reached).toEqual(expect.arrayContaining([2, 3, 4, 5, 10, 11]));
+    expect(reached).not.toContain(6);
+  }, 120_000);
+
   test("the executed lines of a hub menu met twice light each option a meeting took and no other", () => {
     const hub = (bullet: string) => [
       "store asked = 0",

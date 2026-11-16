@@ -479,6 +479,24 @@ describe("the route rule", () => {
     expect(getRouteLineRuns(view!.state)).toEqual([[2, 9]]);
   });
 
+  it("leaves a gap at an untaken option whose text ends in a colon", () => {
+    const doc = [
+      "scene start",
+      "  choose",
+      "    * Ask:",
+      "    * Leave.",
+      "      Left.",
+      "  end",
+      "end",
+    ].join("\n");
+    mount(ALL_OFF_APPEARANCE, doc);
+    setHighlights(view!, [2, 4, 5]);
+    expect(getRouteLineRuns(view!.state)).toEqual([
+      [2, 2],
+      [4, 5],
+    ]);
+  });
+
   it("is hidden in an empty script", () => {
     mount(ALL_OFF_APPEARANCE, "");
     setHighlights(view!, [1]);

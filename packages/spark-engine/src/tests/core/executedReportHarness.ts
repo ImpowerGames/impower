@@ -105,19 +105,15 @@ const recordReports = (game: Game) => {
       .filter((l): l is DocumentLocation => l != null);
     const root = g.story.root;
     const ran = new Set(paths);
-    const untaken = new Set<string>();
-    for (const p of paths) {
-      const entry = root.optionEntryOf(p);
-      const l = entry !== undefined && !ran.has(entry) ? locate(p) : null;
-      for (let line = l?.range.start.line ?? 0; l && line <= l.range.end.line; line++) {
-        untaken.add(`${l.uri}:${line}`);
-      }
-    }
+    const untaken = (uri: string, line: number) => {
+      const entries: readonly number[] | undefined = root.optionEntriesOn(uri, line);
+      return !!entries && !entries.some((entry) => ran.has(entry));
+    };
     const lineLocations: DocumentLocation[] = [];
     for (const p of paths) {
-      const l = root.optionEntryOf(p) === undefined ? locate(p) : null;
+      const l = locate(p);
       for (let line = l?.range.start.line ?? 0; l && line <= l.range.end.line; line++) {
-        if (!untaken.has(`${l.uri}:${line}`)) {
+        if (!untaken(l.uri, line)) {
           lineLocations.push({
             uri: l.uri,
             range: {

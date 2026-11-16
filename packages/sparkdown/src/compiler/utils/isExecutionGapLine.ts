@@ -14,7 +14,16 @@ const COMMENTS = nodeNameSet([
   "LuauBlockComment",
 ]);
 
-const commentEndAt = (tree: Tree, pos: number): number | null => {
+const OPTIONS = nodeNameSet(["Choice"]);
+
+const isOptionAt = (tree: Tree, pos: number): boolean => {
+  for (let n: SyntaxNode | null = tree.resolveInner(pos, 1); n; n = n.parent) {
+    if (OPTIONS.has(n.name)) return true;
+  }
+  return false;
+};
+
+const commentEndAt =(tree: Tree, pos: number): number | null => {
   for (let n: SyntaxNode | null = tree.resolveInner(pos, 1); n; n = n.parent) {
     if (COMMENTS.has(n.name) && n.from <= pos && pos < n.to) return n.to;
   }
@@ -43,14 +52,17 @@ export const isExecutionGapLine = (
   lineText: string,
 ): boolean => {
   const trimmedText = lineText.trim();
-  if (!trimmedText || DIALOGUE_CUE.test(trimmedText)) {
+  if (!trimmedText) {
     return true;
   }
   const parsed = tree();
+  const start = lineText.search(/\S/);
+  if (DIALOGUE_CUE.test(trimmedText)) {
+    return !parsed || !isOptionAt(parsed, lineFrom + start);
+  }
   if (!parsed) {
     return false;
   }
-  const start = lineText.search(/\S/);
   const first = parsed.resolveInner(lineFrom + start, 1);
   const rest = END_KEYWORDS.has(first.name) ? first.to - lineFrom : start;
   return holdsOnlyComments(parsed, lineFrom, lineText, rest);
