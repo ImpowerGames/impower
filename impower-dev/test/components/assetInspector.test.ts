@@ -1034,6 +1034,13 @@ describe("the Variants tester and the Files section", () => {
     await vi.waitFor(() => expect(all('[role="menuitemradio"]').length).toBeGreaterThan(0));
     await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.startsWith(label)));
   };
+  const tap = async (trigger: HTMLElement) => {
+    await act(async () => {
+      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
+      trigger.click();
+    });
+    await settle();
+  };
   const fileMenu = async (name: string, item: string) => {
     const trigger = region()!.querySelector<HTMLElement>(`button[aria-label="Options for ${name}"]`)!;
     await act(async () => {
@@ -1559,7 +1566,7 @@ describe("the Variants tester and the Files section", () => {
       layout.coarse = true;
       await mount();
       await open("imani");
-      await click(group("face"));
+      await tap(group("face"));
       const wheel = document.querySelector<HTMLElement>("[data-wheel-sheet] [role=listbox]")!;
       expect(document.activeElement).toBe(wheel);
       await key(wheel, "Escape");
@@ -1568,6 +1575,30 @@ describe("the Variants tester and the Files section", () => {
       expect(document.activeElement).toBe(group("face"));
     },
   );
+
+  it("opens the wheel sheet when a finger opens a group on a touch laptop, whose primary pointer is fine", async () => {
+    layout.value = "desktop";
+    layout.coarse = false;
+    await mount();
+    await open("imani");
+    await tap(group("face"));
+    expect(document.querySelector("[data-wheel-sheet] [role=listbox]")).not.toBeNull();
+    expect(all('[role="menuitemradio"]')).toEqual([]);
+  });
+
+  it("opens the dropdown when a mouse opens a group on a phone, whose primary pointer is coarse", async () => {
+    layout.value = "phone";
+    layout.coarse = true;
+    await mount();
+    await open("imani");
+    await act(async () => {
+      group("face").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse", button: 0 }));
+    });
+    await settle();
+    expect(document.querySelector("[data-wheel-sheet]")).toBeNull();
+    await vi.waitFor(() => expect(all('[role="menuitemradio"]').length).toBeGreaterThan(0));
+    expect(document.querySelector('[role="menu"]')!.closest('[role="dialog"]')).toBeNull();
+  });
 
   it("turns a wheel in a sheet on a coarse pointer, previewing as it turns and choosing with Done", async () => {
     layout.coarse = true;
@@ -1586,7 +1617,7 @@ describe("the Variants tester and the Files section", () => {
     try {
       await mount();
       await open("imani");
-      await click(group("face"));
+      await tap(group("face"));
       const wheel = document.querySelector<HTMLElement>('[role="dialog"] [role="listbox"]')!;
       expect(wheel.getAttribute("aria-label")).toBe("Face");
       expect(group("face").getAttribute("aria-expanded")).toBe("true");

@@ -1,13 +1,10 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
-  cloneElement,
   type ComponentChildren,
   createContext,
   type JSX,
-  type Ref,
   type RefObject,
-  type VNode,
 } from "preact";
 import { flushSync } from "preact/compat";
 import {
@@ -18,8 +15,7 @@ import {
   useRef,
   useState,
 } from "preact/hooks";
-import { useForwardedRef } from "../../hooks/useForwardedRef";
-import { useLayout } from "../../hooks/useLayout";
+import { menuFormFor, type MenuForm } from "../../layout/menuForm";
 import { cn } from "../../utils/cn";
 import "../../utils/uniqueIds";
 import { registerFocusReturn } from "../../utils/focusReturn";
@@ -28,12 +24,12 @@ import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
 
-type Mode = "menu" | "sheet";
 type MenuCtx = {
-  mode: Mode;
+  mode: MenuForm;
   open: boolean;
   setOpen: (open: boolean) => void;
   trigger: RefObject<HTMLElement>;
+  opener: MutableRef<string | undefined>;
   returnsFocus: MutableRef<boolean>;
   handingOff: boolean;
   handOff: () => void;
@@ -43,6 +39,7 @@ const ModeContext = createContext<MenuCtx>({
   open: false,
   setOpen: () => {},
   trigger: { current: null },
+  opener: { current: undefined },
   returnsFocus: { current: true },
   handingOff: false,
   handOff: () => {},
@@ -98,7 +95,6 @@ type RootProps = {
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   modal?: boolean;
-  sheet?: boolean;
   children?: ComponentChildren;
 };
 
@@ -107,17 +103,22 @@ export function DropdownRoot({
   defaultOpen = false,
   onOpenChange,
   modal,
-  sheet = true,
   children,
 }: RootProps) {
-  const phone = useLayout() === "phone";
-  const mobile = sheet && phone;
   const trigger = useRef<HTMLElement>(null);
   const returnsFocus = useRef(true);
+  const opener = useRef<string | undefined>(undefined);
   const [handingOff, setHandingOff] = useState(false);
   const [internal, setInternal] = useState(defaultOpen);
   const controlled = openProp !== undefined;
   const open = controlled ? !!openProp : internal;
+  const held = useRef<{ open: boolean; form: MenuForm }>({ open: false, form: "menu" });
+  if (open && !held.current.open) {
+    held.current.form = menuFormFor(opener.current);
+    opener.current = undefined;
+  }
+  held.current.open = open;
+  const mode = held.current.form;
   const opening = (next: boolean) => {
     if (next) {
       returnsFocus.current = true;
@@ -138,20 +139,12 @@ export function DropdownRoot({
     },
     [controlled, onOpenChange],
   );
-  const shared = { open, setOpen, trigger, returnsFocus, handingOff, handOff };
-
-  if (mobile) {
-    return (
-      <ModeContext.Provider value={{ mode: "sheet", ...shared }}>
-        {children}
-      </ModeContext.Provider>
-    );
-  }
   return (
-    <ModeContext.Provider value={{ mode: "menu", ...shared }}>
+    <ModeContext.Provider
+      value={{ mode, open, setOpen, trigger, opener, returnsFocus, handingOff, handOff }}
+    >
       <DropdownMenuPrimitive.Root
-        open={openProp}
-        defaultOpen={defaultOpen}
+        open={open && mode === "menu"}
         onOpenChange={setOpen}
         modal={modal}
       >
@@ -161,6 +154,11 @@ export function DropdownRoot({
   );
 }
 
+export const useDropdownForm = () => {
+  const { mode, open, setOpen } = useMenuCtx();
+  return { form: mode, open, setOpen };
+};
+
 export function DropdownTrigger({
   asChild,
   children,
@@ -169,34 +167,30 @@ export function DropdownTrigger({
   children?: ComponentChildren;
 }) {
   const ctx = useMenuCtx();
-  const child = (Array.isArray(children) ? children[0] : children) as
-    | (VNode<{ onClick?: (e: MouseEvent) => void }> & {
-        ref?: Ref<HTMLElement>;
-      })
-    | undefined;
-  const setTriggerRef = useForwardedRef(
-    child && typeof child === "object" ? child.ref : undefined,
-    (element: HTMLElement | null) => {
-      ctx.trigger.current = element;
-    },
-  );
-  if (ctx.mode === "sheet") {
-    if (child && typeof child === "object" && "props" in child) {
-      return cloneElement(child, {
-        "aria-haspopup": "dialog",
-        "aria-expanded": ctx.open,
-        "data-state": ctx.open ? "open" : "closed",
-        onClick: (e: MouseEvent) => {
-          child.props.onClick?.(e);
-          ctx.setOpen(true);
-        },
-        ref: setTriggerRef,
-      });
-    }
-    return <>{children}</>;
-  }
   return (
-    <DropdownMenuPrimitive.Trigger asChild={asChild} ref={ctx.trigger}>
+    <DropdownMenuPrimitive.Trigger
+      asChild={asChild}
+      ref={ctx.trigger}
+      aria-expanded={ctx.open}
+      data-state={ctx.open ? "open" : "closed"}
+      onPointerDown={(event: PointerEvent) => {
+        ctx.opener.current = ctx.open ? undefined : event.pointerType;
+        if (menuFormFor(ctx.opener.current) === "sheet") {
+          event.preventDefault();
+        }
+      }}
+      onPointerCancel={() => {
+        ctx.opener.current = undefined;
+      }}
+      onKeyDown={() => {
+        ctx.opener.current = undefined;
+      }}
+      onClick={() => {
+        if (!ctx.open && menuFormFor(ctx.opener.current) === "sheet") {
+          ctx.setOpen(true);
+        }
+      }}
+    >
       {children}
     </DropdownMenuPrimitive.Trigger>
   );
@@ -204,32 +198,25 @@ export function DropdownTrigger({
 
 export const dropdownContentVariants = cva(
   [
-    "z-50 min-w-[120px] overflow-y-auto overscroll-contain [scrollbar-gutter:auto] rounded-card",
+    "z-50 min-w-[120px] max-h-[var(--radix-dropdown-menu-content-available-height)]",
+    "overflow-y-auto overscroll-contain [scrollbar-gutter:auto] rounded-card",
     "border border-solid border-edge bg-popup p-1.5 text-ink",
     "origin-[--radix-dropdown-menu-content-transform-origin]",
     "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
   ],
   {
     variants: {
-      fit: {
-        free: "",
-        room: "max-h-[var(--radix-dropdown-menu-content-available-height)]",
-      },
       elevation: {
         floating: "shadow-float",
         library: "shadow-menu",
       },
     },
-    defaultVariants: { fit: "free", elevation: "floating" },
+    defaultVariants: { elevation: "floating" },
   },
 );
 
 export type DropdownContentElevation = NonNullable<
   VariantProps<typeof dropdownContentVariants>["elevation"]
->;
-
-export type DropdownContentFit = NonNullable<
-  VariantProps<typeof dropdownContentVariants>["fit"]
 >;
 
 const EDGE_GAP = 12;
@@ -330,7 +317,7 @@ function SheetMenu({
           owner(element);
         }}
         role="menu"
-        class={cn("overflow-y-auto overscroll-contain p-1.5", className)}
+        class={cn("overflow-y-auto overscroll-contain p-1.5", className, "w-full max-w-none")}
       >
         {children}
       </div>
@@ -402,9 +389,9 @@ export function DropdownContent({
         sideOffset={clear?.offset ?? sideOffset}
         align={align}
         side={side}
-        {...(clear ? { collisionPadding: clear.padding } : {})}
+        collisionPadding={clear?.padding ?? EDGE_GAP}
         class={cn(
-          dropdownContentVariants({ fit: keepClear ? "room" : "free", elevation }),
+          dropdownContentVariants({ elevation }),
           className,
         )}
         onCloseAutoFocus={(event: Event) => {

@@ -64,7 +64,10 @@ const openSettings = async () => {
   )!;
   trigger.focus();
   if (phone) {
-    await act(async () => trigger.click());
+    await act(async () => {
+      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
+      trigger.click();
+    });
     await settle(300);
   } else {
     await act(async () => {

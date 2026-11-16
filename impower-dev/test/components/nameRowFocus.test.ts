@@ -83,6 +83,9 @@ const openMenu = async (trigger: HTMLElement | undefined) => {
   trigger!.focus();
   await act(async () => {
     if (layout.value === "phone") {
+      trigger!.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }),
+      );
       trigger!.click();
     } else {
       trigger!.dispatchEvent(

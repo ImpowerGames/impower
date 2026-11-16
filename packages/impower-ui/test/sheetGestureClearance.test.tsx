@@ -70,7 +70,12 @@ const measured = (page: Page) =>
     };
   });
 
-const opened = async (kind: "app" | "long" | "menu", coarse: boolean, run: (page: Page) => Promise<void>) => {
+const opened = async (
+  kind: "app" | "long" | "menu",
+  coarse: boolean,
+  run: (page: Page) => Promise<void>,
+  opening: "tap" | "touch" | "click" = coarse ? "tap" : "click",
+) => {
   const [script, css] = await Promise.all([pageScript(), styles()]);
   const browser = await chromium.launch();
   try {
@@ -85,10 +90,14 @@ const opened = async (kind: "app" | "long" | "menu", coarse: boolean, run: (page
       `<!doctype html><html data-theme="charcoal" data-layout="phone"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head><body style="margin:0"></body></html>`,
     );
     await page.addScriptTag({ content: script });
-    if (coarse) {
-      await page.locator("[data-trigger]").tap();
+    const trigger = page.locator("[data-trigger]");
+    if (opening === "tap") {
+      await trigger.tap();
+    } else if (opening === "touch") {
+      await trigger.dispatchEvent("pointerdown", { pointerType: "touch", button: 0, bubbles: true, cancelable: true });
+      await trigger.dispatchEvent("click");
     } else {
-      await page.locator("[data-trigger]").click();
+      await trigger.click();
     }
     await page.locator('[role="menu"]').waitFor();
     await page.waitForTimeout(300);
@@ -128,17 +137,17 @@ describe.skipIf(!browserAvailable)("a bottom sheet's last row and the phone's sy
     });
   });
 
-  test("with a mouse in a narrow window the Dropdown's sheet adds nothing at its foot", async () => {
+  test("on a device whose primary pointer is fine, the sheet a finger opens in a narrow window adds nothing at its foot", async () => {
     await opened("app", false, async (page) => {
       const box = await measured(page);
       expect(box.coarse).toBe(false);
       expect(box.role).toBe("dialog");
       expect(box.cardPaddingBottom).toBe("0px");
       expect(box.lastRow.bottom).toBe(box.inner - 6);
-    });
+    }, "touch");
   });
 
-  test("with a mouse in a narrow window a Dropdown kept as a menu, as the Variants menu is, stays a menu with no foot clearance", async () => {
+  test("with a mouse in a narrow window the Dropdown opens as a menu with no foot clearance", async () => {
     await opened("menu", false, async (page) => {
       const box = await measured(page);
       expect(box.role).toBe("menu");

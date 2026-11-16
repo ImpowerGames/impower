@@ -61,7 +61,9 @@ const withSheet = async (
 };
 
 const open = async (page: Page) => {
-  await page.locator("[data-face]").click();
+  const trigger = page.locator("[data-face]");
+  await trigger.dispatchEvent("pointerdown", { pointerType: "touch", button: 0, bubbles: true, cancelable: true });
+  await trigger.dispatchEvent("click");
   await page.locator('[role="menu"]').waitFor();
   await page.waitForTimeout(300);
 };
@@ -72,7 +74,7 @@ const boxOf = (page: Page, selector: string) =>
     return { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height };
   }, selector);
 
-describe.skipIf(!browserAvailable)("the Dropdown's phone-layout sheet kept clear of a picture, opened in a browser", () => {
+describe.skipIf(!browserAvailable)("the Dropdown's sheet, opened by a finger, kept clear of a picture in a browser", () => {
   test("leaves the picture undimmed and uncovered, with the sheet and its backdrop below it", async () => {
     await withSheet(932, "short", async (page) => {
       const picture = await boxOf(page, "[data-picture]");

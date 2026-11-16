@@ -682,7 +682,10 @@ describe("Real menus and sheets at their elevations (I-2448)", () => {
       await act(async () => render(node, host));
       const trigger = host.querySelector<HTMLElement>("[aria-haspopup]");
       if (trigger && phone) {
-        await act(async () => trigger.click());
+        await act(async () => {
+          trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
+          trigger.click();
+        });
       } else if (trigger) {
         trigger.focus();
         await act(async () => {
