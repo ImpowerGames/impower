@@ -310,11 +310,8 @@ describe("the `morph` clause and `default = true` (I-2112)", () => {
     expect(reported[0]!.message).toContain("`talk` and `talk_gritted` are all marked `default = true`");
   });
 
-  test("the override warning is judged against the chosen morph", () => {
-    const text = story(`${TALK}\n${GRITTED}`, "  [[bunny:mouth.teeth]]\n  [[bunny:mouth.teeth morph none]]");
-    const lines = text.split("\n");
-    const warned = about(text, /does not show/);
-    expect(warned).toEqual([expect.objectContaining({ line: lines.indexOf("  [[bunny:mouth.teeth]]"), text: "mouth.teeth" })]);
-    expect(warned[0]!.message).toContain("`talk` plays on this look");
+  test("a speech morph's override is not warned, whichever morph the clause chooses (I-2442)", () => {
+    const text = story(`${TALK}\n${GRITTED}`, "  [[bunny:mouth.teeth]]\n  [[bunny:mouth.teeth morph none]]\n  [[bunny:mouth.teeth morph talk]]");
+    expect(about(text, /does not show/)).toEqual([]);
   });
 });
