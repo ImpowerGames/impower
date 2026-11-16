@@ -1,7 +1,6 @@
 import type { SyntaxNode, Tree } from "@lezer/common";
-import { stripStyleCodes } from "../../runtime/displayStyle";
 import type { BeatRange, ShownBeat } from "../../program/programShownBeat";
-import { readStyledSource } from "../lower/utils/displaySpans";
+import { displayTextFacts } from "./displayTextFacts";
 import { DISPLAY_LINE_TYPES, displayBeatRanges, readCueSource } from "../lower/lowerers/lowerDisplay";
 import { characterNames, cueCharacter, type CharacterNames } from "./cueCharacter";
 import { linePick } from "./linePick";
@@ -20,8 +19,6 @@ export type DirectiveSpeakers = Record<string, string | null>;
 
 const ASSET_LINES = new Set(["ImageLine", "AudioLine", "ImageAndAudioLine", "AssetLine"]);
 
-const DIRECTIVE = /\[\[.*?\]\]|\(\(.*?\)\)/gs;
-
 const isDisplay = (node: SyntaxNode) => Object.hasOwn(DISPLAY_LINE_TYPES, node.name);
 
 const constructAt = (tree: Tree, at: number): SyntaxNode | null => {
@@ -31,26 +28,6 @@ const constructAt = (tree: Tree, at: number): SyntaxNode | null => {
     if (!assetLine && ASSET_LINES.has(node.name)) assetLine = node;
   }
   return assetLine;
-};
-
-const INTERPOLATION = "LuauInterpolatedStringExpression";
-
-const beatText = (node: SyntaxNode, range: { from: number; to: number }, read: Read) => {
-  let text = stripStyleCodes(readStyledSource(node, range.from, range.to, { read }));
-  let interpolates = false;
-  const removeUnwritten = (parent: SyntaxNode) => {
-    for (let child = parent.firstChild; child; child = child.nextSibling) {
-      if (child.to <= range.from || child.from >= range.to) continue;
-      if (child.name.includes("Comment") || child.name === INTERPOLATION) {
-        interpolates ||= child.name === INTERPOLATION;
-        text = text.replace(read(child.from, child.to), "");
-      } else {
-        removeUnwritten(child);
-      }
-    }
-  };
-  removeUnwritten(node);
-  return { writes: text.replace(DIRECTIVE, "").trim().length > 0, interpolates };
 };
 
 const speakerOf = (
@@ -72,29 +49,27 @@ export const directiveSpeaker = (
   tree: Tree,
   source: DirectiveSource,
   at: number,
-  shownWith: (construct: BeatRange, interpolates: boolean) => ShownBeat,
+  shownWith: (construct: BeatRange) => ShownBeat,
 ): string | undefined => {
   const { read } = source;
   const own = constructAt(tree, at);
   if (!own) return undefined;
   const ownSpeaker = isDisplay(own) ? speakerOf(context, names, own, read) : undefined;
   const ownBeats = isDisplay(own)
-    ? (displayBeatRanges(own, source) ?? []).filter((range) => range.to >= at).map((range) => beatText(own, range, read))
+    ? (displayBeatRanges(own, source) ?? [])
+        .filter((range) => range.to >= at)
+        .map((range) => displayTextFacts(own, range.from, range.to, source).writes)
     : [];
-  if (ownBeats.some((beat) => beat.writes)) {
-    return ownSpeaker;
-  }
+  if (ownBeats.includes("text")) return ownSpeaker;
+  if (ownBeats.includes("dynamic")) return undefined;
   let end = own.to;
   while (end > own.from && !read(end - 1, end).trim()) end -= 1;
-  const shown = shownWith(
-    {
-      startLine: source.lineNumber(own.from),
-      startColumn: source.characterNumber(own.from),
-      endLine: source.lineNumber(end),
-      endColumn: source.characterNumber(end),
-    },
-    ownBeats.some((beat) => beat.interpolates),
-  );
+  const shown = shownWith({
+    startLine: source.lineNumber(own.from),
+    startColumn: source.characterNumber(own.from),
+    endLine: source.lineNumber(end),
+    endColumn: source.characterNumber(end),
+  });
   if (shown.kind === "own") return ownSpeaker;
   if (shown.kind === "beat") return shown.character ? cueCharacter(context, names, shown.character) : undefined;
   return undefined;
@@ -128,7 +103,7 @@ export const directiveSpeakers = (
   context: Record<string, any>,
   tree: Tree,
   source: DirectiveSource,
-  shownWith: (construct: BeatRange, interpolates: boolean) => ShownBeat,
+  shownWith: (construct: BeatRange) => ShownBeat,
   directives: readonly SourceDirective[] = readSourceDirectives(tree, source.read),
   names: CharacterNames = characterNames(context),
 ): DirectiveSpeakers => {

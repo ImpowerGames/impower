@@ -256,7 +256,7 @@ import {
   SET_DECLARE,
   SET_GLOBAL,
 } from "../../program/ProgramInstructions";
-import { H_CODE_WORDS, HEADER_WORDS } from "../../program/ProgramChunk";
+import { H_CODE_WORDS, HEADER_WORDS, type ProgramChunk } from "../../program/ProgramChunk";
 import { NUMBERED_SYNTHETIC_NAME } from "../../program/ProgramSymbols";
 import { rootChanges } from "../../program/rootChanges";
 import { captureProgramAssets } from "../../program/programSceneAssets";
@@ -4861,9 +4861,11 @@ export class SparkdownCompiler {
         lineNumber: (pos: number) => doc.positionAt(pos).line,
       };
       const chunks = program.chunks;
+      const store = this._chunkStore;
+      const factsAt = (chunk: ProgramChunk, offset: number) => store?.displayFactsAt(chunk, offset);
       const speakers =
         scriptTree && chunks
-          ? directiveSpeakers(program.context, scriptTree, directiveSource, (construct, interpolates) => shownBeat(chunks, uri, construct, interpolates), directives, names)
+          ? directiveSpeakers(program.context, scriptTree, directiveSource, (construct) => shownBeat(chunks, uri, construct, factsAt), directives, names)
           : undefined;
       if (speakers) {
         (program.directiveSpeakers ??= {})[uri] = speakers;

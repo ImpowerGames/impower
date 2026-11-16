@@ -1,4 +1,5 @@
 import { createProgramTable, reseedProgramTable, type ProgramTable } from "./ProgramTable";
+import type { DisplayFacts } from "./displayFacts";
 import {
   alternatorSourceOf,
   functionShapeOf,
@@ -256,6 +257,7 @@ interface ChunkInfo {
   placement: string;
   params: string;
   facts: ReadonlyMap<number, readonly string[]>;
+  beats: ReadonlyMap<number, DisplayFacts>;
   generation: number;
 }
 
@@ -288,6 +290,10 @@ export class ChunkStore {
   protected _byBlock = new WeakMap<object, ProgramChunk>();
   protected _byDeclaration = new WeakMap<object, ProgramChunk>();
   protected _info = new WeakMap<ProgramChunk, ChunkInfo>();
+
+  displayFactsAt(chunk: ProgramChunk, offset: number): DisplayFacts | undefined {
+    return this._info.get(chunk)?.beats.get(offset);
+  }
   protected _functionChunks: ReadonlySet<ProgramChunk> = new Set();
 
   readonly watch = new StatementWatch();
@@ -1445,6 +1451,7 @@ export class ChunkStore {
       reads: readonly string[];
       resolutions: readonly string[];
       facts: ReadonlyMap<number, readonly string[]>;
+      beats: ReadonlyMap<number, DisplayFacts>;
     },
   ): ProgramChunk {
     const bodies = statement.bodies ?? [];
@@ -1579,6 +1586,7 @@ export class ChunkStore {
       emitReads: emitted.reads,
       resolutions: emitted.resolutions,
       facts: emitted.facts,
+      beats: emitted.beats,
       globals: assignedNames(statement),
       defines: statement.defines,
       parts: bodies.flatMap((body, k) =>

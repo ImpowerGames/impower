@@ -18,6 +18,7 @@ import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { CallValueExpression } from "../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
 import type { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
+import { displayFactsOf, type DisplayFacts } from "./displayFacts";
 import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import type { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { MultiVariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
@@ -132,6 +133,7 @@ export interface EmittedStatement {
   reads: readonly string[];
   resolutions: readonly string[];
   facts: ReadonlyMap<number, readonly string[]>;
+  beats: ReadonlyMap<number, DisplayFacts>;
 }
 
 interface ChooseState {
@@ -182,6 +184,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected _layout: string[] = [];
   protected _openMarks: string[] = [];
   protected _unwritten: number[] = [];
+  protected _beats = new Map<number, DisplayFacts>();
   protected _firstLine = 0;
 
   protected _source = "";
@@ -284,6 +287,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._layout = [];
     this._openMarks = [];
     this._unwritten = [];
+    this._beats = new Map();
     this._firstLine = input.firstLine;
     this._sourceLines = undefined;
     this._source = input.source;
@@ -333,6 +337,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       reads: this._reads,
       resolutions: [...new Set(this._resolutions)].sort(),
       facts,
+      beats: this._beats,
     };
   }
 
@@ -378,6 +383,15 @@ export class BinaryProgramWriter implements ProgramEmitter {
       this.emit(Op.LineStart);
     }
     obj.EmitProgram(this);
+    const facts = displayFactsOf(obj);
+    if (facts) {
+      for (let at = this._code.length - 2; at >= 0; at -= 2) {
+        if (opOf(this._code[at]!) === Op.CallStd && this.table.strings[this._code[at + 1]!] === "display") {
+          this._beats.set(at, facts);
+          break;
+        }
+      }
+    }
     if (own) {
       this._ranges.pop();
       this.row(this._ranges[this._ranges.length - 1] ?? null);

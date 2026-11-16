@@ -7,6 +7,8 @@ import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef"
 import type { LowerContext } from "../context";
 import { buildDisplayCall } from "../utils/displayCall";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { recordDisplayFacts } from "../../../program/displayFacts";
+import { readSourceDirective } from "../../utils/readDirective";
 
 export function lowerImageLine(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -39,7 +41,12 @@ function buildAssetContent(node: SyntaxNode, ctx: LowerContext): CompiledBlock {
     return wrapInWeave(content);
   }
   return wrapInWeave([
-    buildDisplayCall(undefined, undefined, content, node, ctx),
+    recordDisplayFacts(buildDisplayCall(undefined, undefined, content, node, ctx), {
+      writes: "none",
+      pause: false,
+      load: false,
+      directives: commands.flatMap((cmd) => readSourceDirective(cmd, ctx.read)?.kind ?? []),
+    }),
   ]);
 }
 

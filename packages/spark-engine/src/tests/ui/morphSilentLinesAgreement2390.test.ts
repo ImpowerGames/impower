@@ -122,6 +122,12 @@ describe("the editor's warning agrees with the game's image write (I-2390, I-244
     ["a directive line before Mia's line that interpolates a function call", story(`  ${DIRECTIVE}\n  MIA: {greet()} Hello.`).replace("scene start", GREET), undefined, true],
     ["a function call statement between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  local said = greet()\n  MIA:\n    Hello there.`).replace("scene start", GREET), undefined, true],
     ["a directive line before Mia's line that starts with a library call's interpolation", story(`  ${DIRECTIVE}\n  MIA: {string.upper("x")} Hello.`), undefined, true],
+    ["a load written as a constant interpolation between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  load {"gallery"}\n  MIA: Hello.\nend\n\nscene gallery\n  Pictures.`), undefined, false],
+    ["a directive line before Mia's line showing bracket text in a raw span", story(`  ${DIRECTIVE}\n  MIA: \`[[nothing]]\`\n  Mia waits.`), undefined, true],
+    ["a directive line before Mia's line showing a load's brackets in a raw span", story(`  ${DIRECTIVE}\n  MIA: \`[[load gallery]]\`\n  Mia waits.\nend\n\nscene gallery\n  Pictures.`), undefined, true],
+    ["Mia's cue holding the directive, an empty interpolation and raw bracket text, before narration", story(`  MIA: ${DIRECTIVE} {""} \`[[nothing]]\`\n  Mia waits.`), undefined, true],
+    ["a directive line before Mia's line showing escaped brackets", story(`  ${DIRECTIVE}\n  MIA: \\[[nothing]]\n  Mia waits.`), undefined, true],
+    ["a tagged line showing nothing between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  {""} # mood\n  MIA: Hello.`), undefined, true],
   ])("%s", async (_, source, scripts, plays) => {
     const editor = warned(source, scripts);
     const shown = await talks(source, scripts);
