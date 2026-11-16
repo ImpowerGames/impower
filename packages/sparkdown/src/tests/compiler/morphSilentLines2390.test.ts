@@ -77,7 +77,7 @@ ${lines}
 end
 `;
 
-function compilerFor(text: string) {
+function warnings(text: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
@@ -86,10 +86,6 @@ function compilerFor(text: string) {
       { uri: "file:///raffles.svg", type: "image", name: "raffles", ext: "svg", data: FACE },
     ],
   } as any);
-  return compiler;
-}
-
-function warnings(text: string, compiler = compilerFor(text)) {
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
   const lines = text.split("\n");
   return (program.diagnostics?.[URI] ?? [])
@@ -163,27 +159,6 @@ describe("the choice warning follows the line's speaker (I-2390)", () => {
   test("a divert cycle after a directive line ends the walk and names nobody", () => {
     const text = story("  [[bunny:mouth.teeth]]\n  -> a\nend\n\nscene a\n  -> b\nend\n\nscene b\n  -> a");
     expect(warnings(text)).toEqual([]);
-  });
-
-  test.each([
-    ["in another scene", "Elsewhere", "Somewhere else"],
-    ["on the character's line", "Let go of that", "Let go"],
-    ["in the statement between them", "local n = 1", "local n = 2"],
-  ])("a directive line read past a statement keeps its warning after an edit %s recompiles (I-2442)", (_, from, to) => {
-    const text = `${story("  [[bunny:mouth.teeth]]\n  local n = 1\n  BUNNY:\n    Let go of that!")}\nscene other\n  Elsewhere.\nend\n`;
-    const compiler = compilerFor(text);
-    expect(warnings(text, compiler)).toHaveLength(1);
-    const offset = text.indexOf(from);
-    const before = text.slice(0, offset).split("\n");
-    const at = { line: before.length - 1, character: before.at(-1)!.length };
-    compiler.updateDocument({
-      textDocument: { uri: URI, version: 2 },
-      contentChanges: [{ range: { start: at, end: { line: at.line, character: at.character + from.length } }, text: to }],
-    } as never);
-    const edited = text.replace(from, to);
-    const found = warnings(edited, compiler);
-    expect(found).toHaveLength(1);
-    expect(found[0]!.line).toContain("[[bunny:mouth.teeth]]");
   });
 
   test("a named look's own warning is unchanged", () => {

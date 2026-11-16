@@ -1537,12 +1537,7 @@ const completionsAt = (
       const image = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
       const vocabulary = resolveImageAttributes(program.context, image, { visibility: false }).vocabulary;
       if (vocabulary) {
-        const line = directiveLine(
-          tree,
-          { read, characterNumber: (pos) => document.positionAt(pos).character, lineNumber: (pos) => document.positionAt(pos).line },
-          start,
-          program.directiveSpeakers?.[document.uri],
-        );
+        const line = directiveLine(program.context, tree, { read, characterNumber: (pos) => document.positionAt(pos).character }, start);
         for (const choice of attributeCompletionChoices(vocabulary, current, [...before, ...after])) {
           completions.set(choice.label, attributeCompletionItem(
             choice,

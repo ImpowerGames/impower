@@ -827,7 +827,6 @@ describe("block statements an edit reorders", () => {
             choices: [],
             heads: [],
             facts: new Map(),
-            beats: new Map(),
             placement: "sequence",
             generation: this.table.generation,
           });
@@ -910,7 +909,6 @@ describe("block statements an edit reorders", () => {
           choices: [],
           heads: [],
           facts: new Map(),
-          beats: new Map(),
           placement: "sequence",
           generation: this.table.generation,
         });

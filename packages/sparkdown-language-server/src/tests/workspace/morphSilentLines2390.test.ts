@@ -7,7 +7,7 @@ import type { ImagePick } from "@impower/sparkdown/src/compiler/utils/getImageCo
 import { getHover } from "../../utils/providers/getHover";
 import { createImageCompositeOptions } from "../../utils/providers/imagePreviewOptions";
 import { resolveCompletion } from "../../utils/providers/resolveCompletion";
-import { complete } from "../providers/completionHarness";
+import { completeAt } from "../providers/braceCompletionHarness";
 
 const main = "file:///project/main.sd";
 const asset = "file:///project/bunny.svg";
@@ -128,7 +128,7 @@ async function suggested(lines: string) {
   const script = story(lines);
   const program = compiled(script.replace("|", ""));
   const options = workspaceFor(program);
-  const item = complete(script.replace("|", "@0"), { program, uri: main }).items.find((item) => item.label === "teeth")!;
+  const item = completeAt(script, program).find((item) => item.label === "teeth")!;
   expect(item).toBeDefined();
   const resolved = await resolveCompletion({ ...item, documentation: undefined }, program, options);
   return previewImage((resolved.documentation as any)?.value);
@@ -149,18 +149,6 @@ describe("the hover and the suggestion preview show the look the line shows (I-2
 
   test("hovering a directive line followed by a conditional shows the directive's own look", async () => {
     const src = await hovered("  [[bunny:mouth.teeth]]\n  if ready then\n    BUNNY:\n      Let go of that!\n  end");
-    expect(src).toContain("teeth");
-    expect(src).not.toContain("closed");
-  });
-
-  test("hovering a directive line that ends a do block before the character's cue shows the speech morph's rest (I-2442)", async () => {
-    const src = await hovered("  do\n    [[bunny:mouth.teeth]]\n  end\n  local n = 1\n  BUNNY:\n    Let go of that!");
-    expect(src).toContain("closed");
-    expect(src).not.toContain("teeth");
-  });
-
-  test("a mouth suggestion on a directive line before a loading directive and the character's cue previews that mouth (I-2442)", async () => {
-    const src = await suggested("  [[bunny:mouth.tee|]]\n  [[load gallery]]\n  BUNNY:\n    Let go of that!\nend\n\nscene gallery\n  Pictures.");
     expect(src).toContain("teeth");
     expect(src).not.toContain("closed");
   });

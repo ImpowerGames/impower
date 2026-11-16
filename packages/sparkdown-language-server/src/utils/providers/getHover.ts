@@ -303,14 +303,10 @@ export const getHover = async (
           program.context,
           struct.$name ?? "",
           directiveLine(
+            program.context,
             tree,
-            {
-              read: (from, to) => document.read(from, to),
-              characterNumber: (pos) => document.positionAt(pos).character,
-              lineNumber: (pos) => document.positionAt(pos).line,
-            },
+            { read: (from, to) => document.read(from, to), characterNumber: (pos) => document.positionAt(pos).character },
             document.offsetAt(range.start),
-            program.directiveSpeakers?.[document.uri],
           ),
         )
       : undefined;

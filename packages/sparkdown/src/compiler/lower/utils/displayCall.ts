@@ -17,7 +17,6 @@ import { ChoiceStartEcho } from "../../../inkjs/compiler/Parser/ParsedHierarchy/
 import { SCAN_CLOSE, SCAN_OPEN } from "../../../runtime/displayStyle";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
-import { recordDisplayFacts } from "../../../program/displayFacts";
 
 export class ContinuationGroup extends Text {
   override get isCompilerNamed(): boolean {
@@ -203,12 +202,7 @@ export function buildLoadCall(
 ): FunctionCall {
   const entries = [new ObjectExpressionEntry("load", new StringExpression(args))];
   if (options.open) entries.push(flagEntry("open"));
-  return recordDisplayFacts(finishCall(entries, tags, range, ctx), {
-    writes: "none",
-    pause: false,
-    load: true,
-    directives: [],
-  });
+  return finishCall(entries, tags, range, ctx);
 }
 
 function finishCall(

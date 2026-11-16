@@ -22,7 +22,6 @@ export interface CompleteOptions {
   program?: SparkProgram;
   trigger?: string;
   editedFrom?: string;
-  uri?: string;
 }
 
 const singleChange = (before: string, after: string) => {
@@ -59,7 +58,6 @@ export function complete(
   if (offset == null) {
     throw new Error(`no cursor marker @${at ?? "?"} in the source`);
   }
-  const uri = options.uri ?? URI;
   const documents = new SparkdownDocumentRegistry([
     "characters",
     "declarations",
@@ -67,19 +65,19 @@ export function complete(
   ]);
   if (options.editedFrom == null) {
     documents.set({
-      textDocument: { uri, text, version: 1, languageId: "sparkdown" },
+      textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" },
     });
   } else {
     const before = options.editedFrom;
     documents.set({
-      textDocument: { uri, text: before, version: 1, languageId: "sparkdown" },
+      textDocument: { uri: URI, text: before, version: 1, languageId: "sparkdown" },
     });
-    documents.tree(uri);
-    documents.annotations(uri);
-    const opened = documents.get(uri)!;
+    documents.tree(URI);
+    documents.annotations(URI);
+    const opened = documents.get(URI)!;
     const change = singleChange(before, text);
     documents.update({
-      textDocument: { uri, version: 2 },
+      textDocument: { uri: URI, version: 2 },
       contentChanges: [
         {
           range: { start: opened.positionAt(change.start), end: opened.positionAt(change.end) },
@@ -88,14 +86,14 @@ export function complete(
       ],
     });
   }
-  const document = documents.get(uri)!;
+  const document = documents.get(URI)!;
   if (document.getText() !== text) {
     throw new Error("the document does not hold the marked text");
   }
   const returned = getCompletions(
     document,
-    documents.tree(uri),
-    new Map([[uri, { annotations: documents.annotations(uri), tree: documents.tree(uri), read: (from: number, to: number) => documents.get(uri)!.read(from, to) }]]),
+    documents.tree(URI),
+    new Map([[URI, { annotations: documents.annotations(URI), tree: documents.tree(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]),
     options.program,
     undefined,
     document.positionAt(offset),

@@ -15,7 +15,6 @@ import {
 } from "../expression/lowerExpression";
 import type { LowerContext } from "../context";
 import { buildDisplayCall } from "./displayCall";
-import { recordDisplayFacts } from "../../../program/displayFacts";
 import { divertPartIdentifier, lowerDivertPath } from "./lowerDivertPath";
 
 const CALL_NAMES = nodeNameSet(["LuauFunctionCall"]);
@@ -191,9 +190,12 @@ export function withDivertLoad(
     return objects;
   }
   const lead = options.ownLine === false ? [new Text("\n")] : [];
-  const directive = recordDisplayFacts(
-    buildDisplayCall(undefined, undefined, [new Text(`[[load ${name}]]`)], divertNode, ctx),
-    { writes: "none", pause: false, load: false, directives: ["load"] },
+  const directive = buildDisplayCall(
+    undefined,
+    undefined,
+    [new Text(`[[load ${name}]]`)],
+    divertNode,
+    ctx,
   );
   return [...lead, directive, ...objects];
 }

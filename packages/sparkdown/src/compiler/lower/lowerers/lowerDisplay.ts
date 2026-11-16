@@ -48,8 +48,6 @@ import {
   stripStyleCodes,
 } from "../../../runtime/displayStyle";
 import { forwardBlockDiagnostics } from "../utils/unwrapBlock";
-import { recordDisplayFacts } from "../../../program/displayFacts";
-import { displayTextFacts } from "../../utils/displayTextFacts";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
 import { opensAlternator } from "../../utils/alternatorDecision";
@@ -101,13 +99,7 @@ function buildDisplayCalls(
     const conditional =
       only &&
       tryLowerInlineConditional(only, ctx, (body) => [
-        recordDisplayFacts(buildDisplayCall(target, character, body, ranges[0]!, ctx), {
-          ...(character ? { character } : {}),
-          writes: "dynamic",
-          pause: false,
-          load: false,
-          directives: [],
-        }),
+        buildDisplayCall(target, character, body, ranges[0]!, ctx),
       ]);
     if (conditional) {
       reportInlineIfReading(only!, ctx);
@@ -171,12 +163,10 @@ function buildDisplayCalls(
         body.length > 0 || range.pause || ranges.length > 1
           ? range
           : { from: parent.from, to: parent.from };
-      const callCharacter = isContinuation && i > 0 ? joinedRouting()?.character : character;
-      const text = displayTextFacts(parent, range.from, range.to, ctx);
-      calls.push(recordDisplayFacts(
+      calls.push(
         buildDisplayCall(
           isContinuation && i > 0 ? joinedRouting()?.target : target,
-          callCharacter,
+          isContinuation && i > 0 ? joinedRouting()?.character : character,
           body,
           stamped,
           ctx,
@@ -193,14 +183,7 @@ function buildDisplayCalls(
             continues: beatLeads,
           },
         ),
-        {
-          ...(callCharacter ? { character: callCharacter } : {}),
-          writes: text.writes,
-          pause: Boolean(range.pause),
-          load: false,
-          directives: text.directives,
-        },
-      ));
+      );
     }
     if (divertTail.objects.length > 0) {
       calls.push(...divertTail.objects);
@@ -637,7 +620,7 @@ const CHAIN_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
   "tag",
 ]);
 
-export function injectionKind(
+function injectionKind(
   node: SyntaxNode,
 ): BodyInjection["kind"] | "opaque" | null {
   if (node.name === "DisplayLoadKeyword") return "load";
