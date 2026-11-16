@@ -124,6 +124,28 @@ const INSERT_TEXT_CURSOR_REGEX = /[$]\d+/g;
 
 const isPrefilteredName = (name: string) => name.includes("~");
 
+const unclosedOpenerBefore = (
+  tree: Tree,
+  lineFrom: number,
+  offset: number,
+  read: (from: number, to: number) => string,
+): string | undefined => {
+  let opener: { from: number; to: number } | undefined;
+  tree.iterate({
+    from: lineFrom,
+    to: offset,
+    enter: (node) => {
+      if (node.name === "LiteralDirectiveOpener" && node.to <= offset) {
+        opener = { from: node.from, to: node.to };
+      }
+    },
+  });
+  if (!opener || !/^(?:[_\p{L}][0-9_\p{L}-]*(?:@[0-9_\p{L}][0-9_\p{L}-]*)*)?$/u.test(read(opener.to, offset))) {
+    return undefined;
+  }
+  return read(opener.from, opener.to);
+};
+
 const STRUCTURAL_DEFINE_TYPE: Partial<Record<SparkdownNodeName, string>> = {
   LuauStyle: "style",
   LuauLayout: "layout",
@@ -1761,6 +1783,28 @@ const completionsAt = (
     if (isCursorAfterNodeText(writeTargetNode)) {
       addScreenElementReferenceCompletions(completions, program, ["text"]);
     }
+    return buildCompletions();
+  }
+
+  const unclosedOpener = unclosedOpenerBefore(
+    tree,
+    document.offsetAt({ line: position.line, character: 0 }),
+    documentCursorOffset,
+    read,
+  );
+  if (unclosedOpener === "[[") {
+    addBracketControlCompletions(completions);
+    addStructReferenceCompletions(
+      completions,
+      program,
+      IMAGE_COMMAND_NAME_TYPES,
+      isPrefilteredName,
+    );
+    return buildCompletions();
+  }
+  if (unclosedOpener === "((") {
+    addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
+    addStructReferenceCompletions(completions, program, AUDIO_TYPES);
     return buildCompletions();
   }
 
