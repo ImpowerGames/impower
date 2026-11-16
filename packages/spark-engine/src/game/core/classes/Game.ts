@@ -4168,6 +4168,7 @@ export class Game<T extends M = {}> {
     let lastAddress: ProgramAddress | undefined;
     const lines = new Map<string, Set<number>>();
     const lastLines = new Map<string, number>();
+    const root = this._story.root;
     this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
       if (typeof p !== "number") {
         return;
@@ -4179,7 +4180,7 @@ export class Game<T extends M = {}> {
       }
       first ??= l;
       last = l;
-      if (detailed) {
+      if (detailed && !root.isOptionOffer(p)) {
         const uri = this.scriptUri(l[0]);
         let set = lines.get(uri);
         if (!set) {

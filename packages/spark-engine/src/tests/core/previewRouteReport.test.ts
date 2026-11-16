@@ -5,6 +5,7 @@ import type {
   PreviewRoute,
   ScriptSource,
 } from "../../game/core/types/PreviewRoute";
+import { expandLineRanges } from "../../game/core/utils/executedLineRanges";
 import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
@@ -60,6 +61,16 @@ function preview(
   };
 }
 
+function executedLinesAt(lines: string[], line: number): number[] {
+  const { program } = compileSrc(lines.join("\n"));
+  const game: any = newGame(program);
+  game.setStartFrom({ file: URI, line: line - 1 });
+  game.simulate();
+  expect(game.simulation).toBe("success");
+  const ranges = game.executedParams().executedLines?.[URI]?.ranges ?? [];
+  return expandLineRanges(ranges).map((l: number) => l + 1);
+}
+
 const kindsAndLines = (route: PreviewRoute) =>
   route.decisions.map((d) => [d.kind, d.location.range.start.line + 1]);
 
@@ -107,6 +118,30 @@ describe("the route the preview reports", () => {
     expect(loop!.passes).toBe(count);
     expect(count).toBeGreaterThan(0);
     expect(count).toBeLessThan(40000);
+  }, 120_000);
+
+  test("the executed lines at line 21 of #1655's example leave out the options the route did not take", () => {
+    expect(executedLinesAt(interrogation, 21)).toEqual([
+      6, 7, 10, 11, 15, 17, 18, 19, 21,
+    ]);
+  }, 120_000);
+
+  test("the executed lines leave out an option its condition hid and keep the option the route took", () => {
+    const lines = [
+      "store key = false",
+      "",
+      "scene start",
+      "  choose",
+      "    * if key [Show the key.]",
+      "      You show the key.",
+      "    * [Knock.]",
+      "      You knock.",
+      "  end",
+      "  The door opens.",
+      "end",
+      "",
+    ];
+    expect(executedLinesAt(lines, 10)).toEqual([4, 7, 8, 10]);
   }, 120_000);
 
   test("a loop the search leaves part way inside a forced branch is clipped after the passes it ran", () => {

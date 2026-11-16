@@ -426,6 +426,41 @@ describe("the route rule", () => {
     ]);
   });
 
+  it("bridges a block's end line between two executed lines and leaves a gap at the options the route did not take", () => {
+    const doc = [
+      "store trust = 0",
+      "store clues = 0",
+      "",
+      "scene interrogation",
+      "  INSPECTOR:",
+      "    Where were you at nine?",
+      "  choose",
+      "    * [Tell the truth.]",
+      "      trust += 2",
+      "    * [Show the photograph.]",
+      "      trust += 5",
+      "    * [Lie.]",
+      "      trust -= 1",
+      "  end",
+      "  if trust > 3 then",
+      "    INSPECTOR:",
+      "      I believe you.",
+      "    for i = 1, 40000 do",
+      "      clues += 1",
+      "    end",
+      "    You found {clues} clues.",
+      "  end",
+      "end",
+    ].join("\n");
+    mount(ALL_OFF_APPEARANCE, doc);
+    setHighlights(view!, [6, 7, 10, 11, 15, 17, 18, 19, 21]);
+    expect(getRouteLineRuns(view!.state)).toEqual([
+      [6, 7],
+      [10, 11],
+      [15, 21],
+    ]);
+  });
+
   it("is hidden in an empty script", () => {
     mount(ALL_OFF_APPEARANCE, "");
     setHighlights(view!, [1]);

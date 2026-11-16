@@ -644,6 +644,53 @@ export class ProgramRoot {
     return undefined;
   }
 
+  protected _optionOffers = new WeakMap<ProgramChunk, Uint8Array | null>();
+
+  isOptionOffer(address: number): boolean {
+    if (!Number.isInteger(address) || address < 0) {
+      return false;
+    }
+    const at = this.position(chunkOfAddress(address));
+    const chunk = at?.sequence.arrays.chunks[at.entry];
+    if (!chunk) {
+      return false;
+    }
+    let offers = this._optionOffers.get(chunk);
+    if (offers === undefined) {
+      offers = this.optionOffersOf(chunkId(chunk), chunk);
+      this._optionOffers.set(chunk, offers);
+    }
+    return offers !== null && offers[offsetOfAddress(address) >> 1] === 1;
+  }
+
+  protected optionOffersOf(id: number, chunk: ProgramChunk): Uint8Array | null {
+    const words = codeWords(chunk);
+    let offers: Uint8Array | null = null;
+    for (let offset = 0; offset < words; offset += 2) {
+      if (opOf(chunk[HEADER_WORDS + offset]!) !== Op.Choice) {
+        continue;
+      }
+      const option = this.locationOf(addressOf(id, offset));
+      if (!option) {
+        continue;
+      }
+      offers ??= new Uint8Array(words >> 1);
+      for (let o = offset; o >= 0; o -= 2) {
+        const location = this.locationOf(addressOf(id, o));
+        if (
+          !location ||
+          location.uri !== option.uri ||
+          location.startLine < option.startLine ||
+          location.endLine > option.endLine
+        ) {
+          break;
+        }
+        offers[o >> 1] = 1;
+      }
+    }
+    return offers;
+  }
+
   protected scriptEnd(uri: string): number {
     let end = 0;
     for (const flow of this.flows(uri)) {
