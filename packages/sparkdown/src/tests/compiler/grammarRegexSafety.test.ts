@@ -357,14 +357,17 @@ describe("a choice line that never meets a close is read at once (#2083)", () =>
   });
 
   test.each([
-    ["long-bracket openers after braces in a closed audio command in inner text", "ChoiceInnerTextContent", "Go ((a" + " {[[".repeat(4000) + " )) z"],
-    ["long-bracket openers after braces in a closed audio command in a suppression", "ChoiceOnlyTextContent", "Go ((a" + " {[=[".repeat(4000) + " )) z"],
-  ])("%s rereads the command from each brace, in time quadratic in their number, within the stated limit of 4,000 openers in 1 s (I-2444)", (_what, rule, line) => {
+    ["long-bracket openers after braces in a closed audio command in inner text", "ChoiceInnerTextContent", (n: number) => "Go ((a" + " {[[".repeat(n) + " )) z"],
+    ["long-bracket openers after braces in a closed audio command in a suppression", "ChoiceOnlyTextContent", (n: number) => "Go ((a" + " {[=[".repeat(n) + " )) z"],
+  ])("%s rereads the command from each brace, so its time grows with the square of their number and less than 32-fold from 1,000 openers to 4,000 (I-2444)", async (_what, rule, line) => {
     const re = new RegExp(grammar.repository[rule].match, "muy");
-    re.lastIndex = 0;
-    const t0 = performance.now();
-    re.exec(line);
-    const ms = performance.now() - t0;
-    expect(ms, `${rule}.match took ${ms.toFixed(1)}ms`).toBeLessThan(1000);
+    const search = (text: string) => {
+      re.lastIndex = 0;
+      return re.exec(text);
+    };
+    search(line(40));
+    const short = await fastest(() => search(line(1000)));
+    const long = await fastest(() => search(line(4000)));
+    expect(long, `1,000 openers took ${short.toFixed(1)}ms, 4,000 took ${long.toFixed(1)}ms`).toBeLessThan(32 * short + 40);
   });
 });
