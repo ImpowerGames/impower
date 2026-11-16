@@ -872,8 +872,7 @@ const pageLines = (configName: string, source: string): string[] => {
     if (inner.length > 0) {
       for (const div of inner) {
         const text = visibleText(div);
-        if (shown && text.trim()) lines.push(text.trimEnd());
-      }
+        if (shown && text.trim()) lines.push(text.trimEnd());      }
       continue;
     }
     const text = visibleText(row);
@@ -934,6 +933,31 @@ describe("two blocks of alternatives on one source line", () => {
     expect(besideBody(exportLines("default", source))).toEqual(rows);
     expect(besideBody(pageLines("default", source))).toEqual(rows);
     expect(unplacedText("default", source)).toEqual([]);
+  });
+
+  it("put the export's blank line between the two blocks, on the page as in the export", () => {
+    const source = ["scene s", "  Before.", "  queue | One A. | One B. end queue | Two A. | Two B. end", "  After.", "end", ""].join("\n");
+    const printed = exportLines("default", source);
+    expect(printed.slice(printed.indexOf("}"), printed.indexOf("}") + 3)).toEqual(["}", "", "{"]);
+    expect(pageLines("default", source)).toEqual(printed);
+  });
+});
+
+describe("a blank line the export prints inside one source line", () => {
+  it.each([
+    ["between a block and following text", ["  queue | One. | Two. end They go."]],
+    ["between a block and following dialogue", ["  queue | One. | Two. end GUIDE: Hi."]],
+    ["between two one-line blocks of different kinds", ["  queue | One. | Two. end cycle | Three. | Four. end"]],
+    ["between three one-line blocks", ["  queue | A. | B. end queue | C. | D. end queue | E. | F. end"]],
+    ["after a one-line block inside a branch", ["  if a then", "    queue | One. | Two. end queue | Three. | Four. end", "  end"]],
+    ["before a centred span", ["  queue | One. | Two. end ^Up^ they go."]],
+    ["after a centred span", ["  They ^go^ queue | One. | Two. end"]],
+  ])("is drawn where the export prints it, %s", (_where, lines) => {
+    const source = ["scene s", "  Before.", ...lines, "  After.", "end", ""].join("\n");
+    for (const configName of Object.keys(CONFIGS)) {
+      expect(pageLines(configName, source), configName).toEqual(exportLines(configName, source));
+      expect(unplacedText(configName, source), configName).toEqual([]);
+    }
   });
 });
 
