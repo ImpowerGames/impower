@@ -24,6 +24,7 @@ export {
   sheetVariants,
   lightboxVariants,
   type DialogProps,
+  type SheetElevation,
   type SheetProps,
   type LightboxProps,
   type SheetSize,

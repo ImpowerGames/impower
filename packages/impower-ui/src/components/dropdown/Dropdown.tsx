@@ -312,6 +312,7 @@ function SheetMenu({
       open={open}
       onOpenChange={setOpen}
       flush
+      elevation="menu"
       keepClear={keepClear}
       initialFocus={chosen}
       onCloseAutoFocus={onCloseAutoFocus}

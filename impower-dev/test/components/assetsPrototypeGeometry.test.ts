@@ -530,12 +530,18 @@ describe("The Assets page's and app frame's last differences from the Folio prot
     expect(await inChromium(menuBelow(), { width: 1440, theme }, menuShadow)).toBe("(0, 0, 0, 0.4) 0px 12px 40px 0px");
   });
 
-  it.each(THEMES)("G3: at 430 in %s a menu shown as a sheet has 16px top corners and the sheet's shadow", async (theme) => {
-    const measured = await inChromium(h("div", { class: ui.sheetVariants({ size: "auto" }) }, "Add"), { width: 430, theme, touch: true, layout: "phone" }, () => {
+  const sheetLook = (elevation: "flat" | "menu", theme: Theme) =>
+    inChromium(h("div", { class: ui.sheetVariants({ size: "auto", elevation }) }, "Add"), { width: 430, theme, touch: true, layout: "phone" }, () => {
       const style = getComputedStyle([...document.querySelectorAll("div")].pop()!);
       return { radius: style.borderRadius, shadow: style.boxShadow.split(", rgba").pop() };
     });
-    expect(measured).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
+
+  it.each(THEMES)("G3: at 430 in %s a menu shown as a sheet has 16px top corners and the sheet's shadow", async (theme) => {
+    expect(await sheetLook("menu", theme)).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
+  });
+
+  it.each(THEMES)("G3: at 430 in %s a dialog shown as a sheet stays flat with the card's corners", async (theme) => {
+    expect(await sheetLook("flat", theme)).toEqual({ radius: "12px 12px 0px 0px", shadow: "none" });
   });
 
   const account = () => {

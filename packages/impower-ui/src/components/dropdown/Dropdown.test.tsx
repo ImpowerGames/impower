@@ -188,6 +188,16 @@ describe("Dropdown under preact/compat", () => {
       "No account needed to start writing.",
     );
   });
+
+  it("raises the phone layout's sheet as a menu sheet, with the sheet's corners and shadow", async () => {
+    await setPhone(true);
+    const { trigger } = await mount();
+    await act(async () => trigger.click());
+    await settle(300);
+    const classes = document.querySelector('[role="dialog"]')!.className.split(" ");
+    expect(classes).toEqual(expect.arrayContaining(["rounded-t-sheet", "shadow-sheet"]));
+    expect(classes).not.toContain("rounded-t-card");
+  });
 });
 
 const RATIOS = ["auto", "16:9", "9:16"];
