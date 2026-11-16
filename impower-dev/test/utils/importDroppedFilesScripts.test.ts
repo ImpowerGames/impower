@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type Resolved = { survivors: { uri: string; payload: unknown }[]; trashedOldUris: string[]; since: number; refused: unknown[] };
+type Resolved = { survivors: { uri: string; payload: unknown }[]; trashedOldUris: string[]; batchKey: string; refused: unknown[] };
 
 const mocks = vi.hoisted(() => ({
   disk: new Map<string, ArrayBuffer>(),
@@ -23,7 +23,7 @@ vi.mock("../../src/modules/spark-editor/utils/uploadConflicts", () => ({
       mocks.resolve?.(items) ?? {
         survivors: items.map((it) => ({ uri: `file://${projectId}/${it.rel}`, payload: it.payload })),
         trashedOldUris: [],
-        since: 0,
+        batchKey: "k",
         refused: [],
       },
     ),
@@ -114,7 +114,7 @@ describe("importFiles outcomes per file", () => {
     expect(mocks.readFile).not.toHaveBeenCalled();
     expect(returned).toEqual(names);
     expect(rows()).toEqual(names.map((path) => `${path.split("/").pop()}: added ${path}`));
-    expect(mocks.recordResolvedUpload).toHaveBeenCalledWith("p", names.map((path) => `file://p/${path}`), [], 0, "20 files");
+    expect(mocks.recordResolvedUpload).toHaveBeenCalledWith("p", names.map((path) => `file://p/${path}`), [], "k", "20 files");
   });
 
   it("keeps the files added before storage ran out, lists the rest as not added, and deletes nothing", async () => {
@@ -142,7 +142,7 @@ describe("importFiles outcomes per file", () => {
     mocks.resolve = (items) => ({
       survivors: items.slice(1).map((it) => ({ uri: `file://p/${it.rel}`, payload: it.payload })),
       trashedOldUris: [],
-      since: 0,
+      batchKey: "k",
       refused: [],
     });
     await importFiles("p", [dropped("Assets/Images/hero.png"), dropped("Assets/Images/ada.png")]);
@@ -154,7 +154,7 @@ describe("importFiles outcomes per file", () => {
     mocks.resolve = (items) => ({
       survivors: items.slice(1).map((it) => ({ uri: `file://p/${it.rel}`, payload: it.payload })),
       trashedOldUris: [],
-      since: 0,
+      batchKey: "k",
       refused: items.slice(0, 1).map((it) => it.payload),
     });
     await importFiles("p", [dropped("Assets/Images/hero.png"), dropped("Assets/Images/ada.png")]);
@@ -166,7 +166,7 @@ describe("importFiles outcomes per file", () => {
     mocks.resolve = (items) => ({
       survivors: items.map((it) => ({ uri: `file://p/${it.rel}`, payload: it.payload })),
       trashedOldUris: ["file://p/Assets/Images/hero.png"],
-      since: 5,
+      batchKey: "replace-key",
       refused: [],
     });
     mocks.createFiles.mockImplementation(async ({ files }) => {
@@ -185,7 +185,7 @@ describe("importFiles outcomes per file", () => {
       "p",
       ["file://p/Assets/Images/ada.png"],
       ["file://p/Assets/Images/hero.png"],
-      5,
+      "replace-key",
       "ada.png",
     );
   });
@@ -264,7 +264,7 @@ describe("importFiles outcomes per file", () => {
     await expect(importFiles("p", [dropped("Assets/Audio/a.wav")])).rejects.toThrow("the conflict check failed");
     expect(workspace.uploadBatches.value).toBe(0);
     expect(rows()).toEqual(["a.wav: failed"]);
-    mocks.resolve = () => ({ survivors: [], trashedOldUris: [], since: 0, refused: [] });
+    mocks.resolve = () => ({ survivors: [], trashedOldUris: [], batchKey: "k", refused: [] });
     await importFiles("p", [dropped("Assets/Audio/b.wav")]);
     expect(workspace.uploadBatches.value).toBe(0);
     expect(rows()).toEqual(["b.wav: skipped"]);

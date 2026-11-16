@@ -23,6 +23,7 @@ import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/wo
 import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage";
 import { WillCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage";
 import {
+  TRASH_BATCH_KEY,
   WillDeleteFilesMessage,
   type WillDeleteFilesRefusal,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
@@ -1033,13 +1034,16 @@ onmessage = async (e) => {
   }
   if (WillDeleteFilesMessage.type.isRequest(message)) {
     try {
-      const { files, mode, folders } = message.params;
+      const { files, mode, folders, batchKey } = message.params;
+      if (batchKey !== undefined && !TRASH_BATCH_KEY.test(batchKey)) {
+        throw new Error(`Invalid bin batch key ${JSON.stringify(batchKey)}`);
+      }
       let deleted: DeleteResult[];
       let skipped: string[] = [];
       let batchId: string | undefined;
       let failure: PromiseRejectedResult | undefined;
       if (mode === "trash") {
-        ({ deleted, skipped, batchId } = await moveFilesToTrash(files, folders));
+        ({ deleted, skipped, batchId } = await moveFilesToTrash(files, folders, batchKey));
       } else {
         const outcomes = await Promise.allSettled(files.map(file => deleteFiles([file])));
         deleted = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
@@ -2603,6 +2607,7 @@ const removeTrashCopy = async (trashUri: string) => {
 const moveFilesToTrash = async (
   files: { uri: string }[],
   folders: { uri: string }[] = [],
+  batchKey: string = crypto.randomUUID(),
 ): Promise<{ deleted: DeleteResult[]; skipped: string[]; batchId?: string }> => {
   const deleted: DeleteResult[] = [];
   const skipped: string[] = [];
@@ -2624,7 +2629,10 @@ const moveFilesToTrash = async (
     return { deleted, skipped };
   }
   const deletedAt = Date.now();
-  const batchId = `${deletedAt}__${crypto.randomUUID()}`;
+  const batchId = `${deletedAt}__${batchKey}`;
+  if (await trashBatchExists(projectId, batchId)) {
+    throw new Error(`Bin batch ${batchId} already exists`);
+  }
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   const entries: { relPath: string; originalUri: string; type: string }[] = [];
   const leftovers: string[] = [];

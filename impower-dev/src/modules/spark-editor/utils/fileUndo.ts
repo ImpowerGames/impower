@@ -1,3 +1,4 @@
+import { isTrashBatchOf } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
 import type WorkspaceFileSystem from "../workspace/WorkspaceFileSystem";
 import store from "../workspace/WorkspaceStore";
 import { moveAll, reasonOf, reversed, type FileMove, type MovingFileSystem, type RenameOutcome } from "./fileMoves";
@@ -6,23 +7,14 @@ import { showSnackbar } from "./snackbar";
 import { keptMessage, trashAttempts } from "./trashSkipped";
 import { pushUndo, undo } from "./undoManager";
 
-async function findBatchesForUris(
-  projectId: string,
-  uris: string[],
-  sinceMs: number,
-  folders: string[] = [],
-): Promise<string[]> {
+async function findBatchesForKeys(projectId: string, batchKeys: string[]): Promise<string[]> {
+  if (batchKeys.length === 0) {
+    return [];
+  }
   const { Workspace } = await import("../workspace/Workspace");
   const batches = await Workspace.fs.listTrash(projectId);
-  const set = new Set(uris);
-  const folderSet = new Set(folders);
   return batches
-    .filter(
-      (b) =>
-        b.deletedAt >= sinceMs &&
-        (b.entries.some((e) => set.has(e.originalUri)) ||
-          !!b.folders?.some((f) => folderSet.has(f))),
-    )
+    .filter((b) => batchKeys.some((key) => isTrashBatchOf(b.batchId, key)))
     .map((b) => b.batchId);
 }
 
@@ -49,19 +41,17 @@ async function markProjectDirty() {
 
 const reportKept = (skipped: string[]) => showSnackbar({ message: keptMessage(skipped) });
 
-const movedIn =
-  (projectId: string, uris: string[], folders: string[] = []) =>
-  (since: number) =>
-    findBatchesForUris(projectId, uris, since, folders);
+const keyedIn = (projectId: string) => (batchKeys: string[]) =>
+  findBatchesForKeys(projectId, batchKeys);
 
 export async function recordTrashDeletion(
   projectId: string,
   deletedUris: string[],
   label: string,
-  since: number,
+  batchKeys: string[],
   deletedFolders: string[] = [],
 ) {
-  let batchIds = await findBatchesForUris(projectId, deletedUris, since, deletedFolders);
+  let batchIds = await findBatchesForKeys(projectId, batchKeys);
   if (batchIds.length === 0 && deletedFolders.length === 0) {
     return;
   }
@@ -83,7 +73,7 @@ export async function recordTrashDeletion(
     },
     redo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
-      const trashed = await trashing(async () => {
+      const trashed = await trashing(async (batchKey) => {
         if (uris.length > 0 || folders.length > 0) {
           await Workspace.fs.deleteFiles({
             files: uris.map((uri) => ({ uri })),
@@ -91,9 +81,10 @@ export async function recordTrashDeletion(
               uri: Workspace.fs.getFileUri(projectId, f),
             })),
             mode: "trash",
+            batchKey,
           });
         }
-      }, movedIn(projectId, uris, folders));
+      }, keyedIn(projectId));
       const recorded = new Set(folders);
       const unrecorded = (await Workspace.fs.getFolders(projectId)).filter(
         (f) => !recorded.has(f) && folders.some((r) => f.startsWith(`${r}/`)),
@@ -216,12 +207,13 @@ export function recordCreate(
     undo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
       batchIds = await trashing(
-        () =>
+        (batchKey) =>
           Workspace.fs.deleteFiles({
             files: uris.map((uri) => ({ uri })),
             mode: "trash",
+            batchKey,
           }),
-        movedIn(projectId, uris),
+        keyedIn(projectId),
       );
       await markProjectDirty();
     },
@@ -261,7 +253,7 @@ export async function recordResolvedUpload(
   projectId: string,
   newUris: string[],
   trashedOldUris: string[],
-  since: number,
+  replacedBatchKey: string,
   label: string,
 ) {
   if (newUris.length === 0 && trashedOldUris.length === 0) {
@@ -269,7 +261,7 @@ export async function recordResolvedUpload(
   }
   let replacedBatchIds =
     trashedOldUris.length > 0
-      ? await findBatchesForUris(projectId, trashedOldUris, since)
+      ? await findBatchesForKeys(projectId, [replacedBatchKey])
       : [];
   let newBatchIds: string[] = [];
   let added = newUris;
@@ -282,12 +274,13 @@ export async function recordResolvedUpload(
       const { Workspace } = await import("../workspace/Workspace");
       if (added.length > 0) {
         newBatchIds = await trashingAdded(
-          () =>
+          (batchKey) =>
             Workspace.fs.deleteFiles({
               files: added.map((uri) => ({ uri })),
               mode: "trash",
+              batchKey,
             }),
-          movedIn(projectId, added),
+          keyedIn(projectId),
         );
       }
       replaced = (await restoreBatches(projectId, replacedBatchIds)).uris;
@@ -297,12 +290,13 @@ export async function recordResolvedUpload(
       const { Workspace } = await import("../workspace/Workspace");
       if (replaced.length > 0) {
         replacedBatchIds = await trashingReplaced(
-          () =>
+          (batchKey) =>
             Workspace.fs.deleteFiles({
               files: replaced.map((uri) => ({ uri })),
               mode: "trash",
+              batchKey,
             }),
-          movedIn(projectId, replaced),
+          keyedIn(projectId),
         );
       }
       added = (await restoreBatches(projectId, newBatchIds)).uris;

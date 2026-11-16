@@ -37,7 +37,9 @@ it("names the files the worker could not move and records only the moved ones, c
       { path: "Scripts/b.sd", folder: false },
     ], "2 scripts"),
   ).rejects.toThrow("Couldn't move a.sd to the bin. It is still where it was.");
-  expect(recordTrashDeletion).toHaveBeenCalledWith(PROJECT, [uri("Scripts/b.sd")], "2 scripts", expect.any(Number), []);
+  const { batchKey } = (fs.deleteFiles.mock.calls[0] as unknown as [{ batchKey: string }])[0];
+  expect(batchKey).toMatch(/^[0-9a-f]{32}$/);
+  expect(recordTrashDeletion).toHaveBeenCalledWith(PROJECT, [uri("Scripts/b.sd")], "2 scripts", [batchKey], []);
 });
 
 it("records a folder's moved files and names its refused ones", async () => {
@@ -49,7 +51,9 @@ it("records a folder's moved files and names its refused ones", async () => {
   await expect(
     moveToTrash(fs as never, PROJECT, [{ path: "Drafts", folder: true }], "Drafts"),
   ).rejects.toThrow("Couldn't move a.sd to the bin.");
-  expect(recordTrashDeletion).toHaveBeenCalledWith(PROJECT, [uri("Drafts/b.sd")], "Drafts", expect.any(Number), []);
+  const batchKey = (fs.deleteFolder.mock.calls[0] as unknown[])[3];
+  expect(fs.deleteFolder).toHaveBeenCalledWith(PROJECT, "Drafts", "trash", expect.stringMatching(/^[0-9a-f]{32}$/));
+  expect(recordTrashDeletion).toHaveBeenCalledWith(PROJECT, [uri("Drafts/b.sd")], "Drafts", [batchKey], []);
 });
 
 it("passes on a worker failure that names no skipped files", async () => {

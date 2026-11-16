@@ -224,9 +224,12 @@ describe("the Assets page's file intents", () => {
     const { assets, fs } = fakeWorkspace({ "Assets/Audio/theme.wav": "wav", "Assets/Audio/Music/a.wav": "wav" });
     await assets.load();
     await assets.remove(["Assets/Audio/theme.wav", "Assets/Audio/Music"]);
-    expect(fs.deleteFiles).toHaveBeenCalledWith({ files: [{ uri: uri("Assets/Audio/theme.wav") }], mode: "trash" });
-    expect(fs.deleteFolder).toHaveBeenCalledWith(PROJECT, "Assets/Audio/Music", "trash");
-    expect(mocks.recordTrashDeletion).toHaveBeenCalledWith(PROJECT, [uri("Assets/Audio/theme.wav")], "2 items", expect.any(Number), []);
+    const fileKey = (fs.deleteFiles.mock.calls[0]![0] as { batchKey?: string }).batchKey;
+    const folderKey = (fs.deleteFolder.mock.calls[0] as unknown[])[3];
+    expect(fs.deleteFiles).toHaveBeenCalledWith({ files: [{ uri: uri("Assets/Audio/theme.wav") }], mode: "trash", batchKey: expect.any(String) });
+    expect(fs.deleteFolder).toHaveBeenCalledWith(PROJECT, "Assets/Audio/Music", "trash", expect.any(String));
+    expect(fileKey).not.toBe(folderKey);
+    expect(mocks.recordTrashDeletion).toHaveBeenCalledWith(PROJECT, [uri("Assets/Audio/theme.wav")], "2 items", [fileKey, folderKey], []);
   });
 
   it("creates a folder in the folder in view", async () => {

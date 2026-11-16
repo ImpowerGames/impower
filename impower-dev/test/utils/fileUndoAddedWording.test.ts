@@ -15,13 +15,13 @@ beforeEach(() => {
 
 describe("the words for files added to a project", () => {
   it("labels the undo step and the snackbar for added files with Add", async () => {
-    await recordResolvedUpload("p", ["file://p/Assets/Images/ava.png"], [], 0, "ava.png");
+    await recordResolvedUpload("p", ["file://p/Assets/Images/ava.png"], [], "k", "ava.png");
     expect(nextUndoLabel.value).toBe("Add ava.png");
     expect(snackbar.value?.message).toBe("Added ava.png");
   });
 
   it("says Not added when every file was refused and only replaced files moved to the recycle bin", async () => {
-    await recordResolvedUpload("p", [], ["file://p/Assets/Images/ava.png"], 0, "ava.png");
+    await recordResolvedUpload("p", [], ["file://p/Assets/Images/ava.png"], "k", "ava.png");
     expect(nextUndoLabel.value).toBe("Add ava.png");
     expect(snackbar.value?.message).toBe("Not added — replaced files moved to recycle bin");
   });
