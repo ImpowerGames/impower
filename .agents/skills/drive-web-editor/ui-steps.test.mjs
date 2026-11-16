@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, STRIP_PLAY_DISABLED, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { appMenuSettled, documentSettled, focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, STRIP_PLAY_DISABLED, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 import { NAMED_STEPS } from "./steps.mjs";
 
@@ -1110,6 +1110,28 @@ await asyncCheck("--step app-menu presses the title bar's App menu or the rail's
   assert.deepEqual(await openAppMenu(appMenuPage({ sheet: false })), { step: "app-menu", ran: true, opened: "popover" });
   assert.match((await openAppMenu(appMenuPage({ opens: false }), { timeout: 1000 })).reason, /the app menu did not open within 1 s/);
   assert.match((await openAppMenu(appMenuPage({ buttons: 0 }))).reason, /no app menu button on the page/);
+});
+
+await asyncCheck("the app menu and Settings settle while a scroll-driven or endless animation keeps running, and wait on a finite one", async () => {
+  const scrollDriven = { playState: "running", effect: { getComputedTiming: () => ({ endTime: { value: 100, unit: "percent" } }) } };
+  const endless = { playState: "running", effect: { getComputedTiming: () => ({ endTime: Infinity }) } };
+  const opening = { playState: "running", effect: { getComputedTiming: () => ({ endTime: 250 }) } };
+  const finished = { playState: "finished", effect: { getComputedTiming: () => ({ endTime: 250 }) } };
+  const settledWith = (animations) => {
+    const root = { getAnimations: () => animations };
+    const menu = { closest: () => null, parentElement: root, getAnimations: () => animations };
+    const saved = { getComputedStyle: globalThis.getComputedStyle, window: globalThis.window };
+    globalThis.getComputedStyle = () => ({ opacity: "1" });
+    globalThis.window = { innerHeight: 900 };
+    try {
+      return inFakeDocument({ querySelector: () => menu, getAnimations: () => animations }, () => [appMenuSettled('[role="menu"]'), documentSettled()]);
+    } finally {
+      globalThis.getComputedStyle = saved.getComputedStyle;
+      globalThis.window = saved.window;
+    }
+  };
+  assert.deepEqual(await settledWith([scrollDriven, endless, finished]), [true, true]);
+  assert.deepEqual(await settledWith([scrollDriven, opening]), [false, false]);
 });
 
 await asyncCheck("--step drawer opens the app menu on a phone, which has neither a rail nor a drawer", async () => {

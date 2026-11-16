@@ -2197,24 +2197,26 @@ const DRAWER_BUTTON_SELECTOR = 'button[aria-label="Open Menu"]';
 const APP_MENU_BUTTON_SELECTOR = 'button[aria-label="App menu"], aside[aria-label="Sidebar"] button[aria-haspopup="menu"]';
 const APP_MENU_SELECTOR = SURFACE_SELECTORS.menu;
 
+export function appMenuSettled(selector) {
+  const menu = document.querySelector(selector);
+  const sheet = menu?.closest('[role="dialog"]');
+  const root = sheet?.parentElement ?? menu;
+  if (!root || getComputedStyle(root).opacity !== "1") return false;
+  if (sheet && Math.abs(sheet.getBoundingClientRect().bottom - window.innerHeight) > 1) return false;
+  return !root.getAnimations({ subtree: true }).some((animation) => animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming().endTime));
+}
+
+export function documentSettled() {
+  return !document.getAnimations().some((animation) => animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming().endTime));
+}
+
 export async function openAppMenu(page, { timeout = 5000 } = {}) {
   const button = page.locator(APP_MENU_BUTTON_SELECTOR).first();
   if (!(await button.count())) return { step: "app-menu", ran: false, reason: "no app menu button on the page: neither the title bar's App menu nor the rail's footer" };
   await button.click();
   try {
     await page.locator(APP_MENU_SELECTOR).first().waitFor({ state: "visible", timeout });
-    await page.waitForFunction(
-      (selector) => {
-        const menu = document.querySelector(selector);
-        const sheet = menu?.closest('[role="dialog"]');
-        const root = sheet?.parentElement ?? menu;
-        if (!root || getComputedStyle(root).opacity !== "1") return false;
-        if (sheet && Math.abs(sheet.getBoundingClientRect().bottom - window.innerHeight) > 1) return false;
-        return root.getAnimations({ subtree: true }).every((animation) => animation.playState !== "running");
-      },
-      APP_MENU_SELECTOR,
-      { timeout },
-    );
+    await page.waitForFunction(appMenuSettled, APP_MENU_SELECTOR, { timeout });
   } catch {
     return { step: "app-menu", ran: false, reason: `the app menu did not open within ${timeout / 1000} s of pressing its button` };
   }
@@ -2297,7 +2299,7 @@ export async function openAddMenu(page, { timeout = 5000 } = {}) {
   }
   const rows = await page.evaluate(async (selector) => {
     const panel = document.querySelector(selector);
-    await Promise.all((panel?.getAnimations({ subtree: true }) ?? []).map((animation) => animation.finished.catch(() => null)));
+    await Promise.all((panel?.getAnimations({ subtree: true }) ?? []).filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime)).map((animation) => animation.finished.catch(() => null)));
     await new Promise((resolve) => setTimeout(resolve, 150));
     return [...(panel?.querySelectorAll("[data-add-construct]") ?? [])].map((row) => ({ construct: row.getAttribute("data-add-construct"), disabled: row.getAttribute("aria-disabled") === "true" }));
   }, ADD_PANEL_SELECTOR);
@@ -2317,7 +2319,7 @@ export async function openPreviewSettings(page, { timeout = 5000 } = {}) {
   }
   const toggles = await page.evaluate(async () => {
     const menus = [...document.querySelectorAll('[role="menu"]')];
-    await Promise.all(menus.flatMap((menu) => menu.closest('[role="dialog"]') ?? menu).flatMap((el) => el.getAnimations({ subtree: true })).map((animation) => animation.finished.catch(() => null)));
+    await Promise.all(menus.flatMap((menu) => menu.closest('[role="dialog"]') ?? menu).flatMap((el) => el.getAnimations({ subtree: true })).filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime)).map((animation) => animation.finished.catch(() => null)));
     return [...document.querySelectorAll('[role="menu"] [role="menuitemcheckbox"]')].map((row) => ({ name: row.querySelector("strong")?.textContent ?? row.textContent, checked: row.getAttribute("aria-checked") === "true" }));
   });
   return { step: "preview-settings", ran: true, toggles };
@@ -2514,7 +2516,7 @@ export async function openSettings(page, section, { timeout = 10000 } = {}) {
     };
   }
   await page
-    .waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running"), null, { timeout: 3000 })
+    .waitForFunction(documentSettled, null, { timeout: 3000 })
     .catch(() => {});
   const state = await page.evaluate(() => ({
     hash: location.hash,
