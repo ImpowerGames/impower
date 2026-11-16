@@ -74,6 +74,7 @@
   --color-warning-strong: var(--warning-strong);
   --color-scrim: var(--scrim);
   --color-media-badge: var(--media-badge);
+  --color-cover-badge: var(--cover-badge);
   --color-media-badge-ink: var(--media-badge-ink);
   --color-media-button: var(--media-button);
   --color-status-badge-error-edge: var(--status-badge-error-edge);
@@ -93,6 +94,7 @@
   --spacing-preview-stage-gap: var(--preview-stage-gap);
   --shadow-preview-frame: var(--preview-frame-shadow);
   --shadow-float: var(--float-shadow);
+  --shadow-menu: var(--menu-shadow);
   --shadow-sheet: var(--sheet-shadow);
 }
 

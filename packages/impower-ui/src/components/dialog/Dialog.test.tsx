@@ -329,7 +329,7 @@ describe("Sheet and the responsive Dialog", () => {
   it("rises from the bottom edge with the same contract", async () => {
     const opener = await mount({ sheet: true, withInitialFocus: true });
     const card = dialog()!;
-    expect(card.className).toContain("rounded-t-card");
+    expect(card.className).toContain("rounded-t-sheet");
     expect(card.className.split(" ")).toContain("max-h-[80%]");
     expect(card.className).not.toContain("vh]");
     expect(backdrop()!.className).toContain("justify-end");
@@ -349,7 +349,7 @@ describe("Sheet and the responsive Dialog", () => {
     expect(card.className).toContain("max-h-none");
     expect(card.className).toContain("rounded-none");
     expect(card.className).not.toContain("max-h-[80%]");
-    expect(card.className).not.toContain("rounded-t-card");
+    expect(card.className).not.toContain("rounded-t-sheet");
     expect(document.activeElement?.getAttribute("aria-label")).toBe("name");
     await pressEscape();
     await settle(DIALOG_TRANSITION_MS + 50);
@@ -362,16 +362,16 @@ describe("Sheet and the responsive Dialog", () => {
     await setPhone(true);
     await mount();
     expect(dialog()!.className).toContain("rounded-dialog");
-    expect(dialog()!.className).not.toContain("rounded-t-card");
+    expect(dialog()!.className).not.toContain("rounded-t-sheet");
   });
 
   it("becomes a Sheet in the phone layout when responsive and a card otherwise", async () => {
     await setPhone(true);
     await mount({ responsive: true });
-    expect(dialog()!.className).toContain("rounded-t-card");
+    expect(dialog()!.className).toContain("rounded-t-sheet");
     await setPhone(false);
     await settle(50);
-    expect(dialog()!.className).not.toContain("rounded-t-card");
+    expect(dialog()!.className).not.toContain("rounded-t-sheet");
     expect(dialog()!.className).toContain("max-w-sm");
   });
 });
@@ -533,7 +533,7 @@ describe("focus return across openers and layout changes", () => {
     const opener = await mount({ responsive: true });
     await setPhone(true);
     await settle(50);
-    expect(dialog()!.className).toContain("rounded-t-card");
+    expect(dialog()!.className).toContain("rounded-t-sheet");
     expect(dialog()!.contains(document.activeElement)).toBe(true);
     await closeAndSettle();
     expect(document.activeElement).toBe(opener);

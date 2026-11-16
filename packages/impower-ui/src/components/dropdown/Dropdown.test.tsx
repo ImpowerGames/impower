@@ -711,7 +711,7 @@ describe("DropdownContent keepClear", () => {
     const placed = await mountFaceMenu();
     expect(placed.side).toBe("bottom");
     expect(placed.top).toBeGreaterThanOrEqual(PICTURE.bottom);
-    expect(placed.room).toBe(`${560 - 12 - TRIGGER.bottom - 8}px`);
+    expect(placed.room).toBe(`${560 - 12 - TRIGGER.bottom - 6}px`);
     expect(menu()!.className.split(" ")).toContain("max-h-[var(--radix-dropdown-menu-content-available-height)]");
   });
 
@@ -720,13 +720,13 @@ describe("DropdownContent keepClear", () => {
     const placed = await mountFaceMenu();
     expect(placed.side).toBe("top");
     expect(placed.top).toBeGreaterThanOrEqual(SHORT_PICTURE.bottom);
-    expect(placed.room).toBe(`${TRIGGER.top - 8 - SHORT_PICTURE.bottom - 6}px`);
+    expect(placed.room).toBe(`${TRIGGER.top - 6 - SHORT_PICTURE.bottom - 6}px`);
   });
 
   it("still opens below its trigger when everything fits there", async () => {
     stubGeometry(900);
     const placed = await mountFaceMenu();
     expect(placed.side).toBe("bottom");
-    expect(placed.top).toBe(TRIGGER.bottom + 8);
+    expect(placed.top).toBe(TRIGGER.bottom + 6);
   });
 });

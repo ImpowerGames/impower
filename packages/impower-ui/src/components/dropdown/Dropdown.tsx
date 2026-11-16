@@ -205,7 +205,7 @@ export function DropdownTrigger({
 export const dropdownContentVariants = cva(
   [
     "z-50 min-w-[120px] overflow-y-auto overscroll-contain [scrollbar-gutter:auto] rounded-card",
-    "border border-solid border-edge bg-popup p-1.5 text-ink shadow-float",
+    "border border-solid border-edge bg-popup p-1.5 text-ink shadow-menu",
     "origin-[--radix-dropdown-menu-content-transform-origin]",
     "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
   ],
@@ -331,7 +331,7 @@ function SheetMenu({
 
 export function DropdownContent({
   class: className,
-  sideOffset = 8,
+  sideOffset = 6,
   align = "end",
   side,
   keepClear,

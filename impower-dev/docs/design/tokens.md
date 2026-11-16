@@ -502,7 +502,8 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--focus-ring` | `var(--accent)` | Focus edge |
 | `--error-strong` | `var(--error)` | Problem colour: error |
 | `--warning-strong` | `var(--warning)` | Problem colour: warning |
-| `--media-badge` | `rgb(0 0 0 / 0.67)` | Badge laid over a picture: the variants count and the folder mark on a cover, `folio-assets.css:280` (`#000a`) |
+| `--media-badge` | `rgb(0 0 0 / 0.67)` | Badge laid over a picture: the variants count and the zoom control, `folio-assets.css:280` and `:101` (`#000a`) |
+| `--cover-badge` | `rgb(0 0 0 / 0.6)` | The folder mark on a cover, `folio-assets.css:55` (`#0009`) |
 | `--media-badge-ink` | `rgb(255 255 255)` | Ink of a badge laid over a picture, `folio-assets.css:280` (`#fff`) |
 | `--media-button` | `rgb(0 0 0 / 0.6)` | Round button laid over a picture: the picture's full-size button and the full-size view's Close, `folio-assets.css:108` and `:216` (`#0009`) |
 | `--status-badge-error-edge` | `#93625d`; `var(--error)` in Chalk, Paper, Midnight and Dusk | Edge of the game's error status badge, `folio-playback.css:732-735`, `folio-themes.css:257`, `folio-themes.css:507` |
@@ -758,8 +759,9 @@ at every width where it opens:
 | Scripts menus (sort, row, New) | `0 8px 24px` black at 27% | `folio-scripts.css:99` |
 | Toast | `0 5px 25px` black at 33% | `app.css:1082` |
 | Dialogs, sheets, the suggestion chip row | none | `app.css:1084-1092`, `folio-insert.css:56`, `folio-language.css:110` |
+| Menu sheets (the Variants wheel and every menu shown as a sheet on a phone) | `0 -8px 24px` black at 33%, 16px top corners | `folio-assets.css:173` |
 
-The variants are listed under inconsistencies with the value this reference takes. Sepia and Chalk soften the
+The variants are listed under inconsistencies with the value this reference takes. Every dropdown menu takes the Scripts menus' `--menu-shadow`, `0 8px 24px rgb(0 0 0 / 0.267)`, and opens 6px from its trigger (`folio-scripts.js:190-192`); a menu shown as a sheet takes `--sheet-shadow` and `--sheet-radius`; `--float-shadow` stays on the other floating surfaces. Sepia and Chalk soften the
 preview frame to `0 10px 30px rgb(0 0 0 / 0.16)` (`folio-themes.css:289`) and give the
 primary button `0 1px 2px` at 0.18 (Sepia, warm) or 0.16 (Chalk, neutral)
 (`folio-themes.css:286`, `:315`).

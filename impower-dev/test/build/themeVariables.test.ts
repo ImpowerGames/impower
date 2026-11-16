@@ -31,6 +31,7 @@ const COMPONENT_VARIABLES = [
   "--error-strong",
   "--warning-strong",
   "--scrim",
+  "--cover-badge",
   "--media-badge",
   "--media-badge-ink",
   "--media-button",

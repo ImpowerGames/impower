@@ -105,7 +105,7 @@ export const sheetVariants = cva(
   {
     variants: {
       size: {
-        auto: "rounded-t-card border-b-0",
+        auto: "rounded-t-sheet border-b-0 shadow-sheet",
         full: "h-full max-h-none rounded-none border-0",
       },
       fit: {

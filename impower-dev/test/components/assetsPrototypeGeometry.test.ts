@@ -39,6 +39,8 @@ const { default: Trail } = await import("../../src/modules/spark-editor/componen
 const { default: AssetRowMenu } = await import("../../src/modules/spark-editor/components/assets/AssetRowMenu");
 const { default: TopBar } = await import("../../src/modules/spark-editor/components/desktop-shell/TopBar");
 const { default: AppMenu } = await import("../../src/modules/spark-editor/components/desktop-shell/AppMenu");
+const { default: ShellRail } = await import("../../src/modules/spark-editor/components/desktop-shell/ShellRail");
+const { default: LibraryPage } = await import("../../src/modules/spark-editor/components/library-page/LibraryPage");
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { stateForRoute } = await import("../../src/modules/spark-editor/workspace/routes");
 
@@ -501,5 +503,143 @@ describe("Shared parts the Assets page shows against the Folio prototype (I-2441
       return range.getBoundingClientRect().x - trigger.getBoundingClientRect().x;
     });
     expect(measured).toBe(45);
+  });
+});
+
+describe("The Assets page's and app frame's last differences from the Folio prototype (I-2448)", () => {
+
+  const menuBelow = () =>
+    h(
+      "div",
+      { style: "padding:100px 400px" },
+      h(
+        ui.DropdownRoot,
+        { open: true, onOpenChange: () => {}, sheet: false },
+        h(ui.DropdownTrigger, { asChild: true }, h("button", { type: "button", style: "height:44px" }, "Add")),
+        h(ui.DropdownContent, { align: "end" }, h(ui.DropdownItem, {}, "Upload files")),
+      ),
+    );
+
+  it.each(THEMES)("G1: in %s a dropdown casts the prototype's 0 8px 24px shadow at 0.267", async (theme) => {
+    const shadow = await inChromium(menuBelow(), { width: 1440, theme }, () => getComputedStyle(document.querySelector('[role="menu"]')!).boxShadow.split(", rgba").pop());
+    expect(shadow).toBe("(0, 0, 0, 0.267) 0px 8px 24px 0px");
+  });
+
+  it.each(THEMES)("G3: at 430 in %s a menu shown as a sheet has 16px top corners and the sheet's shadow", async (theme) => {
+    const measured = await inChromium(h("div", { class: ui.sheetVariants({ size: "auto" }) }, "Add"), { width: 430, theme, touch: true, layout: "phone" }, () => {
+      const style = getComputedStyle([...document.querySelectorAll("div")].pop()!);
+      return { radius: style.borderRadius, shadow: style.boxShadow.split(", rgba").pop() };
+    });
+    expect(measured).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
+  });
+
+  const account = () => {
+    const trigger = document.querySelector<HTMLElement>("aside > div:last-child button")!;
+    const box = trigger.querySelector("span")!;
+    const glyph = box.querySelector("svg")!.getBoundingClientRect();
+    const footer = trigger.parentElement!.getBoundingClientRect();
+    return {
+      triggerHeight: trigger.getBoundingClientRect().height,
+      footerHeight: footer.height,
+      glyph: [glyph.width, glyph.height],
+      fill: getComputedStyle(box).backgroundColor,
+    };
+  };
+
+  const rail = (collapsed: boolean) =>
+    h(
+      "div",
+      { class: "group/sidebar", "data-sidebar": collapsed ? "collapsed" : "expanded", style: `width:${collapsed ? 76 : 232}px;height:900px` },
+      h(ShellRail, {}),
+    );
+
+  it.each([
+    ["charcoal", "rgb(40, 42, 45)"],
+    ["chalk", "rgb(245, 245, 246)"],
+  ] as const)("G4-G6: at 1440 in %s the account trigger is 44 tall in a 62px footer, its box filled and its glyph 17px", async (theme, fill) => {
+    await setMedia((query) => query.includes("701px") || query.includes("1101px"));
+    try {
+      const measured = await inChromium(rail(false), { width: 1440, theme }, account);
+      expect(measured).toEqual({ triggerHeight: 44, footerHeight: 62, glyph: [17, 17], fill });
+    } finally {
+      await setMedia(() => false);
+    }
+  });
+
+  it.each(THEMES)("G6, G10: at 768 in %s the footer is 52 tall and the collapsed rail's pills are 65 wide at x 5", async (theme) => {
+    await setMedia((query) => query.includes("701px"));
+    try {
+      const measured = await inChromium(rail(true), { width: 768, theme, layout: "compact" }, () => ({
+        footerHeight: document.querySelector("aside > div:last-child")!.getBoundingClientRect().height,
+        triggerHeight: document.querySelector("aside > div:last-child button")!.getBoundingClientRect().height,
+        pills: [...document.querySelectorAll('[role="tab"]')].map((tab) => {
+          const box = tab.getBoundingClientRect();
+          return [box.x, box.width];
+        }),
+      }));
+      expect({ footerHeight: measured.footerHeight, triggerHeight: measured.triggerHeight, pills: measured.pills }).toEqual({
+        footerHeight: 52,
+        triggerHeight: 44,
+        pills: [
+          [5, 65],
+          [5, 65],
+          [5, 65],
+        ],
+      });
+    } finally {
+      await setMedia(() => false);
+    }
+  });
+
+  it.each(THEMES)("G7: at 1440 in %s the search glyph sits 13px inside the field and the Add button's glyph is 7px from its label", async (theme) => {
+    await setMedia((query) => query.includes("701px") || query.includes("1101px"));
+    try {
+      const page = h(
+        "div",
+        { style: "width:1000px;height:600px;display:flex" },
+        h(LibraryPage, { searchLabel: "Search images", query: "", onQueryChange: () => {}, newLabel: "Add", newMenu: null, bar: null, list: null }),
+      );
+      const measured = await inChromium(page, { width: 1440, theme }, () => {
+        const field = document.querySelector("label")!;
+        const add = [...document.querySelectorAll("button")].find((button) => button.textContent === "Add")!;
+        const walker = document.createTreeWalker(add, NodeFilter.SHOW_TEXT);
+        const range = document.createRange();
+        range.selectNodeContents(walker.nextNode()!);
+        return {
+          searchInset: field.querySelector("svg")!.getBoundingClientRect().x - field.getBoundingClientRect().x,
+          addGap: +(range.getBoundingClientRect().x - add.querySelector("svg")!.getBoundingClientRect().right).toFixed(2),
+        };
+      });
+      expect(measured).toEqual({ searchInset: 14, addGap: 7 });
+    } finally {
+      await setMedia(() => false);
+    }
+  });
+
+  it.each(THEMES)("G9: in %s the folder badge is filled at the prototype's 0.6", async (theme) => {
+    const fill = await inChromium(h("div", { style: "width:192px;height:108px;position:relative" }, h(ui.FolderCover, { sources: ["cover.png"] })), { width: 1440, theme }, () =>
+      getComputedStyle(document.querySelector("[data-folder-cover] > :last-child")!).backgroundColor,
+    );
+    expect(fill).toBe("rgba(0, 0, 0, 0.6)");
+  });
+
+  it.each([
+    [768, "compact", false],
+    [430, "phone", true],
+  ] as const)("G11: at %i the page header glyph is 19 wide and 20 tall", async (width, layout, touch) => {
+    const size = await inChromium(h(ui.TabbedPage, { title: "Assets", icon: h(ui.ArtIcon, {}), onBack: () => {}, tabs: [], value: "", onValueChange: () => {} }), { width, layout, touch }, () => {
+      const glyph = document.querySelector("section svg")!.getBoundingClientRect();
+      return [glyph.width, glyph.height];
+    });
+    expect(size).toEqual([19, 20]);
+  });
+
+  it.each(THEMES)("G18: in %s the row's play glyph is an 18px svg filled with its colour and not stroked", async (theme) => {
+    const measured = await inChromium(h(ui.PlayButton, { name: "amb_rain" }), { width: 1440, theme }, () => {
+      const glyph = document.querySelector("button svg")!;
+      const style = getComputedStyle(glyph);
+      return { size: glyph.getBoundingClientRect().width, fill: style.fill === style.color, stroke: style.stroke };
+    });
+    expect(measured).toEqual({ size: 18, fill: true, stroke: "none" });
   });
 });

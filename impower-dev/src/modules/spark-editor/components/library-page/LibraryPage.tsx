@@ -74,7 +74,7 @@ export default function LibraryPage<T>({
             <SearchBox label={searchLabel} value={query} onChange={onQueryChange} />
             <DropdownRoot>
               <DropdownTrigger asChild>
-                <Button ref={newRef} class="bg-transparent text-accent" {...newAttributes}>
+                <Button ref={newRef} class="gap-[7px] bg-transparent text-accent" {...newAttributes}>
                   <PlusIcon />
                   {newLabel}
                 </Button>
