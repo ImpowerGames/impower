@@ -3,7 +3,10 @@ import { complete as completeAt } from "./completionHarness";
 
 const program = {
   context: {
-    image: { forest: { $type: "image", $name: "forest" } },
+    image: {
+      forest: { $type: "image", $name: "forest" },
+      "bunny-idle_2": { $type: "image", $name: "bunny-idle_2" },
+    },
     audio: { theme: { $type: "audio", $name: "theme" } },
   },
 } as any;
@@ -22,6 +25,7 @@ describe("an opener with no closer yet still offers directive completion (I-2423
     ["at a display line's end", display("  Hello [[sh|"), "show"],
     ["right after the opener", display("  Hello [[|"), "show"],
     ["an image name", display("  Hello [[fo|"), "forest"],
+    ["a name with a hyphen, underscore and digit", display("  Hello [[bunny-idle_|"), "bunny-idle_2"],
     ["in choice text", choice("    + Go [[sh| now"), "show"],
     ["inside a choice's brackets", choice("    + Go [[[sh|x] now"), "show"],
     ["an audio control", display("  Hello ((pl|world"), "play"],

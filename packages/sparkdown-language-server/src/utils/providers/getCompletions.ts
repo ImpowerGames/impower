@@ -139,7 +139,7 @@ const unclosedOpenerBefore = (
       }
     },
   });
-  if (!opener || !/^[\p{L}\p{N}_]*$/u.test(read(opener.to, offset))) {
+  if (!opener || !/^(?:[_\p{L}][0-9_\p{L}-]*)?$/u.test(read(opener.to, offset))) {
     return undefined;
   }
   return read(opener.from, opener.to);
