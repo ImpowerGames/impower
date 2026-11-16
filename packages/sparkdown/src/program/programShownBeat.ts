@@ -52,11 +52,10 @@ const word = (chunk: ProgramChunk, offset: number) => chunk[HEADER_WORDS + offse
 const isDisplay = (root: ProgramRoot, chunk: ProgramChunk, offset: number) =>
   opOf(word(chunk, offset)) === Op.CallStd && root.table.strings[word(chunk, offset + 1)] === "display";
 
-const callStart = (chunk: ProgramChunk, call: number): number => {
+const callStart = (root: ProgramRoot, chunk: ProgramChunk, call: number): number => {
   for (let at = call - 2; at >= 0; at -= 2) {
-    const op = opOf(word(chunk, at));
-    if (op === Op.LineStart) return at;
-    if (op === Op.CallStd || op === Op.Choice || op === Op.Jump || op === Op.JumpIfFalse) return at + 2;
+    if (opOf(word(chunk, at)) === Op.LineStart) return at;
+    if (isDisplay(root, chunk, at)) return at + 2;
   }
   return 0;
 };
@@ -64,15 +63,19 @@ const callStart = (chunk: ProgramChunk, call: number): number => {
 const readCall = (root: ProgramRoot, chunk: ProgramChunk, call: number): DisplayCall => {
   const strings = root.table.strings;
   const read: DisplayCall = { text: [], dynamic: false, pause: false, load: false };
-  let at = callStart(chunk, call);
+  let at = callStart(root, chunk, call);
   if (opOf(word(chunk, at)) === Op.LineStart) at += 2;
   let key: string | undefined;
   while (at < call) {
     const op = opOf(word(chunk, at));
     const arg = word(chunk, at + 1);
     if (key === undefined) {
-      if (op === Op.Str) key = strings[arg];
-      else if (op !== Op.MakeTable) read.dynamic = true;
+      if (op === Op.MakeTable) break;
+      if (op !== Op.Str) {
+        read.dynamic = true;
+        break;
+      }
+      key = strings[arg];
       at += 2;
       continue;
     }
@@ -104,10 +107,9 @@ const readCall = (root: ProgramRoot, chunk: ProgramChunk, call: number): Display
       }
       at += 2;
     } else {
-      if (key === "text" || key === "character") read.dynamic = true;
+      read.dynamic = true;
       if (key === "load") read.load = true;
-      at += 2;
-      continue;
+      break;
     }
     key = undefined;
   }
@@ -145,7 +147,8 @@ export const shownBeat = (root: ProgramRoot, uri: string, range: BeatRange): Sho
   if (!start) return UNKNOWN;
   const startChunk = start.sequence.arrays.chunks[start.entry]!;
   const own = readCall(root, startChunk, start.offset);
-  if (own.load || own.pause) return OWN;
+  const ownKinds = directiveKinds(own.text.join(""));
+  if (own.load || own.pause || ownKinds.includes("load") || ownKinds.includes("cutscene")) return OWN;
   let steps = 0;
   const memo = new Map<string, ShownBeat>();
   const active = new Set<string>();
@@ -190,7 +193,7 @@ export const shownBeat = (root: ProgramRoot, uri: string, range: BeatRange): Sho
       const arg = word(chunk, at.offset + 1);
       const op = opOf(w0);
       if (isDisplay(root, chunk, at.offset)) {
-        const outcome = outcomeOf(readCall(root, chunk, at.offset), addressOf(chunkId(chunk), callStart(chunk, at.offset)));
+        const outcome = outcomeOf(readCall(root, chunk, at.offset), addressOf(chunkId(chunk), callStart(root, chunk, at.offset)));
         if (outcome) return finish(outcome);
         at.offset += 2;
         continue;
@@ -279,7 +282,7 @@ const lastDisplayCall = (root: ProgramRoot, uri: string, range: BeatRange): At |
     seen.add(chunkId(chunk));
     for (let offset = 0; offset < codeWords(chunk); offset += 2) {
       if (!isDisplay(root, chunk, offset)) continue;
-      const location = root.rangeAt(sequence, entry, callStart(chunk, offset));
+      const location = root.rangeAt(sequence, entry, callStart(root, chunk, offset));
       if (!location || !within(location.startLine, location.startColumn)) continue;
       if (
         !found ||
