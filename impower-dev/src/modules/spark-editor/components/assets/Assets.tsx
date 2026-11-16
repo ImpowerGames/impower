@@ -984,7 +984,7 @@ function AssetsBrowser() {
                   {layout === "rows" ? <ListIcon /> : <GridIcon />}
                 </Button>
               </DropdownTrigger>
-              <DropdownContent align="end" class="min-w-[180px]">
+              <DropdownContent elevation="library" align="end" class="min-w-[180px]">
                 <DropdownRadioGroup
                   label="Show this folder as"
                   value={layout}

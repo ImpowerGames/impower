@@ -700,21 +700,31 @@ export default class WorkspaceFileSystem {
     );
   }
 
+  protected async folderPlan(
+    projectId: string,
+    unzipped: { filename: string }[],
+  ) {
+    const existing = await this.listFolders(projectId);
+    const listed = unzipped
+      .filter(({ filename }) => filename.endsWith("/"))
+      .map(({ filename }) => filename.replace(/\/+$/, ""));
+    return {
+      existing,
+      listed,
+      stale: foldersWithoutFiles(
+        unzipped.map(({ filename }) => filename),
+        existing,
+        listed,
+      ),
+    };
+  }
+
   protected async replaceFolders(
     projectId: string,
     unzipped: { filename: string }[],
   ) {
-    const listed = unzipped
-      .filter(({ filename }) => filename.endsWith("/"))
-      .map(({ filename }) => filename.replace(/\/+$/, ""));
-    await this.deleteFolders(
-      projectId,
-      foldersWithoutFiles(
-        unzipped.map(({ filename }) => filename),
-        await this.listFolders(projectId),
-        listed,
-      ),
-    );
+    const { listed, stale } = await this.folderPlan(projectId, unzipped);
+    await this.deleteFolders(projectId, stale);
     await this.createFolders(projectId, listed);
   }
 
@@ -792,15 +802,67 @@ export default class WorkspaceFileSystem {
     if (free !== null && needed > free) {
       throw new ProjectImportError({ reason: "no_room" });
     }
+    const foldersMarker = {
+      uri: this.getFileUri(projectId, ".folders"),
+      data: new TextEncoder().encode("1").buffer as ArrayBuffer,
+    };
+    const depth = (path: string) => path.split("/").length;
+    let result: ApplyWorkspaceEditResult;
     try {
-      if (zipFilesToDelete.length > 0) {
-        await this.deleteFiles({ files: zipFilesToDelete });
-      }
-      await this.replaceFolders(projectId, unzipped);
-      await this.createFiles({ files: zipFilesToWrite });
-      await this.writeProjectMetadata(projectId, "folders", "1");
+      const folders = await this.folderPlan(projectId, unzipped);
+      result = await this.applyWorkspaceEdit(
+        {
+          documentChanges: [
+            ...zipFilesToDelete.map(({ uri }) => ({
+              kind: "delete" as const,
+              uri,
+            })),
+            ...[...folders.stale]
+              .sort((a, b) => depth(b) - depth(a))
+              .map((path) => ({
+                kind: "delete" as const,
+                uri: this.getFileUri(projectId, path),
+                folder: true,
+              })),
+            ...[...zipFilesToWrite, foldersMarker].map(({ uri, data }) => ({
+              kind: "create" as const,
+              uri,
+              data,
+              options: { overwrite: true },
+            })),
+            ...folders.listed
+              .filter((path) => !folders.existing.includes(path))
+              .map((path) => ({
+                kind: "create" as const,
+                uri: this.getFileUri(projectId, path),
+                folder: true,
+              })),
+          ],
+        },
+        "Import project",
+      );
     } catch (cause) {
       throw new ProjectImportError({ reason: "storage" }, { cause });
+    }
+    if (!result.applied) {
+      const relative = (uris: string[] | undefined) =>
+        (uris ?? []).map((uri) => this.getRelativePath(projectId, uri));
+      throw new ProjectImportError(
+        {
+          reason: "storage",
+          ...(result.rollback && {
+            rollback: {
+              complete: result.rollback.complete,
+              failed: relative(result.rollback.failed),
+              kept: relative(result.rollback.kept),
+              ...(result.rollback.trashed && {
+                trashed: relative(result.rollback.trashed),
+              }),
+            },
+          }),
+        },
+        { cause: new Error(result.failureReason) },
+      );
     }
     return {
       settingsJson: settingsEntry
@@ -1458,9 +1520,9 @@ export default class WorkspaceFileSystem {
     try {
       return await this.post<ApplyWorkspaceEditResult>(
         request,
-        edit.documentChanges
-          ?.filter((c) => "kind" in c && c.kind === "create")
-          .map((c) => c.data) as Transferable[],
+        edit.documentChanges?.flatMap((c) =>
+          "kind" in c && c.kind === "create" && c.data ? [c.data] : [],
+        ),
       );
     } finally {
       this._confirmations.delete(request.id);

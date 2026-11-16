@@ -33,7 +33,7 @@ export function ActionSheet({
   }, [open, items]);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} flush class={className}>
+    <Sheet open={open} onOpenChange={onOpenChange} flush elevation="menu" class={className}>
       <DialogTitle class="sr-only">{title}</DialogTitle>
       <div
         role="menu"

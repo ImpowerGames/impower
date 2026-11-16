@@ -36,7 +36,7 @@ import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
 import { DIRECTIVE_CLOSERS, readDirective, type DirectiveReading } from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { readSpeakerBeingWritten } from "@impower/sparkdown/src/compiler/utils/readCue";
-import { directiveLine } from "@impower/sparkdown/src/compiler/utils/directiveLinePick";
+import { directiveOwnLookPick } from "@impower/sparkdown/src/compiler/utils/directiveOwnLook";
 import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -123,6 +123,28 @@ const FLOW_KEYWORDS = ["DONE", "END"];
 const INSERT_TEXT_CURSOR_REGEX = /[$]\d+/g;
 
 const isPrefilteredName = (name: string) => name.includes("~");
+
+const unclosedOpenerBefore = (
+  tree: Tree,
+  lineFrom: number,
+  offset: number,
+  read: (from: number, to: number) => string,
+): string | undefined => {
+  let opener: { from: number; to: number } | undefined;
+  tree.iterate({
+    from: lineFrom,
+    to: offset,
+    enter: (node) => {
+      if (node.name === "LiteralDirectiveOpener" && node.to <= offset) {
+        opener = { from: node.from, to: node.to };
+      }
+    },
+  });
+  if (!opener || !/^(?:[_\p{L}][0-9_\p{L}-]*(?:@[0-9_\p{L}][0-9_\p{L}-]*)*)?$/u.test(read(opener.to, offset))) {
+    return undefined;
+  }
+  return read(opener.from, opener.to);
+};
 
 const STRUCTURAL_DEFINE_TYPE: Partial<Record<SparkdownNodeName, string>> = {
   LuauStyle: "style",
@@ -1537,7 +1559,7 @@ const completionsAt = (
       const image = program.context["filtered_image"]?.[name] ?? program.context["layered_image"]?.[name] ?? program.context["image"]?.[name];
       const vocabulary = resolveImageAttributes(program.context, image, { visibility: false }).vocabulary;
       if (vocabulary) {
-        const line = directiveLine(program.context, tree, { read, characterNumber: (pos) => document.positionAt(pos).character }, start);
+        const pick = directiveOwnLookPick(tree, read, start);
         for (const choice of attributeCompletionChoices(vocabulary, current, [...before, ...after])) {
           completions.set(choice.label, attributeCompletionItem(
             choice,
@@ -1545,7 +1567,7 @@ const completionsAt = (
             document.range(start + choice.offset, attributeNode?.to ?? documentCursorOffset),
             (attribute) => ({ type: "filtered_image", name,
               filtered: { image: name, attributes: [...before, attribute, ...after] },
-              line }),
+              ...(pick === undefined ? {} : { pick }) }),
           ));
         }
       }
@@ -1761,6 +1783,28 @@ const completionsAt = (
     if (isCursorAfterNodeText(writeTargetNode)) {
       addScreenElementReferenceCompletions(completions, program, ["text"]);
     }
+    return buildCompletions();
+  }
+
+  const unclosedOpener = unclosedOpenerBefore(
+    tree,
+    document.offsetAt({ line: position.line, character: 0 }),
+    documentCursorOffset,
+    read,
+  );
+  if (unclosedOpener === "[[") {
+    addBracketControlCompletions(completions);
+    addStructReferenceCompletions(
+      completions,
+      program,
+      IMAGE_COMMAND_NAME_TYPES,
+      isPrefilteredName,
+    );
+    return buildCompletions();
+  }
+  if (unclosedOpener === "((") {
+    addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
+    addStructReferenceCompletions(completions, program, AUDIO_TYPES);
     return buildCompletions();
   }
 

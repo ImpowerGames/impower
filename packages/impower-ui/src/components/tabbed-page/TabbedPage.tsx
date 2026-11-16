@@ -10,7 +10,7 @@ export const tabbedPageVariants = cva(
 );
 
 export const tabbedPageHeaderVariants = cva(
-  "flex h-14 flex-none items-center gap-2.5 border-b border-edge bg-workspace px-4 [&>svg]:size-[19px] [:root[data-layout=desktop]_&>svg]:size-5 [:root[data-layout=desktop]_&]:h-[68px] [:root[data-layout=desktop]_&]:gap-3 [:root[data-layout=desktop]_&]:px-[22px]",
+  "flex h-14 flex-none items-center gap-2.5 border-b border-edge bg-workspace px-4 [&>svg]:h-5 [&>svg]:w-[19px] [:root[data-layout=desktop]_&>svg]:size-5 [:root[data-layout=desktop]_&]:h-[68px] [:root[data-layout=desktop]_&]:gap-3 [:root[data-layout=desktop]_&]:px-[22px]",
 );
 
 export const tabbedPageTitleVariants = cva(

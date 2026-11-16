@@ -1052,7 +1052,12 @@ describe("text the export inserts", () => {
   });
 
   it.each([
-    ["an empty alternative, dropped as a known gap (I-2389)", "GluedEmptyArm", "They see {a dog} outside."],
+    ["an empty alternative", "GluedEmptyArm", "They see {|a dog} outside."],
+    ["a trailing empty alternative", "GluedTrailingEmptyArm", "They see {a dog|} outside."],
+    ["an empty alternative of a conditional alternator", "GluedConditionalEmptyArm", "It is {|warm} today."],
+    ["only empty alternatives", "GluedOnlyEmptyArms", "They see {|} outside."],
+    ["a trailing empty alternative of a conditional alternator", "GluedConditionalTrailingEmptyArm", "It is {cold|} today."],
+    ["a conditional alternator whose condition holds an alternator", "GluedNestedConditionAlternator", "It is {cold|warm} today."],
     ["an alternative holding a quoted bar", "GluedQuotedBarArm", "They see {{\"a|b\"}|a dog} outside."],
     ["an alternative holding a quoted brace", "GluedQuotedBraceArm", "They see {{\"{a}\"}|a dog} outside."],
     ["source braces beside an alternative", "GluedBesideSameText", "They see a } {a cat|a dog} } outside."],

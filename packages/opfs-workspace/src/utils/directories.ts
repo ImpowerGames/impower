@@ -2,7 +2,7 @@ import { getDirectoryHandleFromPath } from "./getDirectoryHandleFromPath";
 import { getFileName } from "./getFileName";
 import { getParentPath } from "./getParentPath";
 
-const entriesOf = async (
+export const entriesOf = async (
   directoryHandle: FileSystemDirectoryHandle,
 ): Promise<FileSystemHandle[]> => {
   const entries: FileSystemHandle[] = [];

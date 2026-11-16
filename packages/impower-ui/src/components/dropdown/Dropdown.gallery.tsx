@@ -166,6 +166,16 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
+      <GalleryRow label="Library elevation: the Assets and Scripts pages' lighter menu shadow (the default floating elevation is every other row)">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Sort</Button>
+          </DropdownTrigger>
+          <DropdownContent elevation="library" align="start">
+            <MenuItems />
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
       {(Object.keys(INDICATORS) as DropdownRadioItemIndicator[]).map(
         (indicator) => (
           <GalleryRow key={indicator} label={INDICATORS[indicator]}>

@@ -28,6 +28,7 @@ type Demo =
   | { kind: "responsive" }
   | { kind: "sheet" }
   | { kind: "flush-sheet" }
+  | { kind: "menu-sheet" }
   | { kind: "full" }
   | { kind: "full-long" }
   | { kind: "lightbox" };
@@ -145,6 +146,7 @@ function DialogDemo() {
       </GalleryRow>
       <GalleryRow label="Flush Sheet: under a touch pointer its foot keeps --sheet-gesture-clearance inside its own surface, so no row ends in the phone's system-gesture strip; a mouse adds nothing">
         <Trigger label="Flush sheet" onOpen={() => setDemo({ kind: "flush-sheet" })} />
+        <Trigger label="Menu sheet" onOpen={() => setDemo({ kind: "menu-sheet" })} />
       </GalleryRow>
       <GalleryRow label='Sheet size="full": fills the screen, square edged, for a phone surface such as the asset inspector'>
         <Trigger label="Full sheet" onOpen={() => setDemo({ kind: "full" })} />
@@ -189,6 +191,9 @@ function DialogDemo() {
         <Body close={close} />
       </Sheet>
       <Sheet flush open={is("flush-sheet")} onOpenChange={onOpenChange}>
+        <FlushBody close={close} />
+      </Sheet>
+      <Sheet flush elevation="menu" open={is("menu-sheet")} onOpenChange={onOpenChange}>
         <FlushBody close={close} />
       </Sheet>
       <Sheet size="full" flush open={is("full")} onOpenChange={onOpenChange}>

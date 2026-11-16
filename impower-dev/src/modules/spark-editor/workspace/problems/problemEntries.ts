@@ -55,8 +55,8 @@ export type CardName = PanelCard | DebugCard;
 
 export type PanelRow =
   | { kind: "head"; card: PanelCard }
-  | { kind: "heading"; path: string; script: string }
-  | { kind: "problem"; problem: Problem }
+  | { kind: "heading"; path: string; script: string; card: boolean }
+  | { kind: "problem"; problem: Problem; card: boolean }
   | { kind: "played"; entry: PlayedEntry }
   | { kind: "empty"; card: PanelCard; text: string }
   | { kind: "end"; card: PanelCard };
@@ -326,22 +326,34 @@ export function panelRows({
   if (open.script) {
     const visible = problems.filter((problem) => shown[problem.severity]);
     if (visible.length) {
-      for (const group of groupByScript(visible)) {
-        rows.push({
-          kind: "heading",
-          path: group.path,
-          script: group.entries[0]!.script,
-        });
-        for (const problem of group.entries) {
-          rows.push({ kind: "problem", problem });
-        }
-      }
+      rows.push(...problemRows(visible, { headings: true, card: true }));
     } else {
       rows.push(emptyRow("script", problems.length));
     }
     rows.push({ kind: "end", card: "script" });
   }
   rows.push(...playedRows({ played, shown, open: open.played }));
+  return rows;
+}
+
+export function problemRows(
+  problems: readonly Problem[],
+  { headings, card }: { headings: boolean; card: boolean },
+): PanelRow[] {
+  const rows: PanelRow[] = [];
+  for (const group of groupByScript(problems)) {
+    if (headings) {
+      rows.push({
+        kind: "heading",
+        path: group.path,
+        script: group.entries[0]!.script,
+        card,
+      });
+    }
+    for (const problem of group.entries) {
+      rows.push({ kind: "problem", problem, card });
+    }
+  }
   return rows;
 }
 

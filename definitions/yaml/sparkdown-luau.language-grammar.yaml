@@ -835,7 +835,7 @@ repository:
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownInlineGluedAlternatorArm" }
-    end: ({{WS}}+)({{ALTERNATOR_GLUE}})
+    end: ({{WS}}*)({{ALTERNATOR_GLUE}})
     endCaptures:
       1:
         patterns:
@@ -867,7 +867,7 @@ repository:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownInlineGluedAlternatorArm" }
-    end: ({{WS}}+)({{ALTERNATOR_GLUE}})
+    end: ({{WS}}*)({{ALTERNATOR_GLUE}})
     endCaptures:
       1:
         patterns:
