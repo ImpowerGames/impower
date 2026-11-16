@@ -173,6 +173,20 @@ describe.skipIf(!browserAvailable)("a menu's form follows the pointer that opens
     });
   });
 
+  test.each([430, 320])("at %ipx wide, a menu of labels wider than the window, with no width of its own, a mouse opens stays 12px inside the window and wraps its labels", async (width) => {
+    await withPage(width, ["wide"], async (page) => {
+      await openWith(page, "mouse");
+      const placed = await boxes(page);
+      expect(placed.form).toBe("menu");
+      expect(placed.menu!.left).toBeGreaterThanOrEqual(12);
+      expect(placed.menu!.right).toBeLessThanOrEqual(width - 12);
+      const clipped = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('[role="menu"], [role="menuitem"]')].filter((element) => element.scrollWidth > element.clientWidth + 1).length,
+      );
+      expect(clipped).toBe(0);
+    });
+  });
+
   test.each([
     ["a long menu", ["clear", "long"]],
     ["a menu from the window's foot", ["clear", "long", "bottom"]],

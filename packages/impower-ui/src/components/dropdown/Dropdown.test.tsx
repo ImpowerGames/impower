@@ -78,7 +78,7 @@ const pointer = (target: Element, pointerType: string) =>
         new PointerEvent(type, { bubbles: true, cancelable: true, pointerType, button: 0 }),
       );
     }
-    (target as HTMLElement).click();
+    target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
   });
 
 const tap = (target: Element) => pointer(target, "touch");
@@ -599,6 +599,45 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
     });
     await settle(50);
     expect(formOf()).toBe("menu");
+  });
+
+  it.each([
+    ["phone", true],
+    ["desktop", false],
+  ])("at the %s width, opens as a menu from a click no pointer made, as assistive tools send", async (_width, phoneWidth) => {
+    await setPhone(phoneWidth);
+    const { trigger } = await mount();
+    await act(async () => trigger.click());
+    await settle(300);
+    expect(formOf()).toBe("menu");
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("closes a menu that is not modal when a mouse presses its trigger, and does not reopen it on that press's click", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot modal={false}>
+          <DropdownTrigger asChild>
+            <button type="button">Menu</button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownItem>Settings</DropdownItem>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    const trigger = host.querySelector("button")!;
+    await pointer(trigger, "mouse");
+    await settle(300);
+    expect(formOf()).toBe("menu");
+    await act(async () => {
+      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse", button: 0 }));
+      trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+    });
+    await settle(400);
+    expect(formOf()).toBe("closed");
   });
 
   it("closes a menu that is not modal when a finger presses its trigger, and does not reopen it as a sheet", async () => {

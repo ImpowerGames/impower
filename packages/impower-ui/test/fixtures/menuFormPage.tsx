@@ -6,7 +6,9 @@ import type { KeepClear } from "../../src/utils/keepClear";
 const options = new Set(location.hash.slice(1).split(","));
 const rows = options.has("long")
   ? Array.from({ length: 30 }, (_, index) => `Row ${index + 1}`)
-  : ["New project", "Open project", "Save a copy", "Settings", "Report a bug"];
+  : options.has("wide")
+    ? ["happy", "an extremely long but valid user named expression for the character portrait", "an_unbroken_expression_name_with_no_spaces_that_is_wider_than_any_phone_window"]
+    : ["New project", "Open project", "Save a copy", "Settings", "Report a bug"];
 
 function Menu({ keepClear }: { keepClear?: KeepClear }) {
   return (
@@ -16,7 +18,7 @@ function Menu({ keepClear }: { keepClear?: KeepClear }) {
           Menu
         </button>
       </DropdownTrigger>
-      <DropdownContent keepClear={keepClear} class="w-[340px] max-w-[calc(100cqi-24px)]">
+      <DropdownContent keepClear={keepClear} class={options.has("wide") ? "min-w-[196px]" : "w-[340px] max-w-[calc(100cqi-24px)]"}>
         {rows.map((row, index) => (
           <Fragment key={row}>
             {index === 3 ? <DropdownSeparator /> : null}

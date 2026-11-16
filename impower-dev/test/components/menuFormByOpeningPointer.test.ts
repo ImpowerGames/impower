@@ -107,7 +107,7 @@ const press = async (trigger: HTMLElement, pointerType: string) => {
     for (const type of ["pointerdown", "pointerup"]) {
       trigger.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerType, button: 0 }));
     }
-    trigger.click();
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
   });
   await settle(300);
 };
@@ -164,6 +164,14 @@ describe("the editor's menus open as a sheet under a finger and as a dropdown wi
     await act(async () => {
       trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     });
+    await settle(300);
+    expect(formOpen()).toBe("menu");
+  });
+
+  it.each(names)("%s at 430px wide on a touch screen opens as a dropdown from a click no pointer made", async (name) => {
+    await setScreen(430, true);
+    const trigger = await mount(name);
+    await act(async () => trigger.click());
     await settle(300);
     expect(formOpen()).toBe("menu");
   });

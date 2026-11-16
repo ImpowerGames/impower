@@ -185,8 +185,8 @@ export function DropdownTrigger({
       onKeyDown={() => {
         ctx.opener.current = undefined;
       }}
-      onClick={() => {
-        if (!ctx.open && menuFormFor(ctx.opener.current) === "sheet") {
+      onClick={(event: MouseEvent) => {
+        if (!ctx.open && (event.detail === 0 || menuFormFor(ctx.opener.current) === "sheet")) {
           ctx.setOpen(true);
         }
       }}
@@ -198,7 +198,7 @@ export function DropdownTrigger({
 
 export const dropdownContentVariants = cva(
   [
-    "z-50 min-w-[120px] max-h-[var(--radix-dropdown-menu-content-available-height)]",
+    "z-50 min-w-[120px] max-w-[calc(100vw-24px)] max-h-[var(--radix-dropdown-menu-content-available-height)]",
     "overflow-y-auto overscroll-contain [scrollbar-gutter:auto] rounded-card",
     "border border-solid border-edge bg-popup p-1.5 text-ink",
     "origin-[--radix-dropdown-menu-content-transform-origin]",
@@ -411,7 +411,7 @@ export function DropdownContent({
 const dropdownItem = cva([
   "relative control-overlay rounded-control",
   "flex min-h-11 w-full cursor-pointer flex-row items-center gap-3 px-3 py-2.5",
-  "text-[13px] text-ink select-none text-left [&_svg]:size-[18px]",
+  "text-[13px] text-ink select-none text-left [overflow-wrap:anywhere] [&_svg]:size-[18px]",
   "disabled:pointer-events-none disabled:opacity-40",
   "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
 ]);
