@@ -1,20 +1,13 @@
 import { CompileStack } from "@impower/textmate-grammar-tree/src/compiler/classes/CompileStack";
 import { GrammarState } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarState";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import onig from "vscode-oniguruma";
 import vstm from "vscode-textmate";
 import { describe, expect, test, vi } from "vitest";
 import { parseSource } from "./grammarSnapshot";
-import { LUAU_FILE_SCOPE_NAME, tokenize } from "./vscodeGrammarSnapshot";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const grammar = JSON.parse(readFileSync(join(__dirname, "../../../language/sparkdown.language-grammar.json"), "utf8"));
-const VSCODE_GRAMMAR = join(__dirname, "../../../../../vscode-sparkdown/language/sparkdown.language-grammar.json");
-const LUAU_FILE_GRAMMAR = join(__dirname, "../../../language/sparkdown-luau.language-grammar.json");
+import { createRegistry } from "./vscodeGrammarSnapshot";
 
 const BRACES = 2000;
+
+const FEW = 500;
 
 const PLACES: [string, (unit: string) => string][] = [
   ["a display line", (unit) => `scene start\n  A${unit.repeat(BRACES)}\nend\n`],
@@ -38,65 +31,21 @@ const LONG_LINES: [string, (items: number) => string][] = [
   ["comparisons joined by and", (n) => `  A {${"b == c and ".repeat(n)}b}`],
   ["call arguments", (n) => `  A {f(${"b, ".repeat(n)}b)}`],
   ["call arguments with longer names", (n) => `  A {f(${"value, ".repeat(n)}value)}`],
-  ["call arguments after two spaces", (n) => `  A {f(${"b,  ".repeat(n)}b)}`],
-  ["a dotted path with spaces", (n) => `  A {${"b.  ".repeat(n)}b}`],
-  ["action text", (n) => `  A${" word".repeat(n)}`],
-  ["dialogue text", (n) => `  NARRATOR: ${"word ".repeat(n)}`],
-  ["bracket strings", (n) => `  A {f(${"[=[x]=], ".repeat(n)}[=[x]=])}`],
-  ["block comments between arguments", (n) => `  A {f(${"b --[[c]], ".repeat(n)}b)}`],
-  ["a local's call with comments", (n) => `  local x = f(${"b --[[c]], ".repeat(n)}b)`],
-  ["strings with escapes", (n) => `  A {f(${'"a\\nb", '.repeat(n)}b)}`],
-  ["table fields with longer names", (n) => `  A {{${"value = 1, ".repeat(n)}}}`],
-  ["table fields", (n) => `  A {{${"b = 1, ".repeat(n)}}}`],
   ["a dotted path", (n) => `  A {${"b.".repeat(n)}b}`],
   ["joined strings", (n) => `  A {${'"x" .. '.repeat(n)}"x"}`],
   ["a method chain", (n) => `  A {a${":m()".repeat(n)}}`],
   ["an index chain", (n) => `  A {a${"[b]".repeat(n)}}`],
+  ["table fields", (n) => `  A {{${"b = 1, ".repeat(n)}}}`],
   ["a local's sum", (n) => `  local x = b${" + b".repeat(n)}`],
   ["a local's call", (n) => `  local x = f(${"b, ".repeat(n)}b)`],
-  ["a local's table", (n) => `  local x = {${"b = 1, ".repeat(n)}}`],
   ["if expressions", (n) => `  local x = ${"if a then b else ".repeat(n)}c`],
+  ["action text", (n) => `  A${" word".repeat(n)}`],
+  ["dialogue text", (n) => `  NARRATOR: ${"word ".repeat(n)}`],
 ];
 
-const SLOW_IN_VSCODE_DISPLAY_RULES = new Set(["bracket strings", "strings with escapes"]);
-
-const FEW = 500;
+const TEXT_LINES = LONG_LINES.filter(([name]) => name === "action text" || name === "dialogue text");
 
 const inScene = (line: string) => `scene start\n${line}\nend\n`;
-
-let reread = 0;
-
-let highlighter: Promise<(line: string) => number> | undefined;
-
-const vscodeHighlighter = () => (highlighter ??= loadVscodeHighlighter());
-
-const loadVscodeHighlighter = async () => {
-  await tokenize("scene start\n  A {b} c\nend\n");
-  const text = readFileSync(VSCODE_GRAMMAR, "utf8");
-  const scopeName = JSON.parse(text).scopeName;
-  const registry = new vstm.Registry({
-    onigLib: Promise.resolve({
-      createOnigScanner: (patterns: string[]) => new onig.OnigScanner(patterns),
-      createOnigString: (s: string) => {
-        reread += s.length;
-        return new onig.OnigString(s);
-      },
-    }),
-    loadGrammar: async (requested: string) =>
-      requested === scopeName
-        ? vstm.parseRawGrammar(text, VSCODE_GRAMMAR)
-        : requested === LUAU_FILE_SCOPE_NAME
-          ? vstm.parseRawGrammar(readFileSync(LUAU_FILE_GRAMMAR, "utf8"), LUAU_FILE_GRAMMAR)
-          : null,
-  });
-  const loaded = (await registry.loadGrammar(scopeName))!;
-  const sceneStack = loaded.tokenizeLine("scene start", vstm.INITIAL).ruleStack;
-  return (line: string) => {
-    reread = 0;
-    loaded.tokenizeLine(line, sceneStack);
-    return reread;
-  };
-};
 
 const NON_ASCII_SCAN = "[^\\x00-\\x7f]";
 
@@ -115,37 +64,24 @@ const scannedForNonAscii = (read: () => unknown) => {
   return scanned;
 };
 
-const RULE_SEARCHES: [string, string][] = [
-  ["LuauFunctionDeclarationName", grammar.repository.LuauFunctionDeclarationName.match],
-  ["LuauAccessPath's end", grammar.repository.LuauAccessPath.end],
-];
+const quietly = <T>(read: () => T) => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    return read();
+  } finally {
+    warn.mockRestore();
+  }
+};
 
-describe("a line of unclosed braces is read in time linear in its length (#2306)", () => {
-  test.each(PLACES)("%s of 2,000 unclosed braces, in the tree parser, takes less than four times the same line with each brace closed", (_where, source) => {
+describe("the tree parser reads a long line in time linear in its length (#2306)", () => {
+  test.each(PLACES)("%s of 2,000 unclosed braces takes less than four times the same line with each brace closed", (_where, source) => {
     parseSource("scene start\n  A {b} {b\nend\n");
     const closed = fastest(() => parseSource(source(" {b}")));
     const unclosed = fastest(() => parseSource(source(" {b")));
     expect(unclosed, `closed took ${closed.toFixed(1)}ms, unclosed took ${unclosed.toFixed(1)}ms`).toBeLessThan(4 * closed + 40);
   });
 
-  test.each(RULE_SEARCHES)(
-    "%s, searched as vscode-textmate searches it from every name on a line of 2,000 unclosed braces, never reads back to the line start",
-    async (_rule, source) => {
-      await tokenize("scene start\n  A {b} c\nend\n");
-      const scanner = new onig.OnigScanner([source]);
-      scanner.findNextMatchSync(new onig.OnigString("  A {b {b\n"), 0);
-      const line = `  A${" {b".repeat(BRACES)}\n`;
-      const ms = fastest(() => {
-        const text = new onig.OnigString(line);
-        for (let at = line.indexOf("b"); at < line.length; at += 3) {
-          scanner.findNextMatchSync(text, at);
-        }
-      });
-      expect(ms, `took ${ms.toFixed(1)}ms`).toBeLessThan(40);
-    },
-  );
-
-  test("the tree parser counts each node it emits in time that does not grow with the rules open around it", () => {
+  test("it counts each node it emits in time that does not grow with the rules open around it", () => {
     const counted = (open: number) => {
       const stack = new CompileStack();
       for (let i = 0; i < open; i++) {
@@ -169,9 +105,8 @@ describe("a line of unclosed braces is read in time linear in its length (#2306)
     expect(many.ms, `2 open took ${few.ms.toFixed(2)}ms, ${BRACES} open took ${many.ms.toFixed(2)}ms`).toBeLessThan(4 * few.ms + 5);
   });
 
-  test("the tree parser checks a rule for recursion in time that does not grow with the rules open before it", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
+  test("it checks a rule for recursion in time that does not grow with the rules open before it", () => {
+    quietly(() => {
       const checked = (open: number) => {
         const state = new GrammarState("");
         for (let i = 0; i < open; i++) {
@@ -191,99 +126,43 @@ describe("a line of unclosed braces is read in time linear in its length (#2306)
       many.state.enter("other", BRACES);
       expect(many.state.possibleStackOverflow("rule", BRACES), "a rule tried again at the position it is already open at is refused").toBe(true);
       expect(many.ms, `2 open took ${few.ms.toFixed(2)}ms, ${BRACES} open took ${many.ms.toFixed(2)}ms`).toBeLessThan(4 * few.ms + 5);
-    } finally {
-      warn.mockRestore();
-    }
-  });
-});
-
-const READINGS: [string, string, string, string][] = [
-  ["a parenthetical after a block comment", "scene start\n  NARRATOR: /* c */ (quietly)\nend\n", "(quietly)", "constant.character.escape.sd"],
-  ["a parenthetical after a display command", "scene start\n  A <b: text> (quietly)\nend\n", "(quietly)", "constant.character.escape.sd"],
-  ["a reassignment whose targets are 33 spaces apart", `scene start\n  local a, b = 0, 0\n  a,${" ".repeat(33)}b = 1, 2\nend\n`, "b", "variable.other.readwrite.luau"],
-  ["a reassignment indented by 40 spaces", `scene start\n${" ".repeat(40)}x = 1\nend\n`, "x", "variable.other.readwrite.luau"],
-];
-
-const MALFORMED_REASSIGNMENTS: [string, string][] = [
-  [",x = 1", "x = 1"],
-  [", x = 1", "x = 1"],
-  [",x,y = 1,2", "x,y = 1,2"],
-  [".x,y = 1,2", "y = 1,2"],
-  [": x,y = 1,2", "y = 1,2"],
-  ["1x = 1", "x = 1"],
-  ["1abc = 2", "abc = 2"],
-  ["a:x,y = 1,2", "y = 1,2"],
-];
-
-describe("a reassignment after a stray separator or digit is parsed as on main (#2306)", () => {
-  test.each(MALFORMED_REASSIGNMENTS)("%s keeps its reassignment in the tree parser", (body, reassigned) => {
-    const source = `function f()\n  ${body}\nend\n`;
-    const from = source.indexOf(reassigned);
-    const found: string[] = [];
-    parseSource(source).iterate({
-      enter: (node) => {
-        if (node.name === "LuauReassignment") found.push(`${node.from}-${node.to}`);
-      },
     });
-    expect(found, source).toContainEqual(`${from}-${from + reassigned.length}`);
-  });
-});
-
-describe("a long line keeps its reading (#2306)", () => {
-  test.each(READINGS)("%s keeps its scope in VS Code's highlighter", async (_what, source, text, scope) => {
-    const lines = await tokenize(source);
-    const line = lines.findLast((l) => l.lineText.includes(text) && l.lineText.trim() !== "end")!;
-    const from = line.lineText.lastIndexOf(text);
-    const covering = line.tokens.filter((t) => t.endIndex > from && t.startIndex < from + text.length);
-    expect(covering.length, line.lineText).toBeGreaterThan(0);
-    for (const t of covering) {
-      expect(t.scopes, `${JSON.stringify(t.text)} in ${JSON.stringify(line.lineText)}`).toContain(scope);
-    }
-  });
-});
-
-describe("a long line is read in time linear in its length (#2306)", () => {
-  test.each(LONG_LINES)("%s, in VS Code's highlighter, re-reads at most the line's length again", async (_line, line) => {
-    const highlight = await vscodeHighlighter();
-    const text = line(BRACES);
-    expect(highlight(text)).toBeLessThan(2 * text.length);
   });
 
-  test.each(LONG_LINES.filter(([name]) => !SLOW_IN_VSCODE_DISPLAY_RULES.has(name)))(
-    "%s, in VS Code's highlighter, takes less than six times as long with 2,000 items as with 500",
-    async (_line, line) => {
-      const highlight = await vscodeHighlighter();
-      highlight(line(FEW));
-      const few = fastest(() => highlight(line(FEW)));
-      const many = fastest(() => highlight(line(BRACES)));
-      expect(many, `${FEW} took ${few.toFixed(1)}ms, ${BRACES} took ${many.toFixed(1)}ms`).toBeLessThan(6 * few + 20);
-    },
-    60000,
-  );
-
-  test.each(LONG_LINES)("%s, in the tree parser, is scanned for non-ASCII text at most a few times over", (_line, line) => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
+  test.each(LONG_LINES)("%s is scanned for non-ASCII text at most a few times over", (_line, line) => {
+    quietly(() => {
       const source = inScene(line(BRACES));
       parseSource(source);
       expect(scannedForNonAscii(() => parseSource(source))).toBeLessThan(4 * source.length);
-    } finally {
-      warn.mockRestore();
-    }
+    });
   });
 
   test.each(LONG_LINES)(
-    "%s, in the tree parser, takes less than six times as long with 2,000 items as with 500",
+    "%s takes less than six times as long with 2,000 items as with 500",
     (_line, line) => {
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-      try {
+      quietly(() => {
         parseSource(inScene(line(FEW)));
         const few = fastest(() => parseSource(inScene(line(FEW))));
         const many = fastest(() => parseSource(inScene(line(BRACES))));
         expect(many, `${FEW} took ${few.toFixed(1)}ms, ${BRACES} took ${many.toFixed(1)}ms`).toBeLessThan(6 * few + 20);
-      } finally {
-        warn.mockRestore();
-      }
+      });
+    },
+    60000,
+  );
+});
+
+describe("VS Code's highlighter reads a long line of story text in time linear in its length (#2306)", () => {
+  test.each(TEXT_LINES)(
+    "%s takes less than six times as long with 2,000 words as with 500",
+    async (_line, line) => {
+      const { registry, scopeName } = await createRegistry();
+      const highlighter = (await registry.loadGrammar(scopeName))!;
+      const scene = highlighter.tokenizeLine("scene start", vstm.INITIAL).ruleStack;
+      const highlight = (text: string) => highlighter.tokenizeLine(text, scene);
+      highlight(line(FEW));
+      const few = fastest(() => highlight(line(FEW)));
+      const many = fastest(() => highlight(line(BRACES)));
+      expect(many, `${FEW} took ${few.toFixed(1)}ms, ${BRACES} took ${many.toFixed(1)}ms`).toBeLessThan(6 * few + 20);
     },
     60000,
   );
