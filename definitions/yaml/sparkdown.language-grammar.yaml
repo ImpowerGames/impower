@@ -620,9 +620,16 @@ variables:
   SPAN_TABLE_4: (?:[{](?:{{SPAN_INTERPOLATION_CHARACTER}}|{{SPAN_TABLE_3}})*[}])
   SPAN_TABLE_5: (?:[{](?:{{SPAN_INTERPOLATION_CHARACTER}}|{{SPAN_TABLE_4}})*[}])
   SPAN_INTERPOLATION: (?:[{](?:{{SPAN_INTERPOLATION_CHARACTER}}|{{SPAN_TABLE_5}})+[}]|[{][}])
-  # lookaround: TextCommand ends at its first `>` that is neither escaped by a
-  # backslash (TEXT_COMMAND_UNIT) nor the end of an arrow (TEXT_COMMAND_NOT_ARROW).
-  TEXT_COMMAND_CLOSER: (?:(?<![\\-])[>])
+  # lookaround: TextCommand (TEXT_COMMAND_CONTENT) ends at its first `>` that is
+  # neither the end of an arrow (TEXT_COMMAND_NOT_ARROW) nor escaped, and where
+  # none follows, at its last escaped `>`. TEXT_COMMAND_UNIT pairs a backslash
+  # with the character after it, so a run of backslashes before a `>` escapes it
+  # when the run is odd; fixed-length lookbehinds read the run back exactly up to
+  # three backslashes.
+  TEXT_COMMAND_CLOSER: (?:(?:(?<![-\\])|(?<=[^\\][\\]{2}))[>]|(?<=[^\\][\\]|[^\\][\\]{3})[>]{{TEXT_COMMAND_LAST_GT}})
+  # lookaround: as TEXT_COMMAND_CLOSER; no `>` but an arrow's follows on the line.
+  TEXT_COMMAND_LAST_GT: (?!{{TEXT_COMMAND_LATER_GT}})
+  TEXT_COMMAND_LATER_GT: (?:[^\r\n]*?{{TEXT_COMMAND_NOT_ARROW}}[>])
   # lookaround: TextCommand ends at its closer (TEXT_COMMAND_CLOSER), inside an interpolation too, so the
   # copy of the interpolation a choice TextCommand takes whole (TEXT_COMMAND_SPAN_INTERPOLATION) reads
   # no character where one starts.
@@ -640,12 +647,12 @@ variables:
   TEXT_COMMAND_CHOICE_PLAIN_BACKTICK_STRING: (?:[`]{{TEXT_COMMAND_CHOICE_PLAIN_BACKTICK_PART}}*[`])
   TEXT_COMMAND_SPAN_LONG_BRACKET: (?:{{TEXT_COMMAND_SPAN_DOUBLE_BRACKET}}|{{TEXT_COMMAND_SPAN_LONG_BRACKET_1}}|{{TEXT_COMMAND_SPAN_LONG_BRACKET_2}})
   # lookaround: as SPAN_DOUBLE_BRACKET_TEXT, inside a choice TextCommand, refusing its closer (TEXT_COMMAND_OPEN).
-  TEXT_COMMAND_SPAN_DOUBLE_BRACKET_TEXT: (?:{{TEXT_COMMAND_OPEN}}[^\]\r\n]|{{TEXT_COMMAND_OPEN}}\](?!\]))
-  TEXT_COMMAND_SPAN_DOUBLE_BRACKET: (?:\[\[{{TEXT_COMMAND_SPAN_DOUBLE_BRACKET_TEXT}}*{{TEXT_COMMAND_OPEN}}\]{{TEXT_COMMAND_OPEN}}\])
+  TEXT_COMMAND_SPAN_DOUBLE_BRACKET_TEXT: (?:{{TEXT_COMMAND_OPEN}}[^\]\r\n]|\](?!\]))
+  TEXT_COMMAND_SPAN_DOUBLE_BRACKET: (?:\[\[{{TEXT_COMMAND_SPAN_DOUBLE_BRACKET_TEXT}}*\]\])
   # lookaround: as SPAN_LONG_BRACKET_1, inside a choice TextCommand, refusing its closer (TEXT_COMMAND_OPEN).
-  TEXT_COMMAND_SPAN_LONG_BRACKET_1: (?:\[=\[(?:{{TEXT_COMMAND_OPEN}}[^\]\r\n]|{{TEXT_COMMAND_OPEN}}\](?!=\]))*{{TEXT_COMMAND_OPEN}}\]={{TEXT_COMMAND_OPEN}}\])
+  TEXT_COMMAND_SPAN_LONG_BRACKET_1: (?:\[=\[(?:{{TEXT_COMMAND_OPEN}}[^\]\r\n]|\](?!=\]))*\]=\])
   # lookaround: as SPAN_LONG_BRACKET_2, inside a choice TextCommand, refusing its closer (TEXT_COMMAND_OPEN).
-  TEXT_COMMAND_SPAN_LONG_BRACKET_2: (?:\[==\[(?:{{TEXT_COMMAND_OPEN}}[^\]\r\n]|{{TEXT_COMMAND_OPEN}}\](?!==\]))*{{TEXT_COMMAND_OPEN}}\]=={{TEXT_COMMAND_OPEN}}\])
+  TEXT_COMMAND_SPAN_LONG_BRACKET_2: (?:\[==\[(?:{{TEXT_COMMAND_OPEN}}[^\]\r\n]|\](?!==\]))*\]==\])
   TEXT_COMMAND_SPAN_CODE_CHARACTER: (?:{{TEXT_COMMAND_CHOICE_PLAIN_CODE_CHARACTER}}|{{TEXT_COMMAND_SPAN_LONG_BRACKET}}|[-][-]{{TEXT_COMMAND_SPAN_LONG_BRACKET}}|{{TEXT_COMMAND_BLOCK_COMMENT_CLOSED}})
   TEXT_COMMAND_SPAN_INTERPOLATION_CHARACTER: (?:{{TEXT_COMMAND_SPAN_CODE_CHARACTER}}|{{TEXT_COMMAND_CHOICE_PLAIN_BACKTICK_STRING}})
   TEXT_COMMAND_SPAN_TABLE_1: (?:[{]{{TEXT_COMMAND_SPAN_INTERPOLATION_CHARACTER}}*[}])
@@ -672,12 +679,12 @@ variables:
   AUDIO_COMMAND_CHOICE_PLAIN_BACKTICK_STRING: (?:[`]{{AUDIO_COMMAND_CHOICE_PLAIN_BACKTICK_PART}}*[`])
   AUDIO_COMMAND_SPAN_LONG_BRACKET: (?:{{AUDIO_COMMAND_SPAN_DOUBLE_BRACKET}}|{{AUDIO_COMMAND_SPAN_LONG_BRACKET_1}}|{{AUDIO_COMMAND_SPAN_LONG_BRACKET_2}})
   # lookaround: as SPAN_DOUBLE_BRACKET_TEXT, inside a choice AudioCommand, refusing its closer (AUDIO_COMMAND_OPEN).
-  AUDIO_COMMAND_SPAN_DOUBLE_BRACKET_TEXT: (?:{{AUDIO_COMMAND_OPEN}}[^\]\r\n]|{{AUDIO_COMMAND_OPEN}}\](?!\]))
-  AUDIO_COMMAND_SPAN_DOUBLE_BRACKET: (?:\[\[{{AUDIO_COMMAND_SPAN_DOUBLE_BRACKET_TEXT}}*{{AUDIO_COMMAND_OPEN}}\]{{AUDIO_COMMAND_OPEN}}\])
+  AUDIO_COMMAND_SPAN_DOUBLE_BRACKET_TEXT: (?:{{AUDIO_COMMAND_OPEN}}[^\]\r\n]|\](?!\]))
+  AUDIO_COMMAND_SPAN_DOUBLE_BRACKET: (?:\[\[{{AUDIO_COMMAND_SPAN_DOUBLE_BRACKET_TEXT}}*\]\])
   # lookaround: as SPAN_LONG_BRACKET_1, inside a choice AudioCommand, refusing its closer (AUDIO_COMMAND_OPEN).
-  AUDIO_COMMAND_SPAN_LONG_BRACKET_1: (?:\[=\[(?:{{AUDIO_COMMAND_OPEN}}[^\]\r\n]|{{AUDIO_COMMAND_OPEN}}\](?!=\]))*{{AUDIO_COMMAND_OPEN}}\]={{AUDIO_COMMAND_OPEN}}\])
+  AUDIO_COMMAND_SPAN_LONG_BRACKET_1: (?:\[=\[(?:{{AUDIO_COMMAND_OPEN}}[^\]\r\n]|\](?!=\]))*\]=\])
   # lookaround: as SPAN_LONG_BRACKET_2, inside a choice AudioCommand, refusing its closer (AUDIO_COMMAND_OPEN).
-  AUDIO_COMMAND_SPAN_LONG_BRACKET_2: (?:\[==\[(?:{{AUDIO_COMMAND_OPEN}}[^\]\r\n]|{{AUDIO_COMMAND_OPEN}}\](?!==\]))*{{AUDIO_COMMAND_OPEN}}\]=={{AUDIO_COMMAND_OPEN}}\])
+  AUDIO_COMMAND_SPAN_LONG_BRACKET_2: (?:\[==\[(?:{{AUDIO_COMMAND_OPEN}}[^\]\r\n]|\](?!==\]))*\]==\])
   AUDIO_COMMAND_SPAN_CODE_CHARACTER: (?:{{AUDIO_COMMAND_CHOICE_PLAIN_CODE_CHARACTER}}|{{AUDIO_COMMAND_SPAN_LONG_BRACKET}}|[-][-]{{AUDIO_COMMAND_SPAN_LONG_BRACKET}}|{{AUDIO_COMMAND_BLOCK_COMMENT_CLOSED}})
   AUDIO_COMMAND_SPAN_INTERPOLATION_CHARACTER: (?:{{AUDIO_COMMAND_SPAN_CODE_CHARACTER}}|{{AUDIO_COMMAND_CHOICE_PLAIN_BACKTICK_STRING}})
   AUDIO_COMMAND_SPAN_TABLE_1: (?:[{]{{AUDIO_COMMAND_SPAN_INTERPOLATION_CHARACTER}}*[}])

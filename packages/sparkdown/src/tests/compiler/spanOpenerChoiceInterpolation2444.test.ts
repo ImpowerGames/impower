@@ -129,6 +129,28 @@ describe("a directive holding an interpolation reads the same on a display line 
     },
   );
 
+  test.each([
+    ["<wait {[[x\\\\> [y] ]]} >", "<wait {[[x\\\\>"],
+    ["<wait {[[x\\\\\\> [y] ]]} >", "<wait {[[x\\\\\\> [y] ]]} >"],
+  ])("a `>` after an even run of backslashes ends the text command, and one after an odd run does not, as on a display line: `%s`", (text, command) => {
+    expect(nodesOver(displayScript(text), "TextCommand")).toEqual([command]);
+    expect(nodesOver(choiceScript(`Go [${text}] now`), "TextCommand")).toEqual([command]);
+    expect(nodesOver(choiceScript(`Go [x] ${text} now`), "TextCommand")).toEqual([command]);
+  });
+
+  test("a `>` after two backslashes ends the text command, so the choice bracket after it ends the suppression", () => {
+    const story = compileStory(choiceScript("Go [<wait {[[x\\\\> [y] ]]} >] now"));
+    story.ContinueMaximally();
+    expect(story.currentChoices.map((choice: { text: string }) => choice.text)).toEqual(["Go <wait {[[x\\> [y"]);
+  });
+
+  test("an escaped `>` with no other `>` after it ends the text command, as on a display line", () => {
+    const directive = "<wait {[[x\\>";
+    const line = `${directive} [y] ]]} now`;
+    expect(nodesOver(displayScript(line), "TextCommand")).toEqual([directive]);
+    expect(nodesOver(choiceScript(`Go [x] ${line}`), "TextCommand")).toEqual([directive]);
+  });
+
   test("an escaped `>` inside a long-string interpolation ends no text command, as on a display line", () => {
     const directive = "<wait {[[x\\>y]]}>";
     expect(nodesOver(displayScript(directive), "TextCommand")).toEqual([directive]);
