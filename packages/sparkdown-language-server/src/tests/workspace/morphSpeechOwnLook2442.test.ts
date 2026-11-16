@@ -134,21 +134,13 @@ async function suggested(lines: string) {
   return previewImage((resolved.documentation as any)?.value);
 }
 
-describe("the hover and the suggestion preview show the look the line shows (I-2390)", () => {
-  test("hovering a directive on narration shows the directive's mouth, not the speech morph's rest", async () => {
-    const src = await hovered("  [[bunny:mouth.teeth]]\n  This is Bunny.");
-    expect(src).toContain("teeth");
-    expect(src).not.toContain("closed");
-  });
-
-  test("hovering the same directive under its character's cue shows the speech morph's rest", async () => {
-    const src = await hovered("  BUNNY:\n    [[bunny:mouth.teeth]]\n    Let go of that!");
-    expect(src).toContain("closed");
-    expect(src).not.toContain("teeth");
-  });
-
-  test("hovering a directive line followed by a conditional shows the directive's own look", async () => {
-    const src = await hovered("  [[bunny:mouth.teeth]]\n  if ready then\n    BUNNY:\n      Let go of that!\n  end");
+describe("the hover and the suggestion preview show the directive's own look on every line (I-2442)", () => {
+  test.each([
+    ["on narration", "  [[bunny:mouth.teeth]]\n  This is Bunny."],
+    ["under its character's cue", "  BUNNY:\n    [[bunny:mouth.teeth]]\n    Let go of that!"],
+    ["on a directive line above its character's cue", "  [[bunny:mouth.teeth]]\n  BUNNY:\n    Let go of that!"],
+  ])("hovering a directive %s shows the directive's mouth, not the speech morph's rest", async (_, lines) => {
+    const src = await hovered(lines);
     expect(src).toContain("teeth");
     expect(src).not.toContain("closed");
   });
@@ -159,23 +151,21 @@ describe("the hover and the suggestion preview show the look the line shows (I-2
     expect(src).toContain("closed");
   });
 
-  test("the baked rest render, read from the server's own copy of the art, follows the line: none on narration, the speech morph's rest under the cue", async () => {
+  test("the baked render, read from the server's own copy of the art, shows the directive's mouth on narration and under the cue", async () => {
     const narration = await bakedHover("  [[bunny:mouth.teeth]]\n  This is Bunny.");
     const spoken = await bakedHover("  BUNNY:\n    [[bunny:mouth.teeth]]\n    Let go of that!");
-    expect(narration).toContain("data-name='mouth.teeth'");
-    expect(narration).not.toContain("mouth.closed");
-    expect(spoken).toContain("id='m-closed'");
-    expect(spoken).not.toContain("teeth");
+    for (const src of [narration, spoken]) {
+      expect(src).toContain("data-name='mouth.teeth'");
+      expect(src).not.toContain("mouth.closed");
+    }
   });
 
-  test("a mouth suggestion on narration previews that mouth", async () => {
-    const src = await suggested("  [[bunny:mouth.tee|]]\n  This is Bunny.");
+  test.each([
+    ["on narration", "  [[bunny:mouth.tee|]]\n  This is Bunny."],
+    ["under its character's cue", "  BUNNY:\n    [[bunny:mouth.tee|]]\n    Let go of that!"],
+  ])("a mouth suggestion %s previews that mouth", async (_, lines) => {
+    const src = await suggested(lines);
     expect(src).toContain("teeth");
     expect(src).not.toContain("closed");
-  });
-
-  test("a mouth suggestion under the character's cue previews the speech morph's rest", async () => {
-    const src = await suggested("  BUNNY:\n    [[bunny:mouth.tee|]]\n    Let go of that!");
-    expect(src).toContain("closed");
   });
 });
