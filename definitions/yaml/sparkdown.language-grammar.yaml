@@ -3074,6 +3074,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
+      - { include: "#AssetLine" }
       - { include: "#BlockLineContinue" }
     end: "{{BLOCK_DISPLAY_END}}"
   InlineTitle:
@@ -3137,6 +3138,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
+      - { include: "#AssetLine" }
       - { include: "#BlockLineContinue" }
     end: "{{BLOCK_DISPLAY_END}}"
   InlineHeading:
@@ -3200,6 +3202,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
+      - { include: "#AssetLine" }
       - { include: "#BlockLineContinue" }
     end: "{{BLOCK_DISPLAY_END}}"
   InlineTransitional:
@@ -3270,6 +3273,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
+      - { include: "#AssetLine" }
       - { include: "#BlockLineContinue" }
     end: "{{BLOCK_DISPLAY_END}}"
   InlineWrite:
@@ -3344,6 +3348,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
+      - { include: "#AssetLine" }
       - { include: "#BlockLineContinue" }
     end: '{{BLOCK_DISPLAY_END}}|(?=^{{WS}}*(?:[*+]{{EOK}}|->|[&%$^]|scene{{LUAU_NAME_END}}|branch{{LUAU_NAME_END}}|function{{LUAU_NAME_END}}|define{{LUAU_NAME_END}}|const{{LUAU_NAME_END}}|store{{LUAU_NAME_END}}|local{{LUAU_NAME_END}}))'
   InlineDialogue:
@@ -3509,6 +3514,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
+      - { include: "#AssetLine" }
       - { include: "#BlockActionLineContinue" }
     end: "{{BLOCK_DISPLAY_END}}"
   InlineAction:
@@ -3564,7 +3570,6 @@ repository:
         patterns:
           - { include: "#LeadingGlue" }
     patterns:
-      - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
       - { include: "#ActionDisplayLine" }
     end: ({{WS}}*)(?={{EOL}})
@@ -3712,7 +3717,6 @@ repository:
         patterns:
           - { include: "#LeadingGlue" }
     patterns:
-      - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
       - { include: "#DisplayLine" }
     end: ({{WS}}*)(?={{EOL}})

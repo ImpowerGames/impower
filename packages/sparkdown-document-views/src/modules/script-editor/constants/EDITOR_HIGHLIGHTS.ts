@@ -20,7 +20,6 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
 
   { tag: tags.monospace, color: "var(--syntax-escape)" },
 
-  { tag: tags.typeName, color: "var(--syntax-type-name)" },
   { tag: tags.number, color: "var(--syntax-number)" },
   { tag: tags.bool, color: "var(--syntax-bool)" },
 
@@ -39,6 +38,8 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.heading, color: "var(--syntax-section-name-accessor)" },
   { tag: tags.regexp, color: "var(--syntax-regex)" },
   { tag: tags.labelName, color: "var(--syntax-transitional)" },
+
+  { tag: tags.typeName, color: "var(--syntax-type-name)" },
 
   { tag: tags.escape, color: "var(--syntax-escape)" },
 
