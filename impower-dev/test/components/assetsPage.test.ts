@@ -394,8 +394,23 @@ describe("the Assets page", () => {
     await mount();
     await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
     await vi.waitFor(() =>
-      expect(menuItems()).toEqual(["Add files from this device", "Add a linkA file hosted on the web", "New folder"]),
+      expect(menuItems()).toEqual([
+        "Add files from this deviceInto Images",
+        "Add a linkA file hosted on the web",
+        "New folderIn Images",
+      ]),
     );
+  });
+
+  it("draws New folder with the plain folder glyph, as the prototype's Add menu (I-2441)", async () => {
+    await mount();
+    await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
+    const item = await vi.waitFor(() => {
+      const found = all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.startsWith("New folder"));
+      expect(found).toBeDefined();
+      return found!;
+    });
+    expect(item.querySelector("svg")!.innerHTML).toBe('<path d="M3 7V5h7l2 2h9v13H3z"></path>');
   });
 
   const chooseFiles = async (...names: string[]) => {

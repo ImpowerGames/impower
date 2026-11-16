@@ -11,7 +11,6 @@ import {
   DropdownTrigger,
   DropZone,
   FolderIcon,
-  FolderPlusIcon,
   FolderCover,
   FontIcon,
   GridIcon,
@@ -874,6 +873,7 @@ function AssetsBrowser() {
   const TypeGlyph = TYPE_ICONS[type];
   const trail = assetTrail(listing, level.root, level.folder);
   const atRoot = level.folder === level.root;
+  const addingInto = folderTitle(listing, level.folder);
   const [emptyTitle, emptyBody] = EMPTY_TYPES[type];
   const uploadAction = (
     <Button disabled={busy} onClick={pickFiles}>
@@ -909,15 +909,17 @@ function AssetsBrowser() {
         <>
           <DropdownItem disabled={busy} onSelect={pickFiles}>
             <UploadIcon class="text-muted" />
-            Add files from this device
+            <DropdownItemText hint={<span class="block truncate">Into {addingInto}</span>}>
+              Add files from this device
+            </DropdownItemText>
           </DropdownItem>
           <DropdownItem disabled={busy} onSelect={() => setLinking(true)}>
             <LinkIcon class="text-muted" />
             <DropdownItemText hint="A file hosted on the web">Add a link</DropdownItemText>
           </DropdownItem>
           <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating(true); }}>
-            <FolderPlusIcon class="text-muted" />
-            New folder
+            <FolderIcon class="text-muted" />
+            <DropdownItemText hint={<span class="block truncate">In {addingInto}</span>}>New folder</DropdownItemText>
           </DropdownItem>
         </>
       }
@@ -982,7 +984,7 @@ function AssetsBrowser() {
                   {layout === "rows" ? <ListIcon /> : <GridIcon />}
                 </Button>
               </DropdownTrigger>
-              <DropdownContent align="end" class="min-w-[180px]">
+              <DropdownContent elevation="library" align="end" class="min-w-[180px]">
                 <DropdownRadioGroup
                   label="Show this folder as"
                   value={layout}
@@ -1166,7 +1168,7 @@ export default function Assets(_props: AssetsProps) {
   return (
     <TabbedPage
       title="Assets"
-      icon={<ArtIcon class="size-5 flex-none text-accent" />}
+      icon={<ArtIcon class="flex-none text-accent" />}
       onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("write"))}
       showTabs={false}
       value={PAGE_TAB}

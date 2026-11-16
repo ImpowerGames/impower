@@ -36,7 +36,7 @@ function WheelPickerDemo() {
           </div>
         </GalleryRow>
       ))}
-      <GalleryRow label={`In a sheet across the foot of the panel it belongs to, with Cancel and Done; chosen: ${label(value)}`}>
+      <GalleryRow label={`In a sheet across the foot of the panel it belongs to, with 16px top corners, a shadow above it, Cancel and Done; chosen: ${label(value)}`}>
         <div ref={frame} class="relative flex h-[360px] w-72 items-start justify-center rounded-card border border-edge bg-bg p-4">
           <Button aria-haspopup="dialog" onClick={() => setOpen(true)}>
             Face: {label(value)}

@@ -376,6 +376,7 @@ const zipHarness = (initial: Record<string, string>) => {
     writeProjectMetadata: async () => {},
     foldersOutside: (WorkspaceFileSystem.prototype as any).foldersOutside,
     replaceFolders: (WorkspaceFileSystem.prototype as any).replaceFolders,
+    folderPlan: (WorkspaceFileSystem.prototype as any).folderPlan,
     isStored: (WorkspaceFileSystem.prototype as any).isStored,
     storedFiles: (WorkspaceFileSystem.prototype as any).storedFiles,
     _unstoredUris: new Set<string>(),
@@ -407,6 +408,20 @@ const zipHarness = (initial: Record<string, string>) => {
       for (const { uri } of list) {
         opfs.delete(uri);
       }
+    },
+    applyWorkspaceEdit: async (edit: {
+      documentChanges: { kind: string; uri: string; data?: ArrayBuffer; folder?: boolean }[];
+    }) => {
+      const changes = edit.documentChanges;
+      await fs.deleteFiles({
+        files: changes.filter((c) => c.kind === "delete" && !c.folder).map(({ uri }) => ({ uri })),
+      });
+      await fs.createFiles({
+        files: changes
+          .filter((c) => c.kind === "create" && !c.folder && !c.uri.endsWith("/.folders"))
+          .map(({ uri, data }) => ({ uri, data: data! })),
+      });
+      return { applied: true };
     },
   };
   return {

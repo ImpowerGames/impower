@@ -186,6 +186,11 @@ const KINDS: Record<string, string[]> = {
   GluedTwiceOneLine: ["  They see .. queue | a cat | a dog .. and .. queue | a cow | a hen .. now."],
   GluedBesideSameText: ["  They see a } .. queue | a cat | a dog .. } outside."],
   GluedEmptyArm: ["  They see .. queue | | a dog .. outside."],
+  GluedTrailingEmptyArm: ["  They see .. queue | a dog | .. outside."],
+  GluedConditionalEmptyArm: ["  It is .. match(x) | | warm .. today."],
+  GluedOnlyEmptyArms: ["  They see .. queue | | .. outside."],
+  GluedConditionalTrailingEmptyArm: ["  It is .. match(x) | cold | .. today."],
+  GluedNestedConditionAlternator: ["  It is .. match(cycle | 1 | 2 end) | cold | warm .. today."],
   GluedQuotedBarArm: ["  They see .. queue | {\"a|b\"} | a dog .. outside."],
   GluedQuotedBraceArm: ["  They see .. queue | {\"{a}\"} | a dog .. outside."],
   ChoiceEscape: ["  * [Pick \\*one\\* _now_.]"],
@@ -961,6 +966,58 @@ describe("a blank line the export prints inside one source line", () => {
   });
 });
 
+const UNPRINTED_ON_ONE_LINE: Record<string, string> = {
+  "a function definition": "function f() end",
+  "a variable definition": "local z = 3",
+  "a reassignment": "x = 2",
+  "an explicit statement": "& x = 1",
+  "a block comment": "/* note */",
+  "an include directive": "include other",
+};
+
+const PRINTED_ON_ONE_LINE: Record<string, string> = {
+  "a one-line alternator": "queue | One. | Two. end",
+  "a one-line cycle": "cycle | One. | Two. end",
+  "a one-line match": "match(x) | Small. | Big. end",
+  "dialogue": "GUIDE: Hi.",
+  "action": ": They go.",
+  "a choice": "* [Go.]",
+};
+
+const SHARED_LINE_ORDERS = Object.entries(UNPRINTED_ON_ONE_LINE).flatMap(([unprintedName, unprinted]) =>
+  Object.entries(PRINTED_ON_ONE_LINE).flatMap(([printedName, printed]) => [
+    [`${unprintedName} before ${printedName}`, `${unprinted} ${printed}`],
+    [`${printedName} before ${unprintedName}`, `${printed} ${unprinted}`],
+  ]),
+)
+  .concat(Object.entries(PRINTED_ON_ONE_LINE).map(([printedName, printed]) => [`${printedName} before a line comment`, `${printed} // note`]))
+  .concat(
+    Object.entries(UNPRINTED_ON_ONE_LINE).flatMap(([unprintedName, unprinted]) => [
+      [`${unprintedName} between two one-line blocks`, `queue | One. | Two. end ${unprinted} cycle | Three. | Four. end`],
+      [`a one-line block between two of ${unprintedName}`, `${unprinted} queue | One. | Two. end ${unprinted}`],
+    ]),
+  );
+
+describe("a line shared by a construct that prints nothing and one that prints", () => {
+  it("draws the arms of a one-line alternator after a one-line function definition, on the page as in the export", () => {
+    const source = ["scene s", "  Before.", "  function f() end queue | One. | Two. end", "  After.", "end", ""].join("\n");
+    const printed = exportLines("default", source);
+    expect(printed).toEqual(["Before.", "", "{", "| One.", "| Two.", "}", "After."]);
+    expect(pageLines("default", source)).toEqual(printed);
+  });
+
+  it.each(SHARED_LINE_ORDERS)(
+    "draws what the export prints for %s",
+    (_name, line) => {
+      const source = ["scene s", "  Before.", `  ${line}`, "  After.", "end", ""].join("\n");
+      for (const configName of Object.keys(CONFIGS)) {
+        expect(pageLines(configName, source), configName).toEqual(exportLines(configName, source));
+        expect(unplacedText(configName, source), configName).toEqual([]);
+      }
+    },
+  );
+});
+
 describe("the translation strings of a block of alternatives", () => {
   it("are the author's own text, with no braces, bars or indentation", () => {
     const source = sourceOf(["IfElseDialogueBodies", "AlternatorChoiceBodies", "LuauSparkdownIfElseBlock", "SingleLineAlternatorThenAction"]);
@@ -1185,7 +1242,12 @@ describe("text the export inserts", () => {
   });
 
   it.each([
-    ["an empty alternative, dropped as a known gap (I-2389)", "GluedEmptyArm", "They see {a dog} outside."],
+    ["an empty alternative", "GluedEmptyArm", "They see {|a dog} outside."],
+    ["a trailing empty alternative", "GluedTrailingEmptyArm", "They see {a dog|} outside."],
+    ["an empty alternative of a conditional alternator", "GluedConditionalEmptyArm", "It is {|warm} today."],
+    ["only empty alternatives", "GluedOnlyEmptyArms", "They see {|} outside."],
+    ["a trailing empty alternative of a conditional alternator", "GluedConditionalTrailingEmptyArm", "It is {cold|} today."],
+    ["a conditional alternator whose condition holds an alternator", "GluedNestedConditionAlternator", "It is {cold|warm} today."],
     ["an alternative holding a quoted bar", "GluedQuotedBarArm", "They see {{\"a|b\"}|a dog} outside."],
     ["an alternative holding a quoted brace", "GluedQuotedBraceArm", "They see {{\"{a}\"}|a dog} outside."],
     ["source braces beside an alternative", "GluedBesideSameText", "They see a } {a cat|a dog} } outside."],

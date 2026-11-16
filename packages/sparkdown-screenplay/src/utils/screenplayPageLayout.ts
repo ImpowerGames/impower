@@ -31,6 +31,7 @@ export interface PageRow {
   at: number;
   side: PrintedRowSide;
   pieces: { text: string; style: FormattedText }[];
+  name?: boolean;
 }
 
 export interface PrintedPlaces {
@@ -186,15 +187,25 @@ export const screenplayPageLayout = (
       }
     }
   };
+  const followsPrintedOnLine = (from: number) => printedEnd > script.lastIndexOf("\n", from - 1) && printedEnd <= from;
   for (const span of spans) {
     if (span.tag === "meta") {
       for (const lines of Object.values(span.positions)) addPrinted(lines);
     } else if (span.tag === "separator") {
       if (span.from === undefined) continue;
-      if (printedEnd > script.lastIndexOf("\n", span.from - 1) && printedEnd <= span.from) {
+      if (followsPrintedOnLine(span.from)) {
         places.rows.push({ at: printedEnd, side: "below", pieces: [] });
       } else {
         blankLines.push(span.from);
+      }
+    } else if (span.tag === "function" && span.from !== undefined && followsPrintedOnLine(span.from)) {
+      for (const line of span.lines) {
+        places.rows.push({
+          at: printedEnd,
+          side: "below",
+          pieces: line.content.map((piece) => ({ text: piece.text, style: piece })),
+          name: true,
+        });
       }
     } else if (span.tag === "dual") {
       addPrinted(span.positions.l);

@@ -119,10 +119,10 @@ export const tileGrid = (shape: TileShape, layout: Layout): TileGrid => {
 
 const FRAME = 2;
 const INSET_X = 16;
-const CHROME_Y = FRAME + 8 + 9 + 18 + 2 + 16 + 10;
+const CHROME_Y = FRAME + 8 + 9 + 13 * 1.4 + 2 + 11 * 1.4 + 10;
 
 export const tileHeight = (shape: TileShape, width: number): number =>
-  Math.ceil(Math.max(0, width - FRAME - INSET_X) * MEDIA_RATIO[shape] + CHROME_Y);
+  Math.max(0, width - FRAME - INSET_X) * MEDIA_RATIO[shape] + CHROME_Y;
 
 export type TileProps = VariantProps<typeof tileVariants> &
   VariantProps<typeof tileLabelVariants> & {

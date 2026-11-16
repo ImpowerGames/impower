@@ -1,3 +1,4 @@
+import type { WorkspaceEditRollback } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import type {
   ImportFailureReason,
   ImportOutcome,
@@ -102,14 +103,20 @@ export const REFUSED_BEFORE_CHANGE: ReadonlySet<ImportFailureReason> = new Set([
 export class ProjectImportError extends Error {
   readonly reason: ImportFailureReason;
   readonly folders?: string[];
+  readonly rollback?: WorkspaceEditRollback;
 
   constructor(
-    failure: { reason: ImportFailureReason; folders?: string[] },
+    failure: {
+      reason: ImportFailureReason;
+      folders?: string[];
+      rollback?: WorkspaceEditRollback;
+    },
     options?: { cause?: unknown },
   ) {
     super(failure.reason, options);
     this.reason = failure.reason;
     this.folders = failure.folders;
+    this.rollback = failure.rollback;
   }
 }
 
@@ -141,8 +148,28 @@ const FAILURE_SENTENCES: Record<
     `Could not import “${fileName}”, so try again or choose another backup.`,
 };
 
+const rolledBackSentence = (
+  fileName: string,
+  rollback: NonNullable<Extract<ImportOutcome, { status: "failed" }>["rollback"]>,
+) => {
+  if (rollback.complete) {
+    return `Nothing was changed because “${fileName}” could not be saved on this device, so free some space and try again.`;
+  }
+  const changed = [...new Set([...rollback.failed, ...rollback.kept])];
+  const trashed = rollback.trashed ?? [];
+  return [
+    `Could not save “${fileName}” on this device${changed.length > 0 ? `, and these files may be left changed: ${listed(changed)}` : ", and the project may be left partly replaced"}.`,
+    ...(trashed.length > 0
+      ? [`Copies of what was replaced are in the Trash: ${listed(trashed)}.`]
+      : []),
+  ].join(" ");
+};
+
 export const importOutcomeSentence = (outcome: ImportOutcome): string | null => {
   if (outcome.status === "failed") {
+    if (outcome.reason === "storage" && outcome.rollback) {
+      return rolledBackSentence(outcome.fileName, outcome.rollback);
+    }
     return FAILURE_SENTENCES[outcome.reason](
       outcome.fileName,
       outcome.folders ?? [],

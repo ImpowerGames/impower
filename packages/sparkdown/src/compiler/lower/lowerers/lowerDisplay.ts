@@ -991,7 +991,7 @@ const CUE_PARTS: readonly SparkdownNodeName[] = [
   "DialogueCharacterName",
 ];
 
-export function readCueSource(
+function readCueSource(
   node: SyntaxNode,
   ctx: Pick<LowerContext, "read">,
 ): string | null {
@@ -1377,7 +1377,7 @@ function findFirstDirectChild(
   return null;
 }
 
-export function displayBeatRanges(
+function displayBeatRanges(
   node: SyntaxNode,
   ctx: SourceReader,
 ): BeatRange[] | undefined {

@@ -28,7 +28,7 @@ export default function ShellRail() {
     >
       <nav
         aria-label="Story, Assets and Share"
-        class="flex-none border-b border-edge px-[14px] pt-[22px] pb-5 in-data-[layout=compact]:px-[10px] in-data-[layout=compact]:pt-4 group-data-[sidebar=collapsed]/sidebar:px-1.5 group-data-[sidebar=collapsed]/sidebar:pt-3.5"
+        class="flex-none border-b border-edge px-[14px] pt-[22px] pb-5 in-data-[layout=compact]:px-[10px] in-data-[layout=compact]:pt-4 group-data-[sidebar=collapsed]/sidebar:px-[5px] group-data-[sidebar=collapsed]/sidebar:pt-3.5"
       >
         <Tabs
           value={settings ? "" : pane}
@@ -52,7 +52,7 @@ export default function ShellRail() {
       <div data-outline class="flex min-h-0 flex-1 flex-col">
         {settings ? <SettingsIndex /> : <Outline />}
       </div>
-      <div class="flex h-[62px] flex-none items-center border-t border-edge px-[14px] group-data-[sidebar=collapsed]/sidebar:justify-center group-data-[sidebar=collapsed]/sidebar:px-0">
+      <div class="flex h-[62px] flex-none items-center border-t compact:h-[52px] border-edge px-[14px] group-data-[sidebar=collapsed]/sidebar:justify-center group-data-[sidebar=collapsed]/sidebar:px-0">
         <AppMenu />
       </div>
     </aside>

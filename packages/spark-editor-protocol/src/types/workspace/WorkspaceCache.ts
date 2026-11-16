@@ -149,6 +149,12 @@ export type ImportOutcome =
       fileName: string;
       reason: ImportFailureReason;
       folders?: string[];
+      rollback?: {
+        complete: boolean;
+        failed: string[];
+        kept: string[];
+        trashed?: string[];
+      };
     }
   | {
       status: "imported";

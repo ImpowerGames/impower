@@ -30,6 +30,7 @@ export interface SplitLayout {
 export interface BlockLayout {
   tag: BlockTokenType;
   lines: PageLine[];
+  from?: number;
 }
 
 export type DocumentSpan =

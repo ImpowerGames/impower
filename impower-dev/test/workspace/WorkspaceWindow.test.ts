@@ -1141,6 +1141,32 @@ describe("WorkspaceWindow store transitions", () => {
         }
       },
     );
+
+    it.each([
+      [true, "cached"],
+      [false, "import_error"],
+    ] as const)(
+      "records a failed save's rollback and, when it was complete is %s, leaves the save status %s",
+      async (complete, status) => {
+        workspace.current = { ...workspace.current, sync: { status: "cached" } };
+        const rollback = { complete, failed: complete ? [] : ["main.sd"], kept: [] };
+        fs.writeProjectZip = vi.fn(async () => {
+          throw new ProjectImportError({ reason: "storage", rollback });
+        });
+        try {
+          await win.importLocalProject("backup.zip", new ArrayBuffer(0));
+          expect(workspace.current.sync.status).toBe(status);
+          expect(workspace.current.sync.importOutcome).toEqual({
+            status: "failed",
+            fileName: "backup.zip",
+            reason: "storage",
+            rollback,
+          });
+        } finally {
+          delete fs.writeProjectZip;
+        }
+      },
+    );
   });
 });
 

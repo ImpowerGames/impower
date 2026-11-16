@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { chromium } from "playwright";
 import { h, render, type VNode } from "preact";
 import { act } from "preact/test-utils";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 let mediaMatches: (query: string) => boolean = () => false;
 const mediaListeners = new Set<() => void>();
@@ -38,6 +38,9 @@ const ui = await import("@impower/impower-ui/components");
 const { default: Trail } = await import("../../src/modules/spark-editor/components/library-page/Trail");
 const { default: AssetRowMenu } = await import("../../src/modules/spark-editor/components/assets/AssetRowMenu");
 const { default: TopBar } = await import("../../src/modules/spark-editor/components/desktop-shell/TopBar");
+const { default: AppMenu } = await import("../../src/modules/spark-editor/components/desktop-shell/AppMenu");
+const { default: ShellRail } = await import("../../src/modules/spark-editor/components/desktop-shell/ShellRail");
+const { default: LibraryPage } = await import("../../src/modules/spark-editor/components/library-page/LibraryPage");
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { stateForRoute } = await import("../../src/modules/spark-editor/workspace/routes");
 
@@ -68,11 +71,11 @@ const stylesFor = async (markup: string) => {
 };
 
 const inChromium = async <T>(
-  node: VNode,
+  node: VNode | string,
   { width, theme = "charcoal", layout = "desktop", touch = false }: { width: number; theme?: Theme; layout?: Layout; touch?: boolean },
   read: () => T,
 ): Promise<T> => {
-  const markup = await markupOf(node);
+  const markup = typeof node === "string" ? node : await markupOf(node);
   const css = await stylesFor(markup);
   const browser = await chromium.launch();
   try {
@@ -336,6 +339,16 @@ describe("Assets page parts against the Folio prototype (I-2415)", () => {
     }
   });
 
+  it.each(THEMES)("A6: at 1440 in %s the status starts 6px after the project name's box, as the prototype's project-status padding", async (theme) => {
+    await setMedia((query) => query.includes("701px") || query.includes("1101px"));
+    try {
+      const desktop = await inChromium(await topBarAt(false), { width: 1440, theme, layout: "desktop" }, readTopBar);
+      expect(desktop.status - desktop.name).toBe(6);
+    } finally {
+      await setMedia(() => false);
+    }
+  });
+
   it("N10: at 1440 the desktop title bar has no Search and keeps its 14px name", async () => {
     await setMedia((query) => query.includes("701px") || query.includes("1101px"));
     try {
@@ -345,5 +358,410 @@ describe("Assets page parts against the Folio prototype (I-2415)", () => {
     } finally {
       await setMedia(() => false);
     }
+  });
+});
+
+describe("Shared parts the Assets page shows against the Folio prototype (I-2441)", () => {
+  const tabRow = (variant: "inline" | "page") =>
+    h(
+      "div",
+      { style: "border-bottom:1px solid #d3d3d7;width:398px" },
+      h(ui.Tabs, { variant, iconLayout: "beside", scroll: variant === "inline", value: "images", onChange: () => {} }, [
+        h(ui.Tab, { key: "images", value: "images" }, "Images"),
+        h(ui.Tab, { key: "audio", value: "audio" }, "Audio"),
+      ]),
+    );
+
+  const underline = () => {
+    const list = document.querySelector('[role="tablist"]')!.getBoundingClientRect();
+    const bar = document.querySelector('[role="tablist"] > [aria-hidden="true"]')!.getBoundingClientRect();
+    return { height: bar.height, belowList: +(bar.bottom - list.bottom).toFixed(2) };
+  };
+
+  it.each([
+    ["inline", 430, "chalk", true],
+    ["inline", 1440, "charcoal", false],
+    ["page", 430, "charcoal", true],
+    ["page", 1440, "chalk", false],
+  ] as const)("N9: the %s row's underline at %i in %s is 2px and sits 1px below the row, over its divider", async (variant, width, theme, touch) => {
+    const measured = await inChromium(tabRow(variant), { width, theme, touch, layout: touch ? "phone" : "desktop" }, underline);
+    expect(measured).toEqual({ height: 2, belowList: 1 });
+  });
+
+  const addMenu = () =>
+    h(
+      ui.DropdownRoot,
+      { open: true, onOpenChange: () => {}, sheet: false },
+      h(ui.DropdownTrigger, { asChild: true }, h("button", { type: "button" }, "Add")),
+      h(
+        ui.DropdownContent,
+        { align: "end" },
+        h(ui.DropdownItem, {}, h(ui.UploadIcon, {}), h(ui.DropdownItemText, { hint: "Into Images" }, "Upload files")),
+        h(ui.DropdownItem, {}, h(ui.PencilIcon, {}), "Rename"),
+      ),
+    );
+
+  it.each(THEMES)("A1(d): in %s a menu item is 13px text 12px after its 18px glyph, padded 10px 12px, with an 11px hint", async (theme) => {
+    const measured = await inChromium(addMenu(), { width: 1440, theme }, () => {
+      const [hinted, plain] = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+      const style = getComputedStyle(hinted!);
+      const glyph = hinted!.querySelector("svg")!.getBoundingClientRect();
+      const label = hinted!.querySelector("[data-dropdown-item-text]")!.getBoundingClientRect();
+      return {
+        size: style.fontSize,
+        padding: style.padding,
+        glyph: glyph.width,
+        gap: label.x - glyph.right,
+        hint: getComputedStyle(hinted!.querySelector("small")!).fontSize,
+        plainHeight: plain!.getBoundingClientRect().height,
+      };
+    });
+    expect(measured).toEqual({ size: "13px", padding: "10px 12px", glyph: 18, gap: 12, hint: "11px", plainHeight: 44 });
+  });
+
+  it.each(THEMES)("A2: at 430 under touch in %s the wheel sheet has 16px top corners and the prototype's shadow above it", async (theme) => {
+    const measured = await inChromium(h("div", { class: ui.wheelSheetVariants({}) }, "Face"), { width: 430, theme, touch: true, layout: "phone" }, () => {
+      const style = getComputedStyle([...document.querySelectorAll("div")].pop()!);
+      return { radius: style.borderRadius, shadow: style.boxShadow.split(", rgba").pop() };
+    });
+    expect(measured).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
+  });
+
+  const navItems = (variant: "rail" | "bar", width: string) =>
+    h(
+      "div",
+      { style: `width:${width}` },
+      h(ui.Tabs, { variant, vertical: variant === "rail", iconLayout: variant === "rail" ? "beside" : "above", indicator: "none", value: "logic", onChange: () => {} }, [
+        h(ui.Tab, { key: "logic", value: "logic", icon: ui.BookIcon }, "Story"),
+        h(ui.Tab, { key: "assets", value: "assets", icon: ui.ArtIcon }, "Assets"),
+      ]),
+    );
+
+  const navOffsets = () => {
+    const tab = document.querySelector('[role="tab"]')!;
+    const box = tab.getBoundingClientRect();
+    const glyph = tab.querySelector("svg")!.getBoundingClientRect();
+    const label = tab.querySelector(":scope > span:last-child")!.getBoundingClientRect();
+    return { glyphTop: +(glyph.y - box.y).toFixed(2), glyph: glyph.width, labelTop: +(label.y - box.y).toFixed(2), labelLeft: +(label.x - box.x).toFixed(2) };
+  };
+
+  it.each(THEMES)("A3: at 768 in %s the compact rail centres a 20px glyph, 6px gap and 1.35 label as the prototype's", async (theme) => {
+    const measured = await inChromium(navItems("rail", "65px"), { width: 768, theme, layout: "compact" }, navOffsets);
+    expect({ glyphTop: measured.glyphTop, glyph: measured.glyph, labelTop: measured.labelTop }).toEqual({ glyphTop: 12.58, glyph: 20, labelTop: 38.58 });
+  });
+
+  it.each(THEMES)("A3: at 1440 in %s the rail's 20px glyph sits 13px in and its label 11px after it", async (theme) => {
+    const measured = await inChromium(navItems("rail", "203px"), { width: 1440, theme }, navOffsets);
+    expect({ glyph: measured.glyph, labelLeft: measured.labelLeft }).toEqual({ glyph: 20, labelLeft: 44 });
+  });
+
+  it.each(THEMES)("A4: at 430 under touch in %s the bottom navigation centres a 19px glyph over a 1.4 label as the prototype's", async (theme) => {
+    const measured = await inChromium(navItems("bar", "430px"), { width: 430, theme, touch: true, layout: "phone" }, navOffsets);
+    expect({ glyphTop: measured.glyphTop, glyph: measured.glyph, labelTop: measured.labelTop }).toEqual({ glyphTop: 12.09, glyph: 19, labelTop: 35.09 });
+  });
+
+  const page = () =>
+    h(ui.TabbedPage, {
+      title: "Assets",
+      icon: h(ui.ArtIcon, { class: "flex-none text-accent" }),
+      tabs: [{ value: "images", label: "Images", content: h("div", {}) }],
+      value: "images",
+      onValueChange: () => {},
+      onBack: () => {},
+    });
+
+  const titleBox = () => {
+    const header = document.querySelector("header")!;
+    const title = header.querySelector("h1")!;
+    return {
+      lineHeight: getComputedStyle(title).lineHeight,
+      glyph: header.querySelector(":scope > svg")!.getBoundingClientRect().width,
+      titleLeft: title.getBoundingClientRect().x - header.getBoundingClientRect().x,
+    };
+  };
+
+  it.each([
+    [1440, "desktop", "charcoal", { lineHeight: "22.1px", glyph: 20, titleLeft: 54 }],
+    [1440, "desktop", "chalk", { lineHeight: "22.1px", glyph: 20, titleLeft: 54 }],
+    [768, "compact", "charcoal", { lineHeight: "18.9px", glyph: 19, titleLeft: 45 }],
+    [430, "phone", "chalk", { lineHeight: "18.9px", glyph: 19, titleLeft: 45 }],
+  ] as const)("A5: at %i (%s, %s) the page title stands on the prototype's line beside its glyph", async (width, layout, theme, expected) => {
+    const measured = await inChromium(page(), { width, theme, layout, touch: layout === "phone" }, titleBox);
+    expect(measured).toEqual(expected);
+  });
+
+  it.each(THEMES)("A6: at 1440 in %s the rail's Saved locally starts 45px into its trigger, as the prototype's account trigger", async (theme) => {
+    const measured = await inChromium(h("div", { style: "width:203px" }, h(AppMenu, {})), { width: 1440, theme }, () => {
+      const trigger = document.querySelector("button")!;
+      const walker = document.createTreeWalker(trigger, NodeFilter.SHOW_TEXT);
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        if (node.textContent?.trim()) break;
+      }
+      const range = document.createRange();
+      range.selectNodeContents(node!);
+      return range.getBoundingClientRect().x - trigger.getBoundingClientRect().x;
+    });
+    expect(measured).toBe(45);
+  });
+});
+
+describe("The Assets page's and app frame's last differences from the Folio prototype (I-2448)", () => {
+
+  const menuBelow = (elevation?: "library") =>
+    h(
+      "div",
+      { style: "padding:100px 400px" },
+      h(
+        ui.DropdownRoot,
+        { open: true, onOpenChange: () => {}, sheet: false },
+        h(ui.DropdownTrigger, { asChild: true }, h("button", { type: "button", style: "height:44px" }, "Add")),
+        h(ui.DropdownContent, { align: "end", elevation }, h(ui.DropdownItem, {}, "Upload files")),
+      ),
+    );
+
+  const menuShadow = () => getComputedStyle(document.querySelector('[role="menu"]')!).boxShadow.split(", rgba").pop();
+
+  it.each(THEMES)("G1: in %s a dropdown at the library elevation casts the prototype's 0 8px 24px shadow at 0.267", async (theme) => {
+    expect(await inChromium(menuBelow("library"), { width: 1440, theme }, menuShadow)).toBe("(0, 0, 0, 0.267) 0px 8px 24px 0px");
+  });
+
+  it.each(THEMES)("G1: in %s a dropdown that is not a library menu, such as the app menu, keeps the floating shadow", async (theme) => {
+    expect(await inChromium(menuBelow(), { width: 1440, theme }, menuShadow)).toBe("(0, 0, 0, 0.4) 0px 12px 40px 0px");
+  });
+
+  const sheetLook = (elevation: "flat" | "menu", theme: Theme) =>
+    inChromium(h("div", { class: ui.sheetVariants({ size: "auto", elevation }) }, "Add"), { width: 430, theme, touch: true, layout: "phone" }, () => {
+      const style = getComputedStyle([...document.querySelectorAll("div")].pop()!);
+      return { radius: style.borderRadius, shadow: style.boxShadow.split(", rgba").pop() };
+    });
+
+  it.each(THEMES)("G3: at 430 in %s a menu shown as a sheet has 16px top corners and the sheet's shadow", async (theme) => {
+    expect(await sheetLook("menu", theme)).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
+  });
+
+  it.each(THEMES)("G3: at 430 in %s a dialog shown as a sheet stays flat with the card's corners", async (theme) => {
+    expect(await sheetLook("flat", theme)).toEqual({ radius: "12px 12px 0px 0px", shadow: "none" });
+  });
+
+  const account = () => {
+    const trigger = document.querySelector<HTMLElement>("aside > div:last-child button")!;
+    const box = trigger.querySelector("span")!;
+    const glyph = box.querySelector("svg")!.getBoundingClientRect();
+    const footer = trigger.parentElement!.getBoundingClientRect();
+    return {
+      triggerHeight: trigger.getBoundingClientRect().height,
+      footerHeight: footer.height,
+      glyph: [glyph.width, glyph.height],
+      fill: getComputedStyle(box).backgroundColor,
+    };
+  };
+
+  const rail = (collapsed: boolean) =>
+    h(
+      "div",
+      { class: "group/sidebar", "data-sidebar": collapsed ? "collapsed" : "expanded", style: `width:${collapsed ? 76 : 232}px;height:900px` },
+      h(ShellRail, {}),
+    );
+
+  it.each([
+    ["charcoal", "rgb(40, 42, 45)"],
+    ["chalk", "rgb(245, 245, 246)"],
+  ] as const)("G4-G6: at 1440 in %s the account trigger is 44 tall in a 62px footer, its box filled and its glyph 17px", async (theme, fill) => {
+    await setMedia((query) => query.includes("701px") || query.includes("1101px"));
+    try {
+      const measured = await inChromium(rail(false), { width: 1440, theme }, account);
+      expect(measured).toEqual({ triggerHeight: 44, footerHeight: 62, glyph: [17, 17], fill });
+    } finally {
+      await setMedia(() => false);
+    }
+  });
+
+  it.each(THEMES)("G6, G10: at 768 in %s the footer is 52 tall and the collapsed rail's pills are 65 wide at x 5", async (theme) => {
+    await setMedia((query) => query.includes("701px"));
+    try {
+      const measured = await inChromium(rail(true), { width: 768, theme, layout: "compact" }, () => ({
+        footerHeight: document.querySelector("aside > div:last-child")!.getBoundingClientRect().height,
+        triggerHeight: document.querySelector("aside > div:last-child button")!.getBoundingClientRect().height,
+        pills: [...document.querySelectorAll('[role="tab"]')].map((tab) => {
+          const box = tab.getBoundingClientRect();
+          return [box.x, box.width];
+        }),
+      }));
+      expect({ footerHeight: measured.footerHeight, triggerHeight: measured.triggerHeight, pills: measured.pills }).toEqual({
+        footerHeight: 52,
+        triggerHeight: 44,
+        pills: [
+          [5, 65],
+          [5, 65],
+          [5, 65],
+        ],
+      });
+    } finally {
+      await setMedia(() => false);
+    }
+  });
+
+  it.each(THEMES)("G7: at 1440 in %s the search glyph sits 13px inside the field and the Add button's glyph is 7px from its label", async (theme) => {
+    await setMedia((query) => query.includes("701px") || query.includes("1101px"));
+    try {
+      const page = h(
+        "div",
+        { style: "width:1000px;height:600px;display:flex" },
+        h(LibraryPage, { searchLabel: "Search images", query: "", onQueryChange: () => {}, newLabel: "Add", newMenu: null, bar: null, list: null }),
+      );
+      const measured = await inChromium(page, { width: 1440, theme }, () => {
+        const field = document.querySelector("label")!;
+        const add = [...document.querySelectorAll("button")].find((button) => button.textContent === "Add")!;
+        const walker = document.createTreeWalker(add, NodeFilter.SHOW_TEXT);
+        const range = document.createRange();
+        range.selectNodeContents(walker.nextNode()!);
+        return {
+          searchInset: field.querySelector("svg")!.getBoundingClientRect().x - field.getBoundingClientRect().x,
+          addGap: +(range.getBoundingClientRect().x - add.querySelector("svg")!.getBoundingClientRect().right).toFixed(2),
+        };
+      });
+      expect(measured).toEqual({ searchInset: 14, addGap: 7 });
+    } finally {
+      await setMedia(() => false);
+    }
+  });
+
+  it.each(THEMES)("G9: in %s the folder badge is filled at the prototype's 0.6", async (theme) => {
+    const fill = await inChromium(h("div", { style: "width:192px;height:108px;position:relative" }, h(ui.FolderCover, { sources: ["cover.png"] })), { width: 1440, theme }, () =>
+      getComputedStyle(document.querySelector("[data-folder-cover] > :last-child")!).backgroundColor,
+    );
+    expect(fill).toBe("rgba(0, 0, 0, 0.6)");
+  });
+
+  it.each([
+    [768, "compact", false],
+    [430, "phone", true],
+  ] as const)("G11: at %i the page header glyph is 19 wide and 20 tall", async (width, layout, touch) => {
+    const size = await inChromium(h(ui.TabbedPage, { title: "Assets", icon: h(ui.ArtIcon, {}), onBack: () => {}, tabs: [], value: "", onValueChange: () => {} }), { width, layout, touch }, () => {
+      const glyph = document.querySelector("section svg")!.getBoundingClientRect();
+      return [glyph.width, glyph.height];
+    });
+    expect(size).toEqual([19, 20]);
+  });
+
+  it.each(THEMES)("G18: in %s the row's play glyph is an 18px svg filled with its colour and not stroked", async (theme) => {
+    const measured = await inChromium(h(ui.PlayButton, { name: "amb_rain" }), { width: 1440, theme }, () => {
+      const glyph = document.querySelector("button svg")!;
+      const style = getComputedStyle(glyph);
+      return { size: glyph.getBoundingClientRect().width, fill: style.fill === style.color, stroke: style.stroke };
+    });
+    expect(measured).toEqual({ size: 18, fill: true, stroke: "none" });
+  });
+});
+
+describe("Real menus and sheets at their elevations (I-2448)", () => {
+  const TRIGGER = { top: 300, bottom: 344, left: 600, right: 644 };
+  const MENU = { top: 0, left: 0, bottom: 150, right: 180 };
+  const DESKTOP = (query: string) => query.includes("701px") || query.includes("1101px");
+
+  const opened = async (node: VNode, phone: boolean) => {
+    await setMedia(phone ? () => false : DESKTOP);
+    const host = document.body.appendChild(document.createElement("div"));
+    for (const [target, name, value] of [[window, "innerWidth", 1440], [window, "innerHeight", 900], [document.documentElement, "clientWidth", 1440], [document.documentElement, "clientHeight", 900]] as const) {
+      Object.defineProperty(target, name, { configurable: true, value });
+    }
+    const floats = (element: Element) => element.getAttribute("role") === "menu" || element.hasAttribute("data-radix-popper-content-wrapper");
+    const width = vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+      return floats(this) ? MENU.right : 0;
+    });
+    const height = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return floats(this) ? MENU.bottom : 0;
+    });
+    const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const floating = this.getAttribute("role") === "menu" || this.hasAttribute("data-radix-popper-content-wrapper");
+      const r = this.hasAttribute("aria-haspopup") ? TRIGGER : floating ? MENU : { top: 0, left: 0, bottom: 0, right: 0 };
+      return { ...r, x: r.left, y: r.top, width: r.right - r.left, height: r.bottom - r.top, toJSON: () => r } as DOMRect;
+    });
+    try {
+      await act(async () => render(node, host));
+      const trigger = host.querySelector<HTMLElement>("[aria-haspopup]");
+      if (trigger && phone) {
+        await act(async () => trigger.click());
+      } else if (trigger) {
+        trigger.focus();
+        await act(async () => {
+          trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+        });
+      }
+      await act(async () => {
+        await new Promise((done) => setTimeout(done, 300));
+      });
+      const wrapper = document.querySelector<HTMLElement>("[data-radix-popper-content-wrapper]");
+      if (trigger && !phone && !wrapper) throw new Error("no menu opened from " + trigger.outerHTML.slice(0, 160));
+      const y = wrapper ? Number(/translate\([-\d.]+px, ([-\d.]+)px\)/.exec(wrapper.style.transform)?.[1]) : NaN;
+      return { y, markup: document.body.innerHTML };
+    } finally {
+      await act(async () => render(null, host));
+      host.remove();
+      document.body.innerHTML = "";
+      spy.mockRestore();
+      width.mockRestore();
+      height.mockRestore();
+      for (const [target, name] of [[window, "innerWidth"], [window, "innerHeight"], [document.documentElement, "clientWidth"], [document.documentElement, "clientHeight"]] as const) {
+        delete (target as unknown as Record<string, unknown>)[name];
+      }
+      await setMedia(() => false);
+    }
+  };
+
+  const menuLook = () => {
+    const style = getComputedStyle(document.querySelector("[role=menu]")!);
+    return { radius: style.borderRadius, shadow: style.boxShadow.split(", rgba").pop() };
+  };
+
+  const dialogLook = () => {
+    const style = getComputedStyle(document.querySelector("[role=dialog]")!);
+    return { radius: style.borderRadius, shadow: style.boxShadow.split(", rgba").pop() };
+  };
+
+  const addMenu = h(
+    "div",
+    { style: "width:1000px;height:600px;display:flex" },
+    h(LibraryPage, { searchLabel: "Search images", query: "", onQueryChange: () => {}, newLabel: "Add", newMenu: h(ui.DropdownItem, {}, "Upload files"), bar: null, list: null }),
+  );
+  const rowMenu = h(AssetRowMenu, { name: "imani", onAction: () => {} });
+
+  it.each([
+    ["the Assets Add menu", addMenu],
+    ["an asset row's menu", rowMenu],
+  ] as const)("G1, G2: %s opens 6px below its trigger at the library elevation", async (_name, node) => {
+    const { y, markup } = await opened(node, false);
+    expect(y - TRIGGER.bottom).toBe(6);
+    expect(await inChromium(markup, { width: 1440 }, menuLook)).toEqual({ radius: "12px", shadow: "(0, 0, 0, 0.267) 0px 8px 24px 0px" });
+  });
+
+  it("G1: the app menu keeps its 20px offset above its trigger and the floating shadow", async () => {
+    const before = workspace.state.value;
+    workspace.state.value = { ...before, screen: { ...before.screen, appMenuOpen: true } } as WorkspaceCache;
+    try {
+      const { y, markup } = await opened(h("div", { style: "width:203px" }, h(AppMenu, {})), false);
+      expect(TRIGGER.top - (y + MENU.bottom)).toBe(20);
+      expect(await inChromium(markup, { width: 1440 }, menuLook)).toEqual({ radius: "12px", shadow: "(0, 0, 0, 0.4) 0px 12px 40px 0px" });
+    } finally {
+      workspace.state.value = before;
+    }
+  });
+
+  it.each(THEMES)("G3: at 430 in %s an asset row's menu opens as a sheet with the sheet's corners and shadow", async (theme) => {
+    const { markup } = await opened(rowMenu, true);
+    expect(await inChromium(markup, { width: 430, theme, touch: true, layout: "phone" }, dialogLook)).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
+  });
+
+  it.each(THEMES)("G3: at 430 in %s the editor's context menu, an action sheet, has the sheet's corners and shadow", async (theme) => {
+    const sheet = h(ui.ActionSheet, { open: true, onOpenChange: () => {}, title: "Edit", items: [{ label: "Copy", onSelect: () => {} }] });
+    const { markup } = await opened(sheet, true);
+    expect(await inChromium(markup, { width: 430, theme, touch: true, layout: "phone" }, dialogLook)).toEqual({ radius: "16px 16px 0px 0px", shadow: "(0, 0, 0, 0.333) 0px -8px 24px 0px" });
+  });
+
+  it.each(THEMES)("G3: at 430 in %s a responsive dialog shown as a sheet keeps the card's corners and no shadow", async (theme) => {
+    const dialog = h(ui.Dialog, { responsive: true, open: true, onOpenChange: () => {} }, h(ui.DialogTitle, {}, "Keep which copy?"), h("p", {}, "Both copies changed."));
+    const { markup } = await opened(dialog, true);
+    expect(await inChromium(markup, { width: 430, theme, touch: true, layout: "phone" }, dialogLook)).toEqual({ radius: "12px 12px 0px 0px", shadow: "none" });
   });
 });

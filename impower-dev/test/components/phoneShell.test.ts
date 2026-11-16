@@ -875,7 +875,7 @@ describe("the app menu on a phone", () => {
     await act(async () => button("App menu")!.click());
     await settle(250);
     const sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
-    expect(sheet.className).toContain("rounded-t-card");
+    expect(sheet.className).toContain("rounded-t-sheet");
     expect(sheet.textContent).toContain("Settings");
     expect(sheet.textContent).not.toContain("No account needed");
     expect(button("Close app menu")).not.toBeNull();

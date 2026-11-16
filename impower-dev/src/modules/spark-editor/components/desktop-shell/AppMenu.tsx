@@ -69,9 +69,9 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
           <Button
             variant="quiet"
             disabled={pickingResource}
-            class="w-full justify-start gap-2.5 px-2 text-[13px] font-normal text-muted group-data-[sidebar=collapsed]/sidebar:w-11 group-data-[sidebar=collapsed]/sidebar:justify-center group-data-[sidebar=collapsed]/sidebar:px-0"
+            class="h-11 w-full justify-start gap-[9px] px-[7px] py-0 text-[13px] font-normal text-muted group-data-[sidebar=collapsed]/sidebar:w-11 group-data-[sidebar=collapsed]/sidebar:justify-center group-data-[sidebar=collapsed]/sidebar:px-0"
           >
-            <span class="flex size-7 flex-none items-center justify-center rounded-control border border-edge [&_svg]:size-4">
+            <span class="flex size-7 flex-none items-center justify-center rounded-control border border-edge bg-panel [&_svg]:size-[17px]!">
               <ComputerIcon />
             </span>
             <span class="[--fade:20px] fade-edge group-data-[sidebar=collapsed]/sidebar:sr-only">

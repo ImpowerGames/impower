@@ -104,7 +104,8 @@ const type = (text: string) => {
 };
 
 const chooseAndType = async (name: string, label: string) => {
-  const item = all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.trim() === name);
+  const labelOf = (el: HTMLElement) => (el.querySelector("[data-dropdown-item-text] > span") ?? el).textContent?.trim();
+  const item = all<HTMLElement>('[role="menuitem"]').find((el) => labelOf(el) === name);
   expect(item).toBeTruthy();
   item!.focus();
   item!.click();

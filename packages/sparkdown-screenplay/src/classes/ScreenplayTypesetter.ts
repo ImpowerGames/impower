@@ -91,7 +91,7 @@ export default class ScreenplayTypesetter {
           },
         );
         if (lines.length > 0) {
-          spans.push({ tag: t.tag, lines });
+          spans.push({ tag: t.tag, lines, from: t.from });
         }
       } else if (t.tag === "scene") {
         const level = 0;

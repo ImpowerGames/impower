@@ -3,72 +3,70 @@ import {
   CloseIcon,
   Dialog,
   DialogTitle,
-  FixMenu,
-  MessageEntry,
-  VirtualList,
 } from "@impower/impower-ui/components";
-import { isCommandAction } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
 import { useComputed } from "@preact/signals";
 import { useMemo, useRef } from "preact/hooks";
 import {
-  fixChoiceOf,
-  groupByScript,
-  lineLink,
   playedRows,
+  problemRows,
   problemSummary,
-  SCRIPT_PREFIX,
   scopeContext,
   scopedProblems,
-  type DiagnosticFixAction,
+  type ProblemsScope,
   type Problem,
 } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 import { useDebugRows } from "./debugCards";
-import { isFixing, keepFocusAfterFix, problemSignature } from "./fixFocus";
 import {
   PANEL_LABEL,
   PanelItemView,
-  panelItemHeight,
   panelItemKey,
   type PanelItem,
 } from "./ProblemsPanel";
 
 export const BROWSE_SCRIPTS_SELECTOR = "[data-browse-scripts]";
 
-const CLOSE_DIALOG = '[aria-label="Close dialog"]';
-
 const PROBLEMS_TITLE = "Problems to fix";
-
-const STORY_CARDS_LABEL = "While playing, variables, watches and call stack";
 
 const LEAVE_FOCUS =
   typeof document === "undefined" ? null : document.createElement("span");
 
-function StoryCards() {
+function DialogRows({
+  scope,
+  listed,
+}: {
+  scope: ProblemsScope;
+  listed: readonly Problem[];
+}) {
   const all = useComputed(() => problems.problems.value).value;
   const played = useComputed(() => problems.played.value).value;
   const shown = useComputed(() => problems.shown.value).value;
   const cards = useComputed(() => problems.cards.value).value;
+  const story = scope.kind === "story";
   const debugRows = useDebugRows(cards);
+  const headings = new Set(listed.map((problem) => problem.path)).size > 1;
   const rows = useMemo<PanelItem[]>(
     () => [
-      ...playedRows({ played, shown, open: cards.played }),
-      ...debugRows.map((row) => ({ kind: "debug" as const, row })),
+      ...problemRows(listed, { headings, card: false }),
+      ...(story
+        ? [
+            ...playedRows({ played, shown, open: cards.played }),
+            ...debugRows.map((row) => ({ kind: "debug" as const, row })),
+          ]
+        : []),
     ],
-    [played, shown, cards.played, debugRows],
+    [listed, headings, story, played, shown, cards.played, debugRows],
   );
   return (
-    <VirtualList
-      size="compact"
-      label={STORY_CARDS_LABEL}
-      class="mr-[calc(-1*min(var(--scrollbar-size,0px),var(--spacing)*5-var(--scrollbar-size,0px)))] h-[40vh] flex-none"
-      items={rows}
-      getKey={panelItemKey}
-      itemHeight={panelItemHeight}
-      renderItem={(row) => (
-        <PanelItemView row={row} all={all} played={played} />
-      )}
-    />
+    <div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-gutter-3 pb-3 pl-3 [scrollbar-width:thin]">
+      <div role="list" aria-label={story ? PANEL_LABEL : PROBLEMS_TITLE}>
+        {rows.map((row) => (
+          <div key={panelItemKey(row)} role="listitem">
+            <PanelItemView row={row} all={all} played={played} fit="flow" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -80,11 +78,11 @@ export default function ProblemsDialog() {
   const all = useComputed(() => problems.problems.value).value;
   const versions = useComputed(() => problems.versions.value).value;
   const diagnostics = useComputed(() => problems.diagnostics.value).value;
-  const fixing = useComputed(() => problems.fixing.value).value;
-  const listed = state
-    ? scopedProblems(state.scope, all, { diagnostics, versions })
-    : [];
-  const list = useRef<HTMLDivElement>(null);
+  const listed = useMemo(
+    () =>
+      state ? scopedProblems(state.scope, all, { diagnostics, versions }) : [],
+    [state, all, diagnostics, versions],
+  );
 
   const returnFocus = () => {
     if (problems.takeLeftForScript()) {
@@ -96,23 +94,6 @@ export default function ProblemsDialog() {
       : document.querySelector<HTMLElement>(BROWSE_SCRIPTS_SELECTOR);
   };
 
-  const chooseFix = (problem: Problem, action: DiagnosticFixAction) => {
-    const root = list.current;
-    if (root && !isCommandAction(action)) {
-      keepFocusAfterFix(
-        root,
-        problem,
-        () =>
-          root
-            .closest('[role="dialog"]')
-            ?.querySelector<HTMLElement>(CLOSE_DIALOG) ?? null,
-      );
-    }
-    void problems.applyFix(fixChoiceOf(problem, action));
-  };
-
-  const groups = groupByScript(listed);
-  const headings = groups.length > 1;
   const summary = problemSummary(listed);
 
   return (
@@ -121,85 +102,34 @@ export default function ProblemsDialog() {
       onOpenChange={(next) => !next && problems.closeDialog()}
       size="lg"
       responsive
+      flush
       returnFocus={returnFocus}
     >
-      <div class="mb-2 flex items-center gap-2">
-        <DialogTitle class="flex-1 text-[22px]/[1.25] font-semibold tracking-[-0.02em]">
-          {state?.scope.kind === "story" ? PANEL_LABEL : PROBLEMS_TITLE}
-        </DialogTitle>
-        <Button
-          variant="quiet"
-          size="icon"
-          aria-label="Close dialog"
-          title="Close dialog"
-          class="text-muted"
-          onClick={() => problems.closeDialog()}
-        >
-          <CloseIcon />
-        </Button>
+      <div class="flex-none px-5 pt-5">
+        <div class="mb-2 flex items-center gap-2">
+          <DialogTitle class="flex-1 text-[22px]/[1.25] font-semibold tracking-[-0.02em]">
+            {state?.scope.kind === "story" ? PANEL_LABEL : PROBLEMS_TITLE}
+          </DialogTitle>
+          <Button
+            variant="quiet"
+            size="icon"
+            aria-label="Close dialog"
+            title="Close dialog"
+            class="text-muted"
+            onClick={() => problems.closeDialog()}
+          >
+            <CloseIcon />
+          </Button>
+        </div>
+        {state ? (
+          <p class="m-0 mb-2 text-[14px]/[1.6] text-ink [overflow-wrap:anywhere]">
+            {summary
+              ? `${scopeContext(state.scope)} · ${summary}`
+              : scopeContext(state.scope)}
+          </p>
+        ) : null}
       </div>
-      {state ? (
-        <p class="m-0 mb-2 text-[14px]/[1.6] text-ink [overflow-wrap:anywhere]">
-          {summary
-            ? `${scopeContext(state.scope)} · ${summary}`
-            : scopeContext(state.scope)}
-        </p>
-      ) : null}
-      <div
-        ref={list}
-        class={
-          state?.scope.kind === "story"
-            ? "-ml-2 mr-[calc(-1*min(0.5rem+var(--scrollbar-size,0px),var(--spacing)*5-var(--scrollbar-size,0px)))] max-h-[20vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]"
-            : "-ml-2 mr-[calc(-1*min(0.5rem+var(--scrollbar-size,0px),var(--spacing)*5-var(--scrollbar-size,0px)))] max-h-[60vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]"
-        }
-      >
-        {groups.map((group) => (
-          <div key={group.path} class="pt-1 pb-0.5">
-            {headings ? (
-              <h3 class="m-0 mx-2 mt-2 mb-1 flex items-baseline gap-2 text-[12px]/[1.4] font-semibold text-ink">
-                <span class="flex-none">{group.entries[0]!.script}</span>
-                <small class="min-w-0 flex-1 text-[11px] font-normal text-muted [--fade:24px] fade-edge">
-                  {group.path}
-                </small>
-              </h3>
-            ) : null}
-            {group.entries.map((problem) => (
-              <div
-                key={problem.key}
-                data-problem-entry={problemSignature(problem)}
-                data-problem-key={problem.key}
-                class="contents"
-              >
-                <MessageEntry
-                  severity={problem.severity}
-                  prefix={SCRIPT_PREFIX[problem.severity]}
-                  title={problem.title}
-                  message={problem.message}
-                  location={lineLink(problem.line)}
-                  locationLabel={`Open ${problem.script} at line ${problem.line}`}
-                  onJump={() => {
-                    void problems.jump({
-                      uri: problem.uri,
-                      line: problem.line,
-                      character: problem.range.start.character,
-                    });
-                  }}
-                  actions={
-                    problem.actions.length ? (
-                      <FixMenu
-                        busy={isFixing(problem, fixing)}
-                        actions={problem.actions}
-                        onChoose={(action) => chooseFix(problem, action)}
-                      />
-                    ) : undefined
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-      {state?.scope.kind === "story" ? <StoryCards /> : null}
+      {state ? <DialogRows scope={state.scope} listed={listed} /> : null}
     </Dialog>
   );
 }
