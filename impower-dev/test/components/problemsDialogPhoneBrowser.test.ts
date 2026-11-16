@@ -59,9 +59,14 @@ const markupFor = async (count: number, playing: boolean) => {
   const half = Math.ceil(count / 2);
   problems.record({
     uri: "file://local/main.sd",
-    diagnostics: Array.from({ length: half }, (_, i) =>
-      diagnostic(10 + i, i % 3 === 0 ? 2 : 1, `Main problem number ${i + 1}`),
-    ),
+    diagnostics: Array.from({ length: half }, (_, i) => ({
+      ...diagnostic(
+        10 + i,
+        i % 3 === 0 ? 2 : 1,
+        `Main problem number ${i + 1}: statement must be inside a scene or branch; the top level holds declarations only, so move it into a scene`,
+      ),
+      data: [{ name: "Wrap in scene start", done: "Wrapped.", changes: [{ from: 0, to: 1, insert: "a" }] }],
+    })),
   });
   problems.record({
     uri: "file://local/scripts/chapter_1.sd",
@@ -130,7 +135,37 @@ const measure = async (markup: string) => {
           hidden.push(target.textContent ?? "");
         }
       }
-      return { scrollers: scrollers.length, entries: entries.length, hidden };
+      const clipped: string[] = [];
+      const overlapping: string[] = [];
+      for (const entry of entries) {
+        const row = entry.querySelector<HTMLElement>("[data-message-entry]")!;
+        row.scrollIntoView({ block: "start" });
+        await frame();
+        const rowBox = row.getBoundingClientRect();
+        const texts = [...row.querySelectorAll<HTMLElement>("strong, p")];
+        for (const text of texts) {
+          const box = text.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          const lines = [...range.getClientRects()];
+          const lastLine = lines[lines.length - 1];
+          if (
+            text.scrollHeight > text.clientHeight + 1 ||
+            text.scrollWidth > text.clientWidth + 1 ||
+            (lastLine && (lastLine.bottom > rowBox.bottom + 1 || lastLine.right > rowBox.right + 1))
+          ) {
+            clipped.push(text.textContent ?? "");
+          }
+          for (const control of row.querySelectorAll<HTMLElement>("button")) {
+            if (text.contains(control)) continue;
+            const c = control.getBoundingClientRect();
+            if (c.left < box.right && c.right > box.left && c.top < box.bottom && c.bottom > box.top) {
+              overlapping.push(`${control.textContent} over ${text.textContent}`);
+            }
+          }
+        }
+      }
+      return { scrollers: scrollers.length, entries: entries.length, hidden, clipped, overlapping };
     });
   } finally {
     await browser.close();
@@ -150,6 +185,8 @@ describe("the whole-story Problems dialog on a 430x932 touch phone", () => {
       const result = await measure(await markupFor(count, playing));
       expect(result.entries).toBe(count);
       expect(result.hidden).toEqual([]);
+      expect(result.clipped).toEqual([]);
+      expect(result.overlapping).toEqual([]);
       expect(result.scrollers).toBe(count === 16 ? 1 : Math.min(result.scrollers, 1));
     },
     60000,

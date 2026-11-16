@@ -8,6 +8,7 @@ import {
   InfoIcon,
   MESSAGE_ENTRY_ROW_HEIGHT,
   MessageEntry,
+  type MessageEntryFit,
   PANEL_CARD_HEIGHT,
   PanelCardAction,
   PanelCardHead,
@@ -132,7 +133,7 @@ function chooseFix(
   void problems.applyFix(fixChoiceOf(problem, action));
 }
 
-function ProblemRow({ problem }: { problem: Problem }) {
+function ProblemRow({ problem, fit }: { problem: Problem; fit: MessageEntryFit }) {
   const ref = useRef<HTMLDivElement>(null);
   return (
     <div
@@ -142,7 +143,7 @@ function ProblemRow({ problem }: { problem: Problem }) {
       class="contents"
     >
       <MessageEntry
-        fit="row"
+        fit={fit}
         severity={problem.severity}
         prefix={SCRIPT_PREFIX[problem.severity]}
         title={problem.title}
@@ -177,9 +178,11 @@ const GO_BACK_LABEL = "Go back to this choice";
 function PlayedRow({
   entry,
   played,
+  fit,
 }: {
   entry: PlayedEntry;
   played: readonly PlayedEntry[];
+  fit: MessageEntryFit;
 }) {
   const location = consoleLocation(entry);
   const run = useComputed(() => problems.run.value).value;
@@ -190,7 +193,7 @@ function PlayedRow({
       : undefined;
   return (
     <MessageEntry
-      fit="row"
+      fit={fit}
       severity={entry.severity}
       prefix={PLAYED_PREFIX[entry.severity]}
       title={entry.title ?? entry.message}
@@ -250,7 +253,17 @@ function PlayedActions() {
   );
 }
 
-export function PanelItemView({ row, all, played }: { row: PanelItem; all: readonly Problem[]; played: readonly PlayedEntry[] }) {
+export function PanelItemView({
+  row,
+  all,
+  played,
+  fit = "row",
+}: {
+  row: PanelItem;
+  all: readonly Problem[];
+  played: readonly PlayedEntry[];
+  fit?: MessageEntryFit;
+}) {
   const open = problems.cards.value;
   switch (row.kind) {
     case "debug":
@@ -283,15 +296,15 @@ export function PanelItemView({ row, all, played }: { row: PanelItem; all: reado
     case "problem":
       return row.card ? (
         <PanelCardRow part="body">
-          <ProblemRow problem={row.problem} />
+          <ProblemRow problem={row.problem} fit={fit} />
         </PanelCardRow>
       ) : (
-        <ProblemRow problem={row.problem} />
+        <ProblemRow problem={row.problem} fit={fit} />
       );
     case "played":
       return (
         <PanelCardRow part="body">
-          <PlayedRow entry={row.entry} played={played} />
+          <PlayedRow entry={row.entry} played={played} fit={fit} />
         </PanelCardRow>
       );
   }

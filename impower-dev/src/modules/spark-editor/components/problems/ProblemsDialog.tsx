@@ -3,7 +3,6 @@ import {
   CloseIcon,
   Dialog,
   DialogTitle,
-  VirtualList,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useMemo, useRef } from "preact/hooks";
@@ -21,7 +20,6 @@ import { useDebugRows } from "./debugCards";
 import {
   PANEL_LABEL,
   PanelItemView,
-  panelItemHeight,
   panelItemKey,
   type PanelItem,
 } from "./ProblemsPanel";
@@ -60,17 +58,15 @@ function DialogRows({
     [listed, headings, story, played, shown, cards.played, debugRows],
   );
   return (
-    <VirtualList
-      size="compact"
-      label={story ? PANEL_LABEL : PROBLEMS_TITLE}
-      class="min-h-0 flex-1 pr-gutter-3 pb-3 pl-3"
-      items={rows}
-      getKey={panelItemKey}
-      itemHeight={panelItemHeight}
-      renderItem={(row) => (
-        <PanelItemView row={row} all={all} played={played} />
-      )}
-    />
+    <div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-gutter-3 pb-3 pl-3 [scrollbar-width:thin]">
+      <div role="list" aria-label={story ? PANEL_LABEL : PROBLEMS_TITLE}>
+        {rows.map((row) => (
+          <div key={panelItemKey(row)} role="listitem">
+            <PanelItemView row={row} all={all} played={played} fit="flow" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
