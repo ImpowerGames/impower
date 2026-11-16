@@ -142,13 +142,16 @@ const outcomeOf = (call: DisplayCall, address: number): ShownBeat | null => {
 const same = (a: ShownBeat, b: ShownBeat) =>
   a.kind === b.kind && (a.kind !== "beat" || (b.kind === "beat" && a.address === b.address));
 
-export const shownBeat = (root: ProgramRoot, uri: string, range: BeatRange): ShownBeat => {
+export const shownBeat = (root: ProgramRoot, uri: string, range: BeatRange, interpolates = false): ShownBeat => {
   const start = lastDisplayCall(root, uri, range);
   if (!start) return UNKNOWN;
   const startChunk = start.sequence.arrays.chunks[start.entry]!;
   const own = readCall(root, startChunk, start.offset);
-  const ownKinds = directiveKinds(own.text.join(""));
+  const ownText = own.text.join("");
+  const ownKinds = directiveKinds(ownText);
   if (own.load || own.pause || ownKinds.includes("load") || ownKinds.includes("cutscene")) return OWN;
+  if (interpolates && writesText(ownText)) return OWN;
+  if (interpolates && own.dynamic) return UNKNOWN;
   let steps = 0;
   const memo = new Map<string, ShownBeat>();
   const active = new Set<string>();

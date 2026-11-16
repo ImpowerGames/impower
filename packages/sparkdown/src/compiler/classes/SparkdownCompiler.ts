@@ -4863,7 +4863,7 @@ export class SparkdownCompiler {
       const chunks = program.chunks;
       const speakers =
         scriptTree && chunks
-          ? directiveSpeakers(program.context, scriptTree, directiveSource, (construct) => shownBeat(chunks, uri, construct), directives, names)
+          ? directiveSpeakers(program.context, scriptTree, directiveSource, (construct, interpolates) => shownBeat(chunks, uri, construct, interpolates), directives, names)
           : undefined;
       if (speakers) {
         (program.directiveSpeakers ??= {})[uri] = speakers;

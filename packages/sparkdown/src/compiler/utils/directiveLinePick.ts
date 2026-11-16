@@ -33,20 +33,24 @@ const constructAt = (tree: Tree, at: number): SyntaxNode | null => {
   return assetLine;
 };
 
-const writesText = (node: SyntaxNode, range: { from: number; to: number }, read: Read) => {
+const INTERPOLATION = "LuauInterpolatedStringExpression";
+
+const beatText = (node: SyntaxNode, range: { from: number; to: number }, read: Read) => {
   let text = stripStyleCodes(readStyledSource(node, range.from, range.to, { read }));
-  const removeComments = (parent: SyntaxNode) => {
+  let interpolates = false;
+  const removeUnwritten = (parent: SyntaxNode) => {
     for (let child = parent.firstChild; child; child = child.nextSibling) {
       if (child.to <= range.from || child.from >= range.to) continue;
-      if (child.name.includes("Comment")) {
+      if (child.name.includes("Comment") || child.name === INTERPOLATION) {
+        interpolates ||= child.name === INTERPOLATION;
         text = text.replace(read(child.from, child.to), "");
       } else {
-        removeComments(child);
+        removeUnwritten(child);
       }
     }
   };
-  removeComments(node);
-  return text.replace(DIRECTIVE, "").trim().length > 0;
+  removeUnwritten(node);
+  return { writes: text.replace(DIRECTIVE, "").trim().length > 0, interpolates };
 };
 
 const speakerOf = (
@@ -68,24 +72,29 @@ export const directiveSpeaker = (
   tree: Tree,
   source: DirectiveSource,
   at: number,
-  shownWith: (construct: BeatRange) => ShownBeat,
+  shownWith: (construct: BeatRange, interpolates: boolean) => ShownBeat,
 ): string | undefined => {
   const { read } = source;
   const own = constructAt(tree, at);
   if (!own) return undefined;
   const ownSpeaker = isDisplay(own) ? speakerOf(context, names, own, read) : undefined;
-  const ownBeats = isDisplay(own) ? (displayBeatRanges(own, source) ?? []).filter((range) => range.to >= at) : [];
-  if (ownBeats.some((range) => writesText(own, range, read))) {
+  const ownBeats = isDisplay(own)
+    ? (displayBeatRanges(own, source) ?? []).filter((range) => range.to >= at).map((range) => beatText(own, range, read))
+    : [];
+  if (ownBeats.some((beat) => beat.writes)) {
     return ownSpeaker;
   }
   let end = own.to;
   while (end > own.from && !read(end - 1, end).trim()) end -= 1;
-  const shown = shownWith({
-    startLine: source.lineNumber(own.from),
-    startColumn: source.characterNumber(own.from),
-    endLine: source.lineNumber(end),
-    endColumn: source.characterNumber(end),
-  });
+  const shown = shownWith(
+    {
+      startLine: source.lineNumber(own.from),
+      startColumn: source.characterNumber(own.from),
+      endLine: source.lineNumber(end),
+      endColumn: source.characterNumber(end),
+    },
+    ownBeats.some((beat) => beat.interpolates),
+  );
   if (shown.kind === "own") return ownSpeaker;
   if (shown.kind === "beat") return shown.character ? cueCharacter(context, names, shown.character) : undefined;
   return undefined;
@@ -119,7 +128,7 @@ export const directiveSpeakers = (
   context: Record<string, any>,
   tree: Tree,
   source: DirectiveSource,
-  shownWith: (construct: BeatRange) => ShownBeat,
+  shownWith: (construct: BeatRange, interpolates: boolean) => ShownBeat,
   directives: readonly SourceDirective[] = readSourceDirectives(tree, source.read),
   names: CharacterNames = characterNames(context),
 ): DirectiveSpeakers => {

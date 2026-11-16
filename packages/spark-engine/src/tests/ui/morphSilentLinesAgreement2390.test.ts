@@ -112,6 +112,9 @@ describe("the editor's warning agrees with the game's image write (I-2390, I-244
     ["a loading directive beside the directive, before Mia's line", story(`  ${DIRECTIVE} [[load gallery]]\n  MIA: Hello.\nend\n\nscene gallery\n  Pictures.`), undefined, false],
     ["Mia's cue holding the directive and a cutscene, before Bob's line", story(`  MIA: ${DIRECTIVE} [[play intro]]\n  BOB: Hi.`).replace("scene start", INTRO), undefined, true],
     ["Mia's cue holding the directive and a loading directive, before Bob's line", story(`  MIA: ${DIRECTIVE} [[load gallery]]\n  BOB: Hi.\nend\n\nscene gallery\n  Pictures.`), undefined, true],
+    ["Mia's cue holding the directive and an empty interpolation, before narration", story(`  MIA: ${DIRECTIVE} {""}\n  Mia waits.`), undefined, false],
+    ["Mia's cue holding the directive and an interpolation that shows text, before narration", story(`  MIA: ${DIRECTIVE} {"Hi."}\n  Mia waits.`), undefined, true],
+    ["Mia's cue holding the directive and an empty interpolation, before Mia's line", story(`  MIA: ${DIRECTIVE} {""}\n  MIA: Hello.`), undefined, true],
     ["a directive line before Mia's line that starts with a library call's interpolation", story(`  ${DIRECTIVE}\n  MIA: {string.upper("x")} Hello.`), undefined, true],
   ])("%s", async (_, source, scripts, plays) => {
     const editor = warned(source, scripts);
