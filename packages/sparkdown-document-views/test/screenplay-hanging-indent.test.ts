@@ -301,6 +301,11 @@ describe("a wrapped row of an alternative", () => {
 
 const SHARED_LINE_ROWS: [string, string, string[]][] = [
   [
+    "a function then a block",
+    ["scene s", "  Before.", "  function f() end queue | One. | Two. end", "  After.", "end", ""].join("\n"),
+    ["Before.", "{", "One.", "Two.", "}", "After."],
+  ],
+  [
     "a block then a function",
     ["scene s", "  Before.", "  queue | One. | Two. end function f() end", "  After.", "end", ""].join("\n"),
     ["Before.", "{", "One.", "Two.", "}", "After."],

@@ -24,7 +24,9 @@ const FIXTURES: Record<string, string> = {
   "mixed depths on one line": ["scene s", "  if flag then", `    queue | ${LONG} | Short. end : Outer tail.`, "  end", "end", ""].join("\n"),
   "shared with a block": ["scene s", `  queue | One. | Two. end queue | ${LONG} | Short. end`, "end", ""].join("\n"),
   "two blocks with a blank between": ["scene s", "  Before.", "  queue | One A. | One B. end queue | Two A. | Two B. end", "  After.", "end", ""].join("\n"),
-  "a block then a function": ["scene s", "  Before.", "  queue | One. | Two. end function f() end", "  After.", "end", ""].join("\n"),};
+  "a function then a block": ["scene s", "  Before.", "  function f() end queue | One. | Two. end", "  After.", "end", ""].join("\n"),
+  "a block then a function": ["scene s", "  Before.", "  queue | One. | Two. end function f() end", "  After.", "end", ""].join("\n"),
+};
 
 for (const [name, text] of Object.entries(FIXTURES)) {
   const section = document.body.appendChild(document.createElement("section"));

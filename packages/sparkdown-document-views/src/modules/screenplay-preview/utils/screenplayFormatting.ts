@@ -559,10 +559,12 @@ export const decorate = (
           separator: true,
         });
 
-  const printsText = (node: SyntaxNode) =>
-    node.name !== "Newline" &&
-    node.name !== "Whitespace" &&
-    !printsAsBlankLine(node.name, node.parent?.name);
+  const printsOnLine = (node: SyntaxNode, line: Line) => {
+    if (node.name === "Newline" || node.name === "Whitespace") return false;
+    const start = Math.max(node.from, line.from);
+    const end = Math.min(blockEnd(node), line.to);
+    return printedBefore(start, end) || drawnIn(start, end);
+  };
 
   const functionNameOf = (node: SyntaxNode) =>
     config?.screenplay_print_function_identifiers
@@ -583,8 +585,11 @@ export const decorate = (
 
   const splitSharedLine = (line: Line, node: SyntaxNode) => {
     const parts = lineParts(line, node);
-    const firstText = parts.findIndex(printsText);
-    const hiddenParts = parts.filter((part) => printsAsBlankLine(part.name, part.parent?.name));
+    const prints = parts.map((part) => printsOnLine(part, line));
+    const isHiddenPart = (part: SyntaxNode, index: number) =>
+      !prints[index] && printsAsBlankLine(part.name, part.parent?.name);
+    const firstText = prints.indexOf(true);
+    const hiddenParts = parts.filter(isHiddenPart);
     if (firstText < 0 && hiddenParts.length < 2) return false;
     handledLines.add(line.number);
     if (firstText < 0) {
@@ -597,18 +602,19 @@ export const decorate = (
     const above: (CollapseWidget | NameWidget)[] = [];
     const below: (CollapseWidget | NameWidget)[] = [];
     parts.forEach((part, index) => {
-      if (!printsAsBlankLine(part.name, part.parent?.name)) return;
+      const hidden = isHiddenPart(part, index);
+      if (!hidden && index !== textIndex) return;
       const from = Math.max(part.from, line.from);
       const to = Math.min(blockEnd(part), line.to);
-      if (firstText >= 0 && to > from) {
+      if (hidden && firstText >= 0 && to > from) {
         decorations.push(Decoration.replace({}).range(from, to));
       }
       if (part.from < line.from) return;
-      const rows = index < textIndex ? above : below;
+      const rows = index <= textIndex ? above : below;
       if (blankPositions.has(part.from)) {
         rows.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from }));
       }
-      const name = functionNameOf(part);
+      const name = hidden ? functionNameOf(part) : "";
       if (name) {
         rows.push(new NameWidget({ type: "name", from: part.from, to: part.from, name, pageBreak: false }));
       }
@@ -876,7 +882,9 @@ export const decorate = (
         return true;
       } else if (isBlankLine(nodeRef) && holdsPrintedText(from, to)) {
         const line = doc.lineAt(from);
-        if (!handledLines.has(line.number) && blankLines.has(line.number)) {
+        if (handledLines.has(line.number)) return true;
+        if (lineParts(line, nodeRef.node).length > 1 && splitSharedLine(line, nodeRef.node)) return true;
+        if (blankLines.has(line.number)) {
           decorations.push(
             Decoration.widget({
               widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
