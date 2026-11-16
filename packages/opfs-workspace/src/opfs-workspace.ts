@@ -1749,13 +1749,18 @@ const applyChange = async (
       type: result.created ? FileChangeType.Created : FileChangeType.Changed,
     });
   };
-  undo.rewrote(
+  const changed =
     "textDocument" in change
       ? [change.textDocument.uri]
       : change.kind === "rename"
         ? [change.oldUri, change.newUri]
-        : [change.uri],
+        : [change.uri];
+  const lastOwn = new Map(
+    changed
+      .filter((uri) => undo.written.has(uri))
+      .map((uri) => [uri, undo.written.get(uri)!] as const),
   );
+  undo.rewrote(changed);
   if (isFolderChange(change) && change.kind === "create") {
     await createDirectories([change.uri], log, (uri, directory) => {
       if (directory && undo.directories.has(uri)) {
@@ -1789,8 +1794,12 @@ const applyChange = async (
       stored.byteLength === data.byteLength && stored.buffer === data
         ? data
         : (stored.buffer.slice(stored.byteOffset, stored.byteOffset + stored.byteLength) as ArrayBuffer);
-    const before = undo.prior.get(change.uri);
-    undo.expect(change.uri, before?.bytes ?? null);
+    undo.expect(
+      change.uri,
+      lastOwn.has(change.uri)
+        ? lastOwn.get(change.uri)!
+        : (undo.prior.get(change.uri)?.bytes ?? null),
+    );
     (await createFiles([change])).forEach(wrote);
     undo.expect(change.uri, expected);
   } else if (change.kind === "delete") {

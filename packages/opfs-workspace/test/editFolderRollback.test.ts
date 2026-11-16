@@ -441,3 +441,26 @@ it("rolls back a rename made through the stored move when a later change fails",
   expect(h.text("a.sd")).toBe("ORIGINAL");
   expect(h.text("b.sd")).toBeUndefined();
 });
+
+it("restores a file the edit created twice when the second write fails and recovers", async () => {
+  const h = await harness({ "main.sd": "original main" });
+  const original = MemoryFile.prototype.createSyncAccessHandle;
+  let writes = 0;
+  vi.spyOn(MemoryFile.prototype, "createSyncAccessHandle").mockImplementation(async function (this: MemoryFile) {
+    const handle = await original.call(this);
+    if (this.name !== "main.sd") return handle;
+    return {
+      ...handle,
+      write: (data: DataView | Uint8Array) => {
+        writes += 1;
+        if (writes === 2) throw new DOMException("one transient I/O failure", "UnknownError");
+        return handle.write(data);
+      },
+    };
+  });
+  const result = await h.edit([create("main.sd", "first change"), create("main.sd", "second change")]);
+  expect(writes).toBeGreaterThanOrEqual(3);
+  expect(result.applied).toBe(false);
+  expect(h.text("main.sd")).toBe("original main");
+  expect(result.rollback).toMatchObject({ complete: true, failed: [], kept: [] });
+});

@@ -152,6 +152,31 @@ it("leaves the project as it was when a write of the backup fails partway", asyn
   expect(error?.rollback?.complete).toBe(true);
 }, 15_000);
 
+it("restores the folders marker when a backup holding a marker fails on the import's own marker write", async () => {
+  const h = await harness();
+  const before = h.stored();
+  const original = MemoryFile.prototype.createSyncAccessHandle;
+  let writes = 0;
+  vi.spyOn(MemoryFile.prototype, "createSyncAccessHandle").mockImplementation(async function (this: MemoryFile) {
+    const handle = await original.call(this);
+    if (this.name !== ".folders") return handle;
+    return {
+      ...handle,
+      write: (data: DataView | Uint8Array) => {
+        writes += 1;
+        if (writes === 2) throw new DOMException("one transient I/O failure", "UnknownError");
+        return handle.write(data);
+      },
+    };
+  });
+  const { error } = await h.importBackup(backup({ ...BACKUP, ".folders": "backup marker" }));
+  expect(writes).toBeGreaterThanOrEqual(3);
+  expect(error?.reason).toBe("storage");
+  expect(h.stored()).toEqual(before);
+  expect(h.text(".folders")).toBe("1");
+  expect(error?.rollback).toMatchObject({ complete: true, failed: [], kept: [] });
+}, 15_000);
+
 it("puts back an empty folder cleared for a file of the same path when the import fails", async () => {
   const h = await harness();
   await h.fs.createFolder("local", "cover.png");
