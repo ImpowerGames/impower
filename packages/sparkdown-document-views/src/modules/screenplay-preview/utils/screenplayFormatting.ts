@@ -485,7 +485,11 @@ export const decorate = (
     const index = inline ? 0 : (rowsPlaced.get(group) ?? 0);
     if (!inline) rowsPlaced.set(group, index + 1);
     if (row.at < from || (to !== undefined && row.at > to)) continue;
-    const pieces = row.pieces.map((piece) => ({ text: piece.text, ...printedStyle(piece.style) }));
+    const pieces = row.pieces.map((piece) =>
+      row.name
+        ? { text: piece.text, style: "", source: false, name: true }
+        : { text: piece.text, ...printedStyle(piece.style) },
+    );
     const above = row.side === "above";
     if (inline) {
       const mixed = isMixedLine(row.at);
@@ -600,7 +604,6 @@ export const decorate = (
     }
     const textIndex = firstText < 0 ? parts.length : firstText;
     const above: (CollapseWidget | NameWidget)[] = [];
-    const below: (CollapseWidget | NameWidget)[] = [];
     parts.forEach((part, index) => {
       const hidden = isHiddenPart(part, index);
       if (!hidden && index !== textIndex) return;
@@ -609,23 +612,19 @@ export const decorate = (
       if (hidden && firstText >= 0 && to > from) {
         decorations.push(Decoration.replace({}).range(from, to));
       }
-      if (part.from < line.from) return;
-      const rows = index <= textIndex ? above : below;
+      if (part.from < line.from || index > textIndex) return;
       if (blankPositions.has(part.from)) {
-        rows.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from }));
+        above.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from }));
       }
       const name = hidden ? functionNameOf(part) : "";
       if (name) {
-        rows.push(new NameWidget({ type: "name", from: part.from, to: part.from, name, pageBreak: false }));
+        above.push(new NameWidget({ type: "name", from: part.from, to: part.from, name, pageBreak: false }));
       }
     });
     above.forEach((widget, index) => {
       decorations.push(
         Decoration.widget({ widget, block: true, side: index - above.length }).range(line.from),
       );
-    });
-    below.forEach((widget, index) => {
-      decorations.push(Decoration.widget({ widget, block: true, side: index + 1 }).range(line.to));
     });
     return true;
   };

@@ -984,7 +984,14 @@ const SHARED_LINE_ORDERS = Object.entries(UNPRINTED_ON_ONE_LINE).flatMap(([unpri
     [`${unprintedName} before ${printedName}`, `${unprinted} ${printed}`],
     [`${printedName} before ${unprintedName}`, `${printed} ${unprinted}`],
   ]),
-).concat(Object.entries(PRINTED_ON_ONE_LINE).map(([printedName, printed]) => [`${printedName} before a line comment`, `${printed} // note`]));
+)
+  .concat(Object.entries(PRINTED_ON_ONE_LINE).map(([printedName, printed]) => [`${printedName} before a line comment`, `${printed} // note`]))
+  .concat(
+    Object.entries(UNPRINTED_ON_ONE_LINE).flatMap(([unprintedName, unprinted]) => [
+      [`${unprintedName} between two one-line blocks`, `queue | One. | Two. end ${unprinted} cycle | Three. | Four. end`],
+      [`a one-line block between two of ${unprintedName}`, `${unprinted} queue | One. | Two. end ${unprinted}`],
+    ]),
+  );
 
 describe("a line shared by a construct that prints nothing and one that prints", () => {
   it("draws the arms of a one-line alternator after a one-line function definition, on the page as in the export", () => {
