@@ -133,12 +133,13 @@ export const placePrintedLine = (line: PageLine, script: string, places: Printed
 
 const SINGLE_CELL_TEXT = /^[ -~]*$/;
 
-const cellsOf = (text: string) => (SINGLE_CELL_TEXT.test(text) ? text.length : getCharChunks(text).length);
+const cellsOf = (text: string) => (SINGLE_CELL_TEXT.test(text) ? text.length : Array.from(text).length);
 
 export const printedRowOffsets = (line: PageLine, profile: PrintProfile, regionWidth?: number): number[] => {
   const cell = cellWidth(profile);
   const emoji = emojiWidth(profile);
-  const measure = (piece: { text: string; isEmoji: boolean }) => cellsOf(piece.text) * (piece.isEmoji ? emoji : cell);
+  const measure = (piece: { text: string; isEmoji: boolean }) =>
+    piece.isEmoji ? getCharChunks(piece.text).length * emoji : cellsOf(piece.text) * cell;
   const width = regionWidth ?? lineMaxWidth(profile, line);
   const offsets: number[] = [];
   let groupStart = 0;

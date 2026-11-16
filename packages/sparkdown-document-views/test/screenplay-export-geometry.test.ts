@@ -231,7 +231,7 @@ const drawn = async (script: string, config: ScreenplayConfig, width: number, sc
       .map(([top, row]) => {
         row.sort((a, b) => a.left - b.left);
         const columns: string[] = [];
-        for (const glyph of row) columns[Math.round((glyph.left - row[0]!.left) / cell)] = glyph.character;
+        for (const glyph of row) columns[Math.round((glyph.left - row[0]!.left) / cell)] ??= glyph.character;
         const text = Array.from(columns, (character) => character ?? " ").join("");
         return { text, left: (row[0]!.left - origin) / cell, top, page: 0 };
       });
@@ -487,5 +487,20 @@ describe("the title page's rows", () => {
       }
     }
     expect(differences).toEqual([]);
+  }, 120_000);
+});
+
+const COMBINING_SCRIPT = ["scene combining", "  GUIDE:", `    ${"é ".repeat(32)}finish.`, "  After.", "end", ""].join("\n");
+
+describe("rows holding combining marks", () => {
+  it("break where the PDF breaks them, the PDF giving each mark its own character", async () => {
+    const pdf = await printed(COMBINING_SCRIPT, BASE);
+    const page = await drawn(COMBINING_SCRIPT, BASE, 560);
+    const letters = (found: Printed) =>
+      found.rows.map((row) => ({ text: row.text.replace(/[̀-ͯ\s]/g, ""), left: row.left }));
+    const shown = letters(page);
+    const print = letters(pdf);
+    expect(shown.map((row) => row.text)).toEqual(print.map((row) => row.text));
+    shown.forEach((row, index) => expect(Math.abs(row.left - print[index]!.left), row.text).toBeLessThan(0.06));
   }, 120_000);
 });
