@@ -31,6 +31,15 @@ const SPAN_NODES: ReadonlySet<string> = nodeNameSet(
   ]) as SparkdownNodeName[],
 );
 
+const RAW_SPANS: ReadonlySet<string> = nodeNameSet([
+  "Raw",
+  "ChoiceStartRaw",
+  "ChoiceOnlyRaw",
+  "ChoiceInnerRaw",
+]);
+
+const LITERAL_BRACKETS: ReadonlySet<string> = new Set(["(", "["]);
+
 export interface SpanCode {
   at: number;
   code: string;
@@ -65,9 +74,20 @@ export function collectDisplaySpans(
     const clipped = { from: Math.max(start, from), to: Math.min(end, to) };
     if (clipped.from < clipped.to) marks.push(clipped);
   };
-  const visit = (node: SyntaxNode, depth: number): void => {
+  const visit = (node: SyntaxNode, depth: number, raw: boolean): void => {
     if (node.to <= from || node.from >= to) return;
     if (node !== root && isOpaque(node)) return;
+    if (
+      escapeLiteralOpeners &&
+      !raw &&
+      node.name === "Punctuation" &&
+      node.from >= from &&
+      // value-level: the one character a Punctuation node holds
+      LITERAL_BRACKETS.has(ctx.read(node.from, node.to))
+    ) {
+      codes.push({ at: node.from, code: "\\", closes: false, depth });
+      return;
+    }
     if (node.name === "LiteralDirectiveOpener") {
       if (!escapeLiteralOpeners) return;
       for (let at = Math.max(node.from, from); at < Math.min(node.to, to); at += 1) {
@@ -120,13 +140,14 @@ export function collectDisplaySpans(
         }
       }
     }
+    const childRaw = raw || RAW_SPANS.has(node.name);
     let child = node.firstChild;
     while (child) {
-      visit(child, childDepth);
+      visit(child, childDepth, childRaw);
       child = child.nextSibling;
     }
   };
-  visit(root, 0);
+  visit(root, 0, RAW_SPANS.has(root.name));
   codes.sort((a, b) =>
     a.at !== b.at
       ? a.at - b.at
