@@ -22,6 +22,8 @@ describe("a glued alternator with an empty alternative", () => {
     ["They see .. queue | | .. outside.", "They see .. queue | a cat | a cow .. outside.", ["a cat ", "a cow "]],
     ["It is .. match(1) | | warm .. today.", "It is .. match(1) | cool | warm .. today.", ["cool "]],
     ["It is .. cycle | | warm .. today.", "It is .. cycle | cool | warm .. today.", ["cool "]],
+    ["It is .. cycle | cool | .. today.", "It is .. cycle | cool | warm .. today.", ["warm "]],
+    ["It is .. match(1) | cool | .. today.", "It is .. match(1) | cool | warm .. today.", []],
   ])("%j plays like %j without its words", (line, control, words) => {
     const empty = story(line);
     const written = story(control);

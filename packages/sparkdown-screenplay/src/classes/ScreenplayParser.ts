@@ -241,21 +241,17 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
       positions ? { text, styled: text, at: new Array<number>(text.length).fill(insertedAt(anchor)) } : plain(text);
     const readGlued = (block: SyntaxNode, source: number[]): Reading => {
       const arms: { arm?: { reading: Reading; ranges: number[] }; read: boolean }[] = [];
-      const walk = (node: SyntaxNode) => {
-        for (let child = node.firstChild; child; child = child.nextSibling) {
-          if (child.name === ALTERNATOR_SEPARATOR) {
-            arms.push({ read: false });
-          } else if (child.name === GLUED_ARM) {
-            if (arms.length === 0 || arms.at(-1)!.read) arms.push({ read: false });
-            const slot = arms.at(-1)!;
-            slot.read = true;
-            slot.arm = readArm(child, source);
-          } else {
-            walk(child);
-          }
+      const content = block.getChild(`${block.name}_content`);
+      for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+        if (child.name === ALTERNATOR_SEPARATOR) {
+          arms.push({ read: false });
+        } else if (child.name === GLUED_ARM) {
+          if (arms.length === 0 || arms.at(-1)!.read) arms.push({ read: false });
+          const slot = arms.at(-1)!;
+          slot.read = true;
+          slot.arm = readArm(child, source);
         }
-      };
-      walk(block);
+      }
       if (arms.length === 0) return NO_TEXT;
       const printedEnd = (index: number) => arms.slice(0, index + 1).findLast((slot) => slot.arm)?.arm!.ranges.at(-1);
       const startAnchor = (index: number) =>
