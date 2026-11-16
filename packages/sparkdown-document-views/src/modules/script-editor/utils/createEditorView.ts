@@ -101,7 +101,6 @@ import {
 } from "./extensions/keyboardToolbar";
 import { scriptEditorShortcuts } from "./extensions/scriptEditorShortcuts";
 import {
-  onReadingDoubleTap,
   scriptMode,
   type ScriptModeValue,
 } from "./extensions/scriptMode";
@@ -146,7 +145,6 @@ interface EditorConfig {
   readonly?: boolean;
   scriptMode?: ScriptModeValue | null;
   keyboardHold?: KeyboardToolbarHold;
-  onReadingDoubleTap?: () => void;
   onToolbarTool?: (tool: KeyboardToolbarTool) => void;
   appearance: ScriptAppearance;
   shortcuts?: ShortcutCombos;
@@ -303,7 +301,6 @@ const createEditorView = (
         customGotoLinePanel(),
         statusPanel(),
         scriptMode(config.scriptMode ?? null),
-        onReadingDoubleTap.of(() => config.onReadingDoubleTap?.()),
         keyboardToolbar({
           onTool: config.onToolbarTool,
           hold: config.keyboardHold,

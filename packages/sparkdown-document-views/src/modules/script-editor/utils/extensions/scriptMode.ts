@@ -1,7 +1,6 @@
 import {
   EditorSelection,
   type Extension,
-  Facet,
   StateEffect,
   StateField,
 } from "@codemirror/state";
@@ -20,10 +19,6 @@ export const scriptModeField = StateField.define<ScriptModeValue | null>({
     }
     return value;
   },
-});
-
-export const onReadingDoubleTap = Facet.define<() => void, () => void>({
-  combine: (values) => () => values.forEach((fn) => fn()),
 });
 
 const moveCaret = (view: EditorView, event: MouseEvent) => {
@@ -93,12 +88,6 @@ const readingHandlers = EditorView.domEventHandlers({
       return false;
     }
     return moveCaret(view, event);
-  },
-  dblclick(event, view) {
-    if (view.state.field(scriptModeField, false) !== "reading") return false;
-    moveCaret(view, event);
-    view.state.facet(onReadingDoubleTap)();
-    return true;
   },
 });
 

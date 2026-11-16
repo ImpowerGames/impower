@@ -67,12 +67,6 @@ export default function LogicScriptEditor({
     workspace.keyboardPanels.value.some((panel) => panel.heading),
   ).value;
 
-  const startEditing = () => {
-    if (!scriptBusy) {
-      withWindow((win) => win.startEditing(filenameRef.current || "main.sd"));
-    }
-  };
-
   const openTool = (tool: "writingTools" | "add") => {
     if (tool === "writingTools") {
       withWindow((win) =>
@@ -293,7 +287,6 @@ export default function LogicScriptEditor({
           onPasteRefused={showPasteRefused}
           scriptMode={scriptMode ?? null}
           keyboardHold={{ held, headed }}
-          onReadingDoubleTap={startEditing}
           onToolbarTool={openTool}
           onChangeColor={(range, value, color) =>
             withWindow((win) =>
