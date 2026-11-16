@@ -35,9 +35,17 @@ describe("an opener with no closer yet still offers directive completion (I-2423
     ["after a space in the unclosed opener", display("  Hello [[show |")],
     ["after a later word", display("  Hello [[show forest |")],
     ["after a closed directive", display("  [[show forest]] and |")],
+    ["after an attribute separator", display("  Hello [[forest:|")],
+    ["after a second attribute separator", display("  Hello [[mia:hat:|world")],
+    ["after a dot", display("  Hello ((theme.|")],
+    ["after an attribute separator in choice text", choice("    + Go [[forest:| now")],
   ])("%s offers no directive keyword: `%s`", (_label, source) => {
     expect(labels(source)).not.toContain("show");
     expect(labels(source)).not.toContain("play");
+  });
+
+  it("a name typed with an at sign offers what a closed pair offers there", () => {
+    expect(labels(display("  Hello [[raffles@|"))).toEqual(labels(display("  Hello [[raffles@|]]")));
   });
 
   it("a closed pair still offers its completions", () => {
