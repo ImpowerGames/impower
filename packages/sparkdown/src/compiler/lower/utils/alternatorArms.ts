@@ -568,7 +568,7 @@ function lowerArmContent(
       forwardBlockDiagnostics(block, ctx);
       out.push(...unwrapBlockContent(block));
     } else {
-      textBuf += readStyledSource(child, child.from, child.to, ctx);
+      textBuf += readStyledSource(child, child.from, child.to, ctx, true);
     }
     child = child.nextSibling;
   }
