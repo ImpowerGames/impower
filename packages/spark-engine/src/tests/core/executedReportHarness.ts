@@ -18,6 +18,7 @@ export interface ExecutedReport {
   params: GameExecutedParams;
   paths: ProgramAddress[];
   locations: DocumentLocation[];
+  lineLocations: DocumentLocation[];
 }
 
 export interface Story {
@@ -95,13 +96,18 @@ const recordReports = (game: Game) => {
   g.executedParams = () => {
     const paths: ProgramAddress[] = g._runtimeState.pathsExecutedThisFrame.toArray();
     const params = take();
+    const locate = (p: ProgramAddress) => {
+      const location = game.locator.locationOf(p);
+      return location ? documentRangeOf(location) : null;
+    };
     const locations = paths
-      .map((p) => {
-        const location = game.locator.locationOf(p);
-        return location ? documentRangeOf(location) : null;
-      })
+      .map(locate)
       .filter((l): l is DocumentLocation => l != null);
-    reports.push({ params, paths, locations });
+    const lineLocations = paths
+      .filter((p) => !g.story.root.isOptionOffer(p))
+      .map(locate)
+      .filter((l): l is DocumentLocation => l != null);
+    reports.push({ params, paths, locations, lineLocations });
     return params;
   };
   return reports;

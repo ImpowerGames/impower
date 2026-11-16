@@ -12,7 +12,7 @@ import { expandLineRanges } from "../../game/core/utils/executedLineRanges";
 
 const highlights = (report: ExecutedReport) => {
   const listed: Record<string, Set<number>> = {};
-  for (const l of report.locations) {
+  for (const l of report.lineLocations) {
     listed[l.uri] ??= new Set();
     for (let i = l.range.start.line; i <= l.range.end.line; i++) {
       listed[l.uri]!.add(i);

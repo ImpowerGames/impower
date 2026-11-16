@@ -2,9 +2,7 @@ import { history } from "@codemirror/commands";
 import { ensureSyntaxTree, indentUnit, syntaxTree } from "@codemirror/language";
 import { EditorState, Line } from "@codemirror/state";
 import { vscodeWordSelection } from "@impower/codemirror-vscode-lsp-client/src";
-import { isCommentOnlyLine } from "@impower/sparkdown/src/compiler/utils/isCommentOnlyLine";
-import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
-import type { Tree } from "@lezer/common";
+import { isExecutionGapLine } from "@impower/sparkdown/src/compiler/utils/isExecutionGapLine";
 import {
   EditorView,
   crosshairCursor,
@@ -33,33 +31,15 @@ const deferFileDropsToApp = EditorView.domEventHandlers({
   dragover: (event) => carriesFiles(event),
 });
 
-const DIALOGUE_CUE = /^[^:]+:$/;
-
-const END_KEYWORDS = nodeNameSet(["LuauEndKeyword"]);
-
 const PARSE_TIMEOUT_MS = 100;
 
-export const isExecutionGap = (line: Line, state: EditorState) => {
-  const trimmedText = line.text.trim();
-  if (!trimmedText || DIALOGUE_CUE.test(trimmedText)) {
-    return true;
-  }
-  const tree =
-    ensureSyntaxTree(state, line.to, PARSE_TIMEOUT_MS) ?? syntaxTree(state);
-  return (
-    isCommentOnlyLine(tree, line.from, line.text) ||
-    isBlockEndLine(tree, line)
+export const isExecutionGap = (line: Line, state: EditorState) =>
+  isExecutionGapLine(
+    () =>
+      ensureSyntaxTree(state, line.to, PARSE_TIMEOUT_MS) ?? syntaxTree(state),
+    line.from,
+    line.text,
   );
-};
-
-const isBlockEndLine = (tree: Tree, line: Line) => {
-  const keyword = tree.resolveInner(line.from + line.text.search(/\S/), 1);
-  if (!END_KEYWORDS.has(keyword.name)) {
-    return false;
-  }
-  const rest = line.text.slice(keyword.to - line.from);
-  return !rest.trim() || isCommentOnlyLine(tree, keyword.to, rest);
-};
 
 const EDITOR_EXTENSIONS = [
   history(),
