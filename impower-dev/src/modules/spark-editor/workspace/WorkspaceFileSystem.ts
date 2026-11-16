@@ -726,13 +726,17 @@ export default class WorkspaceFileSystem {
     };
   }
 
-  protected replaceFiles(
+  protected async replaceFiles(
     projectId: string,
     replacement: FileReplacement,
     label: string,
   ): Promise<ApplyWorkspaceEditResult> {
     const depth = (path: string) => path.split("/").length;
-    return this.applyWorkspaceEdit(
+    const unstored = [...this._unstoredUris].flatMap((uri) => {
+      const file = this._files?.[uri];
+      return file ? [file] : [];
+    });
+    const result = await this.applyWorkspaceEdit(
       {
         documentChanges: [
           ...replacement.deletedFiles.map((uri) => ({
@@ -761,6 +765,23 @@ export default class WorkspaceFileSystem {
       },
       label,
     );
+    const lost = result.applied
+      ? []
+      : unstored.filter((file) => this._files && !this._files[file.uri]);
+    if (lost.length > 0) {
+      lost.forEach((file) => {
+        this._files![file.uri] = file;
+        this._unstoredUris.add(file.uri);
+      });
+      sendProtocolMessage(
+        DidWriteFilesMessage.type.notification({
+          files: lost,
+          remote: false,
+          restored: lost.map((file) => file.uri),
+        }),
+      );
+    }
+    return result;
   }
 
   protected async replaceBundle(
@@ -948,7 +969,9 @@ export default class WorkspaceFileSystem {
         files: textFilesToWrite,
         deletedFiles: textFilesToDelete,
         deletedFolders: (await this.listFolders(projectId)).filter((path) =>
-          incoming.has(path),
+          path
+            .split("/")
+            .some((_, i, parts) => incoming.has(parts.slice(0, i + 1).join("/"))),
         ),
         createdFolders: [],
       },

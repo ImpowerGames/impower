@@ -39,10 +39,10 @@ const backup = (entries: Record<string, string>, folders: string[] = []) =>
     { level: 0 },
   ).buffer as ArrayBuffer;
 
-async function harness(extra: Record<string, string> = {}) {
+async function harness(extra: Record<string, string> = {}, saved: Record<string, string> = PROJECT) {
   vi.resetModules();
   const root = memoryRoot();
-  for (const [path, text] of Object.entries({ ...MIGRATED, ...PROJECT, ...extra })) {
+  for (const [path, text] of Object.entries({ ...MIGRATED, ...saved, ...extra })) {
     writeMemoryFile(root, `local/${path}`, bytes(text));
   }
   Object.defineProperty(navigator, "storage", { configurable: true, value: { getDirectory: async () => root } });
@@ -390,4 +390,43 @@ it("replaces the project's assets and folders with the asset bundle's and keeps 
   expect(h.text("images/a.png")).toBe("PNG");
   expect(h.text("main.sd")).toBe(PROJECT["main.sd"]);
   expect(await h.fs.getFolders("local")).toEqual(["empty", "images", "old"]);
+}, 15_000);
+
+it("replaces a folder holding only empty folders with a script bundle file of the same path", async () => {
+  const h = await harness(ASSETS);
+  const chapters = await h.project.getDirectoryHandle("chapters", { create: true });
+  const clash = await chapters.getDirectoryHandle("one.sd", { create: true });
+  await (await clash.getDirectoryHandle("empty", { create: true })).getDirectoryHandle("deeper", { create: true });
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeUndefined();
+  expect(h.text("chapters/one.sd")).toBe("chapter one");
+  expect(h.stored().filter((path) => path.startsWith("chapters/one.sd/"))).toEqual([]);
+}, 15_000);
+
+const STARTER_URI = "file://local/main.sd";
+
+const starterText = async (h: Awaited<ReturnType<typeof harness>>) =>
+  (await h.fs.getFiles("local"))[STARTER_URI]?.text;
+
+it("keeps the unsaved starter main in the editor when a script bundle fails after writing main", async () => {
+  const h = await harness(ASSETS, {});
+  const before = await starterText(h);
+  expect(before).toBeDefined();
+  expect(h.text("main.sd")).toBeUndefined();
+  h.failCreatingFolder("chapters");
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeDefined();
+  expect(h.text("main.sd")).toBeUndefined();
+  expect(await starterText(h)).toBe(before);
+}, 15_000);
+
+it("keeps the unsaved starter main in the editor when a backup import fails after writing main", async () => {
+  const h = await harness({}, {});
+  const before = await starterText(h);
+  expect(before).toBeDefined();
+  h.failCreatingFolder("images");
+  const { error } = await h.importBackup(backup(BACKUP));
+  expect(error?.reason).toBe("storage");
+  expect(h.text("main.sd")).toBeUndefined();
+  expect(await starterText(h)).toBe(before);
 }, 15_000);
