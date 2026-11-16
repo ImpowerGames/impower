@@ -7,7 +7,7 @@ import { PauseFillIcon, PlayIcon } from "../icon/icons.generated";
 export const playButtonVariants = cva(
   [
     "relative control-overlay inline-flex flex-none items-center justify-center rounded-full",
-    "cursor-pointer select-none border border-solid bg-transparent text-accent",
+    "cursor-pointer select-none border border-solid bg-transparent text-accent [&_svg]:fill-current [&_svg]:stroke-none",
     "motion-safe:transition-[background-color,border-color] motion-safe:duration-140",
     "disabled:cursor-default disabled:opacity-40",
   ],

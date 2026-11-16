@@ -8,9 +8,9 @@ export type ApplyWorkspaceEditMethod = typeof ApplyWorkspaceEditMessage.method;
 export interface WorkspaceEdit extends LSP.WorkspaceEdit {
   documentChanges?: (
     | LSP.TextDocumentEdit
-    | (LSP.CreateFile & { data?: ArrayBuffer })
+    | (LSP.CreateFile & { data?: ArrayBuffer; folder?: boolean })
     | LSP.RenameFile
-    | LSP.DeleteFile
+    | (LSP.DeleteFile & { folder?: boolean })
   )[];
 }
 

@@ -8,6 +8,9 @@ export class MemoryFile {
   gate?: Promise<void>;
   parent?: MemoryDirectory;
   constructor(public name: string) {}
+  async isSameEntry(other: unknown) {
+    return other === this;
+  }
   async move(directory: MemoryDirectory, name: string) {
     if (this.parent?.entries.get(this.name) !== this) {
       throw fail("NotFoundError", `${this.name} not found`);
@@ -69,6 +72,9 @@ export class MemoryDirectory {
   kind = "directory" as const;
   entries = new Map<string, MemoryDirectory | MemoryFile>();
   constructor(public name: string) {}
+  async isSameEntry(other: unknown) {
+    return other === this;
+  }
   async getDirectoryHandle(name: string, options: { create?: boolean } = {}) {
     const entry = this.entries.get(name);
     if (entry instanceof MemoryDirectory) return entry;

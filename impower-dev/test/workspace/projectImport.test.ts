@@ -133,6 +133,50 @@ describe("importOutcomeSentence", () => {
     );
   });
 
+  it("says nothing was changed when a failed save was rolled back whole", () => {
+    expect(
+      importOutcomeSentence({
+        status: "failed",
+        fileName: "story.zip",
+        reason: "storage",
+        rollback: { complete: true, failed: [], kept: [] },
+      }),
+    ).toBe(
+      "Nothing was changed because “story.zip” could not be saved on this device, so free some space and try again.",
+    );
+  });
+
+  it("names the files a partial rollback may have left changed and the Trash copies", () => {
+    expect(
+      importOutcomeSentence({
+        status: "failed",
+        fileName: "story.zip",
+        reason: "storage",
+        rollback: {
+          complete: false,
+          failed: ["main.sd", "cover.png"],
+          kept: ["notes.sd"],
+          trashed: ["main.sd"],
+        },
+      }),
+    ).toBe(
+      "Could not save “story.zip” on this device, and these files may be left changed: main.sd, cover.png and notes.sd. Copies of what was replaced are in the Trash: main.sd.",
+    );
+  });
+
+  it("says the project may be partly replaced when a partial rollback names no file", () => {
+    expect(
+      importOutcomeSentence({
+        status: "failed",
+        fileName: "story.zip",
+        reason: "storage",
+        rollback: { complete: false, failed: [], kept: [] },
+      }),
+    ).toBe(
+      "Could not save “story.zip” on this device, and the project may be left partly replaced.",
+    );
+  });
+
   it("says how many files were left out and from where", () => {
     expect(
       importOutcomeSentence({
