@@ -200,7 +200,8 @@ import {
 } from "../utils/characterAliasOwners";
 import { getContextEntry } from "../utils/getContextEntry";
 import { characterNames } from "../utils/cueCharacter";
-import { directiveLine, linePickOf } from "../utils/directiveLinePick";
+import { directiveLine, directiveSpeakers, linePickOf } from "../utils/directiveLinePick";
+import { shownBeat } from "../../program/programShownBeat";
 import { getTypedImageEntry, typedImageTypes } from "../utils/resolveImageReference";
 import { setContextEntry } from "../utils/setContextEntry";
 import type { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
@@ -4854,6 +4855,19 @@ export class SparkdownCompiler {
       const emitted = new Set<string>();
       const scriptTree = this.documents.tree(uri);
       const directives = scriptTree ? readSourceDirectives(scriptTree, (from, to) => doc.read(from, to)) : [];
+      const directiveSource = {
+        read: (from: number, to: number) => doc.read(from, to),
+        characterNumber: (pos: number) => doc.positionAt(pos).character,
+        lineNumber: (pos: number) => doc.positionAt(pos).line,
+      };
+      const chunks = program.chunks;
+      const speakers =
+        scriptTree && chunks
+          ? directiveSpeakers(program.context, scriptTree, directiveSource, (construct) => shownBeat(chunks, uri, construct), directives, names)
+          : undefined;
+      if (speakers) {
+        (program.directiveSpeakers ??= {})[uri] = speakers;
+      }
       const emit = (struct: any, from: number, to: number, written: readonly string[], pickOf?: (layer: ImageLayer) => string | undefined) => {
         const layers = resolveImageLayers(program.context, struct);
         const look = shownLook(program.context, program.morphs, struct, undefined, pickOf?.(layers[0] ?? { src: "", struct }));
@@ -4929,7 +4943,7 @@ export class SparkdownCompiler {
       }
       const pickAt = (at: number, struct: any) =>
         scriptTree
-          ? linePickOf(program.context!, struct?.$name ?? "", directiveLine(program.context!, scriptTree, { read: (from, to) => doc.read(from, to), characterNumber: (pos) => doc.positionAt(pos).character }, at, names, directives))
+          ? linePickOf(program.context!, struct?.$name ?? "", directiveLine(scriptTree, directiveSource, at, speakers, directives))
           : undefined;
       let coveredTo = -1;
       const shownImages: typeof images = [];

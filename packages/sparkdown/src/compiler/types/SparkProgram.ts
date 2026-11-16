@@ -76,6 +76,7 @@ export interface SparkProgram {
   };
   sceneAssets?: { [flowName: string]: SceneAssets };
   imageThings?: { [imageName: string]: string };
+  directiveSpeakers?: { [uri: string]: { [position: string]: string | null } };
   version?: number;
   filesEpoch?: number;
   summary?: true;
