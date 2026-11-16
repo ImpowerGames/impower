@@ -186,6 +186,11 @@ const KINDS: Record<string, string[]> = {
   GluedTwiceOneLine: ["  They see .. queue | a cat | a dog .. and .. queue | a cow | a hen .. now."],
   GluedBesideSameText: ["  They see a } .. queue | a cat | a dog .. } outside."],
   GluedEmptyArm: ["  They see .. queue | | a dog .. outside."],
+  GluedTrailingEmptyArm: ["  They see .. queue | a dog | .. outside."],
+  GluedConditionalEmptyArm: ["  It is .. match(x) | | warm .. today."],
+  GluedOnlyEmptyArms: ["  They see .. queue | | .. outside."],
+  GluedConditionalTrailingEmptyArm: ["  It is .. match(x) | cold | .. today."],
+  GluedNestedConditionAlternator: ["  It is .. match(cycle | 1 | 2 end) | cold | warm .. today."],
   GluedQuotedBarArm: ["  They see .. queue | {\"a|b\"} | a dog .. outside."],
   GluedQuotedBraceArm: ["  They see .. queue | {\"{a}\"} | a dog .. outside."],
   ChoiceEscape: ["  * [Pick \\*one\\* _now_.]"],
@@ -1237,7 +1242,12 @@ describe("text the export inserts", () => {
   });
 
   it.each([
-    ["an empty alternative, dropped as a known gap (I-2389)", "GluedEmptyArm", "They see {a dog} outside."],
+    ["an empty alternative", "GluedEmptyArm", "They see {|a dog} outside."],
+    ["a trailing empty alternative", "GluedTrailingEmptyArm", "They see {a dog|} outside."],
+    ["an empty alternative of a conditional alternator", "GluedConditionalEmptyArm", "It is {|warm} today."],
+    ["only empty alternatives", "GluedOnlyEmptyArms", "They see {|} outside."],
+    ["a trailing empty alternative of a conditional alternator", "GluedConditionalTrailingEmptyArm", "It is {cold|} today."],
+    ["a conditional alternator whose condition holds an alternator", "GluedNestedConditionAlternator", "It is {cold|warm} today."],
     ["an alternative holding a quoted bar", "GluedQuotedBarArm", "They see {{\"a|b\"}|a dog} outside."],
     ["an alternative holding a quoted brace", "GluedQuotedBraceArm", "They see {{\"{a}\"}|a dog} outside."],
     ["source braces beside an alternative", "GluedBesideSameText", "They see a } {a cat|a dog} } outside."],
