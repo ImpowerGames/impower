@@ -77,6 +77,12 @@ describe("a directive holding an interpolation reads the same on a display line 
     },
   );
 
+  test("a closer inside an interpolation ends the directive there on both line kinds", () => {
+    const line = "((a {f(g(x))} b))";
+    expect(nodesOver(displayScript(line), "AudioCommand")).toEqual(["((a {f(g(x))"]);
+    expect(nodesOver(choiceScript(`Go ${line} now`), "AudioCommand")).toEqual(["((a {f(g(x))"]);
+  });
+
   test.each(["Go ((a {[[a]]} b)) now", "Go ((a {[=[a]=]} b)) now", "Go ((a {1 --[[c]] + 1} b)) now", "Go ((a {t[1]} b)) now"])(
     "the choice shows the directive's text unevaluated: `+ %s`",
     (text) => {
