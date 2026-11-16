@@ -21,9 +21,10 @@ const fs = vi.hoisted(() => ({
   getFolders: async () => [...disk.dirs].sort(),
   getFileUri: (_: string, path: string) => uri(path),
   getRelativePath: (_: string, u: string) => relative(u),
-  deleteFiles: async ({ files }: { files: { uri: string }[] }) => {
+  deleteFiles: async ({ files, batchKey }: { files: { uri: string }[]; batchKey?: string }) => {
     const held = new Map<string, string>();
-    const batch: Batch = { batchId: `b${disk.trash.length + 1}`, deletedAt: Date.now(), entries: [] };
+    const deletedAt = Date.now();
+    const batch: Batch = { batchId: `${deletedAt}__${batchKey ?? `b${disk.trash.length + 1}`}`, deletedAt, entries: [] };
     for (const { uri: u } of files) {
       const path = relative(u);
       held.set(path, disk.files.get(path)!);
@@ -34,9 +35,9 @@ const fs = vi.hoisted(() => ({
     disk.restored.set(batch.batchId, held);
     return files.map(({ uri: u }) => ({ uri: u }));
   },
-  deleteFolder: async (_: string, folder: string) => {
+  deleteFolder: async (_: string, folder: string, _mode?: string, batchKey?: string) => {
     const inside = [...disk.files.keys()].filter((p) => p.startsWith(`${folder}/`));
-    const deleted = inside.length ? await fs.deleteFiles({ files: inside.map((p) => ({ uri: uri(p) })) }) : [];
+    const deleted = inside.length ? await fs.deleteFiles({ files: inside.map((p) => ({ uri: uri(p) })), batchKey }) : [];
     const folders = [...disk.dirs].filter((d) => d === folder || d.startsWith(`${folder}/`));
     for (const d of folders) disk.dirs.delete(d);
     return { files: deleted, folders };
