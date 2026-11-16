@@ -12,6 +12,7 @@ import {
   codeWrittenTagsInTable,
   equalsInColonTagCodes,
   equalsInColonTagCodesInTable,
+  equalsInWrittenColonTagsInTable,
 } from "../runtime/storyTags";
 import { Tag } from "../runtime/Tag";
 import {
@@ -339,7 +340,7 @@ function readOutput(
 ): InkObject[] {
   const output = JsonSerialisation.JArrayToRuntimeObjList(json);
   return !styleCodes
-    ? output.map((obj) => scannedTable(obj))
+    ? output.map((obj) => scannedTable(equalsInWrittenColonTagsInTable(obj)))
     : !tagCodes
       ? output.map((obj) => codeWrittenTagsInTable(obj))
       : tagEquals

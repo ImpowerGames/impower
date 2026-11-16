@@ -106,6 +106,14 @@ end
     storyC.state.LoadJson(storyA.state.ToJson() as string);
     expect(storyC.currentStyledText).toBe(storyA.currentStyledText);
 
+    const storyD = testStory(compiled);
+    storyD.state.LoadJson(
+      JSON.stringify(legacy(current)).replace("A *word* here.", "A <speed:0.5>*word* <speed : 2>here <b2:x>."),
+    );
+    expect(storyD.currentStyledText?.trim()).toBe(
+      `${SCAN_OPEN}A <speed=0.5>*word* <speed = 2>here <b2:x>.${SCAN_CLOSE}`,
+    );
+
     storyB.Continue();
     expect(storyB.currentText?.trim()).toBe("B *two* there.");
     expect(styleRuns(storyB.currentStyledText?.trim() ?? "")).toEqual([

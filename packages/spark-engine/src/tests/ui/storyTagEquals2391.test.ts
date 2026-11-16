@@ -62,4 +62,11 @@ describe("a tag written with a colon is an unknown tag (#2391)", () => {
     expect(dialogueText(tagged)).toBe("Come closer");
     expect(afterTimes(tagged)).toEqual(afterTimes(plain));
   });
+
+  test("<speed : 2> with spaces around the colon leaves the speed an earlier tag set", async () => {
+    const spaced = await spokenBeat("<speed=0.5>Come <speed : 2>closer");
+    const slowed = await spokenBeat("<speed=0.5>Come closer");
+    expect(dialogueText(spaced)).toBe("Come closer");
+    expect(afterTimes(spaced)).toEqual(afterTimes(slowed));
+  });
 });

@@ -54,6 +54,13 @@ describe("an unknown tag gets a warning that names it (#2145, #193 decision 11)"
     ]);
   });
 
+  test("a tag written with spaces around its colon is told the equals form (#2391)", () => {
+    expect(tagWarnings("MIA:\n    Go <speed : 0.5>slow <wait :1>now.").map((w) => w.message)).toEqual([
+      "Unknown tag `<speed : 0.5>`; the player removes it from the text and does nothing else\n> A tag's value follows an equals sign: `<speed = 0.5>`",
+      "Unknown tag `<wait :1>`; the player removes it from the text and does nothing else\n> A tag's value follows an equals sign: `<wait =1>`",
+    ]);
+  });
+
   test("an unknown tag written with a colon gets no equals hint (#2391)", () => {
     expect(tagWarnings("A <b2:x>word here.").map((w) => w.message)).toEqual([
       "Unknown tag `<b2:x>`; the player removes it from the text and does nothing else",

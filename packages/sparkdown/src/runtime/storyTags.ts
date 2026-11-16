@@ -70,6 +70,8 @@ const knownName = (name: string): string | undefined =>
 export function readStoryTag(content: string): StoryTag {
   const match = TAG_CONTENT.exec(content);
   const written = match?.[2] ?? "";
+  const unread = match ? content.slice(match.index + match[0].length) : "";
+  if (/^\s*:/.test(unread)) return { name: written, known: false, closes: false };
   const argument = match?.[4] ? { argument: (match[6] ?? "").trim() } : {};
   const name = knownName(written);
   if (name) return { name, known: true, closes: false, ...argument };
@@ -135,6 +137,12 @@ export function codeWrittenTags(text: string): string {
   return out;
 }
 
+const knownEqualsForm = (content: string): string | undefined => {
+  const colon = /^([^:=]*):(.*)$/s.exec(content);
+  const equals = colon ? `${colon[1]}=${colon[2]}` : undefined;
+  return equals !== undefined && readStoryTag(equals).known ? equals : undefined;
+};
+
 export function equalsInColonTagCodes(text: string): string {
   if (!text.includes(TAG)) return text;
   let out = "";
@@ -144,12 +152,36 @@ export function equalsInColonTagCodes(text: string): string {
       out += text[i++];
       continue;
     }
-    const colon = /^([^:=]*):(.*)$/s.exec(code.content);
-    const equals = colon ? `${colon[1]}=${colon[2]}` : "";
-    out += colon && readStoryTag(equals).known ? tagCode(equals) : text.slice(i, code.next);
+    const equals = knownEqualsForm(code.content);
+    out += equals !== undefined ? tagCode(equals) : text.slice(i, code.next);
     i = code.next;
   }
   return out;
+}
+
+export function equalsInWrittenColonTags(text: string): string {
+  if (!text.includes("<")) return text;
+  let out = "";
+  for (let i = 0; i < text.length; ) {
+    if (text[i] === "\\") {
+      out += text.slice(i, i + 2);
+      i += 2;
+      continue;
+    }
+    const tag = text[i] === "<" ? readTextCommandAt(text, i) : undefined;
+    if (!tag) {
+      out += text[i++];
+      continue;
+    }
+    const equals = knownEqualsForm(tag.content);
+    out += equals !== undefined ? `<${equals}>` : text.slice(i, tag.next);
+    i = tag.next;
+  }
+  return out;
+}
+
+export function equalsInWrittenColonTagsInTable<T>(payload: T): T | ObjectValue {
+  return mapTableText(payload, equalsInWrittenColonTags);
 }
 
 export function codeWrittenTagsInTable<T>(payload: T): T | ObjectValue {
