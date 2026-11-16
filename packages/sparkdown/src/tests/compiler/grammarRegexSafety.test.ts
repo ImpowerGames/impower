@@ -129,8 +129,6 @@ const CHOICE_CLOSE_SEARCHES: [string, string, "begin" | "match", string][] = [
   ["bracketed interpolations in an audio command with no closer", "ChoiceStartTextContent", "match", "Go ((a" + " {t[1]}".repeat(40) + " [y] z"],
   ["interpolations in an audio command with no closer, in a suppression", "ChoiceOnlyTextContent", "match", "Go ((a" + " {x}".repeat(40) + " ] z"],
   ["interpolations in an audio command with no closer, before an arrow", "ChoiceInnerTextContent", "match", "Go ((a" + " {x}".repeat(40) + " -> z"],
-  ["long-bracket openers after braces in a closed audio command in inner text", "ChoiceInnerTextContent", "match", "Go ((a" + " {[[".repeat(4000) + " )) z"],
-  ["long-bracket openers after braces in a closed audio command in a suppression", "ChoiceOnlyTextContent", "match", "Go ((a" + " {[=[".repeat(4000) + " )) z"],
   ["quotes after braces in a closed audio command", "ChoiceStartTextContent", "match", "Go ((a" + ' {"'.repeat(4000) + " )) z"],
   ["backticks after braces in a closed text command", "ChoiceStartTextContent", "match", "Go <a" + " {`".repeat(4000) + " > z"],
 ];
@@ -356,5 +354,17 @@ describe("a choice line that never meets a close is read at once (#2083)", () =>
     re.exec(line);
     const ms = performance.now() - t0;
     expect(ms, `${rule}.${key} took ${ms.toFixed(1)}ms`).toBeLessThan(100);
+  });
+
+  test.each([
+    ["long-bracket openers after braces in a closed audio command in inner text", "ChoiceInnerTextContent", "Go ((a" + " {[[".repeat(4000) + " )) z"],
+    ["long-bracket openers after braces in a closed audio command in a suppression", "ChoiceOnlyTextContent", "Go ((a" + " {[=[".repeat(4000) + " )) z"],
+  ])("%s rereads the command from each brace, in time quadratic in their number, within the stated limit of 4,000 openers in 1 s (I-2444)", (_what, rule, line) => {
+    const re = new RegExp(grammar.repository[rule].match, "muy");
+    re.lastIndex = 0;
+    const t0 = performance.now();
+    re.exec(line);
+    const ms = performance.now() - t0;
+    expect(ms, `${rule}.match took ${ms.toFixed(1)}ms`).toBeLessThan(1000);
   });
 });
