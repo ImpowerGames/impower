@@ -9183,7 +9183,7 @@
           "include": "#LuauSparkdownInlineGluedAlternatorArm"
         }
       ],
-      "end": "((?:[^\\S\\n\\r])+)((?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))",
+      "end": "((?:[^\\S\\n\\r])*)((?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -9252,7 +9252,7 @@
           "include": "#LuauSparkdownInlineGluedAlternatorArm"
         }
       ],
-      "end": "((?:[^\\S\\n\\r])+)((?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))",
+      "end": "((?:[^\\S\\n\\r])*)((?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))",
       "endCaptures": {
         "1": {
           "patterns": [

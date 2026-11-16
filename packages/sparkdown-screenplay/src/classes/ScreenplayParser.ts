@@ -240,21 +240,33 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
     const inserted = (text: string, anchor: number): Reading =>
       positions ? { text, styled: text, at: new Array<number>(text.length).fill(insertedAt(anchor)) } : plain(text);
     const readGlued = (block: SyntaxNode, source: number[]): Reading => {
-      const arms: { reading: Reading; ranges: number[] }[] = [];
-      const cursor = block.cursor();
-      while (cursor.next() && cursor.from < block.to) {
-        if (cursor.name !== GLUED_ARM) continue;
-        const arm = readArm(cursor.node, source);
-        if (arm) arms.push(arm);
-      }
+      const arms: { arm?: { reading: Reading; ranges: number[] }; read: boolean }[] = [];
+      const walk = (node: SyntaxNode) => {
+        for (let child = node.firstChild; child; child = child.nextSibling) {
+          if (child.name === ALTERNATOR_SEPARATOR) {
+            arms.push({ read: false });
+          } else if (child.name === GLUED_ARM) {
+            if (arms.length === 0 || arms.at(-1)!.read) arms.push({ read: false });
+            const slot = arms.at(-1)!;
+            slot.read = true;
+            slot.arm = readArm(child, source);
+          } else {
+            walk(child);
+          }
+        }
+      };
+      walk(block);
       if (arms.length === 0) return NO_TEXT;
-      const parts: Reading[] = [inserted(gluedAlternatorJoin("before"), arms[0]!.ranges[0]!)];
-      arms.forEach((arm, index) => {
-        if (index > 0) parts.push(inserted(gluedAlternatorJoin("between"), arm.ranges[0]!));
-        parts.push(arm.reading);
+      const printedEnd = (index: number) => arms.slice(0, index + 1).findLast((slot) => slot.arm)?.arm!.ranges.at(-1);
+      const startAnchor = (index: number) =>
+        arms.slice(index).find((slot) => slot.arm)?.arm!.ranges[0] ?? printedEnd(index) ?? block.from;
+      const parts: Reading[] = [inserted(gluedAlternatorJoin("before"), startAnchor(0))];
+      arms.forEach((slot, index) => {
+        if (index > 0) parts.push(inserted(gluedAlternatorJoin("between"), startAnchor(index)));
+        if (slot.arm) parts.push(slot.arm.reading);
       });
       const after = gluedAlternatorJoin("after");
-      if (after) parts.push(inserted(after, arms.at(-1)!.ranges.at(-1)!));
+      if (after) parts.push(inserted(after, printedEnd(arms.length - 1) ?? block.from));
       return join(...parts);
     };
     const readChoiceText = (node: SyntaxNode): Reading => {
