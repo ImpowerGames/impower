@@ -2197,7 +2197,7 @@ const DRAWER_BUTTON_SELECTOR = 'button[aria-label="Open Menu"]';
 const APP_MENU_BUTTON_SELECTOR = 'button[aria-label="App menu"], aside[aria-label="Sidebar"] button[aria-haspopup="menu"]';
 const APP_MENU_SELECTOR = SURFACE_SELECTORS.menu;
 
-export function appMenuSettled(selector) {
+function appMenuSettled(selector) {
   const menu = document.querySelector(selector);
   const sheet = menu?.closest('[role="dialog"]');
   const root = sheet?.parentElement ?? menu;
@@ -2206,7 +2206,7 @@ export function appMenuSettled(selector) {
   return !root.getAnimations({ subtree: true }).some((animation) => animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming().endTime));
 }
 
-export function documentSettled() {
+function documentSettled() {
   return !document.getAnimations().some((animation) => animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming().endTime));
 }
 
