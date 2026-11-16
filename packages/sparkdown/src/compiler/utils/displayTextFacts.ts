@@ -15,13 +15,19 @@ export interface DisplayTextFacts {
 
 const INTERPOLATION = "LuauInterpolatedStringExpression";
 
-const QUOTED = /^(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')$/s;
+const QUOTED_STRINGS = new Set(["LuauDoubleQuotedString", "LuauSingleQuotedString"]);
 
 const constantInterpolation = (node: SyntaxNode, read: SourceReader["read"]): string | undefined => {
   const content = node.getChild(`${INTERPOLATION}_content`);
   if (!content) return "";
-  const match = QUOTED.exec(read(content.from, content.to).trim());
-  return match ? (match[1] ?? match[2] ?? "") : undefined;
+  const parts: SyntaxNode[] = [];
+  for (let child = content.firstChild; child; child = child.nextSibling) {
+    if (read(child.from, child.to).trim()) parts.push(child);
+  }
+  const only = parts.length === 1 ? parts[0]! : undefined;
+  if (!only || !QUOTED_STRINGS.has(only.name) || !only.getChild(`${only.name}_end`)) return undefined;
+  const value = only.getChild(`${only.name}_content`);
+  return value ? read(value.from, value.to) : "";
 };
 
 export const displayTextFacts = (
