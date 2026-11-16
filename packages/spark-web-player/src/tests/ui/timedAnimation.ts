@@ -6,6 +6,14 @@ export class TimedEffect {
     public keyframes: unknown,
     public timing: EffectTiming = {},
   ) {}
+  getKeyframes() {
+    const frames = Array.isArray(this.keyframes)
+      ? this.keyframes
+      : this.keyframes
+        ? [this.keyframes]
+        : [];
+    return frames.map((frame) => ({ ...(frame as object) }));
+  }
   getTiming() {
     return this.timing;
   }

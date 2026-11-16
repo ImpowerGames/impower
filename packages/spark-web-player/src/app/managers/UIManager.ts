@@ -1376,10 +1376,8 @@ export default class UIManager extends Manager {
         }
       }
       await player.play();
-      if (this.app.previewing === true) {
-        for (const animation of played) {
-          this.dropSettledAnimation(animation);
-        }
+      for (const animation of played) {
+        this.dropSettledAnimation(animation);
       }
       return AnimateElementsMessage.type.result(validEffects);
     }
