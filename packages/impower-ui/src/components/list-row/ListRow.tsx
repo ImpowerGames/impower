@@ -506,7 +506,7 @@ export const listRowBadgeVariants = cva(
       placement: {
         trailing: "h-11 w-11 self-center",
         gutter:
-          "absolute inset-y-0 left-[calc(-26px_-_var(--list-row-depth,0)_*_18px)] w-[26px] pl-1 [:root[data-pointer=coarse]_&]:left-[calc(-44px_-_var(--list-row-depth,0)_*_18px)] [:root[data-pointer=coarse]_&]:w-11",
+          "absolute inset-y-0 left-[calc(-1_*_var(--list-row-gutter)_-_var(--list-row-depth,0)_*_18px)] w-(--list-row-gutter) pl-1 [:root[data-pointer=coarse]_&]:left-[calc(-44px_-_var(--list-row-depth,0)_*_18px)] [:root[data-pointer=coarse]_&]:w-11",
       },
     },
     defaultVariants: { placement: "trailing" },

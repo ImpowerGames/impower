@@ -1,4 +1,4 @@
-import { ensureSyntaxTree, forceParsing } from "@codemirror/language";
+import { ensureSyntaxTree, forceParsing, syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import type { Tree } from "@lezer/common";
@@ -14,6 +14,19 @@ export const completeTree = (state: EditorState): Tree => {
     );
   }
   return tree;
+};
+
+export const replaceWithParseCut = (view: EditorView, text: string, clockReads: number): number => {
+  const realNow = Date.now;
+  const start = realNow();
+  let reads = 0;
+  Date.now = () => (reads++ < clockReads ? start : start + PARSE_TIMEOUT_MS);
+  try {
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+  } finally {
+    Date.now = realNow;
+  }
+  return syntaxTree(view.state).length;
 };
 
 export const settleParse = (view: EditorView): void => {

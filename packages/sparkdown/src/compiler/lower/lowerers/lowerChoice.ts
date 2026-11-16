@@ -5,7 +5,6 @@ import {
   choiceTextMarkerKind,
   choiceTextMarkers,
   readChoiceText,
-  type ChoiceText,
 } from "../../utils/readChoiceText";
 import { trimStyled, writesNothing } from "../../../runtime/displayStyle";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -43,8 +42,6 @@ import {
 import {
   collectDisplaySpans,
   writeStyledRange,
-  type DisplaySpans,
-  type SpanCode,
 } from "../utils/displaySpans";
 import {
   inlineGluedAlternatorFrom,
@@ -93,17 +90,16 @@ export function lowerChoice(
 
   const text = readChoiceText(nodeRef.node);
   const hasWeaveStyleInlineBrackets = text.inner !== null;
-  const literalBrackets = literalBracketPositions(text, ctx);
   const appendStart = (list: ContentList): void => {
     for (const part of text.start) {
-      appendNodeContent(part.node, ctx, list, true, part.node.from, part.to, literalBrackets);
+      appendNodeContent(part.node, ctx, list, true, part.node.from, part.to);
     }
   };
 
   appendStart(startContent);
   if (text.inner) {
-    if (text.only) appendNodeContent(text.only, ctx, choiceOnlyContent, false, text.only.from, text.only.to, literalBrackets);
-    appendNodeContent(text.inner, ctx, innerContent, false, text.inner.from + 1, text.inner.to, literalBrackets);
+    if (text.only) appendNodeContent(text.only, ctx, choiceOnlyContent, false, text.only.from, text.only.to);
+    appendNodeContent(text.inner, ctx, innerContent, false, text.inner.from + 1, text.inner.to);
   }
 
   const divertNode = getDescendent("Divert", nodeRef.node);
@@ -329,40 +325,6 @@ function isChoiceTextOpaque(node: SyntaxNode): boolean {
   return choiceTextMarkerKind(node) !== null || isInlineGluedAlternator(node);
 }
 
-const BRACKET_CHARACTERS = ["(", "["];
-
-const RAW_SPANS: ReadonlySet<string> = nodeNameSet(["ChoiceStartRaw", "ChoiceOnlyRaw", "ChoiceInnerRaw", "Raw"]);
-
-function withLiteralBrackets(
-  spans: DisplaySpans,
-  literalBrackets: ReadonlySet<number>,
-  from: number,
-  to: number,
-): DisplaySpans {
-  const escapes = [...literalBrackets]
-    .filter((at) => from <= at && at < to)
-    .map((at): SpanCode => ({ at, code: "\\", closes: false, depth: 0 }));
-  if (escapes.length === 0) return spans;
-  return { ...spans, codes: [...spans.codes, ...escapes].sort((a, b) => a.at - b.at) };
-}
-
-function literalBracketPositions(text: ChoiceText, ctx: LowerContext): ReadonlySet<number> {
-  const positions = new Set<number>();
-  const walk = (node: SyntaxNode): void => {
-    if (isChoiceTextOpaque(node) || RAW_SPANS.has(node.name)) return;
-    if (node.name === "Punctuation") {
-      // value-level: the one character a Punctuation node holds.
-      if (BRACKET_CHARACTERS.includes(ctx.read(node.from, node.to))) positions.add(node.from);
-      return;
-    }
-    for (let child = node.firstChild; child; child = child.nextSibling) walk(child);
-  };
-  for (const part of [...text.start.map((p) => p.node), text.only, text.inner]) {
-    if (part) walk(part);
-  }
-  return positions;
-}
-
 function appendNodeContent(
   captureNode: SyntaxNode,
   ctx: LowerContext,
@@ -370,14 +332,8 @@ function appendNodeContent(
   trimStart = false,
   from = captureNode.from,
   to = captureNode.to,
-  literalBrackets: ReadonlySet<number> = new Set(),
 ): boolean {
-  const spans = withLiteralBrackets(
-    collectDisplaySpans(captureNode, from, to, ctx, isChoiceTextOpaque, true),
-    literalBrackets,
-    from,
-    to,
-  );
+  const spans = collectDisplaySpans(captureNode, from, to, ctx, isChoiceTextOpaque, true);
   const spanCursor = { code: 0, mark: 0 };
   const alternators: SyntaxNode[] = [];
   const findAlternators = (node: SyntaxNode): void => {

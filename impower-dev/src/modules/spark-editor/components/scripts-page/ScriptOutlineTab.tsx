@@ -6,7 +6,7 @@ import { LibraryToolbar, SearchBox } from "../library-page";
 
 export const OUTLINE_TAB = "outline";
 
-export const SCRIPT_OUTLINE_ROW = { size: "outline", badgePlacement: "trailing" } as const;
+export const SCRIPT_OUTLINE_ROW = { size: "outline", tone: "muted", badgePlacement: "trailing" } as const;
 
 const reveal = (uri: string, row: OutlineRow) =>
   void import("../../workspace/Workspace").then(({ Workspace }) => {

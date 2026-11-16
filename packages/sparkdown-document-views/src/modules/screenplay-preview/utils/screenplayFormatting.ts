@@ -1111,7 +1111,40 @@ export const decorate = (
   closeAlign();
   if (printedLine) hideUnprinted(printedUpTo, printedLine.to);
 
-  return decorations;
+  return splitHiddenAtBlocks(decorations);
+};
+
+const isHiddenText = (range: Range<Decoration>) =>
+  range.value.point && !range.value.spec.block && !range.value.spec.widget && range.to > range.from;
+
+const splitHiddenAtBlocks = (decorations: Range<Decoration>[]): Range<Decoration>[] => {
+  const blockStarts = decorations
+    .filter((range) => range.value.spec.block)
+    .map((range) => range.from)
+    .sort((a, b) => a - b);
+  if (blockStarts.length === 0) return decorations;
+  const firstStartAfter = (pos: number) => {
+    let low = 0;
+    let high = blockStarts.length;
+    while (low < high) {
+      const mid = (low + high) >> 1;
+      if (blockStarts[mid]! <= pos) low = mid + 1;
+      else high = mid;
+    }
+    return blockStarts[low];
+  };
+  return decorations.flatMap((range) => {
+    if (!isHiddenText(range)) return [range];
+    const pieces: Range<Decoration>[] = [];
+    let from = range.from;
+    for (let start = firstStartAfter(from); start !== undefined && start < range.to; start = firstStartAfter(start)) {
+      pieces.push(range.value.range(from, start));
+      from = start;
+    }
+    if (pieces.length === 0) return [range];
+    pieces.push(range.value.range(from, range.to));
+    return pieces;
+  });
 };
 
 const replaceDecorations = StateField.define<DecorationSet>({

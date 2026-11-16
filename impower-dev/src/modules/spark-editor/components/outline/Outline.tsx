@@ -33,7 +33,7 @@ function Heading({
   action: ComponentChildren;
 }) {
   return (
-    <div class="flex h-11 flex-none items-center justify-between pr-1 pl-9">
+    <div class="flex h-11 flex-none items-center justify-between pr-1 pl-[calc(var(--list-row-gutter)_+_10px)] in-data-[layout=compact]:pl-[calc(var(--list-row-gutter)_+_8px)]">
       <h2 class="m-0 text-[14px]/[1.4] font-semibold text-ink">{title}</h2>
       {action}
     </div>
@@ -80,7 +80,7 @@ export default function Outline() {
             {model.rows.length && uri ? (
               <VirtualList
                 key={uri}
-                class="flex-1 pr-gutter-[14px] pb-3 pl-[26px] in-data-[layout=compact]:pr-gutter-2.5 [:root[data-pointer=coarse]_&]:pl-11"
+                class="flex-1 pr-gutter-[14px] pb-3 pl-(--list-row-gutter) in-data-[layout=compact]:pr-gutter-2.5 [:root[data-pointer=coarse]_&]:pl-11"
                 label={`Scene outline in ${scriptName(uri)}`}
                 size={OUTLINE_RAIL_ROW.size}
                 items={rows}

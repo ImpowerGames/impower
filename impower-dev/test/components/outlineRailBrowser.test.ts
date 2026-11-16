@@ -119,12 +119,14 @@ const measure = async (
   markup: string,
   theme: "charcoal" | "chalk",
   pointer: "fine" | "coarse" = "fine",
+  width = 1440,
 ) => {
   const coarse = pointer === "coarse";
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, hasTouch: coarse });
+  const layout = width > 1100 ? "desktop" : width > 700 ? "compact" : "phone";
+  const page = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: coarse });
   try {
     await page.setContent(
-      `<!doctype html><html data-theme="${theme}" data-layout="desktop" data-pointer="${pointer}"><head><style>${css}</style></head><body style="margin:0"><div id="rail" style="width:${RAIL_WIDTH}px;height:525px;display:flex;flex-direction:column">${markup}</div></body></html>`,
+      `<!doctype html><html data-theme="${theme}" data-layout="${layout}" data-pointer="${pointer}"><head><style>${css}</style></head><body style="margin:0"><div id="rail" style="width:${RAIL_WIDTH}px;height:525px;display:flex;flex-direction:column">${markup}</div></body></html>`,
     );
     return await page.evaluate(() => {
       const probe = document.createElement("div");
@@ -148,6 +150,8 @@ const measure = async (
       swatch.remove();
       return {
         accentColor,
+        headingLeft: document.querySelector("nav h2")!.getBoundingClientRect().left,
+        listPaddingLeft: getComputedStyle(scroller).paddingLeft,
         scrollbar: scroller.offsetWidth - scroller.clientWidth,
         overflows: scroller.scrollHeight > scroller.clientHeight,
         rows: [...list.querySelectorAll('[role="listitem"]')].map((item) => {
@@ -339,6 +343,36 @@ describe("the docked Outline rail's rows, in Chromium at 1440", () => {
         expect(moving[name]!.row.right, name).toBe(still[name]!.row.right);
       }
     }, 60_000);
+  }
+
+  const GUTTERS = [
+    { width: 1024, column: 22, edge: 10, heading: 30 },
+    { width: 1100, column: 22, edge: 10, heading: 30 },
+    { width: 1101, column: 26, edge: 14, heading: 36 },
+  ] as const;
+  for (const { width, column, edge, heading } of GUTTERS) {
+    for (const theme of ["charcoal", "chalk"] as const) {
+      it(`give the badge a ${column}px gutter column and the rows a ${edge}px right edge at ${width}, the heading following, in ${theme}`, async () => {
+        const badgedM = await measure(markups.badged!, theme, "fine", width);
+        const badged = byName(badgedM);
+        const clean = byName(await measure(markups.clean!, theme, "fine", width));
+        expect(badgedM.listPaddingLeft).toBe(`${column}px`);
+        expect(badgedM.headingLeft).toBe(heading);
+        for (const [name, depth] of Object.entries(DEPTHS)) {
+          const r = badged[name]!;
+          expect(r.row.left, name).toBe(column + depth * 18);
+          expect(r.row.right, name).toBe(RAIL_WIDTH - edge);
+          expect(geometry(r), name).toEqual(geometry(clean[name]!));
+          if (!r.badge) continue;
+          expect(r.badge.left, name).toBe(2);
+          expect(r.badge.width, name).toBe(column);
+          expect(r.badge.right, name).toBeLessThanOrEqual(r.open.left);
+          expect(r.mark!.width, name).toBe(14);
+          expect(r.mark!.height, name).toBe(14);
+          expect(r.mark!.left, name).toBe(column / 2 - 3);
+        }
+      }, 60_000);
+    }
   }
 
   it("widens the badge's press target to 44px under a coarse pointer without overlapping the row or changing its height", async () => {
