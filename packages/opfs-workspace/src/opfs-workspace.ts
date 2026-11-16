@@ -253,152 +253,13 @@ const withAncestors = (uri: string) => {
 
 const commitLockName = (uri: string) => `opfs-workspace:commit:${uri}`;
 
-interface EditHold {
-  locks: Map<string, boolean>;
-  acquired: boolean;
-  ready: Promise<void>;
-  borrowers: number;
-  idle: Set<() => void>;
-}
-
-const editHolds: EditHold[] = [];
-const editTails = new Map<string, Promise<void>>();
-const inFlight = new Map<string, number>();
-const inFlightWaiters = new Set<() => void>();
-
-const holdOf = (name: string) =>
-  editHolds.find((hold) => hold.acquired && hold.locks.has(name));
-
-const reservedBy = (names: string[]) =>
-  names.flatMap((name) =>
-    holdOf(name)
-      ? []
-      : editHolds.filter((hold) => !hold.acquired && hold.locks.has(name)),
-  );
-
-const enterFlight = (names: string[]) => {
-  for (const name of names) {
-    inFlight.set(name, (inFlight.get(name) ?? 0) + 1);
-  }
-};
-
-const leaveFlight = (names: string[]) => {
-  for (const name of names) {
-    const count = (inFlight.get(name) ?? 1) - 1;
-    if (count > 0) {
-      inFlight.set(name, count);
-    } else {
-      inFlight.delete(name);
-    }
-  }
-  inFlightWaiters.forEach((wake) => wake());
-};
-
-const flightSettled = async (names: string[]) => {
-  while (names.some((name) => inFlight.has(name))) {
-    await new Promise<void>((resolve) => {
-      const wake = () => {
-        inFlightWaiters.delete(wake);
-        resolve();
-      };
-      inFlightWaiters.add(wake);
-    });
-  }
-};
-
-const withEditHeldLock = <T>(name: string, task: () => Promise<T>) => {
-  const run = (editTails.get(name) ?? Promise.resolve()).then(task);
-  const tail = run.then(
-    () => undefined,
-    () => undefined,
-  );
-  editTails.set(name, tail);
-  void tail.then(() => {
-    if (editTails.get(name) === tail) {
-      editTails.delete(name);
-    }
-  });
-  return run;
-};
-
-const withCommitLock = async <T>(uri: string, task: () => Promise<T>) => {
-  const names = withAncestors(uri).reverse().map(commitLockName);
-  for (;;) {
-    const waiting = reservedBy(names);
-    if (waiting.length === 0) {
-      break;
-    }
-    await Promise.all(waiting.map((hold) => hold.ready));
-  }
-  enterFlight(names);
-  const lockFrom = (index: number): Promise<T> => {
-    const name = names[index]!;
-    const hold = holdOf(name);
-    if (index < names.length - 1) {
-      return hold
-        ? lockFrom(index + 1)
-        : withSharedLock(name, () => lockFrom(index + 1));
-    }
-    if (!hold?.locks.get(name)) {
-      return withLock(name, task);
-    }
-    hold.borrowers += 1;
-    return withEditHeldLock(name, task).finally(() => {
-      hold.borrowers -= 1;
-      hold.idle.forEach((wake) => wake());
-    });
-  };
-  try {
-    return await lockFrom(0);
-  } finally {
-    leaveFlight(names);
-  }
-};
-
-const holdEditLocks = async <T>(
-  locks: Map<string, boolean>,
-  task: () => Promise<T>,
-) => {
-  let release!: () => void;
-  const hold: EditHold = {
-    locks,
-    acquired: false,
-    ready: new Promise<void>((resolve) => {
-      release = resolve;
-    }),
-    borrowers: 0,
-    idle: new Set(),
-  };
-  const borrowersSettled = async () => {
-    while (hold.borrowers > 0) {
-      await new Promise<void>((resolve) => {
-        const wake = () => {
-          hold.idle.delete(wake);
-          resolve();
-        };
-        hold.idle.add(wake);
-      });
-    }
-  };
-  editHolds.push(hold);
-  const names = [...locks.keys()].sort();
-  try {
-    await flightSettled(names);
-    const take = (index: number): Promise<T> => {
-      if (index < names.length) {
-        const name = names[index]!;
-        const next = () => take(index + 1);
-        return locks.get(name) ? withLock(name, next) : withSharedLock(name, next);
-      }
-      hold.acquired = true;
-      release();
-      return task().finally(borrowersSettled);
-    };
-    return await take(0);
-  } finally {
-    editHolds.splice(editHolds.indexOf(hold), 1);
-    release();
-  }
+const withCommitLock = <T>(uri: string, task: () => Promise<T>) => {
+  const parents = withAncestors(uri).slice(1).reverse();
+  const lockFrom = (index: number): Promise<T> =>
+    index < parents.length
+      ? withSharedLock(commitLockName(parents[index]!), () => lockFrom(index + 1))
+      : withLock(commitLockName(uri), task);
+  return lockFrom(0);
 };
 
 const commitChange = <T>(
@@ -1421,6 +1282,8 @@ class UndoLog {
   own = new Set<number>();
   seen = new Map<string, Set<number>>();
   copies: TrashCopy[] = [];
+  written = new Map<string, ArrayBuffer | null | "folder">();
+  folderHandles = new Map<string, FileSystemDirectoryHandle>();
   trashDirectories = new Set<string>();
   trashBatch?: { projectId: string; deletedAt: number; id: string };
 
@@ -1447,9 +1310,6 @@ class UndoLog {
         continue;
       }
       if (isFolderChange(change)) {
-        if (await findFileHandle(uri)) {
-          throw new Error(`${getFileName(getPathFromUri(uri))} is a file, not a folder`);
-        }
         this.seen.set(uri, new Set());
         const directory = await isStoredDirectory(uri);
         this.prior.set(uri, { uri, directory, folder: true });
@@ -1489,15 +1349,51 @@ class UndoLog {
     return [...(this.seen.get(uri) ?? [])].some((local) => !this.own.has(local));
   }
 
+  expect(uri: string, state: ArrayBuffer | null | "folder") {
+    this.written.set(uri, state);
+  }
+
+  async holdFolders() {
+    const root = await navigator.storage.getDirectory();
+    for (const uri of this.directories) {
+      if (!this.folderHandles.has(uri)) {
+        const handle = await findDirectory(root, getPathFromUri(uri));
+        if (handle) {
+          this.folderHandles.set(uri, handle);
+        }
+      }
+    }
+  }
+
+  rewrote(uris: string[]) {
+    for (const uri of uris) {
+      this.written.delete(uri);
+    }
+  }
+
+  replacedElsewhere(uri: string, current?: ArrayBuffer) {
+    if (!this.written.has(uri)) {
+      return false;
+    }
+    const written = this.written.get(uri);
+    if (written === null || written === "folder" || written === undefined) {
+      return !!current;
+    }
+    return !current || !sameStored(current, written);
+  }
+
   async removeOwnFolders(uris: string[], log: CommitLog) {
     const depth = (uri: string) => uri.split("/").length;
     const removed: string[] = [];
     const left: string[] = [];
     for (const uri of [...new Set(uris)].sort((a, b) => depth(b) - depth(a))) {
+      const held = this.folderHandles.get(uri);
       const local = await removeEmptyFolder(
         uri,
         log,
-        () => !this.changedElsewhere(uri),
+        async (directory) =>
+          !this.changedElsewhere(uri) &&
+          (!held || (await held.isSameEntry(directory))),
       );
       if (local !== undefined) {
         this.commit(local);
@@ -1671,6 +1567,10 @@ class UndoLog {
         await drainWrites(entry.uri);
         const current = await storedBytes(entry.uri);
         if (current) {
+          if (this.replacedElsewhere(entry.uri, current)) {
+            kept.push(entry.uri);
+            continue;
+          }
           await destroy({
             entry: { uri: entry.uri, directory: false },
             current,
@@ -1692,11 +1592,8 @@ class UndoLog {
     const overwrites: Restoring[] = [];
     let removals: Restoring[] = [];
     const replacedByFolder: PriorEntry[] = [];
-    for (const entry of entries.filter((e) => !e.directory)) {
+    for (const entry of entries.filter((e) => !e.directory && !e.folder)) {
       try {
-        if (entry.folder && !(await findFileHandle(entry.uri))) {
-          continue;
-        }
         await drainWrites(entry.uri);
         if (entry.bytes && (await isStoredDirectory(entry.uri))) {
           if (this.movedOn(entry)) {
@@ -1715,6 +1612,8 @@ class UndoLog {
         const target = { entry, current, local };
         if (sameStored(current, entry.bytes)) {
           restored.push(entry.uri);
+        } else if (this.replacedElsewhere(entry.uri, current)) {
+          kept.push(entry.uri);
         } else if (!current) {
           creates.push(target);
         } else if (entry.bytes) {
@@ -1830,12 +1729,25 @@ const applyChange = async (
       type: result.created ? FileChangeType.Created : FileChangeType.Changed,
     });
   };
+  undo.rewrote(
+    "textDocument" in change
+      ? [change.textDocument.uri]
+      : change.kind === "rename"
+        ? [change.oldUri, change.newUri]
+        : [change.uri],
+  );
   if (isFolderChange(change) && change.kind === "create") {
-    await createDirectories([change.uri], log);
+    await createDirectories([change.uri], log, (uri, directory) => {
+      if (directory && undo.directories.has(uri)) {
+        undo.folderHandles.set(uri, directory);
+      }
+    });
     undo.commit(State.localVersions.get(change.uri)!);
+    undo.expect(change.uri, "folder");
     effects.foldersCreated.push(change.uri);
   } else if (isFolderChange(change)) {
     const local = await removeEmptyFolder(change.uri, log);
+    undo.expect(change.uri, null);
     if (local !== undefined) {
       undo.commit(local);
       effects.foldersDeleted.push(change.uri);
@@ -1851,9 +1763,19 @@ const applyChange = async (
       });
     }
   } else if (change.kind === "create") {
+    const data = change.data ?? new ArrayBuffer(0);
+    const stored = storedForm(change.uri, new Uint8Array(data));
+    const expected =
+      stored.byteLength === data.byteLength && stored.buffer === data
+        ? data
+        : (stored.buffer.slice(stored.byteOffset, stored.byteOffset + stored.byteLength) as ArrayBuffer);
+    const before = undo.prior.get(change.uri);
+    undo.expect(change.uri, before?.bytes ?? null);
     (await createFiles([change])).forEach(wrote);
+    undo.expect(change.uri, expected);
   } else if (change.kind === "delete") {
     const [result] = await deleteFiles([change]);
+    undo.expect(change.uri, null);
     if (result) {
       undo.commit(result.local);
       log.record(result.uri, result.local, result.commit);
@@ -1900,78 +1822,6 @@ const applyWorkspaceEdit = async (
       textDocument: { uri, version: State.files.get(uri)?.version ?? 0 },
       edits,
     }));
-  for (let attempt = 1; attempt <= EDIT_LOCK_ATTEMPTS; attempt += 1) {
-    const locks = await editLocks(changes);
-    const outcome = await holdEditLocks(locks, async () =>
-      (await sharedParentGone(locks))
-        ? undefined
-        : applyHeldWorkspaceEdit(changes, log, { expectedTexts, action, confirm }),
-    );
-    if (outcome) {
-      return outcome;
-    }
-  }
-  return {
-    effects: noEffects(),
-    failure: {
-      change: 0,
-      reason: "folders the edit needs kept being removed while it was preparing, so nothing was changed",
-      rollback: { complete: true, failed: [], kept: [] },
-    },
-  };
-};
-
-const EDIT_LOCK_ATTEMPTS = 3;
-
-const sharedParentGone = async (locks: Map<string, boolean>) => {
-  for (const [name, exclusive] of locks) {
-    if (!exclusive && !(await isStoredDirectory(name.slice(commitLockName("").length)))) {
-      return true;
-    }
-  }
-  return false;
-};
-
-const touchedBy = (changes: WorkspaceEditChange[]) =>
-  changes.flatMap((change) =>
-    "textDocument" in change
-      ? [change.textDocument.uri]
-      : change.kind === "rename"
-        ? [change.oldUri, change.newUri]
-        : [change.uri],
-  );
-
-const editLocks = async (changes: WorkspaceEditChange[]) => {
-  const locks = new Map<string, boolean>();
-  const touched = touchedBy(changes);
-  for (const uri of touched) {
-    locks.set(commitLockName(uri), true);
-  }
-  for (const uri of touched) {
-    const trash = getUriFromPath(`${getPathFromUri(uri).split("/")[0]}/${TRASH_DIR}`);
-    for (const parent of [...withAncestors(uri).slice(1), trash]) {
-      const name = commitLockName(parent);
-      if (!locks.has(name)) {
-        locks.set(name, !(await isStoredDirectory(parent)));
-      }
-    }
-  }
-  return locks;
-};
-
-const applyHeldWorkspaceEdit = async (
-  changes: WorkspaceEditChange[],
-  log: CommitLog,
-  {
-    expectedTexts,
-    action,
-    confirm,
-  }: {
-    expectedTexts?: Record<string, string>;
-    action?: WorkspaceEditAction;
-    confirm?: () => Promise<string | undefined>;
-  },
-) => {
   const changed = Object.keys(expectedTexts ?? {}).find(
     (uri) => !matchesExpectedText(uri, expectedTexts),
   );
@@ -2032,21 +1882,12 @@ const applyHeldWorkspaceEdit = async (
     };
   };
   commitWatchers.add(undo.watch);
-  const savedMeanwhile = (change: WorkspaceEditChange) => {
-    const uri = touchedBy([change]).find(
-      (uri) => undo.prior.has(uri) && undo.changedElsewhere(uri),
-    );
-    return uri && `${getFileName(getPathFromUri(uri))} was saved while the edit ran`;
-  };
   try {
     for (const [index, change] of changes.entries()) {
-      const saved = savedMeanwhile(change);
-      if (saved) {
-        return await rollBack(index, saved);
-      }
       try {
         await undo.record(change);
         await applyChange(change, log, effects, undo, expectedTexts);
+        await undo.holdFolders();
       } catch (err: any) {
         console.error(err, err?.stack);
         return await rollBack(index, err?.message ?? String(err));
@@ -2193,14 +2034,21 @@ const listDirectories = async (directoryUri: string) => {
   return paths.map(getUriFromPath);
 };
 
-const createDirectories = async (uris: string[], log: CommitLog) => {
+const createDirectories = async (
+  uris: string[],
+  log: CommitLog,
+  onCreated?: (uri: string, directory: FileSystemDirectoryHandle | undefined) => void,
+) => {
   const root = await navigator.storage.getDirectory();
   const created: string[] = [];
   for (const uri of new Set(uris)) {
     console.log(MAGENTA, "MKDIR", uri);
     const { commit, local } = await commitChange(
       uri,
-      () => createDirectory(root, getPathFromUri(uri)),
+      async () => {
+        await createDirectory(root, getPathFromUri(uri));
+        onCreated?.(uri, await findDirectory(root, getPathFromUri(uri)));
+      },
       () => withAncestors(uri),
     );
     log.record(uri, local, commit, true);
@@ -2236,7 +2084,7 @@ const deleteEmptyDirectories = async (uris: string[], log: CommitLog) => {
 const removeEmptyFolder = async (
   uri: string,
   log: CommitLog,
-  mayRemove: () => boolean = () => true,
+  mayRemove: (directory: FileSystemDirectoryHandle) => boolean | Promise<boolean> = () => true,
 ) => {
   const root = await navigator.storage.getDirectory();
   const path = getPathFromUri(uri);
@@ -2249,7 +2097,7 @@ const removeEmptyFolder = async (
       if (
         !parent ||
         !directory ||
-        !mayRemove() ||
+        !(await mayRemove(directory)) ||
         (await entriesOf(directory)).length > 0
       ) {
         return false;
@@ -2461,6 +2309,15 @@ const writeQueueEntry = (fileUri: string) => {
   return entry;
 };
 
+const storedForm = (fileUri: string, buffer: DataView | Uint8Array) => {
+  if (/\.svg$/i.test(fileUri)) {
+    const source = new TextDecoder().decode(buffer);
+    const normalized = normalizeSVGAttributeNames(source);
+    if (normalized !== source) return new TextEncoder().encode(normalized);
+  }
+  return buffer;
+};
+
 const enqueueWrite = async (
   fileUri: string,
   version: number,
@@ -2468,11 +2325,7 @@ const enqueueWrite = async (
   immediate = false,
   origin?: string,
 ) => {
-  if (/\.svg$/i.test(fileUri)) {
-    const source = new TextDecoder().decode(buffer);
-    const normalized = normalizeSVGAttributeNames(source);
-    if (normalized !== source) buffer = new TextEncoder().encode(normalized);
-  }
+  buffer = storedForm(fileUri, buffer);
   return new Promise<WriteResult>((resolve, reject) => {
     const entry = writeQueueEntry(fileUri);
     const last = entry.batches[entry.batches.length - 1];
