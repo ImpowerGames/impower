@@ -1508,7 +1508,7 @@ describe("the Variants tester and the Files section", () => {
     expect(classes(cell.parentElement!)).toContain("gap-y-2.5");
     expect(classes(cell.parentElement!.parentElement!)).toEqual(expect.arrayContaining(["gap-3.5", "pt-3.5"]));
     expect(classes(region()!.querySelector("[data-variant-reference]"))).toEqual(
-      expect.arrayContaining(["whitespace-nowrap", "overflow-hidden", "fade-edge", "[--fade:24px]"]),
+      expect.arrayContaining(["whitespace-nowrap", "overflow-hidden", "fade-edge-always", "[--fade:24px]"]),
     );
     expect(classes(region()!.querySelector("[data-variant-reference]"))).not.toContain("break-all");
     for (const action of ["[data-variant-copy]", "[data-variant-insert]"]) {

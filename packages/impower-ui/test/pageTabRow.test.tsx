@@ -125,7 +125,7 @@ describe("Tabs page variant", () => {
 describe("Tabs page variant underline", () => {
   const TABS = { all: { x: 16, w: 66 }, outline: { x: 104, w: 82 } } as const;
 
-  const mountMeasured = async (value: keyof typeof TABS) => {
+  const mountMeasured = async (value: keyof typeof TABS, variant: "page" | "inline" = "page", padding = "4px") => {
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -144,14 +144,14 @@ describe("Tabs page variant underline", () => {
       const style = original(element);
       if (element.getAttribute("role") !== "tab") return style;
       return new Proxy(style, {
-        get: (target, key) => (key === "paddingLeft" || key === "paddingRight" ? "4px" : Reflect.get(target, key)),
+        get: (target, key) => (key === "paddingLeft" || key === "paddingRight" ? padding : Reflect.get(target, key)),
       });
     });
     host = document.body.appendChild(document.createElement("div"));
     host.dataset.layout = "phone";
     await act(async () =>
       render(
-        <Tabs variant="page" iconLayout="beside" value={value} onChange={() => {}}>
+        <Tabs variant={variant} iconLayout="beside" value={value} onChange={() => {}}>
           <Tab value="all">All scripts</Tab>
           <Tab value="outline">In this script</Tab>
         </Tabs>,
@@ -170,6 +170,12 @@ describe("Tabs page variant underline", () => {
     const tab = TABS[value];
     expect(indicator.style.transform).toBe(`translateX(${tab.x - 16 + 4}px)`);
     expect(indicator.style.width).toBe(`${tab.w - 8}px`);
+  });
+
+  it("insets the inline row's underline 4px from each side even where the phone pads its tabs 1px (I-2415)", async () => {
+    const indicator = await mountMeasured("all", "inline", "1px");
+    expect(indicator.style.transform).toBe(`translateX(${TABS.all.x - 16 + 4}px)`);
+    expect(indicator.style.width).toBe(`${TABS.all.w - 8}px`);
   });
 });
 

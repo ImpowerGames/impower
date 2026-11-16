@@ -1,5 +1,4 @@
 import { Button, SearchIcon, VirtualList } from "@impower/impower-ui/components";
-import { useScrollbarSize } from "@impower/impower-ui/layout";
 import { useMemo } from "preact/hooks";
 import { filterOutlineRows, OutlineListRow, useOutlineModel, type OutlineRow } from "../outline";
 import { useSavedScroll, useTabQuery } from "./pageState";
@@ -21,7 +20,6 @@ export default function ScriptOutlineTab() {
   const searching = !!query.trim();
   const { uri, model } = useOutlineModel({ collapsible: !searching });
   const rows = useMemo(() => filterOutlineRows(model.rows, query), [model.rows, query]);
-  useScrollbarSize();
 
   return (
     <div class="flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">

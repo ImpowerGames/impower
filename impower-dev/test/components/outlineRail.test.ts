@@ -16,17 +16,6 @@ const search = vi.hoisted(() => ({
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: { window: intents, search },
 }));
-const scrollbarSize = vi.hoisted(() => ({ connected: 0 }));
-vi.mock("@impower/impower-ui/layout", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@impower/impower-ui/layout")>();
-  return {
-    ...original,
-    useScrollbarSize: () => {
-      scrollbarSize.connected += 1;
-      original.useScrollbarSize();
-    },
-  };
-});
 
 const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
@@ -183,10 +172,14 @@ afterEach(async () => {
 });
 
 describe("the Outline rail", () => {
-  it("publishes the scrollbar's size, which its list's gutter reads", async () => {
-    scrollbarSize.connected = 0;
+  it("ends its rows 14px from the rail's edge, 10px in the compact rail, whether or not it scrolls, giving the stable gutter back from that padding", async () => {
     await mount([]);
-    expect(scrollbarSize.connected).toBeGreaterThan(0);
+    const list = host!.querySelector<HTMLElement>('[aria-label="Scene outline in main"]')!;
+    const scroller = list.closest<HTMLElement>("[class*=overflow-y-auto]")!;
+    const classes = scroller.className.split(/\s+/);
+    expect(classes).toContain("pr-gutter-[14px]");
+    expect(classes).toContain("in-data-[layout=compact]:pr-gutter-2.5");
+    expect(classes).not.toContain("pr-[14px]");
   });
 
   it("lists scenes with their choice menus and branches nested beneath, named for a reader", async () => {

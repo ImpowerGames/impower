@@ -1,5 +1,5 @@
 import { clsx, type ClassValue } from "clsx";
-import { extendTailwindMerge } from "tailwind-merge";
+import { extendTailwindMerge, validators } from "tailwind-merge";
 
 const twMerge = extendTailwindMerge({
   extend: {
@@ -8,6 +8,7 @@ const twMerge = extendTailwindMerge({
     },
     classGroups: {
       shadow: [{ shadow: ["float"] }],
+      pr: [{ "pr-gutter": [validators.isNumber, validators.isArbitraryLength] }],
     },
   },
 });

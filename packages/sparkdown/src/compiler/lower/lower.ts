@@ -1,6 +1,8 @@
 import { nodeNameSet } from "../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
+import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
+import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { memoOf } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
@@ -34,6 +36,7 @@ import {
 import { lowerBranch } from "./lowerers/lowerBranch";
 import { lowerChoice } from "./lowerers/lowerChoice";
 import {
+  DISPLAY_LINE_TYPES,
   lowerBlockAction,
   lowerBlockDialogue,
   lowerBlockHeading,
@@ -52,6 +55,7 @@ import { lowerDivert } from "./lowerers/lowerDivert";
 import {
   lowerDoneStatement,
   lowerFinStatement,
+  unreachableAfter,
 } from "./lowerers/lowerDoneOrFin";
 import { lowerGlue } from "./lowerers/lowerGlue";
 import { lowerLabelAnchor } from "./lowerers/lowerLabelAnchor";
@@ -100,6 +104,19 @@ const BLOCK_STATEMENTS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownSequentialAlternatorBlock",
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
 ]);
+
+const canLeaveFlow = (name: string): boolean =>
+  name === "Divert" || Object.hasOwn(DISPLAY_LINE_TYPES, name);
+
+function leavesFlow(block: CompiledBlock): boolean {
+  return (block.content ?? []).some((obj) =>
+    (obj instanceof Weave ? obj.content : [obj]).some(
+      (part) =>
+        part instanceof TunnelOnwards ||
+        (part instanceof Divert && !part.isTunnel && !part.isThread),
+    ),
+  );
+}
 
 export function lower(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -150,7 +167,14 @@ function lowerInner(
     const block = lowerNode(nodeRef, ctx);
     return block && { diagnostics: block.diagnostics };
   }
-  return lowerNode(nodeRef, ctx);
+  const block = lowerNode(nodeRef, ctx);
+  if (block && canLeaveFlow(nodeRef.name) && leavesFlow(block)) {
+    const unreachable = unreachableAfter(nodeRef, ctx);
+    if (unreachable) {
+      block.diagnostics = [...(block.diagnostics ?? []), unreachable];
+    }
+  }
+  return block;
 }
 
 function lowerNode(

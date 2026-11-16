@@ -449,6 +449,7 @@ export {
   panelHeadVariants,
   type PanelHeadProps,
   type PanelHeadSize,
+  type PanelHeadSpacing,
   type PanelHeadTitleSize,
 } from "./panel-head/PanelHead";
 export {

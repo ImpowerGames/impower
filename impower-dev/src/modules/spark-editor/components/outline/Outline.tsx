@@ -6,7 +6,6 @@ import {
   VirtualList,
   WarningIcon,
 } from "@impower/impower-ui/components";
-import { useScrollbarSize } from "@impower/impower-ui/layout";
 import type { ComponentChildren } from "preact";
 import { useCallback } from "preact/hooks";
 import { worstProblem } from "@impower/codemirror-vscode-lsp-client/src/symbolProblems";
@@ -44,7 +43,6 @@ function Heading({
 export default function Outline() {
   const { uri, model } = useOutlineModel();
   const searching = workspace.search.value.open;
-  useScrollbarSize();
   const rows = model.rows;
   const extent = useCallback(
     (_row: OutlineRow, index: number) => railRowExtent(rows, index),
@@ -82,7 +80,7 @@ export default function Outline() {
             {model.rows.length && uri ? (
               <VirtualList
                 key={uri}
-                class="flex-1 pr-gutter-3.5 pb-3 pl-[26px] [:root[data-pointer=coarse]_&]:pl-11"
+                class="flex-1 pr-gutter-[14px] pb-3 pl-[26px] in-data-[layout=compact]:pr-gutter-2.5 [:root[data-pointer=coarse]_&]:pl-11"
                 label={`Scene outline in ${scriptName(uri)}`}
                 size={OUTLINE_RAIL_ROW.size}
                 items={rows}

@@ -231,7 +231,7 @@ export default function VariantsSection({
           </div>
           <code
             class={cn(
-              "block overflow-hidden rounded-control border border-edge bg-bg px-3 py-[9px] font-mono text-[14px]/[1.4] whitespace-nowrap text-ink select-text [--fade:24px] fade-edge",
+              "block overflow-hidden rounded-control border border-edge bg-bg px-3 py-[9px] font-mono text-[14px]/[1.4] whitespace-nowrap text-ink select-text [--fade:24px] fade-edge-always",
               soloed && "opacity-40",
             )}
             data-variant-reference

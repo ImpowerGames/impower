@@ -5,7 +5,8 @@ import {
   makeMemoryDirectory,
   memoryRoot,
   writeMemoryFile,
-  type MemoryDirectory,
+  MemoryDirectory,
+  MemoryFile,
   memoryLocks,
 } from "../../../packages/opfs-workspace/test/memoryOpfs";
 import type WorkspaceFileSystemType from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
@@ -269,6 +270,38 @@ describe("empty folders are directories in the workspace store", () => {
     expect(stored(root)).toEqual(moved);
     vi.doUnmock("../../src/modules/spark-editor/workspace/Workspace");
     vi.doUnmock("../../src/modules/spark-editor/utils/snackbar");
+  });
+
+  it("moves a folder of pictures with one storage request, moving each file in place (I-2242)", async () => {
+    const pictures = Object.fromEntries(
+      Array.from({ length: 30 }, (_, i) => [`assets/Crowd/p${i}.png`, `P${i}`]),
+    );
+    const root = seed({ ...MIGRATED, "main.sd": "x", ...pictures }, ["assets/Cast"]);
+    const fileIn = (path: string) =>
+      `${PROJECT}/${path}`
+        .split("/")
+        .reduce<MemoryDirectory | MemoryFile | undefined>(
+          (entry, name) => (entry instanceof MemoryDirectory ? entry.entries.get(name) : undefined),
+          root,
+        );
+    const before = Object.keys(pictures).map(fileIn);
+    const fs = await load(root);
+    const requests: string[] = [];
+    const handle = (globalThis as any).onmessage;
+    (globalThis as any).onmessage = (event: { data: { method?: string } }) => {
+      requests.push(event.data?.method ?? "");
+      return handle(event);
+    };
+    await fs.moveFolder(PROJECT, "assets/Crowd", "assets/Cast/Crowd");
+    await settle();
+    expect(requests.filter((method) => method === "workspace/willRenameFiles")).toHaveLength(1);
+    Object.keys(pictures).forEach((path, i) => {
+      const moved = fileIn(path.replace("assets/Crowd/", "assets/Cast/Crowd/"));
+      expect(moved).toBe(before[i]);
+      expect(dec.decode((moved as MemoryFile).bytes)).toBe(`P${i}`);
+    });
+    expect(stored(root).filter((p) => p.startsWith("assets/Crowd"))).toEqual([]);
+    expect((await relativeFiles(fs)).filter((p) => p.startsWith("assets/Cast/Crowd/"))).toHaveLength(30);
   });
 
   it("deletes a folder's files and its directories, and reports the folders removed", async () => {

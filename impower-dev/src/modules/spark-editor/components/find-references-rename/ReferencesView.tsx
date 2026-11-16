@@ -15,7 +15,7 @@ export default function ReferencesView({
   const total = references.reduce((n, g) => n + g.uses.length, 0);
 
   return (
-    <div class="min-h-0 flex-1 overflow-y-auto px-[14px] pb-3 in-data-[layout=compact]:px-2.5">
+    <div class="min-h-0 flex-1 overflow-y-auto pr-gutter-[14px] pb-3 pl-[14px] in-data-[layout=compact]:pr-gutter-2.5 in-data-[layout=compact]:pl-2.5">
       {total ? (
         <p class="m-0 mx-2 mb-1.5 text-[12px]/[1.5] text-muted">
           {count(total, "reference")} in {count(references.length, "script")}

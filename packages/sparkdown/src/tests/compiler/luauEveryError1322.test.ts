@@ -226,7 +226,7 @@ describe("text after a scene or branch header is reported on the header line (I-
   const branch = (header: string) => `scene start\n${header}\n    Hello.\n  end\nend\n`;
   const onHeaderLine = (source: string) =>
     compile(source)
-      .filter((d) => d.range.start.line === 1)
+      .filter((d) => d.range.start.line === 1 && d.severity !== DiagnosticSeverity.Hint)
       .map((d) => `${d.range.start.character}-${d.range.end.character} ${messageOf(d)}`);
 
   test.each([

@@ -1,3 +1,4 @@
+import { useScrollbarSize } from "@impower/impower-ui/layout";
 import ConflictDialogHost from "../components/conflict-dialog/ConflictDialogHost";
 import { SyncConflictDialog } from "../components/drive-sync";
 import MainWindow from "../components/main-window/MainWindow";
@@ -28,6 +29,7 @@ export const propDefaults = {};
 export type SparkEditorProps = Partial<typeof propDefaults>;
 
 export default function SparkEditor(_props: SparkEditorProps) {
+  useScrollbarSize();
   return (
     <>
       <style>{HOST_STYLE}</style>

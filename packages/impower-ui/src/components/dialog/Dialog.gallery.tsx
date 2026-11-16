@@ -1,5 +1,6 @@
 import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
+import { useScrollbarSize } from "../../hooks/useScrollbarSize";
 import { layoutMinWidths } from "../../layout/breakpoints";
 import { SAMPLE_PICTURE } from "../thumbnail/Thumbnail.gallery";
 import Button from "../button/Button";
@@ -97,6 +98,7 @@ function Trigger({ label, onOpen }: { label: string; onOpen: () => void }) {
 }
 
 function DialogDemo() {
+  useScrollbarSize();
   const [demo, setDemo] = useState<Demo | null>(null);
   const close = () => setDemo(null);
   const onOpenChange = (open: boolean) => {
@@ -110,7 +112,7 @@ function DialogDemo() {
 
   return (
     <div class="space-y-6">
-      <GalleryRow label="Width presets: a centred card with a title, body and actions row; backdrop click and Escape close it">
+      <GalleryRow label="Width presets: a centred card with a title, body and actions row; backdrop click and Escape close it; the body's right padding gives up the stable scrollbar gutter, so its content ends as far from the right edge as from the left whether or not it scrolls">
         <div class="flex flex-wrap gap-3">
           {(Object.keys(SIZE_LABELS) as DialogSize[]).map((size) => (
             <Trigger
@@ -138,7 +140,7 @@ function DialogDemo() {
           onOpen={() => setDemo({ kind: "responsive" })}
         />
       </GalleryRow>
-      <GalleryRow label="Sheet: rises from the bottom edge, full width">
+      <GalleryRow label="Sheet: rises from the bottom edge, full width; its right padding gives up the stable scrollbar gutter as a dialog body's does">
         <Trigger label="Sheet" onOpen={() => setDemo({ kind: "sheet" })} />
       </GalleryRow>
       <GalleryRow label="Flush Sheet: under a touch pointer its foot keeps --sheet-gesture-clearance inside its own surface, so no row ends in the phone's system-gesture strip; a mouse adds nothing">
