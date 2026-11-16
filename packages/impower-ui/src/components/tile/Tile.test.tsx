@@ -25,8 +25,9 @@ describe("Tile", () => {
   it("gives each shape a fixed height for its width, so a grid of them never reflows", () => {
     expect(tileGrid("portrait", "desktop")).toEqual({ minWidth: 138, gap: 12 });
     expect(tileGrid("landscape", "desktop")).toEqual({ minWidth: 176, gap: 12 });
-    expect(tileHeight("landscape", 176)).toBe(Math.ceil(158 * (10 / 16) + 65));
-    expect(tileHeight("portrait", 138)).toBe(Math.ceil(120 * (4 / 3) + 65));
+    expect(tileHeight("landscape", 176)).toBeCloseTo(158 * (10 / 16) + 64.6, 6);
+    expect(tileHeight("landscape", 192)).toBeCloseTo(173.35, 6);
+    expect(tileHeight("portrait", 138)).toBeCloseTo(120 * (4 / 3) + 64.6, 6);
     expect(tileHeight("portrait", 200)).toBeGreaterThan(tileHeight("landscape", 200));
   });
 

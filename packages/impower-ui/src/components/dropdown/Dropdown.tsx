@@ -205,7 +205,7 @@ export function DropdownTrigger({
 export const dropdownContentVariants = cva(
   [
     "z-50 min-w-[120px] overflow-y-auto overscroll-contain [scrollbar-gutter:auto] rounded-card",
-    "border border-solid border-edge bg-popup p-1.5 text-ink shadow-float",
+    "border border-solid border-edge bg-popup p-1.5 text-ink",
     "origin-[--radix-dropdown-menu-content-transform-origin]",
     "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
   ],
@@ -215,10 +215,18 @@ export const dropdownContentVariants = cva(
         free: "",
         room: "max-h-[var(--radix-dropdown-menu-content-available-height)]",
       },
+      elevation: {
+        floating: "shadow-float",
+        library: "shadow-menu",
+      },
     },
-    defaultVariants: { fit: "free" },
+    defaultVariants: { fit: "free", elevation: "floating" },
   },
 );
+
+export type DropdownContentElevation = NonNullable<
+  VariantProps<typeof dropdownContentVariants>["elevation"]
+>;
 
 export type DropdownContentFit = NonNullable<
   VariantProps<typeof dropdownContentVariants>["fit"]
@@ -304,6 +312,7 @@ function SheetMenu({
       open={open}
       onOpenChange={setOpen}
       flush
+      elevation="menu"
       keepClear={keepClear}
       initialFocus={chosen}
       onCloseAutoFocus={onCloseAutoFocus}
@@ -331,15 +340,17 @@ function SheetMenu({
 
 export function DropdownContent({
   class: className,
-  sideOffset = 8,
+  sideOffset = 6,
   align = "end",
   side,
   keepClear,
+  elevation,
   onCloseAutoFocus,
   children,
   ...rest
 }: {
   class?: string;
+  elevation?: DropdownContentElevation;
   sideOffset?: number;
   align?: "start" | "center" | "end";
   side?: "top" | "right" | "bottom" | "left";
@@ -393,7 +404,7 @@ export function DropdownContent({
         side={side}
         {...(clear ? { collisionPadding: clear.padding } : {})}
         class={cn(
-          dropdownContentVariants({ fit: keepClear ? "room" : "free" }),
+          dropdownContentVariants({ fit: keepClear ? "room" : "free", elevation }),
           className,
         )}
         onCloseAutoFocus={(event: Event) => {
