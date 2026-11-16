@@ -1,6 +1,5 @@
 import { useRef, useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
-import { layoutMinWidths } from "../../layout/breakpoints";
 import { useLayout } from "../../hooks/useLayout";
 import { KEEP_CLEAR_RULE } from "../../utils/keepClear";
 import Button from "../button/Button";
@@ -143,7 +142,7 @@ function DropdownDemo() {
   return (
     <div class="space-y-6">
       <GalleryRow
-        label={`Closed; press to open. Below ${layoutMinWidths.compact}px wide (the phone layout) the menu opens as a bottom sheet.`}
+        label="Closed; press to open. Opened with a finger or a pen it comes up as a bottom sheet, and with a mouse or the keyboard as a menu under its trigger, at any width."
       >
         <DropdownRoot>
           <DropdownTrigger asChild>
@@ -210,18 +209,8 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
-      <GalleryRow label={`${KEEP_CLEAR_RULE} The menu opens on whichever side of its trigger has more room and scrolls within itself; in the phone layout's sheet, the sheet and its backdrop stay below the line.`}>
+      <GalleryRow label={`${KEEP_CLEAR_RULE} The menu opens on whichever side of its trigger has more room and scrolls within itself; in the sheet a finger opens, the sheet and its backdrop stay below the line.`}>
         <KeepClearDemo />
-      </GalleryRow>
-      <GalleryRow label="Never a sheet (sheet false): a menu at every width, for a caller that offers its own control under a coarse pointer (the asset inspector's variant menus, which open a wheel sheet on touch)">
-        <DropdownRoot sheet={false}>
-          <DropdownTrigger asChild>
-            <Button>Choose a face</Button>
-          </DropdownTrigger>
-          <DropdownContent align="start" class="min-w-[180px]">
-            <HintedItems size="small" />
-          </DropdownContent>
-        </DropdownRoot>
       </GalleryRow>
       <GalleryRow label="Disabled radio items (the aspect-ratio group in Interactive Fiction)">
         <DropdownRoot>

@@ -124,6 +124,10 @@ export const sheetVariants = cva(
         flat: "",
         menu: "",
       },
+      width: {
+        full: "",
+        menu: "max-w-[560px] self-center",
+      },
     },
     compoundVariants: [
       { size: "auto", elevation: "flat", class: "rounded-t-card" },
@@ -132,7 +136,7 @@ export const sheetVariants = cva(
       { size: "auto", fit: "free", class: "max-h-[80%]" },
       { size: "auto", fit: "room", class: "max-h-full" },
     ],
-    defaultVariants: { size: "auto", fit: "free", flush: false, visible: true, elevation: "flat" },
+    defaultVariants: { size: "auto", fit: "free", flush: false, visible: true, elevation: "flat", width: "full" },
   },
 );
 
@@ -156,6 +160,8 @@ export type SheetSize = NonNullable<VariantProps<typeof sheetVariants>["size"]>;
 
 export type SheetElevation = NonNullable<VariantProps<typeof sheetVariants>["elevation"]>;
 
+export type SheetWidth = NonNullable<VariantProps<typeof sheetVariants>["width"]>;
+
 export type DialogSize = NonNullable<
   VariantProps<typeof dialogVariants>["size"]
 >;
@@ -173,7 +179,7 @@ type ModalProps = {
   children?: ComponentChildren;
 };
 
-export type SheetProps = ModalProps & { size?: SheetSize; elevation?: SheetElevation; keepClear?: KeepClear };
+export type SheetProps = ModalProps & { size?: SheetSize; elevation?: SheetElevation; width?: SheetWidth; keepClear?: KeepClear };
 
 export type DialogProps = ModalProps & {
   size?: DialogSize;
@@ -301,12 +307,12 @@ function Modal({
   );
 }
 
-export function Sheet({ size, elevation, flush, class: className, ...rest }: SheetProps) {
+export function Sheet({ size, elevation, width, flush, class: className, ...rest }: SheetProps) {
   return (
     <Modal
       {...rest}
       placement="bottom"
-      card={(visible, fit) => cn(sheetVariants({ size, elevation, flush, visible, fit }), className)}
+      card={(visible, fit) => cn(sheetVariants({ size, elevation, width, flush, visible, fit }), className)}
     />
   );
 }

@@ -759,7 +759,7 @@ at every width where it opens:
 | Scripts menus (sort, row, New) | `0 8px 24px` black at 27% | `folio-scripts.css:99` |
 | Toast | `0 5px 25px` black at 33% | `app.css:1082` |
 | Dialogs, sheets, the suggestion chip row | none | `app.css:1084-1092`, `folio-insert.css:56`, `folio-language.css:110` |
-| Menu sheets (the Variants wheel, every dropdown shown as a sheet on a phone, and the script editor's coarse-pointer context menu) | `0 -8px 24px` black at 33%, 16px top corners | `folio-assets.css:173` |
+| Menu sheets (the Variants wheel, every dropdown a finger opens, and the script editor's coarse-pointer context menu) | `0 -8px 24px` black at 33%, 16px top corners | `folio-assets.css:173` |
 
 The variants are listed under inconsistencies with the value this reference takes. The Scripts and Assets pages' menus (Add, Sort, View, the folder, tile, row, file and inspector options, and Face) take the Scripts menus' `--menu-shadow`, `0 8px 24px rgb(0 0 0 / 0.267)`, through the dropdown's `library` elevation; every dropdown opens 6px from its trigger (`folio-scripts.js:190-192`); a menu shown as a sheet takes `--sheet-shadow` and `--sheet-radius`; `--float-shadow` stays on the other floating surfaces, the app menu and the preview's menus included. Sepia and Chalk soften the
 preview frame to `0 10px 30px rgb(0 0 0 / 0.16)` (`folio-themes.css:289`) and give the
@@ -834,7 +834,7 @@ The motion each component owns:
 | Menu (dropdown, context menu, select, the cog and mode menus, the app menu) | Fade and scale from 0.97 at the trigger's edge | Fade | 150ms; enter `ease-out`, exit `ease-in` |
 | Popover and tooltip (hover cards, problem popovers) | Fade | Fade | 140ms `ease` |
 | Dialog | Fade and scale from 0.97; backdrop fades | Fade; backdrop fades | 180ms; enter `ease-out`, exit `ease-in` |
-| Sheet (phone inspector, phone menus) | Slides in from its edge; backdrop fades | Slides out; backdrop fades | 180ms; enter `ease-out`, exit `ease-in` |
+| Sheet (phone inspector, menus a finger opens) | Slides in from its edge; backdrop fades | Slides out; backdrop fades | 180ms; enter `ease-out`, exit `ease-in` |
 | Toast | Fades in from 5px above its place, as the prototype's | Fades | 150ms `ease-out` |
 | Route change | None; if the router adds one, a View Transitions cross-fade | — | 150ms `ease` |
 | Button press | The press overlay appears at once and fades on release | — | 140ms, as the prototype's background transition |

@@ -29,6 +29,7 @@ type Demo =
   | { kind: "sheet" }
   | { kind: "flush-sheet" }
   | { kind: "menu-sheet" }
+  | { kind: "menu-width-sheet" }
   | { kind: "full" }
   | { kind: "full-long" }
   | { kind: "lightbox" };
@@ -148,6 +149,9 @@ function DialogDemo() {
         <Trigger label="Flush sheet" onOpen={() => setDemo({ kind: "flush-sheet" })} />
         <Trigger label="Menu sheet" onOpen={() => setDemo({ kind: "menu-sheet" })} />
       </GalleryRow>
+      <GalleryRow label='Sheet width="menu": the sheet a Dropdown opens under a finger keeps to 560px, centred on the bottom edge, once the window is wider; narrower, it spans the window like any sheet. The backdrop still covers the whole window'>
+        <Trigger label="Menu-width sheet" onOpen={() => setDemo({ kind: "menu-width-sheet" })} />
+      </GalleryRow>
       <GalleryRow label='Sheet size="full": fills the screen, square edged, for a phone surface such as the asset inspector'>
         <Trigger label="Full sheet" onOpen={() => setDemo({ kind: "full" })} />
       </GalleryRow>
@@ -194,6 +198,9 @@ function DialogDemo() {
         <FlushBody close={close} />
       </Sheet>
       <Sheet flush elevation="menu" open={is("menu-sheet")} onOpenChange={onOpenChange}>
+        <FlushBody close={close} />
+      </Sheet>
+      <Sheet flush elevation="menu" width="menu" open={is("menu-width-sheet")} onOpenChange={onOpenChange}>
         <FlushBody close={close} />
       </Sheet>
       <Sheet size="full" flush open={is("full")} onOpenChange={onOpenChange}>
