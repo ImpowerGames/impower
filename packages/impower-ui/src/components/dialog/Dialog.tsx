@@ -89,8 +89,8 @@ export const dialogVariants = cva(
       },
     },
     compoundVariants: [
-      { size: ["sm", "md", "lg"], flush: false, class: "p-5" },
-      { size: "form", flush: false, class: "p-[26px] phone:p-[19px]" },
+      { size: ["sm", "md", "lg"], flush: false, class: "p-5 pr-gutter-5" },
+      { size: "form", flush: false, class: "p-[26px] pr-gutter-[26px] phone:p-[19px] phone:pr-gutter-[19px]" },
     ],
     defaultVariants: { size: "sm", flush: false, visible: true },
   },
@@ -114,7 +114,7 @@ export const sheetVariants = cva(
       },
       flush: {
         true: "flex flex-col overflow-hidden",
-        false: "p-5",
+        false: "p-5 pr-gutter-5",
       },
       visible: {
         true: "translate-none ease-[ease-out]",

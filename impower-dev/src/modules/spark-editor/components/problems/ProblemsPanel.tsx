@@ -359,7 +359,7 @@ export default function ProblemsPanel() {
       <VirtualList
         size="compact"
         label={PANEL_LABEL}
-        class="min-h-0 flex-1 px-2.5"
+        class="min-h-0 flex-1 pr-gutter-2.5 pl-2.5"
         items={rows}
         getKey={panelItemKey}
         itemHeight={panelItemHeight}

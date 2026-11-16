@@ -70,4 +70,12 @@ describe("RailIndex", () => {
     await act(async () => save.click());
     expect(onJump).toHaveBeenCalledWith("save");
   });
+
+  it("ends its rows 14px from the edge, 10px in the compact rail, whether or not it scrolls, giving the stable gutter back from that padding", async () => {
+    await mount(<RailIndex title="Settings" label="Settings sections" groups={GROUPS} onJump={() => {}} />);
+    const classes = host!.querySelector("nav")!.className.split(/\s+/);
+    expect(classes).toContain("pr-gutter-[14px]");
+    expect(classes).toContain("in-data-[layout=compact]:pr-gutter-2.5");
+    expect(classes).not.toContain("pr-[14px]");
+  });
 });
