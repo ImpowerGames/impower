@@ -95,6 +95,7 @@ interface Printed {
   numbers: Numbers;
   rowHeight: number;
   rowInches: number;
+  names?: { text: string; weight: string; decoration: string; muted: boolean }[];
 }
 
 const spaced = (pieces: { text: string; x: number; width: number }[], cell: number) => {
@@ -256,7 +257,16 @@ const drawn = async (script: string, config: ScreenplayConfig, width: number, sc
     }
     const line = content.querySelector<HTMLElement>(".cm-line")!;
     const rowHeight = parseFloat(getComputedStyle(line).lineHeight) || line.getBoundingClientRect().height;
-    return { rows, numbers, rowHeight, rowInches: rowHeight / (cell / (((1228 / 2048) * 12) / 72)) };
+    const muted = getComputedStyle(content).getPropertyValue("--sp-muted");
+    const probeMuted = content.appendChild(document.createElement("span"));
+    probeMuted.style.color = muted || "transparent";
+    const mutedColor = getComputedStyle(probeMuted).color;
+    probeMuted.remove();
+    const names = Array.from(content.querySelectorAll<HTMLElement>(".sp-name")).map((name) => {
+      const style = getComputedStyle(name);
+      return { text: name.textContent ?? "", weight: style.fontWeight, decoration: style.textDecorationLine, muted: style.color === mutedColor };
+    });
+    return { rows, numbers, names, rowHeight, rowInches: rowHeight / (cell / (((1228 / 2048) * 12) / 72)) };
   });
   await page.close();
   return result;
@@ -325,6 +335,8 @@ describe("the Screenplay page draws every row where the PDF prints it", () => {
     const page = await drawn(script, NAMED, 560);
     expect(compare(page, pdf)).toEqual([]);
     expect(page.numbers).toEqual(pdf.numbers);
+    expect(page.names?.length).toBeGreaterThan(0);
+    for (const name of page.names ?? []) expect(name, name.text).toMatchObject({ weight: "400", decoration: "none", muted: true });
   }, 120_000);
 
   it("numbers scenes after the scenes of the scripts printed before this one", async () => {

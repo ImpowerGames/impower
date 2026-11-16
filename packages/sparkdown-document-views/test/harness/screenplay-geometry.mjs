@@ -7,7 +7,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 const PAGE_STYLE = `
 body { margin: 0; padding: 16px; background: #ffffff; color: #111111; }
-section { container-type: inline-size; margin-bottom: 24px; }
+section { container-type: inline-size; margin-bottom: 24px; --sp-muted: #666666; }
 `;
 
 export const EMOJI_FONT_URL = "https://fonts.invalid/noto-color-emoji.ttf";
