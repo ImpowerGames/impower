@@ -111,6 +111,9 @@ const DELIMITER_ROWS: Row[] = [
   ["single-quoted name", "image", `'mia'`],
   ["quoted sound name", "audio", `play music "theme"`],
   ["quoted sound name before a flag", "audio", `play music "theme" loop`],
+  ["long-string interpolation in an audio name", "audio", "a {[[a]]} b"],
+  ["levelled long-string interpolation in an audio name", "audio", "a {[=[a]=]} b"],
+  ["long comment interpolation in an audio name", "audio", "a {1 --[[c]] + 1} b"],
 ];
 
 const OPENING_ROWS: Row[] = [
@@ -383,13 +386,12 @@ const CHOICE_DIRECTIVES: readonly (readonly [label: string, text: string])[] = [
   ["an image directive left open at the line's end", "Go [x] [[mia with fade"],
   ["an audio directive left open at the line's end", "Go [x] ((play music theme loop"],
   ["a directive left open at the line's end without choice brackets", "Go [[mia with fade"],
+  ["an image opener left open inside a styled span", "Go *a [[mia with fade* now"],
+  ["an audio opener left open inside a styled span", "Go *a ((play music theme* now"],
 ];
 
 const UNREAD_CHOICE_DIRECTIVES = [
   "choice brackets",
-  "a long-string bracket",
-  "a levelled long-string bracket",
-  "a long comment bracket",
   "a comment after the choice brackets",
   "clauses after the choice brackets",
   "a directive closed inside the choice brackets",
@@ -403,6 +405,8 @@ const UNREAD_CHOICE_DIRECTIVES = [
   "an image directive left open at the line's end",
   "an audio directive left open at the line's end",
   "a directive left open at the line's end without choice brackets",
+  "an image opener left open inside a styled span",
+  "an audio opener left open inside a styled span",
 ];
 
 const CHOICE_ROWS: (readonly [label: string, text: string])[] = CHOICE_DIRECTIVES.flatMap(([label, text]) => [
@@ -708,6 +712,8 @@ describe("the grammar colours every directive word as the game reads it (I-2224)
     "Hello [[mia with fade",
     "Hello ((play music theme",
     "Hello [[mia]] and [[bunny with fade",
+    "*Hello [[mia with fade* now",
+    "*Hello ((play music theme* now",
   ];
 
   test.each(UNCLOSED_LINES)("a directive left open at a display line's end is coloured and read as text (I-2337): `%s`", async (text) => {

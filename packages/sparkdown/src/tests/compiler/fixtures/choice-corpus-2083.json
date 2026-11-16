@@ -23572,7 +23572,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "9bb0dbf2"
+   "scopes": "dc174beb"
   },
   {
    "id": "plain-command-16",
@@ -23647,19 +23647,26 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {[[a]]} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ((a a b)) now"
+    "Go ((a {[[a]]} b)) now"
    ],
    "runs": [
     {
-     "out": "Go ((a a b)) now\nBody.\n",
+     "out": "Go ((a {[[a]]} b)) now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "2@4:9-4:11 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:21-4:22 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "5e7f9fc7"
+   "scopes": "1a3b8ff8"
   },
   {
    "id": "plain-command-21",
@@ -23692,7 +23699,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {[[a]]} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ((a a b))"
+    "Go ((a {[[a]]} b))"
    ],
    "runs": [
     {
@@ -23702,28 +23709,42 @@
    ],
    "rt": [],
    "diags": [
-    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:22-4:23 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "e96e94bb"
+   "scopes": "e0e6bbdd"
   },
   {
    "id": "plain-command-23",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {[[a]]} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *far ((a a b)) away* now"
+    "Go *far ((a {[[a]]} b)) away* now"
    ],
    "runs": [
     {
-     "out": "Go *far ((a a b)) away* now\nBody.\n",
+     "out": "Go *far ((a {[[a]]} b)) away* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:26-4:27 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "d29cfd12"
+   "scopes": "d90773e1"
   },
   {
    "id": "plain-command-24",
@@ -23811,17 +23832,17 @@
    "class": "A",
    "first": "",
    "choices": [
-    "Go <wait a> now"
+    "Go <wait {[[a]]}> now"
    ],
    "runs": [
     {
-     "out": "Go <wait a> now\nBody.\n",
+     "out": "Go <wait {[[a]]}> now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "d51e975f"
+   "scopes": "90cf784a"
   },
   {
    "id": "plain-command-29",
@@ -23846,7 +23867,7 @@
    "class": "A",
    "first": "",
    "choices": [
-    "Go <wait a>"
+    "Go <wait {[[a]]}>"
    ],
    "runs": [
     {
@@ -23856,7 +23877,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "49f6ed17"
+   "scopes": "8002092a"
   },
   {
    "id": "plain-command-31",
@@ -23864,17 +23885,17 @@
    "class": "A",
    "first": "",
    "choices": [
-    "Go *far <wait a> away* now"
+    "Go *far <wait {[[a]]}> away* now"
    ],
    "runs": [
     {
-     "out": "Go *far <wait a> away* now\nBody.\n",
+     "out": "Go *far <wait {[[a]]}> away* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "15b3b8fb"
+   "scopes": "0de6e94a"
   },
   {
    "id": "plain-command-32",
@@ -23950,7 +23971,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "2205b07b"
+   "scopes": "3bd495f3"
   },
   {
    "id": "plain-command-36",
@@ -24028,19 +24049,28 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {[=[a]=]} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ((a a b)) now"
+    "Go ((a {[=[a]=]} b)) now"
    ],
    "runs": [
     {
-     "out": "Go ((a a b)) now\nBody.\n",
+     "out": "Go ((a {[=[a]=]} b)) now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "2@4:9-4:11 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:23-4:24 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "68859d2b"
+   "scopes": "672206b4"
   },
   {
    "id": "plain-command-41",
@@ -24075,7 +24105,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {[=[a]=]} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ((a a b))"
+    "Go ((a {[=[a]=]} b))"
    ],
    "runs": [
     {
@@ -24085,28 +24115,46 @@
    ],
    "rt": [],
    "diags": [
-    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:24-4:25 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "c7b736a7"
+   "scopes": "d09d4009"
   },
   {
    "id": "plain-command-43",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {[=[a]=]} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *far ((a a b)) away* now"
+    "Go *far ((a {[=[a]=]} b)) away* now"
    ],
    "runs": [
     {
-     "out": "Go *far ((a a b)) away* now\nBody.\n",
+     "out": "Go *far ((a {[=[a]=]} b)) away* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:28-4:29 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "8c597fc2"
+   "scopes": "80d6245d"
   },
   {
    "id": "plain-command-44",
@@ -24159,19 +24207,28 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {[=[a]=]} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go [[a a b"
+    "Go [[a {[=[a]=]} b]]"
    ],
    "runs": [
     {
-     "out": "Go ]] now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"This `[[` opens no directive, because no `]]` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:24-4:25 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "b1b84659"
+   "scopes": "126880b2"
   },
   {
    "id": "plain-command-47",
@@ -24197,17 +24254,17 @@
    "class": "A",
    "first": "",
    "choices": [
-    "Go <wait a> now"
+    "Go <wait {[=[a]=]}> now"
    ],
    "runs": [
     {
-     "out": "Go <wait a> now\nBody.\n",
+     "out": "Go <wait {[=[a]=]}> now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "c59f393f"
+   "scopes": "709c4422"
   },
   {
    "id": "plain-command-49",
@@ -24232,7 +24289,7 @@
    "class": "A",
    "first": "",
    "choices": [
-    "Go <wait a>"
+    "Go <wait {[=[a]=]}>"
    ],
    "runs": [
     {
@@ -24242,7 +24299,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "4c4aa787"
+   "scopes": "245c5cba"
   },
   {
    "id": "plain-command-51",
@@ -24250,17 +24307,17 @@
    "class": "A",
    "first": "",
    "choices": [
-    "Go *far <wait a> away* now"
+    "Go *far <wait {[=[a]=]}> away* now"
    ],
    "runs": [
     {
-     "out": "Go *far <wait a> away* now\nBody.\n",
+     "out": "Go *far <wait {[=[a]=]}> away* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "f1bd7b47"
+   "scopes": "2bc80ec2"
   },
   {
    "id": "plain-command-52",
@@ -24336,7 +24393,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "0396e36b"
+   "scopes": "a729d293"
   },
   {
    "id": "plain-command-56",
@@ -24414,19 +24471,30 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {1 --[[c]] + 1} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ((a 2 b)) now"
+    "Go ((a {1 --[[c]] + 1} b)) now"
    ],
    "runs": [
     {
-     "out": "Go ((a 2 b)) now\nBody.\n",
+     "out": "Go ((a {1 --[[c]] + 1} b)) now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "2@4:9-4:11 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:27-4:28 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:29-4:30 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "6ff0fe50"
+   "scopes": "5d11874c"
   },
   {
    "id": "plain-command-61",
@@ -24463,7 +24531,7 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {1 --[[c]] + 1} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go ((a 2 b))"
+    "Go ((a {1 --[[c]] + 1} b))"
    ],
    "runs": [
     {
@@ -24473,28 +24541,50 @@
    ],
    "rt": [],
    "diags": [
-    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:27-4:28 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:28-4:29 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:30-4:31 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "d04060d0"
+   "scopes": "ebdfe9d9"
   },
   {
    "id": "plain-command-63",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {1 --[[c]] + 1} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go *far ((a 2 b)) away* now"
+    "Go *far ((a {1 --[[c]] + 1} b)) away* now"
    ],
    "runs": [
     {
-     "out": "Go *far ((a 2 b)) away* now\nBody.\n",
+     "out": "Go *far ((a {1 --[[c]] + 1} b)) away* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:27-4:28 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:32-4:33 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:34-4:35 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "49ea1f57"
+   "scopes": "6a3ad7f5"
   },
   {
    "id": "plain-command-64",
@@ -24588,17 +24678,17 @@
    "class": "B",
    "first": "",
    "choices": [
-    "Go <wait 2> now"
+    "Go <wait {1 --[[c]] + 1}> now"
    ],
    "runs": [
     {
-     "out": "Go <wait 2> now\nBody.\n",
+     "out": "Go <wait {1 --[[c]] + 1}> now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e6025bd4"
+   "scopes": "5ee728d1"
   },
   {
    "id": "plain-command-69",
@@ -24623,7 +24713,7 @@
    "class": "B",
    "first": "",
    "choices": [
-    "Go <wait 2>"
+    "Go <wait {1 --[[c]] + 1}>"
    ],
    "runs": [
     {
@@ -24633,7 +24723,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "b0adab58"
+   "scopes": "14527db5"
   },
   {
    "id": "plain-command-71",
@@ -24641,17 +24731,17 @@
    "class": "B",
    "first": "",
    "choices": [
-    "Go *far <wait 2> away* now"
+    "Go *far <wait {1 --[[c]] + 1}> away* now"
    ],
    "runs": [
     {
-     "out": "Go *far <wait 2> away* now\nBody.\n",
+     "out": "Go *far <wait {1 --[[c]] + 1}> away* now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [],
-   "scopes": "79d42e68"
+   "scopes": "6ed58bfb"
   },
   {
    "id": "plain-command-72",
@@ -24727,7 +24817,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "dfa0ed28"
+   "scopes": "0a31cd34"
   },
   {
    "id": "plain-command-76",
@@ -24954,19 +25044,26 @@
    "class": "A",
    "first": "",
    "choices": [
-    "Go [[a -> b"
+    "Go [[a {\"->\"} b]]"
    ],
    "runs": [
     {
-     "out": "Go ]] now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"This `[[` opens no directive, because no `]]` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:21-4:22 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "639cb573"
+   "scopes": "bb39b6ad"
   },
   {
    "id": "plain-command-87",
@@ -25131,7 +25228,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "8f8bf913"
+   "scopes": "b1a0130a"
   },
   {
    "id": "plain-command-96",
@@ -25352,19 +25449,25 @@
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {t[1]} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
-    "Go [[a a b"
+    "Go [[a {t[1]} b]]"
    ],
    "runs": [
     {
-     "out": "Go ]] now\nBody.\n",
+     "out": "Go now\nBody.\n",
      "errs": []
     }
    ],
    "rt": [],
    "diags": [
-    "2@4:10-4:12 {\"kind\":\"markdown\",\"value\":\"This `[[` opens no directive, because no `]]` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:21-4:22 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
    ],
-   "scopes": "d0ea61e8"
+   "scopes": "67643a83"
   },
   {
    "id": "plain-command-107",
@@ -25529,7 +25632,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "44b137b6"
+   "scopes": "7c093149"
   },
   {
    "id": "plain-command-116",
@@ -25910,7 +26013,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "5de481f8"
+   "scopes": "96c8dc60"
   },
   {
    "id": "plain-command-136",

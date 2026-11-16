@@ -654,12 +654,18 @@ variables:
   SPAN_ANGLE: (?:[<]{{SPAN_COMMAND_TAIL}}|[<](?!{{SPAN_COMMAND_TAIL}}))
   # lookaround: as SPAN_LONG_BRACKET. ImageCommand ends at the first `]]`; Punctuation takes a `[`
   # that starts none.
-  SPAN_BRACKET: (?:\[\[{{SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  SPAN_BRACKET: (?:\[\[{{SPAN_IMAGE_TEXT}}*\]\]|{{SPAN_UNCLOSED_BRACKET}}|\[(?!\[))
+  # lookaround: ImageCommand opens only where a `]]` follows on its line, so
+  # Punctuation takes a `[[` with none as text.
+  SPAN_UNCLOSED_BRACKET: (?:\[\[(?!{{SPAN_DOUBLE_BRACKET_TEXT}}*\]\]))
   # lookaround: as SPAN_COMMAND_CHARACTER, for an image command.
   SPAN_IMAGE_TEXT: (?:(?!{{SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
   # lookaround: as SPAN_LONG_BRACKET. AudioCommand ends at the first `))`; Punctuation takes a `(`
   # that starts none.
-  SPAN_PAREN: (?:[(][(]{{SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  SPAN_PAREN: (?:[(][(]{{SPAN_AUDIO_TEXT}}*[)][)]|{{SPAN_UNCLOSED_PAREN}}|[(](?![(]))
+  # lookaround: AudioCommand opens only where a `))` follows on its line, so
+  # Punctuation takes a `((` with none as text.
+  SPAN_UNCLOSED_PAREN: (?:[(][(](?!{{SPAN_DOUBLE_PAREN_TEXT}}*[)][)]))
   # lookaround: as SPAN_COMMAND_CHARACTER, for an audio command, which ends at
   # its first `))`.
   SPAN_AUDIO_TEXT: (?:(?!{{SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
@@ -743,11 +749,11 @@ variables:
   # lookaround: as SPAN_ANGLE, in ChoiceStartText.
   CHOICE_START_SPAN_ANGLE: (?:[<]{{CHOICE_START_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_START_SPAN_COMMAND_TAIL}}))
   # lookaround: as SPAN_BRACKET, in ChoiceStartText.
-  CHOICE_START_SPAN_BRACKET: (?:\[\[{{CHOICE_START_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  CHOICE_START_SPAN_BRACKET: (?:\[\[{{CHOICE_START_SPAN_IMAGE_TEXT}}*\]\]|{{SPAN_UNCLOSED_BRACKET}}|\[(?!\[))
   # lookaround: as SPAN_IMAGE_TEXT, in ChoiceStartText.
   CHOICE_START_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
   # lookaround: as SPAN_PAREN, in ChoiceStartText.
-  CHOICE_START_SPAN_PAREN: (?:[(][(]{{CHOICE_START_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  CHOICE_START_SPAN_PAREN: (?:[(][(]{{CHOICE_START_SPAN_AUDIO_TEXT}}*[)][)]|{{SPAN_UNCLOSED_PAREN}}|[(](?![(]))
   # lookaround: as SPAN_AUDIO_TEXT, in ChoiceStartText.
   CHOICE_START_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
   CHOICE_START_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{SPAN_CODE}}|{{CHOICE_START_SPAN_ANGLE}}|{{CHOICE_START_SPAN_BRACKET}}|{{CHOICE_START_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
@@ -812,11 +818,11 @@ variables:
   # lookaround: as SPAN_ANGLE, in ChoiceOnlyText.
   CHOICE_ONLY_SPAN_ANGLE: (?:[<]{{CHOICE_ONLY_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_ONLY_SPAN_COMMAND_TAIL}}))
   # lookaround: as SPAN_BRACKET, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_BRACKET: (?:\[\[{{CHOICE_ONLY_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  CHOICE_ONLY_SPAN_BRACKET: (?:\[\[{{CHOICE_ONLY_SPAN_IMAGE_TEXT}}*\]\]|{{SPAN_UNCLOSED_BRACKET}}|\[(?!\[))
   # lookaround: as SPAN_IMAGE_TEXT, in ChoiceOnlyText.
   CHOICE_ONLY_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
   # lookaround: as SPAN_PAREN, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_PAREN: (?:[(][(]{{CHOICE_ONLY_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  CHOICE_ONLY_SPAN_PAREN: (?:[(][(]{{CHOICE_ONLY_SPAN_AUDIO_TEXT}}*[)][)]|{{SPAN_UNCLOSED_PAREN}}|[(](?![(]))
   # lookaround: as SPAN_AUDIO_TEXT, in ChoiceOnlyText.
   CHOICE_ONLY_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
   CHOICE_ONLY_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{SPAN_CODE}}|{{CHOICE_ONLY_SPAN_ANGLE}}|{{CHOICE_ONLY_SPAN_BRACKET}}|{{CHOICE_ONLY_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
@@ -881,11 +887,11 @@ variables:
   # lookaround: as SPAN_ANGLE, in ChoiceInnerText.
   CHOICE_INNER_SPAN_ANGLE: (?:[<]{{CHOICE_INNER_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_INNER_SPAN_COMMAND_TAIL}}))
   # lookaround: as SPAN_BRACKET, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_BRACKET: (?:\[\[{{CHOICE_INNER_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  CHOICE_INNER_SPAN_BRACKET: (?:\[\[{{CHOICE_INNER_SPAN_IMAGE_TEXT}}*\]\]|{{SPAN_UNCLOSED_BRACKET}}|\[(?!\[))
   # lookaround: as SPAN_IMAGE_TEXT, in ChoiceInnerText.
   CHOICE_INNER_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
   # lookaround: as SPAN_PAREN, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_PAREN: (?:[(][(]{{CHOICE_INNER_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  CHOICE_INNER_SPAN_PAREN: (?:[(][(]{{CHOICE_INNER_SPAN_AUDIO_TEXT}}*[)][)]|{{SPAN_UNCLOSED_PAREN}}|[(](?![(]))
   # lookaround: as SPAN_AUDIO_TEXT, in ChoiceInnerText.
   CHOICE_INNER_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
   CHOICE_INNER_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{SPAN_CODE}}|{{CHOICE_INNER_SPAN_ANGLE}}|{{CHOICE_INNER_SPAN_BRACKET}}|{{CHOICE_INNER_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
@@ -940,8 +946,11 @@ variables:
   # A closed comment is always taken whole and a character never starts one. A
   # comment opener left open on the line means none later closes, so the run
   # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_START_REGION_CHARACTER,
-  # which never asks again.
-  CHOICE_START_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_START_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
+  # which never asks again. Where the region's end would stop the run inside an
+  # interpolation, the run takes the interpolation whole, as
+  # LuauInterpolatedStringExpression reads it in the text around the command, so
+  # a bracket inside it ends nothing and the command reads as on a display line.
+  CHOICE_START_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_START_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n]|{{SPAN_INTERPOLATION}})
   CHOICE_START_COMMAND_ESCAPE: (?:[\\]{{CHOICE_START_REGION_CHARACTER}})
   # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
   # of the command's text must leave to it; a run started earlier cannot be
@@ -1049,8 +1058,11 @@ variables:
   # A closed comment is always taken whole and a character never starts one. A
   # comment opener left open on the line means none later closes, so the run
   # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_ONLY_REGION_CHARACTER,
-  # which never asks again.
-  CHOICE_ONLY_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
+  # which never asks again. Where the region's end would stop the run inside an
+  # interpolation, the run takes the interpolation whole, as
+  # LuauInterpolatedStringExpression reads it in the text around the command, so
+  # a bracket inside it ends nothing and the command reads as on a display line.
+  CHOICE_ONLY_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n]|{{SPAN_INTERPOLATION}})
   CHOICE_ONLY_COMMAND_ESCAPE: (?:[\\]{{CHOICE_ONLY_REGION_CHARACTER}})
   # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
   # of the command's text must leave to it; a run started earlier cannot be
@@ -1158,8 +1170,11 @@ variables:
   # A closed comment is always taken whole and a character never starts one. A
   # comment opener left open on the line means none later closes, so the run
   # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_INNER_REGION_CHARACTER,
-  # which never asks again.
-  CHOICE_INNER_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_INNER_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
+  # which never asks again. Where the region's end would stop the run inside an
+  # interpolation, the run takes the interpolation whole, as
+  # LuauInterpolatedStringExpression reads it in the text around the command, so
+  # a bracket inside it ends nothing and the command reads as on a display line.
+  CHOICE_INNER_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_INNER_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n]|{{SPAN_INTERPOLATION}})
   CHOICE_INNER_COMMAND_ESCAPE: (?:[\\]{{CHOICE_INNER_REGION_CHARACTER}})
   # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
   # of the command's text must leave to it; a run started earlier cannot be
