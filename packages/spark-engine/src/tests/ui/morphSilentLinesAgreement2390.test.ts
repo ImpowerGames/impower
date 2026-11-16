@@ -108,10 +108,31 @@ describe("the editor's warning agrees with the game's image write (I-2390)", () 
     ["a conditional with no else whose branch is Mia's line", story(`  ${DIRECTIVE}\n  if true then\n    MIA:\n      Hello there.\n  end`)],
     ["a conditional whose taken else is Mia's line", story(`  ${DIRECTIVE}\n  if false then\n    Mia waits.\n  else\n    MIA:\n      Hello there.\n  end`)],
     ["an alternator whose first arm is Mia's line", story(`  ${DIRECTIVE}\n  cycle\n    |\n      MIA:\n        Hello there.\n    |\n      Mia waits.\n  end`)],
+    ["a while loop holding Mia's line after a directive line", story(`  ${DIRECTIVE}\n  while true do\n    MIA:\n      Hello there.\n    break\n  end`)],
+    ["a repeat loop holding Mia's line after a directive line", story(`  ${DIRECTIVE}\n  repeat\n    MIA:\n      Hello there.\n  until true`)],
+    ["a directive line ending an if branch before Mia's line", story(`  if true then\n    ${DIRECTIVE}\n  end\n  MIA:\n    Hello there.`)],
+    ["a directive line ending an alternator arm before Mia's line", story(`  cycle\n    |\n      ${DIRECTIVE}\n    |\n      Mia waits.\n  end\n  MIA:\n    Hello there.`)],
+    ["a branch declaration between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  branch unused\n    Mia waits.\n  end\n  MIA:\n    Hello there.`)],
   ])("known difference: %s leaves the editor silent where the game plays the speech morph", async (_, source) => {
     const editor = warned(source);
     const shown = await talks(source);
     expect({ editor, written: shown.written, game: shown.talk }).toEqual({ editor: false, written: true, game: true });
+  });
+
+  test.each([
+    ["an inline cue holding only the directive, before a conditional into narration", story(`  MIA: ${DIRECTIVE}\n  if true then\n    Mia waits.\n  end`)],
+    ["a loading directive between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  [[load gallery]]\n  MIA:\n    Hello there.\nend\n\nscene gallery\n  Pictures.`)],
+    [
+      "a cutscene directive between a directive line and Mia's line",
+      story(`  ${DIRECTIVE}\n  [[play intro]]\n  MIA:\n    Hello there.`).replace(
+        "scene start",
+        'define intro as video with\n  src = "https://example.invalid/intro.webm"\nend\n\nscene start',
+      ),
+    ],
+  ])("known difference: %s makes the editor warn where the game plays no speech morph", async (_, source) => {
+    const editor = warned(source);
+    const shown = await talks(source);
+    expect({ editor, written: shown.written, game: shown.talk }).toEqual({ editor: true, written: true, game: false });
   });
 
   test("known difference: a divert into a scene of another script is not followed, so the editor stays silent where the game plays the speech morph", async () => {
