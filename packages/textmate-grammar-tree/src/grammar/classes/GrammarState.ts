@@ -185,6 +185,9 @@ export class GrammarState {
     const visited = this.visited;
     for (let i = visited.length - 1; i >= 0; i--) {
       const frame = visited[i]!;
+      if (frame.position < position) {
+        return false;
+      }
       if (frame.position === position && frame.ruleId === ruleId) {
         console.warn("Infinite recursion detected!", ruleId, position);
         return true;

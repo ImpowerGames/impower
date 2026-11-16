@@ -328,20 +328,47 @@ const ASTRAL_WORD_TEXT = 2;
 
 const ASTRAL_WORD = new RegExp(`[${classBody(astralPart(WORD))}]`, "u");
 
-let checkedText: string | undefined;
+const RECENT_TEXTS = 8;
 
-let checkedTextRange = ASCII_TEXT;
+const recentTexts: string[] = [];
+
+const recentRanges: number[] = [];
+
+const rememberTextRange = (str: string, range: number) => {
+  const at = recentTexts.indexOf(str);
+  if (at >= 0) {
+    recentTexts.splice(at, 1);
+    recentRanges.splice(at, 1);
+  }
+  recentTexts.unshift(str);
+  recentRanges.unshift(range);
+  recentTexts.length = Math.min(recentTexts.length, RECENT_TEXTS);
+  recentRanges.length = recentTexts.length;
+  return range;
+};
 
 const textRange = (str: string) => {
-  if (str !== checkedText) {
-    checkedText = str;
-    checkedTextRange = !/[^\x00-\x7f]/.test(str)
+  for (let i = 0; i < recentTexts.length; i++) {
+    if (recentTexts[i] === str) {
+      return recentRanges[i]!;
+    }
+  }
+  return rememberTextRange(
+    str,
+    !/[^\x00-\x7f]/.test(str)
       ? ASCII_TEXT
       : /[\ud800-\udfff]/.test(str) && ASTRAL_WORD.test(str)
         ? ASTRAL_WORD_TEXT
-        : BMP_TEXT;
-  }
-  return checkedTextRange;
+        : BMP_TEXT,
+  );
+};
+
+export const sliceWithTextRange = (text: string, end: number) => {
+  const range = textRange(text);
+  const slice = text.slice(0, end);
+  rememberTextRange(slice, range);
+  rememberTextRange(text, range);
+  return slice;
 };
 
 const compile = (

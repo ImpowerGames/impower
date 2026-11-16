@@ -375,6 +375,7 @@ export class Compiler {
     const stack = chunk.stack;
     const entries = stack.entries;
     const stackLength = stack.length;
+    const stackAdded = stack.added;
     const entriesCopy = entries.slice(0, stackLength * 3);
     journal.undo.push(() => {
       chunk.version++;
@@ -395,6 +396,7 @@ export class Compiler {
       entries.set(entriesCopy);
       stack.entries = entries;
       stack.length = stackLength;
+      stack.added = stackAdded;
       chunk.stack = stack;
     });
   }
@@ -412,6 +414,7 @@ export class Compiler {
     ]);
     const stack = chunk.stack;
     const entriesCopy = stack.entries.slice(0, stack.length * 3);
+    const stackAdded = stack.added;
     this._journal!.undo.push(() => {
       chunk.version++;
       if (seeds) {
@@ -423,6 +426,7 @@ export class Compiler {
         compiled[offset! + 3] = size!;
       }
       stack.entries.set(entriesCopy);
+      stack.added = stackAdded;
     });
   }
 

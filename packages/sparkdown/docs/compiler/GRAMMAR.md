@@ -1391,6 +1391,15 @@ So we accept the bill: a 200-line function re-parses on every keystroke inside i
 
 **Takeaway for anyone adding a new construct:** if you can possibly avoid wrapping a potentially-large region in a `Scoped` rule, do. `LuauFunctionDefinition` is the compromise we settled for; don't add another one without a comparably strong reason.
 
+### 16.5 Long lines
+
+Each engine searches a line once for every token on it, so any check that reads back to the line's start makes a long line cost time in proportion to the square of its length (I-2306).
+
+- **A lookbehind that must reach the line's start is guarded by one that reads only nearby text.** `_BLOCK_DISPLAY_START_` captures the indent and bar before a block display line with `(?<=^({{WS}}*)(?:([|]){{WS}}*)?)`. Before it, `(?<![^\s|]{{WS}}*|[^\s|]{{WS}}*[|]{{WS}}*|[|]{{WS}}*[|]{{WS}}*)` rejects a position with anything but blanks and one bar before it, after reading back over at most two runs of blanks. Every condition is implied by the lookbehind it guards, so nothing matches differently.
+- **A display rule keeps its pattern even where a faster one would read some lines differently.** The display rules run at every token a line holds, so a rewrite that starts them only at some positions changes how lines are coloured. `ParentheticalLine` therefore keeps its lazy command parts (`[=].*?[=]`, `[<].*?[>]`): on a line of many commands with no parenthetical it tries many splits of the same text, and in VS Code its search from each start reads to the line's end. `TextCommand` passes its content to further rules through captures, which vscode-textmate re-reads from the line's start, so a line of many `<…>` commands grows faster than its length in VS Code.
+- **A long line of Luau still grows faster than its length in VS Code.** vscode-textmate re-reads the line from its start for every capture that has `patterns`, and a rule tried at each name of a long call, list or path reads the rest of it each time. The tree parser has neither cost.
+- `unclosedBraceGrowth2306.test.ts` pins the tree parser's growth on long lines of Luau and story text, and VS Code's on long lines of story text. ImpowerGames/impower-internal#2465 tracks the lines that stay slow in VS Code.
+
 ---
 
 ## 17. Engine equality: the grammar must parse identically in both engines
