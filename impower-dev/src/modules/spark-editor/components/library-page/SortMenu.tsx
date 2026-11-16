@@ -63,7 +63,7 @@ export default function SortMenu({ value, fields = ALL_FIELDS, usesHint = USES_H
           <span>{label.name}</span>
         </Button>
       </DropdownTrigger>
-      <DropdownContent align="end" class="min-w-[196px]">
+      <DropdownContent elevation="menu" align="end" class="min-w-[196px]">
         <DropdownLabel variant="heading">Sort by</DropdownLabel>
         <DropdownRadioGroup label="Sort by" value={fieldKey} onValueChange={onChange}>
           {menu.fields.filter((field) => fields.includes(field.field)).map((field) => {

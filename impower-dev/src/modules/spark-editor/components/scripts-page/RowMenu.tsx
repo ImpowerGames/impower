@@ -35,7 +35,7 @@ export default function RowMenu({ name, main, onAction }: RowMenuProps) {
           <MoreVerticalIcon />
         </Button>
       </DropdownTrigger>
-      <DropdownContent align="end" class="min-w-[196px]">
+      <DropdownContent elevation="menu" align="end" class="min-w-[196px]">
         {!main && (
           <DropdownItem returnFocus={false} onSelect={() => onAction("rename")}>
             <PencilIcon class="text-muted" />

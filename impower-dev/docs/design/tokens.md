@@ -761,7 +761,7 @@ at every width where it opens:
 | Dialogs, sheets, the suggestion chip row | none | `app.css:1084-1092`, `folio-insert.css:56`, `folio-language.css:110` |
 | Menu sheets (the Variants wheel and every menu shown as a sheet on a phone) | `0 -8px 24px` black at 33%, 16px top corners | `folio-assets.css:173` |
 
-The variants are listed under inconsistencies with the value this reference takes. Every dropdown menu takes the Scripts menus' `--menu-shadow`, `0 8px 24px rgb(0 0 0 / 0.267)`, and opens 6px from its trigger (`folio-scripts.js:190-192`); a menu shown as a sheet takes `--sheet-shadow` and `--sheet-radius`; `--float-shadow` stays on the other floating surfaces. Sepia and Chalk soften the
+The variants are listed under inconsistencies with the value this reference takes. The Scripts and Assets pages' menus (Add, Sort, View, the folder, tile, row, file and inspector options, and Face) take the Scripts menus' `--menu-shadow`, `0 8px 24px rgb(0 0 0 / 0.267)`, through the dropdown's `menu` elevation; every dropdown opens 6px from its trigger (`folio-scripts.js:190-192`); a menu shown as a sheet takes `--sheet-shadow` and `--sheet-radius`; `--float-shadow` stays on the other floating surfaces, the app menu and the preview's menus included. Sepia and Chalk soften the
 preview frame to `0 10px 30px rgb(0 0 0 / 0.16)` (`folio-themes.css:289`) and give the
 primary button `0 1px 2px` at 0.18 (Sepia, warm) or 0.16 (Chalk, neutral)
 (`folio-themes.css:286`, `:315`).

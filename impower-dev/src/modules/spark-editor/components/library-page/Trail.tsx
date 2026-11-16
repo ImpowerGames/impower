@@ -53,7 +53,7 @@ export default function Trail({
               {icon}
             </Button>
           </DropdownTrigger>
-          <DropdownContent align="start" class="min-w-[196px]">
+          <DropdownContent elevation="menu" align="start" class="min-w-[196px]">
             <DropdownItem onSelect={openTrash}>
               <TrashIcon class="text-muted" />
               Recycle bin

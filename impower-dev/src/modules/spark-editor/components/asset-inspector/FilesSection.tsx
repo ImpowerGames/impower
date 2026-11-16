@@ -49,7 +49,7 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: "rename"
           <MoreVerticalIcon />
         </Button>
       </DropdownTrigger>
-      <DropdownContent align="end" class="min-w-[196px]">
+      <DropdownContent elevation="menu" align="end" class="min-w-[196px]">
         <DropdownItem onSelect={() => onAction("rename")}>
           <PencilIcon class="text-muted" />
           Rename

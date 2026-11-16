@@ -166,6 +166,16 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
+      <GalleryRow label="Menu elevation: the library pages' lighter menu shadow">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Sort</Button>
+          </DropdownTrigger>
+          <DropdownContent elevation="menu" align="start">
+            <MenuItems />
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
       {(Object.keys(INDICATORS) as DropdownRadioItemIndicator[]).map(
         (indicator) => (
           <GalleryRow key={indicator} label={INDICATORS[indicator]}>

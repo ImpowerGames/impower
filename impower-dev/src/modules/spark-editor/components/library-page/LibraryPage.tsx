@@ -79,7 +79,7 @@ export default function LibraryPage<T>({
                   {newLabel}
                 </Button>
               </DropdownTrigger>
-              <DropdownContent align="end" class="min-w-[196px]">
+              <DropdownContent elevation="menu" align="end" class="min-w-[196px]">
                 {newMenu}
               </DropdownContent>
             </DropdownRoot>

@@ -508,7 +508,7 @@ describe("Shared parts the Assets page shows against the Folio prototype (I-2441
 
 describe("The Assets page's and app frame's last differences from the Folio prototype (I-2448)", () => {
 
-  const menuBelow = () =>
+  const menuBelow = (elevation?: "menu") =>
     h(
       "div",
       { style: "padding:100px 400px" },
@@ -516,13 +516,18 @@ describe("The Assets page's and app frame's last differences from the Folio prot
         ui.DropdownRoot,
         { open: true, onOpenChange: () => {}, sheet: false },
         h(ui.DropdownTrigger, { asChild: true }, h("button", { type: "button", style: "height:44px" }, "Add")),
-        h(ui.DropdownContent, { align: "end" }, h(ui.DropdownItem, {}, "Upload files")),
+        h(ui.DropdownContent, { align: "end", elevation }, h(ui.DropdownItem, {}, "Upload files")),
       ),
     );
 
-  it.each(THEMES)("G1: in %s a dropdown casts the prototype's 0 8px 24px shadow at 0.267", async (theme) => {
-    const shadow = await inChromium(menuBelow(), { width: 1440, theme }, () => getComputedStyle(document.querySelector('[role="menu"]')!).boxShadow.split(", rgba").pop());
-    expect(shadow).toBe("(0, 0, 0, 0.267) 0px 8px 24px 0px");
+  const menuShadow = () => getComputedStyle(document.querySelector('[role="menu"]')!).boxShadow.split(", rgba").pop();
+
+  it.each(THEMES)("G1: in %s a library menu casts the prototype's 0 8px 24px shadow at 0.267", async (theme) => {
+    expect(await inChromium(menuBelow("menu"), { width: 1440, theme }, menuShadow)).toBe("(0, 0, 0, 0.267) 0px 8px 24px 0px");
+  });
+
+  it.each(THEMES)("G1: in %s a dropdown that is not a library menu, such as the app menu, keeps the floating shadow", async (theme) => {
+    expect(await inChromium(menuBelow(), { width: 1440, theme }, menuShadow)).toBe("(0, 0, 0, 0.4) 0px 12px 40px 0px");
   });
 
   it.each(THEMES)("G3: at 430 in %s a menu shown as a sheet has 16px top corners and the sheet's shadow", async (theme) => {
