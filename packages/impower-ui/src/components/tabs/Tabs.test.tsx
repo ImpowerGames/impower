@@ -62,7 +62,7 @@ describe("Tabs rail variant", () => {
     expect(tabs[0]!.getAttribute("data-state")).toBe("active");
     expect(tabs[0]!.querySelector(".text-accent")).not.toBeNull();
     expect(tabs[1]!.querySelector(".text-muted")).not.toBeNull();
-    expect(tabs[0]!.querySelector("svg")!.style.width).toBe("18px");
+    expect(tabs[0]!.querySelector("svg")!.style.width).toBe("20px");
   });
 
   it("lays the bar variant out as 64px targets with the icon over an unscaled 12px word", async () => {

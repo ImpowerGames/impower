@@ -412,8 +412,8 @@ export function DropdownContent({
 
 const dropdownItem = cva([
   "relative control-overlay rounded-control",
-  "flex min-h-11 w-full cursor-pointer flex-row items-center gap-2 px-3",
-  "text-sm text-ink select-none text-left [&_svg]:size-[18px]",
+  "flex min-h-11 w-full cursor-pointer flex-row items-center gap-3 px-3 py-2.5",
+  "text-[13px] text-ink select-none text-left [&_svg]:size-[18px]",
   "disabled:pointer-events-none disabled:opacity-40",
   "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
 ]);
@@ -628,7 +628,7 @@ export function DropdownItemText({
     return <>{children}</>;
   }
   return (
-    <span class="flex min-w-0 flex-col gap-0.5 py-2.5" data-dropdown-item-text>
+    <span class="flex min-w-0 flex-col gap-0.5" data-dropdown-item-text>
       <span>{children}</span>
       <small class="max-w-[200px] text-[11px]/[1.4] font-normal whitespace-normal text-muted">{hint}</small>
     </span>

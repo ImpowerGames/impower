@@ -97,27 +97,27 @@ function TabsDemo() {
           <IconTabs vertical iconLayout="beside" />
         </div>
       </GalleryRow>
-      <GalleryRow label="Rail variant, vertical, icons beside labels: the accent marks the current tab on a tinted row">
+      <GalleryRow label="Rail variant, vertical, 20px icons 11px beside their labels: the accent marks the current tab on a tinted row">
         <div class="w-[203px] rounded border border-surface-border bg-bg p-2">
           <IconTabs vertical variant="rail" indicator="none" />
         </div>
       </GalleryRow>
-      <GalleryRow label="Rail variant in a 76px rail: below a 140px container the icon stacks over an 11px label">
+      <GalleryRow label="Rail variant in a 76px rail: below a 140px container the 20px icon stacks 6px over an 11px label on a 1.35 line">
         <div class="w-[76px] rounded border border-surface-border bg-bg p-1.5">
           <IconTabs vertical variant="rail" indicator="none" />
         </div>
       </GalleryRow>
-      <GalleryRow label="Bar variant, the phone's bottom navigation: three 64px targets, a 19px icon over a 10px word, the accent on the current tab">
+      <GalleryRow label="Bar variant, the phone's bottom navigation: three 64px targets, a 19px icon 4px over a word on a 1.4 line, the accent on the current tab">
         <div class="w-[360px] rounded border border-surface-border bg-panel">
           <IconTabs variant="bar" indicator="none" />
         </div>
       </GalleryRow>
-      <GalleryRow label="Page variant, the Scripts page's tab row: each tab as wide as its label with 4px padding and 13px type, 48px rows 20px apart at desktop and 46px rows 22px apart below it, the current tab in the accent over a 2px accent underline as wide as its label">
+      <GalleryRow label="Page variant, the Scripts page's tab row: each tab as wide as its label with 4px padding and 13px type, 48px rows 20px apart at desktop and 46px rows 22px apart below it, the current tab in the accent over a 2px accent underline as wide as its label, set 1px below the row over its divider">
         <div class="w-[360px] rounded border border-surface-border bg-bg">
           <LabelTabs variant="page" iconLayout="beside" />
         </div>
       </GalleryRow>
-      <GalleryRow label="Inline variant, the Assets page's type tabs: each tab as wide as its label, 50px rows, 13px type, the current tab in the accent over an underline as wide as its label">
+      <GalleryRow label="Inline variant, the Assets page's type tabs: each tab as wide as its label, 50px rows, 13px type, the current tab in the accent over a 2px underline as wide as its label, set 1px below the row over its divider">
         <div class="w-[480px] rounded border border-surface-border bg-bg px-4">
           <TypeTabs />
         </div>
