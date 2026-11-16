@@ -108,7 +108,6 @@ export interface DefinitionArrays {
   sequence: Int32Array;
   kind: Int8Array;
   parent: Int32Array;
-  start: Int32Array;
 }
 
 export const emptyDefinitions = (size = 0): DefinitionArrays => ({
@@ -117,7 +116,6 @@ export const emptyDefinitions = (size = 0): DefinitionArrays => ({
   sequence: new Int32Array(size).fill(-1),
   kind: new Int8Array(size).fill(UNDEFINED_KIND),
   parent: new Int32Array(size).fill(-1),
-  start: new Int32Array(size).fill(-1),
 });
 
 const entryIndexes = new WeakMap<SequenceArrays, Map<number, number>>();
@@ -132,23 +130,6 @@ const entryIndex = (arrays: SequenceArrays): Map<number, number> => {
   return index;
 };
 
-const lineOrders = new WeakMap<SequenceArrays, readonly number[] | null>();
-
-const lineOrder = (arrays: SequenceArrays): readonly number[] | null => {
-  let order = lineOrders.get(arrays);
-  if (order === undefined) {
-    const starts = arrays.lineStarts;
-    let sorted = true;
-    for (let entry = 1; sorted && entry < starts.length; entry += 1) {
-      sorted = starts[entry - 1]! <= starts[entry]!;
-    }
-    order = sorted
-      ? null
-      : starts.map((_, entry) => entry).sort((a, b) => starts[a]! - starts[b]! || a - b);
-    lineOrders.set(arrays, order);
-  }
-  return order;
-};
 
 export const holdsChunk = (
   arrays: SequenceArrays,
@@ -407,10 +388,6 @@ export class ProgramRoot {
     return this._definitions.parent[symbol] ?? -1;
   }
 
-  startOf(symbol: number): number {
-    return this._definitions.start[symbol] ?? -1;
-  }
-
   functionEntry(
     symbol: number,
   ): { sequence: SequenceRow; entry: number; offset: number } | undefined {
@@ -505,12 +482,7 @@ export class ProgramRoot {
   }
 
   statementAt(uri: string, line: number): ChunkPosition | undefined {
-    let holder: SequenceRow | undefined;
-    for (const flow of this.flows(uri)) {
-      if (this.spans(flow, line)) {
-        holder = flow;
-      }
-    }
+    const holder = this.flowHolding(uri, line);
     let at = holder ? this.entryAt(holder, line) : undefined;
     while (at) {
       const chunk = at.sequence.arrays.chunks[at.entry]!;
@@ -535,23 +507,21 @@ export class ProgramRoot {
     if (starts.length === 0) {
       return undefined;
     }
-    const order = lineOrder(sequence.arrays);
-    const entryOf = (rank: number) => (order ? order[rank]! : rank);
     const relative = line - this.firstLineOf(sequence);
-    if (starts[entryOf(0)]! > relative) {
-      return { sequence, entry: entryOf(0) };
+    if (starts[0]! > relative) {
+      return { sequence, entry: 0 };
     }
     let lo = 0;
     let hi = starts.length - 1;
     while (lo < hi) {
       const mid = (lo + hi + 1) >>> 1;
-      if (starts[entryOf(mid)]! <= relative) {
+      if (starts[mid]! <= relative) {
         lo = mid;
       } else {
         hi = mid - 1;
       }
     }
-    return { sequence, entry: entryOf(lo) };
+    return { sequence, entry: lo };
   }
 
   lineOf(sequence: SequenceRow, entry: number): number {
@@ -632,6 +602,10 @@ export class ProgramRoot {
     const functions = query.functions ?? false;
     const end = this.scriptEnd(uri);
     for (let l = Math.max(0, line); l < end; l += 1) {
+      const holder = l > line ? this.flowHolding(uri, l) : undefined;
+      if (holder?.kind === SymbolKind.Branch && holder.firstLine > line + 1) {
+        continue;
+      }
       const address = this.addressOn(
         uri,
         l,
@@ -682,18 +656,23 @@ export class ProgramRoot {
     return end;
   }
 
-  protected addressOn(
-    uri: string,
-    line: number,
-    beat: "first" | "last",
-    functions: boolean,
-  ): number | undefined {
+  protected flowHolding(uri: string, line: number): SequenceRow | undefined {
     let holder: SequenceRow | undefined;
     for (const flow of this.flows(uri)) {
       if (this.spans(flow, line)) {
         holder = flow;
       }
     }
+    return holder;
+  }
+
+  protected addressOn(
+    uri: string,
+    line: number,
+    beat: "first" | "last",
+    functions: boolean,
+  ): number | undefined {
+    const holder = this.flowHolding(uri, line);
     if (holder && !functions && holder.kind === SymbolKind.Function) {
       return undefined;
     }
@@ -966,15 +945,6 @@ export class ProgramRoot {
       (flagsOf(end[HEADER_WORDS]!) & DONE_HOLD) === 0
       ? chunks.length - 1
       : -1;
-  }
-
-  bindsParameters(uri: string, header: number): boolean {
-    const chunk = this.flowHeadedAt(uri, header)?.arrays.chunks[0];
-    return (
-      chunk !== undefined &&
-      codeWords(chunk) > 0 &&
-      opOf(chunk[HEADER_WORDS]!) === Op.SetVar
-    );
   }
 
   protected flowHeadedAt(uri: string, header: number): SequenceRow | undefined {

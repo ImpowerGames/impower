@@ -52,6 +52,7 @@ const ENTERED = [
   "end",
   "",
   "scene outer",
+  "  -> b",
   "  branch b",
   "    Top {count.visits(-> outer.b)}.",
   "    done",
@@ -116,7 +117,7 @@ describe("a branch line its scene never enters", () => {
 
 describe("a branch line its scene enters", () => {
   test("starts at the scene's top with the scene's own visit counts", () => {
-    const { game } = routeTo(ENTERED, 7, {
+    const { game } = routeTo(ENTERED, 8, {
       outer: { [visitsKey("outer.b")]: "4" },
     });
     expect(game.simulation).toBe("success");
@@ -125,16 +126,16 @@ describe("a branch line its scene enters", () => {
   });
 
   test("does not take the branch's own visit count when a route reaches it", () => {
-    const { game } = routeTo(ENTERED, 7, visited);
+    const { game } = routeTo(ENTERED, 8, visited);
     expect(game.simulation).toBe("success");
     expect(game.plannedRoute.from).toBe("outer");
     expect(shown(game)).toContain("Top 1.");
   });
 
   test("a failed route names the start the jumped display applies", () => {
-    const { game } = routeTo(ENTERED, 9, visited);
+    const { game } = routeTo(ENTERED, 10, visited);
     expect(game.simulationFailure).toBeDefined();
     expect(game.simulateFlow).toBe("outer.b");
-    expect(jumpedText(ENTERED, 9, visited)).toContain("Below 5.");
+    expect(jumpedText(ENTERED, 10, visited)).toContain("Below 5.");
   });
 });

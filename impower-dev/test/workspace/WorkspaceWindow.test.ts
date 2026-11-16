@@ -2897,6 +2897,7 @@ describe("The preview's top bar", () => {
       expect(labels()).toEqual([
         "Viewing mode",
         "Pause",
+        "Step",
         "Step Over",
         "Step Into",
         "Skip back",
@@ -2995,6 +2996,7 @@ describe("The preview's top bar", () => {
     expect(labels()).toEqual([
       "Viewing mode",
       "Play Again",
+      "Step",
       "Step Over",
       "Step Into",
       "Skip back",
@@ -3229,6 +3231,7 @@ describe("The preview's top bar", () => {
     expect(labels()).toEqual([
       "Viewing mode",
       "Pause",
+      "Step",
       "Step Over",
       "Step Into",
       "Skip back",
@@ -3628,15 +3631,22 @@ describe("The preview's top bar in a narrow pane", () => {
         "group/bar",
         "data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto]",
         "data-[running]:@max-[480px]:gap-0",
-        "data-[running]:@max-[480px]:px-1",
+        "@max-[480px]:px-1",
       ]),
     );
     expect(modeTrigger().className.split(/\s+/)).toEqual(
-      expect.arrayContaining([
-        "group-data-[running]/bar:@max-[480px]:w-11",
-        "group-data-[running]/bar:@max-[360px]:hidden",
-      ]),
+      expect.arrayContaining(["@max-[480px]:w-11", "@max-[360px]:hidden"]),
     );
+  });
+
+  it("collapses the mode trigger by the same rules whether the game is stopped or running", () => {
+    show({});
+    const stopped = modeTrigger().className;
+    const stoppedBar = bar().className.split(/\s+/);
+    show({ running: true });
+    expect(modeTrigger().className).toBe(stopped);
+    expect(stoppedBar).toContain("@max-[480px]:px-1");
+    expect(stopped).not.toMatch(/data-\[running\]/);
   });
 
   it("keeps Button's 44px minimum width on the mode trigger", async () => {

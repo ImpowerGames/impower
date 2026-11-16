@@ -12,6 +12,7 @@ import {
   ScreenplayTokenType,
 } from "../types/ScreenplayTokenType";
 import { TextOptions } from "../types/TextOptions";
+import { markAlternativeRows } from "../utils/alternativeMarks";
 import { isHiddenIdentifier } from "../utils/isHiddenIdentifier";
 import { styleText } from "../utils/styleText";
 
@@ -62,6 +63,7 @@ export default class ScreenplayTypesetter {
           { align },
           { source: t.source },
           t.at,
+          t.alternative,
         );
       } else if (t.tag === "page_break") {
         const prevSpan = spans.at(-1);
@@ -160,6 +162,7 @@ export default class ScreenplayTypesetter {
           undefined,
           { source: t.source },
           t.at,
+          t.alternative,
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -176,6 +179,7 @@ export default class ScreenplayTypesetter {
           style,
           { source: t.source },
           t.at,
+          t.alternative,
         );
         if (lines.length > 0 && t.continued) {
           spans.push({ tag: t.tag, lines });
@@ -196,6 +200,7 @@ export default class ScreenplayTypesetter {
           style,
           { source: t.source },
           t.at,
+          t.alternative,
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -210,8 +215,10 @@ export default class ScreenplayTypesetter {
           {
             canSplitAfter: 3,
             source: t.source,
+            ...(t.row ? { row: t.row } : {}),
           },
           t.at,
+          t.alternative,
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -240,6 +247,7 @@ export default class ScreenplayTypesetter {
           undefined,
           lineOptions,
           t.at,
+          t.alternative,
         );
         if (lines.length > 0) {
           if (t.position === "l" || t.position === "r") {
@@ -295,6 +303,7 @@ export default class ScreenplayTypesetter {
           undefined,
           { source: t.source },
           t.at,
+          t.alternative,
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -344,6 +353,24 @@ export default class ScreenplayTypesetter {
   };
 
   protected format(
+    tag: ScreenplayTokenType,
+    text: string = "",
+    profile?: PrintProfile,
+    affixOptions: { prefix?: string; suffix?: string } = {},
+    textOptions: TextOptions = {},
+    lineOptions: LineOptions = {},
+    at?: number[],
+    alternative?: readonly boolean[],
+  ): PageLine[] {
+    const lines = this.formatLines(tag, text, profile, affixOptions, textOptions, lineOptions, at);
+    if (alternative?.length) {
+      const markStyle = this.style(tag, " ", textOptions, profile)[0] ?? { text: "" };
+      markAlternativeRows(lines, alternative, markStyle);
+    }
+    return lines;
+  }
+
+  protected formatLines(
     tag: ScreenplayTokenType,
     text: string = "",
     profile?: PrintProfile,

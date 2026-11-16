@@ -12,6 +12,7 @@ import type { PageLine } from "../../sparkdown-screenplay/src/types/DocumentSpan
 import { isHiddenIdentifier } from "../../sparkdown-screenplay/src/utils/isHiddenIdentifier";
 import { SOURCE_COLOR } from "../../sparkdown-screenplay/src/utils/styleText";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
+import { generateScreenplayCsvData } from "../../sparkdown-screenplay/src/utils/generateScreenplayCsvData";
 import { generateScreenplayPrintData } from "../../sparkdown-screenplay/src/utils/generateScreenplayPrintData";
 import createEditorView from "../src/modules/screenplay-preview/utils/createEditorView";
 import { setScreenplayConfig } from "../src/modules/screenplay-preview/utils/screenplaySettings";
@@ -104,6 +105,43 @@ const KINDS: Record<string, string[]> = {
   LuauSparkdownReassignment: ["  x = 2"],
   LuauSparkdownRepeatLoop: ["  repeat", "    It drizzles.", "  until true"],
   LuauSparkdownSequentialAlternatorBlock: ["  queue", "    | First time.", "    | Second time.", "  end"],
+  CycleAlternatorBlock: ["  cycle", "    | Cycle first.", "    | Cycle second.", "  end"],
+  ShuffleAlternatorBlock: ["  shuffle", "    | Shuffle first.", "    | Shuffle second.", "  end"],
+  ShuffleCycleAlternatorBlock: ["  shuffle cycle", "    | Mixed first.", "    | Mixed second.", "  end"],
+  ChainAlternatorBlock: ["  chain", "    | Chain first.", "    | Chain second.", "  end"],
+  PluralAlternatorBlock: ["  plural n", "    | One apple.", "    | Many apples.", "  end"],
+  IfElseifBlock: ["  if a then", "    It rains.", "  elseif b then", "    It snows.", "  end"],
+  IfElseifElseBlock: ["  if a then", "    It pours.", "  elseif b then", "    It drizzles.", "  else", "    It stops.", "  end"],
+  AlternatorDialogueBodies: ["  queue", "    | GUIDE: Hi.", "    | GUIDE (softly): Bye.", "  end"],
+  AlternatorChoiceBodies: ["  queue", "    | * [Left.]", "    | * [Right.]", "  end"],
+  AlternatorHeadingBodies: ["  queue", "    | $: INT. ATTIC", "    | $: INT. CELLAR", "  end"],
+  AlternatorTitleBodies: ["  queue", "    | ^: THE END", "    | ^: THE START", "  end"],
+  AlternatorSeveralLineBody: ["  queue", "    | Line one.", "      Line two.", "    | Other line.", "  end"],
+  AlternatorBlockActionBody: ["  queue", "    | :", "        Block one.", "        Block two.", "    | Plain arm.", "  end"],
+  IfElseDialogueBodies: ["  if a then", "    GUIDE:", "      Yes.", "  else", "    GUIDE:", "      No.", "  end"],
+  NestedAlternators: [
+    "  queue",
+    "    | Outer one.",
+    "    | queue",
+    "        | Inner one.",
+    "        | queue",
+    "            | Deep one.",
+    "            | Deep two.",
+    "          end",
+    "      end",
+    "  end",
+  ],
+  AlternatorInsideIf: ["  if a then", "    queue", "      | Inside one.", "      | Inside two.", "    end", "  else", "    Outside.", "  end"],
+  IfElseEmptyElse: ["  if a then", "    Only this.", "  else", "  end"],
+  IfElseifEmptyBodies: ["  if a then", "  elseif b then", "  else", "  end"],
+  IfElseCommandOnlyBody: ["  if a then", "    Printed.", "  else", "    & x = 1", "  end"],
+  AlternatorEmptyArm: ["  queue", "    |", "    | Kept arm.", "  end"],
+  SingleLineAlternatorThenAction: ["  queue | Alpha. | Beta. end : After them."],
+  SingleLineAlternatorThenDialogue: ["  queue | Alpha. | Beta. end GUIDE: After them."],
+  MarkupOnlyThenWordsBranch: ["  if a then", "    : <b></b>", "    Real words.", "  end"],
+  MarkupOnlyBranch: ["  if a then", "    : <b></b>", "  end"],
+  CentredStartBranch: ["  if a then", "    ^Up^ they go.", "  end"],
+  CentredMiddleAlternatives: ["  queue", "    | They ^go^ on.", "    | Stay.", "  end"],
   LuauSparkdownSingleLineConditionalAlternatorBlock: ["  match(x) | Small arm | Big arm end"],
   LuauSparkdownSingleLineSequentialAlternatorBlock: ["  queue | Arm one # t | Arm two end"],
   SingleLineCycleAlternator: ["  cycle | Cycle one. | Cycle two. end"],
@@ -176,14 +214,58 @@ const GLUED_LAYOUTS: Record<string, string[]> = {
   GluedMarkupAlternator: ["They spot {a big owl|a hawk} above."],
 };
 
+const ALTERNATIVE_LAYOUTS: Record<string, string[]> = {
+  LuauSparkdownSequentialAlternatorBlock: ["{", "| First time.", "| Second time.", "}"],
+  LuauSparkdownConditionalAlternatorBlock: ["{", "| Small.", "| Big.", "}"],
+  CycleAlternatorBlock: ["{", "| Cycle first.", "| Cycle second.", "}"],
+  ShuffleAlternatorBlock: ["{", "| Shuffle first.", "| Shuffle second.", "}"],
+  ShuffleCycleAlternatorBlock: ["{", "| Mixed first.", "| Mixed second.", "}"],
+  ChainAlternatorBlock: ["{", "| Chain first.", "| Chain second.", "}"],
+  PluralAlternatorBlock: ["{", "| One apple.", "| Many apples.", "}"],
+  LuauSparkdownIfElseBlock: ["{", "| No.", "| Yes.", "}"],
+  IfElseifBlock: ["{", "| It rains.", "| It snows.", "}"],
+  IfElseifElseBlock: ["{", "| It pours.", "| It drizzles.", "| It stops.", "}"],
+  AlternatorDialogueBodies: ["{", "| GUIDE", "  Hi.", "| GUIDE (softly)", "  Bye.", "}"],
+  AlternatorChoiceBodies: ["{", "| * [Left.]", "| * [Right.]", "}"],
+  AlternatorHeadingBodies: ["{", "| INT. ATTIC", "| INT. CELLAR", "}"],
+  AlternatorTitleBodies: ["{", "| THE END", "| THE START", "}"],
+  AlternatorSeveralLineBody: ["{", "| Line one.", "  Line two.", "| Other line.", "}"],
+  AlternatorBlockActionBody: ["{", "| Block one.", "  Block two.", "| Plain arm.", "}"],
+  IfElseDialogueBodies: ["{", "| GUIDE", "  Yes.", "| GUIDE", "  No.", "}"],
+  NestedAlternators: ["{", "| Outer one.", "| {", "  | Inner one.", "  | {", "    | Deep one.", "    | Deep two.", "    }", "  }", "}"],
+  AlternatorInsideIf: ["{", "| {", "  | Inside one.", "  | Inside two.", "  }", "| Outside.", "}"],
+  LuauSparkdownSingleLineConditionalAlternatorBlock: ["{", "| Small arm", "| Big arm", "}"],
+  LuauSparkdownSingleLineSequentialAlternatorBlock: ["{", "| Arm one", "| Arm two", "}"],
+  SingleLineCycleAlternator: ["{", "| Cycle one.", "| Cycle two.", "}"],
+  SingleLineShuffleAlternator: ["{", "| Shuffle one.", "| Shuffle two.", "}"],
+  SingleLineAlternatorArmDivert: ["{", "| Leave now.", "| Stay here.", "}"],
+  SingleLineAlternatorInterpolation: ["{", "| Wave at {person}.", "| Nod.", "}"],
+  SingleLineAlternatorMarkup: ["{", "| A bold arm.", "| A plain arm.", "}"],
+  SingleLineAlternatorThenAction: ["{", "| Alpha.", "| Beta.", "}", "After them."],
+  SingleLineAlternatorThenDialogue: ["{", "| Alpha.", "| Beta.", "}", "GUIDE", "After them."],
+  MarkupOnlyThenWordsBranch: ["{", "| Real words.", "}"],
+  MarkupOnlyBranch: [],
+  CentredStartBranch: ["{", "| Up   they go.", "}"],
+  CentredMiddleAlternatives: ["{", "| They   go   on.", "| Stay.", "}"],
+};
+
+const ONE_BRANCH_LAYOUTS: Record<string, string[]> = {
+  LuauSparkdownIfBlock: ["{", "| It rains.", "}"],
+  IfElseEmptyElse: ["{", "| Only this.", "}"],
+  IfElseifEmptyBodies: [],
+  IfElseCommandOnlyBody: ["{", "| Printed.", "}"],
+  AlternatorEmptyArm: ["{", "| Kept arm.", "}"],
+  SingleLineCycleAlternator: ["{", "| Cycle one.", "| Cycle two.", "}"],
+};
+
 const PRINTED: Record<string, string[]> = {
   ...GLUED_LAYOUTS,
+  ...ALTERNATIVE_LAYOUTS,
+  ...ONE_BRANCH_LAYOUTS,
   ChoiceMarkup: ["* [A cat .. tail.]"],
   ImplicitActionInterpolation: ["Hello {person} there."],
   InlineDialogueInterpolation: ["GUIDE", "Hi {person} again."],
   ChoiceInterpolation: ["* [Greet {person} warmly.]"],
-  SingleLineAlternatorInterpolation: ["Wave at {person}.", "Nod."],
-  SingleLineAlternatorMarkup: ["A bold arm.", "A plain arm."],
   ImplicitActionMarkupBesideInterpolation: ["Meet {person} and {guest} now."],
   DialogueNameMarkup: ["GUIDE", "Hello."],
   InlineDialogueLeadingGlued: ["GUIDE", "{cat|dog} outside."],
@@ -235,20 +317,11 @@ const PRINTED: Record<string, string[]> = {
   SparkdownBlockCommentThenFunctionSharedLine: ["Shared."],
   LuauFunctionDefinitionPairSharedLine: ["Shared."],
   LuauSparkdownChooseBlock: ["* [Go.]", "They go."],
-  LuauSparkdownConditionalAlternatorBlock: ["Small.", "Big."],
   LuauSparkdownDoBlock: ["It snows."],
   LuauSparkdownElseBlock: ["Yes."],
   LuauSparkdownElseifBlock: ["Maybe."],
   LuauSparkdownForLoop: ["Again."],
-  LuauSparkdownIfBlock: ["It rains."],
-  LuauSparkdownIfElseBlock: ["No.", "Yes."],
   LuauSparkdownRepeatLoop: ["It drizzles."],
-  LuauSparkdownSequentialAlternatorBlock: ["First time.", "Second time."],
-  LuauSparkdownSingleLineConditionalAlternatorBlock: ["Small arm", "Big arm"],
-  LuauSparkdownSingleLineSequentialAlternatorBlock: ["Arm one", "Arm two"],
-  SingleLineCycleAlternator: ["Cycle one.", "Cycle two."],
-  SingleLineShuffleAlternator: ["Shuffle one.", "Shuffle two."],
-  SingleLineAlternatorArmDivert: ["Leave now.", "Stay here."],
   LuauSparkdownWhileLoop: ["It hails."],
 };
 
@@ -645,11 +718,11 @@ describe("the ticket's nested loop and alternator", () => {
       "end",
       "",
     ].join("\n");
-    const expected = ["INT. ROOM - DAY", "", "Hero", "Again.", "Hero", "Hi.", "", "First one | Second one", "Third line", "Hero", "Multi."];
+    const expected = ["INT. ROOM - DAY", "", "{", "| Hero", "  Again.", "}", "Hero", "Hi.", "", "{","| First one | Second one", "| Third line", "  Hero", "  Multi.", "}"];
     const screen = screenRows("default", source);
     expect(layout(screen)).toBe(layout(expected));
     expect(layout(exportRows("default", source))).toBe(layout(expected));
-    expect(screen.join("\n")).not.toMatch(/x\s*<\s*3|x\s*\+=\s*1|^\|/m);
+    expect(screen.join("\n")).not.toMatch(/x\s*<\s*3|x\s*\+=\s*1|queue|end/m);
   });
 });
 
@@ -759,6 +832,129 @@ describe("an alternative written inside a sentence", () => {
   });
 });
 
+const exportLines = (configName: string, source: string): string[] => {
+  const config = CONFIGS[configName];
+  return trimBlankRows(
+    extractPdfText(source, config)
+      .split("\n")
+      .filter((row) => !isHiddenIdentifier(row.match(/^<(\w+)>/)?.[1], config))
+      .map((row) => row.replace(/^<[^>]*> ?/, "").trimEnd()),
+  );
+};
+
+const visibleLines = (element: Element): string[] => {
+  const lines = [""];
+  const walk = (parent: Element) => {
+    parent.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) lines[lines.length - 1] += node.textContent ?? "";
+      else if (node.nodeType === Node.ELEMENT_NODE && (node as Element).classList.contains("sp-break")) lines.push("");
+      else if (node.nodeType === Node.ELEMENT_NODE && !isHidden(node as Element, true)) {
+        const style = (node as HTMLElement).style;
+        const block = style?.display === "block" && style.marginLeft.startsWith("-");
+        if (block && lines[lines.length - 1]) lines.push("");
+        walk(node as Element);
+        if (block && lines[lines.length - 1]) lines.push("");
+      }
+    });
+  };
+  walk(element);
+  while (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
+  return lines;
+};
+
+const pageLines = (configName: string, source: string): string[] => {
+  const view = show(configName, source);
+  const lines: string[] = [];
+  for (const row of Array.from(view.contentDOM.children)) {
+    if (isHidden(row, false)) continue;
+    const shown = getComputedStyle(row).opacity !== "0";
+    const inner = Array.from(row.querySelectorAll("div")).filter((div) => !div.querySelector("div"));
+    if (inner.length > 0) {
+      for (const div of inner) {
+        const text = visibleText(div);
+        if (shown && text.trim()) lines.push(text.trimEnd());
+      }
+      continue;
+    }
+    const text = visibleText(row);
+    if (shown && text.trim()) lines.push(...visibleLines(row).map((line) => line.trimEnd()));
+    else if (!text.trim() && (text.length > 0 || row.querySelector("br"))) lines.push("");
+  }
+  return trimBlankRows(lines);
+};
+
+const besideBody = (rows: string[]) => rows.filter((row) => row && row !== "Before." && row !== "After.");
+
+describe("a block of alternatives", () => {
+  it.each(Object.entries(ALTERNATIVE_LAYOUTS))(
+    "prints %s with its braces and bars, indentation included, on the page as in the export",
+    (kind, rows) => {
+      const source = sourceOf([kind]);
+      const printed = exportLines("default", source);
+      expect(besideBody(printed)).toEqual(rows);
+      expect(pageLines("default", source)).toEqual(printed);
+      expect(unplacedText("default", source)).toEqual([]);
+    },
+  );
+
+  it.each(Object.entries(ONE_BRANCH_LAYOUTS))(
+    "prints %s, a block with one branch or none that prints text, as request I-2401 answered, on the page as in the export",
+    (kind, rows) => {
+      const source = sourceOf([kind]);
+      const printed = exportLines("default", source);
+      expect(besideBody(printed)).toEqual(rows);
+      expect(pageLines("default", source)).toEqual(printed);
+      expect(unplacedText("default", source)).toEqual([]);
+    },
+  );
+
+  it.each([
+    ["first in its scene", ["scene s", ...KINDS["IfElseifElseBlock"]!, "  After.", "end", ""]],
+    ["last in its scene", ["scene s", "  Before.", ...KINDS["LuauSparkdownSequentialAlternatorBlock"]!, "end", ""]],
+    ["alone in its scene, before another scene", ["scene s", ...KINDS["NestedAlternators"]!, "end", "scene t", "  Next.", "end", ""]],
+    ["right after dialogue", ["scene s", "  GUIDE: Hello.", ...KINDS["AlternatorDialogueBodies"]!, "  After.", "end", ""]],
+    ["inside a choice's body", ["scene s", "  choose", "    * [Go.]", ...KINDS["IfElseDialogueBodies"]!.map((line) => `    ${line}`), "  end", "end", ""]],
+    ["after a blank line and before one", ["scene s", "  Before.", "", ...KINDS["CycleAlternatorBlock"]!, "", "  After.", "end", ""]],
+    ["with a blank line between its alternatives", ["scene s", "  Before.", "  queue", "    | One.", "", "    | Two.", "  end", "end", ""]],
+  ])("draws its rows where the export prints them, %s", (_where, lines) => {
+    const source = lines.join("\n");
+    for (const configName of ["default", "scene identifiers", "branch identifiers", "function identifiers"]) {
+      const printed = exportLines(configName, source);
+      expect(printed.filter((row) => /^ *[{}]$/.test(row)).length, configName).toBeGreaterThanOrEqual(2);
+      expect(pageLines(configName, source), configName).toEqual(printed);
+      expect(unplacedText(configName, source), configName).toEqual([]);
+    }
+  });
+});
+
+describe("two blocks of alternatives on one source line", () => {
+  it("keep each block's braces around its own alternatives, on the page as in the export", () => {
+    const source = ["scene s", "  Before.", "  queue | One A. | One B. end queue | Two A. | Two B. end", "  After.", "end", ""].join("\n");
+    const rows = ["{", "| One A.", "| One B.", "}", "{", "| Two A.", "| Two B.", "}"];
+    expect(besideBody(exportLines("default", source))).toEqual(rows);
+    expect(besideBody(pageLines("default", source))).toEqual(rows);
+    expect(unplacedText("default", source)).toEqual([]);
+  });
+});
+
+describe("the translation strings of a block of alternatives", () => {
+  it("are the author's own text, with no braces, bars or indentation", () => {
+    const source = sourceOf(["IfElseDialogueBodies", "AlternatorChoiceBodies", "LuauSparkdownIfElseBlock", "SingleLineAlternatorThenAction"]);
+    const rows = generateScreenplayCsvData(new ScreenplayParser().parse(source)).slice(1);
+    expect(rows.map(([, context, text]) => `${context} ${text!.trimEnd()}`)).toEqual([
+      "A Before.",
+      "D Yes.",
+      "D No.",
+      "A No.",
+      "A Yes.",
+      "A Alpha.",
+      "A Beta.",
+      "A After them.",
+      "A After.",
+    ]);
+  });
+});
+
 describe("a title page field", () => {
   it("shows the text the export prints, with markup and an interpolation", () => {
     const config = { ...BASE, screenplay_print_title_page: true };
@@ -835,13 +1031,13 @@ describe("a single-line alternator", () => {
   ] as const)("prints each branch on its own line, on the page as in the export, %s", (_where, lines) => {
     const source = ["scene s", "  Before.", ...lines, "  After.", "end", ""].join("\n");
     const printed = exportRows("default", source);
-    expect(printed.filter((row) => row.endsWith("please."))).toEqual(["Tea, please.", "Coffee, please."]);
+    expect(printed.filter((row) => row.endsWith("please."))).toEqual(["| Tea, please.", "| Coffee, please."]);
     const screen = screenRows("default", source);
     expect(layout(screen)).toBe(layout(printed));
     const view = views.get("default")!;
     const row = Array.from(view.contentDOM.children).find((element) => element.textContent?.includes("Tea, please."))!;
     expect(row.querySelectorAll(".sp-break")).toHaveLength(1);
-    expect(visibleText(row)).not.toMatch(/queue|\||end/);
+    expect(visibleText(row)).not.toMatch(/queue|end/);
   });
 });
 
@@ -979,7 +1175,7 @@ describe("text the export inserts", () => {
   });
 
   it("places each insert at its own anchor and reports text with no place", () => {
-    const places: PrintedPlaces = { runs: [], inserts: [], unplaced: [] };
+    const places: PrintedPlaces = { runs: [], inserts: [], rows: [], unplaced: [] };
     const style = { text: "", italic: true };
     placePrintedLine(
       {
@@ -1003,12 +1199,40 @@ describe("text the export inserts", () => {
     expect(places.unplaced).toEqual(["?"]);
   });
 
+  it("places a row of inserted text at its anchor, on its side, and reports text in it with no place", () => {
+    const places: PrintedPlaces = { runs: [], inserts: [], rows: [], unplaced: [] };
+    const brace = (text: string, anchor: number) => Array.from(text, () => insertedAt(anchor));
+    placePrintedLine({ tag: "action", row: "above", source: [], content: [{ text: "| {", at: brace("| {", 4) }] }, "abcdef", places);
+    placePrintedLine(
+      {
+        tag: "action",
+        row: "below",
+        source: [],
+        content: [
+          { text: "  ", at: brace("  ", 5) },
+          { text: "}", bold: true, at: [insertedAt(5)] },
+          { text: "xy", at: [2, insertedAt(1)] },
+          { text: "z" },
+        ],
+      },
+      "abcdef",
+      places,
+    );
+    expect(places.rows.map(({ at, side, pieces }) => [at, side, pieces.map((piece) => [piece.text, !!piece.style.bold])])).toEqual([
+      [4, "above", [["| {", false]]],
+      [5, "below", [["  ", false], ["}", true]]],
+    ]);
+    expect(places.runs).toEqual([]);
+    expect(places.inserts).toEqual([]);
+    expect(places.unplaced).toEqual(["x", "y", "z"]);
+  });
+
   it.each([
     ["a piece with no positions", [{ text: "lost" }], ["lost"]],
     ["a piece with fewer positions than characters", [{ text: "ab", at: [0] }], ["b"]],
     ["an unmapped space between mapped characters", [{ text: "a b", at: [0, -1, 1] }], [" "]],
   ])("reports %s as text with no place", (_name, content, unplaced) => {
-    const places: PrintedPlaces = { runs: [], inserts: [], unplaced: [] };
+    const places: PrintedPlaces = { runs: [], inserts: [], rows: [], unplaced: [] };
     placePrintedLine({ tag: "action", source: [0, 2], content }, "ab", places);
     expect(places.unplaced).toEqual(unplaced);
   });

@@ -205,6 +205,7 @@ describe("a closure written in a branch its own scene enters", () => {
         "  -> main(5)",
         "end",
         "scene main(foo)",
+        "  -> b",
         "  branch b",
         "    local f = function() return foo end",
         "    Got {f()}.",

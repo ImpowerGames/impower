@@ -343,13 +343,13 @@ function ModeMenu({ mode }: { mode: PreviewMode }) {
           variant="quiet"
           aria-label="Viewing mode"
           title="Viewing mode"
-          class="max-w-full gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent group-data-[running]/bar:@max-[480px]:w-11 group-data-[running]/bar:@max-[480px]:px-0 group-data-[running]/bar:@max-[360px]:hidden [&_svg]:size-5"
+          class="max-w-full shrink-0 @max-[640px]:max-w-none gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent @max-[480px]:w-11 @max-[480px]:px-0 @max-[360px]:hidden [&_svg]:size-5"
         >
           <Icon />
-          <span class="truncate @max-[470px]:hidden group-data-[running]/bar:@max-[640px]:hidden">
+          <span class="truncate @max-[640px]:hidden">
             {current.name}
           </span>
-          <ChevronDownIcon class="!size-3.5 group-data-[running]/bar:@max-[480px]:hidden" />
+          <ChevronDownIcon class="!size-3.5 @max-[480px]:hidden" />
         </Button>
       </DropdownTrigger>
       <DropdownContent
@@ -513,9 +513,9 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
       role="group"
       aria-label="Playback controls"
       data-running={running ? "" : undefined}
-      class="group/bar relative z-[1] grid h-[var(--preview-top-bar-height)] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1 data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto] data-[running]:@max-[480px]:gap-0 data-[running]:@max-[480px]:px-1"
+      class="group/bar relative z-[1] grid h-[var(--preview-top-bar-height)] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1 data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto] data-[running]:@max-[480px]:gap-0 @max-[480px]:px-1"
     >
-      <div class="flex min-w-0 max-w-full items-center gap-1 justify-self-start group-data-[running]/bar:@max-[480px]:gap-0">
+      <div class="flex min-w-0 max-w-full items-center gap-1 justify-self-start @max-[480px]:gap-0">
         <ModeMenu mode={mode} />
         {playing ? (
           <ControlButton
@@ -557,8 +557,17 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         {steps && phone ? (
           <StepMenu refusals={refusals} caretScript={caretScript} />
         ) : null}
-        {steps && !phone ? stepButton("over") : null}
-        {steps && !phone ? stepButton("in") : null}
+        {steps && !phone ? (
+          <span class="contents @min-[740px]:hidden">
+            <StepMenu refusals={refusals} caretScript={caretScript} />
+          </span>
+        ) : null}
+        {steps && !phone ? (
+          <span class="contents @max-[740px]:hidden">
+            {stepButton("over")}
+            {stepButton("in")}
+          </span>
+        ) : null}
         <SkipButton direction={-1} reason={skipRefusal(game, session, -1)} />
         <Button
           variant="primary"
@@ -576,14 +585,16 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           {live ? <StopIcon /> : <PlayIcon />}
         </Button>
         <SkipButton direction={1} reason={skipRefusal(game, session, 1)} />
-        {steps && !phone ? stepButton("out") : null}
         {steps && !phone ? (
-          <ControlButton
-            label={TOGGLE_BREAKPOINT}
-            icon={BreakpointIcon}
-            reason={caretScript ? undefined : NO_CARET_REASON}
-            onClick={() => toggleBreakpoint(caretScript!)}
-          />
+          <span class="contents @max-[740px]:hidden">
+            {stepButton("out")}
+            <ControlButton
+              label={TOGGLE_BREAKPOINT}
+              icon={BreakpointIcon}
+              reason={caretScript ? undefined : NO_CARET_REASON}
+              onClick={() => toggleBreakpoint(caretScript!)}
+            />
+          </span>
         ) : null}
       </div>
       <div class="flex items-center gap-1 justify-self-end group-data-[running]/bar:@max-[480px]:gap-0">
