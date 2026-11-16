@@ -62,6 +62,8 @@ const OTHER_SCRIPT = { "inmemory:///other.sd": "scene elsewhere\n  MIA:\n    Hel
 
 const INTRO = 'define intro as video with\n  src = "https://example.invalid/intro.webm"\nend\n\nscene start';
 
+const GREET = 'function greet()\n  return "Hi."\nend\n\nscene start';
+
 const warned = (source: string, scripts?: Record<string, string>) => {
   const { program } = compileUI(source, { assets: [ART], scripts });
   const lines = source.split("\n");
@@ -115,6 +117,8 @@ describe("the editor's warning agrees with the game's image write (I-2390, I-244
     ["Mia's cue holding the directive and an empty interpolation, before narration", story(`  MIA: ${DIRECTIVE} {""}\n  Mia waits.`), undefined, false],
     ["Mia's cue holding the directive and an interpolation that shows text, before narration", story(`  MIA: ${DIRECTIVE} {"Hi."}\n  Mia waits.`), undefined, true],
     ["Mia's cue holding the directive and an empty interpolation, before Mia's line", story(`  MIA: ${DIRECTIVE} {""}\n  MIA: Hello.`), undefined, true],
+    ["a directive line before Mia's line that interpolates a function call", story(`  ${DIRECTIVE}\n  MIA: {greet()} Hello.`).replace("scene start", GREET), undefined, true],
+    ["a function call statement between a directive line and Mia's line", story(`  ${DIRECTIVE}\n  local said = greet()\n  MIA:\n    Hello there.`).replace("scene start", GREET), undefined, true],
     ["a directive line before Mia's line that starts with a library call's interpolation", story(`  ${DIRECTIVE}\n  MIA: {string.upper("x")} Hello.`), undefined, true],
   ])("%s", async (_, source, scripts, plays) => {
     const editor = warned(source, scripts);

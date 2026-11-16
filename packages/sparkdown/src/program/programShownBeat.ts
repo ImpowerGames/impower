@@ -1,6 +1,6 @@
 import { stripStyleCodes } from "../runtime/displayStyle";
 import { directiveKind, type DirectiveBracket } from "../compiler/utils/readDirective";
-import { ConstValue, LEAVE_CONTINUE, Op, auxOf, flagsOf, opOf } from "./ProgramInstructions";
+import { CALL_TUNNEL, ConstValue, LEAVE_CONTINUE, Op, auxOf, flagsOf, opOf } from "./ProgramInstructions";
 import {
   BLOCK_FUNCTION,
   BLOCK_LOOP,
@@ -241,10 +241,12 @@ export const shownBeat = (root: ProgramRoot, uri: string, range: BeatRange, inte
           at.offset = blockField(ownerChunk, target.block, flagsOf(w0) & LEAVE_CONTINUE ? B_RESUME : B_BREAK);
           continue;
         }
-        case Op.JumpVar:
         case Op.Call:
         case Op.CallVar:
-        case Op.CallValue:
+          if (flagsOf(w0) & CALL_TUNNEL) return finish(UNKNOWN);
+          at.offset += 2;
+          continue;
+        case Op.JumpVar:
         case Op.Return:
         case Op.TunnelReturn:
         case Op.Thread:
