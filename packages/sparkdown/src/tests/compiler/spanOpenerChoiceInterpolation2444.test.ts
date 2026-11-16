@@ -118,6 +118,25 @@ describe("a directive holding an interpolation reads the same on a display line 
     },
   );
 
+  test.each(["[[a {t[ [=[x]=]]} b]]", "[[a {t[ [==[x]==]]} b]]"])(
+    "an image closer that starts inside a long bracket's closer ends the command there, so the interpolation is not taken whole: `+ Go [%s] now`",
+    (directive) => {
+      const script = (text: string) => `store t = {x = "hit"}\nscene start\n  choose\n    + ${text}\n      Body.\n      done\n  end\nend\n`;
+      expect(nodesOver(script(`Go [${directive}] now`), "ImageCommand")).toEqual([]);
+      const story = compileStory(script(`Go [${directive}] now`));
+      story.ContinueMaximally();
+      expect(story.currentChoices.map((choice: { text: string }) => choice.text)).toEqual(["Go [[a hit b"]);
+    },
+  );
+
+  test("an escaped `>` inside a long-string interpolation ends no text command, as on a display line", () => {
+    const directive = "<wait {[[x\\>y]]}>";
+    expect(nodesOver(displayScript(directive), "TextCommand")).toEqual([directive]);
+    expect(nodesOver(choiceScript(`Go ${directive} now`), "TextCommand")).toEqual([directive]);
+    expect(nodesOver(choiceScript(`Go [${directive}] now`), "TextCommand")).toEqual([directive]);
+    expect(nodesOver(choiceScript(`Go [x] ${directive} now`), "TextCommand")).toEqual([directive]);
+  });
+
   test.each(["Go ((a {[[a]]} b)) now", "Go ((a {[=[a]=]} b)) now", "Go ((a {1 --[[c]] + 1} b)) now", "Go ((a {t[1]} b)) now"])(
     "the choice shows the directive's text unevaluated: `+ %s`",
     (text) => {

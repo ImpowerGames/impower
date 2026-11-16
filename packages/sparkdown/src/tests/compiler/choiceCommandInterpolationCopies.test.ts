@@ -4,9 +4,9 @@ import { readGrammarSource } from "./grammarSource";
 const variables = readGrammarSource().variables as Record<string, string>;
 
 const KINDS: readonly (readonly [kind: string, closer: string])[] = [
-  ["TEXT", "[>]"],
-  ["AUDIO", "[)][)]"],
-  ["IMAGE", "\\]\\]"],
+  ["TEXT", "(?:(?<![\\\\-])[>])"],
+  ["AUDIO", "(?:[)][)])"],
+  ["IMAGE", "(?:\\]\\])"],
 ];
 
 const SHARED = new Set(["SPARKDOWN_BLOCK_COMMENT_START"]);
@@ -46,7 +46,21 @@ describe("each choice command reads an interpolation with SPAN_INTERPOLATION's o
   );
 
   test.each(KINDS.map(([kind, closer]) => [kind, closer] as const))("%s_COMMAND_OPEN refuses the closer %s", (kind, closer) => {
-    expect(variables[`${kind}_COMMAND_OPEN`]).toBe(`(?!${closer})`);
+    expect(variables[`${kind}_COMMAND_CLOSER`]).toBe(closer);
+    expect(variables[`${kind}_COMMAND_OPEN`]).toBe(`(?!{{${kind}_COMMAND_CLOSER}})`);
+  });
+
+  test("every bracket a copy reads is guarded, so a closer that starts at any of them is refused", () => {
+    for (const [kind] of KINDS) {
+      for (const base of FAMILY) {
+        const copy = variables[`${kind}_COMMAND_${base}`]!;
+        const unguarded = [...copy.matchAll(/\\\]/g)].filter((match) => {
+          const before = copy.slice(0, match.index);
+          return !before.endsWith(`{{${kind}_COMMAND_OPEN}}`) && !before.endsWith("\\") && !before.endsWith("[^") && !/\(\?[!=][^)]*$/.test(before);
+        });
+        expect(unguarded.map((match) => match.index), `${kind}_COMMAND_${base}`).toEqual([]);
+      }
+    }
   });
 
   test("every choice region's command characters take the copy of their own kind and no pre-scan is left", () => {
