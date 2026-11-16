@@ -426,6 +426,77 @@ describe("the route rule", () => {
     ]);
   });
 
+  it("bridges a block's end line between two executed lines and leaves a gap at the options the route did not take", () => {
+    const doc = [
+      "store trust = 0",
+      "store clues = 0",
+      "",
+      "scene interrogation",
+      "  INSPECTOR:",
+      "    Where were you at nine?",
+      "  choose",
+      "    * [Tell the truth.]",
+      "      trust += 2",
+      "    * [Show the photograph.]",
+      "      trust += 5",
+      "    * [Lie.]",
+      "      trust -= 1",
+      "  end",
+      "  if trust > 3 then",
+      "    INSPECTOR:",
+      "      I believe you.",
+      "    for i = 1, 40000 do",
+      "      clues += 1",
+      "    end",
+      "    You found {clues} clues.",
+      "  end",
+      "end",
+    ].join("\n");
+    mount(ALL_OFF_APPEARANCE, doc);
+    setHighlights(view!, [6, 7, 10, 11, 15, 17, 18, 19, 21]);
+    expect(getRouteLineRuns(view!.state)).toEqual([
+      [6, 7],
+      [10, 11],
+      [15, 21],
+    ]);
+  });
+
+  it("bridges a block's end line that carries a Luau comment", () => {
+    const doc = [
+      "scene start",
+      "  for i = 1, 2 do",
+      "    Before.",
+      "  end -- closed",
+      "  After.",
+      "  if true then",
+      "    Inside.",
+      "  end --[[ closed ]]",
+      "  Last.",
+      "end",
+    ].join("\n");
+    mount(ALL_OFF_APPEARANCE, doc);
+    setHighlights(view!, [2, 3, 5, 6, 7, 9]);
+    expect(getRouteLineRuns(view!.state)).toEqual([[2, 9]]);
+  });
+
+  it("leaves a gap at an untaken option whose text ends in a colon", () => {
+    const doc = [
+      "scene start",
+      "  choose",
+      "    * Ask:",
+      "    * Leave.",
+      "      Left.",
+      "  end",
+      "end",
+    ].join("\n");
+    mount(ALL_OFF_APPEARANCE, doc);
+    setHighlights(view!, [2, 4, 5]);
+    expect(getRouteLineRuns(view!.state)).toEqual([
+      [2, 2],
+      [4, 5],
+    ]);
+  });
+
   it("is hidden in an empty script", () => {
     mount(ALL_OFF_APPEARANCE, "");
     setHighlights(view!, [1]);

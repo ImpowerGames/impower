@@ -4168,7 +4168,13 @@ export class Game<T extends M = {}> {
     let lastAddress: ProgramAddress | undefined;
     const lines = new Map<string, Set<number>>();
     const lastLines = new Map<string, number>();
-    this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
+    const root = this._story.root;
+    const executed = this._runtimeState.pathsExecutedThisFrame;
+    const untakenOption = (uri: string, line: number) => {
+      const entries = root.optionEntriesOn(uri, line);
+      return !!entries && !entries.some((entry) => executed.has(entry));
+    };
+    executed.forEach((p) => {
       if (typeof p !== "number") {
         return;
       }
@@ -4181,12 +4187,15 @@ export class Game<T extends M = {}> {
       last = l;
       if (detailed) {
         const uri = this.scriptUri(l[0]);
-        let set = lines.get(uri);
-        if (!set) {
-          set = new Set();
-          lines.set(uri, set);
-        }
         for (let line = l[1]; line <= l[3]; line++) {
+          if (untakenOption(uri, line)) {
+            continue;
+          }
+          let set = lines.get(uri);
+          if (!set) {
+            set = new Set();
+            lines.set(uri, set);
+          }
           if (!set.has(line)) {
             set.add(line);
             lastLines.set(uri, line);

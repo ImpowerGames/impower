@@ -18,6 +18,7 @@ export interface ExecutedReport {
   params: GameExecutedParams;
   paths: ProgramAddress[];
   locations: DocumentLocation[];
+  lineLocations: DocumentLocation[];
 }
 
 export interface Story {
@@ -95,13 +96,35 @@ const recordReports = (game: Game) => {
   g.executedParams = () => {
     const paths: ProgramAddress[] = g._runtimeState.pathsExecutedThisFrame.toArray();
     const params = take();
+    const locate = (p: ProgramAddress) => {
+      const location = game.locator.locationOf(p);
+      return location ? documentRangeOf(location) : null;
+    };
     const locations = paths
-      .map((p) => {
-        const location = game.locator.locationOf(p);
-        return location ? documentRangeOf(location) : null;
-      })
+      .map(locate)
       .filter((l): l is DocumentLocation => l != null);
-    reports.push({ params, paths, locations });
+    const root = g.story.root;
+    const ran = new Set(paths);
+    const untaken = (uri: string, line: number) => {
+      const entries: readonly number[] | undefined = root.optionEntriesOn(uri, line);
+      return !!entries && !entries.some((entry) => ran.has(entry));
+    };
+    const lineLocations: DocumentLocation[] = [];
+    for (const p of paths) {
+      const l = locate(p);
+      for (let line = l?.range.start.line ?? 0; l && line <= l.range.end.line; line++) {
+        if (!untaken(l.uri, line)) {
+          lineLocations.push({
+            uri: l.uri,
+            range: {
+              start: { line, character: 0 },
+              end: { line, character: 0 },
+            },
+          });
+        }
+      }
+    }
+    reports.push({ params, paths, locations, lineLocations });
     return params;
   };
   return reports;
