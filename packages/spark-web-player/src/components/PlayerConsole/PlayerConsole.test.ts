@@ -7,7 +7,9 @@ import PlayerConsole, {
 } from "./PlayerConsole";
 import {
   CLIPBOARD_UNAVAILABLE,
-  formatConsoleStamp, type ConsoleEntry } from "./consoleEntries";
+  formatConsoleStamp,
+  type ConsoleEntry,
+} from "./consoleEntries";
 
 const TIME = new Date(2026, 10, 5, 9, 4, 7).getTime();
 
