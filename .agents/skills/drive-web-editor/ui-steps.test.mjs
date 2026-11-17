@@ -1130,16 +1130,17 @@ await asyncCheck("the app-menu, preview-settings and file-menu steps press with 
   }
 });
 
-await asyncCheck("the app-menu, settings, add-menu and preview-settings steps settle while a scroll-driven or endless animation keeps running, and the app menu waits on a finite one", async () => {
+await asyncCheck("the app-menu, settings, add-menu and preview-settings steps settle while a scroll-driven or endless animation keeps running, and the app menu and the preview settings sheet wait on a finite one", async () => {
   const never = new Promise(() => {});
   const scrollDriven = { playState: "running", finished: never, effect: { getComputedTiming: () => ({ endTime: { value: 100, unit: "percent" } }) } };
   const endless = { playState: "running", finished: never, effect: { getComputedTiming: () => ({ endTime: Infinity }) } };
   const opening = { playState: "running", finished: never, effect: { getComputedTiming: () => ({ endTime: 250 }) } };
   const ended = { playState: "finished", finished: Promise.resolve(), effect: { getComputedTiming: () => ({ endTime: 250 }) } };
   const heading = {};
-  const stepsWith = async (animations, run) => {
+  const stepsWith = async (animations, run, { sheetParent } = {}) => {
     const root = { getAnimations: () => animations };
-    const menu = { closest: () => null, parentElement: root, getAnimations: () => animations, querySelector: () => ({}), querySelectorAll: () => [], getBoundingClientRect: () => ({ height: 1 }), getAttribute: () => null };
+    const sheet = sheetParent && { parentElement: { getAnimations: () => sheetParent }, getAnimations: () => [], getBoundingClientRect: () => ({ bottom: 900 }) };
+    const menu = { closest: () => sheet ?? null, parentElement: root, getAnimations: () => animations, querySelector: () => ({}), querySelectorAll: () => [], getBoundingClientRect: () => ({ height: 1 }), getAttribute: () => null };
     const fakeDocument = {
       querySelector: () => menu,
       querySelectorAll: (selector) => (selector === '[role="menu"]' ? [menu] : []),
@@ -1180,6 +1181,8 @@ await asyncCheck("the app-menu, settings, add-menu and preview-settings steps se
   assert.equal((await stepsWith(lasting, (page) => openSettings(page, "save-settings", { timeout: 1000 }))).ran, true);
   assert.ok(Date.now() - started < 1000, `settings waited ${Date.now() - started} ms on animations that never end`);
   assert.match((await stepsWith([scrollDriven, opening], (page) => openAppMenu(page, { timeout: 300 }))).reason, /the app menu did not open within 0.3 s/);
+  assert.match((await stepsWith([], (page) => openPreviewSettings(page, { timeout: 300 }), { sheetParent: [opening] })).reason, /the preview's settings menu did not open within 0.3 s/);
+  assert.equal((await stepsWith([], (page) => openPreviewSettings(page, { timeout: 300 }), { sheetParent: [ended] })).ran, true);
 });
 
 await asyncCheck("--step drawer opens the app menu on a phone, which has neither a rail nor a drawer", async () => {
