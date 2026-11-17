@@ -122,13 +122,28 @@ describe("a one-line match or plural whose value is a bare name", () => {
   });
 
   test.each([
-    [["match mood | happy = A.", "| other = B.", "end"], "A.\nAfter.\n"],
-    [["plural n | one = A.", "| other = B.", "end"], "B.\nAfter.\n"],
-  ])("a multi-line set whose first arm shares the head line `%s` stays a multi-line set", (lines, out) => {
-    const found = blocks(scene(...lines));
-    expect(found[0]).toMatchObject({ name: MULTI, text: lines.join("\n  ") });
-    expect(found.map(({ name }) => name)).not.toContain(SINGLE);
-    expect(play(scene(...lines))).toEqual({ errors: [], warnings: [], out });
+    [["match mood | happy = A.", "| other = B.", "end"], ["match(mood) | happy = A.", "| other = B.", "end"]],
+    [["plural n | one = A.", "| other = B.", "end"], ["plural(n) | one = A.", "| other = B.", "end"]],
+    [["match mood | happy = cycle | A. | B. end", "| other = C.", "end"], ["match(mood) | happy = cycle | A. | B. end", "| other = C.", "end"]],
+  ])("a head line `%s` whose arms continue below reads as its bracketed spelling does, with errors shown", (bare, bracketed) => {
+    const shape = (lines: string[]) => blocks(scene(...lines)).map(({ name }) => name);
+    expect(blocks(scene(...bare))[0]).toMatchObject({ name: SINGLE, text: bare[0] });
+    expect(shape(bare)).toEqual(shape(bracketed));
+    const bareRun = play(scene(...bare));
+    expect(bareRun.errors).toEqual(play(scene(...bracketed)).errors);
+    expect(bareRun.errors).toEqual([
+      "statement must be inside a scene or branch; the top level holds declarations only",
+      "Expected <eof>, got 'end'",
+    ]);
+  });
+
+  test.each([
+    ["match mood | happy = A. | other = B. end --[[ note ]]"],
+    ["match mood | happy = A. | other = B. end --[====[ note ]====] -- trailing"],
+    ["match(mood) | happy = A. | other = B. end --[[ note ]]"],
+  ])("`%s` closes its one-line set before a trailing comment", (line) => {
+    expect(blocks(scene(line))[0]).toMatchObject({ name: SINGLE });
+    expect(play(scene(line))).toEqual({ errors: [], warnings: [], out: "A.\nAfter.\n" });
   });
 
   test.each([

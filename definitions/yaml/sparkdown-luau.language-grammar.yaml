@@ -545,7 +545,6 @@ variables:
   # _LUAU_LEVEL_BLOCK_COMMENT_ or end the value, so the scan never takes a
   # bar inside either.
   LUAU_ONE_LINE_ALTERNATOR_VALUE_CHARACTER: (?:[^|"'`\[\r\n-]|\[(?!=*\[)|-(?!-))
-  LUAU_ONE_LINE_ALTERNATOR_CLOSED_LINE: (?:[^\r\n]*[^a-zA-Z0-9_@\r\n]end{{LUAU_NAME_END}}{{WS}}*{{LUAU_LINE_COMMENT_TO_LINE_END}}?$)
   LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"{{LUAU_DOUBLE_QUOTED_STRING_TEXT}}")
   LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'{{LUAU_SINGLE_QUOTED_STRING_TEXT}}')
   LUAU_BACKTICK_STRING_ON_LINE: (?:`{{LUAU_BACKTICK_STRING_TEXT}}`)
@@ -5845,11 +5844,8 @@ repository:
   # value, and only a bar after the value on the keyword's line tells them
   # apart, so the begin reads the value as LuauConditionalAlternatorCondition
   # will (_LUAU_ONE_LINE_ALTERNATOR_VALUE_) and looks for the bar after it.
-  # A value outside brackets also needs the set's `end` on the line
-  # (LUAU_ONE_LINE_ALTERNATOR_CLOSED_LINE), since its first arm may share the
-  # head line of a multi-line set, which this rule's line end would cut.
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^()\r\n]*[)]{{WS}}*[|]|{{LUAU_EXPRESSION_START}}{{_LUAU_ONE_LINE_ALTERNATOR_VALUE_}}{{WS}}*[|]{{LUAU_ONE_LINE_ALTERNATOR_CLOSED_LINE}})
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?={{LUAU_EXPRESSION_START}}{{_LUAU_ONE_LINE_ALTERNATOR_VALUE_}}{{WS}}*[|])
     beginCaptures:
       1:
         patterns:
