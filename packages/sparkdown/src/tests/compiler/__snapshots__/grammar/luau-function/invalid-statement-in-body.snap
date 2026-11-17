@@ -785,43 +785,44 @@ sparkdown [0..420]
  │   │       │   │   └─ LuauAccessPath_end 368
  │   │       │   │       └─ LuauAccessPath_end_c1 368
  │   │       │   ├─ ExtraWhitespace [368..369]: " "
- │   │       │   ├─ LuauAccessPath [369..387]
+ │   │       │   ├─ LuauAccessPath [369..376]
  │   │       │   │   ├─ LuauAccessPath_begin 369
- │   │       │   │   ├─ LuauAccessPath_content [369..387]
+ │   │       │   │   ├─ LuauAccessPath_content [369..375]
  │   │       │   │   │   ├─ LuauAccessPart [369..374]
  │   │       │   │   │   │   └─ LuauVariable [369..374]
  │   │       │   │   │   │       └─ LuauVariable_c1 [369..374]
  │   │       │   │   │   │           └─ LuauVariableName [369..374]: "there"
- │   │       │   │   │   ├─ LuauAccessPart [374..375]
- │   │       │   │   │   │   └─ LuauDanglingAccessor [374..375]
- │   │       │   │   │   │       ├─ LuauDanglingAccessor_c1 374
- │   │       │   │   │   │       └─ LuauDanglingAccessor_c2 [374..375]: "."
- │   │       │   │   │   └─ LuauBlockComment [375..387]
- │   │       │   │   │       ├─ LuauBlockComment_begin [375..380]
- │   │       │   │   │       │   ├─ LuauBlockComment_begin_c1 [375..376]
- │   │       │   │   │       │   │   └─ Whitespace [375..376]: " "
- │   │       │   │   │       │   ├─ LuauBlockComment_begin_c2 [376..379]
- │   │       │   │   │       │   │   └─ LuauCommentMark [376..379]: "--["
- │   │       │   │   │       │   ├─ LuauBlockComment_begin_c3 379
- │   │       │   │   │       │   └─ LuauBlockComment_begin_c4 [379..380]
- │   │       │   │   │       │       └─ LuauCommentMark [379..380]: "["
- │   │       │   │   │       ├─ LuauBlockComment_content [380..385]
- │   │       │   │   │       │   ├─ Newline [380..381]: "\n"
- │   │       │   │   │       │   ├─ LuauBlockCommentContent [381..382]: "e"
- │   │       │   │   │       │   ├─ LuauBlockCommentContent [382..383]: "n"
- │   │       │   │   │       │   ├─ LuauBlockCommentContent [383..384]: "d"
- │   │       │   │   │       │   └─ Newline [384..385]: "\n"
- │   │       │   │   │       └─ LuauBlockComment_end [385..387]
- │   │       │   │   │           ├─ LuauBlockComment_end_c1 [385..386]
- │   │       │   │   │           │   └─ LuauCommentMark [385..386]: "]"
- │   │       │   │   │           ├─ LuauBlockComment_end_c2 386
- │   │       │   │   │           ├─ LuauBlockComment_end_c3 [386..387]
- │   │       │   │   │           │   └─ LuauCommentMark [386..387]: "]"
- │   │       │   │   │           └─ LuauBlockComment_end_c4 387
- │   │       │   │   │               └─ LuauBlockComment_end_c4 387
- │   │       │   │   │                   └─ OptionalWhitespace 387
- │   │       │   │   └─ LuauAccessPath_end 387
- │   │       │   │       └─ LuauAccessPath_end_c1 387
+ │   │       │   │   │   └─ LuauAccessPart [374..375]
+ │   │       │   │   │       └─ LuauDanglingAccessor [374..375]
+ │   │       │   │   │           ├─ LuauDanglingAccessor_c1 374
+ │   │       │   │   │           └─ LuauDanglingAccessor_c2 [374..375]: "."
+ │   │       │   │   └─ LuauAccessPath_end [375..376]
+ │   │       │   │       └─ LuauAccessPath_end_c1 [375..376]
+ │   │       │   │           └─ LuauAccessPath_end_c1 [375..376]
+ │   │       │   │               └─ OptionalWhitespace [375..376]: " "
+ │   │       │   ├─ LuauBlockComment [376..387]
+ │   │       │   │   ├─ LuauBlockComment_begin [376..380]
+ │   │       │   │   │   ├─ LuauBlockComment_begin_c1 376
+ │   │       │   │   │   ├─ LuauBlockComment_begin_c2 [376..379]
+ │   │       │   │   │   │   └─ LuauCommentMark [376..379]: "--["
+ │   │       │   │   │   ├─ LuauBlockComment_begin_c3 379
+ │   │       │   │   │   └─ LuauBlockComment_begin_c4 [379..380]
+ │   │       │   │   │       └─ LuauCommentMark [379..380]: "["
+ │   │       │   │   ├─ LuauBlockComment_content [380..385]
+ │   │       │   │   │   ├─ Newline [380..381]: "\n"
+ │   │       │   │   │   ├─ LuauBlockCommentContent [381..382]: "e"
+ │   │       │   │   │   ├─ LuauBlockCommentContent [382..383]: "n"
+ │   │       │   │   │   ├─ LuauBlockCommentContent [383..384]: "d"
+ │   │       │   │   │   └─ Newline [384..385]: "\n"
+ │   │       │   │   └─ LuauBlockComment_end [385..387]
+ │   │       │   │       ├─ LuauBlockComment_end_c1 [385..386]
+ │   │       │   │       │   └─ LuauCommentMark [385..386]: "]"
+ │   │       │   │       ├─ LuauBlockComment_end_c2 386
+ │   │       │   │       ├─ LuauBlockComment_end_c3 [386..387]
+ │   │       │   │       │   └─ LuauCommentMark [386..387]: "]"
+ │   │       │   │       └─ LuauBlockComment_end_c4 387
+ │   │       │   │           └─ LuauBlockComment_end_c4 387
+ │   │       │   │               └─ OptionalWhitespace 387
  │   │       │   └─ Newline [387..388]: "\n"
  │   │       └─ LuauFunctionBody_end 388
  │   └─ LuauFunctionDefinition_end [388..391]
