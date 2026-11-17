@@ -61,6 +61,12 @@ describe("unknown selector state", () => {
     ]);
   });
 
+  test("says only the alternative never matches for a wrong @theme in @is", () => {
+    expect(diagnose(style("@is(@theme(blue), @first-child)"))).toContainEqual(
+      expect.stringMatching(/^2:6-18 2 `@theme` takes `\(light\)` or `\(dark\)`, not `\(blue\)`, so this alternative never matches\n/),
+    );
+  });
+
   test.each(["@hoverd", "@hovered, @hoverd", "@not(@hoverd)", "@has(@hoverd)"])(
     "says the whole block never applies in %s",
     (selector) => {
