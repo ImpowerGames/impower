@@ -18778,6 +18778,12 @@
           "include": "#LuauAlternatorSeparator"
         },
         {
+          "include": "#LuauSparkdownSingleLineConditionalAlternatorBlock"
+        },
+        {
+          "include": "#LuauSparkdownSingleLineSequentialAlternatorBlock"
+        },
+        {
           "include": "#LuauSparkdownAlternatorArm"
         },
         {
@@ -18842,6 +18848,12 @@
         },
         {
           "include": "#LuauAlternatorSeparator"
+        },
+        {
+          "include": "#LuauSparkdownSingleLineConditionalAlternatorBlock"
+        },
+        {
+          "include": "#LuauSparkdownSingleLineSequentialAlternatorBlock"
         },
         {
           "include": "#LuauSparkdownAlternatorArm"

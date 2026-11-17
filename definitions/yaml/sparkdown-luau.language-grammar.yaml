@@ -5812,6 +5812,8 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauSparkdownSingleLineConditionalAlternatorBlock" }
+      - { include: "#LuauSparkdownSingleLineSequentialAlternatorBlock" }
       - { include: "#LuauSparkdownAlternatorArm" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?
@@ -5843,6 +5845,8 @@ repository:
     patterns:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauSparkdownSingleLineConditionalAlternatorBlock" }
+      - { include: "#LuauSparkdownSingleLineSequentialAlternatorBlock" }
       - { include: "#LuauSparkdownAlternatorArm" }
       - { include: "#ExtraWhitespace" }
     end: $|(?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?

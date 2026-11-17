@@ -270,6 +270,22 @@ describe("a wrapped row of an alternative", () => {
     expect((onPage["{"]![1]! - onPage["}"]![0]!) / pageRow).toBeCloseTo(pdfGap, 2);
   }, 120_000);
 
+  it("hangs the first arm of a block that follows a nested block on its source line as the PDF does", async () => {
+    const script = ["scene s", `  queue | queue | In A. | In B. end | Out. end queue | ${LONG} | Four. end`, "end", ""].join("\n");
+    const found = (await pageRows())["a block after a nested block"]!;
+    expect(found.rows.length).toBeGreaterThan(1);
+    expect(found.markLeft).toBeLessThan(found.rows[0]!);
+    for (const left of found.rows) expect(Math.abs(left - found.rows[0]!), "page row").toBeLessThan(0.5);
+    expect(Math.abs(found.others["Four."]! - found.rows[0]!), "Four.").toBeLessThan(0.5);
+    expect(Math.abs(found.others["Out."]! - found.rows[0]!), "Out.").toBeLessThan(0.5);
+    const cell = (found.rows[0]! - found.markLeft) / 2;
+    expect(Math.abs(found.others["In A."]! - (found.rows[0]! + 2 * cell)), "In A.").toBeLessThan(1);
+    expect(Math.abs(found.others["In B."]! - found.others["In A."]!), "In B.").toBeLessThan(0.5);
+    const rows = pdfRows(await pdfDraws(script));
+    expect(rows.length).toBeGreaterThan(1);
+    for (const x of rows) expect(Math.abs(x - rows[0]!), "PDF row").toBeLessThan(0.01);
+  }, 120_000);
+
   it("keeps its hanging indent across a PDF page break", async () => {
     const words = Array.from({ length: 300 }, (_, index) => `Word${index}`).join(" ");
     const script = [

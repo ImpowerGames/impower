@@ -162,6 +162,27 @@ function closedBeforeOuterCloser(node: SyntaxNode, own: ReadonlySet<string>, chu
   return !!closer && CLOSER_KEYWORDS.has(closer.name) && !own.has(closer.name);
 }
 
+const ONE_LINE_SEQUENTIAL = "LuauSparkdownSingleLineSequentialAlternatorBlock";
+const STARTS_OPEN_LINE = nodeNameSet([
+  "LuauSparkdownAlternatorArm",
+  "LuauSparkdownSingleLineConditionalAlternatorBlock",
+  ONE_LINE_SEQUENTIAL,
+]);
+
+function oneLineBlockLeftOpen(node: SyntaxNode, ctx: LowerContext): boolean {
+  const content = findChildByName(node, `${node.name}_content`);
+  const headerLine = ctx.lineNumber(node.from);
+  const startsLine = (at: SyntaxNode) =>
+    ctx.lineNumber(at.from) !== headerLine && ctx.read(at.from - ctx.characterNumber(at.from), at.from).trim() === "";
+  let continued = false;
+  for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+    if (STARTS_OPEN_LINE.has(child.name) && startsLine(child)) return true;
+    if (child.name === "LuauAlternatorSeparator" && startsLine(child)) continued = true;
+  }
+  const end = endKeywordOf(node);
+  return !continued && !!end && ctx.lineNumber(end.from) !== headerLine;
+}
+
 const OWNS_END = nodeNameSet(["LuauEndKeyword"]);
 const OWNS_UNTIL = nodeNameSet(["LuauUntilKeyword"]);
 
@@ -180,7 +201,11 @@ export function validateBlockEnds(
     if (skip?.(node as GrammarSyntaxNode<SparkdownNodeName>)) return;
     const block = asBlock(node);
     let openRepeat = insideOpenRepeat;
-    if (block) {
+    if (node.name === ONE_LINE_SEQUENTIAL) {
+      if (oneLineBlockLeftOpen(node, ctx) && !luauReportsOpenBlockAt(node, ctx)) {
+        report(diagnostics, node, missingEndMessage("one-line alternator"), ctx);
+      }
+    } else if (block) {
       if (
         !endKeywordOf(node) &&
         (block.bounded || findChildByName(node, `${node.name}_end`)) &&
@@ -211,7 +236,7 @@ export function validateBlockEnds(
 }
 
 export function holdsCheckedBlock(node: GrammarSyntaxNode<SparkdownNodeName>): boolean {
-  if (END_BLOCKS[node.name] || REPEAT_LOOPS.has(node.name)) return true;
+  if (END_BLOCKS[node.name] || REPEAT_LOOPS.has(node.name) || node.name === ONE_LINE_SEQUENTIAL) return true;
   for (let child = node.firstChild; child; child = child.nextSibling) {
     if (holdsCheckedBlock(child as GrammarSyntaxNode<SparkdownNodeName>)) return true;
   }

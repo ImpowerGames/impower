@@ -22,6 +22,7 @@ const FIXTURES: Record<string, string> = {
   "shared with text": ["scene s", `  queue | ${LONG} | Short. end : Afterwards.`, "end", ""].join("\n"),
   "unmarked text wrapping after a block": ["scene s", `  queue | One. | Two. end : ${LONG}`, "end", ""].join("\n"),
   "mixed depths on one line": ["scene s", "  if flag then", `    queue | ${LONG} | Short. end : Outer tail.`, "  end", "end", ""].join("\n"),
+  "a block after a nested block": ["scene s", `  queue | queue | In A. | In B. end | Out. end queue | ${LONG} | Four. end`, "end", ""].join("\n"),
   "shared with a block": ["scene s", `  queue | One. | Two. end queue | ${LONG} | Short. end`, "end", ""].join("\n"),
   "two blocks with a blank between": ["scene s", "  Before.", "  queue | One A. | One B. end queue | Two A. | Two B. end", "  After.", "end", ""].join("\n"),
   "a function then a block": ["scene s", "  Before.", "  function f() end queue | One. | Two. end", "  After.", "end", ""].join("\n"),
