@@ -26,6 +26,7 @@ import {
 } from "@codemirror/view";
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
 import { FixMenu } from "@impower/impower-ui/fix-menu";
+import { withIconMaskPaint } from "@impower/impower-ui/icon-masks";
 import { h, render } from "preact";
 
 type ProblemSeverity = "error" | "warning" | "info";
@@ -150,7 +151,7 @@ const PROBLEM_COLORS: Record<ProblemSeverity, string> = {
 
 const severityRules = (severity: ProblemSeverity) => ({
   [`& .cm-problem-line-${severity}::after`]: {
-    backgroundColor: PROBLEM_COLORS[severity],
+    color: PROBLEM_COLORS[severity],
     maskImage: PROBLEM_MARKS[severity],
     WebkitMaskImage: PROBLEM_MARKS[severity],
   },
@@ -161,11 +162,11 @@ const severityRules = (severity: ProblemSeverity) => ({
     },
 });
 
-const problemMarksTheme = EditorView.baseTheme({
+const problemMarksTheme = EditorView.baseTheme(withIconMaskPaint({
   "& .cm-line.cm-problem-line": {
     position: "relative",
   },
-  "& .cm-problem-line::after": {
+  ".cm-problem-line::after": {
     content: "''",
     position: "absolute",
     top: "calc((var(--script-leading, 1.5) * 1em - 1em) / 2)",
@@ -183,7 +184,7 @@ const problemMarksTheme = EditorView.baseTheme({
   ...severityRules("error"),
   ...severityRules("warning"),
   ...severityRules("info"),
-});
+}, ".cm-problem-line::after"));
 
 export const PROBLEM_POPOVER_GRACE = 220;
 

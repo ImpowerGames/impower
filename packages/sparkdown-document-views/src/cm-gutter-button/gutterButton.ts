@@ -1,6 +1,7 @@
 import { type EditorState, Facet } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
+import { withIconMaskPaint } from "@impower/impower-ui/icon-masks";
 
 export const GUTTER_GLYPH_SIZE = 16;
 export const GUTTER_TOUCH_SIZE = 44;
@@ -99,7 +100,7 @@ const gutterPointerAttributes = EditorView.editorAttributes.compute(
     state.facet(coarsePointer) ? { class: "cm-gutter-coarse" } : {},
 );
 
-const gutterButtonTheme = EditorView.baseTheme({
+const gutterButtonTheme = EditorView.baseTheme(withIconMaskPaint({
   [`.${MARK_COLUMN_CLASS}`]: {
     position: "relative",
     zIndex: "1",
@@ -171,7 +172,6 @@ const gutterButtonTheme = EditorView.baseTheme({
     display: "block",
     width: `${GUTTER_GLYPH_SIZE}px`,
     height: `${GUTTER_GLYPH_SIZE}px`,
-    backgroundColor: "currentColor",
     maskImage: "var(--gutter-button-icon)",
     WebkitMaskImage: "var(--gutter-button-icon)",
     maskSize: "contain",
@@ -193,7 +193,7 @@ const gutterButtonTheme = EditorView.baseTheme({
     outline: "2px solid var(--accent)",
     outlineOffset: "1px",
   },
-});
+}, ".cm-gutter-button-glyph::before"));
 
 const exposeGutterButtons = (view: EditorView) => {
   const gutters = view.dom.querySelector(".cm-gutters");

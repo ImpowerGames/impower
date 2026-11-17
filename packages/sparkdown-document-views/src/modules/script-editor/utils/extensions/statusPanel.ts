@@ -1,7 +1,7 @@
 import { Diagnostic, forEachDiagnostic } from "@codemirror/lint";
 import { EditorView, Panel, showPanel, ViewUpdate } from "@codemirror/view";
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
-import { iconMasks } from "@impower/impower-ui/icon-masks";
+import { iconMasks, withIconMaskPaint } from "@impower/impower-ui/icon-masks";
 
 export class StatusPanel implements Panel {
   dom: HTMLElement;
@@ -208,7 +208,7 @@ export class StatusPanel implements Panel {
   }
 }
 
-const statusPanelTheme = EditorView.baseTheme({
+const statusPanelTheme = EditorView.baseTheme(withIconMaskPaint({
   "&.keyboard-open .cm-panels-bottom > :not(.cm-toolbar), & .cm-panels-bottom > :not(.cm-toolbar):not(:focus-within)":
     {
       position: "fixed",
@@ -292,11 +292,10 @@ const statusPanelTheme = EditorView.baseTheme({
     flex: 1,
     fontSize: "13px",
   },
-  "& .cm-activeDiagnosticIcon": {
+  ".cm-activeDiagnosticIcon": {
     width: "16px",
     height: "16px",
     marginRight: "3px",
-    backgroundColor: "currentColor",
     maskSize: "contain",
     webkitMaskSize: "contain",
     maskRepeat: "no-repeat",
@@ -304,8 +303,7 @@ const statusPanelTheme = EditorView.baseTheme({
     maskPosition: "center",
     webkitMaskPosition: "center",
   },
-  "& .cm-navLeftIcon": {
-    backgroundColor: "currentColor",
+  ".cm-navLeftIcon": {
     maskImage: iconMasks["chevron-down"],
     webkitMaskImage: iconMasks["chevron-down"],
     maskSize: "contain",
@@ -316,8 +314,7 @@ const statusPanelTheme = EditorView.baseTheme({
     webkitMaskPosition: "center",
     transform: "rotate(90deg)",
   },
-  "& .cm-navRightIcon": {
-    backgroundColor: "currentColor",
+  ".cm-navRightIcon": {
     maskImage: iconMasks["chevron-down"],
     webkitMaskImage: iconMasks["chevron-down"],
     maskSize: "contain",
@@ -353,7 +350,7 @@ const statusPanelTheme = EditorView.baseTheme({
       backgroundColor: "var(--control-hover)",
     },
   },
-});
+}, ".cm-activeDiagnosticIcon", ".cm-navLeftIcon", ".cm-navRightIcon"));
 
 function createStatusPanel(view: EditorView) {
   return new StatusPanel(view);

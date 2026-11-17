@@ -22,7 +22,7 @@ import {
   formatDocument,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { CaretColorChip } from "@impower/impower-ui/caret-color-chip";
-import { iconMasks } from "@impower/impower-ui/icon-masks";
+import { iconMasks, withIconMaskPaint } from "@impower/impower-ui/icon-masks";
 import { h, render } from "preact";
 import { openCustomGotoLinePanel } from "./gotoLinePanel";
 import { scriptModeField, setScriptMode } from "./scriptMode";
@@ -109,7 +109,7 @@ export const KEYBOARD_TOOLBAR_TABLE: readonly ToolbarEntry[] = [
   },
 ];
 
-const keyboardToolbarTheme = EditorView.baseTheme({
+const keyboardToolbarTheme = EditorView.baseTheme(withIconMaskPaint({
   ".cm-keyboard-toolbar": {
     color: "var(--ink)",
     backgroundColor: "var(--paper)",
@@ -183,7 +183,6 @@ const keyboardToolbarTheme = EditorView.baseTheme({
     height: "20px",
     display: "inline-block",
     flexShrink: 0,
-    backgroundColor: "currentColor",
     maskRepeat: "no-repeat",
     webkitMaskRepeat: "no-repeat",
     maskPosition: "center",
@@ -211,7 +210,7 @@ const keyboardToolbarTheme = EditorView.baseTheme({
       backgroundColor: "var(--control-hover)",
     },
   },
-});
+}, ".cm-keyboard-toolbar .cm-toolbar-icon"));
 
 interface KeyboardToolbarState {
   panel: PanelConstructor;

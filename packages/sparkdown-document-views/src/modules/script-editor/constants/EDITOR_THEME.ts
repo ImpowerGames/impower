@@ -1,4 +1,4 @@
-import { iconMasks } from "@impower/impower-ui/icon-masks";
+import { iconMasks, withIconMaskPaint } from "@impower/impower-ui/icon-masks";
 import { StyleSpec } from "style-mod";
 
 const ICON_LAYER = {
@@ -12,7 +12,7 @@ const ICON_LAYER = {
 
 const EDITOR_THEME: {
   [selector: string]: StyleSpec;
-} = {
+} = withIconMaskPaint({
   ".lsp-semantic-token.lsp-type-keyword *": {
     color: "var(--syntax-section-name-accessor)",
   },
@@ -377,11 +377,11 @@ const EDITOR_THEME: {
     },
     "& button[name='close']::after": {
       maskImage: iconMasks["close"],
-      backgroundColor: "var(--editor-icon-close)",
+      color: "var(--editor-icon-close)",
     },
     "& button[name='submit']::after": {
       maskImage: iconMasks["arrow"],
-      backgroundColor: "var(--editor-icon-ink)",
+      color: "var(--editor-icon-ink)",
     },
   },
   "& .cm-lintRange-active": {
@@ -436,7 +436,6 @@ const EDITOR_THEME: {
   },
   "& .codicon.codicon-info": {
     "&::after": {
-      backgroundColor: "currentColor",
       maskImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M8.49902 7.49998C8.49902 7.22384 8.27517 6.99998 7.99902 6.99998C7.72288 6.99998 7.49902 7.22384 7.49902 7.49998V10.5C7.49902 10.7761 7.72288 11 7.99902 11C8.27517 11 8.49902 10.7761 8.49902 10.5V7.49998ZM8.74807 5.50001C8.74807 5.91369 8.41271 6.24905 7.99903 6.24905C7.58535 6.24905 7.25 5.91369 7.25 5.50001C7.25 5.08633 7.58535 4.75098 7.99903 4.75098C8.41271 4.75098 8.74807 5.08633 8.74807 5.50001ZM8 1C4.13401 1 1 4.13401 1 8C1 11.866 4.13401 15 8 15C11.866 15 15 11.866 15 8C15 4.13401 11.866 1 8 1ZM2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8Z"/></svg>')`,
     },
   },
@@ -614,6 +613,6 @@ const EDITOR_THEME: {
       maskImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11 1V5H15V6H11L11 10H15V11H11V15H10V11H6V15H5L5 11H1V10H5L5 6H1V5H5L5 1H6V5H10V1H11ZM6 6L6 10H10L10 6H6Z" fill="black"/></svg>')`,
     },
   },
-};
+}, ".cm-panel.cm-gotoLine button::after", ".codicon.codicon-info::after");
 
 export default EDITOR_THEME;

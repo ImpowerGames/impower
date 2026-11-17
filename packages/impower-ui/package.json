@@ -18,8 +18,8 @@
       "import": "./dist/impower-ui.js"
     },
     "./icon-masks": {
-      "types": "./src/components/icon/icon-masks.generated.ts",
-      "default": "./src/components/icon/icon-masks.generated.ts"
+      "types": "./src/components/icon/icon-masks.ts",
+      "default": "./src/components/icon/icon-masks.ts"
     },
     "./layout": {
       "development": "./src/layout/index.ts",
