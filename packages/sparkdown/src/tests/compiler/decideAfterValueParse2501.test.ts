@@ -62,6 +62,7 @@ const ONE_LINE_FINDINGS: [string, string, string][] = [
   ["a reserved word", "true", "match"],
   ["nil", "nil", "match"],
   ["a sum", "n - 1", "plural"],
+  ["an if expression (6953093040)", 'if true then "happy" else "sad"', "match"],
 ];
 
 const ONE_LINE_ACCEPTED: [string, string, string][] = [
@@ -81,7 +82,7 @@ describe("a story match or plural is one-line or multi-line by what follows its 
     const grammar = readFileSync(resolve(__dirname, "../../../../..", GRAMMAR), "utf8");
     expect(grammar).not.toMatch(/LUAU_ONE_LINE_ALTERNATOR_/);
     const rule = /\n {2}LuauSparkdownConditionalAlternatorHead:\n {4}begin: (.*)\n/.exec(grammar);
-    expect(rule?.[1]).toBe("\\G(?!^)(?!{{WS}}*[|])");
+    expect(rule?.[1]).toBe("\\G(?!^)");
   });
 
   test.each([...ONE_LINE_FINDINGS, ...ONE_LINE_ACCEPTED])(
@@ -160,6 +161,17 @@ describe("a story match or plural is one-line or multi-line by what follows its 
       "Expected <eof>, got 'end'",
     ]);
     expect(errors).toEqual(play(scene("match(mood) | happy = A.", "| other = B.", "end")).errors);
+  });
+
+  test("a bar right after a value that spans lines, on the line where the value ends, makes a one-line set (6953093040)", () => {
+    const lines = ["match [[happy", "]] | other = B.", "end"];
+    const [set] = sets(scene(...lines));
+    expect(set).toMatchObject({ text: lines.slice(0, 2).join("\n  "), value: "[[happy\n  ]]", oneLine: true });
+    expect(play(scene(...lines)).errors).toEqual([
+      "On one line, put the value of `match` in brackets, as in `match(value) | ...`: without them it may only be a name, a dotted name or a number",
+      "statement must be inside a scene or branch; the top level holds declarations only",
+      "Expected <eof>, got 'end'",
+    ]);
   });
 
   test("in an arm, a keyword and a value with no bar after them is a nested set with no arms", () => {
