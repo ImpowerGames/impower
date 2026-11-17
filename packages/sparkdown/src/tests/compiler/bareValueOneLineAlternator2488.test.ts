@@ -35,7 +35,7 @@ const play = (text: string) => {
   return { errors: ctx.errorMessages, warnings: ctx.warningMessages, out: ctx.story.ContinueMaximally() };
 };
 
-describe("a one-line match or plural whose value is a name, a number or a quoted string", () => {
+describe("a one-line match or plural whose value is a name or a number", () => {
   test.each([
     ["match mood | happy = A. | other = B. end", "match(mood) | happy = A. | other = B. end"],
     ["plural n | one = A. | other = B. end", "plural(n) | one = A. | other = B. end"],
@@ -44,8 +44,8 @@ describe("a one-line match or plural whose value is a name, a number or a quoted
     ["plural 1 | one = A. | other = B. end", "plural(1) | one = A. | other = B. end"],
     ["plural 0x1F | one = A. | other = B. end", "plural(0x1F) | one = A. | other = B. end"],
     ["plural 1.5e2 | one = A. | other = B. end", "plural(1.5e2) | one = A. | other = B. end"],
-    ['match "very happy" | other = B. end', 'match("very happy") | other = B. end'],
-    ["match 'a | b' | other = B. end", "match('a | b') | other = B. end"],
+    ["plural .5 | one = A. | other = B. end", "plural(.5) | one = A. | other = B. end"],
+    ["plural .5e1 | one = A. | other = B. end", "plural(.5e1) | one = A. | other = B. end"],
   ])("the grammar reads `%s` as a one-line set, as it reads `%s`", (bare, bracketed) => {
     const shape = (text: string) => blocks(scene(text)).map(({ name }) => name);
     expect(blocks(scene(bare))[0]).toMatchObject({ name: SINGLE, text: bare });
@@ -59,8 +59,8 @@ describe("a one-line match or plural whose value is a name, a number or a quoted
     ["plural n | one = A. | other = B. end", "B.\nAfter.\n"],
     ["plural(n) | one = A. | other = B. end", "B.\nAfter.\n"],
     ["plural 1 | one = A. | other = B. end", "A.\nAfter.\n"],
-    ['match "very happy" | other = She waits. end', "She waits.\nAfter.\n"],
-    ["match 'happy' | happy = A. | other = B. end", "A.\nAfter.\n"],
+    ["plural .5 | one = A. | other = B. end", "B.\nAfter.\n"],
+    ['match("very happy") | other = She waits. end', "She waits.\nAfter.\n"],
   ])("the game plays `%s` as alternatives", (line, out) => {
     expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
   });
@@ -91,6 +91,9 @@ describe("a one-line match or plural whose value is a name, a number or a quoted
     ["a backtick string", "match `{mood} day` | happy_day = A. | other = B. end"],
     ["a long string", "match [[very happy]] | other = B. end"],
     ["a value with a comment", "match mood --[[ c ]] | happy = A. | other = B. end"],
+    ["a double-quoted string", 'match "very happy" | other = B. end'],
+    ["a single-quoted string", "match 'happy' | happy = A. | other = B. end"],
+    ["an interpolated double-quoted string", 'match "{mood}" | happy = A. | other = B. end'],
   ])("a bare value that is %s is left to the multi-line set, as without this change", (_, line) => {
     const found = blocks(scene(line));
     expect(found[0]).toMatchObject({ name: MULTI });
@@ -119,6 +122,9 @@ describe("a one-line match or plural whose value is a name, a number or a quoted
     ["match mood --[[ a | b ]]"],
     ["plural n -- a | b"],
     ["match `outer {`a | b`}`"],
+    [`match "{'a" | b'}"`],
+    [`match "{1 --[[ " | hidden ]]}"`],
+    ["match 'a | b'"],
   ])("a multi-line set whose head `%s` holds a bar in a string or comment stays a multi-line set", (head) => {
     const lines = [head, "| other = B.", "end"];
     const found = blocks(scene(...lines));

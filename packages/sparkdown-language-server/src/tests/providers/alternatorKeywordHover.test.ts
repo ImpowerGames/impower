@@ -103,8 +103,9 @@ describe("alternator keyword hover", () => {
       const inner = await hoverAt(text, at(text, keyword) + 1);
       expect(inner?.marked, text).toBe(keyword);
       expect(inner?.value, text).toContain("starts an option of the `cycle` around it");
-      expect(inner?.value, text).toContain("may go without brackets");
-      expect(inner?.value, text).toContain("Any other value, such as a call or a sum, goes in brackets");
+      expect(inner?.value, text).toContain("a value that is a name");
+      expect(inner?.value, text).toContain("or a number may go without brackets");
+      expect(inner?.value, text).toContain("Any other value, such as a string, a call or a sum, goes in brackets");
     }
   });
 
