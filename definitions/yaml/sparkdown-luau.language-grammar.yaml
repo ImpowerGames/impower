@@ -535,11 +535,17 @@ variables:
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
   LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_NAME_BEHIND}})
   LUAU_QUOTED_STRING_ON_LINE: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
-  LUAU_ONE_LINE_ALTERNATOR_VALUE: (?:{{LUAU_QUOTED_STRING_ON_LINE}}|{{LUAU_PLAIN_LONG_BRACKET}}|{{LUAU_ONE_LINE_ALTERNATOR_VALUE_CHARACTER}})+
-  # lookaround: a `[` that opens a long string is read whole by
-  # LUAU_PLAIN_LONG_BRACKET or ends the value, and a `--` that opens a
-  # LuauComment ends it, so the scan never takes a bar inside either.
+  _LUAU_ONE_LINE_ALTERNATOR_VALUE_: (?:{{LUAU_QUOTED_STRING_ON_LINE}}|{{_LUAU_LEVEL_LONG_STRING_}}|{{_LUAU_LEVEL_BLOCK_COMMENT_}}|{{LUAU_ONE_LINE_ALTERNATOR_VALUE_CHARACTER}})+
+  # lookaround: LuauMultilineString reads a long string, closing at its own
+  # level with a backreference, which needs a capture; a negated class
+  # cannot stop the text before a close several characters long.
+  _LUAU_LEVEL_LONG_STRING_: (?:\[(?<stringlevel>=*)\[(?:[^\]\r\n]|\](?!\k<stringlevel>\]))*\]\k<stringlevel>\])
+  # lookaround: a `[` that opens a long string and a `--` that opens a
+  # LuauComment are read whole by _LUAU_LEVEL_LONG_STRING_ and
+  # _LUAU_LEVEL_BLOCK_COMMENT_ or end the value, so the scan never takes a
+  # bar inside either.
   LUAU_ONE_LINE_ALTERNATOR_VALUE_CHARACTER: (?:[^|"'`\[\r\n-]|\[(?!=*\[)|-(?!-))
+  LUAU_ONE_LINE_ALTERNATOR_CLOSED_LINE: (?:[^\r\n]*[^a-zA-Z0-9_@\r\n]end{{LUAU_NAME_END}}{{WS}}*{{LUAU_LINE_COMMENT_TO_LINE_END}}?$)
   LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"{{LUAU_DOUBLE_QUOTED_STRING_TEXT}}")
   LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'{{LUAU_SINGLE_QUOTED_STRING_TEXT}}')
   LUAU_BACKTICK_STRING_ON_LINE: (?:`{{LUAU_BACKTICK_STRING_TEXT}}`)
@@ -5838,9 +5844,12 @@ repository:
   # LuauSparkdownConditionalAlternatorBlock open before either has read the
   # value, and only a bar after the value on the keyword's line tells them
   # apart, so the begin reads the value as LuauConditionalAlternatorCondition
-  # will (LUAU_ONE_LINE_ALTERNATOR_VALUE) and looks for the bar after it.
+  # will (_LUAU_ONE_LINE_ALTERNATOR_VALUE_) and looks for the bar after it.
+  # A value outside brackets also needs the set's `end` on the line
+  # (LUAU_ONE_LINE_ALTERNATOR_CLOSED_LINE), since its first arm may share the
+  # head line of a multi-line set, which this rule's line end would cut.
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?={{LUAU_EXPRESSION_START}}{{LUAU_ONE_LINE_ALTERNATOR_VALUE}}{{WS}}*[|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^()\r\n]*[)]{{WS}}*[|]|{{LUAU_EXPRESSION_START}}{{_LUAU_ONE_LINE_ALTERNATOR_VALUE_}}{{WS}}*[|]{{LUAU_ONE_LINE_ALTERNATOR_CLOSED_LINE}})
     beginCaptures:
       1:
         patterns:

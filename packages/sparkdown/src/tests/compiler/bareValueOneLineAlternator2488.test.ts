@@ -101,6 +101,7 @@ describe("a one-line match or plural whose value is a bare name", () => {
   test.each([
     ["match [[a | b]]"],
     ["match [=[a | b]=]"],
+    ["match [====[a ]=====] | b]====]"],
     ["match mood -- a | b"],
     ["match mood --[[ a | b ]]"],
     ["plural n -- a | b"],
@@ -110,6 +111,24 @@ describe("a one-line match or plural whose value is a bare name", () => {
     expect(found[0]).toMatchObject({ name: MULTI, text: lines.join("\n  ") });
     expect(found.map(({ name }) => name)).not.toContain(SINGLE);
     expect(play(scene(...lines))).toEqual({ errors: [], warnings: [], out: "B.\nAfter.\n" });
+  });
+
+  test.each([
+    ['match("happy" --[[ note | hidden ]]) | happy = A. | other = B. end', "A.\nAfter.\n"],
+    ['match "happy" --[[ note | hidden ]] | happy = A. | other = B. end', "A.\nAfter.\n"],
+  ])("`%s` reads a closed block comment in the value whole", (line, out) => {
+    expect(blocks(scene(line))[0]).toMatchObject({ name: SINGLE, text: line });
+    expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
+  });
+
+  test.each([
+    [["match mood | happy = A.", "| other = B.", "end"], "A.\nAfter.\n"],
+    [["plural n | one = A.", "| other = B.", "end"], "B.\nAfter.\n"],
+  ])("a multi-line set whose first arm shares the head line `%s` stays a multi-line set", (lines, out) => {
+    const found = blocks(scene(...lines));
+    expect(found[0]).toMatchObject({ name: MULTI, text: lines.join("\n  ") });
+    expect(found.map(({ name }) => name)).not.toContain(SINGLE);
+    expect(play(scene(...lines))).toEqual({ errors: [], warnings: [], out });
   });
 
   test.each([
