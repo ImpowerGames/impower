@@ -1156,6 +1156,12 @@
     "LUAU_LOCAL_PREFIX": "(?:local{{WS}}+)",
     "LUAU_ATTRIBUTE_NAME_ON_LINE": "(?:@{{LUAU_NAME_BEHIND}})",
     "LUAU_ATTRIBUTE_LIST_STRING": "(?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})",
+    "LUAU_ONE_LINE_ALTERNATOR_BARE_VALUE": "(?:{{LUAU_ONE_LINE_ALTERNATOR_NAME}}|{{LUAU_ONE_LINE_ALTERNATOR_NUMBER}})",
+    "LUAU_ONE_LINE_ALTERNATOR_NAME": "(?:{{LUAU_IDENTIFIER}}(?:[.]{{LUAU_IDENTIFIER}})*)",
+    "LUAU_ONE_LINE_ALTERNATOR_NUMBER": "(?:-?(?:{{LUAU_ONE_LINE_ALTERNATOR_PREFIXED_NUMBER}}|{{LUAU_ONE_LINE_ALTERNATOR_DECIMAL}}{{LUAU_ONE_LINE_ALTERNATOR_EXPONENT}}?))",
+    "LUAU_ONE_LINE_ALTERNATOR_PREFIXED_NUMBER": "(?:0[xXbB][\\da-fA-F_]+)",
+    "LUAU_ONE_LINE_ALTERNATOR_DECIMAL": "(?:\\d[\\d_]*(?:[.][\\d_]*)?|[.]\\d[\\d_]*)",
+    "LUAU_ONE_LINE_ALTERNATOR_EXPONENT": "(?:[eE][+-]?\\d[\\d_]*)",
     "LUAU_DOUBLE_QUOTED_STRING_ON_LINE": "(?:\"{{LUAU_DOUBLE_QUOTED_STRING_TEXT}}\")",
     "LUAU_SINGLE_QUOTED_STRING_ON_LINE": "(?:'{{LUAU_SINGLE_QUOTED_STRING_TEXT}}')",
     "LUAU_BACKTICK_STRING_ON_LINE": "(?:`{{LUAU_BACKTICK_STRING_TEXT}}`)",
@@ -18819,7 +18825,7 @@
       }
     },
     "LuauSparkdownSingleLineConditionalAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)((?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:match|plural)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))((?:[^\\S\\n\\r])*)(?=[(][^()\\r\\n]*[)](?:[^\\S\\n\\r])*[|])",
+      "begin": "((?:[^\\S\\n\\r])*)((?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:match|plural)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))((?:[^\\S\\n\\r])*)(?=(?:[(][^()\\r\\n]*[)]|(?:(?:(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))(?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]+)*(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))(?:[.](?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))(?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]+)*(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))))*)|(?:-?(?:(?:0[xXbB][\\da-fA-F_]+)|(?:\\d[\\d_]*(?:[.][\\d_]*)?|[.]\\d[\\d_]*)(?:[eE][+-]?\\d[\\d_]*)?))))(?:[^\\S\\n\\r])*[|])",
       "beginCaptures": {
         "1": {
           "patterns": [

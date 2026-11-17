@@ -31,6 +31,8 @@ const CONDITIONAL_FORMS = (keyword: string, value: string, arms: [string, string
   [
     `One line: \`${keyword}(${value}) ${arms.map(([key, text]) => `| ${key} = ${text}`).join(" ")} end\``,
     "",
+    `On one line, a plain name or dotted name written without spaces (\`${value}\`, \`player.${value}\`), or a number written like \`2\`, \`-1\`, \`.5\`, \`1.5e2\` or \`0x1F\`, may go without brackets: \`${keyword} ${value} | ...\`. Any other spelling, such as a string, a call, a sum or a name with spaces around its dot, goes in brackets: \`${keyword}("${value}") | ...\`, \`${keyword}(${value} + 1) | ...\`.`,
+    "",
     "Several lines:",
     "",
     "```sparkdown",
@@ -74,8 +76,7 @@ const SEQUENTIAL_OPTION_START_RULE = (keyword: string) =>
   `At the start of an option, \`${keyword}\` followed by \`|\` opens a one-line set nested in that option, which ends at its own \`end\`: \`cycle | ${keyword} | A. | B. end | C. end\`. Write \`\\${keyword}\` to show the word itself.`;
 
 const CONDITIONAL_OPTION_START_RULE = (keyword: string, value: string, key: string) =>
-  `At the start of an option, \`${keyword}\` with its value in brackets and then \`|\` opens a one-line set nested in that option, which ends at its own \`end\`: \`cycle | ${keyword}(${value}) | ${key} = A. | other = B. end | C. end\`. Write \`\\${keyword}\` to show the word itself.`;
-
+  `At the start of an option, \`${keyword}\` with its value and then \`|\` opens a one-line set nested in that option, which ends at its own \`end\`: \`cycle | ${keyword} ${value} | ${key} = A. | other = B. end | C. end\`. Write \`\\${keyword}\` to show the word itself.`;
 const OPTION_START_RULES: Record<AlternatorKeyword, string> = {
   queue: SEQUENTIAL_OPTION_START_RULE("queue"),
   cycle: SEQUENTIAL_OPTION_START_RULE("cycle"),

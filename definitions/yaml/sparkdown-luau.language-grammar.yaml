@@ -535,6 +535,12 @@ variables:
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
   LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_NAME_BEHIND}})
   LUAU_ATTRIBUTE_LIST_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
+  LUAU_ONE_LINE_ALTERNATOR_BARE_VALUE: (?:{{LUAU_ONE_LINE_ALTERNATOR_NAME}}|{{LUAU_ONE_LINE_ALTERNATOR_NUMBER}})
+  LUAU_ONE_LINE_ALTERNATOR_NAME: (?:{{LUAU_IDENTIFIER}}(?:[.]{{LUAU_IDENTIFIER}})*)
+  LUAU_ONE_LINE_ALTERNATOR_NUMBER: (?:-?(?:{{LUAU_ONE_LINE_ALTERNATOR_PREFIXED_NUMBER}}|{{LUAU_ONE_LINE_ALTERNATOR_DECIMAL}}{{LUAU_ONE_LINE_ALTERNATOR_EXPONENT}}?))
+  LUAU_ONE_LINE_ALTERNATOR_PREFIXED_NUMBER: (?:0[xXbB][\da-fA-F_]+)
+  LUAU_ONE_LINE_ALTERNATOR_DECIMAL: (?:\d[\d_]*(?:[.][\d_]*)?|[.]\d[\d_]*)
+  LUAU_ONE_LINE_ALTERNATOR_EXPONENT: (?:[eE][+-]?\d[\d_]*)
   LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"{{LUAU_DOUBLE_QUOTED_STRING_TEXT}}")
   LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'{{LUAU_SINGLE_QUOTED_STRING_TEXT}}')
   LUAU_BACKTICK_STRING_ON_LINE: (?:`{{LUAU_BACKTICK_STRING_TEXT}}`)
@@ -5829,8 +5835,15 @@ repository:
         patterns:
           - { include: "#LuauComment" }
 
+  # lookaround: at a story `match` or `plural` this rule and
+  # LuauSparkdownConditionalAlternatorBlock open before either has read the
+  # value, and only a bar after the value on the keyword's line tells them
+  # apart. The begin looks for that bar only after a bracketed value or a
+  # value with no inner structure (LUAU_ONE_LINE_ALTERNATOR_BARE_VALUE), whose
+  # end needs no string, comment or bracket reading; any other value is left
+  # to LuauSparkdownConditionalAlternatorBlock.
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^()\r\n]*[)]{{WS}}*[|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=(?:[(][^()\r\n]*[)]|{{LUAU_ONE_LINE_ALTERNATOR_BARE_VALUE}}){{WS}}*[|])
     beginCaptures:
       1:
         patterns:
