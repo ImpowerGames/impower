@@ -128,12 +128,18 @@ describe("a story match or plural is one-line or multi-line by what follows its 
     expect(play(scene(`${keyword} ${value} ${arms}`))).toEqual({ errors: [], warnings: [], out: "A.\nAfter.\n" });
   });
 
-  test("a value the condition rule ends inside is read whole, as its bracketed spelling is (6953765551)", () => {
-    const arms = "| happy = A. | other = B. end";
-    const bare = play(scene(`match player --[[c]] . mood ${arms}`));
-    expect(bare.out).toBe("A.\nAfter.\n");
-    expect(bare.out).toBe(play(scene(`match(player --[[c]] . mood) ${arms}`)).out);
-    expect(bare.errors.filter((message) => !BRACKETS.test(message))).toEqual([]);
+  test.each([
+    ["a dotted name", "match player --[[c]] . mood | happy = A. | other = B. end", "A.\nAfter.\n"],
+    ["a dotted name in a nested set", "cycle | match player --[[c]] . mood | happy = A. | other = B. end | C. end", "A.\nAfter.\n"],
+    ["a bracketed index", 'match(player --[[c]] ["mood"]) | happy = A. | other = B. end', "A.\nAfter.\n"],
+  ])("%s with a block comment before its accessor is one value, accepted as written (6953765551, 6954213450)", (_, line, out) => {
+    const [set] = sets(scene(line));
+    expect(set!.value).toMatch(/mood/);
+    expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
+  });
+
+  test("a path with a block comment before its accessor is one value in Luau code too (6954213450)", () => {
+    expect(play(scene("& local v = player --[[c]] . mood", "{v}"))).toEqual({ errors: [], warnings: [], out: "happy\nAfter.\n" });
   });
 
   test.each([

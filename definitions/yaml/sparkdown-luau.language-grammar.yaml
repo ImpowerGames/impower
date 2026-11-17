@@ -23,7 +23,8 @@ variables:
   # lookaround: LuauChainedPropertyAccess and LuauChainedFunctionCall keep member and call continuations inside the path.
   # A name goes on the path only right after its accessor: after whitespace
   # it begins the next statement (`Hello there`), which no path reads on to.
-  LUAU_SHARED_PATH_NO_CONTINUATION: "(?!{{LUAU_IDENTIFIER}}|{{WS}}*{{LUAU_SHARED_PATH_CONTINUATION}})"
+  LUAU_SHARED_PATH_NO_CONTINUATION: "(?!{{LUAU_IDENTIFIER}}|{{WS}}*{{LUAU_PATH_BLOCK_COMMENTS}}{{LUAU_SHARED_PATH_CONTINUATION}})"
+  LUAU_PATH_BLOCK_COMMENTS: (?:{{LUAU_COMMENT_START}}\[\[{{SPAN_DOUBLE_BRACKET_TEXT}}*\]\]{{WS}}*)*
   # lookaround: LuauTypeAnnotationOperation owns a declaration's colon; LuauAccessPath must yield before the annotation.
   LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD: "(?={{WS}}*{{LUAU_TYPE_ANNOTATION_OPERATOR}})"
   LUAU_SHARED_PATH_CONTINUATION: "(?:{{LUAU_ACCESSOR_OPERATOR}}|{{LUAU_INDEXER_START}})"
