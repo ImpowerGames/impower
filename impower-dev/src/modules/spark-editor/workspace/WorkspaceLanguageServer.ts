@@ -58,6 +58,7 @@ import type { AssetUseRole } from "./assetUsage";
 import problems from "./problems/ProblemsStore";
 import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import type WorkspaceWindow from "./WorkspaceWindow";
+import { getWorkerUrl } from "../../../workers/workerUrl";
 const CLIENT_CAPABILITIES: ClientCapabilities = {
   workspace: {
     didChangeConfiguration: {
@@ -234,7 +235,9 @@ export default class WorkspaceLanguageServer {
     window: WorkspaceWindow;
   }) {
     this._workspace = workspace;
-    this._worker = new Worker("/sparkdown-language-server.js");
+    this._worker = new Worker(
+      getWorkerUrl("sparkdown-language-server", import.meta.env.BUILD_ID),
+    );
     this._worker.onerror = (e) => {
       console.error(e);
     };

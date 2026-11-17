@@ -9,6 +9,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportHTMLMessage";
 import { ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
 import workspaceSettings from "./settings/WorkspaceSettings";
+import { getWorkerUrl } from "../../../workers/workerUrl";
 
 export default class WorkspacePrint {
   protected _worker: Worker;
@@ -25,7 +26,9 @@ export default class WorkspacePrint {
   }
 
   constructor() {
-    this._worker = new Worker("/sparkdown-screenplay-pdf.js");
+    this._worker = new Worker(
+      getWorkerUrl("sparkdown-screenplay-pdf", import.meta.env.BUILD_ID),
+    );
     this._worker.onerror = (e) => {
       console.error(e);
     };

@@ -97,6 +97,7 @@ import {
   needsFolderMigration,
   planFolderMigration,
 } from "../utils/fileTree";
+import { getWorkerUrl } from "../../../workers/workerUrl";
 
 const cmp = (a: any, b: any) => {
   if (a > b) return +1;
@@ -209,7 +210,9 @@ export default class WorkspaceFileSystem {
     this._configuration = configuration;
     const projectId = this.getLoadedProjectId();
     this._loadedProjectId = projectId;
-    this._worker = new Worker("/opfs-workspace.js");
+    this._worker = new Worker(
+      getWorkerUrl("opfs-workspace", import.meta.env.BUILD_ID),
+    );
     this._worker.onerror = (e) => {
       console.error(e);
     };
