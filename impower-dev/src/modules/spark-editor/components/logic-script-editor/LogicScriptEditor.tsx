@@ -1,4 +1,5 @@
 import { useCoarsePointer } from "@impower/impower-ui/layout";
+import type { ApplyEditorEditResult } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules/script-editor/SparkdownScriptEditor";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
@@ -33,6 +34,7 @@ export const propDefaults = {
 export type LogicScriptEditorProps = Partial<typeof propDefaults>;
 
 const AUTOSAVE_DELAY = 200;
+const APPLY_TIMEOUT = 3000;
 
 let editorCount = 0;
 
@@ -98,6 +100,7 @@ export default function LogicScriptEditor({
         { DidSaveTextDocumentMessage },
         { DidDeleteFilesMessage },
         { DidWriteFilesMessage },
+        { ApplyEditorEditMessage },
       ] = await Promise.all([
         import(
           "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage"
@@ -117,6 +120,9 @@ export default function LogicScriptEditor({
         ),
         import(
           "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage"
+        ),
+        import(
+          "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage"
         ),
       ]);
       if (disposed) return;
@@ -210,36 +216,64 @@ export default function LogicScriptEditor({
 
       let otherWrites = 0;
 
-      const useOtherTabText = async (uri: string, text: string, seen: number) => {
-        const name = scriptName();
-        if (disposed || uriRef.current !== uri || otherWrites !== seen) {
-          showSnackbar({ message: `${name} changed again, so it was left as it is.` });
-          return;
-        }
-        const { Workspace } = await import("../../workspace/Workspace");
-        if (disposed || uriRef.current !== uri || otherWrites !== seen) {
-          return;
-        }
+      const useOtherTabText = (uri: string, text: string, seen: number) => {
+        const leftAsItIs = () =>
+          showSnackbar({
+            message: `${scriptName()} changed again, so it was left as it is.`,
+          });
         const held = textRef.current;
-        const save = ++saves;
-        await Workspace.fs.writeTextDocument({
-          textDocument: { uri, version: versionRef.current ?? 0, text },
-          origin,
+        if (disposed || uriRef.current !== uri || otherWrites !== seen || held == null) {
+          leftAsItIs();
+          return;
+        }
+        const lines = held.split("\n");
+        const request = ApplyEditorEditMessage.type.request({
+          label: "Use other tab's",
+          edit: {
+            documentChanges: [
+              {
+                textDocument: { uri, version: null },
+                edits: [
+                  {
+                    range: {
+                      start: { line: 0, character: 0 },
+                      end: {
+                        line: lines.length - 1,
+                        character: lines[lines.length - 1]!.length,
+                      },
+                    },
+                    newText: text,
+                  },
+                ],
+              },
+            ],
+          },
+          expectedTexts: { [uri]: held },
         });
-        const overtaken = () =>
-          disposed ||
-          uriRef.current !== uri ||
-          textRef.current !== held ||
-          save <= keptAfterSave;
-        if (overtaken()) {
-          return;
-        }
-        storedTexts.set(uri, text);
-        await Workspace.window.recordScriptChange();
-        if (overtaken()) {
-          return;
-        }
-        loadFile();
+        const stop = onProtocolMessage(
+          {
+            is: (m: unknown): m is { result?: ApplyEditorEditResult } =>
+              ApplyEditorEditMessage.type.isResponse(m, request.id),
+          },
+          (message) => {
+            const result = "result" in message ? message.result : undefined;
+            if (result?.applied.includes(uri)) {
+              finish();
+            } else if (result?.refused?.includes(uri)) {
+              finish();
+              leftAsItIs();
+            }
+          },
+        );
+        const timer = setTimeout(() => {
+          finish();
+          leftAsItIs();
+        }, APPLY_TIMEOUT);
+        const finish = () => {
+          clearTimeout(timer);
+          stop();
+        };
+        sendProtocolMessage(request);
       };
 
       const announceKeptTyping = (uri: string, text: string | undefined) => {
