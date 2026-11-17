@@ -17,6 +17,7 @@ import {
   isAliasedAttributeProp,
   isReservedAttribute,
 } from "../../constants/dataAttributeProps";
+import { isKnownSelectorState } from "../../constants/selectorStates";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
@@ -1625,6 +1626,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
+      }
+    }
+    if (nodeRef.name === "SelectorStateName") {
+      const state = this.read(nodeRef.from, nodeRef.to);
+      if (!isKnownSelectorState(state)) {
+        const message = `\`@${state}\` is not a known state, so this block never applies\n> States are the player's names such as \`@hovered\`, \`@focused\` and \`@pressed\`, or standard CSS pseudo-class names such as \`@focus-visible\``;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from - 1, nodeRef.to),
+        );
       }
     }
     if (
