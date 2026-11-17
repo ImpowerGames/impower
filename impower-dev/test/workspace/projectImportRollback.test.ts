@@ -9,8 +9,10 @@ import {
   writeMemoryFile,
 } from "../../../packages/opfs-workspace/test/memoryOpfs";
 import { buildZippable } from "../../../packages/opfs-workspace/src/utils/assetArchive";
+import { SparkdownLanguageServerWorkspace } from "../../../packages/sparkdown-language-server/src/classes/SparkdownLanguageServerWorkspace";
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({ Workspace: {} }));
+vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -39,7 +41,11 @@ const backup = (entries: Record<string, string>, folders: string[] = []) =>
     { level: 0 },
   ).buffer as ArrayBuffer;
 
-async function harness(extra: Record<string, string> = {}, saved: Record<string, string> = PROJECT) {
+async function harness(
+  extra: Record<string, string> = {},
+  saved: Record<string, string> = PROJECT,
+  options: { firstLoadFails?: boolean } = {},
+) {
   vi.resetModules();
   const root = memoryRoot();
   for (const [path, text] of Object.entries({ ...MIGRATED, ...saved, ...extra })) {
@@ -78,9 +84,35 @@ async function harness(extra: Record<string, string> = {}, saved: Record<string,
   } });
   const { default: WorkspaceFileSystem } = await import("../../src/modules/spark-editor/workspace/WorkspaceFileSystem");
   const { ProjectImportError } = await import("../../src/modules/spark-editor/workspace/projectImport");
-  const ls = { connection: { onRequest() {}, sendNotification() {} }, start: async () => {} };
+  const watchers: ((params: unknown) => Promise<void>)[] = [];
+  const pending: Promise<void>[] = [];
+  const served: { uri: string; type: number }[] = [];
+  const ls = {
+    connection: {
+      onRequest() {},
+      sendNotification: (method: string, params: unknown) => {
+        if (method === "workspace/didChangeWatchedFiles") {
+          served.push(...(params as { changes: { uri: string; type: number }[] }).changes);
+          pending.push(...watchers.map((watcher) => watcher(params)));
+        }
+      },
+    },
+    start: async () => {},
+  };
+  if (options.firstLoadFails) {
+    vi.spyOn(WorkspaceFileSystem.prototype as any, "openProjectStore").mockRejectedValueOnce(new Error("transient"));
+  }
   const fs = new WorkspaceFileSystem(ls as never, { settings, onDidChange: () => () => {} } as never);
-  await fs.getFiles("local");
+  const starterReadWhileLoading = fs.getFileText("file://local/main.sd").catch((error: unknown) => error);
+  let starterReadDuringRetry: Promise<unknown> | undefined;
+  if (options.firstLoadFails) {
+    await fs.getFiles("local").catch(() => undefined);
+    const retry = fs.getFiles("local");
+    starterReadDuringRetry = fs.getFileText("file://local/main.sd").catch((error: unknown) => error);
+    await retry;
+  } else {
+    await fs.getFiles("local");
+  }
   const project = root.entries.get("local") as MemoryDirectory;
   const stored = () =>
     listMemory(root, "local").filter((path) => !path.startsWith(".") && !path.startsWith("_"));
@@ -146,7 +178,7 @@ async function harness(extra: Record<string, string> = {}, saved: Record<string,
     applyBundle(() => fs.writeProjectScriptBundle("local", content));
   const applyAssets = (content: ArrayBuffer) =>
     applyBundle(() => fs.writeProjectAssetBundle("local", content));
-  return { fs, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
+  return { fs, starterReadWhileLoading, starterReadDuringRetry, watchers, pending, served, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
 }
 
 const ASSETS = { "art/old.png": "OLD" };
@@ -429,4 +461,149 @@ it("keeps the unsaved starter main in the editor when a backup import fails afte
   expect(error?.reason).toBe("storage");
   expect(h.text("main.sd")).toBeUndefined();
   expect(await starterText(h)).toBe(before);
+}, 15_000);
+
+class TestLanguageServer extends SparkdownLanguageServerWorkspace {
+  compiled = new Map<string, string | undefined>();
+
+  removals: Promise<void> = Promise.resolve();
+
+  constructor(connection: unknown) {
+    super(connection as never);
+    this._projectLoaded = true;
+    this._compilerConfigured = true;
+    this._scriptFilePattern = /[.]sd$/;
+    this._compilerChannelConnection = {
+      sendRequest: async (type: { method: string }, params: any) => {
+        if (type.method === "compiler/removeFile") {
+          await this.removals;
+          this.compiled.delete(params.file.uri);
+        } else if (type.method === "compiler/addFile" || type.method === "compiler/updateFile") {
+          this.compiled.set(params.file.uri, params.file.text);
+        }
+        return { textDocument: params.textDocument };
+      },
+    } as never;
+    this.debouncedCompile = (async () => undefined) as never;
+  }
+
+  override startCompilerWorker() {}
+
+  seed(file: { uri: string; text?: string; version?: number; languageId?: string }) {
+    const watched = {
+      ...file,
+      name: this.getFileName(file.uri),
+      ext: this.getFileExtension(file.uri),
+      type: this.getFileType(file.uri),
+    };
+    this._watchedFiles.set(file.uri, watched);
+    this.onCreatedFile(watched);
+    this.compiled.set(file.uri, file.text);
+  }
+
+  versionOf(uri: string) {
+    return this._documentVersions.get(uri);
+  }
+}
+
+const languageServer = async (h: Awaited<ReturnType<typeof harness>>, open: string[]) => {
+  const connection = new Proxy({}, {
+    get: (_target, key) => {
+      if (key === "onDidChangeWatchedFiles") {
+        return (handler: (params: unknown) => Promise<void>) => {
+          h.watchers.push(handler);
+          return { dispose() {} };
+        };
+      }
+      if (key === "sendRequest") {
+        return (_type: unknown, params: never) => h.fs.executeCommand(params);
+      }
+      return () => ({ dispose() {} });
+    },
+  });
+  const server = new TestLanguageServer(connection);
+  server.listen();
+  const files = await h.fs.getFiles("local");
+  Object.values(files)
+    .filter((file) => file.uri.endsWith(".sd"))
+    .forEach((file) => server.seed(file));
+  for (const uri of open) {
+    await server.openTextDocument({
+      textDocument: { uri, languageId: "sparkdown", version: 0, text: files[uri]!.text! },
+    });
+  }
+  return server;
+};
+
+const settled = (h: Awaited<ReturnType<typeof harness>>) => Promise.all(h.pending);
+
+it("reads the unsaved starter main while the project is still loading", async () => {
+  const h = await harness({}, {});
+  expect(await h.starterReadWhileLoading).toBe(await starterText(h));
+}, 15_000);
+
+it("reads a saved main from storage while the project is still loading", async () => {
+  const h = await harness();
+  expect(await h.starterReadWhileLoading).toBe(PROJECT["main.sd"]);
+}, 15_000);
+
+it("reads the unsaved starter main while a retried project load is still running", async () => {
+  const h = await harness({}, {}, { firstLoadFails: true });
+  expect(await h.starterReadDuringRetry).toBe(await starterText(h));
+}, 15_000);
+
+it("keeps an edit made after a failed script bundle current in the language server", async () => {
+  const h = await harness(ASSETS, {});
+  const before = (await starterText(h))!;
+  const server = await languageServer(h, [STARTER_URI]);
+  let release!: () => void;
+  server.removals = new Promise((resolve) => (release = resolve));
+  h.failCreatingFolder("chapters");
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeDefined();
+  await server.changeTextDocument({
+    textDocument: { uri: STARTER_URI, version: 1 },
+    contentChanges: [{ text: `${before}edited` }],
+  });
+  release();
+  await settled(h);
+  expect(server.versionOf(STARTER_URI)).toBe(1);
+}, 15_000);
+
+it("keeps the unsaved starter main in the language server when a script bundle fails after writing main", async () => {
+  const h = await harness(ASSETS, {});
+  const before = await starterText(h);
+  const server = await languageServer(h, [STARTER_URI]);
+  h.failCreatingFolder("chapters");
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeDefined();
+  await settled(h);
+  expect(server.document(STARTER_URI)?.getText()).toBe(before);
+  expect(server.compiled.get(STARTER_URI)).toBe(before);
+}, 15_000);
+
+it("keeps the unsaved starter main in the language server when a backup import fails after writing main", async () => {
+  const h = await harness({}, {});
+  const before = await starterText(h);
+  const server = await languageServer(h, []);
+  h.failCreatingFolder("images");
+  const { error } = await h.importBackup(backup(BACKUP));
+  expect(error?.reason).toBe("storage");
+  await settled(h);
+  expect(server.document(STARTER_URI)?.getText()).toBe(before);
+  expect(server.compiled.get(STARTER_URI)).toBe(before);
+}, 15_000);
+
+it("leaves the language server without a file the failed import created", async () => {
+  const h = await harness();
+  const server = await languageServer(h, []);
+  h.failCreatingFolder("images");
+  const { error } = await h.importBackup(backup({ "added.sd": "added", ...BACKUP }));
+  expect(error?.reason).toBe("storage");
+  await settled(h);
+  expect(h.text("added.sd")).toBeUndefined();
+  expect(h.served).toContainEqual({ uri: "file://local/added.sd", type: 3 });
+  expect(server.document("file://local/added.sd")).toBeUndefined();
+  expect(server.compiled.has("file://local/added.sd")).toBe(false);
+  expect(server.document(STARTER_URI)?.getText()).toBe(PROJECT["main.sd"]);
 }, 15_000);

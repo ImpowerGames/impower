@@ -14,6 +14,7 @@ import { SETTINGS_JSON_PATH } from "./settings/settingsJson";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
 import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
@@ -195,6 +196,8 @@ export default class WorkspaceFileSystem {
   protected _files?: Record<string, FileData>;
 
   protected _unstoredUris = new Set<string>();
+
+  protected _replacingUnstoredUris = new Map<string, number>();
 
   protected _folders = new Set<string>();
 
@@ -405,6 +408,13 @@ export default class WorkspaceFileSystem {
   }
 
   async getFileText(uri: string) {
+    await this._initialFilesRef.settled();
+    const unstored = this._unstoredUris.has(uri)
+      ? this._files?.[uri]?.text
+      : undefined;
+    if (unstored !== undefined) {
+      return unstored;
+    }
     const buffer = await this.readFile({ file: { uri } });
     const text = new TextDecoder("utf-8").decode(buffer);
     return text;
@@ -557,7 +567,18 @@ export default class WorkspaceFileSystem {
         return;
       }
       const forwarded = withParams(message, { changes: fresh });
-      this._ls.connection.sendNotification(forwarded.method, forwarded.params);
+      const served = fresh.filter(
+        (c) =>
+          c.type !== FileChangeType.Deleted ||
+          !this._replacingUnstoredUris.has(c.uri) ||
+          !this._unstoredUris.has(c.uri),
+      );
+      if (served.length === fresh.length) {
+        this._ls.connection.sendNotification(forwarded.method, forwarded.params);
+      } else if (served.length > 0) {
+        const narrowed = withParams(message, { changes: served });
+        this._ls.connection.sendNotification(narrowed.method, narrowed.params);
+      }
       sendProtocolMessage(forwarded);
     } else if (message.error) {
       const handler = this._messageQueue[message.id];
@@ -739,6 +760,12 @@ export default class WorkspaceFileSystem {
       const file = this._files?.[uri];
       return file ? [file] : [];
     });
+    unstored.forEach((file) =>
+      this._replacingUnstoredUris.set(
+        file.uri,
+        (this._replacingUnstoredUris.get(file.uri) ?? 0) + 1,
+      ),
+    );
     const result = await this.applyWorkspaceEdit(
       {
         documentChanges: [
@@ -767,7 +794,16 @@ export default class WorkspaceFileSystem {
         ],
       },
       label,
-    );
+    ).finally(() => {
+      unstored.forEach((file) => {
+        const count = (this._replacingUnstoredUris.get(file.uri) ?? 1) - 1;
+        if (count > 0) {
+          this._replacingUnstoredUris.set(file.uri, count);
+        } else {
+          this._replacingUnstoredUris.delete(file.uri);
+        }
+      });
+    });
     const lost = result.applied
       ? []
       : unstored.filter((file) => this._files && !this._files[file.uri]);

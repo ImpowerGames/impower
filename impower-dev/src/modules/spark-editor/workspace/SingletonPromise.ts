@@ -32,6 +32,10 @@ export default class SingletonPromise<
     return this._value;
   }
 
+  async settled(): Promise<void> {
+    await this._promise?.catch(() => undefined);
+  }
+
   reset() {
     this._value = undefined;
     this._promise = undefined;
