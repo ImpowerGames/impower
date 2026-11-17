@@ -1078,6 +1078,7 @@ export default class WorkspaceFileSystem {
       params,
       params.files.map((file) => file.data) as Transferable[],
     );
+    result?.forEach((file) => this._unstoredUris.delete(file.uri));
     return result;
   }
 
