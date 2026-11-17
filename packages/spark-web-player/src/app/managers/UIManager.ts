@@ -1844,6 +1844,8 @@ export default class UIManager extends Manager {
         (targetEl as any).__sdAllRev = (targetEl as any).__sdRev ?? 0;
       }
     }
+    const settle = (reveal: ReturnType<AnimationPlayer["add"]>[number]) =>
+      this.settleReveal(reveal);
     const shownNow = new AnimationPlayer(this._theme, this._hold);
     for (const { element, animation } of enterNow) {
       (element as any).__sdReveal = shownNow.add({
@@ -1851,7 +1853,7 @@ export default class UIManager extends Manager {
         animations: [animation],
       })[0];
     }
-    const showing = enterNow.length > 0 ? shownNow.play() : undefined;
+    const showing = enterNow.length > 0 ? shownNow.play(undefined, settle) : undefined;
     if (enter.length > 0 || waiting.length > 0) {
       const player = new AnimationPlayer(this._theme, this._hold);
       for (const { element, animation } of enter) {
@@ -1866,9 +1868,49 @@ export default class UIManager extends Manager {
           animations: [getHiddenUntilAnimation(wait)],
         })[0];
       }
-      await player.play(startTime);
+      await player.play(startTime, settle);
     }
     await showing;
+  }
+
+  protected settleReveal(reveal: ReturnType<AnimationPlayer["add"]>[number]) {
+    const effect = reveal.effect;
+    const element = effect instanceof KeyframeEffect ? effect.target : null;
+    if (
+      !(effect instanceof KeyframeEffect) ||
+      !(element instanceof HTMLElement) ||
+      (element as any).__sdReveal !== reveal
+    ) {
+      return;
+    }
+    const time = reveal.currentTime;
+    const end = effect.getComputedTiming().endTime;
+    const ended =
+      reveal.playState === "finished" ||
+      (reveal.playState === "paused" &&
+        time != null &&
+        end != null &&
+        Number(time) >= Number(end));
+    if (!ended) {
+      return;
+    }
+    const keyframes = effect.getKeyframes();
+    const last = keyframes[keyframes.length - 1] ?? {};
+    for (const [prop, value] of Object.entries(last)) {
+      if (
+        value == null ||
+        ["offset", "computedOffset", "easing", "composite"].includes(prop)
+      ) {
+        continue;
+      }
+      if (prop.startsWith("--")) {
+        element.style.setProperty(prop, String(value));
+      } else {
+        (element.style as unknown as Record<string, string>)[prop] = String(value);
+      }
+    }
+    reveal.cancel();
+    delete (element as any).__sdReveal;
   }
 
   protected dropSettledAnimation(
