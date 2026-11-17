@@ -1,6 +1,7 @@
 import { StateEffect, StateField } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
+import { PREVIEW_FONT_SIZE } from "../constants/PREVIEW_THEME";
 import { printedPageStyle } from "./screenplayGeometry";
 
 export const setScreenplayConfig = StateEffect.define<ScreenplayConfig | undefined>();
@@ -8,6 +9,8 @@ export const setScreenplayConfig = StateEffect.define<ScreenplayConfig | undefin
 export const setScreenplayPicks = StateEffect.define<readonly number[]>();
 
 export const setScreenplayScenesBefore = StateEffect.define<number>();
+
+export const setScreenplayRow = StateEffect.define<number>();
 
 export const screenplayConfigField = StateField.define<ScreenplayConfig | undefined>({
   create: () => undefined,
@@ -45,6 +48,44 @@ export const screenplayScenesBeforeField = StateField.define<number>({
   },
 });
 
+export const screenplayRowField = StateField.define<number>({
+  create: () => PREVIEW_FONT_SIZE,
+  update(value, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(setScreenplayRow)) {
+        value = effect.value;
+      }
+    }
+    return value;
+  },
+});
+
+const screenplayRowMeasure = ViewPlugin.fromClass(
+  class {
+    constructor(readonly view: EditorView) {
+      this.measure();
+    }
+
+    update(update: ViewUpdate) {
+      if (update.geometryChanged) this.measure();
+    }
+
+    measure() {
+      this.view.requestMeasure({
+        key: this,
+        read: (view) => view.defaultLineHeight,
+        write: (row, view) => {
+          if (row > 0 && row !== view.state.field(screenplayRowField)) {
+            queueMicrotask(() => {
+              if (row !== view.state.field(screenplayRowField)) view.dispatch({ effects: setScreenplayRow.of(row) });
+            });
+          }
+        },
+      });
+    }
+  },
+);
+
 export const paperSizeOf = (config: ScreenplayConfig | undefined) =>
   config?.screenplay_print_paper_size === "a4" ? "a4" : "usletter";
 
@@ -65,5 +106,7 @@ export const screenplaySettings = (config?: ScreenplayConfig, picks: readonly nu
   screenplayConfigField.init(() => config),
   screenplayPicksField.init(() => new Set(picks)),
   screenplayScenesBeforeField.init(() => scenesBefore),
+  screenplayRowField,
+  screenplayRowMeasure,
   screenplayPageAttributes,
 ];
