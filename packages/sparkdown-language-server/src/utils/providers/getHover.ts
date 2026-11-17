@@ -21,6 +21,7 @@ import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { isLayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
+import { getAlternatorKeywordHover } from "./alternatorKeywordHelp";
 import {
   MarkupKind,
   type Hover,
@@ -226,6 +227,10 @@ export const getHover = async (
     const glueHover = getGlueHover(document, tree, position);
     if (glueHover) {
       return glueHover;
+    }
+    const alternatorHover = getAlternatorKeywordHover(document, tree, position);
+    if (alternatorHover) {
+      return alternatorHover;
     }
     const layoutControlHover = getLayoutControlHover(document, tree, position);
     if (layoutControlHover) {
