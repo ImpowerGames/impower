@@ -102,6 +102,19 @@ for (const [kind, Icon] of [
   entry.dataset["kind"] = kind;
   render(h(Icon, { class: "route-icon", "data-icon": kind }), entry);
 }
+for (const kind of ["forced", "clipped"]) {
+  const entry = routeIcons.appendChild(document.createElement("div"));
+  entry.className = "route-entry";
+  entry.dataset["kind"] = kind;
+  render(
+    h(
+      "svg",
+      { class: "route-icon", "data-icon": kind, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor" },
+      h("path", { d: "M4 14V9a3 3 0 0 1 3-3h6" }),
+    ),
+    entry,
+  );
+}
 
 const openChoice = (line: number | null) => openChoicePopover(view, line);
 

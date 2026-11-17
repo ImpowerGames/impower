@@ -676,7 +676,7 @@
 }
 
 @media (forced-colors: active) {
-  :is(spark-web-player, swp-route-view) :is(.route-entry, .route-toggle, .route-button, .route-pin-button, .route-unresolved-pin) .route-icon:is([data-icon="auto"], [data-icon="pinned"]) {
+  :is(spark-web-player, swp-route-view) :is(.route-entry, .route-toggle, .route-button, .route-pin-button, .route-unresolved-pin) .route-icon[data-icon] {
     color: CanvasText;
   }
 }

@@ -168,7 +168,7 @@ describe("a press where a fold marker's touch target reaches into the breakpoint
 });
 
 describe("the gutter marks and route pins under forced colours", () => {
-  it("draw every gutter glyph, route pin and choice icon at 16 by 16 in CanvasText, so none turns into Canvas on Canvas or into nothing", async () => {
+  it("draw every gutter glyph, route icon and choice icon at 16 by 16 in CanvasText, so none turns into Canvas on Canvas or into nothing", async () => {
     const context = await browser.newContext({ viewport: { width: 430, height: 600 }, forcedColors: "active" });
     const page = await context.newPage();
     await page.goto(pageUrl);
@@ -210,6 +210,8 @@ describe("the gutter marks and route pins under forced colours", () => {
     const kinds = paints.marks.map((mark) => mark.kind);
     expect(kinds).toContain("route auto");
     expect(kinds).toContain("route pinned");
+    expect(kinds).toContain("route forced");
+    expect(kinds).toContain("route clipped");
     expect(kinds.some((kind) => kind.includes("cm-choice-icon-auto"))).toBe(true);
     expect(kinds.some((kind) => kind.includes("cm-breakpoint"))).toBe(true);
     for (const mark of paints.marks) {
