@@ -10,6 +10,7 @@ import type { ScreenplayTokenType } from "../../../../../sparkdown-screenplay/sr
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import type { FormattedText } from "../../../../../sparkdown-screenplay/src/types/FormattedText";
 import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/alternativeMarks";
+import { printedLineStart } from "../../../../../sparkdown-screenplay/src/utils/leadingLinePieces";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styleText";
 import {
@@ -794,12 +795,13 @@ export const decorate = (
         }
       } else if (name === "TextChunk") {
         if (inDialogue) {
-          const exported = exportedLinesFrom(from, to);
+          const start = printedLineStart(nodeRef.node);
+          const exported = exportedLinesFrom(start, to);
           const last = dialogueContent.at(-1);
           if (exported) {
             dialogueContent.push({
               type: "dialogue",
-              from,
+              from: start,
               to,
               value: printedHtml(exported),
               attributes: { style: getDialogueLineStyle(config, "dialogue") },
