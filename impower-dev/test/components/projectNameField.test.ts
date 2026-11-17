@@ -191,4 +191,52 @@ describe("the project name field's shared naming behaviour", () => {
       delete (globalThis as { CloseWatcher?: unknown }).CloseWatcher;
     }
   });
+
+  it("restores the name and stays on the route when Back pops history without CloseWatcher", async () => {
+    const { interceptBack } =
+      await import("../../src/modules/spark-editor/workspace/nameFieldBack");
+    window.history.replaceState(null, "", "#scripts");
+    const input = await mount(ProjectNameField);
+    await focus(input);
+    await type(input, "Something else");
+    window.history.replaceState(null, "", "#write");
+    let intercepted = false;
+    await act(async () => {
+      intercepted = interceptBack();
+    });
+    await settle();
+    expect(intercepted).toBe(true);
+    expect(window.location.hash).toBe("#scripts");
+    expect(calls.finished).toEqual(["My story"]);
+    expect(input.value).toBe("My story");
+    expect(document.activeElement).not.toBe(input);
+    expect(interceptBack()).toBe(false);
+  });
+
+  it("leaves Back to the router once the name is committed without CloseWatcher", async () => {
+    const { interceptBack } =
+      await import("../../src/modules/spark-editor/workspace/nameFieldBack");
+    const input = await mount(ProjectNameField);
+    await focus(input);
+    await type(input, "Something else");
+    await act(async () => input.blur());
+    await settle();
+    expect(calls.finished).toEqual(["Something else"]);
+    expect(interceptBack()).toBe(false);
+  });
+
+  it("leaves Back to the router after an Enter commit, a second naming and an unmount without CloseWatcher", async () => {
+    const { interceptBack } =
+      await import("../../src/modules/spark-editor/workspace/nameFieldBack");
+    const input = await mount(ProjectNameField);
+    await focus(input);
+    await type(input, "First");
+    await key(input, "Enter");
+    expect(interceptBack()).toBe(false);
+    await focus(input);
+    await type(input, "Second");
+    await act(async () => render(null, host!));
+    await settle();
+    expect(interceptBack()).toBe(false);
+  });
 });

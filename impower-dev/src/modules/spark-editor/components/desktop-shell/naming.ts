@@ -3,6 +3,7 @@ import { signal } from "@preact/signals";
 import type { JSX } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { storyScriptOf } from "../../workspace/useActiveEditor";
+import { watchBack } from "../../workspace/nameFieldBack";
 import workspace from "../../workspace/WorkspaceStore";
 import { withWindow } from "./workspaceWindow";
 
@@ -76,7 +77,7 @@ export const closeWatcher = (onClose: () => void): (() => void) | undefined => {
   const Watcher = (globalThis as { CloseWatcher?: new () => CloseWatcherLike })
     .CloseWatcher;
   if (!Watcher) {
-    return undefined;
+    return typeof window === "undefined" ? undefined : watchBack(onClose);
   }
   const watcher = new Watcher();
   watcher.onclose = onClose;
