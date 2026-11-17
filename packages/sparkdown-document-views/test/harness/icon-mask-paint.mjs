@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 
 const PAGE_STYLE = `
-:root { color-scheme: dark; --ink: #e6e6e6; --muted: #8a8f98; --accent: #4ea1ff; --editor-breakpoint: #e5484d; --editor-problem-error: #e5484d; --editor-problem-warning: #f5a524; --editor-problem-info: #4ea1ff; --editor-icon-close: #c0c4cc; --editor-icon-ink: #e6e6e6; --radius-sm: 4px; }
+:root { color-scheme: dark; --ink: #e6e6e6; --muted: #8a8f98; --accent: #4ea1ff; --editor-breakpoint: #e5484d; --editor-problem-error: #e5484d; --editor-problem-warning: #f5a524; --editor-problem-info: #4ea1ff; --editor-icon-close: #c0c4cc; --editor-icon-ink: #b8f0d0; --radius-sm: 4px; }
 :root { --syntax-bool: hsl(0 70% 65%); --syntax-bracket: hsl(18 70% 65%); --syntax-builtin: hsl(36 70% 65%); --syntax-class-name: hsl(54 70% 65%); --syntax-constant-variable-name: hsl(72 70% 65%); --syntax-function-name: hsl(90 70% 65%); --syntax-module-keyword: hsl(108 70% 65%); --syntax-number: hsl(126 70% 65%); --syntax-operator: hsl(144 70% 65%); --syntax-parameter-name: hsl(162 70% 65%); --syntax-plain-keyword: hsl(180 70% 65%); --syntax-property-name: hsl(198 70% 65%); --syntax-section-name-accessor: hsl(216 70% 65%); --syntax-section-name-definition: hsl(234 70% 65%); --syntax-standard-function: hsl(252 70% 65%); --syntax-standard-type: hsl(270 70% 65%); --syntax-string: hsl(288 70% 65%); --syntax-text: hsl(306 70% 65%); --syntax-type-name: hsl(324 70% 65%); --syntax-variable-name: hsl(342 70% 65%); }
 body { margin: 0; padding: 16px; background: #1e1f22; color: var(--ink); font: 16px/1.5 monospace; }
 section { position: relative; width: 400px; height: 520px; }
