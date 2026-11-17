@@ -29,6 +29,9 @@ describe("selector states (#2154)", () => {
     ["@language(en, fr)", ":lang(en, fr)"],
     ["@dir(rtl)", ":dir(rtl)"],
     ["@state(open)", ":state(open)"],
+    ["@nth-child(odd of @nth-child(odd of author_card))", ":nth-child(odd of :nth-child(odd of .author_card))"],
+    ["@nth-child(1 of @lang(en, fr))", ":nth-child(1 of :lang(en, fr))"],
+    ["@not(@nth-last-child(-n + 2 of item))", ":not(:nth-last-child(-n + 2 of .item))"],
   ])("keeps the argument grammar of %s", (selector, css) => {
     expect(getCSSSelector(selector, {})).toBe(css);
   });

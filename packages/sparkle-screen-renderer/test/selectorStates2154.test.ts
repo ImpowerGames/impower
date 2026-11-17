@@ -24,6 +24,7 @@ describe("the screen preview writes style states as the game player does (#2154)
     ["@file-button", "::file-selector-button"],
     ["@nth-child(2n of card)", ":nth-child(2n of .card)"],
     ["@lang(en, fr)", ":lang(en, fr)"],
+    ["@nth-child(odd of @nth-child(odd of author_card))", ":nth-child(odd of :nth-child(odd of .author_card))"],
     ["@hoveredx", "@hoveredx"],
     ["@theme(dark)", "@media(prefers-color-scheme:dark)"],
   ])("writes %s as %s", (selector, css) => {

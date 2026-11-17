@@ -196,6 +196,13 @@ export const keepStateArguments = (
   selector: string,
 ): { selector: string; restore: (css: string) => string } => {
   const kept: string[] = [];
+  return {
+    selector: keepArguments(selector, kept),
+    restore: (css) => css.replace(KEPT_ARGUMENT_REGEX, (_, index: string) => kept[Number(index)]!),
+  };
+};
+
+const keepArguments = (selector: string, kept: string[]): string => {
   let out = "";
   let at = 0;
   for (const match of selector.matchAll(ARGUMENT_STATE_REGEX)) {
@@ -215,12 +222,9 @@ export const keepStateArguments = (
     const inner = selector.slice(open, close - 1);
     const list = SELECTOR_LIST_ARGUMENT_STATES.has(match[1]!) ? SELECTOR_LIST_SEPARATOR_REGEX.exec(inner) : null;
     const value = list ? `${list[1]!.trim()} of ` : inner.trim();
-    const rest = list ? ` ${list[2]!.trim()}` : "";
+    const rest = list ? ` ${keepArguments(list[2]!.trim(), kept)}` : "";
     out += `${selector.slice(at, open)}${kept.push(value) - 1}${rest})`;
     at = close;
   }
-  return {
-    selector: out + selector.slice(at),
-    restore: (css) => css.replace(KEPT_ARGUMENT_REGEX, (_, index: string) => kept[Number(index)]!),
-  };
+  return out + selector.slice(at);
 };
