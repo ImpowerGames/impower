@@ -121,13 +121,19 @@ describe("the code editor's colours follow the shared colour variables", () => {
     const masks = panelIcons.filter(({ property }) => property === "maskImage");
     expect(masks.length).toBe(2);
     for (const { selector } of masks) {
-      const fill = panelIcons.find(
-        (d) => d.selector === selector && d.property === "backgroundColor",
+      const ink = panelIcons.find(
+        (d) => d.selector === selector && d.property === "color",
       );
-      expect(fill?.value, selector).toMatch(
+      expect(ink?.value, selector).toMatch(
         /^var\(--editor-icon-(ink|close)\)$/,
       );
     }
+    expect(
+      panelIcons
+        .filter(({ property }) => property === "backgroundColor")
+        .map(({ value }) => value)
+        .sort(),
+    ).toEqual(["CanvasText !important", "currentColor"]);
   });
 
   it("decides no colour itself: every colour is a variable, and an image is a black mask", () => {
