@@ -23,8 +23,11 @@ variables:
   # lookaround: LuauChainedPropertyAccess and LuauChainedFunctionCall keep member and call continuations inside the path.
   # A name goes on the path only right after its accessor: after whitespace
   # it begins the next statement (`Hello there`), which no path reads on to.
-  LUAU_SHARED_PATH_NO_CONTINUATION: "(?!{{LUAU_IDENTIFIER}}|{{WS}}*{{LUAU_PATH_BLOCK_COMMENTS}}{{LUAU_SHARED_PATH_CONTINUATION}})"
-  LUAU_PATH_BLOCK_COMMENTS: (?:{{LUAU_EXACT_LEVEL_BLOCK_COMMENT}}*)
+  # A block comment's opener keeps the path open too: the path's own
+  # `LuauComment` reads the comment, of any level and over any lines, and the
+  # path ends after it unless an accessor follows.
+  LUAU_SHARED_PATH_NO_CONTINUATION: "(?!{{LUAU_IDENTIFIER}}|{{WS}}*(?:{{LUAU_SHARED_PATH_CONTINUATION}}|{{LUAU_PATH_BLOCK_COMMENT_OPEN}}))"
+  LUAU_PATH_BLOCK_COMMENT_OPEN: (?:{{LUAU_COMMENT_START}}\[=*\[)
   # lookaround: a line that begins with a bar begins an arm, which
   # `LuauAlternatorSeparator` reads (`LuauSparkdownAlternatorArmLines`), so an
   # operator waiting for its operand ends at that line's start instead of

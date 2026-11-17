@@ -265,36 +265,35 @@ sparkdown [0..167]
  │   │       │   │   │       │       │       │   └─ LuauParenthetical_begin_c1 [131..132]
  │   │       │   │   │       │       │       │       └─ PunctuationParenOpen [131..132]: "("
  │   │       │   │   │       │       │       ├─ LuauParenthetical_content [132..161]
- │   │       │   │   │       │       │       │   ├─ LuauAccessPath [132..141]
+ │   │       │   │   │       │       │       │   ├─ LuauAccessPath [132..149]
  │   │       │   │   │       │       │       │   │   ├─ LuauAccessPath_begin 132
- │   │       │   │   │       │       │       │   │   ├─ LuauAccessPath_content [132..140]
- │   │       │   │   │       │       │       │   │   │   └─ LuauAccessPart [132..140]
- │   │       │   │   │       │       │       │   │   │       └─ LuauVariable [132..140]
- │   │       │   │   │       │       │       │   │   │           └─ LuauVariable_c1 [132..140]
- │   │       │   │   │       │       │       │   │   │               └─ LuauVariableName [132..140]: "x@return"
- │   │       │   │   │       │       │       │   │   └─ LuauAccessPath_end [140..141]
- │   │       │   │   │       │       │       │   │       └─ LuauAccessPath_end_c1 [140..141]
- │   │       │   │   │       │       │       │   │           └─ LuauAccessPath_end_c1 [140..141]
- │   │       │   │   │       │       │       │   │               └─ OptionalWhitespace [140..141]: " "
- │   │       │   │   │       │       │       │   ├─ LuauBlockComment [141..149]
- │   │       │   │   │       │       │       │   │   ├─ LuauBlockComment_begin [141..145]
- │   │       │   │   │       │       │       │   │   │   ├─ LuauBlockComment_begin_c1 141
- │   │       │   │   │       │       │       │   │   │   ├─ LuauBlockComment_begin_c2 [141..144]
- │   │       │   │   │       │       │       │   │   │   │   └─ LuauCommentMark [141..144]: "--["
- │   │       │   │   │       │       │       │   │   │   ├─ LuauBlockComment_begin_c3 144
- │   │       │   │   │       │       │       │   │   │   └─ LuauBlockComment_begin_c4 [144..145]
- │   │       │   │   │       │       │       │   │   │       └─ LuauCommentMark [144..145]: "["
- │   │       │   │   │       │       │       │   │   ├─ LuauBlockComment_content [145..146]
- │   │       │   │   │       │       │       │   │   │   └─ LuauBlockCommentContent [145..146]: "c"
- │   │       │   │   │       │       │       │   │   └─ LuauBlockComment_end [146..149]
- │   │       │   │   │       │       │       │   │       ├─ LuauBlockComment_end_c1 [146..147]
- │   │       │   │   │       │       │       │   │       │   └─ LuauCommentMark [146..147]: "]"
- │   │       │   │   │       │       │       │   │       ├─ LuauBlockComment_end_c2 147
- │   │       │   │   │       │       │       │   │       ├─ LuauBlockComment_end_c3 [147..148]
- │   │       │   │   │       │       │       │   │       │   └─ LuauCommentMark [147..148]: "]"
- │   │       │   │   │       │       │       │   │       └─ LuauBlockComment_end_c4 [148..149]
- │   │       │   │   │       │       │       │   │           └─ LuauBlockComment_end_c4 [148..149]
- │   │       │   │   │       │       │       │   │               └─ OptionalWhitespace [148..149]: " "
+ │   │       │   │   │       │       │       │   │   ├─ LuauAccessPath_content [132..149]
+ │   │       │   │   │       │       │       │   │   │   ├─ LuauAccessPart [132..140]
+ │   │       │   │   │       │       │       │   │   │   │   └─ LuauVariable [132..140]
+ │   │       │   │   │       │       │       │   │   │   │       └─ LuauVariable_c1 [132..140]
+ │   │       │   │   │       │       │       │   │   │   │           └─ LuauVariableName [132..140]: "x@return"
+ │   │       │   │   │       │       │       │   │   │   └─ LuauBlockComment [140..149]
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauBlockComment_begin [140..145]
+ │   │       │   │   │       │       │       │   │   │       │   ├─ LuauBlockComment_begin_c1 [140..141]
+ │   │       │   │   │       │       │       │   │   │       │   │   └─ Whitespace [140..141]: " "
+ │   │       │   │   │       │       │       │   │   │       │   ├─ LuauBlockComment_begin_c2 [141..144]
+ │   │       │   │   │       │       │       │   │   │       │   │   └─ LuauCommentMark [141..144]: "--["
+ │   │       │   │   │       │       │       │   │   │       │   ├─ LuauBlockComment_begin_c3 144
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauBlockComment_begin_c4 [144..145]
+ │   │       │   │   │       │       │       │   │   │       │       └─ LuauCommentMark [144..145]: "["
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauBlockComment_content [145..146]
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauBlockCommentContent [145..146]: "c"
+ │   │       │   │   │       │       │       │   │   │       └─ LuauBlockComment_end [146..149]
+ │   │       │   │   │       │       │       │   │   │           ├─ LuauBlockComment_end_c1 [146..147]
+ │   │       │   │   │       │       │       │   │   │           │   └─ LuauCommentMark [146..147]: "]"
+ │   │       │   │   │       │       │       │   │   │           ├─ LuauBlockComment_end_c2 147
+ │   │       │   │   │       │       │       │   │   │           ├─ LuauBlockComment_end_c3 [147..148]
+ │   │       │   │   │       │       │       │   │   │           │   └─ LuauCommentMark [147..148]: "]"
+ │   │       │   │   │       │       │       │   │   │           └─ LuauBlockComment_end_c4 [148..149]
+ │   │       │   │   │       │       │       │   │   │               └─ LuauBlockComment_end_c4 [148..149]
+ │   │       │   │   │       │       │       │   │   │                   └─ OptionalWhitespace [148..149]: " "
+ │   │       │   │   │       │       │       │   │   └─ LuauAccessPath_end 149
+ │   │       │   │   │       │       │       │   │       └─ LuauAccessPath_end_c1 149
  │   │       │   │   │       │       │       │   ├─ LuauIfKeyword [149..151]: "if"
  │   │       │   │   │       │       │       │   ├─ ExtraWhitespace [151..152]: " "
  │   │       │   │   │       │       │       │   ├─ LuauAccessPath [152..154]

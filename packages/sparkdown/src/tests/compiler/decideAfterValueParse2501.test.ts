@@ -136,6 +136,10 @@ describe("a story match or plural is one-line or multi-line by what follows its 
     ["a dotted name in a nested set, after a level-4 comment,", "cycle | match player --[====[c]====] . mood | happy = A. | other = B. end | C. end", "A.\nAfter.\n"],
     ["a bracketed index, after a level-1 comment,", 'match(player --[=[c]=] ["mood"]) | happy = A. | other = B. end', "A.\nAfter.\n"],
     ["a bracketed index, after a level-4 comment,", 'match(player --[====[c]====] ["mood"]) | happy = A. | other = B. end', "A.\nAfter.\n"],
+    ["a dotted name in a nested set, after a level-9 comment,", "cycle | match player --[=========[c]=========] . mood | happy = A. | other = B. end | C. end", "A.\nAfter.\n"],
+    ["a dotted name in a nested set, after a level-16 comment,", "cycle | match player --[================[c]================] . mood | happy = A. | other = B. end | C. end", "A.\nAfter.\n"],
+    ["a bracketed index, after a level-9 comment,", 'match(player --[=========[c]=========] ["mood"]) | happy = A. | other = B. end', "A.\nAfter.\n"],
+    ["a bracketed index, after a comment spanning lines,", 'match(player --[[c\n  d]] ["mood"]) | happy = A. | other = B. end', "A.\nAfter.\n"],
   ])("%s with a block comment before its accessor is one value, accepted as written (6953765551, 6954213450)", (_, line, out) => {
     const [set] = sets(scene(line));
     expect(set!.value).toMatch(/mood/);
