@@ -2122,6 +2122,7 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
     Variants: '<circle cx="12" cy="12" r="3"></circle><path d="M2 12c3-5 6-7 10-7s7 2 10 7c-3 5-6 7-10 7s-7-2-10-7z"></path>',
     "Upload here…": '<path d="M12 21V9m-5 5 5-5 5 5M4 3h16"></path>',
     "New folder inside…": '<path d="M12 4v16M4 12h16"></path>',
+    Rename: '<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"></path>',
     "Move…": '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
     Delete: '<path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"></path>',
   };
@@ -2175,6 +2176,7 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
       expect([null, label]).toContain(item.getAttribute("aria-label"));
       if (ICONS[label]) {
         expect(item.querySelector("svg")!.innerHTML).toBe(ICONS[label]);
+        expect(item.querySelector("svg")!.getAttribute("class")).toContain("text-muted");
       }
     }
   };

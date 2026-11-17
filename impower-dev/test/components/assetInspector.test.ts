@@ -1433,6 +1433,7 @@ describe("the Variants tester and the Files section", () => {
     const items = all<HTMLElement>('[role="menuitem"], [role="separator"]');
     for (const item of items.filter((el) => el.getAttribute("role") === "menuitem")) {
       expect([null, item.textContent]).toContain(item.getAttribute("aria-label"));
+      expect(item.querySelector("svg")!.getAttribute("class")).toContain("text-muted");
     }
     return items.map((el) => (el.getAttribute("role") === "separator" ? "—" : el.textContent));
   };
@@ -1442,6 +1443,9 @@ describe("the Variants tester and the Files section", () => {
       await mount();
       await open("imani");
       expect(await fileMenuShape("imani@night.png", pointer)).toEqual(["Rename", "Replace…", "Download", "—", "Delete…"]);
+      expect(all<HTMLElement>('[role="menuitem"]')[0]!.querySelector("svg")!.innerHTML).toBe(
+        '<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"></path>',
+      );
       expect(all<HTMLElement>('[role="menuitem"]')[1]!.querySelector("svg")!.innerHTML).toBe(
         '<path d="M4 8h13l-3-3M20 16H7l3 3"></path>',
       );

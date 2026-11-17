@@ -8,7 +8,7 @@ import {
   DropdownTrigger,
   ListRow,
   MoreVerticalIcon,
-  PencilIcon,
+  PencilPlainIcon,
   PlusIcon,
   ReplaceSwapIcon,
   Thumbnail,
@@ -54,7 +54,7 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: FileActi
       </DropdownTrigger>
       <DropdownContent elevation="library" align="end" class="min-w-[196px]">
         <DropdownItem onSelect={() => onAction("rename")}>
-          <PencilIcon class="text-muted" />
+          <PencilPlainIcon class="text-muted" />
           Rename
         </DropdownItem>
         <DropdownItem onSelect={() => onAction("replace")}>
@@ -67,7 +67,7 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: FileActi
         </DropdownItem>
         <DropdownSeparator />
         <DropdownItem class="text-error" onSelect={() => onAction("delete")}>
-          <TrashIcon />
+          <TrashIcon class="text-muted" />
           Delete…
         </DropdownItem>
       </DropdownContent>

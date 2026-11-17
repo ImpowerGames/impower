@@ -9,7 +9,7 @@ import {
   FolderIcon,
   type IconComponent,
   MoreVerticalIcon,
-  PencilIcon,
+  PencilPlainIcon,
   PlusIcon,
   SelectIcon,
   TrashIcon,
@@ -45,7 +45,7 @@ const ENTRIES: Record<AssetRowAction, EntrySpec> = {
   variants: { label: "Variants", Icon: VariantsIcon },
   upload: { label: "Upload here…", Icon: UploadIcon },
   newFolder: { label: "New folder inside…", Icon: PlusIcon, returnFocus: false },
-  rename: { label: "Rename", Icon: PencilIcon, kept: true, returnFocus: false },
+  rename: { label: "Rename", Icon: PencilPlainIcon, kept: true, returnFocus: false },
   move: { label: "Move…", Icon: FolderIcon, kept: true },
   download: { label: "Download", Icon: DownloadIcon },
   delete: { label: "Delete", Icon: TrashIcon, danger: true },
@@ -119,7 +119,7 @@ export default function AssetRowMenu({ name, kept, entries, glyph = "md", tone =
               class={danger ? "text-error" : reason ? "py-2" : undefined}
               onSelect={() => onAction(entry)}
             >
-              <Icon class={danger ? "shrink-0" : "shrink-0 text-muted"} />
+              <Icon class="shrink-0 text-muted" />
               <Kept label={label} reason={reason} />
             </DropdownItem>
           );
