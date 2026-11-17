@@ -18811,7 +18811,7 @@
       }
     },
     "LuauSparkdownConditionalAlternatorHead": {
-      "begin": "\\G(?!^)",
+      "begin": "\\G",
       "patterns": [
         {
           "include": "#LuauConditionalAlternatorCondition"

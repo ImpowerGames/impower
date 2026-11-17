@@ -5837,15 +5837,15 @@ repository:
           - { include: "#LuauComment" }
 
   # lookaround: comes after `LuauSparkdownSingleLineAlternatorArms` in the
-  # set's patterns, which takes a bar right after the keyword first. It opens
-  # only at the keyword's end (`\G`, not at a later line's start, `^`, where
-  # the set's anchor also falls when the keyword ends its line), since the
-  # set reaches its patterns again after its head and ordering cannot keep a
-  # second head from opening there. Its end takes the line break, which is
-  # what leaves the set open for `LuauSparkdownAlternatorArmLines`, or stops
-  # before the bar, the `end` or the `until` that the set and its arms read.
+  # set's patterns, which takes a bar right after the keyword first, and
+  # after `LuauSparkdownAlternatorArmLines`, which takes the next line's
+  # start, where the set's anchor also falls when the keyword ends its line.
+  # It opens only at the keyword's end (`\G`), since the set reaches its
+  # patterns again after its head. Its end takes the line break, which is
+  # what leaves the set open for the arm lines, or stops before the bar, the
+  # `end` or the `until` that the set and its arms read.
   LuauSparkdownConditionalAlternatorHead:
-    begin: \G(?!^)
+    begin: \G
     patterns:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauComment" }

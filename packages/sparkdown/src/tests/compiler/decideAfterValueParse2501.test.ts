@@ -82,7 +82,7 @@ describe("a story match or plural is one-line or multi-line by what follows its 
     const grammar = readFileSync(resolve(__dirname, "../../../../..", GRAMMAR), "utf8");
     expect(grammar).not.toMatch(/LUAU_ONE_LINE_ALTERNATOR_/);
     const rule = /\n {2}LuauSparkdownConditionalAlternatorHead:\n {4}begin: (.*)\n/.exec(grammar);
-    expect(rule?.[1]).toBe("\\G(?!^)");
+    expect(rule?.[1]).toBe("\\G");
   });
 
   test.each([...ONE_LINE_FINDINGS, ...ONE_LINE_ACCEPTED])(
