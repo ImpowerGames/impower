@@ -16,6 +16,7 @@ import {
   DropdownRadioGroup,
   DropdownItemText,
   DropdownRadioItem,
+  type DropdownRadioItemChosenWeight,
   type DropdownRadioItemIndicator,
   type DropdownRadioItemSize,
   DropdownRoot,
@@ -96,12 +97,24 @@ const FACES = [
   ["sad", "Sad", undefined],
 ] as const;
 
-function HintedItems({ size }: { size?: DropdownRadioItemSize }) {
+function HintedItems({
+  size,
+  chosenWeight,
+}: {
+  size?: DropdownRadioItemSize;
+  chosenWeight?: DropdownRadioItemChosenWeight;
+}) {
   const [value, setValue] = useState<string>("happy");
   return (
     <DropdownRadioGroup label="Face" value={value} onValueChange={setValue}>
       {FACES.map(([id, name, hint]) => (
-        <DropdownRadioItem key={id} value={id} indicator="end" size={size}>
+        <DropdownRadioItem
+          key={id}
+          value={id}
+          indicator="end"
+          size={size}
+          chosenWeight={chosenWeight}
+        >
           <DropdownItemText hint={hint}>{name}</DropdownItemText>
         </DropdownRadioItem>
       ))}
@@ -216,6 +229,16 @@ function DropdownDemo() {
           </DropdownTrigger>
           <DropdownContent align="start" class="min-w-[180px]">
             <HintedItems size="small" />
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
+      <GalleryRow label="Radio items whose chosen row keeps weight 400, only the check marking it (the Sort menus)">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Choose a face</Button>
+          </DropdownTrigger>
+          <DropdownContent align="start" class="min-w-[180px]">
+            <HintedItems chosenWeight="normal" />
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>

@@ -187,6 +187,7 @@ export default function AssetInspector({
     const [only] = asset.type === "image" && !asset.link ? imageStacks(asset.files.map((file) => file.path)) : [];
     return only && isStacked(only) ? only : null;
   }, [filesKey, asset.type, asset.link]);
+  const filed = !!stack && stack.paths.length > 1;
   const [selection, setSelection] = useState<VariantSelection>({});
   const [previewing, setPreviewing] = useState<VariantSelection | null>(null);
   const [chosenForm, setChosenForm] = useState<VariantForm | null>(null);
@@ -576,7 +577,7 @@ export default function AssetInspector({
             />
             {problemsSection}
             {detailsSection}
-            {stack.paths.length > 1 && (
+            {filed && (
               <FilesSection
                 stack={stack}
                 sizes={Object.fromEntries(asset.files.map((file) => [file.path, file.size]))}
@@ -616,31 +617,31 @@ export default function AssetInspector({
             <p class="m-0 text-[12px]/[1.5] text-muted">{NOT_USED_NOTES[asset.type]}</p>
           )}
         </Section>
-        <div class="flex flex-wrap gap-2">
-          {!asset.link && (
-            <Button variant="quiet" data-inspector-replace onClick={() => picker.current?.click()}>
-              <ReplaceSwapIcon />
-              Replace…
-            </Button>
-          )}
-          <Button
+        {!filed && (
+          <div class="flex flex-wrap gap-2">
+            {!asset.link && (
+              <Button variant="quiet" data-inspector-replace onClick={() => picker.current?.click()}>
+                <ReplaceSwapIcon />
+                Replace…
+              </Button>
+            )}
+            <Button
               variant="quiet"
               data-inspector-download
               onClick={() =>
                 void intents()
                   .then((Workspace) => Workspace.assets.downloadAll([asset.path]))
-                  .catch((error: unknown) =>
-                    showSnackbar({ message: reasonOf(error) }),
-                  )
+                  .catch((error: unknown) => showSnackbar({ message: reasonOf(error) }))
               }
             >
               <DownloadIcon />
               Download
             </Button>
-          {!asset.link && (
-            <input ref={picker} type="file" class="hidden" data-inspector-picker onChange={onPicked} />
-          )}
-        </div>
+            {!asset.link && (
+              <input ref={picker} type="file" class="hidden" data-inspector-picker onChange={onPicked} />
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

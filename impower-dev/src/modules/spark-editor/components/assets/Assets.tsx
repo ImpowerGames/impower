@@ -109,7 +109,7 @@ import { addAssetFiles, addNamedAssetFile, landedView } from "../../workspace/ad
 import type { MissingAsset } from "@impower/sparkdown/src/compiler/utils/missingAsset";
 import { folderTitle } from "../../workspace/uploadSession";
 import AddUrlDialog from "./AddUrlDialog";
-import AssetRowMenu, { INSPECTOR_ACTIONS, type AssetRowAction } from "./AssetRowMenu";
+import AssetRowMenu, { INSPECTOR_ACTIONS, rowEntries, type AssetRowAction } from "./AssetRowMenu";
 import { SoundLine, SoundPlay } from "./SoundRow";
 import UploadsPanel from "./UploadsPanel";
 import { useFileDrop } from "./useFileDrop";
@@ -124,8 +124,6 @@ const PAGE_TAB = "all";
 const HEADING_HEIGHT = 48;
 
 const SHOWN_USES = 3;
-
-const USES_HINT = "Lines in the scripts that show or play it.";
 
 const COUNTING_NOTE = "Counting uses…";
 
@@ -275,7 +273,7 @@ function AssetsBrowser() {
     );
   }).value;
   const [query, setQuery] = useTabQuery("assetsQueries", PAGE_TAB);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const renameAfterClose = useRef<string | null>(null);
   const reopenAfterRename = useRef<string | null>(null);
@@ -283,6 +281,7 @@ function AssetsBrowser() {
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const [deleting, setDeleting] = useState<{ paths: readonly string[]; groups: SearchGroup[] | null } | null>(null);
   const upload = useRef<HTMLInputElement | null>(null);
+  const uploadInto = useRef<string | null>(null);
   const [naming, setNaming] = useState<MissingAsset | null>(null);
   const newButton = useRef<HTMLButtonElement>(null);
   const selecting = selection.active.value;
@@ -589,7 +588,8 @@ function AssetsBrowser() {
 
   const add = (items: DropItem[], folder: string) => void run(async () => show(await addAssetFiles(items, folder)));
 
-  const pickFiles = () => {
+  const pickFiles = (folder: string | null = null) => {
+    uploadInto.current = folder;
     setNaming(null);
     upload.current?.click();
   };
@@ -604,6 +604,7 @@ function AssetsBrowser() {
 
   useEffect(() => {
     if (naming) {
+      uploadInto.current = null;
       upload.current?.click();
     }
   }, [naming]);
@@ -613,6 +614,8 @@ function AssetsBrowser() {
     const chosen = Array.from(input.files ?? []);
     input.value = "";
     const named = naming;
+    const into = uploadInto.current ?? level.folder;
+    uploadInto.current = null;
     setNaming(null);
     if (!chosen.length) return;
     if (named) {
@@ -624,7 +627,7 @@ function AssetsBrowser() {
     }
     add(
       chosen.map((file) => ({ name: file.name, size: file.size, getBuffer: () => file.arrayBuffer() })),
-      level.folder,
+      into,
     );
   };
 
@@ -672,7 +675,13 @@ function AssetsBrowser() {
   });
 
   const onAction = (row: AssetRow, action: AssetRowAction) => {
-    if (action === "select") selection.start(row.path);
+    if (action === "open") openFolder(row.path);
+    else if (action === "variants") openAsset(row.path);
+    else if (action === "upload") pickFiles(row.path);
+    else if (action === "newFolder") {
+      openFolder(row.path);
+      setCreating(row.path);
+    } else if (action === "select") selection.start(row.path);
     else if (action === "rename") {
       reopenAfterRename.current = null;
       setRenaming(row.path);
@@ -753,6 +762,7 @@ function AssetsBrowser() {
             glyph="sm"
             tone="ink"
             kept={row.folderStack ? folderStackReason(row.name) : undefined}
+            entries={rowEntries(row)}
             onAction={(action) => onAction(row, action)}
           />
         }
@@ -831,6 +841,7 @@ function AssetsBrowser() {
           <AssetRowMenu
             name={row.name}
             kept={row.folderStack ? folderStackReason(row.name) : undefined}
+            entries={rowEntries(row)}
             onAction={(action) => onAction(row, action)}
           />
         }
@@ -854,7 +865,7 @@ function AssetsBrowser() {
         <AssetRowMenu
           name={row.name}
           kept={row.folderStack ? folderStackReason(row.name) : undefined}
-          actions={INSPECTOR_ACTIONS}
+          entries={INSPECTOR_ACTIONS}
           glyph="lg"
           onAction={(action) => onInspectorAction(row, action)}
         />
@@ -875,7 +886,7 @@ function AssetsBrowser() {
   const addingInto = folderTitle(listing, level.folder);
   const [emptyTitle, emptyBody] = EMPTY_TYPES[type];
   const uploadAction = (
-    <Button disabled={busy} onClick={pickFiles}>
+    <Button disabled={busy} onClick={() => pickFiles()}>
       <UploadIcon />
       Add files from this device
     </Button>
@@ -906,7 +917,7 @@ function AssetsBrowser() {
       newLabel="Add"
       newMenu={
         <>
-          <DropdownItem disabled={busy} onSelect={pickFiles}>
+          <DropdownItem disabled={busy} onSelect={() => pickFiles()}>
             <UploadIcon class="text-muted" />
             <DropdownItemText hint={<span class="block truncate">Into {addingInto}</span>}>
               Add files from this device
@@ -916,7 +927,7 @@ function AssetsBrowser() {
             <LinkIcon class="text-muted" />
             <DropdownItemText hint="A file hosted on the web">Add a link</DropdownItemText>
           </DropdownItem>
-          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating(true); }}>
+          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating(level.folder); }}>
             <FolderIcon class="text-muted" />
             <DropdownItemText hint={<span class="block truncate">In {addingInto}</span>}>New folder</DropdownItemText>
           </DropdownItem>
@@ -1007,7 +1018,6 @@ function AssetsBrowser() {
           <SortMenu
             value={sort}
             fields={ASSET_SORT_FIELDS}
-            usesHint={USES_HINT}
             note={!usage && countsUses(sort) ? (uncounted ? UNCOUNTED_NOTE : COUNTING_NOTE) : undefined}
             onChange={(key) => setLists({ assetsSort: key })}
           />
@@ -1015,16 +1025,16 @@ function AssetsBrowser() {
         )
       }
       creating={
-        creating && (
+        creating !== null && (
           <NameRow
             size="library"
             icon={<FolderIcon />}
             label="New folder name"
             returnFocus={() => newButton.current}
-            onCancel={() => setCreating(false)}
+            onCancel={() => setCreating(null)}
             onCommit={async (name) => {
-              const path = await (await intents()).assets.createFolder(level.folder, name);
-              setCreating(false);
+              const path = await (await intents()).assets.createFolder(creating, name);
+              setCreating(null);
               openFolder(path);
             }}
           />
@@ -1078,7 +1088,10 @@ function AssetsBrowser() {
         accept={naming ? endings[naming.type].map((ending) => "." + ending).join(",") : undefined}
         class="hidden"
         onChange={onUpload}
-        onCancel={() => setNaming(null)}
+        onCancel={() => {
+          uploadInto.current = null;
+          setNaming(null);
+        }}
       />
       <AddUrlDialog
         open={linking}

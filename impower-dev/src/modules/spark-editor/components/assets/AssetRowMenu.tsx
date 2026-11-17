@@ -1,6 +1,5 @@
 import {
   Button,
-  CheckIcon,
   DropdownContent,
   DropdownItem,
   DropdownRoot,
@@ -8,17 +7,67 @@ import {
   DropdownTrigger,
   DownloadIcon,
   FolderIcon,
+  type IconComponent,
   MoreVerticalIcon,
-  PencilIcon,
+  PencilPlainIcon,
+  PlusIcon,
+  SelectIcon,
   TrashIcon,
+  UploadIcon,
+  VariantsIcon,
   type ButtonGlyph,
 } from "@impower/impower-ui/components";
 
-export type AssetRowAction = "select" | "rename" | "move" | "download" | "delete";
+export type AssetRowAction =
+  | "open"
+  | "select"
+  | "variants"
+  | "upload"
+  | "newFolder"
+  | "rename"
+  | "move"
+  | "download"
+  | "delete";
 
-export const ROW_ACTIONS: readonly AssetRowAction[] = ["select", "rename", "move", "delete"];
+export type AssetMenuEntry = AssetRowAction | "separator";
 
-export const INSPECTOR_ACTIONS: readonly AssetRowAction[] = ["rename", "move", "download", "delete"];
+type EntrySpec = {
+  label: string;
+  Icon: IconComponent;
+  kept?: boolean;
+  danger?: boolean;
+  returnFocus?: boolean;
+};
+
+const ENTRIES: Record<AssetRowAction, EntrySpec> = {
+  open: { label: "Open", Icon: FolderIcon },
+  select: { label: "Select", Icon: SelectIcon },
+  variants: { label: "Variants", Icon: VariantsIcon },
+  upload: { label: "Upload here…", Icon: UploadIcon },
+  newFolder: { label: "New folder inside…", Icon: PlusIcon, returnFocus: false },
+  rename: { label: "Rename", Icon: PencilPlainIcon, kept: true, returnFocus: false },
+  move: { label: "Move…", Icon: FolderIcon, kept: true },
+  download: { label: "Download", Icon: DownloadIcon },
+  delete: { label: "Delete", Icon: TrashIcon, danger: true },
+};
+
+const THING_ENTRIES: readonly AssetMenuEntry[] = ["select", "variants", "rename", "move", "delete"];
+
+const FOLDER_ENTRIES: readonly AssetMenuEntry[] = [
+  "open",
+  "select",
+  "upload",
+  "newFolder",
+  "separator",
+  "rename",
+  "move",
+  "delete",
+];
+
+export const INSPECTOR_ACTIONS: readonly AssetMenuEntry[] = ["rename", "move", "download", "separator", "delete"];
+
+export const rowEntries = (row: { kind: string; paths?: readonly string[] }): readonly AssetMenuEntry[] =>
+  row.kind === "folder" ? FOLDER_ENTRIES : row.paths ? THING_ENTRIES : THING_ENTRIES.filter((entry) => entry !== "variants");
 
 export type AssetRowMenuTone = "muted" | "ink";
 
@@ -31,7 +80,7 @@ export type AssetRowMenuProps = {
   tone?: AssetRowMenuTone;
   name: string;
   kept?: string;
-  actions?: readonly AssetRowAction[];
+  entries: readonly AssetMenuEntry[];
   glyph?: ButtonGlyph;
   onAction: (action: AssetRowAction) => void;
 };
@@ -47,8 +96,7 @@ function Kept({ label, reason }: { label: string; reason?: string }) {
   );
 }
 
-export default function AssetRowMenu({ name, kept, actions = ROW_ACTIONS, glyph = "md", tone = "muted", onAction }: AssetRowMenuProps) {
-  const offers = (action: AssetRowAction) => actions.includes(action);
+export default function AssetRowMenu({ name, kept, entries, glyph = "md", tone = "muted", onAction }: AssetRowMenuProps) {
   return (
     <DropdownRoot>
       <DropdownTrigger asChild>
@@ -57,44 +105,25 @@ export default function AssetRowMenu({ name, kept, actions = ROW_ACTIONS, glyph 
         </Button>
       </DropdownTrigger>
       <DropdownContent elevation="library" align="end" class="min-w-[196px]">
-        {offers("select") && (
-          <DropdownItem onSelect={() => onAction("select")}>
-            <CheckIcon class="text-muted" />
-            Select
-          </DropdownItem>
-        )}
-        {offers("rename") && (
-          <DropdownItem
-            returnFocus={false}
-            disabled={!!kept}
-            class={kept ? "py-2" : undefined}
-            onSelect={() => onAction("rename")}
-          >
-            <PencilIcon class="shrink-0 text-muted" />
-            <Kept label="Rename" reason={kept} />
-          </DropdownItem>
-        )}
-        {offers("move") && (
-          <DropdownItem disabled={!!kept} class={kept ? "py-2" : undefined} onSelect={() => onAction("move")}>
-            <FolderIcon class="shrink-0 text-muted" />
-            <Kept label="Move…" reason={kept} />
-          </DropdownItem>
-        )}
-        {offers("download") && (
-          <DropdownItem onSelect={() => onAction("download")}>
-            <DownloadIcon class="text-muted" />
-            Download
-          </DropdownItem>
-        )}
-        {offers("delete") && (
-          <>
-            <DropdownSeparator />
-            <DropdownItem class="text-error" onSelect={() => onAction("delete")}>
-              <TrashIcon />
-              Delete
+        {entries.map((entry, index) => {
+          if (entry === "separator") {
+            return <DropdownSeparator key={`separator-${index}`} />;
+          }
+          const { label, Icon, danger, returnFocus } = ENTRIES[entry];
+          const reason = ENTRIES[entry].kept ? kept : undefined;
+          return (
+            <DropdownItem
+              key={entry}
+              returnFocus={returnFocus}
+              disabled={!!reason}
+              class={danger ? "text-error" : reason ? "py-2" : undefined}
+              onSelect={() => onAction(entry)}
+            >
+              <Icon class="shrink-0 text-muted" />
+              <Kept label={label} reason={reason} />
             </DropdownItem>
-          </>
-        )}
+          );
+        })}
       </DropdownContent>
     </DropdownRoot>
   );

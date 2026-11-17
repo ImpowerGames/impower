@@ -36,7 +36,7 @@ beforeAll(() => {
 
 const ui = await import("@impower/impower-ui/components");
 const { default: Trail } = await import("../../src/modules/spark-editor/components/library-page/Trail");
-const { default: AssetRowMenu } = await import("../../src/modules/spark-editor/components/assets/AssetRowMenu");
+const { default: AssetRowMenu, rowEntries } = await import("../../src/modules/spark-editor/components/assets/AssetRowMenu");
 const { default: TopBar } = await import("../../src/modules/spark-editor/components/desktop-shell/TopBar");
 const { default: AppMenu } = await import("../../src/modules/spark-editor/components/desktop-shell/AppMenu");
 const { default: ShellRail } = await import("../../src/modules/spark-editor/components/desktop-shell/ShellRail");
@@ -275,8 +275,8 @@ describe("Assets page parts against the Folio prototype (I-2415)", () => {
       h(
         "div",
         {},
-        h("div", { id: "tile" }, h(AssetRowMenu, { name: "imani", glyph: "sm", tone: "ink", onAction: () => {} })),
-        h("div", { id: "row" }, h(AssetRowMenu, { name: "imani", onAction: () => {} })),
+        h("div", { id: "tile" }, h(AssetRowMenu, { name: "imani", glyph: "sm", tone: "ink", entries: rowEntries({ kind: "file" }), onAction: () => {} })),
+        h("div", { id: "row" }, h(AssetRowMenu, { name: "imani", entries: rowEntries({ kind: "file" }), onAction: () => {} })),
       ),
       { width: 1440, theme },
       () => ({
@@ -763,7 +763,7 @@ describe("Real menus and sheets at their elevations (I-2448)", () => {
     { style: "width:1000px;height:600px;display:flex" },
     h(LibraryPage, { searchLabel: "Search images", query: "", onQueryChange: () => {}, newLabel: "Add", newMenu: h(ui.DropdownItem, {}, "Upload files"), bar: null, list: null }),
   );
-  const rowMenu = h(AssetRowMenu, { name: "imani", onAction: () => {} });
+  const rowMenu = h(AssetRowMenu, { name: "imani", entries: rowEntries({ kind: "file" }), onAction: () => {} });
 
   it.each([
     ["the Assets Add menu", addMenu],
