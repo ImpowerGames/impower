@@ -284,9 +284,9 @@ describe("the writer", () => {
       "Dup",
       'Str "a"',
       "Native ==/2",
-      "JumpIfFalse 30 flags 2",
-      "Newline",
+      "JumpIfFalse 28 flags 2",
       "Pop",
+      "LineStart",
     ]);
   });
 
