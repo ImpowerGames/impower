@@ -484,6 +484,69 @@ it.each([
   }
 }, 15_000);
 
+const fromWorker = async (message: unknown) => {
+  (globalThis as unknown as { postMessage: (m: unknown) => void }).postMessage(message);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+};
+
+it("withholds another worker's late copy of a rollback's delete of the unsaved starter main from the editor and the language server", async () => {
+  const h = await harness(ASSETS, {});
+  const before = await starterText(h);
+  const { onProtocolMessage } = await import("@impower/spark-editor-protocol/src/protocols/MessageProtocol");
+  const { DidDeleteFilesMessage } = await import("@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage");
+  const deleted: string[] = [];
+  const stop = onProtocolMessage(DidDeleteFilesMessage.type, (message) => {
+    deleted.push(...message.params.files.map((file) => file.uri));
+  });
+  try {
+    h.failCreatingFolder("chapters");
+    const { error } = await h.applyScripts(SCRIPTS);
+    expect(error).toBeDefined();
+    h.served.splice(0);
+    await fromWorker({
+      jsonrpc: "2.0",
+      method: "workspace/didDeleteFiles",
+      params: { files: [{ uri: STARTER_URI }], remote: true, restored: [STARTER_URI] },
+    });
+    await fromWorker({
+      jsonrpc: "2.0",
+      method: "workspace/didChangeWatchedFiles",
+      params: { changes: [{ uri: STARTER_URI, type: 3 }], remote: true, restored: [STARTER_URI] },
+    });
+    expect(deleted).not.toContain(STARTER_URI);
+    expect(h.served).not.toContainEqual({ uri: STARTER_URI, type: 3 });
+    expect(await starterText(h)).toBe(before);
+  } finally {
+    stop();
+  }
+}, 15_000);
+
+it("passes on a deletion of main that is not a rollback even while this tab still holds main as the unsaved starter", async () => {
+  const h = await harness(ASSETS, {});
+  const { onProtocolMessage } = await import("@impower/spark-editor-protocol/src/protocols/MessageProtocol");
+  const { DidDeleteFilesMessage } = await import("@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage");
+  const deleted: string[] = [];
+  const stop = onProtocolMessage(DidDeleteFilesMessage.type, (message) => {
+    deleted.push(...message.params.files.map((file) => file.uri));
+  });
+  try {
+    await fromWorker({
+      jsonrpc: "2.0",
+      method: "workspace/didDeleteFiles",
+      params: { files: [{ uri: STARTER_URI }], remote: true },
+    });
+    await fromWorker({
+      jsonrpc: "2.0",
+      method: "workspace/didChangeWatchedFiles",
+      params: { changes: [{ uri: STARTER_URI, type: 3 }], remote: true },
+    });
+    expect(deleted).toContain(STARTER_URI);
+    expect(h.served).toContainEqual({ uri: STARTER_URI, type: 3 });
+  } finally {
+    stop();
+  }
+}, 15_000);
+
 class TestLanguageServer extends SparkdownLanguageServerWorkspace {
   compiled = new Map<string, string | undefined>();
 

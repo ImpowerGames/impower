@@ -7,6 +7,7 @@ export type DidDeleteFilesMethod = typeof DidDeleteFilesMessage.method;
 export interface DidDeleteFilesParams extends LSP.DeleteFilesParams {
   remote?: boolean;
   commits?: FileCommits;
+  restored?: string[];
 }
 
 export class DidDeleteFilesMessage {

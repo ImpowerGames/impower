@@ -333,6 +333,8 @@ class CommitLog {
 
   restored = new Set<string>();
 
+  restoredAbsent = new Set<string>();
+
   wrote(result: WriteResult, restored = false) {
     const uri = result.file.uri;
     this.record(uri, result.local, result.commit);
@@ -480,10 +482,14 @@ const broadcastDeletes = (log: CommitLog, results: DeleteResult[]) => {
     .filter((r) => log.isLatest(r.uri, r.local))
     .map((r) => ({ uri: r.uri }));
   if (files.length > 0) {
+    const restored = files
+      .map((f) => f.uri)
+      .filter((uri) => log.restoredAbsent.has(uri));
     broadcast(
       DidDeleteFilesMessage.type.notification({
         files,
         commits: log.stamp(files.map((f) => f.uri)),
+        ...(restored.length > 0 ? { restored } : {}),
       }),
     );
   }
@@ -516,10 +522,14 @@ const broadcastRenames = (log: CommitLog, outcomes: RenameOutcome[]) => {
 const broadcastWatchedChanges = (log: CommitLog, events: FileEvent[]) => {
   const changes = events.filter((e) => log.isCurrent(e.uri));
   if (changes.length > 0) {
+    const restored = changes
+      .filter((c) => c.type === FileChangeType.Deleted && log.restoredAbsent.has(c.uri))
+      .map((c) => c.uri);
     broadcast(
       DidChangeWatchedFilesMessage.type.notification({
         changes,
         commits: log.stamp(changes.map((c) => c.uri)),
+        ...(restored.length > 0 ? { restored } : {}),
       }),
     );
   }
@@ -1544,6 +1554,7 @@ class UndoLog {
     }
     this.commit(removed.local);
     log.record(removed.uri, removed.local, removed.commit);
+    log.restoredAbsent.add(removed.uri);
     effects.deleted.push(removed);
     effects.fileEvents.push({ uri: entry.uri, type: FileChangeType.Deleted });
     return true;

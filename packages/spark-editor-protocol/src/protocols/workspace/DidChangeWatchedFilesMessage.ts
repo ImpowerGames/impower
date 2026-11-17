@@ -9,6 +9,7 @@ export interface DidChangeWatchedFilesParams
   extends LSP.DidChangeWatchedFilesParams {
   remote?: boolean;
   commits?: LSP.FileCommits;
+  restored?: string[];
 }
 
 export class DidChangeWatchedFilesMessage {
