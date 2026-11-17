@@ -19,6 +19,7 @@ interface Drift {
 }
 
 interface Scroll {
+  wrapping: boolean;
   jumps: string[];
   drifts: Drift[];
   estimated: Blocks;
@@ -73,7 +74,8 @@ const scrollThrough = async (page: Page, script: string, width: number): Promise
       height = next;
       drifts.push(...hooks.lineDrift());
     }
-    return { jumps, drifts, estimated, rendered: hooks.blockHeights() };
+    const wrapping = document.querySelector(".cm-content")?.classList.contains("cm-lineWrapping") ?? false;
+    return { wrapping, jumps, drifts, estimated, rendered: hooks.blockHeights() };
   });
 };
 
@@ -98,11 +100,13 @@ const causeOf = (kind: string, height: number, row: number) =>
 
 describe("the Screenplay page", () => {
   it.each([760, 430])("keeps a long script's scroll height steady while scrolling a %spx page", async (width) => {
-    expect((await scrolled(width)).jumps).toEqual([]);
+    const { wrapping, jumps } = await scrolled(width);
+    expect({ wrapping, jumps }).toEqual({ wrapping: false, jumps: [] });
   }, 240_000);
 
   it.each([760, 430])("keeps the scroll height steady on a %spx page when a hidden line is too long to draw unwrapped", async (width) => {
-    expect((await scrolled(width, `${SCRIPT}${LONG_HIDDEN_LINE}`)).jumps).toEqual([]);
+    const { wrapping, jumps } = await scrolled(width, `${SCRIPT}${LONG_HIDDEN_LINE}`);
+    expect({ wrapping, jumps }).toEqual({ wrapping: false, jumps: [] });
   }, 240_000);
 
   it.each([760, 430])("estimates every block at the height it renders on a %spx page", async (width) => {
@@ -129,7 +133,7 @@ describe("the Screenplay page", () => {
     expect(drifted.slice(0, 5)).toEqual([]);
   }, 240_000);
 
-  it("shows every word of a source line too long for CodeMirror to draw whole without wrapping", async () => {
+  it("falls back to CodeMirror's wrapping and shows every word of a printed source line of 4000 or more characters", async () => {
     const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
     await page.goto(pageUrl);
     await page.waitForFunction(() => "renderScreenplay" in window);
@@ -150,9 +154,10 @@ describe("the Screenplay page", () => {
         words = Math.max(words, text.match(/word/g)?.length ?? 0);
         tail ||= text.includes("TAIL");
       }
-      return { words, tail };
+      const wrapping = document.querySelector(".cm-content")?.classList.contains("cm-lineWrapping") ?? false;
+      return { wrapping, words, tail };
     });
     await page.close();
-    expect(seen).toEqual({ words: 1500, tail: true });
+    expect(seen).toEqual({ wrapping: true, words: 1500, tail: true });
   }, 240_000);
 });
