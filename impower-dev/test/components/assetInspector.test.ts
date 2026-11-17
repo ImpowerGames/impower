@@ -1454,8 +1454,15 @@ describe("the Variants tester and the Files section", () => {
     expect(region()!.querySelector("[data-inspector-replace]")).toBeNull();
     expect(region()!.querySelector("[data-inspector-download]")).toBeNull();
     expect(region()!.querySelector("[data-inspector-picker]")).toBeNull();
-    await fileMenu("imani~face.sad.png", "Replace…");
     const picker = region()!.querySelector<HTMLInputElement>("[data-file-replace-picker]")!;
+    expect(picker.multiple).toBe(false);
+    const opened = vi.spyOn(HTMLInputElement.prototype, "click");
+    try {
+      await fileMenu("imani~face.sad.png", "Replace…");
+      expect(opened.mock.contexts).toEqual([picker]);
+    } finally {
+      opened.mockRestore();
+    }
     Object.defineProperty(picker, "files", { value: [new File(["png"], "glum.png")], configurable: true });
     await act(async () => {
       picker.dispatchEvent(new Event("change", { bubbles: true }));

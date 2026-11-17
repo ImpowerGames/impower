@@ -2267,8 +2267,16 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
 
   it("uploads into a nested folder from its Upload here…, and a cancelled picker leaves Add uploading into the open folder", async () => {
     await mount();
-    await press(options("Cast"), "mouse");
-    await choose("Upload here…");
+    const picker = host!.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const opened = vi.spyOn(HTMLInputElement.prototype, "click");
+    try {
+      await press(options("Cast"), "mouse");
+      await choose("Upload here…");
+      expect(opened.mock.contexts).toEqual([picker]);
+      expect(picker.multiple).toBe(true);
+    } finally {
+      opened.mockRestore();
+    }
     await chooseFiles("ada2.png");
     await vi.waitFor(() =>
       expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "ada2.png" })], `${P}/Cast`),
@@ -2283,7 +2291,13 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
     });
     await settle();
     await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
-    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.startsWith("Add files from this device")));
+    const reopened = vi.spyOn(HTMLInputElement.prototype, "click");
+    try {
+      await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.startsWith("Add files from this device")));
+      expect(reopened.mock.contexts).toEqual([picker]);
+    } finally {
+      reopened.mockRestore();
+    }
     await chooseFiles("rain.png");
     await vi.waitFor(() => expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "rain.png" })], P));
   });
