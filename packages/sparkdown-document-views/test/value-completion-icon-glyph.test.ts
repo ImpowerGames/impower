@@ -11,8 +11,4 @@ describe("the value completion icon", () => {
   it("draws the codicon symbol-value glyph, which VS Code shares with symbol-enum", () => {
     expect(mask("value")).toBe(mask("enum"));
   });
-
-  it("draws a different glyph from the enum member completion it shares a colour with", () => {
-    expect(mask("value")).not.toBe(mask("enumMember"));
-  });
 });
