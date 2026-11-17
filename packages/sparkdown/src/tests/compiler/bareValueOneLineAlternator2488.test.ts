@@ -143,6 +143,7 @@ describe("a one-line match or plural whose value is a name or a number", () => {
     const bareRun = play(scene(...bare));
     expect(bareRun.errors).toEqual(play(scene(...bracketed)).errors);
     expect(bareRun.errors).toEqual([
+      `This one-line \`${bare[0]!.split(" ")[0]}\` is missing its closing \`end\` keyword at the end of its line.`,
       "statement must be inside a scene or branch; the top level holds declarations only",
       "Expected <eof>, got 'end'",
     ]);
