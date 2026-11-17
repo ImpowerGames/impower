@@ -8,7 +8,7 @@ export { default as LibraryPage, libraryRowHeight, type LibraryList } from "./Li
 export { default as LibraryToolbar } from "./LibraryToolbar";
 export { default as NameRow } from "./NameRow";
 export { useRowFocusReturn } from "./useRowFocusReturn";
-export { useFolderLayout, useSavedScroll, useTabQuery, type FolderLayout } from "./pageState";
+export { LEGACY_TILES, useFolderLayout, useSavedScroll, useTabQuery, type FolderLayout } from "./pageState";
 export { default as SearchBox } from "./SearchBox";
 export { default as SortMenu } from "./SortMenu";
 export { default as Trail, type TrailCrumb } from "./Trail";

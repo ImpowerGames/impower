@@ -240,7 +240,9 @@ describe("VirtualList", () => {
 });
 
 describe("VirtualList grid mode", () => {
-  const GRID = { minWidth: 100, gap: 10, height: (width: number) => width + 40 };
+  const TRACK = { minWidth: 100, gap: 10 };
+  const GRID = { class: "track-a", height: (width: number) => width + 40 };
+  const TRACK_STYLE = "--grid-min-width: 100px; --grid-gap: 10px";
 
   const mountGrid = async (width: number, height: number, extra: Record<string, unknown> = {}) => {
     host = document.body.appendChild(document.createElement("div"));
@@ -257,27 +259,31 @@ describe("VirtualList grid mode", () => {
         return this.getAttribute?.("role") === "list" ? width : 0;
       },
     });
-    await act(async () =>
-      render(
-        <VirtualList
-          label="Tiles"
-          items={ITEMS}
-          getKey={(item) => item}
-          renderItem={(item) => <span>{item}</span>}
-          grid={GRID}
-          overscan={1}
-          {...extra}
-          listRef={(element) => {
-            scroller = element;
-          }}
-        />,
-        host!,
-      ),
-    );
+    const draw = (overrides: Record<string, unknown> = {}) =>
+      act(async () =>
+        render(
+          <VirtualList
+            label="Tiles"
+            items={ITEMS}
+            getKey={(item) => item}
+            renderItem={(item) => <span>{item}</span>}
+            grid={GRID}
+            style={TRACK_STYLE}
+            overscan={1}
+            {...extra}
+            {...overrides}
+            listRef={(element) => {
+              scroller = element;
+            }}
+          />,
+          host!,
+        ),
+      );
+    await draw();
     await act(async () => {
       scroller!.dispatchEvent(new Event("scroll"));
     });
-    return scroller!;
+    return { scroller: scroller!, draw };
   };
 
   afterEach(() => {
@@ -286,11 +292,13 @@ describe("VirtualList grid mode", () => {
   });
 
   it("fits as many columns as the width allows and stretches them to fill it, every row the same height", async () => {
-    expect(virtualListColumns(GRID, 420)).toEqual({ columns: 3, width: 400 / 3 });
-    expect(virtualListColumns(GRID, 90)).toEqual({ columns: 1, width: 90 });
-    expect(virtualListColumns(GRID, 0)).toEqual({ columns: 1, width: 100 });
+    expect(virtualListColumns(TRACK, 420)).toEqual({ columns: 3, width: 400 / 3 });
+    expect(virtualListColumns(TRACK, 90)).toEqual({ columns: 1, width: 90 });
+    expect(virtualListColumns(TRACK, 0)).toEqual({ columns: 1, width: 100 });
+    expect(virtualListColumns({ minWidth: 0, gap: 0 }, 420)).toEqual({ columns: 1, width: 420 });
     await mountGrid(420, 300);
     const list = host!.querySelector('[role="list"]') as HTMLElement;
+    expect(list.parentElement!.className.split(" ")).toContain("track-a");
     const cell = 400 / 3;
     const rows = Math.ceil(ITEMS.length / 3);
     expect(parseFloat(list.style.height)).toBeCloseTo(rows * (cell + 40) + (rows - 1) * 10);
@@ -305,7 +313,7 @@ describe("VirtualList grid mode", () => {
   });
 
   it("mounts only the rows of tiles in view", async () => {
-    const scroller = await mountGrid(420, 300);
+    const { scroller } = await mountGrid(420, 300);
     const rowHeight = 400 / 3 + 40 + 10;
     expect(shown().length).toBe(3 * 4);
     scroller.scrollTop = rowHeight * 50;
@@ -318,9 +326,30 @@ describe("VirtualList grid mode", () => {
   });
 
   it("reveals the row of tiles holding the revealed item", async () => {
-    const scroller = await mountGrid(420, 300, { revealIndex: 300 });
+    const { scroller } = await mountGrid(420, 300, { revealIndex: 300 });
     const rowHeight = 400 / 3 + 40 + 10;
     expect(scroller.scrollTop).toBeCloseTo(101 * rowHeight - 10 - 300);
+  });
+
+  it("reads a new track when its grid changes and keeps the row holding the first item in view at the top", async () => {
+    const { scroller, draw } = await mountGrid(420, 300);
+    const rowHeight = 400 / 3 + 40 + 10;
+    scroller.scrollTop = rowHeight * 50;
+    await act(async () => {
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+    await draw({ grid: { class: "track-b", height: (width: number) => width + 20 }, style: "--grid-min-width: 60px; --grid-gap: 4px" });
+    const cell = (420 - 4 * 5) / 6;
+    expect(Math.floor(150 / 6) * (cell + 20 + 4)).toBeCloseTo(scroller.scrollTop, 6);
+    expect(shown()).toContain("row 150");
+    await draw({ grid: undefined, style: undefined });
+    expect(scroller.scrollTop).toBe(150 * VIRTUAL_LIST_ROW_HEIGHT.default);
+  });
+
+  it("leaves the scroll alone when the grid changes at the top of the list", async () => {
+    const { scroller, draw } = await mountGrid(420, 300);
+    await draw({ grid: { class: "track-b", height: (width: number) => width + 20 }, style: "--grid-min-width: 60px; --grid-gap: 4px" });
+    expect(scroller.scrollTop).toBe(0);
   });
 });
 

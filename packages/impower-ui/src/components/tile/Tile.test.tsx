@@ -1,8 +1,10 @@
+import { compile, optimize } from "@tailwindcss/node";
 import { render } from "preact";
 import { act } from "preact/test-utils";
+import { chromium } from "playwright";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { edgeTreatment } from "../../../test/fadeEdge";
-import Tile, { tileGrid, tileHeight } from "./Tile";
+import Tile, { tileGrid, tileHeight, type TileSize } from "./Tile";
 
 let host: HTMLDivElement | undefined;
 
@@ -14,30 +16,101 @@ afterEach(async () => {
   }
 });
 
-describe("Tile", () => {
-  it("lays its grid out at the prototype's narrower minimum and 10px gap below desktop", () => {
-    for (const layout of ["compact", "phone"] as const) {
-      expect(tileGrid("portrait", layout)).toEqual({ minWidth: 150, gap: 10 });
-      expect(tileGrid("landscape", layout)).toEqual({ minWidth: 160, gap: 10 });
-    }
-  });
+const SIZES: readonly TileSize[] = ["portrait", "landscape", "small"];
 
-  it("gives each shape a fixed height for its width, so a grid of them never reflows", () => {
-    expect(tileGrid("portrait", "desktop")).toEqual({ minWidth: 138, gap: 12 });
-    expect(tileGrid("landscape", "desktop")).toEqual({ minWidth: 176, gap: 12 });
+const gridTracks = async (layout: "desktop" | "compact" | "phone", page: number) => {
+  const cells = SIZES.map((size) => `<div data-size="${size}" class="${tileGrid(size).class}"></div>`).join("");
+  const compiler = await compile('@import "./src/style.css";', { base: `${process.cwd()}`, onDependency: () => {} });
+  const css = optimize(compiler.build(SIZES.flatMap((size) => tileGrid(size).class.split(/\s+/)).concat("@container", "px-[18px]")), { minify: false }).code;
+  const browser = await chromium.launch();
+  try {
+    const view = await browser.newPage({ viewport: { width: layout === "desktop" ? 1440 : layout === "compact" ? 820 : 430, height: 600 } });
+    await view.setContent(
+      `<!doctype html><html data-layout="${layout}"><head><style>${css}</style></head><body style="margin:0"><div class="@container px-[18px]" style="width:${page}px">${cells}</div></body></html>`,
+    );
+    return await view.evaluate(() =>
+      Object.fromEntries(
+        [...document.querySelectorAll<HTMLElement>("[data-size]")].map((cell) => {
+          const style = getComputedStyle(cell);
+          return [cell.dataset.size, [style.getPropertyValue("--grid-min-width").trim(), style.getPropertyValue("--grid-gap").trim()]];
+        }),
+      ),
+    );
+  } finally {
+    await browser.close();
+  }
+};
+
+describe("Tile", () => {
+  it("lays its grid out at the prototype's narrower minimums and gaps below desktop, whatever the page's width", async () => {
+    for (const layout of ["compact", "phone"] as const) {
+      for (const page of [400, 820]) {
+        expect(await gridTracks(layout, page)).toEqual({
+          portrait: ["150px", "10px"],
+          landscape: ["160px", "10px"],
+          small: ["88px", "8px"],
+        });
+      }
+    }
+  }, 60_000);
+
+  it("lays its grid out at the prototype's desktop minimums, tightening Portrait and Landscape in a page 440 wide or less inside its gutters", async () => {
+    const wide = { portrait: ["138px", "12px"], landscape: ["176px", "12px"], small: ["96px", "8px"] };
+    const narrow = { portrait: ["140px", "12px"], landscape: ["150px", "12px"], small: ["96px", "8px"] };
+    expect(await gridTracks("desktop", 960)).toEqual(wide);
+    expect(await gridTracks("desktop", 477)).toEqual(wide);
+    expect(await gridTracks("desktop", 476)).toEqual(narrow);
+    expect(await gridTracks("desktop", 400)).toEqual(narrow);
+  }, 60_000);
+
+  it("gives each size a fixed height for its width, so a grid of them never reflows", () => {
     expect(tileHeight("landscape", 176)).toBeCloseTo(158 * (10 / 16) + 64.6, 6);
     expect(tileHeight("landscape", 192)).toBeCloseTo(173.35, 6);
     expect(tileHeight("portrait", 138)).toBeCloseTo(120 * (4 / 3) + 64.6, 6);
     expect(tileHeight("portrait", 200)).toBeGreaterThan(tileHeight("landscape", 200));
+    expect(tileHeight("small", 96)).toBeCloseTo(84 + 35.4, 6);
+    expect(tileGrid("small").height(113.59375)).toBeCloseTo(136.98, 1);
   });
 
-  it("opens on a press, draws its media at its shape with the badge in the corner, and keeps its menu beside the press", async () => {
+  it("draws the Small size with a square picture, an 11px name, no meta line and the smaller mark and menu", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <Tile
+          size="small"
+          media={<img alt="" src="/imani.png" />}
+          label="imani"
+          description="Modified 2d · 4 kb"
+          aria-label="Open image imani"
+          selection="available"
+          selectLabel="Select imani"
+          actions={<button aria-label="Options for imani" />}
+          onClick={() => {}}
+        />,
+        host!,
+      ),
+    );
+    const tile = host.querySelector<HTMLElement>("[data-tile]")!;
+    expect(tile.dataset.tile).toBe("small");
+    const open = tile.querySelector<HTMLButtonElement>('button[aria-label="Open image imani"]')!;
+    expect(open.className.split(" ")).toEqual(expect.arrayContaining(["gap-1.5", "rounded-[10px]", "px-[5px]", "pt-[5px]", "pb-[7px]"]));
+    expect(open.querySelector('[class*="aspect-square"]')).not.toBeNull();
+    const name = Array.from(open.querySelectorAll("span")).find((span) => span.textContent === "imani")!;
+    expect(name.className.split(" ")).toContain("text-[11px]/[1.4]");
+    expect(open.querySelector("small")!.className.split(" ")).toContain("hidden");
+    expect(tile.querySelector("label")!.className.split(" ")).toEqual(expect.arrayContaining(["top-[9px]", "left-[9px]", "[&>span]:size-[18px]"]));
+    expect(host.querySelector('[aria-label="Options for imani"]')!.parentElement!.className.split(" ")).toEqual(
+      expect.arrayContaining(["top-1.5", "right-1.5", "[&>button]:size-7", "[:root[data-pointer=coarse]_&]:[&>button]:size-11"]),
+    );
+  });
+
+  it("opens on a press, draws its media at its size with the badge in the corner, and keeps its menu beside the press", async () => {
     host = document.body.appendChild(document.createElement("div"));
     const onClick = vi.fn();
     await act(async () =>
       render(
         <Tile
-          shape="portrait"
+          size="portrait"
           media={<img alt="" src="/imani.png" />}
           badge={<span data-badge>2</span>}
           label="imani"
@@ -156,7 +229,7 @@ describe("Tile edge", () => {
   it("fades a long label and description at their edge with no ellipsis under the mask", async () => {
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>
-      render(<Tile shape="landscape" media={<img alt="" src="/harbor.png" />} label="a very long backdrop name that runs off" description="backdrops/harbor/night" />, host!),
+      render(<Tile size="landscape" media={<img alt="" src="/harbor.png" />} label="a very long backdrop name that runs off" description="backdrops/harbor/night" />, host!),
     );
     const label = Array.from(host.querySelectorAll("span")).find((span) => span.textContent === "a very long backdrop name that runs off")!;
     const description = host.querySelector("small")!;

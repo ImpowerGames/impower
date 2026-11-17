@@ -148,7 +148,7 @@ const openMenu = async (trigger: HTMLElement | undefined) => {
 
 const menuItems = () => all<HTMLElement>('[role="menuitem"], [role="menuitemradio"]').map((el) => el.textContent?.trim());
 
-const showAs = async (layout: "Tiles" | "List") => {
+const showAs = async (layout: "Portrait tiles" | "Landscape tiles" | "Small tiles" | "List") => {
   await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
   await vi.waitFor(() => expect(menuItems()).toContain(layout));
   await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === layout));
@@ -588,30 +588,91 @@ describe("image folders as tiles", () => {
     await mount();
     expect(layoutButton()!.getAttribute("aria-label")).toBe("Change how this folder is shown");
     expect(layoutButton()!.getAttribute("aria-haspopup")).toBe("menu");
-    expect(layoutButton()!.getAttribute("data-layout")).toBe("tiles");
+    expect(layoutButton()!.getAttribute("data-layout")).toBe("portrait");
     await openMenu(layoutButton()!);
-    await vi.waitFor(() => expect(menuItems()).toEqual(["Tiles", "List"]));
-    expect(all<HTMLElement>('[role="menuitemradio"]').map((el) => el.getAttribute("aria-checked"))).toEqual(["true", "false"]);
+    await vi.waitFor(() => expect(menuItems()).toEqual(["Portrait tiles", "Landscape tiles", "Small tiles", "List"]));
+    const checks = () => all<HTMLElement>('[role="menuitemradio"]').map((el) => el.getAttribute("aria-checked"));
+    expect(checks()).toEqual(["true", "false", "false", "false"]);
     const itemIcon = (label: string) =>
       all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === label)!.querySelector("svg:not([data-radio-indicator])")!.innerHTML;
-    const tilesIcon = itemIcon("Tiles");
+    const tilesIcon = itemIcon("Portrait tiles");
     const listIcon = itemIcon("List");
+    expect(itemIcon("Landscape tiles")).toBe(tilesIcon);
+    expect(itemIcon("Small tiles")).toBe(tilesIcon);
     expect(tilesIcon).not.toBe(listIcon);
     const triggerIcon = () => layoutButton()!.querySelector("svg")!.innerHTML;
     expect(triggerIcon()).toBe(tilesIcon);
+    for (const [label, layout] of [["Small tiles", "small"], ["Landscape tiles", "landscape"]] as const) {
+      await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === label));
+      expect(window.setListState).toHaveBeenLastCalledWith({ assetsLayouts: { "Assets/Images/Portraits": layout } });
+      expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual([layout]);
+      expect(layoutButton()!.getAttribute("data-layout")).toBe(layout);
+      expect(triggerIcon()).toBe(tilesIcon);
+      await openMenu(layoutButton()!);
+      await vi.waitFor(() => expect(checks()).toEqual(["Portrait tiles", "Landscape tiles", "Small tiles", "List"].map((entry) => String(entry === label))));
+    }
     await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === "List"));
-    expect(window.setListState).toHaveBeenCalledWith({ assetsLayouts: { "Assets/Images/Portraits": "rows" } });
+    expect(window.setListState).toHaveBeenLastCalledWith({ assetsLayouts: { "Assets/Images/Portraits": "rows" } });
     expect(tiles()).toEqual([]);
     expect(host!.querySelector("[data-variants-chip]")!.textContent).toBe("4 variants");
     expect(layoutButton()!.getAttribute("data-layout")).toBe("rows");
     expect(triggerIcon()).toBe(listIcon);
     await openMenu(layoutButton()!);
-    await vi.waitFor(() =>
-      expect(all<HTMLElement>('[role="menuitemradio"]').map((el) => el.getAttribute("aria-checked"))).toEqual(["false", "true"]),
-    );
+    await vi.waitFor(() => expect(checks()).toEqual(["false", "false", "false", "true"]));
     await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === "List"));
     await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
     expect(tiles().length).toBe(2);
+  });
+
+  it.each([
+    ["Assets/Images/Portraits", "portrait"],
+    ["Assets/Images/Backdrops", "landscape"],
+  ] as const)("shows a choice of Tiles stored before the sizes in %s as the shape its kind gives, and stores that shape", async (folder, shape) => {
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: folder }, assetsLayouts: { [folder]: "tiles", "Assets/Images": "rows" } },
+    };
+    await mount();
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual([shape]);
+    expect(layoutButton()!.getAttribute("data-layout")).toBe(shape);
+    expect(window.setListState).toHaveBeenCalledTimes(1);
+    expect(window.setListState).toHaveBeenCalledWith({ assetsLayouts: { [folder]: shape, "Assets/Images": "rows" } });
+    await settle();
+    expect(window.setListState).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a stored List as rows, and a stored value it does not know as the folder's default, writing neither", async () => {
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images/Portraits" }, assetsLayouts: { "Assets/Images/Portraits": "rows", "Assets/Images/Backdrops": "grid" } },
+    };
+    await mount();
+    expect(tiles()).toEqual([]);
+    expect(layoutButton()!.getAttribute("data-layout")).toBe("rows");
+    await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
+    await click(all<HTMLElement>('button[aria-label^="Open folder Backdrops"]')[0]);
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["landscape"]);
+    expect(layoutButton()!.getAttribute("data-layout")).toBe("landscape");
+    expect(window.setListState.mock.calls.filter(([lists]) => "assetsLayouts" in lists)).toEqual([]);
+  });
+
+  it("reads the choice from the open project's lists, so another project's folder starts at its default", async () => {
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images/Portraits" }, assetsLayouts: { "Assets/Images/Portraits": "small" } },
+    };
+    await mount();
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["small"]);
+    await act(async () => render(null, host!));
+    workspace.current = {
+      ...workspace.current,
+      project: { ...workspace.current.project, id: "other" },
+      lists: { assetsFolders: { image: "Assets/Images/Portraits" } },
+    };
+    workspace.assetListing.value = { ...workspace.assetListing.value!, projectId: "other" };
+    await act(async () => render(h(Assets, {}), host!));
+    await settle();
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
   });
 
   it("lists search results as rows and leaves the Audio tab as rows with no layout button", async () => {
@@ -693,6 +754,39 @@ describe("the tile shape of a folder not named for portraits or backdrops", () =
     await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
     await click(all<HTMLElement>('button[aria-label^="Open folder Portraits"]')[0]);
     expect(tileShapes()).toEqual(["portrait"]);
+  });
+
+  it.each([
+    ["mostly tall", [[300, 400], [300, 400], [640, 400]], "portrait"],
+    ["mostly wide", [[640, 400], [640, 400], [300, 400]], "landscape"],
+  ] as const)("shows a choice of Tiles stored before the sizes in a folder of %s pictures as the shape they share, once read, and stores it", async (_, shapes, shape) => {
+    withPictures(Object.fromEntries(shapes.map(([width, height], index) => [`Assets/Images/Cast/p${index}.png`, [6001 + index, width, height]])));
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images/Cast" }, assetsLayouts: { "Assets/Images/Cast": "tiles" } },
+    };
+    await mount();
+    await settle();
+    expect(assets.measureImages).toHaveBeenCalled();
+    expect(tileShapes()).toEqual([shape, shape, shape]);
+    expect(window.setListState.mock.calls.filter(([lists]) => "assetsLayouts" in lists)).toEqual([
+      [{ assetsLayouts: { "Assets/Images/Cast": shape } }],
+    ]);
+  });
+
+  it("never measures a folder whose size was chosen", async () => {
+    withPictures({
+      "Assets/Images/Cast/ada.png": [7001, 300, 400],
+      "Assets/Images/Cast/kai.png": [7002, 640, 400],
+    });
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images/Cast" }, assetsLayouts: { "Assets/Images/Cast": "small" } },
+    };
+    await mount();
+    await settle();
+    expect(assets.measureImages).not.toHaveBeenCalled();
+    expect(tileShapes()).toEqual(["small", "small"]);
   });
 
   it("measures a picture again when its file changes, and keeps drawing the folder", async () => {

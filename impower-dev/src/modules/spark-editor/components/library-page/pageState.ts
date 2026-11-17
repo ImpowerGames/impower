@@ -9,10 +9,15 @@ export type ScrollsKey = "scriptsScrolls" | "assetsScrolls";
 
 export type LayoutsKey = "assetsLayouts";
 
-export type FolderLayout = "tiles" | "rows";
+export type FolderLayout = "portrait" | "landscape" | "small" | "rows";
 
-const isFolderLayout = (value: unknown): value is FolderLayout =>
-  value === "tiles" || value === "rows";
+export const LEGACY_TILES = "tiles";
+
+export type StoredFolderLayout = FolderLayout | typeof LEGACY_TILES;
+
+const STORED_FOLDER_LAYOUTS: readonly unknown[] = ["portrait", "landscape", "small", "rows", LEGACY_TILES];
+
+const isStoredFolderLayout = (value: unknown): value is StoredFolderLayout => STORED_FOLDER_LAYOUTS.includes(value);
 
 const setListState = (read: (lists: Lists) => Partial<Lists>) =>
   void import("../../workspace/Workspace").then(({ Workspace }) =>
@@ -41,8 +46,7 @@ export function useTabQuery(
 export function useFolderLayout(
   key: LayoutsKey,
   folder: string,
-  fallback: FolderLayout,
-): [FolderLayout, (layout: FolderLayout) => void] {
+): [StoredFolderLayout | undefined, (layout: FolderLayout) => void] {
   const saved = workspace.state.value.lists?.[key]?.[folder];
   const change = useCallback(
     (next: FolderLayout) =>
@@ -51,7 +55,7 @@ export function useFolderLayout(
       })),
     [key, folder],
   );
-  return [isFolderLayout(saved) ? saved : fallback, change];
+  return [isStoredFolderLayout(saved) ? saved : undefined, change];
 }
 
 export function useSavedScroll(key: ScrollsKey, tab: string) {

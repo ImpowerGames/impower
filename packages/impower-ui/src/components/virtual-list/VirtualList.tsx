@@ -5,7 +5,7 @@ import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { cn } from "../../utils/cn";
 
 export const virtualListVariants = cva(
-  "relative min-h-0 overflow-x-hidden overflow-y-auto [scrollbar-width:thin]",
+  "relative min-h-0 overflow-x-hidden overflow-y-auto [overflow-anchor:none] [scrollbar-width:thin]",
 );
 
 export const VIRTUAL_LIST_ROW_HEIGHT = {
@@ -31,23 +31,37 @@ export const virtualListSlotVariants = cva("absolute", {
 export type VirtualListSize = keyof typeof VIRTUAL_LIST_ROW_HEIGHT;
 
 export type VirtualListGrid = {
-  minWidth: number;
-  gap: number;
+  class: string;
   height: (width: number) => number;
 };
 
+export type VirtualListTrack = { minWidth: number; gap: number };
+
 export const virtualListColumns = (
-  grid: VirtualListGrid,
+  track: VirtualListTrack,
   width: number,
 ): { columns: number; width: number } => {
-  const columns = Math.max(
-    1,
-    Math.floor((width + grid.gap) / (grid.minWidth + grid.gap)),
-  );
+  const columns =
+    track.minWidth > 0
+      ? Math.max(1, Math.floor((width + track.gap) / (track.minWidth + track.gap)))
+      : 1;
   return {
     columns,
     width:
-      width > 0 ? (width - grid.gap * (columns - 1)) / columns : grid.minWidth,
+      width > 0 ? (width - track.gap * (columns - 1)) / columns : track.minWidth,
+  };
+};
+
+const pixels = (value: string) => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const trackOf = (element: Element): VirtualListTrack => {
+  const style = getComputedStyle(element);
+  return {
+    minWidth: pixels(style.getPropertyValue("--grid-min-width")),
+    gap: pixels(style.getPropertyValue("--grid-gap")),
   };
 };
 
@@ -85,12 +99,12 @@ export default function VirtualList<T>({
 }: VirtualListProps<T>) {
   const rowHeight = VIRTUAL_LIST_ROW_HEIGHT[size];
   const scroller = useRef<HTMLDivElement | null>(null);
-  const [view, setView] = useState({ top: 0, height: 0, width: 0 });
-  const cells = grid ? virtualListColumns(grid, view.width) : undefined;
+  const [view, setView] = useState({ top: 0, height: 0, width: 0, minWidth: 0, gap: 0 });
+  const cells = grid ? virtualListColumns(view, view.width) : undefined;
   const columns = cells?.columns ?? 1;
   const cellWidth = cells?.width ?? 0;
   const cellHeight = grid ? grid.height(cellWidth) : 0;
-  const gap = grid?.gap ?? 0;
+  const gap = grid ? view.gap : 0;
   const lines = Math.ceil(items.length / columns);
   const offsets = useMemo(() => {
     const tops = new Array<number>(lines + 1);
@@ -121,37 +135,82 @@ export default function VirtualList<T>({
     return low;
   };
 
+  const track = useRef<VirtualListTrack>({ minWidth: 0, gap: 0 });
+  const measure = useRef((retrack: boolean) => {
+    const element = scroller.current;
+    if (!element) {
+      return;
+    }
+    if (retrack) {
+      track.current = trackOf(element);
+    }
+    const width = element.firstElementChild?.clientWidth ?? 0;
+    const { minWidth, gap: trackGap } = track.current;
+    setView((prev) =>
+      prev.top === element.scrollTop &&
+      prev.height === element.clientHeight &&
+      prev.width === width &&
+      prev.minWidth === minWidth &&
+      prev.gap === trackGap
+        ? prev
+        : {
+            top: element.scrollTop,
+            height: element.clientHeight,
+            width,
+            minWidth,
+            gap: trackGap,
+          },
+    );
+  });
+
   useLayoutEffect(() => {
     const element = scroller.current;
     if (!element) {
       return;
     }
-    const measure = () => {
-      const width = element.firstElementChild?.clientWidth ?? 0;
-      setView((prev) =>
-        prev.top === element.scrollTop &&
-        prev.height === element.clientHeight &&
-        prev.width === width
-          ? prev
-          : {
-              top: element.scrollTop,
-              height: element.clientHeight,
-              width,
-            },
-      );
-    };
-    measure();
-    element.addEventListener("scroll", measure, { passive: true });
+    const onScroll = () => measure.current(false);
+    const onResize = () => measure.current(true);
+    onResize();
+    element.addEventListener("scroll", onScroll, { passive: true });
     const observer =
       typeof ResizeObserver === "undefined"
         ? undefined
-        : new ResizeObserver(measure);
+        : new ResizeObserver(onResize);
     observer?.observe(element);
     return () => {
-      element.removeEventListener("scroll", measure);
+      element.removeEventListener("scroll", onScroll);
       observer?.disconnect();
     };
   }, []);
+
+  useLayoutEffect(() => {
+    measure.current(true);
+  }, [grid?.class]);
+
+  const geometry = grid ? `grid:${columns}:${cellHeight}:${gap}` : "rows";
+  const anchor = useRef<{ index: number; geometry: string; measured: boolean } | null>(null);
+
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    const list = element?.firstElementChild as HTMLElement | null | undefined;
+    if (!element || !list) {
+      return;
+    }
+    const origin = list.offsetTop;
+    const last = anchor.current;
+    if (last && last.measured && view.width > 0 && last.geometry !== geometry && last.index >= 0 && items.length) {
+      element.scrollTop = topOf(Math.floor(Math.min(last.index, items.length - 1) / columns)) + origin;
+      anchor.current = { index: last.index, geometry, measured: true };
+      measure.current(false);
+      return;
+    }
+    const offset = element.scrollTop - origin;
+    anchor.current = {
+      index: offset > 0 ? lineAt(offset + 1) * columns : -1,
+      geometry,
+      measured: view.width > 0,
+    };
+  });
 
   const hasViewport = view.height > 0;
   const revealedRequest = useRef<number | undefined>(undefined);
@@ -222,7 +281,7 @@ export default function VirtualList<T>({
   return (
     <div
       ref={setRef}
-      class={cn(virtualListVariants(), className)}
+      class={cn(virtualListVariants(), grid?.class, className)}
       {...rest}
     >
       <div
