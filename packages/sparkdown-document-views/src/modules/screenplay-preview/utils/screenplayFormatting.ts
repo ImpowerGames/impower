@@ -10,7 +10,7 @@ import type { ScreenplayTokenType } from "../../../../../sparkdown-screenplay/sr
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import type { FormattedText } from "../../../../../sparkdown-screenplay/src/types/FormattedText";
 import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/alternativeMarks";
-import { printedLineStart } from "../../../../../sparkdown-screenplay/src/utils/leadingLinePieces";
+import { isLineWords, printedLineStart } from "../../../../../sparkdown-screenplay/src/utils/leadingLinePieces";
 import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styleText";
 import {
@@ -793,7 +793,7 @@ export const decorate = (
         } else if (last?.type === "dialogue") {
           last.to = to;
         }
-      } else if (name === "TextChunk") {
+      } else if (isLineWords(nodeRef.node)) {
         if (inDialogue) {
           const start = printedLineStart(nodeRef.node);
           const exported = exportedLinesFrom(start, to);

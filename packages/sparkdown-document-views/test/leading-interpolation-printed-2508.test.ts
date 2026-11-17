@@ -36,6 +36,25 @@ describe("a {...} piece at the start of a line", () => {
     expect(leading).toBe(midLine?.slice(midLine.indexOf("Before ") + "Before ".length));
   });
 
+  it("prints a line that holds only a piece", () => {
+    const rows = rowsOf(`{name}\n\nHERO:\n  {title}\n`);
+    expect(rows.map((r) => r.text)).toEqual(expect.arrayContaining(["{name}\n", "{title}"]));
+  });
+
+  it("prints the piece when a comment sits between it and the text", () => {
+    const rows = rowsOf(`{name} /* note */ trusts you.\n\nHERO:\n  {name} /* note */ trusts you.\n`);
+    expect(rows.map((r) => r.text)).toEqual(
+      expect.arrayContaining(["{name} trusts you.\n", "{name} trusts you."]),
+    );
+  });
+
+  it("shows piece-only and comment-separated lines on the Screenplay page", () => {
+    const source = `{name}\n\nHERO:\n  {title}\n\nGUARD:\n  {name} /* note */ trusts you.\n`;
+    const screen = screenRows("default", source);
+    expect(screen).toEqual(expect.arrayContaining(["{name}", "{title}", "{name} trusts you."]));
+    expect(screen.filter((row) => row.trim())).toEqual(exportRows("default", source).filter((row) => row.trim()));
+  });
+
   it("shows the piece on the Screenplay page in action and dialogue", () => {
     const source = `{name} trusts you a little more...\n\nGUARD:\n  {name} trusts you.\n`;
     const screen = screenRows("default", source);
