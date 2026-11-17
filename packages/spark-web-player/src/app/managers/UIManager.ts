@@ -1846,19 +1846,13 @@ export default class UIManager extends Manager {
     }
     const shownNow = new AnimationPlayer(this._theme, this._hold);
     for (const { element, animation } of enterNow) {
-      (element as any).__sdReveal = shownNow.add({
-        element,
-        animations: [animation],
-      })[0];
+      this.trackReveal(element, shownNow.add({ element, animations: [animation] })[0]);
     }
     const showing = enterNow.length > 0 ? shownNow.play() : undefined;
     if (enter.length > 0 || waiting.length > 0) {
       const player = new AnimationPlayer(this._theme, this._hold);
       for (const { element, animation } of enter) {
-        (element as any).__sdReveal = player.add({
-          element,
-          animations: [animation],
-        })[0];
+        this.trackReveal(element, player.add({ element, animations: [animation] })[0]);
       }
       for (const element of waiting) {
         (element as any).__sdWait = player.add({
@@ -1869,6 +1863,43 @@ export default class UIManager extends Manager {
       await player.play(startTime);
     }
     await showing;
+  }
+
+  protected trackReveal(
+    element: HTMLElement,
+    reveal: ReturnType<AnimationPlayer["add"]>[number] | undefined,
+  ) {
+    (element as any).__sdReveal = reveal;
+    reveal?.finished.then(
+      () => {
+        const effect = reveal.effect;
+        if (
+          (element as any).__sdReveal !== reveal ||
+          reveal.playState !== "finished" ||
+          !(effect instanceof KeyframeEffect)
+        ) {
+          return;
+        }
+        const keyframes = effect.getKeyframes();
+        const last = keyframes[keyframes.length - 1] ?? {};
+        for (const [prop, value] of Object.entries(last)) {
+          if (
+            value == null ||
+            ["offset", "computedOffset", "easing", "composite"].includes(prop)
+          ) {
+            continue;
+          }
+          if (prop.startsWith("--")) {
+            element.style.setProperty(prop, String(value));
+          } else {
+            (element.style as unknown as Record<string, string>)[prop] = String(value);
+          }
+        }
+        reveal.cancel();
+        delete (element as any).__sdReveal;
+      },
+      () => {},
+    );
   }
 
   protected dropSettledAnimation(

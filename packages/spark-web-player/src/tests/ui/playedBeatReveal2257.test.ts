@@ -67,8 +67,11 @@ const makePage = (previewing: boolean) => {
   const revealed = () =>
     letters().filter((letter) => {
       const reveal = (letter as any).__sdReveal as TimedAnimation | undefined;
-      const time = reveal?.currentTime;
-      return time != null && time >= Number(reveal!.effect.timing.delay ?? 0) - 1e-6;
+      if (!reveal) {
+        return (letter as HTMLElement).style.opacity === "1";
+      }
+      const time = reveal.currentTime;
+      return time != null && time >= Number(reveal.effect.timing.delay ?? 0) - 1e-6;
     }).length;
   const send = async (message: unknown) => {
     ui.onReceiveNotification(message as any);
