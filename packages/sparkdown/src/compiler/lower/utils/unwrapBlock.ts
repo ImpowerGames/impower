@@ -18,7 +18,13 @@ export function unwrapBlockContent(
   const out: ParsedObject[] = [];
   for (const obj of block?.content ?? []) {
     if (obj instanceof Weave) {
-      for (const inner of obj.content) out.push(inner);
+      const range = obj.ownDebugMetadata;
+      for (const inner of obj.content) {
+        if (range && !inner.ownDebugMetadata) {
+          inner.debugMetadata = range;
+        }
+        out.push(inner);
+      }
     } else {
       out.push(obj);
     }

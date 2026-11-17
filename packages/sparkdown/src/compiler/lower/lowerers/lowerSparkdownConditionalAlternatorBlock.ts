@@ -1,4 +1,3 @@
-import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
@@ -111,12 +110,6 @@ export function lowerSparkdownConditionalAlternatorBlock(
     }
   }
 
-  const isInline =
-    valued !== false ||
-    isExplicitRuleName(prefix, "LuauConditionalAlternatorBlock") ||
-    prefix === "LuauSparkdownInlineGluedConditionalAlternatorBlock" ||
-    prefix === "LuauSparkdownSingleLineConditionalAlternatorBlock";
-
   const branches = arms.map((arm) => {
     const branch = new ConditionalSingleBranch(
       arm.body.length > 0 ? arm.body : null,
@@ -132,7 +125,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
       branch.isElse = true;
     }
     if (condExpr) branch.matchingEquality = true;
-    branch.isInline = isInline;
+    branch.isInline = true;
     return branch;
   });
 
