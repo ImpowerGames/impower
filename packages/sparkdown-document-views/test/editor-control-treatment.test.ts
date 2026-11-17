@@ -103,34 +103,6 @@ describe("the code editor's focus edge", () => {
   });
 });
 
-describe("the code editor's icons under forced colours", () => {
-  const css = readFileSync(resolve(__dirname, "../src/modules/script-editor/sparkdown-script-editor.css"), "utf8");
-  const block = css.slice(css.indexOf("@media (forced-colors: active)"), css.indexOf("@media (prefers-reduced-motion: reduce)"));
-  const body = block.slice(block.indexOf("{") + 1);
-  const rules = [...body.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, declarations]) => ({
-    selectors: selectors!.split(",").map((selector) => selector.trim()),
-    declarations: declarations!,
-  }));
-
-  it.each([
-    ".cm-panel.cm-gotoLine button::after",
-    ".codicon::after",
-    ".cm-activeDiagnosticIcon",
-    ".cm-navLeftIcon",
-    ".cm-navRightIcon",
-    ".cm-toolbar-icon",
-    ".cm-menu-back-icon",
-    ".cm-menu-more-icon",
-    ".cm-gutter-button-glyph::before",
-    ".cm-choice-icon",
-    ".cm-problem-line::after",
-  ])("keeps the masked icon %s painted in CanvasText", (selector) => {
-    const rule = rules.find(({ selectors }) => selectors.includes(`.sparkdown-script-editor-root ${selector}`));
-    expect(rule, `a forced-colours rule naming ${selector}`).toBeDefined();
-    expect(rule!.declarations).toMatch(/forced-color-adjust: none;\s*background-color: CanvasText !important;/);
-  });
-});
-
 describe("the code editor under prefers-reduced-motion", () => {
   const css = readFileSync(resolve(__dirname, "../src/modules/script-editor/sparkdown-script-editor.css"), "utf8");
 

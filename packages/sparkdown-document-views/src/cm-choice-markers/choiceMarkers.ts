@@ -15,7 +15,7 @@ import {
   ViewPlugin,
 } from "@codemirror/view";
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
-import { iconMasks } from "@impower/impower-ui/icon-masks";
+import { iconMasks, withIconMaskPaint } from "@impower/impower-ui/icon-masks";
 import {
   claimsChanged,
   createGutterButton,
@@ -427,7 +427,7 @@ const choiceMarkerEvents = [
   }),
 ];
 
-const choiceMarkersTheme = EditorView.baseTheme({
+const choiceMarkersTheme = EditorView.baseTheme(withIconMaskPaint({
   ".cm-choice-markers": {
     zIndex: "201",
     pointerEvents: "none",
@@ -527,7 +527,6 @@ const choiceMarkersTheme = EditorView.baseTheme({
     flex: "none",
     width: "16px",
     height: "16px",
-    backgroundColor: "currentColor",
     maskSize: "contain",
     maskRepeat: "no-repeat",
   },
@@ -550,7 +549,7 @@ const choiceMarkersTheme = EditorView.baseTheme({
     maskImage: iconMasks["arrow"],
     WebkitMaskImage: iconMasks["arrow"],
   },
-});
+}, ".cm-choice-icon"));
 
 export const choiceMarkers = () => [
   choiceMarkersField,
