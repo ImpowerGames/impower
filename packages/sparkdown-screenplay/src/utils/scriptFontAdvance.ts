@@ -1,9 +1,12 @@
 import { SCRIPT_FONT_ADVANCES, type ScriptFace } from "../constants/SCRIPT_FONT_ADVANCES";
 import type { TextOptions } from "../types/TextOptions";
 
+export const printedFontOf = (style: Pick<TextOptions, "font" | "bold" | "italic">): string =>
+  style.font ?? (style.bold && style.italic ? "bolditalic" : style.bold ? "bold" : style.italic ? "italic" : "normal");
+
 export const scriptFaceOf = (style: Pick<TextOptions, "font" | "bold" | "italic">): ScriptFace => {
-  if (style.font && style.font in SCRIPT_FONT_ADVANCES) return style.font as ScriptFace;
-  return style.bold && style.italic ? "bolditalic" : style.bold ? "bold" : style.italic ? "italic" : "normal";
+  const font = printedFontOf(style);
+  return font in SCRIPT_FONT_ADVANCES ? (font as ScriptFace) : "normal";
 };
 
 export const scriptAdvanceOf = (face: ScriptFace, codePoint: number) => {
