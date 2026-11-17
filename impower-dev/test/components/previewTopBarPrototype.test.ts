@@ -1,6 +1,6 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 let phone = false;
 const mediaListeners = new Set<() => void>();
@@ -95,12 +95,54 @@ afterEach(async () => {
 });
 
 describe("the preview top bar against the prototype", () => {
-  it("drops the cog menu 4px under its trigger with the toolbar menu's radius and shadow", async () => {
+  it("gives the cog menu the toolbar menu's radius and shadow", async () => {
     const { menu } = await openSettings();
     expect(menu.classList).toContain("rounded-toolbar-menu");
     expect(menu.classList).toContain("shadow-toolbar-menu");
     expect(menu.classList).not.toContain("rounded-card");
     expect(menu.classList).not.toContain("shadow-float");
+  });
+
+  it("places the cog menu 4px below its trigger, not at the shared 6px default", async () => {
+    const TRIGGER = { top: 80, bottom: 124, left: 1386, right: 1430 };
+    const MENU = { width: 340, height: 300 };
+    const box = (r: { top: number; bottom: number; left: number; right: number }) =>
+      ({ ...r, x: r.left, y: r.top, width: r.right - r.left, height: r.bottom - r.top, toJSON: () => r }) as DOMRect;
+    const floating = (element: Element) =>
+      element.hasAttribute("data-radix-popper-content-wrapper") || element.getAttribute("role") === "menu";
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1440 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 900 });
+    Object.defineProperty(document.documentElement, "clientWidth", { configurable: true, value: 1440 });
+    Object.defineProperty(document.documentElement, "clientHeight", { configurable: true, value: 900 });
+    const spies = [
+      vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+        if (this.getAttribute("aria-label") === "Preview settings") return box(TRIGGER);
+        if (floating(this)) return box({ top: 0, left: 0, bottom: MENU.height, right: MENU.width });
+        return box({ top: 0, left: 0, bottom: 0, right: 0 });
+      }),
+      vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+        return floating(this) ? MENU.width : 0;
+      }),
+      vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+        return floating(this) ? MENU.height : 0;
+      }),
+    ];
+    try {
+      const { menu } = await openSettings();
+      await settle(50);
+      const wrapper = menu.closest<HTMLElement>("[data-radix-popper-content-wrapper]")!;
+      const match = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(wrapper.style.transform);
+      expect(match, wrapper.style.transform).not.toBeNull();
+      expect(menu.dataset.side).toBe("bottom");
+      expect(Number(match![2])).toBe(TRIGGER.bottom + 4);
+    } finally {
+      spies.forEach((spy) => spy.mockRestore());
+      for (const target of [window, document.documentElement]) {
+        for (const name of ["innerWidth", "innerHeight", "clientWidth", "clientHeight"]) {
+          delete (target as unknown as Record<string, unknown>)[name];
+        }
+      }
+    }
   });
 
   it("sets the cog menu's hints at 11px, bold only on a checked row", async () => {
