@@ -25,6 +25,11 @@ variables:
   # it begins the next statement (`Hello there`), which no path reads on to.
   LUAU_SHARED_PATH_NO_CONTINUATION: "(?!{{LUAU_IDENTIFIER}}|{{WS}}*{{LUAU_PATH_BLOCK_COMMENTS}}{{LUAU_SHARED_PATH_CONTINUATION}})"
   LUAU_PATH_BLOCK_COMMENTS: (?:{{LUAU_COMMENT_START}}\[\[{{SPAN_DOUBLE_BRACKET_TEXT}}*\]\]{{WS}}*)*
+  # lookaround: a line that begins with a bar begins an arm, which
+  # `LuauAlternatorSeparator` reads (`LuauSparkdownAlternatorArmLines`), so an
+  # operator waiting for its operand ends at that line's start instead of
+  # reading on to the bar, which no operand can begin with.
+  LUAU_ARM_LINE_AHEAD: ^(?={{WS}}*[|])
   # lookaround: LuauTypeAnnotationOperation owns a declaration's colon; LuauAccessPath must yield before the annotation.
   LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD: "(?={{WS}}*{{LUAU_TYPE_ANNOTATION_OPERATOR}})"
   LUAU_SHARED_PATH_CONTINUATION: "(?:{{LUAU_ACCESSOR_OPERATOR}}|{{LUAU_INDEXER_START}})"
@@ -7527,7 +7532,7 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})
+    end: (?={{BEAT}})|{{LUAU_ARM_LINE_AHEAD}}|(?!$|{{WS}})
 
   LuauCompareOperation:
     begin: ({{WS}}*)(?={{LUAU_COMPARE_OPERATORS}})
@@ -7559,7 +7564,7 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})
+    end: (?={{BEAT}})|{{LUAU_ARM_LINE_AHEAD}}|(?!$|{{WS}})
 
   LuauConcatOperation:
     begin: ({{WS}}*)(?={{LUAU_CONCAT_OPERATOR}})
@@ -7591,7 +7596,7 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})
+    end: (?={{BEAT}})|{{LUAU_ARM_LINE_AHEAD}}|(?!$|{{WS}})
 
   LuauLengthOperation:
     begin: ({{WS}}*)(?={{LUAU_LENGTH_OPERATOR}})
@@ -7623,7 +7628,7 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})
+    end: (?={{BEAT}})|{{LUAU_ARM_LINE_AHEAD}}|(?!$|{{WS}})
 
   LuauLogicalOperation:
     begin: ({{WS}}*)(?={{LUAU_LOGICAL_KEYWORDS}})
@@ -7655,7 +7660,7 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})
+    end: (?={{BEAT}})|{{LUAU_ARM_LINE_AHEAD}}|(?!$|{{WS}})
   LuauTypeCastOperation:
     begin: ({{WS}}*)(?={{LUAU_TYPECAST_OPERATOR}})
     beginCaptures:

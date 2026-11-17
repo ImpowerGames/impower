@@ -201,6 +201,16 @@ describe("a story match or plural is one-line or multi-line by what follows its 
     ]);
   });
 
+  test.each([["match x +"], ["match x and"], ["match x .."], ["match x =="], ["plural #"]])(
+    "a head `%s` whose operator waits for its operand stays multi-line: a line that begins with a bar begins an arm",
+    (head) => {
+      const lines = [head, "| 1 = Hello.", "end"];
+      const [set] = sets(scene(...lines));
+      expect(set).toMatchObject({ text: lines.join("\n  "), oneLine: false, arms: "LuauSparkdownAlternatorArmLines" });
+      expect(play(scene(...lines)).errors.filter((message) => BRACKETS.test(message))).toEqual([]);
+    },
+  );
+
   test("in an arm, a keyword and a value with no bar after them is a nested set with no arms", () => {
     const line = "cycle | plural n end";
     const nested = sets(scene(line));
