@@ -173,12 +173,14 @@ anti-pattern — use a signal instead.
 export namespace Workspace {
   export const configuration = new WorkspaceConfiguration();
   export const window: WorkspaceWindow = new WorkspaceWindow(Workspace); // window/UI state + the protocol bridge
-  export const ls: WorkspaceLanguageServer = new WorkspaceLanguageServer(Workspace); // new Worker("/sparkdown-language-server.js")
-  export const fs: WorkspaceFileSystem = new WorkspaceFileSystem(ls, configuration); // new Worker("/opfs-workspace.js")
+  export const ls: WorkspaceLanguageServer = new WorkspaceLanguageServer(Workspace); // sparkdown-language-server worker
+  export const fs: WorkspaceFileSystem = new WorkspaceFileSystem(ls, configuration); // opfs-workspace worker
   export const sync = new WorkspaceSync();         //  Google Drive sync
-  export const print = new WorkspacePrint();       //  new Worker("/sparkdown-screenplay-pdf.js")
+  export const print = new WorkspacePrint();       //  sparkdown-screenplay-pdf worker
 }
 ```
+
+Each controller starts its worker at `getWorkerUrl(name, import.meta.env.BUILD_ID)` (`src/workers/workerUrl.ts`): `/<name>.<build>.js` in a production build, `/<name>.js` in development. See [Workers](./build-pipeline.md#workers).
 
 The controllers never import `Workspace` at runtime. Each receives what it uses through its constructor: `WorkspaceFileSystem` the language server and configuration, `WorkspaceWindow` and `WorkspaceLanguageServer` the namespace object itself, because the services they read (`fs` and `sync`, `configuration` and `window`) are constructed after them; they read those members only when a handler or method runs, by which time every member is assigned. `registerWorkspaceProtocol`, which `Workspace.ts` calls once the namespace is built, receives it the same way for the `ls` and `fs` its handlers use. The explicit member types stop TypeScript inferring them through the namespace they are passed.
 
