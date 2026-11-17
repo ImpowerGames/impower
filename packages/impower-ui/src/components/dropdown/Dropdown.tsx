@@ -618,11 +618,16 @@ export const dropdownRadioItemVariants = cva(
         end: "[&>[data-radio-indicator]]:order-last [&>[data-radio-indicator]]:ml-auto",
       },
       size: {
-        default: "data-[state=checked]:font-semibold",
+        default: "",
         small: "text-[13px] font-normal",
       },
+      chosenWeight: {
+        semibold: "",
+        normal: "",
+      },
     },
-    defaultVariants: { indicator: "start", size: "default" },
+    compoundVariants: [{ size: "default", chosenWeight: "semibold", class: "data-[state=checked]:font-semibold" }],
+    defaultVariants: { indicator: "start", size: "default", chosenWeight: "semibold" },
   },
 );
 
@@ -652,6 +657,10 @@ export type DropdownRadioItemSize = NonNullable<
   VariantProps<typeof dropdownRadioItemVariants>["size"]
 >;
 
+export type DropdownRadioItemChosenWeight = NonNullable<
+  VariantProps<typeof dropdownRadioItemVariants>["chosenWeight"]
+>;
+
 function RadioIndicator() {
   return <CheckIcon data-radio-indicator="" />;
 }
@@ -660,6 +669,7 @@ export function DropdownRadioItem({
   value,
   indicator,
   size,
+  chosenWeight,
   disabled,
   class: className,
   children,
@@ -668,6 +678,7 @@ export function DropdownRadioItem({
   value: string;
   indicator?: DropdownRadioItemIndicator;
   size?: DropdownRadioItemSize;
+  chosenWeight?: DropdownRadioItemChosenWeight;
   disabled?: boolean;
   class?: string;
   children?: ComponentChildren;
@@ -675,7 +686,7 @@ export function DropdownRadioItem({
   const ctx = useMenuCtx();
   const radio = useContext(RadioContext);
   const shared: SharedItemProps = {
-    class: cn(dropdownItem(), dropdownRadioItemVariants({ indicator, size }), className),
+    class: cn(dropdownItem(), dropdownRadioItemVariants({ indicator, size, chosenWeight }), className),
     disabled,
     ...rest,
   };

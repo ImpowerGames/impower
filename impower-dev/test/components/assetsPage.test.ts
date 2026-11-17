@@ -392,7 +392,7 @@ describe("the Assets page", () => {
         "Name",
         "Modified",
         "Size",
-        "UsesLines in the scripts that show or play it.",
+        "Uses",
         "Story order",
         "A to Z",
         "Z to A",
@@ -738,10 +738,10 @@ describe("renaming from the row menu", () => {
     return items;
   };
 
-  it("offers the same actions for a single file and a stacked picture", async () => {
+  it("offers the same actions for a single file and a stacked picture, with Variants for the stacked one", async () => {
     await mount();
     expect(await menuOf("bunny")).toEqual(["Select", "Rename", "Move…", "Delete"]);
-    expect(await menuOf("imani")).toEqual(["Select", "Rename", "Move…", "Delete"]);
+    expect(await menuOf("imani")).toEqual(["Select", "Variants", "Rename", "Move…", "Delete"]);
   });
 
   it("renames a stacked picture from its tile, holding the name as the script writes it", async () => {
@@ -2111,5 +2111,244 @@ describe("the inspector of an asset that moves", () => {
     });
     await settle();
     expect(inspector()).toBeNull();
+  });
+});
+
+describe("the options and Sort menus take the prototype's entries (I-2449)", () => {
+  const P = "Assets/Images/Portraits";
+  const ICONS: Record<string, string> = {
+    Open: '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
+    Select: '<rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="m8 12 3 3 5-6"></path>',
+    Variants: '<circle cx="12" cy="12" r="3"></circle><path d="M2 12c3-5 6-7 10-7s7 2 10 7c-3 5-6 7-10 7s-7-2-10-7z"></path>',
+    "Upload here…": '<path d="M12 21V9m-5 5 5-5 5 5M4 3h16"></path>',
+    "New folder inside…": '<path d="M12 4v16M4 12h16"></path>',
+    Rename: '<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"></path>',
+    "Move…": '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
+    Delete: '<path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"></path>',
+  };
+  const THING = ["Select", "Variants", "Rename", "Move…", "Delete"];
+  const PLAIN = ["Select", "Rename", "Move…", "Delete"];
+  const FOLDER = ["Open", "Select", "Upload here…", "New folder inside…", "—", "Rename", "Move…", "Delete"];
+
+  beforeEach(() => {
+    selection.end();
+    workspace.uploads.value = [];
+    workspace.assetsReveal.value = null;
+    setListing(
+      {
+        [`${P}/imani.png`]: facts(8001),
+        [`${P}/imani@night.png`]: facts(8002),
+        [`${P}/bunny.png`]: facts(8003),
+        [`${P}/Cast/ada.png`]: facts(8004),
+      },
+      [`${P}/Cast`, `${P}/Cast/Leads`],
+    );
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P } } };
+  });
+
+  const press = async (trigger: HTMLElement | undefined, pointerType: "mouse" | "touch") => {
+    expect(trigger).toBeTruthy();
+    await act(async () => {
+      trigger!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType, button: 0 }));
+      if (pointerType === "touch") {
+        trigger!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+      }
+    });
+    await settle();
+  };
+  const entries = () => all<HTMLElement>('[role="menuitem"], [role="menuitemradio"], [role="separator"]');
+  const shape = () =>
+    entries().map((el) => (el.getAttribute("role") === "separator" ? "—" : (el.textContent ?? "").trim()));
+  const options = (name: string) => all<HTMLElement>(`button[aria-label="Options for ${name}"]`)[0];
+  const choose = async (label: string) =>
+    click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.trim() === label));
+  const escape = async () => {
+    await act(async () => {
+      document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await settle();
+  };
+
+  const expectMenu = async (expected: string[]) => {
+    await vi.waitFor(() => expect(shape()).toEqual(expected));
+    for (const item of entries().filter((el) => el.getAttribute("role") !== "separator")) {
+      const label = item.textContent!.trim();
+      expect([null, label]).toContain(item.getAttribute("aria-label"));
+      if (ICONS[label]) {
+        expect(item.querySelector("svg")!.innerHTML).toBe(ICONS[label]);
+        expect(item.querySelector("svg")!.getAttribute("class")).toContain("text-muted");
+      }
+    }
+  };
+
+  for (const pointer of ["mouse", "touch"] as const) {
+    describe(`opened with a ${pointer}`, () => {
+      it("offers Variants on a stacked picture's tile and leaves it out of a plain one's, with no divider", async () => {
+        await mount();
+        await press(options("imani"), pointer);
+        await expectMenu(THING);
+        await escape();
+        await press(options("bunny"), pointer);
+        await expectMenu(PLAIN);
+      });
+
+      it("offers the same entries on list rows", async () => {
+        await mount();
+        await showAs("List");
+        await press(options("bunny"), pointer);
+        await expectMenu(PLAIN);
+        await escape();
+        await press(options("imani"), pointer);
+        await expectMenu(THING);
+      });
+
+      it("offers Open, Select, Upload here… and New folder inside… above a divider on a folder tile", async () => {
+        await mount();
+        await press(options("Cast"), pointer);
+        await expectMenu(FOLDER);
+      });
+
+      it("offers the sort fields and orders with no hint under Uses and no bold on the chosen rows", async () => {
+        await mount();
+        await press(all<HTMLElement>('button[aria-label^="Sort by"]')[0], pointer);
+        await expectMenu(["Name", "Modified", "Size", "Uses", "Story order", "—", "A to Z", "Z to A"]);
+        const chosen = all<HTMLElement>('[role="menuitemradio"][aria-checked="true"]');
+        expect(chosen.map((el) => el.textContent?.trim())).toEqual(["Name", "A to Z"]);
+        for (const item of chosen) {
+          expect(item.className).not.toContain("font-semibold");
+        }
+      });
+    });
+  }
+
+  it("moves through a folder's entries in order with the arrow keys", async () => {
+    await mount();
+    const trigger = options("Cast")!;
+    trigger.focus();
+    await act(async () => {
+      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    });
+    await settle();
+    await vi.waitFor(() => expect(shape()).toEqual(FOLDER));
+    const visited: string[] = [];
+    for (let step = 0; step < 7; step += 1) {
+      await act(async () => {
+        (document.activeElement ?? document.body).dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+        );
+      });
+      await settle();
+      visited.push((document.activeElement?.textContent ?? "").trim());
+    }
+    expect(visited).toEqual(FOLDER.filter((label) => label !== "—"));
+  });
+
+  it("opens the folder from Open", async () => {
+    await mount();
+    await press(options("Cast"), "mouse");
+    await choose("Open");
+    expect(window.setListState).toHaveBeenCalledWith({ assetsFolders: { image: `${P}/Cast` } });
+  });
+
+  it("opens a stacked picture's inspector from Variants", async () => {
+    await mount();
+    await press(options("imani"), "mouse");
+    await choose("Variants");
+    const inspector = document.querySelector('section[aria-label="Asset details"]')!;
+    expect(inspector.querySelector("header h2")!.textContent).toBe("imani");
+  });
+
+  const chooseFiles = async (...names: string[]) => {
+    const input = host!.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", { value: names.map((name) => new File(["x"], name)), configurable: true });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+  };
+
+  it("uploads into a nested folder from its Upload here…, and a cancelled picker leaves Add uploading into the open folder", async () => {
+    await mount();
+    const picker = host!.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const opened = vi.spyOn(HTMLInputElement.prototype, "click");
+    try {
+      await press(options("Cast"), "mouse");
+      await choose("Upload here…");
+      expect(opened.mock.contexts).toEqual([picker]);
+      expect(picker.multiple).toBe(true);
+    } finally {
+      opened.mockRestore();
+    }
+    await chooseFiles("ada2.png");
+    await vi.waitFor(() =>
+      expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "ada2.png" })], `${P}/Cast`),
+    );
+    expect(window.setListState).not.toHaveBeenCalledWith(expect.objectContaining({ assetsFolders: expect.anything() }));
+
+    assets.upload.mockClear();
+    await press(options("Cast"), "mouse");
+    await choose("Upload here…");
+    await act(async () => {
+      host!.querySelector<HTMLInputElement>('input[type="file"]')!.dispatchEvent(new Event("cancel"));
+    });
+    await settle();
+    await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
+    const reopened = vi.spyOn(HTMLInputElement.prototype, "click");
+    try {
+      await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.startsWith("Add files from this device")));
+      expect(reopened.mock.contexts).toEqual([picker]);
+    } finally {
+      reopened.mockRestore();
+    }
+    await chooseFiles("rain.png");
+    await vi.waitFor(() => expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "rain.png" })], P));
+  });
+
+  it("creates a folder inside the folder from New folder inside…, naming it in that folder", async () => {
+    assets.createFolder.mockResolvedValueOnce(`${P}/Cast/Extras`);
+    await mount();
+    await press(options("Cast"), "mouse");
+    await choose("New folder inside…");
+    expect(workspace.current.lists?.assetsFolders).toMatchObject({ image: `${P}/Cast` });
+    const input = await vi.waitFor(() => {
+      const found = host!.querySelector<HTMLInputElement>('input[aria-label="New folder name"]');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await act(async () => {
+      input.value = "Extras";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await settle();
+    expect(assets.createFolder).toHaveBeenCalledWith(`${P}/Cast`, "Extras");
+  });
+
+  it("selects, renames, moves and deletes a folder from its menu as before", async () => {
+    await mount();
+    await press(options("Cast"), "mouse");
+    await choose("Select");
+    expect(selection.selected.peek()).toEqual([`${P}/Cast`]);
+    await act(async () => selection.end());
+    await settle();
+    await press(options("Cast"), "mouse");
+    await choose("Rename");
+    const field = await vi.waitFor(() => {
+      const found = host!.querySelector<HTMLInputElement>('input[aria-label="Rename Cast"]');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await act(async () => {
+      field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await settle();
+    await press(options("Cast"), "mouse");
+    await choose("Move…");
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    await escape();
+    await press(options("Cast"), "mouse");
+    await choose("Delete");
+    expect(assets.usedBy).toHaveBeenCalledWith([`${P}/Cast`]);
+    await vi.waitFor(() => expect(assets.remove).toHaveBeenCalledWith([`${P}/Cast`]));
   });
 });

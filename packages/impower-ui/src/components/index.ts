@@ -55,6 +55,7 @@ export {
   DropdownRadioGroup,
   DropdownRadioItem,
   dropdownRadioItemVariants,
+  type DropdownRadioItemChosenWeight,
   type DropdownRadioItemIndicator,
   useDropdownForm,
 } from "./dropdown/Dropdown";
