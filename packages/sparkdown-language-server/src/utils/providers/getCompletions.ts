@@ -1552,20 +1552,21 @@ const completionsAt = (
   }
 
   const optionStart = alternatorOptionStartAt(tree, documentCursorOffset, read);
-  if (optionStart) {
-    for (const keyword of ALTERNATOR_KEYWORDS) {
-      if (keyword.startsWith(optionStart.typed)) {
-        completions.set(keyword, {
-          label: keyword,
-          insertText: keyword,
-          labelDetails: { description: "nested set" },
-          kind: CompletionItemKind.Keyword,
-          documentation: {
-            kind: MarkupKind.Markdown,
-            value: alternatorKeywordDocumentation(keyword),
-          },
-        });
-      }
+  const optionKeywords = optionStart
+    ? ALTERNATOR_KEYWORDS.filter((keyword) => keyword.startsWith(optionStart.typed))
+    : [];
+  if (optionKeywords.length) {
+    for (const keyword of optionKeywords) {
+      completions.set(keyword, {
+        label: keyword,
+        insertText: keyword,
+        labelDetails: { description: "nested set" },
+        kind: CompletionItemKind.Keyword,
+        documentation: {
+          kind: MarkupKind.Markdown,
+          value: alternatorKeywordDocumentation(keyword),
+        },
+      });
     }
     return buildCompletions();
   }
