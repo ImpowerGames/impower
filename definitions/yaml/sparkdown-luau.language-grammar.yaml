@@ -24,7 +24,7 @@ variables:
   # A name goes on the path only right after its accessor: after whitespace
   # it begins the next statement (`Hello there`), which no path reads on to.
   LUAU_SHARED_PATH_NO_CONTINUATION: "(?!{{LUAU_IDENTIFIER}}|{{WS}}*{{LUAU_PATH_BLOCK_COMMENTS}}{{LUAU_SHARED_PATH_CONTINUATION}})"
-  LUAU_PATH_BLOCK_COMMENTS: (?:{{LUAU_COMMENT_START}}\[\[{{SPAN_DOUBLE_BRACKET_TEXT}}*\]\]{{WS}}*)*
+  LUAU_PATH_BLOCK_COMMENTS: (?:{{LUAU_EXACT_LEVEL_BLOCK_COMMENT}}*)
   # lookaround: a line that begins with a bar begins an arm, which
   # `LuauAlternatorSeparator` reads (`LuauSparkdownAlternatorArmLines`), so an
   # operator waiting for its operand ends at that line's start instead of
