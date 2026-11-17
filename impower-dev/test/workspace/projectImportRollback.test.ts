@@ -44,7 +44,7 @@ const backup = (entries: Record<string, string>, folders: string[] = []) =>
 async function harness(
   extra: Record<string, string> = {},
   saved: Record<string, string> = PROJECT,
-  options: { firstLoadFails?: boolean } = {},
+  options: { firstLoadFails?: boolean; withoutLocks?: boolean } = {},
 ) {
   vi.resetModules();
   const root = memoryRoot();
@@ -52,7 +52,9 @@ async function harness(
     writeMemoryFile(root, `local/${path}`, bytes(text));
   }
   Object.defineProperty(navigator, "storage", { configurable: true, value: { getDirectory: async () => root } });
-  Object.defineProperty(navigator, "locks", { configurable: true, value: memoryLocks() });
+  if (!options.withoutLocks) {
+    Object.defineProperty(navigator, "locks", { configurable: true, value: memoryLocks() });
+  }
   vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
   vi.stubGlobal("URL", Object.assign(class extends URL {}, {
     createObjectURL: () => "blob:project-import",
@@ -461,6 +463,107 @@ it("keeps the unsaved starter main in the editor when a backup import fails afte
   expect(error?.reason).toBe("storage");
   expect(h.text("main.sd")).toBeUndefined();
   expect(await starterText(h)).toBe(before);
+}, 15_000);
+
+it.each([
+  ["a script bundle", (h: Awaited<ReturnType<typeof harness>>) => (h.failCreatingFolder("chapters"), h.applyScripts(SCRIPTS))],
+  ["a backup import", (h: Awaited<ReturnType<typeof harness>>) => (h.failCreatingFolder("images"), h.importBackup(backup(BACKUP)))],
+])("tells the open editor nothing deleted the unsaved starter main when %s fails after writing main", async (_, apply) => {
+  const h = await harness(ASSETS, {});
+  await expectNoStarterDelete(h, apply);
+}, 15_000);
+
+it.each([
+  ["a script bundle", (h: Awaited<ReturnType<typeof harness>>) => (h.failCreatingFolder("chapters"), h.applyScripts(SCRIPTS))],
+  ["a backup import", (h: Awaited<ReturnType<typeof harness>>) => (h.failCreatingFolder("images"), h.importBackup(backup(BACKUP)))],
+])("tells the open editor and the language server nothing deleted the unsaved starter main when %s fails after writing main without shared locks", async (_, apply) => {
+  const h = await harness(ASSETS, {}, { withoutLocks: true });
+  await expectNoStarterDelete(h, apply);
+  await settled(h);
+  expect(h.served).not.toContainEqual({ uri: STARTER_URI, type: 3 });
+}, 15_000);
+
+async function expectNoStarterDelete(
+  h: Awaited<ReturnType<typeof harness>>,
+  apply: (h: Awaited<ReturnType<typeof harness>>) => Promise<{ error?: unknown }>,
+) {
+  const { onProtocolMessage } = await import("@impower/spark-editor-protocol/src/protocols/MessageProtocol");
+  const { DidDeleteFilesMessage } = await import("@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage");
+  const deleted: string[] = [];
+  const stop = onProtocolMessage(DidDeleteFilesMessage.type, (message) => {
+    deleted.push(...message.params.files.map((file) => file.uri));
+  });
+  try {
+    const { error } = await apply(h);
+    expect(error).toBeDefined();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(deleted).not.toContain(STARTER_URI);
+  } finally {
+    stop();
+  }
+}
+
+const fromWorker = async (message: unknown) => {
+  (globalThis as unknown as { postMessage: (m: unknown) => void }).postMessage(message);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+};
+
+it("withholds another worker's late copy of a rollback's delete of the unsaved starter main from the editor and the language server", async () => {
+  const h = await harness(ASSETS, {});
+  const before = await starterText(h);
+  const { onProtocolMessage } = await import("@impower/spark-editor-protocol/src/protocols/MessageProtocol");
+  const { DidDeleteFilesMessage } = await import("@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage");
+  const deleted: string[] = [];
+  const stop = onProtocolMessage(DidDeleteFilesMessage.type, (message) => {
+    deleted.push(...message.params.files.map((file) => file.uri));
+  });
+  try {
+    h.failCreatingFolder("chapters");
+    const { error } = await h.applyScripts(SCRIPTS);
+    expect(error).toBeDefined();
+    h.served.splice(0);
+    await fromWorker({
+      jsonrpc: "2.0",
+      method: "workspace/didDeleteFiles",
+      params: { files: [{ uri: STARTER_URI }], remote: true, restored: [STARTER_URI] },
+    });
+    await fromWorker({
+      jsonrpc: "2.0",
+      method: "workspace/didChangeWatchedFiles",
+      params: { changes: [{ uri: STARTER_URI, type: 3 }], remote: true, restored: [STARTER_URI] },
+    });
+    expect(deleted).not.toContain(STARTER_URI);
+    expect(h.served).not.toContainEqual({ uri: STARTER_URI, type: 3 });
+    expect(await starterText(h)).toBe(before);
+  } finally {
+    stop();
+  }
+}, 15_000);
+
+it("passes on a deletion of main that is not a rollback even while this tab still holds main as the unsaved starter", async () => {
+  const h = await harness(ASSETS, {});
+  const { onProtocolMessage } = await import("@impower/spark-editor-protocol/src/protocols/MessageProtocol");
+  const { DidDeleteFilesMessage } = await import("@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage");
+  const deleted: string[] = [];
+  const stop = onProtocolMessage(DidDeleteFilesMessage.type, (message) => {
+    deleted.push(...message.params.files.map((file) => file.uri));
+  });
+  try {
+    await fromWorker({
+      jsonrpc: "2.0",
+      method: "workspace/didDeleteFiles",
+      params: { files: [{ uri: STARTER_URI }], remote: true },
+    });
+    await fromWorker({
+      jsonrpc: "2.0",
+      method: "workspace/didChangeWatchedFiles",
+      params: { changes: [{ uri: STARTER_URI, type: 3 }], remote: true },
+    });
+    expect(deleted).toContain(STARTER_URI);
+    expect(h.served).toContainEqual({ uri: STARTER_URI, type: 3 });
+  } finally {
+    stop();
+  }
 }, 15_000);
 
 class TestLanguageServer extends SparkdownLanguageServerWorkspace {

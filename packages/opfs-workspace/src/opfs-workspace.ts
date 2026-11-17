@@ -333,6 +333,8 @@ class CommitLog {
 
   restored = new Set<string>();
 
+  restoredAbsent = new Set<string>();
+
   wrote(result: WriteResult, restored = false) {
     const uri = result.file.uri;
     this.record(uri, result.local, result.commit);
@@ -384,9 +386,28 @@ class CommitLog {
 const channel = new BroadcastChannel("opfs-workspace");
 let remoteMessages = Promise.resolve();
 const remoteRestoredTexts = new Map<string, string>();
+const remoteRestoredAbsent = new Set<string>();
 const rememberRemoteRestores = (message: unknown, accepted: Set<string>) => {
+  if (DidDeleteFilesMessage.type.isNotification(message)) {
+    for (const file of message.params.files) {
+      if (!accepted.has(file.uri)) {
+        continue;
+      }
+      if (message.params.restored?.includes(file.uri)) {
+        remoteRestoredAbsent.add(file.uri);
+      } else {
+        remoteRestoredAbsent.delete(file.uri);
+      }
+    }
+    return;
+  }
   if (!DidWriteFilesMessage.type.isNotification(message)) {
     return;
+  }
+  for (const file of message.params.files) {
+    if (accepted.has(file.uri)) {
+      remoteRestoredAbsent.delete(file.uri);
+    }
   }
   const restored = restoredTextsOf(message.params.files, message.params.restored);
   for (const file of message.params.files) {
@@ -408,7 +429,8 @@ channel.onmessage = (event) => {
       rememberRemoteRestores(
         event.data,
         new Set([
-          ...(DidWriteFilesMessage.type.isNotification(forward)
+          ...(DidWriteFilesMessage.type.isNotification(forward) ||
+          DidDeleteFilesMessage.type.isNotification(forward)
             ? forward.params.files.map((file) => file.uri)
             : []),
           ...unordered.map((entry) => entry.uri),
@@ -421,6 +443,7 @@ channel.onmessage = (event) => {
         announceSettled(await settlePaths(unordered), {
           local: false,
           restoredTexts: new Map(remoteRestoredTexts),
+          restoredAbsent: new Set(remoteRestoredAbsent),
         });
       }
     })
@@ -480,10 +503,14 @@ const broadcastDeletes = (log: CommitLog, results: DeleteResult[]) => {
     .filter((r) => log.isLatest(r.uri, r.local))
     .map((r) => ({ uri: r.uri }));
   if (files.length > 0) {
+    const restored = files
+      .map((f) => f.uri)
+      .filter((uri) => log.restoredAbsent.has(uri));
     broadcast(
       DidDeleteFilesMessage.type.notification({
         files,
         commits: log.stamp(files.map((f) => f.uri)),
+        ...(restored.length > 0 ? { restored } : {}),
       }),
     );
   }
@@ -516,10 +543,14 @@ const broadcastRenames = (log: CommitLog, outcomes: RenameOutcome[]) => {
 const broadcastWatchedChanges = (log: CommitLog, events: FileEvent[]) => {
   const changes = events.filter((e) => log.isCurrent(e.uri));
   if (changes.length > 0) {
+    const restored = changes
+      .filter((c) => c.type === FileChangeType.Deleted && log.restoredAbsent.has(c.uri))
+      .map((c) => c.uri);
     broadcast(
       DidChangeWatchedFilesMessage.type.notification({
         changes,
         commits: log.stamp(changes.map((c) => c.uri)),
+        ...(restored.length > 0 ? { restored } : {}),
       }),
     );
   }
@@ -660,7 +691,12 @@ const announceSettled = (
   {
     local,
     restoredTexts = new Map(),
-  }: { local: boolean; restoredTexts?: Map<string, string> },
+    restoredAbsent = new Set(),
+  }: {
+    local: boolean;
+    restoredTexts?: Map<string, string>;
+    restoredAbsent?: Set<string>;
+  },
 ) => {
   const settled = observed.filter((e) => isLocalLatest(e.uri, e.local));
   const commitsOf = (entries: SettledPath[]): FileCommits =>
@@ -672,6 +708,10 @@ const announceSettled = (
   const createdDirectories = settled.filter((e) => e.directory && e.exists);
   const deletedDirectories = settled.filter((e) => e.directory && !e.exists);
   const watched = settled.filter((e) => !e.directory);
+  const absentRestored = absent
+    .filter((e) => restoredAbsent.has(e.uri))
+    .map((e) => e.uri);
+  const restoredMark = absentRestored.length > 0 ? { restored: absentRestored } : {};
   const messages: NotificationMessage<string, any>[] = [];
   if (files.length > 0) {
     const restored = files
@@ -692,6 +732,7 @@ const announceSettled = (
         files: absent.map((e) => ({ uri: e.uri })),
         remote: !local,
         commits: commitsOf(absent),
+        ...restoredMark,
       }),
     );
   }
@@ -718,6 +759,7 @@ const announceSettled = (
         })),
         remote: !local,
         commits: commitsOf(watched),
+        ...restoredMark,
       }),
     );
   }
@@ -746,6 +788,7 @@ const announceUnordered = async (log: CommitLog) => {
         [...log.writes.values()].map((write) => write.file),
         [...log.restored],
       ),
+      restoredAbsent: log.restoredAbsent,
     },
   );
 };
@@ -1544,6 +1587,7 @@ class UndoLog {
     }
     this.commit(removed.local);
     log.record(removed.uri, removed.local, removed.commit);
+    log.restoredAbsent.add(removed.uri);
     effects.deleted.push(removed);
     effects.fileEvents.push({ uri: entry.uri, type: FileChangeType.Deleted });
     return true;

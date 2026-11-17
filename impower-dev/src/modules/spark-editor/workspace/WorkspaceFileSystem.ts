@@ -197,8 +197,6 @@ export default class WorkspaceFileSystem {
 
   protected _unstoredUris = new Set<string>();
 
-  protected _replacingUnstoredUris = new Map<string, number>();
-
   protected _folders = new Set<string>();
 
   protected _ls: WorkspaceLanguageServer;
@@ -535,8 +533,12 @@ export default class WorkspaceFileSystem {
       this._ls.connection.sendNotification(forwarded.method, forwarded.params);
       sendProtocolMessage(forwarded);
     } else if (DidDeleteFilesMessage.type.isNotification(message)) {
-      const { files, commits } = message.params;
-      const fresh = files.filter((f) => this.acceptCommit(f.uri, commits));
+      const { files, commits, restored } = message.params;
+      const fresh = files.filter(
+        (f) =>
+          this.acceptCommit(f.uri, commits) &&
+          !this.restoresUnstoredAbsence(f.uri, restored),
+      );
       if (files.length > 0 && fresh.length === 0) {
         return;
       }
@@ -561,7 +563,7 @@ export default class WorkspaceFileSystem {
       this._ls.connection.sendNotification(forwarded.method, forwarded.params);
       sendProtocolMessage(forwarded);
     } else if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
-      const { changes, commits } = message.params;
+      const { changes, commits, restored } = message.params;
       const fresh = changes.filter((c) => this.acceptCommit(c.uri, commits));
       if (changes.length > 0 && fresh.length === 0) {
         return;
@@ -570,8 +572,7 @@ export default class WorkspaceFileSystem {
       const served = fresh.filter(
         (c) =>
           c.type !== FileChangeType.Deleted ||
-          !this._replacingUnstoredUris.has(c.uri) ||
-          !this._unstoredUris.has(c.uri),
+          !this.restoresUnstoredAbsence(c.uri, restored),
       );
       if (served.length === fresh.length) {
         this._ls.connection.sendNotification(forwarded.method, forwarded.params);
@@ -717,6 +718,10 @@ export default class WorkspaceFileSystem {
     return !this._unstoredUris.has(uri);
   }
 
+  protected restoresUnstoredAbsence(uri: string, restored?: string[]) {
+    return this._unstoredUris.has(uri) && (restored?.includes(uri) ?? false);
+  }
+
   protected storedFiles(files: Record<string, FileData>) {
     return Object.entries(files).filter(([uri]) => this.isStored(uri));
   }
@@ -760,12 +765,6 @@ export default class WorkspaceFileSystem {
       const file = this._files?.[uri];
       return file ? [file] : [];
     });
-    unstored.forEach((file) =>
-      this._replacingUnstoredUris.set(
-        file.uri,
-        (this._replacingUnstoredUris.get(file.uri) ?? 0) + 1,
-      ),
-    );
     const result = await this.applyWorkspaceEdit(
       {
         documentChanges: [
@@ -794,16 +793,7 @@ export default class WorkspaceFileSystem {
         ],
       },
       label,
-    ).finally(() => {
-      unstored.forEach((file) => {
-        const count = (this._replacingUnstoredUris.get(file.uri) ?? 1) - 1;
-        if (count > 0) {
-          this._replacingUnstoredUris.set(file.uri, count);
-        } else {
-          this._replacingUnstoredUris.delete(file.uri);
-        }
-      });
-    });
+    );
     const lost = result.applied
       ? []
       : unstored.filter((file) => this._files && !this._files[file.uri]);

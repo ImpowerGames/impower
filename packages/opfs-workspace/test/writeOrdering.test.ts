@@ -2963,6 +2963,90 @@ describe("the announcement of a rollback's restoring write (I-2100)", () => {
   });
 });
 
+describe("the announcement of a rollback's removal of a file the edit created (I-2486)", () => {
+  const createThenFail = {
+    edit: {
+      documentChanges: [
+        { kind: "create", uri: uriOf("new.sd"), data: enc.encode("N").buffer, options: { overwrite: true } },
+        insert("missing.sd", 0, "x"),
+      ],
+    },
+  };
+  const deletes = (h: Awaited<ReturnType<typeof worker>>, from: number, uri: string) =>
+    h
+      .notifications("workspace/didDeleteFiles", from)
+      .filter((m) => m.params.files.some((f: any) => f.uri === uri))
+      .map((m) => m.params.restored);
+  const watchedDeletes = (h: Awaited<ReturnType<typeof worker>>, from: number, uri: string) =>
+    h
+      .notifications("workspace/didChangeWatchedFiles", from)
+      .filter((m) => m.params.changes.some((c: any) => c.uri === uri && c.type === 3))
+      .map((m) => m.params.restored);
+  const breakSequence = (root: MemoryDirectory) => {
+    const sequence = new MemoryFile(".opfs-workspace-sequence");
+    sequence.createSyncAccessHandle = async () => {
+      throw new DOMException("sequence storage unavailable", "QuotaExceededError");
+    };
+    root.entries.set(sequence.name, sequence);
+  };
+
+  it("names the removed file as restored, and the copy for other tabs keeps the name", async () => {
+    const root = seed({ "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    const posted = h.channelPosts.length;
+    const result = await h.request("edit", "workspace/applyWorkspaceEdit", createThenFail);
+    expect(result.result.applied).toBe(false);
+    expect(textAt(root, "new.sd")).toBeUndefined();
+    expect(deletes(h, from, uriOf("new.sd"))).toEqual([[uriOf("new.sd")]]);
+    expect(watchedDeletes(h, from, uriOf("new.sd"))).toEqual([[uriOf("new.sd")]]);
+    const copies = h.channelPosts
+      .slice(posted)
+      .filter((m) => m.method === "workspace/didDeleteFiles");
+    expect(copies.map((m) => m.params.restored)).toEqual([[uriOf("new.sd")]]);
+  });
+
+  it("names the removed file as restored when the shared sequence cannot be written", async () => {
+    const root = seed({ "a.sd": "A" });
+    breakSequence(root);
+    const h = await worker(root);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await h.enumerate();
+    const from = h.messages.length;
+    const result = await h.request("edit", "workspace/applyWorkspaceEdit", createThenFail);
+    expect(result.result.applied).toBe(false);
+    const named = deletes(h, from, uriOf("new.sd"));
+    expect(named.length).toBeGreaterThan(0);
+    expect(named.every((r) => r?.includes(uriOf("new.sd")))).toBe(true);
+    const watched = watchedDeletes(h, from, uriOf("new.sd"));
+    expect(watched.length).toBeGreaterThan(0);
+    expect(watched.every((r) => r?.includes(uriOf("new.sd")))).toBe(true);
+  });
+
+  it("keeps another tab's restored naming on an unsequenced removal it settles, until an unnamed one", async () => {
+    const root = seed({ "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    let from = h.messages.length;
+    await h.remote("workspace/didDeleteFiles", {
+      files: [{ uri: uriOf("new.sd") }],
+      restored: [uriOf("new.sd")],
+    });
+    await h.remote("workspace/didChangeWatchedFiles", {
+      changes: [{ uri: uriOf("new.sd"), type: 3 }],
+      restored: [uriOf("new.sd")],
+    });
+    expect(deletes(h, from, uriOf("new.sd"))).toContainEqual([uriOf("new.sd")]);
+    expect(deletes(h, from, uriOf("new.sd")).every((r) => r?.includes(uriOf("new.sd")))).toBe(true);
+    expect(watchedDeletes(h, from, uriOf("new.sd")).every((r) => r?.includes(uriOf("new.sd")))).toBe(true);
+    from = h.messages.length;
+    await h.remote("workspace/didDeleteFiles", { files: [{ uri: uriOf("new.sd") }] });
+    expect(deletes(h, from, uriOf("new.sd")).length).toBeGreaterThan(0);
+    expect(deletes(h, from, uriOf("new.sd")).every((r) => r === undefined)).toBe(true);
+  });
+});
+
 describe("the schedule matrix of a refused edit and the author's typing (I-2100)", () => {
   type Ownership = "held" | "opened" | "two editors";
   type Sequence = "stamped" | "unsequenced";
