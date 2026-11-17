@@ -53,6 +53,10 @@ variables:
   LUAU_AFTER_SEQUENTIAL_HEAD: "(?<=[a-zA-Z0-9_])"
   # lookaround: LuauAccessPath owns dotted keyword members; LuauSequentialAlternatorBlock accepts only standalone keywords.
   LUAU_SHARED_ALTERNATOR_NON_MEMBER: "(?!{{WS}}*[.])"
+  # lookaround: `LuauNumericDecimal` reads a `.` that begins a number (`plural .5`).
+  LUAU_STORY_MEMBER_DOT: "(?:[.](?![0-9]))"
+  # lookaround: `LuauAccessPath` reads a story `match` or `plural` followed by a member's `.`.
+  LUAU_STORY_CONDITIONAL_ALTERNATOR_NON_MEMBER: "(?!{{WS}}*{{LUAU_STORY_MEMBER_DOT}})"
   # lookaround: LuauIfBlock and LuauLineContinuation own following clauses and expression continuations respectively.
   LUAU_SHARED_THEN_NEXT_LINE_GUARD: "(?!{{WS}}*{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}})"
   LUAU_SHARED_THEN_ARM_END: "(?:else{{LUAU_NAME_END}}|elseif{{LUAU_NAME_END}}|[)}\\],;])"
@@ -535,12 +539,6 @@ variables:
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
   LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_NAME_BEHIND}})
   LUAU_ATTRIBUTE_LIST_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
-  LUAU_ONE_LINE_ALTERNATOR_BARE_VALUE: (?:{{LUAU_ONE_LINE_ALTERNATOR_NAME}}|{{LUAU_ONE_LINE_ALTERNATOR_NUMBER}})
-  LUAU_ONE_LINE_ALTERNATOR_NAME: (?:{{LUAU_IDENTIFIER}}(?:[.]{{LUAU_IDENTIFIER}})*)
-  LUAU_ONE_LINE_ALTERNATOR_NUMBER: (?:-?(?:{{LUAU_ONE_LINE_ALTERNATOR_PREFIXED_NUMBER}}|{{LUAU_ONE_LINE_ALTERNATOR_DECIMAL}}{{LUAU_ONE_LINE_ALTERNATOR_EXPONENT}}?))
-  LUAU_ONE_LINE_ALTERNATOR_PREFIXED_NUMBER: (?:0[xXbB][\da-fA-F_]+)
-  LUAU_ONE_LINE_ALTERNATOR_DECIMAL: (?:\d[\d_]*(?:[.][\d_]*)?|[.]\d[\d_]*)
-  LUAU_ONE_LINE_ALTERNATOR_EXPONENT: (?:[eE][+-]?\d[\d_]*)
   LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"{{LUAU_DOUBLE_QUOTED_STRING_TEXT}}")
   LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'{{LUAU_SINGLE_QUOTED_STRING_TEXT}}')
   LUAU_BACKTICK_STRING_ON_LINE: (?:`{{LUAU_BACKTICK_STRING_TEXT}}`)
@@ -5585,9 +5583,8 @@ repository:
 
   LuauSparkdownAlternatorBlocks:
     patterns:
-      - { include: "#LuauSparkdownSingleLineConditionalAlternatorBlock" }
-      - { include: "#LuauSparkdownSingleLineSequentialAlternatorBlock" }
       - { include: "#LuauSparkdownConditionalAlternatorBlock" }
+      - { include: "#LuauSparkdownSingleLineSequentialAlternatorBlock" }
       - { include: "#LuauSparkdownSequentialAlternatorBlock" }
 
   LuauAlternatorBlocks:
@@ -5682,8 +5679,13 @@ repository:
     name: keyword.operator.equal.luau
     match: ([=])
 
+  # lookaround: `LuauSparkdownConditionalAlternatorHead` reads the value and takes the
+  # line break after it when no bar follows on its line, so the line end
+  # this ends at is never the keyword's own (`\G`) or the head's (after the
+  # break it took, or at the next line's start), only that of
+  # `LuauSparkdownSingleLineAlternatorArms`.
   LuauSparkdownConditionalAlternatorBlock:
-    begin: "({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}"
+    begin: "({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_STORY_CONDITIONAL_ALTERNATOR_NON_MEMBER}}"
     beginCaptures:
       1:
         patterns:
@@ -5695,14 +5697,11 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
-      4:
-        patterns:
-          - { include: "#Newline" }
     patterns:
-      - { include: "#LuauConditionalAlternatorCondition" }
-      - { include: "#LuauAlternatorSeparator" }
-      - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
+      - { include: "#LuauSparkdownConditionalAlternatorHead" }
+      - { include: "#LuauSparkdownAlternatorArmLines" }
+      - { include: "#LuauSparkdownSingleLineAlternatorArms" }
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})|(?!\G)(?!^)(?={{NL}})
     endCaptures:
       1:
         emit: true
@@ -5835,15 +5834,61 @@ repository:
         patterns:
           - { include: "#LuauComment" }
 
-  # lookaround: at a story `match` or `plural` this rule and
-  # LuauSparkdownConditionalAlternatorBlock open before either has read the
-  # value, and only a bar after the value on the keyword's line tells them
-  # apart. The begin looks for that bar only after a bracketed value or a
-  # value with no inner structure (LUAU_ONE_LINE_ALTERNATOR_BARE_VALUE), whose
-  # end needs no string, comment or bracket reading; any other value is left
-  # to LuauSparkdownConditionalAlternatorBlock.
+  # lookaround: opens only at the keyword's end (`\G`), and not before the
+  # bar of a set with no value, where it would end where it opened; the
+  # condition reads the value, and the end takes the line break after it,
+  # which leaves the rest of the set to `LuauSparkdownAlternatorArmLines`, or
+  # stops before the bar after it, which `LuauSparkdownSingleLineAlternatorArms`
+  # reads.
+  LuauSparkdownConditionalAlternatorHead:
+    begin: \G(?!^)(?!{{WS}}*[|])
+    patterns:
+      - { include: "#LuauConditionalAlternatorCondition" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{WS}}*[|])|({{NL}})|(?={{WS}}*end{{LUAU_NAME_END}})|(?={{WS}}*{{LUAU_UNTIL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#Newline" }
+
+
+  # lookaround: opens at the start of the line after a head that took its
+  # line break, and ends before what ends the set around it.
+  LuauSparkdownAlternatorArmLines:
+    begin: ^
+    patterns:
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauSparkdownBlockBody" }
+    end: (?={{BEAT}})|(?={{WS}}*end{{LUAU_NAME_END}})|(?={{WS}}*{{LUAU_UNTIL}})
+
+  # lookaround: opens at the bar after a value on the keyword's line, never
+  # at a line's start, where `LuauSparkdownAlternatorArmLines` opens; before
+  # an `end` it takes the space and leaves the `end` to the set around it.
+  LuauSparkdownSingleLineAlternatorArms:
+    begin: (?!^)(?={{WS}}*[|])
+    patterns:
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauSparkdownSingleLineConditionalAlternatorBlock" }
+      - { include: "#LuauSparkdownSingleLineSequentialAlternatorBlock" }
+      - { include: "#LuauSparkdownAlternatorArm" }
+      - { include: "#ExtraWhitespace" }
+    end: $|(?={{BEAT}})|({{WS}}*)(?=end{{LUAU_NAME_END}})
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  # lookaround: in an arm of a one-line set, opens where its condition does
+  # (`LUAU_EXPRESSION_START`). Its arms leave it at their `end` with no space
+  # before it, which it takes; holding no arms, it ends after the value
+  # unless a bar or a comment follows it, so it leaves a spaced `end` to the
+  # set around it, and never at the keyword's end (`\G`), where the condition
+  # opens.
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=(?:[(][^()\r\n]*[)]|{{LUAU_ONE_LINE_ALTERNATOR_BARE_VALUE}}){{WS}}*[|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_STORY_CONDITIONAL_ALTERNATOR_NON_MEMBER}}{{LUAU_EXPRESSION_START}}
     beginCaptures:
       1:
         patterns:
@@ -5857,21 +5902,15 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauConditionalAlternatorCondition" }
-      - { include: "#LuauAlternatorSeparator" }
-      - { include: "#LuauSparkdownSingleLineConditionalAlternatorBlock" }
-      - { include: "#LuauSparkdownSingleLineSequentialAlternatorBlock" }
-      - { include: "#LuauSparkdownAlternatorArm" }
+      - { include: "#LuauSparkdownSingleLineAlternatorArms" }
       - { include: "#ExtraWhitespace" }
-    end: $|(?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?
+      - { include: "#LuauComment" }
+    end: (?={{BEAT}})|(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?|(?!\G)(?!{{WS}}*(?:[|]|--))
     endCaptures:
       1:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
         patterns:
           - { include: "#LuauEndKeyword" }
-      3:
+      2:
         patterns:
           - { include: "#LuauComment" }
 

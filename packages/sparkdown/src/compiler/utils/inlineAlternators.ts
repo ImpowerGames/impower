@@ -1,5 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
-import { opensAlternator } from "./alternatorDecision";
+import { isOneLineStorySet, opensAlternator } from "./alternatorDecision";
 import type { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { nodeNameSet } from "./nodeNameSet";
 
@@ -25,7 +25,7 @@ export function isInsideOneLineAlternator(
   names: Set<string>,
 ): boolean {
   for (let ancestor: SyntaxNode | null = node; ancestor; ancestor = ancestor.parent) {
-    if (!names.has(ancestor.name) || !opensAlternator(ancestor)) continue;
+    if (!(names.has(ancestor.name) || isOneLineStorySet(ancestor)) || !opensAlternator(ancestor)) continue;
     const span = read(ancestor.from, ancestor.to);
     if (span.includes("\n")) continue;
     return true;

@@ -1,3 +1,4 @@
+import type { SyntaxNode } from "@lezer/common";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
@@ -18,7 +19,8 @@ import type { LowerContext } from "../context";
 import type { ValuedArms } from "../utils/alternatorValue";
 import { containerValueNodes, lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { findChildByName, lowerArms, reportAlternatorHead, tokenAfter, valuedConditionNodes } from "../utils/alternatorArms";
-import { alternatorHeadNodes } from "../../utils/alternatorDecision";
+import { alternatorHeadNodes, isOneLineStorySet, STORY_CONDITIONAL_HEAD, storyArmsContent } from "../../utils/alternatorDecision";
+import { oneLineValueNeedsBrackets } from "../utils/oneLineBareValue";
 import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -37,6 +39,11 @@ const NOT_A_LINE = nodeNameSet([
   "LuauLineComment",
   "LuauDocLineComment",
   "LuauBlockComment",
+]);
+
+const STORY_SETS = nodeNameSet([
+  "LuauSparkdownConditionalAlternatorBlock",
+  "LuauSparkdownSingleLineConditionalAlternatorBlock",
 ]);
 
 export function lowerSparkdownConditionalAlternatorBlock(
@@ -68,17 +75,24 @@ export function lowerSparkdownConditionalAlternatorBlock(
     condExpr = new FunctionCall(new Identifier("plural.category"), [condExpr]);
   }
 
-  const content = findChildByName(nodeRef.node, `${prefix}_content`);
+  const content = STORY_SETS.has(prefix)
+    ? storyArmsContent(nodeRef.node)
+    : findChildByName(nodeRef.node, `${prefix}_content`);
   let arms = lowerArms(content, ctx, valued);
 
   const diagnostics: InkDiagnostic[] = [];
   const name = keyword || "match";
   if (prefix === "LuauSparkdownConditionalAlternatorBlock") {
-    for (
-      let child = content?.firstChild ?? null;
-      child && child.name !== "LuauAlternatorSeparator";
-      child = child.nextSibling
-    ) {
+    const head = getDescendent(STORY_CONDITIONAL_HEAD, nodeRef.node);
+    const headContent = head ? findChildByName(head, `${STORY_CONDITIONAL_HEAD}_content`) : null;
+    const strays: SyntaxNode[] = [];
+    for (let child = headContent?.firstChild ?? null; child; child = child.nextSibling) {
+      strays.push(child);
+    }
+    for (let child = content?.firstChild ?? null; child && child.name !== "LuauAlternatorSeparator"; child = child.nextSibling) {
+      strays.push(child);
+    }
+    for (const child of strays) {
       if (NOT_A_LINE.has(child.name)) {
         continue;
       }
@@ -95,6 +109,13 @@ export function lowerSparkdownConditionalAlternatorBlock(
       message: `A \`${name}\` needs at least one arm, written \`| value = ...\``,
       severity: ErrorType.Error,
       source: statementSource(at, ctx),
+    });
+  }
+  if (!valued && condNode && isOneLineStorySet(nodeRef.node) && oneLineValueNeedsBrackets(condNodes, ctx.read)) {
+    diagnostics.push({
+      message: `On one line, put the value of \`${name}\` in brackets, as in \`${name}(value) | ...\`: without them it may only be a name, a dotted name or a number`,
+      severity: ErrorType.Error,
+      source: statementSource(condNode, ctx),
     });
   }
 
