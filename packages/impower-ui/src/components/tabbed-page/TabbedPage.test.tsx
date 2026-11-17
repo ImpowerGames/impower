@@ -68,6 +68,28 @@ describe("TabbedPage", () => {
     expect(host!.querySelector('[data-body="one"]')).not.toBeNull();
   });
 
+  it("draws no header, title or back action with the header absent, and keeps the section's name", async () => {
+    await mount(<TabbedPage header="absent" title="Things" tabs={TABS} value="one" onValueChange={() => {}} />);
+    const section = host!.querySelector("section")!;
+    expect(section.getAttribute("aria-label")).toBe("Things");
+    expect(section.querySelector("header")).toBeNull();
+    expect(section.querySelector("h1")).toBeNull();
+    expect(Array.from(section.querySelectorAll("button")).some((b) => b.textContent === "Back to story")).toBe(false);
+    expect(section.firstElementChild!.querySelector('[role="tablist"]')).not.toBeNull();
+  });
+
+  it("refuses a back handler or icon that an absent header would never draw", () => {
+    const refused = [
+      // @ts-expect-error
+      <TabbedPage header="absent" title="Things" tabs={TABS} value="one" onValueChange={() => {}} onBack={() => {}} />,
+      // @ts-expect-error
+      <TabbedPage header="absent" title="Things" tabs={TABS} value="one" onValueChange={() => {}} icon={<svg />} />,
+      // @ts-expect-error
+      <TabbedPage title="Things" tabs={TABS} value="one" onValueChange={() => {}} />,
+    ];
+    expect(refused).toHaveLength(3);
+  });
+
   it("draws the header as a workspace band, 56px tall below desktop, with the title in ink", async () => {
     await mount(
       <TabbedPage title="Things" tabs={TABS} value="one" onValueChange={() => {}} onBack={() => {}} />,
