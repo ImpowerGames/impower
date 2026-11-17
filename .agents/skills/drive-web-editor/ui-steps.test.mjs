@@ -1083,15 +1083,17 @@ await asyncCheck("--step drawer opens the drawer below the desktop width and fai
   assert.match((await openDrawerOrRail(none)).reason, /neither the desktop rail, the drawer's Open Menu button nor the phone's app menu/);
 });
 
-const appMenuPage = ({ buttons = 1, opens = true, sheet = true, clicks = [], selectors = [] } = {}) => ({
+const appMenuPage = ({ buttons = 1, opens = true, sheet = true, touch = false, clicks = [], taps = [], selectors = [] } = {}) => ({
   waitForFunction: async () => true,
-  evaluate: async () => sheet,
+  evaluate: async (fn) => (String(fn).includes("maxTouchPoints") ? touch : sheet),
   locator: (selector) => {
     selectors.push(selector);
     return {
       first: () => ({
         count: async () => buttons,
+        isVisible: async () => true,
         click: async () => clicks.push(selector),
+        tap: async () => taps.push(selector),
         waitFor: async () => {
           if (!opens) throw new Error("timeout");
         },
@@ -1110,6 +1112,22 @@ await asyncCheck("--step app-menu presses the title bar's App menu or the rail's
   assert.deepEqual(await openAppMenu(appMenuPage({ sheet: false })), { step: "app-menu", ran: true, opened: "popover" });
   assert.match((await openAppMenu(appMenuPage({ opens: false }), { timeout: 1000 })).reason, /the app menu did not open within 1 s/);
   assert.match((await openAppMenu(appMenuPage({ buttons: 0 }))).reason, /no app menu button on the page/);
+});
+
+await asyncCheck("the app-menu, preview-settings and file-menu steps press with a tap when the page has touch and with a click otherwise", async () => {
+  for (const touch of [true, false]) {
+    const clicks = [];
+    const taps = [];
+    assert.equal((await openAppMenu(appMenuPage({ touch, clicks, taps }))).ran, true);
+    assert.equal((await openPreviewSettings(appMenuPage({ touch, clicks, taps }), { timeout: 1000 })).ran, true);
+    const scripts = scriptsPageStub({ touch });
+    assert.equal((await openFileMenu(scripts)).ran, true);
+    const pressed = touch ? taps : clicks;
+    assert.equal(pressed.length, 2, `${touch ? "taps" : "clicks"}: ${JSON.stringify({ clicks, taps })}`);
+    assert.equal((touch ? clicks : taps).length, 0);
+    assert.deepEqual(touch ? scripts.state.tapped : scripts.state.clicked, ["Definitions"]);
+    assert.deepEqual(touch ? scripts.state.clicked : scripts.state.tapped, []);
+  }
 });
 
 await asyncCheck("the app-menu, settings, add-menu and preview-settings steps settle while a scroll-driven or endless animation keeps running, and the app menu waits on a finite one", async () => {
@@ -1167,7 +1185,7 @@ await asyncCheck("the app-menu, settings, add-menu and preview-settings steps se
 await asyncCheck("--step drawer opens the app menu on a phone, which has neither a rail nor a drawer", async () => {
   const page = {
     waitForFunction: async () => true,
-    evaluate: async (_fn, selector) => (selector === 'aside[aria-label="Sidebar"]' ? null : true),
+    evaluate: async (fn, selector) => (String(fn).includes("maxTouchPoints") ? false : selector === 'aside[aria-label="Sidebar"]' ? null : true),
     locator: (selector) => ({
       first: () => ({
         count: async () => (selector.includes("Open Menu") ? 0 : 1),
@@ -1196,8 +1214,8 @@ check("the editor view comes from the open document's URI: the project's own mai
   assert.equal(editorViewOf(null), null);
 });
 
-function scriptsPageStub({ hash = "#write", rows = ["Main", "Definitions", "chapter_1.sd"], showsPage = true, menuOpens = true } = {}) {
-  const state = { hash, clicked: [], menuOpen: false };
+function scriptsPageStub({ hash = "#write", rows = ["Main", "Definitions", "chapter_1.sd"], showsPage = true, menuOpens = true, touch = false } = {}) {
+  const state = { hash, clicked: [], tapped: [], menuOpen: false };
   const timeout = async () => { throw new Error("timeout"); };
   const page = {
     state,
@@ -1205,6 +1223,7 @@ function scriptsPageStub({ hash = "#write", rows = ["Main", "Definitions", "chap
       const src = String(fn);
       if (src.includes('location.hash = "#scripts"')) { if (showsPage) state.hash = "#scripts"; return; }
       if (src.includes(".test(location.hash)")) return state.hash === "#scripts";
+      if (src.includes("maxTouchPoints")) return touch;
       throw new Error(`stub page asked something it has no answer for: ${src.slice(0, 80)}`);
     },
     locator: (selector) => {
@@ -1213,7 +1232,10 @@ function scriptsPageStub({ hash = "#write", rows = ["Main", "Definitions", "chap
         return {
           first: () => ({ waitFor: rows.length ? async () => {} : timeout }),
           evaluateAll: async (fn) => fn(rows.map((name) => ({ getAttribute: () => `Options for ${name}` }))),
-          nth: (i) => ({ click: async () => { state.clicked.push(rows[i]); state.menuOpen = menuOpens; } }),
+          nth: (i) => ({
+            click: async () => { state.clicked.push(rows[i]); state.menuOpen = menuOpens; },
+            tap: async () => { state.tapped.push(rows[i]); state.menuOpen = menuOpens; },
+          }),
         };
       }
       if (selector === '[role="menu"]') return { first: () => ({ waitFor: state.menuOpen ? async () => {} : timeout, evaluate: async () => { state.settledMenu = true; } }) };
@@ -1420,7 +1442,7 @@ await asyncCheck("--step preview-settings presses the gear and reports the quick
   const opened = {
     locator: (selector) => ({ first: () => ({ isVisible: async () => true, click: async () => clicks.push(selector) }) }),
     waitForFunction: async () => true,
-    evaluate: async () => toggles,
+    evaluate: async (fn) => (String(fn).includes("maxTouchPoints") ? false : toggles),
   };
   assert.deepEqual(await openPreviewSettings(opened), { step: "preview-settings", ran: true, toggles });
   assert.deepEqual(clicks, ['button[aria-label="Preview settings"]']);

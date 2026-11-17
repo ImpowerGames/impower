@@ -2028,6 +2028,11 @@ async function openMainScript(page, { timeout = 10_000 } = {}) {
   return { opened: true };
 }
 
+async function press(page, locator) {
+  if (await page.evaluate(() => navigator.maxTouchPoints > 0)) await locator.tap();
+  else await locator.click();
+}
+
 export async function openFileMenu(page, { timeout = 10_000 } = {}) {
   if (!(await showScriptsPage(page, { timeout }))) {
     return { step: "file-menu", ran: false, reason: `the Scripts page did not appear within ${timeout / 1000} s of going to #scripts` };
@@ -2041,7 +2046,7 @@ export async function openFileMenu(page, { timeout = 10_000 } = {}) {
   const names = await buttons.evaluateAll((els) => els.map((el) => el.getAttribute("aria-label").replace(/^Options for /, "")));
   const index = Math.max(0, names.findIndex((name) => name !== "Main"));
   const row = names[index];
-  await buttons.nth(index).click();
+  await press(page, buttons.nth(index));
   const menu = page.locator('[role="menu"]').first();
   try {
     await menu.waitFor({ state: "visible", timeout });
@@ -2213,7 +2218,7 @@ function documentSettled() {
 export async function openAppMenu(page, { timeout = 5000 } = {}) {
   const button = page.locator(APP_MENU_BUTTON_SELECTOR).first();
   if (!(await button.count())) return { step: "app-menu", ran: false, reason: "no app menu button on the page: neither the title bar's App menu nor the rail's footer" };
-  await button.click();
+  await press(page, button);
   try {
     await page.locator(APP_MENU_SELECTOR).first().waitFor({ state: "visible", timeout });
     await page.waitForFunction(appMenuSettled, APP_MENU_SELECTOR, { timeout });
@@ -2307,13 +2312,15 @@ export async function openAddMenu(page, { timeout = 5000 } = {}) {
 }
 
 const PREVIEW_SETTINGS_SELECTOR = 'button[aria-label="Preview settings"]';
+const PREVIEW_SETTINGS_MENU_SELECTOR = '[role="menu"]:has([role="menuitemcheckbox"])';
 
 export async function openPreviewSettings(page, { timeout = 5000 } = {}) {
   const button = page.locator(PREVIEW_SETTINGS_SELECTOR).first();
   if (!(await button.isVisible().catch(() => false))) return { step: "preview-settings", ran: false, reason: "the preview's settings button is not on screen; the preview pane may be hidden" };
-  await button.click();
+  await press(page, button);
   try {
     await page.waitForFunction(() => [...document.querySelectorAll('[role="menu"]')].some((menu) => menu.querySelector('[role="menuitemcheckbox"]') && menu.getBoundingClientRect().height > 0), null, { timeout });
+    await page.waitForFunction(appMenuSettled, PREVIEW_SETTINGS_MENU_SELECTOR, { timeout });
   } catch {
     return { step: "preview-settings", ran: false, reason: `the preview's settings menu did not open within ${timeout / 1000} s of pressing Preview settings` };
   }
