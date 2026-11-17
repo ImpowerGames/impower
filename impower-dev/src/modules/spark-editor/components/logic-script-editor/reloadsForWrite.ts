@@ -14,8 +14,11 @@ export interface OpenScript {
 const holdsTyping = (script: OpenScript) =>
   script.text != null && script.text !== script.stored;
 
+const restoresStored = (write: AnnouncedWrite, script: OpenScript) =>
+  write.restored && write.text != null && write.text === script.stored;
+
 export const reloadsForWrite = (write: AnnouncedWrite, script: OpenScript) => {
-  if (write.restored && write.text != null && write.text === script.stored) {
+  if (restoresStored(write, script)) {
     return false;
   }
   if (write.remote && holdsTyping(script)) {
@@ -26,8 +29,12 @@ export const reloadsForWrite = (write: AnnouncedWrite, script: OpenScript) => {
   return write.remote || (diverged && write.origin !== script.origin);
 };
 
+export const rewritesTypingAfter = (
+  write: AnnouncedWrite,
+  script: OpenScript,
+) => write.remote && holdsTyping(script) && !restoresStored(write, script);
+
 export const keepsTypingOver = (write: AnnouncedWrite, script: OpenScript) =>
-  write.remote &&
-  holdsTyping(script) &&
+  rewritesTypingAfter(write, script) &&
   write.text !== script.stored &&
   write.text !== script.text;

@@ -715,6 +715,45 @@ describe("the open script's typing over another tab's write (I-2159)", { timeout
     },
   );
 
+  it("stays protected when its older save finishes after the other tab's write and the other tab writes again", async () => {
+    await loaded();
+    mocks.holdWrites = true;
+    await type("local typing\n");
+    await vi.waitFor(() => expect(mocks.held.length).toBe(1), { timeout: 5_000, interval: 20 });
+    const reads = mocks.reads.length;
+    await act(async () => {
+      sendProtocolMessage(notification("theirs\n"));
+      mocks.held.shift()!();
+      for (let i = 0; i < 5; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      sendProtocolMessage(notification("theirs again\n"));
+    });
+    await settle();
+    expect(mocks.reads.length).toBe(reads);
+    await vi.waitFor(() => expect(mocks.held.length).toBe(1), { timeout: 5_000, interval: 20 });
+    await releaseHeld();
+    expect(mocks.writes.at(-1)!.textDocument.text).toBe("local typing\n");
+    expect(mocks.reads.length).toBe(reads);
+  });
+
+  it("saves its typing again when another tab writes back the text it last knew in storage while its save is in flight", async () => {
+    await loaded();
+    mocks.holdWrites = true;
+    await type("hello typed\n");
+    await vi.waitFor(() => expect(mocks.held.length).toBe(1), { timeout: 5_000, interval: 20 });
+    const count = mocks.writes.length;
+    await announce(notification("hello\n"));
+    await releaseHeld();
+    await vi.waitFor(() => expect(mocks.writes.length).toBe(count + 1), {
+      timeout: 5_000,
+      interval: 20,
+    });
+    expect(mocks.writes.at(-1)!.textDocument.text).toBe("hello typed\n");
+    expect(mocks.reads.length).toBe(0);
+    expect(snackbar.value).toBeNull();
+  });
+
   it("replaces its typing with the other tab's text when the author asks", async () => {
     await loaded();
     await type("hello typed\n");

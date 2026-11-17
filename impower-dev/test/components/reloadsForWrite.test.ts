@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keepsTypingOver, reloadsForWrite } from "../../src/modules/spark-editor/components/logic-script-editor/reloadsForWrite";
+import { keepsTypingOver, reloadsForWrite, rewritesTypingAfter } from "../../src/modules/spark-editor/components/logic-script-editor/reloadsForWrite";
 
 const OWN = "editor-origin";
 
@@ -88,6 +88,33 @@ describe("whether the open script keeps its typing over an announced write and s
     const { stored, ...announced } = write as typeof write & { stored?: string };
     expect(
       keepsTypingOver(announced, { ...editor, ...(stored ? { stored } : {}) }),
+    ).toBe(expected);
+  });
+});
+
+describe("whether the open script saves its typing again after an announced write it did not reload for (I-2159)", () => {
+  it.each([
+    ["another tab's write of different text", { text: "theirs", remote: true, restored: false }, true],
+    [
+      "another tab's write of the text it last knew in storage",
+      { text: "loaded", remote: true, restored: false },
+      true,
+    ],
+    [
+      "another tab's restore of the text it last knew in storage",
+      { text: "loaded", remote: true, restored: true },
+      false,
+    ],
+    [
+      "another tab's write while it holds no unsaved typing",
+      { text: "theirs", remote: true, restored: false, stored: "loaded typed" },
+      false,
+    ],
+    ["this tab's write by another writer", { text: "loaded", remote: false, restored: false }, false],
+  ])("%s → saves again %s", (_, write, expected) => {
+    const { stored, ...announced } = write as typeof write & { stored?: string };
+    expect(
+      rewritesTypingAfter(announced, { ...editor, ...(stored ? { stored } : {}) }),
     ).toBe(expected);
   });
 });

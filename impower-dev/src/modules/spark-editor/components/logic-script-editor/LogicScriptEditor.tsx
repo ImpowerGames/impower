@@ -12,7 +12,11 @@ import workspace from "../../workspace/WorkspaceStore";
 import { toggleAddPanel } from "../add-panel";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
-import { keepsTypingOver, reloadsForWrite } from "./reloadsForWrite";
+import {
+  keepsTypingOver,
+  reloadsForWrite,
+  rewritesTypingAfter,
+} from "./reloadsForWrite";
 
 type WorkspaceWindow =
   (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
@@ -178,6 +182,9 @@ export default function LogicScriptEditor({
       const loadFile = () => (pendingLoad = sendLoadEditor());
       loadFileRef.current = loadFile;
 
+      let saves = 0;
+      let keptAfterSave = 0;
+
       const debouncedSave = debounce(async () => {
         if (uriRef.current && versionRef.current && textRef.current != null) {
           const { Workspace } = await import("../../workspace/Workspace");
@@ -185,6 +192,7 @@ export default function LogicScriptEditor({
           const uri = uriRef.current;
           const text = textRef.current;
           if (!uri || text == null) return;
+          const save = ++saves;
           await Workspace.fs.writeTextDocument({
             textDocument: {
               uri,
@@ -193,7 +201,9 @@ export default function LogicScriptEditor({
             },
             origin,
           });
-          storedTexts.set(uri, text);
+          if (save > keptAfterSave) {
+            storedTexts.set(uri, text);
+          }
           await Workspace.window.recordScriptChange();
         }
       }, AUTOSAVE_DELAY);
@@ -210,17 +220,23 @@ export default function LogicScriptEditor({
         if (disposed || uriRef.current !== uri || otherWrites !== seen) {
           return;
         }
-        textRef.current = text;
+        const held = textRef.current;
+        const save = ++saves;
         await Workspace.fs.writeTextDocument({
           textDocument: { uri, version: versionRef.current ?? 0, text },
           origin,
         });
-        if (textRef.current !== text) {
+        const overtaken = () =>
+          disposed ||
+          uriRef.current !== uri ||
+          textRef.current !== held ||
+          save <= keptAfterSave;
+        if (overtaken()) {
           return;
         }
         storedTexts.set(uri, text);
         await Workspace.window.recordScriptChange();
-        if (disposed || uriRef.current !== uri || textRef.current !== text) {
+        if (overtaken()) {
           return;
         }
         loadFile();
@@ -271,9 +287,12 @@ export default function LogicScriptEditor({
           }
           if (reloadsForWrite(write, script)) {
             loadFile();
-          } else if (keepsTypingOver(write, script)) {
+          } else if (rewritesTypingAfter(write, script)) {
+            keptAfterSave = saves;
             debouncedSave();
-            announceKeptTyping(changed.uri, changed.text);
+            if (keepsTypingOver(write, script)) {
+              announceKeptTyping(changed.uri, changed.text);
+            }
           }
         }),
         onProtocolMessage(DidDeleteFilesMessage.type, (message) => {
