@@ -1,3 +1,4 @@
+import { autocompletion, startCompletion } from "@codemirror/autocomplete";
 import { codeFolding, foldGutter, foldService } from "@codemirror/language";
 import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { EditorState } from "@codemirror/state";
@@ -55,6 +56,18 @@ const view = new EditorView({
       customGotoLinePanel(),
       statusPanel(),
       keyboardToolbar(),
+      autocompletion({
+        activateOnTyping: false,
+        override: [
+          (context) => ({
+            from: context.pos,
+            options: ["method", "variable", "keyword", "snippet", "untyped"].map((type) => ({
+              label: `${type}Item`,
+              type,
+            })),
+          }),
+        ],
+      }),
     ],
   }),
   parent,
@@ -102,6 +115,10 @@ const ready = (async () => {
   openChoicePopover(view, 3);
   view.dom.appendChild(codicon);
   view.focus();
+  startCompletion(view);
+  for (let tries = 0; tries < 100 && !view.dom.querySelector(".cm-completionIcon"); tries += 1) {
+    await new Promise((r) => setTimeout(r, 20));
+  }
   await settle();
 })();
 

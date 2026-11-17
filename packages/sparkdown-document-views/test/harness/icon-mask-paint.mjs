@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 
 const PAGE_STYLE = `
-:root { color-scheme: dark; --ink: #e6e6e6; --muted: #8a8f98; --accent: #4ea1ff; --editor-breakpoint: #e5484d; --editor-problem-error: #e5484d; --editor-problem-warning: #f5a524; --editor-problem-info: #4ea1ff; --editor-icon-close: #c0c4cc; --editor-icon-ink: #e6e6e6; --radius-sm: 4px; }
+:root { color-scheme: dark; --ink: #e6e6e6; --muted: #8a8f98; --accent: #4ea1ff; --editor-breakpoint: #e5484d; --editor-problem-error: #e5484d; --editor-problem-warning: #f5a524; --editor-problem-info: #4ea1ff; --editor-icon-close: #c0c4cc; --editor-icon-ink: #e6e6e6; --syntax-function-name: #dcdcaa; --syntax-variable-name: #9cdcfe; --syntax-plain-keyword: #c586c0; --syntax-builtin: #4ec9b0; --radius-sm: 4px; }
 body { margin: 0; padding: 16px; background: #1e1f22; color: var(--ink); font: 16px/1.5 monospace; }
 section { position: relative; width: 400px; height: 520px; }
 section .cm-editor { height: 100%; }

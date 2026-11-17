@@ -56,7 +56,9 @@ const paints = async (forcedColors: "active" | "none") => {
         });
       }
     }
-    return { canvasText, painted };
+    const untyped = document.querySelector(".cm-completionIcon-untyped");
+    const unmasked = untyped ? getComputedStyle(untyped, "::after").backgroundColor : "no untyped completion icon";
+    return { canvasText, painted, unmasked };
   });
   await context.close();
   return result;
@@ -79,6 +81,10 @@ const EXPECTED = [
   "[name='close']::after",
   "[name='submit']::after",
   ".codicon-info::after",
+  ".cm-completionIcon-method::after",
+  ".cm-completionIcon-variable::after",
+  ".cm-completionIcon-keyword::after",
+  ".cm-completionIcon-snippet::after",
 ];
 
 const covers = (painted: Painted[]) =>
@@ -89,6 +95,12 @@ describe("every masked icon in the code editor", () => {
     const { painted } = await paints("none");
     expect(covers(painted)).toEqual([]);
     expect(painted.filter((icon) => icon.background !== icon.color)).toEqual([]);
+  });
+
+  it("leaves an icon with no mask unpainted, so a completion with no icon of its own shows no square", async () => {
+    for (const mode of ["none", "active"] as const) {
+      expect((await paints(mode)).unmasked, mode).toMatch(/^rgba\(\d+, \d+, \d+, 0\)$/);
+    }
   });
 
   it("paints its mask in CanvasText under forced colours, so none turns into Canvas on Canvas", async () => {
