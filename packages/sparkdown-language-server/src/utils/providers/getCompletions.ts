@@ -63,6 +63,11 @@ import {
 } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 import { getMorphCompletions } from "./getMorphCompletions";
+import {
+  ALTERNATOR_KEYWORDS,
+  alternatorKeywordDocumentation,
+  alternatorOptionStartAt,
+} from "./alternatorKeywordHelp";
 import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 
@@ -1544,6 +1549,26 @@ const completionsAt = (
       },
     );
     if (morphCompletions) return morphCompletions;
+  }
+
+  const optionStart = alternatorOptionStartAt(tree, documentCursorOffset, read);
+  const optionKeywords = optionStart
+    ? ALTERNATOR_KEYWORDS.filter((keyword) => keyword.startsWith(optionStart.typed))
+    : [];
+  if (optionKeywords.length) {
+    for (const keyword of optionKeywords) {
+      completions.set(keyword, {
+        label: keyword,
+        insertText: keyword,
+        labelDetails: { description: "nested set" },
+        kind: CompletionItemKind.Keyword,
+        documentation: {
+          kind: MarkupKind.Markdown,
+          value: alternatorKeywordDocumentation(keyword),
+        },
+      });
+    }
+    return buildCompletions();
   }
 
   if (program?.context && leftStack.some((node) => node.name === "ImageCommand")) {
