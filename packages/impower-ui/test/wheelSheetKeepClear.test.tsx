@@ -1,17 +1,15 @@
 import { compile } from "@tailwindcss/node";
-import { existsSync } from "node:fs";
 import { chromium } from "playwright";
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { browserAvailable } from "./browserAvailable";
 import { WHEEL_ROW, WheelSheet, type WheelOption } from "../src/components/wheel-picker/WheelPicker";
 
 const PACKAGE = process.cwd();
 const PANEL_HEIGHT = 430;
 const PANEL_WIDTH = 600;
 const WHEEL_HEIGHT = 220;
-
-const browserAvailable = existsSync(chromium.executablePath());
 
 const OPTIONS: WheelOption[] = [
   { value: "happy", label: "Happy", hint: "Default" },

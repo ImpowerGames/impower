@@ -1,15 +1,14 @@
 // @vitest-environment node
 import { compile } from "@tailwindcss/node";
 import { build } from "esbuild";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 import { describe, expect, test } from "vitest";
+import { browserAvailable } from "./browserAvailable";
 
 const PACKAGE = process.cwd();
 const FIXTURE = resolve(PACKAGE, "test/fixtures/dropdownEdgeGapPage.tsx");
-
-const browserAvailable = existsSync(chromium.executablePath());
 
 const pageScript = async () => {
   const bundle = await build({

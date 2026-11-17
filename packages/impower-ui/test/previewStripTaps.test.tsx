@@ -1,13 +1,11 @@
 import { compile } from "@tailwindcss/node";
-import { existsSync } from "node:fs";
 import { chromium } from "playwright";
 import { renderToString } from "preact-render-to-string";
 import { describe, expect, test } from "vitest";
+import { browserAvailable } from "./browserAvailable";
 import PreviewStrip, { type PreviewStripStatus } from "../src/components/preview-strip/PreviewStrip";
 
 const PACKAGE = process.cwd();
-
-const browserAvailable = existsSync(chromium.executablePath());
 
 const icon = (
   <svg viewBox="0 0 16 16">

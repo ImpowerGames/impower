@@ -1,16 +1,15 @@
 // @vitest-environment node
 import { compile } from "@tailwindcss/node";
 import { build } from "esbuild";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium, type Page } from "playwright";
 import { describe, expect, test } from "vitest";
+import { browserAvailable } from "./browserAvailable";
 
 const PACKAGE = process.cwd();
 const WIDTH = 430;
 const HEIGHT = 807;
-
-const browserAvailable = existsSync(chromium.executablePath());
 
 const pageScript = async (fixture = "sheetGestureClearancePage") => {
   const bundle = await build({
