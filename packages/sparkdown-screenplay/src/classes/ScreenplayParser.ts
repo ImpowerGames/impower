@@ -16,6 +16,7 @@ import {
   markAlternatives,
   separatorBlock,
 } from "../utils/alternativeMarks";
+import { isLineWords, printedLineStart } from "../utils/leadingLinePieces";
 import { insertedAt, UNPLACED } from "../utils/printedPosition";
 import { printsAsBlankLine } from "../utils/printsAsBlankLine";
 import { readStyled } from "../utils/readStyled";
@@ -36,9 +37,7 @@ const ARM_UNPRINTED = new Set(["ArmTag", "ArmDivert", "ArmTunnel", "ArmUnknown",
 
 const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
 
-const HIDDEN_LINE_PIECE = "LuauInterpolatedStringExpression";
-
-const GLUED_ARM ="LuauSparkdownInlineGluedAlternatorArm";
+const GLUED_ARM = "LuauSparkdownInlineGluedAlternatorArm";
 
 interface JoinedPositions {
   readonly parts: readonly Positions[];
@@ -182,18 +181,15 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
       return readIntoSink;
     };
     let leading = false;
-    const followsOnlyHiddenPieces = (node: SyntaxNode): boolean => {
-      let hidden = false;
-      for (let before = node.prevSibling; before; before = before.prevSibling) {
-        if (before.name === HIDDEN_LINE_PIECE) hidden = true;
-        else if (!before.name.endsWith("_begin")) return false;
-      }
-      return hidden;
-    };
     const readWords = (node: SyntaxNode, source: number[]): Reading => {
-      const text = readSkipping(node, readInto(source), isTextUnprinted);
-      const styled = readStyled(node, read, isTextUnprinted, undefined, positions);
-      if (leading || followsOnlyHiddenPieces(node)) {
+      const range = { from: printedLineStart(node), to: node.to };
+      const line = node.name === "TextChunk" && range.from === node.from ? node : node.parent ?? node;
+      const readSource = readInto(source);
+      const readInRange = (from: number, to: number) =>
+        readSource(Math.max(from, range.from), Math.min(to, range.to));
+      const text = readSkipping(line, readInRange, isTextUnprinted);
+      const styled = readStyled(line, read, isTextUnprinted, undefined, positions, range);
+      if (leading) {
         leading = false;
         return { text: text.trimStart(), ...trimReading(styled, { end: false }) };
       }
@@ -475,7 +471,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         }
 
         if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
-          if (name === "TextChunk") {
+          if (isLineWords(nodeRef.node)) {
             title = appendLine(title, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
@@ -484,7 +480,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         }
 
         if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
-          if (name === "TextChunk") {
+          if (isLineWords(nodeRef.node)) {
             heading = appendLine(heading, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
@@ -496,7 +492,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           stack.includes("BlockTransitional") ||
           stack.includes("InlineTransitional")
         ) {
-          if (name === "TextChunk") {
+          if (isLineWords(nodeRef.node)) {
             transitional = appendLine(
               transitional,
               nodeRef.node,
@@ -513,7 +509,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           stack.includes("InlineAction") ||
           stack.includes("ImplicitAction")
         ) {
-          if (name === "TextChunk") {
+          if (isLineWords(nodeRef.node)) {
             action = appendLine(action, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
@@ -540,7 +536,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           stack.includes("BlockDialogue_content") ||
           stack.includes("InlineDialogue_content")
         ) {
-          if (name === "TextChunk") {
+          if (isLineWords(nodeRef.node)) {
             const continues = continuesAfterComment(nodeRef.node);
             const last = tokens.at(-1);
             if (continues && last?.tag === "dialogue_content") {

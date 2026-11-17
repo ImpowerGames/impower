@@ -22,20 +22,22 @@ export const readStyled = (
   skipped: (descendant: SyntaxNode) => boolean = () => false,
   replaced?: (descendant: SyntaxNode) => StyledReading | undefined,
   positions = false,
+  range: { from: number; to: number } = node,
 ): StyledReading => {
   const ctx = { read };
   const hidden = (child: SyntaxNode) =>
     skipped(child) || UNPRINTED.has(child.name) || ESCAPE_MARKS.has(child.name);
   const spans = collectDisplaySpans(
     node,
-    node.from,
-    node.to,
+    range.from,
+    range.to,
     ctx,
     (child) => hidden(child) || SHOWN_AS_SOURCE.has(child.name),
   );
   const cuts: { from: number; to: number; text?: StyledReading }[] = [];
   const visit = (parent: SyntaxNode) => {
     for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (child.to <= range.from || child.from >= range.to) continue;
       if (hidden(child)) {
         if (child.from < child.to) {
           spans.marks.push({ from: child.from, to: child.to });
@@ -56,7 +58,7 @@ export const readStyled = (
   const cursor = { code: 0, mark: 0 };
   const at = positions ? [] as number[] : undefined;
   let out = "";
-  let pos = node.from;
+  let pos = range.from;
   for (const cut of cuts) {
     out += writeStyledRange(spans, pos, cut.from, ctx, cursor, at);
     if (cut.text) {
@@ -71,6 +73,6 @@ export const readStyled = (
     }
     pos = cut.to;
   }
-  out += writeStyledRange(spans, pos, node.to, ctx, cursor, at);
+  out += writeStyledRange(spans, pos, range.to, ctx, cursor, at);
   return at ? { styled: out, at } : { styled: out };
 };
