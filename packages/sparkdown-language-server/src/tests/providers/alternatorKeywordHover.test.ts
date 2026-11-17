@@ -112,6 +112,42 @@ describe("alternator keyword hover", () => {
     expect((await hoverAt(nested, at(nested, "queue")))?.value).toContain("starts an option of the `cycle` around it");
   });
 
+  it("reads an option's start across a blank line, CRLF line ends and tabs", async () => {
+    const layouts = [
+      "scene start\n  cycle\n  |\n\n    \\queue\n  | Out.\n  end\nend",
+      "scene start\r\n  cycle\r\n  |\r\n    \\queue\r\n  | Out.\r\n  end\r\nend",
+      "scene start\r\n  cycle\r\n  |\r\n\r\n    \\queue\r\n  | Out.\r\n  end\r\nend",
+      "cycle |\t\\queue\t| Out. end",
+      "scene start\n\tcycle\n\t|\n\t\t\\queue\n\t| Out.\n\tend\nend",
+    ];
+    for (const text of layouts) {
+      const hover = await hoverAt(text, at(text.replace(/\r\n/g, "\n"), "queue"));
+      expect(hover?.value, JSON.stringify(text)).toContain("keeps it a word");
+      expect(hover?.marked).toBe("\\queue");
+    }
+    const crlfNested = "scene start\r\n  cycle\r\n  |\r\n    queue | A. | B. end\r\n  | Out.\r\n  end\r\nend";
+    const inner = await hoverAt(crlfNested, at(crlfNested.replace(/\r\n/g, "\n"), "queue"));
+    expect(inner?.marked).toBe("queue");
+    expect(inner?.value).toContain("starts an option of the `cycle` around it");
+  });
+
+  it("reads past a comment before an option's content in a multi-line set, as the parser does", async () => {
+    const nestedAfterComment = [
+      "scene start\n  cycle\n  | // note\n    queue | A. | B. end\n  | Out.\n  end\nend",
+      "scene start\n  cycle\n  | /* c */ queue | A. | B. end\n  | Out.\n  end\nend",
+      "scene start\n  cycle\n  |\n    // note\n    queue | A. | B. end\n  | Out.\n  end\nend",
+    ];
+    for (const text of nestedAfterComment) {
+      expect((await hoverAt(text, at(text, "queue")))?.value, JSON.stringify(text)).toContain(
+        "starts an option of the `cycle` around it",
+      );
+    }
+    const escapedAfterComment = "scene start\n  cycle\n  | // note\n    \\queue\n  | Out.\n  end\nend";
+    expect((await hoverAt(escapedAfterComment, at(escapedAfterComment, "queue")))?.value).toContain("keeps it a word");
+    expect(await hoverAt("cycle | /* c */ queue | A. | B. end | Out. end", 17)).toBeNull();
+    expect(await hoverAt("cycle | /* c */ \\queue | A. end", 18)).toBeNull();
+  });
+
   it("explains the backslash on an escaped keyword at an option's start", async () => {
     const text = "cycle | \\queue | shuffle end";
     for (const index of [at(text, "\\"), at(text, "queue"), at(text, "queue") + 4]) {
@@ -154,6 +190,13 @@ describe("alternator keyword completion at an option's start", () => {
 
   it("offers the keywords on the line below an option's bar", () => {
     expect(complete("scene start\n  cycle\n  |\n    q@1\n  | Out.\n  end\nend").labels).toContain("queue");
+    expect(complete("scene start\n  cycle\n  |\n\n    q@1\n  | Out.\n  end\nend").labels).toContain("queue");
+    expect(complete("scene start\n  cycle\n  |\n    // note\n    q@1\n  | Out.\n  end\nend").labels).toContain("queue");
+  });
+
+  it("offers no keyword inside a comment at an option's start", () => {
+    expect(complete("scene start\n  cycle\n  | // q@1\n  | Out.\n  end\nend").labels).not.toContain("queue");
+    expect(complete("scene start\n  cycle\n  | /* q@1 */\n  | Out.\n  end\nend").labels).not.toContain("queue");
   });
 
   it("offers no keyword after an option's first word", () => {

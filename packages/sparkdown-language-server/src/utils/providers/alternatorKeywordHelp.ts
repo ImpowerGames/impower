@@ -126,6 +126,26 @@ const separatorBefore = (content: SyntaxNode, offset: number) => {
   return separator;
 };
 
+const COMMENT = /Comment(OnLine)?$/;
+
+const textWithoutComments = (content: SyntaxNode, from: number, to: number, read: Read) => {
+  const chars = read(from, to).split("");
+  const visit = (node: SyntaxNode) => {
+    for (let child = node.firstChild; child && child.from < to; child = child.nextSibling) {
+      if (child.to <= from) {
+        continue;
+      }
+      if (COMMENT.test(child.name)) {
+        chars.fill(" ", Math.max(child.from, from) - from, Math.min(child.to, to) - from);
+      } else {
+        visit(child);
+      }
+    }
+  };
+  visit(content);
+  return chars.join("");
+};
+
 const startsOption = (content: SyntaxNode, offset: number, read: Read, typed: RegExp) => {
   const separator = separatorBefore(content, offset);
   if (!separator) {
@@ -134,13 +154,14 @@ const startsOption = (content: SyntaxNode, offset: number, read: Read, typed: Re
   if (separator.to > offset) {
     return /^\s*$/.test(read(offset, separator.to)) && /\|\s*$/.test(read(separator.from, offset));
   }
-  return typed.test(read(separator.to, offset));
+  const multiLine = !content.parent!.name.includes("SingleLine");
+  return typed.test(multiLine ? textWithoutComments(content, separator.to, offset, read) : read(separator.to, offset));
 };
 
 export const alternatorOptionStartAt = (tree: Tree, offset: number, read: Read) => {
   const stack = getStack<SparkdownNodeName>(tree, offset, -1);
   const content = stack.find((node) => isNestingContent(node));
-  if (!content || !startsOption(content, offset, read, /^\s*[A-Za-z]*$/)) {
+  if (!content || stack.some((node) => COMMENT.test(node.name)) || !startsOption(content, offset, read, /^\s*[A-Za-z]*$/)) {
     return undefined;
   }
   return { typed: /[A-Za-z]*$/.exec(read(content.from, offset))?.[0] ?? "" };
