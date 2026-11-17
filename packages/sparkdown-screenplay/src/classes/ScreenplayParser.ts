@@ -35,7 +35,9 @@ const ARM_UNPRINTED = new Set(["ArmTag", "ArmDivert", "ArmTunnel", "ArmUnknown",
 
 const TOKENS_ON_LEAVE = new Set(["DialogueCharacter", "Choice"]);
 
-const GLUED_ARM = "LuauSparkdownInlineGluedAlternatorArm";
+const HIDDEN_LINE_PIECE = "LuauInterpolatedStringExpression";
+
+const GLUED_ARM ="LuauSparkdownInlineGluedAlternatorArm";
 
 interface JoinedPositions {
   readonly parts: readonly Positions[];
@@ -179,10 +181,18 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
       return readIntoSink;
     };
     let leading = false;
+    const followsOnlyHiddenPieces = (node: SyntaxNode): boolean => {
+      let hidden = false;
+      for (let before = node.prevSibling; before; before = before.prevSibling) {
+        if (before.name === HIDDEN_LINE_PIECE) hidden = true;
+        else if (!before.name.endsWith("_begin")) return false;
+      }
+      return hidden;
+    };
     const readWords = (node: SyntaxNode, source: number[]): Reading => {
       const text = readSkipping(node, readInto(source), isTextUnprinted);
       const styled = readStyled(node, read, isTextUnprinted, undefined, positions);
-      if (leading) {
+      if (leading || followsOnlyHiddenPieces(node)) {
         leading = false;
         return { text: text.trimStart(), ...trimReading(styled, { end: false }) };
       }
