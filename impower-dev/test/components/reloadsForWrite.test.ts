@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reloadsForWrite } from "../../src/modules/spark-editor/components/logic-script-editor/reloadsForWrite";
+import { keepsTypingOver, reloadsForWrite } from "../../src/modules/spark-editor/components/logic-script-editor/reloadsForWrite";
 
 const OWN = "editor-origin";
 
@@ -38,8 +38,13 @@ describe("whether the open script reloads for an announced write", () => {
       false,
     ],
     [
-      "another tab's ordinary write",
-      { text: "loaded typed", remote: true, restored: false },
+      "another tab's ordinary write while it holds unsaved typing",
+      { text: "theirs", remote: true, restored: false },
+      false,
+    ],
+    [
+      "another tab's ordinary write while it holds no unsaved typing",
+      { text: "theirs", remote: true, restored: false, stored: "loaded typed" },
       true,
     ],
     [
@@ -51,6 +56,38 @@ describe("whether the open script reloads for an announced write", () => {
     const { stored, ...announced } = write as typeof write & { stored?: string };
     expect(
       reloadsForWrite(announced, { ...editor, ...(stored ? { stored } : {}) }),
+    ).toBe(expected);
+  });
+});
+
+describe("whether the open script keeps its typing over an announced write and says so (I-2159)", () => {
+  it.each([
+    ["another tab's write of different text", { text: "theirs", remote: true, restored: false }, true],
+    [
+      "another tab's write while it holds no unsaved typing",
+      { text: "theirs", remote: true, restored: false, stored: "loaded typed" },
+      false,
+    ],
+    [
+      "another tab's write of the text it last knew in storage",
+      { text: "loaded", remote: true, restored: false },
+      false,
+    ],
+    [
+      "another tab's write of the text it holds",
+      { text: "loaded typed", remote: true, restored: false },
+      false,
+    ],
+    [
+      "another tab's restore of the text it last knew in storage",
+      { text: "loaded", remote: true, restored: true },
+      false,
+    ],
+    ["this tab's write by another writer", { text: "theirs", remote: false, restored: false }, false],
+  ])("%s → keeps and says so %s", (_, write, expected) => {
+    const { stored, ...announced } = write as typeof write & { stored?: string };
+    expect(
+      keepsTypingOver(announced, { ...editor, ...(stored ? { stored } : {}) }),
     ).toBe(expected);
   });
 });

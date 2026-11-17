@@ -12,7 +12,7 @@ import workspace from "../../workspace/WorkspaceStore";
 import { toggleAddPanel } from "../add-panel";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
-import { reloadsForWrite } from "./reloadsForWrite";
+import { keepsTypingOver, reloadsForWrite } from "./reloadsForWrite";
 
 type WorkspaceWindow =
   (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
@@ -46,6 +46,8 @@ export default function LogicScriptEditor({
 
   const filenameRef = useRef(filename);
   filenameRef.current = filename;
+  const scriptName = () =>
+    (filenameRef.current || "main.sd").split("/").pop() || "main.sd";
   const loadFileRef = useRef<() => Promise<void>>(async () => {});
 
   const textPulledAt = useComputed(
@@ -196,6 +198,41 @@ export default function LogicScriptEditor({
         }
       }, AUTOSAVE_DELAY);
 
+      let otherWrites = 0;
+
+      const useOtherTabText = async (uri: string, text: string, seen: number) => {
+        const name = scriptName();
+        if (disposed || uriRef.current !== uri || otherWrites !== seen) {
+          showSnackbar({ message: `${name} changed again, so it was left as it is.` });
+          return;
+        }
+        const { Workspace } = await import("../../workspace/Workspace");
+        if (disposed || uriRef.current !== uri || otherWrites !== seen) {
+          return;
+        }
+        textRef.current = text;
+        await Workspace.fs.writeTextDocument({
+          textDocument: { uri, version: versionRef.current ?? 0, text },
+          origin,
+        });
+        storedTexts.set(uri, text);
+        await Workspace.window.recordScriptChange();
+        loadFile();
+      };
+
+      const announceKeptTyping = (uri: string, text: string | undefined) => {
+        const seen = otherWrites;
+        showSnackbar({
+          message: `${scriptName()} changed in another tab. Your typing here is kept.`,
+          ...(text == null
+            ? {}
+            : {
+                actionLabel: "Use other tab's",
+                onAction: () => void useOtherTabText(uri, text, seen),
+              }),
+        });
+      };
+
       const disposers = [
         onProtocolMessage(DidChangeTextDocumentMessage.type, (message) => {
           const params = message.params;
@@ -212,21 +249,25 @@ export default function LogicScriptEditor({
           if (!changed) {
             return;
           }
-          const reload = reloadsForWrite(
-            {
-              text: changed.text,
-              remote: params.remote,
-              origin: params.origin,
-              restored: params.restored?.includes(changed.uri) ?? false,
-            },
-            {
-              text: textRef.current,
-              stored: storedTexts.get(changed.uri) ?? null,
-              origin,
-            },
-          );
-          if (reload) {
+          const write = {
+            text: changed.text,
+            remote: params.remote,
+            origin: params.origin,
+            restored: params.restored?.includes(changed.uri) ?? false,
+          };
+          const script = {
+            text: textRef.current,
+            stored: storedTexts.get(changed.uri) ?? null,
+            origin,
+          };
+          if (write.remote || write.origin !== origin) {
+            otherWrites += 1;
+          }
+          if (reloadsForWrite(write, script)) {
             loadFile();
+          } else if (keepsTypingOver(write, script)) {
+            debouncedSave();
+            announceKeptTyping(changed.uri, changed.text);
           }
         }),
         onProtocolMessage(DidDeleteFilesMessage.type, (message) => {

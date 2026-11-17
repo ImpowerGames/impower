@@ -126,6 +126,7 @@ const { DidSaveTextDocumentMessage } = await import(
 const { DidChangeTextDocumentMessage } = await import(
   "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage"
 );
+const { snackbar } = await import("../../src/modules/spark-editor/utils/snackbar");
 const { DidWriteFilesMessage } = await import(
   "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage"
 );
@@ -627,4 +628,135 @@ describe("the open script's typing over a rollback's restoring write, by schedul
       }
     },
   );
+});
+
+describe("the open script's typing over another tab's write (I-2159)", { timeout: 60_000 }, () => {
+  const uri = "file:///project/main.sd";
+  const OTHER_TAB_EDITOR = "LogicScriptEditor:1";
+
+  type Write = "an ordinary save" | "an applied workspace edit" | "an interim write, then its rollback";
+  type Timing = "typing pending" | "autosave in flight";
+
+  const WRITES: Write[] = ["an ordinary save", "an applied workspace edit", "an interim write, then its rollback"];
+  const TIMINGS: Timing[] = ["typing pending", "autosave in flight"];
+  const CELLS = WRITES.flatMap((write) => TIMINGS.map((timing) => ({ write, timing })));
+
+  const notification = (text: string, origin?: string, restored = false) =>
+    DidWriteFilesMessage.type.notification({
+      files: [{ uri, name: "main", ext: "sd", type: "script", src: uri, version: 3, text }],
+      remote: true,
+      origin,
+      ...(restored ? { restored: [uri] } : {}),
+    });
+
+  const announce = async (...messages: ReturnType<typeof notification>[]) => {
+    await act(async () => {
+      messages.forEach((message) => sendProtocolMessage(message));
+    });
+    await settle();
+  };
+
+  const type = async (text: string) => {
+    await act(async () => {
+      sendProtocolMessage(
+        DidSaveTextDocumentMessage.type.notification({ textDocument: { uri }, text }),
+      );
+    });
+  };
+
+  const loaded = async () => {
+    await mount();
+    await connectController();
+    await answerReads();
+  };
+
+  const releaseHeld = async () => {
+    mocks.holdWrites = false;
+    await act(async () => {
+      mocks.held.splice(0).forEach((release) => release());
+    });
+    await settle();
+  };
+
+  afterEach(() => {
+    snackbar.value = null;
+  });
+
+  it.each(CELLS)(
+    "keeps the typing, saves it after the other tab's write and says the script changed: $write, $timing",
+    async ({ write, timing }) => {
+      await loaded();
+      if (timing === "autosave in flight") {
+        mocks.holdWrites = true;
+      }
+      await type("hello typed\n");
+      if (timing === "autosave in flight") {
+        await vi.waitFor(() => expect(mocks.held.length).toBe(1), { timeout: 5_000, interval: 20 });
+      }
+      const reads = mocks.reads.length;
+      const count = mocks.writes.length;
+      if (write === "an ordinary save") {
+        await announce(notification("theirs\n", OTHER_TAB_EDITOR));
+      } else if (write === "an applied workspace edit") {
+        await announce(notification("theirs\n"));
+      } else {
+        await announce(notification("interim\n"), notification("hello\n", undefined, true));
+      }
+      expect(mocks.reads.length).toBe(reads);
+      expect(snackbar.value?.message).toBe("main.sd changed in another tab. Your typing here is kept.");
+      expect(snackbar.value?.actionLabel).toBe("Use other tab's");
+      await releaseHeld();
+      await vi.waitFor(() => expect(mocks.writes.length).toBeGreaterThan(count), {
+        timeout: 5_000,
+        interval: 20,
+      });
+      expect(mocks.writes.at(-1)!.textDocument.text).toBe("hello typed\n");
+      expect(mocks.reads.length).toBe(reads);
+    },
+  );
+
+  it("replaces its typing with the other tab's text when the author asks", async () => {
+    await loaded();
+    await type("hello typed\n");
+    await announce(notification("theirs\n"));
+    await vi.waitFor(() => expect(mocks.writes.length).toBe(1), { timeout: 5_000, interval: 20 });
+    const reads = mocks.reads.length;
+    await act(async () => {
+      snackbar.value!.onAction!();
+    });
+    await settle();
+    expect(mocks.writes.at(-1)!.textDocument.text).toBe("theirs\n");
+    expect(mocks.reads.length).toBe(reads + 1);
+  });
+
+  it("leaves the script as it is when the other tab wrote again before the author asked", async () => {
+    await loaded();
+    await type("hello typed\n");
+    await announce(notification("theirs\n"));
+    const action = snackbar.value!.onAction!;
+    await vi.waitFor(() => expect(mocks.writes.length).toBe(1), { timeout: 5_000, interval: 20 });
+    await announce(notification("theirs again\n"));
+    const writes = mocks.writes.length;
+    await act(async () => {
+      action();
+    });
+    await settle();
+    expect(mocks.writes.length).toBe(writes);
+    expect(snackbar.value?.message).toBe("main.sd changed again, so it was left as it is.");
+  });
+
+  it("reloads for another tab's write when it holds no unsaved typing", async () => {
+    await loaded();
+    await announce(notification("theirs\n"));
+    expect(mocks.reads.length).toBe(1);
+    expect(snackbar.value).toBeNull();
+  });
+
+  it("keeps the typing without a notice when another tab writes the text it last knew in storage", async () => {
+    await loaded();
+    await type("hello typed\n");
+    await announce(notification("hello\n"));
+    expect(mocks.reads.length).toBe(0);
+    expect(snackbar.value).toBeNull();
+  });
 });
