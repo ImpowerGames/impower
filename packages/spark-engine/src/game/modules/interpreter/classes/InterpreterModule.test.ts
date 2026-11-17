@@ -260,15 +260,15 @@ describe("InterpreterModule text tags", () => {
     });
 
     it("removes a wait tag with a duration", () => {
-      expect(render(`Wait${tagCode("wait:2")} here.`).text).toBe("Wait here.");
+      expect(render(`Wait${tagCode("wait=2")} here.`).text).toBe("Wait here.");
     });
 
     it("removes a speed tag", () => {
-      expect(render(`Speed${tagCode("speed:2")} up.`).text).toBe("Speed up.");
+      expect(render(`Speed${tagCode("speed=2")} up.`).text).toBe("Speed up.");
     });
 
     it("removes a pitch tag", () => {
-      expect(render(`Pitch${tagCode("pitch:2")} up.`).text).toBe("Pitch up.");
+      expect(render(`Pitch${tagCode("pitch=2")} up.`).text).toBe("Pitch up.");
     });
 
     it("handles a tag at the very end of a line", () => {
@@ -277,7 +277,7 @@ describe("InterpreterModule text tags", () => {
 
     it("removes the pitch and wait shorthands", () => {
       expect(
-        render(`Short${tagCode("p:2")} pitch${tagCode("w")} and${tagCode("w:1")} wait.`).text,
+        render(`Short${tagCode("p=2")} pitch${tagCode("w")} and${tagCode("w=1")} wait.`).text,
       ).toBe("Short pitch and wait.");
     });
 
@@ -299,13 +299,13 @@ describe("InterpreterModule text tags", () => {
     });
 
     it("removes a control tag's closing form and one with more after its name", () => {
-      expect(render(`Speed${tagCode("speed:2")} up${tagCode("/speed")}.`).text).toBe("Speed up.");
+      expect(render(`Speed${tagCode("speed=2")} up${tagCode("/speed")}.`).text).toBe("Speed up.");
       expect(render(`Wait${tagCode("wait x")} here${tagCode("/wait")}.`).text).toBe("Wait here.");
-      expect(render(`Pitch${tagCode("p:1")} up${tagCode("/p")}.`).text).toBe("Pitch up.");
+      expect(render(`Pitch${tagCode("p=1")} up${tagCode("/p")}.`).text).toBe("Pitch up.");
     });
 
     it("changes the typing speed from the tag on", () => {
-      const durations = typedTimes(`ab${tagCode("speed:0.5")}cd`);
+      const durations = typedTimes(`ab${tagCode("speed=0.5")}cd`);
       const plain = typedTimes("abcd");
       expect(durations.slice(0, 3)).toEqual(plain.slice(0, 3));
       expect(durations[3]! - durations[2]!).toBeCloseTo(2 * (plain[3]! - plain[2]!));
@@ -314,8 +314,8 @@ describe("InterpreterModule text tags", () => {
 
   describe("script text is not scanned for tags", () => {
     it("shows a tag written in script text as itself", () => {
-      expect(render("Un<speed:0> here <b>x</b> <b2>.").text).toBe(
-        "Un<speed:0> here <b>x</b> <b2>.",
+      expect(render("Un<speed=0> here <b>x</b> <b2>.").text).toBe(
+        "Un<speed=0> here <b>x</b> <b2>.",
       );
       expect(looks("A <b>word</b> here.")).toEqual([{ text: "A <b>word</b> here." }]);
     });
@@ -363,8 +363,8 @@ describe("InterpreterModule text tags", () => {
       ["indent", "4px", { "padding-left": "4px" }],
     ];
     for (const [tag, value, style] of values) {
-      it(`styles the text between <${tag}:${value}> and </${tag}>`, () => {
-        expect(looks(`A ${tagCode(`${tag}:${value}`)}word${tagCode(`/${tag}`)} here.`)).toEqual([
+      it(`styles the text between <${tag}=${value}> and </${tag}>`, () => {
+        expect(looks(`A ${tagCode(`${tag}=${value}`)}word${tagCode(`/${tag}`)} here.`)).toEqual([
           { text: "A " },
           { text: "word", style },
           { text: " here." },
@@ -429,7 +429,7 @@ describe("InterpreterModule text tags", () => {
     });
 
     it("change the typing speed to the end of the line", () => {
-      const slowed = typedTimes(`${scanned("<speed:0.5>")}Come closer`);
+      const slowed = typedTimes(`${scanned("<speed=0.5>")}Come closer`);
       const plain = typedTimes("Come closer");
       expect(slowed.length).toBe(plain.length);
       expect(slowed.at(-1)).toBeCloseTo(2 * plain.at(-1)!);
@@ -527,13 +527,13 @@ describe("a style boundary inside zero-delay text", () => {
     return { end: instructions.end, audio: JSON.stringify(instructions.audio ?? {}) };
   };
 
-  const zero = tagCode("speed:0");
+  const zero = tagCode("speed=0");
 
   it.each([
     ["a raw span", `${zero}... a${spanOpen("`")}b${SPAN_CLOSE}c`],
     ["a centred span", `${zero}... a${spanOpen("^")}b${SPAN_CLOSE}c`],
     ["a look tag", `${zero}... a${tagCode("b")}b${tagCode("/b")}c`],
-    ["a look tag with a value", `${zero}... a${tagCode("color:red")}b${tagCode("/color")}c`],
+    ["a look tag with a value", `${zero}... a${tagCode("color=red")}b${tagCode("/color")}c`],
     ["an unknown tag", `${zero}... a${tagCode("b2")}b${tagCode("/b2")}c`],
     ["a look tag in a value", `${zero}... a${scanned("<b>b</b>")}c`],
   ])("glued to its neighbours, %s adds no time and no tone", (_what, styled) => {

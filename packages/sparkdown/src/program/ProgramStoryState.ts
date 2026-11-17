@@ -7,7 +7,13 @@ import { PushPopType } from "../runtime/PushPop";
 import { SimpleJson } from "../runtime/SimpleJson";
 import { StringBuilder } from "../runtime/StringBuilder";
 import { scannedTable, writtenText } from "../runtime/displayStyle";
-import { codeWrittenTags, codeWrittenTagsInTable } from "../runtime/storyTags";
+import {
+  codeWrittenTags,
+  codeWrittenTagsInTable,
+  equalsInColonTags,
+  equalsInColonTagsInSavedStrings,
+  equalsInColonTagsInTable,
+} from "../runtime/storyTags";
 import { Tag } from "../runtime/Tag";
 import {
   MultiValue,
@@ -326,13 +332,20 @@ export interface SuspendedLineEnd {
   joined: boolean;
 }
 
-function readOutput(json: any[], styleCodes: boolean, tagCodes: boolean): InkObject[] {
-  const output = JsonSerialisation.JArrayToRuntimeObjList(json);
-  return !styleCodes
-    ? output.map((obj) => scannedTable(obj))
-    : tagCodes
-      ? output
-      : output.map((obj) => codeWrittenTagsInTable(obj));
+export function equalsInSavedValues(obj: Record<string, any>): void {
+  if (obj["tagEquals"] !== true) equalsInColonTagsInSavedStrings(obj, ["output", "carried"]);
+}
+
+function readOutput(
+  json: any[],
+  styleCodes: boolean,
+  tagCodes: boolean,
+  tagEquals: boolean,
+): InkObject[] {
+  const output = JsonSerialisation.JArrayToRuntimeObjList(json).map((obj) =>
+    !styleCodes ? scannedTable(obj) : !tagCodes ? codeWrittenTagsInTable(obj) : obj,
+  );
+  return tagEquals ? output : output.map((obj) => equalsInColonTagsInTable(obj));
 }
 
 export class ProgramStoryState {
@@ -1118,6 +1131,7 @@ export class ProgramStoryState {
     );
     writer.WriteProperty("styleCodes", true);
     writer.WriteProperty("tagCodes", true);
+    writer.WriteProperty("tagEquals", true);
     if (this.carried) {
       const carried = this.carried;
       writer.WriteProperty("carried", (w) =>
@@ -1651,6 +1665,7 @@ export class ProgramStoryState {
 
   readState(obj: Record<string, any>, codec: StateCodec): void {
     codec.check?.(obj);
+    equalsInSavedValues(obj);
     this.beginLoad();
     codec.beginRead?.();
     try {
@@ -1705,12 +1720,13 @@ export class ProgramStoryState {
     );
     const styleCodes = obj["styleCodes"] === true;
     const tagCodes = obj["tagCodes"] === true;
-    this.outputStream = readOutput(obj["output"], styleCodes, tagCodes);
+    const tagEquals = obj["tagEquals"] === true;
+    this.outputStream = readOutput(obj["output"], styleCodes, tagCodes, tagEquals);
     this.ForgetOpenStrings();
     this._openStringIndex = -1;
     this.carried = obj["carried"]
       ? {
-          output: readOutput(obj["carried"], styleCodes, tagCodes),
+          output: readOutput(obj["carried"], styleCodes, tagCodes, tagEquals),
           lineEndPending: obj["carriedLineEndPending"] === true,
           addresses: codec.readAddresses(obj["carriedAddresses"]),
         }
@@ -1791,8 +1807,9 @@ export class ProgramStoryState {
       choice.text = String(saved["text"] ?? "");
       const styled =
         typeof saved["styled"] === "string" ? saved["styled"] : choice.text;
+      const coded = obj["tagCodes"] === true ? styled : codeWrittenTags(styled);
       choice.styledText =
-        obj["tagCodes"] === true ? styled : codeWrittenTags(styled);
+        obj["tagEquals"] === true ? coded : equalsInColonTags(coded);
       choice.tags = Array.isArray(saved["tags"])
         ? saved["tags"].map(String)
         : [];

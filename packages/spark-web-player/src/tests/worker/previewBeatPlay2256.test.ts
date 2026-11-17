@@ -10,7 +10,7 @@ end
 
 scene start
   MIA: First line.
-  MIA: Hello <wait:1> there.
+  MIA: Hello <wait=1> there.
   MIA: Third line.
 end
 `;

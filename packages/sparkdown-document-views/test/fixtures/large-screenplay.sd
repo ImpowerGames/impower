@@ -302,7 +302,7 @@ scene ACT_ONE
 
   BUNNY:
     C'mon.      
-    <p:2>::C'moooon...::
+    <p=2>::C'moooon...::
 
   The printer falters to a stop with a loud [[animate stage with shake]]::CRUNCH::.((sfx_printer_jam)) ((stop environmental sfx_printer_whirring))
 
@@ -345,7 +345,7 @@ scene ACT_ONE
   He waves the torn page at the attendant --
 
   BUNNY:
-    Look,  I really,  <p:3>::really::   <p:1>gotta print this thing...
+    Look,  I really,  <p=3>::really::   <p=1>gotta print this thing...
 
   ATTENDANT:
     Nah...   Looks busted.
@@ -378,8 +378,8 @@ scene ACT_ONE
     How's the city?   
     You know I heard... >
     (loudly sings)
-    ~~<p:4>If  <p:3>you  <p:2>can~   <p:9>MAKE IT  <p:5>THERE~!~~   
-    ~~<p:4>You'll  <p:2>make it~   <p:8>ANYWH--~~
+    ~~<p=4>If  <p=3>you  <p=2>can~   <p=9>MAKE IT  <p=5>THERE~!~~   
+    ~~<p=4>You'll  <p=2>make it~   <p=8>ANYWH--~~
 
   ((sfx_bang_smack)) Bunny snatches the phone and ((sfx_phone_beep2)) switches it off speaker.
 
@@ -427,7 +427,7 @@ scene ACT_ONE
   Bunny stuffs the ripped pages in his bag and returns the phone to his ear.
 
   MRS. MANDERS:
-    ...not as <p:1>*exciting* <p:0>as making movies...
+    ...not as <p=1>*exciting* <p=0>as making movies...
 
   He trudges to the shop entrance.
 
@@ -438,7 +438,7 @@ scene ACT_ONE
   Opens the door.
 
   MRS. MANDERS:
-    ...and just <p:1>a few months <p:0>of...
+    ...and just <p=1>a few months <p=0>of...
 
   ((sfx_thunder))
   ((fade music mus_l_piano+mus_l_tenor_sax to 0 over 0.5))
@@ -518,7 +518,7 @@ scene ACT_ONE
 
   // todo make face more exasperated
   BUNNY:
-    <p:6>No <p:6>No <p:6>No.
+    <p=6>No <p=6>No <p=6>No.
 
   He pockets the notebook.   Runs up.   [[show backdrop bg_bunnys_ext_apartment_no_note]] ((sfx_paper_crinkle)) Rips off the EVICTION NOTICE.
 
@@ -602,7 +602,7 @@ scene ACT_ONE
 
   BUNNY:
     (straightening painfully)
-    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) <p:2>YES!!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Okay!!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Got it!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Thanks!<p:1>
+    [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) <p=2>YES!!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Okay!!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Got it!   [[animate stage with shake]] ((m_todo_sfx_emotional_yelling+temp_sfx_smack)) Thanks!<p=1>
 
   MRS. MANDERS:
     (proudly)
@@ -6661,9 +6661,9 @@ scene ACT_FIVE
 
     RAFFLES:
       ... >
-      <p:1>No I still do. >
-      <p:1>But for god's sake, Bunny. >
-      <p:2>Pull yourself together.
+      <p=1>No I still do. >
+      <p=1>But for god's sake, Bunny. >
+      <p=2>Pull yourself together.
 
     Raffles KISSES HIM and backs him into the counter.
 

@@ -94,9 +94,9 @@ export const CORPUS: Case[] = [
   action("A <b2>word</b2> here."),
   action("A *a <u>b</u> c* d"),
   action("A <i>*a* b</i> c"),
-  action("A **a <speed:0.5>b** c"),
-  action("A <color:red>_a_</color> <x> b"),
-  action("A <wait:1>*b* <p:2>c"),
+  action("A **a <speed=0.5>b** c"),
+  action("A <color=red>_a_</color> <x> b"),
+  action("A <wait=1>*b* <p=2>c"),
   action("A *a <b>b* c</b> d"),
   {
     label: "a dialogue line with a span around an interpolation",

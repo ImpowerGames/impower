@@ -29,6 +29,7 @@ import {
 } from "./ProgramSymbols";
 import {
   blockStackOf,
+  equalsInSavedValues,
   type PlacedPositional,
   type PlacedThread,
   type PositionCopy,
@@ -2020,6 +2021,7 @@ class SaveReader {
       const beat = beats[j]!;
       const plan = plans[j] ?? this.planBeat(beat);
       this.renameFlows(beat);
+      equalsInSavedValues(beat);
       const codec = this.codecOf(plan);
       const head = () => {
         if (plan.placed) {

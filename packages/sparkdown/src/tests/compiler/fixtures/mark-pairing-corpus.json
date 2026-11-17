@@ -1761,9 +1761,9 @@
    "styled": "A [underline: a ][underline wavy: b ][shaky underline wavy: c][underline wavy:  d][underline:  e] F"
   },
   {
-   "line": "A *a <wait:1> b* c",
+   "line": "A *a <wait=1> b* c",
    "from": "Sparkdown",
-   "styled": "A [italic: a <wait:1> b] c"
+   "styled": "A [italic: a <wait=1> b] c"
   },
   {
    "line": "A *a <b> c",

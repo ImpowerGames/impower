@@ -32,29 +32,27 @@ sparkdown [0..285]
  │   │       │       │   ├─ TextCommand [17..25]
  │   │       │       │   │   ├─ TextCommand_c1 [17..18]: "<"
  │   │       │       │   │   ├─ TextCommand_c2 [18..24]
- │   │       │       │   │   │   ├─ TextCommandContent [18..23]
- │   │       │       │   │   │   │   ├─ TextCommandContent_c1 18
- │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [18..22]
- │   │       │       │   │   │   │   │   └─ TextCommandControl [18..22]
- │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [18..22]
- │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [18..22]: "wait"
- │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [22..23]
- │   │       │       │   │   │   │   │   └─ ExtraWhitespace [22..23]: " "
- │   │       │       │   │   │   │   ├─ TextCommandContent_c4 23
- │   │       │       │   │   │   │   ├─ TextCommandContent_c5 23
- │   │       │       │   │   │   │   └─ TextCommandContent_c6 23
- │   │       │       │   │   │   └─ TextCommandContent [23..24]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 23
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [23..24]
- │   │       │       │   │   │       │   └─ TextCommandControl [23..24]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [23..24]
- │   │       │       │   │   │       │           └─ LuauNumericDecimal [23..24]
- │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [23..24]: "1"
- │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 24
- │   │       │       │   │   │       ├─ TextCommandContent_c3 24
- │   │       │       │   │   │       ├─ TextCommandContent_c4 24
- │   │       │       │   │   │       ├─ TextCommandContent_c5 24
- │   │       │       │   │   │       └─ TextCommandContent_c6 24
+ │   │       │       │   │   │   └─ TextCommandContent [18..24]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 18
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [18..22]
+ │   │       │       │   │   │       │   └─ TextCommandControl [18..22]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [18..22]
+ │   │       │       │   │   │       │           └─ TextCommandControlKeyword [18..22]: "wait"
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 [22..23]
+ │   │       │       │   │   │       │   └─ ExtraWhitespace [22..23]: " "
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 23
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 23
+ │   │       │       │   │   │       ├─ TextCommandContent_c6 23
+ │   │       │       │   │   │       └─ TextCommandContent_c7 [23..24]
+ │   │       │       │   │   │           └─ TextCommandWords [23..24]
+ │   │       │       │   │   │               ├─ TextCommandWords_c1 23
+ │   │       │       │   │   │               ├─ TextCommandWords_c2 [23..24]
+ │   │       │       │   │   │               │   └─ TextCommandControl [23..24]
+ │   │       │       │   │   │               │       └─ TextCommandControl_c1 [23..24]
+ │   │       │       │   │   │               │           └─ LuauNumericDecimal [23..24]
+ │   │       │       │   │   │               │               ├─ LuauNumericDecimal_c1 [23..24]: "1"
+ │   │       │       │   │   │               │               └─ LuauNumericDecimal_c2 24
+ │   │       │       │   │   │               └─ TextCommandWords_c3 24
  │   │       │       │   │   └─ TextCommand_c3 [24..25]: ">"
  │   │       │       │   ├─ Space [25..26]: " "
  │   │       │       │   ├─ Word [26..29]: "now"
@@ -81,30 +79,28 @@ sparkdown [0..285]
  │   │       │       │   ├─ TextCommand [36..45]
  │   │       │       │   │   ├─ TextCommand_c1 [36..37]: "<"
  │   │       │       │   │   ├─ TextCommand_c2 [37..44]
- │   │       │       │   │   │   ├─ TextCommandContent [37..42]
- │   │       │       │   │   │   │   ├─ TextCommandContent_c1 37
- │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [37..41]
- │   │       │       │   │   │   │   │   └─ TextCommandControl [37..41]
- │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [37..41]
- │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [37..41]: "wait"
- │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [41..42]
- │   │       │       │   │   │   │   │   └─ ExtraWhitespace [41..42]: " "
- │   │       │       │   │   │   │   ├─ TextCommandContent_c4 42
- │   │       │       │   │   │   │   ├─ TextCommandContent_c5 42
- │   │       │       │   │   │   │   └─ TextCommandContent_c6 42
- │   │       │       │   │   │   └─ TextCommandContent [42..44]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 42
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [42..43]
- │   │       │       │   │   │       │   └─ TextCommandControl [42..43]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [42..43]
- │   │       │       │   │   │       │           └─ LuauNumericDecimal [42..43]
- │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [42..43]: "1"
- │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 43
- │   │       │       │   │   │       ├─ TextCommandContent_c3 [43..44]
- │   │       │       │   │   │       │   └─ ExtraWhitespace [43..44]: " "
- │   │       │       │   │   │       ├─ TextCommandContent_c4 44
- │   │       │       │   │   │       ├─ TextCommandContent_c5 44
- │   │       │       │   │   │       └─ TextCommandContent_c6 44
+ │   │       │       │   │   │   └─ TextCommandContent [37..44]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 37
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [37..41]
+ │   │       │       │   │   │       │   └─ TextCommandControl [37..41]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [37..41]
+ │   │       │       │   │   │       │           └─ TextCommandControlKeyword [37..41]: "wait"
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 [41..42]
+ │   │       │       │   │   │       │   └─ ExtraWhitespace [41..42]: " "
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 42
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 42
+ │   │       │       │   │   │       ├─ TextCommandContent_c6 42
+ │   │       │       │   │   │       └─ TextCommandContent_c7 [42..44]
+ │   │       │       │   │   │           └─ TextCommandWords [42..44]
+ │   │       │       │   │   │               ├─ TextCommandWords_c1 42
+ │   │       │       │   │   │               ├─ TextCommandWords_c2 [42..43]
+ │   │       │       │   │   │               │   └─ TextCommandControl [42..43]
+ │   │       │       │   │   │               │       └─ TextCommandControl_c1 [42..43]
+ │   │       │       │   │   │               │           └─ LuauNumericDecimal [42..43]
+ │   │       │       │   │   │               │               ├─ LuauNumericDecimal_c1 [42..43]: "1"
+ │   │       │       │   │   │               │               └─ LuauNumericDecimal_c2 43
+ │   │       │       │   │   │               └─ TextCommandWords_c3 [43..44]
+ │   │       │       │   │   │                   └─ ExtraWhitespace [43..44]: " "
  │   │       │       │   │   └─ TextCommand_c3 [44..45]: ">"
  │   │       │       │   ├─ Space [45..46]: " "
  │   │       │       │   ├─ Word [46..49]: "now"
@@ -140,7 +136,8 @@ sparkdown [0..285]
  │   │       │       │   │   │       ├─ TextCommandContent_c3 58
  │   │       │       │   │   │       ├─ TextCommandContent_c4 58
  │   │       │       │   │   │       ├─ TextCommandContent_c5 58
- │   │       │       │   │   │       └─ TextCommandContent_c6 58
+ │   │       │       │   │   │       ├─ TextCommandContent_c6 58
+ │   │       │       │   │   │       └─ TextCommandContent_c7 58
  │   │       │       │   │   └─ TextCommand_c3 [58..59]: ">"
  │   │       │       │   ├─ Word [59..63]: "bold"
  │   │       │       │   ├─ TextCommand [63..67]
@@ -155,7 +152,8 @@ sparkdown [0..285]
  │   │       │       │   │   │       ├─ TextCommandContent_c3 66
  │   │       │       │   │   │       ├─ TextCommandContent_c4 66
  │   │       │       │   │   │       ├─ TextCommandContent_c5 66
- │   │       │       │   │   │       └─ TextCommandContent_c6 66
+ │   │       │       │   │   │       ├─ TextCommandContent_c6 66
+ │   │       │       │   │   │       └─ TextCommandContent_c7 66
  │   │       │       │   │   └─ TextCommand_c3 [66..67]: ">"
  │   │       │       │   ├─ Space [67..68]: " "
  │   │       │       │   ├─ Word [68..71]: "now"
@@ -203,29 +201,27 @@ sparkdown [0..285]
  │   │       │       │   ├─ TextCommand [84..92]
  │   │       │       │   │   ├─ TextCommand_c1 [84..85]: "<"
  │   │       │       │   │   ├─ TextCommand_c2 [85..91]
- │   │       │       │   │   │   ├─ TextCommandContent [85..90]
- │   │       │       │   │   │   │   ├─ TextCommandContent_c1 85
- │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [85..89]
- │   │       │       │   │   │   │   │   └─ TextCommandControl [85..89]
- │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [85..89]
- │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [85..89]: "wait"
- │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [89..90]
- │   │       │       │   │   │   │   │   └─ ExtraWhitespace [89..90]: " "
- │   │       │       │   │   │   │   ├─ TextCommandContent_c4 90
- │   │       │       │   │   │   │   ├─ TextCommandContent_c5 90
- │   │       │       │   │   │   │   └─ TextCommandContent_c6 90
- │   │       │       │   │   │   └─ TextCommandContent [90..91]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 90
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [90..91]
- │   │       │       │   │   │       │   └─ TextCommandControl [90..91]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [90..91]
- │   │       │       │   │   │       │           └─ LuauNumericDecimal [90..91]
- │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [90..91]: "1"
- │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 91
- │   │       │       │   │   │       ├─ TextCommandContent_c3 91
- │   │       │       │   │   │       ├─ TextCommandContent_c4 91
- │   │       │       │   │   │       ├─ TextCommandContent_c5 91
- │   │       │       │   │   │       └─ TextCommandContent_c6 91
+ │   │       │       │   │   │   └─ TextCommandContent [85..91]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 85
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [85..89]
+ │   │       │       │   │   │       │   └─ TextCommandControl [85..89]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [85..89]
+ │   │       │       │   │   │       │           └─ TextCommandControlKeyword [85..89]: "wait"
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 [89..90]
+ │   │       │       │   │   │       │   └─ ExtraWhitespace [89..90]: " "
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 90
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 90
+ │   │       │       │   │   │       ├─ TextCommandContent_c6 90
+ │   │       │       │   │   │       └─ TextCommandContent_c7 [90..91]
+ │   │       │       │   │   │           └─ TextCommandWords [90..91]
+ │   │       │       │   │   │               ├─ TextCommandWords_c1 90
+ │   │       │       │   │   │               ├─ TextCommandWords_c2 [90..91]
+ │   │       │       │   │   │               │   └─ TextCommandControl [90..91]
+ │   │       │       │   │   │               │       └─ TextCommandControl_c1 [90..91]
+ │   │       │       │   │   │               │           └─ LuauNumericDecimal [90..91]
+ │   │       │       │   │   │               │               ├─ LuauNumericDecimal_c1 [90..91]: "1"
+ │   │       │       │   │   │               │               └─ LuauNumericDecimal_c2 91
+ │   │       │       │   │   │               └─ TextCommandWords_c3 91
  │   │       │       │   │   └─ TextCommand_c3 [91..92]: ">"
  │   │       │       │   ├─ Space [92..93]: " "
  │   │       │       │   ├─ Word [93..96]: "now"
@@ -273,30 +269,28 @@ sparkdown [0..285]
  │   │       │       │   ├─ TextCommand [109..118]
  │   │       │       │   │   ├─ TextCommand_c1 [109..110]: "<"
  │   │       │       │   │   ├─ TextCommand_c2 [110..117]
- │   │       │       │   │   │   ├─ TextCommandContent [110..115]
- │   │       │       │   │   │   │   ├─ TextCommandContent_c1 110
- │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [110..114]
- │   │       │       │   │   │   │   │   └─ TextCommandControl [110..114]
- │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [110..114]
- │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [110..114]: "wait"
- │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [114..115]
- │   │       │       │   │   │   │   │   └─ ExtraWhitespace [114..115]: " "
- │   │       │       │   │   │   │   ├─ TextCommandContent_c4 115
- │   │       │       │   │   │   │   ├─ TextCommandContent_c5 115
- │   │       │       │   │   │   │   └─ TextCommandContent_c6 115
- │   │       │       │   │   │   └─ TextCommandContent [115..117]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 115
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [115..116]
- │   │       │       │   │   │       │   └─ TextCommandControl [115..116]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [115..116]
- │   │       │       │   │   │       │           └─ LuauNumericDecimal [115..116]
- │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [115..116]: "1"
- │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 116
- │   │       │       │   │   │       ├─ TextCommandContent_c3 [116..117]
- │   │       │       │   │   │       │   └─ ExtraWhitespace [116..117]: " "
- │   │       │       │   │   │       ├─ TextCommandContent_c4 117
- │   │       │       │   │   │       ├─ TextCommandContent_c5 117
- │   │       │       │   │   │       └─ TextCommandContent_c6 117
+ │   │       │       │   │   │   └─ TextCommandContent [110..117]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 110
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [110..114]
+ │   │       │       │   │   │       │   └─ TextCommandControl [110..114]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [110..114]
+ │   │       │       │   │   │       │           └─ TextCommandControlKeyword [110..114]: "wait"
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 [114..115]
+ │   │       │       │   │   │       │   └─ ExtraWhitespace [114..115]: " "
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 115
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 115
+ │   │       │       │   │   │       ├─ TextCommandContent_c6 115
+ │   │       │       │   │   │       └─ TextCommandContent_c7 [115..117]
+ │   │       │       │   │   │           └─ TextCommandWords [115..117]
+ │   │       │       │   │   │               ├─ TextCommandWords_c1 115
+ │   │       │       │   │   │               ├─ TextCommandWords_c2 [115..116]
+ │   │       │       │   │   │               │   └─ TextCommandControl [115..116]
+ │   │       │       │   │   │               │       └─ TextCommandControl_c1 [115..116]
+ │   │       │       │   │   │               │           └─ LuauNumericDecimal [115..116]
+ │   │       │       │   │   │               │               ├─ LuauNumericDecimal_c1 [115..116]: "1"
+ │   │       │       │   │   │               │               └─ LuauNumericDecimal_c2 116
+ │   │       │       │   │   │               └─ TextCommandWords_c3 [116..117]
+ │   │       │       │   │   │                   └─ ExtraWhitespace [116..117]: " "
  │   │       │       │   │   └─ TextCommand_c3 [117..118]: ">"
  │   │       │       │   ├─ Space [118..119]: " "
  │   │       │       │   ├─ Word [119..122]: "now"
@@ -353,7 +347,8 @@ sparkdown [0..285]
  │   │       │       │   │   │       ├─ TextCommandContent_c3 137
  │   │       │       │   │   │       ├─ TextCommandContent_c4 137
  │   │       │       │   │   │       ├─ TextCommandContent_c5 137
- │   │       │       │   │   │       └─ TextCommandContent_c6 137
+ │   │       │       │   │   │       ├─ TextCommandContent_c6 137
+ │   │       │       │   │   │       └─ TextCommandContent_c7 137
  │   │       │       │   │   └─ TextCommand_c3 [137..138]: ">"
  │   │       │       │   ├─ Word [138..142]: "bold"
  │   │       │       │   ├─ TextCommand [142..146]
@@ -368,7 +363,8 @@ sparkdown [0..285]
  │   │       │       │   │   │       ├─ TextCommandContent_c3 145
  │   │       │       │   │   │       ├─ TextCommandContent_c4 145
  │   │       │       │   │   │       ├─ TextCommandContent_c5 145
- │   │       │       │   │   │       └─ TextCommandContent_c6 145
+ │   │       │       │   │   │       ├─ TextCommandContent_c6 145
+ │   │       │       │   │   │       └─ TextCommandContent_c7 145
  │   │       │       │   │   └─ TextCommand_c3 [145..146]: ">"
  │   │       │       │   ├─ Space [146..147]: " "
  │   │       │       │   ├─ Word [147..150]: "now"
@@ -424,20 +420,21 @@ sparkdown [0..285]
  │   │       │       │   │   │       │           └─ TextCommandControlKeyword [164..169]: "speed"
  │   │       │       │   │   │       ├─ TextCommandContent_c3 169
  │   │       │       │   │   │       ├─ TextCommandContent_c4 [169..170]
- │   │       │       │   │   │       │   └─ ColonOperator [169..170]: ":"
+ │   │       │       │   │   │       │   └─ EqualOperator [169..170]: "="
  │   │       │       │   │   │       ├─ TextCommandContent_c5 [170..171]
  │   │       │       │   │   │       │   └─ ExtraWhitespace [170..171]: " "
- │   │       │       │   │   │       └─ TextCommandContent_c6 [171..174]
- │   │       │       │   │   │           └─ TextCommandArguments [171..174]
- │   │       │       │   │   │               └─ TextCommandArguments_c1 [171..174]
- │   │       │       │   │   │                   └─ TextCommandArgument [171..174]
- │   │       │       │   │   │                       ├─ TextCommandArgument_begin 171
- │   │       │       │   │   │                       ├─ TextCommandArgument_content [171..174]
- │   │       │       │   │   │                       │   └─ LuauNumericDecimal [171..174]
- │   │       │       │   │   │                       │       ├─ LuauNumericDecimal_c1 [171..174]: "0.5"
- │   │       │       │   │   │                       │       └─ LuauNumericDecimal_c2 174
- │   │       │       │   │   │                       └─ TextCommandArgument_end 174
- │   │       │       │   │   │                           └─ TextCommandArgument_end_c1 174
+ │   │       │       │   │   │       ├─ TextCommandContent_c6 [171..174]
+ │   │       │       │   │   │       │   └─ TextCommandArguments [171..174]
+ │   │       │       │   │   │       │       └─ TextCommandArguments_c1 [171..174]
+ │   │       │       │   │   │       │           └─ TextCommandArgument [171..174]
+ │   │       │       │   │   │       │               ├─ TextCommandArgument_begin 171
+ │   │       │       │   │   │       │               ├─ TextCommandArgument_content [171..174]
+ │   │       │       │   │   │       │               │   └─ LuauNumericDecimal [171..174]
+ │   │       │       │   │   │       │               │       ├─ LuauNumericDecimal_c1 [171..174]: "0.5"
+ │   │       │       │   │   │       │               │       └─ LuauNumericDecimal_c2 174
+ │   │       │       │   │   │       │               └─ TextCommandArgument_end 174
+ │   │       │       │   │   │       │                   └─ TextCommandArgument_end_c1 174
+ │   │       │       │   │   │       └─ TextCommandContent_c7 174
  │   │       │       │   │   └─ TextCommand_c3 [174..175]: ">"
  │   │       │       │   ├─ Space [175..176]: " "
  │   │       │       │   ├─ Word [176..179]: "now"
@@ -485,29 +482,27 @@ sparkdown [0..285]
  │   │   │   │       │   ├─ TextCommand [196..204]
  │   │   │   │       │   │   ├─ TextCommand_c1 [196..197]: "<"
  │   │   │   │       │   │   ├─ TextCommand_c2 [197..203]
- │   │   │   │       │   │   │   ├─ TextCommandContent [197..202]
- │   │   │   │       │   │   │   │   ├─ TextCommandContent_c1 197
- │   │   │   │       │   │   │   │   ├─ TextCommandContent_c2 [197..201]
- │   │   │   │       │   │   │   │   │   └─ TextCommandControl [197..201]
- │   │   │   │       │   │   │   │   │       └─ TextCommandControl_c1 [197..201]
- │   │   │   │       │   │   │   │   │           └─ TextCommandControlKeyword [197..201]: "wait"
- │   │   │   │       │   │   │   │   ├─ TextCommandContent_c3 [201..202]
- │   │   │   │       │   │   │   │   │   └─ ExtraWhitespace [201..202]: " "
- │   │   │   │       │   │   │   │   ├─ TextCommandContent_c4 202
- │   │   │   │       │   │   │   │   ├─ TextCommandContent_c5 202
- │   │   │   │       │   │   │   │   └─ TextCommandContent_c6 202
- │   │   │   │       │   │   │   └─ TextCommandContent [202..203]
- │   │   │   │       │   │   │       ├─ TextCommandContent_c1 202
- │   │   │   │       │   │   │       ├─ TextCommandContent_c2 [202..203]
- │   │   │   │       │   │   │       │   └─ TextCommandControl [202..203]
- │   │   │   │       │   │   │       │       └─ TextCommandControl_c1 [202..203]
- │   │   │   │       │   │   │       │           └─ LuauNumericDecimal [202..203]
- │   │   │   │       │   │   │       │               ├─ LuauNumericDecimal_c1 [202..203]: "1"
- │   │   │   │       │   │   │       │               └─ LuauNumericDecimal_c2 203
- │   │   │   │       │   │   │       ├─ TextCommandContent_c3 203
- │   │   │   │       │   │   │       ├─ TextCommandContent_c4 203
- │   │   │   │       │   │   │       ├─ TextCommandContent_c5 203
- │   │   │   │       │   │   │       └─ TextCommandContent_c6 203
+ │   │   │   │       │   │   │   └─ TextCommandContent [197..203]
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c1 197
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c2 [197..201]
+ │   │   │   │       │   │   │       │   └─ TextCommandControl [197..201]
+ │   │   │   │       │   │   │       │       └─ TextCommandControl_c1 [197..201]
+ │   │   │   │       │   │   │       │           └─ TextCommandControlKeyword [197..201]: "wait"
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c3 [201..202]
+ │   │   │   │       │   │   │       │   └─ ExtraWhitespace [201..202]: " "
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c4 202
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c5 202
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c6 202
+ │   │   │   │       │   │   │       └─ TextCommandContent_c7 [202..203]
+ │   │   │   │       │   │   │           └─ TextCommandWords [202..203]
+ │   │   │   │       │   │   │               ├─ TextCommandWords_c1 202
+ │   │   │   │       │   │   │               ├─ TextCommandWords_c2 [202..203]
+ │   │   │   │       │   │   │               │   └─ TextCommandControl [202..203]
+ │   │   │   │       │   │   │               │       └─ TextCommandControl_c1 [202..203]
+ │   │   │   │       │   │   │               │           └─ LuauNumericDecimal [202..203]
+ │   │   │   │       │   │   │               │               ├─ LuauNumericDecimal_c1 [202..203]: "1"
+ │   │   │   │       │   │   │               │               └─ LuauNumericDecimal_c2 203
+ │   │   │   │       │   │   │               └─ TextCommandWords_c3 203
  │   │   │   │       │   │   └─ TextCommand_c3 [203..204]: ">"
  │   │   │   │       │   ├─ Space [204..205]: " "
  │   │   │   │       │   ├─ Word [205..208]: "now"
@@ -530,30 +525,28 @@ sparkdown [0..285]
  │   │   │   │       │   ├─ TextCommand [217..226]
  │   │   │   │       │   │   ├─ TextCommand_c1 [217..218]: "<"
  │   │   │   │       │   │   ├─ TextCommand_c2 [218..225]
- │   │   │   │       │   │   │   ├─ TextCommandContent [218..223]
- │   │   │   │       │   │   │   │   ├─ TextCommandContent_c1 218
- │   │   │   │       │   │   │   │   ├─ TextCommandContent_c2 [218..222]
- │   │   │   │       │   │   │   │   │   └─ TextCommandControl [218..222]
- │   │   │   │       │   │   │   │   │       └─ TextCommandControl_c1 [218..222]
- │   │   │   │       │   │   │   │   │           └─ TextCommandControlKeyword [218..222]: "wait"
- │   │   │   │       │   │   │   │   ├─ TextCommandContent_c3 [222..223]
- │   │   │   │       │   │   │   │   │   └─ ExtraWhitespace [222..223]: " "
- │   │   │   │       │   │   │   │   ├─ TextCommandContent_c4 223
- │   │   │   │       │   │   │   │   ├─ TextCommandContent_c5 223
- │   │   │   │       │   │   │   │   └─ TextCommandContent_c6 223
- │   │   │   │       │   │   │   └─ TextCommandContent [223..225]
- │   │   │   │       │   │   │       ├─ TextCommandContent_c1 223
- │   │   │   │       │   │   │       ├─ TextCommandContent_c2 [223..224]
- │   │   │   │       │   │   │       │   └─ TextCommandControl [223..224]
- │   │   │   │       │   │   │       │       └─ TextCommandControl_c1 [223..224]
- │   │   │   │       │   │   │       │           └─ LuauNumericDecimal [223..224]
- │   │   │   │       │   │   │       │               ├─ LuauNumericDecimal_c1 [223..224]: "1"
- │   │   │   │       │   │   │       │               └─ LuauNumericDecimal_c2 224
- │   │   │   │       │   │   │       ├─ TextCommandContent_c3 [224..225]
- │   │   │   │       │   │   │       │   └─ ExtraWhitespace [224..225]: " "
- │   │   │   │       │   │   │       ├─ TextCommandContent_c4 225
- │   │   │   │       │   │   │       ├─ TextCommandContent_c5 225
- │   │   │   │       │   │   │       └─ TextCommandContent_c6 225
+ │   │   │   │       │   │   │   └─ TextCommandContent [218..225]
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c1 218
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c2 [218..222]
+ │   │   │   │       │   │   │       │   └─ TextCommandControl [218..222]
+ │   │   │   │       │   │   │       │       └─ TextCommandControl_c1 [218..222]
+ │   │   │   │       │   │   │       │           └─ TextCommandControlKeyword [218..222]: "wait"
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c3 [222..223]
+ │   │   │   │       │   │   │       │   └─ ExtraWhitespace [222..223]: " "
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c4 223
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c5 223
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c6 223
+ │   │   │   │       │   │   │       └─ TextCommandContent_c7 [223..225]
+ │   │   │   │       │   │   │           └─ TextCommandWords [223..225]
+ │   │   │   │       │   │   │               ├─ TextCommandWords_c1 223
+ │   │   │   │       │   │   │               ├─ TextCommandWords_c2 [223..224]
+ │   │   │   │       │   │   │               │   └─ TextCommandControl [223..224]
+ │   │   │   │       │   │   │               │       └─ TextCommandControl_c1 [223..224]
+ │   │   │   │       │   │   │               │           └─ LuauNumericDecimal [223..224]
+ │   │   │   │       │   │   │               │               ├─ LuauNumericDecimal_c1 [223..224]: "1"
+ │   │   │   │       │   │   │               │               └─ LuauNumericDecimal_c2 224
+ │   │   │   │       │   │   │               └─ TextCommandWords_c3 [224..225]
+ │   │   │   │       │   │   │                   └─ ExtraWhitespace [224..225]: " "
  │   │   │   │       │   │   └─ TextCommand_c3 [225..226]: ">"
  │   │   │   │       │   ├─ Space [226..227]: " "
  │   │   │   │       │   ├─ Word [227..230]: "now"
@@ -585,7 +578,8 @@ sparkdown [0..285]
  │   │   │   │       │   │   │       ├─ TextCommandContent_c3 241
  │   │   │   │       │   │   │       ├─ TextCommandContent_c4 241
  │   │   │   │       │   │   │       ├─ TextCommandContent_c5 241
- │   │   │   │       │   │   │       └─ TextCommandContent_c6 241
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c6 241
+ │   │   │   │       │   │   │       └─ TextCommandContent_c7 241
  │   │   │   │       │   │   └─ TextCommand_c3 [241..242]: ">"
  │   │   │   │       │   ├─ Word [242..246]: "bold"
  │   │   │   │       │   ├─ TextCommand [246..250]
@@ -600,7 +594,8 @@ sparkdown [0..285]
  │   │   │   │       │   │   │       ├─ TextCommandContent_c3 249
  │   │   │   │       │   │   │       ├─ TextCommandContent_c4 249
  │   │   │   │       │   │   │       ├─ TextCommandContent_c5 249
- │   │   │   │       │   │   │       └─ TextCommandContent_c6 249
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c6 249
+ │   │   │   │       │   │   │       └─ TextCommandContent_c7 249
  │   │   │   │       │   │   └─ TextCommand_c3 [249..250]: ">"
  │   │   │   │       │   ├─ Space [250..251]: " "
  │   │   │   │       │   ├─ Word [251..254]: "now"
@@ -631,20 +626,21 @@ sparkdown [0..285]
  │   │   │   │       │   │   │       │           └─ TextCommandControlKeyword [264..269]: "speed"
  │   │   │   │       │   │   │       ├─ TextCommandContent_c3 269
  │   │   │   │       │   │   │       ├─ TextCommandContent_c4 [269..270]
- │   │   │   │       │   │   │       │   └─ ColonOperator [269..270]: ":"
+ │   │   │   │       │   │   │       │   └─ EqualOperator [269..270]: "="
  │   │   │   │       │   │   │       ├─ TextCommandContent_c5 [270..271]
  │   │   │   │       │   │   │       │   └─ ExtraWhitespace [270..271]: " "
- │   │   │   │       │   │   │       └─ TextCommandContent_c6 [271..274]
- │   │   │   │       │   │   │           └─ TextCommandArguments [271..274]
- │   │   │   │       │   │   │               └─ TextCommandArguments_c1 [271..274]
- │   │   │   │       │   │   │                   └─ TextCommandArgument [271..274]
- │   │   │   │       │   │   │                       ├─ TextCommandArgument_begin 271
- │   │   │   │       │   │   │                       ├─ TextCommandArgument_content [271..274]
- │   │   │   │       │   │   │                       │   └─ LuauNumericDecimal [271..274]
- │   │   │   │       │   │   │                       │       ├─ LuauNumericDecimal_c1 [271..274]: "0.5"
- │   │   │   │       │   │   │                       │       └─ LuauNumericDecimal_c2 274
- │   │   │   │       │   │   │                       └─ TextCommandArgument_end 274
- │   │   │   │       │   │   │                           └─ TextCommandArgument_end_c1 274
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c6 [271..274]
+ │   │   │   │       │   │   │       │   └─ TextCommandArguments [271..274]
+ │   │   │   │       │   │   │       │       └─ TextCommandArguments_c1 [271..274]
+ │   │   │   │       │   │   │       │           └─ TextCommandArgument [271..274]
+ │   │   │   │       │   │   │       │               ├─ TextCommandArgument_begin 271
+ │   │   │   │       │   │   │       │               ├─ TextCommandArgument_content [271..274]
+ │   │   │   │       │   │   │       │               │   └─ LuauNumericDecimal [271..274]
+ │   │   │   │       │   │   │       │               │       ├─ LuauNumericDecimal_c1 [271..274]: "0.5"
+ │   │   │   │       │   │   │       │               │       └─ LuauNumericDecimal_c2 274
+ │   │   │   │       │   │   │       │               └─ TextCommandArgument_end 274
+ │   │   │   │       │   │   │       │                   └─ TextCommandArgument_end_c1 274
+ │   │   │   │       │   │   │       └─ TextCommandContent_c7 274
  │   │   │   │       │   │   └─ TextCommand_c3 [274..275]: ">"
  │   │   │   │       │   ├─ Space [275..276]: " "
  │   │   │   │       │   ├─ Word [276..279]: "now"

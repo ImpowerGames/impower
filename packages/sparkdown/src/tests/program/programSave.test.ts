@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { SAVE_FORMAT } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
+import { SCAN_CLOSE, SCAN_OPEN } from "../../runtime/displayStyle";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { compileScript, programSession } from "./programHarness";
@@ -501,6 +502,109 @@ describe("a save at the end", () => {
     const ended = load(atEnd);
     expect(ended.canContinue).toBe(false);
     expect(ended.currentChoices).toHaveLength(0);
+  });
+});
+
+describe("a save whose strings hold a tag written with a colon (#2391)", () => {
+  const withoutTagEquals = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(withoutTagEquals)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.entries(value)
+              .filter(([key]) => key !== "tagEquals")
+              .map(([key, item]) => [key, withoutTagEquals(item)]),
+          )
+        : value;
+
+  const legacy = (json: string): string =>
+    JSON.stringify(withoutTagEquals(JSON.parse(json))).split("<speed=0.5>").join("<speed:0.5>");
+
+  const insertedAfterLoad = (text: string, saveAt: string[]): string => {
+    const story = engine(rootOf(text)!, undefined, 5);
+    for (const beat of saveAt) expect(nextBeat(story)).toBe(beat);
+    const saved = legacy(story.toSave());
+    expect(saved).toContain("<speed:0.5>");
+    const loaded = engine(rootOf(text)!, undefined, 5);
+    loaded.loadSave(saved);
+    nextBeat(loaded);
+    return loaded.currentStyledText ?? "";
+  };
+
+  it("resumes a tunnel's caller from a save with no tags", () => {
+    const text = "scene start\n  -> helper ->\n  After.\nend\nscene helper\n  Inside.\n  ->->\nend\n";
+    const story = engine(rootOf(text)!, undefined, 5);
+    expect(nextBeat(story)).toBe("Inside.");
+    const loaded = engine(rootOf(text)!, undefined, 5);
+    loaded.loadSave(legacy(story.toSave()));
+    expect(nextBeat(loaded)).toBe("After.");
+  });
+
+  it("reads a known tag in a table field a later beat changed with an equals sign", () => {
+    const text = 'store t = { whisper = "" }\nscene start\n  Ready.\n  & t.whisper = "<speed=0.5>"\n  Set.\n  {t.whisper}Come closer.\nend\n';
+    expect(insertedAfterLoad(text, ["Ready.", "Set."])).toContain(`${SCAN_OPEN}<speed=0.5>${SCAN_CLOSE}`);
+  });
+
+  it("reads a known tag in a captured local a later beat changed with an equals sign", () => {
+    const text = [
+      "store set = nil",
+      "store get = nil",
+      "scene start",
+      "  local function make()",
+      '    local whisper = ""',
+      '    set = function() whisper = "<speed=0.5>" end',
+      "    get = function() return whisper end",
+      "  end",
+      "  & make()",
+      "  Ready.",
+      "  & set()",
+      "  Set.",
+      "  {get()}Come closer.",
+      "end",
+      "",
+    ].join("\n");
+    expect(insertedAfterLoad(text, ["Ready.", "Set."])).toContain(`${SCAN_OPEN}<speed=0.5>${SCAN_CLOSE}`);
+  });
+
+  it("reads a known tag in a local a waiting choice holds with an equals sign", () => {
+    const text = 'scene start\n  & local whisper = "<speed=0.5>"\n  choose\n    + Go\n      {whisper}Come closer.\n      done\n  end\nend\n';
+    const story = engine(rootOf(text)!, undefined, 5);
+    while (story.canContinue) story.Continue();
+    expect(story.currentChoices).toHaveLength(1);
+    const saved = legacy(story.state.ToJson() as string);
+    expect(JSON.stringify(JSON.parse(saved).choices[0].frames)).toContain("^<speed:0.5>");
+    const loaded = engine(rootOf(text)!, undefined, 5);
+    loaded.state.LoadJson(saved);
+    loaded.ChooseChoiceIndex(0);
+    const shown: string[] = [];
+    while (loaded.canContinue) {
+      loaded.Continue();
+      shown.push(loaded.currentStyledText ?? "");
+    }
+    expect(shown.join("|")).toContain(`${SCAN_OPEN}<speed=0.5>${SCAN_CLOSE}`);
+  });
+
+  it("reads a known tag in a string a later beat changed with an equals sign", () => {
+    const text = [
+      'store whisper = ""',
+      "scene start",
+      "  Ready.",
+      '  & whisper = "<speed=0.5>"',
+      "  Set.",
+      "  {whisper}Come closer.",
+      "end",
+      "",
+    ].join("\n");
+    const story = engine(rootOf(text)!, undefined, 5);
+    expect(nextBeat(story)).toBe("Ready.");
+    expect(nextBeat(story)).toBe("Set.");
+    const saved = JSON.parse(story.toSave());
+    expect(saved.beats.length).toBeGreaterThan(1);
+    const colon = JSON.stringify(withoutTagEquals(saved)).split("<speed=0.5>").join("<speed:0.5>");
+    expect(colon).toContain("<speed:0.5>");
+    const loaded = engine(rootOf(text)!, undefined, 5);
+    loaded.loadSave(colon);
+    expect(String((loaded.variablesState.GetVariableWithName("whisper") as { value?: unknown } | null)?.value)).toBe("<speed=0.5>");
   });
 });
 
