@@ -25,6 +25,7 @@ import { getWidthOfTextbox } from "../textbox-for-pdfkit/src/utils/getWidthOfTex
 import { printTextbox } from "../textbox-for-pdfkit/src/utils/printTextbox";
 import { wrapTextbox } from "../textbox-for-pdfkit/src/utils/wrapTextbox";
 import { splitEmojiRuns } from "@impower/sparkdown-screenplay/src/utils/emojiRuns";
+import { printedFontOf } from "@impower/sparkdown-screenplay/src/utils/scriptFontAdvance";
 import {
   TITLE_PLACEMENT_ORDER,
   type TitleRegion,
@@ -540,15 +541,7 @@ export default class ScreenplayPrinter {
         ...options,
         ...c,
       };
-      const font =
-        base.font ??
-        (base.bold && base.italic
-          ? "bolditalic"
-          : base.bold
-            ? "bold"
-            : base.italic
-              ? "italic"
-              : "normal");
+      const font = printedFontOf(base);
       return splitEmojiRuns(base.text ?? "").map((run) => ({
         ...base,
         font,

@@ -6,7 +6,10 @@ import { pathToFileURL } from "node:url";
 import PDFDocument from "pdfkit";
 import { chromium, type Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
+import { cellWidth, lineMaxWidth, printProfileOf } from "../../sparkdown-screenplay/src/utils/printGeometry";
+import { screenplayPageLayout } from "../../sparkdown-screenplay/src/utils/screenplayPageLayout";
 import { KINDS } from "./helpers/screenplayParity";
 import { buildScreenplayGeometryPage, EMOJI_FONT_URL } from "./harness/screenplay-geometry.mjs";
 
@@ -502,6 +505,75 @@ describe("rows holding combining marks", () => {
     const print = letters(pdf);
     expect(shown.map((row) => row.text)).toEqual(print.map((row) => row.text));
     shown.forEach((row, index) => expect(Math.abs(row.left - print[index]!.left), row.text).toBeLessThan(0.06));
+  }, 120_000);
+});
+
+const CJK_SCRIPT = [
+  "scene cjk",
+  "  GUIDE:",
+  `    ${"これは長い日本語の台詞で、列車が駅に着くまで話し続けます。".repeat(3)}`,
+  `  ${"我们在火车站等了很久，然后终于看到了那列老火车慢慢地开进站台。".repeat(2)}`,
+  `  ${"기차가 역에 도착할 때까지 우리는 아주 오랫동안 기다렸습니다. ".repeat(3)}`,
+  "end",
+  "",
+].join("\n");
+
+const MIXED_SCRIPT = [
+  "scene mixed",
+  "  GUIDE:",
+  `    The sign reads 東京駅 then 서울역 and the Ωmega line runs past 北京 until this long line wraps over the edge of the page and back.`,
+  `  ${"Latin words 混合 with 漢字 between them ".repeat(4)}finish.`,
+  `  ${"ΩΩΩ ".repeat(20)}end.`,
+  "end",
+  "",
+].join("\n");
+
+const NUL_SCRIPT = ["scene nul", `  ${"\u0000".repeat(30)}${LONG}`, "end", ""].join("\n");
+
+const filledScript = (paper: string) => {
+  const profile = printProfileOf({ screenplay_print_paper_size: paper });
+  const cells = Math.floor(lineMaxWidth(profile, { tag: "action" }) / cellWidth(profile));
+  const filled = (glyph: string) => `  ${glyph}${"x".repeat(cells - 1)} then the line goes on.`;
+  return ["scene filled", ...["東", "我", "기", "Ω", "語"].map(filled), "end", ""].join("\n");
+};
+
+const unspaced = (text: string) => text.replace(/[\s\u0000]/g, "");
+
+const laidOut = (script: string, config: ScreenplayConfig) => {
+  const layout = screenplayPageLayout(new ScreenplayParser().buildTree(script), script, config);
+  const rows = layout.printedLines.flatMap(({ lines }) =>
+    lines.flatMap((content) =>
+      content
+        .map((piece) => piece.text)
+        .join("")
+        .split("\n")
+        .map((text, index) => ({ text: unspaced(text), continues: index > 0 })),
+    ),
+  );
+  return { rows: rows.filter((row) => row.text), wrapStarts: layout.wrapStarts };
+};
+
+describe("the page's rows for glyphs Courier Prime lacks", () => {
+  it.each(
+    [
+      ["CJK lines", CJK_SCRIPT],
+      ["mixed-script lines", MIXED_SCRIPT],
+      ["a line holding U+0000", NUL_SCRIPT],
+      ["rows that fill the printed width", undefined],
+    ].flatMap(([name, script]) => ["usletter", "a4"].map((paper) => [name!, paper, script ?? filledScript(paper)] as const)),
+  )("start where the PDF's rows start for %s on %s", async (_name, paper, script) => {
+    const config = { ...BASE, screenplay_print_paper_size: paper };
+    const pdf = (await printed(script, config)).rows.map((row) => unspaced(row.text)).filter(Boolean);
+    const page = laidOut(script, config);
+    expect(pdf.length).toBeGreaterThan(1);
+    expect(page.rows.map((row) => row.text)).toEqual(pdf);
+    const continued = page.rows.filter((row) => row.continues);
+    expect(continued.length).toBeGreaterThan(0);
+    expect(page.wrapStarts).toHaveLength(continued.length);
+    page.wrapStarts.forEach((start, index) => {
+      const row = continued[index]!.text;
+      expect(unspaced(script.slice(start.at)).startsWith(row), `row ${JSON.stringify(row)} starts at ${start.at}`).toBe(true);
+    });
   }, 120_000);
 });
 
