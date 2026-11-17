@@ -196,7 +196,7 @@ export default class WorkspaceFileSystem {
 
   protected _unstoredUris = new Set<string>();
 
-  protected _replacingUnstoredUris = new Set<string>();
+  protected _replacingUnstoredUris = new Map<string, number>();
 
   protected _folders = new Set<string>();
 
@@ -567,7 +567,8 @@ export default class WorkspaceFileSystem {
       const served = fresh.filter(
         (c) =>
           c.type !== FileChangeType.Deleted ||
-          !this._replacingUnstoredUris.has(c.uri),
+          !this._replacingUnstoredUris.has(c.uri) ||
+          !this._unstoredUris.has(c.uri),
       );
       if (served.length === fresh.length) {
         this._ls.connection.sendNotification(forwarded.method, forwarded.params);
@@ -756,7 +757,12 @@ export default class WorkspaceFileSystem {
       const file = this._files?.[uri];
       return file ? [file] : [];
     });
-    unstored.forEach((file) => this._replacingUnstoredUris.add(file.uri));
+    unstored.forEach((file) =>
+      this._replacingUnstoredUris.set(
+        file.uri,
+        (this._replacingUnstoredUris.get(file.uri) ?? 0) + 1,
+      ),
+    );
     const result = await this.applyWorkspaceEdit(
       {
         documentChanges: [
@@ -786,7 +792,14 @@ export default class WorkspaceFileSystem {
       },
       label,
     ).finally(() => {
-      unstored.forEach((file) => this._replacingUnstoredUris.delete(file.uri));
+      unstored.forEach((file) => {
+        const count = (this._replacingUnstoredUris.get(file.uri) ?? 1) - 1;
+        if (count > 0) {
+          this._replacingUnstoredUris.set(file.uri, count);
+        } else {
+          this._replacingUnstoredUris.delete(file.uri);
+        }
+      });
     });
     const lost = result.applied
       ? []
