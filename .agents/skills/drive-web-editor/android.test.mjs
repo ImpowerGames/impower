@@ -781,15 +781,17 @@ function phonePreviewPage({ paneShown = false, owned = false, saveStuck = false,
   };
   const page = stubPage();
   page.keyboard = { press: async (key) => { if (key === "Escape") state.menuOpen = false; } };
+  const press = (selector) => async () => {
+    state.pressed.push(selector);
+    if (selector === show) state.paneShown = state.savedRevealed = true;
+    if (selector === settings) state.menuOpen = true;
+    if (selector === close) state.paneShown = false;
+  };
   page.locator = (selector, options) => ({
     first: () => ({
       isVisible: async () => visible(selector, options),
-      click: async () => {
-        state.pressed.push(selector);
-        if (selector === show) state.paneShown = state.savedRevealed = true;
-        if (selector === settings) state.menuOpen = true;
-        if (selector === close) state.paneShown = false;
-      },
+      click: press(selector),
+      tap: press(selector),
       waitFor: async ({ state: want } = {}) => {
         if ((want === "hidden") === visible(selector, options)) throw new Error("timeout");
       },
@@ -801,6 +803,7 @@ function phonePreviewPage({ paneShown = false, owned = false, saveStuck = false,
       if (arg[1] === "release") delete state.storage[OWNED_PREVIEW];
       return state.storage[OWNED_PREVIEW] === "1";
     }
+    if (String(fn).includes("maxTouchPoints")) return true;
     if (arg === undefined && String(fn).includes("menuitemcheckbox")) return [{ name: "Game preview follows cursor", checked: true }];
     return { width: 430, height: 807, devicePixelRatio: 3, visibility: "visible" };
   };
