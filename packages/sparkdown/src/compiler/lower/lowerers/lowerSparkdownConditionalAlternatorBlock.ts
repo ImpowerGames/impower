@@ -21,6 +21,7 @@ import { containerValueNodes, lowerExpressionFromNodes } from "../expression/low
 import { findChildByName, lowerArms, reportAlternatorHead, tokenAfter, valuedConditionNodes } from "../utils/alternatorArms";
 import { alternatorHeadNodes, isOneLineStorySet, STORY_CONDITIONAL_HEAD, storyArmsContent } from "../../utils/alternatorDecision";
 import { oneLineValueNeedsBrackets } from "../utils/oneLineBareValue";
+import { isTrivia } from "../../lint/luauTree";
 import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -46,6 +47,18 @@ const STORY_SETS = nodeNameSet([
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
 ]);
 
+function headValueNodes(node: SyntaxNode): SyntaxNode[] {
+  const content = findChildByName(node, `${node.name}_content`);
+  const head = content ? findChildByName(content, STORY_CONDITIONAL_HEAD) : null;
+  const headContent = head ? findChildByName(head, `${STORY_CONDITIONAL_HEAD}_content`) : null;
+  const nodes: SyntaxNode[] = [];
+  for (let child = headContent?.firstChild ?? null; child; child = child.nextSibling) {
+    if (child.name === "LuauConditionalAlternatorCondition") nodes.push(...containerValueNodes(child));
+    else if (!isTrivia(child)) nodes.push(child);
+  }
+  return nodes;
+}
+
 export function lowerSparkdownConditionalAlternatorBlock(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -66,7 +79,13 @@ export function lowerSparkdownConditionalAlternatorBlock(
   );
   const readsHead = valued !== false || alternatorHeadNodes(nodeRef.node).length > 0;
   if (readsHead && !valued) reportAlternatorHead(nodeRef.node, ctx);
-  const condNodes = valued ? valuedConditionNodes(nodeRef.node) : condNode ? containerValueNodes(condNode) : [];
+  const condNodes = valued
+    ? valuedConditionNodes(nodeRef.node)
+    : prefix === "LuauSparkdownConditionalAlternatorBlock"
+      ? headValueNodes(nodeRef.node)
+      : condNode
+        ? containerValueNodes(condNode)
+        : [];
   let condExpr = condNodes.length > 0
     ? lowerExpressionFromNodes(condNodes, ctx, readsHead ? null : "expression", readsHead ? undefined : tokenAfter(condNodes, ctx))
     : null;
@@ -83,16 +102,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
   const diagnostics: InkDiagnostic[] = [];
   const name = keyword || "match";
   if (prefix === "LuauSparkdownConditionalAlternatorBlock") {
-    const head = getDescendent(STORY_CONDITIONAL_HEAD, nodeRef.node);
-    const headContent = head ? findChildByName(head, `${STORY_CONDITIONAL_HEAD}_content`) : null;
-    const strays: SyntaxNode[] = [];
-    for (let child = headContent?.firstChild ?? null; child; child = child.nextSibling) {
-      strays.push(child);
-    }
     for (let child = content?.firstChild ?? null; child && child.name !== "LuauAlternatorSeparator"; child = child.nextSibling) {
-      strays.push(child);
-    }
-    for (const child of strays) {
       if (NOT_A_LINE.has(child.name)) {
         continue;
       }

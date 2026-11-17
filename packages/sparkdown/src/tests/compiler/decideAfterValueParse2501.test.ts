@@ -106,13 +106,34 @@ describe("a story match or plural is one-line or multi-line by what follows its 
     expect(bare).toEqual(play(scene(`${keyword}(${value}) ${arms}`)));
   });
 
-  test.each(ONE_LINE_FINDINGS)("%s (`%s`) is diagnosed bare, asking for brackets, and plays its arms", (_, value, keyword) => {
+  test.each(ONE_LINE_FINDINGS)("%s (`%s`) is diagnosed bare, asking for brackets, and plays the arm its bracketed spelling plays", (_, value, keyword) => {
     const arms = keyword === "plural" ? "| one = A. | other = B. end" : "| happy = A. | other = B. end";
     const bare = play(scene(`${keyword} ${value} ${arms}`));
+    const bracketed = play(scene(`${keyword}(${value}) ${arms}`));
     expect(bare.errors.filter((message) => BRACKETS.test(message))).toHaveLength(1);
-    expect(play(scene(`${keyword}(${value}) ${arms}`)).errors.filter((message) => BRACKETS.test(message))).toEqual([]);
-    expect(bare.out.endsWith("After.\n")).toBe(true);
-    expect(bare.out).not.toContain("|");
+    expect(bracketed.errors.filter((message) => BRACKETS.test(message))).toEqual([]);
+    expect(bare.errors.filter((message) => !BRACKETS.test(message))).toEqual(bracketed.errors);
+    expect(bare.out).toBe(bracketed.out);
+    expect(bare.out).toMatch(/^(A|B)\.\nAfter\.\n$/);
+  });
+
+  test.each([
+    ["a name", "match", "mood --[[ c ]]"],
+    ["a dotted name", "match", "player.mood --[[ c ]]"],
+    ["a bracketed value", "match", "(mood) --[[ c ]]"],
+    ["a number", "plural", "1 --[[ c ]]"],
+    ["a negative number", "plural", "- --[[ c ]] 1"],
+  ])("%s followed by a comment is accepted bare (6953765551)", (_, keyword, value) => {
+    const arms = keyword === "plural" ? "| one = A. | other = B. end" : "| happy = A. | other = B. end";
+    expect(play(scene(`${keyword} ${value} ${arms}`))).toEqual({ errors: [], warnings: [], out: "A.\nAfter.\n" });
+  });
+
+  test("a value the condition rule ends inside is read whole, as its bracketed spelling is (6953765551)", () => {
+    const arms = "| happy = A. | other = B. end";
+    const bare = play(scene(`match player --[[c]] . mood ${arms}`));
+    expect(bare.out).toBe("A.\nAfter.\n");
+    expect(bare.out).toBe(play(scene(`match(player --[[c]] . mood) ${arms}`)).out);
+    expect(bare.errors.filter((message) => !BRACKETS.test(message))).toEqual([]);
   });
 
   test.each([

@@ -1,15 +1,14 @@
 import type { SyntaxNode } from "@lezer/common";
+import { isTrivia } from "../../lint/luauTree";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 
 const NUMBERS = nodeNameSet(["LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary"]);
-
-const WHITESPACE = nodeNameSet(["Whitespace", "OptionalWhitespace", "RequiredWhitespace", "ExtraWhitespace"]);
 
 function contentChildren(node: SyntaxNode): SyntaxNode[] {
   const children: SyntaxNode[] = [];
   const content = node.getChild(`${node.name}_content`);
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
-    if (!WHITESPACE.has(child.name)) children.push(child);
+    if (!isTrivia(child)) children.push(child);
   }
   return children;
 }
@@ -33,7 +32,8 @@ function isNumber(node: SyntaxNode): boolean {
 }
 
 export function oneLineValueNeedsBrackets(valueNodes: readonly SyntaxNode[]): boolean {
-  if (valueNodes.length !== 1) return valueNodes.length > 1;
-  const [value] = valueNodes as [SyntaxNode];
+  const values = valueNodes.filter((node) => !isTrivia(node));
+  if (values.length !== 1) return values.length > 1;
+  const [value] = values as [SyntaxNode];
   return !(value.name === "LuauParenthetical" || isDottedName(value) || isNumber(value));
 }
