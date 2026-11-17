@@ -199,7 +199,7 @@ self.addEventListener("install", (e) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(SW_CACHE_NAME);
-      cache.addAll(SW_RESOURCES);
+      await cache.addAll(SW_RESOURCES);
     })(),
   );
 });

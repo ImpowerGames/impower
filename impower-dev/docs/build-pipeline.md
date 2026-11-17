@@ -68,8 +68,8 @@ there is no custom asset-loader plugin.
    `impowerUiStyleCss?direct`), and inline `normalize + theme + Tailwind` into a
    `<style id="ssg-css">` block. Writes the styled HTML to `out/public`.
 6. **`buildWorkers`** — run each sibling package's `esbuild.js` to emit the
-   worker bundles + build the service worker (with the `SW_RESOURCES` cache
-   manifest).
+   worker bundles, rename each to `<name>.<BUILD_ID>.js`, then build the service
+   worker (with the `SW_RESOURCES` cache manifest).
 
 ## The dev server (`serve`, `--watch`)
 
@@ -98,8 +98,14 @@ The three external workers — `sparkdown-language-server`, `opfs-workspace`,
 `sparkdown-screenplay-pdf` — live in sibling packages and are bundled by their
 own `esbuild.js`. In dev, `--watch` rebuilds them from file-change events
 (`scripts/esbuild-watch.mjs`) rather than esbuild's `ctx.watch()`, which polls
-every file of the build graph. The app loads them as
-`new Worker("/<name>.js")`. They're a separate bundler from Vite on purpose:
+every file of the build graph. The app loads them through
+`getWorkerUrl(name, import.meta.env.BUILD_ID)` (`src/workers/workerUrl.ts`).
+A production build takes one `BUILD_ID`, which is also the service worker's
+cache version. `buildPages` injects it into the client, and `buildWorkers`
+renames each worker to `/<name>.<BUILD_ID>.js`, so a page can only start the
+workers of its own build. Development has no `BUILD_ID` and serves
+`/<name>.js`. The service worker's install waits for the whole precache, so a
+new build activates only once every file is cached. They're a separate bundler from Vite on purpose:
 they're reusable packages with their own build, also consumed by the VS Code
 extension.
 

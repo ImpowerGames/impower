@@ -40,6 +40,7 @@ import {
   viteStaticallyRenderedPagesPlugin,
   WATCH,
 } from "./vite.config.js";
+import { getWorkerUrl } from "./src/workers/workerUrl";
 
 const RESET = "\x1b[0m";
 const STRING = "%s";
@@ -54,6 +55,8 @@ const FINISHED_COLOR = CYAN;
 const STEP_COLOR = BLUE;
 const SRC_COLOR = GREEN;
 const OUT_COLOR = MAGENTA;
+
+const BUILD_ID = String(Date.now());
 
 const getRelativePath = (p: string) =>
   p.replace(process.cwd() + "\\", "").replace(/\\/g, "/");
@@ -142,7 +145,10 @@ const buildPages = async () => {
   await build({
     configFile: false,
     resolve: { alias, dedupe },
-    define: browserEnvDefine,
+    define: {
+      ...browserEnvDefine,
+      "import.meta.env.BUILD_ID": JSON.stringify(BUILD_ID),
+    },
     plugins: [markdownHtmlPlugin(), tailwindcss()],
     build: {
       outDir: publicOutDir,
@@ -244,11 +250,10 @@ const buildWorkers = async () => {
   console.log(STEP_COLOR, "Building External Workers...");
   for (const externalWorkerPath of externalWorkerPaths) {
     const workerOutDir = path.resolve(process.cwd(), publicOutDir);
+    const workerName = path.basename(externalWorkerPath, ".ts");
+    const workerUrl = getWorkerUrl(workerName, BUILD_ID);
     console.log(SRC_COLOR, `  ${getRelativePath(externalWorkerPath)}`);
-    console.log(
-      OUT_COLOR,
-      `    ⤷ ${getRelativePath(workerOutDir)}/${path.basename(externalWorkerPath, ".ts")}.js`,
-    );
+    console.log(OUT_COLOR, `    ⤷ ${getRelativePath(workerOutDir)}${workerUrl}`);
     const workerPkgRoot = externalWorkerPath.substring(
       0,
       externalWorkerPath.indexOf("/src/"),
@@ -275,6 +280,10 @@ const buildWorkers = async () => {
         },
       );
     });
+    await fs.promises.rename(
+      path.join(workerOutDir, `${workerName}.js`),
+      path.join(workerOutDir, workerUrl),
+    );
   }
 
   console.log("");
@@ -283,7 +292,7 @@ const buildWorkers = async () => {
   const publicFilePaths = await glob(
     `${publicOutDir}/**/*.{css,html,js,mjs,ico,svg,png,ttf,woff,woff2}`,
   );
-  const SW_VERSION = Date.now();
+  const SW_VERSION = BUILD_ID;
   const SW_RESOURCES: string[] = ["/"];
   SW_RESOURCES.push(
     ...publicFilePaths
