@@ -774,6 +774,32 @@ describe("the tile shape of a folder not named for portraits or backdrops", () =
     ]);
   });
 
+  it("waits for the listing before turning a stored Tiles into a shape, so a page opened before its files arrive stores the shape they share", async () => {
+    withPictures({
+      "Assets/Images/ada.png": [8001, 300, 400],
+      "Assets/Images/kai.png": [8002, 300, 400],
+      "Assets/Images/sky.png": [8003, 640, 400],
+    });
+    const arriving = workspace.assetListing.value!;
+    workspace.assetListing.value = undefined;
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images" }, assetsLayouts: { "Assets/Images": "tiles" } },
+    };
+    await mount();
+    await settle();
+    expect(window.setListState.mock.calls.filter(([lists]) => "assetsLayouts" in lists)).toEqual([]);
+    await act(async () => {
+      workspace.assetListing.value = arriving;
+    });
+    await settle();
+    await settle();
+    expect(tileShapes()).toEqual(["portrait", "portrait", "portrait"]);
+    expect(window.setListState.mock.calls.filter(([lists]) => "assetsLayouts" in lists)).toEqual([
+      [{ assetsLayouts: { "Assets/Images": "portrait" } }],
+    ]);
+  });
+
   it("never measures a folder whose size was chosen", async () => {
     withPictures({
       "Assets/Images/Cast/ada.png": [7001, 300, 400],

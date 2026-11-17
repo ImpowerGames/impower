@@ -63,6 +63,45 @@ describe("Tile", () => {
     expect(await gridTracks("desktop", 400)).toEqual(narrow);
   }, 60_000);
 
+  it("renders each size at exactly the height tileHeight gives it, so the classes and the numbers describe one tile", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const widths = [96, 141, 194];
+    await act(async () =>
+      render(
+        <>
+          {SIZES.flatMap((size) =>
+            widths.map((width) => (
+              <div data-cell={`${size}:${width}`} style={`width:${width}px`}>
+                <Tile size={size} media={null} label="picture" description="Modified 2d · 4 kb" aria-label={`Open ${size}`} onClick={() => {}} />
+              </div>
+            )),
+          )}
+        </>,
+        host!,
+      ),
+    );
+    const markup = host.innerHTML;
+    const compiler = await compile('@import "./src/style.css";', { base: `${process.cwd()}`, onDependency: () => {} });
+    const css = optimize(compiler.build([...markup.matchAll(/class="([^"]*)"/g)].flatMap((match) => match[1]!.replace(/&amp;/g, "&").split(/\s+/))), { minify: false }).code;
+    const browser = await chromium.launch();
+    try {
+      const view = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      await view.setContent(`<!doctype html><html data-layout="desktop"><head><style>${css}</style></head><body style="margin:0">${markup}</body></html>`);
+      const heights = await view.evaluate(() =>
+        Object.fromEntries(
+          [...document.querySelectorAll<HTMLElement>("[data-cell]")].map((cell) => [cell.dataset.cell, cell.querySelector("button")!.getBoundingClientRect().height]),
+        ),
+      );
+      for (const size of SIZES) {
+        for (const width of widths) {
+          expect(heights[`${size}:${width}`], `${size} at ${width}`).toBeCloseTo(tileHeight(size, width), 1);
+        }
+      }
+    } finally {
+      await browser.close();
+    }
+  }, 60_000);
+
   it("gives each size a fixed height for its width, so a grid of them never reflows", () => {
     expect(tileHeight("landscape", 176)).toBeCloseTo(158 * (10 / 16) + 64.6, 6);
     expect(tileHeight("landscape", 192)).toBeCloseTo(173.35, 6);

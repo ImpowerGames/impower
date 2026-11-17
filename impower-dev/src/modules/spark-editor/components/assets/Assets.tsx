@@ -388,10 +388,10 @@ function AssetsBrowser() {
   const tiles = images && layout !== "rows";
   const size: TileSize = layout === "rows" ? shape : layout;
   useEffect(() => {
-    if (images && stored === LEGACY_TILES && !measuring) {
+    if (images && loaded && stored === LEGACY_TILES && !measuring) {
       setLayout(shape);
     }
-  }, [images, stored, measuring, shape, setLayout]);
+  }, [images, loaded, stored, measuring, shape, setLayout]);
   const measureKey = JSON.stringify(pictures.map((path, index) => [path, pictureSources[index]]));
   useEffect(() => {
     if (pictures.length) {

@@ -5,42 +5,115 @@ import { CheckIcon } from "../icon/icons.generated";
 import type { ThumbnailFit } from "../thumbnail/Thumbnail";
 import type { VirtualListGrid } from "../virtual-list/VirtualList";
 
-export const tileVariants = cva("group/tile relative h-full min-w-0", {
-  variants: {
-    size: {
-      portrait: "",
-      landscape: "",
-      small: "",
-    },
-  },
-  defaultVariants: { size: "landscape" },
-});
-
-export type TileSize = NonNullable<VariantProps<typeof tileVariants>["size"]>;
+type TileSizeSpec = {
+  ratio: number;
+  padX: number;
+  padTop: number;
+  padBottom: number;
+  gap: number;
+  name: number;
+  meta: boolean;
+  fit: ThumbnailFit;
+  classes: {
+    open: string;
+    media: string;
+    label: string;
+    description: string;
+    mark: string;
+    actions: string;
+    grid: string;
+  };
+};
 
 const FRAME = 2;
+const LINE = 1.4;
+const META = 11;
+const META_GAP = 2;
 
 export const TILE_SIZES = {
-  portrait: { ratio: 4 / 3, insetX: 16, chromeY: FRAME + 8 + 9 + 13 * 1.4 + 2 + 11 * 1.4 + 10, fit: "height" },
-  landscape: { ratio: 10 / 16, insetX: 16, chromeY: FRAME + 8 + 9 + 13 * 1.4 + 2 + 11 * 1.4 + 10, fit: "contain" },
-  small: { ratio: 1, insetX: 10, chromeY: FRAME + 5 + 6 + 11 * 1.4 + 7, fit: "contain" },
-} as const satisfies Record<TileSize, { ratio: number; insetX: number; chromeY: number; fit: ThumbnailFit }>;
-
-export const tileGridVariants = cva("", {
-  variants: {
-    size: {
-      portrait:
-        "[--grid-min-width:150px] [--grid-gap:10px] [:root[data-layout=desktop]_&]:[--grid-min-width:138px] [:root[data-layout=desktop]_&]:[--grid-gap:12px] [:root[data-layout=desktop]_&]:[@container_(max-width:440px)]:[--grid-min-width:140px]",
-      landscape:
-        "[--grid-min-width:160px] [--grid-gap:10px] [:root[data-layout=desktop]_&]:[--grid-min-width:176px] [:root[data-layout=desktop]_&]:[--grid-gap:12px] [:root[data-layout=desktop]_&]:[@container_(max-width:440px)]:[--grid-min-width:150px]",
-      small: "[--grid-min-width:88px] [--grid-gap:8px] [:root[data-layout=desktop]_&]:[--grid-min-width:96px]",
+  portrait: {
+    ratio: 4 / 3,
+    padX: 8,
+    padTop: 8,
+    padBottom: 10,
+    gap: 9,
+    name: 13,
+    meta: true,
+    fit: "height",
+    classes: {
+      open: "gap-[9px] rounded-[14px] px-2 pt-2 pb-2.5",
+      media: "aspect-[3/4]",
+      label: "text-[13px]/[1.4]",
+      description: "",
+      mark: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
+      actions: "top-2.5 right-2.5 [&>button]:size-[34px]",
+      grid: "[--grid-min-width:150px] [--grid-gap:10px] [:root[data-layout=desktop]_&]:[--grid-min-width:138px] [:root[data-layout=desktop]_&]:[--grid-gap:12px] [:root[data-layout=desktop]_&]:[@container_(max-width:440px)]:[--grid-min-width:140px]",
     },
   },
+  landscape: {
+    ratio: 10 / 16,
+    padX: 8,
+    padTop: 8,
+    padBottom: 10,
+    gap: 9,
+    name: 13,
+    meta: true,
+    fit: "contain",
+    classes: {
+      open: "gap-[9px] rounded-[14px] px-2 pt-2 pb-2.5",
+      media: "aspect-[16/10]",
+      label: "text-[13px]/[1.4]",
+      description: "",
+      mark: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
+      actions: "top-2.5 right-2.5 [&>button]:size-[34px]",
+      grid: "[--grid-min-width:160px] [--grid-gap:10px] [:root[data-layout=desktop]_&]:[--grid-min-width:176px] [:root[data-layout=desktop]_&]:[--grid-gap:12px] [:root[data-layout=desktop]_&]:[@container_(max-width:440px)]:[--grid-min-width:150px]",
+    },
+  },
+  small: {
+    ratio: 1,
+    padX: 5,
+    padTop: 5,
+    padBottom: 7,
+    gap: 6,
+    name: 11,
+    meta: false,
+    fit: "contain",
+    classes: {
+      open: "gap-1.5 rounded-[10px] px-[5px] pt-[5px] pb-[7px]",
+      media: "aspect-square",
+      label: "text-[11px]/[1.4]",
+      description: "hidden",
+      mark: "top-[9px] left-[9px] [&>span]:size-[18px] [:root[data-pointer=coarse]_&]:after:-inset-[13px]",
+      actions: "top-1.5 right-1.5 [&>button]:size-7",
+      grid: "[--grid-min-width:88px] [--grid-gap:8px] [:root[data-layout=desktop]_&]:[--grid-min-width:96px]",
+    },
+  },
+} as const satisfies Record<string, TileSizeSpec>;
+
+export type TileSize = keyof typeof TILE_SIZES;
+
+const bySize = (part: keyof TileSizeSpec["classes"]): Record<TileSize, string> => ({
+  portrait: TILE_SIZES.portrait.classes[part],
+  landscape: TILE_SIZES.landscape.classes[part],
+  small: TILE_SIZES.small.classes[part],
+});
+
+export const tileHeight = (size: TileSize, width: number): number => {
+  const spec: TileSizeSpec = TILE_SIZES[size];
+  const media = Math.max(0, width - FRAME - spec.padX * 2) * spec.ratio;
+  const copy = spec.name * LINE + (spec.meta ? META_GAP + META * LINE : 0);
+  return FRAME + spec.padTop + media + spec.gap + copy + spec.padBottom;
+};
+
+export const tileVariants = cva("group/tile relative h-full min-w-0", {
+  variants: { size: { portrait: "", landscape: "", small: "" } },
   defaultVariants: { size: "landscape" },
 });
 
-export const tileHeight = (size: TileSize, width: number): number =>
-  Math.max(0, width - FRAME - TILE_SIZES[size].insetX) * TILE_SIZES[size].ratio + TILE_SIZES[size].chromeY;
+export const tileGridVariants = cva("", {
+  variants: { size: bySize("grid") },
+  defaultVariants: { size: "landscape" },
+});
 
 export const tileGrid = (size: TileSize): VirtualListGrid => ({
   class: tileGridVariants({ size }),
@@ -51,11 +124,7 @@ export const tileOpenVariants = cva(
   "control-overlay focus-inset flex h-full w-full min-w-0 cursor-pointer flex-col border border-edge bg-panel/55 text-left hover:border-muted/45",
   {
     variants: {
-      size: {
-        portrait: "gap-[9px] rounded-[14px] px-2 pt-2 pb-2.5",
-        landscape: "gap-[9px] rounded-[14px] px-2 pt-2 pb-2.5",
-        small: "gap-1.5 rounded-[10px] px-[5px] pt-[5px] pb-[7px]",
-      },
+      size: bySize("open"),
       current: {
         true: "border-accent bg-tint hover:border-accent",
         false: "",
@@ -88,11 +157,7 @@ export const tileMarkVariants = cva(
   ],
   {
     variants: {
-      size: {
-        portrait: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
-        landscape: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
-        small: "top-[9px] left-[9px] [&>span]:size-[18px] [:root[data-pointer=coarse]_&]:after:-inset-[13px]",
-      },
+      size: bySize("mark"),
       selection: {
         available:
           "pointer-events-none opacity-0 group-hover/tile:pointer-events-auto group-hover/tile:opacity-100 has-focus-visible:opacity-100",
@@ -103,27 +168,14 @@ export const tileMarkVariants = cva(
   },
 );
 
-export const tileMediaVariants = cva(
-  "relative block w-full flex-none overflow-hidden rounded-[9px]",
-  {
-    variants: {
-      size: {
-        portrait: "aspect-[3/4]",
-        landscape: "aspect-[16/10]",
-        small: "aspect-square",
-      },
-    },
-    defaultVariants: { size: "landscape" },
-  },
-);
+export const tileMediaVariants = cva("relative block w-full flex-none overflow-hidden rounded-[9px]", {
+  variants: { size: bySize("media") },
+  defaultVariants: { size: "landscape" },
+});
 
 export const tileLabelVariants = cva("min-w-0 text-ink [--fade:20px] fade-edge", {
   variants: {
-    size: {
-      portrait: "text-[13px]/[1.4]",
-      landscape: "text-[13px]/[1.4]",
-      small: "text-[11px]/[1.4]",
-    },
+    size: bySize("label"),
     kind: {
       file: "",
       folder: "font-semibold",
@@ -133,13 +185,7 @@ export const tileLabelVariants = cva("min-w-0 text-ink [--fade:20px] fade-edge",
 });
 
 export const tileDescriptionVariants = cva("min-w-0 text-[11px]/[1.4] text-muted [--fade:20px] fade-edge", {
-  variants: {
-    size: {
-      portrait: "",
-      landscape: "",
-      small: "hidden",
-    },
-  },
+  variants: { size: bySize("description") },
   defaultVariants: { size: "landscape" },
 });
 
@@ -147,11 +193,7 @@ export const tileActionsVariants = cva(
   "absolute z-10 flex rounded-full bg-bg/78 text-ink motion-safe:transition-opacity [&>button]:rounded-full [:root[data-pointer=coarse]_&]:[&>button]:size-11",
   {
     variants: {
-      size: {
-        portrait: "top-2.5 right-2.5 [&>button]:size-[34px]",
-        landscape: "top-2.5 right-2.5 [&>button]:size-[34px]",
-        small: "top-1.5 right-1.5 [&>button]:size-7",
-      },
+      size: bySize("actions"),
       current: {
         true: "opacity-100",
         false: "opacity-0 group-hover/tile:opacity-100 group-focus-within/tile:opacity-100 [:root[data-pointer=coarse]_&]:opacity-100",
