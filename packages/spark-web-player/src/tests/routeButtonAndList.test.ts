@@ -1,4 +1,5 @@
-import { iconMasks } from "@impower/impower-ui/icon-masks";
+import { PinFillIcon, PinIcon } from "@impower/impower-ui/icons";
+import { h, render } from "preact";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
@@ -183,11 +184,15 @@ describe("the route list", () => {
     p.report({ route });
     p.button()!.click();
     const glyph = (selector: string) =>
-      p.routeList
-        .querySelector<HTMLElement>(`${selector} .route-icon`)!
-        .style.getPropertyValue("--route-icon-mask");
-    const hollow = iconMasks["pin"];
-    const filled = iconMasks["pin-fill"];
+      p.routeList.querySelector<SVGSVGElement>(`${selector} svg.route-icon`)!.innerHTML;
+    const drawn = (Icon: typeof PinIcon) => {
+      const host = document.createElement("div");
+      render(h(Icon, {}), host);
+      return host.querySelector("svg")!.innerHTML;
+    };
+    const hollow = drawn(PinIcon);
+    const filled = drawn(PinFillIcon);
+    expect(hollow).not.toEqual(filled);
     expect(glyph(".route-entry[data-kind='auto']")).toEqual(hollow);
     expect(glyph(".route-toggle[data-kind='auto']")).toEqual(hollow);
     expect(glyph(".route-entry[data-kind='pinned']")).toEqual(filled);

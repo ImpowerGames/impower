@@ -196,14 +196,16 @@ describe("the gutter marks and route pins under forced colours", () => {
         const paint = before.display === "none" || before.content === "none" ? "no ::before" : before.backgroundColor;
         return drawn(mark.className.replace("cm-gutter-button ", ""), glyph, paint);
       });
-      const masks = [...document.querySelectorAll(".route-icon-mask, .cm-choice-popover .cm-choice-icon")].map((icon) => {
-        const name = icon.classList.contains("route-icon-mask") ? `route ${(icon as HTMLElement).dataset["icon"]}` : icon.className;
-        return drawn(name, icon, getComputedStyle(icon).backgroundColor);
-      });
+      const routePins = [...document.querySelectorAll<SVGSVGElement>(".route-icon-samples svg.route-icon")].map((icon) =>
+        drawn(`route ${icon.dataset["icon"]}`, icon, getComputedStyle(icon).color),
+      );
+      const masks = [...document.querySelectorAll(".cm-choice-popover .cm-choice-icon")].map((icon) =>
+        drawn(icon.className, icon, getComputedStyle(icon).backgroundColor),
+      );
       const folds = [...document.querySelectorAll(".cm-fold-marker")].map((mark) =>
         getComputedStyle(mark.querySelector(".cm-gutter-button-glyph")!, "::before").backgroundColor,
       );
-      return { canvasText, marks: [...glyphs, ...masks], folds };
+      return { canvasText, marks: [...glyphs, ...routePins, ...masks], folds };
     });
     const kinds = paints.marks.map((mark) => mark.kind);
     expect(kinds).toContain("route auto");
