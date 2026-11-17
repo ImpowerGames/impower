@@ -52,7 +52,6 @@ import {
   screenplayPicksField,
   screenplayRowField,
   screenplayScenesBeforeField,
-  screenplayWrapsField,
 } from "./screenplaySettings";
 
 type DecorationSpec =
@@ -279,6 +278,7 @@ export const decorate = (
   from: number = 0,
   to?: number,
   treeOverride?: import("@lezer/common").Tree,
+  countsBreaks = true,
 ) => {
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
   const decorations: Range<Decoration>[] = [];
@@ -287,7 +287,6 @@ export const decorate = (
   const picks = state.field(screenplayPicksField, false);
   const scenesBefore = state.field(screenplayScenesBeforeField, false) ?? 0;
   const row = state.field(screenplayRowField, false) ?? PREVIEW_FONT_SIZE;
-  const countsBreaks = !state.field(screenplayWrapsField, false);
 
   const declarationName = (nodeRef: SyntaxNodeRef, child: SparkdownNodeName) => {
     const cursor = nodeRef.node.cursor();
@@ -1148,13 +1147,33 @@ const splitHiddenAtBlocks = (decorations: Range<Decoration>[]): Range<Decoration
   });
 };
 
-const replaceDecorations = StateField.define<DecorationSet>({
-  create(state) {
-    const ranges = decorate(state);
-    const decorations =
-      ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
-    return decorations;
-  },
+const LINE_GAP_LENGTH = 4000;
+
+const drawsGappedLine = (doc: Text, ranges: readonly Range<Decoration>[]) => {
+  let blocks: readonly Range<Decoration>[] | undefined;
+  for (let number = 1; number <= doc.lines; number++) {
+    const line = doc.line(number);
+    if (line.length < LINE_GAP_LENGTH) continue;
+    blocks ??= ranges.filter((range) => range.value.spec.block && range.to > range.from);
+    if (!blocks.some((block) => block.from <= line.from && block.to >= line.to)) return true;
+  }
+  return false;
+};
+
+interface ScreenplayDecorations {
+  set: DecorationSet;
+  wraps: boolean;
+}
+
+const screenplayDecorations = (state: EditorState): ScreenplayDecorations => {
+  const ranges = decorate(state);
+  const wraps = drawsGappedLine(state.doc, ranges);
+  const drawn = wraps ? decorate(state, 0, undefined, undefined, false) : ranges;
+  return { set: drawn.length > 0 ? RangeSet.of(drawn, true) : Decoration.none, wraps };
+};
+
+const replaceDecorations = StateField.define<ScreenplayDecorations>({
+  create: screenplayDecorations,
   update(decorations, transaction) {
     if (!transaction.docChanged) {
       const { startState, state } = transaction;
@@ -1170,11 +1189,15 @@ const replaceDecorations = StateField.define<DecorationSet>({
           state.field(screenplayScenesBeforeField, false);
       if (unchanged) return decorations;
     }
-    const ranges = decorate(transaction.state);
-    return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
+    return screenplayDecorations(transaction.state);
   },
   provide(field) {
-    return EditorView.decorations.from(field);
+    return [
+      EditorView.decorations.from(field, (decorations) => decorations.set),
+      EditorView.contentAttributes.compute([field], (state): Record<string, string> =>
+        state.field(field).wraps ? { class: "cm-lineWrapping" } : {},
+      ),
+    ];
   },
 });
 

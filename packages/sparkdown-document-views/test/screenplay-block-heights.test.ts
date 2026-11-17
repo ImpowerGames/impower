@@ -28,7 +28,11 @@ interface Scroll {
 let browser: Browser;
 let pageUrl: string;
 let outDir: string;
-const scrolls = new Map<number, Promise<Scroll>>();
+const scrolls = new Map<string, Promise<Scroll>>();
+
+const SCRIPT = GEOMETRY_SCRIPTS.join("\n").repeat(4);
+
+const LONG_HIDDEN_LINE = `// ${"hidden ".repeat(800)}\n`;
 
 beforeAll(async () => {
   outDir = mkdtempSync(join(tmpdir(), "screenplay-block-heights-"));
@@ -41,7 +45,7 @@ afterAll(async () => {
   rmSync(outDir, { recursive: true, force: true });
 });
 
-const scrollThrough = async (page: Page, width: number): Promise<Scroll> => {
+const scrollThrough = async (page: Page, script: string, width: number): Promise<Scroll> => {
   await page.goto(pageUrl);
   await page.waitForFunction(() => "renderScreenplay" in window);
   await page.evaluate(() =>
@@ -50,7 +54,7 @@ const scrollThrough = async (page: Page, width: number): Promise<Scroll> => {
   await page.evaluate(
     ([text, settings, w]) =>
       (window as unknown as { renderScreenplay: (...args: unknown[]) => void }).renderScreenplay("fixture", text, settings, 0, w),
-    [GEOMETRY_SCRIPTS.join("\n").repeat(4), GEOMETRY_CONFIG, width] as const,
+    [script, GEOMETRY_CONFIG, width] as const,
   );
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   return page.evaluate(async () => {
@@ -73,17 +77,18 @@ const scrollThrough = async (page: Page, width: number): Promise<Scroll> => {
   });
 };
 
-const scrolled = (width: number) => {
-  let found = scrolls.get(width);
+const scrolled = (width: number, script = SCRIPT) => {
+  const key = `${width}:${script}`;
+  let found = scrolls.get(key);
   if (!found) {
     found = browser.newPage({ viewport: { width: width + 40, height: 600 } }).then(async (page) => {
       try {
-        return await scrollThrough(page, width);
+        return await scrollThrough(page, script, width);
       } finally {
         await page.close();
       }
     });
-    scrolls.set(width, found);
+    scrolls.set(key, found);
   }
   return found;
 };
@@ -94,6 +99,10 @@ const causeOf = (kind: string, height: number, row: number) =>
 describe("the Screenplay page", () => {
   it.each([760, 430])("keeps a long script's scroll height steady while scrolling a %spx page", async (width) => {
     expect((await scrolled(width)).jumps).toEqual([]);
+  }, 240_000);
+
+  it.each([760, 430])("keeps the scroll height steady on a %spx page when a hidden line is too long to draw unwrapped", async (width) => {
+    expect((await scrolled(width, `${SCRIPT}${LONG_HIDDEN_LINE}`)).jumps).toEqual([]);
   }, 240_000);
 
   it.each([760, 430])("estimates every block at the height it renders on a %spx page", async (width) => {
