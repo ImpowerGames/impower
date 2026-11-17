@@ -2,15 +2,7 @@ import {
   DATA_ATTRIBUTE_PROPS,
   ARIA_ATTRIBUTE_ALIASES,
 } from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
-import {
-  keepStateArguments,
-  markCombinatorNames,
-  markNameAts,
-  markSelectorArgumentNames,
-  NAME_AT,
-  trimStateArguments,
-  writeSelectorStates,
-} from "../../../sparkdown/src/compiler/constants/selectorStates";
+import { SELECTOR_STATE_ALIASES } from "../../../sparkdown/src/compiler/constants/selectorStates";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssPropertyName } from "../../../sparkle-style-transformer/src/utils/getCssPropertyName";
@@ -22,6 +14,16 @@ const SPACE_BEFORE_IDENTIFIER_REGEX = /(?:^|[ ]+)(?=[_\p{L}])/gu;
 const SPACE_BEFORE_SELECTOR_OPERATOR_REGEX = /[ ]+(?=[^_\p{L}])/gu;
 const ATTRIBUTE_SELECTOR_REGEX =
   /[#]((?:[_\p{L}][_\p{L}0-9-]*)?(?:(?:[~]|[|]|[\^]|[$]|[*])?[=](?:["](?:\\.|[^"\r\n])*["]|.*?(?=$|[\s"'`<>=:(){}\[\]]))?)?)/gu;
+
+const PSEUDO_ALIASES = SELECTOR_STATE_ALIASES;
+
+const PSEUDO_ALIAS_REGEX = new RegExp(
+  Object.keys(PSEUDO_ALIASES)
+    .map((k) => k.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"))
+    .sort((a, b) => b.length - a.length)
+    .join("|"),
+  "g",
+);
 
 const _breakpointRegexCache: Record<string, RegExp> = {};
 function breakpointRegex(name: string) {
@@ -35,6 +37,8 @@ const LEADING_DESCENDANT_REGEX = /(^|,)([ ]*)[>][>]/g;
 
 const QUOTED_REGEX = /(["](?:\\.|[^"])*["]|['](?:\\.|[^'])*['])/;
 
+const ARGUMENT_SPACING_REGEX =
+  /(@(?:theme|screen[-_]size|container[-_]size))[(][ \t]*([^()\s]+)[ \t]*[)]/g;
 
 const COLOR_SCHEME_VARIANT_REGEX = /@theme[(](light|dark)[)]/g;
 
@@ -85,7 +89,14 @@ function liftColorScheme(selector: string): string {
 
 const DATA_ATTRIBUTE_SELECTOR_REGEX = /[#]([_\p{L}][_\p{L}0-9-]*)/gu;
 
+const NAME_AT = "";
+
 const NAME_AT_ESCAPE = escapeCssIdentifier("@");
+
+const NAME_RUN_REGEX = /(^|[^@\p{L}\p{N}_-])([\p{L}\p{N}_-][@\p{L}\p{N}_-]*)/gu;
+
+const markNameAts = (piece: string) =>
+  piece.replace(NAME_RUN_REGEX, (_, before: string, run: string) => before + run.replace(/@(?=[\p{L}\p{N}_])/gu, NAME_AT));
 
 export function getCSSSelector(
   selector: string,
@@ -103,9 +114,8 @@ export function getCSSSelector(
 
   selector = selector.replace(LEADING_DESCENDANT_REGEX, "$1$2& >>");
 
-  const kept = keepStateArguments(selector);
   const OUT: string[] = [];
-  const parts = markSelectorArgumentNames(kept.selector).split(QUOTED_REGEX);
+  const parts = selector.split(QUOTED_REGEX);
 
   for (let idx = 0; idx < parts.length; idx++) {
     const piece = parts[idx]!;
@@ -114,23 +124,21 @@ export function getCSSSelector(
       continue;
     }
 
-    let rewritten = writeSelectorStates(
-      markCombinatorNames(
-        markNameAts(trimStateArguments(piece)).replace(
-          ATTRIBUTE_SELECTOR_REGEX,
-          (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`,
-        ),
+    let rewritten = markNameAts(piece.replace(ARGUMENT_SPACING_REGEX, "$1($2)"))
+      .replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`)
+      .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
+      .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")
+      .replace(DESCENDANT_REGEX, " ")
+      .replace(PSEUDO_ALIAS_REGEX, (m) =>
+        m in PSEUDO_ALIASES ? (PSEUDO_ALIASES as any)[m] : ":" + m.slice(1),
       )
-        .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
-        .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")
-        .replace(DESCENDANT_REGEX, " "),
-    ).replaceAll(NAME_AT, NAME_AT_ESCAPE);
+      .replaceAll(NAME_AT, NAME_AT_ESCAPE);
 
     for (const [name, px] of Object.entries(breakpoints)) {
       rewritten = rewritten.replace(breakpointRegex(name), `width:${px}px)`);
     }
 
-    OUT.push(kept.restore(rewritten));
+    OUT.push(rewritten);
   }
 
   return liftColorScheme(OUT.join("").trim());

@@ -1640,7 +1640,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "SelectorStateName") {
       const state = this.read(nodeRef.from, nodeRef.to);
       if (!isKnownSelectorState(state)) {
-        const message = `\`@${state}\` is not a known state, so ${this.deadSelectorStateConsequence(nodeRef.node)}\n> States are the player's names such as \`@hovered\`, \`@focused\` and \`@pressed\`, or standard CSS pseudo-class names such as \`@focus-visible\``;
+        const message = `\`@${state}\` is not a known state, so ${this.deadSelectorStateConsequence(nodeRef.node)}\n> States are the player's names such as \`@hovered\`, \`@focused\`, \`@pressed\`, \`@first\` and \`@before\``;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
             message,

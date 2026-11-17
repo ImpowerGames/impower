@@ -76,259 +76,64 @@ export const SELECTOR_STATE_ALIASES: Readonly<Record<string, string>> = {
   "@view_transition": "@view-transition",
 };
 
-export const COLOR_SCHEME_STATE = "theme";
-
-export const STANDARD_PSEUDO_CLASSES: ReadonlySet<string> = new Set([
-  "active",
-  "any-link",
-  "autofill",
-  "blank",
-  "buffering",
-  "checked",
-  "current",
-  "default",
-  "defined",
-  "dir",
+export const KNOWN_SELECTOR_STATES: ReadonlySet<string> = new Set([
+  "theme",
+  "hovered",
+  "focused",
+  "pressed",
   "disabled",
-  "empty",
   "enabled",
-  "first",
-  "first-child",
-  "first-of-type",
-  "focus",
-  "focus-visible",
-  "focus-within",
-  "fullscreen",
-  "future",
-  "has",
-  "host",
-  "host-context",
-  "hover",
-  "in-range",
-  "indeterminate",
-  "invalid",
-  "is",
-  "lang",
-  "last-child",
-  "last-of-type",
-  "left",
-  "link",
-  "local-link",
-  "modal",
-  "muted",
-  "not",
-  "nth-child",
-  "nth-last-child",
-  "nth-last-of-type",
-  "nth-of-type",
-  "only-child",
-  "only-of-type",
-  "open",
-  "optional",
-  "out-of-range",
-  "past",
-  "paused",
-  "picture-in-picture",
-  "placeholder-shown",
-  "playing",
-  "popover-open",
-  "read-only",
-  "read-write",
+  "checked",
+  "unchecked",
   "required",
-  "right",
-  "root",
-  "scope",
-  "seeking",
-  "stalled",
-  "state",
-  "target",
-  "target-within",
-  "user-invalid",
-  "user-valid",
+  "indeterminate",
+  "type_color",
+  "type_date",
+  "type_time",
+  "type_submit",
+  "type_reset",
+  "type_button",
   "valid",
-  "visited",
-  "volume-locked",
-  "where",
-]);
-
-const ALIASED_STATES: ReadonlySet<string> = new Set(
-  Object.keys(SELECTOR_STATE_ALIASES).map((key) => key.slice(1).replace(/[(]$/, "")),
-);
-
-export const isKnownSelectorState = (name: string): boolean =>
-  name === COLOR_SCHEME_STATE || ALIASED_STATES.has(name) || STANDARD_PSEUDO_CLASSES.has(name);
-
-const SELECTOR_STATE_REGEX = /@([_\p{L}][_\p{L}0-9-]*)([(]?)/gu;
-
-export const writeSelectorStates = (
-  selector: string,
-  aliases: Readonly<Record<string, string>> = SELECTOR_STATE_ALIASES,
-): string =>
-  selector.replace(SELECTOR_STATE_REGEX, (state, name: string, paren: string) => {
-    const alias = aliases[`@${name}${paren}`] ?? (paren ? aliases[`@${name}`]?.concat(paren) : undefined);
-    if (alias != null) {
-      return alias;
-    }
-    return STANDARD_PSEUDO_CLASSES.has(name) ? `:${name}${paren}` : state;
-  });
-
-const VALUE_ARGUMENT_STATES: ReadonlySet<string> = new Set([
-  "nth-child",
-  "nth-last-child",
-  "nth-of-type",
-  "nth-last-of-type",
-  "lang",
-  "language",
-  "dir",
+  "invalid",
+  "readonly",
+  "first",
+  "last",
+  "only",
+  "odd",
+  "even",
+  "blank",
   "direction",
-  "state",
+  "language",
+  "before",
+  "after",
+  "placeholder",
+  "selection",
+  "marker",
+  "backdrop",
+  "opened",
+  "track",
+  "thumb",
+  "bar",
+  "fill",
+  "file_button",
+  "file-button",
+  "picker",
+  "swatch",
+  "swatch_wrapper",
+  "swatch-wrapper",
+  "busy",
+  "container-size",
+  "container_size",
+  "screen-size",
+  "screen_size",
+  "initial",
+  "container",
+  "layer",
+  "media",
+  "scope",
+  "starting-style",
+  "starting_style",
+  "supports",
 ]);
 
-const SELECTOR_LIST_ARGUMENT_STATES: ReadonlySet<string> = new Set(["nth-child", "nth-last-child"]);
-
-const ARGUMENT_STATE_REGEX = /@([_\p{L}][_\p{L}0-9-]*)[(]/uy;
-
-const SELECTOR_ARGUMENT_FUNCTION_REGEX = /@(?:has|not|is|where|host|host-context|nth-child|nth-last-child)$/u;
-
-const NAME_START_REGEX = /^[_\p{L}]/u;
-
-const ARGUMENT_SPACING_REGEX = /(@(?:theme|screen[-_]size|container[-_]size))[(][ \t]*([^()\s]+)[ \t]*[)]/g;
-
-export const trimStateArguments = (selector: string): string => selector.replace(ARGUMENT_SPACING_REGEX, "$1($2)");
-
-const COMBINATOR_NAME_REGEX = /([>+~])(?=[_\p{L}])/gu;
-
-const ATTRIBUTE_BRACKET_REGEX = /(\[[^\]]*\])/;
-
-export const markCombinatorNames = (selector: string): string =>
-  selector
-    .split(ATTRIBUTE_BRACKET_REGEX)
-    .map((part, index) => (index & 1 ? part : part.replace(COMBINATOR_NAME_REGEX, "$1.")))
-    .join("");
-
-export const NAME_AT = String.fromCharCode(0xe000);
-
-const NAME_RUN_REGEX = /(^|[^@\p{L}\p{N}_-])([\p{L}\p{N}_-][@\p{L}\p{N}_-]*)/gu;
-
-export const markNameAts = (selector: string): string =>
-  selector.replace(NAME_RUN_REGEX, (_, before: string, run: string) => before + run.replace(/@(?=[\p{L}\p{N}_])/gu, NAME_AT));
-
-const SELECTOR_LIST_SEPARATOR_REGEX = /^(.*?)\s+of\s+(.*)$/su;
-
-const KEPT_ARGUMENT_START = String.fromCharCode(0xe001);
-
-const KEPT_ARGUMENT_END = String.fromCharCode(0xe002);
-
-const KEPT_ARGUMENT_REGEX = new RegExp(`${KEPT_ARGUMENT_START}([0-9]+)${KEPT_ARGUMENT_END}`, "g");
-
-const closingParen = (selector: string, open: number): number => {
-  let depth = 1;
-  let quote = "";
-  for (let i = open; i < selector.length; i++) {
-    const char = selector[i]!;
-    if (quote) {
-      if (char === "\\") {
-        i++;
-      } else if (char === quote) {
-        quote = "";
-      }
-    } else if (char === '"' || char === "'") {
-      quote = char;
-    } else if (char === "(") {
-      depth++;
-    } else if (char === ")" && --depth === 0) {
-      return i;
-    }
-  }
-  return -1;
-};
-
-const keepArguments = (selector: string, kept: string[]): string => {
-  let out = "";
-  let at = 0;
-  let quote = "";
-  for (let i = 0; i < selector.length; i++) {
-    const char = selector[i]!;
-    if (quote) {
-      if (char === "\\") {
-        i++;
-      } else if (char === quote) {
-        quote = "";
-      }
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    ARGUMENT_STATE_REGEX.lastIndex = i;
-    const match = char === "@" ? ARGUMENT_STATE_REGEX.exec(selector) : null;
-    if (!match || !VALUE_ARGUMENT_STATES.has(match[1]!)) {
-      continue;
-    }
-    const open = i + match[0].length;
-    const close = closingParen(selector, open);
-    if (close < 0) {
-      continue;
-    }
-    const inner = selector.slice(open, close);
-    const list = SELECTOR_LIST_ARGUMENT_STATES.has(match[1]!) ? SELECTOR_LIST_SEPARATOR_REGEX.exec(inner) : null;
-    const value = list ? `${list[1]!.trim()} of ` : inner.trim();
-    const rest = list ? ` ${keepArguments(list[2]!.trim(), kept)}` : "";
-    out += `${selector.slice(at, open)}${KEPT_ARGUMENT_START}${kept.push(value) - 1}${KEPT_ARGUMENT_END}${rest})`;
-    at = close + 1;
-    i = close;
-  }
-  return out + selector.slice(at);
-};
-
-export const keepStateArguments = (
-  selector: string,
-): { selector: string; restore: (css: string) => string } => {
-  const kept: string[] = [];
-  return {
-    selector: keepArguments(selector, kept),
-    restore: (css) => css.replace(KEPT_ARGUMENT_REGEX, (_, index: string) => kept[Number(index)]!),
-  };
-};
-
-const AT_RULE_STATES = Object.keys(SELECTOR_STATE_ALIASES)
-  .filter((key) => SELECTOR_STATE_ALIASES[key]!.startsWith("@"))
-  .map((key) => key.slice(1).replace(/[(]$/, ""));
-
-const AT_RULE_START_REGEX = new RegExp(`^\\s*@(?:${AT_RULE_STATES.join("|")})(?![_\\p{L}0-9-])`, "u");
-
-export const markSelectorArgumentNames = (selector: string): string => {
-  let out = "";
-  let quote = "";
-  const selectorLists: boolean[] = [];
-  const topLevelList = !AT_RULE_START_REGEX.test(selector);
-  for (let i = 0; i < selector.length; i++) {
-    const char = selector[i]!;
-    out += char;
-    if (quote) {
-      if (char === "\\" && i + 1 < selector.length) {
-        out += selector[++i];
-      } else if (char === quote) {
-        quote = "";
-      }
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-    } else if (char === "(") {
-      selectorLists.push(SELECTOR_ARGUMENT_FUNCTION_REGEX.test(out.slice(-16, -1)));
-    } else if (char === ")") {
-      selectorLists.pop();
-    }
-    const inSelectorList = selectorLists.length > 0 ? selectorLists[selectorLists.length - 1] : topLevelList;
-    if (
-      (char === "(" || char === ",") &&
-      inSelectorList &&
-      NAME_START_REGEX.test(selector.slice(i + 1, i + 3))
-    ) {
-      out += ".";
-    }
-  }
-  return out;
-};
+export const isKnownSelectorState = (name: string): boolean => KNOWN_SELECTOR_STATES.has(name);
