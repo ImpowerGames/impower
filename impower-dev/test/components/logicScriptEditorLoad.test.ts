@@ -729,6 +729,25 @@ describe("the open script's typing over another tab's write (I-2159)", { timeout
     expect(mocks.reads.length).toBe(reads + 1);
   });
 
+  it("keeps typing entered while the other tab's text is being written, and saves it", async () => {
+    await loaded();
+    await type("hello typed\n");
+    await announce(notification("theirs\n"));
+    await vi.waitFor(() => expect(mocks.writes.length).toBe(1), { timeout: 5_000, interval: 20 });
+    const reads = mocks.reads.length;
+    mocks.holdWrites = true;
+    await act(async () => {
+      snackbar.value!.onAction!();
+    });
+    await vi.waitFor(() => expect(mocks.held.length).toBe(1), { timeout: 5_000, interval: 20 });
+    expect(mocks.writes.at(-1)!.textDocument.text).toBe("theirs\n");
+    await type("hello typed and more\n");
+    await vi.waitFor(() => expect(mocks.held.length).toBe(2), { timeout: 5_000, interval: 20 });
+    await releaseHeld();
+    expect(mocks.reads.length).toBe(reads);
+    expect(mocks.writes.at(-1)!.textDocument.text).toBe("hello typed and more\n");
+  });
+
   it("leaves the script as it is when the other tab wrote again before the author asked", async () => {
     await loaded();
     await type("hello typed\n");

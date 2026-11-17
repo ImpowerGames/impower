@@ -215,8 +215,14 @@ export default function LogicScriptEditor({
           textDocument: { uri, version: versionRef.current ?? 0, text },
           origin,
         });
+        if (textRef.current !== text) {
+          return;
+        }
         storedTexts.set(uri, text);
         await Workspace.window.recordScriptChange();
+        if (disposed || uriRef.current !== uri || textRef.current !== text) {
+          return;
+        }
         loadFile();
       };
 
