@@ -52,6 +52,7 @@ import {
   screenplayPicksField,
   screenplayRowField,
   screenplayScenesBeforeField,
+  screenplayWrapsField,
 } from "./screenplaySettings";
 
 type DecorationSpec =
@@ -286,6 +287,7 @@ export const decorate = (
   const picks = state.field(screenplayPicksField, false);
   const scenesBefore = state.field(screenplayScenesBeforeField, false) ?? 0;
   const row = state.field(screenplayRowField, false) ?? PREVIEW_FONT_SIZE;
+  const countsBreaks = !state.field(screenplayWrapsField, false);
 
   const declarationName = (nodeRef: SyntaxNodeRef, child: SparkdownNodeName) => {
     const cursor = nodeRef.node.cursor();
@@ -470,13 +472,13 @@ export const decorate = (
   for (const start of actionStarts) {
     if (unhungStarts.has(start)) continue;
     if (start >= from && (to === undefined || start <= to) && printedBefore(doc.lineAt(start).from, start)) {
-      decorations.push(Decoration.widget({ widget: new LineBreakWidget(), side: 1 }).range(start));
+      decorations.push(Decoration.widget({ widget: new LineBreakWidget(countsBreaks), side: 1 }).range(start));
     }
   }
 
   for (const start of wrapStarts) {
     if (inView(start.at)) {
-      decorations.push(Decoration.widget({ widget: new LineBreakWidget(), side: start.inserted ? 1 : 2 }).range(start.at));
+      decorations.push(Decoration.widget({ widget: new LineBreakWidget(countsBreaks), side: start.inserted ? 1 : 2 }).range(start.at));
     }
     if (start.trailing !== undefined && inView(start.trailing)) {
       decorations.push(Decoration.mark({ attributes: { style: TRAILING_SPACE_STYLE } }).range(start.trailing, start.trailing + 1));
@@ -515,7 +517,9 @@ export const decorate = (
         : pieces;
       const widget = new InsertedRowWidget(
         pulled,
-        mixed ? { before: false, after: false, block: true } : { before: !above || !actionStartSet.has(row.at), after: above },
+        mixed
+          ? { before: false, after: false, block: true, counted: countsBreaks }
+          : { before: !above || !actionStartSet.has(row.at), after: above, counted: countsBreaks },
       );
       (above ? decorations : rowsBelow).push(Decoration.widget({ widget, side: 1 }).range(row.at));
       continue;

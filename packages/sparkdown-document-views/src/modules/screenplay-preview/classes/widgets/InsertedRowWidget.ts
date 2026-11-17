@@ -11,6 +11,7 @@ export interface InsertedRowBreaks {
   before: boolean;
   after: boolean;
   block?: boolean;
+  counted: boolean;
 }
 
 
@@ -55,11 +56,12 @@ export default class InsertedRowWidget extends WidgetType {
   }
 
   override get lineBreaks() {
-    return this.inline ? Number(this.inline.before) + Number(this.inline.after) : 0;
+    return this.inline?.counted ? Number(this.inline.before) + Number(this.inline.after) : 0;
   }
 
   override eq(other: InsertedRowWidget) {
     return (
+      other.inline?.counted === this.inline?.counted &&
       other.inline?.before === this.inline?.before &&
       other.inline?.after === this.inline?.after &&
       other.inline?.block === this.inline?.block &&

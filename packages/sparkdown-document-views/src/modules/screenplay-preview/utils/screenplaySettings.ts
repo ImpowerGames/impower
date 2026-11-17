@@ -1,4 +1,4 @@
-import { StateEffect, StateField } from "@codemirror/state";
+import { StateEffect, StateField, type Text } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { PREVIEW_FONT_SIZE } from "../constants/PREVIEW_THEME";
@@ -60,6 +60,24 @@ export const screenplayRowField = StateField.define<number>({
   },
 });
 
+const LINE_GAP_LENGTH = 4000;
+
+const hasGappedLine = (doc: Text) => {
+  for (let number = 1; number <= doc.lines; number++) {
+    if (doc.line(number).length >= LINE_GAP_LENGTH) return true;
+  }
+  return false;
+};
+
+export const screenplayWrapsField = StateField.define<boolean>({
+  create: (state) => hasGappedLine(state.doc),
+  update: (value, transaction) => (transaction.docChanged ? hasGappedLine(transaction.state.doc) : value),
+});
+
+const screenplayLineWrapping = EditorView.contentAttributes.compute([screenplayWrapsField], (state): Record<string, string> =>
+  state.field(screenplayWrapsField) ? { class: "cm-lineWrapping" } : {},
+);
+
 const screenplayRowMeasure = ViewPlugin.fromClass(
   class {
     constructor(readonly view: EditorView) {
@@ -108,5 +126,7 @@ export const screenplaySettings = (config?: ScreenplayConfig, picks: readonly nu
   screenplayScenesBeforeField.init(() => scenesBefore),
   screenplayRowField,
   screenplayRowMeasure,
+  screenplayWrapsField,
+  screenplayLineWrapping,
   screenplayPageAttributes,
 ];

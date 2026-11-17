@@ -69,7 +69,7 @@ const PREVIEW_THEME: {
     color: "var(--sp-accent)",
     fontWeight: "bold",
   },
-  "& .cm-content > *": {
+  "& .cm-lineWrapping, & .cm-content > *": {
     overflowWrap: "break-word",
     whiteSpace: "pre-wrap",
   },

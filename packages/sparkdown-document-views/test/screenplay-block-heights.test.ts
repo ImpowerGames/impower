@@ -1,48 +1,11 @@
 // @vitest-environment node
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { buildScreenplayGeometryPage } from "./harness/screenplay-geometry.mjs";
-
-const CONFIG: ScreenplayConfig = {
-  screenplay_print_title_page: false,
-  screenplay_print_page_numbers: false,
-  screenplay_print_scene_numbers: "both",
-  screenplay_print_scene_identifiers: true,
-  screenplay_print_branch_identifiers: true,
-  screenplay_print_function_identifiers: true,
-};
-
-const SCRIPTS = [
-  readFileSync(resolve(__dirname, "fixtures/demo-screenplay/chapter_1.sd"), "utf8").replace(/\r\n/g, "\n"),
-  [
-    "scene long_dual",
-    "  THEO [<]:",
-    "    I take it back, every single word of it, and I mean that sincerely this time.",
-    "  ZADIE [>]:",
-    "    Best. Night. Ever. Nobody will ever believe a word of what happened here tonight.",
-    "  (quietly, to nobody in particular)",
-    "  MARCUS:",
-    "    Afterwards.",
-    "end",
-    "",
-  ].join("\n"),
-  ["scene with_function", "  function greet()", "    GUIDE:", "      Hello there.", "  end", "  Afterwards.", "end", ""].join("\n"),
-  ["scene", "  Before.", "end", "scene", "  After.", "end", ""].join("\n"),
-  [
-    "scene shared",
-    "  Before.",
-    "  GUIDE: Hi. local z = 3",
-    "  queue | One. | Two. end function f() end",
-    "  : They go. x = 2",
-    "  After.",
-    "end",
-    "",
-  ].join("\n"),
-];
+import { GEOMETRY_CONFIG, GEOMETRY_SCRIPTS } from "./helpers/screenplayGeometryScripts";
 
 interface Blocks {
   row: number;
@@ -87,7 +50,7 @@ const scrollThrough = async (page: Page, width: number): Promise<Scroll> => {
   await page.evaluate(
     ([text, settings, w]) =>
       (window as unknown as { renderScreenplay: (...args: unknown[]) => void }).renderScreenplay("fixture", text, settings, 0, w),
-    [SCRIPTS.join("\n").repeat(4), CONFIG, width] as const,
+    [GEOMETRY_SCRIPTS.join("\n").repeat(4), GEOMETRY_CONFIG, width] as const,
   );
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   return page.evaluate(async () => {
@@ -155,5 +118,32 @@ describe("the Screenplay page", () => {
       .filter(({ drawn, placed }) => Math.abs(drawn - placed) > 1)
       .map(({ line, drawn, placed }) => `line ${line}: drawn at ${drawn.toFixed(2)}, placed at ${placed.toFixed(2)}`);
     expect(drifted.slice(0, 5)).toEqual([]);
+  }, 240_000);
+
+  it("shows every word of a source line too long for CodeMirror to draw whole without wrapping", async () => {
+    const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+    await page.goto(pageUrl);
+    await page.waitForFunction(() => "renderScreenplay" in window);
+    await page.evaluate(
+      ([text, settings]) =>
+        (window as unknown as { renderScreenplay: (...args: unknown[]) => void }).renderScreenplay("long", text, settings, 0, 760),
+      [`scene long_action\n  ${"word ".repeat(1500)}TAIL\nend\n`, GEOMETRY_CONFIG] as const,
+    );
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const seen = await page.evaluate(async () => {
+      const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      let words = 0;
+      let tail = false;
+      for (let top = 0; top < document.documentElement.scrollHeight; top += 300) {
+        window.scrollTo(0, top);
+        await frames();
+        const text = document.querySelector(".cm-content")?.textContent ?? "";
+        words = Math.max(words, text.match(/word/g)?.length ?? 0);
+        tail ||= text.includes("TAIL");
+      }
+      return { words, tail };
+    });
+    await page.close();
+    expect(seen).toEqual({ words: 1500, tail: true });
   }, 240_000);
 });
