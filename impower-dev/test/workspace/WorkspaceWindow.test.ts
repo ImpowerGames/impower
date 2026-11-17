@@ -835,6 +835,40 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.pane).toBe("share");
     });
 
+    it("routes a Forward with a name field open, as CloseWatcher ignores Forward", async () => {
+      const position = { index: 0 };
+      (globalThis as { navigation?: unknown }).navigation = {
+        get currentEntry() {
+          return { index: position.index };
+        },
+      };
+      const traverse = async (step: () => void) => {
+        const popped = new Promise((resolve) =>
+          window.addEventListener("popstate", resolve, { once: true }),
+        );
+        step();
+        await popped;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      };
+      try {
+        win.openPane("share");
+        win.navigateTo("collection");
+        await traverse(() => window.history.back());
+        expect(workspace.current.pane).toBe("share");
+        position.index = 1;
+        const close = vi.fn();
+        const stop = watchBack(close);
+        position.index = 2;
+        await traverse(() => window.history.forward());
+        stop();
+        expect(close).not.toHaveBeenCalled();
+        expect(window.location.hash).toBe("#collection");
+        expect(workspace.current.pane).toBe("assets");
+      } finally {
+        delete (globalThis as { navigation?: unknown }).navigation;
+      }
+    });
+
     it("opens settings on #project over the current pane and returns on close", () => {
       win.openPane("assets");
       win.navigateTo("project");
