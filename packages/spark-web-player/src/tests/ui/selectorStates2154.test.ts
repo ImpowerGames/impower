@@ -19,6 +19,20 @@ describe("selector states (#2154)", () => {
     expect(getCSSSelector("@not(@first-child)", {})).toBe(":not(:first-child)");
   });
 
+  it.each([
+    ["@nth-child(2n of card)", ":nth-child(2n of .card)"],
+    ["@nth-last-child(-n + 3 of item.big)", ":nth-last-child(-n + 3 of .item.big)"],
+    ["@nth-child(odd of @hovered)", ":nth-child(odd of :hover)"],
+    ["@nth-child(2n + 1)", ":nth-child(2n + 1)"],
+    ["@nth-of-type(2n + 1)", ":nth-of-type(2n + 1)"],
+    ["@lang(en, fr)", ":lang(en, fr)"],
+    ["@language(en, fr)", ":lang(en, fr)"],
+    ["@dir(rtl)", ":dir(rtl)"],
+    ["@state(open)", ":state(open)"],
+  ])("keeps the argument grammar of %s", (selector, css) => {
+    expect(getCSSSelector(selector, {})).toBe(css);
+  });
+
   it("reads a whole state name rather than a known name it starts with", () => {
     expect(getCSSSelector("@first-child", {})).toBe(":first-child");
     expect(getCSSSelector("@hoveredx", {})).toBe("@hoveredx");

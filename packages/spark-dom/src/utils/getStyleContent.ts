@@ -3,8 +3,8 @@ import {
   ARIA_ATTRIBUTE_ALIASES,
 } from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
 import {
-  SELECTOR_STATE_ALIASES,
-  STANDARD_PSEUDO_CLASSES,
+  keepStateArguments,
+  writeSelectorStates,
 } from "../../../sparkdown/src/compiler/constants/selectorStates";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
@@ -17,18 +17,6 @@ const SPACE_BEFORE_IDENTIFIER_REGEX = /(?:^|[ ]+)(?=[_\p{L}])/gu;
 const SPACE_BEFORE_SELECTOR_OPERATOR_REGEX = /[ ]+(?=[^_\p{L}])/gu;
 const ATTRIBUTE_SELECTOR_REGEX =
   /[#]((?:[_\p{L}][_\p{L}0-9-]*)?(?:(?:[~]|[|]|[\^]|[$]|[*])?[=](?:["](?:\\.|[^"\r\n])*["]|.*?(?=$|[\s"'`<>=:(){}\[\]]))?)?)/gu;
-
-const SELECTOR_STATE_REGEX = /@([_\p{L}][_\p{L}0-9-]*)([(]?)/gu;
-
-const toCssState = (state: string, name: string, paren: string): string => {
-  const alias =
-    SELECTOR_STATE_ALIASES[`@${name}${paren}`] ??
-    (paren ? SELECTOR_STATE_ALIASES[`@${name}`]?.concat(paren) : undefined);
-  if (alias != null) {
-    return alias;
-  }
-  return STANDARD_PSEUDO_CLASSES.has(name) ? `:${name}${paren}` : state;
-};
 
 const _breakpointRegexCache: Record<string, RegExp> = {};
 function breakpointRegex(name: string) {
@@ -129,19 +117,20 @@ export function getCSSSelector(
       continue;
     }
 
-    let rewritten = markNameAts(piece.replace(ARGUMENT_SPACING_REGEX, "$1($2)"))
-      .replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`)
-      .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
-      .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")
-      .replace(DESCENDANT_REGEX, " ")
-      .replace(SELECTOR_STATE_REGEX, toCssState)
-      .replaceAll(NAME_AT, NAME_AT_ESCAPE);
+    const kept = keepStateArguments(piece.replace(ARGUMENT_SPACING_REGEX, "$1($2)"));
+    let rewritten = writeSelectorStates(
+      markNameAts(kept.selector)
+        .replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`)
+        .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
+        .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")
+        .replace(DESCENDANT_REGEX, " "),
+    ).replaceAll(NAME_AT, NAME_AT_ESCAPE);
 
     for (const [name, px] of Object.entries(breakpoints)) {
       rewritten = rewritten.replace(breakpointRegex(name), `width:${px}px)`);
     }
 
-    OUT.push(rewritten);
+    OUT.push(kept.restore(rewritten));
   }
 
   return liftColorScheme(OUT.join("").trim());
