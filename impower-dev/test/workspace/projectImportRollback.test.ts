@@ -86,11 +86,13 @@ async function harness(
   const { ProjectImportError } = await import("../../src/modules/spark-editor/workspace/projectImport");
   const watchers: ((params: unknown) => Promise<void>)[] = [];
   const pending: Promise<void>[] = [];
+  const served: { uri: string; type: number }[] = [];
   const ls = {
     connection: {
       onRequest() {},
       sendNotification: (method: string, params: unknown) => {
         if (method === "workspace/didChangeWatchedFiles") {
+          served.push(...(params as { changes: { uri: string; type: number }[] }).changes);
           pending.push(...watchers.map((watcher) => watcher(params)));
         }
       },
@@ -176,7 +178,7 @@ async function harness(
     applyBundle(() => fs.writeProjectScriptBundle("local", content));
   const applyAssets = (content: ArrayBuffer) =>
     applyBundle(() => fs.writeProjectAssetBundle("local", content));
-  return { fs, starterReadWhileLoading, starterReadDuringRetry, watchers, pending, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
+  return { fs, starterReadWhileLoading, starterReadDuringRetry, watchers, pending, served, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
 }
 
 const ASSETS = { "art/old.png": "OLD" };
@@ -600,6 +602,7 @@ it("leaves the language server without a file the failed import created", async 
   expect(error?.reason).toBe("storage");
   await settled(h);
   expect(h.text("added.sd")).toBeUndefined();
+  expect(h.served).toContainEqual({ uri: "file://local/added.sd", type: 3 });
   expect(server.document("file://local/added.sd")).toBeUndefined();
   expect(server.compiled.has("file://local/added.sd")).toBe(false);
   expect(server.document(STARTER_URI)?.getText()).toBe(PROJECT["main.sd"]);
