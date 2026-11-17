@@ -88,7 +88,7 @@ import {
 } from "./utils/debugMetadata";
 import { CONSTRAINT_GENERATOR_RECURSION_LIMIT } from "../typecheck/ConstraintGenerator";
 import { offsetAt, readBlockAst } from "./utils/luauAst";
-import { forwardBlockDiagnostics } from "./utils/unwrapBlock";
+import { forwardBlockDiagnostics, unwrapBlockContent } from "./utils/unwrapBlock";
 import {
   closeStatement,
   openStatement,
@@ -492,18 +492,5 @@ function appendBlockContent(
   ctx: LowerContext,
 ): void {
   forwardBlockDiagnostics(block, ctx);
-  if (!block.content) return;
-  for (const obj of block.content) {
-    if (obj instanceof Weave) {
-      const wrapperMetadata = obj.ownDebugMetadata;
-      for (const inner of obj.content) {
-        if (wrapperMetadata && !inner.ownDebugMetadata) {
-          inner.debugMetadata = wrapperMetadata;
-        }
-        result.push(inner);
-      }
-    } else {
-      result.push(obj);
-    }
-  }
+  result.push(...unwrapBlockContent(block));
 }
