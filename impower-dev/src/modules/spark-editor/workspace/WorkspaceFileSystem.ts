@@ -536,7 +536,9 @@ export default class WorkspaceFileSystem {
       sendProtocolMessage(forwarded);
     } else if (DidDeleteFilesMessage.type.isNotification(message)) {
       const { files, commits } = message.params;
-      const fresh = files.filter((f) => this.acceptCommit(f.uri, commits));
+      const fresh = files.filter(
+        (f) => this.acceptCommit(f.uri, commits) && !this._unstoredUris.has(f.uri),
+      );
       if (files.length > 0 && fresh.length === 0) {
         return;
       }

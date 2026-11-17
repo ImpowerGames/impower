@@ -463,6 +463,27 @@ it("keeps the unsaved starter main in the editor when a backup import fails afte
   expect(await starterText(h)).toBe(before);
 }, 15_000);
 
+it.each([
+  ["a script bundle", (h: Awaited<ReturnType<typeof harness>>) => (h.failCreatingFolder("chapters"), h.applyScripts(SCRIPTS))],
+  ["a backup import", (h: Awaited<ReturnType<typeof harness>>) => (h.failCreatingFolder("images"), h.importBackup(backup(BACKUP)))],
+])("tells the open editor nothing deleted the unsaved starter main when %s fails after writing main", async (_, apply) => {
+  const h = await harness(ASSETS, {});
+  const { onProtocolMessage } = await import("@impower/spark-editor-protocol/src/protocols/MessageProtocol");
+  const { DidDeleteFilesMessage } = await import("@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage");
+  const deleted: string[] = [];
+  const stop = onProtocolMessage(DidDeleteFilesMessage.type, (message) => {
+    deleted.push(...message.params.files.map((file) => file.uri));
+  });
+  try {
+    const { error } = await apply(h);
+    expect(error).toBeDefined();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(deleted).not.toContain(STARTER_URI);
+  } finally {
+    stop();
+  }
+}, 15_000);
+
 class TestLanguageServer extends SparkdownLanguageServerWorkspace {
   compiled = new Map<string, string | undefined>();
 
