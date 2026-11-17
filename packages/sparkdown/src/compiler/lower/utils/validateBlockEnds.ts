@@ -5,6 +5,7 @@ import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { isOneLineStorySet } from "../../utils/alternatorDecision";
 import { enclosingUnclosedIslandEnd } from "../../utils/storyIslands";
 import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
@@ -163,11 +164,28 @@ function closedBeforeOuterCloser(node: SyntaxNode, own: ReadonlySet<string>, chu
 }
 
 const ONE_LINE_SEQUENTIAL = "LuauSparkdownSingleLineSequentialAlternatorBlock";
+const ONE_LINE_CONDITIONAL = "LuauSparkdownSingleLineConditionalAlternatorBlock";
+const STORY_CONDITIONAL = "LuauSparkdownConditionalAlternatorBlock";
 const STARTS_OPEN_LINE = nodeNameSet([
   "LuauSparkdownAlternatorArm",
-  "LuauSparkdownSingleLineConditionalAlternatorBlock",
+  ONE_LINE_CONDITIONAL,
   ONE_LINE_SEQUENTIAL,
 ]);
+
+function isOneLineConditional(node: SyntaxNode): boolean {
+  return node.name === ONE_LINE_CONDITIONAL || (node.name === STORY_CONDITIONAL && isOneLineStorySet(node));
+}
+
+function oneLineConditionalLeftOpen(node: SyntaxNode, ctx: LowerContext): boolean {
+  return node.name === STORY_CONDITIONAL ? !endKeywordOf(node) : oneLineBlockLeftOpen(node, ctx);
+}
+
+function oneLineConditionalMessage(node: SyntaxNode, ctx: LowerContext): string {
+  const begin = findChildByName(node, `${node.name}_begin`);
+  const keyword = begin ? getDescendent("LuauControlKeyword", begin) : null;
+  const name = keyword ? ctx.read(keyword.from, keyword.to).trim() : "match";
+  return `This one-line \`${name}\` is missing its closing \`end\` keyword at the end of its line.`;
+}
 
 function oneLineBlockLeftOpen(node: SyntaxNode, ctx: LowerContext): boolean {
   const end = endKeywordOf(node);
@@ -179,7 +197,7 @@ function oneLineBlockLeftOpen(node: SyntaxNode, ctx: LowerContext): boolean {
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
     if (isTrivia(child)) continue;
     const startsLine = ctx.lineNumber(child.from) !== lastLine;
-    if (startsLine && STARTS_OPEN_LINE.has(child.name)) return true;
+    if (startsLine && (STARTS_OPEN_LINE.has(child.name) || (child.name === STORY_CONDITIONAL && isOneLineStorySet(child)))) return true;
     if (startsLine && child.name === "LuauAlternatorSeparator") continued = true;
     lastLine = ctx.lineNumber(child.to);
   }
@@ -207,6 +225,10 @@ export function validateBlockEnds(
     if (node.name === ONE_LINE_SEQUENTIAL) {
       if (oneLineBlockLeftOpen(node, ctx) && !luauReportsOpenBlockAt(node, ctx)) {
         report(diagnostics, node, missingEndMessage("one-line alternator"), ctx);
+      }
+    } else if (isOneLineConditional(node)) {
+      if (oneLineConditionalLeftOpen(node, ctx) && !luauReportsOpenBlockAt(node, ctx)) {
+        report(diagnostics, node, oneLineConditionalMessage(node, ctx), ctx);
       }
     } else if (block) {
       if (
@@ -239,7 +261,7 @@ export function validateBlockEnds(
 }
 
 export function holdsCheckedBlock(node: GrammarSyntaxNode<SparkdownNodeName>): boolean {
-  if (END_BLOCKS[node.name] || REPEAT_LOOPS.has(node.name) || node.name === ONE_LINE_SEQUENTIAL) return true;
+  if (END_BLOCKS[node.name] || REPEAT_LOOPS.has(node.name) || node.name === ONE_LINE_SEQUENTIAL || isOneLineConditional(node)) return true;
   for (let child = node.firstChild; child; child = child.nextSibling) {
     if (holdsCheckedBlock(child as GrammarSyntaxNode<SparkdownNodeName>)) return true;
   }

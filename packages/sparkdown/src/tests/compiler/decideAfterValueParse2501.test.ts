@@ -188,6 +188,7 @@ describe("a story match or plural is one-line or multi-line by what follows its 
     expect(set).toMatchObject({ text: lines[0], oneLine: true });
     const errors = play(scene(...lines)).errors;
     expect(errors).toEqual([
+      "This one-line `match` is missing its closing `end` keyword at the end of its line.",
       "statement must be inside a scene or branch; the top level holds declarations only",
       "Expected <eof>, got 'end'",
     ]);
@@ -200,6 +201,7 @@ describe("a story match or plural is one-line or multi-line by what follows its 
     expect(set).toMatchObject({ text: lines.slice(0, 2).join("\n  "), value: "[[happy\n  ]]", oneLine: true });
     expect(play(scene(...lines)).errors).toEqual([
       "On one line, put the value of `match` in brackets, as in `match(value) | ...`: without them it may only be a name, a dotted name or a number",
+      "This one-line `match` is missing its closing `end` keyword at the end of its line.",
       "statement must be inside a scene or branch; the top level holds declarations only",
       "Expected <eof>, got 'end'",
     ]);
