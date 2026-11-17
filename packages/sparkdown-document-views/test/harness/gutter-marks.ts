@@ -2,7 +2,8 @@ import { codeFolding, foldable, foldEffect, foldGutter, foldService } from "@cod
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { coarsePointer, foldingPlaceholderDOM } from "@impower/codemirror-vscode-lsp-client/src";
-import { iconMasks } from "@impower/impower-ui/icon-masks";
+import { PinFillIcon, PinIcon } from "@impower/impower-ui/icons";
+import { h, render } from "preact";
 import { setBreakpointStates } from "../../src/cm-breakpoints/breakpoints";
 import {
   openChoicePopover,
@@ -92,17 +93,27 @@ setPinned(false);
 const routeIcons = document.body.appendChild(document.createElement("spark-web-player"));
 routeIcons.className = "route-icon-samples";
 routeIcons.style.cssText = "position: fixed; right: 0; bottom: 0; display: flex; gap: 8px; --swp-toolbar-icon-size: 16px;";
-for (const [kind, mask] of [
-  ["auto", iconMasks["pin"]],
-  ["pinned", iconMasks["pin-fill"]],
+for (const [kind, Icon] of [
+  ["auto", PinIcon],
+  ["pinned", PinFillIcon],
 ] as const) {
   const entry = routeIcons.appendChild(document.createElement("div"));
   entry.className = "route-entry";
   entry.dataset["kind"] = kind;
-  const icon = entry.appendChild(document.createElement("span"));
-  icon.className = "route-icon route-icon-mask";
-  icon.dataset["icon"] = kind;
-  icon.style.setProperty("--route-icon-mask", mask);
+  render(h(Icon, { class: "route-icon", "data-icon": kind }), entry);
+}
+for (const kind of ["forced", "clipped"]) {
+  const entry = routeIcons.appendChild(document.createElement("div"));
+  entry.className = "route-entry";
+  entry.dataset["kind"] = kind;
+  render(
+    h(
+      "svg",
+      { class: "route-icon", "data-icon": kind, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor" },
+      h("path", { d: "M4 14V9a3 3 0 0 1 3-3h6" }),
+    ),
+    entry,
+  );
 }
 
 const openChoice = (line: number | null) => openChoicePopover(view, line);

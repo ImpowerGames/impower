@@ -1,4 +1,4 @@
-import { iconMasks } from "@impower/impower-ui/icon-masks";
+import { PinFillIcon, PinIcon } from "@impower/impower-ui/icons";
 import type { RouteIcon, RouteKind } from "./routeView";
 
 export function RouteIconSvg({
@@ -7,14 +7,8 @@ export function RouteIconSvg({
   icon: RouteKind | NonNullable<RouteIcon> | "sliders" | "warning" | "error";
 }) {
   if (icon === "auto" || icon === "pinned") {
-    return (
-      <span
-        class="route-icon route-icon-mask"
-        data-icon={icon}
-        aria-hidden="true"
-        style={{ "--route-icon-mask": iconMasks[icon === "pinned" ? "pin-fill" : "pin"] }}
-      />
-    );
+    const Pin = icon === "pinned" ? PinFillIcon : PinIcon;
+    return <Pin class="route-icon" data-icon={icon} />;
   }
   return (
     <svg

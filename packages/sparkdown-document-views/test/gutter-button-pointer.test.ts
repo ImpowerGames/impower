@@ -168,7 +168,7 @@ describe("a press where a fold marker's touch target reaches into the breakpoint
 });
 
 describe("the gutter marks and route pins under forced colours", () => {
-  it("draw every masked glyph at 16 by 16 in CanvasText, so none turns into Canvas on Canvas or into nothing", async () => {
+  it("draw every gutter glyph, route icon and choice icon at 16 by 16 in CanvasText, so none turns into Canvas on Canvas or into nothing", async () => {
     const context = await browser.newContext({ viewport: { width: 430, height: 600 }, forcedColors: "active" });
     const page = await context.newPage();
     await page.goto(pageUrl);
@@ -196,18 +196,22 @@ describe("the gutter marks and route pins under forced colours", () => {
         const paint = before.display === "none" || before.content === "none" ? "no ::before" : before.backgroundColor;
         return drawn(mark.className.replace("cm-gutter-button ", ""), glyph, paint);
       });
-      const masks = [...document.querySelectorAll(".route-icon-mask, .cm-choice-popover .cm-choice-icon")].map((icon) => {
-        const name = icon.classList.contains("route-icon-mask") ? `route ${(icon as HTMLElement).dataset["icon"]}` : icon.className;
-        return drawn(name, icon, getComputedStyle(icon).backgroundColor);
-      });
+      const routePins = [...document.querySelectorAll<SVGSVGElement>(".route-icon-samples svg.route-icon")].map((icon) =>
+        drawn(`route ${icon.dataset["icon"]}`, icon, getComputedStyle(icon).color),
+      );
+      const masks = [...document.querySelectorAll(".cm-choice-popover .cm-choice-icon")].map((icon) =>
+        drawn(icon.className, icon, getComputedStyle(icon).backgroundColor),
+      );
       const folds = [...document.querySelectorAll(".cm-fold-marker")].map((mark) =>
         getComputedStyle(mark.querySelector(".cm-gutter-button-glyph")!, "::before").backgroundColor,
       );
-      return { canvasText, marks: [...glyphs, ...masks], folds };
+      return { canvasText, marks: [...glyphs, ...routePins, ...masks], folds };
     });
     const kinds = paints.marks.map((mark) => mark.kind);
     expect(kinds).toContain("route auto");
     expect(kinds).toContain("route pinned");
+    expect(kinds).toContain("route forced");
+    expect(kinds).toContain("route clipped");
     expect(kinds.some((kind) => kind.includes("cm-choice-icon-auto"))).toBe(true);
     expect(kinds.some((kind) => kind.includes("cm-breakpoint"))).toBe(true);
     for (const mark of paints.marks) {
