@@ -170,17 +170,20 @@ const STARTS_OPEN_LINE = nodeNameSet([
 ]);
 
 function oneLineBlockLeftOpen(node: SyntaxNode, ctx: LowerContext): boolean {
+  const end = endKeywordOf(node);
+  if (!end) return true;
   const content = findChildByName(node, `${node.name}_content`);
   const headerLine = ctx.lineNumber(node.from);
-  const startsLine = (at: SyntaxNode) =>
-    ctx.lineNumber(at.from) !== headerLine && ctx.read(at.from - ctx.characterNumber(at.from), at.from).trim() === "";
+  let lastLine = headerLine;
   let continued = false;
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
-    if (STARTS_OPEN_LINE.has(child.name) && startsLine(child)) return true;
-    if (child.name === "LuauAlternatorSeparator" && startsLine(child)) continued = true;
+    if (isTrivia(child)) continue;
+    const startsLine = ctx.lineNumber(child.from) !== lastLine;
+    if (startsLine && STARTS_OPEN_LINE.has(child.name)) return true;
+    if (startsLine && child.name === "LuauAlternatorSeparator") continued = true;
+    lastLine = ctx.lineNumber(child.to);
   }
-  const end = endKeywordOf(node);
-  return !continued && !!end && ctx.lineNumber(end.from) !== headerLine;
+  return !continued && ctx.lineNumber(end.from) !== headerLine;
 }
 
 const OWNS_END = nodeNameSet(["LuauEndKeyword"]);

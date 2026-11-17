@@ -109,8 +109,11 @@ describe("a one-line alternator block inside an arm of another one-line block", 
     ["followed by a story line", "scene start\n  cycle | queue | shuffle end\n  Next line.\n  After.\nend\n"],
     ["followed by its enclosing block's end", looped("cycle | queue | shuffle end")],
     ["whose nested block took the end", "scene start\n  cycle | queue | A. | B. end\n  After.\nend\n"],
+    ["running to the end of the file", "scene start\n  queue | queue | In A. | In B. end\n"],
+    ["running past blank lines to the end of the file", "scene start\n  queue | queue | In A. | In B. end\n\n\n"],
+    ["running to the next scene", "scene start\n  queue | queue | In A. | In B. end\n\nscene next\n  Hi.\nend\n"],
   ])("an outer block left open by a nested block, %s, reports its missing end on its own line", (_, text) => {
-    const headerLine = text.split("\n").findIndex((line) => line.includes("cycle |"));
+    const headerLine = text.split("\n").findIndex((line) => line.includes(" | "));
     expect(errorLines(text)).toContainEqual({ line: headerLine, message: OPEN_MESSAGE });
   });
 

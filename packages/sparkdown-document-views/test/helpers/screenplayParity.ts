@@ -598,6 +598,8 @@ export const describeElementSequences = (configName: string, part: number, parts
     it(
       `for every element sequence with ${configName} settings, part ${part} of ${parts}`,
       async () => {
+        const view = show(configName, sourceOf([]));
+        await new Promise<void>((resolve) => view.requestMeasure({ read: () => undefined, write: () => resolve() }));
         const failures: string[] = [];
         for (const [offset, kinds] of chunks.entries()) {
           const index = first + offset;
