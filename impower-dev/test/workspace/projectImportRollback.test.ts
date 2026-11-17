@@ -44,7 +44,7 @@ const backup = (entries: Record<string, string>, folders: string[] = []) =>
 async function harness(
   extra: Record<string, string> = {},
   saved: Record<string, string> = PROJECT,
-  options: { firstLoadFails?: boolean } = {},
+  options: { firstLoadFails?: boolean; withoutLocks?: boolean } = {},
 ) {
   vi.resetModules();
   const root = memoryRoot();
@@ -52,7 +52,9 @@ async function harness(
     writeMemoryFile(root, `local/${path}`, bytes(text));
   }
   Object.defineProperty(navigator, "storage", { configurable: true, value: { getDirectory: async () => root } });
-  Object.defineProperty(navigator, "locks", { configurable: true, value: memoryLocks() });
+  if (!options.withoutLocks) {
+    Object.defineProperty(navigator, "locks", { configurable: true, value: memoryLocks() });
+  }
   vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
   vi.stubGlobal("URL", Object.assign(class extends URL {}, {
     createObjectURL: () => "blob:project-import",
@@ -468,6 +470,23 @@ it.each([
   ["a backup import", (h: Awaited<ReturnType<typeof harness>>) => (h.failCreatingFolder("images"), h.importBackup(backup(BACKUP)))],
 ])("tells the open editor nothing deleted the unsaved starter main when %s fails after writing main", async (_, apply) => {
   const h = await harness(ASSETS, {});
+  await expectNoStarterDelete(h, apply);
+}, 15_000);
+
+it.each([
+  ["a script bundle", (h: Awaited<ReturnType<typeof harness>>) => (h.failCreatingFolder("chapters"), h.applyScripts(SCRIPTS))],
+  ["a backup import", (h: Awaited<ReturnType<typeof harness>>) => (h.failCreatingFolder("images"), h.importBackup(backup(BACKUP)))],
+])("tells the open editor and the language server nothing deleted the unsaved starter main when %s fails after writing main without shared locks", async (_, apply) => {
+  const h = await harness(ASSETS, {}, { withoutLocks: true });
+  await expectNoStarterDelete(h, apply);
+  await settled(h);
+  expect(h.served).not.toContainEqual({ uri: STARTER_URI, type: 3 });
+}, 15_000);
+
+async function expectNoStarterDelete(
+  h: Awaited<ReturnType<typeof harness>>,
+  apply: (h: Awaited<ReturnType<typeof harness>>) => Promise<{ error?: unknown }>,
+) {
   const { onProtocolMessage } = await import("@impower/spark-editor-protocol/src/protocols/MessageProtocol");
   const { DidDeleteFilesMessage } = await import("@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage");
   const deleted: string[] = [];
@@ -482,7 +501,7 @@ it.each([
   } finally {
     stop();
   }
-}, 15_000);
+}
 
 const fromWorker = async (message: unknown) => {
   (globalThis as unknown as { postMessage: (m: unknown) => void }).postMessage(message);
