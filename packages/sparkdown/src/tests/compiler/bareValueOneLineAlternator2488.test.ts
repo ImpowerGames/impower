@@ -9,7 +9,7 @@ const SEQUENTIAL = "LuauSparkdownSingleLineSequentialAlternatorBlock";
 const MISSING_SCENE_END =
   "Scene is missing its closing `end` keyword. Every `scene` block must be terminated by an explicit `end` at the same indentation as the `scene` keyword.";
 
-const scene = (...lines: string[]) => ["scene start", '  local mood = "happy"', "  local n = 2", ...lines.map((line) => `  ${line}`), "  After.", "end", ""].join("\n");
+const scene = (...lines: string[]) => ["scene start", '  local mood = "happy"', "  local n = 2", '  local player = { mood = "happy" }', ...lines.map((line) => `  ${line}`), "  After.", "end", ""].join("\n");
 
 const blocks = (text: string) => {
   const found: { name: string; text: string; parent: string }[] = [];
@@ -46,6 +46,12 @@ describe("a one-line match or plural whose value is a name or a number", () => {
     ["plural 1.5e2 | one = A. | other = B. end", "plural(1.5e2) | one = A. | other = B. end"],
     ["plural .5 | one = A. | other = B. end", "plural(.5) | one = A. | other = B. end"],
     ["plural .5e1 | one = A. | other = B. end", "plural(.5e1) | one = A. | other = B. end"],
+    ["plural -1 | one = A. | other = B. end", "plural(-1) | one = A. | other = B. end"],
+    ["plural -.5 | one = A. | other = B. end", "plural(-.5) | one = A. | other = B. end"],
+    ["plural 1. | one = A. | other = B. end", "plural(1.) | one = A. | other = B. end"],
+    ["plural 0b101 | one = A. | other = B. end", "plural(0b101) | one = A. | other = B. end"],
+    ["plural 1|one=A.|other=B. end", "plural(1)|one=A.|other=B. end"],
+    ["match self | other = B. end", "match(self) | other = B. end"],
   ])("the grammar reads `%s` as a one-line set, as it reads `%s`", (bare, bracketed) => {
     const shape = (text: string) => blocks(scene(text)).map(({ name }) => name);
     expect(blocks(scene(bare))[0]).toMatchObject({ name: SINGLE, text: bare });
@@ -60,6 +66,7 @@ describe("a one-line match or plural whose value is a name or a number", () => {
     ["plural(n) | one = A. | other = B. end", "B.\nAfter.\n"],
     ["plural 1 | one = A. | other = B. end", "A.\nAfter.\n"],
     ["plural .5 | one = A. | other = B. end", "B.\nAfter.\n"],
+    ["plural -1 | one = A. | other = B. end", "A.\nAfter.\n"],
     ['match("very happy") | other = She waits. end', "She waits.\nAfter.\n"],
   ])("the game plays `%s` as alternatives", (line, out) => {
     expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
@@ -91,6 +98,12 @@ describe("a one-line match or plural whose value is a name or a number", () => {
     ["a backtick string", "match `{mood} day` | happy_day = A. | other = B. end"],
     ["a long string", "match [[very happy]] | other = B. end"],
     ["a value with a comment", "match mood --[[ c ]] | happy = A. | other = B. end"],
+    ["a method call on a dotted name", "match player.mood:upper() | HAPPY = A. | other = B. end"],
+    ["an index", "match player['mood'] | happy = A. | other = B. end"],
+    ["a reserved word", "match true | other = B. end"],
+    ["nil", "match nil | other = B. end"],
+    ["a dotted name ending in a reserved word", "match player.end | other = B. end"],
+    ["a name starting with a digit", "match 1x | other = B. end"],
     ["a double-quoted string", 'match "very happy" | other = B. end'],
     ["a single-quoted string", "match 'happy' | happy = A. | other = B. end"],
     ["an interpolated double-quoted string", 'match "{mood}" | happy = A. | other = B. end'],
