@@ -3,6 +3,7 @@ import { Scanner } from "@tailwindcss/oxide";
 import { context } from "esbuild";
 import fs from "fs";
 import path from "path";
+import { impowerUiBuildOptions } from "../impowerUiBuildOptions.mjs";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
@@ -90,13 +91,12 @@ const config = {
   target: "es2020",
   platform: "browser",
   format: "esm",
-  jsx: "automatic",
-  jsxImportSource: "preact",
-  conditions: ["development"],
+  ...impowerUiBuildOptions,
   entryPoints: ["./screenplay-webview.ts"],
   outfile: "../../out/webviews/screenplay-webview.js",
   plugins: [rawLoader(), tailwindLoader(), esbuildProblemMatcher()],
   alias: {
+    ...impowerUiBuildOptions.alias,
     "@codemirror/autocomplete": "@codemirror/autocomplete",
     "@codemirror/collab": "@codemirror/collab",
     "@codemirror/commands": "@codemirror/commands",

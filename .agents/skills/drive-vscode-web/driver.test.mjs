@@ -223,7 +223,7 @@ const at = (file, ms, content = "x") => {
   fs.utimesSync(file, new Date(ms), new Date(ms));
 };
 const touch = (file, ms) => fs.utimesSync(file, new Date(ms), new Date(ms));
-for (const f of ["src/extension.ts", "src/deep/a.ts", "language/sparkdown.language-config.json", "webviews/game-webview/game-webview.ts", "webviews/game-webview/package.json", "data/cheatsheet.css", "data/fonts/a.ttf"]) at(path.join(ext, f), T0 - 5000);
+for (const f of ["src/extension.ts", "src/deep/a.ts", "language/sparkdown.language-config.json", "webviews/game-webview/game-webview.ts", "webviews/game-webview/package.json", "webviews/sharedBuildOptions.mjs", "data/cheatsheet.css", "data/fonts/a.ttf"]) at(path.join(ext, f), T0 - 5000);
 for (const f of ["sparkdown/src/a.ts", "sparkdown/language/sparkdown.language-grammar.json", "sparkdown-language-server/src/b.ts", "no-src/package.json"]) at(path.join(packages, f), T0 - 5000);
 for (const f of ["out/extension.js", "out/workers/sparkdown-language-server.js", "out/workers/sparkdown-screenplay-pdf.js", "out/workers/x.js.map", "out/webviews/game-webview.js", "out/data/cheatsheet.css"]) at(path.join(ext, f), T0);
 const ruleOf = () => buildRule(ext, packages);
@@ -260,6 +260,9 @@ await check("desktop freshness includes the Game Preview runtime, workers and we
   touch(path.join(ext, "webviews/game-webview/game-webview.ts"), T0 + 100);
   assert.ok(staleNames(groups).includes("out/webviews/game-webview.js"));
   touch(path.join(ext, "webviews/game-webview/game-webview.ts"), T0 - 5000);
+  touch(path.join(ext, "webviews/sharedBuildOptions.mjs"), T0 + 100);
+  assert.ok(staleNames(groups).includes("out/webviews/game-webview.js"), "a build options file shared by the webview configs feeds every webview bundle");
+  touch(path.join(ext, "webviews/sharedBuildOptions.mjs"), T0 - 5000);
   const missing = buildFreshness(groups, filesOf).missing;
   assert.ok(missing.includes(path.join(ext, "out/webviews/screen-webview.js")));
 });

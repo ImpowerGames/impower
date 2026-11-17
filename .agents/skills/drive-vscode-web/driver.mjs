@@ -258,9 +258,11 @@ export function buildRule(extDir, packagesDir, io = fs, surface = "editor") {
   }
   if (surface === "desktop") {
     const buildInputs = list(packagesDir).flatMap(p => ["esbuild.js", "package.json", "tsconfig.json"].map(file => path.join(packagesDir, p, file))).filter(present);
+    const webviewsDir = path.join(extDir, "webviews");
+    const sharedWebviewInputs = list(webviewsDir).map((f) => path.join(webviewsDir, f)).filter((p) => io.statSync(p).isFile());
     groups.push({ artifact: path.join(out, "workers", "sparkdown-screenplay-pdf.js"), sources: shared, steps: ["npm run build"] });
     for (const name of ["game", "screenplay", "screen", "inspector"]) {
-      groups.push({ artifact: path.join(out, "webviews", `${name}-webview.js`), sources: [path.join(extDir, "webviews", `${name}-webview`), ...shared], steps: ["npm run build"] });
+      groups.push({ artifact: path.join(out, "webviews", `${name}-webview.js`), sources: [path.join(webviewsDir, `${name}-webview`), ...sharedWebviewInputs, ...shared], steps: ["npm run build"] });
     }
     for (const group of groups.filter(g => !g.copied)) {
       group.sources.push(path.join(extDir, "scripts"), path.join(extDir, "package.json"), path.join(extDir, "tsconfig.json"), ...buildInputs);

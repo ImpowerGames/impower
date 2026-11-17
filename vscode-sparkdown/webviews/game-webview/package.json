@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node ./esbuild.js",
+    "check:impower-ui": "node ./check-impower-ui-entries.js",
     "watch": "node ./esbuild.js --watch",
     "package": "node ./esbuild.js --production",
     "typecheck": "node ../../../scripts/typecheck.mjs vscode-sparkdown/webviews/game-webview/"

@@ -1,6 +1,7 @@
 import * as esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
+import { impowerUiBuildOptions } from "../impowerUiBuildOptions.mjs";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
@@ -95,6 +96,7 @@ const config = {
   target: "es2020",
   platform: "browser",
   format: "esm",
+  ...impowerUiBuildOptions,
   entryPoints: ["./screen-webview.ts"],
   outfile: "../../out/webviews/screen-webview.js",
   plugins: [rawPlugin, esbuildInlineWorkerPlugin(), esbuildProblemMatcher()],
