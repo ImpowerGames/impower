@@ -41,7 +41,11 @@ const backup = (entries: Record<string, string>, folders: string[] = []) =>
     { level: 0 },
   ).buffer as ArrayBuffer;
 
-async function harness(extra: Record<string, string> = {}, saved: Record<string, string> = PROJECT) {
+async function harness(
+  extra: Record<string, string> = {},
+  saved: Record<string, string> = PROJECT,
+  options: { firstLoadFails?: boolean } = {},
+) {
   vi.resetModules();
   const root = memoryRoot();
   for (const [path, text] of Object.entries({ ...MIGRATED, ...saved, ...extra })) {
@@ -93,9 +97,20 @@ async function harness(extra: Record<string, string> = {}, saved: Record<string,
     },
     start: async () => {},
   };
+  if (options.firstLoadFails) {
+    vi.spyOn(WorkspaceFileSystem.prototype as any, "openProjectStore").mockRejectedValueOnce(new Error("transient"));
+  }
   const fs = new WorkspaceFileSystem(ls as never, { settings, onDidChange: () => () => {} } as never);
   const starterReadWhileLoading = fs.getFileText("file://local/main.sd").catch((error: unknown) => error);
-  await fs.getFiles("local");
+  let starterReadDuringRetry: Promise<unknown> | undefined;
+  if (options.firstLoadFails) {
+    await fs.getFiles("local").catch(() => undefined);
+    const retry = fs.getFiles("local");
+    starterReadDuringRetry = fs.getFileText("file://local/main.sd").catch((error: unknown) => error);
+    await retry;
+  } else {
+    await fs.getFiles("local");
+  }
   const project = root.entries.get("local") as MemoryDirectory;
   const stored = () =>
     listMemory(root, "local").filter((path) => !path.startsWith(".") && !path.startsWith("_"));
@@ -161,7 +176,7 @@ async function harness(extra: Record<string, string> = {}, saved: Record<string,
     applyBundle(() => fs.writeProjectScriptBundle("local", content));
   const applyAssets = (content: ArrayBuffer) =>
     applyBundle(() => fs.writeProjectAssetBundle("local", content));
-  return { fs, starterReadWhileLoading, watchers, pending, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
+  return { fs, starterReadWhileLoading, starterReadDuringRetry, watchers, pending, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
 }
 
 const ASSETS = { "art/old.png": "OLD" };
@@ -449,6 +464,8 @@ it("keeps the unsaved starter main in the editor when a backup import fails afte
 class TestLanguageServer extends SparkdownLanguageServerWorkspace {
   compiled = new Map<string, string | undefined>();
 
+  removals: Promise<void> = Promise.resolve();
+
   constructor(connection: unknown) {
     super(connection as never);
     this._projectLoaded = true;
@@ -457,6 +474,7 @@ class TestLanguageServer extends SparkdownLanguageServerWorkspace {
     this._compilerChannelConnection = {
       sendRequest: async (type: { method: string }, params: any) => {
         if (type.method === "compiler/removeFile") {
+          await this.removals;
           this.compiled.delete(params.file.uri);
         } else if (type.method === "compiler/addFile" || type.method === "compiler/updateFile") {
           this.compiled.set(params.file.uri, params.file.text);
@@ -479,6 +497,10 @@ class TestLanguageServer extends SparkdownLanguageServerWorkspace {
     this._watchedFiles.set(file.uri, watched);
     this.onCreatedFile(watched);
     this.compiled.set(file.uri, file.text);
+  }
+
+  versionOf(uri: string) {
+    return this._documentVersions.get(uri);
   }
 }
 
@@ -521,6 +543,29 @@ it("reads the unsaved starter main while the project is still loading", async ()
 it("reads a saved main from storage while the project is still loading", async () => {
   const h = await harness();
   expect(await h.starterReadWhileLoading).toBe(PROJECT["main.sd"]);
+}, 15_000);
+
+it("reads the unsaved starter main while a retried project load is still running", async () => {
+  const h = await harness({}, {}, { firstLoadFails: true });
+  expect(await h.starterReadDuringRetry).toBe(await starterText(h));
+}, 15_000);
+
+it("keeps an edit made after a failed script bundle current in the language server", async () => {
+  const h = await harness(ASSETS, {});
+  const before = (await starterText(h))!;
+  const server = await languageServer(h, [STARTER_URI]);
+  let release!: () => void;
+  server.removals = new Promise((resolve) => (release = resolve));
+  h.failCreatingFolder("chapters");
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeDefined();
+  await server.changeTextDocument({
+    textDocument: { uri: STARTER_URI, version: 1 },
+    contentChanges: [{ text: `${before}edited` }],
+  });
+  release();
+  await settled(h);
+  expect(server.versionOf(STARTER_URI)).toBe(1);
 }, 15_000);
 
 it("keeps the unsaved starter main in the language server when a script bundle fails after writing main", async () => {

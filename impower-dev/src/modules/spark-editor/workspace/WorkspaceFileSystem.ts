@@ -185,8 +185,6 @@ export default class WorkspaceFileSystem {
     this.loadInitialFiles.bind(this),
   );
 
-  protected _initialLoad: Promise<void>;
-
   protected _scheme = "file://";
   get scheme() {
     return this._scheme;
@@ -197,6 +195,8 @@ export default class WorkspaceFileSystem {
   protected _files?: Record<string, FileData>;
 
   protected _unstoredUris = new Set<string>();
+
+  protected _replacingUnstoredUris = new Set<string>();
 
   protected _folders = new Set<string>();
 
@@ -222,12 +222,9 @@ export default class WorkspaceFileSystem {
         DidChangeConfigurationMessage.type.notification(params),
       );
     });
-    this._initialLoad = this._initialFilesRef.get(projectId).then(
-      () => undefined,
-      (e) => {
-        console.error("[workspace] initial file load failed:", e);
-      },
-    );
+    void this._initialFilesRef.get(projectId).catch((e) => {
+      console.error("[workspace] initial file load failed:", e);
+    });
   }
 
   getLoadedProjectId() {
@@ -408,7 +405,7 @@ export default class WorkspaceFileSystem {
   }
 
   async getFileText(uri: string) {
-    await this._initialLoad;
+    await this._initialFilesRef.settled();
     const unstored = this._unstoredUris.has(uri)
       ? this._files?.[uri]?.text
       : undefined;
@@ -567,7 +564,17 @@ export default class WorkspaceFileSystem {
         return;
       }
       const forwarded = withParams(message, { changes: fresh });
-      this._ls.connection.sendNotification(forwarded.method, forwarded.params);
+      const served = fresh.filter(
+        (c) =>
+          c.type !== FileChangeType.Deleted ||
+          !this._replacingUnstoredUris.has(c.uri),
+      );
+      if (served.length === fresh.length) {
+        this._ls.connection.sendNotification(forwarded.method, forwarded.params);
+      } else if (served.length > 0) {
+        const narrowed = withParams(message, { changes: served });
+        this._ls.connection.sendNotification(narrowed.method, narrowed.params);
+      }
       sendProtocolMessage(forwarded);
     } else if (message.error) {
       const handler = this._messageQueue[message.id];
@@ -749,6 +756,7 @@ export default class WorkspaceFileSystem {
       const file = this._files?.[uri];
       return file ? [file] : [];
     });
+    unstored.forEach((file) => this._replacingUnstoredUris.add(file.uri));
     const result = await this.applyWorkspaceEdit(
       {
         documentChanges: [
@@ -777,7 +785,9 @@ export default class WorkspaceFileSystem {
         ],
       },
       label,
-    );
+    ).finally(() => {
+      unstored.forEach((file) => this._replacingUnstoredUris.delete(file.uri));
+    });
     const lost = result.applied
       ? []
       : unstored.filter((file) => this._files && !this._files[file.uri]);
@@ -793,12 +803,6 @@ export default class WorkspaceFileSystem {
           restored: lost.map((file) => file.uri),
         }),
       );
-      this._ls.connection.sendNotification(DidChangeWatchedFilesMessage.method, {
-        changes: lost.map((file) => ({
-          uri: file.uri,
-          type: FileChangeType.Created,
-        })),
-      });
     }
     return result;
   }
