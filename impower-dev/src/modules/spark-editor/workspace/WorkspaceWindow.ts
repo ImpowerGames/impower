@@ -9,7 +9,7 @@ import {
   type InsertConstruct,
   type InsertContext,
 } from "@impower/codemirror-vscode-lsp-client/src/insert";
-import { interceptBack } from "./nameFieldBack";
+import { interceptBack, returningFromBack } from "./nameFieldBack";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import {
@@ -262,6 +262,9 @@ export default class WorkspaceWindow {
       return;
     }
     const onHashChange = () => {
+      if (returningFromBack()) {
+        return;
+      }
       const route = routeOfHash(window.location.hash);
       if (!route) {
         this.syncRouteHash();

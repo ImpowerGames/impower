@@ -869,6 +869,40 @@ describe("WorkspaceWindow store transitions", () => {
       }
     });
 
+    it("returns to the field's entry on a handled Back, keeping the history ahead of it", async () => {
+      const position = { index: 0 };
+      (globalThis as { navigation?: unknown }).navigation = {
+        get currentEntry() {
+          return { index: position.index };
+        },
+      };
+      const traverse = async (step: () => void) => {
+        step();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      };
+      try {
+        win.openPane("share");
+        win.navigateTo("collection");
+        win.navigateTo("scripts");
+        await traverse(() => window.history.back());
+        expect(workspace.current.pane).toBe("assets");
+        position.index = 1;
+        const close = vi.fn();
+        watchBack(close);
+        position.index = 0;
+        await traverse(() => window.history.back());
+        expect(close).toHaveBeenCalledTimes(1);
+        expect(window.location.hash).toBe("#collection");
+        expect(workspace.current.pane).toBe("assets");
+        position.index = 2;
+        await traverse(() => window.history.forward());
+        expect(window.location.hash).toBe("#scripts");
+        expect(workspace.current.pane).toBe("logic");
+      } finally {
+        delete (globalThis as { navigation?: unknown }).navigation;
+      }
+    });
+
     it("opens settings on #project over the current pane and returns on close", () => {
       win.openPane("assets");
       win.navigateTo("project");
