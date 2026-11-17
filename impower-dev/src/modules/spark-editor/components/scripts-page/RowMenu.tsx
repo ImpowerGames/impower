@@ -9,7 +9,7 @@ import {
   DuplicateIcon,
   FolderIcon,
   MoreVerticalIcon,
-  PencilIcon,
+  PencilPlainIcon,
   TrashIcon,
 } from "@impower/impower-ui/components";
 
@@ -38,7 +38,7 @@ export default function RowMenu({ name, main, onAction }: RowMenuProps) {
       <DropdownContent elevation="library" align="end" class="min-w-[196px]">
         {!main && (
           <DropdownItem returnFocus={false} onSelect={() => onAction("rename")}>
-            <PencilIcon class="text-muted" />
+            <PencilPlainIcon class="text-muted" />
             Rename
           </DropdownItem>
         )}
@@ -59,7 +59,7 @@ export default function RowMenu({ name, main, onAction }: RowMenuProps) {
         {!main && <DropdownSeparator />}
         {!main && (
           <DropdownItem class="text-error" onSelect={() => onAction("delete")}>
-            <TrashIcon />
+            <TrashIcon class="text-muted" />
             Delete
           </DropdownItem>
         )}
