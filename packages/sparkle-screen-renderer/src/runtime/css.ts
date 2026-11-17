@@ -1,5 +1,6 @@
 import {
   keepStateArguments,
+  markSelectorArgumentNames,
   SELECTOR_STATE_ALIASES,
   writeSelectorStates,
 } from "../../../sparkdown/src/compiler/constants/selectorStates";
@@ -27,8 +28,9 @@ export function sparkleSelectorToCssSelector(
   selector: string,
   breakpoints: Record<string, number>,
 ): string {
+  const kept = keepStateArguments(selector);
   const OUT: string[] = [];
-  const parts = selector.split(/(["](?:\\.|[^"])*["]|['](?:\\.|[^'])*['])/);
+  const parts = markSelectorArgumentNames(kept.selector).split(/(["](?:\\.|[^"])*["]|['](?:\\.|[^'])*['])/);
 
   for (let idx = 0; idx < parts.length; idx++) {
     const piece = parts[idx]!;
@@ -37,9 +39,8 @@ export function sparkleSelectorToCssSelector(
       continue;
     }
 
-    const kept = keepStateArguments(piece);
     let rewritten = writeSelectorStates(
-      kept.selector
+      piece
         .replace(ATTRIBUTE_SELECTOR_REGEX, "[$1]")
         .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
         .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")

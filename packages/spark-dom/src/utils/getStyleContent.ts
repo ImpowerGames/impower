@@ -4,6 +4,7 @@ import {
 } from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
 import {
   keepStateArguments,
+  markSelectorArgumentNames,
   writeSelectorStates,
 } from "../../../sparkdown/src/compiler/constants/selectorStates";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
@@ -107,8 +108,9 @@ export function getCSSSelector(
 
   selector = selector.replace(LEADING_DESCENDANT_REGEX, "$1$2& >>");
 
+  const kept = keepStateArguments(selector);
   const OUT: string[] = [];
-  const parts = selector.split(QUOTED_REGEX);
+  const parts = markSelectorArgumentNames(kept.selector).split(QUOTED_REGEX);
 
   for (let idx = 0; idx < parts.length; idx++) {
     const piece = parts[idx]!;
@@ -117,9 +119,8 @@ export function getCSSSelector(
       continue;
     }
 
-    const kept = keepStateArguments(piece.replace(ARGUMENT_SPACING_REGEX, "$1($2)"));
     let rewritten = writeSelectorStates(
-      markNameAts(kept.selector)
+      markNameAts(piece.replace(ARGUMENT_SPACING_REGEX, "$1($2)"))
         .replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`)
         .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
         .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")

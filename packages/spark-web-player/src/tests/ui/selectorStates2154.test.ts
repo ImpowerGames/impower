@@ -32,7 +32,21 @@ describe("selector states (#2154)", () => {
     ["@nth-child(odd of @nth-child(odd of author_card))", ":nth-child(odd of :nth-child(odd of .author_card))"],
     ["@nth-child(1 of @lang(en, fr))", ":nth-child(1 of :lang(en, fr))"],
     ["@not(@nth-last-child(-n + 2 of item))", ":not(:nth-last-child(-n + 2 of .item))"],
+    ['@nth-child(2n of @lang("en"))', ':nth-child(2n of :lang("en"))'],
+    ['@lang("en", fr)', ':lang("en", fr)'],
   ])("keeps the argument grammar of %s", (selector, css) => {
+    expect(getCSSSelector(selector, {})).toBe(css);
+  });
+
+  it.each([
+    ["@is(card, icon)", ":is(.card,.icon)"],
+    ["@is(card,icon)", ":is(.card,.icon)"],
+    ["@not(card)", ":not(.card)"],
+    ["@has(icon)", ":has(.icon)"],
+    ["@where(card, @hovered)", ":where(.card,:hover)"],
+    ["@not(@is(card, @first-child))", ":not(:is(.card,:first-child))"],
+    ["@nth-child(2n of a,b)", ":nth-child(2n of .a,.b)"],
+  ])("reads a component name inside %s as a class", (selector, css) => {
     expect(getCSSSelector(selector, {})).toBe(css);
   });
 
@@ -57,5 +71,15 @@ describe("selector states (#2154)", () => {
     expect(second!.matches(selector)).toBe(false);
     const even = getCSSSelector("card @nth-child(2n)", {});
     expect([first, second, third].map((e) => e!.matches(even))).toEqual([false, true, false]);
+  });
+
+  it("excludes and finds components by name inside selector functions", () => {
+    const list = document.createElement("div");
+    list.innerHTML = '<div class="card"><span class="icon"></span></div><div class="note"></div>';
+    const [card, note] = [...list.children];
+    const notCard = getCSSSelector("@not(card)", {});
+    expect([card, note].map((e) => e!.matches(notCard))).toEqual([false, true]);
+    const hasIcon = getCSSSelector("@has(icon)", {});
+    expect([card, note].map((e) => e!.matches(hasIcon))).toEqual([true, false]);
   });
 });
