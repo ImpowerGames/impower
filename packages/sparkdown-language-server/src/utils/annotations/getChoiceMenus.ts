@@ -1,5 +1,10 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { displayCaptionText } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
+import {
+  chooseOptions,
+  holdsOption,
+  optionBodyEnd,
+} from "@impower/sparkdown/src/compiler/utils/chooseOptions";
 import { readSkipping } from "@impower/sparkdown/src/compiler/utils/readSkipping";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { Position, Range } from "vscode-languageserver-textdocument";
@@ -20,7 +25,6 @@ export interface ChoiceMenu {
 const CHOOSE_BLOCK = "LuauSparkdownChooseBlock";
 const CHOOSE_CONTENT = "LuauSparkdownChooseBlock_content";
 const CHOOSE_KEYWORD = "LuauChooseKeyword";
-const CHOICE = "Choice";
 const CHOICE_CONTENT = "Choice_content";
 const THEN_CLAUSE = "LuauSparkdownChooseThenClause";
 const COMMENTS = new Set(["SparkdownBlockComment", "SparkdownInlineComment"]);
@@ -117,25 +121,17 @@ export const getChoiceMenus = (
     const keywordTo = keyword?.to ?? keywordFrom;
     const start = document.positionAt(keywordFrom);
     let prompt: string | undefined;
-    const choices: SyntaxNode[] = [];
-    let optionsEnd = block.to;
+    const choices = chooseOptions(block);
     const content = block.getChild(CHOOSE_CONTENT);
     for (let child = content?.firstChild; child; child = child.nextSibling) {
-      if (child.name === CHOICE) {
-        choices.push(child);
-      } else if (child.name === THEN_CLAUSE) {
-        optionsEnd = child.from;
+      if (child.name === THEN_CLAUSE || holdsOption(choices, child)) {
         break;
-      } else if (!choices.length) {
-        const caption = displayCaptionText(child, source);
-        prompt = caption == null ? prompt : oneLine(caption);
       }
+      const caption = displayCaptionText(child, source);
+      prompt = caption == null ? prompt : oneLine(caption);
     }
-    if (optionsEnd === block.to && content) {
-      optionsEnd = content.to;
-    }
-    const options = choices.flatMap((choice, index) => {
-      const option = readOption(choice, choices[index + 1]?.from ?? optionsEnd);
+    const options = choices.flatMap((choice) => {
+      const option = readOption(choice, optionBodyEnd(choices, choice));
       return option ? [option] : [];
     });
     return {

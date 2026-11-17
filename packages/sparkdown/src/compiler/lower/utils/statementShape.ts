@@ -242,7 +242,7 @@ export const recordChoiceBody = (part: ParsedObject, body: BodyShape): void => {
 export const inlineChoiceBranches = (
   ctx: LowerContext,
   objects: readonly ParsedObject[],
-  holdsChoice: (obj: ParsedObject) => boolean,
+  holdsOption: (body: BodyShape) => boolean,
   isChoice: (obj: ParsedObject) => boolean,
   isLabel: (obj: ParsedObject) => boolean,
 ): void => {
@@ -322,8 +322,8 @@ export const inlineChoiceBranches = (
     };
     walk(obj);
   };
-  const inlines = (held: readonly ParsedObject[]) =>
-    held.some(holdsChoice) || held.some(holdsInlineExit);
+  const inlines = (body: BodyShape, held: readonly ParsedObject[]) =>
+    holdsOption(body) || held.some(holdsInlineExit);
   const branchesSeen = new WeakSet<ParsedObject>();
   const visit = (obj: ParsedObject) => {
     const branches = (obj as { branches?: ParsedObject[] }).branches;
@@ -331,7 +331,7 @@ export const inlineChoiceBranches = (
       branchesSeen.add(branch);
       const body = bodyOfBlock.get(branch);
       const owned = owner.bodies.some((shape) => shape === body);
-      if (body && owned && inlines([branch])) {
+      if (body && owned && inlines(body, [branch])) {
         bodyOfBlock.delete(branch);
         hoist(body);
       }
@@ -342,7 +342,7 @@ export const inlineChoiceBranches = (
     if (
       body &&
       owner.bodies.some((shape) => shape === body) &&
-      inlines(objectsOf(body))
+      inlines(body, objectsOf(body))
     ) {
       if (loop) {
         objectsOf(body).forEach((part) => recordExits(loop, part));

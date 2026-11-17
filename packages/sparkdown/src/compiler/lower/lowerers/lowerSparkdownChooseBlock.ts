@@ -24,6 +24,11 @@ import {
   type BodyShape,
 } from "../utils/statementShape";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import {
+  chooseOptions,
+  holdsOption,
+  optionBodyEnd,
+} from "../../utils/chooseOptions";
 
 export function lowerSparkdownChooseBlock(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -38,6 +43,13 @@ export function lowerSparkdownChooseBlock(
     nodeRef.node,
     "LuauSparkdownChooseBlock_content",
   );
+  const options = chooseOptions(nodeRef.node);
+  const base = ctx.chunkFrom ?? 0;
+  const bodyHoldsOption = (body: BodyShape) =>
+    holdsOption(options, {
+      from: body.headStart + base,
+      to: body.nextStart + base,
+    });
 
   const weaveContent: ParsedObject[] = [];
 
@@ -47,17 +59,6 @@ export function lowerSparkdownChooseBlock(
   let sawChoice = false;
   let child = content?.firstChild ?? null;
   const diagnostics: InkDiagnostic[] = [];
-  const nextPartStart = (choiceNode: SyntaxNode): number => {
-    for (let next = choiceNode.nextSibling; next; next = next.nextSibling) {
-      if (
-        next.name === "Choice" ||
-        next.name === "LuauSparkdownChooseThenClause"
-      ) {
-        return next.from;
-      }
-    }
-    return content?.to ?? nodeRef.to;
-  };
   while (child) {
     if (child.name === "LuauSparkdownChooseThenClause") {
       thenClause = child;
@@ -105,7 +106,7 @@ export function lowerSparkdownChooseBlock(
           ctx,
           child.from,
           child.to,
-          nextPartStart(child),
+          optionBodyEnd(options, child),
         );
         if (currentBody) {
           recordChoiceBody(currentChoice, currentBody);
@@ -122,7 +123,7 @@ export function lowerSparkdownChooseBlock(
       if (block?.diagnostics) {
         diagnostics.push(...block.diagnostics);
       }
-      if (!sawChoice && block?.content?.some(holdsChoice)) {
+      if (!sawChoice && holdsOption(options, child)) {
         markCaption(weaveContent);
         sawChoice = true;
       }
@@ -143,7 +144,7 @@ export function lowerSparkdownChooseBlock(
         inlineChoiceBranches(
           ctx,
           items,
-          holdsChoice,
+          bodyHoldsOption,
           (obj) => obj instanceof Choice,
           (obj) => obj instanceof Gather,
         );
@@ -214,13 +215,6 @@ function markCaption(items: ParsedObject[]): void {
       return;
     }
   }
-}
-
-function holdsChoice(obj: ParsedObject): boolean {
-  return (
-    obj instanceof Choice ||
-    (obj.content ?? []).some((child) => holdsChoice(child))
-  );
 }
 
 function buildGatherFromThenClause(

@@ -242,6 +242,59 @@ end
     expect(menuNamed("    : Exposition. > >")).toBe("Left");
   });
 
+  test("a menu whose options are all inside an if block lists them", () => {
+    const [scene] = symbolsOf(`scene start
+  choose
+    if true then
+      * [North.]
+      * [South.]
+    end
+  end
+end
+`);
+    expect(shape(scene?.children)).toEqual([
+      [
+        "Enum",
+        "[North.]",
+        [
+          ["EnumMember", "[North.]"],
+          ["EnumMember", "[South.]"],
+        ],
+      ],
+    ]);
+  });
+
+  test("options inside an if block before the menu's first option are its options, each ending where its branch's body ends", () => {
+    const [scene] = symbolsOf(`scene start
+  choose
+    if true then
+      * [North.]
+        Gone north.
+      * [South.]
+        Gone south.
+    end
+    * [West.]
+  end
+end
+`);
+    expect(shape(scene?.children)).toEqual([
+      [
+        "Enum",
+        "[North.]",
+        [
+          ["EnumMember", "[North.]"],
+          ["EnumMember", "[South.]"],
+          ["EnumMember", "[West.]"],
+        ],
+      ],
+    ]);
+    expect(scene?.children?.[0]?.children?.map(lines)).toEqual([
+      [3, 4, 3],
+      [5, 6, 5],
+      [8, 8, 8],
+    ]);
+  });
+
   test("an option's name leaves out its comments", () => {
     const [scene] = symbolsOf(`scene Hall
   choose
