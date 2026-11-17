@@ -1,6 +1,7 @@
 import { history, historyField, undo, undoDepth } from "@codemirror/commands";
-import { EditorState } from "@codemirror/state";
+import { ChangeSet, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { LSPPlugin } from "@impower/codemirror-vscode-lsp-client/src";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
@@ -318,5 +319,78 @@ describe("Replace all through the editor's own history", () => {
     set(MAIN);
     const marks = view.contentDOM.querySelectorAll(".cm-searchMatch");
     expect([...marks].map((m) => m.textContent)).toEqual(["rumour"]);
+  });
+});
+
+describe("Replacing the open script's whole text when it still holds the expected text (I-2159)", () => {
+  const OTHER_TAB_TEXT = lines("scene start", "  Another tab wrote this.", "end");
+
+  const replace = (
+    controller: InstanceType<typeof ScriptEditorController>,
+    expected: string,
+    uri = MAIN,
+  ) =>
+    controller["handleApplyEditorEdit"]({
+      ...ApplyEditorEditMessage.type.request({
+        label: "Use other tab's",
+        edit: {},
+        replace: { uri, expected, text: OTHER_TAB_TEXT },
+      }),
+      id: `replace-${nextId++}`,
+    } as ApplyEditorEditMessage.Request);
+
+  it("replaces the text as one undo step, typing at the end included", async () => {
+    const controller = mount();
+    const view = load(controller, MAIN, MAIN_TEXT);
+    view.dispatch({ changes: { from: view.state.doc.length, insert: " typed" } });
+    const typed = view.state.doc.toString();
+    const response = await replace(controller, typed);
+    expect(response.result).toEqual({ applied: [MAIN] });
+    expect(view.state.doc.toString()).toBe(OTHER_TAB_TEXT);
+    undoIn(view);
+    expect(view.state.doc.toString()).toBe(typed);
+  });
+
+  it("replaces the whole text while typing at the end has not reached the language server yet", async () => {
+    const controller = mount();
+    const view = load(controller, MAIN, MAIN_TEXT);
+    const synced = view.state.doc;
+    view.dispatch({ changes: { from: view.state.doc.length, insert: " typed" } });
+    const typed = view.state.doc.toString();
+    const plugin = vi.spyOn(LSPPlugin, "get").mockReturnValue({
+      syncedDoc: synced,
+      unsyncedChanges: ChangeSet.of(
+        { from: synced.length, insert: " typed" },
+        synced.length,
+      ),
+      client: {
+        withMapping: () => {
+          throw new Error("the replacement must not map positions");
+        },
+      },
+    } as unknown as LSPPlugin);
+    try {
+      const response = await replace(controller, typed);
+      expect(response.result).toEqual({ applied: [MAIN] });
+      expect(view.state.doc.toString()).toBe(OTHER_TAB_TEXT);
+    } finally {
+      plugin.mockRestore();
+    }
+  });
+
+  it("refuses and changes nothing when the open script no longer holds the expected text", async () => {
+    const controller = mount();
+    const view = load(controller, MAIN, MAIN_TEXT);
+    const response = await replace(controller, `${MAIN_TEXT} typed`);
+    expect(response.result).toEqual({ applied: [], refused: [MAIN] });
+    expect(view.state.doc.toString()).toBe(MAIN_TEXT);
+  });
+
+  it("leaves another script alone and does not answer for it", async () => {
+    const controller = mount();
+    const view = load(controller, CHAPTER, CHAPTER_TEXT);
+    const response = await replace(controller, CHAPTER_TEXT, MAIN);
+    expect(response.result).toEqual({ applied: [] });
+    expect(view.state.doc.toString()).toBe(CHAPTER_TEXT);
   });
 });

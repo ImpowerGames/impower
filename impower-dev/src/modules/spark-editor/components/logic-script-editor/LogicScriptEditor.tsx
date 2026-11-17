@@ -1,4 +1,5 @@
 import { useCoarsePointer } from "@impower/impower-ui/layout";
+import type { ApplyEditorEditResult } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules/script-editor/SparkdownScriptEditor";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
@@ -12,7 +13,11 @@ import workspace from "../../workspace/WorkspaceStore";
 import { toggleAddPanel } from "../add-panel";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
-import { reloadsForWrite } from "./reloadsForWrite";
+import {
+  keepsTypingOver,
+  reloadsForWrite,
+  rewritesTypingAfter,
+} from "./reloadsForWrite";
 
 type WorkspaceWindow =
   (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
@@ -29,6 +34,7 @@ export const propDefaults = {
 export type LogicScriptEditorProps = Partial<typeof propDefaults>;
 
 const AUTOSAVE_DELAY = 200;
+const APPLY_TIMEOUT = 3000;
 
 let editorCount = 0;
 
@@ -46,6 +52,8 @@ export default function LogicScriptEditor({
 
   const filenameRef = useRef(filename);
   filenameRef.current = filename;
+  const scriptName = () =>
+    (filenameRef.current || "main.sd").split("/").pop() || "main.sd";
   const loadFileRef = useRef<() => Promise<void>>(async () => {});
 
   const textPulledAt = useComputed(
@@ -92,6 +100,7 @@ export default function LogicScriptEditor({
         { DidSaveTextDocumentMessage },
         { DidDeleteFilesMessage },
         { DidWriteFilesMessage },
+        { ApplyEditorEditMessage },
       ] = await Promise.all([
         import(
           "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage"
@@ -111,6 +120,9 @@ export default function LogicScriptEditor({
         ),
         import(
           "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage"
+        ),
+        import(
+          "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage"
         ),
       ]);
       if (disposed) return;
@@ -176,6 +188,9 @@ export default function LogicScriptEditor({
       const loadFile = () => (pendingLoad = sendLoadEditor());
       loadFileRef.current = loadFile;
 
+      let saves = 0;
+      let keptAfterSave = 0;
+
       const debouncedSave = debounce(async () => {
         if (uriRef.current && versionRef.current && textRef.current != null) {
           const { Workspace } = await import("../../workspace/Workspace");
@@ -183,6 +198,7 @@ export default function LogicScriptEditor({
           const uri = uriRef.current;
           const text = textRef.current;
           if (!uri || text == null) return;
+          const save = ++saves;
           await Workspace.fs.writeTextDocument({
             textDocument: {
               uri,
@@ -191,10 +207,68 @@ export default function LogicScriptEditor({
             },
             origin,
           });
-          storedTexts.set(uri, text);
+          if (save > keptAfterSave) {
+            storedTexts.set(uri, text);
+          }
           await Workspace.window.recordScriptChange();
         }
       }, AUTOSAVE_DELAY);
+
+      let otherWrites = 0;
+
+      const useOtherTabText = (uri: string, text: string, seen: number) => {
+        const leftAsItIs = () =>
+          showSnackbar({
+            message: `${scriptName()} changed again, so it was left as it is.`,
+          });
+        const held = textRef.current;
+        if (disposed || uriRef.current !== uri || otherWrites !== seen || held == null) {
+          leftAsItIs();
+          return;
+        }
+        const request = ApplyEditorEditMessage.type.request({
+          label: "Use other tab's",
+          edit: {},
+          replace: { uri, expected: held, text },
+        });
+        const stop = onProtocolMessage(
+          {
+            is: (m: unknown): m is { result?: ApplyEditorEditResult } =>
+              ApplyEditorEditMessage.type.isResponse(m, request.id),
+          },
+          (message) => {
+            const result = "result" in message ? message.result : undefined;
+            if (result?.applied.includes(uri)) {
+              finish();
+            } else if (result?.refused?.includes(uri)) {
+              finish();
+              leftAsItIs();
+            }
+          },
+        );
+        const timer = setTimeout(() => {
+          finish();
+          leftAsItIs();
+        }, APPLY_TIMEOUT);
+        const finish = () => {
+          clearTimeout(timer);
+          stop();
+        };
+        sendProtocolMessage(request);
+      };
+
+      const announceKeptTyping = (uri: string, text: string | undefined) => {
+        const seen = otherWrites;
+        showSnackbar({
+          message: `${scriptName()} changed in another tab. Your typing here is kept.`,
+          ...(text == null
+            ? {}
+            : {
+                actionLabel: "Use other tab's",
+                onAction: () => void useOtherTabText(uri, text, seen),
+              }),
+        });
+      };
 
       const disposers = [
         onProtocolMessage(DidChangeTextDocumentMessage.type, (message) => {
@@ -212,21 +286,28 @@ export default function LogicScriptEditor({
           if (!changed) {
             return;
           }
-          const reload = reloadsForWrite(
-            {
-              text: changed.text,
-              remote: params.remote,
-              origin: params.origin,
-              restored: params.restored?.includes(changed.uri) ?? false,
-            },
-            {
-              text: textRef.current,
-              stored: storedTexts.get(changed.uri) ?? null,
-              origin,
-            },
-          );
-          if (reload) {
+          const write = {
+            text: changed.text,
+            remote: params.remote,
+            origin: params.origin,
+            restored: params.restored?.includes(changed.uri) ?? false,
+          };
+          const script = {
+            text: textRef.current,
+            stored: storedTexts.get(changed.uri) ?? null,
+            origin,
+          };
+          if (write.remote || write.origin !== origin) {
+            otherWrites += 1;
+          }
+          if (reloadsForWrite(write, script)) {
             loadFile();
+          } else if (rewritesTypingAfter(write, script)) {
+            keptAfterSave = saves;
+            debouncedSave();
+            if (keepsTypingOver(write, script)) {
+              announceKeptTyping(changed.uri, changed.text);
+            }
           }
         }),
         onProtocolMessage(DidDeleteFilesMessage.type, (message) => {
