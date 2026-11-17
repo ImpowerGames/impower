@@ -15,6 +15,7 @@ export const COMPLETION_ICON_COLORS = {
   property: "--syntax-property-name",
   value: "--syntax-constant-variable-name",
   enum: "--syntax-type-name",
+  enumMember: "--syntax-constant-variable-name",
   reference: "--syntax-section-name-accessor",
   keyword: "--syntax-plain-keyword",
   file: "--syntax-string",
@@ -33,7 +34,6 @@ export const COMPLETION_ICON_COLORS = {
 export const ICONED_COMPLETION_TYPES = Object.keys(COMPLETION_ICON_COLORS) as (keyof typeof COMPLETION_ICON_COLORS)[];
 
 export const ICONLESS_COMPLETIONS = [
-  { label: "enumMemberItem", type: "enumMember" },
   { label: "unknownItem", type: "unknown" },
   { label: "noTypeItem" },
 ] as const;
