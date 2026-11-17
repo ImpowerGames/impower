@@ -1250,10 +1250,31 @@ export class ScriptEditorController {
   protected handleApplyEditorEdit = async (
     message: ApplyEditorEditMessage.Request,
   ) => {
-    const { edit, closedTexts, claim, expectedTexts, fix, undoFix } =
+    const { edit, closedTexts, claim, expectedTexts, fix, undoFix, replace } =
       message.params;
     const view = this._view;
     const uri = this._textDocument?.uri;
+    if (replace) {
+      if (!view || replace.uri !== uri) {
+        return ApplyEditorEditMessage.type.response(message.id, {
+          applied: [],
+        });
+      }
+      if (view.state.doc.toString() !== replace.expected) {
+        return ApplyEditorEditMessage.type.response(message.id, {
+          applied: [],
+          refused: [uri],
+        });
+      }
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: replace.text },
+        userEvent: "input.replace.all",
+        annotations: isolateHistory.of("full"),
+      });
+      return ApplyEditorEditMessage.type.response(message.id, {
+        applied: [uri],
+      });
+    }
     const fixed = fix?.uri ?? undoFix?.uri;
     if (fixed !== undefined) {
       if (!view || fixed !== uri) {

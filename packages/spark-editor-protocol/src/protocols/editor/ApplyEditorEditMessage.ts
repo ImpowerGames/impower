@@ -31,9 +31,16 @@ export interface EditorFixUndo {
   revert: EditorFixRevert;
 }
 
+export interface EditorTextReplacement {
+  uri: string;
+  expected: string;
+  text: string;
+}
+
 export interface ApplyEditorEditParams {
   label?: string;
   edit: WorkspaceEdit;
+  replace?: EditorTextReplacement;
   closedTexts?: Record<string, string>;
   claim?: boolean;
   expectedTexts?: Record<string, string>;

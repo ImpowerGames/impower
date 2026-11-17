@@ -226,29 +226,10 @@ export default function LogicScriptEditor({
           leftAsItIs();
           return;
         }
-        const lines = held.split("\n");
         const request = ApplyEditorEditMessage.type.request({
           label: "Use other tab's",
-          edit: {
-            documentChanges: [
-              {
-                textDocument: { uri, version: null },
-                edits: [
-                  {
-                    range: {
-                      start: { line: 0, character: 0 },
-                      end: {
-                        line: lines.length - 1,
-                        character: lines[lines.length - 1]!.length,
-                      },
-                    },
-                    newText: text,
-                  },
-                ],
-              },
-            ],
-          },
-          expectedTexts: { [uri]: held },
+          edit: {},
+          replace: { uri, expected: held, text },
         });
         const stop = onProtocolMessage(
           {
