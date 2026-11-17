@@ -4,7 +4,7 @@ type NavigationLike = { currentEntry?: { index: number } | null };
 
 const entries: BackEntry[] = [];
 
-let returning = false;
+let returnTo: number | undefined;
 
 const historyIndex = (): number | undefined => {
   const index = (globalThis as { navigation?: NavigationLike }).navigation
@@ -28,13 +28,16 @@ export function watchBack(close: () => void): () => void {
 }
 
 export function returningFromBack(): boolean {
-  return returning;
+  return returnTo !== undefined && historyIndex() !== returnTo;
 }
 
 export function interceptBack(): boolean {
-  if (returning) {
-    returning = false;
-    return true;
+  if (returnTo !== undefined) {
+    const arrived = historyIndex() === returnTo;
+    returnTo = undefined;
+    if (arrived) {
+      return true;
+    }
   }
   const entry = entries[entries.length - 1];
   if (!entry) {
@@ -47,7 +50,7 @@ export function interceptBack(): boolean {
   }
   entries.pop();
   if (known && index < entry.index!) {
-    returning = true;
+    returnTo = entry.index;
     window.history.go(entry.index! - index);
   } else if (window.location.href !== entry.href) {
     window.history.pushState(window.history.state, "", entry.href);

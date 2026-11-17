@@ -870,10 +870,10 @@ describe("WorkspaceWindow store transitions", () => {
     });
 
     it("returns to the field's entry on a handled Back, keeping the history ahead of it", async () => {
-      const position = { index: 0 };
+      const indexOf: Record<string, number> = { "#share": 0, "#collection": 1, "#scripts": 2 };
       (globalThis as { navigation?: unknown }).navigation = {
         get currentEntry() {
-          return { index: position.index };
+          return { index: indexOf[window.location.hash] ?? -1 };
         },
       };
       const traverse = async (step: () => void) => {
@@ -886,15 +886,12 @@ describe("WorkspaceWindow store transitions", () => {
         win.navigateTo("scripts");
         await traverse(() => window.history.back());
         expect(workspace.current.pane).toBe("assets");
-        position.index = 1;
         const close = vi.fn();
         watchBack(close);
-        position.index = 0;
         await traverse(() => window.history.back());
         expect(close).toHaveBeenCalledTimes(1);
         expect(window.location.hash).toBe("#collection");
         expect(workspace.current.pane).toBe("assets");
-        position.index = 2;
         await traverse(() => window.history.forward());
         expect(window.location.hash).toBe("#scripts");
         expect(workspace.current.pane).toBe("logic");
