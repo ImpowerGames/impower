@@ -24,8 +24,8 @@ import { ROUTE_PANEL_ID } from "../preview-route";
 import { settingsSectionHref } from "../settings";
 import { AspectRatioGroup } from "./AspectRatioGroup";
 import {
-  ASPECT_RATIO_LABEL_RESERVES,
   aspectRatioLabel,
+  aspectRatioLabelReserves,
   barReadout,
   type AspectRatioChoice,
   PAGE_FILLS_PANE,
@@ -53,7 +53,7 @@ export default function PreviewBar({
     <div
       role="group"
       aria-label="Problems and display"
-      class="flex h-11 shrink-0 items-center gap-1 px-2"
+      class="flex h-preview-bar shrink-0 items-center gap-1.5 px-preview-inline pt-px"
     >
       <ProblemsToggle />
       <RouteReadout layout={layout} />
@@ -174,7 +174,7 @@ function RatioLabel({
   choice: AspectRatioChoice;
   size: GameSize | undefined;
 }) {
-  const [reserve, reserveAlt] = ASPECT_RATIO_LABEL_RESERVES;
+  const [reserve, reserveAlt] = aspectRatioLabelReserves(size);
   return (
     <span
       data-reserve={reserve}
@@ -199,7 +199,7 @@ function AspectRatioMenu({ pageFillsPane }: { pageFillsPane: boolean }) {
         aria-label="Game aspect ratio"
         aria-disabled
         title={PAGE_FILLS_PANE}
-        class={`px-2.5 text-muted aria-disabled:cursor-default aria-disabled:opacity-40 ${BAR_TEXT}`}
+        class={`px-[9px] text-muted aria-disabled:cursor-default aria-disabled:opacity-40 ${BAR_TEXT}`}
       >
         <RatioLabel choice="auto" size={size} />
       </Button>
@@ -213,7 +213,7 @@ function AspectRatioMenu({ pageFillsPane }: { pageFillsPane: boolean }) {
           variant="quiet"
           aria-label="Game aspect ratio"
           title="Game aspect ratio"
-          class={`px-2.5 text-muted ${BAR_TEXT}`}
+          class={`px-[9px] text-muted ${BAR_TEXT}`}
         >
           <RatioLabel choice={choice} size={size} />
         </Button>

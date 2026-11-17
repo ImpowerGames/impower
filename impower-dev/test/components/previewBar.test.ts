@@ -213,6 +213,17 @@ afterEach(async () => {
 });
 
 describe("the bar under the game", () => {
+  it("takes the prototype's console heading height, inset and gaps, so its controls sit where the prototype's do", async () => {
+    await mount();
+    expect(bar().classList).toContain("h-preview-bar");
+    expect(bar().classList).toContain("px-preview-inline");
+    expect(bar().classList).toContain("pt-px");
+    expect(bar().classList).toContain("gap-1.5");
+    expect(bar().classList).not.toContain("h-11");
+    expect(toggle().classList).toContain("pl-[7px]");
+    expect(ratio().classList).toContain("px-[9px]");
+  });
+
   it("counts the project's errors and warnings as problems and its infos as notes", async () => {
     await mount();
     expect(toggle().textContent).toBe("No problems");
@@ -243,7 +254,7 @@ describe("the bar under the game", () => {
     expect(document.getElementById("problems-panel")).not.toBeNull();
     await act(async () => toggle().click());
     await settle();
-    expect(stored().previewPanelHeight).toBe(44);
+    expect(stored().previewPanelHeight).toBe(62);
     expect(document.getElementById("problems-panel")).toBeNull();
   });
 
@@ -310,6 +321,17 @@ describe("the bar under the game", () => {
     expect(note()).toBeUndefined();
     await stopAt("shown");
     expect(note()).toBeUndefined();
+  });
+
+  it("lays the phone pane on the stage colour and keeps the prototype's 52px bar inset by the preview padding", async () => {
+    phone = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    const pane = bar().closest<HTMLElement>("[class~='@container']")!;
+    expect(pane.classList).toContain("bg-preview-phone-mat");
+    expect(pane.classList).not.toContain("bg-preview-mat");
+    expect(bar().classList).toContain("h-preview-bar");
+    expect(bar().classList).toContain("px-preview-inline");
   });
 
   it("reads a stop before a line in the phone's readout itself, with no note and nothing moved", async () => {
@@ -471,7 +493,7 @@ describe("the bar under the game", () => {
     expect(document.getElementById("route-panel")).not.toBeNull();
     await act(async () => readout().click());
     await settle();
-    expect(stored().previewPanelHeight).toBe(44);
+    expect(stored().previewPanelHeight).toBe(62);
     expect(document.getElementById("route-panel")).toBeNull();
   });
 
@@ -523,7 +545,7 @@ describe("the bar under the game", () => {
     );
     await settle();
     expect(document.getElementById("route-panel")).toBeNull();
-    expect(stored().previewPanelHeight).toBe(44);
+    expect(stored().previewPanelHeight).toBe(62);
   });
 
   it("mounts the player's own route list, which closes the panel on Escape and brings its own stylesheets", async () => {
@@ -538,7 +560,7 @@ describe("the bar under the game", () => {
     await key(document.body, "Escape");
     await settle();
     expect(document.getElementById("route-panel")).toBeNull();
-    expect(stored().previewPanelHeight).toBe(44);
+    expect(stored().previewPanelHeight).toBe(62);
   });
 
   it("keeps the Starting values tab in the route list and sends its tab and value changes to the player", async () => {
@@ -719,7 +741,7 @@ describe("the bar under the game", () => {
     expect(ratio().hasAttribute("aria-disabled")).toBe(false);
   });
 
-  it("lays every part of the label that a switch changes over an invisible reservation, the rule that keeps the control's width", async () => {
+  it("lays the label over an invisible reservation sized to its digits, so a ratio switch keeps the control's width and the label takes the prototype's natural width", async () => {
     workspaceSettings.setProjectSetting("previewAspectRatio", "4:3");
     await mount();
     const sized = (width: number, height: number) =>
@@ -745,7 +767,7 @@ describe("the bar under the game", () => {
       );
     expect(ratio().textContent).toBe("4:3 · 923×692");
     expect(cells()).toEqual([
-      ["4:3 · 923×692", "Auto · 0000×0000", "16:9 · 0000×0000"],
+      ["4:3 · 923×692", "Auto · 000×000", "16:9 · 000×000"],
     ]);
     await act(async () =>
       workspaceSettings.setPreference("previewMode", "textstream"),
@@ -753,7 +775,7 @@ describe("the bar under the game", () => {
     await sized(1090, 692);
     expect(ratio().textContent).toBe("Auto · 1090×692");
     expect(cells()).toEqual([
-      ["Auto · 1090×692", "Auto · 0000×0000", "16:9 · 0000×0000"],
+      ["Auto · 1090×692", "Auto · 0000×000", "16:9 · 0000×000"],
     ]);
   });
 
@@ -814,7 +836,7 @@ describe("the divider above the bar", () => {
   it("starts collapsed to the bar and grows the panel with Up", async () => {
     await mount();
     const handle = separator();
-    expect(handle.getAttribute("aria-valuenow")).toBe("44");
+    expect(handle.getAttribute("aria-valuenow")).toBe("62");
     await key(handle, "ArrowUp");
     expect(handle.getAttribute("aria-valuenow")).toBe("144");
     expect(stored().previewPanelHeight).toBe(144);
@@ -841,12 +863,12 @@ describe("the divider above the bar", () => {
     await act(async () => {
       separator().dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
     });
-    expect(stored().previewPanelHeight).toBe(44);
-    expect(separator().getAttribute("aria-valuenow")).toBe("44");
+    expect(stored().previewPanelHeight).toBe(62);
+    expect(separator().getAttribute("aria-valuenow")).toBe("62");
     workspaceSettings.setProjectSetting("previewPanelHeight", 300);
     await settle();
     await key(separator(), "Enter");
-    expect(stored().previewPanelHeight).toBe(44);
+    expect(stored().previewPanelHeight).toBe(62);
   });
 
   it("shows the same row without the divider on phones", async () => {

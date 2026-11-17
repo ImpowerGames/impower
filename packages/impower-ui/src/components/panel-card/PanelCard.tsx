@@ -4,13 +4,13 @@ import { cn } from "../../utils/cn";
 import { ChevronDownIcon } from "../icon/icons.generated";
 
 export const PANEL_CARD_HEIGHT = {
-  head: 50,
+  head: 52,
   end: 15,
   note: 52,
 } as const;
 
 export const panelCardHeadVariants = cva(
-  "relative flex h-[42px] items-center justify-end border border-solid border-edge bg-paper",
+  "relative flex h-[44px] items-center justify-end border border-solid border-edge bg-paper",
   {
     variants: {
       open: {
@@ -24,7 +24,7 @@ export const panelCardHeadVariants = cva(
 
 const toggleVariants = cva(
   [
-    "control-wash absolute inset-0 inline-flex cursor-pointer items-center gap-2 px-2.5 text-left",
+    "control-wash absolute inset-x-0 top-0 inline-flex h-11 cursor-pointer items-center gap-2 px-2.5 text-left",
     "text-[11px]/[1.4] font-semibold tracking-[0.06em] uppercase outline-offset-[-3px]",
     "[&>svg]:size-3.5 [&>svg]:flex-none [&>svg]:motion-safe:transition-transform [&>svg]:motion-safe:duration-180",
   ],

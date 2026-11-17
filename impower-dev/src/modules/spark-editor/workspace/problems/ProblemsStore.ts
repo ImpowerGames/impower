@@ -36,6 +36,11 @@ import {
 export const PANEL_BAR_HEIGHT =
   PROJECT_SETTINGS_SCHEMA.previewPanelHeight.default;
 
+export const COMPACT_PANEL_BAR_HEIGHT = 52;
+
+export const panelBarHeight = (layout: string) =>
+  layout === "desktop" ? PANEL_BAR_HEIGHT : COMPACT_PANEL_BAR_HEIGHT;
+
 export const PANEL_OPEN_HEIGHT = 260;
 
 export const STRIP_ABOVE_PANEL = 300;

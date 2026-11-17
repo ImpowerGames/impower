@@ -130,6 +130,13 @@ function ButtonDemo() {
           </Button>
         </div>
       </GalleryRow>
+      <GalleryRow label="Raised: the preview's Play circle, lifted by a small shadow in Chalk and Paper and flat in the dark themes">
+        <div class="flex flex-wrap items-center gap-2">
+          <Button variant="primary" size="icon" raised class="rounded-full border-0" aria-label="Play" data-gallery-control>
+            <CheckIcon />
+          </Button>
+        </div>
+      </GalleryRow>
       <GalleryRow label="A disclosure toggle, released and pressed">
         <div class="flex flex-wrap items-center gap-2">
           <Button variant="disclosure" size="glyph" aria-label="Show line numbers" aria-pressed={false}>

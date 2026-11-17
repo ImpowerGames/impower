@@ -27,6 +27,18 @@ afterEach(async () => {
 });
 
 describe("PanelCard", () => {
+  it("draws a 44px head row with a 44px toggle, the prototype's console card head, and reserves 52px for it in a virtual list", async () => {
+    const root = await mount(
+      <PanelCardHead title="Variables" open onOpenChange={() => {}} />,
+    );
+    const toggle = root.querySelector<HTMLButtonElement>("button[aria-expanded]")!;
+    expect(toggle.parentElement!.classList).toContain("h-[44px]");
+    expect(toggle.classList).toContain("h-11");
+    expect(toggle.classList).toContain("top-0");
+    expect(toggle.classList).not.toContain("inset-0");
+    expect(PANEL_CARD_HEIGHT.head).toBe(52);
+  });
+
   it("names its head toggle by title and spoken count, and reports the opposite of its open state", async () => {
     const onOpenChange = vi.fn();
     await mount(

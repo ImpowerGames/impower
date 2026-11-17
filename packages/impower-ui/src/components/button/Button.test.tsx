@@ -245,3 +245,12 @@ describe("Button asChild", () => {
     expect(button?.childNodes.length).toBe(1);
   });
 });
+
+describe("Button raised", () => {
+  it("adds the raised shadow only when the caller asks for it", async () => {
+    const flat = await mount(<Button variant="primary">Flat</Button>);
+    expect(flat.querySelector("button")!.classList).not.toContain("shadow-raised");
+    const raised = await mount(<Button variant="primary" raised>Raised</Button>);
+    expect(raised.querySelector("button")!.classList).toContain("shadow-raised");
+  });
+});
