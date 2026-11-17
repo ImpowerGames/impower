@@ -60,8 +60,11 @@ const makePage = () => {
   const revealed = () =>
     letters().filter((letter) => {
       const reveal = (letter as any).__sdReveal as TimedAnimation | undefined;
-      const time = reveal?.currentTime;
-      return time != null && time >= Number(reveal!.effect.timing.delay ?? 0);
+      if (!reveal) {
+        return (letter as HTMLElement).style.opacity === "1";
+      }
+      const time = reveal.currentTime;
+      return time != null && time >= Number(reveal.effect.timing.delay ?? 0);
     }).length;
   return {
     overlay,
@@ -386,17 +389,20 @@ describe("a finished animation (#2198)", () => {
     const page = makePage();
     await page.write();
     page.frame(2_000);
+    await flushMicrotasks(10);
     expect(page.revealed()).toBe(TEXT.length);
-    const reveals = page
-      .letters()
-      .map((letter) => (letter as any).__sdReveal as TimedAnimation);
+    const reveals = animations.filter((animation) =>
+      page.letters().includes(animation.effect.target as HTMLElement),
+    );
+    expect(reveals).toHaveLength(TEXT.length);
     expect(reveals.map((reveal) => reveal.playState)).toEqual(
-      reveals.map(() => "finished"),
+      reveals.map(() => "idle"),
     );
     page.pause();
     expect(reveals.map((reveal) => reveal.playState)).toEqual(
-      reveals.map(() => "finished"),
+      reveals.map(() => "idle"),
     );
+    expect(page.revealed()).toBe(TEXT.length);
     const tracked = Array.from((page.ui as any)._hold._animations.keys());
     expect(tracked.filter((animation) => reveals.includes(animation as any))).toEqual([]);
     page.unpause();

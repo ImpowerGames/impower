@@ -644,6 +644,52 @@ export class ProgramRoot {
     return undefined;
   }
 
+  protected _optionLines = new Map<string, Map<number, number[]>>();
+
+  optionEntriesOn(uri: string, line: number): readonly number[] | undefined {
+    let lines = this._optionLines.get(uri);
+    if (!lines) {
+      lines = this.optionLinesOf(uri);
+      this._optionLines.set(uri, lines);
+    }
+    return lines.get(line);
+  }
+
+  protected optionLinesOf(uri: string): Map<number, number[]> {
+    const lines = new Map<number, number[]>();
+    for (const sequence of this.sequences()) {
+      if (sequence.uri !== uri) {
+        continue;
+      }
+      for (const chunk of sequence.arrays.chunks) {
+        const id = chunkId(chunk);
+        const words = codeWords(chunk);
+        for (let offset = 0; offset < words; offset += 2) {
+          if (opOf(chunk[HEADER_WORDS + offset]!) !== Op.Choice) {
+            continue;
+          }
+          const option = this.locationOf(addressOf(id, offset));
+          if (!option || option.uri !== uri) {
+            continue;
+          }
+          const entry = addressOf(
+            id,
+            offset + 2 + chunk[HEADER_WORDS + offset + 1]!,
+          );
+          for (let l = option.startLine; l <= option.endLine; l += 1) {
+            let entries = lines.get(l);
+            if (!entries) {
+              entries = [];
+              lines.set(l, entries);
+            }
+            entries.push(entry);
+          }
+        }
+      }
+    }
+    return lines;
+  }
+
   protected scriptEnd(uri: string): number {
     let end = 0;
     for (const flow of this.flows(uri)) {

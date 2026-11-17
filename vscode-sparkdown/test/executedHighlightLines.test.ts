@@ -9,7 +9,7 @@ import {
   type Story,
 } from "@impower/spark-engine/src/tests/core/executedReportHarness";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
-import { isCommentOnlyLine } from "@impower/sparkdown/src/compiler/utils/isCommentOnlyLine";
+import { isExecutionGapLine } from "@impower/sparkdown/src/compiler/utils/isExecutionGapLine";
 import { describe, expect, it } from "vitest";
 import { addExecutedHighlightLines } from "../src/utils/executedHighlightLines";
 
@@ -30,10 +30,8 @@ const gapReader = (s: Story) => {
     lineStarts.push(offset);
     offset += line.length + 1;
   }
-  return (line: number) => {
-    const text = s.lines[line] ?? "";
-    return !text.trim() || isCommentOnlyLine(tree, lineStarts[line]!, text);
-  };
+  return (line: number) =>
+    isExecutionGapLine(() => tree, lineStarts[line]!, s.lines[line] ?? "");
 };
 
 const highlightedFromLocations = (
@@ -78,7 +76,7 @@ const highlighted = (s: Story, report: ExecutedReport) => {
   return {
     reported: [...lines].sort((a, b) => a - b),
     expected: highlightedFromLocations(
-      report.locations.filter((l) => l.uri === MAIN_URI),
+      report.lineLocations.filter((l) => l.uri === MAIN_URI),
       isGap,
     ),
   };
@@ -125,7 +123,39 @@ const BLOCK_THEN_BLANK = `scene A
 end
 `;
 
+const INTERROGATION = `store trust = 0
+store clues = 0
+
+scene interrogation
+  INSPECTOR:
+    Where were you at nine?
+  choose
+    * [Tell the truth.]
+      trust += 2
+    * [Show the photograph.]
+      trust += 5
+    * [Lie.]
+      trust -= 1
+  end
+  if trust > 3 then
+    INSPECTOR:
+      I believe you.
+    for i = 1, 40000 do
+      clues += 1
+    end
+    You found {clues} clues.
+  end
+end
+`;
+
 describe("the executed line highlight", { timeout: 60_000 }, () => {
+  it("leaves a gap at the options the route did not take and runs across a speaker cue and a block's end", async () => {
+    const s = story(INTERROGATION);
+    const [report] = await previewReports(s, 20);
+    const { reported } = highlighted(s, report!);
+    expect(reported).toEqual([5, 6, 9, 10, 14, 15, 16, 17, 18, 19, 20]);
+  });
+
   it("marks the same lines for a preview at the bottom of a long scene", async () => {
     const fixture = previewFixture();
     const [report] = await previewReports(fixture, fixture.line);

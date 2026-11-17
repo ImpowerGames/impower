@@ -23572,7 +23572,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "9bb0dbf2"
+   "scopes": "dc174beb"
   },
   {
    "id": "plain-command-16",
@@ -23950,7 +23950,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "2205b07b"
+   "scopes": "3bd495f3"
   },
   {
    "id": "plain-command-36",
@@ -24336,7 +24336,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "0396e36b"
+   "scopes": "a729d293"
   },
   {
    "id": "plain-command-56",
@@ -24727,7 +24727,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "dfa0ed28"
+   "scopes": "0a31cd34"
   },
   {
    "id": "plain-command-76",
@@ -25131,7 +25131,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "8f8bf913"
+   "scopes": "b1a0130a"
   },
   {
    "id": "plain-command-96",
@@ -25529,7 +25529,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "44b137b6"
+   "scopes": "7c093149"
   },
   {
    "id": "plain-command-116",
@@ -25910,7 +25910,7 @@
    "diags": [
     "2@4:14-4:16 {\"kind\":\"markdown\",\"value\":\"This `((` opens no directive, because no `))` closes it before the line ends or a choice's square bracket starts or ends, so the game shows it as text. Close it inside the same part of the line.\"}"
    ],
-   "scopes": "5de481f8"
+   "scopes": "96c8dc60"
   },
   {
    "id": "plain-command-136",

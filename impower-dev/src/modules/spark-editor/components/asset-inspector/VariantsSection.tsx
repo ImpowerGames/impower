@@ -12,12 +12,12 @@ import {
   DropdownTrigger,
   InsertIcon,
   Switch,
+  useDropdownForm,
   variantsLabel,
   WheelSheet,
 } from "@impower/impower-ui/components";
-import { useCoarsePointer } from "@impower/impower-ui/layout";
 import type { RefObject } from "preact";
-import { useId, useRef, useState } from "preact/hooks";
+import { useId, useRef } from "preact/hooks";
 import type { ImageStack } from "../../utils/imageStacks";
 import {
   chosenIn,
@@ -72,76 +72,101 @@ function GroupMenu({
   onPick: (value: string) => void;
   onPreview: (value: string | null) => void;
 }) {
-  const coarse = useCoarsePointer();
-  const [open, setOpen] = useState(false);
   const name = groupLabel(group);
   const button = useRef<HTMLButtonElement | null>(null);
-  const trigger = (
-    <Button
-      ref={button}
-      variant="field"
-      size="field"
-      aria-label={`${name}: ${optionLabel(value)}`}
-      data-variant-group={group.key}
-      data-changed={value === group.default ? undefined : ""}
-      disabled={disabled}
-      {...(coarse ? { "aria-haspopup": "dialog" as const, "aria-expanded": open, onClick: () => setOpen(true) } : {})}
-    >
-      <span class="[--fade:20px] fade-edge">{optionLabel(value)}</span>
-      <ChevronDownIcon />
-    </Button>
+  return (
+    <DropdownRoot onOpenChange={(next) => !next && onPreview(null)}>
+      <DropdownTrigger asChild>
+        <Button
+          ref={button}
+          variant="field"
+          size="field"
+          aria-label={`${name}: ${optionLabel(value)}`}
+          data-variant-group={group.key}
+          data-changed={value === group.default ? undefined : ""}
+          disabled={disabled}
+        >
+          <span class="[--fade:20px] fade-edge">{optionLabel(value)}</span>
+          <ChevronDownIcon />
+        </Button>
+      </DropdownTrigger>
+      <GroupChoices
+        group={group}
+        name={name}
+        value={value}
+        button={button}
+        onPick={onPick}
+        onPreview={onPreview}
+        sheetContainer={sheetContainer}
+        keepClear={keepClear}
+      />
+    </DropdownRoot>
   );
-  if (coarse) {
+}
+
+function GroupChoices({
+  group,
+  name,
+  value,
+  button,
+  onPick,
+  onPreview,
+  sheetContainer,
+  keepClear,
+}: {
+  group: TesterGroup;
+  name: string;
+  value: string;
+  button: RefObject<HTMLButtonElement>;
+  sheetContainer: RefObject<HTMLElement>;
+  keepClear: RefObject<HTMLElement>;
+  onPick: (value: string) => void;
+  onPreview: (value: string | null) => void;
+}) {
+  const { form, open, setOpen } = useDropdownForm();
+  if (form === "sheet") {
     return (
-      <>
-        {trigger}
-        <WheelSheet
-          container={sheetContainer}
-          keepClear={keepClear}
-          returnFocus={() => button.current}
-          open={open}
-          title={name}
-          options={group.options.map((option) => ({
-            value: option,
-            label: optionLabel(option),
-            ...(option === group.default ? { hint: "Default" } : {}),
-          }))}
-          value={value}
-          onPreview={onPreview}
-          onChoose={(picked) => {
-            setOpen(false);
-            onPick(picked);
-          }}
-          onCancel={() => {
-            setOpen(false);
-            onPreview(null);
-          }}
-        />
-      </>
+      <WheelSheet
+        width="menu"
+        container={sheetContainer}
+        keepClear={keepClear}
+        returnFocus={() => button.current}
+        open={open}
+        title={name}
+        options={group.options.map((option) => ({
+          value: option,
+          label: optionLabel(option),
+          ...(option === group.default ? { hint: "Default" } : {}),
+        }))}
+        value={value}
+        onPreview={onPreview}
+        onChoose={(picked) => {
+          setOpen(false);
+          onPick(picked);
+        }}
+        onCancel={() => setOpen(false)}
+      />
     );
   }
   return (
-    <DropdownRoot sheet={false} onOpenChange={(next) => !next && onPreview(null)}>
-      <DropdownTrigger asChild>{trigger}</DropdownTrigger>
-      <DropdownContent elevation="library" align="end" keepClear={keepClear} class="min-w-[196px]">
-        <DropdownRadioGroup value={value} onValueChange={onPick} label={name}>
-          {group.options.map((option) => (
-            <DropdownRadioItem
-              key={option}
-              value={option}
-              indicator="end"
-              size="small"
-              onFocus={() => onPreview(option)}
-              onPointerEnter={() => onPreview(option)}
-            >
-              <DropdownItemText hint={option === group.default ? "Default" : undefined}>
-                {optionLabel(option)}
-              </DropdownItemText>
-            </DropdownRadioItem>
-          ))}
-        </DropdownRadioGroup>
-      </DropdownContent>
-    </DropdownRoot>
+    <DropdownContent elevation="library" align="end" keepClear={keepClear} class="min-w-[196px]">
+      <DropdownRadioGroup value={value} onValueChange={onPick} label={name}>
+        {group.options.map((option) => (
+          <DropdownRadioItem
+            key={option}
+            value={option}
+            indicator="end"
+            size="small"
+            onFocus={() => onPreview(option)}
+            onPointerEnter={() => onPreview(option)}
+          >
+            <DropdownItemText hint={option === group.default ? "Default" : undefined}>
+              {optionLabel(option)}
+            </DropdownItemText>
+          </DropdownRadioItem>
+        ))}
+      </DropdownRadioGroup>
+    </DropdownContent>
   );
 }
 

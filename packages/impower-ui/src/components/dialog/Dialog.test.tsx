@@ -66,6 +66,12 @@ const settle = (ms = 0) =>
   });
 
 const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+
+const tap = (target: Element) =>
+  act(async () => {
+    target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
+    target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+  });
 const backdrop = () => dialog()?.parentElement ?? null;
 
 const pressEscape = () =>
@@ -494,8 +500,7 @@ describe("useSheetOpen", () => {
     await unmount();
   });
 
-  it("reports the phone layout's sheet menu", async () => {
-    await setPhone(true);
+  it("reports the sheet menu a finger opens", async () => {
     const unmount = await mountReporter();
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>
@@ -512,7 +517,7 @@ describe("useSheetOpen", () => {
       ),
     );
     expect(reported.at(-1)).toBe(false);
-    await act(async () => host!.querySelector("button")!.click());
+    await tap(host!.querySelector("button")!);
     await settle(50);
     expect(reported.at(-1)).toBe(true);
     await close();
@@ -612,10 +617,9 @@ describe("focus return across openers and layout changes", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("returns focus to the trigger of the phone layout's sheet menu", async () => {
-    await setPhone(true);
+  it("returns focus to the trigger of the sheet menu a finger opens", async () => {
     const trigger = await mountMenu();
-    await act(async () => trigger.click());
+    await tap(trigger);
     await settle(50);
     const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
     item.focus();
@@ -675,13 +679,12 @@ describe("focus return across openers and layout changes", () => {
 
 describe("Dropdown motion", () => {
   it.each([false, true])(
-    "gates the menu's motion behind prefers-reduced-motion (phone layout: %s)",
-    async (isPhone) => {
-      await setPhone(isPhone);
+    "gates the menu's motion behind prefers-reduced-motion (opened by a finger as a sheet: %s)",
+    async (bySheet) => {
       host = document.body.appendChild(document.createElement("div"));
       await act(async () =>
         render(
-          <DropdownRoot defaultOpen>
+          <DropdownRoot defaultOpen={!bySheet}>
             <DropdownTrigger asChild>
               <button type="button">Menu</button>
             </DropdownTrigger>
@@ -692,9 +695,12 @@ describe("Dropdown motion", () => {
           host!,
         ),
       );
+      if (bySheet) {
+        await tap(host.querySelector("button")!);
+      }
       await settle(50);
       const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
-      const elements = isPhone
+      const elements = bySheet
         ? [menu.closest<HTMLElement>('[role="dialog"]')!, dialog()!.parentElement!]
         : [menu];
       const animated = elements

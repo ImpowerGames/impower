@@ -6,7 +6,7 @@ import {
 } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
-import { isCommentOnlyLine } from "@impower/sparkdown/src/compiler/utils/isCommentOnlyLine";
+import { isExecutionGapLine } from "@impower/sparkdown/src/compiler/utils/isExecutionGapLine";
 import { choiceSentence } from "@impower/spark-web-player/src/route/routeView";
 import * as vscode from "vscode";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
@@ -202,14 +202,10 @@ const highlightLines = (
     const tree = SparkdownDocumentManager.instance.tree(document.uri);
     addExecutedHighlightLines(lineSet, lines.ranges, (line) => {
       const textLine = document.lineAt(line);
-      return (
-        textLine.isEmptyOrWhitespace ||
-        (!!tree &&
-          isCommentOnlyLine(
-            tree,
-            document.offsetAt(textLine.range.start),
-            textLine.text,
-          ))
+      return isExecutionGapLine(
+        () => tree,
+        document.offsetAt(textLine.range.start),
+        textLine.text,
       );
     });
   }

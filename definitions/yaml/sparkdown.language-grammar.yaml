@@ -142,8 +142,8 @@ variables:
   # character is the variable to tighten: a slash is a name character unless
   # it opens one of those comments.
   DIALOGUE_CHARACTER_NAME_CHARACTER: (?:\\.|[/](?![/](?:$|{{WS}})|[*])|[^{}:/\\\r\n])
-  # lookaround: `LuauAlternatorSeparator` takes the `|` that opens an arm, so a block display line written after it (BlockDialogue, BlockWrite, BlockTitle, BlockHeading, BlockTransitional, BlockAction) begins mid-line. No order of `patterns:` reaches it at a line start, a separate rule would lose the node name every reader keys on, taking the bar would take `LuauAlternatorSeparator` from the alternator whose arm readers need it as a direct child, and neither a parent's `end:` nor a tighter variable can recover the bar line's indent. So the lookbehind captures that indent (`\1`) and the bar (`\2`), behind a one-character lookbehind that keeps vscode-textmate from scanning to the line start at every position; `\3` is the whitespace the begin consumes.
-  _BLOCK_DISPLAY_START_: (?:^|(?<=[|]|{{WS}}))(?<=^({{WS}}*)(?:([|]){{WS}}*)?)({{WS}}*)
+  # lookaround: `LuauAlternatorSeparator` takes the `|` that opens an arm, so a block display line written after it (BlockDialogue, BlockWrite, BlockTitle, BlockHeading, BlockTransitional, BlockAction) begins mid-line. No order of `patterns:` reaches it at a line start, a separate rule would lose the node name every reader keys on, taking the bar would take `LuauAlternatorSeparator` from the alternator whose arm readers need it as a direct child, and neither a parent's `end:` nor a tighter variable can recover the bar line's indent. So the lookbehind captures that indent (`\1`) and the bar (`\2`), behind a one-character lookbehind and a negative lookbehind that reads back only over the blanks and one bar before the position, which keep vscode-textmate from scanning to the line start at every position (GRAMMAR.md §16.5); `\3` is the whitespace the begin consumes.
+  _BLOCK_DISPLAY_START_: (?:^|(?<=[|]|{{WS}}))(?<![^\s|]{{WS}}*|[^\s|]{{WS}}*[|]{{WS}}*|[|]{{WS}}*[|]{{WS}}*)(?<=^({{WS}}*)(?:([|]){{WS}}*)?)({{WS}}*)
   # lookaround: a block keeps a line that is blank, a comment, or indented past `\1\3`, the indent of the line its `_BLOCK_DISPLAY_START_` opened on; BLOCK_DISPLAY_INDENT_END reads it.
   BLOCK_DISPLAY_LINE_OUTSIDE: (?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1\3{{WS}})
   # lookaround: a block ends at a line BLOCK_DISPLAY_LINE_OUTSIDE does not keep, leaving the line to its parent.
@@ -654,12 +654,20 @@ variables:
   SPAN_ANGLE: (?:[<]{{SPAN_COMMAND_TAIL}}|[<](?!{{SPAN_COMMAND_TAIL}}))
   # lookaround: as SPAN_LONG_BRACKET. ImageCommand ends at the first `]]`; Punctuation takes a `[`
   # that starts none.
-  SPAN_BRACKET: (?:\[\[{{SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  SPAN_BRACKET: (?:{{SPAN_UNCLOSED_BRACKET}}|\[\[{{SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  # lookaround: ImageCommand opens only where a `]]` follows on its line, so
+  # Punctuation takes a `[[` with none as text. The unit is tried before the
+  # closed form and asks only whether any `]]` follows, so a span over many
+  # unclosed openers reads each with one plain scan of the line.
+  SPAN_UNCLOSED_BRACKET: (?:\[\[(?![^\r\n]*?\]\]))
   # lookaround: as SPAN_COMMAND_CHARACTER, for an image command.
   SPAN_IMAGE_TEXT: (?:(?!{{SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
   # lookaround: as SPAN_LONG_BRACKET. AudioCommand ends at the first `))`; Punctuation takes a `(`
   # that starts none.
-  SPAN_PAREN: (?:[(][(]{{SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  SPAN_PAREN: (?:{{SPAN_UNCLOSED_PAREN}}|[(][(]{{SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  # lookaround: AudioCommand opens only where a `))` follows on its line, so
+  # Punctuation takes a `((` with none as text, read as SPAN_UNCLOSED_BRACKET is.
+  SPAN_UNCLOSED_PAREN: (?:[(][(](?![^\r\n]*?[)][)]))
   # lookaround: as SPAN_COMMAND_CHARACTER, for an audio command, which ends at
   # its first `))`.
   SPAN_AUDIO_TEXT: (?:(?!{{SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
@@ -743,11 +751,11 @@ variables:
   # lookaround: as SPAN_ANGLE, in ChoiceStartText.
   CHOICE_START_SPAN_ANGLE: (?:[<]{{CHOICE_START_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_START_SPAN_COMMAND_TAIL}}))
   # lookaround: as SPAN_BRACKET, in ChoiceStartText.
-  CHOICE_START_SPAN_BRACKET: (?:\[\[{{CHOICE_START_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  CHOICE_START_SPAN_BRACKET: (?:{{SPAN_UNCLOSED_BRACKET}}|\[\[{{CHOICE_START_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
   # lookaround: as SPAN_IMAGE_TEXT, in ChoiceStartText.
   CHOICE_START_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
   # lookaround: as SPAN_PAREN, in ChoiceStartText.
-  CHOICE_START_SPAN_PAREN: (?:[(][(]{{CHOICE_START_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  CHOICE_START_SPAN_PAREN: (?:{{SPAN_UNCLOSED_PAREN}}|[(][(]{{CHOICE_START_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
   # lookaround: as SPAN_AUDIO_TEXT, in ChoiceStartText.
   CHOICE_START_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_START_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
   CHOICE_START_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{SPAN_CODE}}|{{CHOICE_START_SPAN_ANGLE}}|{{CHOICE_START_SPAN_BRACKET}}|{{CHOICE_START_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
@@ -812,11 +820,11 @@ variables:
   # lookaround: as SPAN_ANGLE, in ChoiceOnlyText.
   CHOICE_ONLY_SPAN_ANGLE: (?:[<]{{CHOICE_ONLY_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_ONLY_SPAN_COMMAND_TAIL}}))
   # lookaround: as SPAN_BRACKET, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_BRACKET: (?:\[\[{{CHOICE_ONLY_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  CHOICE_ONLY_SPAN_BRACKET: (?:{{SPAN_UNCLOSED_BRACKET}}|\[\[{{CHOICE_ONLY_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
   # lookaround: as SPAN_IMAGE_TEXT, in ChoiceOnlyText.
   CHOICE_ONLY_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
   # lookaround: as SPAN_PAREN, in ChoiceOnlyText.
-  CHOICE_ONLY_SPAN_PAREN: (?:[(][(]{{CHOICE_ONLY_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  CHOICE_ONLY_SPAN_PAREN: (?:{{SPAN_UNCLOSED_PAREN}}|[(][(]{{CHOICE_ONLY_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
   # lookaround: as SPAN_AUDIO_TEXT, in ChoiceOnlyText.
   CHOICE_ONLY_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_ONLY_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
   CHOICE_ONLY_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{SPAN_CODE}}|{{CHOICE_ONLY_SPAN_ANGLE}}|{{CHOICE_ONLY_SPAN_BRACKET}}|{{CHOICE_ONLY_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})
@@ -881,11 +889,11 @@ variables:
   # lookaround: as SPAN_ANGLE, in ChoiceInnerText.
   CHOICE_INNER_SPAN_ANGLE: (?:[<]{{CHOICE_INNER_SPAN_COMMAND_TAIL}}|[<](?!{{CHOICE_INNER_SPAN_COMMAND_TAIL}}))
   # lookaround: as SPAN_BRACKET, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_BRACKET: (?:\[\[{{CHOICE_INNER_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
+  CHOICE_INNER_SPAN_BRACKET: (?:{{SPAN_UNCLOSED_BRACKET}}|\[\[{{CHOICE_INNER_SPAN_IMAGE_TEXT}}*\]\]|\[(?!\[))
   # lookaround: as SPAN_IMAGE_TEXT, in ChoiceInnerText.
   CHOICE_INNER_SPAN_IMAGE_TEXT: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_DOUBLE_BRACKET_TEXT}})
   # lookaround: as SPAN_PAREN, in ChoiceInnerText.
-  CHOICE_INNER_SPAN_PAREN: (?:[(][(]{{CHOICE_INNER_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
+  CHOICE_INNER_SPAN_PAREN: (?:{{SPAN_UNCLOSED_PAREN}}|[(][(]{{CHOICE_INNER_SPAN_AUDIO_TEXT}}*[)][)]|[(](?![(]))
   # lookaround: as SPAN_AUDIO_TEXT, in ChoiceInnerText.
   CHOICE_INNER_SPAN_AUDIO_TEXT: (?:(?!{{CHOICE_INNER_SPAN_END}}){{SPAN_DOUBLE_PAREN_TEXT}})
   CHOICE_INNER_SPAN_UNIT: (?:{{SPAN_ESCAPE}}|{{SPAN_INTERPOLATION}}|{{SPAN_CODE}}|{{CHOICE_INNER_SPAN_ANGLE}}|{{CHOICE_INNER_SPAN_BRACKET}}|{{CHOICE_INNER_SPAN_PAREN}}|{{SPAN_SLASH}}|{{SPAN_DASH}}|{{SPAN_DOT}}|{{SPAN_HASH}}|{{SPAN_OTHER_CHARACTER}})

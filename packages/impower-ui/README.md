@@ -126,10 +126,15 @@ semantic custom properties; the tokens are recorded in
 A hook that both this package and the app need is exported from impower-ui, and the app
 imports it rather than writing its own. Layout and pointer are decided by `useLayout`
 and `useCoarsePointer` (exported from `@impower/impower-ui/layout`), which also set the
-`data-layout` and `data-pointer` attributes on the root, never by user agent. `Dropdown`
-reads `useLayout()` and opens as a bottom sheet in the `phone` layout and as a menu
-otherwise. `useSheetOpen` reports whether any `Sheet`, a responsive `Dialog` shown as one or
-a phone `Dropdown`, is open, so a surface that must give way to a sheet reads that state
+`data-layout` and `data-pointer` attributes on the root, never by user agent. A menu's
+form follows the pointer that opens it, not the width: `menuFormFor` (also in
+`@impower/impower-ui/layout`) answers a sheet for a finger or a pen and a menu for a mouse,
+the keyboard or an open with no pointer, and `Dropdown` asks it once when it opens and keeps
+that form until it closes. A sheet it opens takes the `Sheet`'s `width="menu"`: at most 560px
+wide, centred on the window's foot, once the window is wider; every other sheet spans the
+window. `useDropdownForm` hands a caller with its own sheet, such as the
+asset inspector's Variants wheel, the same answer. `useSheetOpen` reports whether any
+`Sheet`, a responsive `Dialog` shown as one or a `Dropdown` opened as a sheet, is open, so a surface that must give way to a sheet reads that state
 rather than measuring the page.
 
 ### Motion belongs to the component
