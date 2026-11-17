@@ -387,7 +387,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         }
         if (name === "SceneDeclarationName") {
           const text = read(from, to);
-          tokens.push({ tag: "scene", text });
+          tokens.push({ tag: "scene", text, from });
         }
 
         if (name === "LuauSparkdownAlternatorArm") {
@@ -452,7 +452,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
 
         if (name === "BranchDeclarationName") {
           const text = read(from, to);
-          tokens.push({ tag: "branch", text });
+          tokens.push({ tag: "branch", text, from });
         }
 
         if (

@@ -43,11 +43,12 @@ export default class ScreenplayTypesetter {
     tokens: ScreenplayToken[],
     config?: ScreenplayConfig,
     profile?: PrintProfile,
+    scenesBefore = 0,
   ): DocumentSpan[] {
     let spans: DocumentSpan[] = [];
     const metadata: Record<string, PageLine[]> = {};
     const metadataTags = Object.keys(PAGE_POSITIONS);
-    let sceneIndex = 0;
+    let sceneIndex = scenesBefore;
 
     for (const token of tokens) {
       const t =
@@ -106,7 +107,7 @@ export default class ScreenplayTypesetter {
           },
         );
         if (lines.length > 0) {
-          spans.push({ tag: t.tag, lines });
+          spans.push({ tag: t.tag, lines, from: t.from });
         }
       } else if (t.tag === "branch") {
         const level = 1;
@@ -121,7 +122,7 @@ export default class ScreenplayTypesetter {
           },
         );
         if (lines.length > 0) {
-          spans.push({ tag: t.tag, lines });
+          spans.push({ tag: t.tag, lines, from: t.from });
         }
       } else if (t.tag === "knot") {
         const level = 0;

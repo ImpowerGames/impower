@@ -1,9 +1,19 @@
 import SparkdownScreenplayPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { editorAtSend } from "../../workspace/editorAtSend";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspace from "../../workspace/WorkspaceStore";
 import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
+
+const scenesBeforeFor = async (uri: string) => {
+  const { Workspace } = await import("../../workspace/Workspace");
+  const { default: workspaceStore } = await import("../../workspace/WorkspaceStore");
+  const { screenplayScenesBefore } = await import("../../workspace/utils/screenplayScenesBefore");
+  const projectId = workspaceStore.state.value?.project?.id;
+  if (!projectId) return 0;
+  const files = await Workspace.fs.getFiles(projectId);
+  return screenplayScenesBefore(Object.values(files), uri, (fileUri) => Workspace.fs.getRelativePath(projectId, fileUri));
+};
 
 const withWindow = async (act: (window: WorkspaceWindow) => unknown) => {
   const { Workspace } = await import("../../workspace/Workspace");
@@ -17,6 +27,15 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
   const lastUri = useRef<string | undefined>(undefined);
   const lastVersion = useRef<number | undefined>(undefined);
   const lastText = useRef<string | undefined>(undefined);
+  const [scenesBefore, setScenesBefore] = useState<Record<string, number>>({});
+
+  const refreshScenesBefore = async () => {
+    const { Workspace } = await import("../../workspace/Workspace");
+    const uri = Workspace.window.getActiveEditorForPane("logic")?.uri;
+    if (!uri) return;
+    const count = await scenesBeforeFor(uri);
+    setScenesBefore((current) => (current[uri] === count && Object.keys(current).length === 1 ? current : { [uri]: count }));
+  };
 
   const textPulledAt = workspace.state.value.sync?.textPulledAt || "";
 
@@ -57,6 +76,7 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       lastUri.current = uri;
       lastVersion.current = version;
       lastText.current = text;
+      void refreshScenesBefore();
       const current =
         editorAtSend(uri, () =>
           Workspace.window.getActiveEditorForPane("logic"),
@@ -86,6 +106,9 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       import(
         "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage"
       ),
+      import(
+        "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage"
+      ),
     ]).then(
       async ([
         { onProtocolMessage },
@@ -93,6 +116,7 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
         { DidOpenTextDocumentMessage },
         { DidWriteFilesMessage },
         { DidDeleteFilesMessage },
+        { DidRenameFilesMessage },
       ]) => {
         if (cancelled) return;
         const { Workspace } = await import("../../workspace/Workspace");
@@ -102,6 +126,9 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
           }),
           onProtocolMessage(DidWriteFilesMessage.type, (m) => {
             const editor = Workspace.window.getActiveEditorForPane("logic");
+            if (m.params.files.some((f) => f.uri !== editor?.uri)) {
+              void refreshScenesBefore();
+            }
             if (
               m.params.remote &&
               m.params.files.find((f) => f.uri === editor?.uri)
@@ -111,9 +138,13 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
           }),
           onProtocolMessage(DidDeleteFilesMessage.type, (m) => {
             const editor = Workspace.window.getActiveEditorForPane("logic");
+            void refreshScenesBefore();
             if (m.params.files.find((f) => f.uri === editor?.uri)) {
               loadFile();
             }
+          }),
+          onProtocolMessage(DidRenameFilesMessage.type, () => {
+            void refreshScenesBefore();
           }),
           onProtocolMessage(ConnectedPreviewMessage.type, () => {
             lastUri.current = undefined;
@@ -217,6 +248,7 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
           syncScroll={preferences.previewScreenplaySync}
           playing={playing}
           picks={game?.picks}
+          scenesBefore={scenesBefore}
         />
       </div>
     </div>

@@ -30,9 +30,10 @@ describe("dual dialogue inside an indented (nested) block", () => {
     extractPreviewText(FIXTURE);
     const r = renderPreview(FIXTURE);
 
-    expect(r.contentHTML).toContain("B--");
-    expect(r.contentHTML).toContain("Would'ya QUIT Bunny-ing me??");
-    expect(r.contentHTML).toContain("I REFUSE TO BE 'BUNNY'-ED!");
+    const html = r.contentHTML.replace(/<[^>]*>/g, "").replace(/\n/g, "");
+    expect(html).toContain("B--");
+    expect(html).toContain("Would'ya QUIT Bunny-ing me??");
+    expect(html).toContain("I REFUSE TO BE 'BUNNY'-ED!");
 
     expect(r.contentHTML).toMatch(
       /<div style="[^"]*display: grid[^"]*">[^]*?Would'ya QUIT/,

@@ -11,6 +11,9 @@
     "build:cli": "node ./esbuild.js",
     "typecheck": "node ../../scripts/typecheck.mjs packages/sparkdown-screenplay/"
   },
+  "dependencies": {
+    "linebreak": "^1.1.0"
+  },
   "devDependencies": {
     "esbuild": "^0.20.1"
   },

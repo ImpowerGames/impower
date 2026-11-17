@@ -75,6 +75,7 @@ import createEditorView from "./utils/createEditorView";
 import {
   setScreenplayConfig,
   setScreenplayPicks,
+  setScreenplayScenesBefore,
 } from "./utils/screenplaySettings";
 
 const CONTENT_PADDING_TOP = 68;
@@ -90,6 +91,7 @@ export interface ScreenplayPreviewOptions {
   syncScroll?: boolean;
   playing?: boolean;
   picks?: Record<string, readonly number[]>;
+  scenesBefore?: Record<string, number>;
 }
 
 export class ScreenplayPreviewController {
@@ -163,12 +165,24 @@ export class ScreenplayPreviewController {
     });
   }
 
+  setScenesBefore(scenesBefore: Record<string, number> | undefined): void {
+    this.options.scenesBefore = scenesBefore;
+    this._view?.dispatch({
+      effects: setScreenplayScenesBefore.of(this.scenesBeforeFor()),
+    });
+  }
+
   setSyncScroll(syncScroll: boolean): void {
     this.options.syncScroll = syncScroll;
   }
 
   setPlaying(playing: boolean): void {
     this.options.playing = playing;
+  }
+
+  protected scenesBeforeFor(): number {
+    const uri = this._textDocument?.uri;
+    return (uri && this.options.scenesBefore?.[uri]) || 0;
   }
 
   protected picksFor(): readonly number[] {
@@ -413,6 +427,7 @@ export class ScreenplayPreviewController {
             : undefined,
         config: this.options.config,
         picks: this.picksFor(),
+        scenesBefore: this.scenesBeforeFor(),
         onUpdate: (u) => {
           if (!syntaxParserRunning(u.view)) {
             this.onIdle();

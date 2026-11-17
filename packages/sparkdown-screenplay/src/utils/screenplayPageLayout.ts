@@ -1,12 +1,19 @@
 import type { Tree } from "@lezer/common";
 import { screenplayTokens } from "../classes/ScreenplayParser";
 import ScreenplayTypesetter from "../classes/ScreenplayTypesetter";
-import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
 import type { PageLine } from "../types/DocumentSpan";
 import type { FormattedText } from "../types/FormattedText";
 import type { PrintedRowSide } from "../types/LineOptions";
+import type { PrintProfile } from "../types/PrintProfile";
 import type { ScreenplayConfig } from "../types/ScreenplayConfig";
+import type { ScreenplayTokenType } from "../types/ScreenplayTokenType";
+import { isHiddenIdentifier } from "./isHiddenIdentifier";
+import { splitEmojiRuns } from "./emojiRuns";
+import { PAGE_POSITIONS } from "../constants/PAGE_POSITIONS";
+import type { MetadataTokenType } from "../types/ScreenplayTokenType";
+import { cellWidth, emojiWidth, hangingGroup, lineMaxWidth, printProfileOf, titleRegionWidth } from "./printGeometry";
 import { insertAnchor, UNPLACED } from "./printedPosition";
+import { getCharChunks, wrapParagraph } from "./wrapRows";
 
 export interface PrintedRun {
   from: number;
@@ -27,11 +34,24 @@ export interface PrintedScene {
   bold: boolean;
 }
 
+export interface PrintedRowStart {
+  at: number;
+  inserted: boolean;
+  trailing?: number;
+}
+
+export interface PrintedName {
+  at: number;
+  tag: ScreenplayTokenType;
+  level: number;
+  pieces: { text: string; style: FormattedText }[];
+}
+
 export interface PageRow {
   at: number;
   side: PrintedRowSide;
   pieces: { text: string; style: FormattedText }[];
-  name?: boolean;
+  name?: PrintedName;
 }
 
 export interface PrintedPlaces {
@@ -47,6 +67,8 @@ export interface ScreenplayPageLayout extends PrintedPlaces {
   actionStarts: number[];
   printedLines: { at: number; lines: FormattedText[][] }[];
   scenes: PrintedScene[];
+  wrapStarts: PrintedRowStart[];
+  names: PrintedName[];
 }
 
 const placePrintedRow = (line: PageLine, side: PrintedRowSide, places: PrintedPlaces) => {
@@ -109,6 +131,62 @@ export const placePrintedLine = (line: PageLine, script: string, places: Printed
   }
 };
 
+const SINGLE_CELL_TEXT = /^[ -~]*$/;
+
+const cellsOf = (text: string) => (SINGLE_CELL_TEXT.test(text) ? text.length : Array.from(text).length);
+
+export const printedRowOffsets = (line: PageLine, profile: PrintProfile, regionWidth?: number): number[] => {
+  const cell = cellWidth(profile);
+  const emoji = emojiWidth(profile);
+  const measure = (piece: { text: string; isEmoji: boolean }) =>
+    piece.isEmoji ? getCharChunks(piece.text).length * emoji : cellsOf(piece.text) * cell;
+  const width = regionWidth ?? lineMaxWidth(profile, line);
+  const offsets: number[] = [];
+  let groupStart = 0;
+  let group: FormattedText[] = [];
+  const wrapGroup = () => {
+    const { lead, rest, hang } = hangingGroup(group);
+    const pieces = rest.flatMap((piece) => splitEmojiRuns(piece.text)).map((run) => ({ ...run, width: measure(run) }));
+    const rows = wrapParagraph(pieces, width - hang * cell, measure);
+    let offset = groupStart + (lead?.text.length ?? 0);
+    for (const row of rows.slice(0, -1)) {
+      offset += row.reduce((sum, part) => sum + part.text.length, 0);
+      offsets.push(offset);
+    }
+    groupStart += group.reduce((sum, piece) => sum + piece.text.length, 0);
+    group = [];
+  };
+  for (const piece of line.content) {
+    if (group.length && (group[0]!.align ?? "") !== (piece.align ?? "")) wrapGroup();
+    group.push(piece);
+  }
+  if (group.length) wrapGroup();
+  return offsets;
+};
+
+const positionsOf = (content: FormattedText[]) =>
+  content.flatMap((piece) => Array.from({ length: piece.text.length }, (_, index) => piece.at?.[index] ?? UNPLACED));
+
+const breakRows = (content: FormattedText[], offsets: number[]): FormattedText[] => {
+  if (offsets.length === 0) return content;
+  const result: FormattedText[] = [];
+  let start = 0;
+  let next = 0;
+  for (const piece of content) {
+    let cut = 0;
+    while (next < offsets.length && offsets[next]! < start + piece.text.length) {
+      const at = offsets[next]! - start;
+      if (at > cut) result.push({ ...piece, text: piece.text.slice(cut, at), at: piece.at?.slice(cut, at) });
+      result.push({ ...piece, text: "\n", at: [UNPLACED] });
+      cut = at;
+      next++;
+    }
+    result.push(cut ? { ...piece, text: piece.text.slice(cut), at: piece.at?.slice(cut) } : piece);
+    start += piece.text.length;
+  }
+  return result;
+};
+
 const firstPlaced = (line: PageLine) => {
   for (const piece of line.content) {
     const found = piece.at?.find((position) => position >= 0);
@@ -144,14 +222,14 @@ export const screenplayPageLayout = (
   tree: Tree,
   script: string,
   config?: ScreenplayConfig,
+  scenesBefore = 0,
 ): ScreenplayPageLayout => {
-  const profile =
-    PRINT_PROFILES[config?.screenplay_print_paper_size || ""] ||
-    PRINT_PROFILES.usletter;
+  const profile = printProfileOf(config);
   const spans = new ScreenplayTypesetter().compose(
     screenplayTokens(tree, script, true),
     config,
     profile,
+    scenesBefore,
   );
   const blankLines: number[] = [];
   const printed: number[] = [];
@@ -159,10 +237,25 @@ export const screenplayPageLayout = (
   const printedLines: { at: number; lines: FormattedText[][] }[] = [];
   const places: PrintedPlaces = { runs: [], inserts: [], rows: [], unplaced: [] };
   const scenes: PrintedScene[] = [];
+  const wrapStarts: PrintedRowStart[] = [];
+  const names: PrintedName[] = [];
   let lastSource: number[] | undefined;
   let printedEnd = -1;
-  const addPrinted = (lines: PageLine[] | undefined) => {
+  const addPrinted = (lines: PageLine[] | undefined, titlePage = false) => {
     for (const line of lines ?? []) {
+      const regionWidth = titlePage ? titleRegionWidth(profile, PAGE_POSITIONS[line.tag as MetadataTokenType]) : undefined;
+      const offsets = line.source && (!titlePage || regionWidth !== undefined) ? printedRowOffsets(line, profile, regionWidth) : [];
+      const positions = offsets.length ? positionsOf(line.content) : [];
+      const text = offsets.length ? line.content.map((piece) => piece.text).join("") : "";
+      for (const offset of offsets) {
+        const at = positions[offset] ?? UNPLACED;
+        const before = positions[offset - 1] ?? UNPLACED;
+        const trailing = before >= 0 && /\s/.test(text[offset - 1] ?? "") ? { trailing: before } : {};
+        const anchor = insertAnchor(at);
+        if (anchor !== undefined) wrapStarts.push({ at: anchor, inserted: true, ...trailing });
+        else if (at >= 0) wrapStarts.push({ at, inserted: false, ...trailing });
+      }
+      const content = breakRows(line.content, offsets);
       if (line.source || line.row) {
         const runs = places.runs.length;
         const inserts = places.inserts.length;
@@ -177,12 +270,12 @@ export const screenplayPageLayout = (
       const sceneAt = line.scene !== undefined ? firstPlaced(line) : undefined;
       if (sceneAt !== undefined) scenes.push({ at: sceneAt, scene: line.scene!, bold: !!line.sceneBold });
       if (line.source && line.source === lastSource) {
-        printedLines.at(-1)?.lines.push(line.content);
+        printedLines.at(-1)?.lines.push(content);
       }
       if (line.source && line.source !== lastSource) {
         printed.push(...line.source);
         lastSource = line.source;
-        if (line.source[0] !== undefined) printedLines.push({ at: line.source[0], lines: [line.content] });
+        if (line.source[0] !== undefined) printedLines.push({ at: line.source[0], lines: [content] });
         if (line.tag === "action" && line.source[0] !== undefined) actionStarts.push(line.source[0]);
       }
     }
@@ -190,7 +283,7 @@ export const screenplayPageLayout = (
   const followsPrintedOnLine = (from: number) => printedEnd > script.lastIndexOf("\n", from - 1) && printedEnd <= from;
   for (const span of spans) {
     if (span.tag === "meta") {
-      for (const lines of Object.values(span.positions)) addPrinted(lines);
+      for (const lines of Object.values(span.positions)) addPrinted(lines, true);
     } else if (span.tag === "separator") {
       if (span.from === undefined) continue;
       if (followsPrintedOnLine(span.from)) {
@@ -198,14 +291,20 @@ export const screenplayPageLayout = (
       } else {
         blankLines.push(span.from);
       }
-    } else if (span.tag === "function" && span.from !== undefined && followsPrintedOnLine(span.from)) {
+    } else if ("lines" in span && span.from !== undefined && span.lines[0]?.level !== undefined) {
+      if (isHiddenIdentifier(span.tag, config)) continue;
       for (const line of span.lines) {
-        places.rows.push({
-          at: printedEnd,
-          side: "below",
-          pieces: line.content.map((piece) => ({ text: piece.text, style: piece })),
-          name: true,
-        });
+        const name: PrintedName = {
+          at: span.from,
+          tag: line.tag,
+          level: line.level ?? 0,
+          pieces: breakRows(line.content, printedRowOffsets(line, profile)).map((piece) => ({ text: piece.text, style: piece })),
+        };
+        if (span.tag === "function" && followsPrintedOnLine(span.from)) {
+          places.rows.push({ at: printedEnd, side: "below", pieces: name.pieces, name });
+        } else {
+          names.push(name);
+        }
       }
     } else if (span.tag === "dual") {
       addPrinted(span.positions.l);
@@ -224,5 +323,7 @@ export const screenplayPageLayout = (
     rows: places.rows,
     unplaced: places.unplaced,
     scenes,
+    wrapStarts: wrapStarts.sort((a, b) => a.at - b.at),
+    names,
   };
 };

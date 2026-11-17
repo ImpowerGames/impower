@@ -4,18 +4,27 @@ import {
   PageLine,
 } from "@impower/sparkdown-screenplay/src/types/DocumentSpan";
 import { PrintProfile } from "@impower/sparkdown-screenplay/src/types/PrintProfile";
-import type { FormattedText as PrintedText } from "@impower/sparkdown-screenplay/src/types/FormattedText";
 import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/types/ScreenplayConfig";
 import { ScreenplayPrintData } from "@impower/sparkdown-screenplay/src/types/ScreenplayPrintData";
 import { ScreenplayTokenType } from "@impower/sparkdown-screenplay/src/types/ScreenplayTokenType";
 import { isHiddenIdentifier } from "@impower/sparkdown-screenplay/src/utils/isHiddenIdentifier";
+import {
+  hangingGroup,
+  levelIndent,
+  lineLeftMargin,
+  lineMaxWidth,
+  lineRightMargin,
+  SCENE_NUMBER_LEFT_GAP,
+  SCENE_NUMBER_RIGHT_GAP,
+  titleRegionWidth,
+} from "@impower/sparkdown-screenplay/src/utils/printGeometry";
 import { FormattedText } from "../textbox-for-pdfkit/src/types/FormattedText";
 import { TextOptions } from "../textbox-for-pdfkit/src/types/TextOptions";
 import { getHeightOfTextbox } from "../textbox-for-pdfkit/src/utils/getHeightOfTextbox";
 import { getWidthOfTextbox } from "../textbox-for-pdfkit/src/utils/getWidthOfTextbox";
 import { printTextbox } from "../textbox-for-pdfkit/src/utils/printTextbox";
 import { wrapTextbox } from "../textbox-for-pdfkit/src/utils/wrapTextbox";
-import { splitEmojiRuns } from "../emoji/emojiText";
+import { splitEmojiRuns } from "@impower/sparkdown-screenplay/src/utils/emojiRuns";
 
 const PDF_POINTS_PER_INCH = 72;
 
@@ -160,8 +169,8 @@ export default class ScreenplayPrinter {
       this._profile.page_height -
       this._profile.top_margin -
       this._profile.bottom_margin;
-    const innerWidthThird = innerWidth / 3;
-    const innerWidthHalf = innerWidth / 2;
+    const innerWidthThird = titleRegionWidth(this._profile, "tc")!;
+    const innerWidthHalf = titleRegionWidth(this._profile, "bl")!;
 
     if (this._config?.screenplay_print_title_page && span.positions) {
       const tlText = this.getCombinedContent(span?.positions?.["tl"]);
@@ -352,10 +361,7 @@ export default class ScreenplayPrinter {
 
       if (index === 0 && span.level != null) {
         let headingText = span.content?.map((c) => c.text).join("") || "";
-        const levelIndent = span.tag
-          ? (this._profile?.settings?.[span.tag]?.level_indent ?? 0)
-          : 0;
-        feed += span.level * levelIndent;
+        feed += levelIndent(this._profile, span.tag, span.level);
         if (
           this._config?.screenplay_print_bookmarks &&
           (!hidden ||
@@ -395,7 +401,7 @@ export default class ScreenplayPrinter {
           this._config?.screenplay_print_scene_numbers === "both" ||
           this._config?.screenplay_print_scene_numbers === "left"
         ) {
-          const gap = 4 * this._state.fontWidth;
+          const gap = SCENE_NUMBER_LEFT_GAP * this._state.fontWidth;
           const sceneNumberX =
             this._profile.left_margin - gap - sceneNumberWidth;
           this.printText(
@@ -409,7 +415,7 @@ export default class ScreenplayPrinter {
           this._config?.screenplay_print_scene_numbers === "both" ||
           this._config?.screenplay_print_scene_numbers === "right"
         ) {
-          const gap = 1 * this._state.fontWidth;
+          const gap = SCENE_NUMBER_RIGHT_GAP * this._state.fontWidth;
           const sceneNumberX =
             this._profile.page_width - this._profile.right_margin + gap;
           this.printText(
@@ -569,31 +575,15 @@ export default class ScreenplayPrinter {
   }
 
   getLineLeftMargin(line: PageLine) {
-    const tagSettingMargin =
-      line.position === "l"
-        ? this._profile.settings[line.tag]?.dual_first_left_margin
-        : line.position === "r"
-          ? this._profile.settings[line.tag]?.dual_second_left_margin
-          : this._profile.settings[line.tag]?.left_margin;
-    return tagSettingMargin ?? this._profile.left_margin ?? 0;
+    return lineLeftMargin(this._profile, line);
   }
 
   getLineRightMargin(line: PageLine) {
-    const tagSettingMargin =
-      line.position === "l"
-        ? this._profile.settings[line.tag]?.dual_first_right_margin
-        : line.position === "r"
-          ? this._profile.settings[line.tag]?.dual_second_right_margin
-          : this._profile.settings[line.tag]?.right_margin;
-    return tagSettingMargin ?? this._profile.right_margin ?? 0;
+    return lineRightMargin(this._profile, line);
   }
 
   getLineMaxWidth(line: PageLine) {
-    return (
-      this._profile.page_width -
-      this.getLineLeftMargin(line) -
-      this.getLineRightMargin(line)
-    );
+    return lineMaxWidth(this._profile, line);
   }
 
   getHeightOfLine(span: PageLine) {
@@ -613,9 +603,8 @@ export default class ScreenplayPrinter {
   }
 
   getHangingGroup(content: FormattedText[]): { lead?: FormattedText; rest: FormattedText[]; indent: number } {
-    const lead: PrintedText | undefined = content[0];
-    if (!lead?.hang || content.length < 2) return { rest: content, indent: 0 };
-    return { lead, rest: content.slice(1), indent: lead.hang * this._state.fontWidth };
+    const { lead, rest, hang } = hangingGroup(content);
+    return { lead, rest, indent: hang * this._state.fontWidth };
   }
 
   getIndentation(text: string): string {

@@ -1,0 +1,76 @@
+scene downtown
+  [[show backdrop ext_downtown_main_street with fade over 1]]
+  $: EXT. DOWNTOWN - MAIN STREET - DAY
+
+  Saturday crowds drift past the shops. The diner's neon sign is switched off.
+
+  MARCUS:
+    [[marcus:happy]]
+    The diner doesn't open till five. We need someone who was here last night.
+
+  choose
+    Where should the friends start?
+    * [Follow Theo to the fountain.]
+      -> fountain
+    * [Follow Zadie to the alley behind the diner.]
+      -> alley
+  end
+
+  branch fountain
+    [[show backdrop ext_downtown_fountain with fade over 1]]
+    $: EXT. DOWNTOWN - PARK - DAY
+
+    A busker packs up a battered guitar beside the fountain.
+
+    THEO:
+      [[theo:happy]]
+      Everybody ends up at the fountain eventually.
+
+    The busker hums a few bars, then stops.
+
+    THEO:
+      [[theo:sad]]
+      Wait. What's that song called?
+
+    Theo writes it down\: *Moonlight on the Rails*.
+    & heard_song_title = true
+    & clues_found += 1
+    -> compare_notes
+  end
+
+  branch alley
+    [[show backdrop ext_downtown_alley with fade over 1]]
+    $: EXT. DOWNTOWN - ALLEY - DAY
+
+    // This sound has not been recorded yet, so the editor warns about it.
+    ((sfx_jukebox_coin_clink))
+    Something small and silver rolls out from under the diner's back door.
+
+    ZADIE:
+      [[zadie:happy]]
+      A quarter from 1962. Nobody carries these anymore.
+
+    & found_coin = true
+    & clues_found += 1
+    -> compare_notes
+  end
+
+  branch compare_notes
+    [[show backdrop ext_downtown_park_cafe with fade over 1]]
+    $: EXT. DOWNTOWN - PARK CAFE - AFTERNOON
+
+    IMANI:
+      [[imani:happy]]
+      Clues so far\: {clues_found}. Not bad for one afternoon.
+
+    MARCUS:
+      [[marcus:angry]]
+      One clue is not a pattern.
+
+    ZADIE:
+      [[zadie:angry]]
+      Then we go to the diner tonight and watch it happen.
+
+    -> load the_diner
+  end
+end
