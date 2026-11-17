@@ -155,6 +155,10 @@ export function lowerArms(
           current.body.push(...armLineAsDisplayCall(parts, ctx));
         }
       }
+    } else if (current && ONE_LINE_STORY_ALTERNATORS.has(child.name)) {
+      const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+      forwardBlockDiagnostics(block, ctx);
+      current.body.push(...unwrapBlockContent(block));
     } else if (current && valued) {
       if (isLuauNodeName(child.name) && !isTrivia(child)) armNodes.push(child);
     } else if (current) {
@@ -197,6 +201,11 @@ export function lowerArms(
   reportArm();
   return arms;
 }
+
+const ONE_LINE_STORY_ALTERNATORS = nodeNameSet([
+  "LuauSparkdownSingleLineConditionalAlternatorBlock",
+  "LuauSparkdownSingleLineSequentialAlternatorBlock",
+]);
 
 const CONTINUATIONS = nodeNameSet([
   "LuauArithmeticOperation",

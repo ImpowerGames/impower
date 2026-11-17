@@ -273,10 +273,11 @@ const visibleLines = (element: Element): string[] => {
       else if (node.nodeType === Node.ELEMENT_NODE && (node as Element).classList.contains("sp-break")) lines.push("");
       else if (node.nodeType === Node.ELEMENT_NODE && !isHidden(node as Element, true)) {
         const style = (node as HTMLElement).style;
-        const block = style?.display === "block" && style.marginLeft.startsWith("-");
+        const block = style?.display === "block" && !style.textAlign && !style.width;
         if (block && lines[lines.length - 1]) lines.push("");
         walk(node as Element);
-        if (block && lines[lines.length - 1]) lines.push("");
+        if (block && !visibleText(node as Element) && (node as Element).querySelector("br")) lines.push("");
+        else if (block && lines[lines.length - 1]) lines.push("");
       }
     });
   };
@@ -318,6 +319,16 @@ describe("a block of alternatives", () => {
       expect(unplacedText("default", source)).toEqual([]);
     },
   );
+
+  it("prints a one-line block nested in a one-line arm, and the block after it on its line, on the page as in the export", () => {
+    const source = sourceOf(["NestedSingleLineAlternators"]).replace("Out. end", "Out. end queue | Three. | Four. end");
+    const printed = exportLines("default", source);
+    expect(besideBody(printed)).toEqual([
+      "{", "| {", "  | In A.", "  | In B.", "  }", "| Out.", "}", "{", "| Three.", "| Four.", "}",
+    ]);
+    expect(pageLines("default", source)).toEqual(printed);
+    expect(unplacedText("default", source)).toEqual([]);
+  });
 
   it.each(Object.entries(ONE_BRANCH_LAYOUTS))(
     "prints %s, a block with one branch or none that prints text, as request I-2401 answered, on the page as in the export",

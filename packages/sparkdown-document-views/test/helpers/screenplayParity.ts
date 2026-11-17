@@ -150,6 +150,7 @@ export const KINDS: Record<string, string[]> = {
   ChoiceInterpolation: ["  * [Greet {person} warmly.]"],
   SingleLineAlternatorInterpolation: ["  queue | Wave at {person}. | Nod. end"],
   SingleLineAlternatorMarkup: ["  queue | A *bold* arm. | A _plain_ arm. end"],
+  NestedSingleLineAlternators: ["  queue | queue | In A. | In B. end | Out. end"],
   GluedMarkupAlternator: ["  They spot .. queue | a *big* owl | a hawk .. above."],
   ImplicitActionMarkupBesideInterpolation: ["  Meet *{person}* and _{guest}_ now."],
   DialogueNameMarkup: ["  *GUIDE*: Hello."],
@@ -239,6 +240,7 @@ export const ALTERNATIVE_LAYOUTS: Record<string, string[]> = {
   SingleLineAlternatorArmDivert: ["{", "| Leave now.", "| Stay here.", "}"],
   SingleLineAlternatorInterpolation: ["{", "| Wave at {person}.", "| Nod.", "}"],
   SingleLineAlternatorMarkup: ["{", "| A bold arm.", "| A plain arm.", "}"],
+  NestedSingleLineAlternators: ["{", "| {", "  | In A.", "  | In B.", "  }", "| Out.", "}"],
   SingleLineAlternatorThenAction: ["{", "| Alpha.", "| Beta.", "}", "After them."],
   SingleLineAlternatorThenDialogue: ["{", "| Alpha.", "| Beta.", "}", "GUIDE", "After them."],
   MarkupOnlyThenWordsBranch: ["{", "| Real words.", "}"],
@@ -596,6 +598,8 @@ export const describeElementSequences = (configName: string, part: number, parts
     it(
       `for every element sequence with ${configName} settings, part ${part} of ${parts}`,
       async () => {
+        const view = show(configName, sourceOf([]));
+        await new Promise<void>((resolve) => view.requestMeasure({ read: () => undefined, write: () => resolve() }));
         const failures: string[] = [];
         for (const [offset, kinds] of chunks.entries()) {
           const index = first + offset;

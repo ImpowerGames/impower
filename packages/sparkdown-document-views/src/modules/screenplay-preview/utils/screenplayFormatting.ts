@@ -458,7 +458,7 @@ export const decorate = (
       unhungStarts.add(start);
       decorations.push(
         Decoration.mark({
-          attributes: { style: hang ? `display: block; padding-left: ${hang}ch; text-indent: -${hang}ch;` : "display: block;" },
+          attributes: { style: hang ? `display: block; padding-left: ${hang}ch;` : "display: block;" },
           inclusiveStart: true,
         }).range(start, end),
       );
@@ -517,7 +517,7 @@ export const decorate = (
   for (const insert of inserts) {
     if (insert.at >= from && (to === undefined || insert.at <= to)) {
       const { style, source } = printedStyle(insert.style);
-      const hang = insert.style.hang && hangOf(insert.at);
+      const hang = insert.style.hang && (hangOf(insert.at) ?? mixedHangAt(insert.at));
       decorations.push(
         Decoration.widget({
           widget: new InsertedTextWidget(insert.text, `${style}${hang ? hangingMarkStyle(hang) : ""}`, source),
