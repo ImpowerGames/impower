@@ -5,6 +5,7 @@ const CHOOSE_CONTENT = "LuauSparkdownChooseBlock_content";
 const THEN_CLAUSE = "LuauSparkdownChooseThenClause";
 const CHOICE = "Choice";
 const FUNCTION = "LuauFunctionDefinition";
+const ARM_SEPARATOR = "LuauAlternatorSeparator";
 const BRANCHES: ReadonlySet<string> = new Set([
   "LuauSparkdownElseifBlock",
   "LuauSparkdownElseBlock",
@@ -24,6 +25,8 @@ const gather = (
     if (child.name === CHOICE) {
       options.push(child);
       afterOption = true;
+    } else if (child.name === ARM_SEPARATOR) {
+      afterOption = enteredAfterOption;
     } else if (BRANCHES.has(child.name)) {
       gather(child, options, false, enteredAfterOption);
     } else if (child.name === FUNCTION || (menu && afterOption)) {
@@ -60,6 +63,7 @@ export const optionBodyEnd = (
   for (let next = choice.nextSibling; next; next = next.nextSibling) {
     if (
       next.name === THEN_CLAUSE ||
+      next.name === ARM_SEPARATOR ||
       BRANCHES.has(next.name) ||
       holdsOption(options, next)
     ) {

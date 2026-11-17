@@ -203,4 +203,52 @@ describe("the options a choose block offers, read from its syntax", () => {
     expect(offered(scriptOf(body(false, true)))).toEqual(["E", "B"]);
     expect(offered(scriptOf(body(false, false)))).toEqual(["C", "B"]);
   });
-});
+
+  const LATER_ARM_WRAPPERS: [string, string[], string][] = [
+    ["no block", [], ""],
+    ["a do block", ["do"], "end"],
+    ["an if block", ["if true then"], "end"],
+    ["a for loop", ["for i = 1, 1 do"], "end"],
+    ["a repeat loop", ["repeat"], "until true"],
+  ];
+
+  it.each(LATER_ARM_WRAPPERS)(
+    "a choose block in %s in an alternator's arm after an arm holding an option is the menu's, and the game offers the taken arm's",
+    (_wrapper, open, close) => {
+      const body = (selector: string) => [
+        "  choose",
+        `    match "${selector}"`,
+        "      | a = * A",
+        "      | b =",
+        ...open.map((line) => `        ${line}`),
+        "          choose",
+        "            * Z",
+        "              Took Z.",
+        "          end",
+        ...(close ? [`        ${close}`] : []),
+        "    end",
+        "    * Outer",
+        "  end",
+      ];
+      expect(gathered(scriptOf(body("b")))).toEqual(["A", "Z", "Outer"]);
+      expect(offered(scriptOf(body("a")))).toEqual(["A", "Outer"]);
+      expect(offered(scriptOf(body("b")))).toEqual(["Z", "Outer"]);
+    },
+  );
+
+  it("lists a cycle's later arm's choose block after an arm holding an option, and the game offers the first arm's on its first pass", () => {
+    const text = scriptOf([
+      "  choose",
+      "    cycle",
+      "      | * A",
+      "      |",
+      "        choose",
+      "          * Z",
+      "        end",
+      "    end",
+      "    * Outer",
+      "  end",
+    ]);
+    expect(gathered(text)).toEqual(["A", "Z", "Outer"]);
+    expect(offered(text)).toEqual(["A", "Outer"]);
+  });});
