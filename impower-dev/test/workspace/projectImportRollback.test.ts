@@ -78,7 +78,11 @@ async function harness(extra: Record<string, string> = {}, saved: Record<string,
   } });
   const { default: WorkspaceFileSystem } = await import("../../src/modules/spark-editor/workspace/WorkspaceFileSystem");
   const { ProjectImportError } = await import("../../src/modules/spark-editor/workspace/projectImport");
-  const ls = { connection: { onRequest() {}, sendNotification() {} }, start: async () => {} };
+  const notes: { method: string; params: any }[] = [];
+  const ls = {
+    connection: { onRequest() {}, sendNotification: (method: string, params: unknown) => notes.push({ method, params }) },
+    start: async () => {},
+  };
   const fs = new WorkspaceFileSystem(ls as never, { settings, onDidChange: () => () => {} } as never);
   await fs.getFiles("local");
   const project = root.entries.get("local") as MemoryDirectory;
@@ -146,7 +150,7 @@ async function harness(extra: Record<string, string> = {}, saved: Record<string,
     applyBundle(() => fs.writeProjectScriptBundle("local", content));
   const applyAssets = (content: ArrayBuffer) =>
     applyBundle(() => fs.writeProjectAssetBundle("local", content));
-  return { fs, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
+  return { fs, notes, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
 }
 
 const ASSETS = { "art/old.png": "OLD" };
@@ -429,4 +433,49 @@ it("keeps the unsaved starter main in the editor when a backup import fails afte
   expect(error?.reason).toBe("storage");
   expect(h.text("main.sd")).toBeUndefined();
   expect(await starterText(h)).toBe(before);
+}, 15_000);
+
+const DELETED = 3;
+
+const watchedChanges = (h: Awaited<ReturnType<typeof harness>>, uri: string) =>
+  h.notes
+    .filter((note) => note.method === "workspace/didChangeWatchedFiles")
+    .flatMap((note) => note.params.changes as { uri: string; type: number }[])
+    .filter((change) => change.uri === uri)
+    .map((change) => change.type);
+
+const languageServerText = async (h: Awaited<ReturnType<typeof harness>>, uri: string) =>
+  watchedChanges(h, uri).at(-1) === DELETED
+    ? undefined
+    : h.fs.executeCommand({ command: "sparkdown.getFileText", arguments: [uri] });
+
+it("keeps the unsaved starter main in the language server when a script bundle fails after writing main", async () => {
+  const h = await harness(ASSETS, {});
+  const before = await starterText(h);
+  h.notes.length = 0;
+  h.failCreatingFolder("chapters");
+  const { error } = await h.applyScripts(SCRIPTS);
+  expect(error).toBeDefined();
+  expect(await languageServerText(h, STARTER_URI)).toBe(before);
+}, 15_000);
+
+it("keeps the unsaved starter main in the language server when a backup import fails after writing main", async () => {
+  const h = await harness({}, {});
+  const before = await starterText(h);
+  h.notes.length = 0;
+  h.failCreatingFolder("images");
+  const { error } = await h.importBackup(backup(BACKUP));
+  expect(error?.reason).toBe("storage");
+  expect(await languageServerText(h, STARTER_URI)).toBe(before);
+}, 15_000);
+
+it("tells the language server a file the failed import created is gone again", async () => {
+  const h = await harness();
+  h.notes.length = 0;
+  h.failCreatingFolder("images");
+  const { error } = await h.importBackup(backup({ "added.sd": "added", ...BACKUP }));
+  expect(error?.reason).toBe("storage");
+  expect(h.text("added.sd")).toBeUndefined();
+  expect(watchedChanges(h, "file://local/added.sd").at(-1)).toBe(DELETED);
+  expect(await languageServerText(h, STARTER_URI)).toBe(PROJECT["main.sd"]);
 }, 15_000);

@@ -14,6 +14,7 @@ import { SETTINGS_JSON_PATH } from "./settings/settingsJson";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
 import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
@@ -402,6 +403,12 @@ export default class WorkspaceFileSystem {
   }
 
   async getFileText(uri: string) {
+    const unstored = this._unstoredUris.has(uri)
+      ? this._files?.[uri]?.text
+      : undefined;
+    if (unstored !== undefined) {
+      return unstored;
+    }
     const buffer = await this.readFile({ file: { uri } });
     const text = new TextDecoder("utf-8").decode(buffer);
     return text;
@@ -780,6 +787,12 @@ export default class WorkspaceFileSystem {
           restored: lost.map((file) => file.uri),
         }),
       );
+      this._ls.connection.sendNotification(DidChangeWatchedFilesMessage.method, {
+        changes: lost.map((file) => ({
+          uri: file.uri,
+          type: FileChangeType.Created,
+        })),
+      });
     }
     return result;
   }
