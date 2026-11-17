@@ -185,6 +185,8 @@ export default class WorkspaceFileSystem {
     this.loadInitialFiles.bind(this),
   );
 
+  protected _initialLoad: Promise<void>;
+
   protected _scheme = "file://";
   get scheme() {
     return this._scheme;
@@ -220,9 +222,12 @@ export default class WorkspaceFileSystem {
         DidChangeConfigurationMessage.type.notification(params),
       );
     });
-    void this._initialFilesRef.get(projectId).catch((e) => {
-      console.error("[workspace] initial file load failed:", e);
-    });
+    this._initialLoad = this._initialFilesRef.get(projectId).then(
+      () => undefined,
+      (e) => {
+        console.error("[workspace] initial file load failed:", e);
+      },
+    );
   }
 
   getLoadedProjectId() {
@@ -403,6 +408,7 @@ export default class WorkspaceFileSystem {
   }
 
   async getFileText(uri: string) {
+    await this._initialLoad;
     const unstored = this._unstoredUris.has(uri)
       ? this._files?.[uri]?.text
       : undefined;

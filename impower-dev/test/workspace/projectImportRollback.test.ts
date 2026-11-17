@@ -94,6 +94,7 @@ async function harness(extra: Record<string, string> = {}, saved: Record<string,
     start: async () => {},
   };
   const fs = new WorkspaceFileSystem(ls as never, { settings, onDidChange: () => () => {} } as never);
+  const starterReadWhileLoading = fs.getFileText("file://local/main.sd").catch((error: unknown) => error);
   await fs.getFiles("local");
   const project = root.entries.get("local") as MemoryDirectory;
   const stored = () =>
@@ -160,7 +161,7 @@ async function harness(extra: Record<string, string> = {}, saved: Record<string,
     applyBundle(() => fs.writeProjectScriptBundle("local", content));
   const applyAssets = (content: ArrayBuffer) =>
     applyBundle(() => fs.writeProjectAssetBundle("local", content));
-  return { fs, watchers, pending, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
+  return { fs, starterReadWhileLoading, watchers, pending, root, project, stored, text, failCreatingFolder, failRemoving, failWrites, importBackup, applyScripts, applyAssets, ProjectImportError };
 }
 
 const ASSETS = { "art/old.png": "OLD" };
@@ -511,6 +512,16 @@ const languageServer = async (h: Awaited<ReturnType<typeof harness>>, open: stri
 };
 
 const settled = (h: Awaited<ReturnType<typeof harness>>) => Promise.all(h.pending);
+
+it("reads the unsaved starter main while the project is still loading", async () => {
+  const h = await harness({}, {});
+  expect(await h.starterReadWhileLoading).toBe(await starterText(h));
+}, 15_000);
+
+it("reads a saved main from storage while the project is still loading", async () => {
+  const h = await harness();
+  expect(await h.starterReadWhileLoading).toBe(PROJECT["main.sd"]);
+}, 15_000);
 
 it("keeps the unsaved starter main in the language server when a script bundle fails after writing main", async () => {
   const h = await harness(ASSETS, {});
