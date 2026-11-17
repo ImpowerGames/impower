@@ -150,11 +150,16 @@ describe("a story match or plural is one-line or multi-line by what follows its 
     expect(play(scene(line)).out).toBe("A.\nAfter.\n");
   });
 
-  test("a bar after the value on the keyword's line makes a one-line set, whose missing `end` is reported (#2498)", () => {
+  test("a bar after the value on the keyword's line makes a one-line set, and the lines below it read as after the bracketed spelling (#2498)", () => {
     const lines = ["match mood | happy = A.", "| other = B.", "end"];
     const [set] = sets(scene(...lines));
     expect(set).toMatchObject({ text: lines[0], oneLine: true });
-    expect(play(scene(...lines)).errors).toEqual(play(scene("match(mood) | happy = A.", "| other = B.", "end")).errors);
+    const errors = play(scene(...lines)).errors;
+    expect(errors).toEqual([
+      "statement must be inside a scene or branch; the top level holds declarations only",
+      "Expected <eof>, got 'end'",
+    ]);
+    expect(errors).toEqual(play(scene("match(mood) | happy = A.", "| other = B.", "end")).errors);
   });
 
   test("in an arm, a keyword and a value with no bar after them is a nested set with no arms", () => {

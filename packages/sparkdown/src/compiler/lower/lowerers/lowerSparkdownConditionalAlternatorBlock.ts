@@ -111,7 +111,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
       source: statementSource(at, ctx),
     });
   }
-  if (!valued && condNode && isOneLineStorySet(nodeRef.node) && oneLineValueNeedsBrackets(condNodes, ctx.read)) {
+  if (!valued && condNode && isOneLineStorySet(nodeRef.node) && oneLineValueNeedsBrackets(condNodes)) {
     diagnostics.push({
       message: `On one line, put the value of \`${name}\` in brackets, as in \`${name}(value) | ...\`: without them it may only be a name, a dotted name or a number`,
       severity: ErrorType.Error,
