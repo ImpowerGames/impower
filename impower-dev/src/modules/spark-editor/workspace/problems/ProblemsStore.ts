@@ -12,7 +12,7 @@ import { PROJECT_SETTINGS_SCHEMA } from "../settings/settingsSchema";
 import workspaceSettings from "../settings/WorkspaceSettings";
 import { WorkspaceConstants } from "../WorkspaceConstants";
 import workspace from "../WorkspaceStore";
-import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/PlayerConsole";
+import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/consoleEntries";
 import { showSnackbar } from "../../utils/snackbar";
 import { applyFix, choiceKey, isCommandChoice, type FixChoice } from "./applyFix";
 import { runEditorCommand } from "./runEditorCommand";

@@ -1,5 +1,6 @@
 import { useState } from "preact/hooks";
 import {
+  CLIPBOARD_UNAVAILABLE,
   CONSOLE_SEVERITIES,
   consoleLocation,
   countBySeverity,
@@ -9,9 +10,6 @@ import {
   type ConsoleJump,
   type ConsoleSeverity,
 } from "./consoleEntries";
-
-export const CLIPBOARD_UNAVAILABLE =
-  "Clipboard unavailable. Use Save to keep these messages.";
 
 export const CONSOLE_SAVE_FILENAME = "play-log.txt";
 
