@@ -132,7 +132,7 @@ const startsOption = (content: SyntaxNode, offset: number, read: Read, typed: Re
     return false;
   }
   if (separator.to > offset) {
-    return /^[ \t]*$/.test(read(offset, separator.to)) && /\|[ \t]*$/.test(read(separator.from, offset));
+    return /^\s*$/.test(read(offset, separator.to)) && /\|\s*$/.test(read(separator.from, offset));
   }
   return typed.test(read(separator.to, offset));
 };
@@ -140,7 +140,7 @@ const startsOption = (content: SyntaxNode, offset: number, read: Read, typed: Re
 export const alternatorOptionStartAt = (tree: Tree, offset: number, read: Read) => {
   const stack = getStack<SparkdownNodeName>(tree, offset, -1);
   const content = stack.find((node) => isNestingContent(node));
-  if (!content || !startsOption(content, offset, read, /^[ \t]*[A-Za-z]*$/)) {
+  if (!content || !startsOption(content, offset, read, /^\s*[A-Za-z]*$/)) {
     return undefined;
   }
   return { typed: /[A-Za-z]*$/.exec(read(content.from, offset))?.[0] ?? "" };
@@ -181,10 +181,10 @@ const getKeywordHover = (tree: Tree, offset: number, read: Read, range: (from: n
   }
   const sections: string[] = [];
   const content = block.parent;
-  if (isNestingContent(content) && startsOption(content, block.from, read, /^[ \t]*$/)) {
+  if (isNestingContent(content) && startsOption(content, block.from, read, /^\s*$/)) {
     const outer = blockKeywords(content.parent!, read);
     sections.push(
-      `This \`${keyword}\` starts an option of the \`${outer}\` around it, so it opens a one-line set nested in that option, which ends at its own \`end\`.`,
+      `This \`${keyword}\` starts an option of the \`${outer}\` around it, so it opens a set nested in that option, which ends at its own \`end\`.`,
     );
   }
   sections.push(alternatorKeywordDocumentation(keyword));
@@ -222,7 +222,7 @@ const getEscapeHover = (
   const stack = getStack<SparkdownNodeName>(tree, escapeFrom, 1);
   const escape = stack.find((node) => node.name === "Escape");
   const content = stack.find((node) => isNestingContent(node));
-  if (!escape || escape.from !== escapeFrom || !content || !startsOption(content, escapeFrom, read, /^[ \t]*$/)) {
+  if (!escape || escape.from !== escapeFrom || !content || !startsOption(content, escapeFrom, read, /^\s*$/)) {
     return null;
   }
   return {

@@ -97,6 +97,21 @@ describe("alternator keyword hover", () => {
     expect(nested?.value).toContain("starts an option of the `cycle` around it");
   });
 
+  it("explains a multi-line set nested in an option without calling it one-line", async () => {
+    const text = "scene start\n  cycle\n  | queue\n    | A.\n    | B.\n    end\n  | Out.\n  end\nend";
+    const inner = await hoverAt(text, at(text, "queue"));
+    expect(inner?.value).toContain("starts an option of the `cycle` around it, so it opens a set nested in that option");
+  });
+
+  it("treats content written on the line below an option's bar as the option's start", async () => {
+    const escaped = "scene start\n  cycle\n  |\n    \\queue\n  | Out.\n  end\nend";
+    for (const index of [at(escaped, "\\"), at(escaped, "queue")]) {
+      expect((await hoverAt(escaped, index))?.value, String(index)).toContain("keeps it a word");
+    }
+    const nested = "scene start\n  cycle\n  |\n    queue | A. | B. end\n  | Out.\n  end\nend";
+    expect((await hoverAt(nested, at(nested, "queue")))?.value).toContain("starts an option of the `cycle` around it");
+  });
+
   it("explains the backslash on an escaped keyword at an option's start", async () => {
     const text = "cycle | \\queue | shuffle end";
     for (const index of [at(text, "\\"), at(text, "queue"), at(text, "queue") + 4]) {
@@ -135,6 +150,10 @@ describe("alternator keyword completion at an option's start", () => {
     expect(complete("cycle | @1 | b end").labels).toEqual(
       expect.arrayContaining(["queue", "cycle", "chain", "shuffle", "match", "plural"]),
     );
+  });
+
+  it("offers the keywords on the line below an option's bar", () => {
+    expect(complete("scene start\n  cycle\n  |\n    q@1\n  | Out.\n  end\nend").labels).toContain("queue");
   });
 
   it("offers no keyword after an option's first word", () => {
