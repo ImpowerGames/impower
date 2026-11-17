@@ -70,14 +70,26 @@ const ALTERNATOR_KEYWORD_FORMS: Record<AlternatorKeyword, string> = {
   ]),
 };
 
-const OPTION_START_RULE = (keyword: string) =>
+const SEQUENTIAL_OPTION_START_RULE = (keyword: string) =>
   `At the start of an option, \`${keyword}\` followed by \`|\` opens a one-line set nested in that option, which ends at its own \`end\`: \`cycle | ${keyword} | A. | B. end | C. end\`. Write \`\\${keyword}\` to show the word itself.`;
+
+const CONDITIONAL_OPTION_START_RULE = (keyword: string, value: string, key: string) =>
+  `At the start of an option, \`${keyword}\` with its value in brackets and then \`|\` opens a one-line set nested in that option, which ends at its own \`end\`: \`cycle | ${keyword}(${value}) | ${key} = A. | other = B. end | C. end\`. Write \`\\${keyword}\` to show the word itself.`;
+
+const OPTION_START_RULES: Record<AlternatorKeyword, string> = {
+  queue: SEQUENTIAL_OPTION_START_RULE("queue"),
+  cycle: SEQUENTIAL_OPTION_START_RULE("cycle"),
+  chain: SEQUENTIAL_OPTION_START_RULE("chain"),
+  shuffle: SEQUENTIAL_OPTION_START_RULE("shuffle"),
+  match: CONDITIONAL_OPTION_START_RULE("match", "mood", "happy"),
+  plural: CONDITIONAL_OPTION_START_RULE("plural", "coins", "one"),
+};
 
 export const alternatorKeywordDocumentation = (keyword: AlternatorKeyword) =>
   [
     ALTERNATOR_KEYWORD_SUMMARIES[keyword],
     ALTERNATOR_KEYWORD_FORMS[keyword],
-    OPTION_START_RULE(keyword),
+    OPTION_START_RULES[keyword],
   ].join("\n\n");
 
 const ESCAPE_HELP = (keyword: string) =>

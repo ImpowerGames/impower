@@ -1,5 +1,9 @@
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { describe, expect, it } from "vitest";
+import {
+  ALTERNATOR_KEYWORDS,
+  alternatorKeywordDocumentation,
+} from "../../utils/providers/alternatorKeywordHelp";
 import { getHover } from "../../utils/providers/getHover";
 import { complete } from "./completionHarness";
 
@@ -48,6 +52,26 @@ describe("alternator keyword hover", () => {
       expect(hover?.value, text).toContain("One line:");
       expect(hover?.value, text).toContain("Several lines:");
       expect(hover?.value, text).toContain("At the start of an option");
+    }
+  });
+
+  it("advertises only examples that open the set they describe", async () => {
+    for (const keyword of ALTERNATOR_KEYWORDS) {
+      const documentation = alternatorKeywordDocumentation(keyword);
+      const examples = [
+        /One line: `([^`]+)`/.exec(documentation)?.[1],
+        /```sparkdown\n([\s\S]*?)\n```/.exec(documentation)?.[1],
+        /Inside a line: `([^`]+)`/.exec(documentation)?.[1],
+      ].filter((example): example is string => example !== undefined);
+      expect(examples.length, keyword).toBeGreaterThanOrEqual(2);
+      for (const example of examples) {
+        const hover = await hoverAt(example, example.indexOf(keyword) + 1);
+        expect(hover?.marked, example).toBe(keyword);
+      }
+      const nested = /`(cycle \| [^`]+ end \| C\. end)`/.exec(documentation)?.[1];
+      expect(nested, keyword).toBeDefined();
+      const inner = await hoverAt(nested!, nested!.indexOf(keyword, 1) + 1);
+      expect(inner?.value, nested).toContain("starts an option of the `cycle` around it");
     }
   });
 
