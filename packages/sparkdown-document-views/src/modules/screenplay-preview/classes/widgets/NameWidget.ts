@@ -1,7 +1,7 @@
 import { EditorView } from "@codemirror/view";
 import BlockWidget from "../BlockWidget";
 import { NameSpec } from "../../types/NameSpec";
-import { RULE_BORDER, RULE_GAP_ROWS } from "./PageBreakWidget";
+import { RULE_BORDER } from "./PageBreakWidget";
 
 export default class NameWidget extends BlockWidget<NameSpec> {
   override toDOM(_view: EditorView) {
@@ -20,7 +20,6 @@ export default class NameWidget extends BlockWidget<NameSpec> {
   }
 
   override get estimatedHeight() {
-    const rows = this.spec.rows + (this.spec.pageBreak ? RULE_GAP_ROWS : 0);
-    return rows * this.spec.row + (this.spec.pageBreak ? RULE_BORDER : 0);
+    return this.spec.rows * this.spec.row + (this.spec.pageBreak ? RULE_BORDER : 0);
   }
 }

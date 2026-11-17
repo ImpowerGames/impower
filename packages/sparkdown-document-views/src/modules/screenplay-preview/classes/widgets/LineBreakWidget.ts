@@ -10,4 +10,8 @@ export default class LineBreakWidget extends WidgetType {
   override eq() {
     return true;
   }
+
+  override get lineBreaks() {
+    return 1;
+  }
 }

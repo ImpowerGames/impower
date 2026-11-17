@@ -34,7 +34,6 @@ const createEditorView = (
     extensions: [
       EditorState.readOnly.of(true),
       EditorView.theme(PREVIEW_THEME),
-      EditorView.lineWrapping,
       EditorView.scrollMargins.of(() => {
         return scrollMargin ?? null;
       }),

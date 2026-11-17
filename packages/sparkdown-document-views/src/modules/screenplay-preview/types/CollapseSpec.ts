@@ -3,4 +3,5 @@ export interface CollapseSpec {
   from: number;
   to: number;
   separator?: boolean;
+  row: number;
 }

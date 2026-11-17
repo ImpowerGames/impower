@@ -54,6 +54,10 @@ export default class InsertedRowWidget extends WidgetType {
     return row;
   }
 
+  override get lineBreaks() {
+    return this.inline ? Number(this.inline.before) + Number(this.inline.after) : 0;
+  }
+
   override eq(other: InsertedRowWidget) {
     return (
       other.inline?.before === this.inline?.before &&

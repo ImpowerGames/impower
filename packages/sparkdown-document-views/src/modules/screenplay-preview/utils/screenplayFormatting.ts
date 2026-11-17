@@ -27,6 +27,7 @@ import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
+import HiddenLineWidget from "../classes/widgets/HiddenLineWidget";
 import InsertedRowWidget from "../classes/widgets/InsertedRowWidget";
 import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
@@ -570,13 +571,17 @@ export const decorate = (
 
   const blankRow = (line: Line) =>
     line.text.trim()
-      ? createDecorations(doc, { type: "collapse", from: line.from, to: line.to })
+      ? createDecorations(doc, { type: "collapse", from: line.from, to: line.to, row })
       : createDecorations(doc, {
           type: "collapse",
           from: line.from,
           to: line.to,
           separator: true,
+          row,
         });
+
+  const hiddenLine = (line: Line, last: Line = line) =>
+    Decoration.replace({ widget: new HiddenLineWidget(), block: true }).range(line.from, last.to);
 
   const printsOnLine = (node: SyntaxNode, line: Line) => {
     if (node.name === "Newline" || node.name === "Whitespace") return false;
@@ -609,10 +614,7 @@ export const decorate = (
     if (firstText < 0 && hiddenParts.length < 2) return false;
     handledLines.add(line.number);
     if (firstText < 0) {
-      decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
-      if (line.length > 0) {
-        decorations.push(Decoration.replace({}).range(line.from, line.to));
-      }
+      decorations.push(hiddenLine(line));
     }
     const textIndex = firstText < 0 ? parts.length : firstText;
     const above: (CollapseWidget | NameWidget)[] = [];
@@ -626,7 +628,7 @@ export const decorate = (
       }
       if (part.from < line.from || index > textIndex) return;
       if (blankPositions.has(part.from)) {
-        above.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from }));
+        above.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from, row }));
       }
       const name = hidden ? functionNameOf(part) : undefined;
       if (name) {
@@ -660,7 +662,7 @@ export const decorate = (
         if (blankLines.has(number)) {
           decorations.push(
             Decoration.widget({
-              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from, row }),
               block: true,
               side: -1,
             }).range(line.from),
@@ -670,10 +672,7 @@ export const decorate = (
       } else if (blankLines.has(number)) {
         decorations.push(...blankRow(line));
       } else {
-        decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
-        if (line.length > 0) {
-          decorations.push(Decoration.replace({}).range(line.from, line.to));
-        }
+        decorations.push(hiddenLine(line));
       }
     }
   };
@@ -880,7 +879,7 @@ export const decorate = (
         if (blankLines.has(line.number)) {
           decorations.push(
             Decoration.widget({
-              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from, row }),
               block: true,
               side: -1,
             }).range(line.from),
@@ -899,7 +898,6 @@ export const decorate = (
       } else if (isUnprinted(nodeRef)) {
         const line = doc.lineAt(from);
         const end = to === line.to + 1 ? line.to : to;
-        if (end > from) decorations.push(Decoration.replace({}).range(from, end));
         if (
           end <= line.to &&
           end > from &&
@@ -907,7 +905,9 @@ export const decorate = (
           !/\S/.test(line.text.slice(0, from - line.from)) &&
           !/\S/.test(line.text.slice(end - line.from))
         ) {
-          decorations.push(Decoration.line({ attributes: { style: "display: none;" } }).range(line.from));
+          decorations.push(hiddenLine(line));
+        } else if (end > from) {
+          decorations.push(Decoration.replace({}).range(from, end));
         }
         return false;
       }
@@ -998,18 +998,24 @@ export const decorate = (
                 };
               });
             });
-            decorations.push(
-              ...createDecorations(doc, {
-                type: "reveal",
-                from,
-                to: contentEnd,
-              }),
-              ...createDecorations(doc, {
-                type: "replace",
-                from,
-                to: contentEnd,
-              }),
-            );
+            const first = doc.lineAt(from);
+            const last = doc.lineAt(contentEnd);
+            if (!/\S/.test(first.text.slice(0, from - first.from)) && last.to === contentEnd) {
+              decorations.push(hiddenLine(first, last));
+            } else {
+              decorations.push(
+                ...createDecorations(doc, {
+                  type: "reveal",
+                  from,
+                  to: contentEnd,
+                }),
+                ...createDecorations(doc, {
+                  type: "replace",
+                  from,
+                  to: contentEnd,
+                }),
+              );
+            }
           }
         } else {
           const spec: DialogueSpec = {
