@@ -2,11 +2,12 @@ import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import PlayerConsole, {
-  CLIPBOARD_UNAVAILABLE,
   CONSOLE_SAVE_FILENAME,
   type PlayerConsoleProps,
 } from "./PlayerConsole";
-import { formatConsoleStamp, type ConsoleEntry } from "./consoleEntries";
+import {
+  CLIPBOARD_UNAVAILABLE,
+  formatConsoleStamp, type ConsoleEntry } from "./consoleEntries";
 
 const TIME = new Date(2026, 10, 5, 9, 4, 7).getTime();
 
