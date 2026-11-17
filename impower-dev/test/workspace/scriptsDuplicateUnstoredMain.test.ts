@@ -86,4 +86,5 @@ it("rejects a failed storage read with an Error that carries the storage worker'
   const failure = await h.fs.readFile({ file: { uri: h.uri("Scripts/missing.sd") } }).catch((e: unknown) => e);
   expect(failure).toBeInstanceOf(Error);
   expect((failure as Error).message).toBe(`${h.uri("Scripts/missing.sd")} was not found`);
+  expect((failure as { code?: unknown }).code).toBe(-32603);
 });
