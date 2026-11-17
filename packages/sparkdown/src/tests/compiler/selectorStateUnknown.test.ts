@@ -51,6 +51,25 @@ describe("unknown selector state", () => {
     ]);
   });
 
+  test.each([
+    ["@is(@first-child, @hoverd)", 20, 27],
+    ["@where(@hoverd, @first-child)", 9, 16],
+    ["@is(@not(@hoverd), @first)", 11, 18],
+  ])("says only the alternative never matches in %s", (selector, from, to) => {
+    expect(unknownStateWarnings(style(selector))).toEqual([
+      `2:${from}-${to} 2 \`@hoverd\` is not a known state, so this alternative never matches\n> States are the player's names such as \`@hovered\`, \`@focused\` and \`@pressed\`, or standard CSS pseudo-class names such as \`@focus-visible\``,
+    ]);
+  });
+
+  test.each(["@hoverd", "@hovered, @hoverd", "@not(@hoverd)", "@has(@hoverd)"])(
+    "says the whole block never applies in %s",
+    (selector) => {
+      expect(unknownStateWarnings(style(selector))).toEqual([
+        expect.stringContaining("`@hoverd` is not a known state, so this block never applies\n"),
+      ]);
+    },
+  );
+
   test("warns on an unknown name taking parameters", () => {
     expect(unknownStateWarnings(style("@nth-chld(2)"))).toEqual([
       expect.stringMatching(/^2:2-11 2 `@nth-chld` is not a known state/),

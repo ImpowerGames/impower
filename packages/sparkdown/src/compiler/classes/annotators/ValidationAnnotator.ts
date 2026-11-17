@@ -1631,7 +1631,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "SelectorStateName") {
       const state = this.read(nodeRef.from, nodeRef.to);
       if (!isKnownSelectorState(state)) {
-        const message = `\`@${state}\` is not a known state, so this block never applies\n> States are the player's names such as \`@hovered\`, \`@focused\` and \`@pressed\`, or standard CSS pseudo-class names such as \`@focus-visible\``;
+        let alternative = false;
+        for (let parent = nodeRef.node.parent; parent && !alternative; parent = parent.parent) {
+          alternative =
+            parent.name === "RecursiveSelectorFunction" &&
+            /^@(?:is|where)\(/.test(this.read(parent.from, parent.from + 7));
+        }
+        const consequence = alternative ? "this alternative never matches" : "this block never applies";
+        const message = `\`@${state}\` is not a known state, so ${consequence}\n> States are the player's names such as \`@hovered\`, \`@focused\` and \`@pressed\`, or standard CSS pseudo-class names such as \`@focus-visible\``;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
             message,
