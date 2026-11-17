@@ -49,6 +49,13 @@ describe("selector states (#2154)", () => {
     [`@not(${String.fromCodePoint(0x10400)}card)`, `:not(.${String.fromCodePoint(0x10400)}card)`],
     [`@is(card,${String.fromCodePoint(0x10400)}card)`, `:is(.card,.${String.fromCodePoint(0x10400)}card)`],
     ["@not(card@first-child)", ":not(.card\\@first-child)"],
+    ["@has(>icon)", ":has(>.icon)"],
+    ["@has(+icon)", ":has(+.icon)"],
+    ["@has(~icon)", ":has(~.icon)"],
+    ["@is(card>icon)", ":is(.card>.icon)"],
+    ["@nth-child(2n of card>icon)", ":nth-child(2n of .card>.icon)"],
+    ["card>icon", ".card>.icon"],
+    ["#title=a+b", "[title=a+b]"],
   ])("reads a component name inside %s as a class", (selector, css) => {
     expect(getCSSSelector(selector, {})).toBe(css);
   });
@@ -84,5 +91,7 @@ describe("selector states (#2154)", () => {
     expect([card, note].map((e) => e!.matches(notCard))).toEqual([false, true]);
     const hasIcon = getCSSSelector("@has(icon)", {});
     expect([card, note].map((e) => e!.matches(hasIcon))).toEqual([true, false]);
+    const hasChildIcon = getCSSSelector("@has(>icon)", {});
+    expect([card, note].map((e) => e!.matches(hasChildIcon))).toEqual([true, false]);
   });
 });

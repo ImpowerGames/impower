@@ -192,6 +192,16 @@ const SELECTOR_ARGUMENT_FUNCTION_REGEX = /@(?:has|not|is|where|host|host-context
 
 const NAME_START_REGEX = /^[_\p{L}]/u;
 
+const COMBINATOR_NAME_REGEX = /([>+~])(?=[_\p{L}])/gu;
+
+const ATTRIBUTE_BRACKET_REGEX = /(\[[^\]]*\])/;
+
+export const markCombinatorNames = (selector: string): string =>
+  selector
+    .split(ATTRIBUTE_BRACKET_REGEX)
+    .map((part, index) => (index & 1 ? part : part.replace(COMBINATOR_NAME_REGEX, "$1.")))
+    .join("");
+
 export const NAME_AT = String.fromCharCode(0xe000);
 
 const NAME_RUN_REGEX = /(^|[^@\p{L}\p{N}_-])([\p{L}\p{N}_-][@\p{L}\p{N}_-]*)/gu;

@@ -1,5 +1,6 @@
 import {
   keepStateArguments,
+  markCombinatorNames,
   markNameAts,
   markSelectorArgumentNames,
   NAME_AT,
@@ -45,8 +46,9 @@ export function sparkleSelectorToCssSelector(
     }
 
     let rewritten = writeSelectorStates(
-      markNameAts(piece)
-        .replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`)
+      markCombinatorNames(
+        markNameAts(piece).replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`),
+      )
         .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
         .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")
         .replace(DESCENDANT_REGEX, " "),
