@@ -99,6 +99,38 @@ describe("a one-line match or plural whose value is a bare name", () => {
   });
 
   test.each([
+    ["match [[a | b]]"],
+    ["match [=[a | b]=]"],
+    ["match mood -- a | b"],
+    ["match mood --[[ a | b ]]"],
+    ["plural n -- a | b"],
+  ])("a multi-line set whose head `%s` holds a bar in a long string or comment stays a multi-line set", (head) => {
+    const lines = [head, "| other = B.", "end"];
+    const found = blocks(scene(...lines));
+    expect(found[0]).toMatchObject({ name: MULTI, text: lines.join("\n  ") });
+    expect(found.map(({ name }) => name)).not.toContain(SINGLE);
+    expect(play(scene(...lines))).toEqual({ errors: [], warnings: [], out: "B.\nAfter.\n" });
+  });
+
+  test.each([
+    ["plural math.abs(math.abs(math.abs(n))) | one = A. | other = B. end", "B.\nAfter.\n"],
+    ["plural(math.abs(math.abs(math.abs(n)))) | one = A. | other = B. end", "B.\nAfter.\n"],
+  ])("`%s` reads a value with brackets nested three deep", (line, out) => {
+    expect(blocks(scene(line))[0]).toMatchObject({ name: SINGLE, text: line });
+    expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
+  });
+
+  test("a value with brackets nested three deep nests at an option's start", () => {
+    const line = "cycle | plural math.abs(math.abs(math.abs(n))) | one = A. | other = B. end | C. end";
+    expect(blocks(scene(line))).toContainEqual({
+      name: SINGLE,
+      text: "plural math.abs(math.abs(math.abs(n))) | one = A. | other = B. end",
+      parent: SEQUENTIAL,
+    });
+    expect(storyTextHoldingBars(scene(line))).toEqual([]);
+  });
+
+  test.each([
     ["a word that starts with the keyword", "matchbox | A. | B. end"],
     ["the keyword with no value", "match | A. | B. end"],
   ])("%s does not open a one-line conditional set", (_, line) => {
