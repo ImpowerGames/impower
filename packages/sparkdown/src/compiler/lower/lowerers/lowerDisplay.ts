@@ -939,7 +939,7 @@ const BRANCH_BODIES: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownElseifBlock_content",
   "LuauSparkdownElseBlock_content",
   "LuauSparkdownSequentialAlternatorBlock_content",
-  "LuauSparkdownConditionalAlternatorBlock_content",
+  "LuauSparkdownAlternatorArmLines_content",
 ]);
 
 const BRANCHING_BLOCKS: ReadonlySet<string> = nodeNameSet([

@@ -1,21 +1,26 @@
 import { EditorView } from "@codemirror/view";
+import type { TitleRegion } from "../../../../../../sparkdown-screenplay/src/utils/titlePageLayout";
+import { PREVIEW_FONT_SIZE } from "../../constants/PREVIEW_THEME";
 import { MarkupContent } from "../../types/MarkupContent";
 import getFormattedHTML from "../../utils/getFormattedHTML";
+import type { PrintedTitlePage } from "../../utils/screenplayGeometry";
 import BlockWidget from "../BlockWidget";
 import { DecorationSpec } from "../../types/DecorationSpec";
 
-const PIXELS_PER_INCH = 96;
-const INNER_PAGE_HEIGHT = 9 * PIXELS_PER_INCH;
-const FONT_SIZE = 16;
+const PAGE_BREAK_ROWS = 2;
 
-export interface TitlePageSpec extends DecorationSpec {
+const REGION_COLUMNS: Record<TitleRegion, { left: string; width: string; align: string }> = {
+  tl: { left: "0%", width: "calc(100% / 3)", align: "left" },
+  tc: { left: "calc(100% / 3)", width: "calc(100% / 3)", align: "center" },
+  tr: { left: "calc(200% / 3)", width: "calc(100% / 3)", align: "right" },
+  cc: { left: "0%", width: "100%", align: "center" },
+  bl: { left: "0%", width: "50%", align: "left" },
+  br: { left: "50%", width: "50%", align: "right" },
+};
+
+export interface TitlePageSpec extends DecorationSpec, Partial<Record<TitleRegion, MarkupContent[]>> {
   type: "title_page";
-  tl?: MarkupContent[];
-  tc?: MarkupContent[];
-  tr?: MarkupContent[];
-  cc?: MarkupContent[];
-  bl?: MarkupContent[];
-  br?: MarkupContent[];
+  page: PrintedTitlePage;
 }
 
 export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
@@ -23,61 +28,32 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     const container = document.createElement("div");
     container.classList.add("sp-title-page");
     container.style.pointerEvents = "none";
-    const gridEl = document.createElement("div");
-    gridEl.style.display = "grid";
-    gridEl.style.height = `${INNER_PAGE_HEIGHT}px`;
-    gridEl.style.gridTemplateColumns = "1fr 1fr 1fr 1fr 1fr 1fr";
-    gridEl.style.gridTemplateRows = "200px 1fr 300px";
-    const tlEl = document.createElement("div");
-    tlEl.style.gridColumnStart = "1";
-    tlEl.style.gridColumnEnd = "3";
-    if (this.spec.tl) {
-      tlEl.innerHTML = getFormattedHTML(this.spec.tl);
+    const frameEl = document.createElement("div");
+    frameEl.style.position = "relative";
+    frameEl.style.height = this.spec.page.height;
+    for (const [region, column] of Object.entries(REGION_COLUMNS) as [TitleRegion, (typeof REGION_COLUMNS)[TitleRegion]][]) {
+      const content = this.spec[region];
+      if (!content) continue;
+      const blockEl = document.createElement("div");
+      blockEl.style.position = "absolute";
+      blockEl.style.top = this.spec.page.tops[region];
+      blockEl.style.left = column.left;
+      blockEl.style.width = column.width;
+      blockEl.style.display = "flex";
+      blockEl.style.alignItems = "baseline";
+      const baselineEl = document.createElement("span");
+      baselineEl.style.flex = "none";
+      baselineEl.style.height = this.spec.page.baseline;
+      blockEl.appendChild(baselineEl);
+      const textEl = document.createElement("div");
+      textEl.style.flex = "1";
+      textEl.style.minWidth = "0";
+      textEl.style.textAlign = column.align;
+      textEl.innerHTML = getFormattedHTML(content);
+      blockEl.appendChild(textEl);
+      frameEl.appendChild(blockEl);
     }
-    gridEl.appendChild(tlEl);
-    const tcEl = document.createElement("div");
-    tcEl.style.gridColumnStart = "3";
-    tcEl.style.gridColumnEnd = "5";
-    tcEl.style.textAlign = "center";
-    if (this.spec.tc) {
-      tcEl.innerHTML = getFormattedHTML(this.spec.tc);
-    }
-    gridEl.appendChild(tcEl);
-    const trEl = document.createElement("div");
-    trEl.style.gridColumnStart = "5";
-    trEl.style.gridColumnEnd = "7";
-    trEl.style.textAlign = "right";
-    if (this.spec.tr) {
-      trEl.innerHTML = getFormattedHTML(this.spec.tr);
-    }
-    gridEl.appendChild(trEl);
-    const ccEl = document.createElement("div");
-    ccEl.style.gridColumnStart = "1";
-    ccEl.style.gridColumnEnd = "7";
-    ccEl.style.textAlign = "center";
-    ccEl.style.alignSelf = "center";
-    if (this.spec.cc) {
-      ccEl.innerHTML = getFormattedHTML(this.spec.cc);
-    }
-    gridEl.appendChild(ccEl);
-    const blEl = document.createElement("div");
-    blEl.style.gridColumnStart = "1";
-    blEl.style.gridColumnEnd = "4";
-    blEl.style.alignSelf = "end";
-    if (this.spec.bl) {
-      blEl.innerHTML = getFormattedHTML(this.spec.bl);
-    }
-    gridEl.appendChild(blEl);
-    const brEl = document.createElement("div");
-    brEl.style.gridColumnStart = "4";
-    brEl.style.gridColumnEnd = "7";
-    brEl.style.textAlign = "right";
-    brEl.style.alignSelf = "end";
-    if (this.spec.br) {
-      brEl.innerHTML = getFormattedHTML(this.spec.br);
-    }
-    gridEl.appendChild(brEl);
-    container.appendChild(gridEl);
+    container.appendChild(frameEl);
     const pageBreakEl = document.createElement("div");
     pageBreakEl.style.borderBottom = "1px solid #00000033";
     pageBreakEl.style.height = "1em";
@@ -87,6 +63,6 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
   }
 
   override get estimatedHeight(): number {
-    return INNER_PAGE_HEIGHT + FONT_SIZE * 2;
+    return (this.spec.page.rows + PAGE_BREAK_ROWS) * PREVIEW_FONT_SIZE;
   }
 }

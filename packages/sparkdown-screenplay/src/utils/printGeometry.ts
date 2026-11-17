@@ -14,6 +14,8 @@ export const EMOJI_FONT_ADVANCE = 1275 / 1024;
 
 export const PRINTED_LINE_HEIGHT = 1;
 
+export const PRINTED_BASELINE = 683 / 1000 + 1421 / 2048;
+
 export const SCENE_NUMBER_LEFT_GAP = 4;
 
 export const SCENE_NUMBER_RIGHT_GAP = 1;

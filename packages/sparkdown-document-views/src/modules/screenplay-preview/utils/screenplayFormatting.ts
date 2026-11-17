@@ -32,7 +32,8 @@ import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
 import { escapeHtml } from "./getFormattedHTML";
-import { printedLineStyle, printedNameStyle } from "./screenplayGeometry";
+import { printedLineStyle, printedNameStyle, printedTitlePage } from "./screenplayGeometry";
+import type { TitleRegionHeights } from "../../../../../sparkdown-screenplay/src/utils/titlePageLayout";
 import TitlePageWidget, {
   TitlePageSpec,
 } from "../classes/widgets/TitlePageWidget";
@@ -194,6 +195,7 @@ interface CachedPageLayout {
   scenes: PrintedScene[];
   wrapStarts: PrintedRowStart[];
   names: PrintedName[];
+  titleRows: TitleRegionHeights;
 }
 
 const printedStyle = (piece: FormattedText) => ({
@@ -261,6 +263,7 @@ const cachedPageLayout = (tree: Tree, doc: Text, config: ScreenplayConfig | unde
     scenes: layout.scenes,
     wrapStarts: layout.wrapStarts,
     names: layout.names,
+    titleRows: layout.titleRows,
   };
   pageLayoutCache.set(tree, result);
   return result;
@@ -323,7 +326,7 @@ export const decorate = (
 
   const tree = treeOverride ?? syntaxTree(state);
 
-  const { blankPositions, printed, actionStarts, inserts, rows, printedLines, runs, scenes, wrapStarts, names } =
+  const { blankPositions, printed, actionStarts, inserts, rows, printedLines, runs, scenes, wrapStarts, names, titleRows } =
     cachedPageLayout(tree, doc, config, scenesBefore);
 
   const nameIn = (from: number, to: number) => names.find((name) => name.at >= from && name.at < to);
@@ -927,6 +930,7 @@ export const decorate = (
             from,
             to,
             ...frontMatterPositionContent,
+            page: printedTitlePage(config, titleRows),
           }),
         );
       } else if (name === "FrontMatterField") {

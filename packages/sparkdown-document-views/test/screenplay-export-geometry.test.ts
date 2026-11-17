@@ -576,3 +576,135 @@ describe("the page's rows for glyphs Courier Prime lacks", () => {
     });
   }, 120_000);
 });
+
+const titleScript = (fields: string[]) => ["---", ...fields, "---", "", "scene s", "  Hello.", "end", ""].join("\n");
+
+const TOP_FIELDS = ["tl: Alpha left", "tc: Bravo centre", "tr: Charlie right"];
+const CENTRE_FIELDS = ["title: Delta title", "author: Golf author"];
+const BOTTOM_FIELDS = ["bl: Echo bottom left", "br:", "  Foxtrot bottom right", "  Hotel second row"];
+const TALL_BOTTOM = ["notes:", ...Array.from({ length: 12 }, (_, index) => `  India note row ${index + 1}`)];
+
+const TITLE_BLOCKS: [string, string, string[]][] = [
+  ["every region filled", titleScript([...TOP_FIELDS, ...CENTRE_FIELDS, ...BOTTOM_FIELDS]), ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"]],
+  ["only the centre", titleScript(CENTRE_FIELDS), ["Delta"]],
+  ["top blocks and no bottom blocks", titleScript([...TOP_FIELDS, ...CENTRE_FIELDS]), ["Alpha", "Bravo", "Charlie", "Delta"]],
+  ["bottom blocks only", titleScript(BOTTOM_FIELDS), ["Echo", "Foxtrot"]],
+  ["a tall bottom block", titleScript([...CENTRE_FIELDS, ...TALL_BOTTOM, "date: Juliet date"]), ["Delta", "India", "Juliet"]],
+];
+
+const TOP_MARGIN = 1;
+
+const pdfBaselines = async (script: string, config: ScreenplayConfig, markers: string[]) => {
+  const draws: { text: string; baseline: number }[] = [];
+  const prototype = PDFDocument.prototype as unknown as { text: (...args: unknown[]) => unknown };
+  const text = prototype.text;
+  let page = 0;
+  const addPage = PDFDocument.prototype.addPage;
+  const pageSpy = vi.spyOn(PDFDocument.prototype, "addPage").mockImplementation(function (this: PDFKit.PDFDocument, ...args) {
+    page++;
+    return addPage.apply(this, args);
+  });
+  const spy = vi.spyOn(prototype, "text").mockImplementation(function (this: PDFKit.PDFDocument, ...args: unknown[]) {
+    const [value, x, y, options] = args as [unknown, number, number, { baseline?: string } | undefined];
+    if (page === 1 && typeof value === "string" && typeof x === "number" && typeof y === "number") {
+      const state = this as unknown as { _font: { ascender: number }; _fontSize: number };
+      const drop = options?.baseline === "alphabetic" ? 0 : (state._font.ascender * state._fontSize) / 1000;
+      draws.push({ text: value, baseline: y + drop });
+    }
+    return text.apply(this, args);
+  });
+  try {
+    const { buildPDF } = await import(pathToFileURL(resolve(__dirname, "../../sparkdown-screenplay-pdf/src/buildPDF.ts")).href);
+    await buildPDF([script], config, FONTS);
+  } finally {
+    spy.mockRestore();
+    pageSpy.mockRestore();
+  }
+  return Object.fromEntries(
+    markers.map((marker) => {
+      const draw = draws.find((found) => found.text.includes(marker));
+      return [marker, draw ? draw.baseline / 72 - TOP_MARGIN : NaN];
+    }),
+  );
+};
+
+const pageBaselines = async (script: string, config: ScreenplayConfig, width: number, markers: string[]) => {
+  const page = await browser.newPage({ viewport: { width: width + 40, height: 6000 } });
+  await page.goto(pageUrl);
+  await page.waitForFunction(() => "renderScreenplay" in window);
+  await page.evaluate(() =>
+    Promise.all(["normal", "bold", "italic", "bold italic"].map((face) => document.fonts.load(`${face} 12px "Courier Prime"`))),
+  );
+  await page.evaluate(
+    ([text, settings, w]) =>
+      (window as unknown as { renderScreenplay: (...args: unknown[]) => void }).renderScreenplay("fixture", text, settings, 0, w),
+    [script, config, width] as const,
+  );
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  const result = await page.evaluate((wanted) => {
+    const titlePage = document.querySelector<HTMLElement>(".sp-title-page")!;
+    const frame = titlePage.firstElementChild as HTMLElement;
+    const line = document.querySelector<HTMLElement>(".cm-line")!;
+    const pxPerInch = parseFloat(getComputedStyle(line).lineHeight) * 6;
+    const frameTop = frame.getBoundingClientRect().top;
+    const baselines: Record<string, number> = {};
+    for (const marker of wanted) {
+      const walker = document.createTreeWalker(frame, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+        const index = node.data.indexOf(marker);
+        if (index < 0) continue;
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.collapse(true);
+        const probe = document.createElement("span");
+        probe.style.display = "inline-block";
+        probe.style.width = "0";
+        probe.style.height = "0";
+        probe.style.verticalAlign = "baseline";
+        range.insertNode(probe);
+        baselines[marker] = (probe.getBoundingClientRect().bottom - frameTop) / pxPerInch;
+        probe.remove();
+        break;
+      }
+    }
+    return {
+      baselines,
+      pxPerInch,
+      renderedHeight: titlePage.getBoundingClientRect().height,
+      estimatedHeight: (window as unknown as { titlePageEstimate: () => number | undefined }).titlePageEstimate(),
+    };
+  }, markers);
+  await page.close();
+  return result;
+};
+
+describe("the title page's blocks", () => {
+  it.each(TITLE_BLOCKS.flatMap(([name, script, markers]) => ["usletter", "a4"].map((paper) => [name, paper, script, markers] as const)))(
+    "print their first rows where the PDF prints them with %s on %s",
+    async (_name, paper, script, markers) => {
+      const config = { ...BASE, screenplay_print_title_page: true, screenplay_print_paper_size: paper };
+      const pdf = await pdfBaselines(script, config, markers);
+      const differences: string[] = [];
+      for (const width of [430, 760]) {
+        const page = await pageBaselines(script, config, width, markers);
+        for (const marker of markers) {
+          const shown = page.baselines[marker];
+          const print = pdf[marker]!;
+          if (shown === undefined || Number.isNaN(print) || Math.abs(shown - print) > 1.5 / page.pxPerInch) {
+            differences.push(`${width}px ${marker}: baseline on the page ${shown?.toFixed(3)} in, in the PDF ${print.toFixed(3)} in below the top margin`);
+          }
+        }
+      }
+      expect(differences).toEqual([]);
+    },
+    120_000,
+  );
+
+  it.each(["usletter", "a4"])("are estimated at the height they render on %s", async (paper) => {
+    const config = { ...BASE, screenplay_print_title_page: true, screenplay_print_paper_size: paper };
+    const [, script, markers] = TITLE_BLOCKS[0]!;
+    const page = await pageBaselines(script, config, 760, markers);
+    expect(Math.abs(page.estimatedHeight! - page.renderedHeight), `estimate ${page.estimatedHeight}, rendered ${page.renderedHeight}`).toBeLessThan(1);
+  }, 120_000);
+});
