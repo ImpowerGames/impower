@@ -236,6 +236,18 @@ describe("the Assets page", () => {
     expect(host!.firstElementChild).not.toBeNull();
   });
 
+  for (const width of ["desktop", "compact", "phone"] as const) {
+    it(`draws no title bar at ${width} width, so the search field starts the page and the page keeps its name (I-2464)`, async () => {
+      layout.value = width;
+      await mount();
+      const section = host!.querySelector<HTMLElement>('section[aria-label="Assets"]')!;
+      expect(section).not.toBeNull();
+      expect(section.querySelector("header, h1")).toBeNull();
+      expect(all<HTMLElement>("button").some((button) => button.textContent?.includes("Back to story"))).toBe(false);
+      expect(section.querySelector("header, h1, input, button")).toBe(section.querySelector('input[aria-label="Search assets"]'));
+    });
+  }
+
   for (const width of ["desktop", "phone"] as const) {
     it(`shows the six type tabs and an Add button at ${width} width`, async () => {
       layout.value = width;
