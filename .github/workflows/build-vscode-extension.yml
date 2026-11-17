@@ -33,3 +33,7 @@ jobs:
       - name: Build extension
         working-directory: vscode-sparkdown
         run: npm run package
+
+      - name: Check impower-ui entries in the game webview
+        working-directory: vscode-sparkdown/webviews/game-webview
+        run: npm run check:impower-ui

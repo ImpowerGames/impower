@@ -1,6 +1,8 @@
 import * as esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+import { impowerUiBuildOptions } from "../impowerUiBuildOptions.mjs";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
@@ -96,7 +98,7 @@ const esbuildProblemMatcher = () => ({
 });
 
 /** @type {import('esbuild').BuildOptions} BuildOptions **/
-const config = {
+export const config = {
   bundle: true,
   minify: PRODUCTION,
   sourcemap: !PRODUCTION,
@@ -108,6 +110,7 @@ const config = {
   target: "es2020",
   platform: "browser",
   format: "esm",
+  ...impowerUiBuildOptions,
   entryPoints: ["./game-webview.ts"],
   outfile: "../../out/webviews/game-webview.js",
   plugins: [rawPlugin, esbuildInlineWorkerPlugin(), esbuildProblemMatcher()],
@@ -129,7 +132,9 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
