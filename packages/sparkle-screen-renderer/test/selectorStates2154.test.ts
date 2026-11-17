@@ -29,6 +29,10 @@ describe("the screen preview writes style states as the game player does (#2154)
     ["@is(card,icon)", ":is(.card,.icon)"],
     ["@not(card)", ":not(.card)"],
     ["@has(icon)", ":has(.icon)"],
+    ["card@night @hovered", ".card\\@night:hover"],
+    ["card@first-child", ".card\\@first-child"],
+    ["@not(card@first-child)", ":not(.card\\@first-child)"],
+    [`@not(${String.fromCodePoint(0x10400)}card)`, `:not(.${String.fromCodePoint(0x10400)}card)`],
     ["@hoveredx", "@hoveredx"],
     ["@theme(dark)", "@media(prefers-color-scheme:dark)"],
   ])("writes %s as %s", (selector, css) => {

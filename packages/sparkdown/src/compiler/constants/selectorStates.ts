@@ -190,7 +190,14 @@ const ARGUMENT_STATE_REGEX = /@([_\p{L}][_\p{L}0-9-]*)[(]/uy;
 
 const SELECTOR_ARGUMENT_FUNCTION_REGEX = /@(?:has|not|is|where|host|host-context|nth-child|nth-last-child)$/u;
 
-const NAME_START_REGEX = /[_\p{L}]/u;
+const NAME_START_REGEX = /^[_\p{L}]/u;
+
+export const NAME_AT = String.fromCharCode(0xe000);
+
+const NAME_RUN_REGEX = /(^|[^@\p{L}\p{N}_-])([\p{L}\p{N}_-][@\p{L}\p{N}_-]*)/gu;
+
+export const markNameAts = (selector: string): string =>
+  selector.replace(NAME_RUN_REGEX, (_, before: string, run: string) => before + run.replace(/@(?=[\p{L}\p{N}_])/gu, NAME_AT));
 
 const SELECTOR_LIST_SEPARATOR_REGEX = /^(.*?)\s+of\s+(.*)$/su;
 
@@ -296,7 +303,7 @@ export const markSelectorArgumentNames = (selector: string): string => {
     if (
       (char === "(" || char === ",") &&
       selectorLists[selectorLists.length - 1] &&
-      NAME_START_REGEX.test(selector[i + 1] ?? "")
+      NAME_START_REGEX.test(selector.slice(i + 1, i + 3))
     ) {
       out += ".";
     }

@@ -4,7 +4,9 @@ import {
 } from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
 import {
   keepStateArguments,
+  markNameAts,
   markSelectorArgumentNames,
+  NAME_AT,
   writeSelectorStates,
 } from "../../../sparkdown/src/compiler/constants/selectorStates";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
@@ -83,14 +85,7 @@ function liftColorScheme(selector: string): string {
 
 const DATA_ATTRIBUTE_SELECTOR_REGEX = /[#]([_\p{L}][_\p{L}0-9-]*)/gu;
 
-const NAME_AT = "";
-
 const NAME_AT_ESCAPE = escapeCssIdentifier("@");
-
-const NAME_RUN_REGEX = /(^|[^@\p{L}\p{N}_-])([\p{L}\p{N}_-][@\p{L}\p{N}_-]*)/gu;
-
-const markNameAts = (piece: string) =>
-  piece.replace(NAME_RUN_REGEX, (_, before: string, run: string) => before + run.replace(/@(?=[\p{L}\p{N}_])/gu, NAME_AT));
 
 export function getCSSSelector(
   selector: string,

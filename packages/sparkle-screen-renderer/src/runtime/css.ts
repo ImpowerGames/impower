@@ -1,9 +1,14 @@
 import {
   keepStateArguments,
+  markNameAts,
   markSelectorArgumentNames,
+  NAME_AT,
   SELECTOR_STATE_ALIASES,
   writeSelectorStates,
 } from "../../../sparkdown/src/compiler/constants/selectorStates";
+import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
+
+const NAME_AT_ESCAPE = escapeCssIdentifier("@");
 
 const SCREEN_STATE_ALIASES: Readonly<Record<string, string>> = {
   ...SELECTOR_STATE_ALIASES,
@@ -40,13 +45,13 @@ export function sparkleSelectorToCssSelector(
     }
 
     let rewritten = writeSelectorStates(
-      piece
-        .replace(ATTRIBUTE_SELECTOR_REGEX, "[$1]")
+      markNameAts(piece)
+        .replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`)
         .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
         .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")
         .replace(DESCENDANT_REGEX, " "),
       SCREEN_STATE_ALIASES,
-    );
+    ).replaceAll(NAME_AT, NAME_AT_ESCAPE);
 
     for (const [name, px] of Object.entries(breakpoints)) {
       rewritten = rewritten.replace(breakpointRegex(name), `width:${px}px)`);

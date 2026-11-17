@@ -46,6 +46,9 @@ describe("selector states (#2154)", () => {
     ["@where(card, @hovered)", ":where(.card,:hover)"],
     ["@not(@is(card, @first-child))", ":not(:is(.card,:first-child))"],
     ["@nth-child(2n of a,b)", ":nth-child(2n of .a,.b)"],
+    [`@not(${String.fromCodePoint(0x10400)}card)`, `:not(.${String.fromCodePoint(0x10400)}card)`],
+    [`@is(card,${String.fromCodePoint(0x10400)}card)`, `:is(.card,.${String.fromCodePoint(0x10400)}card)`],
+    ["@not(card@first-child)", ":not(.card\\@first-child)"],
   ])("reads a component name inside %s as a class", (selector, css) => {
     expect(getCSSSelector(selector, {})).toBe(css);
   });
