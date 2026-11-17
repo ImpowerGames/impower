@@ -5830,7 +5830,7 @@ repository:
           - { include: "#LuauComment" }
 
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^()\r\n]*[)]{{WS}}*[|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?={{LUAU_EXPRESSION_START}}(?:[^\s|()]|[(][^()\r\n]*[)])+{{WS}}*[|])
     beginCaptures:
       1:
         patterns:

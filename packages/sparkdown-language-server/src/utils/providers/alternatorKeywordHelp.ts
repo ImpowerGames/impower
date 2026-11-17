@@ -74,7 +74,7 @@ const SEQUENTIAL_OPTION_START_RULE = (keyword: string) =>
   `At the start of an option, \`${keyword}\` followed by \`|\` opens a one-line set nested in that option, which ends at its own \`end\`: \`cycle | ${keyword} | A. | B. end | C. end\`. Write \`\\${keyword}\` to show the word itself.`;
 
 const CONDITIONAL_OPTION_START_RULE = (keyword: string, value: string, key: string) =>
-  `At the start of an option, \`${keyword}\` with its value in brackets and then \`|\` opens a one-line set nested in that option, which ends at its own \`end\`: \`cycle | ${keyword}(${value}) | ${key} = A. | other = B. end | C. end\`. Write \`\\${keyword}\` to show the word itself.`;
+  `At the start of an option, \`${keyword}\` with its value, in brackets or not, and then \`|\` opens a one-line set nested in that option, which ends at its own \`end\`: \`cycle | ${keyword} ${value} | ${key} = A. | other = B. end | C. end\`. Write \`\\${keyword}\` to show the word itself.`;
 
 const OPTION_START_RULES: Record<AlternatorKeyword, string> = {
   queue: SEQUENTIAL_OPTION_START_RULE("queue"),

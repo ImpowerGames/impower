@@ -18819,7 +18819,7 @@
       }
     },
     "LuauSparkdownSingleLineConditionalAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)((?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:match|plural)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))((?:[^\\S\\n\\r])*)(?=[(][^()\\r\\n]*[)](?:[^\\S\\n\\r])*[|])",
+      "begin": "((?:[^\\S\\n\\r])*)((?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:match|plural)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))((?:[^\\S\\n\\r])*)(?=(?=[a-zA-Z0-9_\"'`({#@-]|\\[=*\\[|[.][0-9.])(?!(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:and|break|do|else|elseif|end|for|in|local|or|repeat|return|then|until|while)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:[^\\s|()]|[(][^()\\r\\n]*[)])+(?:[^\\S\\n\\r])*[|])",
       "beginCaptures": {
         "1": {
           "patterns": [
