@@ -214,7 +214,12 @@ describe("Dropdown under preact/compat", () => {
 
 const RATIOS = ["auto", "16:9", "9:16"];
 
-const mountRadio = async (value = "auto", disabled = false, size?: "default" | "small") => {
+const mountRadio = async (
+  value = "auto",
+  disabled = false,
+  size?: "default" | "small",
+  chosenWeight?: "semibold" | "normal",
+) => {
   const onValueChange = vi.fn();
   host = document.body.appendChild(document.createElement("div"));
   await act(async () =>
@@ -230,7 +235,7 @@ const mountRadio = async (value = "auto", disabled = false, size?: "default" | "
             onValueChange={onValueChange}
           >
             {RATIOS.map((ratio) => (
-              <DropdownRadioItem key={ratio} value={ratio} disabled={disabled} size={size}>
+              <DropdownRadioItem key={ratio} value={ratio} disabled={disabled} size={size} chosenWeight={chosenWeight}>
                 {ratio}
               </DropdownRadioItem>
             ))}
@@ -295,6 +300,21 @@ describe("Dropdown radio items under preact/compat", () => {
       expect(classes).toEqual(expect.arrayContaining(["text-[13px]", "font-normal"]));
       expect(classes).not.toContain("text-sm");
       expect(classes).not.toContain("data-[state=checked]:font-semibold");
+    }
+  });
+
+  it("keeps the chosen item at the default size's weight when the caller asks for a normal chosen weight", async () => {
+    const { trigger } = await mountRadio("16:9", false, undefined, "normal");
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    expect(checked()).toEqual([
+      ["auto", "false"],
+      ["16:9", "true"],
+      ["9:16", "false"],
+    ]);
+    for (const item of radios()) {
+      expect(item.className).not.toContain("font-semibold");
+      expect(item.className.split(" ")).not.toContain("font-normal");
     }
   });
 
