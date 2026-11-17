@@ -4,16 +4,22 @@ import {
   DropdownContent,
   DropdownItem,
   DropdownRoot,
-  DropdownSeparator,
   DropdownTrigger,
   DuplicateIcon,
   FolderIcon,
   MoreVerticalIcon,
   PencilPlainIcon,
+  SelectIcon,
   TrashIcon,
 } from "@impower/impower-ui/components";
 
-export type RowAction = "rename" | "move" | "duplicate" | "download" | "delete";
+export type RowAction =
+  | "select"
+  | "rename"
+  | "move"
+  | "duplicate"
+  | "download"
+  | "delete";
 
 export type RowMenuProps = {
   name: string;
@@ -37,6 +43,12 @@ export default function RowMenu({ name, main, onAction }: RowMenuProps) {
       </DropdownTrigger>
       <DropdownContent elevation="library" align="end" class="min-w-[196px]">
         {!main && (
+          <DropdownItem onSelect={() => onAction("select")}>
+            <SelectIcon class="text-muted" />
+            Select
+          </DropdownItem>
+        )}
+        {!main && (
           <DropdownItem returnFocus={false} onSelect={() => onAction("rename")}>
             <PencilPlainIcon class="text-muted" />
             Rename
@@ -56,7 +68,6 @@ export default function RowMenu({ name, main, onAction }: RowMenuProps) {
           <DownloadIcon class="text-muted" />
           Download
         </DropdownItem>
-        {!main && <DropdownSeparator />}
         {!main && (
           <DropdownItem class="text-error" onSelect={() => onAction("delete")}>
             <TrashIcon class="text-muted" />
