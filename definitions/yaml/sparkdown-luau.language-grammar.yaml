@@ -5834,12 +5834,16 @@ repository:
         patterns:
           - { include: "#LuauComment" }
 
-  # lookaround: opens only at the keyword's end (`\G`), and not before the
-  # bar of a set with no value, where it would end where it opened; the
-  # condition reads the value, and the end takes the line break after it,
-  # which leaves the rest of the set to `LuauSparkdownAlternatorArmLines`, or
-  # stops before the bar after it, which `LuauSparkdownSingleLineAlternatorArms`
-  # reads.
+  # lookaround: the rival is `LuauSparkdownSingleLineAlternatorArms`, which
+  # opens at a bar after the keyword: before a bar right after the keyword
+  # this head would end where it opened, which vscode-textmate stops the line
+  # on, so it steps aside there. It opens only at the keyword's end (`\G`,
+  # not at a later line's start, `^`, where the set's anchor also falls when
+  # the keyword ends its line), since the set reaches its patterns again at
+  # the start of every line it holds and ordering cannot keep a second head
+  # from opening there. Its end takes the line break, which is what leaves
+  # the set open for `LuauSparkdownAlternatorArmLines`, or stops before the
+  # bar, the `end` or the `until` that the set and its arms read.
   LuauSparkdownConditionalAlternatorHead:
     begin: \G(?!^)(?!{{WS}}*[|])
     patterns:
@@ -5853,9 +5857,10 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-
-  # lookaround: opens at the start of the line after a head that took its
-  # line break, and ends before what ends the set around it.
+  # lookaround: the set's end steps aside at the start of the line after a
+  # head that took its line break (`^`), so this opens there; it ends before
+  # the beat, `end` or `until` the set around it reads, as the set's own
+  # patterns cannot hold arm lines without the set ending at each line end.
   LuauSparkdownAlternatorArmLines:
     begin: ^
     patterns:
@@ -5863,11 +5868,13 @@ repository:
       - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*end{{LUAU_NAME_END}})|(?={{WS}}*{{LUAU_UNTIL}})
 
-  # lookaround: opens at the bar after a value on the keyword's line, never
-  # at a line's start, where `LuauSparkdownAlternatorArmLines` opens; before
-  # an `end` it takes the space and leaves the `end` to the set around it.
+  # lookaround: opens before the bar `LuauAlternatorSeparator` reads, and the
+  # rival at its end is `LuauSparkdownSingleLineConditionalAlternatorBlock`'s
+  # end: before an `end` these arms take the space and leave the `end` to the
+  # set, which takes an `end` with no space before it only after its arms, so
+  # a nested set with no arms leaves a spaced `end` to the set around it.
   LuauSparkdownSingleLineAlternatorArms:
-    begin: (?!^)(?={{WS}}*[|])
+    begin: (?={{WS}}*[|])
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownSingleLineConditionalAlternatorBlock" }
