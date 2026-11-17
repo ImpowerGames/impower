@@ -1,18 +1,36 @@
 type BackEntry = { close: () => void; href: string; index?: number };
 
-type NavigationLike = { currentEntry?: { index: number } | null };
+type NavigationLike = {
+  currentEntry?: { index: number } | null;
+  entries?: () => { sameDocument: boolean }[];
+};
+
+const navigationApi = (): NavigationLike | undefined =>
+  (globalThis as { navigation?: NavigationLike }).navigation;
+
+const keepBackInDocument = () => {
+  const navigation = navigationApi();
+  const index = navigation?.currentEntry?.index;
+  if (typeof index !== "number" || typeof navigation?.entries !== "function") {
+    return;
+  }
+  const previous = navigation.entries()[index - 1];
+  if (!previous?.sameDocument) {
+    window.history.pushState(window.history.state, "", window.location.href);
+  }
+};
 
 const entries: BackEntry[] = [];
 
 let returnTo: number | undefined;
 
 const historyIndex = (): number | undefined => {
-  const index = (globalThis as { navigation?: NavigationLike }).navigation
-    ?.currentEntry?.index;
+  const index = navigationApi()?.currentEntry?.index;
   return typeof index === "number" && index >= 0 ? index : undefined;
 };
 
 export function watchBack(close: () => void): () => void {
+  keepBackInDocument();
   const entry: BackEntry = {
     close,
     href: window.location.href,
