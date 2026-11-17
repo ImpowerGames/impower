@@ -5,4 +5,6 @@ export interface NameSpec {
   name: string;
   style: string;
   pageBreak: boolean;
+  rows: number;
+  row: number;
 }

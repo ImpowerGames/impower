@@ -5,12 +5,12 @@ import getFormattedHTML from "../../utils/getFormattedHTML";
 import BlockWidget from "../BlockWidget";
 
 const NEWLINES_REGEX = /$/gm;
-const DEFAULT_LINE_HEIGHT = 22.390625;
 
 export interface DialogueSpec extends DecorationSpec {
   type: "dialogue";
   blocks: MarkupContent[][];
   grid: boolean;
+  row: number;
 }
 
 export default class DialogueWidget extends BlockWidget<DialogueSpec> {
@@ -56,8 +56,8 @@ export default class DialogueWidget extends BlockWidget<DialogueSpec> {
   override get estimatedHeight(): number {
     let lineCount = 0;
     for (const block of this.spec.blocks) {
-      lineCount += this.getEstimatedLineCount(block);
+      lineCount = Math.max(lineCount, this.getEstimatedLineCount(block));
     }
-    return lineCount * DEFAULT_LINE_HEIGHT;
+    return lineCount * this.spec.row;
   }
 }

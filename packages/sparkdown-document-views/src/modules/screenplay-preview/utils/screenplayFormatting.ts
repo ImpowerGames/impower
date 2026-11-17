@@ -31,6 +31,7 @@ import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
+import { PREVIEW_FONT_SIZE } from "../constants/PREVIEW_THEME";
 import { escapeHtml } from "./getFormattedHTML";
 import { printedLineStyle, printedNameStyle, printedTitlePage } from "./screenplayGeometry";
 import type { TitleRegionHeights } from "../../../../../sparkdown-screenplay/src/utils/titlePageLayout";
@@ -47,6 +48,7 @@ import { RevealSpec } from "../types/RevealSpec";
 import {
   screenplayConfigField,
   screenplayPicksField,
+  screenplayRowField,
   screenplayScenesBeforeField,
 } from "./screenplaySettings";
 
@@ -281,6 +283,7 @@ export const decorate = (
   const config = state.field(screenplayConfigField, false);
   const picks = state.field(screenplayPicksField, false);
   const scenesBefore = state.field(screenplayScenesBeforeField, false) ?? 0;
+  const row = state.field(screenplayRowField, false) ?? PREVIEW_FONT_SIZE;
 
   const declarationName = (nodeRef: SyntaxNodeRef, child: SparkdownNodeName) => {
     const cursor = nodeRef.node.cursor();
@@ -338,6 +341,8 @@ export const decorate = (
     name: name.pieces.map((piece) => piece.text).join(""),
     style: `${printedNameStyle(config, name, name.level)}${printedStyle(name.pieces[0]?.style ?? { text: "" }).style}`,
     pageBreak,
+    rows: Math.max(name.pieces.length, 1),
+    row,
   });
 
   const exportedLinesFrom = (from: number, to: number) => {
@@ -837,7 +842,7 @@ export const decorate = (
         decorations.push(
           ...createDecorations(
             doc,
-            sceneName ? nameSpec(sceneName, from, to, true) : { type: "page_break", from, to },
+            sceneName ? nameSpec(sceneName, from, to, true) : { type: "page_break", from, to, row },
           ),
         );
         return false;
@@ -964,6 +969,7 @@ export const decorate = (
             const contentEnd = findBlockContentEnd(from, to);
             const spec: DialogueSpec = {
               type: "dialogue",
+              row,
               from,
               to: contentEnd,
               blocks: [
@@ -1006,6 +1012,7 @@ export const decorate = (
         } else {
           const spec: DialogueSpec = {
             type: "dialogue",
+            row,
             from,
             to,
             blocks: [dialogueContent],
@@ -1145,6 +1152,8 @@ const replaceDecorations = StateField.define<DecorationSet>({
           state.field(screenplayConfigField, false) &&
         startState.field(screenplayPicksField, false) ===
           state.field(screenplayPicksField, false) &&
+        startState.field(screenplayRowField, false) ===
+          state.field(screenplayRowField, false) &&
         startState.field(screenplayScenesBeforeField, false) ===
           state.field(screenplayScenesBeforeField, false);
       if (unchanged) return decorations;

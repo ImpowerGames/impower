@@ -13,7 +13,6 @@ export interface InsertedRowBreaks {
   block?: boolean;
 }
 
-const DEFAULT_LINE_HEIGHT = 22.390625;
 
 const lineBreak = () => {
   const br = document.createElement("br");
@@ -69,9 +68,5 @@ export default class InsertedRowWidget extends WidgetType {
           piece.name === this.pieces[index]!.name,
       )
     );
-  }
-
-  override get estimatedHeight() {
-    return this.inline ? -1 : DEFAULT_LINE_HEIGHT;
   }
 }
