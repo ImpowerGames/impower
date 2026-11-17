@@ -17,6 +17,7 @@ import {
 import { keyboardToolbar } from "../../src/modules/script-editor/utils/extensions/keyboardToolbar";
 import { scriptMode } from "../../src/modules/script-editor/utils/extensions/scriptMode";
 import { statusPanel } from "../../src/modules/script-editor/utils/extensions/statusPanel";
+import { ICONED_COMPLETION_TYPES, ICONLESS_COMPLETION_TYPES } from "./completion-types";
 
 const SCRIPT = [
   "scene start",
@@ -61,7 +62,7 @@ const view = new EditorView({
         override: [
           (context) => ({
             from: context.pos,
-            options: ["method", "variable", "keyword", "snippet", "untyped"].map((type) => ({
+            options: [...ICONED_COMPLETION_TYPES, ...ICONLESS_COMPLETION_TYPES].map((type) => ({
               label: `${type}Item`,
               type,
             })),

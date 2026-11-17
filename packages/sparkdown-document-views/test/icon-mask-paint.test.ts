@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { ICONED_COMPLETION_TYPES, ICONLESS_COMPLETION_TYPES } from "./harness/completion-types";
 import { buildIconMaskPaintPage } from "./harness/icon-mask-paint.mjs";
 
 interface Painted {
@@ -33,7 +34,7 @@ const paints = async (forcedColors: "active" | "none") => {
   await page.goto(pageUrl);
   await page.waitForFunction(() => "iconMaskPaint" in window);
   await page.evaluate(() => (window as unknown as { iconMaskPaint: { ready: Promise<void> } }).iconMaskPaint.ready);
-  const result = await page.evaluate(() => {
+  const result = await page.evaluate((iconless) => {
     const probe = document.body.appendChild(document.createElement("span"));
     probe.style.color = "CanvasText";
     const canvasText = getComputedStyle(probe).color;
@@ -56,10 +57,14 @@ const paints = async (forcedColors: "active" | "none") => {
         });
       }
     }
-    const untyped = document.querySelector(".cm-completionIcon-untyped");
-    const unmasked = untyped ? getComputedStyle(untyped, "::after").backgroundColor : "no untyped completion icon";
+    const unmasked = Object.fromEntries(
+      iconless.map((type) => {
+        const icon = document.querySelector(`.cm-completionIcon-${type}`);
+        return [type, icon ? getComputedStyle(icon, "::after").backgroundColor : "no such completion icon"];
+      }),
+    );
     return { canvasText, painted, unmasked };
-  });
+  }, [...ICONLESS_COMPLETION_TYPES]);
   await context.close();
   return result;
 };
@@ -81,10 +86,7 @@ const EXPECTED = [
   "[name='close']::after",
   "[name='submit']::after",
   ".codicon-info::after",
-  ".cm-completionIcon-method::after",
-  ".cm-completionIcon-variable::after",
-  ".cm-completionIcon-keyword::after",
-  ".cm-completionIcon-snippet::after",
+  ...ICONED_COMPLETION_TYPES.map((type) => `.cm-completionIcon-${type}::after`),
 ];
 
 const covers = (painted: Painted[]) =>
@@ -97,9 +99,9 @@ describe("every masked icon in the code editor", () => {
     expect(painted.filter((icon) => icon.background !== icon.color)).toEqual([]);
   });
 
-  it("leaves an icon with no mask unpainted, so a completion with no icon of its own shows no square", async () => {
+  it.each(ICONLESS_COMPLETION_TYPES)("leaves the %s completion, which has no icon of its own, unpainted, so it shows no square", async (type) => {
     for (const mode of ["none", "active"] as const) {
-      expect((await paints(mode)).unmasked, mode).toMatch(/^rgba\(\d+, \d+, \d+, 0\)$/);
+      expect((await paints(mode)).unmasked[type], mode).toMatch(/^rgba\(\d+, \d+, \d+, 0\)$/);
     }
   });
 
