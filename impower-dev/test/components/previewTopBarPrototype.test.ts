@@ -199,7 +199,7 @@ describe("the preview top bar against the prototype", () => {
     await setPhone(true);
     running();
     const bar = await mount();
-    const mode = bar.querySelector<HTMLElement>('[aria-label="Viewing mode"]')!;
+    const mode = bar.querySelector<HTMLElement>('[aria-label^="Viewing mode"]')!;
     const chevron = mode.querySelectorAll("svg")[1]!;
     expect(chevron.getAttribute("class")).not.toContain("@max-[480px]:hidden");
     expect(mode.classList).toContain("@max-[480px]:w-11");

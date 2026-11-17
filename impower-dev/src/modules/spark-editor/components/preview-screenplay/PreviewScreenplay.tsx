@@ -239,7 +239,11 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
         }
       }}
     >
-      <div class="absolute inset-0 flex flex-col overflow-y-auto">
+      <div
+        class="sparkdown-screenplay-paper absolute inset-0 flex flex-col overflow-y-auto"
+        data-paper={preferences.screenplayPaper}
+        data-texture={preferences.screenplayPaperTexture ? "" : undefined}
+      >
         <SparkdownScreenplayPreview
           scrollMargin="auto auto 60px auto"
           config={workspaceSettings.screenplayConfig.value}

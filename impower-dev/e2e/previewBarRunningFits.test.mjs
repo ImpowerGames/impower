@@ -31,7 +31,7 @@ const problems = (page, width) =>
     const shown = new Set(buttons.map(({ label }) => label));
     const required = ["Pause", "Skip back", "Stop", "Skip forward", "Saves", "Preview settings"];
     if (width >= 360) required.push("Viewing mode");
-    for (const label of required) if (!shown.has(label)) found.push(`${label} missing`);
+    for (const label of required) if (![...shown].some((name) => name === label || name.startsWith(`${label}: `))) found.push(`${label} missing`);
     if (!shown.has("Step") && !stepItems.every((label) => shown.has(label))) found.push("step controls missing");
     for (const { label, r } of buttons) {
       if (r.left < box.left - 0.5 || r.right > box.right + 0.5) found.push(`${label} outside the bar`);

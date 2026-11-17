@@ -40,6 +40,9 @@ const PREVIEW_THEME: {
   "& .sp-scene-bold::before, & .sp-scene-bold::after": {
     fontWeight: "bold",
   },
+  "& .sp-heading::before, & .sp-heading::after": {
+    whiteSpace: "nowrap",
+  },
   "&[data-scene-numbers=left] .sp-heading::before, &[data-scene-numbers=both] .sp-heading::before":
     {
       content: "attr(data-scene-number)",

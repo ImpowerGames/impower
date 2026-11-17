@@ -4,20 +4,18 @@ sparkdown-screenplay-preview {
   flex-direction: column;
 }
 
-.sparkdown-screenplay-preview-root {
+.sparkdown-screenplay-preview-root,
+.sparkdown-screenplay-paper {
   --sp-paper: #ebeae8;
   --sp-ink: #333;
   --sp-muted: #666;
   --sp-accent: #9c4519;
   --sp-lit: #0000000d;
   --sp-texture: none;
-  container-type: inline-size;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
 }
 
-.sparkdown-screenplay-preview-root[data-paper="theme"] {
+.sparkdown-screenplay-preview-root[data-paper="theme"],
+.sparkdown-screenplay-paper[data-paper="theme"] {
   --sp-paper: var(--paper);
   --sp-ink: var(--ink);
   --sp-muted: var(--muted);
@@ -25,8 +23,22 @@ sparkdown-screenplay-preview {
   --sp-lit: var(--tint);
 }
 
-.sparkdown-screenplay-preview-root[data-texture] {
+.sparkdown-screenplay-preview-root[data-texture],
+.sparkdown-screenplay-paper[data-texture] {
   --sp-texture: var(--screenplay-preview-texture, none);
+}
+
+.sparkdown-screenplay-paper {
+  background-color: var(--sp-paper);
+  background-image: var(--sp-texture);
+  background-repeat: repeat;
+}
+
+.sparkdown-screenplay-preview-root {
+  container-type: inline-size;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 
 .sparkdown-screenplay-preview-root * {

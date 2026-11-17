@@ -99,6 +99,7 @@ interface Printed {
   rowHeight: number;
   rowInches: number;
   names?: { text: string; weight: string; decoration: string; muted: boolean }[];
+  numberLines?: string[];
 }
 
 const spaced = (pieces: { text: string; x: number; width: number }[], cell: number) => {
@@ -239,6 +240,7 @@ const drawn = async (script: string, config: ScreenplayConfig, width: number, sc
         return { text, left: (row[0]!.left - origin) / cell, top, page: 0 };
       });
     const numbers: { left: string[]; right: string[] } = { left: [], right: [] };
+    const numberLines: string[] = [];
     const right = content.getBoundingClientRect().right;
     for (const heading of Array.from(content.querySelectorAll<HTMLElement>(".sp-heading"))) {
       for (const [pseudo, side] of [
@@ -249,6 +251,8 @@ const drawn = async (script: string, config: ScreenplayConfig, width: number, sc
         if (style.content === "none" || style.content === "normal" || style.display === "none") continue;
         const box = heading.getBoundingClientRect();
         const number = heading.dataset["sceneNumber"]!;
+        const lineHeight = parseFloat(getComputedStyle(heading).lineHeight);
+        numberLines.push(`${number}@${side}:${Math.round(parseFloat(style.height) / lineHeight)}`);
         if (side === "left") {
           const edge = box.right - parseFloat(style.right);
           numbers.left.push(`${number}@${((edge - origin) / cell).toFixed(2)}`);
@@ -269,7 +273,7 @@ const drawn = async (script: string, config: ScreenplayConfig, width: number, sc
       const style = getComputedStyle(name);
       return { text: name.textContent ?? "", weight: style.fontWeight, decoration: style.textDecorationLine, muted: style.color === mutedColor };
     });
-    return { rows, numbers, names, rowHeight, rowInches: rowHeight / (cell / (((1228 / 2048) * 12) / 72)) };
+    return { rows, numbers, numberLines, names, rowHeight, rowInches: rowHeight / (cell / (((1228 / 2048) * 12) / 72)) };
   });
   await page.close();
   return result;
@@ -352,6 +356,20 @@ describe("the Screenplay page draws every row where the PDF prints it", () => {
     expect(page.numbers.left.length).toBeGreaterThan(0);
     expect(page.numbers.left).toEqual(tail(pdf.numbers.left));
     expect(page.numbers.right).toEqual(tail(pdf.numbers.right));
+  }, 120_000);
+
+  const numbered = (count: number) =>
+    Array.from({ length: count }, (_, index) => [`scene s${index + 1}`, `  $: INT. ROOM ${index + 1} - DAY`, "  Hello.", "end", ""].join("\n")).join("\n");
+
+  it.each([
+    [8, ["9", "10"]],
+    [98, ["99", "100"]],
+  ])("keeps scene numbers after %i earlier scenes on one row in both margins where the PDF prints them", async (scenesBefore, expected) => {
+    const pdf = await printed(numbered(scenesBefore + 2), NAMED);
+    const page = await drawn(numbered(2), NAMED, 560, scenesBefore);
+    expect(page.numberLines).toEqual(expected.flatMap((number) => [`${number}@left:1`, `${number}@right:1`]));
+    expect(page.numbers.left).toEqual(pdf.numbers.left.slice(-2));
+    expect(page.numbers.right).toEqual(pdf.numbers.right.slice(-2));
   }, 120_000);
 });
 

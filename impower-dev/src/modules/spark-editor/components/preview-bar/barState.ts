@@ -31,14 +31,27 @@ export const ASPECT_RATIO_ROWS: readonly {
   { value: "9:16", name: "9:16", hint: "Portrait" },
 ];
 
+const shownSize = (size: GameSize | undefined): string | null =>
+  size && size.width > 0 && size.height > 0
+    ? `${Math.round(size.width)}×${Math.round(size.height)}`
+    : null;
+
 export const aspectRatioLabel = (
   choice: AspectRatioChoice,
   size: GameSize | undefined,
 ): string => {
   const name = choice === "auto" ? "Auto" : choice;
-  return size && size.width > 0 && size.height > 0
-    ? `${name} · ${Math.round(size.width)}×${Math.round(size.height)}`
-    : name;
+  const shown = shownSize(size);
+  return shown ? `${name} · ${shown}` : name;
+};
+
+export const aspectRatioButtonName = (
+  choice: AspectRatioChoice,
+  size: GameSize | undefined,
+): string => {
+  const name = choice === "auto" ? "Auto" : choice;
+  const shown = shownSize(size);
+  return `Game aspect ratio: ${name}${shown ? `, shown at ${shown} pixels` : ""}`;
 };
 
 export const aspectRatioLabelReserves = (

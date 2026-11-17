@@ -247,20 +247,21 @@ const clearOf = (
   trigger: HTMLElement | null,
   menu: HTMLElement | null,
   sideOffset: number,
+  edge: number,
 ) => {
-  const top = Math.max(EDGE_GAP, line);
+  const top = Math.max(edge, line);
   const placed = (bottom: number, offset: number) => ({
-    padding: { top, bottom, left: EDGE_GAP, right: EDGE_GAP },
+    padding: { top, bottom, left: edge, right: edge },
     offset,
   });
   if (!trigger) {
-    return placed(EDGE_GAP, sideOffset);
+    return placed(edge, sideOffset);
   }
   const least = leastHeight(menu);
   const at = trigger.getBoundingClientRect();
   const under = window.innerHeight - at.bottom - least;
-  if (under - sideOffset >= EDGE_GAP || at.top - sideOffset - top >= least) {
-    return placed(EDGE_GAP, sideOffset);
+  if (under - sideOffset >= edge || at.top - sideOffset - top >= least) {
+    return placed(edge, sideOffset);
   }
   if (under - sideOffset >= KEEP_CLEAR_MARGIN) {
     return placed(under - sideOffset, sideOffset);
@@ -336,6 +337,7 @@ function SheetMenu({
 export function DropdownContent({
   class: className,
   sideOffset = 6,
+  edgeGap = EDGE_GAP,
   align = "end",
   side,
   keepClear,
@@ -347,6 +349,7 @@ export function DropdownContent({
   class?: string;
   elevation?: DropdownContentElevation;
   sideOffset?: number;
+  edgeGap?: number;
   align?: "start" | "center" | "end";
   side?: "top" | "right" | "bottom" | "left";
   keepClear?: KeepClear;
@@ -367,7 +370,7 @@ export function DropdownContent({
   const clear = useClearLine(
     keepClear,
     ctx.mode === "menu" && ctx.open,
-    (line) => clearOf(line, ctx.trigger.current, menu, sideOffset),
+    (line) => clearOf(line, ctx.trigger.current, menu, sideOffset, edgeGap),
     menuRef,
   );
   if (ctx.handingOff) {
@@ -397,7 +400,7 @@ export function DropdownContent({
         sideOffset={clear?.offset ?? sideOffset}
         align={align}
         side={side}
-        collisionPadding={clear?.padding ?? EDGE_GAP}
+        collisionPadding={clear?.padding ?? edgeGap}
         class={cn(
           dropdownContentVariants({ elevation }),
           className,
