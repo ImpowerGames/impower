@@ -28,6 +28,7 @@
   --workspace: var(--workspace-deep);
   --workspace-deep: hsl(210.6 100% 7%);
   --preview-mat: var(--panel);
+  --preview-frame-fill: #000;
   --elevated: hsl(210.7 89.1% 18%);
   --ink: rgb(255 255 255);
   --muted: rgb(255 255 255 / 0.6);
@@ -54,6 +55,7 @@
   --workspace: var(--workspace-deep);
   --workspace-deep: hsl(210.6 80% 7%);
   --preview-mat: var(--panel);
+  --preview-frame-fill: #000;
   --elevated: hsl(210.7 70% 18%);
   --ink: rgb(255 255 255);
   --muted: rgb(255 255 255 / 0.6);
@@ -189,6 +191,7 @@
   --workspace: var(--bg);
   --workspace-deep: #1d1e20;
   --preview-mat: var(--workspace);
+  --preview-frame-fill: #111213;
   --elevated: #34363a;
   --ink: #f0efeb;
   --muted: #b9b9bd;
@@ -251,6 +254,7 @@
   --workspace: #fafafa;
   --workspace-deep: #ececee;
   --preview-mat: var(--workspace);
+  --preview-frame-fill: #111213;
   --elevated: #e2e2e5;
   --ink: #202123;
   --muted: #62636a;
@@ -313,6 +317,7 @@
   --workspace: var(--bg);
   --workspace-deep: #1b1816;
   --preview-mat: var(--workspace);
+  --preview-frame-fill: #111213;
   --elevated: #36302a;
   --ink: #f5eee4;
   --muted: #c2b5a5;
@@ -375,6 +380,7 @@
   --workspace: #f9f5ea;
   --workspace-deep: #efe9dc;
   --preview-mat: #e9e2d3;
+  --preview-frame-fill: #111213;
   --elevated: #e6dfcf;
   --ink: #252421;
   --muted: #6b6861;
@@ -437,6 +443,7 @@
   --workspace: var(--bg);
   --workspace-deep: #1d1e20;
   --preview-mat: var(--workspace);
+  --preview-frame-fill: #111213;
   --elevated: #34363a;
   --ink: #f0efeb;
   --muted: #b9b9bd;
@@ -462,6 +469,7 @@
   --workspace: var(--bg);
   --workspace-deep: #1b1816;
   --preview-mat: var(--workspace);
+  --preview-frame-fill: #111213;
   --elevated: #36302a;
   --ink: #f5eee4;
   --muted: #c2b5a5;
@@ -606,7 +614,6 @@
   --preview-frame-radius: 10px;
   --preview-inline-padding: 10px;
   --preview-stage-gap: 8px;
-  --preview-frame-fill: #111213;
   --toolbar-menu-radius: 10px;
   --toolbar-menu-shadow: 0 10px 30px rgb(0 0 0 / 0.4);
   --raised-shadow: none;
@@ -645,11 +652,6 @@
   --title-bar-height: 54px;
   --script-header-height: 48px;
   --toast-top: calc(var(--title-bar-height) + var(--preview-strip-height) + var(--script-header-height) + var(--toast-gap));
-}
-
-[data-theme="midnight"],
-[data-theme="dusk"] {
-  --preview-frame-fill: #000;
 }
 
 [data-theme="chalk"] {

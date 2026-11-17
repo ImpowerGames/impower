@@ -92,9 +92,9 @@ describe("the preview card's inset and radius tokens", () => {
     expect(utilityValue(css, "shadow-preview-frame", "--tw-shadow")).toBe("");
   });
 
-  it("compiles bg-preview-frame to the prototype's frame fill, black in Midnight and Dusk", async () => {
-    const css = await compiled(["bg-preview-frame"]);
-    const value = utilityValue(css, "bg-preview-frame", "background-color");
+  it("compiles bg-preview-frame-fill to the prototype's frame fill, black in Midnight and Dusk", async () => {
+    const css = await compiled(["bg-preview-frame-fill"]);
+    const value = utilityValue(css, "bg-preview-frame-fill", "background-color");
     expect(value).not.toBe("");
     for (const theme of THEMES) {
       const black = theme === "midnight" || theme === "dusk";

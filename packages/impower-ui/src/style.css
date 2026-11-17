@@ -80,7 +80,7 @@
   --color-media-button: var(--media-button);
   --color-status-badge-error-edge: var(--status-badge-error-edge);
   --color-stage: var(--stage);
-  --color-preview-frame: var(--preview-frame-fill);
+  --color-preview-frame-fill: var(--preview-frame-fill);
   --color-message-rule: var(--message-rule);
 
   --color-foreground: var(--ink);

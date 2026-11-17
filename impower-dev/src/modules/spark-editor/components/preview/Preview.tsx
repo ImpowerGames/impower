@@ -97,7 +97,7 @@ export default function Preview(_props: PreviewProps) {
       <div
         data-preview-card
         class={cn(
-          "relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-preview-frame",
+          "relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-preview-frame-fill",
           framed && "rounded-preview-frame",
         )}
       >
