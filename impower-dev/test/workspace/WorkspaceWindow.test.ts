@@ -255,6 +255,7 @@ import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/mes
 import { ProjectImportError } from "../../src/modules/spark-editor/workspace/projectImport";
 import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
 import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
+import { watchBack } from "../../src/modules/spark-editor/workspace/nameFieldBack";
 
 beforeEach(() => {
   window.history.replaceState(null, "", window.location.pathname);
@@ -808,6 +809,29 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.pane).toBe("assets");
       window.history.replaceState(null, "", "#share");
       window.dispatchEvent(new HashChangeEvent("hashchange"));
+      expect(workspace.current.pane).toBe("share");
+    });
+
+    it("hands a Back to an open name field instead of routing, then routes the next Back", async () => {
+      const traverse = async () => {
+        const popped = new Promise((resolve) =>
+          window.addEventListener("popstate", resolve, { once: true }),
+        );
+        window.history.back();
+        await popped;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      };
+      win.openPane("share");
+      win.navigateTo("collection");
+      const close = vi.fn();
+      watchBack(close);
+      await traverse();
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(window.location.hash).toBe("#collection");
+      expect(workspace.current.pane).toBe("assets");
+      await traverse();
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(window.location.hash).toBe("#share");
       expect(workspace.current.pane).toBe("share");
     });
 

@@ -173,6 +173,26 @@ describe("the Scripts page's inline name field", () => {
     }
   });
 
+  it("cancels a rename on Back without CloseWatcher and stops answering Back once closed", async () => {
+    const { interceptBack } = await import("../../src/modules/spark-editor/workspace/nameFieldBack");
+    host = document.body.appendChild(document.createElement("div"));
+    const onCommit = vi.fn(async () => {});
+    const onCancel = vi.fn(() => render(null, host!));
+    await act(async () =>
+      render(h(NameRow, { icon: null, label: "Rename", initial: "intro", onCommit, onCancel }), host!),
+    );
+    await type(host.querySelector("input")!, "outro");
+    let intercepted = false;
+    await act(async () => {
+      intercepted = interceptBack();
+    });
+    await settle();
+    expect(intercepted).toBe(true);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(interceptBack()).toBe(false);
+  });
+
   it("marks its field as a name field", async () => {
     const { input } = await mount({ initial: "intro" });
     expect(input.matches("[data-name-field]")).toBe(true);
