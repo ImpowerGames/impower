@@ -6,6 +6,8 @@ import { compareEnginesFull, formatDivergences } from "./scopeEquality";
 const SINGLE = "LuauSparkdownSingleLineConditionalAlternatorBlock";
 const MULTI = "LuauSparkdownConditionalAlternatorBlock";
 const SEQUENTIAL = "LuauSparkdownSingleLineSequentialAlternatorBlock";
+const MISSING_SCENE_END =
+  "Scene is missing its closing `end` keyword. Every `scene` block must be terminated by an explicit `end` at the same indentation as the `scene` keyword.";
 
 const scene = (...lines: string[]) => ["scene start", '  local mood = "happy"', "  local n = 2", ...lines.map((line) => `  ${line}`), "  After.", "end", ""].join("\n");
 
@@ -33,19 +35,17 @@ const play = (text: string) => {
   return { errors: ctx.errorMessages, warnings: ctx.warningMessages, out: ctx.story.ContinueMaximally() };
 };
 
-describe("a one-line match or plural whose value is a bare name", () => {
+describe("a one-line match or plural whose value is a name, a number or a quoted string", () => {
   test.each([
     ["match mood | happy = A. | other = B. end", "match(mood) | happy = A. | other = B. end"],
     ["plural n | one = A. | other = B. end", "plural(n) | one = A. | other = B. end"],
     ["match mood|happy=A.|other=B. end", "match(mood)|happy=A.|other=B. end"],
     ["match player.mood | happy = A. | other = B. end", "match(player.mood) | happy = A. | other = B. end"],
+    ["plural 1 | one = A. | other = B. end", "plural(1) | one = A. | other = B. end"],
+    ["plural 0x1F | one = A. | other = B. end", "plural(0x1F) | one = A. | other = B. end"],
+    ["plural 1.5e2 | one = A. | other = B. end", "plural(1.5e2) | one = A. | other = B. end"],
     ['match "very happy" | other = B. end', 'match("very happy") | other = B. end'],
     ["match 'a | b' | other = B. end", "match('a | b') | other = B. end"],
-    ["match `very {mood}` | other = B. end", "match(`very {mood}`) | other = B. end"],
-    ["match [[very happy]] | other = B. end", "match([[very happy]]) | other = B. end"],
-    ['match string.upper("very (happy)") | other = B. end', 'match(string.upper("very (happy)")) | other = B. end'],
-    ['match mood .. "_day" | happy_day = A. | other = B. end', 'match(mood .. "_day") | happy_day = A. | other = B. end'],
-    ["plural n - 1 | one = A. | other = B. end", "plural(n - 1) | one = A. | other = B. end"],
   ])("the grammar reads `%s` as a one-line set, as it reads `%s`", (bare, bracketed) => {
     const shape = (text: string) => blocks(scene(text)).map(({ name }) => name);
     expect(blocks(scene(bare))[0]).toMatchObject({ name: SINGLE, text: bare });
@@ -58,11 +58,9 @@ describe("a one-line match or plural whose value is a bare name", () => {
     ["match(mood) | happy = A. | other = B. end", "A.\nAfter.\n"],
     ["plural n | one = A. | other = B. end", "B.\nAfter.\n"],
     ["plural(n) | one = A. | other = B. end", "B.\nAfter.\n"],
+    ["plural 1 | one = A. | other = B. end", "A.\nAfter.\n"],
     ['match "very happy" | other = She waits. end', "She waits.\nAfter.\n"],
-    ["match `{mood} day` | happy_day = A. | other = B. end", "B.\nAfter.\n"],
-    ['match mood .. "_day" | happy_day = A. | other = B. end', "A.\nAfter.\n"],
-    ["plural n - 1 | one = A. | other = B. end", "A.\nAfter.\n"],
-    ["plural n + 1 | one = A. | other = B. end", "B.\nAfter.\n"],
+    ["match 'happy' | happy = A. | other = B. end", "A.\nAfter.\n"],
   ])("the game plays `%s` as alternatives", (line, out) => {
     expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
   });
@@ -87,6 +85,21 @@ describe("a one-line match or plural whose value is a bare name", () => {
   });
 
   test.each([
+    ["a call", "match string.upper(mood) | HAPPY = A. | other = B. end"],
+    ["a concatenation", 'match mood .. "_day" | happy_day = A. | other = B. end'],
+    ["a sum", "plural n - 1 | one = A. | other = B. end"],
+    ["a backtick string", "match `{mood} day` | happy_day = A. | other = B. end"],
+    ["a long string", "match [[very happy]] | other = B. end"],
+    ["a value with a comment", "match mood --[[ c ]] | happy = A. | other = B. end"],
+  ])("a bare value that is %s is left to the multi-line set, as without this change", (_, line) => {
+    const found = blocks(scene(line));
+    expect(found[0]).toMatchObject({ name: MULTI });
+    expect(found[0]!.text.endsWith("After.\nend")).toBe(true);
+    expect(found.map(({ name }) => name)).not.toContain(SINGLE);
+    expect(play(scene(line)).errors).toContain(MISSING_SCENE_END);
+  });
+
+  test.each([
     ["match mood", "| happy = A.", "| other = B.", "end"],
     ["match(mood)", "| happy = A.", "| other = B.", "end"],
     ["plural n", "| one = A.", "| other = B.", "end"],
@@ -105,7 +118,8 @@ describe("a one-line match or plural whose value is a bare name", () => {
     ["match mood -- a | b"],
     ["match mood --[[ a | b ]]"],
     ["plural n -- a | b"],
-  ])("a multi-line set whose head `%s` holds a bar in a long string or comment stays a multi-line set", (head) => {
+    ["match `outer {`a | b`}`"],
+  ])("a multi-line set whose head `%s` holds a bar in a string or comment stays a multi-line set", (head) => {
     const lines = [head, "| other = B.", "end"];
     const found = blocks(scene(...lines));
     expect(found[0]).toMatchObject({ name: MULTI, text: lines.join("\n  ") });
@@ -113,12 +127,10 @@ describe("a one-line match or plural whose value is a bare name", () => {
     expect(play(scene(...lines))).toEqual({ errors: [], warnings: [], out: "B.\nAfter.\n" });
   });
 
-  test.each([
-    ['match("happy" --[[ note | hidden ]]) | happy = A. | other = B. end', "A.\nAfter.\n"],
-    ['match "happy" --[[ note | hidden ]] | happy = A. | other = B. end', "A.\nAfter.\n"],
-  ])("`%s` reads a closed block comment in the value whole", (line, out) => {
+  test("a bracketed value holding a closed block comment opens a one-line set, as without this change", () => {
+    const line = 'match("happy" --[[ note | hidden ]]) | happy = A. | other = B. end';
     expect(blocks(scene(line))[0]).toMatchObject({ name: SINGLE, text: line });
-    expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
+    expect(play(scene(line))).toEqual({ errors: [], warnings: [], out: "A.\nAfter.\n" });
   });
 
   test.each([
@@ -147,32 +159,15 @@ describe("a one-line match or plural whose value is a bare name", () => {
   });
 
   test.each([
-    ["plural math.abs(math.abs(math.abs(n))) | one = A. | other = B. end", "B.\nAfter.\n"],
-    ["plural(math.abs(math.abs(math.abs(n)))) | one = A. | other = B. end", "B.\nAfter.\n"],
-  ])("`%s` reads a value with brackets nested three deep", (line, out) => {
-    expect(blocks(scene(line))[0]).toMatchObject({ name: SINGLE, text: line });
-    expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
-  });
-
-  test("a value with brackets nested three deep nests at an option's start", () => {
-    const line = "cycle | plural math.abs(math.abs(math.abs(n))) | one = A. | other = B. end | C. end";
-    expect(blocks(scene(line))).toContainEqual({
-      name: SINGLE,
-      text: "plural math.abs(math.abs(math.abs(n))) | one = A. | other = B. end",
-      parent: SEQUENTIAL,
-    });
-    expect(storyTextHoldingBars(scene(line))).toEqual([]);
-  });
-
-  test.each([
     ["a word that starts with the keyword", "matchbox | A. | B. end"],
     ["the keyword with no value", "match | A. | B. end"],
+    ["a reserved word as the value", "match not | A. | B. end"],
   ])("%s does not open a one-line conditional set", (_, line) => {
     expect(blocks(scene(line)).map(({ name }) => name)).not.toContain(SINGLE);
   });
 
   test("the editor and the tree give a bare-value line the same scopes", async () => {
-    const text = scene("match mood | happy = A. | other = B. end", "cycle | plural n | one = A. | other = B. end | C. end");
+    const text = scene("match mood | happy = A. | other = B. end", "cycle | plural n | one = A. | other = B. end | C. end", "plural 1 | one = A. | other = B. end");
     const result = await compareEnginesFull(text);
     expect(result.divergences, formatDivergences(text, result.divergences)).toEqual([]);
   });

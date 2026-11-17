@@ -534,17 +534,13 @@ variables:
   _LUAU_ATTRIBUTE_FOLLOWER_SPACE_: (?:({{WS}}+){{LUAU_ATTRIBUTE_FOLLOWER}})?
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
   LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_NAME_BEHIND}})
-  LUAU_QUOTED_STRING_ON_LINE: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
-  _LUAU_ONE_LINE_ALTERNATOR_VALUE_: (?:{{LUAU_QUOTED_STRING_ON_LINE}}|{{_LUAU_LEVEL_LONG_STRING_}}|{{_LUAU_LEVEL_BLOCK_COMMENT_}}|{{LUAU_ONE_LINE_ALTERNATOR_VALUE_CHARACTER}})+
-  # lookaround: LuauMultilineString reads a long string, closing at its own
-  # level with a backreference, which needs a capture; a negated class
-  # cannot stop the text before a close several characters long.
-  _LUAU_LEVEL_LONG_STRING_: (?:\[(?<stringlevel>=*)\[(?:[^\]\r\n]|\](?!\k<stringlevel>\]))*\]\k<stringlevel>\])
-  # lookaround: a `[` that opens a long string and a `--` that opens a
-  # LuauComment are read whole by _LUAU_LEVEL_LONG_STRING_ and
-  # _LUAU_LEVEL_BLOCK_COMMENT_ or end the value, so the scan never takes a
-  # bar inside either.
-  LUAU_ONE_LINE_ALTERNATOR_VALUE_CHARACTER: (?:[^|"'`\[\r\n-]|\[(?!=*\[)|-(?!-))
+  LUAU_ATTRIBUTE_LIST_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
+  LUAU_ONE_LINE_ALTERNATOR_BARE_VALUE: (?:{{LUAU_ONE_LINE_ALTERNATOR_NAME}}|{{LUAU_ONE_LINE_ALTERNATOR_NUMBER}}|{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}})
+  LUAU_ONE_LINE_ALTERNATOR_NAME: (?:{{LUAU_IDENTIFIER}}(?:[.]{{LUAU_IDENTIFIER}})*)
+  LUAU_ONE_LINE_ALTERNATOR_NUMBER: (?:{{LUAU_ONE_LINE_ALTERNATOR_PREFIXED_NUMBER}}|{{LUAU_ONE_LINE_ALTERNATOR_DECIMAL}}{{LUAU_ONE_LINE_ALTERNATOR_EXPONENT}}?)
+  LUAU_ONE_LINE_ALTERNATOR_PREFIXED_NUMBER: (?:0[xXbB][\da-fA-F_]+)
+  LUAU_ONE_LINE_ALTERNATOR_DECIMAL: (?:\d[\d_]*(?:[.][\d_]*)?)
+  LUAU_ONE_LINE_ALTERNATOR_EXPONENT: (?:[eE][+-]?\d[\d_]*)
   LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"{{LUAU_DOUBLE_QUOTED_STRING_TEXT}}")
   LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'{{LUAU_SINGLE_QUOTED_STRING_TEXT}}')
   LUAU_BACKTICK_STRING_ON_LINE: (?:`{{LUAU_BACKTICK_STRING_TEXT}}`)
@@ -571,7 +567,7 @@ variables:
   LUAU_STRING_CARRIED_CHARACTER: (?:[^"'`{\\\r\n])
   LUAU_STRING_CARRIED_TEXT_START: (?:[^"'`{\\ \t\v\f\r\n])
   LUAU_STRING_UNCARRIED_CHARACTER: (?:["'`{\\])
-  LUAU_PLAIN_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_QUOTED_STRING_ON_LINE}}|{{LUAU_PLAIN_LONG_BRACKET}}|[^\[\]"'`\r\n])
+  LUAU_PLAIN_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|{{LUAU_PLAIN_LONG_BRACKET}}|[^\[\]"'`\r\n])
   LUAU_ATTRIBUTE_TRIVIA: (?:{{WS}}|{{LUAU_PLAIN_BLOCK_COMMENT}})
   # lookaround: Write owns an unspaced write (`@hud: text`,
   # `@hud.panel: text`), whose target is a name or a dotted name path glued
@@ -5842,10 +5838,12 @@ repository:
   # lookaround: at a story `match` or `plural` this rule and
   # LuauSparkdownConditionalAlternatorBlock open before either has read the
   # value, and only a bar after the value on the keyword's line tells them
-  # apart, so the begin reads the value as LuauConditionalAlternatorCondition
-  # will (_LUAU_ONE_LINE_ALTERNATOR_VALUE_) and looks for the bar after it.
+  # apart. The begin looks for that bar only after a bracketed value or a
+  # value with no inner structure (LUAU_ONE_LINE_ALTERNATOR_BARE_VALUE), whose
+  # end needs no string, comment or bracket reading; any other value is left
+  # to LuauSparkdownConditionalAlternatorBlock.
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?={{LUAU_EXPRESSION_START}}{{_LUAU_ONE_LINE_ALTERNATOR_VALUE_}}{{WS}}*[|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=(?:[(][^()\r\n]*[)]|{{LUAU_ONE_LINE_ALTERNATOR_BARE_VALUE}}){{WS}}*[|])
     beginCaptures:
       1:
         patterns:
