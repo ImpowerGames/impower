@@ -12,6 +12,7 @@ import {
   DropdownRoot,
   DropdownSeparator,
   DropdownTrigger,
+  dropdownContentVariants,
 } from "./Dropdown";
 
 let phone = false;
@@ -911,5 +912,18 @@ describe("DropdownContent keepClear", () => {
     const placed = await mountFaceMenu();
     expect(placed.side).toBe("bottom");
     expect(placed.top).toBe(TRIGGER.bottom + 6);
+  });
+});
+
+describe("DropdownContent elevation", () => {
+  it("keeps the card radius for the floating and library menus and gives the toolbar menu its own radius and shadow", () => {
+    const floating = dropdownContentVariants({}).split(" ");
+    expect(floating).toEqual(expect.arrayContaining(["rounded-card", "shadow-float"]));
+    const library = dropdownContentVariants({ elevation: "library" }).split(" ");
+    expect(library).toEqual(expect.arrayContaining(["rounded-card", "shadow-menu"]));
+    const toolbar = dropdownContentVariants({ elevation: "toolbar" }).split(" ");
+    expect(toolbar).toEqual(expect.arrayContaining(["rounded-toolbar-menu", "shadow-toolbar-menu"]));
+    expect(toolbar).not.toContain("rounded-card");
+    expect(toolbar).not.toContain("shadow-float");
   });
 });

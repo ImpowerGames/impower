@@ -267,6 +267,25 @@ describe("the Problems panel", () => {
     ]);
   });
 
+  it("rules its entries with the prototype console's faint rule and gives its card heads a 44px toggle", async () => {
+    problems.record({
+      uri: MAIN,
+      diagnostics: [diagnostic(6, 1, "Unexpected two dots")],
+    });
+    await openPanel();
+    const rows = Array.from(panel()!.querySelectorAll<HTMLElement>("[data-message-entry]"));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.classList).toContain("border-message-rule");
+      expect(row.classList).not.toContain("border-edge/40");
+    }
+    const toggle = head("In the script");
+    expect(toggle.classList).toContain("h-11");
+    expect(toggle.classList).toContain("top-0");
+    expect(toggle.classList).not.toContain("inset-0");
+    expect(toggle.parentElement!.classList).toContain("h-[44px]");
+  });
+
   it("heads a single script's problems with that script", async () => {
     problems.record({ uri: CHAPTER, diagnostics: [diagnostic(2, 2, "Sound not found")] });
     await openPanel();

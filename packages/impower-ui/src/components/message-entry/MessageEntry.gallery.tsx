@@ -44,6 +44,19 @@ function MessageEntryDemo() {
           </div>
         </GalleryRow>
       ))}
+      <GalleryRow label="Faint rule: the preview Problems panel's entries, ruled as the prototype's console">
+        <div class="rounded-card border border-edge bg-paper px-1">
+          <MessageEntry
+            rule="faint"
+            severity="warning"
+            prefix="Warning · "
+            title="Sound not found in the project's asset folders"
+            location="Line 46"
+            locationLabel="Open Line 46"
+            onJump={() => {}}
+          />
+        </div>
+      </GalleryRow>
       <GalleryRow label="Played: a path and line, the time at the right, no message">
         <div class="rounded-card border border-edge bg-paper px-1">
           <MessageEntry

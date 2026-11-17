@@ -43,6 +43,7 @@
   --color-workspace: var(--workspace);
   --color-workspace-deep: var(--workspace-deep);
   --color-preview-mat: var(--preview-mat);
+  --color-preview-phone-mat: var(--stage-full, var(--preview-mat));
   --color-preview-strip: var(--preview-strip);
   --color-elevated: var(--elevated);
   --color-ink: var(--ink);
@@ -79,6 +80,8 @@
   --color-media-button: var(--media-button);
   --color-status-badge-error-edge: var(--status-badge-error-edge);
   --color-stage: var(--stage);
+  --color-preview-frame-fill: var(--preview-frame-fill);
+  --color-message-rule: var(--message-rule);
 
   --color-foreground: var(--ink);
   --color-surface-border: var(--edge);
@@ -90,9 +93,12 @@
   --radius-sheet: var(--sheet-radius);
   --radius-toast: var(--toast-radius);
   --radius-preview-frame: var(--preview-frame-radius);
+  --radius-toolbar-menu: var(--toolbar-menu-radius);
   --spacing-preview-inline: var(--preview-inline-padding);
+  --spacing-preview-bar: var(--preview-bar-height);
   --spacing-preview-stage-gap: var(--preview-stage-gap);
-  --shadow-preview-frame: var(--preview-frame-shadow);
+  --shadow-toolbar-menu: var(--toolbar-menu-shadow);
+  --shadow-raised: var(--raised-shadow);
   --shadow-float: var(--float-shadow);
   --shadow-menu: var(--menu-shadow);
   --shadow-sheet: var(--sheet-shadow);

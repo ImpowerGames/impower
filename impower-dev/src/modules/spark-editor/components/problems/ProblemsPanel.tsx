@@ -144,6 +144,7 @@ function ProblemRow({ problem, fit }: { problem: Problem; fit: MessageEntryFit }
     >
       <MessageEntry
         fit={fit}
+        rule="faint"
         severity={problem.severity}
         prefix={SCRIPT_PREFIX[problem.severity]}
         title={problem.title}
@@ -194,6 +195,7 @@ function PlayedRow({
   return (
     <MessageEntry
       fit={fit}
+      rule="faint"
       severity={entry.severity}
       prefix={PLAYED_PREFIX[entry.severity]}
       title={entry.title ?? entry.message}

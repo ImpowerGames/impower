@@ -1,11 +1,13 @@
 import { cn, SplitPane } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect, useRef, useState } from "preact/hooks";
-import problems from "../../workspace/problems/ProblemsStore";
+import problems, {
+  PANEL_BAR_HEIGHT,
+  panelBarHeight,
+} from "../../workspace/problems/ProblemsStore";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import {
   playsGame,
-  PROJECT_SETTINGS_SCHEMA,
   type PreviewMode,
 } from "../../workspace/settings/settingsSchema";
 import workspace from "../../workspace/WorkspaceStore";
@@ -20,7 +22,6 @@ import PreviewStatuses from "./PreviewStatuses";
 export const propDefaults = {};
 export type PreviewProps = Partial<typeof propDefaults>;
 
-const BAR_HEIGHT = PROJECT_SETTINGS_SCHEMA.previewPanelHeight.default;
 const PANEL_MIN_HEIGHT = 144;
 const STAGE_MIN_HEIGHT = 160;
 
@@ -58,11 +59,13 @@ export default function Preview(_props: PreviewProps) {
   const phone = layout === "phone";
   const panelHeight = workspaceSettings.projectSettings.value.previewPanelHeight;
   const panelShows = problems.panelShows.value;
+  const barHeight = panelBarHeight(layout);
+  const panelOpen = panelHeight > PANEL_BAR_HEIGHT;
   useEffect(() => {
-    if (layout === "compact" && panelHeight > BAR_HEIGHT) {
+    if (layout === "compact" && panelOpen) {
       problems.makeRoomInStrip();
     }
-  }, [layout, panelHeight]);
+  }, [layout, panelOpen]);
   const { ref, fullscreen, toggle } = useFullscreen();
 
   const game = workspace.state.value.preview?.modes?.game;
@@ -94,8 +97,8 @@ export default function Preview(_props: PreviewProps) {
       <div
         data-preview-card
         class={cn(
-          "relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-stage",
-          framed && "rounded-preview-frame shadow-preview-frame",
+          "relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-preview-frame-fill",
+          framed && "rounded-preview-frame",
         )}
       >
         {stage}
@@ -122,7 +125,7 @@ export default function Preview(_props: PreviewProps) {
     }
     workspaceSettings.setProjectSetting(
       "previewPanelHeight",
-      height ?? BAR_HEIGHT,
+      height ?? PANEL_BAR_HEIGHT,
     );
   };
 
@@ -130,8 +133,10 @@ export default function Preview(_props: PreviewProps) {
     <div
       ref={ref}
       class={cn(
-        "@container flex h-full w-full min-h-0 flex-1 flex-col bg-preview-mat",
-        phone && !inStrip && "pb-[env(safe-area-inset-bottom)]",
+        "@container flex h-full w-full min-h-0 flex-1 flex-col",
+        phone && !inStrip
+          ? "bg-preview-phone-mat pb-[env(safe-area-inset-bottom)]"
+          : "bg-preview-mat",
       )}
     >
       {inStrip ? null : <PreviewTopBar />}
@@ -148,10 +153,10 @@ export default function Preview(_props: PreviewProps) {
           overflowPanel="start"
           pinned={{
             panel: "end",
-            size: panelHeight,
-            defaultSize: BAR_HEIGHT,
+            size: panelOpen ? panelHeight : barHeight,
+            defaultSize: barHeight,
             minSize: PANEL_MIN_HEIGHT,
-            collapsedSize: BAR_HEIGHT,
+            collapsedSize: barHeight,
             reserve: STAGE_MIN_HEIGHT,
             onSizeChange: onPanelHeightChange,
           }}
@@ -160,7 +165,7 @@ export default function Preview(_props: PreviewProps) {
             <div class="flex h-full flex-col">
               {bar}
               <div data-preview-panel class="min-h-0 flex-1">
-                {panelHeight <= BAR_HEIGHT ? null : panelShows === "route" ? (
+                {!panelOpen ? null : panelShows === "route" ? (
                   <RoutePanel />
                 ) : (
                   <ProblemsPanel />

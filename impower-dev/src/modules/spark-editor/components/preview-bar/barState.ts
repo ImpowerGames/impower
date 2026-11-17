@@ -41,10 +41,14 @@ export const aspectRatioLabel = (
     : name;
 };
 
-export const ASPECT_RATIO_LABEL_RESERVES = [
-  "Auto · 0000×0000",
-  "16:9 · 0000×0000",
-] as const;
+export const aspectRatioLabelReserves = (
+  size: GameSize | undefined,
+): readonly [string, string] => {
+  const digits = aspectRatioLabel("auto", size)
+    .slice("Auto".length)
+    .replace(/[0-9]/g, "0");
+  return [`Auto${digits}`, `16:9${digits}`];
+};
 
 export type SizeControl = "paper" | "aspectRatio" | "pageFillsPane";
 

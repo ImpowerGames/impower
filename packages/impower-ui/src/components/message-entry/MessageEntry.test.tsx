@@ -104,3 +104,16 @@ describe("MessageEntry", () => {
     expect(entry.querySelector("strong + span")!.getAttribute("title")).toBe("Long");
   });
 });
+
+describe("MessageEntry rule", () => {
+  it("keeps the edge rule by default and takes the faint console rule only when the caller asks", async () => {
+    await mount(<MessageEntry severity="error" title="Plain" />);
+    const entry = document.querySelector<HTMLElement>("[data-message-entry]")!;
+    expect(entry.classList).toContain("border-edge/40");
+    expect(entry.classList).not.toContain("border-message-rule");
+    await mount(<MessageEntry severity="error" title="Faint" rule="faint" />);
+    const ruled = document.querySelector<HTMLElement>("[data-message-entry]")!;
+    expect(ruled.classList).toContain("border-message-rule");
+    expect(ruled.classList).not.toContain("border-edge/40");
+  });
+});

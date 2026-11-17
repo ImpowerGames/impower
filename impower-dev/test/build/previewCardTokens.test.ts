@@ -87,14 +87,79 @@ describe("the preview card's inset and radius tokens", () => {
     }
   });
 
-  it("compiles shadow-preview-frame to the prototype's frame shadow in Chalk and Paper and to none elsewhere", async () => {
+  it("compiles no shadow-preview-frame, since the prototype's stage clips the frame's shadow", async () => {
     const css = await compiled(["shadow-preview-frame"]);
-    const value = utilityValue(css, "shadow-preview-frame", "--tw-shadow");
+    expect(utilityValue(css, "shadow-preview-frame", "--tw-shadow")).toBe("");
+  });
+
+  it("compiles bg-preview-frame-fill to the prototype's frame fill, black in Midnight and Dusk", async () => {
+    const css = await compiled(["bg-preview-frame-fill"]);
+    const value = utilityValue(css, "bg-preview-frame-fill", "background-color");
     expect(value).not.toBe("");
-    const shadow = /var\((--[\w-]+)\)/.exec(value)?.[0] ?? value;
     for (const theme of THEMES) {
-      const lit = theme === "chalk" || theme === "paper";
-      expect(resolve(shadow, theme), theme).toBe(lit ? "0 10px 30px rgb(0 0 0 / 0.16)" : "none");
+      const black = theme === "midnight" || theme === "dusk";
+      expect(resolve(value, theme), theme).toBe(black ? "#000" : "#111213");
     }
+  });
+
+  it("compiles the toolbar menu's radius and shadow to the prototype's runtime menu", async () => {
+    const css = await compiled(["rounded-toolbar-menu", "shadow-toolbar-menu"]);
+    const radius = utilityValue(css, "rounded-toolbar-menu", "border-radius");
+    const shadowValue = utilityValue(css, "shadow-toolbar-menu", "--tw-shadow");
+    const shadow = /var\((--[\w-]+)\)/.exec(shadowValue)?.[0] ?? shadowValue;
+    expect(radius).not.toBe("");
+    expect(shadow).not.toBe("");
+    for (const theme of THEMES) {
+      expect(resolve(radius, theme), theme).toBe("10px");
+      expect(resolve(shadow, theme), theme).toBe("0 10px 30px rgb(0 0 0 / 0.4)");
+    }
+  });
+
+  it("compiles shadow-raised to the prototype's primary button lift in Chalk and Paper and to none elsewhere", async () => {
+    const css = await compiled(["shadow-raised"]);
+    const value = utilityValue(css, "shadow-raised", "--tw-shadow");
+    const shadow = /var\((--[\w-]+)\)/.exec(value)?.[0] ?? value;
+    expect(shadow).not.toBe("");
+    for (const theme of THEMES) {
+      const expected =
+        theme === "chalk"
+          ? "0 1px 2px rgb(0 0 0 / 0.16)"
+          : theme === "paper"
+            ? "0 1px 2px rgb(60 30 10 / 0.18)"
+            : "none";
+      expect(resolve(shadow, theme), theme).toBe(expected);
+    }
+  });
+
+  it("compiles border-message-rule to the prototype console's faint white rule in every theme", async () => {
+    const css = await compiled(["border-message-rule"]);
+    const value = utilityValue(css, "border-message-rule", "border-color");
+    expect(value).not.toBe("");
+    for (const theme of THEMES) {
+      expect(resolve(value, theme), theme).toBe("rgb(255 255 255 / 0.043)");
+    }
+  });
+
+  it("compiles h-preview-bar to the prototype's 62px bar under the game, 52px at compact and phone widths", async () => {
+    const css = await compiled(["h-preview-bar"]);
+    const value = utilityValue(css, "h-preview-bar", "height");
+    expect(value).not.toBe("");
+    const { dom, rules } = sheet(fs.readFileSync(path.join(IMPOWER_UI_SRC, "theme.css"), "utf8"));
+    const root = dom.window.document.documentElement;
+    const height = (layout: string | null) => {
+      if (layout) root.setAttribute("data-layout", layout);
+      else root.removeAttribute("data-layout");
+      let found = "";
+      for (const rule of rules) {
+        const declared = rule.style.getPropertyValue("--preview-bar-height").trim();
+        if (declared && root.matches(rule.selectorText)) found = declared;
+      }
+      return found;
+    };
+    expect(value).toContain("--preview-bar-height");
+    expect(height(null)).toBe("62px");
+    expect(height("desktop")).toBe("62px");
+    expect(height("compact")).toBe("52px");
+    expect(height("phone")).toBe("52px");
   });
 });

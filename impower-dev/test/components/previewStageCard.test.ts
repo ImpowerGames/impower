@@ -82,7 +82,9 @@ const expectInsetCard = () => {
   expect(frame).not.toBeNull();
   expect(frame!.classList).toContain("rounded-preview-frame");
   expect(frame!.classList).toContain("overflow-hidden");
-  expect(frame!.classList).toContain("shadow-preview-frame");
+  expect(frame!.classList).not.toContain("shadow-preview-frame");
+  expect(frame!.classList).toContain("bg-preview-frame-fill");
+  expect(frame!.classList).not.toContain("bg-stage");
   expect(frame!.parentElement!.classList).toContain("px-preview-inline");
   expect(frame!.parentElement!.classList).toContain("pt-preview-stage-gap");
   expect((host!.firstElementChild as HTMLElement).classList).toContain("bg-preview-mat");
