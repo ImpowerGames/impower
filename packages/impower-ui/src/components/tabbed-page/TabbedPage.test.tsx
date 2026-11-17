@@ -34,7 +34,13 @@ describe("TabbedPage", () => {
     expect(section.getAttribute("aria-label")).toBe("Things");
     expect(section.querySelector("h1")!.textContent).toBe("Things");
     const tabs = Array.from(section.querySelectorAll<HTMLElement>('[role="tablist"] [role="tab"]'));
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["FirstFirst", "SecondSecond"]);
+    expect(
+      tabs.map((tab) =>
+        Array.from(tab.querySelectorAll("span"))
+          .filter((span) => span.children.length === 0 && !span.closest("[aria-hidden='true']"))
+          .map((span) => span.textContent),
+      ),
+    ).toEqual([["First"], ["Second"]]);
     expect(tabs[1]!.getAttribute("aria-selected")).toBe("true");
     expect(tabs[0]!.className).toContain("min-h-12");
     const panel = section.querySelector('[role="tabpanel"]')!;

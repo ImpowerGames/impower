@@ -39,6 +39,28 @@ const mount = async (props: Partial<TabsProps> = {}) => {
 
 const classes = (element: Element) => element.className.split(/\s+/);
 
+const exposedText = (element: Element) => {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let text = "";
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!node.parentElement?.closest("[aria-hidden='true']")) {
+      text += node.textContent;
+    }
+  }
+  return text.trim();
+};
+
+describe("Tabs accessible name", () => {
+  it.each(["default", "rail", "bar", "inline"] as const)(
+    "exposes each %s tab's label once, active or not",
+    async (variant) => {
+      const { tabs } = await mount({ variant });
+      expect(tabs.map(exposedText)).toEqual(["Story", "Assets", "Share"]);
+      expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
+    },
+  );
+});
+
 describe("Tabs rail variant", () => {
   it("lays the tabs out as rail rows with the accent on the current one", async () => {
     const { tabs } = await mount({
