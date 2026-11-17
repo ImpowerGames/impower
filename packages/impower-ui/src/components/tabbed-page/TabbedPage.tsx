@@ -25,12 +25,24 @@ export type TabbedPageTab = {
   content: ComponentChildren;
 };
 
+export type TabbedPageHeaderProps =
+  | {
+      header?: "present";
+      icon?: ComponentChildren;
+      backLabel?: string;
+      onBack: () => void;
+    }
+  | {
+      header: "absent";
+      icon?: never;
+      backLabel?: never;
+      onBack?: never;
+    };
+
 export type TabbedPageProps = TabbedPageVariantProps &
-  Omit<JSX.HTMLAttributes<HTMLElement>, "title" | "icon" | "class" | "value" | "children"> & {
+  Omit<JSX.HTMLAttributes<HTMLElement>, "title" | "icon" | "class" | "value" | "children"> &
+  TabbedPageHeaderProps & {
   title: string;
-  icon?: ComponentChildren;
-  backLabel?: string;
-  onBack: () => void;
   tabs: readonly TabbedPageTab[];
   value: string;
   onValueChange: (value: string) => void;
@@ -40,6 +52,7 @@ export type TabbedPageProps = TabbedPageVariantProps &
 };
 
 export default function TabbedPage({
+  header = "present",
   title,
   icon,
   backLabel = "Back to story",
@@ -58,14 +71,16 @@ export default function TabbedPage({
     : tabs[0];
   return (
     <section aria-label={title} class={cn(tabbedPageVariants(), className)} {...rest}>
-      <header class={tabbedPageHeaderVariants()}>
-        {icon}
-        <h1 class={tabbedPageTitleVariants()}>{title}</h1>
-        <Button variant="quiet" size="compact" glyph="md" class="gap-2 px-0.5 text-accent" onClick={onBack}>
-          <BackIcon />
-          {backLabel}
-        </Button>
-      </header>
+      {header === "present" && (
+        <header class={tabbedPageHeaderVariants()}>
+          {icon}
+          <h1 class={tabbedPageTitleVariants()}>{title}</h1>
+          <Button variant="quiet" size="compact" glyph="md" class="gap-2 px-0.5 text-accent" onClick={onBack}>
+            <BackIcon />
+            {backLabel}
+          </Button>
+        </header>
+      )}
       {tabbed && (
         <Tabs
           variant="page"

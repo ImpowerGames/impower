@@ -4,6 +4,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   CogIcon,
+  cn,
   DropdownCheckboxItem,
   DropdownContent,
   DropdownItem,
@@ -21,6 +22,7 @@ import {
   RestartIcon,
   ResumeIcon,
   ScreenplayIcon,
+  SettingsIcon,
   StepIntoIcon,
   StepOutIcon,
   StepOverIcon,
@@ -32,6 +34,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useSettings } from "../../workspace/settings/useSettings";
+import { settingsSectionHref } from "../settings";
 import {
   lockedPreviewSwitch,
   playsGame,
@@ -341,13 +344,13 @@ function ModeMenu({ mode }: { mode: PreviewMode }) {
           variant="quiet"
           aria-label="Viewing mode"
           title="Viewing mode"
-          class="max-w-full shrink-0 @max-[640px]:max-w-none gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent @max-[480px]:w-11 @max-[480px]:px-0 @max-[360px]:hidden [&_svg]:size-5"
+          class="max-w-full shrink-0 @max-[640px]:max-w-none gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent @max-[480px]:w-11 @max-[480px]:justify-start @max-[480px]:pr-0 @max-[480px]:pl-0.5 @max-[360px]:hidden [&_svg]:size-5"
         >
           <Icon />
           <span class="truncate @max-[640px]:hidden">
             {current.name}
           </span>
-          <ChevronDownIcon class="!size-3.5 @max-[480px]:hidden" />
+          <ChevronDownIcon class="!size-3.5" />
         </Button>
       </DropdownTrigger>
       <DropdownContent
@@ -421,6 +424,8 @@ function ColorSchemeSettings() {
   );
 }
 
+export const MORE_PREVIEW_SETTINGS = "More preview settings";
+
 function SettingsMenu({ mode }: { mode: PreviewMode }) {
   const phone = useLayout() === "phone";
   const { preferences, reducedMotion, setPreference } = useSettings();
@@ -432,13 +437,15 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
           size="icon"
           aria-label="Preview settings"
           title="Preview settings"
-          class="text-muted aria-expanded:bg-tint aria-expanded:text-accent"
+          class="text-muted"
         >
           <CogIcon />
         </Button>
       </DropdownTrigger>
       <DropdownContent
         align="end"
+        sideOffset={4}
+        elevation="toolbar"
         class={MENU_WIDTH}
       >
         {QUICK_TOGGLES[mode].map((key) => {
@@ -463,13 +470,27 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
                 <strong class="text-sm/[1.4] font-semibold group-aria-checked:text-accent">
                   {name}
                 </strong>
-                <small class="text-xs/[1.5] text-muted">{detail}</small>
+                <small class="text-[11px]/[1.5] text-muted group-aria-checked:font-semibold">
+                  {detail}
+                </small>
               </span>
             </DropdownCheckboxItem>
           );
         })}
         {playsGame(mode) ? <ColorSchemeSettings /> : null}
         {phone ? <AspectRatioSettings mode={mode} /> : null}
+        <DropdownItem
+          onSelect={() => {
+            if (document.fullscreenElement) {
+              void document.exitFullscreen();
+            }
+            window.location.assign(settingsSectionHref("preview-preferences"));
+          }}
+          class="mt-1 min-h-14 gap-3 rounded-t-none border-t border-solid border-edge py-2"
+        >
+          <SettingsIcon class="text-accent" />
+          <strong class="text-sm/[1.4] font-semibold">{MORE_PREVIEW_SETTINGS}</strong>
+        </DropdownItem>
       </DropdownContent>
     </DropdownRoot>
   );
@@ -510,7 +531,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
       role="group"
       aria-label="Playback controls"
       data-running={running ? "" : undefined}
-      class="group/bar relative z-[1] grid h-[var(--preview-top-bar-height)] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1 data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto] data-[running]:@max-[480px]:gap-0 @max-[480px]:px-1"
+      class="group/bar relative z-[1] grid h-[var(--preview-top-bar-height)] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1 data-[running]:@max-[480px]:gap-0"
     >
       <div class="flex min-w-0 max-w-full items-center gap-1 justify-self-start @max-[480px]:gap-0">
         <ModeMenu mode={mode} />
@@ -577,11 +598,19 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
               ? undefined
               : () => void withWindow((window) => window.toggleGameRunning())
           }
+          raised
           class="rounded-full border-0 aria-disabled:cursor-default aria-disabled:opacity-40 [&_svg]:size-6"
         >
           {live ? <StopIcon /> : <PlayIcon />}
         </Button>
         <SkipButton direction={1} reason={skipRefusal(game, session, 1)} />
+        {steps ? (
+          <span
+            aria-hidden="true"
+            data-step-balance
+            class={cn("w-11 shrink-0", !phone && "@min-[740px]:hidden")}
+          />
+        ) : null}
         {steps && !phone ? (
           <span class="contents @max-[740px]:hidden">
             {stepButton("out")}

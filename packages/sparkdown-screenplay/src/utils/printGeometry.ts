@@ -1,16 +1,20 @@
 import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
+import { SCRIPT_FONT_ADVANCES } from "../constants/SCRIPT_FONT_ADVANCES";
 import type { PageLine } from "../types/DocumentSpan";
 import type { FormattedText } from "../types/FormattedText";
 import type { PagePosition } from "../types/PagePosition";
 import type { PrintProfile } from "../types/PrintProfile";
 import type { ScreenplayConfig } from "../types/ScreenplayConfig";
 import type { ScreenplayTokenType } from "../types/ScreenplayTokenType";
+import { scriptAdvanceOf } from "./scriptFontAdvance";
 
-export const SCRIPT_FONT_ADVANCE = 1228 / 2048;
+export const SCRIPT_FONT_ADVANCE = scriptAdvanceOf("normal", 0x20) / SCRIPT_FONT_ADVANCES.normal.unitsPerEm;
 
 export const EMOJI_FONT_ADVANCE = 1275 / 1024;
 
 export const PRINTED_LINE_HEIGHT = 1;
+
+export const PRINTED_BASELINE = 683 / 1000 + 1421 / 2048;
 
 export const SCENE_NUMBER_LEFT_GAP = 4;
 

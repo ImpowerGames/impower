@@ -462,13 +462,48 @@ describe("Shared parts the Assets page shows against the Folio prototype (I-2441
 
   const page = () =>
     h(ui.TabbedPage, {
-      title: "Assets",
+      title: "Scripts",
       icon: h(ui.ArtIcon, { class: "flex-none text-accent" }),
       tabs: [{ value: "images", label: "Images", content: h("div", {}) }],
       value: "images",
       onValueChange: () => {},
       onBack: () => {},
     });
+
+  const assetsPage = (header: "present" | "absent") =>
+    h(
+      "div",
+      { style: "height:600px;display:flex;flex-direction:column" },
+      h(ui.TabbedPage, {
+        ...(header === "present" ? { icon: h(ui.ArtIcon, {}), onBack: () => {} } : { header }),
+        title: "Assets",
+        showTabs: false,
+        tabs: [{ value: "page", label: "Assets", content: h("div", { "data-first-row": "", style: "height:120px" }) }],
+        value: "page",
+        onValueChange: () => {},
+      }),
+    );
+
+  const firstRow = () => {
+    const section = document.querySelector("section")!;
+    return {
+      top: document.querySelector("[data-first-row]")!.getBoundingClientRect().y - section.getBoundingClientRect().y,
+      header: section.querySelector("header, h1") !== null,
+      name: section.getAttribute("aria-label"),
+    };
+  };
+
+  it.each([
+    [1440, "desktop", "charcoal", 68],
+    [820, "compact", "chalk", 56],
+    [430, "phone", "charcoal", 56],
+  ] as const)("I-2464: at %i (%s, %s) the Assets page draws no title bar and its first row moves up by the bar's %ipx", async (width, layout, theme, bar) => {
+    const options = { width, theme, layout, touch: layout === "phone" };
+    const before = await inChromium(assetsPage("present"), options, firstRow);
+    const after = await inChromium(assetsPage("absent"), options, firstRow);
+    expect(before).toEqual({ top: bar, header: true, name: "Assets" });
+    expect(after).toEqual({ top: 0, header: false, name: "Assets" });
+  });
 
   const titleBox = () => {
     const header = document.querySelector("header")!;
@@ -637,8 +672,8 @@ describe("The Assets page's and app frame's last differences from the Folio prot
   it.each([
     [768, "compact", false],
     [430, "phone", true],
-  ] as const)("G11: at %i the page header glyph is 19 wide and 20 tall", async (width, layout, touch) => {
-    const size = await inChromium(h(ui.TabbedPage, { title: "Assets", icon: h(ui.ArtIcon, {}), onBack: () => {}, tabs: [], value: "", onValueChange: () => {} }), { width, layout, touch }, () => {
+  ] as const)("G11: at %i the Scripts page header glyph is 19 wide and 20 tall", async (width, layout, touch) => {
+    const size = await inChromium(h(ui.TabbedPage, { title: "Scripts", icon: h(ui.ArtIcon, {}), onBack: () => {}, tabs: [], value: "", onValueChange: () => {} }), { width, layout, touch }, () => {
       const glyph = document.querySelector("section svg")!.getBoundingClientRect();
       return [glyph.width, glyph.height];
     });

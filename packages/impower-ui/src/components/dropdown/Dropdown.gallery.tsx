@@ -175,6 +175,16 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
+      <GalleryRow label="Toolbar elevation: the preview top bar's settings menu, a 10px radius and the prototype's runtime menu shadow, 4px from its trigger">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Preview settings</Button>
+          </DropdownTrigger>
+          <DropdownContent elevation="toolbar" sideOffset={4} align="start">
+            <MenuItems />
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
       {(Object.keys(INDICATORS) as DropdownRadioItemIndicator[]).map(
         (indicator) => (
           <GalleryRow key={indicator} label={INDICATORS[indicator]}>

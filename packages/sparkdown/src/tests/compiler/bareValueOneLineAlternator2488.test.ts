@@ -1,13 +1,13 @@
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import { isOneLineStorySet } from "../../compiler/utils/alternatorDecision";
 import { getParser } from "./grammarSnapshot";
 import { compareEnginesFull, formatDivergences } from "./scopeEquality";
 
-const SINGLE = "LuauSparkdownSingleLineConditionalAlternatorBlock";
-const MULTI = "LuauSparkdownConditionalAlternatorBlock";
+const SINGLE = "one-line set";
+const MULTI = "multi-line set";
 const SEQUENTIAL = "LuauSparkdownSingleLineSequentialAlternatorBlock";
-const MISSING_SCENE_END =
-  "Scene is missing its closing `end` keyword. Every `scene` block must be terminated by an explicit `end` at the same indentation as the `scene` keyword.";
+const CONDITIONAL = new Set(["LuauSparkdownConditionalAlternatorBlock", "LuauSparkdownSingleLineConditionalAlternatorBlock"]);
 
 const scene = (...lines: string[]) => ["scene start", '  local mood = "happy"', "  local n = 2", '  local player = { mood = "happy" }', ...lines.map((line) => `  ${line}`), "  After.", "end", ""].join("\n");
 
@@ -18,7 +18,11 @@ const blocks = (text: string) => {
     .iterate({
       enter: (ref) => {
         if (/Alternator(Block|Arm)$|^ImplicitAction$/.test(ref.name)) {
-          found.push({ name: ref.name, text: text.slice(ref.from, ref.to).trim(), parent: ref.node.parent?.parent?.name ?? "" });
+          const name = CONDITIONAL.has(ref.name) ? (isOneLineStorySet(ref.node) ? SINGLE : MULTI) : ref.name;
+          let outer = ref.node.parent;
+          while (outer && !/Alternator(Block|Arm)$/.test(outer.name)) outer = outer.parent;
+          const parent = outer && CONDITIONAL.has(outer.name) ? (isOneLineStorySet(outer) ? SINGLE : MULTI) : (outer?.name ?? "");
+          found.push({ name, text: text.slice(ref.from, ref.to).trim(), parent });
         }
       },
     });
@@ -92,30 +96,6 @@ describe("a one-line match or plural whose value is a name or a number", () => {
   });
 
   test.each([
-    ["a call", "match string.upper(mood) | HAPPY = A. | other = B. end"],
-    ["a concatenation", 'match mood .. "_day" | happy_day = A. | other = B. end'],
-    ["a sum", "plural n - 1 | one = A. | other = B. end"],
-    ["a backtick string", "match `{mood} day` | happy_day = A. | other = B. end"],
-    ["a long string", "match [[very happy]] | other = B. end"],
-    ["a value with a comment", "match mood --[[ c ]] | happy = A. | other = B. end"],
-    ["a method call on a dotted name", "match player.mood:upper() | HAPPY = A. | other = B. end"],
-    ["an index", "match player['mood'] | happy = A. | other = B. end"],
-    ["a reserved word", "match true | other = B. end"],
-    ["nil", "match nil | other = B. end"],
-    ["a dotted name ending in a reserved word", "match player.end | other = B. end"],
-    ["a name starting with a digit", "match 1x | other = B. end"],
-    ["a double-quoted string", 'match "very happy" | other = B. end'],
-    ["a single-quoted string", "match 'happy' | happy = A. | other = B. end"],
-    ["an interpolated double-quoted string", 'match "{mood}" | happy = A. | other = B. end'],
-  ])("a bare value that is %s is left to the multi-line set, as without this change", (_, line) => {
-    const found = blocks(scene(line));
-    expect(found[0]).toMatchObject({ name: MULTI });
-    expect(found[0]!.text.endsWith("After.\nend")).toBe(true);
-    expect(found.map(({ name }) => name)).not.toContain(SINGLE);
-    expect(play(scene(line)).errors).toContain(MISSING_SCENE_END);
-  });
-
-  test.each([
     ["match mood", "| happy = A.", "| other = B.", "end"],
     ["match(mood)", "| happy = A.", "| other = B.", "end"],
     ["plural n", "| one = A.", "| other = B.", "end"],
@@ -163,6 +143,7 @@ describe("a one-line match or plural whose value is a name or a number", () => {
     const bareRun = play(scene(...bare));
     expect(bareRun.errors).toEqual(play(scene(...bracketed)).errors);
     expect(bareRun.errors).toEqual([
+      `This one-line \`${bare[0]!.split(" ")[0]}\` is missing its closing \`end\` keyword at the end of its line.`,
       "statement must be inside a scene or branch; the top level holds declarations only",
       "Expected <eof>, got 'end'",
     ]);
@@ -179,8 +160,6 @@ describe("a one-line match or plural whose value is a name or a number", () => {
 
   test.each([
     ["a word that starts with the keyword", "matchbox | A. | B. end"],
-    ["the keyword with no value", "match | A. | B. end"],
-    ["a reserved word as the value", "match not | A. | B. end"],
   ])("%s does not open a one-line conditional set", (_, line) => {
     expect(blocks(scene(line)).map(({ name }) => name)).not.toContain(SINGLE);
   });

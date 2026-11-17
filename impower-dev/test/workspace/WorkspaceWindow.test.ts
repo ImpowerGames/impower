@@ -82,6 +82,10 @@ vi.mock("../../src/modules/spark-editor/components/problems", () => ({
   ProblemsPanel: () => null,
 }));
 
+vi.mock("../../src/modules/spark-editor/components/settings", () => ({
+  settingsSectionHref: (id: string) => `#project?section=${id}`,
+}));
+
 vi.mock("@impower/impower-ui/components", async () => {
   const { h, createContext } = await import("preact");
   const { useContext } = await import("preact/hooks");
@@ -105,6 +109,7 @@ vi.mock("@impower/impower-ui/components", async () => {
     "RestartIcon",
     "ResumeIcon",
     "ScreenplayIcon",
+    "SettingsIcon",
     "StepIntoIcon",
     "StepOutIcon",
     "StepOverIcon",
@@ -3650,16 +3655,14 @@ describe("The preview's top bar in a narrow pane", () => {
     }
   });
 
-  it("carries the running bar's narrow-pane rules: content-sized columns under 480px and the mode trigger hidden under 360px", () => {
+  it("carries the running bar's narrow-pane rules: equal side columns and the preview inset under 480px, and the mode trigger hidden under 360px", () => {
     show({ running: true });
-    expect(bar().className.split(/\s+/)).toEqual(
-      expect.arrayContaining([
-        "group/bar",
-        "data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto]",
-        "data-[running]:@max-[480px]:gap-0",
-        "@max-[480px]:px-1",
-      ]),
+    const classes = bar().className.split(/\s+/);
+    expect(classes).toEqual(
+      expect.arrayContaining(["group/bar", "px-2.5", "data-[running]:@max-[480px]:gap-0"]),
     );
+    expect(classes).not.toContain("data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto]");
+    expect(classes).not.toContain("@max-[480px]:px-1");
     expect(modeTrigger().className.split(/\s+/)).toEqual(
       expect.arrayContaining(["@max-[480px]:w-11", "@max-[360px]:hidden"]),
     );
@@ -3671,7 +3674,8 @@ describe("The preview's top bar in a narrow pane", () => {
     const stoppedBar = bar().className.split(/\s+/);
     show({ running: true });
     expect(modeTrigger().className).toBe(stopped);
-    expect(stoppedBar).toContain("@max-[480px]:px-1");
+    expect(stoppedBar).toContain("px-2.5");
+    expect(stoppedBar).not.toContain("@max-[480px]:px-1");
     expect(stopped).not.toMatch(/data-\[running\]/);
   });
 

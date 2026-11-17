@@ -205,7 +205,7 @@ export function DropdownTrigger({
 export const dropdownContentVariants = cva(
   [
     "z-50 min-w-[120px] max-w-[calc(100vw-24px)] max-h-[var(--radix-dropdown-menu-content-available-height)]",
-    "overflow-y-auto overscroll-contain [scrollbar-gutter:auto] rounded-card",
+    "overflow-y-auto overscroll-contain [scrollbar-gutter:auto]",
     "border border-solid border-edge bg-popup p-1.5 text-ink",
     "origin-[--radix-dropdown-menu-content-transform-origin]",
     "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
@@ -213,8 +213,9 @@ export const dropdownContentVariants = cva(
   {
     variants: {
       elevation: {
-        floating: "shadow-float",
-        library: "shadow-menu",
+        floating: "rounded-card shadow-float",
+        library: "rounded-card shadow-menu",
+        toolbar: "rounded-toolbar-menu shadow-toolbar-menu",
       },
     },
     defaultVariants: { elevation: "floating" },

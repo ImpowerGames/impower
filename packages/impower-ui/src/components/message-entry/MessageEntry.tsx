@@ -9,15 +9,19 @@ import {
 } from "../icon/icons.generated";
 
 export const messageEntryVariants = cva(
-  "flex min-w-0 flex-col border-b border-solid border-edge/40",
+  "flex min-w-0 flex-col border-b border-solid",
   {
     variants: {
+      rule: {
+        edge: "border-edge/40",
+        faint: "border-message-rule",
+      },
       fit: {
         flow: "",
         row: "h-full overflow-hidden",
       },
     },
-    defaultVariants: { fit: "flow" },
+    defaultVariants: { fit: "flow", rule: "edge" },
   },
 );
 
@@ -69,6 +73,9 @@ export type MessageEntrySeverity = NonNullable<
 export type MessageEntryFit = NonNullable<
   VariantProps<typeof messageEntryVariants>["fit"]
 >;
+export type MessageEntryRule = NonNullable<
+  VariantProps<typeof messageEntryVariants>["rule"]
+>;
 
 const GLYPHS = {
   error: ErrorIcon,
@@ -102,6 +109,7 @@ export default function MessageEntry({
   actions,
   onActivate,
   fit,
+  rule,
   class: className,
 }: MessageEntryProps) {
   const Glyph = GLYPHS[severity];
@@ -110,7 +118,7 @@ export default function MessageEntry({
       data-message-entry={severity}
       data-activatable={onActivate ? "" : undefined}
       class={cn(
-        messageEntryVariants({ fit }),
+        messageEntryVariants({ fit, rule }),
         onActivate && "relative control-overlay cursor-pointer",
         className,
       )}

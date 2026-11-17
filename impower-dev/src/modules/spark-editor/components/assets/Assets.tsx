@@ -1,5 +1,4 @@
 import {
-  ArtIcon,
   Button,
   ChevronIcon,
   DropdownContent,
@@ -1167,9 +1166,8 @@ function AssetsBrowser() {
 export default function Assets(_props: AssetsProps) {
   return (
     <TabbedPage
+      header="absent"
       title="Assets"
-      icon={<ArtIcon class="flex-none text-accent" />}
-      onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("write"))}
       showTabs={false}
       value={PAGE_TAB}
       onValueChange={() => {}}

@@ -183,7 +183,7 @@ export const PROJECT_SETTINGS_SCHEMA = {
     configured("screenplay.pdf.bookmarks.printBookmarksForInvisibleHeadings"),
   ),
   previewAspectRatio: choice("auto", ["auto", ...GAME_ASPECT_RATIOS]),
-  previewPanelHeight: setting(44),
+  previewPanelHeight: setting(62),
   previewColorScheme: choice("editor", PREVIEW_COLOR_SCHEMES),
   problemsScriptCardOpen: setting(true),
   problemsPlayedCardOpen: setting(true),

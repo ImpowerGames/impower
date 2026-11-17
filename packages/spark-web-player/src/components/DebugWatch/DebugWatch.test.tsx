@@ -47,7 +47,7 @@ describe("the Watch card", () => {
     const state: DebugWatchState = { status: "paused", open: true, entries: [], editing: null };
     const { root } = await mount(state);
     expect(rowTexts(root)).toEqual([DEBUG_WATCH_TEXT.title, "Add an expression to watch it.", "", ""]);
-    expect(debugWatchRows(state).map(debugWatchRowHeight)).toEqual([50, 52, 44, 15]);
+    expect(debugWatchRows(state).map(debugWatchRowHeight)).toEqual([52, 52, 44, 15]);
     const field = root.querySelector<HTMLInputElement>('[aria-label="Add an expression to watch"]')!;
     expect(field.placeholder).toBe("Add expression");
   });

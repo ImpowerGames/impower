@@ -1,5 +1,7 @@
 import { StyleSpec } from "style-mod";
 
+export const PREVIEW_FONT_SIZE = 14.7;
+
 const PREVIEW_THEME: {
   [selector: string]: StyleSpec;
 } = {
@@ -17,7 +19,7 @@ const PREVIEW_THEME: {
   "& .cm-scroller": {
     fontFamily:
       '"Courier Prime", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", monospace',
-    fontSize: "min(2.3cqi, 14.7px)",
+    fontSize: `min(2.3cqi, ${PREVIEW_FONT_SIZE}px)`,
     lineHeight: "var(--sp-row)",
     overflow: "visible",
     position: "relative",

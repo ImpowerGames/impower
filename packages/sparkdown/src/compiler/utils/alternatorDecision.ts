@@ -54,6 +54,31 @@ export function opensAlternator(node: SyntaxNode): boolean {
   return !ALTERNATOR_CANDIDATES.has(node.name) || alternatorArms(node) !== null || headSeparator(node) !== null;
 }
 
+const STORY_ARMS: ReadonlySet<string> = new Set([
+  "LuauSparkdownSingleLineAlternatorArms",
+  "LuauSparkdownAlternatorArmLines",
+]);
+
+export const STORY_CONDITIONAL_HEAD = "LuauSparkdownConditionalAlternatorHead";
+
+export function storyAlternatorArms(node: SyntaxNode): SyntaxNode | null {
+  const content = node.getChild(`${node.name}_content`);
+  for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+    if (STORY_ARMS.has(child.name)) return child;
+  }
+  return null;
+}
+
+export function storyArmsContent(node: SyntaxNode): SyntaxNode | null {
+  const arms = storyAlternatorArms(node);
+  return arms ? arms.getChild(`${arms.name}_content`) : null;
+}
+
+export function isOneLineStorySet(node: SyntaxNode): boolean {
+  if (node.name === "LuauSparkdownSingleLineSequentialAlternatorBlock") return true;
+  return storyAlternatorArms(node)?.name === "LuauSparkdownSingleLineAlternatorArms";
+}
+
 export function candidateOfWord(keyword: SyntaxNode): SyntaxNode | null {
   let begin: SyntaxNode | null = keyword.parent;
   while (begin && /_begin_c\d+$/.test(begin.name)) begin = begin.parent;

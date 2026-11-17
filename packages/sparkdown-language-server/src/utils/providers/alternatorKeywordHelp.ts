@@ -110,7 +110,19 @@ const NESTING_BLOCKS: ReadonlySet<string> = new Set<SparkdownNodeName>([
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
   "LuauSparkdownConditionalAlternatorBlock",
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
+  "LuauSparkdownSingleLineAlternatorArms",
+  "LuauSparkdownAlternatorArmLines",
 ]);
+
+const ARMS_OF_SET: ReadonlySet<string> = new Set<SparkdownNodeName>([
+  "LuauSparkdownSingleLineAlternatorArms",
+  "LuauSparkdownAlternatorArmLines",
+]);
+
+const setOfContent = (content: SyntaxNode): SyntaxNode => {
+  const holder = content.parent!;
+  return ARMS_OF_SET.has(holder.name) ? (holder.parent?.parent ?? holder) : holder;
+};
 
 type Read = (from: number, to: number) => string;
 
@@ -204,7 +216,7 @@ const getKeywordHover = (tree: Tree, offset: number, read: Read, range: (from: n
   const sections: string[] = [];
   const content = block.parent;
   if (isNestingContent(content) && startsOption(content, block.from, read, /^\s*$/)) {
-    const outer = blockKeywords(content.parent!, read);
+    const outer = blockKeywords(setOfContent(content), read);
     sections.push(
       `This \`${keyword}\` starts an option of the \`${outer}\` around it, so it opens a set nested in that option, which ends at its own \`end\`.`,
     );

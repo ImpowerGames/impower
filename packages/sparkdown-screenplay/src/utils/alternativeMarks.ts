@@ -1,3 +1,4 @@
+import type { SyntaxNode } from "@lezer/common";
 import type { PageLine } from "../types/DocumentSpan";
 import type { FormattedText } from "../types/FormattedText";
 import type { PrintedRowSide } from "../types/LineOptions";
@@ -22,6 +23,16 @@ export const IF_BLOCK = "LuauSparkdownIfBlock";
 export const IF_BRANCHES: ReadonlySet<string> = new Set(["LuauSparkdownElseifBlock", "LuauSparkdownElseBlock"]);
 
 export const ALTERNATOR_SEPARATOR = "LuauAlternatorSeparator";
+
+const ALTERNATOR_ARMS: ReadonlySet<string> = new Set([
+  "LuauSparkdownSingleLineAlternatorArms",
+  "LuauSparkdownAlternatorArmLines",
+]);
+
+export const separatorBlock = (separator: SyntaxNode): SyntaxNode | null => {
+  const holder = separator.parent?.parent ?? null;
+  return holder && ALTERNATOR_ARMS.has(holder.name) ? (holder.parent?.parent ?? null) : holder;
+};
 
 type AlternativeMark = "open" | "bar" | "close";
 

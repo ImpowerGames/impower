@@ -37,6 +37,7 @@ const COMPONENT_VARIABLES = [
   "--media-button",
   "--status-badge-error-edge",
   "--preview-strip",
+  "--preview-frame-fill",
 ];
 
 const TOKEN_HEADINGS: Record<Theme, string> = {

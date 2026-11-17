@@ -24,7 +24,7 @@ export default function ProblemsToggle() {
         aria-controls={phone ? undefined : PROBLEMS_PANEL_ID}
         aria-haspopup={phone ? "dialog" : undefined}
         data-problems={counts.problems > 0 ? "" : undefined}
-        class="gap-1.5 pr-2.5 pl-2 text-[12px]/[1.6] font-semibold text-muted data-problems:text-ink aria-expanded:[&>svg]:rotate-0"
+        class="gap-1.5 pr-2.5 pl-[7px] text-[12px]/[1.6] font-semibold text-muted data-problems:text-ink aria-expanded:[&>svg]:rotate-0"
         onClick={() => problems.togglePanel(() => ref.current)}
       >
         <ChevronDownIcon class="size-4! -rotate-90 text-muted" />

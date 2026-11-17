@@ -32,8 +32,10 @@ import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
+import { PREVIEW_FONT_SIZE } from "../constants/PREVIEW_THEME";
 import { escapeHtml } from "./getFormattedHTML";
-import { printedLineStyle, printedNameStyle } from "./screenplayGeometry";
+import { printedLineStyle, printedNameStyle, printedTitlePage } from "./screenplayGeometry";
+import type { TitleRegionHeights } from "../../../../../sparkdown-screenplay/src/utils/titlePageLayout";
 import TitlePageWidget, {
   TitlePageSpec,
 } from "../classes/widgets/TitlePageWidget";
@@ -47,6 +49,7 @@ import { RevealSpec } from "../types/RevealSpec";
 import {
   screenplayConfigField,
   screenplayPicksField,
+  screenplayRowField,
   screenplayScenesBeforeField,
 } from "./screenplaySettings";
 
@@ -195,6 +198,7 @@ interface CachedPageLayout {
   scenes: PrintedScene[];
   wrapStarts: PrintedRowStart[];
   names: PrintedName[];
+  titleRows: TitleRegionHeights;
 }
 
 const printedStyle = (piece: FormattedText) => ({
@@ -262,6 +266,7 @@ const cachedPageLayout = (tree: Tree, doc: Text, config: ScreenplayConfig | unde
     scenes: layout.scenes,
     wrapStarts: layout.wrapStarts,
     names: layout.names,
+    titleRows: layout.titleRows,
   };
   pageLayoutCache.set(tree, result);
   return result;
@@ -279,6 +284,7 @@ export const decorate = (
   const config = state.field(screenplayConfigField, false);
   const picks = state.field(screenplayPicksField, false);
   const scenesBefore = state.field(screenplayScenesBeforeField, false) ?? 0;
+  const row = state.field(screenplayRowField, false) ?? PREVIEW_FONT_SIZE;
 
   const declarationName = (nodeRef: SyntaxNodeRef, child: SparkdownNodeName) => {
     const cursor = nodeRef.node.cursor();
@@ -324,7 +330,7 @@ export const decorate = (
 
   const tree = treeOverride ?? syntaxTree(state);
 
-  const { blankPositions, printed, actionStarts, inserts, rows, printedLines, runs, scenes, wrapStarts, names } =
+  const { blankPositions, printed, actionStarts, inserts, rows, printedLines, runs, scenes, wrapStarts, names, titleRows } =
     cachedPageLayout(tree, doc, config, scenesBefore);
 
   const nameIn = (from: number, to: number) => names.find((name) => name.at >= from && name.at < to);
@@ -336,6 +342,8 @@ export const decorate = (
     name: name.pieces.map((piece) => piece.text).join(""),
     style: `${printedNameStyle(config, name, name.level)}${printedStyle(name.pieces[0]?.style ?? { text: "" }).style}`,
     pageBreak,
+    rows: Math.max(name.pieces.length, 1),
+    row,
   });
 
   const exportedLinesFrom = (from: number, to: number) => {
@@ -836,7 +844,7 @@ export const decorate = (
         decorations.push(
           ...createDecorations(
             doc,
-            sceneName ? nameSpec(sceneName, from, to, true) : { type: "page_break", from, to },
+            sceneName ? nameSpec(sceneName, from, to, true) : { type: "page_break", from, to, row },
           ),
         );
         return false;
@@ -929,6 +937,7 @@ export const decorate = (
             from,
             to,
             ...frontMatterPositionContent,
+            page: printedTitlePage(config, titleRows),
           }),
         );
       } else if (name === "FrontMatterField") {
@@ -962,6 +971,7 @@ export const decorate = (
             const contentEnd = findBlockContentEnd(from, to);
             const spec: DialogueSpec = {
               type: "dialogue",
+              row,
               from,
               to: contentEnd,
               blocks: [
@@ -1004,6 +1014,7 @@ export const decorate = (
         } else {
           const spec: DialogueSpec = {
             type: "dialogue",
+            row,
             from,
             to,
             blocks: [dialogueContent],
@@ -1143,6 +1154,8 @@ const replaceDecorations = StateField.define<DecorationSet>({
           state.field(screenplayConfigField, false) &&
         startState.field(screenplayPicksField, false) ===
           state.field(screenplayPicksField, false) &&
+        startState.field(screenplayRowField, false) ===
+          state.field(screenplayRowField, false) &&
         startState.field(screenplayScenesBeforeField, false) ===
           state.field(screenplayScenesBeforeField, false);
       if (unchanged) return decorations;

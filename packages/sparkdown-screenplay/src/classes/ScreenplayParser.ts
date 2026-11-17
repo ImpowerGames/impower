@@ -14,6 +14,7 @@ import {
   IF_BLOCK,
   IF_BRANCHES,
   markAlternatives,
+  separatorBlock,
 } from "../utils/alternativeMarks";
 import { isLineWords, printedLineStart } from "../utils/leadingLinePieces";
 import { insertedAt, UNPLACED } from "../utils/printedPosition";
@@ -413,7 +414,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           alternatives.push({ name, from, arms: name === IF_BLOCK ? [tokens.length] : [] });
         }
         if (name === ALTERNATOR_SEPARATOR || IF_BRANCHES.has(name)) {
-          const block = nodeRef.node.parent?.parent;
+          const block = separatorBlock(nodeRef.node);
           const open = alternatives.at(-1);
           if (open && block?.name === open.name && block.from === open.from) {
             flushText();
