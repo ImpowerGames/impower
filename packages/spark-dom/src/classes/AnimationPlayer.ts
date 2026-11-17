@@ -135,7 +135,10 @@ export default class AnimationPlayer {
     return end;
   }
 
-  async play(startTime?: number): Promise<void> {
+  async play(
+    startTime?: number,
+    onEnd?: (animation: Animation) => void,
+  ): Promise<void> {
     await Promise.allSettled(
       this._instances.map(async (instance) => {
         if (startTime != null) {
@@ -147,6 +150,7 @@ export default class AnimationPlayer {
         await (this._hold
           ? this._hold.add(instance.animation)
           : instance.animation.finished);
+        onEnd?.(instance.animation);
       }),
     );
   }

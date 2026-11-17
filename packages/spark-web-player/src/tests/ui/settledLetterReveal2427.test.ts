@@ -136,6 +136,30 @@ describe("a revealed letter holds no finished animation (#2427)", () => {
     expectSettled(page);
   });
 
+  test("a still written while paused leaves its letters shown by their own style before the game resumes", async () => {
+    const page = makePage();
+    page.pause();
+    await page.write(true);
+    expectSettled(page);
+  });
+
+  test("a typed line written while paused settles the letters already due and holds the rest", async () => {
+    const page = makePage();
+    await page.frame(150);
+    page.pause();
+    await page.write(false);
+    const [first, second, third] = page.letters();
+    expect(first!.style.opacity).toBe("1");
+    expect((first as any).__sdReveal).toBeUndefined();
+    expect(second!.style.opacity).toBe("1");
+    expect((second as any).__sdReveal).toBeUndefined();
+    expect(third!.style.opacity).toBe("0");
+    expect((third as any).__sdReveal.playState).toBe("paused");
+    page.unpause();
+    await page.frame(1_000);
+    expectSettled(page);
+  });
+
   test("a reveal held by a pause keeps its animation until it ends after the pause", async () => {
     const page = makePage();
     await page.write(false);
