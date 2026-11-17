@@ -5,11 +5,18 @@ import {
   lineLeftMargin,
   lineMaxWidth,
   type PlacedLine,
+  PRINTED_BASELINE,
   printProfileOf,
   rowHeight,
   SCENE_NUMBER_LEFT_GAP,
   SCENE_NUMBER_RIGHT_GAP,
 } from "../../../../../sparkdown-screenplay/src/utils/printGeometry";
+import {
+  TITLE_REGIONS,
+  type TitleRegion,
+  type TitleRegionHeights,
+  titlePageLayout,
+} from "../../../../../sparkdown-screenplay/src/utils/titlePageLayout";
 
 const POINTS_PER_INCH = 72;
 
@@ -37,4 +44,25 @@ export const printedPageStyle = (config: ScreenplayConfig | undefined) => {
     `--sp-scene-number-left-gap: ${SCENE_NUMBER_LEFT_GAP}ch`,
     `--sp-scene-number-right-gap: ${SCENE_NUMBER_RIGHT_GAP}ch`,
   ].join("; ");
+};
+
+export interface PrintedTitlePage {
+  baseline: string;
+  height: string;
+  rows: number;
+  tops: Record<TitleRegion, string>;
+}
+
+export const printedTitlePage = (config: ScreenplayConfig | undefined, titleRows: TitleRegionHeights): PrintedTitlePage => {
+  const profile = printProfileOf(config);
+  const row = rowHeight(profile);
+  const heights: TitleRegionHeights = {};
+  for (const region of TITLE_REGIONS) heights[region] = (titleRows[region] ?? 0) * row;
+  const { innerTop, innerHeight, tops } = titlePageLayout(profile, heights);
+  return {
+    baseline: ems(profile, (PRINTED_BASELINE * (profile.font_size ?? 12)) / POINTS_PER_INCH),
+    height: ems(profile, innerHeight),
+    rows: innerHeight / row,
+    tops: Object.fromEntries(TITLE_REGIONS.map((region) => [region, ems(profile, tops[region] - innerTop)])) as Record<TitleRegion, string>,
+  };
 };
