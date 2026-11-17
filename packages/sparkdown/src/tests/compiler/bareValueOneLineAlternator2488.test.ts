@@ -39,6 +39,11 @@ describe("a one-line match or plural whose value is a bare name", () => {
     ["plural n | one = A. | other = B. end", "plural(n) | one = A. | other = B. end"],
     ["match mood|happy=A.|other=B. end", "match(mood)|happy=A.|other=B. end"],
     ["match player.mood | happy = A. | other = B. end", "match(player.mood) | happy = A. | other = B. end"],
+    ['match "very happy" | other = B. end', 'match("very happy") | other = B. end'],
+    ["match 'a | b' | other = B. end", "match('a | b') | other = B. end"],
+    ["match `very {mood}` | other = B. end", "match(`very {mood}`) | other = B. end"],
+    ["match [[very happy]] | other = B. end", "match([[very happy]]) | other = B. end"],
+    ['match string.upper("very (happy)") | other = B. end', 'match(string.upper("very (happy)")) | other = B. end'],
   ])("the grammar reads `%s` as a one-line set, as it reads `%s`", (bare, bracketed) => {
     const shape = (text: string) => blocks(scene(text)).map(({ name }) => name);
     expect(blocks(scene(bare))[0]).toMatchObject({ name: SINGLE, text: bare });
@@ -51,6 +56,8 @@ describe("a one-line match or plural whose value is a bare name", () => {
     ["match(mood) | happy = A. | other = B. end", "A.\nAfter.\n"],
     ["plural n | one = A. | other = B. end", "B.\nAfter.\n"],
     ["plural(n) | one = A. | other = B. end", "B.\nAfter.\n"],
+    ['match "very happy" | other = She waits. end', "She waits.\nAfter.\n"],
+    ["match `{mood} day` | happy_day = A. | other = B. end", "B.\nAfter.\n"],
   ])("the game plays `%s` as alternatives", (line, out) => {
     expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
   });

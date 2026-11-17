@@ -534,7 +534,11 @@ variables:
   _LUAU_ATTRIBUTE_FOLLOWER_SPACE_: (?:({{WS}}+){{LUAU_ATTRIBUTE_FOLLOWER}})?
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
   LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_NAME_BEHIND}})
-  LUAU_ATTRIBUTE_LIST_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
+  LUAU_QUOTED_STRING_ON_LINE: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
+  LUAU_ONE_LINE_ALTERNATOR_VALUE: (?:{{LUAU_QUOTED_STRING_ON_LINE}}|{{LUAU_PLAIN_LONG_BRACKET}}|{{LUAU_ONE_LINE_ALTERNATOR_VALUE_BRACKET}}|[^\s|()"'`])+
+  LUAU_ONE_LINE_ALTERNATOR_VALUE_BRACKET: (?:[(](?:{{LUAU_ONE_LINE_ALTERNATOR_VALUE_INNER_BRACKET}}|{{LUAU_ONE_LINE_ALTERNATOR_VALUE_BRACKET_TEXT}})*[)])
+  LUAU_ONE_LINE_ALTERNATOR_VALUE_INNER_BRACKET: (?:[(]{{LUAU_ONE_LINE_ALTERNATOR_VALUE_BRACKET_TEXT}}*[)])
+  LUAU_ONE_LINE_ALTERNATOR_VALUE_BRACKET_TEXT: (?:{{LUAU_QUOTED_STRING_ON_LINE}}|[^()"'`\r\n])
   LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"{{LUAU_DOUBLE_QUOTED_STRING_TEXT}}")
   LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'{{LUAU_SINGLE_QUOTED_STRING_TEXT}}')
   LUAU_BACKTICK_STRING_ON_LINE: (?:`{{LUAU_BACKTICK_STRING_TEXT}}`)
@@ -561,7 +565,7 @@ variables:
   LUAU_STRING_CARRIED_CHARACTER: (?:[^"'`{\\\r\n])
   LUAU_STRING_CARRIED_TEXT_START: (?:[^"'`{\\ \t\v\f\r\n])
   LUAU_STRING_UNCARRIED_CHARACTER: (?:["'`{\\])
-  LUAU_PLAIN_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|{{LUAU_PLAIN_LONG_BRACKET}}|[^\[\]"'`\r\n])
+  LUAU_PLAIN_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_QUOTED_STRING_ON_LINE}}|{{LUAU_PLAIN_LONG_BRACKET}}|[^\[\]"'`\r\n])
   LUAU_ATTRIBUTE_TRIVIA: (?:{{WS}}|{{LUAU_PLAIN_BLOCK_COMMENT}})
   # lookaround: Write owns an unspaced write (`@hud: text`,
   # `@hud.panel: text`), whose target is a name or a dotted name path glued
@@ -5829,8 +5833,13 @@ repository:
         patterns:
           - { include: "#LuauComment" }
 
+  # lookaround: at a story `match` or `plural` this rule and
+  # LuauSparkdownConditionalAlternatorBlock open before either has read the
+  # value, and only a bar after the value on the keyword's line tells them
+  # apart, so the begin reads the value as LuauConditionalAlternatorCondition
+  # will (LUAU_ONE_LINE_ALTERNATOR_VALUE) and looks for the bar after it.
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?={{LUAU_EXPRESSION_START}}(?:[^\s|()]|[(][^()\r\n]*[)])+{{WS}}*[|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?={{LUAU_EXPRESSION_START}}{{LUAU_ONE_LINE_ALTERNATOR_VALUE}}{{WS}}*[|])
     beginCaptures:
       1:
         patterns:

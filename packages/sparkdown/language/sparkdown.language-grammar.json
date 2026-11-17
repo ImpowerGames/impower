@@ -1155,7 +1155,11 @@
     "_LUAU_ATTRIBUTE_FOLLOWER_SPACE_": "(?:({{WS}}+){{LUAU_ATTRIBUTE_FOLLOWER}})?",
     "LUAU_LOCAL_PREFIX": "(?:local{{WS}}+)",
     "LUAU_ATTRIBUTE_NAME_ON_LINE": "(?:@{{LUAU_NAME_BEHIND}})",
-    "LUAU_ATTRIBUTE_LIST_STRING": "(?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})",
+    "LUAU_QUOTED_STRING_ON_LINE": "(?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})",
+    "LUAU_ONE_LINE_ALTERNATOR_VALUE": "(?:{{LUAU_QUOTED_STRING_ON_LINE}}|{{LUAU_PLAIN_LONG_BRACKET}}|{{LUAU_ONE_LINE_ALTERNATOR_VALUE_BRACKET}}|[^\\s|()\"'`])+",
+    "LUAU_ONE_LINE_ALTERNATOR_VALUE_BRACKET": "(?:[(](?:{{LUAU_ONE_LINE_ALTERNATOR_VALUE_INNER_BRACKET}}|{{LUAU_ONE_LINE_ALTERNATOR_VALUE_BRACKET_TEXT}})*[)])",
+    "LUAU_ONE_LINE_ALTERNATOR_VALUE_INNER_BRACKET": "(?:[(]{{LUAU_ONE_LINE_ALTERNATOR_VALUE_BRACKET_TEXT}}*[)])",
+    "LUAU_ONE_LINE_ALTERNATOR_VALUE_BRACKET_TEXT": "(?:{{LUAU_QUOTED_STRING_ON_LINE}}|[^()\"'`\\r\\n])",
     "LUAU_DOUBLE_QUOTED_STRING_ON_LINE": "(?:\"{{LUAU_DOUBLE_QUOTED_STRING_TEXT}}\")",
     "LUAU_SINGLE_QUOTED_STRING_ON_LINE": "(?:'{{LUAU_SINGLE_QUOTED_STRING_TEXT}}')",
     "LUAU_BACKTICK_STRING_ON_LINE": "(?:`{{LUAU_BACKTICK_STRING_TEXT}}`)",
@@ -1172,7 +1176,7 @@
     "LUAU_STRING_CARRIED_CHARACTER": "(?:[^\"'`{\\\\\\r\\n])",
     "LUAU_STRING_CARRIED_TEXT_START": "(?:[^\"'`{\\\\ \\t\\v\\f\\r\\n])",
     "LUAU_STRING_UNCARRIED_CHARACTER": "(?:[\"'`{\\\\])",
-    "LUAU_PLAIN_ATTRIBUTE_LIST_TEXT": "(?:{{LUAU_ATTRIBUTE_LIST_STRING}}|{{LUAU_PLAIN_LONG_BRACKET}}|[^\\[\\]\"'`\\r\\n])",
+    "LUAU_PLAIN_ATTRIBUTE_LIST_TEXT": "(?:{{LUAU_QUOTED_STRING_ON_LINE}}|{{LUAU_PLAIN_LONG_BRACKET}}|[^\\[\\]\"'`\\r\\n])",
     "LUAU_ATTRIBUTE_TRIVIA": "(?:{{WS}}|{{LUAU_PLAIN_BLOCK_COMMENT}})",
     "LUAU_ATTRIBUTE_LINE_START": "(?={{LUAU_ATTRIBUTE_NOT_WRITE}})",
     "LUAU_ATTRIBUTE_NOT_WRITE": "(?:@(?:\\[|{{LUAU_ATTRIBUTE_NAME_NOT_WRITE}}))",
@@ -18819,7 +18823,7 @@
       }
     },
     "LuauSparkdownSingleLineConditionalAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)((?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:match|plural)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))((?:[^\\S\\n\\r])*)(?=(?=[a-zA-Z0-9_\"'`({#@-]|\\[=*\\[|[.][0-9.])(?!(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:and|break|do|else|elseif|end|for|in|local|or|repeat|return|then|until|while)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:[^\\s|()]|[(][^()\\r\\n]*[)])+(?:[^\\S\\n\\r])*[|])",
+      "begin": "((?:[^\\S\\n\\r])*)((?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:match|plural)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))((?:[^\\S\\n\\r])*)(?=(?=[a-zA-Z0-9_\"'`({#@-]|\\[=*\\[|[.][0-9.])(?!(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:and|break|do|else|elseif|end|for|in|local|or|repeat|return|then|until|while)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:`(?:(?:\\\\.|[^`\\\\\\r\\n])*)`))|(?:\\[(?:(?:\\[(?:(?:[^\\]\\r\\n])|\\](?:[^\\]\\r\\n]))*\\]\\]|=\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=(?:[^\\]\\r\\n]))*\\]?\\]=\\]|==\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=[^=\\r\\n]|\\]==(?:[^\\]\\r\\n]))*(?:\\]=?)?\\]==\\]|===\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=[^=\\r\\n]|\\]==[^=\\r\\n]|\\]===(?:[^\\]\\r\\n]))*(?:\\]={0,2})?\\]===\\])|====+\\[(?:[^\\]\\r\\n])*\\]====+\\]))|(?:[(](?:(?:[(](?:(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:`(?:(?:\\\\.|[^`\\\\\\r\\n])*)`))|[^()\"'`\\r\\n])*[)])|(?:(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:`(?:(?:\\\\.|[^`\\\\\\r\\n])*)`))|[^()\"'`\\r\\n]))*[)])|[^\\s|()\"'`])+(?:[^\\S\\n\\r])*[|])",
       "beginCaptures": {
         "1": {
           "patterns": [
