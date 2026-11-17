@@ -356,6 +356,7 @@ export function Tab({
             {children}
           </span>
           <span
+            aria-hidden="true"
             class={cn(
               "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 motion-safe:transition-opacity motion-safe:duration-100",
               activeColor,
