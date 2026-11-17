@@ -31,7 +31,7 @@ const CONDITIONAL_FORMS = (keyword: string, value: string, arms: [string, string
   [
     `One line: \`${keyword}(${value}) ${arms.map(([key, text]) => `| ${key} = ${text}`).join(" ")} end\``,
     "",
-    `On one line, a value that is a name (\`${value}\`, \`player.${value}\`) or a number may go without brackets: \`${keyword} ${value} | ...\`. Any other value, such as a string, a call or a sum, goes in brackets: \`${keyword}("${value}") | ...\`, \`${keyword}(${value} + 1) | ...\`.`,
+    `On one line, a plain name or dotted name written without spaces (\`${value}\`, \`player.${value}\`), or a number written like \`2\`, \`-1\`, \`.5\`, \`1.5e2\` or \`0x1F\`, may go without brackets: \`${keyword} ${value} | ...\`. Any other spelling, such as a string, a call, a sum or a name with spaces around its dot, goes in brackets: \`${keyword}("${value}") | ...\`, \`${keyword}(${value} + 1) | ...\`.`,
     "",
     "Several lines:",
     "",

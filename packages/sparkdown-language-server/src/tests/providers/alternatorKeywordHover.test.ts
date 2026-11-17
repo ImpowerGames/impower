@@ -103,9 +103,11 @@ describe("alternator keyword hover", () => {
       const inner = await hoverAt(text, at(text, keyword) + 1);
       expect(inner?.marked, text).toBe(keyword);
       expect(inner?.value, text).toContain("starts an option of the `cycle` around it");
-      expect(inner?.value, text).toContain("a value that is a name");
-      expect(inner?.value, text).toContain("or a number may go without brackets");
-      expect(inner?.value, text).toContain("Any other value, such as a string, a call or a sum, goes in brackets");
+      expect(inner?.value, text).toContain("a plain name or dotted name written without spaces");
+      expect(inner?.value, text).toContain("or a number written like `2`, `-1`, `.5`, `1.5e2` or `0x1F`, may go without brackets");
+      expect(inner?.value, text).toContain(
+        "Any other spelling, such as a string, a call, a sum or a name with spaces around its dot, goes in brackets",
+      );
     }
   });
 
