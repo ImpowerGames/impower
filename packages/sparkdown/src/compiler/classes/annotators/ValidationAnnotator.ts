@@ -17,6 +17,7 @@ import {
   isAliasedAttributeProp,
   isReservedAttribute,
 } from "../../constants/dataAttributeProps";
+import { isKnownSelectorState } from "../../constants/selectorStates";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
@@ -499,6 +500,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     this.unreadReadings.clear();
     this.loweredReadings.clear();
     super.update(tree, text, uri);
+  }
+
+  private deadSelectorStateConsequence(node: SyntaxNode): string {
+    for (let parent = node.parent; parent; parent = parent.parent) {
+      if (parent.name === "RecursiveSelectorFunction" && /^@(?:is|where)\(/.test(this.read(parent.from, parent.from + 7))) {
+        return "this alternative never matches";
+      }
+    }
+    return "this block never applies";
   }
 
   private inCutIsland(at: number): boolean {
@@ -1627,6 +1637,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
+    if (nodeRef.name === "SelectorStateName") {
+      const state = this.read(nodeRef.from, nodeRef.to);
+      if (!isKnownSelectorState(state)) {
+        const message = `\`@${state}\` is not a known state, so ${this.deadSelectorStateConsequence(nodeRef.node)}\n> States are the player's names such as \`@hovered\`, \`@focused\`, \`@pressed\`, \`@first\` and \`@before\``;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from - 1, nodeRef.to),
+        );
+      }
+    }
     if (
       nodeRef.name === "SelectorStateName" &&
       this.read(nodeRef.from, nodeRef.to) === "theme"
@@ -1639,7 +1661,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (!unclosed && scheme !== "light" && scheme !== "dark") {
         const to = nodeRef.to + (parameters?.[0].length ?? 0);
         const given = parameters ? `, not \`${parameters[0]}\`` : " right after it";
-        const message = `\`@theme\` takes \`(light)\` or \`(dark)\`${given}, so this block never applies\n> e.g. \`@theme(dark) { text-color = slate_90 }\``;
+        const message = `\`@theme\` takes \`(light)\` or \`(dark)\`${given}, so ${this.deadSelectorStateConsequence(nodeRef.node)}\n> e.g. \`@theme(dark) { text-color = slate_90 }\``;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
             message,
