@@ -13,6 +13,8 @@ import { PAGE_POSITIONS } from "../constants/PAGE_POSITIONS";
 import type { MetadataTokenType } from "../types/ScreenplayTokenType";
 import { cellWidth, emojiWidth, hangingGroup, lineMaxWidth, printProfileOf, titleRegionWidth } from "./printGeometry";
 import { insertAnchor, UNPLACED } from "./printedPosition";
+import type { ScriptFace } from "../constants/SCRIPT_FONT_ADVANCES";
+import { scriptFaceOf, scriptTextWidth } from "./scriptFontAdvance";
 import { getCharChunks, wrapParagraph } from "./wrapRows";
 
 export interface PrintedRun {
@@ -131,22 +133,21 @@ export const placePrintedLine = (line: PageLine, script: string, places: Printed
   }
 };
 
-const SINGLE_CELL_TEXT = /^[ -~]*$/;
-
-const cellsOf = (text: string) => (SINGLE_CELL_TEXT.test(text) ? text.length : Array.from(text).length);
-
 export const printedRowOffsets = (line: PageLine, profile: PrintProfile, regionWidth?: number): number[] => {
   const cell = cellWidth(profile);
   const emoji = emojiWidth(profile);
-  const measure = (piece: { text: string; isEmoji: boolean }) =>
-    piece.isEmoji ? getCharChunks(piece.text).length * emoji : cellsOf(piece.text) * cell;
+  const fontSize = profile.font_size ?? 12;
+  const measure = (piece: { text: string; isEmoji: boolean; face: ScriptFace }) =>
+    piece.isEmoji ? getCharChunks(piece.text).length * emoji : scriptTextWidth(piece.text, piece.face, fontSize);
   const width = regionWidth ?? lineMaxWidth(profile, line);
   const offsets: number[] = [];
   let groupStart = 0;
   let group: FormattedText[] = [];
   const wrapGroup = () => {
     const { lead, rest, hang } = hangingGroup(group);
-    const pieces = rest.flatMap((piece) => splitEmojiRuns(piece.text)).map((run) => ({ ...run, width: measure(run) }));
+    const pieces = rest
+      .flatMap((piece) => splitEmojiRuns(piece.text).map((run) => ({ ...run, face: scriptFaceOf(piece) })))
+      .map((run) => ({ ...run, width: measure(run) }));
     const rows = wrapParagraph(pieces, width - hang * cell, measure);
     let offset = groupStart + (lead?.text.length ?? 0);
     for (const row of rows.slice(0, -1)) {
