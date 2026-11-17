@@ -55,6 +55,8 @@ describe("selector states (#2154)", () => {
     ["@is(card>icon)", ":is(.card>.icon)"],
     ["@nth-child(2n of card>icon)", ":nth-child(2n of .card>.icon)"],
     ["card>icon", ".card>.icon"],
+    ["card,icon", ".card,.icon"],
+    ["@layer base,theme", "@layer.base,theme"],
     ["#title=a+b", "[title=a+b]"],
   ])("reads a component name inside %s as a class", (selector, css) => {
     expect(getCSSSelector(selector, {})).toBe(css);

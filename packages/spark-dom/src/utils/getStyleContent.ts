@@ -8,6 +8,7 @@ import {
   markNameAts,
   markSelectorArgumentNames,
   NAME_AT,
+  trimStateArguments,
   writeSelectorStates,
 } from "../../../sparkdown/src/compiler/constants/selectorStates";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
@@ -34,8 +35,6 @@ const LEADING_DESCENDANT_REGEX = /(^|,)([ ]*)[>][>]/g;
 
 const QUOTED_REGEX = /(["](?:\\.|[^"])*["]|['](?:\\.|[^'])*['])/;
 
-const ARGUMENT_SPACING_REGEX =
-  /(@(?:theme|screen[-_]size|container[-_]size))[(][ \t]*([^()\s]+)[ \t]*[)]/g;
 
 const COLOR_SCHEME_VARIANT_REGEX = /@theme[(](light|dark)[)]/g;
 
@@ -117,7 +116,7 @@ export function getCSSSelector(
 
     let rewritten = writeSelectorStates(
       markCombinatorNames(
-        markNameAts(piece.replace(ARGUMENT_SPACING_REGEX, "$1($2)")).replace(
+        markNameAts(trimStateArguments(piece)).replace(
           ATTRIBUTE_SELECTOR_REGEX,
           (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`,
         ),

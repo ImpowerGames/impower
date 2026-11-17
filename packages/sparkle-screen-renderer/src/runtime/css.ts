@@ -5,6 +5,7 @@ import {
   markSelectorArgumentNames,
   NAME_AT,
   SELECTOR_STATE_ALIASES,
+  trimStateArguments,
   writeSelectorStates,
 } from "../../../sparkdown/src/compiler/constants/selectorStates";
 import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
@@ -47,7 +48,7 @@ export function sparkleSelectorToCssSelector(
 
     let rewritten = writeSelectorStates(
       markCombinatorNames(
-        markNameAts(piece).replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`),
+        markNameAts(trimStateArguments(piece)).replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`),
       )
         .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
         .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")

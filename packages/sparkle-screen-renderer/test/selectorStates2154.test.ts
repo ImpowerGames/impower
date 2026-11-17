@@ -33,6 +33,8 @@ describe("the screen preview writes style states as the game player does (#2154)
     ["@has(>icon)", ":has(>.icon)"],
     ["@is(card>icon)", ":is(.card>.icon)"],
     ["#title=a+b", "[title=a+b]"],
+    ["card,icon", ".card,.icon"],
+    ["@theme( dark )", "@media(prefers-color-scheme:dark)"],
     ["card@first-child", ".card\\@first-child"],
     ["@not(card@first-child)", ":not(.card\\@first-child)"],
     [`@not(${String.fromCodePoint(0x10400)}card)`, `:not(.${String.fromCodePoint(0x10400)}card)`],

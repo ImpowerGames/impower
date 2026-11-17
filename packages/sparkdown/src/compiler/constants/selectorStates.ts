@@ -192,6 +192,10 @@ const SELECTOR_ARGUMENT_FUNCTION_REGEX = /@(?:has|not|is|where|host|host-context
 
 const NAME_START_REGEX = /^[_\p{L}]/u;
 
+const ARGUMENT_SPACING_REGEX = /(@(?:theme|screen[-_]size|container[-_]size))[(][ \t]*([^()\s]+)[ \t]*[)]/g;
+
+export const trimStateArguments = (selector: string): string => selector.replace(ARGUMENT_SPACING_REGEX, "$1($2)");
+
 const COMBINATOR_NAME_REGEX = /([>+~])(?=[_\p{L}])/gu;
 
 const ATTRIBUTE_BRACKET_REGEX = /(\[[^\]]*\])/;
@@ -288,10 +292,17 @@ export const keepStateArguments = (
   };
 };
 
+const AT_RULE_STATES = Object.keys(SELECTOR_STATE_ALIASES)
+  .filter((key) => SELECTOR_STATE_ALIASES[key]!.startsWith("@"))
+  .map((key) => key.slice(1).replace(/[(]$/, ""));
+
+const AT_RULE_START_REGEX = new RegExp(`^\\s*@(?:${AT_RULE_STATES.join("|")})(?![_\\p{L}0-9-])`, "u");
+
 export const markSelectorArgumentNames = (selector: string): string => {
   let out = "";
   let quote = "";
   const selectorLists: boolean[] = [];
+  const topLevelList = !AT_RULE_START_REGEX.test(selector);
   for (let i = 0; i < selector.length; i++) {
     const char = selector[i]!;
     out += char;
@@ -310,9 +321,10 @@ export const markSelectorArgumentNames = (selector: string): string => {
     } else if (char === ")") {
       selectorLists.pop();
     }
+    const inSelectorList = selectorLists.length > 0 ? selectorLists[selectorLists.length - 1] : topLevelList;
     if (
       (char === "(" || char === ",") &&
-      selectorLists[selectorLists.length - 1] &&
+      inSelectorList &&
       NAME_START_REGEX.test(selector.slice(i + 1, i + 3))
     ) {
       out += ".";
