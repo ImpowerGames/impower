@@ -86,6 +86,7 @@
     "@preact/preset-vite": "^2.10.5",
     "@tailwindcss/node": "^4.3.1",
     "@types/node": "^24.12.2",
+    "esbuild": "^0.25.0",
     "jsdom": "^27.0.1",
     "preact-render-to-string": "^6.5.0",
     "typescript": "~6.0.2",
