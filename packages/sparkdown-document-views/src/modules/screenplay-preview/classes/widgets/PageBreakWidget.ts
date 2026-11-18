@@ -2,9 +2,7 @@ import { EditorView } from "@codemirror/view";
 import BlockWidget from "../BlockWidget";
 import { PageBreakSpec } from "../../types/PageBreakSpec";
 
-export const RULE_BORDER = 2;
-
-export const RULE_GAP_ROWS = 0.5;
+export const RULE_BORDER = 1;
 
 export default class PageBreakWidget extends BlockWidget<PageBreakSpec> {
   override toDOM(_view: EditorView) {

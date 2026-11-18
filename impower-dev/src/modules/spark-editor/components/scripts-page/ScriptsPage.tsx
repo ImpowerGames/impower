@@ -202,7 +202,8 @@ function AllScripts() {
   };
 
   const onAction = (row: ScriptRow, action: RowAction) => {
-    if (action === "rename") setRenaming(row.path);
+    if (action === "select") selection.start(row.path);
+    else if (action === "rename") setRenaming(row.path);
     else if (action === "move") setMoving([row.path]);
     else if (action === "delete") requestDelete([row.path]);
     else

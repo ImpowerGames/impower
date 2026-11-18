@@ -160,7 +160,7 @@ const settle = (ms = 0) =>
 
 const toggle = () =>
   document.querySelector<HTMLButtonElement>(
-    '[aria-label="Problems and display"] > button',
+    '[role="group"][aria-label="Problems and playback messages"] > button',
   )!;
 const panel = () => document.getElementById("problems-panel");
 const chip = (word: string) =>

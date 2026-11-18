@@ -115,14 +115,13 @@ export default function ProblemsDialog() {
             size="icon"
             aria-label="Close dialog"
             title="Close dialog"
-            class="text-muted"
             onClick={() => problems.closeDialog()}
           >
             <CloseIcon />
           </Button>
         </div>
         {state ? (
-          <p class="m-0 mb-2 text-[14px]/[1.6] text-ink [overflow-wrap:anywhere]">
+          <p class="m-0 mb-2 text-[14px]/[1.6] text-muted [overflow-wrap:anywhere]">
             {summary
               ? `${scopeContext(state.scope)} · ${summary}`
               : scopeContext(state.scope)}

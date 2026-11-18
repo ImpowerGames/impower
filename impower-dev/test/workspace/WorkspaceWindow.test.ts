@@ -2816,7 +2816,7 @@ describe("The preview's top bar", () => {
   it("shows Replay beat, the skips and Play while stopped", () => {
     show();
     expect(labels()).toEqual([
-      "Viewing mode",
+      "Viewing mode: Visual Novel",
       "Replay beat",
       "Skip back",
       "Play From Here",
@@ -2834,7 +2834,7 @@ describe("The preview's top bar", () => {
         .join(" ");
     const slotOf = (label: string) => {
       const group = control(label)?.closest(".justify-self-start");
-      return group?.contains(control("Viewing mode")) ? "left" : null;
+      return group?.contains(control("Viewing mode: Visual Novel")) ? "left" : null;
     };
     show();
     const stopped = sizeOf(control("Replay beat"));
@@ -2926,7 +2926,7 @@ describe("The preview's top bar", () => {
       runGame(win);
       show(workspace.current.preview.modes.game);
       expect(labels()).toEqual([
-        "Viewing mode",
+        "Viewing mode: Visual Novel",
         "Pause",
         "Step",
         "Step Over",
@@ -2994,7 +2994,7 @@ describe("The preview's top bar", () => {
     try {
       show({ running: true, paused: true });
       expect(labels()).toEqual([
-        "Viewing mode",
+        "Viewing mode: Visual Novel",
         "Resume",
         "Step",
         "Skip back",
@@ -3025,7 +3025,7 @@ describe("The preview's top bar", () => {
   it("offers Play Again instead of Pause once the story has ended, with the Steps disabled", () => {
     show({ running: true, ended: true });
     expect(labels()).toEqual([
-      "Viewing mode",
+      "Viewing mode: Visual Novel",
       "Play Again",
       "Step",
       "Step Over",
@@ -3236,7 +3236,7 @@ describe("The preview's top bar", () => {
       ),
     );
     render(h(PreviewTopBar, {}), container);
-    expect(control("Viewing mode")?.textContent).toBe("Interactive Fiction");
+    expect(control("Viewing mode: Interactive Fiction")?.textContent).toBe("Interactive Fiction");
     expect(
       modeRows().map((row) => row.getAttribute("aria-checked")),
     ).toEqual(["false", "true", "false"]);
@@ -3248,7 +3248,7 @@ describe("The preview's top bar", () => {
     );
     render(h(PreviewTopBar, {}), container);
     expect(labels()).toEqual([
-      "Viewing mode",
+      "Viewing mode: Screenplay",
       "Skip back",
       "Play From Here",
       "Skip forward",
@@ -3260,7 +3260,7 @@ describe("The preview's top bar", () => {
     workspaceSettings.setPreference("previewMode", "screenplay");
     show({ running: true });
     expect(labels()).toEqual([
-      "Viewing mode",
+      "Viewing mode: Screenplay",
       "Pause",
       "Step",
       "Step Over",
@@ -3624,7 +3624,7 @@ describe("The preview's top bar in a narrow pane", () => {
     container.querySelector<HTMLElement>('[aria-label="Playback controls"]')!;
 
   const modeTrigger = () =>
-    container.querySelector<HTMLElement>('button[aria-label="Viewing mode"]')!;
+    container.querySelector<HTMLElement>('button[aria-label^="Viewing mode"]')!;
 
   beforeEach(() => {
     resetPreviewPreferences();

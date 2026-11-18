@@ -164,14 +164,14 @@ const settle = (ms = 0) =>
 
 const bar = () => {
   const element = document.querySelector<HTMLElement>(
-    '[aria-label="Problems and display"]',
+    '[role="group"][aria-label="Problems and playback messages"]',
   );
   expect(element, "the bar under the game").not.toBeNull();
   return element!;
 };
 const toggle = () => bar().querySelector<HTMLButtonElement>("button")!;
 const ratio = () =>
-  bar().querySelector<HTMLButtonElement>('[aria-label="Game aspect ratio"]')!;
+  bar().querySelector<HTMLButtonElement>('[aria-label^="Game aspect ratio"]')!;
 const divider = () =>
   document.querySelector<HTMLElement>(
     '[role="separator"][aria-label="Resize game and panel"]',
@@ -425,12 +425,12 @@ describe("the bar under the game", () => {
       Array.from(bar().querySelectorAll<HTMLElement>("button, a")).map(
         (control) => control.getAttribute("aria-label") ?? control.textContent,
       );
-    expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
+    expect(bar().querySelector('[aria-label^="Game aspect ratio"]')).toBeNull();
     expect(labels()).toEqual(["No problems", "main : 1", "Close the preview"]);
     await act(async () =>
       workspaceSettings.setPreference("previewMode", "textstream"),
     );
-    expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
+    expect(bar().querySelector('[aria-label^="Game aspect ratio"]')).toBeNull();
     expect(labels()).toEqual(["No problems", "main : 1", "Close the preview"]);
   });
 
@@ -439,7 +439,7 @@ describe("the bar under the game", () => {
     await act(async () => mediaListeners.forEach((listener) => listener()));
     await mount({ fullView: false });
     expect(
-      host!.querySelector('[role="group"][aria-label="Problems and display"]'),
+      host!.querySelector('[role="group"][aria-label="Problems and playback messages"]'),
     ).toBeNull();
     expect(
       host!.querySelector('[role="group"][aria-label="Playback controls"]'),
@@ -663,6 +663,7 @@ describe("the bar under the game", () => {
   it("names the ratio and the size the player reports", async () => {
     await mount();
     expect(ratio().textContent).toBe("Auto");
+    expect(ratio().getAttribute("aria-label")).toBe("Game aspect ratio: Auto");
     await setState((s) => {
       s.preview.modes.game = {
         size: { width: 391.5, height: 696, aspectRatio: "9:16" },
@@ -670,6 +671,8 @@ describe("the bar under the game", () => {
       return s;
     });
     expect(ratio().textContent).toBe("Auto · 392×696");
+    expect(ratio().getAttribute("aria-label")).toBe("Game aspect ratio: Auto, shown at 392×696 pixels");
+    expect(ratio().title).toBe("Game aspect ratio: Auto, shown at 392×696 pixels");
   });
 
   it("chooses a ratio from a menuitemradio menu and keeps it for the project", async () => {
@@ -707,7 +710,7 @@ describe("the bar under the game", () => {
     expect(routeOfHash(link.getAttribute("href")!)).toBe("project");
     expect(sectionOfHash(link.getAttribute("href")!)).toBe("screenplay-settings");
     expect(SETTINGS_SECTION_IDS).toContain(sectionOfHash(link.getAttribute("href")!));
-    expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
+    expect(bar().querySelector('[aria-label^="Game aspect ratio"]')).toBeNull();
   });
 
   it("keeps the aspect-ratio control in place in Interactive Fiction, disabled and reading Auto", async () => {
@@ -724,7 +727,10 @@ describe("the bar under the game", () => {
     await act(async () =>
       workspaceSettings.setPreference("previewMode", "textstream"),
     );
-    expect(controls()).toEqual(visualNovel);
+    expect(visualNovel).toContain("Game aspect ratio: 9:16");
+    expect(controls()).toEqual(
+      visualNovel.map((label) => (label === "Game aspect ratio: 9:16" ? "Game aspect ratio: Auto" : label)),
+    );
     expect(ratio().textContent).toBe("Auto");
     expect(ratio().getAttribute("aria-disabled")).toBe("true");
     expect(ratio().title).toBe("The page fills the pane in Interactive Fiction");

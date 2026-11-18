@@ -342,9 +342,9 @@ function ModeMenu({ mode }: { mode: PreviewMode }) {
       <DropdownTrigger asChild>
         <Button
           variant="quiet"
-          aria-label="Viewing mode"
-          title="Viewing mode"
-          class="max-w-full shrink-0 @max-[640px]:max-w-none gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent @max-[480px]:w-11 @max-[480px]:justify-start @max-[480px]:pr-0 @max-[480px]:pl-0.5 @max-[360px]:hidden [&_svg]:size-5"
+          aria-label={`Viewing mode: ${current.name}`}
+          title={`Viewing mode: ${current.name}`}
+          class="max-w-full shrink-0 border-0 @max-[640px]:max-w-none gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent @max-[480px]:w-11 @max-[480px]:justify-start @max-[480px]:pr-0 @max-[480px]:pl-0.5 @max-[360px]:hidden [&_svg]:size-5"
         >
           <Icon />
           <span class="truncate @max-[640px]:hidden">
@@ -445,6 +445,7 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
       <DropdownContent
         align="end"
         sideOffset={4}
+        edgeGap={0}
         elevation="toolbar"
         class={MENU_WIDTH}
       >

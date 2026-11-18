@@ -13,6 +13,6 @@ export default class CollapseWidget extends BlockWidget<CollapseSpec> {
   }
 
   override get estimatedHeight() {
-    return 0;
+    return this.spec.row;
   }
 }
