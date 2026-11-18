@@ -45,6 +45,13 @@ const BARE_SPELLINGS: [string, string, string][] = [
   ["a no-break space after the keyword (6978228428)", "It is .. match mood|happy=a|other=b .. today.", "mood"],
   ["a name with an underscore", "It is .. match my_mood|happy=a|other=b .. today.", "my_mood"],
   ["a negative number", "It is .. plural -1|one=a|other=b .. today.", "-1"],
+  ["a leading-dot number (6978570245)", "Fraction .. plural .5|one=apple|other=apples .. here.", ".5"],
+  ["a trailing-dot number (6978570245)", "Whole .. plural 1.|one=apple|other=apples .. here.", "1."],
+  ["a number with a signed exponent (6978570245)", "Power .. plural 1e+3|one=apple|other=apples .. here.", "1e+3"],
+  ["a negative leading-dot number", "It is .. plural -.5|one=a|other=b .. today.", "-.5"],
+  ["a decimal number", "It is .. plural 1.5|one=a|other=b .. today.", "1.5"],
+  ["a hexadecimal number", "It is .. plural 0x1F|one=a|other=b .. today.", "0x1F"],
+  ["a number with an underscore", "It is .. plural 1_000|one=a|other=b .. today.", "1_000"],
 ];
 
 const BRACKETED: [string, string, string][] = [
@@ -76,6 +83,8 @@ const PROSE: [string[], { errors: string[]; warnings: string[]; out: string }][]
   [["@ Bob", "  Wait .. match the colours | or not .. then go."], { errors: [], warnings: [], out: "@ Bob\nWait .. match the colours | or not .. then go.\n" }],
   [["choose", "  + Wait .. match the colours | or not .. then go", "    Done.", "end"], { errors: [], warnings: [], out: "" }],
   [["cycle", "| Wait .. match the colours | or not .. then go.", "| B.", "end"], { errors: [], warnings: [], out: "Wait .. match the colours | or not .. then go.\n" }],
+  [["Count .. plural 3 apples | or more .. today."], { errors: [], warnings: [], out: "Count .. plural 3 apples | or more .. today.\n" }],
+  [["Wait .. match .the | end .. now."], { errors: [], warnings: [], out: "Wait .. match .the | end .. now.\n" }],
 ];
 
 describe("a glued match or plural with a bare value is reported, asking for brackets (#2500)", () => {
