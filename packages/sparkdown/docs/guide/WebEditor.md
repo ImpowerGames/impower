@@ -25,12 +25,12 @@ pixels wide and a phone 430 pixels wide.
 ![The Story page on a phone: the project name and a menu at the top, a Your game strip with a Play button, the script, an Edit button, and the Story, Assets and Share tabs at the bottom](./images/web-editor/story-430.png)
 
 Story is where you write. The script fills the middle of the screen, and its name is
-at the top, with **Browse scripts** to open the Scripts page and a button to show or
-hide line numbers.
+at the top, with **Browse scripts** to open the Scripts page. The arrow at the left of
+the name shows or hides line numbers.
 
 - **Outline** lists the scenes, branches and choices of the script you are in. Pick
-  one to jump to it. Its search button opens Find, which also renames a name
-  everywhere it is used.
+  one to jump to it. Its search button finds words across your scripts, with
+  switches for matching case, whole words and patterns.
 - **Add** opens the Add menu, which writes a scene, a branch, a choice menu, a
   character, a line of dialogue, a backdrop, a portrait, a sound or a music cue for
   you. The art and sound pickers show the files in the folders you chose for them in
@@ -56,10 +56,10 @@ game and starts it from that line.
 ![The Scripts page on a phone: All scripts and In this script tabs, a search box and a New button, and the list of scripts](./images/web-editor/scripts-430.png)
 
 Scripts lists every script in your project. **Main** is pinned at the top: it is
-where your story starts. Use **New** to add a script, the search box to find one, and the
-sort button to order them by name, date, size, how often they are used or the order
-the story reaches them. Each script's menu renames, moves, duplicates, downloads or
-deletes it, except Main's, which only duplicates or downloads it, since your story
+where your story starts. Use **New** to add a script or a folder, the search box to find
+one, and the sort button to order them by name, date, size, how often they are used or the order
+the story reaches them. Each script's menu selects, renames, moves, duplicates,
+downloads or deletes it, except Main's, which only duplicates or downloads it, since your story
 always starts there; a script with a problem shows an
 icon beside its name. **Back to story** returns to the script you were writing.
 
@@ -68,16 +68,19 @@ writing.
 
 ## Assets
 
-![The Assets page on a computer for a project with no assets yet: a search box, an Add button, the Images, Audio, Video, Text, Fonts and Other tabs, and an Add files from this device button](./images/web-editor/assets-1440.png)
+![The Assets page on a computer: a search box, an Add button, the Images, Audio, Video, Text, Fonts and Other tabs, and the Images tab showing a Backdrops folder of four colour swatches and a Portraits folder of two](./images/web-editor/assets-1440.png)
 
-![The Assets page on a phone for a project with no assets yet, with the same tabs and button](./images/web-editor/assets-430.png)
+![The Audio tab of the Assets page on a phone: a Sounds folder, and two sounds with a play button, their length, folder, date and size](./images/web-editor/assets-430.png)
 
 Assets holds everything your story shows or plays. The tabs sort your files by kind:
-Images, Audio, Video, Text, Fonts and Other. **Add** brings in files from your device
-or a link to a file online, and you can drop files onto the page. Keep them in
-folders however you like; each file's menu opens, renames, moves, downloads or
-deletes it. Selecting a file opens its details beside the list on a computer, and as
-a sheet over it on a phone, where you can hear a sound or try an image's variants.
+Images, Audio, Video, Text, Fonts and Other. Images show as tiles and sounds as rows you can play.
+**Add** brings in files from your device, adds a link to a file online or makes a
+new folder, and you can drop files onto the page. Keep them in folders however you
+like; each file's menu selects, renames, moves, downloads or deletes it. Opening a
+file shows its details beside the list on a computer, and as a sheet over it on a
+phone: its type and size (and a sound's length), where it is and where your story
+uses it, with
+**Replace…** and **Download**.
 
 ## Share
 
@@ -104,7 +107,8 @@ Settings has two halves. **Editor preferences** belong to you and this browser:
   comments, indentation guides) and how it helps (suggestions as you type, renaming linked
   files).
 - **Keyboard shortcuts**: which keys do what.
-- **Preview**: how the game preview plays.
+- **Preview**: the screenplay paper, and whether the game follows your caret, plays
+  each line's beat and its sound, and keeps idle animations moving.
 
 **Project preferences** travel with your project:
 

@@ -83,8 +83,8 @@ agent or a second breakpoint.
   Its width is stored in the workspace (`shell.railWidth`, `shell.railCompactWidth`)
   and bounded by `workspace/railWidths.ts`.
 - **The top bar** (`desktop-shell/TopBar.tsx`): the project name field
-  (`ProjectNameField.tsx`), the save status line and the search field
-  (`TitleBarSearch.tsx`). On phones `PhoneTitleBar.tsx` and `PhoneSearch` take its place,
+  (`ProjectNameField.tsx`) and the save status line, and the search field
+  (`TitleBarSearch.tsx`) when the rail is collapsed to its icons. On phones `PhoneTitleBar.tsx` and `PhoneSearch` take its place,
   and `AppMenu.tsx` holds what the rail holds on wider screens.
 - **The preview dock** (`components/preview/Preview.tsx`): the preview top bar
   (`preview-top-bar/`), the game (`preview-game/`) or the screenplay
@@ -113,13 +113,14 @@ Each feature folder under `src/modules/spark-editor/components/` exposes one ent
 
 | Surface | Folder |
 |---|---|
+| The window: shell, page, preview dock and strip by layout | `main-window/` |
 | Shell: rail, top bar, phone title bar, bottom navigation, app menu, project name | `desktop-shell/` |
 | Story page: the script editor | `logic/`, `logic-script-editor/`, `logic-scripts-editor/` |
 | Script name and the script's header | `script-header/` |
 | Outline | `outline/` |
 | Writer's bar (Indent, Dedent, Format and the editing keys) | `writer-bar/` |
 | Writing tools menu, keyboard shortcuts sheet, Sparkdown guide | `writing-tools/` |
-| Add menu and its pickers | `add-panel/` |
+| Add menu and its pickers | `add-panel/`, in the panel frame `tool-panel/` |
 | Find, references and rename | `find-references-rename/` |
 | Problems panel and the Problems to fix dialog | `problems/` |
 | Scripts page | `scripts-page/`, on the shared page frame `library-page/` |
@@ -130,6 +131,7 @@ Each feature folder under `src/modules/spark-editor/components/` exposes one ent
 | Preview: top bar, game, screenplay, bar, saves, strip, route view | `preview/`, `preview-top-bar/`, `preview-game/`, `preview-screenplay/`, `preview-bar/`, `preview-saves/`, `preview-strip/`, `preview-route/` |
 | Save and sync status, Drive sync, conflicts | `drive-sync/`, `conflict-dialog/` |
 | Import progress and replacing a project | `import-progress-bar/`, `replace-project/` |
+| Recycle bin: deleted files and their Restore | `trash-panel/`, opened from the folder-path menu (`library-page/Trail.tsx`) |
 | Toasts | `snackbar-host/` |
 
 The primitives these compose (buttons, menus, dialogs and sheets, rows, the rail

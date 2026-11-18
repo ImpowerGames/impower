@@ -15,7 +15,7 @@ Both pages are built on one page frame,
 | Part | File |
 |---|---|
 | The page: toolbar, search, a virtualized list or grid of rows | `LibraryPage.tsx` (rows in `VirtualList` from `@impower/impower-ui`) |
-| The folder path, with Parent folder | `Trail.tsx` |
+| The folder path, with Parent folder, and its menu holding Recycle bin | `Trail.tsx` |
 | Search | `SearchBox.tsx` |
 | Sort by and Order | `SortMenu.tsx` |
 | Selecting several rows, and Stop selecting | `SelectionBar.tsx`, `useSelectionKeys.ts` |
@@ -29,8 +29,9 @@ Each page supplies its rows and its row menu: `scripts-page/ScriptsPage.tsx` wit
 Variants, Upload here…, New folder inside…, Rename, Move…, Download, Delete). The
 listings and selections are store state, in `workspace/scriptsListing.ts`,
 `workspace/scriptsSelection.ts`, `workspace/assetsListing.ts` and
-`workspace/assetsSelection.ts`. A deleted file is moved to the project's Trash
-(`workspace/moveToTrash.ts`) rather than removed.
+`workspace/assetsSelection.ts`. A deleted file is moved to the project's Recycle bin
+(`workspace/moveToTrash.ts`) rather than removed; the folder-path button's menu opens
+the bin (`trash-panel/TrashPanel.tsx`), where each deletion can be restored.
 
 ## Rules
 
