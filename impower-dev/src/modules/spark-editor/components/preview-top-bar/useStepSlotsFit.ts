@@ -19,10 +19,14 @@ const rowOf = (group: Element) => {
   };
 };
 
-export const STEP_SLOTS = 2;
+const arrangedStepSlots = (centre: Element) =>
+  [...centre.querySelectorAll<HTMLElement>("[data-step-slots]")]
+    .filter((slots) => getComputedStyle(slots).display !== "none")
+    .reduce((sum, slots) => sum + (Number(slots.dataset["stepSlots"]) || 0), 0);
 
 export function stepSlotsFit(bar: HTMLElement, stepSlotsShown: boolean) {
-  const [start, centre, end] = [...bar.children].map(rowOf);
+  const groups = [...bar.children];
+  const [start, centre, end] = groups.map(rowOf);
   if (!start || !centre || !end) {
     return true;
   }
@@ -30,7 +34,9 @@ export function stepSlotsFit(bar: HTMLElement, stepSlotsShown: boolean) {
   const padding =
     (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
   const gap = parseFloat(style.columnGap) || 0;
-  const missing = stepSlotsShown ? 0 : STEP_SLOTS * (centre.slot + centre.gap);
+  const missing = stepSlotsShown
+    ? 0
+    : arrangedStepSlots(groups[1]!) * (centre.slot + centre.gap);
   const needed =
     padding + 2 * gap + 2 * Math.max(start.width, end.width) + centre.width + missing;
   return bar.clientWidth + 0.5 >= needed;

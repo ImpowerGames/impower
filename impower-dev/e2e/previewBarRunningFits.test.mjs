@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { launchEditorBrowser, openEditorPage, waitForEditor, withEditor, writeMainSd } from "../../.agents/skills/drive-web-editor/driver.mjs";
 import { VIEWPORT_PRESETS } from "../../.agents/skills/drive-web-editor/viewport.mjs";
 
-const WIDTHS = [800, 760, 741, 740, 739, 700, 640, 560, 520, 500, 481, 480, 420, 393, 360, 340, 320];
+const WIDTHS = [960, 900, 860, 820, 800, 780, 760, 741, 740, 739, 700, 640, 560, 520, 500, 481, 480, 420, 393, 360, 340, 320];
 const SCRIPT = "scene start\n  Hello from the driver.\n  Second line here.\n  Third line here.\nend\n";
 const BAR = '[role="group"][aria-label="Playback controls"]';
 
@@ -89,6 +89,32 @@ test("every running-bar button keeps its own slot inside the bar, at every pane 
       await page.waitForTimeout(300);
       const groupItems = await entriesIn(page, "Preview settings", "Step");
       assert.deepEqual(groupItems, menuItems, "the cog menu's Step group lists the Step menu's entries");
+
+      const chooseMode = async (name) => {
+        await page.locator(BAR).getByRole("button", { name: /^Viewing mode: / }).click();
+        await page.getByRole("menuitemradio", { name: new RegExp(`^${name}`) }).click();
+        await page.locator(BAR).getByRole("button", { name: `Viewing mode: ${name}` }).waitFor({ timeout: 10_000 });
+      };
+      await sizePane(page, 800);
+      await page.locator(BAR).getByRole("button", { name: "Stop" }).click();
+      await page.locator(BAR).getByRole("button", { name: "Play From Here" }).waitFor({ timeout: 30_000 });
+      await chooseMode("Interactive Fiction");
+      try {
+        await page.locator(BAR).getByRole("button", { name: "Play From Here" }).click();
+        await page.getByRole("button", { name: /^(Pause|Resume)$/ }).waitFor({ timeout: 30_000 });
+        const longLabel = [];
+        for (const width of WIDTHS) {
+          await sizePane(page, width);
+          await page.waitForTimeout(300);
+          for (const problem of (await problems(page, width)).found) longLabel.push(`${width} px, Interactive Fiction: ${problem}`);
+        }
+        assert.deepEqual(longLabel, []);
+      } finally {
+        await sizePane(page, 800);
+        const stop = page.locator(BAR).getByRole("button", { name: "Stop" });
+        if (await stop.isVisible().catch(() => false)) await stop.click();
+        await chooseMode("Visual Novel");
+      }
     },
     { device: null, launch: ({ headless }) => launchEditorBrowser({ headless, display: { viewport: { name: "desktop", ...VIEWPORT_PRESETS.desktop } } }) },
   );

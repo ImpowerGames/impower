@@ -64,6 +64,10 @@ import {
 } from "../../workspace/stepStates";
 import { useStepSlotsFit } from "./useStepSlotsFit";
 
+const STEP_MENU_SLOTS = 2;
+
+const STEP_BUTTON_SLOTS = 4;
+
 export const propDefaults = {};
 export type PreviewTopBarProps = Partial<typeof propDefaults>;
 
@@ -541,8 +545,8 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const caretScript = useCaretScript();
   const bar = useRef<HTMLDivElement>(null);
   const fits = useStepSlotsFit(bar, running);
-  const steps = running;
-  const stepMenu = running && fits;
+  const stepsInBar = running && fits;
+  const folded = running && !fits;
   const stepButton = (traversal: StepTraversal) => {
     const { label, icon } = STEPS.find((s) => s.traversal === traversal)!;
     return (
@@ -562,7 +566,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
       role="group"
       aria-label="Playback controls"
       data-running={running ? "" : undefined}
-      data-steps-folded={running && !fits ? "" : undefined}
+      data-steps-folded={folded ? "" : undefined}
       class="relative z-[1] grid h-[var(--preview-top-bar-height)] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[360px]:gap-0 @max-[360px]:px-1"
     >
       <div class="flex min-w-0 max-w-full items-center gap-1 justify-self-start @max-[480px]:gap-0">
@@ -604,20 +608,27 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         )}
       </div>
       <div class="flex items-center justify-center gap-1 @max-[360px]:gap-0">
-        {stepMenu && phone ? (
-          <StepMenu refusals={refusals} caretScript={caretScript} />
-        ) : null}
-        {stepMenu && !phone ? (
-          <span class="contents @min-[740px]:hidden">
+        <span
+          class={cn("contents", !phone && "@min-[740px]:hidden")}
+          data-step-slots={STEP_MENU_SLOTS}
+        >
+          {stepsInBar ? (
             <StepMenu refusals={refusals} caretScript={caretScript} />
+          ) : null}
+        </span>
+        {phone ? null : (
+          <span
+            class="contents @max-[740px]:hidden"
+            data-step-slots={STEP_BUTTON_SLOTS}
+          >
+            {stepsInBar ? (
+              <>
+                {stepButton("over")}
+                {stepButton("in")}
+              </>
+            ) : null}
           </span>
-        ) : null}
-        {steps && !phone ? (
-          <span class="contents @max-[740px]:hidden">
-            {stepButton("over")}
-            {stepButton("in")}
-          </span>
-        ) : null}
+        )}
         <SkipButton direction={-1} reason={skipRefusal(game, session, -1)} />
         <Button
           variant="primary"
@@ -636,14 +647,14 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           {live ? <StopIcon /> : <PlayIcon />}
         </Button>
         <SkipButton direction={1} reason={skipRefusal(game, session, 1)} />
-        {stepMenu ? (
+        {stepsInBar ? (
           <span
             aria-hidden="true"
             data-step-balance
             class={cn("w-11 shrink-0", !phone && "@min-[740px]:hidden")}
           />
         ) : null}
-        {steps && !phone ? (
+        {stepsInBar && !phone ? (
           <span class="contents @max-[740px]:hidden">
             {stepButton("out")}
             <ControlButton
@@ -659,9 +670,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         {playsGame(mode) ? <SavesMenuButton /> : null}
         <SettingsMenu
           mode={mode}
-          steps={
-            running && !fits ? { refusals, caretScript } : undefined
-          }
+          steps={folded ? { refusals, caretScript } : undefined}
         />
       </div>
     </div>
