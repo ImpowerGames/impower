@@ -103,7 +103,7 @@ describe("the preview top bar against the prototype", () => {
     expect(menu.classList).not.toContain("shadow-float");
   });
 
-  it("places the cog menu 4px below its trigger, not at the shared 6px default", async () => {
+  it("places the cog menu 4px below its trigger, not at the shared 6px default, with its right edge on the cog's", async () => {
     const TRIGGER = { top: 80, bottom: 124, left: 1386, right: 1430 };
     const MENU = { width: 340, height: 300 };
     const box = (r: { top: number; bottom: number; left: number; right: number }) =>
@@ -135,6 +135,7 @@ describe("the preview top bar against the prototype", () => {
       expect(match, wrapper.style.transform).not.toBeNull();
       expect(menu.dataset.side).toBe("bottom");
       expect(Number(match![2])).toBe(TRIGGER.bottom + 4);
+      expect(Number(match![1])).toBe(TRIGGER.right - MENU.width);
     } finally {
       spies.forEach((spy) => spy.mockRestore());
       for (const target of [window, document.documentElement]) {
@@ -199,7 +200,7 @@ describe("the preview top bar against the prototype", () => {
     await setPhone(true);
     running();
     const bar = await mount();
-    const mode = bar.querySelector<HTMLElement>('[aria-label="Viewing mode"]')!;
+    const mode = bar.querySelector<HTMLElement>('[aria-label^="Viewing mode"]')!;
     const chevron = mode.querySelectorAll("svg")[1]!;
     expect(chevron.getAttribute("class")).not.toContain("@max-[480px]:hidden");
     expect(mode.classList).toContain("@max-[480px]:w-11");
