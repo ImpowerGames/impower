@@ -12,17 +12,18 @@ const PAGE_FILES = [
   "impower-dev/src/modules/spark-editor/styles/theme/theme.css",
 ];
 
-const SOURCE_ROOTS = ["impower-dev/src", "packages"];
+const SOURCE_EXTENSIONS = /\.(css|scss|html|[cm]?[jt]sx?)$/;
 
-const SOURCE_EXTENSIONS = /\.(css|html|tsx?|mjs|js)$/;
+const TEST_SOURCE = /(^|\/)(test|tests|__tests__)\/|\.(test|spec)\.[cm]?[jt]sx?$/;
 
 const sources = (): Map<string, string> => {
-  const listed = execFileSync("git", ["ls-files", "--", ...SOURCE_ROOTS], {
+  const listed = execFileSync("git", ["ls-files"], {
     cwd: REPO,
     encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
   })
     .split("\n")
-    .filter((file) => SOURCE_EXTENSIONS.test(file) && !/(^|\/)(test|tests)\/|\.test\.tsx?$/.test(file));
+    .filter((file) => SOURCE_EXTENSIONS.test(file) && !TEST_SOURCE.test(file));
   return new Map(listed.map((file) => [file, fs.readFileSync(path.join(REPO, file), "utf8")]));
 };
 

@@ -106,9 +106,9 @@ const ssrNoExternal: (string | RegExp)[] = [
   "@impower/sparkdown-document-views",
 ];
 
-const impowerUiStyleCss = path.join(
-  resolvePkgDir("@impower/impower-ui"),
-  "src/style.css",
+const editorTailwindCss = path.resolve(
+  indir,
+  "modules/spark-editor/styles/editor-tailwind.css",
 );
 
 const impowerUiThemeCss = path.join(
@@ -218,7 +218,7 @@ const renderDevPage = async (
   let impowerUiTailwindCss = "";
   try {
     const tw = await server.transformRequest(
-      "/@fs/" + impowerUiStyleCss.replace(/\\/g, "/") + "?direct",
+      "/@fs/" + editorTailwindCss.replace(/\\/g, "/") + "?direct",
     );
     if (tw?.code) impowerUiTailwindCss = tw.code;
   } catch (err) {
@@ -742,7 +742,7 @@ export {
   alias,
   dedupe,
   ssrNoExternal,
-  impowerUiStyleCss,
+  editorTailwindCss,
   PRODUCTION,
   WATCH,
   MINIFY,

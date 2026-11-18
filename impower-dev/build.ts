@@ -22,7 +22,7 @@ import {
   dedupe,
   externalWorkerPaths,
   getServiceWorkerDefine,
-  impowerUiStyleCss,
+  editorTailwindCss,
   indir,
   MINIFY,
   outdir,
@@ -189,7 +189,7 @@ const expandPageComponents = async () => {
     });
     try {
       const tw = await cssServer.transformRequest(
-        "/@fs/" + impowerUiStyleCss.replace(/\\/g, "/") + "?direct",
+        "/@fs/" + editorTailwindCss.replace(/\\/g, "/") + "?direct",
       );
       if (tw?.code) tailwindCss = tw.code;
     } catch (err) {
