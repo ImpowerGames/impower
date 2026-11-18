@@ -6,6 +6,7 @@ import { TextOptions } from "../types/TextOptions";
 import { wrapTextbox } from "./wrapTextbox";
 import { getFontAscent } from "./fontHandler";
 import { drawEmojiChunk, getEmojiProvider } from "../../../emoji/emojiText";
+import { noteUnprintable } from "../../../utils/unprintableCharacters";
 
 export const printTextbox = (
   doc: PDFKit.PDFDocument,
@@ -76,6 +77,7 @@ const printLines = (
           String(baseline),
         );
       } else if (textPart.text != null) {
+        noteUnprintable(doc, textPart.text);
         doc.text(textPart.text, xPosition, yPosition, {
           link: textPart.link,
           align: "left",

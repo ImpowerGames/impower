@@ -1,4 +1,8 @@
-import { ExportPDFMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportPDFMessage";
+import {
+  ExportPDFMessage,
+  type ExportPDFResult,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ExportPDFMessage";
+import { unprintableNotice } from "@impower/sparkdown-screenplay-pdf/src/utils/unprintableNotice";
 import * as vscode from "vscode";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
@@ -103,7 +107,7 @@ export const exportPdf = async (
       for (const [fontName, fontBuffer] of fontFiles) {
         userFonts[fontName] = fontBuffer;
       }
-      const pdfBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const exported = await new Promise<ExportPDFResult>((resolve, reject) => {
         worker.onmessage = (e) => {
           if (!token.isCancellationRequested) {
             const message = e.data;
@@ -130,8 +134,13 @@ export const exportPdf = async (
       if (token.isCancellationRequested) {
         return;
       }
-      await writeFile(fsPath, pdfBuffer);
+      await writeFile(fsPath, exported.pdf);
       updateCommands(uri);
+      if (exported.unprintable.length > 0) {
+        void vscode.window.showWarningMessage(
+          unprintableNotice(exported.unprintable),
+        );
+      }
     },
   );
   SparkdownCommandTreeDataProvider.instance.notifyExportEnded("pdf");

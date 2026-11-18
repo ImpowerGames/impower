@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { buildPDF } from "../buildPDF";
+import { unprintableNotice } from "../utils/unprintableNotice";
 
 const usage = () => {
   console.error(
@@ -96,11 +97,14 @@ const config = {
 const script = readFileSync(inputPath, "utf8");
 
 buildPDF([script], config, fonts)
-  .then((arrayBuffer) => {
-    writeFileSync(outputPath, Buffer.from(arrayBuffer));
+  .then(({ pdf, unprintable }) => {
+    writeFileSync(outputPath, Buffer.from(pdf));
     console.log(
-      `Wrote ${outputPath} (${arrayBuffer.byteLength} bytes; fonts: ${usedDir})`,
+      `Wrote ${outputPath} (${pdf.byteLength} bytes; fonts: ${usedDir})`,
     );
+    if (unprintable.length > 0) {
+      console.warn(unprintableNotice(unprintable));
+    }
   })
   .catch((err) => {
     console.error(err);

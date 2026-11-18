@@ -144,7 +144,7 @@ interface PdfModules {
     scripts: string[],
     config: ScreenplayConfig | undefined,
     fonts: typeof FONTS,
-  ) => Promise<ArrayBuffer>;
+  ) => Promise<{ pdf: ArrayBuffer; unprintable: string[] }>;
   printer: { printText: (text: PrintedText, ...rest: unknown[]) => number };
 }
 
@@ -190,7 +190,7 @@ const pdfBytes = async (script: string, config?: ScreenplayConfig) => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
   try {
-    return new Uint8Array(await buildPDF([script], config, FONTS));
+    return new Uint8Array((await buildPDF([script], config, FONTS)).pdf);
   } finally {
     vi.useRealTimers();
   }

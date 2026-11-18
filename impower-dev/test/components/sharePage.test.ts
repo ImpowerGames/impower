@@ -8,6 +8,7 @@ const calls = vi.hoisted(() => ({
   progress: [] as ((value?: { percentage?: number }) => void)[],
   release: [] as (() => void)[],
   routes: [] as string[],
+  unprintable: [] as string[],
 }));
 
 const BUNDLE = { files: ["main.sd"] };
@@ -16,7 +17,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
   const run = (format: string) => (programs: unknown[], onProgress: (value?: { percentage?: number }) => void) => {
     calls.exports.push({ format, programs });
     calls.progress.push(onProgress);
-    return new Promise((resolve) => calls.release.push(() => resolve(`${format}-content`)));
+    const content = `${format}-content`;
+    const result = format === "pdf" ? () => ({ pdf: content, unprintable: calls.unprintable }) : () => content;
+    return new Promise((resolve) => calls.release.push(() => resolve(result())));
   };
   return {
     Workspace: {
@@ -64,6 +67,7 @@ beforeEach(() => {
   calls.progress.length = 0;
   calls.release.length = 0;
   calls.routes.length = 0;
+  calls.unprintable = [];
   workspace.current = {
     ...workspace.current,
     project: { ...workspace.current.project, id: "local", name: "My story" },
@@ -130,5 +134,49 @@ describe("the Share page", () => {
     expect(calls.downloads).toEqual([{ name, type, parts: [`${format}-content`] }]);
     expect(button(label).disabled).toBe(false);
     expect(card("Export a screenplay").querySelector('[role="progressbar"]')).toBeNull();
+  });
+
+  const notice = () => document.querySelector<HTMLElement>("[data-unprintable-notice]");
+
+  const exportPdf = async () => {
+    await act(async () => button("Download PDF").click());
+    await settle();
+    await act(async () => calls.release[0]!());
+    await settle();
+  };
+
+  it("names the characters the PDF prints blank under the Download buttons, outside the page's flow", async () => {
+    calls.unprintable = ["日", "本", "Ω"];
+    await mount();
+    const flow = () => [...card("Export a screenplay").querySelectorAll("*")].map((el) => el.tagName);
+    const before = flow();
+    await exportPdf();
+    expect(calls.downloads).toEqual([{ name: "My story.pdf", type: "application/pdf", parts: ["pdf-content"] }]);
+    expect(notice()!.textContent).toBe(
+      "Some characters can't be printed in the screenplay font and are blank in the PDF: 日 本 Ω",
+    );
+    expect(host!.contains(notice())).toBe(false);
+    expect(flow()).toEqual(before);
+  });
+
+  it("shows no notice for a script the font covers", async () => {
+    await mount();
+    await exportPdf();
+    expect(calls.downloads).toHaveLength(1);
+    expect(notice()).toBeNull();
+  });
+
+  it("clears the notice when the next export starts", async () => {
+    calls.unprintable = ["日"];
+    await mount();
+    await exportPdf();
+    expect(notice()).not.toBeNull();
+    calls.unprintable = [];
+    await act(async () => button("Download PDF").click());
+    await settle();
+    expect(notice()).toBeNull();
+    await act(async () => calls.release[1]!());
+    await settle();
+    expect(notice()).toBeNull();
   });
 });
