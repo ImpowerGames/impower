@@ -52,6 +52,10 @@ scene start
   Left again.
   [[show backdrop]]
   Still left.
+  [[show backdrop BG at right]]
+  Right once more.
+  [[animate backdrop BG with shake]]
+  Shaken.
 end
 `;
 
@@ -144,6 +148,15 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
     expect(shown.length).toBeGreaterThan(0);
     for (const picture of shown) {
       expect(picture).toEqual({ kind: "image", placed: {} });
+    }
+  });
+
+  test("an animate that names the picture adds its copy at the layer's framing", async () => {
+    const h = await played(10);
+    const shown = pictures(h.overlay, "backdrop");
+    expect(shown.length).toBeGreaterThan(1);
+    for (const picture of shown) {
+      expect(picture).toEqual({ kind: "image", placed: { translate: "calc(0.5 * (100cqw - 100%)) 0px" } });
     }
   });
 
