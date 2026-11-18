@@ -1,5 +1,6 @@
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
+import { anchorSelfTargeted } from "../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { escapeCssIdentifier, getThemeVariableName } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { type SparkleNode } from "../parser/parser";
 import { builtins } from "./builtins";
@@ -270,11 +271,7 @@ export function renderVNode(
     if (type === "property" && args?.["key"]) {
       return sparklePropertyToCssProperty(args?.["key"], args?.["value"], ctx.options.theme, cssAliases);
     }
-    const selector = sparkleSelectorToCssSelector(type, breakpoints);
-    const selfTargetedSelector =
-      selector.startsWith("[") || selector.startsWith(":")
-        ? "&" + selector
-        : selector;
+    const selfTargetedSelector = anchorSelfTargeted(sparkleSelectorToCssSelector(type, breakpoints));
     const blockContent = (children ?? [])
       .map((c, i) => {
         return renderVNode(c, ctx, el, i) as string;

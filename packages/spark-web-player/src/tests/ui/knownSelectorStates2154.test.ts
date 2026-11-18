@@ -1,10 +1,43 @@
 import { describe, expect, it } from "vitest";
 import { getCSSSelector } from "@impower/spark-dom/src/utils/getStyleContent";
-import {
-  isKnownSelectorState,
-  KNOWN_SELECTOR_STATES,
-  SELECTOR_STATE_ALIASES,
-} from "../../../../sparkdown/src/compiler/constants/selectorStates";
+import { sparkleSelectorToCssSelector } from "../../../../sparkle-screen-renderer/src/runtime/css";
+import { isKnownSelectorState, KNOWN_SELECTOR_STATES } from "../../../../sparkdown/src/compiler/constants/selectorStates";
+
+const PLAIN_STANDARD_STATES = [
+  "active",
+  "any-link",
+  "autofill",
+  "default",
+  "defined",
+  "empty",
+  "first-child",
+  "first-of-type",
+  "focus",
+  "focus-visible",
+  "focus-within",
+  "fullscreen",
+  "hover",
+  "in-range",
+  "last-child",
+  "last-of-type",
+  "link",
+  "modal",
+  "only-child",
+  "only-of-type",
+  "open",
+  "optional",
+  "out-of-range",
+  "picture-in-picture",
+  "placeholder-shown",
+  "popover-open",
+  "read-only",
+  "read-write",
+  "root",
+  "target",
+  "user-invalid",
+  "user-valid",
+  "visited",
+];
 
 const APPLIED: readonly [name: string, source: string, css: string][] = [
   ["theme", "@theme(dark)", ':where([data-color-scheme="dark"]) &'],
@@ -64,37 +97,43 @@ const APPLIED: readonly [name: string, source: string, css: string][] = [
   ["starting-style", "@starting-style", "@starting-style"],
   ["starting_style", "@starting_style", "@starting-style"],
   ["supports", "@supports (display:grid)", "@supports(display:grid)"],
+  ...PLAIN_STANDARD_STATES.map((name): [string, string, string] => [name, `@${name}`, `:${name}`]),
+  ["has", "@has(icon)", ":has(.icon)"],
+  ["not", "@not(@hovered)", ":not(:hover)"],
+  ["is", "@is(@first, @last)", ":is(:first-child,:last-child)"],
+  ["where", "@where(@checked)", ":where(:checked)"],
+  ["host", "@host(card)", ":host(.card)"],
+  ["host-context", "@host-context(card)", ":host-context(.card)"],
+  ["nth-child", "@nth-child(2n of card)", ":nth-child(2n of .card)"],
+  ["nth-last-child", "@nth-last-child(-n + 3)", ":nth-last-child(-n + 3)"],
+  ["nth-of-type", "@nth-of-type(2n + 1)", ":nth-of-type(2n + 1)"],
+  ["nth-last-of-type", "@nth-last-of-type(2)", ":nth-last-of-type(2)"],
+  ["dir", "@dir(rtl)", ":dir(rtl)"],
+  ["lang", "@lang(en)", ":lang(en)"],
+  ["state", "@state(open)", ":state(open)"],
 ];
 
 const NOT_APPLIED: readonly [name: string, source: string, css: string][] = [
-  ["empty", "@empty", ":nth-child(empty)"],
   ["charset", "@charset", "@charset"],
   ["color-profile", "@color-profile", "@color-profile"],
   ["counter-style", "@counter-style", "@counter-style"],
   ["font-face", "@font-face", "@font-face"],
   ["font-feature-values", "@font-feature-values", "@font-feature-values"],
   ["font-palette-values", "@font-palette-values", "@font-palette-values"],
-  ["import", "@import", ":@import"],
+  ["import", "@import", "@import"],
   ["keyframes", "@keyframes", "@keyframes"],
   ["namespace", "@namespace", "@namespace"],
   ["page", "@page", "@page"],
   ["property", "@property", "@property"],
   ["view-transition", "@view-transition", "@view-transition"],
-  ["hover", "@hover", "@hover"],
-  ["focus-visible", "@focus-visible", "@focus-visible"],
-  ["first-child", "@first-child", ":first-child-child"],
-  ["last-of-type", "@last-of-type", ":last-child-of-type"],
-  ["placeholder-shown", "@placeholder-shown", "::placeholder-shown"],
-  ["has", "@has(icon)", "@has(icon)"],
-  ["not", "@not(@hovered)", "@not(:hover)"],
-  ["is", "@is(@first, @last)", "@is(:first-child,:last-child)"],
-  ["where", "@where(@checked)", "@where(:checked)"],
-  ["nth-child", "@nth-child(2)", "@nth-child(2)"],
-  ["dir", "@dir(rtl)", "@dir(rtl)"],
-  ["lang", "@lang(en)", "@lang(en)"],
+  ["left", "@left", "@left"],
+  ["right", "@right", "@right"],
+  ["paused", "@paused", "@paused"],
+  ["playing", "@playing", "@playing"],
+  ["hoverd", "@hoverd", "@hoverd"],
 ];
 
-describe("known selector states (#2154)", () => {
+describe("known selector states (#2154, #2502)", () => {
   it.each(APPLIED)("accepts %s, which the player writes from %s as %s", (name, source, css) => {
     expect(isKnownSelectorState(name)).toBe(true);
     expect(getCSSSelector(source, { sm: 640 })).toBe(css);
@@ -109,10 +148,10 @@ describe("known selector states (#2154)", () => {
     expect(new Set(APPLIED.map(([name]) => name))).toEqual(KNOWN_SELECTOR_STATES);
   });
 
-  it("accepts only the player's own names and theme", () => {
-    const aliasNames = new Set(Object.keys(SELECTOR_STATE_ALIASES).map((key) => key.slice(1).replace(/[(]$/, "")));
-    for (const name of KNOWN_SELECTOR_STATES) {
-      expect(name === "theme" || aliasNames.has(name)).toBe(true);
-    }
-  });
+  it.each(APPLIED.filter(([name]) => name !== "theme"))(
+    "writes %s in the screen preview as the player does",
+    (_name, source, css) => {
+      expect(sparkleSelectorToCssSelector(source, { sm: 640 })).toBe(css);
+    },
+  );
 });

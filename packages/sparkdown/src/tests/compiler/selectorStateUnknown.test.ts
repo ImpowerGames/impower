@@ -87,13 +87,9 @@ describe("unknown selector state", () => {
   });
 
   test.each([
-    ["@hover", "hover"],
-    ["@focus-visible", "focus-visible"],
-    ["@first-child", "first-child"],
-    ["@nth-child(2)", "nth-child"],
-    ["@has(icon)", "has"],
-    ["@empty", "empty"],
     ["@keyframes", "keyframes"],
+    ["@charset", "charset"],
+    ["@font-face", "font-face"],
   ])("warns on %s, which the player does not apply", (selector, name) => {
     expect(unknownStateWarnings(style(selector))).toEqual([
       expect.stringContaining(`\`@${name}\` is not a known state, so this block never applies\n`),
@@ -114,6 +110,19 @@ describe("unknown selector state", () => {
     "@screen-size(sm)",
     "@container_size(md)",
     "@hovered @focused",
+    "@hover",
+    "@focus-visible",
+    "@first-child",
+    "@last-of-type",
+    "@placeholder-shown",
+    "@empty",
+    "@nth-child(2)",
+    "@has(icon)",
+    "@not(@first-child)",
+    "@is(@hover, @focus-visible)",
+    "@where(@checked)",
+    "@dir(rtl)",
+    "@lang(en)",
   ])("accepts %s", (selector) => {
     expect(unknownStateWarnings(style(selector))).toEqual([]);
   });
