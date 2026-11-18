@@ -156,7 +156,9 @@ const spaces = (boxes: Box[]) =>
   }));
 
 const expectSettingsRhythm = (boxes: Box[]) => {
-  expect(boxes.filter((box) => box.role === "separator").length).toBeGreaterThan(0);
+  const rules = boxes.filter((box) => box.role === "separator");
+  expect(rules.length).toBeGreaterThan(0);
+  expect(rules.map((box) => box.bottom - box.top)).toEqual(rules.map(() => 1));
   const expected = spaces(boxes).map((pair) => ({
     ...pair,
     space: pair.to.startsWith("More preview settings") || pair.from === "separator" || pair.to === "separator" ? 6 : 2,

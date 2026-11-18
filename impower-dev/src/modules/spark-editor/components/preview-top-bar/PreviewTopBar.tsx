@@ -446,7 +446,7 @@ export const MORE_PREVIEW_SETTINGS = "More preview settings";
 const RADIO_ROW_LIKE_CHECKBOX_ROW = "gap-3 [&>[data-radio-indicator]]:size-[18px]";
 
 const SETTINGS_MENU_ROWS =
-  "flex flex-col gap-0.5 [&_[role=group]]:flex [&_[role=group]]:flex-col [&_[role=group]]:gap-0.5 [&_[role=separator]]:my-1";
+  "flex flex-col gap-0.5 [&_[role=group]]:flex [&_[role=group]]:flex-col [&_[role=group]]:gap-0.5 [&_[role=separator]]:my-1 [&_[role=separator]]:shrink-0";
 
 function SettingsMenu({
   mode,
