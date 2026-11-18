@@ -2,9 +2,9 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
-import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
+import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
-import { placePicture } from "../../../../spark-dom/src/utils/placePicture";
+import { haltPicture, placePicture, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
   createCutsceneElement,
   createVideoElement,
@@ -2054,13 +2054,28 @@ export default class UIManager extends Manager {
         }
         const content = instruction.content;
         if (!content) {
+          const pictureEls = [...imageEls, ...maskEls].flatMap(
+            (contentEl) => Array.from(contentEl.children) as HTMLElement[],
+          );
+          const travel = instruction.travel;
+          if (travel) {
+            const timing = { ...travel.timing, fill: "backwards" as const };
+            const { delay = 0, duration = 0 } = getEffectTiming(timing);
+            const moves = Number(delay) > 0 || Number(duration) > 0;
+            for (const pictureEl of pictureEls) {
+              travelPicture(pictureEl, travel.framing, (keyframes) =>
+                moves ? after.addKeyframes(pictureEl, keyframes, timing) : undefined,
+              );
+            }
+          }
           if (instruction.control === "show") {
-            for (const contentEl of [...imageEls, ...maskEls]) {
-              for (const pictureEl of Array.from(contentEl.children) as HTMLElement[]) {
-                placePicture(pictureEl, instruction.framing);
-              }
+            for (const pictureEl of pictureEls) {
+              placePicture(pictureEl, instruction.framing);
             }
           } else if (instruction.control === "hide") {
+            for (const pictureEl of pictureEls) {
+              haltPicture(pictureEl);
+            }
             for (const imageEl of imageEls) {
               for (const video of Array.from(imageEl.querySelectorAll("video"))) {
                 if (!hiddenMovies.includes(video)) {
@@ -2128,6 +2143,9 @@ export default class UIManager extends Manager {
               );
             }
             if (instruction.control === "show") {
+              for (const prevSpanEl of prevSpanEls) {
+                haltPicture(prevSpanEl);
+              }
               if (content.previousHideAnimation) {
                 for (const prevSpanEl of prevSpanEls) {
                   if (!outgoing.includes(prevSpanEl)) {

@@ -170,6 +170,7 @@ import {
   type MorphImageContent,
   type MorphLayerPlay,
   type PictureFraming,
+  type PictureTravel,
   type WriteImageInstruction,
   WriteImageMessage,
   type WriteImageMessageMap,
@@ -207,6 +208,11 @@ function sameValue(a: unknown, b: unknown): boolean {
 }
 
 type ImagePick = string | ((layer: ImageLayer) => string | undefined);
+
+interface PictureView {
+  framing?: PictureFraming;
+  picture: boolean;
+}
 
 interface Retirement {
   element: Element;
@@ -4587,6 +4593,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  getTravelTiming(
+    event: { after?: number; over?: number; ease?: string },
+    instant: boolean,
+  ): PictureTravel["timing"] {
+    const easeDefinition = event.ease ? this.context?.ease?.[event.ease] : null;
+    return {
+      delay: instant ? "0s" : `${event.after ?? 0}s`,
+      duration: instant ? "0s" : `${event.over ?? 0}s`,
+      easing: easeDefinition != null ? this.getTimingFunction(easeDefinition) : "ease",
+    };
+  }
+
   getAnimationDefinition(
     event: {
       name: string;
@@ -4841,10 +4859,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected saveState(target: string, sequence: ImageInstruction[] | null) {
         if (sequence) {
           $._state.image ??= {};
+          const existed = Boolean($._state.image[target]);
           $._state.image[target] ??= [];
           let state = $._state.image[target];
           for (const event of sequence) {
             const targetingContent = Boolean(event.assets?.length);
+            if (!targetingContent && event.control === "animate" && event.to) {
+              const shown = state.findLast((e) => e.control === "show" && e.assets?.length);
+              if (shown) {
+                shown.at = event.to;
+              }
+              if (!event.with) {
+                continue;
+              }
+            }
             if (targetingContent) {
               if (event.control === "show") {
                 state = state.filter(
@@ -4888,6 +4916,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
             }
           }
+          if (!existed && !$._state.image[target]?.length) {
+            delete $._state.image[target];
+          }
         } else {
           delete $._state.image?.[target];
         }
@@ -4919,33 +4950,43 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
       }
 
-      protected nextFraming(
-        e: ImageInstruction,
-        framing: PictureFraming | undefined,
-      ): PictureFraming | undefined {
+      protected nextView(e: ImageInstruction, view: PictureView): PictureView {
         if (e.assets?.length) {
-          return e.control === "show" ? $.getFraming(e.at) : framing;
+          return e.control === "show" ? { framing: $.getFraming(e.at), picture: true } : view;
         }
-        return e.control === "hide" ? undefined : framing;
+        if (e.control === "hide") {
+          return { ...view, framing: undefined };
+        }
+        if (e.control === "animate" && e.to && view.picture) {
+          return { ...view, framing: $.getFraming(e.to) };
+        }
+        return view;
       }
 
-      protected framingAfter(events: ImageInstruction[]) {
-        let framing: PictureFraming | undefined;
+      protected viewAfter(events: ImageInstruction[]): PictureView {
+        let view: PictureView = { picture: false };
         for (const e of events) {
-          framing = this.nextFraming(e, framing);
+          view = this.nextView(e, view);
         }
-        return framing;
+        return view;
       }
 
       protected resolve(
         sequence: ImageInstruction[],
         instant: boolean,
-        framing?: PictureFraming,
+        view: PictureView = { picture: false },
       ): WriteImageInstruction[] {
         const instructions: WriteImageInstruction[] = [];
         for (const e of sequence) {
-          framing = this.nextFraming(e, framing);
+          view = this.nextView(e, view);
+          const framing = view.framing;
           const out: WriteImageInstruction = { control: e.control };
+          if (e.control === "animate" && e.to && view.picture && !e.assets?.length) {
+            out.travel = {
+              ...(framing ? { framing } : {}),
+              timing: $.getTravelTiming(e, instant),
+            };
+          }
           const targetAnimations: Animation[] = [];
           const affected: { target: string; animations: Animation[] }[] = [];
           const isFirstContentReveal =
@@ -5226,7 +5267,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[] | null,
         instant: boolean,
         time?: number,
-        framing?: PictureFraming,
+        view?: PictureView,
       ) {
         const targetEls = $.findElements(target, true);
         if (!sequence && $.knownEmpty("image", targetEls)) {
@@ -5253,7 +5294,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         await $.emitSettled(
           WriteImageMessage.type.request({
             target,
-            instructions: sequence ? this.resolve(sequence, instant, framing) : [],
+            instructions: sequence ? this.resolve(sequence, instant, view) : [],
             instant,
             ...(time != null ? { time } : {}),
             ...($.namesWriteElements(target, targetEls)
@@ -5284,10 +5325,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const sequence = events.map((event) =>
           event.assets?.length ? { ...event, speaker: speaker ?? "" } : event,
         );
-        const framing = this.framingAfter($._state.image?.[target] ?? []);
+        const view = this.viewAfter($._state.image?.[target] ?? []);
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time, framing);
+          await this.applyChanges(target, sequence, instant, time, view);
         }
       }
     }

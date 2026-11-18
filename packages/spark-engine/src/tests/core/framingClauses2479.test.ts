@@ -26,7 +26,7 @@ const flat = (messages: any[]): any[] =>
 const imageMessages = (messages: any[], framings = true) =>
   JSON.stringify(
     flat(messages).filter((message) => /image/.test(String(message?.method))),
-    (key, value) => (framings || key !== "framing" ? value : undefined),
+    (key, value) => (framings || (key !== "framing" && key !== "travel") ? value : undefined),
   ).replaceAll(/"id":"[^"]*"/g, "");
 
 const played = async (source: string) => {
@@ -71,7 +71,7 @@ describe("at and to on the image instruction (I-2479)", () => {
     expect(framedImages).toContain("bg.png");
     expect(framedImages).toContain('"framing":{"x":1,"y":0.5,"zoom":1}');
     expect(framedImages).toContain('"framing":{"x":0,"y":0.5,"zoom":1}');
-    expect(framedImages).not.toContain('"framing":{"x":0.6');
+    expect(framedImages).toContain('"travel":{"framing":{"x":0.6,"y":1,"zoom":1.2}');
     expect(imageMessages(framed.messages, false)).toEqual(imageMessages(plain.messages));
   });
 });
