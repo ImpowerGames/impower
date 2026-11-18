@@ -1,0 +1,13 @@
+[
+  {
+    "file": "evidence/progress.md",
+    "sha256": "08cce15491138f15ec8a48aaa331d85e3c9df3d86c36fc1b1aafc7898b6d1c9d",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "historical-probes/nativeCyclicUnionAcceptance.test.ts.txt",
+    "original": "packages/sparkdown/src/tests/luau-conformance/nativeCyclicUnionAcceptance.test.ts",
+    "sha256": "96ea9d43a6f0e5ee2636c7a0cdd14d77758d84dd616b71c48371fee609bbfae9",
+    "kind": "unexecuted archive; original local copy retained"
+  }
+]
