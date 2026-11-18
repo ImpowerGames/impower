@@ -865,7 +865,7 @@ export class SparkdownPreviewGamePanelManager {
     const scriptNonce = getNonce();
     return `
       <!DOCTYPE html>
-      <html class="theme-dark se-theme" lang="en">
+      <html lang="en">
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -928,11 +928,12 @@ export class SparkdownPreviewGamePanelManager {
               background-color: var(--vscode-editor-background);
             }
 
-            /* The player stays hidden until it has something to show, which
-               on a large project waits for it to mount and compile the whole
-               project in its own worker; the bar says the preview is coming
-               (#1221). It animates on the compositor, so it keeps moving
-               while the page's script loads and the player mounts. */
+            body > spark-web-player {
+              --swp-run-color: var(--vscode-debugIcon-startForeground, #89d185);
+              --swp-stop-color: var(--vscode-debugIcon-stopForeground, var(--swp-error-color));
+              --swp-toolbar-border-color: var(--vscode-panel-border, rgba(255, 255, 255, 0.15));
+            }
+
             spark-web-player {
               opacity: 0;
             }

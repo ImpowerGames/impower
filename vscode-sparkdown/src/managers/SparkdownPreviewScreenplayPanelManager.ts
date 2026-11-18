@@ -320,7 +320,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     const scriptNonce = getNonce();
     return `
       <!DOCTYPE html>
-      <html class="theme-dark se-theme" lang="en">
+      <html lang="en">
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
