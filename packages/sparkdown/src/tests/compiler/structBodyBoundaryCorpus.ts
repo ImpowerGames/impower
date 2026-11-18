@@ -23,6 +23,7 @@ const KEYWORDS: Record<string, string> = {
   LuauStyle: "style",
   LuauAnimation: "animation",
   LuauTheme: "theme",
+  LuauFraming: "framing",
   LuauMorph: "morph",
   LuauLayout: "layout",
   LuauComponent: "component",

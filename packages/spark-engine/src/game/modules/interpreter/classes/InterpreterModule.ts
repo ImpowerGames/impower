@@ -950,12 +950,17 @@ export class InterpreterModule extends Module<
   ): Chunk {
     const kind = tag as DirectiveKind;
     const reading = readDirective(kind === "audio" ? "audio" : "image", assetTagContent, kind);
+    const clauses = this.assetClauseValues(reading.clauses);
+    const framing = kind === "image" ? reading.clauses.findLast((clause) => clause.word.text === "to") : undefined;
+    if (framing) {
+      clauses["to"] = framing.value?.text;
+    }
     return {
       tag,
       control: reading.control?.text ?? defaultControl,
       target: reading.target?.text ?? defaultTarget,
       assets: reading.names.map((name) => name.text),
-      clauses: this.assetClauseValues(reading.clauses),
+      clauses,
       duration: 0,
       speed: 1,
     };
@@ -1749,6 +1754,14 @@ export class InterpreterModule extends Module<
               if (typeof morphValue === "string" && morphValue) {
                 event.morph = morphValue;
               }
+              const atValue = c.clauses?.at;
+              if (typeof atValue === "string" && atValue) {
+                event.at = atValue;
+              }
+              const toValue = c.clauses?.to;
+              if (typeof toValue === "string" && toValue) {
+                event.to = toValue;
+              }
               if (c.clauses?.loop) {
                 event.loop = true;
               }
@@ -1862,7 +1875,7 @@ export class InterpreterModule extends Module<
                 event.to = 1;
               }
               const toValue = c.clauses?.to;
-              if (toValue != null) {
+              if (typeof toValue === "number") {
                 event.to = toValue;
               }
               const muteValue = c.clauses?.mute;

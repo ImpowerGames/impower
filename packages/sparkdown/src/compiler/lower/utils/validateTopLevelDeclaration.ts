@@ -15,6 +15,7 @@ const TOP_LEVEL_DECLARATIONS: Readonly<
   LuauScreen: { keyword: "screen", node: "LuauScreenKeyword" },
   LuauAnimation: { keyword: "animation", node: "LuauAnimationKeyword" },
   LuauTheme: { keyword: "theme", node: "LuauThemeKeyword" },
+  LuauFraming: { keyword: "framing", node: "LuauFramingKeyword" },
 };
 
 const FUNCTIONS = new Set(["LuauFunctionDefinition", "LuauMethodDefinition"]);

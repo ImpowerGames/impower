@@ -131,6 +131,11 @@ const CLAUSE_ROWS: Row[] = [
   ["morph none", "image", "mia morph none"],
   ["two morph clauses", "image", "mia morph talk morph shout"],
   ["to", "image", "mia to 0.5"],
+  ["at a framing", "image", "show backdrop mia at left"],
+  ["to a framing", "image", "animate backdrop to sofa over 1s"],
+  ["at that is not a name", "image", "show backdrop mia at 5"],
+  ["at on a layout", "image", "open menu at left"],
+  ["audio at", "audio", "play music theme at left"],
   ["morph named like a flag", "image", "mia morph wait"],
   ["morph named like a clause word that takes a value", "image", "mia morph over"],
   ["ease named like itself", "image", "mia ease ease"],
@@ -292,6 +297,12 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
     if (transition && isName(transition)) link("transition", transition);
     const ease = value("ease");
     if (ease && isName(ease)) link("ease", ease);
+    if (chunk.tag === "image") {
+      for (const key of ["at", "to"]) {
+        const framing = value(key);
+        if (framing && isName(framing)) link("framing", framing);
+      }
+    }
     if (!navigate) reading.implicitNames = chunk.assets.filter((asset) => /[:~]/.test(asset));
   }
   if (chunk.tag === "image" && Object.hasOwn(clauses, "morph")) {
@@ -311,6 +322,7 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
         }
       }
       if (!clause.takesValue || keyword === "morph" || (navigate && keyword === "to") || (bracket === "audio" && keyword === "ease")) return;
+      if (keyword === "at" && chunk.tag !== "image") return;
       const given = clause.value?.text;
       if (given === undefined) {
         reading.valueErrors.push(`${keyword}:missing`);
@@ -320,7 +332,9 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
       const invalid =
         keyword === "after" || keyword === "over"
           ? kind !== "time" && kind !== "number"
-          : keyword === "to"
+          : (keyword === "at" || keyword === "to") && chunk.tag === "image"
+            ? kind !== "name"
+            : keyword === "to"
             ? kind !== "number" || Number(given) < 0
             : kind !== "name";
       if (invalid) reading.valueErrors.push(`${keyword}:invalid`);
