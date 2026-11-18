@@ -433,7 +433,7 @@ class SparkleSelectorWriter {
 
   private prelude(atRule: string): string {
     let out = "";
-    const selectorGroups: boolean[] = [];
+    let depth = 0;
     let space = false;
     let atStart = true;
     while (this.i < this.src.length) {
@@ -442,7 +442,7 @@ class SparkleSelectorWriter {
         space = true;
         continue;
       }
-      if (char === ")" && selectorGroups.length === 0) {
+      if (char === ")" && depth === 0) {
         break;
       }
       if (space) {
@@ -456,14 +456,15 @@ class SparkleSelectorWriter {
         space = false;
       }
       atStart = false;
-      const inSelector = selectorGroups[selectorGroups.length - 1] ?? false;
       if (char === "(") {
-        selectorGroups.push(
-          inSelector || (selectorGroups.length === 0 && atRule === "@scope") || SELECTOR_FUNCTION_BEFORE.test(out),
-        );
+        if ((depth === 0 && atRule === "@scope") || SELECTOR_FUNCTION_BEFORE.test(out)) {
+          out += this.enclosed(() => this.list("selectors", false));
+          continue;
+        }
+        depth++;
       } else if (char === ")") {
-        selectorGroups.pop();
-      } else if (char === "#" && !inSelector) {
+        depth--;
+      } else if (char === "#") {
         this.i++;
         out += char;
         continue;
