@@ -18,7 +18,7 @@ import {
 } from "../utils/alternativeMarks";
 import { isLineWords, printedLineStart } from "../utils/leadingLinePieces";
 import { insertedAt, UNPLACED } from "../utils/printedPosition";
-import { printsAsBlankLine } from "../utils/printsAsBlankLine";
+import { blankLineTest } from "../utils/printsAsBlankLine";
 import { readStyled } from "../utils/readStyled";
 import { isRootFunctionName } from "../utils/rootFunctionName";
 
@@ -153,6 +153,7 @@ const trimRanges = (ranges: number[], leading: number, trailing: number): number
 export const screenplayTokens = (tree: Tree, script: string, positions = false): ScreenplayToken[] => {
     const stack: SparkdownNodeName[] = [];
     const tokens: ScreenplayToken[] = [{ tag: "page_break" }];
+    const printsAsBlankLine = blankLineTest(tree);
     let frontMatterKey = "";
     let frontMatterValue = NO_TEXT;
     let frontMatterSource: number[] = [];
@@ -359,7 +360,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         const from = nodeRef.from;
         const to = nodeRef.to;
 
-        if (printsAsBlankLine(name, nodeRef.node.parent?.name)) {
+        if (printsAsBlankLine(nodeRef)) {
           addSeparator(from);
         }
         if (TOKENS_ON_LEAVE.has(name)) {
@@ -471,7 +472,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         }
 
         if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
-          if (isLineWords(nodeRef.node)) {
+          if (isLineWords(nodeRef)) {
             title = appendLine(title, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
@@ -480,7 +481,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         }
 
         if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
-          if (isLineWords(nodeRef.node)) {
+          if (isLineWords(nodeRef)) {
             heading = appendLine(heading, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
@@ -492,7 +493,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           stack.includes("BlockTransitional") ||
           stack.includes("InlineTransitional")
         ) {
-          if (isLineWords(nodeRef.node)) {
+          if (isLineWords(nodeRef)) {
             transitional = appendLine(
               transitional,
               nodeRef.node,
@@ -509,7 +510,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           stack.includes("InlineAction") ||
           stack.includes("ImplicitAction")
         ) {
-          if (isLineWords(nodeRef.node)) {
+          if (isLineWords(nodeRef)) {
             action = appendLine(action, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
@@ -536,7 +537,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           stack.includes("BlockDialogue_content") ||
           stack.includes("InlineDialogue_content")
         ) {
-          if (isLineWords(nodeRef.node)) {
+          if (isLineWords(nodeRef)) {
             const continues = continuesAfterComment(nodeRef.node);
             const last = tokens.at(-1);
             if (continues && last?.tag === "dialogue_content") {
