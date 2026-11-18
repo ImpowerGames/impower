@@ -1,0 +1,24 @@
+{
+  "source": [
+    "packages/sparkdown/src/compiler/typecheck/ConstraintGenerator.ts",
+    "packages/sparkdown/src/compiler/typecheck/NonStrictTypeChecker.ts",
+    "packages/sparkdown/src/compiler/typecheck/TypeChecker2.ts",
+    "packages/sparkdown/src/compiler/typecheck/TypeFunction.ts",
+    "packages/sparkdown/src/tests/luau-conformance/checkerConfiguration.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/checkerConfiguration.ts",
+    "packages/sparkdown/src/tests/luau-conformance/diagnosticObservations.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/diagnosticObservations.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nonstrictFixture.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nonstrictFixture.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeDiagnosticAcceptance.private.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeDiagnosticAcceptance.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeFixtureConfigurationAcceptance.private.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeFixtureConfigurationAcceptance.test.ts"
+  ],
+  "archivedNativeProbes": [
+    "packages/sparkdown/src/tests/luau-conformance/nativeDiagnosticAcceptance.private.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeDiagnosticAcceptance.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeFixtureConfigurationAcceptance.private.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeFixtureConfigurationAcceptance.test.ts"
+  ]
+}

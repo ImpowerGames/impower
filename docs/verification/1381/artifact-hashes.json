@@ -1,0 +1,51 @@
+[
+  {
+    "file": "evidence/consolidated-native-contract.md",
+    "sha256": "a873a316b0b92c30401e643f991fe733d2cdc8a6f3973a852394049ceed7c3e6",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/remaining-first-begin-census.json",
+    "sha256": "944e10263c7aa3fa43baa756c15e0f4d25fc8c1980a8d0c88a07e530fe0a91bc",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/remaining-lifecycle-census.json",
+    "sha256": "eb9f2e7a81c15a384778380a43978ca315daeba16fd46f8caf21f558cd8eacb0",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/native-migration.md",
+    "sha256": "c7eee8b9001eab160ed331ab3e7416e5274c18898edf749c3aeca4483ff7c88e",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/progress.md",
+    "sha256": "bc02a635edd1d11480f8417cd22af6f7f11301fc1fa52508bbac6bb19945cf3c",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "historical-probes/nativeDiagnosticAcceptance.private.test.ts.txt",
+    "original": "packages/sparkdown/src/tests/luau-conformance/nativeDiagnosticAcceptance.private.test.ts",
+    "sha256": "ab7df150487576ca419b612a77b1d22568880f6fb2e69de72f796889846f943c",
+    "kind": "unexecuted archive; original local copy retained"
+  },
+  {
+    "file": "historical-probes/nativeDiagnosticAcceptance.test.ts.txt",
+    "original": "packages/sparkdown/src/tests/luau-conformance/nativeDiagnosticAcceptance.test.ts",
+    "sha256": "6cc3d3087277a04ff26926a8e45d4288865f1ddfcde56098dceb0178b10894ed",
+    "kind": "unexecuted archive; original local copy retained"
+  },
+  {
+    "file": "historical-probes/nativeFixtureConfigurationAcceptance.private.test.ts.txt",
+    "original": "packages/sparkdown/src/tests/luau-conformance/nativeFixtureConfigurationAcceptance.private.test.ts",
+    "sha256": "7f3b663a303c97415f7caa082948da60832dea0df2c1243a7b7b2fdfea65ed4e",
+    "kind": "unexecuted archive; original local copy retained"
+  },
+  {
+    "file": "historical-probes/nativeFixtureConfigurationAcceptance.test.ts.txt",
+    "original": "packages/sparkdown/src/tests/luau-conformance/nativeFixtureConfigurationAcceptance.test.ts",
+    "sha256": "91c449c5677bd1d3de9da7afe0a0d7ffd2e8d68e0e6bec33dd38e6c843f1ea10",
+    "kind": "unexecuted archive; original local copy retained"
+  }
+]

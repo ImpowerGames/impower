@@ -1,0 +1,356 @@
+{
+  "state": "Read-only lifecycle/source-query census; original drafts are audit inputs, not implemented ports",
+  "cases": [
+    {
+      "file": "TypeInfer.builtins.test.cpp",
+      "line": 201,
+      "record": {
+        "name": "builtin_tables_sealed",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local b = bit32\n    ",
+            "expect": [
+              {
+                "type": "b"
+              },
+              {
+                "type": "b",
+                "kind": "TableType"
+              }
+            ]
+          }
+        ]
+      },
+      "pendingFrom598": [
+        {
+          "what": "comparison",
+          "expr": "CHECK_EQ(bit32t->state, TableState::Sealed)"
+        }
+      ],
+      "sources": [
+        {
+          "role": "entry",
+          "bytes": 29,
+          "sha256": "55bb065632f1e02c50ac1159e9f602b03cf8017b1fa3d54784ef321b65d4a81a"
+        }
+      ]
+    },
+    {
+      "file": "TypeInfer.builtins.test.cpp",
+      "line": 1341,
+      "record": {
+        "name": "table_clone_should_support_variadic_any_in_old_solver",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local A = require(game.A)\n        local _ = table.clone(A())\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "module": "game/B",
+            "moduleSources": {
+              "game/A": "\n        --!nonstrict\n        return function()\n            return {}\n        end\n    ",
+              "game/B": "\n        local A = require(game.A)\n        local _ = table.clone(A())\n    "
+            },
+            "unparsed": {
+              "defect": 879
+            }
+          }
+        ]
+      },
+      "pendingFrom598": [],
+      "sources": [
+        {
+          "role": "entry",
+          "bytes": 74,
+          "sha256": "c1038788188a03f40d167fc2056675e60d53e4909b1cd74c101c344f29e92769"
+        },
+        {
+          "role": "game/A",
+          "bytes": 86,
+          "sha256": "4e942a4811b9babebb02c39dc3cd40ec901e79d4ced247ac0f6142f475d6e48f"
+        },
+        {
+          "role": "game/B",
+          "bytes": 74,
+          "sha256": "c1038788188a03f40d167fc2056675e60d53e4909b1cd74c101c344f29e92769"
+        }
+      ]
+    },
+    {
+      "file": "NonStrictTypeChecker.test.cpp",
+      "line": 165,
+      "record": {
+        "name": "simple_negation_caching_example",
+        "fixture": "NonStrictTypeCheckerFixture",
+        "checks": [
+          {
+            "source": "\nlocal x = 3\nabs(x)\nabs(x)\n",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "mode": "nonstrict"
+          },
+          {
+            "source": "\nlocal x = 3\ncontrived(x)\ncontrived(x)\n\t\t\t      ",
+            "expect": [
+              {
+                "errors": 2
+              }
+            ],
+            "mode": "nonstrict"
+          }
+        ],
+        "shareFixture": true
+      },
+      "pendingFrom598": [
+        {
+          "what": "position diagnostic macro",
+          "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(2, 10), \"contrived\", result)"
+        },
+        {
+          "what": "position diagnostic macro",
+          "expr": "NONSTRICT_REQUIRE_CHECKED_ERR(Position(3, 10), \"contrived\", result)"
+        }
+      ],
+      "sources": [
+        {
+          "role": "entry",
+          "bytes": 27,
+          "sha256": "e7eb7955448e696fb9c892623c91105b2afa6f25d5f6fb8287b5113b93011dae"
+        },
+        {
+          "role": "entry",
+          "bytes": 48,
+          "sha256": "078310a66d4710b1d541dc0322b6c4c902cddebc6d2608bd83952f06e4f7fabc"
+        }
+      ]
+    },
+    {
+      "file": "NonStrictTypeChecker.test.cpp",
+      "line": 635,
+      "record": {
+        "name": "non_strict_shouldnt_warn_on_require_module",
+        "fixture": "NonStrictTypeCheckerFixture",
+        "checks": [
+          {
+            "source": "\n--!nonstrict\nlocal E = require(script.Parent.A)\n",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "module": "Modules/B",
+            "moduleSources": {
+              "Modules/A": "\n--!strict\ntype t = {x : number}\nlocal e : t = {x = 3}\nreturn e\n",
+              "Modules/B": "\n--!nonstrict\nlocal E = require(script.Parent.A)\n"
+            },
+            "unparsed": {
+              "defect": 879
+            }
+          }
+        ]
+      },
+      "pendingFrom598": [
+        {
+          "what": "module SourceCode::Module setup",
+          "expr": "fileResolver.sourceTypes[\"Modules/A\"] = SourceCode::Module"
+        }
+      ],
+      "sources": [
+        {
+          "role": "entry",
+          "bytes": 49,
+          "sha256": "7f5a5c12a170f0bc9fe24e3201e34712721dded40418ed8a2d5d0539522ec8e8"
+        },
+        {
+          "role": "Modules/A",
+          "bytes": 64,
+          "sha256": "f75c2305f20a30a0af630d120b49751bc2d3905899503fcad54c6f97eff4c37d"
+        },
+        {
+          "role": "Modules/B",
+          "bytes": 49,
+          "sha256": "7f5a5c12a170f0bc9fe24e3201e34712721dded40418ed8a2d5d0539522ec8e8"
+        }
+      ]
+    },
+    {
+      "file": "NonStrictTypeChecker.test.cpp",
+      "line": 672,
+      "record": {
+        "name": "nonstrict_method_calls",
+        "fixture": "NonStrictTypeCheckerFixture",
+        "checks": [
+          {
+            "source": "\n        local test = \"test\"\n        test:lower()\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "mode": "nonstrict"
+          }
+        ]
+      },
+      "pendingFrom598": [
+        {
+          "what": "per-case builtin registration",
+          "expr": "Luau::unfreeze(getFrontend().globals.globalTypes);\n    Luau::unfreeze(getFrontend().globalsForAutocomplete.globalTypes);\n\n    registerBuiltinGlobals(getFrontend(), getFrontend().globals);\n    registerTestTypes();\n\n    Luau::freeze(getFrontend().globals.globalTypes);\n    Luau::freeze(getFrontend().globalsForAutocomplete.globalTypes);"
+        }
+      ],
+      "sources": [
+        {
+          "role": "entry",
+          "bytes": 54,
+          "sha256": "1210df7801dd7ec30317852ceef2e278d9b1cfbae1e5a8aa023a3d4d44e0018a"
+        }
+      ]
+    },
+    {
+      "file": "NonStrictTypeChecker.test.cpp",
+      "line": 780,
+      "record": {
+        "name": "new_non_strict_should_suppress_dynamic_require_errors",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nfunction passThrough(module)\n    require(module)\nend\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "mode": "nonstrict",
+            "ignoreMissingAnnotations": true,
+            "unparsed": {
+              "defect": 879
+            }
+          },
+          {
+            "source": "\nfunction passThrough(module)\n    require(module)\nend\n",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "UnknownRequire"
+              }
+            ],
+            "mode": "strict",
+            "ignoreMissingAnnotations": true,
+            "unparsed": {
+              "defect": 879
+            }
+          }
+        ],
+        "shareFixture": true
+      },
+      "pendingFrom598": [],
+      "sources": [
+        {
+          "role": "entry",
+          "bytes": 58,
+          "sha256": "3d92a0eddaf79857a7b652107a64641042da5a944c9686fc39ea03739f83cf2e"
+        },
+        {
+          "role": "entry",
+          "bytes": 54,
+          "sha256": "e9375fedb68943f2739076c47f3e7a0614c54b2f4fdb114d7d534ee03e31847a"
+        }
+      ]
+    },
+    {
+      "file": "NonStrictTypeChecker.test.cpp",
+      "line": 807,
+      "record": {
+        "name": "new_non_strict_should_suppress_unknown_require_errors",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nrequire(script.NonExistent)\nrequire(\"@self/NonExistent\")\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "mode": "nonstrict",
+            "unparsed": {
+              "defect": 879
+            }
+          },
+          {
+            "source": "\nrequire(script.NonExistent)\nrequire(\"@self/NonExistent\")\n",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "code": "UnknownRequire"
+              },
+              {
+                "error": 1,
+                "code": "UnknownRequire"
+              }
+            ],
+            "mode": "strict",
+            "unparsed": {
+              "defect": 879
+            }
+          }
+        ],
+        "shareFixture": true
+      },
+      "pendingFrom598": [],
+      "sources": [
+        {
+          "role": "entry",
+          "bytes": 62,
+          "sha256": "99ff34d77c9148416f5f02339f9ea5fc9c25aa6acd3dfc92c95fed3bc0b94be7"
+        },
+        {
+          "role": "entry",
+          "bytes": 58,
+          "sha256": "c01f246d6ac57937f7a3295b0e8589fa754ff45cb29c629825f5433eb2380db9"
+        }
+      ]
+    },
+    {
+      "file": "NonstrictMode.test.cpp",
+      "line": 260,
+      "record": {
+        "name": "inconsistent_module_return_types_are_ok",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!nonstrict\n\n        local FFlag: any\n\n        if FFlag.get('SomeFlag') then\n            return {foo='bar'}\n        else\n            return function(prop)\n                return 'bar'\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "moduleReturn": true,
+                "equals": "{ foo: string }"
+              }
+            ]
+          }
+        ]
+      },
+      "pendingFrom598": [],
+      "sources": [
+        {
+          "role": "entry",
+          "bytes": 226,
+          "sha256": "93ae6ad9b55d7b687fbbdff3df9578b2e0d28c9a7b6f7387f5cc89163d2c4be8"
+        }
+      ]
+    }
+  ]
+}
