@@ -5072,6 +5072,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             if (src != null) {
               content.src = src;
             }
+            const sources = [...new Set(imageAssets.flatMap((a) => srcsOf(a) ?? []))];
+            if (sources.length > 0) {
+              content.sources = sources;
+            }
             const videoSrc = videoSrcs[0];
             if (videoSrc) {
               content.video = {

@@ -19,6 +19,7 @@ export interface WriteImageInstruction {
     imageNames: string;
     src?: string;
     srcs: string[];
+    sources?: string[];
     video?: {
       src: string;
       loop: boolean;

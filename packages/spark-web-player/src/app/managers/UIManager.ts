@@ -2099,9 +2099,7 @@ export default class UIManager extends Manager {
                   property,
                   content.background,
                   content.imageNames,
-                  [...new Set([content.src, ...content.srcs])].filter(
-                    (src): src is string => Boolean(src) && src !== content.video?.src,
-                  ),
+                  content.sources ?? [],
                   applyStyle,
                 );
             placePicture(newSpanEl, instruction.framing);
