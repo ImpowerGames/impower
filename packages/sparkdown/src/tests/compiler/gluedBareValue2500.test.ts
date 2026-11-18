@@ -54,6 +54,7 @@ const PROSE: string[] = [
   "Escaped \\.. match mood|happy=a|other=b .. today.",
   "It is .. cycle|a|b .. today.",
   "Note // .. match mood|happy=a|other=b .. today.",
+  "cycle | It is .. match mood|happy=a|other=b .. today. | B. end",
 ];
 
 describe("a glued match or plural with a bare value is reported, asking for brackets (#2500)", () => {
