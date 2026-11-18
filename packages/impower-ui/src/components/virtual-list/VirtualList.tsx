@@ -102,6 +102,7 @@ export default function VirtualList<T>({
   const layout = useLayout();
   const scroller = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState({ top: 0, height: 0, width: 0, minWidth: 0, gap: 0 });
+  const [extentReady, setExtentReady] = useState(!grid);
   const cells = grid ? virtualListColumns(view, view.width) : undefined;
   const columns = cells?.columns ?? 1;
   const cellWidth = cells?.width ?? 0;
@@ -173,6 +174,9 @@ export default function VirtualList<T>({
     const onScroll = () => measure.current(false);
     const onResize = () => measure.current(true);
     onResize();
+    if (!element.firstElementChild?.clientWidth) {
+      setExtentReady(true);
+    }
     element.addEventListener("scroll", onScroll, { passive: true });
     const observer =
       typeof ResizeObserver === "undefined"
@@ -188,6 +192,12 @@ export default function VirtualList<T>({
   useLayoutEffect(() => {
     measure.current(true);
   }, [grid?.class, layout]);
+
+  useLayoutEffect(() => {
+    if (!extentReady && view.width > 0) {
+      setExtentReady(true);
+    }
+  }, [extentReady, view.width]);
 
   const geometry = grid ? `grid:${columns}:${cellHeight}:${gap}` : "rows";
   const anchor = useRef<{ index: number; geometry: string; measured: boolean } | null>(null);
@@ -248,7 +258,7 @@ export default function VirtualList<T>({
   const start = Math.max(0, first - overscan);
   const end = Math.min(lines, start + last - first + 1 + overscan * 2);
 
-  const setRef = useForwardedRef(listRef, (element: HTMLDivElement | null) => {
+  const setRef = useForwardedRef(extentReady ? listRef : undefined, (element: HTMLDivElement | null) => {
     scroller.current = element;
   });
 

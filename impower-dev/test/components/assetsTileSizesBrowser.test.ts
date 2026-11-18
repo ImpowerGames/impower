@@ -250,6 +250,31 @@ describe("the Assets page's View menu and tile sizes, in Chromium (I-2462)", () 
     }
   }, 90_000);
 
+  it.each([
+    { width: 430, height: 932, pointer: "touch" as const, size: "portrait", saved: 22000 },
+    { width: 430, height: 932, pointer: "touch" as const, size: "landscape", saved: 20000 },
+  ])("reopens a deeply scrolled $size folder at its saved position $saved at $width", async ({ width, height, pointer, size, saved }) => {
+    const page = await open({
+      width,
+      height,
+      pointer,
+      pictures: 240,
+      lists: { assetsLayouts: { "Assets/Images/Cast": size }, assetsScrolls: { "image:Assets/Images/Cast:name-asc": saved } },
+    });
+    try {
+      await frames(page);
+      await frames(page);
+      const restored = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[role="list"]')!.parentElement!;
+        return { scrollTop: scroller.scrollTop, max: scroller.scrollHeight - scroller.clientHeight };
+      });
+      expect(restored.max).toBeGreaterThan(saved);
+      expect(restored.scrollTop).toBeCloseTo(saved, 0);
+    } finally {
+      await close(page);
+    }
+  }, 60_000);
+
   it.each(SIZES)("reaches every tile by Tab, in the list's order, in %s", async (size) => {
     const page = await open({ width: 1440, pointer: "mouse", pictures: 6 });
     try {
