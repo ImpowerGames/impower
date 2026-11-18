@@ -68,6 +68,10 @@ scene start
   Panorama.
   [[show backdrop NARROW_INLINE at right]]
   Narrow.
+  [[show backdrop "url(https://example.com/wide.svg)" at right]]
+  Literal.
+  [[show backdrop "linear-gradient(red, blue)" at right]]
+  Gradient.
 end
 `;
 
@@ -207,6 +211,21 @@ describe("a layer's picture placed at its framing, as Chromium lays it out (I-24
     const { layer, picture } = (await measure(page))[0]!;
     expect(picture.width).toBeCloseTo(200, 1);
     expect(picture.left + picture.width).toBeCloseTo(layer.left + layer.width, 1);
+    await page.close();
+  });
+
+  test("a picture written as a url literal is placed at its framing like a named one", async () => {
+    const page = await rendered(8);
+    const { layer, picture } = (await measure(page))[0]!;
+    expect(picture.width).toBeCloseTo(800, 1);
+    expect(picture.left + picture.width).toBeCloseTo(layer.left + layer.width, 1);
+    await page.close();
+  });
+
+  test("a picture with no image, such as a gradient, still fills its layer at a framing", async () => {
+    const page = await rendered(9);
+    const { layer, picture } = (await measure(page))[0]!;
+    expect(picture).toEqual(layer);
     await page.close();
   });
 

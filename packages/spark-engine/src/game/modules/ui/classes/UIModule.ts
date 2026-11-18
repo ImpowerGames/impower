@@ -1978,6 +1978,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `linear-gradient(${value})`;
   }
 
+  getImageUrlsFromBackground(background: string): string[] {
+    return cssList(background).flatMap((layer) => {
+      const url = layer.trim().match(/^url\(\s*(['"]?)(.*?)\1\s*\)$/s)?.[2];
+      return url ? [url] : [];
+    });
+  }
+
   getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick) {
     if (value.at(0) === '"' && value.at(-1) === '"') {
       const literalStringValue = value.slice(1, -1);
@@ -5072,7 +5079,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             if (src != null) {
               content.src = src;
             }
-            const sources = [...new Set(imageAssets.flatMap((a) => srcsOf(a) ?? []))];
+            const sources = [
+              ...new Set(
+                imageAssets.flatMap((a) => {
+                  const named = srcsOf(a);
+                  return named?.length
+                    ? named
+                    : $.getImageUrlsFromBackground($.getBackgroundImageFromString(a, undefined, pickOf(a)));
+                }),
+              ),
+            ];
             if (sources.length > 0) {
               content.sources = sources;
             }
