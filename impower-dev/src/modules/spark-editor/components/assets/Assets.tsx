@@ -277,7 +277,7 @@ const usePictureSources = (listing: AssetListing, pictures: readonly AssetPictur
       drops.forEach((drop) => drop());
     };
   }, [JSON.stringify(keys)]);
-  return pictures.map((picture, index) => drawn[keys[index]!] || srcOf(listing, picture.path));
+  return pictures.map((picture, index) => drawn[keys[index]!] ?? srcOf(listing, picture.path));
 };
 
 function AssetThumbnail({

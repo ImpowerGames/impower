@@ -1,3 +1,5 @@
+import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { render } from "preact";
 import Assets from "../../src/modules/spark-editor/components/assets";
 import { setAssetFiles } from "../../src/modules/spark-editor/utils/assetTypes";
@@ -6,7 +8,7 @@ import workspace from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 
 const SQUARE = { left: 100, top: 150, right: 200, bottom: 250, width: 300, height: 400 } as const;
 
-type Setup = { folder: string; crowd?: number };
+type Setup = { folder: string; crowd?: number; switches?: boolean };
 
 const png = async (paint: (context: OffscreenCanvasRenderingContext2D) => void) => {
   const canvas = new OffscreenCanvas(SQUARE.width, SQUARE.height);
@@ -26,13 +28,17 @@ const square = (context: OffscreenCanvasRenderingContext2D, colour: string) => {
 
 declare global {
   interface Window {
-    stackedPage: { mount: (setup: Setup) => Promise<void>; bases: Record<string, string> };
+    stackedPage: { mount: (setup: Setup) => Promise<void>; bases: Record<string, string>; redefine: (script: string) => void };
   }
 }
 
 window.stackedPage = {
   bases: {},
-  mount: async ({ folder, crowd = 0 }) => {
+  redefine: (script) => {
+    window.stackedScript = script;
+    sendProtocolMessage(CompiledProgramMessage.type.notification({ program: {} } as never));
+  },
+  mount: async ({ folder, crowd = 0, switches = false }) => {
     const base = await png((context) => {
       context.fillStyle = "#2050c0";
       context.fillRect(0, 0, SQUARE.width, SQUARE.height);
@@ -51,6 +57,10 @@ window.stackedPage = {
       [`${P}/imani~face.sad.png`]: sad,
       [`${P}/bunny.png`]: plain,
     };
+    if (switches) {
+      sources[`${P}/mia/90_hat.on.png`] = happy;
+      sources[`${P}/mia/30_glasses.on.png`] = sad;
+    }
     for (let index = 0; index < crowd; index += 1) {
       const name = `Assets/Images/Crowd/person_${String(index).padStart(3, "0")}`;
       sources[`${name}.png`] = base;

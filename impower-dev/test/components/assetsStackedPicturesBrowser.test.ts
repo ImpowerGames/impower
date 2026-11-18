@@ -25,7 +25,19 @@ afterAll(async () => {
   await browser?.close();
 });
 
-const open = async ({ folder, crowd, width = 1440, height = 900 }: { folder: string; crowd?: number; width?: number; height?: number }) => {
+const open = async ({
+  folder,
+  crowd,
+  switches,
+  width = 1440,
+  height = 900,
+}: {
+  folder: string;
+  crowd?: number;
+  switches?: boolean;
+  width?: number;
+  height?: number;
+}) => {
   const context = await browser.newContext({ viewport: { width, height } });
   const page = await context.newPage();
   await page.route("https://page.test/**", (route) =>
@@ -36,7 +48,7 @@ const open = async ({ folder, crowd, width = 1440, height = 900 }: { folder: str
   );
   await page.goto("https://page.test/");
   await page.addScriptTag({ content: script });
-  await page.evaluate((setup) => window.stackedPage.mount(setup), { folder, crowd });
+  await page.evaluate((setup) => window.stackedPage.mount(setup), { folder, crowd, switches });
   await page.locator("[data-asset-path]").first().waitFor();
   return page;
 };
@@ -90,7 +102,15 @@ const colours = async (page: Page, selector: string, at: readonly (readonly [num
   return where.map(({ x, y }) => {
     const offset = (Math.round(y) * shot.info.width + Math.round(x)) * shot.info.channels;
     const [r, g, b] = [shot.data[offset]!, shot.data[offset + 1]!, shot.data[offset + 2]!];
-    return r > 160 && g < 90 && b < 90 ? "layer" : b > 140 && r < 90 ? "base" : r < 50 && g < 50 && b < 50 ? "bare" : `rgb(${r},${g},${b})`;
+    return r > 160 && g < 90 && b < 90
+      ? "layer"
+      : b > 140 && r < 90
+        ? "base"
+        : r < 50 && g < 50 && b < 50
+          ? "bare"
+          : Math.abs(r - 128) < 20 && Math.abs(g - 128) < 20 && Math.abs(b - 128) < 20
+            ? "plain"
+            : `rgb(${r},${g},${b})`;
   });
 };
 
@@ -143,6 +163,53 @@ describe("a stacked picture on the Assets page", () => {
     expect(await pictureOf(page, BUNNY).getAttribute("src")).toBe(await page.evaluate((at) => window.stackedPage.bases[at], BUNNY));
     await page.context().close();
   }, 30_000);
+
+  it("follows the program: a script that redefines the picture changes its tile, as it changes the inspector", async () => {
+    const page = await open({ folder: "Assets/Images/Portraits" });
+    await composed(page, IMANI);
+    const selector = `[data-asset-path="${IMANI}"] img`;
+    expect(await colours(page, selector, CENTRE)).toEqual(["layer"]);
+    const plain = await page.evaluate((at) => window.stackedPage.bases[at]!, BUNNY);
+    await page.evaluate(() => window.stackedPage.redefine(""));
+    await page
+      .waitForFunction(() => window.pictureRequests.length >= 2 && window.pictureRequests.every(({ ms }) => !Number.isNaN(ms)), undefined, {
+        timeout: 8_000,
+      })
+      .catch(() => undefined);
+    await frames(page);
+    expect(await colours(page, selector, CENTRE)).toEqual(["layer"]);
+    await page.evaluate(() => window.stackedPage.redefine(["define imani as layered_image with", "  assets = { bunny }", "end", ""].join("\n")));
+    await page
+      .waitForFunction(
+        ([at, source]) => document.querySelector<HTMLImageElement>(`[data-asset-path="${at}"] img`)?.src === source,
+        [IMANI, plain] as const,
+        { timeout: 8_000 },
+      )
+      .catch(() => undefined);
+    await frames(page);
+    expect(await colours(page, selector, CENTRE)).toEqual(["plain"]);
+    await page.context().close();
+  }, 30_000);
+
+  for (const [where, folder, selector] of [
+    ["its tile", "Assets/Images/Portraits/mia", '[data-asset-path^="Assets/Images/Portraits/mia/"]'],
+    ["its folder's cover", "Assets/Images/Portraits", '[data-asset-path="Assets/Images/Portraits/mia"] [data-folder-cover]'],
+  ] as const) {
+    it(`draws no layer on ${where} for a picture whose resting combination shows none, as the inspector draws none`, async () => {
+      const page = await open({ folder, switches: true });
+      await page.locator(selector).first().waitFor();
+      await page
+        .waitForFunction(() => window.pictureRequests.some(({ uri, ms }) => uri.includes("/mia/") && !Number.isNaN(ms)), undefined, {
+          timeout: 8_000,
+        })
+        .catch(() => undefined);
+      await frames(page);
+      const asked = await page.evaluate(() => window.pictureRequests.filter(({ uri }) => uri.includes("/mia/")).map(({ variant }) => variant));
+      expect(asked).toEqual([{ image: "mia", attributes: [] }]);
+      expect(await page.locator(`${selector} img`).count()).toBe(0);
+      await page.context().close();
+    }, 30_000);
+  }
 
   it("draws its default layer in a folder cover cell, the same picture as its tile", async () => {
     const page = await open({ folder: "Assets/Images" });

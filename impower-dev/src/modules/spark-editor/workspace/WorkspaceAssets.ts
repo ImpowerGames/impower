@@ -187,7 +187,7 @@ export default class WorkspaceAssets {
 
   protected readonly _picturesDrawing = new Set<string>();
 
-  protected readonly _pictureCompiles = new Map<string, { seen: number; asked?: number }>();
+  protected readonly _picturesAsked = new Map<string, number>();
 
   protected _compiles = 0;
 
@@ -664,9 +664,6 @@ export default class WorkspaceAssets {
     } else {
       this._pictureRequests.set(key, { paths, count: 1 });
     }
-    if (!this._pictureCompiles.has(key)) {
-      this._pictureCompiles.set(key, { seen: this._compiles });
-    }
     this._detachCompiles ??= onProtocolMessage(CompiledProgramMessage.type, () => this.recompiledPictures());
     this.queuePicture(key);
     let dropped = false;
@@ -689,11 +686,8 @@ export default class WorkspaceAssets {
   }
 
   protected pictureStale(key: string): boolean {
-    const compiles = this._pictureCompiles.get(key);
-    return (
-      !!compiles &&
-      (compiles.asked === undefined || (compiles.asked === compiles.seen && this._compiles > compiles.asked))
-    );
+    const asked = this._picturesAsked.get(key);
+    return asked === undefined || asked < this._compiles;
   }
 
   protected queuePicture(key: string): void {
@@ -723,7 +717,7 @@ export default class WorkspaceAssets {
         continue;
       }
       this._picturesDrawing.add(key);
-      this._pictureCompiles.get(key)!.asked = this._compiles;
+      this._picturesAsked.set(key, this._compiles);
       void this.restingPicture(request.paths).then((src) => {
         this._picturesDrawing.delete(key);
         workspace.assetPictures.value = { ...workspace.assetPictures.peek(), [key]: src };
@@ -743,7 +737,7 @@ export default class WorkspaceAssets {
     const answer = await this._workspace.ls
       .getVariantPicture(this._workspace.fs.getFileUri(projectId, stack.cover), variantOf(stack, {}), edge)
       .catch(() => null);
-    return answer?.src || null;
+    return answer ? answer.src : null;
   }
 
   async measureDurations(paths: readonly string[]): Promise<void> {

@@ -9,20 +9,23 @@ const ROOT = "file:///p";
 declare global {
   interface Window {
     pictureRequests: { uri: string; variant: ImageVariant; size: number; ms: number }[];
+    stackedScript: string;
   }
 }
 
 window.pictureRequests = [];
+window.stackedScript = "";
 
-let compiled: { files: unknown; context: Record<string, Record<string, unknown>> } | undefined;
+let compiled: { files: unknown; script: string; context: Record<string, Record<string, unknown>> } | undefined;
 
 const contextOf = () => {
   const files = workspace.assetListing.peek()!.files;
-  if (compiled?.files !== files) {
+  const script = window.stackedScript;
+  if (compiled?.files !== files || compiled.script !== script) {
     const compiler = new SparkdownCompiler();
     compiler.configure({
       files: [
-        { uri: `${ROOT}/main.sd`, name: "main", type: "script", ext: "sd", text: "", languageId: "sparkdown", version: 1 },
+        { uri: `${ROOT}/main.sd`, name: "main", type: "script", ext: "sd", text: script, languageId: "sparkdown", version: 1 },
         ...Object.entries(files).map(([path, facts]) => {
           const leaf = path.split("/").at(-1)!;
           return {
@@ -36,7 +39,7 @@ const contextOf = () => {
         }),
       ] as never,
     });
-    compiled = { files, context: compiler.compile({ textDocument: { uri: `${ROOT}/main.sd` } }).program!.context! };
+    compiled = { files, script, context: compiler.compile({ textDocument: { uri: `${ROOT}/main.sd` } }).program!.context! };
   }
   return compiled.context;
 };

@@ -88,18 +88,15 @@ describe("a stacked picture's resting picture for the Assets page", () => {
     expect(workspace.assetPictures.value).toEqual({ [keyOf(stack("imani"))]: "data:image/webp;base64,imani" });
   });
 
-  it("asks once for a picture several tiles show, and not again when a tile comes back", async () => {
+  it("asks once for a picture several tiles show, and not again when a tile comes back before the program changes", async () => {
     const { assets, asked } = fakeWorkspace(stack("imani"));
     await assets.load();
     const leave = assets.requestPicture(stack("imani"));
     assets.requestPicture(stack("imani"));
     await answer(asked[0], "data:composed");
-    await compiled();
-    await answer(asked[1], "data:composed");
     leave();
     assets.requestPicture(stack("imani"));
-    await compiled();
-    expect(asked).toHaveLength(2);
+    expect(asked).toHaveLength(1);
   });
 
   it("asks for at most eight at once, and never for a tile that left the screen before its turn", async () => {
@@ -139,18 +136,31 @@ describe("a stacked picture's resting picture for the Assets page", () => {
     expect(workspace.assetPictures.value[keyOf(grown)]).toBe("data:grown");
   });
 
-  it("asks once more after the next compile when it first asked before the program knew the files, then no more", async () => {
+  it("asks again after every compile while its tile is on screen, as the inspector does, showing the earlier answer until the new one arrives", async () => {
     const { assets, asked } = fakeWorkspace(stack("imani"));
     await assets.load();
     assets.requestPicture(stack("imani"));
-    await answer(asked[0], "data:before-compile");
+    await answer(asked[0], "data:first-program");
     await compiled();
     expect(asked).toHaveLength(2);
-    await answer(asked[1], "data:after-compile");
+    expect(workspace.assetPictures.value[keyOf(stack("imani"))]).toBe("data:first-program");
+    await answer(asked[1], "data:redefined");
+    expect(workspace.assetPictures.value[keyOf(stack("imani"))]).toBe("data:redefined");
+    await compiled();
+    expect(asked).toHaveLength(3);
+  });
+
+  it("asks once after a compile that lands while its request is still out", async () => {
+    const { assets, asked } = fakeWorkspace(stack("imani"));
+    await assets.load();
+    assets.requestPicture(stack("imani"));
     await compiled();
     await compiled();
+    expect(asked).toHaveLength(1);
+    await answer(asked[0], "data:old-program");
     expect(asked).toHaveLength(2);
-    expect(workspace.assetPictures.value[keyOf(stack("imani"))]).toBe("data:after-compile");
+    await answer(asked[1], "data:new-program");
+    expect(asked).toHaveLength(2);
   });
 
   it("asks after the next compile when the tile mounts again, not while it is off screen", async () => {
@@ -163,6 +173,14 @@ describe("a stacked picture's resting picture for the Assets page", () => {
     expect(asked).toHaveLength(1);
     assets.requestPicture(stack("imani"));
     expect(asked).toHaveLength(2);
+  });
+
+  it("records an empty picture as empty, not as a failure, for a stack whose resting combination shows no layer", async () => {
+    const { assets, asked } = fakeWorkspace(stack("imani"));
+    await assets.load();
+    assets.requestPicture(stack("imani"));
+    await answer(asked[0], "");
+    expect(workspace.assetPictures.value).toEqual({ [keyOf(stack("imani"))]: "" });
   });
 
   it("records no picture when the language server cannot draw one, so the tile keeps its base", async () => {
