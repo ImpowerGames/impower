@@ -59,15 +59,8 @@ onmessage = async (e) => {
             });
           }
         } else {
-          const arrayBuffer = await buildPDF(
-            scripts,
-            config,
-            fonts,
-            onProgress,
-          );
-          postMessage({ jsonrpc: "2.0", method, id, result: arrayBuffer }, [
-            arrayBuffer,
-          ]);
+          const result = await buildPDF(scripts, config, fonts, onProgress);
+          postMessage({ jsonrpc: "2.0", method, id, result }, [result.pdf]);
         }
       }
     }

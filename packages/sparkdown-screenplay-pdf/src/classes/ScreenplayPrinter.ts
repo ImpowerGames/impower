@@ -32,6 +32,7 @@ import {
   type TitleRegionHeights,
   titlePageLayout,
 } from "@impower/sparkdown-screenplay/src/utils/titlePageLayout";
+import { noteUnprintable } from "../utils/unprintableCharacters";
 
 const PDF_POINTS_PER_INCH = 72;
 
@@ -247,6 +248,7 @@ export default class ScreenplayPrinter {
       this._doc.fillColor(this.profile.settings?.["meta:watermark"]?.color ?? "#eeeeee");
       this._doc.fontSize(font_size);
       this._doc.rotate(angle, options);
+      noteUnprintable(this._doc, watermarkString);
       this._doc.text(
         watermarkString,
         2 * PDF_POINTS_PER_INCH,

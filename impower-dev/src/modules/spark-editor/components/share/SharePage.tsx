@@ -8,8 +8,12 @@ import {
   PageFrame,
   PeopleIcon,
   PlayIcon,
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
   ShareIcon,
 } from "@impower/impower-ui/components";
+import { unprintableNotice } from "@impower/sparkdown-screenplay-pdf/src/utils/unprintableNotice";
 import { useRef, useState } from "preact/hooks";
 import { backToStory } from "../../workspace/backToStory";
 import { screenplaySummary } from "../../workspace/settings/screenplaySettings";
@@ -26,6 +30,7 @@ function ScreenplayExport() {
   const { projectSettings } = useSettings();
   const [running, setRunning] = useState<ExportFormat | null>(null);
   const [percent, setPercent] = useState(0);
+  const [notice, setNotice] = useState("");
   const inFlight = useRef(false);
 
   const runExport = async (format: ExportFormat) => {
@@ -35,6 +40,7 @@ function ScreenplayExport() {
     inFlight.current = true;
     setRunning(format);
     setPercent(0);
+    setNotice("");
     try {
       const project = workspace.current.project;
       if (!project?.id || !project.name) {
@@ -44,8 +50,9 @@ function ScreenplayExport() {
       const programs = [await Workspace.fs.readProjectScriptBundle(project.id)];
       const onProgress = (value?: { percentage?: number }) => setPercent(Math.round(value?.percentage ?? 0));
       if (format === "pdf") {
-        const pdf = await Workspace.print.exportPDF(programs, onProgress);
+        const { pdf, unprintable } = await Workspace.print.exportPDF(programs, onProgress);
         downloadFile(`${project.name}.pdf`, "application/pdf", pdf);
+        setNotice(unprintableNotice(unprintable));
       } else {
         const html = await Workspace.print.exportHTML(programs, onProgress);
         downloadFile(`${project.name}.html`, "text/html", html);
@@ -68,16 +75,23 @@ function ScreenplayExport() {
           <ArrowIcon />
         </a>
       </Button>
-      <div class="mt-[18px] flex flex-wrap gap-2.5">
-        <Button disabled={running !== null} onClick={() => void runExport("pdf")}>
-          <DownloadIcon />
-          Download PDF
-        </Button>
-        <Button disabled={running !== null} onClick={() => void runExport("html")}>
-          <DownloadIcon />
-          Download HTML
-        </Button>
-      </div>
+      <Popover open={notice !== ""} onOpenChange={(open) => !open && setNotice("")}>
+        <PopoverAnchor asChild>
+          <div class="mt-[18px] flex flex-wrap gap-2.5">
+            <Button disabled={running !== null} onClick={() => void runExport("pdf")}>
+              <DownloadIcon />
+              Download PDF
+            </Button>
+            <Button disabled={running !== null} onClick={() => void runExport("html")}>
+              <DownloadIcon />
+              Download HTML
+            </Button>
+          </div>
+        </PopoverAnchor>
+        <PopoverContent side="bottom" align="start" size="panel" data-unprintable-notice class="px-4 py-3">
+          <p class="m-0 text-body text-ink">{notice}</p>
+        </PopoverContent>
+      </Popover>
       {running && (
         <div
           role="progressbar"

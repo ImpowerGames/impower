@@ -16,11 +16,16 @@ export interface ExportPDFParams {
   workDoneToken?: string;
 }
 
+export interface ExportPDFResult {
+  pdf: ArrayBuffer;
+  unprintable: string[];
+}
+
 export class ExportPDFMessage {
   static readonly method = "workspace/exportPDF";
   static readonly type = new MessageProtocolRequestType<
     ExportPDFMethod,
     ExportPDFParams,
-    ArrayBuffer
+    ExportPDFResult
   >(ExportPDFMessage.method);
 }

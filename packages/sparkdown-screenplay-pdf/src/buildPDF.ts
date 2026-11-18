@@ -6,6 +6,12 @@ import PdfWriteStream from "./classes/PdfWriteStream";
 import ScreenplayPrinter from "./classes/ScreenplayPrinter";
 import EmojiSvgProvider from "./emoji/EmojiSvgProvider";
 import { setEmojiProvider } from "./emoji/emojiText";
+import { startUnprintableLog } from "./utils/unprintableCharacters";
+
+export interface BuiltPDF {
+  pdf: ArrayBuffer;
+  unprintable: string[];
+}
 
 export const buildPDF = async (
   scripts: string[],
@@ -24,7 +30,7 @@ export const buildPDF = async (
     message?: string;
     percentage?: number;
   }) => void,
-) => {
+): Promise<BuiltPDF> => {
   let currentProgress = 0;
 
   const progress = (kind: "begin" | "report" | "end", percentage: number) => {
@@ -84,6 +90,7 @@ export const buildPDF = async (
 
   progress("report", 5);
 
+  const unprintable = startUnprintableLog(doc);
   const progressBeforeGenerate = currentProgress;
   const printer = new ScreenplayPrinter(
     doc,
@@ -110,9 +117,9 @@ export const buildPDF = async (
   const arrayBuffer = array.buffer.slice(
     array.byteOffset,
     array.byteLength + array.byteOffset,
-  );
+  ) as ArrayBuffer;
 
   progress("end", 100);
 
-  return arrayBuffer;
+  return { pdf: arrayBuffer, unprintable: [...unprintable] };
 };
