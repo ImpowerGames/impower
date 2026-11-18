@@ -932,6 +932,8 @@ export class SparkdownPreviewGamePanelManager {
               --swp-run-color: var(--vscode-debugIcon-startForeground, #89d185);
               --swp-stop-color: var(--vscode-debugIcon-stopForeground, var(--swp-error-color));
               --swp-toolbar-border-color: var(--vscode-panel-border, rgba(255, 255, 255, 0.15));
+              --swp-toolbar-button-hover-color: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--vscode-foreground) 12%, transparent));
+              --swp-toolbar-button-active-color: var(--vscode-toolbar-activeBackground, color-mix(in srgb, var(--vscode-foreground) 18%, transparent));
             }
 
             spark-web-player {
