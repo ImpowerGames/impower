@@ -64,10 +64,10 @@ const settle = (ms: number) =>
     await new Promise((done) => setTimeout(done, ms));
   });
 
-const openMenuMarkup = async () => {
+const openMenuMarkup = async (triggerSelector = '[aria-label="Preview settings"]') => {
   const host = document.body.appendChild(document.createElement("div"));
   await act(async () => render(h(PreviewTopBar, {}), host));
-  const trigger = host.querySelector<HTMLButtonElement>('[aria-label="Preview settings"]')!;
+  const trigger = host.querySelector<HTMLButtonElement>(triggerSelector)!;
   trigger.focus();
   if (phone) {
     await act(async () => {
@@ -89,7 +89,7 @@ const openMenuMarkup = async () => {
 
 type Row = { role: string; name: string; glyph: number; text: number };
 
-const measure = async (markup: string, width: number, theme: Theme, layout: string) => {
+const inBrowser = async <T,>(markup: string, width: number, theme: Theme, layout: string, read: () => T): Promise<T> => {
   const compiler = await compile('@import "./src/style.css";', { base: UI_PACKAGE, onDependency: () => {} });
   const css = compiler.build([...markup.matchAll(/class="([^"]*)"/g)].flatMap((match) => match[1]!.replace(/&amp;/g, "&").split(/\s+/)));
   const browser = await chromium.launch();
@@ -99,7 +99,14 @@ const measure = async (markup: string, width: number, theme: Theme, layout: stri
       `<!doctype html><html data-theme="${theme}" data-layout="${layout}"><head><style>${css}*{animation:none!important;transition:none!important}</style></head><body style="margin:0;height:100vh">${markup}</body></html>`,
     );
     await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
-    return await page.evaluate(() => {
+    return (await page.evaluate(read)) as T;
+  } finally {
+    await browser.close();
+  }
+};
+
+const measure = (markup: string, width: number, theme: Theme, layout: string) =>
+  inBrowser(markup, width, theme, layout, () => {
       const menu = document.querySelector('[role="menu"], [role="dialog"]')!;
       const textLeft = (node: Element): number | undefined => {
         for (const child of node.childNodes) {
@@ -128,10 +135,84 @@ const measure = async (markup: string, width: number, theme: Theme, layout: stri
           };
         });
     });
-  } finally {
-    await browser.close();
-  }
+
+type Box = { role: string; name: string; top: number; bottom: number };
+
+const readBoxes = () => {
+  const menu = document.querySelector('[role="menu"]')!;
+  return [...menu.querySelectorAll('[role^="menuitem"], [role="separator"], div')]
+    .filter((row) => row.matches('[role^="menuitem"], [role="separator"]') || (row.matches('[class*="uppercase"], [class*="text-muted"]') && !row.closest('[role^="menuitem"]')))
+    .map((row) => {
+      const box = row.getBoundingClientRect();
+      return { role: row.getAttribute("role") ?? "label", name: row.textContent!.trim().slice(0, 24), top: box.top, bottom: box.bottom };
+    });
 };
+
+const spaces = (boxes: Box[]) =>
+  boxes.slice(1).map((box, index) => ({
+    from: boxes[index]!.name || boxes[index]!.role,
+    to: box.name || box.role,
+    space: Math.round((box.top - boxes[index]!.bottom) * 100) / 100,
+  }));
+
+const expectSettingsRhythm = (boxes: Box[]) => {
+  const rules = boxes.filter((box) => box.role === "separator");
+  expect(rules.length).toBeGreaterThan(0);
+  expect(rules.map((box) => box.bottom - box.top)).toEqual(rules.map(() => 1));
+  const expected = spaces(boxes).map((pair) => ({
+    ...pair,
+    space: pair.to.startsWith("More preview settings") || pair.from === "separator" || pair.to === "separator" ? 6 : 2,
+  }));
+  expect(spaces(boxes)).toEqual(expected);
+};
+
+const VIEWING_MODE_SPACES_ON_MAIN = [0, 0];
+
+describe("the preview settings menu's rows take the prototype's 2px gap (I-2541)", () => {
+  it.each<Theme>(["charcoal", "chalk"])("spaces rows 2px apart, separators and More preview settings 6px, at 1440 in %s", async (theme) => {
+    await setPhone(false);
+    workspaceSettings.setPreference("previewMode", "game");
+    const spies = runningInNarrowBar();
+    let markup: string;
+    try {
+      markup = await openMenuMarkup();
+    } finally {
+      spies.forEach((spy) => spy.mockRestore());
+      workspace.current = structuredClone(initial);
+    }
+    const boxes = await inBrowser(markup, 1440, theme, "desktop", readBoxes);
+    expect(boxes.some((box) => box.name === "Step")).toBe(true);
+    expect(boxes.some((box) => box.name === "Device color scheme")).toBe(true);
+    expectSettingsRhythm(boxes);
+  }, 60_000);
+
+  it("spaces the sheet form's rows, the folded Step and aspect-ratio groups included, the same way at 430", async () => {
+    await setPhone(true);
+    workspaceSettings.setPreference("previewMode", "game");
+    const spies = runningInNarrowBar();
+    let markup: string;
+    try {
+      markup = await openMenuMarkup();
+    } finally {
+      spies.forEach((spy) => spy.mockRestore());
+      workspace.current = structuredClone(initial);
+    }
+    const boxes = await inBrowser(markup, 430, "charcoal", "phone", readBoxes);
+    expect(boxes.some((box) => box.name === "Step")).toBe(true);
+    expect(boxes.filter((box) => box.role === "menuitem").length).toBeGreaterThan(1);
+    expect(boxes.some((box) => box.name === "Game aspect ratio")).toBe(true);
+    expectSettingsRhythm(boxes);
+    await setPhone(false);
+  }, 60_000);
+
+  it("leaves the viewing-mode menu's rows where main has them", async () => {
+    await setPhone(false);
+    workspaceSettings.setPreference("previewMode", "game");
+    const boxes = await inBrowser(await openMenuMarkup('[aria-label^="Viewing mode"]'), 1440, "charcoal", "desktop", readBoxes);
+    expect(boxes.length).toBeGreaterThan(1);
+    expect(spaces(boxes).map((pair) => pair.space)).toEqual(VIEWING_MODE_SPACES_ON_MAIN);
+  }, 60_000);
+});
 
 describe("the preview settings menu's rows take the prototype's 10px side padding (I-2536)", () => {
   it("starts the folded Step group's heading and rows 10px in from the row at 1440", async () => {
