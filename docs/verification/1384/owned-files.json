@@ -1,0 +1,13 @@
+{
+  "source": [
+    "packages/sparkdown/src/compiler/typecheck/Error.ts",
+    "packages/sparkdown/src/tests/luau-conformance/namedModuleGraph.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/namedModuleGraph.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeModuleAcceptance.private.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeModuleAcceptance.test.ts"
+  ],
+  "archivedNativeProbes": [
+    "packages/sparkdown/src/tests/luau-conformance/nativeModuleAcceptance.private.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeModuleAcceptance.test.ts"
+  ]
+}

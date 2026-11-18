@@ -1,0 +1,29 @@
+[
+  {
+    "file": "evidence/native-module-diagnostic-contract.md",
+    "sha256": "72b95b8bbf88ea3a91b1ac097938436929db2457422b353614df06b4cce44f31",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/source-audit.md",
+    "sha256": "728ce9dc4535fca4c6c2d8861e3b77bde3de9515d6ed9d5ccda828432b7c94aa",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/progress.md",
+    "sha256": "97a1272a67f173ba451c4021a19b5d01ff1b3d630c0f0696f5e1fbbad75a8344",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "historical-probes/nativeModuleAcceptance.private.test.ts.txt",
+    "original": "packages/sparkdown/src/tests/luau-conformance/nativeModuleAcceptance.private.test.ts",
+    "sha256": "3940f3355d91d91c62479394977adb53027cc780cacbb57ca03aec7c06095693",
+    "kind": "unexecuted archive; original local copy retained"
+  },
+  {
+    "file": "historical-probes/nativeModuleAcceptance.test.ts.txt",
+    "original": "packages/sparkdown/src/tests/luau-conformance/nativeModuleAcceptance.test.ts",
+    "sha256": "39d673b3064ac23113d7b7a20f0874d0ff486947a26c9a7d096e4072d4d922ee",
+    "kind": "unexecuted archive; original local copy retained"
+  }
+]

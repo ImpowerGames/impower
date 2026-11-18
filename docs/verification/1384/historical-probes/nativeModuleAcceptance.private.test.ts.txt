@@ -1,0 +1,22 @@
+/** PRIVATE import adapter only. Never stage/publish this cross-worktree file. */
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { afterAll, beforeAll, expect, vi } from "vitest";
+
+// Redirect only the portable file's single shared-boundary import to the frozen
+// real implementation. No checker, query, diagnostic, source or answer is mocked.
+vi.mock("./typecheck/portedCases", async () =>
+  import("C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/luau-conformance/typecheck/portedCases.ts"));
+
+import "./nativeModuleAcceptance.test";
+
+const inputsPath = "C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-1384/portable-acceptance-inputs.json";
+const inputs: { hashes: Record<string, string> } = JSON.parse(readFileSync(inputsPath, "utf8"));
+function verifyFrozenInputs(): void {
+  for (const [path, expected] of Object.entries(inputs.hashes)) {
+    const actual = createHash("sha256").update(readFileSync(path)).digest("hex");
+    expect(actual, "frozen acceptance input: " + path).toBe(expected);
+  }
+}
+beforeAll(verifyFrozenInputs);
+afterAll(verifyFrozenInputs);
