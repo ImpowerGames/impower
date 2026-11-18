@@ -30,12 +30,14 @@ const sources = (): Map<string, string> => {
 const declaredProperties = (css: string): string[] =>
   [...css.matchAll(/(?<![\w-])(--[\w-]+)\s*:/g)].map((match) => match[1]!);
 
-const readsProperty = (text: string, name: string, declaringFile: boolean): boolean => {
+const readsProperty = (text: string, name: string): boolean => {
   const escaped = name.replace(/[-]/g, "\\-");
-  if (declaringFile) {
-    return new RegExp(`var\\(\\s*${escaped}(?![\\w-])`).test(text);
-  }
-  return new RegExp(`${escaped}(?![\\w-])`).test(text);
+  const end = "(?![\\w-])";
+  return [
+    new RegExp(`var\\(\\s*${escaped}${end}`),
+    new RegExp(`\\(\\s*${escaped}\\s*\\)`),
+    new RegExp(`getPropertyValue\\(\\s*["'\`]${escaped}["'\`]`),
+  ].some((pattern) => pattern.test(text));
 };
 
 describe("the editor page's own stylesheets", () => {
@@ -43,9 +45,18 @@ describe("the editor page's own stylesheets", () => {
 
   it.each(PAGE_FILES)("declare only custom properties something reads: %s", (file) => {
     const declared = [...new Set(declaredProperties(all.get(file)!))];
-    const unread = declared.filter(
-      (name) => ![...all].some(([other, text]) => readsProperty(text, name, other === file)),
-    );
+    const unread = declared.filter((name) => ![...all.values()].some((text) => readsProperty(text, name)));
     expect(unread).toEqual([]);
+  });
+
+  it("counts a read, not another declaration or a mention, as a reader", () => {
+    expect(readsProperty(":root { --a: 1px; }", "--a")).toBe(false);
+    expect(readsProperty("Set --a to change the gap.", "--a")).toBe(false);
+    expect(readsProperty('el.style.setProperty("--a", "1px");', "--a")).toBe(false);
+    expect(readsProperty(".x { gap: var(--a); }", "--a")).toBe(true);
+    expect(readsProperty(".x { gap: var( --a, 2px); }", "--a")).toBe(true);
+    expect(readsProperty('<div class="gap-(--a)">', "--a")).toBe(true);
+    expect(readsProperty('getComputedStyle(el).getPropertyValue("--a")', "--a")).toBe(true);
+    expect(readsProperty(".x { gap: var(--ab); }", "--a")).toBe(false);
   });
 });

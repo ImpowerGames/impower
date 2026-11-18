@@ -134,8 +134,6 @@
 :root {
   color-scheme: dark;
   --screenplay-preview-texture: url("/noisetexture.png");
-  --cm-top-offset: 0px;
-  --cm-bottom-offset: 0px;
 }
 
 html,
