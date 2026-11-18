@@ -568,6 +568,7 @@ describe("the story statement rules", () => {
     "LuauComponent",
     "LuauAnimation",
     "LuauTheme",
+    "LuauFraming",
     "LuauMorph",
   ]);
   const NEXT_LINE_RULES = [

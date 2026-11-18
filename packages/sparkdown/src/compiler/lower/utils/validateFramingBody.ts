@@ -4,8 +4,9 @@ import type { LowerContext } from "../context";
 import type { SourceSpan, StructSource } from "../lowerers/lowerStructBodyTyped";
 import { makeSource } from "./validateDefineStructure";
 
-export const FRAMING_FIELDS: readonly string[] = ["x", "y", "zoom"];
+const FRAMING_FIELDS: ReadonlySet<string> = new Set(["x", "y", "zoom"]);
 
+// value-level: the shape of one framing field's already-read value
 const PERCENTAGE = /^-?(?:\d+(?:[.]\d*)?|[.]\d+)%$/;
 
 export function validateFramingBody(
@@ -20,7 +21,7 @@ export function validateFramingBody(
     diagnostics.push({ message, severity: ErrorType.Error, source: makeSource(at.from, at.to, ctx) });
   };
   for (const [key, value] of Object.entries(body)) {
-    if (!FRAMING_FIELDS.includes(key)) {
+    if (!FRAMING_FIELDS.has(key)) {
       report(
         `\`${key}\` is not a framing field. A framing sets \`x\`, \`y\` and \`zoom\`.\n> e.g. \`framing sofa { x = 60%; y = 100%; zoom = 1.2 }\``,
         source?.keys.get(key),
@@ -32,7 +33,11 @@ export function validateFramingBody(
           source?.values.get(key),
         );
       }
-    } else if (typeof value !== "string" || !PERCENTAGE.test(value)) {
+    } else if (
+      typeof value !== "string" ||
+      // value-level: the already-read value of the `x` or `y` field
+      !PERCENTAGE.test(value)
+    ) {
       report(
         `\`${key}\` should be a percentage, where \`0%\` sets the picture's ${key === "x" ? "left" : "top"} edge on the layer's and \`100%\` its ${key === "x" ? "right" : "bottom"} edge\n> e.g. \`${key} = 60%\``,
         source?.values.get(key),
