@@ -22,19 +22,22 @@ import {
   KEYFRAMES_KEY,
   keyframesAsList,
   parseStructBodyTyped,
+  type StructSource,
 } from "./lowerStructBodyTyped";
 import { validateBlockStructure } from "../utils/validateBlockStructure";
+import { validateFramingBody } from "../utils/validateFramingBody";
 
 const CONTENT_NODE = {
   animation: "LuauAnimation_content",
   theme: "LuauTheme_content",
+  framing: "LuauFraming_content",
   morph: "LuauMorph_content",
 } as const;
 
 export function lowerLuauStructDefine(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
-  type: "animation" | "theme" | "morph",
+  type: "animation" | "theme" | "framing" | "morph",
 ): CompiledBlock {
   ctx.diagnostics?.push(...validateBlockStructure(nodeRef.node, ctx, type));
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
@@ -49,10 +52,14 @@ export function lowerLuauStructDefine(
 
   const contentNode = findChildByName(nodeRef.node, CONTENT_NODE[type]);
   const diagnostics: InkDiagnostic[] = [];
+  const sources = new WeakMap<object, StructSource>();
   const body =
     type === "morph"
       ? readMorphBody(contentNode, ctx, diagnostics).struct
-      : parseStructBodyTyped(contentNode, ctx, diagnostics);
+      : parseStructBodyTyped(contentNode, ctx, diagnostics, type === "framing" ? { sources } : {});
+  if (type === "framing") {
+    diagnostics.push(...validateFramingBody(body, sources.get(body), nameNode, ctx));
+  }
   if (type === "animation" && KEYFRAMES_KEY in body) {
     body[KEYFRAMES_KEY] = keyframesAsList(body[KEYFRAMES_KEY]);
   }

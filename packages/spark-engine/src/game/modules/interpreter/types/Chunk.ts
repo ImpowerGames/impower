@@ -7,7 +7,8 @@ export interface Chunk {
   clauses?: {
     after?: number;
     over?: number;
-    to?: number;
+    to?: number | string;
+    at?: string;
     with?: string;
     ease?: string;
     morph?: string;

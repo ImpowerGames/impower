@@ -55,6 +55,7 @@ export const SPARKDOWN_ONLY = new Set([
   "LuauScreen",
   "LuauAnimation",
   "LuauTheme",
+  "LuauFraming",
   "LuauComponent",
   "LuauMorph",
   "LuauSparkdownAlternatorBlocks",
@@ -189,6 +190,7 @@ export const STATEMENT_BREAKS = new Set([
   "LuauScreen",
   "LuauAnimation",
   "LuauTheme",
+  "LuauFraming",
   "LuauComponent",
   "LuauMorph",
 ]);

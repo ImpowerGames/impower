@@ -3935,6 +3935,57 @@ end
 define object as layer with
 end
 
+define framing with
+  x = "50%"
+  y = "50%"
+  zoom = 1
+end
+
+framing left {
+  x = 0%
+  y = 50%
+}
+
+framing center {
+  x = 50%
+  y = 50%
+}
+
+framing right {
+  x = 100%
+  y = 50%
+}
+
+framing top {
+  x = 50%
+  y = 0%
+}
+
+framing bottom {
+  x = 50%
+  y = 100%
+}
+
+framing top_left {
+  x = 0%
+  y = 0%
+}
+
+framing top_right {
+  x = 100%
+  y = 0%
+}
+
+framing bottom_left {
+  x = 0%
+  y = 100%
+}
+
+framing bottom_right {
+  x = 100%
+  y = 100%
+}
+
 define animation with
   target = layer.self
   keyframes = {}

@@ -158,6 +158,7 @@ const STRUCTURAL_DEFINE_TYPE: Partial<Record<SparkdownNodeName, string>> = {
   LuauComponent: "component",
   LuauAnimation: "animation",
   LuauTheme: "theme",
+  LuauFraming: "framing",
   LuauMorph: "morph",
 };
 
@@ -1845,11 +1846,15 @@ const completionsAt = (
         ),
       );
     const addImageClauseCompletions = (control: string) => {
+      const imageClauses = [
+        ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "at"),
+        ...(control === "animate" ? ["to"] : takesMovieClauses(control) ? ["at"] : []),
+      ];
       const clauses = MOVIE_CONTROL_KEYWORDS.includes(control)
         ? CUTSCENE_CLAUSE_KEYWORDS
         : control === "animate"
-          ? ["with", ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "with")]
-          : IMAGE_CLAUSE_KEYWORDS;
+          ? ["with", ...imageClauses.filter((k) => k !== "with")]
+          : imageClauses;
       addKeywordCompletions(
         completions,
         "clause",
@@ -1990,13 +1995,19 @@ const completionsAt = (
         addStructReferenceCompletions(completions, program, types);
       } else if (keyword === "ease") {
         addStructReferenceCompletions(completions, program, ["ease"]);
+      } else if ((keyword === "at" || keyword === "to") && reading.kind === "image") {
+        addStructReferenceCompletions(completions, program, ["framing"]);
       }
       return buildCompletions();
     }
     if (
       (isWhitespaceNode(leftStack[0]?.name) &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
-        (prevText === "with" || prevText === "ease" || prevText === "morph")) ||
+        (prevText === "with" ||
+          prevText === "ease" ||
+          prevText === "morph" ||
+          prevText === "at" ||
+          prevText === "to")) ||
       (leftStack[0]?.name === "NameValue" && !!keywordOfValue(leftStack[0].node))
     ) {
       return buildCompletions();

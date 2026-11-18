@@ -214,6 +214,13 @@ const getPictureFiles = (
   return paths[0] === root.uri ? paths.map(leafOf) : [];
 };
 
+const framingHover = (framing: Record<string, unknown>): string =>
+  [
+    `**framing** \`${String(framing["$name"] ?? "")}\``,
+    `\`x = ${String(framing["x"])}\` · \`y = ${String(framing["y"])}\` · \`zoom = ${String(framing["zoom"])}\``,
+    "`x` and `y` put that point across and down the picture on the same point of its layer: `0%` sets the left or top edges flush, `100%` the right or bottom edges. `zoom` is how close the view is, where `1` is the picture's size on its layer.",
+  ].join("\n\n");
+
 export const getHover = async (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
@@ -302,6 +309,12 @@ export const getHover = async (
     return null;
   }
   const { struct, range } = match as { struct: any; range: Range };
+  if (struct.$type === "framing") {
+    return {
+      contents: { kind: MarkupKind.Markdown, value: framingHover(struct) },
+      range,
+    };
+  }
   const pick = tree
     ? directiveOwnLookPick(tree, (from, to) => document.read(from, to), document.offsetAt(range.start))
     : undefined;

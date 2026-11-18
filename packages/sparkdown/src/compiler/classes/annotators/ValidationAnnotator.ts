@@ -657,6 +657,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
     }
+    if (bracket === "image" && kind === "image") {
+      this.framingClauseIssues(issue, directive);
+    } else {
+      for (const { word } of directive.clauses) {
+        if (word.text !== "at") continue;
+        issue(
+          "`at` places a picture as it is shown, so it belongs on `show` or a bare picture line\n> e.g. `[[show backdrop bg_apartment at right]]`",
+          word.from,
+          word.to,
+        );
+      }
+    }
     directive.clauses.forEach((clause, index) => {
       const keyword = clause.word.text;
       const value = clause.value;
@@ -697,10 +709,53 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         expect("\`with\` should be followed by the name of a modulation\n> e.g. \`with echo\`");
       } else if (keyword === "ease" && bracket === "image" && valueKind !== "name") {
         expect("\`ease\` should be followed by the name of an ease\n> e.g. \`ease linear\`");
+      } else if ((keyword === "at" || keyword === "to") && bracket === "image" && kind === "image") {
+        if (valueKind !== "name") {
+          expect(`\`${keyword}\` should be followed by the name of a framing\n> e.g. \`${keyword} left\`, \`${keyword} sofa\``);
+        }
       } else if (keyword === "to" && !navigate && (valueKind !== "number" || Number(value!.text) < 0)) {
         expect("\`to\` should be followed by a number greater than 0\n> e.g. \`to 0\`, \`to 0.5\`, \`to 1\`");
       }
     });
+  }
+
+  protected framingClauseIssues(
+    issue: (message: string, from: number, to: number) => void,
+    directive: SourceDirective,
+  ): void {
+    const control = directive.control?.text;
+    const shows = control === undefined || control === "show";
+    for (const clause of directive.clauses) {
+      const { word } = clause;
+      if (word.text === "at" && !shows) {
+        issue(
+          `\`at\` places a picture as it is shown, so it belongs on \`show\` or a bare picture line, not on \`${control}\`\n> To move a layer's picture, write \`to\`: \`[[animate backdrop to left over 2s]]\``,
+          word.from,
+          word.to,
+        );
+      } else if (word.text === "at" && directive.names.length === 0) {
+        issue(
+          "`at` places the picture this line shows, and this line names no picture\n> e.g. `[[show backdrop bg_apartment at right]]`",
+          word.from,
+          word.to,
+        );
+      } else if (word.text === "to" && control !== "animate") {
+        issue(
+          `\`to\` moves a layer's picture, so it belongs on \`animate\`, not on ${control ? `\`${control}\`` : "a bare picture line"}\n> e.g. \`[[animate backdrop to sofa over 1s]]\`; to place a picture as it is shown, write \`at\``,
+          word.from,
+          word.to,
+        );
+      }
+    }
+    const first = directive.names[0];
+    const last = directive.names.at(-1);
+    if (control === "animate" && first && last && directive.clauses.some((clause) => clause.word.text === "to")) {
+      issue(
+        "`to` moves the picture the layer already shows, so an `animate … to` line names no picture\n> e.g. `[[animate backdrop to sofa over 1s]]`",
+        first.from,
+        last.to,
+      );
+    }
   }
 
   protected conditionExpressionEnd(condition: any): number {

@@ -16,6 +16,7 @@ const BRACE_HEADER_FORMS: Readonly<Partial<Record<SparkdownNodeName, string>>> =
   LuauComponent: "`component NAME[(PARAMETERS)] [as PARENT] {`",
   LuauAnimation: "`animation NAME [as PARENT] {`",
   LuauTheme: "`theme NAME [as PARENT] {`",
+  LuauFraming: "`framing NAME [as PARENT] {`",
   LuauMorph: "`morph NAME [as PARENT] {`",
 };
 
