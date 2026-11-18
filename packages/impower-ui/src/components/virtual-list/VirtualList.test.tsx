@@ -240,9 +240,7 @@ describe("VirtualList", () => {
 });
 
 describe("VirtualList grid mode", () => {
-  const TRACK = { minWidth: 100, gap: 10 };
-  const GRID = { class: "track-a", height: (width: number) => width + 40 };
-  const TRACK_STYLE = "--grid-min-width: 100px; --grid-gap: 10px";
+  const GRID = { minWidth: 100, gap: 10, height: (width: number) => width + 40 };
 
   const mountGrid = async (width: number, height: number, extra: Record<string, unknown> = {}) => {
     host = document.body.appendChild(document.createElement("div"));
@@ -259,31 +257,27 @@ describe("VirtualList grid mode", () => {
         return this.getAttribute?.("role") === "list" ? width : 0;
       },
     });
-    const draw = (overrides: Record<string, unknown> = {}) =>
-      act(async () =>
-        render(
-          <VirtualList
-            label="Tiles"
-            items={ITEMS}
-            getKey={(item) => item}
-            renderItem={(item) => <span>{item}</span>}
-            grid={GRID}
-            style={TRACK_STYLE}
-            overscan={1}
-            {...extra}
-            {...overrides}
-            listRef={(element) => {
-              scroller = element;
-            }}
-          />,
-          host!,
-        ),
-      );
-    await draw();
+    await act(async () =>
+      render(
+        <VirtualList
+          label="Tiles"
+          items={ITEMS}
+          getKey={(item) => item}
+          renderItem={(item) => <span>{item}</span>}
+          grid={GRID}
+          overscan={1}
+          {...extra}
+          listRef={(element) => {
+            scroller = element;
+          }}
+        />,
+        host!,
+      ),
+    );
     await act(async () => {
       scroller!.dispatchEvent(new Event("scroll"));
     });
-    return { scroller: scroller!, draw };
+    return scroller!;
   };
 
   afterEach(() => {
@@ -292,13 +286,11 @@ describe("VirtualList grid mode", () => {
   });
 
   it("fits as many columns as the width allows and stretches them to fill it, every row the same height", async () => {
-    expect(virtualListColumns(TRACK, 420)).toEqual({ columns: 3, width: 400 / 3 });
-    expect(virtualListColumns(TRACK, 90)).toEqual({ columns: 1, width: 90 });
-    expect(virtualListColumns(TRACK, 0)).toEqual({ columns: 1, width: 100 });
-    expect(virtualListColumns({ minWidth: 0, gap: 0 }, 420)).toEqual({ columns: 1, width: 420 });
+    expect(virtualListColumns(GRID, 420)).toEqual({ columns: 3, width: 400 / 3 });
+    expect(virtualListColumns(GRID, 90)).toEqual({ columns: 1, width: 90 });
+    expect(virtualListColumns(GRID, 0)).toEqual({ columns: 1, width: 100 });
     await mountGrid(420, 300);
     const list = host!.querySelector('[role="list"]') as HTMLElement;
-    expect(list.parentElement!.className.split(" ")).toContain("track-a");
     const cell = 400 / 3;
     const rows = Math.ceil(ITEMS.length / 3);
     expect(parseFloat(list.style.height)).toBeCloseTo(rows * (cell + 40) + (rows - 1) * 10);
@@ -313,7 +305,7 @@ describe("VirtualList grid mode", () => {
   });
 
   it("mounts only the rows of tiles in view", async () => {
-    const { scroller } = await mountGrid(420, 300);
+    const scroller = await mountGrid(420, 300);
     const rowHeight = 400 / 3 + 40 + 10;
     expect(shown().length).toBe(3 * 4);
     scroller.scrollTop = rowHeight * 50;
@@ -326,30 +318,91 @@ describe("VirtualList grid mode", () => {
   });
 
   it("reveals the row of tiles holding the revealed item", async () => {
-    const { scroller } = await mountGrid(420, 300, { revealIndex: 300 });
+    const scroller = await mountGrid(420, 300, { revealIndex: 300 });
     const rowHeight = 400 / 3 + 40 + 10;
     expect(scroller.scrollTop).toBeCloseTo(101 * rowHeight - 10 - 300);
   });
+});
 
-  it("reads a new track when its grid changes and keeps the row holding the first item in view at the top", async () => {
-    const { scroller, draw } = await mountGrid(420, 300);
-    const rowHeight = 400 / 3 + 40 + 10;
-    scroller.scrollTop = rowHeight * 50;
-    await act(async () => {
-      scroller.dispatchEvent(new Event("scroll"));
+describe("VirtualList keeps its place when its geometry changes", () => {
+  const ROW = VIRTUAL_LIST_ROW_HEIGHT.default;
+
+  const mountWith = async (grid: unknown) => {
+    host = document.body.appendChild(document.createElement("div"));
+    let scroller: HTMLDivElement | null = null;
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return this === scroller ? 300 : 0;
+      },
     });
-    await draw({ grid: { class: "track-b", height: (width: number) => width + 20 }, style: "--grid-min-width: 60px; --grid-gap: 4px" });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get() {
+        return this.getAttribute?.("role") === "list" ? 420 : 0;
+      },
+    });
+    const draw = (next: unknown) =>
+      act(async () =>
+        render(
+          <VirtualList
+            label="Tiles"
+            items={ITEMS}
+            getKey={(item) => item}
+            renderItem={(item) => <span>{item}</span>}
+            grid={next as never}
+            overscan={1}
+            listRef={(element) => {
+              scroller = element;
+            }}
+          />,
+          host!,
+        ),
+      );
+    await draw(grid);
+    await act(async () => {
+      scroller!.dispatchEvent(new Event("scroll"));
+    });
+    return { scroller: () => scroller!, draw };
+  };
+
+  afterEach(() => {
+    delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+    delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+  });
+
+  it("scrolls the line holding the item at the top of the view back to the top when the grid changes, and when it turns into rows", async () => {
+    const wide = { minWidth: 100, gap: 10, height: (width: number) => width + 40 };
+    const narrow = { minWidth: 60, gap: 4, height: (width: number) => width + 20 };
+    const { scroller, draw } = await mountWith(wide);
+    const wideRow = 400 / 3 + 40 + 10;
+    scroller().scrollTop = wideRow * 50;
+    await act(async () => {
+      scroller().dispatchEvent(new Event("scroll"));
+    });
+    await draw(narrow);
     const cell = (420 - 4 * 5) / 6;
-    expect(Math.floor(150 / 6) * (cell + 20 + 4)).toBeCloseTo(scroller.scrollTop, 6);
+    expect(scroller().scrollTop).toBeCloseTo(Math.floor(150 / 6) * (cell + 20 + 4), 6);
     expect(shown()).toContain("row 150");
-    await draw({ grid: undefined, style: undefined });
-    expect(scroller.scrollTop).toBe(150 * VIRTUAL_LIST_ROW_HEIGHT.default);
+    await draw(undefined);
+    expect(scroller().scrollTop).toBe(150 * ROW);
   });
 
   it("leaves the scroll alone when the grid changes at the top of the list", async () => {
-    const { scroller, draw } = await mountGrid(420, 300);
-    await draw({ grid: { class: "track-b", height: (width: number) => width + 20 }, style: "--grid-min-width: 60px; --grid-gap: 4px" });
-    expect(scroller.scrollTop).toBe(0);
+    const { scroller, draw } = await mountWith({ minWidth: 100, gap: 10, height: (width: number) => width + 40 });
+    await draw({ minWidth: 60, gap: 4, height: (width: number) => width + 20 });
+    expect(scroller().scrollTop).toBe(0);
+  });
+
+  it("never moves a list of rows on its own", async () => {
+    const { scroller, draw } = await mountWith(undefined);
+    scroller().scrollTop = ROW * 40 + 17;
+    await act(async () => {
+      scroller().dispatchEvent(new Event("scroll"));
+    });
+    await draw(undefined);
+    await draw(undefined);
+    expect(scroller().scrollTop).toBe(ROW * 40 + 17);
   });
 });
 
@@ -375,7 +428,7 @@ describe("VirtualList listRef", () => {
     expect(calls).toEqual(["element 1", "null 3"]);
   });
 
-  it("hands a list of rows its element in the first commit, with the rows' full extent already drawn", () => {
+  it("hands a list its element in the first commit, with its full extent already drawn", () => {
     host = document.body.appendChild(document.createElement("div"));
     const heights: string[] = [];
     render(
@@ -391,40 +444,5 @@ describe("VirtualList listRef", () => {
       host,
     );
     expect(heights).toEqual([`${ITEMS.length * VIRTUAL_LIST_ROW_HEIGHT.default}px`]);
-  });
-
-  it("hands a grid its element only once the measured track's extent is drawn, so a saved offset is not clamped", async () => {
-    host = document.body.appendChild(document.createElement("div"));
-    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
-      configurable: true,
-      get() {
-        return this.getAttribute?.("role") === "list" ? 420 : 0;
-      },
-    });
-    try {
-      const heights: number[] = [];
-      render(
-        <VirtualList
-          label="Tiles"
-          items={ITEMS}
-          getKey={(item) => item}
-          renderItem={(item) => <span>{item}</span>}
-          grid={{ class: "track", height: (width: number) => width + 40 }}
-          style="--grid-min-width: 100px; --grid-gap: 10px"
-          listRef={(element) => {
-            if (element) heights.push(parseFloat((element.firstElementChild as HTMLElement).style.height));
-          }}
-        />,
-        host,
-      );
-      expect(heights).toEqual([]);
-      await act(async () => {});
-      const cell = 400 / 3;
-      const rows = Math.ceil(ITEMS.length / 3);
-      expect(heights).toHaveLength(1);
-      expect(heights[0]).toBeCloseTo(rows * (cell + 40) + (rows - 1) * 10);
-    } finally {
-      delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
-    }
   });
 });

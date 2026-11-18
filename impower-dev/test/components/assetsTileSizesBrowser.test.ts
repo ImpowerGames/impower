@@ -302,6 +302,77 @@ describe("the Assets page's View menu and tile sizes, in Chromium (I-2462)", () 
     }
   }, 60_000);
 
+  it.each([
+    { stored: "no stored choice", lists: {} },
+    { stored: "the old stored Tiles", lists: { assetsLayouts: { "Assets/Images/Cast": "tiles" } } },
+  ])("opens on a picture another surface added, its top in view, in a folder that measures its pictures, with $stored", async ({ lists }) => {
+    const page = await open({
+      width: 1440,
+      pointer: "mouse",
+      pictures: 240,
+      reveal: ["Assets/Images/Cast/picture_150.png"],
+      lists: { ...lists, assetsScrolls: { "image:Assets/Images/Cast:name-asc": 0 } },
+    });
+    try {
+      await page.waitForFunction(() => !!document.querySelector('[data-asset-path="Assets/Images/Cast/picture_150.png"]'), undefined, { timeout: 10_000 }).catch(() => {});
+      await frames(page);
+      await frames(page);
+      const seen = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[role="list"]')!.parentElement!.getBoundingClientRect();
+        const tile = document.querySelector<HTMLElement>('[data-asset-path="Assets/Images/Cast/picture_150.png"]');
+        const box = tile?.getBoundingClientRect();
+        return { found: !!tile, inView: !!box && box.top >= scroller.top - 1 && box.top < scroller.bottom };
+      });
+      expect(seen).toEqual({ found: true, inView: true });
+    } finally {
+      await close(page);
+    }
+  }, 60_000);
+
+  it("takes the narrow pane's columns when the page's content box narrows to 440, and the desktop columns again at 441", async () => {
+    const page = await open({ width: 1440, pointer: "mouse", pictures: 40, pane: 477 });
+    try {
+      const paneTo = async (width: number) => {
+        await page.evaluate((width) => {
+          document.getElementById("host")!.style.width = `${width}px`;
+        }, width);
+        await frames(page);
+        await frames(page);
+      };
+      for (const size of SIZES) {
+        await choose(page, size, "mouse");
+        await checkGeometry(page, size, GRIDS.desktop, "mouse");
+        await paneTo(476);
+        await checkGeometry(page, size, GRIDS.pane, "mouse");
+        await paneTo(477);
+        await checkGeometry(page, size, GRIDS.desktop, "mouse");
+      }
+    } finally {
+      await close(page);
+    }
+  }, 90_000);
+
+  it.each(SIZES)("paints its first frame in a 400 pane with the pane's columns, so nothing jumps, in %s", async (size) => {
+    const page = await open({
+      width: 1440,
+      pointer: "mouse",
+      pictures: 60,
+      pane: 400,
+      lists: { assetsLayouts: { "Assets/Images/Cast": { "Portrait tiles": "portrait", "Landscape tiles": "landscape", "Small tiles": "small" }[size] } },
+    });
+    try {
+      await frames(page);
+      const first = await page.evaluate(() => window.assetsPage.firstFrame);
+      const settled = await page.evaluate(() => window.assetsPage.grid());
+      expect(first).toEqual(settled);
+      expect(first!.list).toBe(true);
+      const { columns } = await checkGeometry(page, size, GRIDS.pane, "mouse");
+      expect(first!.columns).toBe(columns);
+    } finally {
+      await close(page);
+    }
+  }, 60_000);
+
   it.each(SIZES)("reaches every tile by Tab, in the list's order, in %s", async (size) => {
     const page = await open({ width: 1440, pointer: "mouse", pictures: 6 });
     try {

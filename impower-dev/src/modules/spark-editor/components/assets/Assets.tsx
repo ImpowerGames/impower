@@ -31,6 +31,7 @@ import {
   TILE_SIZES,
   tileGrid,
   type TileSize,
+  type TileTrack,
   UploadIcon,
   VariantsBadge,
   VariantsChip,
@@ -113,6 +114,7 @@ import AssetRowMenu, { INSPECTOR_ACTIONS, rowEntries, type AssetRowAction } from
 import { SoundLine, SoundPlay } from "./SoundRow";
 import UploadsPanel from "./UploadsPanel";
 import { useFileDrop } from "./useFileDrop";
+import { useNarrowPane } from "./useNarrowPane";
 
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
@@ -325,6 +327,8 @@ function AssetsBrowser() {
   const [reveal, setReveal] = useState<{ path: string; request: number } | null>(null);
   const list = useRef<HTMLDivElement | null>(null);
   const page = useRef<HTMLDivElement | null>(null);
+  const body = useRef<HTMLDivElement | null>(null);
+  const narrowPane = useNarrowPane(body);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const layoutName = useLayout();
   const dock = useInspectorDock();
@@ -387,6 +391,8 @@ function AssetsBrowser() {
   const layout: FolderLayout = type !== "image" ? "rows" : (chosen ?? shape);
   const tiles = images && layout !== "rows";
   const size: TileSize = layout === "rows" ? shape : layout;
+  const track: TileTrack = layoutName !== "desktop" ? "narrow" : narrowPane ? "pane" : "desktop";
+  const holding = tiles && layoutName === "desktop" && narrowPane === undefined;
   useEffect(() => {
     if (images && loaded && stored === LEGACY_TILES && !measuring) {
       setLayout(shape);
@@ -1047,7 +1053,8 @@ function AssetsBrowser() {
           />
         )
       }
-      list={measuring ? null : {
+      bodyRef={body}
+      list={measuring || holding ? null : {
         listRef: (element: HTMLDivElement | null) => {
           list.current = element;
           scroller(element);
@@ -1059,10 +1066,10 @@ function AssetsBrowser() {
         getKey: (item) => (item.kind === "heading" ? `heading:${item.type}` : item.path),
         renderItem,
         itemHeight: (item) => (item.kind === "heading" ? HEADING_HEIGHT : libraryRowHeight(layoutName)),
-        grid: tiles ? tileGrid(size) : undefined,
+        grid: tiles ? tileGrid(size, track) : undefined,
       }}
       empty={
-        !loaded || measuring ? null : searching ? (
+        !loaded || measuring || holding ? null : searching ? (
           <EmptyState
             icon={<SearchIcon />}
             title="No files match."

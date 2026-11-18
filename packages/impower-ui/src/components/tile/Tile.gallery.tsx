@@ -142,7 +142,7 @@ function TileDemo() {
             class="h-80 rounded-card border border-edge p-2"
             items={ITEMS}
             getKey={(item) => String(item)}
-            grid={tileGrid(size)}
+            grid={tileGrid(size, "desktop")}
             renderItem={(item) => (
               <Tile
                 size={size}
@@ -162,6 +162,6 @@ function TileDemo() {
 
 export const tileGallery: GalleryEntry = {
   title: "Tile",
-  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileActionsVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileDescriptionVariants", "tileGridVariants", "tileHeight", "tileGrid", "TILE_SIZES"],
+  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileActionsVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileDescriptionVariants", "tileHeight", "tileGrid", "TILE_SIZES"],
   Demo: TileDemo,
 };

@@ -110,7 +110,6 @@ export const NOT_COMPONENTS: readonly string[] = [
   "tileMediaVariants",
   "tileLabelVariants",
   "tileDescriptionVariants",
-  "tileGridVariants",
   "tileHeight",
   "tileGrid",
   "TILE_SIZES",

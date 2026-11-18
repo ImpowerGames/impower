@@ -2,7 +2,6 @@ import { cva } from "class-variance-authority";
 import type { ComponentChildren, JSX, Ref } from "preact";
 import { useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { useForwardedRef } from "../../hooks/useForwardedRef";
-import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 
 export const virtualListVariants = cva(
@@ -32,37 +31,23 @@ export const virtualListSlotVariants = cva("absolute", {
 export type VirtualListSize = keyof typeof VIRTUAL_LIST_ROW_HEIGHT;
 
 export type VirtualListGrid = {
-  class: string;
+  minWidth: number;
+  gap: number;
   height: (width: number) => number;
 };
 
-export type VirtualListTrack = { minWidth: number; gap: number };
-
 export const virtualListColumns = (
-  track: VirtualListTrack,
+  grid: VirtualListGrid,
   width: number,
 ): { columns: number; width: number } => {
-  const columns =
-    track.minWidth > 0
-      ? Math.max(1, Math.floor((width + track.gap) / (track.minWidth + track.gap)))
-      : 1;
+  const columns = Math.max(
+    1,
+    Math.floor((width + grid.gap) / (grid.minWidth + grid.gap)),
+  );
   return {
     columns,
     width:
-      width > 0 ? (width - track.gap * (columns - 1)) / columns : track.minWidth,
-  };
-};
-
-const pixels = (value: string) => {
-  const parsed = parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const trackOf = (element: Element): VirtualListTrack => {
-  const style = getComputedStyle(element);
-  return {
-    minWidth: pixels(style.getPropertyValue("--grid-min-width")),
-    gap: pixels(style.getPropertyValue("--grid-gap")),
+      width > 0 ? (width - grid.gap * (columns - 1)) / columns : grid.minWidth,
   };
 };
 
@@ -99,15 +84,13 @@ export default function VirtualList<T>({
   ...rest
 }: VirtualListProps<T>) {
   const rowHeight = VIRTUAL_LIST_ROW_HEIGHT[size];
-  const layout = useLayout();
   const scroller = useRef<HTMLDivElement | null>(null);
-  const [view, setView] = useState({ top: 0, height: 0, width: 0, minWidth: 0, gap: 0 });
-  const [extentReady, setExtentReady] = useState(!grid);
-  const cells = grid ? virtualListColumns(view, view.width) : undefined;
+  const [view, setView] = useState({ top: 0, height: 0, width: 0 });
+  const cells = grid ? virtualListColumns(grid, view.width) : undefined;
   const columns = cells?.columns ?? 1;
   const cellWidth = cells?.width ?? 0;
   const cellHeight = grid ? grid.height(cellWidth) : 0;
-  const gap = grid ? view.gap : 0;
+  const gap = grid?.gap ?? 0;
   const lines = Math.ceil(items.length / columns);
   const offsets = useMemo(() => {
     const tops = new Array<number>(lines + 1);
@@ -138,66 +121,40 @@ export default function VirtualList<T>({
     return low;
   };
 
-  const track = useRef<VirtualListTrack>({ minWidth: 0, gap: 0 });
-  const measure = useRef((retrack: boolean) => {
-    const element = scroller.current;
-    if (!element) {
-      return;
-    }
-    if (retrack) {
-      track.current = trackOf(element);
-    }
-    const width = element.firstElementChild?.clientWidth ?? 0;
-    const { minWidth, gap: trackGap } = track.current;
-    setView((prev) =>
-      prev.top === element.scrollTop &&
-      prev.height === element.clientHeight &&
-      prev.width === width &&
-      prev.minWidth === minWidth &&
-      prev.gap === trackGap
-        ? prev
-        : {
-            top: element.scrollTop,
-            height: element.clientHeight,
-            width,
-            minWidth,
-            gap: trackGap,
-          },
-    );
-  });
+  const measureView = useRef(() => {});
 
   useLayoutEffect(() => {
     const element = scroller.current;
     if (!element) {
       return;
     }
-    const onScroll = () => measure.current(false);
-    const onResize = () => measure.current(true);
-    onResize();
-    if (!element.firstElementChild?.clientWidth) {
-      setExtentReady(true);
-    }
-    element.addEventListener("scroll", onScroll, { passive: true });
+    const measure = () => {
+      const width = element.firstElementChild?.clientWidth ?? 0;
+      setView((prev) =>
+        prev.top === element.scrollTop &&
+        prev.height === element.clientHeight &&
+        prev.width === width
+          ? prev
+          : {
+              top: element.scrollTop,
+              height: element.clientHeight,
+              width,
+            },
+      );
+    };
+    measureView.current = measure;
+    measure();
+    element.addEventListener("scroll", measure, { passive: true });
     const observer =
       typeof ResizeObserver === "undefined"
         ? undefined
-        : new ResizeObserver(onResize);
+        : new ResizeObserver(measure);
     observer?.observe(element);
     return () => {
-      element.removeEventListener("scroll", onScroll);
+      element.removeEventListener("scroll", measure);
       observer?.disconnect();
     };
   }, []);
-
-  useLayoutEffect(() => {
-    measure.current(true);
-  }, [grid?.class, layout]);
-
-  useLayoutEffect(() => {
-    if (!extentReady && view.width > 0) {
-      setExtentReady(true);
-    }
-  }, [extentReady, view.width]);
 
   const geometry = grid ? `grid:${columns}:${cellHeight}:${gap}` : "rows";
   const anchor = useRef<{ index: number; geometry: string; measured: boolean } | null>(null);
@@ -213,7 +170,7 @@ export default function VirtualList<T>({
     if (last && last.measured && view.width > 0 && last.geometry !== geometry && last.index >= 0 && items.length) {
       element.scrollTop = topOf(Math.floor(Math.min(last.index, items.length - 1) / columns)) + origin;
       anchor.current = { index: last.index, geometry, measured: true };
-      measure.current(false);
+      measureView.current();
       return;
     }
     const offset = element.scrollTop - origin;
@@ -258,7 +215,7 @@ export default function VirtualList<T>({
   const start = Math.max(0, first - overscan);
   const end = Math.min(lines, start + last - first + 1 + overscan * 2);
 
-  const setRef = useForwardedRef(extentReady ? listRef : undefined, (element: HTMLDivElement | null) => {
+  const setRef = useForwardedRef(listRef, (element: HTMLDivElement | null) => {
     scroller.current = element;
   });
 
@@ -293,7 +250,7 @@ export default function VirtualList<T>({
   return (
     <div
       ref={setRef}
-      class={cn(virtualListVariants(), grid?.class, className)}
+      class={cn(virtualListVariants(), className)}
       {...rest}
     >
       <div

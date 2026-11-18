@@ -21,50 +21,17 @@ const inBrowser = it.skipIf(!existsSync(chromium.executablePath()));
 
 const SIZES: readonly TileSize[] = ["portrait", "landscape", "small"];
 
-const gridTracks = async (layout: "desktop" | "compact" | "phone", page: number) => {
-  const cells = SIZES.map((size) => `<div data-size="${size}" class="${tileGrid(size).class}"></div>`).join("");
-  const compiler = await compile('@import "./src/style.css";', { base: `${process.cwd()}`, onDependency: () => {} });
-  const css = optimize(compiler.build(SIZES.flatMap((size) => tileGrid(size).class.split(/\s+/)).concat("@container", "px-[18px]")), { minify: false }).code;
-  const browser = await chromium.launch();
-  try {
-    const view = await browser.newPage({ viewport: { width: layout === "desktop" ? 1440 : layout === "compact" ? 820 : 430, height: 600 } });
-    await view.setContent(
-      `<!doctype html><html data-layout="${layout}"><head><style>${css}</style></head><body style="margin:0"><div class="@container px-[18px]" style="width:${page}px">${cells}</div></body></html>`,
-    );
-    return await view.evaluate(() =>
-      Object.fromEntries(
-        [...document.querySelectorAll<HTMLElement>("[data-size]")].map((cell) => {
-          const style = getComputedStyle(cell);
-          return [cell.dataset.size, [style.getPropertyValue("--grid-min-width").trim(), style.getPropertyValue("--grid-gap").trim()]];
-        }),
-      ),
-    );
-  } finally {
-    await browser.close();
-  }
-};
-
 describe("Tile", () => {
-  inBrowser("lays its grid out at the prototype's narrower minimums and gaps below desktop, whatever the page's width", async () => {
-    for (const layout of ["compact", "phone"] as const) {
-      for (const page of [400, 820]) {
-        expect(await gridTracks(layout, page)).toEqual({
-          portrait: ["150px", "10px"],
-          landscape: ["160px", "10px"],
-          small: ["88px", "8px"],
-        });
-      }
+  it("gives each size the prototype's grid minimum and gap on desktop, at 1100px and below, and in a desktop pane 440 wide or less", () => {
+    const tracks = (track: "desktop" | "narrow" | "pane") =>
+      Object.fromEntries(SIZES.map((size) => { const { minWidth, gap } = tileGrid(size, track); return [size, [minWidth, gap]]; }));
+    expect(tracks("desktop")).toEqual({ portrait: [138, 12], landscape: [176, 12], small: [96, 8] });
+    expect(tracks("narrow")).toEqual({ portrait: [150, 10], landscape: [160, 10], small: [88, 8] });
+    expect(tracks("pane")).toEqual({ portrait: [140, 12], landscape: [150, 12], small: [96, 8] });
+    for (const size of SIZES) {
+      expect(tileGrid(size, "desktop").height(176)).toBe(tileHeight(size, 176));
     }
-  }, 60_000);
-
-  inBrowser("lays its grid out at the prototype's desktop minimums, tightening Portrait and Landscape in a page 440 wide or less inside its gutters", async () => {
-    const wide = { portrait: ["138px", "12px"], landscape: ["176px", "12px"], small: ["96px", "8px"] };
-    const narrow = { portrait: ["140px", "12px"], landscape: ["150px", "12px"], small: ["96px", "8px"] };
-    expect(await gridTracks("desktop", 960)).toEqual(wide);
-    expect(await gridTracks("desktop", 477)).toEqual(wide);
-    expect(await gridTracks("desktop", 476)).toEqual(narrow);
-    expect(await gridTracks("desktop", 400)).toEqual(narrow);
-  }, 60_000);
+  });
 
   inBrowser("renders each size at exactly the height tileHeight gives it, so the classes and the numbers describe one tile", async () => {
     host = document.body.appendChild(document.createElement("div"));
@@ -111,7 +78,7 @@ describe("Tile", () => {
     expect(tileHeight("portrait", 138)).toBeCloseTo(120 * (4 / 3) + 64.6, 6);
     expect(tileHeight("portrait", 200)).toBeGreaterThan(tileHeight("landscape", 200));
     expect(tileHeight("small", 96)).toBeCloseTo(84 + 35.4, 6);
-    expect(tileGrid("small").height(113.59375)).toBeCloseTo(136.98, 1);
+    expect(tileGrid("small", "desktop").height(113.59375)).toBeCloseTo(136.98, 1);
   });
 
   it("draws the Small size with a square picture, an 11px name, no meta line and the smaller mark and menu", async () => {

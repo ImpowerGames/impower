@@ -123,7 +123,6 @@ export {
   VIRTUAL_LIST_ROW_HEIGHT,
   virtualListColumns,
   type VirtualListGrid,
-  type VirtualListTrack,
   type VirtualListProps,
   type VirtualListSize,
 } from "./virtual-list/VirtualList";
@@ -433,7 +432,7 @@ export {
   tileMediaVariants,
   tileLabelVariants,
   tileDescriptionVariants,
-  tileGridVariants,
+  type TileTrack,
   tileHeight,
   tileGrid,
   TILE_SIZES,

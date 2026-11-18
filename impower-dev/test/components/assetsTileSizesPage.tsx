@@ -23,9 +23,19 @@ const SHAPES: readonly [number, number][] = [
   [1200, 400],
 ];
 
+type GridShot = { list: boolean; columns: number; cells: number[] };
+
+const gridShot = (): GridShot => {
+  const list = document.querySelector<HTMLElement>('[role="list"]');
+  const cells = [...(list?.querySelectorAll<HTMLElement>('[role="listitem"]') ?? [])].map((cell) => cell.getBoundingClientRect());
+  const top = Math.min(...cells.map((cell) => cell.top));
+  const first = cells.filter((cell) => Math.abs(cell.top - top) < 0.5).sort((a, b) => a.left - b.left);
+  return { list: !!list, columns: first.length, cells: first.map((cell) => Math.round(cell.left * 100) / 100) };
+};
+
 declare global {
   interface Window {
-    assetsPage: { mount: (setup: Setup) => void; lists: () => Record<string, unknown> };
+    assetsPage: { mount: (setup: Setup) => void; lists: () => Record<string, unknown>; grid: () => GridShot; firstFrame?: GridShot };
   }
 }
 
@@ -60,6 +70,10 @@ window.assetsPage = {
       host.style.width = `${width}px`;
     }
     render(<Assets />, host);
+    requestAnimationFrame(() => {
+      window.assetsPage.firstFrame = gridShot();
+    });
   },
+  grid: gridShot,
   lists: () => ({ ...workspace.current.lists }),
 };

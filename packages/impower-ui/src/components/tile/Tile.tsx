@@ -5,7 +5,10 @@ import { CheckIcon } from "../icon/icons.generated";
 import type { ThumbnailFit } from "../thumbnail/Thumbnail";
 import type { VirtualListGrid } from "../virtual-list/VirtualList";
 
+export type TileTrack = "desktop" | "narrow" | "pane";
+
 type TileSizeSpec = {
+  track: Record<TileTrack, { minWidth: number; gap: number }>;
   ratio: number;
   padX: number;
   padTop: number;
@@ -21,7 +24,6 @@ type TileSizeSpec = {
     description: string;
     mark: string;
     actions: string;
-    grid: string;
   };
 };
 
@@ -32,6 +34,7 @@ const META_GAP = 2;
 
 export const TILE_SIZES = {
   portrait: {
+    track: { desktop: { minWidth: 138, gap: 12 }, narrow: { minWidth: 150, gap: 10 }, pane: { minWidth: 140, gap: 12 } },
     ratio: 4 / 3,
     padX: 8,
     padTop: 8,
@@ -47,10 +50,10 @@ export const TILE_SIZES = {
       description: "",
       mark: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
       actions: "top-2.5 right-2.5 [&>button]:size-[34px]",
-      grid: "[--grid-min-width:150px] [--grid-gap:10px] [:root[data-layout=desktop]_&]:[--grid-min-width:138px] [:root[data-layout=desktop]_&]:[--grid-gap:12px] [:root[data-layout=desktop]_&]:[@container_(max-width:440px)]:[--grid-min-width:140px]",
     },
   },
   landscape: {
+    track: { desktop: { minWidth: 176, gap: 12 }, narrow: { minWidth: 160, gap: 10 }, pane: { minWidth: 150, gap: 12 } },
     ratio: 10 / 16,
     padX: 8,
     padTop: 8,
@@ -66,10 +69,10 @@ export const TILE_SIZES = {
       description: "",
       mark: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
       actions: "top-2.5 right-2.5 [&>button]:size-[34px]",
-      grid: "[--grid-min-width:160px] [--grid-gap:10px] [:root[data-layout=desktop]_&]:[--grid-min-width:176px] [:root[data-layout=desktop]_&]:[--grid-gap:12px] [:root[data-layout=desktop]_&]:[@container_(max-width:440px)]:[--grid-min-width:150px]",
     },
   },
   small: {
+    track: { desktop: { minWidth: 96, gap: 8 }, narrow: { minWidth: 88, gap: 8 }, pane: { minWidth: 96, gap: 8 } },
     ratio: 1,
     padX: 5,
     padTop: 5,
@@ -85,7 +88,6 @@ export const TILE_SIZES = {
       description: "hidden",
       mark: "top-[9px] left-[9px] [&>span]:size-[18px] [:root[data-pointer=coarse]_&]:after:-inset-[13px]",
       actions: "top-1.5 right-1.5 [&>button]:size-7",
-      grid: "[--grid-min-width:88px] [--grid-gap:8px] [:root[data-layout=desktop]_&]:[--grid-min-width:96px]",
     },
   },
 } as const satisfies Record<string, TileSizeSpec>;
@@ -110,13 +112,8 @@ export const tileVariants = cva("group/tile relative h-full min-w-0", {
   defaultVariants: { size: "landscape" },
 });
 
-export const tileGridVariants = cva("", {
-  variants: { size: bySize("grid") },
-  defaultVariants: { size: "landscape" },
-});
-
-export const tileGrid = (size: TileSize): VirtualListGrid => ({
-  class: tileGridVariants({ size }),
+export const tileGrid = (size: TileSize, track: TileTrack): VirtualListGrid => ({
+  ...TILE_SIZES[size].track[track],
   height: (width) => tileHeight(size, width),
 });
 
