@@ -865,7 +865,7 @@ export class SparkdownPreviewGamePanelManager {
     const scriptNonce = getNonce();
     return `
       <!DOCTYPE html>
-      <html class="theme-dark se-theme" lang="en">
+      <html lang="en">
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -926,6 +926,12 @@ export class SparkdownPreviewGamePanelManager {
               font-size: 12px;
               color: var(--vscode-foreground);
               background-color: var(--vscode-editor-background);
+            }
+
+            body > spark-web-player {
+              --swp-run-color: var(--vscode-debugIcon-startForeground, #89d185);
+              --swp-stop-color: var(--vscode-debugIcon-stopForeground, var(--swp-error-color));
+              --swp-toolbar-border-color: var(--vscode-panel-border, rgba(255, 255, 255, 0.15));
             }
 
             /* The player stays hidden until it has something to show, which

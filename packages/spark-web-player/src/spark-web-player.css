@@ -530,7 +530,7 @@ spark-web-player .transport-icon[data-icon="run"] {
 }
 
 spark-web-player .transport-icon[data-icon="stop"] {
-  color: var(--swp-error-color);
+  color: var(--swp-stop-color, var(--swp-error-color));
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M4 4h8v8H4z"/></svg>');
 }
 
