@@ -140,11 +140,12 @@ test("the phone preview bar keeps every control a separate 44px target at every 
       await waitForEditor(page);
       const reclaimed = await reclaimDriverPreview(page);
       assert.ok(reclaimed === null || reclaimed.restored, `an earlier run's preview pane: ${reclaimed?.reason}`);
-      cleanups.push(async () => {
+      const hideAgain = async () => {
         await page.setViewportSize({ width: 375, height: 780 });
         await page.waitForTimeout(400);
-        await hidePreview(page);
-      });
+        return hidePreview(page);
+      };
+      cleanups.push(hideAgain);
       await writeMainSd(page, SCRIPT);
       await page.reload({ waitUntil: "domcontentloaded" });
       await waitForEditor(page);
@@ -240,6 +241,8 @@ test("the phone preview bar keeps every control a separate 44px target at every 
         assert.ok(state.headInView, `${at}: the cog menu's first heading or entry is fully in view`);
         assert.equal(state.focused, state.first, `${at}: first focus is the cog menu's first enabled entry`);
       }
+      const hidden = await hideAgain();
+      assert.ok(hidden.hidden, `the preview pane this test revealed is hidden again: ${hidden.reason}`);
     },
     { device: null, launch: ({ headless }) => launchEditorBrowser({ headless, display }) },
   );
