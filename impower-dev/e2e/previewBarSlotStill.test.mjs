@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { launchEditorBrowser, openEditorPage, waitForEditor, withEditor, writeMainSd } from "../../.agents/skills/drive-web-editor/driver.mjs";
+import { launchEditorBrowser, openEditorPage, placeCaret, waitForEditor, withEditor, writeMainSd } from "../../.agents/skills/drive-web-editor/driver.mjs";
 import { VIEWPORT_PRESETS } from "../../.agents/skills/drive-web-editor/viewport.mjs";
 
 const WIDTHS = [641, 640, 639, 620, 560, 500, 481, 480, 470, 420, 360, 340];
@@ -38,6 +38,8 @@ test("the first button after the viewing-mode menu stays put when the game start
       await writeMainSd(page, SCRIPT);
       await page.reload({ waitUntil: "domcontentloaded" });
       await waitForEditor(page);
+      const caret = await placeCaret(page, { line: 2, col: 3 });
+      assert.ok(caret.placed, `caret: ${caret.reason}`);
       await page.locator(BAR).waitFor({ timeout: 30_000 });
       const shifts = [];
       for (const width of WIDTHS) {

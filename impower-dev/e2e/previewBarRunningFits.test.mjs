@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { launchEditorBrowser, openEditorPage, waitForEditor, withEditor, writeMainSd } from "../../.agents/skills/drive-web-editor/driver.mjs";
+import { launchEditorBrowser, openEditorPage, placeCaret, waitForEditor, withEditor, writeMainSd } from "../../.agents/skills/drive-web-editor/driver.mjs";
 import { VIEWPORT_PRESETS } from "../../.agents/skills/drive-web-editor/viewport.mjs";
 
 const WIDTHS = [960, 900, 860, 820, 800, 780, 760, 741, 740, 739, 700, 640, 560, 520, 500, 481, 480, 420, 393, 360, 340, 320];
@@ -19,6 +19,16 @@ const sizePane = (page, width) =>
   );
 
 const STEP_ITEMS = ["Step Over", "Step Into", "Step Out", "Toggle breakpoint"];
+
+const playFromHere = async (page) => {
+  const play = page.locator(BAR).getByRole("button", { name: "Play From Here" });
+  await page.waitForFunction((bar) => {
+    const button = document.querySelector(bar)?.querySelector('[aria-label="Play From Here"]');
+    return button && !button.hasAttribute("aria-disabled");
+  }, BAR, { timeout: 30_000 });
+  await play.click();
+  await page.getByRole("button", { name: /^(Pause|Resume)$/ }).waitFor({ timeout: 30_000 });
+};
 
 const problems = (page, width) =>
   page.evaluate(({ bar, width, stepItems }) => {
@@ -67,9 +77,10 @@ test("every running-bar button keeps its own slot inside the bar, at every pane 
       await writeMainSd(page, SCRIPT);
       await page.reload({ waitUntil: "domcontentloaded" });
       await waitForEditor(page);
+      const caret = await placeCaret(page, { line: 2, col: 3 });
+      assert.ok(caret.placed, `caret: ${caret.reason}`);
       await page.locator(BAR).waitFor({ timeout: 30_000 });
-      await page.getByRole("button", { name: "Play From Here" }).click();
-      await page.getByRole("button", { name: /^(Pause|Resume)$/ }).waitFor({ timeout: 30_000 });
+      await playFromHere(page);
       const failures = [];
       const foldedAt = {};
       for (const width of WIDTHS) {
@@ -100,8 +111,7 @@ test("every running-bar button keeps its own slot inside the bar, at every pane 
       await page.locator(BAR).getByRole("button", { name: "Play From Here" }).waitFor({ timeout: 30_000 });
       await chooseMode("Interactive Fiction");
       try {
-        await page.locator(BAR).getByRole("button", { name: "Play From Here" }).click();
-        await page.getByRole("button", { name: /^(Pause|Resume)$/ }).waitFor({ timeout: 30_000 });
+        await playFromHere(page);
         const longLabel = [];
         for (const width of WIDTHS) {
           await sizePane(page, width);

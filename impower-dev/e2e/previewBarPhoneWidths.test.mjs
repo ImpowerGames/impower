@@ -3,7 +3,9 @@ import { test } from "node:test";
 import {
   launchEditorBrowser,
   openEditorPage,
+  hidePreview,
   placeCaret,
+  reclaimDriverPreview,
   revealPreview,
   waitForEditor,
   withEditor,
@@ -11,7 +13,7 @@ import {
 } from "../../.agents/skills/drive-web-editor/driver.mjs";
 
 const WIDTHS = [320, 360, 375, 390, 393, 412, 430, 480];
-const SCRIPT = "scene start\n  Hello from the driver.\n  Second line here.\n  Third line here.\nend\n";
+const SCRIPT = `scene start\n  Hello from the driver.\n${Array.from({ length: 40 }, (_, i) => `  Line ${i + 2} of the story.\n`).join("")}end\n`;
 const BAR = '[role="group"][aria-label="Playback controls"]';
 const STEP_ENTRIES = ["Step Over", "Step Into", "Step Out", "Toggle breakpoint"];
 
@@ -77,6 +79,9 @@ const stepEntriesIn = async (page, menu, grouped) => {
 
 const breakpoints = (page) => page.locator(".cm-breakpoint").count();
 
+const position = (page) =>
+  page.evaluate(() => [...document.querySelectorAll("button")].map((button) => button.innerText.trim()).map((text) => /main\s*:\s*\d+/.exec(text)?.[0]).find(Boolean) ?? null);
+
 const recordFrames = (page) =>
   page.evaluate((bar) => {
     const frames = [];
@@ -130,9 +135,16 @@ const tapEntry = async (page, menu, entry) => {
 test("the phone preview bar keeps every control a separate 44px target at every phone width, running and stopped, and keeps the Step entries reachable", { timeout: 600_000 }, async () => {
   const display = { viewport: { name: "375x780", width: 375, height: 780, touch: true }, colorScheme: null, theme: "charcoal" };
   await withEditor(
-    async ({ page, url }) => {
+    async ({ page, url, cleanups }) => {
       await openEditorPage(page, url);
       await waitForEditor(page);
+      const reclaimed = await reclaimDriverPreview(page);
+      assert.ok(reclaimed === null || reclaimed.restored, `an earlier run's preview pane: ${reclaimed?.reason}`);
+      cleanups.push(async () => {
+        await page.setViewportSize({ width: 375, height: 780 });
+        await page.waitForTimeout(400);
+        await hidePreview(page);
+      });
       await writeMainSd(page, SCRIPT);
       await page.reload({ waitUntil: "domcontentloaded" });
       await waitForEditor(page);
@@ -201,9 +213,17 @@ test("the phone preview bar keeps every control a separate 44px target at every 
         null,
         { timeout: 10_000 },
       );
+      const placed = await position(page);
       await stepOver.tap();
       await page.getByRole("menu").waitFor({ state: "detached", timeout: 5000 });
       await page.locator(BAR).getByRole("button", { name: "Resume" }).waitFor({ timeout: 10_000 });
+      await page.waitForFunction(
+        ({ was }) => ([...document.querySelectorAll("button")].map((button) => button.innerText.trim()).map((text) => /main\s*:\s*\d+/.exec(text)?.[0]).find(Boolean) ?? null) !== was,
+        { was: placed },
+        { timeout: 10_000 },
+      ).catch(() => {});
+      const after = await position(page);
+      assert.ok(placed && after && after !== placed, `Step Over from the cog menu's Step group moves the story on: ${placed} then ${after}`);
 
       await page.locator(BAR).getByRole("button", { name: "Stop" }).tap();
       await page.locator(BAR).getByRole("button", { name: "Play From Here" }).waitFor({ timeout: 15_000 });
