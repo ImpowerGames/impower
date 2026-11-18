@@ -29,42 +29,38 @@ sparkdown [0..330]
  │   │       │   │   │   │   └─ LuauStructBlockKey [15..49]
  │   │       │   │   │   │       └─ LuauStructBlockKey_c1 [15..49]
  │   │       │   │   │   │           └─ NthSelectorFunction [15..49]
- │   │       │   │   │   │               ├─ NthSelectorFunction_begin [15..25]
+ │   │       │   │   │   │               ├─ NthSelectorFunction_begin [15..26]
  │   │       │   │   │   │               │   ├─ NthSelectorFunction_begin_c1 [15..16]
  │   │       │   │   │   │               │   │   └─ SelectorStateOperator [15..16]: "@"
- │   │       │   │   │   │               │   └─ NthSelectorFunction_begin_c2 [16..25]
- │   │       │   │   │   │               │       └─ SelectorStateName [16..25]: "nth-child"
- │   │       │   │   │   │               ├─ NthSelectorFunction_content [25..49]
- │   │       │   │   │   │               │   └─ NthSelectorFunctionParameters [25..49]
- │   │       │   │   │   │               │       ├─ NthSelectorFunctionParameters_begin [25..26]
- │   │       │   │   │   │               │       │   ├─ NthSelectorFunctionParameters_begin_c1 [25..26]
- │   │       │   │   │   │               │       │   │   └─ PunctuationParenOpen [25..26]: "("
- │   │       │   │   │   │               │       │   └─ NthSelectorFunctionParameters_begin_c2 26
- │   │       │   │   │   │               │       ├─ NthSelectorFunctionParameters_content [26..48]
- │   │       │   │   │   │               │       │   ├─ UnitValue [26..28]
- │   │       │   │   │   │               │       │   │   ├─ UnitValue_c1 [26..27]: "2"
- │   │       │   │   │   │               │       │   │   └─ UnitValue_c2 [27..28]: "n"
- │   │       │   │   │   │               │       │   └─ NthSelectorOfList [28..48]
- │   │       │   │   │   │               │       │       ├─ NthSelectorOfList_begin [28..32]
- │   │       │   │   │   │               │       │       │   ├─ NthSelectorOfList_begin_c1 [28..29]
- │   │       │   │   │   │               │       │       │   │   └─ Separator [28..29]: " "
- │   │       │   │   │   │               │       │       │   ├─ NthSelectorOfList_begin_c2 [29..31]
- │   │       │   │   │   │               │       │       │   │   └─ NthSelectorOfKeyword [29..31]: "of"
- │   │       │   │   │   │               │       │       │   └─ NthSelectorOfList_begin_c3 [31..32]
- │   │       │   │   │   │               │       │       │       └─ Separator [31..32]: " "
- │   │       │   │   │   │               │       │       ├─ NthSelectorOfList_content [32..48]
- │   │       │   │   │   │               │       │       │   ├─ CustomComponentName [32..36]: "icon"
- │   │       │   │   │   │               │       │       │   ├─ PunctuationComma [36..37]: ","
- │   │       │   │   │   │               │       │       │   ├─ Separator [37..38]: " "
- │   │       │   │   │   │               │       │       │   ├─ CustomComponentName [38..42]: "note"
- │   │       │   │   │   │               │       │       │   ├─ SelectorOperator [42..43]: ">"
- │   │       │   │   │   │               │       │       │   └─ CustomComponentName [43..48]: "badge"
- │   │       │   │   │   │               │       │       └─ NthSelectorOfList_end 48
- │   │       │   │   │   │               │       └─ NthSelectorFunctionParameters_end [48..49]
- │   │       │   │   │   │               │           ├─ NthSelectorFunctionParameters_end_c1 48
- │   │       │   │   │   │               │           └─ NthSelectorFunctionParameters_end_c2 [48..49]
- │   │       │   │   │   │               │               └─ PunctuationParenClose [48..49]: ")"
- │   │       │   │   │   │               └─ NthSelectorFunction_end 49
+ │   │       │   │   │   │               │   ├─ NthSelectorFunction_begin_c2 [16..25]
+ │   │       │   │   │   │               │   │   └─ SelectorStateName [16..25]: "nth-child"
+ │   │       │   │   │   │               │   ├─ NthSelectorFunction_begin_c3 [25..26]
+ │   │       │   │   │   │               │   │   └─ PunctuationParenOpen [25..26]: "("
+ │   │       │   │   │   │               │   └─ NthSelectorFunction_begin_c4 26
+ │   │       │   │   │   │               ├─ NthSelectorFunction_content [26..48]
+ │   │       │   │   │   │               │   ├─ UnitValue [26..28]
+ │   │       │   │   │   │               │   │   ├─ UnitValue_c1 [26..27]: "2"
+ │   │       │   │   │   │               │   │   └─ UnitValue_c2 [27..28]: "n"
+ │   │       │   │   │   │               │   └─ NthSelectorOfList [28..48]
+ │   │       │   │   │   │               │       ├─ NthSelectorOfList_begin [28..32]
+ │   │       │   │   │   │               │       │   ├─ NthSelectorOfList_begin_c1 [28..29]
+ │   │       │   │   │   │               │       │   │   └─ Separator [28..29]: " "
+ │   │       │   │   │   │               │       │   ├─ NthSelectorOfList_begin_c2 [29..31]
+ │   │       │   │   │   │               │       │   │   └─ NthSelectorOfKeyword [29..31]: "of"
+ │   │       │   │   │   │               │       │   └─ NthSelectorOfList_begin_c3 [31..32]
+ │   │       │   │   │   │               │       │       └─ Separator [31..32]: " "
+ │   │       │   │   │   │               │       ├─ NthSelectorOfList_content [32..48]
+ │   │       │   │   │   │               │       │   ├─ CustomComponentName [32..36]: "icon"
+ │   │       │   │   │   │               │       │   ├─ PunctuationComma [36..37]: ","
+ │   │       │   │   │   │               │       │   ├─ Separator [37..38]: " "
+ │   │       │   │   │   │               │       │   ├─ CustomComponentName [38..42]: "note"
+ │   │       │   │   │   │               │       │   ├─ SelectorOperator [42..43]: ">"
+ │   │       │   │   │   │               │       │   └─ CustomComponentName [43..48]: "badge"
+ │   │       │   │   │   │               │       └─ NthSelectorOfList_end 48
+ │   │       │   │   │   │               └─ NthSelectorFunction_end [48..49]
+ │   │       │   │   │   │                   ├─ NthSelectorFunction_end_c1 48
+ │   │       │   │   │   │                   └─ NthSelectorFunction_end_c2 [48..49]
+ │   │       │   │   │   │                       └─ PunctuationParenClose [48..49]: ")"
  │   │       │   │   │   └─ LuauStructBlock_begin_c2 [49..50]
  │   │       │   │   │       └─ Whitespace [49..50]: " "
  │   │       │   │   ├─ LuauStructBlock_content [50..71]
@@ -117,24 +113,20 @@ sparkdown [0..330]
  │   │       │   │   │   │   └─ LuauStructBlockKey [74..94]
  │   │       │   │   │   │       └─ LuauStructBlockKey_c1 [74..94]
  │   │       │   │   │   │           └─ NthSelectorFunction [74..94]
- │   │       │   │   │   │               ├─ NthSelectorFunction_begin [74..89]
+ │   │       │   │   │   │               ├─ NthSelectorFunction_begin [74..90]
  │   │       │   │   │   │               │   ├─ NthSelectorFunction_begin_c1 [74..75]
  │   │       │   │   │   │               │   │   └─ SelectorStateOperator [74..75]: "@"
- │   │       │   │   │   │               │   └─ NthSelectorFunction_begin_c2 [75..89]
- │   │       │   │   │   │               │       └─ SelectorStateName [75..89]: "nth-last-child"
- │   │       │   │   │   │               ├─ NthSelectorFunction_content [89..94]
- │   │       │   │   │   │               │   └─ NthSelectorFunctionParameters [89..94]
- │   │       │   │   │   │               │       ├─ NthSelectorFunctionParameters_begin [89..90]
- │   │       │   │   │   │               │       │   ├─ NthSelectorFunctionParameters_begin_c1 [89..90]
- │   │       │   │   │   │               │       │   │   └─ PunctuationParenOpen [89..90]: "("
- │   │       │   │   │   │               │       │   └─ NthSelectorFunctionParameters_begin_c2 90
- │   │       │   │   │   │               │       ├─ NthSelectorFunctionParameters_content [90..93]
- │   │       │   │   │   │               │       │   └─ ParameterStringIdentifier [90..93]: "odd"
- │   │       │   │   │   │               │       └─ NthSelectorFunctionParameters_end [93..94]
- │   │       │   │   │   │               │           ├─ NthSelectorFunctionParameters_end_c1 93
- │   │       │   │   │   │               │           └─ NthSelectorFunctionParameters_end_c2 [93..94]
- │   │       │   │   │   │               │               └─ PunctuationParenClose [93..94]: ")"
- │   │       │   │   │   │               └─ NthSelectorFunction_end 94
+ │   │       │   │   │   │               │   ├─ NthSelectorFunction_begin_c2 [75..89]
+ │   │       │   │   │   │               │   │   └─ SelectorStateName [75..89]: "nth-last-child"
+ │   │       │   │   │   │               │   ├─ NthSelectorFunction_begin_c3 [89..90]
+ │   │       │   │   │   │               │   │   └─ PunctuationParenOpen [89..90]: "("
+ │   │       │   │   │   │               │   └─ NthSelectorFunction_begin_c4 90
+ │   │       │   │   │   │               ├─ NthSelectorFunction_content [90..93]
+ │   │       │   │   │   │               │   └─ ParameterStringIdentifier [90..93]: "odd"
+ │   │       │   │   │   │               └─ NthSelectorFunction_end [93..94]
+ │   │       │   │   │   │                   ├─ NthSelectorFunction_end_c1 93
+ │   │       │   │   │   │                   └─ NthSelectorFunction_end_c2 [93..94]
+ │   │       │   │   │   │                       └─ PunctuationParenClose [93..94]: ")"
  │   │       │   │   │   └─ LuauStructBlock_begin_c2 [94..95]
  │   │       │   │   │       └─ Whitespace [94..95]: " "
  │   │       │   │   ├─ LuauStructBlock_content [95..116]
@@ -187,40 +179,36 @@ sparkdown [0..330]
  │   │       │   │   │   │   └─ LuauStructBlockKey [119..144]
  │   │       │   │   │   │       └─ LuauStructBlockKey_c1 [119..144]
  │   │       │   │   │   │           └─ NthSelectorFunction [119..144]
- │   │       │   │   │   │               ├─ NthSelectorFunction_begin [119..129]
+ │   │       │   │   │   │               ├─ NthSelectorFunction_begin [119..130]
  │   │       │   │   │   │               │   ├─ NthSelectorFunction_begin_c1 [119..120]
  │   │       │   │   │   │               │   │   └─ SelectorStateOperator [119..120]: "@"
- │   │       │   │   │   │               │   └─ NthSelectorFunction_begin_c2 [120..129]
- │   │       │   │   │   │               │       └─ SelectorStateName [120..129]: "nth-child"
- │   │       │   │   │   │               ├─ NthSelectorFunction_content [129..144]
- │   │       │   │   │   │               │   └─ NthSelectorFunctionParameters [129..144]
- │   │       │   │   │   │               │       ├─ NthSelectorFunctionParameters_begin [129..130]
- │   │       │   │   │   │               │       │   ├─ NthSelectorFunctionParameters_begin_c1 [129..130]
- │   │       │   │   │   │               │       │   │   └─ PunctuationParenOpen [129..130]: "("
- │   │       │   │   │   │               │       │   └─ NthSelectorFunctionParameters_begin_c2 130
- │   │       │   │   │   │               │       ├─ NthSelectorFunctionParameters_content [130..143]
- │   │       │   │   │   │               │       │   ├─ NumberLiteral [130..131]: "1"
- │   │       │   │   │   │               │       │   └─ NthSelectorOfList [131..143]
- │   │       │   │   │   │               │       │       ├─ NthSelectorOfList_begin [131..135]
- │   │       │   │   │   │               │       │       │   ├─ NthSelectorOfList_begin_c1 [131..132]
- │   │       │   │   │   │               │       │       │   │   └─ Separator [131..132]: " "
- │   │       │   │   │   │               │       │       │   ├─ NthSelectorOfList_begin_c2 [132..134]
- │   │       │   │   │   │               │       │       │   │   └─ NthSelectorOfKeyword [132..134]: "of"
- │   │       │   │   │   │               │       │       │   └─ NthSelectorOfList_begin_c3 [134..135]
- │   │       │   │   │   │               │       │       │       └─ Separator [134..135]: " "
- │   │       │   │   │   │               │       │       ├─ NthSelectorOfList_content [135..143]
- │   │       │   │   │   │               │       │       │   └─ SelectorAttribute [135..143]
- │   │       │   │   │   │               │       │       │       └─ UnassignedSelectorAttribute [135..143]
- │   │       │   │   │   │               │       │       │           ├─ UnassignedSelectorAttribute_c1 [135..136]
- │   │       │   │   │   │               │       │       │           │   └─ SelectorStateOperator [135..136]: "@"
- │   │       │   │   │   │               │       │       │           └─ UnassignedSelectorAttribute_c2 [136..143]
- │   │       │   │   │   │               │       │       │               └─ SelectorStateName [136..143]: "hovered"
- │   │       │   │   │   │               │       │       └─ NthSelectorOfList_end 143
- │   │       │   │   │   │               │       └─ NthSelectorFunctionParameters_end [143..144]
- │   │       │   │   │   │               │           ├─ NthSelectorFunctionParameters_end_c1 143
- │   │       │   │   │   │               │           └─ NthSelectorFunctionParameters_end_c2 [143..144]
- │   │       │   │   │   │               │               └─ PunctuationParenClose [143..144]: ")"
- │   │       │   │   │   │               └─ NthSelectorFunction_end 144
+ │   │       │   │   │   │               │   ├─ NthSelectorFunction_begin_c2 [120..129]
+ │   │       │   │   │   │               │   │   └─ SelectorStateName [120..129]: "nth-child"
+ │   │       │   │   │   │               │   ├─ NthSelectorFunction_begin_c3 [129..130]
+ │   │       │   │   │   │               │   │   └─ PunctuationParenOpen [129..130]: "("
+ │   │       │   │   │   │               │   └─ NthSelectorFunction_begin_c4 130
+ │   │       │   │   │   │               ├─ NthSelectorFunction_content [130..143]
+ │   │       │   │   │   │               │   ├─ NumberLiteral [130..131]: "1"
+ │   │       │   │   │   │               │   └─ NthSelectorOfList [131..143]
+ │   │       │   │   │   │               │       ├─ NthSelectorOfList_begin [131..135]
+ │   │       │   │   │   │               │       │   ├─ NthSelectorOfList_begin_c1 [131..132]
+ │   │       │   │   │   │               │       │   │   └─ Separator [131..132]: " "
+ │   │       │   │   │   │               │       │   ├─ NthSelectorOfList_begin_c2 [132..134]
+ │   │       │   │   │   │               │       │   │   └─ NthSelectorOfKeyword [132..134]: "of"
+ │   │       │   │   │   │               │       │   └─ NthSelectorOfList_begin_c3 [134..135]
+ │   │       │   │   │   │               │       │       └─ Separator [134..135]: " "
+ │   │       │   │   │   │               │       ├─ NthSelectorOfList_content [135..143]
+ │   │       │   │   │   │               │       │   └─ SelectorAttribute [135..143]
+ │   │       │   │   │   │               │       │       └─ UnassignedSelectorAttribute [135..143]
+ │   │       │   │   │   │               │       │           ├─ UnassignedSelectorAttribute_c1 [135..136]
+ │   │       │   │   │   │               │       │           │   └─ SelectorStateOperator [135..136]: "@"
+ │   │       │   │   │   │               │       │           └─ UnassignedSelectorAttribute_c2 [136..143]
+ │   │       │   │   │   │               │       │               └─ SelectorStateName [136..143]: "hovered"
+ │   │       │   │   │   │               │       └─ NthSelectorOfList_end 143
+ │   │       │   │   │   │               └─ NthSelectorFunction_end [143..144]
+ │   │       │   │   │   │                   ├─ NthSelectorFunction_end_c1 143
+ │   │       │   │   │   │                   └─ NthSelectorFunction_end_c2 [143..144]
+ │   │       │   │   │   │                       └─ PunctuationParenClose [143..144]: ")"
  │   │       │   │   │   └─ LuauStructBlock_begin_c2 [144..145]
  │   │       │   │   │       └─ Whitespace [144..145]: " "
  │   │       │   │   ├─ LuauStructBlock_content [145..166]

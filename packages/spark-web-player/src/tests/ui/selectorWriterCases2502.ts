@@ -82,6 +82,10 @@ export const AT_RULE_CASES: readonly [source: string, css: string][] = [
   ["@supports not (display: grid)", "@supports not (display:grid)"],
   ["@screen-size( sm )", "@container screen (max-width:640px)"],
   ["@import", "@import"],
+  ['@container style(--label:"width:sm)")', '@container style(--label:"width:sm)")'],
+  ["@container style(--label:'width: sm )')", "@container style(--label:'width: sm )')"],
+  ["@media (min-width: sm) and (max-width: md)", "@media(min-width:640px) and (max-width:md)"],
+  ["@supports selector(:has(a, b))", "@supports selector(:has(a,b))"],
 ];
 
 export const OBJECT_PROPERTY_NAME_CASES: readonly [source: string, css: string][] = [

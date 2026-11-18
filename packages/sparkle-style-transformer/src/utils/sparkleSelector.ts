@@ -180,6 +180,7 @@ const QUOTED = /"(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?/y;
 const ATTRIBUTE =
   /#([_\p{L}][_\p{L}0-9-]*)?(?:([~|^$*]?=)("(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?|[^\s"'`<>=:(){}[\]]*))?/uy;
 const NTH_OF = /[ \t\r\n\f]+of(?=[ \t\r\n\f])/y;
+const CLOSE_AHEAD = /[ \t\r\n\f]*[)]/y;
 const UNESCAPED_AT = /(?<!\\)@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "="]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
@@ -466,31 +467,26 @@ class SparkleSelectorWriter {
           continue;
         }
       }
-      if (char === "(" || char === ")") {
+      if (char === "(" || char === ")" || char === ":") {
         this.i++;
         out += char;
         continue;
       }
       const word = this.match(WORD);
-      out += word ? word[0] : this.token(char);
-    }
-    for (const [name, px] of Object.entries(this.options.breakpoints)) {
-      out = out.replace(breakpointRegex(name), `width:${px}px)`);
+      if (word) {
+        out += out.endsWith("width:") && this.closesNext() ? this.breakpoint(word[0]) : word[0];
+        continue;
+      }
+      out += this.token(char);
     }
     return out;
   }
-}
 
-const breakpointRegexCache = new Map<string, RegExp>();
-
-const breakpointRegex = (name: string): RegExp => {
-  let regex = breakpointRegexCache.get(name);
-  if (!regex) {
-    regex = new RegExp(`width:${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[)]`, "g");
-    breakpointRegexCache.set(name, regex);
+  private closesNext(): boolean {
+    CLOSE_AHEAD.lastIndex = this.i;
+    return CLOSE_AHEAD.test(this.src);
   }
-  return regex;
-};
+}
 
 const QUOTED_PART = /("(?:\\[^]|[^"\\])*"|'(?:\\[^]|[^'\\])*')/;
 

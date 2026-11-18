@@ -426,10 +426,12 @@ function firstDescendant(node: any, names: Set<string>): any {
 
 const PAREN_CLOSED_LISTS = nodeNameSet([
   "RecursiveSelectorFunctionParameters",
-  "NthSelectorFunctionParameters",
+  "NthSelectorFunction",
   "SimpleSelectorFunctionParameters",
   "StylingFunctionParameters",
 ]);
+
+const PAREN_OPEN = nodeNameSet(["PunctuationParenOpen"]);
 
 const PAREN_CLOSE = nodeNameSet(["PunctuationParenClose"]);
 
@@ -1755,11 +1757,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             : /^[ \t]*;/.test(this.read(nodeRef.to, nodeRef.to + 64))
               ? "Missing ')' to close the function's parameter list before ';', which ends the property"
               : "Missing ')' to close the function's parameter list";
+        const begin = childNamed(nodeRef.node, `${nodeRef.name}_begin`);
+        const open = (begin && firstDescendant(begin, PAREN_OPEN)) ?? nodeRef;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
             message,
             severity: "error",
-          }).range(nodeRef.from, nodeRef.from + 1),
+          }).range(open.from, open.from + 1),
         );
       }
     }
