@@ -55,6 +55,21 @@ describe("unclosed selector function parameter list", () => {
     expect(diagnostics.filter((d) => d.includes(MISSING))).toHaveLength(1);
   });
 
+  test.each([
+    ["@nth-child(2n of card {", "1:12-13"],
+    ["@nth-last-child(odd {", "1:17-18"],
+    ["@host(card {", "1:7-8"],
+  ])("reports the unclosed list of %s at its paren", (selector, range) => {
+    expect(diagnose(`style card {\n  ${selector}\n    color = red\n  }\n}\n`)).toContain(`${range} ${MISSING}`);
+  });
+
+  test("closed nth and host functions report nothing", () => {
+    const diagnostics = diagnose(
+      "style card {\n  @nth-child(2n of card, icon) {\n    color = red\n  }\n  @host(card) {\n    color = red\n  }\n}\n",
+    );
+    expect(diagnostics.filter((d) => d.includes(MISSING))).toEqual([]);
+  });
+
   test("closed selector functions report nothing", () => {
     const diagnostics = diagnose(
       "style card {\n  @theme(dark) {\n    color = white\n  }\n  @has(button) {\n    color = red\n  }\n  @has(@has(icon)) {\n    color = blue\n  }\n}\n",

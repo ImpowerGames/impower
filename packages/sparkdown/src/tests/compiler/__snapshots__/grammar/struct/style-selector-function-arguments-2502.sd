@@ -1,0 +1,41 @@
+style card {
+  @nth-child(2n of icon, note>badge) {
+    color = red
+  }
+  @nth-last-child(odd) {
+    color = red
+  }
+  @nth-child(1 of @hovered) {
+    color = red
+  }
+  @host(icon) {
+    color = red
+  }
+  @host-context(panel) {
+    color = red
+  }
+  @is(icon, note) {
+    color = red
+  }
+  @nth-child-x(1) {
+    color = red
+  }
+  @nth-child(2n of item.big, icon) {
+    color = red
+  }
+  @is(item.big, icon) {
+    color = red
+  }
+  @is(#title=blue, card) {
+    color = red
+  }
+  @is(#title=blue\,icon) {
+    color = red
+  }
+  @is(#title=blue\\, card) {
+    color = red
+  }
+  @is(#title=blue\2c icon, card) {
+    color = red
+  }
+}
