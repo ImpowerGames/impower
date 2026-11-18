@@ -112,28 +112,50 @@ describe("a stacked picture's resting picture for the Assets page", () => {
     expect(asked.map(({ uri }) => uri).slice(8)).toEqual([uri(`${P}/${NAMES[10]}.png`), uri(`${P}/${NAMES[11]}.png`)]);
   });
 
-  it("asks again when one of the picture's files changes or a layer is added, keeping the old answer for the old files", async () => {
+  it("asks again when one of the picture's files changes or a layer is added, and forgets the answer for files it no longer has", async () => {
     const { assets, asked, versions } = fakeWorkspace(stack("imani"));
     await assets.load();
-    assets.requestPicture(stack("imani"));
+    const leaveFirst = assets.requestPicture(stack("imani"));
     await answer(asked[0], "data:first");
-    await compiled();
-    await answer(asked[1], "data:first");
-    const before = keyOf(stack("imani"));
+    const first = keyOf(stack("imani"));
     versions.set(`${P}/imani~face.happy~default.png`, 2);
     await assets.load();
-    assets.requestPicture(stack("imani"));
-    expect(asked).toHaveLength(3);
-    await answer(asked[2], "data:replaced");
+    leaveFirst();
+    const leaveReplaced = assets.requestPicture(stack("imani"));
+    expect(asked).toHaveLength(2);
+    await answer(asked[1], "data:replaced");
+    const replaced = keyOf(stack("imani"));
+    expect(workspace.assetPictures.value).toEqual({ [replaced]: "data:replaced" });
     versions.set(`${P}/imani~hat.on~default.png`, 1);
     await assets.load();
     const grown = [...stack("imani"), `${P}/imani~hat.on~default.png`];
+    leaveReplaced();
     assets.requestPicture(grown);
-    expect(asked).toHaveLength(4);
-    await answer(asked[3], "data:grown");
-    expect(workspace.assetPictures.value[before]).toBe("data:first");
-    expect(workspace.assetPictures.value[keyOf(stack("imani"))]).toBe("data:replaced");
-    expect(workspace.assetPictures.value[keyOf(grown)]).toBe("data:grown");
+    expect(asked).toHaveLength(3);
+    await answer(asked[2], "data:grown");
+    expect(workspace.assetPictures.value).toEqual({ [keyOf(grown)]: "data:grown" });
+    expect(first).not.toBe(replaced);
+  });
+
+  it("keeps at most 160 pictures, dropping the oldest of those no tile shows, never one a tile on screen shows", async () => {
+    const names = Array.from({ length: 170 }, (_, index) => `crowd_${String(index).padStart(3, "0")}`);
+    const { assets, asked } = fakeWorkspace(names.flatMap(stack));
+    await assets.load();
+    assets.requestPicture(stack(names[0]!));
+    await answer(asked[0], "data:shown");
+    for (const [index, name] of names.slice(1).entries()) {
+      const leave = assets.requestPicture(stack(name));
+      await answer(asked[index + 1], `data:${name}`);
+      leave();
+    }
+    const pictures = workspace.assetPictures.value;
+    expect(Object.keys(pictures)).toHaveLength(160);
+    expect(pictures[keyOf(stack(names[0]!))]).toBe("data:shown");
+    expect(pictures[keyOf(stack(names[1]!))]).toBeUndefined();
+    expect(pictures[keyOf(stack(names[169]!))]).toBe(`data:${names[169]}`);
+    const back = assets.requestPicture(stack(names[1]!));
+    expect(asked).toHaveLength(171);
+    back();
   });
 
   it("asks again after every compile while its tile is on screen, as the inspector does, showing the earlier answer until the new one arrives", async () => {

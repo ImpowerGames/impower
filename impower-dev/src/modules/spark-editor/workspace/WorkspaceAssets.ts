@@ -101,6 +101,8 @@ const MEASURE_BATCH = 8;
 
 const PICTURE_EDGE = 384;
 
+const PICTURE_CACHE = 160;
+
 const TAGGED_NAME = "Use a name without @ or ~. They mark a picture's alternates and layers.";
 
 const DOTTED_NAME =
@@ -188,6 +190,8 @@ export default class WorkspaceAssets {
   protected readonly _picturesDrawing = new Set<string>();
 
   protected readonly _picturesAsked = new Map<string, number>();
+
+  protected readonly _pictureCovers = new Map<string, string>();
 
   protected _compiles = 0;
 
@@ -718,18 +722,44 @@ export default class WorkspaceAssets {
       }
       this._picturesDrawing.add(key);
       this._picturesAsked.set(key, this._compiles);
-      void this.restingPicture(request.paths).then((src) => {
+      const [stack] = imageStacks(request.paths);
+      void this.restingPicture(stack).then((src) => {
         this._picturesDrawing.delete(key);
-        workspace.assetPictures.value = { ...workspace.assetPictures.peek(), [key]: src };
+        this.storePicture(key, stack?.cover ?? key, src);
         this.queuePicture(key);
         this.drawRequestedPictures();
       });
     }
   }
 
-  protected async restingPicture(paths: readonly string[]): Promise<string | null> {
+  protected storePicture(key: string, cover: string, src: string | null): void {
+    const pictures = { ...workspace.assetPictures.peek() };
+    const forget = (old: string) => {
+      delete pictures[old];
+      this._picturesAsked.delete(old);
+    };
+    const previous = this._pictureCovers.get(cover);
+    if (previous !== undefined && previous !== key && !this._pictureRequests.has(previous)) {
+      forget(previous);
+    }
+    this._pictureCovers.set(cover, key);
+    delete pictures[key];
+    pictures[key] = src;
+    let excess = Object.keys(pictures).length - PICTURE_CACHE;
+    for (const old of Object.keys(pictures)) {
+      if (excess <= 0) {
+        break;
+      }
+      if (old !== key && !this._pictureRequests.has(old)) {
+        forget(old);
+        excess -= 1;
+      }
+    }
+    workspace.assetPictures.value = pictures;
+  }
+
+  protected async restingPicture(stack: ImageStack | undefined): Promise<string | null> {
     const projectId = this.projectId;
-    const [stack] = imageStacks(paths);
     if (!projectId || !stack) {
       return null;
     }
