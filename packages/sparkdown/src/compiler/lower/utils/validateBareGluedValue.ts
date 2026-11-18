@@ -46,49 +46,24 @@ function skipSpaces(node: SyntaxNode | null, forward: boolean, ctx: LowerContext
   return at;
 }
 
-const VALUE_MARKS = new Set([".", "_", "+", "-"]);
-
 function isValuePart(node: SyntaxNode, ctx: LowerContext): boolean {
-  return node.name === "Word" || (node.name === "Punctuation" && VALUE_MARKS.has(ctx.read(node.from, node.to)));
+  return node.name !== "Glue" && !isSpace(node, ctx) && !isMark(node, "|", ctx);
 }
 
-function startsWithDigit(node: SyntaxNode | null, ctx: LowerContext): boolean {
-  if (node?.name !== "Word") return false;
-  const first = ctx.read(node.from, node.from + 1);
-  return first >= "0" && first <= "9";
-}
-
-function isNumber(start: SyntaxNode, ctx: LowerContext): boolean {
-  if (startsWithDigit(start, ctx)) return true;
-  const next = start.nextSibling;
-  return isMark(start, ".", ctx) && next !== null && next.from === start.to && startsWithDigit(next, ctx);
-}
-
-function isName(start: SyntaxNode, last: SyntaxNode, ctx: LowerContext): boolean {
-  for (let at: SyntaxNode | null = start; at && at.from <= last.from; at = at.nextSibling) {
-    const dot = isMark(at, ".", ctx);
-    if (!dot && at.name !== "Word" && !isMark(at, "_", ctx)) return false;
-    if (dot && (at.from === start.from || at.from === last.from)) return false;
-  }
-  return true;
-}
-
-function simpleValueEnd(first: SyntaxNode, ctx: LowerContext): SyntaxNode | null {
-  if (!isValuePart(first, ctx)) return null;
+function unbrokenValueEnd(first: SyntaxNode, ctx: LowerContext): SyntaxNode | null {
+  if (!isValuePart(first, ctx) || isMark(first, "(", ctx)) return null;
   let last = first;
   for (let next = first.nextSibling; next && next.from === last.to && isValuePart(next, ctx); next = next.nextSibling) {
     last = next;
   }
-  const start = isMark(first, "-", ctx) ? first.nextSibling : first;
-  if (!start || start.from > last.from) return null;
-  return isNumber(start, ctx) || isName(start, last, ctx) ? last : null;
+  return last;
 }
 
 function bareGluedValue(keyword: SyntaxNode, ctx: LowerContext): { from: number; to: number } | null {
   if (!isSpace(keyword.prevSibling, ctx) || !glueEndingAt(skipSpaces(keyword.prevSibling, false, ctx), ctx)) return null;
   if (!isSpace(keyword.nextSibling, ctx)) return null;
   const value = skipSpaces(keyword.nextSibling, true, ctx);
-  const last = value ? simpleValueEnd(value, ctx) : null;
+  const last = value ? unbrokenValueEnd(value, ctx) : null;
   if (!value || !last) return null;
   const bar = skipSpaces(last.nextSibling, true, ctx);
   if (!bar || !isMark(bar, "|", ctx)) return null;

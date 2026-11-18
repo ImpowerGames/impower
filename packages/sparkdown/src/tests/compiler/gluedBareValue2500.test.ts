@@ -52,6 +52,8 @@ const BARE_SPELLINGS: [string, string, string][] = [
   ["a decimal number", "It is .. plural 1.5|one=a|other=b .. today.", "1.5"],
   ["a hexadecimal number", "It is .. plural 0x1F|one=a|other=b .. today.", "0x1F"],
   ["a number with an underscore", "It is .. plural 1_000|one=a|other=b .. today.", "1_000"],
+  ["an unbroken sum", "It is .. plural n-1|one=a|other=b .. today.", "n-1"],
+  ["an unbroken call", "It is .. match string.upper(mood)|HAPPY=a|other=b .. today.", "string.upper(mood)"],
 ];
 
 const BRACKETED: [string, string, string][] = [
@@ -84,7 +86,6 @@ const PROSE: [string[], { errors: string[]; warnings: string[]; out: string }][]
   [["choose", "  + Wait .. match the colours | or not .. then go", "    Done.", "end"], { errors: [], warnings: [], out: "" }],
   [["cycle", "| Wait .. match the colours | or not .. then go.", "| B.", "end"], { errors: [], warnings: [], out: "Wait .. match the colours | or not .. then go.\n" }],
   [["Count .. plural 3 apples | or more .. today."], { errors: [], warnings: [], out: "Count .. plural 3 apples | or more .. today.\n" }],
-  [["Wait .. match .the | end .. now."], { errors: [], warnings: [], out: "Wait .. match .the | end .. now.\n" }],
 ];
 
 describe("a glued match or plural with a bare value is reported, asking for brackets (#2500)", () => {
@@ -118,8 +119,11 @@ describe("a glued match or plural with a bare value is reported, asking for brac
     expect(play(scene(...lines))).toEqual(result);
   });
 
-  test("one word between `.. plural` and a bar, closed by `..`, has the bare form's own shape and is reported", () => {
-    expect(bracketDiagnostics(scene("Wait .. plural forms | are hard .. to learn.")).map((d) => d.marked)).toEqual(["forms"]);
+  test.each([
+    ["Wait .. plural forms | are hard .. to learn.", "forms"],
+    ["Wait .. match don't | stop .. now.", "don't"],
+  ])("one unbroken run between the keyword and a bar, closed by `..`, has the bare form's own shape and is reported: %s", (line, marked) => {
+    expect(bracketDiagnostics(scene(line)).map((d) => d.marked)).toEqual([marked]);
   });
 
   test("a Luau string holding the bare form is not reported", () => {
