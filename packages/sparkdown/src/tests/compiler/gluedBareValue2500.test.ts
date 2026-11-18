@@ -3,7 +3,9 @@ import { testCompiler } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
 const URI = "inmemory:///main.sd";
-const BRACKETS = /^Inside a line, put the value of `(match|plural)` in brackets/;
+const BRACKETS = /^This line looks like a `(match|plural)` set between `\.\.` marks/;
+const warning = (keyword: string, value: string) =>
+  `This line looks like a \`${keyword}\` set between \`..\` marks, but it is printed as text because its value has no brackets. If a set was meant, write \`.. ${keyword}(${value}) | ...\``;
 
 const scene = (...lines: string[]) =>
   ["store n = 2", 'store mood = "happy"', "store player = { mood = \"happy\" }", "", "scene start", ...lines.map((line) => `  ${line}`), "end", ""].join("\n");
@@ -105,24 +107,16 @@ const STYLED_CONTEXTS: [string, (line: string) => string[]][] = [
 ];
 
 describe("a glued match or plural with a bare value is reported, asking for brackets (#2500)", () => {
-  test.each(BARE)("%s is reported once, on its value, and plays as on main", (_, line, keyword, value, out) => {
+  test.each(BARE)("%s gets one warning, on its value, and still compiles and plays as on main", (_, line, keyword, value, out) => {
     const text = scene(line);
-    expect(bracketDiagnostics(text)).toEqual([
-      {
-        message: `Inside a line, put the value of \`${keyword}\` in brackets, as in \`.. ${keyword}(${value}) | ...\`: without them the whole set is printed as text`,
-        severity: 1,
-        marked: value,
-      },
-    ]);
-    const played = play(text);
-    expect(played.errors.filter((message) => !BRACKETS.test(message))).toEqual([]);
-    expect(played.out).toBe(out);
+    expect(bracketDiagnostics(text)).toEqual([{ message: warning(keyword, value), severity: 2, marked: value }]);
+    expect(play(text)).toEqual({ errors: [], warnings: [warning(keyword, value)], out });
   });
 
-  test.each(BARE_SPELLINGS)("%s is reported once, marking the value alone", (_, line, value) => {
+  test.each(BARE_SPELLINGS)("%s gets one warning, marking the value alone, and no error", (_, line, value) => {
     const text = scene(line);
-    expect(bracketDiagnostics(text).map((d) => d.marked)).toEqual([value]);
-    expect(play(text).errors.filter((message) => !BRACKETS.test(message))).toEqual([]);
+    expect(bracketDiagnostics(text).map((d) => [d.marked, d.severity])).toEqual([[value, 2]]);
+    expect(play(text).errors).toEqual([]);
   });
 
   test.each(BRACKETED)("%s is not reported and plays its arm", (_, line, out) => {
@@ -146,8 +140,12 @@ describe("a glued match or plural with a bare value is reported, asking for brac
   test.each([
     ["Wait .. plural forms | are hard .. to learn.", "forms"],
     ["Wait .. match don't | stop .. now.", "don't"],
-  ])("one unbroken run between the keyword and a bar, closed by `..`, has the bare form's own shape and is reported: %s", (line, marked) => {
-    expect(bracketDiagnostics(scene(line)).map((d) => d.marked)).toEqual([marked]);
+  ])("one unbroken run between the keyword and a bar, closed by `..`, has the bare form's own shape and gets the warning, playing as written: %s", (line, marked) => {
+    expect(bracketDiagnostics(scene(line)).map((d) => [d.marked, d.severity])).toEqual([[marked, 2]]);
+    const played = play(scene(line));
+    expect(played.errors).toEqual([]);
+    expect(played.warnings).toHaveLength(1);
+    expect(played.out).toBe(`${line}\n`);
   });
 
   test("a Luau string holding the bare form is not reported", () => {

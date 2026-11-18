@@ -92,8 +92,8 @@ export function validateBareGluedValues(
       const value = bareGluedValue(cursor.node, ctx);
       if (value) {
         diagnostics.push({
-          message: `Inside a line, put the value of \`${keyword}\` in brackets, as in \`.. ${keyword}(${ctx.read(value.from, value.to)}) | ...\`: without them the whole set is printed as text`,
-          severity: ErrorType.Error,
+          message: `This line looks like a \`${keyword}\` set between \`..\` marks, but it is printed as text because its value has no brackets. If a set was meant, write \`.. ${keyword}(${ctx.read(value.from, value.to)}) | ...\``,
+          severity: ErrorType.Warning,
           source: makeSource(value.from, value.to, ctx),
         });
       }
