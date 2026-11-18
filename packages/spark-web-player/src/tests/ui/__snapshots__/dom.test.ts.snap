@@ -658,9 +658,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -672,7 +670,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -705,9 +702,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -718,7 +713,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -3201,9 +3195,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -3215,7 +3207,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -3248,9 +3239,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -3261,7 +3250,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -5710,9 +5698,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -5724,7 +5710,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -5757,9 +5742,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -5770,7 +5753,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -8337,9 +8319,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -8351,7 +8331,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -8384,9 +8363,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -8397,7 +8374,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -10827,9 +10803,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -10841,7 +10815,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -10874,9 +10847,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -10887,7 +10858,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -13301,9 +13271,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -13315,7 +13283,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -13348,9 +13315,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -13361,7 +13326,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -15819,9 +15783,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -15833,7 +15795,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -15866,9 +15827,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -15879,7 +15838,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -18567,9 +18525,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -18581,7 +18537,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -18614,9 +18569,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -18627,7 +18580,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -21315,9 +21267,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -21329,7 +21279,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -21362,9 +21311,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -21375,7 +21322,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -24063,9 +24009,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -24077,7 +24021,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -24110,9 +24053,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -24123,7 +24064,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -26811,9 +26751,7 @@ spark-web-player #game .image {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     min-width: 0px;
     >.object {
@@ -26825,7 +26763,6 @@ spark-web-player #game .image {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }
@@ -26858,9 +26795,7 @@ spark-web-player #game .mask {
     }
   }
   >.framed {
-    right: -5000%;
-    left: -5000%;
-    margin: 0px auto;
+    right: auto;
     width: fit-content;
     >.object {
       position: relative;
@@ -26871,7 +26806,6 @@ spark-web-player #game .mask {
   }
   >.framed:empty {
     right: 0px;
-    left: 0px;
     width: auto;
   }
 }

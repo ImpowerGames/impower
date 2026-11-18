@@ -11,6 +11,10 @@ const SOURCE = `define WIDE as image with
   src = "https://example.com/wide.svg"
 end
 
+define PANORAMA as image with
+  src = "https://example.com/panorama.svg"
+end
+
 define NARROW_INLINE as image with
   src = "${inline(100)}"
 end
@@ -60,6 +64,10 @@ scene start
   Sofa.
   [[show backdrop STACK at right]]
   Stacked.
+  [[show backdrop PANORAMA at right]]
+  Panorama.
+  [[show backdrop NARROW_INLINE at right]]
+  Narrow.
 end
 `;
 
@@ -99,7 +107,9 @@ async function rendered(beats: number, layer: "backdrop" | "portrait" = "backdro
     return copy.outerHTML;
   });
   const page = await browser.newPage({ viewport: { width: 600, height: 400 } });
-  await page.route("https://example.com/**", (route) => route.fulfill({ contentType: "image/svg+xml", body: svg(400) }));
+  await page.route("https://example.com/**", (route) =>
+    route.fulfill({ contentType: "image/svg+xml", body: svg(route.request().url().includes("panorama") ? 2000 : 400) }),
+  );
   await page.setContent(
     `<style>body{margin:0}spark-web-player{display:block}#game{position:relative;width:400px;height:200px}</style>${styles}<spark-web-player><div id="game">${contents.join("")}</div></spark-web-player>`,
   );
@@ -171,6 +181,32 @@ describe("a layer's picture placed at its framing, as Chromium lays it out (I-24
     expect(mask!.picture).toEqual(image!.picture);
     expect(image!.picture.height).toBeCloseTo(image!.layer.height * 1.2, 1);
     expect(image!.picture.left + 0.6 * image!.picture.width).toBeCloseTo(image!.layer.left + 0.6 * image!.layer.width, 1);
+    await page.close();
+  });
+
+  test("a picture many layers wide stays at its framing when the layer becomes much narrower at rest", async () => {
+    const page = await rendered(6);
+    for (const size of [
+      { width: 400, height: 400 },
+      { width: 40, height: 400 },
+    ]) {
+      await page.evaluate(({ width, height }) => {
+        const game = document.getElementById("game")!;
+        game.style.width = `${width}px`;
+        game.style.height = `${height}px`;
+      }, size);
+      const { layer, picture } = (await measure(page))[0]!;
+      expect(picture.width).toBeCloseTo(layer.height * 20, 1);
+      expect(picture.left + picture.width).toBeCloseTo(layer.left + layer.width, 1);
+    }
+    await page.close();
+  });
+
+  test("a picture narrower than its layer sits on the layer's edge at right", async () => {
+    const page = await rendered(7);
+    const { layer, picture } = (await measure(page))[0]!;
+    expect(picture.width).toBeCloseTo(200, 1);
+    expect(picture.left + picture.width).toBeCloseTo(layer.left + layer.width, 1);
     await page.close();
   });
 

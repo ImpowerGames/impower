@@ -1541,9 +1541,7 @@ style image {
     }
   }
   > framed {
-    right = -5000%
-    left = -5000%
-    margin = 0 auto
+    right = auto
     width = fit-content
     min_width = 0
     > object {
@@ -1555,7 +1553,6 @@ style image {
   }
   > framed:empty {
     right = 0
-    left = 0
     width = auto
   }
 }
@@ -1590,9 +1587,7 @@ style mask {
     }
   }
   > framed {
-    right = -5000%
-    left = -5000%
-    margin = 0 auto
+    right = auto
     width = fit-content
     > object {
       position = relative
@@ -1603,7 +1598,6 @@ style mask {
   }
   > framed:empty {
     right = 0
-    left = 0
     width = auto
   }
 }

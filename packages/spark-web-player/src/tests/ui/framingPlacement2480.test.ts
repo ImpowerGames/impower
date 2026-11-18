@@ -133,18 +133,18 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
   test("show … at places the image and mask elements with translate and scale only", async () => {
     const h = await played(1);
     expect(pictures(h.overlay, "backdrop")).toEqual([
-      { kind: "image", framed: true, placed: { translate: "calc(0.5 * (100cqw - 100%)) 0px" } },
+      { kind: "image", framed: true, placed: { translate: "calc(100cqw - 100%) calc(50cqh - 50%)" } },
     ]);
     expect(pictures(h.overlay, "portrait")).toEqual([
       {
         kind: "mask",
         framed: true,
-        placed: { translate: "calc(0.1 * (100cqw - 120%)) calc(0.5 * (100cqh - 120%))", scale: "1.2" },
+        placed: { translate: "calc(60cqw - 62%) calc(100cqh - 110%)", scale: "1.2" },
       },
       {
         kind: "image",
         framed: true,
-        placed: { translate: "calc(0.1 * (100cqw - 120%)) calc(0.5 * (100cqh - 120%))", scale: "1.2" },
+        placed: { translate: "calc(60cqw - 62%) calc(100cqh - 110%)", scale: "1.2" },
       },
     ]);
   });
@@ -154,7 +154,7 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
     expect(pictures(h.overlay, "backdrop").at(-1)).toEqual({
       kind: "image",
       framed: true,
-      placed: { translate: "calc(-0.5 * (100cqw - 100%)) 0px" },
+      placed: { translate: "0px calc(50cqh - 50%)" },
     });
   });
 
@@ -177,7 +177,7 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
     const shown = pictures(h.overlay, "backdrop");
     expect(shown.length).toBeGreaterThan(1);
     for (const picture of shown) {
-      expect(picture).toEqual({ kind: "image", framed: true, placed: { translate: "calc(0.5 * (100cqw - 100%)) 0px" } });
+      expect(picture).toEqual({ kind: "image", framed: true, placed: { translate: "calc(100cqw - 100%) calc(50cqh - 50%)" } });
     }
   });
 
@@ -192,7 +192,7 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
     expect(pictures(h.overlay, "backdrop").at(-1)).toEqual({
       kind: "image",
       framed: true,
-      placed: { translate: "calc(0.5 * (100cqw - 100%)) 0px" },
+      placed: { translate: "calc(100cqw - 100%) calc(50cqh - 50%)" },
     });
   });
 
@@ -201,7 +201,7 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
     expect(pictures(h.overlay, "backdrop").at(-1)).toEqual({
       kind: "image",
       framed: true,
-      placed: { translate: "calc(-0.5 * (100cqw - 100%)) 0px" },
+      placed: { translate: "0px calc(50cqh - 50%)" },
     });
   });
 });
