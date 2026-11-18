@@ -23,43 +23,54 @@ function isMark(node: SyntaxNode | null, mark: string, ctx: LowerContext): boole
   return node?.name === "Punctuation" && ctx.read(node.from, node.to) === mark;
 }
 
-function isSpace(node: SyntaxNode | null): boolean {
-  return node?.name === "Space";
+function isSpace(node: SyntaxNode | null, ctx: LowerContext): boolean {
+  if (node?.name === "Space") return true;
+  return node?.name === "Punctuation" && ctx.read(node.from, node.to).trim() === "";
 }
 
 function glueEndingAt(dot: SyntaxNode | null, ctx: LowerContext): boolean {
   const first = dot?.prevSibling ?? null;
   if (!dot || !first || !isMark(dot, ".", ctx) || !isMark(first, ".", ctx)) return false;
-  return first.to === dot.from && (first.prevSibling === null || isSpace(first.prevSibling));
+  return first.to === dot.from && (first.prevSibling === null || isSpace(first.prevSibling, ctx));
 }
 
 function glueStartingAt(dot: SyntaxNode | null, ctx: LowerContext): boolean {
   const second = dot?.nextSibling ?? null;
   if (!dot || !second || !isMark(dot, ".", ctx) || !isMark(second, ".", ctx)) return false;
-  return dot.to === second.from && (second.nextSibling === null || isSpace(second.nextSibling));
+  return dot.to === second.from && (second.nextSibling === null || isSpace(second.nextSibling, ctx));
 }
 
-function skipSpaces(node: SyntaxNode | null, forward: boolean): SyntaxNode | null {
+function skipSpaces(node: SyntaxNode | null, forward: boolean, ctx: LowerContext): SyntaxNode | null {
   let at = node;
-  while (at && isSpace(at)) at = forward ? at.nextSibling : at.prevSibling;
+  while (at && isSpace(at, ctx)) at = forward ? at.nextSibling : at.prevSibling;
   return at;
 }
 
-function bareGluedValue(keyword: SyntaxNode, ctx: LowerContext): { from: number; to: number } | null {
-  if (!isSpace(keyword.prevSibling) || !glueEndingAt(skipSpaces(keyword.prevSibling, false), ctx)) return null;
-  if (!isSpace(keyword.nextSibling)) return null;
-  const value = skipSpaces(keyword.nextSibling, true);
-  if (!value || isMark(value, "(", ctx) || isMark(value, "|", ctx)) return null;
-  let last = value;
-  let bar: SyntaxNode | null = value;
-  while (bar && !isMark(bar, "|", ctx)) {
-    if (bar.name === "Glue" || (isSpace(bar.prevSibling) && glueStartingAt(bar, ctx))) return null;
-    if (!isSpace(bar)) last = bar;
-    bar = bar.nextSibling;
+function isNamePart(node: SyntaxNode, ctx: LowerContext): boolean {
+  return node.name === "Word" || isMark(node, "_", ctx);
+}
+
+function simpleValueEnd(first: SyntaxNode, ctx: LowerContext): SyntaxNode | null {
+  const start = isMark(first, "-", ctx) ? first.nextSibling : first;
+  if (!start || (start !== first && start.from !== first.to) || !isNamePart(start, ctx)) return null;
+  let last = start;
+  for (let next = start.nextSibling; next && next.from === last.to; next = next.nextSibling) {
+    if (!isNamePart(next, ctx) && !isMark(next, ".", ctx)) break;
+    last = next;
   }
-  if (!bar) return null;
+  return isMark(last, ".", ctx) ? null : last;
+}
+
+function bareGluedValue(keyword: SyntaxNode, ctx: LowerContext): { from: number; to: number } | null {
+  if (!isSpace(keyword.prevSibling, ctx) || !glueEndingAt(skipSpaces(keyword.prevSibling, false, ctx), ctx)) return null;
+  if (!isSpace(keyword.nextSibling, ctx)) return null;
+  const value = skipSpaces(keyword.nextSibling, true, ctx);
+  const last = value ? simpleValueEnd(value, ctx) : null;
+  if (!value || !last) return null;
+  const bar = skipSpaces(last.nextSibling, true, ctx);
+  if (!bar || !isMark(bar, "|", ctx)) return null;
   for (let at = bar.nextSibling; at; at = at.nextSibling) {
-    if (at.name === "Glue" || (isSpace(at) && glueStartingAt(at.nextSibling, ctx))) {
+    if (at.name === "Glue" || (isSpace(at, ctx) && glueStartingAt(at.nextSibling, ctx))) {
       return { from: value.from, to: last.to };
     }
   }

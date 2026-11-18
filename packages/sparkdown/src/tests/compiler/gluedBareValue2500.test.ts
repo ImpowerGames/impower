@@ -38,10 +38,20 @@ const BARE: [string, string, string, string, string][] = [
   ["a bare match closing at the line's end", "It is .. match mood|happy=a|other=b ..", "match", "mood", "It is .. match mood|happy=a|other=b"],
 ];
 
+const BARE_SPELLINGS: [string, string, string][] = [
+  ["a tab after the keyword (6978228428)", "It is .. match\tmood|happy=a|other=b .. today.", "mood"],
+  ["a tab before the bar", "It is .. match mood\t|happy=a|other=b .. today.", "mood"],
+  ["tabs around every mark (6978228428)", "It is\t..\tplural\tn|one=a|other=b\t..\ttoday.", "n"],
+  ["a no-break space after the keyword (6978228428)", "It is .. match mood|happy=a|other=b .. today.", "mood"],
+  ["a name with an underscore", "It is .. match my_mood|happy=a|other=b .. today.", "my_mood"],
+  ["a negative number", "It is .. plural -1|one=a|other=b .. today.", "-1"],
+];
+
 const BRACKETED: [string, string, string][] = [
   ["a bracketed plural", "You have {n} .. plural(n)|one=apple|other=apples .. in the basket.", "You have 2 apples in the basket.\n"],
   ["a bracketed match", "It is .. match(mood)|happy=a|other=b .. today.", "It is a today.\n"],
   ["a bracketed match after a space", "It is .. match (mood)|happy=a|other=b .. today.", "It is a today.\n"],
+  ["a bracketed match after a tab", "It is .. match\t(mood)|happy=a|other=b .. today.", "It is a today.\n"],
 ];
 
 const PROSE: [string[], { errors: string[]; warnings: string[]; out: string }][] = [
@@ -61,6 +71,11 @@ const PROSE: [string[], { errors: string[]; warnings: string[]; out: string }][]
   [["choose", "  + Wait ... match it | or not ... fine", "    Done.", "end"], { errors: [], warnings: [], out: "" }],
   [['It is {".. match mood|happy=a|other=b .."} today.'], { errors: [], warnings: [], out: "It is .. match mood|happy=a|other=b .. today.\n" }],
   [["It is {mood} .. and | match .. today."], { errors: [], warnings: [], out: "It is happy .. and | match .. today.\n" }],
+  [["Wait .. match the colours | or not .. then go."], { errors: [], warnings: [], out: "Wait .. match the colours | or not .. then go.\n" }],
+  [["@ Bob: Wait .. match the colours | or not .. then go."], { errors: [], warnings: [], out: "Wait .. match the colours | or not .. then go.\n" }],
+  [["@ Bob", "  Wait .. match the colours | or not .. then go."], { errors: [], warnings: [], out: "@ Bob\nWait .. match the colours | or not .. then go.\n" }],
+  [["choose", "  + Wait .. match the colours | or not .. then go", "    Done.", "end"], { errors: [], warnings: [], out: "" }],
+  [["cycle", "| Wait .. match the colours | or not .. then go.", "| B.", "end"], { errors: [], warnings: [], out: "Wait .. match the colours | or not .. then go.\n" }],
 ];
 
 describe("a glued match or plural with a bare value is reported, asking for brackets (#2500)", () => {
@@ -78,6 +93,12 @@ describe("a glued match or plural with a bare value is reported, asking for brac
     expect(played.out).toBe(out);
   });
 
+  test.each(BARE_SPELLINGS)("%s is reported once, marking the value alone", (_, line, value) => {
+    const text = scene(line);
+    expect(bracketDiagnostics(text).map((d) => d.marked)).toEqual([value]);
+    expect(play(text).errors.filter((message) => !BRACKETS.test(message))).toEqual([]);
+  });
+
   test.each(BRACKETED)("%s is not reported and plays its arm", (_, line, out) => {
     expect(bracketDiagnostics(scene(line))).toEqual([]);
     expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
@@ -86,6 +107,10 @@ describe("a glued match or plural with a bare value is reported, asking for brac
   test.each(PROSE)("story text %j is not reported and plays as written", (lines, result) => {
     expect(bracketDiagnostics(scene(...lines))).toEqual([]);
     expect(play(scene(...lines))).toEqual(result);
+  });
+
+  test("one word between `.. plural` and a bar, closed by `..`, has the bare form's own shape and is reported", () => {
+    expect(bracketDiagnostics(scene("Wait .. plural forms | are hard .. to learn.")).map((d) => d.marked)).toEqual(["forms"]);
   });
 
   test("a Luau string holding the bare form is not reported", () => {
