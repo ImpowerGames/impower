@@ -934,11 +934,6 @@ export class SparkdownPreviewGamePanelManager {
               --swp-toolbar-border-color: var(--vscode-panel-border, rgba(255, 255, 255, 0.15));
             }
 
-            /* The player stays hidden until it has something to show, which
-               on a large project waits for it to mount and compile the whole
-               project in its own worker; the bar says the preview is coming
-               (#1221). It animates on the compositor, so it keeps moving
-               while the page's script loads and the player mounts. */
             spark-web-player {
               opacity: 0;
             }
