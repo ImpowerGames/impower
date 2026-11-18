@@ -15,6 +15,7 @@ const KIND_LABELS = {
   transition: "TRANSITIONAL",
   action: "ACTION",
   choice: "CHOOSE",
+  write: "WRITE",
 } as const;
 
 export const SETUP_WORDS = "This line sets up your story.";
@@ -50,6 +51,13 @@ export const stripCopy = (
     return {
       label: KIND_LABELS.choice,
       words: preview.words || preview.options.join(" · "),
+      playable: true,
+    };
+  }
+  if (preview.write) {
+    return {
+      label: KIND_LABELS.write,
+      words: `${preview.write.target}: ${preview.write.value}`,
       playable: true,
     };
   }
