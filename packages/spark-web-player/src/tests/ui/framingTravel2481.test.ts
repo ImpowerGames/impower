@@ -60,6 +60,15 @@ scene hidden
   [[hide backdrop]]
   Hidden.
 end
+
+scene reshown
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 4s ease linear]]
+  Travelling.
+  [[show backdrop]]
+  Shown while it travels.
+end
 `;
 
 const RIGHT = { translate: "calc(100cqw - 100%) calc(50cqh - 50%)", scale: "1" };
@@ -251,5 +260,20 @@ describe("a layer's picture travels to a framing (I-2481)", () => {
     await play(h, false);
     expect(travel!.playState).toBe("idle");
     expect(placed(backdrop!)).toEqual(QUARTER_TO_LEFT);
+  });
+
+  test("showing the layer while its picture travels lets the travel go on", async () => {
+    const h = await start("reshown");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    const [travel] = travelsOf(backdrop!);
+    expect(travel).toBeDefined();
+    await advance(1000);
+    await play(h, false);
+    expect(travel!.playState).toBe("running");
+    expect(travel!.currentTime).toBe(1000);
+    await advance(3000);
+    expect(placed(backdrop!)).toEqual(LEFT);
   });
 });

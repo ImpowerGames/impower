@@ -111,12 +111,27 @@ const endTravel = (el: Element) => {
   }
 };
 
+const travelling = (el: Element) => {
+  const state = travels.get(el)?.animation.playState;
+  return state === "running" || state === "paused";
+};
+
+const sameView = (a: PictureView, b: PictureView) => {
+  const first = getViewPlacement(a);
+  const second = getViewPlacement(b);
+  return first.translate === second.translate && first.scale === second.scale;
+};
+
 export const placePicture = (
   el: HTMLElement,
   framing: PictureFramingValues | undefined,
 ) => {
+  const view = getPictureView(framing);
+  if (travelling(el) && sameView(travels.get(el)!.to, view)) {
+    return;
+  }
   endTravel(el);
-  resting.set(el, getPictureView(framing));
+  resting.set(el, view);
   el.classList.toggle("framed", Boolean(framing));
   writePlacement(el, getPicturePlacement(framing));
 };
