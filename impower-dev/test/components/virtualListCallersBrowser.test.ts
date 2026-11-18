@@ -98,3 +98,67 @@ describe("lists of rows keep their place and focus across the layout breakpoints
     }
   }, 60_000);
 });
+
+describe("the Scripts list keeps each folder's place (I-2545)", () => {
+  const FOLDER_KEY = "all:Scripts/Deep:";
+
+  const mountScripts = async (lists: Record<string, unknown> = {}) => {
+    const page = await openPage(browser, pages.scripts.script, pages.scripts.css, { width: 1440, height: 900 });
+    await page.evaluate((setup) => window.scriptsPage.mount(setup), { folder: "Scripts/Deep", lists });
+    await page.locator('[role="listitem"]').first().waitFor();
+    await frames(page);
+    return page;
+  };
+
+  const scrollTop = (page: Page) => page.evaluate(() => document.querySelector('[role="list"]')!.parentElement!.scrollTop);
+
+  const scrollTo = async (page: Page, top: number) => {
+    await page.evaluate((to) => {
+      document.querySelector('[role="list"]')!.parentElement!.scrollTop = to;
+    }, top);
+    await frames(page);
+  };
+
+  const saved = (page: Page) => page.evaluate(() => (window.scriptsPage.lists().scriptsScrolls as Record<string, number> | undefined) ?? {});
+
+  it("reopens a scrolled folder where it was left after a visit to its parent", async () => {
+    const page = await mountScripts();
+    try {
+      await scrollTo(page, 2000);
+      expect(await scrollTop(page)).toBe(2000);
+      await page.locator('[aria-label="Parent folder"]').click();
+      await page.locator('[aria-label^="Open folder Deep"]').waitFor();
+      await frames(page);
+      expect(await scrollTop(page)).toBe(0);
+      await page.locator('[aria-label^="Open folder Deep"]').click();
+      await page.locator('[aria-label^="Open folder Deep"]').waitFor({ state: "detached" });
+      await frames(page);
+      await frames(page);
+      expect(await scrollTop(page)).toBe(2000);
+      expect((await saved(page))[FOLDER_KEY]).toBe(2000);
+    } finally {
+      await page.context().close();
+    }
+  }, 60_000);
+
+  it("keeps a folder's latest position across a reload, saved while the folder stays open", async () => {
+    const page = await mountScripts({ scriptsScrolls: { [FOLDER_KEY]: 1000 } });
+    let lists: Record<string, unknown> = {};
+    try {
+      expect(await scrollTop(page)).toBe(1000);
+      await scrollTo(page, 2400);
+      await page.waitForTimeout(1000);
+      expect((await saved(page))[FOLDER_KEY]).toBe(2400);
+      lists = await page.evaluate(() => window.scriptsPage.lists());
+    } finally {
+      await page.context().close();
+    }
+    const reloaded = await mountScripts(lists);
+    try {
+      await frames(reloaded);
+      expect(await scrollTop(reloaded)).toBe(2400);
+    } finally {
+      await reloaded.context().close();
+    }
+  }, 60_000);
+});

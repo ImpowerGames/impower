@@ -58,42 +58,62 @@ export function useFolderLayout(
   return [isStoredFolderLayout(saved) ? saved : undefined, change];
 }
 
-export function useSavedScroll(key: ScrollsKey, tab: string) {
-  const top = useRef(workspace.state.peek().lists?.[key]?.[tab] ?? 0);
-  const attached = useRef<HTMLDivElement | null>(null);
-  const onScroll = useRef(() => {
-    top.current = attached.current?.scrollTop ?? top.current;
-  });
+const SCROLL_SAVE_INTERVAL = 500;
 
+const savedTop = (key: ScrollsKey, tab: string) => workspace.state.peek().lists?.[key]?.[tab] ?? 0;
+
+export function useSavedScroll(key: ScrollsKey, tab: string) {
+  const top = useRef(savedTop(key, tab));
+  const attached = useRef<HTMLDivElement | null>(null);
   const shown = useRef({ key, tab });
+  const settled = useRef(true);
+  if (shown.current.key !== key || shown.current.tab !== tab) {
+    settled.current = false;
+  }
   const restored = useRef<{
     element: HTMLDivElement;
     key: ScrollsKey;
     tab: string;
   } | null>(null);
 
+  const pending = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const save = useRef(() => {
+    clearTimeout(pending.current);
+    pending.current = undefined;
+    const { key: shownKey, tab: shownTab } = shown.current;
+    const scrolled = top.current;
+    if (scrolled !== savedTop(shownKey, shownTab)) {
+      setListState((lists) => ({
+        [shownKey]: { ...lists[shownKey], [shownTab]: scrolled },
+      }));
+    }
+  });
+  const onScroll = useRef(() => {
+    if (!settled.current || !attached.current) {
+      return;
+    }
+    top.current = attached.current.scrollTop;
+    pending.current ??= setTimeout(save.current, SCROLL_SAVE_INTERVAL);
+  });
+
   useEffect(() => {
     if (shown.current.key !== key || shown.current.tab !== tab) {
+      save.current();
       shown.current = { key, tab };
-      top.current = workspace.state.peek().lists?.[key]?.[tab] ?? 0;
+      top.current = savedTop(key, tab);
       if (attached.current) {
         attached.current.scrollTop = top.current;
         restored.current = { element: attached.current, key, tab };
       }
     }
-    return () => {
-      const saved = workspace.state.peek().lists?.[key]?.[tab] ?? 0;
-      if (top.current !== saved) {
-        const scrolled = top.current;
-        setListState((lists) => ({
-          [key]: { ...lists[key], [tab]: scrolled },
-        }));
-      }
-    };
+    settled.current = true;
   }, [key, tab]);
 
   useEffect(
-    () => () => attached.current?.removeEventListener("scroll", onScroll.current),
+    () => () => {
+      save.current();
+      attached.current?.removeEventListener("scroll", onScroll.current);
+    },
     [],
   );
 
@@ -111,7 +131,9 @@ export function useSavedScroll(key: ScrollsKey, tab: string) {
         last.key === shownKey &&
         last.tab === shownTab
       ) {
-        top.current = element.scrollTop;
+        if (settled.current) {
+          top.current = element.scrollTop;
+        }
       } else {
         element.scrollTop = top.current;
         restored.current = { element, key: shownKey, tab: shownTab };

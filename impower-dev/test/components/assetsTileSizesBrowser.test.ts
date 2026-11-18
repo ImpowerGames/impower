@@ -329,6 +329,93 @@ describe("the Assets page's View menu and tile sizes, in Chromium (I-2462)", () 
     }
   }, 60_000);
 
+  const CAST_KEY = "image:Assets/Images/Cast:name-asc";
+
+  const position = (page: Page) =>
+    page.evaluate(() => {
+      const scroller = document.querySelector<HTMLElement>('[role="list"]')!.parentElement!;
+      const top = scroller.getBoundingClientRect().top;
+      const first = [...scroller.querySelectorAll<HTMLElement>("[data-asset-path]")].find((tile) => tile.getBoundingClientRect().bottom > top + 1);
+      return { scrollTop: scroller.scrollTop, max: scroller.scrollHeight - scroller.clientHeight, first: first?.getAttribute("data-asset-path") ?? null };
+    });
+
+  const scrollTo = async (page: Page, top: number) => {
+    await page.evaluate((to) => {
+      document.querySelector<HTMLElement>('[role="list"]')!.parentElement!.scrollTop = to;
+    }, top);
+    await frames(page);
+  };
+
+  const savedScrolls = (page: Page) => page.evaluate(() => window.assetsPage.lists().assetsScrolls as Record<string, number> | undefined);
+
+  it.each([
+    { width: 1440, height: 900, pointer: "mouse" as const },
+    { width: 430, height: 932, pointer: "touch" as const },
+  ])("reopens a scrolled folder where it was left after a visit to its parent, at $width (I-2545)", async ({ width, height, pointer }) => {
+    const page = await open({ width, height, pointer, pictures: 240, lists: { assetsLayouts: { "Assets/Images/Cast": "portrait" } } });
+    try {
+      await frames(page);
+      await scrollTo(page, 6000);
+      const left = await position(page);
+      expect(left.max).toBeGreaterThan(6000);
+      expect(left.scrollTop).toBe(6000);
+      await press(page, '[aria-label="Parent folder"]', pointer);
+      await page.locator('[aria-label^="Open folder Cast"]').waitFor();
+      await frames(page);
+      expect((await position(page)).scrollTop).toBe(0);
+      await press(page, '[aria-label^="Open folder Cast"]', pointer);
+      await page.locator('[aria-label^="Open folder Cast"]').waitFor({ state: "detached" });
+      await frames(page);
+      await frames(page);
+      expect(await position(page)).toEqual(left);
+      expect((await savedScrolls(page))?.[CAST_KEY]).toBe(6000);
+
+      await choose(page, "Small tiles", pointer);
+      await frames(page);
+      const anchored = await position(page);
+      expect(anchored.scrollTop).not.toBe(6000);
+      await press(page, '[aria-label="Parent folder"]', pointer);
+      await page.locator('[aria-label^="Open folder Cast"]').waitFor();
+      await frames(page);
+      await press(page, '[aria-label^="Open folder Cast"]', pointer);
+      await page.locator('[aria-label^="Open folder Cast"]').waitFor({ state: "detached" });
+      await frames(page);
+      await frames(page);
+      expect(await position(page)).toEqual(anchored);
+    } finally {
+      await close(page);
+    }
+  }, 60_000);
+
+  it("keeps the latest position of a folder across a reload, saved while the folder stays open (I-2545)", async () => {
+    const page = await open({
+      width: 1440,
+      pointer: "mouse",
+      pictures: 240,
+      lists: { assetsLayouts: { "Assets/Images/Cast": "portrait" }, assetsScrolls: { [CAST_KEY]: 3000 } },
+    });
+    let lists: Record<string, unknown> = {};
+    try {
+      await frames(page);
+      expect((await position(page)).scrollTop).toBe(3000);
+      await scrollTo(page, 6000);
+      await scrollTo(page, 6400);
+      await page.waitForTimeout(1000);
+      expect((await savedScrolls(page))?.[CAST_KEY]).toBe(6400);
+      lists = await page.evaluate(() => window.assetsPage.lists());
+    } finally {
+      await close(page);
+    }
+    const reloaded = await open({ width: 1440, pointer: "mouse", pictures: 240, lists });
+    try {
+      await frames(reloaded);
+      await frames(reloaded);
+      expect((await position(reloaded)).scrollTop).toBe(6400);
+    } finally {
+      await close(reloaded);
+    }
+  }, 60_000);
+
   it("takes the narrow pane's columns when the page's content box narrows to 440, and the desktop columns again at 441", async () => {
     const page = await open({ width: 1440, pointer: "mouse", pictures: 40, pane: 477 });
     try {
