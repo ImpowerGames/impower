@@ -21,6 +21,7 @@ const assets = vi.hoisted(() => ({
   move: vi.fn(async (_paths: readonly string[], _folder: string): Promise<{ from: string; to: string }[]> => []),
   usedBy: vi.fn(async (_paths: readonly string[]): Promise<unknown[] | null> => []),
   downloadAll: vi.fn(async (_paths: readonly string[]) => undefined),
+  requestPicture: vi.fn((_paths: readonly string[]) => () => {}),
   measureImages: vi.fn(async (_paths: string[]) => undefined),
   watchFacts: vi.fn((_paths: string[]) => () => {}),
   watchPicture: vi.fn((_path: string, _variant: unknown, _size: number, _listener: (src: string | null) => void) => () => {}),

@@ -242,6 +242,8 @@ class WorkspaceStore {
 
   readonly assetSizes = signal<Readonly<Record<string, ImageSize | null>>>({});
 
+  readonly assetPictures = signal<Readonly<Record<string, string | null>>>({});
+
   readonly assetUsage = signal<AssetUsage | null>(null);
 
   readonly assetUsageFailed = signal<string | null>(null);

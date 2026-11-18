@@ -27,6 +27,8 @@ import {
   Tabs,
   TextIcon,
   Thumbnail,
+  type ThumbnailFit,
+  type ThumbnailProps,
   Tile,
   TILE_SIZES,
   tileGrid,
@@ -70,8 +72,10 @@ import {
   coveredPaths,
   folderStackReason,
   foldersUnder,
+  pictureKey,
   thingsLabel,
   type AssetListing,
+  type AssetPicture,
   type AssetRow,
 } from "../../workspace/assetsListing";
 import selection from "../../workspace/assetsSelection";
@@ -253,9 +257,53 @@ const followed = (path: string, moves: readonly FileMove[]) => {
 
 const pictured = (row: AssetRow) => row.kind !== "folder" && row.type === "image" && !row.link;
 
+const usePictureSources = (listing: AssetListing, pictures: readonly AssetPicture[]): (string | undefined)[] => {
+  const keys = pictures.map((picture) => (picture.paths ? pictureKey(listing, picture.paths) : ""));
+  const drawn = workspace.assetPictures.value;
+  useEffect(() => {
+    const stacks = pictures.flatMap((picture) => (picture.paths ? [picture.paths] : []));
+    if (!stacks.length) {
+      return;
+    }
+    let alive = true;
+    let drops: (() => void)[] = [];
+    void intents().then((Workspace) => {
+      if (alive) {
+        drops = stacks.map((paths) => Workspace.assets.requestPicture(paths));
+      }
+    });
+    return () => {
+      alive = false;
+      drops.forEach((drop) => drop());
+    };
+  }, [JSON.stringify(keys)]);
+  return pictures.map((picture, index) => drawn[keys[index]!] ?? srcOf(listing, picture.path));
+};
+
+function AssetThumbnail({
+  listing,
+  picture,
+  ...thumbnail
+}: { listing: AssetListing; picture: AssetPicture } & Omit<ThumbnailProps, "src">) {
+  const [src] = usePictureSources(listing, [picture]);
+  return <Thumbnail {...thumbnail} src={src} />;
+}
+
+function AssetFolderCover({
+  listing,
+  covers,
+  fit,
+}: {
+  listing: AssetListing;
+  covers: readonly AssetPicture[];
+  fit: ThumbnailFit;
+}) {
+  return <FolderCover fit={fit} sources={usePictureSources(listing, covers)} />;
+}
+
 function RowGlyph({ row, listing }: { row: AssetRow; listing: AssetListing }) {
   if (row.kind === "folder") return <FolderIcon />;
-  if (pictured(row)) return <Thumbnail fit="contain" src={srcOf(listing, row.path)} />;
+  if (pictured(row)) return <AssetThumbnail listing={listing} picture={row} fit="contain" />;
   const Glyph = row.link && row.type === "other" ? LinkIcon : TYPE_ICONS[row.type];
   return <Glyph />;
 }
@@ -762,12 +810,9 @@ function AssetsBrowser() {
         kind={folder ? "folder" : "file"}
         media={
           folder ? (
-            <FolderCover
-              fit={TILE_SIZES[size].fit}
-              sources={(row.covers ?? []).map((path) => srcOf(listing, path))}
-            />
+            <AssetFolderCover listing={listing} fit={TILE_SIZES[size].fit} covers={row.covers ?? []} />
           ) : (
-            <Thumbnail size="fill" fit={TILE_SIZES[size].fit} src={srcOf(listing, row.path)} />
+            <AssetThumbnail listing={listing} picture={row} size="fill" fit={TILE_SIZES[size].fit} />
           )
         }
         badge={row.variantCount ? <VariantsBadge count={row.variantCount} /> : undefined}

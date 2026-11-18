@@ -16,7 +16,7 @@ import { recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLAC
 import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
 import { imageFileNameOf, imageThingsOf, stackNameOf, thingNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
-import type { ImageVariant } from "../utils/imageVariants";
+import { variantOf, type ImageVariant } from "../utils/imageVariants";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
 import { renameFailureMessage, renameOrReport } from "../utils/renameOrReport";
@@ -34,6 +34,7 @@ import {
   folderStackReason,
   landingFolder,
   listsAsset,
+  pictureKey,
   sameNamedPictures,
   thingNames,
   thingsLabel,
@@ -97,6 +98,10 @@ const renameFailure = (error: unknown) => {
 };
 
 const MEASURE_BATCH = 8;
+
+const PICTURE_EDGE = 384;
+
+const PICTURE_CACHE = 160;
 
 const TAGGED_NAME = "Use a name without @ or ~. They mark a picture's alternates and layers.";
 
@@ -177,6 +182,20 @@ export default class WorkspaceAssets {
   protected readonly _durationRequests = new Map<string, number>();
 
   protected _durationsReading = 0;
+
+  protected readonly _pictureRequests = new Map<string, { paths: readonly string[]; count: number }>();
+
+  protected readonly _pictureQueue = new Set<string>();
+
+  protected readonly _picturesDrawing = new Set<string>();
+
+  protected readonly _picturesAsked = new Map<string, number>();
+
+  protected readonly _pictureCovers = new Map<string, string>();
+
+  protected _compiles = 0;
+
+  protected _detachCompiles: (() => void) | undefined;
 
   protected _usageRequest = 0;
 
@@ -639,6 +658,116 @@ export default class WorkspaceAssets {
         this.readRequestedDurations();
       });
     }
+  }
+
+  requestPicture(paths: readonly string[]): () => void {
+    const key = pictureKey(this.listing, paths);
+    const wanted = this._pictureRequests.get(key);
+    if (wanted) {
+      wanted.count += 1;
+    } else {
+      this._pictureRequests.set(key, { paths, count: 1 });
+    }
+    this._detachCompiles ??= onProtocolMessage(CompiledProgramMessage.type, () => this.recompiledPictures());
+    this.queuePicture(key);
+    let dropped = false;
+    return () => {
+      if (dropped) {
+        return;
+      }
+      dropped = true;
+      const request = this._pictureRequests.get(key);
+      if (!request) {
+        return;
+      }
+      if (request.count > 1) {
+        request.count -= 1;
+      } else {
+        this._pictureRequests.delete(key);
+        this._pictureQueue.delete(key);
+      }
+    };
+  }
+
+  protected pictureStale(key: string): boolean {
+    const asked = this._picturesAsked.get(key);
+    return asked === undefined || asked < this._compiles;
+  }
+
+  protected queuePicture(key: string): void {
+    if (this._pictureRequests.has(key) && !this._picturesDrawing.has(key) && this.pictureStale(key)) {
+      this._pictureQueue.add(key);
+      this.drawRequestedPictures();
+    }
+  }
+
+  protected recompiledPictures(): void {
+    this._compiles += 1;
+    for (const key of this._pictureRequests.keys()) {
+      this.queuePicture(key);
+    }
+  }
+
+  protected drawRequestedPictures(): void {
+    while (this._picturesDrawing.size < MEASURE_BATCH) {
+      const next = this._pictureQueue.keys().next();
+      if (next.done) {
+        return;
+      }
+      const key = next.value;
+      this._pictureQueue.delete(key);
+      const request = this._pictureRequests.get(key);
+      if (!request || this._picturesDrawing.has(key) || !this.pictureStale(key)) {
+        continue;
+      }
+      this._picturesDrawing.add(key);
+      this._picturesAsked.set(key, this._compiles);
+      const [stack] = imageStacks(request.paths);
+      void this.restingPicture(stack).then((src) => {
+        this._picturesDrawing.delete(key);
+        this.storePicture(key, stack?.cover ?? key, src);
+        this.queuePicture(key);
+        this.drawRequestedPictures();
+      });
+    }
+  }
+
+  protected storePicture(key: string, cover: string, src: string | null): void {
+    const pictures = { ...workspace.assetPictures.peek() };
+    const forget = (old: string) => {
+      delete pictures[old];
+      this._picturesAsked.delete(old);
+    };
+    const previous = this._pictureCovers.get(cover);
+    if (previous !== undefined && previous !== key && !this._pictureRequests.has(previous)) {
+      forget(previous);
+    }
+    this._pictureCovers.set(cover, key);
+    delete pictures[key];
+    pictures[key] = src;
+    let excess = Object.keys(pictures).length - PICTURE_CACHE;
+    for (const old of Object.keys(pictures)) {
+      if (excess <= 0) {
+        break;
+      }
+      if (old !== key && !this._pictureRequests.has(old)) {
+        forget(old);
+        excess -= 1;
+      }
+    }
+    workspace.assetPictures.value = pictures;
+  }
+
+  protected async restingPicture(stack: ImageStack | undefined): Promise<string | null> {
+    const projectId = this.projectId;
+    if (!projectId || !stack) {
+      return null;
+    }
+    const edge = Math.round(PICTURE_EDGE * (globalThis.devicePixelRatio || 1));
+    const answer = await this._workspace.ls
+      .getVariantPicture(this._workspace.fs.getFileUri(projectId, stack.cover), variantOf(stack, {}), edge)
+      .catch(() => null);
+    return answer ? answer.src : null;
   }
 
   async measureDurations(paths: readonly string[]): Promise<void> {

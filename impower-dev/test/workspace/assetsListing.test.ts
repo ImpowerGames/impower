@@ -370,12 +370,29 @@ describe("stacked pictures on the Assets page", () => {
   it("covers a folder tile with its own pictures by name, then its folders' pictures by name, up to four", () => {
     const level = assetLevel({ listing: stacked, type: "image", sort: "name-asc", endings: ENDINGS });
     const portraits = level.rows.find((row) => row.name === "Portraits")!;
-    expect(portraits.covers).toEqual([
+    expect(portraits.covers?.map((cover) => cover.path)).toEqual([
       "Assets/Images/Portraits/bunny.png",
       "Assets/Images/Portraits/imani.png",
       "Assets/Images/Portraits/Extras/kai.png",
       "Assets/Images/Portraits/Extras/zed.png",
     ]);
+  });
+
+  it("gives a stacked picture on a folder's cover every file of its stack, as its own row has", () => {
+    const portraits = assetLevel({ listing: stacked, type: "image", sort: "name-asc", endings: ENDINGS }).rows.find(
+      (row) => row.name === "Portraits",
+    )!;
+    const imani = assetLevel({
+      listing: stacked,
+      type: "image",
+      folder: "Assets/Images/Portraits",
+      sort: "name-asc",
+      endings: ENDINGS,
+    }).rows.find((row) => row.name === "imani")!;
+    expect(portraits.covers?.find((cover) => cover.path === imani.path)).toEqual({ path: imani.path, paths: imani.paths });
+    expect(portraits.covers?.find((cover) => cover.path === "Assets/Images/Portraits/bunny.png")).toEqual({
+      path: "Assets/Images/Portraits/bunny.png",
+    });
   });
 
   it("orders a cover's folder pictures by name across folders, not folder by folder", () => {
@@ -391,7 +408,7 @@ describe("stacked pictures on the Assets page", () => {
       sort: "name-asc",
       endings: ENDINGS,
     });
-    expect(level.rows.find((row) => row.name === "Backdrops")!.covers).toEqual([
+    expect(level.rows.find((row) => row.name === "Backdrops")!.covers?.map((cover) => cover.path)).toEqual([
       "Assets/Images/Backdrops/ext_bistro.png",
       "Assets/Images/Backdrops/Countryside/apple.png",
       "Assets/Images/Backdrops/Bistro/bar.png",
@@ -506,7 +523,7 @@ describe("a folder stack in the Assets page", () => {
 
   it("covers the folder's row in its parent with the picture's bottom layer", () => {
     const level = assetLevel({ listing: project, type: "image", folder: "Assets/Images/Portraits", sort: "name-asc", endings: ENDINGS });
-    expect(level.rows.find((row) => row.path === MIA)?.covers).toEqual([`${MIA}/90_body.png`, `${MIA}/notes.png`]);
+    expect(level.rows.find((row) => row.path === MIA)?.covers?.map((cover) => cover.path)).toEqual([`${MIA}/90_body.png`, `${MIA}/notes.png`]);
   });
 
   it("counts the folder's picture as one of its parent's own pictures on the parent's cover", () => {
@@ -519,7 +536,7 @@ describe("a folder stack in the Assets page", () => {
       sort: "name-asc",
       endings: ENDINGS,
     });
-    expect(level.rows.find((row) => row.name === "Portraits")?.covers).toEqual([
+    expect(level.rows.find((row) => row.name === "Portraits")?.covers?.map((cover) => cover.path)).toEqual([
       `${MIA}/90_body.png`,
       "Assets/Images/Portraits/Extras/kai.png",
       `${MIA}/notes.png`,

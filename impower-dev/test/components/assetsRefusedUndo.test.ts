@@ -11,6 +11,7 @@ const fake = vi.hoisted(() => ({
   watch: vi.fn(() => () => {}),
   watchFacts: vi.fn(() => () => {}),
   watchPicture: vi.fn(() => () => {}),
+  requestPicture: vi.fn((_paths: readonly string[]) => () => {}),
   measureImages: vi.fn(async (_paths: string[]) => undefined),
   setListState: vi.fn(),
   getFiles: vi.fn(),
