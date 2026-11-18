@@ -127,6 +127,36 @@ describe("unknown selector state", () => {
     expect(unknownStateWarnings(style(selector))).toEqual([]);
   });
 
+  test.each([
+    ["@nth-child[2n of choice]", "nth-child", "needs its arguments in parentheses right after it"],
+    ["@nth-child (2)", "nth-child", "needs its arguments in parentheses right after it"],
+    ["@has", "has", "needs its arguments in parentheses right after it"],
+    ["@lang", "lang", "needs its arguments in parentheses right after it"],
+    ["@direction", "direction", "needs its arguments in parentheses right after it"],
+    ["@screen-size", "screen-size", "needs its arguments in parentheses right after it"],
+    ["@hover(x)", "hover", "takes no arguments"],
+    ["@hovered(x)", "hovered", "takes no arguments"],
+  ])("warns that %s is written with the wrong arguments", (selector, name, problem) => {
+    expect(diagnose(style(selector)).filter((d) => d.includes(`\`@${name}\``))).toEqual([
+      expect.stringMatching(
+        new RegExp(`^2:2-${3 + name.length} 2 \`@${name}\` ${problem}, so this block never applies\\n> `),
+      ),
+    ]);
+  });
+
+  test("says only the alternative never matches for a state missing its arguments in @is", () => {
+    expect(diagnose(style("@is(@has, @first)")).filter((d) => d.includes("`@has`"))).toEqual([
+      "2:6-10 2 `@has` needs its arguments in parentheses right after it, so this alternative never matches\n> e.g. `@has(…)`, with no space before `(`",
+    ]);
+  });
+
+  test.each(["@host", "@host(card)", "@layer", "@media (min-width: 1px)", "@nth-child(2n of card, icon)", "@is(card, icon)"])(
+    "accepts the arguments of %s",
+    (selector) => {
+      expect(diagnose(style(selector)).filter((d) => / 2 `@/.test(d))).toEqual([]);
+    },
+  );
+
   test("leaves layout event handlers alone", () => {
     expect(
       unknownStateWarnings(

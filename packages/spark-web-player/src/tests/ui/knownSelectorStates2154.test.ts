@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { getCSSSelector } from "@impower/spark-dom/src/utils/getStyleContent";
 import { sparkleSelectorToCssSelector } from "../../../../sparkle-screen-renderer/src/runtime/css";
-import { isKnownSelectorState, KNOWN_SELECTOR_STATES } from "../../../../sparkdown/src/compiler/constants/selectorStates";
+import {
+  isKnownSelectorState,
+  KNOWN_SELECTOR_STATES,
+  selectorStateArguments,
+} from "../../../../sparkdown/src/compiler/constants/selectorStates";
 
 const PLAIN_STANDARD_STATES = [
   "active",
@@ -142,6 +146,17 @@ describe("known selector states (#2154, #2502)", () => {
   it.each(NOT_APPLIED)("warns on %s, which the player leaves from %s as %s", (name, source, css) => {
     expect(isKnownSelectorState(name)).toBe(false);
     expect(getCSSSelector(source, { sm: 640 })).toBe(css);
+  });
+
+  it.each(APPLIED)("gives %s an argument shape its source %s follows", (name, source) => {
+    const shape = selectorStateArguments(name);
+    const called = source.startsWith(`@${name}(`);
+    expect(shape).toBeDefined();
+    expect(shape === "required" ? called : shape === "none" ? !called : true).toBe(true);
+  });
+
+  it("gives no argument shape to a name it does not know", () => {
+    expect(NOT_APPLIED.map(([name]) => selectorStateArguments(name))).toEqual(NOT_APPLIED.map(() => undefined));
   });
 
   it("covers every accepted name in the table", () => {

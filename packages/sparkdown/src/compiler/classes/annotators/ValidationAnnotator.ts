@@ -17,7 +17,7 @@ import {
   isAliasedAttributeProp,
   isReservedAttribute,
 } from "../../constants/dataAttributeProps";
-import { isKnownSelectorState } from "../../constants/selectorStates";
+import { isKnownSelectorState, selectorStateArguments } from "../../constants/selectorStates";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
@@ -426,6 +426,7 @@ function firstDescendant(node: any, names: Set<string>): any {
 
 const PAREN_CLOSED_LISTS = nodeNameSet([
   "RecursiveSelectorFunctionParameters",
+  "NthSelectorFunctionParameters",
   "SimpleSelectorFunctionParameters",
   "StylingFunctionParameters",
 ]);
@@ -1702,6 +1703,26 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             severity: "warning",
           }).range(nodeRef.from - 1, nodeRef.to),
         );
+      } else if (state !== "theme") {
+        const takes = selectorStateArguments(state);
+        const called = this.read(nodeRef.to, nodeRef.to + 1) === "(";
+        const problem =
+          takes === "required" && !called
+            ? `needs its arguments in parentheses right after it`
+            : takes === "none" && called
+              ? `takes no arguments`
+              : undefined;
+        if (problem) {
+          const hint = called
+            ? `> Remove the parentheses after \`@${state}\``
+            : `> e.g. \`@${state}(…)\`, with no space before \`(\``;
+          annotations.push(
+            SparkdownAnnotation.mark<Diagnostic>({
+              message: `\`@${state}\` ${problem}, so ${this.deadSelectorStateConsequence(nodeRef.node)}\n${hint}`,
+              severity: "warning",
+            }).range(nodeRef.from - 1, nodeRef.to),
+          );
+        }
       }
     }
     if (

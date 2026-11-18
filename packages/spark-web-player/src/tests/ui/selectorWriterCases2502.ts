@@ -84,10 +84,20 @@ export const AT_RULE_CASES: readonly [source: string, css: string][] = [
   ["@import", "@import"],
 ];
 
+export const OBJECT_PROPERTY_NAME_CASES: readonly [source: string, css: string][] = [
+  ["@constructor", "@constructor"],
+  ["@toString(x)", "@toString(x)"],
+  ["@__proto__", "@__proto__"],
+  ["@hasOwnProperty", "@hasOwnProperty"],
+  ["@screen-size(constructor)", "@container screen (max-width:constructor)"],
+  ["@container-size(toString)", "@container(max-width:toString)"],
+];
+
 export const SHARED_CASES: readonly [source: string, css: string][] = [
   ...STANDARD_STATE_CASES,
   ...ARGUMENT_CASES,
   ...NAME_CASES,
   ...PUNCTUATION_CASES,
   ...AT_RULE_CASES,
+  ...OBJECT_PROPERTY_NAME_CASES,
 ];

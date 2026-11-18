@@ -2,7 +2,9 @@ export const COLOR_SCHEME_ATTRIBUTE = "data-color-scheme";
 
 const COLOR_SCHEME_STATE = "theme";
 
-const SELECTOR_STATE_ALIASES: Readonly<Record<string, string>> = {
+const table = (entries: Record<string, string>): ReadonlyMap<string, string> => new Map(Object.entries(entries));
+
+const SELECTOR_STATE_ALIASES: ReadonlyMap<string, string> = table({
   hovered: ":hover",
   focused: ":focus",
   pressed: ":active",
@@ -45,14 +47,14 @@ const SELECTOR_STATE_ALIASES: Readonly<Record<string, string>> = {
   swatch_wrapper: "::-webkit-color-swatch-wrapper",
   "swatch-wrapper": "::-webkit-color-swatch-wrapper",
   busy: '[aria-busy="true"]',
-};
+});
 
-const ARGUMENT_STATE_ALIASES: Readonly<Record<string, string>> = {
+const ARGUMENT_STATE_ALIASES: ReadonlyMap<string, string> = table({
   direction: "dir",
   language: "lang",
-};
+});
 
-const AT_RULE_STATES: Readonly<Record<string, string>> = {
+const AT_RULE_STATES: ReadonlyMap<string, string> = table({
   container: "@container",
   layer: "@layer",
   media: "@media",
@@ -61,14 +63,14 @@ const AT_RULE_STATES: Readonly<Record<string, string>> = {
   "starting-style": "@starting-style",
   starting_style: "@starting-style",
   initial: "@starting-style",
-};
+});
 
-const SIZE_STATES: Readonly<Record<string, string>> = {
+const SIZE_STATES: ReadonlyMap<string, string> = table({
   "container-size": "@container(max-width:",
   container_size: "@container(max-width:",
   "screen-size": "@container screen (max-width:",
   screen_size: "@container screen (max-width:",
-};
+});
 
 const SELECTOR_LIST_PSEUDO_CLASSES = ["has", "not", "is", "where", "host", "host-context"];
 
@@ -128,10 +130,10 @@ const STANDARD_PSEUDO_CLASSES: ReadonlySet<string> = new Set([
 
 export const WRITTEN_SELECTOR_STATES: ReadonlySet<string> = new Set([
   COLOR_SCHEME_STATE,
-  ...Object.keys(SELECTOR_STATE_ALIASES),
-  ...Object.keys(ARGUMENT_STATE_ALIASES),
-  ...Object.keys(AT_RULE_STATES),
-  ...Object.keys(SIZE_STATES),
+  ...SELECTOR_STATE_ALIASES.keys(),
+  ...ARGUMENT_STATE_ALIASES.keys(),
+  ...AT_RULE_STATES.keys(),
+  ...SIZE_STATES.keys(),
   ...STANDARD_PSEUDO_CLASSES,
 ]);
 
@@ -148,6 +150,26 @@ const ARGUMENT_KINDS: ReadonlyMap<string, ArgumentKind> = new Map<string, Argume
   ...NTH_OF_PSEUDO_CLASSES.map((name) => [name, "nth"] as const),
   ...VALUE_PSEUDO_CLASSES.map((name) => [name, "value"] as const),
 ]);
+
+const OPTIONAL_ARGUMENT_PSEUDO_CLASSES: ReadonlySet<string> = new Set(["host"]);
+
+export type SelectorStateArguments = "required" | "optional" | "none";
+
+export const selectorStateArguments = (name: string): SelectorStateArguments | undefined => {
+  if (name === COLOR_SCHEME_STATE || SIZE_STATES.has(name) || ARGUMENT_STATE_ALIASES.has(name)) {
+    return "required";
+  }
+  if (AT_RULE_STATES.has(name) || OPTIONAL_ARGUMENT_PSEUDO_CLASSES.has(name)) {
+    return "optional";
+  }
+  if (SELECTOR_STATE_ALIASES.has(name)) {
+    return "none";
+  }
+  if (STANDARD_PSEUDO_CLASSES.has(name)) {
+    return ARGUMENT_KINDS.has(name) ? "required" : "none";
+  }
+  return undefined;
+};
 
 const WHITESPACE = /[ \t\r\n\f]+/y;
 const WORD = /[\p{L}\p{N}_-]+(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*/uy;
@@ -363,8 +385,8 @@ class SparkleSelectorWriter {
   }
 
   private breakpoint(value: string): string {
-    const px = this.options.breakpoints[value];
-    return px != null ? `${px}px` : value;
+    const { breakpoints } = this.options;
+    return Object.prototype.hasOwnProperty.call(breakpoints, value) ? `${breakpoints[value]}px` : value;
   }
 
   private state(name: string): { text: string; prelude?: boolean } {
@@ -375,20 +397,20 @@ class SparkleSelectorWriter {
         ? { text: `@media(prefers-color-scheme:${text}${close}`, prelude: true }
         : { text: `@${COLOR_SCHEME_STATE}(${text}${close}` };
     }
-    const size = SIZE_STATES[name];
+    const size = SIZE_STATES.get(name);
     if (size && called) {
       const { text, close } = this.argument(() => this.value());
       return { text: `${size}${this.breakpoint(text)}${close}`, prelude: true };
     }
-    const atRule = AT_RULE_STATES[name];
+    const atRule = AT_RULE_STATES.get(name);
     if (atRule) {
       return { text: atRule, prelude: true };
     }
-    const alias = SELECTOR_STATE_ALIASES[name];
+    const alias = SELECTOR_STATE_ALIASES.get(name);
     if (alias) {
       return { text: called ? alias + this.raw() : alias };
     }
-    const pseudo = ARGUMENT_STATE_ALIASES[name] ?? (STANDARD_PSEUDO_CLASSES.has(name) ? name : undefined);
+    const pseudo = ARGUMENT_STATE_ALIASES.get(name) ?? (STANDARD_PSEUDO_CLASSES.has(name) ? name : undefined);
     if (pseudo && called) {
       const kind = ARGUMENT_KINDS.get(pseudo);
       const args =
@@ -459,10 +481,16 @@ class SparkleSelectorWriter {
   }
 }
 
-const breakpointRegexCache: Record<string, RegExp> = {};
+const breakpointRegexCache = new Map<string, RegExp>();
 
-const breakpointRegex = (name: string) =>
-  (breakpointRegexCache[name] ??= new RegExp(`width:${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[)]`, "g"));
+const breakpointRegex = (name: string): RegExp => {
+  let regex = breakpointRegexCache.get(name);
+  if (!regex) {
+    regex = new RegExp(`width:${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[)]`, "g");
+    breakpointRegexCache.set(name, regex);
+  }
+  return regex;
+};
 
 const QUOTED_PART = /("(?:\\[^]|[^"\\])*"|'(?:\\[^]|[^'\\])*')/;
 

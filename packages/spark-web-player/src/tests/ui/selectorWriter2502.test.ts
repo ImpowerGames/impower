@@ -5,6 +5,7 @@ import {
   AT_RULE_CASES,
   BREAKPOINTS,
   NAME_CASES,
+  OBJECT_PROPERTY_NAME_CASES,
   PUNCTUATION_CASES,
   STANDARD_STATE_CASES,
 } from "./selectorWriterCases2502";
@@ -29,6 +30,10 @@ describe("the player's selector writer (#2502)", () => {
   });
 
   it.each(AT_RULE_CASES)("writes the at-rule %s as %s", (source, css) => {
+    expect(write(source)).toBe(css);
+  });
+
+  it.each(OBJECT_PROPERTY_NAME_CASES)("reads %s as a name, not an object property, writing %s", (source, css) => {
     expect(write(source)).toBe(css);
   });
 
