@@ -237,7 +237,11 @@ export function DropdownTrigger({
         if (ctx.open) {
           return;
         }
-        if (event.detail === 0) {
+        const clickPointer = (event as Partial<PointerEvent>).pointerType;
+        if (menuFormFor(clickPointer) === "sheet") {
+          ctx.opener.current = clickPointer;
+          ctx.setOpen(true);
+        } else if (event.detail === 0) {
           ctx.opener.current = undefined;
           ctx.setOpen(true);
         } else if (menuFormFor(ctx.opener.current) === "sheet") {

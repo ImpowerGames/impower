@@ -1641,6 +1641,21 @@ describe("the Variants tester and the Files section", () => {
     expect(all('[role="menuitemradio"]')).toEqual([]);
   });
 
+  it("opens the wheel sheet when a finger opens a group and its click arrives with detail 0", async () => {
+    layout.value = "desktop";
+    layout.coarse = false;
+    await mount();
+    await open("imani");
+    await act(async () => {
+      group("face").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
+      group("face").dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
+      group("face").dispatchEvent(new PointerEvent("click", { bubbles: true, cancelable: true, pointerType: "touch", detail: 0 }));
+    });
+    await settle();
+    expect(document.querySelector("[data-wheel-sheet] [role=listbox]")).not.toBeNull();
+    expect(all('[role="menuitemradio"]')).toEqual([]);
+  });
+
   it("opens the dropdown when a mouse opens a group on a phone, whose primary pointer is coarse", async () => {
     layout.value = "phone";
     layout.coarse = true;
