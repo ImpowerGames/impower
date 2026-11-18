@@ -68,7 +68,7 @@ Three upper layers assume a single flat directory per project:
    actively destroying folder structure on import/upload/drop.
 
 2. **UI.** `FileList.tsx` renders a flat, glob-partitioned, virtualized list. The
-   three panes (Logic ▸ Scripts, Assets ▸ Files, Assets ▸ URLs) are just three
+   three lists (Scripts, Assets ▸ Files, Assets ▸ URLs) are just three
    `FileList` instances with different include/exclude **filename** globs. Sort is
    hardcoded (alpha, then by extension) and duplicated in both the load and reload
    paths. There is no tree, search, filter, move, multi-select, or context menu.
@@ -254,7 +254,7 @@ mirroring the existing Dropdown wrapper). `sparkdown-document-views`' only host 
 is `FileSystemReader {scheme, url(uri)}` — as long as nested-asset URIs still resolve via
 `url()`, the editor/preview need **no** changes.
 
-The file browser stays **per-pane** (folders *within* Logic and Assets, scoped by glob) —
+The file browser stays **per-pane** (folders *within* the Scripts and Assets pages, scoped by glob) —
 not a single unified tree — per the product decision below. This keeps `WorkspaceWindow`
 pane/panel routing unchanged.
 
@@ -315,7 +315,7 @@ No new UI. Make the existing nesting safe to expose, and fix the shipped Drive-s
 
 1. **Sequencing:** folders/search first (Phase 0 → 1), then local-folder (Phase 2).
    All-browser and lower-risk before the Chromium-only feature.
-2. **Browser model:** folders **within** the existing Logic/Assets panes (per-pane,
+2. **Browser model:** folders **within** the Scripts and Assets pages (per-pane,
    glob-scoped) — not a single unified tree. Smallest change to pane routing.
 3. **Non-Chromium fallback:** graceful — OPFS sandbox + `webkitdirectory` import +
    download export, with honest messaging; **plus ship as an installable PWA** for the

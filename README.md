@@ -5,6 +5,27 @@ games — and the tools around it: the [impower.dev](./impower-dev) web editor, 
 [VS Code extension](./vscode-sparkdown), the language server, the game engine,
 and the player.
 
+## The web editor
+
+The web editor runs in the browser and on phones, and keeps each project on the
+device it was written on, with optional Google Drive sync. It has five pages:
+
+- **Story**: the script, with completion, hover previews, find and rename, the
+  Outline, the Add menu for scenes, characters, images and sounds, and the Problems
+  panel. On phones the script opens in a reading mode, and the writer's bar's Edit
+  button makes it editable.
+- **Scripts** and **Assets**: the project's files in folders, with search, sort,
+  selection, Move… and the asset inspector.
+- **Share**: exports of the game and the screenplay.
+- **Settings**: themes, the script editor, keyboard shortcuts, the preview, the
+  project's metadata and screenplay format, the Add menu's folders, file types, and
+  Save & sync.
+
+Beside the page on wider screens, and as its own pane on phones, the preview plays
+the game from the line being written or shows
+it as a screenplay. Its architecture is described in
+[impower-dev/docs/architecture.md](./impower-dev/docs/architecture.md).
+
 ## Recommended Workspace Setup
 
 1. Install IDE: [Visual Studio Code](https://code.visualstudio.com/)

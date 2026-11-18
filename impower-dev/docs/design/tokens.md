@@ -506,7 +506,7 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--cover-badge` | `rgb(0 0 0 / 0.6)` | The folder mark on a cover, `folio-assets.css:55` (`#0009`) |
 | `--media-badge-ink` | `rgb(255 255 255)` | Ink of a badge laid over a picture, `folio-assets.css:280` (`#fff`) |
 | `--media-button` | `rgb(0 0 0 / 0.6)` | Round button laid over a picture: the picture's full-size button and the full-size view's Close, `folio-assets.css:108` and `:216` (`#0009`) |
-| `--status-badge-error-edge` | `#93625d`; `var(--error)` in Chalk, Paper, Midnight and Dusk | Edge of the game's error status badge, `folio-playback.css:732-735`, `folio-themes.css:257`, `folio-themes.css:507` |
+| `--status-badge-error-edge` | `#93625d`; `var(--error)` in Chalk, Sepia, Midnight and Dusk | Edge of the game's error status badge, `folio-playback.css:732-735`, `folio-themes.css:257`, `folio-themes.css:507` |
 | `--editor-line-number` | `var(--muted)` | `folio-editor.css:39` |
 | `--editor-line-number-active` | `var(--ink)` | Ink |
 | `--editor-indent-guide` | `color-mix(in srgb, var(--muted) 22%, transparent)` | `--guide`, `folio-themes.css:905` |
