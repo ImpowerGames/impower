@@ -44,17 +44,23 @@ const BRACKETED: [string, string, string][] = [
   ["a bracketed match after a space", "It is .. match (mood)|happy=a|other=b .. today.", "It is a today.\n"],
 ];
 
-const PROSE: string[] = [
-  "Wait .. match the colours .. then go.",
-  "Wait .. match the colours | or not.",
-  "A plural noun | and .. so on.",
-  "Pick one: match|plural .. done.",
-  "It is ..match mood|happy=a|other=b .. today.",
-  "It is .. match mood|happy=a|other=b..today.",
-  "Escaped \\.. match mood|happy=a|other=b .. today.",
-  "It is .. cycle|a|b .. today.",
-  "Note // .. match mood|happy=a|other=b .. today.",
-  "cycle | It is .. match mood|happy=a|other=b .. today. | B. end",
+const PROSE: [string[], { errors: string[]; warnings: string[]; out: string }][] = [
+  [["Wait .. match the colours .. then go."], { errors: [], warnings: [], out: "Wait .. match the colours .. then go.\n" }],
+  [["Wait .. match the colours | or not."], { errors: [], warnings: [], out: "Wait .. match the colours | or not.\n" }],
+  [["A plural noun | and .. so on."], { errors: [], warnings: [], out: "A plural noun | and .. so on.\n" }],
+  [["Pick one: match|plural .. done."], { errors: [], warnings: ["Cannot find character named `Pick one`"], out: "match|plural .. done.\n" }],
+  [["It is ..match mood|happy=a|other=b .. today."], { errors: [], warnings: [], out: "It is ..match mood|happy=a|other=b .. today.\n" }],
+  [["It is .. match mood|happy=a|other=b..today."], { errors: [], warnings: [], out: "It is .. match mood|happy=a|other=b..today.\n" }],
+  [["Escaped \\.. match mood|happy=a|other=b .. today."], { errors: [], warnings: [], out: "Escaped .. match mood|happy=a|other=b .. today.\n" }],
+  [["It is .. cycle|a|b .. today."], { errors: [], warnings: [], out: "It is a today.\n" }],
+  [["Note // .. match mood|happy=a|other=b .. today."], { errors: [], warnings: [], out: "Note\n" }],
+  [["cycle | It is .. match mood|happy=a|other=b .. today. | B. end"], { errors: [], warnings: [], out: "It is .. match mood\n" }],
+  [["Wait ... match the colours | or not ... then go."], { errors: [], warnings: [], out: "Wait ... match the colours | or not ... then go.\n" }],
+  [["@ Bob: Wait ... plural forms | are hard ... to learn."], { errors: [], warnings: [], out: "Wait ... plural forms | are hard ... to learn.\n" }],
+  [["@ Bob", "  Wait ... match it | or not ... fine."], { errors: [], warnings: [], out: "@ Bob\nWait ... match it | or not ... fine.\n" }],
+  [["choose", "  + Wait ... match it | or not ... fine", "    Done.", "end"], { errors: [], warnings: [], out: "" }],
+  [['It is {".. match mood|happy=a|other=b .."} today.'], { errors: [], warnings: [], out: "It is .. match mood|happy=a|other=b .. today.\n" }],
+  [["It is {mood} .. and | match .. today."], { errors: [], warnings: [], out: "It is happy .. and | match .. today.\n" }],
 ];
 
 describe("a glued match or plural with a bare value is reported, asking for brackets (#2500)", () => {
@@ -77,8 +83,9 @@ describe("a glued match or plural with a bare value is reported, asking for brac
     expect(play(scene(line))).toEqual({ errors: [], warnings: [], out });
   });
 
-  test.each(PROSE)("story text `%s` is not reported", (line) => {
-    expect(bracketDiagnostics(scene(line))).toEqual([]);
+  test.each(PROSE)("story text %j is not reported and plays as written", (lines, result) => {
+    expect(bracketDiagnostics(scene(...lines))).toEqual([]);
+    expect(play(scene(...lines))).toEqual(result);
   });
 
   test("a Luau string holding the bare form is not reported", () => {
