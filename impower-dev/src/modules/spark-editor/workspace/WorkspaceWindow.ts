@@ -253,11 +253,15 @@ export default class WorkspaceWindow {
     this.persistOnLeave();
   }
 
+  persistNow() {
+    this.cacheProjectWorkspace.flush();
+  }
+
   protected persistOnLeave() {
     if (typeof window === "undefined") {
       return;
     }
-    const flush = () => this.cacheProjectWorkspace.flush();
+    const flush = () => this.persistNow();
     const hide = () => {
       if (document.visibilityState === "hidden") {
         flush();

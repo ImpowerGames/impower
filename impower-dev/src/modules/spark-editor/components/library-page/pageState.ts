@@ -131,17 +131,20 @@ export function useSavedScroll(key: ScrollsKey, tab: string, reveal?: number) {
 
   useEffect(() => {
     void loadIntents();
-    const leave = () => save.current();
+    const leave = () => {
+      save.current();
+      intents?.window.persistNow();
+    };
     const hide = () => {
       if (document.visibilityState === "hidden") {
-        save.current();
+        leave();
       }
     };
-    window.addEventListener("pagehide", leave, true);
-    document.addEventListener("visibilitychange", hide, true);
+    window.addEventListener("pagehide", leave);
+    document.addEventListener("visibilitychange", hide);
     return () => {
-      window.removeEventListener("pagehide", leave, true);
-      document.removeEventListener("visibilitychange", hide, true);
+      window.removeEventListener("pagehide", leave);
+      document.removeEventListener("visibilitychange", hide);
       save.current();
       attached.current?.removeEventListener("scroll", onScroll.current);
     };
