@@ -409,7 +409,11 @@ function AssetsBrowser() {
     }
   }, [measureKey]);
   const scrollKey = `${searching ? "search" : `${type}:${level.folder}`}:${sort}`;
-  const scroller = useSavedScroll("assetsScrolls", scrollKey);
+  const scroller = useSavedScroll(
+    "assetsScrolls",
+    scrollKey,
+    reveal && items.some((item) => item.kind !== "heading" && item.path === reveal.path) ? reveal.request : undefined,
+  );
 
   const revealRow = (path: string) => setReveal((prev) => ({ path, request: (prev?.request ?? 0) + 1 }));
 

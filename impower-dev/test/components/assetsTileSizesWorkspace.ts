@@ -39,6 +39,7 @@ export const Workspace = {
     setListState: (lists: Record<string, unknown>) => {
       workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, ...lists } };
     },
+    persistNow: () => {},
     navigateTo: () => {},
     openTrash: () => {},
     revealDocument: () => {},

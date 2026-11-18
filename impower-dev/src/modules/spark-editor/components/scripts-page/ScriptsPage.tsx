@@ -123,7 +123,6 @@ function AllScripts() {
       : MAIN_SCRIPT;
   }).value;
   const [query, setQuery] = useTabQuery(ALL_TAB);
-  const scroller = useSavedScroll(ALL_TAB);
   const newButton = useRef<HTMLButtonElement>(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -158,6 +157,7 @@ function AllScripts() {
   const folder = scriptFolders(listing).includes(saved) ? saved : "";
   const sort = lists?.scriptsSort;
   const rows = scriptRows({ listing, references, folder, query, sort });
+  const scroller = useSavedScroll(`${query.trim() ? "search" : `${ALL_TAB}:${folder}`}:${sort ?? ""}`);
   useSelectionKeys({
     active: selecting,
     paused: !!moving || !!deleting,
