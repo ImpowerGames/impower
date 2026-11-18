@@ -40,11 +40,11 @@ afterAll(async () => {
   await browser?.close();
 });
 
-type Open = { width: number; height?: number; pointer: Pointer; theme?: Theme; pane?: number; pictures?: number; lists?: Record<string, unknown> };
+type Open = { width: number; height?: number; pointer: Pointer; theme?: Theme; pane?: number; pictures?: number; lists?: Record<string, unknown>; reveal?: readonly string[] };
 
-const open = async ({ width, height = 900, pointer, theme = "charcoal", pane, pictures, lists }: Open): Promise<Page> => {
+const open = async ({ width, height = 900, pointer, theme = "charcoal", pane, pictures, lists, reveal }: Open): Promise<Page> => {
   const page = await openPage(browser, script, css, { width, height, touch: pointer === "touch", theme });
-  await page.evaluate((setup) => window.assetsPage.mount(setup), { width: pane, pictures, lists });
+  await page.evaluate((setup) => window.assetsPage.mount(setup), { width: pane, pictures, lists, reveal });
   await page.locator('[role="listitem"] [data-tile]').first().waitFor();
   return page;
 };
@@ -270,6 +270,33 @@ describe("the Assets page's View menu and tile sizes, in Chromium (I-2462)", () 
       });
       expect(restored.max).toBeGreaterThan(saved);
       expect(restored.scrollTop).toBeCloseTo(saved, 0);
+    } finally {
+      await close(page);
+    }
+  }, 60_000);
+
+  it.each([
+    { saved: 0, width: 1440, height: 900, pointer: "mouse" as const },
+    { saved: 22000, width: 430, height: 932, pointer: "touch" as const },
+  ])("opens on a picture another surface added, its top in view, over a saved position of $saved at $width", async ({ saved, width, height, pointer }) => {
+    const page = await open({
+      width,
+      height,
+      pointer,
+      pictures: 240,
+      reveal: ["Assets/Images/Cast/picture_150.png"],
+      lists: { assetsLayouts: { "Assets/Images/Cast": "portrait" }, assetsScrolls: { "image:Assets/Images/Cast:name-asc": saved } },
+    });
+    try {
+      await frames(page);
+      await frames(page);
+      const seen = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[role="list"]')!.parentElement!.getBoundingClientRect();
+        const tile = document.querySelector<HTMLElement>('[data-asset-path="Assets/Images/Cast/picture_150.png"]');
+        const box = tile?.getBoundingClientRect();
+        return { found: !!tile, inView: !!box && box.top >= scroller.top - 1 && box.top < scroller.bottom };
+      });
+      expect(seen).toEqual({ found: true, inView: true });
     } finally {
       await close(page);
     }

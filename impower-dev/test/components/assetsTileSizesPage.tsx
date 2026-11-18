@@ -8,6 +8,7 @@ type Setup = {
   width?: number;
   lists?: Record<string, unknown>;
   pictures?: number;
+  reveal?: readonly string[];
 };
 
 const picture = (index: number, width: number, height: number) => {
@@ -29,7 +30,7 @@ declare global {
 }
 
 window.assetsPage = {
-  mount: ({ width, lists = {}, pictures = 3 }) => {
+  mount: ({ width, lists = {}, pictures = 3, reveal }) => {
     const files: Record<string, { modified: number; size: number; src: string }> = {
       "Assets/Images/Cast/Crew/one.png": { modified: Date.now() - 86_400_000, size: 900, src: picture(99, 300, 400) },
     };
@@ -51,6 +52,7 @@ window.assetsPage = {
       lists: { assetsFolders: { image: "Assets/Images/Cast" }, ...lists },
     };
     workspace.assetListing.value = { projectId: "p", files, folders: [] };
+    workspace.assetsReveal.value = reveal ?? null;
     const host = document.body.appendChild(document.createElement("div"));
     host.id = "host";
     host.className = "flex h-screen flex-col";

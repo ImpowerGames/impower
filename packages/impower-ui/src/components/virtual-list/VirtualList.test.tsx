@@ -374,4 +374,57 @@ describe("VirtualList listRef", () => {
     await act(async () => render(null, host!));
     expect(calls).toEqual(["element 1", "null 3"]);
   });
+
+  it("hands a list of rows its element in the first commit, with the rows' full extent already drawn", () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const heights: string[] = [];
+    render(
+      <VirtualList
+        label="Rows"
+        items={ITEMS}
+        getKey={(item) => item}
+        renderItem={(item) => <span>{item}</span>}
+        listRef={(element) => {
+          if (element) heights.push((element.firstElementChild as HTMLElement).style.height);
+        }}
+      />,
+      host,
+    );
+    expect(heights).toEqual([`${ITEMS.length * VIRTUAL_LIST_ROW_HEIGHT.default}px`]);
+  });
+
+  it("hands a grid its element only once the measured track's extent is drawn, so a saved offset is not clamped", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get() {
+        return this.getAttribute?.("role") === "list" ? 420 : 0;
+      },
+    });
+    try {
+      const heights: number[] = [];
+      render(
+        <VirtualList
+          label="Tiles"
+          items={ITEMS}
+          getKey={(item) => item}
+          renderItem={(item) => <span>{item}</span>}
+          grid={{ class: "track", height: (width: number) => width + 40 }}
+          style="--grid-min-width: 100px; --grid-gap: 10px"
+          listRef={(element) => {
+            if (element) heights.push(parseFloat((element.firstElementChild as HTMLElement).style.height));
+          }}
+        />,
+        host,
+      );
+      expect(heights).toEqual([]);
+      await act(async () => {});
+      const cell = 400 / 3;
+      const rows = Math.ceil(ITEMS.length / 3);
+      expect(heights).toHaveLength(1);
+      expect(heights[0]).toBeCloseTo(rows * (cell + 40) + (rows - 1) * 10);
+    } finally {
+      delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+    }
+  });
 });
