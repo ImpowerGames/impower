@@ -1,5 +1,5 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { imageThingsOf } from "@impower/sparkdown/src/attributes/imageFileName";
+import { assetNameOf, imageThingsOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { byRasterOrder, rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
 import { describe, expect, it } from "vitest";
 import { imageStacks, isStacked } from "../../src/modules/spark-editor/utils/imageStacks";
@@ -89,6 +89,21 @@ describe("the Assets page groups image files by the compiler's file-name rule", 
       "ava@night~face.happy.png": "Layer · face.happy · on night",
       "ava.v2.png": "Asset name collision · also provides ava",
     });
+  });
+});
+
+describe("a file whose @ or ~ has nothing on one side (#2262)", () => {
+  const PATHS = [`${P}/@foo.png`, `${P}/foo@.png`, `${P}/@.png`, `${P}/~foo.png`];
+
+  it("is a plain tile of one picture named as the compiler names it, with no alternate or variants", () => {
+    const stacks = imageStacks(PATHS);
+    expect(stacks.map((stack) => stack.name).sort()).toEqual(["@", "@foo", "foo@", "~foo"]);
+    for (const stack of stacks) {
+      expect(isStacked(stack)).toBe(false);
+      expect(stack.pictures.map((picture) => [picture.alternate, picture.variants])).toEqual([[null, 1]]);
+      expect(fileRows(stack, {}).map((row) => row.role)).toEqual(["Base"]);
+    }
+    expect(stacks.map((stack) => stack.name).sort()).toEqual(PATHS.map((path) => assetNameOf(path, "image")).sort());
   });
 });
 

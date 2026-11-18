@@ -38,7 +38,22 @@ export const stemOf = (path: string): string => {
   return dot > 0 ? leaf.slice(0, dot) : leaf;
 };
 
-export const thingNameOf = (name: string): string => name.split(/[@~]/)[0]!;
+const layerCutOf = (stem: string): number => {
+  const at = stem.indexOf("~");
+  return at > 0 ? at : -1;
+};
+
+const alternateCutOf = (picture: string): number => {
+  const at = picture.indexOf("@");
+  return at > 0 && at < picture.length - 1 ? at : -1;
+};
+
+export const thingNameOf = (name: string): string => {
+  const cut = layerCutOf(name);
+  const picture = cut < 0 ? name : name.slice(0, cut);
+  const at = alternateCutOf(picture);
+  return at < 0 ? picture : picture.slice(0, at);
+};
 
 export const stackNameOf = (base: string): string => {
   const dot = base.indexOf(".");
@@ -53,10 +68,10 @@ const layerOf = (part: string): { layer: string; order?: number } => {
 
 export const imageFileNameOf = (path: string): ImageFileName => {
   const stem = stemOf(path);
-  const cut = rasterLayerOfPath(path) ? -1 : stem.indexOf("~");
+  const cut = rasterLayerOfPath(path) ? -1 : layerCutOf(stem);
   const picture = cut < 0 ? stem : stem.slice(0, cut);
   const decoded = picture.replaceAll("%40", "@");
-  const at = decoded.indexOf("@");
+  const at = alternateCutOf(decoded);
   return {
     name: stackNameOf(picture),
     picture,
@@ -103,7 +118,7 @@ export const imageThingsOf = (paths: Iterable<string>): ImageThing[] => {
     const name = assetNameOf(path, "image");
     const picture = pictures.get(name) ?? {
       name,
-      alternate: name.includes("@") ? name.slice(name.indexOf("@") + 1) : null,
+      alternate: alternateCutOf(name) < 0 ? null : name.slice(alternateCutOf(name) + 1),
       duplicates: [],
       layers: [],
       unnumbered: [],
