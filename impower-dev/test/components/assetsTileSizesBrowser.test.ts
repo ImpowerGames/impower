@@ -387,7 +387,7 @@ describe("the Assets page's View menu and tile sizes, in Chromium (I-2462)", () 
     }
   }, 60_000);
 
-  it("keeps the latest position of a folder across a reload, saved while the folder stays open (I-2545)", async () => {
+  it("saves the latest position of a folder while it stays open, and a page opened on those lists opens there (I-2545)", async () => {
     const page = await open({
       width: 1440,
       pointer: "mouse",

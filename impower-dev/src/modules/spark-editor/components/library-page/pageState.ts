@@ -19,10 +19,21 @@ const STORED_FOLDER_LAYOUTS: readonly unknown[] = ["portrait", "landscape", "sma
 
 const isStoredFolderLayout = (value: unknown): value is StoredFolderLayout => STORED_FOLDER_LAYOUTS.includes(value);
 
-const setListState = (read: (lists: Lists) => Partial<Lists>) =>
-  void import("../../workspace/Workspace").then(({ Workspace }) =>
-    Workspace.window.setListState(read(workspace.state.peek().lists ?? {})),
-  );
+type Intents = typeof import("../../workspace/Workspace").Workspace;
+
+let intents: Intents | undefined;
+
+const loadIntents = () =>
+  import("../../workspace/Workspace").then(({ Workspace }) => (intents = Workspace));
+
+const setListState = (read: (lists: Lists) => Partial<Lists>) => {
+  const apply = (loaded: Intents) => loaded.window.setListState(read(workspace.state.peek().lists ?? {}));
+  if (intents) {
+    apply(intents);
+  } else {
+    void loadIntents().then(apply);
+  }
+};
 
 export function useTabQuery(
   key: QueriesKey,
@@ -109,13 +120,23 @@ export function useSavedScroll(key: ScrollsKey, tab: string) {
     settled.current = true;
   }, [key, tab]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    void loadIntents();
+    const leave = () => save.current();
+    const hide = () => {
+      if (document.visibilityState === "hidden") {
+        save.current();
+      }
+    };
+    window.addEventListener("pagehide", leave, true);
+    document.addEventListener("visibilitychange", hide, true);
+    return () => {
+      window.removeEventListener("pagehide", leave, true);
+      document.removeEventListener("visibilitychange", hide, true);
       save.current();
       attached.current?.removeEventListener("scroll", onScroll.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
   return useCallback((element: HTMLDivElement | null) => {
     if (element === attached.current) {

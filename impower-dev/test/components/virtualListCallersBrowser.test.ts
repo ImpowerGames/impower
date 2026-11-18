@@ -141,7 +141,7 @@ describe("the Scripts list keeps each folder's place (I-2545)", () => {
     }
   }, 60_000);
 
-  it("keeps a folder's latest position across a reload, saved while the folder stays open", async () => {
+  it("saves a folder's latest position while it stays open, and a page opened on those lists opens there", async () => {
     const page = await mountScripts({ scriptsScrolls: { [FOLDER_KEY]: 1000 } });
     let lists: Record<string, unknown> = {};
     try {

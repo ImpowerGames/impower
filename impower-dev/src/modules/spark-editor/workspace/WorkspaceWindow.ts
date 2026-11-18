@@ -250,6 +250,25 @@ export default class WorkspaceWindow {
     this.handleLayoutChange(layoutState.current());
     this._disposers.push(layoutState.subscribe(this.handleLayoutChange));
     this.connectRoutes();
+    this.persistOnLeave();
+  }
+
+  protected persistOnLeave() {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const flush = () => this.cacheProjectWorkspace.flush();
+    const hide = () => {
+      if (document.visibilityState === "hidden") {
+        flush();
+      }
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", hide);
+    this._disposers.push(() => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", hide);
+    });
   }
 
   protected _routesConnected = false;
