@@ -182,6 +182,7 @@ const ATTRIBUTE =
 const NTH_OF = /[ \t\r\n\f]+of(?=[ \t\r\n\f])/y;
 const CLOSE_AHEAD = /[ \t\r\n\f]*[)]/y;
 const SELECTOR_FUNCTION_BEFORE = /(?:^|[^\p{L}\p{N}_-])selector$/u;
+const WIDTH_FEATURE_BEFORE = /(?:^|[^\p{L}\p{N}_-])(?:min-|max-)?width:$/u;
 const ESCAPE_OR_AT = /\\[^]|@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "="]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
@@ -469,17 +470,10 @@ class SparkleSelectorWriter {
         declarations.pop();
       } else if (char === ":") {
         declarations[declarations.length - 1] = true;
-      } else if (char === "#") {
+      } else if (char === "#" || char === "@") {
         this.i++;
         out += char;
         continue;
-      }
-      if (char === "@") {
-        const state = this.match(STATE);
-        if (state) {
-          out += this.state(state[1]!).text;
-          continue;
-        }
       }
       if (char === "(" || char === ")" || char === ":") {
         this.i++;
@@ -488,7 +482,7 @@ class SparkleSelectorWriter {
       }
       const word = this.match(WORD);
       if (word) {
-        out += out.endsWith("width:") && this.closesNext() ? this.breakpoint(word[0]) : word[0];
+        out += WIDTH_FEATURE_BEFORE.test(out) && this.closesNext() ? this.breakpoint(word[0]) : word[0];
         continue;
       }
       out += this.token(char);
