@@ -155,6 +155,7 @@ const UI_DECLARATION_NODES = nodeNameSet([
   "LuauAnimation",
   "LuauTheme",
   "LuauFraming",
+  "LuauMorph",
 ]);
 const DEFINE_NODES = nodeNameSet(["LuauDefine"]);
 const UI_DEFINE_TYPES = new Set(["config", "color"]);
