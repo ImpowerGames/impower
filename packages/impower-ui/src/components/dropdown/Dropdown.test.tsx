@@ -1055,3 +1055,47 @@ describe("DropdownContent elevation", () => {
     expect(toolbar).not.toContain("shadow-float");
   });
 });
+
+describe("Dropdown item side inset", () => {
+  const mountInset = async (inset?: "default" | "narrow") => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <button type="button">Settings</button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownGroup heading="Step" inset={inset}>
+              <DropdownItem inset={inset}>Step forward</DropdownItem>
+            </DropdownGroup>
+            <DropdownCheckboxItem inset={inset} checked>
+              Follow cursor
+            </DropdownCheckboxItem>
+            <DropdownRadioGroup label="Scheme" value="dark">
+              <DropdownRadioItem value="dark" inset={inset}>
+                Dark
+              </DropdownRadioItem>
+            </DropdownRadioGroup>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    const trigger = host.querySelector("button")!;
+    trigger.focus();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    const rows = [...menu()!.querySelectorAll<HTMLElement>('[role^="menuitem"]')];
+    const heading = menu()!.querySelector<HTMLElement>('[role="group"] > :first-child')!;
+    return [...rows, heading].map((row) => row.className.split(" ").filter((name) => /^px-/.test(name)));
+  };
+
+  it("keeps the 12px default on every item and heading", async () => {
+    expect(await mountInset()).toEqual([["px-3"], ["px-3"], ["px-3"], ["px-3"]]);
+  });
+
+  it("gives every item and heading 10px when the caller asks for the narrow inset", async () => {
+    expect(await mountInset("narrow")).toEqual([["px-2.5"], ["px-2.5"], ["px-2.5"], ["px-2.5"]]);
+  });
+});

@@ -256,6 +256,7 @@ function StepEntries({ refusals, caretScript }: StepEntriesProps) {
             key={traversal}
             disabled={!!reason}
             onSelect={() => step(traversal)}
+            inset="narrow"
             class="min-h-14 gap-3 py-2"
           >
             <Icon class="shrink-0" />
@@ -272,6 +273,7 @@ function StepEntries({ refusals, caretScript }: StepEntriesProps) {
       <DropdownItem
         disabled={!caretScript}
         onSelect={() => caretScript && toggleBreakpoint(caretScript)}
+        inset="narrow"
         class="min-h-14 gap-3 py-2"
       >
         <BreakpointIcon class="shrink-0" />
@@ -413,8 +415,8 @@ function ColorSchemeSettings() {
   return (
     <>
       <DropdownSeparator />
-      <DropdownLabel variant="heading">Device color scheme</DropdownLabel>
-      <DropdownLabel class="pt-0 text-xs/[1.5] text-muted">
+      <DropdownLabel variant="heading" inset="narrow">Device color scheme</DropdownLabel>
+      <DropdownLabel inset="narrow" class="pt-0 text-xs/[1.5] text-muted">
         {PREVIEW_COLOR_SCHEME_DETAIL}
       </DropdownLabel>
       <DropdownRadioGroup
@@ -428,7 +430,7 @@ function ColorSchemeSettings() {
         }}
       >
         {PREVIEW_COLOR_SCHEMES.map((id) => (
-          <DropdownRadioItem key={id} value={id}>
+          <DropdownRadioItem key={id} value={id} inset="narrow" class={RADIO_ROW_LIKE_CHECKBOX_ROW}>
             <span class="group-data-[state=checked]:text-accent">
               {PREVIEW_COLOR_SCHEME_NAMES[id]}
             </span>
@@ -440,6 +442,8 @@ function ColorSchemeSettings() {
 }
 
 export const MORE_PREVIEW_SETTINGS = "More preview settings";
+
+const RADIO_ROW_LIKE_CHECKBOX_ROW = "gap-3 [&>[data-radio-indicator]]:size-[18px]";
 
 function SettingsMenu({
   mode,
@@ -473,7 +477,7 @@ function SettingsMenu({
       >
         {steps ? (
           <>
-            <DropdownGroup heading={STEP_GROUP}>
+            <DropdownGroup heading={STEP_GROUP} inset="narrow">
               <StepEntries {...steps} />
             </DropdownGroup>
             <DropdownSeparator />
@@ -494,6 +498,7 @@ function SettingsMenu({
                   : setPreference(key, next)
               }
               onSelect={(e) => e.preventDefault()}
+              inset="narrow"
               class="group min-h-14 items-center gap-3 py-2"
             >
               <CheckIcon class="text-accent invisible group-aria-checked:visible" />
@@ -509,7 +514,7 @@ function SettingsMenu({
           );
         })}
         {playsGame(mode) ? <ColorSchemeSettings /> : null}
-        {phone ? <AspectRatioSettings mode={mode} /> : null}
+        {phone ? <AspectRatioSettings mode={mode} inset="narrow" itemClass={RADIO_ROW_LIKE_CHECKBOX_ROW} /> : null}
         <DropdownItem
           onSelect={() => {
             if (document.fullscreenElement) {
@@ -517,6 +522,7 @@ function SettingsMenu({
             }
             window.location.assign(settingsSectionHref("preview-preferences"));
           }}
+          inset="narrow"
           class="mt-1 min-h-14 gap-3 rounded-t-none border-t border-solid border-edge py-2"
         >
           <SettingsIcon class="text-accent" />

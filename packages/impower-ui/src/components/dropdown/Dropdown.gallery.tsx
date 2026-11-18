@@ -242,6 +242,29 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
+      <GalleryRow label="Items, a heading and radio items with the narrow 10px side inset (the preview settings menu)">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Preview settings</Button>
+          </DropdownTrigger>
+          <DropdownContent align="start" class="min-w-[220px]">
+            <DropdownGroup heading="Step" inset="narrow">
+              <DropdownItem inset="narrow">
+                <PencilIcon />
+                Step forward
+              </DropdownItem>
+            </DropdownGroup>
+            <DropdownSeparator />
+            <DropdownCheckboxItem inset="narrow" checked>
+              Follow cursor
+            </DropdownCheckboxItem>
+            <DropdownRadioGroup label="Device color scheme" value="dark">
+              <DropdownRadioItem value="light" inset="narrow">Light</DropdownRadioItem>
+              <DropdownRadioItem value="dark" inset="narrow">Dark</DropdownRadioItem>
+            </DropdownRadioGroup>
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
       <GalleryRow label="Radio items whose chosen row keeps weight 400, only the check marking it (the Sort menus)">
         <DropdownRoot>
           <DropdownTrigger asChild>
