@@ -653,6 +653,46 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
     expect(formOf()).toBe("menu");
   });
 
+  const typedPress = (target: Element, press: string | null, click: string, detail: number) =>
+    act(async () => {
+      if (press) {
+        for (const type of ["pointerdown", "pointerup"]) {
+          target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: press, button: 0 }));
+        }
+      }
+      target.dispatchEvent(new PointerEvent("click", { bubbles: true, cancelable: true, pointerType: click, detail }));
+    });
+
+  it.each([
+    ["sheet", "a finger press, then a click typed touch with detail 0", "touch", "touch", 0],
+    ["sheet", "a finger press, then a click typed touch with detail 1", "touch", "touch", 1],
+    ["sheet", "a pen press, then a click typed pen with detail 0", "pen", "pen", 0],
+    ["sheet", "a click typed touch with detail 0 and no press recorded", null, "touch", 0],
+    ["sheet", "a finger press, then a click typed mouse with detail 1", "touch", "mouse", 1],
+    ["menu", "a mouse press, then a click typed mouse with detail 1", "mouse", "mouse", 1],
+    ["menu", "a click typed empty with detail 0", null, "", 0],
+  ] as const)("opens as a %s from %s", async (form, _case, press, click, detail) => {
+    await setPhone(true);
+    const { trigger } = await mount();
+    await typedPress(trigger, press, click, detail);
+    await settle(300);
+    expect(formOf()).toBe(form);
+  });
+
+  it("opens as a sheet from a finger tap whose click has detail 0 after a mouse click elsewhere on the page", async () => {
+    const { trigger } = await mount();
+    const elsewhere = document.body.appendChild(document.createElement("div"));
+    await act(async () => {
+      for (const type of ["pointerdown", "pointerup", "click"]) {
+        elsewhere.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: "mouse", button: 0, detail: 1 }));
+      }
+    });
+    await typedPress(trigger, "touch", "touch", 0);
+    await settle(300);
+    expect(formOf()).toBe("sheet");
+    elsewhere.remove();
+  });
+
   it("closes a menu that is not modal when a mouse presses its trigger, and does not reopen it on that press's click", async () => {
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>
