@@ -178,15 +178,15 @@ const STATE = /@([_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)/uy;
 const PSEUDO = /::?[\p{L}\p{N}_-]*/uy;
 const QUOTED = /"(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?/y;
 const ATTRIBUTE =
-  /#([_\p{L}][_\p{L}0-9-]*)?(?:([~|^$*]?=)("(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?|(?:\\,|[^\s"'`<>=:(){}[\],])*))?/uy;
+  /#([_\p{L}][_\p{L}0-9-]*)?(?:([~|^$*]?=)("(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?|(?:\\[^]|[^\s"'`<>=:(){}[\],\\])*))?/uy;
 const NTH_OF = /[ \t\r\n\f]+of(?=[ \t\r\n\f])/y;
 const CLOSE_AHEAD = /[ \t\r\n\f]*[)]/y;
 const SELECTOR_FUNCTION_BEFORE = /(?:^|[^\p{L}\p{N}_-])selector$/u;
-const UNESCAPED_AT = /(?<!\\)@/g;
+const ESCAPE_OR_AT = /\\[^]|@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "="]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
 
-const escapeAts = (text: string) => text.replace(UNESCAPED_AT, "\\@");
+const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
 
 class SparkleSelectorWriter {
   private i = 0;
@@ -433,7 +433,7 @@ class SparkleSelectorWriter {
 
   private prelude(atRule: string): string {
     let out = "";
-    let depth = 0;
+    const declarations: boolean[] = [false];
     let space = false;
     let atStart = true;
     while (this.i < this.src.length) {
@@ -442,7 +442,7 @@ class SparkleSelectorWriter {
         space = true;
         continue;
       }
-      if (char === ")" && depth === 0) {
+      if (char === ")" && declarations.length === 1) {
         break;
       }
       if (space) {
@@ -457,13 +457,18 @@ class SparkleSelectorWriter {
       }
       atStart = false;
       if (char === "(") {
-        if ((depth === 0 && atRule === "@scope") || SELECTOR_FUNCTION_BEFORE.test(out)) {
+        const scope = declarations.length === 1 && atRule === "@scope";
+        const condition =
+          atRule === "@supports" && !declarations[declarations.length - 1] && SELECTOR_FUNCTION_BEFORE.test(out);
+        if (scope || condition) {
           out += this.enclosed(() => this.list("selectors", false));
           continue;
         }
-        depth++;
+        declarations.push(false);
       } else if (char === ")") {
-        depth--;
+        declarations.pop();
+      } else if (char === ":") {
+        declarations[declarations.length - 1] = true;
       } else if (char === "#") {
         this.i++;
         out += char;

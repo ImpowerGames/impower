@@ -1,4 +1,4 @@
-text.source.sparkdown [0..525]
+text.source.sparkdown [0..574]
  ├─ meta.style.luau [0..12]
  │   ├─ keyword.control.style.luau [0..5]: "style"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
@@ -324,7 +324,38 @@ text.source.sparkdown [0..525]
  │       ├─ punctuation.whitespace.sd [519..521]: "  "
  │       └─ punctuation.definition.template-expression.end.sd [521..522]: "}"
  ├─ Newline [522..523]: "\n"
- ├─ meta.style.luau [523..524]
- │   └─ meta.embedded.block.luau [523..524]
- │       └─ punctuation.definition.template-expression.end.sd [523..524]: "}"
- └─ Newline [524..525]: "\n"
+ ├─ meta.style.luau [523..551]
+ │   └─ meta.embedded.block.luau [523..551]
+ │       ├─ punctuation.whitespace.sd [523..525]: "  "
+ │       ├─ entity.name.function.attribute.name.view.sd [525..526]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [526..528]: "is"
+ │       ├─ punctuation.definition.template-expression.begin.sd [528..529]: "("
+ │       ├─ variable.other.constant.attribute.style.sd [529..530]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [530..535]: "title"
+ │       ├─ keyword.operator.assignment.sd [535..536]: "="
+ │       ├─ string.unquoted.attribute.value.sd [536..542]: "blue\\\\"
+ │       ├─ keyword.operator.comma.sd [542..543]: ","
+ │       ├─ markup.raw.whitespace.separator.sd [543..544]: " "
+ │       ├─ entity.name.type.class.view.sd [544..548]: "card"
+ │       ├─ punctuation.definition.template-expression.end.sd [548..549]: ")"
+ │       ├─ punctuation.whitespace.sd [549..550]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [550..551]: "{"
+ ├─ Newline [551..552]: "\n"
+ ├─ meta.style.luau [552..567]
+ │   └─ meta.embedded.block.luau [552..567]
+ │       ├─ punctuation.whitespace.sd [552..556]: "    "
+ │       ├─ variable.other.property.define.sd [556..561]: "color"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [561..562]: " "
+ │       ├─ keyword.operator.assignment.sd [562..563]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [563..564]: " "
+ │       └─ string.unquoted.identifier.sd [564..567]: "red"
+ ├─ Newline [567..568]: "\n"
+ ├─ meta.style.luau [568..571]
+ │   └─ meta.embedded.block.luau [568..571]
+ │       ├─ punctuation.whitespace.sd [568..570]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [570..571]: "}"
+ ├─ Newline [571..572]: "\n"
+ ├─ meta.style.luau [572..573]
+ │   └─ meta.embedded.block.luau [572..573]
+ │       └─ punctuation.definition.template-expression.end.sd [572..573]: "}"
+ └─ Newline [573..574]: "\n"

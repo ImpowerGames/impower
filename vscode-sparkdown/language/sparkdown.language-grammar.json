@@ -9019,7 +9019,7 @@
     "UnquotedStyleAttributeValue": {
       "tag": "string",
       "name": "string.unquoted.attribute.value.sd",
-      "match": "((?:[\\\\][,]|(?!(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))|[,]).)+)"
+      "match": "((?:[\\\\].|(?!(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))|[,])[^\\\\\\r\\n])+)"
     },
     "UnquotedSelectorAttributeValue": {
       "match": "((?:(?!(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))).)+)",

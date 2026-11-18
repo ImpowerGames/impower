@@ -64,5 +64,4 @@ describe("the player's selector writer (#2502)", () => {
     list.innerHTML = '<div class="card"></div><div title="blue"></div><div></div>';
     const items = [...list.children];
     expect(items.map((e) => e.matches(write("@is(#title=blue, card)")))).toEqual([true, true, false]);
-  });
-});
+  });});
