@@ -178,9 +178,10 @@ const STATE = /@([_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)/uy;
 const PSEUDO = /::?[\p{L}\p{N}_-]*/uy;
 const QUOTED = /"(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?/y;
 const ATTRIBUTE =
-  /#([_\p{L}][_\p{L}0-9-]*)?(?:([~|^$*]?=)("(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?|[^\s"'`<>=:(){}[\]]*))?/uy;
+  /#([_\p{L}][_\p{L}0-9-]*)?(?:([~|^$*]?=)("(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?|(?:\\,|[^\s"'`<>=:(){}[\],])*))?/uy;
 const NTH_OF = /[ \t\r\n\f]+of(?=[ \t\r\n\f])/y;
 const CLOSE_AHEAD = /[ \t\r\n\f]*[)]/y;
+const SELECTOR_FUNCTION_BEFORE = /(?:^|[^\p{L}\p{N}_-])selector$/u;
 const UNESCAPED_AT = /(?<!\\)@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "="]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
@@ -272,8 +273,8 @@ class SparkleSelectorWriter {
         if (state) {
           const written = this.state(state[1]!);
           out += written.text;
-          if (written.prelude) {
-            out += this.prelude();
+          if (written.atRule) {
+            out += this.prelude(written.atRule);
           }
           continue;
         }
@@ -390,22 +391,22 @@ class SparkleSelectorWriter {
     return Object.prototype.hasOwnProperty.call(breakpoints, value) ? `${breakpoints[value]}px` : value;
   }
 
-  private state(name: string): { text: string; prelude?: boolean } {
+  private state(name: string): { text: string; atRule?: string } {
     const called = this.src[this.i] === "(";
     if (name === COLOR_SCHEME_STATE && called) {
       const { text, close } = this.argument(() => this.value());
       return this.options.colorScheme === "media"
-        ? { text: `@media(prefers-color-scheme:${text}${close}`, prelude: true }
+        ? { text: `@media(prefers-color-scheme:${text}${close}`, atRule: "@media" }
         : { text: `@${COLOR_SCHEME_STATE}(${text}${close}` };
     }
     const size = SIZE_STATES.get(name);
     if (size && called) {
       const { text, close } = this.argument(() => this.value());
-      return { text: `${size}${this.breakpoint(text)}${close}`, prelude: true };
+      return { text: `${size}${this.breakpoint(text)}${close}`, atRule: "@container" };
     }
     const atRule = AT_RULE_STATES.get(name);
     if (atRule) {
-      return { text: atRule, prelude: true };
+      return { text: atRule, atRule };
     }
     const alias = SELECTOR_STATE_ALIASES.get(name);
     if (alias) {
@@ -430,9 +431,9 @@ class SparkleSelectorWriter {
     return { text: called ? `@${name}${this.raw()}` : `@${name}` };
   }
 
-  private prelude(): string {
+  private prelude(atRule: string): string {
     let out = "";
-    let depth = 0;
+    const selectorGroups: boolean[] = [];
     let space = false;
     let atStart = true;
     while (this.i < this.src.length) {
@@ -441,7 +442,7 @@ class SparkleSelectorWriter {
         space = true;
         continue;
       }
-      if (char === ")" && depth === 0) {
+      if (char === ")" && selectorGroups.length === 0) {
         break;
       }
       if (space) {
@@ -455,10 +456,17 @@ class SparkleSelectorWriter {
         space = false;
       }
       atStart = false;
+      const inSelector = selectorGroups[selectorGroups.length - 1] ?? false;
       if (char === "(") {
-        depth++;
+        selectorGroups.push(
+          inSelector || (selectorGroups.length === 0 && atRule === "@scope") || SELECTOR_FUNCTION_BEFORE.test(out),
+        );
       } else if (char === ")") {
-        depth--;
+        selectorGroups.pop();
+      } else if (char === "#" && !inSelector) {
+        this.i++;
+        out += char;
+        continue;
       }
       if (char === "@") {
         const state = this.match(STATE);

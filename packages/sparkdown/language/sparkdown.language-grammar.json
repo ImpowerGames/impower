@@ -8269,6 +8269,9 @@
           "include": "#LuauComment"
         },
         {
+          "include": "#LuauSparkleElementClass"
+        },
+        {
           "include": "#SelectorPropertyNamePart"
         },
         {
@@ -8483,6 +8486,9 @@
       "patterns": [
         {
           "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauSparkleElementClass"
         },
         {
           "include": "#SelectorPropertyNamePart"
@@ -8721,7 +8727,7 @@
           "include": "#UnquotedStyleAttributeValue"
         }
       ],
-      "end": "(?=(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-])))"
+      "end": "(?=(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))|[,])"
     },
     "UnassignedStyleAttribute": {
       "match": "([#])((?:[_\\p{L}][0-9_\\p{L}-]*(?:[@][0-9_\\p{L}][0-9_\\p{L}-]*)*(?<![-])))?",
@@ -9013,7 +9019,7 @@
     "UnquotedStyleAttributeValue": {
       "tag": "string",
       "name": "string.unquoted.attribute.value.sd",
-      "match": "((?:(?!(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))).)+)"
+      "match": "((?:[\\\\][,]|(?!(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))|[,]).)+)"
     },
     "UnquotedSelectorAttributeValue": {
       "match": "((?:(?!(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))).)+)",

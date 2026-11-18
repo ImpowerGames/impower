@@ -58,4 +58,11 @@ describe("the player's selector writer (#2502)", () => {
     expect([card, note].map((e) => e!.matches(write("@has(icon)")))).toEqual([true, false]);
     expect([card, note].map((e) => e!.matches(write("@has(>icon)")))).toEqual([true, false]);
   });
+
+  it("matches an attribute alternative and a component alternative of one list", () => {
+    const list = document.createElement("div");
+    list.innerHTML = '<div class="card"></div><div title="blue"></div><div></div>';
+    const items = [...list.children];
+    expect(items.map((e) => e.matches(write("@is(#title=blue, card)")))).toEqual([true, true, false]);
+  });
 });

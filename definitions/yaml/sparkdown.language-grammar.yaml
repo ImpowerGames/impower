@@ -5183,6 +5183,7 @@ repository:
           - { include: "#Separator" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauSparkleElementClass" }
       - { include: "#SelectorPropertyNamePart" }
       - { include: "#ComponentName" }
       - { include: "#PunctuationComma" }
@@ -5330,6 +5331,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauSparkleElementClass" }
       - { include: "#SelectorPropertyNamePart" }
       - { include: "#ComponentName" }
       - { include: "#PunctuationComma" }
@@ -5440,7 +5442,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#UnquotedStyleAttributeValue" }
-    end: (?={{UNQUOTED_STRING_TERMINATOR}})
+    end: (?={{UNQUOTED_STRING_TERMINATOR}}|[,])
 
   UnassignedStyleAttribute:
     match: ([#])({{IDENTIFIER}})?
@@ -5601,7 +5603,7 @@ repository:
   UnquotedStyleAttributeValue:
     tag: string
     name: string.unquoted.attribute.value.sd
-    match: ((?:(?!{{UNQUOTED_STRING_TERMINATOR}}).)+)
+    match: ((?:[\\][,]|(?!{{UNQUOTED_STRING_TERMINATOR}}|[,]).)+)
 
   UnquotedSelectorAttributeValue:
     match: ((?:(?!{{UNQUOTED_STRING_TERMINATOR}}).)+)

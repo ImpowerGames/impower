@@ -70,6 +70,9 @@ export const PUNCTUATION_CASES: readonly [source: string, css: string][] = [
   ["#title=a+b", "[title=a+b]"],
   ['#title="x y"', '[title="x y"]'],
   ["#title='x y' @hovered", "[title='x y']:hover"],
+  ["@is(#title=blue, card)", ":is([title=blue],.card)"],
+  ["#title=a,b", "[title=a],.b"],
+  ["@nth-child(2n of item.big, icon)", ":nth-child(2n of .item.big,.icon)"],
 ];
 
 export const AT_RULE_CASES: readonly [source: string, css: string][] = [
@@ -86,6 +89,10 @@ export const AT_RULE_CASES: readonly [source: string, css: string][] = [
   ["@container style(--label:'width: sm )')", "@container style(--label:'width: sm )')"],
   ["@media (min-width: sm) and (max-width: md)", "@media(min-width:640px) and (max-width:md)"],
   ["@supports selector(:has(a, b))", "@supports selector(:has(a,b))"],
+  ["@supports (color: #fff)", "@supports(color:#fff)"],
+  ["@container style(--tint: #0af)", "@container style(--tint:#0af)"],
+  ["@supports selector(#open)", "@supports selector([open])"],
+  ["@supports selector(:has(#open))", "@supports selector(:has([open]))"],
 ];
 
 export const OBJECT_PROPERTY_NAME_CASES: readonly [source: string, css: string][] = [

@@ -20,4 +20,16 @@ style card {
   @nth-child-x(1) {
     color = red
   }
+  @nth-child(2n of item.big, icon) {
+    color = red
+  }
+  @is(item.big, icon) {
+    color = red
+  }
+  @is(#title=blue, card) {
+    color = red
+  }
+  @is(#title=blue\,icon) {
+    color = red
+  }
 }
