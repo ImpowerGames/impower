@@ -1,4 +1,4 @@
-import type { SyntaxNode } from "@lezer/common";
+import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 
 const LINE_PIECE = "LuauInterpolatedStringExpression";
 
@@ -29,12 +29,11 @@ const endsLine = (node: SyntaxNode): boolean => {
   return true;
 };
 
-export const isLineWords = (node: SyntaxNode): boolean =>
-  node.name === "TextChunk" ||
-  (node.name === LINE_PIECE &&
-    LINE_BODIES.has(node.parent?.name ?? "") &&
-    endsLine(node) &&
-    startsWithPiecesOnly(node));
+const isLinePieceWords = (node: SyntaxNode): boolean =>
+  LINE_BODIES.has(node.parent?.name ?? "") && endsLine(node) && startsWithPiecesOnly(node);
+
+export const isLineWords = (node: SyntaxNodeRef): boolean =>
+  node.name === "TextChunk" || (node.name === LINE_PIECE && isLinePieceWords(node.node));
 
 export const printedLineStart = (node: SyntaxNode): number => {
   if (!LINE_BODIES.has(node.parent?.name ?? "") || !startsWithPiecesOnly(node)) return node.from;

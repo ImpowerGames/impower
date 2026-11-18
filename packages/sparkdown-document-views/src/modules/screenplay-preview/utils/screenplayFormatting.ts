@@ -11,7 +11,7 @@ import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constant
 import type { FormattedText } from "../../../../../sparkdown-screenplay/src/types/FormattedText";
 import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/alternativeMarks";
 import { isLineWords, printedLineStart } from "../../../../../sparkdown-screenplay/src/utils/leadingLinePieces";
-import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
+import { blankLineTest, printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styleText";
 import {
   type PageInsert,
@@ -324,13 +324,12 @@ export const decorate = (
   const isLuauFlowBlockContainer = (name: string) =>
     /^LuauSparkdown[A-Za-z]*(Block|Clause|Loop)$/.test(name);
 
-  const isBlankLine = (nodeRef: SyntaxNodeRef) =>
-    printsAsBlankLine(nodeRef.name, nodeRef.node.parent?.name);
-
   const opensOwnLine = (nodeRef: SyntaxNodeRef) =>
     doc.lineAt(nodeRef.from).to < blockEnd(nodeRef);
 
   const tree = treeOverride ?? syntaxTree(state);
+
+  const isBlankLine = blankLineTest(tree);
 
   const { blankPositions, printed, actionStarts, inserts, rows, printedLines, runs, scenes, wrapStarts, names, titleRows } =
     cachedPageLayout(tree, doc, config, scenesBefore);
@@ -803,7 +802,7 @@ export const decorate = (
         } else if (last?.type === "dialogue") {
           last.to = to;
         }
-      } else if (isLineWords(nodeRef.node)) {
+      } else if (isLineWords(nodeRef)) {
         if (inDialogue) {
           const start = printedLineStart(nodeRef.node);
           const exported = exportedLinesFrom(start, to);
