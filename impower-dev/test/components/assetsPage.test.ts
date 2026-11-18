@@ -937,6 +937,44 @@ describe("selecting, moving and deleting", () => {
     workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P } } };
   });
 
+  it.each(["portrait", "landscape", "small"] as const)(
+    "selects from the mark, drops a tile on a folder tile, keeps the tab order and draws the overlays in %s tiles",
+    async (size) => {
+      setListing(
+        {
+          [`${P}/imani.png`]: facts(7001),
+          [`${P}/imani@night.png`]: facts(7002),
+          [`${P}/bunny.png`]: facts(7003),
+          [`${P}/Cast/ada.png`]: facts(7004),
+        },
+        [`${P}/Cast`],
+      );
+      workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P }, assetsLayouts: { [P]: size } } };
+      await mount();
+      const tiles = all<HTMLElement>('[role="listitem"] [data-tile]');
+      expect(tiles.map((tile) => tile.getAttribute("data-tile"))).toEqual([size, size, size]);
+      expect(all<HTMLElement>('[role="listitem"] button[aria-label^="Open"]').map((button) => button.getAttribute("aria-label")!.split(",")[0])).toEqual([
+        "Open folder Cast",
+        "Open image bunny",
+        "Open image imani",
+      ]);
+      expect(tiles[0]!.querySelector("[data-folder-cover]")).not.toBeNull();
+      expect(tiles[2]!.querySelector("[data-variants-badge]")!.getAttribute("aria-label")).toBe("2 variants");
+      const dataTransfer = { setData: () => {}, effectAllowed: "", dropEffect: "" };
+      const cast = host!.querySelector<HTMLElement>(`[data-drop-folder="${P}/Cast"]`)!;
+      await act(async () => {
+        host!.querySelector<HTMLElement>('button[aria-label^="Open image bunny"]')!.dispatchEvent(Object.assign(new Event("dragstart", { bubbles: true }), { dataTransfer }));
+        cast.dispatchEvent(Object.assign(new Event("dragover", { bubbles: true, cancelable: true }), { dataTransfer }));
+        cast.dispatchEvent(Object.assign(new Event("drop", { bubbles: true, cancelable: true }), { dataTransfer }));
+      });
+      await settle();
+      expect(assets.move).toHaveBeenLastCalledWith([`${P}/bunny.png`], `${P}/Cast`);
+      await check("imani");
+      expect(bar()).toBe("1 selected");
+      expect(mark("imani").closest("[data-tile]")!.getAttribute("data-tile")).toBe(size);
+    },
+  );
+
   it("enters selection from a tile's mark, counts, selects all and stops on Escape", async () => {
     await mount();
     expect(mark("imani").closest("[data-tile]")).not.toBeNull();
