@@ -50,6 +50,8 @@ export {
   DropdownItemText,
   DropdownCheckboxItem,
   DropdownLabel,
+  DropdownGroup,
+  type DropdownOpensAt,
   dropdownLabelVariants,
   type DropdownLabelVariant,
   DropdownRadioGroup,

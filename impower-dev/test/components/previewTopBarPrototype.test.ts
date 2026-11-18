@@ -196,6 +196,79 @@ describe("the preview top bar against the prototype", () => {
     expect(children.indexOf(balance!)).toBe(children.length - 2);
   });
 
+  describe("when the bar is too narrow for the Step slots", () => {
+    const sized = (barWidth: number) => {
+      const isBar = (element: Element) => element.getAttribute("aria-label") === "Playback controls";
+      return [
+        vi.spyOn(Element.prototype, "clientWidth", "get").mockImplementation(function (this: Element) {
+          return isBar(this) ? barWidth : 0;
+        }),
+        vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+          const width = this.tagName === "BUTTON" && this.closest('[aria-label="Playback controls"]') ? 44 : 0;
+          return { x: 0, y: 0, top: 0, left: 0, bottom: 44, right: width, width, height: width ? 44 : 0, toJSON: () => ({}) } as DOMRect;
+        }),
+      ];
+    };
+
+    const stepEntries = (scope: HTMLElement) =>
+      Array.from(scope.querySelectorAll<HTMLElement>('[role="menuitem"]')).map((item) => [item.textContent, item.hasAttribute("data-disabled") || item.hasAttribute("disabled"), item.querySelector("svg")?.outerHTML]);
+
+    it("keeps the Step menu and its balance in the bar while they fit, and the cog menu without a Step group", async () => {
+      running();
+      const spies = sized(1000);
+      try {
+        const bar = await mount();
+        expect(bar.querySelector('[aria-label="Playback controls"]')!.hasAttribute("data-steps-folded")).toBe(false);
+        expect(bar.querySelector('[aria-label="Step"]')).not.toBeNull();
+        expect(bar.querySelector("[data-step-balance]")).not.toBeNull();
+        await act(async () => render(null, host!));
+        host!.remove();
+        host = undefined;
+        const { menu } = await openSettings();
+        expect(menu.querySelector('[role="group"][aria-labelledby]')).toBeNull();
+      } finally {
+        spies.forEach((spy) => spy.mockRestore());
+      }
+    });
+
+    it("moves the Step entries out of the bar into a Step group at the top of the cog menu, the same entries the Step menu lists", async () => {
+      running();
+      const wide = sized(1000);
+      let listed: ReturnType<typeof stepEntries>;
+      try {
+        const bar = await mount();
+        const step = bar.querySelector<HTMLElement>('[aria-label="Step"]')!;
+        step.focus();
+        await act(async () => {
+          step.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+        });
+        await settle(50);
+        listed = stepEntries(document.querySelector<HTMLElement>('[role="menu"]')!);
+        await act(async () => render(null, host!));
+        host!.remove();
+        host = undefined;
+        document.body.innerHTML = "";
+      } finally {
+        wide.forEach((spy) => spy.mockRestore());
+      }
+      const narrow = sized(300);
+      try {
+        const { menu } = await openSettings();
+        const bar = host!.querySelector<HTMLElement>('[aria-label="Playback controls"]')!;
+        expect(bar.hasAttribute("data-steps-folded")).toBe(true);
+        expect(bar.querySelector('[aria-label="Step"]')).toBeNull();
+        expect(bar.querySelector("[data-step-balance]")).toBeNull();
+        const group = menu.querySelector<HTMLElement>('[role="group"][aria-labelledby]')!;
+        expect(document.getElementById(group.getAttribute("aria-labelledby")!)!.textContent).toBe("Step");
+        expect(menu.firstElementChild).toBe(group);
+        expect(listed.map(([label]) => label)).toEqual(expect.arrayContaining([expect.stringMatching(/^Step Over/), expect.stringMatching(/^Toggle breakpoint/)]));
+        expect(stepEntries(group)).toEqual(listed);
+      } finally {
+        narrow.forEach((spy) => spy.mockRestore());
+      }
+    });
+  });
+
   it("keeps the mode chevron on a narrow pane and the same columns on both sides while running", async () => {
     await setPhone(true);
     running();

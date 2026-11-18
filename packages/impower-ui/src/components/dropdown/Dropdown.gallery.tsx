@@ -11,6 +11,7 @@ import {
 import {
   DropdownCheckboxItem,
   DropdownContent,
+  DropdownGroup,
   DropdownItem,
   DropdownLabel,
   DropdownRadioGroup,
@@ -46,6 +47,15 @@ function MenuItems() {
       <DropdownCheckboxItem checked={minimap} onCheckedChange={setMinimap}>
         Minimap {minimap ? "(checked)" : "(unchecked)"}
       </DropdownCheckboxItem>
+      <DropdownSeparator />
+      <DropdownGroup heading="Group heading">
+        <DropdownItem>
+          <PencilIcon /> Grouped item
+        </DropdownItem>
+        <DropdownItem disabled>
+          <TrashIcon /> Grouped item (disabled)
+        </DropdownItem>
+      </DropdownGroup>
       <DropdownSeparator />
       <DropdownLabel variant="heading">Heading variant</DropdownLabel>
       <RadioItems indicator="start" />
@@ -282,6 +292,7 @@ export const dropdownGallery: GalleryEntry = {
     "DropdownItemText",
     "DropdownCheckboxItem",
     "DropdownLabel",
+    "DropdownGroup",
     "DropdownRadioGroup",
     "DropdownRadioItem",
     "dropdownRadioItemVariants",

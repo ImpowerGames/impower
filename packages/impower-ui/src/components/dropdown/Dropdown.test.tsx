@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   DropdownCheckboxItem,
   DropdownContent,
+  DropdownGroup,
   DropdownItem,
   DropdownItemText,
   DropdownLabel,
@@ -781,6 +782,113 @@ describe("DropdownLabel variants", () => {
     expect(heading.getAttribute("role")).toBeNull();
     expect(heading.className).toContain("uppercase");
     expect(heading.className).toContain("text-muted");
+  });
+});
+
+describe("DropdownGroup", () => {
+  const mountGroup = async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <button type="button">Settings</button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownGroup heading="Step">
+              <DropdownItem>Step Over</DropdownItem>
+              <DropdownItem disabled>Step Out</DropdownItem>
+            </DropdownGroup>
+            <DropdownSeparator />
+            <DropdownItem>More settings</DropdownItem>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    return host.querySelector("button")!;
+  };
+
+  const groupOf = () => {
+    const group = menu()!.querySelector<HTMLElement>('[role="group"]')!;
+    const heading = document.getElementById(group.getAttribute("aria-labelledby")!)!;
+    return { group, heading };
+  };
+
+  it("names its group by the heading drawn above its items, and first focus lands on its first item", async () => {
+    const trigger = await mountGroup();
+    trigger.focus();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    const { group, heading } = groupOf();
+    expect(heading.textContent).toBe("Step");
+    expect(heading.className).toContain("uppercase");
+    expect(group.firstElementChild).toBe(heading);
+    expect([...group.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent)).toEqual(["Step Over", "Step Out"]);
+    expect(document.activeElement?.textContent).toBe("Step Over");
+  });
+
+  it("keeps the named group and its heading in the touch-opened sheet", async () => {
+    await setPhone(true);
+    const trigger = await mountGroup();
+    await tap(trigger);
+    await settle(50);
+    expect(sheetMenu()).not.toBeNull();
+    const { group, heading } = groupOf();
+    expect(heading.textContent).toBe("Step");
+    expect(group.firstElementChild).toBe(heading);
+    expect([...group.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent)).toEqual(["Step Over", "Step Out"]);
+  });
+});
+
+describe("a Dropdown that opens at its top", () => {
+  const mountSettings = async (opensAt?: "top") => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <button type="button">Settings</button>
+          </DropdownTrigger>
+          <DropdownContent opensAt={opensAt}>
+            <DropdownGroup heading="Step">
+              <DropdownItem disabled>Step Over</DropdownItem>
+              <DropdownItem>Toggle breakpoint</DropdownItem>
+            </DropdownGroup>
+            <DropdownRadioGroup label="Device color scheme" value="dark">
+              <DropdownRadioItem value="light">Light</DropdownRadioItem>
+              <DropdownRadioItem value="dark">Dark</DropdownRadioItem>
+            </DropdownRadioGroup>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    return host.querySelector("button")!;
+  };
+
+  it("focuses the first enabled entry, not the chosen option, when a finger opens its sheet", async () => {
+    await setPhone(true);
+    await tap(await mountSettings("top"));
+    await settle(50);
+    expect(sheetMenu()).not.toBeNull();
+    expect(document.activeElement?.textContent).toBe("Toggle breakpoint");
+    expect(menu()!.scrollTop).toBe(0);
+  });
+
+  it("focuses the first enabled entry when a mouse opens its menu", async () => {
+    await pointer(await mountSettings("top"), "mouse");
+    await settle(50);
+    expect(menu()).not.toBeNull();
+    expect(sheetMenu()).toBeNull();
+    expect(document.activeElement?.textContent).toBe("Toggle breakpoint");
+  });
+
+  it("keeps the chosen option as the sheet's first focus by default", async () => {
+    await setPhone(true);
+    await tap(await mountSettings());
+    await settle(50);
+    expect(document.activeElement?.textContent).toBe("Dark");
   });
 });
 

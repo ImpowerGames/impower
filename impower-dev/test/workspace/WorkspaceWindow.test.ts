@@ -3655,13 +3655,16 @@ describe("The preview's top bar in a narrow pane", () => {
     }
   });
 
-  it("carries the running bar's narrow-pane rules: equal side columns and the preview inset under 480px, and the mode trigger hidden under 360px", () => {
+  it("lays the bar out by the same rules stopped and running: the preview inset, and no gaps with a 4px inset and the mode trigger hidden under 360px", () => {
+    show({});
+    const stopped = [bar(), ...bar().children].map((element) => element.className);
     show({ running: true });
+    expect([bar(), ...bar().children].map((element) => element.className)).toEqual(stopped);
     const classes = bar().className.split(/\s+/);
     expect(classes).toEqual(
-      expect.arrayContaining(["group/bar", "px-2.5", "data-[running]:@max-[480px]:gap-0"]),
+      expect.arrayContaining(["px-2.5", "@max-[360px]:px-1", "@max-[360px]:gap-0"]),
     );
-    expect(classes).not.toContain("data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto]");
+    expect(stopped.join(" ")).not.toMatch(/data-\[running\]/);
     expect(classes).not.toContain("@max-[480px]:px-1");
     expect(modeTrigger().className.split(/\s+/)).toEqual(
       expect.arrayContaining(["@max-[480px]:w-11", "@max-[360px]:hidden"]),
