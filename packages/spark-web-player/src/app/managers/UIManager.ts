@@ -2054,7 +2054,13 @@ export default class UIManager extends Manager {
         }
         const content = instruction.content;
         if (!content) {
-          if (instruction.control === "hide") {
+          if (instruction.control === "show") {
+            for (const contentEl of [...imageEls, ...maskEls]) {
+              for (const pictureEl of Array.from(contentEl.children) as HTMLElement[]) {
+                placePicture(pictureEl, instruction.framing);
+              }
+            }
+          } else if (instruction.control === "hide") {
             for (const imageEl of imageEls) {
               for (const video of Array.from(imageEl.querySelectorAll("video"))) {
                 if (!hiddenMovies.includes(video)) {

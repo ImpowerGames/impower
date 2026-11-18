@@ -5159,6 +5159,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 targetAnimations.push(animation);
               }
             } else if (e.control === "show") {
+              if (framing) {
+                out.framing = framing;
+              }
               const showEvent = {
                 name: showWith,
                 after: showAfter,

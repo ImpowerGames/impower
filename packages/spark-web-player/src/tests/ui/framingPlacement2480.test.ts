@@ -42,6 +42,16 @@ scene start
   Moved left.
   [[show backdrop BG]]
   Back to the default.
+  [[show backdrop BG at right]]
+  Right again.
+  [[hide backdrop]]
+  Hidden.
+  [[show backdrop]]
+  Shown again.
+  [[show backdrop BG at left]]
+  Left again.
+  [[show backdrop]]
+  Still left.
 end
 `;
 
@@ -126,5 +136,22 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
   test("a show without at leaves the picture at the default framing, unplaced", async () => {
     const h = await played(3);
     expect(pictures(h.overlay, "backdrop").at(-1)).toEqual({ kind: "image", placed: {} });
+  });
+
+  test("showing a hidden layer again puts the picture it kept back at the default framing", async () => {
+    const h = await played(6);
+    const shown = pictures(h.overlay, "backdrop");
+    expect(shown.length).toBeGreaterThan(0);
+    for (const picture of shown) {
+      expect(picture).toEqual({ kind: "image", placed: {} });
+    }
+  });
+
+  test("showing a layer that was not hidden keeps its picture at its framing", async () => {
+    const h = await played(8);
+    expect(pictures(h.overlay, "backdrop").at(-1)).toEqual({
+      kind: "image",
+      placed: { translate: "calc(-0.5 * (100cqw - 100%)) 0px" },
+    });
   });
 });
