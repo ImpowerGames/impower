@@ -4,6 +4,7 @@ import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messag
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
+import { placePicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
   createCutsceneElement,
   createVideoElement,
@@ -2095,6 +2096,7 @@ export default class UIManager extends Manager {
                   content.src,
                   applyStyle,
                 );
+            placePicture(newSpanEl, instruction.framing);
             const videoEl = newSpanEl.querySelector("video");
             if (videoEl && video) {
               (videoEl as any).__sdMixer = {

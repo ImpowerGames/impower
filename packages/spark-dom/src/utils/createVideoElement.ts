@@ -45,11 +45,8 @@ export const createVideoElement = (
   el.setAttribute("image", imageNames);
   applyStyle(el, { [property]: background });
   const videoEl = createMovieElement(doc, video);
-  videoEl.style.setProperty("position", "absolute");
-  videoEl.style.setProperty("top", "0");
-  videoEl.style.setProperty("left", "50%");
+  videoEl.style.setProperty("display", "block");
   videoEl.style.setProperty("height", "100%");
-  videoEl.style.setProperty("transform", "translateX(-50%)");
   el.appendChild(videoEl);
   parent.appendChild(el);
   return el;

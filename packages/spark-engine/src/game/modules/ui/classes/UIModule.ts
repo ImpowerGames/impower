@@ -169,6 +169,7 @@ import {
 import {
   type MorphImageContent,
   type MorphLayerPlay,
+  type PictureFraming,
   type WriteImageInstruction,
   WriteImageMessage,
   type WriteImageMessageMap,
@@ -1772,6 +1773,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         void send({ key: ref.key, error: error instanceof Error ? error.message : String(error) });
       },
     );
+  }
+
+  getFraming(name: string | undefined): PictureFraming | undefined {
+    const framing = name ? this.context?.framing?.[name] : undefined;
+    if (!framing) {
+      return undefined;
+    }
+    const fraction = (value: string | number | undefined) => {
+      const parsed = typeof value === "string" && value.trim().endsWith("%") ? Number.parseFloat(value) / 100 : Number.NaN;
+      return Number.isFinite(parsed) ? parsed : 0.5;
+    };
+    const x = fraction(framing.x);
+    const y = fraction(framing.y);
+    const zoom = typeof framing.zoom === "number" && framing.zoom > 0 ? framing.zoom : 1;
+    return x === 0.5 && y === 0.5 && zoom === 1 ? undefined : { x, y, zoom };
   }
 
   imagePick(event: ImageInstruction, asset: string): ImagePick | undefined {
@@ -4836,6 +4852,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 with: event.with,
                 assets: event.assets,
                 over: 0,
+                ...(event.control === "show" && event.at ? { at: event.at } : {}),
                 ...(event.morph ? { morph: event.morph } : {}),
                 ...(event.speaker !== undefined ? { speaker: event.speaker } : {}),
                 ...(event.loop ? { loop: true } : {}),
@@ -4843,6 +4860,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 ...(event.mute ? { mute: true } : {}),
               });
             } else {
+              if (event.control === "hide") {
+                for (const e of state) {
+                  delete e.at;
+                }
+              }
               const changingVisibility = event.control !== "animate";
               const latestLayerVisibilityEvent = state.findLast(
                 (e) => !e.assets?.length && e.control !== "animate",
@@ -4890,12 +4912,32 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
       }
 
+      protected nextFraming(
+        e: ImageInstruction,
+        framing: PictureFraming | undefined,
+      ): PictureFraming | undefined {
+        if (e.assets?.length) {
+          return e.control === "show" ? $.getFraming(e.at) : framing;
+        }
+        return e.control === "hide" ? undefined : framing;
+      }
+
+      protected framingAfter(events: ImageInstruction[]) {
+        let framing: PictureFraming | undefined;
+        for (const e of events) {
+          framing = this.nextFraming(e, framing);
+        }
+        return framing;
+      }
+
       protected resolve(
         sequence: ImageInstruction[],
         instant: boolean,
+        framing?: PictureFraming,
       ): WriteImageInstruction[] {
         const instructions: WriteImageInstruction[] = [];
         for (const e of sequence) {
+          framing = this.nextFraming(e, framing);
           const out: WriteImageInstruction = { control: e.control };
           const targetAnimations: Animation[] = [];
           const affected: { target: string; animations: Animation[] }[] = [];
@@ -5101,6 +5143,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
             }
             out.content = content;
+            if (framing) {
+              out.framing = framing;
+            }
           } else {
             if (e.control === "hide") {
               const hideEvent = {
@@ -5158,6 +5203,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[] | null,
         instant: boolean,
         time?: number,
+        framing?: PictureFraming,
       ) {
         const targetEls = $.findElements(target, true);
         if (!sequence && $.knownEmpty("image", targetEls)) {
@@ -5184,7 +5230,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         await $.emitSettled(
           WriteImageMessage.type.request({
             target,
-            instructions: sequence ? this.resolve(sequence, instant) : [],
+            instructions: sequence ? this.resolve(sequence, instant, framing) : [],
             instant,
             ...(time != null ? { time } : {}),
             ...($.namesWriteElements(target, targetEls)
@@ -5215,9 +5261,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const sequence = events.map((event) =>
           event.assets?.length ? { ...event, speaker: speaker ?? "" } : event,
         );
+        const framing = this.framingAfter($._state.image?.[target] ?? []);
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time);
+          await this.applyChanges(target, sequence, instant, time, framing);
         }
       }
     }
