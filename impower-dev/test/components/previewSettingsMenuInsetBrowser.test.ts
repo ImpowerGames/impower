@@ -184,10 +184,20 @@ describe("the preview settings menu's rows take the prototype's 2px gap (I-2541)
     expectSettingsRhythm(boxes);
   }, 60_000);
 
-  it("spaces the sheet form's rows, the aspect-ratio group included, the same way at 430", async () => {
+  it("spaces the sheet form's rows, the folded Step and aspect-ratio groups included, the same way at 430", async () => {
     await setPhone(true);
     workspaceSettings.setPreference("previewMode", "game");
-    const boxes = await inBrowser(await openMenuMarkup(), 430, "charcoal", "phone", readBoxes);
+    const spies = runningInNarrowBar();
+    let markup: string;
+    try {
+      markup = await openMenuMarkup();
+    } finally {
+      spies.forEach((spy) => spy.mockRestore());
+      workspace.current = structuredClone(initial);
+    }
+    const boxes = await inBrowser(markup, 430, "charcoal", "phone", readBoxes);
+    expect(boxes.some((box) => box.name === "Step")).toBe(true);
+    expect(boxes.filter((box) => box.role === "menuitem").length).toBeGreaterThan(1);
     expect(boxes.some((box) => box.name === "Game aspect ratio")).toBe(true);
     expectSettingsRhythm(boxes);
     await setPhone(false);
