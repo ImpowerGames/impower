@@ -37,7 +37,7 @@ const gridShot = (): GridShot => {
 
 declare global {
   interface Window {
-    assetsPage: { mount: (setup: Setup) => void; lists: () => Record<string, unknown>; grid: () => GridShot; firstFrame?: GridShot; narrowAt: (width: number) => Promise<boolean | undefined> };
+    assetsPage: { mount: (setup: Setup) => void; reveal: (paths: readonly string[]) => void; lists: () => Record<string, unknown>; grid: () => GridShot; firstFrame?: GridShot; narrowAt: (width: number) => Promise<boolean | undefined> };
   }
 }
 
@@ -75,6 +75,9 @@ window.assetsPage = {
     requestAnimationFrame(() => {
       window.assetsPage.firstFrame = gridShot();
     });
+  },
+  reveal: (paths) => {
+    workspace.assetsReveal.value = paths;
   },
   grid: gridShot,
   narrowAt: (width) =>

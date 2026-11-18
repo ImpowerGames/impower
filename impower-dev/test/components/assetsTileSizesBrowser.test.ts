@@ -348,6 +348,55 @@ describe("the Assets page's View menu and tile sizes, in Chromium (I-2462)", () 
 
   const savedScrolls = (page: Page) => page.evaluate(() => window.assetsPage.lists().assetsScrolls as Record<string, number> | undefined);
 
+  const revealed = (page: Page, path: string) =>
+    page.evaluate((target) => {
+      const scroller = document.querySelector<HTMLElement>('[role="list"]')!.parentElement!.getBoundingClientRect();
+      const box = document.querySelector<HTMLElement>(`[data-asset-path="${target}"]`)?.getBoundingClientRect();
+      return { found: !!box, inView: !!box && box.top >= scroller.top - 1 && box.top < scroller.bottom };
+    }, path);
+
+  it.each([
+    { when: "pending when the page opens", width: 1440, height: 900, pointer: "mouse" as const, pending: true },
+    { when: "requested while the page is open", width: 1440, height: 900, pointer: "mouse" as const, pending: false },
+    { when: "pending when the page opens", width: 430, height: 932, pointer: "touch" as const, pending: true },
+  ])("opens another folder on a picture another surface added, its top in view over that folder's saved position, $when at $width (I-2545)", async ({ width, height, pointer, pending }) => {
+    const target = "Assets/Images/Cast/picture_150.png";
+    const page = await open({
+      width,
+      height,
+      pointer,
+      pictures: 240,
+      reveal: pending ? [target] : undefined,
+      lists: {
+        assetsFolders: { image: "Assets/Images/Cast/Crew" },
+        assetsLayouts: { "Assets/Images/Cast": "portrait" },
+        assetsScrolls: { [CAST_KEY]: 0 },
+      },
+    });
+    try {
+      if (!pending) {
+        await page.evaluate((path) => window.assetsPage.reveal([path]), target);
+      }
+      await page.waitForFunction(() => (window.assetsPage.lists().assetsFolders as Record<string, string>).image === "Assets/Images/Cast");
+      await frames(page);
+      await frames(page);
+      await page.waitForTimeout(200);
+      expect(await revealed(page, target)).toEqual({ found: true, inView: true });
+      const shown = await position(page);
+      expect(shown.scrollTop).toBeGreaterThan(0);
+      await press(page, '[aria-label="Parent folder"]', pointer);
+      await page.locator('[aria-label^="Open folder Cast"]').waitFor();
+      await frames(page);
+      await press(page, '[aria-label^="Open folder Cast"]', pointer);
+      await page.locator('[aria-label^="Open folder Cast"]').waitFor({ state: "detached" });
+      await frames(page);
+      await frames(page);
+      expect(await position(page)).toEqual(shown);
+    } finally {
+      await close(page);
+    }
+  }, 60_000);
+
   it.each([
     { width: 1440, height: 900, pointer: "mouse" as const },
     { width: 430, height: 932, pointer: "touch" as const },

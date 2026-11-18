@@ -73,8 +73,9 @@ const SCROLL_SAVE_INTERVAL = 500;
 
 const savedTop = (key: ScrollsKey, tab: string) => workspace.state.peek().lists?.[key]?.[tab] ?? 0;
 
-export function useSavedScroll(key: ScrollsKey, tab: string) {
+export function useSavedScroll(key: ScrollsKey, tab: string, reveal?: number) {
   const top = useRef(savedTop(key, tab));
+  const revealed = useRef(reveal);
   const attached = useRef<HTMLDivElement | null>(null);
   const shown = useRef({ key, tab });
   const settled = useRef(true);
@@ -111,14 +112,22 @@ export function useSavedScroll(key: ScrollsKey, tab: string) {
     if (shown.current.key !== key || shown.current.tab !== tab) {
       save.current();
       shown.current = { key, tab };
-      top.current = savedTop(key, tab);
-      if (attached.current) {
-        attached.current.scrollTop = top.current;
-        restored.current = { element: attached.current, key, tab };
+      const element = attached.current;
+      if (element && reveal !== undefined && reveal !== revealed.current) {
+        top.current = element.scrollTop;
+      } else {
+        top.current = savedTop(key, tab);
+        if (element) {
+          element.scrollTop = top.current;
+        }
+      }
+      if (element) {
+        restored.current = { element, key, tab };
       }
     }
+    revealed.current = reveal ?? revealed.current;
     settled.current = true;
-  }, [key, tab]);
+  }, [key, tab, reveal]);
 
   useEffect(() => {
     void loadIntents();
