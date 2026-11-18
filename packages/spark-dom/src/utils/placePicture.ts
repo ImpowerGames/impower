@@ -29,6 +29,7 @@ export const placePicture = (
   el: HTMLElement,
   framing: PictureFramingValues | undefined,
 ) => {
+  el.classList.toggle("framed", Boolean(framing));
   for (const [property, value] of Object.entries(getPicturePlacement(framing))) {
     if (value == null) {
       el.style.removeProperty(property);

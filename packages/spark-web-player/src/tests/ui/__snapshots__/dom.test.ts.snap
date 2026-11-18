@@ -640,23 +640,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -674,23 +688,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -3157,23 +3183,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -3191,23 +3231,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -5640,23 +5692,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -5674,23 +5740,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -8241,23 +8319,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -8275,23 +8367,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -10705,23 +10809,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -10739,23 +10857,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -13153,23 +13283,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -13187,23 +13331,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -15645,23 +15801,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -15679,23 +15849,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -18367,23 +18549,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -18401,23 +18597,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -21089,23 +21297,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -21123,23 +21345,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -23811,23 +24045,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -23845,23 +24093,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -26533,23 +26793,37 @@ spark-web-player #game .image {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   container-name: image;
   >* {
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: auto 100%;
     will-change: transform;
+    min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -26567,23 +26841,35 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
-  overflow: clip;
   container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
-    top: 0px;
-    right: -5000%;
-    bottom: 0px;
-    left: -5000%;
-    margin: 0px auto;
-    width: fit-content;
+    inset: 0px;
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
   }
-  >:empty {
+  >.framed {
+    right: -5000%;
+    left: -5000%;
+    margin: 0px auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
     right: 0px;
     left: 0px;
     width: auto;
@@ -28290,6 +28576,13 @@ spark-web-player #game .textstream_end {
                                 {
                                   "attrs": {
                                     "src": "https://example.com/hero.png",
+                                  },
+                                  "class": "object",
+                                  "tag": "img",
+                                },
+                                {
+                                  "attrs": {
+                                    "src": "https://example.com/shadow.png",
                                   },
                                   "class": "object",
                                   "tag": "img",

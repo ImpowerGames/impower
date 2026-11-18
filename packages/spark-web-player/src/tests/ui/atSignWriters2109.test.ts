@@ -205,7 +205,7 @@ describe("an @ name reaches every stylesheet writer whole (#2109)", () => {
   ])("selects the image layer named by %s", (selector, names) => {
     const css = getCSSSelector(selector, {});
     expect(atKeywordValues(css)).toEqual([]);
-    const layer = createImageElement(document.body, "background-image", "none", names, undefined, () => {});
+    const layer = createImageElement(document.body, "background-image", "none", names, [], () => {});
     expect(layer.matches(css)).toBe(true);
     layer.remove();
   });

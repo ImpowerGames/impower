@@ -9,6 +9,18 @@ define P as image with
   src = "https://example.com/p.png"
 end
 
+define NARROW as image with
+  src = "https://example.com/narrow.png"
+end
+
+define WIDE as image with
+  src = "https://example.com/wide.png"
+end
+
+define STACK as layered_image with
+  assets = { NARROW, WIDE }
+end
+
 framing sofa {
   x = 60%
   y = 100%
@@ -56,6 +68,8 @@ scene start
   Right once more.
   [[animate backdrop BG with shake]]
   Shaken.
+  [[show backdrop STACK at right]]
+  Stacked.
 end
 `;
 
@@ -93,7 +107,11 @@ const pictures = (overlay: HTMLElement, layer: string) => {
           placed[name] = style.getPropertyValue(name);
         }
       }
-      return { kind: (el.parentElement as HTMLElement).classList.contains("mask") ? "mask" : "image", placed };
+      return {
+        kind: (el.parentElement as HTMLElement).classList.contains("mask") ? "mask" : "image",
+        framed: el.classList.contains("framed"),
+        placed,
+      };
     },
   );
 };
@@ -115,15 +133,17 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
   test("show … at places the image and mask elements with translate and scale only", async () => {
     const h = await played(1);
     expect(pictures(h.overlay, "backdrop")).toEqual([
-      { kind: "image", placed: { translate: "calc(0.5 * (100cqw - 100%)) 0px" } },
+      { kind: "image", framed: true, placed: { translate: "calc(0.5 * (100cqw - 100%)) 0px" } },
     ]);
     expect(pictures(h.overlay, "portrait")).toEqual([
       {
         kind: "mask",
+        framed: true,
         placed: { translate: "calc(0.1 * (100cqw - 120%)) calc(0.5 * (100cqh - 120%))", scale: "1.2" },
       },
       {
         kind: "image",
+        framed: true,
         placed: { translate: "calc(0.1 * (100cqw - 120%)) calc(0.5 * (100cqh - 120%))", scale: "1.2" },
       },
     ]);
@@ -133,13 +153,14 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
     const h = await played(2);
     expect(pictures(h.overlay, "backdrop").at(-1)).toEqual({
       kind: "image",
+      framed: true,
       placed: { translate: "calc(-0.5 * (100cqw - 100%)) 0px" },
     });
   });
 
   test("a show without at leaves the picture at the default framing, unplaced", async () => {
     const h = await played(3);
-    expect(pictures(h.overlay, "backdrop").at(-1)).toEqual({ kind: "image", placed: {} });
+    expect(pictures(h.overlay, "backdrop").at(-1)).toEqual({ kind: "image", framed: false, placed: {} });
   });
 
   test("showing a hidden layer again puts the picture it kept back at the default framing", async () => {
@@ -147,7 +168,7 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
     const shown = pictures(h.overlay, "backdrop");
     expect(shown.length).toBeGreaterThan(0);
     for (const picture of shown) {
-      expect(picture).toEqual({ kind: "image", placed: {} });
+      expect(picture).toEqual({ kind: "image", framed: false, placed: {} });
     }
   });
 
@@ -156,14 +177,30 @@ describe("a layer's picture placed at its framing (I-2480)", () => {
     const shown = pictures(h.overlay, "backdrop");
     expect(shown.length).toBeGreaterThan(1);
     for (const picture of shown) {
-      expect(picture).toEqual({ kind: "image", placed: { translate: "calc(0.5 * (100cqw - 100%)) 0px" } });
+      expect(picture).toEqual({ kind: "image", framed: true, placed: { translate: "calc(0.5 * (100cqw - 100%)) 0px" } });
     }
+  });
+
+  test("a layered picture carries a hidden image for every layer, so its widest layer sizes it", async () => {
+    const h = await played(11);
+    const layer = h.overlay.querySelector(".backdrop > .image");
+    const stack = Array.from(layer?.querySelectorAll(":scope > .instance") ?? []).at(-1);
+    expect(Array.from(stack?.querySelectorAll(":scope > img.object") ?? []).map((img) => img.getAttribute("src"))).toEqual([
+      "https://example.com/narrow.png",
+      "https://example.com/wide.png",
+    ]);
+    expect(pictures(h.overlay, "backdrop").at(-1)).toEqual({
+      kind: "image",
+      framed: true,
+      placed: { translate: "calc(0.5 * (100cqw - 100%)) 0px" },
+    });
   });
 
   test("showing a layer that was not hidden keeps its picture at its framing", async () => {
     const h = await played(8);
     expect(pictures(h.overlay, "backdrop").at(-1)).toEqual({
       kind: "image",
+      framed: true,
       placed: { translate: "calc(-0.5 * (100cqw - 100%)) 0px" },
     });
   });

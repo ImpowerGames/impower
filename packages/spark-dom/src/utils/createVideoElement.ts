@@ -45,8 +45,6 @@ export const createVideoElement = (
   el.setAttribute("image", imageNames);
   applyStyle(el, { [property]: background });
   const videoEl = createMovieElement(doc, video);
-  videoEl.style.setProperty("display", "block");
-  videoEl.style.setProperty("height", "100%");
   el.appendChild(videoEl);
   parent.appendChild(el);
   return el;

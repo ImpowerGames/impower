@@ -1523,23 +1523,37 @@ style image {
   inset = 0
   isolation = isolate
   will_change = transform
-  overflow = clip
   container_type = size
   container_name = image
   > * {
     position = absolute
-    top = 0
-    right = -5000%
-    bottom = 0
-    left = -5000%
-    margin = 0 auto
-    width = fit-content
+    inset = 0
     background_position = center
     background_repeat = no-repeat
     background_size = auto 100%
     will_change = transform
+    min_width = 100%
+    > object {
+      position = absolute
+      top = 0
+      left = 50%
+      transform = translateX(-50%)
+    }
   }
-  > :empty {
+  > framed {
+    right = -5000%
+    left = -5000%
+    margin = 0 auto
+    width = fit-content
+    min_width = 0
+    > object {
+      position = relative
+      display = block
+      left = 0
+      transform = none
+    }
+  }
+  > framed:empty {
     right = 0
     left = 0
     width = auto
@@ -1559,23 +1573,35 @@ style mask {
   inset = 0
   isolation = isolate
   will_change = transform
-  overflow = clip
   container_type = size
   > * {
     mix_blend_mode = plus-lighter
     position = absolute
-    top = 0
-    right = -5000%
-    bottom = 0
-    left = -5000%
-    margin = 0 auto
-    width = fit-content
+    inset = 0
     mask_position = center
     mask_repeat = no-repeat
     mask_size = auto 100%
     will_change = transform
+    > object {
+      position = absolute
+      top = 0
+      left = 50%
+      transform = translateX(-50%)
+    }
   }
-  > :empty {
+  > framed {
+    right = -5000%
+    left = -5000%
+    margin = 0 auto
+    width = fit-content
+    > object {
+      position = relative
+      display = block
+      left = 0
+      transform = none
+    }
+  }
+  > framed:empty {
     right = 0
     left = 0
     width = auto
