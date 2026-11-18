@@ -33,6 +33,7 @@ export const Workspace = {
     watchFacts: nothing,
     watchPicture: nothing,
     requestDuration: nothing,
+    requestPicture: nothing,
     measureDurations: none,
   },
   window: {
