@@ -209,6 +209,28 @@ describe("The Assets page's last differences from the Folio prototype (I-2544)",
     });
   });
 
+  it("returns focus without a ring to the View and Add buttons after a finger closes their sheets", async () => {
+    const page = await open({ width: 430, touch: true });
+    try {
+      await page.locator(VIEW).tap();
+      await settle(page);
+      expect(await page.locator('[role="dialog"] [role="menu"]').count()).toBe(1);
+      await page.locator('[role="menuitemradio"]', { hasText: "Small tiles" }).tap();
+      await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), undefined, { timeout: 4000 });
+      await settle(page);
+      expect(await focusOf(page, VIEW)).toEqual({ focused: true, ring: false });
+      await page.locator(ADD).tap();
+      await settle(page);
+      expect(await page.locator('[role="dialog"] [role="menu"]').count()).toBe(1);
+      await page.touchscreen.tap(215, 60);
+      await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), undefined, { timeout: 4000 });
+      await settle(page);
+      expect(await focusOf(page, ADD)).toEqual({ focused: true, ring: false });
+    } finally {
+      await close(page);
+    }
+  });
+
   it("returns focus without a ring to the preview settings button after a click outside its menu, and with one after Escape from the keyboard", async () => {
     const page = await openPage(browser, previewScript, previewCss, { width: 1440 });
     const trigger = '[aria-label="Preview settings"]';
