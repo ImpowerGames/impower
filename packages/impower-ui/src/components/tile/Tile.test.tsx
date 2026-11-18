@@ -1,6 +1,7 @@
 import { compile, optimize } from "@tailwindcss/node";
 import { render } from "preact";
 import { act } from "preact/test-utils";
+import { existsSync } from "node:fs";
 import { chromium } from "playwright";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { edgeTreatment } from "../../../test/fadeEdge";
@@ -15,6 +16,8 @@ afterEach(async () => {
     host = undefined;
   }
 });
+
+const inBrowser = it.skipIf(!existsSync(chromium.executablePath()));
 
 const SIZES: readonly TileSize[] = ["portrait", "landscape", "small"];
 
@@ -42,7 +45,7 @@ const gridTracks = async (layout: "desktop" | "compact" | "phone", page: number)
 };
 
 describe("Tile", () => {
-  it("lays its grid out at the prototype's narrower minimums and gaps below desktop, whatever the page's width", async () => {
+  inBrowser("lays its grid out at the prototype's narrower minimums and gaps below desktop, whatever the page's width", async () => {
     for (const layout of ["compact", "phone"] as const) {
       for (const page of [400, 820]) {
         expect(await gridTracks(layout, page)).toEqual({
@@ -54,7 +57,7 @@ describe("Tile", () => {
     }
   }, 60_000);
 
-  it("lays its grid out at the prototype's desktop minimums, tightening Portrait and Landscape in a page 440 wide or less inside its gutters", async () => {
+  inBrowser("lays its grid out at the prototype's desktop minimums, tightening Portrait and Landscape in a page 440 wide or less inside its gutters", async () => {
     const wide = { portrait: ["138px", "12px"], landscape: ["176px", "12px"], small: ["96px", "8px"] };
     const narrow = { portrait: ["140px", "12px"], landscape: ["150px", "12px"], small: ["96px", "8px"] };
     expect(await gridTracks("desktop", 960)).toEqual(wide);
@@ -63,7 +66,7 @@ describe("Tile", () => {
     expect(await gridTracks("desktop", 400)).toEqual(narrow);
   }, 60_000);
 
-  it("renders each size at exactly the height tileHeight gives it, so the classes and the numbers describe one tile", async () => {
+  inBrowser("renders each size at exactly the height tileHeight gives it, so the classes and the numbers describe one tile", async () => {
     host = document.body.appendChild(document.createElement("div"));
     const widths = [96, 141, 194];
     await act(async () =>
