@@ -79,7 +79,7 @@ agent or a second breakpoint.
 ### The rail, the bars and the dock
 
 - **The rail** (`desktop-shell/ShellRail.tsx`): links to Story, Assets and Share, the
-  Settings index under them on the Settings page, and the save status at its foot.
+  Settings index under them on the Settings page, and the app menu at its foot (`AppMenu.tsx`), labelled with the save status, which holds Settings.
   Its width is stored in the workspace (`shell.railWidth`, `shell.railCompactWidth`)
   and bounded by `workspace/railWidths.ts`.
 - **The top bar** (`desktop-shell/TopBar.tsx`): the project name field

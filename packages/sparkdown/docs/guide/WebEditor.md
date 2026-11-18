@@ -10,8 +10,10 @@ script from any of them:
 - **Share**: exporting your game and your screenplay.
 - **Settings**: how the editor looks and behaves, and your project's own preferences.
 
-On a computer these are in the rail down the left side. On a phone they are in the
-bar along the bottom, and Settings is in the menu at the top right.
+Story, Assets and Share are in the rail down the left side on a computer, and in the
+bar along the bottom on a phone; Scripts opens from Story. Settings is in the app
+menu: on a computer, press the save status at the foot of the rail (it says *Saved
+locally* in the pictures); on a phone, press the menu button at the top right.
 
 The pictures below show a small sample project at two sizes: a computer screen 1440
 pixels wide and a phone 430 pixels wide.
@@ -23,7 +25,8 @@ pixels wide and a phone 430 pixels wide.
 ![The Story page on a phone: the project name and a menu at the top, a Your game strip with a Play button, the script, an Edit button, and the Story, Assets and Share tabs at the bottom](./images/web-editor/story-430.png)
 
 Story is where you write. The script fills the middle of the screen, and its name is
-at the top, with **Browse scripts** to open the Scripts page.
+at the top, with **Browse scripts** to open the Scripts page and a button to show or
+hide line numbers.
 
 - **Outline** lists the scenes, branches and choices of the script you are in. Pick
   one to jump to it. Its search button opens Find, which also renames a name
@@ -55,7 +58,9 @@ game and starts it from that line.
 Scripts lists every script in your project. **Main** is pinned at the top: it is
 where your story starts. Use **New** to add a script, the search box to find one, and the
 sort button to order them by name, date, size, how often they are used or the order
-the story reaches them. Each script's menu renames, moves, duplicates or deletes it; a script with a problem shows an
+the story reaches them. Each script's menu renames, moves, duplicates, downloads or
+deletes it, except Main's, which only duplicates or downloads it, since your story
+always starts there; a script with a problem shows an
 icon beside its name. **Back to story** returns to the script you were writing.
 
 On a phone, the **In this script** tab is the outline of the script you were
@@ -95,8 +100,8 @@ Settings has two halves. **Editor preferences** belong to you and this browser:
 
 - **Appearance**: the theme, and how the editor's surfaces and the script's colours
   look. Automatic follows your device's light or dark setting.
-- **Script editor**: what the script shows (bold names, tinted dialogue, line
-  numbers, indent guides) and how it helps (suggestions as you type, renaming linked
+- **Script editor**: what the script shows (bold names, tinted dialogue, italic
+  comments, indentation guides) and how it helps (suggestions as you type, renaming linked
   files).
 - **Keyboard shortcuts**: which keys do what.
 - **Preview**: how the game preview plays.
