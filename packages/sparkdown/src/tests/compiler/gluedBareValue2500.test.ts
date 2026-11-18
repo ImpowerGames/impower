@@ -88,6 +88,22 @@ const PROSE: [string[], { errors: string[]; warnings: string[]; out: string }][]
   [["Count .. plural 3 apples | or more .. today."], { errors: [], warnings: [], out: "Count .. plural 3 apples | or more .. today.\n" }],
 ];
 
+const STYLED_PROSE: string[] = [
+  "Wait .. match **the colours** | or not .. then go.",
+  "Wait .. match *the colours* | or not .. then go.",
+  "Wait .. match `the colours` | or not .. then go.",
+  'Wait .. match {"the colours"} | or not .. then go.',
+  "Wait .. plural *forms* | are hard .. to learn.",
+];
+
+const STYLED_CONTEXTS: [string, (line: string) => string[]][] = [
+  ["an action", (line) => [line]],
+  ["a dialogue line", (line) => [`@ Bob: ${line}`]],
+  ["a dialogue block", (line) => ["@ Bob", `  ${line}`]],
+  ["a choice", (line) => ["choose", `  + ${line}`, "    Done.", "end"]],
+  ["a multi-line cycle arm", (line) => ["cycle", `| ${line}`, "| B.", "end"]],
+];
+
 describe("a glued match or plural with a bare value is reported, asking for brackets (#2500)", () => {
   test.each(BARE)("%s is reported once, on its value, and plays as on main", (_, line, keyword, value, out) => {
     const text = scene(line);
@@ -118,6 +134,14 @@ describe("a glued match or plural with a bare value is reported, asking for brac
     expect(bracketDiagnostics(scene(...lines))).toEqual([]);
     expect(play(scene(...lines))).toEqual(result);
   });
+
+  test.each(STYLED_CONTEXTS.flatMap(([where, wrap]) => STYLED_PROSE.map((line) => [where, line, wrap(line)] as const)))(
+    "styled or interpolated prose in %s, %s, is not reported (6978928707)",
+    (_, __, lines) => {
+      expect(bracketDiagnostics(scene(...lines))).toEqual([]);
+      expect(play(scene(...lines)).errors).toEqual([]);
+    },
+  );
 
   test.each([
     ["Wait .. plural forms | are hard .. to learn.", "forms"],

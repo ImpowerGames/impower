@@ -47,7 +47,8 @@ function skipSpaces(node: SyntaxNode | null, forward: boolean, ctx: LowerContext
 }
 
 function isValuePart(node: SyntaxNode, ctx: LowerContext): boolean {
-  return node.name !== "Glue" && !isSpace(node, ctx) && !isMark(node, "|", ctx);
+  if (node.name === "Word") return true;
+  return node.name === "Punctuation" && !isSpace(node, ctx) && !isMark(node, "|", ctx);
 }
 
 function unbrokenValueEnd(first: SyntaxNode, ctx: LowerContext): SyntaxNode | null {
