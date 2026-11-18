@@ -205,14 +205,29 @@ describe("the strip follows the picture where the syntax says otherwise", () => 
     expect({ label: strip.label, words: strip.words }).toEqual({ label: "KING ARTHUR", words: "Hail!" });
   }, 120_000);
 
-  test("a beat that is only a write line describes no words, so the strip is blank", async () => {
-    const { described, strip } = await previewAt(
-      "scene start\n  Rain falls.\n  @clock: 12:00\n  The door opens.\nend\n",
-      2,
+  test("a beat that is only a write line is labelled WRITE with its target and value as the words", async () => {
+    const { described, picture, strip } = await previewAt(
+      'define ui as config with\n  layouts_initial = { "textbox", "hud" }\nend\n\nlayout hud {\n  clock {\n    text\n  }\n}\n\nscene start\n  Rain falls.\n  @clock: 12:00\n  The door opens.\nend\n',
+      12,
     );
-    expect(described).toEqual({ kind: null, words: "" });
-    expect({ label: strip.label, words: strip.words }).toEqual({ label: "", words: "" });
+    expect(picture).toContain("12:00");
+    expect(described).toEqual({ kind: null, words: "", write: { target: "clock", value: "12:00" } });
+    expect({ label: strip.label, words: strip.words }).toEqual({
+      label: "WRITE",
+      words: "clock: 12:00",
+    });
   }, 120_000);
+
+  test("a long written value is the strip's words in full", async () => {
+    const value =
+      "Twelve o'clock on the dot, the hour when the station clock stops for a full minute and nobody on the platform notices";
+    const { strip } = await previewAt(`scene start\n  Rain falls.\n  @clock: ${value}\nend\n`, 2);
+    expect({ label: strip.label, words: strip.words }).toEqual({
+      label: "WRITE",
+      words: `clock: ${value}`,
+    });
+  }, 120_000);
+
 
   test("a story line after a write line describes only its own story text", async () => {
     const { described, picture, strip } = await previewAt(
@@ -229,8 +244,15 @@ describe("the strip follows the picture where the syntax says otherwise", () => 
       "scene start\n  @clock: 12:00 ..\n  .. Rain falls.\nend\n",
       2,
     );
-    expect(described).toEqual({ kind: null, words: "" });
-    expect({ label: strip.label, words: strip.words }).toEqual({ label: "", words: "" });
+    expect(described).toEqual({
+      kind: null,
+      words: "",
+      write: { target: "clock", value: "12:00 Rain falls." },
+    });
+    expect({ label: strip.label, words: strip.words }).toEqual({
+      label: "WRITE",
+      words: "clock: 12:00 Rain falls.",
+    });
   }, 120_000);
 
   test("a menu without a caption lists only the options a condition lets through", async () => {

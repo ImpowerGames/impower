@@ -36,6 +36,7 @@ export interface ShownBeatDescription {
   speaker?: string;
   words: string;
   options?: string[];
+  write?: { target: string; value: string };
 }
 
 export interface GameStateBeat {
