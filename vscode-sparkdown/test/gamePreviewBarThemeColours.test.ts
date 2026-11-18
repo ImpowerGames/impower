@@ -63,6 +63,45 @@ const THEMES = {
   },
 } as const;
 
+const HOVER_THEMES = {
+  "Light Modern": {
+    vars: {
+      "--vscode-toolbar-hoverBackground": "rgba(184, 184, 184, 0.31)",
+      "--vscode-toolbar-activeBackground": "rgba(166, 166, 166, 0.31)",
+      "--vscode-editor-background": "#ffffff",
+      "--vscode-foreground": "#3b3b3b",
+    },
+    hover: "rgba(184, 184, 184, 0.31)",
+    active: "rgba(166, 166, 166, 0.31)",
+  },
+  "Dark Modern": {
+    vars: {
+      "--vscode-toolbar-hoverBackground": "rgba(90, 93, 94, 0.31)",
+      "--vscode-toolbar-activeBackground": "rgba(99, 102, 103, 0.31)",
+      "--vscode-editor-background": "#1f1f1f",
+      "--vscode-foreground": "#cccccc",
+    },
+    hover: "rgba(90, 93, 94, 0.31)",
+    active: "rgba(99, 102, 103, 0.31)",
+  },
+  "Dark High Contrast": {
+    vars: {
+      "--vscode-editor-background": "#000000",
+      "--vscode-foreground": "#ffffff",
+    },
+    hover: "color(srgb 1 1 1 / 0.12)",
+    active: "color(srgb 1 1 1 / 0.18)",
+  },
+  "Light High Contrast": {
+    vars: {
+      "--vscode-editor-background": "#ffffff",
+      "--vscode-foreground": "#292929",
+    },
+    hover: "color(srgb 0.160784 0.160784 0.160784 / 0.12)",
+    active: "color(srgb 0.160784 0.160784 0.160784 / 0.18)",
+  },
+} as const;
+
 type Theme = Record<string, string>;
 
 let browser: Browser;
@@ -118,6 +157,30 @@ const paint = async (html: string, theme: Theme | null) => {
   return result;
 };
 
+const pointAt = async (html: string, theme: Theme | null) => {
+  const page = await browser.newPage();
+  const vars = theme
+    ? Object.entries(theme)
+        .map(([name, value]) => `${name}: ${value};`)
+        .join(" ")
+    : "";
+  await page.setContent(
+    html
+      .replace(/<html([^>]*)>/, `<html$1 style="${vars}">`)
+      .replace("</head>", `<style>${PLAYER_CSS}</style></head>`)
+      .replace(/<spark-web-player([^>]*)><\/spark-web-player>/, `<spark-web-player$1>${BAR}</spark-web-player>`),
+  );
+  const background = () =>
+    page.evaluate(() => getComputedStyle(document.querySelector("#replay-beat-button")!).backgroundColor);
+  await page.hover("#replay-beat-button");
+  const hover = await background();
+  await page.mouse.down();
+  const active = await background();
+  await page.mouse.up();
+  await page.close();
+  return { hover, active };
+};
+
 const standalone = `<!DOCTYPE html><html><head></head><body><spark-web-player></spark-web-player></body></html>`;
 
 describe("the Game Preview bar takes its Run, Stop and border colours from the VS Code theme (I-2520)", () => {
@@ -161,6 +224,23 @@ describe("the Game Preview bar takes its Run, Stop and border colours from the V
     );
     await page.close();
     expect(stop).toBe(toRgb("#123456"));
+  });
+
+  it.each(Object.entries(HOVER_THEMES))(
+    "highlights a hovered and a pressed bar button with the toolbar colours of %s",
+    async (_, theme) => {
+      expect(await pointAt(template, theme.vars)).toEqual({
+        hover: theme.hover,
+        active: theme.active,
+      });
+    },
+  );
+
+  it("keeps the player's own hover and pressed colours where a host supplies none", async () => {
+    expect(await pointAt(standalone, null)).toEqual({
+      hover: "rgba(255, 255, 255, 0.12)",
+      active: "rgba(255, 255, 255, 0.18)",
+    });
   });
 
   it("puts no fixed dark theme class on the page", async () => {
