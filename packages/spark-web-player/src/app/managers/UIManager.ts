@@ -2099,7 +2099,7 @@ export default class UIManager extends Manager {
                   property,
                   content.background,
                   content.imageNames,
-                  content.sources ?? [],
+                  content.sources ?? (content.src ? [content.src] : []),
                   applyStyle,
                 );
             placePicture(newSpanEl, instruction.framing);
