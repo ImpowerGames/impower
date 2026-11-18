@@ -10,9 +10,9 @@ type Theme = "charcoal" | "chalk";
 const SIZES: readonly Size[] = ["Portrait tiles", "Landscape tiles", "Small tiles"];
 
 const PROTOTYPE = {
-  "Portrait tiles": { ratio: 4 / 3, padX: 8, chrome: 2 + 8 + 9 + 13 * 1.4 + 2 + 11 * 1.4 + 10, name: "13px", sub: true, dots: 34, dotsAt: 10, mark: 22, markAt: 14 },
-  "Landscape tiles": { ratio: 10 / 16, padX: 8, chrome: 2 + 8 + 9 + 13 * 1.4 + 2 + 11 * 1.4 + 10, name: "13px", sub: true, dots: 34, dotsAt: 10, mark: 22, markAt: 14 },
-  "Small tiles": { ratio: 1, padX: 5, chrome: 2 + 5 + 6 + 11 * 1.4 + 7, name: "11px", sub: false, dots: 28, dotsAt: 6, mark: 18, markAt: 9 },
+  "Portrait tiles": { ratio: 4 / 3, padX: 8, chrome: 2 + 8 + 9 + 13 * 1.4 + 2 + 11 * 1.4 + 10, name: "13px", sub: true, dots: 44, dotsAt: 10, mark: 22, markAt: 14 },
+  "Landscape tiles": { ratio: 10 / 16, padX: 8, chrome: 2 + 8 + 9 + 13 * 1.4 + 2 + 11 * 1.4 + 10, name: "13px", sub: true, dots: 44, dotsAt: 10, mark: 22, markAt: 14 },
+  "Small tiles": { ratio: 1, padX: 5, chrome: 2 + 5 + 6 + 11 * 1.4 + 7, name: "11px", sub: false, dots: 44, dotsAt: 6, mark: 18, markAt: 9 },
 } as const;
 
 const GRIDS: Record<"desktop" | "pane" | "narrow", Record<Size, { min: number; gap: number }>> = {
@@ -162,9 +162,8 @@ const checkGeometry = async (page: Page, size: Size, grids: Record<Size, { min: 
   expect(read.cellHeight).toBeCloseTo(read.open.height, 0);
   expect(read.name.size).toBe(spec.name);
   expect(read.sub === null || read.sub === "none" ? false : true).toBe(spec.sub);
-  const dots = pointer === "touch" ? 44 : spec.dots;
-  expect(read.dots.width).toBeCloseTo(dots, 1);
-  expect(read.dots.height).toBeCloseTo(dots, 1);
+  expect(read.dots.width).toBeCloseTo(spec.dots, 1);
+  expect(read.dots.height).toBeCloseTo(spec.dots, 1);
   expect(read.dots.top - read.tile.top).toBeCloseTo(spec.dotsAt, 1);
   expect(read.tile.right - read.dots.right).toBeCloseTo(spec.dotsAt, 1);
   expect(read.mark.width).toBeCloseTo(spec.mark, 1);

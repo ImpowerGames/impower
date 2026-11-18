@@ -109,8 +109,9 @@ describe("Tile", () => {
     expect(open.querySelector("small")!.className.split(" ")).toContain("hidden");
     expect(tile.querySelector("label")!.className.split(" ")).toEqual(expect.arrayContaining(["top-[9px]", "left-[9px]", "[&>span]:size-[18px]"]));
     expect(host.querySelector('[aria-label="Options for imani"]')!.parentElement!.className.split(" ")).toEqual(
-      expect.arrayContaining(["top-1.5", "right-1.5", "[&>button]:size-7", "[:root[data-pointer=coarse]_&]:[&>button]:size-11"]),
+      expect.arrayContaining(["top-1.5", "right-1.5", "[&>button]:size-11", "has-aria-expanded:opacity-100"]),
     );
+    expect(host.querySelector('[aria-label="Options for imani"]')!.parentElement!.className).not.toMatch(/size-7|size-\[34px\]|coarse\]_&\]:\[&>button\]/);
   });
 
   it("opens on a press, draws its media at its size with the badge in the corner, and keeps its menu beside the press", async () => {
