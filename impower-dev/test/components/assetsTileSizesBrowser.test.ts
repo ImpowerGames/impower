@@ -1,19 +1,11 @@
 // @vitest-environment node
-import { compile, optimize } from "@tailwindcss/node";
-import { build } from "esbuild";
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-
-const SRC = resolve("../packages/impower-ui/src");
-const PAGE = resolve("test/components/assetsTileSizesPage.tsx");
-const WORKSPACE = resolve("test/components/assetsTileSizesWorkspace.ts");
+import { bundlePage, frames, openPage, stylesFor } from "./pageBundle";
 
 type Size = "Portrait tiles" | "Landscape tiles" | "Small tiles";
 type Pointer = "mouse" | "touch";
 type Theme = "charcoal" | "chalk";
-type Layout = "desktop" | "compact" | "phone";
 
 const SIZES: readonly Size[] = ["Portrait tiles", "Landscape tiles", "Small tiles"];
 
@@ -39,37 +31,8 @@ let script: string;
 let css: string;
 
 beforeAll(async () => {
-  const bundle = await build({
-    entryPoints: [PAGE],
-    bundle: true,
-    write: false,
-    format: "iife",
-    conditions: ["development"],
-    jsx: "automatic",
-    jsxImportSource: "preact",
-    define: { "process.env.NODE_ENV": '"test"' },
-    alias: { react: "preact/compat", "react-dom": "preact/compat", "react/jsx-runtime": "preact/jsx-runtime" },
-    plugins: [
-      {
-        name: "workspace-intents",
-        setup(build) {
-          build.onResolve({ filter: /(^|\/)Workspace$/ }, () => ({ path: WORKSPACE }));
-          build.onResolve({ filter: /\.css$/ }, (args) => ({ path: args.path, namespace: "stylesheet" }));
-          build.onLoad({ filter: /.*/, namespace: "stylesheet" }, () => ({ contents: "", loader: "js" }));
-          build.onResolve({ filter: /\?raw$/ }, (args) => ({
-            path: resolve(args.resolveDir, args.path.slice(0, -"?raw".length)),
-            namespace: "raw",
-          }));
-          build.onLoad({ filter: /.*/, namespace: "raw" }, (args) => ({ contents: readFileSync(args.path, "utf8"), loader: "text" }));
-        },
-      },
-    ],
-    logLevel: "silent",
-  });
-  script = bundle.outputFiles[0]!.text;
-  const candidates = [...script.matchAll(/"([^"\r\n]*)"|`([^`]*)`/g)].flatMap((match) => (match[1] ?? match[2]!).split(/\s+/));
-  const compiler = await compile(readFileSync(join(SRC, "style.css"), "utf8"), { base: SRC, onDependency: () => {} });
-  css = optimize(compiler.build(candidates), { minify: false }).code;
+  script = await bundlePage("test/components/assetsTileSizesPage.tsx", "test/components/assetsTileSizesWorkspace.ts");
+  css = await stylesFor(script);
   browser = await chromium.launch();
 }, 180_000);
 
@@ -79,29 +42,14 @@ afterAll(async () => {
 
 type Open = { width: number; height?: number; pointer: Pointer; theme?: Theme; pane?: number; pictures?: number; lists?: Record<string, unknown> };
 
-const layoutOf = (width: number): Layout => (width > 1100 ? "desktop" : width > 700 ? "compact" : "phone");
-
 const open = async ({ width, height = 900, pointer, theme = "charcoal", pane, pictures, lists }: Open): Promise<Page> => {
-  const touch = pointer === "touch";
-  const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
-  const page = await context.newPage();
-  await page.route("http://assets.test/**", (route) =>
-    route.fulfill({
-      contentType: "text/html",
-      body: `<!doctype html><html data-theme="${theme}" data-layout="${layoutOf(width)}" data-pointer="${touch ? "coarse" : "fine"}"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head><body style="margin:0"></body></html>`,
-    }),
-  );
-  await page.goto("http://assets.test/");
-  await page.addScriptTag({ content: script });
+  const page = await openPage(browser, script, css, { width, height, touch: pointer === "touch", theme });
   await page.evaluate((setup) => window.assetsPage.mount(setup), { width: pane, pictures, lists });
   await page.locator('[role="listitem"] [data-tile]').first().waitFor();
   return page;
 };
 
 const close = (page: Page) => page.context().close();
-
-const frames = (page: Page) =>
-  page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
 
 const press = async (page: Page, selector: string, pointer: Pointer) => {
   const target = page.locator(selector).first();
