@@ -47,6 +47,7 @@ export {
   dropdownContentVariants,
   type DropdownContentElevation,
   DropdownItem,
+  type DropdownItemInset,
   DropdownItemText,
   DropdownCheckboxItem,
   DropdownLabel,

@@ -56,15 +56,19 @@ export function DropdownSeparator({ class: className }: { class?: string }) {
   );
 }
 
-export const dropdownLabelVariants = cva("px-3", {
+export const dropdownLabelVariants = cva("", {
   variants: {
+    inset: {
+      default: "px-3",
+      narrow: "px-2.5",
+    },
     variant: {
       default: "pt-2 pb-1.5 text-ink",
       heading:
         "pt-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted",
     },
   },
-  defaultVariants: { variant: "default" },
+  defaultVariants: { inset: "default", variant: "default" },
 });
 
 export type DropdownLabelVariant = NonNullable<
@@ -74,16 +78,18 @@ export type DropdownLabelVariant = NonNullable<
 export function DropdownLabel({
   class: className,
   variant,
+  inset,
   id,
   children,
 }: {
   class?: string;
   variant?: DropdownLabelVariant;
+  inset?: DropdownItemInset;
   id?: string;
   children?: ComponentChildren;
 }) {
   const ctx = useMenuCtx();
-  const classes = cn(dropdownLabelVariants({ variant }), className);
+  const classes = cn(dropdownLabelVariants({ inset, variant }), className);
   if (ctx.mode === "sheet") {
     return (
       <div id={id} class={classes}>
@@ -100,17 +106,19 @@ export function DropdownLabel({
 
 export function DropdownGroup({
   heading,
+  inset,
   class: className,
   children,
 }: {
   heading: string;
+  inset?: DropdownItemInset;
   class?: string;
   children?: ComponentChildren;
 }) {
   const ctx = useMenuCtx();
   const id = useId();
   const title = (
-    <DropdownLabel variant="heading" id={id}>
+    <DropdownLabel variant="heading" inset={inset} id={id}>
       {heading}
     </DropdownLabel>
   );
@@ -492,13 +500,28 @@ export function DropdownContent({
   );
 }
 
-const dropdownItem = cva([
-  "relative control-overlay rounded-control",
-  "flex min-h-11 w-full cursor-pointer flex-row items-center gap-3 px-3 py-2.5",
-  "text-[13px] text-ink select-none text-left [overflow-wrap:anywhere] [&_svg]:size-[18px]",
-  "disabled:pointer-events-none disabled:opacity-40",
-  "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
-]);
+export const dropdownItemVariants = cva(
+  [
+    "relative control-overlay rounded-control",
+    "flex min-h-11 w-full cursor-pointer flex-row items-center gap-3 py-2.5",
+    "text-[13px] text-ink select-none text-left [overflow-wrap:anywhere] [&_svg]:size-[18px]",
+    "disabled:pointer-events-none disabled:opacity-40",
+    "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
+  ],
+  {
+    variants: {
+      inset: {
+        default: "px-3",
+        narrow: "px-2.5",
+      },
+    },
+    defaultVariants: { inset: "default" },
+  },
+);
+
+export type DropdownItemInset = NonNullable<
+  VariantProps<typeof dropdownItemVariants>["inset"]
+>;
 
 type ItemAttributes = Omit<
   JSX.HTMLAttributes<HTMLElement>,
@@ -555,6 +578,7 @@ function SheetRow({
 
 export function DropdownItem({
   class: className,
+  inset,
   children,
   disabled,
   returnFocus = true,
@@ -562,6 +586,7 @@ export function DropdownItem({
   ...rest
 }: {
   class?: string;
+  inset?: DropdownItemInset;
   children?: ComponentChildren;
   disabled?: boolean;
   returnFocus?: boolean;
@@ -569,7 +594,7 @@ export function DropdownItem({
   onSelect?: (event: Event) => void;
 } & ItemAttributes) {
   const ctx = useMenuCtx();
-  const shared: SharedItemProps = { class: cn(dropdownItem(), className), disabled, ...rest };
+  const shared: SharedItemProps = { class: cn(dropdownItemVariants({ inset }), className), disabled, ...rest };
   if (ctx.mode === "sheet") {
     return (
       <SheetRow {...shared} role="menuitem" returnFocus={returnFocus} onSelect={(event) => onSelect?.(event)}>
@@ -594,6 +619,7 @@ export function DropdownItem({
 
 export function DropdownCheckboxItem({
   class: className,
+  inset,
   checked,
   disabled,
   onCheckedChange,
@@ -602,6 +628,7 @@ export function DropdownCheckboxItem({
   ...rest
 }: {
   class?: string;
+  inset?: DropdownItemInset;
   checked?: boolean;
   disabled?: boolean;
   onCheckedChange?: (checked: boolean) => void;
@@ -609,7 +636,7 @@ export function DropdownCheckboxItem({
   children?: ComponentChildren;
 } & ItemAttributes) {
   const ctx = useMenuCtx();
-  const shared: SharedItemProps = { class: cn(dropdownItem(), className), disabled, ...rest };
+  const shared: SharedItemProps = { class: cn(dropdownItemVariants({ inset }), className), disabled, ...rest };
   if (ctx.mode === "sheet") {
     return (
       <SheetRow
@@ -743,12 +770,14 @@ export function DropdownRadioItem({
   indicator,
   size,
   chosenWeight,
+  inset,
   disabled,
   class: className,
   children,
   ...rest
 }: {
   value: string;
+  inset?: DropdownItemInset;
   indicator?: DropdownRadioItemIndicator;
   size?: DropdownRadioItemSize;
   chosenWeight?: DropdownRadioItemChosenWeight;
@@ -759,7 +788,7 @@ export function DropdownRadioItem({
   const ctx = useMenuCtx();
   const radio = useContext(RadioContext);
   const shared: SharedItemProps = {
-    class: cn(dropdownItem(), dropdownRadioItemVariants({ indicator, size, chosenWeight }), className),
+    class: cn(dropdownItemVariants({ inset }), dropdownRadioItemVariants({ indicator, size, chosenWeight }), className),
     disabled,
     ...rest,
   };
