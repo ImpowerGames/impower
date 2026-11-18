@@ -352,6 +352,20 @@ describe("the Assets page's View menu and tile sizes, in Chromium (I-2462)", () 
     }
   }, 90_000);
 
+  it("calls a pane narrow only when its content box is 440 or less, fractions included", async () => {
+    const page = await open({ width: 1440, pointer: "mouse" });
+    try {
+      const narrowAt = (width: number) => page.evaluate((width) => window.assetsPage.narrowAt(width), width);
+      expect(await narrowAt(476.25)).toBe(false);
+      expect(await narrowAt(476.5)).toBe(false);
+      expect(await narrowAt(476)).toBe(true);
+      expect(await narrowAt(475.75)).toBe(true);
+      expect(await narrowAt(400)).toBe(true);
+    } finally {
+      await close(page);
+    }
+  }, 60_000);
+
   it.each(SIZES)("paints its first frame in a 400 pane with the pane's columns, so nothing jumps, in %s", async (size) => {
     const page = await open({
       width: 1440,

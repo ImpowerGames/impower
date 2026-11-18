@@ -1,5 +1,7 @@
 import { render } from "preact";
+import { useRef } from "preact/hooks";
 import Assets from "../../src/modules/spark-editor/components/assets";
+import { useNarrowPane } from "../../src/modules/spark-editor/components/assets/useNarrowPane";
 import { setAssetFiles } from "../../src/modules/spark-editor/utils/assetTypes";
 import { PROJECT_SETTINGS_SCHEMA } from "../../src/modules/spark-editor/workspace/settings/settingsSchema";
 import workspace from "../../src/modules/spark-editor/workspace/WorkspaceStore";
@@ -35,7 +37,7 @@ const gridShot = (): GridShot => {
 
 declare global {
   interface Window {
-    assetsPage: { mount: (setup: Setup) => void; lists: () => Record<string, unknown>; grid: () => GridShot; firstFrame?: GridShot };
+    assetsPage: { mount: (setup: Setup) => void; lists: () => Record<string, unknown>; grid: () => GridShot; firstFrame?: GridShot; narrowAt: (width: number) => Promise<boolean | undefined> };
   }
 }
 
@@ -75,5 +77,22 @@ window.assetsPage = {
     });
   },
   grid: gridShot,
+  narrowAt: (width) =>
+    new Promise((done) => {
+      const host = document.body.appendChild(document.createElement("div"));
+      function Probe() {
+        const body = useRef<HTMLDivElement | null>(null);
+        const narrow = useNarrowPane(body);
+        if (narrow !== undefined) {
+          requestAnimationFrame(() => {
+            done(narrow);
+            render(null, host);
+            host.remove();
+          });
+        }
+        return <div ref={body} style={`width:${width}px;padding:0 18px;box-sizing:border-box`} />;
+      }
+      render(<Probe />, host);
+    }),
   lists: () => ({ ...workspace.current.lists }),
 };

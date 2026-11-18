@@ -12,7 +12,8 @@ export function useNarrowPane(body: RefObject<HTMLElement>): boolean | undefined
     }
     const read = () => {
       const style = getComputedStyle(element);
-      const width = element.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+      const inset = ["paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"] as const;
+      const width = inset.reduce((rest, side) => rest - (parseFloat(style[side]) || 0), element.getBoundingClientRect().width);
       setNarrow(width > 0 && width <= NARROW_PANE_WIDTH);
     };
     read();
