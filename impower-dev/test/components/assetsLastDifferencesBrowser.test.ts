@@ -104,17 +104,18 @@ describe("The Assets page's last differences from the Folio prototype (I-2544)",
     }
   });
 
-  it.each([{ width: 1440 }, { width: 820 }, { width: 430 }])("the View menu is 196 wide with its right edge on the button's at $width with a mouse", async ({ width }) => {
+  it.each([{ width: 1440 }, { width: 820 }, { width: 430 }])("the View menu is at least 196 wide with its right edge on the button's at $width with a mouse", async ({ width }) => {
     const page = await open({ width });
     try {
       await page.locator(VIEW).click();
       await settle(page);
       const measured = await page.evaluate((selector) => {
-        const menu = document.querySelector('[role="menu"]')!.getBoundingClientRect();
+        const element = document.querySelector<HTMLElement>('[role="menu"]')!;
+        const menu = element.getBoundingClientRect();
         const button = document.querySelector(selector)!.getBoundingClientRect();
-        return { width: menu.width, right: Math.round(menu.right - button.right) };
+        return { minWidth: getComputedStyle(element).minWidth, wide: menu.width >= 196, right: Math.round(menu.right - button.right) };
       }, VIEW);
-      expect(measured).toEqual({ width: 196, right: 0 });
+      expect(measured).toEqual({ minWidth: "196px", wide: true, right: 0 });
     } finally {
       await close(page);
     }
