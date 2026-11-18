@@ -49,7 +49,7 @@ export const TILE_SIZES = {
       label: "text-[13px]/[1.4]",
       description: "",
       mark: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
-      actions: "top-2.5 right-2.5 [&>button]:size-[34px]",
+      actions: "top-2.5 right-2.5",
     },
   },
   landscape: {
@@ -68,7 +68,7 @@ export const TILE_SIZES = {
       label: "text-[13px]/[1.4]",
       description: "",
       mark: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
-      actions: "top-2.5 right-2.5 [&>button]:size-[34px]",
+      actions: "top-2.5 right-2.5",
     },
   },
   small: {
@@ -87,7 +87,7 @@ export const TILE_SIZES = {
       label: "text-[11px]/[1.4]",
       description: "hidden",
       mark: "top-[9px] left-[9px] [&>span]:size-[18px] [:root[data-pointer=coarse]_&]:after:-inset-[13px]",
-      actions: "top-1.5 right-1.5 [&>button]:size-7",
+      actions: "top-1.5 right-1.5",
     },
   },
 } as const satisfies Record<string, TileSizeSpec>;
@@ -187,13 +187,13 @@ export const tileDescriptionVariants = cva("min-w-0 text-[11px]/[1.4] text-muted
 });
 
 export const tileActionsVariants = cva(
-  "absolute z-10 flex rounded-full bg-bg/78 text-ink motion-safe:transition-opacity [&>button]:rounded-full [:root[data-pointer=coarse]_&]:[&>button]:size-11",
+  "absolute z-10 flex rounded-full bg-bg/78 text-ink motion-safe:transition-opacity [&>button]:size-11 [&>button]:rounded-full",
   {
     variants: {
       size: bySize("actions"),
       current: {
         true: "opacity-100",
-        false: "opacity-0 group-hover/tile:opacity-100 group-focus-within/tile:opacity-100 [:root[data-pointer=coarse]_&]:opacity-100",
+        false: "opacity-0 group-hover/tile:opacity-100 group-focus-within/tile:opacity-100 has-aria-expanded:opacity-100 [:root[data-pointer=coarse]_&]:opacity-100",
       },
     },
     defaultVariants: { size: "landscape", current: false },
