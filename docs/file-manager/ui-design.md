@@ -3,9 +3,9 @@
 The project's files are browsed on two pages: **Scripts** (`#scripts`) holds every
 script, and **Assets** (`#collection`) holds images, sounds, fonts and links. Both
 are folders inside the one project, scoped by the file types of Settings, File types;
-the storage, identity and protocol under them are described in
-[`web-file-manager-upgrade.md`](./web-file-manager-upgrade.md), and the shell around
-them in [`impower-dev/docs/architecture.md`](../../impower-dev/docs/architecture.md#the-shell-the-routes-and-the-layouts).
+the files are stored in the browser's private file system by the
+`packages/opfs-workspace` worker, reached through the `WorkspaceFileSystem`
+controller, and the shell around them is described in [`impower-dev/docs/architecture.md`](../../impower-dev/docs/architecture.md#the-shell-the-routes-and-the-layouts).
 
 ## Where it lives
 
