@@ -13,8 +13,12 @@ let script: string;
 let css: string;
 let previewScript: string;
 let previewCss: string;
+let scriptsScript: string;
+let scriptsCss: string;
 
 beforeAll(async () => {
+  scriptsScript = await bundlePage("test/components/scriptsPageScrollPage.tsx", "test/components/scriptsPageScrollWorkspace.ts");
+  scriptsCss = await stylesFor(scriptsScript);
   script = await bundlePage("test/components/assetsTileSizesPage.tsx", "test/components/assetsTileSizesWorkspace.ts");
   css = await stylesFor(script);
   previewScript = await bundlePage("test/components/previewTopBarPage.tsx", "test/components/assetsTileSizesWorkspace.ts");
@@ -56,7 +60,10 @@ const separatorsOf = (page: Page) =>
     const box = menu.getBoundingClientRect();
     return [...menu.querySelectorAll('[role="separator"]')].map((separator) => {
       const line = separator.getBoundingClientRect();
-      return { left: line.left - box.left, right: box.right - line.right, height: line.height };
+      const above = separator.previousElementSibling!.getBoundingClientRect().bottom;
+      const below = separator.nextElementSibling!.getBoundingClientRect().top;
+      const gap = (value: number) => Math.round(value * 10) / 10;
+      return { left: line.left - box.left, right: box.right - line.right, height: line.height, above: gap(line.top - above), below: gap(below - line.bottom) };
     });
   });
 
@@ -113,7 +120,7 @@ describe("The Assets page's last differences from the Folio prototype (I-2544)",
         const element = document.querySelector<HTMLElement>('[role="menu"]')!;
         const menu = element.getBoundingClientRect();
         const button = document.querySelector(selector)!.getBoundingClientRect();
-        return { minWidth: getComputedStyle(element).minWidth, wide: menu.width >= 196, right: Math.round(menu.right - button.right) };
+        return { minWidth: getComputedStyle(element).minWidth, wide: menu.width >= 196, right: Math.round(menu.right - button.right) || 0 };
       }, VIEW);
       expect(measured).toEqual({ minWidth: "196px", wide: true, right: 0 });
     } finally {
@@ -260,12 +267,24 @@ describe("The Assets page's last differences from the Folio prototype (I-2544)",
       try {
         await page.locator(SORT).click();
         await settle(page);
-        expect(await separatorsOf(page)).toEqual([{ left: 7, right: 7, height: 1 }]);
+        expect(await separatorsOf(page)).toEqual([{ left: 7, right: 7, height: 1, above: 6, below: 6 }]);
         await page.keyboard.press("Escape");
         await settle(page);
         await page.locator('[aria-label="Options for Crew"]').click();
         await settle(page);
-        expect(await separatorsOf(page)).toEqual([{ left: 7, right: 7, height: 1 }]);
+        expect(await separatorsOf(page)).toEqual([{ left: 7, right: 7, height: 1, above: 6, below: 6 }]);
+      } finally {
+        await close(page);
+      }
+    });
+
+    it("in the Scripts page's Sort menu, 4px from the rows on either side as the prototype's Scripts menus space it", async () => {
+      const page = await openPage(browser, scriptsScript, scriptsCss, { width: 1440 });
+      try {
+        await page.evaluate(() => window.scriptsPage.mount());
+        await page.locator(SORT).first().click({ timeout: 4000 });
+        await settle(page);
+        expect(await separatorsOf(page)).toEqual([{ left: 7, right: 7, height: 1, above: 4, below: 4 }]);
       } finally {
         await close(page);
       }
@@ -281,13 +300,13 @@ describe("The Assets page's last differences from the Folio prototype (I-2544)",
         expect(await menus.count()).toBeGreaterThan(1);
         await menus.first().click();
         await settle(page);
-        expect(await separatorsOf(page)).toEqual([{ left: 7, right: 7, height: 1 }]);
+        expect(await separatorsOf(page)).toEqual([{ left: 7, right: 7, height: 1, above: 6, below: 6 }]);
         await page.keyboard.press("Escape");
         await settle(page);
         await menus.nth(1).scrollIntoViewIfNeeded();
         await menus.nth(1).click();
         await settle(page);
-        expect(await separatorsOf(page)).toEqual([{ left: 7, right: 7, height: 1 }]);
+        expect(await separatorsOf(page)).toEqual([{ left: 7, right: 7, height: 1, above: 6, below: 6 }]);
       } finally {
         await close(page);
       }

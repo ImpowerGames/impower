@@ -50,23 +50,32 @@ const ModeContext = createContext<MenuCtx>({
 });
 const useMenuCtx = () => useContext(ModeContext);
 
-const dropdownSeparatorVariants = cva("my-1.5 h-px bg-edge", {
+const dropdownSeparatorVariants = cva("h-px bg-edge", {
   variants: {
     inset: {
       true: "",
       false: "-mx-1.5",
     },
+    spacing: {
+      default: "my-1.5",
+      tight: "my-1",
+    },
   },
-  defaultVariants: { inset: false },
+  defaultVariants: { inset: false, spacing: "default" },
 });
+
+export type DropdownSeparatorSpacing = NonNullable<
+  VariantProps<typeof dropdownSeparatorVariants>["spacing"]
+>;
 
 export function DropdownSeparator({
   inset,
+  spacing,
   class: className,
 }: VariantProps<typeof dropdownSeparatorVariants> & { class?: string }) {
   return (
     <DropdownMenuPrimitive.Separator
-      class={cn(dropdownSeparatorVariants({ inset }), className)}
+      class={cn(dropdownSeparatorVariants({ inset, spacing }), className)}
     />
   );
 }

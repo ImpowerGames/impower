@@ -8,6 +8,7 @@ import {
   DropdownRadioItem,
   DropdownRoot,
   DropdownSeparator,
+  type DropdownSeparatorSpacing,
   DropdownTrigger,
   SizeIcon,
   SortIcon,
@@ -38,10 +39,11 @@ export type SortMenuProps = {
   fields?: readonly SortField[];
   usesHint?: string;
   note?: string;
+  separatorSpacing?: DropdownSeparatorSpacing;
   onChange: (key: string) => void;
 };
 
-export default function SortMenu({ value, fields = ALL_FIELDS, usesHint, note, onChange }: SortMenuProps) {
+export default function SortMenu({ value, fields = ALL_FIELDS, usesHint, note, separatorSpacing, onChange }: SortMenuProps) {
   const label = sortLabel(value);
   const menu = sortMenu(value);
   const fieldKey = menu.fields.find((f) => f.checked)!.key;
@@ -78,7 +80,7 @@ export default function SortMenu({ value, fields = ALL_FIELDS, usesHint, note, o
             {note}
           </p>
         )}
-        <DropdownSeparator inset />
+        <DropdownSeparator inset spacing={separatorSpacing} />
         <DropdownLabel variant="heading">Order</DropdownLabel>
         <DropdownRadioGroup label="Order" value={directionKey} onValueChange={onChange}>
           {menu.directions.map((direction) => {

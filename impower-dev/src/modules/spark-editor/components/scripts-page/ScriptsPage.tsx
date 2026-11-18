@@ -355,6 +355,7 @@ function AllScripts() {
             )}
             <SortMenu
               value={sort}
+              separatorSpacing="tight"
               usesHint={USES_HINT}
               onChange={(key) =>
                 void intents().then((Workspace) => Workspace.window.setListState({ scriptsSort: key }))

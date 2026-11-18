@@ -47,7 +47,7 @@ function MenuItems() {
       <DropdownCheckboxItem checked={minimap} onCheckedChange={setMinimap}>
         Minimap {minimap ? "(checked)" : "(unchecked)"}
       </DropdownCheckboxItem>
-      <DropdownSeparator inset />
+      <DropdownSeparator inset spacing="tight" />
       <DropdownGroup heading="Group heading">
         <DropdownItem>
           <PencilIcon /> Grouped item
