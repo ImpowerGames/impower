@@ -259,6 +259,8 @@ function lowerNode(
       return lowerLuauStructDefine(nodeRef, ctx, "animation");
     case "LuauTheme":
       return lowerLuauStructDefine(nodeRef, ctx, "theme");
+    case "LuauFraming":
+      return lowerLuauStructDefine(nodeRef, ctx, "framing");
     case "LuauMorph":
       return lowerLuauStructDefine(nodeRef, ctx, "morph");
     case "LuauExternalDeclaration":

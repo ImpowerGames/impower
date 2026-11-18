@@ -106,6 +106,8 @@ function ScriptProblemBadge({ path, name }: { path: string; name: string }) {
 
 const ALL_TAB = "all";
 
+const USES_HINT = "Other scripts' diverts, calls, character cues and uses of its defines.";
+
 function AllScripts() {
   const projectId = workspace.signals.projectId.value;
   const current = workspace.scriptListing.value;
@@ -121,7 +123,6 @@ function AllScripts() {
       : MAIN_SCRIPT;
   }).value;
   const [query, setQuery] = useTabQuery(ALL_TAB);
-  const scroller = useSavedScroll(ALL_TAB);
   const newButton = useRef<HTMLButtonElement>(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -156,6 +157,7 @@ function AllScripts() {
   const folder = scriptFolders(listing).includes(saved) ? saved : "";
   const sort = lists?.scriptsSort;
   const rows = scriptRows({ listing, references, folder, query, sort });
+  const scroller = useSavedScroll(`${query.trim() ? "search" : `${ALL_TAB}:${folder}`}:${sort ?? ""}`);
   useSelectionKeys({
     active: selecting,
     paused: !!moving || !!deleting,
@@ -200,7 +202,8 @@ function AllScripts() {
   };
 
   const onAction = (row: ScriptRow, action: RowAction) => {
-    if (action === "rename") setRenaming(row.path);
+    if (action === "select") selection.start(row.path);
+    else if (action === "rename") setRenaming(row.path);
     else if (action === "move") setMoving([row.path]);
     else if (action === "delete") requestDelete([row.path]);
     else
@@ -352,6 +355,8 @@ function AllScripts() {
             )}
             <SortMenu
               value={sort}
+              separatorSpacing="tight"
+              usesHint={USES_HINT}
               onChange={(key) =>
                 void intents().then((Workspace) => Workspace.window.setListState({ scriptsSort: key }))
               }

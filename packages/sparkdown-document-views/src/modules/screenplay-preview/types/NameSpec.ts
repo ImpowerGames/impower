@@ -3,5 +3,8 @@ export interface NameSpec {
   from: number;
   to: number;
   name: string;
+  style: string;
   pageBreak: boolean;
+  rows: number;
+  row: number;
 }

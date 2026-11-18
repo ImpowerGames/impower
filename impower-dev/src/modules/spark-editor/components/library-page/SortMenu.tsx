@@ -8,6 +8,7 @@ import {
   DropdownRadioItem,
   DropdownRoot,
   DropdownSeparator,
+  type DropdownSeparatorSpacing,
   DropdownTrigger,
   SizeIcon,
   SortIcon,
@@ -31,9 +32,6 @@ const FIELD_ICONS: Record<SortIconName, typeof SortIcon> = {
   story: StoryIcon,
 };
 
-const USES_HINT =
-  "Other scripts' diverts, calls, character cues and uses of its defines.";
-
 const ALL_FIELDS = SORT_FIELDS.map((spec) => spec.field);
 
 export type SortMenuProps = {
@@ -41,10 +39,11 @@ export type SortMenuProps = {
   fields?: readonly SortField[];
   usesHint?: string;
   note?: string;
+  separatorSpacing?: DropdownSeparatorSpacing;
   onChange: (key: string) => void;
 };
 
-export default function SortMenu({ value, fields = ALL_FIELDS, usesHint = USES_HINT, note, onChange }: SortMenuProps) {
+export default function SortMenu({ value, fields = ALL_FIELDS, usesHint, note, separatorSpacing, onChange }: SortMenuProps) {
   const label = sortLabel(value);
   const menu = sortMenu(value);
   const fieldKey = menu.fields.find((f) => f.checked)!.key;
@@ -69,7 +68,7 @@ export default function SortMenu({ value, fields = ALL_FIELDS, usesHint = USES_H
           {menu.fields.filter((field) => fields.includes(field.field)).map((field) => {
             const Icon = FIELD_ICONS[field.icon];
             return (
-              <DropdownRadioItem key={field.field} value={field.key} indicator="end">
+              <DropdownRadioItem key={field.field} value={field.key} indicator="end" chosenWeight="normal">
                 <Icon class="text-muted" />
                 <DropdownItemText hint={field.field === "uses" ? usesHint : undefined}>{field.label}</DropdownItemText>
               </DropdownRadioItem>
@@ -81,13 +80,13 @@ export default function SortMenu({ value, fields = ALL_FIELDS, usesHint = USES_H
             {note}
           </p>
         )}
-        <DropdownSeparator />
+        <DropdownSeparator inset spacing={separatorSpacing} />
         <DropdownLabel variant="heading">Order</DropdownLabel>
         <DropdownRadioGroup label="Order" value={directionKey} onValueChange={onChange}>
           {menu.directions.map((direction) => {
             const Icon = direction.direction === "asc" ? SortIcon : SortReverseIcon;
             return (
-              <DropdownRadioItem key={direction.direction} value={direction.key} indicator="end">
+              <DropdownRadioItem key={direction.direction} value={direction.key} indicator="end" chosenWeight="normal">
                 <Icon class="text-muted" />
                 {direction.label}
               </DropdownRadioItem>

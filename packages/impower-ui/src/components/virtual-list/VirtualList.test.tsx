@@ -324,6 +324,88 @@ describe("VirtualList grid mode", () => {
   });
 });
 
+describe("VirtualList keeps its place when its geometry changes", () => {
+  const ROW = VIRTUAL_LIST_ROW_HEIGHT.default;
+
+  const mountWith = async (grid: unknown) => {
+    host = document.body.appendChild(document.createElement("div"));
+    let scroller: HTMLDivElement | null = null;
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return this === scroller ? 300 : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get() {
+        return this.getAttribute?.("role") === "list" ? 420 : 0;
+      },
+    });
+    const draw = (next: unknown) =>
+      act(async () =>
+        render(
+          <VirtualList
+            label="Tiles"
+            items={ITEMS}
+            getKey={(item) => item}
+            renderItem={(item) => <span>{item}</span>}
+            grid={next as never}
+            overscan={1}
+            listRef={(element) => {
+              scroller = element;
+            }}
+          />,
+          host!,
+        ),
+      );
+    await draw(grid);
+    await act(async () => {
+      scroller!.dispatchEvent(new Event("scroll"));
+    });
+    return { scroller: () => scroller!, draw };
+  };
+
+  afterEach(() => {
+    delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+    delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+  });
+
+  it("scrolls the line holding the item at the top of the view back to the top when the grid changes, and when it turns into rows", async () => {
+    const wide = { minWidth: 100, gap: 10, height: (width: number) => width + 40 };
+    const narrow = { minWidth: 60, gap: 4, height: (width: number) => width + 20 };
+    const { scroller, draw } = await mountWith(wide);
+    const wideRow = 400 / 3 + 40 + 10;
+    scroller().scrollTop = wideRow * 50;
+    await act(async () => {
+      scroller().dispatchEvent(new Event("scroll"));
+    });
+    await draw(narrow);
+    const cell = (420 - 4 * 5) / 6;
+    expect(scroller().scrollTop).toBeCloseTo(Math.floor(150 / 6) * (cell + 20 + 4), 6);
+    expect(shown()).toContain("row 150");
+    await draw(undefined);
+    expect(scroller().scrollTop).toBe(150 * ROW);
+  });
+
+  it("leaves the scroll alone when the grid changes at the top of the list", async () => {
+    const { scroller, draw } = await mountWith({ minWidth: 100, gap: 10, height: (width: number) => width + 40 });
+    await draw({ minWidth: 60, gap: 4, height: (width: number) => width + 20 });
+    expect(scroller().scrollTop).toBe(0);
+  });
+
+  it("never moves a list of rows on its own", async () => {
+    const { scroller, draw } = await mountWith(undefined);
+    scroller().scrollTop = ROW * 40 + 17;
+    await act(async () => {
+      scroller().dispatchEvent(new Event("scroll"));
+    });
+    await draw(undefined);
+    await draw(undefined);
+    expect(scroller().scrollTop).toBe(ROW * 40 + 17);
+  });
+});
+
 describe("VirtualList listRef", () => {
   it("hands the caller's ref the element once on mount and null once on unmount, never on a re-render", async () => {
     host = document.body.appendChild(document.createElement("div"));
@@ -344,5 +426,23 @@ describe("VirtualList listRef", () => {
     await act(async () => render(list(3), host!));
     await act(async () => render(null, host!));
     expect(calls).toEqual(["element 1", "null 3"]);
+  });
+
+  it("hands a list its element in the first commit, with its full extent already drawn", () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const heights: string[] = [];
+    render(
+      <VirtualList
+        label="Rows"
+        items={ITEMS}
+        getKey={(item) => item}
+        renderItem={(item) => <span>{item}</span>}
+        listRef={(element) => {
+          if (element) heights.push((element.firstElementChild as HTMLElement).style.height);
+        }}
+      />,
+      host,
+    );
+    expect(heights).toEqual([`${ITEMS.length * VIRTUAL_LIST_ROW_HEIGHT.default}px`]);
   });
 });

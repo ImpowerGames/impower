@@ -11,11 +11,13 @@ import {
 import {
   DropdownCheckboxItem,
   DropdownContent,
+  DropdownGroup,
   DropdownItem,
   DropdownLabel,
   DropdownRadioGroup,
   DropdownItemText,
   DropdownRadioItem,
+  type DropdownRadioItemChosenWeight,
   type DropdownRadioItemIndicator,
   type DropdownRadioItemSize,
   DropdownRoot,
@@ -45,6 +47,15 @@ function MenuItems() {
       <DropdownCheckboxItem checked={minimap} onCheckedChange={setMinimap}>
         Minimap {minimap ? "(checked)" : "(unchecked)"}
       </DropdownCheckboxItem>
+      <DropdownSeparator inset spacing="tight" />
+      <DropdownGroup heading="Group heading">
+        <DropdownItem>
+          <PencilIcon /> Grouped item
+        </DropdownItem>
+        <DropdownItem disabled>
+          <TrashIcon /> Grouped item (disabled)
+        </DropdownItem>
+      </DropdownGroup>
       <DropdownSeparator />
       <DropdownLabel variant="heading">Heading variant</DropdownLabel>
       <RadioItems indicator="start" />
@@ -96,12 +107,24 @@ const FACES = [
   ["sad", "Sad", undefined],
 ] as const;
 
-function HintedItems({ size }: { size?: DropdownRadioItemSize }) {
+function HintedItems({
+  size,
+  chosenWeight,
+}: {
+  size?: DropdownRadioItemSize;
+  chosenWeight?: DropdownRadioItemChosenWeight;
+}) {
   const [value, setValue] = useState<string>("happy");
   return (
     <DropdownRadioGroup label="Face" value={value} onValueChange={setValue}>
       {FACES.map(([id, name, hint]) => (
-        <DropdownRadioItem key={id} value={id} indicator="end" size={size}>
+        <DropdownRadioItem
+          key={id}
+          value={id}
+          indicator="end"
+          size={size}
+          chosenWeight={chosenWeight}
+        >
           <DropdownItemText hint={hint}>{name}</DropdownItemText>
         </DropdownRadioItem>
       ))}
@@ -175,6 +198,16 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
+      <GalleryRow label="Toolbar elevation: the preview top bar's settings menu, a 10px radius and the prototype's runtime menu shadow, 4px from its trigger">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Preview settings</Button>
+          </DropdownTrigger>
+          <DropdownContent elevation="toolbar" sideOffset={4} align="start">
+            <MenuItems />
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
       {(Object.keys(INDICATORS) as DropdownRadioItemIndicator[]).map(
         (indicator) => (
           <GalleryRow key={indicator} label={INDICATORS[indicator]}>
@@ -206,6 +239,39 @@ function DropdownDemo() {
           </DropdownTrigger>
           <DropdownContent align="start" class="min-w-[180px]">
             <HintedItems size="small" />
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
+      <GalleryRow label="Items, a heading and radio items with the narrow 10px side inset (the preview settings menu)">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Preview settings</Button>
+          </DropdownTrigger>
+          <DropdownContent align="start" class="min-w-[220px]">
+            <DropdownGroup heading="Step" inset="narrow">
+              <DropdownItem inset="narrow">
+                <PencilIcon />
+                Step forward
+              </DropdownItem>
+            </DropdownGroup>
+            <DropdownSeparator />
+            <DropdownCheckboxItem inset="narrow" checked>
+              Follow cursor
+            </DropdownCheckboxItem>
+            <DropdownRadioGroup label="Device color scheme" value="dark">
+              <DropdownRadioItem value="light" inset="narrow">Light</DropdownRadioItem>
+              <DropdownRadioItem value="dark" inset="narrow">Dark</DropdownRadioItem>
+            </DropdownRadioGroup>
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
+      <GalleryRow label="Radio items whose chosen row keeps weight 400, only the check marking it (the Sort menus)">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Choose a face</Button>
+          </DropdownTrigger>
+          <DropdownContent align="start" class="min-w-[180px]">
+            <HintedItems chosenWeight="normal" />
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
@@ -249,6 +315,7 @@ export const dropdownGallery: GalleryEntry = {
     "DropdownItemText",
     "DropdownCheckboxItem",
     "DropdownLabel",
+    "DropdownGroup",
     "DropdownRadioGroup",
     "DropdownRadioItem",
     "dropdownRadioItemVariants",

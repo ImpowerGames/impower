@@ -44,10 +44,10 @@ describe("a look tag in a story line styles the letters the player shows (#2145,
   test.each([
     ["<i>", "</i>", "font-style", /^italic$/],
     ["<u>", "</u>", "text-decoration-line", /^underline$/],
-    ["<color:red>", "</color>", "color", /red/],
-    ["<color:#ff0000>", "</color>", "color", /^(#ff0000|rgb\(255, 0, 0\))$/],
-    ["<size:2rem>", "</size>", "font-size", /^2rem$/],
-    ["<alpha:#80>", "</alpha>", "filter", new RegExp(`^opacity\\(${0x80 / 255}\\)$`)],
+    ["<color=red>", "</color>", "color", /red/],
+    ["<color=#ff0000>", "</color>", "color", /^(#ff0000|rgb\(255, 0, 0\))$/],
+    ["<size=2rem>", "</size>", "font-size", /^2rem$/],
+    ["<alpha=#80>", "</alpha>", "filter", new RegExp(`^opacity\\(${0x80 / 255}\\)$`)],
   ])("%s styles the letters it encloses", async (open, close, property, value) => {
     const shown = await letterStyles(`A ${open}word${close} here.`);
     const styled = shown.filter(([, style]) => value.test(style.getPropertyValue(property)));

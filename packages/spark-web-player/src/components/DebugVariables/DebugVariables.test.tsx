@@ -117,7 +117,7 @@ describe("the Variables card", () => {
       "",
     ]);
     const rows = debugVariablesRows(state);
-    expect(rows.map(debugVariablesRowHeight)).toEqual([50, 44, 44, 44, 44, 44, 15]);
+    expect(rows.map(debugVariablesRowHeight)).toEqual([52, 44, 44, 44, 44, 44, 15]);
     const temps = root.querySelector<HTMLButtonElement>('[aria-label="Expand Temps"]')!;
     expect(temps.getAttribute("aria-expanded")).toBe("false");
     await act(async () => temps.click());

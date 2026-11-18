@@ -9,16 +9,11 @@ const FILE_SEPARATOR_LINE_SOURCE =
 
 const cmp = (a: string, b: string) => (a > b ? 1 : a < b ? -1 : 0);
 
-export const bundleScripts = (
+const includedAfterMain = (
   files: FileData[],
-  mainRelativePath: string,
+  main: FileData | undefined,
   getRelativePath: (uri: string) => string,
-): string => {
-  const main = files.find((f) => getRelativePath(f.uri) === mainRelativePath);
-  let content = "";
-  if (main?.text != null) {
-    content += `${main.text}`;
-  }
+) =>
   files
     .filter(
       (f) =>
@@ -31,7 +26,31 @@ export const bundleScripts = (
         cmp(a.ext, b.ext) ||
         cmp(a.name, b.name) ||
         cmp(getRelativePath(a.uri), getRelativePath(b.uri)),
-    )
+    );
+
+export const bundleOrder = (
+  files: FileData[],
+  mainRelativePath: string,
+  getRelativePath: (uri: string) => string,
+): FileData[] => {
+  const main = files.find((f) => getRelativePath(f.uri) === mainRelativePath);
+  return [
+    ...(main?.text != null ? [main] : []),
+    ...includedAfterMain(files, main, getRelativePath),
+  ];
+};
+
+export const bundleScripts = (
+  files: FileData[],
+  mainRelativePath: string,
+  getRelativePath: (uri: string) => string,
+): string => {
+  const main = files.find((f) => getRelativePath(f.uri) === mainRelativePath);
+  let content = "";
+  if (main?.text != null) {
+    content += `${main.text}`;
+  }
+  includedAfterMain(files, main, getRelativePath)
     .forEach((f) => {
       const relativePath = getRelativePath(f.uri);
       content += `\n\n${FILE_SEPARATOR_PREFIX}${relativePath}${FILE_SEPARATOR_SUFFIX}`;

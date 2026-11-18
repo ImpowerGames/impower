@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { allocateCommit } from "../src/utils/commitSequence";
-import { reloadsForWrite } from "../../../impower-dev/src/modules/spark-editor/components/logic-script-editor/reloadsForWrite";
+import {
+  keepsTypingOver,
+  reloadsForWrite,
+} from "../../../impower-dev/src/modules/spark-editor/components/logic-script-editor/reloadsForWrite";
 import {
   MemoryDirectory,
   MemoryFile,
@@ -3352,4 +3355,89 @@ describe("the schedule matrix of a refused edit and the author's typing (I-2100)
     },
     300_000,
   );
+});
+
+describe("a second tab's typing in a script the first tab writes (I-2159)", () => {
+  const PRE = "PRE";
+  const TYPED = "PRE typed in the second tab";
+  const EDITOR = "LogicScriptEditor:1";
+
+  const outcomesFor = (messages: any[]) =>
+    messages
+      .filter((m) => m.method === "workspace/didWriteFiles")
+      .flatMap((m) =>
+        m.params.files
+          .filter((f: any) => f.uri === uriOf("a.sd"))
+          .map((f: any) => {
+            const write = {
+              text: f.text,
+              remote: m.params.remote,
+              origin: m.params.origin,
+              restored: m.params.restored?.includes(f.uri) ?? false,
+            };
+            const script = { text: TYPED, stored: PRE, origin: EDITOR };
+            return {
+              text: f.text,
+              reload: reloadsForWrite(write, script),
+              keep: keepsTypingOver(write, script),
+            };
+          }),
+      );
+
+  it.each([
+    { kind: "an ordinary save", expected: "THEIRS" },
+    { kind: "an applied workspace edit", expected: "PRE!" },
+  ])("keeps the second tab's typing and says the script changed: $kind", async ({ kind, expected }) => {
+    const first = await worker(seed({ "a.sd": PRE }));
+    await first.enumerate();
+    const fromChannel = first.channelPosts.length;
+    if (kind === "an ordinary save") {
+      await first.request("save", "workspace/willWriteFiles", writeOf("a.sd", "THEIRS", EDITOR));
+    } else {
+      const response = await first.request("edit", "workspace/applyWorkspaceEdit", {
+        edit: { documentChanges: [insert("a.sd", 3, "!")] },
+      });
+      expect(response).toMatchObject({ result: { applied: true } });
+    }
+    const posts = first.channelPosts
+      .slice(fromChannel)
+      .filter((post) => post.method === "workspace/didWriteFiles");
+    expect(posts.length).toBeGreaterThan(0);
+    const root = seed({ "a.sd": PRE });
+    const second = await worker(root);
+    await second.enumerate();
+    const stamp = await otherTab(root).write("a.sd", expected);
+    const from = second.messages.length;
+    for (const post of posts) {
+      await second.remote(post.method, {
+        ...post.params,
+        ...(post.params.commits ? { commits: { [uriOf("a.sd")]: stamp } } : {}),
+      });
+    }
+    await vi.advanceTimersByTimeAsync(500);
+    expect(outcomesFor(second.messages.slice(from))).toEqual([
+      { text: expected, reload: false, keep: true },
+    ]);
+  });
+
+  it("keeps the second tab's typing over an interim write it rediscovers and over that write's rollback", async () => {
+    const root = seed({ "a.sd": PRE });
+    const second = await worker(root);
+    await second.enumerate();
+    const from = second.messages.length;
+    const tab = otherTab(root);
+    await tab.write("a.sd", "INTERIM");
+    await second.request("read", "workspace/readFile", { file: { uri: uriOf("a.sd") } });
+    const rollback = await tab.write("a.sd", PRE);
+    await second.remote("workspace/didWriteFiles", {
+      files: [fileData("a.sd", PRE)],
+      commits: { [uriOf("a.sd")]: rollback },
+      restored: [uriOf("a.sd")],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(outcomesFor(second.messages.slice(from))).toEqual([
+      { text: "INTERIM", reload: false, keep: true },
+      { text: PRE, reload: false, keep: false },
+    ]);
+  });
 });

@@ -4,8 +4,10 @@ import {
   CheckIcon,
   ChevronDownIcon,
   CogIcon,
+  cn,
   DropdownCheckboxItem,
   DropdownContent,
+  DropdownGroup,
   DropdownItem,
   DropdownLabel,
   DropdownRadioGroup,
@@ -21,6 +23,7 @@ import {
   RestartIcon,
   ResumeIcon,
   ScreenplayIcon,
+  SettingsIcon,
   StepIntoIcon,
   StepOutIcon,
   StepOverIcon,
@@ -32,6 +35,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useSettings } from "../../workspace/settings/useSettings";
+import { settingsSectionHref } from "../settings";
 import {
   lockedPreviewSwitch,
   playsGame,
@@ -58,6 +62,11 @@ import {
   type SkipDirection,
   type StepTraversal,
 } from "../../workspace/stepStates";
+import { useStepSlotsFit } from "./useStepSlotsFit";
+
+const STEP_MENU_SLOTS = 2;
+
+const STEP_BUTTON_SLOTS = 4;
 
 export const propDefaults = {};
 export type PreviewTopBarProps = Partial<typeof propDefaults>;
@@ -230,62 +239,73 @@ const NO_CARET_REASON =
 const toggleBreakpoint = (filename: string) =>
   void withWindow((window) => window.toggleBreakpointAtCaret(filename));
 
-function StepMenu({
-  refusals,
-  caretScript,
-}: {
+type StepEntriesProps = {
   refusals: Record<StepTraversal, string | undefined>;
   caretScript: string | undefined;
-}) {
+};
+
+export const STEP_GROUP = "Step";
+
+function StepEntries({ refusals, caretScript }: StepEntriesProps) {
+  return (
+    <>
+      {STEPS.map(({ traversal, label, icon: Icon }) => {
+        const reason = refusals[traversal];
+        return (
+          <DropdownItem
+            key={traversal}
+            disabled={!!reason}
+            onSelect={() => step(traversal)}
+            inset="narrow"
+            class="min-h-14 gap-3 py-2"
+          >
+            <Icon class="shrink-0" />
+            <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
+              <strong class="text-sm/[1.4] font-semibold">{label}</strong>
+              {reason ? (
+                <small class="text-xs/[1.5] text-muted">{reason}</small>
+              ) : null}
+            </span>
+          </DropdownItem>
+        );
+      })}
+      <DropdownSeparator />
+      <DropdownItem
+        disabled={!caretScript}
+        onSelect={() => caretScript && toggleBreakpoint(caretScript)}
+        inset="narrow"
+        class="min-h-14 gap-3 py-2"
+      >
+        <BreakpointIcon class="shrink-0" />
+        <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
+          <strong class="text-sm/[1.4] font-semibold">
+            {TOGGLE_BREAKPOINT}
+          </strong>
+          {caretScript ? null : (
+            <small class="text-xs/[1.5] text-muted">{NO_CARET_REASON}</small>
+          )}
+        </span>
+      </DropdownItem>
+    </>
+  );
+}
+
+function StepMenu(props: StepEntriesProps) {
   return (
     <DropdownRoot>
       <DropdownTrigger asChild>
         <Button
           variant="quiet"
           size="icon"
-          aria-label="Step"
-          title="Step"
+          aria-label={STEP_GROUP}
+          title={STEP_GROUP}
           class="text-muted aria-expanded:bg-tint aria-expanded:text-accent"
         >
           <StepOverIcon />
         </Button>
       </DropdownTrigger>
       <DropdownContent align="center">
-        {STEPS.map(({ traversal, label, icon: Icon }) => {
-          const reason = refusals[traversal];
-          return (
-            <DropdownItem
-              key={traversal}
-              disabled={!!reason}
-              onSelect={() => step(traversal)}
-              class="min-h-14 gap-3 py-2"
-            >
-              <Icon class="shrink-0" />
-              <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
-                <strong class="text-sm/[1.4] font-semibold">{label}</strong>
-                {reason ? (
-                  <small class="text-xs/[1.5] text-muted">{reason}</small>
-                ) : null}
-              </span>
-            </DropdownItem>
-          );
-        })}
-        <DropdownSeparator />
-        <DropdownItem
-          disabled={!caretScript}
-          onSelect={() => caretScript && toggleBreakpoint(caretScript)}
-          class="min-h-14 gap-3 py-2"
-        >
-          <BreakpointIcon class="shrink-0" />
-          <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
-            <strong class="text-sm/[1.4] font-semibold">
-              {TOGGLE_BREAKPOINT}
-            </strong>
-            {caretScript ? null : (
-              <small class="text-xs/[1.5] text-muted">{NO_CARET_REASON}</small>
-            )}
-          </span>
-        </DropdownItem>
+        <StepEntries {...props} />
       </DropdownContent>
     </DropdownRoot>
   );
@@ -339,15 +359,15 @@ function ModeMenu({ mode }: { mode: PreviewMode }) {
       <DropdownTrigger asChild>
         <Button
           variant="quiet"
-          aria-label="Viewing mode"
-          title="Viewing mode"
-          class="max-w-full shrink-0 @max-[640px]:max-w-none gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent @max-[480px]:w-11 @max-[480px]:px-0 @max-[360px]:hidden [&_svg]:size-5"
+          aria-label={`Viewing mode: ${current.name}`}
+          title={`Viewing mode: ${current.name}`}
+          class="max-w-full shrink-0 border-0 @max-[640px]:max-w-none gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent @max-[480px]:w-11 @max-[480px]:justify-start @max-[480px]:pr-0 @max-[480px]:pl-0.5 @max-[360px]:hidden [&_svg]:size-5"
         >
           <Icon />
           <span class="truncate @max-[640px]:hidden">
             {current.name}
           </span>
-          <ChevronDownIcon class="!size-3.5 @max-[480px]:hidden" />
+          <ChevronDownIcon class="!size-3.5" />
         </Button>
       </DropdownTrigger>
       <DropdownContent
@@ -395,8 +415,8 @@ function ColorSchemeSettings() {
   return (
     <>
       <DropdownSeparator />
-      <DropdownLabel variant="heading">Device color scheme</DropdownLabel>
-      <DropdownLabel class="pt-0 text-xs/[1.5] text-muted">
+      <DropdownLabel variant="heading" inset="narrow">Device color scheme</DropdownLabel>
+      <DropdownLabel inset="narrow" class="pt-0 text-xs/[1.5] text-muted">
         {PREVIEW_COLOR_SCHEME_DETAIL}
       </DropdownLabel>
       <DropdownRadioGroup
@@ -410,7 +430,7 @@ function ColorSchemeSettings() {
         }}
       >
         {PREVIEW_COLOR_SCHEMES.map((id) => (
-          <DropdownRadioItem key={id} value={id}>
+          <DropdownRadioItem key={id} value={id} inset="narrow" class={RADIO_ROW_LIKE_CHECKBOX_ROW}>
             <span class="group-data-[state=checked]:text-accent">
               {PREVIEW_COLOR_SCHEME_NAMES[id]}
             </span>
@@ -421,7 +441,20 @@ function ColorSchemeSettings() {
   );
 }
 
-function SettingsMenu({ mode }: { mode: PreviewMode }) {
+export const MORE_PREVIEW_SETTINGS = "More preview settings";
+
+const RADIO_ROW_LIKE_CHECKBOX_ROW = "gap-3 [&>[data-radio-indicator]]:size-[18px]";
+
+const SETTINGS_MENU_ROWS =
+  "flex flex-col gap-0.5 [&_[role=group]]:flex [&_[role=group]]:flex-col [&_[role=group]]:gap-0.5 [&_[role=separator]]:my-1 [&_[role=separator]]:shrink-0";
+
+function SettingsMenu({
+  mode,
+  steps,
+}: {
+  mode: PreviewMode;
+  steps?: StepEntriesProps;
+}) {
   const phone = useLayout() === "phone";
   const { preferences, reducedMotion, setPreference } = useSettings();
   return (
@@ -432,15 +465,27 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
           size="icon"
           aria-label="Preview settings"
           title="Preview settings"
-          class="text-muted aria-expanded:bg-tint aria-expanded:text-accent"
+          class="text-muted"
         >
           <CogIcon />
         </Button>
       </DropdownTrigger>
       <DropdownContent
         align="end"
-        class={MENU_WIDTH}
+        sideOffset={4}
+        edgeGap={0}
+        elevation="toolbar"
+        opensAt="top"
+        class={cn(MENU_WIDTH, SETTINGS_MENU_ROWS)}
       >
+        {steps ? (
+          <>
+            <DropdownGroup heading={STEP_GROUP} inset="narrow">
+              <StepEntries {...steps} />
+            </DropdownGroup>
+            <DropdownSeparator />
+          </>
+        ) : null}
         {QUICK_TOGGLES[mode].map((key) => {
           const { name, detail } = PREVIEW_TOGGLES[key];
           const locked = lockedPreviewSwitch(preferences, reducedMotion, key);
@@ -456,6 +501,7 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
                   : setPreference(key, next)
               }
               onSelect={(e) => e.preventDefault()}
+              inset="narrow"
               class="group min-h-14 items-center gap-3 py-2"
             >
               <CheckIcon class="text-accent invisible group-aria-checked:visible" />
@@ -463,13 +509,28 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
                 <strong class="text-sm/[1.4] font-semibold group-aria-checked:text-accent">
                   {name}
                 </strong>
-                <small class="text-xs/[1.5] text-muted">{detail}</small>
+                <small class="text-[11px]/[1.5] text-muted group-aria-checked:font-semibold">
+                  {detail}
+                </small>
               </span>
             </DropdownCheckboxItem>
           );
         })}
         {playsGame(mode) ? <ColorSchemeSettings /> : null}
-        {phone ? <AspectRatioSettings mode={mode} /> : null}
+        {phone ? <AspectRatioSettings mode={mode} inset="narrow" itemClass={RADIO_ROW_LIKE_CHECKBOX_ROW} /> : null}
+        <DropdownItem
+          onSelect={() => {
+            if (document.fullscreenElement) {
+              void document.exitFullscreen();
+            }
+            window.location.assign(settingsSectionHref("preview-preferences"));
+          }}
+          inset="narrow"
+          class="mt-1 min-h-14 gap-3 rounded-t-none border-t border-solid border-edge py-2"
+        >
+          <SettingsIcon class="text-accent" />
+          <strong class="text-sm/[1.4] font-semibold">{MORE_PREVIEW_SETTINGS}</strong>
+        </DropdownItem>
       </DropdownContent>
     </DropdownRoot>
   );
@@ -491,7 +552,10 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const session = workspace.debugSession.value;
   const refusals = stepRefusals(game, session);
   const caretScript = useCaretScript();
-  const steps = running;
+  const bar = useRef<HTMLDivElement>(null);
+  const fits = useStepSlotsFit(bar, running);
+  const stepsInBar = running && fits;
+  const folded = running && !fits;
   const stepButton = (traversal: StepTraversal) => {
     const { label, icon } = STEPS.find((s) => s.traversal === traversal)!;
     return (
@@ -507,10 +571,12 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
 
   return (
     <div
+      ref={bar}
       role="group"
       aria-label="Playback controls"
       data-running={running ? "" : undefined}
-      class="group/bar relative z-[1] grid h-[var(--preview-top-bar-height)] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1 data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto] data-[running]:@max-[480px]:gap-0 @max-[480px]:px-1"
+      data-steps-folded={folded ? "" : undefined}
+      class="relative z-[1] grid h-[var(--preview-top-bar-height)] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[360px]:gap-0 @max-[360px]:px-1"
     >
       <div class="flex min-w-0 max-w-full items-center gap-1 justify-self-start @max-[480px]:gap-0">
         <ModeMenu mode={mode} />
@@ -550,21 +616,28 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           />
         )}
       </div>
-      <div class="flex items-center justify-center gap-1 @max-[340px]:gap-0 group-data-[running]/bar:@max-[480px]:gap-0">
-        {steps && phone ? (
-          <StepMenu refusals={refusals} caretScript={caretScript} />
-        ) : null}
-        {steps && !phone ? (
-          <span class="contents @min-[740px]:hidden">
+      <div class="flex items-center justify-center gap-1 @max-[360px]:gap-0">
+        <span
+          class={cn("contents", !phone && "@min-[740px]:hidden")}
+          data-step-slots={STEP_MENU_SLOTS}
+        >
+          {stepsInBar ? (
             <StepMenu refusals={refusals} caretScript={caretScript} />
+          ) : null}
+        </span>
+        {phone ? null : (
+          <span
+            class="contents @max-[740px]:hidden"
+            data-step-slots={STEP_BUTTON_SLOTS}
+          >
+            {stepsInBar ? (
+              <>
+                {stepButton("over")}
+                {stepButton("in")}
+              </>
+            ) : null}
           </span>
-        ) : null}
-        {steps && !phone ? (
-          <span class="contents @max-[740px]:hidden">
-            {stepButton("over")}
-            {stepButton("in")}
-          </span>
-        ) : null}
+        )}
         <SkipButton direction={-1} reason={skipRefusal(game, session, -1)} />
         <Button
           variant="primary"
@@ -577,12 +650,20 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
               ? undefined
               : () => void withWindow((window) => window.toggleGameRunning())
           }
+          raised
           class="rounded-full border-0 aria-disabled:cursor-default aria-disabled:opacity-40 [&_svg]:size-6"
         >
           {live ? <StopIcon /> : <PlayIcon />}
         </Button>
         <SkipButton direction={1} reason={skipRefusal(game, session, 1)} />
-        {steps && !phone ? (
+        {stepsInBar ? (
+          <span
+            aria-hidden="true"
+            data-step-balance
+            class={cn("w-11 shrink-0", !phone && "@min-[740px]:hidden")}
+          />
+        ) : null}
+        {stepsInBar && !phone ? (
           <span class="contents @max-[740px]:hidden">
             {stepButton("out")}
             <ControlButton
@@ -594,9 +675,12 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           </span>
         ) : null}
       </div>
-      <div class="flex items-center gap-1 justify-self-end group-data-[running]/bar:@max-[480px]:gap-0">
+      <div class="flex items-center gap-1 justify-self-end @max-[360px]:gap-0">
         {playsGame(mode) ? <SavesMenuButton /> : null}
-        <SettingsMenu mode={mode} />
+        <SettingsMenu
+          mode={mode}
+          steps={folded ? { refusals, caretScript } : undefined}
+        />
       </div>
     </div>
   );

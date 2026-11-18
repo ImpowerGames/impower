@@ -3,7 +3,9 @@ import {
   SCAN_OPEN,
   SPAN_CLOSE,
   SPAN_END,
+  TAG,
   readSpanOpen,
+  readTagCode,
   tagCode,
 } from "./displayStyle";
 import { ObjectValue, StringValue } from "./Value";
@@ -68,6 +70,8 @@ const knownName = (name: string): string | undefined =>
 export function readStoryTag(content: string): StoryTag {
   const match = TAG_CONTENT.exec(content);
   const written = match?.[2] ?? "";
+  const unread = match ? (match[7] ?? "") + content.slice(match.index + match[0].length) : "";
+  if (/^\s*:/.test(unread)) return { name: written, known: false, closes: false };
   const argument = match?.[4] ? { argument: (match[6] ?? "").trim() } : {};
   const name = knownName(written);
   if (name) return { name, known: true, closes: false, ...argument };
@@ -122,7 +126,7 @@ export function codeWrittenTags(text: string): string {
           LOOKS_BEFORE_TAG_CODES.includes(name.toLowerCase()))
       ) {
         const argument = tag[2]?.trim();
-        out += tagCode(argument === undefined ? control : `${control}:${argument}`);
+        out += tagCode(argument === undefined ? control : `${control}=${argument}`);
         i += tag[0].length;
         continue;
       }
@@ -133,15 +137,126 @@ export function codeWrittenTags(text: string): string {
   return out;
 }
 
+const knownEqualsForm = (content: string): string | undefined => {
+  const colon = /^([^:=]*):(.*)$/s.exec(content);
+  const equals = colon ? `${colon[1]}=${colon[2]}` : undefined;
+  return equals !== undefined && readStoryTag(equals).known ? equals : undefined;
+};
+
+export function equalsInColonTags(text: string): string {
+  if (!text.includes(TAG) && !text.includes("<")) return text;
+  let out = "";
+  let scans = 0;
+  let raw = false;
+  let escaped = false;
+  const spans: string[] = [];
+  for (let i = 0; i < text.length; ) {
+    const c = text[i]!;
+    const code = readTagCode(text, i);
+    if (code) {
+      const equals = knownEqualsForm(code.content);
+      out += equals !== undefined ? tagCode(equals) : text.slice(i, code.next);
+      i = code.next;
+      continue;
+    }
+    const opened = readSpanOpen(text, i);
+    if (opened) {
+      spans.push(opened.mark);
+      out += text.slice(i, opened.next);
+      i = opened.next;
+      continue;
+    }
+    if (c === SCAN_OPEN || c === SCAN_CLOSE) {
+      scans = Math.max(0, scans + (c === SCAN_OPEN ? 1 : -1));
+      raw = false;
+      escaped = false;
+    } else if (c === SPAN_CLOSE || c === SPAN_END) {
+      spans.pop();
+    }
+    const scanning = scans > 0;
+    const literal = raw || spans.some((mark) => mark.startsWith("`"));
+    if (escaped || !scanning || c === SCAN_OPEN || c === SCAN_CLOSE) {
+      escaped = false;
+      out += c;
+      i++;
+      continue;
+    }
+    if (c === "`") {
+      raw = !raw;
+    } else if (!literal && c === "\\") {
+      escaped = true;
+    } else if (!literal && (text.startsWith("[[", i) || text.startsWith("((", i))) {
+      const end = text.indexOf(text[i] === "[" ? "]]" : "))", i + 2);
+      if (end >= 0) {
+        out += text.slice(i, end + 2);
+        i = end + 2;
+        continue;
+      }
+    } else if (!literal && c === "<") {
+      let valueEnd = i;
+      while (valueEnd < text.length && text[valueEnd] !== SCAN_OPEN && text[valueEnd] !== SCAN_CLOSE) {
+        valueEnd++;
+      }
+      const tag = readTextCommandAt(text.slice(i, valueEnd), 0);
+      if (tag) {
+        const equals = knownEqualsForm(tag.content);
+        out += equals !== undefined ? `<${equals}>` : text.slice(i, i + tag.next);
+        i += tag.next;
+        continue;
+      }
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
+export function equalsInColonTagsInTable<T>(payload: T): T | ObjectValue {
+  return mapTableText(payload, equalsInColonTags, ["text", "character"]);
+}
+
+const equalsInSavedString = (token: string): string => {
+  if (!token.startsWith("^") || (!token.includes("<") && !token.includes(TAG))) return token;
+  const value = equalsInColonTags(SCAN_OPEN + token.slice(1) + SCAN_CLOSE);
+  return "^" + value.slice(1, -1);
+};
+
+export function equalsInColonTagsInSavedStrings(
+  container: Record<string, unknown> | unknown[],
+  skip: readonly string[] = [],
+): void {
+  for (const key of Object.keys(container)) {
+    if (skip.includes(key)) continue;
+    const item = (container as Record<string, unknown>)[key];
+    if (typeof item === "string") {
+      const migrated = equalsInSavedString(item);
+      if (migrated !== item) (container as Record<string, unknown>)[key] = migrated;
+    } else if (item && typeof item === "object") {
+      equalsInColonTagsInSavedStrings(item as Record<string, unknown>);
+    }
+  }
+}
+
 export function codeWrittenTagsInTable<T>(payload: T): T | ObjectValue {
-  const text =
-    payload instanceof ObjectValue ? payload.value?.get("text") : undefined;
-  if (!(text instanceof StringValue) || !text.value) return payload;
-  const coded = codeWrittenTags(text.value);
-  if (coded === text.value) return payload;
-  return new ObjectValue(
-    new Map((payload as ObjectValue).value).set("text", new StringValue(coded)),
-  );
+  return mapTableText(payload, codeWrittenTags);
+}
+
+function mapTableText<T>(
+  payload: T,
+  map: (text: string) => string,
+  fields: readonly string[] = ["text"],
+): T | ObjectValue {
+  if (!(payload instanceof ObjectValue) || !payload.value) return payload;
+  let entries: Map<any, any> | undefined;
+  for (const field of fields) {
+    const text = payload.value.get(field);
+    if (!(text instanceof StringValue) || !text.value) continue;
+    const coded = map(text.value);
+    if (coded === text.value) continue;
+    entries ??= new Map(payload.value);
+    entries.set(field, new StringValue(coded));
+  }
+  return entries ? new ObjectValue(entries) : payload;
 }
 
 export function readTextCommandAt(

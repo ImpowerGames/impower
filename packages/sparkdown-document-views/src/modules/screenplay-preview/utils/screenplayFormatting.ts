@@ -6,16 +6,19 @@ import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
+import type { ScreenplayTokenType } from "../../../../../sparkdown-screenplay/src/types/ScreenplayTokenType";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import type { FormattedText } from "../../../../../sparkdown-screenplay/src/types/FormattedText";
 import { GLUED_ALTERNATOR_BLOCKS } from "../../../../../sparkdown-screenplay/src/utils/alternativeMarks";
-import { printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
+import { isLineWords, printedLineStart } from "../../../../../sparkdown-screenplay/src/utils/leadingLinePieces";
+import { blankLineTest, printsAsBlankLine } from "../../../../../sparkdown-screenplay/src/utils/printsAsBlankLine";
 import { SOURCE_COLOR } from "../../../../../sparkdown-screenplay/src/utils/styleText";
-import { rootFunctionName } from "../../../../../sparkdown-screenplay/src/utils/rootFunctionName";
 import {
   type PageInsert,
   type PageRow,
   type PrintedRun,
+  type PrintedName,
+  type PrintedRowStart,
   type PrintedScene,
   screenplayPageLayout,
 } from "../../../../../sparkdown-screenplay/src/utils/screenplayPageLayout";
@@ -24,12 +27,16 @@ import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
+import HiddenLineWidget from "../classes/widgets/HiddenLineWidget";
 import InsertedRowWidget from "../classes/widgets/InsertedRowWidget";
 import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
+import { PREVIEW_FONT_SIZE } from "../constants/PREVIEW_THEME";
 import { escapeHtml } from "./getFormattedHTML";
+import { printedLineStyle, printedNameStyle, printedTitlePage } from "./screenplayGeometry";
+import type { TitleRegionHeights } from "../../../../../sparkdown-screenplay/src/utils/titlePageLayout";
 import TitlePageWidget, {
   TitlePageSpec,
 } from "../classes/widgets/TitlePageWidget";
@@ -43,15 +50,9 @@ import { RevealSpec } from "../types/RevealSpec";
 import {
   screenplayConfigField,
   screenplayPicksField,
+  screenplayRowField,
+  screenplayScenesBeforeField,
 } from "./screenplaySettings";
-
-const DIALOGUE_WIDTH = "60%";
-const CHARACTER_PADDING = "16%";
-const PARENTHETICAL_PADDING = "8%";
-
-const DUAL_DIALOGUE_WIDTH = "90%";
-const DUAL_CHARACTER_PADDING = "16%";
-const DUAL_PARENTHETICAL_PADDING = "8%";
 
 type DecorationSpec =
   | ReplaceSpec
@@ -63,33 +64,14 @@ type DecorationSpec =
   | PageBreakSpec
   | NameSpec;
 
-const getDialogueLineStyle = (type: string) => {
-  const dialogueWidth = DIALOGUE_WIDTH;
-  let paddingLeft = "0";
-  let paddingRight = "0";
-  if (type === "character") {
-    paddingLeft = CHARACTER_PADDING;
-  }
-  if (type === "parenthetical") {
-    paddingLeft = PARENTHETICAL_PADDING;
-    paddingRight = PARENTHETICAL_PADDING;
-  }
-  return `display: block; opacity: 1; margin: 0 auto; width: ${dialogueWidth}; padding: 0 ${paddingRight} 0 ${paddingLeft};`;
+const DIALOGUE_TAGS: Record<string, ScreenplayTokenType> = {
+  character: "dialogue_character",
+  dialogue: "dialogue_content",
+  parenthetical: "dialogue_parenthetical",
 };
 
-const getDualDialogueLineStyle = (type: string) => {
-  const dialogueWidth = DUAL_DIALOGUE_WIDTH;
-  let paddingLeft = "0";
-  let paddingRight = "0";
-  if (type === "character") {
-    paddingLeft = DUAL_CHARACTER_PADDING;
-  }
-  if (type === "parenthetical") {
-    paddingLeft = DUAL_PARENTHETICAL_PADDING;
-    paddingRight = DUAL_PARENTHETICAL_PADDING;
-  }
-  return `opacity: 1; margin: 0 auto; width: ${dialogueWidth}; padding: 0 ${paddingRight} 0 ${paddingLeft};`;
-};
+const getDialogueLineStyle = (config: ScreenplayConfig | undefined, type: string, position?: "l" | "r") =>
+  `display: block; opacity: 1; ${printedLineStyle(config, { tag: DIALOGUE_TAGS[type] ?? "dialogue_content", position })}`;
 
 const LANGUAGE_NAME = "sparkdown";
 
@@ -215,6 +197,9 @@ interface CachedPageLayout {
   printedLines: { at: number; lines: FormattedText[][] }[];
   runs: PrintedRun[];
   scenes: PrintedScene[];
+  wrapStarts: PrintedRowStart[];
+  names: PrintedName[];
+  titleRows: TitleRegionHeights;
 }
 
 const printedStyle = (piece: FormattedText) => ({
@@ -230,7 +215,9 @@ const printedStyle = (piece: FormattedText) => ({
 
 const alignedStyle = (align: string) => `display: block; text-align: ${align};`;
 
-const hangingLineStyle = (width: number) => `border-left: ${width}ch solid transparent; box-sizing: border-box;`;
+const TRAILING_SPACE_STYLE = "display: none;";
+
+const hangingLineStyle = (width: number) => `padding-left: ${width}ch; box-sizing: border-box;`;
 
 const hangingMarkStyle = (width: number) => `margin-left: -${width}ch; white-space: pre;`;
 
@@ -261,13 +248,13 @@ const printedHtml = (lines: FormattedText[][]) => lines.map(printedLineHtml).joi
 
 const pageLayoutCache = new WeakMap<Tree, CachedPageLayout>();
 
-const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
-  const settings = JSON.stringify(config ?? {});
+const cachedPageLayout = (tree: Tree, doc: Text, config: ScreenplayConfig | undefined, scenesBefore: number) => {
+  const settings = `${scenesBefore}:${JSON.stringify(config ?? {})}`;
   const cached = pageLayoutCache.get(tree);
   if (cached && cached.settings === settings) {
     return cached;
   }
-  const layout = screenplayPageLayout(tree, doc.toString(), config);
+  const layout = screenplayPageLayout(tree, doc.toString(), config, scenesBefore);
   const result = {
     settings,
     blankPositions: new Set(layout.blankLines),
@@ -278,6 +265,9 @@ const cachedPageLayout = (tree: Tree, doc: Text, config?: ScreenplayConfig) => {
     printedLines: layout.printedLines,
     runs: layout.runs,
     scenes: layout.scenes,
+    wrapStarts: layout.wrapStarts,
+    names: layout.names,
+    titleRows: layout.titleRows,
   };
   pageLayoutCache.set(tree, result);
   return result;
@@ -288,12 +278,15 @@ export const decorate = (
   from: number = 0,
   to?: number,
   treeOverride?: import("@lezer/common").Tree,
+  countsBreaks = true,
 ) => {
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
   const decorations: Range<Decoration>[] = [];
   const doc = state.doc;
   const config = state.field(screenplayConfigField, false);
   const picks = state.field(screenplayPicksField, false);
+  const scenesBefore = state.field(screenplayScenesBeforeField, false) ?? 0;
+  const row = state.field(screenplayRowField, false) ?? PREVIEW_FONT_SIZE;
 
   const declarationName = (nodeRef: SyntaxNodeRef, child: SparkdownNodeName) => {
     const cursor = nodeRef.node.cursor();
@@ -322,7 +315,7 @@ export const decorate = (
     if (lastContentChar < 0) return from;
     for (let i = lastContentChar + 1; i < to; i++) {
       if (doc.sliceString(i, i + 1) === "\n") {
-        return i + 1;
+        return i;
       }
     }
     return to;
@@ -331,19 +324,28 @@ export const decorate = (
   const isLuauFlowBlockContainer = (name: string) =>
     /^LuauSparkdown[A-Za-z]*(Block|Clause|Loop)$/.test(name);
 
-  const isBlankLine = (nodeRef: SyntaxNodeRef) =>
-    printsAsBlankLine(nodeRef.name, nodeRef.node.parent?.name);
-
   const opensOwnLine = (nodeRef: SyntaxNodeRef) =>
     doc.lineAt(nodeRef.from).to < blockEnd(nodeRef);
 
   const tree = treeOverride ?? syntaxTree(state);
 
-  const { blankPositions, printed, actionStarts, inserts, rows, printedLines, runs, scenes } = cachedPageLayout(
-    tree,
-    doc,
-    config,
-  );
+  const isBlankLine = blankLineTest(tree);
+
+  const { blankPositions, printed, actionStarts, inserts, rows, printedLines, runs, scenes, wrapStarts, names, titleRows } =
+    cachedPageLayout(tree, doc, config, scenesBefore);
+
+  const nameIn = (from: number, to: number) => names.find((name) => name.at >= from && name.at < to);
+
+  const nameSpec = (name: PrintedName, from: number, to: number, pageBreak: boolean): NameSpec => ({
+    type: "name",
+    from,
+    to,
+    name: name.pieces.map((piece) => piece.text).join(""),
+    style: `${printedNameStyle(config, name, name.level)}${printedStyle(name.pieces[0]?.style ?? { text: "" }).style}`,
+    pageBreak,
+    rows: Math.max(name.pieces.length, 1),
+    row,
+  });
 
   const exportedLinesFrom = (from: number, to: number) => {
     let low = 0;
@@ -468,7 +470,16 @@ export const decorate = (
   for (const start of actionStarts) {
     if (unhungStarts.has(start)) continue;
     if (start >= from && (to === undefined || start <= to) && printedBefore(doc.lineAt(start).from, start)) {
-      decorations.push(Decoration.widget({ widget: new LineBreakWidget(), side: 1 }).range(start));
+      decorations.push(Decoration.widget({ widget: new LineBreakWidget(countsBreaks), side: 1 }).range(start));
+    }
+  }
+
+  for (const start of wrapStarts) {
+    if (inView(start.at)) {
+      decorations.push(Decoration.widget({ widget: new LineBreakWidget(countsBreaks), side: start.inserted ? 1 : 2 }).range(start.at));
+    }
+    if (start.trailing !== undefined && inView(start.trailing)) {
+      decorations.push(Decoration.mark({ attributes: { style: TRAILING_SPACE_STYLE } }).range(start.trailing, start.trailing + 1));
     }
   }
 
@@ -485,9 +496,14 @@ export const decorate = (
     const index = inline ? 0 : (rowsPlaced.get(group) ?? 0);
     if (!inline) rowsPlaced.set(group, index + 1);
     if (row.at < from || (to !== undefined && row.at > to)) continue;
-    const pieces = row.pieces.map((piece) =>
+    const pieces = row.pieces.map((piece, index) =>
       row.name
-        ? { text: piece.text, style: "", source: false, name: true }
+        ? {
+            text: piece.text,
+            style: `${index === 0 ? `display: inline-block; ${printedNameStyle(config, row.name, row.name.level)}` : ""}${printedStyle(piece.style).style}`,
+            source: false,
+            name: true,
+          }
         : { text: piece.text, ...printedStyle(piece.style) },
     );
     const above = row.side === "above";
@@ -499,7 +515,9 @@ export const decorate = (
         : pieces;
       const widget = new InsertedRowWidget(
         pulled,
-        mixed ? { before: false, after: false, block: true } : { before: !above || !actionStartSet.has(row.at), after: above },
+        mixed
+          ? { before: false, after: false, block: true, counted: countsBreaks }
+          : { before: !above || !actionStartSet.has(row.at), after: above, counted: countsBreaks },
       );
       (above ? decorations : rowsBelow).push(Decoration.widget({ widget, side: 1 }).range(row.at));
       continue;
@@ -555,13 +573,17 @@ export const decorate = (
 
   const blankRow = (line: Line) =>
     line.text.trim()
-      ? createDecorations(doc, { type: "collapse", from: line.from, to: line.to })
+      ? createDecorations(doc, { type: "collapse", from: line.from, to: line.to, row })
       : createDecorations(doc, {
           type: "collapse",
           from: line.from,
           to: line.to,
           separator: true,
+          row,
         });
+
+  const hiddenLine = (line: Line, last: Line = line) =>
+    Decoration.replace({ widget: new HiddenLineWidget(), block: true }).range(line.from, last.to);
 
   const printsOnLine = (node: SyntaxNode, line: Line) => {
     if (node.name === "Newline" || node.name === "Whitespace") return false;
@@ -570,10 +592,7 @@ export const decorate = (
     return printedBefore(start, end) || drawnIn(start, end);
   };
 
-  const functionNameOf = (node: SyntaxNode) =>
-    config?.screenplay_print_function_identifiers
-      ? rootFunctionName(node, (from, to) => doc.sliceString(from, to))
-      : "";
+  const functionNameOf = (node: SyntaxNode) => nameIn(node.from, blockEnd(node));
 
   const lineParts = (line: Line, node: SyntaxNode) => {
     let first = node;
@@ -597,10 +616,7 @@ export const decorate = (
     if (firstText < 0 && hiddenParts.length < 2) return false;
     handledLines.add(line.number);
     if (firstText < 0) {
-      decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
-      if (line.length > 0) {
-        decorations.push(Decoration.replace({}).range(line.from, line.to));
-      }
+      decorations.push(hiddenLine(line));
     }
     const textIndex = firstText < 0 ? parts.length : firstText;
     const above: (CollapseWidget | NameWidget)[] = [];
@@ -614,11 +630,11 @@ export const decorate = (
       }
       if (part.from < line.from || index > textIndex) return;
       if (blankPositions.has(part.from)) {
-        above.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from }));
+        above.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from, row }));
       }
-      const name = hidden ? functionNameOf(part) : "";
+      const name = hidden ? functionNameOf(part) : undefined;
       if (name) {
-        above.push(new NameWidget({ type: "name", from: part.from, to: part.from, name, pageBreak: false }));
+        above.push(new NameWidget(nameSpec(name, part.from, part.from, false)));
       }
     });
     above.forEach((widget, index) => {
@@ -632,7 +648,7 @@ export const decorate = (
   const hideLines = (
     fromPosition: number,
     toPosition: number,
-    name = "",
+    name?: PrintedName,
     node?: SyntaxNode,
   ) => {
     const first = doc.lineAt(fromPosition).number;
@@ -648,28 +664,17 @@ export const decorate = (
         if (blankLines.has(number)) {
           decorations.push(
             Decoration.widget({
-              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from, row }),
               block: true,
               side: -1,
             }).range(line.from),
           );
         }
-        decorations.push(
-          ...createDecorations(doc, {
-            type: "name",
-            from: line.from,
-            to: line.to,
-            name,
-            pageBreak: false,
-          }),
-        );
+        decorations.push(...createDecorations(doc, nameSpec(name, line.from, line.to, false)));
       } else if (blankLines.has(number)) {
         decorations.push(...blankRow(line));
       } else {
-        decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
-        if (line.length > 0) {
-          decorations.push(Decoration.replace({}).range(line.from, line.to));
-        }
+        decorations.push(hiddenLine(line));
       }
     }
   };
@@ -771,7 +776,7 @@ export const decorate = (
             to,
             value: printedHtml(exported),
             attributes: {
-              style: getDialogueLineStyle("character"),
+              style: getDialogueLineStyle(config, "character"),
             },
           });
         }
@@ -792,22 +797,23 @@ export const decorate = (
             from,
             to,
             value: printedHtml(exported),
-            attributes: { style: getDialogueLineStyle("dialogue") },
+            attributes: { style: getDialogueLineStyle(config, "dialogue") },
           });
         } else if (last?.type === "dialogue") {
           last.to = to;
         }
-      } else if (name === "TextChunk") {
+      } else if (isLineWords(nodeRef)) {
         if (inDialogue) {
-          const exported = exportedLinesFrom(from, to);
+          const start = printedLineStart(nodeRef.node);
+          const exported = exportedLinesFrom(start, to);
           const last = dialogueContent.at(-1);
           if (exported) {
             dialogueContent.push({
               type: "dialogue",
-              from,
+              from: start,
               to,
               value: printedHtml(exported),
-              attributes: { style: getDialogueLineStyle("dialogue") },
+              attributes: { style: getDialogueLineStyle(config, "dialogue") },
             });
           } else if (holdsPrintedText(from, to) && last?.type === "dialogue") {
             last.to = to;
@@ -830,37 +836,26 @@ export const decorate = (
             to,
             value: printedHtml(exported),
             attributes: {
-              style: getDialogueLineStyle("parenthetical"),
+              style: getDialogueLineStyle(config, "parenthetical"),
             },
           });
         }
       } else if (name === "Scene") {
-        const sceneName = config?.screenplay_print_scene_identifiers
-          ? declarationName(nodeRef, "SceneDeclarationName")
-          : "";
+        const sceneName = nameIn(from, to);
         decorations.push(
           ...createDecorations(
             doc,
-            sceneName
-              ? { type: "name", from, to, name: sceneName, pageBreak: true }
-              : { type: "page_break", from, to },
+            sceneName ? nameSpec(sceneName, from, to, true) : { type: "page_break", from, to, row },
           ),
         );
         return false;
       } else if (
         name === "Branch" &&
         nodeRef.node.parent?.name === "sparkdown" &&
-        config?.screenplay_print_branch_identifiers &&
-        declarationName(nodeRef, "BranchDeclarationName")
+        nameIn(from, blockEnd(nodeRef))
       ) {
         decorations.push(
-          ...createDecorations(doc, {
-            type: "name",
-            from,
-            to: blockEnd(nodeRef),
-            name: declarationName(nodeRef, "BranchDeclarationName"),
-            pageBreak: false,
-          }),
+          ...createDecorations(doc, nameSpec(nameIn(from, blockEnd(nodeRef))!, from, blockEnd(nodeRef), false)),
         );
         handledLines.add(doc.lineAt(from).number);
         lineStart = nodeRef.to;
@@ -886,7 +881,7 @@ export const decorate = (
         if (blankLines.has(line.number)) {
           decorations.push(
             Decoration.widget({
-              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from, row }),
               block: true,
               side: -1,
             }).range(line.from),
@@ -895,10 +890,7 @@ export const decorate = (
         handledLines.add(line.number);
         return true;
       } else if (isBlankLine(nodeRef)) {
-        const functionName = config?.screenplay_print_function_identifiers
-          ? rootFunctionName(nodeRef.node, (from, to) => doc.sliceString(from, to))
-          : "";
-        hideLines(from, blockEnd(nodeRef), functionName, nodeRef.node);
+        hideLines(from, blockEnd(nodeRef), functionNameOf(nodeRef.node), nodeRef.node);
         lineStart = nodeRef.to;
         return false;
       } else if (name === "BlockWrite" || name === "InlineWrite") {
@@ -908,7 +900,6 @@ export const decorate = (
       } else if (isUnprinted(nodeRef)) {
         const line = doc.lineAt(from);
         const end = to === line.to + 1 ? line.to : to;
-        if (end > from) decorations.push(Decoration.replace({}).range(from, end));
         if (
           end <= line.to &&
           end > from &&
@@ -916,7 +907,9 @@ export const decorate = (
           !/\S/.test(line.text.slice(0, from - line.from)) &&
           !/\S/.test(line.text.slice(end - line.from))
         ) {
-          decorations.push(Decoration.line({ attributes: { style: "display: none;" } }).range(line.from));
+          decorations.push(hiddenLine(line));
+        } else if (end > from) {
+          decorations.push(Decoration.replace({}).range(from, end));
         }
         return false;
       }
@@ -946,21 +939,12 @@ export const decorate = (
             from,
             to,
             ...frontMatterPositionContent,
+            page: printedTitlePage(config, titleRows),
           }),
         );
       } else if (name === "FrontMatterField") {
-        const firstCaptureBlock = frontMatterFieldCaptureBlocks[0];
-        const lastCaptureBlock =
-          frontMatterFieldCaptureBlocks[
-            frontMatterFieldCaptureBlocks.length - 1
-          ];
-        if (firstCaptureBlock) {
-          firstCaptureBlock.attributes = {
-            style: "margin: 1em 0 0 0",
-          };
-        }
-        if (lastCaptureBlock) {
-          lastCaptureBlock.attributes = { style: "margin: 0 0 1em 0" };
+        if (frontMatterFieldCaptureBlocks.length > 0) {
+          frontMatterFieldCaptureBlocks.push({ type: "blank", from: to, to, value: "<br>" });
         }
         const position =
           PAGE_POSITIONS[
@@ -989,12 +973,13 @@ export const decorate = (
             const contentEnd = findBlockContentEnd(from, to);
             const spec: DialogueSpec = {
               type: "dialogue",
+              row,
               from,
               to: contentEnd,
               blocks: [
                 dialogueContent.map((c) => {
                   c.attributes = {
-                    style: getDualDialogueLineStyle(c.type),
+                    style: getDialogueLineStyle(config, c.type, "l"),
                   };
                   return c;
                 }),
@@ -1008,29 +993,36 @@ export const decorate = (
             prevDialogueSpec.grid = true;
             prevDialogueSpec.to = contentEnd;
             prevDialogueSpec.blocks.push(dialogueContent);
-            prevDialogueSpec.blocks.forEach((blocks) => {
+            prevDialogueSpec.blocks.forEach((blocks, index) => {
               blocks.forEach((block) => {
                 block.attributes = {
-                  style: getDualDialogueLineStyle(block.type),
+                  style: getDialogueLineStyle(config, block.type, index === 0 ? "l" : "r"),
                 };
               });
             });
-            decorations.push(
-              ...createDecorations(doc, {
-                type: "reveal",
-                from,
-                to: contentEnd,
-              }),
-              ...createDecorations(doc, {
-                type: "replace",
-                from,
-                to: contentEnd,
-              }),
-            );
+            const first = doc.lineAt(from);
+            const last = doc.lineAt(contentEnd);
+            if (!/\S/.test(first.text.slice(0, from - first.from)) && last.to === contentEnd) {
+              decorations.push(hiddenLine(first, last));
+            } else {
+              decorations.push(
+                ...createDecorations(doc, {
+                  type: "reveal",
+                  from,
+                  to: contentEnd,
+                }),
+                ...createDecorations(doc, {
+                  type: "replace",
+                  from,
+                  to: contentEnd,
+                }),
+              );
+            }
           }
         } else {
           const spec: DialogueSpec = {
             type: "dialogue",
+            row,
             from,
             to,
             blocks: [dialogueContent],
@@ -1154,13 +1146,33 @@ const splitHiddenAtBlocks = (decorations: Range<Decoration>[]): Range<Decoration
   });
 };
 
-const replaceDecorations = StateField.define<DecorationSet>({
-  create(state) {
-    const ranges = decorate(state);
-    const decorations =
-      ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
-    return decorations;
-  },
+const LINE_GAP_LENGTH = 4000;
+
+const drawsGappedLine = (doc: Text, ranges: readonly Range<Decoration>[]) => {
+  let blocks: readonly Range<Decoration>[] | undefined;
+  for (let number = 1; number <= doc.lines; number++) {
+    const line = doc.line(number);
+    if (line.length < LINE_GAP_LENGTH) continue;
+    blocks ??= ranges.filter((range) => range.value.spec.block && range.to > range.from);
+    if (!blocks.some((block) => block.from <= line.from && block.to >= line.to)) return true;
+  }
+  return false;
+};
+
+interface ScreenplayDecorations {
+  set: DecorationSet;
+  wraps: boolean;
+}
+
+const screenplayDecorations = (state: EditorState): ScreenplayDecorations => {
+  const ranges = decorate(state);
+  const wraps = drawsGappedLine(state.doc, ranges);
+  const drawn = wraps ? decorate(state, 0, undefined, undefined, false) : ranges;
+  return { set: drawn.length > 0 ? RangeSet.of(drawn, true) : Decoration.none, wraps };
+};
+
+const replaceDecorations = StateField.define<ScreenplayDecorations>({
+  create: screenplayDecorations,
   update(decorations, transaction) {
     if (!transaction.docChanged) {
       const { startState, state } = transaction;
@@ -1169,14 +1181,22 @@ const replaceDecorations = StateField.define<DecorationSet>({
         startState.field(screenplayConfigField, false) ===
           state.field(screenplayConfigField, false) &&
         startState.field(screenplayPicksField, false) ===
-          state.field(screenplayPicksField, false);
+          state.field(screenplayPicksField, false) &&
+        startState.field(screenplayRowField, false) ===
+          state.field(screenplayRowField, false) &&
+        startState.field(screenplayScenesBeforeField, false) ===
+          state.field(screenplayScenesBeforeField, false);
       if (unchanged) return decorations;
     }
-    const ranges = decorate(transaction.state);
-    return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
+    return screenplayDecorations(transaction.state);
   },
   provide(field) {
-    return EditorView.decorations.from(field);
+    return [
+      EditorView.decorations.from(field, (decorations) => decorations.set),
+      EditorView.contentAttributes.compute([field], (state): Record<string, string> =>
+        state.field(field).wraps ? { class: "cm-lineWrapping" } : {},
+      ),
+    ];
   },
 });
 

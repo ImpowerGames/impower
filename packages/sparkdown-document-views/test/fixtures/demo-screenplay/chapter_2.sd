@@ -1,0 +1,60 @@
+scene the_diner
+  [[show backdrop int_diner with screenfade]]
+  ((play ambient amb_rain_on_the_diner_window_loop))
+  $: INT. MOONLIGHT DINER - NIGHT
+
+  Rain streaks the windows. The diner is empty except for the four friends and Rosa, wiping down the counter.
+
+  ROSA:
+    You kids should be home.
+
+  IMANI:
+    [[imani:happy]]
+    We just want to watch the jukebox. Ten minutes.
+
+  [[show backdrop int_diner_jukebox with fade over 1]]
+  11\:59. The jukebox lights flicker on by themselves.
+  .. ((sfx_jukebox_coin_clink))
+  Then a record drops.
+
+  THEO [<]:
+    [[theo:sad]]
+    I take it back.
+
+  ZADIE [>]:
+    Best. Night. Ever.
+
+  [[show backdrop int_diner_counter with fade over 1]]
+  MARCUS:
+    [[marcus:happy]]
+    Look at the coin return. Someone's been feeding it quarters from outside. There's a gap in the wall.
+
+  if found_coin then
+    ZADIE:
+      [[zadie:happy]]
+      Same year as my quarter. 1962.
+  end
+
+  if heard_song_title then
+    THEO:
+      [[theo:happy]]
+      And that's the song. *Moonlight on the Rails.*
+  end
+
+  The record's paper label reads\: LAST TRAIN, 12\:10, LINE 4.
+
+  choose
+    What do the friends do?
+    * [Tell Rosa everything.]
+      & told_rosa = true
+      ROSA:
+        (quietly)
+        Line 4 goes out to the old valley. My grandmother lived out there.
+    * [Keep it secret and run for the last train.]
+      IMANI:
+        [[imani:sad]]
+        Sorry, Rosa. We'll explain tomorrow.
+  then
+    -> the_last_train
+  end
+end

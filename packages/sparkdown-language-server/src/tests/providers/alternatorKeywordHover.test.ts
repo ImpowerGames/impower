@@ -97,6 +97,20 @@ describe("alternator keyword hover", () => {
     expect(nested?.value).toContain("starts an option of the `cycle` around it");
   });
 
+  it("explains option-start nesting on a conditional set whose value is a bare name", async () => {
+    for (const text of ["cycle | match mood | happy = A. | other = B. end | C. end", "cycle | plural coins | one = A. | other = B. end | C. end"]) {
+      const keyword = text.split(" ")[2]!;
+      const inner = await hoverAt(text, at(text, keyword) + 1);
+      expect(inner?.marked, text).toBe(keyword);
+      expect(inner?.value, text).toContain("starts an option of the `cycle` around it");
+      expect(inner?.value, text).toContain("a plain name or dotted name written without spaces");
+      expect(inner?.value, text).toContain("or a number written like `2`, `-1`, `.5`, `1.5e2` or `0x1F`, may go without brackets");
+      expect(inner?.value, text).toContain(
+        "Any other spelling, such as a string, a call, a sum or a name with spaces around its dot, goes in brackets",
+      );
+    }
+  });
+
   it("explains a multi-line set nested in an option without calling it one-line", async () => {
     const text = "scene start\n  cycle\n  | queue\n    | A.\n    | B.\n    end\n  | Out.\n  end\nend";
     const inner = await hoverAt(text, at(text, "queue"));

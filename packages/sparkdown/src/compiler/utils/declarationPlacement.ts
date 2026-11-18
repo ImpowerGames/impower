@@ -58,6 +58,7 @@ const DEFINES = new Map<string, string>([
   ["LuauComponent", "component"],
   ["LuauAnimation", "animation"],
   ["LuauTheme", "theme"],
+  ["LuauFraming", "framing"],
   ["LuauMorph", "morph"],
 ]);
 const DEFINE_KEYWORDS = new Set(DEFINES.values());

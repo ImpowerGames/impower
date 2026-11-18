@@ -1,11 +1,16 @@
 import { StateEffect, StateField } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import { PRINT_PROFILES } from "../../../../../sparkdown-screenplay/src/constants/PRINT_PROFILES";
+import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
+import { PREVIEW_FONT_SIZE } from "../constants/PREVIEW_THEME";
+import { printedPageStyle } from "./screenplayGeometry";
 
 export const setScreenplayConfig = StateEffect.define<ScreenplayConfig | undefined>();
 
 export const setScreenplayPicks = StateEffect.define<readonly number[]>();
+
+export const setScreenplayScenesBefore = StateEffect.define<number>();
+
+export const setScreenplayRow = StateEffect.define<number>();
 
 export const screenplayConfigField = StateField.define<ScreenplayConfig | undefined>({
   create: () => undefined,
@@ -31,32 +36,77 @@ export const screenplayPicksField = StateField.define<ReadonlySet<number>>({
   },
 });
 
+export const screenplayScenesBeforeField = StateField.define<number>({
+  create: () => 0,
+  update(value, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(setScreenplayScenesBefore)) {
+        value = effect.value;
+      }
+    }
+    return value;
+  },
+});
+
+export const screenplayRowField = StateField.define<number>({
+  create: () => PREVIEW_FONT_SIZE,
+  update(value, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(setScreenplayRow)) {
+        value = effect.value;
+      }
+    }
+    return value;
+  },
+});
+
+const screenplayRowMeasure = ViewPlugin.fromClass(
+  class {
+    constructor(readonly view: EditorView) {
+      this.measure();
+    }
+
+    update(update: ViewUpdate) {
+      if (update.geometryChanged) this.measure();
+    }
+
+    measure() {
+      this.view.requestMeasure({
+        key: this,
+        read: (view) => view.defaultLineHeight,
+        write: (row, view) => {
+          if (row > 0 && row !== view.state.field(screenplayRowField)) {
+            queueMicrotask(() => {
+              if (row !== view.state.field(screenplayRowField)) view.dispatch({ effects: setScreenplayRow.of(row) });
+            });
+          }
+        },
+      });
+    }
+  },
+);
+
 export const paperSizeOf = (config: ScreenplayConfig | undefined) =>
   config?.screenplay_print_paper_size === "a4" ? "a4" : "usletter";
-
-const EMS_PER_INCH = 6;
-
-const inches = (value: number) =>
-  `${Math.round(value * EMS_PER_INCH * 100) / 100}em`;
 
 const screenplayPageAttributes = EditorView.editorAttributes.compute(
   [screenplayConfigField],
   (state) => {
     const config = state.field(screenplayConfigField);
-    const paperSize = paperSizeOf(config);
-    const profile = PRINT_PROFILES[paperSize];
-    const textWidth = profile.page_width - profile.left_margin - profile.right_margin;
     return {
       "data-scene-numbers": config?.screenplay_print_scene_numbers ?? "none",
       "data-headings-bold": config?.screenplay_print_headings_bold ? "on" : "off",
-      "data-paper-size": paperSize,
-      style: `--sp-text-width: ${inches(textWidth)}; --sp-margin-left: ${inches(profile.left_margin)}; --sp-margin-right: ${inches(profile.right_margin)}`,
+      "data-paper-size": paperSizeOf(config),
+      style: printedPageStyle(config),
     };
   },
 );
 
-export const screenplaySettings = (config?: ScreenplayConfig, picks: readonly number[] = []) => [
+export const screenplaySettings = (config?: ScreenplayConfig, picks: readonly number[] = [], scenesBefore = 0) => [
   screenplayConfigField.init(() => config),
   screenplayPicksField.init(() => new Set(picks)),
+  screenplayScenesBeforeField.init(() => scenesBefore),
+  screenplayRowField,
+  screenplayRowMeasure,
   screenplayPageAttributes,
 ];

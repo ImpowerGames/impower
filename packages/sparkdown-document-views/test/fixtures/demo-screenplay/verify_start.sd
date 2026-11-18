@@ -1,0 +1,22 @@
+scene start
+  -> the_rumour
+end
+
+scene zz_verify_steps
+  The verify caller's first beat.
+  -> zz_verify_visit ->
+  Back in the verify caller.
+  The verify caller's last beat.
+end
+
+scene zz_verify_visit
+  Inside the verify tunnel.
+  Still in the verify tunnel.
+  ->->
+end
+
+scene zz_verify_error
+  Before the verify error.
+  {error("verify boom")} After the error call.
+  Never reached.
+end

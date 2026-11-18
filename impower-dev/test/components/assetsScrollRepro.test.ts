@@ -14,6 +14,7 @@ const assets = vi.hoisted(() => ({
   createFolder: vi.fn(async () => ""),
   rename: vi.fn(async () => ""),
   remove: vi.fn(async () => undefined),
+  requestPicture: vi.fn((_paths: readonly string[]) => () => {}),
   measureImages: vi.fn(async (_paths: string[]) => undefined),
   requestDuration: vi.fn((_path: string) => () => {}),
   watchFacts: vi.fn((_paths: string[]) => () => {}),

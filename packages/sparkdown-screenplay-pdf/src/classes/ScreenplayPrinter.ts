@@ -4,18 +4,34 @@ import {
   PageLine,
 } from "@impower/sparkdown-screenplay/src/types/DocumentSpan";
 import { PrintProfile } from "@impower/sparkdown-screenplay/src/types/PrintProfile";
-import type { FormattedText as PrintedText } from "@impower/sparkdown-screenplay/src/types/FormattedText";
 import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/types/ScreenplayConfig";
 import { ScreenplayPrintData } from "@impower/sparkdown-screenplay/src/types/ScreenplayPrintData";
 import { ScreenplayTokenType } from "@impower/sparkdown-screenplay/src/types/ScreenplayTokenType";
 import { isHiddenIdentifier } from "@impower/sparkdown-screenplay/src/utils/isHiddenIdentifier";
+import {
+  hangingGroup,
+  levelIndent,
+  lineLeftMargin,
+  lineMaxWidth,
+  lineRightMargin,
+  SCENE_NUMBER_LEFT_GAP,
+  SCENE_NUMBER_RIGHT_GAP,
+  titleRegionWidth,
+} from "@impower/sparkdown-screenplay/src/utils/printGeometry";
 import { FormattedText } from "../textbox-for-pdfkit/src/types/FormattedText";
 import { TextOptions } from "../textbox-for-pdfkit/src/types/TextOptions";
 import { getHeightOfTextbox } from "../textbox-for-pdfkit/src/utils/getHeightOfTextbox";
 import { getWidthOfTextbox } from "../textbox-for-pdfkit/src/utils/getWidthOfTextbox";
 import { printTextbox } from "../textbox-for-pdfkit/src/utils/printTextbox";
 import { wrapTextbox } from "../textbox-for-pdfkit/src/utils/wrapTextbox";
-import { splitEmojiRuns } from "../emoji/emojiText";
+import { splitEmojiRuns } from "@impower/sparkdown-screenplay/src/utils/emojiRuns";
+import { printedFontOf } from "@impower/sparkdown-screenplay/src/utils/scriptFontAdvance";
+import {
+  TITLE_PLACEMENT_ORDER,
+  type TitleRegion,
+  type TitleRegionHeights,
+  titlePageLayout,
+} from "@impower/sparkdown-screenplay/src/utils/titlePageLayout";
 
 const PDF_POINTS_PER_INCH = 72;
 
@@ -152,120 +168,29 @@ export default class ScreenplayPrinter {
   }
 
   printTitle(span: MetaLayout): boolean {
-    const innerWidth =
-      this._profile.page_width -
-      this._profile.left_margin -
-      this._profile.right_margin;
-    const innerHeight =
-      this._profile.page_height -
-      this._profile.top_margin -
-      this._profile.bottom_margin;
-    const innerWidthThird = innerWidth / 3;
-    const innerWidthHalf = innerWidth / 2;
-
-    if (this._config?.screenplay_print_title_page && span.positions) {
-      const tlText = this.getCombinedContent(span?.positions?.["tl"]);
-      const tlTextHeight = this.getHeightOfText(tlText, innerWidthThird, {
-        align: "left",
-      });
-      this.printText(
-        tlText,
-        this._profile.left_margin,
-        this._profile.top_margin,
-        {
-          width: innerWidthThird,
-          align: "left",
-          links: true,
-        },
-      );
-
-      const tcText = this.getCombinedContent(span?.positions?.["tc"]);
-      const tcTextHeight = this.getHeightOfText(tcText, innerWidthThird, {
-        align: "center",
-      });
-      this.printText(
-        tcText,
-        this._profile.left_margin + innerWidthThird,
-        this._profile.top_margin,
-        {
-          width: innerWidthThird,
-          align: "center",
-          links: true,
-        },
-      );
-
-      const trText = this.getCombinedContent(span?.positions?.["tr"]);
-      const trTextHeight = this.getHeightOfText(trText, innerWidthThird, {
-        align: "right",
-      });
-      this.printText(
-        trText,
-        this._profile.left_margin + innerWidthThird + innerWidthThird,
-        this._profile.top_margin,
-        {
-          width: innerWidthThird,
-          align: "right",
-          links: true,
-        },
-      );
-
-      const blText = this.getCombinedContent(span?.positions?.["bl"]);
-      const blTextHeight = this.getHeightOfText(blText, innerWidthHalf, {
-        align: "left",
-      });
-      this.printText(
-        blText,
-        this._profile.left_margin,
-        this._profile.top_margin + innerHeight - blTextHeight,
-        {
-          width: innerWidthHalf,
-          align: "left",
-          links: true,
-        },
-      );
-
-      const brText = this.getCombinedContent(span?.positions?.["br"]);
-      const brTextHeight = this.getHeightOfText(brText, innerWidthHalf, {
-        align: "right",
-      });
-      this.printText(
-        brText,
-        this._profile.left_margin + innerWidthHalf,
-        this._profile.top_margin + innerHeight - brTextHeight,
-        {
-          width: innerWidthHalf,
-          align: "right",
-          links: true,
-        },
-      );
-
-      const topHeight = Math.max(tlTextHeight, tcTextHeight, trTextHeight, 0);
-      const bottomHeight = Math.max(blTextHeight, brTextHeight, 0);
-
-      const ccText = this.getCombinedContent(span?.positions?.["cc"]);
-      const ccTextHeight = this.getHeightOfText(ccText, innerWidth, {
-        align: "center",
-      });
-      const centerStart =
-        this._profile.top_margin +
-        (innerHeight - topHeight - bottomHeight) / 2 -
-        ccTextHeight / 2;
-      this.printText(ccText, this._profile.left_margin, centerStart, {
-        width: innerWidth,
-        align: "center",
-        links: true,
-      });
-
-      return (
-        tlTextHeight > 0 ||
-        tcTextHeight > 0 ||
-        trTextHeight > 0 ||
-        blTextHeight > 0 ||
-        brTextHeight > 0 ||
-        ccTextHeight > 0
-      );
+    if (!this._config?.screenplay_print_title_page || !span.positions) {
+      return false;
     }
-    return false;
+    const left = this._profile.left_margin;
+    const third = titleRegionWidth(this._profile, "tc")!;
+    const half = titleRegionWidth(this._profile, "bl")!;
+    const regions: Record<TitleRegion, { x: number; width: number; align: "left" | "center" | "right" }> = {
+      tl: { x: left, width: third, align: "left" },
+      tc: { x: left + third, width: third, align: "center" },
+      tr: { x: left + third + third, width: third, align: "right" },
+      cc: { x: left, width: titleRegionWidth(this._profile, "cc")!, align: "center" },
+      bl: { x: left, width: half, align: "left" },
+      br: { x: left + half, width: half, align: "right" },
+    };
+    const heights: TitleRegionHeights = {};
+    for (const region of TITLE_PLACEMENT_ORDER) {
+      const { x, width, align } = regions[region];
+      const text = this.getCombinedContent(span.positions[region]);
+      heights[region] = this.getHeightOfText(text, width, { align });
+      const { tops } = titlePageLayout(this._profile, heights);
+      this.printText(text, x, tops[region], { width, align, links: true });
+    }
+    return TITLE_PLACEMENT_ORDER.some((region) => heights[region]! > 0);
   }
 
   printHeader(span: MetaLayout): void {
@@ -352,10 +277,7 @@ export default class ScreenplayPrinter {
 
       if (index === 0 && span.level != null) {
         let headingText = span.content?.map((c) => c.text).join("") || "";
-        const levelIndent = span.tag
-          ? (this._profile?.settings?.[span.tag]?.level_indent ?? 0)
-          : 0;
-        feed += span.level * levelIndent;
+        feed += levelIndent(this._profile, span.tag, span.level);
         if (
           this._config?.screenplay_print_bookmarks &&
           (!hidden ||
@@ -395,7 +317,7 @@ export default class ScreenplayPrinter {
           this._config?.screenplay_print_scene_numbers === "both" ||
           this._config?.screenplay_print_scene_numbers === "left"
         ) {
-          const gap = 4 * this._state.fontWidth;
+          const gap = SCENE_NUMBER_LEFT_GAP * this._state.fontWidth;
           const sceneNumberX =
             this._profile.left_margin - gap - sceneNumberWidth;
           this.printText(
@@ -409,7 +331,7 @@ export default class ScreenplayPrinter {
           this._config?.screenplay_print_scene_numbers === "both" ||
           this._config?.screenplay_print_scene_numbers === "right"
         ) {
-          const gap = 1 * this._state.fontWidth;
+          const gap = SCENE_NUMBER_RIGHT_GAP * this._state.fontWidth;
           const sceneNumberX =
             this._profile.page_width - this._profile.right_margin + gap;
           this.printText(
@@ -569,31 +491,15 @@ export default class ScreenplayPrinter {
   }
 
   getLineLeftMargin(line: PageLine) {
-    const tagSettingMargin =
-      line.position === "l"
-        ? this._profile.settings[line.tag]?.dual_first_left_margin
-        : line.position === "r"
-          ? this._profile.settings[line.tag]?.dual_second_left_margin
-          : this._profile.settings[line.tag]?.left_margin;
-    return tagSettingMargin ?? this._profile.left_margin ?? 0;
+    return lineLeftMargin(this._profile, line);
   }
 
   getLineRightMargin(line: PageLine) {
-    const tagSettingMargin =
-      line.position === "l"
-        ? this._profile.settings[line.tag]?.dual_first_right_margin
-        : line.position === "r"
-          ? this._profile.settings[line.tag]?.dual_second_right_margin
-          : this._profile.settings[line.tag]?.right_margin;
-    return tagSettingMargin ?? this._profile.right_margin ?? 0;
+    return lineRightMargin(this._profile, line);
   }
 
   getLineMaxWidth(line: PageLine) {
-    return (
-      this._profile.page_width -
-      this.getLineLeftMargin(line) -
-      this.getLineRightMargin(line)
-    );
+    return lineMaxWidth(this._profile, line);
   }
 
   getHeightOfLine(span: PageLine) {
@@ -613,9 +519,8 @@ export default class ScreenplayPrinter {
   }
 
   getHangingGroup(content: FormattedText[]): { lead?: FormattedText; rest: FormattedText[]; indent: number } {
-    const lead: PrintedText | undefined = content[0];
-    if (!lead?.hang || content.length < 2) return { rest: content, indent: 0 };
-    return { lead, rest: content.slice(1), indent: lead.hang * this._state.fontWidth };
+    const { lead, rest, hang } = hangingGroup(content);
+    return { lead, rest, indent: hang * this._state.fontWidth };
   }
 
   getIndentation(text: string): string {
@@ -636,15 +541,7 @@ export default class ScreenplayPrinter {
         ...options,
         ...c,
       };
-      const font =
-        base.font ??
-        (base.bold && base.italic
-          ? "bolditalic"
-          : base.bold
-            ? "bold"
-            : base.italic
-              ? "italic"
-              : "normal");
+      const font = printedFontOf(base);
       return splitEmojiRuns(base.text ?? "").map((run) => ({
         ...base,
         font,

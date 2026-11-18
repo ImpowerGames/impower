@@ -8,6 +8,7 @@ import { holdSheetOpen } from "../../hooks/useSheetOpen";
 import { cn } from "../../utils/cn";
 import "../../utils/uniqueIds";
 import { focusReturnTarget } from "../../utils/focusReturn";
+import { focusAsInput } from "../../utils/inputModality";
 import { type KeepClear, keepsClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
 import { sheetFoot } from "../../utils/sheetFoot";
@@ -273,7 +274,7 @@ function Modal({
               const target = initialFocus?.current;
               if (target) {
                 event.preventDefault();
-                target.focus();
+                focusAsInput(target);
               }
             }}
             onCloseAutoFocus={(event: Event) => {
@@ -288,7 +289,7 @@ function Modal({
               }
               const target = returnTo?.() ?? returnFocus.current();
               if (target?.isConnected) {
-                target.focus();
+                focusAsInput(target);
               }
             }}
             onEscapeKeyDown={(event: KeyboardEvent) => {

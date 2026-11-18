@@ -1,4 +1,7 @@
 import { StyleSpec } from "style-mod";
+import { RULE_BORDER } from "../classes/widgets/PageBreakWidget";
+
+export const PREVIEW_FONT_SIZE = 14.7;
 
 const PREVIEW_THEME: {
   [selector: string]: StyleSpec;
@@ -17,7 +20,8 @@ const PREVIEW_THEME: {
   "& .cm-scroller": {
     fontFamily:
       '"Courier Prime", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", monospace',
-    fontSize: "clamp(10.5px, 2.3cqi, 14.7px)",
+    fontSize: `min(2.3cqi, ${PREVIEW_FONT_SIZE}px)`,
+    lineHeight: "var(--sp-row)",
     overflow: "visible",
     position: "relative",
   },
@@ -37,24 +41,26 @@ const PREVIEW_THEME: {
   "& .sp-scene-bold::before, & .sp-scene-bold::after": {
     fontWeight: "bold",
   },
+  "& .sp-heading::before, & .sp-heading::after": {
+    whiteSpace: "nowrap",
+  },
   "&[data-scene-numbers=left] .sp-heading::before, &[data-scene-numbers=both] .sp-heading::before":
     {
       content: "attr(data-scene-number)",
       position: "absolute",
       top: 0,
-      right: "calc(100% + 1.2em)",
+      right: "calc(100% + var(--sp-scene-number-left-gap))",
     },
   "&[data-scene-numbers=right] .sp-heading::after, &[data-scene-numbers=both] .sp-heading::after":
     {
       content: "attr(data-scene-number)",
       position: "absolute",
       top: 0,
-      left: "calc(100% + 1.2em)",
+      left: "calc(100% + var(--sp-scene-number-right-gap))",
     },
   "& .sp-name": {
     margin: "0",
-    fontWeight: "bold",
-    textDecoration: "underline",
+    color: "var(--sp-muted)",
   },
   "& .sp-option": {
     color: "var(--sp-muted)",
@@ -66,7 +72,7 @@ const PREVIEW_THEME: {
     color: "var(--sp-accent)",
     fontWeight: "bold",
   },
-  "& .cm-lineWrapping": {
+  "& .cm-lineWrapping, & .cm-content > *": {
     overflowWrap: "break-word",
     whiteSpace: "pre-wrap",
   },
@@ -82,6 +88,13 @@ const PREVIEW_THEME: {
   "& .cm-line.cm-activeLine:has(.sp-title-page)": {
     backgroundColor: "transparent",
     boxShadow: "none",
+  },
+  "& .cm-content hr": {
+    height: 0,
+    margin: 0,
+    border: "none",
+    borderTop: `${RULE_BORDER}px solid`,
+    color: "inherit",
   },
   "& .sp-gone": {
     display: "block",

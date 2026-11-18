@@ -44,19 +44,6 @@ export const measureTextsWidth = (
   return textsWithWidth;
 };
 
-export const checkParagraphFitsInLine = (
-  textChunks: FormattedText[],
-  textWidth: number,
-) => {
-  let paragraphWidth = 0;
-  textChunks.forEach((textChunk) => {
-    if (textChunk.width != null) {
-      paragraphWidth += textChunk.width;
-    }
-  });
-  return paragraphWidth <= textWidth;
-};
-
 export const measureTextFragments = (
   textChunks: FormattedText[],
   doc: PDFKit.PDFDocument,

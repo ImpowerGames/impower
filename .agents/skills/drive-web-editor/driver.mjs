@@ -2332,7 +2332,7 @@ export async function openPreviewSettings(page, { timeout = 5000 } = {}) {
   return { step: "preview-settings", ran: true, toggles };
 }
 
-const PROBLEMS_TOGGLE_SELECTOR = '[role="group"][aria-label="Problems and display"] > button:first-of-type';
+const PROBLEMS_TOGGLE_SELECTOR = '[role="group"][aria-label="Problems and playback messages"] > button:first-of-type';
 
 const PROBLEMS_DIALOG_TITLES = ["Problems to fix", "Problems and playback messages"];
 

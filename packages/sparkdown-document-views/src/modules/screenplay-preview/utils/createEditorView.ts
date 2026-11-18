@@ -17,6 +17,7 @@ interface EditorConfig {
   scrollToLineNumber?: number;
   config?: ScreenplayConfig;
   picks?: readonly number[];
+  scenesBefore?: number;
   onUpdate?: (update: ViewUpdate) => void;
 }
 
@@ -33,14 +34,13 @@ const createEditorView = (
     extensions: [
       EditorState.readOnly.of(true),
       EditorView.theme(PREVIEW_THEME),
-      EditorView.lineWrapping,
       EditorView.scrollMargins.of(() => {
         return scrollMargin ?? null;
       }),
       EditorView.updateListener.of((u) => {
         onUpdate?.(u);
       }),
-      screenplaySettings(config?.config, config?.picks),
+      screenplaySettings(config?.config, config?.picks, config?.scenesBefore),
       screenplayFormatting(),
       highlightActiveLine(),
       litBlockWidgets,

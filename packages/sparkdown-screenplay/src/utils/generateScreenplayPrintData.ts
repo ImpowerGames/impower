@@ -1,5 +1,5 @@
 import ScreenplayTypesetter from "../classes/ScreenplayTypesetter";
-import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
+import { printProfileOf } from "./printGeometry";
 import { ScreenplayPrintData } from "../types/ScreenplayPrintData";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { ScreenplayConfig } from "../types/ScreenplayConfig";
@@ -14,9 +14,7 @@ export const generateScreenplayPrintData = (
     bolditalic?: ArrayBuffer | Uint8Array;
   },
 ): ScreenplayPrintData => {
-  const print =
-    PRINT_PROFILES[config?.screenplay_print_paper_size || ""] ||
-    PRINT_PROFILES.usletter;
+  const print = printProfileOf(config);
   const typesetter = new ScreenplayTypesetter();
   const spans = typesetter.compose(tokens, config, print);
   const info = typesetter.getInfo(spans);

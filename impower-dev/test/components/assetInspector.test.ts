@@ -25,6 +25,7 @@ const assets = vi.hoisted(() => ({
   remove: vi.fn(async (_paths: readonly string[]) => undefined),
   move: vi.fn(async (_paths: readonly string[], _folder: string): Promise<{ from: string; to: string }[]> => []),
   usedBy: vi.fn(async (_paths: readonly string[]): Promise<unknown[] | null> => []),
+  requestPicture: vi.fn((_paths: readonly string[]) => () => {}),
   measureImages: vi.fn(async () => undefined),
   requestDuration: vi.fn((_path: string) => () => {}),
   measureDurations: vi.fn(async (_paths: readonly string[]) => undefined),
@@ -1418,8 +1419,62 @@ describe("the Variants tester and the Files section", () => {
     await fileMenu("imani~mouth.open.png", "Delete");
     await click(all<HTMLElement>('[role="dialog"] button').find((button) => button.textContent === "Delete"));
     expect(assets.removeMember).toHaveBeenCalledWith(`${P}/imani~mouth.open.png`);
-    await click(region()!.querySelector<HTMLElement>("[data-inspector-download]"));
-    expect(assets.downloadAll).toHaveBeenCalledWith([`${P}/imani.png`]);
+  });
+
+  const fileMenuShape = async (name: string, pointerType: "mouse" | "touch") => {
+    const trigger = region()!.querySelector<HTMLElement>(`button[aria-label="Options for ${name}"]`)!;
+    await act(async () => {
+      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType, button: 0 }));
+      if (pointerType === "touch") {
+        trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+      }
+    });
+    await settle();
+    await vi.waitFor(() => expect(all('[role="menuitem"]').length).toBeGreaterThan(0));
+    const items = all<HTMLElement>('[role="menuitem"], [role="separator"]');
+    for (const item of items.filter((el) => el.getAttribute("role") === "menuitem")) {
+      expect([null, item.textContent]).toContain(item.getAttribute("aria-label"));
+      expect(item.querySelector("svg")!.getAttribute("class")).toContain("text-muted");
+    }
+    return items.map((el) => (el.getAttribute("role") === "separator" ? "—" : el.textContent));
+  };
+
+  for (const pointer of ["mouse", "touch"] as const) {
+    it(`offers Rename, Replace…, Download and Delete… on a file, opened with a ${pointer}`, async () => {
+      await mount();
+      await open("imani");
+      expect(await fileMenuShape("imani@night.png", pointer)).toEqual(["Rename", "Replace…", "Download", "—", "Delete…"]);
+      expect(all<HTMLElement>('[role="menuitem"]')[0]!.querySelector("svg")!.innerHTML).toBe(
+        '<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"></path>',
+      );
+      expect(all<HTMLElement>('[role="menuitem"]')[1]!.querySelector("svg")!.innerHTML).toBe(
+        '<path d="M4 8h13l-3-3M20 16H7l3 3"></path>',
+      );
+    });
+  }
+
+  it("replaces one file of a stacked picture from its menu, keeping its path, and leaves the inspector's end without Replace and Download", async () => {
+    await mount();
+    await open("imani");
+    expect(region()!.querySelector("[data-inspector-replace]")).toBeNull();
+    expect(region()!.querySelector("[data-inspector-download]")).toBeNull();
+    expect(region()!.querySelector("[data-inspector-picker]")).toBeNull();
+    const picker = region()!.querySelector<HTMLInputElement>("[data-file-replace-picker]")!;
+    expect(picker.multiple).toBe(false);
+    const opened = vi.spyOn(HTMLInputElement.prototype, "click");
+    try {
+      await fileMenu("imani~face.sad.png", "Replace…");
+      expect(opened.mock.contexts).toEqual([picker]);
+    } finally {
+      opened.mockRestore();
+    }
+    Object.defineProperty(picker, "files", { value: [new File(["png"], "glum.png")], configurable: true });
+    await act(async () => {
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(assets.replace).toHaveBeenCalledTimes(1);
+    expect(assets.replace).toHaveBeenCalledWith(`${P}/imani~face.sad.png`, expect.objectContaining({ name: "glum.png" }));
   });
 
   it("draws nothing for a combination that shows no layer, and says when the picture could not be drawn", async () => {
@@ -1584,6 +1639,21 @@ describe("the Variants tester and the Files section", () => {
     await tap(group("face"));
     expect(document.querySelector("[data-wheel-sheet] [role=listbox]")).not.toBeNull();
     expect(document.querySelector("[data-wheel-sheet]")!.className.split(" ")).toEqual(expect.arrayContaining(["mx-auto", "max-w-[560px]"]));
+    expect(all('[role="menuitemradio"]')).toEqual([]);
+  });
+
+  it("opens the wheel sheet when a finger opens a group and its click arrives with detail 0", async () => {
+    layout.value = "desktop";
+    layout.coarse = false;
+    await mount();
+    await open("imani");
+    await act(async () => {
+      group("face").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
+      group("face").dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
+      group("face").dispatchEvent(new PointerEvent("click", { bubbles: true, cancelable: true, pointerType: "touch", detail: 0 }));
+    });
+    await settle();
+    expect(document.querySelector("[data-wheel-sheet] [role=listbox]")).not.toBeNull();
     expect(all('[role="menuitemradio"]')).toEqual([]);
   });
 

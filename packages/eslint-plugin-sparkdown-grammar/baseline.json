@@ -88,7 +88,6 @@
     "repository.LuauSparkdownInlineGluedSequentialAlternatorBlock": 1,
     "repository.LuauSparkdownReassignment": 1,
     "repository.LuauSparkdownSequentialAlternatorBlock": 2,
-    "repository.LuauSparkdownSingleLineConditionalAlternatorBlock": 1,
     "repository.LuauSparkdownSingleLineSequentialAlternatorBlock": 2,
     "repository.LuauSparkdownVariableDefinition": 2,
     "repository.LuauSparkdownWhileLoop": 1,

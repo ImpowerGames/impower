@@ -2,6 +2,7 @@ import ListRow from "../../../packages/impower-ui/src/components/list-row/ListRo
 import VirtualList from "../../../packages/impower-ui/src/components/virtual-list/VirtualList";
 import { render } from "preact";
 import { useState } from "preact/hooks";
+import { useLayout } from "../../../packages/impower-ui/src/hooks/useLayout";
 import { OUTLINE_RAIL_ROW, railRowAfter, railRowExtent } from "../../src/modules/spark-editor/components/outline/railLayout";
 
 type Row = { key: string; depth: number; label: string; scene: number };
@@ -27,6 +28,7 @@ declare global {
 }
 
 function Rail() {
+  useLayout();
   const [folded, setFolded] = useState<ReadonlySet<number>>(new Set());
   const [reveal, setReveal] = useState<{ index: number; request: number }>({ index: -1, request: 0 });
   const rows = build(folded);

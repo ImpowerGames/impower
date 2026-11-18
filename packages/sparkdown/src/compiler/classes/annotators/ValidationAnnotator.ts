@@ -17,6 +17,7 @@ import {
   isAliasedAttributeProp,
   isReservedAttribute,
 } from "../../constants/dataAttributeProps";
+import { isKnownSelectorState } from "../../constants/selectorStates";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
@@ -501,6 +502,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     super.update(tree, text, uri);
   }
 
+  private deadSelectorStateConsequence(node: SyntaxNode): string {
+    for (let parent = node.parent; parent; parent = parent.parent) {
+      if (parent.name === "RecursiveSelectorFunction" && /^@(?:is|where)\(/.test(this.read(parent.from, parent.from + 7))) {
+        return "this alternative never matches";
+      }
+    }
+    return "this block never applies";
+  }
+
   private inCutIsland(at: number): boolean {
     const tree = this.tree;
     if (!tree) return false;
@@ -647,6 +657,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
     }
+    if (bracket === "image" && kind === "image") {
+      this.framingClauseIssues(issue, directive);
+    } else {
+      for (const { word } of directive.clauses) {
+        if (word.text !== "at") continue;
+        issue(
+          "`at` places a picture as it is shown, so it belongs on `show` or a bare picture line\n> e.g. `[[show backdrop bg_apartment at right]]`",
+          word.from,
+          word.to,
+        );
+      }
+    }
     directive.clauses.forEach((clause, index) => {
       const keyword = clause.word.text;
       const value = clause.value;
@@ -687,10 +709,53 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         expect("\`with\` should be followed by the name of a modulation\n> e.g. \`with echo\`");
       } else if (keyword === "ease" && bracket === "image" && valueKind !== "name") {
         expect("\`ease\` should be followed by the name of an ease\n> e.g. \`ease linear\`");
+      } else if ((keyword === "at" || keyword === "to") && bracket === "image" && kind === "image") {
+        if (valueKind !== "name") {
+          expect(`\`${keyword}\` should be followed by the name of a framing\n> e.g. \`${keyword} left\`, \`${keyword} sofa\``);
+        }
       } else if (keyword === "to" && !navigate && (valueKind !== "number" || Number(value!.text) < 0)) {
         expect("\`to\` should be followed by a number greater than 0\n> e.g. \`to 0\`, \`to 0.5\`, \`to 1\`");
       }
     });
+  }
+
+  protected framingClauseIssues(
+    issue: (message: string, from: number, to: number) => void,
+    directive: SourceDirective,
+  ): void {
+    const control = directive.control?.text;
+    const shows = control === undefined || control === "show";
+    for (const clause of directive.clauses) {
+      const { word } = clause;
+      if (word.text === "at" && !shows) {
+        issue(
+          `\`at\` places a picture as it is shown, so it belongs on \`show\` or a bare picture line, not on \`${control}\`\n> To move a layer's picture, write \`to\`: \`[[animate backdrop to left over 2s]]\``,
+          word.from,
+          word.to,
+        );
+      } else if (word.text === "at" && directive.names.length === 0) {
+        issue(
+          "`at` places the picture this line shows, and this line names no picture\n> e.g. `[[show backdrop bg_apartment at right]]`",
+          word.from,
+          word.to,
+        );
+      } else if (word.text === "to" && control !== "animate") {
+        issue(
+          `\`to\` moves a layer's picture, so it belongs on \`animate\`, not on ${control ? `\`${control}\`` : "a bare picture line"}\n> e.g. \`[[animate backdrop to sofa over 1s]]\`; to place a picture as it is shown, write \`at\``,
+          word.from,
+          word.to,
+        );
+      }
+    }
+    const first = directive.names[0];
+    const last = directive.names.at(-1);
+    if (control === "animate" && first && last && directive.clauses.some((clause) => clause.word.text === "to")) {
+      issue(
+        "`to` moves the picture the layer already shows, so an `animate … to` line names no picture\n> e.g. `[[animate backdrop to sofa over 1s]]`",
+        first.from,
+        last.to,
+      );
+    }
   }
 
   protected conditionExpressionEnd(condition: any): number {
@@ -1568,14 +1633,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "TextCommand") {
       const content = this.read(nodeRef.from + 1, nodeRef.to - 1);
       if (!readStoryTag(content).known) {
-        const [, before, after] = /^([^=]*)=(.*)$/s.exec(content) ?? [];
-        const colonForm =
-          before !== undefined && readStoryTag(`${before}:${after}`).known
-            ? `\n> A tag's value follows a colon: \`<${before}:${after}>\``
+        const [, before, after] = /^([^:]*):(.*)$/s.exec(content) ?? [];
+        const equalsForm =
+          before !== undefined && readStoryTag(`${before}=${after}`).known
+            ? `\n> A tag's value follows an equals sign: \`<${before}=${after}>\``
             : "";
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
-            message: `Unknown tag \`<${content}>\`; the player removes it from the text and does nothing else${colonForm}`,
+            message: `Unknown tag \`<${content}>\`; the player removes it from the text and does nothing else${equalsForm}`,
             severity: "warning",
           }).range(nodeRef.from, nodeRef.to),
         );
@@ -1627,6 +1692,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
+    if (nodeRef.name === "SelectorStateName") {
+      const state = this.read(nodeRef.from, nodeRef.to);
+      if (!isKnownSelectorState(state)) {
+        const message = `\`@${state}\` is not a known state, so ${this.deadSelectorStateConsequence(nodeRef.node)}\n> States are the player's names such as \`@hovered\`, \`@focused\`, \`@pressed\`, \`@first\` and \`@before\``;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from - 1, nodeRef.to),
+        );
+      }
+    }
     if (
       nodeRef.name === "SelectorStateName" &&
       this.read(nodeRef.from, nodeRef.to) === "theme"
@@ -1639,7 +1716,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (!unclosed && scheme !== "light" && scheme !== "dark") {
         const to = nodeRef.to + (parameters?.[0].length ?? 0);
         const given = parameters ? `, not \`${parameters[0]}\`` : " right after it";
-        const message = `\`@theme\` takes \`(light)\` or \`(dark)\`${given}, so this block never applies\n> e.g. \`@theme(dark) { text-color = slate_90 }\``;
+        const message = `\`@theme\` takes \`(light)\` or \`(dark)\`${given}, so ${this.deadSelectorStateConsequence(nodeRef.node)}\n> e.g. \`@theme(dark) { text-color = slate_90 }\``;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
             message,

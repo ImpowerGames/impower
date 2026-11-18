@@ -14,9 +14,11 @@ import {
   IF_BLOCK,
   IF_BRANCHES,
   markAlternatives,
+  separatorBlock,
 } from "../utils/alternativeMarks";
+import { isLineWords, printedLineStart } from "../utils/leadingLinePieces";
 import { insertedAt, UNPLACED } from "../utils/printedPosition";
-import { printsAsBlankLine } from "../utils/printsAsBlankLine";
+import { blankLineTest } from "../utils/printsAsBlankLine";
 import { readStyled } from "../utils/readStyled";
 import { isRootFunctionName } from "../utils/rootFunctionName";
 
@@ -151,6 +153,7 @@ const trimRanges = (ranges: number[], leading: number, trailing: number): number
 export const screenplayTokens = (tree: Tree, script: string, positions = false): ScreenplayToken[] => {
     const stack: SparkdownNodeName[] = [];
     const tokens: ScreenplayToken[] = [{ tag: "page_break" }];
+    const printsAsBlankLine = blankLineTest(tree);
     let frontMatterKey = "";
     let frontMatterValue = NO_TEXT;
     let frontMatterSource: number[] = [];
@@ -180,8 +183,13 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
     };
     let leading = false;
     const readWords = (node: SyntaxNode, source: number[]): Reading => {
-      const text = readSkipping(node, readInto(source), isTextUnprinted);
-      const styled = readStyled(node, read, isTextUnprinted, undefined, positions);
+      const range = { from: printedLineStart(node), to: node.to };
+      const line = node.name === "TextChunk" && range.from === node.from ? node : node.parent ?? node;
+      const readSource = readInto(source);
+      const readInRange = (from: number, to: number) =>
+        readSource(Math.max(from, range.from), Math.min(to, range.to));
+      const text = readSkipping(line, readInRange, isTextUnprinted);
+      const styled = readStyled(line, read, isTextUnprinted, undefined, positions, range);
       if (leading) {
         leading = false;
         return { text: text.trimStart(), ...trimReading(styled, { end: false }) };
@@ -352,7 +360,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         const from = nodeRef.from;
         const to = nodeRef.to;
 
-        if (printsAsBlankLine(name, nodeRef.node.parent?.name)) {
+        if (printsAsBlankLine(nodeRef)) {
           addSeparator(from);
         }
         if (TOKENS_ON_LEAVE.has(name)) {
@@ -387,7 +395,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         }
         if (name === "SceneDeclarationName") {
           const text = read(from, to);
-          tokens.push({ tag: "scene", text });
+          tokens.push({ tag: "scene", text, from });
         }
 
         if (name === "LuauSparkdownAlternatorArm") {
@@ -407,7 +415,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           alternatives.push({ name, from, arms: name === IF_BLOCK ? [tokens.length] : [] });
         }
         if (name === ALTERNATOR_SEPARATOR || IF_BRANCHES.has(name)) {
-          const block = nodeRef.node.parent?.parent;
+          const block = separatorBlock(nodeRef.node);
           const open = alternatives.at(-1);
           if (open && block?.name === open.name && block.from === open.from) {
             flushText();
@@ -452,7 +460,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
 
         if (name === "BranchDeclarationName") {
           const text = read(from, to);
-          tokens.push({ tag: "branch", text });
+          tokens.push({ tag: "branch", text, from });
         }
 
         if (
@@ -464,7 +472,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         }
 
         if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
-          if (name === "TextChunk") {
+          if (isLineWords(nodeRef)) {
             title = appendLine(title, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
@@ -473,7 +481,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
         }
 
         if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
-          if (name === "TextChunk") {
+          if (isLineWords(nodeRef)) {
             heading = appendLine(heading, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
@@ -485,7 +493,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           stack.includes("BlockTransitional") ||
           stack.includes("InlineTransitional")
         ) {
-          if (name === "TextChunk") {
+          if (isLineWords(nodeRef)) {
             transitional = appendLine(
               transitional,
               nodeRef.node,
@@ -502,7 +510,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           stack.includes("InlineAction") ||
           stack.includes("ImplicitAction")
         ) {
-          if (name === "TextChunk") {
+          if (isLineWords(nodeRef)) {
             action = appendLine(action, nodeRef.node, readWords(nodeRef.node, textSource));
           }
           if (name === "ParentheticalLineContent") {
@@ -529,7 +537,7 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           stack.includes("BlockDialogue_content") ||
           stack.includes("InlineDialogue_content")
         ) {
-          if (name === "TextChunk") {
+          if (isLineWords(nodeRef)) {
             const continues = continuesAfterComment(nodeRef.node);
             const last = tokens.at(-1);
             if (continues && last?.tag === "dialogue_content") {

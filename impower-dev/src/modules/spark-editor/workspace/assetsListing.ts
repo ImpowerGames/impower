@@ -40,6 +40,11 @@ export interface AssetListing extends AssetPaths {
   folders: string[];
 }
 
+export interface AssetPicture {
+  path: string;
+  paths?: string[];
+}
+
 export interface AssetRow extends ListEntry {
   type: AssetType;
   link?: boolean;
@@ -47,9 +52,12 @@ export interface AssetRow extends ListEntry {
   location?: string;
   paths?: string[];
   variantCount?: number;
-  covers?: string[];
+  covers?: AssetPicture[];
   folderStack?: true;
 }
+
+export const pictureKey = (listing: AssetListing, paths: readonly string[]): string =>
+  paths.map((path) => `${path} ${listing.files[path]?.src ?? ""}`).join("\n");
 
 export const folderStackReason = (name: string): string =>
   `${name} is made of the numbered files in its folder. Rename or move the folder ${name} instead.`;
@@ -251,10 +259,11 @@ const isDirect = (stack: ImageStack, folder: string): boolean =>
 const byStackName = (a: ImageStack, b: ImageStack): number =>
   compareNames(a.name, b.name) || compareNames(a.cover, b.cover);
 
-const folderCovers = (folder: string, stacks: readonly ImageStack[]): string[] => {
+const folderCovers = (folder: string, stacks: readonly ImageStack[]): AssetPicture[] => {
   const direct = stacks.filter((stack) => isDirect(stack, folder)).sort(byStackName);
   const deeper = stacks.filter((stack) => !isDirect(stack, folder)).sort(byStackName);
-  return [...direct, ...deeper].slice(0, FOLDER_COVERS).map((stack) => stack.cover);
+  return [...direct, ...deeper].slice(0, FOLDER_COVERS)
+    .map((stack) => (isStacked(stack) ? { path: stack.cover, paths: stack.paths } : { path: stack.cover }));
 };
 
 const byFolderName = (a: string, b: string): number =>

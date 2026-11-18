@@ -735,7 +735,8 @@ The inspector opens beside the list on desktop and replaces it on phones.
 | `  · line  ` | use row name: the script name, this text, then the line number | folio-assets.js:1680 |  |
 | `Open ` | aria-label prefix of a use row: `Open ` + script + ` at line ` + number | folio-assets.js:1207, folio-assets.js:1227, folio-assets.js:1680 |  |
 | `  at line  ` | aria-label middle of a use row | folio-assets.js:1680 |  |
-| `Nothing shows it yet. Copy its name into a line of the script, or insert a variant from above.` | description (unused image) | folio-assets.js:1680 |  |
+| `Nothing shows it yet. Copy its name into a line of the script, or insert a variant from above.` | description (unused image with variants) | folio-assets.js:1680 |  |
+| `Nothing shows it yet. Copy its name into a line of the script.` | description (unused image without variants) | folio-assets.js:1680 | the editor's own shortening: the prototype prints the sentence above for every image, and an image without variants has none above to insert |
 | `Nothing plays it yet.` | description (unused audio or video) | folio-assets.js:1680 |  |
 | `No style uses it yet.` | description (unused font) | folio-assets.js:1680 |  |
 | `Nothing in the story refers to it.` | description (unused file of another type) | folio-assets.js:1680 |  |

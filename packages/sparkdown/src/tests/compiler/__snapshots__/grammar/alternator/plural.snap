@@ -24,181 +24,190 @@ sparkdown [0..192]
  │   │       └─ LuauSparkdownConditionalAlternatorBlock_begin_c3 [20..21]
  │   │           └─ OptionalWhitespace [20..21]: " "
  │   ├─ LuauSparkdownConditionalAlternatorBlock_content [21..183]
- │   │   ├─ LuauConditionalAlternatorCondition [21..35]
- │   │   │   ├─ LuauConditionalAlternatorCondition_begin 21
- │   │   │   ├─ LuauConditionalAlternatorCondition_content [21..35]
- │   │   │   │   └─ LuauParenthetical [21..35]
- │   │   │   │       ├─ LuauParenthetical_begin [21..22]
- │   │   │   │       │   └─ LuauParenthetical_begin_c1 [21..22]
- │   │   │   │       │       └─ PunctuationParenOpen [21..22]: "("
- │   │   │   │       ├─ LuauParenthetical_content [22..34]
- │   │   │   │       │   └─ LuauAccessPath [22..34]
- │   │   │   │       │       ├─ LuauAccessPath_begin 22
- │   │   │   │       │       ├─ LuauAccessPath_content [22..34]
- │   │   │   │       │       │   └─ LuauAccessPart [22..34]
- │   │   │   │       │       │       └─ LuauVariable [22..34]
- │   │   │   │       │       │           └─ LuauVariable_c1 [22..34]
- │   │   │   │       │       │               └─ LuauVariableName [22..34]: "potion_count"
- │   │   │   │       │       └─ LuauAccessPath_end 34
- │   │   │   │       │           └─ LuauAccessPath_end_c1 34
- │   │   │   │       └─ LuauParenthetical_end [34..35]
- │   │   │   │           ├─ LuauParenthetical_end_c1 [34..35]
- │   │   │   │           │   └─ PunctuationParenClose [34..35]: ")"
- │   │   │   │           └─ LuauParenthetical_end_c2 35
- │   │   │   └─ LuauConditionalAlternatorCondition_end 35
- │   │   ├─ Newline [35..36]: "\n"
- │   │   ├─ LuauAlternatorSeparator [36..49]
- │   │   │   ├─ LuauAlternatorSeparator_c1 [36..40]
- │   │   │   │   └─ ExtraWhitespace [36..40]: "    "
- │   │   │   ├─ LuauAlternatorSeparator_c2 [40..41]: "|"
- │   │   │   ├─ LuauAlternatorSeparator_c3 [41..42]
- │   │   │   │   └─ LuauAlternatorSeparator_c3 [41..42]
- │   │   │   │       └─ OptionalWhitespace [41..42]: " "
- │   │   │   ├─ LuauAlternatorSeparator_c4 [42..46]
- │   │   │   │   └─ LuauAlternatorAssignmentName [42..46]: "zero"
- │   │   │   ├─ LuauAlternatorSeparator_c5 [46..47]
- │   │   │   │   └─ LuauAlternatorSeparator_c5 [46..47]
- │   │   │   │       └─ OptionalWhitespace [46..47]: " "
- │   │   │   ├─ LuauAlternatorSeparator_c6 [47..48]
- │   │   │   │   └─ LuauAlternatorAssignmentOperator [47..48]: "="
- │   │   │   └─ LuauAlternatorSeparator_c7 [48..49]
- │   │   │       └─ LuauAlternatorSeparator_c7 [48..49]
- │   │   │           └─ OptionalWhitespace [48..49]: " "
- │   │   ├─ ImplicitAction [49..71]
- │   │   │   ├─ ImplicitAction_begin 49
- │   │   │   │   └─ ImplicitAction_begin_c1 49
- │   │   │   │       └─ OptionalWhitespace 49
- │   │   │   ├─ ImplicitAction_content [49..71]
- │   │   │   │   └─ ActionLineEnd [49..71]
- │   │   │   │       ├─ ActionLineEnd_begin 49
- │   │   │   │       │   └─ ActionLineEnd_begin_c1 49
- │   │   │   │       │       └─ OptionalWhitespace 49
- │   │   │   │       ├─ ActionLineEnd_content [49..71]
- │   │   │   │       │   └─ TextChunk [49..71]
- │   │   │   │       │       ├─ TextChunk_begin 49
- │   │   │   │       │       ├─ TextChunk_content [49..71]
- │   │   │   │       │       │   ├─ Word [49..51]: "It"
- │   │   │   │       │       │   ├─ Punctuation [51..52]: "'"
- │   │   │   │       │       │   ├─ Word [52..53]: "s"
- │   │   │   │       │       │   ├─ Space [53..54]: " "
- │   │   │   │       │       │   ├─ Word [54..64]: "completely"
- │   │   │   │       │       │   ├─ Space [64..65]: " "
- │   │   │   │       │       │   ├─ Word [65..70]: "empty"
- │   │   │   │       │       │   └─ Punctuation [70..71]: "."
- │   │   │   │       │       └─ TextChunk_end 71
- │   │   │   │       └─ ActionLineEnd_end 71
- │   │   │   └─ ImplicitAction_end 71
- │   │   ├─ Newline [71..72]: "\n"
- │   │   ├─ LuauAlternatorSeparator [72..84]
- │   │   │   ├─ LuauAlternatorSeparator_c1 [72..76]
- │   │   │   │   └─ ExtraWhitespace [72..76]: "    "
- │   │   │   ├─ LuauAlternatorSeparator_c2 [76..77]: "|"
- │   │   │   ├─ LuauAlternatorSeparator_c3 [77..78]
- │   │   │   │   └─ LuauAlternatorSeparator_c3 [77..78]
- │   │   │   │       └─ OptionalWhitespace [77..78]: " "
- │   │   │   ├─ LuauAlternatorSeparator_c4 [78..81]
- │   │   │   │   └─ LuauAlternatorAssignmentName [78..81]: "one"
- │   │   │   ├─ LuauAlternatorSeparator_c5 [81..82]
- │   │   │   │   └─ LuauAlternatorSeparator_c5 [81..82]
- │   │   │   │       └─ OptionalWhitespace [81..82]: " "
- │   │   │   ├─ LuauAlternatorSeparator_c6 [82..83]
- │   │   │   │   └─ LuauAlternatorAssignmentOperator [82..83]: "="
- │   │   │   └─ LuauAlternatorSeparator_c7 [83..84]
- │   │   │       └─ LuauAlternatorSeparator_c7 [83..84]
- │   │   │           └─ OptionalWhitespace [83..84]: " "
- │   │   ├─ ImplicitAction [84..121]
- │   │   │   ├─ ImplicitAction_begin 84
- │   │   │   │   └─ ImplicitAction_begin_c1 84
- │   │   │   │       └─ OptionalWhitespace 84
- │   │   │   ├─ ImplicitAction_content [84..121]
- │   │   │   │   └─ ActionLineEnd [84..121]
- │   │   │   │       ├─ ActionLineEnd_begin 84
- │   │   │   │       │   └─ ActionLineEnd_begin_c1 84
- │   │   │   │       │       └─ OptionalWhitespace 84
- │   │   │   │       ├─ ActionLineEnd_content [84..121]
- │   │   │   │       │   └─ TextChunk [84..121]
- │   │   │   │       │       ├─ TextChunk_begin 84
- │   │   │   │       │       ├─ TextChunk_content [84..121]
- │   │   │   │       │       │   ├─ Word [84..89]: "There"
- │   │   │   │       │       │   ├─ Space [89..90]: " "
- │   │   │   │       │       │   ├─ Word [90..92]: "is"
- │   │   │   │       │       │   ├─ Space [92..93]: " "
- │   │   │   │       │       │   ├─ Word [93..97]: "only"
- │   │   │   │       │       │   ├─ Space [97..98]: " "
- │   │   │   │       │       │   ├─ Word [98..101]: "one"
- │   │   │   │       │       │   ├─ Space [101..102]: " "
- │   │   │   │       │       │   ├─ Word [102..108]: "health"
- │   │   │   │       │       │   ├─ Space [108..109]: " "
- │   │   │   │       │       │   ├─ Word [109..115]: "potion"
- │   │   │   │       │       │   ├─ Space [115..116]: " "
- │   │   │   │       │       │   ├─ Word [116..120]: "left"
- │   │   │   │       │       │   └─ Punctuation [120..121]: "."
- │   │   │   │       │       └─ TextChunk_end 121
- │   │   │   │       └─ ActionLineEnd_end 121
- │   │   │   └─ ImplicitAction_end 121
- │   │   ├─ Newline [121..122]: "\n"
- │   │   ├─ LuauAlternatorSeparator [122..136]
- │   │   │   ├─ LuauAlternatorSeparator_c1 [122..126]
- │   │   │   │   └─ ExtraWhitespace [122..126]: "    "
- │   │   │   ├─ LuauAlternatorSeparator_c2 [126..127]: "|"
- │   │   │   ├─ LuauAlternatorSeparator_c3 [127..128]
- │   │   │   │   └─ LuauAlternatorSeparator_c3 [127..128]
- │   │   │   │       └─ OptionalWhitespace [127..128]: " "
- │   │   │   ├─ LuauAlternatorSeparator_c4 [128..133]
- │   │   │   │   └─ LuauAlternatorAssignmentName [128..133]: "other"
- │   │   │   ├─ LuauAlternatorSeparator_c5 [133..134]
- │   │   │   │   └─ LuauAlternatorSeparator_c5 [133..134]
- │   │   │   │       └─ OptionalWhitespace [133..134]: " "
- │   │   │   ├─ LuauAlternatorSeparator_c6 [134..135]
- │   │   │   │   └─ LuauAlternatorAssignmentOperator [134..135]: "="
- │   │   │   └─ LuauAlternatorSeparator_c7 [135..136]
- │   │   │       └─ LuauAlternatorSeparator_c7 [135..136]
- │   │   │           └─ OptionalWhitespace [135..136]: " "
- │   │   ├─ ImplicitAction [136..182]
- │   │   │   ├─ ImplicitAction_begin 136
- │   │   │   │   └─ ImplicitAction_begin_c1 136
- │   │   │   │       └─ OptionalWhitespace 136
- │   │   │   ├─ ImplicitAction_content [136..182]
- │   │   │   │   └─ ActionLineEnd [136..182]
- │   │   │   │       ├─ ActionLineEnd_begin 136
- │   │   │   │       │   └─ ActionLineEnd_begin_c1 136
- │   │   │   │       │       └─ OptionalWhitespace 136
- │   │   │   │       ├─ ActionLineEnd_content [136..182]
- │   │   │   │       │   └─ TextChunk [136..182]
- │   │   │   │       │       ├─ TextChunk_begin 136
- │   │   │   │       │       ├─ TextChunk_content [136..182]
- │   │   │   │       │       │   ├─ Word [136..138]: "It"
- │   │   │   │       │       │   ├─ Space [138..139]: " "
- │   │   │   │       │       │   ├─ Word [139..146]: "rattles"
- │   │   │   │       │       │   ├─ Space [146..147]: " "
- │   │   │   │       │       │   ├─ Word [147..151]: "with"
- │   │   │   │       │       │   ├─ Space [151..152]: " "
- │   │   │   │       │       │   ├─ LuauInterpolatedStringExpression [152..166]
- │   │   │   │       │       │   │   ├─ LuauInterpolatedStringExpression_begin [152..153]
- │   │   │   │       │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [152..153]
- │   │   │   │       │       │   │   │       └─ PunctuationBraceOpen [152..153]: "{"
- │   │   │   │       │       │   │   ├─ LuauInterpolatedStringExpression_content [153..165]
- │   │   │   │       │       │   │   │   └─ LuauAccessPath [153..165]
- │   │   │   │       │       │   │   │       ├─ LuauAccessPath_begin 153
- │   │   │   │       │       │   │   │       ├─ LuauAccessPath_content [153..165]
- │   │   │   │       │       │   │   │       │   └─ LuauAccessPart [153..165]
- │   │   │   │       │       │   │   │       │       └─ LuauVariable [153..165]
- │   │   │   │       │       │   │   │       │           └─ LuauVariable_c1 [153..165]
- │   │   │   │       │       │   │   │       │               └─ LuauVariableName [153..165]: "potion_count"
- │   │   │   │       │       │   │   │       └─ LuauAccessPath_end 165
- │   │   │   │       │       │   │   │           └─ LuauAccessPath_end_c1 165
- │   │   │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [165..166]
- │   │   │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [165..166]
- │   │   │   │       │       │   │           └─ PunctuationBraceClose [165..166]: "}"
- │   │   │   │       │       │   ├─ Space [166..167]: " "
- │   │   │   │       │       │   ├─ Word [167..173]: "health"
- │   │   │   │       │       │   ├─ Space [173..174]: " "
- │   │   │   │       │       │   ├─ Word [174..181]: "potions"
- │   │   │   │       │       │   └─ Punctuation [181..182]: "."
- │   │   │   │       │       └─ TextChunk_end 182
- │   │   │   │       └─ ActionLineEnd_end 182
- │   │   │   └─ ImplicitAction_end 182
- │   │   └─ Newline [182..183]: "\n"
+ │   │   ├─ LuauSparkdownConditionalAlternatorHead [21..36]
+ │   │   │   ├─ LuauSparkdownConditionalAlternatorHead_begin 21
+ │   │   │   ├─ LuauSparkdownConditionalAlternatorHead_content [21..35]
+ │   │   │   │   └─ LuauConditionalAlternatorCondition [21..35]
+ │   │   │   │       ├─ LuauConditionalAlternatorCondition_begin 21
+ │   │   │   │       ├─ LuauConditionalAlternatorCondition_content [21..35]
+ │   │   │   │       │   └─ LuauParenthetical [21..35]
+ │   │   │   │       │       ├─ LuauParenthetical_begin [21..22]
+ │   │   │   │       │       │   └─ LuauParenthetical_begin_c1 [21..22]
+ │   │   │   │       │       │       └─ PunctuationParenOpen [21..22]: "("
+ │   │   │   │       │       ├─ LuauParenthetical_content [22..34]
+ │   │   │   │       │       │   └─ LuauAccessPath [22..34]
+ │   │   │   │       │       │       ├─ LuauAccessPath_begin 22
+ │   │   │   │       │       │       ├─ LuauAccessPath_content [22..34]
+ │   │   │   │       │       │       │   └─ LuauAccessPart [22..34]
+ │   │   │   │       │       │       │       └─ LuauVariable [22..34]
+ │   │   │   │       │       │       │           └─ LuauVariable_c1 [22..34]
+ │   │   │   │       │       │       │               └─ LuauVariableName [22..34]: "potion_count"
+ │   │   │   │       │       │       └─ LuauAccessPath_end 34
+ │   │   │   │       │       │           └─ LuauAccessPath_end_c1 34
+ │   │   │   │       │       └─ LuauParenthetical_end [34..35]
+ │   │   │   │       │           ├─ LuauParenthetical_end_c1 [34..35]
+ │   │   │   │       │           │   └─ PunctuationParenClose [34..35]: ")"
+ │   │   │   │       │           └─ LuauParenthetical_end_c2 35
+ │   │   │   │       └─ LuauConditionalAlternatorCondition_end 35
+ │   │   │   └─ LuauSparkdownConditionalAlternatorHead_end [35..36]
+ │   │   │       └─ LuauSparkdownConditionalAlternatorHead_end_c1 [35..36]
+ │   │   │           └─ Newline [35..36]: "\n"
+ │   │   └─ LuauSparkdownAlternatorArmLines [36..183]
+ │   │       ├─ LuauSparkdownAlternatorArmLines_begin 36
+ │   │       ├─ LuauSparkdownAlternatorArmLines_content [36..183]
+ │   │       │   ├─ LuauAlternatorSeparator [36..49]
+ │   │       │   │   ├─ LuauAlternatorSeparator_c1 [36..40]
+ │   │       │   │   │   └─ ExtraWhitespace [36..40]: "    "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c2 [40..41]: "|"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c3 [41..42]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [41..42]
+ │   │       │   │   │       └─ OptionalWhitespace [41..42]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c4 [42..46]
+ │   │       │   │   │   └─ LuauAlternatorAssignmentName [42..46]: "zero"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c5 [46..47]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c5 [46..47]
+ │   │       │   │   │       └─ OptionalWhitespace [46..47]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c6 [47..48]
+ │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [47..48]: "="
+ │   │       │   │   └─ LuauAlternatorSeparator_c7 [48..49]
+ │   │       │   │       └─ LuauAlternatorSeparator_c7 [48..49]
+ │   │       │   │           └─ OptionalWhitespace [48..49]: " "
+ │   │       │   ├─ ImplicitAction [49..71]
+ │   │       │   │   ├─ ImplicitAction_begin 49
+ │   │       │   │   │   └─ ImplicitAction_begin_c1 49
+ │   │       │   │   │       └─ OptionalWhitespace 49
+ │   │       │   │   ├─ ImplicitAction_content [49..71]
+ │   │       │   │   │   └─ ActionLineEnd [49..71]
+ │   │       │   │   │       ├─ ActionLineEnd_begin 49
+ │   │       │   │   │       │   └─ ActionLineEnd_begin_c1 49
+ │   │       │   │   │       │       └─ OptionalWhitespace 49
+ │   │       │   │   │       ├─ ActionLineEnd_content [49..71]
+ │   │       │   │   │       │   └─ TextChunk [49..71]
+ │   │       │   │   │       │       ├─ TextChunk_begin 49
+ │   │       │   │   │       │       ├─ TextChunk_content [49..71]
+ │   │       │   │   │       │       │   ├─ Word [49..51]: "It"
+ │   │       │   │   │       │       │   ├─ Punctuation [51..52]: "'"
+ │   │       │   │   │       │       │   ├─ Word [52..53]: "s"
+ │   │       │   │   │       │       │   ├─ Space [53..54]: " "
+ │   │       │   │   │       │       │   ├─ Word [54..64]: "completely"
+ │   │       │   │   │       │       │   ├─ Space [64..65]: " "
+ │   │       │   │   │       │       │   ├─ Word [65..70]: "empty"
+ │   │       │   │   │       │       │   └─ Punctuation [70..71]: "."
+ │   │       │   │   │       │       └─ TextChunk_end 71
+ │   │       │   │   │       └─ ActionLineEnd_end 71
+ │   │       │   │   └─ ImplicitAction_end 71
+ │   │       │   ├─ Newline [71..72]: "\n"
+ │   │       │   ├─ LuauAlternatorSeparator [72..84]
+ │   │       │   │   ├─ LuauAlternatorSeparator_c1 [72..76]
+ │   │       │   │   │   └─ ExtraWhitespace [72..76]: "    "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c2 [76..77]: "|"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c3 [77..78]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [77..78]
+ │   │       │   │   │       └─ OptionalWhitespace [77..78]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c4 [78..81]
+ │   │       │   │   │   └─ LuauAlternatorAssignmentName [78..81]: "one"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c5 [81..82]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c5 [81..82]
+ │   │       │   │   │       └─ OptionalWhitespace [81..82]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c6 [82..83]
+ │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [82..83]: "="
+ │   │       │   │   └─ LuauAlternatorSeparator_c7 [83..84]
+ │   │       │   │       └─ LuauAlternatorSeparator_c7 [83..84]
+ │   │       │   │           └─ OptionalWhitespace [83..84]: " "
+ │   │       │   ├─ ImplicitAction [84..121]
+ │   │       │   │   ├─ ImplicitAction_begin 84
+ │   │       │   │   │   └─ ImplicitAction_begin_c1 84
+ │   │       │   │   │       └─ OptionalWhitespace 84
+ │   │       │   │   ├─ ImplicitAction_content [84..121]
+ │   │       │   │   │   └─ ActionLineEnd [84..121]
+ │   │       │   │   │       ├─ ActionLineEnd_begin 84
+ │   │       │   │   │       │   └─ ActionLineEnd_begin_c1 84
+ │   │       │   │   │       │       └─ OptionalWhitespace 84
+ │   │       │   │   │       ├─ ActionLineEnd_content [84..121]
+ │   │       │   │   │       │   └─ TextChunk [84..121]
+ │   │       │   │   │       │       ├─ TextChunk_begin 84
+ │   │       │   │   │       │       ├─ TextChunk_content [84..121]
+ │   │       │   │   │       │       │   ├─ Word [84..89]: "There"
+ │   │       │   │   │       │       │   ├─ Space [89..90]: " "
+ │   │       │   │   │       │       │   ├─ Word [90..92]: "is"
+ │   │       │   │   │       │       │   ├─ Space [92..93]: " "
+ │   │       │   │   │       │       │   ├─ Word [93..97]: "only"
+ │   │       │   │   │       │       │   ├─ Space [97..98]: " "
+ │   │       │   │   │       │       │   ├─ Word [98..101]: "one"
+ │   │       │   │   │       │       │   ├─ Space [101..102]: " "
+ │   │       │   │   │       │       │   ├─ Word [102..108]: "health"
+ │   │       │   │   │       │       │   ├─ Space [108..109]: " "
+ │   │       │   │   │       │       │   ├─ Word [109..115]: "potion"
+ │   │       │   │   │       │       │   ├─ Space [115..116]: " "
+ │   │       │   │   │       │       │   ├─ Word [116..120]: "left"
+ │   │       │   │   │       │       │   └─ Punctuation [120..121]: "."
+ │   │       │   │   │       │       └─ TextChunk_end 121
+ │   │       │   │   │       └─ ActionLineEnd_end 121
+ │   │       │   │   └─ ImplicitAction_end 121
+ │   │       │   ├─ Newline [121..122]: "\n"
+ │   │       │   ├─ LuauAlternatorSeparator [122..136]
+ │   │       │   │   ├─ LuauAlternatorSeparator_c1 [122..126]
+ │   │       │   │   │   └─ ExtraWhitespace [122..126]: "    "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c2 [126..127]: "|"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c3 [127..128]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [127..128]
+ │   │       │   │   │       └─ OptionalWhitespace [127..128]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c4 [128..133]
+ │   │       │   │   │   └─ LuauAlternatorAssignmentName [128..133]: "other"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c5 [133..134]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c5 [133..134]
+ │   │       │   │   │       └─ OptionalWhitespace [133..134]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c6 [134..135]
+ │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [134..135]: "="
+ │   │       │   │   └─ LuauAlternatorSeparator_c7 [135..136]
+ │   │       │   │       └─ LuauAlternatorSeparator_c7 [135..136]
+ │   │       │   │           └─ OptionalWhitespace [135..136]: " "
+ │   │       │   ├─ ImplicitAction [136..182]
+ │   │       │   │   ├─ ImplicitAction_begin 136
+ │   │       │   │   │   └─ ImplicitAction_begin_c1 136
+ │   │       │   │   │       └─ OptionalWhitespace 136
+ │   │       │   │   ├─ ImplicitAction_content [136..182]
+ │   │       │   │   │   └─ ActionLineEnd [136..182]
+ │   │       │   │   │       ├─ ActionLineEnd_begin 136
+ │   │       │   │   │       │   └─ ActionLineEnd_begin_c1 136
+ │   │       │   │   │       │       └─ OptionalWhitespace 136
+ │   │       │   │   │       ├─ ActionLineEnd_content [136..182]
+ │   │       │   │   │       │   └─ TextChunk [136..182]
+ │   │       │   │   │       │       ├─ TextChunk_begin 136
+ │   │       │   │   │       │       ├─ TextChunk_content [136..182]
+ │   │       │   │   │       │       │   ├─ Word [136..138]: "It"
+ │   │       │   │   │       │       │   ├─ Space [138..139]: " "
+ │   │       │   │   │       │       │   ├─ Word [139..146]: "rattles"
+ │   │       │   │   │       │       │   ├─ Space [146..147]: " "
+ │   │       │   │   │       │       │   ├─ Word [147..151]: "with"
+ │   │       │   │   │       │       │   ├─ Space [151..152]: " "
+ │   │       │   │   │       │       │   ├─ LuauInterpolatedStringExpression [152..166]
+ │   │       │   │   │       │       │   │   ├─ LuauInterpolatedStringExpression_begin [152..153]
+ │   │       │   │   │       │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [152..153]
+ │   │       │   │   │       │       │   │   │       └─ PunctuationBraceOpen [152..153]: "{"
+ │   │       │   │   │       │       │   │   ├─ LuauInterpolatedStringExpression_content [153..165]
+ │   │       │   │   │       │       │   │   │   └─ LuauAccessPath [153..165]
+ │   │       │   │   │       │       │   │   │       ├─ LuauAccessPath_begin 153
+ │   │       │   │   │       │       │   │   │       ├─ LuauAccessPath_content [153..165]
+ │   │       │   │   │       │       │   │   │       │   └─ LuauAccessPart [153..165]
+ │   │       │   │   │       │       │   │   │       │       └─ LuauVariable [153..165]
+ │   │       │   │   │       │       │   │   │       │           └─ LuauVariable_c1 [153..165]
+ │   │       │   │   │       │       │   │   │       │               └─ LuauVariableName [153..165]: "potion_count"
+ │   │       │   │   │       │       │   │   │       └─ LuauAccessPath_end 165
+ │   │       │   │   │       │       │   │   │           └─ LuauAccessPath_end_c1 165
+ │   │       │   │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [165..166]
+ │   │       │   │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [165..166]
+ │   │       │   │   │       │       │   │           └─ PunctuationBraceClose [165..166]: "}"
+ │   │       │   │   │       │       │   ├─ Space [166..167]: " "
+ │   │       │   │   │       │       │   ├─ Word [167..173]: "health"
+ │   │       │   │   │       │       │   ├─ Space [173..174]: " "
+ │   │       │   │   │       │       │   ├─ Word [174..181]: "potions"
+ │   │       │   │   │       │       │   └─ Punctuation [181..182]: "."
+ │   │       │   │   │       │       └─ TextChunk_end 182
+ │   │       │   │   │       └─ ActionLineEnd_end 182
+ │   │       │   │   └─ ImplicitAction_end 182
+ │   │       │   └─ Newline [182..183]: "\n"
+ │   │       └─ LuauSparkdownAlternatorArmLines_end 183
  │   └─ LuauSparkdownConditionalAlternatorBlock_end [183..188]
  │       ├─ LuauSparkdownConditionalAlternatorBlock_end_c1 [183..185]
  │       │   └─ LuauSparkdownConditionalAlternatorBlock_end_c1 [183..185]

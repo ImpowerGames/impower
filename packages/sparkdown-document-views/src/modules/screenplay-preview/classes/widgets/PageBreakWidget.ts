@@ -2,7 +2,7 @@ import { EditorView } from "@codemirror/view";
 import BlockWidget from "../BlockWidget";
 import { PageBreakSpec } from "../../types/PageBreakSpec";
 
-const DEFAULT_LINE_HEIGHT = 22.390625;
+export const RULE_BORDER = 1;
 
 export default class PageBreakWidget extends BlockWidget<PageBreakSpec> {
   override toDOM(_view: EditorView) {
@@ -15,6 +15,6 @@ export default class PageBreakWidget extends BlockWidget<PageBreakSpec> {
   }
 
   override get estimatedHeight() {
-    return DEFAULT_LINE_HEIGHT;
+    return RULE_BORDER;
   }
 }

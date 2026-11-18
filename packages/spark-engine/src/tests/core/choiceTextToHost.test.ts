@@ -91,7 +91,7 @@ describe("the choice text the engine sends to the host has no tags", () => {
       [
         "scene start",
         "  choose",
-        "    * Go <b>far</b> <b2>x</b2> [<speed:0.5>now] later",
+        "    * Go <b>far</b> <b2>x</b2> [<speed=0.5>now] later",
         "      Gone.",
         "  end",
         "end",

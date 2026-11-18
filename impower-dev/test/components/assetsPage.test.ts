@@ -21,6 +21,7 @@ const assets = vi.hoisted(() => ({
   move: vi.fn(async (_paths: readonly string[], _folder: string): Promise<{ from: string; to: string }[]> => []),
   usedBy: vi.fn(async (_paths: readonly string[]): Promise<unknown[] | null> => []),
   downloadAll: vi.fn(async (_paths: readonly string[]) => undefined),
+  requestPicture: vi.fn((_paths: readonly string[]) => () => {}),
   measureImages: vi.fn(async (_paths: string[]) => undefined),
   watchFacts: vi.fn((_paths: string[]) => () => {}),
   watchPicture: vi.fn((_path: string, _variant: unknown, _size: number, _listener: (src: string | null) => void) => () => {}),
@@ -148,7 +149,7 @@ const openMenu = async (trigger: HTMLElement | undefined) => {
 
 const menuItems = () => all<HTMLElement>('[role="menuitem"], [role="menuitemradio"]').map((el) => el.textContent?.trim());
 
-const showAs = async (layout: "Tiles" | "List") => {
+const showAs = async (layout: "Portrait tiles" | "Landscape tiles" | "Small tiles" | "List") => {
   await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
   await vi.waitFor(() => expect(menuItems()).toContain(layout));
   await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === layout));
@@ -235,6 +236,18 @@ describe("the Assets page", () => {
     await mount();
     expect(host!.firstElementChild).not.toBeNull();
   });
+
+  for (const width of ["desktop", "compact", "phone"] as const) {
+    it(`draws no title bar at ${width} width, so the search field starts the page and the page keeps its name (I-2464)`, async () => {
+      layout.value = width;
+      await mount();
+      const section = host!.querySelector<HTMLElement>('section[aria-label="Assets"]')!;
+      expect(section).not.toBeNull();
+      expect(section.querySelector("header, h1")).toBeNull();
+      expect(all<HTMLElement>("button").some((button) => button.textContent?.includes("Back to story"))).toBe(false);
+      expect(section.querySelector("header, h1, input, button")).toBe(section.querySelector('input[aria-label="Search assets"]'));
+    });
+  }
 
   for (const width of ["desktop", "phone"] as const) {
     it(`shows the six type tabs and an Add button at ${width} width`, async () => {
@@ -380,7 +393,7 @@ describe("the Assets page", () => {
         "Name",
         "Modified",
         "Size",
-        "UsesLines in the scripts that show or play it.",
+        "Uses",
         "Story order",
         "A to Z",
         "Z to A",
@@ -576,30 +589,91 @@ describe("image folders as tiles", () => {
     await mount();
     expect(layoutButton()!.getAttribute("aria-label")).toBe("Change how this folder is shown");
     expect(layoutButton()!.getAttribute("aria-haspopup")).toBe("menu");
-    expect(layoutButton()!.getAttribute("data-layout")).toBe("tiles");
+    expect(layoutButton()!.getAttribute("data-layout")).toBe("portrait");
     await openMenu(layoutButton()!);
-    await vi.waitFor(() => expect(menuItems()).toEqual(["Tiles", "List"]));
-    expect(all<HTMLElement>('[role="menuitemradio"]').map((el) => el.getAttribute("aria-checked"))).toEqual(["true", "false"]);
+    await vi.waitFor(() => expect(menuItems()).toEqual(["Portrait tiles", "Landscape tiles", "Small tiles", "List"]));
+    const checks = () => all<HTMLElement>('[role="menuitemradio"]').map((el) => el.getAttribute("aria-checked"));
+    expect(checks()).toEqual(["true", "false", "false", "false"]);
     const itemIcon = (label: string) =>
       all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === label)!.querySelector("svg:not([data-radio-indicator])")!.innerHTML;
-    const tilesIcon = itemIcon("Tiles");
+    const tilesIcon = itemIcon("Portrait tiles");
     const listIcon = itemIcon("List");
+    expect(itemIcon("Landscape tiles")).toBe(tilesIcon);
+    expect(itemIcon("Small tiles")).toBe(tilesIcon);
     expect(tilesIcon).not.toBe(listIcon);
     const triggerIcon = () => layoutButton()!.querySelector("svg")!.innerHTML;
     expect(triggerIcon()).toBe(tilesIcon);
+    for (const [label, layout] of [["Small tiles", "small"], ["Landscape tiles", "landscape"]] as const) {
+      await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === label));
+      expect(window.setListState).toHaveBeenLastCalledWith({ assetsLayouts: { "Assets/Images/Portraits": layout } });
+      expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual([layout]);
+      expect(layoutButton()!.getAttribute("data-layout")).toBe(layout);
+      expect(triggerIcon()).toBe(tilesIcon);
+      await openMenu(layoutButton()!);
+      await vi.waitFor(() => expect(checks()).toEqual(["Portrait tiles", "Landscape tiles", "Small tiles", "List"].map((entry) => String(entry === label))));
+    }
     await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === "List"));
-    expect(window.setListState).toHaveBeenCalledWith({ assetsLayouts: { "Assets/Images/Portraits": "rows" } });
+    expect(window.setListState).toHaveBeenLastCalledWith({ assetsLayouts: { "Assets/Images/Portraits": "rows" } });
     expect(tiles()).toEqual([]);
     expect(host!.querySelector("[data-variants-chip]")!.textContent).toBe("4 variants");
     expect(layoutButton()!.getAttribute("data-layout")).toBe("rows");
     expect(triggerIcon()).toBe(listIcon);
     await openMenu(layoutButton()!);
-    await vi.waitFor(() =>
-      expect(all<HTMLElement>('[role="menuitemradio"]').map((el) => el.getAttribute("aria-checked"))).toEqual(["false", "true"]),
-    );
+    await vi.waitFor(() => expect(checks()).toEqual(["false", "false", "false", "true"]));
     await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.trim() === "List"));
     await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
     expect(tiles().length).toBe(2);
+  });
+
+  it.each([
+    ["Assets/Images/Portraits", "portrait"],
+    ["Assets/Images/Backdrops", "landscape"],
+  ] as const)("shows a choice of Tiles stored before the sizes in %s as the shape its kind gives, and stores that shape", async (folder, shape) => {
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: folder }, assetsLayouts: { [folder]: "tiles", "Assets/Images": "rows" } },
+    };
+    await mount();
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual([shape]);
+    expect(layoutButton()!.getAttribute("data-layout")).toBe(shape);
+    expect(window.setListState).toHaveBeenCalledTimes(1);
+    expect(window.setListState).toHaveBeenCalledWith({ assetsLayouts: { [folder]: shape, "Assets/Images": "rows" } });
+    await settle();
+    expect(window.setListState).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a stored List as rows, and a stored value it does not know as the folder's default, writing neither", async () => {
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images/Portraits" }, assetsLayouts: { "Assets/Images/Portraits": "rows", "Assets/Images/Backdrops": "grid" } },
+    };
+    await mount();
+    expect(tiles()).toEqual([]);
+    expect(layoutButton()!.getAttribute("data-layout")).toBe("rows");
+    await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
+    await click(all<HTMLElement>('button[aria-label^="Open folder Backdrops"]')[0]);
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["landscape"]);
+    expect(layoutButton()!.getAttribute("data-layout")).toBe("landscape");
+    expect(window.setListState.mock.calls.filter(([lists]) => "assetsLayouts" in lists)).toEqual([]);
+  });
+
+  it("reads the choice from the open project's lists, so another project's folder starts at its default", async () => {
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images/Portraits" }, assetsLayouts: { "Assets/Images/Portraits": "small" } },
+    };
+    await mount();
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["small"]);
+    await act(async () => render(null, host!));
+    workspace.current = {
+      ...workspace.current,
+      project: { ...workspace.current.project, id: "other" },
+      lists: { assetsFolders: { image: "Assets/Images/Portraits" } },
+    };
+    workspace.assetListing.value = { ...workspace.assetListing.value!, projectId: "other" };
+    await act(async () => render(h(Assets, {}), host!));
+    await settle();
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
   });
 
   it("lists search results as rows and leaves the Audio tab as rows with no layout button", async () => {
@@ -683,6 +757,65 @@ describe("the tile shape of a folder not named for portraits or backdrops", () =
     expect(tileShapes()).toEqual(["portrait"]);
   });
 
+  it.each([
+    ["mostly tall", [[300, 400], [300, 400], [640, 400]], "portrait"],
+    ["mostly wide", [[640, 400], [640, 400], [300, 400]], "landscape"],
+  ] as const)("shows a choice of Tiles stored before the sizes in a folder of %s pictures as the shape they share, once read, and stores it", async (_, shapes, shape) => {
+    withPictures(Object.fromEntries(shapes.map(([width, height], index) => [`Assets/Images/Cast/p${index}.png`, [6001 + index, width, height]])));
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images/Cast" }, assetsLayouts: { "Assets/Images/Cast": "tiles" } },
+    };
+    await mount();
+    await settle();
+    expect(assets.measureImages).toHaveBeenCalled();
+    expect(tileShapes()).toEqual([shape, shape, shape]);
+    expect(window.setListState.mock.calls.filter(([lists]) => "assetsLayouts" in lists)).toEqual([
+      [{ assetsLayouts: { "Assets/Images/Cast": shape } }],
+    ]);
+  });
+
+  it("waits for the listing before turning a stored Tiles into a shape, so a page opened before its files arrive stores the shape they share", async () => {
+    withPictures({
+      "Assets/Images/ada.png": [8001, 300, 400],
+      "Assets/Images/kai.png": [8002, 300, 400],
+      "Assets/Images/sky.png": [8003, 640, 400],
+    });
+    const arriving = workspace.assetListing.value!;
+    workspace.assetListing.value = undefined;
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images" }, assetsLayouts: { "Assets/Images": "tiles" } },
+    };
+    await mount();
+    await settle();
+    expect(window.setListState.mock.calls.filter(([lists]) => "assetsLayouts" in lists)).toEqual([]);
+    await act(async () => {
+      workspace.assetListing.value = arriving;
+    });
+    await settle();
+    await settle();
+    expect(tileShapes()).toEqual(["portrait", "portrait", "portrait"]);
+    expect(window.setListState.mock.calls.filter(([lists]) => "assetsLayouts" in lists)).toEqual([
+      [{ assetsLayouts: { "Assets/Images": "portrait" } }],
+    ]);
+  });
+
+  it("never measures a folder whose size was chosen", async () => {
+    withPictures({
+      "Assets/Images/Cast/ada.png": [7001, 300, 400],
+      "Assets/Images/Cast/kai.png": [7002, 640, 400],
+    });
+    workspace.current = {
+      ...workspace.current,
+      lists: { assetsFolders: { image: "Assets/Images/Cast" }, assetsLayouts: { "Assets/Images/Cast": "small" } },
+    };
+    await mount();
+    await settle();
+    expect(assets.measureImages).not.toHaveBeenCalled();
+    expect(tileShapes()).toEqual(["small", "small"]);
+  });
+
   it("measures a picture again when its file changes, and keeps drawing the folder", async () => {
     withPictures({
       "Assets/Images/Cast/ada.png": [5001, 300, 400],
@@ -726,10 +859,10 @@ describe("renaming from the row menu", () => {
     return items;
   };
 
-  it("offers the same actions for a single file and a stacked picture", async () => {
+  it("offers the same actions for a single file and a stacked picture, with Variants for the stacked one", async () => {
     await mount();
     expect(await menuOf("bunny")).toEqual(["Select", "Rename", "Move…", "Delete"]);
-    expect(await menuOf("imani")).toEqual(["Select", "Rename", "Move…", "Delete"]);
+    expect(await menuOf("imani")).toEqual(["Select", "Variants", "Rename", "Move…", "Delete"]);
   });
 
   it("renames a stacked picture from its tile, holding the name as the script writes it", async () => {
@@ -804,6 +937,44 @@ describe("selecting, moving and deleting", () => {
     );
     workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P } } };
   });
+
+  it.each(["portrait", "landscape", "small"] as const)(
+    "selects from the mark, drops a tile on a folder tile, lists the tiles in the folder's order and draws the overlays in %s tiles",
+    async (size) => {
+      setListing(
+        {
+          [`${P}/imani.png`]: facts(7001),
+          [`${P}/imani@night.png`]: facts(7002),
+          [`${P}/bunny.png`]: facts(7003),
+          [`${P}/Cast/ada.png`]: facts(7004),
+        },
+        [`${P}/Cast`],
+      );
+      workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P }, assetsLayouts: { [P]: size } } };
+      await mount();
+      const tiles = all<HTMLElement>('[role="listitem"] [data-tile]');
+      expect(tiles.map((tile) => tile.getAttribute("data-tile"))).toEqual([size, size, size]);
+      expect(all<HTMLElement>('[role="listitem"] button[aria-label^="Open"]').map((button) => button.getAttribute("aria-label")!.split(",")[0])).toEqual([
+        "Open folder Cast",
+        "Open image bunny",
+        "Open image imani",
+      ]);
+      expect(tiles[0]!.querySelector("[data-folder-cover]")).not.toBeNull();
+      expect(tiles[2]!.querySelector("[data-variants-badge]")!.getAttribute("aria-label")).toBe("2 variants");
+      const dataTransfer = { setData: () => {}, effectAllowed: "", dropEffect: "" };
+      const cast = host!.querySelector<HTMLElement>(`[data-drop-folder="${P}/Cast"]`)!;
+      await act(async () => {
+        host!.querySelector<HTMLElement>('button[aria-label^="Open image bunny"]')!.dispatchEvent(Object.assign(new Event("dragstart", { bubbles: true }), { dataTransfer }));
+        cast.dispatchEvent(Object.assign(new Event("dragover", { bubbles: true, cancelable: true }), { dataTransfer }));
+        cast.dispatchEvent(Object.assign(new Event("drop", { bubbles: true, cancelable: true }), { dataTransfer }));
+      });
+      await settle();
+      expect(assets.move).toHaveBeenLastCalledWith([`${P}/bunny.png`], `${P}/Cast`);
+      await check("imani");
+      expect(bar()).toBe("1 selected");
+      expect(mark("imani").closest("[data-tile]")!.getAttribute("data-tile")).toBe(size);
+    },
+  );
 
   it("enters selection from a tile's mark, counts, selects all and stops on Escape", async () => {
     await mount();
@@ -2099,5 +2270,244 @@ describe("the inspector of an asset that moves", () => {
     });
     await settle();
     expect(inspector()).toBeNull();
+  });
+});
+
+describe("the options and Sort menus take the prototype's entries (I-2449)", () => {
+  const P = "Assets/Images/Portraits";
+  const ICONS: Record<string, string> = {
+    Open: '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
+    Select: '<rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="m8 12 3 3 5-6"></path>',
+    Variants: '<circle cx="12" cy="12" r="3"></circle><path d="M2 12c3-5 6-7 10-7s7 2 10 7c-3 5-6 7-10 7s-7-2-10-7z"></path>',
+    "Upload here…": '<path d="M12 21V9m-5 5 5-5 5 5M4 3h16"></path>',
+    "New folder inside…": '<path d="M12 4v16M4 12h16"></path>',
+    Rename: '<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"></path>',
+    "Move…": '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
+    Delete: '<path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"></path>',
+  };
+  const THING = ["Select", "Variants", "Rename", "Move…", "Delete"];
+  const PLAIN = ["Select", "Rename", "Move…", "Delete"];
+  const FOLDER = ["Open", "Select", "Upload here…", "New folder inside…", "—", "Rename", "Move…", "Delete"];
+
+  beforeEach(() => {
+    selection.end();
+    workspace.uploads.value = [];
+    workspace.assetsReveal.value = null;
+    setListing(
+      {
+        [`${P}/imani.png`]: facts(8001),
+        [`${P}/imani@night.png`]: facts(8002),
+        [`${P}/bunny.png`]: facts(8003),
+        [`${P}/Cast/ada.png`]: facts(8004),
+      },
+      [`${P}/Cast`, `${P}/Cast/Leads`],
+    );
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P } } };
+  });
+
+  const press = async (trigger: HTMLElement | undefined, pointerType: "mouse" | "touch") => {
+    expect(trigger).toBeTruthy();
+    await act(async () => {
+      trigger!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType, button: 0 }));
+      if (pointerType === "touch") {
+        trigger!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+      }
+    });
+    await settle();
+  };
+  const entries = () => all<HTMLElement>('[role="menuitem"], [role="menuitemradio"], [role="separator"]');
+  const shape = () =>
+    entries().map((el) => (el.getAttribute("role") === "separator" ? "—" : (el.textContent ?? "").trim()));
+  const options = (name: string) => all<HTMLElement>(`button[aria-label="Options for ${name}"]`)[0];
+  const choose = async (label: string) =>
+    click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.trim() === label));
+  const escape = async () => {
+    await act(async () => {
+      document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await settle();
+  };
+
+  const expectMenu = async (expected: string[]) => {
+    await vi.waitFor(() => expect(shape()).toEqual(expected));
+    for (const item of entries().filter((el) => el.getAttribute("role") !== "separator")) {
+      const label = item.textContent!.trim();
+      expect([null, label]).toContain(item.getAttribute("aria-label"));
+      if (ICONS[label]) {
+        expect(item.querySelector("svg")!.innerHTML).toBe(ICONS[label]);
+        expect(item.querySelector("svg")!.getAttribute("class")).toContain("text-muted");
+      }
+    }
+  };
+
+  for (const pointer of ["mouse", "touch"] as const) {
+    describe(`opened with a ${pointer}`, () => {
+      it("offers Variants on a stacked picture's tile and leaves it out of a plain one's, with no divider", async () => {
+        await mount();
+        await press(options("imani"), pointer);
+        await expectMenu(THING);
+        await escape();
+        await press(options("bunny"), pointer);
+        await expectMenu(PLAIN);
+      });
+
+      it("offers the same entries on list rows", async () => {
+        await mount();
+        await showAs("List");
+        await press(options("bunny"), pointer);
+        await expectMenu(PLAIN);
+        await escape();
+        await press(options("imani"), pointer);
+        await expectMenu(THING);
+      });
+
+      it("offers Open, Select, Upload here… and New folder inside… above a divider on a folder tile", async () => {
+        await mount();
+        await press(options("Cast"), pointer);
+        await expectMenu(FOLDER);
+      });
+
+      it("offers the sort fields and orders with no hint under Uses and no bold on the chosen rows", async () => {
+        await mount();
+        await press(all<HTMLElement>('button[aria-label^="Sort by"]')[0], pointer);
+        await expectMenu(["Name", "Modified", "Size", "Uses", "Story order", "—", "A to Z", "Z to A"]);
+        const chosen = all<HTMLElement>('[role="menuitemradio"][aria-checked="true"]');
+        expect(chosen.map((el) => el.textContent?.trim())).toEqual(["Name", "A to Z"]);
+        for (const item of chosen) {
+          expect(item.className).not.toContain("font-semibold");
+        }
+      });
+    });
+  }
+
+  it("moves through a folder's entries in order with the arrow keys", async () => {
+    await mount();
+    const trigger = options("Cast")!;
+    trigger.focus();
+    await act(async () => {
+      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    });
+    await settle();
+    await vi.waitFor(() => expect(shape()).toEqual(FOLDER));
+    const visited: string[] = [];
+    for (let step = 0; step < 7; step += 1) {
+      await act(async () => {
+        (document.activeElement ?? document.body).dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+        );
+      });
+      await settle();
+      visited.push((document.activeElement?.textContent ?? "").trim());
+    }
+    expect(visited).toEqual(FOLDER.filter((label) => label !== "—"));
+  });
+
+  it("opens the folder from Open", async () => {
+    await mount();
+    await press(options("Cast"), "mouse");
+    await choose("Open");
+    expect(window.setListState).toHaveBeenCalledWith({ assetsFolders: { image: `${P}/Cast` } });
+  });
+
+  it("opens a stacked picture's inspector from Variants", async () => {
+    await mount();
+    await press(options("imani"), "mouse");
+    await choose("Variants");
+    const inspector = document.querySelector('section[aria-label="Asset details"]')!;
+    expect(inspector.querySelector("header h2")!.textContent).toBe("imani");
+  });
+
+  const chooseFiles = async (...names: string[]) => {
+    const input = host!.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", { value: names.map((name) => new File(["x"], name)), configurable: true });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+  };
+
+  it("uploads into a nested folder from its Upload here…, and a cancelled picker leaves Add uploading into the open folder", async () => {
+    await mount();
+    const picker = host!.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const opened = vi.spyOn(HTMLInputElement.prototype, "click");
+    try {
+      await press(options("Cast"), "mouse");
+      await choose("Upload here…");
+      expect(opened.mock.contexts).toEqual([picker]);
+      expect(picker.multiple).toBe(true);
+    } finally {
+      opened.mockRestore();
+    }
+    await chooseFiles("ada2.png");
+    await vi.waitFor(() =>
+      expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "ada2.png" })], `${P}/Cast`),
+    );
+    expect(window.setListState).not.toHaveBeenCalledWith(expect.objectContaining({ assetsFolders: expect.anything() }));
+
+    assets.upload.mockClear();
+    await press(options("Cast"), "mouse");
+    await choose("Upload here…");
+    await act(async () => {
+      host!.querySelector<HTMLInputElement>('input[type="file"]')!.dispatchEvent(new Event("cancel"));
+    });
+    await settle();
+    await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
+    const reopened = vi.spyOn(HTMLInputElement.prototype, "click");
+    try {
+      await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.startsWith("Add files from this device")));
+      expect(reopened.mock.contexts).toEqual([picker]);
+    } finally {
+      reopened.mockRestore();
+    }
+    await chooseFiles("rain.png");
+    await vi.waitFor(() => expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "rain.png" })], P));
+  });
+
+  it("creates a folder inside the folder from New folder inside…, naming it in that folder", async () => {
+    assets.createFolder.mockResolvedValueOnce(`${P}/Cast/Extras`);
+    await mount();
+    await press(options("Cast"), "mouse");
+    await choose("New folder inside…");
+    expect(workspace.current.lists?.assetsFolders).toMatchObject({ image: `${P}/Cast` });
+    const input = await vi.waitFor(() => {
+      const found = host!.querySelector<HTMLInputElement>('input[aria-label="New folder name"]');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await act(async () => {
+      input.value = "Extras";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await settle();
+    expect(assets.createFolder).toHaveBeenCalledWith(`${P}/Cast`, "Extras");
+  });
+
+  it("selects, renames, moves and deletes a folder from its menu as before", async () => {
+    await mount();
+    await press(options("Cast"), "mouse");
+    await choose("Select");
+    expect(selection.selected.peek()).toEqual([`${P}/Cast`]);
+    await act(async () => selection.end());
+    await settle();
+    await press(options("Cast"), "mouse");
+    await choose("Rename");
+    const field = await vi.waitFor(() => {
+      const found = host!.querySelector<HTMLInputElement>('input[aria-label="Rename Cast"]');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await act(async () => {
+      field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await settle();
+    await press(options("Cast"), "mouse");
+    await choose("Move…");
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    await escape();
+    await press(options("Cast"), "mouse");
+    await choose("Delete");
+    expect(assets.usedBy).toHaveBeenCalledWith([`${P}/Cast`]);
+    await vi.waitFor(() => expect(assets.remove).toHaveBeenCalledWith([`${P}/Cast`]));
   });
 });

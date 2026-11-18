@@ -25,6 +25,15 @@ function Demo({ showTabs }: { showTabs: boolean }) {
   );
 }
 
+function HeaderlessDemo() {
+  const [value, setValue] = useState("all");
+  return (
+    <div class="flex h-64 w-[360px] flex-col rounded border border-surface-border">
+      <TabbedPage header="absent" title="Items" tabs={TABS} value={value} onValueChange={setValue} />
+    </div>
+  );
+}
+
 function TabbedPageDemo() {
   return (
     <div class="space-y-6">
@@ -33,6 +42,9 @@ function TabbedPageDemo() {
       </GalleryRow>
       <GalleryRow label="Without tabs: the first tab's body under the header">
         <Demo showTabs={false} />
+      </GalleryRow>
+      <GalleryRow label="Header absent: the page tab row starts the page and the section keeps its title as its name">
+        <HeaderlessDemo />
       </GalleryRow>
     </div>
   );

@@ -1,3 +1,6 @@
+export const CLIPBOARD_UNAVAILABLE =
+  "Clipboard unavailable. Use Save to keep these messages.";
+
 export type ConsoleSeverity = "error" | "warning" | "info";
 
 export const CONSOLE_SEVERITIES: readonly ConsoleSeverity[] = [

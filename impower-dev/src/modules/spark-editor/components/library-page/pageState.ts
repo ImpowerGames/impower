@@ -9,15 +9,31 @@ export type ScrollsKey = "scriptsScrolls" | "assetsScrolls";
 
 export type LayoutsKey = "assetsLayouts";
 
-export type FolderLayout = "tiles" | "rows";
+export type FolderLayout = "portrait" | "landscape" | "small" | "rows";
 
-const isFolderLayout = (value: unknown): value is FolderLayout =>
-  value === "tiles" || value === "rows";
+export const LEGACY_TILES = "tiles";
 
-const setListState = (read: (lists: Lists) => Partial<Lists>) =>
-  void import("../../workspace/Workspace").then(({ Workspace }) =>
-    Workspace.window.setListState(read(workspace.state.peek().lists ?? {})),
-  );
+export type StoredFolderLayout = FolderLayout | typeof LEGACY_TILES;
+
+const STORED_FOLDER_LAYOUTS: readonly unknown[] = ["portrait", "landscape", "small", "rows", LEGACY_TILES];
+
+const isStoredFolderLayout = (value: unknown): value is StoredFolderLayout => STORED_FOLDER_LAYOUTS.includes(value);
+
+type Intents = typeof import("../../workspace/Workspace").Workspace;
+
+let intents: Intents | undefined;
+
+const loadIntents = () =>
+  import("../../workspace/Workspace").then(({ Workspace }) => (intents = Workspace));
+
+const setListState = (read: (lists: Lists) => Partial<Lists>) => {
+  const apply = (loaded: Intents) => loaded.window.setListState(read(workspace.state.peek().lists ?? {}));
+  if (intents) {
+    apply(intents);
+  } else {
+    void loadIntents().then(apply);
+  }
+};
 
 export function useTabQuery(
   key: QueriesKey,
@@ -41,8 +57,7 @@ export function useTabQuery(
 export function useFolderLayout(
   key: LayoutsKey,
   folder: string,
-  fallback: FolderLayout,
-): [FolderLayout, (layout: FolderLayout) => void] {
+): [StoredFolderLayout | undefined, (layout: FolderLayout) => void] {
   const saved = workspace.state.value.lists?.[key]?.[folder];
   const change = useCallback(
     (next: FolderLayout) =>
@@ -51,47 +66,89 @@ export function useFolderLayout(
       })),
     [key, folder],
   );
-  return [isFolderLayout(saved) ? saved : fallback, change];
+  return [isStoredFolderLayout(saved) ? saved : undefined, change];
 }
 
-export function useSavedScroll(key: ScrollsKey, tab: string) {
-  const top = useRef(workspace.state.peek().lists?.[key]?.[tab] ?? 0);
-  const attached = useRef<HTMLDivElement | null>(null);
-  const onScroll = useRef(() => {
-    top.current = attached.current?.scrollTop ?? top.current;
-  });
+const SCROLL_SAVE_INTERVAL = 500;
 
+const savedTop = (key: ScrollsKey, tab: string) => workspace.state.peek().lists?.[key]?.[tab] ?? 0;
+
+export function useSavedScroll(key: ScrollsKey, tab: string, reveal?: number) {
+  const top = useRef(savedTop(key, tab));
+  const revealed = useRef(reveal);
+  const attached = useRef<HTMLDivElement | null>(null);
   const shown = useRef({ key, tab });
+  const settled = useRef(true);
+  if (shown.current.key !== key || shown.current.tab !== tab) {
+    settled.current = false;
+  }
   const restored = useRef<{
     element: HTMLDivElement;
     key: ScrollsKey;
     tab: string;
   } | null>(null);
 
+  const pending = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const save = useRef(() => {
+    clearTimeout(pending.current);
+    pending.current = undefined;
+    const { key: shownKey, tab: shownTab } = shown.current;
+    const scrolled = top.current;
+    if (scrolled !== savedTop(shownKey, shownTab)) {
+      setListState((lists) => ({
+        [shownKey]: { ...lists[shownKey], [shownTab]: scrolled },
+      }));
+    }
+  });
+  const onScroll = useRef(() => {
+    if (!settled.current || !attached.current) {
+      return;
+    }
+    top.current = attached.current.scrollTop;
+    pending.current ??= setTimeout(save.current, SCROLL_SAVE_INTERVAL);
+  });
+
   useEffect(() => {
     if (shown.current.key !== key || shown.current.tab !== tab) {
+      save.current();
       shown.current = { key, tab };
-      top.current = workspace.state.peek().lists?.[key]?.[tab] ?? 0;
-      if (attached.current) {
-        attached.current.scrollTop = top.current;
-        restored.current = { element: attached.current, key, tab };
+      const element = attached.current;
+      if (element && reveal !== undefined && reveal !== revealed.current) {
+        top.current = element.scrollTop;
+      } else {
+        top.current = savedTop(key, tab);
+        if (element) {
+          element.scrollTop = top.current;
+        }
+      }
+      if (element) {
+        restored.current = { element, key, tab };
       }
     }
-    return () => {
-      const saved = workspace.state.peek().lists?.[key]?.[tab] ?? 0;
-      if (top.current !== saved) {
-        const scrolled = top.current;
-        setListState((lists) => ({
-          [key]: { ...lists[key], [tab]: scrolled },
-        }));
+    revealed.current = reveal ?? revealed.current;
+    settled.current = true;
+  }, [key, tab, reveal]);
+
+  useEffect(() => {
+    void loadIntents();
+    const leave = () => {
+      save.current();
+      intents?.window.persistNow();
+    };
+    const hide = () => {
+      if (document.visibilityState === "hidden") {
+        leave();
       }
     };
-  }, [key, tab]);
-
-  useEffect(
-    () => () => attached.current?.removeEventListener("scroll", onScroll.current),
-    [],
-  );
+    window.addEventListener("pagehide", leave);
+    document.addEventListener("visibilitychange", hide);
+    return () => {
+      window.removeEventListener("pagehide", leave);
+      document.removeEventListener("visibilitychange", hide);
+      save.current();
+      attached.current?.removeEventListener("scroll", onScroll.current);
+    };
+  }, []);
 
   return useCallback((element: HTMLDivElement | null) => {
     if (element === attached.current) {
@@ -107,7 +164,9 @@ export function useSavedScroll(key: ScrollsKey, tab: string) {
         last.key === shownKey &&
         last.tab === shownTab
       ) {
-        top.current = element.scrollTop;
+        if (settled.current) {
+          top.current = element.scrollTop;
+        }
       } else {
         element.scrollTop = top.current;
         restored.current = { element, key: shownKey, tab: shownTab };

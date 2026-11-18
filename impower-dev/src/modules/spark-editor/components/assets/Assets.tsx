@@ -1,5 +1,4 @@
 import {
-  ArtIcon,
   Button,
   ChevronIcon,
   DropdownContent,
@@ -28,11 +27,13 @@ import {
   Tabs,
   TextIcon,
   Thumbnail,
+  type ThumbnailFit,
+  type ThumbnailProps,
   Tile,
-  TILE_MEDIA_FIT,
+  TILE_SIZES,
   tileGrid,
-  tileHeight,
-  type TileShape,
+  type TileSize,
+  type TileTrack,
   UploadIcon,
   VariantsBadge,
   VariantsChip,
@@ -71,8 +72,10 @@ import {
   coveredPaths,
   folderStackReason,
   foldersUnder,
+  pictureKey,
   thingsLabel,
   type AssetListing,
+  type AssetPicture,
   type AssetRow,
 } from "../../workspace/assetsListing";
 import selection from "../../workspace/assetsSelection";
@@ -98,6 +101,7 @@ import {
   useRowFocusReturn,
   SortMenu,
   Trail,
+  LEGACY_TILES,
   libraryRowHeight,
   useFolderLayout,
   useLibraryDrag,
@@ -110,10 +114,11 @@ import { addAssetFiles, addNamedAssetFile, landedView } from "../../workspace/ad
 import type { MissingAsset } from "@impower/sparkdown/src/compiler/utils/missingAsset";
 import { folderTitle } from "../../workspace/uploadSession";
 import AddUrlDialog from "./AddUrlDialog";
-import AssetRowMenu, { INSPECTOR_ACTIONS, type AssetRowAction } from "./AssetRowMenu";
+import AssetRowMenu, { INSPECTOR_ACTIONS, rowEntries, type AssetRowAction } from "./AssetRowMenu";
 import { SoundLine, SoundPlay } from "./SoundRow";
 import UploadsPanel from "./UploadsPanel";
 import { useFileDrop } from "./useFileDrop";
+import { useNarrowPane } from "./useNarrowPane";
 
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
@@ -124,16 +129,18 @@ const PAGE_TAB = "all";
 
 const HEADING_HEIGHT = 48;
 
-const SHOWN_USES = 3;
+const PICTURE_ROW_HEIGHT = 67;
 
-const USES_HINT = "Lines in the scripts that show or play it.";
+const SHOWN_USES = 3;
 
 const COUNTING_NOTE = "Counting uses…";
 
 const UNCOUNTED_NOTE = "Uses could not be counted. Edit a script to try again.";
 
 const FOLDER_LAYOUTS: readonly { layout: FolderLayout; label: string; Icon: IconComponent }[] = [
-  { layout: "tiles", label: "Tiles", Icon: GridIcon },
+  { layout: "portrait", label: "Portrait tiles", Icon: GridIcon },
+  { layout: "landscape", label: "Landscape tiles", Icon: GridIcon },
+  { layout: "small", label: "Small tiles", Icon: GridIcon },
   { layout: "rows", label: "List", Icon: ListIcon },
 ];
 
@@ -248,9 +255,55 @@ const followed = (path: string, moves: readonly FileMove[]) => {
   return move ? move.to + path.slice(move.from.length) : path;
 };
 
+const pictured = (row: AssetRow) => row.kind !== "folder" && row.type === "image" && !row.link;
+
+const usePictureSources = (listing: AssetListing, pictures: readonly AssetPicture[]): (string | undefined)[] => {
+  const keys = pictures.map((picture) => (picture.paths ? pictureKey(listing, picture.paths) : ""));
+  const drawn = workspace.assetPictures.value;
+  useEffect(() => {
+    const stacks = pictures.flatMap((picture) => (picture.paths ? [picture.paths] : []));
+    if (!stacks.length) {
+      return;
+    }
+    let alive = true;
+    let drops: (() => void)[] = [];
+    void intents().then((Workspace) => {
+      if (alive) {
+        drops = stacks.map((paths) => Workspace.assets.requestPicture(paths));
+      }
+    });
+    return () => {
+      alive = false;
+      drops.forEach((drop) => drop());
+    };
+  }, [JSON.stringify(keys)]);
+  return pictures.map((picture, index) => drawn[keys[index]!] ?? srcOf(listing, picture.path));
+};
+
+function AssetThumbnail({
+  listing,
+  picture,
+  ...thumbnail
+}: { listing: AssetListing; picture: AssetPicture } & Omit<ThumbnailProps, "src">) {
+  const [src] = usePictureSources(listing, [picture]);
+  return <Thumbnail {...thumbnail} src={src} />;
+}
+
+function AssetFolderCover({
+  listing,
+  covers,
+  fit,
+}: {
+  listing: AssetListing;
+  covers: readonly AssetPicture[];
+  fit: ThumbnailFit;
+}) {
+  return <FolderCover fit={fit} sources={usePictureSources(listing, covers)} />;
+}
+
 function RowGlyph({ row, listing }: { row: AssetRow; listing: AssetListing }) {
   if (row.kind === "folder") return <FolderIcon />;
-  if (row.type === "image" && !row.link) return <Thumbnail fit="contain" src={srcOf(listing, row.path)} />;
+  if (pictured(row)) return <AssetThumbnail listing={listing} picture={row} fit="contain" />;
   const Glyph = row.link && row.type === "other" ? LinkIcon : TYPE_ICONS[row.type];
   return <Glyph />;
 }
@@ -276,7 +329,7 @@ function AssetsBrowser() {
     );
   }).value;
   const [query, setQuery] = useTabQuery("assetsQueries", PAGE_TAB);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const renameAfterClose = useRef<string | null>(null);
   const reopenAfterRename = useRef<string | null>(null);
@@ -284,6 +337,7 @@ function AssetsBrowser() {
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const [deleting, setDeleting] = useState<{ paths: readonly string[]; groups: SearchGroup[] | null } | null>(null);
   const upload = useRef<HTMLInputElement | null>(null);
+  const uploadInto = useRef<string | null>(null);
   const [naming, setNaming] = useState<MissingAsset | null>(null);
   const newButton = useRef<HTMLButtonElement>(null);
   const selecting = selection.active.value;
@@ -325,6 +379,8 @@ function AssetsBrowser() {
   const [reveal, setReveal] = useState<{ path: string; request: number } | null>(null);
   const list = useRef<HTMLDivElement | null>(null);
   const page = useRef<HTMLDivElement | null>(null);
+  const body = useRef<HTMLDivElement | null>(null);
+  const narrowPane = useNarrowPane(body);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const layoutName = useLayout();
   const dock = useInspectorDock();
@@ -363,30 +419,37 @@ function AssetsBrowser() {
   }, [openPath]);
 
   useEffect(() => () => audioSession.stopUnless((owner) => owner === AUDITION_OWNER), []);
-  const [layout, setLayout] = useFolderLayout(
-    "assetsLayouts",
-    level.folder,
-    type === "image" ? "tiles" : "rows",
-  );
+  const [stored, setLayout] = useFolderLayout("assetsLayouts", level.folder);
   const { projectSettings } = useSettings();
-  const tiles = !searching && type === "image" && layout === "tiles";
+  const images = !searching && type === "image";
+  const chosen = stored === undefined || stored === LEGACY_TILES ? undefined : stored;
   const kinds = addMenuKindsOf(
     { path: `${level.folder}/_`, type: "image" },
     addMenuFolders(projectSettings),
   );
-  const namedShape: TileShape | undefined = kinds.includes("portrait")
+  const namedShape: TileSize | undefined = kinds.includes("portrait")
     ? "portrait"
     : kinds.includes("backdrop")
       ? "landscape"
       : undefined;
-  const pictures = tiles && !namedShape
+  const pictures = images && !chosen && !namedShape
     ? level.rows.filter((row) => row.kind === "file" && !row.link).map((row) => row.path)
     : [];
   const sizes = workspace.assetSizes.value;
   const pictureSources = pictures.map((path) => srcOf(listing, path));
   const measuring = pictureSources.some((src) => src && !Object.hasOwn(sizes, src));
-  const shape: TileShape =
+  const shape: TileSize =
     namedShape ?? majorityShape(pictureSources.map((src) => (src ? sizes[src] ?? undefined : undefined)));
+  const layout: FolderLayout = type !== "image" ? "rows" : (chosen ?? shape);
+  const tiles = images && layout !== "rows";
+  const size: TileSize = layout === "rows" ? shape : layout;
+  const track: TileTrack = layoutName !== "desktop" ? "narrow" : narrowPane ? "pane" : "desktop";
+  const holding = tiles && layoutName === "desktop" && narrowPane === undefined;
+  useEffect(() => {
+    if (images && loaded && stored === LEGACY_TILES && !measuring) {
+      setLayout(shape);
+    }
+  }, [images, loaded, stored, measuring, shape, setLayout]);
   const measureKey = JSON.stringify(pictures.map((path, index) => [path, pictureSources[index]]));
   useEffect(() => {
     if (pictures.length) {
@@ -394,7 +457,11 @@ function AssetsBrowser() {
     }
   }, [measureKey]);
   const scrollKey = `${searching ? "search" : `${type}:${level.folder}`}:${sort}`;
-  const scroller = useSavedScroll("assetsScrolls", scrollKey);
+  const scroller = useSavedScroll(
+    "assetsScrolls",
+    scrollKey,
+    reveal && items.some((item) => item.kind !== "heading" && item.path === reveal.path) ? reveal.request : undefined,
+  );
 
   const revealRow = (path: string) => setReveal((prev) => ({ path, request: (prev?.request ?? 0) + 1 }));
 
@@ -590,7 +657,8 @@ function AssetsBrowser() {
 
   const add = (items: DropItem[], folder: string) => void run(async () => show(await addAssetFiles(items, folder)));
 
-  const pickFiles = () => {
+  const pickFiles = (folder: string | null = null) => {
+    uploadInto.current = folder;
     setNaming(null);
     upload.current?.click();
   };
@@ -605,6 +673,7 @@ function AssetsBrowser() {
 
   useEffect(() => {
     if (naming) {
+      uploadInto.current = null;
       upload.current?.click();
     }
   }, [naming]);
@@ -614,6 +683,8 @@ function AssetsBrowser() {
     const chosen = Array.from(input.files ?? []);
     input.value = "";
     const named = naming;
+    const into = uploadInto.current ?? level.folder;
+    uploadInto.current = null;
     setNaming(null);
     if (!chosen.length) return;
     if (named) {
@@ -625,7 +696,7 @@ function AssetsBrowser() {
     }
     add(
       chosen.map((file) => ({ name: file.name, size: file.size, getBuffer: () => file.arrayBuffer() })),
-      level.folder,
+      into,
     );
   };
 
@@ -673,7 +744,13 @@ function AssetsBrowser() {
   });
 
   const onAction = (row: AssetRow, action: AssetRowAction) => {
-    if (action === "select") selection.start(row.path);
+    if (action === "open") openFolder(row.path);
+    else if (action === "variants") openAsset(row.path);
+    else if (action === "upload") pickFiles(row.path);
+    else if (action === "newFolder") {
+      openFolder(row.path);
+      setCreating(row.path);
+    } else if (action === "select") selection.start(row.path);
     else if (action === "rename") {
       reopenAfterRename.current = null;
       setRenaming(row.path);
@@ -729,16 +806,13 @@ function AssetsBrowser() {
     const folder = row.kind === "folder";
     return (
       <Tile
-        shape={shape}
+        size={size}
         kind={folder ? "folder" : "file"}
         media={
           folder ? (
-            <FolderCover
-              fit={TILE_MEDIA_FIT[shape]}
-              sources={(row.covers ?? []).map((path) => srcOf(listing, path))}
-            />
+            <AssetFolderCover listing={listing} fit={TILE_SIZES[size].fit} covers={row.covers ?? []} />
           ) : (
-            <Thumbnail size="fill" fit={TILE_MEDIA_FIT[shape]} src={srcOf(listing, row.path)} />
+            <AssetThumbnail listing={listing} picture={row} size="fill" fit={TILE_SIZES[size].fit} />
           )
         }
         badge={row.variantCount ? <VariantsBadge count={row.variantCount} /> : undefined}
@@ -754,6 +828,7 @@ function AssetsBrowser() {
             glyph="sm"
             tone="ink"
             kept={row.folderStack ? folderStackReason(row.name) : undefined}
+            entries={rowEntries(row)}
             onAction={(action) => onAction(row, action)}
           />
         }
@@ -816,7 +891,7 @@ function AssetsBrowser() {
           row.variantCount ? (
             <span class="flex min-w-0 items-center gap-[7px]">
               <span class="min-w-0 [--fade:20px] fade-edge">{row.name}</span>
-              <VariantsChip count={row.variantCount} />
+              <VariantsChip count={row.variantCount} class="relative top-px" />
             </span>
           ) : (
             row.name
@@ -832,6 +907,7 @@ function AssetsBrowser() {
           <AssetRowMenu
             name={row.name}
             kept={row.folderStack ? folderStackReason(row.name) : undefined}
+            entries={rowEntries(row)}
             onAction={(action) => onAction(row, action)}
           />
         }
@@ -855,7 +931,7 @@ function AssetsBrowser() {
         <AssetRowMenu
           name={row.name}
           kept={row.folderStack ? folderStackReason(row.name) : undefined}
-          actions={INSPECTOR_ACTIONS}
+          entries={INSPECTOR_ACTIONS}
           glyph="lg"
           onAction={(action) => onInspectorAction(row, action)}
         />
@@ -876,7 +952,7 @@ function AssetsBrowser() {
   const addingInto = folderTitle(listing, level.folder);
   const [emptyTitle, emptyBody] = EMPTY_TYPES[type];
   const uploadAction = (
-    <Button disabled={busy} onClick={pickFiles}>
+    <Button disabled={busy} onClick={() => pickFiles()}>
       <UploadIcon />
       Add files from this device
     </Button>
@@ -907,7 +983,7 @@ function AssetsBrowser() {
       newLabel="Add"
       newMenu={
         <>
-          <DropdownItem disabled={busy} onSelect={pickFiles}>
+          <DropdownItem disabled={busy} onSelect={() => pickFiles()}>
             <UploadIcon class="text-muted" />
             <DropdownItemText hint={<span class="block truncate">Into {addingInto}</span>}>
               Add files from this device
@@ -917,7 +993,7 @@ function AssetsBrowser() {
             <LinkIcon class="text-muted" />
             <DropdownItemText hint="A file hosted on the web">Add a link</DropdownItemText>
           </DropdownItem>
-          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating(true); }}>
+          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating(level.folder); }}>
             <FolderIcon class="text-muted" />
             <DropdownItemText hint={<span class="block truncate">In {addingInto}</span>}>New folder</DropdownItemText>
           </DropdownItem>
@@ -984,7 +1060,7 @@ function AssetsBrowser() {
                   {layout === "rows" ? <ListIcon /> : <GridIcon />}
                 </Button>
               </DropdownTrigger>
-              <DropdownContent elevation="library" align="end" class="min-w-[180px]">
+              <DropdownContent elevation="library" align="end" class="min-w-[196px]">
                 <DropdownRadioGroup
                   label="Show this folder as"
                   value={layout}
@@ -996,7 +1072,7 @@ function AssetsBrowser() {
                   }}
                 >
                   {FOLDER_LAYOUTS.map(({ layout: value, label, Icon }) => (
-                    <DropdownRadioItem key={value} value={value} indicator="end">
+                    <DropdownRadioItem key={value} value={value} indicator="end" chosenWeight="normal">
                       <Icon class="text-muted" />
                       {label}
                     </DropdownRadioItem>
@@ -1008,7 +1084,6 @@ function AssetsBrowser() {
           <SortMenu
             value={sort}
             fields={ASSET_SORT_FIELDS}
-            usesHint={USES_HINT}
             note={!usage && countsUses(sort) ? (uncounted ? UNCOUNTED_NOTE : COUNTING_NOTE) : undefined}
             onChange={(key) => setLists({ assetsSort: key })}
           />
@@ -1016,22 +1091,23 @@ function AssetsBrowser() {
         )
       }
       creating={
-        creating && (
+        creating !== null && (
           <NameRow
             size="library"
             icon={<FolderIcon />}
             label="New folder name"
             returnFocus={() => newButton.current}
-            onCancel={() => setCreating(false)}
+            onCancel={() => setCreating(null)}
             onCommit={async (name) => {
-              const path = await (await intents()).assets.createFolder(level.folder, name);
-              setCreating(false);
+              const path = await (await intents()).assets.createFolder(creating, name);
+              setCreating(null);
               openFolder(path);
             }}
           />
         )
       }
-      list={measuring ? null : {
+      bodyRef={body}
+      list={measuring || holding ? null : {
         listRef: (element: HTMLDivElement | null) => {
           list.current = element;
           scroller(element);
@@ -1042,13 +1118,12 @@ function AssetsBrowser() {
         items,
         getKey: (item) => (item.kind === "heading" ? `heading:${item.type}` : item.path),
         renderItem,
-        itemHeight: (item) => (item.kind === "heading" ? HEADING_HEIGHT : libraryRowHeight(layoutName)),
-        grid: tiles
-          ? { ...tileGrid(shape, layoutName), height: (width) => tileHeight(shape, width) }
-          : undefined,
+        itemHeight: (item) =>
+          item.kind === "heading" ? HEADING_HEIGHT : pictured(item) ? PICTURE_ROW_HEIGHT : libraryRowHeight(layoutName),
+        grid: tiles ? tileGrid(size, track) : undefined,
       }}
       empty={
-        !loaded || measuring ? null : searching ? (
+        !loaded || measuring || holding ? null : searching ? (
           <EmptyState
             icon={<SearchIcon />}
             title="No files match."
@@ -1079,7 +1154,10 @@ function AssetsBrowser() {
         accept={naming ? endings[naming.type].map((ending) => "." + ending).join(",") : undefined}
         class="hidden"
         onChange={onUpload}
-        onCancel={() => setNaming(null)}
+        onCancel={() => {
+          uploadInto.current = null;
+          setNaming(null);
+        }}
       />
       <AddUrlDialog
         open={linking}
@@ -1167,9 +1245,8 @@ function AssetsBrowser() {
 export default function Assets(_props: AssetsProps) {
   return (
     <TabbedPage
+      header="absent"
       title="Assets"
-      icon={<ArtIcon class="flex-none text-accent" />}
-      onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("write"))}
       showTabs={false}
       value={PAGE_TAB}
       onValueChange={() => {}}

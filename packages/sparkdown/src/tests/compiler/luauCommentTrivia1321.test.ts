@@ -124,6 +124,7 @@ describe("a level-nine comment holding another level-nine close", () => {
     ["style S {\n}", "LuauStyle"],
     ["animation A {\n}", "LuauAnimation"],
     ["theme T {\n}", "LuauTheme"],
+    ["framing F {\n}", "LuauFraming"],
     ["morph M {\n}", "LuauMorph"],
     ["layout L {\n}", "LuauLayout"],
     ["screen C {\n}", "LuauScreen"],

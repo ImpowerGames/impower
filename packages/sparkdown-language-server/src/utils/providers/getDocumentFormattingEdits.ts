@@ -682,6 +682,7 @@ export const getFormatting = (
                   n.name === "LuauComponent_content" ||
                   n.name === "LuauAnimation_content" ||
                   n.name === "LuauTheme_content" ||
+                  n.name === "LuauFraming_content" ||
                   n.name === "LuauMorph_content"),
             )
           : undefined;

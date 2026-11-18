@@ -121,6 +121,8 @@ export default function VirtualList<T>({
     return low;
   };
 
+  const measureView = useRef(() => {});
+
   useLayoutEffect(() => {
     const element = scroller.current;
     if (!element) {
@@ -140,6 +142,7 @@ export default function VirtualList<T>({
             },
       );
     };
+    measureView.current = measure;
     measure();
     element.addEventListener("scroll", measure, { passive: true });
     const observer =
@@ -152,6 +155,31 @@ export default function VirtualList<T>({
       observer?.disconnect();
     };
   }, []);
+
+  const geometry = grid ? `grid:${columns}:${cellHeight}:${gap}` : "rows";
+  const anchor = useRef<{ index: number; geometry: string; measured: boolean } | null>(null);
+
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    const list = element?.firstElementChild as HTMLElement | null | undefined;
+    if (!element || !list) {
+      return;
+    }
+    const origin = list.offsetTop;
+    const last = anchor.current;
+    if (last && last.measured && view.width > 0 && last.geometry !== geometry && last.index >= 0 && items.length) {
+      element.scrollTop = topOf(Math.floor(Math.min(last.index, items.length - 1) / columns)) + origin;
+      anchor.current = { index: last.index, geometry, measured: true };
+      measureView.current();
+      return;
+    }
+    const offset = element.scrollTop - origin;
+    anchor.current = {
+      index: offset > 0 ? lineAt(offset + 1) * columns : -1,
+      geometry,
+      measured: view.width > 0,
+    };
+  });
 
   const hasViewport = view.height > 0;
   const revealedRequest = useRef<number | undefined>(undefined);

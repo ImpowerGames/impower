@@ -155,7 +155,7 @@ export function lowerArms(
           current.body.push(...armLineAsDisplayCall(parts, ctx));
         }
       }
-    } else if (current && ONE_LINE_STORY_ALTERNATORS.has(child.name)) {
+    } else if (current && STORY_ALTERNATORS.has(child.name)) {
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
       forwardBlockDiagnostics(block, ctx);
       current.body.push(...unwrapBlockContent(block));
@@ -202,9 +202,11 @@ export function lowerArms(
   return arms;
 }
 
-const ONE_LINE_STORY_ALTERNATORS = nodeNameSet([
+const STORY_ALTERNATORS = nodeNameSet([
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
+  "LuauSparkdownConditionalAlternatorBlock",
+  "LuauSparkdownSequentialAlternatorBlock",
 ]);
 
 const CONTINUATIONS = nodeNameSet([

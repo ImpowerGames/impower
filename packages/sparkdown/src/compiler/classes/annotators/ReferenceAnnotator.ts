@@ -190,6 +190,7 @@ const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauComponent: "component",
   LuauAnimation: "animation",
   LuauTheme: "theme",
+  LuauFraming: "framing",
   LuauMorph: "morph",
 };
 
@@ -260,6 +261,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
     for (const value of valueOf("with")) shown(value, ["transition", "animation"], "transition or animation");
     for (const value of valueOf("ease")) shown(value, ["ease"], "ease");
+    if (kind === "image") {
+      for (const value of [...valueOf("at"), ...valueOf("to")]) shown(value, ["framing"], "framing");
+    }
     return references;
   }
 

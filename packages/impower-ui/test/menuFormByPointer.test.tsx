@@ -1,15 +1,14 @@
 // @vitest-environment node
 import { compile } from "@tailwindcss/node";
 import { build } from "esbuild";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium, type Page } from "playwright";
 import { describe, expect, test } from "vitest";
+import { browserAvailable } from "./browserAvailable";
 
 const PACKAGE = process.cwd();
 const HEIGHT = 807;
-
-const browserAvailable = existsSync(chromium.executablePath());
 
 const pageScript = async () => {
   const bundle = await build({
@@ -40,7 +39,7 @@ const styles = async () => {
   return compiler.build(candidates);
 };
 
-type Opening = "tap" | "touch" | "mouse" | "keyboard";
+type Opening = "tap" | "touch" | "touch detail 0 after a mouse click" | "mouse" | "keyboard";
 
 const withPage = async (
   width: number,
@@ -75,6 +74,14 @@ const openWith = async (page: Page, opening: Opening) => {
   } else if (opening === "touch") {
     await trigger.dispatchEvent("pointerdown", { pointerType: "touch", button: 0, bubbles: true, cancelable: true });
     await trigger.dispatchEvent("click", { detail: 1 });
+  } else if (opening === "touch detail 0 after a mouse click") {
+    await page.mouse.click(2, 2);
+    await trigger.evaluate((element) => {
+      for (const type of ["pointerdown", "pointerup"]) {
+        element.dispatchEvent(new PointerEvent(type, { pointerType: "touch", button: 0, bubbles: true, cancelable: true }));
+      }
+      element.dispatchEvent(new PointerEvent("click", { pointerType: "touch", detail: 0, bubbles: true, cancelable: true }));
+    });
   } else if (opening === "mouse") {
     await trigger.click();
   } else {
@@ -119,6 +126,8 @@ describe.skipIf(!browserAvailable)("a menu's form follows the pointer that opens
     [1440, "mouse", "menu", false],
     [430, "keyboard", "menu", true],
     [1440, "touch", "sheet", false],
+    [430, "touch detail 0 after a mouse click", "sheet", true],
+    [1440, "touch detail 0 after a mouse click", "sheet", false],
   ] as const)("at %ipx wide, opened by %s, it opens as a %s and moves nothing on the page", async (width, opening, form, touchScreen) => {
     await withPage(width, [], async (page) => {
       const before = await boxes(page);

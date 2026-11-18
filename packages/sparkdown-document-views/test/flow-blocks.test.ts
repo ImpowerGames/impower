@@ -97,10 +97,9 @@ describe("screenplay preview — Luau flow blocks", () => {
       `end\n`;
     const text = joined(src);
 
-    expect(text).toContain("doesn't trust you at all.");
-    expect(text).toContain("trusts you a little less...");
+    expect(text).toContain("{c.name} doesn't trust you at all.");
+    expect(text).toContain("{c.name} trusts you a little less...");
     expect(text).not.toContain("c.trust");
-    expect(text).not.toContain("c.name");
     expect(text).not.toMatch(/==/);
     expect(text).not.toMatch(/-=/);
     expect(text).not.toMatch(/&/);

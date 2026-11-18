@@ -1,8 +1,7 @@
 import { EditorView } from "@codemirror/view";
 import BlockWidget from "../BlockWidget";
 import { NameSpec } from "../../types/NameSpec";
-
-const DEFAULT_LINE_HEIGHT = 22.390625;
+import { RULE_BORDER } from "./PageBreakWidget";
 
 export default class NameWidget extends BlockWidget<NameSpec> {
   override toDOM(_view: EditorView) {
@@ -15,11 +14,12 @@ export default class NameWidget extends BlockWidget<NameSpec> {
     const name = document.createElement("p");
     name.classList.add("sp-name");
     name.textContent = this.spec.name;
+    if (this.spec.style) name.setAttribute("style", this.spec.style);
     container.append(name);
     return container;
   }
 
   override get estimatedHeight() {
-    return DEFAULT_LINE_HEIGHT * (this.spec.pageBreak ? 4 : 3);
+    return this.spec.rows * this.spec.row + (this.spec.pageBreak ? RULE_BORDER : 0);
   }
 }

@@ -12,7 +12,7 @@ import { PROJECT_SETTINGS_SCHEMA } from "../settings/settingsSchema";
 import workspaceSettings from "../settings/WorkspaceSettings";
 import { WorkspaceConstants } from "../WorkspaceConstants";
 import workspace from "../WorkspaceStore";
-import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/PlayerConsole";
+import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/consoleEntries";
 import { showSnackbar } from "../../utils/snackbar";
 import { applyFix, choiceKey, isCommandChoice, type FixChoice } from "./applyFix";
 import { runEditorCommand } from "./runEditorCommand";
@@ -35,6 +35,11 @@ import {
 
 export const PANEL_BAR_HEIGHT =
   PROJECT_SETTINGS_SCHEMA.previewPanelHeight.default;
+
+export const COMPACT_PANEL_BAR_HEIGHT = 52;
+
+export const panelBarHeight = (layout: string) =>
+  layout === "desktop" ? PANEL_BAR_HEIGHT : COMPACT_PANEL_BAR_HEIGHT;
 
 export const PANEL_OPEN_HEIGHT = 260;
 

@@ -146,7 +146,7 @@ describe("the statuses over the game", () => {
     expect(layer.classList).toContain("left-3");
     expect(layer.classList).toContain("pointer-events-none");
     expect(layer.parentElement!.querySelector('[data-stage="game"]')).not.toBeNull();
-    const bar = document.querySelector('[aria-label="Problems and display"]')!;
+    const bar = document.querySelector('[role="group"][aria-label="Problems and playback messages"]')!;
     expect(bar.contains(badge!)).toBe(false);
   });
 

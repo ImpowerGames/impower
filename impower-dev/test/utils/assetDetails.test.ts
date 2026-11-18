@@ -3,6 +3,7 @@ import {
   assetDetails,
   neighborsOf,
   NOT_USED_NOTES,
+  NOT_USED_VARIANTS_NOTE,
   titleLine,
   whereOf,
   type InspectedAsset,
@@ -136,7 +137,10 @@ describe("the inspector's head", () => {
   });
 
   it("has a note for each type with no uses", () => {
-    expect(NOT_USED_NOTES.image).toBe("Nothing shows it yet. Copy its name into a script to use it.");
+    expect(NOT_USED_NOTES.image).toBe("Nothing shows it yet. Copy its name into a line of the script.");
+    expect(NOT_USED_VARIANTS_NOTE).toBe(
+      "Nothing shows it yet. Copy its name into a line of the script, or insert a variant from above.",
+    );
     expect(NOT_USED_NOTES.audio).toBe("Nothing plays it yet.");
     expect(NOT_USED_NOTES.font).toBe("No style uses it yet.");
     expect(NOT_USED_NOTES.other).toBe("Nothing in the story refers to it.");

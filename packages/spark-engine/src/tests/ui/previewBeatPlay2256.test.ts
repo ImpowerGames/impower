@@ -27,7 +27,7 @@ end
 
 scene start
   MIA: First line.
-  MIA: Hello <wait:1> there.
+  MIA: Hello <wait=1> there.
   MIA:
     ((play voice mia_hello))
     Hello again.
@@ -266,7 +266,7 @@ describe("playing the previewed beat once (#2256)", () => {
 describe("a played beat whose pictures or movies need loading (#2256)", () => {
   const PICTURED = `scene start
   [[show portrait bunny]]
-  Hello <wait:1> there.
+  Hello <wait=1> there.
   Next line.
 end
 `;

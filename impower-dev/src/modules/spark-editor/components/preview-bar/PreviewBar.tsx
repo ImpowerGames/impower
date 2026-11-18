@@ -19,13 +19,14 @@ import { useComputed } from "@preact/signals";
 import route from "../../workspace/route/RouteStore";
 import workspace from "../../workspace/WorkspaceStore";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
-import { ProblemsToggle } from "../problems";
+import { PANEL_LABEL, ProblemsToggle } from "../problems";
 import { ROUTE_PANEL_ID } from "../preview-route";
 import { settingsSectionHref } from "../settings";
 import { AspectRatioGroup } from "./AspectRatioGroup";
 import {
-  ASPECT_RATIO_LABEL_RESERVES,
+  aspectRatioButtonName,
   aspectRatioLabel,
+  aspectRatioLabelReserves,
   barReadout,
   type AspectRatioChoice,
   PAGE_FILLS_PANE,
@@ -52,8 +53,8 @@ export default function PreviewBar({
   return (
     <div
       role="group"
-      aria-label="Problems and display"
-      class="flex h-11 shrink-0 items-center gap-1 px-2"
+      aria-label={PANEL_LABEL}
+      class="flex h-preview-bar shrink-0 items-center gap-1.5 px-preview-inline pt-px"
     >
       <ProblemsToggle />
       <RouteReadout layout={layout} />
@@ -174,7 +175,7 @@ function RatioLabel({
   choice: AspectRatioChoice;
   size: GameSize | undefined;
 }) {
-  const [reserve, reserveAlt] = ASPECT_RATIO_LABEL_RESERVES;
+  const [reserve, reserveAlt] = aspectRatioLabelReserves(size);
   return (
     <span
       data-reserve={reserve}
@@ -196,10 +197,10 @@ function AspectRatioMenu({ pageFillsPane }: { pageFillsPane: boolean }) {
     return (
       <Button
         variant="quiet"
-        aria-label="Game aspect ratio"
+        aria-label={aspectRatioButtonName("auto", size)}
         aria-disabled
         title={PAGE_FILLS_PANE}
-        class={`px-2.5 text-muted aria-disabled:cursor-default aria-disabled:opacity-40 ${BAR_TEXT}`}
+        class={`px-[9px] text-muted aria-disabled:cursor-default aria-disabled:opacity-40 ${BAR_TEXT}`}
       >
         <RatioLabel choice="auto" size={size} />
       </Button>
@@ -211,9 +212,9 @@ function AspectRatioMenu({ pageFillsPane }: { pageFillsPane: boolean }) {
       <DropdownTrigger asChild>
         <Button
           variant="quiet"
-          aria-label="Game aspect ratio"
-          title="Game aspect ratio"
-          class={`px-2.5 text-muted ${BAR_TEXT}`}
+          aria-label={aspectRatioButtonName(choice, size)}
+          title={aspectRatioButtonName(choice, size)}
+          class={`px-[9px] text-muted ${BAR_TEXT}`}
         >
           <RatioLabel choice={choice} size={size} />
         </Button>

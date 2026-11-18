@@ -84,6 +84,7 @@ import {
   validateBranch,
 } from "../lower/utils/validateSceneBranchScope";
 import { validateOpenBlocks } from "../lower/utils/validateBlockEnds";
+import { validateBareGluedValues } from "../lower/utils/validateBareGluedValue";
 import type { LowerContext } from "../lower/context";
 import { ContinuationGroup } from "../lower/utils/displayCall";
 import { isLoopInternal, loopExitOf } from "../lower/utils/statementShape";
@@ -154,6 +155,8 @@ const UI_DECLARATION_NODES = nodeNameSet([
   "LuauStyle",
   "LuauAnimation",
   "LuauTheme",
+  "LuauFraming",
+  "LuauMorph",
 ]);
 const DEFINE_NODES = nodeNameSet(["LuauDefine"]);
 const UI_DEFINE_TYPES = new Set(["config", "color"]);
@@ -3102,6 +3105,7 @@ export class SparkdownCompiler {
       cur = cur.nextSibling;
     }
     emit(validateOpenBlocks(tree.topNode, ctx));
+    emit(validateBareGluedValues(tree.topNode, ctx));
   }
 
   protected validateStartScene(

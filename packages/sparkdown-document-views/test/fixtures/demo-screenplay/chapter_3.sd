@@ -1,0 +1,30 @@
+scene the_last_train
+  [[show backdrop int_subway_aisle@night with screenfade]]
+  ((stop ambient over 2))
+  $: INT. SUBWAY CAR, LINE 4 - NIGHT
+
+  The last train rattles out of the city. The friends have the whole car to themselves.
+
+  THEO:
+    [[theo:happy]]
+    Line 4 goes all the way to the end. I've never been past Elm Street.
+
+  [[show backdrop int_subway_window@night with fade over 1]]
+  The streetlights thin out. Then there is only dark, and their own reflections in the glass.
+
+  IMANI:
+    [[imani:sad]]
+    Whoever plays that song wants someone to ride this train.
+
+  MARCUS:
+    [[marcus:happy]]
+    (finally uncrossing his arms)
+    Okay. Maybe it's not a prank.
+
+  They fall asleep somewhere past the river.
+
+  [[show backdrop int_subway_window@day with fade over 2]]
+  When they wake, the window is full of green hills and morning light.
+
+  -> grandmas_cottage
+end

@@ -407,15 +407,8 @@ export default class WorkspaceFileSystem {
 
   async getFileText(uri: string) {
     await this._initialFilesRef.settled();
-    const unstored = this._unstoredUris.has(uri)
-      ? this._files?.[uri]?.text
-      : undefined;
-    if (unstored !== undefined) {
-      return unstored;
-    }
     const buffer = await this.readFile({ file: { uri } });
-    const text = new TextDecoder("utf-8").decode(buffer);
-    return text;
+    return new TextDecoder("utf-8").decode(buffer);
   }
 
   hasFile(uri: string) {
@@ -584,7 +577,7 @@ export default class WorkspaceFileSystem {
     } else if (message.error) {
       const handler = this._messageQueue[message.id];
       if (handler) {
-        handler.reject(message.error);
+        handler.reject(Object.assign(new Error(message.error.message), message.error));
         delete this._messageQueue[message.id];
       }
     } else if (message.result !== undefined) {
@@ -1070,9 +1063,13 @@ export default class WorkspaceFileSystem {
     return result;
   }
 
-  async readFile(params: ReadFileParams) {
-    const result = await this.sendRequest(ReadFileMessage.type, params);
-    return result;
+  async readFile(params: ReadFileParams): Promise<ArrayBuffer> {
+    const { uri } = params.file;
+    const unstored = this._unstoredUris.has(uri) ? this._files?.[uri]?.text : undefined;
+    if (unstored !== undefined) {
+      return new TextEncoder().encode(unstored).buffer as ArrayBuffer;
+    }
+    return this.sendRequest(ReadFileMessage.type, params);
   }
 
   async createFiles(params: WillCreateFilesParams) {
@@ -1081,6 +1078,7 @@ export default class WorkspaceFileSystem {
       params,
       params.files.map((file) => file.data) as Transferable[],
     );
+    result?.forEach((file) => this._unstoredUris.delete(file.uri));
     return result;
   }
 

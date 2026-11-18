@@ -1,5 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
-import { ALTERNATOR_CANDIDATES, opensAlternator } from "../utils/alternatorDecision";
+import { ALTERNATOR_CANDIDATES, opensAlternator, STORY_CONDITIONAL_HEAD } from "../utils/alternatorDecision";
 import { loweredDefinePropertyOf, loweredDefineStatementOf } from "../utils/defineStatement";
 import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
@@ -55,6 +55,7 @@ export const SPARKDOWN_ONLY = new Set([
   "LuauScreen",
   "LuauAnimation",
   "LuauTheme",
+  "LuauFraming",
   "LuauComponent",
   "LuauMorph",
   "LuauSparkdownAlternatorBlocks",
@@ -189,6 +190,7 @@ export const STATEMENT_BREAKS = new Set([
   "LuauScreen",
   "LuauAnimation",
   "LuauTheme",
+  "LuauFraming",
   "LuauComponent",
   "LuauMorph",
 ]);
@@ -249,8 +251,9 @@ export function loweredExpressionOf(node: SyntaxNode | null): SyntaxNode | null 
   for (let n = node; n?.parent; n = n.parent) {
     if (isExplicitRuleName(n.name, "ChoiceCondition")) return n;
     if (ALTERNATOR_HEADS.has(n.name)) return enclosingAlternator(n.parent);
-    if (isExplicitRuleName(n.name, "LuauConditionalAlternatorCondition") && STORY_CONDITIONAL_ALTERNATORS.has(n.parent.parent?.name ?? "")) {
-      return n.parent.parent;
+    if (isExplicitRuleName(n.name, "LuauConditionalAlternatorCondition")) {
+      const holder = n.parent.parent?.name === STORY_CONDITIONAL_HEAD ? n.parent.parent.parent?.parent : n.parent.parent;
+      if (holder && STORY_CONDITIONAL_ALTERNATORS.has(holder.name)) return holder;
     }
     const arms = n.parent.parent;
     if (arms && isExplicitRuleName(arms.name, "LuauAlternatorArms") && n.parent.name === `${arms.name}_content`) {

@@ -272,6 +272,7 @@ const DECLARATION_STATEMENTS = nodeNameSet([
   "LuauComponent",
   "LuauAnimation",
   "LuauTheme",
+  "LuauFraming",
   "LuauMorph",
   "LuauUntilCondition",
   "LuauStrayUntilStatement",

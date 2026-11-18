@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   DropdownCheckboxItem,
   DropdownContent,
+  DropdownGroup,
   DropdownItem,
   DropdownItemText,
   DropdownLabel,
@@ -12,6 +13,7 @@ import {
   DropdownRoot,
   DropdownSeparator,
   DropdownTrigger,
+  dropdownContentVariants,
 } from "./Dropdown";
 
 let phone = false;
@@ -213,7 +215,12 @@ describe("Dropdown under preact/compat", () => {
 
 const RATIOS = ["auto", "16:9", "9:16"];
 
-const mountRadio = async (value = "auto", disabled = false, size?: "default" | "small") => {
+const mountRadio = async (
+  value = "auto",
+  disabled = false,
+  size?: "default" | "small",
+  chosenWeight?: "semibold" | "normal",
+) => {
   const onValueChange = vi.fn();
   host = document.body.appendChild(document.createElement("div"));
   await act(async () =>
@@ -229,7 +236,7 @@ const mountRadio = async (value = "auto", disabled = false, size?: "default" | "
             onValueChange={onValueChange}
           >
             {RATIOS.map((ratio) => (
-              <DropdownRadioItem key={ratio} value={ratio} disabled={disabled} size={size}>
+              <DropdownRadioItem key={ratio} value={ratio} disabled={disabled} size={size} chosenWeight={chosenWeight}>
                 {ratio}
               </DropdownRadioItem>
             ))}
@@ -294,6 +301,21 @@ describe("Dropdown radio items under preact/compat", () => {
       expect(classes).toEqual(expect.arrayContaining(["text-[13px]", "font-normal"]));
       expect(classes).not.toContain("text-sm");
       expect(classes).not.toContain("data-[state=checked]:font-semibold");
+    }
+  });
+
+  it("keeps the chosen item at the default size's weight when the caller asks for a normal chosen weight", async () => {
+    const { trigger } = await mountRadio("16:9", false, undefined, "normal");
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    expect(checked()).toEqual([
+      ["auto", "false"],
+      ["16:9", "true"],
+      ["9:16", "false"],
+    ]);
+    for (const item of radios()) {
+      expect(item.className).not.toContain("font-semibold");
+      expect(item.className.split(" ")).not.toContain("font-normal");
     }
   });
 
@@ -631,6 +653,46 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
     expect(formOf()).toBe("menu");
   });
 
+  const typedPress = (target: Element, press: string | null, click: string, detail: number) =>
+    act(async () => {
+      if (press) {
+        for (const type of ["pointerdown", "pointerup"]) {
+          target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: press, button: 0 }));
+        }
+      }
+      target.dispatchEvent(new PointerEvent("click", { bubbles: true, cancelable: true, pointerType: click, detail }));
+    });
+
+  it.each([
+    ["sheet", "a finger press, then a click typed touch with detail 0", "touch", "touch", 0],
+    ["sheet", "a finger press, then a click typed touch with detail 1", "touch", "touch", 1],
+    ["sheet", "a pen press, then a click typed pen with detail 0", "pen", "pen", 0],
+    ["sheet", "a click typed touch with detail 0 and no press recorded", null, "touch", 0],
+    ["sheet", "a finger press, then a click typed mouse with detail 1", "touch", "mouse", 1],
+    ["menu", "a mouse press, then a click typed mouse with detail 1", "mouse", "mouse", 1],
+    ["menu", "a click typed empty with detail 0", null, "", 0],
+  ] as const)("opens as a %s from %s", async (form, _case, press, click, detail) => {
+    await setPhone(true);
+    const { trigger } = await mount();
+    await typedPress(trigger, press, click, detail);
+    await settle(300);
+    expect(formOf()).toBe(form);
+  });
+
+  it("opens as a sheet from a finger tap whose click has detail 0 after a mouse click elsewhere on the page", async () => {
+    const { trigger } = await mount();
+    const elsewhere = document.body.appendChild(document.createElement("div"));
+    await act(async () => {
+      for (const type of ["pointerdown", "pointerup", "click"]) {
+        elsewhere.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: "mouse", button: 0, detail: 1 }));
+      }
+    });
+    await typedPress(trigger, "touch", "touch", 0);
+    await settle(300);
+    expect(formOf()).toBe("sheet");
+    elsewhere.remove();
+  });
+
   it("closes a menu that is not modal when a mouse presses its trigger, and does not reopen it on that press's click", async () => {
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>
@@ -760,6 +822,113 @@ describe("DropdownLabel variants", () => {
     expect(heading.getAttribute("role")).toBeNull();
     expect(heading.className).toContain("uppercase");
     expect(heading.className).toContain("text-muted");
+  });
+});
+
+describe("DropdownGroup", () => {
+  const mountGroup = async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <button type="button">Settings</button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownGroup heading="Step">
+              <DropdownItem>Step Over</DropdownItem>
+              <DropdownItem disabled>Step Out</DropdownItem>
+            </DropdownGroup>
+            <DropdownSeparator />
+            <DropdownItem>More settings</DropdownItem>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    return host.querySelector("button")!;
+  };
+
+  const groupOf = () => {
+    const group = menu()!.querySelector<HTMLElement>('[role="group"]')!;
+    const heading = document.getElementById(group.getAttribute("aria-labelledby")!)!;
+    return { group, heading };
+  };
+
+  it("names its group by the heading drawn above its items, and first focus lands on its first item", async () => {
+    const trigger = await mountGroup();
+    trigger.focus();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    const { group, heading } = groupOf();
+    expect(heading.textContent).toBe("Step");
+    expect(heading.className).toContain("uppercase");
+    expect(group.firstElementChild).toBe(heading);
+    expect([...group.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent)).toEqual(["Step Over", "Step Out"]);
+    expect(document.activeElement?.textContent).toBe("Step Over");
+  });
+
+  it("keeps the named group and its heading in the touch-opened sheet", async () => {
+    await setPhone(true);
+    const trigger = await mountGroup();
+    await tap(trigger);
+    await settle(50);
+    expect(sheetMenu()).not.toBeNull();
+    const { group, heading } = groupOf();
+    expect(heading.textContent).toBe("Step");
+    expect(group.firstElementChild).toBe(heading);
+    expect([...group.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent)).toEqual(["Step Over", "Step Out"]);
+  });
+});
+
+describe("a Dropdown that opens at its top", () => {
+  const mountSettings = async (opensAt?: "top") => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <button type="button">Settings</button>
+          </DropdownTrigger>
+          <DropdownContent opensAt={opensAt}>
+            <DropdownGroup heading="Step">
+              <DropdownItem disabled>Step Over</DropdownItem>
+              <DropdownItem>Toggle breakpoint</DropdownItem>
+            </DropdownGroup>
+            <DropdownRadioGroup label="Device color scheme" value="dark">
+              <DropdownRadioItem value="light">Light</DropdownRadioItem>
+              <DropdownRadioItem value="dark">Dark</DropdownRadioItem>
+            </DropdownRadioGroup>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    return host.querySelector("button")!;
+  };
+
+  it("focuses the first enabled entry, not the chosen option, when a finger opens its sheet", async () => {
+    await setPhone(true);
+    await tap(await mountSettings("top"));
+    await settle(50);
+    expect(sheetMenu()).not.toBeNull();
+    expect(document.activeElement?.textContent).toBe("Toggle breakpoint");
+    expect(menu()!.scrollTop).toBe(0);
+  });
+
+  it("focuses the first enabled entry when a mouse opens its menu", async () => {
+    await pointer(await mountSettings("top"), "mouse");
+    await settle(50);
+    expect(menu()).not.toBeNull();
+    expect(sheetMenu()).toBeNull();
+    expect(document.activeElement?.textContent).toBe("Toggle breakpoint");
+  });
+
+  it("keeps the chosen option as the sheet's first focus by default", async () => {
+    await setPhone(true);
+    await tap(await mountSettings());
+    await settle(50);
+    expect(document.activeElement?.textContent).toBe("Dark");
   });
 });
 
@@ -911,5 +1080,62 @@ describe("DropdownContent keepClear", () => {
     const placed = await mountFaceMenu();
     expect(placed.side).toBe("bottom");
     expect(placed.top).toBe(TRIGGER.bottom + 6);
+  });
+});
+
+describe("DropdownContent elevation", () => {
+  it("keeps the card radius for the floating and library menus and gives the toolbar menu its own radius and shadow", () => {
+    const floating = dropdownContentVariants({}).split(" ");
+    expect(floating).toEqual(expect.arrayContaining(["rounded-card", "shadow-float"]));
+    const library = dropdownContentVariants({ elevation: "library" }).split(" ");
+    expect(library).toEqual(expect.arrayContaining(["rounded-card", "shadow-menu"]));
+    const toolbar = dropdownContentVariants({ elevation: "toolbar" }).split(" ");
+    expect(toolbar).toEqual(expect.arrayContaining(["rounded-toolbar-menu", "shadow-toolbar-menu"]));
+    expect(toolbar).not.toContain("rounded-card");
+    expect(toolbar).not.toContain("shadow-float");
+  });
+});
+
+describe("Dropdown item side inset", () => {
+  const mountInset = async (inset?: "default" | "narrow") => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <button type="button">Settings</button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownGroup heading="Step" inset={inset}>
+              <DropdownItem inset={inset}>Step forward</DropdownItem>
+            </DropdownGroup>
+            <DropdownCheckboxItem inset={inset} checked>
+              Follow cursor
+            </DropdownCheckboxItem>
+            <DropdownRadioGroup label="Scheme" value="dark">
+              <DropdownRadioItem value="dark" inset={inset}>
+                Dark
+              </DropdownRadioItem>
+            </DropdownRadioGroup>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    const trigger = host.querySelector("button")!;
+    trigger.focus();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    const rows = [...menu()!.querySelectorAll<HTMLElement>('[role^="menuitem"]')];
+    const heading = menu()!.querySelector<HTMLElement>('[role="group"] > :first-child')!;
+    return [...rows, heading].map((row) => row.className.split(" ").filter((name) => /^px-/.test(name)));
+  };
+
+  it("keeps the 12px default on every item and heading", async () => {
+    expect(await mountInset()).toEqual([["px-3"], ["px-3"], ["px-3"], ["px-3"]]);
+  });
+
+  it("gives every item and heading 10px when the caller asks for the narrow inset", async () => {
+    expect(await mountInset("narrow")).toEqual([["px-2.5"], ["px-2.5"], ["px-2.5"], ["px-2.5"]]);
   });
 });

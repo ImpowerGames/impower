@@ -122,7 +122,7 @@ text.source.sparkdown [0..285]
  │       ├─ meta.text.sd [163..175]
  │       │   ├─ keyword.operator.expression.begin.tag.sd [163..164]: "<"
  │       │   ├─ keyword.style.control.keyword.sd [164..169]: "speed"
- │       │   ├─ meta.template.expression.operator.colon.sd [169..170]: ":"
+ │       │   ├─ keyword.operator.assignment.sd [169..170]: "="
  │       │   ├─ punctuation.whitespace.extra.sd [170..171]: " "
  │       │   ├─ meta.argument.sd [171..174]
  │       │   │   └─ constant.numeric.decimal.luau [171..174]: "0.5"
@@ -194,7 +194,7 @@ text.source.sparkdown [0..285]
  │       ├─ meta.text.sd [263..275]
  │       │   ├─ keyword.operator.expression.begin.tag.sd [263..264]: "<"
  │       │   ├─ keyword.style.control.keyword.sd [264..269]: "speed"
- │       │   ├─ meta.template.expression.operator.colon.sd [269..270]: ":"
+ │       │   ├─ keyword.operator.assignment.sd [269..270]: "="
  │       │   ├─ punctuation.whitespace.extra.sd [270..271]: " "
  │       │   ├─ meta.argument.sd [271..274]
  │       │   │   └─ constant.numeric.decimal.luau [271..274]: "0.5"

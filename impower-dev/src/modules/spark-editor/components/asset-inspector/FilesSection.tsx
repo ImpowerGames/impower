@@ -8,8 +8,9 @@ import {
   DropdownTrigger,
   ListRow,
   MoreVerticalIcon,
-  PencilIcon,
+  PencilPlainIcon,
   PlusIcon,
+  ReplaceSwapIcon,
   Thumbnail,
   TrashIcon,
 } from "@impower/impower-ui/components";
@@ -41,7 +42,9 @@ const stemAndExtension = (name: string) => {
   return dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
 };
 
-function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: "rename" | "download" | "delete") => void }) {
+type FileAction = "rename" | "replace" | "download" | "delete";
+
+function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: FileAction) => void }) {
   return (
     <DropdownRoot>
       <DropdownTrigger asChild>
@@ -51,17 +54,21 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: "rename"
       </DropdownTrigger>
       <DropdownContent elevation="library" align="end" class="min-w-[196px]">
         <DropdownItem onSelect={() => onAction("rename")}>
-          <PencilIcon class="text-muted" />
+          <PencilPlainIcon class="text-muted" />
           Rename
+        </DropdownItem>
+        <DropdownItem onSelect={() => onAction("replace")}>
+          <ReplaceSwapIcon class="text-muted" />
+          Replace…
         </DropdownItem>
         <DropdownItem onSelect={() => onAction("download")}>
           <DownloadIcon class="text-muted" />
           Download
         </DropdownItem>
-        <DropdownSeparator />
+        <DropdownSeparator inset />
         <DropdownItem class="text-error" onSelect={() => onAction("delete")}>
-          <TrashIcon />
-          Delete
+          <TrashIcon class="text-muted" />
+          Delete…
         </DropdownItem>
       </DropdownContent>
     </DropdownRoot>
@@ -71,14 +78,19 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: "rename"
 export default function FilesSection({ stack, sizes, sources, soloed, onSolo, intents, relocate }: FilesSectionProps) {
   const rows = fileRows(stack, sizes);
   const picker = useRef<HTMLInputElement | null>(null);
+  const replacer = useRef<HTMLInputElement | null>(null);
+  const replacing = useRef<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<FileRow | null>(null);
 
   const thumbnailOf = (row: FileRow) => <Thumbnail surface="stage" fit="contain" src={sources[row.path]} />;
 
-  const act = (row: FileRow, action: "rename" | "download" | "delete") => {
+  const act = (row: FileRow, action: FileAction) => {
     if (action === "rename") {
       setRenaming(row.path);
+    } else if (action === "replace") {
+      replacing.current = row.path;
+      replacer.current?.click();
     } else if (action === "delete") {
       setDeleting(row);
     } else {
@@ -102,6 +114,20 @@ export default function FilesSection({ stack, sizes, sources, soloed, onSolo, in
           stack.cover,
         ),
       )
+      .catch(report);
+  };
+
+  const onReplacement = (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const chosen = input.files?.[0];
+    input.value = "";
+    const path = replacing.current;
+    replacing.current = null;
+    if (!chosen || !path) {
+      return;
+    }
+    void intents()
+      .then((Workspace) => Workspace.assets.replace(path, { name: chosen.name, getBuffer: () => chosen.arrayBuffer() }))
       .catch(report);
   };
 
@@ -160,6 +186,17 @@ export default function FilesSection({ stack, sizes, sources, soloed, onSolo, in
           )}
         </p>
         <input ref={picker} type="file" multiple accept="image/*" class="hidden" data-file-picker onChange={onPicked} />
+        <input
+          ref={replacer}
+          type="file"
+          accept="image/*"
+          class="hidden"
+          data-file-replace-picker
+          onChange={onReplacement}
+          onCancel={() => {
+            replacing.current = null;
+          }}
+        />
       </div>
       <DeleteDialog
         label={deleting?.name ?? null}
