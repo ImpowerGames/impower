@@ -1,4 +1,4 @@
-text.source.sparkdown [0..574]
+text.source.sparkdown [0..629]
  ├─ meta.style.luau [0..12]
  │   ├─ keyword.control.style.luau [0..5]: "style"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
@@ -355,7 +355,38 @@ text.source.sparkdown [0..574]
  │       ├─ punctuation.whitespace.sd [568..570]: "  "
  │       └─ punctuation.definition.template-expression.end.sd [570..571]: "}"
  ├─ Newline [571..572]: "\n"
- ├─ meta.style.luau [572..573]
- │   └─ meta.embedded.block.luau [572..573]
- │       └─ punctuation.definition.template-expression.end.sd [572..573]: "}"
- └─ Newline [573..574]: "\n"
+ ├─ meta.style.luau [572..606]
+ │   └─ meta.embedded.block.luau [572..606]
+ │       ├─ punctuation.whitespace.sd [572..574]: "  "
+ │       ├─ entity.name.function.attribute.name.view.sd [574..575]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [575..577]: "is"
+ │       ├─ punctuation.definition.template-expression.begin.sd [577..578]: "("
+ │       ├─ variable.other.constant.attribute.style.sd [578..579]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [579..584]: "title"
+ │       ├─ keyword.operator.assignment.sd [584..585]: "="
+ │       ├─ string.unquoted.attribute.value.sd [585..597]: "blue\\2c icon"
+ │       ├─ keyword.operator.comma.sd [597..598]: ","
+ │       ├─ markup.raw.whitespace.separator.sd [598..599]: " "
+ │       ├─ entity.name.type.class.view.sd [599..603]: "card"
+ │       ├─ punctuation.definition.template-expression.end.sd [603..604]: ")"
+ │       ├─ punctuation.whitespace.sd [604..605]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [605..606]: "{"
+ ├─ Newline [606..607]: "\n"
+ ├─ meta.style.luau [607..622]
+ │   └─ meta.embedded.block.luau [607..622]
+ │       ├─ punctuation.whitespace.sd [607..611]: "    "
+ │       ├─ variable.other.property.define.sd [611..616]: "color"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [616..617]: " "
+ │       ├─ keyword.operator.assignment.sd [617..618]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [618..619]: " "
+ │       └─ string.unquoted.identifier.sd [619..622]: "red"
+ ├─ Newline [622..623]: "\n"
+ ├─ meta.style.luau [623..626]
+ │   └─ meta.embedded.block.luau [623..626]
+ │       ├─ punctuation.whitespace.sd [623..625]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [625..626]: "}"
+ ├─ Newline [626..627]: "\n"
+ ├─ meta.style.luau [627..628]
+ │   └─ meta.embedded.block.luau [627..628]
+ │       └─ punctuation.definition.template-expression.end.sd [627..628]: "}"
+ └─ Newline [628..629]: "\n"

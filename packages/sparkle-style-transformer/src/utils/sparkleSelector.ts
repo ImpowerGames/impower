@@ -178,7 +178,7 @@ const STATE = /@([_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)/uy;
 const PSEUDO = /::?[\p{L}\p{N}_-]*/uy;
 const QUOTED = /"(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?/y;
 const ATTRIBUTE =
-  /#([_\p{L}][_\p{L}0-9-]*)?(?:([~|^$*]?=)("(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?|(?:\\[^]|[^\s"'`<>=:(){}[\],\\])*))?/uy;
+  /#([_\p{L}][_\p{L}0-9-]*)?(?:([~|^$*]?=)("(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?|(?:\\[0-9a-fA-F]{1,6}(?:\r\n|[ \t\r\n\f])?|\\[^]|[^\s"'`<>=:(){}[\],\\])*))?/uy;
 const NTH_OF = /[ \t\r\n\f]+of(?=[ \t\r\n\f])/y;
 const CLOSE_AHEAD = /[ \t\r\n\f]*[)]/y;
 const SELECTOR_FUNCTION_BEFORE = /(?:^|[^\p{L}\p{N}_-])selector$/u;
@@ -464,7 +464,7 @@ class SparkleSelectorWriter {
           out += this.enclosed(() => this.list("selectors", false));
           continue;
         }
-        declarations.push(false);
+        declarations.push(declarations[declarations.length - 1]!);
       } else if (char === ")") {
         declarations.pop();
       } else if (char === ":") {

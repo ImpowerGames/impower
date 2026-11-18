@@ -35,4 +35,7 @@ style card {
   @is(#title=blue\\, card) {
     color = red
   }
+  @is(#title=blue\2c icon, card) {
+    color = red
+  }
 }

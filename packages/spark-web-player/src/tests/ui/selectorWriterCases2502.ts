@@ -77,6 +77,9 @@ export const PUNCTUATION_CASES: readonly [source: string, css: string][] = [
   ["@is(#title=blue\\\\\\,icon, card)", ":is([title=blue\\\\\\,icon],.card)"],
   ["#title=blue\\ icon", "[title=blue\\ icon]"],
   ["#title=a\\\\@b", "[title=a\\\\\\@b]"],
+  ["@is(#title=blue\\2c icon, card)", ":is([title=blue\\2c icon],.card)"],
+  ["@is(#title=blue\\00002cicon, card)", ":is([title=blue\\00002cicon],.card)"],
+  ["#title=a\\2c  b", "[title=a\\2c ].b"],
 ];
 
 export const AT_RULE_CASES: readonly [source: string, css: string][] = [
@@ -100,6 +103,8 @@ export const AT_RULE_CASES: readonly [source: string, css: string][] = [
   ["@supports (--shape: selector(card))", "@supports(--shape:selector(card))"],
   ["@supports (display: grid) and selector(card)", "@supports(display:grid) and selector(.card)"],
   ["@supports not (selector(card))", "@supports not (selector(.card))"],
+  ["@supports (--shape: fn(selector(card)))", "@supports(--shape:fn(selector(card)))"],
+  ["@supports ((display: grid) and selector(card))", "@supports((display:grid) and selector(.card))"],
   ["@supports (color: #fff)", "@supports(color:#fff)"],
   ["@container style(--tint: #0af)", "@container style(--tint:#0af)"],
   ["@supports selector(#open)", "@supports selector([open])"],

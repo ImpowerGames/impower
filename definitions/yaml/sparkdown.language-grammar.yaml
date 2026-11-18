@@ -5603,7 +5603,7 @@ repository:
   UnquotedStyleAttributeValue:
     tag: string
     name: string.unquoted.attribute.value.sd
-    match: ((?:[\\].|(?!{{UNQUOTED_STRING_TERMINATOR}}|[,])[^\\\r\n])+)
+    match: ((?:[\\](?:[0-9a-fA-F]{1,6}{{WS}}?|.)|(?!{{UNQUOTED_STRING_TERMINATOR}}|[,])[^\\\r\n])+)
 
   UnquotedSelectorAttributeValue:
     match: ((?:(?!{{UNQUOTED_STRING_TERMINATOR}}).)+)
