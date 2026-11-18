@@ -2,6 +2,7 @@ import { cva } from "class-variance-authority";
 import type { ComponentChildren, JSX, Ref } from "preact";
 import { useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { useForwardedRef } from "../../hooks/useForwardedRef";
+import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 
 export const virtualListVariants = cva(
@@ -98,6 +99,7 @@ export default function VirtualList<T>({
   ...rest
 }: VirtualListProps<T>) {
   const rowHeight = VIRTUAL_LIST_ROW_HEIGHT[size];
+  const layout = useLayout();
   const scroller = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState({ top: 0, height: 0, width: 0, minWidth: 0, gap: 0 });
   const cells = grid ? virtualListColumns(view, view.width) : undefined;
@@ -185,7 +187,7 @@ export default function VirtualList<T>({
 
   useLayoutEffect(() => {
     measure.current(true);
-  }, [grid?.class]);
+  }, [grid?.class, layout]);
 
   const geometry = grid ? `grid:${columns}:${cellHeight}:${gap}` : "rows";
   const anchor = useRef<{ index: number; geometry: string; measured: boolean } | null>(null);

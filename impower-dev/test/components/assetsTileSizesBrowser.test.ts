@@ -268,6 +268,61 @@ describe("the Assets page's View menu and tile sizes, in Chromium (I-2462)", () 
     }
   }, 120_000);
 
+  it("takes the narrower layout's columns and gaps when the window crosses 1100 and the list keeps its width", async () => {
+    const page = await open({ width: 1440, pointer: "mouse", pictures: 40 });
+    try {
+      for (const size of SIZES) {
+        await choose(page, size, "mouse");
+        const box = () =>
+          page.evaluate(() => {
+            const scroller = document.querySelector<HTMLElement>('[role="list"]')!.parentElement!;
+            return [scroller.clientWidth, scroller.clientHeight];
+          });
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await frames(page);
+        const before = await box();
+        await page.setViewportSize({ width: 1050, height: 900 });
+        await frames(page);
+        const shift = before[1]! - (await box())[1]!;
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await frames(page);
+        await frames(page);
+        const wide = await checkGeometry(page, size, GRIDS.desktop, "mouse");
+        expect(await box(), size).toEqual(before);
+        await page.setViewportSize({ width: 1050, height: 900 + shift });
+        await frames(page);
+        await frames(page);
+        expect(await box(), size).toEqual(before);
+        expect(await page.evaluate(() => document.documentElement.dataset.layout)).toBe("compact");
+        const narrow = await checkGeometry(page, size, GRIDS.narrow, "mouse");
+        expect(narrow.listWidth, size).toBe(wide.listWidth);
+      }
+    } finally {
+      await close(page);
+    }
+  }, 90_000);
+
+  it.each(SIZES)("reaches every tile by Tab, in the list's order, in %s", async (size) => {
+    const page = await open({ width: 1440, pointer: "mouse", pictures: 6 });
+    try {
+      await choose(page, size, "mouse");
+      const order = await page.evaluate(() =>
+        [...document.querySelectorAll('[role="list"] button[aria-label^="Open"]')].map((button) => button.getAttribute("aria-label")),
+      );
+      expect(order.length).toBe(7);
+      await page.locator('[data-assets-action="layout"]').focus();
+      const reached: string[] = [];
+      for (let press = 0; press < 40 && reached.length < order.length; press += 1) {
+        await page.keyboard.press("Tab");
+        const label = await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? "");
+        if (label.startsWith("Open")) reached.push(label);
+      }
+      expect(reached).toEqual(order);
+    } finally {
+      await close(page);
+    }
+  }, 60_000);
+
   it("fits a wide picture to a Portrait tile's height, centred, and letterboxes every picture in Landscape and Small tiles", async () => {
     const page = await open({ width: 1440, pointer: "mouse" });
     try {

@@ -938,7 +938,7 @@ describe("selecting, moving and deleting", () => {
   });
 
   it.each(["portrait", "landscape", "small"] as const)(
-    "selects from the mark, drops a tile on a folder tile, keeps the tab order and draws the overlays in %s tiles",
+    "selects from the mark, drops a tile on a folder tile, lists the tiles in the folder's order and draws the overlays in %s tiles",
     async (size) => {
       setListing(
         {
