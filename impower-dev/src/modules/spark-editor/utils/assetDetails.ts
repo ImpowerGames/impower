@@ -127,13 +127,16 @@ export const assetDetails = ({
 };
 
 export const NOT_USED_NOTES: Record<AssetType, string> = {
-  image: "Nothing shows it yet. Copy its name into a script to use it.",
+  image: "Nothing shows it yet. Copy its name into a line of the script.",
   audio: "Nothing plays it yet.",
   video: "Nothing plays it yet.",
   font: "No style uses it yet.",
   text: "Nothing in the story refers to it.",
   other: "Nothing in the story refers to it.",
 };
+
+export const NOT_USED_VARIANTS_NOTE =
+  "Nothing shows it yet. Copy its name into a line of the script, or insert a variant from above.";
 
 export const neighborsOf = <T extends { path: string }>(items: readonly T[], path: string) => {
   const at = items.findIndex((item) => item.path === path);

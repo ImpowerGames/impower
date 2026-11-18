@@ -24,7 +24,7 @@ export const bundlePage = async (entry: string, workspace?: string): Promise<str
           if (workspace) {
             build.onResolve({ filter: /(^|\/)Workspace$/ }, () => ({ path: resolve(workspace) }));
           }
-          build.onResolve({ filter: /\.css$/ }, (args) => ({ path: args.path, namespace: "stylesheet" }));
+          build.onResolve({ filter: /\.css(\?inline)?$/ }, (args) => ({ path: args.path, namespace: "stylesheet" }));
           build.onLoad({ filter: /.*/, namespace: "stylesheet" }, () => ({ contents: "", loader: "js" }));
           build.onResolve({ filter: /\?raw$/ }, (args) => ({
             path: resolve(args.resolveDir, args.path.slice(0, -"?raw".length)),

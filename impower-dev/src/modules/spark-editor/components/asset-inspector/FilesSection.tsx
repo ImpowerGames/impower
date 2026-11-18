@@ -65,7 +65,7 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: FileActi
           <DownloadIcon class="text-muted" />
           Download
         </DropdownItem>
-        <DropdownSeparator />
+        <DropdownSeparator inset />
         <DropdownItem class="text-error" onSelect={() => onAction("delete")}>
           <TrashIcon class="text-muted" />
           Delete…

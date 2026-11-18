@@ -43,6 +43,7 @@ export {
   DropdownRoot,
   DropdownTrigger,
   DropdownSeparator,
+  type DropdownSeparatorSpacing,
   DropdownContent,
   dropdownContentVariants,
   type DropdownContentElevation,

@@ -33,6 +33,7 @@ type MenuCtx = {
   trigger: RefObject<HTMLElement>;
   opener: MutableRef<string | undefined>;
   returnsFocus: MutableRef<boolean>;
+  modal: boolean;
   handingOff: boolean;
   handOff: () => void;
 };
@@ -43,15 +44,38 @@ const ModeContext = createContext<MenuCtx>({
   trigger: { current: null },
   opener: { current: undefined },
   returnsFocus: { current: true },
+  modal: true,
   handingOff: false,
   handOff: () => {},
 });
 const useMenuCtx = () => useContext(ModeContext);
 
-export function DropdownSeparator({ class: className }: { class?: string }) {
+const dropdownSeparatorVariants = cva("h-px bg-edge", {
+  variants: {
+    inset: {
+      true: "",
+      false: "-mx-1.5",
+    },
+    spacing: {
+      default: "my-1.5",
+      tight: "my-1",
+    },
+  },
+  defaultVariants: { inset: false, spacing: "default" },
+});
+
+export type DropdownSeparatorSpacing = NonNullable<
+  VariantProps<typeof dropdownSeparatorVariants>["spacing"]
+>;
+
+export function DropdownSeparator({
+  inset,
+  spacing,
+  class: className,
+}: VariantProps<typeof dropdownSeparatorVariants> & { class?: string }) {
   return (
     <DropdownMenuPrimitive.Separator
-      class={cn("-mx-1.5 my-1.5 h-px bg-edge", className)}
+      class={cn(dropdownSeparatorVariants({ inset, spacing }), className)}
     />
   );
 }
@@ -150,7 +174,7 @@ export function DropdownRoot({
   open: openProp,
   defaultOpen = false,
   onOpenChange,
-  modal,
+  modal = true,
   children,
 }: RootProps) {
   const trigger = useRef<HTMLElement>(null);
@@ -189,7 +213,7 @@ export function DropdownRoot({
   );
   return (
     <ModeContext.Provider
-      value={{ mode, open, setOpen, trigger, opener, returnsFocus, handingOff, handOff }}
+      value={{ mode, open, setOpen, trigger, opener, returnsFocus, modal, handingOff, handOff }}
     >
       <DropdownMenuPrimitive.Root
         open={open && mode === "menu"}
@@ -425,6 +449,7 @@ export function DropdownContent({
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const menuRef = useMemo(() => ({ current: menu }), [menu]);
   const entered = useRef(false);
+  const leftOutside = useRef(false);
   if (!ctx.open) {
     entered.current = false;
   }
@@ -476,11 +501,27 @@ export function DropdownContent({
           dropdownContentVariants({ elevation }),
           className,
         )}
+        onInteractOutside={(event: CustomEvent<{ originalEvent: PointerEvent }>) => {
+          const { button, ctrlKey } = event.detail.originalEvent;
+          if (!ctx.modal || button === 2 || (button === 0 && ctrlKey)) {
+            leftOutside.current = true;
+          }
+        }}
         onCloseAutoFocus={(event: Event) => {
+          const outside = leftOutside.current;
+          leftOutside.current = false;
           if (!ctx.returnsFocus.current) {
             event.preventDefault();
           }
           onCloseAutoFocus?.(event);
+          if (event.defaultPrevented) {
+            return;
+          }
+          event.preventDefault();
+          const target = ctx.trigger.current;
+          if (!outside && target?.isConnected) {
+            focusAsInput(target);
+          }
         }}
         onFocus={(event: FocusEvent) => {
           onFocus?.(event as JSX.TargetedFocusEvent<HTMLDivElement>);

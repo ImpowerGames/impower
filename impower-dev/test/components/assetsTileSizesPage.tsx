@@ -10,6 +10,8 @@ type Setup = {
   width?: number;
   lists?: Record<string, unknown>;
   pictures?: number;
+  extraPictures?: readonly string[];
+  counted?: boolean;
   reveal?: readonly string[];
 };
 
@@ -42,7 +44,7 @@ declare global {
 }
 
 window.assetsPage = {
-  mount: ({ width, lists = {}, pictures = 3, reveal }) => {
+  mount: ({ width, lists = {}, pictures = 3, extraPictures = [], counted = false, reveal }) => {
     const files: Record<string, { modified: number; size: number; src: string }> = {
       "Assets/Images/Cast/Crew/one.png": { modified: Date.now() - 86_400_000, size: 900, src: picture(99, 300, 400) },
     };
@@ -51,6 +53,9 @@ window.assetsPage = {
       const name = `Assets/Images/Cast/picture_${String(index).padStart(3, "0")}.png`;
       files[name] = { modified: Date.now() - 2 * 86_400_000, size: 1000 + index, src: picture(index, w, h) };
     }
+    extraPictures.forEach((name, index) => {
+      files[name] = { modified: Date.now() - 3 * 86_400_000, size: 2000 + index, src: picture(200 + index, 300, 400) };
+    });
     files["Assets/Audio/Sounds/chime.wav"] = { modified: Date.now(), size: 10, src: "/chime.wav" };
     setAssetFiles({
       imageFiles: PROJECT_SETTINGS_SCHEMA.imageFiles.default,
@@ -65,6 +70,7 @@ window.assetsPage = {
     };
     workspace.assetListing.value = { projectId: "p", files, folders: [] };
     workspace.assetsReveal.value = reveal ?? null;
+    workspace.assetUsage.value = counted ? { projectId: "p", version: 1, uses: {}, order: [] } : null;
     const host = document.body.appendChild(document.createElement("div"));
     host.id = "host";
     host.className = "flex h-screen flex-col";

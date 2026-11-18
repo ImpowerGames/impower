@@ -11,7 +11,7 @@ export const variantsChipVariants = cva(
   {
     variants: {
       size: {
-        default: "px-[7px] text-[10px]/[1.5]",
+        default: "px-[7px] py-px text-[10px]/[1.5]",
         compact: "px-1.5 text-[9px]/[1.5]",
       },
     },

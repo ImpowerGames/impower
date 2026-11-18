@@ -107,7 +107,7 @@ export default function AssetRowMenu({ name, kept, entries, glyph = "md", tone =
       <DropdownContent elevation="library" align="end" class="min-w-[196px]">
         {entries.map((entry, index) => {
           if (entry === "separator") {
-            return <DropdownSeparator key={`separator-${index}`} />;
+            return <DropdownSeparator inset key={`separator-${index}`} />;
           }
           const { label, Icon, danger, returnFocus } = ENTRIES[entry];
           const reason = ENTRIES[entry].kept ? kept : undefined;
