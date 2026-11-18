@@ -27,6 +27,7 @@ import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
+import HiddenLineWidget from "../classes/widgets/HiddenLineWidget";
 import InsertedRowWidget from "../classes/widgets/InsertedRowWidget";
 import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
@@ -277,6 +278,7 @@ export const decorate = (
   from: number = 0,
   to?: number,
   treeOverride?: import("@lezer/common").Tree,
+  countsBreaks = true,
 ) => {
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
   const decorations: Range<Decoration>[] = [];
@@ -469,13 +471,13 @@ export const decorate = (
   for (const start of actionStarts) {
     if (unhungStarts.has(start)) continue;
     if (start >= from && (to === undefined || start <= to) && printedBefore(doc.lineAt(start).from, start)) {
-      decorations.push(Decoration.widget({ widget: new LineBreakWidget(), side: 1 }).range(start));
+      decorations.push(Decoration.widget({ widget: new LineBreakWidget(countsBreaks), side: 1 }).range(start));
     }
   }
 
   for (const start of wrapStarts) {
     if (inView(start.at)) {
-      decorations.push(Decoration.widget({ widget: new LineBreakWidget(), side: start.inserted ? 1 : 2 }).range(start.at));
+      decorations.push(Decoration.widget({ widget: new LineBreakWidget(countsBreaks), side: start.inserted ? 1 : 2 }).range(start.at));
     }
     if (start.trailing !== undefined && inView(start.trailing)) {
       decorations.push(Decoration.mark({ attributes: { style: TRAILING_SPACE_STYLE } }).range(start.trailing, start.trailing + 1));
@@ -514,7 +516,9 @@ export const decorate = (
         : pieces;
       const widget = new InsertedRowWidget(
         pulled,
-        mixed ? { before: false, after: false, block: true } : { before: !above || !actionStartSet.has(row.at), after: above },
+        mixed
+          ? { before: false, after: false, block: true, counted: countsBreaks }
+          : { before: !above || !actionStartSet.has(row.at), after: above, counted: countsBreaks },
       );
       (above ? decorations : rowsBelow).push(Decoration.widget({ widget, side: 1 }).range(row.at));
       continue;
@@ -570,13 +574,17 @@ export const decorate = (
 
   const blankRow = (line: Line) =>
     line.text.trim()
-      ? createDecorations(doc, { type: "collapse", from: line.from, to: line.to })
+      ? createDecorations(doc, { type: "collapse", from: line.from, to: line.to, row })
       : createDecorations(doc, {
           type: "collapse",
           from: line.from,
           to: line.to,
           separator: true,
+          row,
         });
+
+  const hiddenLine = (line: Line, last: Line = line) =>
+    Decoration.replace({ widget: new HiddenLineWidget(), block: true }).range(line.from, last.to);
 
   const printsOnLine = (node: SyntaxNode, line: Line) => {
     if (node.name === "Newline" || node.name === "Whitespace") return false;
@@ -609,10 +617,7 @@ export const decorate = (
     if (firstText < 0 && hiddenParts.length < 2) return false;
     handledLines.add(line.number);
     if (firstText < 0) {
-      decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
-      if (line.length > 0) {
-        decorations.push(Decoration.replace({}).range(line.from, line.to));
-      }
+      decorations.push(hiddenLine(line));
     }
     const textIndex = firstText < 0 ? parts.length : firstText;
     const above: (CollapseWidget | NameWidget)[] = [];
@@ -626,7 +631,7 @@ export const decorate = (
       }
       if (part.from < line.from || index > textIndex) return;
       if (blankPositions.has(part.from)) {
-        above.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from }));
+        above.push(new CollapseWidget({ type: "collapse", from: part.from, to: part.from, row }));
       }
       const name = hidden ? functionNameOf(part) : undefined;
       if (name) {
@@ -660,7 +665,7 @@ export const decorate = (
         if (blankLines.has(number)) {
           decorations.push(
             Decoration.widget({
-              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from, row }),
               block: true,
               side: -1,
             }).range(line.from),
@@ -670,10 +675,7 @@ export const decorate = (
       } else if (blankLines.has(number)) {
         decorations.push(...blankRow(line));
       } else {
-        decorations.push(Decoration.line({ class: "sp-gone" }).range(line.from));
-        if (line.length > 0) {
-          decorations.push(Decoration.replace({}).range(line.from, line.to));
-        }
+        decorations.push(hiddenLine(line));
       }
     }
   };
@@ -880,7 +882,7 @@ export const decorate = (
         if (blankLines.has(line.number)) {
           decorations.push(
             Decoration.widget({
-              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from }),
+              widget: new CollapseWidget({ type: "collapse", from: line.from, to: line.from, row }),
               block: true,
               side: -1,
             }).range(line.from),
@@ -899,7 +901,6 @@ export const decorate = (
       } else if (isUnprinted(nodeRef)) {
         const line = doc.lineAt(from);
         const end = to === line.to + 1 ? line.to : to;
-        if (end > from) decorations.push(Decoration.replace({}).range(from, end));
         if (
           end <= line.to &&
           end > from &&
@@ -907,7 +908,9 @@ export const decorate = (
           !/\S/.test(line.text.slice(0, from - line.from)) &&
           !/\S/.test(line.text.slice(end - line.from))
         ) {
-          decorations.push(Decoration.line({ attributes: { style: "display: none;" } }).range(line.from));
+          decorations.push(hiddenLine(line));
+        } else if (end > from) {
+          decorations.push(Decoration.replace({}).range(from, end));
         }
         return false;
       }
@@ -998,18 +1001,24 @@ export const decorate = (
                 };
               });
             });
-            decorations.push(
-              ...createDecorations(doc, {
-                type: "reveal",
-                from,
-                to: contentEnd,
-              }),
-              ...createDecorations(doc, {
-                type: "replace",
-                from,
-                to: contentEnd,
-              }),
-            );
+            const first = doc.lineAt(from);
+            const last = doc.lineAt(contentEnd);
+            if (!/\S/.test(first.text.slice(0, from - first.from)) && last.to === contentEnd) {
+              decorations.push(hiddenLine(first, last));
+            } else {
+              decorations.push(
+                ...createDecorations(doc, {
+                  type: "reveal",
+                  from,
+                  to: contentEnd,
+                }),
+                ...createDecorations(doc, {
+                  type: "replace",
+                  from,
+                  to: contentEnd,
+                }),
+              );
+            }
           }
         } else {
           const spec: DialogueSpec = {
@@ -1138,13 +1147,33 @@ const splitHiddenAtBlocks = (decorations: Range<Decoration>[]): Range<Decoration
   });
 };
 
-const replaceDecorations = StateField.define<DecorationSet>({
-  create(state) {
-    const ranges = decorate(state);
-    const decorations =
-      ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
-    return decorations;
-  },
+const LINE_GAP_LENGTH = 4000;
+
+const drawsGappedLine = (doc: Text, ranges: readonly Range<Decoration>[]) => {
+  let blocks: readonly Range<Decoration>[] | undefined;
+  for (let number = 1; number <= doc.lines; number++) {
+    const line = doc.line(number);
+    if (line.length < LINE_GAP_LENGTH) continue;
+    blocks ??= ranges.filter((range) => range.value.spec.block && range.to > range.from);
+    if (!blocks.some((block) => block.from <= line.from && block.to >= line.to)) return true;
+  }
+  return false;
+};
+
+interface ScreenplayDecorations {
+  set: DecorationSet;
+  wraps: boolean;
+}
+
+const screenplayDecorations = (state: EditorState): ScreenplayDecorations => {
+  const ranges = decorate(state);
+  const wraps = drawsGappedLine(state.doc, ranges);
+  const drawn = wraps ? decorate(state, 0, undefined, undefined, false) : ranges;
+  return { set: drawn.length > 0 ? RangeSet.of(drawn, true) : Decoration.none, wraps };
+};
+
+const replaceDecorations = StateField.define<ScreenplayDecorations>({
+  create: screenplayDecorations,
   update(decorations, transaction) {
     if (!transaction.docChanged) {
       const { startState, state } = transaction;
@@ -1160,11 +1189,15 @@ const replaceDecorations = StateField.define<DecorationSet>({
           state.field(screenplayScenesBeforeField, false);
       if (unchanged) return decorations;
     }
-    const ranges = decorate(transaction.state);
-    return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
+    return screenplayDecorations(transaction.state);
   },
   provide(field) {
-    return EditorView.decorations.from(field);
+    return [
+      EditorView.decorations.from(field, (decorations) => decorations.set),
+      EditorView.contentAttributes.compute([field], (state): Record<string, string> =>
+        state.field(field).wraps ? { class: "cm-lineWrapping" } : {},
+      ),
+    ];
   },
 });
 

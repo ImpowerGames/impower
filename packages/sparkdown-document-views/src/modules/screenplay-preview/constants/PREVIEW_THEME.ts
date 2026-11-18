@@ -1,4 +1,5 @@
 import { StyleSpec } from "style-mod";
+import { RULE_BORDER } from "../classes/widgets/PageBreakWidget";
 
 export const PREVIEW_FONT_SIZE = 14.7;
 
@@ -71,7 +72,7 @@ const PREVIEW_THEME: {
     color: "var(--sp-accent)",
     fontWeight: "bold",
   },
-  "& .cm-lineWrapping": {
+  "& .cm-lineWrapping, & .cm-content > *": {
     overflowWrap: "break-word",
     whiteSpace: "pre-wrap",
   },
@@ -87,6 +88,13 @@ const PREVIEW_THEME: {
   "& .cm-line.cm-activeLine:has(.sp-title-page)": {
     backgroundColor: "transparent",
     boxShadow: "none",
+  },
+  "& .cm-content hr": {
+    height: 0,
+    margin: 0,
+    border: "none",
+    borderTop: `${RULE_BORDER}px solid`,
+    color: "inherit",
   },
   "& .sp-gone": {
     display: "block",
