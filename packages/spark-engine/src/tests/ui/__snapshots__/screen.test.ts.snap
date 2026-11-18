@@ -771,69 +771,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": {
               "animations": {
-                "align_center": {
-                  "$name": "align_center",
-                  "$type": "animation",
-                  "keyframes": [
-                    {
-                      "translate": "calc(0.5 * (100cqw - 100%)) 0",
-                    },
-                  ],
-                  "target": {
-                    "$name": "instance",
-                    "$type": "layer",
-                  },
-                  "timing": {
-                    "delay": 0,
-                    "direction": "normal",
-                    "duration": 0,
-                    "easing": "ease-in-out",
-                    "fill": "both",
-                    "iterations": 1,
-                  },
-                },
-                "align_left": {
-                  "$name": "align_left",
-                  "$type": "animation",
-                  "keyframes": [
-                    {
-                      "translate": "calc(0 * (100cqw - 100%)) 0",
-                    },
-                  ],
-                  "target": {
-                    "$name": "instance",
-                    "$type": "layer",
-                  },
-                  "timing": {
-                    "delay": 0,
-                    "direction": "normal",
-                    "duration": 0,
-                    "easing": "ease-in-out",
-                    "fill": "both",
-                    "iterations": 1,
-                  },
-                },
-                "align_right": {
-                  "$name": "align_right",
-                  "$type": "animation",
-                  "keyframes": [
-                    {
-                      "translate": "calc(1 * (100cqw - 100%)) 0",
-                    },
-                  ],
-                  "target": {
-                    "$name": "instance",
-                    "$type": "layer",
-                  },
-                  "timing": {
-                    "delay": 0,
-                    "direction": "normal",
-                    "duration": 0,
-                    "easing": "ease-in-out",
-                    "fill": "both",
-                    "iterations": 1,
-                  },
-                },
                 "blackin": {
                   "$name": "blackin",
                   "$type": "animation",
@@ -2490,6 +2427,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "image",
                   "$type": "style",
                   "> *": {
+                    "> object": {
+                      "left": "50%",
+                      "position": "absolute",
+                      "top": "0",
+                      "transform": "translateX(-50%)",
+                    },
                     "background_position": "center",
                     "background_repeat": "no-repeat",
                     "background_size": "auto 100%",
@@ -2497,6 +2440,21 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "min_width": "100%",
                     "position": "absolute",
                     "will_change": "transform",
+                  },
+                  "> framed": {
+                    "> object": {
+                      "display": "block",
+                      "left": "0",
+                      "position": "relative",
+                      "transform": "none",
+                    },
+                    "min_width": "0",
+                    "right": "auto",
+                    "width": "fit-content",
+                  },
+                  "> framed:empty": {
+                    "right": "0",
+                    "width": "auto",
                   },
                   "container_name": "image",
                   "container_type": "size",
@@ -2861,6 +2819,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "mask",
                   "$type": "style",
                   "> *": {
+                    "> object": {
+                      "left": "50%",
+                      "position": "absolute",
+                      "top": "0",
+                      "transform": "translateX(-50%)",
+                    },
                     "inset": "0",
                     "mask_position": "center",
                     "mask_repeat": "no-repeat",
@@ -2869,6 +2833,21 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "position": "absolute",
                     "will_change": "transform",
                   },
+                  "> framed": {
+                    "> object": {
+                      "display": "block",
+                      "left": "0",
+                      "position": "relative",
+                      "transform": "none",
+                    },
+                    "right": "auto",
+                    "width": "fit-content",
+                  },
+                  "> framed:empty": {
+                    "right": "0",
+                    "width": "auto",
+                  },
+                  "container_type": "size",
                   "display": "block",
                   "inset": "0",
                   "isolation": "isolate",

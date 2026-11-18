@@ -3,7 +3,7 @@ export const createImageElement = (
   property: string,
   background: string,
   imageNames: string,
-  src: string | undefined,
+  srcs: string[],
   applyStyle: (
     el: HTMLElement,
     style: Record<string, string | number | null>,
@@ -14,7 +14,7 @@ export const createImageElement = (
   el.className = "instance";
   el.setAttribute("image", imageNames);
   applyStyle(el, { [property]: background });
-  if (src) {
+  for (const src of srcs) {
     const img = doc.createElement("img");
     img.className = "object";
     img.setAttribute("src", src);

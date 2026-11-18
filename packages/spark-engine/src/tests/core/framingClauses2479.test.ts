@@ -23,8 +23,11 @@ const imagesOf = async (line: string) => {
 const flat = (messages: any[]): any[] =>
   messages.flatMap((message) => (message?.method === "ui/batch" ? flat(message.params?.messages ?? []) : [message]));
 
-const imageMessages = (messages: any[]) =>
-  JSON.stringify(flat(messages).filter((message) => /image/.test(String(message?.method)))).replaceAll(/"id":"[^"]*"/g, "");
+const imageMessages = (messages: any[], framings = true) =>
+  JSON.stringify(
+    flat(messages).filter((message) => /image/.test(String(message?.method))),
+    (key, value) => (framings || key !== "framing" ? value : undefined),
+  ).replaceAll(/"id":"[^"]*"/g, "");
 
 const played = async (source: string) => {
   const h = createHarness(source, 0, { assets: ASSETS });
@@ -56,7 +59,7 @@ describe("at and to on the image instruction (I-2479)", () => {
     expect(instruction).not.toHaveProperty("at");
   });
 
-  it("plays a script that uses at and to as it plays without them, with no runtime error", async () => {
+  it("plays a script that uses at and to as it plays without them, apart from the framings at places, with no runtime error", async () => {
     const lines = (framed: boolean) =>
       `${SOFA}scene start\n  [[show backdrop bg${framed ? " at right" : ""}]]\n  One.\n  [[animate backdrop${framed ? " to sofa" : ""} over 1s]]\n  Two.\n  [[bunny${framed ? " at left" : ""}]]\n  Three.\nend\n`;
     const framed = await played(lines(true));
@@ -66,6 +69,9 @@ describe("at and to on the image instruction (I-2479)", () => {
     const framedImages = imageMessages(framed.messages);
     expect(framedImages).toContain("bunny.png");
     expect(framedImages).toContain("bg.png");
-    expect(framedImages).toEqual(imageMessages(plain.messages));
+    expect(framedImages).toContain('"framing":{"x":1,"y":0.5,"zoom":1}');
+    expect(framedImages).toContain('"framing":{"x":0,"y":0.5,"zoom":1}');
+    expect(framedImages).not.toContain('"framing":{"x":0.6');
+    expect(imageMessages(framed.messages, false)).toEqual(imageMessages(plain.messages));
   });
 });

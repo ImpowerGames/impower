@@ -3,6 +3,7 @@ import type { Color } from "./Color";
 import type { Ease } from "./Ease";
 import type { FilteredImage } from "./FilteredImage";
 import type { Font } from "./Font";
+import type { Framing } from "./Framing";
 import type { Gradient } from "./Gradient";
 import type { Graphic } from "./Graphic";
 import type { Image } from "./Image";
@@ -42,6 +43,7 @@ export interface UIBuiltins {
   layer: Record<string, {}>;
   animation: Record<string, Animation>;
   morph: Record<string, Morph>;
+  framing: Record<string, Framing>;
   transition: Record<string, Transition>;
   font: Record<string, Font>;
   shadow: Record<string, Shadow>;

@@ -1533,6 +1533,27 @@ style image {
     background_size = auto 100%
     will_change = transform
     min_width = 100%
+    > object {
+      position = absolute
+      top = 0
+      left = 50%
+      transform = translateX(-50%)
+    }
+  }
+  > framed {
+    right = auto
+    width = fit-content
+    min_width = 0
+    > object {
+      position = relative
+      display = block
+      left = 0
+      transform = none
+    }
+  }
+  > framed:empty {
+    right = 0
+    width = auto
   }
 }
 
@@ -1549,6 +1570,7 @@ style mask {
   inset = 0
   isolation = isolate
   will_change = transform
+  container_type = size
   > * {
     mix_blend_mode = plus-lighter
     position = absolute
@@ -1557,6 +1579,26 @@ style mask {
     mask_repeat = no-repeat
     mask_size = auto 100%
     will_change = transform
+    > object {
+      position = absolute
+      top = 0
+      left = 50%
+      transform = translateX(-50%)
+    }
+  }
+  > framed {
+    right = auto
+    width = fit-content
+    > object {
+      position = relative
+      display = block
+      left = 0
+      transform = none
+    }
+  }
+  > framed:empty {
+    right = 0
+    width = auto
   }
 }
 
@@ -4020,57 +4062,6 @@ animation hide {
     delay = 0
     duration = 0
     easing = "linear"
-    iterations = 1
-    fill = "both"
-    direction = "normal"
-  }
-}
-
-animation align_left {
-  target = layer.instance
-  keyframes {
-    {
-      translate = "calc(0 * (100cqw - 100%)) 0"
-    }
-  }
-  timing {
-    delay = 0
-    duration = 0
-    easing = "ease-in-out"
-    iterations = 1
-    fill = "both"
-    direction = "normal"
-  }
-}
-
-animation align_center {
-  target = layer.instance
-  keyframes {
-    {
-      translate = "calc(0.5 * (100cqw - 100%)) 0"
-    }
-  }
-  timing {
-    delay = 0
-    duration = 0
-    easing = "ease-in-out"
-    iterations = 1
-    fill = "both"
-    direction = "normal"
-  }
-}
-
-animation align_right {
-  target = layer.instance
-  keyframes {
-    {
-      translate = "calc(1 * (100cqw - 100%)) 0"
-    }
-  }
-  timing {
-    delay = 0
-    duration = 0
-    easing = "ease-in-out"
     iterations = 1
     fill = "both"
     direction = "normal"

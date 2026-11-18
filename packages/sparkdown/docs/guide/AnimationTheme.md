@@ -21,7 +21,12 @@ end
 
 Built-in animations: `fade`, `slide`, `shake`,
 `wavy`, `wave`, `spin`, `bounce`, and `ping`, plus the structural
-`show` / `hide` / `align_left` / `align_center` / `align_right`.
+`show` / `hide`. To place a layer's picture at its left, centre or right, show
+it `at left`, `at center` or `at right`:
+
+```sparkdown
+[[show backdrop bg_apartment at right]]
+```
 
 You can also apply an animation to an element through the `animation` style prop
 (see the **Animation** table in [Styling](./StyleProps.md#animation)):

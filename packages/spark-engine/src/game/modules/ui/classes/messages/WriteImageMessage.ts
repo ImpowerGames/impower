@@ -3,8 +3,15 @@ import type { MorphMotion } from "@impower/sparkdown/src/morph/motion";
 import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import type { Animation } from "../../types/Animation";
 
+export interface PictureFraming {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
 export interface WriteImageInstruction {
   control: "show" | "hide" | "animate";
+  framing?: PictureFraming;
   targetAnimations?: Animation[];
   affected?: { target: string; animations: Animation[] }[];
   content?: {
@@ -12,6 +19,7 @@ export interface WriteImageInstruction {
     imageNames: string;
     src?: string;
     srcs: string[];
+    sources?: string[];
     video?: {
       src: string;
       loop: boolean;

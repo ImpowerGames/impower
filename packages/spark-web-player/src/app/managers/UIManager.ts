@@ -4,6 +4,7 @@ import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messag
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
+import { placePicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
   createCutsceneElement,
   createVideoElement,
@@ -2053,7 +2054,13 @@ export default class UIManager extends Manager {
         }
         const content = instruction.content;
         if (!content) {
-          if (instruction.control === "hide") {
+          if (instruction.control === "show") {
+            for (const contentEl of [...imageEls, ...maskEls]) {
+              for (const pictureEl of Array.from(contentEl.children) as HTMLElement[]) {
+                placePicture(pictureEl, instruction.framing);
+              }
+            }
+          } else if (instruction.control === "hide") {
             for (const imageEl of imageEls) {
               for (const video of Array.from(imageEl.querySelectorAll("video"))) {
                 if (!hiddenMovies.includes(video)) {
@@ -2092,9 +2099,10 @@ export default class UIManager extends Manager {
                   property,
                   content.background,
                   content.imageNames,
-                  content.src,
+                  content.sources ?? (content.src ? [content.src] : []),
                   applyStyle,
                 );
+            placePicture(newSpanEl, instruction.framing);
             const videoEl = newSpanEl.querySelector("video");
             if (videoEl && video) {
               (videoEl as any).__sdMixer = {

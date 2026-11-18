@@ -328,15 +328,6 @@ exports[`a checkpoint saved during a simulated route > displays the layout, port
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -659,6 +650,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -673,6 +685,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -681,6 +694,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
