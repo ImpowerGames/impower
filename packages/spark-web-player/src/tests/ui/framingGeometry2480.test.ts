@@ -169,6 +169,7 @@ describe("a layer's picture placed at its framing, as Chromium lays it out (I-24
     const page = await rendered(4, "portrait");
     const [mask, image] = await measure(page);
     expect(mask!.picture).toEqual(image!.picture);
+    expect(image!.picture.height).toBeCloseTo(image!.layer.height * 1.2, 1);
     expect(image!.picture.left + 0.6 * image!.picture.width).toBeCloseTo(image!.layer.left + 0.6 * image!.layer.width, 1);
     await page.close();
   });
