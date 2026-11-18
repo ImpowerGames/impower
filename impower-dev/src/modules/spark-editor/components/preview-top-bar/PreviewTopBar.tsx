@@ -7,6 +7,7 @@ import {
   cn,
   DropdownCheckboxItem,
   DropdownContent,
+  DropdownGroup,
   DropdownItem,
   DropdownLabel,
   DropdownRadioGroup,
@@ -61,6 +62,7 @@ import {
   type SkipDirection,
   type StepTraversal,
 } from "../../workspace/stepStates";
+import { useStepSlotsFit } from "./useStepSlotsFit";
 
 export const propDefaults = {};
 export type PreviewTopBarProps = Partial<typeof propDefaults>;
@@ -233,62 +235,71 @@ const NO_CARET_REASON =
 const toggleBreakpoint = (filename: string) =>
   void withWindow((window) => window.toggleBreakpointAtCaret(filename));
 
-function StepMenu({
-  refusals,
-  caretScript,
-}: {
+type StepEntriesProps = {
   refusals: Record<StepTraversal, string | undefined>;
   caretScript: string | undefined;
-}) {
+};
+
+export const STEP_GROUP = "Step";
+
+function StepEntries({ refusals, caretScript }: StepEntriesProps) {
+  return (
+    <>
+      {STEPS.map(({ traversal, label, icon: Icon }) => {
+        const reason = refusals[traversal];
+        return (
+          <DropdownItem
+            key={traversal}
+            disabled={!!reason}
+            onSelect={() => step(traversal)}
+            class="min-h-14 gap-3 py-2"
+          >
+            <Icon class="shrink-0" />
+            <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
+              <strong class="text-sm/[1.4] font-semibold">{label}</strong>
+              {reason ? (
+                <small class="text-xs/[1.5] text-muted">{reason}</small>
+              ) : null}
+            </span>
+          </DropdownItem>
+        );
+      })}
+      <DropdownSeparator />
+      <DropdownItem
+        disabled={!caretScript}
+        onSelect={() => caretScript && toggleBreakpoint(caretScript)}
+        class="min-h-14 gap-3 py-2"
+      >
+        <BreakpointIcon class="shrink-0" />
+        <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
+          <strong class="text-sm/[1.4] font-semibold">
+            {TOGGLE_BREAKPOINT}
+          </strong>
+          {caretScript ? null : (
+            <small class="text-xs/[1.5] text-muted">{NO_CARET_REASON}</small>
+          )}
+        </span>
+      </DropdownItem>
+    </>
+  );
+}
+
+function StepMenu(props: StepEntriesProps) {
   return (
     <DropdownRoot>
       <DropdownTrigger asChild>
         <Button
           variant="quiet"
           size="icon"
-          aria-label="Step"
-          title="Step"
+          aria-label={STEP_GROUP}
+          title={STEP_GROUP}
           class="text-muted aria-expanded:bg-tint aria-expanded:text-accent"
         >
           <StepOverIcon />
         </Button>
       </DropdownTrigger>
       <DropdownContent align="center">
-        {STEPS.map(({ traversal, label, icon: Icon }) => {
-          const reason = refusals[traversal];
-          return (
-            <DropdownItem
-              key={traversal}
-              disabled={!!reason}
-              onSelect={() => step(traversal)}
-              class="min-h-14 gap-3 py-2"
-            >
-              <Icon class="shrink-0" />
-              <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
-                <strong class="text-sm/[1.4] font-semibold">{label}</strong>
-                {reason ? (
-                  <small class="text-xs/[1.5] text-muted">{reason}</small>
-                ) : null}
-              </span>
-            </DropdownItem>
-          );
-        })}
-        <DropdownSeparator />
-        <DropdownItem
-          disabled={!caretScript}
-          onSelect={() => caretScript && toggleBreakpoint(caretScript)}
-          class="min-h-14 gap-3 py-2"
-        >
-          <BreakpointIcon class="shrink-0" />
-          <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
-            <strong class="text-sm/[1.4] font-semibold">
-              {TOGGLE_BREAKPOINT}
-            </strong>
-            {caretScript ? null : (
-              <small class="text-xs/[1.5] text-muted">{NO_CARET_REASON}</small>
-            )}
-          </span>
-        </DropdownItem>
+        <StepEntries {...props} />
       </DropdownContent>
     </DropdownRoot>
   );
@@ -426,7 +437,13 @@ function ColorSchemeSettings() {
 
 export const MORE_PREVIEW_SETTINGS = "More preview settings";
 
-function SettingsMenu({ mode }: { mode: PreviewMode }) {
+function SettingsMenu({
+  mode,
+  steps,
+}: {
+  mode: PreviewMode;
+  steps?: StepEntriesProps;
+}) {
   const phone = useLayout() === "phone";
   const { preferences, reducedMotion, setPreference } = useSettings();
   return (
@@ -447,8 +464,17 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
         sideOffset={4}
         edgeGap={0}
         elevation="toolbar"
+        opensAt="top"
         class={MENU_WIDTH}
       >
+        {steps ? (
+          <>
+            <DropdownGroup heading={STEP_GROUP}>
+              <StepEntries {...steps} />
+            </DropdownGroup>
+            <DropdownSeparator />
+          </>
+        ) : null}
         {QUICK_TOGGLES[mode].map((key) => {
           const { name, detail } = PREVIEW_TOGGLES[key];
           const locked = lockedPreviewSwitch(preferences, reducedMotion, key);
@@ -513,7 +539,10 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const session = workspace.debugSession.value;
   const refusals = stepRefusals(game, session);
   const caretScript = useCaretScript();
+  const bar = useRef<HTMLDivElement>(null);
+  const fits = useStepSlotsFit(bar, running);
   const steps = running;
+  const stepMenu = running && fits;
   const stepButton = (traversal: StepTraversal) => {
     const { label, icon } = STEPS.find((s) => s.traversal === traversal)!;
     return (
@@ -529,10 +558,12 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
 
   return (
     <div
+      ref={bar}
       role="group"
       aria-label="Playback controls"
       data-running={running ? "" : undefined}
-      class="group/bar relative z-[1] grid h-[var(--preview-top-bar-height)] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1 data-[running]:@max-[480px]:gap-0"
+      data-steps-folded={running && !fits ? "" : undefined}
+      class="relative z-[1] grid h-[var(--preview-top-bar-height)] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[360px]:gap-0 @max-[360px]:px-1"
     >
       <div class="flex min-w-0 max-w-full items-center gap-1 justify-self-start @max-[480px]:gap-0">
         <ModeMenu mode={mode} />
@@ -572,11 +603,11 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           />
         )}
       </div>
-      <div class="flex items-center justify-center gap-1 @max-[340px]:gap-0 group-data-[running]/bar:@max-[480px]:gap-0">
-        {steps && phone ? (
+      <div class="flex items-center justify-center gap-1 @max-[360px]:gap-0">
+        {stepMenu && phone ? (
           <StepMenu refusals={refusals} caretScript={caretScript} />
         ) : null}
-        {steps && !phone ? (
+        {stepMenu && !phone ? (
           <span class="contents @min-[740px]:hidden">
             <StepMenu refusals={refusals} caretScript={caretScript} />
           </span>
@@ -605,7 +636,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           {live ? <StopIcon /> : <PlayIcon />}
         </Button>
         <SkipButton direction={1} reason={skipRefusal(game, session, 1)} />
-        {steps ? (
+        {stepMenu ? (
           <span
             aria-hidden="true"
             data-step-balance
@@ -624,9 +655,14 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           </span>
         ) : null}
       </div>
-      <div class="flex items-center gap-1 justify-self-end group-data-[running]/bar:@max-[480px]:gap-0">
+      <div class="flex items-center gap-1 justify-self-end @max-[360px]:gap-0">
         {playsGame(mode) ? <SavesMenuButton /> : null}
-        <SettingsMenu mode={mode} />
+        <SettingsMenu
+          mode={mode}
+          steps={
+            running && !fits ? { refusals, caretScript } : undefined
+          }
+        />
       </div>
     </div>
   );

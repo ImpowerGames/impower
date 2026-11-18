@@ -11,6 +11,7 @@ import {
   type MutableRef,
   useCallback,
   useContext,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -19,6 +20,7 @@ import { menuFormFor, type MenuForm } from "../../layout/menuForm";
 import { cn } from "../../utils/cn";
 import "../../utils/uniqueIds";
 import { registerFocusReturn } from "../../utils/focusReturn";
+import { focusAsInput } from "../../utils/inputModality";
 import { KEEP_CLEAR_MARGIN, type KeepClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
@@ -72,21 +74,59 @@ export type DropdownLabelVariant = NonNullable<
 export function DropdownLabel({
   class: className,
   variant,
+  id,
   children,
 }: {
   class?: string;
   variant?: DropdownLabelVariant;
+  id?: string;
   children?: ComponentChildren;
 }) {
   const ctx = useMenuCtx();
   const classes = cn(dropdownLabelVariants({ variant }), className);
   if (ctx.mode === "sheet") {
-    return <div class={classes}>{children}</div>;
+    return (
+      <div id={id} class={classes}>
+        {children}
+      </div>
+    );
   }
   return (
-    <DropdownMenuPrimitive.Label class={classes}>
+    <DropdownMenuPrimitive.Label id={id} class={classes}>
       {children}
     </DropdownMenuPrimitive.Label>
+  );
+}
+
+export function DropdownGroup({
+  heading,
+  class: className,
+  children,
+}: {
+  heading: string;
+  class?: string;
+  children?: ComponentChildren;
+}) {
+  const ctx = useMenuCtx();
+  const id = useId();
+  const title = (
+    <DropdownLabel variant="heading" id={id}>
+      {heading}
+    </DropdownLabel>
+  );
+  if (ctx.mode === "sheet") {
+    return (
+      <div role="group" aria-labelledby={id} class={className}>
+        {title}
+        {children}
+      </div>
+    );
+  }
+  return (
+    <DropdownMenuPrimitive.Group aria-labelledby={id} class={className}>
+      {title}
+      {children}
+    </DropdownMenuPrimitive.Group>
   );
 }
 
@@ -271,6 +311,10 @@ const clearOf = (
 
 type MenuAttributes = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">;
 
+export type DropdownOpensAt = "chosen" | "top";
+
+const FIRST_ENTRY = '[role^="menuitem"]:not([disabled]):not([data-disabled])';
+
 function SheetMenu({
   open,
   setOpen,
@@ -278,11 +322,13 @@ function SheetMenu({
   returnsFocus,
   owner,
   keepClear,
+  opensAt,
   onCloseAutoFocus,
   class: className,
   children,
   ...rest
 }: {
+  opensAt: DropdownOpensAt;
   open: boolean;
   setOpen: (open: boolean) => void;
   trigger: RefObject<HTMLElement>;
@@ -294,13 +340,17 @@ function SheetMenu({
   children?: ComponentChildren;
 } & MenuAttributes) {
   const menu = useRef<HTMLElement | null>(null);
-  const chosen = useMemo(
+  const first = useMemo(
     () => ({
       get current() {
-        return menu.current?.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]') ?? null;
+        return (
+          menu.current?.querySelector<HTMLElement>(
+            opensAt === "top" ? FIRST_ENTRY : '[role="menuitemradio"][aria-checked="true"]',
+          ) ?? null
+        );
       },
     }),
-    [],
+    [opensAt],
   );
   return (
     <Sheet
@@ -310,7 +360,7 @@ function SheetMenu({
       elevation="menu"
       width="menu"
       keepClear={keepClear}
-      initialFocus={chosen}
+      initialFocus={first}
       onCloseAutoFocus={onCloseAutoFocus}
       returnFocus={() =>
         returnsFocus.current
@@ -342,12 +392,15 @@ export function DropdownContent({
   side,
   keepClear,
   elevation,
+  opensAt = "chosen",
   onCloseAutoFocus,
+  onFocus,
   children,
   ...rest
 }: {
   class?: string;
   elevation?: DropdownContentElevation;
+  opensAt?: DropdownOpensAt;
   sideOffset?: number;
   edgeGap?: number;
   align?: "start" | "center" | "end";
@@ -359,6 +412,10 @@ export function DropdownContent({
   const ctx = useMenuCtx();
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const menuRef = useMemo(() => ({ current: menu }), [menu]);
+  const entered = useRef(false);
+  if (!ctx.open) {
+    entered.current = false;
+  }
   const owner = (element: HTMLElement | null) => {
     if (element) {
       registerFocusReturn(element, () => ctx.trigger.current);
@@ -385,7 +442,9 @@ export function DropdownContent({
         returnsFocus={ctx.returnsFocus}
         owner={owner}
         keepClear={keepClear}
+        opensAt={opensAt}
         onCloseAutoFocus={onCloseAutoFocus}
+        onFocus={onFocus}
         class={className}
         {...rest}
       >
@@ -410,6 +469,20 @@ export function DropdownContent({
             event.preventDefault();
           }
           onCloseAutoFocus?.(event);
+        }}
+        onFocus={(event: FocusEvent) => {
+          onFocus?.(event as JSX.TargetedFocusEvent<HTMLDivElement>);
+          if (entered.current) {
+            return;
+          }
+          entered.current = true;
+          const content = event.currentTarget as HTMLElement;
+          if (opensAt === "top" && event.target === content) {
+            const entry = content.querySelector<HTMLElement>(FIRST_ENTRY);
+            if (entry) {
+              focusAsInput(entry);
+            }
+          }
         }}
         {...rest}
       >
