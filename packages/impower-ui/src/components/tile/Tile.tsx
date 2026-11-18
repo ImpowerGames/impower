@@ -1,24 +1,127 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
-import type { Layout } from "../../layout/breakpoints";
 import { cn } from "../../utils/cn";
 import { CheckIcon } from "../icon/icons.generated";
 import type { ThumbnailFit } from "../thumbnail/Thumbnail";
+import type { VirtualListGrid } from "../virtual-list/VirtualList";
 
-export const tileVariants = cva("group/tile relative h-full min-w-0", {
-  variants: {
-    shape: {
-      portrait: "",
-      landscape: "",
+export type TileTrack = "desktop" | "narrow" | "pane";
+
+type TileSizeSpec = {
+  track: Record<TileTrack, { minWidth: number; gap: number }>;
+  ratio: number;
+  padX: number;
+  padTop: number;
+  padBottom: number;
+  gap: number;
+  name: number;
+  meta: boolean;
+  fit: ThumbnailFit;
+  classes: {
+    open: string;
+    media: string;
+    label: string;
+    description: string;
+    mark: string;
+    actions: string;
+  };
+};
+
+const FRAME = 2;
+const LINE = 1.4;
+const META = 11;
+const META_GAP = 2;
+
+export const TILE_SIZES = {
+  portrait: {
+    track: { desktop: { minWidth: 138, gap: 12 }, narrow: { minWidth: 150, gap: 10 }, pane: { minWidth: 140, gap: 12 } },
+    ratio: 4 / 3,
+    padX: 8,
+    padTop: 8,
+    padBottom: 10,
+    gap: 9,
+    name: 13,
+    meta: true,
+    fit: "height",
+    classes: {
+      open: "gap-[9px] rounded-[14px] px-2 pt-2 pb-2.5",
+      media: "aspect-[3/4]",
+      label: "text-[13px]/[1.4]",
+      description: "",
+      mark: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
+      actions: "top-2.5 right-2.5 [&>button]:size-[34px]",
     },
   },
-  defaultVariants: { shape: "landscape" },
+  landscape: {
+    track: { desktop: { minWidth: 176, gap: 12 }, narrow: { minWidth: 160, gap: 10 }, pane: { minWidth: 150, gap: 12 } },
+    ratio: 10 / 16,
+    padX: 8,
+    padTop: 8,
+    padBottom: 10,
+    gap: 9,
+    name: 13,
+    meta: true,
+    fit: "contain",
+    classes: {
+      open: "gap-[9px] rounded-[14px] px-2 pt-2 pb-2.5",
+      media: "aspect-[16/10]",
+      label: "text-[13px]/[1.4]",
+      description: "",
+      mark: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
+      actions: "top-2.5 right-2.5 [&>button]:size-[34px]",
+    },
+  },
+  small: {
+    track: { desktop: { minWidth: 96, gap: 8 }, narrow: { minWidth: 88, gap: 8 }, pane: { minWidth: 96, gap: 8 } },
+    ratio: 1,
+    padX: 5,
+    padTop: 5,
+    padBottom: 7,
+    gap: 6,
+    name: 11,
+    meta: false,
+    fit: "contain",
+    classes: {
+      open: "gap-1.5 rounded-[10px] px-[5px] pt-[5px] pb-[7px]",
+      media: "aspect-square",
+      label: "text-[11px]/[1.4]",
+      description: "hidden",
+      mark: "top-[9px] left-[9px] [&>span]:size-[18px] [:root[data-pointer=coarse]_&]:after:-inset-[13px]",
+      actions: "top-1.5 right-1.5 [&>button]:size-7",
+    },
+  },
+} as const satisfies Record<string, TileSizeSpec>;
+
+export type TileSize = keyof typeof TILE_SIZES;
+
+const bySize = (part: keyof TileSizeSpec["classes"]): Record<TileSize, string> => ({
+  portrait: TILE_SIZES.portrait.classes[part],
+  landscape: TILE_SIZES.landscape.classes[part],
+  small: TILE_SIZES.small.classes[part],
+});
+
+export const tileHeight = (size: TileSize, width: number): number => {
+  const spec: TileSizeSpec = TILE_SIZES[size];
+  const media = Math.max(0, width - FRAME - spec.padX * 2) * spec.ratio;
+  const copy = spec.name * LINE + (spec.meta ? META_GAP + META * LINE : 0);
+  return FRAME + spec.padTop + media + spec.gap + copy + spec.padBottom;
+};
+
+export const tileVariants = cva("group/tile relative h-full min-w-0", {
+  variants: { size: { portrait: "", landscape: "", small: "" } },
+  defaultVariants: { size: "landscape" },
+});
+
+export const tileGrid = (size: TileSize, track: TileTrack): VirtualListGrid => ({
+  ...TILE_SIZES[size].track[track],
+  height: (width) => tileHeight(size, width),
 });
 
 export const tileOpenVariants = cva(
-  "control-overlay focus-inset flex h-full w-full min-w-0 cursor-pointer flex-col gap-[9px] rounded-[14px] border border-edge bg-panel/55 px-2 pt-2 pb-2.5 text-left hover:border-muted/45",
+  "control-overlay focus-inset flex h-full w-full min-w-0 cursor-pointer flex-col border border-edge bg-panel/55 text-left hover:border-muted/45",
   {
     variants: {
+      size: bySize("open"),
       current: {
         true: "border-accent bg-tint hover:border-accent",
         false: "",
@@ -37,92 +140,68 @@ export const tileOpenVariants = cva(
         false: "",
       },
     },
-    defaultVariants: { current: false, selection: "none", selected: false, dropTarget: false },
+    defaultVariants: { size: "landscape", current: false, selection: "none", selected: false, dropTarget: false },
   },
 );
 
 export const tileMarkVariants = cva(
   [
-    "absolute top-3.5 left-3.5 z-10 flex cursor-pointer items-center justify-center",
-    "[&>span]:flex [&>span]:size-[22px] [&>span]:items-center [&>span]:justify-center [&>span]:rounded-full",
+    "absolute z-10 flex cursor-pointer items-center justify-center [:root[data-pointer=coarse]_&]:after:absolute",
+    "[&>span]:flex [&>span]:items-center [&>span]:justify-center [&>span]:rounded-full",
     "[&>span]:border-[1.5px] [&>span]:border-muted [&>span]:bg-bg/80 [&>span]:text-transparent [&_svg]:size-3.5",
     "has-checked:[&>span]:border-accent has-checked:[&>span]:bg-accent has-checked:[&>span]:text-accent-ink",
     "has-focus-visible:[&>span]:outline-1 has-focus-visible:[&>span]:outline-offset-2 has-focus-visible:[&>span]:outline-accent",
   ],
   {
     variants: {
+      size: bySize("mark"),
       selection: {
         available:
           "pointer-events-none opacity-0 group-hover/tile:pointer-events-auto group-hover/tile:opacity-100 has-focus-visible:opacity-100",
         active: "",
       },
     },
-    defaultVariants: { selection: "active" },
+    defaultVariants: { size: "landscape", selection: "active" },
   },
 );
 
-export const tileMediaVariants = cva(
-  "relative block w-full flex-none overflow-hidden rounded-[9px]",
-  {
-    variants: {
-      shape: {
-        portrait: "aspect-[3/4]",
-        landscape: "aspect-[16/10]",
-      },
-    },
-    defaultVariants: { shape: "landscape" },
-  },
-);
+export const tileMediaVariants = cva("relative block w-full flex-none overflow-hidden rounded-[9px]", {
+  variants: { size: bySize("media") },
+  defaultVariants: { size: "landscape" },
+});
 
-export const tileLabelVariants = cva("min-w-0 text-[13px]/[1.4] text-ink [--fade:20px] fade-edge", {
+export const tileLabelVariants = cva("min-w-0 text-ink [--fade:20px] fade-edge", {
   variants: {
+    size: bySize("label"),
     kind: {
       file: "",
       folder: "font-semibold",
     },
   },
-  defaultVariants: { kind: "file" },
+  defaultVariants: { size: "landscape", kind: "file" },
+});
+
+export const tileDescriptionVariants = cva("min-w-0 text-[11px]/[1.4] text-muted [--fade:20px] fade-edge", {
+  variants: { size: bySize("description") },
+  defaultVariants: { size: "landscape" },
 });
 
 export const tileActionsVariants = cva(
-  "absolute top-2.5 right-2.5 z-10 flex rounded-full bg-bg/78 text-ink motion-safe:transition-opacity [&>button]:rounded-full",
+  "absolute z-10 flex rounded-full bg-bg/78 text-ink motion-safe:transition-opacity [&>button]:rounded-full [:root[data-pointer=coarse]_&]:[&>button]:size-11",
   {
     variants: {
+      size: bySize("actions"),
       current: {
         true: "opacity-100",
         false: "opacity-0 group-hover/tile:opacity-100 group-focus-within/tile:opacity-100 [:root[data-pointer=coarse]_&]:opacity-100",
       },
     },
-    defaultVariants: { current: false },
+    defaultVariants: { size: "landscape", current: false },
   },
 );
 
-export type TileShape = NonNullable<VariantProps<typeof tileVariants>["shape"]>;
 export type TileSelection = NonNullable<VariantProps<typeof tileOpenVariants>["selection"]>;
 export type TileKind = NonNullable<VariantProps<typeof tileLabelVariants>["kind"]>;
-
-export const TILE_MEDIA_FIT: Record<TileShape, ThumbnailFit> = { portrait: "height", landscape: "contain" };
-
-const MEDIA_RATIO: Record<TileShape, number> = { portrait: 4 / 3, landscape: 10 / 16 };
-
-export type TileGrid = { minWidth: number; gap: number };
-
-const TILE_GRIDS: Record<"desktop" | "narrow", { gap: number; minWidth: Record<TileShape, number> }> = {
-  desktop: { gap: 12, minWidth: { portrait: 138, landscape: 176 } },
-  narrow: { gap: 10, minWidth: { portrait: 150, landscape: 160 } },
-};
-
-export const tileGrid = (shape: TileShape, layout: Layout): TileGrid => {
-  const grid = TILE_GRIDS[layout === "desktop" ? "desktop" : "narrow"];
-  return { minWidth: grid.minWidth[shape], gap: grid.gap };
-};
-
-const FRAME = 2;
-const INSET_X = 16;
-const CHROME_Y = FRAME + 8 + 9 + 13 * 1.4 + 2 + 11 * 1.4 + 10;
-
-export const tileHeight = (shape: TileShape, width: number): number =>
-  Math.max(0, width - FRAME - INSET_X) * MEDIA_RATIO[shape] + CHROME_Y;
 
 export type TileProps = VariantProps<typeof tileVariants> &
   VariantProps<typeof tileLabelVariants> & {
@@ -153,7 +232,7 @@ export default function Tile({
   selectLabel,
   onSelectedChange,
   dropTarget = false,
-  shape,
+  size = "landscape",
   kind,
   class: className,
   onClick,
@@ -161,12 +240,12 @@ export default function Tile({
 }: TileProps) {
   return (
     <div
-      class={cn(tileVariants({ shape }), className)}
-      data-tile={shape ?? "landscape"}
+      class={cn(tileVariants({ size }), className)}
+      data-tile={size}
       data-drop-target={dropTarget || undefined}
     >
       {selection !== "none" && (
-        <label class={tileMarkVariants({ selection })}>
+        <label class={tileMarkVariants({ size, selection })}>
           <input
             type="checkbox"
             class="sr-only"
@@ -181,27 +260,23 @@ export default function Tile({
       )}
       <button
         type="button"
-        class={cn(tileOpenVariants({ current, selection, selected, dropTarget }))}
+        class={cn(tileOpenVariants({ size, current, selection, selected, dropTarget }))}
         aria-current={current ? "true" : undefined}
         aria-pressed={selection === "active" ? selected : undefined}
         onClick={onClick}
         {...rest}
       >
-        <span class={tileMediaVariants({ shape })}>
+        <span class={tileMediaVariants({ size })}>
           {media}
           {badge && <span class="absolute right-1.5 bottom-1.5 z-10 flex">{badge}</span>}
         </span>
         <span class="flex min-w-0 flex-col gap-0.5 px-0.5">
-          <span class={tileLabelVariants({ kind })}>{label}</span>
-          {description && (
-            <small class="min-w-0 text-[11px]/[1.4] text-muted [--fade:20px] fade-edge">
-              {description}
-            </small>
-          )}
+          <span class={tileLabelVariants({ size, kind })}>{label}</span>
+          {description && <small class={tileDescriptionVariants({ size })}>{description}</small>}
         </span>
       </button>
       {actions && (
-        <span class={tileActionsVariants({ current })}>
+        <span class={tileActionsVariants({ size, current })}>
           {actions}
         </span>
       )}

@@ -42,6 +42,7 @@ export type LibraryPageProps<T> = {
   list: LibraryList<T> | null;
   empty?: ComponentChildren;
   area?: JSX.HTMLAttributes<HTMLDivElement>;
+  bodyRef?: Ref<HTMLDivElement>;
   overlay?: ComponentChildren;
   foot?: ComponentChildren;
   children?: ComponentChildren;
@@ -61,6 +62,7 @@ export default function LibraryPage<T>({
   list,
   empty,
   area,
+  bodyRef,
   overlay,
   foot,
   children,
@@ -68,7 +70,7 @@ export default function LibraryPage<T>({
   const rowHeight = libraryRowHeight(useLayout());
   return (
     <div class="flex min-h-0 flex-1 flex-col" {...area}>
-      <div class="@container flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">
+      <div ref={bodyRef} class="@container flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">
         <div class="mx-auto flex min-h-0 w-full max-w-[960px] flex-1 flex-col">
           <LibraryToolbar>
             <SearchBox label={searchLabel} value={query} onChange={onQueryChange} />

@@ -7,9 +7,9 @@ import { SAMPLE_PICTURE } from "../thumbnail/Thumbnail.gallery";
 import Thumbnail from "../thumbnail/Thumbnail";
 import VariantsBadge from "../variants-badge/VariantsBadge";
 import VirtualList from "../virtual-list/VirtualList";
-import Tile, { TILE_MEDIA_FIT, tileGrid, tileHeight, type TileShape } from "./Tile";
+import Tile, { TILE_SIZES, tileGrid, tileHeight, type TileSize } from "./Tile";
 
-const SHAPES: TileShape[] = ["landscape", "portrait"];
+const SIZES: TileSize[] = ["landscape", "portrait", "small"];
 
 const picture = (width: number, height: number, body: string) =>
   "data:image/svg+xml," +
@@ -45,14 +45,14 @@ const SELECTION_STATES = [
   { label: "drop target", selection: "none", dropTarget: true },
 ] as const;
 
-function SelectionDemo({ shape }: { shape: TileShape }) {
+function SelectionDemo({ size }: { size: TileSize }) {
   const [picked, setPicked] = useState<number[]>([2]);
   return (
     <div class="grid grid-cols-4 gap-3">
       {SELECTION_STATES.map((state, index) => (
-        <div key={state.label} style={{ height: `${tileHeight(shape, 176)}px` }}>
+        <div key={state.label} style={{ height: `${tileHeight(size, 176)}px` }}>
           <Tile
-            shape={shape}
+            size={size}
             kind={state.dropTarget ? "folder" : "file"}
             media={state.dropTarget ? <FolderCover sources={[SAMPLE_PICTURE]} /> : <Thumbnail size="fill" src={SAMPLE_PICTURE} />}
             label={state.label}
@@ -80,13 +80,13 @@ const menu = (name: string) => (
 function TileDemo() {
   return (
     <div class="space-y-6">
-      {SHAPES.map((shape) => (
-        <GalleryRow key={shape} label={`${shape}: a folder, a picture, a stacked picture with its badge, the current one with its accent edge and its menu shown`}>
+      {SIZES.map((size) => (
+        <GalleryRow key={size} label={`${size}: a folder, a picture, a stacked picture with its badge, the current one with its accent edge and its menu shown`}>
           <div class="grid grid-cols-4 gap-3">
             {[0, 1, 2, 3].map((index) => (
-              <div key={index} style={{ height: `${tileHeight(shape, 176)}px` }}>
+              <div key={index} style={{ height: `${tileHeight(size, 176)}px` }}>
                 <Tile
-                  shape={shape}
+                  size={size}
                   kind={index === 0 ? "folder" : "file"}
                   current={index === 3}
                   media={index === 0 ? <FolderCover sources={[SAMPLE_PICTURE, SAMPLE_PICTURE]} /> : <Thumbnail size="fill" src={SAMPLE_PICTURE} />}
@@ -102,22 +102,22 @@ function TileDemo() {
           </div>
         </GalleryRow>
       ))}
-      {SHAPES.map((shape) => (
+      {SIZES.map((size) => (
         <GalleryRow
-          key={`fit-${shape}`}
-          label={`${shape}: TILE_MEDIA_FIT with a one-picture folder cover, a wide picture, a tall figure and a very wide picture`}
+          key={`fit-${size}`}
+          label={`${size}: its fit with a one-picture folder cover, a wide picture, a tall figure and a very wide picture`}
         >
           <div class="grid grid-cols-4 gap-3">
             {FIT_SAMPLES.map((sample, index) => (
-              <div key={sample.name} style={{ height: `${tileHeight(shape, 176)}px` }}>
+              <div key={sample.name} style={{ height: `${tileHeight(size, 176)}px` }}>
                 <Tile
-                  shape={shape}
+                  size={size}
                   kind={index === 0 ? "folder" : "file"}
                   media={
                     index === 0 ? (
-                      <FolderCover fit={TILE_MEDIA_FIT[shape]} sources={[sample.src]} />
+                      <FolderCover fit={TILE_SIZES[size].fit} sources={[sample.src]} />
                     ) : (
-                      <Thumbnail size="fill" fit={TILE_MEDIA_FIT[shape]} src={sample.src} />
+                      <Thumbnail size="fill" fit={TILE_SIZES[size].fit} src={sample.src} />
                     )
                   }
                   label={sample.name}
@@ -130,35 +130,38 @@ function TileDemo() {
           </div>
         </GalleryRow>
       ))}
-      {SHAPES.map((shape) => (
-        <GalleryRow key={`select-${shape}`} label={`${shape}: the selection mark on hover, while selecting, when selected, and a folder as a drop target`}>
-          <SelectionDemo shape={shape} />
+      {SIZES.map((size) => (
+        <GalleryRow key={`select-${size}`} label={`${size}: the selection mark on hover, while selecting, when selected, and a folder as a drop target`}>
+          <SelectionDemo size={size} />
         </GalleryRow>
       ))}
-      <GalleryRow label="A VirtualList in grid mode, 200 landscape tiles: only the rows in view are mounted">
-        <VirtualList
-          label="Tiles"
-          class="h-80 rounded-card border border-edge p-2"
-          items={ITEMS}
-          getKey={(item) => String(item)}
-          grid={{ ...tileGrid("landscape", "desktop"), height: (width) => tileHeight("landscape", width) }}
-          renderItem={(item) => (
-            <Tile
-              shape="landscape"
-              media={<Thumbnail size="fill" src={SAMPLE_PICTURE} />}
-              label={`picture_${item}`}
-              description="Modified 2d · 40 kb"
-              onClick={() => {}}
-            />
-          )}
-        />
-      </GalleryRow>
+      {SIZES.map((size) => (
+        <GalleryRow key={`grid-${size}`} label={`${size}: a VirtualList in grid mode, 200 tiles at this size's columns and gap; only the rows in view are mounted`}>
+          <VirtualList
+            label="Tiles"
+            class="h-80 rounded-card border border-edge p-2"
+            items={ITEMS}
+            getKey={(item) => String(item)}
+            grid={tileGrid(size, "desktop")}
+            renderItem={(item) => (
+              <Tile
+                size={size}
+                media={<Thumbnail size="fill" fit={TILE_SIZES[size].fit} src={SAMPLE_PICTURE} />}
+                label={`picture_${item}`}
+                description="Modified 2d · 40 kb"
+                actions={menu(`picture_${item}`)}
+                onClick={() => {}}
+              />
+            )}
+          />
+        </GalleryRow>
+      ))}
     </div>
   );
 }
 
 export const tileGallery: GalleryEntry = {
   title: "Tile",
-  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileActionsVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileHeight", "tileGrid", "TILE_MEDIA_FIT"],
+  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileActionsVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileDescriptionVariants", "tileHeight", "tileGrid", "TILE_SIZES"],
   Demo: TileDemo,
 };

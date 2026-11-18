@@ -28,10 +28,10 @@ import {
   TextIcon,
   Thumbnail,
   Tile,
-  TILE_MEDIA_FIT,
+  TILE_SIZES,
   tileGrid,
-  tileHeight,
-  type TileShape,
+  type TileSize,
+  type TileTrack,
   UploadIcon,
   VariantsBadge,
   VariantsChip,
@@ -97,6 +97,7 @@ import {
   useRowFocusReturn,
   SortMenu,
   Trail,
+  LEGACY_TILES,
   libraryRowHeight,
   useFolderLayout,
   useLibraryDrag,
@@ -113,6 +114,7 @@ import AssetRowMenu, { INSPECTOR_ACTIONS, rowEntries, type AssetRowAction } from
 import { SoundLine, SoundPlay } from "./SoundRow";
 import UploadsPanel from "./UploadsPanel";
 import { useFileDrop } from "./useFileDrop";
+import { useNarrowPane } from "./useNarrowPane";
 
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
@@ -130,7 +132,9 @@ const COUNTING_NOTE = "Counting uses…";
 const UNCOUNTED_NOTE = "Uses could not be counted. Edit a script to try again.";
 
 const FOLDER_LAYOUTS: readonly { layout: FolderLayout; label: string; Icon: IconComponent }[] = [
-  { layout: "tiles", label: "Tiles", Icon: GridIcon },
+  { layout: "portrait", label: "Portrait tiles", Icon: GridIcon },
+  { layout: "landscape", label: "Landscape tiles", Icon: GridIcon },
+  { layout: "small", label: "Small tiles", Icon: GridIcon },
   { layout: "rows", label: "List", Icon: ListIcon },
 ];
 
@@ -323,6 +327,8 @@ function AssetsBrowser() {
   const [reveal, setReveal] = useState<{ path: string; request: number } | null>(null);
   const list = useRef<HTMLDivElement | null>(null);
   const page = useRef<HTMLDivElement | null>(null);
+  const body = useRef<HTMLDivElement | null>(null);
+  const narrowPane = useNarrowPane(body);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const layoutName = useLayout();
   const dock = useInspectorDock();
@@ -361,30 +367,37 @@ function AssetsBrowser() {
   }, [openPath]);
 
   useEffect(() => () => audioSession.stopUnless((owner) => owner === AUDITION_OWNER), []);
-  const [layout, setLayout] = useFolderLayout(
-    "assetsLayouts",
-    level.folder,
-    type === "image" ? "tiles" : "rows",
-  );
+  const [stored, setLayout] = useFolderLayout("assetsLayouts", level.folder);
   const { projectSettings } = useSettings();
-  const tiles = !searching && type === "image" && layout === "tiles";
+  const images = !searching && type === "image";
+  const chosen = stored === undefined || stored === LEGACY_TILES ? undefined : stored;
   const kinds = addMenuKindsOf(
     { path: `${level.folder}/_`, type: "image" },
     addMenuFolders(projectSettings),
   );
-  const namedShape: TileShape | undefined = kinds.includes("portrait")
+  const namedShape: TileSize | undefined = kinds.includes("portrait")
     ? "portrait"
     : kinds.includes("backdrop")
       ? "landscape"
       : undefined;
-  const pictures = tiles && !namedShape
+  const pictures = images && !chosen && !namedShape
     ? level.rows.filter((row) => row.kind === "file" && !row.link).map((row) => row.path)
     : [];
   const sizes = workspace.assetSizes.value;
   const pictureSources = pictures.map((path) => srcOf(listing, path));
   const measuring = pictureSources.some((src) => src && !Object.hasOwn(sizes, src));
-  const shape: TileShape =
+  const shape: TileSize =
     namedShape ?? majorityShape(pictureSources.map((src) => (src ? sizes[src] ?? undefined : undefined)));
+  const layout: FolderLayout = type !== "image" ? "rows" : (chosen ?? shape);
+  const tiles = images && layout !== "rows";
+  const size: TileSize = layout === "rows" ? shape : layout;
+  const track: TileTrack = layoutName !== "desktop" ? "narrow" : narrowPane ? "pane" : "desktop";
+  const holding = tiles && layoutName === "desktop" && narrowPane === undefined;
+  useEffect(() => {
+    if (images && loaded && stored === LEGACY_TILES && !measuring) {
+      setLayout(shape);
+    }
+  }, [images, loaded, stored, measuring, shape, setLayout]);
   const measureKey = JSON.stringify(pictures.map((path, index) => [path, pictureSources[index]]));
   useEffect(() => {
     if (pictures.length) {
@@ -737,16 +750,16 @@ function AssetsBrowser() {
     const folder = row.kind === "folder";
     return (
       <Tile
-        shape={shape}
+        size={size}
         kind={folder ? "folder" : "file"}
         media={
           folder ? (
             <FolderCover
-              fit={TILE_MEDIA_FIT[shape]}
+              fit={TILE_SIZES[size].fit}
               sources={(row.covers ?? []).map((path) => srcOf(listing, path))}
             />
           ) : (
-            <Thumbnail size="fill" fit={TILE_MEDIA_FIT[shape]} src={srcOf(listing, row.path)} />
+            <Thumbnail size="fill" fit={TILE_SIZES[size].fit} src={srcOf(listing, row.path)} />
           )
         }
         badge={row.variantCount ? <VariantsBadge count={row.variantCount} /> : undefined}
@@ -1006,7 +1019,7 @@ function AssetsBrowser() {
                   }}
                 >
                   {FOLDER_LAYOUTS.map(({ layout: value, label, Icon }) => (
-                    <DropdownRadioItem key={value} value={value} indicator="end">
+                    <DropdownRadioItem key={value} value={value} indicator="end" chosenWeight="normal">
                       <Icon class="text-muted" />
                       {label}
                     </DropdownRadioItem>
@@ -1040,7 +1053,8 @@ function AssetsBrowser() {
           />
         )
       }
-      list={measuring ? null : {
+      bodyRef={body}
+      list={measuring || holding ? null : {
         listRef: (element: HTMLDivElement | null) => {
           list.current = element;
           scroller(element);
@@ -1052,12 +1066,10 @@ function AssetsBrowser() {
         getKey: (item) => (item.kind === "heading" ? `heading:${item.type}` : item.path),
         renderItem,
         itemHeight: (item) => (item.kind === "heading" ? HEADING_HEIGHT : libraryRowHeight(layoutName)),
-        grid: tiles
-          ? { ...tileGrid(shape, layoutName), height: (width) => tileHeight(shape, width) }
-          : undefined,
+        grid: tiles ? tileGrid(size, track) : undefined,
       }}
       empty={
-        !loaded || measuring ? null : searching ? (
+        !loaded || measuring || holding ? null : searching ? (
           <EmptyState
             icon={<SearchIcon />}
             title="No files match."
