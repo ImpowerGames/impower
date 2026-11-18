@@ -78,7 +78,7 @@ export default function SortMenu({ value, fields = ALL_FIELDS, usesHint, note, o
             {note}
           </p>
         )}
-        <DropdownSeparator />
+        <DropdownSeparator inset />
         <DropdownLabel variant="heading">Order</DropdownLabel>
         <DropdownRadioGroup label="Order" value={directionKey} onValueChange={onChange}>
           {menu.directions.map((direction) => {

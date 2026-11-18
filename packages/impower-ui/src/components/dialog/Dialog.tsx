@@ -289,7 +289,7 @@ function Modal({
               }
               const target = returnTo?.() ?? returnFocus.current();
               if (target?.isConnected) {
-                target.focus();
+                focusAsInput(target);
               }
             }}
             onEscapeKeyDown={(event: KeyboardEvent) => {

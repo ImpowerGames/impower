@@ -125,6 +125,8 @@ const PAGE_TAB = "all";
 
 const HEADING_HEIGHT = 48;
 
+const PICTURE_ROW_HEIGHT = 67;
+
 const SHOWN_USES = 3;
 
 const COUNTING_NOTE = "Counting uses…";
@@ -249,9 +251,11 @@ const followed = (path: string, moves: readonly FileMove[]) => {
   return move ? move.to + path.slice(move.from.length) : path;
 };
 
+const pictured = (row: AssetRow) => row.kind !== "folder" && row.type === "image" && !row.link;
+
 function RowGlyph({ row, listing }: { row: AssetRow; listing: AssetListing }) {
   if (row.kind === "folder") return <FolderIcon />;
-  if (row.type === "image" && !row.link) return <Thumbnail fit="contain" src={srcOf(listing, row.path)} />;
+  if (pictured(row)) return <Thumbnail fit="contain" src={srcOf(listing, row.path)} />;
   const Glyph = row.link && row.type === "other" ? LinkIcon : TYPE_ICONS[row.type];
   return <Glyph />;
 }
@@ -838,7 +842,7 @@ function AssetsBrowser() {
           row.variantCount ? (
             <span class="flex min-w-0 items-center gap-[7px]">
               <span class="min-w-0 [--fade:20px] fade-edge">{row.name}</span>
-              <VariantsChip count={row.variantCount} />
+              <VariantsChip count={row.variantCount} class="relative top-px" />
             </span>
           ) : (
             row.name
@@ -1007,7 +1011,7 @@ function AssetsBrowser() {
                   {layout === "rows" ? <ListIcon /> : <GridIcon />}
                 </Button>
               </DropdownTrigger>
-              <DropdownContent elevation="library" align="end" class="min-w-[180px]">
+              <DropdownContent elevation="library" align="end" class="min-w-[196px]">
                 <DropdownRadioGroup
                   label="Show this folder as"
                   value={layout}
@@ -1065,7 +1069,8 @@ function AssetsBrowser() {
         items,
         getKey: (item) => (item.kind === "heading" ? `heading:${item.type}` : item.path),
         renderItem,
-        itemHeight: (item) => (item.kind === "heading" ? HEADING_HEIGHT : libraryRowHeight(layoutName)),
+        itemHeight: (item) =>
+          item.kind === "heading" ? HEADING_HEIGHT : pictured(item) ? PICTURE_ROW_HEIGHT : libraryRowHeight(layoutName),
         grid: tiles ? tileGrid(size, track) : undefined,
       }}
       empty={
