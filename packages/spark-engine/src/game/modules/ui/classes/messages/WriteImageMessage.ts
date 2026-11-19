@@ -9,9 +9,15 @@ export interface PictureFraming {
   zoom: number;
 }
 
+export interface PictureTravel {
+  framing?: PictureFraming;
+  timing: { delay: string; duration: string; easing: string };
+}
+
 export interface WriteImageInstruction {
   control: "show" | "hide" | "animate";
   framing?: PictureFraming;
+  travel?: PictureTravel;
   targetAnimations?: Animation[];
   affected?: { target: string; animations: Animation[] }[];
   content?: {

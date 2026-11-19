@@ -1,6 +1,7 @@
 export const timeline = { currentTime: 0 };
 
 export class TimedEffect {
+  animation?: { currentTime: number | null };
   constructor(
     public target: Element,
     public keyframes: unknown,
@@ -14,12 +15,28 @@ export class TimedEffect {
         : [];
     return frames.map((frame) => ({ ...(frame as object) }));
   }
+  setKeyframes(keyframes: unknown) {
+    this.keyframes = keyframes;
+  }
   getTiming() {
     return this.timing;
   }
   getComputedTiming() {
-    const { delay = 0, duration = 0, endDelay = 0 } = this.timing;
-    return { endTime: delay + Number(duration) + endDelay };
+    const { delay = 0, duration = 0, endDelay = 0, fill = "auto" } = this.timing;
+    const length = Number(duration);
+    const time = this.animation?.currentTime;
+    let progress: number | null = null;
+    if (time != null) {
+      const active = time - delay;
+      if (active < 0) {
+        progress = fill === "backwards" || fill === "both" ? 0 : null;
+      } else if (active >= length) {
+        progress = fill === "forwards" || fill === "both" ? 1 : null;
+      } else {
+        progress = active / length;
+      }
+    }
+    return { endTime: delay + length + endDelay, progress };
   }
 }
 
@@ -36,6 +53,7 @@ export class TimedAnimation {
   protected _settle!: () => void;
   protected _fail!: (reason: unknown) => void;
   constructor(public effect: TimedEffect) {
+    effect.animation = this;
     this.renew();
     animations.push(this);
   }

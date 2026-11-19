@@ -1,4 +1,5 @@
 import type { Animation as AnimationDefinition } from "../../../spark-engine/src/game/modules/ui/types/Animation";
+import type { AnimationTiming } from "../../../spark-engine/src/game/modules/ui/types/AnimationTiming";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssTokenValue } from "../utils/getCssTokenValue";
@@ -14,6 +15,55 @@ export interface AnimationEffect {
   element: HTMLElement;
   animations: AnimationDefinition[];
 }
+
+const toMilliseconds = (value: number | string | undefined): number | undefined => {
+  if (typeof value === "number") {
+    return value * 1000;
+  }
+  if (typeof value === "string") {
+    return getMilliseconds(value) ?? undefined;
+  }
+  return value;
+};
+
+export const getEffectTiming = (timing: AnimationTiming): EffectTiming => {
+  const convertedTiming: EffectTiming = {};
+  const delay = toMilliseconds(timing.delay);
+  if (delay != null) {
+    convertedTiming.delay = delay;
+  }
+  const duration = toMilliseconds(timing.duration);
+  if (duration != null) {
+    convertedTiming.duration = duration;
+  }
+  if (timing.iterations != null) {
+    if (timing.iterations === "infinite") {
+      convertedTiming.iterations = Infinity;
+    } else {
+      convertedTiming.iterations = timing.iterations;
+    }
+  }
+  if (timing.direction != null) {
+    convertedTiming.direction = timing.direction;
+  }
+  if (timing.easing != null) {
+    convertedTiming.easing = timing.easing;
+  }
+  if (timing.fill != null) {
+    convertedTiming.fill = timing.fill;
+  }
+  const endDelay = toMilliseconds(timing.end_delay);
+  if (endDelay != null) {
+    convertedTiming.endDelay = endDelay;
+  }
+  if (timing.iteration_start != null) {
+    convertedTiming.iterationStart = timing.iteration_start;
+  }
+  if (timing.playback_rate != null) {
+    convertedTiming.playbackRate = timing.playback_rate;
+  }
+  return convertedTiming;
+};
 
 export default class AnimationPlayer {
   protected _instances: AnimationInstance[] = [];
@@ -55,73 +105,30 @@ export default class AnimationPlayer {
             convertedKeyframes.push(convertedKeyframe);
           }
         });
-        const convertedTiming: EffectTiming = {};
-        if (animation.timing.delay != null) {
-          if (typeof animation.timing.delay === "number") {
-            convertedTiming.delay = animation.timing.delay * 1000;
-          } else if (typeof animation.timing.delay === "string") {
-            const ms = getMilliseconds(animation.timing.delay);
-            if (ms != null) {
-              convertedTiming.delay = ms;
-            }
-          } else {
-            convertedTiming.delay = animation.timing.delay;
-          }
-        }
-        if (animation.timing.duration != null) {
-          if (typeof animation.timing.duration === "number") {
-            convertedTiming.duration = animation.timing.duration * 1000;
-          } else if (typeof animation.timing.duration === "string") {
-            const ms = getMilliseconds(animation.timing.duration);
-            if (ms != null) {
-              convertedTiming.duration = ms;
-            }
-          } else {
-            convertedTiming.duration = animation.timing.duration;
-          }
-        }
-        if (animation.timing.iterations != null) {
-          if (animation.timing.iterations === "infinite") {
-            convertedTiming.iterations = Infinity;
-          } else {
-            convertedTiming.iterations = animation.timing.iterations;
-          }
-        }
-        if (animation.timing.direction != null) {
-          convertedTiming.direction = animation.timing.direction;
-        }
-        if (animation.timing.easing != null) {
-          convertedTiming.easing = animation.timing.easing;
-        }
-        if (animation.timing.fill != null) {
-          convertedTiming.fill = animation.timing.fill;
-        }
-        if (animation.timing.end_delay != null) {
-          if (typeof animation.timing.end_delay === "number") {
-            convertedTiming.endDelay = animation.timing.end_delay * 1000;
-          } else if (typeof animation.timing.end_delay === "string") {
-            const ms = getMilliseconds(animation.timing.end_delay);
-            if (ms != null) {
-              convertedTiming.endDelay = ms;
-            }
-          } else {
-            convertedTiming.endDelay = animation.timing.end_delay;
-          }
-        }
-        if (animation.timing.iteration_start != null) {
-          convertedTiming.iterationStart = animation.timing.iteration_start;
-        }
-        if (animation.timing.playback_rate != null) {
-          convertedTiming.playbackRate = animation.timing.playback_rate;
-        }
-        const instance = new Animation(
-          new KeyframeEffect(element, convertedKeyframes, convertedTiming),
+        created.push(
+          this.addKeyframes(element, convertedKeyframes, animation.timing),
         );
-        this._instances.push({ element, animation: instance });
-        created.push(instance);
       });
     }
     return created;
+  }
+
+  addKeyframes(
+    element: Element,
+    keyframes: Keyframe[],
+    timing: AnimationTiming,
+  ): Animation {
+    const instance = new Animation(
+      new KeyframeEffect(element, keyframes, getEffectTiming(timing)),
+    );
+    this._instances.push({ element, animation: instance });
+    return instance;
+  }
+
+  remove(animation: Animation): void {
+    this._instances = this._instances.filter(
+      (instance) => instance.animation !== animation,
+    );
   }
 
   get endTimeUndelayed(): number {
