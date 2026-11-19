@@ -73,6 +73,11 @@ const SHAPES: { name: string; script: string; config: ScreenplayConfig }[] = [
     script: `${SCRIPT}scene row\n  queue | One. | Two. end ${LONG_TEXT}\nend\n`,
     config: GEOMETRY_CONFIG,
   },
+  {
+    name: "a printed paragraph that continues across a blank source line",
+    script: `${SCRIPT}scene blank_crossing\n  ${LONG_TEXT} {"a" ..\n\n  "b"} after.\nend\n`,
+    config: GEOMETRY_CONFIG,
+  },
 ];
 
 const MARKED = "The reader keeps **reading the bold words** and *the slanted ones* and _the underlined ones_ while {name} waits.";
@@ -211,6 +216,18 @@ const COMPARED_SHAPES: { name: string; script: string; config: ScreenplayConfig;
   {
     name: "a printed line that also carries an inserted row",
     script: `scene row\n  queue | One. | Two. end ${COMPARED_TEXT}\nend\n`,
+    config: GEOMETRY_CONFIG,
+    lines: [2, 2],
+  },
+  {
+    name: "a printed paragraph that continues across a blank source line",
+    script: `scene blank_crossing\n  ${COMPARED_TEXT} {"a" ..\n\n  "b"} after.\nend\n`,
+    config: GEOMETRY_CONFIG,
+    lines: [2, 4],
+  },
+  {
+    name: "a printed line that also carries a function name wrapped over several rows",
+    script: `scene name_row\n  queue | ${COMPARED_TEXT} | Two. end function ${"identifier".repeat(30)}() end queue | After. end\nend\n`,
     config: GEOMETRY_CONFIG,
     lines: [2, 2],
   },

@@ -534,7 +534,7 @@ export const decorate = (
           : { before: !above || !actionStartSet.has(row.at), after: above, counted: countsBreaks },
       );
       (above ? decorations : rowsBelow).push(
-        Decoration.widget({ widget, side: 1, printedRow: { pieces, below: !above } }).range(row.at),
+        Decoration.widget({ widget, side: 1, printedRow: { pieces: pulled, padding: pull ?? 0, below: !above } }).range(row.at),
       );
       continue;
     }
@@ -1257,8 +1257,27 @@ const withoutTrailingSpaces = (line: FormattedText[]) => {
 
 interface PrintedRowSpec {
   pieces: InsertedRowPiece[];
+  padding: number;
   below: boolean;
 }
+
+const insertedRowHtml = ({ pieces, padding }: PrintedRowSpec) => {
+  const spans = pieces
+    .map(
+      (piece) =>
+        `<span class="sp-inserted${piece.source ? " sp-source" : ""}${piece.name ? " sp-name" : ""}"${piece.style ? ` style="${piece.style}"` : ""}>${escapeHtml(piece.text)}</span>`,
+    )
+    .join("");
+  const style = padding ? ` style="${hangingLineStyle(padding)}"` : "";
+  return `<div class="sp-inserted-row"${style}>${spans || "<br>"}</div>`;
+};
+
+const insertedRows = (pieces: readonly InsertedRowPiece[]) =>
+  pieces.reduce((rows, piece) => rows + piece.text.split("\n").length - 1, 1);
+
+const staysOutside = (range: Range<Decoration>, from: number, to: number) =>
+  range.from === range.to &&
+  ((range.from === from && range.value.startSide < 0) || (range.from === to && range.value.startSide > 0));
 
 const printedBlock = (
   state: EditorState,
@@ -1297,13 +1316,23 @@ const printedBlock = (
     const { spec, point } = range.value;
     const widget = spec.widget as WidgetType | undefined;
     if (spec.block) {
-      if ((range.from > from && range.from < to) || (range.to > from && range.to < to)) return undefined;
+      if (staysOutside(range, from, to)) continue;
+      if (range.from < from || range.to > to || !widget) return undefined;
+      parts.push({
+        at: range.from,
+        order: range.from === range.to && range.value.startSide > 0 ? 2 : 0,
+        part: { widget, rows: widget instanceof InsertedRowWidget ? insertedRows(widget.pieces) : 0 },
+      });
       continue;
     }
     if (!point || !widget || isLineDecoration(range)) continue;
     const row = spec.printedRow as PrintedRowSpec | undefined;
     if (row) {
-      parts.push({ at: range.from, order: row.below ? 2 : 0, part: { widget: new InsertedRowWidget(row.pieces), rows: 1 } });
+      parts.push({
+        at: range.from,
+        order: row.below ? 2 : 0,
+        part: { html: insertedRowHtml(row), rows: insertedRows(row.pieces) },
+      });
     } else if (widget instanceof LineBreakWidget || widget instanceof InsertedTextWidget) {
       continue;
     } else if (range.to > range.from) {
@@ -1337,7 +1366,7 @@ const printedBlock = (
 
 const outside = (range: Range<Decoration>, from: number, to: number): Range<Decoration>[] => {
   if (range.to < from || range.from > to) return [range];
-  if (range.value.spec.block && range.from === range.to) return [range];
+  if (range.value.spec.block && staysOutside(range, from, to)) return [range];
   if (range.from >= from && range.to <= to) return [];
   if (range.value.spec.block) return [range];
   const pieces: Range<Decoration>[] = [];
