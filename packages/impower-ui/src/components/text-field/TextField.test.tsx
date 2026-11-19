@@ -128,6 +128,20 @@ describe("TextField", () => {
     }
   });
 
+  it("draws no frame, box size or type of its own when bare and inheriting, and shows the characters it is given", async () => {
+    const input = await mount(<TextField aria-label="Name" frame="bare" size="inherit" font="inherit" characters={7} />);
+    const names = input.className.split(/\s+/);
+    expect(names).toEqual(expect.arrayContaining(["border-0", "bg-transparent", "outline-none", "p-0", "w-auto"]));
+    for (const dropped of ["text-[13px]/[1.4]", "min-h-9", "min-h-0", "h-full", "flex-1", "w-[180px]", "px-2.5", "py-1.5", "font-sans", "font-mono", "border", "control-wash"]) {
+      expect(names).not.toContain(dropped);
+    }
+    expect(input.size).toBe(7);
+    await act(async () => render(<TextField aria-label="Name" />, host!));
+    const plain = host!.querySelector("input")!;
+    expect(plain.hasAttribute("size")).toBe(false);
+    expect(plain.className.split(/\s+/)).toEqual(expect.arrayContaining(["text-[13px]/[1.4]", "font-sans"]));
+  });
+
   it("gives the dialog size a 50px field with 16px type on the page fill at every width", () => {
     const dialog = textFieldVariants({ size: "dialog" }).split(/\s+/);
     expect(dialog).toEqual(expect.arrayContaining(["h-[50px]", "p-3", "text-[16px]/[1.5]", "bg-bg", "border-edge"]));

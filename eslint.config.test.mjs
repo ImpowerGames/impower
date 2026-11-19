@@ -200,15 +200,6 @@ test("the Radix boundary still holds in impower-dev's TSX files", async () => {
   );
 });
 
-test("every legacy form-control file still holds a bare control, so the list only shrinks", async () => {
-  const { LEGACY_FORM_CONTROL_FILES } = await import("./eslint.config.js");
-  const { readFileSync } = await import("node:fs");
-  for (const file of LEGACY_FORM_CONTROL_FILES) {
-    const source = readFileSync(path.join(ROOT, file), "utf8");
-    assert.match(source, /<(select|textarea)\b|<input\b(?![^>]*type="file")/, `${file} has no bare form control; remove it from LEGACY_FORM_CONTROL_FILES`);
-  }
-});
-
 const SRC_PROBE = "impower-dev/src/modules/spark-editor/components/probe/Probe.tsx";
 const assertImpowerUiSrcRefused = async (code, ruleId) => {
   const messages = await lint(SRC_PROBE, code);

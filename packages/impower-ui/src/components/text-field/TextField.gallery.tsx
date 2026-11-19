@@ -18,12 +18,14 @@ const PURPOSES: Record<TextFieldPurpose, { label: string; example: string }> = {
 const FRAMES: Record<TextFieldFrame, string> = {
   own: "Its own border",
   inset: "Inset in the page's frame",
+  bare: "Bare, in the box its page draws",
 };
 
 const SIZES: Record<TextFieldSize, string> = {
   default: "Default",
   tall: "Tall",
   dialog: "Dialog form field",
+  inherit: "The surrounding text's",
 };
 
 const WIDTHS: Record<TextFieldWidth, string> = {
@@ -36,6 +38,7 @@ const WIDTHS: Record<TextFieldWidth, string> = {
 const FONTS: Record<TextFieldFont, string> = {
   sans: "Interface type",
   mono: "Script type",
+  inherit: "The surrounding text's",
 };
 
 function TextFieldDemo() {
@@ -113,6 +116,20 @@ function TextFieldDemo() {
             />
           ))}
         </div>
+      </GalleryRow>
+      <GalleryRow label="Bare in a heading, in its type, as wide as its text">
+        <h3 class="m-0 text-[17px]/[1.3] font-semibold">
+          <TextField
+            frame="bare"
+            size="inherit"
+            font="inherit"
+            characters={Math.max(4, name.length + 1)}
+            aria-label="Heading name"
+            value={name}
+            onValueChange={setName}
+            data-gallery-control
+          />
+        </h3>
       </GalleryRow>
       <GalleryRow label={`Controlled: ${name}`}>
         <TextField aria-label="Folder" value={name} onValueChange={setName} />
