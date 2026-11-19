@@ -4,10 +4,37 @@ export type MorphEasing = (x: number) => number;
 
 interface Curve {
   ease: MorphEasing;
-  turns: number[];
+  reach: (position: number) => number;
 }
 
-const linear: Curve = { ease: (x) => x, turns: [] };
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+function firstAtOrPast(reaches: (v: number) => boolean, turns: readonly number[]): number {
+  if (reaches(0)) return 0;
+  const bounds = [...new Set([0, ...turns.filter((v) => v > 0 && v < 1), 1])].sort((a, b) => a - b);
+  for (let i = 1; i < bounds.length; i++) {
+    let lo = bounds[i - 1]!;
+    const end = bounds[i]!;
+    const before = end - end * Number.EPSILON;
+    const top = before > lo && reaches(before) ? before : reaches(end) ? end : undefined;
+    if (top === undefined) continue;
+    let hi = top;
+    for (;;) {
+      const mid = (lo + hi) / 2;
+      if (mid <= lo || mid >= hi) return hi;
+      if (reaches(mid)) hi = mid;
+      else lo = mid;
+    }
+  }
+  return 1;
+}
+
+const byInput = (ease: MorphEasing, turns: readonly number[]): Curve => ({
+  ease,
+  reach: (position) => firstAtOrPast((x) => clamp01(ease(x)) >= position, turns),
+});
+
+const linear: Curve = byInput((x) => x, []);
 
 function cubicBezier(x1: number, y1: number, x2: number, y2: number): Curve {
   if (x1 === y1 && x2 === y2) return linear;
@@ -53,7 +80,7 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number): Curve {
         })();
   return {
     ease: (x) => (x <= 0 ? 0 : x >= 1 ? 1 : sampleY(solve(x))),
-    turns: roots.filter((t) => t > 0 && t < 1).map(sampleX),
+    reach: (position) => sampleX(firstAtOrPast((t) => sampleY(t) >= position, roots)),
   };
 }
 
@@ -62,15 +89,12 @@ type StepPosition = "jump-start" | "jump-end" | "jump-none" | "jump-both";
 function steps(count: number, position: StepPosition): Curve {
   const jumps = position === "jump-none" ? count - 1 : position === "jump-both" ? count + 1 : count;
   const leading = position === "jump-start" || position === "jump-both";
-  return {
-    ease: (x) => {
-      let step = Math.floor(x * count) + (leading ? 1 : 0);
-      if (step < 0) step = 0;
-      if (step > jumps) step = jumps;
-      return step / jumps;
-    },
-    turns: [],
-  };
+  return byInput((x) => {
+    let step = Math.floor(x * count) + (leading ? 1 : 0);
+    if (step < 0) step = 0;
+    if (step > jumps) step = jumps;
+    return step / jumps;
+  }, []);
 }
 
 function linearStops(args: string[]): Curve | undefined {
@@ -109,7 +133,7 @@ function linearStops(args: string[]): Curve | undefined {
     if (b.input === a.input) return x < b.input ? a.output : b.output;
     return a.output + ((b.output - a.output) * (x - a.input)) / (b.input - a.input);
   };
-  return { ease, turns: placed.map((point) => point.input) };
+  return byInput(ease, placed.map((point) => point.input));
 }
 
 const NAMED: Record<string, Curve> = {
@@ -140,25 +164,7 @@ export function parseMorphEasing(text: string): MorphEasing | undefined {
 export function firstMorphEasingReach(text: string, position: number): number {
   if (position <= 0) return 0;
   if (position >= 1) return 1;
-  const { ease, turns } = curve(text) ?? linear;
-  const reaches = (x: number) => Math.max(0, Math.min(1, ease(x))) >= position;
-  const bounds = [...new Set([0, ...turns.filter((x) => x > 0 && x < 1), 1])].sort((a, b) => a - b);
-  if (reaches(0)) return 0;
-  for (let i = 1; i < bounds.length; i++) {
-    let lo = bounds[i - 1]!;
-    const end = bounds[i]!;
-    const before = end - end * Number.EPSILON;
-    const top = before > lo && reaches(before) ? before : reaches(end) ? end : undefined;
-    if (top === undefined) continue;
-    let hi = top;
-    for (;;) {
-      const mid = (lo + hi) / 2;
-      if (mid <= lo || mid >= hi) return hi;
-      if (reaches(mid)) hi = mid;
-      else lo = mid;
-    }
-  }
-  return 1;
+  return (curve(text) ?? linear).reach(position);
 }
 
 function parse(text: string): Curve | undefined {

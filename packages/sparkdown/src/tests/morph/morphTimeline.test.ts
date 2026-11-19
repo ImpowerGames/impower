@@ -374,23 +374,39 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     expect(offsetAt(dropping, 0.21)).toBeCloseTo(0.24, 9);
     const rise = "linear(0 0%, 0 25%, 1 25%, 0 100%)";
     expect(firstMorphEasingReach(rise, 0.5)).toBe(0.25);
-    for (const easing of ["cubic-bezier(0.3, 1.8, 0.7, -0.8)", "cubic-bezier(0.2, -0.6, 0.8, 1.6)", "ease-in-out", "steps(4, jump-both)", spike, drop, rise]) {
+    const stationary = "cubic-bezier(1, 1.51, 0, 0.5)";
+    const turn = firstMorphEasingReach(stationary, 0.878755);
+    expect(Math.abs(turn - 0.5)).toBeLessThan(1e-6);
+    const held = new MorphTimeline(timing({ duration: 1, easing: stationary, replay: replay({ start: 0.2, end: 0.878755, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
+    expect(held.at(0.55)).toEqual({ phase: "playing", play: 0, offset: 0.878755 });
+    const cubics: string[] = [];
+    for (const x1 of [0, 0.3, 1]) for (const y1 of [-0.6, 0.5, 1.51]) for (const x2 of [0, 0.7, 1]) for (const y2 of [-0.8, 0.5, 1.6]) cubics.push(`cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`);
+    const solverTolerance = 1e-6;
+    const scan = (easing: string, positions: number[], samples: number) => {
       const ease = parseMorphEasing(easing)!;
       const clamped = (x: number) => Math.max(0, Math.min(1, ease(x)));
-      for (const position of [0.1, 0.35, 0.6, 0.9]) {
+      for (const position of positions) {
         const x = firstMorphEasingReach(easing, position);
         let scanned = 1;
-        for (let i = 0; i <= 200000; i++) {
-          if (clamped(i / 200000) >= position) {
-            scanned = i / 200000;
+        for (let i = 0; i <= samples; i++) {
+          if (clamped(i / samples) >= position) {
+            scanned = i / samples;
             break;
           }
         }
-        expect(clamped(x), `${easing} @ ${position}`).toBeGreaterThanOrEqual(position);
-        expect(x, `${easing} @ ${position}`).toBeLessThanOrEqual(scanned);
-        expect(scanned - x, `${easing} @ ${position}`).toBeLessThan(1 / 200000);
+        const label = `${easing} @ ${position}`;
+        expect(x, label).toBeLessThanOrEqual(scanned + solverTolerance);
+        if (/^(cubic-bezier|ease)/.test(easing)) {
+          const near = Array.from({ length: 2001 }, (_, i) => Math.min(1, Math.max(0, x - solverTolerance + i * 1e-9)));
+          expect(near.some((v) => clamped(v) >= position), label).toBe(true);
+        } else {
+          expect(clamped(x), label).toBeGreaterThanOrEqual(position);
+          expect(scanned - x, label).toBeLessThan(1 / samples);
+        }
       }
-    }
+    };
+    for (const easing of ["cubic-bezier(0.3, 1.8, 0.7, -0.8)", "cubic-bezier(0.2, -0.6, 0.8, 1.6)", "ease-in-out", "steps(4, jump-both)", spike, drop, rise, stationary]) scan(easing, [0.1, 0.35, 0.6, 0.878755, 0.9], 200000);
+    for (const easing of cubics) scan(easing, [0.1, 0.35, 0.6, 0.878755, 0.9], 20000);
   });
 
   test("a stretch that takes no time under the easing makes no replay and draws nothing", () => {
