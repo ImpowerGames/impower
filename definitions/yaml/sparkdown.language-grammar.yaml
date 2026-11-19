@@ -67,6 +67,7 @@ variables:
 
   SELECTOR_FUNCTION_NAMES: ["has", "not", "is", "where", "host", "host-context"]
   NTH_SELECTOR_FUNCTION_NAMES: ["nth-child", "nth-last-child"]
+  SELECTOR_AT_RULE_NAMES: ["container", "layer", "media", "starting-style", "starting_style", "initial"]
   IDENTIFIER_START_CHAR: '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}-'
   IDENTIFIER_START: "[{{IDENTIFIER_START_CHAR}}]"
@@ -4775,13 +4776,170 @@ repository:
       - { include: "#BooleanLiteral" }
       - { include: "#StringLiteral" }
       - { include: "#SelectorOperator" }
+      - { include: "#SelectorScopeAtRule" }
+      - { include: "#SelectorSupportsAtRule" }
+      - { include: "#SelectorAtRule" }
       - { include: "#RecursiveSelectorFunction" }
       - { include: "#NthSelectorFunction" }
       - { include: "#SimpleSelectorFunction" }
       - { include: "#StyleAttribute" }
       - { include: "#SelectorAttribute" }
       - { include: "#LabelAttribute" }
+      - { include: "#SelectorPseudoClass" }
       - { include: "#Separator" }
+
+  SelectorScopeAtRule:
+    # lookaround: a longer state name that starts with the at-rule's name
+    # (`@scope-x`, `@scope_x(a)`) stays `SimpleSelectorFunction`'s or
+    # `UnassignedSelectorAttribute`'s, which must come after this rule since
+    # they also read `@scope(`.
+    begin: ([@])(scope)(?!{{IDENTIFIER_GOES_ON}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorStateOperator" }
+      2:
+        patterns:
+          - { include: "#SelectorStateName" }
+    patterns:
+      - { include: "#RecursiveSelectorFunctionParameters" }
+      - { include: "#SelectorCssText" }
+    applyEndPatternLast: true
+    end: (?=[)])|$
+
+  SelectorSupportsAtRule:
+    # lookaround: as for `SelectorScopeAtRule`, a longer state name
+    # (`@supports-x`) stays `SimpleSelectorFunction`'s or
+    # `UnassignedSelectorAttribute`'s.
+    begin: ([@])(supports)(?!{{IDENTIFIER_GOES_ON}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorStateOperator" }
+      2:
+        patterns:
+          - { include: "#SelectorStateName" }
+    patterns:
+      - { include: "#SelectorSupportsAtRuleGroup" }
+      - { include: "#SelectorSupportsSelectorFunction" }
+      - { include: "#SelectorCssText" }
+    applyEndPatternLast: true
+    end: (?=[)])|$
+
+  SelectorSupportsAtRuleGroup:
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#SelectorSupportsAtRuleGroup" }
+      - { include: "#SelectorSupportsSelectorFunction" }
+      - { include: "#SelectorAtRuleDeclarationValue" }
+      - { include: "#SelectorCssText" }
+    end: $|([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  SelectorSupportsSelectorFunction:
+    brackets: true
+    begin: (selector)([(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorCssWord" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauSparkleElementClass" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ComponentName" }
+      - { include: "#PunctuationComma" }
+      - { include: "#IllegalChar" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  SelectorAtRule:
+    # lookaround: as for `SelectorScopeAtRule`, a longer state name
+    # (`@container-size(sm)`, `@media-x`) stays `SimpleSelectorFunction`'s or
+    # `UnassignedSelectorAttribute`'s. The list's own end lets a `-` go on.
+    begin: ([@])({{SELECTOR_AT_RULE_NAMES}})(?!{{IDENTIFIER_GOES_ON}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorStateOperator" }
+      2:
+        patterns:
+          - { include: "#SelectorStateName" }
+    patterns:
+      - { include: "#SelectorAtRuleGroup" }
+      - { include: "#SelectorCssText" }
+    applyEndPatternLast: true
+    end: (?=[)])|$
+
+  SelectorAtRuleGroup:
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#SelectorAtRuleGroup" }
+      - { include: "#SelectorAtRuleDeclarationValue" }
+      - { include: "#SelectorCssText" }
+    end: $|([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  SelectorAtRuleDeclarationValue:
+    begin: ([:])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorCssPunctuation" }
+    patterns:
+      - { include: "#SelectorAtRuleGroup" }
+      - { include: "#SelectorCssText" }
+    applyEndPatternLast: true
+    end: (?=[)])|$
+
+  SelectorCssText:
+    patterns:
+      - { include: "#LuauStructBlockKeyString" }
+      - { include: "#StringLiteral" }
+      - { include: "#UnitValue" }
+      - { include: "#NumericLiteral" }
+      - { include: "#Separator" }
+      - { include: "#PunctuationComma" }
+      - { include: "#SelectorCssWord" }
+      - { include: "#SelectorCssPunctuation" }
+
+  SelectorCssWord:
+    tag: string
+    name: string.unquoted.css.sd
+    match: ([{{IDENTIFIER_END_CHAR}}]+)
+
+  SelectorCssPunctuation:
+    tag: operator
+    name: keyword.operator.css.sd
+    match: ([^\s(){{IDENTIFIER_END_CHAR}}])
 
   ComponentName:
     patterns:
@@ -4817,11 +4975,10 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#SelectorPseudoClass" }
       - { include: "#SelectorPropertyNamePart" }
       - { include: "#LuauSparkleElementClass" }
-      - { include: "#BuiltinComponentName" }
-      - { include: "#CustomComponentName" }
+      - { include: "#PunctuationComma" }
+      - { include: "#SelectorCssWord" }
     end: $|({{WS}}*)([)])
     endCaptures:
       1:
@@ -4832,7 +4989,7 @@ repository:
           - { include: "#PunctuationParenClose" }
 
   SelectorPseudoClass:
-    match: ([:]{1,2})({{IDENTIFIER}})
+    match: ([:]{1,2})([{{IDENTIFIER_END_CHAR}}]+)
     captures:
       1:
         patterns:

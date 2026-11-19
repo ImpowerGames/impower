@@ -428,6 +428,9 @@ const PAREN_CLOSED_LISTS = nodeNameSet([
   "RecursiveSelectorFunctionParameters",
   "NthSelectorFunction",
   "SimpleSelectorFunctionParameters",
+  "SelectorAtRuleGroup",
+  "SelectorSupportsAtRuleGroup",
+  "SelectorSupportsSelectorFunction",
   "StylingFunctionParameters",
 ]);
 

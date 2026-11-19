@@ -117,6 +117,14 @@
       "nth-child",
       "nth-last-child"
     ],
+    "SELECTOR_AT_RULE_NAMES": [
+      "container",
+      "layer",
+      "media",
+      "starting-style",
+      "starting_style",
+      "initial"
+    ],
     "IDENTIFIER_START_CHAR": "_\\p{L}",
     "IDENTIFIER_END_CHAR": "0-9_\\p{L}-",
     "IDENTIFIER_START": "[{{IDENTIFIER_START_CHAR}}]",
@@ -7520,6 +7528,15 @@
           "include": "#SelectorOperator"
         },
         {
+          "include": "#SelectorScopeAtRule"
+        },
+        {
+          "include": "#SelectorSupportsAtRule"
+        },
+        {
+          "include": "#SelectorAtRule"
+        },
+        {
           "include": "#RecursiveSelectorFunction"
         },
         {
@@ -7538,9 +7555,297 @@
           "include": "#LabelAttribute"
         },
         {
+          "include": "#SelectorPseudoClass"
+        },
+        {
           "include": "#Separator"
         }
       ]
+    },
+    "SelectorScopeAtRule": {
+      "begin": "([@])(scope)(?!(?:[0-9_\\p{L}-]|[@][0-9_\\p{L}]))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorStateOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#SelectorStateName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#RecursiveSelectorFunctionParameters"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=[)])|$"
+    },
+    "SelectorSupportsAtRule": {
+      "begin": "([@])(supports)(?!(?:[0-9_\\p{L}-]|[@][0-9_\\p{L}]))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorStateOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#SelectorStateName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SelectorSupportsAtRuleGroup"
+        },
+        {
+          "include": "#SelectorSupportsSelectorFunction"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=[)])|$"
+    },
+    "SelectorSupportsAtRuleGroup": {
+      "brackets": true,
+      "begin": "([(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SelectorSupportsAtRuleGroup"
+        },
+        {
+          "include": "#SelectorSupportsSelectorFunction"
+        },
+        {
+          "include": "#SelectorAtRuleDeclarationValue"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "end": "$|([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "SelectorSupportsSelectorFunction": {
+      "brackets": true,
+      "begin": "(selector)([(])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorCssWord"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauSparkleElementClass"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
+        },
+        {
+          "include": "#ComponentName"
+        },
+        {
+          "include": "#PunctuationComma"
+        },
+        {
+          "include": "#IllegalChar"
+        }
+      ],
+      "end": "$|((?:[^\\S\\n\\r])*)([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "SelectorAtRule": {
+      "begin": "([@])((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:container|layer|media|starting-style|starting_style|initial)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?!(?:[0-9_\\p{L}-]|[@][0-9_\\p{L}]))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorStateOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#SelectorStateName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SelectorAtRuleGroup"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=[)])|$"
+    },
+    "SelectorAtRuleGroup": {
+      "brackets": true,
+      "begin": "([(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SelectorAtRuleGroup"
+        },
+        {
+          "include": "#SelectorAtRuleDeclarationValue"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "end": "$|([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "SelectorAtRuleDeclarationValue": {
+      "begin": "([:])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorCssPunctuation"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SelectorAtRuleGroup"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=[)])|$"
+    },
+    "SelectorCssText": {
+      "patterns": [
+        {
+          "include": "#LuauStructBlockKeyString"
+        },
+        {
+          "include": "#StringLiteral"
+        },
+        {
+          "include": "#UnitValue"
+        },
+        {
+          "include": "#NumericLiteral"
+        },
+        {
+          "include": "#Separator"
+        },
+        {
+          "include": "#PunctuationComma"
+        },
+        {
+          "include": "#SelectorCssWord"
+        },
+        {
+          "include": "#SelectorCssPunctuation"
+        }
+      ]
+    },
+    "SelectorCssWord": {
+      "tag": "string",
+      "name": "string.unquoted.css.sd",
+      "match": "([0-9_\\p{L}-]+)"
+    },
+    "SelectorCssPunctuation": {
+      "tag": "operator",
+      "name": "keyword.operator.css.sd",
+      "match": "([^\\s()0-9_\\p{L}-])"
     },
     "ComponentName": {
       "patterns": [
@@ -7594,19 +7899,16 @@
           "include": "#LuauComment"
         },
         {
-          "include": "#SelectorPseudoClass"
-        },
-        {
           "include": "#SelectorPropertyNamePart"
         },
         {
           "include": "#LuauSparkleElementClass"
         },
         {
-          "include": "#BuiltinComponentName"
+          "include": "#PunctuationComma"
         },
         {
-          "include": "#CustomComponentName"
+          "include": "#SelectorCssWord"
         }
       ],
       "end": "$|((?:[^\\S\\n\\r])*)([)])",
@@ -7628,7 +7930,7 @@
       }
     },
     "SelectorPseudoClass": {
-      "match": "([:]{1,2})((?:[_\\p{L}][0-9_\\p{L}-]*(?:[@][0-9_\\p{L}][0-9_\\p{L}-]*)*(?<![-])))",
+      "match": "([:]{1,2})([0-9_\\p{L}-]+)",
       "captures": {
         "1": {
           "patterns": [
