@@ -4561,7 +4561,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _warnedWriteTargets = new Set<string>();
 
   protected warnUndeclaredWriteTarget(target: string): void {
-    const name = target.split("#")[0]?.split(".").at(-1);
+    const name = target.split("#")[0];
     const sparkle = this._game.program?.sparkle;
     if (!name || !sparkle?.layouts || this._warnedWriteTargets.has(name)) {
       return;

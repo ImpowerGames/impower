@@ -5221,14 +5221,17 @@ export class SparkdownCompiler {
         enter: (node) => {
           if (node.name !== "WriteTarget") return undefined;
           const written = doc.read(node.from, node.to).trim();
-          const target = written.split("#")[0]!.split(".").at(-1) ?? "";
+          const target = written.split("#")[0] ?? "";
+          const leaf = target.split(".").at(-1) ?? "";
           if (!target || named.has(target)) return false;
           const start = node.from + Math.max(0, doc.read(node.from, node.to).indexOf(written));
           const declared = classed.get(target);
           const match = declared ? undefined : closeMatch(target, named);
           const hint = declared
             ? ` \`${declared}\` makes an element of class \`${target}\`, not one named \`${target}\`; name it \`${target} { text }\` to write to it.`
-            : match
+            : leaf !== target && named.has(leaf)
+              ? ` A write target is one element name, not a path; write to \`${leaf}\`.`
+              : match
               ? ` Did you mean \`${match}\`?`
               : " Name a layout element after it, such as `" + target + " { text }`.";
           ((program.diagnostics ??= {})[scriptUri] ??= []).push({

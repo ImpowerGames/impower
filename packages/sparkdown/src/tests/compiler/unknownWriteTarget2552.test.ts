@@ -64,4 +64,11 @@ describe("write lines to a target no layout element is named after (#2552)", () 
   it("does not warn on an instance of a named element", () => {
     expect(targetDiagnostics(compile(script("clock { text }", "@clock#0: 12:00")))).toEqual([]);
   });
+
+  it("warns on a dotted target, which no element is named after", () => {
+    const found = targetDiagnostics(compile(script("clock { text }", "@hud.clock: 12:00")));
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain("`hud.clock`");
+    expect(found[0]!.message).toContain("write to `clock`");
+  });
 });

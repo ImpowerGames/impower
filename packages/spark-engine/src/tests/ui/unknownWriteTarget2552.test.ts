@@ -39,4 +39,10 @@ describe("a write to a target no layout element is named after (#2552)", () => {
   test("reports nothing when an element is named after the target", async () => {
     expect(await reportsAfterWriting("clock { text }", "clock")).toEqual([]);
   });
+
+  test("reports a runtime warning for a dotted target", async () => {
+    expect(await reportsAfterWriting("clock { text }", "hud.clock")).toEqual([
+      "No layout element is named `hud.clock`, so the line written to it draws nothing.",
+    ]);
+  });
 });
