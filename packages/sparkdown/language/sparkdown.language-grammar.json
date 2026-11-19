@@ -7851,7 +7851,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauComment"
+          "include": "#LuauStructBlockKeyString"
         },
         {
           "include": "#SelectorPropertyNamePart"
@@ -7937,7 +7937,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauComment"
+          "include": "#LuauStructBlockKeyString"
         },
         {
           "include": "#SelectorPropertyNamePart"
@@ -8808,13 +8808,16 @@
       },
       "patterns": [
         {
-          "include": "#LuauComment"
+          "include": "#LuauStructBlockKeyString"
         },
         {
           "include": "#SelectorPropertyNamePart"
         },
         {
           "include": "#ParameterStringIdentifier"
+        },
+        {
+          "include": "#SelectorCssWord"
         },
         {
           "include": "#IllegalChar"

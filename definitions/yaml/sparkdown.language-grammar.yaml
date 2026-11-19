@@ -4956,7 +4956,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauStructBlockKeyString" }
       - { include: "#SelectorPropertyNamePart" }
       - { include: "#LuauSparkleElementClass" }
       - { include: "#PunctuationComma" }
@@ -5002,7 +5002,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauStructBlockKeyString" }
       - { include: "#SelectorPropertyNamePart" }
       - { include: "#SelectorCssWord" }
       - { include: "#SelectorCssPunctuation" }
@@ -5498,9 +5498,10 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauStructBlockKeyString" }
       - { include: "#SelectorPropertyNamePart" }
       - { include: "#ParameterStringIdentifier" }
+      - { include: "#SelectorCssWord" }
       - { include: "#IllegalChar" }
     end: $|({{WS}}*)([)])
     endCaptures:

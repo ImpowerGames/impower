@@ -105,6 +105,10 @@ const RAW_CSS_KEYS = [
   "&:where(label[hidden])",
   '&:where([type="color"])',
   "&:where([data-state=open])",
+  "&:where([data-state='--x'])",
+  "&:state(--checked)",
+  "@state(--checked)",
+  "@lang(--x)",
 ];
 
 const SELECTOR_LIST_KEYS: [key: string, components: string[]][] = [
