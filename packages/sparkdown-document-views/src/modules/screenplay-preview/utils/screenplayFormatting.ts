@@ -247,6 +247,19 @@ const printedLineHtml = (line: FormattedText[]) => {
 
 const printedHtml = (lines: FormattedText[][]) => lines.map(printedLineHtml).join("");
 
+const printedLineRows = (line: FormattedText[]) => {
+  let rows = 0;
+  let align: string | undefined;
+  for (const piece of line) {
+    if ((piece.align ?? "") !== align) {
+      align = piece.align ?? "";
+      rows++;
+    }
+    if (piece.text === "\n") rows++;
+  }
+  return rows;
+};
+
 const pageLayoutCache = new WeakMap<Tree, CachedPageLayout>();
 
 const cachedPageLayout = (tree: Tree, doc: Text, config: ScreenplayConfig | undefined, scenesBefore: number) => {
@@ -1264,7 +1277,7 @@ const printedParagraph = (
     .filter((entry) => entry.at >= from && entry.at <= to)
     .flatMap((entry) => entry.lines.map(withoutTrailingSpaces));
   if (lines.length === 0) return undefined;
-  const rows = lines.reduce((count, line) => count + 1 + line.filter((piece) => piece.text === "\n").length, 0);
+  const rows = lines.reduce((count, line) => count + printedLineRows(line), 0);
   const widget = new PrintedParagraphWidget(
     printedHtml(lines),
     lineAttributes(ranges, from),

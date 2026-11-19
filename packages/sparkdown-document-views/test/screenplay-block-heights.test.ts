@@ -53,6 +53,8 @@ const TITLE_PAGE_CONFIG: ScreenplayConfig = { ...GEOMETRY_CONFIG, screenplay_pri
 
 const LONG_PRINTED_LINE = `scene long_action\n  ${"word ".repeat(1500)}TAIL\nend\n`;
 
+const LONG_ALIGNED_LINE = `scene long_aligned\n  ${"Left words ".repeat(200)}^Centered words^ ${"Right words ".repeat(200)}\nend\n`;
+
 const MARKED = "The reader keeps **reading the bold words** and *the slanted ones* and _the underlined ones_ while {name} waits.";
 
 const COMPARED = [
@@ -62,6 +64,7 @@ const COMPARED = [
   "  end",
   `  ${Array(6).fill(MARKED).join(" ")}`,
   `  _${"underlined words run on ".repeat(12)}to the end_`,
+  `  ${"Left words ".repeat(12)}^Centered words^ ${"Right words ".repeat(12)}`,
   "end",
   "",
 ].join("\n");
@@ -204,6 +207,12 @@ describe("the Screenplay page", () => {
     expect(mismatches).toEqual({});
   }, 240_000);
 
+  it.each([760, 430])("estimates a printed line too long to draw unwrapped that centres part of its text at the height it renders on a %spx page", async (width) => {
+    const { causes, mismatches } = estimateMismatches(await scrolled(width, `${SCRIPT}${LONG_ALIGNED_LINE}`));
+    expect(causes).toContain("paragraph");
+    expect(mismatches).toEqual({});
+  }, 240_000);
+
   it.each([760, 430])("draws each line where CodeMirror places it on a %spx page", async (width) => {
     const drifted = (await scrolled(width)).drifts
       .filter(({ drawn, placed }) => Math.abs(drawn - placed) > 1)
@@ -234,10 +243,10 @@ describe("the Screenplay page", () => {
   }, 240_000);
 
   it("draws a printed paragraph through its printed rows exactly as CodeMirror draws its text", async () => {
-    const lines = [3, 5, 6];
+    const lines = [3, 5, 6, 7];
     const [text, rows] = [await drawings(lines), await drawings(lines, 1)];
-    expect(text!.map(({ paragraph }) => paragraph)).toEqual([false, false, false]);
-    expect(rows!.map(({ paragraph }) => paragraph)).toEqual([true, true, true]);
+    expect(text!.map(({ paragraph }) => paragraph)).toEqual([false, false, false, false]);
+    expect(rows!.map(({ paragraph }) => paragraph)).toEqual([true, true, true, true]);
     expect(text!.every(({ glyphs }) => glyphs.length > 200)).toBe(true);
     expect(text!.some(({ inserted }) => inserted > 0)).toBe(true);
     const glyphs = text!.flatMap((drawing) => drawing.glyphs).join("\n");
