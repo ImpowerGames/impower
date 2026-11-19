@@ -40,7 +40,7 @@ const codes = (artifact: MorphArtifact) => artifact.diagnostics.map((d) => d.cod
 
 const art = (open: string, closed: string, extra = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <path data-name="face" d="M0,0H120V100H0Z" fill="#fdb"/>
-<g data-name="eyes.open:default">${open}</g>
+<g data-name="eyes.open default">${open}</g>
 <g data-name="eyes.closed">${closed}</g>
 ${extra}
 </svg>`;
@@ -148,11 +148,11 @@ describe("morph bake: layered art", () => {
 describe("morph bake: resting states", () => {
   const folders = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 100">
 <g data-name="left">
-<g data-name="eyes.open:default">${LASHES_OPEN}</g>
+<g data-name="eyes.open default">${LASHES_OPEN}</g>
 <g data-name="eyes.closed">${LASH_CLOSED}</g>
 </g>
 <g data-name="right" transform="translate(120 0)">
-<g data-name="eyes.open:default">${lash(UPPER_OPEN, "eyelash-right") + lash(LOWER_OPEN, "eyelash-right")}</g>
+<g data-name="eyes.open default">${lash(UPPER_OPEN, "eyelash-right") + lash(LOWER_OPEN, "eyelash-right")}</g>
 <g data-name="eyes.closed">${lash(CLOSED, "eyelash-right")}</g>
 </g>
 </svg>`;
@@ -171,14 +171,14 @@ describe("morph bake: resting states", () => {
   });
 
   test("probing the closed pose does not report what a script selecting it would hear", () => {
-    const looking = art(LASHES_OPEN + `<path data-name="pupil:look.left" d="${PUPIL}"/>`, LASH_CLOSED);
+    const looking = art(LASHES_OPEN + `<path data-name="pupil look.left" d="${PUPIL}"/>`, LASH_CLOSED);
     const artifact = bake(looking, recipe(), { look: "left" });
     expect(artifact.status).toBe("live");
     expect(artifact.diagnostics).toEqual([]);
   });
 
   test("variants that differ in art the morph does not drive bake their own parts and the same frames", () => {
-    const hats = art(LASHES_OPEN, LASH_CLOSED, `<path data-name="hat.on" d="M0,0H120V10H0Z"/><path data-name="hat.off:default" d="M0,0H1V1H0Z"/>`);
+    const hats = art(LASHES_OPEN, LASH_CLOSED, `<path data-name="hat.on" d="M0,0H120V10H0Z"/><path data-name="hat.off default" d="M0,0H1V1H0Z"/>`);
     const bare = bake(hats, recipe());
     const hatted = bake(hats, recipe(), { hat: "on" });
     expect(hatted.parts[hatted.parts.length - 1]!.svg).not.toBe(bare.parts[bare.parts.length - 1]!.svg);
@@ -191,7 +191,7 @@ describe("morph bake: compositing and authored style", () => {
     const dim = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g style="fill:red;opacity:.5">
 <path data-name="backing" d="M0,0H120V100H0Z" fill="blue"/>
-<g data-name="eyes.open:default">${LASHES_OPEN}</g>
+<g data-name="eyes.open default">${LASHES_OPEN}</g>
 <g data-name="eyes.closed">${LASH_CLOSED}</g>
 </g>
 </svg>`;
@@ -312,7 +312,7 @@ describe("morph bake: compositing and authored style", () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g ${dim}>
 <path data-name="backing" d="M0,0H120V100H0Z" fill="blue"/>
-<g data-name="eyes.open:default">${LASHES_OPEN}</g>
+<g data-name="eyes.open default">${LASHES_OPEN}</g>
 <g data-name="eyes.closed">${LASH_CLOSED}</g>
 </g>
 </svg>`;
@@ -340,7 +340,7 @@ describe("morph bake: compositing and authored style", () => {
     const dim = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g style="fill:red;\topacity :\t.5\n">
 <path data-name="backing" d="M0,0H120V100H0Z" fill="blue"/>
-<g data-name="eyes.open:default">${LASHES_OPEN}</g>
+<g data-name="eyes.open default">${LASHES_OPEN}</g>
 <g data-name="eyes.closed">${LASH_CLOSED}</g>
 </g>
 </svg>`;
@@ -599,7 +599,7 @@ describe("morph bake: apertures that cannot be built", () => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g id="portrait-copy">
 <path data-name="face" d="M0,0H120V100H0Z" fill="#fdb"/>
-<g data-name="eyes.open:default">${LASHES_OPEN}</g>
+<g data-name="eyes.open default">${LASHES_OPEN}</g>
 <g data-name="eyes.closed">${LASH_CLOSED}</g>
 <path data-name="nose" d="M60,60L65,70L55,70Z" fill="#a76"/>
 </g>
@@ -613,8 +613,8 @@ describe("morph bake: apertures that cannot be built", () => {
 
   test("a reference to moving art from another part keeps the variant static", () => {
     const svg = art(LASHES_OPEN, LASH_CLOSED).replace(
-      `<g data-name="eyes.open:default">`,
-      `<g id="open-lashes" data-name="eyes.open:default">`,
+      `<g data-name="eyes.open default">`,
+      `<g id="open-lashes" data-name="eyes.open default">`,
     ).replace("</svg>", `<path data-name="nose" d="M60,60L65,70L55,70Z" fill="#a76"/><use href="#open-lashes" transform="translate(0 20)"/>\n</svg>`);
     const artifact = bake(svg, recipe());
     expect(artifact.status).toBe("static");
@@ -638,7 +638,7 @@ describe("morph bake: apertures that cannot be built", () => {
   test("a reference to a drawing that moves on a carrier keeps the variant static", () => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80">
 <g opacity=".9">
-<g data-name="eyes.open:default">${LASHES_OPEN}<ellipse id="dot" data-name="dot" cx="30" cy="40" rx="20" ry="20" fill="#f00"/><use data-name="copy" href="#dot" x="100"/></g>
+<g data-name="eyes.open default">${LASHES_OPEN}<ellipse id="dot" data-name="dot" cx="30" cy="40" rx="20" ry="20" fill="#f00"/><use data-name="copy" href="#dot" x="100"/></g>
 <g data-name="eyes.closed">${LASH_CLOSED}</g>
 </g>
 </svg>`;
@@ -655,7 +655,7 @@ describe("morph bake: apertures that cannot be built", () => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g opacity=".5">
 <path id="face" data-name="face" d="M0,0H120V100H0Z" fill="#fdb"/>
-<g data-name="eyes.open:default">${LASHES_OPEN}</g>
+<g data-name="eyes.open default">${LASHES_OPEN}</g>
 <g data-name="eyes.closed">${LASH_CLOSED}</g>
 </g>
 <use href="#face" transform="translate(0 50)"/>

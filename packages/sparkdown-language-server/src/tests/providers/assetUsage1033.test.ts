@@ -163,8 +163,8 @@ describe("asset usage for the whole project in one request (#1033)", () => {
   });
 
   test("counts a use of a numbered-layer portrait folder for every layer file in it", () => {
-    const BODY = `${ROOT}Assets/Images/mira/001_body.png`;
-    const FACE = `${ROOT}Assets/Images/mira/002_face.png`;
+    const BODY = `${ROOT}Assets/Images/mira/001 body.png`;
+    const FACE = `${ROOT}Assets/Images/mira/002 face.png`;
     const { workspace, program } = setup(
       { [MAIN]: lines("scene start", "  MIRA: Hello.", "  [[show portrait mira]]", "end") },
       [BODY, FACE],
@@ -174,8 +174,8 @@ describe("asset usage for the whole project in one request (#1033)", () => {
     expect(summary(usage.uses[FACE])).toEqual([["main.sd", 2, "portrait", "[[show portrait mira]]"]]);
   });
 
-  test("counts a use of a picture for each of its name~group.option layer files, and not for its alternate (#2186)", () => {
-    const HAPPY = `${ROOT}Assets/Images/imani~face.happy.png`;
+  test("counts a use of a picture for each of its name group.option layer files, and not for its alternate (#2186)", () => {
+    const HAPPY = `${ROOT}Assets/Images/imani face.happy.png`;
     const NIGHT = `${ROOT}Assets/Images/imani@night.png`;
     const { workspace, program } = setup(
       { [MAIN]: lines("scene start", "  [[imani:face.happy]]", "end") },

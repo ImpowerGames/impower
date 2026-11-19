@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 const URI = "file:///main.sd";
-const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.happy:default" id="happy"/><g data-name="face.sad" id="sad"/></svg>`;
+const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.happy default" id="happy"/><g data-name="face.sad" id="sad"/></svg>`;
 const compile = (text: string) => {
   const compiler = new SparkdownCompiler();
   compiler.configure({ files: [

@@ -12,11 +12,11 @@ export interface RasterLayerPath {
 
 export const rasterLayerOfPath = (path: string): RasterLayerPath | undefined => {
   const parts = path.split("/");
-  const filename = parts.pop() ?? "";
+  const filename = (parts.pop() ?? "").replaceAll("%20", " ");
   const folder = parts.at(-1);
   const isAssets = (part: string) => part.toLowerCase() === "assets";
   if (!folder || isAssets(folder) || !parts.some(isAssets)) return undefined;
-  const match = /^(\d+)_(.+)\.([^.]+)$/.exec(filename);
+  const match = /^(\d+) (.+)\.([^.]+)$/.exec(filename);
   if (!match || !RASTER_EXTENSION.test(match[3]!)) return undefined;
   const order = Number(match[1]);
   if (!Number.isSafeInteger(order)) return undefined;
@@ -90,7 +90,7 @@ export const createRasterImageDefinitions = (files: readonly File[]) => {
     if (!siblings?.length) continue;
     const filename = path.slice(slash + 1);
     diagnostics.push({ uri: file.uri, folder: siblings[0]!.layer.folder,
-      message: 'Raster file "' + filename + '" is omitted from automatic portrait "' + siblings[0]!.layer.folder + '" because it has no numeric ordering prefix. Rename it to NN_' + filename + ' (replace NN with its stacking number), or list it in an explicit layered_image.',
+      message: 'Raster file "' + filename + '" is omitted from automatic portrait "' + siblings[0]!.layer.folder + '" because it has no stacking number. Rename it to "NN ' + filename + '" (replace NN with its stacking number), or list it in an explicit layered_image.',
     });
   }
   return { images, layeredImages, origins, collisions, diagnostics };

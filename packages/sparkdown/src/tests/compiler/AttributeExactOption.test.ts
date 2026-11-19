@@ -6,9 +6,9 @@ import {
 } from "../../attributes";
 
 const vocabulary = buildAttributeVocabulary([
-  { key: "ear-arm", name: "arm:arms.phone.phone-left.phone-close" },
-  { key: "away-arm", name: "arm:arms.phone-away" },
-  { key: "down-arm", name: "arm:arms.down:default" },
+  { key: "ear-arm", name: "arm arms.phone.phone-left.phone-close" },
+  { key: "away-arm", name: "arm arms.phone-away" },
+  { key: "down-arm", name: "arm arms.down default" },
 ]);
 
 const visible = (attributes: string[]) => {

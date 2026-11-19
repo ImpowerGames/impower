@@ -14,21 +14,21 @@ import { filterSVG } from "../../compiler/utils/filterSVG";
 
 const portrait = `<svg xmlns="http://www.w3.org/2000/svg">
   <g id="body"/>
-  <g id="face-neutral" data-name="face.neutral:default">
-    <g id="neutral-lids" data-name="lids:eyes.closed"/>
-    <g id="neutral-left" data-name="pupils:eyes.open:look.left"/>
-    <g id="neutral-camera" data-name="pupils:eyes.open:look.camera:default"/>
-    <g id="neutral-whites" data-name="whites:eyes.open:default"/>
+  <g id="face-neutral" data-name="face.neutral default">
+    <g id="neutral-lids" data-name="lids eyes.closed"/>
+    <g id="neutral-left" data-name="pupils eyes.open look.left"/>
+    <g id="neutral-camera" data-name="pupils eyes.open look.camera default"/>
+    <g id="neutral-whites" data-name="whites eyes.open default"/>
   </g>
   <g id="face-happy" data-name="face.happy">
-    <g id="happy-up" data-name="pupils:eyes.open:look.up:default"/>
-    <g id="happy-whites" data-name="whites:eyes.open:default"/>
+    <g id="happy-up" data-name="pupils eyes.open look.up default"/>
+    <g id="happy-whites" data-name="whites eyes.open default"/>
   </g>
-  <g id="brows-neutral" data-name="eyebrows.neutral:default"/>
+  <g id="brows-neutral" data-name="eyebrows.neutral default"/>
   <g id="brows-happy" data-name="eyebrows.happy"/>
   <g id="brows-angry" data-name="eyebrows.angry"/>
-  <g id="hair-top" data-name="hair-top:hat.off"/>
-  <g id="hair-flat" data-name="hair-under-brim:hat.on"/>
+  <g id="hair-top" data-name="hair-top hat.off"/>
+  <g id="hair-flat" data-name="hair-under-brim hat.on"/>
   <g id="hat" data-name="hat.on"/>
 </svg>`;
 
@@ -46,19 +46,19 @@ describe("portrait layer naming", () => {
     ["body", "body", [], false],
     ["hat.on", "", [{ group: "hat", options: ["on"] }], false],
     [
-      "hair-top:hat.off",
+      "hair-top hat.off",
       "hair-top",
       [{ group: "hat", options: ["off"] }],
       false,
     ],
     [
-      "face.neutral:default",
+      "face.neutral default",
       "",
       [{ group: "face", options: ["neutral"] }],
       true,
     ],
     [
-      "pupils:eyes.open:look.left",
+      "pupils eyes.open look.left",
       "pupils",
       [
         { group: "eyes", options: ["open"] },
@@ -67,14 +67,14 @@ describe("portrait layer naming", () => {
       false,
     ],
     [
-      "hand-right:arms.down.phone-left",
+      "hand-right arms.down.phone-left",
       "hand-right",
       [{ group: "arms", options: ["down", "phone-left"] }],
       false,
     ],
     ["_face.happy_37", "", [{ group: "face", options: ["happy"] }], false],
     [
-      "whites~eyes.open~default",
+      "whites eyes.open default",
       "whites",
       [{ group: "eyes", options: ["open"] }],
       true,
@@ -91,8 +91,9 @@ describe("portrait layer naming", () => {
   it.each([
     "face..happy",
     "hair top:hat.off",
-    "face.happy:default:eyes.open",
-    "face.happy~look.up:default",
+    "face.happy default eyes.open",
+    "face.happy:look.up",
+    "hair-top~hat.off",
     "_face.happy",
     "body:happy",
     "face.happy:",
@@ -101,7 +102,7 @@ describe("portrait layer naming", () => {
   });
 
   it("uses data-name ahead of id and normalizes Affinity and Inkscape labels", () => {
-    const svg = `<svg><g id="face.happy2" data-name="face.neutral:default"/><g id="mangled" serif:id="eyes.open:default"/><g id="mangled2" inkscape:label="look.camera:default"/></svg>`;
+    const svg = `<svg><g id="face.happy2" data-name="face.neutral default"/><g id="mangled" serif:id="eyes.open default"/><g id="mangled2" inkscape:label="look.camera default"/></svg>`;
     const normalized = normalizeSVGAttributeNames(svg);
     expect(normalizeSVGAttributeNames(normalized)).toBe(normalized);
     const vocabulary = buildSVGAttributeVocabulary(normalized);
@@ -214,12 +215,12 @@ describe("portrait attributes", () => {
   it("accepts a phone-left pose outside the sleeve folder and hides phone-only cheek detail", () => {
     const vocabulary = buildAttributeVocabulary([
       { key: "sleeve", name: "sweater-left-sleeve" },
-      { key: "down-sleeve", parent: "sleeve", name: "sleeve:arms.down.phone-right:default" },
-      { key: "phone-arm", name: "arm:arms.phone-left" },
-      { key: "script-arm", name: "arm:arms.script" },
+      { key: "down-sleeve", parent: "sleeve", name: "sleeve arms.down.phone-right default" },
+      { key: "phone-arm", name: "arm arms.phone-left" },
+      { key: "script-arm", name: "arm arms.script" },
       { key: "head", name: "head" },
       { key: "face", parent: "head", name: "face" },
-      { key: "cheek", parent: "head", name: "cheek:arms.phone" },
+      { key: "cheek", parent: "head", name: "cheek arms.phone" },
     ]);
     for (const option of ["phone-left", "script"]) {
       const resolved = resolveAttributes(vocabulary, ["arms." + option]);
@@ -252,10 +253,10 @@ describe("portrait attributes", () => {
 
   it("combines group conditions with AND, options with OR, and matches options exactly", () => {
     const vocabulary = buildAttributeVocabulary([
-      { key: "hand", name: "hand-right:arms.down.phone-left" },
-      { key: "phone", name: "arm:arms.phone" },
-      { key: "sleeve", name: "sleeve:arms.down.phone-left:jacket.on" },
-      { key: "glove", name: "glove:arms.down.phone-left:gloves.on" },
+      { key: "hand", name: "hand-right arms.down.phone-left" },
+      { key: "phone", name: "arm arms.phone" },
+      { key: "sleeve", name: "sleeve arms.down.phone-left jacket.on" },
+      { key: "glove", name: "glove arms.down.phone-left gloves.on" },
     ]);
     const visible = (attrs: string[]) =>
       evaluateAttributeVisibility(
@@ -280,7 +281,7 @@ describe("portrait attributes", () => {
   it("does not warn when an opposite-only switch folder intentionally hides", () => {
     const vocabulary = buildAttributeVocabulary([
       { key: "hair", name: "hair" },
-      { key: "top", name: "hair-top:hat.off", parent: "hair" },
+      { key: "top", name: "hair-top hat.off", parent: "hair" },
       { key: "hat", name: "hat.on" },
     ]);
     const result = evaluateAttributeVisibility(vocabulary, { hat: "on" });
@@ -301,8 +302,8 @@ describe("portrait attributes", () => {
 
   it("inherits the nearest available ancestor default through plain folders", () => {
     const vocabulary = buildAttributeVocabulary([
-      { key: "default", name: "look.camera:default" },
-      { key: "face", name: "face.neutral:default" },
+      { key: "default", name: "look.camera default" },
+      { key: "face", name: "face.neutral default" },
       { key: "nested", name: "details", parent: "face" },
       { key: "pupils", name: "look.camera", parent: "nested" },
     ]);
@@ -313,8 +314,8 @@ describe("portrait attributes", () => {
 
   it("reports conflicting defaults and preserves all marked resting layers", () => {
     const vocabulary = buildAttributeVocabulary([
-      { key: "up", name: "look.up:default" },
-      { key: "down", name: "look.down:default" },
+      { key: "up", name: "look.up default" },
+      { key: "down", name: "look.down default" },
     ]);
     expect(vocabulary.diagnostics).toContainEqual(
       expect.objectContaining({ code: "conflicting-defaults", group: "look" }),
@@ -330,8 +331,8 @@ describe("portrait attributes", () => {
 
   it("uses the first OR option as the resting option without activating alternatives", () => {
     const vocabulary = buildAttributeVocabulary([
-      { key: "hand", name: "hand:arms.down.phone-left:default" },
-      { key: "phone", name: "phone:arms.phone-left" },
+      { key: "hand", name: "hand arms.down.phone-left default" },
+      { key: "phone", name: "phone arms.phone-left" },
     ]);
     expect(evaluateAttributeVisibility(vocabulary, {}).visible).toEqual({
       hand: true,
@@ -347,16 +348,16 @@ describe("portrait attributes", () => {
 
   it("warns when look is selected while the active face's eyes rest closed", () => {
     const vocabulary = buildAttributeVocabulary([
-      { key: "face", name: "face.panicking:default" },
-      { key: "closed", name: "eyes.closed:default", parent: "face" },
-      { key: "pupils", name: "pupils:eyes.open:look.down", parent: "face" },
+      { key: "face", name: "face.panicking default" },
+      { key: "closed", name: "eyes.closed default", parent: "face" },
+      { key: "pupils", name: "pupils eyes.open look.down", parent: "face" },
     ]);
     expect(
       evaluateAttributeVisibility(vocabulary, { look: "down" }).diagnostics,
     ).toContainEqual(
       expect.objectContaining({
         code: "look-with-closed-eyes",
-        folder: "face.panicking:default",
+        folder: "face.panicking default",
       }),
     );
     expect(
@@ -384,7 +385,7 @@ describe("portrait attributes", () => {
         buildAttributeVocabulary([
           { key: "folder", name: "details" },
           { key: "plain", name: "constructor.neutral", parent: "folder" },
-          { key: "root", name: "constructor.neutral:default" },
+          { key: "root", name: "constructor.neutral default" },
         ]),
       ),
     );
@@ -434,7 +435,7 @@ describe("portrait attributes", () => {
 
   it("corroborates rare spellings across character files, once per layer", () => {
     const first = buildAttributeVocabulary([
-      { key: "1", name: "eyebrows.angry:eyebrows.angry" },
+      { key: "1", name: "eyebrows.angry eyebrows.angry" },
       { key: "2", name: "eybrows.angry" },
     ]);
     const second = buildAttributeVocabulary([

@@ -3,7 +3,7 @@ import { ImageVocabularyCache, imageFileForCompiler } from "../../workspace/util
 
 const file = (option: string) => ({
   uri: "file:///project/assets/mia.svg", type: "image", name: "mia", ext: "svg", version: 1,
-  text: `<svg><g id="face" serif:id="face.${option}:default"/></svg>`,
+  text: `<svg><g id="face" serif:id="face.${option} default"/></svg>`,
 });
 
 describe("workspace portrait vocabulary preparation", () => {

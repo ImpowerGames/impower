@@ -180,14 +180,25 @@ describe("the Assets page's file intents", () => {
     ]);
   });
 
-  it("keeps the @ and ~ of an uploaded or dropped alternate or layer file, and cleans other characters", async () => {
+  it("keeps the @ and the spaces of an uploaded or dropped alternate or layer image, and cleans other characters", async () => {
     const { assets } = fakeWorkspace({ "Assets/Images/imani.png": "png" });
     await assets.load();
     mocks.importFiles.mockClear();
-    await assets.upload([dropped("imani~face.happy.png"), dropped("imani@night.png"), dropped("door knock.wav")], "");
+    await assets.upload(
+      [
+        dropped("imani face.happy.png"),
+        dropped("imani@night.png"),
+        dropped("imani 20 hair-top hat.off.png"),
+        dropped("imani-alt face.look-left!.png"),
+        dropped("door knock.wav"),
+      ],
+      "",
+    );
     expect(mocks.importFiles.mock.calls[0]![1].map((item: { rel: string }) => item.rel)).toEqual([
-      "Assets/Images/imani~face.happy.png",
+      "Assets/Images/imani face.happy.png",
       "Assets/Images/imani@night.png",
+      "Assets/Images/imani 20 hair-top hat.off.png",
+      "Assets/Images/imani_alt face.look-left_.png",
       "Assets/Audio/door_knock.wav",
     ]);
   });

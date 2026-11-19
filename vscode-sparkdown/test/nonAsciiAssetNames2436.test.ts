@@ -53,11 +53,11 @@ describe("the extension names a percent-encoded asset file by its decoded name (
     expect(missingAudio(file, "cafe")).toEqual(["Cannot find audio named `cafe`"]);
   });
 
-  test("every asset reader decodes the name and keeps ASCII, @ and ~ names", async () => {
+  test("every asset reader decodes the name and keeps ASCII and @ names and reads a layer file by its picture", async () => {
     expect((await getWorkspaceVideoFile(fileUri("/proj/Assets/Video/über intro.mp4"))).name).toBe("über intro");
     expect((await getWorkspaceFontFile(fileUri("/proj/Assets/Fonts/naïve.ttf"))).name).toBe("naïve");
     expect((await getWorkspaceImageFile(fileUri("/proj/Assets/Images/café@smile.png"))).name).toBe("café@smile");
-    expect((await getWorkspaceImageFile(fileUri("/proj/Assets/Images/bunny~2_ears.png"))).name).toBe("bunny");
+    expect((await getWorkspaceImageFile(fileUri("/proj/Assets/Images/bunny 2 ears.png"))).name).toBe("bunny");
     expect((await getWorkspaceAudioFile(fileUri("/proj/Assets/Audio/door-bell.wav"))).name).toBe("door-bell");
   });
 });

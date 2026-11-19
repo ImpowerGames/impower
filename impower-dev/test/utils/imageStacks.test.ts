@@ -5,15 +5,15 @@ import { ALTERNATE, AS_IS, testerGroups } from "../../src/modules/spark-editor/u
 const TWELVE = [
   "Assets/Images/Portraits/imani.png",
   "Assets/Images/Portraits/imani@night.png",
-  "Assets/Images/Portraits/imani~face.happy.png",
-  "Assets/Images/Portraits/imani~face.sad.png",
-  "Assets/Images/Portraits/imani@night~face.sad.png",
-  "Assets/Images/Portraits/imani@night~mouth.open.closed.png",
+  "Assets/Images/Portraits/imani face.happy.png",
+  "Assets/Images/Portraits/imani face.sad.png",
+  "Assets/Images/Portraits/imani@night face.sad.png",
+  "Assets/Images/Portraits/imani@night mouth.open.closed.png",
   "Assets/Images/Portraits/bunny.png",
   "Assets/Images/Portraits/logo.final.png",
   "Assets/Images/Portraits/kai@young.png",
   "Assets/Images/Portraits/kai@old.png",
-  "Assets/Images/Portraits/Extras/imani~face.happy.png",
+  "Assets/Images/Portraits/Extras/imani face.happy.png",
   "Assets/Images/Backdrops/subway.png",
 ];
 
@@ -40,14 +40,14 @@ describe("the image stack rule", () => {
       [
         null,
         "Assets/Images/Portraits/imani.png",
-        ["Assets/Images/Portraits/imani~face.happy.png", "Assets/Images/Portraits/imani~face.sad.png"],
+        ["Assets/Images/Portraits/imani face.happy.png", "Assets/Images/Portraits/imani face.sad.png"],
       ],
       [
         "night",
         "Assets/Images/Portraits/imani@night.png",
         [
-          "Assets/Images/Portraits/imani@night~face.sad.png",
-          "Assets/Images/Portraits/imani@night~mouth.open.closed.png",
+          "Assets/Images/Portraits/imani@night face.sad.png",
+          "Assets/Images/Portraits/imani@night mouth.open.closed.png",
         ],
       ],
     ]);
@@ -69,7 +69,7 @@ describe("the image stack rule", () => {
     expect(named("Assets/Images/Portraits", "imani").cover).toBe("Assets/Images/Portraits/imani.png");
     expect(named("Assets/Images/Portraits", "kai").cover).toBe("Assets/Images/Portraits/kai@old.png");
     expect(named("Assets/Images/Portraits/Extras", "imani").cover).toBe(
-      "Assets/Images/Portraits/Extras/imani~face.happy.png",
+      "Assets/Images/Portraits/Extras/imani face.happy.png",
     );
   });
 
@@ -94,12 +94,12 @@ describe("the image stack rule", () => {
     const [imani] = imageStacks(
       [
         "imani.png",
-        "imani~face.happy.png",
-        "imani~face.sad.png",
-        "imani~mouth.closed~default.png",
-        "imani~mouth.open.png",
+        "imani face.happy.png",
+        "imani face.sad.png",
+        "imani mouth.closed default.png",
+        "imani mouth.open.png",
         "imani@night.png",
-        "imani@night~face.happy.png",
+        "imani@night face.happy.png",
       ].map((file) => `Assets/Images/Portraits/${file}`),
     );
     expect(imani!.pictures.map((picture) => [picture.alternate, picture.variants])).toEqual([
@@ -127,10 +127,10 @@ describe("the image stack rule", () => {
 
 describe("a folder stack", () => {
   const MIA = [
-    "Assets/Images/Portraits/mia/90_body.png",
-    "Assets/Images/Portraits/mia/30_face.neutral~default.png",
-    "Assets/Images/Portraits/mia/30_face.happy.png",
-    "Assets/Images/Portraits/mia/10_hat.on.png",
+    "Assets/Images/Portraits/mia/90 body.png",
+    "Assets/Images/Portraits/mia/30 face.neutral default.png",
+    "Assets/Images/Portraits/mia/30 face.happy.png",
+    "Assets/Images/Portraits/mia/10 hat.on.png",
   ];
 
   it("rolls a folder's numbered files into one thing named after the folder, as the compiler's layered_image", () => {
@@ -146,12 +146,12 @@ describe("a folder stack", () => {
     expect(mia!.pictures).toHaveLength(1);
     expect(mia!.pictures[0]!.alternate).toBeNull();
     expect(mia!.pictures[0]!.layers).toEqual([
-      "Assets/Images/Portraits/mia/90_body.png",
-      "Assets/Images/Portraits/mia/30_face.happy.png",
-      "Assets/Images/Portraits/mia/30_face.neutral~default.png",
-      "Assets/Images/Portraits/mia/10_hat.on.png",
+      "Assets/Images/Portraits/mia/90 body.png",
+      "Assets/Images/Portraits/mia/30 face.happy.png",
+      "Assets/Images/Portraits/mia/30 face.neutral default.png",
+      "Assets/Images/Portraits/mia/10 hat.on.png",
     ]);
-    expect(mia!.cover).toBe("Assets/Images/Portraits/mia/90_body.png");
+    expect(mia!.cover).toBe("Assets/Images/Portraits/mia/90 body.png");
   });
 
   it("reads its groups and defaults from the layer names after the order prefix", () => {
@@ -164,8 +164,8 @@ describe("a folder stack", () => {
   });
 
   it("gives the same tester as the file-named form of the same picture", () => {
-    const [folder] = imageStacks(["Assets/Images/imani/01_base.png", "Assets/Images/imani/02_face.happy~default.png"]);
-    const [named] = imageStacks(["Assets/Images/imani.png", "Assets/Images/imani~face.happy~default.png"]);
+    const [folder] = imageStacks(["Assets/Images/imani/01 base.png", "Assets/Images/imani/02 face.happy default.png"]);
+    const [named] = imageStacks(["Assets/Images/imani.png", "Assets/Images/imani face.happy default.png"]);
     expect(folder!.name).toBe(named!.name);
     expect(folder!.pictures[0]!.groups).toEqual(named!.pictures[0]!.groups);
     expect(folder!.variantCount).toBe(named!.variantCount);
@@ -174,29 +174,29 @@ describe("a folder stack", () => {
   it("records each member's alternate, layer name and order", () => {
     const [mia] = imageStacks(MIA);
     expect(mia!.members).toContainEqual({
-      path: "Assets/Images/Portraits/mia/30_face.neutral~default.png",
+      path: "Assets/Images/Portraits/mia/30 face.neutral default.png",
       alternate: null,
-      layer: "face.neutral~default",
+      layer: "face.neutral default",
       order: 30,
     });
-    const [imani] = imageStacks(["A/imani.png", "A/imani@night.png", "A/imani@night~face.sad~default.png"]);
+    const [imani] = imageStacks(["A/imani.png", "A/imani@night.png", "A/imani@night face.sad default.png"]);
     expect(imani!.members).toEqual([
       { path: "A/imani.png", alternate: null },
+      { path: "A/imani@night face.sad default.png", alternate: "night", layer: "face.sad default" },
       { path: "A/imani@night.png", alternate: "night" },
-      { path: "A/imani@night~face.sad~default.png", alternate: "night", layer: "face.sad~default" },
     ]);
   });
 
   it("leaves numbered files outside an assets folder, or directly in it, as they are", () => {
-    expect(imageStacks(["Images/mia/10_hat.on.png"]).map((stack) => stack.kind)).toEqual(["files"]);
-    expect(imageStacks(["Assets/10_hat.on.png"]).map((stack) => stack.kind)).toEqual(["files"]);
+    expect(imageStacks(["Images/mia/10 hat.on.png"]).map((stack) => stack.kind)).toEqual(["files"]);
+    expect(imageStacks(["Assets/10 hat.on.png"]).map((stack) => stack.kind)).toEqual(["files"]);
   });
 
   it("lists a group's default option first and the rest by name, whatever the file order", () => {
     const [imani] = imageStacks([
-      "Assets/Images/Portraits/imani~face.angry.png",
-      "Assets/Images/Portraits/imani~face.happy~default.png",
-      "Assets/Images/Portraits/imani~face.sad.png",
+      "Assets/Images/Portraits/imani face.angry.png",
+      "Assets/Images/Portraits/imani face.happy default.png",
+      "Assets/Images/Portraits/imani face.sad.png",
     ]);
     const picture = imani!.pictures[0]!;
     expect(picture.groups).toEqual([
@@ -207,7 +207,7 @@ describe("a folder stack", () => {
   });
 
   it("keeps As is first in a group with no default and lists the options by name", () => {
-    const [kai] = imageStacks(["Assets/Images/kai~face.sad.angry.png"]);
+    const [kai] = imageStacks(["Assets/Images/kai face.sad.angry.png"]);
     expect(testerGroups(kai!, {}).map((group) => group.options)).toEqual([[AS_IS, "angry", "sad"]]);
   });
 });

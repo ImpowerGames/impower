@@ -18,7 +18,7 @@ const FACE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" widt
 <linearGradient id="ink"><stop offset="0" stop-color="#321"/><stop offset="1" stop-color="#543"/></linearGradient>
 </defs>
 <path data-name="face" d="M0,0H200V160H0Z" fill="url(#skin)"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
 <path data-name="pupil-left" d="${PUPIL}" fill="#234"/>
 <path data-name="eyelash-left" d="${UPPER_OPEN}" fill="#111"/>
@@ -29,9 +29,9 @@ const FACE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" widt
 </g>
 <path data-name="cheek" d="M10,90H40V100H10Z" fill="#f99"/>
 <g data-name="eyebrows" transform="translate(0 2)">
-<path data-name="brow-left:brows.up:default" d="M10,10H90V16H10Z" fill="url(#ink)"/>
-<path data-name="brow-left:brows.up-high" d="M10,4H90V10H10Z" fill="url(#ink)"/>
-<path data-name="brow-left:brows.down" d="M10,18H90V24H10Z" fill="url(#ink)"/>
+<path data-name="brow-left brows.up default" d="M10,10H90V16H10Z" fill="url(#ink)"/>
+<path data-name="brow-left brows.up-high" d="M10,4H90V10H10Z" fill="url(#ink)"/>
+<path data-name="brow-left brows.down" d="M10,18H90V24H10Z" fill="url(#ink)"/>
 </g>
 <path data-name="hair" d="M0,0H200V6H0Z" fill="#432"/>
 <path data-name="nose" d="M120,100L130,120L110,120Z" fill="#a76" transform="rotate(3 120 110)"/>
@@ -211,7 +211,7 @@ describe("baking secondary states and layer motion", () => {
     expect(Object.keys(artifact.visibility["brows"]!).sort()).toEqual(["down", "up"]);
     expect(movedLabels(artifact)).toEqual(["eyebrows", "nose"]);
     expect(artifact.parts.map((p) => p.kind)).toEqual(["static", "live", "static", "live", "static", "live", "static"]);
-    const original = drawnNames(FACE).filter((name) => name !== "brow-left:brows.up-high");
+    const original = drawnNames(FACE).filter((name) => name !== "brow-left brows.up-high");
     const composed = artifact.parts.flatMap((p) => drawnNames(p.svg));
     expect(composed).toEqual(original);
     expect(artifact.parts.filter((p) => p.kind === "static").flatMap((p) => drawnNames(p.svg))).toEqual(["face", "cheek", "hair", "chin"]);
@@ -226,7 +226,7 @@ describe("baking secondary states and layer motion", () => {
     expect(elementsOf(wrapper!.el)).toHaveLength(1);
     expect(child!.attributes["data-name"]).toBe("eyebrows");
     expect(child!.attributes["transform"]).toBe("translate(0 2)");
-    const ink = withAttribute(browsPart, "data-name", "brow-left:brows.up:default")[0]!.el.attributes["fill"]!;
+    const ink = withAttribute(browsPart, "data-name", "brow-left brows.up default")[0]!.el.attributes["fill"]!;
     expect(ink).toMatch(/^url\(#_m[0-9a-f]+_ink\)$/);
     expect(withAttribute(browsPart, "id", ink.slice(5, -1))[0]?.el.tagName).toBe("linearGradient");
     const [nose] = withAttribute(artifact.parts[5]!.svg, "data-morph-motion", "nose");
@@ -241,8 +241,8 @@ describe("baking secondary states and layer motion", () => {
     const artifact = bake({}, { brows: "down" });
     expect(artifact.status).toBe("live");
     expect(artifact.schedules["brows"]!.map((e) => e.state)).toEqual(["up", "down", "up"]);
-    expect(drawnNames(artifact.rest)).toContain("brow-left:brows.up:default");
-    expect(drawnNames(artifact.rest)).not.toContain("brow-left:brows.down");
+    expect(drawnNames(artifact.rest)).toContain("brow-left brows.up default");
+    expect(drawnNames(artifact.rest)).not.toContain("brow-left brows.down");
   });
 
   test("a look's own choice the morph does not name gives way to its rest: brows chosen up-high rest up", () => {
@@ -251,15 +251,15 @@ describe("baking secondary states and layer motion", () => {
     expect(artifact.schedules["brows"]!.map((e) => e.state)).toEqual(["up", "down", "up"]);
     const shown = new Set(artifact.visibility["brows"]!["up"]);
     const part = artifact.parts[3]!.svg;
-    const up = withAttribute(part, "data-name", "brow-left:brows.up:default")[0]!.el.attributes["data-morph"]!;
-    const down = withAttribute(part, "data-name", "brow-left:brows.down")[0]!.el.attributes["data-morph"]!;
+    const up = withAttribute(part, "data-name", "brow-left brows.up default")[0]!.el.attributes["data-morph"]!;
+    const down = withAttribute(part, "data-name", "brow-left brows.down")[0]!.el.attributes["data-morph"]!;
     expect(shown.has(up)).toBe(true);
     expect(shown.has(down)).toBe(false);
-    expect(withAttribute(part, "data-name", "brow-left:brows.up-high")).toEqual([]);
+    expect(withAttribute(part, "data-name", "brow-left brows.up-high")).toEqual([]);
   });
 
   test("a group whose drawing folder lacks a state the morph names makes the whole morph inapplicable, not half of the face", () => {
-    const source = FACE.replace('<path data-name="brow-left:brows.down" d="M10,18H90V24H10Z" fill="url(#ink)"/>', "");
+    const source = FACE.replace('<path data-name="brow-left brows.down" d="M10,18H90V24H10Z" fill="url(#ink)"/>', "");
     const artifact = bake({}, {}, source);
     expect(artifact.status).toBe("static");
     expect(artifact.diagnostics[0]).toMatchObject({ code: "inactive-variant" });
@@ -269,7 +269,7 @@ describe("baking secondary states and layer motion", () => {
   test("a layer two driven groups both switch is an overlapping claim and keeps the variant still", () => {
     const source = FACE.replace(
       `<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>`,
-      `<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>\n<path data-name="lid:brows.down" d="M0,0H5V5H0Z"/>`,
+      `<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>\n<path data-name="lid brows.down" d="M0,0H5V5H0Z"/>`,
     );
     const artifact = bake({}, {}, source);
     expect(artifact.status).toBe("static");
@@ -331,20 +331,20 @@ describe("baking secondary states and layer motion", () => {
 
   test("a layer that shows only where three driven groups meet keeps the variant still, as two groups do", () => {
     const marks = ["a", "b", "c"]
-      .map((g, i) => `<path data-name="${g}-mark:${g}.off:default" d="M${i * 10},0H${i * 10 + 5}V5H${i * 10}Z"/><path data-name="${g}-mark:${g}.on" d="M${i * 10},10H${i * 10 + 5}V15H${i * 10}Z"/>`)
+      .map((g, i) => `<path data-name="${g}-mark ${g}.off default" d="M${i * 10},0H${i * 10 + 5}V5H${i * 10}Z"/><path data-name="${g}-mark ${g}.on" d="M${i * 10},10H${i * 10 + 5}V15H${i * 10}Z"/>`)
       .join("\n");
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
 ${marks}
-<path data-name="combined:a.on:b.on:c.on" d="M0,30H40V35H0Z"/>
+<path data-name="combined a.on b.on c.on" d="M0,30H40V35H0Z"/>
 </svg>`;
     const pose = (state: string) => ({ a: { state }, b: { state }, c: { state } });
     const recipe = buildMorphRecipe("trio", { blend: "fade", keyframes: [{ offset: 0, ...pose("off") }, { offset: 0.5, ...pose("on") }, { offset: 1, ...pose("off") }] });
     const artifact = bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: "k3", variant: "trio" });
     expect(artifact.status).toBe("static");
     expect(artifact.diagnostics).toContainEqual(
-      expect.objectContaining({ code: "mixed-groups", layer: "combined:a.on:b.on:c.on", message: expect.stringContaining("`a.on` and `b.on` and `c.on` meet") }),
+      expect.objectContaining({ code: "mixed-groups", layer: "combined a.on b.on c.on", message: expect.stringContaining("`a.on` and `b.on` and `c.on` meet") }),
     );
-    const plain = source.replace('<path data-name="combined:a.on:b.on:c.on" d="M0,30H40V35H0Z"/>\n', "");
+    const plain = source.replace('<path data-name="combined a.on b.on c.on" d="M0,30H40V35H0Z"/>\n', "");
     expect(bakeMorphArtifact({ source: plain, selection: {}, recipes: [recipe], key: "k4", variant: "trio" }).status).toBe("live");
   });
 });

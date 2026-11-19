@@ -5,11 +5,11 @@ import { channelRefs } from "../../morph/channel";
 const URI = "file:///main.sd";
 
 const FACE = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open:default" id="open"/>
-<g data-name="lids:eyes.closed" id="closed"/>
-<g data-name="lips:mouth.closed:default" id="m-closed"/>
-<g data-name="lips:mouth.open" id="m-open"/>
-<g data-name="lips:mouth.teeth" id="m-teeth"/>
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.closed" id="closed"/>
+<g data-name="lips mouth.closed default" id="m-closed"/>
+<g data-name="lips mouth.open" id="m-open"/>
+<g data-name="lips mouth.teeth" id="m-teeth"/>
 </svg>`;
 
 const speech = (name: string, peak: string, extra = "", head = `morph ${name} {`) => `${head}
@@ -221,7 +221,7 @@ describe("the `morph` clause and `default = true` (I-2112)", () => {
     const qualified = story(TALK, "  [[bunny:mouth.morph]]\n  [[bunny~mouth.morph]]\n  [[bunny:mouth.morph with fade]]");
     const lines = qualified.split("\n");
     expect(
-      diagnosticsOf(qualified, { bunny: FACE.replace("</svg>", `<g data-name="lips:mouth.morph" id="m-morph"/>\n</svg>`) })
+      diagnosticsOf(qualified, { bunny: FACE.replace("</svg>", `<g data-name="lips mouth.morph" id="m-morph"/>\n</svg>`) })
         .filter((d) => d.line > lines.indexOf("scene start") && !/does not show/.test(d.message)),
     ).toEqual([]);
   });

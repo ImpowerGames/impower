@@ -11,7 +11,7 @@ const compile = (text: string) => {
     files: [
       { uri: `${ROOT}/main.sd`, name: "main", type: "script", ext: "sd", text, languageId: "sparkdown", version: 1 },
       { uri: `${ROOT}/assets/Images/office.png`, type: "image", name: "office", ext: "png", src: `${ROOT}/assets/Images/office.png`, version: 1 },
-      { uri: `${ROOT}/assets/Images/mia/90_body.png`, type: "image", name: "mia", ext: "png", src: `${ROOT}/assets/Images/mia/90_body.png`, version: 1 },
+      { uri: `${ROOT}/assets/Images/mia/90 body.png`, type: "image", name: "mia", ext: "png", src: `${ROOT}/assets/Images/mia/90 body.png`, version: 1 },
       { uri: `${ROOT}/assets/Fonts/serif.ttf`, type: "font", name: "serif", ext: "ttf", src: `${ROOT}/assets/Fonts/serif.ttf`, version: 1 },
       { uri: `${ROOT}/assets/Audio/rain.mp3`, type: "audio", name: "rain", ext: "mp3", src: `${ROOT}/assets/Audio/rain.mp3`, version: 1 },
     ] as never,

@@ -489,8 +489,8 @@ describe("image folders as tiles", () => {
     setListing({
       "Assets/Images/Portraits/imani.png": facts(100),
       "Assets/Images/Portraits/imani@night.png": facts(200),
-      "Assets/Images/Portraits/imani~face.happy.png": facts(10),
-      "Assets/Images/Portraits/imani@night~face.sad.png": facts(20),
+      "Assets/Images/Portraits/imani face.happy.png": facts(10),
+      "Assets/Images/Portraits/imani@night face.sad.png": facts(20),
       "Assets/Images/Backdrops/subway.png": facts(300),
       "Assets/Audio/imani.wav": facts(5),
     });
@@ -521,10 +521,10 @@ describe("image folders as tiles", () => {
     expect(inspector.querySelector("header small")!.textContent).toBe("Image · 4 variants");
     expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/100");
     expect(assets.watchFacts.mock.calls.at(-1)![0]).toEqual([
+      "Assets/Images/Portraits/imani face.happy.png",
       "Assets/Images/Portraits/imani.png",
+      "Assets/Images/Portraits/imani@night face.sad.png",
       "Assets/Images/Portraits/imani@night.png",
-      "Assets/Images/Portraits/imani@night~face.sad.png",
-      "Assets/Images/Portraits/imani~face.happy.png",
     ]);
   });
 
@@ -1994,7 +1994,7 @@ describe("the inspector of an asset that moves", () => {
   const at = (path: string, size: number) => ({ ...facts(size), src: `/src/${path}` });
   const belongs = (path: string, cover: string) =>
     folderOf(path) === folderOf(cover) &&
-    (path === cover || (leaf(path).startsWith(stem(cover)) && /^[@~]/.test(leaf(path).slice(stem(cover).length))));
+    (path === cover || (leaf(path).startsWith(stem(cover)) && /^[@ ]/.test(leaf(path).slice(stem(cover).length))));
   const moveFiles = (moves: readonly { from: string; to: string }[]) => {
     const { files, folders } = workspace.assetListing.value!;
     const next = { ...files };
@@ -2026,7 +2026,7 @@ describe("the inspector of an asset that moves", () => {
       files: {
         [`${P}/ava.png`]: at(`${P}/ava.png`, 8001),
         [`${P}/ava@night.png`]: at(`${P}/ava@night.png`, 8002),
-        [`${P}/ava~face.happy.png`]: at(`${P}/ava~face.happy.png`, 8003),
+        [`${P}/ava face.happy.png`]: at(`${P}/ava face.happy.png`, 8003),
         [`${P}/bo.png`]: at(`${P}/bo.png`, 8004),
         [`${P}/Cast/dex.png`]: at(`${P}/Cast/dex.png`, 8005),
         [`${S}/Sounds/chime.wav`]: at(`${S}/Sounds/chime.wav`, 8006),
@@ -2054,7 +2054,7 @@ describe("the inspector of an asset that moves", () => {
     expect(title()).toBe("ava");
     expect(inspector()!.querySelector("header small")!.textContent).toBe("Image · 3 variants");
     expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
-    expect(watchedFiles()).toEqual([`${P}/Cast/ava.png`, `${P}/Cast/ava@night.png`, `${P}/Cast/ava~face.happy.png`]);
+    expect(watchedFiles()).toEqual([`${P}/Cast/ava face.happy.png`, `${P}/Cast/ava.png`, `${P}/Cast/ava@night.png`]);
     expect(workspace.current.lists?.assetsFolders?.image).toBe(`${P}/Cast`);
     expect(host!.querySelector(`[data-asset-path="${P}/Cast/ava.png"]`)).not.toBeNull();
   };
@@ -2116,7 +2116,7 @@ describe("the inspector of an asset that moves", () => {
     await chooseMove(listMenu("ava"));
     await moveHere("Cast");
     expectStackAtCast();
-    const back = [`ava.png`, `ava@night.png`, `ava~face.happy.png`].map((name) => ({
+    const back = [`ava.png`, `ava@night.png`, `ava face.happy.png`].map((name) => ({
       from: `${P}/Cast/${name}`,
       to: `${P}/${name}`,
     }));
@@ -2140,7 +2140,7 @@ describe("the inspector of an asset that moves", () => {
     expect(sheetState()).toBe("open");
     expect(title()).toBe("ava");
     expect(frameSrc()).toBe(`/src/${P}/ava.png`);
-    expect(watchedFiles()).toEqual([`${P}/ava.png`, `${P}/ava@night.png`, `${P}/ava~face.happy.png`]);
+    expect(watchedFiles()).toEqual([`${P}/ava face.happy.png`, `${P}/ava.png`, `${P}/ava@night.png`]);
     expect(workspace.current.lists?.assetsFolders?.image).toBe(P);
   });
 
@@ -2154,7 +2154,7 @@ describe("the inspector of an asset that moves", () => {
     });
     await settle();
   };
-  const toCast = [`ava.png`, `ava@night.png`, `ava~face.happy.png`].map((name) => ({
+  const toCast = [`ava.png`, `ava@night.png`, `ava face.happy.png`].map((name) => ({
     from: `${P}/${name}`,
     to: `${P}/Cast/${name}`,
   }));

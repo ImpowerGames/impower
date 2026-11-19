@@ -67,7 +67,7 @@ const WINK_CLOSED = "M20,50 C50,46 90,42 120,45 C90,48 50,52 20,50Z";
 const WINK_WHITE = "M20,50 C40,15 95,0 120,45 C95,72 50,75 20,50Z";
 const WINK_ART = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 100" width="260" height="100">
 <path data-name="face" d="M0,0H260V100H0Z" fill="#c96"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${WINK_WHITE}" fill="#fff"/>
 <path data-name="eyelash-left" d="${WINK_UPPER}" fill="#111"/>
 <path data-name="eyelash-left" d="${WINK_LOWER}" fill="#111"/>

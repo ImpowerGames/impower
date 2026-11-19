@@ -27,7 +27,7 @@ const entry = (relPath: string, type = "image") => ({ relPath, originalUri: `fil
 it("names a deleted stacked picture once, not by the count of its files", async () => {
   const P = "Assets/Images/Portraits";
   batches.value = [
-    { batchId: "3", deletedAt: Date.now(), entries: [`${P}/imani.png`, `${P}/imani@night.png`, `${P}/imani~face.happy.png`].map((p) => entry(p)) },
+    { batchId: "3", deletedAt: Date.now(), entries: [`${P}/imani.png`, `${P}/imani@night.png`, `${P}/imani face.happy.png`].map((p) => entry(p)) },
     { batchId: "2", deletedAt: Date.now(), entries: [entry(`${P}/bunny.png`), entry(`${P}/kai.png`)] },
     { batchId: "1", deletedAt: Date.now(), entries: [entry("Scripts/a.sd", "script"), entry("Scripts/a@b.sd", "script")] },
   ];

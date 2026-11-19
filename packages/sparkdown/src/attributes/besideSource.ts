@@ -3,7 +3,14 @@ import { imageThingsOf, type ImagePicture } from "./imageFileName";
 import type { AttributeDiagnostic } from "./types";
 import { ATTRIBUTE_ROOT, buildAttributeVocabulary } from "./vocabulary";
 
-const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+const leafOf = (path: string) => {
+  const leaf = path.slice(path.lastIndexOf("/") + 1);
+  try {
+    return decodeURIComponent(leaf);
+  } catch {
+    return leaf.replaceAll("%20", " ");
+  }
+};
 
 const hiddenNameOf = (uri: string) => `$raster:${uri}`;
 
@@ -18,7 +25,7 @@ const conflictingDefaults = (
   return marked.map((layer) => ({
     ...diagnostic,
     path: layer.key,
-    message: `Picture "${picture.name}" marks more than one default for ${diagnostic.group}: ${files.join(", ")}. Keep ~default on one of them.`,
+    message: `Picture "${picture.name}" marks more than one default for ${diagnostic.group}: ${files.join(", ")}. Keep default on one of them.`,
   }));
 };
 
@@ -59,7 +66,7 @@ export const createBesideImageDefinitions = (
             severity: "warning",
             path: key,
             layer: "",
-            message: `Layer file "${leaf}" has no name after the ~. Name the layer, as in ${picture.name}~blush.png or ${picture.name}~face.happy.png.`,
+            message: `Layer file "${leaf}" has no name after its stacking number. Name the layer, as in ${picture.name} blush.png or ${picture.name} face.happy.png.`,
           });
         }
       }
@@ -85,7 +92,7 @@ export const createBesideImageDefinitions = (
       };
       if (picture.unnumbered.length) {
         const unnumbered = picture.unnumbered.map(leafOf);
-        const example = unnumbered[0]!.replace("~", "~10_");
+        const example = unnumbered[0]!.replace(" ", " 10 ");
         for (const uri of picture.unnumbered) {
           diagnostics.push({
             uri,

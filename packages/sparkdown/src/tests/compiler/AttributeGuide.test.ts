@@ -38,7 +38,7 @@ describe("Character portraits guide examples", () => {
         { uri, type: "script", name: "main", ext: "sd", version: 1,
           languageId: "sparkdown", text: `${example}\nscene start\nend` },
         { uri: "file:///project/assets/mia.svg", type: "image", name: "mia",
-          ext: "svg", data: '<svg><g data-name="face.happy:default"/><g data-name="hat.on"/><g data-name="pupils:look.left:default"/></svg>' },
+          ext: "svg", data: '<svg><g data-name="face.happy default"/><g data-name="hat.on"/><g data-name="pupils look.left default"/></svg>' },
       ],
     });
     const program = compiler.compile({ textDocument: { uri } }).program;
@@ -49,19 +49,19 @@ describe("Character portraits guide examples", () => {
   });
   it("adjusts Mia's party look while preserving its hat and eye direction", () => {
     const vocabulary = vocabularyFor([
-      "face.neutral:default",
+      "face.neutral default",
       "face.happy",
       "face.sad",
-      "eyebrows.neutral:default",
+      "eyebrows.neutral default",
       "eyebrows.happy",
       "eyebrows.sad",
-      "whites:eyes.open:default",
-      "lids:eyes.closed",
-      "pupils:eyes.open:look.camera:default",
-      "pupils:eyes.open:look.left",
+      "whites eyes.open default",
+      "lids eyes.closed",
+      "pupils eyes.open look.camera default",
+      "pupils eyes.open look.left",
       "hat.on",
-      "hair-top:hat.off",
-      "hair-under-brim:hat.on",
+      "hair-top hat.off",
+      "hair-under-brim hat.on",
       "body",
     ]);
     const party = resolveAttributes(vocabulary, ["happy", "hat", "look.left"]);
@@ -79,42 +79,42 @@ describe("Character portraits guide examples", () => {
     expect(visible["face.sad"]).toBe(true);
     expect(visible["eyebrows.sad"]).toBe(true);
     expect(visible["hat.on"]).toBe(true);
-    expect(visible["pupils:eyes.open:look.left"]).toBe(true);
+    expect(visible["pupils eyes.open look.left"]).toBe(true);
     expect(visible["face.happy"]).toBe(false);
-    expect(visible["hair-top:hat.off"]).toBe(false);
+    expect(visible["hair-top hat.off"]).toBe(false);
   });
 
   it("shows the office resting state, then changes each requested prop", () => {
     const vocabulary = vocabularyFor([
       "door.open",
-      "door.closed:default",
+      "door.closed default",
       "vase.broken",
-      "vase.whole:default",
+      "vase.whole default",
       "lamp.off",
-      "lamp.on:default",
+      "lamp.on default",
       "room",
     ]);
     expect(shown(vocabulary, [])).toEqual([
-      "door.closed:default",
-      "vase.whole:default",
-      "lamp.on:default",
+      "door.closed default",
+      "vase.whole default",
+      "lamp.on default",
       "room",
     ]);
     expect(shown(vocabulary, ["door.open"])).toEqual([
       "door.open",
-      "vase.whole:default",
-      "lamp.on:default",
+      "vase.whole default",
+      "lamp.on default",
       "room",
     ]);
     expect(shown(vocabulary, ["door.open", "vase.broken"])).toEqual([
       "door.open",
       "vase.broken",
-      "lamp.on:default",
+      "lamp.on default",
       "room",
     ]);
     expect(shown(vocabulary, ["lamp.off"])).toEqual([
-      "door.closed:default",
-      "vase.whole:default",
+      "door.closed default",
+      "vase.whole default",
       "lamp.off",
       "room",
     ]);

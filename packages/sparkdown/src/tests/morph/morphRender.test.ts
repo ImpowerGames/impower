@@ -102,7 +102,7 @@ describe("artifact playback", () => {
 
   test("tracks sharing the drawing the variant rests on all paint at its depth", () => {
     const merged = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
-<g data-name="eyes.open:default"><path data-name="lash" d="${UPPER_OPEN}" fill="#111"/></g>
+<g data-name="eyes.open default"><path data-name="lash" d="${UPPER_OPEN}" fill="#111"/></g>
 <path data-name="brow" d="M0,5H100V10H0Z" fill="#432"/>
 <g data-name="eyes.closed"><path data-name="lash" d="${CLOSED}" fill="#111"/><path data-name="lash" d="${LOWER_OPEN}" fill="#111"/></g>
 </svg>`;
@@ -127,7 +127,7 @@ describe("artifact playback", () => {
 
   test("a basic shape the variant rests on keeps its own markup at rest and moves on paths", () => {
     const ellipses = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
-<g data-name="eyes.open:default"><ellipse data-name="lash" cx="80" cy="60" rx="65" ry="45" fill="#111"/></g>
+<g data-name="eyes.open default"><ellipse data-name="lash" cx="80" cy="60" rx="65" ry="45" fill="#111"/></g>
 <g data-name="eyes.closed"><ellipse data-name="lash" cx="45" cy="60" rx="30" ry="20" fill="#111"/><ellipse data-name="lash" cx="115" cy="60" rx="30" ry="20" fill="#111"/></g>
 </svg>`;
     const resting = bakeMorphArtifact({ source: ellipses, selection: {}, recipes: [blink({ method: "match", clips: [] })], key: "ellipses" });
@@ -149,7 +149,7 @@ describe("artifact playback", () => {
     const RAISED = "M10,10H30V40H10Z";
     const TORSO = `<path data-name="torso" d="M0,30H60V100H0Z"/>`;
     const arm = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
-<g data-name="arm.down:default"><path data-name="arm-left" d="${DOWN}"/></g>
+<g data-name="arm.down default"><path data-name="arm-left" d="${DOWN}"/></g>
 ${TORSO}
 <g data-name="arm.raised"><path data-name="arm-left" d="${RAISED}"/></g>
 </svg>`;
@@ -214,7 +214,7 @@ ${TORSO}
     test("a drawing of the named pose that a segment holds keeps its own place while a copy carries the moving shape", () => {
       const HELD = "M100,60H120V90H100Z";
       const held = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100">
-<g data-name="arm.down:default"><path data-name="arm-left" d="${DOWN}"/></g>
+<g data-name="arm.down default"><path data-name="arm-left" d="${DOWN}"/></g>
 <g data-name="arm.half"><path data-name="arm-left" d="${HALF}"/></g>
 ${TORSO}
 <g data-name="arm.down.half.raised"><path data-name="arm-left" d="${HELD}"/></g>
@@ -231,7 +231,7 @@ ${TORSO}
 
     test("several drawings of the named pose are told apart by box centres that include their curves", () => {
       const curved = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
-<g data-name="arm.down:default"><path data-name="arm-left" d="M30,60H70V80H30Z"/></g>
+<g data-name="arm.down default"><path data-name="arm-left" d="M30,60H70V80H30Z"/></g>
 <g data-name="arm.half"><path data-name="arm-left" d="M30,62H70V82H30Z"/></g>
 <g data-name="arm.raised"><path data-name="arm-left" d="M0,50C0,25 100,25 100,50Z"/></g>
 ${TORSO}
@@ -267,7 +267,7 @@ ${TORSO}
 
     test("tracks sharing one drawing in the named pose are each drawn at its place", () => {
       const lashes = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
-<g data-name="eyes.open:default"><path data-name="lash" d="${UPPER_OPEN}" fill="#111"/><path data-name="lash" d="${LOWER_OPEN}" fill="#111"/></g>
+<g data-name="eyes.open default"><path data-name="lash" d="${UPPER_OPEN}" fill="#111"/><path data-name="lash" d="${LOWER_OPEN}" fill="#111"/></g>
 <path data-name="brow" d="M0,5H100V10H0Z" fill="#432"/>
 <g data-name="eyes.closed"><path data-name="lash" d="${CLOSED}" fill="#111"/></g>
 </svg>`;
@@ -288,7 +288,7 @@ ${TORSO}
 
     test("a named pose that does not draw the label keeps the rest pose's place and warns once", () => {
       const staged = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
-<g data-name="arm.down:default"><path data-name="arm-left" d="${DOWN}"/></g>
+<g data-name="arm.down default"><path data-name="arm-left" d="${DOWN}"/></g>
 ${TORSO}
 <g data-name="arm.half"><path data-name="arm-left" d="${HALF}"/></g>
 <g data-name="arm.raised"><path data-name="hand" d="M40,10H50V20H40Z"/></g>
@@ -307,7 +307,7 @@ ${TORSO}
 
     test("a one-sided shape under a label whose moving shapes the named pose draws reports nothing", () => {
       const cuffed = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
-<g data-name="arm.down:default"><g data-name="limb"><path data-name="arm-left" d="${DOWN}"/><path data-name="cuff" d="M10,88H30V92H10Z"/></g></g>
+<g data-name="arm.down default"><g data-name="limb"><path data-name="arm-left" d="${DOWN}"/><path data-name="cuff" d="M10,88H30V92H10Z"/></g></g>
 ${TORSO}
 <g data-name="arm.raised"><g data-name="limb"><path data-name="arm-left" d="${RAISED}"/></g></g>
 </svg>`;
@@ -353,7 +353,7 @@ ${TORSO}
   test("a later segment hides the drawings of states it does not touch", () => {
     const HALF = "M0,50 C30,25 70,25 100,50 C70,40 30,40 0,50Z";
     const three = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
-<g data-name="eyes.open:default"><path data-name="lash" d="${UPPER_OPEN}"/><path data-name="lash" d="${LOWER_OPEN}"/></g>
+<g data-name="eyes.open default"><path data-name="lash" d="${UPPER_OPEN}"/><path data-name="lash" d="${LOWER_OPEN}"/></g>
 <g data-name="eyes.half"><path data-name="lash" d="${HALF}"/></g>
 <g data-name="eyes.closed"><path data-name="lash" d="${CLOSED}"/></g>
 </svg>`;
@@ -373,7 +373,7 @@ ${TORSO}
 
   test("a fade starts from the drawing's own inline opacity", () => {
     const faded = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
-<g data-name="eyes.open:default"><path data-name="crease" d="M10,20H40V25H10Z" style="opacity:0.4"/></g>
+<g data-name="eyes.open default"><path data-name="crease" d="M10,20H40V25H10Z" style="opacity:0.4"/></g>
 <g data-name="eyes.closed"><path data-name="other" d="M0,0H5V5H0Z"/></g>
 </svg>`;
     const recipe = buildMorphRecipe("blink", { method: "bend", keyframes: [{ offset: 0, eyes: { state: "open" } }, { offset: 1, eyes: { state: "closed" } }] });
@@ -548,7 +548,7 @@ describe("a `paints` entry on a drawing carried in its partner's shape", () => {
 describe("split closed lashes whose tips never meet", () => {
   const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
 <path data-name="face" d="M0,0H140V100H0Z" fill="#b76"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
 <path data-name="eyeball-shadow-left" d="${UPPER_OPEN}" fill="#ccc"/>
 <path data-name="pupil-left" d="${PUPIL}" fill="#000"/>

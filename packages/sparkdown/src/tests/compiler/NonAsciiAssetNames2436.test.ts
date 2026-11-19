@@ -30,7 +30,7 @@ describe("percent-encoded asset file names (I-2436)", () => {
   it("names a percent-encoded non-ASCII file by its decoded stem", () => {
     expect(assetNameOf("file:///proj/Assets/Audio/caf%C3%A9.wav", "audio")).toBe("café");
     expect(assetNameOf("file:///proj/Assets/Images/caf%C3%A9%40smile.png", "image")).toBe("café@smile");
-    expect(assetNameOf("file:///proj/Assets/Images/caf%C3%A9~hair.png", "image")).toBe("café");
+    expect(assetNameOf("file:///proj/Assets/Images/caf%C3%A9 hair.png", "image")).toBe("café");
   });
 
   it("finds a non-ASCII audio file from its VS Code URI", () => {
@@ -40,7 +40,7 @@ describe("percent-encoded asset file names (I-2436)", () => {
   it("keeps ASCII, hyphen, @ and ~ names and image splitting unchanged", () => {
     expect(assetNameOf("file:///proj/Assets/Audio/door-bell.wav", "audio")).toBe("door-bell");
     expect(assetNameOf("file:///proj/Assets/Images/bunny%40happy.png", "image")).toBe("bunny@happy");
-    expect(imageFileNameOf("file:///proj/Assets/Images/bunny%40happy~2_ears.png")).toEqual({
+    expect(imageFileNameOf("file:///proj/Assets/Images/bunny%40happy 2 ears.png")).toEqual({
       name: "bunny%40happy",
       picture: "bunny%40happy",
       alternate: "happy",

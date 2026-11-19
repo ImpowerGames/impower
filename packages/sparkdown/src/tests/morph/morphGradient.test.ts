@@ -126,7 +126,7 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     const stops = '<stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/>';
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20">
 <defs><linearGradient id="a" x2="10000000" gradientTransform="scale(0.0000001)">${stops}</linearGradient><linearGradient id="b" x2="10000000" gradientTransform="scale(0.0000002)">${stops}</linearGradient></defs>
-<g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" fill="url(#a)"/></g>
+<g data-name="eyes.open default"><path data-name="lash" d="M0,0H30V10H0Z" fill="url(#a)"/></g>
 <g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="url(#b)"/></g>
 </svg>`;
     const small = bake(source);
@@ -139,7 +139,7 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     const pair = (from: string, to: string) =>
       bake(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20">
 <defs><linearGradient id="a" x1="${from}">${stops}</linearGradient><linearGradient id="b" x1="${to}">${stops}</linearGradient></defs>
-<g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" fill="url(#a)"/></g>
+<g data-name="eyes.open default"><path data-name="lash" d="M0,0H30V10H0Z" fill="url(#a)"/></g>
 <g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="url(#b)"/></g>
 </svg>`);
     const huge = pair("1e308", "-1e308");
@@ -152,7 +152,7 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
   test("a pair sharing one gradient still blends its fill and stroke opacity, with no copy", () => {
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20">
 <defs><linearGradient id="g"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient></defs>
-<g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" fill="url(#g)" stroke="url(#g)"/></g>
+<g data-name="eyes.open default"><path data-name="lash" d="M0,0H30V10H0Z" fill="url(#g)" stroke="url(#g)"/></g>
 <g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="url(#g)" stroke="url(#g)" fill-opacity="0" stroke-opacity="0.5"/></g>
 </svg>`;
     const shared = bake(source);
@@ -184,7 +184,7 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     const two = (a: string) => `<stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="#000"/>`;
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60" width="100" height="60">
 <defs><linearGradient id="o">${two("#fff")}</linearGradient><linearGradient id="c">${two("#f00")}</linearGradient></defs>
-<g data-name="eyes.open:default"><path data-name="lash" d="M10,10H40V15H10Z" fill="url(#o)"/><path data-name="lash" d="M10,30H40V35H10Z" fill="url(#o)"/></g>
+<g data-name="eyes.open default"><path data-name="lash" d="M10,10H40V15H10Z" fill="url(#o)"/><path data-name="lash" d="M10,30H40V35H10Z" fill="url(#o)"/></g>
 <g data-name="eyes.closed"><ellipse data-name="lash" cx="25" cy="22" rx="15" ry="3" fill="url(#c)"/></g>
 </svg>`;
     const carried = bake(source, paintBlink({ layers: { lash: { depth: "eyes.closed" } } }));
@@ -209,7 +209,7 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     const radial = (id: string) => `<radialGradient id="${id}"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></radialGradient>`;
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="100" height="80">
 <defs>${linear("lo")}${radial("ro")}${linear("lh")}${radial("rh")}</defs>
-<g data-name="eyes.open:default"><path data-name="lash" d="M10,10H40V15H10Z" fill="url(#lo)"/><path data-name="lash" d="M10,50H40V55H10Z" fill="url(#ro)"/></g>
+<g data-name="eyes.open default"><path data-name="lash" d="M10,10H40V15H10Z" fill="url(#lo)"/><path data-name="lash" d="M10,50H40V55H10Z" fill="url(#ro)"/></g>
 <g data-name="eyes.half"><path data-name="lash" d="M10,48H40V53H10Z" fill="url(#rh)"/><path data-name="lash" d="M10,12H40V17H10Z" fill="url(#lh)"/></g>
 <g data-name="eyes.closed"><path data-name="lash" d="M10,30H40V35H10Z" fill="#000"/></g>
 </svg>`;
@@ -230,7 +230,7 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
       bake(
         `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20">
 <defs>${defs}<linearGradient id="a"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#000"/></linearGradient><linearGradient id="b"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient><pattern id="p" width="1" height="1"><rect width="1" height="1"/></pattern></defs>
-<g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" ${open}/></g>
+<g data-name="eyes.open default"><path data-name="lash" d="M0,0H30V10H0Z" ${open}/></g>
 <g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="url(#b)"/></g>
 </svg>`,
       );

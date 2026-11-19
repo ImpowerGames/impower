@@ -36,11 +36,11 @@ describe("a file name whose @ or ~ has nothing on one side is a whole picture na
     ["foo@", "foo@"],
     ["@", "@"],
     ["~foo", "~foo"],
-    ["@foo~face", "@foo"],
-    ["foo@~face", "foo@"],
+    ["@foo face", "@foo"],
+    ["foo@ face", "foo@"],
     ["ava@night", "ava"],
-    ["ava~face", "ava"],
-    ["ava@night~face", "ava"],
+    ["ava face", "ava"],
+    ["ava@night face", "ava"],
   ])("the thing of %s is %s", (name, thing) => {
     expect(thingNameOf(name)).toBe(thing);
   });
@@ -51,7 +51,7 @@ describe("a file name whose @ or ~ has nothing on one side is a whole picture na
     ["@", { name: "@", picture: "@", alternate: null }],
     ["~foo", { name: "~foo", picture: "~foo", alternate: null }],
     ["%40foo", { name: "%40foo", picture: "%40foo", alternate: null }],
-    ["@foo~face", { name: "@foo", picture: "@foo", alternate: null, layer: "face" }],
+    ["@foo face", { name: "@foo", picture: "@foo", alternate: null, layer: "face" }],
   ])("the file name of %s.png", (stem, expected) => {
     expect(imageFileNameOf(`${P}/${stem}.png`)).toEqual(expected);
   });

@@ -10,19 +10,19 @@ import {
 import { compileProject } from "./completionHarness";
 
 const BUNNY = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="eyelash-left:eyes.open:default" id="la"/>
-<g data-name="eyelash-left:eyes.closed" id="lc"/>
-<g data-name="pupil-left:eyes.open" id="pl"/>
+<g data-name="eyelash-left eyes.open default" id="la"/>
+<g data-name="eyelash-left eyes.closed" id="lc"/>
+<g data-name="pupil-left eyes.open" id="pl"/>
 <g data-name="creases" id="cr"/>
 </svg>`;
 
 const RAFFLES = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open:default" id="open"/>
-<g data-name="lids:eyes.squint" id="squint"/>
-<g data-name="lips:mouth.open:default" id="mouth"/>
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.squint" id="squint"/>
+<g data-name="lips mouth.open default" id="mouth"/>
 </svg>`;
 
-const TREE = `<svg xmlns="http://www.w3.org/2000/svg"><g data-name="leaves:season.summer:default" id="leaves"/></svg>`;
+const TREE = `<svg xmlns="http://www.w3.org/2000/svg"><g data-name="leaves season.summer default" id="leaves"/></svg>`;
 
 const image = (name: string, svg: string) => ({
   $type: "image",
@@ -513,10 +513,10 @@ morph child as middle {
 
 describe("`paints` completion", () => {
   const MASKED = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="eyelash-left:eyes.open:default" id="la"/>
-<g data-name="eyelash-left:eyes.closed" id="lc"/>
-<g data-name="darkness:mask.on" id="dk"/>
-<g data-name="face.plain:default" id="fp"/>
+<g data-name="eyelash-left eyes.open default" id="la"/>
+<g data-name="eyelash-left eyes.closed" id="lc"/>
+<g data-name="darkness mask.on" id="dk"/>
+<g data-name="face.plain default" id="fp"/>
 <g data-name="face.masked" id="fm"/>
 </svg>`;
   const masked = {

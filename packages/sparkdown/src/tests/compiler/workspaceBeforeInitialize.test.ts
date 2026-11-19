@@ -10,7 +10,7 @@ import { SparkdownWorkspace } from "../../workspace/classes/SparkdownWorkspace";
 const MAIN = "file://proj/main.sd";
 const EXTRA = "file://proj/extra.sd";
 const ADDED = "file://proj/added.sd";
-const IMAGE = "file://proj/mia~happy.png";
+const IMAGE = "file://proj/mia happy.png";
 
 const settle = async () => {
   for (let i = 0; i < 20; i++) await Promise.resolve();

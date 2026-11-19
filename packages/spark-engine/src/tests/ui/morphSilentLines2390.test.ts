@@ -97,7 +97,7 @@ describe("a speech morph acts only on its character's lines (I-2390)", () => {
   test("on narration a mouth the directive did not set shows the art's default, not the morph's rest", async () => {
     const content = await written(scene("  [[show portrait mia]]\n  Here is Mia."));
     expect(played(content)).toEqual(["blink"]);
-    expect(drawn(content)).toContain("mouth.open:default");
+    expect(drawn(content)).toContain("mouth.open default");
     expect(drawn(content)).not.toContain("data-name='mouth.closed'");
   });
 
