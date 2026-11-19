@@ -1291,7 +1291,7 @@ variables:
   STRUCT_TEXT_SLASH_COMMENT: (?:{{WS}}+[/][/](?:{{WS}}.*)?)
   STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})
   STRUCT_BLOCK_PROPERTY_HEAD: (?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})
-  STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
+  STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}}(?!{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}))
   # lookaround: LuauStructBraceBody and LuauSparkleBraceBody take a `{` that opens the line after a header written without `with`, and the keyword rule's end takes a beat or an `end` line. A body that opened at the header's line break would hold that line before either could claim it, so it opens on the first line neither claims.
   STRUCT_WITHOUT_WITH_LINE: ^(?!{{WS}}*(?:[{]|$))(?!{{STRUCT_BLOCK_BAIL}})
   # lookaround: LuauStructBraceBody and LuauSparkleBraceBody read a struct keyword's `}`, and the keyword's block ends right after it; LuauStructWithBody and LuauSparkleWithBody end before their `end`. A line of a `with` body may end in a `}` too, so the rule around the bodies can only tell the two apart by holding each body as one child.
