@@ -87,6 +87,7 @@ const readFixture = (path: string): ArrayBuffer => {
 };
 
 const FALLBACKS = FALLBACK_FONT_SOURCES.filter((source) => existsSync(fallbackFixture(source.name, "normal"))).map((source) => ({
+  script: source.script,
   normal: readFixture(fallbackFixture(source.name, "normal")),
   bold: readFixture(fallbackFixture(source.name, "bold")),
 }));
@@ -547,6 +548,7 @@ const CJK_SCRIPT = [
   `    ${"これは長い日本語の台詞で、列車が駅に着くまで話し続けます。".repeat(3)}`,
   `  ${"我们在火车站等了很久，然后终于看到了那列老火车慢慢地开进站台。".repeat(2)}`,
   `  ${"기차가 역에 도착할 때까지 우리는 아주 오랫동안 기다렸습니다. ".repeat(3)}`,
+  `  ${"スーパー・".repeat(10)}`,
   "end",
   "",
 ].join("\n");

@@ -25,6 +25,7 @@ const FONTS = {
 const fixturePath = (name: string, weight: string) => resolve(FALLBACK_DIR, `${name.toLowerCase().replace(/ /g, "-")}-${weight}.ttf`);
 
 const FALLBACKS: FallbackFontFaces[] = FALLBACK_FONT_SOURCES.filter((source) => existsSync(fixturePath(source.name, "normal"))).map((source) => ({
+  script: source.script,
   normal: bufferOf(fixturePath(source.name, "normal")),
   bold: bufferOf(fixturePath(source.name, "bold")),
 }));
@@ -107,6 +108,12 @@ describe("the Screenplay PDF's fallback fonts", () => {
     for (const character of SCRIPTS.replace(/ /g, "")) expect(extracted, character).toContain(character);
   });
 
+  it("draw the marks Hiragana and Katakana share with the Japanese font", async () => {
+    const { unprintable, draws } = await exportPdf(scene("スーパー・ガ"));
+    expect(unprintable).toEqual([]);
+    expect(draws.find((draw) => draw.text.includes("ー"))?.postscriptName).toBe("NotoSansJP-Regular");
+  });
+
   it("keep characters Courier Prime has in Courier Prime", async () => {
     const { draws } = await exportPdf(scene("Ken waves at 東京 station."));
     expect(draws.filter((draw) => /[a-z]/i.test(draw.text)).every((draw) => draw.postscriptName.startsWith("CourierPrime"))).toBe(true);
@@ -170,6 +177,12 @@ describe("the fallback fonts an export fetches", () => {
     expect((await fetched([scene("서울역 漢字")])).names).toEqual(["Noto Sans KR"]);
     expect((await fetched([scene("Ω नमस्ते")])).names).toEqual(["Noto Sans"]);
     expect((await fetched([scene("Ω"), scene("東京")])).names).toEqual(["Noto Sans", "Noto Sans SC"]);
+  });
+
+  it("read marks Hiragana and Katakana share as Japanese and punctuation Han shares as Chinese", async () => {
+    expect((await fetched([scene("ーーー・・・")])).names).toEqual(["Noto Sans JP"]);
+    expect((await fetched([scene("我们。、")])).names).toEqual(["Noto Sans SC"]);
+    expect((await fetched([scene("。、")])).names).toEqual(["Noto Sans SC"]);
   });
 
   it("fetch the Chinese font too when the regional fonts lack a character", async () => {

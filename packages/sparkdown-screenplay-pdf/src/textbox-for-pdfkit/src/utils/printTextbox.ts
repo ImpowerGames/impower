@@ -10,7 +10,6 @@ import { noteUnprintable } from "../../../utils/unprintableCharacters";
 import {
   baselineShift,
   faceRuns,
-  fallbackFeatures,
   fallbackOblique,
 } from "../../../utils/fallbackFonts";
 
@@ -107,7 +106,6 @@ const printLines = (
               : textPart.oblique,
             underline: textPart.underline,
             strike: textPart.strike,
-            ...(run.fallback ? { features: fallbackFeatures } : {}),
           };
           doc.text(run.text, runX, yPosition, options);
           if (runIndex < runs.length - 1) {

@@ -1,9 +1,10 @@
+export type FallbackScript = "sans" | "thai" | "cjk";
+
 export interface FallbackFontFaces {
+  script?: FallbackScript;
   normal: ArrayBuffer;
   bold?: ArrayBuffer;
 }
-
-export type FallbackScript = "sans" | "thai" | "cjk";
 
 export interface FallbackFontSource {
   name: string;
@@ -52,19 +53,21 @@ export const FALLBACK_FONT_SOURCES: FallbackFontSource[] = [
 ];
 
 const CJK =
-  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}\u3000-\u303f\u3200-\u33ff\u31f0-\u31ff\ufe30-\ufe4f\uff00-\uffef]/u;
+  /[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Hangul}\p{scx=Bopomofo}\u3000-\u303f\u3200-\u33ff\u31f0-\u31ff\ufe30-\ufe4f\uff00-\uffef]/u;
 
-const KANA = /[\p{Script=Hiragana}\p{Script=Katakana}]/u;
+const SHARED_HAN = /\p{scx=Han}/u;
 
-const HANGUL = /\p{Script=Hangul}/u;
+const KANA = /[\p{scx=Hiragana}\p{scx=Katakana}]/u;
+
+const HANGUL = /\p{scx=Hangul}/u;
 
 export const RIGHT_TO_LEFT =
-  /[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Nko}\p{Script=Samaritan}\p{Script=Mandaic}\p{Script=Adlam}\p{Script=Hanifi_Rohingya}\p{Script=Yezidi}]/u;
+  /[\p{scx=Arabic}\p{scx=Hebrew}\p{scx=Syriac}\p{scx=Thaana}\p{scx=Nko}\p{scx=Samaritan}\p{scx=Mandaic}\p{scx=Adlam}\p{scx=Hanifi_Rohingya}\p{scx=Yezidi}]/u;
 
 export const fallbackScriptOf = (character: string): FallbackScript | undefined => {
   if (RIGHT_TO_LEFT.test(character)) return undefined;
   if (CJK.test(character)) return "cjk";
-  if (/\p{Script=Thai}/u.test(character)) return "thai";
+  if (/\p{scx=Thai}/u.test(character)) return "thai";
   return "sans";
 };
 
@@ -77,7 +80,8 @@ export const fallbackFontSourcesFor = (characters: Iterable<string>): FallbackFo
     if (!script) continue;
     scripts.add(script);
     if (script !== "cjk") continue;
-    if (KANA.test(character)) regions.add("japanese");
+    if (SHARED_HAN.test(character)) otherCjk = true;
+    else if (KANA.test(character)) regions.add("japanese");
     else if (HANGUL.test(character)) regions.add("korean");
     else otherCjk = true;
   }

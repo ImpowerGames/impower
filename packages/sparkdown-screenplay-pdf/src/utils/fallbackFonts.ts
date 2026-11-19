@@ -1,6 +1,6 @@
 import type PDFKit from "pdfkit";
 import { create } from "fontkit";
-import { type FallbackFontFaces, RIGHT_TO_LEFT } from "./fallbackFontSources";
+import { type FallbackFontFaces, fallbackScriptOf, RIGHT_TO_LEFT } from "./fallbackFontSources";
 
 export interface FaceRun {
   text: string;
@@ -13,6 +13,7 @@ interface GlyphCoverage {
 }
 
 interface FallbackFamily {
+  script?: string;
   normal: string;
   bold?: string;
 }
@@ -30,8 +31,6 @@ const BOLD_FACES = new Set(["bold", "bolditalic"]);
 const ITALIC_FACES = new Set(["italic", "bolditalic"]);
 
 const FALLBACK_OBLIQUE = 12;
-
-const NO_KERNING = { kern: false };
 
 const faceSets = new WeakMap<PDFKit.PDFDocument, FaceSet>();
 
@@ -64,9 +63,9 @@ export const registerFallbackFonts = (
     if (bold && family.bold && boldCoverage) {
       doc.registerFont(bold, family.bold);
       coverage.set(bold, boldCoverage);
-      families.push({ normal, bold });
+      families.push({ script: family.script, normal, bold });
     } else {
-      families.push({ normal });
+      families.push({ script: family.script, normal });
     }
   }
   if (families.length === 0) {
@@ -101,7 +100,12 @@ const fallbackFor = (set: FaceSet, font: string, codePoint: number): string | nu
     !RIGHT_TO_LEFT.test(character)
   ) {
     const bold = BOLD_FACES.has(font);
-    for (const family of set.families) {
+    const script = fallbackScriptOf(character);
+    const ordered = [
+      ...set.families.filter((family) => family.script === script),
+      ...set.families.filter((family) => family.script !== script),
+    ];
+    for (const family of ordered) {
       const name = bold && family.bold ? family.bold : family.normal;
       if (set.coverage.get(name)?.hasGlyphForCodePoint(codePoint)) {
         choice = name;
@@ -135,7 +139,18 @@ export const faceRuns = (doc: PDFKit.PDFDocument, text: string, font: string | u
 export const fallbackOblique = (font: string | undefined, oblique: number | undefined): number | undefined =>
   font != null && ITALIC_FACES.has(font) ? FALLBACK_OBLIQUE : oblique;
 
-export const fallbackFeatures = NO_KERNING as unknown as PDFKit.Mixins.TextOptions["features"];
+interface AdvanceSource {
+  unitsPerEm: number;
+  glyphForCodePoint(codePoint: number): { advanceWidth: number };
+}
+
+export const fallbackRunWidth = (doc: PDFKit.PDFDocument, text: string): number => {
+  const state = doc as unknown as { _font: { font: AdvanceSource }; _fontSize: number };
+  const font = state._font.font;
+  let units = 0;
+  for (const character of text) units += font.glyphForCodePoint(character.codePointAt(0)!).advanceWidth;
+  return (units / font.unitsPerEm) * state._fontSize;
+};
 
 interface FontMetrics {
   ascender: number;

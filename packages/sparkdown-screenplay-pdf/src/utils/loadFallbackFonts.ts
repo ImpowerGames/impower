@@ -51,5 +51,5 @@ export const loadFallbackFonts = async (
       if (backstop) loaded.push(backstop);
     }
   }
-  return loaded.map(({ normal, bold }) => ({ normal, ...(bold ? { bold } : {}) }));
+  return loaded.map(({ source, normal, bold }) => ({ script: source.script, normal, ...(bold ? { bold } : {}) }));
 };

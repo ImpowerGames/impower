@@ -39,6 +39,7 @@ const fixturePath = (name: string, weight: "normal" | "bold") =>
 const FIXTURE_SOURCES = FALLBACK_FONT_SOURCES.filter((source) => existsSync(fixturePath(source.name, "normal")));
 
 const FALLBACKS = FIXTURE_SOURCES.map((source) => ({
+  script: source.script,
   normal: bufferOf(fixturePath(source.name, "normal")),
   bold: bufferOf(fixturePath(source.name, "bold")),
 }));
@@ -63,6 +64,7 @@ const SAMPLES = [
   "これは長い日本語の台詞で、列車が駅に着くまで話し続けます。",
   "我们在火车站等了很久，然后终于看到了那列老火车。",
   "기차가 역에 도착할 때까지 기다렸습니다.",
+  "スーパー・スーパー ーーー",
   "The sign reads 東京駅 then 서울역 and the Ωmega line runs past 北京.",
   "ΑΒΓΔ αβγδ Ω e\u0301 and Жук",
 ];
@@ -113,5 +115,22 @@ describe("the Screenplay page's glyph advances", () => {
       const printed = measureTextWidth({ text, font: face, fontSize: 12 }, doc);
       expect(scriptTextWidth(text, face, 12) * 72, text.slice(0, 40)).toBeCloseTo(printed, 6);
     }
+  });
+
+  it("measure a fallback run that shaping changes from each character's own advance, as the page does", async () => {
+    const { measureTextWidth } = await load("textbox-for-pdfkit/src/utils/textMeasurement.ts");
+    const { registerFallbackFonts } = await load("utils/fallbackFonts.ts");
+    const shaping = bufferOf(resolve(FONT_DIRS[0]!, "noto-color-emoji.ttf"));
+    const faces = { normal: bufferOf(resolve(FONT_DIRS[0]!, "courier-prime.ttf")) };
+    const doc = new PDFDocument({ font: "", size: "LETTER" });
+    doc.registerFont("normal", faces.normal);
+    registerFallbackFonts(doc, faces, [{ normal: shaping }]);
+    doc.font("normal").fontSize(12);
+    const family = String.fromCodePoint(0x1f468, 0x200d, 0x1f469, 0x200d, 0x1f467);
+    const font = fontkit.create(readFileSync(resolve(FONT_DIRS[0]!, "noto-color-emoji.ttf"))) as fontkit.Font;
+    const perCharacter = ([...family].reduce((sum, character) => sum + font.glyphForCodePoint(character.codePointAt(0)!).advanceWidth, 0) / font.unitsPerEm) * 12;
+    const shaped = (font.layout(family).advanceWidth / font.unitsPerEm) * 12;
+    expect(shaped).not.toBeCloseTo(perCharacter, 3);
+    expect(measureTextWidth({ text: family, font: "normal", fontSize: 12 }, doc)).toBeCloseTo(perCharacter, 6);
   });
 });

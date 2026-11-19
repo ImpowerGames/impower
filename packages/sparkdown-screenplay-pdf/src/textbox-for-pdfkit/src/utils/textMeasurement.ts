@@ -2,7 +2,7 @@ import type PDFKit from "pdfkit";
 import { FormattedText } from "../types/FormattedText";
 import { MeasuredText } from "../types/MeasuredText";
 import { getEmojiProvider, measureEmojiWidth } from "../../../emoji/emojiText";
-import { fallbackFeatures, faceRuns } from "../../../utils/fallbackFonts";
+import { faceRuns, fallbackRunWidth } from "../../../utils/fallbackFonts";
 
 export const measureTextWidth = (
   textChunk: FormattedText,
@@ -27,15 +27,16 @@ export const measureTextWidth = (
     if (run.font != null) {
       doc.font(run.font);
     }
-    width += doc.widthOfString(run.text, {
-      link: textChunk.link,
-      align: "left",
-      baseline: textChunk.baseline || "alphabetic",
-      oblique: textChunk.oblique,
-      underline: textChunk.underline,
-      strike: textChunk.strike,
-      ...(run.fallback ? { features: fallbackFeatures } : {}),
-    });
+    width += run.fallback
+      ? fallbackRunWidth(doc, run.text)
+      : doc.widthOfString(run.text, {
+          link: textChunk.link,
+          align: "left",
+          baseline: textChunk.baseline || "alphabetic",
+          oblique: textChunk.oblique,
+          underline: textChunk.underline,
+          strike: textChunk.strike,
+        });
   }
   if (runs.some((run) => run.fallback) && textChunk.font != null) {
     doc.font(textChunk.font);
