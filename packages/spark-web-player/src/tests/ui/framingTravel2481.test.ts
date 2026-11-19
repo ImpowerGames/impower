@@ -40,6 +40,9 @@ layout main {
       text
     }
   }
+  screen {
+    animation
+  }
 }
 
 
@@ -100,6 +103,13 @@ scene twice
   [[animate backdrop to left over 4s ease linear]]
   [[animate backdrop to sofa over 2s ease linear]]
   Two travels on one line.
+end
+
+scene flash
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 4s with screenflash]]
+  Travelling in a flash.
 end
 
 scene later
@@ -283,6 +293,21 @@ describe("a layer's picture travels to a framing (I-2481)", () => {
     const running = travelsOf(backdrop!).filter((a) => a.playState === "running");
     expect(running).toHaveLength(1);
     expect(keyframesOf(running[0]!)).toEqual([QUARTER_TO_LEFT, RIGHT]);
+  });
+
+  test("a transition on the same line as a to plays with the travel, not after it", async () => {
+    const h = await start("flash");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    const [travel] = travelsOf(backdrop!);
+    expect(travel).toBeDefined();
+    const screen = h.overlay.querySelector(".screen");
+    const flashes = animations.filter((a) => a.effect.target === screen);
+    expect(flashes.length).toBeGreaterThan(0);
+    for (const flash of flashes) {
+      expect(flash.startTime).toBe(travel!.startTime);
+    }
   });
 
   test("two travels on one line run only the last, from the view on screen", async () => {

@@ -2082,14 +2082,19 @@ export default class UIManager extends Manager {
           const travel = instruction.travel;
           if (travel) {
             const timing = { ...travel.timing, fill: "backwards" as const };
-            const moves = movesPicture(instruction);
+            const mover = movesPicture(instruction)
+              ? new AnimationPlayer(this._theme, this._hold)
+              : undefined;
+            if (mover) {
+              targetPlayers.push(mover);
+            }
             for (const pictureEl of pictureEls) {
               travelPicture(pictureEl, travel.framing, (keyframes) => {
-                if (!moves) {
+                if (!mover) {
                   return undefined;
                 }
-                const animation = after.addKeyframes(pictureEl, keyframes, timing);
-                return { animation, drop: () => after.remove(animation) };
+                const animation = mover.addKeyframes(pictureEl, keyframes, timing);
+                return { animation, drop: () => mover.remove(animation) };
               });
             }
           }
