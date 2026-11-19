@@ -97,6 +97,11 @@ const renameFailure = (error: unknown) => {
   return Object.assign(new NameError(reasonOf(error)), rollback && { rollback });
 };
 
+const validImageFileName = (leaf: string) => {
+  const [picture = "", ...layer] = leaf.split(" ");
+  return [getValidFileName(picture), ...layer.map((word) => word.replace(/[^\w.@~-]/g, "_"))].join(" ");
+};
+
 const MEASURE_BATCH = 8;
 
 const PICTURE_EDGE = 384;
@@ -355,7 +360,7 @@ export default class WorkspaceAssets {
       const name = keepNames
         ? leaf
         : assetTypeOf(leaf, endings) === "image"
-          ? leaf.split(" ").map(getValidFileName).join(" ")
+          ? validImageFileName(leaf)
           : getValidFileName(leaf);
       const home = isScriptPath(name) ? scripts : landingFolder(listing, assetTypeOf(name, endings), folder);
       return [home, ...folders, name].filter(Boolean).join("/");

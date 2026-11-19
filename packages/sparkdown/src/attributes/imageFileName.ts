@@ -78,7 +78,7 @@ export const imageFileNameOf = (path: string): ImageFileName => {
     name: stackNameOf(picture),
     picture,
     alternate: at < 0 ? null : decoded.slice(at + 1),
-    ...(cut < 0 ? {} : layerOf(stem.slice(cut + 1).replace(/^ +/, ""))),
+    ...(cut < 0 ? {} : layerOf(decodedNameOf(stem.slice(cut + 1).replace(/^ +/, "")))),
   };
 };
 

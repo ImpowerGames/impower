@@ -204,6 +204,17 @@ describe("a layer file beside a picture puts a space after the picture's name (#
     }
   });
 
+  it("explains a no-break space in a layer file's name the same way whether the URI encodes it or not", () => {
+    const spaceWarnings = (files: string[]) =>
+      warnings(compile(files, scene("[[ava]]", "[[mia]]")))
+        .map(({ message }) => message)
+        .filter((message) => message.includes("a space character that is not an ordinary space"));
+    const literal = [`${P}/ava.png`, `${P}/ava face.neutral default.png`, `${P}/mia/90 body.png`, `${P}/mia/60 face.neutral default.png`];
+    const encoded = literal.map((uri) => uri.replaceAll(" ", "%20").replaceAll(" ", "%C2%A0"));
+    expect(spaceWarnings(literal)).toHaveLength(2);
+    expect(spaceWarnings(encoded)).toEqual(spaceWarnings(literal));
+  });
+
   it("reads ava~face.happy.png as a plain image named by the text before its first dot", () => {
     expect(imageFileNameOf(`${P}/ava~face.happy.png`)).toEqual({ name: "ava~face", picture: "ava~face.happy", alternate: null });
     expect(workspace.getFileName(`${P}/ava~face.happy.png`)).toBe("ava~face");
