@@ -5,23 +5,23 @@ import { renderPreview } from "./helpers/renderPreview";
 
 const FIXTURE =
   `RAFFLES:\n` +
-  `  [[raffles_concerned~coat]]\n` +
+  `  [[raffles_concerned:coat]]\n` +
   `  ((sfx_emotional_modest_embarrassed_rev_0))\n` +
   `  ((play music mus_m_group unmute over 5))\n` +
   `  Really...?   \n` +
   `  ...Nothing?? >\n` +
-  `  [[raffles_unsure~coat]]\n` +
+  `  [[raffles_unsure:coat]]\n` +
   `  <!>(beat)\n` +
   `  ... >\n` +
-  `  [[raffles_unsure~coat]]\n` +
+  `  [[raffles_unsure:coat]]\n` +
   `  (gestures with ball)\n` +
   `  ..."A Sticky Wicket"?\n` +
   `      \n` +
   `BUNNY:\n` +
-  `  [[bunny_realization~jacket]]\n` +
+  `  [[bunny_realization:jacket]]\n` +
   `  <!>(realizing)\n` +
   `  Oh! >\n` +
-  `  [[bunny_point~jacket]]\n` +
+  `  [[bunny_point:jacket]]\n` +
   `  That weird baseball show.\n`;
 
 describe("dialogue squish", () => {

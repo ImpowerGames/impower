@@ -357,7 +357,7 @@ layout main {
       image
     }
     badge {
-      image "HAPPY~sad"
+      image "HAPPY:sad"
     }
   }
   textbox {
@@ -1503,11 +1503,11 @@ end
   it("(e) connects in full when a suggestion no longer implies a picture the layout shows, though the context's base stands (f)", async () => {
     const { a, full } = await twins(IMPLIED, IMPLIES, async (p) => {
       const base = (p.game.program.contextRevision ?? "").split(":").slice(0, -1).join(":");
-      const shown = JSON.stringify(p.game.module.ui.getImageSrcsByName("HAPPY~sad"));
-      await p.edit("HAPPY:sad", "HAPPY:glad");
+      const shown = JSON.stringify(p.game.module.ui.getImageSrcsByName("HAPPY:sad"));
+      await p.edit("portrait HAPPY:sad", "portrait HAPPY:glad");
       return {
         sameBase: base === (p.game.program.contextRevision ?? "").split(":").slice(0, -1).join(":"),
-        resolvesAsBefore: shown === JSON.stringify(p.game.module.ui.getImageSrcsByName("HAPPY~sad")),
+        resolvesAsBefore: shown === JSON.stringify(p.game.module.ui.getImageSrcsByName("HAPPY:sad")),
         ...after(p),
       };
     });

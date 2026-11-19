@@ -150,7 +150,7 @@ const CLAUSE_ROWS: Row[] = [
   ["empty value after a value", "image", "mia with fade over"],
   ["value that is not a name", "image", "mia morph = talk"],
   ["clause word as a qualified state", "image", "mia:mouth.morph"],
-  ["clause word as a filtered state", "image", "mia~mouth.morph"],
+  ["clause word after a tilde, as one unknown name", "image", "mia~mouth.morph"],
   ["clause after a qualified state", "image", "mia:mouth.morph with fade"],
   ["target and composition", "image", "show backdrop mia + bunny morph talk with fade"],
   ["composition without a control", "image", "mia+bunny morph talk"],
@@ -230,6 +230,7 @@ const empty = (): Reading => ({
 });
 
 const isName = (text: string) => directiveValueKind(text) === "name";
+const isLookedUpName = (text: string) => /^[_\p{L}][^\s"]*$/u.test(text);
 const isAmount = (text: string) => {
   const kind = directiveValueKind(text);
   return kind === "time" || kind === "number";
@@ -261,9 +262,9 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
   const navigate = chunk.tag === "layout" && chunk.control === "navigate";
   const imageNames = () => {
     for (const asset of chunk.assets) {
-      const base = asset.split(/[:~]/)[0]!;
-      if (!isName(base) || base === "none") continue;
-      if (/[:~]/.test(asset) && /^[^:~]+(?:[:~][^:~\s]+)+$/u.test(asset)) link("filtered_image", asset);
+      const base = asset.split(":")[0]!;
+      if (!isLookedUpName(base) || base === "none") continue;
+      if (/^[^:]+(?::[^:\s]+)+$/u.test(asset)) link("filtered_image", asset);
       link("filtered_image", base);
     }
   };
@@ -284,8 +285,8 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
     } else if (chunk.tag === "load") {
       if (target) link("load", target);
       for (const asset of chunk.assets) {
-        const base = asset.split(/[:~]/)[0]!;
-        if (isName(base) && base !== "none") link("load", base);
+        const base = asset.split(":")[0]!;
+        if (isLookedUpName(base) && base !== "none") link("load", base);
       }
     } else if (chunk.tag === "cutscene") {
       if (target && !target.includes("+")) link("video", target);
@@ -303,7 +304,7 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
         if (framing && isName(framing)) link("framing", framing);
       }
     }
-    if (!navigate) reading.implicitNames = chunk.assets.filter((asset) => /[:~]/.test(asset));
+    if (!navigate) reading.implicitNames = chunk.assets.filter((asset) => asset.includes(":"));
   }
   if (chunk.tag === "image" && Object.hasOwn(clauses, "morph")) {
     const pick = clauses["morph"];

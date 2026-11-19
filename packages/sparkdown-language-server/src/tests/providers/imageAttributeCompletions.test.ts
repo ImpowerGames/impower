@@ -30,8 +30,12 @@ const accept = (source: string, label: string, trigger?: string) => {
 };
 
 describe("image attribute completion", () => {
-  it.each([":", "~"])("offers the image's groups, switches and bare options after %s, none dotted", (separator) => {
-    expect(complete(`[[mia${separator}|]]`)).toEqual(["face", "far-left", "happy", "hat", "look", "sad"]);
+  it("offers the image's groups, switches and bare options after a colon, none dotted", () => {
+    expect(complete("[[mia:|]]")).toEqual(["face", "far-left", "happy", "hat", "look", "sad"]);
+  });
+  it("offers no options after a tilde", () => {
+    expect(complete("[[mia~|]]", program, "~")).toEqual([]);
+    expect(complete("[[mia~face.|]]", program, ".")).toEqual([]);
   });
   it("inserts a group with its dot and asks for its options, and a switch on its own", () => {
     const face = accept("[[mia:|]]", "face");
@@ -44,7 +48,6 @@ describe("image attribute completion", () => {
   it.each([
     ["[[mia:face.|]]", "[[mia:face.happy]]"],
     ["[[mia:face.h|]]", "[[mia:face.happy]]"],
-    ["[[mia~face.|]]", "[[mia~face.happy]]"],
   ])("offers only the typed group's options after its dot: %s", (source, accepted) => {
     expect(complete(source, program, ".")).toEqual(["happy", "sad"]);
     const { text, item } = accept(source, "happy", ".");

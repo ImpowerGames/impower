@@ -1,0 +1,7 @@
+scene start
+  [[mia:hat]]
+  [[mia~hat]]
+  [[show portrait mia:happy:hat with fade]]
+  ((bark:loud))
+  ((bark~loud))
+end

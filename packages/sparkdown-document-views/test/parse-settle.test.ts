@@ -11,11 +11,11 @@ import {
 
 const EXCHANGE = (n: number) =>
   `RAFFLES:\n` +
-  `  [[raffles_concerned~coat]]\n` +
+  `  [[raffles_concerned:coat]]\n` +
   `  Take ${n}, and no arguing about it.\n` +
   `\n` +
   `BUNNY:\n` +
-  `  [[bunny_realization~jacket]]\n` +
+  `  [[bunny_realization:jacket]]\n` +
   `  Right you are, old chap.\n` +
   `\n`;
 

@@ -8,7 +8,7 @@ import { getFileRenameEdits } from "../../utils/providers/getFileRenameEdits";
 const ROOT = "file:///proj/";
 const MAIN = `${ROOT}main.sd`;
 const NEWLINE = String.fromCharCode(10);
-const TEXT = ["scene start", "  [[show portrait imani~face.happy]]", "end", ""].join(NEWLINE);
+const TEXT = ["scene start", "  [[show portrait imani:face.happy]]", "end", ""].join(NEWLINE);
 
 const leaf = (uri: string) => uri.split("/").at(-1)!;
 

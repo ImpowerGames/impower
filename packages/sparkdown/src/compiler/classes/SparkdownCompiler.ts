@@ -4572,9 +4572,9 @@ export class SparkdownCompiler {
           if (!resolvedImplicits.has(text)) {
             resolvedImplicits.add(text);
             const type = cur.value.type;
-            const parts = text.split(/[:~]/).map((part) => part.trim());
+            const parts = text.split(":").map((part) => part.trim());
             const [fileName, ...attributes] = parts;
-            const name = parts.join("~");
+            const name = parts.join(":");
             this.addImplicitDef(program, type, name, () => ({
               $type: type,
               $name: name,
@@ -4937,7 +4937,7 @@ export class SparkdownCompiler {
             image.struct,
             image.from,
             image.to,
-            doc.read(image.from, image.to).split(/[:~]/).slice(1).map((part) => part.trim()).filter(Boolean),
+            doc.read(image.from, image.to).split(":").slice(1).map((part) => part.trim()).filter(Boolean),
           );
           coveredTo = image.to;
         }

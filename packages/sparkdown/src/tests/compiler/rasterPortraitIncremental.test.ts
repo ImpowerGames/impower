@@ -11,7 +11,7 @@ it("refreshes generated raster images after an asset changes or disappears", () 
     file,
   ] });
   const compile = () => compiler.compile({ textDocument: { uri } }).program;
-  const drawn = (program: ReturnType<typeof compile>) => resolveImageLayers(program.context, program.context?.["filtered_image"]?.["mia~hat"]).map((layer) => layer.src);
+  const drawn = (program: ReturnType<typeof compile>) => resolveImageLayers(program.context, program.context?.["filtered_image"]?.["mia:hat"]).map((layer) => layer.src);
   expect(drawn(compile())).toEqual(["/first.png"]);
   compiler.updateFile({ file: { ...file, src: "/changed.png" } });
   expect(drawn(compile())).toEqual(["/changed.png"]);

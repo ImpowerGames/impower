@@ -16,7 +16,7 @@ end
 scene start
   & word@count = count@all("abc")
   [[mia@night:happy]]
-  [[mia@night~hat]]
+  [[mia@night:hat]]
   [[mia@night + mia@party:hat]]
   The count is {word@count}.
 end

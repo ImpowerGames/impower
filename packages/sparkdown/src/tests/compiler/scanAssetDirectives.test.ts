@@ -14,8 +14,8 @@ describe("scanAssetDirectives", () => {
     expect(capture.dynamicBases).toEqual(["bunny"]);
   });
   it("reads image names after the verb and layer, splitting on +", () => {
-    const { beat } = scan("[[show portrait bunny~hat+hat with fade over 1s]]");
-    expect(beat?.image).toEqual(["bunny~hat", "hat"]);
+    const { beat } = scan("[[show portrait bunny:hat+hat with fade over 1s]]");
+    expect(beat?.image).toEqual(["bunny:hat", "hat"]);
     expect(beat?.address).toBe(0);
   });
 
@@ -54,7 +54,7 @@ describe("scanAssetDirectives", () => {
   });
 
   it("finds the base of a cutscene video cut off by an interpolation", () => {
-    expect(scan("[[play intro~").capture.dynamicBases).toEqual(["intro"]);
+    expect(scan("[[play intro:").capture.dynamicBases).toEqual(["intro"]);
   });
 
   it("keeps `((play))` an audio verb that names no image", () => {
@@ -76,7 +76,7 @@ describe("scanAssetDirectives", () => {
   });
 
   it("marks a directive cut off by an interpolation as dynamic, keeping the base", () => {
-    const { capture, beat } = scan("[[show portrait bunny~");
+    const { capture, beat } = scan("[[show portrait bunny:");
     expect(beat).toBeUndefined();
     expect(capture.dynamic).toBe(true);
     expect(capture.dynamicBases).toEqual(["bunny"]);
