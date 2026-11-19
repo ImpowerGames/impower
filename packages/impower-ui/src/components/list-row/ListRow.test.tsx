@@ -254,7 +254,7 @@ describe("ListRow", () => {
       <ListRowBadge label="Scene" severity="warning" onClick={() => {}} />,
     );
     const badge = root.querySelector<HTMLButtonElement>("[data-list-row-badge]")!.className.split(" ");
-    expect(badge).toEqual(expect.arrayContaining(["h-11", "w-11", "[&>svg]:size-[14px]"]));
+    expect(badge).toEqual(expect.arrayContaining(["h-[var(--control-size)]", "w-[var(--control-size)]", "[&>svg]:size-[14px]"]));
     expect(badge).not.toContain("absolute");
   });
 

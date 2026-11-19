@@ -11,6 +11,20 @@
   --checker-light: #ffffff;
   --slider-thumb: #ffffff;
   --slider-thumb-shadow: 0 0 0 1px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.35);
+  --tab-height: 48px;
+  --tab-padding-x: 20px;
+  --tab-gap: 8px;
+  --tab-font-size: 14px;
+  --panel-head-height: 44px;
+  --panel-head-padding-x: 10px;
+  --panel-head-gap: 4px;
+  --list-row-compact-height: 44px;
+  --list-row-compact-padding-x: 8px;
+  --list-row-compact-padding-y: 4px;
+  --list-row-compact-gap: 10px;
+  --list-row-compact-font-size: 12px;
+  --control-size: 44px;
+  --popover-width: 360px;
 }
 
 :root[data-layout="desktop"] {

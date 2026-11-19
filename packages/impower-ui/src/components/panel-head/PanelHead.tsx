@@ -2,15 +2,15 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren } from "preact";
 import { cn } from "../../utils/cn";
 
-export const panelHeadVariants = cva("flex flex-none items-center px-2.5", {
+export const panelHeadVariants = cva("flex flex-none items-center px-[var(--panel-head-padding-x)]", {
   variants: {
     spacing: {
-      inset: "gap-1",
+      inset: "gap-[var(--panel-head-gap)]",
       open: "gap-1.5",
       flush: "gap-0",
     },
     size: {
-      compact: "h-11",
+      compact: "h-[var(--panel-head-height)]",
       default: "min-h-[52px] py-1",
       tall: "h-[68px]",
     },

@@ -77,7 +77,7 @@ describe("Popover under preact/compat", () => {
     expect(panel()).not.toBeNull();
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(panel()!.contains(document.activeElement)).toBe(true);
-    expect(panel()!.className).toContain("w-[360px]");
+    expect(panel()!.className).toContain("w-[var(--popover-width)]");
     expect(onOpenChange).toHaveBeenLastCalledWith(true);
   });
 
