@@ -42,7 +42,7 @@ export default function PreviewStatuses({ mode }: PreviewStatusesProps) {
             "pointer-events-auto cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-accent",
           )}
         >
-          <span>{playRefusalText(refusal)}</span>{" "}
+          <span>{playRefusalText(refusal)}.</span>{" "}
           <span class="whitespace-nowrap underline underline-offset-2">
             {playRefusalLink(playRefusalTarget(problems.problems.value, refusal))}
           </span>

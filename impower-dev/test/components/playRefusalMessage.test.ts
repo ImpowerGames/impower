@@ -167,7 +167,7 @@ describe("Play refused because the story has no scene named start", () => {
     await reportProblemOnFirstLine();
     const message = paneMessage();
     expect(message).not.toBeNull();
-    expect(message!.textContent).toBe(`${MESSAGE} Go to Main, line 1`);
+    expect(message!.textContent).toBe(`${MESSAGE}. Go to Main, line 1`);
     expect(message!.hasAttribute("title")).toBe(false);
     await act(async () => message!.click());
     await vi.waitFor(() => expect(revealedAt()).toEqual([[MAIN, 0]]));
@@ -190,7 +190,7 @@ describe("Play refused because the story has no scene named start", () => {
     await mount(Preview);
     await setGame({ playRefusal: NO_START_SCENE_MESSAGE });
     const message = paneMessage();
-    expect(message!.textContent).toBe(`${MESSAGE} Go to Main, line 1`);
+    expect(message!.textContent).toBe(`${MESSAGE}. Go to Main, line 1`);
     await act(async () => message!.click());
     await vi.waitFor(() => expect(revealedAt()).toEqual([[MAIN, 0]]));
   });
