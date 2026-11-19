@@ -18,7 +18,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await browser?.close();
-});
+}, 60_000);
 
 const open = async (): Promise<Page> => {
   const page = await openPage(browser, pages.scripts.script, pages.scripts.css, { width: 1440, height: 900 });

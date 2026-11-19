@@ -91,26 +91,33 @@ export default function useRailPlace(uri: string, rows: readonly OutlineRow[], c
       }
     };
 
-    const observer = new ResizeObserver(() => {
-      if (shown(element) === visible) {
-        return;
-      }
-      if (visible) {
-        disappear();
-      } else {
-        appear();
-      }
-    });
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? undefined
+        : new ResizeObserver(() => {
+            if (shown(element) === visible) {
+              return;
+            }
+            if (visible) {
+              disappear();
+            } else {
+              appear();
+            }
+          });
 
     element.addEventListener("scroll", onScroll, { passive: true });
     element.addEventListener("focusin", onFocusIn);
     element.addEventListener("focusout", onFocusOut);
-    observer.observe(element);
+    if (observer) {
+      observer.observe(element);
+    } else if (shown(element)) {
+      appear();
+    }
     detach.current = () => {
       if (visible) {
         disappear();
       }
-      observer.disconnect();
+      observer?.disconnect();
       element.removeEventListener("scroll", onScroll);
       element.removeEventListener("focusin", onFocusIn);
       element.removeEventListener("focusout", onFocusOut);
