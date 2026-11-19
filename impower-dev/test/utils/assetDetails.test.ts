@@ -4,7 +4,9 @@ import {
   neighborsOf,
   NOT_USED_NOTES,
   NOT_USED_VARIANTS_NOTE,
+  notUsedNote,
   titleLine,
+  UNWRITABLE_NAME_NOTE,
   whereOf,
   type InspectedAsset,
   type MeasuredAsset,
@@ -144,6 +146,24 @@ describe("the inspector's head", () => {
     expect(NOT_USED_NOTES.audio).toBe("Nothing plays it yet.");
     expect(NOT_USED_NOTES.font).toBe("No style uses it yet.");
     expect(NOT_USED_NOTES.other).toBe("Nothing in the story refers to it.");
+  });
+
+  it.each(["@foo", "foo@", "@", "~foo", "a@@b", "a@-b"])(
+    "tells the author to rename an unused image named %s, which no script can write",
+    (name) => {
+      const target = asset(`Assets/Images/${name}.png`, "image", { name });
+      expect(notUsedNote(target, false)).toBe(UNWRITABLE_NAME_NOTE);
+      expect(notUsedNote(target, true)).toBe(UNWRITABLE_NAME_NOTE);
+    },
+  );
+
+  it("keeps the copy hint for an unused image whose name a script can write", () => {
+    expect(notUsedNote(asset("Assets/Images/bar.png", "image"), false)).toBe(NOT_USED_NOTES.image);
+    expect(notUsedNote(asset("Assets/Images/ava@night.png", "image", { name: "ava@night" }), false)).toBe(
+      NOT_USED_NOTES.image,
+    );
+    expect(notUsedNote(asset("Assets/Images/ava.png", "image", { name: "ava" }), true)).toBe(NOT_USED_VARIANTS_NOTE);
+    expect(notUsedNote(asset("Assets/Music/@foo.mp3", "audio", { name: "@foo" }), false)).toBe(NOT_USED_NOTES.audio);
   });
 });
 
