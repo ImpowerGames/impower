@@ -100,7 +100,7 @@ describe("the rail's heading", () => {
     expect(section.getAttribute("aria-label")).toBe("Search");
     const header = section.querySelector<HTMLElement>(":scope > [data-panel-head]")!;
     expect(header).not.toBeNull();
-    expect(header.className).toContain("h-11");
+    expect(header.className).toContain("h-[var(--panel-head-height)]");
     expect(header.className).not.toContain("border-b");
     for (const token of [
       "gap-0",
