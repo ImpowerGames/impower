@@ -54,6 +54,7 @@ describe("the read-only script sample", () => {
       parent: editorHost,
       state: EditorState.create({ doc: DIALOGUE, extensions: [mobileViewportManager()] }),
     });
+    const other = new EditorView({ parent: editorHost, state: EditorState.create({ doc: DIALOGUE }) });
     try {
       const view = await show({ text: DIALOGUE, appearance: ALL_OFF_APPEARANCE });
       for (const el of [view.dom, view.scrollDOM, view.contentDOM]) {
@@ -61,7 +62,9 @@ describe("the read-only script sample", () => {
       }
       expect(getComputedStyle(editor.scrollDOM).overscrollBehavior).toBe("none");
       expect(getComputedStyle(editor.contentDOM).overscrollBehavior).toBe("none");
+      expect(getComputedStyle(other.contentDOM).overscrollBehavior).toBe("none");
     } finally {
+      other.destroy();
       editor.destroy();
       editorHost.remove();
     }

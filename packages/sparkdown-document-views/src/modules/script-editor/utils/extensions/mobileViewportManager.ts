@@ -8,7 +8,7 @@ import {
 } from "./keyboardToolbar";
 import { scrollCaretIntoView } from "./caretScrollMargin";
 
-const viewportTheme = EditorView.theme({
+const viewportTheme = EditorView.baseTheme({
   "&": {
     overscrollBehavior: "none !important",
     touchAction: "pan-y !important",

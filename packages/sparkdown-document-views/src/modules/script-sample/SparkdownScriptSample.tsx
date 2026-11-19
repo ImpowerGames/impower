@@ -22,7 +22,8 @@ const SAMPLE_URI = "file:///sample.sd";
 
 const SAMPLE_THEME = {
   ...EDITOR_THEME,
-  "& .cm-scroller": { ...EDITOR_THEME["& .cm-scroller"], overscrollBehavior: "auto" },
+  "&.cm-editor": { overscrollBehavior: "auto !important" },
+  "&.cm-editor *": { overscrollBehavior: "auto !important" },
 };
 
 export type SparkdownScriptSampleProps = {
