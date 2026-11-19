@@ -4,7 +4,7 @@ import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messag
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
-import { haltPicture, placePicture, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
+import { endTravelsWithin, haltPicture, placePicture, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
   createCutsceneElement,
   createVideoElement,
@@ -380,6 +380,7 @@ export default class UIManager extends Manager {
       for (const contentEl of this.getContentElements(el, tag)) {
         this.releaseMovies(contentEl);
         this.morphs?.releaseWithin(contentEl);
+        endTravelsWithin(contentEl);
         contentEl.replaceChildren();
       }
     }
@@ -414,6 +415,7 @@ export default class UIManager extends Manager {
       });
       this.releaseMovies(el);
       this.morphs?.releaseWithin(el);
+      endTravelsWithin(el);
       el.remove();
     }
     this._staleIds.delete(id);
@@ -1211,6 +1213,7 @@ export default class UIManager extends Manager {
         el.className = params.name || "";
         if (params.content) {
           this.morphs?.releaseWithin(el);
+          endTravelsWithin(el);
           el.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
@@ -1258,6 +1261,7 @@ export default class UIManager extends Manager {
         (el as any).__sdCreate = sig;
       } else if ((el as any).__sdUpdatedContent && params.content) {
         this.morphs?.releaseWithin(el);
+        endTravelsWithin(el);
         el.textContent = getElementContent(params.content, {
           breakpoints: params.breakpoints,
           scope: "spark-web-player #game",
@@ -1310,6 +1314,7 @@ export default class UIManager extends Manager {
       if (element) {
         if (params.content != undefined) {
           this.morphs?.releaseWithin(element);
+          endTravelsWithin(element);
           (element as any).__sdUpdatedContent = true;
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
@@ -2035,6 +2040,7 @@ export default class UIManager extends Manager {
     const exitEffects: ImageEffect[] = [];
     const toDestroy: HTMLElement[] = [];
     const outgoing: HTMLElement[] = [];
+    const hiding: { pictureEl: HTMLElement; exits: ReturnType<AnimationPlayer["add"]> }[] = [];
     const newMovies: { video: HTMLVideoElement; after: AnimationPlayer }[] = [];
     const hiddenMovies: HTMLVideoElement[] = [];
 
@@ -2047,6 +2053,7 @@ export default class UIManager extends Manager {
         for (const contentEl of [...imageEls, ...maskEls]) {
           this.releaseMovies(contentEl);
           this.morphs?.releaseWithin(contentEl);
+          endTravelsWithin(contentEl);
           contentEl.replaceChildren();
         }
         continue;
@@ -2064,9 +2071,7 @@ export default class UIManager extends Manager {
           targetEl,
           instruction.targetAnimations,
         );
-        for (const e of targetEffects) {
-          after.add(e);
-        }
+        const targetAnimations = targetEffects.flatMap((e) => after.add(e));
         if (instruction.affected) {
           for (const a of instruction.affected) {
             for (const el of this.findTargetElements(a.target)) {
@@ -2104,7 +2109,7 @@ export default class UIManager extends Manager {
             }
           } else if (instruction.control === "hide") {
             for (const pictureEl of pictureEls) {
-              haltPicture(pictureEl);
+              hiding.push({ pictureEl, exits: targetAnimations });
             }
             for (const imageEl of imageEls) {
               for (const video of Array.from(imageEl.querySelectorAll("video"))) {
@@ -2173,8 +2178,10 @@ export default class UIManager extends Manager {
               );
             }
             if (instruction.control === "show") {
-              for (const prevSpanEl of prevSpanEls) {
-                haltPicture(prevSpanEl);
+              if (!content.previousHideAnimation) {
+                for (const prevSpanEl of prevSpanEls) {
+                  haltPicture(prevSpanEl);
+                }
               }
               if (content.previousHideAnimation) {
                 for (const prevSpanEl of prevSpanEls) {
@@ -2267,15 +2274,20 @@ export default class UIManager extends Manager {
     for (const el of outgoing) {
       this.freezeWhenExitStarts(el, exiting.get(el) ?? []);
     }
+    for (const { pictureEl, exits } of hiding) {
+      this.whenExitStarts(pictureEl, exits, () => haltPicture(pictureEl));
+    }
     await played;
     for (const el of toDestroy) {
       this.releaseMovies(el);
       this.morphs?.releaseWithin(el);
+      endTravelsWithin(el);
       el.remove();
     }
     for (const video of hiddenMovies) {
       const span = video.closest("span.instance");
       this.releaseMovies(video);
+      endTravelsWithin(span ?? video);
       (span ?? video).remove();
     }
   }
@@ -2283,6 +2295,17 @@ export default class UIManager extends Manager {
   protected freezeWhenExitStarts(
     el: HTMLElement,
     exits: ReturnType<AnimationPlayer["add"]>,
+  ) {
+    this.whenExitStarts(el, exits, () => {
+      this.morphs?.freezeWithin(el);
+      haltPicture(el);
+    });
+  }
+
+  protected whenExitStarts(
+    el: HTMLElement,
+    exits: ReturnType<AnimationPlayer["add"]>,
+    run: () => void,
   ) {
     const doc = el.ownerDocument;
     const view = doc.defaultView;
@@ -2305,7 +2328,7 @@ export default class UIManager extends Manager {
         .filter((at) => Number.isFinite(at));
       const at = starts.length > 0 ? Math.min(...starts) : -Infinity;
       if (!(now < at)) {
-        this.morphs?.freezeWithin(el);
+        run();
         return;
       }
       if (view?.requestAnimationFrame) {

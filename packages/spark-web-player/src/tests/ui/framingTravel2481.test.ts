@@ -112,6 +112,24 @@ scene flash
   Travelling in a flash.
 end
 
+scene replaced_later
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 4s ease linear]]
+  Travelling.
+  [[show backdrop SKY after 2s]]
+  Replaced in two seconds.
+end
+
+scene hidden_later
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 4s ease linear]]
+  Travelling.
+  [[hide backdrop after 2s]]
+  Hidden in two seconds.
+end
+
 scene later
   [[show backdrop BG at right]]
   [[show portrait P]]
@@ -128,6 +146,7 @@ const RIGHT = { translate: "calc(100cqw - 100%) calc(50cqh - 50%)", scale: "1" }
 const LEFT = { translate: "0px calc(50cqh - 50%)", scale: "1" };
 const SOFA = { translate: "calc(60cqw - 62%) calc(100cqh - 110%)", scale: "1.2" };
 const QUARTER_TO_LEFT = { translate: "calc(75cqw - 75%) calc(50cqh - 50%)", scale: "1" };
+const THREE_QUARTERS_TO_LEFT = { translate: "calc(25cqw - 25%) calc(50cqh - 50%)", scale: "1" };
 
 const pictureEls = (overlay: HTMLElement, layer: string) =>
   Array.from(
@@ -147,10 +166,15 @@ const travelsOf = (el: Element) =>
 const keyframesOf = (animation: TimedAnimation) =>
   animation.effect.getKeyframes() as Record<string, unknown>[];
 
+const frames: FrameRequestCallback[] = [];
+
 const advance = async (ms: number) => {
   timeline.currentTime += ms;
   for (const animation of animations) {
     animation.update();
+  }
+  for (const frame of frames.splice(0)) {
+    frame(timeline.currentTime);
   }
   await flushMicrotasks(10);
 };
@@ -159,8 +183,16 @@ let restore: (() => void) | undefined;
 
 const installTimedAnimations = () => {
   const g = globalThis as any;
-  const previous = { Animation: g.Animation, KeyframeEffect: g.KeyframeEffect, timeline: (document as any).timeline };
+  const view = document.defaultView as any;
+  const previous = {
+    Animation: g.Animation,
+    KeyframeEffect: g.KeyframeEffect,
+    timeline: (document as any).timeline,
+    requestAnimationFrame: view.requestAnimationFrame,
+  };
   animations.length = 0;
+  frames.length = 0;
+  view.requestAnimationFrame = (callback: FrameRequestCallback) => frames.push(callback);
   timeline.currentTime = 0;
   g.Animation = TimedAnimation;
   g.KeyframeEffect = TimedEffect;
@@ -169,6 +201,7 @@ const installTimedAnimations = () => {
     g.Animation = previous.Animation;
     g.KeyframeEffect = previous.KeyframeEffect;
     Object.defineProperty(document, "timeline", { configurable: true, value: previous.timeline });
+    view.requestAnimationFrame = previous.requestAnimationFrame;
   };
 };
 
@@ -388,6 +421,62 @@ describe("a layer's picture travels to a framing (I-2481)", () => {
     await play(h, false);
     expect(travel!.playState).toBe("idle");
     expect(placed(backdrop!)).toEqual(QUARTER_TO_LEFT);
+  });
+
+  test("a new picture shown after a delay lets the old picture travel until it starts to go", async () => {
+    const h = await start("replaced_later");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    const [travel] = travelsOf(backdrop!);
+    expect(travel).toBeDefined();
+    await advance(1000);
+    await play(h, false);
+    await advance(1000);
+    expect(travel!.playState).toBe("running");
+    expect(travel!.currentTime).toBe(2000);
+    await advance(1000);
+    expect(travel!.playState).toBe("idle");
+    expect(placed(backdrop!)).toEqual(THREE_QUARTERS_TO_LEFT);
+  });
+
+  test("hiding the layer after a delay lets the picture travel until the hide starts", async () => {
+    const h = await start("hidden_later");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    const [travel] = travelsOf(backdrop!);
+    expect(travel).toBeDefined();
+    await advance(1000);
+    await play(h, false);
+    await advance(1000);
+    expect(travel!.playState).toBe("running");
+    await advance(1000);
+    expect(travel!.playState).toBe("idle");
+    expect(placed(backdrop!)).toEqual(THREE_QUARTERS_TO_LEFT);
+  });
+
+  test("clearing the layer ends its travel, running or paused", async () => {
+    for (const paused of [false, true]) {
+      const h = await start();
+      await play(h, true);
+      await play(h, false);
+      const [backdrop] = pictureEls(h.overlay, "backdrop");
+      const [travel] = travelsOf(backdrop!);
+      expect(travel).toBeDefined();
+      await advance(1000);
+      if (paused) {
+        h.ui.onPause();
+      }
+      void h.game.module.ui.image.clear("backdrop");
+      await flushMicrotasks(20);
+      expect(backdrop!.isConnected).toBe(false);
+      expect(travel!.playState).toBe("idle");
+      if (paused) {
+        h.ui.onUnpause();
+      }
+      restore?.();
+    }
   });
 
   test("showing the layer while its picture travels lets the travel go on", async () => {

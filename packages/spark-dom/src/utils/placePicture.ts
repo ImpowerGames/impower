@@ -119,6 +119,13 @@ const endTravel = (el: Element) => {
   }
 };
 
+export const endTravelsWithin = (root: Element) => {
+  endTravel(root);
+  for (const el of Array.from(root.querySelectorAll(".instance"))) {
+    endTravel(el);
+  }
+};
+
 const travelling = (el: Element) => {
   const state = travels.get(el)?.animation.playState;
   return state !== undefined && state !== "finished";
