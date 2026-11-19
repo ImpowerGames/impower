@@ -79,8 +79,12 @@ export const writePlacement = (
   }
 };
 
-interface Travel {
+export interface PlayedTravel {
   animation: Animation;
+  drop: () => void;
+}
+
+interface Travel extends PlayedTravel {
   from: PictureView;
   to: PictureView;
 }
@@ -96,7 +100,10 @@ export const pictureViewOf = (el: Element): PictureView => {
     return rest;
   }
   const state = travel.animation.playState;
-  if (state === "idle" || state === "finished") {
+  if (state === "idle") {
+    return travel.from;
+  }
+  if (state === "finished") {
     return rest;
   }
   const progress = travel.animation.effect?.getComputedTiming().progress;
@@ -107,13 +114,14 @@ const endTravel = (el: Element) => {
   const travel = travels.get(el);
   if (travel) {
     travels.delete(el);
+    travel.drop();
     travel.animation.cancel();
   }
 };
 
 const travelling = (el: Element) => {
   const state = travels.get(el)?.animation.playState;
-  return state === "running" || state === "paused";
+  return state !== undefined && state !== "finished";
 };
 
 const sameView = (a: PictureView, b: PictureView) => {
@@ -149,7 +157,7 @@ export const haltPicture = (el: HTMLElement) => {
 export const travelPicture = (
   el: HTMLElement,
   framing: PictureFramingValues | undefined,
-  play: (keyframes: Keyframe[]) => Animation | undefined,
+  play: (keyframes: Keyframe[]) => PlayedTravel | undefined,
 ) => {
   const from = pictureViewOf(el);
   const to = getPictureView(framing);
@@ -158,8 +166,8 @@ export const travelPicture = (
   el.classList.add("framed");
   const placement = getViewPlacement(to);
   writePlacement(el, placement);
-  const animation = play([getViewPlacement(from), placement]);
-  if (animation) {
-    travels.set(el, { animation, from, to });
+  const played = play([getViewPlacement(from), placement]);
+  if (played) {
+    travels.set(el, { ...played, from, to });
   }
 };

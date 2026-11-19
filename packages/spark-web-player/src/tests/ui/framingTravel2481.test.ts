@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, test } from "vitest";
+import { writeBeatText } from "@impower/spark-engine/src/game/core/classes/presenters/VisualNovelPresenter";
+import { writeStage } from "@impower/spark-engine/src/game/core/classes/presenters/stage";
 import { createDOMHarness, flushMicrotasks, type DOMHarness } from "./domTestHarness";
 import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimation";
 
@@ -32,6 +34,9 @@ layout main {
   }
   textbox {
     dialogue {
+      text
+    }
+    action {
       text
     }
   }
@@ -68,6 +73,44 @@ scene reshown
   Travelling.
   [[show backdrop]]
   Shown while it travels.
+end
+
+scene repeated
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 4s ease linear]]
+  Travelling.
+  [[animate backdrop to left over 4s ease linear]]
+  The same travel again.
+end
+
+scene same_beat
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 4s ease linear]]
+  [[show backdrop]]
+  Travelling and shown.
+  [[animate backdrop to right over 2s ease linear]]
+  Redirected.
+end
+
+scene twice
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 4s ease linear]]
+  [[animate backdrop to sofa over 2s ease linear]]
+  Two travels on one line.
+end
+
+scene later
+  [[show backdrop BG at right]]
+  [[show portrait P]]
+  Placed.
+  [[animate backdrop to left over 4s ease linear]]
+  Travelling.
+  [[show portrait P at sofa]]
+  A later line.
+  Another later line.
 end
 `;
 
@@ -135,7 +178,8 @@ async function start(scene = "start") {
 async function play(h: DOMHarness, instant: boolean) {
   const beat = h.nextBeat();
   expect(beat).toBeTruthy();
-  void h.display(beat!, instant);
+  void writeBeatText(h.game.module.ui, beat!, instant);
+  writeStage(h.game, beat!, instant);
   await flushMicrotasks(20);
 }
 
@@ -184,16 +228,75 @@ describe("a layer's picture travels to a framing (I-2481)", () => {
     expect(placed(backdrop!)).toEqual(SOFA);
   });
 
-  test("a travel keeps going while later lines write other layers", async () => {
-    const h = await start();
+  test("a travel keeps going while later lines write text and other layers", async () => {
+    const h = await start("later");
     await play(h, true);
     await play(h, false);
     const [backdrop] = pictureEls(h.overlay, "backdrop");
     const [travel] = travelsOf(backdrop!);
     expect(travel).toBeDefined();
     await advance(1000);
+    await play(h, false);
+    expect(h.overlay.textContent).toContain("A later line.");
+    expect(pictureEls(h.overlay, "portrait").map(placed)).toContainEqual(SOFA);
+    await advance(500);
+    await play(h, false);
+    expect(h.overlay.textContent).toContain("Another later line.");
+    await advance(500);
     expect(travel!.playState).toBe("running");
-    expect(travel!.currentTime).toBe(1000);
+    expect(travel!.currentTime).toBe(2000);
+    await advance(2000);
+    expect(travel!.playState).toBe("finished");
+    expect(placed(backdrop!)).toEqual(LEFT);
+  });
+
+  test("the same to written again during a travel starts a new travel from the view in flight", async () => {
+    const h = await start("repeated");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    const [first] = travelsOf(backdrop!);
+    expect(first).toBeDefined();
+    await advance(1000);
+    await play(h, false);
+    const [, second] = travelsOf(backdrop!);
+    expect(second).toBeDefined();
+    expect(first!.playState).toBe("idle");
+    expect(keyframesOf(second!)).toEqual([QUARTER_TO_LEFT, LEFT]);
+    await advance(3000);
+    expect(second!.playState).toBe("running");
+    await advance(1000);
+    expect(second!.playState).toBe("finished");
+  });
+
+  test("a show on the same line as a to keeps the travel, so a later to starts from the view in flight", async () => {
+    const h = await start("same_beat");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    const [first] = travelsOf(backdrop!);
+    expect(first).toBeDefined();
+    expect(first!.playState).toBe("running");
+    await advance(1000);
+    await play(h, false);
+    expect(first!.playState).toBe("idle");
+    const running = travelsOf(backdrop!).filter((a) => a.playState === "running");
+    expect(running).toHaveLength(1);
+    expect(keyframesOf(running[0]!)).toEqual([QUARTER_TO_LEFT, RIGHT]);
+  });
+
+  test("two travels on one line run only the last, from the view on screen", async () => {
+    const h = await start("twice");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    const all = travelsOf(backdrop!);
+    expect(all.filter((a) => a.playState === "running")).toHaveLength(1);
+    const running = all.find((a) => a.playState === "running")!;
+    expect(keyframesOf(running)).toEqual([RIGHT, SOFA]);
+    await advance(2000);
+    expect(placed(backdrop!)).toEqual(SOFA);
+    expect(all.filter((a) => a.playState === "running")).toHaveLength(0);
   });
 
   test("pausing the game pauses a travel and resuming continues it", async () => {

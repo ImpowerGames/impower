@@ -145,6 +145,25 @@ function sameElements(a: HTMLElement[], b: HTMLElement[]): boolean {
   return a.length === b.length && a.every((el) => b.includes(el));
 }
 
+function movesPicture(instruction: WriteImageInstruction): boolean {
+  if (!instruction.travel) {
+    return false;
+  }
+  const { delay = 0, duration = 0 } = getEffectTiming(instruction.travel.timing);
+  return Number(delay) > 0 || Number(duration) > 0;
+}
+
+let travelWrites = 0;
+
+function imageSignature(instructions: WriteImageInstruction[]): string {
+  const sig = JSON.stringify(instructions);
+  if (!instructions.some(movesPicture)) {
+    return sig;
+  }
+  travelWrites += 1;
+  return `${sig}#travel-${travelWrites}`;
+}
+
 function getThemeKey(variables: readonly string[]): string {
   let hash = 0x811c9dc5;
   for (const char of [...variables].sort().join("\n")) {
@@ -938,7 +957,10 @@ export default class UIManager extends Manager {
       }
       const p = msg.params as WriteParams;
       const els = targets(p);
-      const sig = JSON.stringify(p.instructions);
+      const sig =
+        kind === WriteTextMessage.type
+          ? JSON.stringify(p.instructions)
+          : imageSignature(p.instructions);
       if (kind === WriteTextMessage.type && els) {
         const replaced = els.filter(
           (el) =>
@@ -1975,7 +1997,7 @@ export default class UIManager extends Manager {
     for (const el of targetEls) {
       this._staleImageTargets.delete(el);
     }
-    const sig = JSON.stringify(instructions);
+    const sig = imageSignature(instructions);
     if (
       decision === "same" ||
       (decision == null &&
@@ -2060,12 +2082,15 @@ export default class UIManager extends Manager {
           const travel = instruction.travel;
           if (travel) {
             const timing = { ...travel.timing, fill: "backwards" as const };
-            const { delay = 0, duration = 0 } = getEffectTiming(timing);
-            const moves = Number(delay) > 0 || Number(duration) > 0;
+            const moves = movesPicture(instruction);
             for (const pictureEl of pictureEls) {
-              travelPicture(pictureEl, travel.framing, (keyframes) =>
-                moves ? after.addKeyframes(pictureEl, keyframes, timing) : undefined,
-              );
+              travelPicture(pictureEl, travel.framing, (keyframes) => {
+                if (!moves) {
+                  return undefined;
+                }
+                const animation = after.addKeyframes(pictureEl, keyframes, timing);
+                return { animation, drop: () => after.remove(animation) };
+              });
             }
           }
           if (instruction.control === "show") {

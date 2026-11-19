@@ -125,6 +125,12 @@ export default class AnimationPlayer {
     return instance;
   }
 
+  remove(animation: Animation): void {
+    this._instances = this._instances.filter(
+      (instance) => instance.animation !== animation,
+    );
+  }
+
   get endTimeUndelayed(): number {
     let end = 0;
     for (const instance of this._instances) {
