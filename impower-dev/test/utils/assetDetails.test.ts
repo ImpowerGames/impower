@@ -151,7 +151,7 @@ describe("the inspector's head", () => {
     );
   });
 
-  it.each(["@foo", "foo@", "@", "~foo", "a@@b", "a@-b", "é@x", "x@é"])(
+  it.each(["@foo", "foo@", "@", "~foo", "a@@b", "a@-b", "é@", "@é"])(
     "tells the author to rename an unused image named %s, which no script can write",
     (name) => {
       const target = asset(`Assets/Images/${name}.png`, "image", { name });
@@ -168,6 +168,8 @@ describe("the inspector's head", () => {
     expect(notUsedNote(asset("Assets/Images/foo_@bar.png", "image", { name: "foo_@bar" }), false)).toBe(
       NOT_USED_NOTES.image,
     );
+    expect(notUsedNote(asset("Assets/Images/é@x.png", "image", { name: "é@x" }), false)).toBe(NOT_USED_NOTES.image);
+    expect(notUsedNote(asset("Assets/Images/x@é.png", "image", { name: "x@é" }), false)).toBe(NOT_USED_NOTES.image);
     expect(notUsedNote(asset("Assets/Images/ava.png", "image", { name: "ava" }), true)).toBe(NOT_USED_VARIANTS_NOTE);
     expect(notUsedNote(asset("Assets/Music/@foo.mp3", "audio", { name: "@foo" }), false)).toBe(NOT_USED_NOTES.audio);
   });
