@@ -202,6 +202,36 @@ describe("the Screenplay PDF's fallback fonts", () => {
     for (let index = 1; index < segments.length; index++) expect(segments[index]!.x).toBeCloseTo(ends[index - 1]!, 6);
   });
 
+  it("print a watermark's characters with the fallback fonts too", async () => {
+    const { buildPDF } = await import(pathToFileURL(resolve(__dirname, "../../sparkdown-screenplay-pdf/src/buildPDF.ts")).href);
+    const watermarked: { text: string; postscriptName: string; end: number }[] = [];
+    const prototype = PDFDocument.prototype as unknown as { text: (...args: unknown[]) => unknown };
+    const text = prototype.text;
+    const spy = vi.spyOn(prototype, "text").mockImplementation(function (this: PDFKit.PDFDocument, ...args: unknown[]) {
+      const state = this as unknown as { _font: { font: { postscriptName: string } }; _fontSize: number };
+      if (typeof args[0] === "string" && state._fontSize > 40) {
+        watermarked.push({
+          text: args[0],
+          postscriptName: state._font.font.postscriptName,
+          end: (args[1] as number) + this.widthOfString(args[0]),
+        });
+      }
+      return text.apply(this, args);
+    });
+    try {
+      const script = ["---", "title: Ken", "watermark: 東京 DRAFT", "---", "", "scene s", "  Hello.", "end", ""].join("\n");
+      const { unprintable } = await buildPDF([script], { screenplay_print_title_page: true }, FONTS, undefined, FALLBACKS);
+      expect(unprintable).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(watermarked.map((draw) => draw.text).join("")).toBe("東京 DRAFT");
+    expect(watermarked.find((draw) => draw.text === "東京")?.postscriptName).toMatch(/^NotoSans(JP|SC)-/);
+    const diagonal = Math.hypot(8.5, 11) - 4;
+    const courierEnd = (2 + (1.667 * diagonal * 1228) / 2048) * 72;
+    expect(watermarked.at(-1)!.end).toBeCloseTo(courierEnd, 1);
+  });
+
   it("skip a fallback font that cannot be read and list what it would have drawn", async () => {
     const { unprintable } = await exportPdf(scene("東京 Ω"), [{ normal: new ArrayBuffer(16) }, FALLBACKS[0]!]);
     expect(unprintable).toEqual(["東", "京"]);

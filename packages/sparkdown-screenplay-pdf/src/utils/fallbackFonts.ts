@@ -9,6 +9,7 @@ export interface FaceRun {
 }
 
 interface GlyphCoverage {
+  postscriptName?: string;
   hasGlyphForCodePoint(codePoint: number): boolean;
 }
 
@@ -20,6 +21,7 @@ interface FallbackFamily {
 
 interface FaceSet {
   coverage: Map<string, GlyphCoverage>;
+  faceNames: Map<string, string>;
   families: FallbackFamily[];
   choices: Map<string, Map<number, string | null>>;
 }
@@ -71,13 +73,17 @@ export const registerFallbackFonts = (
   if (families.length === 0) {
     return;
   }
+  const faceNames = new Map<string, string>();
   for (const [name, bytes] of Object.entries(faces)) {
     const faceCoverage = bytes ? coverageOf(bytes) : undefined;
     if (faceCoverage) {
       coverage.set(name, faceCoverage);
+      if (faceCoverage.postscriptName && !faceNames.has(faceCoverage.postscriptName)) {
+        faceNames.set(faceCoverage.postscriptName, name);
+      }
     }
   }
-  faceSets.set(doc, { coverage, families, choices: new Map() });
+  faceSets.set(doc, { coverage, faceNames, families, choices: new Map() });
 };
 
 const fallbackFor = (set: FaceSet, font: string, codePoint: number): string | null => {
@@ -115,6 +121,11 @@ const fallbackFor = (set: FaceSet, font: string, codePoint: number): string | nu
   }
   choices.set(codePoint, choice);
   return choice;
+};
+
+export const currentFaceName = (doc: PDFKit.PDFDocument): string | undefined => {
+  const name = (doc as unknown as { _font?: { name?: string } })._font?.name;
+  return name == null ? undefined : faceSets.get(doc)?.faceNames.get(name);
 };
 
 export const faceRuns = (doc: PDFKit.PDFDocument, text: string, font: string | undefined): FaceRun[] => {

@@ -33,6 +33,12 @@ import {
   titlePageLayout,
 } from "@impower/sparkdown-screenplay/src/utils/titlePageLayout";
 import { noteUnprintable } from "../utils/unprintableCharacters";
+import {
+  baselineShift,
+  currentFaceName,
+  faceRuns,
+  fallbackRunWidth,
+} from "../utils/fallbackFonts";
 
 const PDF_POINTS_PER_INCH = 72;
 
@@ -237,7 +243,8 @@ export default class ScreenplayPrinter {
           180) /
         Math.PI;
       // workaround(pdfkit): underline combined with rotation renders wrongly, so formatting is reset first (seen with pdfkit 0.14.0)
-      const len = watermarkString.length;
+      const face = currentFaceName(this._doc);
+      const len = this.getWatermarkCells(watermarkString, face);
       let diagonal;
       diagonal = Math.sqrt(
         Math.pow(this._profile.page_width, 2) +
@@ -248,19 +255,51 @@ export default class ScreenplayPrinter {
       this._doc.fillColor(this.profile.settings?.["meta:watermark"]?.color ?? "#eeeeee");
       this._doc.fontSize(font_size);
       this._doc.rotate(angle, options);
-      noteUnprintable(this._doc, watermarkString);
-      this._doc.text(
-        watermarkString,
-        2 * PDF_POINTS_PER_INCH,
-        -(font_size / 2),
-        {
-          lineBreak: false,
-        },
-      );
+      let x = 2 * PDF_POINTS_PER_INCH;
+      for (const run of faceRuns(this._doc, watermarkString, face)) {
+        const runOptions: PDFKit.Mixins.TextOptions = { lineBreak: false };
+        if (run.fallback && face != null) {
+          runOptions.baseline = baselineShift(
+            this._doc,
+            face,
+            "top",
+            font_size,
+          ) as unknown as PDFKit.Mixins.TextOptions["baseline"];
+        }
+        if (run.font != null) {
+          this._doc.font(run.font);
+        }
+        noteUnprintable(this._doc, run.text);
+        this._doc.text(run.text, x, -(font_size / 2), runOptions);
+        x += run.fallback
+          ? fallbackRunWidth(this._doc, run.text)
+          : this._doc.widthOfString(run.text, runOptions);
+      }
+      if (face != null) {
+        this._doc.font(face);
+      }
       this._doc.rotate(-angle, options);
       this._doc.fontSize(this._profile.font_size ?? 12);
       this._doc.fillColor(this.profile.color ?? "#000000");
     }
+  }
+
+  getWatermarkCells(text: string, face: string | undefined): number {
+    this._doc.fontSize(1);
+    const cell = this._doc.widthOfString(" ");
+    let width = 0;
+    for (const run of faceRuns(this._doc, text, face)) {
+      if (run.font != null) {
+        this._doc.font(run.font);
+      }
+      width += run.fallback
+        ? fallbackRunWidth(this._doc, run.text)
+        : this._doc.widthOfString(run.text);
+    }
+    if (face != null) {
+      this._doc.font(face);
+    }
+    return cell > 0 && width > 0 ? width / cell : text.length;
   }
 
   printLine(span: PageLine) {
