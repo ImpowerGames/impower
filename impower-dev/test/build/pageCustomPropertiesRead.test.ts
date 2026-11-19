@@ -35,7 +35,7 @@ const readsProperty = (text: string, name: string): boolean => {
   const end = "(?![\\w-])";
   return [
     new RegExp(`var\\(\\s*${escaped}${end}`),
-    new RegExp(`\\(\\s*${escaped}\\s*\\)`),
+    new RegExp(`(?<![^\\s"'\`:])[\\w:\\[\\]&=-]*[a-z0-9]-\\((?:[a-z-]+:)?${escaped}\\)(?![\\w(-])`),
     new RegExp(`getPropertyValue\\(\\s*["'\`]${escaped}["'\`]`),
   ].some((pattern) => pattern.test(text));
 };
@@ -56,6 +56,10 @@ describe("the editor page's own stylesheets", () => {
     expect(readsProperty(".x { gap: var(--a); }", "--a")).toBe(true);
     expect(readsProperty(".x { gap: var( --a, 2px); }", "--a")).toBe(true);
     expect(readsProperty('<div class="gap-(--a)">', "--a")).toBe(true);
+    expect(readsProperty('<div class="flex hover:bg-(color:--a)">', "--a")).toBe(true);
+    expect(readsProperty('<div data-probe="(--a)">', "--a")).toBe(false);
+    expect(readsProperty("call(--a)", "--a")).toBe(false);
+    expect(readsProperty('<div class="gap-(--a)x">', "--a")).toBe(false);
     expect(readsProperty('getComputedStyle(el).getPropertyValue("--a")', "--a")).toBe(true);
     expect(readsProperty(".x { gap: var(--ab); }", "--a")).toBe(false);
   });
