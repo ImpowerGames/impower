@@ -223,6 +223,10 @@ await check("screenshot arguments resolve the derived path and refuse strays", (
   const forwarded = screenshotUiArgs(parseScreenshotArgs(["cog", "--headed", "--step", "preview-settings", "--sd", "probe.sd", "--scrub", "3"], none));
   assert.deepEqual(forwarded, ["--sd", "probe.sd", "--scrub", "3", "--step", "preview-settings", "--shot", path.resolve("cog.png"), "--headed"]);
   assert.deepEqual(parseUiSteps(forwarded), [{ sd: "probe.sd" }, { scrub: 3 }, { step: "preview-settings" }, { shotOf: "page", out: path.resolve("cog.png") }]);
+  const seeded = screenshotUiArgs(parseScreenshotArgs(["cog", "--project", "proj", "--sd", "probe.sd", "--scrub", "3", "--step", "preview-settings"], none));
+  assert.deepEqual(parseUiSteps(seeded), [{ project: "proj" }, { sd: "probe.sd" }, { scrub: 3 }, { step: "preview-settings" }, { shotOf: "page", out: path.resolve("cog.png") }]);
+  const reversed = screenshotUiArgs(parseScreenshotArgs(["cog", "--sd", "probe.sd", "--project", "proj"], none));
+  assert.throws(() => parseUiSteps(reversed), /put every --sd after the last --project/);
   assert.throws(() => parseScreenshotArgs([], none), /needs a name/);
   assert.throws(() => parseScreenshotArgs(["story", "--shot", "x.png"], none), /unknown argument --shot/);
   assert.throws(() => parseScreenshotArgs(["story", "--out-dir"], none), /--out-dir needs a directory/);

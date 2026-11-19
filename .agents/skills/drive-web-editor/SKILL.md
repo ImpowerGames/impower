@@ -32,7 +32,7 @@ Select only the references needed for this run:
 
 The report's `display` field echoes what was applied. Desktop and tablet presets are evidence widths; at phone widths the presets are quick checks only, and the [Android emulator](#android-emulator) route is the bar.
 
-`screenshot <name> [--sd <file>] [--project <dir>] [--scrub <line>] [--step <name>]... [--out-dir <dir>]` loads the editor, seeds and scrubs as `ui` does, runs the [named steps](#named-steps) and saves the page as `<name>[-<viewport>][-<theme>][-<scheme>].png`, such as `story-tablet-chalk-light.png`, so an evidence folder holds one file per combination. `--shot <path>` on `verify` and `ui` writes exactly the path given.
+`screenshot <name> [--project <dir>] [--sd <file>] [--scrub <line>] [--step <name>]... [--out-dir <dir>]` loads the editor, seeds and scrubs as `ui` does (every `--sd` after the last `--project`), runs the [named steps](#named-steps) and saves the page as `<name>[-<viewport>][-<theme>][-<scheme>].png`, such as `story-tablet-chalk-light.png`, so an evidence folder holds one file per combination. `--shot <path>` on `verify` and `ui` writes exactly the path given.
 
 ## Android emulator
 

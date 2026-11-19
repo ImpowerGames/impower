@@ -4347,7 +4347,7 @@ switch (cmd) {
         "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",
         "  ui [steps]            drive the editor's own panels and screens; print a JSON report",
-        "  screenshot <name> [--sd <file>] [--project <dir>] [--scrub <line>] [--step <name>]... [--out-dir <dir>] [--headed]  load the editor, seed and scrub as ui does, run the named steps and screenshot to <name>[-<viewport>][-<scheme>].png",
+        "  screenshot <name> [--project <dir>] [--sd <file>] [--scrub <line>] [--step <name>]... [--out-dir <dir>] [--headed]  load the editor, seed and scrub as ui does, run the named steps and screenshot to <name>[-<viewport>][-<scheme>].png",
         "  seed --project <p>    load a project directory or exported zip into OPFS /local, then reload",
         "  seed --clear          empty OPFS /local (dot entries stay), then reload; with --project, clear first",
         "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
