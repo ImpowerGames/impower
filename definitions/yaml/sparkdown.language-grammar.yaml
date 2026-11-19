@@ -68,6 +68,10 @@ variables:
   SELECTOR_FUNCTION_NAMES: ["has", "not", "is", "where", "host", "host-context"]
   NTH_SELECTOR_FUNCTION_NAMES: ["nth-child", "nth-last-child"]
   SELECTOR_AT_RULE_NAMES: ["container", "layer", "media", "starting-style", "starting_style", "initial"]
+  SELECTOR_WORD_CHAR: '\p{L}\p{N}_-'
+  SELECTOR_WORD_PART_START: '[@][\p{L}\p{N}_]'
+  SELECTOR_WORD: (?:[{{SELECTOR_WORD_CHAR}}]+(?:{{SELECTOR_WORD_PART_START}}[{{SELECTOR_WORD_CHAR}}]*)*)
+  SELECTOR_WORD_GOES_ON: (?:[{{SELECTOR_WORD_CHAR}}]|{{SELECTOR_WORD_PART_START}})
   IDENTIFIER_START_CHAR: '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}-'
   IDENTIFIER_START: "[{{IDENTIFIER_START_CHAR}}]"
@@ -4790,10 +4794,10 @@ repository:
 
   SelectorScopeAtRule:
     # lookaround: a longer state name that starts with the at-rule's name
-    # (`@scope-x`, `@scope_x(a)`) stays `SimpleSelectorFunction`'s or
+    # (`@scope-x`, `@scope_x(a)`, `@scope²(a)`) stays `SimpleSelectorFunction`'s or
     # `UnassignedSelectorAttribute`'s, which must come after this rule since
     # they also read `@scope(`.
-    begin: ([@])(scope)(?!{{IDENTIFIER_GOES_ON}})
+    begin: ([@])(scope)(?!{{SELECTOR_WORD_GOES_ON}})
     beginCaptures:
       1:
         patterns:
@@ -4811,7 +4815,7 @@ repository:
     # lookaround: as for `SelectorScopeAtRule`, a longer state name
     # (`@supports-x`) stays `SimpleSelectorFunction`'s or
     # `UnassignedSelectorAttribute`'s.
-    begin: ([@])(supports)(?!{{IDENTIFIER_GOES_ON}})
+    begin: ([@])(supports)(?!{{SELECTOR_WORD_GOES_ON}})
     beginCaptures:
       1:
         patterns:
@@ -4865,7 +4869,7 @@ repository:
     # lookaround: as for `SelectorScopeAtRule`, a longer state name
     # (`@container-size(sm)`, `@media-x`) stays `SimpleSelectorFunction`'s or
     # `UnassignedSelectorAttribute`'s. The list's own end lets a `-` go on.
-    begin: ([@])({{SELECTOR_AT_RULE_NAMES}})(?!{{IDENTIFIER_GOES_ON}})
+    begin: ([@])({{SELECTOR_AT_RULE_NAMES}})(?!{{SELECTOR_WORD_GOES_ON}})
     beginCaptures:
       1:
         patterns:
@@ -4922,12 +4926,12 @@ repository:
   SelectorCssWord:
     tag: string
     name: string.unquoted.css.sd
-    match: ([{{IDENTIFIER_END_CHAR}}]+)
+    match: ({{SELECTOR_WORD}})
 
   SelectorCssPunctuation:
     tag: operator
     name: keyword.operator.css.sd
-    match: ([^\s(){{IDENTIFIER_END_CHAR}}])
+    match: ([^\s(){{SELECTOR_WORD_CHAR}}])
 
   ComponentName:
     patterns:
@@ -4978,7 +4982,7 @@ repository:
           - { include: "#PunctuationParenClose" }
 
   SelectorPseudoClass:
-    match: ([:]{1,2})([{{IDENTIFIER_END_CHAR}}]+)
+    match: ([:]{1,2})([{{SELECTOR_WORD_CHAR}}]+)
     captures:
       1:
         patterns:

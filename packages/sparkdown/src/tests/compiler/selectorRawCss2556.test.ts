@@ -111,7 +111,15 @@ const RAW_CSS_KEYS = [
   "@lang(--x)",
   "@supports selectorselector(card)",
   "@supports (display: grid) and selectors(card)",
+  "@supports ²selector(card)",
+  "@supports Ⅳselector(card)",
+  "@scope²(card)",
+  "&:²where(label)",
+  "(foo@scope(card))",
+  "(foo@supports selector(card))",
 ];
+
+const NOT_A_STATE_KEYS = ["(foo@media (min-width: sm))", "(foo@scope(card))", "(foo@supports selector(card))"];
 
 const SELECTOR_LIST_KEYS: [key: string, components: string[]][] = [
   ["@scope (card) to (icon)", ["card", "icon"]],
@@ -156,6 +164,10 @@ describe("raw CSS in a style block's selector key (I-2556)", () => {
         expect(await vscodeComponentOrInvalidChars(key)).toBe(components.join(""));
       });
     }
+  });
+
+  test.each(NOT_A_STATE_KEYS)("reads the joined word in %s whole, opening no state", (key) => {
+    expect(treeLeaves(key).filter(([name]) => name === "SelectorStateName")).toEqual([]);
   });
 
   test.each([

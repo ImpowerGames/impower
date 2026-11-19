@@ -125,6 +125,10 @@
       "starting_style",
       "initial"
     ],
+    "SELECTOR_WORD_CHAR": "\\p{L}\\p{N}_-",
+    "SELECTOR_WORD_PART_START": "[@][\\p{L}\\p{N}_]",
+    "SELECTOR_WORD": "(?:[{{SELECTOR_WORD_CHAR}}]+(?:{{SELECTOR_WORD_PART_START}}[{{SELECTOR_WORD_CHAR}}]*)*)",
+    "SELECTOR_WORD_GOES_ON": "(?:[{{SELECTOR_WORD_CHAR}}]|{{SELECTOR_WORD_PART_START}})",
     "IDENTIFIER_START_CHAR": "_\\p{L}",
     "IDENTIFIER_END_CHAR": "0-9_\\p{L}-",
     "IDENTIFIER_START": "[{{IDENTIFIER_START_CHAR}}]",
@@ -7563,7 +7567,7 @@
       ]
     },
     "SelectorScopeAtRule": {
-      "begin": "([@])(scope)(?!(?:[0-9_\\p{L}-]|[@][0-9_\\p{L}]))",
+      "begin": "([@])(scope)(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7592,7 +7596,7 @@
       "end": "(?=[)])|$"
     },
     "SelectorSupportsAtRule": {
-      "begin": "([@])(supports)(?!(?:[0-9_\\p{L}-]|[@][0-9_\\p{L}]))",
+      "begin": "([@])(supports)(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7680,7 +7684,7 @@
       "end": "(?=$|.)"
     },
     "SelectorAtRule": {
-      "begin": "([@])((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:container|layer|media|starting-style|starting_style|initial)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?!(?:[0-9_\\p{L}-]|[@][0-9_\\p{L}]))",
+      "begin": "([@])((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:container|layer|media|starting-style|starting_style|initial)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7795,12 +7799,12 @@
     "SelectorCssWord": {
       "tag": "string",
       "name": "string.unquoted.css.sd",
-      "match": "([0-9_\\p{L}-]+)"
+      "match": "((?:[\\p{L}\\p{N}_-]+(?:[@][\\p{L}\\p{N}_][\\p{L}\\p{N}_-]*)*))"
     },
     "SelectorCssPunctuation": {
       "tag": "operator",
       "name": "keyword.operator.css.sd",
-      "match": "([^\\s()0-9_\\p{L}-])"
+      "match": "([^\\s()\\p{L}\\p{N}_-])"
     },
     "ComponentName": {
       "patterns": [
@@ -7888,7 +7892,7 @@
       }
     },
     "SelectorPseudoClass": {
-      "match": "([:]{1,2})([0-9_\\p{L}-]+)",
+      "match": "([:]{1,2})([\\p{L}\\p{N}_-]+)",
       "captures": {
         "1": {
           "patterns": [
