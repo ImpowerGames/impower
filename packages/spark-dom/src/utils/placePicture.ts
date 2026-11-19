@@ -92,6 +92,7 @@ interface Travel extends PlayedTravel {
 
 interface ScheduledTravel extends PlayedTravel {
   to: PictureView;
+  write: object;
 }
 
 const travels = new WeakMap<Element, Travel>();
@@ -135,11 +136,20 @@ const endCurrentTravel = (el: Element) => {
   }
 };
 
-const endScheduledTravels = (el: Element) => {
+const endScheduledTravels = (el: Element, keep?: object) => {
+  const kept: ScheduledTravel[] = [];
   for (const travel of scheduled.get(el) ?? []) {
-    stop(travel);
+    if (keep && travel.write === keep) {
+      kept.push(travel);
+    } else {
+      stop(travel);
+    }
   }
-  scheduled.delete(el);
+  if (kept.length > 0) {
+    scheduled.set(el, kept);
+  } else {
+    scheduled.delete(el);
+  }
 };
 
 const endTravel = (el: Element) => {
@@ -221,8 +231,9 @@ export const travelPicture = (
   el: HTMLElement,
   framing: PictureFramingValues | undefined,
   play: (keyframes: Keyframe[]) => PlayedTravel | undefined,
+  write: object,
 ) => {
-  endScheduledTravels(el);
+  endScheduledTravels(el, write);
   beginTravel(el, getPictureView(framing), play);
 };
 
@@ -230,8 +241,10 @@ export const scheduleTravel = (
   el: HTMLElement,
   framing: PictureFramingValues | undefined,
   travel: PlayedTravel,
+  write: object,
 ): (() => void) => {
-  const pending: ScheduledTravel = { ...travel, to: getPictureView(framing) };
+  endScheduledTravels(el, write);
+  const pending: ScheduledTravel = { ...travel, to: getPictureView(framing), write };
   scheduled.set(el, [...(scheduled.get(el) ?? []), pending]);
   return () => {
     const waiting = scheduled.get(el) ?? [];

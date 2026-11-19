@@ -4991,7 +4991,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const framing = view.framing;
           const out: WriteImageInstruction = { control: e.control };
           if (e.control === "animate" && e.to && view.picture && !e.assets?.length) {
-            const destination = $.getFraming(e.to);
+            const destination = instant ? framing : $.getFraming(e.to);
             out.travel = {
               ...(destination ? { framing: destination } : {}),
               timing: $.getTravelTiming(e, instant),

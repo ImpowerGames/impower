@@ -162,6 +162,22 @@ scene crossed
   Moving.
 end
 
+scene immediate_after_scheduled
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 2s after 2s ease linear]][[animate backdrop to center over 1s ease linear]]
+  Moving.
+end
+
+scene replaced_waiting
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 2s after 3s ease linear]]
+  Waiting to travel.
+  [[animate backdrop to sofa over 1s ease linear]]
+  A later line travels first.
+end
+
 scene later
   [[show backdrop BG at right]]
   [[show portrait P]]
@@ -178,6 +194,7 @@ const RIGHT = { translate: "calc(100cqw - 100%) calc(50cqh - 50%)", scale: "1" }
 const LEFT = { translate: "0px calc(50cqh - 50%)", scale: "1" };
 const SOFA = { translate: "calc(60cqw - 62%) calc(100cqh - 110%)", scale: "1.2" };
 const QUARTER_TO_LEFT = { translate: "calc(75cqw - 75%) calc(50cqh - 50%)", scale: "1" };
+const CENTER = { translate: "calc(50cqw - 50%) calc(50cqh - 50%)", scale: "1" };
 const THREE_QUARTERS_TO_LEFT = { translate: "calc(25cqw - 25%) calc(50cqh - 50%)", scale: "1" };
 
 const viewOf = (el: HTMLElement) => {
@@ -430,6 +447,41 @@ describe("a layer's picture travels to a framing (I-2481)", () => {
     expect(viewOf(backdrop!)).toMatchObject({ progress: 0.5, to: LEFT });
     await advance(1000);
     expect(placed(backdrop!)).toEqual(LEFT);
+  });
+
+  test("an undelayed to written after a delayed one on the same line runs first, then the delayed one", async () => {
+    const h = await start("immediate_after_scheduled");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    await advance(500);
+    expect(viewOf(backdrop!)).toEqual({ progress: 0.5, from: RIGHT, to: CENTER });
+    await advance(1500);
+    await advance(1000);
+    expect(viewOf(backdrop!)).toEqual({ progress: 0.5, from: CENTER, to: LEFT });
+    await advance(1000);
+    expect(placed(backdrop!)).toEqual(LEFT);
+  });
+
+  test("travels written out of start order presented at once rest where the timed line ends", async () => {
+    const h = await start("out_of_order");
+    await play(h, true);
+    await play(h, true);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    expect(travelsOf(backdrop!).filter((a) => a.playState === "running")).toEqual([]);
+    expect(placed(backdrop!)).toEqual(LEFT);
+  });
+
+  test("a later line's to replaces an earlier line's travel still waiting to start", async () => {
+    const h = await start("replaced_waiting");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    await advance(1000);
+    await play(h, false);
+    await advance(3000);
+    expect(travelsOf(backdrop!).filter((a) => a.playState === "running")).toEqual([]);
+    expect(placed(backdrop!)).toEqual(SOFA);
   });
 
   test("two travels whose starts fall in one frame take effect in start order", async () => {

@@ -196,6 +196,8 @@ end
     expect(await restored(h, "backdrop")).toEqual([LEFT]);
     const tied = await after(3, false, createHarness(source, 0, { assets: ASSETS }));
     expect(await restored(tied, "backdrop")).toEqual([LEFT]);
+    const instant = await after(2, true, createHarness(source, 0, { assets: ASSETS }));
+    expect(lastWrite(instant, "backdrop")!.instructions.map((i: any) => i.travel.framing)).toEqual([LEFT, LEFT]);
   });
 
   it("the framing the layer is going to survives as the layer's state", async () => {

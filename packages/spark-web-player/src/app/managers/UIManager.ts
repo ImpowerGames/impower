@@ -2098,10 +2098,12 @@ export default class UIManager extends Manager {
             for (const pictureEl of pictureEls) {
               if (mover && delayed) {
                 const animation = mover.addKeyframes(pictureEl, [], timing);
-                const start = scheduleTravel(pictureEl, travel.framing, {
-                  animation,
-                  drop: () => mover.remove(animation),
-                });
+                const start = scheduleTravel(
+                  pictureEl,
+                  travel.framing,
+                  { animation, drop: () => mover.remove(animation) },
+                  instructions,
+                );
                 starting.push({ pictureEl, animation, start });
                 continue;
               }
@@ -2111,7 +2113,7 @@ export default class UIManager extends Manager {
                 }
                 const animation = mover.addKeyframes(pictureEl, keyframes, timing);
                 return { animation, drop: () => mover.remove(animation) };
-              });
+              }, instructions);
             }
           }
           if (instruction.control === "show") {
