@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
-import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
+import { createHarness, flattenMessages, flushMicrotasks } from "./harness/uiTestHarness";
 
 const ASSETS: File[] = [
   { uri: "inmemory:///bg.png", type: "image", name: "bg", ext: "png", src: "/file:/proj/bg.png?v=1" },
@@ -146,6 +146,24 @@ describe("a layer's picture travels to a framing with animate … to (I-2481)", 
     const state = (h.game.module.ui as any)._state.image?.portrait ?? [];
     expect(JSON.stringify(state)).not.toContain("sofa");
     expect(await restored(h, "portrait")).toEqual(undefined);
+  });
+
+  it("to on a layer that shows no picture sends nothing and leaves the layer hidden", async () => {
+    const h = await after(5);
+    const ui = h.game.module.ui as any;
+    const portraitIds = new Set(ui.findElements("portrait", true).map((el: any) => el.id));
+    expect(portraitIds.size).toBeGreaterThan(0);
+    const mark = h.messages.length;
+    const sixth = h.nextBeat()!;
+    expect(sixth.image?.portrait).toEqual([expect.objectContaining({ control: "animate", to: "sofa" })]);
+    await h.display(sixth, false);
+    await flushMicrotasks();
+    const sent = flattenMessages(h.messages.slice(mark));
+    expect(sent.filter((m: any) => m?.method === "ui/write-image" && m.params?.target === "portrait")).toEqual([]);
+    expect(
+      sent.filter((m: any) => portraitIds.has(m?.params?.element) && m.params?.style && "display" in m.params.style),
+    ).toEqual([]);
+    expect(ui._state.image?.portrait).toBeUndefined();
   });
 
   it("a cleared layer kept for a beat that only animates it comes back with its framing and travels from there", async () => {

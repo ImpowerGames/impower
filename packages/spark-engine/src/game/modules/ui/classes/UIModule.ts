@@ -5332,10 +5332,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
         speaker?: string,
       ) {
-        const sequence = events.map((event) =>
-          event.assets?.length ? { ...event, speaker: speaker ?? "" } : event,
-        );
         const view = this.viewAfter($._state.image?.[target] ?? []);
+        let reached = view;
+        const sequence = events
+          .filter((event) => {
+            const onlyTravels = event.control === "animate" && event.to && !event.with && !event.assets?.length;
+            const kept = !onlyTravels || reached.picture;
+            reached = this.nextView(event, reached);
+            return kept;
+          })
+          .map((event) =>
+            event.assets?.length ? { ...event, speaker: speaker ?? "" } : event,
+          );
+        if (sequence.length === 0 && events.length > 0) {
+          return;
+        }
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, sequence, instant, time, view);

@@ -178,6 +178,13 @@ scene replaced_waiting
   A later line travels first.
 end
 
+scene empty_layer
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate portrait to sofa over 1s]]
+  Nothing to move.
+end
+
 scene later
   [[show backdrop BG at right]]
   [[show portrait P]]
@@ -496,6 +503,19 @@ describe("a layer's picture travels to a framing (I-2481)", () => {
     expect(keyframesOf(running[0]!).at(-1)).toEqual(LEFT);
     await advance(4000);
     expect(placed(backdrop!)).toEqual(LEFT);
+  });
+
+  test("to on a layer that shows no picture leaves the layer as it was", async () => {
+    const h = await start("empty_layer");
+    await play(h, true);
+    const layer = h.overlay.querySelector(".portrait") as HTMLElement;
+    expect(layer).toBeTruthy();
+    const before = layer.getAttribute("style");
+    expect(before).toContain("display: none");
+    await play(h, false);
+    await advance(1000);
+    expect(layer.getAttribute("style")).toBe(before);
+    expect(pictureEls(h.overlay, "portrait")).toEqual([]);
   });
 
   test("two travels on one line run only the last, from the view on screen", async () => {
