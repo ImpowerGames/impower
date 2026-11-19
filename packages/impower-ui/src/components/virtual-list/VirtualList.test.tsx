@@ -136,6 +136,48 @@ describe("VirtualList", () => {
     expect(scroller!.scrollTop).toBe(10 * rowHeight);
   });
 
+  it("reveals a row wholly inside the view, counting the list's offset in the scroller", async () => {
+    const rowHeight = VIRTUAL_LIST_ROW_HEIGHT.default;
+    const padding = 8;
+    host = document.body.appendChild(document.createElement("div"));
+    let scroller: HTMLDivElement | null = null;
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return this === scroller ? rowHeight * 4 : 0;
+      },
+    });
+    const offsetTop = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetTop")!;
+    Object.defineProperty(HTMLElement.prototype, "offsetTop", {
+      configurable: true,
+      get() {
+        return scroller && this === scroller.firstElementChild ? padding : 0;
+      },
+    });
+    const list = (revealIndex?: number) => (
+      <VirtualList
+        items={ITEMS}
+        getKey={(item) => item}
+        renderItem={(item) => <span>{item}</span>}
+        revealIndex={revealIndex}
+        listRef={(element) => {
+          scroller = element;
+        }}
+      />
+    );
+    try {
+      await act(async () => render(list(), host!));
+      await act(async () => render(list(200), host!));
+      expect(scroller!.scrollTop + rowHeight * 4).toBe(padding + 201 * rowHeight);
+      await act(async () => render(list(10), host!));
+      expect(scroller!.scrollTop).toBe(padding + 10 * rowHeight);
+      await act(async () => render(list(0), host!));
+      expect(scroller!.scrollTop).toBe(0);
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, "offsetTop", offsetTop);
+    }
+  });
+
   it("reveals the same row again on a new reveal request", async () => {
     const rowHeight = VIRTUAL_LIST_ROW_HEIGHT.default;
     host = document.body.appendChild(document.createElement("div"));

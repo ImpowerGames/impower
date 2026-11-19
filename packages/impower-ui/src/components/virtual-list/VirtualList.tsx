@@ -199,10 +199,11 @@ export default function VirtualList<T>({
       revealedRequest.current = revealRequest;
     }
     const line = Math.floor(revealIndex / columns);
-    const top = topOf(line);
-    const bottom = grid ? top + cellHeight : topOf(line + 1);
+    const origin = (element.firstElementChild as HTMLElement | null)?.offsetTop ?? 0;
+    const top = topOf(line) + origin;
+    const bottom = (grid ? topOf(line) + cellHeight : topOf(line + 1)) + origin;
     if (top < element.scrollTop) {
-      element.scrollTop = top;
+      element.scrollTop = line === 0 ? 0 : top;
     } else if (bottom > element.scrollTop + element.clientHeight) {
       element.scrollTop = bottom - element.clientHeight;
     }
