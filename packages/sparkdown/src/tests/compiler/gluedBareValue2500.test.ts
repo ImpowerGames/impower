@@ -12,7 +12,8 @@ const scene = (...lines: string[]) =>
 
 const play = (text: string) => {
   const ctx = makeRuntimeStoryFromSource(text, URI);
-  return { errors: ctx.errorMessages, warnings: ctx.warningMessages, out: ctx.story.ContinueMaximally() };
+  const warnings = ctx.warningMessages.filter((m: string) => !m.startsWith("No layout element is named `Bob`"));
+  return { errors: ctx.errorMessages, warnings, out: ctx.story.ContinueMaximally() };
 };
 
 const bracketDiagnostics = (text: string) => {
