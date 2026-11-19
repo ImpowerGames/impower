@@ -4558,6 +4558,48 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return element.findChildren(tag);
   }
 
+  protected _warnedWriteTargets = new Set<string>();
+
+  protected warnUndeclaredWriteTarget(target: string): void {
+    const name = target.split("#")[0]?.split(".").at(-1);
+    const sparkle = this._game.program?.sparkle;
+    if (!name || !sparkle?.layouts || this._warnedWriteTargets.has(name)) {
+      return;
+    }
+    const content = ["text", "image", "stroke", "mask"];
+    const declares = (value: unknown): boolean => {
+      if (Array.isArray(value)) {
+        return value.some(declares);
+      }
+      if (!value || typeof value !== "object") {
+        return false;
+      }
+      const node = value as Record<string, unknown>;
+      if (
+        node["kind"] === "element" &&
+        [node["tag"], node["name"]].some(
+          (n) => n === name && !content.includes(n),
+        )
+      ) {
+        return true;
+      }
+      return Object.values(node).some(
+        (v) => v !== null && typeof v === "object" && declares(v),
+      );
+    };
+    if (
+      [sparkle.layouts, sparkle.screens, sparkle.components].some((trees) =>
+        declares(Object.values(trees ?? {})),
+      )
+    ) {
+      return;
+    }
+    this._warnedWriteTargets.add(name);
+    this._game.warn(
+      `No layout element is named \`${name}\`, so the line written to it draws nothing.`,
+    );
+  }
+
   findIds(target: string): string[] {
     return this.findElements(target, true).map((c) => c.id);
   }
@@ -4811,6 +4853,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         $.noteContent("text", targetEls, !sequence);
         if (targetEls.length === 0) {
+          if (sequence) {
+            $.warnUndeclaredWriteTarget(target);
+          }
           return;
         }
         $.flushUIBatch();
