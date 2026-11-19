@@ -24,26 +24,47 @@ const mount = async (node: ComponentChild): Promise<HTMLDivElement> => {
   return host;
 };
 
-const WEB_VALUES: [string, string][] = [
-  ["--tab-height", "48px"],
-  ["--tab-padding-x", "20px"],
-  ["--tab-gap", "8px"],
-  ["--tab-font-size", "14px"],
-  ["--panel-head-height", "44px"],
-  ["--panel-head-padding-x", "10px"],
-  ["--panel-head-gap", "4px"],
-  ["--list-row-compact-height", "44px"],
-  ["--list-row-compact-padding-x", "8px"],
-  ["--list-row-compact-padding-y", "4px"],
-  ["--list-row-compact-gap", "10px"],
-  ["--list-row-compact-font-size", "12px"],
-  ["--control-size", "44px"],
-  ["--popover-width", "360px"],
+const WEB_VALUES: [token: string, value: string, replaced: string, property: string][] = [
+  ["--tab-height", "3rem", "min-h-12", "min-height"],
+  ["--tab-padding-x", "1.25rem", "px-5", "padding-inline"],
+  ["--tab-gap", "0.5rem", "gap-x-2", "column-gap"],
+  ["--tab-font-size", "0.875rem", "text-sm", "font-size"],
+  ["--panel-head-height", "2.75rem", "h-11", "height"],
+  ["--panel-head-padding-x", "0.625rem", "px-2.5", "padding-inline"],
+  ["--panel-head-gap", "0.25rem", "gap-1", "gap"],
+  ["--list-row-compact-height", "2.75rem", "min-h-11", "min-height"],
+  ["--list-row-compact-padding-x", "0.5rem", "px-2", "padding-inline"],
+  ["--list-row-compact-padding-y", "0.25rem", "py-1", "padding-block"],
+  ["--list-row-compact-gap", "0.625rem", "gap-2.5", "gap"],
+  ["--list-row-compact-font-size", "12px", "text-[12px]/[1.4]", "font-size"],
+  ["--control-size", "2.75rem", "h-11", "height"],
+  ["--popover-width", "360px", "w-[360px]", "width"],
 ];
 
+const TAILWIND_SPACING_REM = 0.25;
+const TAILWIND_TEXT_SM = "0.875rem";
+
+const rootRelative = (declared: string): string => {
+  const spacing = /^calc\(var\(--spacing\)\s*\*\s*([\d.]+)\)$/.exec(declared);
+  if (spacing) {
+    return `${Number(spacing[1]) * TAILWIND_SPACING_REM}rem`;
+  }
+  if (declared === "var(--spacing)") {
+    return `${TAILWIND_SPACING_REM}rem`;
+  }
+  return declared === "var(--text-sm)" ? TAILWIND_TEXT_SM : declared;
+};
+
 describe("size tokens", () => {
-  it.each(WEB_VALUES)("declares %s at the web editor's %s", (token, value) => {
+  it.each(WEB_VALUES)("declares %s at %s", (token, value) => {
     expect(themeTokens().get(token)).toBe(value);
+  });
+
+  it.each(WEB_VALUES)("keeps %s at %s, the same root-relative length as %s", async (token, _value, replaced, property) => {
+    const root = await mount(<div class={replaced} />);
+    const declared = (await declaredStyle(root.firstElementChild!))(property);
+    expect(declared, `${replaced} ${property}`).toBeDefined();
+    expect(themeTokens().get(token)).toBe(rootRelative(declared!));
   });
 
   const expectReads = async (

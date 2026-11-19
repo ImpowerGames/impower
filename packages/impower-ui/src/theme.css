@@ -11,19 +11,19 @@
   --checker-light: #ffffff;
   --slider-thumb: #ffffff;
   --slider-thumb-shadow: 0 0 0 1px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.35);
-  --tab-height: 48px;
-  --tab-padding-x: 20px;
-  --tab-gap: 8px;
-  --tab-font-size: 14px;
-  --panel-head-height: 44px;
-  --panel-head-padding-x: 10px;
-  --panel-head-gap: 4px;
-  --list-row-compact-height: 44px;
-  --list-row-compact-padding-x: 8px;
-  --list-row-compact-padding-y: 4px;
-  --list-row-compact-gap: 10px;
+  --tab-height: 3rem;
+  --tab-padding-x: 1.25rem;
+  --tab-gap: 0.5rem;
+  --tab-font-size: 0.875rem;
+  --panel-head-height: 2.75rem;
+  --panel-head-padding-x: 0.625rem;
+  --panel-head-gap: 0.25rem;
+  --list-row-compact-height: 2.75rem;
+  --list-row-compact-padding-x: 0.5rem;
+  --list-row-compact-padding-y: 0.25rem;
+  --list-row-compact-gap: 0.625rem;
   --list-row-compact-font-size: 12px;
-  --control-size: 44px;
+  --control-size: 2.75rem;
   --popover-width: 360px;
 }
 
