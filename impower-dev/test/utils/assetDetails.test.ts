@@ -148,11 +148,11 @@ describe("the inspector's head", () => {
     expect(NOT_USED_NOTES.font).toBe("No style uses it yet.");
     expect(NOT_USED_NOTES.other).toBe("Nothing in the story refers to it.");
     expect(UNWRITABLE_NAME_NOTE).toBe(
-      "Nothing shows it yet. A script can't write this name: an @ must sit between two letters, digits or _, and a name can't start with ~. Rename the file to use it.",
+      "Nothing shows it yet. A script can't write this name: an @ must sit between two letters, digits or _, and a name can't hold ~. Rename the file to use it.",
     );
   });
 
-  it.each(["@foo", "foo@", "@", "~foo", "a@@b", "a@-b", "é@", "@é"])(
+  it.each(["@foo", "foo@", "@", "~foo", "foo~bar", "a@@b", "a@-b", "é@", "@é"])(
     "tells the author to rename an unused image named %s, which no script can write",
     (name) => {
       const target = asset(`Assets/Images/${name}.png`, "image", { name });
@@ -184,7 +184,7 @@ describe("the inspector's head", () => {
     return notUsedNote(target, isStacked(row!));
   };
 
-  it.each([["a@-b.png"], ["a@@b.png"], ["@foo.png"], ["~foo.png"], ["@foo~face.png"]])(
+  it.each([["a@-b.png"], ["a@@b.png"], ["@foo.png"], ["~foo.png"], ["foo~bar.png"], ["@foo~face.png"], ["@foo face.png"]])(
     "tells the author to rename the Assets row the page builds from %s alone",
     (file) => {
       expect(noteOfRow(file)).toBe(UNWRITABLE_NAME_NOTE);

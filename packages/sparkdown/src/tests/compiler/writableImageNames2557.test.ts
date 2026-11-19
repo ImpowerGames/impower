@@ -52,6 +52,8 @@ const NAMES = [
   "foo@",
   "@",
   "~foo",
+  "foo~bar",
+  "foo~",
   "a@@b",
   "a@-b",
   "é@",

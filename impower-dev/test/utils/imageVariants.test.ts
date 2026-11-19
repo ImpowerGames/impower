@@ -191,8 +191,9 @@ describe("the snippet the tester offers to copy or insert", () => {
     expect(snippet(["a@-b.png"])).toBeNull();
     expect(snippet(["a@@b.png"])).toBeNull();
     expect(snippet(["@foo.png"])).toBeNull();
-    expect(snippet(["@foo.png", "@foo~face.happy.png"], { face: "happy" }, "portrait")).toBeNull();
+    expect(snippet(["@foo.png", "@foo face.happy.png"], { face: "happy" }, "portrait")).toBeNull();
     expect(snippet(["~foo.png"])).toBeNull();
+    expect(snippet(["foo~bar.png"])).toBeNull();
     expect(snippet(["a.png", "a@-b.png"], { [ALTERNATE]: "-b" })).toBeNull();
   });
 
@@ -201,5 +202,6 @@ describe("the snippet the tester offers to copy or insert", () => {
     expect(snippet(["é@x.png"])).toBe("[[show backdrop é@x]]");
     expect(snippet(["a.png", "a@-b.png"])).toBe("[[show backdrop a]]");
     expect(snippet(["ava.png", "ava@night.png"], { [ALTERNATE]: "night" }, "portrait")).toBe("[[ava@night]]");
+    expect(snippet(["ava.png", "ava face.happy.png"], { face: "happy" }, "portrait")).toBe("[[ava:happy]]");
   });
 });
