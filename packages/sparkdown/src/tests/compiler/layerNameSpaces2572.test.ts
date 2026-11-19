@@ -76,7 +76,10 @@ describe("a layer name is words separated by spaces (#2572)", () => {
   });
 
   it("reads a run of spaces, spaces at the ends and a tab as one separator", () => {
-    const expected = parsed("pupils eyes.open default");
+    const expected = {
+      label: "pupils", conditions: [{ group: "eyes", options: ["open"] }], default: true, codes: [],
+    };
+    expect(parsed("pupils eyes.open default")).toEqual(expected);
     expect(parsed("pupils   eyes.open  default")).toEqual(expected);
     expect(parsed("  pupils eyes.open default  ")).toEqual(expected);
     expect(parsed("pupils\teyes.open\tdefault")).toEqual(expected);
