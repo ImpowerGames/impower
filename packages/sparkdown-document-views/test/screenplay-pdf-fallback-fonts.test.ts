@@ -175,6 +175,38 @@ describe("the Screenplay PDF's fallback fonts", () => {
     expect(joined).toBeCloseTo(split, 6);
   });
 
+  it("start the text after a fallback run that shaping widens where the run's drawing ends, inside a span and across spans", async () => {
+    const source = resolve(__dirname, "../../sparkdown-screenplay-pdf/src");
+    const { printTextbox } = await import(pathToFileURL(resolve(source, "textbox-for-pdfkit/src/utils/printTextbox.ts")).href);
+    const { registerFallbackFonts } = await import(pathToFileURL(resolve(source, "utils/fallbackFonts.ts")).href);
+    const WIDENING = 6;
+    const endOf = (parts: { text: string; font: string }[]) => {
+      const doc = new PDFDocument({ font: "", size: "LETTER" });
+      const faces = { normal: FONTS.normal, bold: FONTS.bold };
+      for (const [name, bytes] of Object.entries(faces)) doc.registerFont(name, bytes);
+      registerFallbackFonts(doc, faces, FALLBACKS);
+      doc.font("normal").fontSize(12);
+      const widthOfString = doc.widthOfString.bind(doc);
+      vi.spyOn(doc, "widthOfString").mockImplementation(((value: string, options?: PDFKit.Mixins.TextOptions) =>
+        widthOfString(value, options) + (value === "東京" ? WIDENING : 0)) as typeof doc.widthOfString);
+      const xs = new Map<string, number>();
+      const text = doc.text.bind(doc);
+      vi.spyOn(doc, "text").mockImplementation(((value: string, x: number, ...rest: unknown[]) => {
+        xs.set(value, x);
+        return text(value, x, ...(rest as []));
+      }) as typeof doc.text);
+      printTextbox(doc, parts, 72, 72, 400, { baseline: "top" });
+      return { start: xs.get("東京")!, end: xs.get("END")! };
+    };
+    const joined = endOf([{ text: "東京END", font: "normal" }]);
+    const split = endOf([
+      { text: "東京", font: "normal" },
+      { text: "END", font: "bold" },
+    ]);
+    expect(joined.end).toBeCloseTo(joined.start + 24 + WIDENING, 6);
+    expect(split.end).toBeCloseTo(joined.end, 6);
+  });
+
   it("underline a row's fallback runs on the line its Courier runs are underlined on, end to end", async () => {
     const source = resolve(__dirname, "../../sparkdown-screenplay-pdf/src");
     const { printTextbox } = await import(pathToFileURL(resolve(source, "textbox-for-pdfkit/src/utils/printTextbox.ts")).href);

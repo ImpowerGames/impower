@@ -1,6 +1,7 @@
 import type PDFKit from "pdfkit";
 import { create } from "fontkit";
 import { type FallbackFontFaces, fallbackScriptOf, RIGHT_TO_LEFT } from "./fallbackFontSources";
+import { noteUnprintable } from "./unprintableCharacters";
 
 export interface FaceRun {
   text: string;
@@ -188,6 +189,56 @@ export const decorateFallbackRun = (
     doc.moveTo(x, y + lineHeight / 2).lineTo(x + width, y + lineHeight / 2).stroke();
   }
   doc.restore();
+};
+
+export interface FaceRunStyle {
+  link?: string;
+  lineBreak?: boolean;
+  oblique?: number;
+  underline?: boolean;
+  strike?: boolean;
+}
+
+export const drawFaceRuns = (
+  doc: PDFKit.PDFDocument,
+  text: string,
+  x: number,
+  y: number,
+  font: string | undefined,
+  style: FaceRunStyle,
+  baseline: string | number,
+  fontSize: number,
+): number => {
+  let runX = x;
+  const runs = faceRuns(doc, text, font);
+  for (const run of runs) {
+    const primary = run.fallback ? font : undefined;
+    const runBaseline = primary != null ? baselineShift(doc, primary, baseline, fontSize) : baseline;
+    if (run.font != null) {
+      doc.font(run.font);
+    }
+    noteUnprintable(doc, run.text);
+    const options: PDFKit.Mixins.TextOptions = {
+      link: style.link,
+      align: "left",
+      ...(style.lineBreak != null ? { lineBreak: style.lineBreak } : {}),
+      baseline: runBaseline as keyof PDFKit.Mixins.TextOptions["baseline"],
+      oblique: run.fallback ? fallbackOblique(font, style.oblique) : style.oblique,
+      underline: run.fallback ? false : style.underline,
+      strike: run.fallback ? false : style.strike,
+    };
+    doc.text(run.text, runX, y, options);
+    const drawn = doc.widthOfString(run.text, options);
+    const advance = run.fallback ? Math.max(fallbackRunWidth(doc, run.text), drawn) : drawn;
+    if (primary != null) {
+      decorateFallbackRun(doc, primary, runX, y, advance, style);
+    }
+    runX += advance;
+  }
+  if (font != null && runs.some((run) => run.fallback)) {
+    doc.font(font);
+  }
+  return runX;
 };
 
 interface FontMetrics {

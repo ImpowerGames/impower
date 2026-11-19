@@ -6,14 +6,7 @@ import { TextOptions } from "../types/TextOptions";
 import { wrapTextbox } from "./wrapTextbox";
 import { getFontAscent } from "./fontHandler";
 import { drawEmojiChunk, getEmojiProvider } from "../../../emoji/emojiText";
-import { noteUnprintable } from "../../../utils/unprintableCharacters";
-import {
-  baselineShift,
-  faceRuns,
-  decorateFallbackRun,
-  fallbackOblique,
-  fallbackRunWidth,
-} from "../../../utils/fallbackFonts";
+import { drawFaceRuns } from "../../../utils/fallbackFonts";
 
 export const printTextbox = (
   doc: PDFKit.PDFDocument,
@@ -59,6 +52,7 @@ const printLines = (
     }
     let xPosition = getLineStartXPosition(line, width, posX);
     line.texts.forEach((textPart) => {
+      let drawnEnd = xPosition;
       if (textPart.font != null) {
         doc.font(textPart.font);
       }
@@ -88,44 +82,19 @@ const printLines = (
           textPart.fontSize ??
           (doc as unknown as { _fontSize?: number })._fontSize ??
           12;
-        let runX = xPosition;
-        const runs = faceRuns(doc, textPart.text, textPart.font);
-        for (const [runIndex, run] of runs.entries()) {
-          const runBaseline =
-            run.fallback && textPart.font != null
-              ? baselineShift(doc, textPart.font, baseline, fontSize)
-              : baseline;
-          if (run.font != null) {
-            doc.font(run.font);
-          }
-          noteUnprintable(doc, run.text);
-          const options: PDFKit.Mixins.TextOptions = {
-            link: textPart.link,
-            align: "left",
-            baseline: runBaseline as keyof PDFKit.Mixins.TextOptions["baseline"],
-            oblique: run.fallback
-              ? fallbackOblique(textPart.font, textPart.oblique)
-              : textPart.oblique,
-            underline: run.fallback ? false : textPart.underline,
-            strike: run.fallback ? false : textPart.strike,
-          };
-          doc.text(run.text, runX, yPosition, options);
-          const runWidth = run.fallback
-            ? fallbackRunWidth(doc, run.text)
-            : runIndex < runs.length - 1
-              ? doc.widthOfString(run.text, options)
-              : 0;
-          if (run.fallback && textPart.font != null) {
-            decorateFallbackRun(doc, textPart.font, runX, yPosition, runWidth, textPart);
-          }
-          runX += runWidth;
-        }
-        if (runs.some((run) => run.fallback) && textPart.font != null) {
-          doc.font(textPart.font);
-        }
+        drawnEnd = drawFaceRuns(
+          doc,
+          textPart.text,
+          xPosition,
+          yPosition,
+          textPart.font,
+          textPart,
+          baseline,
+          fontSize,
+        );
       }
       if (textPart.width != null) {
-        xPosition += textPart.width;
+        xPosition = Math.max(xPosition + textPart.width, drawnEnd);
       }
     });
   });

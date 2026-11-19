@@ -32,13 +32,8 @@ import {
   type TitleRegionHeights,
   titlePageLayout,
 } from "@impower/sparkdown-screenplay/src/utils/titlePageLayout";
-import { noteUnprintable } from "../utils/unprintableCharacters";
-import {
-  baselineShift,
-  currentFaceName,
-  faceRuns,
-  fallbackRunWidth,
-} from "../utils/fallbackFonts";
+import { currentFaceName, drawFaceRuns } from "../utils/fallbackFonts";
+import { measureTextWidth } from "../textbox-for-pdfkit/src/utils/textMeasurement";
 
 const PDF_POINTS_PER_INCH = 72;
 
@@ -255,29 +250,16 @@ export default class ScreenplayPrinter {
       this._doc.fillColor(this.profile.settings?.["meta:watermark"]?.color ?? "#eeeeee");
       this._doc.fontSize(font_size);
       this._doc.rotate(angle, options);
-      let x = 2 * PDF_POINTS_PER_INCH;
-      for (const run of faceRuns(this._doc, watermarkString, face)) {
-        const runOptions: PDFKit.Mixins.TextOptions = { lineBreak: false };
-        if (run.fallback && face != null) {
-          runOptions.baseline = baselineShift(
-            this._doc,
-            face,
-            "top",
-            font_size,
-          ) as unknown as PDFKit.Mixins.TextOptions["baseline"];
-        }
-        if (run.font != null) {
-          this._doc.font(run.font);
-        }
-        noteUnprintable(this._doc, run.text);
-        this._doc.text(run.text, x, -(font_size / 2), runOptions);
-        x += run.fallback
-          ? fallbackRunWidth(this._doc, run.text)
-          : this._doc.widthOfString(run.text, runOptions);
-      }
-      if (face != null) {
-        this._doc.font(face);
-      }
+      drawFaceRuns(
+        this._doc,
+        watermarkString,
+        2 * PDF_POINTS_PER_INCH,
+        -(font_size / 2),
+        face,
+        { lineBreak: false },
+        "top",
+        font_size,
+      );
       this._doc.rotate(-angle, options);
       this._doc.fontSize(this._profile.font_size ?? 12);
       this._doc.fillColor(this.profile.color ?? "#000000");
@@ -287,18 +269,7 @@ export default class ScreenplayPrinter {
   getWatermarkCells(text: string, face: string | undefined): number {
     this._doc.fontSize(1);
     const cell = this._doc.widthOfString(" ");
-    let width = 0;
-    for (const run of faceRuns(this._doc, text, face)) {
-      if (run.font != null) {
-        this._doc.font(run.font);
-      }
-      width += run.fallback
-        ? fallbackRunWidth(this._doc, run.text)
-        : this._doc.widthOfString(run.text);
-    }
-    if (face != null) {
-      this._doc.font(face);
-    }
+    const width = measureTextWidth({ text, font: face, fontSize: 1 }, this._doc);
     return cell > 0 && width > 0 ? width / cell : text.length;
   }
 
