@@ -35,6 +35,109 @@ impower-dev is two things stacked together:
    └────────────────────────────────────────────────────────────────────┘
 ```
 
+## The shell, the routes and the layouts
+
+The editor is one window, `MainWindow` (`components/main-window/MainWindow.tsx`),
+inside `WorkspaceShell` (`components/desktop-shell/WorkspaceShell.tsx`). The shell
+draws the frame every page shares; the page inside it is chosen by the route.
+
+### Routes
+
+`workspace/routes.ts` holds the five routes and the URL hash that names each:
+
+| Route | Hash | Page | Shown by |
+|---|---|---|---|
+| Story | `#write` | The script editor, its header and the Outline | `components/logic/Logic.tsx` with `components/script-header/`, `components/outline/` |
+| Scripts | `#scripts` | Every script of the project, in folders | `components/scripts-page/ScriptsPage.tsx` |
+| Assets | `#collection` | Images, sounds, fonts and links, in folders, with the asset inspector | `components/assets/Assets.tsx`, `components/asset-inspector/` |
+| Share | `#share` | Exports of the game and the screenplay | `components/share/SharePage.tsx` |
+| Settings | `#project` | Editor and project preferences; `#project?section=<id>` opens one section | `components/settings/SettingsPage.tsx` |
+
+The route is derived from the store (`routeOfState`), never kept beside it: the
+open pane, the Story pane's view and `screen.settingsOpen` decide it, and
+`stateForRoute` is the one function that changes them for a route.
+
+### Layouts
+
+The layout is decided by width alone, through the breakpoints module of
+`@impower/impower-ui` (`packages/impower-ui/src/layout/breakpoints.ts`), and touch
+affordances by pointer:
+
+| Layout | Width | Frame |
+|---|---|---|
+| `phone` | 700px and narrower | `PhoneTitleBar` on top, `BottomNavigation` at the bottom, one page at a time; the preview is its own pane |
+| `compact` | 701px to 1100px | The rail on the left, the preview pinned as a resizable band above the page |
+| `desktop` | 1101px and wider | `TopBar`, the rail on the left, the page, and the preview docked beside it in a `SplitPane` |
+
+The rail shows its labels from 1001px and only its icons below that
+(`railFullMinWidth`). The pointer is `coarse` under `(hover: none) and (pointer: coarse)`.
+`media.ts` writes each value to the root element as `data-layout`, `data-pointer`
+and `data-rail`, so CSS reads the same decision the hooks `useLayout`,
+`useCoarsePointer` and `useRailDefault` return. No other code reads a width, a user
+agent or a second breakpoint.
+
+### The rail, the bars and the dock
+
+- **The rail** (`desktop-shell/ShellRail.tsx`): links to Story, Assets and Share, the
+  Settings index under them on the Settings page, and the app menu at its foot (`AppMenu.tsx`), labelled with the save status, which holds Settings.
+  Its width is stored in the workspace (`shell.railWidth`, `shell.railCompactWidth`)
+  and bounded by `workspace/railWidths.ts`.
+- **The top bar** (`desktop-shell/TopBar.tsx`): the project name field
+  (`ProjectNameField.tsx`) and the save status line, and the search field
+  (`TitleBarSearch.tsx`) when the rail is collapsed to its icons. On phones `PhoneTitleBar.tsx` and `PhoneSearch` take its place,
+  and `AppMenu.tsx` holds what the rail holds on wider screens.
+- **The preview dock** (`components/preview/Preview.tsx`): the preview top bar
+  (`preview-top-bar/`), the game (`preview-game/`) or the screenplay
+  (`preview-screenplay/`), and the bar under them (`preview-bar/`) with the Problems
+  toggle. At compact width it sits in the strip `preview-strip/PhonePreviewStrip.tsx`;
+  on phones it opens as its own pane with Back to story.
+- **The asset inspector dock** (`asset-inspector/dock.tsx`): the inspector docks
+  beside the Assets page at desktop width and opens as a sheet at compact and phone widths.
+
+### The settings store
+
+Preferences are declared once in `workspace/settings/settingsSchema.ts`: each key has
+its default and, where it has them, its choices, maximum length and the configuration
+keys it is mirrored to. `workspace/settings/WorkspaceSettings.ts` holds them as a
+signal, stores them in `localStorage` and derives what the editor reads (the theme,
+the script appearance); components read them with `useSettings` and write through
+the store, never to storage. `applyTheme.ts` sets the root's `data-theme`. Project
+preferences (metadata, screenplay settings, the Add menu's folders, file types) live
+in the project instead, so they travel with it: the metadata in a front matter block at the top of Main, the rest in the project's `.vscode/settings.json` (`settingsJson.ts`).
+
+### Component map
+
+Each feature folder under `src/modules/spark-editor/components/` exposes one entry
+(`index.ts` where it has more than one component) and composes
+`@impower/impower-ui`; no folder imports another's internals.
+
+| Surface | Folder |
+|---|---|
+| The window: shell, page, preview dock and strip by layout | `main-window/` |
+| Shell: rail, top bar, phone title bar, bottom navigation, app menu, project name | `desktop-shell/` |
+| Story page: the script editor | `logic/`, `logic-script-editor/`, `logic-scripts-editor/` |
+| Script name and the script's header | `script-header/` |
+| Outline | `outline/` |
+| Writer's bar (Indent, Dedent, Format and the editing keys) | `writer-bar/` |
+| Writing tools menu, keyboard shortcuts sheet, Sparkdown guide | `writing-tools/` |
+| Add menu and its pickers | `add-panel/`, in the panel frame `tool-panel/` |
+| Find, references and rename | `find-references-rename/` |
+| Problems panel and the Problems to fix dialog | `problems/` |
+| Scripts page | `scripts-page/`, on the shared page frame `library-page/` |
+| Assets page | `assets/`, `library-page/`, `file-dropzone/` |
+| Asset inspector and its variants tester | `asset-inspector/` |
+| Share page | `share/` |
+| Settings page and its sections | `settings/` |
+| Preview: top bar, game, screenplay, bar, saves, strip, route view | `preview/`, `preview-top-bar/`, `preview-game/`, `preview-screenplay/`, `preview-bar/`, `preview-saves/`, `preview-strip/`, `preview-route/` |
+| Save and sync status, Drive sync, conflicts | `drive-sync/`, `conflict-dialog/` |
+| Import progress and replacing a project | `import-progress-bar/`, `replace-project/` |
+| Recycle bin: deleted files and their Restore | `trash-panel/`, opened from the folder-path menu (`library-page/Trail.tsx`) |
+| Toasts | `snackbar-host/` |
+
+The primitives these compose (buttons, menus, dialogs and sheets, rows, the rail
+index, the split pane, icons) are in `packages/impower-ui/src/components/`; its
+[README](../../packages/impower-ui/README.md) holds the rules for adding one.
+
 ## State: the reactive store is the source of truth
 
 In-page UI state lives in **`WorkspaceStore`** (`workspace/WorkspaceStore.ts`),
@@ -72,10 +175,8 @@ const onClick = async () => {
 
 The methods are named as commands (`openFileEditor`, not `openedFileEditor`) on
 purpose: they are the source of truth, not after-the-fact notifications. The
-store — never a DOM event — is how in-page UI shares data. (This was not always
-true; the editor was ported from web components, where a `window` event bus was
-the *only* way to pass data between components. That bus is now reserved for the
-cross-process boundary below.)
+store — never a DOM event — is how in-page UI shares data. The `window` event bus
+is reserved for the cross-process boundary below.
 
 ## Communication: the protocol bus is the cross-process boundary
 
@@ -106,9 +207,8 @@ Every message is one of two kinds, and the distinction is load-bearing:
 > **The invariant:** a request must always be replied to; a notification must
 > never be. If something "listens for a request" but doesn't reply, the message
 > was mis-modeled — make it a **notification** so anyone can listen without
-> implying a response. (Several fire-and-forget "requests" — the player→editor
-> drag-drop relay, `SelectEditor` — were converted to notifications for exactly
-> this reason; see git history.)
+> implying a response. The player→editor drag-drop relay and `SelectEditor` are
+> notifications for this reason.
 
 ### The four helpers (`MessageProtocol` module)
 
@@ -120,7 +220,7 @@ stay distinct from a Worker's `postMessage` / `onmessage` — this bus is in-pag
   (`SomeMessage.type.notification(...)` / `.request(...)`).
 - **`onProtocolMessage(type, handler, target = window)`** — subscribe to a
   message; returns a disposer. The low-level listener used by transport relays
-  and one-off component listeners (e.g. `FileList` ← `DidChangeWatchedFiles`).
+  and one-off component listeners (e.g. the Settings page's `useProjectFiles` ← `DidChangeWatchedFiles`).
 - **`onProtocolRequest(type, handler, responseTarget = window)`** — subscribe to
   a **request**. The handler's return type is *required* to be that message's
   `Response` (inferred from the type's own `response()`), and the reply is sent
@@ -159,7 +259,7 @@ editor-view controllers, which create one and call `.dispose()` on unmount).
 > editor views).
 
 A component subscribing with `onProtocolMessage(SomeMessage.type, …)` is correct
-**only** when the event originates out-of-process — e.g. `FileList` reacting to
+**only** when the event originates out-of-process — e.g. `useProjectFiles` reacting to
 the OPFS worker's `DidChangeWatchedFilesMessage`, or `PreviewGame` reacting to
 the player iframe's `GameStartedMessage`. If you find yourself listening for an
 event that an in-page component *emitted*, that's the web-component
@@ -186,11 +286,8 @@ The controllers never import `Workspace` at runtime. Each receives what it uses 
 
 Importing `Workspace` instantiates three Workers, so it's import-time-heavy: tests construct the controllers directly with stubbed services, and mock `Workspace` only where the code under test reads the singleton (see [`adding-an-editor-feature.md`](./adding-an-editor-feature.md#testing)).
 
-`WorkspaceWindow` is the largest controller (~1600 lines); it's sectioned by
-concern and its class header documents the data-flow contract. A future split
-into per-concern modules behind the `Workspace.window` facade is viable once a
-shared "core" (store/update/emit/cache helpers) is extracted and the project
-lifecycle/sync methods gain test coverage.
+`WorkspaceWindow` is the largest controller: the window intents and the protocol
+bridge live there.
 
 ## Pre-rendering (SSG)
 

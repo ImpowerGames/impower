@@ -40,7 +40,25 @@ Phone layouts are verified on an emulator, because the on-screen keyboard and na
 
 ## Named steps
 
-`ui` and `screenshot` accept `--step <name>`, repeatable, with any viewport or device: `app-menu`, `dialog` (open one and dismiss it), `drawer` (the drawer or rail), `file-menu` (the Scripts page's first non-Main row menu, reported as `row`), `asset-inspector`, `add-menu`, `preview-settings`, `play`, `problems`, `settings=<section>`, `focus-project-name`, `focus-script-name` and `wheel-list`. `app-menu`, `file-menu` and `preview-settings` press their button with a tap when the page has touch (the phone presets) and with a mouse click otherwise, so a phone run opens the sheet a finger opens. `play` presses the preview's Play as `--play start` does; on a phone, where the pane is closed, that is the preview strip's Play from this line, which opens the pane and starts the game in one press. A step whose surface sits in the preview pane (`reveals` in `steps.mjs`: `play`, `preview-settings`, `problems`) first shows the pane the way an author does, by the phone preview strip's Play from this line (which also starts the game), fails naming the button or the pane when either is missing, and at the end of the run closes the pane with its Close the preview button, which stops the game, and waits for the workspace to save it hidden, reporting `hidAgain` and failing the run when it cannot. The run marks the pane as its own in the page's storage before revealing it, so a run killed before hiding it leaves the mark, and the next `ui` or `verify` run hides that pane at its start (`previewReclaimed`) and fails when it cannot; a pane the author left showing is not touched. A `--shot` or `--shot-of` after a built step waits for the surface the step names in `steps.mjs` instead of the script editor, so a shot of the phone preview is not refused for covering the editor; a shot after no named step keeps the editor gate. A step not built yet fails with `not built yet`, naming the ticket that builds its surface; that slice gives the step its body in `steps.mjs` and the driver.
+`ui` and `screenshot` accept `--step <name>`, repeatable, with any viewport or device. Each step and the surface it opens:
+
+| Step | Surface |
+|---|---|
+| `app-menu` | The app menu, from the title bar or the rail's footer |
+| `dialog` | Opens a dialog and dismisses it; not built yet |
+| `drawer` | The rail, or on phones the app menu |
+| `file-menu` | The Scripts page's first non-Main row menu, reported as `row` |
+| `asset-inspector` | The Assets page's asset inspector |
+| `add-menu` | The Add to script panel |
+| `preview-settings` | The preview top bar's settings menu |
+| `play` | The game in the preview, playing |
+| `problems` | The Problems panel, or on phones the Problems to fix dialog |
+| `settings=<section>` | The Settings page at the section with that id, such as `editor-preferences` |
+| `focus-project-name` | The project name field |
+| `focus-script-name` | The Story page's script name field |
+| `wheel-list` | Each overflowing list on screen or in the open dialog |
+
+`app-menu`, `file-menu` and `preview-settings` press their button with a tap when the page has touch (the phone presets) and with a mouse click otherwise, so a phone run opens the sheet a finger opens. `play` presses the preview's Play as `--play start` does; on a phone, where the pane is closed, that is the preview strip's Play from this line, which opens the pane and starts the game in one press. A step whose surface sits in the preview pane shows the pane first and hides it again at the end of the run, as [editor UI](references/ui.md) describes. A `--shot` or `--shot-of` after a built step waits for the surface the step names in `steps.mjs` instead of the script editor, so a shot of the phone preview is not refused for covering the editor; a shot after no named step keeps the editor gate. A step not built yet fails with `not built yet`, naming the ticket that builds its surface; that slice gives the step its body in `steps.mjs` and the driver.
 
 ## Evidence gate
 
