@@ -1,6 +1,6 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState, Line, Text } from "@codemirror/state";
-import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
+import { Extension, Facet, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
@@ -33,6 +33,7 @@ import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
+import PrintedParagraphWidget from "../classes/widgets/PrintedParagraphWidget";
 import { PREVIEW_FONT_SIZE } from "../constants/PREVIEW_THEME";
 import { escapeHtml } from "./getFormattedHTML";
 import { printedLineStyle, printedNameStyle, printedTitlePage } from "./screenplayGeometry";
@@ -440,7 +441,7 @@ export const decorate = (
     const anchors = hangsByLine.get(number)!.anchors;
     const { line, rowStarts, endOf } = lineRows(number, anchors);
     if (inView(line.from)) {
-      decorations.push(Decoration.line({ attributes: { style: hangingLineStyle(width) } }).range(line.from));
+      decorations.push(Decoration.line({ attributes: { style: hangingLineStyle(width) }, hanging: true }).range(line.from));
     }
     for (const start of rowStarts) {
       const end = endOf(start);
@@ -1148,15 +1149,150 @@ const splitHiddenAtBlocks = (decorations: Range<Decoration>[]): Range<Decoration
 
 const LINE_GAP_LENGTH = 4000;
 
-const drawsGappedLine = (doc: Text, ranges: readonly Range<Decoration>[]) => {
-  let blocks: readonly Range<Decoration>[] | undefined;
-  for (let number = 1; number <= doc.lines; number++) {
-    const line = doc.line(number);
-    if (line.length < LINE_GAP_LENGTH) continue;
-    blocks ??= ranges.filter((range) => range.value.spec.block && range.to > range.from);
-    if (!blocks.some((block) => block.from <= line.from && block.to >= line.to)) return true;
+const LINE_GAP_POINT_SIZE = 20;
+
+export const wholeParagraphLength = Facet.define<number, number>({
+  combine: (values) => Math.min(values.at(-1) ?? LINE_GAP_LENGTH, LINE_GAP_LENGTH),
+});
+
+interface TextLine {
+  from: number;
+  to: number;
+  joined: boolean;
+}
+
+const longTextLines = (doc: Text, set: DecorationSet, length: number): TextLine[] => {
+  if (doc.length < length) return [];
+  const joins: number[] = [];
+  for (const iter = set.iter(); iter.value; iter.next()) {
+    if (!iter.value.point || iter.value.spec.block || iter.to <= iter.from) continue;
+    for (let line = doc.lineAt(iter.from); line.to < iter.to; line = doc.line(line.number + 1)) joins.push(line.to);
   }
-  return false;
+  joins.sort((a, b) => a - b);
+  const found: TextLine[] = [];
+  let join = 0;
+  for (let number = 1; number <= doc.lines; ) {
+    const first = doc.line(number);
+    let last = first;
+    for (;;) {
+      while (join < joins.length && joins[join]! < last.to) join++;
+      if (joins[join] !== last.to || last.number >= doc.lines) break;
+      last = doc.line(last.number + 1);
+    }
+    number = last.number + 1;
+    if (last.to - first.from < length) continue;
+    let hidden = 0;
+    RangeSet.spans(
+      [set],
+      first.from,
+      last.to,
+      {
+        span() {},
+        point(from, to) {
+          hidden += to - from;
+        },
+      },
+      LINE_GAP_POINT_SIZE,
+    );
+    if (last.to - first.from - hidden >= length) found.push({ from: first.from, to: last.to, joined: last !== first });
+  }
+  return found;
+};
+
+const LINE_SIDE = Decoration.line({}).startSide;
+
+const isLineDecoration = (range: Range<Decoration>) => range.value.startSide === LINE_SIDE;
+
+const lineAttributes = (ranges: readonly Range<Decoration>[], at: number) => {
+  const classes: string[] = [];
+  const styles: string[] = [];
+  const attributes: Record<string, string> = {};
+  for (const range of ranges) {
+    if (range.from !== at || !isLineDecoration(range) || range.value.spec.hanging) continue;
+    const spec = range.value.spec as { class?: string; attributes?: Record<string, string> };
+    if (spec.class) classes.push(spec.class);
+    for (const [name, value] of Object.entries(spec.attributes ?? {})) {
+      if (name === "class") classes.push(value);
+      else if (name === "style") styles.push(value);
+      else attributes[name] = value;
+    }
+  }
+  if (classes.length > 0) attributes["class"] = classes.join(" ");
+  if (styles.length > 0) attributes["style"] = styles.join(";");
+  return attributes;
+};
+
+const withoutTrailingSpaces = (line: FormattedText[]) => {
+  const result: FormattedText[] = [];
+  for (const piece of line) {
+    const previous = result.at(-1);
+    const last = previous ? previous.text.length - 1 : -1;
+    if (piece.text === "\n" && previous && /\s/.test(previous.text[last] ?? "") && (previous.at?.[last] ?? -1) >= 0) {
+      result[result.length - 1] = { ...previous, text: previous.text.slice(0, last), at: previous.at?.slice(0, last) };
+    }
+    result.push(piece);
+  }
+  return result;
+};
+
+const printedParagraph = (
+  state: EditorState,
+  ranges: readonly Range<Decoration>[],
+  { from, to, joined }: TextLine,
+): Range<Decoration> | undefined => {
+  if (joined) return undefined;
+  const { printed, printedLines } = cachedPageLayout(
+    syntaxTree(state),
+    state.doc,
+    state.field(screenplayConfigField, false),
+    state.field(screenplayScenesBeforeField, false) ?? 0,
+  );
+  for (let index = 0; index < printed.length; index += 2) {
+    const start = printed[index]!;
+    const end = printed[index + 1]!;
+    if (start < to && end > from && (start < from || end > to)) return undefined;
+  }
+  const insertsRow = ranges.some(
+    (range) =>
+      range.from >= from &&
+      range.from <= to &&
+      range.value.spec.widget instanceof InsertedRowWidget &&
+      !range.value.spec.block,
+  );
+  if (insertsRow) return undefined;
+  const lines = printedLines
+    .filter((entry) => entry.at >= from && entry.at <= to)
+    .flatMap((entry) => entry.lines.map(withoutTrailingSpaces));
+  if (lines.length === 0) return undefined;
+  const rows = lines.reduce((count, line) => count + 1 + line.filter((piece) => piece.text === "\n").length, 0);
+  const widget = new PrintedParagraphWidget(
+    printedHtml(lines),
+    lineAttributes(ranges, from),
+    rows,
+    state.field(screenplayRowField, false) ?? PREVIEW_FONT_SIZE,
+  );
+  return Decoration.replace({ widget, block: true }).range(from, to);
+};
+
+const outside = (range: Range<Decoration>, from: number, to: number): Range<Decoration>[] => {
+  if (range.to < from || range.from > to) return [range];
+  if (range.value.spec.block && range.from === range.to) return [range];
+  if (range.from >= from && range.to <= to) return [];
+  if (range.value.spec.block) return [range];
+  const pieces: Range<Decoration>[] = [];
+  if (range.from < from) pieces.push(range.value.range(range.from, from));
+  if (range.to > to) pieces.push(range.value.range(to, range.to));
+  return pieces;
+};
+
+const drawWholeParagraphs = (state: EditorState, ranges: Range<Decoration>[], lines: readonly TextLine[]) => {
+  const paragraphs = lines.flatMap((line) => printedParagraph(state, ranges, line) ?? []);
+  if (paragraphs.length === 0) return ranges;
+  let drawn = ranges;
+  for (const paragraph of paragraphs) {
+    drawn = drawn.flatMap((range) => outside(range, paragraph.from, paragraph.to));
+  }
+  return [...drawn, ...paragraphs];
 };
 
 interface ScreenplayDecorations {
@@ -1164,11 +1300,19 @@ interface ScreenplayDecorations {
   wraps: boolean;
 }
 
+const decorationSet = (ranges: readonly Range<Decoration>[]) =>
+  ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
+
 const screenplayDecorations = (state: EditorState): ScreenplayDecorations => {
+  const length = state.facet(wholeParagraphLength);
   const ranges = decorate(state);
-  const wraps = drawsGappedLine(state.doc, ranges);
-  const drawn = wraps ? decorate(state, 0, undefined, undefined, false) : ranges;
-  return { set: drawn.length > 0 ? RangeSet.of(drawn, true) : Decoration.none, wraps };
+  const plain = decorationSet(ranges);
+  const long = longTextLines(state.doc, plain, length);
+  if (long.length === 0) return { set: plain, wraps: false };
+  const set = decorationSet(drawWholeParagraphs(state, ranges, long));
+  if (longTextLines(state.doc, set, LINE_GAP_LENGTH).length === 0) return { set, wraps: false };
+  const unbroken = decorate(state, 0, undefined, undefined, false);
+  return { set: decorationSet(drawWholeParagraphs(state, unbroken, longTextLines(state.doc, decorationSet(unbroken), length))), wraps: true };
 };
 
 const replaceDecorations = StateField.define<ScreenplayDecorations>({
@@ -1185,7 +1329,8 @@ const replaceDecorations = StateField.define<ScreenplayDecorations>({
         startState.field(screenplayRowField, false) ===
           state.field(screenplayRowField, false) &&
         startState.field(screenplayScenesBeforeField, false) ===
-          state.field(screenplayScenesBeforeField, false);
+          state.field(screenplayScenesBeforeField, false) &&
+        startState.facet(wholeParagraphLength) === state.facet(wholeParagraphLength);
       if (unchanged) return decorations;
     }
     return screenplayDecorations(transaction.state);
