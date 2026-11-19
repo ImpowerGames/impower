@@ -3718,20 +3718,25 @@ export function parseScreenshotArgs(args, display = DISPLAY) {
   if (name == null || name.startsWith("--")) throw new Error("screenshot needs a name, such as `screenshot story`");
   let outDir = ".";
   let headed = false;
+  const setup = [];
   const steps = [];
+  const needs = { "--out-dir": "directory", "--step": "step name", "--sd": "script file", "--project": "project directory", "--scrub": "line number" };
   for (let i = 0; i < more.length; i++) {
-    if (more[i] === "--headed") headed = true;
-    else if (more[i] === "--out-dir" || more[i] === "--step") {
-      const flagName = more[i];
-      const v = more[++i];
-      if (v == null || v === "" || v.startsWith("--")) throw new Error(`${flagName} needs a ${flagName === "--step" ? "step name" : "directory"}`);
-      if (flagName === "--step") {
-        parseNamedStep(v);
-        steps.push(v);
-      } else outDir = v;
-    } else throw new Error(`screenshot: unknown argument ${more[i]}`);
+    const flagName = more[i];
+    if (flagName === "--headed") {
+      headed = true;
+      continue;
+    }
+    if (!(flagName in needs)) throw new Error(`screenshot: unknown argument ${flagName}`);
+    const v = more[++i];
+    if (v == null || v === "" || v.startsWith("--")) throw new Error(`${flagName} needs a ${needs[flagName]}`);
+    if (flagName === "--step") {
+      parseNamedStep(v);
+      steps.push(v);
+    } else if (flagName === "--out-dir") outDir = v;
+    else setup.push(flagName, v);
   }
-  return { out: screenshotPath(name, display, outDir), headed, steps };
+  return { out: screenshotPath(name, display, outDir), headed, setup, steps };
 }
 
 async function screenshot(args, deps = liveDeps) {
@@ -3742,7 +3747,7 @@ async function screenshot(args, deps = liveDeps) {
     deps.die(e.message);
   }
   fs.mkdirSync(path.dirname(parsed.out), { recursive: true });
-  return ui([...parsed.steps.flatMap((step) => ["--step", step]), "--shot", parsed.out, ...(parsed.headed ? ["--headed"] : [])], deps);
+  return ui([...parsed.setup, ...parsed.steps.flatMap((step) => ["--step", step]), "--shot", parsed.out, ...(parsed.headed ? ["--headed"] : [])], deps);
 }
 
 async function deviceReport(page, device, display = DISPLAY) {
@@ -4338,7 +4343,7 @@ switch (cmd) {
         "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",
         "  ui [steps]            drive the editor's own panels and screens; print a JSON report",
-        "  screenshot <name> [--step <name>]... [--out-dir <dir>] [--headed]  load the editor, run the named steps and screenshot to <name>[-<viewport>][-<scheme>].png",
+        "  screenshot <name> [--sd <file>] [--project <dir>] [--scrub <line>] [--step <name>]... [--out-dir <dir>] [--headed]  load the editor, seed and scrub as ui does, run the named steps and screenshot to <name>[-<viewport>][-<scheme>].png",
         "  seed --project <p>    load a project directory or exported zip into OPFS /local, then reload",
         "  seed --clear          empty OPFS /local (dot entries stay), then reload; with --project, clear first",
         "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
