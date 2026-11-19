@@ -159,5 +159,32 @@ assert.deepEqual([changedBy[104].parent, changedBy[105].parent, changedBy[103].b
   assert.equal(subIssueCalls(fake.calls).length, 1);
 }
 
+{
+  const exhausted = (cmd, args) => {
+    if (args[1] !== "-i") throw new Error(`unexpected gh call: ${args.join(" ")}`);
+    const error = new Error("gh: API rate limit exceeded (HTTP 403)");
+    error.stdout = "HTTP/2.0 403 Forbidden\r\nX-Ratelimit-Limit: 5000\r\nX-Ratelimit-Remaining: 0\r\nX-Ratelimit-Used: 5000\r\nX-Ratelimit-Reset: 1795118245\r\n\r\n{\"message\":\"API rate limit exceeded\"}";
+    throw error;
+  };
+  const client = run.githubClient({ repository: REPO }, tmp, { run: exhausted, parallel: () => [], cache: run.conditionalCache(freshDir("exhausted")) });
+  assert.deepEqual(client.allowance(ROOT), { remaining: 0, used: 5000, limit: 5000, reset: 1795118245, resetsAt: new Date(1795118245 * 1000).toISOString() }, "an exhausted allowance still reports its reset time");
+  assert.throws(() => client.subIssues(ROOT), /rate limit exceeded/, "a snapshot read still fails on the 403");
+  const silent = run.githubClient({ repository: REPO }, tmp, { run: () => { throw new Error("gh: network down"); }, parallel: () => [], cache: run.conditionalCache(freshDir("silent")) });
+  assert.throws(() => silent.allowance(ROOT), /network down/, "a failure with no allowance headers is reported, not hidden");
+}
+
+{
+  const fake = fakeGh(gh);
+  const bodies = ["## Acceptance criteria\n\n- [ ] A.\n", "## Acceptance criteria\n\n- [ ] A.\n- [ ] B.\n"];
+  const scopeWith = (bodyAt) => {
+    let reads = 0;
+    const client = run.githubClient({ repository: REPO }, tmp, { run: fake.exec, parallel: fake.parallel, cache: run.conditionalCache(freshDir("scope")) });
+    return run.readIssueScope({ issue: ROOT }, { ...client, issue: (n) => ({ ...client.issue(n), body: n === ROOT ? bodyAt(reads++) : "" }) });
+  };
+  const edited = scopeWith((i) => bodies[Math.min(i, 1)]);
+  const settled = scopeWith(() => bodies[1]);
+  assert.equal(edited.acceptanceSha256, settled.acceptanceSha256, "a criteria edit made while the tree is walked is in the scope's acceptance hash");
+}
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log("snapshot-reads: ok");

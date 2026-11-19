@@ -649,7 +649,11 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   const keyOf = (kind, key) => `${kind}:${JSON.stringify(key)}`;
   const request = (kind, key) => (reads[kind].conditional ? reads[kind].conditional(key) : { args: reads[kind].args(key), parse: reads[kind].parse });
   const runAccepting304 = (args) => {
-    try { return run("gh", args); } catch (error) { if (notModified(error.stdout)) return String(error.stdout); throw error; }
+    try { return run("gh", args); } catch (error) {
+      if (notModified(error.stdout)) return String(error.stdout);
+      if (args[1] === "-i") noteAllowance(parseHttp(error.stdout).headers);
+      throw error;
+    }
   };
   const read = (kind, key) => {
     const k = keyOf(kind, key);
@@ -660,7 +664,10 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   const prefetch = (requests) => {
     const wanted = [...new Map(Object.entries(requests).flatMap(([kind, keys]) => keys.map((key) => [keyOf(kind, key), [kind, key]]))).values()].filter(([kind, key]) => !fetched.has(keyOf(kind, key))).map(([kind, key]) => [kind, key, request(kind, key)]);
     const results = parallel(wanted.map(([, , r]) => ["gh", r.args]));
-    wanted.forEach(([kind, key, r], i) => { if (results[i]?.ok || (reads[kind].conditional && notModified(results[i]?.stdout))) fetched.set(keyOf(kind, key), { out: results[i].stdout, parse: r.parse }); });
+    wanted.forEach(([kind, key, r], i) => {
+      if (results[i]?.ok || (reads[kind].conditional && notModified(results[i]?.stdout))) fetched.set(keyOf(kind, key), { out: results[i].stdout, parse: r.parse });
+      else if (reads[kind].conditional) noteAllowance(parseHttp(results[i]?.stdout).headers);
+    });
   };
   const fields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit,createdAt";
   let account, listing, mainCommits = null;
@@ -723,7 +730,10 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
     blockedBy: (n) => read("blockedBy", n),
     fields: (n) => read("fields", n),
     prefetch,
-    allowance: (n) => { if (n !== undefined) read("subIssues", n); return allowance; },
+    allowance: (n) => {
+      if (n !== undefined) { allowance = null; try { read("subIssues", n); } catch (error) { if (!allowance) throw error; } }
+      return allowance;
+    },
     pull: (n) => JSON.parse(run("gh", ["pr", "view", String(n), "--repo", code, "--json", fields])),
     pulls: (n) => (split ? accountPulls(n) : JSON.parse(run("gh", ["pr", "list", "--repo", code, "--state", "all", "--search", String(n), "--limit", "100", "--json", fields]))),
     comments: (pr, ticket) => read("comments", [pr, ticket]),
@@ -1017,9 +1027,8 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
 const scopeLine = (t) => [`#${t.number}`, t.state, ...(t.state === "closed" ? [t.stateReason, t.closedAt].filter(Boolean) : [])].join(" ");
 
 export function readIssueScope({ issue, tickets = null, split = false }, client) {
-  const root = client.issue(issue);
-  const slices = plannedNodes(walkSubIssues(issue, client, { tickets, split, root })).map(scopeLine);
-  return { slices: slices.sort(), acceptanceSha256: acceptanceHash(root.body) };
+  const slices = plannedNodes(walkSubIssues(issue, client, { tickets, split, root: client.issue(issue) })).map(scopeLine);
+  return { slices: slices.sort(), acceptanceSha256: acceptanceHash(client.issue(issue).body) };
 }
 export const snapshotScope = (snapshot) => ({ slices: plannedNodes(snapshot.tickets).map(scopeLine).sort(), acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null });
 
