@@ -55,7 +55,7 @@ export const thingNameOf = (name: string): string => {
   return at < 0 ? picture : picture.slice(0, at);
 };
 
-const LOOSE_AT = /(?:^|[^\p{L}\p{N}_])@|@(?:$|[^\p{L}\p{N}_])/u;
+const LOOSE_AT = /(?:^|[^a-zA-Z0-9_])@|@(?:$|[^a-zA-Z0-9_])/;
 
 export const isWritableImageName = (name: string): boolean => !name.startsWith("~") && !LOOSE_AT.test(name);
 

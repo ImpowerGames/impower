@@ -151,7 +151,7 @@ describe("the inspector's head", () => {
     );
   });
 
-  it.each(["@foo", "foo@", "@", "~foo", "a@@b", "a@-b"])(
+  it.each(["@foo", "foo@", "@", "~foo", "a@@b", "a@-b", "é@x", "x@é"])(
     "tells the author to rename an unused image named %s, which no script can write",
     (name) => {
       const target = asset(`Assets/Images/${name}.png`, "image", { name });
