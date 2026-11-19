@@ -3739,6 +3739,10 @@ export function parseScreenshotArgs(args, display = DISPLAY) {
   return { out: screenshotPath(name, display, outDir), headed, setup, steps };
 }
 
+export function screenshotUiArgs(parsed) {
+  return [...parsed.setup, ...parsed.steps.flatMap((step) => ["--step", step]), "--shot", parsed.out, ...(parsed.headed ? ["--headed"] : [])];
+}
+
 async function screenshot(args, deps = liveDeps) {
   let parsed;
   try {
@@ -3747,7 +3751,7 @@ async function screenshot(args, deps = liveDeps) {
     deps.die(e.message);
   }
   fs.mkdirSync(path.dirname(parsed.out), { recursive: true });
-  return ui([...parsed.setup, ...parsed.steps.flatMap((step) => ["--step", step]), "--shot", parsed.out, ...(parsed.headed ? ["--headed"] : [])], deps);
+  return ui(screenshotUiArgs(parsed), deps);
 }
 
 async function deviceReport(page, device, display = DISPLAY) {
