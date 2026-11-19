@@ -145,6 +145,63 @@ describe("the Screenplay PDF's fallback fonts", () => {
     expect(unprintable).toEqual([..."مرحباשלום"]);
   });
 
+  it("start the text after a shaped run where the run was measured to end, inside a span and across spans", async () => {
+    const source = resolve(__dirname, "../../sparkdown-screenplay-pdf/src");
+    const { printTextbox } = await import(pathToFileURL(resolve(source, "textbox-for-pdfkit/src/utils/printTextbox.ts")).href);
+    const { registerFallbackFonts } = await import(pathToFileURL(resolve(source, "utils/fallbackFonts.ts")).href);
+    const shaping = bufferOf(resolve(FONT_DIR, "noto-color-emoji.ttf"));
+    const family = String.fromCodePoint(0x1f468, 0x200d, 0x1f469, 0x200d, 0x1f467);
+    const endOf = (parts: { text: string; font: string }[]) => {
+      const doc = new PDFDocument({ font: "", size: "LETTER" });
+      const faces = { normal: FONTS.normal, bold: FONTS.bold };
+      for (const [name, bytes] of Object.entries(faces)) doc.registerFont(name, bytes);
+      registerFallbackFonts(doc, faces, [{ normal: shaping }]);
+      doc.font("normal").fontSize(12);
+      const xs = new Map<string, number>();
+      const text = doc.text.bind(doc);
+      vi.spyOn(doc, "text").mockImplementation(((value: string, x: number, ...rest: unknown[]) => {
+        xs.set(value, x);
+        return text(value, x, ...(rest as []));
+      }) as typeof doc.text);
+      printTextbox(doc, parts, 72, 72, 400, { baseline: "top" });
+      return xs.get("END")!;
+    };
+    const joined = endOf([{ text: `${family}${family}END`, font: "normal" }]);
+    const split = endOf([
+      { text: `${family}${family}`, font: "normal" },
+      { text: "END", font: "bold" },
+    ]);
+    expect(joined).toBeGreaterThan(72);
+    expect(joined).toBeCloseTo(split, 6);
+  });
+
+  it("underline a row's fallback runs on the line its Courier runs are underlined on, end to end", async () => {
+    const source = resolve(__dirname, "../../sparkdown-screenplay-pdf/src");
+    const { printTextbox } = await import(pathToFileURL(resolve(source, "textbox-for-pdfkit/src/utils/printTextbox.ts")).href);
+    const { registerFallbackFonts } = await import(pathToFileURL(resolve(source, "utils/fallbackFonts.ts")).href);
+    const doc = new PDFDocument({ font: "", size: "LETTER" });
+    const faces = { normal: FONTS.normal };
+    doc.registerFont("normal", faces.normal);
+    registerFallbackFonts(doc, faces, FALLBACKS);
+    doc.font("normal").fontSize(12);
+    const segments: { x: number; y: number }[] = [];
+    const moveTo = doc.moveTo.bind(doc);
+    vi.spyOn(doc, "moveTo").mockImplementation(((x: number, y: number) => {
+      segments.push({ x, y });
+      return moveTo(x, y);
+    }) as typeof doc.moveTo);
+    const lineTo = doc.lineTo.bind(doc);
+    const ends: number[] = [];
+    vi.spyOn(doc, "lineTo").mockImplementation(((x: number, y: number) => {
+      ends.push(x);
+      return lineTo(x, y);
+    }) as typeof doc.lineTo);
+    printTextbox(doc, [{ text: "Ken 東京駅 waves 기차", font: "normal", underline: true }], 72, 72, 400, { baseline: "top" });
+    expect(segments.length).toBeGreaterThan(2);
+    expect(new Set(segments.map((segment) => segment.y)).size).toBe(1);
+    for (let index = 1; index < segments.length; index++) expect(segments[index]!.x).toBeCloseTo(ends[index - 1]!, 6);
+  });
+
   it("skip a fallback font that cannot be read and list what it would have drawn", async () => {
     const { unprintable } = await exportPdf(scene("東京 Ω"), [{ normal: new ArrayBuffer(16) }, FALLBACKS[0]!]);
     expect(unprintable).toEqual(["東", "京"]);

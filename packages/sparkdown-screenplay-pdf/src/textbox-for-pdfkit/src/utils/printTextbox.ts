@@ -10,7 +10,9 @@ import { noteUnprintable } from "../../../utils/unprintableCharacters";
 import {
   baselineShift,
   faceRuns,
+  decorateFallbackRun,
   fallbackOblique,
+  fallbackRunWidth,
 } from "../../../utils/fallbackFonts";
 
 export const printTextbox = (
@@ -104,13 +106,19 @@ const printLines = (
             oblique: run.fallback
               ? fallbackOblique(textPart.font, textPart.oblique)
               : textPart.oblique,
-            underline: textPart.underline,
-            strike: textPart.strike,
+            underline: run.fallback ? false : textPart.underline,
+            strike: run.fallback ? false : textPart.strike,
           };
           doc.text(run.text, runX, yPosition, options);
-          if (runIndex < runs.length - 1) {
-            runX += doc.widthOfString(run.text, options);
+          const runWidth = run.fallback
+            ? fallbackRunWidth(doc, run.text)
+            : runIndex < runs.length - 1
+              ? doc.widthOfString(run.text, options)
+              : 0;
+          if (run.fallback && textPart.font != null) {
+            decorateFallbackRun(doc, textPart.font, runX, yPosition, runWidth, textPart);
           }
+          runX += runWidth;
         }
         if (runs.some((run) => run.fallback) && textPart.font != null) {
           doc.font(textPart.font);

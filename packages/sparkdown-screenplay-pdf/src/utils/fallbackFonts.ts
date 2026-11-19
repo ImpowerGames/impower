@@ -152,6 +152,33 @@ export const fallbackRunWidth = (doc: PDFKit.PDFDocument, text: string): number 
   return (units / font.unitsPerEm) * state._fontSize;
 };
 
+export const decorateFallbackRun = (
+  doc: PDFKit.PDFDocument,
+  primary: string,
+  x: number,
+  y: number,
+  width: number,
+  decoration: { underline?: boolean; strike?: boolean },
+): void => {
+  if (!decoration.underline && !decoration.strike) {
+    return;
+  }
+  doc.font(primary);
+  const state = doc as unknown as { _fontSize: number; _fillColor?: unknown[] };
+  const lineHeight = doc.currentLineHeight();
+  const lineWidth = state._fontSize < 10 ? 0.5 : Math.floor(state._fontSize / 10);
+  doc.save();
+  (doc.strokeColor as (...color: unknown[]) => PDFKit.PDFDocument)(...(state._fillColor ?? []));
+  doc.lineWidth(lineWidth);
+  if (decoration.underline) {
+    doc.moveTo(x, y + lineHeight - lineWidth).lineTo(x + width, y + lineHeight - lineWidth).stroke();
+  }
+  if (decoration.strike) {
+    doc.moveTo(x, y + lineHeight / 2).lineTo(x + width, y + lineHeight / 2).stroke();
+  }
+  doc.restore();
+};
+
 interface FontMetrics {
   ascender: number;
   descender: number;
