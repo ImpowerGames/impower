@@ -130,6 +130,23 @@ scene hidden_later
   Hidden in two seconds.
 end
 
+scene waited
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 4s ease linear wait]]
+  [[animate backdrop to right over 2s ease linear]]
+  There and back.
+end
+
+scene delayed_redirect
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 4s ease linear]]
+  Travelling.
+  [[animate backdrop to right over 2s after 2s ease linear]]
+  Redirected in two seconds.
+end
+
 scene later
   [[show backdrop BG at right]]
   [[show portrait P]]
@@ -147,6 +164,15 @@ const LEFT = { translate: "0px calc(50cqh - 50%)", scale: "1" };
 const SOFA = { translate: "calc(60cqw - 62%) calc(100cqh - 110%)", scale: "1.2" };
 const QUARTER_TO_LEFT = { translate: "calc(75cqw - 75%) calc(50cqh - 50%)", scale: "1" };
 const THREE_QUARTERS_TO_LEFT = { translate: "calc(25cqw - 25%) calc(50cqh - 50%)", scale: "1" };
+
+const viewOf = (el: HTMLElement) => {
+  const running = travelsOf(el).filter((a) => a.playState === "running");
+  if (running.length !== 1) {
+    return placed(el);
+  }
+  const [from, to] = keyframesOf(running[0]!) as { translate: string; scale: string }[];
+  return { progress: running[0]!.effect.getComputedTiming().progress, from, to };
+};
 
 const pictureEls = (overlay: HTMLElement, layer: string) =>
   Array.from(
@@ -341,6 +367,37 @@ describe("a layer's picture travels to a framing (I-2481)", () => {
     for (const flash of flashes) {
       expect(flash.startTime).toBe(travel!.startTime);
     }
+  });
+
+  test("a to after a wait on the same line travels once the first travel has arrived", async () => {
+    const h = await start("waited");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    await advance(2000);
+    expect(viewOf(backdrop!)).toEqual({ progress: 0.5, from: RIGHT, to: LEFT });
+    await advance(2000);
+    await advance(1000);
+    expect(viewOf(backdrop!)).toEqual({ progress: 0.5, from: LEFT, to: RIGHT });
+    await advance(1000);
+    expect(placed(backdrop!)).toEqual(RIGHT);
+  });
+
+  test("a to with after redirects from the view on screen when it starts, not when it is written", async () => {
+    const h = await start("delayed_redirect");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    await advance(1000);
+    await play(h, false);
+    await advance(1000);
+    expect(viewOf(backdrop!)).toEqual({ progress: 0.5, from: RIGHT, to: LEFT });
+    expect(placed(backdrop!)).toEqual(LEFT);
+    await advance(1000);
+    await advance(1000);
+    expect(viewOf(backdrop!)).toEqual({ progress: 0.5, from: THREE_QUARTERS_TO_LEFT, to: RIGHT });
+    await advance(1000);
+    expect(placed(backdrop!)).toEqual(RIGHT);
   });
 
   test("two travels on one line run only the last, from the view on screen", async () => {

@@ -15,6 +15,9 @@ export class TimedEffect {
         : [];
     return frames.map((frame) => ({ ...(frame as object) }));
   }
+  setKeyframes(keyframes: unknown) {
+    this.keyframes = keyframes;
+  }
   getTiming() {
     return this.timing;
   }

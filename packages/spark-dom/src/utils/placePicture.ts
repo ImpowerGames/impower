@@ -89,7 +89,13 @@ interface Travel extends PlayedTravel {
   to: PictureView;
 }
 
+interface ScheduledTravel extends PlayedTravel {
+  to: PictureView;
+}
+
 const travels = new WeakMap<Element, Travel>();
+
+const scheduled = new WeakMap<Element, ScheduledTravel[]>();
 
 const resting = new WeakMap<Element, PictureView>();
 
@@ -110,13 +116,29 @@ export const pictureViewOf = (el: Element): PictureView => {
   return progress == null ? rest : mixPictureViews(travel.from, travel.to, progress);
 };
 
-const endTravel = (el: Element) => {
+const stop = (travel: PlayedTravel) => {
+  travel.drop();
+  travel.animation.cancel();
+};
+
+const endCurrentTravel = (el: Element) => {
   const travel = travels.get(el);
   if (travel) {
     travels.delete(el);
-    travel.drop();
-    travel.animation.cancel();
+    stop(travel);
   }
+};
+
+const endScheduledTravels = (el: Element) => {
+  for (const travel of scheduled.get(el) ?? []) {
+    stop(travel);
+  }
+  scheduled.delete(el);
+};
+
+const endTravel = (el: Element) => {
+  endCurrentTravel(el);
+  endScheduledTravels(el);
 };
 
 export const endTravelsWithin = (root: Element) => {
@@ -126,9 +148,13 @@ export const endTravelsWithin = (root: Element) => {
   }
 };
 
-const travelling = (el: Element) => {
-  const state = travels.get(el)?.animation.playState;
-  return state !== undefined && state !== "finished";
+const headingTo = (el: Element): PictureView | undefined => {
+  const last = scheduled.get(el)?.at(-1);
+  if (last) {
+    return last.to;
+  }
+  const travel = travels.get(el);
+  return travel && travel.animation.playState !== "finished" ? travel.to : undefined;
 };
 
 const sameView = (a: PictureView, b: PictureView) => {
@@ -142,7 +168,8 @@ export const placePicture = (
   framing: PictureFramingValues | undefined,
 ) => {
   const view = getPictureView(framing);
-  if (travelling(el) && sameView(travels.get(el)!.to, view)) {
+  const heading = headingTo(el);
+  if (heading && sameView(heading, view)) {
     return;
   }
   endTravel(el);
@@ -152,7 +179,7 @@ export const placePicture = (
 };
 
 export const haltPicture = (el: HTMLElement) => {
-  if (!travels.has(el)) {
+  if (!travels.has(el) && !scheduled.has(el)) {
     return;
   }
   const view = pictureViewOf(el);
@@ -161,14 +188,9 @@ export const haltPicture = (el: HTMLElement) => {
   writePlacement(el, getViewPlacement(view));
 };
 
-export const travelPicture = (
-  el: HTMLElement,
-  framing: PictureFramingValues | undefined,
-  play: (keyframes: Keyframe[]) => PlayedTravel | undefined,
-) => {
+const beginTravel = (el: HTMLElement, to: PictureView, play: (keyframes: Keyframe[]) => PlayedTravel | undefined) => {
   const from = pictureViewOf(el);
-  const to = getPictureView(framing);
-  endTravel(el);
+  endCurrentTravel(el);
   resting.set(el, to);
   el.classList.add("framed");
   const placement = getViewPlacement(to);
@@ -177,4 +199,38 @@ export const travelPicture = (
   if (played) {
     travels.set(el, { ...played, from, to });
   }
+};
+
+export const travelPicture = (
+  el: HTMLElement,
+  framing: PictureFramingValues | undefined,
+  play: (keyframes: Keyframe[]) => PlayedTravel | undefined,
+) => {
+  endScheduledTravels(el);
+  beginTravel(el, getPictureView(framing), play);
+};
+
+export const scheduleTravel = (
+  el: HTMLElement,
+  framing: PictureFramingValues | undefined,
+  travel: PlayedTravel,
+): (() => void) => {
+  const pending: ScheduledTravel = { ...travel, to: getPictureView(framing) };
+  scheduled.set(el, [...(scheduled.get(el) ?? []), pending]);
+  return () => {
+    const waiting = scheduled.get(el) ?? [];
+    if (!waiting.includes(pending)) {
+      return;
+    }
+    const rest = waiting.filter((other) => other !== pending);
+    if (rest.length > 0) {
+      scheduled.set(el, rest);
+    } else {
+      scheduled.delete(el);
+    }
+    beginTravel(el, pending.to, (keyframes) => {
+      (pending.animation.effect as KeyframeEffect | null)?.setKeyframes(keyframes);
+      return pending;
+    });
+  };
 };

@@ -4,7 +4,7 @@ import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messag
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
-import { endTravelsWithin, haltPicture, placePicture, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
+import { endTravelsWithin, haltPicture, placePicture, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
   createCutsceneElement,
   createVideoElement,
@@ -2041,6 +2041,7 @@ export default class UIManager extends Manager {
     const toDestroy: HTMLElement[] = [];
     const outgoing: HTMLElement[] = [];
     const hiding: { pictureEl: HTMLElement; exits: ReturnType<AnimationPlayer["add"]> }[] = [];
+    const starting: { pictureEl: HTMLElement; animation: globalThis.Animation; start: () => void }[] = [];
     const newMovies: { video: HTMLVideoElement; after: AnimationPlayer }[] = [];
     const hiddenMovies: HTMLVideoElement[] = [];
 
@@ -2093,7 +2094,17 @@ export default class UIManager extends Manager {
             if (mover) {
               targetPlayers.push(mover);
             }
+            const delayed = Number(getEffectTiming(timing).delay ?? 0) > 0;
             for (const pictureEl of pictureEls) {
+              if (mover && delayed) {
+                const animation = mover.addKeyframes(pictureEl, [], timing);
+                const start = scheduleTravel(pictureEl, travel.framing, {
+                  animation,
+                  drop: () => mover.remove(animation),
+                });
+                starting.push({ pictureEl, animation, start });
+                continue;
+              }
               travelPicture(pictureEl, travel.framing, (keyframes) => {
                 if (!mover) {
                   return undefined;
@@ -2276,6 +2287,9 @@ export default class UIManager extends Manager {
     }
     for (const { pictureEl, exits } of hiding) {
       this.whenExitStarts(pictureEl, exits, () => haltPicture(pictureEl));
+    }
+    for (const { pictureEl, animation, start } of starting) {
+      this.whenExitStarts(pictureEl, [animation], start);
     }
     await played;
     for (const el of toDestroy) {
