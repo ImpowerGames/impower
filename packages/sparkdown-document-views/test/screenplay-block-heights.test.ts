@@ -237,8 +237,8 @@ const COMPARED_SHAPES: { name: string; script: string; config: ScreenplayConfig;
     lines: [2, 2],
   },
   {
-    name: "a printed line that also carries a function name wrapped over several rows",
-    script: `scene name_row\n  queue | ${COMPARED_TEXT} | Two. end function ${"identifier".repeat(30)}() end queue | After. end\nend\n`,
+    name: "a long printed line that also carries a function name wrapped over several rows",
+    script: `scene name_row\n  queue | ${Array(24).fill(MARKED).join(" ")} | Two. end function ${"identifier".repeat(30)}() end queue | After. end\nend\n`,
     config: GEOMETRY_CONFIG,
     lines: [2, 2],
   },
