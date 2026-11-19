@@ -41,22 +41,30 @@ const render = (
 
 const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-const paragraphDrawing = async (lineNumber: number) => {
+const paragraphDrawing = async (firstLine: number, lastLine = firstLine) => {
   if (!view) return undefined;
   const current = view;
-  const line = current.state.doc.line(lineNumber);
-  current.dispatch({ selection: { anchor: line.from + 1 } });
+  const first = current.state.doc.line(firstLine);
+  const last = current.state.doc.line(lastLine);
+  current.dispatch({ selection: { anchor: last.to - 1 } });
   current.dom.scrollIntoView();
   await frames();
-  const element = Array.from(current.contentDOM.children).find((child): child is HTMLElement => {
+  const elements = Array.from(current.contentDOM.children).filter((child): child is HTMLElement => {
     if (!(child instanceof HTMLElement)) return false;
     if (!child.matches(`.cm-line:not(.sp-inserted-row), .${PARAGRAPH_CLASS}`)) return false;
     const position = current.posAtDOM(child);
-    return position >= line.from && position <= line.to;
+    return position >= first.from && position <= last.to;
   });
+  const element = elements.at(-1);
   if (!element) return undefined;
   const content = current.contentDOM.getBoundingClientRect();
-  const box = element.getBoundingClientRect();
+  const rects = elements.map((found) => found.getBoundingClientRect());
+  const box = {
+    left: Math.min(...rects.map((rect) => rect.left)),
+    top: Math.min(...rects.map((rect) => rect.top)),
+    width: Math.max(...rects.map((rect) => rect.right)) - Math.min(...rects.map((rect) => rect.left)),
+    height: Math.max(...rects.map((rect) => rect.bottom)) - Math.min(...rects.map((rect) => rect.top)),
+  };
   const lit = getComputedStyle(element);
   const opacityOf = (node: Element | null) => {
     let opacity = 1;
@@ -71,9 +79,14 @@ const paragraphDrawing = async (lineNumber: number) => {
     return [...lines].sort().join(" ");
   };
   const glyphs: string[] = [];
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+  const textNodes = elements.flatMap((found) => {
+    const walker = document.createTreeWalker(found, NodeFilter.SHOW_TEXT);
+    const nodes: Node[] = [];
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
+    return nodes;
+  });
+  for (const node of textNodes) {
     const text = node.textContent ?? "";
     const parent = node.parentElement;
     const style = parent ? getComputedStyle(parent) : undefined;
@@ -99,6 +112,8 @@ const paragraphDrawing = async (lineNumber: number) => {
     }
   }
   return {
+    paragraph: elements.some((found) => found.classList.contains(PARAGRAPH_CLASS)),
+    inserted: elements.reduce((count, found) => count + found.querySelectorAll(".sp-inserted").length, 0),
     box: [box.left - content.left, box.top - content.top, box.width, box.height].map((value) => value.toFixed(1)).join(" "),
     lit: [lit.backgroundColor, lit.boxShadow, lit.borderRadius].join(" | "),
     glyphs,

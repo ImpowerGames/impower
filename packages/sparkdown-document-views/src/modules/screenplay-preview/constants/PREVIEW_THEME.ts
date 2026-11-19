@@ -85,7 +85,7 @@ const PREVIEW_THEME: {
     backgroundColor: "var(--sp-lit)",
     boxShadow: "0 0 0 4px var(--sp-lit)",
   },
-  "& .cm-line.cm-activeLine:has(.sp-title-page)": {
+  "& .cm-line.cm-activeLine:has(.sp-title-page), & .cm-content > .sp-lit:has(.sp-title-page)": {
     backgroundColor: "transparent",
     boxShadow: "none",
   },

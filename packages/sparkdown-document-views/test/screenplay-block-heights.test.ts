@@ -55,6 +55,26 @@ const LONG_PRINTED_LINE = `scene long_action\n  ${"word ".repeat(1500)}TAIL\nend
 
 const LONG_ALIGNED_LINE = `scene long_aligned\n  ${"Left words ".repeat(200)}^Centered words^ ${"Right words ".repeat(200)}\nend\n`;
 
+const LONG_TEXT = `${"word ".repeat(900)}TAIL`;
+
+const SHAPES: { name: string; script: string; config: ScreenplayConfig }[] = [
+  {
+    name: "a printed line joined to the printed title page",
+    script: `---\ntitle: Short title\n--- ${LONG_TEXT}\n${SCRIPT}`,
+    config: TITLE_PAGE_CONFIG,
+  },
+  {
+    name: "a printed paragraph that continues onto the next source line",
+    script: `${SCRIPT}scene crossing\n  ${LONG_TEXT} {"a" ..\n  "b"} after.\nend\n`,
+    config: GEOMETRY_CONFIG,
+  },
+  {
+    name: "a printed line that also carries an inserted row",
+    script: `${SCRIPT}scene row\n  queue | One. | Two. end ${LONG_TEXT}\nend\n`,
+    config: GEOMETRY_CONFIG,
+  },
+];
+
 const MARKED = "The reader keeps **reading the bold words** and *the slanted ones* and _the underlined ones_ while {name} waits.";
 
 const COMPARED = [
@@ -146,24 +166,25 @@ interface Drawing {
   glyphs: string[];
 }
 
-const drawings = async (lineNumbers: number[], paragraphLength?: number) => {
+const drawings = async (
+  lines: (number | [number, number])[],
+  paragraphLength?: number,
+  script = COMPARED,
+  config = GEOMETRY_CONFIG,
+) => {
   const page = await browser.newPage({ viewport: { width: 800, height: 2000 } });
   try {
-    await render(page, COMPARED, 760, GEOMETRY_CONFIG, paragraphLength);
+    await render(page, script, 760, config, paragraphLength);
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
     const found: Drawing[] = [];
-    for (const lineNumber of lineNumbers) {
+    for (const line of lines) {
+      const [first, last] = typeof line === "number" ? [line, line] : line;
       found.push(
-        await page.evaluate(async (number) => {
-          const hooks = window as unknown as { paragraphDrawing: (line: number) => Promise<Omit<Drawing, "paragraph" | "inserted">> };
-          const drawing = await hooks.paragraphDrawing(number);
-          const lit = document.querySelector(".cm-content > .sp-lit, .cm-content > .cm-activeLine");
-          return {
-            ...drawing,
-            paragraph: lit?.classList.contains("sp-paragraph") ?? false,
-            inserted: lit?.querySelectorAll(".sp-inserted").length ?? 0,
-          };
-        }, lineNumber),
+        await page.evaluate(
+          ([from, to]) =>
+            (window as unknown as { paragraphDrawing: (first: number, last: number) => Promise<Drawing> }).paragraphDrawing(from, to),
+          [first, last] as const,
+        ),
       );
     }
     return found;
@@ -171,6 +192,29 @@ const drawings = async (lineNumbers: number[], paragraphLength?: number) => {
     await page.close();
   }
 };
+
+const COMPARED_TEXT = Array(4).fill(MARKED).join(" ");
+
+const COMPARED_SHAPES: { name: string; script: string; config: ScreenplayConfig; lines: [number, number] }[] = [
+  {
+    name: "a printed line joined to the printed title page",
+    script: `---\ntitle: Short title\n--- ${COMPARED_TEXT}\nscene after\n  After.\nend\n`,
+    config: TITLE_PAGE_CONFIG,
+    lines: [1, 3],
+  },
+  {
+    name: "a printed paragraph that continues onto the next source line",
+    script: `scene crossing\n  ${COMPARED_TEXT} {"a" ..\n  "b"} after.\nend\n`,
+    config: GEOMETRY_CONFIG,
+    lines: [2, 3],
+  },
+  {
+    name: "a printed line that also carries an inserted row",
+    script: `scene row\n  queue | One. | Two. end ${COMPARED_TEXT}\nend\n`,
+    config: GEOMETRY_CONFIG,
+    lines: [2, 2],
+  },
+];
 
 describe("the Screenplay page", () => {
   it.each([760, 430])("keeps a long script's scroll height steady while scrolling a %spx page", async (width) => {
@@ -212,6 +256,21 @@ describe("the Screenplay page", () => {
     expect(causes).toContain("paragraph");
     expect(mismatches).toEqual({});
   }, 240_000);
+
+  it.each(SHAPES.flatMap((shape) => [760, 430].map((width) => [shape.name, width, shape] as const)))(
+    "draws %s through its printed rows, steady and exactly estimated, on a %spx page",
+    async (_name, width, { script, config }) => {
+      const scroll = await scrolled(width, script, config);
+      const { causes, mismatches } = estimateMismatches(scroll);
+      expect({ wrapping: scroll.wrapping, jumps: scroll.jumps, paragraph: causes.includes("paragraph"), mismatches }).toEqual({
+        wrapping: false,
+        jumps: [],
+        paragraph: true,
+        mismatches: {},
+      });
+    },
+    240_000,
+  );
 
   it.each([760, 430])("draws each line where CodeMirror places it on a %spx page", async (width) => {
     const drifted = (await scrolled(width)).drifts
@@ -255,5 +314,18 @@ describe("the Screenplay page", () => {
     const shown = (drawing: Drawing) => ({ box: drawing.box, lit: drawing.lit, glyphs: drawing.glyphs });
     expect(rows!.map(shown)).toEqual(text!.map(shown));
   }, 240_000);
+
+  it.each(COMPARED_SHAPES.map((shape) => [shape.name, shape] as const))(
+    "draws %s through its printed rows exactly as CodeMirror draws its text",
+    async (_name, { script, config, lines }) => {
+      const [text] = await drawings([lines], undefined, script, config);
+      const [rows] = await drawings([lines], 1, script, config);
+      expect({ text: text!.paragraph, rows: rows!.paragraph }).toEqual({ text: false, rows: true });
+      expect(text!.glyphs.length).toBeGreaterThan(200);
+      const shown = (drawing: Drawing) => ({ box: drawing.box, lit: drawing.lit, glyphs: drawing.glyphs });
+      expect(shown(rows!)).toEqual(shown(text!));
+    },
+    240_000,
+  );
 });
 

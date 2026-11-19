@@ -1,7 +1,7 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState, Line, Text } from "@codemirror/state";
 import { Extension, Facet, Range, RangeSet, StateField } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
+import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
 import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
@@ -28,12 +28,12 @@ import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
 import HiddenLineWidget from "../classes/widgets/HiddenLineWidget";
-import InsertedRowWidget from "../classes/widgets/InsertedRowWidget";
+import InsertedRowWidget, { type InsertedRowPiece } from "../classes/widgets/InsertedRowWidget";
 import InsertedTextWidget from "../classes/widgets/InsertedTextWidget";
 import LineBreakWidget from "../classes/widgets/LineBreakWidget";
 import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
-import PrintedParagraphWidget from "../classes/widgets/PrintedParagraphWidget";
+import PrintedParagraphWidget, { type PrintedPart } from "../classes/widgets/PrintedParagraphWidget";
 import { PREVIEW_FONT_SIZE } from "../constants/PREVIEW_THEME";
 import { escapeHtml } from "./getFormattedHTML";
 import { printedLineStyle, printedNameStyle, printedTitlePage } from "./screenplayGeometry";
@@ -533,7 +533,9 @@ export const decorate = (
           ? { before: false, after: false, block: true, counted: countsBreaks }
           : { before: !above || !actionStartSet.has(row.at), after: above, counted: countsBreaks },
       );
-      (above ? decorations : rowsBelow).push(Decoration.widget({ widget, side: 1 }).range(row.at));
+      (above ? decorations : rowsBelow).push(
+        Decoration.widget({ widget, side: 1, printedRow: { pieces, below: !above } }).range(row.at),
+      );
       continue;
     }
     const count = rowGroups.get(group)!;
@@ -1171,27 +1173,32 @@ export const wholeParagraphLength = Facet.define<number, number>({
 interface TextLine {
   from: number;
   to: number;
-  joined: boolean;
 }
 
-const longTextLines = (doc: Text, set: DecorationSet, length: number): TextLine[] => {
-  if (doc.length < length) return [];
-  const joins: number[] = [];
+const joinedNewlines = (doc: Text, set: DecorationSet) => {
+  const joins = new Set<number>();
   for (const iter = set.iter(); iter.value; iter.next()) {
     if (!iter.value.point || iter.value.spec.block || iter.to <= iter.from) continue;
-    for (let line = doc.lineAt(iter.from); line.to < iter.to; line = doc.line(line.number + 1)) joins.push(line.to);
+    for (let line = doc.lineAt(iter.from); line.to < iter.to; line = doc.line(line.number + 1)) joins.add(line.to);
   }
-  joins.sort((a, b) => a - b);
+  return joins;
+};
+
+const textLineAround = (doc: Text, joins: ReadonlySet<number>, position: number): TextLine => {
+  let first = doc.lineAt(position);
+  while (first.number > 1 && joins.has(first.from - 1)) first = doc.line(first.number - 1);
+  let last = doc.lineAt(position);
+  while (last.number < doc.lines && joins.has(last.to)) last = doc.line(last.number + 1);
+  return { from: first.from, to: last.to };
+};
+
+const longTextLines = (doc: Text, set: DecorationSet, length: number, joins = joinedNewlines(doc, set)): TextLine[] => {
+  if (doc.length < length) return [];
   const found: TextLine[] = [];
-  let join = 0;
   for (let number = 1; number <= doc.lines; ) {
     const first = doc.line(number);
     let last = first;
-    for (;;) {
-      while (join < joins.length && joins[join]! < last.to) join++;
-      if (joins[join] !== last.to || last.number >= doc.lines) break;
-      last = doc.line(last.number + 1);
-    }
+    while (last.number < doc.lines && joins.has(last.to)) last = doc.line(last.number + 1);
     number = last.number + 1;
     if (last.to - first.from < length) continue;
     let hidden = 0;
@@ -1207,7 +1214,7 @@ const longTextLines = (doc: Text, set: DecorationSet, length: number): TextLine[
       },
       LINE_GAP_POINT_SIZE,
     );
-    if (last.to - first.from - hidden >= length) found.push({ from: first.from, to: last.to, joined: last !== first });
+    if (last.to - first.from - hidden >= length) found.push({ from: first.from, to: last.to });
   }
   return found;
 };
@@ -1248,40 +1255,81 @@ const withoutTrailingSpaces = (line: FormattedText[]) => {
   return result;
 };
 
-const printedParagraph = (
+interface PrintedRowSpec {
+  pieces: InsertedRowPiece[];
+  below: boolean;
+}
+
+const printedBlock = (
   state: EditorState,
   ranges: readonly Range<Decoration>[],
-  { from, to, joined }: TextLine,
+  joins: ReadonlySet<number>,
+  line: TextLine,
 ): Range<Decoration> | undefined => {
-  if (joined) return undefined;
+  const doc = state.doc;
   const { printed, printedLines } = cachedPageLayout(
     syntaxTree(state),
-    state.doc,
+    doc,
     state.field(screenplayConfigField, false),
     state.field(screenplayScenesBeforeField, false) ?? 0,
   );
-  for (let index = 0; index < printed.length; index += 2) {
-    const start = printed[index]!;
-    const end = printed[index + 1]!;
-    if (start < to && end > from && (start < from || end > to)) return undefined;
+  let { from, to } = line;
+  for (let grown = true; grown; ) {
+    grown = false;
+    for (let index = 0; index < printed.length; index += 2) {
+      const start = printed[index]!;
+      const end = printed[index + 1]!;
+      if (start >= to || end <= from) continue;
+      if (start < from) {
+        from = textLineAround(doc, joins, Math.min(start, from - 1)).from;
+        grown = true;
+      }
+      if (end > to) {
+        to = textLineAround(doc, joins, Math.min(Math.max(end - 1, to + 1), doc.length)).to;
+        grown = true;
+      }
+    }
   }
-  const insertsRow = ranges.some(
-    (range) =>
-      range.from >= from &&
-      range.from <= to &&
-      range.value.spec.widget instanceof InsertedRowWidget &&
-      !range.value.spec.block,
-  );
-  if (insertsRow) return undefined;
-  const lines = printedLines
-    .filter((entry) => entry.at >= from && entry.at <= to)
-    .flatMap((entry) => entry.lines.map(withoutTrailingSpaces));
-  if (lines.length === 0) return undefined;
-  const rows = lines.reduce((count, line) => count + printedLineRows(line), 0);
+  const parts: { at: number; order: number; part: PrintedPart }[] = [];
+  const drawnByWidgets: Range<Decoration>[] = [];
+  for (const range of ranges) {
+    if (range.to < from || range.from > to) continue;
+    const { spec, point } = range.value;
+    const widget = spec.widget as WidgetType | undefined;
+    if (spec.block) {
+      if ((range.from > from && range.from < to) || (range.to > from && range.to < to)) return undefined;
+      continue;
+    }
+    if (!point || !widget || isLineDecoration(range)) continue;
+    const row = spec.printedRow as PrintedRowSpec | undefined;
+    if (row) {
+      parts.push({ at: range.from, order: row.below ? 2 : 0, part: { widget: new InsertedRowWidget(row.pieces), rows: 1 } });
+    } else if (widget instanceof LineBreakWidget || widget instanceof InsertedTextWidget) {
+      continue;
+    } else if (range.to > range.from) {
+      drawnByWidgets.push(range);
+      parts.push({ at: range.from, order: 0, part: { widget, rows: 0 } });
+    } else {
+      return undefined;
+    }
+  }
+  let paragraphs = 0;
+  for (const entry of printedLines) {
+    if (entry.at < from || entry.at > to) continue;
+    if (drawnByWidgets.some((range) => entry.at >= range.from && entry.at < range.to)) continue;
+    const lines = entry.lines.map(withoutTrailingSpaces);
+    paragraphs++;
+    parts.push({
+      at: entry.at,
+      order: 1,
+      part: { html: printedHtml(lines), rows: lines.reduce((count, printedLine) => count + printedLineRows(printedLine), 0) },
+    });
+  }
+  if (paragraphs === 0) return undefined;
+  parts.sort((a, b) => a.at - b.at || a.order - b.order);
   const widget = new PrintedParagraphWidget(
-    printedHtml(lines),
+    parts.map(({ part }) => part),
     lineAttributes(ranges, from),
-    rows,
     state.field(screenplayRowField, false) ?? PREVIEW_FONT_SIZE,
   );
   return Decoration.replace({ widget, block: true }).range(from, to);
@@ -1298,8 +1346,19 @@ const outside = (range: Range<Decoration>, from: number, to: number): Range<Deco
   return pieces;
 };
 
-const drawWholeParagraphs = (state: EditorState, ranges: Range<Decoration>[], lines: readonly TextLine[]) => {
-  const paragraphs = lines.flatMap((line) => printedParagraph(state, ranges, line) ?? []);
+const drawWholeParagraphs = (
+  state: EditorState,
+  ranges: Range<Decoration>[],
+  joins: ReadonlySet<number>,
+  lines: readonly TextLine[],
+) => {
+  const paragraphs: Range<Decoration>[] = [];
+  for (const line of lines) {
+    const last = paragraphs.at(-1);
+    if (last && line.from <= last.to) continue;
+    const paragraph = printedBlock(state, ranges, joins, line);
+    if (paragraph) paragraphs.push(paragraph);
+  }
   if (paragraphs.length === 0) return ranges;
   let drawn = ranges;
   for (const paragraph of paragraphs) {
@@ -1320,12 +1379,20 @@ const screenplayDecorations = (state: EditorState): ScreenplayDecorations => {
   const length = state.facet(wholeParagraphLength);
   const ranges = decorate(state);
   const plain = decorationSet(ranges);
-  const long = longTextLines(state.doc, plain, length);
+  const joins = joinedNewlines(state.doc, plain);
+  const long = longTextLines(state.doc, plain, length, joins);
   if (long.length === 0) return { set: plain, wraps: false };
-  const set = decorationSet(drawWholeParagraphs(state, ranges, long));
+  const set = decorationSet(drawWholeParagraphs(state, ranges, joins, long));
   if (longTextLines(state.doc, set, LINE_GAP_LENGTH).length === 0) return { set, wraps: false };
   const unbroken = decorate(state, 0, undefined, undefined, false);
-  return { set: decorationSet(drawWholeParagraphs(state, unbroken, longTextLines(state.doc, decorationSet(unbroken), length))), wraps: true };
+  const unbrokenSet = decorationSet(unbroken);
+  const unbrokenJoins = joinedNewlines(state.doc, unbrokenSet);
+  return {
+    set: decorationSet(
+      drawWholeParagraphs(state, unbroken, unbrokenJoins, longTextLines(state.doc, unbrokenSet, length, unbrokenJoins)),
+    ),
+    wraps: true,
+  };
 };
 
 const replaceDecorations = StateField.define<ScreenplayDecorations>({
