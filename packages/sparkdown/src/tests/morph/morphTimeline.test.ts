@@ -372,7 +372,9 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     expect(morphReplayStretch(drop, 0.2, 0.8)).toEqual({ from: 0.05, to: 0.2 });
     const dropping = new MorphTimeline(timing({ duration: 1, easing: drop, replay: replay({ start: 0.2, end: 0.8 }) }), () => 0.5);
     expect(offsetAt(dropping, 0.21)).toBeCloseTo(0.24, 9);
-    for (const easing of ["cubic-bezier(0.3, 1.8, 0.7, -0.8)", "cubic-bezier(0.2, -0.6, 0.8, 1.6)", "ease-in-out", "steps(4, jump-both)", spike, drop]) {
+    const rise = "linear(0 0%, 0 25%, 1 25%, 0 100%)";
+    expect(firstMorphEasingReach(rise, 0.5)).toBe(0.25);
+    for (const easing of ["cubic-bezier(0.3, 1.8, 0.7, -0.8)", "cubic-bezier(0.2, -0.6, 0.8, 1.6)", "ease-in-out", "steps(4, jump-both)", spike, drop, rise]) {
       const ease = parseMorphEasing(easing)!;
       const clamped = (x: number) => Math.max(0, Math.min(1, ease(x)));
       for (const position of [0.1, 0.35, 0.6, 0.9]) {

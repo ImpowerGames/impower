@@ -986,6 +986,7 @@ For a `replay` block:
 - `delay_min` without `delay_max`, or the other way round, or a `delay_max` below its `delay_min`, is an error on the field, worded as for `iteration_delay_min` and `iteration_delay_max`.
 - A field the block does not take, and a `replay` field written outside the block, are told where they belong.
 - A value a child morph inherits from its parent's `replay` is reported where the child names its parent.
+- A line that jumps left as you type `end = …` inside the block: the editor reads a line starting with `end` as the end of a declaration while you are still typing it, and moves it out one level (to the left margin in the web editor). The block still reads correctly. Format Document (Shift+Alt+F) puts the line back.
 - A warning on the block that its stretch takes no time: under a step easing, `start` and `end` can fall on the same step, so the play gets from one to the other in no time and never replays. Move them onto different steps.
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
