@@ -22,6 +22,7 @@ Read in order:
 16. **[Portrait Morphs](./PortraitMorphs.md)** — portraits that move between their drawn states, such as a blink: preparing the layers, keyframes, clips, timing and the "Show idle animations" switch.
 17. **[Fonts](./Fonts.md)** — font files, and the `@bold`, `@italic` and `@bolditalic` files of a family.
 18. **[The Web Editor](./WebEditor.md)** — writing, playing and sharing your story in the browser: Story, Scripts, Assets, Share and Settings, on a computer and on a phone.
+19. **[Framings](./Framings.md)** — pan and zoom a layer's picture: the `framing` keyword, the built-in framings, `at` on a line that shows a picture and `to` on `animate`.
 
 > Syntax at a glance: an element is `element[.class …] [ "content" ] [ #prop=value ] [ @event=handler ] [ { children } ]`; each class takes a **`.`**; inline props take a **`#`**; an element's children, a style's nested rules and an animation's keyframes go in **`{ … }`** blocks, whose entries are separated by a new line or **`;`**; declarations are `keyword name { … }`, and a `define` is `define name with … end`; control flow uses `then` / `do` / `end`.
 

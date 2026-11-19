@@ -1559,6 +1559,8 @@ style image {
 
 style object {
   height = 100%
+  max_width = none
+  max_height = none
   object_fit = cover
   visibility = hidden
 }

@@ -10,6 +10,12 @@ Shows a character or expression.
 `[[show backdrop sky_night]]`
 Changes the backdrop.
 
+`[[show backdrop sky_night at right]]`
+Shows the backdrop at a framing: here, its right edge.
+
+`[[animate backdrop to left over 5s]]`
+Pans the backdrop to another framing. A framing sets how far across, how far down and how close the view rests.
+
 `choose`
 Starts a choice menu.
 

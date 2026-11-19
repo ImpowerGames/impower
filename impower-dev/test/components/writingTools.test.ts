@@ -313,6 +313,8 @@ describe("Writing tools views", () => {
       "IMANI:",
       "[[imani:happy]]",
       "[[show backdrop sky_night]]",
+      "[[show backdrop sky_night at right]]",
+      "[[animate backdrop to left over 5s]]",
       "choose",
       "+ [Your option]",
       "* [Your option]",

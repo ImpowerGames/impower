@@ -1,0 +1,201 @@
+# 19. Framings
+
+A framing is where the view of a layer's picture rests: how far across the picture, how far down, and how close. Name a framing when you show a picture, and it appears already there. Name one on `animate`, and the picture travels there from wherever the view is now. This is how you pan across a wide backdrop or push in on part of it.
+
+```sparkdown
+framing sofa {
+  x = 60%
+  y = 100%
+  zoom = 1.2
+}
+
+scene start
+  [[show backdrop bg_apartment at right]]
+  The apartment is dark.
+  [[animate backdrop to left over 5s]]
+  Bunny tears through the room, looking for a first aid kit.
+  [[animate backdrop to sofa over 1s]]
+  He drops to his knees beside the sofa.
+end
+```
+
+Pan and zoom are framings, not animations. An `animation` is for an effect that plays and returns to rest, such as `shake`. A framing is a place the view stays until another line moves it. Because the engine moves the picture with `translate` and `scale` only, the travel runs on the graphics card and does not slow the text that types beside it.
+
+---
+
+## 19.1 Defining a framing
+
+Write the `framing` keyword, a name, and a body with up to three fields:
+
+```sparkdown
+framing sofa {
+  x = 60%
+  y = 100%
+  zoom = 1.2
+}
+```
+
+- **`x`** is a percentage across. `x = 60%` puts the point 60% across the picture on the point 60% across the layer. So `0%` sets the picture's left edge on the layer's left edge, `100%` sets the right edges together, and `50%` centres the picture.
+- **`y`** is the same rule from the top. `0%` sets the top edges together and `100%` the bottom edges.
+- **`zoom`** is a number. `1` is the size the layer draws the picture at without a framing, and `1.2` is a fifth larger. The picture grows about the framing's own point, so the `x` and `y` rule holds at any zoom.
+
+Because the rule matches points, not distances, a framing gives the same view whether the picture is wider or narrower than its layer, and on any screen shape.
+
+A field you leave out takes its default: `x = 50%`, `y = 50%` and `zoom = 1`. A framing is a whole view, so its name always gives the same view whatever ran before it:
+
+```sparkdown
+framing closeup {
+  zoom = 1.5
+}
+```
+
+`closeup` is centred, at one and a half times the size.
+
+An `x` or `y` outside `0%` to `100%`, or a `zoom` below `1`, is allowed and can show past the picture's edge. The editor reports a field other than `x`, `y` and `zoom`, an `x` or `y` that is not a percentage, and a `zoom` of zero or less.
+
+### The built-in framings
+
+Nine framings are built in, named the way CSS names positions. Each is at `zoom = 1`:
+
+| Framing | `x` | `y` |
+| --- | --- | --- |
+| `left` | `0%` | `50%` |
+| `center` | `50%` | `50%` |
+| `right` | `100%` | `50%` |
+| `top` | `50%` | `0%` |
+| `bottom` | `50%` | `100%` |
+| `top_left` | `0%` | `0%` |
+| `top_right` | `100%` | `0%` |
+| `bottom_left` | `0%` | `100%` |
+| `bottom_right` | `100%` | `100%` |
+
+A framing of your own with a built-in's name changes that built-in, as an `animation` with a built-in's name does. The fields you write replace the built-in's, and the fields you leave out keep the built-in's values, not the defaults. This makes `top_left` sit 10% in from the left, still at the top:
+
+```sparkdown
+framing top_left {
+  x = 10%
+}
+```
+
+---
+
+## 19.2 Showing a picture at a framing
+
+Add `at` and a framing's name to a line that shows a picture. The picture appears already there:
+
+```sparkdown
+scene start
+  [[show backdrop bg_apartment at right]]
+  The apartment is dark.
+end
+```
+
+`at` works on `show` and on the bare shorthand for a character's portrait, such as `[[bunny@serious at left]]`.
+
+A picture shown without `at` is at the default framing, centred at zoom 1, which looks exactly as the layer draws it without framings. That holds even when the layer was at another framing before: showing a new picture puts the layer back at the default. To swap one backdrop for another and keep the view, write the `at` again:
+
+```sparkdown
+scene start
+  [[show backdrop bg_apartment at right]]
+  The lights are on.
+  [[show backdrop bg_apartment_dim at right]]
+  The lights go out.
+end
+```
+
+Hiding the layer, or clearing it, also puts it back at the default.
+
+The editor reports `at` on `animate` or `hide`, and `at` on a `show` that names no picture, such as `[[show backdrop at right]]`. A name after `at` that is not a framing is reported as an unknown name after `with` is.
+
+---
+
+## 19.3 Travelling to a framing
+
+Add `to` and a framing's name to `animate`. The layer's picture travels from its view on screen to that framing:
+
+```sparkdown
+scene start
+  [[show backdrop bg_apartment at right]]
+  The apartment is dark.
+  [[animate backdrop to left over 5s]]
+  Bunny runs from one end of the room to the other.
+end
+```
+
+`to` moves the picture the layer already shows, so an `animate … to` line names no picture: `[[animate backdrop bg_apartment to left]]` is reported. On a layer that shows no picture, `to` changes nothing. `to` on `show`, `hide` or the bare shorthand is reported too.
+
+The clauses that time an animation time a travel:
+
+| Clause | Meaning |
+| --- | --- |
+| `over 5s` | The travel takes five seconds. Without `over`, the picture arrives at once. |
+| `after 0.5s` | The travel starts half a second after the line. |
+| `ease linear` | The travel moves at a steady pace. Without `ease`, it takes the easing an animation gets when it names none. |
+| `wait` | The story holds until the picture arrives. |
+
+```sparkdown
+scene start
+  [[show backdrop bg_apartment at right]]
+  [[animate backdrop to left over 4s ease linear wait]]
+  The whole room has gone past before this line types.
+end
+```
+
+`to` and `with` can share a line. Both run, and `over`, `after` and `ease` time each:
+
+```sparkdown
+scene start
+  [[show backdrop bg_apartment at right]]
+  [[animate backdrop to bottom_right over 1s with shake]]
+  He dumps the supplies in front of the sofa.
+end
+```
+
+Only the layer the line names moves. `[[animate backdrop to left over 5s]]` pans the backdrop and leaves the portrait layer, and every other layer, where it is.
+
+---
+
+## 19.4 The rules a travel follows
+
+- **A travel keeps going across lines.** Advancing the story does not end it. It goes on until it arrives, or until another `to` on the same layer redirects it.
+- **A travel starts from the view on screen.** A `to` that comes while an earlier one is still in flight starts from wherever the picture is at that moment, not from where the earlier travel was going.
+- **A new picture ends a travel.** Showing a picture on the layer, hiding it or clearing it ends the travel and puts the layer back at the default framing, unless the `show` says `at`.
+- **Pausing pauses a travel.** Resuming the game continues it, as it continues every animation.
+- **A save holds where the view is going.** A game saved during a travel loads with the picture already arrived.
+- **The preview shows every framing arrived.** When the Game Preview is stopped on a line, every travel before it has reached its framing, including one that play would still have in flight. Replay beat plays the travels of that beat's own lines, each starting from where the earlier beats' travels end. See [Previewing a Line](./PreviewingALine.md).
+
+---
+
+## 19.5 A worked example
+
+A scene in Raffles and Bunny pans across a wide apartment backdrop while Bunny searches it, pans back, and pushes in on the sofa. The backdrop is much wider than the screen, so `right` and `left` show its two ends. The portrait stays where it is the whole time, because only the backdrop layer moves:
+
+```sparkdown
+framing sofa {
+  x = 60%
+  y = 100%
+  zoom = 1.2
+}
+
+scene start
+  [[show backdrop bg_apartment at right]]
+  [[show portrait bunny_serious]]
+  First step is to stop the bleeding.
+
+  [[animate backdrop to left over 5s]]
+  Bunny tears through Raffles' apartment, desperately searching for anything resembling a first aid kit.
+
+  He tosses bits and bobs from the shelves -- crystal stemware, porcelain figures, novelty mugs, a grappling hook?
+
+  [[animate backdrop to right over 2s]]
+  Bunny cuts past a wall smothered in oil paintings and cuckoo clocks, leaving a trail of muddy footprints in his wake.
+
+  [[animate backdrop to sofa over 1s]]
+  He dumps the supplies in front of the sofa and drops to his knees beside Raffles.
+end
+```
+
+- The first line shows the backdrop at its right end, before anything has typed.
+- The five-second pan to `left` keeps going while the next two lines type. If the player reads fast, the second `to` starts from wherever the first had got to.
+- The push in to `sofa` sets `x`, `y` and `zoom` together, so it lands on the same view whichever travel came before it.
+- Stopped on the last line, the Game Preview shows the backdrop at `sofa`.
