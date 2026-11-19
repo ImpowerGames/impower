@@ -45,7 +45,7 @@ it.each([
     row: "other.sd | Copy kept when renaming ada.png failed · Scripts · just now",
   },
   {
-    action: { kind: "rename", targets: [uri("Assets/imani.png"), uri("Assets/imani@night.png"), uri("Assets/imani~face.png")] },
+    action: { kind: "rename", targets: [uri("Assets/imani.png"), uri("Assets/imani@night.png"), uri("Assets/imani face.png")] },
     row: "other.sd | Copy kept when renaming imani.png and 2 more failed · Scripts · just now",
   },
   {

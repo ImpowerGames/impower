@@ -17,13 +17,13 @@ const compile = (text = "") => {
   compiler.configure({ files: [
     { uri, name: "main", type: "script", ext: "sd", text, languageId: "sparkdown", version: 1 },
     asset("background.png"),
-    asset("mia/90_body.png"),
-    asset("mia/30_face.neutral~default.png"),
-    asset("mia/30_face.happy.png"),
-    asset("mia/10_hat.on.png"),
-    asset("office/20_door.closed~default.png"),
-    asset("office/20_door.open.png"),
-    asset("office/90_room.png"),
+    asset("mia/90 body.png"),
+    asset("mia/30 face.neutral default.png"),
+    asset("mia/30 face.happy.png"),
+    asset("mia/10 hat.on.png"),
+    asset("office/20 door.closed default.png"),
+    asset("office/20 door.open.png"),
+    asset("office/90 room.png"),
   ] });
   return compiler.compile({ textDocument: { uri } }).program!;
 };
@@ -37,12 +37,12 @@ describe("raster portraits from numbered image folders", () => {
     const context = compile().context!;
     expect(context["layered_image"]?.["mia"]).toBeDefined();
     expect(resolveImageLayers(context, context["layered_image"]?.["mia"]).map(l => l.src)).toEqual([
-      "/file:/local/assets/mia/90_body.png?v=1",
-      "/file:/local/assets/mia/30_face.neutral~default.png?v=1",
+      "/file:/local/assets/mia/90 body.png?v=1",
+      "/file:/local/assets/mia/30 face.neutral default.png?v=1",
     ]);
     expect(resolveImageLayers(context, context["layered_image"]?.["office"]).map(l => l.src)).toEqual([
-      "/file:/local/assets/office/90_room.png?v=1",
-      "/file:/local/assets/office/20_door.closed~default.png?v=1",
+      "/file:/local/assets/office/90 room.png?v=1",
+      "/file:/local/assets/office/20 door.closed default.png?v=1",
     ]);
   });
 
@@ -52,9 +52,9 @@ describe("raster portraits from numbered image folders", () => {
     context["filtered_image"] ??= {};
     context["filtered_image"]["party"] = look;
     expect(resolveImageLayers(context, look).map(l => l.src)).toEqual([
-      "/file:/local/assets/mia/90_body.png?v=1",
-      "/file:/local/assets/mia/30_face.happy.png?v=1",
-      "/file:/local/assets/mia/10_hat.on.png?v=1",
+      "/file:/local/assets/mia/90 body.png?v=1",
+      "/file:/local/assets/mia/30 face.happy.png?v=1",
+      "/file:/local/assets/mia/10 hat.on.png?v=1",
     ]);
   });
 

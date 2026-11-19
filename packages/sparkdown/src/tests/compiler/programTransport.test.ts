@@ -9,7 +9,7 @@ const MAIN = "inmemory:///main.sd";
 const PORTRAIT = "inmemory:///portrait.svg";
 
 const svg = (extra = "") =>
-  `<svg><g id="face" data-name="face.happy:default"><path/></g><g id="sad" data-name="face.sad"><path/></g><g id="hat" data-name="hat.on"><path/></g>${extra}</svg>`;
+  `<svg><g id="face" data-name="face.happy default"><path/></g><g id="sad" data-name="face.sad"><path/></g><g id="hat" data-name="hat.on"><path/></g>${extra}</svg>`;
 
 const script = (line: string) =>
   ["-> START", "", "scene START", "  [[portrait]]", `  ${line}`, "  Another line.", "end", ""].join("\n");

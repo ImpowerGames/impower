@@ -19,7 +19,7 @@ const P = "Assets/Images/Portraits";
 const uri = (path: string) => `file:///${PROJECT}/${path}`;
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-const stack = (name: string) => [`${P}/${name}.png`, `${P}/${name}~face.happy~default.png`, `${P}/${name}~face.sad.png`];
+const stack = (name: string) => [`${P}/${name}.png`, `${P}/${name} face.happy default.png`, `${P}/${name} face.sad.png`];
 
 const NAMES = Array.from({ length: 12 }, (_, index) => `person_${String(index).padStart(2, "0")}`);
 
@@ -118,7 +118,7 @@ describe("a stacked picture's resting picture for the Assets page", () => {
     const leaveFirst = assets.requestPicture(stack("imani"));
     await answer(asked[0], "data:first");
     const first = keyOf(stack("imani"));
-    versions.set(`${P}/imani~face.happy~default.png`, 2);
+    versions.set(`${P}/imani face.happy default.png`, 2);
     await assets.load();
     leaveFirst();
     const leaveReplaced = assets.requestPicture(stack("imani"));
@@ -126,9 +126,9 @@ describe("a stacked picture's resting picture for the Assets page", () => {
     await answer(asked[1], "data:replaced");
     const replaced = keyOf(stack("imani"));
     expect(workspace.assetPictures.value).toEqual({ [replaced]: "data:replaced" });
-    versions.set(`${P}/imani~hat.on~default.png`, 1);
+    versions.set(`${P}/imani hat.on default.png`, 1);
     await assets.load();
-    const grown = [...stack("imani"), `${P}/imani~hat.on~default.png`];
+    const grown = [...stack("imani"), `${P}/imani hat.on default.png`];
     leaveReplaced();
     assets.requestPicture(grown);
     expect(asked).toHaveLength(3);

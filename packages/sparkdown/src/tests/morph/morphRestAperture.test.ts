@@ -19,7 +19,7 @@ const WHITE_SHORT = "M20,50 C40,15 95,0 120,45 C100,72 60,78 40,64 C28,66 18,60 
 
 const eye = (white: string, lower: string, upper = UPPER, closed = CLOSED) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
 <path data-name="face" d="M0,0H140V100H0Z" fill="#c96"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${white}" fill="#fff"/>
 <path data-name="pupil-left" d="${PUPIL}" fill="#234"/>
 <path data-name="eyelash-left" d="${upper}" fill="#111"/>
@@ -336,7 +336,7 @@ describe("a live morph's aperture masks", () => {
 <g data-name="eyes.closed"><path data-name="eyelash-left" d="${CLOSED}" fill="#111"/></g>
 <path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>
 <path data-name="pupil-left" d="${PUPIL}" fill="#234"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
 <path data-name="eyelash-left" d="${LOWER}" fill="#111"/>
 </g>
@@ -386,7 +386,7 @@ describe("a live morph's aperture masks", () => {
       { offset: 1, eyes: { state: "closed" } },
     ],
   });
-  const closedFirst = closedBeneath.replace('data-name="eyes.closed"', 'data-name="eyes.closed:default"').replace('data-name="eyes.open:default"', 'data-name="eyes.open"');
+  const closedFirst = closedBeneath.replace('data-name="eyes.closed"', 'data-name="eyes.closed default"').replace('data-name="eyes.open default"', 'data-name="eyes.open"');
   const BENEATH = [
     ...OFFSETS.map(([when, offset]) => [`moving lashes at the closed pose's depth, beneath the whites, ${when}`, closedBeneath, offset, atClosedDepth] as const),
     ...[0.1, 0.25, 0.4].map((offset) => [`a variant resting closed, its lashes beneath the whites, at ${offset}`, closedFirst, offset, restingClosed] as const),
@@ -617,7 +617,7 @@ describe("a live morph's aperture masks", () => {
     const right = (d: string) => d.replace(/(-?[\d.]+),(-?[\d.]+)/g, (_m, x: string, y: string) => `${Number(x) + 140},${y}`);
     const wink = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
 <path data-name="face" d="M0,0H280V100H0Z" fill="#c96"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>
 <path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
 <path data-name="eyelash-left" d="${LOWER}" fill="#111"/>
@@ -667,7 +667,7 @@ describe("a live morph's aperture masks", () => {
 <path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
 <path data-name="eyelash-left" d="${LOWER}" fill="#111"/>
 </g>
-<g data-name="eyes.closed:default">
+<g data-name="eyes.closed default">
 <path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>
 </g>
 <path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>
@@ -748,7 +748,7 @@ describe("a live morph's aperture masks", () => {
     const right = (d: string) => d.replace(/(-?[\d.]+),(-?[\d.]+)/g, (_m, x: string, y: string) => `${Number(x) + 140},${y}`);
     const wink = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
 <path data-name="face" d="M0,0H280V100H0Z" fill="#c96"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>
 <path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
 <path data-name="eyelash-left" d="${LOWER}" fill="#111"/>

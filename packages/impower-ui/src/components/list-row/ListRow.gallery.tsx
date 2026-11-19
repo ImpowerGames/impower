@@ -257,14 +257,14 @@ function SelectionDemo() {
 }
 
 function PressedDemo() {
-  const [pressed, setPressed] = useState<string | null>("ava~face.happy.png");
+  const [pressed, setPressed] = useState<string | null>("ava face.happy.png");
   return (
     <GalleryRow label="Pressed, one row at a time (the asset inspector's Files list soloing a layer): a toggle button tinted with the accent rule, its thumbnail on the stage surface at the dense row's height; press a row again to release it">
       <div class="space-y-0">
         {(
           [
             ["ava.png", "Base · 80 kB"],
-            ["ava~face.happy.png", "Layer · face.happy · 22 kB"],
+            ["ava face.happy.png", "Layer · face.happy · 22 kB"],
           ] as const
         ).map(([name, description]) => (
           <div key={name} class="h-14">

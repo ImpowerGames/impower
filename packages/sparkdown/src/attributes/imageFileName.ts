@@ -30,7 +30,7 @@ export interface ImageThing {
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-const ORDERED_LAYER = /^(\d+)_(.+)$/;
+const ORDERED_LAYER = /^(\d+)(?: +(.*))?$/;
 
 export const stemOf = (path: string): string => {
   const leaf = leafOf(path);
@@ -38,8 +38,10 @@ export const stemOf = (path: string): string => {
   return dot > 0 ? leaf.slice(0, dot) : leaf;
 };
 
+const spacedStemOf = (path: string): string => stemOf(path).replaceAll("%20", " ").replace(/^ +| +$/g, "");
+
 const layerCutOf = (stem: string): number => {
-  const at = stem.indexOf("~");
+  const at = stem.indexOf(" ");
   return at > 0 ? at : -1;
 };
 
@@ -63,11 +65,11 @@ export const stackNameOf = (base: string): string => {
 const layerOf = (part: string): { layer: string; order?: number } => {
   const match = ORDERED_LAYER.exec(part);
   const order = match ? Number(match[1]) : NaN;
-  return match && Number.isSafeInteger(order) ? { layer: match[2]!, order } : { layer: part };
+  return match && Number.isSafeInteger(order) ? { layer: match[2] ?? "", order } : { layer: part };
 };
 
 export const imageFileNameOf = (path: string): ImageFileName => {
-  const stem = stemOf(path);
+  const stem = spacedStemOf(path);
   const cut = rasterLayerOfPath(path) ? -1 : layerCutOf(stem);
   const picture = cut < 0 ? stem : stem.slice(0, cut);
   const decoded = picture.replaceAll("%40", "@");
@@ -76,7 +78,7 @@ export const imageFileNameOf = (path: string): ImageFileName => {
     name: stackNameOf(picture),
     picture,
     alternate: at < 0 ? null : decoded.slice(at + 1),
-    ...(cut < 0 ? {} : layerOf(stem.slice(cut + 1))),
+    ...(cut < 0 ? {} : layerOf(decodedNameOf(stem.slice(cut + 1).replace(/^ +/, "")))),
   };
 };
 
@@ -96,7 +98,7 @@ export const assetNameOf = (path: string, type: string): string => decodedNameOf
 export const imageMemberOf = (file: ImageFileName): string =>
   file.layer === undefined
     ? file.name
-    : `${file.picture}~${file.order === undefined ? "" : `${file.order}_`}${file.layer}`;
+    : `${file.picture} ${file.order === undefined ? "" : `${file.order} `}${file.layer}`;
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 

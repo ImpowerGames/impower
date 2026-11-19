@@ -224,12 +224,12 @@ describe("ZoomFrame", () => {
 
   it("names what it shows in a caption over the picture that leaves the picture to drag", async () => {
     const frame = await mount(
-      <ZoomFrame label="ava" zoomable caption="Showing ava~hat.on.png alone">
+      <ZoomFrame label="ava" zoomable caption="Showing ava hat.on.png alone">
         <p>picture</p>
       </ZoomFrame>,
     );
     const caption = frame.querySelector<HTMLElement>("[data-zoom-caption]")!;
-    expect(caption.textContent).toBe("Showing ava~hat.on.png alone");
+    expect(caption.textContent).toBe("Showing ava hat.on.png alone");
     expect(caption.getAttribute("role")).toBe("status");
     expect(caption.className.split(" ")).toContain("pointer-events-none");
     expect((await mount(<ZoomFrame label="ava" zoomable />)).querySelector("[data-zoom-caption]")).toBeNull();

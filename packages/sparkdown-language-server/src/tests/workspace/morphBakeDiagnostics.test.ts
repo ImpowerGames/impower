@@ -17,7 +17,7 @@ const LOWER = "M0,50 C30,75 70,75 100,50 C70,85 30,85 0,50Z";
 const CLOSED = "M0,50 C30,44 70,44 100,50 C70,50 30,50 0,50Z";
 const EYEBALL = "M-5,50 C-5,20 105,20 105,50 C105,80 -5,80 -5,50Z";
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
 <path data-name="eyelash-left" d="${UPPER}" fill="#111" stroke="url(#gone)"/>
 <path data-name="eyelash-left" d="${LOWER}" fill="#111"/>

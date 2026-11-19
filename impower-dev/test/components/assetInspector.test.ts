@@ -1017,14 +1017,14 @@ describe("the Variants tester and the Files section", () => {
   const P = "Assets/Images/Portraits";
   const IMANI = [
     `${P}/imani.png`,
-    `${P}/imani~face.happy.png`,
-    `${P}/imani~face.sad.png`,
-    `${P}/imani~mouth.closed~default.png`,
-    `${P}/imani~mouth.open.png`,
+    `${P}/imani face.happy.png`,
+    `${P}/imani face.sad.png`,
+    `${P}/imani mouth.closed default.png`,
+    `${P}/imani mouth.open.png`,
     `${P}/imani@night.png`,
-    `${P}/imani@night~face.happy.png`,
+    `${P}/imani@night face.happy.png`,
   ];
-  const MIA = [`${P}/mia/90_body.png`, `${P}/mia/30_face.neutral~default.png`, `${P}/mia/30_face.happy.png`];
+  const MIA = [`${P}/mia/90 body.png`, `${P}/mia/30 face.neutral default.png`, `${P}/mia/30 face.happy.png`];
   const reference = () => region()!.querySelector("[data-variant-reference]")!.textContent;
   const group = (key: string) => region()!.querySelector<HTMLButtonElement>(`[data-variant-group="${key}"]`)!;
   const pick = async (trigger: HTMLElement, label: string) => {
@@ -1247,12 +1247,12 @@ describe("the Variants tester and the Files section", () => {
       files: Object.fromEntries(
         [
           `${P}/tower.png`,
-          `${P}/tower~flag.on.png`,
-          `${P}/tower~flag.off.png`,
-          `${P}/tower~banner.on.png`,
-          `${P}/tower~face.happy.png`,
+          `${P}/tower flag.on.png`,
+          `${P}/tower flag.off.png`,
+          `${P}/tower banner.on.png`,
+          `${P}/tower face.happy.png`,
           `${P}/rooftop.png`,
-          `${P}/rooftop~lamp.on.png`,
+          `${P}/rooftop lamp.on.png`,
         ].map((path, i) => [path, fact(512 * (i + 1))]),
       ),
     };
@@ -1402,23 +1402,23 @@ describe("the Variants tester and the Files section", () => {
     const files = region()!.querySelector<HTMLElement>('section[aria-label="Files"]')!;
     expect(files.querySelector("h3")!.nextElementSibling!.textContent).toBe("7 files · 28 kB");
     const rows = [...files.querySelectorAll<HTMLElement>("[data-file-path]")].map((row) => row.textContent);
-    expect(rows).toContain("imani~mouth.closed~default.pngLayer · mouth.closed · default · 4 kB");
+    expect(rows).toContain("imani mouth.closed default.pngLayer · mouth.closed · default · 4 kB");
     expect(rows).toContain("imani@night.pngAlternate · night · 6 kB");
-    await fileMenu("imani~face.sad.png", "Rename");
-    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani~face.sad.png"]')!;
-    expect(input.value).toBe("imani~face.sad");
+    await fileMenu("imani face.sad.png", "Rename");
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani face.sad.png"]')!;
+    expect(input.value).toBe("imani face.sad");
     await act(async () => {
-      input.value = "imani~face.glum";
+      input.value = "imani face.glum";
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     });
     await settle();
-    expect(assets.renameMember).toHaveBeenCalledWith(`${P}/imani~face.sad.png`, "imani~face.glum");
+    expect(assets.renameMember).toHaveBeenCalledWith(`${P}/imani face.sad.png`, "imani face.glum");
     await fileMenu("imani@night.png", "Download");
     expect(assets.download).toHaveBeenCalledWith(`${P}/imani@night.png`);
-    await fileMenu("imani~mouth.open.png", "Delete");
+    await fileMenu("imani mouth.open.png", "Delete");
     await click(all<HTMLElement>('[role="dialog"] button').find((button) => button.textContent === "Delete"));
-    expect(assets.removeMember).toHaveBeenCalledWith(`${P}/imani~mouth.open.png`);
+    expect(assets.removeMember).toHaveBeenCalledWith(`${P}/imani mouth.open.png`);
   });
 
   const fileMenuShape = async (name: string, pointerType: "mouse" | "touch") => {
@@ -1463,7 +1463,7 @@ describe("the Variants tester and the Files section", () => {
     expect(picker.multiple).toBe(false);
     const opened = vi.spyOn(HTMLInputElement.prototype, "click");
     try {
-      await fileMenu("imani~face.sad.png", "Replace…");
+      await fileMenu("imani face.sad.png", "Replace…");
       expect(opened.mock.contexts).toEqual([picker]);
     } finally {
       opened.mockRestore();
@@ -1474,7 +1474,7 @@ describe("the Variants tester and the Files section", () => {
     });
     await settle();
     expect(assets.replace).toHaveBeenCalledTimes(1);
-    expect(assets.replace).toHaveBeenCalledWith(`${P}/imani~face.sad.png`, expect.objectContaining({ name: "glum.png" }));
+    expect(assets.replace).toHaveBeenCalledWith(`${P}/imani face.sad.png`, expect.objectContaining({ name: "glum.png" }));
   });
 
   it("draws nothing for a combination that shows no layer, and says when the picture could not be drawn", async () => {
@@ -1519,30 +1519,30 @@ describe("the Variants tester and the Files section", () => {
       };
     };
     lists({ assetsType: "image", assetsFolders: { image: M } });
-    setFiles([`${M}/90_body.png`, `${M}/30_face.happy.png`]);
+    setFiles([`${M}/90 body.png`, `${M}/30 face.happy.png`]);
     assets.renameMember.mockImplementationOnce(async () => {
-      setFiles([`${M}/95_body.png`, `${M}/30_face.happy.png`]);
-      return `${M}/95_body.png`;
+      setFiles([`${M}/95 body.png`, `${M}/30 face.happy.png`]);
+      return `${M}/95 body.png`;
     });
     await mount();
     await open("mia");
-    await fileMenu("90_body.png", "Rename");
-    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename 90_body.png"]')!;
+    await fileMenu("90 body.png", "Rename");
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename 90 body.png"]')!;
     await act(async () => {
-      input.value = "95_body";
+      input.value = "95 body";
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     });
     await settle();
     expect(title()).toBe("mia");
-    await act(async () => setFiles([`${M}/99_paper.png`, `${M}/95_body.png`, `${M}/30_face.happy.png`]));
+    await act(async () => setFiles([`${M}/99 paper.png`, `${M}/95 body.png`, `${M}/30 face.happy.png`]));
     await settle();
     expect(title()).toBe("mia");
-    assets.removeMember.mockImplementationOnce(async () => setFiles([`${M}/95_body.png`, `${M}/30_face.happy.png`]));
-    await fileMenu("99_paper.png", "Delete");
+    assets.removeMember.mockImplementationOnce(async () => setFiles([`${M}/95 body.png`, `${M}/30 face.happy.png`]));
+    await fileMenu("99 paper.png", "Delete");
     await click(all<HTMLElement>('[role="dialog"] button').find((button) => button.textContent === "Delete"));
     expect(title()).toBe("mia");
-    expect(region()!.querySelector('[data-file-path$="99_paper.png"]')).toBeNull();
+    expect(region()!.querySelector('[data-file-path$="99 paper.png"]')).toBeNull();
   });
 
   it("says why storage refused to add or download a file", async () => {
@@ -1550,7 +1550,7 @@ describe("the Variants tester and the Files section", () => {
     await open("imani");
     assets.addBeside.mockRejectedValueOnce({ code: -32000, message: "The storage is full" });
     const picker = region()!.querySelector<HTMLInputElement>("[data-file-picker]")!;
-    Object.defineProperty(picker, "files", { value: [new File(["png"], "imani~hat.on.png")], configurable: true });
+    Object.defineProperty(picker, "files", { value: [new File(["png"], "imani hat.on.png")], configurable: true });
     await act(async () => {
       picker.dispatchEvent(new Event("change", { bubbles: true }));
     });
@@ -1603,14 +1603,14 @@ describe("the Variants tester and the Files section", () => {
     await mount();
     await open("imani");
     const picker = region()!.querySelector<HTMLInputElement>("[data-file-picker]")!;
-    Object.defineProperty(picker, "files", { value: [new File(["png"], "imani~hat.on.png")], configurable: true });
+    Object.defineProperty(picker, "files", { value: [new File(["png"], "imani hat.on.png")], configurable: true });
     await act(async () => {
       picker.dispatchEvent(new Event("change", { bubbles: true }));
     });
     await settle();
-    expect(assets.addBeside).toHaveBeenCalledWith([expect.objectContaining({ name: "imani~hat.on.png" })], `${P}/imani.png`);
+    expect(assets.addBeside).toHaveBeenCalledWith([expect.objectContaining({ name: "imani hat.on.png" })], `${P}/imani.png`);
     expect(region()!.querySelector("[data-file-note]")!.textContent).toBe(
-      "A file named imani~group.option.png adds a layer and imani@name.png another alternate.",
+      "A file named imani group.option.png adds a layer and imani@name.png another alternate.",
     );
   });
 
@@ -1745,11 +1745,11 @@ describe("the Variants tester and the Files section", () => {
     expect(caption()).toBeNull();
     expect(pressedRows()).toEqual([]);
 
-    await click(soloButton("imani~face.sad.png"));
-    expect(stageImage()).toBe(srcOf(`${P}/imani~face.sad.png`));
-    expect(caption()).toBe("Showing imani~face.sad.png alone");
-    expect(pressedRows()).toEqual(["Show imani~face.sad.png alone"]);
-    expect(soloButton("imani~face.sad.png").parentElement!.className.split(" ")).toEqual(
+    await click(soloButton("imani face.sad.png"));
+    expect(stageImage()).toBe(srcOf(`${P}/imani face.sad.png`));
+    expect(caption()).toBe("Showing imani face.sad.png alone");
+    expect(pressedRows()).toEqual(["Show imani face.sad.png alone"]);
+    expect(soloButton("imani face.sad.png").parentElement!.className.split(" ")).toEqual(
       expect.arrayContaining(["bg-tint", "before:opacity-100"]),
     );
     expect(soloButton("imani.png").getAttribute("aria-pressed")).toBe("false");
@@ -1774,9 +1774,9 @@ describe("the Variants tester and the Files section", () => {
   it("ends solo on Escape without closing, and the next Escape closes", async () => {
     await mount();
     await open("imani");
-    await click(soloButton("imani~mouth.open.png"));
-    expect(caption()).toBe("Showing imani~mouth.open.png alone");
-    await key(soloButton("imani~mouth.open.png"), "Escape");
+    await click(soloButton("imani mouth.open.png"));
+    expect(caption()).toBe("Showing imani mouth.open.png alone");
+    await key(soloButton("imani mouth.open.png"), "Escape");
     expect(region()).not.toBeNull();
     expect(caption()).toBeNull();
     expect(stageImage()).toBe("/picture/imani");
@@ -1789,8 +1789,8 @@ describe("the Variants tester and the Files section", () => {
     layout.value = "phone";
     await mount();
     await open("imani");
-    await click(soloButton("imani~face.happy.png"));
-    await key(soloButton("imani~face.happy.png"), "Escape");
+    await click(soloButton("imani face.happy.png"));
+    await key(soloButton("imani face.happy.png"), "Escape");
     expect(region()).not.toBeNull();
     expect(region()!.getAttribute("data-asset-inspector")).toBe("sheet");
     expect(caption()).toBeNull();
@@ -1803,7 +1803,7 @@ describe("the Variants tester and the Files section", () => {
     };
     await mount();
     await open("imani");
-    await click(soloButton("imani~face.happy.png"));
+    await click(soloButton("imani face.happy.png"));
     expect(step("next").getAttribute("aria-label")).toBe("Next: zara");
     await click(step("next"));
     expect(title()).toBe("zara");
@@ -1821,10 +1821,10 @@ describe("the Variants tester and the Files section", () => {
     await click(frame.querySelector<HTMLElement>('button[aria-label="Zoom in"]'));
     const transform = (frame.firstElementChild as HTMLElement).style.transform;
     expect(frame.hasAttribute("data-zoomed")).toBe(true);
-    await click(soloButton("imani~face.happy.png"));
+    await click(soloButton("imani face.happy.png"));
     expect(region()!.querySelector("[data-zoom-frame]")).toBe(frame);
     expect((frame.firstElementChild as HTMLElement).style.transform).toBe(transform);
-    await click(soloButton("imani~face.happy.png"));
+    await click(soloButton("imani face.happy.png"));
     expect(region()!.querySelector("[data-zoom-frame]")).toBe(frame);
     expect((frame.firstElementChild as HTMLElement).style.transform).toBe(transform);
   });
@@ -1844,18 +1844,18 @@ describe("the Variants tester and the Files section", () => {
         return () => {};
       },
     );
-  const RESTING = ["imani.png", "imani~mouth.closed~default.png"];
+  const RESTING = ["imani.png", "imani mouth.closed default.png"];
 
   it("places a smaller file where the composition draws it, measuring the files it frames when soloed", async () => {
     drawing(() => RESTING);
     workspace.assetSizes.value = { [srcOf(`${P}/imani.png`)!]: { width: 400, height: 200 } };
     await mount();
     await open("imani");
-    await click(soloButton("imani~face.happy.png"));
-    expect(assets.measureImages).toHaveBeenCalledWith([`${P}/imani~face.happy.png`, ...RESTING.map((leaf) => `${P}/${leaf}`)]);
+    await click(soloButton("imani face.happy.png"));
+    expect(assets.measureImages).toHaveBeenCalledWith([`${P}/imani face.happy.png`, ...RESTING.map((leaf) => `${P}/${leaf}`)]);
     expect(placed().fills).toBe(true);
     await act(async () => {
-      workspace.assetSizes.value = sized({ "imani~face.happy.png": { width: 200, height: 50 } }, { width: 400, height: 200 });
+      workspace.assetSizes.value = sized({ "imani face.happy.png": { width: 200, height: 50 } }, { width: 400, height: 200 });
     });
     await settle();
     expect(placed()).toEqual({ left: "0%", top: "0%", width: "50%", height: "25%", fills: false });
@@ -1863,11 +1863,11 @@ describe("the Variants tester and the Files section", () => {
 
   it("measures a soloed file again when it is replaced at the same path, and places the new picture", async () => {
     drawing(() => RESTING);
-    const happy = `${P}/imani~face.happy.png`;
-    workspace.assetSizes.value = sized({ "imani~face.happy.png": { width: 200, height: 100 } });
+    const happy = `${P}/imani face.happy.png`;
+    workspace.assetSizes.value = sized({ "imani face.happy.png": { width: 200, height: 100 } });
     await mount();
     await open("imani");
-    await click(soloButton("imani~face.happy.png"));
+    await click(soloButton("imani face.happy.png"));
     expect(placed()).toEqual({ left: "0%", top: "0%", width: "50%", height: "25%", fills: false });
     assets.measureImages.mockClear();
     await act(async () => {
@@ -1878,7 +1878,7 @@ describe("the Variants tester and the Files section", () => {
     });
     await settle();
     expect(stageImage()).toBe("/p/replaced");
-    expect(soloButton("imani~face.happy.png").getAttribute("aria-pressed")).toBe("true");
+    expect(soloButton("imani face.happy.png").getAttribute("aria-pressed")).toBe("true");
     expect(assets.measureImages).toHaveBeenCalledWith(expect.arrayContaining([happy]));
     await act(async () => {
       workspace.assetSizes.value = { ...workspace.assetSizes.value, "/p/replaced": { width: 100, height: 50 } };
@@ -1894,7 +1894,7 @@ describe("the Variants tester and the Files section", () => {
     await open("imani");
     await click(soloButton("imani.png"));
     expect(placed()).toEqual({ left: "0%", top: "0%", width: "100%", height: "100%", fills: false });
-    await click(soloButton("imani~mouth.closed~default.png"));
+    await click(soloButton("imani mouth.closed default.png"));
     expect(placed()).toEqual({ left: "0%", top: "0%", width: "100%", height: "100%", fills: false });
   });
 
@@ -1908,11 +1908,11 @@ describe("the Variants tester and the Files section", () => {
   });
 
   it("frames by a larger file the variant draws, the base in its corner as the composition draws it", async () => {
-    drawing((variant) => (variant.image === "imani@night" ? ["imani@night.png"] : ["imani.png", "imani~mouth.open.png"]));
-    workspace.assetSizes.value = sized({ "imani~mouth.open.png": { width: 800, height: 400 } });
+    drawing((variant) => (variant.image === "imani@night" ? ["imani@night.png"] : ["imani.png", "imani mouth.open.png"]));
+    workspace.assetSizes.value = sized({ "imani mouth.open.png": { width: 800, height: 400 } });
     await mount();
     await open("imani");
-    await click(soloButton("imani~mouth.open.png"));
+    await click(soloButton("imani mouth.open.png"));
     expect(placed()).toEqual({ left: "0%", top: "25%", width: "100%", height: "50%", fills: false });
     await click(soloButton("imani.png"));
     expect(placed()).toEqual({ left: "0%", top: "25%", width: "50%", height: "50%", fills: false });
@@ -1921,15 +1921,15 @@ describe("the Variants tester and the Files section", () => {
   it("keeps the file menu working without starting solo, and lets Escape cancel a rename while soloed", async () => {
     await mount();
     await open("imani");
-    await fileMenu("imani~face.sad.png", "Download");
-    expect(assets.download).toHaveBeenCalledWith(`${P}/imani~face.sad.png`);
+    await fileMenu("imani face.sad.png", "Download");
+    expect(assets.download).toHaveBeenCalledWith(`${P}/imani face.sad.png`);
     expect(pressedRows()).toEqual([]);
-    await click(soloButton("imani~face.happy.png"));
-    await fileMenu("imani~face.sad.png", "Rename");
-    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani~face.sad.png"]')!;
+    await click(soloButton("imani face.happy.png"));
+    await fileMenu("imani face.sad.png", "Rename");
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani face.sad.png"]')!;
     await key(input, "Escape");
-    expect(host!.querySelector('input[aria-label="Rename imani~face.sad.png"]')).toBeNull();
-    expect(caption()).toBe("Showing imani~face.happy.png alone");
+    expect(host!.querySelector('input[aria-label="Rename imani face.sad.png"]')).toBeNull();
+    expect(caption()).toBe("Showing imani face.happy.png alone");
   });
 
   it("gives a folder stack's rows the same pictures and solo", async () => {
@@ -1941,9 +1941,9 @@ describe("the Variants tester and the Files section", () => {
     for (const row of rows) {
       expect(row.querySelector("[data-thumbnail] img")!.getAttribute("src")).toBe(srcOf(row.getAttribute("data-file-path")!));
     }
-    await click(soloButton("30_face.happy.png"));
-    expect(stageImage()).toBe(srcOf(`${P}/mia/30_face.happy.png`));
-    expect(caption()).toBe("Showing 30_face.happy.png alone");
+    await click(soloButton("30 face.happy.png"));
+    expect(stageImage()).toBe(srcOf(`${P}/mia/30 face.happy.png`));
+    expect(caption()).toBe("Showing 30 face.happy.png alone");
   });
 
   it("shows a folder stack as one picture with the same tester, and keeps its Rename and Move to the folder", async () => {
@@ -1953,7 +1953,7 @@ describe("the Variants tester and the Files section", () => {
     expect(group("face").getAttribute("aria-label")).toBe("Face: Neutral");
     await pick(group("face"), "Happy");
     expect(reference()).toBe("[[mia:happy]]");
-    expect(region()!.querySelector("[data-file-note]")!.textContent).toContain("NN_group.option.png");
+    expect(region()!.querySelector("[data-file-note]")!.textContent).toContain("NN group.option.png");
     const trigger = all<HTMLElement>('button[aria-label="Options for mia"]')[0]!;
     await act(async () => {
       trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse" }));

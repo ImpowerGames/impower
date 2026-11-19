@@ -9,20 +9,20 @@ import { blink, CLOSED, EYEBALL, LOWER_OPEN, partnerPortrait, portrait, shiftPat
 
 const square = (name: string, id: string, y: number) => `<path data-name="${name}" id="${id}" d="M0,${y}H10V${y + 10}H0Z"/>`;
 
-const TEETH_LAYER = square("lips:mouth.teeth", "m-teeth", 60);
+const TEETH_LAYER = square("lips mouth.teeth", "m-teeth", 60);
 
 const FACE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-${square("lids:eyes.open:default", "e-open", 0)}
-${square("lids:eyes.closed", "e-closed", 15)}
-${square("lips:mouth.open:default", "m-open", 30)}
-${square("lips:mouth.closed", "m-closed", 45)}
+${square("lids eyes.open default", "e-open", 0)}
+${square("lids eyes.closed", "e-closed", 15)}
+${square("lips mouth.open default", "m-open", 30)}
+${square("lips mouth.closed", "m-closed", 45)}
 ${TEETH_LAYER}
 </svg>`;
 
 const WIDE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-${square("lips:mouth.open", "m-open", 30)}
-${square("wide:mouth.open-wide:default", "m-wide", 75)}
-${square("lips:mouth.closed", "m-closed", 45)}
+${square("lips mouth.open", "m-open", 30)}
+${square("wide mouth.open-wide default", "m-wide", 75)}
+${square("lips mouth.closed", "m-closed", 45)}
 </svg>`;
 
 const flap = (keyframes: Record<string, unknown>[], extra: Record<string, unknown> = {}) =>
@@ -152,10 +152,10 @@ describe("a morph's rest in the bake", () => {
 });
 
 const twoMorphFace = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-${square("lids:eyes.open:default", "e-open", 0)}
-${square("lids:eyes.closed", "e-closed", 15)}
-${square("lips:mouth.closed:default", "m-closed", 30)}
-${square("lips:mouth.open", "m-open", 45)}
+${square("lids eyes.open default", "e-open", 0)}
+${square("lids eyes.closed", "e-closed", 15)}
+${square("lips mouth.closed default", "m-closed", 30)}
+${square("lips mouth.open", "m-open", 45)}
 ${TEETH_LAYER}
 </svg>`;
 

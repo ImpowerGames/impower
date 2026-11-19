@@ -2,6 +2,10 @@ import type { ParsedLayerName } from "./types";
 
 export const ATTRIBUTE_WORD = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
 
+const LOOK_ALIKE_SPACE = /[^\S \t]|[᠎​⁠]/u;
+
+const trimSpaces = (text: string) => text.replace(/^ +| +$/g, "");
+
 export const parseLayerName = (source: string): ParsedLayerName => {
   const result: ParsedLayerName = {
     label: "",
@@ -9,28 +13,27 @@ export const parseLayerName = (source: string): ParsedLayerName => {
     default: false,
     diagnostics: [],
   };
-  const invalid = (message: string, code = "invalid-layer-name") => {
+  const invalid = (message: string) => {
     result.diagnostics.push({
-      code,
+      code: "invalid-layer-name",
       message,
       severity: "warning",
       layer: source,
     });
     return result;
   };
-  let name = source;
+  if (LOOK_ALIKE_SPACE.test(source)) {
+    return invalid(
+      `Layer "${source}" holds a space character that is not an ordinary space. Separate its words with ordinary spaces.`,
+    );
+  }
+  let name = trimSpaces(source.replaceAll("\t", " "));
   if (name.startsWith("_")) {
     const end = name.indexOf("_", 1);
     if (end < 0) return invalid(`Layer "${source}" has no closing underscore.`);
-    name = name.slice(1, end);
+    name = trimSpaces(name.slice(1, end));
   }
-  if (name.includes(":") && name.includes("~")) {
-    return invalid(
-      `Layer "${source}" mixes ':' and '~'. Use one separator.`,
-      "mixed-layer-separators",
-    );
-  }
-  const parts = name.split(/[:~]/);
+  const parts = name.split(/ +/);
   if (parts.length > 1 && parts[parts.length - 1] === "default") {
     result.default = true;
     parts.pop();

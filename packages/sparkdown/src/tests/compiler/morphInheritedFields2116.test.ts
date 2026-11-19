@@ -11,11 +11,11 @@ vi.mock("../../compiler/morph/validateMorph", async (importOriginal) => {
 const URI = "file:///main.sd";
 
 const FACE = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open:default" id="open"/>
-<g data-name="lids:eyes.closed" id="closed"/>
-<g data-name="lips:mouth.open:default" id="m-open"/>
-<g data-name="lips:mouth.closed" id="m-closed"/>
-<g data-name="lips:mouth.teeth" id="m-teeth"/>
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.closed" id="closed"/>
+<g data-name="lips mouth.open default" id="m-open"/>
+<g data-name="lips mouth.closed" id="m-closed"/>
+<g data-name="lips mouth.teeth" id="m-teeth"/>
 </svg>`;
 
 const KEYFRAMES = [

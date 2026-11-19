@@ -29,16 +29,16 @@ describe("portrait asset review regressions", () => {
   });
 
   it("does not collide shared private layer filenames across distinct portraits", () => {
-    const program = compile([asset("mia/90_body.png"), asset("max/90_body.png")]);
+    const program = compile([asset("mia/90 body.png"), asset("max/90 body.png")]);
     expect(collisions(program)).toEqual([]);
     for (const name of ["mia", "max"]) {
       expect(resolveImageLayers(program.context, program.context?.["layered_image"]?.[name])[0]?.src)
-        .toContain(`/${name}/90_body.png`);
+        .toContain(`/${name}/90 body.png`);
     }
   });
 
   it("diagnoses same-named portrait folders independent of input ordering", () => {
-    const assets = [asset("heroes/mia/90_body.png"), asset("npcs/mia/90_body.png")];
+    const assets = [asset("heroes/mia/90 body.png"), asset("npcs/mia/90 body.png")];
     const first = compile(assets);
     const reverse = compile([...assets].reverse());
     expect(collisions(first).length).toBeGreaterThanOrEqual(2);
@@ -48,12 +48,12 @@ describe("portrait asset review regressions", () => {
   });
 
   it("diagnoses an ordinary image sharing a generated portrait name", () => {
-    expect(collisions(compile([asset("mia.png"), asset("mia/90_body.png")])).length)
+    expect(collisions(compile([asset("mia.png"), asset("mia/90 body.png")])).length)
       .toBeGreaterThanOrEqual(2);
   });
 
   it("an authored layered image remains an intentional override", () => {
-    const program = compile([asset("plain.png"), asset("mia/90_body.png")],
+    const program = compile([asset("plain.png"), asset("mia/90 body.png")],
       "define mia as layered_image with\n  assets = { plain }\nend\n");
     expect(collisions(program)).toEqual([]);
     expect(resolveImageLayers(program.context, program.context?.["layered_image"]?.["mia"])[0]?.src)

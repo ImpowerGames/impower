@@ -5,7 +5,7 @@ import { resolveImageLayers } from "../../compiler/utils/resolveImageLayers";
 it("refreshes generated raster images after an asset changes or disappears", () => {
   const uri = "file:///project/main.sd";
   const compiler = new SparkdownCompiler();
-  const file = { uri: "file:///project/assets/mia/10_hat.on.png", type: "image", name: "10_hat", ext: "png", src: "/first.png" };
+  const file = { uri: "file:///project/assets/mia/10 hat.on.png", type: "image", name: "10 hat", ext: "png", src: "/first.png" };
   compiler.configure({ files: [
     { uri, type: "script", name: "main", ext: "sd", text: "[[mia:hat]]", languageId: "sparkdown", version: 1 },
     file,

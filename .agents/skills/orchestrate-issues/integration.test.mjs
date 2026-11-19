@@ -227,16 +227,15 @@ try {
   assert.equal(ig.invokes(quoted("Can you explain how orchestrate-issues merges PRs?")), false, "a discussion of the skill grants nothing");
   assert.equal(ig.invokes(quoted(`Please orchestrate #${ISSUE} for me.`)), false, "a request that does not name the skill grants nothing");
   const split = (text) => ({ ...quoted(text), repository: "o/code", ticketsRepository: "o/tickets" });
-  for (const form of [`#${ISSUE}`, `#I-${ISSUE}`, `I-${ISSUE}`]) {
-    assert.equal(ig.invokes(split(`/orchestrate-issues ${form}`)), true, `a split record accepts ${form}`);
-    assert.equal(ig.invokes(split(`/orchestrate-issues ${form}1`)), false, `a split record refuses the longer ${form}1`);
+  for (const record of [quoted, split]) {
+    for (const form of [`${ISSUE}`, `#${ISSUE}`, `#I-${ISSUE}`, `I-${ISSUE}`, `(I-${ISSUE})`, `o/tickets#${ISSUE}`, `https://github.com/o/tickets/issues/${ISSUE}`, `https://github.com/o/tickets/issues/${ISSUE}#issuecomment-9`]) {
+      assert.equal(ig.invokes(record(`/orchestrate-issues ${form}`)), true, `the parent is named by ${form}`);
+    }
+    for (const form of [`${ISSUE}1`, `1${ISSUE}`, `#${ISSUE + 1}`, `I-${ISSUE}1`, `https://github.com/o/tickets/issues/${ISSUE}1`, `https://github.com/o/tickets/issues/1${ISSUE}`]) {
+      assert.equal(ig.invokes(record(`/orchestrate-issues ${form}`)), false, `another number is not this parent: ${form}`);
+    }
+    assert.equal(ig.invokes(record(`Please orchestrate https://github.com/o/tickets/issues/${ISSUE}`)), false, "a link without the skill's name grants nothing");
   }
-  assert.equal(ig.invokes(split(`/orchestrate-issues #I-${ISSUE + 1}`)), false, "another prefixed number is not this parent");
-  assert.equal(ig.invokes(split(`/orchestrate-issues ${ISSUE}`)), false, "a bare number without # or the prefix names no issue");
-  assert.equal(ig.invokes(split(`/orchestrate-issues FIXI-${ISSUE}`)), false, "the prefixed number inside a longer word names no issue");
-  assert.equal(ig.invokes(split(`/orchestrate-issues (I-${ISSUE})`)), true, "punctuation before the prefix still starts a token");
-  assert.equal(ig.invokes(quoted(`/orchestrate-issues #I-${ISSUE}`)), false, "the one-repository position keeps the #N rule");
-  assert.equal(ig.invokes({ ...quoted(`/orchestrate-issues I-${ISSUE}`), repository: "o/code" }), false, "a record without a tickets repository keeps the #N rule");
   for (const text of ["Use orchestrate-issues for #40, but stop at ready PRs.", "Use orchestrate-issues for #40 and do not merge anything.", "Use orchestrate-issues for #40 --stop-at-ready."]) assert.throws(() => run.mergingFor(text, "coordinator"), /asks to stop at ready PRs or not to merge; record --merging maintainer/, text);
   run.initRecord({ record: recordFile, checkout: src, repository: REPO, issue: ISSUE, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", writerModel: "gpt-6.1-sol", invocation, merging: "coordinator" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
   assert.deepEqual([run.readRecord(recordFile).invocation.merging, run.readRecord(recordFile).authority.merge], ["coordinator", run.MERGE_GRANT], "an explicit invocation, recorded as such, grants the coordinator the scoped merge");
@@ -380,7 +379,7 @@ try {
   blocked(gate(41, { ...record(), authority: { ...record().authority, merge: "the maintainer merges ready PRs" } }), /does not let the coordinator merge/, "a record made under another grant does not merge");
   for (const text of ["Use orchestrate-issues for #40, but stop at ready PRs.", "Use orchestrate-issues for #40 --stop-at-ready."]) blocked(gate(41, { ...record(), invocation: { text, merging: "coordinator" } }), /does not let the coordinator merge/, `a request to stop at ready never merges, whatever decision sits beside it: ${text}`);
   blocked(gate(41, { ...record(), checkpoints: undefined }), /checkpoints are not enabled for this run/, "no merge without a durable intent");
-  blocked(gate(41, { ...record(), invocation: { text: "Can you explain how orchestrate-issues merges PRs?" } }), /does not name orchestrate-issues and issue #40/, "a discussion of the skill grants nothing");
+  blocked(gate(41, { ...record(), invocation: { text: "Can you explain how orchestrate-issues merges PRs?" } }), /does not name orchestrate-issues and issue 40 /, "a discussion of the skill grants nothing");
   {
     const delivered = snapshotNow();
     delivered.tickets = delivered.tickets.map((t) => (t.number === 41 ? { ...t, deliveredBy: { ticket: 42, via: "pr", pr: 142 } } : t));

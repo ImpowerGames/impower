@@ -8,24 +8,24 @@ import { compileSource } from "./compileSnapshot";
 const URI = "file:///main.sd";
 
 const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="face.happy:default" id="happy">
-  <g data-name="eyelash-left:eyes.open:default" id="la"/>
-  <g data-name="eyelash-left:eyes.closed" id="lc"/>
-  <g data-name="eyelash-right:eyes.open:default" id="ra"/>
-  <g data-name="eyelash-right:eyes.closed" id="rc"/>
-  <g data-name="eyeball-white-left:eyes.open" id="wl"/>
-  <g data-name="eyeball-shadow-left:eyes.open" id="sl"/>
-  <g data-name="pupil-left:eyes.open" id="pl"/>
-  <g data-name="eyeball-white-right:eyes.open" id="wr"/>
-  <g data-name="eyeball-shadow-right:eyes.open" id="sr"/>
-  <g data-name="pupil-right:eyes.open" id="pr"/>
+<g data-name="face.happy default" id="happy">
+  <g data-name="eyelash-left eyes.open default" id="la"/>
+  <g data-name="eyelash-left eyes.closed" id="lc"/>
+  <g data-name="eyelash-right eyes.open default" id="ra"/>
+  <g data-name="eyelash-right eyes.closed" id="rc"/>
+  <g data-name="eyeball-white-left eyes.open" id="wl"/>
+  <g data-name="eyeball-shadow-left eyes.open" id="sl"/>
+  <g data-name="pupil-left eyes.open" id="pl"/>
+  <g data-name="eyeball-white-right eyes.open" id="wr"/>
+  <g data-name="eyeball-shadow-right eyes.open" id="sr"/>
+  <g data-name="pupil-right eyes.open" id="pr"/>
   <g data-name="creases" id="cr"/>
   <g data-name="eyebrows" id="eb"/>
   <g data-name="nose" id="no"/>
 </g>
 <g data-name="face.sleepy" id="sleepy">
-  <g data-name="lids:eyes.closed:default" id="sl-lids"/>
-  <g data-name="lids:eyes.open" id="sl-open"/>
+  <g data-name="lids eyes.closed default" id="sl-lids"/>
+  <g data-name="lids eyes.open" id="sl-open"/>
 </g>
 </svg>`;
 
@@ -933,38 +933,38 @@ describe("morph blocks written with braces", () => {
 });
 
 const TWO_FOLDERS = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="face.happy:default" id="happy">
-  <g data-name="lids:eyes.open:default" id="h-open"/>
-  <g data-name="lids:eyes.closed" id="h-closed"/>
+<g data-name="face.happy default" id="happy">
+  <g data-name="lids eyes.open default" id="h-open"/>
+  <g data-name="lids eyes.closed" id="h-closed"/>
 </g>
 <g data-name="face.sleepy" id="sleepy">
-  <g data-name="lids:eyes.closed:default" id="s-closed"/>
-  <g data-name="lids:eyes.open" id="s-open"/>
+  <g data-name="lids eyes.closed default" id="s-closed"/>
+  <g data-name="lids eyes.open" id="s-open"/>
 </g>
 </svg>`;
 
 const WIDE = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open:default" id="open"/>
-<g data-name="lids:eyes.closed" id="closed"/>
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.closed" id="closed"/>
 </svg>`;
 
 const NO_CLOSED = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open:default" id="open"/>
-<g data-name="lids:eyes.squint" id="squint"/>
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.squint" id="squint"/>
 </svg>`;
 
 const NO_GROUPS = `<svg xmlns="http://www.w3.org/2000/svg"><g data-name="tree" id="tree"/></svg>`;
 
 const MOUTH_ONLY = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lips:mouth.open:default" id="open"/>
-<g data-name="lips:mouth.closed" id="closed"/>
+<g data-name="lips mouth.open default" id="open"/>
+<g data-name="lips mouth.closed" id="closed"/>
 </svg>`;
 
 const EYES_AND_MOUTH = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open:default" id="open"/>
-<g data-name="lids:eyes.closed" id="closed"/>
-<g data-name="lips:mouth.open:default" id="mopen"/>
-<g data-name="lips:mouth.closed" id="mclosed"/>
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.closed" id="closed"/>
+<g data-name="lips mouth.open default" id="mopen"/>
+<g data-name="lips mouth.closed" id="mclosed"/>
 </svg>`;
 
 const SIMPLE_BLINK = `morph blink {
@@ -1022,12 +1022,12 @@ end
   test("folders that rest in different states both play the morph", () => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="left" id="left">
-  <g data-name="lid:eyes.open:default" id="l-open"/>
-  <g data-name="lid:eyes.closed" id="l-closed"/>
+  <g data-name="lid eyes.open default" id="l-open"/>
+  <g data-name="lid eyes.closed" id="l-closed"/>
 </g>
 <g data-name="right" id="right">
-  <g data-name="lid:eyes.closed:default" id="r-closed"/>
-  <g data-name="lid:eyes.open" id="r-open"/>
+  <g data-name="lid eyes.closed default" id="r-closed"/>
+  <g data-name="lid eyes.open" id="r-open"/>
 </g>
 </svg>`;
     expect(bindingOf(SIMPLE_BLINK, [{ name: "wink", svg }]).candidates[0]!.variants[0]!.status).toBe("active");
@@ -1037,11 +1037,11 @@ end
   test("a visible folder that draws the group but not every state the morph names skips the variant with a warning", () => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="left" id="left">
-  <g data-name="lid:eyes.open:default" id="l-open"/>
-  <g data-name="lid:eyes.closed" id="l-closed"/>
+  <g data-name="lid eyes.open default" id="l-open"/>
+  <g data-name="lid eyes.closed" id="l-closed"/>
 </g>
 <g data-name="right" id="right">
-  <g data-name="lid:eyes.open:default" id="r-open"/>
+  <g data-name="lid eyes.open default" id="r-open"/>
 </g>
 </svg>`;
     const binding = bindingOf(SIMPLE_BLINK, [{ name: "wink", svg }]);
@@ -1058,8 +1058,8 @@ end
     const found = morphDiagnostics(refined, [{ name: "bunny", svg: WIDE }]);
     expect(found.find((d) => d.message.includes("image `bunny`: its `eyes` group has no `open-wide` state"))).toBeDefined();
     const wideOnly = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open-wide:default" id="wide"/>
-<g data-name="lids:eyes.closed" id="closed"/>
+<g data-name="lids eyes.open-wide default" id="wide"/>
+<g data-name="lids eyes.closed" id="closed"/>
 </svg>`;
     const owl = morphDiagnostics(SIMPLE_BLINK, [{ name: "owl", svg: wideOnly }]);
     expect(owl.find((d) => d.message.includes("image `owl`: its `eyes` group has no `open` state"))).toBeDefined();
@@ -1159,8 +1159,8 @@ describe("block-level artwork coverage", () => {
 [[bunny~look.left]]
 `;
     const svg = PORTRAIT.replace(
-      '<g data-name="pupil-left:eyes.open" id="pl"/>',
-      '<g data-name="pupil-left:eyes.open:look.left" id="pl"/>',
+      '<g data-name="pupil-left eyes.open" id="pl"/>',
+      '<g data-name="pupil-left eyes.open look.left" id="pl"/>',
     );
     const found = diagnosticsOf(text, [{ name: "bunny", svg }]);
     expect(found.filter((d) => d.message.includes("closed eyes"))).toEqual([]);
