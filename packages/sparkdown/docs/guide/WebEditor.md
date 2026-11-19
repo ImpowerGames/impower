@@ -76,7 +76,9 @@ Assets holds everything your story shows or plays. The tabs sort your files by k
 Images, Audio, Video, Text, Fonts and Other. Images show as tiles and sounds as rows you can play.
 **Add** brings in files from your device, adds a link to a file online or makes a
 new folder, and you can drop files onto the page. Keep them in folders however you
-like; each file's menu selects, renames, moves, downloads or deletes it. Opening a
+like; each file's menu selects, renames, moves or deletes it, and a picture
+with variants lists them there too. A folder's menu also opens it, uploads into it
+or makes a folder inside it. Opening a
 file shows its details beside the list on a computer, and as a sheet over it on a
 phone: its type and size (and a sound's length), where it is and where your story
 uses it, with

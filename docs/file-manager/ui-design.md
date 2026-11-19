@@ -25,8 +25,10 @@ Both pages are built on one page frame,
 | An empty folder or project | `EmptyState.tsx` |
 
 Each page supplies its rows and its row menu: `scripts-page/ScriptsPage.tsx` with
-`RowMenu.tsx`, and `assets/Assets.tsx` with `AssetRowMenu.tsx` (Open, Select,
-Variants, Upload here…, New folder inside…, Rename, Move…, Download, Delete). The
+`RowMenu.tsx`, and `assets/Assets.tsx` with `AssetRowMenu.tsx`, whose entries depend on what it is for: a folder
+(Open, Select, Upload here…, New folder inside…, Rename, Move…, Delete), a file
+(Select, Rename, Move…, Delete, and Variants for a picture with variants) and the
+asset inspector (Rename, Move…, Download, Delete). The
 listings and selections are store state, in `workspace/scriptsListing.ts`,
 `workspace/scriptsSelection.ts`, `workspace/assetsListing.ts` and
 `workspace/assetsSelection.ts`. A deleted file is moved to the project's Recycle bin
