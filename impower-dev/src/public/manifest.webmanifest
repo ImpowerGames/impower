@@ -1,7 +1,7 @@
 {
   "short_name": "Spark Engine",
   "name": "Spark Engine",
-  "description": "An intuitive, text-based editor for creating interactive story games.",
+  "description": "Write, play and share interactive stories in Sparkdown: a script editor with a live game preview, your art and sounds, and exports of the game and the screenplay.",
   "icons": [
     {
       "src": "favicon.ico",

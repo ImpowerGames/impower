@@ -63,9 +63,10 @@ there is no custom asset-loader plugin.
    Docker runtime image needs only those few packages — see *Deployment*.
 4. **`buildPages`** — bundle `src/pages/**/*.ts` browser entries → `out/public`.
 5. **`expandPageComponents`** (the SSG) — for each page HTML shell: leave
-   `<div id="root">` empty for the client to render, compile impower-ui's Tailwind
-   (via a transient middleware-mode Vite server hitting
-   `impowerUiStyleCss?direct`), and inline `normalize + theme + Tailwind` into a
+   `<div id="root">` empty for the client to render, compile the editor's Tailwind
+   from its entry `src/modules/spark-editor/styles/editor-tailwind.css`, which imports
+   impower-ui's `style.css` and keeps tests, galleries and docs out of the class scan (via a
+   transient middleware-mode Vite server hitting `editorTailwindCss?direct`), and inline `normalize + theme + Tailwind` into a
    `<style id="ssg-css">` block. Writes the styled HTML to `out/public`.
 6. **`buildWorkers`** — run each sibling package's `esbuild.js` to emit the
    worker bundles, rename each to `<name>.<BUILD_ID>.js`, then build the service

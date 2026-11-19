@@ -1,4 +1,4 @@
-# 18. Framings
+# 19. Framings
 
 A framing is where the view of a layer's picture rests: how far across the picture, how far down, and how close. Name a framing when you show a picture, and it appears already there. Name one on `animate`, and the picture travels there from wherever the view is now. This is how you pan across a wide backdrop or push in on part of it.
 
@@ -23,7 +23,7 @@ Pan and zoom are framings, not animations. An `animation` is for an effect that 
 
 ---
 
-## 18.1 Defining a framing
+## 19.1 Defining a framing
 
 Write the `framing` keyword, a name, and a body with up to three fields:
 
@@ -79,7 +79,7 @@ framing top_left {
 
 ---
 
-## 18.2 Showing a picture at a framing
+## 19.2 Showing a picture at a framing
 
 Add `at` and a framing's name to a line that shows a picture. The picture appears already there:
 
@@ -109,7 +109,7 @@ The editor reports `at` on `animate` or `hide`, and `at` on a `show` that names 
 
 ---
 
-## 18.3 Travelling to a framing
+## 19.3 Travelling to a framing
 
 Add `to` and a framing's name to `animate`. The layer's picture travels from its view on screen to that framing:
 
@@ -155,7 +155,7 @@ Only the layer the line names moves. `[[animate backdrop to left over 5s]]` pans
 
 ---
 
-## 18.4 The rules a travel follows
+## 19.4 The rules a travel follows
 
 - **A travel keeps going across lines.** Advancing the story does not end it. It goes on until it arrives, or until another `to` on the same layer redirects it.
 - **A travel starts from the view on screen.** A `to` that comes while an earlier one is still in flight starts from wherever the picture is at that moment, not from where the earlier travel was going.
@@ -166,7 +166,7 @@ Only the layer the line names moves. `[[animate backdrop to left over 5s]]` pans
 
 ---
 
-## 18.5 A worked example
+## 19.5 A worked example
 
 A scene in Raffles and Bunny pans across a wide apartment backdrop while Bunny searches it, pans back, and pushes in on the sofa. The backdrop is much wider than the screen, so `right` and `left` show its two ends. The portrait stays where it is the whole time, because only the backdrop layer moves:
 
