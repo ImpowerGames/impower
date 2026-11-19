@@ -65,7 +65,8 @@ variables:
   # referenced-from: packages/sparkdown-language-server/src/utils/providers/getCompletions.ts
   FLOW_MODULE_KEYWORDS: ["include", "run"]
 
-  SELECTOR_FUNCTION_NAMES: ["has", "not", "is", "where"]
+  SELECTOR_FUNCTION_NAMES: ["has", "not", "is", "where", "host", "host-context"]
+  NTH_SELECTOR_FUNCTION_NAMES: ["nth-child", "nth-last-child"]
   IDENTIFIER_START_CHAR: '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}-'
   IDENTIFIER_START: "[{{IDENTIFIER_START_CHAR}}]"
@@ -4775,6 +4776,7 @@ repository:
       - { include: "#StringLiteral" }
       - { include: "#SelectorOperator" }
       - { include: "#RecursiveSelectorFunction" }
+      - { include: "#NthSelectorFunction" }
       - { include: "#SimpleSelectorFunction" }
       - { include: "#StyleAttribute" }
       - { include: "#SelectorAttribute" }
@@ -5136,6 +5138,62 @@ repository:
     applyEndPatternLast: true
     end: (?=$|.)
 
+  NthSelectorFunction:
+    brackets: true
+    begin: ([@])({{NTH_SELECTOR_FUNCTION_NAMES}})([(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorStateOperator" }
+      2:
+        patterns:
+          - { include: "#SelectorStateName" }
+      3:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+      4:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#NthSelectorOfList" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ParameterStringIdentifier" }
+      - { include: "#IllegalChar" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  NthSelectorOfList:
+    begin: ({{WS}}+)(of)({{WS}}+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Separator" }
+      2:
+        patterns:
+          - { include: "#NthSelectorOfKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauSparkleElementClass" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ComponentName" }
+      - { include: "#PunctuationComma" }
+    applyEndPatternLast: true
+    end: (?=$|.)
+
+  NthSelectorOfKeyword:
+    tag: keyword
+    name: keyword.other.selector.operator.sd
+
   StyleAttribute:
     emit: true
     patterns:
@@ -5273,8 +5331,10 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauSparkleElementClass" }
       - { include: "#SelectorPropertyNamePart" }
       - { include: "#ComponentName" }
+      - { include: "#PunctuationComma" }
       - { include: "#IllegalChar" }
     end: $|({{WS}}*)([)])
     endCaptures:
@@ -5382,7 +5442,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#UnquotedStyleAttributeValue" }
-    end: (?={{UNQUOTED_STRING_TERMINATOR}})
+    end: (?={{UNQUOTED_STRING_TERMINATOR}}|[,])
 
   UnassignedStyleAttribute:
     match: ([#])({{IDENTIFIER}})?
@@ -5543,7 +5603,7 @@ repository:
   UnquotedStyleAttributeValue:
     tag: string
     name: string.unquoted.attribute.value.sd
-    match: ((?:(?!{{UNQUOTED_STRING_TERMINATOR}}).)+)
+    match: ((?:[\\](?:[0-9a-fA-F]{1,6}{{WS}}?|.)|(?!{{UNQUOTED_STRING_TERMINATOR}}|[,])[^\\\r\n])+)
 
   UnquotedSelectorAttributeValue:
     match: ((?:(?!{{UNQUOTED_STRING_TERMINATOR}}).)+)

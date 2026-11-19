@@ -8,13 +8,6 @@ html {
   box-sizing: inherit;
 }
 
-:root,
-.se-theme {
-  --theme-size-header-nav: 56px;
-  --theme-size-footer-nav: 60px;
-  --theme-size-panel-nav: 48px;
-}
-
 .picker-dialog-bg {
   background-color: #000;
   pointer-events: auto;

@@ -169,6 +169,8 @@ import {
 import {
   type MorphImageContent,
   type MorphLayerPlay,
+  type PictureFraming,
+  type PictureTravel,
   type WriteImageInstruction,
   WriteImageMessage,
   type WriteImageMessageMap,
@@ -206,6 +208,12 @@ function sameValue(a: unknown, b: unknown): boolean {
 }
 
 type ImagePick = string | ((layer: ImageLayer) => string | undefined);
+
+interface PictureView {
+  framing?: PictureFraming;
+  picture: boolean;
+  travelStart?: number;
+}
 
 interface Retirement {
   element: Element;
@@ -1774,6 +1782,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
+  getFraming(name: string | undefined): PictureFraming | undefined {
+    const framing = name ? this.context?.framing?.[name] : undefined;
+    if (!framing) {
+      return undefined;
+    }
+    const fraction = (value: string | number | undefined) => {
+      const parsed = typeof value === "string" && value.trim().endsWith("%") ? Number.parseFloat(value) / 100 : Number.NaN;
+      return Number.isFinite(parsed) ? parsed : 0.5;
+    };
+    const x = fraction(framing.x);
+    const y = fraction(framing.y);
+    const zoom = typeof framing.zoom === "number" && framing.zoom > 0 ? framing.zoom : 1;
+    return x === 0.5 && y === 0.5 && zoom === 1 ? undefined : { x, y, zoom };
+  }
+
   imagePick(event: ImageInstruction, asset: string): ImagePick | undefined {
     const context = this.context;
     if (event.speaker === undefined || !context || (asset.at(0) === '"' && asset.at(-1) === '"')) {
@@ -1960,6 +1983,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return value;
     }
     return `linear-gradient(${value})`;
+  }
+
+  getImageUrlsFromBackground(background: string): string[] {
+    return cssList(background).flatMap((layer) => {
+      const url = layer.trim().match(/^url\(\s*(['"]?)(.*?)\1\s*\)$/s)?.[2];
+      return url ? [url] : [];
+    });
   }
 
   getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick) {
@@ -4564,6 +4594,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  getTravelTiming(
+    event: { after?: number; over?: number; ease?: string },
+    instant: boolean,
+  ): PictureTravel["timing"] {
+    const easeDefinition = event.ease ? this.context?.ease?.[event.ease] : null;
+    return {
+      delay: instant ? "0s" : `${event.after ?? 0}s`,
+      duration: instant ? "0s" : `${event.over ?? 0}s`,
+      easing: easeDefinition != null ? this.getTimingFunction(easeDefinition) : "ease",
+    };
+  }
+
   getAnimationDefinition(
     event: {
       name: string;
@@ -4818,12 +4860,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected saveState(target: string, sequence: ImageInstruction[] | null) {
         if (sequence) {
           $._state.image ??= {};
+          const existed = Boolean($._state.image[target]);
           $._state.image[target] ??= [];
           let state = $._state.image[target];
+          let travelStart = -Infinity;
           for (const event of sequence) {
             const targetingContent = Boolean(event.assets?.length);
+            if (!targetingContent && event.control === "animate" && event.to) {
+              const shown = state.findLast((e) => e.control === "show" && e.assets?.length);
+              const start = event.after ?? 0;
+              if (shown && start >= travelStart) {
+                shown.at = event.to;
+                travelStart = start;
+              }
+              if (!event.with) {
+                continue;
+              }
+            }
             if (targetingContent) {
               if (event.control === "show") {
+                travelStart = -Infinity;
                 state = state.filter(
                   (e) => !(e.control === "hide" && !e.assets?.length),
                 );
@@ -4836,6 +4892,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 with: event.with,
                 assets: event.assets,
                 over: 0,
+                ...(event.control === "show" && event.at ? { at: event.at } : {}),
                 ...(event.morph ? { morph: event.morph } : {}),
                 ...(event.speaker !== undefined ? { speaker: event.speaker } : {}),
                 ...(event.loop ? { loop: true } : {}),
@@ -4843,6 +4900,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 ...(event.mute ? { mute: true } : {}),
               });
             } else {
+              if (event.control === "hide") {
+                travelStart = -Infinity;
+                for (const e of state) {
+                  delete e.at;
+                }
+              }
               const changingVisibility = event.control !== "animate";
               const latestLayerVisibilityEvent = state.findLast(
                 (e) => !e.assets?.length && e.control !== "animate",
@@ -4858,6 +4921,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 });
               }
             }
+          }
+          if (!existed && !$._state.image[target]?.length) {
+            delete $._state.image[target];
           }
         } else {
           delete $._state.image?.[target];
@@ -4890,13 +4956,47 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
       }
 
+      protected nextView(e: ImageInstruction, view: PictureView): PictureView {
+        if (e.assets?.length) {
+          return e.control === "show" ? { framing: $.getFraming(e.at), picture: true } : view;
+        }
+        if (e.control === "hide") {
+          return { picture: view.picture };
+        }
+        if (e.control === "animate" && e.to && view.picture) {
+          const start = e.after ?? 0;
+          return start >= (view.travelStart ?? -Infinity)
+            ? { picture: true, framing: $.getFraming(e.to), travelStart: start }
+            : view;
+        }
+        return view;
+      }
+
+      protected viewAfter(events: ImageInstruction[]): PictureView {
+        let view: PictureView = { picture: false };
+        for (const e of events) {
+          view = this.nextView(e, view);
+        }
+        return view;
+      }
+
       protected resolve(
         sequence: ImageInstruction[],
         instant: boolean,
+        view: PictureView = { picture: false },
       ): WriteImageInstruction[] {
         const instructions: WriteImageInstruction[] = [];
         for (const e of sequence) {
+          view = this.nextView(e, view);
+          const framing = view.framing;
           const out: WriteImageInstruction = { control: e.control };
+          if (e.control === "animate" && e.to && view.picture && !e.assets?.length) {
+            const destination = instant ? framing : $.getFraming(e.to);
+            out.travel = {
+              ...(destination ? { framing: destination } : {}),
+              timing: $.getTravelTiming(e, instant),
+            };
+          }
           const targetAnimations: Animation[] = [];
           const affected: { target: string; animations: Animation[] }[] = [];
           const isFirstContentReveal =
@@ -5030,6 +5130,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             if (src != null) {
               content.src = src;
             }
+            const sources = [
+              ...new Set(
+                imageAssets.flatMap((a) => {
+                  const named = srcsOf(a);
+                  return named?.length
+                    ? named
+                    : $.getImageUrlsFromBackground($.getBackgroundImageFromString(a, undefined, pickOf(a)));
+                }),
+              ),
+            ];
+            if (sources.length > 0) {
+              content.sources = sources;
+            }
             const videoSrc = videoSrcs[0];
             if (videoSrc) {
               content.video = {
@@ -5101,6 +5214,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
             }
             out.content = content;
+            if (framing) {
+              out.framing = framing;
+            }
           } else {
             if (e.control === "hide") {
               const hideEvent = {
@@ -5114,6 +5230,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 targetAnimations.push(animation);
               }
             } else if (e.control === "show") {
+              if (framing) {
+                out.framing = framing;
+              }
               const showEvent = {
                 name: showWith,
                 after: showAfter,
@@ -5158,6 +5277,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[] | null,
         instant: boolean,
         time?: number,
+        view?: PictureView,
       ) {
         const targetEls = $.findElements(target, true);
         if (!sequence && $.knownEmpty("image", targetEls)) {
@@ -5184,7 +5304,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         await $.emitSettled(
           WriteImageMessage.type.request({
             target,
-            instructions: sequence ? this.resolve(sequence, instant) : [],
+            instructions: sequence ? this.resolve(sequence, instant, view) : [],
             instant,
             ...(time != null ? { time } : {}),
             ...($.namesWriteElements(target, targetEls)
@@ -5212,12 +5332,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
         speaker?: string,
       ) {
-        const sequence = events.map((event) =>
-          event.assets?.length ? { ...event, speaker: speaker ?? "" } : event,
-        );
+        const view = this.viewAfter($._state.image?.[target] ?? []);
+        let reached = view;
+        const sequence = events
+          .filter((event) => {
+            const onlyTravels = event.control === "animate" && event.to && !event.with && !event.assets?.length;
+            const kept = !onlyTravels || reached.picture;
+            reached = this.nextView(event, reached);
+            return kept;
+          })
+          .map((event) =>
+            event.assets?.length ? { ...event, speaker: speaker ?? "" } : event,
+          );
+        if (sequence.length === 0 && events.length > 0) {
+          return;
+        }
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time);
+          await this.applyChanges(target, sequence, instant, time, view);
         }
       }
     }

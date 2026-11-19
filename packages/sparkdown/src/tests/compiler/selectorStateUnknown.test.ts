@@ -87,13 +87,9 @@ describe("unknown selector state", () => {
   });
 
   test.each([
-    ["@hover", "hover"],
-    ["@focus-visible", "focus-visible"],
-    ["@first-child", "first-child"],
-    ["@nth-child(2)", "nth-child"],
-    ["@has(icon)", "has"],
-    ["@empty", "empty"],
     ["@keyframes", "keyframes"],
+    ["@charset", "charset"],
+    ["@font-face", "font-face"],
   ])("warns on %s, which the player does not apply", (selector, name) => {
     expect(unknownStateWarnings(style(selector))).toEqual([
       expect.stringContaining(`\`@${name}\` is not a known state, so this block never applies\n`),
@@ -114,9 +110,52 @@ describe("unknown selector state", () => {
     "@screen-size(sm)",
     "@container_size(md)",
     "@hovered @focused",
+    "@hover",
+    "@focus-visible",
+    "@first-child",
+    "@last-of-type",
+    "@placeholder-shown",
+    "@empty",
+    "@nth-child(2)",
+    "@has(icon)",
+    "@not(@first-child)",
+    "@is(@hover, @focus-visible)",
+    "@where(@checked)",
+    "@dir(rtl)",
+    "@lang(en)",
   ])("accepts %s", (selector) => {
     expect(unknownStateWarnings(style(selector))).toEqual([]);
   });
+
+  test.each([
+    ["@nth-child[2n of choice]", "nth-child", "needs its arguments in parentheses right after it"],
+    ["@nth-child (2)", "nth-child", "needs its arguments in parentheses right after it"],
+    ["@has", "has", "needs its arguments in parentheses right after it"],
+    ["@lang", "lang", "needs its arguments in parentheses right after it"],
+    ["@direction", "direction", "needs its arguments in parentheses right after it"],
+    ["@screen-size", "screen-size", "needs its arguments in parentheses right after it"],
+    ["@hover(x)", "hover", "takes no arguments"],
+    ["@hovered(x)", "hovered", "takes no arguments"],
+  ])("warns that %s is written with the wrong arguments", (selector, name, problem) => {
+    expect(diagnose(style(selector)).filter((d) => d.includes(`\`@${name}\``))).toEqual([
+      expect.stringMatching(
+        new RegExp(`^2:2-${3 + name.length} 2 \`@${name}\` ${problem}, so this block never applies\\n> `),
+      ),
+    ]);
+  });
+
+  test("says only the alternative never matches for a state missing its arguments in @is", () => {
+    expect(diagnose(style("@is(@has, @first)")).filter((d) => d.includes("`@has`"))).toEqual([
+      "2:6-10 2 `@has` needs its arguments in parentheses right after it, so this alternative never matches\n> e.g. `@has(…)`, with no space before `(`",
+    ]);
+  });
+
+  test.each(["@host", "@host(card)", "@layer", "@media (min-width: 1px)", "@nth-child(2n of card, icon)", "@is(card, icon)"])(
+    "accepts the arguments of %s",
+    (selector) => {
+      expect(diagnose(style(selector)).filter((d) => / 2 `@/.test(d))).toEqual([]);
+    },
+  );
 
   test("leaves layout event handlers alone", () => {
     expect(

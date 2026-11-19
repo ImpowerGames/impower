@@ -825,6 +825,7 @@ export class InterpreterModule extends Module<
       (name) => (this.context as any)?.["animation"]?.[name],
     );
     const maxAnimationDuration = Math.max(
+      0,
       ...allAnimations.map((a) => getTimeValue(a?.timing?.duration) ?? 0),
     );
     if (imageChunk.clauses?.wait) {

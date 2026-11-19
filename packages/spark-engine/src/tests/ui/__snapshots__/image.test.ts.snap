@@ -83,6 +83,9 @@ exports[`image > animated (non-instant) show emits per-layer animate 1`] = `
                 "iterations": 1,
               },
             },
+            "sources": [
+              "https://example.com/bg.png",
+            ],
             "src": "https://example.com/bg.png",
             "srcs": [
               "https://example.com/bg.png",
@@ -204,6 +207,9 @@ exports[`image > hide backdrop 1`] = `
                 "iterations": 1,
               },
             },
+            "sources": [
+              "https://example.com/bg.png",
+            ],
             "src": "https://example.com/bg.png",
             "srcs": [
               "https://example.com/bg.png",
@@ -350,6 +356,9 @@ exports[`image > image animate directive 1`] = `
                 "iterations": 1,
               },
             },
+            "sources": [
+              "https://example.com/hero.png",
+            ],
             "src": "https://example.com/hero.png",
             "srcs": [
               "https://example.com/hero.png",
@@ -526,6 +535,10 @@ exports[`image > layered images (multi-asset SPRITE+SHADOW) stack background_ima
                 "iterations": 1,
               },
             },
+            "sources": [
+              "https://example.com/hero.png",
+              "https://example.com/shadow.png",
+            ],
             "src": "https://example.com/hero.png",
             "srcs": [
               "https://example.com/hero.png",
@@ -647,6 +660,9 @@ exports[`image > show backdrop 1`] = `
                 "iterations": 1,
               },
             },
+            "sources": [
+              "https://example.com/bg.png",
+            ],
             "src": "https://example.com/bg.png",
             "srcs": [
               "https://example.com/bg.png",
@@ -767,6 +783,9 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
                 "iterations": 1,
               },
             },
+            "sources": [
+              "https://example.com/bg.png",
+            ],
             "src": "https://example.com/bg.png",
             "srcs": [
               "https://example.com/bg.png",
@@ -843,6 +862,9 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
                 "iterations": 1,
               },
             },
+            "sources": [
+              "https://example.com/bg2.png",
+            ],
             "src": "https://example.com/bg2.png",
             "srcs": [
               "https://example.com/bg2.png",
@@ -966,6 +988,9 @@ exports[`image > show with fade transition 1`] = `
                 "iterations": 1,
               },
             },
+            "sources": [
+              "https://example.com/bg.png",
+            ],
             "src": "https://example.com/bg.png",
             "srcs": [
               "https://example.com/bg.png",

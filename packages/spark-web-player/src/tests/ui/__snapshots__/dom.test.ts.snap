@@ -328,15 +328,6 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -659,6 +650,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -673,6 +685,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -681,6 +694,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -2832,15 +2865,6 @@ exports[`dom render > image show renders background span + img 1`] = `
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -3163,6 +3187,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -3177,6 +3222,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -3185,6 +3231,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -5302,15 +5368,6 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -5633,6 +5690,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -5647,6 +5725,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -5655,6 +5734,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -7890,15 +7989,6 @@ exports[`dom render > screen tree renders into overlay 1`] = `
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -8221,6 +8311,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -8235,6 +8346,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -8243,6 +8355,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -10341,15 +10473,6 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -10672,6 +10795,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -10686,6 +10830,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -10694,6 +10839,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -12776,15 +12941,6 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -13107,6 +13263,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -13121,6 +13298,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -13129,6 +13307,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -15255,15 +15453,6 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -15586,6 +15775,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -15600,6 +15810,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -15608,6 +15819,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -17964,15 +18195,6 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -18295,6 +18517,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -18309,6 +18552,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -18317,6 +18561,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -20673,15 +20937,6 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -21004,6 +21259,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -21018,6 +21294,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -21026,6 +21303,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -23382,15 +23679,6 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -23713,6 +24001,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -23727,6 +24036,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -23735,6 +24045,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -26091,15 +26421,6 @@ exports[`dom render · image lifecycle > layered images stack background-image o
 @keyframes hide {
   to { opacity: 0; }
 }
-@keyframes align_left {
-  to { translate: calc(0 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_center {
-  to { translate: calc(0.5 * (100cqw - 100%)) 0px; }
-}
-@keyframes align_right {
-  to { translate: calc(1 * (100cqw - 100%)) 0px; }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -26422,6 +26743,27 @@ spark-web-player #game .image {
     background-size: auto 100%;
     will-change: transform;
     min-width: 100%;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    min-width: 0px;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .object {
@@ -26436,6 +26778,7 @@ spark-web-player #game .mask {
   inset: 0px;
   isolation: isolate;
   will-change: transform;
+  container-type: size;
   >* {
     mix-blend-mode: plus-lighter;
     position: absolute;
@@ -26444,6 +26787,26 @@ spark-web-player #game .mask {
     mask-repeat: no-repeat;
     mask-size: auto 100%;
     will-change: transform;
+    >.object {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  >.framed {
+    right: auto;
+    width: fit-content;
+    >.object {
+      position: relative;
+      display: block;
+      left: 0px;
+      transform: none;
+    }
+  }
+  >.framed:empty {
+    right: 0px;
+    width: auto;
   }
 }
 spark-web-player #game .loading {
@@ -28147,6 +28510,13 @@ spark-web-player #game .textstream_end {
                                 {
                                   "attrs": {
                                     "src": "https://example.com/hero.png",
+                                  },
+                                  "class": "object",
+                                  "tag": "img",
+                                },
+                                {
+                                  "attrs": {
+                                    "src": "https://example.com/shadow.png",
                                   },
                                   "class": "object",
                                   "tag": "img",

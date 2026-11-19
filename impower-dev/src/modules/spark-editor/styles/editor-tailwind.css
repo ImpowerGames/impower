@@ -1,0 +1,10 @@
+@import "../../../../../packages/impower-ui/src/style.css";
+
+@source not "../../../../test";
+@source not "../../../../docs";
+@source not "../../../../../packages/impower-ui/src/**/*.test.{ts,tsx}";
+@source not "../../../../../packages/impower-ui/src/**/*.gallery.tsx";
+@source not "../../../../../packages/impower-ui/src/gallery";
+@source not "../../../../../packages/impower-ui/src/App.tsx";
+@source not "../../../../../packages/impower-ui/src/main.tsx";
+@source not "../../../../../packages/spark-web-player/src/components/**/*.test.{ts,tsx}";
