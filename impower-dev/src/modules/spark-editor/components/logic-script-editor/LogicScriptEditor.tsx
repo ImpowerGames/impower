@@ -363,8 +363,6 @@ export default function LogicScriptEditor({
           coarsePointer={coarsePointer}
           appearance={appearance}
           shortcuts={shortcuts}
-          top="0px"
-          bottom="60px"
           onPasteRefused={showPasteRefused}
           scriptMode={scriptMode ?? null}
           keyboardHold={{ held, headed }}

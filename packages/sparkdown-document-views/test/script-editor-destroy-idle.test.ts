@@ -29,8 +29,6 @@ const liveEditor = (onIdle: () => void) => {
         applyWorkspaceEdit: async () => ({ applied: false }),
       } as never),
     textDocument: { uri: "file:///main.sd", version: 0, text: "scene start\n" },
-    top: 0,
-    bottom: 0,
     onIdle,
   } as never) as unknown as [EditorView];
   return view;

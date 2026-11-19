@@ -98,8 +98,6 @@ const mount = async () => {
       version: 0,
       text: "scene start\nend\n",
     },
-    top: 0,
-    bottom: 0,
   } as never);
   view.dispatch({ selection: { anchor: 8 } });
   view.focus();

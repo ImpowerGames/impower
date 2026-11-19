@@ -164,7 +164,6 @@ import {
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/RequestMessage";
 import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
-import { getUnitlessValue } from "../../../../spec-component/src/utils/getUnitlessValue";
 import { setHighlights } from "../../cm-highlight-lines/highlightLines";
 import {
   setBreakpointStates,
@@ -234,8 +233,6 @@ export interface ScriptEditorOptions {
   onChangeColor?: (range: Range, value: string, color: Color) => void;
   onPasteRefused?: () => void;
   scrollMargin?: string;
-  top?: string;
-  bottom?: string;
   languageServerWorker: Worker;
   languageServerConnection: MessageConnection;
 }
@@ -300,8 +297,6 @@ export class ScriptEditorController {
     left?: number;
     right?: number;
   } = { top: 0, bottom: 0, left: 0, right: 0 };
-  protected _top: number = 0;
-  protected _bottom: number = 0;
   protected _focusIntervalTimeout = 0;
 
   protected _revealTimeout = 0;
@@ -1488,8 +1483,6 @@ export class ScriptEditorController {
       const editorContainer = this.refs.editor;
       if (editorContainer) {
         this._scrollMargin = getBoxValues(this.options.scrollMargin ?? "");
-        this._top = getUnitlessValue(this.options.top ?? "", 0);
-        this._bottom = getUnitlessValue(this.options.bottom ?? "", 0);
         [this._view, this._disposable] = createEditorView(editorContainer, {
           coarsePointer: !!this.options.coarsePointer,
           readonly: this.options.readonly,
@@ -1547,8 +1540,6 @@ export class ScriptEditorController {
           textDocument: this._textDocument,
           defaultState: this.cachedEditorState(textDocument),
           scrollMargin: this._scrollMargin,
-          top: this._top,
-          bottom: this._bottom,
           breakpointLineNumbers: breakpointLines?.map((line) => line + 1),
           pinpointLineNumbers: pinpointLines?.map((line) => line + 1),
           startingValueLines,
