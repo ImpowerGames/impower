@@ -19,11 +19,13 @@ export const textFieldVariants = cva(
           "motion-safe:transition-[border-color] motion-safe:duration-140",
         ],
         inset: "h-full border-0 bg-transparent outline-none",
+        bare: "border-0 bg-transparent p-0 outline-none",
       },
       size: {
         default: "min-h-9 px-2.5 py-1.5 text-[13px]/[1.4]",
         tall: "h-14 px-3 py-2 text-[16px]/[1.5] compact:h-11 phone:h-11",
         dialog: "h-[50px] p-3 text-[16px]/[1.5]",
+        inherit: "",
       },
       width: {
         default: "w-[180px]",
@@ -34,12 +36,17 @@ export const textFieldVariants = cva(
       font: {
         sans: "font-sans",
         mono: "font-mono",
+        inherit: "",
       },
     },
     compoundVariants: [
       {
         frame: "inset",
         class: "min-h-0 w-auto flex-1 shrink p-0",
+      },
+      {
+        frame: "bare",
+        class: "w-auto",
       },
     ],
     defaultVariants: {
@@ -84,6 +91,7 @@ export type TextFieldProps = Omit<
     onValueChange?: (value: string) => void;
     onCommit?: (value: string) => void;
     suffix?: ComponentChildren;
+    characters?: number;
   };
 
 const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
@@ -100,6 +108,7 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
     onCommit,
     onInput,
     suffix,
+    characters,
     ...rest
   },
   ref,
@@ -133,6 +142,7 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
       }
       {...textFieldPurposeAttributes(purpose)}
       {...rest}
+      size={characters}
       {...(value !== undefined ? { value, defaultValue: value } : { defaultValue })}
       onInput={(event) => {
         const input = event.currentTarget;

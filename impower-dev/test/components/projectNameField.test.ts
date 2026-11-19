@@ -122,6 +122,29 @@ describe("the desktop project name field", () => {
     expect(input.value).toBe("Night shift");
   });
 
+  it("commits the typed name on blur", async () => {
+    const input = await mount(ProjectNameField);
+    await focus(input);
+    await type(input, "Night shift");
+    await act(async () => input.blur());
+    await settle();
+    expect(calls.finished).toEqual(["Night shift"]);
+    expect(input.value).toBe("Night shift");
+  });
+
+  it("keeps a words field with a Done key, no autocomplete and a 120-character cap", async () => {
+    const input = await mount(ProjectNameField);
+    expect(input.type).toBe("text");
+    expect(input.maxLength).toBe(120);
+    expect(input.getAttribute("autocomplete")).toBe("off");
+    expect(input.getAttribute("enterkeyhint")).toBe("done");
+    expect(input.getAttribute("autocapitalize")).toBeNull();
+    expect(input.getAttribute("data-name-field")).toBe("project");
+    expect(input.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["h-full", "w-full", "border", "border-transparent", "bg-transparent", "px-1.5", "py-0.5", "text-[14px]/[18px]", "font-semibold", "outline-none", "not-focus:fade-edge"]),
+    );
+  });
+
   it("restores the name on Escape without renaming", async () => {
     const input = await mount(ProjectNameField);
     await focus(input);

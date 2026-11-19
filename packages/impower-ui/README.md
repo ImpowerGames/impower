@@ -49,9 +49,7 @@ because `preact/compat` turns an `onChange` on a text input into `onInput`. A co
 
 These components are the only way to render a form control in `impower-dev`: the root
 `eslint.config.js` refuses a bare `<input>`, `<select>` or `<textarea>` in its TSX
-(`no-restricted-syntax`), except a hidden `<input type="file">` picker. The files that held one
-before the rule are listed in `LEGACY_FORM_CONTROL_FILES`; `eslint.config.test.mjs` fails when a
-listed file no longer holds one, so the list only shrinks.
+(`no-restricted-syntax`), except a hidden `<input type="file">` picker.
 
 ### One folder per component
 

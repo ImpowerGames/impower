@@ -53,11 +53,6 @@ const FORM_CONTROL_SYNTAX = [
   },
 ];
 
-export const LEGACY_FORM_CONTROL_FILES = [
-  "impower-dev/src/modules/spark-editor/components/desktop-shell/ProjectNameField.tsx",
-  "impower-dev/src/modules/spark-editor/components/script-header/ScriptNameField.tsx",
-];
-
 export default [
   {
     ignores: ["**/dist/**", "**/out/**", "**/.tmp/**", "**/coverage/**"],
@@ -90,7 +85,6 @@ export default [
   },
   {
     files: ["impower-dev/**/*.{tsx,jsx}"],
-    ignores: LEGACY_FORM_CONTROL_FILES,
     rules: {
       "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...FORM_CONTROL_SYNTAX],
     },
@@ -103,7 +97,6 @@ export default [
   },
   {
     files: ["impower-dev/src/**/*.{tsx,jsx}"],
-    ignores: LEGACY_FORM_CONTROL_FILES,
     rules: {
       "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...IMPOWER_UI_SRC_SYNTAX, ...FORM_CONTROL_SYNTAX],
     },

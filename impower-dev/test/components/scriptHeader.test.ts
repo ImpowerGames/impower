@@ -164,6 +164,35 @@ describe("ScriptHeader name field", () => {
     expect(calls.renames).toEqual([["scripts/intro.sd", "Opening"]]);
   });
 
+  it("selects the whole name on focus and keeps a literal, labelled, length-capped field", async () => {
+    await mount({ filename: "scripts/intro.sd" });
+    const input = field();
+    await act(async () => input.focus());
+    await settle();
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe("intro".length);
+    expect(input.type).toBe("text");
+    expect(input.getAttribute("aria-label")).toBe("Script name");
+    expect(input.title).toBe("Rename this script");
+    expect(input.maxLength).toBe(120);
+    expect(input.getAttribute("autocomplete")).toBe("off");
+    expect(input.getAttribute("autocapitalize")).toBe("off");
+    expect(input.getAttribute("enterkeyhint")).toBe("done");
+    expect(input.getAttribute("data-name-field")).toBe("script");
+    expect(input.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["px-1.5", "text-inherit", "border-0", "bg-transparent", "outline-none", "not-focus:fade-edge"]),
+    );
+  });
+
+  it("grows its visible width with the typed name, between 4 and 40 characters", async () => {
+    await mount({ filename: "scripts/intro.sd" });
+    expect(field().size).toBe("intro".length + 1);
+    await type("ab");
+    expect(field().size).toBe(4);
+    await type("x".repeat(60));
+    expect(field().size).toBe(40);
+  });
+
   it("restores the old name on Escape and renames nothing", async () => {
     await mount({ filename: "scripts/intro.sd" });
     await type("Opening");
