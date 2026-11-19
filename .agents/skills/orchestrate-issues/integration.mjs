@@ -4,7 +4,6 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
-import { readRepos } from "../../repos.mjs";
 import { removeJobDir } from "../clean-worktrees/clean-worktrees.mjs";
 import { readRecord, updateRecord, pointerFile, acquire, branchTicket, coordinatorMerges, parseCriteria, acceptanceHash, verificationGaps, closedBeforeRun, finishedContainers, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions, requestMet, mainVerdict, failedJobsOf, MAIN_BRANCH, MAIN_WORKFLOW } from "./issue-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
@@ -24,12 +23,10 @@ const norm = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
 const sameCommit = (a, b) => typeof a === "string" && typeof b === "string" && a.length >= 7 && b.length >= 7 && (a.startsWith(b) || b.startsWith(a));
 const noneOutstanding = (findings) => (Array.isArray(findings) ? findings.length === 0 : /^none\.?$/i.test(norm(findings)));
 
-export const invokes = (record, repos = readRepos()) => {
+export const invokes = (record) => {
   const text = record.invocation?.text ?? "";
   if (!/orchestrate-issues/i.test(text)) return false;
-  const prefix = String(repos.autolinkPrefix ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const ref = repositoriesOf(record).split && prefix ? `(?:#|#${prefix}|(?<![A-Za-z0-9_])${prefix})` : "#";
-  return new RegExp(`${ref}${record.issue}(?![0-9])`).test(text);
+  return new RegExp(`(?<![0-9])${Number(record.issue)}(?![0-9])`).test(text);
 };
 
 const PASSED = new Set(["SUCCESS", "NEUTRAL"]);
@@ -120,7 +117,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   if (record.invocation?.merging !== "coordinator") blockers.push(`the run records that the maintainer merges (merging ${record.invocation?.merging ?? "not recorded"}), so no PR of this run merges here`);
   else if (!coordinatorMerges(record)) blockers.push(`the run's recorded grant ("${record.authority?.merge}") or its quoted request ("${record.invocation?.text}") does not let the coordinator merge`);
   if (!record.checkpoints) blockers.push("checkpoints are not enabled for this run, so a merge's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
-  if (!invokes(record)) blockers.push(`the recorded invocation "${record.invocation?.text ?? ""}" does not name orchestrate-issues and issue #${record.issue}; only an explicit invocation grants a merge, and discussing the skill is not one`);
+  if (!invokes(record)) blockers.push(`the recorded invocation "${record.invocation?.text ?? ""}" does not name orchestrate-issues and issue ${record.issue} (as a number, #${record.issue} or its link); only an explicit invocation grants a merge, and discussing the skill is not one`);
   const own = record.tickets[number];
   let writers = [];
   if (own) { try { writers = writersOf(own, number); } catch (error) { writers = null; blockers.push(error.message); } }
