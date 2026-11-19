@@ -143,11 +143,14 @@ export function firstMorphEasingReach(text: string, position: number): number {
   const { ease, turns } = curve(text) ?? linear;
   const reaches = (x: number) => Math.max(0, Math.min(1, ease(x))) >= position;
   const bounds = [...new Set([0, ...turns.filter((x) => x > 0 && x < 1), 1])].sort((a, b) => a - b);
-  for (let i = 0; i < bounds.length; i++) {
-    if (!reaches(bounds[i]!)) continue;
-    if (i === 0) return bounds[0]!;
+  if (reaches(0)) return 0;
+  for (let i = 1; i < bounds.length; i++) {
     let lo = bounds[i - 1]!;
-    let hi = bounds[i]!;
+    const end = bounds[i]!;
+    const before = end - end * Number.EPSILON;
+    const top = before > lo && reaches(before) ? before : reaches(end) ? end : undefined;
+    if (top === undefined) continue;
+    let hi = top;
     for (;;) {
       const mid = (lo + hi) / 2;
       if (mid <= lo || mid >= hi) return hi;
