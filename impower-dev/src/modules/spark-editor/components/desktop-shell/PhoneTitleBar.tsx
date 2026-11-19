@@ -13,8 +13,6 @@ import {
   useEditorHistory,
   useScriptMode,
 } from "../../workspace/useActiveEditor";
-import { routeOfState } from "../../workspace/routes";
-import workspace from "../../workspace/WorkspaceStore";
 import { SyncButton, SyncStatusLine } from "../drive-sync";
 import { FoldedScriptHeader } from "../script-header";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
@@ -29,9 +27,6 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
   const namingField = useNaming();
   const script = useComputed(() => storyScriptOf()).value;
   const story = script !== undefined;
-  const writing = useComputed(
-    () => routeOfState(workspace.state.value) === "write",
-  ).value;
   const editing = useScriptMode() === "editing" && story;
   const naming =
     namingField === "project" || (namingField === "script" && editing);
@@ -44,8 +39,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
     <header
       data-phone-title-bar
       class={cn(
-        "hit-bound relative z-20 flex h-[var(--title-bar-height)] flex-none items-center border-b border-edge bg-bg",
-        writing ? "pr-1 pl-2" : "gap-[7px] px-2.5",
+        "hit-bound relative z-20 flex h-[var(--title-bar-height)] flex-none items-center gap-[7px] border-b border-edge bg-bg px-2.5",
         "motion-safe:transition-shadow motion-safe:duration-150",
         scrolled && "shadow-[0_7px_10px_-4px_var(--editor-sticky-shadow)]",
       )}
@@ -57,12 +51,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
           <span class="flex size-11 flex-none items-center justify-center">
             <SparkLogo layout="mark" size="md" class="[&_svg]:w-6" />
           </span>
-          <div
-            class={cn(
-              "flex min-w-0 flex-1 flex-col items-start",
-              writing && "ml-1",
-            )}
-          >
+          <div class="flex min-w-0 flex-1 flex-col items-start">
             <ProjectNameField />
             <div class="w-full min-w-0">
               <div class="z-[2] flex items-center fade-edge-over">
@@ -83,13 +72,11 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
           Done
         </Button>
       ) : (
-        <div
-          class={cn("flex flex-none items-center", !writing && "gap-[7px]")}
-        >
+        <div class="flex flex-none items-center gap-[7px]">
           {!editing && <SyncButton />}
           <TitleBarSearch />
           {editing && (
-            <div role="group" aria-label="Edit history" class="mr-1 flex">
+            <div role="group" aria-label="Edit history" class="flex">
               <Button
                 variant="quiet"
                 size="icon"

@@ -139,12 +139,14 @@ describe(
   "the phone title bar against the Folio prototype",
   () => {
     it.each([
-      [430, 347, 398],
-      [360, 277, 328],
-    ])(
-      "at %ipx on a page other than the Story, sits on the prototype's 10px inset with 7px gaps",
-      async (width, search, menu) => {
-        const bar = await measure(await markupOn("collection"), width);
+      [430, "collection", 347, 398],
+      [360, "collection", 277, 328],
+      [430, "write", 347, 398],
+      [360, "write", 277, 328],
+    ] as const)(
+      "at %ipx on %s, sits on one 10px inset with 7px gaps",
+      async (width, route, search, menu) => {
+        const bar = await measure(await markupOn(route), width);
         expect(bar.logoBox).toEqual({ width: 44, height: 44 });
         expect(bar.logo).toEqual({ x: 20, width: 24, height: 30 });
         expect(bar.name.x).toBe(61);
@@ -159,30 +161,15 @@ describe(
     );
 
     it.each([
-      [430, 360, 404],
-      [360, 290, 334],
-    ])(
-      "at %ipx on the Story, the bar that carries the edit history, sits on the prototype's 8px and 4px inset with no gap",
-      async (width, search, menu) => {
-        const bar = await measure(await markupOn("write"), width);
-        expect(bar.logo.x).toBe(18);
-        expect(bar.name.x).toBe(56);
-        expect(bar.statusX).toBe(56);
-        expect([bar.search, bar.menu]).toEqual([search, menu]);
-      },
-      60000,
-    );
-
-    it.each([
-      [430, "collection", 61, 347, 398],
-      [360, "collection", 61, 277, 328],
-      [430, "write", 56, 360, 404],
-      [360, "write", 56, 290, 334],
+      [430, "collection", 347, 398],
+      [360, "collection", 277, 328],
+      [430, "write", 347, 398],
+      [360, "write", 277, 328],
     ] as const)(
       "at %ipx on %s, a 60-character name fades on one line and leaves the buttons where they were",
-      async (width, route, x, search, menu) => {
+      async (width, route, search, menu) => {
         const bar = await measure(await markupOn(route, LONG_NAME), width);
-        expect(bar.name.x).toBe(x);
+        expect(bar.name.x).toBe(61);
         expect(rounded(bar.name.height)).toBe(15.6);
         expect(bar.name.overflows).toBe(true);
         expect(bar.name.mask).toBe(
