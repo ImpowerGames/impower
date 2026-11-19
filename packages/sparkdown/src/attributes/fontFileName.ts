@@ -8,23 +8,24 @@ export interface FontFileName {
 }
 
 export const fontFileNameOf = (name: string): FontFileName => {
+  const regular: FontFileName = { family: name, weight: "normal", style: "normal" };
   const at = name.indexOf("@");
-  const word = at > 0 ? name.slice(at + 1).toLowerCase() : "";
-  const styled = BOLD_WORDS.has(word) || ITALIC_WORDS.has(word);
+  if (at <= 0) {
+    return regular;
+  }
+  const pieces = name
+    .slice(at + 1)
+    .toLowerCase()
+    .split("@");
+  if (!pieces.every((piece) => BOLD_WORDS.has(piece) || ITALIC_WORDS.has(piece))) {
+    return regular;
+  }
   return {
-    family: styled ? name.slice(0, at) : name,
-    weight: BOLD_WORDS.has(word) ? "700" : "normal",
-    style: ITALIC_WORDS.has(word) ? "italic" : "normal",
+    family: name.slice(0, at),
+    weight: pieces.some((piece) => BOLD_WORDS.has(piece)) ? "700" : "normal",
+    style: pieces.some((piece) => ITALIC_WORDS.has(piece)) ? "italic" : "normal",
   };
 };
 
-export const fontStyleSuffixOf = (name: string, family: string): string | undefined => {
-  if (name === family) {
-    return "";
-  }
-  if (!name.startsWith(family + "@")) {
-    return undefined;
-  }
-  const word = name.slice(family.length + 1).toLowerCase();
-  return BOLD_WORDS.has(word) || ITALIC_WORDS.has(word) ? name.slice(family.length) : undefined;
-};
+export const fontStyleSuffixOf = (name: string, family: string): string | undefined =>
+  fontFileNameOf(name).family === family ? name.slice(family.length) : undefined;
