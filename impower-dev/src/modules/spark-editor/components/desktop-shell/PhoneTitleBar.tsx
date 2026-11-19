@@ -74,7 +74,6 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
       ) : (
         <div class="flex flex-none items-center gap-[7px]">
           {!editing && <SyncButton />}
-          <TitleBarSearch />
           {editing && (
             <div role="group" aria-label="Edit history" class="flex">
               <Button
@@ -101,14 +100,16 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
               </Button>
             </div>
           )}
+          <TitleBarSearch />
           {editing ? (
             <Button
               size="pill"
               aria-label="Done editing"
+              title="Done"
+              class="w-11 px-0"
               onClick={() => void withWindow((win) => win.finishEditing())}
             >
               <CheckIcon />
-              Done
             </Button>
           ) : (
             <AppMenu trigger="bar" />

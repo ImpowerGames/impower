@@ -114,6 +114,15 @@ const measureEdges = async (markup: string, width: number) => {
         groupGap: group ? getComputedStyle(group).columnGap : null,
         firstLeft: controls[0]!.getBoundingClientRect().x,
         lastRight: last.getBoundingClientRect().right,
+        controlWidths: [...bar.querySelectorAll("button")]
+          .slice(-2)
+          .map((b) => b.getBoundingClientRect().width),
+        search: (() => {
+          const box = bar
+            .querySelector('button[aria-label="Search"]')
+            ?.getBoundingClientRect();
+          return box ? box.x + box.width / 2 : null;
+        })(),
         logoX: logo ? logo.getBoundingClientRect().x : null,
         labels: [...bar.querySelectorAll("button")].map((b) =>
           b.getAttribute("aria-label"),
@@ -249,6 +258,10 @@ describe(
         }
         if (barState !== "editing") {
           expect(bar.logoX).toBe(20);
+        }
+        if (barState !== "naming") {
+          expect(bar.search).toBe(width - 83);
+          expect(bar.controlWidths).toEqual([44, 44]);
         }
       },
       60000,
