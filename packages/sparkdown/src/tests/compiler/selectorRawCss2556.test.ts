@@ -109,6 +109,8 @@ const RAW_CSS_KEYS = [
   "&:state(--checked)",
   "@state(--checked)",
   "@lang(--x)",
+  "@supports selectorselector(card)",
+  "@supports (display: grid) and selectors(card)",
 ];
 
 const SELECTOR_LIST_KEYS: [key: string, components: string[]][] = [

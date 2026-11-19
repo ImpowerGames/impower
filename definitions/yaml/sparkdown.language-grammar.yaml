@@ -4845,7 +4845,13 @@ repository:
           - { include: "#PunctuationParenClose" }
 
   SelectorSupportsSelectorFunction:
-    begin: (selector)
+    # lookaround: `SelectorCssWord`, tried after this rule, reads a longer word
+    # holding `selector` (`selectorselector(card)`, `selectors(card)`) whole
+    # only when this rule declines at the word's start and at each `selector`
+    # inside it. Trying the word first would take every
+    # `selector(`, and taking the `(` here would copy the patterns of
+    # `RecursiveSelectorFunctionParameters`, which reads it.
+    begin: (selector)(?=[(])
     beginCaptures:
       1:
         patterns:

@@ -7661,7 +7661,7 @@
       }
     },
     "SelectorSupportsSelectorFunction": {
-      "begin": "(selector)",
+      "begin": "(selector)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
