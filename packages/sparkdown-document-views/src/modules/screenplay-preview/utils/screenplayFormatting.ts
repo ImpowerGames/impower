@@ -1318,6 +1318,7 @@ const printedBlock = (
     if (spec.block) {
       if (staysOutside(range, from, to)) continue;
       if (range.from < from || range.to > to || !widget) return undefined;
+      if (range.to > range.from) drawnByWidgets.push(range);
       parts.push({
         at: range.from,
         order: range.from === range.to && range.value.startSide > 0 ? 2 : 0,

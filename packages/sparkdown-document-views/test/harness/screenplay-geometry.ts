@@ -50,12 +50,11 @@ const paragraphDrawing = async (firstLine: number, lastLine = firstLine) => {
   current.dom.scrollIntoView();
   await frames();
   const elements = Array.from(current.contentDOM.children).filter((child): child is HTMLElement => {
-    if (!(child instanceof HTMLElement)) return false;
-    if (!child.matches(`.cm-line:not(.sp-inserted-row), .${PARAGRAPH_CLASS}`)) return false;
+    if (!(child instanceof HTMLElement) || child.getBoundingClientRect().height < 1) return false;
     const position = current.posAtDOM(child);
     return position >= first.from && position <= last.to;
   });
-  const element = elements.at(-1);
+  const element = elements.find((found) => found.matches(".cm-activeLine, .sp-lit")) ?? elements.at(-1);
   if (!element) return undefined;
   const content = current.contentDOM.getBoundingClientRect();
   const rects = elements.map((found) => found.getBoundingClientRect());

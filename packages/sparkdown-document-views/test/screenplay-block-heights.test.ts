@@ -78,6 +78,11 @@ const SHAPES: { name: string; script: string; config: ScreenplayConfig }[] = [
     script: `${SCRIPT}scene blank_crossing\n  ${LONG_TEXT} {"a" ..\n\n  "b"} after.\nend\n`,
     config: GEOMETRY_CONFIG,
   },
+  {
+    name: "a printed line that also carries inline dialogue",
+    script: `${SCRIPT}scene mixed\n  queue | ${LONG_TEXT} | Two. end GUIDE: Hello.\nend\n`,
+    config: GEOMETRY_CONFIG,
+  },
 ];
 
 const MARKED = "The reader keeps **reading the bold words** and *the slanted ones* and _the underlined ones_ while {name} waits.";
@@ -224,6 +229,12 @@ const COMPARED_SHAPES: { name: string; script: string; config: ScreenplayConfig;
     script: `scene blank_crossing\n  ${COMPARED_TEXT} {"a" ..\n\n  "b"} after.\nend\n`,
     config: GEOMETRY_CONFIG,
     lines: [2, 4],
+  },
+  {
+    name: "a printed line that also carries inline dialogue",
+    script: `scene mixed\n  queue | ${COMPARED_TEXT} | Two. end GUIDE: Hello.\nend\n`,
+    config: GEOMETRY_CONFIG,
+    lines: [2, 2],
   },
   {
     name: "a printed line that also carries a function name wrapped over several rows",
