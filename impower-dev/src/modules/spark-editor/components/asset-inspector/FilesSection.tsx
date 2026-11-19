@@ -175,12 +175,12 @@ export default function FilesSection({ stack, sizes, sources, soloed, onSolo, in
         <p class="m-0 text-[12px]/[1.5] text-muted" data-file-note>
           {stack.kind === "folder" ? (
             <>
-              A file named <code class="font-mono text-[11px] text-ink">NN_group.option.png</code> in this folder adds a layer; NN
+              A file named <code class="font-mono text-[11px] text-ink">NN group.option.png</code> in this folder adds a layer; NN
               sets where it stacks.
             </>
           ) : (
             <>
-              A file named <code class="font-mono text-[11px] text-ink">{stack.name}~group.option.png</code> adds a layer and{" "}
+              A file named <code class="font-mono text-[11px] text-ink">{stack.name} group.option.png</code> adds a layer and{" "}
               <code class="font-mono text-[11px] text-ink">{stack.name}@name.png</code> another alternate.
             </>
           )}

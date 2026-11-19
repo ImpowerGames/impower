@@ -6,7 +6,7 @@ import { bundlePage, frames, openPage, stylesFor } from "./pageBundle";
 type Theme = "charcoal" | "chalk";
 
 const CAST = "Assets/Images/Cast";
-const STACK = [`${CAST}/stacked.png`, `${CAST}/stacked~face.happy.png`, `${CAST}/stacked~face.sad.png`];
+const STACK = [`${CAST}/stacked.png`, `${CAST}/stacked face.happy.png`, `${CAST}/stacked face.sad.png`];
 
 let browser: Browser;
 let script: string;

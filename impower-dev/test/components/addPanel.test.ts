@@ -149,7 +149,7 @@ const FILES = [
   "assets/Backdrops/beach@night.png",
   "assets/art/backdrops/city/plaza.png",
   "assets/Portraits/imani.png",
-  "assets/Portraits/imani~mood.happy.png",
+  "assets/Portraits/imani mood.happy.png",
   "assets/Sounds/door.wav",
   "assets/Sounds/ui/click.wav",
 ];
@@ -419,7 +419,7 @@ describe("the pickers on desktop", () => {
     expect(thumbnail.querySelector("img")!.getAttribute("src")).toBe("data:image/png;drawn,imani");
     expect(thumbnail.dataset["visiblePercent"]).toBe("75");
     workspaceSettings.resetPreferences(["portraitCrop"]);
-    listAssets([...FILES, "assets/Portraits/kai~hat.on.png"]);
+    listAssets([...FILES, "assets/Portraits/kai hat.on.png"]);
     await act(async () => button("Portrait", "Back to add options").click());
     await act(async () => row("portrait").click());
     await settle();

@@ -1,6 +1,6 @@
-import { isWritableImageName } from "@impower/sparkdown/src/attributes/imageFileName";
+import { isWritableImageName, stemOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { parseLayerName } from "@impower/sparkdown/src/attributes/parseLayerName";
-import { bytesLabel, plural } from "./fileListModel";
+import { bytesLabel, compareNames, plural } from "./fileListModel";
 import { AS_IS, choicesOf, type ImageStack, type StackMember, type StackPicture } from "./imageStacks";
 
 export { AS_IS };
@@ -170,7 +170,7 @@ const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
 export const fileRows = (stack: ImageStack, sizes: Readonly<Record<string, number>>): FileRow[] =>
   [...stack.members]
-    .sort((a, b) => leafOf(a.path).localeCompare(leafOf(b.path), undefined, { numeric: true, sensitivity: "base" }))
+    .sort((a, b) => compareNames(stemOf(a.path), stemOf(b.path)) || compareNames(leafOf(a.path), leafOf(b.path)))
     .map((member) => ({
       path: member.path,
       name: leafOf(member.path),

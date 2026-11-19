@@ -9,7 +9,7 @@ it.each(["data-name", "serif:id"])("serves %s attribute variants through the sta
   const entries = new Map<string, Response>();
   let relays = 0;
   let emptyTransfer = false;
-  const raw = '<svg><g id="on" LABEL="hat.on"><path/></g><g id="off" LABEL="hat.off:default"><path/></g><g id="body"/></svg>'.replaceAll('LABEL', label);
+  const raw = '<svg><g id="on" LABEL="hat.on"><path/></g><g id="off" LABEL="hat.off default"><path/></g><g id="body"/></svg>'.replaceAll('LABEL', label);
   vi.stubGlobal("caches", {open: async () => ({
     match: async (key: string) => entries.get(key)?.clone(),
     put: async (key: string, response: Response) => {entries.set(key, response.clone());},

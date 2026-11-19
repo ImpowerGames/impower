@@ -63,7 +63,7 @@ export const evaluateAttributeVisibility = (
           code: "missing-folder-default", severity: "warning", group,
           folder: scope.name,
           path: key,
-          message: 'Folder "' + scope.name + '" has no resting choice for ' + group + '; its layers are hidden. Mark one ' + group + ' layer :default or select ' + group + '.' + options[0] + ' in the script.',
+          message: 'Folder "' + scope.name + '" has no resting choice for ' + group + '; its layers are hidden. Mark one ' + group + ' layer default or select ' + group + '.' + options[0] + ' in the script.',
         });
       }
     }

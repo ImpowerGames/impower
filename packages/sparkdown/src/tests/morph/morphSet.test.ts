@@ -149,7 +149,7 @@ describe("morphs that drive different groups play together", () => {
 
   test("a layer conditioned on both morphs' groups keeps the portrait still, with the error naming both morphs", () => {
     const svg = talkingPortrait({
-      mouth: '<g data-name="squint:eyes.closed"><path data-name="crease" d="M140,20H160V30H140Z" fill="#000"/></g><g data-name="squint:eyes.open"><path data-name="crease" d="M140,22H160V28H140Z" fill="#000"/></g>',
+      mouth: '<g data-name="squint eyes.closed"><path data-name="crease" d="M140,20H160V30H140Z" fill="#000"/></g><g data-name="squint eyes.open"><path data-name="crease" d="M140,22H160V28H140Z" fill="#000"/></g>',
     });
     const artifact = bakeSet(svg);
     expect(artifact.status).toBe("static");

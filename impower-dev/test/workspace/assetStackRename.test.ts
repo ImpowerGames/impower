@@ -193,7 +193,7 @@ async function harness(stored: Record<string, string>) {
 }
 
 const P = "Assets/Images/Portraits";
-const STACK = [`${P}/imani.png`, `${P}/imani@night.png`, `${P}/imani@night~face.sad.png`, `${P}/imani~face.happy.png`];
+const STACK = [`${P}/imani.png`, `${P}/imani@night.png`, `${P}/imani@night face.sad.png`, `${P}/imani face.happy.png`];
 const RENAMED = STACK.map((path) => path.replace("/imani", "/zadie"));
 const SCRIPT = [
   "scene start",
@@ -286,7 +286,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(await h.history.undo()).toBe(false);
     expect(h.snackbar.value?.message).toBe(`Couldn't rename zadie: ${RENAMED[2]} is no longer there. Nothing was renamed.`);
     expect(h.history.canUndo.value).toBe(true);
-    expect((await inPortraits(h)).filter((path) => path.includes("/zadie"))).toEqual([RENAMED[0], RENAMED[1], RENAMED[3]]);
+    expect((await inPortraits(h)).filter((path) => path.includes("/zadie"))).toEqual([RENAMED[0], RENAMED[1], RENAMED[3]].sort());
   });
 
   it("renames a same-name picture in another format and another folder with it, and says so", async () => {
@@ -333,7 +333,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     const h = await harness(project());
     expect(await h.assets.rename(STACK[0]!, " imani.png ")).toBe(STACK[0]);
     expect(h.history.canUndo.value).toBe(false);
-    await expect(h.assets.rename(STACK[0]!, "zadie@day")).rejects.toThrow("Use a name without @ or ~.");
+    await expect(h.assets.rename(STACK[0]!, "zadie@day")).rejects.toThrow("Use a name without @ or spaces.");
     await h.assets.rename(STACK[0]!, "Imani");
     expect((await inPortraits(h)).filter((path) => path.includes("/Imani"))).toEqual(
       STACK.map((path) => path.replace("/imani", "/Imani")).sort(),
@@ -601,13 +601,13 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     const h = await harness({
       "main.sd": lines("scene start", "  [[show portrait imani]]", "end"),
       [`${P}/imani@night.png`]: "night",
-      "Assets/Images/Backdrops/harbor~sky.clear.png": "sky",
+      "Assets/Images/Backdrops/harbor sky.clear.png": "sky",
     });
     expect(await h.assets.rename(`${P}/imani@night.png`, "zadie")).toBe(`${P}/zadie@night.png`);
-    expect(await h.assets.rename("Assets/Images/Backdrops/harbor~sky.clear.png", "dock")).toBe(
-      "Assets/Images/Backdrops/dock~sky.clear.png",
+    expect(await h.assets.rename("Assets/Images/Backdrops/harbor sky.clear.png", "dock")).toBe(
+      "Assets/Images/Backdrops/dock sky.clear.png",
     );
-    expect(await h.paths()).toEqual(["Assets/Images/Backdrops/dock~sky.clear.png", `${P}/zadie@night.png`, "main.sd"]);
+    expect(await h.paths()).toEqual(["Assets/Images/Backdrops/dock sky.clear.png", `${P}/zadie@night.png`, "main.sd"]);
   });
 
   it("renames a sound whose name has an at sign as a single file", async () => {
@@ -693,14 +693,14 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
   it("names the file it could not put back after a failure", async () => {
     const h = await harness(project());
     let failed = false;
-    h.failCreating(RENAMED[3]!, () => (failed = true));
-    h.failCreating(STACK[1]!, () => failed);
+    h.failCreating(RENAMED[1]!, () => (failed = true));
+    h.failCreating(STACK[3]!, () => failed);
     const failure = h.assets.rename(STACK[0]!, "zadie");
     await expect(failure).rejects.toThrow(/^Couldn't rename imani: The storage is full; the edit was partly applied: /);
     await expect(failure).rejects.toThrow(
-      `Not put back: ${RENAMED[1]} (was ${STACK[1]}; putting it back failed: The storage is full).`,
+      `Not put back: ${RENAMED[3]} (was ${STACK[3]}; putting it back failed: The storage is full).`,
     );
-    expect(await h.paths()).toContain(RENAMED[1]);
+    expect(await h.paths()).toContain(RENAMED[3]);
     expect(h.history.canUndo.value).toBe(false);
   });
 });
@@ -711,7 +711,7 @@ describe("moving and deleting a stacked picture", { timeout: 120000 }, () => {
     await h.fs.createFolder(PROJECT, "Assets/Images/Cast");
     await h.assets.load();
     const moved = await h.assets.move([STACK[0]!], "Assets/Images/Cast");
-    expect(moved.map((move) => move.to)).toEqual(STACK.map((path) => path.replace(P, "Assets/Images/Cast")));
+    expect(moved.map((move) => move.to)).toEqual(STACK.map((path) => path.replace(P, "Assets/Images/Cast")).sort());
     expect(await inPortraits(h)).toEqual([`${P}/imani_extra.png`]);
     expect(await h.read("main.sd")).toBe(SCRIPT);
     expect(await h.history.undo()).toBe(true);
@@ -760,7 +760,7 @@ describe("moving and deleting a stacked picture", { timeout: 120000 }, () => {
 });
 
 const MIA = `${P}/mia`;
-const FOLDER_STACK = [`${MIA}/10_hat.on.png`, `${MIA}/30_face.happy.png`, `${MIA}/30_face.neutral~default.png`, `${MIA}/90_body.png`];
+const FOLDER_STACK = [`${MIA}/10 hat.on.png`, `${MIA}/30 face.happy.png`, `${MIA}/30 face.neutral default.png`, `${MIA}/90 body.png`];
 const withFolderStack = (extra: Record<string, string> = {}) =>
   project({ ...Object.fromEntries(FOLDER_STACK.map((path, i) => [path, `layer ${i}`])), ...extra });
 const inMia = async (h: Awaited<ReturnType<typeof harness>>) =>
@@ -769,41 +769,41 @@ const inMia = async (h: Awaited<ReturnType<typeof harness>>) =>
 describe("a stack's own files", { timeout: 120000 }, () => {
   it("renames one layer's option part, leaving the other files and the picture's name alone", async () => {
     const h = await harness(project());
-    expect(await h.assets.renameMember(STACK[3]!, "imani~face.glad")).toBe(`${P}/imani~face.glad.png`);
+    expect(await h.assets.renameMember(STACK[3]!, "imani face.glad")).toBe(`${P}/imani face.glad.png`);
     expect(await inPortraits(h)).toEqual(
-      [...STACK.filter((path) => path !== STACK[3]), `${P}/imani~face.glad.png`, `${P}/imani_extra.png`].sort(),
+      [...STACK.filter((path) => path !== STACK[3]), `${P}/imani face.glad.png`, `${P}/imani_extra.png`].sort(),
     );
-    expect(await h.read(`${P}/imani~face.glad.png`)).toBe("picture 3");
-    expect(h.snackbar.value?.message).toBe("Renamed imani~face.happy.png.");
+    expect(await h.read(`${P}/imani face.glad.png`)).toBe("picture 3");
+    expect(h.snackbar.value?.message).toBe("Renamed imani face.happy.png.");
     expect(await h.history.undo()).toBe(true);
     expect(await inPortraits(h)).toEqual(ORIGINAL);
   });
 
   it("renames only the one layer when another layer shares its name up to the first dot", async () => {
-    const h = await harness(project({ [`${P}/imani~face.sad.png`]: "sad", [`${P}/imani~face.happy.webp`]: "webp" }));
-    await h.assets.renameMember(STACK[3]!, "imani~face.glad");
-    expect((await inPortraits(h)).filter((path) => path.includes("~face."))).toEqual(
-      [`${P}/imani@night~face.sad.png`, `${P}/imani~face.glad.png`, `${P}/imani~face.happy.webp`, `${P}/imani~face.sad.png`].sort(),
+    const h = await harness(project({ [`${P}/imani face.sad.png`]: "sad", [`${P}/imani face.happy.webp`]: "webp" }));
+    await h.assets.renameMember(STACK[3]!, "imani face.glad");
+    expect((await inPortraits(h)).filter((path) => path.includes(" face."))).toEqual(
+      [`${P}/imani@night face.sad.png`, `${P}/imani face.glad.png`, `${P}/imani face.happy.webp`, `${P}/imani face.sad.png`].sort(),
     );
-    expect(await h.read(`${P}/imani~face.sad.png`)).toBe("sad");
+    expect(await h.read(`${P}/imani face.sad.png`)).toBe("sad");
   });
 
   it("renames a layer's group beside another option of that group, leaving the scripts alone", async () => {
-    const h = await harness(project({ [`${P}/imani~face.sad.png`]: "sad" }));
-    expect(await h.assets.renameMember(STACK[3]!, "imani~mood.happy")).toBe(`${P}/imani~mood.happy.png`);
-    expect(await h.read(`${P}/imani~face.sad.png`)).toBe("sad");
+    const h = await harness(project({ [`${P}/imani face.sad.png`]: "sad" }));
+    expect(await h.assets.renameMember(STACK[3]!, "imani mood.happy")).toBe(`${P}/imani mood.happy.png`);
+    expect(await h.read(`${P}/imani face.sad.png`)).toBe("sad");
     expect(await h.read("main.sd")).toBe(SCRIPT);
   });
 
   it("refuses a rename that changes the picture the file belongs to, in WorkspaceAssets' words", async () => {
     const h = await harness(project());
-    await expect(h.assets.renameMember(STACK[3]!, "zadie~face.happy")).rejects.toThrow(
-      "Keep imani before the @ or ~. That part names the picture the file belongs to; rename the picture to change it.",
+    await expect(h.assets.renameMember(STACK[3]!, "zadie face.happy")).rejects.toThrow(
+      "Keep imani before the @ or the first space. That part names the picture the file belongs to; rename the picture to change it.",
     );
     await expect(h.assets.renameMember(STACK[1]!, "imani.v2@night")).rejects.toThrow(
       "Use a name without a dot for a picture with alternates or layers. Scripts name a picture by the part before its first dot.",
     );
-    await expect(h.assets.renameMember(STACK[1]!, "imani@night~face.sad")).rejects.toThrow(
+    await expect(h.assets.renameMember(STACK[1]!, "imani@night face.sad")).rejects.toThrow(
       "That name is already in use in this folder.",
     );
     expect(await inPortraits(h)).toEqual(ORIGINAL);
@@ -813,7 +813,7 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     const h = await harness(project());
     expect(await h.assets.renameMember(STACK[1]!, "imani@dark")).toBe(`${P}/imani@dark.png`);
     expect(await inPortraits(h)).toEqual(
-      [STACK[0]!, `${P}/imani@dark.png`, `${P}/imani@dark~face.sad.png`, STACK[3]!, `${P}/imani_extra.png`].sort(),
+      [STACK[0]!, `${P}/imani@dark.png`, `${P}/imani@dark face.sad.png`, STACK[3]!, `${P}/imani_extra.png`].sort(),
     );
     expect(await h.read("main.sd")).toBe(SCRIPT.replace("imani@night", "imani@dark"));
     expect(await h.history.undo()).toBe(true);
@@ -824,11 +824,11 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     const h = await harness(project());
     expect(await h.assets.renameMember(STACK[1]!, "imani@dark.v2")).toBe(`${P}/imani@dark.v2.png`);
     expect(await inPortraits(h)).toEqual(
-      [STACK[0]!, `${P}/imani@dark.v2.png`, `${P}/imani@dark.v2~face.sad.png`, STACK[3]!, `${P}/imani_extra.png`].sort(),
+      [STACK[0]!, `${P}/imani@dark.v2.png`, `${P}/imani@dark.v2 face.sad.png`, STACK[3]!, `${P}/imani_extra.png`].sort(),
     );
     const { imageStacks } = await import("../../src/modules/spark-editor/utils/imageStacks");
     const [stack] = imageStacks(STACK.map((path) => path.replace("imani@night", "imani@dark.v2")));
-    expect(stack!.pictures.find((picture) => picture.alternate === "dark")?.layers).toEqual([`${P}/imani@dark.v2~face.sad.png`]);
+    expect(stack!.pictures.find((picture) => picture.alternate === "dark")?.layers).toEqual([`${P}/imani@dark.v2 face.sad.png`]);
   });
 
   it("leaves a script the author saved during a failed alternate rename as saved, puts the file back, and says so from the rollback", async () => {
@@ -852,15 +852,15 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     h.failWriting("zz.sd", async () => h.write("main.sd", saved));
     expect(await h.history.undo()).toBe(false);
     expect(await h.read("main.sd")).toBe(saved);
-    expect(await inPortraits(h)).toEqual(expect.arrayContaining([`${P}/imani@dark.png`, `${P}/imani@dark~face.sad.png`]));
-    expect(h.snackbar.value?.message).toMatch(/^Couldn't rename imani: .*imani@night~face\.sad\.png.*main\.sd/);
+    expect(await inPortraits(h)).toEqual(expect.arrayContaining([`${P}/imani@dark.png`, `${P}/imani@dark face.sad.png`]));
+    expect(h.snackbar.value?.message).toMatch(/^Couldn't rename imani: .*imani@night face\.sad\.png.*main\.sd/);
   });
 
   it("deletes one file to the bin and keeps the rest of the picture", async () => {
     const h = await harness(project());
     await h.assets.removeMember(STACK[2]!);
     expect(await inPortraits(h)).toEqual(ORIGINAL.filter((path) => path !== STACK[2]));
-    expect(h.snackbar.value?.message).toBe("Deleted imani@night~face.sad.png");
+    expect(h.snackbar.value?.message).toBe("Deleted imani@night face.sad.png");
     const [batch] = await h.fs.listTrash(PROJECT);
     expect(batch!.entries.map((entry) => entry.relPath)).toEqual([STACK[2]]);
   });
@@ -869,26 +869,26 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     const h = await harness(project());
     h.failRemoving(STACK[2]!);
     await expect(h.assets.removeMember(STACK[2]!)).rejects.toThrow(
-      "Couldn't move imani@night~face.sad.png to the bin. It is still where it was.",
+      "Couldn't move imani@night face.sad.png to the bin. It is still where it was.",
     );
     expect(await inPortraits(h)).toEqual(ORIGINAL);
     expect(await h.read(STACK[2]!)).toBe("picture 2");
     expect(h.history.canUndo.value).toBe(false);
   });
 
-  it("keeps the @ and ~ of a layer and an alternate file uploaded from the page", async () => {
+  it("keeps the @ and the space of a layer and an alternate file uploaded from the page", async () => {
     const h = await harness(project());
     const file = (name: string) => ({ name, getBuffer: async () => encode(name).buffer as ArrayBuffer });
-    await h.assets.upload([file("imani~hat.on.png"), file("imani@dusk.png")], P);
-    expect(await inPortraits(h)).toEqual(expect.arrayContaining([`${P}/imani~hat.on.png`, `${P}/imani@dusk.png`]));
+    await h.assets.upload([file("imani hat.on.png"), file("imani@dusk.png")], P);
+    expect(await inPortraits(h)).toEqual(expect.arrayContaining([`${P}/imani hat.on.png`, `${P}/imani@dusk.png`]));
     expect(await h.read(`${P}/imani@dusk.png`)).toBe("imani@dusk.png");
   });
 
   it("adds a layer or alternate beside the base, not in the Add menu's folder", async () => {
     const h = await harness(project());
-    await h.assets.addBeside([{ name: "imani~hat.on.png", getBuffer: async () => encode("hat").buffer as ArrayBuffer }], STACK[0]!);
-    expect(await inPortraits(h)).toContain(`${P}/imani~hat.on.png`);
-    expect(await h.read(`${P}/imani~hat.on.png`)).toBe("hat");
+    await h.assets.addBeside([{ name: "imani hat.on.png", getBuffer: async () => encode("hat").buffer as ArrayBuffer }], STACK[0]!);
+    expect(await inPortraits(h)).toContain(`${P}/imani hat.on.png`);
+    expect(await h.read(`${P}/imani hat.on.png`)).toBe("hat");
   });
 });
 
@@ -905,17 +905,17 @@ describe("a folder stack", { timeout: 120000 }, () => {
 
   it("renames a layer's name after its number, and refuses one that drops the number", async () => {
     const h = await harness(withFolderStack());
-    expect(await h.assets.renameMember(FOLDER_STACK[1]!, "30_face.glad")).toBe(`${MIA}/30_face.glad.png`);
+    expect(await h.assets.renameMember(FOLDER_STACK[1]!, "30 face.glad")).toBe(`${MIA}/30 face.glad.png`);
     await expect(h.assets.renameMember(FOLDER_STACK[0]!, "hat.on")).rejects.toThrow(
-      "Keep the number and underscore at the start, as in 10_face.happy. They place the file among mia's layers.",
+      "Keep the number and the space after it at the start, as in 10 face.happy. They place the file among mia's layers.",
     );
-    expect(await inMia(h)).toEqual([FOLDER_STACK[0], `${MIA}/30_face.glad.png`, FOLDER_STACK[2], FOLDER_STACK[3]].sort());
+    expect(await inMia(h)).toEqual([FOLDER_STACK[0], `${MIA}/30 face.glad.png`, FOLDER_STACK[2], FOLDER_STACK[3]].sort());
   });
 
   it("renames a layer's group without taking the group's other options along, and undoes it", async () => {
     const h = await harness(withFolderStack());
-    expect(await h.assets.renameMember(FOLDER_STACK[1]!, "30_eyes.happy")).toBe(`${MIA}/30_eyes.happy.png`);
-    expect(await inMia(h)).toEqual([FOLDER_STACK[0], `${MIA}/30_eyes.happy.png`, FOLDER_STACK[2], FOLDER_STACK[3]].sort());
+    expect(await h.assets.renameMember(FOLDER_STACK[1]!, "30 eyes.happy")).toBe(`${MIA}/30 eyes.happy.png`);
+    expect(await inMia(h)).toEqual([FOLDER_STACK[0], `${MIA}/30 eyes.happy.png`, FOLDER_STACK[2], FOLDER_STACK[3]].sort());
     expect(await h.history.undo()).toBe(true);
     expect(await inMia(h)).toEqual(FOLDER_STACK);
   });
@@ -950,7 +950,7 @@ describe("a folder stack", { timeout: 120000 }, () => {
 const DOTTED =
   "Use a name without a dot for a picture with alternates or layers. Scripts name a picture by the part before its first dot.";
 const KEEP = (name: string) =>
-  `Keep ${name} before the @ or ~. That part names the picture the file belongs to; rename the picture to change it.`;
+  `Keep ${name} before the @ or the first space. That part names the picture the file belongs to; rename the picture to change it.`;
 
 interface MemberRename {
   row: string;
@@ -967,27 +967,27 @@ interface MemberRename {
 const MEMBER_RENAMES: MemberRename[] = [
   {
     row: "a picture's own file, plain: its layers move with it and the lines follow",
-    files: ["imani.png", "imani~face.happy.png", "imani@night.png"],
+    files: ["imani.png", "imani face.happy.png", "imani@night.png"],
     shows: ["imani"],
     rename: "imani.png",
     role: "Alternate · plain",
     to: "imani@day",
-    after: ["imani@day.png", "imani@day~face.happy.png", "imani@night.png"],
+    after: ["imani@day.png", "imani@day face.happy.png", "imani@night.png"],
     showsAfter: ["imani@day"],
   },
   {
     row: "a picture's own file, dotted: the compiler still names it ava, so nothing else moves and no line changes",
-    files: ["ava.v1.png", "ava.v1~face.happy.png", "ava@night.png"],
+    files: ["ava.v1.png", "ava.v1 face.happy.png", "ava@night.png"],
     shows: ["ava"],
     rename: "ava.v1.png",
     role: "Alternate · plain",
     to: "ava.v2",
-    after: ["ava.v2.png", "ava.v1~face.happy.png", "ava@night.png"],
+    after: ["ava.v2.png", "ava.v1 face.happy.png", "ava@night.png"],
     showsAfter: ["ava"],
   },
   {
     row: "a picture's own file, dotted before a new @: the dot would swallow the alternate, so it is refused",
-    files: ["ava.v1.png", "ava.v1~face.happy.png", "ava@night.png"],
+    files: ["ava.v1.png", "ava.v1 face.happy.png", "ava@night.png"],
     shows: ["ava"],
     rename: "ava.v1.png",
     role: "Alternate · plain",
@@ -996,32 +996,32 @@ const MEMBER_RENAMES: MemberRename[] = [
   },
   {
     row: "an @ alternate, plain: its layers move with it and the lines follow",
-    files: ["imani.png", "imani@night.png", "imani@night~face.sad.png"],
+    files: ["imani.png", "imani@night.png", "imani@night face.sad.png"],
     shows: ["imani", "imani@night"],
     rename: "imani@night.png",
     role: "Alternate · night",
     to: "imani@dark",
-    after: ["imani.png", "imani@dark.png", "imani@dark~face.sad.png"],
+    after: ["imani.png", "imani@dark.png", "imani@dark face.sad.png"],
     showsAfter: ["imani", "imani@dark"],
   },
   {
     row: "an @ alternate, dotted: the layers the compiler puts on it move too, however they are spelt",
-    files: ["imani.png", "imani@dark.v2.png", "imani@dark~face.happy.png"],
+    files: ["imani.png", "imani@dark.v2.png", "imani@dark face.happy.png"],
     shows: ["imani", "imani@dark"],
     rename: "imani@dark.v2.png",
     role: "Alternate · dark",
     to: "imani@night",
-    after: ["imani.png", "imani@night.png", "imani@night~face.happy.png"],
+    after: ["imani.png", "imani@night.png", "imani@night face.happy.png"],
     showsAfter: ["imani", "imani@night"],
   },
   {
     row: "an @ alternate renamed with a dot after its name: the compiler reads the alternate before the dot",
-    files: ["imani.png", "imani@night.png", "imani@night~face.sad.png"],
+    files: ["imani.png", "imani@night.png", "imani@night face.sad.png"],
     shows: ["imani", "imani@night"],
     rename: "imani@night.png",
     role: "Alternate · night",
     to: "imani@dark.v2",
-    after: ["imani.png", "imani@dark.v2.png", "imani@dark.v2~face.sad.png"],
+    after: ["imani.png", "imani@dark.v2.png", "imani@dark.v2 face.sad.png"],
     showsAfter: ["imani", "imani@dark"],
   },
   {
@@ -1035,50 +1035,50 @@ const MEMBER_RENAMES: MemberRename[] = [
   },
   {
     row: "a layer, plain: only the layer moves and no line changes",
-    files: ["imani.png", "imani~face.happy.png", "imani@night.png"],
+    files: ["imani.png", "imani face.happy.png", "imani@night.png"],
     shows: ["imani"],
-    rename: "imani~face.happy.png",
+    rename: "imani face.happy.png",
     role: "Layer · face.happy",
-    to: "imani~face.sad",
-    after: ["imani.png", "imani@night.png", "imani~face.sad.png"],
+    to: "imani face.sad",
+    after: ["imani.png", "imani@night.png", "imani face.sad.png"],
     showsAfter: ["imani"],
   },
   {
     row: "a layer, dotted: renamed while it keeps its picture's prefix",
-    files: ["ava.v1.png", "ava.v1~face.happy.png"],
+    files: ["ava.v1.png", "ava.v1 face.happy.png"],
     shows: ["ava"],
-    rename: "ava.v1~face.happy.png",
+    rename: "ava.v1 face.happy.png",
     role: "Layer · face.happy",
-    to: "ava.v1~face.sad",
-    after: ["ava.v1.png", "ava.v1~face.sad.png"],
+    to: "ava.v1 face.sad",
+    after: ["ava.v1.png", "ava.v1 face.sad.png"],
     showsAfter: ["ava"],
   },
   {
     row: "a layer, dotted, moved in front of a new @: refused",
-    files: ["ava.v1.png", "ava.v1~face.happy.png", "ava@night.png"],
+    files: ["ava.v1.png", "ava.v1 face.happy.png", "ava@night.png"],
     shows: ["ava"],
-    rename: "ava.v1~face.happy.png",
+    rename: "ava.v1 face.happy.png",
     role: "Layer · face.happy",
-    to: "ava.v1@night~face.happy",
+    to: "ava.v1@night face.happy",
     refused: DOTTED,
   },
   {
     row: "a layer moved to another alternate of its picture: only the layer moves",
-    files: ["imani.png", "imani~face.happy.png", "imani@night.png"],
+    files: ["imani.png", "imani face.happy.png", "imani@night.png"],
     shows: ["imani"],
-    rename: "imani~face.happy.png",
+    rename: "imani face.happy.png",
     role: "Layer · face.happy",
-    to: "imani@night~face.happy",
-    after: ["imani.png", "imani@night.png", "imani@night~face.happy.png"],
+    to: "imani@night face.happy",
+    after: ["imani.png", "imani@night.png", "imani@night face.happy.png"],
     showsAfter: ["imani"],
   },
   {
     row: "a layer moved to another picture: refused",
-    files: ["imani.png", "imani~face.happy.png"],
+    files: ["imani.png", "imani face.happy.png"],
     shows: ["imani"],
-    rename: "imani~face.happy.png",
+    rename: "imani face.happy.png",
     role: "Layer · face.happy",
-    to: "zadie~face.happy",
+    to: "zadie face.happy",
     refused: KEEP("imani"),
   },
   {
@@ -1093,12 +1093,12 @@ const MEMBER_RENAMES: MemberRename[] = [
   },
   {
     row: "a duplicate, plain, renamed to another alternate: no layer of its picture goes with it",
-    files: ["ava.jpg", "ava.png", "ava~face.happy.png"],
+    files: ["ava.jpg", "ava.png", "ava face.happy.png"],
     shows: ["ava"],
     rename: "ava.png",
     role: "Asset name collision · also provides ava",
     to: "ava@night",
-    after: ["ava.jpg", "ava@night.png", "ava~face.happy.png"],
+    after: ["ava.jpg", "ava@night.png", "ava face.happy.png"],
     showsAfter: ["ava"],
   },
   {
@@ -1123,22 +1123,22 @@ const MEMBER_RENAMES: MemberRename[] = [
   },
   {
     row: "a layer of an alternate spelt %40, renamed in the same spelling: only the layer moves",
-    files: ["imani.png", "imani%40dusk.png", "imani%40dusk~face.happy.png"],
+    files: ["imani.png", "imani%40dusk.png", "imani%40dusk face.happy.png"],
     shows: ["imani"],
-    rename: "imani%40dusk~face.happy.png",
+    rename: "imani%40dusk face.happy.png",
     role: "Layer · face.happy · on dusk",
-    to: "imani%40dusk~face.sad",
-    after: ["imani.png", "imani%40dusk.png", "imani%40dusk~face.sad.png"],
+    to: "imani%40dusk face.sad",
+    after: ["imani.png", "imani%40dusk.png", "imani%40dusk face.sad.png"],
     showsAfter: ["imani"],
   },
   {
     row: "an alternate renamed to a %40 spelling: its layers move and the lines follow the alternate the compiler reads",
-    files: ["imani.png", "imani@night.png", "imani@night~face.sad.png"],
+    files: ["imani.png", "imani@night.png", "imani@night face.sad.png"],
     shows: ["imani", "imani@night"],
     rename: "imani@night.png",
     role: "Alternate · night",
     to: "imani%40dawn",
-    after: ["imani.png", "imani%40dawn.png", "imani%40dawn~face.sad.png"],
+    after: ["imani.png", "imani%40dawn.png", "imani%40dawn face.sad.png"],
     showsAfter: ["imani", "imani@dawn"],
   },
   {

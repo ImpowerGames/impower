@@ -5,11 +5,11 @@ import { getHover } from "../../utils/providers/getHover";
 import { completeAt, insertedText } from "./braceCompletionHarness";
 
 const FACE = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open:default" id="open"/>
-<g data-name="lids:eyes.closed" id="closed"/>
-<g data-name="lips:mouth.closed:default" id="m-closed"/>
-<g data-name="lips:mouth.open" id="m-open"/>
-<g data-name="lips:mouth.teeth" id="m-teeth"/>
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.closed" id="closed"/>
+<g data-name="lips mouth.closed default" id="m-closed"/>
+<g data-name="lips mouth.open" id="m-open"/>
+<g data-name="lips mouth.teeth" id="m-teeth"/>
 </svg>`;
 
 const speech = (name: string, peak: string, extra = "") => `morph ${name} {

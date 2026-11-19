@@ -6,27 +6,27 @@ import { parseMorphRecipe } from "../../morph/recipe";
 const URI = "file:///main.sd";
 
 const FACE = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open:default" id="open"/>
-<g data-name="lids:eyes.closed" id="closed"/>
-<g data-name="lips:mouth.open:default" id="m-open"/>
-<g data-name="lips:mouth.closed" id="m-closed"/>
-<g data-name="lips:mouth.teeth" id="m-teeth"/>
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.closed" id="closed"/>
+<g data-name="lips mouth.open default" id="m-open"/>
+<g data-name="lips mouth.closed" id="m-closed"/>
+<g data-name="lips mouth.teeth" id="m-teeth"/>
 </svg>`;
 
 const SLEEPY = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.closed:default" id="closed"/>
-<g data-name="lids:eyes.open" id="open"/>
+<g data-name="lids eyes.closed default" id="closed"/>
+<g data-name="lids eyes.open" id="open"/>
 </svg>`;
 
 const NO_TEETH = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lips:mouth.open:default" id="m-open"/>
-<g data-name="lips:mouth.closed" id="m-closed"/>
+<g data-name="lips mouth.open default" id="m-open"/>
+<g data-name="lips mouth.closed" id="m-closed"/>
 </svg>`;
 
 const WIDE = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open-wide:default" id="wide"/>
-<g data-name="lids:eyes.open" id="open"/>
-<g data-name="lids:eyes.closed" id="closed"/>
+<g data-name="lids eyes.open-wide default" id="wide"/>
+<g data-name="lids eyes.open" id="open"/>
+<g data-name="lids eyes.closed" id="closed"/>
 </svg>`;
 
 const blink = (fields = "") => `morph blink {
@@ -299,7 +299,7 @@ end
 
   test("an image every look of which a condition keeps out is not reported, even when it lacks a state the morph names", () => {
     const asleep = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lid:eyes.closed:default" id="closed"/>
+<g data-name="lid eyes.closed default" id="closed"/>
 </svg>`;
     const images = [
       { name: "bunny", svg: FACE },
@@ -454,8 +454,8 @@ end
 
 describe("what a child inherits, by own property only and by the compiler's own merge", () => {
   const labelled = (label: string) => `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="${label}:mouth.open:default" id="m-open"/>
-<g data-name="${label}:mouth.closed" id="m-closed"/>
+<g data-name="${label} mouth.open default" id="m-open"/>
+<g data-name="${label} mouth.closed" id="m-closed"/>
 </svg>`;
 
   test("a layer label named like an object property, inherited from a written parent, is checked against the child's portraits like any other", () => {
@@ -511,10 +511,10 @@ morph child as base {
 describe("the override warning", () => {
   test("the warning underlines the written choice of the replaced group, not a matching part of another choice", () => {
     const portrait = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lids:eyes.open:default" id="open"/>
-<g data-name="lids:eyes.closed" id="closed"/>
-<g data-name="lips:mouth.open:default" id="m-open"/>
-<g data-name="lips:mouth.mostly-closed" id="m-mostly"/>
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.closed" id="closed"/>
+<g data-name="lips mouth.open default" id="m-open"/>
+<g data-name="lips mouth.mostly-closed" id="m-mostly"/>
 </svg>`;
     const text = `${blink()}
 scene start
@@ -540,7 +540,7 @@ end
     expect(found[0]!.message).toContain("`unless`");
   });
 
-  test("a choice the art's `:default` makes is not reported, nor is a choice equal to the rest", () => {
+  test("a choice the art's `default` makes is not reported, nor is a choice equal to the rest", () => {
     const text = `${blink()}
 scene start
   [[sleepy]]

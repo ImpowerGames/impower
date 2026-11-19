@@ -7,11 +7,11 @@ const ROOT = "file:///proj";
 const P = `${ROOT}/assets/Images/Portraits`;
 const FILES = [
   `${P}/ava.png`,
-  `${P}/ava~face.happy.png`,
+  `${P}/ava face.happy.png`,
   `${P}/ava@night.png`,
-  `${P}/ava@night~face.happy.png`,
-  `${P}/mia/90_body.png`,
-  `${P}/mia/30_face.happy.png`,
+  `${P}/ava@night face.happy.png`,
+  `${P}/mia/90 body.png`,
+  `${P}/mia/30 face.happy.png`,
   `${ROOT}/assets/Images/office.png`,
 ];
 
@@ -22,7 +22,7 @@ const program = (() => {
       { uri: `${ROOT}/main.sd`, name: "main", type: "script", ext: "sd", text: "", languageId: "sparkdown", version: 1 },
       ...FILES.map((uri) => {
         const leaf = uri.split("/").at(-1)!;
-        return { uri, type: "image", name: leaf.split(/[.~]/)[0]!, ext: "png", src: uri, version: 1 };
+        return { uri, type: "image", name: leaf.split(/[. ]/)[0]!, ext: "png", src: uri, version: 1 };
       }),
     ] as never,
   });

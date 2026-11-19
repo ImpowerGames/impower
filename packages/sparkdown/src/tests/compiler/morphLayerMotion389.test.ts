@@ -6,11 +6,11 @@ import { parseMorphRecipe } from "../../morph/recipe";
 const URI = "file:///main.sd";
 
 const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="eyes.open:default"><path data-name="eyelash-left" d="M0,0H1V1H0Z"/></g>
+<g data-name="eyes.open default"><path data-name="eyelash-left" d="M0,0H1V1H0Z"/></g>
 <g data-name="eyes.closed"><path data-name="eyelash-left" d="M0,0H1V1H0Z"/></g>
 <g data-name="eyebrows">
-<path data-name="brow:brows.up:default" d="M0,0H1V1H0Z"/>
-<path data-name="brow:brows.down" d="M0,0H1V1H0Z"/>
+<path data-name="brow brows.up default" d="M0,0H1V1H0Z"/>
+<path data-name="brow brows.down" d="M0,0H1V1H0Z"/>
 </g>
 <path data-name="nose" d="M0,0H1V1H0Z"/>
 </svg>`;

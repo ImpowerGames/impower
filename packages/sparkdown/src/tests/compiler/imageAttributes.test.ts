@@ -4,7 +4,7 @@ import { filterImage } from "../../compiler/utils/filterImage";
 import { sortFilteredName } from "../../compiler/utils/sortFilteredName";
 
 const URI = "file:///main.sd";
-const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.happy:default" id="happy"/><g data-name="face.sad" id="sad"/><g data-name="hat.on" id="hat"/><g data-name="look.far-left:default" id="left"/></svg>`;
+const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.happy default" id="happy"/><g data-name="face.sad" id="sad"/><g data-name="hat.on" id="hat"/><g data-name="look.far-left default" id="left"/></svg>`;
 const compile = (text: string) => {
   const compiler = new SparkdownCompiler();
   compiler.configure({ files: [

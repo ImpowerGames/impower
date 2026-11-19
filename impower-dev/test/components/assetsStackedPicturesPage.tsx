@@ -53,19 +53,19 @@ window.stackedPage = {
     const P = "Assets/Images/Portraits";
     const sources: Record<string, string> = {
       [`${P}/imani.png`]: base,
-      [`${P}/imani~face.happy~default.png`]: happy,
-      [`${P}/imani~face.sad.png`]: sad,
+      [`${P}/imani face.happy default.png`]: happy,
+      [`${P}/imani face.sad.png`]: sad,
       [`${P}/bunny.png`]: plain,
     };
     if (switches) {
-      sources[`${P}/mia/90_hat.on.png`] = happy;
-      sources[`${P}/mia/30_glasses.on.png`] = sad;
+      sources[`${P}/mia/90 hat.on.png`] = happy;
+      sources[`${P}/mia/30 glasses.on.png`] = sad;
     }
     for (let index = 0; index < crowd; index += 1) {
       const name = `Assets/Images/Crowd/person_${String(index).padStart(3, "0")}`;
       sources[`${name}.png`] = base;
-      sources[`${name}~face.smile~default.png`] = happy;
-      sources[`${name}~face.frown.png`] = sad;
+      sources[`${name} face.smile default.png`] = happy;
+      sources[`${name} face.frown.png`] = sad;
     }
     const files = Object.fromEntries(
       Object.entries(sources).map(([path, src], index) => [path, { modified: Date.now() - index, size: 100, src }]),

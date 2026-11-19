@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { resolveCompletion } from "../../utils/providers/resolveCompletion";
 import { complete } from "./completionHarness";
 
-const SVG = '<svg xmlns="http://www.w3.org/2000/svg"><g id="body"/><g id="phone" data-name="phone.on"/><g id="look-down" data-name="look.down"/><g id="look-up" data-name="look.up:default"/></svg>';
+const SVG = '<svg xmlns="http://www.w3.org/2000/svg"><g id="body"/><g id="phone" data-name="phone.on"/><g id="look-down" data-name="look.down"/><g id="look-up" data-name="look.up default"/></svg>';
 const buildProgram = () => ({ context: {
   image: { bunny_bruh: { $type: "image", $name: "bunny_bruh", ext: "svg", data: SVG }, raffles: { $type: "image", $name: "raffles", ext: "svg", data: SVG } },
   audio: { bark: { $type: "audio", $name: "bark" } },

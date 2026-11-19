@@ -94,7 +94,7 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
 
   describe("out-of-grammar inputs leave the pair unblended", () => {
     const source = (open: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20" color="#0f0">
-<g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" ${open}/></g>
+<g data-name="eyes.open default"><path data-name="lash" d="M0,0H30V10H0Z" ${open}/></g>
 <g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="#fff"/></g>
 </svg>`;
     const pair = (open: string) => bakeMorphArtifact({ source: source(open), selection: {}, recipes: [paintBlink()], key: "pair" });

@@ -2028,12 +2028,27 @@ async function openMainScript(page, { timeout = 10_000 } = {}) {
   return { opened: true };
 }
 
-async function press(page, locator) {
+export async function press(page, locator, { device = null } = {}) {
+  if (device) return touchPress(page, locator);
   if (await page.evaluate(() => navigator.maxTouchPoints > 0)) await locator.tap();
   else await locator.click();
 }
 
-export async function openFileMenu(page, { timeout = 10_000 } = {}) {
+async function touchPress(page, locator) {
+  await locator.scrollIntoViewIfNeeded();
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("the element to press has no box on screen");
+  const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  } finally {
+    await cdp.detach().catch(() => {});
+  }
+}
+
+export async function openFileMenu(page, { timeout = 10_000, device = null } = {}) {
   if (!(await showScriptsPage(page, { timeout }))) {
     return { step: "file-menu", ran: false, reason: `the Scripts page did not appear within ${timeout / 1000} s of going to #scripts` };
   }
@@ -2046,7 +2061,7 @@ export async function openFileMenu(page, { timeout = 10_000 } = {}) {
   const names = await buttons.evaluateAll((els) => els.map((el) => el.getAttribute("aria-label").replace(/^Options for /, "")));
   const index = Math.max(0, names.findIndex((name) => name !== "Main"));
   const row = names[index];
-  await press(page, buttons.nth(index));
+  await press(page, buttons.nth(index), { device });
   const menu = page.locator('[role="menu"]').first();
   try {
     await menu.waitFor({ state: "visible", timeout });
@@ -2215,10 +2230,10 @@ function documentSettled() {
   return !document.getAnimations().some((animation) => animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming().endTime));
 }
 
-export async function openAppMenu(page, { timeout = 5000 } = {}) {
+export async function openAppMenu(page, { timeout = 5000, device = null } = {}) {
   const button = page.locator(APP_MENU_BUTTON_SELECTOR).first();
   if (!(await button.count())) return { step: "app-menu", ran: false, reason: "no app menu button on the page: neither the title bar's App menu nor the rail's footer" };
-  await press(page, button);
+  await press(page, button, { device });
   try {
     await page.locator(APP_MENU_SELECTOR).first().waitFor({ state: "visible", timeout });
     await page.waitForFunction(appMenuSettled, APP_MENU_SELECTOR, { timeout });
@@ -2231,7 +2246,7 @@ export async function openAppMenu(page, { timeout = 5000 } = {}) {
 const PROJECT_NAME_SELECTOR = SURFACE_SELECTORS.projectName;
 const SCRIPT_NAME_SELECTOR = SURFACE_SELECTORS.scriptName;
 
-export async function openDrawerOrRail(page, { timeout = 5000 } = {}) {
+export async function openDrawerOrRail(page, { timeout = 5000, device = null } = {}) {
   const rail = await page.evaluate((selector) => {
     const el = document.querySelector(selector);
     if (!el) return null;
@@ -2241,7 +2256,7 @@ export async function openDrawerOrRail(page, { timeout = 5000 } = {}) {
   if (rail) return { step: "drawer", ran: true, opened: "rail", rail };
   const button = page.locator(DRAWER_BUTTON_SELECTOR).first();
   if (!(await button.count())) {
-    const menu = await openAppMenu(page, { timeout });
+    const menu = await openAppMenu(page, { timeout, device });
     if (menu.ran) return { step: "drawer", ran: true, opened: "app-menu", menu: menu.opened };
     return { step: "drawer", ran: false, reason: `neither the desktop rail, the drawer's Open Menu button nor the phone's app menu is on the page (${menu.reason})` };
   }
@@ -2314,10 +2329,10 @@ export async function openAddMenu(page, { timeout = 5000 } = {}) {
 const PREVIEW_SETTINGS_SELECTOR = 'button[aria-label="Preview settings"]';
 const PREVIEW_SETTINGS_MENU_SELECTOR = '[role="menu"]:has([role="menuitemcheckbox"])';
 
-export async function openPreviewSettings(page, { timeout = 5000 } = {}) {
+export async function openPreviewSettings(page, { timeout = 5000, device = null } = {}) {
   const button = page.locator(PREVIEW_SETTINGS_SELECTOR).first();
   if (!(await button.isVisible().catch(() => false))) return { step: "preview-settings", ran: false, reason: "the preview's settings button is not on screen; the preview pane may be hidden" };
-  await press(page, button);
+  await press(page, button, { device });
   try {
     await page.waitForFunction(() => [...document.querySelectorAll('[role="menu"]')].some((menu) => menu.querySelector('[role="menuitemcheckbox"]') && menu.getBoundingClientRect().height > 0), null, { timeout });
     await page.waitForFunction(appMenuSettled, PREVIEW_SETTINGS_MENU_SELECTOR, { timeout });
@@ -3663,15 +3678,15 @@ export function parseUiSteps(args, { device = DEVICE } = {}) {
 }
 
 export const NAMED_STEP_BODIES = {
-  drawer: (page) => openDrawerOrRail(page),
-  "app-menu": (page) => openAppMenu(page),
+  drawer: (page, step, { device } = {}) => openDrawerOrRail(page, { device }),
+  "app-menu": (page, step, { device } = {}) => openAppMenu(page, { device }),
   "focus-project-name": (page) => focusProjectName(page),
-  "file-menu": (page) => openFileMenu(page),
+  "file-menu": (page, step, { device } = {}) => openFileMenu(page, { device }),
   "asset-inspector": (page) => openAssetInspector(page),
   settings: (page, step) => openSettings(page, step.section),
   "focus-script-name": (page) => focusScriptName(page),
   "add-menu": (page) => openAddMenu(page),
-  "preview-settings": (page) => openPreviewSettings(page),
+  "preview-settings": (page, step, { device } = {}) => openPreviewSettings(page, { device }),
   problems: (page) => openProblems(page),
   "wheel-list": (page) => wheelList(page),
   play: async (page, step) => ({ step: step.step, ...(await playPreview(page, "start")) }),
@@ -4002,7 +4017,7 @@ async function ui(args, deps = liveDeps) {
               result.steps.push({ step: step.step, ran: false, reason: shown.reason });
               continue;
             }
-            const report = await NAMED_STEP_BODIES[step.step](page, step);
+            const report = await NAMED_STEP_BODIES[step.step](page, step, { device });
             if (report.revealed) revealed.add(report.revealed);
             result.steps.push(shown.revealed ? { ...report, revealed: reveals } : report);
           } else if (step.tap || step.longPress || step.swipe || step.rotate) {

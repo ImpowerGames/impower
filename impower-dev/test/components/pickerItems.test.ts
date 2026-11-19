@@ -38,10 +38,10 @@ const FILES = [
   file("assets/art/BACKDROPS/city/plaza.jpg"),
   file("assets/art/backdrops/city/2nd.jpg"),
   file("assets/Portraits/imani.png"),
-  file("assets/Portraits/imani~mood.happy.png"),
-  file("assets/Portraits/imani~mood.sad.png"),
-  file("assets/Portraits/imani~hat.on.png"),
-  file("assets/Portraits/kai~eyes.closed.png"),
+  file("assets/Portraits/imani mood.happy.png"),
+  file("assets/Portraits/imani mood.sad.png"),
+  file("assets/Portraits/imani hat.on.png"),
+  file("assets/Portraits/kai eyes.closed.png"),
   file("assets/Portraits/Side/mia.png"),
   file("assets/Sounds/door.wav", "audio"),
   file("assets/Sounds/ui/click.ogg", "audio"),
@@ -103,7 +103,7 @@ describe("the pickers' cards", () => {
   it("offer each portrait once, drawn with its default layers, even when only its layers are files", () => {
     expect(summary("portrait")).toEqual([
       ["imani", "", "blob:assets/Portraits/imani.png"],
-      ["kai", "", "blob:assets/Portraits/kai~eyes.closed.png"],
+      ["kai", "", "blob:assets/Portraits/kai eyes.closed.png"],
       ["mia", "Side", "blob:assets/Portraits/Side/mia.png"],
     ]);
     expect(pickerItems("portrait", FILES, FOLDERS).map((item) => item.variant)).toEqual([
@@ -262,14 +262,14 @@ describe("what the pickers insert", () => {
       file("assets/Backdrops/harbor@calm.png"),
       file("assets/Backdrops/harbor@storm.png"),
       file("assets/Backdrops/cottage.png"),
-      file("assets/Backdrops/cottage~sheep.png"),
+      file("assets/Backdrops/cottage sheep.png"),
       file("assets/Portraits/imani.png"),
-      file("assets/Portraits/imani~face.happy~default.png"),
-      file("assets/Portraits/imani~face.sad.png"),
-      file("assets/Portraits/kai~eyes.open~default.png"),
-      file("assets/Portraits/kai~eyes.closed.png"),
+      file("assets/Portraits/imani face.happy default.png"),
+      file("assets/Portraits/imani face.sad.png"),
+      file("assets/Portraits/kai eyes.open default.png"),
+      file("assets/Portraits/kai eyes.closed.png"),
       file("assets/Portraits/zadie@coat.png"),
-      file("assets/Portraits/zadie@coat~face.happy~default.png"),
+      file("assets/Portraits/zadie@coat face.happy default.png"),
     ];
     const cards = (["backdrop", "portrait"] as const).flatMap((kind) =>
       pickerItems(kind, files, FOLDERS).map((item) => ({ kind, item })),
@@ -280,12 +280,12 @@ describe("what the pickers insert", () => {
     const drawn: Record<string, string[]> = {
       beach: ["assets/Backdrops/beach.png"],
       "beach@night": ["assets/Backdrops/beach@night.png"],
-      cottage: ["assets/Backdrops/cottage.png", "assets/Backdrops/cottage~sheep.png"],
+      cottage: ["assets/Backdrops/cottage.png", "assets/Backdrops/cottage sheep.png"],
       "harbor@calm": ["assets/Backdrops/harbor@calm.png"],
       "harbor@storm": ["assets/Backdrops/harbor@storm.png"],
-      imani: ["assets/Portraits/imani.png", "assets/Portraits/imani~face.happy~default.png"],
-      kai: ["assets/Portraits/kai~eyes.open~default.png"],
-      "zadie@coat": ["assets/Portraits/zadie@coat.png", "assets/Portraits/zadie@coat~face.happy~default.png"],
+      imani: ["assets/Portraits/imani.png", "assets/Portraits/imani face.happy default.png"],
+      kai: ["assets/Portraits/kai eyes.open default.png"],
+      "zadie@coat": ["assets/Portraits/zadie@coat.png", "assets/Portraits/zadie@coat face.happy default.png"],
     };
     const wrong = cards.flatMap(({ kind, item }) =>
       outcome(kind, item.reference, files, item.path, drawn[item.reference]).map(
@@ -296,7 +296,7 @@ describe("what the pickers insert", () => {
   });
 
   it("draws a picture with its layers wherever they are kept, as the compiler groups them across folders", () => {
-    const files = [file("assets/Portraits/mia.png"), file("assets/Images/mia~hat.on~default.png")];
+    const files = [file("assets/Portraits/mia.png"), file("assets/Images/mia hat.on default.png")];
     const items = pickerItems("portrait", files, FOLDERS);
     expect(items.map((item) => [item.reference, item.path, item.variant])).toEqual([
       ["mia", "assets/Portraits/mia.png", { image: "mia", attributes: [] }],
@@ -305,21 +305,21 @@ describe("what the pickers insert", () => {
     expect(
       outcome("portrait", "mia", files, "assets/Portraits/mia.png", [
         "assets/Portraits/mia.png",
-        "assets/Images/mia~hat.on~default.png",
+        "assets/Images/mia hat.on default.png",
       ]),
     ).toEqual([]);
   });
 
   it("offers a picture whose resting look shows none of its layers, which the compiler draws as nothing", () => {
-    const files = [file("assets/Portraits/kai~hat.on.png")];
+    const files = [file("assets/Portraits/kai hat.on.png")];
     const items = pickerItems("portrait", files, FOLDERS);
     expect(items.map((item) => [item.reference, item.variant])).toEqual([["kai", { image: "kai", attributes: [] }]]);
     expect(outcome("portrait", "kai", files, items[0]!.path, [])).toEqual([]);
   });
 
   it.each([
-    ["a numbered-layer folder beside a picture of its name", ["assets/Portraits/mia.png", "assets/Portraits/mia/10_body.png", "assets/Portraits/mia/20_face.happy~default.png"]],
-    ["a picture whose plain file and layer sit in different folders of the menu", ["assets/Portraits/a/zoe.png", "assets/Portraits/b/zoe~face.sad~default.png"]],
+    ["a numbered-layer folder beside a picture of its name", ["assets/Portraits/mia.png", "assets/Portraits/mia/10 body.png", "assets/Portraits/mia/20 face.happy default.png"]],
+    ["a picture whose plain file and layer sit in different folders of the menu", ["assets/Portraits/a/zoe.png", "assets/Portraits/b/zoe face.sad default.png"]],
     ["a picture with a plain file in two folders", ["assets/Portraits/a/zoe.png", "assets/Images/zoe.png"]],
   ] as const)("offers %s exactly when inserting it compiles clean", (_case, paths) => {
     const files = paths.map((path) => file(path));
@@ -412,8 +412,8 @@ describe("the files a picker leaves out", () => {
       "not a layer file, nor a layer with no base",
       [
         file("assets/Portraits/imani.png"),
-        file("assets/Portraits/imani~mood.happy.png"),
-        file("assets/Portraits/kai~eyes.closed.png"),
+        file("assets/Portraits/imani mood.happy.png"),
+        file("assets/Portraits/kai eyes.closed.png"),
       ],
       0,
     ],
@@ -422,7 +422,7 @@ describe("the files a picker leaves out", () => {
   });
 
   it("offers a folder of numbered layer files as one picture named by its folder, drawn with its default layers", () => {
-    const layers = ["90_body.png", "30_face.happy.png", "30_face.neutral~default.png", "10_hat.on.png"].map((leaf) =>
+    const layers = ["90 body.png", "30 face.happy.png", "30 face.neutral default.png", "10 hat.on.png"].map((leaf) =>
       file(`assets/Portraits/mia/${leaf}`),
     );
     const items = pickerItems("portrait", layers, FOLDERS);
@@ -430,8 +430,8 @@ describe("the files a picker leaves out", () => {
     expect(pickerLeftOut("portrait", layers, FOLDERS)).toBe(0);
     expect(
       outcome("portrait", "mia", layers, items[0]!.path, [
-        "assets/Portraits/mia/90_body.png",
-        "assets/Portraits/mia/30_face.neutral~default.png",
+        "assets/Portraits/mia/90 body.png",
+        "assets/Portraits/mia/30 face.neutral default.png",
       ]),
     ).toEqual([]);
   });

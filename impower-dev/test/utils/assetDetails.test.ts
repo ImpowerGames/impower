@@ -54,7 +54,7 @@ describe("the inspector's details rows", () => {
         files: [
           { path: "Assets/Images/Portraits/imani.png", size: 1024 },
           { path: "Assets/Images/Portraits/imani@night.png", size: 2048 },
-          { path: "Assets/Images/Portraits/imani~face.happy.png", size: 1024 },
+          { path: "Assets/Images/Portraits/imani face.happy.png", size: 1024 },
         ],
         variantCount: 3,
       }),
