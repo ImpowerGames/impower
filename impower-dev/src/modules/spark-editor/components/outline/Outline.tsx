@@ -17,6 +17,7 @@ import OutlineListRow from "./OutlineListRow";
 import { problemSummary, type OutlineRow } from "./outlineRows";
 import { OUTLINE_RAIL_ROW, railRowAfter, railRowExtent } from "./railLayout";
 import useOutlineModel from "./useOutlineModel";
+import useRailPlace from "./useRailPlace";
 import { withWindow } from "./withWindow";
 
 const scriptName = (uri: string) => {
@@ -48,6 +49,8 @@ export default function Outline() {
     (_row: OutlineRow, index: number) => railRowExtent(rows, index),
     [rows],
   );
+
+  const place = useRailPlace(uri ?? "", rows, model.currentIndex);
 
   const summary = problemSummary(model.problems);
 
@@ -86,7 +89,9 @@ export default function Outline() {
                 items={rows}
                 itemHeight={extent}
                 getKey={(row) => row.key}
-                revealIndex={model.currentIndex}
+                listRef={place.listRef}
+                revealIndex={place.revealIndex}
+                revealRequest={place.revealRequest}
                 renderItem={(row, index) => (
                   <OutlineListRow
                     uri={uri}
