@@ -37,6 +37,7 @@
 .agents/skills/orchestrate-issues/issue-run.test.mjs
 .agents/skills/orchestrate-issues/review-checkpoint.test.mjs
 .agents/skills/orchestrate-issues/review-jobs-walk.test.mjs
+.agents/skills/orchestrate-issues/snapshot-reads.test.mjs
 .agents/skills/orchestrate-issues/writer-contact.test.mjs
 .agents/skills/portability.test.mjs
 .agents/skills/references/record-blockers.test.mjs
