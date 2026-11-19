@@ -9,6 +9,7 @@ import {
   type InsertConstruct,
   type InsertContext,
 } from "@impower/codemirror-vscode-lsp-client/src/insert";
+import { discardOnBack } from "./nameFieldBack";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import {
@@ -293,6 +294,10 @@ export default class WorkspaceWindow {
         transitionRoute(() => this.openRoute(route));
       }
     };
+    const onPopState = () => {
+      discardOnBack();
+      onHashChange();
+    };
     const initial = routeOfHash(window.location.hash);
     if (initial && initial !== routeOfState(this.store)) {
       this.update(stateForRoute(this.store, initial));
@@ -300,10 +305,10 @@ export default class WorkspaceWindow {
     this._routesConnected = true;
     this.syncRouteHash();
     window.addEventListener("hashchange", onHashChange);
-    window.addEventListener("popstate", onHashChange);
+    window.addEventListener("popstate", onPopState);
     this._disposers.push(() => {
       window.removeEventListener("hashchange", onHashChange);
-      window.removeEventListener("popstate", onHashChange);
+      window.removeEventListener("popstate", onPopState);
       this._routesConnected = false;
       this._route = undefined;
     });

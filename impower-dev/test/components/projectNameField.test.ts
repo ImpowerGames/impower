@@ -214,4 +214,17 @@ describe("the project name field's shared naming behaviour", () => {
       delete (globalThis as { CloseWatcher?: unknown }).CloseWatcher;
     }
   });
+
+  it("discards the draft when Back leaves without CloseWatcher, and keeps the old name", async () => {
+    const { discardOnBack } =
+      await import("../../src/modules/spark-editor/workspace/nameFieldBack");
+    const input = await mount(ProjectNameField);
+    await focus(input);
+    await type(input, "Something else");
+    await act(async () => discardOnBack());
+    await settle();
+    expect(calls.finished).toEqual(["My story"]);
+    expect(input.value).toBe("My story");
+    expect(document.activeElement).not.toBe(input);
+  });
 });
