@@ -13,9 +13,9 @@ const main = "file:///project/main.sd";
 const asset = "file:///project/bunny.svg";
 
 const FACE = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="lips:mouth.open:default" id="m-open"/>
-<g data-name="lips:mouth.closed" id="m-closed"/>
-<g data-name="lips:mouth.teeth" id="m-teeth"/>
+<g data-name="lips mouth.open default" id="m-open"/>
+<g data-name="lips mouth.closed" id="m-closed"/>
+<g data-name="lips mouth.teeth" id="m-teeth"/>
 </svg>`;
 
 const story = (lines: string) => `define bunny as character with
@@ -85,7 +85,7 @@ function workspaceFor(program: any) {
 }
 
 const DRAWN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-<g data-name="mouth.open:default"><path data-name="lip" d="M20 50 Q50 90 80 50 Z" fill="#a33"/></g>
+<g data-name="mouth.open default"><path data-name="lip" d="M20 50 Q50 90 80 50 Z" fill="#a33"/></g>
 <g data-name="mouth.closed"><path data-name="lip" d="M20 60 L80 60 L80 64 L20 64 Z" fill="#a33"/></g>
 <g data-name="mouth.teeth"><path data-name="lip" d="M20 50 L80 50 L80 70 L20 70 Z" fill="#fff"/></g>
 </svg>`;

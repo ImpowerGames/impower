@@ -11,11 +11,11 @@ const URI = "file:///main.sd";
 const square = (name: string, id: string, y: number) => `<path data-name="${name}" id="${id}" d="M0,${y}H10V${y + 10}H0Z"/>`;
 
 const FACE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-${square("lids:eyes.open:default", "e-open", 0)}
-${square("lids:eyes.closed", "e-closed", 15)}
-${square("lips:mouth.open:default", "m-open", 30)}
-${square("lips:mouth.closed", "m-closed", 45)}
-${square("lips:mouth.teeth", "m-teeth", 60)}
+${square("lids eyes.open default", "e-open", 0)}
+${square("lids eyes.closed", "e-closed", 15)}
+${square("lips mouth.open default", "m-open", 30)}
+${square("lips mouth.closed", "m-closed", 45)}
+${square("lips mouth.teeth", "m-teeth", 60)}
 </svg>`;
 
 const TALK_SMILE = `morph talk_smile {

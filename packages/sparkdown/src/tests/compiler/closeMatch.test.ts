@@ -65,7 +65,7 @@ describe("close match", () => {
 const URI = "file:///main.sd";
 const lines = (...text: string[]) => text.join(String.fromCharCode(10));
 const SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.happy:default" id="happy"/><g data-name="face.sad" id="sad"/></svg>';
+  '<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.happy default" id="happy"/><g data-name="face.sad" id="sad"/></svg>';
 const define = (name: string) =>
   lines(`define ${name} as image with`, `  src = "https://example.com/${name}.png"`, "end", "");
 const scene = (s: number, reference: string, attribute = "happy") =>

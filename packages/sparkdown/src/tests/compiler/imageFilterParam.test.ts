@@ -17,9 +17,9 @@ const NAMES = [
   "sleeve:coat.on:gloves.on",
   "hair:hat.off",
   "body",
-  "face.neutral:default",
+  "face.neutral default",
   "face.happy",
-  "hand:arms.down.phone-left:default",
+  "hand arms.down.phone-left default",
   "phone:arms.phone",
   "phone-left:arms.phone-left",
 ];

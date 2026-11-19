@@ -23,7 +23,7 @@ const WHITE_TILTED = "M21.939,46.577 C55.133,7.78 94.208,11.579 119.625,56.075 C
 
 const eye = (white: string, lower: string, upper = UPPER, closed = CLOSED) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
 <path data-name="face" d="M0,0H140V100H0Z" fill="#c96"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${white}" fill="#fff"/>
 <path data-name="pupil-left" d="${PUPIL}" fill="#234"/>
 <path data-name="eyelash-left" d="${upper}" fill="#111"/>

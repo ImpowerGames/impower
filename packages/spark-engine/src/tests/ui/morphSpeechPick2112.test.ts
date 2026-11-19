@@ -78,7 +78,7 @@ describe("picking a speech morph per directive (I-2112)", () => {
     const content = await written(scene(MORPHS, "mia"));
     expect(played(content)).toEqual(["blink", "talk"]);
     expect(drawn(content.background)).toContain("data-name='mouth.closed'");
-    expect(drawn(content.background)).not.toContain("mouth.open:default");
+    expect(drawn(content.background)).not.toContain("mouth.open default");
   });
 
   test("`[[x morph talk_gritted]]` carries the named speech morph", async () => {

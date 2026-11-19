@@ -13,25 +13,25 @@ const B = `${ROOT}/assets/Images/Backdrops`;
 const AVA = [
   `${P}/ava.png`,
   `${P}/ava@night.png`,
-  `${P}/ava~face.happy.png`,
-  `${P}/ava~face.sad.png`,
-  `${P}/ava~mouth.closed~default.png`,
-  `${P}/ava~mouth.open.png`,
-  `${P}/ava~hat.on.png`,
-  `${P}/ava@night~face.happy.png`,
+  `${P}/ava face.happy.png`,
+  `${P}/ava face.sad.png`,
+  `${P}/ava mouth.closed default.png`,
+  `${P}/ava mouth.open.png`,
+  `${P}/ava hat.on.png`,
+  `${P}/ava@night face.happy.png`,
 ];
 const FILES = [
   ...AVA,
   `${P}/imani.png`,
-  `${P}/imani~20_face.happy.png`,
-  `${P}/imani~10_hat.on.png`,
-  `${P}/imani~30_scarf.png`,
-  `${P}/mia/90_body.png`,
-  `${P}/mia/30_face.happy.png`,
+  `${P}/imani 20 face.happy.png`,
+  `${P}/imani 10 hat.on.png`,
+  `${P}/imani 30 scarf.png`,
+  `${P}/mia/90 body.png`,
+  `${P}/mia/30 face.happy.png`,
   `${B}/beach.png`,
   `${B}/beach@night.png`,
-  `${B}/beach@night~sky.stars.png`,
-  `${B}/beach@night~sky.clouds.png`,
+  `${B}/beach@night sky.stars.png`,
+  `${B}/beach@night sky.clouds.png`,
   `${ROOT}/assets/Images/office.png`,
 ];
 
@@ -42,7 +42,7 @@ const compile = (text: string) => {
       { uri: MAIN, name: "main", type: "script", ext: "sd", text, languageId: "sparkdown", version: 1 },
       ...FILES.map((uri) => {
         const leaf = uri.split("/").at(-1)!;
-        return { uri, type: "image", name: leaf.split(/[.~]/)[0]!, ext: "png", src: uri, version: 1 };
+        return { uri, type: "image", name: leaf.split(/[. ]/)[0]!, ext: "png", src: uri, version: 1 };
       }),
     ] as never,
   });
@@ -139,11 +139,11 @@ describe("the suggestion preview draws a beside-layer option (#2203)", () => {
   };
 
   it("draws ava's own file, the default mouth and the highlighted face", async () => {
-    expect(await preview("[[ava:face.@0]]", "sad")).toEqual([`${P}/ava.png`, `${P}/ava~face.sad.png`, `${P}/ava~mouth.closed~default.png`]);
+    expect(await preview("[[ava:face.@0]]", "sad")).toEqual([`${P}/ava.png`, `${P}/ava face.sad.png`, `${P}/ava mouth.closed default.png`]);
   });
 
   it("draws night's own file and night's own layer", async () => {
-    expect(await preview("[[ava@night:face.@0]]", "happy")).toEqual([`${P}/ava@night.png`, `${P}/ava@night~face.happy.png`]);
+    expect(await preview("[[ava@night:face.@0]]", "happy")).toEqual([`${P}/ava@night.png`, `${P}/ava@night face.happy.png`]);
   });
 });
 
@@ -151,24 +151,24 @@ describe("hover lists the files a beside-layer picture is made from (#2203)", ()
   it("lists ava's files bottom to top on [[ava:happy]]", async () => {
     expect(listed(await hoverAt("[[ava:happy]]", 3))).toEqual([
       "ava.png",
-      "ava~face.happy.png",
-      "ava~face.sad.png",
-      "ava~hat.on.png",
-      "ava~mouth.closed~default.png",
-      "ava~mouth.open.png",
+      "ava face.happy.png",
+      "ava face.sad.png",
+      "ava hat.on.png",
+      "ava mouth.closed default.png",
+      "ava mouth.open.png",
     ]);
   });
 
   it("lists only an alternate's own files", async () => {
-    expect(listed(await hoverAt("[[ava@night:happy]]", 3))).toEqual(["ava@night.png", "ava@night~face.happy.png"]);
+    expect(listed(await hoverAt("[[ava@night:happy]]", 3))).toEqual(["ava@night.png", "ava@night face.happy.png"]);
   });
 
   it("lists numbered layers with the highest number at the bottom", async () => {
     expect(listed(await hoverAt("[[imani:happy]]", 3))).toEqual([
       "imani.png",
-      "imani~30_scarf.png",
-      "imani~20_face.happy.png",
-      "imani~10_hat.on.png",
+      "imani 30 scarf.png",
+      "imani 20 face.happy.png",
+      "imani 10 hat.on.png",
     ]);
   });
 
@@ -177,7 +177,7 @@ describe("hover lists the files a beside-layer picture is made from (#2203)", ()
     const documents = new SparkdownDocumentRegistry(["references"]);
     documents.set({ textDocument: { uri: MAIN, text, version: 1, languageId: "sparkdown" } });
     const hover = await getHover(documents.get(MAIN), documents.tree(MAIN), documents.annotations(MAIN), compile(text), undefined, { line: 1, character: 18 });
-    expect(listed((hover?.contents as { value: string } | undefined)?.value ?? "")).toEqual(["ava@night.png", "ava@night~face.happy.png"]);
+    expect(listed((hover?.contents as { value: string } | undefined)?.value ?? "")).toEqual(["ava@night.png", "ava@night face.happy.png"]);
   });
 
   it("lists no files for a plain picture or a picture a define replaces", async () => {

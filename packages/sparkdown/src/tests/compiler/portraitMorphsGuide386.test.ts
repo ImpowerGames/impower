@@ -16,41 +16,41 @@ const CHAPTER = resolve(GUIDE, "PortraitMorphs.md");
 const URI = "file:///main.sd";
 
 const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="face.happy:default" id="happy">
-  <g data-name="eyelash-left:eyes.open:default" id="la"/>
-  <g data-name="eyelash-left:eyes.closed" id="lc"/>
-  <g data-name="eyelash-right:eyes.open:default" id="ra"/>
-  <g data-name="eyelash-right:eyes.closed" id="rc"/>
-  <g data-name="eyeball-white-left:eyes.open" id="wl"/>
-  <g data-name="eyeball-shadow-left:eyes.open" id="sl"/>
-  <g data-name="pupil-left:eyes.open" id="pl"/>
-  <g data-name="eyeball-white-right:eyes.open" id="wr"/>
-  <g data-name="eyeball-shadow-right:eyes.open" id="sr"/>
-  <g data-name="pupil-right:eyes.open" id="pr"/>
-  <g data-name="shine:eyes.open" id="sh"/>
+<g data-name="face.happy default" id="happy">
+  <g data-name="eyelash-left eyes.open default" id="la"/>
+  <g data-name="eyelash-left eyes.closed" id="lc"/>
+  <g data-name="eyelash-right eyes.open default" id="ra"/>
+  <g data-name="eyelash-right eyes.closed" id="rc"/>
+  <g data-name="eyeball-white-left eyes.open" id="wl"/>
+  <g data-name="eyeball-shadow-left eyes.open" id="sl"/>
+  <g data-name="pupil-left eyes.open" id="pl"/>
+  <g data-name="eyeball-white-right eyes.open" id="wr"/>
+  <g data-name="eyeball-shadow-right eyes.open" id="sr"/>
+  <g data-name="pupil-right eyes.open" id="pr"/>
+  <g data-name="shine eyes.open" id="sh"/>
   <g data-name="creases" id="cr"/>
-  <g data-name="glasses:mask.on" id="gl"/>
+  <g data-name="glasses mask.on" id="gl"/>
   <g data-name="eyebrows" id="eb">
-    <g data-name="brow-left:brows.up:default" id="bu"/>
-    <g data-name="brow-left:brows.down" id="bd"/>
+    <g data-name="brow-left brows.up default" id="bu"/>
+    <g data-name="brow-left brows.down" id="bd"/>
   </g>
   <g data-name="nose" id="no"/>
-  <g data-name="masked-nose:mask.on" id="mn"/>
-  <g data-name="lips:mouth.closed:default" id="mc"/>
-  <g data-name="lips:mouth.open" id="mo"/>
-  <g data-name="lips:mouth.teeth" id="mt"/>
+  <g data-name="masked-nose mask.on" id="mn"/>
+  <g data-name="lips mouth.closed default" id="mc"/>
+  <g data-name="lips mouth.open" id="mo"/>
+  <g data-name="lips mouth.teeth" id="mt"/>
 </g>
 </svg>`;
 
 const SPLIT_LASHES = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="eyelash-left:eyes.open:default" id="la"/>
-<g data-name="eyelash-left:eyes.closed" id="lc"/>
-<g data-name="eyelash-top-right:eyes.open:default" id="rt"/>
-<g data-name="eyelash-top-right:eyes.closed" id="rtc"/>
-<g data-name="eyelash-bottom-right:eyes.open:default" id="rb"/>
-<g data-name="eyelash-bottom-right:eyes.closed" id="rbc"/>
-<g data-name="brow-left:brows.up:default" id="bu"/>
-<g data-name="brow-left:brows.down" id="bd"/>
+<g data-name="eyelash-left eyes.open default" id="la"/>
+<g data-name="eyelash-left eyes.closed" id="lc"/>
+<g data-name="eyelash-top-right eyes.open default" id="rt"/>
+<g data-name="eyelash-top-right eyes.closed" id="rtc"/>
+<g data-name="eyelash-bottom-right eyes.open default" id="rb"/>
+<g data-name="eyelash-bottom-right eyes.closed" id="rbc"/>
+<g data-name="brow-left brows.up default" id="bu"/>
+<g data-name="brow-left brows.down" id="bd"/>
 </svg>`;
 
 const chapter = () => readFileSync(CHAPTER, "utf8");
@@ -162,7 +162,7 @@ describe("the portrait morphs guide chapter", () => {
 
   test("a skipped label edit is reported where the morph names the label", () => {
     const clip = examples().find((text) => text.includes("clips {"))!;
-    const found = diagnosticsOf(clip, [PORTRAIT, SPLIT_LASHES].map((svg) => svg.replaceAll("eyelash-left:", "lash-left:")));
+    const found = diagnosticsOf(clip, [PORTRAIT, SPLIT_LASHES].map((svg) => svg.replaceAll("eyelash-left ", "lash-left ")));
     expect(found.map((d) => d.message)).toContain("No image the morph applies to has a layer labelled `eyelash-left`.");
   });
 
@@ -175,8 +175,8 @@ describe("the portrait morphs guide chapter", () => {
     expect(overridden.map((d) => d.message)).toEqual([expect.stringContaining("`blink` plays on this look and rests its `eyes` on `open`")]);
     expect(diagnosticsOf(plain)).toEqual([]);
     const lacking = `<svg xmlns="http://www.w3.org/2000/svg">
-<g data-name="left" id="l"><g data-name="lid:eyes.open:default" id="lo"/><g data-name="lid:eyes.closed" id="lc"/></g>
-<g data-name="right" id="r"><g data-name="lid:eyes.open:default" id="ro"/></g>
+<g data-name="left" id="l"><g data-name="lid eyes.open default" id="lo"/><g data-name="lid eyes.closed" id="lc"/></g>
+<g data-name="right" id="r"><g data-name="lid eyes.open default" id="ro"/></g>
 </svg>`;
     const found = diagnosticsOf(first, [lacking, SPLIT_LASHES]);
     expect(found.some((d) => d.message.includes('folder "right" draws no `eyes.closed`'))).toBe(true);
@@ -382,7 +382,7 @@ describe("the art and warnings the portrait morphs guide teaches", () => {
       [' r="4" style="transform:translate(5px,0)"', "unsupported-transform"],
       [' r="4" transform="rotate(10)" transform-origin="50 50"', "unsupported-transform"],
     ] as const) {
-      const svg = portrait().replace('<g data-name="eyes.open:default">', `<g data-name="eyes.open:default">\n<circle data-name="glint" cx="50" cy="40"${attrs} fill="blue"/>`);
+      const svg = portrait().replace('<g data-name="eyes.open default">', `<g data-name="eyes.open default">\n<circle data-name="glint" cx="50" cy="40"${attrs} fill="blue"/>`);
       const artifact = bakeGuide(svg, blink({ layers: { glint: { fallback: "scale" } } }));
       expect(artifact.status, attrs).toBe("live");
       expect(codesOf(artifact), attrs).toContainEqual([code, "warning"]);

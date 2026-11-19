@@ -10,20 +10,20 @@ const P = "Assets/Images/Portraits";
 const AVA = [
   `${P}/ava.png`,
   `${P}/ava@night.png`,
-  `${P}/ava~20_face.happy.png`,
-  `${P}/ava~20_face.sad.png`,
-  `${P}/ava~30_mouth.closed~default.png`,
-  `${P}/ava~30_mouth.open.png`,
-  `${P}/ava~10_hat.on.png`,
-  `${P}/ava@night~face.happy.png`,
+  `${P}/ava 20 face.happy.png`,
+  `${P}/ava 20 face.sad.png`,
+  `${P}/ava 30 mouth.closed default.png`,
+  `${P}/ava 30 mouth.open.png`,
+  `${P}/ava 10 hat.on.png`,
+  `${P}/ava@night face.happy.png`,
   `${P}/ava.v2.png`,
 ];
 
 const MIA = [
-  `${P}/mia/90_body.png`,
-  `${P}/mia/30_face.neutral~default.png`,
-  `${P}/mia/30_face.happy.png`,
-  `${P}/mia/10_hat.on.png`,
+  `${P}/mia/90 body.png`,
+  `${P}/mia/30 face.neutral default.png`,
+  `${P}/mia/30 face.happy.png`,
+  `${P}/mia/10 hat.on.png`,
 ];
 
 const OFFICE = "Assets/Images/Backdrops/office.png";
@@ -83,17 +83,17 @@ describe("the Assets page groups image files by the compiler's file-name rule", 
       fileRows(ava, {}).map((row) => [row.name, row.role]),
     );
     expect(roles).toMatchObject({
-      "ava~10_hat.on.png": "Layer 10 · hat.on",
-      "ava~20_face.happy.png": "Layer 20 · face.happy",
-      "ava~30_mouth.closed~default.png": "Layer 30 · mouth.closed · default",
-      "ava@night~face.happy.png": "Layer · face.happy · on night",
+      "ava 10 hat.on.png": "Layer 10 · hat.on",
+      "ava 20 face.happy.png": "Layer 20 · face.happy",
+      "ava 30 mouth.closed default.png": "Layer 30 · mouth.closed · default",
+      "ava@night face.happy.png": "Layer · face.happy · on night",
       "ava.v2.png": "Asset name collision · also provides ava",
     });
   });
 });
 
 describe("a file whose @ or ~ has nothing on one side (#2262)", () => {
-  const PATHS = [`${P}/@foo.png`, `${P}/foo@.png`, `${P}/@.png`, `${P}/~foo.png`];
+  const PATHS = [`${P}/@foo.png`, `${P}/foo@.png`, `${P}/@.png`, `${P}/ foo.png`];
 
   it("is a plain tile of one picture named as the compiler names it, with no alternate or variants", () => {
     const stacks = imageStacks(PATHS);

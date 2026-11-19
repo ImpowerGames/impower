@@ -140,10 +140,10 @@ describe("assets scoped to the project of the compiled script", () => {
     const compiler = configured([
       scriptFile(MAIN_URI),
       scriptFile(SUB_MAIN_URI),
-      layer(ROOT, "90_body.png"),
-      layer(ROOT, "30_face.happy~default.png"),
-      layer(`${ROOT}sub/`, "90_body.png"),
-      layer(`${ROOT}sub/`, "30_face.sad~default.png"),
+      layer(ROOT, "90 body.png"),
+      layer(ROOT, "30 face.happy default.png"),
+      layer(`${ROOT}sub/`, "90 body.png"),
+      layer(`${ROOT}sub/`, "30 face.sad default.png"),
     ]);
     for (const [entry, root] of [
       [MAIN_URI, ROOT],
@@ -152,7 +152,7 @@ describe("assets scoped to the project of the compiled script", () => {
       const program = compile(compiler, entry);
       const mia = program.context?.["layered_image"]?.["mia"];
       expect(mia).toBeDefined();
-      expect(JSON.stringify(mia)).toContain(`${root}assets/mia/90_body.png`);
+      expect(JSON.stringify(mia)).toContain(`${root}assets/mia/90 body.png`);
       const other = root === ROOT ? `${ROOT}sub/` : ROOT;
       expect(JSON.stringify(mia)).not.toContain(`${other}assets/mia/`);
       for (const diagnostics of Object.values(program.diagnostics ?? {})) {

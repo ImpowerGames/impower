@@ -184,7 +184,7 @@ describe("Add menu", () => {
   });
 
   it("counts a picture once per alternate and never its layers, as the picker offers it", async () => {
-    for (const name of ["ava.png", "ava@night.png", "ava~face.happy.png", "ava~face.sad.png", "bo.png", "cy.png"]) {
+    for (const name of ["ava.png", "ava@night.png", "ava face.happy.png", "ava face.sad.png", "bo.png", "cy.png"]) {
       file(`assets/Images/Portraits/${name}`, "image");
     }
     await mountAddMenu();

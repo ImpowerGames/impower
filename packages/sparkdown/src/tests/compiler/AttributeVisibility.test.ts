@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { filterSVG } from "../../compiler/utils/filterSVG";
 
-const svg = `<svg><g id="body"/><g id="left" data-name="pupils:eyes.open:look.left"/><g id="camera" data-name="pupils:eyes.open:look.camera:default"/><g id="whites" data-name="whites:eyes.open:default"/></svg>`;
+const svg = `<svg><g id="body"/><g id="left" data-name="pupils eyes.open look.left"/><g id="camera" data-name="pupils eyes.open look.camera default"/><g id="whites" data-name="whites eyes.open default"/></svg>`;
 
 describe("filterSVG attribute visibility regression", () => {
   it("keeps the unconditional body (positive control)", () => {

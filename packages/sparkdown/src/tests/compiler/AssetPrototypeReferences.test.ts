@@ -12,7 +12,7 @@ import {
 
 const uri = "file:///project/main.sd";
 const names = ["ordinary", "toString", "constructor", "hasOwnProperty", "__proto__"];
-const svg = '<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.happy:default" id="happy"/><g data-name="face.sad" id="sad"/></svg>';
+const svg = '<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.happy default" id="happy"/><g data-name="face.sad" id="sad"/></svg>';
 const asset = (path: string, data?: string): File => ({
   uri: `file:///project/assets/${path}`,
   type: "image",
@@ -68,24 +68,24 @@ describe("prototype asset names at author reference boundaries (#1762)", () => {
   });
 
   it.each(names)("constructs the raster portrait folder %s", name => {
-    const program = compile(`scene start\n  [[${name}]]\nend`, [asset(`${name}/90_body.png`), asset(`${name}/30_face.happy~default.png`)]);
+    const program = compile(`scene start\n  [[${name}]]\nend`, [asset(`${name}/90 body.png`), asset(`${name}/30 face.happy default.png`)]);
     expect(Object.hasOwn(program.context!["layered_image"]!, name)).toBe(true);
     expect(Object.hasOwn(program.context!["filtered_image"]!, name)).toBe(true);
     const image = resolveImageReference(program.assets, { $name: name });
     expect(resolveImageLayers(program.assets, image).map(layer => layer.src)).toEqual([
-      `/file:/local/assets/${name}/90_body.png`, `/file:/local/assets/${name}/30_face.happy~default.png`,
+      `/file:/local/assets/${name}/90 body.png`, `/file:/local/assets/${name}/30 face.happy default.png`,
     ]);
     expect(Object.values(program.diagnostics ?? {}).flat().map(d => String(typeof d.message === "string" ? d.message : d.message.value)).filter(m => m.includes("Asset name collision"))).toEqual([]);
   });
 
   it.each(names)("reports an omitted raster layer in folder %s", name => {
     const omitted = asset(`${name}/extra.png`);
-    const program = compile(`scene start\n  [[${name}]]\nend`, [asset(`${name}/90_body.png`), omitted]);
+    const program = compile(`scene start\n  [[${name}]]\nend`, [asset(`${name}/90 body.png`), omitted]);
     expect(messages(program, omitted.uri).some(m => m.includes("no numeric ordering prefix"))).toBe(true);
   });
 
   it.each(names)("keeps an explicit layered-image override named %s", name => {
-    const program = compile(`define ${name} as layered_image with\n  assets = { background }\nend\nscene start\n  [[${name}]]\nend`, [asset(`${name}/90_body.png`), asset("background.png")]);
+    const program = compile(`define ${name} as layered_image with\n  assets = { background }\nend\nscene start\n  [[${name}]]\nend`, [asset(`${name}/90 body.png`), asset("background.png")]);
     const image = resolveImageReference(program.assets, { $type: "layered_image", $name: name });
     expect(resolveImageLayers(program.assets, image).map(layer => layer.src)).toEqual(["/file:/local/assets/background.png"]);
   });
@@ -146,7 +146,7 @@ describe("prototype asset names at author reference boundaries (#1762)", () => {
 
   it.each(names)("does not warn that an explicitly included layer in %s was omitted", name => {
     const extra = asset(`${name}/extra.png`);
-    const program = compile(`define ${name} as layered_image with\n  assets = { extra }\nend\nscene start\n  [[${name}]]\nend`, [asset(`${name}/90_body.png`), extra]);
+    const program = compile(`define ${name} as layered_image with\n  assets = { extra }\nend\nscene start\n  [[${name}]]\nend`, [asset(`${name}/90 body.png`), extra]);
     const image = resolveImageReference(program.assets, { $name: name });
     expect(resolveImageLayers(program.assets, image).map(layer => layer.src)).toEqual([extra.src]);
     expect(messages(program, extra.uri).filter(m => m.includes("no numeric ordering prefix"))).toEqual([]);

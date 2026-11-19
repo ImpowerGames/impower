@@ -61,7 +61,7 @@ await check("directives use attributes over SVG portraits with a layer condition
   const svgs = [...files.keys()].filter((f) => f.endsWith(".svg"));
   assert.ok(svgs.length >= 12, `${svgs.length} portraits`);
   const svg = files.get("assets/hero_concerned.svg");
-  for (const name of ["hair-top:hat.off", "torso:clothes.jacket:default", "hand-left-inner:cushion.off:gloves.on", "face.concerned:default", "pupils:eyes.open:look.camera:default"]) {
+  for (const name of ["hair-top hat.off", "torso clothes.jacket default", "hand-left-inner cushion.off gloves.on", "face.concerned default", "pupils eyes.open look.camera default"]) {
     assert.ok(svg.includes(`data-name="${name}"`), `missing layer ${name}`);
   }
   for (const [, name] of files.get("main.sd").matchAll(/\[\[(\w+)/g)) assert.ok(files.has(`assets/${name}.svg`), `no assets/${name}.svg`);

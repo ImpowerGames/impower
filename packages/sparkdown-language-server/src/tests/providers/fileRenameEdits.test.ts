@@ -49,13 +49,13 @@ const renames = (edit: ReturnType<typeof getFileRenameEdits>) =>
 
 describe("renaming a picture's file name", () => {
   test("renames a layer file with its picture, each keeping its group, option and extension", () => {
-    const happy = `${ROOT}imani~face.happy.png`;
-    const sad = `${ROOT}imani~face.sad.png`;
+    const happy = `${ROOT}imani face.happy.png`;
+    const sad = `${ROOT}imani face.sad.png`;
     const { workspace, program } = setup([`${ROOT}imani.png`, happy, sad, `${ROOT}imani@night.png`]);
     expect(renames(getFileRenameEdits(workspace, program, happy, "zadie")).sort()).toEqual([
       ["imani.png", "zadie.png"],
-      ["imani~face.happy.png", "zadie~face.happy.png"],
-      ["imani~face.sad.png", "zadie~face.sad.png"],
+      ["imani face.happy.png", "zadie face.happy.png"],
+      ["imani face.sad.png", "zadie face.sad.png"],
     ]);
   });
 

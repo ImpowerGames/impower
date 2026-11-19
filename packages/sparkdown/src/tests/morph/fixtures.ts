@@ -54,7 +54,7 @@ export function portrait(options: EyeOptions = {}): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 140" width="260" height="140">
 <defs><linearGradient id="skin"><stop offset="0" stop-color="#fdb"/><stop offset="1" stop-color="#ca8"/></linearGradient></defs>
 <path data-name="face" d="M0,0H260V140H0Z" fill="url(#skin)"/>
-<g data-name="eyes.open:default"${transform}>
+<g data-name="eyes.open default"${transform}>
 ${left.white}${left.pupil}${left.upper}${left.lower}
 ${options.right ? `${right.white}${right.pupil}${right.upper}${right.lower}` : ""}
 </g>
@@ -75,7 +75,7 @@ export function layeredPortrait(): string {
 <path data-name="face" d="M100,2 C165,2 198,30 198,60 C198,92 165,118 100,118 C35,118 2,92 2,60 C2,30 35,2 100,2Z" fill="#fdb"/>
 <g data-name="head" transform="translate(30 10)">
 <g data-name="eyeballs" transform="scale(1)">
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <g data-name="eyeball-left">
 <path data-name="eyeball-white" d="${EYEBALL}" fill="url(#white-tint)"/>
 <path data-name="iris" d="${PUPIL}" fill="#365" clip-path="url(#iris-cut)"/>
@@ -88,7 +88,7 @@ export function layeredPortrait(): string {
 </g>
 <path data-name="cheeks" d="M0,60H100V70H0Z" fill="#f99" opacity="0.5"/>
 <g data-name="lashes" transform="translate(0 0)">
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyelash-left" d="${UPPER_OPEN}" fill="#111"/>
 <path data-name="eyelash-left" d="${LOWER_OPEN}" fill="#111"/>
 </g>
@@ -104,7 +104,7 @@ export function layeredPortrait(): string {
 export function shadowedPortrait(): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
 <path data-name="face" d="M0,0H140V100H0Z" fill="#b76"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
 <path data-name="eyeball-shadow-left" d="${UPPER_OPEN}" fill="#ccc"/>
 <path data-name="pupil-left" d="${PUPIL}" fill="#000"/>
@@ -132,7 +132,7 @@ export function partnerPortrait(options: PartnerEyeOptions = {}): string {
     .join("\n");
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
 <path data-name="face" d="M0,0H140V100H0Z" fill="#b76"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
 <g transform="translate(0 -2)"><path data-name="eyeball-shadow-left" d="${shift(UPPER_OPEN, 0, 2)}" ${options.shadow ?? 'fill="#ccc"'}/></g>
 <path data-name="pupil-left" d="${PUPIL}" fill="#000"/>
@@ -151,7 +151,7 @@ export const shiftPath = shift;
 
 export function talkingPortrait(options: EyeOptions & { mouth?: string } = {}): string {
   const at = (d: string) => shift(d, 140, 40);
-  const mouth = `<g data-name="mouth.open:default">
+  const mouth = `<g data-name="mouth.open default">
 <path data-name="teeth" d="${at(EYEBALL)}" fill="#eee"/>
 <path data-name="lip" d="${at(UPPER_OPEN)}" fill="#a33"/>
 <path data-name="lip" d="${at(LOWER_OPEN)}" fill="#a33"/>
@@ -286,7 +286,7 @@ export function paintedPortrait(): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" width="160" height="100" color="#0f0">
 <defs><linearGradient id="gleam"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#ccc"/></linearGradient></defs>
 <path data-name="face" d="M0,0H160V100H0Z" fill="#fdb"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 ${open.lash}${open.brow}<g fill="#00f">${open.cheek}</g>${open.crease}
 ${open.lid.replace('fill="#fff"', 'fill="#fff" style="fill:#000 !important"')}${open.shine.replace("#fff", "url(#gleam)")}
 ${open.shadow}${open.glint}${open.veil}${open.freckle.replace('fill="#fff"', 'color="none" fill="currentColor"')}
@@ -332,7 +332,7 @@ export function gradientPortrait(): string {
 <linearGradient id="stripe-closed">${two("#fff", "#000")}<stop offset="1" stop-color="#f00"/></linearGradient>
 </defs>
 <path data-name="face" d="M0,0H160V100H0Z" fill="#fdb"/>
-<g data-name="eyes.open:default">${pose(0, false)}</g>
+<g data-name="eyes.open default">${pose(0, false)}</g>
 <g data-name="eyes.closed">${pose(10, true)}</g>
 </svg>`;
 }
@@ -341,10 +341,10 @@ export function maskedPortrait(): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
 <path data-name="skin" d="M0,0H140V100H0Z" fill="#b76"/>
 <g data-name="face.masked">
-<g data-name="underlay:mask.on"><path data-name="darkness" d="M0,20H140V80H0Z" fill="#000"/></g>
+<g data-name="underlay mask.on"><path data-name="darkness" d="M0,20H140V80H0Z" fill="#000"/></g>
 </g>
-<g data-name="face.plain:default"><path data-name="cheek" d="M0,80H140V90H0Z" fill="#d98"/></g>
-<g data-name="eyes.open:default">
+<g data-name="face.plain default"><path data-name="cheek" d="M0,80H140V90H0Z" fill="#d98"/></g>
+<g data-name="eyes.open default">
 <path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
 <path data-name="pupil-left" d="${PUPIL}" fill="#000"/>
 <path data-name="eyelash-left" d="${UPPER_OPEN}" fill="#111"/>
@@ -449,7 +449,7 @@ export function spreadPortrait(): string {
 <mask id="own"><path d="M0,0H200V180H0Z" fill="#fff"/></mask>
 </defs>
 <path data-name="face" d="M0,0H200V180H0Z" fill="#fdb"/>
-<g data-name="eyes.open:default">
+<g data-name="eyes.open default">
 ${pose(0, false)}
 </g>
 <g data-name="eyes.closed">

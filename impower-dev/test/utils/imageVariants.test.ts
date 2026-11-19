@@ -17,18 +17,18 @@ import {
 const P = "Assets/Images/Portraits";
 const IMANI = [
   `${P}/imani.png`,
-  `${P}/imani~face.happy.png`,
-  `${P}/imani~face.sad.png`,
-  `${P}/imani~mouth.open~default.png`,
-  `${P}/imani~mouth.closed.png`,
+  `${P}/imani face.happy.png`,
+  `${P}/imani face.sad.png`,
+  `${P}/imani mouth.open default.png`,
+  `${P}/imani mouth.closed.png`,
   `${P}/imani@night.png`,
-  `${P}/imani@night~face.happy.png`,
+  `${P}/imani@night face.happy.png`,
 ];
 const MIA_FOLDER = [
-  `${P}/mia/90_body.png`,
-  `${P}/mia/30_face.neutral~default.png`,
-  `${P}/mia/30_face.happy.png`,
-  `${P}/mia/10_hat.on.png`,
+  `${P}/mia/90 body.png`,
+  `${P}/mia/30 face.neutral default.png`,
+  `${P}/mia/30 face.happy.png`,
+  `${P}/mia/10 hat.on.png`,
 ];
 const one = (paths: readonly string[]) => imageStacks(paths)[0]!;
 
@@ -49,7 +49,7 @@ describe("the tester's groups", () => {
       [ALTERNATE, [AS_IS, "night"], AS_IS],
       ["face", [AS_IS, "happy"], AS_IS],
     ]);
-    expect(summary([`${P}/kai.png`, `${P}/kai~face.happy~default.png`])).toEqual([]);
+    expect(summary([`${P}/kai.png`, `${P}/kai face.happy default.png`])).toEqual([]);
   });
 
   it("offers a switch off then on, and rests it off unless its on layer is the default", () => {
@@ -60,8 +60,8 @@ describe("the tester's groups", () => {
   });
 
   it("shows a folder stack and its file-named twin with the same groups", () => {
-    const folder = ["Assets/Images/imani/01_base.png", "Assets/Images/imani/02_face.happy~default.png", "Assets/Images/imani/02_face.sad.png"];
-    const named = ["Assets/Images/imani.png", "Assets/Images/imani~face.happy~default.png", "Assets/Images/imani~face.sad.png"];
+    const folder = ["Assets/Images/imani/01 base.png", "Assets/Images/imani/02 face.happy default.png", "Assets/Images/imani/02 face.sad.png"];
+    const named = ["Assets/Images/imani.png", "Assets/Images/imani face.happy default.png", "Assets/Images/imani face.sad.png"];
     expect(summary(folder)).toEqual(summary(named));
   });
 
@@ -85,19 +85,19 @@ describe("the reference the tester writes", () => {
   });
 
   it("writes group.option when the option alone could mean another group", () => {
-    const paths = ["A/kai.png", "A/kai~eyes.open.png", "A/kai~mouth.open.png"];
+    const paths = ["A/kai.png", "A/kai eyes.open.png", "A/kai mouth.open.png"];
     expect(ref(paths, { eyes: "open" })).toBe("[[kai:eyes.open]]");
   });
 
   it("turns a switch on by its name and off by name.off", () => {
     expect(ref(MIA_FOLDER, { hat: "on" })).toBe("[[mia:hat]]");
-    expect(ref([`A/bo/10_hat.on~default.png`, `A/bo/90_body.png`].map((p) => `Assets/${p}`), { hat: "off" })).toBe(
+    expect(ref([`A/bo/10 hat.on default.png`, `A/bo/90 body.png`].map((p) => `Assets/${p}`), { hat: "off" })).toBe(
       "[[bo:hat.off]]",
     );
   });
 
   it("writes an alternate in the form #2109 made the compiler accept", () => {
-    const faced = ["Assets/Images/mia.png", "Assets/Images/mia@night.png", "Assets/Images/mia@night~face.sad.png"];
+    const faced = ["Assets/Images/mia.png", "Assets/Images/mia@night.png", "Assets/Images/mia@night face.sad.png"];
     expect(ref(faced, { [ALTERNATE]: "night", face: "sad" })).toBe("[[mia@night:sad]]");
   });
 
@@ -148,31 +148,31 @@ describe("the Files rows", () => {
   const sizes = (paths: readonly string[]) => Object.fromEntries(paths.map((path, index) => [path, (index + 1) * 1024]));
 
   it("gives every member its role", () => {
-    const paths = [...IMANI, `${P}/imani@night~face.happy~mouth.open~default.png`];
+    const paths = [...IMANI, `${P}/imani@night face.happy mouth.open default.png`];
     const roles = Object.fromEntries(fileRows(one(paths), sizes(paths)).map((row) => [row.name, row.role]));
     expect(roles).toEqual({
       "imani.png": "Alternate · plain",
       "imani@night.png": "Alternate · night",
-      "imani@night~face.happy.png": "Layer · face.happy · on night",
-      "imani@night~face.happy~mouth.open~default.png": "Layer · face.happy · mouth.open · default · on night",
-      "imani~face.happy.png": "Layer · face.happy",
-      "imani~face.sad.png": "Layer · face.sad",
-      "imani~mouth.closed.png": "Layer · mouth.closed",
-      "imani~mouth.open~default.png": "Layer · mouth.open · default",
+      "imani@night face.happy.png": "Layer · face.happy · on night",
+      "imani@night face.happy mouth.open default.png": "Layer · face.happy · mouth.open · default · on night",
+      "imani face.happy.png": "Layer · face.happy",
+      "imani face.sad.png": "Layer · face.sad",
+      "imani mouth.closed.png": "Layer · mouth.closed",
+      "imani mouth.open default.png": "Layer · mouth.open · default",
     });
   });
 
   it("names the base of a single picture and the order number of a folder stack's layers", () => {
-    const single = ["A/kai.png", "A/kai~glow.png"];
+    const single = ["A/kai.png", "A/kai glow.png"];
     expect(fileRows(one(single), {}).map((row) => row.role)).toEqual(["Base", "Layer · always shown"]);
-    const paths = [...MIA_FOLDER, `${P}/mia/2_face.happy.png`, `${P}/mia/11_face.sad.png`];
+    const paths = [...MIA_FOLDER, `${P}/mia/2 face.happy.png`, `${P}/mia/11 face.sad.png`];
     expect(fileRows(one(paths), {}).map((row) => [row.name, row.role])).toEqual([
-      ["2_face.happy.png", "Layer 2 · face.happy"],
-      ["10_hat.on.png", "Layer 10 · hat.on"],
-      ["11_face.sad.png", "Layer 11 · face.sad"],
-      ["30_face.happy.png", "Layer 30 · face.happy"],
-      ["30_face.neutral~default.png", "Layer 30 · face.neutral · default"],
-      ["90_body.png", "Base"],
+      ["2 face.happy.png", "Layer 2 · face.happy"],
+      ["10 hat.on.png", "Layer 10 · hat.on"],
+      ["11 face.sad.png", "Layer 11 · face.sad"],
+      ["30 face.happy.png", "Layer 30 · face.happy"],
+      ["30 face.neutral default.png", "Layer 30 · face.neutral · default"],
+      ["90 body.png", "Base"],
     ]);
   });
 

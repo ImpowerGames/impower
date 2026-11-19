@@ -321,7 +321,7 @@ describe("the Variants tester's picture", () => {
   it("asks the language server for the combination's picture at the frame's size and asks again when the program changes", async () => {
     const { assets, ls } = fakeWorkspace({});
     const answers = [
-      { src: "/one.png", layers: [uri("Assets/Images/kai.png"), uri("Assets/Images/kai~face.happy.png")] },
+      { src: "/one.png", layers: [uri("Assets/Images/kai.png"), uri("Assets/Images/kai face.happy.png")] },
       { src: "/two.png", layers: [uri("Assets/Images/kai.png"), null] },
       { src: "/three.png", layers: [] },
     ];
@@ -338,7 +338,7 @@ describe("the Variants tester's picture", () => {
     await compiled();
     expect(seen).toEqual(["/one.png", "/two.png"]);
     expect(drawn).toEqual([
-      ["Assets/Images/kai.png", "Assets/Images/kai~face.happy.png"],
+      ["Assets/Images/kai.png", "Assets/Images/kai face.happy.png"],
       ["Assets/Images/kai.png", null],
     ]);
     expect(ls.getVariantPicture.mock.calls).toEqual([

@@ -184,9 +184,9 @@ describe("the Assets page's file intents", () => {
     const { assets } = fakeWorkspace({ "Assets/Images/imani.png": "png" });
     await assets.load();
     mocks.importFiles.mockClear();
-    await assets.upload([dropped("imani~face.happy.png"), dropped("imani@night.png"), dropped("door knock.wav")], "");
+    await assets.upload([dropped("imani face.happy.png"), dropped("imani@night.png"), dropped("door knock.wav")], "");
     expect(mocks.importFiles.mock.calls[0]![1].map((item: { rel: string }) => item.rel)).toEqual([
-      "Assets/Images/imani~face.happy.png",
+      "Assets/Images/imani face.happy.png",
       "Assets/Images/imani@night.png",
       "Assets/Audio/door_knock.wav",
     ]);

@@ -60,28 +60,28 @@ const collisions = (program: SparkProgram) =>
 const AVA = [
   `${P}/ava.png`,
   `${P}/ava@night.png`,
-  `${P}/ava~20_face.happy.png`,
-  `${P}/ava~20_face.sad.png`,
-  `${P}/ava~30_mouth.closed~default.png`,
-  `${P}/ava~30_mouth.open.png`,
-  `${P}/ava~10_hat.on.png`,
-  `${P}/ava@night~face.happy.png`,
+  `${P}/ava 20 face.happy.png`,
+  `${P}/ava 20 face.sad.png`,
+  `${P}/ava 30 mouth.closed default.png`,
+  `${P}/ava 30 mouth.open.png`,
+  `${P}/ava 10 hat.on.png`,
+  `${P}/ava@night face.happy.png`,
 ];
 
 const REFERENCES = scene("[[ava]]", "[[ava:happy:hat]]", "[[ava@night:face.happy]]", "[[ava:mouth.open:sad]]");
 
 describe("the one file-name rule for pictures and their layers (#2201)", () => {
   it("reads an order number right after the ~ apart from the layer's name, and only there", () => {
-    expect(imageFileNameOf(`${P}/ava~20_face.happy.png`)).toEqual({ name: "ava", picture: "ava", alternate: null, layer: "face.happy", order: 20 });
-    expect(imageFileNameOf(`${P}/ava@night~face.happy.png`)).toEqual({ name: "ava@night", picture: "ava@night", alternate: "night", layer: "face.happy" });
-    expect(imageFileNameOf(`${P}/ava~blush.png`)).toEqual({ name: "ava", picture: "ava", alternate: null, layer: "blush" });
-    expect(imageFileNameOf(`${P}/ava~face_2.happy.png`).layer).toBe("face_2.happy");
+    expect(imageFileNameOf(`${P}/ava 20 face.happy.png`)).toEqual({ name: "ava", picture: "ava", alternate: null, layer: "face.happy", order: 20 });
+    expect(imageFileNameOf(`${P}/ava@night face.happy.png`)).toEqual({ name: "ava@night", picture: "ava@night", alternate: "night", layer: "face.happy" });
+    expect(imageFileNameOf(`${P}/ava blush.png`)).toEqual({ name: "ava", picture: "ava", alternate: null, layer: "blush" });
+    expect(imageFileNameOf(`${P}/ava face_2.happy.png`).layer).toBe("face_2.happy");
     expect(imageFileNameOf(`${P}/ava.v2.png`)).toEqual({ name: "ava", picture: "ava.v2", alternate: null });
-    expect(imageFileNameOf(`${P}/mia/30_face.neutral~default.png`)).toEqual({ name: "30_face", picture: "30_face.neutral~default", alternate: null });
+    expect(imageFileNameOf(`${P}/mia/30 face.neutral default.png`)).toEqual({ name: "30 face", picture: "30 face.neutral default", alternate: null });
   });
 
   it("splits files into things, their pictures and each picture's layers in stacking order, its own file apart", () => {
-    const things = imageThingsOf([...AVA, `${P}/mia/90_body.png`, `${ROOT}/assets/Images/office.png`]);
+    const things = imageThingsOf([...AVA, `${P}/mia/90 body.png`, `${ROOT}/assets/Images/office.png`]);
     expect(things.map((thing) => [thing.name, thing.pictures.map((picture) => picture.name)])).toEqual([
       ["ava", ["ava", "ava@night"]],
       ["office", ["office"]],
@@ -89,11 +89,11 @@ describe("the one file-name rule for pictures and their layers (#2201)", () => {
     const [ava, night] = things[0]!.pictures;
     expect(ava!.path).toBe(`${P}/ava.png`);
     expect(ava!.layers.map((layer) => leaf(layer.path))).toEqual([
-      "ava~30_mouth.closed~default.png",
-      "ava~30_mouth.open.png",
-      "ava~20_face.happy.png",
-      "ava~20_face.sad.png",
-      "ava~10_hat.on.png",
+      "ava 30 mouth.closed default.png",
+      "ava 30 mouth.open.png",
+      "ava 20 face.happy.png",
+      "ava 20 face.sad.png",
+      "ava 10 hat.on.png",
     ]);
     expect(night!.layers.map((layer) => layer.layer)).toEqual(["face.happy"]);
     expect(ava!.unnumbered).toEqual([]);
@@ -105,9 +105,9 @@ describe("the one file-name rule for pictures and their layers (#2201)", () => {
         .map(({ path, layer, order }) => ({ path, layer: layer!, ...(order === undefined ? {} : { order }) }))
         .sort(byLayerStacking)
         .map((layer) => leaf(layer.path));
-    expect(sorted([`${P}/a~10_hat.png`, `${P}/a~20_face.png`])).toEqual(["a~20_face.png", "a~10_hat.png"]);
-    expect(sorted([`${P}/a~hat.png`, `${P}/a~face.png`])).toEqual(["a~face.png", "a~hat.png"]);
-    expect(sorted([`${P}/a~10_hat.png`, `${P}/a~face.png`])).toEqual(["a~face.png", "a~10_hat.png"]);
+    expect(sorted([`${P}/a 10 hat.png`, `${P}/a 20 face.png`])).toEqual(["a 20 face.png", "a 10 hat.png"]);
+    expect(sorted([`${P}/a hat.png`, `${P}/a face.png`])).toEqual(["a face.png", "a hat.png"]);
+    expect(sorted([`${P}/a 10 hat.png`, `${P}/a face.png`])).toEqual(["a face.png", "a 10 hat.png"]);
   });
 });
 
@@ -115,15 +115,15 @@ describe("layer files beside a picture compose into it (#2201)", () => {
   it("makes each picture with layer files a layered picture of its own name, its file at the bottom", () => {
     const program = compile(AVA, REFERENCES);
     expect(Object.keys(program.context?.["layered_image"] ?? {}).filter((name) => !name.startsWith("$")).sort()).toEqual(["ava", "ava@night"]);
-    expect(drawn(program, "ava")).toEqual(["ava.png", "ava~30_mouth.closed~default.png"]);
+    expect(drawn(program, "ava")).toEqual(["ava.png", "ava 30 mouth.closed default.png"]);
     expect(drawn(program, "ava:happy:hat")).toEqual([
       "ava.png",
-      "ava~30_mouth.closed~default.png",
-      "ava~20_face.happy.png",
-      "ava~10_hat.on.png",
+      "ava 30 mouth.closed default.png",
+      "ava 20 face.happy.png",
+      "ava 10 hat.on.png",
     ]);
-    expect(drawn(program, "ava@night:face.happy")).toEqual(["ava@night.png", "ava@night~face.happy.png"]);
-    expect(drawn(program, "ava:mouth.open:sad")).toEqual(["ava.png", "ava~30_mouth.open.png", "ava~20_face.sad.png"]);
+    expect(drawn(program, "ava@night:face.happy")).toEqual(["ava@night.png", "ava@night face.happy.png"]);
+    expect(drawn(program, "ava:mouth.open:sad")).toEqual(["ava.png", "ava 30 mouth.open.png", "ava 20 face.sad.png"]);
   });
 
   it("raises no warning for these files and no collision between the options of one group", () => {
@@ -141,16 +141,16 @@ describe("layer files beside a picture compose into it (#2201)", () => {
   });
 
   it("stacks unnumbered layers in file-name order, the first at the bottom", () => {
-    const files = [`${P}/bo.png`, `${P}/bo~hair.png`, `${P}/bo~blush.png`, `${P}/bo~cap.on.png`];
+    const files = [`${P}/bo.png`, `${P}/bo hair.png`, `${P}/bo blush.png`, `${P}/bo cap.on.png`];
     const program = compile(files, scene("[[bo:cap]]"));
-    expect(drawn(program, "bo:cap")).toEqual(["bo.png", "bo~blush.png", "bo~cap.on.png", "bo~hair.png"]);
-    expect(drawn(program, "bo")).toEqual(["bo.png", "bo~blush.png", "bo~hair.png"]);
+    expect(drawn(program, "bo:cap")).toEqual(["bo.png", "bo blush.png", "bo cap.on.png", "bo hair.png"]);
+    expect(drawn(program, "bo")).toEqual(["bo.png", "bo blush.png", "bo hair.png"]);
   });
 
   it("keeps the first-dot name for a file with no ~, and layers it all the same", () => {
     expect(workspace.getFileName(`${P}/ava.v2.png`)).toBe("ava");
-    const program = compile([`${P}/ava.v2.png`, `${P}/ava~face.happy.png`], scene("[[ava:happy]]"));
-    expect(drawn(program, "ava:happy")).toEqual(["ava.v2.png", "ava~face.happy.png"]);
+    const program = compile([`${P}/ava.v2.png`, `${P}/ava face.happy.png`], scene("[[ava:happy]]"));
+    expect(drawn(program, "ava:happy")).toEqual(["ava.v2.png", "ava face.happy.png"]);
   });
 
   it("lets a define name the composed picture as image.ava@night and choose its options", () => {
@@ -162,7 +162,7 @@ end
 ${scene("[[ava@party]]")}`;
     const program = compile(AVA, text);
     expect(warnings(program)).toEqual([]);
-    expect(drawn(program, "ava@party")).toEqual(["ava@night.png", "ava@night~face.happy.png"]);
+    expect(drawn(program, "ava@party")).toEqual(["ava@night.png", "ava@night face.happy.png"]);
   });
 
   it("lets a define name a folder portrait as image.mia, by the same rule", () => {
@@ -172,9 +172,9 @@ ${scene("[[ava@party]]")}`;
 end
 
 ${scene("[[mia_party]]")}`;
-    const program = compile([`${P}/mia/90_body.png`, `${P}/mia/30_face.happy.png`, `${P}/mia/30_face.neutral~default.png`], text);
+    const program = compile([`${P}/mia/90 body.png`, `${P}/mia/30 face.happy.png`, `${P}/mia/30 face.neutral default.png`], text);
     expect(warnings(program)).toEqual([]);
-    expect(drawn(program, "mia_party")).toEqual(["90_body.png", "30_face.happy.png"]);
+    expect(drawn(program, "mia_party")).toEqual(["90 body.png", "30 face.happy.png"]);
   });
 
   it("still warns for image.X when no picture of that name exists", () => {
@@ -203,7 +203,7 @@ ${scene("[[ava]]")}`;
 end
 
 ${scene("[[ava]]")}`;
-    const program = compile([`${P}/ava.png`, `${P}/ava~face.happy.png`, `${ROOT}/assets/Images/office.png`], text);
+    const program = compile([`${P}/ava.png`, `${P}/ava face.happy.png`, `${ROOT}/assets/Images/office.png`], text);
     expect(drawn(program, "ava")).toEqual(["ava.png", "office.png"]);
   });
 
@@ -218,7 +218,7 @@ end
 
 ${scene("[[ava]]", "[[poster]]")}`;
     const office = `${ROOT}/assets/Images/office.png`;
-    for (const files of [[`${P}/ava.png`, office], [`${P}/ava.png`, `${P}/ava~face.happy.png`, office]]) {
+    for (const files of [[`${P}/ava.png`, office], [`${P}/ava.png`, `${P}/ava face.happy.png`, office]]) {
       const program = compile(files, text);
       expect(drawn(program, "ava")).toEqual(["ava.png", "office.png"]);
       expect(drawn(program, "poster")).toEqual(["ava.png", "office.png"]);
@@ -233,9 +233,9 @@ ${scene("[[ava]]", "[[poster]]")}`;
       files: [
         { uri: MAIN, type: "script", name: "main", ext: "sd", text: scene("[[ava]]", "[[mia]]", "[[bo]]"), version: 1, languageId: "sparkdown" },
         svg(`${P}/ava.svg`),
-        svg(`${P}/ava~face.happy.svg`),
+        svg(`${P}/ava face.happy.svg`),
         svg(`${P}/bo.svg`),
-        { ...svg(`${P}/mia/90_body.png`), ext: "png" },
+        { ...svg(`${P}/mia/90 body.png`), ext: "png" },
       ],
     } as never);
     const images = compiler.compile({ textDocument: { uri: MAIN } }).program.context?.["image"] ?? {};
@@ -255,23 +255,23 @@ ${scene("[[ava]]", "[[ava@night:face.happy]]")}`;
     expect(program.context?.["image"]?.["ava"]?.src).toBe("override.png");
     expect(program.context?.["layered_image"]?.["ava"]).toBeUndefined();
     expect(drawn(program, "ava")).toEqual(["override.png"]);
-    expect(drawn(program, "ava@night:face.happy")).toEqual(["ava@night.png", "ava@night~face.happy.png"]);
+    expect(drawn(program, "ava@night:face.happy")).toEqual(["ava@night.png", "ava@night face.happy.png"]);
   });
 
   it("draws a folder stack and a picture with layer files side by side in one project", () => {
-    const files = [...AVA, `${P}/mia/90_body.png`, `${P}/mia/30_face.happy.png`, `${P}/mia/30_face.neutral~default.png`];
+    const files = [...AVA, `${P}/mia/90 body.png`, `${P}/mia/30 face.happy.png`, `${P}/mia/30 face.neutral default.png`];
     const program = compile(files, scene("[[mia:happy]]", "[[ava:happy]]"));
-    expect(drawn(program, "mia:happy")).toEqual(["90_body.png", "30_face.happy.png"]);
-    expect(drawn(program, "ava:happy")).toEqual(["ava.png", "ava~30_mouth.closed~default.png", "ava~20_face.happy.png"]);
+    expect(drawn(program, "mia:happy")).toEqual(["90 body.png", "30 face.happy.png"]);
+    expect(drawn(program, "ava:happy")).toEqual(["ava.png", "ava 30 mouth.closed default.png", "ava 20 face.happy.png"]);
     expect(warnings(program)).toEqual([]);
   });
 });
 
 describe("the problems a picture's layer files can have (#1039)", () => {
   it("allows layers with no base file, with no warning: the picture is its layers", () => {
-    const program = compile([`${P}/cy~body.png`, `${P}/cy~face.happy.png`], scene("[[cy]]", "[[cy:happy]]"));
-    expect(drawn(program, "cy")).toEqual(["cy~body.png"]);
-    expect(drawn(program, "cy:happy")).toEqual(["cy~body.png", "cy~face.happy.png"]);
+    const program = compile([`${P}/cy body.png`, `${P}/cy face.happy.png`], scene("[[cy]]", "[[cy:happy]]"));
+    expect(drawn(program, "cy")).toEqual(["cy body.png"]);
+    expect(drawn(program, "cy:happy")).toEqual(["cy body.png", "cy face.happy.png"]);
     expect(warnings(program)).toEqual([]);
   });
 
@@ -284,57 +284,57 @@ describe("the problems a picture's layer files can have (#1039)", () => {
   });
 
   it("warns on both files when two layers of one group are its default", () => {
-    const files = [`${P}/ava.png`, `${P}/ava~mouth.closed~default.png`, `${P}/ava~mouth.open~default.png`];
+    const files = [`${P}/ava.png`, `${P}/ava mouth.closed default.png`, `${P}/ava mouth.open default.png`];
     const found = warnings(compile(files, scene("[[ava]]")));
-    expect(found.map(({ file }) => file).sort()).toEqual(["ava~mouth.closed~default.png", "ava~mouth.open~default.png"]);
+    expect(found.map(({ file }) => file).sort()).toEqual(["ava mouth.closed default.png", "ava mouth.open default.png"]);
     for (const { message } of found) {
-      expect(message).toContain("ava~mouth.closed~default.png");
-      expect(message).toContain("ava~mouth.open~default.png");
+      expect(message).toContain("ava mouth.closed default.png");
+      expect(message).toContain("ava mouth.open default.png");
     }
   });
 
   it("warns, naming the unnumbered files, when a picture mixes numbered and unnumbered layers", () => {
-    const files = [`${P}/ava.png`, `${P}/ava~10_hat.on.png`, `${P}/ava~face.happy.png`, `${P}/ava~blush.png`];
+    const files = [`${P}/ava.png`, `${P}/ava 10 hat.on.png`, `${P}/ava face.happy.png`, `${P}/ava blush.png`];
     const found = warnings(compile(files, scene("[[ava]]")));
-    expect(found.map(({ file }) => file).sort()).toEqual(["ava~blush.png", "ava~face.happy.png"]);
+    expect(found.map(({ file }) => file).sort()).toEqual(["ava blush.png", "ava face.happy.png"]);
     for (const { message } of found) {
-      expect(message).toContain("ava~blush.png");
-      expect(message).toContain("ava~face.happy.png");
-      expect(message).not.toContain("ava~10_hat.on.png");
+      expect(message).toContain("ava blush.png");
+      expect(message).toContain("ava face.happy.png");
+      expect(message).not.toContain("ava 10 hat.on.png");
     }
   });
 
   it("warns on a malformed layer name", () => {
-    const found = warnings(compile([`${P}/ava.png`, `${P}/ava~face..happy.png`], scene("[[ava]]")));
+    const found = warnings(compile([`${P}/ava.png`, `${P}/ava face..happy.png`], scene("[[ava]]")));
     expect(found).toHaveLength(1);
-    expect(found[0]!.file).toBe("ava~face..happy.png");
+    expect(found[0]!.file).toBe("ava face..happy.png");
     expect(found[0]!.message).toContain('Layer "face..happy"');
   });
 
-  it("warns on a layer file with no name after the ~", () => {
-    const found = warnings(compile([`${P}/ava.png`, `${P}/ava~.png`, `${P}/ava~10_.png`], scene("[[ava]]")));
-    expect(found.map(({ file }) => file).sort()).toEqual(["ava~.png", "ava~10_.png"]);
-    expect(found.find(({ file }) => file === "ava~.png")!.message).toContain("ava~.png");
+  it("warns on a layer file with no name after its stacking number", () => {
+    const found = warnings(compile([`${P}/ava.png`, `${P}/ava 10.png`, `${P}/ava 20 .png`], scene("[[ava]]")));
+    expect(found.map(({ file }) => file).sort()).toEqual(["ava 10.png", "ava 20 .png"]);
+    expect(found.find(({ file }) => file === "ava 10.png")!.message).toContain("ava 10.png");
   });
 
   it("raises no warning for a group with no default beside a base, and shows none of its layers", () => {
-    const program = compile([`${P}/ava.png`, `${P}/ava~face.happy.png`, `${P}/ava~face.sad.png`], scene("[[ava]]"));
+    const program = compile([`${P}/ava.png`, `${P}/ava face.happy.png`, `${P}/ava face.sad.png`], scene("[[ava]]"));
     expect(drawn(program, "ava")).toEqual(["ava.png"]);
     expect(warnings(program)).toEqual([]);
   });
 
   it("keeps the folder stack's warning for a group with no resting choice", () => {
-    const program = compile([`${P}/mia/90_body.png`, `${P}/mia/30_face.happy.png`, `${P}/mia/30_face.sad.png`], scene("[[mia]]"));
+    const program = compile([`${P}/mia/90 body.png`, `${P}/mia/30 face.happy.png`, `${P}/mia/30 face.sad.png`], scene("[[mia]]"));
     expect(warnings(program).map(({ message }) => message).join("\n")).toContain("has no resting choice for face");
   });
 
   it("warns, naming both, for one thing stacked two ways: a file beside a folder stack of its name", () => {
-    expect(collisions(compile([`${P}/ava.png`, `${P}/ava/90_body.png`], scene("[[ava]]"))).sort()).toEqual([
-      "90_body.png: ava",
+    expect(collisions(compile([`${P}/ava.png`, `${P}/ava/90 body.png`], scene("[[ava]]"))).sort()).toEqual([
+      "90 body.png: ava",
       "ava.png: ava",
     ]);
-    expect(collisions(compile([`${P}/ava.png`, `${P}/ava~face.happy.png`, `${P}/ava/90_body.png`], scene("[[ava]]"))).sort()).toEqual([
-      "90_body.png: ava",
+    expect(collisions(compile([`${P}/ava.png`, `${P}/ava face.happy.png`, `${P}/ava/90 body.png`], scene("[[ava]]"))).sort()).toEqual([
+      "90 body.png: ava",
       "ava.png: ava",
     ]);
   });
@@ -345,15 +345,15 @@ describe("the problems a picture's layer files can have (#1039)", () => {
   });
 
   it("raises no collision for two options of one group", () => {
-    expect(collisions(compile([`${P}/ava~face.happy.png`, `${P}/ava~face.sad.png`], scene("[[ava:happy]]")))).toEqual([]);
+    expect(collisions(compile([`${P}/ava face.happy.png`, `${P}/ava face.sad.png`], scene("[[ava:happy]]")))).toEqual([]);
   });
 });
 
 describe("an existing project that uses today's names (#2201)", () => {
   const FILES = [
-    `${P}/mia/90_body.png`,
-    `${P}/mia/30_face.happy.png`,
-    `${P}/mia/30_face.neutral~default.png`,
+    `${P}/mia/90 body.png`,
+    `${P}/mia/30 face.happy.png`,
+    `${P}/mia/30 face.neutral default.png`,
     `${ROOT}/assets/Images/office.png`,
     `${ROOT}/assets/Images/v1.2.png`,
     `${P}/ava.png`,
@@ -365,8 +365,8 @@ describe("an existing project that uses today's names (#2201)", () => {
     const program = compile(FILES, TEXT);
     expect(drawn(program, "office")).toEqual(["office.png"]);
     expect(drawn(program, "v1")).toEqual(["v1.2.png"]);
-    expect(drawn(program, "mia")).toEqual(["90_body.png", "30_face.neutral~default.png"]);
-    expect(drawn(program, "mia:happy")).toEqual(["90_body.png", "30_face.happy.png"]);
+    expect(drawn(program, "mia")).toEqual(["90 body.png", "30 face.neutral default.png"]);
+    expect(drawn(program, "mia:happy")).toEqual(["90 body.png", "30 face.happy.png"]);
     expect(drawn(program, "ava")).toEqual(["ava.png"]);
     expect(drawn(program, "ava@night")).toEqual(["ava@night.png"]);
     expect(program.context?.["image"]?.["ava"]?.src).toBe(`${P}/ava.png`);
@@ -374,8 +374,8 @@ describe("an existing project that uses today's names (#2201)", () => {
   });
 
   it("draws the layers a script already chooses once their files sit beside the picture", () => {
-    const program = compile([...FILES, `${P}/ava~face.happy.png`], scene("[[ava]]", "[[ava:happy]]"));
+    const program = compile([...FILES, `${P}/ava face.happy.png`], scene("[[ava]]", "[[ava:happy]]"));
     expect(drawn(program, "ava")).toEqual(["ava.png"]);
-    expect(drawn(program, "ava:happy")).toEqual(["ava.png", "ava~face.happy.png"]);
+    expect(drawn(program, "ava:happy")).toEqual(["ava.png", "ava face.happy.png"]);
   });
 });

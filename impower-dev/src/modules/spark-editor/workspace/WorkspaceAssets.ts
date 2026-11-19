@@ -103,16 +103,16 @@ const PICTURE_EDGE = 384;
 
 const PICTURE_CACHE = 160;
 
-const TAGGED_NAME = "Use a name without @ or ~. They mark a picture's alternates and layers.";
+const TAGGED_NAME = "Use a name without @ or spaces. They mark a picture's alternates and layers.";
 
 const DOTTED_NAME =
   "Use a name without a dot for a picture with alternates or layers. Scripts name a picture by the part before its first dot.";
 
 const keepBase = (base: string) =>
-  `Keep ${base} before the @ or ~. That part names the picture the file belongs to; rename the picture to change it.`;
+  `Keep ${base} before the @ or the first space. That part names the picture the file belongs to; rename the picture to change it.`;
 
 const keepOrder = (name: string) =>
-  `Keep the number and underscore at the start, as in 10_face.happy. They place the file among ${name}'s layers.`;
+  `Keep the number and the space after it at the start, as in 10 face.happy. They place the file among ${name}'s layers.`;
 
 const showRenamed = (name: string, lines: number, also: readonly FileMove[]) =>
   showSnackbar({
@@ -460,7 +460,7 @@ export default class WorkspaceAssets {
       ? availableName(name, this.siblings(parentOf(path)), extensionOf(path), nameOf(path))
       : undefined;
     const typed = own ? own.split(".")[0]! : validName(name, extension).slice(0, -extension.length || undefined);
-    if (/[@~]/.test(own ?? typed)) {
+    if (/[@ ]/.test(own ?? typed)) {
       throw new NameError(TAGGED_NAME);
     }
     if (!plain && typed.includes(".")) {
@@ -515,7 +515,7 @@ export default class WorkspaceAssets {
             .filter((candidate) => candidate.layer !== undefined && candidate.alternate === member?.alternate)
             .map((candidate) => {
               const leaf = nameOf(candidate.path);
-              return { from: candidate.path, to: joinPath(folder, renamed + leaf.slice(leaf.indexOf("~"))) };
+              return { from: candidate.path, to: joinPath(folder, renamed + leaf.slice(leaf.indexOf(" "))) };
             })
         : [];
     try {

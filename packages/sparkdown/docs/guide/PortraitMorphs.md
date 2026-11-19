@@ -11,10 +11,10 @@ The chapter covers what the art needs, how to declare the morph, how it chooses 
 Mia's eyes are drawn twice, once open and once closed, as [Character Portraits](./Portraits.md) describes:
 
 ```
-eyelash-left:eyes.closed
-eyelash-left:eyes.open:default
-eyelash-right:eyes.closed
-eyelash-right:eyes.open:default
+eyelash-left eyes.closed
+eyelash-left eyes.open default
+eyelash-right eyes.closed
+eyelash-right eyes.open default
 ```
 
 This morph closes them and opens them again:
@@ -61,9 +61,9 @@ A morph pairs drawings by their labels, so the art has to be labelled with that 
 
 ### Matching labels
 
-The label is the part of a layer's name before the first colon: `eyelash-left` in `eyelash-left:eyes.open:default`. A drawing whose layer has no label of its own takes the label of the nearest labelled layer around it. A drawing with no label anywhere above it never pairs.
+The label is the first word of a layer's name, when that word holds no dot: `eyelash-left` in `eyelash-left eyes.open default`. A drawing whose layer has no label of its own takes the label of the nearest labelled layer around it. A drawing with no label anywhere above it never pairs.
 
-Give the drawing that changes the same nonempty label in each state. `eyelash-left:eyes.open` and `eyelash-left:eyes.closed` pair. `lash-left:eyes.open` and `lid-left:eyes.closed` do not, and each leaves or arrives by itself through the morph's `fallback` instead, a fade unless the morph sets another.
+Give the drawing that changes the same nonempty label in each state. `eyelash-left eyes.open` and `eyelash-left eyes.closed` pair. `lash-left eyes.open` and `lid-left eyes.closed` do not, and each leaves or arrives by itself through the morph's `fallback` instead, a fade unless the morph sets another.
 
 Each drawn element is one pairing unit. When a label holds one drawing in one state, every drawing of that label in the other state pairs with it. When it holds the same number of drawings in both states, they pair by position: the two drawings nearest each other pair first, then the nearest of the rest, and so on, so the top lash becomes the top lash whatever order the elements are in. Drawings at equal distances pair in the order they are drawn, so the same art always moves the same way. A label with different numbers of drawings in the two states, more than one on each side, does not pair at all: each of its drawings uses the fallback, with a warning on the artwork. A shape split across several elements pairs element by element.
 
@@ -72,9 +72,9 @@ Each drawn element is one pairing unit. When a label holds one drawing in one st
 An open eye is often drawn with a top lash and a bottom lash, while the closed eye is one line. Give both open lashes the label of the closed lash:
 
 ```
-eyelash-right:eyes.closed
-eyelash-right:eyes.open:default
-eyelash-right:eyes.open:default
+eyelash-right eyes.closed
+eyelash-right eyes.open default
+eyelash-right eyes.open default
 ```
 
 Both open drawings then move onto the one closed drawing. Two drawings sharing one destination give two moving edges, which meet at the closed line. They do not make a single opening out of three drawings.
@@ -510,7 +510,7 @@ morph blink {
 
 - With `unless`, the morph does not play on a look where any listed state is active.
 - With `when`, the morph plays only on a look where every listed state is active.
-- A state is active on a look when the script line or a named look chooses it, or failing that the art's `:default` does, in any visible folder that draws the group.
+- A state is active on a look when the script line or a named look chooses it, or failing that the art's `default` does, in any visible folder that draws the group.
 - A condition may name a group the morph drives, as the blink's `unless = eyes.closed` does, or any other group, such as `mask.on`.
 - Conditions are judged on the look as the script and the art give it, before the morph's rest replaces anything.
 - A child morph that writes `when` or `unless` replaces its parent's. There is no way to clear an inherited one.
@@ -565,7 +565,7 @@ scene nap
 end
 ```
 
-Under a blink with no `unless`, this warns that `blink` rests `eyes` on `open`. Add `eyes.closed` to the blink's `unless` to keep the blink off such looks, or route them to another morph that rests on the state, with that morph's `when`. A state the art's `:default` chooses is not reported.
+Under a blink with no `unless`, this warns that `blink` rests `eyes` on `open`. Add `eyes.closed` to the blink's `unless` to keep the blink off such looks, or route them to another morph that rests on the state, with that morph's `when`. A state the art's `default` chooses is not reported.
 
 A group is driven by its name. Renaming a group, `eyes` to `lids` say, takes those portraits out of a blink that drives `eyes`; change the script lines and named looks that select `eyes.closed` to match, or they select a group that no longer exists.
 
@@ -877,7 +877,7 @@ When only part of a portrait moves, read the artwork's warnings first. The usual
 - A label with two drawings in one state and three in the other, which pairs none of them. Make the counts equal, or one on one side.
 - Lashes on both sides sharing one label, so they pair across the face. Repeat the side in each label.
 - An eyeball cut to the open eye's outline, which shows its cut edge as the eye closes. Draw it whole.
-- A look that should keep a state the morph drives, such as closed eyes, but shows the morph's rest instead: add the state to the morph's `unless`. The warning on the script line or named look that chooses it names the morph; a speech morph gives no such warning. A face drawn with that state as its `:default` gets no warning, so check its art too.
+- A look that should keep a state the morph drives, such as closed eyes, but shows the morph's rest instead: add the state to the morph's `unless`. The warning on the script line or named look that chooses it names the morph; a speech morph gives no such warning. A face drawn with that state as its `default` gets no warning, so check its art too.
 - A morph that plays nowhere you expect: check its `when` and `unless`, which are judged on the look before the rest applies.
 - A portrait that shows still with an error on the artwork: it carries a style sheet, an inline style or a `transform` attribute the morph cannot read safely ([Art the morph can read](#art-the-morph-can-read)).
 - A single shape that fades instead of moving: its geometry or transform is one the morph cannot follow, and the warning names its layer.
