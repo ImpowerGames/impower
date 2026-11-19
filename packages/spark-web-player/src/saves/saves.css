@@ -39,11 +39,6 @@
   font: inherit;
 }
 
-:is(spark-web-player, swp-route-view) .saves-button:active,
-:is(spark-web-player, swp-route-view) .saves-button[aria-expanded="true"] {
-  background-color: var(--swp-saves-active-color);
-}
-
 :is(spark-web-player, swp-route-view) #saves-menu {
   position: absolute;
   right: 6px;
@@ -201,10 +196,6 @@
   color: inherit;
 }
 
-:is(spark-web-player, swp-route-view) .saves-more[aria-expanded="true"] {
-  background-color: var(--swp-saves-active-color);
-}
-
 @media (hover: hover) and (pointer: fine) {
   :is(spark-web-player, swp-route-view) .saves-button:hover,
   :is(spark-web-player, swp-route-view) .saves-here:not(:disabled):hover,
@@ -217,6 +208,12 @@
   :is(spark-web-player, swp-route-view) .sv-undo:hover {
     background-color: var(--swp-saves-hover-color);
   }
+}
+
+:is(spark-web-player, swp-route-view) .saves-button:active,
+:is(spark-web-player, swp-route-view) .saves-button[aria-expanded="true"],
+:is(spark-web-player, swp-route-view) .saves-more[aria-expanded="true"] {
+  background-color: var(--swp-saves-active-color);
 }
 
 :is(spark-web-player, swp-route-view) .saves-row-menu {
