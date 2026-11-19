@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,6 +10,7 @@ import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayP
 import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import { cellWidth, lineMaxWidth, printProfileOf } from "../../sparkdown-screenplay/src/utils/printGeometry";
 import { screenplayPageLayout } from "../../sparkdown-screenplay/src/utils/screenplayPageLayout";
+import { FALLBACK_FONT_SOURCES } from "../../sparkdown-screenplay-pdf/src/utils/fallbackFontSources";
 import { KINDS } from "./helpers/screenplayParity";
 import { buildScreenplayGeometryPage, EMOJI_FONT_URL } from "./harness/screenplay-geometry.mjs";
 
@@ -76,6 +77,20 @@ const FONTS = {
   bolditalic: readFont("courier-prime-bold-italic.ttf"),
 };
 
+const FALLBACK_DIR = resolve(__dirname, "fixtures/fallback-fonts");
+
+const fallbackFixture = (name: string, weight: string) => resolve(FALLBACK_DIR, `${name.toLowerCase().replace(/ /g, "-")}-${weight}.ttf`);
+
+const readFixture = (path: string): ArrayBuffer => {
+  const bytes = readFileSync(path);
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+};
+
+const FALLBACKS = FALLBACK_FONT_SOURCES.filter((source) => existsSync(fallbackFixture(source.name, "normal"))).map((source) => ({
+  normal: readFixture(fallbackFixture(source.name, "normal")),
+  bold: readFixture(fallbackFixture(source.name, "bold")),
+}));
+
 const PAPER: Record<string, { left: number; right: number; cell: number }> = {
   usletter: { left: 1.5 * 72, right: (8.5 - 1) * 72, cell: (1228 / 2048) * 12 },
   a4: { left: 1.5 * 72, right: (8.27 - 1) * 72, cell: (1228 / 2048) * 12 },
@@ -134,7 +149,7 @@ const printed = async (script: string, config: ScreenplayConfig, fonts: Record<s
     return text.apply(this, args);
   });
   try {
-    await buildPDF([script], config, fonts);
+    await buildPDF([script], config, fonts, undefined, FALLBACKS);
   } finally {
     spy.mockRestore();
   }
