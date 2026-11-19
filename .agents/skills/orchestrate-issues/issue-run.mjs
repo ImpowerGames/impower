@@ -593,7 +593,11 @@ export function conditionalCache(dir = CONDITIONAL_CACHE_DIR) {
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(temp, JSON.stringify({ key, etag, body }));
         fs.renameSync(temp, file);
-      } catch { fs.rmSync(temp, { force: true }); }
+        return null;
+      } catch (error) {
+        fs.rmSync(temp, { force: true });
+        return { file, message: error.message };
+      }
     },
   };
 }
@@ -612,7 +616,7 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   const pagesArgs = (args) => ["api", "--paginate", "--slurp", ...args];
   const pagesOf = (out) => JSON.parse(out).flat();
   const pages = (args) => pagesOf(run("gh", pagesArgs(args)));
-  let allowance = null;
+  let allowance = null, cacheFailure = null;
   const noteAllowance = (headers) => {
     const remaining = Number(headers["x-ratelimit-remaining"]), reset = Number(headers["x-ratelimit-reset"]);
     if (!Number.isFinite(remaining) || !Number.isFinite(reset)) return;
@@ -629,7 +633,7 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
         if (response.status !== 200) return pages([key]);
         const body = JSON.parse(response.body);
         if (!Array.isArray(body) || /rel="next"/.test(response.headers.link ?? "")) return pages([key]);
-        if (response.headers.etag) cache.set(key, response.headers.etag, body);
+        if (response.headers.etag) cacheFailure ??= cache.set(key, response.headers.etag, body) ?? null;
         return body;
       },
     };
@@ -734,6 +738,7 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
       if (n !== undefined) { allowance = null; try { read("subIssues", n); } catch (error) { if (!allowance) throw error; } }
       return allowance;
     },
+    cacheFailure: () => cacheFailure,
     pull: (n) => JSON.parse(run("gh", ["pr", "view", String(n), "--repo", code, "--json", fields])),
     pulls: (n) => (split ? accountPulls(n) : JSON.parse(run("gh", ["pr", "list", "--repo", code, "--state", "all", "--search", String(n), "--limit", "100", "--json", fields]))),
     comments: (pr, ticket) => read("comments", [pr, ticket]),
@@ -2494,13 +2499,14 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
       const client = clientFor(record, record.checkout);
       const snap = takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets }, client);
       fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(snap, null, 2) + "\n");
-      return { revision: record.revision, tickets: snap.tickets.length, originMain: snap.originMain, writers: writerIdentities(record), subIssueAllowance: client.allowance?.() ?? null };
+      return { revision: record.revision, tickets: snap.tickets.length, originMain: snap.originMain, writers: writerIdentities(record), subIssueAllowance: client.allowance?.() ?? null, ...(client.cacheFailure?.() && { conditionalCacheFailure: client.cacheFailure() }) };
     }
     case "allowance": {
       const record = readRecord(absolute(o.record, "record"));
-      const allowance = clientFor(record, record.checkout).allowance(record.issue);
+      const client = clientFor(record, record.checkout);
+      const allowance = client.allowance(record.issue);
       if (!allowance) throw new Error(`The sub_issues read of #${record.issue} returned no X-Ratelimit-Remaining and X-Ratelimit-Reset headers`);
-      return { subIssueAllowance: allowance };
+      return { subIssueAllowance: allowance, ...(client.cacheFailure() && { conditionalCacheFailure: client.cacheFailure() }) };
     }
     case "plan": {
       const record = recordSessions(absolute(o.record, "record"));

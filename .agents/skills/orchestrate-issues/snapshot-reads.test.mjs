@@ -186,5 +186,17 @@ assert.deepEqual([changedBy[104].parent, changedBy[105].parent, changedBy[103].b
   assert.equal(edited.acceptanceSha256, settled.acceptanceSha256, "a criteria edit made while the tree is walked is in the scope's acceptance hash");
 }
 
+{
+  const blocked = path.join(tmp, "cache-is-a-file");
+  fs.writeFileSync(blocked, "not a directory");
+  const fake = fakeGh(gh);
+  const client = run.githubClient({ repository: REPO }, tmp, { run: fake.exec, parallel: fake.parallel, cache: run.conditionalCache(blocked) });
+  const { observedAt, ...unsaved } = run.takeSnapshot({ repository: REPO, issue: ROOT }, client);
+  assert.deepEqual(unsaved, cleared.snap, "a cache that cannot be written still yields the same snapshot");
+  const failure = client.cacheFailure();
+  assert.ok(failure && failure.file.startsWith(blocked) && failure.message, `a cache that cannot be written is reported with its path and cause (${JSON.stringify(failure)})`);
+  assert.equal(snapshotWith(gh, { cacheDir: freshDir("writable") }).client.cacheFailure(), null, "a writable cache reports no failure");
+}
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log("snapshot-reads: ok");
