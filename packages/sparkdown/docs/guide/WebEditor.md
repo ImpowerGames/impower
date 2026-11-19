@@ -76,13 +76,20 @@ Assets holds everything your story shows or plays. The tabs sort your files by k
 Images, Audio, Video, Text, Fonts and Other. Images show as tiles and sounds as rows you can play.
 **Add** brings in files from your device, adds a link to a file online or makes a
 new folder, and you can drop files onto the page. Keep them in folders however you
-like; each file's menu selects, renames, moves or deletes it, and a picture
-with variants lists them there too. A folder's menu also opens it, uploads into it
-or makes a folder inside it. Opening a
-file shows its details beside the list on a computer, and as a sheet over it on a
-phone: its type and size (and a sound's length), where it is and where your story
-uses it, with
-**Replace…** and **Download**.
+like. Every tile and row has a menu button (⋮), which opens a menu on a computer and
+a sheet on a phone:
+
+- A file's menu has **Select**, **Rename**, **Move…** and **Delete**, and a picture with
+  variants also has **Variants**.
+- A folder's menu has **Open**, **Select**, **Upload here…**, **New folder inside…**,
+  **Rename**, **Move…** and **Delete**.
+
+Opening a file shows its details beside the list on a computer, and as a sheet over
+the page on a phone, with **Back to the collection** to return. The details give its
+type and size (and a sound's length), where it is and where your story uses it. A
+picture can be zoomed or viewed full size, and a sound played, restarted or looped.
+**Replace…** and **Download** are under the details, and the details' own menu
+button has **Rename**, **Move…**, **Download** and **Delete**.
 
 ## Share
 

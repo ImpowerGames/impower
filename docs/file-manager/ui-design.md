@@ -28,7 +28,9 @@ Each page supplies its rows and its row menu: `scripts-page/ScriptsPage.tsx` wit
 `RowMenu.tsx`, and `assets/Assets.tsx` with `AssetRowMenu.tsx`, whose entries depend on what it is for: a folder
 (Open, Select, Upload here…, New folder inside…, Rename, Move…, Delete), a file
 (Select, Rename, Move…, Delete, and Variants for a picture with variants) and the
-asset inspector (Rename, Move…, Download, Delete). The
+asset inspector's menu (Rename, Move…, Download, Delete), beside its Replace… and
+Download buttons. Each opens as a popover with a fine pointer and as a sheet with a
+coarse one. The
 listings and selections are store state, in `workspace/scriptsListing.ts`,
 `workspace/scriptsSelection.ts`, `workspace/assetsListing.ts` and
 `workspace/assetsSelection.ts`. A deleted file is moved to the project's Recycle bin
