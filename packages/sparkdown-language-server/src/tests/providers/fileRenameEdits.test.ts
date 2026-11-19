@@ -53,9 +53,9 @@ describe("renaming a picture's file name", () => {
     const sad = `${ROOT}imani face.sad.png`;
     const { workspace, program } = setup([`${ROOT}imani.png`, happy, sad, `${ROOT}imani@night.png`]);
     expect(renames(getFileRenameEdits(workspace, program, happy, "zadie")).sort()).toEqual([
-      ["imani.png", "zadie.png"],
       ["imani face.happy.png", "zadie face.happy.png"],
       ["imani face.sad.png", "zadie face.sad.png"],
+      ["imani.png", "zadie.png"],
     ]);
   });
 
