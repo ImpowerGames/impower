@@ -155,7 +155,7 @@ describe("a layer's picture travels to a framing with animate … to (I-2481)", 
     expect(portraitIds.size).toBeGreaterThan(0);
     const mark = h.messages.length;
     const sixth = h.nextBeat()!;
-    expect(sixth.image?.portrait).toEqual([expect.objectContaining({ control: "animate", to: "sofa" })]);
+    expect(sixth.image?.["portrait"]).toEqual([expect.objectContaining({ control: "animate", to: "sofa" })]);
     await h.display(sixth, false);
     await flushMicrotasks();
     const sent = flattenMessages(h.messages.slice(mark));
