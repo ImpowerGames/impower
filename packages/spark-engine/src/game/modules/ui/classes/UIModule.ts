@@ -212,6 +212,7 @@ type ImagePick = string | ((layer: ImageLayer) => string | undefined);
 interface PictureView {
   framing?: PictureFraming;
   picture: boolean;
+  travelStart?: number;
 }
 
 interface Retirement {
@@ -4862,12 +4863,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const existed = Boolean($._state.image[target]);
           $._state.image[target] ??= [];
           let state = $._state.image[target];
+          let travelStart = -Infinity;
           for (const event of sequence) {
             const targetingContent = Boolean(event.assets?.length);
             if (!targetingContent && event.control === "animate" && event.to) {
               const shown = state.findLast((e) => e.control === "show" && e.assets?.length);
-              if (shown) {
+              const start = event.after ?? 0;
+              if (shown && start >= travelStart) {
                 shown.at = event.to;
+                travelStart = start;
               }
               if (!event.with) {
                 continue;
@@ -4875,6 +4879,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
             if (targetingContent) {
               if (event.control === "show") {
+                travelStart = -Infinity;
                 state = state.filter(
                   (e) => !(e.control === "hide" && !e.assets?.length),
                 );
@@ -4896,6 +4901,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               });
             } else {
               if (event.control === "hide") {
+                travelStart = -Infinity;
                 for (const e of state) {
                   delete e.at;
                 }
@@ -4955,10 +4961,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return e.control === "show" ? { framing: $.getFraming(e.at), picture: true } : view;
         }
         if (e.control === "hide") {
-          return { ...view, framing: undefined };
+          return { picture: view.picture };
         }
         if (e.control === "animate" && e.to && view.picture) {
-          return { ...view, framing: $.getFraming(e.to) };
+          const start = e.after ?? 0;
+          return start >= (view.travelStart ?? -Infinity)
+            ? { picture: true, framing: $.getFraming(e.to), travelStart: start }
+            : view;
         }
         return view;
       }
@@ -4982,8 +4991,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const framing = view.framing;
           const out: WriteImageInstruction = { control: e.control };
           if (e.control === "animate" && e.to && view.picture && !e.assets?.length) {
+            const destination = $.getFraming(e.to);
             out.travel = {
-              ...(framing ? { framing } : {}),
+              ...(destination ? { framing: destination } : {}),
               timing: $.getTravelTiming(e, instant),
             };
           }

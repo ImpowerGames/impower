@@ -146,6 +146,22 @@ scene delayed_redirect
   Redirected in two seconds.
 end
 
+scene out_of_order
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 2s after 4s ease linear]][[animate backdrop to sofa over 4s after 2s ease linear]]
+  Moving.
+  [[show backdrop]]
+  Shown while it travels.
+end
+
+scene crossed
+  [[show backdrop BG at right]]
+  Placed.
+  [[animate backdrop to left over 4s after 1.01s ease linear]][[animate backdrop to sofa over 4s after 1s ease linear]]
+  Moving.
+end
+
 scene later
   [[show backdrop BG at right]]
   [[show portrait P]]
@@ -397,6 +413,37 @@ describe("a layer's picture travels to a framing (I-2481)", () => {
     expect(viewOf(backdrop!)).toEqual({ progress: 0.5, from: THREE_QUARTERS_TO_LEFT, to: RIGHT });
     await advance(1000);
     expect(placed(backdrop!)).toEqual(RIGHT);
+  });
+
+  test("travels written out of start order take effect in start order, and a show keeps both", async () => {
+    const h = await start("out_of_order");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    await advance(2000);
+    await advance(1000);
+    expect(viewOf(backdrop!)).toEqual({ progress: 0.25, from: RIGHT, to: SOFA });
+    await play(h, false);
+    expect(viewOf(backdrop!)).toEqual({ progress: 0.25, from: RIGHT, to: SOFA });
+    await advance(1000);
+    await advance(1000);
+    expect(viewOf(backdrop!)).toMatchObject({ progress: 0.5, to: LEFT });
+    await advance(1000);
+    expect(placed(backdrop!)).toEqual(LEFT);
+  });
+
+  test("two travels whose starts fall in one frame take effect in start order", async () => {
+    const h = await start("crossed");
+    await play(h, true);
+    await play(h, false);
+    const [backdrop] = pictureEls(h.overlay, "backdrop");
+    await advance(990);
+    await advance(30);
+    const running = travelsOf(backdrop!).filter((a) => a.playState === "running");
+    expect(running).toHaveLength(1);
+    expect(keyframesOf(running[0]!).at(-1)).toEqual(LEFT);
+    await advance(4000);
+    expect(placed(backdrop!)).toEqual(LEFT);
   });
 
   test("two travels on one line run only the last, from the view on screen", async () => {

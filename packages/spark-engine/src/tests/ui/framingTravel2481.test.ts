@@ -178,6 +178,26 @@ describe("a layer's picture travels to a framing with animate … to (I-2481)", 
     expect(firstLetter("[[animate backdrop to sofa wait]]").after ?? 0).toBe(0);
   });
 
+  it("of two to on one line, the one that starts last sets the framing, whatever their order", async () => {
+    const source = `${SOFA_FRAMING}
+scene start
+  [[show backdrop bg at right]]
+  One.
+  [[animate backdrop to left over 2s after 4s]][[animate backdrop to sofa over 4s after 2s]]
+  Two.
+  [[animate backdrop to sofa over 1s after 1s]][[animate backdrop to left over 1s after 1s]]
+  Three.
+end
+`;
+    const h = await after(2, false, createHarness(source, 0, { assets: ASSETS }));
+    const [toLeft, toSofa] = lastWrite(h, "backdrop")!.instructions;
+    expect(toLeft.travel.framing).toEqual(LEFT);
+    expect(toSofa.travel.framing).toEqual(SOFA);
+    expect(await restored(h, "backdrop")).toEqual([LEFT]);
+    const tied = await after(3, false, createHarness(source, 0, { assets: ASSETS }));
+    expect(await restored(tied, "backdrop")).toEqual([LEFT]);
+  });
+
   it("the framing the layer is going to survives as the layer's state", async () => {
     const h = await after(1);
     expect(await restored(h, "backdrop")).toEqual([RIGHT]);

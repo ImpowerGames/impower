@@ -87,6 +87,7 @@ export interface PlayedTravel {
 interface Travel extends PlayedTravel {
   from: PictureView;
   to: PictureView;
+  startsAt: number;
 }
 
 interface ScheduledTravel extends PlayedTravel {
@@ -98,6 +99,11 @@ const travels = new WeakMap<Element, Travel>();
 const scheduled = new WeakMap<Element, ScheduledTravel[]>();
 
 const resting = new WeakMap<Element, PictureView>();
+
+const startOf = (el: Element, travel: PlayedTravel): number => {
+  const start = travel.animation.startTime ?? el.ownerDocument.timeline?.currentTime ?? 0;
+  return Number(start) + Number(travel.animation.effect?.getTiming().delay ?? 0);
+};
 
 export const pictureViewOf = (el: Element): PictureView => {
   const rest = resting.get(el) ?? getPictureView(undefined);
@@ -149,7 +155,12 @@ export const endTravelsWithin = (root: Element) => {
 };
 
 const headingTo = (el: Element): PictureView | undefined => {
-  const last = scheduled.get(el)?.at(-1);
+  let last: ScheduledTravel | undefined;
+  for (const travel of scheduled.get(el) ?? []) {
+    if (!last || startOf(el, travel) >= startOf(el, last)) {
+      last = travel;
+    }
+  }
   if (last) {
     return last.to;
   }
@@ -188,7 +199,12 @@ export const haltPicture = (el: HTMLElement) => {
   writePlacement(el, getViewPlacement(view));
 };
 
-const beginTravel = (el: HTMLElement, to: PictureView, play: (keyframes: Keyframe[]) => PlayedTravel | undefined) => {
+const beginTravel = (
+  el: HTMLElement,
+  to: PictureView,
+  play: (keyframes: Keyframe[]) => PlayedTravel | undefined,
+  startsAt?: number,
+) => {
   const from = pictureViewOf(el);
   endCurrentTravel(el);
   resting.set(el, to);
@@ -197,7 +213,7 @@ const beginTravel = (el: HTMLElement, to: PictureView, play: (keyframes: Keyfram
   writePlacement(el, placement);
   const played = play([getViewPlacement(from), placement]);
   if (played) {
-    travels.set(el, { ...played, from, to });
+    travels.set(el, { ...played, from, to, startsAt: startsAt ?? startOf(el, played) });
   }
 };
 
@@ -222,15 +238,35 @@ export const scheduleTravel = (
     if (!waiting.includes(pending)) {
       return;
     }
-    const rest = waiting.filter((other) => other !== pending);
-    if (rest.length > 0) {
-      scheduled.set(el, rest);
+    const startsAt = startOf(el, pending);
+    const order = waiting.indexOf(pending);
+    const later = waiting.filter((other, index) => {
+      const otherStart = startOf(el, other);
+      return otherStart > startsAt || (otherStart === startsAt && index > order);
+    });
+    for (const other of waiting) {
+      if (other !== pending && !later.includes(other)) {
+        stop(other);
+      }
+    }
+    if (later.length > 0) {
+      scheduled.set(el, later);
     } else {
       scheduled.delete(el);
     }
-    beginTravel(el, pending.to, (keyframes) => {
-      (pending.animation.effect as KeyframeEffect | null)?.setKeyframes(keyframes);
-      return pending;
-    });
+    const current = travels.get(el);
+    if (current && current.startsAt > startsAt) {
+      stop(pending);
+      return;
+    }
+    beginTravel(
+      el,
+      pending.to,
+      (keyframes) => {
+        (pending.animation.effect as KeyframeEffect | null)?.setKeyframes(keyframes);
+        return pending;
+      },
+      startsAt,
+    );
   };
 };
