@@ -2997,6 +2997,8 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "object",
                   "$type": "style",
                   "height": "100%",
+                  "max_height": "none",
+                  "max_width": "none",
                   "object_fit": "cover",
                   "visibility": "hidden",
                 },

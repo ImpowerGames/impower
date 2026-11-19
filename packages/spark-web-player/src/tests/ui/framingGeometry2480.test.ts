@@ -92,7 +92,7 @@ afterAll(async () => {
   await browser?.close();
 });
 
-async function rendered(beats: number, layer: "backdrop" | "portrait" = "backdrop") {
+async function rendered(beats: number, layer: "backdrop" | "portrait" = "backdrop", hostStyle = "") {
   const h = createDOMHarness(SOURCE);
   await h.ready;
   h.jumpTo("start");
@@ -115,7 +115,7 @@ async function rendered(beats: number, layer: "backdrop" | "portrait" = "backdro
     route.fulfill({ contentType: "image/svg+xml", body: svg(route.request().url().includes("panorama") ? 2000 : 400) }),
   );
   await page.setContent(
-    `<style>body{margin:0}spark-web-player{display:block}#game{position:relative;width:400px;height:200px}</style>${styles}<spark-web-player><div id="game">${contents.join("")}</div></spark-web-player>`,
+    `${hostStyle}<style>body{margin:0}spark-web-player{display:block}#game{position:relative;width:400px;height:200px}</style>${styles}<spark-web-player><div id="game">${contents.join("")}</div></spark-web-player>`,
   );
   await page.locator("img").evaluateAll((imgs) => Promise.all(imgs.map((img) => (img as HTMLImageElement).decode())));
   return page;
@@ -233,6 +233,28 @@ describe("a layer's picture placed at its framing, as Chromium lays it out (I-24
     const page = await rendered(5);
     const { layer, picture } = (await measure(page))[0]!;
     expect(picture.width).toBeCloseTo(800, 1);
+    expect(picture.left + picture.width).toBeCloseTo(layer.left + layer.width, 1);
+    await page.close();
+  });
+});
+
+const VSCODE_WEBVIEW_DEFAULTS = "<style>@layer vscode-default { img, video { max-width: 100%; max-height: 100%; } }</style>";
+
+describe("a layer's picture placed at its framing inside a VS Code webview, whose default styles cap images at their box (I-2482)", () => {
+  test("at right a picture keeps the size the layer draws it and sits on the layer's right edge", async () => {
+    const page = await rendered(3, "backdrop", VSCODE_WEBVIEW_DEFAULTS);
+    const { layer, picture } = (await measure(page))[0]!;
+    expect(picture.width).toBeCloseTo(800, 1);
+    expect(picture.height).toBeCloseTo(200, 1);
+    expect(picture.left + picture.width).toBeCloseTo(layer.left + layer.width, 1);
+    await page.close();
+  });
+
+  test("a layered picture is as wide as its widest layer and sits on the layer's right edge at right", async () => {
+    const page = await rendered(5, "backdrop", VSCODE_WEBVIEW_DEFAULTS);
+    const { layer, picture } = (await measure(page))[0]!;
+    expect(picture.width).toBeCloseTo(800, 1);
+    expect(picture.height).toBeCloseTo(200, 1);
     expect(picture.left + picture.width).toBeCloseTo(layer.left + layer.width, 1);
     await page.close();
   });

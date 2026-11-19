@@ -675,6 +675,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
@@ -3212,6 +3214,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
@@ -5715,6 +5719,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
@@ -8336,6 +8342,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
@@ -10820,6 +10828,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
@@ -13288,6 +13298,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
@@ -15800,6 +15812,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
@@ -18542,6 +18556,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
@@ -21284,6 +21300,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
@@ -24026,6 +24044,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
@@ -26768,6 +26788,8 @@ spark-web-player #game .image {
 }
 spark-web-player #game .object {
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   visibility: hidden;
 }
