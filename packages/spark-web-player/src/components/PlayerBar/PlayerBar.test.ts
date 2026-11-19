@@ -206,6 +206,13 @@ describe("PlayerBar controls", () => {
     expect($("#fullscreen-button")).not.toBeNull();
   });
 
+  it("lets the keyboard reach the fullscreen toggle as a named button", () => {
+    const $ = mount({ state: initialPlayerBarState, controls: { fullscreen: true } });
+    const toggle = $("#fullscreen-button") as HTMLElement;
+    expect(toggle.tabIndex).toBe(0);
+    expect(toggle.getAttribute("aria-label")).toBe("Fullscreen");
+  });
+
   it("disables each skip at its end of the run history with the history's reason", () => {
     const history = (canRollBack: boolean, canRollForward: boolean) => ({
       canRollBack,
