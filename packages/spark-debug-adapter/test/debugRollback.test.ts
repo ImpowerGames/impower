@@ -12,7 +12,10 @@ const moved = (beat: number, held: boolean, run = 1) => ({
   run,
 });
 
-const session = (answers: Record<string, unknown> = {}) => {
+const session = (
+  answers: Record<string, unknown> = {},
+  syncCursorToExecution = false,
+) => {
   const sent: { method: string; params: unknown }[] = [];
   const events: { event: string; body?: any }[] = [];
   const responses: any[] = [];
@@ -33,7 +36,7 @@ const session = (answers: Record<string, unknown> = {}) => {
         return answers[message.method] ?? moved(0, true);
       },
     } as any,
-    { syncCursorToExecution: false },
+    { syncCursorToExecution },
   );
   debug.sendResponse = (response: any) => responses.push(response);
   debug.sendEvent = (event: any) => events.push(event);
@@ -163,6 +166,58 @@ describe("rolling a debug run back and forward", () => {
     });
     await following();
     await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
+    expect(stops()).toEqual([]);
+  });
+
+  it("stops at the restored beat on Step Back from a run awaiting a click, when the client follows execution", async () => {
+    const { debug, following, response, stops } = session(
+      { "game/rollBack": moved(0, false) },
+      true,
+    );
+    await following();
+    await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
+    expect(stops()).toEqual(["awaiting interaction"]);
+  });
+
+  it("stops at the restored beat on Reverse Continue from a run awaiting a click, when the client follows execution", async () => {
+    const { debug, following, response, stops } = session(
+      { "game/rollBack": moved(0, false) },
+      true,
+    );
+    await following();
+    await debug.reverseContinueRequest(response("reverseContinue"), {
+      threadId: 0,
+    });
+    expect(stops()).toEqual(["awaiting interaction"]);
+  });
+
+  it("stops for a step, not a click, when a held run rolls and the client follows execution", async () => {
+    const { debug, following, response, stops } = session({}, true);
+    await following();
+    await debug.reverseContinueRequest(response("reverseContinue"), {
+      threadId: 0,
+    });
+    expect(stops()).toEqual(["step"]);
+  });
+
+  it("does not stop for a roll that did not move, when the client follows execution", async () => {
+    const { debug, following, response, stops } = session(
+      { "game/rollBack": { moved: false, reason: NOTHING_BEFORE, history: {}, held: false } },
+      true,
+    );
+    await following();
+    await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
+    expect(stops()).toEqual([]);
+  });
+
+  it("does not stop on Reverse Continue of a playing run when the client does not follow execution", async () => {
+    const { debug, following, response, stops } = session({
+      "game/rollBack": moved(0, false),
+    });
+    await following();
+    await debug.reverseContinueRequest(response("reverseContinue"), {
+      threadId: 0,
+    });
     expect(stops()).toEqual([]);
   });
 
