@@ -1,5 +1,5 @@
 import { clock } from "@impower/impower-ui/components";
-import { isWritableImageName } from "@impower/sparkdown/src/attributes/imageFileName";
+import { assetNameOf, isWritableImageName } from "@impower/sparkdown/src/attributes/imageFileName";
 import { addMenuKindsOf, type AddMenuFolders, type AddMenuKind } from "./addMenuFolders";
 import { endingOf, type AssetType } from "./assetTypes";
 import { bytesLabel, plural } from "./fileListModel";
@@ -142,8 +142,11 @@ export const NOT_USED_VARIANTS_NOTE =
 export const UNWRITABLE_NAME_NOTE =
   "Nothing shows it yet. A script can't write this name: an @ must sit between two letters, digits or _, and a name can't start with ~. Rename the file to use it.";
 
-export const notUsedNote = (asset: Pick<InspectedAsset, "name" | "type">, stack: boolean): string =>
-  asset.type === "image" && !isWritableImageName(asset.name)
+const writableNamesOf = (asset: Pick<InspectedAsset, "name" | "link" | "files">): string[] =>
+  asset.link || !asset.files.length ? [asset.name] : asset.files.map((file) => assetNameOf(file.path, "image"));
+
+export const notUsedNote = (asset: Pick<InspectedAsset, "name" | "type" | "link" | "files">, stack: boolean): string =>
+  asset.type === "image" && !writableNamesOf(asset).some(isWritableImageName)
     ? UNWRITABLE_NAME_NOTE
     : stack
       ? NOT_USED_VARIANTS_NOTE
