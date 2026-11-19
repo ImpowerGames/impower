@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../morph/bake";
-import { parseMorphEasing } from "../../morph/easing";
+import { firstMorphEasingReach, parseMorphEasing } from "../../morph/easing";
 import { morphFrameState, morphPosesAt, renderMorphAt, renderMorphFrame } from "../../morph/render";
-import { MorphTimeline, morphRandom } from "../../morph/timeline";
+import { MorphTimeline, morphRandom, morphReplayStretch } from "../../morph/timeline";
 import type { MorphReplay, MorphTiming } from "../../morph/types";
 import { blink, CLOSED, portrait } from "./fixtures";
 
@@ -342,6 +342,49 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     expect(timeline.at(0.41)).toMatchObject({ phase: "playing", play: 0 });
     expect(timeline.at(0.46)).toMatchObject({ phase: "playing", play: 1 });
     expect(offsetAt(timeline, 0.46)).toBeCloseTo(0.01 / 0.3, 9);
+  });
+
+  test("a reversed play meets its pauses in the reverse of the order a forward play meets them", () => {
+    const path = replay({ start: 0.2, end: 0.7, count: 2, delay_min: 0.1, delay_max: 0.3 });
+    const forward = new MorphTimeline(timing({ duration: 1, replay: path }), scripted([0.1, 0.9]).random);
+    const reverse = new MorphTimeline(timing({ duration: 1, replay: path, direction: "reverse" }), scripted([0.1, 0.9]).random);
+    const length = 1 + 2 * 0.5 + 0.12 + 0.28;
+    expect(reverse.at(0.95)).toEqual({ phase: "playing", play: 0, offset: 0.7 });
+    for (let ms = 3; ms < length * 1000; ms += 7) {
+      expect(offsetAt(reverse, ms / 1000), `${ms} ms`).toBeCloseTo(offsetAt(forward, length - ms / 1000) as number, 9);
+    }
+    const speech = new MorphTimeline(timing({ trigger: "speech", duration: 1, replay: path, direction: "reverse" }), scripted([0.1, 0.9]).random);
+    speech.speak([[0, 1.5]], 0);
+    expect(speech.at(1)).toEqual({ phase: "playing", play: 0, offset: 0.7 });
+    expect(offsetAt(speech, 1.6)).toBeCloseTo(0.18, 9);
+    expect(offsetAt(speech, 1.75)).toBeCloseTo(0.03, 9);
+    expect(speech.at(1.79)).toEqual({ phase: "off" });
+  });
+
+  test("the turning moments are the first the eased position reaches each position, however briefly", () => {
+    const spike = "linear(0 0% 25%, 1 25.01%, 0 25.02%, 1 100%)";
+    const found = morphReplayStretch(spike, 0.2, 0.8)!;
+    expect(found.from).toBeCloseTo(0.25002, 9);
+    expect(found.to).toBeCloseTo(0.25008, 9);
+    const timeline = new MorphTimeline(timing({ duration: 1, easing: spike, replay: replay({ start: 0.2, end: 0.8, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
+    expect(timeline.at(0.27)).toEqual({ phase: "playing", play: 0, offset: 0.8 });
+    for (const easing of ["cubic-bezier(0.3, 1.8, 0.7, -0.8)", "cubic-bezier(0.2, -0.6, 0.8, 1.6)", "ease-in-out", "steps(4, jump-both)", spike]) {
+      const ease = parseMorphEasing(easing)!;
+      const clamped = (x: number) => Math.max(0, Math.min(1, ease(x)));
+      for (const position of [0.1, 0.35, 0.6, 0.9]) {
+        const x = firstMorphEasingReach(easing, position);
+        let scanned = 1;
+        for (let i = 0; i <= 200000; i++) {
+          if (clamped(i / 200000) >= position) {
+            scanned = i / 200000;
+            break;
+          }
+        }
+        expect(clamped(x), `${easing} @ ${position}`).toBeGreaterThanOrEqual(position);
+        expect(x, `${easing} @ ${position}`).toBeLessThanOrEqual(scanned);
+        expect(scanned - x, `${easing} @ ${position}`).toBeLessThan(1 / 200000);
+      }
+    }
   });
 
   test("a stretch that takes no time under the easing makes no replay and draws nothing", () => {

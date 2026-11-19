@@ -873,8 +873,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (playable && playable.chance > 0) {
       const easingText =
         isRecord(effectiveTiming) && typeof effectiveTiming["easing"] === "string" ? effectiveTiming["easing"] : MORPH_TIMING_DEFAULTS.easing;
-      const easing = parseMorphEasing(easingText);
-      if (easing && !morphReplayStretch(easing, playable.start, playable.end)) {
+      if (parseMorphEasing(easingText) && !morphReplayStretch(easingText, playable.start, playable.end)) {
         report(
           [],
           `Under \`easing = ${easingText}\` this play reaches \`end\` at the same moment as \`start\`, so the stretch between them takes no time and the play never replays. Move \`start\` and \`end\` onto different steps.`,

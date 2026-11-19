@@ -1,4 +1,4 @@
-import { parseMorphEasing, type MorphEasing } from "./easing";
+import { firstMorphEasingReach, parseMorphEasing, type MorphEasing } from "./easing";
 import { hashText } from "./hash";
 import type { MorphReplay, MorphTiming } from "./types";
 
@@ -21,29 +21,9 @@ export function morphRandom(seed: string): () => number {
 
 const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 
-const GRID = 1024;
-
-function firstReaching(easing: MorphEasing, position: number): number {
-  if (position <= 0) return 0;
-  if (position >= 1) return 1;
-  const reaches = (x: number) => clamp01(easing(x)) >= position;
-  let i = 0;
-  while (i <= GRID && !reaches(i / GRID)) i++;
-  if (i === 0) return 0;
-  if (i > GRID) return 1;
-  let lo = (i - 1) / GRID;
-  let hi = i / GRID;
-  for (;;) {
-    const mid = (lo + hi) / 2;
-    if (mid <= lo || mid >= hi) return hi;
-    if (reaches(mid)) hi = mid;
-    else lo = mid;
-  }
-}
-
-export function morphReplayStretch(easing: MorphEasing, start: number, end: number): { from: number; to: number } | undefined {
-  const from = firstReaching(easing, start);
-  const to = firstReaching(easing, end);
+export function morphReplayStretch(easing: string, start: number, end: number): { from: number; to: number } | undefined {
+  const from = firstMorphEasingReach(easing, start);
+  const to = firstMorphEasingReach(easing, end);
   return to > from ? { from, to } : undefined;
 }
 
@@ -92,7 +72,7 @@ export class MorphTimeline {
     }
     const replay = timing.replay?.[0];
     if (replay && replay.chance > 0 && replay.count >= 1) {
-      const found = morphReplayStretch(this.easing, replay.start, replay.end);
+      const found = morphReplayStretch(timing.easing, replay.start, replay.end);
       if (found) this.stretch = { ...found, hold: replay.end, replay };
     }
     if (timing.trigger !== "speech" && this.duration > 0 && this.plays > 0) this.schedule(this.delay);
@@ -120,7 +100,9 @@ export class MorphTimeline {
   }
 
   protected schedule(start: number): Play {
-    const play: Play = { start, pauses: this.drawPauses(), settled: 0, gap: 0 };
+    const pauses = this.drawPauses();
+    if (this.directed(this.runs.length, 0) === 1) pauses.reverse();
+    const play: Play = { start, pauses, settled: 0, gap: 0 };
     this.runs.push(play);
     return play;
   }
