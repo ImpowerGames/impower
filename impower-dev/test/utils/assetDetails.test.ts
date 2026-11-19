@@ -146,6 +146,9 @@ describe("the inspector's head", () => {
     expect(NOT_USED_NOTES.audio).toBe("Nothing plays it yet.");
     expect(NOT_USED_NOTES.font).toBe("No style uses it yet.");
     expect(NOT_USED_NOTES.other).toBe("Nothing in the story refers to it.");
+    expect(UNWRITABLE_NAME_NOTE).toBe(
+      "Nothing shows it yet. A script can't write this name: an @ must sit between two letters, digits or _, and a name can't start with ~. Rename the file to use it.",
+    );
   });
 
   it.each(["@foo", "foo@", "@", "~foo", "a@@b", "a@-b"])(
@@ -160,6 +163,9 @@ describe("the inspector's head", () => {
   it("keeps the copy hint for an unused image whose name a script can write", () => {
     expect(notUsedNote(asset("Assets/Images/bar.png", "image"), false)).toBe(NOT_USED_NOTES.image);
     expect(notUsedNote(asset("Assets/Images/ava@night.png", "image", { name: "ava@night" }), false)).toBe(
+      NOT_USED_NOTES.image,
+    );
+    expect(notUsedNote(asset("Assets/Images/foo_@bar.png", "image", { name: "foo_@bar" }), false)).toBe(
       NOT_USED_NOTES.image,
     );
     expect(notUsedNote(asset("Assets/Images/ava.png", "image", { name: "ava" }), true)).toBe(NOT_USED_VARIANTS_NOTE);
