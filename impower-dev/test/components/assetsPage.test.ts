@@ -2140,7 +2140,7 @@ describe("the inspector of an asset that moves", () => {
     expect(sheetState()).toBe("open");
     expect(title()).toBe("ava");
     expect(frameSrc()).toBe(`/src/${P}/ava.png`);
-    expect(watchedFiles()).toEqual([`${P}/ava.png`, `${P}/ava@night.png`, `${P}/ava face.happy.png`]);
+    expect(watchedFiles()).toEqual([`${P}/ava face.happy.png`, `${P}/ava.png`, `${P}/ava@night.png`]);
     expect(workspace.current.lists?.assetsFolders?.image).toBe(P);
   });
 
