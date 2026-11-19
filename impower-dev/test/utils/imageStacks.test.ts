@@ -182,8 +182,8 @@ describe("a folder stack", () => {
     const [imani] = imageStacks(["A/imani.png", "A/imani@night.png", "A/imani@night face.sad default.png"]);
     expect(imani!.members).toEqual([
       { path: "A/imani.png", alternate: null },
-      { path: "A/imani@night.png", alternate: "night" },
       { path: "A/imani@night face.sad default.png", alternate: "night", layer: "face.sad default" },
+      { path: "A/imani@night.png", alternate: "night" },
     ]);
   });
 

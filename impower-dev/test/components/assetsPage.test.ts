@@ -521,10 +521,10 @@ describe("image folders as tiles", () => {
     expect(inspector.querySelector("header small")!.textContent).toBe("Image · 4 variants");
     expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/100");
     expect(assets.watchFacts.mock.calls.at(-1)![0]).toEqual([
-      "Assets/Images/Portraits/imani.png",
-      "Assets/Images/Portraits/imani@night.png",
-      "Assets/Images/Portraits/imani@night face.sad.png",
       "Assets/Images/Portraits/imani face.happy.png",
+      "Assets/Images/Portraits/imani.png",
+      "Assets/Images/Portraits/imani@night face.sad.png",
+      "Assets/Images/Portraits/imani@night.png",
     ]);
   });
 
@@ -1994,7 +1994,7 @@ describe("the inspector of an asset that moves", () => {
   const at = (path: string, size: number) => ({ ...facts(size), src: `/src/${path}` });
   const belongs = (path: string, cover: string) =>
     folderOf(path) === folderOf(cover) &&
-    (path === cover || (leaf(path).startsWith(stem(cover)) && /^[@~]/.test(leaf(path).slice(stem(cover).length))));
+    (path === cover || (leaf(path).startsWith(stem(cover)) && /^[@ ]/.test(leaf(path).slice(stem(cover).length))));
   const moveFiles = (moves: readonly { from: string; to: string }[]) => {
     const { files, folders } = workspace.assetListing.value!;
     const next = { ...files };
@@ -2054,7 +2054,7 @@ describe("the inspector of an asset that moves", () => {
     expect(title()).toBe("ava");
     expect(inspector()!.querySelector("header small")!.textContent).toBe("Image · 3 variants");
     expect(frameSrc()).toBe(`/src/${P}/Cast/ava.png`);
-    expect(watchedFiles()).toEqual([`${P}/Cast/ava.png`, `${P}/Cast/ava@night.png`, `${P}/Cast/ava face.happy.png`]);
+    expect(watchedFiles()).toEqual([`${P}/Cast/ava face.happy.png`, `${P}/Cast/ava.png`, `${P}/Cast/ava@night.png`]);
     expect(workspace.current.lists?.assetsFolders?.image).toBe(`${P}/Cast`);
     expect(host!.querySelector(`[data-asset-path="${P}/Cast/ava.png"]`)).not.toBeNull();
   };

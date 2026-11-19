@@ -93,7 +93,7 @@ describe("the Assets page groups image files by the compiler's file-name rule", 
 });
 
 describe("a file whose @ or ~ has nothing on one side (#2262)", () => {
-  const PATHS = [`${P}/@foo.png`, `${P}/foo@.png`, `${P}/@.png`, `${P}/ foo.png`];
+  const PATHS = [`${P}/@foo.png`, `${P}/foo@.png`, `${P}/@.png`, `${P}/~foo.png`];
 
   it("is a plain tile of one picture named as the compiler names it, with no alternate or variants", () => {
     const stacks = imageStacks(PATHS);

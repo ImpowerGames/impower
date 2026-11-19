@@ -21,7 +21,7 @@ it("warns about corroborated close spellings rather than every one-off option",(
 const raster=(name:string)=>({uri:"file:///project/assets/mia/"+name,type:"image" as const,name,ext:"png",src:"/"+name});
 it("reports unnumbered siblings only in recognized raster folders",()=>{
  expect(createRasterImageDefinitions([raster("body.png")]).diagnostics).toEqual([]);
- expect(createRasterImageDefinitions([raster("90 body.png"),raster("face.png")]).diagnostics).toEqual([expect.objectContaining({uri:raster("face.png").uri,folder:"mia",message:expect.stringContaining("NN_face.png")})]);
+ expect(createRasterImageDefinitions([raster("90 body.png"),raster("face.png")]).diagnostics).toEqual([expect.objectContaining({uri:raster("face.png").uri,folder:"mia",message:expect.stringContaining('"NN face.png"')})]);
 });
 const compile=(text:string,files:any[])=>{const uri="file:///project/main.sd";const c=new SparkdownCompiler();c.configure({files:[{uri,type:"script",name:"main",ext:"sd",version:1,languageId:"sparkdown",text},...files]});return c.compile({textDocument:{uri}}).program;};
 const message=(d:any)=>typeof d.message==="string"?d.message:d.message.value;
@@ -33,8 +33,8 @@ it("routes unused artwork warnings once to the asset with unique hierarchy paths
 });
 it("suppresses automatic raster naming warnings for explicit layered image overrides",()=>{
  const files=[raster("90 body.png"),raster("face.png")];
- expect(compile("",files).diagnostics?.[files[1]!.uri]?.some(d=>message(d).includes("NN_face.png"))).toBe(true);
- expect(compile('define mia as layered_image with\n assets = {}\nend\n',files).diagnostics?.[files[1]!.uri]?.some(d=>message(d).includes("NN_face.png"))).not.toBe(true);
+ expect(compile("",files).diagnostics?.[files[1]!.uri]?.some(d=>message(d).includes('"NN face.png"'))).toBe(true);
+ expect(compile('define mia as layered_image with\n assets = {}\nend\n',files).diagnostics?.[files[1]!.uri]?.some(d=>message(d).includes('"NN face.png"'))).not.toBe(true);
 });
 
 it("keeps selection warnings at the script and links their source artwork",()=>{

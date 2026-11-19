@@ -352,7 +352,11 @@ export default class WorkspaceAssets {
     return this.importAt(files, (file) => {
       const folders = storageSegments(file.name);
       const leaf = folders.pop() ?? "";
-      const name = keepNames ? leaf : getValidFileName(leaf);
+      const name = keepNames
+        ? leaf
+        : assetTypeOf(leaf, endings) === "image"
+          ? leaf.split(" ").map(getValidFileName).join(" ")
+          : getValidFileName(leaf);
       const home = isScriptPath(name) ? scripts : landingFolder(listing, assetTypeOf(name, endings), folder);
       return [home, ...folders, name].filter(Boolean).join("/");
     });

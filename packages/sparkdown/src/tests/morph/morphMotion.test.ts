@@ -211,7 +211,7 @@ describe("baking secondary states and layer motion", () => {
     expect(Object.keys(artifact.visibility["brows"]!).sort()).toEqual(["down", "up"]);
     expect(movedLabels(artifact)).toEqual(["eyebrows", "nose"]);
     expect(artifact.parts.map((p) => p.kind)).toEqual(["static", "live", "static", "live", "static", "live", "static"]);
-    const original = drawnNames(FACE).filter((name) => name !== "brow-left:brows.up-high");
+    const original = drawnNames(FACE).filter((name) => name !== "brow-left brows.up-high");
     const composed = artifact.parts.flatMap((p) => drawnNames(p.svg));
     expect(composed).toEqual(original);
     expect(artifact.parts.filter((p) => p.kind === "static").flatMap((p) => drawnNames(p.svg))).toEqual(["face", "cheek", "hair", "chin"]);
@@ -242,7 +242,7 @@ describe("baking secondary states and layer motion", () => {
     expect(artifact.status).toBe("live");
     expect(artifact.schedules["brows"]!.map((e) => e.state)).toEqual(["up", "down", "up"]);
     expect(drawnNames(artifact.rest)).toContain("brow-left brows.up default");
-    expect(drawnNames(artifact.rest)).not.toContain("brow-left:brows.down");
+    expect(drawnNames(artifact.rest)).not.toContain("brow-left brows.down");
   });
 
   test("a look's own choice the morph does not name gives way to its rest: brows chosen up-high rest up", () => {
@@ -342,7 +342,7 @@ ${marks}
     const artifact = bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: "k3", variant: "trio" });
     expect(artifact.status).toBe("static");
     expect(artifact.diagnostics).toContainEqual(
-      expect.objectContaining({ code: "mixed-groups", layer: "combined:a.on:b.on:c.on", message: expect.stringContaining("`a.on` and `b.on` and `c.on` meet") }),
+      expect.objectContaining({ code: "mixed-groups", layer: "combined a.on b.on c.on", message: expect.stringContaining("`a.on` and `b.on` and `c.on` meet") }),
     );
     const plain = source.replace('<path data-name="combined a.on b.on c.on" d="M0,30H40V35H0Z"/>\n', "");
     expect(bakeMorphArtifact({ source: plain, selection: {}, recipes: [recipe], key: "k4", variant: "trio" }).status).toBe("live");

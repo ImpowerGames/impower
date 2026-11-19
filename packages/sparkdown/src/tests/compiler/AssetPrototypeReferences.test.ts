@@ -81,7 +81,7 @@ describe("prototype asset names at author reference boundaries (#1762)", () => {
   it.each(names)("reports an omitted raster layer in folder %s", name => {
     const omitted = asset(`${name}/extra.png`);
     const program = compile(`scene start\n  [[${name}]]\nend`, [asset(`${name}/90 body.png`), omitted]);
-    expect(messages(program, omitted.uri).some(m => m.includes("no numeric ordering prefix"))).toBe(true);
+    expect(messages(program, omitted.uri).some(m => m.includes("has no stacking number"))).toBe(true);
   });
 
   it.each(names)("keeps an explicit layered-image override named %s", name => {

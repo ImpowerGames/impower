@@ -286,7 +286,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(await h.history.undo()).toBe(false);
     expect(h.snackbar.value?.message).toBe(`Couldn't rename zadie: ${RENAMED[2]} is no longer there. Nothing was renamed.`);
     expect(h.history.canUndo.value).toBe(true);
-    expect((await inPortraits(h)).filter((path) => path.includes("/zadie"))).toEqual([RENAMED[0], RENAMED[1], RENAMED[3]]);
+    expect((await inPortraits(h)).filter((path) => path.includes("/zadie"))).toEqual([RENAMED[0], RENAMED[1], RENAMED[3]].sort());
   });
 
   it("renames a same-name picture in another format and another folder with it, and says so", async () => {
@@ -693,14 +693,14 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
   it("names the file it could not put back after a failure", async () => {
     const h = await harness(project());
     let failed = false;
-    h.failCreating(RENAMED[3]!, () => (failed = true));
-    h.failCreating(STACK[1]!, () => failed);
+    h.failCreating(RENAMED[1]!, () => (failed = true));
+    h.failCreating(STACK[3]!, () => failed);
     const failure = h.assets.rename(STACK[0]!, "zadie");
     await expect(failure).rejects.toThrow(/^Couldn't rename imani: The storage is full; the edit was partly applied: /);
     await expect(failure).rejects.toThrow(
-      `Not put back: ${RENAMED[1]} (was ${STACK[1]}; putting it back failed: The storage is full).`,
+      `Not put back: ${RENAMED[3]} (was ${STACK[3]}; putting it back failed: The storage is full).`,
     );
-    expect(await h.paths()).toContain(RENAMED[1]);
+    expect(await h.paths()).toContain(RENAMED[3]);
     expect(h.history.canUndo.value).toBe(false);
   });
 });
@@ -711,7 +711,7 @@ describe("moving and deleting a stacked picture", { timeout: 120000 }, () => {
     await h.fs.createFolder(PROJECT, "Assets/Images/Cast");
     await h.assets.load();
     const moved = await h.assets.move([STACK[0]!], "Assets/Images/Cast");
-    expect(moved.map((move) => move.to)).toEqual(STACK.map((path) => path.replace(P, "Assets/Images/Cast")));
+    expect(moved.map((move) => move.to)).toEqual(STACK.map((path) => path.replace(P, "Assets/Images/Cast")).sort());
     expect(await inPortraits(h)).toEqual([`${P}/imani_extra.png`]);
     expect(await h.read("main.sd")).toBe(SCRIPT);
     expect(await h.history.undo()).toBe(true);
@@ -853,7 +853,7 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(await h.history.undo()).toBe(false);
     expect(await h.read("main.sd")).toBe(saved);
     expect(await inPortraits(h)).toEqual(expect.arrayContaining([`${P}/imani@dark.png`, `${P}/imani@dark face.sad.png`]));
-    expect(h.snackbar.value?.message).toMatch(/^Couldn't rename imani: .*imani@night~face\.sad\.png.*main\.sd/);
+    expect(h.snackbar.value?.message).toMatch(/^Couldn't rename imani: .*imani@night face\.sad\.png.*main\.sd/);
   });
 
   it("deletes one file to the bin and keeps the rest of the picture", async () => {
@@ -876,7 +876,7 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(h.history.canUndo.value).toBe(false);
   });
 
-  it("keeps the @ and ~ of a layer and an alternate file uploaded from the page", async () => {
+  it("keeps the @ and the space of a layer and an alternate file uploaded from the page", async () => {
     const h = await harness(project());
     const file = (name: string) => ({ name, getBuffer: async () => encode(name).buffer as ArrayBuffer });
     await h.assets.upload([file("imani hat.on.png"), file("imani@dusk.png")], P);
@@ -1162,10 +1162,10 @@ const MEMBER_RENAMES: MemberRename[] = [
     showsAfter: [],
   },
   {
-    row: "a name with nothing before its ~ ( foo.png): a plain picture of that name, renamed to drop the ~",
-    files: [" foo.png", "bar.png"],
+    row: "a name with nothing before its ~ (~foo.png): a plain picture of that name, renamed to drop the ~",
+    files: ["~foo.png", "bar.png"],
     shows: [],
-    rename: " foo.png",
+    rename: "~foo.png",
     role: "Base",
     to: "foo",
     after: ["bar.png", "foo.png"],

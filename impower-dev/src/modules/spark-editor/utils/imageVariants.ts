@@ -164,9 +164,16 @@ export interface FileRow {
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
+const stemOf = (leaf: string) => {
+  const dot = leaf.lastIndexOf(".");
+  return dot > 0 ? leaf.slice(0, dot) : leaf;
+};
+
+const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+
 export const fileRows = (stack: ImageStack, sizes: Readonly<Record<string, number>>): FileRow[] =>
   [...stack.members]
-    .sort((a, b) => leafOf(a.path).localeCompare(leafOf(b.path), undefined, { numeric: true, sensitivity: "base" }))
+    .sort((a, b) => byName(stemOf(leafOf(a.path)), stemOf(leafOf(b.path))) || byName(leafOf(a.path), leafOf(b.path)))
     .map((member) => ({
       path: member.path,
       name: leafOf(member.path),
