@@ -101,6 +101,10 @@ const RAW_CSS_KEYS = [
   "&:where(label)",
   "&:where(:not(label))",
   "&:is(label, input)",
+  "(min-width: sm)",
+  "&:where(label[hidden])",
+  '&:where([type="color"])',
+  "&:where([data-state=open])",
 ];
 
 const SELECTOR_LIST_KEYS: [key: string, components: string[]][] = [

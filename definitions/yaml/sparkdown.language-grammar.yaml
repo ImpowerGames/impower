@@ -4845,33 +4845,15 @@ repository:
           - { include: "#PunctuationParenClose" }
 
   SelectorSupportsSelectorFunction:
-    brackets: true
-    begin: (selector)([(])({{WS}}*)
+    begin: (selector)
     beginCaptures:
       1:
         patterns:
           - { include: "#SelectorCssWord" }
-      2:
-        patterns:
-          - { include: "#PunctuationParenOpen" }
-      3:
-        patterns:
-          - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
-      - { include: "#LuauSparkleElementClass" }
-      - { include: "#SelectorPropertyNamePart" }
-      - { include: "#ComponentName" }
-      - { include: "#PunctuationComma" }
-      - { include: "#IllegalChar" }
-    end: $|({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#PunctuationParenClose" }
+      - { include: "#RecursiveSelectorFunctionParameters" }
+    applyEndPatternLast: true
+    end: (?=$|.)
 
   SelectorAtRule:
     # lookaround: as for `SelectorScopeAtRule`, a longer state name
@@ -4979,6 +4961,7 @@ repository:
       - { include: "#LuauSparkleElementClass" }
       - { include: "#PunctuationComma" }
       - { include: "#SelectorCssWord" }
+      - { include: "#SelectorCssPunctuation" }
     end: $|({{WS}}*)([)])
     endCaptures:
       1:
@@ -5021,6 +5004,8 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#SelectorPropertyNamePart" }
+      - { include: "#SelectorCssWord" }
+      - { include: "#SelectorCssPunctuation" }
     end: $|({{WS}}*)(\])
     endCaptures:
       1:

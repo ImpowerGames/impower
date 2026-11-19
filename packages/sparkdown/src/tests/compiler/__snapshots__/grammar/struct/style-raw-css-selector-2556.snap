@@ -154,18 +154,22 @@ sparkdown [0..460]
  │   │       │   │   │   │               │   ├─ SelectorCssWord [108..111]: "and"
  │   │       │   │   │   │               │   ├─ Separator [111..112]: " "
  │   │       │   │   │   │               │   └─ SelectorSupportsSelectorFunction [112..126]
- │   │       │   │   │   │               │       ├─ SelectorSupportsSelectorFunction_begin [112..121]
- │   │       │   │   │   │               │       │   ├─ SelectorSupportsSelectorFunction_begin_c1 [112..120]
- │   │       │   │   │   │               │       │   │   └─ SelectorCssWord [112..120]: "selector"
- │   │       │   │   │   │               │       │   ├─ SelectorSupportsSelectorFunction_begin_c2 [120..121]
- │   │       │   │   │   │               │       │   │   └─ PunctuationParenOpen [120..121]: "("
- │   │       │   │   │   │               │       │   └─ SelectorSupportsSelectorFunction_begin_c3 121
- │   │       │   │   │   │               │       ├─ SelectorSupportsSelectorFunction_content [121..125]
- │   │       │   │   │   │               │       │   └─ CustomComponentName [121..125]: "icon"
- │   │       │   │   │   │               │       └─ SelectorSupportsSelectorFunction_end [125..126]
- │   │       │   │   │   │               │           ├─ SelectorSupportsSelectorFunction_end_c1 125
- │   │       │   │   │   │               │           └─ SelectorSupportsSelectorFunction_end_c2 [125..126]
- │   │       │   │   │   │               │               └─ PunctuationParenClose [125..126]: ")"
+ │   │       │   │   │   │               │       ├─ SelectorSupportsSelectorFunction_begin [112..120]
+ │   │       │   │   │   │               │       │   └─ SelectorSupportsSelectorFunction_begin_c1 [112..120]
+ │   │       │   │   │   │               │       │       └─ SelectorCssWord [112..120]: "selector"
+ │   │       │   │   │   │               │       ├─ SelectorSupportsSelectorFunction_content [120..126]
+ │   │       │   │   │   │               │       │   └─ RecursiveSelectorFunctionParameters [120..126]
+ │   │       │   │   │   │               │       │       ├─ RecursiveSelectorFunctionParameters_begin [120..121]
+ │   │       │   │   │   │               │       │       │   ├─ RecursiveSelectorFunctionParameters_begin_c1 [120..121]
+ │   │       │   │   │   │               │       │       │   │   └─ PunctuationParenOpen [120..121]: "("
+ │   │       │   │   │   │               │       │       │   └─ RecursiveSelectorFunctionParameters_begin_c2 121
+ │   │       │   │   │   │               │       │       ├─ RecursiveSelectorFunctionParameters_content [121..125]
+ │   │       │   │   │   │               │       │       │   └─ CustomComponentName [121..125]: "icon"
+ │   │       │   │   │   │               │       │       └─ RecursiveSelectorFunctionParameters_end [125..126]
+ │   │       │   │   │   │               │       │           ├─ RecursiveSelectorFunctionParameters_end_c1 125
+ │   │       │   │   │   │               │       │           └─ RecursiveSelectorFunctionParameters_end_c2 [125..126]
+ │   │       │   │   │   │               │       │               └─ PunctuationParenClose [125..126]: ")"
+ │   │       │   │   │   │               │       └─ SelectorSupportsSelectorFunction_end 126
  │   │       │   │   │   │               └─ SelectorSupportsAtRule_end 126
  │   │       │   │   │   └─ LuauStructBlock_begin_c2 [126..127]
  │   │       │   │   │       └─ Whitespace [126..127]: " "

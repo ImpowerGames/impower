@@ -7661,8 +7661,7 @@
       }
     },
     "SelectorSupportsSelectorFunction": {
-      "brackets": true,
-      "begin": "(selector)([(])((?:[^\\S\\n\\r])*)",
+      "begin": "(selector)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7670,59 +7669,15 @@
               "include": "#SelectorCssWord"
             }
           ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#PunctuationParenOpen"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
         }
       },
       "patterns": [
         {
-          "include": "#LuauComment"
-        },
-        {
-          "include": "#LuauSparkleElementClass"
-        },
-        {
-          "include": "#SelectorPropertyNamePart"
-        },
-        {
-          "include": "#ComponentName"
-        },
-        {
-          "include": "#PunctuationComma"
-        },
-        {
-          "include": "#IllegalChar"
+          "include": "#RecursiveSelectorFunctionParameters"
         }
       ],
-      "end": "$|((?:[^\\S\\n\\r])*)([)])",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#PunctuationParenClose"
-            }
-          ]
-        }
-      }
+      "applyEndPatternLast": true,
+      "end": "(?=$|.)"
     },
     "SelectorAtRule": {
       "begin": "([@])((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:container|layer|media|starting-style|starting_style|initial)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?!(?:[0-9_\\p{L}-]|[@][0-9_\\p{L}]))",
@@ -7909,6 +7864,9 @@
         },
         {
           "include": "#SelectorCssWord"
+        },
+        {
+          "include": "#SelectorCssPunctuation"
         }
       ],
       "end": "$|((?:[^\\S\\n\\r])*)([)])",
@@ -7983,6 +7941,12 @@
         },
         {
           "include": "#SelectorPropertyNamePart"
+        },
+        {
+          "include": "#SelectorCssWord"
+        },
+        {
+          "include": "#SelectorCssPunctuation"
         }
       ],
       "end": "$|((?:[^\\S\\n\\r])*)(\\])",

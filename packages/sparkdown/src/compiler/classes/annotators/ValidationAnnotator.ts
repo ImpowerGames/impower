@@ -430,7 +430,6 @@ const PAREN_CLOSED_LISTS = nodeNameSet([
   "SimpleSelectorFunctionParameters",
   "SelectorAtRuleGroup",
   "SelectorSupportsAtRuleGroup",
-  "SelectorSupportsSelectorFunction",
   "StylingFunctionParameters",
 ]);
 
