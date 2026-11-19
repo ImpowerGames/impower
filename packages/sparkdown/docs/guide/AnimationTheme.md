@@ -21,11 +21,19 @@ end
 
 Built-in animations: `fade`, `slide`, `shake`,
 `wavy`, `wave`, `spin`, `bounce`, and `ping`, plus the structural
-`show` / `hide`. To place a layer's picture at its left, centre or right, show
-it `at left`, `at center` or `at right`:
+`show` / `hide`.
+
+Pan and zoom are framings, not animations: see [Framings](./Framings.md). An
+animation is for an effect that plays and returns to rest, such as `shake`. A
+framing is a place the view of a layer's picture stays, so you show a picture
+`at` one and move it `to` another:
 
 ```sparkdown
-[[show backdrop bg_apartment at right]]
+scene start
+  [[show backdrop bg_apartment at right]]
+  [[animate backdrop to left over 5s]]
+  The view pans across the room.
+end
 ```
 
 You can also apply an animation to an element through the `animation` style prop
