@@ -133,8 +133,7 @@ end
 scene waited
   [[show backdrop BG at right]]
   Placed.
-  [[animate backdrop to left over 4s ease linear wait]]
-  [[animate backdrop to right over 2s ease linear]]
+  [[animate backdrop to left over 4s ease linear wait]][[animate backdrop to right over 2s ease linear]]
   There and back.
 end
 
