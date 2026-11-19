@@ -66,6 +66,10 @@ const STRINGS: [string, string][] = [
     'style card {\n  ("a b") {\n  }\n}',
   ],
   [
+    'style card {\n  @is("a  b") {\n  }\n}',
+    'style card {\n  @is("a b") {\n  }\n}',
+  ],
+  [
     'style card {\n  (#image="a  b") {\n  }\n}',
     'style card {\n  (#image="a b") {\n  }\n}',
   ],
@@ -102,6 +106,10 @@ const STRINGS: [string, string][] = [
   [
     "style card {\n  color = #ff0000\n}",
     "style card {\n  color = #ff0001\n}",
+  ],
+  [
+    "style card {\n  @media (min-width: sm) {\n  }\n}",
+    "style card {\n  @media (min-width: md) {\n  }\n}",
   ],
   [
     "style card {\n  color = rgb(1, 2,  3)\n}",
