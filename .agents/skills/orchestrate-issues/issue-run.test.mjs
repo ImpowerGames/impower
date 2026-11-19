@@ -928,7 +928,8 @@ try {
     const ran = [], fanned = [];
     const gh = run.githubClient({ repository: "acme/widgets" }, tmp, {
       run: (cmd, args) => { ran.push(args.join(" ")); return args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [{ name: "direct", conclusion: "SUCCESS" }] }) : "[[]]"; },
-      parallel: (jobs) => { fanned.push(...jobs.map(([, args]) => args.join(" "))); return jobs.map(([, args]) => ({ ok: true, stdout: args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [{ name: `batched ${args[2]}`, conclusion: "SUCCESS" }] }) : JSON.stringify([[{ number: 7, state: "open" }]]) })); },
+      parallel: (jobs) => { fanned.push(...jobs.map(([, args]) => args.join(" "))); return jobs.map(([, args]) => ({ ok: true, stdout: args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [{ name: `batched ${args[2]}`, conclusion: "SUCCESS" }] }) : `HTTP/2.0 200 OK\r\nEtag: W/"7"\r\n\r\n${JSON.stringify([{ number: 7, state: "open" }])}` })); },
+      cache: run.conditionalCache(path.join(tmp, "conditional-cache")),
     });
     gh.prefetch({ checks: [11, 12, 11], blockedBy: [5] });
     assert.equal(fanned.length, 3, "the prefetch fans out each distinct read once");
@@ -942,7 +943,7 @@ try {
     assert.equal(peak, 4, "the fan-out never runs more reads than its limit");
     assert.deepEqual([results[0], results[3], results.length], [{ ok: true, stdout: "out 0" }, { ok: false, stdout: "", stderr: "denied" }, 10], "results keep their order and a failed read is reported, not thrown");
     assert.deepEqual(runParallel([[process.execPath, ["-e", "process.stdout.write('real')"]], [process.execPath, ["-e", "process.exit(3)"]]], { cwd: tmp }).map((r) => [r.ok, r.stdout]), [[true, "real"], [false, ""]], "the worker process runs real commands and reports a failing one");
-    const failing =run.githubClient({ repository: "acme/widgets" }, tmp, { run: () => "[[{\"number\":9}]]", parallel: (jobs) => jobs.map(() => ({ ok: false, stdout: "", stderr: "x" })) });
+    const failing =run.githubClient({ repository: "acme/widgets" }, tmp, { run: () => "[[{\"number\":9}]]", parallel: (jobs) => jobs.map(() => ({ ok: false, stdout: "", stderr: "x" })), cache: run.conditionalCache(path.join(tmp, "conditional-cache-failing")) });
     failing.prefetch({ blockedBy: [5] });
     assert.deepEqual(failing.blockedBy(5), [{ number: 9 }], "a failed prefetch falls back to a direct read");  }
   assert.deepEqual(run.snapshotScope(snap).slices, ["#201 open", "#202 open", "#211 open", "#212 open", "#213 open", "#214 open", "#215 open", "#217 closed", "#221 open", "#222 open", "#223 open", "#224 open", "#226 open", "#227 open", "#228 open"]);
@@ -1081,7 +1082,8 @@ try {
   assert.deepEqual(run.startRepositories("acme/widgets", ON), { ticketsRepository: INTERNAL });
   assert.deepEqual(run.startRepositories("acme/other", ON), {}, "a repository the file does not name keeps its own tickets");
 
-  const ghCalls = (names, reply) => { const calls = []; return { calls, client: run.githubClient(names, checkout, { run: (cmd, args) => { calls.push(`${cmd} ${args.join(" ")}`); return reply(args); } }) }; };
+  const conditionalReply = (reply, args) => `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(JSON.parse(reply(["api", "--paginate", "--slurp", args.at(-1).replace(/\?per_page=100$/, "")])).flat())}`;
+  const ghCalls = (names, reply) => { const calls = []; return { calls, client: run.githubClient(names, checkout, { cache: run.conditionalCache(path.join(tmp, "gh-calls-cache")), run: (cmd, args) => { calls.push(`${cmd} ${args.join(" ")}`); return args[1] === "-i" ? conditionalReply(reply, args) : reply(args); } }) }; };
   const accountPages = (pulls, { totalCount = pulls.length, hasNextPage = false, login = "shared", endCursor = hasNextPage ? "next" : null } = {}) => [{ data: { viewer: { login, pullRequests: { totalCount, pageInfo: { hasNextPage, endCursor }, nodes: pulls.map((p) => ({ createdAt: "2026-10-20T00:00:00Z", ...p, repository: { nameWithOwner: p.repository?.nameWithOwner ?? "acme/widgets" }, closingIssuesReferences: { nodes: (p.closingIssuesReferences ?? []).map((r) => ({ number: r.number, url: `https://github.com/${r.repository?.owner?.login ?? "acme"}/${r.repository?.name ?? "widgets"}/issues/${r.number}` })), pageInfo: { hasNextPage: false } } })) } } } }];
   const replies = (pulls, comments = {}) => (args) => (args[0] === "api" && args[1] === "graphql" ? JSON.stringify(accountPages(typeof pulls === "function" ? pulls(null) : pulls)) : args[0] === "api" && args[1] === "user" ? "shared\n" : args[0] === "pr" && args[1] === "list" ? JSON.stringify(typeof pulls === "function" ? pulls(args[args.indexOf("--search") + 1]) : pulls) : args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [] }) : args.includes("--slurp") ? JSON.stringify([comments[args.at(-1)] ?? []]) : "{}");
   const listFields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit,createdAt";
@@ -1170,8 +1172,8 @@ try {
     one.issue(200); one.subIssues(200); one.blockedBy(201); one.fields(201); one.pulls(201); one.comments(401, 201); one.checks(401);
     assert.deepEqual(calls, [
       "gh api repos/acme/widgets/issues/200",
-      "gh api --paginate --slurp repos/acme/widgets/issues/200/sub_issues",
-      "gh api --paginate --slurp repos/acme/widgets/issues/201/dependencies/blocked_by",
+      "gh api -i repos/acme/widgets/issues/200/sub_issues?per_page=100",
+      "gh api -i repos/acme/widgets/issues/201/dependencies/blocked_by?per_page=100",
       "gh api --paginate --slurp -H X-GitHub-Api-Version: 2026-03-10 repos/acme/widgets/issues/201/issue-field-values",
       `gh pr list --repo acme/widgets --state all --search 201 --limit 100 --json ${listFields}`,
       "gh api --paginate --slurp repos/acme/widgets/issues/401/comments",
@@ -1204,8 +1206,8 @@ try {
     assert.ok(!listingCall.includes("search("));
     assert.deepEqual(calls, [
       `gh api repos/${INTERNAL}/issues/6`,
-      `gh api --paginate --slurp repos/${INTERNAL}/issues/6/sub_issues`,
-      `gh api --paginate --slurp repos/${INTERNAL}/issues/7/dependencies/blocked_by`,
+      `gh api -i repos/${INTERNAL}/issues/6/sub_issues?per_page=100`,
+      `gh api -i repos/${INTERNAL}/issues/7/dependencies/blocked_by?per_page=100`,
       `gh api --paginate --slurp -H X-GitHub-Api-Version: 2026-03-10 repos/${INTERNAL}/issues/7/issue-field-values`,
       listingCall,
       `gh api --paginate --slurp repos/${INTERNAL}/issues/7/comments`,

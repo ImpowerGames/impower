@@ -575,33 +575,92 @@ export function parseWorktrees(text) {
   return text.split(/\r?\n\r?\n/).map((block) => Object.fromEntries(block.split(/\r?\n/).filter(Boolean).map((line) => { const i = line.indexOf(" "); return i < 0 ? [line, true] : [line.slice(0, i), line.slice(i + 1)]; }))).filter((w) => w.worktree).map((w) => ({ path: w.worktree, head: w.HEAD ?? null, branch: typeof w.branch === "string" ? w.branch.replace(/^refs\/heads\//, "") : null }));
 }
 
-export function githubClient(names, checkout, { run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 }), parallel = (jobs) => runParallel(jobs, { cwd: checkout }) } = {}) {
+export const fieldOptions = (values) => { const option = (name) => values.find((v) => v.issue_field_name === name)?.single_select_option?.name ?? null; return { effort: option("Effort"), priority: option("Priority") }; };
+
+export const CONDITIONAL_CACHE_DIR = path.join(os.tmpdir(), "impower-gh-conditional");
+export function conditionalCache(dir = CONDITIONAL_CACHE_DIR) {
+  const fileOf = (key) => path.join(dir, `${createHash("sha256").update(key).digest("hex")}.json`);
+  return {
+    get: (key) => {
+      try {
+        const entry = JSON.parse(fs.readFileSync(fileOf(key), "utf8"));
+        return entry?.key === key && typeof entry.etag === "string" && entry.etag && Array.isArray(entry.body) ? entry : null;
+      } catch { return null; }
+    },
+    set: (key, etag, body) => {
+      const file = fileOf(key), temp = `${file}.${process.pid}.${randomUUID()}.tmp`;
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(temp, JSON.stringify({ key, etag, body }));
+        fs.renameSync(temp, file);
+      } catch { fs.rmSync(temp, { force: true }); }
+    },
+  };
+}
+
+export function parseHttp(out) {
+  const text = String(out ?? ""), gap = /\r?\n\r?\n/.exec(text);
+  const head = gap ? text.slice(0, gap.index) : text;
+  const [first = "", ...lines] = head.split(/\r?\n/);
+  const headers = Object.fromEntries(lines.map((line) => { const i = line.indexOf(":"); return i < 0 ? null : [line.slice(0, i).trim().toLowerCase(), line.slice(i + 1).trim()]; }).filter(Boolean));
+  return { status: Number(/^HTTP\/[\d.]+ (\d{3})\b/.exec(first)?.[1]) || null, headers, body: gap ? text.slice(gap.index + gap[0].length) : "" };
+}
+const notModified = (out) => parseHttp(out).status === 304;
+
+export function githubClient(names, checkout, { run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 }), parallel = (jobs) => runParallel(jobs, { cwd: checkout }), cache = conditionalCache() } = {}) {
   const { code, tickets, split, thread } = repositoriesOf(names);
   const pagesArgs = (args) => ["api", "--paginate", "--slurp", ...args];
   const pagesOf = (out) => JSON.parse(out).flat();
   const pages = (args) => pagesOf(run("gh", pagesArgs(args)));
+  let allowance = null;
+  const noteAllowance = (headers) => {
+    const remaining = Number(headers["x-ratelimit-remaining"]), reset = Number(headers["x-ratelimit-reset"]);
+    if (!Number.isFinite(remaining) || !Number.isFinite(reset)) return;
+    allowance = { remaining, used: Number(headers["x-ratelimit-used"]) || null, limit: Number(headers["x-ratelimit-limit"]) || null, reset, resetsAt: new Date(reset * 1000).toISOString() };
+  };
+  const conditional = (endpoint) => (n) => {
+    const key = `repos/${tickets}/issues/${n}/${endpoint}`, hit = cache.get(key);
+    return {
+      args: ["api", "-i", ...(hit ? ["-H", `If-None-Match: ${hit.etag}`] : []), `${key}?per_page=100`],
+      parse: (out) => {
+        const response = parseHttp(out);
+        noteAllowance(response.headers);
+        if (response.status === 304 && hit) return hit.body;
+        if (response.status !== 200) return pages([key]);
+        const body = JSON.parse(response.body);
+        if (!Array.isArray(body) || /rel="next"/.test(response.headers.link ?? "")) return pages([key]);
+        if (response.headers.etag) cache.set(key, response.headers.etag, body);
+        return body;
+      },
+    };
+  };
   const reads = {
-    subIssues: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/sub_issues`]), parse: pagesOf },
-    blockedBy: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/dependencies/blocked_by`]), parse: pagesOf },
+    subIssues: { conditional: conditional("sub_issues") },
+    blockedBy: { conditional: conditional("dependencies/blocked_by") },
     timeline: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/timeline`]), parse: pagesOf },
     fields: {
       args: (n) => pagesArgs(["-H", "X-GitHub-Api-Version: 2026-03-10", `repos/${tickets}/issues/${n}/issue-field-values`]),
-      parse: (out) => { const values = pagesOf(out); const option = (name) => values.find((v) => v.issue_field_name === name)?.single_select_option?.name ?? null; return { effort: option("Effort"), priority: option("Priority") }; },
+      parse: (out) => fieldOptions(pagesOf(out)),
     },
     comments: { args: ([pr, ticket]) => { const t = thread(pr, ticket); return pagesArgs([`repos/${t.repo}/issues/${t.number}/comments`]); }, parse: pagesOf },
     checks: { args: (pr) => ["pr", "view", String(pr), "--repo", code, "--json", "statusCheckRollup"], parse: (out) => JSON.parse(out).statusCheckRollup.map((c) => ({ name: c.name ?? c.context, state: c.conclusion || c.state || c.status })) },
   };
   const fetched = new Map();
   const keyOf = (kind, key) => `${kind}:${JSON.stringify(key)}`;
+  const request = (kind, key) => (reads[kind].conditional ? reads[kind].conditional(key) : { args: reads[kind].args(key), parse: reads[kind].parse });
+  const runAccepting304 = (args) => {
+    try { return run("gh", args); } catch (error) { if (notModified(error.stdout)) return String(error.stdout); throw error; }
+  };
   const read = (kind, key) => {
     const k = keyOf(kind, key);
-    if (fetched.has(k)) { const out = fetched.get(k); fetched.delete(k); return reads[kind].parse(out); }
-    return reads[kind].parse(run("gh", reads[kind].args(key)));
+    if (fetched.has(k)) { const { out, parse } = fetched.get(k); fetched.delete(k); return parse(out); }
+    const r = request(kind, key);
+    return r.parse(runAccepting304(r.args));
   };
   const prefetch = (requests) => {
-    const wanted = [...new Map(Object.entries(requests).flatMap(([kind, keys]) => keys.map((key) => [keyOf(kind, key), [kind, key]]))).values()].filter(([kind, key]) => !fetched.has(keyOf(kind, key)));
-    const results = parallel(wanted.map(([kind, key]) => ["gh", reads[kind].args(key)]));
-    wanted.forEach(([kind, key], i) => { if (results[i]?.ok) fetched.set(keyOf(kind, key), results[i].stdout); });
+    const wanted = [...new Map(Object.entries(requests).flatMap(([kind, keys]) => keys.map((key) => [keyOf(kind, key), [kind, key]]))).values()].filter(([kind, key]) => !fetched.has(keyOf(kind, key))).map(([kind, key]) => [kind, key, request(kind, key)]);
+    const results = parallel(wanted.map(([, , r]) => ["gh", r.args]));
+    wanted.forEach(([kind, key, r], i) => { if (results[i]?.ok || (reads[kind].conditional && notModified(results[i]?.stdout))) fetched.set(keyOf(kind, key), { out: results[i].stdout, parse: r.parse }); });
   };
   const fields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit,createdAt";
   let account, listing, mainCommits = null;
@@ -664,6 +723,7 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
     blockedBy: (n) => read("blockedBy", n),
     fields: (n) => read("fields", n),
     prefetch,
+    allowance: (n) => { if (n !== undefined) read("subIssues", n); return allowance; },
     pull: (n) => JSON.parse(run("gh", ["pr", "view", String(n), "--repo", code, "--json", fields])),
     pulls: (n) => (split ? accountPulls(n) : JSON.parse(run("gh", ["pr", "list", "--repo", code, "--state", "all", "--search", String(n), "--limit", "100", "--json", fields]))),
     comments: (pr, ticket) => read("comments", [pr, ticket]),
@@ -758,14 +818,28 @@ const PR_PREFERENCE = { MERGED: 0, OPEN: 1 };
 const byPreference = (a, b) => (PR_PREFERENCE[a.state] ?? 2) - (PR_PREFERENCE[b.state] ?? 2);
 const viablePr = (p) => p.state === "MERGED" || p.state === "OPEN";
 
-export function walkSubIssues(issue, client, { tickets = null, split = false, pullsOf = pullsFilter(client, tickets, split) } = {}) {
+const knownCount = (summary, ...names) => (summary && names.every((name) => Number.isSafeInteger(summary[name])) ? Math.max(...names.map((name) => summary[name])) : null);
+export const hasNoSubIssues = (issue) => knownCount(issue?.sub_issues_summary, "total") === 0;
+export const hasNoBlockers = (issue) => knownCount(issue?.issue_dependencies_summary, "blocked_by", "total_blocked_by") === 0;
+
+export function walkSubIssues(issue, client, { tickets = null, split = false, pullsOf = pullsFilter(client, tickets, split), root = null, issues = new Map() } = {}) {
   const nodes = [];
   const isBug = (c) => (c.type?.name ?? null) === "Bug";
   const listedSubs = new Map();
-  const subsOf = (n) => { if (!listedSubs.has(n)) listedSubs.set(n, client.subIssues(n)); return listedSubs.get(n); };
+  if (root) issues.set(issue, root);
+  const needsList = (n) => !listedSubs.has(n) && !hasNoSubIssues(issues.get(n));
+  const subsOf = (n) => {
+    if (!listedSubs.has(n)) {
+      const subs = hasNoSubIssues(issues.get(n)) ? [] : client.subIssues(n);
+      for (const s of subs) issues.set(s.number, s);
+      listedSubs.set(n, subs);
+    }
+    return listedSubs.get(n);
+  };
   if (client.prefetch) {
     for (let level = [issue], depth = 0; level.length && depth <= MAX_SUB_ISSUE_DEPTH; depth++) {
-      client.prefetch({ subIssues: level });
+      const listing = level.filter(needsList);
+      if (listing.length) client.prefetch({ subIssues: listing });
       level = [...new Set(level.flatMap((n) => subsOf(n).map((s) => s.number)))].filter((n) => !listedSubs.has(n));
     }
   }
@@ -906,21 +980,24 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
   const isRequest = maintainerRequest();
   const wentAhead = wentAheadRequest();
   const parent = client.issue(issue);
-  const walked = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf });
+  const issues = new Map();
+  const walked = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf, root: parent, issues });
   const members = scope === null ? null : new Set(walked.filter((t) => t.number === scope || t.deliveredBy?.ticket === scope).map((t) => t.number));
   const inScope = (n) => members === null || members.has(n);
   const read = walked.map((t) => t.number).filter(inScope);
+  const blocked = read.filter((n) => !hasNoBlockers(issues.get(n)));
+  const fieldValues = (n) => (Array.isArray(issues.get(n)?.issue_field_values) ? issues.get(n).issue_field_values : null);
   const details = members === null ? read : [];
   const openPrs = details.flatMap((n) => pullsOf(n).filter((p) => p.state === "OPEN").map((p) => [p.number, n]));
-  client.prefetch?.({ blockedBy: read, fields: details, comments: openPrs, checks: openPrs.map(([pr]) => pr) });
+  client.prefetch?.({ blockedBy: blocked, fields: details.filter((n) => !fieldValues(n)), comments: openPrs, checks: openPrs.map(([pr]) => pr) });
   const tickets = walked.map((node) => {
     const n = node.number, full = inScope(n), detailed = members === null;
     const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, closes: (p.closingIssuesReferences ?? []).map((r) => r.number), ...(p.state === "MERGED" && { onMain: mergedOnMain(p) }), ...(p.state === "OPEN" && detailed && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
-    const { effort, priority } = detailed ? client.fields(n) : { effort: null, priority: null };
+    const { effort, priority } = !detailed ? { effort: null, priority: null } : fieldValues(n) ? fieldOptions(fieldValues(n)) : client.fields(n);
     return {
       ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
-      blockers: full ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
+      blockers: full && !hasNoBlockers(issues.get(n)) ? client.blockedBy(n).map((b) => (isRequest(b) ? { number: b.number, state: b.state, delivered: false, request: true, ...(b.state === "open" && wentAhead(b) && fallbackCommitted(b, client.timeline(b.number)) && { wentAhead: true }) } : { number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });
@@ -940,8 +1017,9 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
 const scopeLine = (t) => [`#${t.number}`, t.state, ...(t.state === "closed" ? [t.stateReason, t.closedAt].filter(Boolean) : [])].join(" ");
 
 export function readIssueScope({ issue, tickets = null, split = false }, client) {
-  const slices = plannedNodes(walkSubIssues(issue, client, { tickets, split })).map(scopeLine);
-  return { slices: slices.sort(), acceptanceSha256: acceptanceHash(client.issue(issue).body) };
+  const root = client.issue(issue);
+  const slices = plannedNodes(walkSubIssues(issue, client, { tickets, split, root })).map(scopeLine);
+  return { slices: slices.sort(), acceptanceSha256: acceptanceHash(root.body) };
 }
 export const snapshotScope = (snapshot) => ({ slices: plannedNodes(snapshot.tickets).map(scopeLine).sort(), acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null });
 
@@ -2404,9 +2482,16 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "schedule": { const file = absolute(o.record, "record"); return scheduleSpec(readRecord(file), file, defaults); }
     case "snapshot": {
       const record = recordSessions(absolute(o.record, "record"));
-      const snap = takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets }, clientFor(record, record.checkout));
+      const client = clientFor(record, record.checkout);
+      const snap = takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets }, client);
       fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(snap, null, 2) + "\n");
-      return { revision: record.revision, tickets: snap.tickets.length, originMain: snap.originMain, writers: writerIdentities(record) };
+      return { revision: record.revision, tickets: snap.tickets.length, originMain: snap.originMain, writers: writerIdentities(record), subIssueAllowance: client.allowance?.() ?? null };
+    }
+    case "allowance": {
+      const record = readRecord(absolute(o.record, "record"));
+      const allowance = clientFor(record, record.checkout).allowance(record.issue);
+      if (!allowance) throw new Error(`The sub_issues read of #${record.issue} returned no X-Ratelimit-Remaining and X-Ratelimit-Reset headers`);
+      return { subIssueAllowance: allowance };
     }
     case "plan": {
       const record = recordSessions(absolute(o.record, "record"));
@@ -2478,7 +2563,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
       return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), requestsOf(), defaults);
     }
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
-    default: throw new Error("Usage: issue-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|asked|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|clean-artifacts|filed|dismiss|triage|interim|brief|recover-lock --option value ...");
+    default: throw new Error("Usage: issue-run.mjs init|snapshot|allowance|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|asked|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|clean-artifacts|filed|dismiss|triage|interim|brief|recover-lock --option value ...");
   }
 }
 
