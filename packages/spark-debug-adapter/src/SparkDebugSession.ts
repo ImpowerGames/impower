@@ -667,6 +667,8 @@ export class SparkDebugSession extends LoggingDebugSession {
     this.sendResponse(response);
     if (result.held) {
       await this.sendStoppedEvent("step", result.run);
+    } else if (result.moved && this._host.syncCursorToExecution) {
+      await this.sendStoppedEvent("awaiting interaction", result.run);
     }
   }
 
