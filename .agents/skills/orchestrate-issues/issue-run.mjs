@@ -595,7 +595,7 @@ export function conditionalCache(dir = CONDITIONAL_CACHE_DIR) {
         fs.renameSync(temp, file);
         return null;
       } catch (error) {
-        fs.rmSync(temp, { force: true });
+        try { fs.rmSync(temp, { force: true }); } catch {}
         return { file, message: error.message };
       }
     },
