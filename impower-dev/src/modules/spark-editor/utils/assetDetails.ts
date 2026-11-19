@@ -139,8 +139,10 @@ export const NOT_USED_NOTES: Record<AssetType, string> = {
 export const NOT_USED_VARIANTS_NOTE =
   "Nothing shows it yet. Copy its name into a line of the script, or insert a variant from above.";
 
-export const UNWRITABLE_NAME_NOTE =
-  "Nothing shows it yet. A script can't write this name: an @ must sit between two letters, digits or _, and a name can't start with ~. Rename the file to use it.";
+export const UNWRITABLE_NAME_RULE =
+  "A script can't write this name: an @ must sit between two letters, digits or _, and a name can't start with ~. Rename the file to use it.";
+
+export const UNWRITABLE_NAME_NOTE = `Nothing shows it yet. ${UNWRITABLE_NAME_RULE}`;
 
 const writableNamesOf = (asset: Pick<InspectedAsset, "name" | "link" | "files">): string[] =>
   asset.link || !asset.files.length ? [asset.name] : asset.files.map((file) => assetNameOf(file.path, "image"));

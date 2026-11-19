@@ -1,3 +1,4 @@
+import { isWritableImageName } from "@impower/sparkdown/src/attributes/imageFileName";
 import { parseLayerName } from "@impower/sparkdown/src/attributes/parseLayerName";
 import { bytesLabel, plural } from "./fileListModel";
 import { AS_IS, choicesOf, type ImageStack, type StackMember, type StackPicture } from "./imageStacks";
@@ -100,7 +101,10 @@ export const referenceOf = (variant: ImageVariant, form: VariantForm): string =>
   return form === "backdrop" ? `[[show backdrop ${name}]]` : `[[${name}]]`;
 };
 
-const SHOWN_AS_BACKDROP = /\[\[\s*show\s+backdrop\b/;
+export const writableReferenceOf = (variant: ImageVariant, form: VariantForm): string | null =>
+  isWritableImageName(variant.image) ? referenceOf(variant, form) : null;
+
+const SHOWN_AS_BACKDROP =/\[\[\s*show\s+backdrop\b/;
 
 export const defaultForm = ({
   kinds,
