@@ -138,6 +138,17 @@ describe("a layer file in a portrait folder starts with digits and a space (#257
     expect(warnings(program)).toEqual([]);
   });
 
+  it("gives 90_body.png beside numbered layers the same omitted-file warning as any plain image, and keeps it the plain image 90_body", () => {
+    const files = [`${P}/mia/90 body.png`, `${P}/mia/90_body.png`, `${P}/mia/face.png`];
+    const program = compile(files, scene());
+    expect(Object.keys(program.context?.["image"] ?? {})).toContain("90_body");
+    const omitted = warnings(program).filter(({ message }) => message.includes("is omitted from automatic portrait"));
+    expect(omitted.map(({ file }) => file).sort()).toEqual(["90_body.png", "face.png"]);
+    expect(omitted.find(({ file }) => file === "90_body.png")!.message).toBe(
+      omitted.find(({ file }) => file === "face.png")!.message.replaceAll("face.png", "90_body.png"),
+    );
+  });
+
   it("composes a folder of space-named files into the look a line asks for", () => {
     const files = [
       `${P}/mia/90 body.png`,
