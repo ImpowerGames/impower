@@ -1083,7 +1083,20 @@ await asyncCheck("--step drawer opens the drawer below the desktop width and fai
   assert.match((await openDrawerOrRail(none)).reason, /neither the desktop rail, the drawer's Open Menu button nor the phone's app menu/);
 });
 
-const appMenuPage = ({ buttons = 1, opens = true, sheet = true, touch = false, clicks = [], taps = [], selectors = [] } = {}) => ({
+const NO_TAP = "locator.tap: The page does not support tap. Use hasTouch context option to enable touch support.";
+
+const touchSession = (touches, onEnd = () => {}) => ({
+  newCDPSession: async () => ({
+    send: async (method, params) => {
+      touches.push([method, params.type, params.touchPoints]);
+      if (params.type === "touchEnd") onEnd(touches.at(-2)?.[2]?.[0]);
+    },
+    detach: async () => {},
+  }),
+});
+
+const appMenuPage = ({ buttons = 1, opens = true, sheet = true, touch = false, tapSupported = true, clicks = [], taps = [], touches = [], selectors = [] } = {}) => ({
+  context: () => touchSession(touches),
   waitForFunction: async () => true,
   evaluate: async (fn) => (String(fn).includes("maxTouchPoints") ? touch : sheet),
   locator: (selector) => {
@@ -1093,7 +1106,12 @@ const appMenuPage = ({ buttons = 1, opens = true, sheet = true, touch = false, c
         count: async () => buttons,
         isVisible: async () => true,
         click: async () => clicks.push(selector),
-        tap: async () => taps.push(selector),
+        tap: async () => {
+          if (!tapSupported) throw new Error(NO_TAP);
+          taps.push(selector);
+        },
+        scrollIntoViewIfNeeded: async () => {},
+        boundingBox: async () => ({ x: 10, y: 20, width: 40, height: 30 }),
         waitFor: async () => {
           if (!opens) throw new Error("timeout");
         },
@@ -1128,6 +1146,24 @@ await asyncCheck("the app-menu, preview-settings and file-menu steps press with 
     assert.deepEqual(touch ? scripts.state.tapped : scripts.state.clicked, ["Definitions"]);
     assert.deepEqual(touch ? scripts.state.clicked : scripts.state.tapped, []);
   }
+});
+
+await asyncCheck("on the Android device route the app-menu, preview-settings and file-menu steps press with a CDP touch at the element's centre and never call locator.tap", async () => {
+  const device = { tap: async () => { throw new Error("the steps press through the page, not the device's screen coordinates"); } };
+  const clicks = [];
+  const taps = [];
+  const touches = [];
+  const step = (name) => ({ step: name });
+  assert.equal((await NAMED_STEP_BODIES["app-menu"](appMenuPage({ touch: true, tapSupported: false, clicks, taps, touches }), step("app-menu"), { device })).ran, true);
+  assert.equal((await NAMED_STEP_BODIES["preview-settings"](appMenuPage({ touch: true, tapSupported: false, clicks, taps, touches }), step("preview-settings"), { device })).ran, true);
+  assert.equal((await NAMED_STEP_BODIES.drawer({ ...appMenuPage({ touch: true, tapSupported: false, clicks, taps, touches }), evaluate: async (fn) => (String(fn).includes("getBoundingClientRect") ? null : true), locator: (selector) => (selector.includes("Open Menu") ? { first: () => ({ count: async () => 0 }) } : appMenuPage({ tapSupported: false, touches }).locator(selector)) }, step("drawer"), { device })).ran, true);
+  const scripts = scriptsPageStub({ touch: true, tapSupported: false });
+  assert.deepEqual(await NAMED_STEP_BODIES["file-menu"](scripts, step("file-menu"), { device }), { step: "file-menu", ran: true, row: "Definitions" });
+  assert.deepEqual([clicks, taps, scripts.state.clicked, scripts.state.tapped], [[], [], [], []]);
+  const centre = [{ x: 30, y: 35 }];
+  const press = (points) => [["Input.dispatchTouchEvent", "touchStart", points], ["Input.dispatchTouchEvent", "touchEnd", []]];
+  assert.deepEqual(touches, [...press(centre), ...press(centre), ...press(centre)]);
+  assert.deepEqual(scripts.state.touched, ["Definitions"]);
 });
 
 await asyncCheck("the app-menu, settings, add-menu and preview-settings steps settle while a scroll-driven or endless animation keeps running, and the app menu and the preview settings sheet wait on a finite one", async () => {
@@ -1217,11 +1253,12 @@ check("the editor view comes from the open document's URI: the project's own mai
   assert.equal(editorViewOf(null), null);
 });
 
-function scriptsPageStub({ hash = "#write", rows = ["Main", "Definitions", "chapter_1.sd"], showsPage = true, menuOpens = true, touch = false } = {}) {
-  const state = { hash, clicked: [], tapped: [], menuOpen: false };
+function scriptsPageStub({ hash = "#write", rows = ["Main", "Definitions", "chapter_1.sd"], showsPage = true, menuOpens = true, touch = false, tapSupported = true } = {}) {
+  const state = { hash, clicked: [], tapped: [], touched: [], touches: [], menuOpen: false };
   const timeout = async () => { throw new Error("timeout"); };
   const page = {
     state,
+    context: () => touchSession(state.touches, (point) => { state.touched.push(rows[point.y]); state.menuOpen = menuOpens; }),
     evaluate: async (fn) => {
       const src = String(fn);
       if (src.includes('location.hash = "#scripts"')) { if (showsPage) state.hash = "#scripts"; return; }
@@ -1237,7 +1274,13 @@ function scriptsPageStub({ hash = "#write", rows = ["Main", "Definitions", "chap
           evaluateAll: async (fn) => fn(rows.map((name) => ({ getAttribute: () => `Options for ${name}` }))),
           nth: (i) => ({
             click: async () => { state.clicked.push(rows[i]); state.menuOpen = menuOpens; },
-            tap: async () => { state.tapped.push(rows[i]); state.menuOpen = menuOpens; },
+            tap: async () => {
+              if (!tapSupported) throw new Error(NO_TAP);
+              state.tapped.push(rows[i]);
+              state.menuOpen = menuOpens;
+            },
+            scrollIntoViewIfNeeded: async () => {},
+            boundingBox: async () => ({ x: 0, y: i - 0.5, width: 1, height: 1 }),
           }),
         };
       }
