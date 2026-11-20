@@ -200,7 +200,7 @@ text.source.sparkdown [0..456]
  │   ├─ keyword.operator.expression.begin.image.sd [386..388]: "[["
  │   ├─ variable.other.constant.asset.file.sd [388..401]
  │   │   ├─ variable.other.constant.asset.file.sd [388..397]: "mia@night"
- │   │   ├─ variable.other.property.filter.sd [397..398]: "~"
+ │   │   ├─ variable.other.property.filter.sd [397..398]: ":"
  │   │   └─ variable.other.constant.asset.filter.sd [398..401]: "hat"
  │   └─ keyword.operator.expression.end.image.sd [401..403]: "]]"
  ├─ Newline [403..404]: "\n"

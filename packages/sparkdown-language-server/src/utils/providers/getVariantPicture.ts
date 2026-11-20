@@ -27,7 +27,7 @@ export const getVariantPicture = async (
   }
   const struct = {
     $type: "filtered_image",
-    $name: [variant.image, ...variant.attributes].join("~"),
+    $name: [variant.image, ...variant.attributes].join(":"),
     image: { $name: variant.image },
     attributes: [...variant.attributes],
   };

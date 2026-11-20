@@ -20,7 +20,7 @@ end
 
 scene start
   [[mia@night:happy]]
-  [[mia@night~hat]]
+  [[mia@night:hat]]
   [[mia@party]]
   [[mia@night + mia@party:hat]]
 end

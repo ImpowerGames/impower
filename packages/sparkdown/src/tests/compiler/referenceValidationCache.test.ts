@@ -47,7 +47,7 @@ function screenplay(): string {
     L.push(`  [[show backdrop rex]]`);
     L.push(`  [[show weather mia]]`);
     L.push(`  [[mia:happy]]`);
-    L.push(`  [[show backdrop mia~sad]]`);
+    L.push(`  [[show backdrop mia:sad]]`);
     L.push("  hero:");
     L.push(`    Line one of dialogue in scene ${s}.`);
     L.push(`    Speed is {pace.speed}.`);
@@ -166,8 +166,8 @@ describe("reference validation per chunk (#411)", () => {
     const warmed = edit(
       compiler,
       text,
-      "mia~sad]]\n  hero:\n    Line one of dialogue in scene 2.",
-      "mia~sad]]\n  hero:\n    Line one of dialogue in scene 2!",
+      "mia:sad]]\n  hero:\n    Line one of dialogue in scene 2.",
+      "mia:sad]]\n  hero:\n    Line one of dialogue in scene 2!",
       2,
     );
     compile(compiler);
@@ -279,13 +279,13 @@ describe("reference validation per chunk (#411)", () => {
     const after = edit(
       compiler,
       warm,
-      "[[mia:happy]]\n  [[show backdrop mia~sad]]\n  hero:\n    Line one of dialogue in scene 6.",
-      "[[mia:wink]]\n  [[show backdrop mia~sad]]\n  hero:\n    Line one of dialogue in scene 6.",
+      "[[mia:happy]]\n  [[show backdrop mia:sad]]\n  hero:\n    Line one of dialogue in scene 6.",
+      "[[mia:wink]]\n  [[show backdrop mia:sad]]\n  hero:\n    Line one of dialogue in scene 6.",
       3,
     );
     const program = compile(compiler);
     expect(program.contextRevision).not.toBe(before.contextRevision);
-    expect(program.context?.["filtered_image"]?.["mia~wink"]).toBeDefined();
+    expect(program.context?.["filtered_image"]?.["mia:wink"]).toBeDefined();
     expect(stats(compiler).chunksServed).toBeGreaterThanOrEqual(SCENES - 1);
     expect(diagnostics(program)).toEqual(coldDiagnostics(after));
   });
@@ -366,16 +366,16 @@ describe("ReferenceValidationCache (#411)", () => {
     const reads = { block: {}, annotation: {} };
     const other = { block: {}, annotation: {} };
     const whole = { block: {}, annotation: {} };
-    cache.begin(inputs(), "r1", ["filtered_image/a~x"]);
-    cache.keep("main", reads.block, entry(["filtered_image/b~y"]));
-    cache.keepReference(reads.annotation, 1, [], { keys: new Set(["filtered_image/b~y"]) });
+    cache.begin(inputs(), "r1", ["filtered_image/a:x"]);
+    cache.keep("main", reads.block, entry(["filtered_image/b:y"]));
+    cache.keepReference(reads.annotation, 1, [], { keys: new Set(["filtered_image/b:y"]) });
     cache.keep("main", other.block, entry(["image/c"]));
     cache.keepReference(other.annotation, 1, [], { keys: new Set(["image/c"]) });
     cache.keep("main", whole.block, entry([], ["filtered_image"]));
     cache.keepReference(whole.annotation, 1, [], { types: new Set(["filtered_image"]) });
     cache.end();
 
-    cache.begin(inputs(), "r2", ["filtered_image/a~x", "filtered_image/b~y"]);
+    cache.begin(inputs(), "r2", ["filtered_image/a:x", "filtered_image/b:y"]);
     expect(cache.take("main", reads.block)).toBeUndefined();
     expect(cache.reference(reads.annotation)).toBeUndefined();
     expect(cache.take("main", whole.block)).toBeUndefined();

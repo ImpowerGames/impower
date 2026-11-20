@@ -26,7 +26,7 @@ function fixture(): string {
     L.push(`  [[show backdrop location_${s}]]`);
     L.push(`  ((play music track_${s}))`);
     L.push(`  Line one in scene ${s}.`);
-    L.push(`  Another line. [[show portrait face_${s}~smile]]`);
+    L.push(`  Another line. [[show portrait face_${s}:smile]]`);
     L.push(`  -> scene_${(s + 1) % SCENES}`);
     L.push("end");
     L.push("");
@@ -101,7 +101,7 @@ describe("incremental sceneAssets", () => {
       expect(sceneAssetsOf(second)).toEqual(coldSceneAssets(after));
       expect(second.sceneAssets!["scene_1"]!.image).toEqual([
         "location_1_edited",
-        "face_1~smile",
+        "face_1:smile",
       ]);
       expect(second.sceneAssets!["scene_1"]!.successors).toEqual(["scene_2"]);
       expect(second.sceneAssets!["scene_3"]!.beats).toEqual(

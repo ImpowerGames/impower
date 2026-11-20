@@ -26,7 +26,7 @@ const KEYFRAMES = [
   "  }",
 ];
 
-const SCENE = ["scene start", "  [[bunny]]", "  [[bunny~eyes.closed]]", "  [[bunny~mouth.teeth]]", "  [[bunny~mouth.open]]", "end", ""];
+const SCENE = ["scene start", "  [[bunny]]", "  [[bunny:eyes.closed]]", "  [[bunny:mouth.teeth]]", "  [[bunny:mouth.open]]", "end", ""];
 
 type Field = (typeof MORPH_ROOT_FIELDS)[number];
 

@@ -33,7 +33,7 @@ const CUTSCENES = [
   "play intro mute",
   "play intro with fade",
   "play intro loop mute with fade over 1s",
-  "play intro~hat",
+  "play intro:hat",
   "play  intro",
   "play\tintro loop",
 ];
