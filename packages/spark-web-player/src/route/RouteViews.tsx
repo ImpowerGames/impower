@@ -357,31 +357,37 @@ export function RouteList({
                             </span>
                           }
                           label={
-                            <span
-                              data-route-text
-                              class={choice ? "pl-1" : undefined}
-                            >
-                              {decisionText(decision)}
-                            </span>
+                            choice ? (
+                              <button
+                                type="button"
+                                data-route-text
+                                class="relative control-overlay block w-full cursor-pointer rounded-control px-1 py-[3px] text-left leading-[normal] [mask-image:linear-gradient(to_left,transparent_0,#000_16px)] focus-inset"
+                                aria-expanded={open}
+                                title={
+                                  open
+                                    ? "Hide the pin control"
+                                    : "Pin the option taken here"
+                                }
+                                onClick={() =>
+                                  setExpanded({ ...expanded, [key]: !open })
+                                }
+                              >
+                                {decisionText(decision)}
+                              </button>
+                            ) : (
+                              <span data-route-text>
+                                {decisionText(decision)}
+                              </span>
+                            )
                           }
                           trailing={
                             <span
                               data-route-badge
-                              class="ml-auto flex-none pl-2 text-muted"
+                              class="ml-auto flex-none text-muted"
                             >
                               {ROUTE_KIND_LABELS[decision.kind]}
                             </span>
                           }
-                          {...(choice
-                            ? {
-                                "aria-expanded": open,
-                                title: open
-                                  ? "Hide the pin control"
-                                  : "Pin the option taken here",
-                                onClick: () =>
-                                  setExpanded({ ...expanded, [key]: !open }),
-                              }
-                            : {})}
                         />
                       </div>
                       {open ? (

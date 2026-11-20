@@ -213,9 +213,37 @@ describe("the route list's tabs, head and rows", () => {
     const entries = [...root.querySelectorAll("[data-route-entry]")];
     expect(entries).toHaveLength(2);
     for (const entry of entries) {
-      const body = entry.querySelector("[data-route-text]")!.closest("button, div.relative")!;
+      const body = entry.querySelector("[data-route-text]")!.closest("div.relative")!;
       expect(body.className.split(/\s+/)).toContain("min-h-[var(--list-row-compact-height)]");
     }
+  });
+
+  it("keeps a choice row's pressable area to its text, leaving the kind icon and badge outside it", () => {
+    const choiceRoute: PreviewRoute = {
+      ...route(),
+      decisions: [
+        {
+          kind: "auto",
+          location: at(8),
+          text: "Tell the truth.",
+          meeting: 1,
+          options: [
+            { location: at(8), text: "Tell the truth.", offer: 0 },
+            { location: at(9), text: "Lie.", offer: 1 },
+          ],
+        },
+      ],
+    };
+    const root = mount(h(RouteList, listProps({ state: state({ route: choiceRoute }) })));
+    const entry = root.querySelector("[data-route-entry][data-kind='auto']")!;
+    const pressable = [...entry.querySelectorAll("button")].filter(
+      (b) => !b.hasAttribute("data-route-line"),
+    );
+    expect(pressable).toHaveLength(1);
+    expect(pressable[0]!.getAttribute("aria-expanded")).toBe("false");
+    expect(pressable[0]!.textContent).toBe("Choice Tell the truth.");
+    expect(pressable[0]!.contains(entry.querySelector("svg.route-icon"))).toBe(false);
+    expect(pressable[0]!.contains(entry.querySelector("[data-route-badge]"))).toBe(false);
   });
 });
 

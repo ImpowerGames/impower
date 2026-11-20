@@ -38,6 +38,7 @@
   --list-row-compact-gap: 6px;
   --list-row-compact-font-size: 12px;
   --control-size: 22px;
+  --control-radius: 3px;
 }
 
 :root[data-pointer="coarse"] swp-route-view {
