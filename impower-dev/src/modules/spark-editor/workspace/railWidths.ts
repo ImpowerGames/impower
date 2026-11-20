@@ -1,4 +1,4 @@
-import type { Layout, RailDefault } from "@impower/impower-ui/layout";
+import type { Layout } from "@impower/impower-ui/layout";
 import type { ShellState } from "@impower/spark-editor-protocol/src/types";
 
 export const RAIL_WIDTH = {
@@ -15,29 +15,7 @@ export const RAIL_COMPACT_WIDTH = {
   reserve: 280,
 } as const;
 
-export type RailReveal =
-  | { railWidth: number | undefined }
-  | { railCompactWidth: number };
-
-export const railReveal = (
+export const searchWidensRail = (
   shell: ShellState | undefined,
   layout: Layout,
-  railDefault: RailDefault,
-): RailReveal | null => {
-  if (layout === "desktop") {
-    return shell?.railWidth === RAIL_WIDTH.collapsed
-      ? { railWidth: undefined }
-      : null;
-  }
-  if (layout === "compact") {
-    const width =
-      shell?.railCompactWidth ??
-      (railDefault === "full"
-        ? RAIL_COMPACT_WIDTH.full
-        : RAIL_COMPACT_WIDTH.collapsed);
-    return width === RAIL_COMPACT_WIDTH.collapsed
-      ? { railCompactWidth: RAIL_COMPACT_WIDTH.full }
-      : null;
-  }
-  return null;
-};
+) => layout === "desktop" && shell?.railWidth === RAIL_WIDTH.collapsed;

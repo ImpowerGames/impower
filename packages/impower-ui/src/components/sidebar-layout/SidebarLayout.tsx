@@ -177,19 +177,17 @@ export default function SidebarLayout({
         sidebarHidden ? undefined : collapsed ? "collapsed" : "expanded"
       }
     >
-      <div class="col-span-2 row-start-1 min-w-0">
-        <SidebarCollapsedContext.Provider value={!sidebarHidden && collapsed}>{header}</SidebarCollapsedContext.Provider>
-      </div>
-      <div
-        hidden={sidebarHidden}
-        class="col-start-1 row-start-2 min-h-0 min-w-0 overflow-hidden"
-      >
-        {sidebar}
-      </div>
-      <div class="col-start-2 row-start-2 min-h-0 min-w-0">
-        <SidebarCollapsedContext.Provider value={!sidebarHidden && collapsed}>{children}</SidebarCollapsedContext.Provider>
-      </div>
-      <div class="col-span-2 row-start-3 min-w-0">{footer}</div>
+      <SidebarCollapsedContext.Provider value={!sidebarHidden && collapsed}>
+        <div class="col-span-2 row-start-1 min-w-0">{header}</div>
+        <div
+          hidden={sidebarHidden}
+          class="col-start-1 row-start-2 min-h-0 min-w-0 overflow-hidden"
+        >
+          {sidebar}
+        </div>
+        <div class="col-start-2 row-start-2 min-h-0 min-w-0">{children}</div>
+        <div class="col-span-2 row-start-3 min-w-0">{footer}</div>
+      </SidebarCollapsedContext.Provider>
       <div
         hidden={sidebarHidden}
         role="separator"

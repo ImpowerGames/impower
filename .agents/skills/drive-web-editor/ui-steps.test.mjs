@@ -1546,7 +1546,7 @@ await asyncCheck("--step wheel-list wheels each overflowing list with the mouse 
   const over = { tag: "span", class: "min-w-0 truncate", label: "Search", overflow: "hidden", text: "Main" };
   const wheelPage = ({ lists = [list], pickOver = over, afterWheel = 400, atEnd = 2300, behind = 0, maxAtEnd = 2300 } = {}) => {
     const calls = [];
-    let tops = { 0: 0, 7: 0, "page:main": 0 };
+    let tops = { 0: 0, 7: 0, "page:app": 0 };
     return {
       calls,
       mouse: {
@@ -1560,7 +1560,7 @@ await asyncCheck("--step wheel-list wheels each overflowing list with the mouse 
       waitForTimeout: async () => {},
       evaluate: async (_fn, [op]) => {
         if (op === "plan") return { layer: null, lists };
-        if (op === "pick") return { own: "0", ancestors: ["page:main"], max: 2300, tops: { ...tops, 0: 0 }, over: pickOver, ...(pickOver ? { point: { x: 100, y: 120 } } : {}) };
+        if (op === "pick") return { own: "0", ancestors: ["page:app"], max: 2300, tops: { ...tops, 0: 0 }, over: pickOver, ...(pickOver ? { point: { x: 100, y: 120 } } : {}) };
         if (op === "tops") return { ...tops };
         if (op === "extent") return { top: tops[0], max: maxAtEnd };
         return true;

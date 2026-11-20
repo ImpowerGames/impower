@@ -22,8 +22,7 @@ import { withSearch } from "./withSearch";
 const FIELD =
   "flex min-h-11 min-w-0 items-center rounded-control border border-field-edge bg-bg focus-within-edge";
 
-const INPUT =
-  "min-h-0 flex-1 shrink border-0 bg-transparent text-[15px]/[1.4] focus-visible:outline-none";
+const INPUT = "px-2.5 py-1.5 text-[15px]/[1.4]";
 
 export default function PhoneFindBar() {
   const snapshot = workspace.search.value;
@@ -60,7 +59,7 @@ export default function PhoneFindBar() {
       <div class={FIELD}>
         <TextField
           ref={field}
-          width="full"
+          frame="inset"
           class={INPUT}
           purpose="search"
           placeholder="Find"
@@ -105,7 +104,7 @@ export default function PhoneFindBar() {
       </FormButton>
       <div class={FIELD}>
         <TextField
-          width="full"
+          frame="inset"
           class={INPUT}
           placeholder={reading ? "Tap Edit to replace." : "Replace"}
           disabled={reading}

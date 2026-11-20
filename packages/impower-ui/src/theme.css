@@ -674,7 +674,7 @@
 }
 
 :root[data-layout="phone"] {
-  --title-bar-height: 54px;
+  --title-bar-height: 90px;
   --script-header-height: 48px;
   --toast-top: auto;
   --toast-bottom: calc(var(--bottom-navigation-height) + env(safe-area-inset-bottom) + var(--toast-gap));
