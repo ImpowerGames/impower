@@ -141,8 +141,8 @@ export function auditScan({ parts, coarse, minTarget }) {
     const seen = new Set();
     const scrolled = [...document.querySelectorAll("*")].filter((n) => n.scrollTop || n.scrollLeft).map((n) => [n, n.scrollTop, n.scrollLeft]);
     const restore = () => {
-      for (const n of document.querySelectorAll("*")) if (n.scrollTop || n.scrollLeft) n.scrollTo(0, 0);
-      for (const [n, top, left] of scrolled) n.scrollTo(left, top);
+      for (const n of document.querySelectorAll("*")) if (n.scrollTop || n.scrollLeft) n.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      for (const [n, top, left] of scrolled) n.scrollTo({ top, left, behavior: "instant" });
     };
     for (const el of document.querySelectorAll(selector)) {
       if (el.closest(".cm-content") || exempt(el)) continue;
@@ -152,7 +152,7 @@ export function auditScan({ parts, coarse, minTarget }) {
       let rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
       if (!inViewport(rect) || rect.top < 0 || rect.bottom > innerHeight) {
-        el.scrollIntoView({ block: "center", inline: "nearest" });
+        el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
         rect = el.getBoundingClientRect();
         if (!inViewport(rect)) continue;
       }
