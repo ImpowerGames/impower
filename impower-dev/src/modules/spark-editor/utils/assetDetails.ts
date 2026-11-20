@@ -140,7 +140,7 @@ export const NOT_USED_VARIANTS_NOTE =
   "Nothing shows it yet. Copy its name into a line of the script, or insert a variant from above.";
 
 export const UNWRITABLE_NAME_RULE =
-  "A script can't write this name: an @ must sit between two letters, digits or _, and a name can't hold ~. Rename the file to use it.";
+  "A script can't write this name: it must start with a letter or _, hold only letters, digits, _, - and @, not end with -, and put each @ between two letters, digits or _. Rename the file to use it.";
 
 export const UNWRITABLE_NAME_NOTE = `Nothing shows it yet. ${UNWRITABLE_NAME_RULE}`;
 

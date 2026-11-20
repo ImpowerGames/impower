@@ -59,7 +59,9 @@ export const thingNameOf = (name: string): string => {
 
 const LOOSE_AT = /(?:^|[^\p{L}\p{N}_])@|@(?:$|[^\p{L}\p{N}_])/u;
 
-export const isWritableImageName = (name: string): boolean => !name.includes("~") && !LOOSE_AT.test(name);
+const NAME_CHARACTERS = /^[\p{L}_](?:[\p{L}\p{N}_@-]*[\p{L}\p{N}_@])?$/u;
+
+export const isWritableImageName = (name: string): boolean => NAME_CHARACTERS.test(name) && !LOOSE_AT.test(name);
 
 export const stackNameOf = (base: string): string => {
   const dot = base.indexOf(".");
