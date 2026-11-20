@@ -34,6 +34,7 @@ export interface PickerItem {
   readonly path: string;
   readonly src?: string;
   readonly variant?: ImageVariant;
+  readonly option?: true;
 }
 
 interface Candidate {
@@ -44,6 +45,7 @@ interface Candidate {
   readonly note: string | null;
   readonly path: string;
   readonly variant?: ImageVariant;
+  readonly option?: true;
 }
 
 const compare = (a: string, b: string) =>
@@ -105,6 +107,7 @@ const optionCandidates = (stack: ImageStack, base: Candidate): Candidate[] => {
         note: `${optionLabel(group.key)}: ${optionLabel(option)}`,
         path,
         variant,
+        option: true,
       };
     });
 };
@@ -201,8 +204,15 @@ export const pickerItems = (
       path: candidate.path,
       src: sources.get(candidate.path),
       ...(candidate.variant ? { variant: candidate.variant } : {}),
+      ...(candidate.option ? { option: true as const } : {}),
     }));
 };
+
+export const pickerPictureCount = (
+  kind: AddMenuKind,
+  files: readonly PickerFile[],
+  folders: AddMenuFolders,
+): number => pickerItems(kind, files, folders).filter((item) => !item.option).length;
 
 export const pickerLeftOut = (
   kind: AddMenuKind,
