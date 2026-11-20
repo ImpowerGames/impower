@@ -239,7 +239,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
     "The keyframe position a play turns back at: a percentage from `0%` to `100%`, or a number from 0 to 1, above `from`. Default `100%`, the end of the play.",
   "replay.chance":
     "How likely each replay is: a percentage from `0%` to `100%`, or a number from 0 to 1. When a play starts it rolls `chance` up to `count` times and stops at the first roll that fails. `0%` never replays. Required.",
-  "replay.count": "The most replays this range makes in one play: a whole number from 1 to 1000. Default 1. In a block of several `{ … }` entries each entry has its own `count`, so a play makes at most their total.",
+  "replay.count": `The most replays this range makes in one play: a whole number from 1 to ${MORPH_REPLAY_COUNT_MAX}. Default 1. In a block of several \`{ … }\` entries each entry has its own \`count\`, so a play makes at most their total.`,
   "replay.delay_min": "Shortest pause, in seconds, before a replay starts, holding the pose at `to`. Needs `delay_max`. Without both, a replay starts at once.",
   "replay.delay_max": "Longest pause, in seconds, before a replay starts. Each pause is drawn uniformly between the two bounds. Needs `delay_min`.",
   clips:
