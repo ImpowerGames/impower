@@ -8,6 +8,9 @@ const HOST_TOKENS = read(
 );
 const ROUTE_LIST = read("../packages/spark-web-player/src/route/route-list.css");
 const SAVES = read("../packages/spark-web-player/src/saves/saves.css");
+const VALUES_VIEW = read(
+  "../packages/spark-web-player/src/route/StartingValuesViews.tsx",
+);
 
 type Specificity = [number, number, number];
 
@@ -96,10 +99,11 @@ describe("the hosted route list's tokens", () => {
         expect(compare(specificityOf(coarse), specificityOf(selector)), token).toBeGreaterThan(0);
       }
     }
-    expect(ROUTE_LIST).toMatch(/\.sv-row \{[^}]*height: var\(--swp-route-row-height\);/);
-    expect(ROUTE_LIST).toMatch(
-      /\.sv-row \{[^}]*grid-template-columns: [^;]* var\(--swp-route-control-size\);/,
+    expect(HOST_TOKENS).toMatch(
+      /\.sv-tab \{[^}]*--list-row-compact-height: var\(--swp-route-row-height\);/,
     );
+    expect(VALUES_VIEW).toMatch(/sv-clear-slot [^"]*w-\(--swp-route-control-size\)/);
+    expect(SAVES).toMatch(/\.saves-values \.sv-row \{[^}]*height: var\(--swp-route-row-height\);/);
     expect(SAVES).toMatch(
       /\.saves-row \{[^}]*grid-template-columns: [^;]* var\(--swp-saves-control-size\);/,
     );

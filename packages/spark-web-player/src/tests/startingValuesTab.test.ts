@@ -1,3 +1,4 @@
+import { act } from "preact/test-utils";
 import { afterEach, describe, expect, test } from "vitest";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { SetRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
@@ -330,12 +331,60 @@ describe("the Starting values tab", () => {
     expect(p.input("param:hour").placeholder).toBe("nil");
     expect(p.input("param:hour").classList).toContain("unset");
     expect(p.badge("param:hour")!.dataset["status"]).toBe("warning");
-    expect(
-      p.badge("param:hour")!.querySelector(".sv-popup")!.textContent,
-    ).toBe("Unset, so it reads nil");
+    expect(p.badge("param:hour")!.getAttribute("aria-label")).toBe(
+      "Unset, so it reads nil",
+    );
     expect(
       p.valuesTab()!.querySelector(".sv-tab-icon")!.getAttribute("data-icon"),
     ).toBe("warning");
+  });
+
+  test("each value field is named by its value's name", async () => {
+    const p = await onValuesTab();
+    expect(p.input("param:hour").getAttribute("aria-label")).toBe("hour");
+    expect(p.input("store:trust").getAttribute("aria-label")).toBe("trust");
+    expect(p.input("store:player.hp").getAttribute("aria-label")).toBe(".hp");
+  });
+
+  test("each value row is a compact list row", async () => {
+    const p = await onValuesTab();
+    for (const r of p.rows()) {
+      const body = r.querySelector(".sv-name")!.closest("div")!;
+      expect(body.className).toContain(
+        "min-h-[var(--list-row-compact-height)]",
+      );
+    }
+  });
+
+  test("a badge opens its message in a named popup, and Escape closes it with focus back on the badge", async () => {
+    const p = await onValuesTab();
+    const badge = p.badge("param:hour")!;
+    const popup = () =>
+      document.querySelector<HTMLElement>('[role="dialog"].sv-popup');
+    expect(badge.tagName).toBe("BUTTON");
+    expect(popup()).toBeNull();
+    badge.focus();
+    await act(async () => {
+      badge.click();
+    });
+    expect(popup()).not.toBeNull();
+    expect(popup()!.getAttribute("aria-label")).toBe("Unset, so it reads nil");
+    expect(popup()!.textContent).toBe("Unset, so it reads nil");
+    expect(badge.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(badge);
+    await act(async () => {
+      document.activeElement!.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    await settle();
+    expect(popup()).toBeNull();
+    expect(p.routeList.querySelector(".sv-tab")).not.toBeNull();
+    expect(document.activeElement).toBe(badge);
   });
 
   test("a value set goes to the host, and is set once the host sends it back", async () => {
@@ -371,7 +420,7 @@ describe("the Starting values tab", () => {
       "store:trust": '"high"',
     });
     expect(p.badge("store:trust")!.dataset["status"]).toBe("warning");
-    expect(p.badge("store:trust")!.textContent).toBe(
+    expect(p.badge("store:trust")!.getAttribute("aria-label")).toBe(
       "trust starts as a number. This still applies.",
     );
   });
@@ -382,7 +431,7 @@ describe("the Starting values tab", () => {
     expect(p.changes()).toHaveLength(0);
     expect(p.input("store:player").value).toBe("{ found =");
     expect(p.badge("store:player")!.dataset["status"]).toBe("error");
-    expect(p.badge("store:player")!.textContent).toBe(
+    expect(p.badge("store:player")!.getAttribute("aria-label")).toBe(
       "Not a value yet: expected } to close the table. It isn't kept until it is one.",
     );
     expect(
@@ -422,7 +471,7 @@ describe("the Starting values tab", () => {
     await settle();
     expect(p.input("store:trust").value).toBe("");
     expect(p.badge("store:trust")!.dataset["status"]).toBe("error");
-    expect(p.badge("store:trust")!.textContent).toBe(
+    expect(p.badge("store:trust")!.getAttribute("aria-label")).toBe(
       "Your change was not saved, so this is back to 0.",
     );
   });
@@ -437,7 +486,7 @@ describe("the Starting values tab", () => {
     answer(first, true);
     await settle();
     expect(p.input("store:trust").value).toBe("2");
-    expect(p.badge("store:trust")!.textContent).toBe(
+    expect(p.badge("store:trust")!.getAttribute("aria-label")).toBe(
       "Your change was not saved, so this is back to 2.",
     );
   });
@@ -449,7 +498,7 @@ describe("the Starting values tab", () => {
     p.hostAnswers("preview/changeStartingValues", false);
     await settle();
     expect(p.input("store:trust").value).toBe("{ found =");
-    expect(p.badge("store:trust")!.textContent).toBe(
+    expect(p.badge("store:trust")!.getAttribute("aria-label")).toBe(
       "Not a value yet: expected } to close the table. It isn't kept until it is one.",
     );
   });
@@ -496,7 +545,7 @@ describe("the Starting values tab", () => {
     const head = [...p.routeList.querySelectorAll(".sv-group-head")].at(-1)!;
     expect(head.textContent).toBe("No longer in the script");
     expect(p.row("store:cells").hasAttribute("data-unresolved")).toBe(true);
-    expect(p.badge("visits:truth.ending")!.textContent).toBe(
+    expect(p.badge("visits:truth.ending")!.getAttribute("aria-label")).toBe(
       "No scene, branch or label is named truth.ending now, so this isn't used. × removes it.",
     );
     p.row("store:cells").querySelector<HTMLButtonElement>(".sv-clear")!.click();
@@ -510,15 +559,13 @@ describe("the Starting values tab", () => {
     p.type("store:suspect", "{ x =");
     p.type("store:player.hp", '"low"');
     const shapes = new Set(
-      p.rows().map((r) => {
-        const field = r.querySelector(".sv-field")!;
-        return [
-          ...[...r.children].map((c) => c.classList[0]),
-          ...[...field.children].map((c) => c.classList[0]),
-        ].join(" ");
-      }),
+      p.rows().map((r) =>
+        [...r.querySelectorAll(".sv-name, .sv-field, .sv-input, .sv-slot, .sv-clear")]
+          .map((c) => c.classList[0])
+          .join(" "),
+      ),
     );
-    expect([...shapes]).toEqual(["sv-name sv-field sv-clear sv-input sv-slot"]);
+    expect([...shapes]).toEqual(["sv-name sv-field sv-input sv-slot sv-clear"]);
     expect(p.row("store:trust").hasAttribute("data-set")).toBe(true);
     expect(p.badge("param:hour")!.dataset["status"]).toBe("warning");
     expect(p.badge("store:suspect")!.dataset["status"]).toBe("error");
