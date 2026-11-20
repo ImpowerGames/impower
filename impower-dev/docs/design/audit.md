@@ -26,6 +26,13 @@ The first run measured main at `b969caf645`, before any fix; its tables are in t
 
 That first run measured only what each route's first screen showed. The scans now cover whole pages, and that found three more things. Settings draws its switches, selects and text fields with the same divider-coloured boundary as the search fields, which widens #2643. The Emphasize markup row dims its markers to 2.26 to 3.32:1 (#2658). The Settings script sample's selector took taps in 36px under touch, which is fixed below.
 
+The rerun measured main at `c8fd9c91ce` on 2026-11-20, after #2643, #2644 and #2658 closed; the Results below are that run. Charcoal and Chalk have zero failures for rendered contrast, touch targets (on the 360 preset and on the 430 emulator) and keyboard operation: every Tab stop is named, shows a focus edge and carries a role. The failures left are:
+
+- Midnight and Dusk field placeholders, 1.87 to 2.57:1, kept by the decision under Decisions and readings.
+- Chalk's `--warning` token pairs on `--tint` and `--elevated`, which no screen draws, accepted under Decisions and readings.
+- axe-core's `aria-valid-attr-value` on every route's tabs, which is #2641, open.
+- The Add panel's Escape returning focus to the script, kept by decision.
+
 ### Fixed in this change
 
 | Finding | Fix | Where |
@@ -59,23 +66,23 @@ Not fixed or filed here: #2586 (phone title bar spacing), #2591 (debug controls 
 
 ### Decisions and readings
 
-- Other themes. Ink, Sepia, Graphite, Warm Folio and Dusk fail only what Charcoal and Chalk fail: the control boundaries (#2643) and the Emphasize markup markers (#2658), both filed for every theme. Midnight keeps today's values by decision. Besides those same two, it draws field placeholders in `#315881`, at 1.87 to 2.57:1. Dusk takes Midnight's component colours by design (the theme test "gives Dusk Midnight's colours"), so it shares both the placeholder colour and the decision. Changing Dusk's placeholder would separate it from Midnight; that is recorded here as accepted, not fixed.
+- Other themes. Ink, Sepia, Graphite and Warm Folio have no failure. Midnight keeps today's values by decision. It draws field placeholders in `#315881`, at 1.87 to 2.57:1. Dusk takes Midnight's component colours by design (the theme test "gives Dusk Midnight's colours"), so it shares both the placeholder colour and the decision. Changing Dusk's placeholder would separate it from Midnight; that is recorded here as accepted, not fixed.
 - Token pairs that no screen draws. Chalk's `--warning` reaches 4.19:1 on `--tint` and 4.23:1 on `--elevated`. No audited view draws warning text on either surface, so both are accepted as recorded; a component that puts warning text there needs another colour.
 - The Add panel returns focus to the script, at the caret it inserts at, rather than to its Add button. Its close handler does this on purpose (`AddPanel.tsx`), so the behaviour is kept and recorded here.
 - Copy. No old word appears. The glossary quotes four prototype strings in title case that the editor shows in sentence case ("Editor & project preferences", and the Settings names "Play from here", "Step into" and "Step out"). The sentence-case rule is kept over the glossary's capitals. The preview's play button keeps the glossary's "Play From Here".
-- Shortcuts. Every editor row of the keymap table had an effect except the three parameter-hint rows, which need a function call that the fixture does not have. Reindent changes the text when the lines are selected, as the setup does.
-- Touch on the emulator. Centred in its scroller before it is measured, every control reaches 44×44 except the phone title bar's three (#2644), the same as on the 360 preset.
+- Shortcuts. Every editor row of the keymap table had an effect except the two signature-help rows, which need a function call that the fixture does not have. Reindent changes the text when the lines are selected, as the setup does.
+- Touch on the emulator. Centred in its scroller before it is measured, every control reaches 44×44, the same as on the 360 preset.
 - On-screen keyboard. On the emulator no tapped field was covered once the keyboard was up. The script name field only shows in the phone layout's edit mode, so it was not tapped, and toasts were not raised. Both belong to #2594.
 - Forced colors. No Tab stop lost its focus edge, and the screenshots show every control drawn in system colours. The rail's current route stays marked only by bold text. The current script row and the current outline scene lose their tint and accent bar. This is an observation from the screenshots, not measured, and not filed.
-- Names in the keyboard order. The order is named from Chromium's accessibility tree. Two stops have no name, and both are filed: the save status button (#2662) and the script editor (#2640). The game frame reads "Untitled story game preview".
+- Names in the keyboard order. The order is named from Chromium's accessibility tree. Every stop has a name. The game frame reads "Untitled story game preview".
 - Live regions. The save status is a `status` ("Draft saved"). Each page ends with an empty `status` that receives toasts. Settings announces through an `output`. The caret position readout is a button with `aria-live="off"`, so it does not announce caret moves; whether it should is for the screen-reader pass below. The Outline ("Scene outline in main") and the Scripts rows ("Scripts and folders") are lists.
 
 ### Screen-reader pass
 
 To be done with NVDA on Windows, in Chrome, on the editor with a project open:
 
-1. Press Insert+F7 and choose Landmarks: expect banner, navigation, main and, on desktop, complementary (#2639 is open for the missing banner).
-2. Tab through Story: every button names what it does; the script editor names itself (#2640 is open for it).
+1. Press Insert+F7 and choose Landmarks: expect banner, navigation, main and, on desktop, complementary.
+2. Tab through Story: every button names what it does; the script editor names itself.
 3. Type in the script and watch the title bar: the save status announces "Saving locally…" then "Saved locally".
 4. Trigger a toast (for example add a file on Assets): NVDA reads it once.
 5. Move the caret with the arrow keys: note whether the line and column are announced, and whether that is wanted.
@@ -86,7 +93,7 @@ To be done with NVDA on Windows, in Chrome, on the editor with a project open:
 ## Results
 
 <!-- audit:begin -->
-Generated by `node .agents/skills/drive-web-editor/driver.mjs audit` on 2026-11-20 (UTC) at commit `2947059dcb`, in headless Chromium 149.0.7827.55.
+Generated by `node .agents/skills/drive-web-editor/driver.mjs audit` on 2026-11-20 (UTC) at commit `c8fd9c91ce`, in headless Chromium 149.0.7827.55.
 
 ### Token pairs
 
@@ -130,436 +137,49 @@ Every rendered text, icon and form-control boundary on each route and opened sur
 
 | Theme | Viewport | Checked | Failures | Script-colour failures | Not measured |
 |---|---|---|---|---|---|
-| Charcoal | desktop | 1932 | 46 | 0 | 12 |
-| Chalk | desktop | 1933 | 46 | 0 | 11 |
-| Ink | desktop | 1055 | 38 | 0 | 5 |
-| Sepia | desktop | 1055 | 38 | 0 | 5 |
-| Graphite | desktop | 1055 | 38 | 0 | 5 |
-| Warm Folio | desktop | 1055 | 38 | 0 | 5 |
-| Midnight | desktop | 1055 | 45 | 0 | 5 |
-| Dusk | desktop | 1055 | 45 | 0 | 5 |
-| Charcoal | phone 360 | 1098 | 35 | 0 | 7 |
-| Chalk | phone 360 | 1098 | 35 | 0 | 7 |
-| Ink | phone 360 | 786 | 33 | 0 | 4 |
-| Sepia | phone 360 | 786 | 33 | 0 | 4 |
-| Graphite | phone 360 | 786 | 33 | 0 | 4 |
-| Warm Folio | phone 360 | 786 | 33 | 0 | 4 |
-| Midnight | phone 360 | 786 | 35 | 0 | 4 |
-| Dusk | phone 360 | 786 | 35 | 0 | 4 |
+| Charcoal | desktop | 1753 | 0 | 0 | 11 |
+| Chalk | desktop | 1753 | 0 | 0 | 11 |
+| Ink | desktop | 1008 | 0 | 0 | 5 |
+| Sepia | desktop | 1008 | 0 | 0 | 5 |
+| Graphite | desktop | 1008 | 0 | 0 | 5 |
+| Warm Folio | desktop | 1008 | 0 | 0 | 5 |
+| Midnight | desktop | 1008 | 6 | 0 | 5 |
+| Dusk | desktop | 1008 | 6 | 0 | 5 |
+| Charcoal | phone 360 | 978 | 0 | 0 | 7 |
+| Chalk | phone 360 | 978 | 0 | 0 | 7 |
+| Ink | phone 360 | 779 | 0 | 0 | 4 |
+| Sepia | phone 360 | 779 | 0 | 0 | 4 |
+| Graphite | phone 360 | 779 | 0 | 0 | 4 |
+| Warm Folio | phone 360 | 779 | 0 | 0 | 4 |
+| Midnight | phone 360 | 779 | 2 | 0 | 4 |
+| Dusk | phone 360 | 779 | 2 | 0 | 4 |
 
 Failures, one row per element and colour pair:
 
 | Theme | Viewport | Surface | Kind | Element | Sample | Colours | Ratio | Needs |
 |---|---|---|---|---|---|---|---|---|
-| Charcoal | desktop | Story | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Story | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Ink | desktop | Story | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#51483f` on `#25211e` | 1.79 | 3 |
-| Sepia | desktop | Story | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d6cdbb` on `#f9f5ea` | 1.45 | 3 |
-| Graphite | desktop | Story | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Warm Folio | desktop | Story | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#51483f` on `#25211e` | 1.79 | 3 |
-| Midnight | desktop | Story | placeholder | main: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
-| Midnight | desktop | Story | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#052d57` on `#001124` | 1.37 | 3 |
-| Dusk | desktop | Story | placeholder | main: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
-| Dusk | desktop | Story | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#232f3b` on `#041220` | 1.38 | 3 |
-| Charcoal | desktop | Story: app-menu | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Story: app-menu | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Charcoal | desktop | Story: add-menu | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Story: add-menu | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Charcoal | desktop | Story: preview-settings | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Story: preview-settings | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Charcoal | desktop | Story: problems | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Story: problems | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Charcoal | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#494b50` on `#232427` | 1.78 | 3 |
-| Charcoal | desktop | Scripts | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Chalk | desktop | Scripts | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Ink | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#51483f` on `#25211e` | 1.79 | 3 |
-| Ink | desktop | Scripts | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#51483f` on `#25211e` | 1.79 | 3 |
-| Sepia | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#d6cdbb` on `#f9f5ea` | 1.45 | 3 |
-| Sepia | desktop | Scripts | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d6cdbb` on `#f9f5ea` | 1.45 | 3 |
-| Graphite | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#494b50` on `#232427` | 1.78 | 3 |
-| Graphite | desktop | Scripts | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Warm Folio | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#51483f` on `#25211e` | 1.79 | 3 |
-| Warm Folio | desktop | Scripts | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#51483f` on `#25211e` | 1.79 | 3 |
 | Midnight | desktop | Scripts | placeholder | main: input[aria-label="Search scripts"] | Search scripts | `#315881` on `#001124` | 2.57 | 4.5 |
-| Midnight | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#1f2e3f` on `#001124` | 1.37 | 3 |
-| Midnight | desktop | Scripts | placeholder | main: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
-| Midnight | desktop | Scripts | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#052d57` on `#001124` | 1.37 | 3 |
+| Midnight | desktop | Scripts | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
 | Dusk | desktop | Scripts | placeholder | main: input[aria-label="Search scripts"] | Search scripts | `#315881` on `#041220` | 2.56 | 4.5 |
-| Dusk | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#232f3b` on `#041220` | 1.38 | 3 |
-| Dusk | desktop | Scripts | placeholder | main: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
-| Dusk | desktop | Scripts | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#232f3b` on `#041220` | 1.38 | 3 |
-| Charcoal | desktop | Scripts: file-menu | control | main: input[aria-label="Search scripts"] | Search scripts | `#494b50` on `#232427` | 1.78 | 3 |
-| Charcoal | desktop | Scripts: file-menu | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Scripts: file-menu | control | main: input[aria-label="Search scripts"] | Search scripts | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Chalk | desktop | Scripts: file-menu | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d1d1d5` on `#fafafa` | 1.46 | 3 |
-| Charcoal | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#494b50` on `#232427` | 1.78 | 3 |
-| Charcoal | desktop | Assets | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Chalk | desktop | Assets | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Ink | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#51483f` on `#25211e` | 1.79 | 3 |
-| Ink | desktop | Assets | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#51483f` on `#25211e` | 1.79 | 3 |
-| Sepia | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#d6cdbb` on `#f9f5ea` | 1.45 | 3 |
-| Sepia | desktop | Assets | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d6cdbb` on `#f9f5ea` | 1.45 | 3 |
-| Graphite | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#494b50` on `#232427` | 1.78 | 3 |
-| Graphite | desktop | Assets | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Warm Folio | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#51483f` on `#25211e` | 1.79 | 3 |
-| Warm Folio | desktop | Assets | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#51483f` on `#25211e` | 1.79 | 3 |
+| Dusk | desktop | Scripts | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
 | Midnight | desktop | Assets | placeholder | main: input[aria-label="Search assets"] | Search assets | `#315881` on `#001124` | 2.57 | 4.5 |
-| Midnight | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#1f2e3f` on `#001124` | 1.37 | 3 |
-| Midnight | desktop | Assets | placeholder | main: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
-| Midnight | desktop | Assets | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#052d57` on `#001124` | 1.37 | 3 |
+| Midnight | desktop | Assets | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
 | Dusk | desktop | Assets | placeholder | main: input[aria-label="Search assets"] | Search assets | `#315881` on `#041220` | 2.56 | 4.5 |
-| Dusk | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#232f3b` on `#041220` | 1.38 | 3 |
-| Dusk | desktop | Assets | placeholder | main: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
-| Dusk | desktop | Assets | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#232f3b` on `#041220` | 1.38 | 3 |
-| Charcoal | desktop | Assets: asset-inspector | control | main: input[aria-label="Search assets"] | Search assets | `#494b50` on `#232427` | 1.78 | 3 |
-| Charcoal | desktop | Assets: asset-inspector | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Assets: asset-inspector | control | main: input[aria-label="Search assets"] | Search assets | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Chalk | desktop | Assets: asset-inspector | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Charcoal | desktop | Share | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Share | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Ink | desktop | Share | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#51483f` on `#25211e` | 1.79 | 3 |
-| Sepia | desktop | Share | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d6cdbb` on `#f9f5ea` | 1.45 | 3 |
-| Graphite | desktop | Share | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Warm Folio | desktop | Share | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#51483f` on `#25211e` | 1.79 | 3 |
-| Midnight | desktop | Share | placeholder | main: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
-| Midnight | desktop | Share | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#052d57` on `#001124` | 1.37 | 3 |
-| Dusk | desktop | Share | placeholder | main: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
-| Dusk | desktop | Share | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#232f3b` on `#041220` | 1.38 | 3 |
-| Charcoal | desktop | Settings | control | main: input#script-boldDeclarationNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#script-boldSpeakerNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#script-boldContainerNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#script-tintedDialogue-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(1) | * | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(2) | * | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(1) | ** | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(2) | ** | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(1) | _ | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(2) | _ | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | desktop | Settings | control | main: select#script-indentGuides-control | Off Current block All levels | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: select#theme-sample | Dialogue Choices & branches Syntax showcase | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#preview-screenplayPaperTexture-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#preview-previewAutoPlayBeats-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#preview-previewPlayAudio-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#preview-previewTypingPauses-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: select#screenplay-settings-screenplaySceneNumbers-control | None Left margin Right margin Both margins | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#screenplay-settings-screenplaySceneNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#screenplay-settings-screenplayBranchNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#screenplay-settings-screenplayFunctionNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: select#screenplay-settings-screenplayPaperSize-control | US Letter A4 | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#screenplay-settings-screenplayMore-control | (MORE) | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#screenplay-settings-screenplayContd-control | (CONT'D) | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#add-folder-backdrop-control | Backdrops | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#add-folder-portrait-control | Portraits | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#add-folder-music-control | Music | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#add-folder-sound-control | Sounds | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#file-type-scripts-control | sd, luau | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#file-type-images-control | png, apng, jpeg, jpg, gif, bmp, svg, webp | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#file-type-audio-control | mid, wav, mp3, mp2, ogg, aac, opus, flac | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input#file-type-fonts-control | ttf, woff, woff2, otf | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | desktop | Settings | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Chalk | desktop | Settings | control | main: input#script-boldDeclarationNames-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | control | main: input#script-boldSpeakerNames-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | control | main: input#script-boldContainerNames-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | control | main: input#script-tintedDialogue-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(1) | * | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(2) | * | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(1) | ** | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(2) | ** | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(1) | _ | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(2) | _ | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | desktop | Settings | control | main: select#script-indentGuides-control | Off Current block All levels | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: select#theme-sample | Dialogue Choices & branches Syntax showcase | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#preview-screenplayPaperTexture-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | control | main: input#preview-previewAutoPlayBeats-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | control | main: input#preview-previewPlayAudio-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | control | main: input#preview-previewTypingPauses-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | control | main: select#screenplay-settings-screenplaySceneNumbers-control | None Left margin Right margin Both margins | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#screenplay-settings-screenplaySceneNames-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | control | main: input#screenplay-settings-screenplayBranchNames-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | control | main: input#screenplay-settings-screenplayFunctionNames-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | desktop | Settings | control | main: select#screenplay-settings-screenplayPaperSize-control | US Letter A4 | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#screenplay-settings-screenplayMore-control | (MORE) | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#screenplay-settings-screenplayContd-control | (CONT'D) | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#add-folder-backdrop-control | Backdrops | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#add-folder-portrait-control | Portraits | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#add-folder-music-control | Music | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#add-folder-sound-control | Sounds | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#file-type-scripts-control | sd, luau | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#file-type-images-control | png, apng, jpeg, jpg, gif, bmp, svg, webp | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#file-type-audio-control | mid, wav, mp3, mp2, ogg, aac, opus, flac | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input#file-type-fonts-control | ttf, woff, woff2, otf | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| Chalk | desktop | Settings | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Ink | desktop | Settings | control | main: input#script-boldDeclarationNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#script-boldSpeakerNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#script-boldContainerNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#script-tintedDialogue-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(1) | * | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Ink | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(2) | * | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Ink | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(1) | ** | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Ink | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(2) | ** | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Ink | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(1) | _ | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Ink | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(2) | _ | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Ink | desktop | Settings | control | main: select#script-indentGuides-control | Off Current block All levels | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: select#theme-sample | Dialogue Choices & branches Syntax showcase | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#preview-screenplayPaperTexture-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#preview-previewAutoPlayBeats-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#preview-previewPlayAudio-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#preview-previewTypingPauses-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: select#screenplay-settings-screenplaySceneNumbers-control | None Left margin Right margin Both margins | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#screenplay-settings-screenplaySceneNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#screenplay-settings-screenplayBranchNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#screenplay-settings-screenplayFunctionNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: select#screenplay-settings-screenplayPaperSize-control | US Letter A4 | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#screenplay-settings-screenplayMore-control | (MORE) | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#screenplay-settings-screenplayContd-control | (CONT'D) | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#add-folder-backdrop-control | Backdrops | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#add-folder-portrait-control | Portraits | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#add-folder-music-control | Music | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#add-folder-sound-control | Sounds | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#file-type-scripts-control | sd, luau | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#file-type-images-control | png, apng, jpeg, jpg, gif, bmp, svg, webp | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#file-type-audio-control | mid, wav, mp3, mp2, ogg, aac, opus, flac | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input#file-type-fonts-control | ttf, woff, woff2, otf | `#51483f` on `#292521` | 1.70 | 3 |
-| Ink | desktop | Settings | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#51483f` on `#25211e` | 1.79 | 3 |
-| Sepia | desktop | Settings | control | main: input#script-boldDeclarationNames-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#script-boldSpeakerNames-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#script-boldContainerNames-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#script-tintedDialogue-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(1) | * | `#a6a299` on `#f6f1e6` | 2.27 | 4.5 |
-| Sepia | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(2) | * | `#a6a299` on `#f6f1e6` | 2.27 | 4.5 |
-| Sepia | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(1) | ** | `#a6a299` on `#f6f1e6` | 2.27 | 4.5 |
-| Sepia | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(2) | ** | `#a6a299` on `#f6f1e6` | 2.27 | 4.5 |
-| Sepia | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(1) | _ | `#a6a299` on `#f6f1e6` | 2.27 | 4.5 |
-| Sepia | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(2) | _ | `#a6a299` on `#f6f1e6` | 2.27 | 4.5 |
-| Sepia | desktop | Settings | control | main: select#script-indentGuides-control | Off Current block All levels | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: select#theme-sample | Dialogue Choices & branches Syntax showcase | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#preview-screenplayPaperTexture-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#preview-previewAutoPlayBeats-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#preview-previewPlayAudio-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#preview-previewTypingPauses-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: select#screenplay-settings-screenplaySceneNumbers-control | None Left margin Right margin Both margins | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#screenplay-settings-screenplaySceneNames-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#screenplay-settings-screenplayBranchNames-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#screenplay-settings-screenplayFunctionNames-control[role=switch] | on | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: select#screenplay-settings-screenplayPaperSize-control | US Letter A4 | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#screenplay-settings-screenplayMore-control | (MORE) | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#screenplay-settings-screenplayContd-control | (CONT'D) | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#add-folder-backdrop-control | Backdrops | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#add-folder-portrait-control | Portraits | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#add-folder-music-control | Music | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#add-folder-sound-control | Sounds | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#file-type-scripts-control | sd, luau | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#file-type-images-control | png, apng, jpeg, jpg, gif, bmp, svg, webp | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#file-type-audio-control | mid, wav, mp3, mp2, ogg, aac, opus, flac | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input#file-type-fonts-control | ttf, woff, woff2, otf | `#d6cdbb` on `#f6f1e6` | 1.40 | 3 |
-| Sepia | desktop | Settings | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#d6cdbb` on `#f9f5ea` | 1.45 | 3 |
-| Graphite | desktop | Settings | control | main: input#script-boldDeclarationNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#script-boldSpeakerNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#script-boldContainerNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#script-tintedDialogue-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(1) | * | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Graphite | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(2) | * | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Graphite | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(1) | ** | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Graphite | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(2) | ** | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Graphite | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(1) | _ | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Graphite | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(2) | _ | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Graphite | desktop | Settings | control | main: select#script-indentGuides-control | Off Current block All levels | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: select#theme-sample | Dialogue Choices & branches Syntax showcase | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#preview-screenplayPaperTexture-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#preview-previewAutoPlayBeats-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#preview-previewPlayAudio-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#preview-previewTypingPauses-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: select#screenplay-settings-screenplaySceneNumbers-control | None Left margin Right margin Both margins | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#screenplay-settings-screenplaySceneNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#screenplay-settings-screenplayBranchNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#screenplay-settings-screenplayFunctionNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: select#screenplay-settings-screenplayPaperSize-control | US Letter A4 | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#screenplay-settings-screenplayMore-control | (MORE) | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#screenplay-settings-screenplayContd-control | (CONT'D) | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#add-folder-backdrop-control | Backdrops | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#add-folder-portrait-control | Portraits | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#add-folder-music-control | Music | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#add-folder-sound-control | Sounds | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#file-type-scripts-control | sd, luau | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#file-type-images-control | png, apng, jpeg, jpg, gif, bmp, svg, webp | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#file-type-audio-control | mid, wav, mp3, mp2, ogg, aac, opus, flac | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input#file-type-fonts-control | ttf, woff, woff2, otf | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Graphite | desktop | Settings | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#494b50` on `#232427` | 1.78 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#script-boldDeclarationNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#script-boldSpeakerNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#script-boldContainerNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#script-tintedDialogue-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(1) | * | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Warm Folio | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(2) | * | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Warm Folio | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(1) | ** | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Warm Folio | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(2) | ** | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Warm Folio | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(1) | _ | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Warm Folio | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(2) | _ | `#7d746a` on `#292521` | 3.32 | 4.5 |
-| Warm Folio | desktop | Settings | control | main: select#script-indentGuides-control | Off Current block All levels | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: select#theme-sample | Dialogue Choices & branches Syntax showcase | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#preview-screenplayPaperTexture-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#preview-previewAutoPlayBeats-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#preview-previewPlayAudio-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#preview-previewTypingPauses-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: select#screenplay-settings-screenplaySceneNumbers-control | None Left margin Right margin Both margins | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#screenplay-settings-screenplaySceneNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#screenplay-settings-screenplayBranchNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#screenplay-settings-screenplayFunctionNames-control[role=switch] | on | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: select#screenplay-settings-screenplayPaperSize-control | US Letter A4 | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#screenplay-settings-screenplayMore-control | (MORE) | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#screenplay-settings-screenplayContd-control | (CONT'D) | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#add-folder-backdrop-control | Backdrops | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#add-folder-portrait-control | Portraits | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#add-folder-music-control | Music | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#add-folder-sound-control | Sounds | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#file-type-scripts-control | sd, luau | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#file-type-images-control | png, apng, jpeg, jpg, gif, bmp, svg, webp | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#file-type-audio-control | mid, wav, mp3, mp2, ogg, aac, opus, flac | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input#file-type-fonts-control | ttf, woff, woff2, otf | `#51483f` on `#292521` | 1.70 | 3 |
-| Warm Folio | desktop | Settings | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#51483f` on `#25211e` | 1.79 | 3 |
-| Midnight | desktop | Settings | control | main: input#script-boldDeclarationNames-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#script-boldSpeakerNames-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#script-boldContainerNames-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#script-tintedDialogue-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(1) | * | `#546576` on `#001933` | 2.95 | 4.5 |
-| Midnight | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(2) | * | `#546576` on `#001933` | 2.95 | 4.5 |
-| Midnight | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(1) | ** | `#546576` on `#001933` | 2.95 | 4.5 |
-| Midnight | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(2) | ** | `#546576` on `#001933` | 2.95 | 4.5 |
-| Midnight | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(1) | _ | `#546576` on `#001933` | 2.95 | 4.5 |
-| Midnight | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(2) | _ | `#546576` on `#001933` | 2.95 | 4.5 |
-| Midnight | desktop | Settings | control | main: select#script-indentGuides-control | Off Current block All levels | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: select#theme-sample | Dialogue Choices & branches Syntax showcase | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#preview-screenplayPaperTexture-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#preview-previewAutoPlayBeats-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#preview-previewPlayAudio-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#preview-previewTypingPauses-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: select#screenplay-settings-screenplaySceneNumbers-control | None Left margin Right margin Both margins | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#screenplay-settings-screenplaySceneNames-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#screenplay-settings-screenplayBranchNames-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#screenplay-settings-screenplayFunctionNames-control[role=switch] | on | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: select#screenplay-settings-screenplayPaperSize-control | US Letter A4 | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#screenplay-settings-screenplayMore-control | (MORE) | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#screenplay-settings-screenplayContd-control | (CONT'D) | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#add-folder-backdrop-control | Backdrops | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#add-folder-portrait-control | Portraits | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#add-folder-music-control | Music | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#add-folder-sound-control | Sounds | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#file-type-scripts-control | sd, luau | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#file-type-images-control | png, apng, jpeg, jpg, gif, bmp, svg, webp | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#file-type-audio-control | mid, wav, mp3, mp2, ogg, aac, opus, flac | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | control | main: input#file-type-fonts-control | ttf, woff, woff2, otf | `#1f354c` on `#001933` | 1.41 | 3 |
-| Midnight | desktop | Settings | placeholder | main: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
-| Midnight | desktop | Settings | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#052d57` on `#001124` | 1.37 | 3 |
-| Dusk | desktop | Settings | control | main: input#script-boldDeclarationNames-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#script-boldSpeakerNames-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#script-boldContainerNames-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#script-tintedDialogue-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(1) | * | `#586573` on `#05192e` | 2.97 | 4.5 |
-| Dusk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(2) | * | `#586573` on `#05192e` | 2.97 | 4.5 |
-| Dusk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(1) | ** | `#586573` on `#05192e` | 2.97 | 4.5 |
-| Dusk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(2) | ** | `#586573` on `#05192e` | 2.97 | 4.5 |
-| Dusk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(1) | _ | `#586573` on `#05192e` | 2.97 | 4.5 |
-| Dusk | desktop | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(2) | _ | `#586573` on `#05192e` | 2.97 | 4.5 |
-| Dusk | desktop | Settings | control | main: select#script-indentGuides-control | Off Current block All levels | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: select#theme-sample | Dialogue Choices & branches Syntax showcase | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#preview-screenplayPaperTexture-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#preview-previewAutoPlayBeats-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#preview-previewPlayAudio-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#preview-previewTypingPauses-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: select#screenplay-settings-screenplaySceneNumbers-control | None Left margin Right margin Both margins | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#screenplay-settings-screenplaySceneNames-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#screenplay-settings-screenplayBranchNames-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#screenplay-settings-screenplayFunctionNames-control[role=switch] | on | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: select#screenplay-settings-screenplayPaperSize-control | US Letter A4 | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#screenplay-settings-screenplayMore-control | (MORE) | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#screenplay-settings-screenplayContd-control | (CONT'D) | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#add-folder-backdrop-control | Backdrops | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#add-folder-portrait-control | Portraits | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#add-folder-music-control | Music | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#add-folder-sound-control | Sounds | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#file-type-scripts-control | sd, luau | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#file-type-images-control | png, apng, jpeg, jpg, gif, bmp, svg, webp | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#file-type-audio-control | mid, wav, mp3, mp2, ogg, aac, opus, flac | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | control | main: input#file-type-fonts-control | ttf, woff, woff2, otf | `#233547` on `#05192e` | 1.41 | 3 |
-| Dusk | desktop | Settings | placeholder | main: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
-| Dusk | desktop | Settings | control | main: input[aria-label="Add an expression to watch"] | Add an expression to watch | `#232f3b` on `#041220` | 1.38 | 3 |
-| Charcoal | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#494b50` on `#202123` | 1.85 | 3 |
-| Chalk | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#d3d3d7` on `#ececee` | 1.27 | 3 |
-| Ink | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#51483f` on `#201d1a` | 1.88 | 3 |
-| Sepia | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#d6cdbb` on `#efe9dc` | 1.30 | 3 |
-| Graphite | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#494b50` on `#202123` | 1.85 | 3 |
-| Warm Folio | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#51483f` on `#201d1a` | 1.88 | 3 |
+| Dusk | desktop | Assets | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
+| Midnight | desktop | Share | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
+| Dusk | desktop | Share | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
+| Midnight | desktop | Settings | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
+| Dusk | desktop | Settings | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
 | Midnight | phone 360 | Scripts | placeholder | main: input[aria-label="Search scripts"] | Search scripts | `#315881` on `#052d57` | 1.87 | 4.5 |
-| Midnight | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#23476b` on `#052d57` | 1.43 | 3 |
 | Dusk | phone 360 | Scripts | placeholder | main: input[aria-label="Search scripts"] | Search scripts | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
-| Dusk | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#2b4764` on `#0e2d4e` | 1.45 | 3 |
-| Charcoal | phone 360 | Scripts: file-menu | control | main: input[aria-label="Search scripts"] | Search scripts | `#494b50` on `#202123` | 1.85 | 3 |
-| Chalk | phone 360 | Scripts: file-menu | control | main: input[aria-label="Search scripts"] | Search scripts | `#d3d3d7` on `#ececee` | 1.27 | 3 |
-| Charcoal | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#494b50` on `#202123` | 1.85 | 3 |
-| Chalk | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#d3d3d7` on `#ececee` | 1.27 | 3 |
-| Ink | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#51483f` on `#201d1a` | 1.88 | 3 |
-| Sepia | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#d6cdbb` on `#efe9dc` | 1.30 | 3 |
-| Graphite | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#494b50` on `#202123` | 1.85 | 3 |
-| Warm Folio | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#51483f` on `#201d1a` | 1.88 | 3 |
 | Midnight | phone 360 | Assets | placeholder | main: input[aria-label="Search assets"] | Search assets | `#315881` on `#052d57` | 1.87 | 4.5 |
-| Midnight | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#23476b` on `#052d57` | 1.43 | 3 |
 | Dusk | phone 360 | Assets | placeholder | main: input[aria-label="Search assets"] | Search assets | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
-| Dusk | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#2b4764` on `#0e2d4e` | 1.45 | 3 |
-| Charcoal | phone 360 | Assets: asset-inspector | control | main: input[aria-label="Search assets"] | Search assets | `#494b50` on `#202123` | 1.85 | 3 |
-| Chalk | phone 360 | Assets: asset-inspector | control | main: input[aria-label="Search assets"] | Search assets | `#d3d3d7` on `#ececee` | 1.27 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#script-boldDeclarationNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#script-boldSpeakerNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#script-boldContainerNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#script-tintedDialogue-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(1) | * | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(2) | * | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(1) | ** | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(2) | ** | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(1) | _ | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(2) | _ | `#78797c` on `#282a2d` | 3.29 | 4.5 |
-| Charcoal | phone 360 | Settings | control | main: select#script-indentGuides-control | Off Current block All levels | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: select#theme-sample | Dialogue Choices & branches Syntax showcase | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#preview-screenplayPaperTexture-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#preview-previewAutoPlayBeats-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#preview-previewPlayAudio-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#preview-previewTypingPauses-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: select#screenplay-settings-screenplaySceneNumbers-control | None Left margin Right margin Both margins | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#screenplay-settings-screenplaySceneNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#screenplay-settings-screenplayBranchNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#screenplay-settings-screenplayFunctionNames-control[role=switch] | on | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: select#screenplay-settings-screenplayPaperSize-control | US Letter A4 | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#screenplay-settings-screenplayMore-control | (MORE) | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#screenplay-settings-screenplayContd-control | (CONT'D) | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#add-folder-backdrop-control | Backdrops | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#add-folder-portrait-control | Portraits | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#add-folder-music-control | Music | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#add-folder-sound-control | Sounds | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#file-type-scripts-control | sd, luau | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#file-type-images-control | png, apng, jpeg, jpg, gif, bmp, svg, webp | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#file-type-audio-control | mid, wav, mp3, mp2, ogg, aac, opus, flac | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Charcoal | phone 360 | Settings | control | main: input#file-type-fonts-control | ttf, woff, woff2, otf | `#494b50` on `#282a2d` | 1.65 | 3 |
-| Chalk | phone 360 | Settings | control | main: input#script-boldDeclarationNames-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | phone 360 | Settings | control | main: input#script-boldSpeakerNames-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | phone 360 | Settings | control | main: input#script-boldContainerNames-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | phone 360 | Settings | control | main: input#script-tintedDialogue-control[role=switch] | on | `#d2d2d6` on `#f5f5f6` | 1.38 | 3 |
-| Chalk | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(1) | * | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > i > span:nth-of-type(2) | * | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(1) | ** | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > b > span:nth-of-type(2) | ** | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(1) | _ | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | phone 360 | Settings | text | main: small#script-emphasizeMarkup-detail > u > span:nth-of-type(2) | _ | `#a4a5a9` on `#f5f5f6` | 2.26 | 4.5 |
-| Chalk | phone 360 | Settings | control | main: select#script-indentGuides-control | Off Current block All levels | `#d3d3d7` on `#f5f5f6` | 1.37 | 3 |
-| … | | | | 206 more rows in the JSON report | | | | |
 
 Not measured in Charcoal and Chalk, because no boundary is drawn or the backdrop is an image:
 
 | Viewport | Surface | Element | Sample | Reason |
 |---|---|---|---|---|
 | desktop | Settings | header: input[aria-label="Project name"] | Project name | no boundary is drawn |
-| desktop | Scripts: file-menu | header: div > header > div:nth-of-type(2) > span | Untitled story | div > header > div:nth-of-type(2) > span has a background image |
-| desktop | Scripts: file-menu | header: header > div:nth-of-type(2) > div > span | Draft saved | header > div:nth-of-type(2) > div > span has a background image |
 | phone 360 | Settings | header: input[aria-label="Project name"] | Project name | no boundary is drawn |
 
 ### axe-core
@@ -568,168 +188,50 @@ axe-core 4.14.1, WCAG 2.0 and 2.1 A and AA rules, on every route and surface in 
 
 | Theme | Viewport | Surface | Rule | Impact | Nodes | First element |
 |---|---|---|---|---|---|---|
-| Charcoal | desktop | Story | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Charcoal | desktop | Story | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
-| Charcoal | desktop | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
-| Charcoal | desktop | Story | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-12" aria-haspopu` |
-| Charcoal | desktop | Story | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Story | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Chalk | desktop | Story | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
-| Chalk | desktop | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
-| Chalk | desktop | Story | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-12" aria-haspopu` |
-| Chalk | desktop | Story | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | desktop | Story: app-menu | `aria-required-children` | critical | 1 | `<div data-side="top" data-align="start" role="menu" aria-orientation="vertical" data-state="open" data-radix-menu-cont..` |
-| Charcoal | desktop | Story: app-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Story: app-menu | `aria-required-children` | critical | 1 | `<div data-side="top" data-align="start" role="menu" aria-orientation="vertical" data-state="open" data-radix-menu-cont..` |
-| Chalk | desktop | Story: app-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | desktop | Story: add-menu | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Charcoal | desktop | Story: add-menu | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
-| Charcoal | desktop | Story: add-menu | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
-| Charcoal | desktop | Story: add-menu | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-13" aria-haspopu` |
-| Charcoal | desktop | Story: add-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Story: add-menu | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Chalk | desktop | Story: add-menu | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
-| Chalk | desktop | Story: add-menu | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
-| Chalk | desktop | Story: add-menu | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-13" aria-haspopu` |
-| Chalk | desktop | Story: add-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | desktop | Story: preview-settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Story: preview-settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | desktop | Story: problems | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Charcoal | desktop | Story: problems | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
-| Charcoal | desktop | Story: problems | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
-| Charcoal | desktop | Story: problems | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-13" aria-haspopu` |
-| Charcoal | desktop | Story: problems | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Story: problems | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Chalk | desktop | Story: problems | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
-| Chalk | desktop | Story: problems | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
-| Chalk | desktop | Story: problems | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-13" aria-haspopu` |
-| Chalk | desktop | Story: problems | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | desktop | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
-| Charcoal | desktop | Scripts | `label-content-name-mismatch` | serious | 3 | `<button type="button" aria-current="true" data-script-path="main.sd" aria-label="Open script Main, en...">` |
-| Charcoal | desktop | Scripts | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
-| Chalk | desktop | Scripts | `label-content-name-mismatch` | serious | 3 | `<button type="button" aria-current="true" data-script-path="main.sd" aria-label="Open script Main, en...">` |
-| Chalk | desktop | Scripts | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | desktop | Scripts: file-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Scripts: file-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | desktop | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-a..." data-state="active" id="ra` |
-| Charcoal | desktop | Assets | `label-content-name-mismatch` | serious | 3 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="true">` |
-| Charcoal | desktop | Assets | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-a..." data-state="active" id="ra` |
-| Chalk | desktop | Assets | `label-content-name-mismatch` | serious | 3 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="true">` |
-| Chalk | desktop | Assets | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | desktop | Assets: asset-inspector | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-a..." data-state="active" id="ra` |
-| Charcoal | desktop | Assets: asset-inspector | `label-content-name-mismatch` | serious | 4 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="true" ar` |
-| Charcoal | desktop | Assets: asset-inspector | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Assets: asset-inspector | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-a..." data-state="active" id="ra` |
-| Chalk | desktop | Assets: asset-inspector | `label-content-name-mismatch` | serious | 4 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="true" ar` |
-| Chalk | desktop | Assets: asset-inspector | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | desktop | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-s..." data-state="active" id="ra` |
-| Charcoal | desktop | Share | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-22" aria-haspopu` |
-| Charcoal | desktop | Share | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-s..." data-state="active" id="ra` |
-| Chalk | desktop | Share | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-22" aria-haspopu` |
-| Chalk | desktop | Share | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | desktop | Settings | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Charcoal | desktop | Settings | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-12" aria-haspopu` |
-| Charcoal | desktop | Settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | desktop | Settings | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Chalk | desktop | Settings | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-12" aria-haspopu` |
-| Chalk | desktop | Settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | phone 360 | Story | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Charcoal | phone 360 | Story | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
-| Charcoal | phone 360 | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-2-content-l..." data-state="active" id="ra` |
-| Charcoal | phone 360 | Story | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | phone 360 | Story | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Chalk | phone 360 | Story | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
-| Chalk | phone 360 | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-2-content-l..." data-state="active" id="ra` |
-| Chalk | phone 360 | Story | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | phone 360 | Story: app-menu | `aria-required-children` | critical | 1 | `<div role="menu">` |
-| Charcoal | phone 360 | Story: app-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | phone 360 | Story: app-menu | `aria-required-children` | critical | 1 | `<div role="menu">` |
-| Chalk | phone 360 | Story: app-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | phone 360 | Story: add-menu | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Charcoal | phone 360 | Story: add-menu | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
-| Charcoal | phone 360 | Story: add-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | phone 360 | Story: add-menu | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Chalk | phone 360 | Story: add-menu | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
-| Chalk | phone 360 | Story: add-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | phone 360 | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-23-content-..." data-state="active" id="ra` |
-| Charcoal | phone 360 | Scripts | `label-content-name-mismatch` | serious | 2 | `<button type="button" aria-current="true" data-script-path="main.sd" aria-label="Open script Main, en...">` |
-| Charcoal | phone 360 | Scripts | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | phone 360 | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-23-content-..." data-state="active" id="ra` |
-| Chalk | phone 360 | Scripts | `label-content-name-mismatch` | serious | 2 | `<button type="button" aria-current="true" data-script-path="main.sd" aria-label="Open script Main, en...">` |
-| Chalk | phone 360 | Scripts | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | phone 360 | Scripts: file-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | phone 360 | Scripts: file-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | phone 360 | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-44-content-..." data-state="active" id="ra` |
-| Charcoal | phone 360 | Assets | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="false">` |
-| Charcoal | phone 360 | Assets | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | phone 360 | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-44-content-..." data-state="active" id="ra` |
-| Chalk | phone 360 | Assets | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="false">` |
-| Chalk | phone 360 | Assets | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | phone 360 | Assets: asset-inspector | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Open main at line 8">` |
-| Charcoal | phone 360 | Assets: asset-inspector | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | phone 360 | Assets: asset-inspector | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Open main at line 8">` |
-| Chalk | phone 360 | Assets: asset-inspector | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | phone 360 | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-2-content-s..." data-state="active" id="ra` |
-| Charcoal | phone 360 | Share | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | phone 360 | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-2-content-s..." data-state="active" id="ra` |
-| Chalk | phone 360 | Share | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Charcoal | phone 360 | Settings | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Charcoal | phone 360 | Settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
-| Chalk | phone 360 | Settings | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
-| Chalk | phone 360 | Settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-l..." data-state="active" id="ra` |
+| Chalk | desktop | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-l..." data-state="active" id="ra` |
+| Charcoal | desktop | Story: add-menu | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-l..." data-state="active" id="ra` |
+| Chalk | desktop | Story: add-menu | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-l..." data-state="active" id="ra` |
+| Charcoal | desktop | Story: problems | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-l..." data-state="active" id="ra` |
+| Chalk | desktop | Story: problems | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-l..." data-state="active" id="ra` |
+| Charcoal | desktop | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-l..." data-state="active" id="ra` |
+| Chalk | desktop | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-l..." data-state="active" id="ra` |
+| Charcoal | desktop | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-a..." data-state="active" id="ra` |
+| Chalk | desktop | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-a..." data-state="active" id="ra` |
+| Charcoal | desktop | Assets: asset-inspector | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-a..." data-state="active" id="ra` |
+| Chalk | desktop | Assets: asset-inspector | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-a..." data-state="active" id="ra` |
+| Charcoal | desktop | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-s..." data-state="active" id="ra` |
+| Chalk | desktop | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-1-content-s..." data-state="active" id="ra` |
+| Charcoal | phone 360 | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-4-content-l..." data-state="active" id="ra` |
+| Chalk | phone 360 | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-4-content-l..." data-state="active" id="ra` |
+| Charcoal | phone 360 | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-26-content-..." data-state="active" id="ra` |
+| Chalk | phone 360 | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-26-content-..." data-state="active" id="ra` |
+| Charcoal | phone 360 | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-50-content-..." data-state="active" id="ra` |
+| Chalk | phone 360 | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-50-content-..." data-state="active" id="ra` |
+| Charcoal | phone 360 | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-4-content-s..." data-state="active" id="ra` |
+| Chalk | phone 360 | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-4-content-s..." data-state="active" id="ra` |
 
 ### Touch targets
 
-Every rendered control under a coarse pointer, scrolled to the centre of its scroller first, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to 44px each way. Chromium's phone preset at 360×780 with touch; and the Android emulator at its own width of 430px (sdk_gphone64_x86_64 emulator-5554, Chrome 124.0.6367.219), run on 2026-11-20 at commit `2947059dcb` with `audit --device android`.
+Every rendered control under a coarse pointer, scrolled to the centre of its scroller first, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to 44px each way. Chromium's phone preset at 360×780 with touch; and the Android emulator at its own width of 430px (sdk_gphone64_x86_64 emulator-5554, Chrome 124.0.6367.219), run on 2026-11-20 at commit `c8fd9c91ce` with `audit --device android`.
 
 | Viewport | Surface | Controls | Under 44×44 |
 |---|---|---|---|
-| phone 360 | Story | 13 | 3 |
+| phone 360 | Story | 14 | 0 |
 | phone 360 | Story: app-menu | 5 | 0 |
-| phone 360 | Story: add-menu | 14 | 0 |
 | phone 360 | Scripts | 15 | 0 |
 | phone 360 | Scripts: file-menu | 6 | 0 |
-| phone 360 | Assets | 16 | 3 |
+| phone 360 | Assets | 16 | 0 |
 | phone 360 | Assets: asset-inspector | 7 | 0 |
-| phone 360 | Share | 10 | 3 |
-| phone 360 | Settings | 117 | 3 |
-| emulator 430 | Story | 12 | 3 |
-| emulator 430 | Story: add-menu | 6 | 0 |
+| phone 360 | Share | 10 | 0 |
+| phone 360 | Settings | 117 | 0 |
+| emulator 430 | Story | 13 | 0 |
+| emulator 430 | Story: add-menu | 7 | 0 |
 | emulator 430 | Scripts | 15 | 0 |
-| emulator 430 | Assets | 16 | 3 |
+| emulator 430 | Assets | 16 | 0 |
 | emulator 430 | Assets: asset-inspector | 7 | 0 |
-| emulator 430 | Share | 10 | 3 |
-| emulator 430 | Settings | 116 | 3 |
-
-| Viewport | Surface | Control | Name | Box | Hit area |
-|---|---|---|---|---|---|
-| phone 360 | Story | header: input[aria-label="Project name"] | Project name | 212x16 | 44x25 |
-| phone 360 | Story | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
-| phone 360 | Story | header: div > span > label > button | Show problems | 68x15 | 44x27 |
-| phone 360 | Assets | header: input[aria-label="Project name"] | Project name | 187x16 | 44x25 |
-| phone 360 | Assets | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
-| phone 360 | Assets | header: div > span > label > button | Show problems | 68x15 | 44x27 |
-| phone 360 | Share | header: input[aria-label="Project name"] | Project name | 187x16 | 44x25 |
-| phone 360 | Share | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
-| phone 360 | Share | header: div > span > label > button | Show problems | 68x15 | 44x27 |
-| phone 360 | Settings | header: input[aria-label="Project name"] | Project name | 187x16 | 44x25 |
-| phone 360 | Settings | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
-| phone 360 | Settings | header: div > span > label > button | Show problems | 68x15 | 44x27 |
-| emulator 430 | Story | header: input[aria-label="Project name"] | Project name | 282x16 | 44x26 |
-| emulator 430 | Story | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
-| emulator 430 | Story | header: div > span > label > button | Show problems | 68x15 | 44x27 |
-| emulator 430 | Assets | header: input[aria-label="Project name"] | Project name | 257x16 | 44x26 |
-| emulator 430 | Assets | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
-| emulator 430 | Assets | header: div > span > label > button | Show problems | 68x15 | 44x27 |
-| emulator 430 | Share | header: input[aria-label="Project name"] | Project name | 257x16 | 44x26 |
-| emulator 430 | Share | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
-| emulator 430 | Share | header: div > span > label > button | Show problems | 68x15 | 44x27 |
-| emulator 430 | Settings | header: input[aria-label="Project name"] | Project name | 257x16 | 44x26 |
-| emulator 430 | Settings | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
-| emulator 430 | Settings | header: div > span > label > button | Show problems | 68x15 | 44x27 |
+| emulator 430 | Share | 10 | 0 |
+| emulator 430 | Settings | 116 | 0 |
 
 ### On-screen keyboard
 
@@ -737,10 +239,10 @@ Each text field tapped on the Android emulator, then the field's bottom edge com
 
 | Field | Route | Keyboard up | Field bottom | Visible bottom | Covered |
 |---|---|---|---|---|---|
-| Search scripts | Scripts | yes | 216 | 495 | no |
-| Search assets | Assets | yes | 113 | 495 | no |
+| Search scripts | Scripts | yes | 252 | 495 | no |
+| Search assets | Assets | yes | 149 | 495 | no |
 | Script name | Story | – | – | – | not on screen |
-| Project name | Story | yes | 27 | 447 | no |
+| Project name | Story | yes | 45 | 447 | no |
 
 ### Keyboard order
 
@@ -748,10 +250,10 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 
 #### Story
 
-53 stops; 0 without a visible focus edge; 0 focusable without a role.
+42 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 1. textbox “Project name”
-2. button
+2. button “Draft saved”
 3. tab “Story”
 4. button “Search”
 5. button “Script setup”
@@ -773,9 +275,9 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 21. button “Fold”
 22. button “Fold”
 23. button “Fold”
-24. textbox — focus shown by the caret
+24. textbox “main” — focus shown by the caret
 25. button “Writing tools”
-26. button “Line 17, Col 1”
+26. button “Line 1, Col 1”
 27. button “Add”
 28. separator “Resize script and preview panes”
 29. button “Viewing mode: Visual Novel”
@@ -788,28 +290,17 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 36. Iframe “Untitled story game preview”
 37. separator “Resize game and panel”
 38. button “2 problems”
-39. button “HARBOR (7 → 17). Route from the top of scene HARBOR, line 7 ”
-40. button “Game aspect ratio: Auto, shown at 544×496 pixels”
+39. button “main : 1”
+40. button “Game aspect ratio: Auto, 544×694 pixels”
 41. button “Fullscreen preview”
-42. button “0 errors. Hide errors”
-43. button “2 warnings. Hide warnings”
-44. button “0 notes. Hide notes”
-45. button “In the script, 2 problems”
-46. button “Open Main at line 13”
-47. button “Open boat at line 2”
-48. button “While playing”
-49. button “Variables”
-50. button “Watch”
-51. textbox “Add an expression to watch”
-52. button “Call stack”
-53. separator “Resize sidebar”
+42. separator “Resize sidebar”
 
 #### Scripts
 
 49 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 1. textbox “Project name”
-2. button
+2. button “Draft saved”
 3. tab “Story”
 4. button “Search”
 5. button “Script setup”
@@ -824,11 +315,11 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 14. button “New”
 15. button “Scripts options”
 16. button “Sort by name, a to z”
-17. button “Open script Main, entry script · modified just now · 323 b”
+17. button “Open script Main, Entry script · Modified just now · 323 B”
 18. button “1 warning in Main”
 19. button “Options for Main”
 20. checkbox “Select boat.sd”
-21. button “Open script boat.sd, modified just now · 132 b”
+21. button “Open script boat.sd, Modified just now · 132 B”
 22. button “1 warning in boat.sd”
 23. button “Options for boat.sd”
 24. separator “Resize scripts and preview panes”
@@ -842,8 +333,8 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 32. Iframe “Untitled story game preview”
 33. separator “Resize game and panel”
 34. button “2 problems”
-35. button “HARBOR (7 → 17). Route from the top of scene HARBOR, line 7 ”
-36. button “Game aspect ratio: Auto, shown at 544×496 pixels”
+35. button “main : 1”
+36. button “Game aspect ratio: Auto, 544×496 pixels”
 37. button “Fullscreen preview”
 38. button “0 errors. Hide errors”
 39. button “2 warnings. Hide warnings”
@@ -863,7 +354,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 49 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 1. textbox “Project name”
-2. button
+2. button “Draft saved”
 3. tab “Assets”
 4. button “Search”
 5. button “Script setup”
@@ -880,10 +371,10 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 16. button “Change how this folder is shown”
 17. button “Sort by name, a to z”
 18. checkbox “Select harbor”
-19. button “Open image harbor, modified just now · 608 b”
+19. button “Open image harbor, Modified just now · 608 B”
 20. button “Options for harbor”
 21. checkbox “Select pier”
-22. button “Open image pier, modified just now · 608 b”
+22. button “Open image pier, Modified just now · 608 B”
 23. button “Options for pier”
 24. separator “Resize page and preview panes”
 25. button “Viewing mode: Visual Novel”
@@ -896,8 +387,8 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 32. Iframe “Untitled story game preview”
 33. separator “Resize game and panel”
 34. button “2 problems”
-35. button “HARBOR (7 → 17). Route from the top of scene HARBOR, line 7 ”
-36. button “Game aspect ratio: Auto, shown at 544×496 pixels”
+35. button “main : 1”
+36. button “Game aspect ratio: Auto, 544×496 pixels”
 37. button “Fullscreen preview”
 38. button “0 errors. Hide errors”
 39. button “2 warnings. Hide warnings”
@@ -917,7 +408,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 42 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 1. textbox “Project name”
-2. button
+2. button “Draft saved”
 3. tab “Share”
 4. button “Search”
 5. button “Script setup”
@@ -943,8 +434,8 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 25. Iframe “Untitled story game preview”
 26. separator “Resize game and panel”
 27. button “2 problems”
-28. button “main : 17”
-29. button “Game aspect ratio: Auto, shown at 544×496 pixels”
+28. button “main : 1”
+29. button “Game aspect ratio: Auto, 544×496 pixels”
 30. button “Fullscreen preview”
 31. button “0 errors. Hide errors”
 32. button “2 warnings. Hide warnings”
@@ -964,7 +455,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 144 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 1. textbox “Project name”
-2. button
+2. button “Draft saved”
 3. tab “Story”
 4. button “Editor preferences”
 5. button “Appearance”
@@ -1094,8 +585,8 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 129. Iframe “Untitled story game preview”
 130. separator “Resize game and panel”
 131. button “No problems”
-132. button “main : 17”
-133. button “Game aspect ratio: Auto, shown at 544×496 pixels”
+132. button “main : 1”
+133. button “Game aspect ratio: Auto, 544×496 pixels”
 134. button “Fullscreen preview”
 135. button “0 errors. Hide errors”
 136. button “0 warnings. Hide warnings”
@@ -1113,17 +604,17 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 | Viewport | Surface | Opened | Closed by Escape | Focus returned to |
 |---|---|---|---|---|
 | desktop | app-menu | yes | yes | the opener (Saved locally) |
-| desktop | add-menu | yes | yes | **store gold = 10   scene start   -> HARBO** (opener: Close add menu) |
+| desktop | add-menu | yes | yes | **main** (opener: Close add menu) |
 | desktop | preview-settings | yes | yes | the opener (Preview settings) |
 | desktop | problems | yes | a panel in the page, not an overlay | – |
 | desktop | file-menu | yes | yes | the opener (Options for boat.sd) |
-| desktop | asset-inspector | yes | yes | the opener (Open image harbor, modified just now · 608 b) |
+| desktop | asset-inspector | yes | yes | the opener (Open image harbor, Modified just now · 608 B) |
 | phone 360 | app-menu | yes | yes | the opener (App menu) |
-| phone 360 | add-menu | yes | yes | **store gold = 10   scene start   -> HARBO** (opener: Edit) |
+| phone 360 | add-menu | no: no Add button on screen: neither the writer's bar nor the keyboard toolbar shows one | – | – |
 | phone 360 | preview-settings | no: the preview's settings button is not on screen; the preview pane may be hidden | – | – |
 | phone 360 | problems | no: the problems toggle under the game is not on screen; the preview pane may be hidden | – | – |
 | phone 360 | file-menu | yes | yes | the opener (Options for boat.sd) |
-| phone 360 | asset-inspector | yes | yes | the opener (Open image harbor, modified 2m · 608 b) |
+| phone 360 | asset-inspector | yes | yes | the opener (Open image harbor, Modified 2m · 608 B) |
 
 ### Editor shortcuts
 
@@ -1158,7 +649,7 @@ Each editor row of the keymap table pressed in the script with the caret on line
 | Select line | `Alt+L` | expanded a panel, selection |
 | Expand the selection | `Mod+I` | selection |
 | Add a caret above | `Mod+Alt+Up` | selection, carets |
-| Add a caret below | `Mod+Alt+Down` | selection |
+| Add a caret below | `Mod+Alt+Down` | selection, carets |
 | Go to the matching bracket | `Mod+Shift+\` | expanded a panel, selection |
 | Fold every block | `Ctrl+Alt+[` | folds |
 | Open every folded block | `Ctrl+Alt+]` | folds |
@@ -1167,7 +658,7 @@ Each editor row of the keymap table pressed in the script with the caret on line
 | Previous match | `Shift+F3` | focus |
 | Select every match | `Mod+Shift+L` | expanded a panel |
 | Add the next match to the selection | `Mod+D` | selection |
-| Go to line | `Mod+G` | selection, opened cm-gotoLine cm-panel, focus |
+| Go to line | `Mod+G` | opened cm-gotoLine cm-panel, focus |
 | Show problems | `Mod+Shift+M` | expanded a panel |
 | Next problem | `F8` | selection |
 | Show parameter hints | `Mod+Shift+Space` | selection |
@@ -1184,7 +675,7 @@ With `prefers-reduced-motion: reduce` emulated, every CSS transition and animati
 |---|---|---|---|---|---|
 | all | none | | | | |
 
-Recordings: C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\final12\reduced-motion-desktop\page@69c20df214918cf8d0b3c61804cdb9dc.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\final12\reduced-motion-phone\page@1998f907d01be3916f8ae0fe6f2b447e.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\final12\reduced-motion-phone\page@f6cc7556d1fa4fcf334b26950e3c7693.webm (kept out of the repository).
+Recordings: C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\76a50fbe-09c8-48a2-ad5f-e68d7993c028\scratchpad\writer-2668-4SFrgj\audit\reduced-motion-desktop\page@03345075713a0db83912ed540c8b564c.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\76a50fbe-09c8-48a2-ad5f-e68d7993c028\scratchpad\writer-2668-4SFrgj\audit\reduced-motion-phone\page@5c90b1b243ec722f1dfd68158eb86575.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\76a50fbe-09c8-48a2-ad5f-e68d7993c028\scratchpad\writer-2668-4SFrgj\audit\reduced-motion-phone\page@e57787f77b09ea978d5eb6c09cc6e81d.webm (kept out of the repository).
 
 ### Forced colors
 
@@ -1202,20 +693,20 @@ With `forced-colors: active` emulated on the desktop layout, the first stops of 
 
 | Viewport | Route | banner | navigation | main | complementary | Live regions | Lists |
 |---|---|---|---|---|---|---|---|
-| desktop | Story | 0 | 2 | 1 | 1 | status “Draft saved”; div[aria-live=polite]; button[aria-live=off] “Line 17, Col 1”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); list “Problems and playback messages” (15) |
-| desktop | Scripts | 0 | 3 | 1 | 1 | status “Draft saved”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); list “Scripts and folders” (2); list “Problems and playback messages” (15) |
-| desktop | Assets | 0 | 3 | 1 | 1 | status “Draft saved”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); tablist (6); list “Assets and folders” (2); list “Problems and playback messages” (15) |
-| desktop | Share | 0 | 2 | 1 | 1 | status “Draft saved”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); list “Problems and playback messages” (15) |
-| desktop | Settings | 0 | 2 | 1 | 1 | status “Draft saved”; div[aria-live=polite]; output[aria-live=null] “Top 50%”; status “No problems”; status | tablist (3); list (2); list “Editor preferences” (4); list “Project preferences” (5); list “Problems and playback messages” (16) |
-| phone 360 | Story | 0 | 1 | 1 | 0 | status “Draft saved”; div[aria-live=polite]; button[aria-live=off] “Line 17, Col 1”; status | tablist (3) |
-| phone 360 | Scripts | 0 | 1 | 1 | 0 | status | tablist (2); list “Scripts and folders” (2) |
-| phone 360 | Assets | 0 | 2 | 1 | 0 | status “Draft saved”; status | tablist (6); list “Assets and folders” (2); tablist (3) |
-| phone 360 | Share | 0 | 1 | 1 | 0 | status “Draft saved”; status | tablist (3) |
-| phone 360 | Settings | 0 | 2 | 1 | 0 | status “Draft saved”; div[aria-live=polite]; output[aria-live=null] “Top 50%”; status | tablist (3) |
+| desktop | Story | 1 | 2 | 1 | 2 | status “Draft saved”; div[aria-live=polite]; button[aria-live=off] “Line 1, Col 1”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4) |
+| desktop | Scripts | 1 | 3 | 1 | 2 | status “Draft saved”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); list “Scripts and folders” (2); list “Problems and playback messages” (15) |
+| desktop | Assets | 1 | 3 | 1 | 2 | status “Draft saved”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); tablist (6); list “Assets and folders” (2); list “Problems and playback messages” (15) |
+| desktop | Share | 1 | 2 | 1 | 2 | status “Draft saved”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); list “Problems and playback messages” (15) |
+| desktop | Settings | 1 | 2 | 1 | 2 | status “Draft saved”; div[aria-live=polite]; output[aria-live=null] “Top 50%”; status “No problems”; status | tablist (3); list (2); list “Editor preferences” (4); list “Project preferences” (5); list “Problems and playback messages” (16) |
+| phone 360 | Story | 1 | 1 | 1 | 0 | status “Draft saved”; div[aria-live=polite]; button[aria-live=off] “Line 17, Col 1”; status | tablist (3) |
+| phone 360 | Scripts | 1 | 1 | 1 | 0 | status | tablist (2); list “Scripts and folders” (2) |
+| phone 360 | Assets | 1 | 2 | 1 | 0 | status “Draft saved”; status | tablist (6); list “Assets and folders” (2); tablist (3) |
+| phone 360 | Share | 1 | 1 | 1 | 0 | status “Draft saved”; status | tablist (3) |
+| phone 360 | Settings | 1 | 2 | 1 | 0 | status “Draft saved”; div[aria-live=polite]; output[aria-live=null] “Top 50%”; status | tablist (3) |
 
 ### Copy
 
-590 distinct strings read from every route and surface (text, aria-label, title, placeholder, alt). 303 of the glossary's 975 strings appeared as written; the rest belong to surfaces the audit does not open.
+593 distinct strings read from every route and surface (text, aria-label, title, placeholder, alt). 304 of the glossary's 975 strings appeared as written; the rest belong to surfaces the audit does not open.
 
 | Check | String | Where |
 |---|---|---|
@@ -1223,4 +714,5 @@ With `forced-colors: active` emulated on the desktop layout, the first stops of 
 | Glossary has “Play From Here” | Play from here | strong#shortcut-playFromHere-name |
 | Glossary has “Step Into” | Step into | strong#shortcut-stepInto-name |
 | Glossary has “Step Out” | Step out | strong#shortcut-stepOut-name |
+| Not sentence case (Entry) | Open script Main, Entry script · Modified just now · 323 B | button[aria-label="Open script Main, Entry script · Modifie"] |
 <!-- audit:end -->
