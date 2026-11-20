@@ -156,6 +156,10 @@ export default defineConfig(({ mode }) => {
     jsxImportSource: "preact",
   },
   resolve: {
+    alias: {
+      react: "preact/compat",
+      "react-dom": "preact/compat",
+    },
     dedupe: ["preact", "preact-custom-element"],
   },
   plugins: [

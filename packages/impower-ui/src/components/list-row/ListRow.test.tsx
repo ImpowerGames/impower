@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { visibleTextInName } from "../../../test/visibleTextInName";
 import ListRow, { ListRowBadge } from "./ListRow";
 
 let host: HTMLDivElement | undefined;
@@ -33,11 +34,23 @@ describe("ListRow", () => {
     );
     const buttons = root.querySelectorAll("button");
     expect(buttons).toHaveLength(2);
-    expect(buttons[0]!.textContent).toBe("chapter.sdModified 5m · 2 kB");
+    expect(buttons[0]!.textContent).toBe("chapter.sd Modified 5m · 2 kB");
     expect(buttons[0]!.getAttribute("aria-label")).toBe("Open script chapter.sd");
     expect(buttons[0]!.contains(buttons[1]!)).toBe(false);
     await act(async () => buttons[0]!.click());
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps its label and description separate words, so a name that repeats them contains its visible text", async () => {
+    const root = await mount(
+      <ListRow
+        label="Main"
+        description="Entry script · Modified just now · 323 B"
+        aria-label="Open script Main, Entry script · Modified just now · 323 B"
+        onClick={() => {}}
+      />,
+    );
+    expect(visibleTextInName(root.querySelector("button")!)).toMatchObject({ contained: true });
   });
 
   it("marks the current row for assistive technology", async () => {

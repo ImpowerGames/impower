@@ -11,6 +11,8 @@ import {
   whenControllerListening,
 } from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
+import { ensureStylesheet } from "@impower/spark-web-player/src/utils/useStylesheet";
+import impowerUiCss from "../../../packages/spark-web-player/src/impower-ui.css?tw";
 import { previewedDocumentUri } from "./previewedDocumentUri";
 import { revealsPreview } from "./revealsPreview";
 import {
@@ -19,6 +21,8 @@ import {
 } from "../../src/utils/gamePreviewWebview";
 
 console.log("running game-webview");
+
+ensureStylesheet(document, "spark-web-player-impower-ui-css", impowerUiCss);
 
 declare var acquireVsCodeApi: any;
 

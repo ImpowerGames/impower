@@ -3,6 +3,7 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SETTINGS_SECTION_IDS } from "../../src/modules/spark-editor/components/settings/sections";
 import { routeOfHash, sectionOfHash } from "../../src/modules/spark-editor/workspace/routes";
+import { visibleTextInName } from "../../../packages/impower-ui/test/visibleTextInName";
 
 const intents = vi.hoisted(() => ({
   revealDocument: vi.fn(),
@@ -480,7 +481,7 @@ describe("the bar under the game", () => {
     expect(toggle().getAttribute("aria-expanded")).toBe("false");
     expect(document.getElementById("route-panel")).not.toBeNull();
     expect(document.getElementById("problems-panel")).toBeNull();
-    expect(document.querySelector("#route-panel .route-entry")!.textContent).toContain(
+    expect(document.querySelector("#route-panel [data-route-entry]")!.textContent).toContain(
       "Condition trust > 3 forced true",
     );
     await act(async () => toggle().click());
@@ -583,11 +584,15 @@ describe("the bar under the game", () => {
       });
       await act(async () => route.toggle());
       await settle();
-      const tab = document.querySelector<HTMLButtonElement>(
-        '#route-panel .route-tab[data-tab="values"]',
-      );
+      const tab = document.querySelectorAll<HTMLButtonElement>(
+        '#route-panel [role="tab"]',
+      )[1];
       expect(tab?.textContent).toContain("Starting values");
-      await act(async () => tab!.click());
+      await act(async () => {
+        tab!.dispatchEvent(
+          new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }),
+        );
+      });
       await settle();
       expect(sent).toContainEqual(
         expect.objectContaining({
@@ -627,7 +632,7 @@ describe("the bar under the game", () => {
     await act(async () => readout.click());
     await settle();
     expect(document.getElementById("route-panel")).not.toBeNull();
-    expect(document.querySelector("#route-panel .route-entry")!.textContent).toContain(
+    expect(document.querySelector("#route-panel [data-route-entry]")!.textContent).toContain(
       "Condition trust > 3 forced true",
     );
   });
@@ -654,7 +659,7 @@ describe("the bar under the game", () => {
     await act(async () => readout.click());
     await settle(300);
     const sheet = document.querySelector('[role="dialog"]');
-    expect(sheet?.querySelector("swp-route-view .route-entry")?.textContent).toContain(
+    expect(sheet?.querySelector("swp-route-view [data-route-entry]")?.textContent).toContain(
       "Condition trust > 3 forced true",
     );
     expect(document.getElementById("route-panel")).toBeNull();
@@ -671,8 +676,9 @@ describe("the bar under the game", () => {
       return s;
     });
     expect(ratio().textContent).toBe("Auto · 392×696");
-    expect(ratio().getAttribute("aria-label")).toBe("Game aspect ratio: Auto, shown at 392×696 pixels");
-    expect(ratio().title).toBe("Game aspect ratio: Auto, shown at 392×696 pixels");
+    expect(visibleTextInName(ratio())).toMatchObject({ contained: true });
+    expect(ratio().getAttribute("aria-label")).toBe("Game aspect ratio: Auto, 392×696 pixels");
+    expect(ratio().title).toBe("Game aspect ratio: Auto, 392×696 pixels");
   });
 
   it("chooses a ratio from a menuitemradio menu and keeps it for the project", async () => {

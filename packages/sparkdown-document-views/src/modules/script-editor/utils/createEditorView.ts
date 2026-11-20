@@ -108,6 +108,7 @@ import { selectionClassManager } from "./extensions/selectionClassManager";
 import { sparkdownLanguageExtension } from "./extensions/sparkdownLanguageExtension";
 import { caretScrollMargin } from "./extensions/caretScrollMargin";
 import { statusPanel } from "./extensions/statusPanel";
+import { scriptLabel } from "./extensions/scriptLabel";
 import { touchAffordances } from "./extensions/touchAffordances";
 import { evaluatableExpressionRange } from "@impower/sparkdown/src/compiler/utils/evaluatableExpressionRange";
 
@@ -293,6 +294,7 @@ const createEditorView = (
         scriptAppearance(config.appearance),
         customGotoLinePanel(),
         statusPanel(),
+        scriptLabel(textDocument.uri),
         scriptMode(config.scriptMode ?? null),
         keyboardToolbar({
           onTool: config.onToolbarTool,

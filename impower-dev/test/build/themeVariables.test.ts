@@ -16,6 +16,7 @@ const read = (relative: string) =>
 
 const IMPOWER_UI_SRC = path.resolve(HERE, "../../../packages/impower-ui/src");
 const STYLE_CSS = read("../../../packages/impower-ui/src/style.css");
+const MAPPINGS_CSS = read("../../../packages/impower-ui/src/mappings.css");
 const THEME_CSS = read("../../../packages/impower-ui/src/theme.css");
 const TOKENS_MD = read("../../docs/design/tokens.md");
 
@@ -256,8 +257,8 @@ const oklch = (hex: string) => {
 };
 
 const inlineThemeColors = () => {
-  const block = STYLE_CSS.match(/@theme inline\s*\{([^}]*)\}/);
-  expect(block, "style.css has an @theme inline block").toBeTruthy();
+  const block = MAPPINGS_CSS.match(/@theme inline\s*\{([^}]*)\}/);
+  expect(block, "mappings.css has an @theme inline block").toBeTruthy();
   return declarations(block![1]!);
 };
 

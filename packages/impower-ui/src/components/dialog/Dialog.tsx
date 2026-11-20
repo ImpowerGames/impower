@@ -18,6 +18,15 @@ import { CloseIcon } from "../icon/icons.generated";
 
 export const DIALOG_TRANSITION_MS = 180;
 
+const firstTabbable = (root: HTMLElement | null) =>
+  Array.from(root?.querySelectorAll<HTMLElement>("*") ?? []).find(
+    (element) =>
+      element.tabIndex >= 0 &&
+      !(element as HTMLButtonElement).disabled &&
+      !element.closest("[hidden], [inert]") &&
+      (element.checkVisibility?.() ?? true),
+  ) ?? null;
+
 const backdropVariants = cva(
   [
     "fixed inset-0 z-50 flex bg-scrim",
@@ -271,7 +280,7 @@ function Modal({
             aria-modal={kept ? "false" : "true"}
             class={card(visible, fit)}
             onOpenAutoFocus={(event: Event) => {
-              const target = initialFocus?.current;
+              const target = initialFocus?.current ?? firstTabbable(content.current);
               if (target) {
                 event.preventDefault();
                 focusAsInput(target);

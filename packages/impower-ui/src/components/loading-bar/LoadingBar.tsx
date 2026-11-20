@@ -6,6 +6,7 @@ import { useForwardedRef } from "../../hooks/useForwardedRef";
 
 export type LoadingBarProps = {
   containerRef?: Ref<HTMLDivElement>;
+  label: string;
   active?: boolean;
   class?: string;
   style?: JSX.CSSProperties;
@@ -58,6 +59,7 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
     cancelMotion();
     shown = true;
     bar.style.opacity = "1";
+    bar.removeAttribute("aria-hidden");
     if (prefersReducedMotion() || !canAnimate) {
       segment.style.transform = "none";
       return;
@@ -74,6 +76,7 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
 
   const hide = () => {
     shown = false;
+    bar.setAttribute("aria-hidden", "true");
     bar.style.opacity = "0";
     cancelMotion();
   };
@@ -185,6 +188,7 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
 
 export function LoadingBar({
   containerRef,
+  label,
   active = true,
   class: className,
   style,
@@ -206,6 +210,8 @@ export function LoadingBar({
     <div
       ref={attachBar}
       role="progressbar"
+      aria-label={label}
+      aria-hidden="true"
       data-active={String(active)}
       class={cn(loadingBar(), className)}
       style={{ opacity: 0, ...style }}
