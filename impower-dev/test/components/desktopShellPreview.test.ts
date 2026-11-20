@@ -143,4 +143,32 @@ describe("the desktop shell's docked preview", () => {
     expect(players.mounted).toBe(1);
     expect(players.unmounted).toBe(0);
   });
+
+  it("names the divider between the page and the preview as the glossary does for each route", async () => {
+    const { stateForRoute } =
+      await import("../../src/modules/spark-editor/workspace/routes");
+    host = document.body.appendChild(document.createElement("div"));
+    workspace.current = stateForRoute(workspace.current, "write");
+    await act(async () => render(h(MainWindow, null), host!));
+    await settle();
+    const dividers = () =>
+      [...host!.querySelectorAll('[role="separator"]')]
+        .map((el) => el.getAttribute("aria-label"))
+        .filter((label) => label !== "Resize sidebar");
+    const seen: Record<string, (string | null)[]> = {};
+    for (const route of ["write", "scripts", "collection", "share", "project"] as const) {
+      await act(async () => {
+        workspace.current = stateForRoute(workspace.current, route);
+      });
+      await settle();
+      seen[route] = dividers();
+    }
+    expect(seen).toEqual({
+      write: ["Resize script and preview panes"],
+      scripts: ["Resize scripts and preview panes"],
+      collection: ["Resize page and preview panes"],
+      share: ["Resize page and preview panes"],
+      project: ["Resize page and preview panes"],
+    });
+  });
 });
