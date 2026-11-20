@@ -45,6 +45,13 @@ describe("only the colon marks an option in a directive", () => {
     expect(resolveImageSrcs(program.context!, ["mia~hat"])).toEqual([]);
   });
 
+  it("reads a tilde-joined name with dotted options as one unknown name", () => {
+    const program = compile("scene start\n  [[mia~face.happy~hat]]\nend\n");
+    const missing = messages(program).filter((entry) => entry.message.startsWith("Cannot find image"));
+    expect(missing).toEqual([{ line: 1, message: expect.stringContaining("`mia~face.happy~hat`") }]);
+    expect(shown(program, "mia~face.happy~hat")).toEqual([]);
+  });
+
   it("reports a tilde after a colon option as invalid syntax at the tilde, on image and sound lines", () => {
     const program = compile("scene start\n  [[mia:happy~hat]]\n  ((bark:loud~soft))\nend\n");
     const invalid = (program.diagnostics?.[URI] ?? [])

@@ -230,7 +230,8 @@ const empty = (): Reading => ({
 });
 
 const isName = (text: string) => directiveValueKind(text) === "name";
-const isLookedUpName = (text: string) => /^[_\p{L}][^\s"]*$/u.test(text);
+const isLookedUpName = (text: string) =>
+  isName(text) || /^[_\p{L}][0-9_\p{L}-]*(?:@[0-9_\p{L}][0-9_\p{L}-]*)*(?:~[0-9_\p{L}][0-9_\p{L}.-]*)+$/u.test(text);
 const isAmount = (text: string) => {
   const kind = directiveValueKind(text);
   return kind === "time" || kind === "number";

@@ -159,7 +159,7 @@ const PARAMETER_OWNER = nodeNameSet([
 ]);
 const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
 const FILTERED_NAME = /^([^:]+)((?::[^:\s]+)+)$/u;
-const LOOKED_UP_NAME = /^[_\p{L}][^\s"]*$/u;
+const TILDE_JOINED_NAME = /^[_\p{L}][0-9_\p{L}-]*(?:@[0-9_\p{L}][0-9_\p{L}-]*)*(?:~[0-9_\p{L}][0-9_\p{L}.-]*)+$/u;
 
 const PROPERTY_DEFINITION = nodeNameSet(["LuauPropertyDefinition"]);
 
@@ -250,7 +250,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       for (const name of names) {
         const filtered = name.text.match(FILTERED_NAME);
         const base = filtered ? filtered[1]! : name.text;
-        if (!LOOKED_UP_NAME.test(base) || base === "none") continue;
+        if ((directiveValueKind(base) !== "name" && !TILDE_JOINED_NAME.test(base)) || base === "none") continue;
         const baseWord = { text: base, from: name.from, to: name.from + base.length };
         if (kind === "load") {
           references.push(this.loadTargetReference(base, baseWord));
