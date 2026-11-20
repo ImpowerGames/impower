@@ -245,6 +245,40 @@ describe("the route list's tabs, head and rows", () => {
     expect(pressable[0]!.contains(entry.querySelector("svg.route-icon"))).toBe(false);
     expect(pressable[0]!.contains(entry.querySelector("[data-route-badge]"))).toBe(false);
   });
+
+  it("fades every route label's overflow with one 16px right-edge mask", () => {
+    const choiceRoute: PreviewRoute = {
+      ...route(),
+      decisions: [
+        ...route().decisions,
+        {
+          kind: "auto",
+          location: at(8),
+          text: "Tell the truth.",
+          meeting: 1,
+          options: [
+            { location: at(8), text: "Tell the truth.", offer: 0 },
+            { location: at(9), text: "Lie.", offer: 1 },
+          ],
+        },
+      ],
+    };
+    const root = mount(h(RouteList, listProps({ state: state({ route: choiceRoute }) })));
+    const labels = [...root.querySelectorAll<HTMLElement>("[data-route-text]")];
+    expect(labels).toHaveLength(3);
+    const masked = (element: Element) =>
+      element.className
+        .split(/\s+/)
+        .filter((c) => c.includes("mask") || c.includes("fade-edge"));
+    for (const label of labels) {
+      expect(masked(label)).toEqual([
+        "[mask-image:linear-gradient(to_left,transparent_0,#000_16px)]",
+      ]);
+      for (let up = label.parentElement; up && !up.hasAttribute("data-impower-ui"); up = up.parentElement) {
+        expect(masked(up)).toEqual([]);
+      }
+    }
+  });
 });
 
 describe("the Load a save menu, wherever it is mounted", () => {

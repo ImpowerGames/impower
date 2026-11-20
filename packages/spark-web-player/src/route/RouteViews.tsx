@@ -156,6 +156,9 @@ function PinControl({
 const ROUTE_TAB_CLASS =
   "ml-0.5 flex-none font-normal first:ml-0 data-[state=active]:font-semibold data-[state=active]:shadow-[inset_0_-2px_0_var(--accent)]";
 
+const ROUTE_TEXT_CLASS =
+  "block overflow-hidden whitespace-nowrap [mask-image:linear-gradient(to_left,transparent_0,#000_16px)]";
+
 const ROUTE_KIND_COLOURS: Record<RouteKind, string> = {
   pinned: "text-accent",
   auto: "text-muted",
@@ -348,6 +351,7 @@ export function RouteList({
                       <div data-impower-ui>
                         <ListRow
                           size="compact"
+                          overflow="self"
                           leading={lineLink(decision.location)}
                           icon={
                             <span
@@ -361,7 +365,7 @@ export function RouteList({
                               <button
                                 type="button"
                                 data-route-text
-                                class="relative control-overlay block w-full cursor-pointer rounded-control px-1 py-[3px] text-left leading-[normal] [mask-image:linear-gradient(to_left,transparent_0,#000_16px)] focus-inset"
+                                class={`relative control-overlay block w-full cursor-pointer rounded-control px-1 py-[3px] text-left leading-[normal] focus-inset ${ROUTE_TEXT_CLASS}`}
                                 aria-expanded={open}
                                 title={
                                   open
@@ -375,7 +379,7 @@ export function RouteList({
                                 {decisionText(decision)}
                               </button>
                             ) : (
-                              <span data-route-text>
+                              <span data-route-text class={ROUTE_TEXT_CLASS}>
                                 {decisionText(decision)}
                               </span>
                             )
@@ -405,9 +409,10 @@ export function RouteList({
                   <div data-impower-ui>
                     <ListRow
                       size="compact"
+                      overflow="self"
                       leading={lineLink(route.target)}
                       label={
-                        <span data-route-text>
+                        <span data-route-text class={ROUTE_TEXT_CLASS}>
                           {route.tunnelEnds
                             ? "Tunnel ends here, with nothing to return to in the preview"
                             : "Target line"}
