@@ -111,8 +111,8 @@ it.each(["above", "beside"] as const)("gives every tab with icons %s its label a
 });
 
 it.each([
-  ["above", "min-h-11"],
-  ["beside", "min-h-12"],
+  ["above", "min-h-[var(--tab-height)]"],
+  ["beside", "min-h-[var(--tab-height)]"],
 ] as const)("floors every vertical tab with icons %s its label at %s so a basis-0 column cannot collapse it", async (iconLayout, floor) => {
   await mount(
     <Tabs value="a" onChange={() => {}} vertical iconLayout={iconLayout}>

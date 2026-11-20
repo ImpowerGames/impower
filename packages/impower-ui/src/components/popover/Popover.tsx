@@ -15,7 +15,7 @@ export const popoverVariants = cva(
     variants: {
       size: {
         auto: "",
-        panel: "w-[360px] max-w-[calc(100vw-24px)]",
+        panel: "w-[var(--popover-width)] max-w-[calc(100vw-24px)]",
       },
       frame: {
         card: "overflow-hidden rounded-card border border-edge bg-panel shadow-float",

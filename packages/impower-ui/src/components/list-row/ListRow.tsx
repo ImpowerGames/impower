@@ -85,7 +85,7 @@ export const listRowBodyVariants = cva(
         library:
           "min-h-[62px] gap-2.5 px-2 py-2.5 text-[14px]/[1.5] [&>svg:first-child]:size-[21px] [:root[data-layout=desktop]_&]:min-h-[60px] [:root[data-layout=desktop]_&]:gap-[13px] [:root[data-layout=desktop]_&]:px-3",
         compact:
-          "min-h-11 gap-2.5 px-2 py-1 text-[12px]/[1.4] [&>svg:first-child]:size-[18px]",
+          "min-h-[var(--list-row-compact-height)] gap-[var(--list-row-compact-gap)] px-[var(--list-row-compact-padding-x)] py-[var(--list-row-compact-padding-y)] text-[length:var(--list-row-compact-font-size)]/[1.4] [&>svg:first-child]:size-[18px]",
         block:
           "min-h-16 gap-3 px-2.5 py-2 text-[14px]/[1.4] [&>svg:first-child]:size-[22px]",
         dense:
@@ -504,7 +504,7 @@ export const listRowBadgeVariants = cva(
   {
     variants: {
       placement: {
-        trailing: "h-11 w-11 self-center",
+        trailing: "h-[var(--control-size)] w-[var(--control-size)] self-center",
         gutter:
           "absolute inset-y-0 left-[calc(-1_*_var(--list-row-gutter)_-_var(--list-row-depth,0)_*_18px)] w-(--list-row-gutter) pl-1 [:root[data-pointer=coarse]_&]:left-[calc(-44px_-_var(--list-row-depth,0)_*_18px)] [:root[data-pointer=coarse]_&]:w-11",
       },

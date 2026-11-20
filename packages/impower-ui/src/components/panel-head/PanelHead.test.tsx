@@ -51,7 +51,7 @@ describe("PanelHead", () => {
     expect(head.querySelector("[data-own]")!.textContent).toBe("Rename");
     expect(head.querySelector("small")).toBeNull();
     const compact = await mount(<PanelHead size="compact" titleSize="sm" title="Search" />);
-    expect(compact.className).toContain("h-11");
+    expect(compact.className).toContain("h-[var(--panel-head-height)]");
     expect(compact.querySelector("h2")!.className).toContain("text-[14px]/[1.4]");
   });
 

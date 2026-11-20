@@ -1,10 +1,29 @@
 import { compile, optimize } from "@tailwindcss/node";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const SPACING_PX = 4;
 const REM_PX = 16;
 
-const resolveLength = (value: string): number | null => {
+export const themeTokens = (): Map<string, string> => {
+  const css = readFileSync(resolve(process.cwd(), "src/theme.css"), "utf8");
+  const root = /^:root\s*\{([^}]*)\}/m.exec(css);
+  const tokens = new Map<string, string>();
+  for (const [, name, value] of (root?.[1] ?? "").matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+    tokens.set(name!, value!.trim());
+  }
+  return tokens;
+};
+
+const tokens = themeTokens();
+
+export const resolveLength = (value: string): number | null => {
   const text = value.trim();
+  const token = /^var\((--[\w-]+)\)$/.exec(text);
+  if (token) {
+    const declared = tokens.get(token[1]!);
+    return declared === undefined ? null : resolveLength(declared);
+  }
   const spacing = /^calc\(var\(--spacing\)\s*\*\s*([\d.]+)\)$/.exec(text);
   if (spacing) {
     return Number(spacing[1]) * SPACING_PX;
@@ -115,6 +134,9 @@ const matchingRules = async (element: Element): Promise<CSSStyleRule[]> =>
       return false;
     }
   });
+
+export const declaredStyle = async (element: Element): Promise<(property: string) => string | undefined> =>
+  cascadeOf(await matchingRules(element));
 
 export const hitArea = async (element: Element): Promise<HitArea> => {
   const cascaded = cascadeOf(await matchingRules(element));

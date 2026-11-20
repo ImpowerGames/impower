@@ -53,7 +53,7 @@ const tabsList = cva("flex w-full", {
 const tabTrigger = cva(
   [
     "group relative control-overlay flex flex-1 items-center justify-center overflow-hidden rounded-t-control",
-    "gap-x-2 gap-y-0.5 px-5 text-sm font-semibold select-none cursor-pointer",
+    "gap-x-[var(--tab-gap)] gap-y-0.5 px-[var(--tab-padding-x)] text-[length:var(--tab-font-size)]/[calc(1.25/0.875)] font-semibold select-none cursor-pointer",
     "disabled:opacity-40 disabled:cursor-default disabled:pointer-events-none",
   ],
   {
@@ -63,8 +63,8 @@ const tabTrigger = cva(
         vertical: "w-full rounded-control",
       },
       iconLayout: {
-        above: "flex-col min-h-11 py-4",
-        beside: "flex-row min-h-12",
+        above: "flex-col min-h-[var(--tab-height)] py-4",
+        beside: "flex-row min-h-[var(--tab-height)]",
       },
       variant: {
         default: "",
