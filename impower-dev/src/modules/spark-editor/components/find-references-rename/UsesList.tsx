@@ -47,7 +47,7 @@ function UseLines({ groups, onOpen }: { groups: readonly SearchGroup[]; onOpen: 
               <ListRow
                 size="dense"
                 icon={<FileIcon />}
-                aria-label={`Open ${title} at line ${line}`}
+                aria-label={`Open ${title} · line ${line}, ${use.lineText.trim()}`}
                 label={`${title} · line ${line}`}
                 description={use.lineText.trim()}
                 onClick={() => onOpen(use)}

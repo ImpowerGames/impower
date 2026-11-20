@@ -267,7 +267,7 @@ function AllScripts() {
         icon={<RowIcon row={row} />}
         label={row.name}
         description={line}
-        aria-label={`${row.kind === "folder" ? "Open folder" : "Open script"} ${row.name}${line ? `, ${line.toLowerCase()}` : ""}`}
+        aria-label={`${row.kind === "folder" ? "Open folder" : "Open script"} ${row.name}${line ? `, ${line}` : ""}`}
         trailing={row.kind === "folder" ? <ChevronIcon /> : undefined}
         selection={main ? "none" : selecting ? "active" : "available"}
         selected={picked.includes(row.path)}
