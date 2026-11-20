@@ -721,6 +721,8 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       const config = this.view.state.facet(touchInputHandlerConfig);
 
       if (isScrolling) {
+        this.skipKeyboardRequest();
+
         const now = performance.now();
 
         velocityTracker = velocityTracker.filter(
@@ -806,6 +808,21 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       selectionHead = null;
     };
 
+    keyboardPolicyTimer: ReturnType<typeof setTimeout> | undefined;
+
+    // workaround(android): Chrome asks to show the on-screen keyboard after a touch ends on a focused editable, and when the keyboard is already open it scrolls the caret into view; a manual virtualkeyboardpolicy until the touchend task has run skips that request (https://w3c.github.io/virtual-keyboard/#the-virtualkeyboardpolicy-attribute)
+    skipKeyboardRequest() {
+      clearTimeout(this.keyboardPolicyTimer);
+      this.view.contentDOM.setAttribute("virtualkeyboardpolicy", "manual");
+      this.keyboardPolicyTimer = setTimeout(() => this.restoreKeyboardPolicy());
+    }
+
+    restoreKeyboardPolicy() {
+      clearTimeout(this.keyboardPolicyTimer);
+      this.keyboardPolicyTimer = undefined;
+      this.view.contentDOM.removeAttribute("virtualkeyboardpolicy");
+    }
+
     onTouchCancel = (event: TouchEvent) => {
       this.setTouching(event.touches.length > 0);
       clearTimeout(longPressTimer);
@@ -833,6 +850,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
 
     destroy() {
       this.unbind();
+      this.restoreKeyboardPolicy();
       clearTimeout(longPressTimer);
       if (rafId) {
         cancelAnimationFrame(rafId);
