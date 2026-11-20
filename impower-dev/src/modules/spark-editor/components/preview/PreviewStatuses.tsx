@@ -23,10 +23,9 @@ const revealPlayRefusal = async () => {
 
 export default function PreviewStatuses({ mode }: PreviewStatusesProps) {
   const game = workspace.state.value.preview?.modes?.game;
-  const starting = !!game?.starting;
-  const live = !!game?.running || starting;
+  const live = !!game?.running || !!game?.starting;
   const refusal = live ? undefined : game?.playRefusal;
-  const shown = shownStatuses(statuses.statuses.value, mode, starting);
+  const shown = shownStatuses(statuses.statuses.value, mode);
   const stopped = isStopped(game);
   if (shown.length === 0 && !refusal && !stopped) {
     return null;
