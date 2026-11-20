@@ -1180,7 +1180,12 @@ describe("playing sounds from their rows", () => {
     await tell("timeupdate", () => (speaker.audio.currentTime = 2.4));
     expect(line("bell")).toMatch(/^0:02 \/ 0:05 · Modified 2d · 5 kB$/);
     expect(rowOf("bell").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:02 / 0:05");
+    const open = () => rowOf("bell").querySelector<HTMLElement>('button[aria-label^="Open audio bell"]')!;
+    expect(open().getAttribute("aria-label")).toBe("Open audio bell, 0:02 / 0:05 · Modified 2d · 5 kB");
+    expect(visibleTextInName(open())).toMatchObject({ contained: true });
     await click(playButton("bell"));
+    expect(line("bell")).toMatch(/^0:02 \/ 0:05 · Modified 2d · 5 kB$/);
+    expect(visibleTextInName(open())).toMatchObject({ contained: true });
   });
 
   it("pauses a row's sound in place, holding its time in the row and in the inspector, and resumes it there", async () => {

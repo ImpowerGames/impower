@@ -18,6 +18,7 @@ import {
   LinkIcon,
   ListIcon,
   ListRow,
+  type ListRowProps,
   MusicIcon,
   Sheet,
   OtherIcon,
@@ -306,6 +307,15 @@ function RowGlyph({ row, listing }: { row: AssetRow; listing: AssetListing }) {
   if (pictured(row)) return <AssetThumbnail listing={listing} picture={row} fit="contain" />;
   const Glyph = row.link && row.type === "other" ? LinkIcon : TYPE_ICONS[row.type];
   return <Glyph />;
+}
+
+function NamedRow({
+  sound,
+  line,
+  name,
+  ...props
+}: ListRowProps & { sound: Sound | null; line: string; name: (caption: string) => string }) {
+  return <ListRow {...props} aria-label={name(sound ? soundLineText(sound, line) : line)} />;
 }
 
 function AssetsBrowser() {
@@ -883,7 +893,10 @@ function AssetsBrowser() {
     const folder = row.kind === "folder";
     const sound = !folder && row.type === "audio" ? soundOf(listing, row.path) : null;
     return (
-      <ListRow
+      <NamedRow
+        sound={sound}
+        line={line}
+        name={(caption) => openLabel(row, caption)}
         size="library"
         icon={sound ? undefined : <RowGlyph row={row} listing={listing} />}
         control={sound ? <SoundPlay name={row.name} sound={sound} /> : undefined}
@@ -899,7 +912,6 @@ function AssetsBrowser() {
           )
         }
         description={sound ? <SoundLine sound={sound} line={line} requestLength={requestLength} /> : line}
-        aria-label={openLabel(row, sound ? soundLineText(sound, line) : line)}
         trailing={folder ? <ChevronIcon /> : undefined}
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
