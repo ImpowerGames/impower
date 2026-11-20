@@ -58,7 +58,9 @@ export function useNameField({ label, initial = "", suffix, returnFocus, onCommi
     if (!box.current || input.current !== document.activeElement) {
       return;
     }
-    keepInView(box.current, message.current ?? box.current);
+    const notice = message.current ?? box.current;
+    const above = notice.getBoundingClientRect().top < box.current.getBoundingClientRect().top;
+    keepInView(above ? notice : box.current, above ? box.current : notice);
   };
 
   useLayoutEffect(() => {
@@ -96,7 +98,11 @@ export function useNameField({ label, initial = "", suffix, returnFocus, onCommi
 
   useEffect(() => (coarse ? fitToKeyboard(reveal) : undefined), [coarse]);
 
-  useLayoutEffect(reveal, [error]);
+  useLayoutEffect(() => {
+    reveal();
+    const frame = requestAnimationFrame(reveal);
+    return () => cancelAnimationFrame(frame);
+  }, [error]);
 
   const commit = async (submitted: boolean) => {
     if (busy.current || cancelled.current) {

@@ -935,7 +935,7 @@ describe("renaming from the row menu", () => {
     const alert = host!.querySelector<HTMLElement>('[role="alert"]')!;
     expect(alert.textContent).toBe(message);
     expect(alert.closest("[data-tile]")).not.toBeNull();
-    expect(alert.parentElement!.className).toContain("overflow-auto");
+    expect(alert.parentElement!.className.split(" ")).toContain("shrink-0");
     expect(alert.parentElement!.className).not.toContain("fade-edge");
   });
 });

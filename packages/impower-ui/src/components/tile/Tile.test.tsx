@@ -278,7 +278,7 @@ describe("Tile editor", () => {
     expect(frame.className.split(" ")).toEqual(expect.arrayContaining(["border", "border-edge", "relative"]));
     expect(frame.querySelector("img")).not.toBeNull();
     expect(frame.querySelector('input[aria-label="Rename imani"]')).not.toBeNull();
-    expect(frame.querySelector('[role="alert"]')!.parentElement!.className.split(" ")).toEqual(expect.arrayContaining(["text-[10px]/[1.3]", "overflow-auto"]));
+    expect(frame.querySelector('[role="alert"]')!.parentElement!.className.split(" ")).toEqual(expect.arrayContaining(["text-[10px]/[1.3]", "shrink-0", "bg-bg"]));
   });
 });
 

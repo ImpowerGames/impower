@@ -1,5 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import { CheckIcon } from "../icon/icons.generated";
 import type { ThumbnailFit } from "../thumbnail/Thumbnail";
@@ -190,7 +191,7 @@ export const tileDescriptionVariants = cva("min-w-0 text-[11px]/[1.4] text-muted
   defaultVariants: { size: "landscape" },
 });
 
-const tileNoticeVariants = cva("min-h-0 overflow-auto rounded-[9px] bg-bg/92", {
+const tileNoticeVariants = cva("shrink-0 rounded-[9px] bg-bg ring-1 ring-edge", {
   variants: { size: bySize("notice") },
   defaultVariants: { size: "landscape" },
 });
@@ -251,6 +252,21 @@ export default function Tile({
   onClick,
   ...rest
 }: TileProps) {
+  const overlay = useRef<HTMLSpanElement>(null);
+  const noticeBox = useRef<HTMLSpanElement>(null);
+  const [below, setBelow] = useState(false);
+  useLayoutEffect(() => {
+    if (!notice) {
+      setBelow(false);
+      return;
+    }
+    if (below || !overlay.current || !noticeBox.current) {
+      return;
+    }
+    if (noticeBox.current.getBoundingClientRect().top < overlay.current.getBoundingClientRect().top) {
+      setBelow(true);
+    }
+  });
   const copy = (
     <span class={cn("flex min-w-0 flex-col gap-0.5 px-0.5", editor && "invisible")}>
       <span class={tileLabelVariants({ size, kind })}>{label}</span>
@@ -288,11 +304,18 @@ export default function Tile({
         <div class={cn(tileOpenVariants({ size, current }), "relative cursor-auto hover:border-edge")}>
           {copy}
           {picture}
-          <span class="absolute inset-0 z-10 flex min-w-0 flex-col justify-end gap-1 p-[inherit]">
-            {notice && (
-              <span class={tileNoticeVariants({ size })}>{notice}</span>
+          <span ref={overlay} class="absolute inset-0 z-10 flex min-w-0 flex-col justify-end gap-1 p-[inherit]">
+            {notice && !below && (
+              <span ref={noticeBox} class={tileNoticeVariants({ size })}>
+                {notice}
+              </span>
             )}
             <span class="flex min-w-0 flex-col px-0.5">{editor}</span>
+            {notice && below && (
+              <span class="absolute inset-x-0 top-full mt-1 flex flex-col">
+                <span class={cn(tileNoticeVariants({ size }), "m-0")}>{notice}</span>
+              </span>
+            )}
           </span>
         </div>
       ) : (
