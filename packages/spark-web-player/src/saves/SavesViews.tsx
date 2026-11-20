@@ -127,7 +127,7 @@ function RenameField({
   return (
     <input
       type="text"
-      class="saves-rename"
+      class="saves-rename w-full"
       aria-label={`Rename ${row.name}`}
       value={row.name}
       ref={(input) => {
