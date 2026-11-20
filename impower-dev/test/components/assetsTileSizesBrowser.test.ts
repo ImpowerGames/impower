@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { chromium, type Browser, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { wordsContained } from "../../../packages/impower-ui/test/visibleTextInName";
 import { bundlePage, frames, openPage, stylesFor } from "./pageBundle";
 
 type Size = "Portrait tiles" | "Landscape tiles" | "Small tiles";
@@ -40,11 +41,11 @@ afterAll(async () => {
   await browser?.close();
 });
 
-type Open = { width: number; height?: number; pointer: Pointer; theme?: Theme; pane?: number; pictures?: number; lists?: Record<string, unknown>; reveal?: readonly string[] };
+type Open = { width: number; height?: number; pointer: Pointer; theme?: Theme; pane?: number; pictures?: number; extraPictures?: readonly string[]; lists?: Record<string, unknown>; reveal?: readonly string[] };
 
-const open = async ({ width, height = 900, pointer, theme = "charcoal", pane, pictures, lists, reveal }: Open): Promise<Page> => {
+const open = async ({ width, height = 900, pointer, theme = "charcoal", pane, pictures, extraPictures, lists, reveal }: Open): Promise<Page> => {
   const page = await openPage(browser, script, css, { width, height, touch: pointer === "touch", theme });
-  await page.evaluate((setup) => window.assetsPage.mount(setup), { width: pane, pictures, lists, reveal });
+  await page.evaluate((setup) => window.assetsPage.mount(setup), { width: pane, pictures, extraPictures, lists, reveal });
   await page.locator('[role="listitem"] [data-tile]').first().waitFor();
   return page;
 };
@@ -538,6 +539,23 @@ describe("the Assets page's View menu and tile sizes, in Chromium (I-2462)", () 
         if (label.startsWith("Open")) reached.push(label);
       }
       expect(reached).toEqual(order);
+    } finally {
+      await close(page);
+    }
+  }, 60_000);
+
+  it.each(SIZES)("names every tile with the words it shows, in the order it shows them, a hidden caption and the variants badge included, in %s", async (size) => {
+    const page = await open({ width: 1440, pointer: "mouse", pictures: 2, extraPictures: ["Assets/Images/Cast/picture_000@night.png"] });
+    try {
+      await choose(page, size, "mouse");
+      const tiles = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('[role="list"] button[aria-label^="Open"]')].map((button) => ({
+          name: button.getAttribute("aria-label")!,
+          shown: button.innerText,
+        })),
+      );
+      expect(tiles.map((tile) => tile.name)).toContainEqual(expect.stringMatching(/^Open image picture_000, .*2 variants/));
+      expect(tiles.filter((tile) => !wordsContained(tile.shown, tile.name))).toEqual([]);
     } finally {
       await close(page);
     }

@@ -819,7 +819,7 @@ function AssetsBrowser() {
         badge={row.variantCount ? <VariantsBadge count={row.variantCount} /> : undefined}
         label={row.name}
         description={line}
-        aria-label={openLabel(row, line, true)}
+        aria-label={openLabel(row, line, TILE_SIZES[size].meta)}
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
         {...selectable(row)}
