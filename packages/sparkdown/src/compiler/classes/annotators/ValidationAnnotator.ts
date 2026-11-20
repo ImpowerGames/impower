@@ -661,6 +661,16 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
     }
     if (bracket === "image" && kind === "image") {
+      for (const name of names) {
+        if (/^[:~]/.test(name.text)) {
+          issue(
+            `An image name can't start with \`${name.text[0]}\`: write the picture's name first, then its filters\n> e.g. \`[[portrait~happy]]\``,
+            name.from,
+            name.to,
+            "error",
+          );
+        }
+      }
       this.framingClauseIssues(issue, directive);
     } else {
       for (const { word } of directive.clauses) {
