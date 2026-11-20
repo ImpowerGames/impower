@@ -7,6 +7,7 @@ import PhoneFindBar from "./PhoneFindBar";
 import ReferencesView from "./ReferencesView";
 import RenameView from "./RenameView";
 import { searchTitle } from "./scriptTitle";
+import useSearchInPanel from "./useSearchInPanel";
 import { withSearch } from "./withSearch";
 
 const close = () => withSearch((search) => search.close());
@@ -15,7 +16,7 @@ const dismiss = () => withSearch((search) => search.dismiss());
 
 const openFromPanel = () => {};
 
-export default function PhoneSearch() {
+function PanelSearch() {
   const snapshot = workspace.search.value;
   const { open, view } = snapshot;
   const story = useComputed(() => storyScriptOf() !== undefined).value;
@@ -45,7 +46,12 @@ export default function PhoneSearch() {
     ) : null;
   }
   return (
-    <ToolPanelRoot open onOpen={openFromPanel} onClose={dismiss}>
+    <ToolPanelRoot
+      presentation="sheet"
+      open
+      onOpen={openFromPanel}
+      onClose={dismiss}
+    >
       <ToolPanel
         open
         title={title}
@@ -60,4 +66,8 @@ export default function PhoneSearch() {
       </ToolPanel>
     </ToolPanelRoot>
   );
+}
+
+export default function PhoneSearch() {
+  return useSearchInPanel() ? <PanelSearch /> : null;
 }
