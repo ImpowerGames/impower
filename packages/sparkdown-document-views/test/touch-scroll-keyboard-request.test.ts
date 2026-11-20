@@ -3,7 +3,11 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { touchAffordances } from "../src/modules/script-editor/utils/extensions/touchAffordances";
 
+const LINE_HEIGHT = 20;
+
 let view: EditorView | undefined;
+let clock = 0;
+let tapPos = 0;
 
 const mount = () => {
   const parent = document.body.appendChild(document.createElement("div"));
@@ -14,9 +18,18 @@ const mount = () => {
     }),
     parent,
   });
-  vi.spyOn(view, "posAtCoords").mockReturnValue(0);
+  vi.spyOn(view, "posAtCoords").mockImplementation(() => tapPos);
   view.focus();
   return view;
+};
+
+const keyboardPolicy = (v: EditorView) =>
+  v.contentDOM.getAttribute("virtualkeyboardpolicy") ?? "auto";
+
+const revealCaretLikeChrome = (v: EditorView) => {
+  if (keyboardPolicy(v) === "manual") return;
+  const caretLine = v.state.doc.lineAt(v.state.selection.main.head).number;
+  v.scrollDOM.scrollTop = (caretLine - 1) * LINE_HEIGHT;
 };
 
 const touch = (v: EditorView, type: string, y: number) => {
@@ -28,14 +41,26 @@ const touch = (v: EditorView, type: string, y: number) => {
     value: [{ clientX: 20, clientY: y }],
   });
   v.contentDOM.dispatchEvent(event);
+  if (type === "touchend") revealCaretLikeChrome(v);
 };
-
-const keyboardPolicy = (v: EditorView) =>
-  v.contentDOM.getAttribute("virtualkeyboardpolicy") ?? "auto";
 
 const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve));
 
+const nextFrame = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+const drag = (v: EditorView, ys: number[]) => {
+  touch(v, "touchstart", ys[0]!);
+  for (const y of ys.slice(1)) {
+    clock += 16;
+    touch(v, "touchmove", y);
+  }
+};
+
 beforeEach(() => {
+  clock = 0;
+  tapPos = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => clock);
   vi.spyOn(document, "hasFocus").mockReturnValue(true);
   if (!Range.prototype.getClientRects) {
     Range.prototype.getClientRects = () =>
@@ -51,48 +76,58 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("a touch that scrolls the script", () => {
-  it("ends without asking the browser to show the keyboard, so an open keyboard does not pull the caret back into view", async () => {
+describe("a touch that scrolls the script with the keyboard open", () => {
+  it("leaves the script where the finger lifted when the browser answers the end of a slow drag", async () => {
     const v = mount();
-    touch(v, "touchstart", 600);
-    touch(v, "touchmove", 500);
-    touch(v, "touchmove", 300);
+    clock = 1000;
+    drag(v, [600, 500, 400, 300]);
+    clock += 200;
+    touch(v, "touchend", 300);
     expect(v.scrollDOM.scrollTop).toBe(300);
 
-    touch(v, "touchend", 300);
-    expect(keyboardPolicy(v)).toBe("manual");
-
     await nextTask();
     expect(keyboardPolicy(v)).toBe("auto");
+    expect(v.scrollDOM.scrollTop).toBe(300);
   });
 
-  it("lets a tap that stops the fling end without asking for the keyboard either", async () => {
-    let clock = 0;
-    vi.spyOn(performance, "now").mockImplementation(() => clock);
+  it("carries a fling on from where the finger lifted instead of from the caret", async () => {
     const v = mount();
-    touch(v, "touchstart", 600);
-    clock = 16;
-    touch(v, "touchmove", 500);
-    clock = 32;
-    touch(v, "touchmove", 300);
-    clock = 40;
+    drag(v, [600, 500, 300]);
+    clock += 8;
     touch(v, "touchend", 300);
-    await nextTask();
-    expect(keyboardPolicy(v)).toBe("auto");
+    expect(v.scrollDOM.scrollTop).toBe(300);
 
-    clock = 60;
-    touch(v, "touchstart", 300);
-    touch(v, "touchend", 300);
-    expect(keyboardPolicy(v)).toBe("manual");
-
-    await nextTask();
-    expect(keyboardPolicy(v)).toBe("auto");
+    await nextFrame();
+    expect(v.scrollDOM.scrollTop).toBeGreaterThan(300);
   });
 
-  it("leaves a tap free to ask for the keyboard", async () => {
+  it("keeps the script where a tap stopped the fling", async () => {
     const v = mount();
+    drag(v, [600, 500, 300]);
+    clock += 8;
+    touch(v, "touchend", 300);
+    await nextTask();
+    expect(keyboardPolicy(v)).toBe("auto");
+    const stoppedAt = v.scrollDOM.scrollTop;
+    expect(stoppedAt).toBeGreaterThanOrEqual(300);
+
+    clock += 20;
     touch(v, "touchstart", 300);
     touch(v, "touchend", 300);
+    expect(v.scrollDOM.scrollTop).toBe(stoppedAt);
+
+    await nextTask();
     expect(keyboardPolicy(v)).toBe("auto");
+    expect(v.scrollDOM.scrollTop).toBe(stoppedAt);
+  });
+
+  it("still moves the caret to a tapped line and lets the browser bring up the keyboard for it", () => {
+    const v = mount();
+    tapPos = v.state.doc.line(29).from;
+    touch(v, "touchstart", 300);
+    touch(v, "touchend", 300);
+    expect(v.state.selection.main.head).toBe(tapPos);
+    expect(v.hasFocus).toBe(true);
+    expect(v.scrollDOM.scrollTop).toBe(28 * LINE_HEIGHT);
   });
 });
