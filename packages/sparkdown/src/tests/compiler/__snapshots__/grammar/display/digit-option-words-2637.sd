@@ -1,0 +1,5 @@
+scene start
+  [[mia:look.2]]
+  [[mia:20]]
+  [[show portrait mia:2look.3d:hat with fade]]
+end
