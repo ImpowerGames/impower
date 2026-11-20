@@ -2000,6 +2000,23 @@ export default class WorkspaceWindow {
     return !!this.store.preview.revealed && layoutState.current() === "phone";
   }
 
+  followExecutedLines(
+    executedLines: Record<string, { last?: number | null }> | undefined,
+  ) {
+    if (this.coversScript()) {
+      return;
+    }
+    const editor = this.getActiveEditorForPane("logic");
+    const line = editor ? executedLines?.[editor.uri]?.last : undefined;
+    if (editor && line != null) {
+      this.showDocument(
+        editor.uri,
+        { start: { line, character: 0 }, end: { line, character: 0 } },
+        false,
+      );
+    }
+  }
+
   openFullView() {
     this._playedFromScript = false;
     this.expandPreviewPane();

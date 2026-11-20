@@ -164,13 +164,37 @@ describe("the phone's full view", () => {
     expect(workspace.current.preview.revealed).toBe(true);
   });
 
-  it("reports the script as covered only while the phone's full view is open, so a run does not move its caret", () => {
+  it("leaves the script's caret where it was while a strip run plays behind the full view, through Stop", () => {
+    const uri = "file:///project/main.sd";
     const w = mount();
-    expect(w.coversScript()).toBe(false);
-    w.openFullView();
-    expect(w.coversScript()).toBe(true);
+    vi.spyOn(w, "getActiveEditorForPane").mockReturnValue({ uri } as ReturnType<
+      typeof w.getActiveEditorForPane
+    >);
+    const shown = vi.spyOn(w, "showDocument").mockResolvedValue(undefined as never);
+    w.connectPlayer();
+    w.playInFullView();
+    w.syncGameStarted();
+    w.followExecutedLines({ [uri]: { last: 30 } });
+    w.toggleGameRunning();
+    expect(workspace.current.preview.revealed).toBe(false);
+    expect(shown).not.toHaveBeenCalled();
+  });
+
+  it("still moves the caret to the executed line where the script is in view", () => {
+    const uri = "file:///project/main.sd";
     layout.value = "compact";
-    expect(w.coversScript()).toBe(false);
+    const w = mount();
+    vi.spyOn(w, "getActiveEditorForPane").mockReturnValue({ uri } as ReturnType<
+      typeof w.getActiveEditorForPane
+    >);
+    const shown = vi.spyOn(w, "showDocument").mockResolvedValue(undefined as never);
+    w.expandPreviewPane();
+    w.followExecutedLines({ [uri]: { last: 30 } });
+    expect(shown).toHaveBeenCalledWith(
+      uri,
+      { start: { line: 30, character: 0 }, end: { line: 30, character: 0 } },
+      false,
+    );
   });
 
   it("leaves the preview where it is when Stop is pressed outside the phone layout", () => {
