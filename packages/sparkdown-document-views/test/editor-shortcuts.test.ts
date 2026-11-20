@@ -1,5 +1,5 @@
-import { EditorSelection } from "@codemirror/state";
-import { runScopeHandlers, type EditorView } from "@codemirror/view";
+import { EditorSelection, StateEffect } from "@codemirror/state";
+import { EditorView, runScopeHandlers } from "@codemirror/view";
 import {
   assignShortcut,
   comboKeyName,
@@ -149,6 +149,27 @@ describe("the shortcuts the editor reports", () => {
     const escape = new KeyboardEvent("keydown", { key: "Escape" });
     expect(runScopeHandlers(view, escape, "gotoline-panel")).toBe(true);
     expect(customGotoLinePanelOpen(view.state)).toBe(false);
+  });
+
+  it("marks Go to line's caret move as the author's selection", () => {
+    const view = liveEditor();
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "  A\n  B\n" } });
+    const moves: boolean[] = [];
+    view.dispatch({
+      effects: StateEffect.appendConfig.of(
+        EditorView.updateListener.of((update) => {
+          if (update.selectionSet) {
+            moves.push(update.transactions.some((tr) => tr.isUserEvent("select")));
+          }
+        }),
+      ),
+    });
+    openCustomGotoLinePanel(view);
+    const field = view.dom.querySelector<HTMLElement>(".cm-gotoLine [contenteditable]")!;
+    field.textContent = "3";
+    view.dom.querySelector<HTMLFormElement>(".cm-gotoLine")!.requestSubmit();
+    expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(3);
+    expect(moves).toEqual([true]);
   });
 
   it("returns focus to Go to line's field when Go to line is asked for again from the script", () => {
