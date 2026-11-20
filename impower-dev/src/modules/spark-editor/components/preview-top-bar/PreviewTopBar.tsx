@@ -18,8 +18,8 @@ import {
   NextIcon,
   PauseIcon,
   PlayIcon,
-  PlayOutlineIcon,
   PreviousIcon,
+  ReplayBeatIcon,
   RestartIcon,
   ResumeIcon,
   ScreenplayIcon,
@@ -603,7 +603,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         {running || !playsGame(mode) ? null : (
           <ControlButton
             label={REPLAY_BEAT}
-            icon={PlayOutlineIcon}
+            icon={ReplayBeatIcon}
             reason={
               live
                 ? STEP_REASONS.starting
