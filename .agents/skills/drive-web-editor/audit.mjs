@@ -28,9 +28,9 @@ export const AUDIT_PARTS = ["contrast", "axe", "targets", "keyboard", "escape", 
 
 export const TOKEN_PAIRS = [
   ["--ink", "--bg"], ["--ink", "--panel"], ["--ink", "--paper"], ["--ink", "--workspace"], ["--ink", "--elevated"], ["--ink", "--tint"], ["--ink", "--selection"],
-  ["--muted", "--bg"], ["--muted", "--panel"], ["--muted", "--paper"], ["--muted", "--workspace"], ["--muted", "--elevated"],
+  ["--muted", "--bg"], ["--muted", "--panel"], ["--muted", "--paper"], ["--muted", "--workspace"], ["--muted", "--elevated"], ["--muted", "--tint"], ["--muted", "--preview-mat"],
   ["--accent", "--bg"], ["--accent", "--panel"], ["--accent", "--workspace"], ["--accent", "--tint"], ["--accent-ink", "--accent"],
-  ["--error", "--panel"], ["--error", "--workspace"], ["--warning", "--panel"], ["--warning", "--workspace"], ["--success", "--panel"], ["--success", "--workspace"],
+  ["--error", "--panel"], ["--error", "--workspace"], ["--warning", "--panel"], ["--warning", "--workspace"], ["--warning", "--tint"], ["--warning", "--elevated"], ["--warning", "--preview-mat"], ["--success", "--panel"], ["--success", "--workspace"],
   ["--bg", "--ink"],
 ];
 
@@ -249,7 +249,8 @@ export const SHORTCUT_SETUPS = {
   undoSelection: { steps: [{ press: "ArrowRight" }, { press: "ArrowRight" }] },
   redoSelection: { steps: [{ press: "ArrowRight" }, { press: "Control+u" }] },
   format: { caret: BODY_LINE, steps: [{ type: "     " }] },
-  reindent: { caret: BODY_LINE, steps: [{ type: "     " }] },
+  reindent: { caret: BODY_LINE, steps: [{ type: "     " }, { press: "Control+a" }] },
+  problems: { steps: [{ click: 'button[aria-expanded="true"][aria-label$=" problems"]' }] },
   rename: { caret: SYMBOL_CARET },
   definition: { caret: SYMBOL_CARET },
   references: { caret: SYMBOL_CARET },
@@ -315,9 +316,9 @@ export function renderMarkdown(report) {
   }
   if (report.axe) {
     push("### axe-core", "", `axe-core ${report.axe.version}, WCAG 2.0 and 2.1 A and AA rules, on every route and surface in Charcoal and Chalk.`, "");
-    push("| Theme | Viewport | Surface | Rule | Impact | Nodes |", "|---|---|---|---|---|---|");
-    for (const v of report.axe.violations) push(`| ${v.theme} | ${v.viewport} | ${cell(v.surface)} | \`${v.id}\` | ${v.impact} | ${v.nodes} |`);
-    if (!report.axe.violations.length) push("| all | all | all | none | | 0 |");
+    push("| Theme | Viewport | Surface | Rule | Impact | Nodes | First element |", "|---|---|---|---|---|---|---|");
+    for (const v of report.axe.violations) push(`| ${v.theme} | ${v.viewport} | ${cell(v.surface)} | \`${v.id}\` | ${v.impact} | ${v.nodes} | \`${cell((v.html?.[0] ?? v.targets?.[0] ?? "").replace(/\s+class="[^"]*"/g, "").replace(/`/g, "'").slice(0, 120))}\` |`);
+    if (!report.axe.violations.length) push("| all | all | all | none | | 0 | |");
     push("");
   }
   if (report.targets) {
@@ -493,7 +494,7 @@ async function runAxe(page, source) {
   await page.addScriptTag({ content: source }).catch(() => {});
   return page.evaluate(async () => {
     const result = await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"], iframes: false });
-    return result.violations.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.length, help: v.help, targets: v.nodes.slice(0, 8).map((n) => n.target.join(" ")) }));
+    return result.violations.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.length, help: v.help, targets: v.nodes.slice(0, 8).map((n) => n.target.join(" ")), html: v.nodes.slice(0, 8).map((n) => n.html.slice(0, 240)) }));
   });
 }
 
@@ -554,7 +555,7 @@ async function shortcutPass(page, deps) {
     const editor = await deps.protocolRequest(page, "editor/read").catch(() => null);
     const dom = await page.evaluate(() => ({
       hash: location.hash,
-      overlays: [...document.querySelectorAll('[role="dialog"], [role="menu"], [role="tooltip"], .cm-panel, .cm-tooltip, [role="listbox"]')].filter((el) => el.checkVisibility()).map((el) => el.getAttribute("aria-label") || el.className || el.getAttribute("role")).join("|"),
+      overlays: [...document.querySelectorAll('[role="dialog"], [role="menu"], [role="tooltip"], .cm-panel, .cm-tooltip, [role="listbox"], [role="region"][aria-label]')].filter((el) => el.checkVisibility()).map((el) => el.getAttribute("aria-label") || el.className || el.getAttribute("role")).join("|"),
       carets: document.querySelectorAll(".cm-cursor").length,
       folds: document.querySelectorAll(".cm-foldPlaceholder").length,
       selections: document.querySelectorAll(".cm-selectionBackground").length,
@@ -573,7 +574,10 @@ async function shortcutPass(page, deps) {
     await deps.placeCaret(page, setup.caret ?? SHORTCUT_CARET).catch(() => {});
     for (const step of setup.steps ?? []) {
       if (step.type != null) await page.keyboard.type(step.type);
-      else await page.keyboard.press(step.press);
+      else if (step.click) {
+        await page.locator(step.click).first().click({ timeout: 3_000 }).catch(() => {});
+        await deps.placeCaret(page, setup.caret ?? SHORTCUT_CARET).catch(() => {});
+      } else await page.keyboard.press(step.press);
       await page.waitForTimeout(150);
     }
     const before = await snapshot();
