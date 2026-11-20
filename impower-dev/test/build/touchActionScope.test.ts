@@ -29,7 +29,7 @@ const PAGE_STYLESHEETS = [
   path.join(IMPOWER_UI_SRC, "theme.css"),
 ];
 
-const PLAIN_ELEMENTS = ["div", "span", "p", "h3", "li", "button", "img", "input", "textarea", "nav", "section"];
+const PLAIN_ELEMENTS = ["div", "span", "p", "h3", "li", "button", "img", "input", "textarea", "nav", "section", "main", "header", "aside"];
 
 const HORIZONTAL_SCROLLERS = [
   "components/carousel/Carousel.tsx",
@@ -55,11 +55,11 @@ const styleRules = (rules: CSSRuleList, out: CSSStyleRule[] = []): CSSStyleRule[
 
 const touchActionRules = (css: string) => {
   const dom = new JSDOM(
-    `<!doctype html><html><head><style></style></head><body><main>${PLAIN_ELEMENTS.map((tag) => `<${tag}></${tag}>`).join("")}</main></body></html>`,
+    `<!doctype html><html><head><style></style></head><body><div id="app">${PLAIN_ELEMENTS.map((tag) => `<${tag}></${tag}>`).join("")}</div></body></html>`,
   );
   const document = dom.window.document;
   document.querySelector("style")!.textContent = css;
-  const plain = PLAIN_ELEMENTS.map((tag) => document.querySelector(`main > ${tag}`)!);
+  const plain = PLAIN_ELEMENTS.map((tag) => document.querySelector(`#app > ${tag}`)!);
   return styleRules(document.querySelector("style")!.sheet!.cssRules)
     .filter((rule) => rule.style.getPropertyValue("touch-action") !== "")
     .map((rule) => ({

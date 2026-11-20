@@ -17,9 +17,9 @@ const PAGE_STYLESHEETS = [
   path.join(IMPOWER_UI_SRC, "theme.css"),
 ];
 
-const PAGE_ROOTS = ["html", "body", "main"];
+const PAGE_ROOTS = ["html", "body", "#app"];
 
-const PLAIN_ELEMENTS = ["div", "span", "p", "h3", "li", "button", "img", "input", "textarea", "nav", "section"];
+const PLAIN_ELEMENTS = ["div", "span", "p", "h3", "li", "button", "img", "input", "textarea", "nav", "section", "main", "header", "aside"];
 
 const OVERSCROLL = /^overscroll-behavior(-[xy]|-block|-inline)?$/;
 
@@ -36,12 +36,12 @@ const styleRules = (rules: CSSRuleList, out: CSSStyleRule[] = []): CSSStyleRule[
 
 const overscrollRules = (css: string) => {
   const dom = new JSDOM(
-    `<!doctype html><html><head><style></style></head><body><main>${PLAIN_ELEMENTS.map((tag) => `<${tag}></${tag}>`).join("")}</main></body></html>`,
+    `<!doctype html><html><head><style></style></head><body><div id="app">${PLAIN_ELEMENTS.map((tag) => `<${tag}></${tag}>`).join("")}</div></body></html>`,
   );
   const document = dom.window.document;
   document.querySelector("style")!.textContent = css;
-  const plain = PLAIN_ELEMENTS.map((tag) => document.querySelector(`main > ${tag}`)!);
-  const roots = PAGE_ROOTS.map((tag) => document.querySelector(tag)!);
+  const plain = PLAIN_ELEMENTS.map((tag) => document.querySelector(`#app > ${tag}`)!);
+  const roots = PAGE_ROOTS.map((selector) => ({ selector, el: document.querySelector(selector)! }));
   return styleRules(document.querySelector("style")!.sheet!.cssRules)
     .filter((rule) => Array.from(rule.style).some((property) => OVERSCROLL.test(property)))
     .map((rule) => {
@@ -56,7 +56,7 @@ const overscrollRules = (css: string) => {
         selector: rule.selectorText,
         value: rule.style.getPropertyValue("overscroll-behavior"),
         plain: plain.filter(matches).map((el) => el.tagName.toLowerCase()),
-        roots: roots.filter(matches).map((el) => el.tagName.toLowerCase()),
+        roots: roots.filter(({ el }) => matches(el)).map(({ selector }) => selector),
       };
     });
 };
@@ -72,7 +72,7 @@ describe("where the editor page sets overscroll-behavior", () => {
     },
   );
 
-  it("keeps the page itself from bouncing: html, body and main stop the chain", () => {
+  it("keeps the page itself from bouncing: html, body and the #app root stop the chain", () => {
     const rules = overscrollRules(fs.readFileSync(PAGE_STYLESHEETS[0]!, "utf8"));
     for (const root of PAGE_ROOTS) {
       expect(

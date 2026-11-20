@@ -573,7 +573,7 @@ async function shortcutPass(page, deps) {
       folds: document.querySelectorAll(".cm-foldPlaceholder").length,
       selections: document.querySelectorAll(".cm-selectionBackground").length,
       active: document.activeElement ? `${document.activeElement.localName}.${document.activeElement.className}` : "",
-      expanded: [...document.querySelectorAll("[aria-expanded]")].filter((el) => !el.closest('.cm-editor, aside, nav, [aria-label^="Scene outline"]')).map((el) => `${el.getAttribute("aria-label") ?? ""}=${el.getAttribute("aria-expanded")}`).join("|"),
+      expanded: [...document.querySelectorAll("[aria-expanded]")].filter((el) => !el.closest('.cm-editor, aside[aria-label="Sidebar"], nav, [aria-label^="Scene outline"]')).map((el) => `${el.getAttribute("aria-label") ?? ""}=${el.getAttribute("aria-expanded")}`).join("|"),
       problemsPanel: !!document.querySelector("#problems-panel")?.checkVisibility(),
     }));
     return { text: editor?.textDocument.text, selection: JSON.stringify(editor?.selection ?? null), ...dom };
