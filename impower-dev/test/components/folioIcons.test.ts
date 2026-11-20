@@ -29,7 +29,7 @@ const MODULE_VARIANTS = [
 ];
 
 const DRAWN_FOR_THE_EDITOR = [
-  "bookmark", "breakpoint", "detour", "fast-forward", "filter", "folder-plus",
+  "bookmark", "breakpoint", "continue", "detour", "fast-forward", "filter", "folder-plus",
   "follow-off", "pin-fill", "replay-beat", "rewind", "scissors", "sign-out", "step-over",
   "stop-sign",
 ];

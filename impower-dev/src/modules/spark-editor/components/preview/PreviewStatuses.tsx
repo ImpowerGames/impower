@@ -8,6 +8,9 @@ import {
 import type { PreviewMode } from "../../workspace/settings/settingsSchema";
 import statuses, { shownStatuses } from "../../workspace/statuses/StatusesStore";
 import workspace from "../../workspace/WorkspaceStore";
+import PreviewDebugToolbar, {
+  isStopped,
+} from "../preview-debug-toolbar/PreviewDebugToolbar";
 
 export interface PreviewStatusesProps {
   mode: PreviewMode;
@@ -24,7 +27,8 @@ export default function PreviewStatuses({ mode }: PreviewStatusesProps) {
   const live = !!game?.running || starting;
   const refusal = live ? undefined : game?.playRefusal;
   const shown = shownStatuses(statuses.statuses.value, mode, starting);
-  if (shown.length === 0 && !refusal) {
+  const stopped = isStopped(game);
+  if (shown.length === 0 && !refusal && !stopped) {
     return null;
   }
   return (
@@ -32,6 +36,7 @@ export default function PreviewStatuses({ mode }: PreviewStatusesProps) {
       data-preview-statuses
       class="pointer-events-none absolute top-3 left-3 z-[3] flex max-w-[calc(100%-24px)] flex-col items-start gap-2"
     >
+      <PreviewDebugToolbar />
       {refusal ? (
         <button
           type="button"
