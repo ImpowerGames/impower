@@ -26,7 +26,7 @@ The first run measured main at `b969caf645`, before any fix; its tables are in t
 
 That first run measured only what each route's first screen showed. The scans now cover whole pages, and that found three more things. Settings draws its switches, selects and text fields with the same divider-coloured boundary as the search fields, which widens #2643. The Emphasize markup row dims its markers to 2.26 to 3.32:1 (#2658). The Settings script sample's selector took taps in 36px under touch, which is fixed below.
 
-The rerun measured main at `c8fd9c91ce` on 2026-11-20, after #2643, #2644 and #2658 closed; the Results below are that run. Charcoal and Chalk have zero failures for rendered contrast, touch targets (on the 360 preset and on the 430 emulator) and keyboard operation: every Tab stop is named, shows a focus edge and carries a role. The failures left are:
+The rerun measured main at `c8fd9c91ce` on 2026-11-20, after #2643, #2644 and #2658 closed; the Results below are that run. The touch-target and keyboard passes ran in Charcoal and again in Chalk. Charcoal and Chalk have zero failures for rendered contrast, touch targets (on the 360 preset and on the 430 emulator) and keyboard operation: every Tab stop is named, shows a focus edge and carries a role. The failures left are:
 
 - Midnight and Dusk field placeholders, 1.87 to 2.57:1, kept by the decision under Decisions and readings.
 - Chalk's `--warning` token pairs on `--tint` and `--elevated`, which no screen draws, accepted under Decisions and readings.
@@ -70,11 +70,11 @@ Not fixed or filed here: #2586 (phone title bar spacing), #2591 (debug controls 
 - Token pairs that no screen draws. Chalk's `--warning` reaches 4.19:1 on `--tint` and 4.23:1 on `--elevated`. No audited view draws warning text on either surface, so both are accepted as recorded; a component that puts warning text there needs another colour.
 - The Add panel returns focus to the script, at the caret it inserts at, rather than to its Add button. Its close handler does this on purpose (`AddPanel.tsx`), so the behaviour is kept and recorded here.
 - Copy. No old word appears. The glossary quotes four prototype strings in title case that the editor shows in sentence case ("Editor & project preferences", and the Settings names "Play from here", "Step into" and "Step out"). The sentence-case rule is kept over the glossary's capitals. The preview's play button keeps the glossary's "Play From Here".
-- Shortcuts. Every editor row of the keymap table had an effect except the two signature-help rows, which need a function call that the fixture does not have. Reindent changes the text when the lines are selected, as the setup does.
+- Shortcuts. Every editor row of the keymap table had an effect except the signature-help rows, which need a function call that the fixture does not have. Reindent changes the text when the lines are selected, as the setup does.
 - Touch on the emulator. Centred in its scroller before it is measured, every control reaches 44×44, the same as on the 360 preset.
 - On-screen keyboard. On the emulator no tapped field was covered once the keyboard was up. The script name field only shows in the phone layout's edit mode, so it was not tapped, and toasts were not raised. Both belong to #2594.
 - Forced colors. No Tab stop lost its focus edge, and the screenshots show every control drawn in system colours. The rail's current route stays marked only by bold text. The current script row and the current outline scene lose their tint and accent bar. This is an observation from the screenshots, not measured, and not filed.
-- Names in the keyboard order. The order is named from Chromium's accessibility tree. Every stop has a name. The game frame reads "Untitled story game preview".
+- Names in the keyboard order. The order is named from Chromium's accessibility tree. Every stop has a name. The game frame reads "Untitled story game preview". Where Chalk's order is listed apart from Charcoal's, the difference is the problem rows and warning badges: the page is reloaded before each pass, and in some passes the diagnostics had not arrived when Tab reached them.
 - Live regions. The save status is a `status` ("Draft saved"). Each page ends with an empty `status` that receives toasts. Settings announces through an `output`. The caret position readout is a button with `aria-live="off"`, so it does not announce caret moves; whether it should is for the screen-reader pass below. The Outline ("Scene outline in main") and the Scripts rows ("Scripts and folders") are lists.
 
 ### Screen-reader pass
@@ -137,14 +137,14 @@ Every rendered text, icon and form-control boundary on each route and opened sur
 
 | Theme | Viewport | Checked | Failures | Script-colour failures | Not measured |
 |---|---|---|---|---|---|
-| Charcoal | desktop | 1753 | 0 | 0 | 11 |
-| Chalk | desktop | 1753 | 0 | 0 | 11 |
-| Ink | desktop | 1008 | 0 | 0 | 5 |
-| Sepia | desktop | 1008 | 0 | 0 | 5 |
-| Graphite | desktop | 1008 | 0 | 0 | 5 |
-| Warm Folio | desktop | 1008 | 0 | 0 | 5 |
-| Midnight | desktop | 1008 | 6 | 0 | 5 |
-| Dusk | desktop | 1008 | 6 | 0 | 5 |
+| Charcoal | desktop | 1929 | 0 | 0 | 11 |
+| Chalk | desktop | 1929 | 0 | 0 | 11 |
+| Ink | desktop | 1049 | 0 | 0 | 5 |
+| Sepia | desktop | 1049 | 0 | 0 | 5 |
+| Graphite | desktop | 1049 | 0 | 0 | 5 |
+| Warm Folio | desktop | 1049 | 0 | 0 | 5 |
+| Midnight | desktop | 1049 | 7 | 0 | 5 |
+| Dusk | desktop | 1049 | 7 | 0 | 5 |
 | Charcoal | phone 360 | 978 | 0 | 0 | 7 |
 | Chalk | phone 360 | 978 | 0 | 0 | 7 |
 | Ink | phone 360 | 779 | 0 | 0 | 4 |
@@ -158,6 +158,8 @@ Failures, one row per element and colour pair:
 
 | Theme | Viewport | Surface | Kind | Element | Sample | Colours | Ratio | Needs |
 |---|---|---|---|---|---|---|---|---|
+| Midnight | desktop | Story | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
+| Dusk | desktop | Story | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#0e2d4e` | 1.89 | 4.5 |
 | Midnight | desktop | Scripts | placeholder | main: input[aria-label="Search scripts"] | Search scripts | `#315881` on `#001124` | 2.57 | 4.5 |
 | Midnight | desktop | Scripts | placeholder | Preview: input[aria-label="Add an expression to watch"] | Add expression | `#315881` on `#052d57` | 1.87 | 4.5 |
 | Dusk | desktop | Scripts | placeholder | main: input[aria-label="Search scripts"] | Search scripts | `#315881` on `#041220` | 2.56 | 4.5 |
@@ -213,25 +215,40 @@ axe-core 4.14.1, WCAG 2.0 and 2.1 A and AA rules, on every route and surface in 
 
 ### Touch targets
 
-Every rendered control under a coarse pointer, scrolled to the centre of its scroller first, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to 44px each way. Chromium's phone preset at 360×780 with touch; and the Android emulator at its own width of 430px (sdk_gphone64_x86_64 emulator-5554, Chrome 124.0.6367.219), run on 2026-11-20 at commit `c8fd9c91ce` with `audit --device android`.
+Every rendered control under a coarse pointer, scrolled to the centre of its scroller first, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to 44px each way. Chromium's phone preset at 360×780 with touch; and the Android emulator at its own width of 430px (sdk_gphone64_x86_64 emulator-5554, Chrome 124.0.6367.219), run on 2026-11-20 at commit `691493a449` with `audit --device android`.
 
-| Viewport | Surface | Controls | Under 44×44 |
-|---|---|---|---|
-| phone 360 | Story | 14 | 0 |
-| phone 360 | Story: app-menu | 5 | 0 |
-| phone 360 | Scripts | 15 | 0 |
-| phone 360 | Scripts: file-menu | 6 | 0 |
-| phone 360 | Assets | 16 | 0 |
-| phone 360 | Assets: asset-inspector | 7 | 0 |
-| phone 360 | Share | 10 | 0 |
-| phone 360 | Settings | 117 | 0 |
-| emulator 430 | Story | 13 | 0 |
-| emulator 430 | Story: add-menu | 7 | 0 |
-| emulator 430 | Scripts | 15 | 0 |
-| emulator 430 | Assets | 16 | 0 |
-| emulator 430 | Assets: asset-inspector | 7 | 0 |
-| emulator 430 | Share | 10 | 0 |
-| emulator 430 | Settings | 116 | 0 |
+| Theme | Viewport | Surface | Controls | Under 44×44 |
+|---|---|---|---|---|
+| Charcoal | phone 360 | Story | 14 | 0 |
+| Chalk | phone 360 | Story | 14 | 0 |
+| Charcoal | phone 360 | Story: app-menu | 5 | 0 |
+| Chalk | phone 360 | Story: app-menu | 5 | 0 |
+| Charcoal | phone 360 | Scripts | 15 | 0 |
+| Chalk | phone 360 | Scripts | 15 | 0 |
+| Charcoal | phone 360 | Scripts: file-menu | 6 | 0 |
+| Chalk | phone 360 | Scripts: file-menu | 6 | 0 |
+| Charcoal | phone 360 | Assets | 16 | 0 |
+| Chalk | phone 360 | Assets | 16 | 0 |
+| Charcoal | phone 360 | Assets: asset-inspector | 7 | 0 |
+| Chalk | phone 360 | Assets: asset-inspector | 7 | 0 |
+| Charcoal | phone 360 | Share | 10 | 0 |
+| Chalk | phone 360 | Share | 10 | 0 |
+| Charcoal | phone 360 | Settings | 117 | 0 |
+| Chalk | phone 360 | Settings | 117 | 0 |
+| Charcoal | emulator 430 | Story | 13 | 0 |
+| Chalk | emulator 430 | Story | 13 | 0 |
+| Charcoal | emulator 430 | Story: add-menu | 7 | 0 |
+| Chalk | emulator 430 | Story: add-menu | 7 | 0 |
+| Charcoal | emulator 430 | Scripts | 15 | 0 |
+| Chalk | emulator 430 | Scripts | 15 | 0 |
+| Charcoal | emulator 430 | Assets | 16 | 0 |
+| Chalk | emulator 430 | Assets | 16 | 0 |
+| Charcoal | emulator 430 | Assets: asset-inspector | 7 | 0 |
+| Chalk | emulator 430 | Assets: asset-inspector | 7 | 0 |
+| Charcoal | emulator 430 | Share | 10 | 0 |
+| Chalk | emulator 430 | Share | 10 | 0 |
+| Charcoal | emulator 430 | Settings | 116 | 0 |
+| Chalk | emulator 430 | Settings | 116 | 0 |
 
 ### On-screen keyboard
 
@@ -246,11 +263,11 @@ Each text field tapped on the Android emulator, then the field's bottom edge com
 
 ### Keyboard order
 
-Tab from the page start until the order repeats, on the desktop layout in Charcoal. Each stop: its role and accessible name as Chromium's accessibility tree computes them, whether the focus edge is visible (a computed style of the control, its pseudo-elements or its two nearest ancestors differs between focused and blurred). Inside the script, Escape then Tab leaves the editor. Enter and Space are not pressed: a stop counts as operable when it is a native control or carries a role, and a focusable element with neither is marked.
+Tab from the page start until the order repeats, on the desktop layout in Charcoal and again in Chalk; the stops are listed once when both themes give the same order. Each stop: its role and accessible name as Chromium's accessibility tree computes them, whether the focus edge is visible (a computed style of the control, its pseudo-elements or its two nearest ancestors differs between focused and blurred). Inside the script, Escape then Tab leaves the editor. Enter and Space are not pressed: a stop counts as operable when it is a native control or carries a role, and a focusable element with neither is marked.
 
 #### Story
 
-42 stops; 0 without a visible focus edge; 0 focusable without a role.
+Charcoal: 53 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 1. textbox “Project name”
 2. button “Draft saved”
@@ -277,7 +294,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 23. button “Fold”
 24. textbox “main” — focus shown by the caret
 25. button “Writing tools”
-26. button “Line 1, Col 1”
+26. button “Line 17, Col 1”
 27. button “Add”
 28. separator “Resize script and preview panes”
 29. button “Viewing mode: Visual Novel”
@@ -290,14 +307,27 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 36. Iframe “Untitled story game preview”
 37. separator “Resize game and panel”
 38. button “2 problems”
-39. button “main : 1”
-40. button “Game aspect ratio: Auto, 544×694 pixels”
+39. button “HARBOR (7 → 17). Route from the top of scene HARBOR, line 7 ”
+40. button “Game aspect ratio: Auto, 544×496 pixels”
 41. button “Fullscreen preview”
-42. separator “Resize sidebar”
+42. button “0 errors. Hide errors”
+43. button “2 warnings. Hide warnings”
+44. button “0 notes. Hide notes”
+45. button “In the script, 2 problems”
+46. button “Open Main at line 13”
+47. button “Open boat at line 2”
+48. button “While playing”
+49. button “Variables”
+50. button “Watch”
+51. textbox “Add an expression to watch”
+52. button “Call stack”
+53. separator “Resize sidebar”
+
+Chalk: 53 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 #### Scripts
 
-49 stops; 0 without a visible focus edge; 0 focusable without a role.
+Charcoal: 49 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 1. textbox “Project name”
 2. button “Draft saved”
@@ -333,7 +363,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 32. Iframe “Untitled story game preview”
 33. separator “Resize game and panel”
 34. button “2 problems”
-35. button “main : 1”
+35. button “HARBOR (7 → 17). Route from the top of scene HARBOR, line 7 ”
 36. button “Game aspect ratio: Auto, 544×496 pixels”
 37. button “Fullscreen preview”
 38. button “0 errors. Hide errors”
@@ -349,9 +379,60 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 48. button “Call stack”
 49. separator “Resize sidebar”
 
+Chalk: 48 stops; 0 without a visible focus edge; 0 focusable without a role.
+
+1. textbox “Project name”
+2. button “Draft saved”
+3. tab “Story”
+4. button “Search”
+5. button “Script setup”
+6. button “Scene: start”
+7. button “Scene: HARBOR”
+8. button “Collapse scene HARBOR”
+9. button “Choose: What does Mara do?”
+10. button “Saved locally”
+11. button “Back to story”
+12. searchbox “Search scripts”
+13. button “New”
+14. button “Scripts options”
+15. button “Sort by name, a to z”
+16. button “Open script Main, Entry script · Modified just now · 323 B”
+17. button “1 warning in Main”
+18. button “Options for Main”
+19. checkbox “Select boat.sd”
+20. button “Open script boat.sd, Modified just now · 132 B”
+21. button “1 warning in boat.sd”
+22. button “Options for boat.sd”
+23. separator “Resize scripts and preview panes”
+24. button “Viewing mode: Visual Novel”
+25. button “Replay beat”
+26. button “Skip back”
+27. button “Play From Here”
+28. button “Skip forward”
+29. button “Saves”
+30. button “Preview settings”
+31. Iframe “Untitled story game preview”
+32. separator “Resize game and panel”
+33. button “2 problems”
+34. button “HARBOR (7 → 17). Route from the top of scene HARBOR, line 7 ”
+35. button “Game aspect ratio: Auto, 544×496 pixels”
+36. button “Fullscreen preview”
+37. button “0 errors. Hide errors”
+38. button “2 warnings. Hide warnings”
+39. button “0 notes. Hide notes”
+40. button “In the script, 2 problems”
+41. button “Open Main at line 13”
+42. button “Open boat at line 2”
+43. button “While playing”
+44. button “Variables”
+45. button “Watch”
+46. textbox “Add an expression to watch”
+47. button “Call stack”
+48. separator “Resize sidebar”
+
 #### Assets
 
-49 stops; 0 without a visible focus edge; 0 focusable without a role.
+Charcoal: 49 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 1. textbox “Project name”
 2. button “Draft saved”
@@ -387,7 +468,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 32. Iframe “Untitled story game preview”
 33. separator “Resize game and panel”
 34. button “2 problems”
-35. button “main : 1”
+35. button “HARBOR (7 → 17). Route from the top of scene HARBOR, line 7 ”
 36. button “Game aspect ratio: Auto, 544×496 pixels”
 37. button “Fullscreen preview”
 38. button “0 errors. Hide errors”
@@ -403,9 +484,60 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 48. button “Call stack”
 49. separator “Resize sidebar”
 
+Chalk: 48 stops; 0 without a visible focus edge; 0 focusable without a role.
+
+1. textbox “Project name”
+2. button “Draft saved”
+3. tab “Assets”
+4. button “Search”
+5. button “Script setup”
+6. button “Scene: start”
+7. button “Scene: HARBOR, 1 warning in this scene”
+8. button “Collapse scene HARBOR”
+9. button “Choose: What does Mara do?”
+10. button “Saved locally”
+11. searchbox “Search assets”
+12. button “Add”
+13. tab “Images”
+14. button “Images options”
+15. button “Change how this folder is shown”
+16. button “Sort by name, a to z”
+17. checkbox “Select harbor”
+18. button “Open image harbor, Modified 1m · 608 B”
+19. button “Options for harbor”
+20. checkbox “Select pier”
+21. button “Open image pier, Modified 1m · 608 B”
+22. button “Options for pier”
+23. separator “Resize page and preview panes”
+24. button “Viewing mode: Visual Novel”
+25. button “Replay beat”
+26. button “Skip back”
+27. button “Play From Here”
+28. button “Skip forward”
+29. button “Saves”
+30. button “Preview settings”
+31. Iframe “Untitled story game preview”
+32. separator “Resize game and panel”
+33. button “2 problems”
+34. button “main : 17”
+35. button “Game aspect ratio: Auto, 544×496 pixels”
+36. button “Fullscreen preview”
+37. button “0 errors. Hide errors”
+38. button “2 warnings. Hide warnings”
+39. button “0 notes. Hide notes”
+40. button “In the script, 2 problems”
+41. button “Open Main at line 13”
+42. button “Open boat at line 2”
+43. button “While playing”
+44. button “Variables”
+45. button “Watch”
+46. textbox “Add an expression to watch”
+47. button “Call stack”
+48. separator “Resize sidebar”
+
 #### Share
 
-42 stops; 0 without a visible focus edge; 0 focusable without a role.
+Charcoal: 42 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 1. textbox “Project name”
 2. button “Draft saved”
@@ -434,7 +566,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 25. Iframe “Untitled story game preview”
 26. separator “Resize game and panel”
 27. button “2 problems”
-28. button “main : 1”
+28. button “main : 17”
 29. button “Game aspect ratio: Auto, 544×496 pixels”
 30. button “Fullscreen preview”
 31. button “0 errors. Hide errors”
@@ -450,9 +582,51 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 41. button “Call stack”
 42. separator “Resize sidebar”
 
+Chalk: 39 stops; 0 without a visible focus edge; 0 focusable without a role.
+
+1. textbox “Project name”
+2. button “Draft saved”
+3. tab “Share”
+4. button “Search”
+5. button “Script setup”
+6. button “Scene: start”
+7. button “Scene: HARBOR”
+8. button “Collapse scene HARBOR”
+9. button “Choose: What does Mara do?”
+10. button “Saved locally”
+11. button “Back to story”
+12. link “Open your project in VS Code”
+13. link “Screenplay settings”
+14. button “Download PDF”
+15. button “Download HTML”
+16. separator “Resize page and preview panes”
+17. button “Viewing mode: Visual Novel”
+18. button “Replay beat”
+19. button “Skip back”
+20. button “Play From Here”
+21. button “Skip forward”
+22. button “Saves”
+23. button “Preview settings”
+24. Iframe “Untitled story game preview”
+25. separator “Resize game and panel”
+26. button “No problems”
+27. button “main : 17”
+28. button “Game aspect ratio: Auto, 544×496 pixels”
+29. button “Fullscreen preview”
+30. button “0 errors. Hide errors”
+31. button “0 warnings. Hide warnings”
+32. button “0 notes. Hide notes”
+33. button “In the script”
+34. button “While playing”
+35. button “Variables”
+36. button “Watch”
+37. textbox “Add an expression to watch”
+38. button “Call stack”
+39. separator “Resize sidebar”
+
 #### Settings
 
-144 stops; 0 without a visible focus edge; 0 focusable without a role.
+Charcoal: 144 stops; 0 without a visible focus edge; 0 focusable without a role.
 
 1. textbox “Project name”
 2. button “Draft saved”
@@ -585,7 +759,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 129. Iframe “Untitled story game preview”
 130. separator “Resize game and panel”
 131. button “No problems”
-132. button “main : 1”
+132. button “main : 17”
 133. button “Game aspect ratio: Auto, 544×496 pixels”
 134. button “Fullscreen preview”
 135. button “0 errors. Hide errors”
@@ -599,6 +773,8 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 143. button “Call stack”
 144. separator “Resize sidebar”
 
+Chalk: 144 stops; 0 without a visible focus edge; 0 focusable without a role.
+
 ### Escape and focus return
 
 | Viewport | Surface | Opened | Closed by Escape | Focus returned to |
@@ -608,13 +784,13 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 | desktop | preview-settings | yes | yes | the opener (Preview settings) |
 | desktop | problems | yes | a panel in the page, not an overlay | – |
 | desktop | file-menu | yes | yes | the opener (Options for boat.sd) |
-| desktop | asset-inspector | yes | yes | the opener (Open image harbor, Modified just now · 608 B) |
+| desktop | asset-inspector | yes | yes | the opener (Open image harbor, Modified 1m · 608 B) |
 | phone 360 | app-menu | yes | yes | the opener (App menu) |
 | phone 360 | add-menu | no: no Add button on screen: neither the writer's bar nor the keyboard toolbar shows one | – | – |
 | phone 360 | preview-settings | no: the preview's settings button is not on screen; the preview pane may be hidden | – | – |
 | phone 360 | problems | no: the problems toggle under the game is not on screen; the preview pane may be hidden | – | – |
 | phone 360 | file-menu | yes | yes | the opener (Options for boat.sd) |
-| phone 360 | asset-inspector | yes | yes | the opener (Open image harbor, Modified 2m · 608 B) |
+| phone 360 | asset-inspector | yes | yes | the opener (Open image harbor, Modified 3m · 608 B) |
 
 ### Editor shortcuts
 
@@ -649,7 +825,7 @@ Each editor row of the keymap table pressed in the script with the caret on line
 | Select line | `Alt+L` | expanded a panel, selection |
 | Expand the selection | `Mod+I` | selection |
 | Add a caret above | `Mod+Alt+Up` | selection, carets |
-| Add a caret below | `Mod+Alt+Down` | selection, carets |
+| Add a caret below | `Mod+Alt+Down` | selection |
 | Go to the matching bracket | `Mod+Shift+\` | expanded a panel, selection |
 | Fold every block | `Ctrl+Alt+[` | folds |
 | Open every folded block | `Ctrl+Alt+]` | folds |
@@ -661,7 +837,7 @@ Each editor row of the keymap table pressed in the script with the caret on line
 | Go to line | `Mod+G` | opened cm-gotoLine cm-panel, focus |
 | Show problems | `Mod+Shift+M` | expanded a panel |
 | Next problem | `F8` | selection |
-| Show parameter hints | `Mod+Shift+Space` | selection |
+| Show parameter hints | `Mod+Shift+Space` | **none seen** |
 | Previous parameter hint | `Mod+Shift+Up` | **none seen** |
 | Next parameter hint | `Mod+Shift+Down` | **none seen** |
 | Previous beat in the preview | `PageUp` | expanded a panel, selection |
@@ -675,7 +851,7 @@ With `prefers-reduced-motion: reduce` emulated, every CSS transition and animati
 |---|---|---|---|---|---|
 | all | none | | | | |
 
-Recordings: C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\76a50fbe-09c8-48a2-ad5f-e68d7993c028\scratchpad\writer-2668-4SFrgj\audit\reduced-motion-desktop\page@03345075713a0db83912ed540c8b564c.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\76a50fbe-09c8-48a2-ad5f-e68d7993c028\scratchpad\writer-2668-4SFrgj\audit\reduced-motion-phone\page@5c90b1b243ec722f1dfd68158eb86575.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\76a50fbe-09c8-48a2-ad5f-e68d7993c028\scratchpad\writer-2668-4SFrgj\audit\reduced-motion-phone\page@e57787f77b09ea978d5eb6c09cc6e81d.webm (kept out of the repository).
+Recordings: C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\76a50fbe-09c8-48a2-ad5f-e68d7993c028\scratchpad\writer-2668-4SFrgj\audit2\reduced-motion-desktop\page@683357f147af6475b06dce0ca30e58ac.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\76a50fbe-09c8-48a2-ad5f-e68d7993c028\scratchpad\writer-2668-4SFrgj\audit2\reduced-motion-phone\page@04b0fbf5ef7c200b4885f46be100bfc2.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\76a50fbe-09c8-48a2-ad5f-e68d7993c028\scratchpad\writer-2668-4SFrgj\audit2\reduced-motion-phone\page@40807749939379f9a0199c0a15c48c6a.webm (kept out of the repository).
 
 ### Forced colors
 
@@ -693,7 +869,7 @@ With `forced-colors: active` emulated on the desktop layout, the first stops of 
 
 | Viewport | Route | banner | navigation | main | complementary | Live regions | Lists |
 |---|---|---|---|---|---|---|---|
-| desktop | Story | 1 | 2 | 1 | 2 | status “Draft saved”; div[aria-live=polite]; button[aria-live=off] “Line 1, Col 1”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4) |
+| desktop | Story | 1 | 2 | 1 | 2 | status “Draft saved”; div[aria-live=polite]; button[aria-live=off] “Line 17, Col 1”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); list “Problems and playback messages” (15) |
 | desktop | Scripts | 1 | 3 | 1 | 2 | status “Draft saved”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); list “Scripts and folders” (2); list “Problems and playback messages” (15) |
 | desktop | Assets | 1 | 3 | 1 | 2 | status “Draft saved”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); tablist (6); list “Assets and folders” (2); list “Problems and playback messages” (15) |
 | desktop | Share | 1 | 2 | 1 | 2 | status “Draft saved”; status “2 problems”; status | tablist (3); list “Scene outline in main” (4); list “Problems and playback messages” (15) |
@@ -706,7 +882,7 @@ With `forced-colors: active` emulated on the desktop layout, the first stops of 
 
 ### Copy
 
-593 distinct strings read from every route and surface (text, aria-label, title, placeholder, alt). 304 of the glossary's 975 strings appeared as written; the rest belong to surfaces the audit does not open.
+594 distinct strings read from every route and surface (text, aria-label, title, placeholder, alt). 302 of the glossary's 975 strings appeared as written; the rest belong to surfaces the audit does not open.
 
 | Check | String | Where |
 |---|---|---|

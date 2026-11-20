@@ -104,6 +104,29 @@ await check("the markdown names the date and commit and marks failing token pair
   assert.match(md, /\| `--ink` \| `--bg` \| \*\*4\.20\*\* \|/);
 });
 
+await check("touch targets and the keyboard order are reported for Charcoal and Chalk each", () => {
+  const stop = { role: "button", name: "Story" };
+  const md = renderMarkdown({
+    date: "2026-11-20",
+    commit: "abc1234567",
+    browser: "149",
+    targets: { min: 44, viewports: "phone", summary: [{ theme: "Charcoal", viewport: "phone 360", surface: "Story", controls: 3, failures: 0 }, { theme: "Chalk", viewport: "phone 360", surface: "Story", controls: 3, failures: 1 }], failures: [{ theme: "Chalk", viewport: "phone 360", surface: "Story", where: "b", name: "Play", box: "30×30", hit: "30×30" }] },
+    keyboard: { routes: [
+      { theme: "Charcoal", route: "story", name: "Story", stops: [stop], cycled: true, invisible: 0, custom: 0 },
+      { theme: "Chalk", route: "story", name: "Story", stops: [stop], cycled: true, invisible: 0, custom: 0 },
+      { theme: "Charcoal", route: "share", name: "Share", stops: [stop], cycled: true, invisible: 0, custom: 0 },
+      { theme: "Chalk", route: "share", name: "Share", stops: [{ ...stop, visible: false }], cycled: true, invisible: 1, custom: 0 },
+    ] },
+  });
+  assert.match(md, /\| Chalk \| phone 360 \| Story \| 3 \| 1 \|/);
+  assert.match(md, /\| Chalk \| phone 360 \| Story \| b \| Play \|/);
+  assert.equal(md.match(/#### Story/g).length, 1);
+  assert.match(md, /Charcoal: 1 stops; 0 without/);
+  assert.match(md, /Chalk: 1 stops; 0 without/);
+  assert.equal(md.match(/1\. button “Story”$/gm).length, 2);
+  assert.match(md, /Chalk: 1 stops; 1 without a visible focus edge[^\n]*\n\n1\. button “Story” — \*\*no visible focus\*\*/);
+});
+
 let browser = null;
 try {
   const { chromium } = await import("playwright");
