@@ -590,6 +590,14 @@ describe("a play that replays several ranges (#2581)", () => {
     expect(calls).toEqual([0.2, 0.5, 0.7, 0, 0.8]);
   });
 
+  test("under a stepped easing a single range lands on the same step as one range always did, at a reversed start and at a step boundary", () => {
+    const replay = [range(0.2, 0.7, { count: 2 })];
+    const reversed = new MorphTimeline(timing({ duration: 0.1, easing: "steps(7)", direction: "reverse", replay }), morphRandom("compat"));
+    expect(reversed.at(0)).toEqual({ phase: "playing", play: 0, offset: 1 });
+    const forward = new MorphTimeline(timing({ duration: 0.1, easing: "steps(4)", replay }), morphRandom("compat"));
+    expect(forward.at(0.125)).toEqual({ phase: "playing", play: 0, offset: 0.5 });
+  });
+
   test("a block of one entry plays, and draws, exactly as the same fields written directly", () => {
     const fields = { from: "20%", to: "70%", chance: "50%", count: 3, delay_min: 0.05, delay_max: 0.2 };
     const values = [0.1, 0.4, 0.2, 0.8, 0.3, 0.6, 0.9, 0.2];
