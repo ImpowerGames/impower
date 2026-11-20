@@ -10,9 +10,9 @@ const read = (path: string) =>
 const DOCUMENT_HTML = read("../../src/public/document.html");
 const DOCUMENT_CSS = read("../../src/public/document.css");
 
-const page = (htmlClass: string, shell: string) =>
+const page = (htmlClass: string, shell: string, panel = "") =>
   new JSDOM(
-    `<!doctype html><html class="${htmlClass}"><head><style>${DOCUMENT_CSS}</style></head><body><div data-phone-shell ${shell}><div class="sparkdown-script-editor-root"><div class="cm-editor"><div class="cm-panel cm-keyboard-toolbar"></div></div></div></div></body></html>`,
+    `<!doctype html><html class="${htmlClass}"><head><style>${DOCUMENT_CSS}</style></head><body><div data-phone-shell ${shell}><div class="sparkdown-script-editor-root"><div class="cm-editor"><div class="cm-panel cm-keyboard-toolbar"></div></div></div>${panel}</div></body></html>`,
   ).window;
 
 describe("the phone layout around the on-screen keyboard", () => {
@@ -35,6 +35,16 @@ describe("the phone layout around the on-screen keyboard", () => {
     expect(toolbar(page("keyboard-open", ""))).toBe("none");
     expect(toolbar(page("", "data-editing"))).toBe("none");
     expect(toolbar(page("keyboard-open", "data-editing"))).not.toBe("none");
+  });
+
+  it("keeps the script's keyboard toolbar, the spacer under a panel's heading, while a panel replaces the keyboard", () => {
+    const toolbar = (win: Window) =>
+      win.getComputedStyle(win.document.querySelector(".cm-keyboard-toolbar")!)
+        .display;
+    const panel = '<div data-keyboard-panel><div role="heading">Add</div></div>';
+
+    expect(toolbar(page("", "data-editing", panel))).not.toBe("none");
+    expect(toolbar(page("", "", panel))).toBe("none");
   });
 
   it("stops the page itself panning under the visible area while the keyboard is open", () => {
