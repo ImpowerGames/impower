@@ -177,9 +177,10 @@ describe("name rules", () => {
     expect(availableName("intro", ["intro.sd"], ".sd", "intro.sd")).toBe("intro.sd");
   });
 
-  it("names a duplicate '<name> copy', then numbers it", () => {
-    expect(copyName("intro", ["intro.sd"], ".sd")).toBe("intro copy.sd");
-    expect(copyName("intro", ["intro.sd", "intro copy.sd"], ".sd")).toBe("intro copy 2.sd");
+  it("names a duplicate '<name>_copy', then numbers it", () => {
+    expect(copyName("chapter_3", ["chapter_3.sd"], ".sd")).toBe("chapter_3_copy.sd");
+    expect(copyName("chapter_3", ["chapter_3.sd", "Chapter_3_Copy.sd"], ".sd")).toBe("chapter_3_copy_2.sd");
+    expect(copyName("Drafts", ["Drafts", "Drafts_copy", "Drafts_copy_2"])).toBe("Drafts_copy_3");
   });
 
   describe("a new script's default name", () => {

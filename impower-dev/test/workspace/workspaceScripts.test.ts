@@ -50,7 +50,9 @@ function fakeWorkspace(paths: string[], folders: string[]) {
     getFileUri: (_: string, path: string) => uri(path),
     getRelativePath: (_: string, u: string) => relative(u),
     createFiles: vi.fn(async ({ files: created }: { files: { uri: string; data: ArrayBuffer | string }[] }) => {
-      for (const f of created) files.set(relative(f.uri), String(f.data));
+      for (const f of created) {
+        files.set(relative(f.uri), typeof f.data === "string" ? f.data : new TextDecoder().decode(f.data));
+      }
       return [];
     }),
     createFolder: vi.fn(async (_: string, path: string) => {
@@ -73,7 +75,9 @@ function fakeWorkspace(paths: string[], folders: string[]) {
       dirs.add(to);
       return [];
     }),
-    readFile: vi.fn(async ({ file }: { file: { uri: string } }) => files.get(relative(file.uri))),
+    readFile: vi.fn(async ({ file }: { file: { uri: string } }) =>
+      new TextEncoder().encode(files.get(relative(file.uri))).buffer,
+    ),
     zipFiles: vi.fn(async () => "zip bytes"),
     deleteFiles: vi.fn(async ({ files: gone }: { files: { uri: string }[] }) => {
       for (const f of gone) files.delete(relative(f.uri));
@@ -241,8 +245,8 @@ describe("Scripts through the workspace", () => {
     const { scripts, files } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
     const copies = await Promise.all([scripts.duplicate("Scripts/intro.sd"), scripts.duplicate("Scripts/intro.sd")]);
-    expect(copies).toEqual(["Scripts/intro copy.sd", "Scripts/intro copy 2.sd"]);
-    expect(files.has("Scripts/intro copy 2.sd")).toBe(true);
+    expect(copies).toEqual(["Scripts/intro_copy.sd", "Scripts/intro_copy_2.sd"]);
+    expect(files.has("Scripts/intro_copy_2.sd")).toBe(true);
   });
 
   it("numbers a new script past a folder holding its name, and keeps it beside a folder named without the ending", async () => {
@@ -275,32 +279,51 @@ describe("Scripts through the workspace", () => {
     await expect(scripts.move(["Scripts/Empty"], "Scripts/Empty/Drafts")).rejects.toThrow("inside itself");
   });
 
-  it("duplicates a script as '<name> copy' beside it", async () => {
+  it("duplicates a script as '<name>_copy' beside it, renaming its scenes and offering Undo", async () => {
     const { scripts, files } = fakeWorkspace(PATHS, FOLDERS);
+    files.set("Scripts/intro.sd", "scene intro\n  -> intro.part\nend\n  scene inner\n");
     await scripts.load();
-    expect(await scripts.duplicate("Scripts/intro.sd")).toBe("Scripts/intro copy.sd");
-    expect(files.get("Scripts/intro copy.sd")).toBe("text of Scripts/intro.sd");
-    expect(await scripts.duplicate("Scripts/intro.sd")).toBe("Scripts/intro copy 2.sd");
+    recordCreate.mockClear();
+    expect(await scripts.duplicate("Scripts/intro.sd")).toBe("Scripts/intro_copy.sd");
+    expect(files.get("Scripts/intro_copy.sd")).toBe("scene intro_copy\n  -> intro.part\nend\n  scene inner\n");
+    expect(recordCreate).toHaveBeenCalledWith(PROJECT, [uri("Scripts/intro_copy.sd")], "intro_copy.sd", {
+      folders: [],
+      message: "Script duplicated.",
+    });
+    expect(await scripts.duplicate("Scripts/intro.sd")).toBe("Scripts/intro_copy_2.sd");
+    expect(files.get("Scripts/intro_copy_2.sd")).toBe("scene intro_copy_2\n  -> intro.part\nend\n  scene inner\n");
+    expect(files.get("Scripts/intro.sd")).toBe("scene intro\n  -> intro.part\nend\n  scene inner\n");
   });
 
-  it("duplicates a folder as '<name> copy' with its subfolders and scripts", async () => {
+  it("duplicates a folder as '<name>_copy' with its subfolders and scripts", async () => {
     const { scripts, files, dirs } = fakeWorkspace(
       [...PATHS, "Scripts/Drafts/Old/older.sd"],
       [...FOLDERS, "Scripts/Drafts/Old", "Scripts/Drafts/Empty"],
     );
+    files.set("Scripts/Drafts/old.sd", "scene old\nend\n");
     await scripts.load();
-    expect(await scripts.duplicate("Scripts/Drafts")).toBe("Scripts/Drafts copy");
-    expect(files.get("Scripts/Drafts copy/old.sd")).toBe("text of Scripts/Drafts/old.sd");
-    expect(files.get("Scripts/Drafts copy/Old/older.sd")).toBe("text of Scripts/Drafts/Old/older.sd");
-    expect(dirs.has("Scripts/Drafts copy/Empty")).toBe(true);
-    expect(files.get("Scripts/Drafts/old.sd")).toBe("text of Scripts/Drafts/old.sd");
+    recordCreate.mockClear();
+    expect(await scripts.duplicate("Scripts/Drafts")).toBe("Scripts/Drafts_copy");
+    expect(files.get("Scripts/Drafts_copy/old.sd")).toBe("scene old_copy\nend\n");
+    expect(files.get("Scripts/Drafts_copy/Old/older.sd")).toBe("text of Scripts/Drafts/Old/older.sd");
+    expect(dirs.has("Scripts/Drafts_copy/Empty")).toBe(true);
+    expect(files.get("Scripts/Drafts/old.sd")).toBe("scene old\nend\n");
+    expect(recordCreate).toHaveBeenCalledWith(
+      PROJECT,
+      expect.arrayContaining([uri("Scripts/Drafts_copy/old.sd"), uri("Scripts/Drafts_copy/Old/older.sd")]),
+      "Drafts_copy",
+      {
+        folders: expect.arrayContaining(["Scripts/Drafts_copy", "Scripts/Drafts_copy/Old", "Scripts/Drafts_copy/Empty"]),
+        message: "Folder duplicated.",
+      },
+    );
   });
 
   it("downloads a script as its file and a folder as a zip", async () => {
     const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
     await scripts.download(["Scripts/intro.sd"]);
-    expect(downloadFile).toHaveBeenCalledWith("intro.sd", "text/plain", "text of Scripts/intro.sd");
+    expect(downloadFile).toHaveBeenCalledWith("intro.sd", "text/plain", new TextEncoder().encode("text of Scripts/intro.sd").buffer);
     await scripts.download(["Scripts/Drafts"]);
     expect(fs.zipFiles).toHaveBeenCalledWith({
       files: [{ uri: uri("Scripts/Drafts/old.sd"), path: "old.sd" }],
