@@ -218,8 +218,8 @@ export const copyName = (
 
 export const renameCopiedScenes = (text: string, suffix: string): string =>
   text.replace(
-    /^scene([ \t]+)([A-Za-z_][A-Za-z0-9_]*)/gm,
-    (_, gap: string, name: string) => `scene${gap}${name}${suffix}`,
+    /^([ \t]*)scene([ \t]+)([A-Za-z_][A-Za-z0-9_]*)/gm,
+    (_, indent: string, gap: string, name: string) => `${indent}scene${gap}${name}${suffix}`,
   );
 
 export const ago = (

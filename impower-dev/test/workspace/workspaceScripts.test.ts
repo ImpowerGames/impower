@@ -279,20 +279,21 @@ describe("Scripts through the workspace", () => {
     await expect(scripts.move(["Scripts/Empty"], "Scripts/Empty/Drafts")).rejects.toThrow("inside itself");
   });
 
-  it("duplicates a script as '<name>_copy' beside it, renaming its scenes and offering Undo", async () => {
+  it("duplicates a script as '<name>_copy' beside it, renaming its scenes, indented ones too, and recording it for Undo", async () => {
     const { scripts, files } = fakeWorkspace(PATHS, FOLDERS);
-    files.set("Scripts/intro.sd", "scene intro\n  -> intro.part\nend\n  scene inner\n");
+    const original = "scene intro\n  -> intro.part\nend\n  scene outro\n  end\n";
+    files.set("Scripts/intro.sd", original);
     await scripts.load();
     recordCreate.mockClear();
     expect(await scripts.duplicate("Scripts/intro.sd")).toBe("Scripts/intro_copy.sd");
-    expect(files.get("Scripts/intro_copy.sd")).toBe("scene intro_copy\n  -> intro.part\nend\n  scene inner\n");
+    expect(files.get("Scripts/intro_copy.sd")).toBe("scene intro_copy\n  -> intro.part\nend\n  scene outro_copy\n  end\n");
     expect(recordCreate).toHaveBeenCalledWith(PROJECT, [uri("Scripts/intro_copy.sd")], "intro_copy.sd", {
       folders: [],
       message: "Script duplicated.",
     });
     expect(await scripts.duplicate("Scripts/intro.sd")).toBe("Scripts/intro_copy_2.sd");
-    expect(files.get("Scripts/intro_copy_2.sd")).toBe("scene intro_copy_2\n  -> intro.part\nend\n  scene inner\n");
-    expect(files.get("Scripts/intro.sd")).toBe("scene intro\n  -> intro.part\nend\n  scene inner\n");
+    expect(files.get("Scripts/intro_copy_2.sd")).toBe("scene intro_copy_2\n  -> intro.part\nend\n  scene outro_copy_2\n  end\n");
+    expect(files.get("Scripts/intro.sd")).toBe(original);
   });
 
   it("duplicates a folder as '<name>_copy' with its subfolders and scripts", async () => {
