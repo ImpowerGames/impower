@@ -95,7 +95,7 @@ export function auditScan({ parts, coarse, minTarget }) {
       const isControl = el.matches('input:not([type="hidden"]):not([type="range"]), textarea, select, [role="switch"], [role="checkbox"], [role="radio"]');
       if (!text && !isIcon && !isControl) continue;
       const rect = el.getBoundingClientRect();
-      if (!inViewport(rect) || rect.width <= 2 || rect.height <= 2 || !shown(el)) continue;
+      if (rect.width <= 2 || rect.height <= 2 || !shown(el)) continue;
       const style = getComputedStyle(el);
       const back = backdrop(isIcon ? el.parentElement : el);
       const where = `${region(el)}: ${describe(el)}`;
@@ -139,12 +139,23 @@ export function auditScan({ parts, coarse, minTarget }) {
   if (parts.includes("targets") && coarse) {
     const selector = 'button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="tab"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [role="link"], [role="slider"], [role="treeitem"], [tabindex]:not([tabindex="-1"])';
     const seen = new Set();
+    const scrolled = [...document.querySelectorAll("*")].filter((n) => n.scrollTop || n.scrollLeft).map((n) => [n, n.scrollTop, n.scrollLeft]);
+    const restore = () => {
+      for (const n of document.querySelectorAll("*")) if (n.scrollTop || n.scrollLeft) n.scrollTo(0, 0);
+      for (const [n, top, left] of scrolled) n.scrollTo(left, top);
+    };
     for (const el of document.querySelectorAll(selector)) {
       if (el.closest(".cm-content") || exempt(el)) continue;
       const inner = el.parentElement?.closest(selector);
       if (inner && !el.matches('input, select, textarea')) continue;
-      const rect = el.getBoundingClientRect();
-      if (!inViewport(rect) || !shown(el)) continue;
+      if (!shown(el)) continue;
+      let rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      if (!inViewport(rect) || rect.top < 0 || rect.bottom > innerHeight) {
+        el.scrollIntoView({ block: "center", inline: "nearest" });
+        rect = el.getBoundingClientRect();
+        if (!inViewport(rect)) continue;
+      }
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
       const label = el.closest("label") ?? el.labels?.[0] ?? null;
@@ -170,6 +181,7 @@ export function auditScan({ parts, coarse, minTarget }) {
       seen.add(key);
       out.targets.push({ where: `${region(el)}: ${key}`, name: nameOf(el), box: `${Math.round(rect.width)}x${Math.round(rect.height)}`, hit: `${width}x${height}`, ok: width >= minTarget && height >= minTarget });
     }
+    restore();
   }
 
   if (parts.includes("copy")) {

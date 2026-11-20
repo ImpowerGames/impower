@@ -297,7 +297,7 @@ export function renderMarkdown(report) {
     push("");
   }
   if (report.contrast) {
-    push("### Rendered contrast", "", "Every visible text, icon and form-control boundary on each route and opened surface, measured from computed styles. Text needs 4.5:1 (3:1 at 24px, or 18.66px bold), icons and control boundaries 3:1. Disabled controls and the script's own syntax colours are counted apart.", "");
+    push("### Rendered contrast", "", "Every rendered text, icon and form-control boundary on each route and opened surface, whether or not it is scrolled into view, measured from computed styles. Text needs 4.5:1 (3:1 at 24px, or 18.66px bold), icons and control boundaries 3:1. Disabled controls and the script's own syntax colours are counted apart.", "");
     push("| Theme | Viewport | Checked | Failures | Script-colour failures | Not measured |", "|---|---|---|---|---|---|");
     for (const row of report.contrast.summary) push(`| ${row.theme} | ${row.viewport} | ${row.checked} | ${row.failures} | ${row.scriptFailures} | ${row.unresolved} |`);
     push("");
@@ -325,7 +325,7 @@ export function renderMarkdown(report) {
     const device = report.device;
     const summary = [...report.targets.summary, ...(device?.targets.summary ?? [])];
     const failures = [...report.targets.failures, ...(device?.targets.failures ?? [])];
-    push("### Touch targets", "", `Every visible control under a coarse pointer, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to ${report.targets.min}px each way. ${report.targets.viewports}${device ? `; and the Android emulator at its own width of ${device.width}px (${device.device}), run on ${device.date} at commit \`${device.commit}\` with \`audit --device android\`` : "; the Android emulator was not run"}.`, "");
+    push("### Touch targets", "", `Every rendered control under a coarse pointer, scrolled into view when it is off screen, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to ${report.targets.min}px each way. ${report.targets.viewports}${device ? `; and the Android emulator at its own width of ${device.width}px (${device.device}), run on ${device.date} at commit \`${device.commit}\` with \`audit --device android\`` : "; the Android emulator was not run"}.`, "");
     push("| Viewport | Surface | Controls | Under 44×44 |", "|---|---|---|---|");
     for (const row of summary) push(`| ${row.viewport} | ${cell(row.surface)} | ${row.controls} | ${row.failures} |`);
     push("");
@@ -342,7 +342,7 @@ export function renderMarkdown(report) {
     push("");
   }
   if (report.keyboard) {
-    push("### Keyboard order", "", "Tab from the page start until the order repeats, on the desktop layout in Charcoal. Each stop: role, accessible name, whether the focus edge is visible (a computed style of the control, its pseudo-elements or its two nearest ancestors differs between focused and blurred). Inside the script, Escape then Tab leaves the editor.", "");
+    push("### Keyboard order", "", "Tab from the page start until the order repeats, on the desktop layout in Charcoal. Each stop: role, accessible name, whether the focus edge is visible (a computed style of the control, its pseudo-elements or its two nearest ancestors differs between focused and blurred). Inside the script, Escape then Tab leaves the editor. Enter and Space are not pressed: a stop counts as operable when it is a native control or carries a role, and a focusable element with neither is marked.", "");
     for (const route of report.keyboard.routes) {
       push(`#### ${route.name}`, "", `${route.stops.length} stops${route.cycled ? "" : ", stopped at the limit before the order repeated"}; ${route.invisible} without a visible focus edge; ${route.custom} focusable without a role.`, "");
       push(route.stops.map((s, i) => `${i + 1}. ${s.role}${s.name ? ` “${cell(s.name)}”` : ""}${s.caret ? " — focus shown by the caret" : ""}${s.visible === false ? " — **no visible focus**" : ""}${s.custom ? " — **no role**" : ""}`).join("\n"), "");
