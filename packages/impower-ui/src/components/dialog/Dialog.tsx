@@ -1,4 +1,5 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX, RefObject } from "preact";
 import { useEffect, useRef } from "preact/hooks";
@@ -394,6 +395,41 @@ export function Lightbox({
         <CloseIcon />
       </Button>
     </Modal>
+  );
+}
+
+export type DockedDialogProps = {
+  label: string;
+  onDismiss: () => void;
+  onEscapeKeyDown?: (event: KeyboardEvent) => void;
+  onPointerDownOutside?: (event: Event) => void;
+  class?: string;
+  children?: ComponentChildren;
+} & Omit<JSX.HTMLAttributes<HTMLElement>, "class" | "role" | "aria-label">;
+
+const keepOpen = (event: Event) => event.preventDefault();
+
+export function DockedDialog({
+  label,
+  onDismiss,
+  onEscapeKeyDown,
+  onPointerDownOutside,
+  class: className,
+  children,
+  ...rest
+}: DockedDialogProps) {
+  return (
+    <DismissableLayer
+      asChild
+      onEscapeKeyDown={onEscapeKeyDown}
+      onPointerDownOutside={onPointerDownOutside}
+      onFocusOutside={keepOpen}
+      onDismiss={onDismiss}
+    >
+      <section role="dialog" aria-label={label} class={className} {...rest}>
+        {children}
+      </section>
+    </DismissableLayer>
   );
 }
 

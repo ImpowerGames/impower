@@ -83,7 +83,8 @@ export type ButtonProps = Omit<
   JSX.HTMLAttributes<HTMLButtonElement>,
   "size" | "type"
 > &
-  VariantProps<typeof buttonVariants> & {
+  Omit<VariantProps<typeof buttonVariants>, "variant"> & {
+    variant?: ButtonVariant | "bare" | null;
     asChild?: boolean;
     class?: string;
     name?: string;
@@ -96,7 +97,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant, size, glyph, raised, asChild, class: className, type = "button", children, ...rest },
   ref,
 ) {
-  const classes = cn(buttonVariants({ variant, size, glyph, raised }), className);
+  const classes =
+    variant === "bare"
+      ? className
+      : cn(buttonVariants({ variant, size, glyph, raised }), className);
   if (asChild) {
     return (
       <Slot ref={ref as Ref<HTMLElement>} class={classes} {...rest}>
