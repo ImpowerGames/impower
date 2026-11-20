@@ -72,9 +72,9 @@ export default function MainWindow(_props: MainWindowProps) {
   };
 
   const content = (
-    <div class="relative flex h-full w-full flex-col">
+    <main class="relative flex h-full w-full flex-col">
       <PaneContent pane={pane} settings={settings} />
-    </div>
+    </main>
   );
 
   return (
@@ -110,10 +110,13 @@ export default function MainWindow(_props: MainWindowProps) {
               start={content}
               end={
                 !phone && (
-                  <div class="relative flex h-full w-full flex-col bg-stage">
+                  <aside
+                    aria-label="Preview"
+                    class="relative flex h-full w-full flex-col bg-stage"
+                  >
                     <Preview />
                     <InspectorDock />
-                  </div>
+                  </aside>
                 )
               }
             />
