@@ -516,6 +516,26 @@ describe("the Saves menu", () => {
     expect(document.activeElement).toBe(p.moreOf("saved-1"));
   });
 
+  test("opens another row's menu with one press on its More button while a row menu is open", async () => {
+    const p = player();
+    await p.withSaves([entering(), saved()]);
+    p.openMenu();
+    await p.openRowMenu("last-1");
+    const other = p.moreOf("saved-1");
+    await act(async () => {
+      other.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
+      other.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await settle();
+    });
+    await act(settle);
+    await settle();
+    expect(p.moreOf("saved-1").getAttribute("aria-expanded")).toBe("true");
+    expect(p.moreOf("last-1").getAttribute("aria-expanded")).toBe("false");
+    expect(p.rowMenu()?.getAttribute("aria-label")).toBe("More for interrogation, line 11");
+    expect(p.rowMenu()!.contains(document.activeElement)).toBe(true);
+    expect(p.menu()).not.toBeNull();
+  });
+
   test("leaves a press outside the Saves menu to an open row menu instead of closing the Saves menu", async () => {
     const p = player();
     await p.withSaves([saved()]);

@@ -199,10 +199,12 @@ function SaveRowMenu({
   row,
   events,
   trigger,
+  requested,
 }: {
   row: SaveRow;
   events: SavesEvents;
   trigger: { current: HTMLButtonElement | null };
+  requested: { current: string | undefined };
 }) {
   const chosen = useRef(false);
   const choose = (action: () => void) => () => {
@@ -221,7 +223,8 @@ function SaveRowMenu({
       onKeyDown={moveThroughMenu}
       onCloseAutoFocus={(e) => {
         e.preventDefault();
-        if (!chosen.current && trigger.current?.isConnected) {
+        const another = requested.current !== undefined && requested.current !== row.id;
+        if (!chosen.current && !another && trigger.current?.isConnected) {
           trigger.current.focus();
         }
       }}
@@ -269,10 +272,12 @@ function SaveListRow({
   row,
   state,
   events,
+  requested,
 }: {
   row: SaveRow;
   state: SavesViewState;
   events: SavesEvents;
+  requested: { current: string | undefined };
 }) {
   const renaming = state.renaming === row.id;
   const menuOpen = state.rowMenu === row.id;
@@ -280,9 +285,15 @@ function SaveListRow({
   return (
     <Popover
       open={menuOpen}
-      onOpenChange={(next) =>
-        queueMicrotask(() => events.onRowMenu(next ? row.id : null))
-      }
+      onOpenChange={(next) => {
+        if (next) {
+          requested.current = row.id;
+          queueMicrotask(() => events.onRowMenu(row.id));
+        } else if (requested.current === row.id) {
+          requested.current = undefined;
+          queueMicrotask(() => events.onRowMenu(null));
+        }
+      }}
     >
       <PopoverAnchor asChild>
         <li
@@ -340,7 +351,7 @@ function SaveListRow({
           />
         </li>
       </PopoverAnchor>
-      <SaveRowMenu row={row} events={events} trigger={trigger} />
+      <SaveRowMenu row={row} events={events} trigger={trigger} requested={requested} />
     </Popover>
   );
 }
@@ -495,6 +506,16 @@ function SaveValuesPanel({
   );
 }
 
+const useRequestedRowMenu = (rowMenu: string | undefined) => {
+  const requested = useRef(rowMenu);
+  const shown = useRef(rowMenu);
+  if (shown.current !== rowMenu) {
+    shown.current = rowMenu;
+    requested.current = rowMenu;
+  }
+  return requested;
+};
+
 export function SavesMenu({
   state,
   events,
@@ -503,6 +524,7 @@ export function SavesMenu({
   events: SavesEvents;
 }) {
   useSavesStylesheet();
+  const requested = useRequestedRowMenu(state.rowMenu);
   if (!state.open) {
     return null;
   }
@@ -539,7 +561,13 @@ export function SavesMenu({
             <h3 class="saves-group-head">{group.label}</h3>
             <ul class="saves-rows">
               {group.rows.map((row) => (
-                <SaveListRow key={row.id} row={row} state={state} events={events} />
+                <SaveListRow
+                  key={row.id}
+                  row={row}
+                  state={state}
+                  events={events}
+                  requested={requested}
+                />
               ))}
             </ul>
           </section>
