@@ -20,7 +20,7 @@ import { menuFormFor, type MenuForm } from "../../layout/menuForm";
 import { cn } from "../../utils/cn";
 import "../../utils/uniqueIds";
 import { registerFocusReturn } from "../../utils/focusReturn";
-import { focusAsInput } from "../../utils/inputModality";
+import { focusAsInput, lastInputWasKeyboard } from "../../utils/inputModality";
 import { KEEP_CLEAR_MARGIN, type KeepClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
@@ -350,6 +350,11 @@ type MenuAttributes = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align"
 export type DropdownOpensAt = "chosen" | "top";
 
 const FIRST_ENTRY = '[role^="menuitem"]:not([disabled]):not([data-disabled])';
+const CHOSEN_ENTRY = '[role="menuitemradio"][aria-checked="true"]';
+
+const openingEntry = (content: HTMLElement, opensAt: DropdownOpensAt) =>
+  (opensAt === "chosen" ? content.querySelector<HTMLElement>(CHOSEN_ENTRY) : null) ??
+  content.querySelector<HTMLElement>(FIRST_ENTRY);
 
 function SheetMenu({
   open,
@@ -381,7 +386,7 @@ function SheetMenu({
       get current() {
         return (
           menu.current?.querySelector<HTMLElement>(
-            opensAt === "top" ? FIRST_ENTRY : '[role="menuitemradio"][aria-checked="true"]',
+            opensAt === "top" ? FIRST_ENTRY : CHOSEN_ENTRY,
           ) ?? null
         );
       },
@@ -523,6 +528,7 @@ export function DropdownContent({
             focusAsInput(target);
           }
         }}
+        onEntryFocus={(event: Event) => event.preventDefault()}
         onFocus={(event: FocusEvent) => {
           onFocus?.(event as JSX.TargetedFocusEvent<HTMLDivElement>);
           if (entered.current) {
@@ -530,8 +536,8 @@ export function DropdownContent({
           }
           entered.current = true;
           const content = event.currentTarget as HTMLElement;
-          if (opensAt === "top" && event.target === content) {
-            const entry = content.querySelector<HTMLElement>(FIRST_ENTRY);
+          if (event.target === content && (opensAt === "top" || lastInputWasKeyboard())) {
+            const entry = openingEntry(content, opensAt);
             if (entry) {
               focusAsInput(entry);
             }
