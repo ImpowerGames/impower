@@ -555,6 +555,41 @@ describe("a play that replays several ranges (#2581)", () => {
     ]);
   });
 
+  test("each entry rolls its own chance, so one entry can replay while another does not", () => {
+    const replay = [range(0, 0.4, { chance: 0.25 }), range(0.4, 0.8, { chance: 0.75 })];
+    const { random, calls } = scripted([0.5, 0.5]);
+    const timeline = new MorphTimeline(timing({ duration: 1, replay }), random);
+    expectPositions(timeline, [
+      [0.5, 0.5],
+      [0.79, 0.79],
+      [0.81, 0.41],
+      [0.9, 0.5],
+      [1.39, 0.99],
+    ]);
+    expect(timeline.at(1.4 + 1e-9)).toEqual({ phase: "done", play: 0, offset: 1 });
+    expect(calls).toEqual([0.5, 0.5]);
+  });
+
+  test("entries draw in written order, each its rolls and pauses together, and the path holds each pause at that entry's end", () => {
+    const replay = [
+      range(0, 0.4, { chance: 0.25, delay_min: 0.1, delay_max: 0.3 }),
+      range(0.4, 0.8, { chance: 0.75, count: 2, delay_min: 0.1, delay_max: 0.3 }),
+    ];
+    const { random, calls } = scripted([0.2, 0.5, 0.7, 0, 0.8]);
+    const timeline = new MorphTimeline(timing({ duration: 1, replay }), random);
+    expectPositions(timeline, [
+      [0.39, 0.39],
+      [0.5, 0.4],
+      [0.7, 0.1],
+      [1.39, 0.79],
+      [1.45, 0.8],
+      [1.6, 0.5],
+      [2.09, 0.99],
+    ]);
+    expect(timeline.at(2.1 + 1e-9)).toEqual({ phase: "done", play: 0, offset: 1 });
+    expect(calls).toEqual([0.2, 0.5, 0.7, 0, 0.8]);
+  });
+
   test("a block of one entry plays, and draws, exactly as the same fields written directly", () => {
     const fields = { from: "20%", to: "70%", chance: "50%", count: 3, delay_min: 0.05, delay_max: 0.2 };
     const values = [0.1, 0.4, 0.2, 0.8, 0.3, 0.6, 0.9, 0.2];
