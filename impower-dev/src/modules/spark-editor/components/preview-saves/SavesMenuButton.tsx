@@ -5,11 +5,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@impower/impower-ui/components";
+import { SavesMenu } from "@impower/spark-web-player/src/saves/SavesViews";
 import {
-  SAVE_ROW_MENU_ATTRIBUTE,
-  SavesMenu,
-} from "@impower/spark-web-player/src/saves/SavesViews";
-import { draftKeyOf, savesEscape } from "@impower/spark-web-player/src/saves/savesView";
+  draftKeyOf,
+  rowMenuTakesPress,
+  savesEscape,
+} from "@impower/spark-web-player/src/saves/savesView";
 import { useComputed } from "@preact/signals";
 import saves from "../../workspace/saves/SavesStore";
 import { PlayerViewScope } from "../preview-route";
@@ -44,10 +45,7 @@ export default function SavesMenuButton() {
           frame="none"
           align="end"
           onInteractOutside={(event) => {
-            if (
-              event.target instanceof Element &&
-              event.target.closest(`[${SAVE_ROW_MENU_ATTRIBUTE}]`)
-            ) {
+            if (rowMenuTakesPress(view, event.target)) {
               event.preventDefault();
             }
           }}

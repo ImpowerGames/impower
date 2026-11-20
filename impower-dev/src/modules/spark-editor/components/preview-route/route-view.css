@@ -33,6 +33,7 @@
 :root swp-route-view .saves-menu {
   --control-size: 22px;
   --control-radius: 3px;
+  --list-row-compact-description-font-size: 12px;
 }
 
 :root[data-pointer="coarse"] swp-route-view .saves-menu {

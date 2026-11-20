@@ -92,6 +92,15 @@ export const savesEscape = (
   return "close";
 };
 
+export const SAVE_ROW_MENU_ATTRIBUTE = "data-saves-row-menu";
+
+export const rowMenuTakesPress = (
+  state: SavesViewState,
+  target: EventTarget | null,
+): boolean =>
+  !!state.rowMenu ||
+  (target instanceof Element && !!target.closest(`[${SAVE_ROW_MENU_ATTRIBUTE}]`));
+
 export const draftKeyOf = (target: EventTarget | null): string | null =>
   (target as Element | null)
     ?.closest?.(".saves-value-row")

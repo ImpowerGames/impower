@@ -213,6 +213,21 @@ describe("the top bar's Saves button", () => {
     expect(document.getElementById(SAVES_STYLESHEET_ID)?.tagName).toBe("STYLE");
   });
 
+  it("leaves a press outside both menus to an open row menu and keeps the Saves menu open", async () => {
+    await mount();
+    await show(view({ rowMenu: "s1" }));
+    await settle(40);
+    expect(document.querySelector("[data-saves-row-menu]")).not.toBeNull();
+    const outside = document.body.appendChild(document.createElement("div"));
+    await act(async () => {
+      outside.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
+      outside.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await settle(40);
+    expect(sentActions()).toContainEqual({ kind: "rowMenu", id: null });
+    expect(sentActions()).not.toContainEqual({ kind: "open", open: false });
+  });
+
   it("closes on Escape from the list and goes back from a save's values instead", async () => {
     await mount();
     await show(view());

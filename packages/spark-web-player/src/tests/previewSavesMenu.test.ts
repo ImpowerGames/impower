@@ -486,16 +486,19 @@ describe("the Saves menu", () => {
     expect(document.activeElement).toBe(p.moreOf("saved-1"));
   });
 
-  test("closes the row menu on a press elsewhere in the Saves menu and gives focus back to the More button", async () => {
+  test.each([
+    ["elsewhere in the Saves menu", (p: ReturnType<typeof player>) => p.menu()!.querySelector(".saves-group-head")!],
+    ["outside both menus", () => document.body.appendChild(document.createElement("div"))],
+  ])("closes only the row menu on a press %s and gives focus back to the More button", async (_where, target) => {
     const p = player();
     await p.withSaves([saved()]);
     p.openMenu();
     await p.openRowMenu("saved-1");
     p.rowMenuItems()[0]!.focus();
-    const head = p.menu()!.querySelector(".saves-group-head")!;
+    const pressed = target(p);
     await act(async () => {
-      head.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
-      head.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      pressed.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
+      pressed.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       await settle();
     });
     await act(settle);
@@ -503,6 +506,20 @@ describe("the Saves menu", () => {
     expect(p.rowMenu()).toBeNull();
     expect(p.menu()).not.toBeNull();
     expect(document.activeElement).toBe(p.moreOf("saved-1"));
+  });
+
+  test("leaves a press outside the Saves menu to an open row menu instead of closing the Saves menu", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    p.openMenu();
+    const outside = document.body.appendChild(document.createElement("div"));
+    const press = () => (p.controller as any).handleSavesPointerDown({ target: outside });
+    await p.openRowMenu("saved-1");
+    press();
+    expect(p.menu()).not.toBeNull();
+    (p.controller as any)._saves.events.onRowMenu(null);
+    press();
+    expect(p.menu()).toBeNull();
   });
 
   test("keeps the Saves menu open while a row menu item is pressed", async () => {

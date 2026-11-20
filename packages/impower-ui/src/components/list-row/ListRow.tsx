@@ -194,7 +194,7 @@ export const listRowDescriptionVariants = cva("text-muted", {
     size: {
       default: "text-[11px]/[1.4]",
       library: "text-[11px]/[1.4]",
-      compact: "text-[11px]/[1.4]",
+      compact: "text-[length:var(--list-row-compact-description-font-size)]/[1.4]",
       block: "text-[12px]/[1.5]",
       dense: "text-[11px]/[1.4]",
       file: "text-[11px]/[1.4]",

@@ -19,6 +19,7 @@ import {
   savedName,
   saveValueGroups,
   saveValuesStatus,
+  SAVE_ROW_MENU_ATTRIBUTE,
   type SaveNoteState,
   type SaveRow,
   type SaveValueRow,
@@ -190,8 +191,6 @@ const moveThroughMenu = (e: KeyboardEvent) => {
   e.preventDefault();
   items[step(items.indexOf(document.activeElement as HTMLElement), items.length)]?.focus();
 };
-
-export const SAVE_ROW_MENU_ATTRIBUTE = "data-saves-row-menu";
 
 const rowMenuItemClass =
   "relative control-overlay flex w-full cursor-pointer items-center px-2 py-[5px] text-left focus-inset";
