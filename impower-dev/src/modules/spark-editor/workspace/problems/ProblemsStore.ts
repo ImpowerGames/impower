@@ -156,6 +156,8 @@ export class ProblemsStore {
 
   protected _openHeight = PANEL_OPEN_HEIGHT;
 
+  protected _stripRestore?: { before: number | undefined };
+
   protected _leftForScript = false;
 
   protected readonly _playedSources = new Set<PlayedSource>();
@@ -301,17 +303,26 @@ export class ProblemsStore {
   }
 
   makeRoomInStrip() {
-    const strip =
-      workspace.state.value.shell?.stripHeight ??
-      WorkspaceConstants.PREVIEW_STRIP_HEIGHT.default;
+    const stored = workspace.state.value.shell?.stripHeight;
+    const strip = stored ?? WorkspaceConstants.PREVIEW_STRIP_HEIGHT.default;
     const room =
       workspaceSettings.projectSettings.value.previewPanelHeight +
       STRIP_ABOVE_PANEL;
     if (this.panelOpen.value && strip < room) {
-      void import("../Workspace").then(({ Workspace }) =>
-        Workspace.window.setStripHeight(room),
-      );
+      const restore = {
+        before: this._stripRestore ? this._stripRestore.before : stored,
+      };
+      this._stripRestore = restore;
+      void import("../Workspace").then(({ Workspace }) => {
+        if (this._stripRestore === restore) {
+          Workspace.window.setStripHeight(room);
+        }
+      });
     }
+  }
+
+  keepStripHeight() {
+    this._stripRestore = undefined;
   }
 
   collapsePanel() {
@@ -320,6 +331,13 @@ export class ProblemsStore {
         workspaceSettings.projectSettings.value.previewPanelHeight,
       );
       workspaceSettings.setProjectSetting("previewPanelHeight", PANEL_BAR_HEIGHT);
+    }
+    const restore = this._stripRestore;
+    this._stripRestore = undefined;
+    if (restore) {
+      void import("../Workspace").then(({ Workspace }) =>
+        Workspace.window.setStripHeight(restore.before),
+      );
     }
   }
 

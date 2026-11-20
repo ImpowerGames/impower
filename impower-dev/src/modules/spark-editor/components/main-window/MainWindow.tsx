@@ -10,6 +10,7 @@ import { useScriptFocus } from "../../utils/useScriptFocus";
 import { routeOfState, type Route } from "../../workspace/routes";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
+import problems from "../../workspace/problems/ProblemsStore";
 import { InspectorDock, InspectorDockProvider } from "../asset-inspector";
 import Assets from "../assets";
 import { useFocusRule, WorkspaceShell } from "../desktop-shell";
@@ -67,6 +68,7 @@ export default function MainWindow(_props: MainWindowProps) {
   ).value;
 
   const onStripHeightChange = async (height: number | undefined) => {
+    problems.keepStripHeight();
     const { Workspace } = await import("../../workspace/Workspace");
     Workspace.window.setStripHeight(height);
   };
