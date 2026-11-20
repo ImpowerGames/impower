@@ -720,9 +720,11 @@ const touchEventsPlugin = ViewPlugin.fromClass(
 
       const config = this.view.state.facet(touchInputHandlerConfig);
 
-      if (isScrolling) {
+      if (isScrolling || stoppedMomentum) {
         this.skipKeyboardRequest();
+      }
 
+      if (isScrolling) {
         const now = performance.now();
 
         velocityTracker = velocityTracker.filter(

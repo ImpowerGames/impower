@@ -66,6 +66,29 @@ describe("a touch that scrolls the script", () => {
     expect(keyboardPolicy(v)).toBe("auto");
   });
 
+  it("lets a tap that stops the fling end without asking for the keyboard either", async () => {
+    let clock = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    const v = mount();
+    touch(v, "touchstart", 600);
+    clock = 16;
+    touch(v, "touchmove", 500);
+    clock = 32;
+    touch(v, "touchmove", 300);
+    clock = 40;
+    touch(v, "touchend", 300);
+    await nextTask();
+    expect(keyboardPolicy(v)).toBe("auto");
+
+    clock = 60;
+    touch(v, "touchstart", 300);
+    touch(v, "touchend", 300);
+    expect(keyboardPolicy(v)).toBe("manual");
+
+    await nextTask();
+    expect(keyboardPolicy(v)).toBe("auto");
+  });
+
   it("leaves a tap free to ask for the keyboard", async () => {
     const v = mount();
     touch(v, "touchstart", 300);
