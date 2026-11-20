@@ -100,8 +100,8 @@ const grid = (page: Page) =>
     };
     const tile = box(file);
     const open = file.querySelector<HTMLElement>('button[aria-label^="Open image"]')!;
-    const media = open.firstElementChild!;
-    const copy = media.nextElementSibling!;
+    const copy = open.firstElementChild!;
+    const media = copy.nextElementSibling!;
     const name = copy.firstElementChild!;
     const sub = copy.querySelector("small");
     const dots = file.querySelector<HTMLElement>('button[aria-label^="Options for"]')!;

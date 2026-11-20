@@ -2,6 +2,7 @@ import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, expect, it } from "vitest";
 import { edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
+import { visibleTextInName } from "../../../packages/impower-ui/test/visibleTextInName";
 
 const { default: UsesList } =
   await import("../../src/modules/spark-editor/components/find-references-rename/UsesList");
@@ -29,4 +30,19 @@ it("fades a long script title at its edge instead of cutting it to an ellipsis, 
     { text: title!.textContent, masked: true, ellipsis: false },
     { text: "(1)", masked: false, ellipsis: false },
   ]);
+});
+
+it("names each use in a list of lines with the script, line and text it shows, in that order", async () => {
+  const uri = "file:///p/main.sd";
+  const range = { start: { line: 7, character: 6 }, end: { line: 7, character: 12 } };
+  host = document.body.appendChild(document.createElement("div"));
+  await act(async () =>
+    render(
+      h(UsesList, { layout: "lines", groups: [{ uri, uses: [{ uri, range, lineText: "  show harbor" }] }], onOpen: () => {} }),
+      host!,
+    ),
+  );
+  const use = host.querySelector("button")!;
+  expect(use.getAttribute("aria-label")).toMatch(/^Open main/);
+  expect(visibleTextInName(use)).toMatchObject({ contained: true });
 });

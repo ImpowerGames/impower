@@ -165,7 +165,7 @@ export const tileMarkVariants = cva(
   },
 );
 
-export const tileMediaVariants = cva("relative block w-full flex-none overflow-hidden rounded-[9px]", {
+export const tileMediaVariants = cva("relative order-first block w-full flex-none overflow-hidden rounded-[9px]", {
   variants: { size: bySize("media") },
   defaultVariants: { size: "landscape" },
 });
@@ -266,13 +266,14 @@ export default function Tile({
         onClick={onClick}
         {...rest}
       >
+        <span class="flex min-w-0 flex-col gap-0.5 px-0.5">
+          <span class={tileLabelVariants({ size, kind })}>{label}</span>
+          {description && " "}
+          {description && <small class={tileDescriptionVariants({ size })}>{description}</small>}
+        </span>{" "}
         <span class={tileMediaVariants({ size })}>
           {media}
           {badge && <span class="absolute right-1.5 bottom-1.5 z-10 flex">{badge}</span>}
-        </span>
-        <span class="flex min-w-0 flex-col gap-0.5 px-0.5">
-          <span class={tileLabelVariants({ size, kind })}>{label}</span>
-          {description && <small class={tileDescriptionVariants({ size })}>{description}</small>}
         </span>
       </button>
       {actions && (

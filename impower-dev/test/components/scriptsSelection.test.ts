@@ -1,6 +1,7 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { visibleTextInName } from "../../../packages/impower-ui/test/visibleTextInName";
 
 const scripts = vi.hoisted(() => ({
   watch: vi.fn(() => () => {}),
@@ -114,6 +115,23 @@ afterEach(async () => {
     host.remove();
     host = undefined;
   }
+});
+
+describe("naming the rows on the Scripts page", () => {
+  it("names every script and folder row with the words it shows, in the order it shows them", async () => {
+    await mount();
+    const rows = all<HTMLButtonElement>("button[data-script-path]").map((button) => ({
+      name: button.getAttribute("aria-label"),
+      ...visibleTextInName(button),
+    }));
+    expect(rows.map((row) => row.name)).toEqual([
+      expect.stringMatching(/^Open script Main, /),
+      "Open folder Drafts, 1 script",
+      "Open script intro.sd, Modified Dec 31, 1969 · 10 B",
+      "Open script outro.sd, Modified Dec 31, 1969 · 10 B",
+    ]);
+    expect(rows.filter((row) => !row.contained)).toEqual([]);
+  });
 });
 
 describe("selecting scripts on the Scripts page", () => {
