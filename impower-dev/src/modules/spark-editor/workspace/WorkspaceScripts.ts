@@ -9,7 +9,6 @@ import { recordCreate, recordMove, renameFile } from "../utils/fileUndo";
 import {
   availableName,
   copyName,
-  renameCopiedScenes,
   defaultName,
   NameError,
   UNTITLED_SCRIPT,
@@ -59,7 +58,7 @@ type Deps = {
     | "deleteFiles"
     | "deleteFolder"
   >;
-  ls: Pick<WorkspaceLanguageServer, "getScriptReferences">;
+  ls: Pick<WorkspaceLanguageServer, "getScriptReferences" | "getCopiedScriptTexts">;
   window: Pick<
     WorkspaceWindow,
     | "recordScriptChange"
@@ -359,6 +358,28 @@ export default class WorkspaceScripts {
       kind === "file"
         ? [path]
         : Object.keys(listing.files).filter((p) => isInside(p, path));
+    const read = await Promise.all(
+      sources.map(async (source) => {
+        const uri = fs.getFileUri(projectId, source);
+        return { source, uri, data: await fs.readFile({ file: { uri } }) };
+      }),
+    );
+    const sparkdown = read.filter(
+      ({ source }) => isScriptPath(source) && extensionOf(source).toLowerCase() !== ".luau",
+    );
+    const texts = sparkdown.length
+      ? await this._workspace.ls.getCopiedScriptTexts(
+          sparkdown.map(({ uri, data }) => ({ uri, text: new TextDecoder().decode(data) })),
+          suffix,
+        )
+      : [];
+    const files = read.map(({ source, data }) => {
+      const at = sparkdown.findIndex((script) => script.source === source);
+      return {
+        uri: fs.getFileUri(projectId, to + source.slice(path.length)),
+        data: at < 0 ? data : new TextEncoder().encode(texts[at]).buffer,
+      };
+    });
     let folders: string[] = [];
     if (kind === "folder") {
       const inner = listing.folders
@@ -369,19 +390,6 @@ export default class WorkspaceScripts {
         await fs.createFolder(projectId, created);
       }
     }
-    const files = await Promise.all(
-      sources.map(async (source) => {
-        const data = await fs.readFile({ file: { uri: fs.getFileUri(projectId, source) } });
-        return {
-          uri: fs.getFileUri(projectId, to + source.slice(path.length)),
-          data: isScriptPath(source)
-            ? new TextEncoder().encode(
-                renameCopiedScenes(new TextDecoder().decode(data), suffix),
-              ).buffer
-            : data,
-        };
-      }),
-    );
     if (files.length) {
       await fs.createFiles({ files });
     }
