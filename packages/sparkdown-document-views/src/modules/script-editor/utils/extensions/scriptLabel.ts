@@ -9,9 +9,6 @@ export const scriptLabelText = (uri: string) => {
   } catch {
     decoded = base;
   }
-  if (decoded === "main.sd") {
-    return "Main";
-  }
   const dot = decoded.lastIndexOf(".");
   const name = dot > 0 ? decoded.slice(0, dot) : decoded;
   return name || "Script";
