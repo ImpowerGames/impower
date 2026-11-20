@@ -540,6 +540,40 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.scriptMode.value).toBe("reading");
     });
 
+    it("gives up the script's focus before the script returns to reading", () => {
+      const root = document.body.appendChild(document.createElement("div"));
+      root.className = "sparkdown-script-editor-root";
+      const content = root.appendChild(document.createElement("div"));
+      content.className = "cm-content";
+      content.contentEditable = "true";
+      content.tabIndex = 0;
+      content.focus();
+      workspace.scriptMode.value = "editing";
+      const modeAtBlur: string[] = [];
+      content.addEventListener("focusout", () =>
+        modeAtBlur.push(workspace.scriptMode.peek()),
+      );
+
+      win.finishEditing();
+
+      expect(modeAtBlur).toEqual(["editing"]);
+      expect(document.activeElement).toBe(document.body);
+      expect(workspace.scriptMode.value).toBe("reading");
+      root.remove();
+    });
+
+    it("leaves focus outside the script where it is", () => {
+      const field = document.body.appendChild(document.createElement("input"));
+      field.focus();
+      workspace.scriptMode.value = "editing";
+
+      win.finishEditing();
+
+      expect(document.activeElement).toBe(field);
+      expect(workspace.scriptMode.value).toBe("reading");
+      field.remove();
+    });
+
     it("changes nothing and notifies nothing while reading", () => {
       workspace.scriptMode.value = "reading";
       const before = workspace.current;

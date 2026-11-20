@@ -67,13 +67,14 @@ export function keyboard(): Keyboard {
     measureFullHeight();
   }
   const height = Math.max(0, fullHeight - viewport.height);
-  return height > KEYBOARD_MIN_HEIGHT
+  return height > KEYBOARD_MIN_HEIGHT && takesText(focusedElement())
     ? { open: true, height, visibleHeight: viewport.height }
     : CLOSED;
 }
 
 const release = () => {
   document.body.style.height = "";
+  document.body.style.transform = "";
   document.documentElement.classList.remove(OPEN_CLASS);
 };
 
@@ -84,15 +85,17 @@ const fit = () => {
   }
   measureFullHeight();
   const next = keyboard();
+  if (window.scrollY !== 0 || viewport.offsetTop > 0) {
+    window.scrollTo(0, 0);
+  }
   if (next.open) {
+    const panned = Math.max(0, viewport.offsetTop);
     document.body.style.height = `${viewport.height}px`;
+    document.body.style.transform = panned ? `translateY(${panned}px)` : "";
     document.body.style.setProperty("--keyboard-height", `${next.height}px`);
     document.documentElement.classList.add(OPEN_CLASS);
   } else {
     release();
-  }
-  if (window.scrollY !== 0 || viewport.offsetTop > 0) {
-    window.scrollTo(0, 0);
   }
   if (
     next.open !== last.open ||
@@ -117,6 +120,8 @@ export function fitToKeyboard(
   if (holders === 1) {
     window.visualViewport?.addEventListener("resize", fit);
     window.visualViewport?.addEventListener("scroll", fit);
+    document.addEventListener("focusin", fit);
+    document.addEventListener("focusout", fit);
     fit();
   }
   let held = true;
@@ -132,6 +137,8 @@ export function fitToKeyboard(
     if (holders === 0) {
       window.visualViewport?.removeEventListener("resize", fit);
       window.visualViewport?.removeEventListener("scroll", fit);
+      document.removeEventListener("focusin", fit);
+      document.removeEventListener("focusout", fit);
       last = CLOSED;
       release();
     }
