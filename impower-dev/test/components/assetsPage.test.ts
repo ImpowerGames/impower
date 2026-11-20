@@ -916,7 +916,7 @@ describe("renaming from the row menu", () => {
     expect(host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani"]')!.value).toBe("imani");
   });
 
-  it("shows a refused single-file rename's whole message under the field in its tile", async () => {
+  it("shows a refused single-file rename's whole message above the field in its tile", async () => {
     const message = "That name is already in use in this folder.";
     assets.rename.mockRejectedValueOnce(new Error(message));
     await mount();
@@ -934,8 +934,9 @@ describe("renaming from the row menu", () => {
     expect(assets.rename).toHaveBeenCalledWith("Assets/Images/Portraits/bunny.png", "imani");
     const alert = host!.querySelector<HTMLElement>('[role="alert"]')!;
     expect(alert.textContent).toBe(message);
-    expect(alert.closest("small")!.className).toContain("whitespace-normal");
-    expect(alert.closest("small")!.className).not.toContain("fade-edge");
+    expect(alert.closest("[data-tile]")).not.toBeNull();
+    expect(alert.parentElement!.className).toContain("overflow-auto");
+    expect(alert.parentElement!.className).not.toContain("fade-edge");
   });
 });
 

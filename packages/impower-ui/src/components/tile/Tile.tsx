@@ -24,6 +24,7 @@ type TileSizeSpec = {
     description: string;
     mark: string;
     actions: string;
+    notice: string;
   };
 };
 
@@ -50,6 +51,7 @@ export const TILE_SIZES = {
       description: "",
       mark: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
       actions: "top-2.5 right-2.5",
+      notice: "px-2 py-1.5 text-[11px]/[1.35]",
     },
   },
   landscape: {
@@ -69,6 +71,7 @@ export const TILE_SIZES = {
       description: "",
       mark: "top-3.5 left-3.5 [&>span]:size-[22px] [:root[data-pointer=coarse]_&]:after:-inset-[11px]",
       actions: "top-2.5 right-2.5",
+      notice: "px-2 py-1.5 text-[11px]/[1.35]",
     },
   },
   small: {
@@ -88,6 +91,7 @@ export const TILE_SIZES = {
       description: "hidden",
       mark: "top-[9px] left-[9px] [&>span]:size-[18px] [:root[data-pointer=coarse]_&]:after:-inset-[13px]",
       actions: "top-1.5 right-1.5",
+      notice: "-mx-1 -mt-1 px-1.5 py-0.5 text-[10px]/[1.3]",
     },
   },
 } as const satisfies Record<string, TileSizeSpec>;
@@ -186,6 +190,11 @@ export const tileDescriptionVariants = cva("min-w-0 text-[11px]/[1.4] text-muted
   defaultVariants: { size: "landscape" },
 });
 
+export const tileNoticeVariants = cva("min-h-0 overflow-auto rounded-[9px] bg-bg/92", {
+  variants: { size: bySize("notice") },
+  defaultVariants: { size: "landscape" },
+});
+
 export const tileActionsVariants = cva(
   "absolute z-10 flex rounded-full bg-bg/78 text-ink motion-safe:transition-opacity [&>button]:size-11 [&>button]:rounded-full",
   {
@@ -210,6 +219,8 @@ export type TileProps = VariantProps<typeof tileVariants> &
     label: ComponentChildren;
     description?: ComponentChildren;
     actions?: ComponentChildren;
+    editor?: ComponentChildren;
+    notice?: ComponentChildren;
     current?: boolean;
     selection?: TileSelection;
     selected?: boolean;
@@ -226,6 +237,8 @@ export default function Tile({
   label,
   description,
   actions,
+  editor,
+  notice,
   current = false,
   selection = "none",
   selected = false,
@@ -238,13 +251,26 @@ export default function Tile({
   onClick,
   ...rest
 }: TileProps) {
+  const copy = (
+    <span class={cn("flex min-w-0 flex-col gap-0.5 px-0.5", editor && "invisible")}>
+      <span class={tileLabelVariants({ size, kind })}>{label}</span>
+      {description && " "}
+      {description && <small class={tileDescriptionVariants({ size })}>{description}</small>}
+    </span>
+  );
+  const picture = (
+    <span class={tileMediaVariants({ size })}>
+      {media}
+      {badge && <span class="absolute right-1.5 bottom-1.5 z-10 flex">{badge}</span>}
+    </span>
+  );
   return (
     <div
       class={cn(tileVariants({ size }), className)}
       data-tile={size}
       data-drop-target={dropTarget || undefined}
     >
-      {selection !== "none" && (
+      {selection !== "none" && !editor && (
         <label class={tileMarkVariants({ size, selection })}>
           <input
             type="checkbox"
@@ -258,25 +284,30 @@ export default function Tile({
           </span>
         </label>
       )}
-      <button
-        type="button"
-        class={cn(tileOpenVariants({ size, current, selection, selected, dropTarget }))}
-        aria-current={current ? "true" : undefined}
-        aria-pressed={selection === "active" ? selected : undefined}
-        onClick={onClick}
-        {...rest}
-      >
-        <span class="flex min-w-0 flex-col gap-0.5 px-0.5">
-          <span class={tileLabelVariants({ size, kind })}>{label}</span>
-          {description && " "}
-          {description && <small class={tileDescriptionVariants({ size })}>{description}</small>}
-        </span>{" "}
-        <span class={tileMediaVariants({ size })}>
-          {media}
-          {badge && <span class="absolute right-1.5 bottom-1.5 z-10 flex">{badge}</span>}
-        </span>
-      </button>
-      {actions && (
+      {editor ? (
+        <div class={cn(tileOpenVariants({ size, current }), "relative cursor-auto hover:border-edge")}>
+          {copy}
+          {picture}
+          <span class="absolute inset-0 z-10 flex min-w-0 flex-col justify-end gap-1 p-[inherit]">
+            {notice && (
+              <span class={tileNoticeVariants({ size })}>{notice}</span>
+            )}
+            <span class="flex min-w-0 flex-col px-0.5">{editor}</span>
+          </span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          class={cn(tileOpenVariants({ size, current, selection, selected, dropTarget }))}
+          aria-current={current ? "true" : undefined}
+          aria-pressed={selection === "active" ? selected : undefined}
+          onClick={onClick}
+          {...rest}
+        >
+          {copy} {picture}
+        </button>
+      )}
+      {actions && !editor && (
         <span class={tileActionsVariants({ size, current })}>
           {actions}
         </span>

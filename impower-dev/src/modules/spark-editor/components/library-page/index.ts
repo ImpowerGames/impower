@@ -6,7 +6,7 @@ export { DROP_FOLDER, useLibraryDrag, type LibraryMoveCheck } from "./useLibrary
 export { useSelectionKeys } from "./useSelectionKeys";
 export { default as LibraryPage, libraryRowHeight, type LibraryList } from "./LibraryPage";
 export { default as LibraryToolbar } from "./LibraryToolbar";
-export { default as NameRow } from "./NameRow";
+export { default as NameRow, useNameField, type NameFieldOptions } from "./NameRow";
 export { useRowFocusReturn } from "./useRowFocusReturn";
 export { LEGACY_TILES, useFolderLayout, useSavedScroll, useTabQuery, type FolderLayout } from "./pageState";
 export { default as SearchBox } from "./SearchBox";
