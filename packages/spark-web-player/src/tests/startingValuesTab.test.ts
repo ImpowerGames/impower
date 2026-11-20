@@ -387,6 +387,36 @@ describe("the Starting values tab", () => {
     expect(document.activeElement).toBe(badge);
   });
 
+  test("hovering a badge while a value is being typed leaves the typing where it is", async () => {
+    const p = await onValuesTab();
+    const field = p.input("store:trust");
+    field.focus();
+    field.value = "3";
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    const sentBefore = p.changes().length;
+    const badge = p.badge("param:hour")!;
+    const pointer = (type: string) => {
+      const event = new Event(type);
+      Object.defineProperty(event, "pointerType", { value: "mouse" });
+      return event;
+    };
+    const popup = () =>
+      document.querySelector<HTMLElement>('[role="dialog"].sv-popup');
+    await act(async () => {
+      badge.dispatchEvent(pointer("pointerenter"));
+    });
+    expect(popup()).not.toBeNull();
+    expect(document.activeElement).toBe(p.input("store:trust"));
+    await act(async () => {
+      badge.dispatchEvent(pointer("pointerleave"));
+    });
+    await settle();
+    expect(popup()).toBeNull();
+    expect(document.activeElement).toBe(p.input("store:trust"));
+    expect(p.input("store:trust").value).toBe("3");
+    expect(p.changes().length).toBe(sentBefore);
+  });
+
   test("a value set goes to the host, and is set once the host sends it back", async () => {
     const p = await onValuesTab();
     p.type("param:hour", '"nine"');

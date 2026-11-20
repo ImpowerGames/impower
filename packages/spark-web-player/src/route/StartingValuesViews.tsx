@@ -160,6 +160,7 @@ function StatusBadge({ badge }: { badge: NonNullable<ValueRow["badge"]> }) {
         aria-label={message}
         class="sv-popup w-max max-w-[min(var(--popover-width),calc(100vw-24px))] flex-row items-start gap-1.5 px-2 py-1.5 text-[12px]/[1.4] [&>svg]:size-3.5 [&>svg]:flex-none"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <RouteIconSvg icon={status} />
         <span>{message}</span>
