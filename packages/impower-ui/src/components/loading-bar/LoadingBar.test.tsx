@@ -66,6 +66,7 @@ beforeEach(() => {
     })),
   );
   Element.prototype.animate = function (
+    this: Element,
     keyframes: Keyframe[],
     options: KeyframeAnimationOptions,
   ) {
