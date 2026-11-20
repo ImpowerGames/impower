@@ -4300,7 +4300,7 @@ switch (cmd) {
       device: DEVICE,
       withEditor,
       readState,
-      headCommit: () => execFileSync("git", ["rev-parse", "--short=10", "HEAD"], { cwd: REPO_ROOT, encoding: "utf8" }).trim(),
+      headCommit: () => execFileSync("git", ["rev-parse", "--short=10", "HEAD"], { cwd: REPO_ROOT, encoding: "utf8", windowsHide: true }).trim(),
       launchEditorBrowser,
       grantDurableStorage,
       openEditorPage,
