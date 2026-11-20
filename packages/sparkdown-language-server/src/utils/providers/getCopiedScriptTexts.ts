@@ -28,8 +28,6 @@ const DECLARED_NAME: ReadonlySet<DeclarationType> = new Set([
   "define",
 ]);
 
-const MAX_NAMINGS = 50;
-
 type Scripts = Pick<SparkdownLanguageServerWorkspace, "document" | "annotations" | "tree">;
 
 type Site = { uri: string; from: number; to: number; name: string; raw: string };
@@ -172,8 +170,11 @@ export const getCopiedScriptTexts = (
   };
 
   const blocked = new Set(taken);
-  let rendered: ReturnType<typeof render> = [];
-  for (let naming = 0; naming < MAX_NAMINGS; naming += 1) {
+  const namings = files.reduce((sum, { text }) => sum + text.length, 1);
+  for (let naming = 0; ; naming += 1) {
+    if (naming > namings) {
+      throw new Error("Every name tried for the copy's declarations is used by a local in the copy.");
+    }
     const used = new Set(blocked);
     const renamed = new Map<string, string>();
     for (const { name } of declared) {
@@ -186,14 +187,13 @@ export const getCopiedScriptTexts = (
         renamed.set(name, candidate);
       }
     }
-    rendered = render(renamed);
+    const rendered = render(renamed);
     const capturing = captured(rendered);
     if (capturing.size === 0) {
-      break;
+      return rendered.map(({ text }) => text);
     }
     for (const name of capturing) {
       blocked.add(renamed.get(name)!);
     }
   }
-  return rendered.map(({ text }) => text);
 };

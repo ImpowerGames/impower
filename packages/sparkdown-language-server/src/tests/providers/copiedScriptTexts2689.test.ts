@@ -284,6 +284,32 @@ describe("duplicating a script renames the declarations the copy would repeat", 
     );
   });
 
+  test("however many numbered names locals already use, the renamed global takes the first one no local captures", () => {
+    const locals = ["score_copy", ...Array.from({ length: 50 }, (_, i) => `score_copy_${i + 2}`)];
+    const body = (global: string) => [
+      "function tally()",
+      ...locals.map((local, i) => `  local ${local} = ${i + 10}`),
+      `  return ${[global, ...locals].join(" + ")}`,
+      "end",
+    ];
+    const { before, after, copy } = copyOne(
+      lines("store score = 0", "", ...body("score"), "", "scene chapter_1", "  Hi {tally()}.", "end"),
+    );
+    expect(before).toEqual([]);
+    expect(after).toEqual([]);
+    expect(copy).toBe(
+      lines(
+        "store score_copy_52 = 0",
+        "",
+        ...body("score_copy_52").map((line) => line.replace("function tally()", "function tally_copy()")),
+        "",
+        "scene chapter_1_copy",
+        "  Hi {tally_copy()}.",
+        "end",
+      ),
+    );
+  });
+
   test("a local that reuses a top-level name keeps its name, and so do the uses it shadows", () => {
     const { after, copy } = copyOne(
       lines(
