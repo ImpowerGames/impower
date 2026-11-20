@@ -384,6 +384,13 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     expect(Math.abs(touch - 0.25)).toBeLessThan(1e-6);
     const cube = "cubic-bezier(0.3333333333333333, 0, 0.6666666666666666, 0)";
     expect(parseMorphEasing(cube)!(firstMorphEasingReach(cube, 0.125))).toBeGreaterThanOrEqual(0.125);
+    expect(Math.abs(firstMorphEasingReach(touching, 0.1000000000000005) - 0.25)).toBeLessThan(1e-6);
+    expect(firstMorphEasingReach(touching, 0.100000000000005)).toBeGreaterThan(0.4);
+    const steep = "cubic-bezier(0.3333333333333333, 1, 0.6666666666666666, -100000000000000)";
+    expect(firstMorphEasingReach(steep, 0.8)).toBeGreaterThan(0.99);
+    expect(morphReplayStretch(steep, 0.2, 0.8)).toBeDefined();
+    const steeply = new MorphTimeline(timing({ duration: 1, easing: steep, replay: replay({ end: 0.8, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
+    expect(steeply.at(0.05)).toEqual({ phase: "playing", play: 0, offset: 0 });
     const peaked = new MorphTimeline(timing({ duration: 1, easing: touching, replay: replay({ end: 0.1, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
     expect(peaked.at(0.3)).toEqual({ phase: "playing", play: 0, offset: 0.1 });
     const edge = "linear(0.2 0%, 0.3 25%, 0 25%, 1 100%)";
@@ -395,9 +402,20 @@ describe("a play that replays part of its keyframes (#2580)", () => {
       const match = /^cubic-bezier\((.*)\)$/.exec(easing);
       return match ? (match[1]!.split(",").map(Number) as [number, number, number, number]) : undefined;
     };
+    const bernstein = (a: number, b: number, t: number) => 3 * (1 - t) * (1 - t) * t * a + 3 * (1 - t) * t * t * b + t * t * t;
+    const bernsteinSlope = (a: number, b: number, t: number) => 3 * ((1 - t) * (1 - t) * a + 2 * (1 - t) * t * (b - a) + t * t * (1 - b));
+    const parameterAt = ([x1, , x2]: [number, number, number, number], x: number) => {
+      let lo = 0;
+      let hi = 1;
+      for (let n = 0; n < 200; n++) {
+        const mid = (lo + hi) / 2;
+        if (bernstein(x1, x2, mid) < x) lo = mid;
+        else hi = mid;
+      }
+      return hi;
+    };
     const oracle = ([x1, y1, x2, y2]: [number, number, number, number], position: number) => {
-      const bernstein = (a: number, b: number, t: number) => 3 * (1 - t) * (1 - t) * t * a + 3 * (1 - t) * t * t * b + t * t * t;
-      const slope = (t: number) => 3 * ((1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * (y2 - y1) + t * t * (1 - y2));
+      const slope = (t: number) => bernsteinSlope(y1, y2, t);
       const grid = Array.from({ length: 20001 }, (_, i) => i / 20000);
       const extrema: number[] = [];
       for (let i = 1; i < grid.length; i++) {
@@ -413,10 +431,8 @@ describe("a play that replays part of its keyframes (#2580)", () => {
       }
       const points = [...grid, ...extrema].sort((a, b) => a - b);
       const reaches = (t: number) => bernstein(y1, y2, t) >= position;
-      const touches = new Set(extrema.filter((t) => bernstein(y1, y2, t) >= position - 1e-14));
-      const k = points.findIndex((t) => reaches(t) || touches.has(t));
+      const k = points.findIndex(reaches);
       if (k <= 0) return k === 0 ? 0 : 1;
-      if (!reaches(points[k]!)) return bernstein(x1, x2, points[k]!);
       let lo = points[k - 1]!;
       let hi = points[k]!;
       for (let n = 0; n < 80; n++) {
@@ -445,7 +461,13 @@ describe("a play that replays part of its keyframes (#2580)", () => {
         expect(x, label).toBeLessThanOrEqual(scanned + solverTolerance);
         const curve = controls(easing);
         if (curve) {
-          expect(Math.abs(x - oracle(curve, position)), label).toBeLessThan(2e-7);
+          const expected = oracle(curve, position);
+          if (Math.abs(x - expected) >= 2e-7) {
+            const t = parameterAt(curve, x);
+            expect(x, `${label}: only a touching peak may come before the exact crossing`).toBeLessThan(expected);
+            expect(Math.abs(bernsteinSlope(curve[1], curve[3], t)), label).toBeLessThan(1e-6);
+            expect(Math.abs(bernstein(curve[1], curve[3], t) - position), label).toBeLessThan(4e-15);
+          }
         } else {
           expect(clamped(x), label).toBeGreaterThanOrEqual(position);
           expect(scanned - x, label).toBeLessThan(1 / samples);

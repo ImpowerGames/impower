@@ -182,6 +182,14 @@ describe("the replay block's checks (#2580)", () => {
     ]);
   });
 
+  test("a curve whose early peak falls far short of `end` is not taken to reach it, so no zero-time warning", () => {
+    const text = withReplay("  replay {\n    start = 20%\n    end = 80%\n    chance = 50%\n  }\n").replace(
+      "easing = linear",
+      "easing = cubic-bezier(0.3333333333333333, 1, 0.6666666666666666, -100000000000000)",
+    );
+    expect(reported(text)).toEqual([]);
+  });
+
   test("a stretch that takes no time under the easing is a warning on the block", () => {
     const text = withReplay("  replay {\n    start = 40%\n    end = 60%\n    chance = 50%\n  }\n").replace("easing = linear", "easing = steps(3)");
     expect(reported(text)).toEqual([

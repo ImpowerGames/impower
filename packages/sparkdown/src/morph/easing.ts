@@ -84,12 +84,14 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number): Curve {
     const q = -0.5 * (qb + (qb < 0 ? -1 : 1) * Math.sqrt(d));
     return q === 0 ? [0] : [q / qa, qc / q];
   })();
-  const evaluationError = 8 * Number.EPSILON * (Math.abs(ay) + Math.abs(by) + Math.abs(cy) + 1);
+  const [ma, mb, mc] = [1 + 9 * Math.abs(y1) + 3 * Math.abs(y2), 6 * Math.abs(y1) + 3 * Math.abs(y2), 3 * Math.abs(y1)];
+  const evaluationError = (t: number) => 16 * Number.EPSILON * ((ma * t + mb) * t + mc) * t;
+  const peaks = roots.filter((t) => t > 0 && t < 1 && 6 * ay * t + 2 * by <= 0).sort((a, b) => a - b);
   return {
     ease: (x) => (x <= 0 ? 0 : x >= 1 ? 1 : sampleY(solve(x))),
     reach: (position) => {
       const crossing = firstAtOrPast((t) => sampleY(t) >= position, roots);
-      const touch = roots.filter((t) => t > 0 && t < crossing && sampleY(t) >= position - evaluationError).sort((a, b) => a - b)[0];
+      const touch = peaks.find((t) => t < crossing && sampleY(t) >= position - evaluationError(t));
       return sampleX(touch ?? crossing);
     },
   };
