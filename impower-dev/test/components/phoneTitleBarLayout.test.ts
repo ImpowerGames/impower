@@ -30,6 +30,8 @@ const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { stateForRoute } =
   await import("../../src/modules/spark-editor/workspace/routes");
+const { default: problems } =
+  await import("../../src/modules/spark-editor/workspace/problems/ProblemsStore");
 
 const UI_PACKAGE = resolve(process.cwd(), "../packages/impower-ui");
 
@@ -109,6 +111,7 @@ const measureEdges = async (markup: string, width: number) => {
       const group = last.matches("button") ? null : last;
       const logo = bar.querySelector('[aria-label="Spark Engine"] svg');
       return {
+        height: bar.getBoundingClientRect().height,
         inset: `${style.paddingLeft} ${style.paddingRight}`,
         gap: style.columnGap,
         groupGap: group ? getComputedStyle(group).columnGap : null,
@@ -245,10 +248,11 @@ describe(
       [430, "naming", "Keep the name"],
       [360, "naming", "Keep the name"],
     ] as const)(
-      "at %ipx while %s, the bar keeps the one 10px inset with 7px gaps",
+      "at %ipx while %s, the bar keeps its 90px height and the one 10px inset with 7px gaps",
       async (width, barState, lastLabel) => {
         const bar = await measureEdges(await markupIn(barState), width);
         expect(bar.labels.at(-1)).toBe(lastLabel);
+        expect(bar.height).toBe(90);
         expect(bar.inset).toBe("10px 10px");
         expect(bar.gap).toBe("7px");
         expect(bar.firstLeft).toBe(10);
@@ -289,3 +293,147 @@ describe(
     );
   },
 );
+
+const withProblems = async <T>(run: () => Promise<T>) => {
+  const at = { start: { line: 1, character: 0 }, end: { line: 1, character: 4 } };
+  await act(async () => {
+    problems.diagnostics.value = {
+      "file:///local/main.sd": [
+        { range: at, severity: 1, message: "Cannot find character" },
+        { range: at, severity: 2, message: "This sound is not in Assets yet" },
+      ],
+    } as typeof problems.diagnostics.value;
+  });
+  try {
+    return await run();
+  } finally {
+    await act(async () => {
+      problems.diagnostics.value = {};
+    });
+  }
+};
+
+const TARGETS = {
+  name: 'input[aria-label="Project name"]',
+  status: '[role="status"] button',
+  problems: 'button[data-tone="error"]',
+} as const;
+
+const probeTargets = async (markup: string, width: number) => {
+  const css = await stylesFor(markup);
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({
+      viewport: { width, height: 780 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    await page.setContent(
+      `<!doctype html><html data-theme="charcoal" data-layout="phone"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head><body style="margin:0">${markup}<main style="height:600px"><button style="width:100%;height:100%">Content</button></main></body></html>`,
+    );
+    const hit = await page.evaluate((targets) => {
+      const selector =
+        'button, a[href], input:not([type="hidden"]), [role="button"], [tabindex]:not([tabindex="-1"])';
+      const reachOf = (el: Element) => {
+        const rect = el.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const label = el.closest("label");
+        const hits = (x: number, y: number) => {
+          if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) return false;
+          const at = document.elementFromPoint(x, y);
+          if (!at) return false;
+          if (at === el || el.contains(at)) return true;
+          if (!label || !(at === label || label.contains(at))) return false;
+          const control = at.closest(selector);
+          return !control || control === el || !label.contains(control);
+        };
+        const reach = (dx: number, dy: number) => {
+          let n = 0;
+          while (n < 44 && hits(cx + dx * (n + 1), cy + dy * (n + 1))) n++;
+          return n;
+        };
+        return {
+          width: Math.min(reach(-1, 0) + reach(1, 0) + 1, 44),
+          height: Math.min(reach(0, -1) + reach(0, 1) + 1, 44),
+        };
+      };
+      return Object.fromEntries(
+        Object.entries(targets).map(([key, query]) => [
+          key,
+          reachOf(document.querySelector(query)!),
+        ]),
+      );
+    }, TARGETS);
+    const cdp = await page.context().newCDPSession(page);
+    const { root } = await cdp.send("DOM.getDocument");
+    const named = async (query: string) => {
+      const { nodeId } = await cdp.send("DOM.querySelector", {
+        nodeId: root.nodeId,
+        selector: query,
+      });
+      const { nodes } = await cdp.send("Accessibility.getPartialAXTree", {
+        nodeId,
+        fetchRelatives: false,
+      });
+      const node = nodes[0]!;
+      const text = await page.locator(query).evaluate((el) => ({
+        text: el.textContent!.trim(),
+        title: el.getAttribute("title"),
+      }));
+      return {
+        name: node.name?.value,
+        description: node.description?.value,
+        ...text,
+      };
+    };
+    return {
+      hit,
+      status: await named(TARGETS.status),
+      problems: await named(TARGETS.problems),
+    };
+  } finally {
+    await browser.close();
+  }
+};
+
+describe("the phone title bar's text controls", () => {
+  it.each([
+    [430, "assets"],
+    [360, "assets"],
+    [430, "story"],
+    [360, "story"],
+  ] as const)(
+    "at %ipx on %s, the name, the save status and the problem count each take a tap anywhere in a 44px band",
+    async (width, route) => {
+      const bar = await withProblems(async () =>
+        probeTargets(await markupOn(route), width),
+      );
+      expect(bar.hit).toEqual({
+        name: { width: 44, height: 44 },
+        status: { width: 44, height: 44 },
+        problems: { width: 44, height: 44 },
+      });
+    },
+    60000,
+  );
+
+  it("names the save status and the problem count by the words they show, with each title as the description", async () => {
+    const bar = await withProblems(async () =>
+      probeTargets(await markupOn("story"), 360),
+    );
+    expect(bar.status.text).not.toBe("");
+    expect(bar.status).toEqual({
+      name: bar.status.text,
+      description: bar.status.title,
+      text: bar.status.text,
+      title: bar.status.title,
+    });
+    expect(bar.problems).toEqual({
+      name: "2 problems",
+      description: "Show problems",
+      text: "2 problems",
+      title: "Show problems",
+    });
+  }, 60000);
+});

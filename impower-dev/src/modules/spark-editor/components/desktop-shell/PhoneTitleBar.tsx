@@ -52,8 +52,10 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
             <SparkLogo layout="mark" size="md" class="[&_svg]:w-6" />
           </span>
           <div class="flex min-w-0 flex-1 flex-col items-start">
-            <ProjectNameField />
-            <div class="w-full min-w-0">
+            <div class="flex h-[45px] w-full items-end">
+              <ProjectNameField />
+            </div>
+            <div class="h-11 w-full min-w-0">
               <div class="z-[2] flex items-center fade-edge-over">
                 <SyncStatusLine />
                 <StoryProblemCount />
