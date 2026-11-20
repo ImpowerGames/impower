@@ -8,6 +8,12 @@ import {
   snackbar,
 } from "../../src/modules/spark-editor/utils/snackbar";
 
+(globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 let host: HTMLDivElement | undefined;
 
 afterEach(async () => {
@@ -33,12 +39,22 @@ const button = (label: string) =>
   );
 
 describe("SnackbarHost", () => {
-  it("draws the current snackbar as a toast under the title bar", async () => {
+  it("draws the current snackbar as a toast over the workspace pane's columns", async () => {
+    const pane = document.body.appendChild(document.createElement("div"));
+    pane.setAttribute("data-toast-pane", "");
+    pane.getBoundingClientRect = () => new DOMRect(232, 76, 636, 824);
     await mount();
     await act(async () => showSnackbar({ message: "Moved to the recycle bin", actionLabel: "Undo" }));
     const toast = document.querySelector<HTMLElement>("[data-toast]");
     expect(toast?.textContent).toContain("Moved to the recycle bin");
-    expect(toast?.parentElement?.className).toContain("top-[var(--toast-top)]");
+    expect(toast?.parentElement?.className).toContain("left-[var(--toast-left,0px)]");
+    const root = document.documentElement.style;
+    expect(root.getPropertyValue("--toast-left")).toBe("232px");
+    expect(root.getPropertyValue("--toast-width")).toBe("636px");
+    await act(async () => render(null, host!));
+    expect(root.getPropertyValue("--toast-left")).toBe("");
+    expect(root.getPropertyValue("--toast-width")).toBe("");
+    pane.remove();
   });
 
   it("runs the action once and dismisses a passing toast", async () => {
