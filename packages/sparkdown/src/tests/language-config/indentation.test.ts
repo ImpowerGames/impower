@@ -470,4 +470,10 @@ describe("sparkdown.language-config.json decreaseIndentPattern and a replay bloc
       }
     }
   });
+
+  it("dedents a line starting with `end`, whatever follows it", () => {
+    for (const line of ["  end", "    end = 66.667%", "    end=1", "  end == x"]) {
+      expect(decrease.test(line), line).toBe(true);
+    }
+  });
 });
