@@ -204,6 +204,11 @@ function SaveRowMenu({
   events: SavesEvents;
   trigger: { current: HTMLButtonElement | null };
 }) {
+  const chosen = useRef(false);
+  const choose = (action: () => void) => () => {
+    chosen.current = true;
+    action();
+  };
   return (
     <PopoverContent
       role="menu"
@@ -216,11 +221,7 @@ function SaveRowMenu({
       onKeyDown={moveThroughMenu}
       onCloseAutoFocus={(e) => {
         e.preventDefault();
-        const focused = document.activeElement;
-        if (
-          trigger.current?.isConnected &&
-          (!focused || focused.contains(trigger.current))
-        ) {
+        if (!chosen.current && trigger.current?.isConnected) {
           trigger.current.focus();
         }
       }}
@@ -229,7 +230,7 @@ function SaveRowMenu({
         type="button"
         role="menuitem"
         class={rowMenuItemClass}
-        onClick={() => events.onEditValues(row.id)}
+        onClick={choose(() => events.onEditValues(row.id))}
       >
         {SAVE_TEXT.editValues}
       </button>
@@ -237,7 +238,7 @@ function SaveRowMenu({
         type="button"
         role="menuitem"
         class={rowMenuItemClass}
-        onClick={() => events.onRenaming(row.id)}
+        onClick={choose(() => events.onRenaming(row.id))}
       >
         {SAVE_TEXT.rename}
       </button>
@@ -245,7 +246,7 @@ function SaveRowMenu({
         type="button"
         role="menuitem"
         class={rowMenuItemClass}
-        onClick={() => events.onDelete(row.id)}
+        onClick={choose(() => events.onDelete(row.id))}
       >
         {SAVE_TEXT.delete}
       </button>

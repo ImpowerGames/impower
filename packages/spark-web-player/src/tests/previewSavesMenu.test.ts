@@ -489,6 +489,14 @@ describe("the Saves menu", () => {
   test.each([
     ["elsewhere in the Saves menu", (p: ReturnType<typeof player>) => p.menu()!.querySelector(".saves-group-head")!],
     ["outside both menus", () => document.body.appendChild(document.createElement("div"))],
+    [
+      "on a text field outside both menus",
+      () => {
+        const field = document.body.appendChild(document.createElement("input"));
+        field.addEventListener("pointerdown", () => field.focus());
+        return field;
+      },
+    ],
   ])("closes only the row menu on a press %s and gives focus back to the More button", async (_where, target) => {
     const p = player();
     await p.withSaves([saved()]);
