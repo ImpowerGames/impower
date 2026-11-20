@@ -161,6 +161,12 @@ describe("the Script editor section", () => {
     expect((workspaceSettings.configuration.value as { editor?: { autoRenameFiles?: boolean } }).editor?.autoRenameFiles).toBe(false);
   });
 
+  it("shows the read-only sample at full height, with no scroll box of its own to catch a drag or wheel", async () => {
+    await mountEditor();
+    const sample = host!.querySelector<HTMLElement>("[data-script-sample]")!;
+    expect(sample.className.split(/\s+/).filter((name) => /(^|:)(max-h-|overflow-)/.test(name))).toEqual([]);
+  });
+
   it("writes the indentation guides choice", async () => {
     await mountEditor();
     await choose(host!.querySelector<HTMLSelectElement>("#script-indentGuides-control")!, "all");
